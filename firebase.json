@@ -1,0 +1,5 @@
+{
+    "hosting": {
+      "public": "dist/firebase-ai-angular/browser"
+    }
+}

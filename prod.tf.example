@@ -1,0 +1,95 @@
+###
+# For deploying the app to production, Firebase recommends using Vertex AI with App Check protection
+# Note that Vertex AI in Firebase is only available on the Blaze plan.
+# Use the following Terraform config to set up Vertex AI in Firebase.
+###
+
+import {
+  id = var.project
+  to = google_project.default
+}
+
+resource "google_project" "default" {
+  name       = "Sample Firebase AI App"
+  project_id = var.project
+  folder_id  = "<insert the folder where the project was created>"
+  # Associate the project with a Cloud Billing account
+  # (required for Vertex AI in Firebase).
+  billing_account = "000000-000000-000000" # insert your billing account here
+}
+
+# Enable required APIs.
+resource "google_project_service" "vertex" {
+  project = var.project
+  for_each = toset([
+    "aiplatform.googleapis.com",
+    "firebaseappcheck.googleapis.com",
+    "firebaseml.googleapis.com",
+  ])
+  service = each.key
+
+  disable_on_destroy = false
+}
+
+# Turn on enforcement for Vertex AI
+resource "google_firebase_app_check_service_config" "vertex" {
+  project          = var.project
+  service_id       = "firebaseml.googleapis.com"
+  enforcement_mode = "ENFORCED"
+
+  depends_on = [google_project_service.vertex]
+}
+
+# Enable the reCAPTCHA Enterprise API
+resource "google_project_service" "recaptcha_enterprise" {
+  project = var.project
+  service = "recaptchaenterprise.googleapis.com"
+
+  disable_on_destroy = false
+}
+
+# Learn more at https://cloud.google.com/recaptcha/docs
+resource "google_recaptcha_enterprise_key" "example" {
+  display_name = "Sample AI App"
+  project      = var.project
+
+  testing_options {
+    testing_challenge = "NOCAPTCHA"
+    testing_score     = 0.5
+  }
+
+  web_settings {
+    # TODO: change to your own values
+    integration_type              = "CHECKBOX"
+    allow_all_domains             = true
+    allowed_domains               = []
+    challenge_security_preference = "USABILITY"
+  }
+}
+
+resource "google_firebase_app_check_recaptcha_enterprise_config" "appcheck" {
+  project  = var.project
+  app_id   = google_firebase_web_app.example.app_id
+  site_key = google_recaptcha_enterprise_key.example.name
+
+  depends_on = [google_project_service.recaptcha_enterprise, google_project_service.vertex]
+}
+
+resource "random_uuid" "debug_token" {}
+
+locals {
+  uuid4 = "${
+    substr(random_uuid.debug_token.result, 0, 13)}-4${
+    substr(random_uuid.debug_token.result, 15, 3)}-9${
+  substr(random_uuid.debug_token.result, 20, 16)}"
+}
+
+# Debug token allows your local app to bypass App Check. Do not use debug tokens in a prod build.
+resource "google_firebase_app_check_debug_token" "example" {
+  project      = var.project
+  app_id       = google_firebase_web_app.example.app_id
+  display_name = "Debug Token"
+  token        = local.uuid4
+
+  depends_on = [google_project_service.vertex]
+}
