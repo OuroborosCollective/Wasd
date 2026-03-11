@@ -20,6 +20,7 @@ export class NPCSystem {
       name,
       position: { x, y, z: 0 },
       health: 100,
+      maxHealth: 100,
       stamina: 100,
       inventory: [],
       personality: this.personalityEngine.generateTraits(),
@@ -32,6 +33,28 @@ export class NPCSystem {
 
   getNPC(id: string) {
     return this.npcs.get(id);
+  }
+
+  handleInteraction(npcId: string, playerId: string) {
+    const npc = this.npcs.get(npcId);
+    if (!npc) return null;
+
+    // Basic dialogue for now
+    let text = `Hello, I am ${npc.name}. Welcome to Areloria!`;
+    let questId = null;
+
+    if (npcId === "npc_1") {
+      text = "Greetings, traveler! I have a task for you if you're interested. Could you check on my friend at the distant outpost?";
+      questId = "first_steps";
+    } else if (npcId === "npc_2") {
+      text = "Oh, you're here! My friend sent you? Thank you for checking in. I'm doing fine, just keeping watch.";
+    }
+
+    return {
+      source: npc.name,
+      text,
+      questId
+    };
   }
 
   getAllNPCs() {

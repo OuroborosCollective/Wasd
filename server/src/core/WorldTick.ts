@@ -8,6 +8,8 @@ import { GuildSystem } from "../modules/guild/GuildSystem.js";
 import { EconomySystem } from "../modules/economy/EconomySystem.js";
 import { QuestEngine } from "../modules/quest/QuestEngine.js";
 import { WorldSystem } from "../modules/world/WorldSystem.js";
+import { PersistenceManager } from "./PersistenceManager.js";
+import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
 
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 
@@ -25,6 +27,10 @@ export class WorldTick {
   public economySystem: EconomySystem;
   public questSystem: QuestEngine;
   public worldSystem: WorldSystem;
+  public persistence: PersistenceManager;
+
+  private socketToPlayer: Map<string, string> = new Map(); // socketId -> characterName
+  private lastActionTimes: Map<string, number> = new Map(); // charName -> timestamp
 
   constructor(private ws: GameWebSocketServer) {
     this.chunkSystem = new ChunkSystem(64);
@@ -37,9 +43,24 @@ export class WorldTick {
     this.economySystem = new EconomySystem();
     this.questSystem = new QuestEngine();
     this.worldSystem = new WorldSystem();
+    this.persistence = new PersistenceManager();
 
-    // Create a test NPC
+    // Load persisted data
+    const savedData = this.persistence.load();
+    for (const name in savedData) {
+      this.playerSystem.setPlayer(name, savedData[name]);
+    }
+
+    // Create NPCs
     this.npcSystem.createNPC("npc_1", "Test NPC", 32, 32);
+    this.npcSystem.createNPC("npc_2", "Outpost Guard", 500, 500);
+    
+    // Combat Hook: Training Dummy
+    const dummy = this.npcSystem.createNPC("npc_dummy", "Training Dummy", 64, 64);
+    if (dummy) {
+      dummy.health = 100;
+      dummy.maxHealth = 100;
+    }
 
     // Create a dummy player in a distant chunk to prove multi-observer union
     const dummyPlayer = this.playerSystem.createPlayer("dummy_player", "Dummy Player");
@@ -48,20 +69,59 @@ export class WorldTick {
     this.observerEngine.register("dummy_player", { x: 500, y: 500 });
 
     this.ws.onPlayerConnect = (id) => {
-      const player = this.playerSystem.createPlayer(id, `Player_${id}`);
-      this.observerEngine.register(id, { x: player.position.x, y: player.position.y });
-      console.log(`Player ${id} connected.`);
+      console.log(`Socket ${id} connected. Waiting for login...`);
     };
 
     this.ws.onPlayerDisconnect = (id) => {
-      this.playerSystem.removePlayer(id);
-      this.observerEngine.unregister(id);
-      console.log(`Player ${id} disconnected.`);
+      const charName = this.socketToPlayer.get(id);
+      if (charName) {
+        this.observerEngine.unregister(id);
+        this.socketToPlayer.delete(id);
+        this.saveAll();
+        console.log(`Player ${charName} (Socket ${id}) disconnected.`);
+      }
     };
 
     this.ws.onPlayerMessage = (id, msg) => {
-      const player = this.playerSystem.getPlayer(id);
+      if (msg.type === "login") {
+        const charName = msg.name || `Guest_${id.substring(0, 4)}`;
+        let player = this.playerSystem.getPlayer(charName);
+        if (!player) {
+          player = this.playerSystem.createPlayer(charName, charName);
+        }
+        
+        this.socketToPlayer.set(id, charName);
+        this.observerEngine.register(id, { x: player.position.x, y: player.position.y });
+        
+        this.ws.sendToPlayer(id, {
+          type: "welcome",
+          id: charName,
+          stats: {
+            gold: player.gold,
+            xp: player.xp,
+            inventory: player.inventory,
+            equipment: player.equipment,
+            quests: player.quests
+          }
+        });
+        
+        console.log(`Player ${charName} logged in on socket ${id}`);
+        return;
+      }
+
+      const charName = this.socketToPlayer.get(id);
+      if (!charName) return;
+
+      const player = this.playerSystem.getPlayer(charName);
       if (!player) return;
+
+      const now = Date.now();
+      const checkCooldown = (cooldown: number) => {
+        const last = this.lastActionTimes.get(charName) || 0;
+        if (now - last < cooldown) return false;
+        this.lastActionTimes.set(charName, now);
+        return true;
+      };
 
       if (msg.type === "move_intent") {
         // Server-authoritative movement calculation
@@ -74,17 +134,99 @@ export class WorldTick {
         player.position.y += dy * speed;
         
         this.observerEngine.updatePosition(id, { x: player.position.x, y: player.position.y });
+      } else if (msg.type === "equip") {
+        if (!checkCooldown(500)) return;
+        const itemId = msg.itemId;
+        const equipment = this.inventorySystem.equipItem(player, itemId);
+        if (equipment) {
+          this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Equipped item.` });
+          this.saveAll();
+        }
+      } else if (msg.type === "unequip") {
+        if (!checkCooldown(500)) return;
+        const slot = msg.slot;
+        const equipment = this.inventorySystem.unequipItem(player, slot);
+        if (equipment) {
+          this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Unequipped ${slot}.` });
+          this.saveAll();
+        }
+      } else if (msg.type === "attack") {
+        if (!checkCooldown(800)) return;
+        const targetId = msg.targetId;
+        const npc = this.npcSystem.getNPC(targetId);
+        if (npc && npc.health !== undefined) {
+          const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
+          if (dist < 30) {
+            const baseDamage = 10;
+            let weaponDamage = 0;
+            let weaponName = "fists";
+
+            if (player.equipment?.weapon) {
+              const itemDef = ItemRegistry.getItem(player.equipment.weapon.id);
+              if (itemDef) {
+                weaponDamage = itemDef.damage || 0;
+                weaponName = itemDef.name;
+              }
+            }
+            
+            const totalDamage = baseDamage + weaponDamage;
+            
+            npc.health -= totalDamage;
+            if (npc.health <= 0) {
+              npc.health = 100; // Respawn dummy
+              this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "You destroyed the Training Dummy! It respawns." });
+            } else {
+              this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `You hit ${npc.name} with ${weaponName} for ${totalDamage} damage! (${npc.health}/${npc.maxHealth})` });
+            }
+          }
+        }
       } else if (msg.type === "interact") {
+        if (!checkCooldown(500)) return;
         const targetId = msg.targetId;
         const npc = this.npcSystem.getNPC(targetId);
         if (npc) {
           const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
           if (dist < 20) {
-            this.ws.sendToPlayer(id, {
-              type: "dialogue",
-              source: npc.name,
-              text: "Hello there, traveler! The world is dangerous, stay safe."
-            });
+            const interaction = this.npcSystem.handleInteraction(targetId, charName);
+            if (interaction) {
+              this.ws.sendToPlayer(id, {
+                type: "dialogue",
+                source: interaction.source,
+                text: interaction.text
+              });
+
+              if (interaction.questId) {
+                const quest = this.questSystem.startQuest(player, interaction.questId as any);
+                if (quest) {
+                  this.ws.sendToPlayer(id, {
+                    type: "dialogue",
+                    source: "System",
+                    text: `Quest Started: ${quest.name}`
+                  });
+                  this.saveAll();
+                }
+              }
+
+              // Check for quest completion
+              if (targetId === "npc_2") {
+                const reward = this.questSystem.completeQuest(player, "first_steps");
+                if (reward) {
+                  let rewardText = `Quest Completed: First Steps! You earned ${reward.gold} gold and ${reward.xp} XP.`;
+                  if (reward.itemId) {
+                    const itemDef = ItemRegistry.getItem(reward.itemId);
+                    if (itemDef) {
+                      rewardText += ` Received item: ${itemDef.name}`;
+                    }
+                  }
+                  this.ws.sendToPlayer(id, {
+                    type: "dialogue",
+                    source: "System",
+                    text: rewardText
+                  });
+                  this.saveAll();
+                }
+              }
+            }
           } else {
             this.ws.sendToPlayer(id, {
               type: "dialogue",
@@ -95,6 +237,17 @@ export class WorldTick {
         }
       }
     };
+  }
+
+  saveAll() {
+    const allPlayers = this.playerSystem.getAllPlayers();
+    const data: any = {};
+    for (const p of allPlayers) {
+      if (p.id !== "dummy_player") {
+        data[p.id] = p; // id is now charName
+      }
+    }
+    this.persistence.save(data);
   }
 
   start() {
@@ -113,15 +266,15 @@ export class WorldTick {
     const dummyPlayer = this.playerSystem.getPlayer("dummy_player");
     if (dummyPlayer) {
       dummyPlayer.position.x = 500 + Math.sin(this.tickCount * 0.1) * 50;
-      this.observerEngine.updatePosition("dummy_player", { x: dummyPlayer.position.x, y: dummyPlayer.position.y });
+      // Note: dummy_player is not a socket, so we don't update observer by socket ID here
+      // But for simplicity in this demo we'll just leave it
     }
     
     // 1. Update active chunks based on observers
     const observedChunks = this.observerEngine.getObservedChunks();
     const observedChunkIds = new Set(observedChunks.map(c => c.id));
     
-    // Deactivate all chunks first (or we could optimize this by only deactivating ones no longer observed)
-    // For now, we'll just set the active flag based on the observed set
+    // Deactivate all chunks first
     const allActive = this.chunkSystem.getActiveChunks();
     for (const chunk of allActive) {
       if (!observedChunkIds.has(chunk.id)) {
@@ -136,21 +289,20 @@ export class WorldTick {
 
     // 2. Process active chunks
     const activeChunks = this.chunkSystem.getActiveChunks();
-    for (const chunk of activeChunks) {
-      // Here we would tick NPCs, events, etc. within this chunk
-      // e.g., this.npcBrain.tickChunk(chunk);
-    }
 
     // 3. Tick global systems
     this.npcSystem.tick();
     this.worldSystem.tick();
 
     // 4. Broadcast state to clients
+    // We need to broadcast to each socket only what they can see, but for now global broadcast
+    const players = this.playerSystem.getAllPlayers();
+    
     this.ws.broadcast({
       type: "world_tick",
       tick: this.tickCount,
       activeChunkIds: activeChunks.map(c => c.id),
-      players: this.playerSystem.getAllPlayers ? this.playerSystem.getAllPlayers() : [],
+      players: players,
       npcs: this.npcSystem.getAllNPCs()
     });
 

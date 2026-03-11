@@ -1,5 +1,5 @@
 import { updateWorldState } from "../engine/renderer";
-import { showDialogue } from "../ui/hud";
+import { showDialogue, updateHUD } from "../ui/hud";
 
 export let myPlayerId: string | null = null;
 let latestState: any = null;
@@ -8,16 +8,43 @@ export function connectSocket() {
   const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const ws = new WebSocket(`${wsProtocol}//${location.host}/ws`);
 
-  ws.onopen = () => console.log("Connected to Arelorian server");
+  ws.onopen = () => {
+    console.log("Connected to Arelorian server");
+    const name = prompt("Enter your Character Name:", "Hero") || "Hero";
+    ws.send(JSON.stringify({ type: "login", name }));
+  };
   ws.onmessage = (msg) => {
     try {
       const data = JSON.parse(msg.data);
       if (data.type === "welcome") {
         myPlayerId = data.id;
-        console.log("My Player ID:", myPlayerId);
+        console.log("Logged in as:", myPlayerId);
+        if (data.stats) {
+          updateHUD({
+            gold: data.stats.gold || 0,
+            xp: data.stats.xp || 0,
+            quests: data.stats.quests || [],
+            inventory: data.stats.inventory || [],
+            equipment: data.stats.equipment
+          });
+        }
       } else if (data.type === "world_tick") {
         latestState = data;
         updateWorldState(data, myPlayerId);
+
+        // Update HUD with my player's stats
+        if (myPlayerId) {
+          const myPlayer = data.players.find((p: any) => p.id === myPlayerId);
+          if (myPlayer) {
+            updateHUD({
+              gold: myPlayer.gold || 0,
+              xp: myPlayer.xp || 0,
+              quests: myPlayer.quests || [],
+              inventory: myPlayer.inventory || [],
+              equipment: myPlayer.equipment
+            });
+          }
+        }
       } else if (data.type === "dialogue") {
         showDialogue(data.source, data.text);
       }
@@ -29,7 +56,57 @@ export function connectSocket() {
   // Basic movement controls for testing
   window.addEventListener("keydown", (e) => {
     if (!myPlayerId) return;
+
+    if (e.key === "g" || e.key === "G") {
+      // Equip first item in inventory
+      if (latestState && latestState.players) {
+        const myPlayer = latestState.players.find((p: any) => p.id === myPlayerId);
+        if (myPlayer && myPlayer.inventory && myPlayer.inventory.length > 0) {
+          ws.send(JSON.stringify({
+            type: "equip",
+            itemId: myPlayer.inventory[0].id
+          }));
+        }
+      }
+      return;
+    }
+
+    if (e.key === "h" || e.key === "H") {
+      // Unequip weapon
+      ws.send(JSON.stringify({
+        type: "unequip",
+        slot: "weapon"
+      }));
+      return;
+    }
     
+    if (e.key === "f" || e.key === "F") {
+      // Attack closest NPC
+      if (latestState && latestState.npcs && latestState.players) {
+        const myPlayer = latestState.players.find((p: any) => p.id === myPlayerId);
+        if (myPlayer) {
+          let closestNpc = null;
+          let minDistance = Infinity;
+          
+          for (const npc of latestState.npcs) {
+            const dist = Math.hypot(myPlayer.position.x - npc.position.x, myPlayer.position.y - npc.position.y);
+            if (dist < minDistance) {
+              minDistance = dist;
+              closestNpc = npc;
+            }
+          }
+          
+          if (closestNpc && minDistance < 40) {
+            ws.send(JSON.stringify({
+              type: "attack",
+              targetId: closestNpc.id
+            }));
+          }
+        }
+      }
+      return;
+    }
+
     if (e.key === "e" || e.key === "E") {
       // Find closest NPC
       if (latestState && latestState.npcs && latestState.players) {

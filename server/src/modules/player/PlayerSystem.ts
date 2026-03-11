@@ -9,14 +9,25 @@ export class PlayerSystem {
       health: 100,
       stamina: 100,
       mana: 25,
+      gold: 0,
+      xp: 0,
+      quests: [],
       skills: {},
       inventory: [],
+      equipment: {
+        weapon: null,
+        armor: null
+      },
       faction: null,
       civilization: null,
       matrixEnergy: 0
     };
     this.players.set(id, player);
     return player;
+  }
+
+  setPlayer(id: string, player: any) {
+    this.players.set(id, player);
   }
 
   getPlayer(id: string) {
