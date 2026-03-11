@@ -1,4 +1,4 @@
-import { sendDialogueChoice } from "../networking/websocketClient";
+import { sendDialogueChoice } from "../networking/websocketClient.ts";
 
 export function renderHUD() {
   const hud = document.createElement("div");

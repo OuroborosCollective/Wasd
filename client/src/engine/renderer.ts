@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { showTooltip, hideTooltip, createWorldLabel, removeWorldLabel } from "../ui/hud";
-import { getClosestInteractable } from "../utils/interaction";
+import { showTooltip, hideTooltip, createWorldLabel, removeWorldLabel } from "../ui/hud.ts";
+import { getClosestInteractable } from "../utils/interaction.ts";
 
 function projectToScreen(x: number, y: number, z: number) {
   const vector = new THREE.Vector3(x, y, z);

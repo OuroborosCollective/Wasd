@@ -1,6 +1,6 @@
-import { updateWorldState, showFloatingText } from "../engine/renderer";
-import { showDialogue, updateHUD, updateCooldowns, renderInventoryPanel } from "../ui/hud";
-import { getClosestInteractable } from "../utils/interaction";
+import { updateWorldState, showFloatingText } from "../engine/renderer.ts";
+import { showDialogue, updateHUD, updateCooldowns, renderInventoryPanel } from "../ui/hud.ts";
+import { getClosestInteractable } from "../utils/interaction.ts";
 
 export let myPlayerId: string | null = null;
 let latestState: any = null;
