@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:world-labels": "node test_world_labels.cjs || (npx ts-node test_world_labels.ts)"
   },
   "dependencies": {
     "@types/jsdom": "^28.0.0",
