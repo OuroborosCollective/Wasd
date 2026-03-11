@@ -48,7 +48,9 @@ export class WorldTick {
     // Load persisted data
     const savedData = this.persistence.load();
     for (const name in savedData) {
-      this.playerSystem.setPlayer(name, savedData[name]);
+      const player = savedData[name];
+      this.hydratePlayer(player);
+      this.playerSystem.setPlayer(name, player);
     }
 
     // Create NPCs
@@ -88,6 +90,7 @@ export class WorldTick {
         let player = this.playerSystem.getPlayer(charName);
         if (!player) {
           player = this.playerSystem.createPlayer(charName, charName);
+          this.hydratePlayer(player);
         }
         
         this.socketToPlayer.set(id, charName);
@@ -244,10 +247,44 @@ export class WorldTick {
     const data: any = {};
     for (const p of allPlayers) {
       if (p.id !== "dummy_player") {
-        data[p.id] = p; // id is now charName
+        // Clone player and strip item details for clean persistence
+        const persistedPlayer = JSON.parse(JSON.stringify(p));
+        this.stripPlayerItems(persistedPlayer);
+        data[p.id] = persistedPlayer;
       }
     }
     this.persistence.save(data);
+  }
+
+  private hydratePlayer(player: any) {
+    if (player.inventory) {
+      player.inventory = player.inventory.map((item: any) => ItemRegistry.hydrate(item));
+    }
+    if (player.equipment) {
+      for (const slot in player.equipment) {
+        if (player.equipment[slot]) {
+          player.equipment[slot] = ItemRegistry.hydrate(player.equipment[slot]);
+        }
+      }
+    }
+  }
+
+  private stripPlayerItems(player: any) {
+    const strip = (item: any) => {
+      if (!item || !item.id) return item;
+      return { id: item.id }; // Only keep ID for persistence
+    };
+
+    if (player.inventory) {
+      player.inventory = player.inventory.map(strip);
+    }
+    if (player.equipment) {
+      for (const slot in player.equipment) {
+        if (player.equipment[slot]) {
+          player.equipment[slot] = strip(player.equipment[slot]);
+        }
+      }
+    }
   }
 
   start() {

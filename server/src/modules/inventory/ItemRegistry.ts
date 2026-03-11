@@ -40,4 +40,12 @@ export class ItemRegistry {
     // Return a copy to avoid mutation of the registry
     return { ...def };
   }
+
+  static hydrate(item: any) {
+    if (!item || !item.id) return item;
+    const def = this.getItem(item.id);
+    if (!def) return item;
+    // Merge registry definition into the item object
+    return { ...item, ...def };
+  }
 }
