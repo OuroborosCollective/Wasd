@@ -1,5 +1,13 @@
 import { JSDOM } from 'jsdom';
 import * as THREE from 'three';
+
+// stub WebGLRenderer to avoid needing real GL context
+class DummyRenderer {
+  constructor(opts: any) {}
+  setSize(w: number, h: number) {}
+  render(scene: any, camera: any) {}
+}
+(THREE as any).WebGLRenderer = DummyRenderer;
 // stub camera global used by renderer.ts
 (global as any).camera = new THREE.PerspectiveCamera();
 
