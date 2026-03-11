@@ -4,7 +4,7 @@
     "name": "Test NPC",
     "role": "Quest Giver",
     "dialogueId": "dialogue_npc_1",
-    "questHooks": ["first_steps", "missing_letter"],
+    "questHooks": ["first_steps", "missing_letter", "help_test_npc"],
     "faction": "Neutral"
   },
   {
@@ -12,7 +12,7 @@
     "name": "Outpost Guard",
     "role": "Guard",
     "dialogueId": "dialogue_npc_2",
-    "questHooks": ["dummy_slayer"],
+    "questHooks": ["dummy_slayer", "wolf_report"],
     "faction": "Guardians"
   },
   {
@@ -34,7 +34,7 @@
     "name": "Village Elder",
     "role": "Elder",
     "dialogueId": "dialogue_npc_3",
-    "questHooks": ["iron_scraps"],
+    "questHooks": ["iron_scraps", "wolf_report"],
     "faction": "Neutral"
   },
   {

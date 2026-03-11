@@ -200,16 +200,23 @@ export class WorldTick {
               npc.health = npc.maxHealth || 100; // Respawn
               this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `You destroyed ${npc.name}! It respawns.` });
 
-              // Check for combat quest completion
-              const activeQuests = player.quests.filter((q: any) => !q.completed);
-              for (const q of activeQuests) {
-                if (q.objective === "combat" && q.targetId === targetId) {
-                  const reward = this.questSystem.completeQuest(player, q.id);
-                  if (reward) {
-                    this.broadcastQuestCompletion(id, q, reward);
-                  }
+              // generic quest objective handling for combat
+              const progress = this.questSystem.handleObjectiveEvent(player, {
+                type: "combat",
+                targetId
+              });
+              progress.forEach((res: any) => {
+                if (res.completed) {
+                  const q = player.quests.find((x: any) => x.id === res.questId);
+                  if (q) this.broadcastQuestCompletion(id, q, res.reward);
+                } else if (res.advanced) {
+                  this.ws.sendToPlayer(id, {
+                    type: "dialogue",
+                    source: "System",
+                    text: `Quest Updated: ${res.questId} advanced to step ${res.nextStep + 1}`
+                  });
                 }
-              }
+              });
             }
           }
         }
@@ -248,38 +255,24 @@ export class WorldTick {
                 }
               }
 
-              // Check for quest completion
-              const activeQuests = player.quests.filter((q: any) => !q.completed);
-              for (const q of activeQuests) {
-                let completed = false;
-                if (q.objective === "talk_to" && q.targetNpcId === targetId) {
-                  completed = true;
-                } else if (q.objective === "collect" && q.targetNpcId === targetId) {
-                  // Check inventory for required items
-                  const count = player.inventory.filter((item: any) => item.id === q.requiredItemId).length;
-                  if (count >= (q.requiredCount || 1)) {
-                    // Consume items
-                    for (let i = 0; i < (q.requiredCount || 1); i++) {
-                      const index = player.inventory.findIndex((item: any) => item.id === q.requiredItemId);
-                      if (index !== -1) player.inventory.splice(index, 1);
-                    }
-                    completed = true;
-                  } else {
-                    this.ws.sendToPlayer(id, {
-                      type: "dialogue",
-                      source: "System",
-                      text: `You need ${q.requiredCount || 1}x ${q.requiredItemId} to complete this quest.`
-                    });
-                  }
+              // generic quest objective handling
+              const progress = this.questSystem.handleObjectiveEvent(player, {
+                type: "talk_to",
+                npcId: targetId
+              });
+              progress.forEach((res: any) => {
+                if (res.completed) {
+                  const q = player.quests.find((x: any) => x.id === res.questId);
+                  if (q) this.broadcastQuestCompletion(id, q, res.reward);
+                } else if (res.advanced) {
+                  // notify player of step advancement
+                  this.ws.sendToPlayer(id, {
+                    type: "dialogue",
+                    source: "System",
+                    text: `Quest Updated: ${res.questId} advanced to step ${res.nextStep + 1}`
+                  });
                 }
-
-                if (completed) {
-                  const reward = this.questSystem.completeQuest(player, q.id);
-                  if (reward) {
-                    this.broadcastQuestCompletion(id, q, reward);
-                  }
-                }
-              }
+              });
             }
           } else {
             this.ws.sendToPlayer(id, {

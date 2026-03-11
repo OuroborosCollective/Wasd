@@ -15,12 +15,28 @@ export class QuestEngine {
       if (fs.existsSync(questsPath)) {
         const questData = JSON.parse(fs.readFileSync(questsPath, "utf-8"));
         questData.forEach((quest: any) => {
+          // Normalize: convert old single-objective format into array
+          let objectives;
+          if (Array.isArray(quest.objectives)) {
+            objectives = quest.objectives;
+          } else {
+            // keep backwards compatibility
+            objectives = [{
+              type: quest.objectiveType || quest.objective,
+              targetNpcId: quest.targetNpcId,
+              targetId: quest.targetId,
+              requiredItemId: quest.requiredItemId,
+              requiredCount: quest.requiredCount
+            }];
+          }
           // Map to internal format if needed
           this.quests.set(quest.id, {
             ...quest,
             name: quest.title,
             giver: quest.giverNpcId,
-            objective: quest.objectiveType
+            // keep for backwards compatibility
+            objective: quest.objectiveType,
+            objectives
           });
         });
       }
@@ -66,7 +82,7 @@ export class QuestEngine {
       }
     }
 
-    const newQuest = { ...quest, startedAt: Date.now(), completed: false };
+    const newQuest = { ...quest, startedAt: Date.now(), completed: false, currentStep: 0 };
     player.quests.push(newQuest);
     return newQuest;
   }
@@ -80,11 +96,15 @@ export class QuestEngine {
     this.quests.forEach((quest, id) => {
       const playerQuest = player.quests ? player.quests.find((q: any) => q.id === id) : null;
       let state = "locked";
-      
+      let currentStep = 0;
+      let stepCount = (quest.objectives && quest.objectives.length) || 1;
+
       if (playerQuest && playerQuest.completed) {
         state = "completed";
+        currentStep = stepCount;
       } else if (playerQuest) {
         state = "active";
+        currentStep = playerQuest.currentStep || 0;
       } else {
         // Check prerequisites
         let prereqsMet = true;
@@ -108,11 +128,18 @@ export class QuestEngine {
         if (prereqsMet) state = "available";
       }
       
+      const stepInfo: any = {};
+      if (quest.objectives) {
+        stepInfo.currentStep = currentStep;
+        stepInfo.stepCount = stepCount;
+        stepInfo.steps = quest.objectives.map((o: any) => ({ ...o }));
+      }
+
       status.push({
         id,
         title: quest.title,
         state,
-        objective: playerQuest ? playerQuest.objective : quest.objective
+        ...stepInfo
       });
     });
     return status;
@@ -145,4 +172,68 @@ export class QuestEngine {
 
     return q.reward;
   }
+
+  // process an event to advance or complete objectives
+  handleObjectiveEvent(player: any, event: any) {
+    const results: any[] = [];
+    const activeQuests = (player.quests || []).filter((q: any) => !q.completed);
+    for (const q of activeQuests) {
+      const questDef = this.quests.get(q.id);
+      if (!questDef) continue;
+      const objectives = questDef.objectives || [];
+      const stepIdx = q.currentStep || 0;
+      const currentObjective = objectives[stepIdx] || {
+        type: questDef.objective || questDef.objectiveType,
+        targetNpcId: questDef.targetNpcId,
+        targetId: questDef.targetId,
+        requiredItemId: questDef.requiredItemId,
+        requiredCount: questDef.requiredCount
+      };
+      let matched = false;
+
+      switch (currentObjective.type) {
+        case "talk_to":
+          if (event.type === "talk_to" && event.npcId === currentObjective.targetNpcId) {
+            matched = true;
+          }
+          break;
+        case "combat":
+          if (event.type === "combat" && event.targetId === currentObjective.targetId) {
+            matched = true;
+          }
+          break;
+        case "collect":
+          if (event.type === "collect" && event.npcId === currentObjective.targetNpcId) {
+            // check inventory for required items
+            const count = (player.inventory || []).filter((item: any) => item.id === currentObjective.requiredItemId).length;
+            if (count >= (currentObjective.requiredCount || 1)) {
+              // consume items
+              for (let i = 0; i < (currentObjective.requiredCount || 1); i++) {
+                const idx = player.inventory.findIndex((item: any) => item.id === currentObjective.requiredItemId);
+                if (idx !== -1) player.inventory.splice(idx, 1);
+              }
+              matched = true;
+            }
+          }
+          break;
+      }
+
+      if (matched) {
+        if (objectives.length > 1) {
+          if (stepIdx < objectives.length - 1) {
+            q.currentStep = stepIdx + 1;
+            results.push({ questId: q.id, advanced: true, nextStep: q.currentStep });
+          } else {
+            const reward = this.completeQuest(player, q.id);
+            results.push({ questId: q.id, completed: true, reward });
+          }
+        } else {
+          const reward = this.completeQuest(player, q.id);
+          results.push({ questId: q.id, completed: true, reward });
+        }
+      }
+    }
+    return results;
+  }
+}
 }

@@ -35,7 +35,7 @@ function validate() {
     }
   });
 
-  // Quest -> NPC/Item/Quest
+  // Quest -> NPC/Item/Quest/Objectives
   quests.forEach((q: any) => {
     if (q.giverNpcId && !npcIds.has(q.giverNpcId)) errors.push(`Quest ${q.id} references missing NPC ${q.giverNpcId}`);
     if (q.reward && q.reward.itemId && !itemIds.has(q.reward.itemId)) errors.push(`Quest ${q.id} references missing item ${q.reward.itemId}`);
@@ -44,6 +44,24 @@ function validate() {
         if (!questIds.has(preId)) errors.push(`Quest ${q.id} references missing prerequisite quest ${preId}`);
       });
     }
+    // objectives validation
+    const objectives = Array.isArray(q.objectives) ? q.objectives : [
+      { type: q.objectiveType || q.objective, targetNpcId: q.targetNpcId, targetId: q.targetId }
+    ];
+    objectives.forEach((obj: any, idx: number) => {
+      if (obj.type === 'talk_to' || obj.type === 'collect') {
+        if (obj.targetNpcId && !npcIds.has(obj.targetNpcId)) {
+          errors.push(`Quest ${q.id} step ${idx} references missing NPC ${obj.targetNpcId}`);
+        }
+        if (obj.type === 'collect' && obj.requiredItemId && !itemIds.has(obj.requiredItemId)) {
+          errors.push(`Quest ${q.id} step ${idx} references missing item ${obj.requiredItemId}`);
+        }
+      } else if (obj.type === 'combat') {
+        if (obj.targetId && !npcIds.has(obj.targetId)) {
+          errors.push(`Quest ${q.id} step ${idx} references missing target NPC ${obj.targetId}`);
+        }
+      }
+    });
   });
 
   // Spawn -> NPC
