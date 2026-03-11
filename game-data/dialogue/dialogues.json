@@ -1,0 +1,94 @@
+[
+  {
+    "id": "dialogue_npc_1",
+    "greeting": "Hello, I am Test NPC. Welcome to Areloria!",
+    "questStartLines": {
+      "first_steps": "Greetings, traveler! I have a task for you if you're interested. Could you check on my friend at the distant outpost?",
+      "missing_letter": "I have a letter for the Village Elder. Could you deliver it for me?"
+    },
+    "questProgressLines": {
+      "first_steps": "Have you found my friend at the outpost yet?",
+      "missing_letter": "The Elder is waiting for that letter."
+    },
+    "questCompleteLines": {
+      "first_steps": "Thank you for helping me out!",
+      "missing_letter": "Thanks for delivering the letter!"
+    },
+    "fallback": "I'm a bit busy right now, come back later."
+  },
+  {
+    "id": "dialogue_npc_2",
+    "greeting": "I'm doing fine, just keeping watch.",
+    "questStartLines": {
+      "dummy_slayer": "Those training dummies are getting out of hand. Could you show them who's boss?"
+    },
+    "questProgressLines": {
+      "dummy_slayer": "Go on, hit that dummy!"
+    },
+    "questCompleteLines": {
+      "first_steps": "Oh, you're here! My friend sent you? Thank you for checking in. I'm doing fine, just keeping watch.",
+      "dummy_slayer": "Great work! That dummy won't be bothering anyone for a while."
+    }
+  },
+  {
+    "id": "dialogue_npc_3",
+    "greeting": "Welcome to our village. I am the Elder.",
+    "questPrerequisiteLines": {
+      "iron_scraps": "I'm sorry, I only discuss village matters with those who have delivered my mail."
+    },
+    "questStartLines": {
+      "iron_scraps": "We need iron scraps to repair our tools. If you find any, please bring them to me."
+    },
+    "questProgressLines": {
+      "iron_scraps": "Do you have the iron scraps yet?"
+    },
+    "questCompleteLines": {
+      "missing_letter": "A letter from my friend? Thank you, traveler!",
+      "iron_scraps": "These scraps will be perfect. Thank you!"
+    }
+  },
+  {
+    "id": "dialogue_npc_4",
+    "greeting": "The forge is hot today. What do you need?",
+    "questPrerequisiteLines": {
+      "pelt_collector": "I only work with those who have proven themselves in the hunt. Go talk to the Scout.",
+      "master_work": "You've brought me pelts, but are you ready for a true masterpiece?"
+    },
+    "questStartLines": {
+      "pelt_collector": "I need a thick wolf pelt to line these gloves. Bring me one and I'll give you some spare iron.",
+      "master_work": "I'm going to forge a legendary blade. I just need you to witness the final strike."
+    },
+    "questProgressLines": {
+      "pelt_collector": "Still waiting on that pelt.",
+      "master_work": "The metal is cooling, hurry up!"
+    },
+    "questCompleteLines": {
+      "pelt_collector": "Excellent quality. Here is your iron.",
+      "master_work": "It is finished! A masterpiece!"
+    }
+  },
+  {
+    "id": "dialogue_npc_5",
+    "greeting": "Keep your eyes sharp, traveler. The wilds are dangerous.",
+    "questStartLines": {
+      "scouts_report": "I've spotted unusual activity to the south. Take this report to the Test NPC immediately.",
+      "wolf_hunt": "A Dire Wolf has been stalking the perimeter. It needs to be dealt with."
+    },
+    "questProgressLines": {
+      "scouts_report": "The report won't deliver itself.",
+      "wolf_hunt": "The wolf is still out there."
+    },
+    "questCompleteLines": {
+      "scouts_report": "Good work on the delivery.",
+      "wolf_hunt": "The perimeter is safe for now. Well done."
+    }
+  },
+  {
+    "id": "dialogue_wolf",
+    "greeting": "Grrrr..."
+  },
+  {
+    "id": "dialogue_dummy",
+    "greeting": "..."
+  }
+]

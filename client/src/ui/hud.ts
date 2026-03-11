@@ -29,6 +29,11 @@ export function renderHUD() {
     <div id="hud-quests" style="font-size: 0.85em; color: #aaa; font-style: italic;">
       Active Quest: None
     </div>
+    <div id="hud-cooldowns" style="font-size: 0.8em; margin-top: 4px; display: flex; gap: 8px;">
+      <span id="cd-attack" style="color: #00ff00; opacity: 0.5;">[F] Attack</span>
+      <span id="cd-interact" style="color: #00ff00; opacity: 0.5;">[E] Interact</span>
+      <span id="cd-equip" style="color: #00ff00; opacity: 0.5;">[G] Equip</span>
+    </div>
     <div style="font-size: 0.75em; margin-top: 6px; opacity: 0.6; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px;">
       WASD: Move | E: Interact | F: Attack | G: Equip First | H: Unequip
     </div>
@@ -60,6 +65,39 @@ export function updateHUD(data: { gold: number, xp: number, quests: any[], inven
     const activeQuest = data.quests.find(q => !q.completed);
     quests.textContent = activeQuest ? `Active Quest: ${activeQuest.name}` : "Active Quest: None";
   }
+}
+
+export function updateCooldowns(cooldowns: { attack: number, interact: number, equip: number }) {
+  const now = Date.now();
+  
+  const updateCd = (id: string, remaining: number) => {
+    const el = document.getElementById(id);
+    if (el) {
+      if (remaining > 0) {
+        el.style.opacity = "1";
+        el.style.color = "#ff4444";
+        el.style.fontWeight = "bold";
+        // Show percentage or just dimmed
+        const percent = Math.ceil((remaining / 1000) * 10) / 10;
+        el.textContent = `[${id.split("-")[1].toUpperCase().charAt(0)}] ${remaining > 100 ? (remaining/1000).toFixed(1) + "s" : "..."}`;
+      } else {
+        el.style.opacity = "0.5";
+        el.style.color = "#00ff00";
+        el.style.fontWeight = "normal";
+        const label = id === "cd-attack" ? "Attack" : id === "cd-interact" ? "Interact" : "Equip";
+        const key = id === "cd-attack" ? "F" : id === "cd-interact" ? "E" : "G";
+        el.textContent = `[${key}] ${label}`;
+      }
+    }
+  };
+
+  const attackRemaining = Math.max(0, cooldowns.attack - now);
+  const interactRemaining = Math.max(0, cooldowns.interact - now);
+  const equipRemaining = Math.max(0, cooldowns.equip - now);
+
+  updateCd("cd-attack", attackRemaining);
+  updateCd("cd-interact", interactRemaining);
+  updateCd("cd-equip", equipRemaining);
 }
 
 export function showDialogue(source: string, text: string) {

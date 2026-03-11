@@ -1,0 +1,34 @@
+[
+  {
+    "id": "starter_sword",
+    "name": "Starter Sword",
+    "type": "weapon",
+    "slot": "weapon",
+    "damage": 25,
+    "rarity": "common",
+    "description": "A simple iron sword given to new recruits."
+  },
+  {
+    "id": "wooden_shield",
+    "name": "Wooden Shield",
+    "type": "armor",
+    "slot": "armor",
+    "damage": 0,
+    "rarity": "common",
+    "description": "A basic shield made of sturdy oak."
+  },
+  {
+    "id": "iron_scrap",
+    "name": "Iron Scrap",
+    "type": "misc",
+    "rarity": "common",
+    "description": "A piece of rusted iron. Might be useful for someone."
+  },
+  {
+    "id": "wolf_pelt",
+    "name": "Wolf Pelt",
+    "type": "misc",
+    "rarity": "common",
+    "description": "A thick, coarse pelt from a Dire Wolf."
+  }
+]

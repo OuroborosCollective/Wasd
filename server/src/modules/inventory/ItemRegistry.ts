@@ -1,3 +1,6 @@
+import fs from "fs";
+import path from "path";
+
 export interface ItemDefinition {
   id: string;
   name: string;
@@ -8,33 +11,33 @@ export interface ItemDefinition {
   description: string;
 }
 
-export const ITEM_REGISTRY: Record<string, ItemDefinition> = {
-  "starter_sword": {
-    id: "starter_sword",
-    name: "Starter Sword",
-    type: "weapon",
-    slot: "weapon",
-    damage: 25,
-    rarity: "common",
-    description: "A simple iron sword given to new recruits."
-  },
-  "wooden_shield": {
-    id: "wooden_shield",
-    name: "Wooden Shield",
-    type: "armor",
-    slot: "armor",
-    damage: 0,
-    rarity: "common",
-    description: "A basic shield made of sturdy oak."
-  }
-};
-
 export class ItemRegistry {
+  private static ITEM_REGISTRY: Record<string, ItemDefinition> = {};
+  private static initialized = false;
+
+  static init() {
+    if (this.initialized) return;
+    try {
+      const itemsPath = path.resolve(process.cwd(), "game-data/items/items.json");
+      if (fs.existsSync(itemsPath)) {
+        const itemData = JSON.parse(fs.readFileSync(itemsPath, "utf-8"));
+        itemData.forEach((item: ItemDefinition) => {
+          this.ITEM_REGISTRY[item.id] = item;
+        });
+      }
+    } catch (error) {
+      console.error("Error loading Item data:", error);
+    }
+    this.initialized = true;
+  }
+
   static getItem(id: string): ItemDefinition | undefined {
-    return ITEM_REGISTRY[id];
+    if (!this.initialized) this.init();
+    return this.ITEM_REGISTRY[id];
   }
 
   static createInstance(id: string) {
+    if (!this.initialized) this.init();
     const def = this.getItem(id);
     if (!def) return null;
     // Return a copy to avoid mutation of the registry
@@ -42,6 +45,7 @@ export class ItemRegistry {
   }
 
   static hydrate(item: any) {
+    if (!this.initialized) this.init();
     if (!item || !item.id) return item;
     const def = this.getItem(item.id);
     if (!def) return item;

@@ -10,6 +10,8 @@ import { QuestEngine } from "../modules/quest/QuestEngine.js";
 import { WorldSystem } from "../modules/world/WorldSystem.js";
 import { PersistenceManager } from "./PersistenceManager.js";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
+import fs from "fs";
+import path from "path";
 
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 
@@ -53,16 +55,8 @@ export class WorldTick {
       this.playerSystem.setPlayer(name, player);
     }
 
-    // Create NPCs
-    this.npcSystem.createNPC("npc_1", "Test NPC", 32, 32);
-    this.npcSystem.createNPC("npc_2", "Outpost Guard", 500, 500);
-    
-    // Combat Hook: Training Dummy
-    const dummy = this.npcSystem.createNPC("npc_dummy", "Training Dummy", 64, 64);
-    if (dummy) {
-      dummy.health = 100;
-      dummy.maxHealth = 100;
-    }
+    // Load Spawns
+    this.loadSpawns();
 
     // Create a dummy player in a distant chunk to prove multi-observer union
     const dummyPlayer = this.playerSystem.createPlayer("dummy_player", "Dummy Player");
@@ -176,8 +170,19 @@ export class WorldTick {
             
             npc.health -= totalDamage;
             if (npc.health <= 0) {
-              npc.health = 100; // Respawn dummy
-              this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "You destroyed the Training Dummy! It respawns." });
+              npc.health = npc.maxHealth || 100; // Respawn
+              this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `You destroyed ${npc.name}! It respawns.` });
+
+              // Check for combat quest completion
+              const activeQuests = player.quests.filter((q: any) => !q.completed);
+              for (const q of activeQuests) {
+                if (q.objective === "combat" && q.targetId === targetId) {
+                  const reward = this.questSystem.completeQuest(player, q.id);
+                  if (reward) {
+                    this.broadcastQuestCompletion(id, q, reward);
+                  }
+                }
+              }
             } else {
               this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `You hit ${npc.name} with ${weaponName} for ${totalDamage} damage! (${npc.health}/${npc.maxHealth})` });
             }
@@ -190,7 +195,12 @@ export class WorldTick {
         if (npc) {
           const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
           if (dist < 20) {
-            const interaction = this.npcSystem.handleInteraction(targetId, charName);
+            const interaction = this.npcSystem.handleInteraction(
+              targetId, 
+              charName, 
+              player.quests || [],
+              this.questSystem.getQuestDefinitions()
+            );
             if (interaction) {
               this.ws.sendToPlayer(id, {
                 type: "dialogue",
@@ -199,7 +209,7 @@ export class WorldTick {
               });
 
               if (interaction.questId) {
-                const quest = this.questSystem.startQuest(player, interaction.questId as any);
+                const quest = this.questSystem.startQuest(player, interaction.questId);
                 if (quest) {
                   this.ws.sendToPlayer(id, {
                     type: "dialogue",
@@ -211,22 +221,36 @@ export class WorldTick {
               }
 
               // Check for quest completion
-              if (targetId === "npc_2") {
-                const reward = this.questSystem.completeQuest(player, "first_steps");
-                if (reward) {
-                  let rewardText = `Quest Completed: First Steps! You earned ${reward.gold} gold and ${reward.xp} XP.`;
-                  if (reward.itemId) {
-                    const itemDef = ItemRegistry.getItem(reward.itemId);
-                    if (itemDef) {
-                      rewardText += ` Received item: ${itemDef.name}`;
+              // We can now use the quest data to see if this NPC is the target
+              const activeQuests = player.quests.filter((q: any) => !q.completed);
+              for (const q of activeQuests) {
+                let completed = false;
+                if (q.objective === "talk_to" && q.targetNpcId === targetId) {
+                  completed = true;
+                } else if (q.objective === "collect" && q.targetNpcId === targetId) {
+                  // Check inventory for required items
+                  const count = player.inventory.filter((item: any) => item.id === q.requiredItemId).length;
+                  if (count >= (q.requiredCount || 1)) {
+                    // Consume items
+                    for (let i = 0; i < (q.requiredCount || 1); i++) {
+                      const index = player.inventory.findIndex((item: any) => item.id === q.requiredItemId);
+                      if (index !== -1) player.inventory.splice(index, 1);
                     }
+                    completed = true;
+                  } else {
+                    this.ws.sendToPlayer(id, {
+                      type: "dialogue",
+                      source: "System",
+                      text: `You need ${q.requiredCount || 1}x ${q.requiredItemId} to complete this quest.`
+                    });
                   }
-                  this.ws.sendToPlayer(id, {
-                    type: "dialogue",
-                    source: "System",
-                    text: rewardText
-                  });
-                  this.saveAll();
+                }
+
+                if (completed) {
+                  const reward = this.questSystem.completeQuest(player, q.id);
+                  if (reward) {
+                    this.broadcastQuestCompletion(id, q, reward);
+                  }
                 }
               }
             }
@@ -240,6 +264,38 @@ export class WorldTick {
         }
       }
     };
+  }
+
+  private broadcastQuestCompletion(socketId: string, quest: any, reward: any) {
+    let rewardText = `Quest Completed: ${quest.name}! You earned ${reward.gold} gold and ${reward.xp} XP.`;
+    if (reward.itemId) {
+      const itemDef = ItemRegistry.getItem(reward.itemId);
+      if (itemDef) {
+        rewardText += ` Received item: ${itemDef.name}`;
+      }
+    }
+    this.ws.sendToPlayer(socketId, {
+      type: "dialogue",
+      source: "System",
+      text: rewardText
+    });
+    this.saveAll();
+  }
+
+  private loadSpawns() {
+    try {
+      const spawnsPath = path.resolve(process.cwd(), "game-data/spawns/npc-spawns.json");
+      if (fs.existsSync(spawnsPath)) {
+        const spawnData = JSON.parse(fs.readFileSync(spawnsPath, "utf-8"));
+        spawnData.forEach((region: any) => {
+          region.spawns.forEach((spawn: any) => {
+            this.npcSystem.createNPC(spawn.npcId, "", spawn.x, spawn.y);
+          });
+        });
+      }
+    } catch (error) {
+      console.error("Error loading Spawn data:", error);
+    }
   }
 
   saveAll() {

@@ -1,0 +1,102 @@
+[
+  {
+    "id": "first_steps",
+    "title": "First Steps",
+    "giverNpcId": "npc_1",
+    "targetNpcId": "npc_2",
+    "objectiveType": "talk_to",
+    "reward": {
+      "gold": 50,
+      "xp": 100,
+      "itemId": "starter_sword"
+    }
+  },
+  {
+    "id": "missing_letter",
+    "title": "The Missing Letter",
+    "giverNpcId": "npc_1",
+    "targetNpcId": "npc_3",
+    "objectiveType": "talk_to",
+    "reward": {
+      "gold": 20,
+      "xp": 50
+    }
+  },
+  {
+    "id": "dummy_slayer",
+    "title": "Dummy Slayer",
+    "giverNpcId": "npc_2",
+    "targetId": "npc_dummy",
+    "objectiveType": "combat",
+    "reward": {
+      "gold": 100,
+      "xp": 200,
+      "itemId": "iron_scrap"
+    }
+  },
+  {
+    "id": "iron_scraps",
+    "title": "Iron Scraps",
+    "giverNpcId": "npc_3",
+    "targetNpcId": "npc_3",
+    "objectiveType": "collect",
+    "requiredItemId": "iron_scrap",
+    "requiredCount": 1,
+    "prerequisiteQuestIds": ["missing_letter"],
+    "reward": {
+      "gold": 50,
+      "xp": 150,
+      "itemId": "wooden_shield"
+    }
+  },
+  {
+    "id": "scouts_report",
+    "title": "The Scout's Report",
+    "giverNpcId": "npc_5",
+    "targetNpcId": "npc_1",
+    "objectiveType": "talk_to",
+    "reward": {
+      "gold": 30,
+      "xp": 75
+    }
+  },
+  {
+    "id": "wolf_hunt",
+    "title": "Wolf Hunt",
+    "giverNpcId": "npc_5",
+    "targetId": "npc_wolf",
+    "objectiveType": "combat",
+    "reward": {
+      "gold": 150,
+      "xp": 300,
+      "itemId": "wolf_pelt"
+    }
+  },
+  {
+    "id": "pelt_collector",
+    "title": "Pelt Collector",
+    "giverNpcId": "npc_4",
+    "targetNpcId": "npc_4",
+    "objectiveType": "collect",
+    "requiredItemId": "wolf_pelt",
+    "requiredCount": 1,
+    "prerequisiteQuestIds": ["wolf_hunt"],
+    "reward": {
+      "gold": 200,
+      "xp": 400,
+      "itemId": "iron_scrap"
+    }
+  },
+  {
+    "id": "master_work",
+    "title": "Master Work",
+    "giverNpcId": "npc_4",
+    "targetNpcId": "npc_4",
+    "objectiveType": "talk_to",
+    "prerequisiteQuestIds": ["pelt_collector"],
+    "reward": {
+      "gold": 500,
+      "xp": 1000
+    }
+  }
+]

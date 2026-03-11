@@ -1,12 +1,29 @@
 import { updateWorldState } from "../engine/renderer";
-import { showDialogue, updateHUD } from "../ui/hud";
+import { showDialogue, updateHUD, updateCooldowns } from "../ui/hud";
 
 export let myPlayerId: string | null = null;
 let latestState: any = null;
 
+const cooldowns = {
+  attack: 0,
+  interact: 0,
+  equip: 0
+};
+
+const CD_DURATIONS = {
+  attack: 800,
+  interact: 500,
+  equip: 500
+};
+
 export function connectSocket() {
   const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const ws = new WebSocket(`${wsProtocol}//${location.host}/ws`);
+
+  // Update cooldowns UI every frame
+  const cdInterval = setInterval(() => {
+    updateCooldowns(cooldowns);
+  }, 100);
 
   ws.onopen = () => {
     console.log("Connected to Arelorian server");
@@ -58,10 +75,12 @@ export function connectSocket() {
     if (!myPlayerId) return;
 
     if (e.key === "g" || e.key === "G") {
+      if (Date.now() < cooldowns.equip) return;
       // Equip first item in inventory
       if (latestState && latestState.players) {
         const myPlayer = latestState.players.find((p: any) => p.id === myPlayerId);
         if (myPlayer && myPlayer.inventory && myPlayer.inventory.length > 0) {
+          cooldowns.equip = Date.now() + CD_DURATIONS.equip;
           ws.send(JSON.stringify({
             type: "equip",
             itemId: myPlayer.inventory[0].id
@@ -72,7 +91,9 @@ export function connectSocket() {
     }
 
     if (e.key === "h" || e.key === "H") {
+      if (Date.now() < cooldowns.equip) return;
       // Unequip weapon
+      cooldowns.equip = Date.now() + CD_DURATIONS.equip;
       ws.send(JSON.stringify({
         type: "unequip",
         slot: "weapon"
@@ -81,6 +102,7 @@ export function connectSocket() {
     }
     
     if (e.key === "f" || e.key === "F") {
+      if (Date.now() < cooldowns.attack) return;
       // Attack closest NPC
       if (latestState && latestState.npcs && latestState.players) {
         const myPlayer = latestState.players.find((p: any) => p.id === myPlayerId);
@@ -97,6 +119,7 @@ export function connectSocket() {
           }
           
           if (closestNpc && minDistance < 40) {
+            cooldowns.attack = Date.now() + CD_DURATIONS.attack;
             ws.send(JSON.stringify({
               type: "attack",
               targetId: closestNpc.id
@@ -108,6 +131,7 @@ export function connectSocket() {
     }
 
     if (e.key === "e" || e.key === "E") {
+      if (Date.now() < cooldowns.interact) return;
       // Find closest NPC
       if (latestState && latestState.npcs && latestState.players) {
         const myPlayer = latestState.players.find((p: any) => p.id === myPlayerId);
@@ -124,6 +148,7 @@ export function connectSocket() {
           }
           
           if (closestNpc && minDistance < 30) {
+            cooldowns.interact = Date.now() + CD_DURATIONS.interact;
             ws.send(JSON.stringify({
               type: "interact",
               targetId: closestNpc.id

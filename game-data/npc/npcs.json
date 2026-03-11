@@ -1,0 +1,64 @@
+[
+  {
+    "id": "npc_1",
+    "name": "Test NPC",
+    "role": "Quest Giver",
+    "dialogueId": "dialogue_npc_1",
+    "questHooks": ["first_steps", "missing_letter"],
+    "faction": "Neutral"
+  },
+  {
+    "id": "npc_2",
+    "name": "Outpost Guard",
+    "role": "Guard",
+    "dialogueId": "dialogue_npc_2",
+    "questHooks": ["dummy_slayer"],
+    "faction": "Guardians"
+  },
+  {
+    "id": "npc_dummy",
+    "name": "Training Dummy",
+    "role": "Training",
+    "dialogueId": "dialogue_dummy",
+    "faction": "Neutral",
+    "stats": {
+      "health": 100,
+      "maxHealth": 100
+    }
+  },
+  {
+    "id": "npc_3",
+    "name": "Village Elder",
+    "role": "Elder",
+    "dialogueId": "dialogue_npc_3",
+    "questHooks": ["iron_scraps"],
+    "faction": "Neutral"
+  },
+  {
+    "id": "npc_4",
+    "name": "Master Blacksmith",
+    "role": "Blacksmith",
+    "dialogueId": "dialogue_npc_4",
+    "questHooks": ["pelt_collector", "master_work"],
+    "faction": "Neutral"
+  },
+  {
+    "id": "npc_5",
+    "name": "Frontier Scout",
+    "role": "Scout",
+    "dialogueId": "dialogue_npc_5",
+    "questHooks": ["scouts_report", "wolf_hunt"],
+    "faction": "Neutral"
+  },
+  {
+    "id": "npc_wolf",
+    "name": "Dire Wolf",
+    "role": "Enemy",
+    "dialogueId": "dialogue_wolf",
+    "faction": "Hostile",
+    "stats": {
+      "health": 50,
+      "maxHealth": 50
+    }
+  }
+]
