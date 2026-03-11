@@ -54,4 +54,15 @@ export class GameWebSocketServer {
       }
     }
   }
+
+  sendToPlayer(id: string, data: any) {
+    if (!this.wss) return;
+    const message = JSON.stringify(data);
+    for (const client of this.wss.clients as Set<WebSocket & { id?: string }>) {
+      if (client.id === id && client.readyState === 1) {
+        client.send(message);
+        break;
+      }
+    }
+  }
 }

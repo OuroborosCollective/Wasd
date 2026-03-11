@@ -38,13 +38,24 @@ export class WorldTick {
     this.questSystem = new QuestEngine();
     this.worldSystem = new WorldSystem();
 
+    // Create a test NPC
+    this.npcSystem.createNPC("npc_1", "Test NPC", 32, 32);
+
+    // Create a dummy player in a distant chunk to prove multi-observer union
+    const dummyPlayer = this.playerSystem.createPlayer("dummy_player", "Dummy Player");
+    dummyPlayer.position.x = 500;
+    dummyPlayer.position.y = 500;
+    this.observerEngine.register("dummy_player", { x: 500, y: 500 });
+
     this.ws.onPlayerConnect = (id) => {
-      this.playerSystem.createPlayer(id, `Player_${id}`);
+      const player = this.playerSystem.createPlayer(id, `Player_${id}`);
+      this.observerEngine.register(id, { x: player.position.x, y: player.position.y });
       console.log(`Player ${id} connected.`);
     };
 
     this.ws.onPlayerDisconnect = (id) => {
       this.playerSystem.removePlayer(id);
+      this.observerEngine.unregister(id);
       console.log(`Player ${id} disconnected.`);
     };
 
@@ -52,9 +63,36 @@ export class WorldTick {
       const player = this.playerSystem.getPlayer(id);
       if (!player) return;
 
-      if (msg.type === "move") {
-        player.position.x = msg.x;
-        player.position.y = msg.y;
+      if (msg.type === "move_intent") {
+        // Server-authoritative movement calculation
+        const speed = 5;
+        // Clamp intent to prevent speed hacking
+        const dx = Math.max(-1, Math.min(1, msg.dx || 0));
+        const dy = Math.max(-1, Math.min(1, msg.dy || 0));
+        
+        player.position.x += dx * speed;
+        player.position.y += dy * speed;
+        
+        this.observerEngine.updatePosition(id, { x: player.position.x, y: player.position.y });
+      } else if (msg.type === "interact") {
+        const targetId = msg.targetId;
+        const npc = this.npcSystem.getNPC(targetId);
+        if (npc) {
+          const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
+          if (dist < 20) {
+            this.ws.sendToPlayer(id, {
+              type: "dialogue",
+              source: npc.name,
+              text: "Hello there, traveler! The world is dangerous, stay safe."
+            });
+          } else {
+            this.ws.sendToPlayer(id, {
+              type: "dialogue",
+              source: "System",
+              text: "Target is too far away."
+            });
+          }
+        }
       }
     };
   }
@@ -70,6 +108,13 @@ export class WorldTick {
 
   tick() {
     this.tickCount += 1;
+
+    // Move dummy player back and forth
+    const dummyPlayer = this.playerSystem.getPlayer("dummy_player");
+    if (dummyPlayer) {
+      dummyPlayer.position.x = 500 + Math.sin(this.tickCount * 0.1) * 50;
+      this.observerEngine.updatePosition("dummy_player", { x: dummyPlayer.position.x, y: dummyPlayer.position.y });
+    }
     
     // 1. Update active chunks based on observers
     const observedChunks = this.observerEngine.getObservedChunks();
@@ -104,7 +149,7 @@ export class WorldTick {
     this.ws.broadcast({
       type: "world_tick",
       tick: this.tickCount,
-      activeChunks: activeChunks.length,
+      activeChunkIds: activeChunks.map(c => c.id),
       players: this.playerSystem.getAllPlayers ? this.playerSystem.getAllPlayers() : [],
       npcs: this.npcSystem.getAllNPCs()
     });
