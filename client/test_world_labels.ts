@@ -16,6 +16,13 @@ const dom = new JSDOM(`<!DOCTYPE html><body></body>`);
 (global as any).document = dom.window.document;
 
 function logLabels() {
+  // also show tooltip element if present
+}
+
+function logTooltip() {
+  const t = document.getElementById('interaction-tooltip');
+  console.log('tooltip text:', t ? t.textContent : '<none>');
+}
   const labels = Array.from(document.querySelectorAll('[id^="label-"]')).map(el => ({id: el.id, html: el.innerHTML}));
   console.log('world labels:', labels);
 }
@@ -38,14 +45,24 @@ async function runTest() {
   };
   updateWorldState(state, 'player1');
   logLabels();
+  logTooltip();
   // simulate damage
   state.npcs[0].health = 25;
   updateWorldState(state, 'player1');
   logLabels();
+  logTooltip();
   // simulate pickup
   state.loot = [];
   updateWorldState(state, 'player1');
   logLabels();
+  logTooltip();
+
+  // interaction priority test: put both loot and npc nearby
+  state.loot = [{ id: 'loot2', item: { name: 'Shield', type: 'Armor' }, position: { x: 5, y: 5 } }];
+  state.npcs[0].position = { x: 6, y: 6 };
+  updateWorldState(state, 'player1');
+  logLabels();
+  logTooltip();
 }
 
 runTest().catch(console.error);
