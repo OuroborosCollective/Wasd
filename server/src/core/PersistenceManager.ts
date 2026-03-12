@@ -5,7 +5,6 @@ export class PersistenceManager {
     try {
       for (const id in data) {
         const player = data[id];
-        // Use username as the unique key for now as id in memory might be different from UUID in DB
         await db.query(
           `INSERT INTO players (username, email, level, experience, matrix_energy, position_x, position_y, data)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -30,7 +29,39 @@ export class PersistenceManager {
         );
       }
     } catch (err) {
-      console.error('Failed to save persistence data to Postgres:', err);
+      console.error('Failed to save player persistence data to Postgres:', err);
+    }
+  }
+
+  async saveChunks(chunks: any[]) {
+    try {
+      for (const chunk of chunks) {
+        await db.query(
+          `INSERT INTO world_chunks (id, x, y, data, last_active)
+           VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+           ON CONFLICT (id) DO UPDATE SET
+           data = EXCLUDED.data,
+           last_active = CURRENT_TIMESTAMP`,
+          [chunk.id, chunk.x, chunk.y, JSON.stringify(chunk.data)]
+        );
+      }
+    } catch (err) {
+      console.error('Failed to save chunk persistence data to Postgres:', err);
+    }
+  }
+
+  async saveNPCs(npcs: any[]) {
+    try {
+      for (const npc of npcs) {
+        await db.query(
+          `INSERT INTO npc_entities (name, archetype, position_x, position_y, memory_data)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT DO NOTHING`,
+          [npc.name, npc.role, npc.position.x, npc.position.y, JSON.stringify(npc.memory || [])]
+        );
+      }
+    } catch (err) {
+      console.error('Failed to save NPC persistence data to Postgres:', err);
     }
   }
 
@@ -39,7 +70,6 @@ export class PersistenceManager {
       const res = await db.query('SELECT * FROM players');
       const data: any = {};
       res.rows.forEach(row => {
-        // Merge DB columns with the JSON data
         data[row.username] = {
           ...row.data,
           id: row.id,

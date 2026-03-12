@@ -1,11 +1,19 @@
 export class DudenregisterHistory {
   private history: any[] = [];
+  private readonly MAX_ENTRIES = 1000;
 
-  record(event: any) {
-    this.history.push(event);
+  record(event: { type: string, detail: string, actorId: string }) {
+    this.history.unshift({
+      ...event,
+      timestamp: Date.now()
+    });
+    if (this.history.length > this.MAX_ENTRIES) {
+      this.history.pop();
+    }
+    console.log(`[Dudenregister] ${event.type}: ${event.detail}`);
   }
 
-  getHistory() {
-    return this.history;
+  getHistory(limit: number = 10) {
+    return this.history.slice(0, limit);
   }
 }

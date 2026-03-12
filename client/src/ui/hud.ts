@@ -22,6 +22,9 @@ export function renderHUD() {
   
   hud.innerHTML = `
     <div style="font-weight: bold; border-bottom: 1px solid rgba(0, 255, 0, 0.2); padding-bottom: 6px; margin-bottom: 4px; color: #00ff00; letter-spacing: 1px; text-transform: uppercase; font-size: 0.9em;">Areloria Master</div>
+    <div id="hud-world-state" style="font-size: 0.8em; color: #ff9900; margin-bottom: 5px; font-weight: bold;">
+      Spring | Clear
+    </div>
     <div id="hud-stats" style="font-size: 0.95em; color: #fff;">
       Gold: 0 | XP: 0
     </div>
@@ -31,6 +34,9 @@ export function renderHUD() {
     <div id="hud-brain" style="font-size: 0.8em; color: #ffffff; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);">
       <div style="opacity: 0.6; margin-bottom: 2px;">World Brain:</div>
       <div id="val-brain-summary" style="font-weight: bold;">Balanced</div>
+    </div>
+    <div id="hud-dudenregister" style="font-size: 0.75em; color: #ffcc00; opacity: 0.8; margin-top: 4px; max-height: 60px; overflow: hidden; border-left: 2px solid #ffcc00; padding-left: 5px;">
+      History: Initializing...
     </div>
     <div id="hud-inventory" style="font-size: 0.85em; color: #ffcc00; margin-top: 5px;">
       Inv: Empty
@@ -324,4 +330,27 @@ export function renderInventoryPanel(player: any, ws: WebSocket) {
   (window as any).equip = (itemId: string) => ws.send(JSON.stringify({ type: 'equip', itemId }));
   (window as any).unequip = (slot: string) => ws.send(JSON.stringify({ type: 'unequip', slot }));
   (window as any).drop = (itemId: string) => ws.send(JSON.stringify({ type: 'drop', itemId }));
+}
+
+export function updateDudenHUD(history: any[]) {
+  const dudenEl = document.getElementById("hud-dudenregister");
+  if (dudenEl) {
+    if (history.length === 0) {
+      dudenEl.textContent = "History: No entries yet.";
+    } else {
+      dudenEl.innerHTML = history.slice(0, 3).map(h => `<div>[${new Date(h.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}] ${h.detail}</div>`).join("");
+    }
+  }
+}
+
+export function updateWorldStateHUD(state: any) {
+  const wsEl = document.getElementById("hud-world-state");
+  if (wsEl && state) {
+    wsEl.textContent = `${state.season.toUpperCase()} | ${state.weather.toUpperCase()}`;
+
+    // Change color based on weather/season
+    if (state.weather === 'storm' || state.weather === 'snow') wsEl.style.color = '#00ccff';
+    else if (state.weather === 'heatwave') wsEl.style.color = '#ff4400';
+    else wsEl.style.color = '#ff9900';
+  }
 }

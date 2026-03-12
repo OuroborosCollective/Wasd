@@ -135,6 +135,7 @@ export function connectSocket() {
       } else if (data.type === "world_tick") {
         latestState = data;
         updateWorldState(data, myPlayerId);
+        if (data.worldState) updateWorldStateHUD(data.worldState);
 
         // Update HUD with my player's stats
         if (myPlayerId) {
@@ -166,6 +167,10 @@ export function connectSocket() {
         updateAdminAssetLinks(data.links);
       } else if (data.type === "world_brain_update") {
         updateBrainHUD(data.state);
+      } else if (data.type === "oracle_vision") {
+        showDialogue("Oracle", data.vision);
+      } else if (data.type === "dudenregister_update") {
+        updateDudenHUD(data.history);
       }
     } catch (e) {
       console.error("Failed to parse message", e);

@@ -1,15 +1,41 @@
+import { MatrixEnergySystem } from "../economy/MatrixEnergySystem.js";
+
 export class CraftingSystem {
-  canCraft(player:any, recipe:any, inventory:any[]) {
+  constructor(private matrixEnergy: MatrixEnergySystem) {}
+
+  canCraft(player: any, recipe: any) {
+    // Check Matrix Energy requirement
+    const energyCost = recipe.energyCost || 10;
+    if (this.matrixEnergy.getBalance(player.id) < energyCost) return false;
+
+    // Check Skill
     if ((player.skills?.[recipe.skill]?.level ?? 0) < (recipe.requiredLevel ?? 1)) return false;
-    return recipe.ingredients.every((ing:any) => inventory.some((item:any) => item.id === ing.id && (item.amount ?? 1) >= ing.amount));
+
+    // Check Ingredients
+    return recipe.ingredients.every((ing: any) => {
+      const count = player.inventory.filter((item: any) => item.id === ing.id).length;
+      return count >= (ing.amount || 1);
+    });
   }
 
-  craft(player:any, recipe:any) {
+  craft(player: any, recipe: any) {
+    if (!this.canCraft(player, recipe)) return { success: false };
+
+    // Consume energy
+    this.matrixEnergy.consume(player.id, recipe.energyCost || 10);
+
+    // Consume items
+    recipe.ingredients.forEach((ing: any) => {
+      for (let i = 0; i < (ing.amount || 1); i++) {
+        const idx = player.inventory.findIndex((it: any) => it.id === ing.id);
+        if (idx !== -1) player.inventory.splice(idx, 1);
+      }
+    });
+
     return {
-      crafted: true,
-      itemId: recipe.result.id,
-      amount: recipe.result.amount ?? 1,
-      xp: recipe.xp ?? 0
+      success: true,
+      resultId: recipe.resultId,
+      xp: recipe.xp || 5
     };
   }
 }

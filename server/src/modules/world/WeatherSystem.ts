@@ -1,6 +1,13 @@
 export class WeatherSystem {
-  nextWeather(seed:number){
-    const states = ["clear","rain","storm","fog","snow","heatwave"];
-    return states[Math.abs(seed) % states.length];
+  private states = ["clear", "rain", "storm", "fog", "snow", "heatwave"];
+  private current: string = "clear";
+
+  nextWeather(seed: number) {
+    this.current = this.states[Math.abs(seed) % this.states.length];
+    return this.current;
+  }
+
+  getCurrent() {
+    return this.current;
   }
 }

@@ -1,10 +1,11 @@
+import { EconomyEngine } from "./EconomyEngine.js";
+
 export class EconomySystem {
   private goldSupply: number = 0;
-  private itemPrices: Map<string, number> = new Map();
+  private engine: EconomyEngine = new EconomyEngine();
 
   constructor() {
-    this.itemPrices.set("health_potion", 50);
-    this.itemPrices.set("iron_sword", 150);
+    this.engine.registerMarket("main_market");
   }
 
   addGold(player: any, amount: number) {
@@ -21,13 +22,18 @@ export class EconomySystem {
     return false;
   }
 
-  getPrice(itemId: string): number {
-    return this.itemPrices.get(itemId) || 10;
+  registerMarket(id: string) {
+    this.engine.registerMarket(id);
   }
 
-  adjustPrice(itemId: string, demandFactor: number) {
-    const currentPrice = this.getPrice(itemId);
-    const newPrice = Math.max(1, Math.floor(currentPrice * demandFactor));
-    this.itemPrices.set(itemId, newPrice);
+  trade(marketId: string, item: string, amount: number, factionReputation: number = 0) {
+    return this.engine.trade(marketId, item, amount, factionReputation);
+  }
+
+  getPrice(marketId: string, itemId: string): number {
+    const market = this.engine.getMarket(marketId);
+    if (!market) return 10;
+    const res = this.trade(marketId, itemId, 0);
+    return res ? res.price : 10;
   }
 }
