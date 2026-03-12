@@ -1,0 +1,11 @@
+{
+  "wolf_pelt": {
+    "slot": "material"
+  },
+  "fang": {
+    "slot": "material"
+  },
+  "ancient_coin": {
+    "slot": "currency"
+  }
+}

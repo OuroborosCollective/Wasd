@@ -1,0 +1,14 @@
+{
+  "wood": {
+    "basePrice": 5
+  },
+  "iron_ore": {
+    "basePrice": 9
+  },
+  "bread": {
+    "basePrice": 3
+  },
+  "ancient_relic": {
+    "basePrice": 120
+  }
+}

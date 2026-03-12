@@ -1,0 +1,10 @@
+{
+  "clear": {
+    "visibility": 1,
+    "movePenalty": 0
+  },
+  "storm": {
+    "visibility": 0.7,
+    "movePenalty": 0.2
+  }
+}

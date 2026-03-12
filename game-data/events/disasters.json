@@ -1,0 +1,14 @@
+{
+  "fire": {
+    "severity": 2
+  },
+  "storm": {
+    "severity": 3
+  },
+  "blight": {
+    "severity": 2
+  },
+  "collapse": {
+    "severity": 4
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "village_wall": [
+    "reinforced_wall",
+    "stone_wall"
+  ],
+  "watch_tower": [
+    "fortified_tower",
+    "signal_tower"
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "events": [
+    "war_declared",
+    "ruin_found",
+    "harvest_festival",
+    "shadow_portal_awakens"
+  ]
+}

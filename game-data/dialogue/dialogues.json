@@ -1,0 +1,259 @@
+[
+  {
+    "id": "dialogue_npc_1",
+    "greeting": "Hello, I am Test NPC. Welcome to Areloria!",
+    "entryNodes": [
+      { "nodeId": "helped", "conditionFlag": "helped_test_npc" }
+    ],
+    "nodes": {
+      "root": {
+        "text": "Greetings, traveler! I'm in a bit of a bind. Would you be willing to help a simple merchant?",
+        "choices": [
+          { "id": "npc1_root_1", "text": "Of course, what do you need?", "nextNodeId": "accept_help" },
+          { "id": "npc1_root_2", "text": "I'm too busy for your problems.", "nextNodeId": "decline_help" }
+        ]
+      },
+      "accept_help": {
+        "text": "That's the spirit! I've set a mark on your record. Come back when you're ready for work.",
+        "setFlag": "helped_test_npc",
+        "choices": [
+          { "id": "npc1_accept_1", "text": "I'll be back.", "nextNodeId": "root" }
+        ]
+      },
+      "decline_help": {
+        "text": "Hmph. Typical traveler. Be on your way then.",
+        "choices": [
+          { "id": "npc1_decline_1", "text": "Fine.", "nextNodeId": "root" }
+        ]
+      },
+      "helped": {
+        "text": "Ah, my favorite traveler! Ready to help me again?",
+        "choices": [
+          { "id": "npc1_helped_1", "text": "Always.", "nextNodeId": "root" }
+        ]
+      }
+    },
+    "questPrerequisiteLines": {
+      "first_steps": "I only give tasks to those I can trust. Talk to me first."
+    },
+    "questStartLines": {
+      "first_steps": "Greetings, traveler! I have a task for you if you're interested. Could you check on my friend at the distant outpost?",
+      "missing_letter": "I have a letter for the Village Elder. Could you deliver it for me?"
+    },
+    "questProgressLines": {
+      "first_steps": "Have you found my friend at the outpost yet?",
+      "missing_letter": "The Elder is waiting for that letter."
+    },
+    "questCompleteLines": {
+      "first_steps": "Thank you for helping me out!",
+      "missing_letter": "Thanks for delivering the letter!"
+    },
+    "fallback": "I'm a bit busy right now, come back later."
+  },
+  {
+    "id": "dialogue_npc_2",
+    "greeting": "I'm doing fine, just keeping watch.",
+    "questStartLines": {
+      "dummy_slayer": "Those training dummies are getting out of hand. Could you show them who's boss?"
+    },
+    "questProgressLines": {
+      "dummy_slayer": "Go on, hit that dummy!"
+    },
+    "questCompleteLines": {
+      "first_steps": "Oh, you're here! My friend sent you? Thank you for checking in. I'm doing fine, just keeping watch.",
+      "dummy_slayer": "Great work! That dummy won't be bothering anyone for a while."
+    }
+  },
+  {
+    "id": "dialogue_npc_3",
+    "greeting": "Welcome to our village. I am the Elder.",
+    "entryNodes": [
+      { "nodeId": "respectful", "conditionFlag": "elder_respect" },
+      { "nodeId": "disrespectful", "conditionFlag": "elder_disrespect" }
+    ],
+    "nodes": {
+      "root": {
+        "text": "You look like a capable traveler. Tell me, what brings you to our humble village?",
+        "choices": [
+          { "id": "npc3_root_1", "text": "I seek to help those in need.", "nextNodeId": "respect_path" },
+          { "id": "npc3_root_2", "text": "I'm just passing through, don't mind me.", "nextNodeId": "neutral_path" },
+          { "id": "npc3_root_3", "text": "None of your business, old man.", "nextNodeId": "disrespect_path" }
+        ]
+      },
+      "respect_path": {
+        "text": "It is rare to find such virtue these days. You have my respect.",
+        "setFlag": "elder_respect",
+        "choices": [
+          { "id": "npc3_respect_1", "text": "Thank you, Elder.", "nextNodeId": "root" }
+        ]
+      },
+      "neutral_path": {
+        "text": "I see. Well, stay as long as you like, but stay out of trouble.",
+        "choices": [
+          { "id": "npc3_neutral_1", "text": "Understood.", "nextNodeId": "root" }
+        ]
+      },
+      "disrespect_path": {
+        "text": "Such insolence! I have no time for the likes of you.",
+        "setFlag": "elder_disrespect",
+        "choices": [
+          { "id": "npc3_disrespect_1", "text": "Whatever.", "nextNodeId": "root" }
+        ]
+      },
+      "respectful": {
+        "text": "Ah, the virtuous traveler returns. How can I help you today?",
+        "choices": [
+          { "id": "npc3_respectful_1", "text": "I was wondering if you had any tasks.", "nextNodeId": "root" }
+        ]
+      },
+      "disrespectful": {
+        "text": "You again? I told you I have nothing to say to you.",
+        "choices": [
+          { "id": "npc3_disrespectful_1", "text": "Fine, I'm leaving.", "nextNodeId": "root" }
+        ]
+      }
+    },
+    "questPrerequisiteLines": {
+      "iron_scraps": "I only give tasks to those who show respect for our traditions and have helped my friend."
+    },
+    "questStartLines": {
+      "iron_scraps": "We need iron scraps to repair our tools. If you find any, please bring them to me."
+    },
+    "questProgressLines": {
+      "iron_scraps": "Do you have the iron scraps yet?"
+    },
+    "questCompleteLines": {
+      "missing_letter": "A letter from my friend? Thank you, traveler!",
+      "iron_scraps": "These scraps will be perfect. Thank you!"
+    }
+  },
+  {
+    "id": "dialogue_npc_4",
+    "greeting": "The forge is hot today. What do you need?",
+    "entryNodes": [
+      { "nodeId": "high_rep", "conditionReputation": { "factionId": "blacksmith_guild", "min": 10 } },
+      { "nodeId": "low_rep", "conditionReputation": { "factionId": "blacksmith_guild", "max": -5 } }
+    ],
+    "nodes": {
+      "root": {
+        "text": "The forge is hot today. What do you need?",
+        "choices": [
+          { "id": "npc4_learn", "text": "I want to learn the craft.", "nextNodeId": "learn_craft", "changeReputation": { "factionId": "blacksmith_guild", "amount": 2 } },
+          { "id": "npc4_insult", "text": "Your work is overpriced.", "nextNodeId": "insult", "changeReputation": { "factionId": "blacksmith_guild", "amount": -2 } }
+        ]
+      },
+      "learn_craft": {
+        "text": "Hah! You have the spirit. Keep at it.",
+        "choices": [{ "text": "Thanks.", "nextNodeId": "root" }]
+      },
+      "insult": {
+        "text": "Get out of my shop!",
+        "choices": [{ "text": "Fine.", "nextNodeId": "root" }]
+      },
+      "high_rep": {
+        "text": "Ah, a master of the craft! Welcome back.",
+        "choices": [{ "text": "Good to see you.", "nextNodeId": "root" }]
+      },
+      "low_rep": {
+        "text": "I don't serve your kind here. Leave.",
+        "choices": [{ "text": "...", "nextNodeId": "root" }]
+      }
+    },
+    "questPrerequisiteLines": {
+      "pelt_collector": "I only work with those who have proven themselves in the hunt. Go talk to the Scout.",
+      "master_work": "You've brought me pelts, but are you ready for a true masterpiece?"
+    },
+    "questStartLines": {
+      "pelt_collector": "I need a thick wolf pelt to line these gloves. Bring me one and I'll give you some spare iron.",
+      "master_work": "I'm going to forge a legendary blade. I just need you to witness the final strike."
+    },
+    "questProgressLines": {
+      "pelt_collector": "Still waiting on that pelt.",
+      "master_work": "The metal is cooling, hurry up!"
+    },
+    "questCompleteLines": {
+      "pelt_collector": "Excellent quality. Here is your iron.",
+      "master_work": "It is finished! A masterpiece!"
+    }
+  },
+  {
+    "id": "dialogue_npc_5",
+    "greeting": "Keep your eyes sharp, traveler. The wilds are dangerous.",
+    "questStartLines": {
+      "scouts_report": "I've spotted unusual activity to the south. Take this report to the Test NPC immediately.",
+      "wolf_hunt": "A Dire Wolf has been stalking the perimeter. It needs to be dealt with."
+    },
+    "questProgressLines": {
+      "scouts_report": "The report won't deliver itself.",
+      "wolf_hunt": "The wolf is still out there."
+    },
+    "questCompleteLines": {
+      "scouts_report": "Good work on the delivery.",
+      "wolf_hunt": "The perimeter is safe for now. Well done."
+    }
+  },
+  {
+    "id": "dialogue_wolf",
+    "greeting": "Grrrr..."
+  },
+  {
+    "id": "dialogue_dummy",
+    "greeting": "..."
+  },
+  {
+    "id": "dialogue_npc_6",
+    "greeting": "I prefer the quiet of the woods.",
+    "nodes": {
+      "root": {
+        "text": "The woods are quiet today. What brings a traveler here?",
+        "choices": [
+          { "id": "hermit_root_1", "text": "Just exploring.", "nextNodeId": "exploring" },
+          { "id": "hermit_root_2", "text": "I'm looking for work.", "nextNodeId": "work" }
+        ]
+      },
+      "exploring": {
+        "text": "Be careful, the woods have eyes.",
+        "choices": [{ "id": "hermit_exploring_1", "text": "Thanks.", "nextNodeId": "root" }]
+      },
+      "work": {
+        "text": "I have a task for you, if you're brave enough.",
+        "choices": [{ "id": "hermit_work_1", "text": "Tell me.", "nextNodeId": "root" }]
+      }
+    },
+    "questStartLines": {
+      "hermit_quest": "I need some rare herbs from the deep woods. Can you fetch them?"
+    },
+    "questProgressLines": {
+      "hermit_quest": "Still looking for those herbs?"
+    },
+    "questCompleteLines": {
+      "hermit_quest": "Thank you, these will do nicely."
+    }
+  },
+  {
+    "id": "dialogue_npc_7",
+    "greeting": "I've lost my cart. Have you seen it?",
+    "nodes": {
+      "root": {
+        "text": "My cart is lost somewhere in the woods.",
+        "choices": [{ "id": "merchant_1", "text": "I'll look for it.", "nextNodeId": "root" }]
+      }
+    },
+    "questStartLines": { "merchant_quest": "Find my cart!" },
+    "questProgressLines": { "merchant_quest": "Any luck?" },
+    "questCompleteLines": { "merchant_quest": "Thank you!" }
+  },
+  {
+    "id": "dialogue_npc_8",
+    "greeting": "I need help with my experiments.",
+    "nodes": {
+      "root": {
+        "text": "My master needs rare ingredients.",
+        "choices": [{ "id": "apprentice_1", "text": "I can help.", "nextNodeId": "root" }]
+      }
+    },
+    "questStartLines": { "apprentice_quest": "Bring me 5 mushrooms." },
+    "questProgressLines": { "apprentice_quest": "Still need mushrooms." },
+    "questCompleteLines": { "apprentice_quest": "Perfect." }
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "horse_basic": {
+    "speed": 1.2
+  },
+  "giraffe_admin": {
+    "speed": 2.0,
+    "tags": [
+      "gm",
+      "giraffe",
+      "affe"
+    ]
+  }
+}

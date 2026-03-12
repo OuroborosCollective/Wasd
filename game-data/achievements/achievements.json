@@ -1,0 +1,11 @@
+{
+  "first_blood": {
+    "category": "combat"
+  },
+  "ruin_discoverer": {
+    "category": "exploration"
+  },
+  "master_smith": {
+    "category": "crafting"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "merchant_league": {
+    "alignment": "trade"
+  },
+  "shadow_register": {
+    "alignment": "mystic"
+  },
+  "sun_order": {
+    "alignment": "religious"
+  }
+}

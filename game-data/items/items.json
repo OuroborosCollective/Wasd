@@ -1,0 +1,99 @@
+[
+  {
+    "id": "starter_sword",
+    "name": "Starter Sword",
+    "type": "weapon",
+    "slot": "weapon",
+    "damage": 25,
+    "rarity": "common",
+    "description": "A simple iron sword given to new recruits."
+  },
+  {
+    "id": "wooden_shield",
+    "name": "Wooden Shield",
+    "type": "armor",
+    "slot": "armor",
+    "damage": 0,
+    "rarity": "common",
+    "description": "A basic shield made of sturdy oak."
+  },
+  {
+    "id": "iron_scrap",
+    "name": "Iron Scrap",
+    "type": "misc",
+    "rarity": "common",
+    "description": "A piece of rusted iron. Might be useful for someone."
+  },
+  {
+    "id": "wolf_pelt",
+    "name": "Wolf Pelt",
+    "type": "misc",
+    "rarity": "common",
+    "description": "A thick, coarse pelt from a Dire Wolf."
+  },
+  {
+    "id": "fang",
+    "name": "Fang",
+    "type": "misc",
+    "rarity": "common",
+    "description": "A sharp, jagged fang."
+  },
+  {
+    "id": "alpha_claw",
+    "name": "Alpha Claw",
+    "type": "misc",
+    "rarity": "uncommon",
+    "description": "A massive claw from an Alpha wolf."
+  },
+  {
+    "id": "bone_fragment",
+    "name": "Bone Fragment",
+    "type": "misc",
+    "rarity": "common",
+    "description": "A brittle piece of bone."
+  },
+  {
+    "id": "rusted_blade",
+    "name": "Rusted Blade",
+    "type": "weapon",
+    "slot": "weapon",
+    "damage": 15,
+    "rarity": "common",
+    "description": "An old, rusted blade."
+  },
+  {
+    "id": "grave_ring",
+    "name": "Grave Ring",
+    "type": "misc",
+    "rarity": "uncommon",
+    "description": "A ring found in a grave."
+  },
+  {
+    "id": "ancient_coin",
+    "name": "Ancient Coin",
+    "type": "misc",
+    "rarity": "uncommon",
+    "description": "A coin from a forgotten era."
+  },
+  {
+    "id": "relic_fragment",
+    "name": "Relic Fragment",
+    "type": "misc",
+    "rarity": "rare",
+    "description": "A piece of a powerful relic."
+  },
+  {
+    "id": "forgotten_sigil",
+    "name": "Forgotten Sigil",
+    "type": "misc",
+    "rarity": "rare",
+    "description": "A mysterious sigil."
+  },
+  {
+    "id": "guard_token",
+    "name": "Guard Token",
+    "type": "misc",
+    "rarity": "uncommon",
+    "description": "A token used by guards."
+  }
+]

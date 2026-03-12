@@ -1,0 +1,14 @@
+{
+  "forest": [
+    "birds",
+    "wind"
+  ],
+  "desert": [
+    "wind",
+    "sand"
+  ],
+  "town": [
+    "market",
+    "crowd"
+  ]
+}

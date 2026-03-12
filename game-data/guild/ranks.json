@@ -1,0 +1,11 @@
+{
+  "founder": {
+    "power": 100
+  },
+  "officer": {
+    "power": 70
+  },
+  "member": {
+    "power": 10
+  }
+}

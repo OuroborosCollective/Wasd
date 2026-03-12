@@ -1,0 +1,11 @@
+{
+  "forest_tribes": {
+    "style": "organic"
+  },
+  "mountain_clans": {
+    "style": "stone"
+  },
+  "desert_nomads": {
+    "style": "lightweight"
+  }
+}

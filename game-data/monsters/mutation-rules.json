@@ -1,0 +1,11 @@
+{
+  "snow": [
+    "frost_resistance"
+  ],
+  "swamp": [
+    "acid_bite"
+  ],
+  "cave": [
+    "dark_vision"
+  ]
+}

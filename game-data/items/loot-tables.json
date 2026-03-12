@@ -1,0 +1,17 @@
+{
+  "wolf": [
+    "wolf_pelt",
+    "fang",
+    "alpha_claw"
+  ],
+  "skeleton": [
+    "bone_fragment",
+    "rusted_blade",
+    "grave_ring"
+  ],
+  "ruin_cache": [
+    "ancient_coin",
+    "relic_fragment",
+    "forgotten_sigil"
+  ]
+}

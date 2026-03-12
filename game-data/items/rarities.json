@@ -1,0 +1,14 @@
+{
+  "common": {
+    "weight": 100
+  },
+  "uncommon": {
+    "weight": 50
+  },
+  "rare": {
+    "weight": 15
+  },
+  "legendary": {
+    "weight": 2
+  }
+}

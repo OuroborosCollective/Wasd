@@ -1,0 +1,52 @@
+{
+  "contentPacks": [
+    {
+      "name": "Core Content",
+      "npcIds": [
+        "npc_1",
+        "npc_2",
+        "npc_dummy",
+        "npc_3",
+        "npc_4",
+        "npc_5",
+        "npc_wolf",
+        "npc_6_hermit",
+        "npc_7_merchant",
+        "npc_8_apprentice"
+      ],
+      "questIds": [
+        "first_steps",
+        "missing_letter",
+        "dummy_slayer",
+        "iron_scraps",
+        "scouts_report",
+        "wolf_hunt",
+        "pelt_collector",
+        "master_work",
+        "blacksmith_master",
+        "hermit_quest",
+        "merchant_quest",
+        "apprentice_quest"
+      ],
+      "dialogueIds": [
+        "dialogue_npc_1",
+        "dialogue_npc_2",
+        "dialogue_npc_3",
+        "dialogue_npc_4",
+        "dialogue_npc_5",
+        "dialogue_wolf",
+        "dialogue_dummy",
+        "dialogue_npc_6",
+        "dialogue_npc_7",
+        "dialogue_npc_8"
+      ],
+      "itemIds": [
+        "starter_sword",
+        "wooden_shield",
+        "iron_scrap",
+        "wolf_pelt"
+      ],
+      "validationResult": "passed"
+    }
+  ]
+}

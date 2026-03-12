@@ -1,0 +1,10 @@
+{
+  "snow": [
+    "frost_hide",
+    "ice_resistance"
+  ],
+  "swamp": [
+    "acid_bite",
+    "dark_fur"
+  ]
+}

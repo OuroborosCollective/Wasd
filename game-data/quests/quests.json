@@ -1,0 +1,155 @@
+[
+  {
+    "id": "first_steps",
+    "title": "First Steps",
+    "giverNpcId": "npc_1",
+    "targetNpcId": "npc_2",
+    "objectiveType": "talk_to",
+    "requiredFlags": ["helped_test_npc"],
+    "reward": {
+      "gold": 50,
+      "xp": 100,
+      "itemId": "starter_sword"
+    }
+  },
+  {
+    "id": "missing_letter",
+    "title": "The Missing Letter",
+    "giverNpcId": "npc_1",
+    "targetNpcId": "npc_3",
+    "objectiveType": "talk_to",
+    "reward": {
+      "gold": 20,
+      "xp": 50
+    }
+  },
+  {
+    "id": "dummy_slayer",
+    "title": "Dummy Slayer",
+    "giverNpcId": "npc_2",
+    "targetId": "npc_dummy",
+    "objectiveType": "combat",
+    "reward": {
+      "gold": 100,
+      "xp": 200,
+      "itemId": "iron_scrap"
+    }
+  },
+  {
+    "id": "iron_scraps",
+    "title": "Iron Scraps",
+    "giverNpcId": "npc_3",
+    "targetNpcId": "npc_3",
+    "objectiveType": "collect",
+    "requiredItemId": "iron_scrap",
+    "requiredCount": 1,
+    "prerequisiteQuestIds": ["missing_letter"],
+    "requiredFlags": ["elder_respect"],
+    "reward": {
+      "gold": 50,
+      "xp": 150,
+      "itemId": "wooden_shield"
+    }
+  },
+  {
+    "id": "scouts_report",
+    "title": "The Scout's Report",
+    "giverNpcId": "npc_5",
+    "targetNpcId": "npc_1",
+    "objectiveType": "talk_to",
+    "reward": {
+      "gold": 30,
+      "xp": 75
+    }
+  },
+  {
+    "id": "wolf_hunt",
+    "title": "Wolf Hunt",
+    "giverNpcId": "npc_5",
+    "targetId": "npc_wolf",
+    "objectiveType": "combat",
+    "reward": {
+      "gold": 150,
+      "xp": 300,
+      "itemId": "wolf_pelt"
+    }
+  },
+  {
+    "id": "pelt_collector",
+    "title": "Pelt Collector",
+    "giverNpcId": "npc_4",
+    "targetNpcId": "npc_4",
+    "objectiveType": "collect",
+    "requiredItemId": "wolf_pelt",
+    "requiredCount": 1,
+    "prerequisiteQuestIds": ["wolf_hunt"],
+    "reward": {
+      "gold": 200,
+      "xp": 400,
+      "itemId": "iron_scrap"
+    }
+  },
+  {
+    "id": "master_work",
+    "title": "Master Work",
+    "giverNpcId": "npc_4",
+    "targetNpcId": "npc_4",
+    "objectiveType": "talk_to",
+    "prerequisiteQuestIds": ["pelt_collector"],
+    "reward": {
+      "gold": 500,
+      "xp": 1000
+    }
+  },
+  {
+    "id": "blacksmith_master",
+    "title": "Blacksmith Master",
+    "giverNpcId": "npc_4",
+    "targetNpcId": "npc_4",
+    "objectiveType": "talk_to",
+    "requiredReputation": {
+      "blacksmith_guild": { "min": 10 }
+    },
+    "reward": {
+      "gold": 1000,
+      "xp": 2000
+    }
+  },
+  {
+    "id": "hermit_quest",
+    "title": "Hermit's Herbs",
+    "giverNpcId": "npc_6_hermit",
+    "targetNpcId": "npc_6_hermit",
+    "objectiveType": "collect",
+    "requiredItemId": "rare_herb",
+    "requiredCount": 3,
+    "reward": {
+      "gold": 100,
+      "xp": 200
+    }
+  },
+  {
+    "id": "merchant_quest",
+    "title": "The Lost Merchant",
+    "giverNpcId": "npc_7_merchant",
+    "targetNpcId": "npc_7_merchant",
+    "objectiveType": "talk_to",
+    "reward": {
+      "gold": 50,
+      "xp": 100
+    }
+  },
+  {
+    "id": "apprentice_quest",
+    "title": "Alchemist's Apprentice",
+    "giverNpcId": "npc_8_apprentice",
+    "targetNpcId": "npc_8_apprentice",
+    "objectiveType": "collect",
+    "requiredItemId": "mushroom",
+    "requiredCount": 5,
+    "reward": {
+      "gold": 75,
+      "xp": 150
+    }
+  }
+]

@@ -1,0 +1,12 @@
+{
+  "weapon": [
+    "+strength",
+    "+attack_speed",
+    "+crit_chance"
+  ],
+  "armor": [
+    "+health",
+    "+stamina",
+    "+resistance"
+  ]
+}

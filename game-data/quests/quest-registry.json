@@ -1,0 +1,10 @@
+{
+  "ruin_hunter": {
+    "giver": "uschi_gossip",
+    "objective": "find_ruins",
+    "reward": {
+      "gold": 100,
+      "item": "ancient_coin"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "nature": [
+    "root_bind",
+    "healing_moss"
+  ],
+  "shadow": [
+    "dark_bolt",
+    "fear_whisper"
+  ],
+  "resonance": [
+    "echo_wave",
+    "field_tone"
+  ],
+  "protection": [
+    "ward_shield",
+    "holy_barrier"
+  ],
+  "ritual": [
+    "ancestral_call",
+    "portal_trace"
+  ]
+}
