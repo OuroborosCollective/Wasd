@@ -8,6 +8,7 @@ import { GuildSystem } from "../modules/guild/GuildSystem.js";
 import { EconomySystem } from "../modules/economy/EconomySystem.js";
 import { QuestEngine } from "../modules/quest/QuestEngine.js";
 import { WorldSystem } from "../modules/world/WorldSystem.js";
+import { HeuristicWorldBrain } from "../modules/brain/HeuristicWorldBrain.js";
 import { PersistenceManager } from "./PersistenceManager.js";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
 import { GLBRegistry } from "../modules/asset-registry/GLBRegistry.js";
@@ -31,6 +32,7 @@ export class WorldTick {
   public economySystem: EconomySystem;
   public questSystem: QuestEngine;
   public worldSystem: WorldSystem;
+  public worldBrain: HeuristicWorldBrain;
   public persistence: PersistenceManager;
   public glbRegistry: GLBRegistry;
   private lootEntities: Map<string, any> = new Map();
@@ -49,6 +51,7 @@ export class WorldTick {
     this.economySystem = new EconomySystem();
     this.questSystem = new QuestEngine();
     this.worldSystem = new WorldSystem();
+    this.worldBrain = new HeuristicWorldBrain();
     this.persistence = new PersistenceManager();
     this.glbRegistry = new GLBRegistry();
 
@@ -513,6 +516,15 @@ export class WorldTick {
     const players = this.playerSystem.getAllPlayers();
     this.npcSystem.tick(players);
     this.worldSystem.tick();
+    if (this.tickCount % 100 === 0) {
+      const brainState = this.worldBrain.analyze({
+        economy: { activeMarkets: 1 },
+        politics: {},
+        world: { resourceCount: 100, npcCount: this.npcSystem.getAllNPCs().length },
+        npcMemory: []
+      });
+      this.ws.broadcast({ type: "world_brain_update", state: brainState });
+    }
 
     // 4. Broadcast state to clients
     // We need to broadcast to each socket only what they can see, but for now global broadcast

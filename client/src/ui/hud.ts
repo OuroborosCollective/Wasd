@@ -5,25 +5,34 @@ export function renderHUD() {
   const hud = document.createElement("div");
   hud.id = "main-hud";
   hud.style.position = "fixed";
-  hud.style.top = "12px";
-  hud.style.left = "12px";
-  hud.style.padding = "12px";
-  hud.style.background = "rgba(0,0,0,0.7)";
-  hud.style.color = "#fff";
-  hud.style.fontFamily = "sans-serif";
-  hud.style.borderRadius = "8px";
+  hud.style.top = "15px";
+  hud.style.left = "15px";
+  hud.style.padding = "15px";
+  hud.style.background = "rgba(10, 15, 10, 0.85)";
+  hud.style.color = "#e0e0e0";
+  hud.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+  hud.style.borderRadius = "12px";
   hud.style.display = "flex";
   hud.style.flexDirection = "column";
-  hud.style.gap = "6px";
-  hud.style.minWidth = "200px";
-  hud.style.border = "1px solid rgba(255,255,255,0.1)";
+  hud.style.gap = "8px";
+  hud.style.minWidth = "220px";
+  hud.style.border = "1px solid rgba(0, 255, 0, 0.3)";
+  hud.style.boxShadow = "0 8px 32px rgba(0,0,0,0.5)";
+  hud.style.backdropFilter = "blur(4px)";
   
   hud.innerHTML = `
-    <div style="font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 4px; margin-bottom: 4px; color: #00ff00;">Areloria Alpha</div>
-    <div id="hud-stats" style="font-size: 0.9em;">
+    <div style="font-weight: bold; border-bottom: 1px solid rgba(0, 255, 0, 0.2); padding-bottom: 6px; margin-bottom: 4px; color: #00ff00; letter-spacing: 1px; text-transform: uppercase; font-size: 0.9em;">Areloria Master</div>
+    <div id="hud-stats" style="font-size: 0.95em; color: #fff;">
       Gold: 0 | XP: 0
     </div>
-    <div id="hud-inventory" style="font-size: 0.8em; color: #ffcc00;">
+    <div id="hud-matrix" style="font-size: 0.85em; color: #00ffff; display: flex; align-items: center; gap: 5px;">
+      <span style="opacity: 0.7;">Energy:</span> <span id="val-matrix">0</span>
+    </div>
+    <div id="hud-brain" style="font-size: 0.8em; color: #ffffff; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);">
+      <div style="opacity: 0.6; margin-bottom: 2px;">World Brain:</div>
+      <div id="val-brain-summary" style="font-weight: bold;">Balanced</div>
+    </div>
+    <div id="hud-inventory" style="font-size: 0.85em; color: #ffcc00; margin-top: 5px;">
       Inv: Empty
     </div>
     <div id="hud-reputation" style="font-size: 0.8em; color: #ff99ff;">
@@ -32,18 +41,18 @@ export function renderHUD() {
     <div id="hud-equipment" style="font-size: 0.8em; color: #00ccff;">
       Equip: None
     </div>
-    <div id="hud-quests" style="font-size: 0.85em; color: #aaa; font-style: italic;">
-      Active Quest: None
+    <div id="hud-quests" style="font-size: 0.85em; color: #aaa; font-style: italic; max-height: 100px; overflow-y: auto; padding-right: 5px;">
+      Quests: None
     </div>
-    <div id="hud-cooldowns" style="font-size: 0.8em; margin-top: 4px; display: flex; gap: 8px;">
-      <span id="cd-attack" style="color: #00ff00; opacity: 0.5;">[F] Attack</span>
-      <span id="cd-interact" style="color: #00ff00; opacity: 0.5;">[E] Interact</span>
-      <span id="cd-equip" style="color: #00ff00; opacity: 0.5;">[G] Equip</span>
+    <div id="hud-cooldowns" style="font-size: 0.8em; margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px;">
+      <span id="cd-attack" style="padding: 3px 8px; border-radius: 4px; background: rgba(0,0,0,0.3); color: #00ff00; opacity: 0.5;">[F] Attack</span>
+      <span id="cd-interact" style="padding: 3px 8px; border-radius: 4px; background: rgba(0,0,0,0.3); color: #00ff00; opacity: 0.5;">[E] Interact</span>
+      <span id="cd-equip" style="padding: 3px 8px; border-radius: 4px; background: rgba(0,0,0,0.3); color: #00ff00; opacity: 0.5;">[G] Equip</span>
     </div>
-    <div style="font-size: 0.75em; margin-top: 6px; opacity: 0.6; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px;">
-      WASD: Move | E: Interact | F: Attack | G: Equip First | H: Unequip
+    <div style="font-size: 0.75em; margin-top: 10px; opacity: 0.5; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px; text-align: center;">
+      WASD: Move | I: Inventory
     </div>
-    <button id="btn-admin-assets" style="margin-top: 10px; background: #444; color: white; border: none; padding: 5px; cursor: pointer; display: none;">Admin Assets</button>
+    <button id="btn-admin-assets" style="margin-top: 10px; background: #333; color: #00ff00; border: 1px solid #00ff00; padding: 6px; cursor: pointer; border-radius: 4px; display: none; font-size: 0.8em;">Admin Palette</button>
   `;
   
   document.body.appendChild(hud);
@@ -53,7 +62,7 @@ export function renderHUD() {
   };
 }
 
-export function updateHUD(data: { role?: string, gold: number, xp: number, quests: any[], inventory: any[], equipment?: any, reputation?: any, questStatus?: any[] }) {
+export function updateHUD(data: { role?: string, gold: number, xp: number, matrixEnergy?: number, quests: any[], inventory: any[], equipment?: any, reputation?: any, questStatus?: any[] }) {
   const btnAdmin = document.getElementById("btn-admin-assets");
   if (btnAdmin && data.role === "admin") {
     btnAdmin.style.display = "block";
@@ -62,6 +71,11 @@ export function updateHUD(data: { role?: string, gold: number, xp: number, quest
   const stats = document.getElementById("hud-stats");
   if (stats) {
     stats.textContent = `Gold: ${data.gold} | XP: ${data.xp}`;
+  }
+
+  const matrixVal = document.getElementById("val-matrix");
+  if (matrixVal && data.matrixEnergy !== undefined) {
+    matrixVal.textContent = data.matrixEnergy.toString();
   }
 
   const inv = document.getElementById("hud-inventory");
@@ -84,11 +98,32 @@ export function updateHUD(data: { role?: string, gold: number, xp: number, quest
   
   const questContainer = document.getElementById("hud-quests");
   if (questContainer && data.questStatus) {
-    questContainer.innerHTML = `<strong>Quests:</strong><br/>` + data.questStatus.map((q: any) => 
-      `<div style="color: ${q.state === 'active' ? '#00ff00' : q.state === 'completed' ? '#aaa' : q.state === 'available' ? '#ffff00' : '#ff4444'}">
-        ${q.title} [${q.state}]
-      </div>`
-    ).join("");
+    if (data.questStatus.length === 0) {
+      questContainer.textContent = "Quests: None";
+    } else {
+      questContainer.innerHTML = `<strong>Quests:</strong><br/>` + data.questStatus.map((q: any) =>
+        `<div style="color: ${q.state === 'active' ? '#00ff00' : q.state === 'completed' ? '#aaa' : q.state === 'available' ? '#ffff00' : '#ff4444'}; font-size: 0.9em; margin-top: 2px;">
+          ${q.title} [${q.state}]
+        </div>`
+      ).join("");
+    }
+  }
+}
+
+export function updateBrainHUD(state: any) {
+  const summaryEl = document.getElementById("val-brain-summary");
+  const brainBox = document.getElementById("hud-brain");
+  if (summaryEl && brainBox) {
+    const anomalies = state.activeAnomalies.length > 0 ? `<div style="color: #ff4444; font-size: 0.85em; margin-top: 4px; font-weight: bold;">⚠️ ${state.activeAnomalies.join(", ")}</div>` : "";
+    summaryEl.innerHTML = `${state.summary} (${(state.centerValue * 100).toFixed(1)}%)${anomalies}`;
+
+    if (state.activeAnomalies.length > 0) {
+      brainBox.style.borderColor = "#ff4444";
+      brainBox.style.boxShadow = "inset 0 0 10px rgba(255,0,0,0.2)";
+    } else {
+      brainBox.style.borderColor = "rgba(255,255,255,0.1)";
+      brainBox.style.boxShadow = "none";
+    }
   }
 }
 
@@ -100,15 +135,11 @@ export function updateCooldowns(cooldowns: { attack: number, interact: number, e
     if (el) {
       if (remaining > 0) {
         el.style.opacity = "1";
-        el.style.color = "#ff4444";
-        el.style.fontWeight = "bold";
-        // Show percentage or just dimmed
-        const percent = Math.ceil((remaining / 1000) * 10) / 10;
-        el.textContent = `[${id.split("-")[1].toUpperCase().charAt(0)}] ${remaining > 100 ? (remaining/1000).toFixed(1) + "s" : "..."}`;
+        el.style.background = "rgba(255, 68, 68, 0.2)";
+        el.textContent = `[${id.split("-")[1].toUpperCase().charAt(0)}] ${(remaining/1000).toFixed(1)}s`;
       } else {
-        el.style.opacity = "0.5";
-        el.style.color = "#00ff00";
-        el.style.fontWeight = "normal";
+        el.style.opacity = "0.6";
+        el.style.background = "rgba(0,0,0,0.3)";
         const label = id === "cd-attack" ? "Attack" : id === "cd-interact" ? "Interact" : "Equip";
         const key = id === "cd-attack" ? "F" : id === "cd-interact" ? "E" : "G";
         el.textContent = `[${key}] ${label}`;
@@ -116,16 +147,13 @@ export function updateCooldowns(cooldowns: { attack: number, interact: number, e
     }
   };
 
-  const attackRemaining = Math.max(0, cooldowns.attack - now);
-  const interactRemaining = Math.max(0, cooldowns.interact - now);
-  const equipRemaining = Math.max(0, cooldowns.equip - now);
-
-  updateCd("cd-attack", attackRemaining);
-  updateCd("cd-interact", interactRemaining);
-  updateCd("cd-equip", equipRemaining);
+  updateCd("cd-attack", Math.max(0, cooldowns.attack - now));
+  updateCd("cd-interact", Math.max(0, cooldowns.interact - now));
+  updateCd("cd-equip", Math.max(0, cooldowns.equip - now));
 }
 
 export function showFloatingText(text: string, x: number, y: number) {
+  // Use engine's showFloatingText if possible, or this fallback
   const div = document.createElement("div");
   div.style.position = "fixed";
   div.style.left = `${x}px`;
@@ -138,7 +166,6 @@ export function showFloatingText(text: string, x: number, y: number) {
   div.textContent = text;
   document.body.appendChild(div);
   
-  // Animate and remove
   div.animate([
     { transform: "translateY(0)", opacity: 1 },
     { transform: "translateY(-50px)", opacity: 0 }
@@ -148,61 +175,34 @@ export function showFloatingText(text: string, x: number, y: number) {
   }).onfinish = () => div.remove();
 }
 
-export function showTooltip(text: string) {
-  let tooltip = document.getElementById("interaction-tooltip");
-  if (!tooltip) {
-    tooltip = document.createElement("div");
-    tooltip.id = "interaction-tooltip";
-    tooltip.style.position = "fixed";
-    tooltip.style.bottom = "100px";
-    tooltip.style.left = "50%";
-    tooltip.style.transform = "translateX(-50%)";
-    tooltip.style.background = "rgba(0, 0, 0, 0.8)";
-    tooltip.style.color = "#fff";
-    tooltip.style.padding = "8px 16px";
-    tooltip.style.borderRadius = "6px";
-    tooltip.style.border = "1px solid #00ff00";
-    tooltip.style.zIndex = "1000";
-    tooltip.style.pointerEvents = "none";
-    document.body.appendChild(tooltip);
-  }
-  tooltip.textContent = text;
-}
-
-export function hideTooltip() {
-  const tooltip = document.getElementById("interaction-tooltip");
-  if (tooltip && tooltip.parentNode) {
-    tooltip.parentNode.removeChild(tooltip);
-  }
-}
-
 export function showDialogue(source: string, text: string, choices: any[] = [], npcId?: string) {
   let dialogueBox = document.getElementById("dialogue-box");
   if (!dialogueBox) {
     dialogueBox = document.createElement("div");
     dialogueBox.id = "dialogue-box";
     dialogueBox.style.position = "fixed";
-    dialogueBox.style.bottom = "20px";
+    dialogueBox.style.bottom = "30px";
     dialogueBox.style.left = "50%";
     dialogueBox.style.transform = "translateX(-50%)";
-    dialogueBox.style.background = "rgba(0, 0, 0, 0.9)";
+    dialogueBox.style.background = "rgba(15, 20, 15, 0.95)";
     dialogueBox.style.color = "#fff";
-    dialogueBox.style.padding = "20px 30px";
-    dialogueBox.style.borderRadius = "12px";
+    dialogueBox.style.padding = "25px 40px";
+    dialogueBox.style.borderRadius = "16px";
     dialogueBox.style.fontFamily = "sans-serif";
-    dialogueBox.style.minWidth = "400px";
-    dialogueBox.style.maxWidth = "600px";
+    dialogueBox.style.minWidth = "450px";
+    dialogueBox.style.maxWidth = "700px";
     dialogueBox.style.textAlign = "left";
-    dialogueBox.style.boxShadow = "0 10px 25px rgba(0,0,0,0.5)";
-    dialogueBox.style.border = "1px solid rgba(255,255,255,0.1)";
-    dialogueBox.style.zIndex = "1000";
+    dialogueBox.style.boxShadow = "0 15px 40px rgba(0,0,0,0.8)";
+    dialogueBox.style.border = "1px solid #00ff00";
+    dialogueBox.style.zIndex = "1500";
+    dialogueBox.style.backdropFilter = "blur(10px)";
     document.body.appendChild(dialogueBox);
   }
   
-  let html = `<div style="margin-bottom: 12px;"><strong style="color: #00ff00; font-size: 1.1em;">${source}:</strong> <span style="line-height: 1.4;">${text}</span></div>`;
+  let html = `<div style="margin-bottom: 15px;"><strong style="color: #00ff00; font-size: 1.2em; letter-spacing: 1px;">${source}</strong><br/><span style="line-height: 1.5; font-size: 1.05em; opacity: 0.9;">${text}</span></div>`;
   
   if (choices && choices.length > 0 && npcId) {
-    html += `<div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;">`;
+    html += `<div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px; border-top: 1px solid rgba(0,255,0,0.2); padding-top: 15px;">`;
     choices.forEach((choice, index) => {
       html += `
         <button 
@@ -210,22 +210,21 @@ export function showDialogue(source: string, text: string, choices: any[] = [], 
           data-npc-id="${npcId}" 
           data-node-id="${choice.nextNodeId}"
           data-choice-id="${choice.id}"
-          style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 8px 12px; border-radius: 6px; cursor: pointer; text-align: left; transition: all 0.2s;"
-          onmouseover="this.style.background='rgba(255,255,255,0.15)'; this.style.borderColor='#00ff00';"
-          onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='rgba(255,255,255,0.2)';"
+          style="background: rgba(0, 255, 0, 0.05); border: 1px solid rgba(0, 255, 0, 0.3); color: #fff; padding: 10px 15px; border-radius: 8px; cursor: pointer; text-align: left; transition: all 0.2s; font-size: 1em;"
+          onmouseover="this.style.background='rgba(0, 255, 0, 0.15)'; this.style.borderColor='#00ff00';"
+          onmouseout="this.style.background='rgba(0, 255, 0, 0.05)'; this.style.borderColor='rgba(0, 255, 0, 0.3)';"
         >
-          ${index + 1}. ${choice.text}
+          <span style="color: #00ff00; margin-right: 10px; font-weight: bold;">${index + 1}.</span> ${choice.text}
         </button>
       `;
     });
     html += `</div>`;
   } else {
-    html += `<div style="font-size: 0.8em; opacity: 0.5; margin-top: 12px; text-align: center;">(Press E to continue)</div>`;
+    html += `<div style="font-size: 0.85em; opacity: 0.4; margin-top: 15px; text-align: center; font-style: italic;">(Press E to continue)</div>`;
   }
   
   dialogueBox.innerHTML = html;
 
-  // Add event listeners to buttons
   const buttons = dialogueBox.querySelectorAll(".dialogue-choice-btn");
   buttons.forEach(btn => {
     btn.addEventListener("click", (e) => {
@@ -238,19 +237,6 @@ export function showDialogue(source: string, text: string, choices: any[] = [], 
       }
     });
   });
-  
-  // Auto-hide after 10 seconds if no choices
-  if ((window as any).dialogueTimeout) {
-    clearTimeout((window as any).dialogueTimeout);
-  }
-  
-  if (!choices || choices.length === 0) {
-    (window as any).dialogueTimeout = setTimeout(() => {
-      if (dialogueBox && dialogueBox.parentNode) {
-        dialogueBox.parentNode.removeChild(dialogueBox);
-      }
-    }, 5000);
-  }
 }
 
 export function removeWorldLabel(id: string) {
@@ -267,14 +253,16 @@ export function createWorldLabel(id: string, text: string, type: 'npc' | 'loot',
     label.style.pointerEvents = "none";
     label.style.zIndex = "1000";
     label.style.textAlign = "center";
+    label.className = "world-label";
     document.body.appendChild(label);
   }
   
-  let html = `<div style="color: white; font-size: 12px; text-shadow: 1px 1px 1px black; font-weight: bold;">${text}</div>`;
+  let html = `<div style="color: white; font-size: 13px; text-shadow: 2px 2px 2px black; font-weight: bold; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;">${text}</div>`;
   if (type === 'npc' && healthPercent !== undefined) {
+    const barColor = healthPercent > 0.6 ? "#00ff00" : healthPercent > 0.3 ? "#ffff00" : "#ff0000";
     html += `
-      <div style="width: 40px; height: 6px; background: #333; margin: 2px auto; border: 1px solid #000;">
-        <div style="width: ${Math.max(0, Math.min(100, healthPercent * 100))}%; height: 100%; background: #00ff00;"></div>
+      <div style="width: 44px; height: 6px; background: rgba(0,0,0,0.6); margin: 3px auto; border: 1px solid #000; border-radius: 2px; overflow: hidden;">
+        <div style="width: ${Math.max(0, Math.min(100, healthPercent * 100))}%; height: 100%; background: ${barColor};"></div>
       </div>
     `;
   }
@@ -291,40 +279,48 @@ export function renderInventoryPanel(player: any, ws: WebSocket) {
     panel.style.top = "50%";
     panel.style.left = "50%";
     panel.style.transform = "translate(-50%, -50%)";
-    panel.style.background = "rgba(0, 0, 0, 0.9)";
+    panel.style.background = "rgba(10, 15, 10, 0.95)";
     panel.style.color = "#fff";
-    panel.style.padding = "20px";
-    panel.style.borderRadius = "12px";
+    panel.style.padding = "25px";
+    panel.style.borderRadius = "16px";
     panel.style.border = "1px solid #00ff00";
     panel.style.zIndex = "2000";
-    panel.style.minWidth = "300px";
+    panel.style.minWidth = "350px";
+    panel.style.boxShadow = "0 20px 60px rgba(0,0,0,0.9)";
+    panel.style.backdropFilter = "blur(15px)";
     document.body.appendChild(panel);
   }
 
-  let html = `<h2 style="margin-top:0; color: #00ff00;">Inventory</h2>`;
+  let html = `<h2 style="margin-top:0; color: #00ff00; border-bottom: 1px solid rgba(0,255,0,0.2); padding-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; font-size: 1.2em;">Character Inventory</h2>`;
   
-  // Equipment
-  html += `<div style="margin-bottom: 15px; border-bottom: 1px solid #444; padding-bottom: 10px;">
-    <strong>Equipped:</strong><br/>
-    Weapon: ${player.equipment.weapon ? `${player.equipment.weapon.name} <button onclick="window.unequip('weapon')" style="cursor:pointer; background:#555; color:#fff; border:none; padding:2px 5px; border-radius:3px;">Unequip</button>` : 'None'}
+  html += `<div style="margin-bottom: 20px; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px;">
+    <strong style="color: #00ccff;">EQUIPPED</strong><br/>
+    <div style="margin-top: 8px; display: flex; justify-content: space-between; align-items: center;">
+      <span>Weapon: ${player.equipment.weapon ? `<span style="color: #fff; font-weight: bold;">${player.equipment.weapon.name}</span>` : '<span style="opacity: 0.5;">Empty</span>'}</span>
+      ${player.equipment.weapon ? `<button onclick="window.unequip('weapon')" style="cursor:pointer; background:#444; color:#fff; border:1px solid #666; padding:4px 10px; border-radius:4px; font-size: 0.8em;">Unequip</button>` : ''}
+    </div>
   </div>`;
 
-  // Inventory
-  html += `<strong>Items:</strong><ul style="list-style:none; padding:0;">`;
+  html += `<strong style="color: #ffcc00;">ITEMS</strong><ul style="list-style:none; padding:0; margin-top: 10px; max-height: 300px; overflow-y: auto;">`;
+  if (player.inventory.length === 0) {
+    html += `<li style="opacity: 0.5; font-style: italic; text-align: center; padding: 20px;">No items in inventory</li>`;
+  }
   player.inventory.forEach((item: any) => {
-    html += `<li style="margin-bottom: 5px; background: #222; padding: 5px; border-radius: 4px; display:flex; justify-content:space-between;">
-      ${item.name} (${item.type})
-      <div>
-        ${item.type === 'weapon' ? `<button onclick="window.equip('${item.id}')" style="cursor:pointer; background:#008800; color:#fff; border:none; padding:2px 5px; border-radius:3px;">Equip</button>` : ''}
-        <button onclick="window.drop('${item.id}')" style="cursor:pointer; background:#880000; color:#fff; border:none; padding:2px 5px; border-radius:3px;">Drop</button>
+    html += `<li style="margin-bottom: 8px; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); display:flex; justify-content:space-between; align-items: center;">
+      <div style="display: flex; flex-direction: column;">
+        <span style="font-weight: bold;">${item.name}</span>
+        <span style="font-size: 0.75em; opacity: 0.6;">${item.type}</span>
+      </div>
+      <div style="display: flex; gap: 5px;">
+        ${item.type === 'weapon' ? `<button onclick="window.equip('${item.id}')" style="cursor:pointer; background:#008800; color:#fff; border:none; padding:5px 10px; border-radius:4px; font-size: 0.8em;">Equip</button>` : ''}
+        <button onclick="window.drop('${item.id}')" style="cursor:pointer; background:#880000; color:#fff; border:none; padding:5px 10px; border-radius:4px; font-size: 0.8em;">Drop</button>
       </div>
     </li>`;
   });
-  html += `</ul><button onclick="document.getElementById('inventory-panel').remove()" style="margin-top:10px; cursor:pointer;">Close</button>`;
+  html += `</ul><div style="text-align: center; margin-top: 20px;"><button onclick="document.getElementById('inventory-panel').remove()" style="background: transparent; border: 1px solid #555; color: #aaa; padding: 8px 20px; border-radius: 6px; cursor: pointer;">Close Panel</button></div>`;
   
   panel.innerHTML = html;
 
-  // Define global actions for buttons
   (window as any).equip = (itemId: string) => ws.send(JSON.stringify({ type: 'equip', itemId }));
   (window as any).unequip = (slot: string) => ws.send(JSON.stringify({ type: 'unequip', slot }));
   (window as any).drop = (itemId: string) => ws.send(JSON.stringify({ type: 'drop', itemId }));

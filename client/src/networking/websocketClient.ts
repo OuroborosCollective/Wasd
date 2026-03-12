@@ -1,5 +1,5 @@
 import { updateWorldState, showFloatingText } from "../engine/renderer";
-import { showDialogue, updateHUD, updateCooldowns, renderInventoryPanel } from "../ui/hud";
+import { showDialogue, updateHUD, updateCooldowns, renderInventoryPanel, updateBrainHUD } from "../ui/hud";
 import { getClosestInteractable } from "../utils/interaction";
 import { updateAdminAssetModels, updateAdminAssetLinks } from "../ui/adminAssetPanel";
 
@@ -143,7 +143,7 @@ export function connectSocket() {
             updateHUD({
               role: myPlayer.role,
               gold: myPlayer.gold || 0,
-              xp: myPlayer.xp || 0,
+              xp: myPlayer.xp || 0, matrixEnergy: myPlayer.matrixEnergy || 0,
               quests: myPlayer.quests || [],
               inventory: myPlayer.inventory || [],
               equipment: myPlayer.equipment,
@@ -164,6 +164,8 @@ export function connectSocket() {
         updateAdminAssetModels(data.models);
       } else if (data.type === "admin_glb_list_result") {
         updateAdminAssetLinks(data.links);
+      } else if (data.type === "world_brain_update") {
+        updateBrainHUD(data.state);
       }
     } catch (e) {
       console.error("Failed to parse message", e);

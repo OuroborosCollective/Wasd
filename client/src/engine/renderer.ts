@@ -1,131 +1,220 @@
-import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { showTooltip, hideTooltip, createWorldLabel, removeWorldLabel } from "../ui/hud";
-import { getClosestInteractable } from "../utils/interaction";
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-const gltfLoader = new GLTFLoader();
-const modelCache = new Map<string, THREE.Group>();
+let renderer: THREE.WebGLRenderer;
+let scene: THREE.Scene;
+let camera: THREE.PerspectiveCamera;
+const playerMeshes: Map<string, THREE.Object3D> = new Map();
+const npcMeshes: Map<string, THREE.Object3D> = new Map();
+const lootMeshes: Map<string, THREE.Group> = new Map();
+const chunkMeshes: Map<string, THREE.LineSegments> = new Map();
+const targetPositions: Map<string, THREE.Vector3> = new Map();
+const activeLabels = new Set<string>();
+
+const loader = new GLTFLoader();
 
 function loadModel(path: string, callback: (model: THREE.Group) => void) {
-  if (modelCache.has(path)) {
-    callback(modelCache.get(path)!.clone());
-    return;
-  }
-  gltfLoader.load(path, (gltf) => {
-    modelCache.set(path, gltf.scene);
-    callback(gltf.scene.clone());
+  loader.load(path, (gltf) => {
+    callback(gltf.scene);
   }, undefined, (error) => {
-    console.error("Error loading model:", path, error);
+    console.error('Error loading model:', path, error);
   });
 }
 
-function projectToScreen(x: number, y: number, z: number) {
-  const vector = new THREE.Vector3(x, y, z);
+function projectToScreen(worldX: number, worldY: number, worldZ: number) {
+  if (!camera) return { x: -1000, y: -1000, z: 1000 };
+  const vector = new THREE.Vector3(worldX, worldY, worldZ);
   vector.project(camera);
   return {
-    x: (vector.x + 1) / 2 * window.innerWidth,
-    y: -(vector.y - 1) / 2 * window.innerHeight
+    x: (vector.x * 0.5 + 0.5) * window.innerWidth,
+    y: (-(vector.y * 0.5) + 0.5) * window.innerHeight,
+    z: vector.z
   };
 }
 
-let scene: THREE.Scene;
-let camera: THREE.PerspectiveCamera;
-let renderer: THREE.WebGLRenderer;
+function createWorldLabel(id: string, text: string, type: 'player' | 'npc' | 'loot', healthPercent?: number) {
+  let label = document.getElementById(`label-${id}`);
+  if (!label) {
+    label = document.createElement('div');
+    label.id = `label-${id}`;
+    label.className = 'world-label';
+    label.style.position = 'absolute';
+    label.style.pointerEvents = 'none';
+    label.style.color = '#fff';
+    label.style.textShadow = '1px 1px 3px #000';
+    label.style.fontSize = '12px';
+    label.style.fontWeight = 'bold';
+    label.style.textAlign = 'center';
+    label.style.zIndex = '1000';
+    document.body.appendChild(label);
+  }
 
-const playerMeshes = new Map<string, THREE.Mesh>();
-const npcMeshes = new Map<string, THREE.Object3D>();
-const lootMeshes = new Map<string, THREE.Object3D>();
-const chunkMeshes = new Map<string, THREE.LineSegments>();
-const activeLabels = new Set<string>();
+  let content = `<div style="padding: 2px 6px; background: rgba(0,0,0,0.3); border-radius: 4px;">${text}</div>`;
+  if (healthPercent !== undefined) {
+    const color = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.2 ? '#ffff00' : '#ff0000';
+    content += `<div style="width: 40px; height: 4px; background: #333; margin: 2px auto; border: 1px solid #000;">
+      <div style="width: ${healthPercent * 100}%; height: 100%; background: ${color};"></div>
+    </div>`;
+  }
+  label.innerHTML = content;
+  return label;
+}
 
-// For interpolation
-const targetPositions = new Map<string, THREE.Vector3>();
+function getClosestInteractable(player: any, state: any) {
+  let closest = null;
+  let minDist = 25;
 
-export function showFloatingText(text: string, x: number, y: number) {
-  const vector = new THREE.Vector3(x, 2, y);
-  vector.project(camera);
-  const screenX = (vector.x + 1) / 2 * window.innerWidth;
-  const screenY = -(vector.y - 1) / 2 * window.innerHeight;
-  
+  for (const npc of state.npcs) {
+    const d = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
+    if (d < minDist) {
+      minDist = d;
+      closest = { ...npc, interactionType: 'npc' };
+    }
+  }
+
+  for (const loot of state.loot) {
+    const d = Math.hypot(player.position.x - loot.position.x, player.position.y - loot.position.y);
+    if (d < minDist) {
+      minDist = d;
+      closest = { ...loot, interactionType: 'loot' };
+    }
+  }
+
+  return closest;
+}
+
+function showTooltip(text: string) {
+  let tooltip = document.getElementById('world-tooltip');
+  if (!tooltip) {
+    tooltip = document.createElement('div');
+    tooltip.id = 'world-tooltip';
+    tooltip.style.position = 'fixed';
+    tooltip.style.bottom = '120px';
+    tooltip.style.left = '50%';
+    tooltip.style.transform = 'translateX(-50%)';
+    tooltip.style.background = 'rgba(0,0,0,0.85)';
+    tooltip.style.color = '#00ff00';
+    tooltip.style.padding = '10px 25px';
+    tooltip.style.borderRadius = '12px';
+    tooltip.style.fontSize = '18px';
+    tooltip.style.fontWeight = 'bold';
+    tooltip.style.border = '2px solid #00ff00';
+    tooltip.style.zIndex = '1001';
+    tooltip.style.boxShadow = '0 0 20px rgba(0,255,0,0.3)';
+    document.body.appendChild(tooltip);
+  }
+  tooltip.textContent = text;
+  tooltip.style.display = 'block';
+}
+
+function hideTooltip() {
+  const tooltip = document.getElementById('world-tooltip');
+  if (tooltip) tooltip.style.display = 'none';
+}
+
+export function showFloatingText(text: string, worldX: number, worldY: number) {
+  const screenPos = projectToScreen(worldX, 10, worldY);
+  if (screenPos.z > 1) return; // Behind camera
+
   const div = document.createElement("div");
   div.style.position = "fixed";
-  div.style.left = `${screenX}px`;
-  div.style.top = `${screenY}px`;
-  div.style.color = "#ff0000";
+  div.style.left = `${screenPos.x}px`;
+  div.style.top = `${screenPos.y}px`;
+  div.style.color = text.startsWith('-') ? "#ff0000" : "#ffff00";
   div.style.fontWeight = "bold";
-  div.style.fontSize = "20px";
+  div.style.fontSize = "26px";
+  div.style.textShadow = "2px 2px 4px #000";
   div.style.pointerEvents = "none";
   div.style.zIndex = "1001";
   div.textContent = text;
   document.body.appendChild(div);
   
   div.animate([
-    { transform: "translateY(0)", opacity: 1 },
-    { transform: "translateY(-50px)", opacity: 0 }
+    { transform: "translate(-50%, 0) scale(1)", opacity: 1 },
+    { transform: "translate(-50%, -100px) scale(1.6)", opacity: 0 }
   ], {
-    duration: 1000,
+    duration: 1200,
     easing: "ease-out"
   }).onfinish = () => div.remove();
 }
-export function initRenderer(canvas: HTMLCanvasElement, myPlayerId: string) {
-  renderer = new THREE.WebGLRenderer({ canvas });
+
+export function initRenderer(canvas: HTMLCanvasElement, myPlayerId?: string) {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Limit pixel ratio for performance
   renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x222222);
+  scene.background = new THREE.Color(0x66aaff);
+  scene.fog = new THREE.FogExp2(0x66aaff, 0.0008);
 
-  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-  camera.position.set(0, 100, 100);
+  camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 4000);
+  camera.position.set(0, 250, 250);
   camera.lookAt(0, 0, 0);
 
-  // Add a simple grid helper for the ground
-  const gridHelper = new THREE.GridHelper(1000, 100, 0x444444, 0x444444);
-  scene.add(gridHelper);
+  // Advanced Procedural Ground
+  const size = 5000;
+  const groundCanvas = document.createElement('canvas');
+  groundCanvas.width = 1024;
+  groundCanvas.height = 1024;
+  const ctx = groundCanvas.getContext('2d')!;
+  ctx.fillStyle = '#2a442a';
+  ctx.fillRect(0, 0, 1024, 1024);
 
-  // Add a "Town" marker
-  const townGeo = new THREE.PlaneGeometry(128, 128);
-  const townMat = new THREE.MeshBasicMaterial({ color: 0x334433, side: THREE.DoubleSide });
-  const town = new THREE.Mesh(townGeo, townMat);
-  town.rotation.x = Math.PI / 2;
-  town.position.set(32, 0.1, 32);
-  scene.add(town);
+  for(let i=0; i<60; i++) {
+    const x = Math.random() * 1024;
+    const y = Math.random() * 1024;
+    const r = 40 + Math.random() * 120;
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+    grad.addColorStop(0, 'rgba(50, 35, 15, 0.5)');
+    grad.addColorStop(1, 'rgba(50, 35, 15, 0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(x-r, y-r, r*2, r*2);
+  }
 
-  // Add an "Outpost" marker
-  const outpostGeo = new THREE.PlaneGeometry(64, 64);
-  const outpostMat = new THREE.MeshBasicMaterial({ color: 0x443333, side: THREE.DoubleSide });
-  const outpost = new THREE.Mesh(outpostGeo, outpostMat);
-  outpost.rotation.x = Math.PI / 2;
-  outpost.position.set(500, 0.1, 500);
-  scene.add(outpost);
+  for(let i=0; i<15000; i++) {
+    const g = 40 + Math.random() * 30;
+    ctx.fillStyle = `rgba(0,${g},0,0.1)`;
+    ctx.fillRect(Math.random()*1024, Math.random()*1024, 3, 3);
+  }
 
-  // Add a "Combat Training" marker
-  const trainingGeo = new THREE.PlaneGeometry(32, 32);
-  const trainingMat = new THREE.MeshBasicMaterial({ color: 0x444433, side: THREE.DoubleSide });
-  const training = new THREE.Mesh(trainingGeo, trainingMat);
-  training.rotation.x = Math.PI / 2;
-  training.position.set(64, 0.1, 64);
-  scene.add(training);
+  const groundTex = new THREE.CanvasTexture(groundCanvas);
+  groundTex.wrapS = THREE.RepeatWrapping;
+  groundTex.wrapT = THREE.RepeatWrapping;
+  groundTex.repeat.set(80, 80);
+  groundTex.anisotropy = 8;
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-  scene.add(ambientLight);
+  const groundGeo = new THREE.PlaneGeometry(size, size);
+  const groundMat = new THREE.MeshStandardMaterial({ map: groundTex, roughness: 1.0 });
+  const ground = new THREE.Mesh(groundGeo, groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
 
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  directionalLight.position.set(100, 200, 50);
-  scene.add(directionalLight);
+  // Lighting
+  scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+  const sun = new THREE.DirectionalLight(0xfff5ee, 1.3);
+  sun.position.set(400, 800, 300);
+  sun.castShadow = true;
+  sun.shadow.camera.left = -2000;
+  sun.shadow.camera.right = 2000;
+  sun.shadow.camera.top = 2000;
+  sun.shadow.camera.bottom = -2000;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.bias = -0.0001;
+  scene.add(sun);
 
   function animate() {
-    // Interpolate positions
-    const lerpFactor = 0.2;
+    const lerpFactor = 0.15;
     
     for (const [id, mesh] of playerMeshes.entries()) {
       const target = targetPositions.get(id);
       if (target) {
         mesh.position.lerp(target, lerpFactor);
-        
-        // Follow camera if it's our player (we'll need a way to identify our player)
-        // For now, we'll check the material color as a hack or pass myPlayerId
-        if ((mesh.material as THREE.MeshStandardMaterial).color.getHex() === 0x00ff00) {
-          camera.position.set(mesh.position.x, 100, mesh.position.z + 100);
+        if (id === (window as any).myPlayerId) {
+          const camTarget = new THREE.Vector3(mesh.position.x, 180, mesh.position.z + 200);
+          camera.position.lerp(camTarget, 0.1);
           camera.lookAt(mesh.position.x, 0, mesh.position.z);
         }
       }
@@ -133,9 +222,7 @@ export function initRenderer(canvas: HTMLCanvasElement, myPlayerId: string) {
 
     for (const [id, mesh] of npcMeshes.entries()) {
       const target = targetPositions.get(id);
-      if (target) {
-        mesh.position.lerp(target, lerpFactor);
-      }
+      if (target) mesh.position.lerp(target, lerpFactor);
     }
 
     renderer.render(scene, camera);
@@ -147,29 +234,27 @@ export function initRenderer(canvas: HTMLCanvasElement, myPlayerId: string) {
 
 export function updateWorldState(state: any, myPlayerId: string | null) {
   if (!scene) return;
+  (window as any).myPlayerId = myPlayerId;
 
-  // Render players (Blue cubes)
+  // Render players
   const currentPlayers = new Set<string>();
   for (const p of state.players) {
     currentPlayers.add(p.id);
     if (!playerMeshes.has(p.id)) {
-      const geo = new THREE.BoxGeometry(4, 4, 4);
-      const mat = new THREE.MeshStandardMaterial({ color: p.id === myPlayerId ? 0x00ff00 : 0x0000ff });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(p.position.x, 2, p.position.y);
+      const mesh = new THREE.Mesh(
+        new THREE.CapsuleGeometry(2.5, 5, 4, 12),
+        new THREE.MeshStandardMaterial({ color: p.id === myPlayerId ? 0x00ff00 : 0x5555ff, roughness: 0.5 })
+      );
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
       scene.add(mesh);
       playerMeshes.set(p.id, mesh);
     }
-    
-    let target = targetPositions.get(p.id);
-    if (!target) {
-      target = new THREE.Vector3();
-      targetPositions.set(p.id, target);
-    }
-    target.set(p.position.x, 2, p.position.y);
+    const target = targetPositions.get(p.id) || new THREE.Vector3();
+    target.set(p.position.x, 5, p.position.y);
+    targetPositions.set(p.id, target);
   }
 
-  // Remove disconnected players
   for (const [id, mesh] of playerMeshes.entries()) {
     if (!currentPlayers.has(id)) {
       scene.remove(mesh);
@@ -178,107 +263,81 @@ export function updateWorldState(state: any, myPlayerId: string | null) {
     }
   }
 
-  // Render NPCs (Red spheres or GLB)
+  // Render NPCs
   const currentNPCs = new Set<string>();
   for (const npc of state.npcs) {
     currentNPCs.add(npc.id);
     if (!npcMeshes.has(npc.id)) {
-      if (npc.glbPath) {
-        // Create a placeholder while loading
-        const group = new THREE.Group();
-        group.position.set(npc.position.x, 0, npc.position.y);
-        scene.add(group);
-        npcMeshes.set(npc.id, group);
+      const group = new THREE.Group();
+      group.position.set(npc.position.x, 0, npc.position.y);
+      scene.add(group);
+      npcMeshes.set(npc.id, group);
 
-        // Remove "public/" from path if it exists, as client serves from public
-        const modelPath = npc.glbPath.replace(/^public\//, '');
-        
-        loadModel(modelPath, (model) => {
-          // Scale down the model to fit game world better
-          model.scale.set(0.5, 0.5, 0.5);
+      if (npc.glbPath) {
+        loadModel(npc.glbPath.replace(/^public\//, ''), (model) => {
+          model.traverse(c => { if ((c as THREE.Mesh).isMesh) { c.castShadow = c.receiveShadow = true; } });
           group.add(model);
         });
       } else {
-        const geo = new THREE.SphereGeometry(2);
-        const mat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.position.set(npc.position.x, 2, npc.position.y);
-        scene.add(mesh);
-        npcMeshes.set(npc.id, mesh);
+        const mesh = new THREE.Mesh(new THREE.SphereGeometry(3.5), new THREE.MeshStandardMaterial({ color: 0xff3333 }));
+        mesh.castShadow = mesh.receiveShadow = true;
+        mesh.position.y = 3.5;
+        group.add(mesh);
       }
     }
+    const target = targetPositions.get(npc.id) || new THREE.Vector3();
+    target.set(npc.position.x, npc.glbPath ? 0 : 3.5, npc.position.y);
+    targetPositions.set(npc.id, target);
     
-    let target = targetPositions.get(npc.id);
-    if (!target) {
-      target = new THREE.Vector3();
-      targetPositions.set(npc.id, target);
+    const sPos = projectToScreen(npc.position.x, 12, npc.position.y);
+    if (sPos.z < 1 && sPos.x > 0 && sPos.x < window.innerWidth && sPos.y > 0 && sPos.y < window.innerHeight) {
+      const label = createWorldLabel(npc.id, npc.name, 'npc', npc.health / npc.maxHealth);
+      label.style.left = `${sPos.x}px`; label.style.top = `${sPos.y}px`;
+      label.style.transform = "translate(-50%, -100%)";
+      label.style.display = "block";
+      activeLabels.add(npc.id);
     }
-    // Adjust Y position based on whether it's a GLB or sphere
-    const yPos = npc.glbPath ? 0 : 2;
-    target.set(npc.position.x, yPos, npc.position.y);
-    
-    // Position label above NPC
-    const screenPos = projectToScreen(npc.position.x, 6, npc.position.y);
-    const label = createWorldLabel(npc.id, npc.name, 'npc', npc.health / npc.maxHealth);
-    label.style.left = `${screenPos.x}px`;
-    label.style.top = `${screenPos.y}px`;
-    label.style.transform = "translate(-50%, -100%)";
-    activeLabels.add(npc.id);
   }
 
-  // Remove despawned NPCs
   for (const [id, mesh] of npcMeshes.entries()) {
     if (!currentNPCs.has(id)) {
       scene.remove(mesh);
       npcMeshes.delete(id);
+      targetPositions.delete(id);
     }
   }
 
-  // Render Loot (Thematic bag/chest or GLB)
+  // Render Loot
   const currentLoot = new Set<string>();
   for (const loot of state.loot) {
     currentLoot.add(loot.id);
-    const lootGroup = lootMeshes.get(loot.id);
-    if (!lootGroup) {
-      const group = new THREE.Group();
-      group.position.set(loot.position.x, 0, loot.position.y);
-      scene.add(group);
-      lootMeshes.set(loot.id, group);
-
+    let lMesh = lootMeshes.get(loot.id);
+    if (!lMesh) {
+      lMesh = new THREE.Group();
+      lMesh.position.set(loot.position.x, 0, loot.position.y);
+      scene.add(lMesh);
+      lootMeshes.set(loot.id, lMesh);
       if (loot.glbPath) {
-        const modelPath = loot.glbPath.replace(/^public\//, '');
-        loadModel(modelPath, (model) => {
-          model.scale.set(0.5, 0.5, 0.5);
-          group.add(model);
+        loadModel(loot.glbPath.replace(/^public\//, ''), (m) => {
+          m.traverse(c => { if ((c as THREE.Mesh).isMesh) c.castShadow = c.receiveShadow = true; });
+          lMesh!.add(m);
         });
       } else {
-        // Base
-        const baseGeo = new THREE.BoxGeometry(2, 1.5, 2);
-        const baseMat = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
-        const baseMesh = new THREE.Mesh(baseGeo, baseMat);
-        baseMesh.position.y = 0.75;
-        group.add(baseMesh);
-        // Lid
-        const lidGeo = new THREE.BoxGeometry(2.2, 0.5, 2.2);
-        const lidMat = new THREE.MeshStandardMaterial({ color: 0x5D2E0A });
-        const lidMesh = new THREE.Mesh(lidGeo, lidMat);
-        lidMesh.position.y = 1.75;
-        group.add(lidMesh);
+        const b = new THREE.Mesh(new THREE.BoxGeometry(4, 2.5, 4), new THREE.MeshStandardMaterial({ color: 0x8B4513 }));
+        b.castShadow = true; b.position.y = 1.25; lMesh.add(b);
       }
-    } else {
-      lootGroup.position.set(loot.position.x, 0, loot.position.y);
     }
-    
-    // Position label above loot
-    const screenPos = projectToScreen(loot.position.x, 4, loot.position.y);
-    const label = createWorldLabel(loot.id, loot.item.name, 'loot');
-    label.style.left = `${screenPos.x}px`;
-    label.style.top = `${screenPos.y}px`;
-    label.style.transform = "translate(-50%, -100%)";
-    activeLabels.add(loot.id);
+    lMesh.position.set(loot.position.x, 0, loot.position.y);
+    const sPos = projectToScreen(loot.position.x, 6, loot.position.y);
+    if (sPos.z < 1 && sPos.x > 0 && sPos.x < window.innerWidth && sPos.y > 0 && sPos.y < window.innerHeight) {
+      const label = createWorldLabel(loot.id, loot.item.name, 'loot');
+      label.style.left = `${sPos.x}px`; label.style.top = `${sPos.y}px`;
+      label.style.transform = "translate(-50%, -100%)";
+      label.style.display = "block";
+      activeLabels.add(loot.id);
+    }
   }
 
-  // Remove picked up loot
   for (const [id, mesh] of lootMeshes.entries()) {
     if (!currentLoot.has(id)) {
       scene.remove(mesh);
@@ -286,61 +345,17 @@ export function updateWorldState(state: any, myPlayerId: string | null) {
     }
   }
 
-  // Tooltip logic
-  const myPlayer = state.players.find((p: any) => p.id === myPlayerId);
-  if (myPlayer) {
-    const closestInteractable = getClosestInteractable(myPlayer, state);
-
-    if (closestInteractable) {
-      if (closestInteractable.interactionType === 'loot') {
-        const item = closestInteractable.item;
-        const rarity = item.rarity || 'Common';
-        const damage = item.damage ? ` | Dmg: ${item.damage}` : '';
-        showTooltip(`Press E to pick up ${item.name} (${item.type}) [${rarity}]${damage}`);
-      } else {
-        showTooltip(`Press E to interact with ${closestInteractable.name || 'NPC'}`);
-      }
-    } else {
-      hideTooltip();
-    }
-  }
-
-  // Render Active Chunks (Yellow boundaries)
-  const currentChunks = new Set<string>();
-  if (state.activeChunkIds) {
-    for (const chunkId of state.activeChunkIds) {
-      currentChunks.add(chunkId);
-      if (!chunkMeshes.has(chunkId)) {
-        const [cx, cy] = chunkId.split(':').map(Number);
-        const chunkSize = 64;
-        
-        // Create a square outline for the chunk
-        const geo = new THREE.EdgesGeometry(new THREE.BoxGeometry(chunkSize, 1, chunkSize));
-        const mat = new THREE.LineBasicMaterial({ color: 0xffff00 });
-        const mesh = new THREE.LineSegments(geo, mat);
-        
-        // Center of the chunk
-        mesh.position.set(cx * chunkSize + chunkSize/2, 0.5, cy * chunkSize + chunkSize/2);
-        scene.add(mesh);
-        chunkMeshes.set(chunkId, mesh);
-      }
-    }
-  }
-
-  // Remove inactive labels
-  const allLabelIds = new Set(Array.from(document.querySelectorAll('[id^="label-"]')).map(el => el.id.replace('label-', '')));
-  for (const id of allLabelIds) {
-    if (!activeLabels.has(id)) {
-      removeWorldLabel(id);
-    }
-  }
+  // Cleanup Labels
+  document.querySelectorAll('.world-label').forEach(el => {
+    if (!activeLabels.has(el.id.replace('label-', ''))) el.remove();
+  });
   activeLabels.clear();
 
-  // Remove inactive chunks
-  for (const [id, mesh] of chunkMeshes.entries()) {
-    if (!currentChunks.has(id)) {
-      scene.remove(mesh);
-      chunkMeshes.delete(id);
-    }
+  // Tooltip
+  const myP = state.players.find((p: any) => p.id === myPlayerId);
+  if (myP) {
+    const c = getClosestInteractable(myP, state);
+    if (c) showTooltip(`Press E to ${c.interactionType === 'loot' ? 'collect ' + c.item.name : 'talk to ' + c.name}`);
+    else hideTooltip();
   }
 }

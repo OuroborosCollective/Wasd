@@ -255,5 +255,34 @@
     "questStartLines": { "apprentice_quest": "Bring me 5 mushrooms." },
     "questProgressLines": { "apprentice_quest": "Still need mushrooms." },
     "questCompleteLines": { "apprentice_quest": "Perfect." }
+  },
+  {
+    "id": "dialogue_uschi",
+    "greeting": "Hallo, ich bin Uschi! Suchst du etwas Bestimmtes?",
+    "nodes": {
+      "root": {
+        "text": "Ich habe viele Dinge gesehen in Areloria. Was möchtest du wissen?",
+        "choices": [
+          { "id": "uschi_1", "text": "Erzähl mir von der Welt.", "nextNodeId": "world_info" },
+          { "id": "uschi_2", "text": "Nichts, danke.", "nextNodeId": "root" }
+        ]
+      },
+      "world_info": {
+        "text": "Areloria ist ein Ort voller Magie und Gefahren. Pass auf dich auf!",
+        "choices": [{ "text": "Danke!", "nextNodeId": "root" }]
+      }
+    }
+  },
+  {
+    "id": "dialogue_goblin",
+    "greeting": "Heh heh... meat!",
+    "nodes": {
+      "root": {
+        "text": "*The goblin snarls at you.*",
+        "choices": [
+          { "id": "goblin_1", "text": "Back off!", "nextNodeId": "root" }
+        ]
+      }
+    }
   }
 ]

@@ -320,6 +320,7 @@ export class NPCSystem {
             npc.position.x += (dx / dist) * speed;
             npc.position.y += (dy / dist) * speed;
           }
+            if (Math.random() < 0.005) { npc.lastShout = ["Keep moving!", "Lovely weather, eh?", "Areloria is beautiful today.", "Stay safe!"][Math.floor(Math.random() * 4)]; }
         }
       }
     }

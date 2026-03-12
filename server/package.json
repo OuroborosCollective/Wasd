@@ -11,8 +11,10 @@
     "migrate": "node-pg-migrate"
   },
   "dependencies": {
+    "@genkit-ai/firebase": "^1.29.0",
     "express": "^4.21.0",
     "firebase-admin": "^13.0.0",
+    "ioredis": "^5.10.0",
     "node-pg-migrate": "^8.0.4",
     "pg": "^8.11.3",
     "ws": "^8.18.0"
