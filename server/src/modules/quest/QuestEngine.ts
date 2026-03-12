@@ -90,7 +90,7 @@ export class QuestEngine {
         let prereqsMet = true;
         if (quest.prerequisiteQuestIds) {
           for (const preId of quest.prerequisiteQuestIds) {
-            const preQuest = player.quests.find((q: any) => q.id === preId);
+            const preQuest = player.quests ? player.quests.find((q: any) => q.id === preId) : null;
             if (!preQuest || !preQuest.completed) {
               prereqsMet = false;
               break;

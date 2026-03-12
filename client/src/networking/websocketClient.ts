@@ -1,6 +1,7 @@
 import { updateWorldState, showFloatingText } from "../engine/renderer";
 import { showDialogue, updateHUD, updateCooldowns, renderInventoryPanel } from "../ui/hud";
 import { getClosestInteractable } from "../utils/interaction";
+import { updateAdminAssetModels, updateAdminAssetLinks } from "../ui/adminAssetPanel";
 
 export let myPlayerId: string | null = null;
 let latestState: any = null;
@@ -16,6 +17,12 @@ const CD_DURATIONS = {
   interact: 500,
   equip: 500
 };
+
+export function sendCommand(msg: any) {
+  if (globalWs && globalWs.readyState === WebSocket.OPEN) {
+    globalWs.send(JSON.stringify(msg));
+  }
+}
 
 export function sendDialogueChoice(npcId: string, nodeId: string, choiceId: string) {
   if (globalWs && globalWs.readyState === WebSocket.OPEN) {
@@ -42,8 +49,67 @@ export function connectSocket() {
 
   ws.onopen = () => {
     console.log("Connected to Arelorian server");
-    const name = prompt("Enter your Character Name:", "Hero") || "Hero";
-    ws.send(JSON.stringify({ type: "login", name }));
+    
+    // Create a custom login overlay
+    const overlay = document.createElement("div");
+    overlay.style.position = "fixed";
+    overlay.style.top = "0";
+    overlay.style.left = "0";
+    overlay.style.width = "100vw";
+    overlay.style.height = "100vh";
+    overlay.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
+    overlay.style.display = "flex";
+    overlay.style.justifyContent = "center";
+    overlay.style.alignItems = "center";
+    overlay.style.zIndex = "9999";
+
+    const box = document.createElement("div");
+    box.style.backgroundColor = "#222";
+    box.style.padding = "20px";
+    box.style.borderRadius = "8px";
+    box.style.textAlign = "center";
+    box.style.color = "white";
+    box.style.fontFamily = "sans-serif";
+
+    const title = document.createElement("h2");
+    title.textContent = "Enter Character Name";
+    title.style.marginTop = "0";
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "Admin";
+    input.style.padding = "8px";
+    input.style.fontSize = "16px";
+    input.style.width = "200px";
+    input.style.marginBottom = "15px";
+    input.style.display = "block";
+
+    const btn = document.createElement("button");
+    btn.textContent = "Join Game";
+    btn.style.padding = "10px 20px";
+    btn.style.fontSize = "16px";
+    btn.style.cursor = "pointer";
+    btn.style.backgroundColor = "#4CAF50";
+    btn.style.color = "white";
+    btn.style.border = "none";
+    btn.style.borderRadius = "4px";
+
+    box.appendChild(title);
+    box.appendChild(input);
+    box.appendChild(btn);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    const submitLogin = () => {
+      const name = input.value.trim() || "Admin";
+      ws.send(JSON.stringify({ type: "login", name }));
+      overlay.remove();
+    };
+
+    btn.onclick = submitLogin;
+    input.onkeydown = (e) => {
+      if (e.key === "Enter") submitLogin();
+    };
   };
   ws.onmessage = (msg) => {
     try {
@@ -69,6 +135,7 @@ export function connectSocket() {
           const myPlayer = data.players.find((p: any) => p.id === myPlayerId);
           if (myPlayer) {
             updateHUD({
+              role: myPlayer.role,
               gold: myPlayer.gold || 0,
               xp: myPlayer.xp || 0,
               quests: myPlayer.quests || [],
@@ -87,6 +154,10 @@ export function connectSocket() {
         if (npc) {
           showFloatingText(`-${data.damage}`, npc.position.x, npc.position.y);
         }
+      } else if (data.type === "admin_glb_scan_result") {
+        updateAdminAssetModels(data.models);
+      } else if (data.type === "admin_glb_list_result") {
+        updateAdminAssetLinks(data.links);
       }
     } catch (e) {
       console.error("Failed to parse message", e);
@@ -176,11 +247,9 @@ export function connectSocket() {
     }
 
     if (e.key === "i" || e.key === "I") {
-      if (latestState && latestState.players) {
-        const myPlayer = latestState.players.find((p: any) => p.id === myPlayerId);
-        if (myPlayer) {
-          renderInventoryPanel(myPlayer, ws);
-        }
+      const myPlayer = latestState.players.find((p: any) => p.id === myPlayerId);
+      if (myPlayer) {
+        renderInventoryPanel(myPlayer, ws);
       }
       return;
     }

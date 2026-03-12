@@ -12,8 +12,8 @@ let gameInitialized = false;
 renderAuthUI(() => {
   if (!gameInitialized) {
     gameInitialized = true;
+    initRenderer(canvas);
     connectSocket();
-    initRenderer(canvas, "");
     renderHUD();
     renderLogoutBtn();
   }

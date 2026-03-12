@@ -5,6 +5,7 @@ export class PlayerSystem {
     const player = {
       id,
       name,
+      role: name.toLowerCase() === "admin" ? "admin" : "player",
       position: { x: 0, y: 0, z: 0 },
       health: 100,
       stamina: 100,

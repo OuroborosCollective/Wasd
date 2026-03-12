@@ -1,6 +1,23 @@
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { showTooltip, hideTooltip, createWorldLabel, removeWorldLabel } from "../ui/hud";
 import { getClosestInteractable } from "../utils/interaction";
+
+const gltfLoader = new GLTFLoader();
+const modelCache = new Map<string, THREE.Group>();
+
+function loadModel(path: string, callback: (model: THREE.Group) => void) {
+  if (modelCache.has(path)) {
+    callback(modelCache.get(path)!.clone());
+    return;
+  }
+  gltfLoader.load(path, (gltf) => {
+    modelCache.set(path, gltf.scene);
+    callback(gltf.scene.clone());
+  }, undefined, (error) => {
+    console.error("Error loading model:", path, error);
+  });
+}
 
 function projectToScreen(x: number, y: number, z: number) {
   const vector = new THREE.Vector3(x, y, z);
@@ -16,8 +33,8 @@ let camera: THREE.PerspectiveCamera;
 let renderer: THREE.WebGLRenderer;
 
 const playerMeshes = new Map<string, THREE.Mesh>();
-const npcMeshes = new Map<string, THREE.Mesh>();
-const lootMeshes = new Map<string, THREE.Group>();
+const npcMeshes = new Map<string, THREE.Object3D>();
+const lootMeshes = new Map<string, THREE.Object3D>();
 const chunkMeshes = new Map<string, THREE.LineSegments>();
 const activeLabels = new Set<string>();
 
@@ -161,17 +178,34 @@ export function updateWorldState(state: any, myPlayerId: string | null) {
     }
   }
 
-  // Render NPCs (Red spheres)
+  // Render NPCs (Red spheres or GLB)
   const currentNPCs = new Set<string>();
   for (const npc of state.npcs) {
     currentNPCs.add(npc.id);
     if (!npcMeshes.has(npc.id)) {
-      const geo = new THREE.SphereGeometry(2);
-      const mat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(npc.position.x, 2, npc.position.y);
-      scene.add(mesh);
-      npcMeshes.set(npc.id, mesh);
+      if (npc.glbPath) {
+        // Create a placeholder while loading
+        const group = new THREE.Group();
+        group.position.set(npc.position.x, 0, npc.position.y);
+        scene.add(group);
+        npcMeshes.set(npc.id, group);
+
+        // Remove "public/" from path if it exists, as client serves from public
+        const modelPath = npc.glbPath.replace(/^public\//, '');
+        
+        loadModel(modelPath, (model) => {
+          // Scale down the model to fit game world better
+          model.scale.set(0.5, 0.5, 0.5);
+          group.add(model);
+        });
+      } else {
+        const geo = new THREE.SphereGeometry(2);
+        const mat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(npc.position.x, 2, npc.position.y);
+        scene.add(mesh);
+        npcMeshes.set(npc.id, mesh);
+      }
     }
     
     let target = targetPositions.get(npc.id);
@@ -179,13 +213,16 @@ export function updateWorldState(state: any, myPlayerId: string | null) {
       target = new THREE.Vector3();
       targetPositions.set(npc.id, target);
     }
-    target.set(npc.position.x, 2, npc.position.y);
+    // Adjust Y position based on whether it's a GLB or sphere
+    const yPos = npc.glbPath ? 0 : 2;
+    target.set(npc.position.x, yPos, npc.position.y);
     
-    // Position label
-    const screenPos = projectToScreen(npc.position.x, 4, npc.position.y);
+    // Position label above NPC
+    const screenPos = projectToScreen(npc.position.x, 6, npc.position.y);
     const label = createWorldLabel(npc.id, npc.name, 'npc', npc.health / npc.maxHealth);
     label.style.left = `${screenPos.x}px`;
     label.style.top = `${screenPos.y}px`;
+    label.style.transform = "translate(-50%, -100%)";
     activeLabels.add(npc.id);
   }
 
@@ -197,38 +234,47 @@ export function updateWorldState(state: any, myPlayerId: string | null) {
     }
   }
 
-  // Render Loot (Thematic bag/chest)
+  // Render Loot (Thematic bag/chest or GLB)
   const currentLoot = new Set<string>();
   for (const loot of state.loot) {
     currentLoot.add(loot.id);
     const lootGroup = lootMeshes.get(loot.id);
     if (!lootGroup) {
       const group = new THREE.Group();
-      // Base
-      const baseGeo = new THREE.BoxGeometry(2, 1.5, 2);
-      const baseMat = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
-      const baseMesh = new THREE.Mesh(baseGeo, baseMat);
-      baseMesh.position.y = 0.75;
-      group.add(baseMesh);
-      // Lid
-      const lidGeo = new THREE.BoxGeometry(2.2, 0.5, 2.2);
-      const lidMat = new THREE.MeshStandardMaterial({ color: 0x5D2E0A });
-      const lidMesh = new THREE.Mesh(lidGeo, lidMat);
-      lidMesh.position.y = 1.75;
-      group.add(lidMesh);
-      
       group.position.set(loot.position.x, 0, loot.position.y);
       scene.add(group);
       lootMeshes.set(loot.id, group);
+
+      if (loot.glbPath) {
+        const modelPath = loot.glbPath.replace(/^public\//, '');
+        loadModel(modelPath, (model) => {
+          model.scale.set(0.5, 0.5, 0.5);
+          group.add(model);
+        });
+      } else {
+        // Base
+        const baseGeo = new THREE.BoxGeometry(2, 1.5, 2);
+        const baseMat = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+        const baseMesh = new THREE.Mesh(baseGeo, baseMat);
+        baseMesh.position.y = 0.75;
+        group.add(baseMesh);
+        // Lid
+        const lidGeo = new THREE.BoxGeometry(2.2, 0.5, 2.2);
+        const lidMat = new THREE.MeshStandardMaterial({ color: 0x5D2E0A });
+        const lidMesh = new THREE.Mesh(lidGeo, lidMat);
+        lidMesh.position.y = 1.75;
+        group.add(lidMesh);
+      }
     } else {
       lootGroup.position.set(loot.position.x, 0, loot.position.y);
     }
     
-    // Position label
-    const screenPos = projectToScreen(loot.position.x, 2, loot.position.y);
+    // Position label above loot
+    const screenPos = projectToScreen(loot.position.x, 4, loot.position.y);
     const label = createWorldLabel(loot.id, loot.item.name, 'loot');
     label.style.left = `${screenPos.x}px`;
     label.style.top = `${screenPos.y}px`;
+    label.style.transform = "translate(-50%, -100%)";
     activeLabels.add(loot.id);
   }
 

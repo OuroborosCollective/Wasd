@@ -10,6 +10,7 @@ import { QuestEngine } from "../modules/quest/QuestEngine.js";
 import { WorldSystem } from "../modules/world/WorldSystem.js";
 import { PersistenceManager } from "./PersistenceManager.js";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
+import { GLBRegistry } from "../modules/asset-registry/GLBRegistry.js";
 import fs from "fs";
 import path from "path";
 
@@ -30,6 +31,7 @@ export class WorldTick {
   public questSystem: QuestEngine;
   public worldSystem: WorldSystem;
   public persistence: PersistenceManager;
+  public glbRegistry: GLBRegistry;
   private lootEntities: Map<string, any> = new Map();
 
   private socketToPlayer: Map<string, string> = new Map(); // socketId -> characterName
@@ -47,11 +49,13 @@ export class WorldTick {
     this.questSystem = new QuestEngine();
     this.worldSystem = new WorldSystem();
     this.persistence = new PersistenceManager();
+    this.glbRegistry = new GLBRegistry();
 
     // Load persisted data
     const savedData = this.persistence.load();
     for (const name in savedData) {
       const player = savedData[name];
+      if (!player.id) player.id = name;
       this.hydratePlayer(player);
       this.playerSystem.setPlayer(name, player);
     }
@@ -125,13 +129,36 @@ export class WorldTick {
         // Server-authoritative movement calculation
         const speed = 5;
         // Clamp intent to prevent speed hacking
-        const dx = Math.max(-1, Math.min(1, msg.dx || 0));
-        const dy = Math.max(-1, Math.min(1, msg.dy || 0));
+        const dx = Math.max(-1, Math.min(1, Number(msg.dx) || 0));
+        const dy = Math.max(-1, Math.min(1, Number(msg.dy) || 0));
         
-        player.position.x += dx * speed;
-        player.position.y += dy * speed;
-        
-        this.observerEngine.updatePosition(id, { x: player.position.x, y: player.position.y });
+        if (!isNaN(dx) && !isNaN(dy)) {
+          player.position.x += dx * speed;
+          player.position.y += dy * speed;
+          this.observerEngine.updatePosition(id, { x: player.position.x, y: player.position.y });
+        }
+      } else if (msg.type === "admin_glb_scan") {
+        if (player.role !== "admin") return;
+        const models = this.glbRegistry.scanModels();
+        this.ws.sendToPlayer(id, { type: "admin_glb_scan_result", models });
+      } else if (msg.type === "admin_glb_list") {
+        if (player.role !== "admin") return;
+        const links = this.glbRegistry.getLinks();
+        this.ws.sendToPlayer(id, { type: "admin_glb_list_result", links });
+      } else if (msg.type === "admin_glb_link") {
+        if (player.role !== "admin") return;
+        this.glbRegistry.addLink({
+          glbPath: msg.glbPath,
+          targetType: msg.targetType,
+          targetId: msg.targetId
+        });
+        const links = this.glbRegistry.getLinks();
+        this.ws.sendToPlayer(id, { type: "admin_glb_list_result", links });
+      } else if (msg.type === "admin_glb_unlink") {
+        if (player.role !== "admin") return;
+        this.glbRegistry.removeLink(msg.targetType, msg.targetId);
+        const links = this.glbRegistry.getLinks();
+        this.ws.sendToPlayer(id, { type: "admin_glb_list_result", links });
       } else if (msg.type === "equip") {
         if (!checkCooldown(500)) return;
         const itemId = msg.itemId;
@@ -326,6 +353,12 @@ export class WorldTick {
             }
           }
         }
+      } else if (msg.type === "equip") {
+        this.inventorySystem.equipItem(player, msg.itemId);
+        this.saveAll();
+      } else if (msg.type === "unequip") {
+        this.inventorySystem.unequipItem(player, msg.slot);
+        this.saveAll();
       } else if (msg.type === "drop") {
         this.inventorySystem.removeItem(player, msg.itemId);
         this.saveAll();
@@ -380,7 +413,19 @@ export class WorldTick {
   }
 
   private hydratePlayer(player: any) {
+    if (!player.id) player.id = "unknown";
+    if (!player.name) player.name = player.id;
     if (!player.flags) player.flags = {};
+    if (!player.position) player.position = { x: 0, y: 0, z: 0 };
+    if (!player.inventory) player.inventory = [];
+    if (!player.quests) player.quests = [];
+    if (!player.equipment) player.equipment = { weapon: null, armor: null };
+    if (player.health === undefined) player.health = 100;
+    if (player.maxHealth === undefined) player.maxHealth = 100;
+    if (player.gold === undefined) player.gold = 0;
+    if (player.xp === undefined) player.xp = 0;
+    if (!player.role) player.role = player.name === "Admin" ? "admin" : "player";
+    
     if (player.inventory) {
       player.inventory = player.inventory.map((item: any) => ItemRegistry.hydrate(item));
     }
@@ -452,20 +497,33 @@ export class WorldTick {
     const activeChunks = this.chunkSystem.getActiveChunks();
 
     // 3. Tick global systems
-    this.npcSystem.tick();
+    const players = this.playerSystem.getAllPlayers();
+    this.npcSystem.tick(players);
     this.worldSystem.tick();
 
     // 4. Broadcast state to clients
     // We need to broadcast to each socket only what they can see, but for now global broadcast
-    const players = this.playerSystem.getAllPlayers();
     
+    const npcsWithGlb = this.npcSystem.getAllNPCs().map(npc => {
+      let glbPath = this.glbRegistry.getModelForTarget("npc_single", npc.id);
+      if (!glbPath) glbPath = this.glbRegistry.getModelForTarget("npc_group", npc.role);
+      if (!glbPath) glbPath = this.glbRegistry.getModelForTarget("monster_group", npc.role);
+      return { ...npc, glbPath };
+    });
+
+    const lootWithGlb = Array.from(this.lootEntities.values()).map(loot => {
+      let glbPath = this.glbRegistry.getModelForTarget("object_single", loot.id);
+      if (!glbPath) glbPath = this.glbRegistry.getModelForTarget("object_group", loot.item.id);
+      return { ...loot, glbPath };
+    });
+
     this.ws.broadcast({
       type: "world_tick",
       tick: this.tickCount,
       activeChunkIds: activeChunks.map(c => c.id),
       players: players.map(p => ({ ...p, questStatus: this.questSystem.getQuestStatus(p) })),
-      npcs: this.npcSystem.getAllNPCs(),
-      loot: Array.from(this.lootEntities.values())
+      npcs: npcsWithGlb,
+      loot: lootWithGlb
     });
 
     if (this.tickCount % 100 === 0) {

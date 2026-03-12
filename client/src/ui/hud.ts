@@ -1,4 +1,5 @@
 import { sendDialogueChoice } from "../networking/websocketClient";
+import { toggleAdminAssetPanel } from "./adminAssetPanel";
 
 export function renderHUD() {
   const hud = document.createElement("div");
@@ -42,12 +43,22 @@ export function renderHUD() {
     <div style="font-size: 0.75em; margin-top: 6px; opacity: 0.6; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px;">
       WASD: Move | E: Interact | F: Attack | G: Equip First | H: Unequip
     </div>
+    <button id="btn-admin-assets" style="margin-top: 10px; background: #444; color: white; border: none; padding: 5px; cursor: pointer; display: none;">Admin Assets</button>
   `;
   
   document.body.appendChild(hud);
+
+  document.getElementById("btn-admin-assets")!.onclick = () => {
+    toggleAdminAssetPanel();
+  };
 }
 
-export function updateHUD(data: { gold: number, xp: number, quests: any[], inventory: any[], equipment?: any, reputation?: any, questStatus?: any[] }) {
+export function updateHUD(data: { role?: string, gold: number, xp: number, quests: any[], inventory: any[], equipment?: any, reputation?: any, questStatus?: any[] }) {
+  const btnAdmin = document.getElementById("btn-admin-assets");
+  if (btnAdmin && data.role === "admin") {
+    btnAdmin.style.display = "block";
+  }
+
   const stats = document.getElementById("hud-stats");
   if (stats) {
     stats.textContent = `Gold: ${data.gold} | XP: ${data.xp}`;

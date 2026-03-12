@@ -39,12 +39,10 @@ export class NPCSystem {
     }
   }
 
-  createNPC(typeId: string, name: string, x: number, y: number) {
-    const def = this.npcDefinitions.get(typeId);
-    const instanceId = `${typeId}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  createNPC(id: string, name: string, x: number, y: number) {
+    const def = this.npcDefinitions.get(id);
     const npc = {
-      id: instanceId,
-      typeId,
+      id,
       name: name || (def ? def.name : "Unknown NPC"),
       role: def ? def.role : "Citizen",
       position: { x, y, z: 0 },
@@ -55,11 +53,15 @@ export class NPCSystem {
       inventory: [],
       personality: this.personalityEngine.generateTraits(),
       memory: [],
-      dna: this.genealogyEngine.createLineage(typeId, "Unknown"),
+      dna: this.genealogyEngine.createLineage(id, "Unknown"),
       dialogueId: def ? def.dialogueId : null,
-      questHooks: def ? def.questHooks : []
+      questHooks: def ? def.questHooks : [],
+      homePosition: { x, y },
+      targetPosition: null as { x: number, y: number } | null,
+      state: "idle",
+      stateTimer: 0
     };
-    this.npcs.set(instanceId, npc);
+    this.npcs.set(id, npc);
     return npc;
   }
 
@@ -245,7 +247,81 @@ export class NPCSystem {
     return Array.from(this.npcs.values());
   }
 
-  tick() {
+  tick(players: any[]) {
     // Process NPC AI, schedules, needs
+    const now = Date.now();
+    for (const npc of this.npcs.values()) {
+      // 1. Check for nearby players to interact with
+      let interacting = false;
+      for (const player of players) {
+        const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
+        if (dist < 15) { // Interaction range
+          npc.state = "interacting";
+          npc.stateTimer = now + 5000; // Stay interacting for a bit
+          npc.targetPosition = null; // Stop moving
+          interacting = true;
+          break;
+        }
+      }
+
+      if (interacting) continue;
+
+      // 2. State machine
+      if (npc.state === "interacting" && now > npc.stateTimer) {
+        npc.state = "idle";
+        npc.stateTimer = now + Math.random() * 2000 + 1000;
+      }
+
+      if (npc.state === "idle") {
+        if (now > npc.stateTimer) {
+          // Decide next action
+          const r = Math.random();
+          if (r < 0.4) {
+            npc.state = "wandering";
+            // Pick a random spot near home
+            const angle = Math.random() * Math.PI * 2;
+            const dist = Math.random() * 30;
+            npc.targetPosition = {
+              x: npc.homePosition.x + Math.cos(angle) * dist,
+              y: npc.homePosition.y + Math.sin(angle) * dist
+            };
+            npc.stateTimer = now + 10000; // Max wander time
+          } else if (r < 0.7) {
+            npc.state = "working";
+            // Move back to home position (workplace)
+            npc.targetPosition = { x: npc.homePosition.x, y: npc.homePosition.y };
+            npc.stateTimer = now + 15000; // Work for 15s
+          } else {
+            npc.stateTimer = now + Math.random() * 3000 + 2000; // Stay idle
+          }
+        }
+      } else if (npc.state === "wandering" || npc.state === "working") {
+        if (now > npc.stateTimer) {
+          npc.state = "idle";
+          npc.targetPosition = null;
+          npc.stateTimer = now + Math.random() * 2000 + 1000;
+        } else if (npc.targetPosition) {
+          // Move towards target
+          const dx = npc.targetPosition.x - npc.position.x;
+          const dy = npc.targetPosition.y - npc.position.y;
+          const dist = Math.hypot(dx, dy);
+          
+          if (dist < 1) {
+            // Reached target
+            npc.targetPosition = null;
+            if (npc.state === "wandering") {
+              npc.state = "idle";
+              npc.stateTimer = now + Math.random() * 3000 + 1000;
+            }
+            // If working, just stay there until timer runs out
+          } else {
+            // Move
+            const speed = 0.5; // units per tick
+            npc.position.x += (dx / dist) * speed;
+            npc.position.y += (dy / dist) * speed;
+          }
+        }
+      }
+    }
   }
 }
