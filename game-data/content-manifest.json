@@ -26,7 +26,9 @@
         "blacksmith_master",
         "hermit_quest",
         "merchant_quest",
-        "apprentice_quest"
+        "apprentice_quest",
+        "help_test_npc",
+        "wolf_report"
       ],
       "dialogueIds": [
         "dialogue_npc_1",
