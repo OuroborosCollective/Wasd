@@ -15,10 +15,43 @@ import path from "path";
 
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 
+/**
+ * WorldTick — central game loop and message dispatcher.
+ *
+ * `WorldTick` is the heart of the Arelorian server.  It owns every major
+ * game subsystem, wires together the WebSocket callbacks from
+ * {@link GameWebSocketServer}, and drives a 10 Hz (100 ms interval) simulation
+ * loop via {@link start}/{@link tick}/{@link stop}.
+ *
+ * ### Responsibilities
+ * - **Session management** — maps socket IDs to character names via
+ *   `socketToPlayer`, handling login, disconnect, and guest name assignment.
+ * - **Input handling** — receives player messages (`move_intent`, `attack`,
+ *   `interact`, `equip`, `unequip`, `drop`, `dialogue_choice`) and applies
+ *   server-authoritative logic with per-action cooldown enforcement.
+ * - **Spatial simulation** — each tick updates active chunks through the
+ *   {@link ObserverEngine} / {@link ChunkSystem} pipeline so only populated
+ *   areas of the world are simulated.
+ * - **State broadcast** — sends a `world_tick` message to all connected
+ *   clients containing the current positions of players, NPCs, and loot.
+ * - **Persistence** — calls {@link PersistenceManager.save} after every
+ *   mutating action so data survives server restarts.
+ *
+ * ### Tick rate
+ * `setInterval` fires every **100 ms** (10 ticks per second).  The tick
+ * counter (`tickCount`) is monotonically increasing and can be used for
+ * timing periodic operations (e.g. the 10-second log line at `tickCount % 100`).
+ *
+ * ### Item hydration / strip cycle
+ * Items are stored in `data/players.json` as bare `{ id }` objects to keep
+ * the file compact.  On load, {@link hydratePlayer} re-expands each item
+ * reference into a full definition via `ItemRegistry`.  Before saving,
+ * {@link stripPlayerItems} reduces items back to their IDs.
+ */
 export class WorldTick {
   private timer: NodeJS.Timeout | null = null;
   private tickCount = 0;
-  
+
   public chunkSystem: ChunkSystem;
   public observerEngine: ObserverEngine;
   public playerSystem: PlayerSystem;
@@ -32,9 +65,18 @@ export class WorldTick {
   public persistence: PersistenceManager;
   private lootEntities: Map<string, any> = new Map();
 
+  /** Maps socket connection ID → character name for the session lifetime. */
   private socketToPlayer: Map<string, string> = new Map(); // socketId -> characterName
+  /** Tracks the timestamp of the last server-accepted action per character for cooldown enforcement. */
   private lastActionTimes: Map<string, number> = new Map(); // charName -> timestamp
 
+  /**
+   * Initialises all game subsystems, loads persisted player data, spawns NPCs
+   * from `game-data/spawns/npc-spawns.json`, and registers WebSocket
+   * connection/disconnect/message handlers.
+   *
+   * @param ws - The running {@link GameWebSocketServer} instance.
+   */
   constructor(private ws: GameWebSocketServer) {
     this.chunkSystem = new ChunkSystem(64);
     this.observerEngine = new ObserverEngine();
@@ -339,6 +381,14 @@ export class WorldTick {
     };
   }
 
+  /**
+   * Sends a formatted quest-completion message to the player and persists
+   * the updated player state.
+   *
+   * @param socketId - The socket ID of the completing player.
+   * @param quest    - The quest object that was completed.
+   * @param reward   - The reward payload returned by {@link QuestEngine.completeQuest}.
+   */
   private broadcastQuestCompletion(socketId: string, quest: any, reward: any) {
     let rewardText = `Quest Completed: ${quest.name}! You earned ${reward.gold} gold and ${reward.xp} XP.`;
     if (reward.itemId) {
@@ -355,6 +405,11 @@ export class WorldTick {
     this.saveAll();
   }
 
+  /**
+   * Reads `game-data/spawns/npc-spawns.json` and calls
+   * {@link NPCSystem.createNPC} for each spawn entry.  Errors are caught and
+   * logged; missing spawn file is silently ignored.
+   */
   private loadSpawns() {
     try {
       const spawnsPath = path.resolve(process.cwd(), "game-data/spawns/npc-spawns.json");
@@ -371,6 +426,14 @@ export class WorldTick {
     }
   }
 
+  /**
+   * Serialises and persists all player data (excluding the internal
+   * `dummy_player` test entity) to the JSON store via
+   * {@link PersistenceManager}.
+   *
+   * Items are stripped to bare `{ id }` objects before writing to keep the
+   * file compact; they are re-expanded on load via {@link hydratePlayer}.
+   */
   saveAll() {
     const allPlayers = this.playerSystem.getAllPlayers();
     const data: any = {};
@@ -385,6 +448,19 @@ export class WorldTick {
     this.persistence.save(data);
   }
 
+  /**
+   * Expands a freshly-loaded player object from its compact persisted form
+   * into a fully-populated runtime form.
+   *
+   * Specifically:
+   * - Ensures `player.flags` exists (initialised to `{}` if missing).
+   * - Replaces each `{ id }` stub in `player.inventory` with the full item
+   *   definition via `ItemRegistry.hydrate`.
+   * - Does the same for each occupied equipment slot.
+   *
+   * @param player - The raw player object as read from the JSON store.
+   *                 Mutated in place.
+   */
   private hydratePlayer(player: any) {
     if (!player.flags) player.flags = {};
     if (player.inventory) {
@@ -399,6 +475,16 @@ export class WorldTick {
     }
   }
 
+  /**
+   * Reduces all item objects in a player's inventory and equipment slots to
+   * bare `{ id }` stubs before writing to the JSON store.
+   *
+   * This keeps the persistence file compact and avoids duplicating item
+   * definition data that is already held in `ItemRegistry`.
+   *
+   * @param player - A deep-cloned player object whose items should be
+   *                 stripped.  Mutated in place.
+   */
   private stripPlayerItems(player: any) {
     const strip = (item: any) => {
       if (!item || !item.id) return item;
@@ -417,15 +503,38 @@ export class WorldTick {
     }
   }
 
+  /**
+   * Starts the game loop by scheduling {@link tick} to run every 100 ms
+   * (10 Hz).  Has no effect if the loop is already running.
+   */
   start() {
     this.timer = setInterval(() => this.tick(), 100);
   }
 
+  /**
+   * Stops the game loop by clearing the interval timer.
+   * Safe to call even if the loop is not currently running.
+   */
   stop() {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
   }
 
+  /**
+   * Executes one simulation step.  Called automatically by the interval timer
+   * set up in {@link start}.
+   *
+   * Each tick performs the following steps in order:
+   * 1. Advances the global `tickCount`.
+   * 2. Moves the `dummy_player` demo entity back and forth sinusoidally.
+   * 3. Queries {@link ObserverEngine} for all chunks currently visible to
+   *    connected players and updates their active state in {@link ChunkSystem}.
+   * 4. Calls `tick()` on global systems: {@link NPCSystem} and
+   *    {@link WorldSystem}.
+   * 5. Broadcasts a `world_tick` message to all clients containing the
+   *    current state of players, NPCs, loot, and active chunk IDs.
+   * 6. Logs a summary every 100 ticks (≈ every 10 seconds).
+   */
   tick() {
     this.tickCount += 1;
 

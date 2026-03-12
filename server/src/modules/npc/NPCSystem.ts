@@ -4,6 +4,32 @@ import { NPCGenealogyEngine } from "./NPCGenealogyEngine.js";
 import fs from "fs";
 import path from "path";
 
+/**
+ * NPCSystem — manages all non-player characters in the game world.
+ *
+ * On construction the system loads two JSON data files:
+ * - `game-data/npc/npcs.json`          — NPC definitions (stats, role, dialogue
+ *                                         references, drop tables, quest hooks).
+ * - `game-data/dialogue/dialogues.json` — Dialogue trees, including greeting
+ *                                         text, branching nodes, quest-state
+ *                                         lines, and reputation conditions.
+ *
+ * NPCs are instantiated at runtime via {@link createNPC}, which merges the
+ * static definition with generated procedural data (personality traits,
+ * memory, genealogy lineage).  The resulting live NPC objects are stored in
+ * `npcs` and mutated in place (e.g. health changes during combat).
+ *
+ * ### Dialogue system
+ * Dialogue resolution supports two overlapping approaches:
+ * 1. **Legacy quest hooks** — simple per-quest lines keyed by quest ID
+ *    (`questStartLines`, `questProgressLines`, `questCompleteLines`).
+ * 2. **Branching nodes** — a graph of named nodes, each with conditional
+ *    entry points (`entryNodes`) and player-selectable `choices`.  Choices
+ *    can set player flags, modify faction reputation, and trigger quests.
+ *
+ * @see {@link WorldTick} for the message handler that calls
+ *      {@link handleInteraction} and {@link handleChoice}.
+ */
 export class NPCSystem {
   private npcs: Map<string, any> = new Map();
   private npcDefinitions: Map<string, any> = new Map();
@@ -13,6 +39,9 @@ export class NPCSystem {
   public memoryEngine: NPCMemoryEngine;
   public genealogyEngine: NPCGenealogyEngine;
 
+  /**
+   * Initialises sub-engines and eagerly loads NPC and dialogue data from disk.
+   */
   constructor() {
     this.personalityEngine = new NPCPersonalityEngine();
     this.memoryEngine = new NPCMemoryEngine();
@@ -20,6 +49,11 @@ export class NPCSystem {
     this.loadData();
   }
 
+  /**
+   * Reads NPC definitions and dialogue data from their respective JSON files.
+   * Called once during construction.  Parse/IO errors are caught and logged;
+   * the system continues with empty maps if either file is unavailable.
+   */
   private loadData() {
     try {
       const npcsPath = path.resolve(process.cwd(), "game-data/npc/npcs.json");
@@ -39,6 +73,21 @@ export class NPCSystem {
     }
   }
 
+  /**
+   * Instantiates a live NPC and registers it in the active NPC map.
+   *
+   * The NPC is initialised with stats from the matching definition in
+   * `npcDefinitions` (identified by `id`).  If no definition is found,
+   * sensible defaults are applied (role `"Citizen"`, 100/100 HP, etc.).
+   * Procedural data is generated for personality, memory, and genealogy.
+   *
+   * @param id   - Matches a key in `game-data/npc/npcs.json`.
+   * @param name - Override for the NPC's display name; falls back to the
+   *               definition's `name` field, then `"Unknown NPC"`.
+   * @param x    - Initial world-space X coordinate.
+   * @param y    - Initial world-space Y coordinate.
+   * @returns The newly created NPC object.
+   */
   createNPC(id: string, name: string, x: number, y: number) {
     const def = this.npcDefinitions.get(id);
     const npc = {
@@ -61,10 +110,37 @@ export class NPCSystem {
     return npc;
   }
 
+  /**
+   * Returns the live NPC object for the given ID, or `undefined` if not found.
+   *
+   * @param id - NPC ID (same as the key used in {@link createNPC}).
+   */
   getNPC(id: string) {
     return this.npcs.get(id);
   }
 
+  /**
+   * Resolves the dialogue response for a player initiating interaction with
+   * an NPC.
+   *
+   * Resolution priority:
+   * 1. **Branching nodes** — if `dialogue.nodes` exists, `entryNodes` are
+   *    checked in order and the first node whose conditions are met becomes
+   *    active.  Player flags, quest state, and faction reputation are all
+   *    evaluated.
+   * 2. **Legacy quest hooks** — if no matching entry node is found, the NPC's
+   *    `questHooks` array is scanned.  Quest-specific lines (`questStartLines`,
+   *    `questProgressLines`, `questCompleteLines`) override the default greeting.
+   * 3. **Fallback** — a generic welcome message is returned for NPCs with no
+   *    dialogue data.
+   *
+   * @param npcId            - ID of the NPC being interacted with.
+   * @param player           - The interacting player object (for quest/flag/rep checks).
+   * @param questDefinitions - Map of all quest definitions, used to check prerequisites.
+   * @returns A dialogue response object with `source`, `text`, optional
+   *          `choices`, optional `questId`, and `npcId`; or `null` if the NPC
+   *          does not exist.
+   */
   handleInteraction(npcId: string, player: any, questDefinitions: Map<string, any> = new Map()) {
     const npc = this.npcs.get(npcId);
     if (!npc) return null;
@@ -185,6 +261,24 @@ export class NPCSystem {
     };
   }
 
+  /**
+   * Processes a player's selection of a dialogue choice and advances the
+   * conversation to the next node.
+   *
+   * Side effects applied from the chosen option:
+   * - `setFlag`          — sets a boolean flag on the player object.
+   * - `changeReputation` — adjusts the player's reputation with a faction.
+   *   Reputation-changing choices are one-time-use; subsequent selections
+   *   by the same player are silently ignored via `player.usedChoices`.
+   *
+   * @param npcId    - ID of the NPC whose dialogue is being navigated.
+   * @param nodeId   - ID of the current dialogue node containing the choice.
+   * @param choiceId - ID of the choice the player selected.
+   * @param player   - The player making the choice (mutated for flag/rep effects).
+   * @returns The dialogue response for the next node (same shape as
+   *          {@link handleInteraction}'s return value), or `null` if any
+   *          lookup fails (unknown NPC, node, or choice).
+   */
   handleChoice(npcId: string, nodeId: string, choiceId: string, player: any) {
     const npc = this.npcs.get(npcId);
     if (!npc) return null;
@@ -239,10 +333,19 @@ export class NPCSystem {
     };
   }
 
+  /**
+   * Returns all currently registered live NPC objects as an array.
+   * Used by {@link WorldTick.tick} to include NPC state in the world-tick broadcast.
+   */
   getAllNPCs() {
     return Array.from(this.npcs.values());
   }
 
+  /**
+   * Called once per world tick (10 Hz) to advance NPC simulation.
+   * Currently a stub; future implementations will process AI behaviour,
+   * daily schedules, needs, and social interactions.
+   */
   tick() {
     // Process NPC AI, schedules, needs
   }
