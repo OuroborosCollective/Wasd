@@ -1,9 +1,10 @@
-import { QuestEngine } from "../modules/quest/QuestEngine.js";
+import { QuestEngine } from "../modules/quest/QuestEngine.ts";
 
 function log(msg: string) { console.log(msg); }
 
 async function run() {
   const engine = new QuestEngine();
+  console.log("loaded quests:", Array.from(engine.getQuestDefinitions().keys()));
   const player: any = { inventory: [], quests: [], gold: 0, xp: 0 };
 
   log("Starting quest help_test_npc");

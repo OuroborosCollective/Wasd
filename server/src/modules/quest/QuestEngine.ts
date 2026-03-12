@@ -1,4 +1,4 @@
-import { ItemRegistry } from "../inventory/ItemRegistry.js";
+import { ItemRegistry } from "../inventory/ItemRegistry.ts";
 import fs from "fs";
 import path from "path";
 
@@ -11,7 +11,11 @@ export class QuestEngine {
 
   private loadData() {
     try {
-      const questsPath = path.resolve(process.cwd(), "game-data/quests/quests.json");
+      // try from current working dir; fall back up one level if needed
+      let questsPath = path.resolve(process.cwd(), "game-data/quests/quests.json");
+      if (!fs.existsSync(questsPath)) {
+        questsPath = path.resolve(process.cwd(), "..", "game-data/quests/quests.json");
+      }
       if (fs.existsSync(questsPath)) {
         const questData = JSON.parse(fs.readFileSync(questsPath, "utf-8"));
         questData.forEach((quest: any) => {
@@ -235,5 +239,4 @@ export class QuestEngine {
     }
     return results;
   }
-}
 }
