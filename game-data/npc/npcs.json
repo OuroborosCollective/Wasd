@@ -90,5 +90,26 @@
     "dialogueId": "dialogue_npc_8",
     "questHooks": ["apprentice_quest"],
     "faction": "Neutral"
+  },
+  {
+    "id": "npc_uschi",
+    "name": "Uschi",
+    "role": "Character",
+    "dialogueId": "dialogue_uschi",
+    "faction": "Neutral"
+  },
+  {
+    "id": "monster_goblin",
+    "name": "Goblin",
+    "role": "Enemy",
+    "dialogueId": "dialogue_goblin",
+    "faction": "Hostile",
+    "stats": {
+      "health": 30,
+      "maxHealth": 30
+    },
+    "dropTable": [
+      { "itemId": "goblin_ear", "chance": 0.5 }
+    ]
   }
 ]
