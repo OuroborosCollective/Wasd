@@ -56,7 +56,7 @@ export function renderHUD() {
       <span id="cd-equip" style="padding: 3px 8px; border-radius: 4px; background: rgba(0,0,0,0.3); color: #00ff00; opacity: 0.5;">[G] Equip</span>
     </div>
     <div style="font-size: 0.75em; margin-top: 10px; opacity: 0.5; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px; text-align: center;">
-      WASD: Move | I: Inventory
+      WASD: Move | I: Inventory | K: Skills | M: Market | L: Quests
     </div>
     <button id="btn-admin-assets" style="margin-top: 10px; background: #333; color: #00ff00; border: 1px solid #00ff00; padding: 6px; cursor: pointer; border-radius: 4px; display: none; font-size: 0.8em;">Admin Palette</button>
   `;
