@@ -9,6 +9,7 @@ export interface GLBLink {
 
 export class GLBRegistry {
   private links: GLBLink[] = [];
+  private linksMap: Map<string, string> = new Map(); // O(1) lookup
   private modelsDir = path.resolve(process.cwd(), '../client/public/assets/models');
 
   constructor() {
@@ -20,10 +21,19 @@ export class GLBRegistry {
     if (fs.existsSync(linksPath)) {
       try {
         this.links = JSON.parse(fs.readFileSync(linksPath, 'utf-8'));
+        this.rebuildMap();
       } catch (e) {
         console.error("Failed to parse glb-links.json", e);
         this.links = [];
+        this.linksMap.clear();
       }
+    }
+  }
+
+  private rebuildMap() {
+    this.linksMap.clear();
+    for (const link of this.links) {
+      this.linksMap.set(`${link.targetType}:${link.targetId}`, link.glbPath);
     }
   }
 
@@ -59,16 +69,18 @@ export class GLBRegistry {
     // remove existing link for the same target
     this.links = this.links.filter(l => !(l.targetType === link.targetType && l.targetId === link.targetId));
     this.links.push(link);
+    this.linksMap.set(`${link.targetType}:${link.targetId}`, link.glbPath);
     this.saveLinks();
   }
 
   public removeLink(targetType: string, targetId: string) {
     this.links = this.links.filter(l => !(l.targetType === targetType && l.targetId === targetId));
+    this.linksMap.delete(`${targetType}:${targetId}`);
     this.saveLinks();
   }
 
   public getModelForTarget(targetType: string, targetId: string): string | null {
-    const link = this.links.find(l => l.targetType === targetType && l.targetId === targetId);
-    return link ? link.glbPath : null;
+    // Using O(1) Map lookup instead of O(n) Array find for hot path performance
+    return this.linksMap.get(`${targetType}:${targetId}`) ?? null;
   }
 }
