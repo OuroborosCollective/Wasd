@@ -6,7 +6,7 @@ let scene: THREE.Scene;
 let camera: THREE.PerspectiveCamera;
 const playerMeshes: Map<string, THREE.Object3D> = new Map();
 const npcMeshes: Map<string, THREE.Object3D> = new Map();
-const lootMeshes: Map<string, THREE.Group> = new Map();
+const lootMeshes: Map<string, THREE.Mesh> = new Map(); // Geändert zu Mesh für einfache Würfel
 const chunkMeshes: Map<string, THREE.LineSegments> = new Map();
 const targetPositions: Map<string, THREE.Vector3> = new Map();
 const activeLabels = new Set<string>();
@@ -75,6 +75,50 @@ function getClosestInteractable(player: any, state: any) {
     }
   }
 
+  // Render Loot (einfache Würfel, Farbe basierend auf Rarity)
+  const currentLoot = new Set<string>();
+  for (const loot of state.loot) {
+    currentLoot.add(loot.id);
+    if (!lootMeshes.has(loot.id)) {
+      const geo = new THREE.BoxGeometry(2, 2, 2);
+      const mat = new THREE.MeshStandardMaterial({
+        color: getRarityColor(loot.rarity),
+        roughness: 0.7,
+        metalness: 0.3
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.position.set(loot.position.x, 1, loot.position.z);
+      scene.add(mesh);
+      lootMeshes.set(loot.id, mesh);
+    }
+
+    let target = targetPositions.get(loot.id);
+    if (!target) {
+      target = new THREE.Vector3();
+      targetPositions.set(loot.id, target);
+    }
+    target.set(loot.position.x, 1, loot.position.z);
+
+    const screenPos = projectToScreen(loot.position.x, 3, loot.position.z);
+    const label = createWorldLabel(loot.id, loot.item.baseItem.name, 'loot');
+    label.style.left = `${screenPos.x}px`;
+    label.style.top = `${screenPos.y}px`;
+    label.style.transform = "translate(-50%, -100%)";
+    activeLabels.add(loot.id);
+  }
+
+  // Remove despawned loot
+  for (const [id, mesh] of lootMeshes.entries()) {
+    if (!currentLoot.has(id)) {
+      scene.remove(mesh);
+      lootMeshes.delete(id);
+      targetPositions.delete(id);
+      removeWorldLabel(id);
+    }
+  }
+
   for (const loot of state.loot) {
     const d = Math.hypot(player.position.x - loot.position.x, player.position.y - loot.position.y);
     if (d < minDist) {
@@ -83,7 +127,19 @@ function getClosestInteractable(player: any, state: any) {
     }
   }
 
-  return closest;
+    return closest;
+  }
+
+  function getRarityColor(rarity: string): number {
+    switch (rarity) {
+      case 'common': return 0x808080;
+      case 'uncommon': return 0x00ff00;
+      case 'rare': return 0x0066ff;
+      case 'epic': return 0x9900ff;
+      case 'legendary': return 0xffaa00;
+      default: return 0xffffff;
+    }
+  }
 }
 
 function showTooltip(text: string) {
@@ -330,6 +386,50 @@ export function updateWorldState(state: any, myPlayerId: string | null) {
 
   // Render Loot
   const currentLoot = new Set<string>();
+  // Render Loot (einfache Würfel, Farbe basierend auf Rarity)
+  const currentLoot = new Set<string>();
+  for (const loot of state.loot) {
+    currentLoot.add(loot.id);
+    if (!lootMeshes.has(loot.id)) {
+      const geo = new THREE.BoxGeometry(2, 2, 2);
+      const mat = new THREE.MeshStandardMaterial({
+        color: getRarityColor(loot.rarity),
+        roughness: 0.7,
+        metalness: 0.3
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.position.set(loot.position.x, 1, loot.position.z);
+      scene.add(mesh);
+      lootMeshes.set(loot.id, mesh);
+    }
+
+    let target = targetPositions.get(loot.id);
+    if (!target) {
+      target = new THREE.Vector3();
+      targetPositions.set(loot.id, target);
+    }
+    target.set(loot.position.x, 1, loot.position.z);
+
+    const screenPos = projectToScreen(loot.position.x, 3, loot.position.z);
+    const label = createWorldLabel(loot.id, loot.item.baseItem.name, 'loot');
+    label.style.left = `${screenPos.x}px`;
+    label.style.top = `${screenPos.y}px`;
+    label.style.transform = "translate(-50%, -100%)";
+    activeLabels.add(loot.id);
+  }
+
+  // Remove despawned loot
+  for (const [id, mesh] of lootMeshes.entries()) {
+    if (!currentLoot.has(id)) {
+      scene.remove(mesh);
+      lootMeshes.delete(id);
+      targetPositions.delete(id);
+      removeWorldLabel(id);
+    }
+  }
+
   for (const loot of state.loot) {
     currentLoot.add(loot.id);
     const lootGroup = lootMeshes.get(loot.id);
