@@ -1,6 +1,3 @@
-import { renderQuestLog } from "../ui/questLog";
-import { renderSkillsPanel } from "../ui/skillsPanel";
-import { renderMarketUI } from "../ui/market";
 import { updateWorldState, showFloatingText } from "../engine/renderer";
 import { showDialogue, updateHUD, updateCooldowns, renderInventoryPanel, updateBrainHUD } from "../ui/hud";
 import { getClosestInteractable } from "../utils/interaction";
@@ -268,22 +265,6 @@ export function connectSocket() {
         renderInventoryPanel(myPlayer, ws);
       }
       return;
-    if (e.key === "k" || e.key === "K") {
-      const myPlayer = latestState.players.find((p: any) => p.id === myPlayerId);
-      if (myPlayer) renderSkillsPanel(myPlayer);
-      return;
-    }
-
-    if (e.key === "m" || e.key === "M") {
-      const myPlayer = latestState.players.find((p: any) => p.id === myPlayerId);
-      if (myPlayer) renderMarketUI(myPlayer, ws);
-      return;
-    }
-    if (e.key === "l" || e.key === "L") {
-      const myPlayer = latestState.players.find((p: any) => p.id === myPlayerId);
-      if (myPlayer) renderQuestLog(myPlayer);
-      return;
-    }
     }
 
     let dx = 0;
