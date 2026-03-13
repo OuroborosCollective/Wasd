@@ -95,5 +95,110 @@
     "type": "misc",
     "rarity": "uncommon",
     "description": "A token used by guards."
+  },
+  {
+    "id": "health_potion",
+    "name": "Health Potion",
+    "type": "consumable",
+    "rarity": "common",
+    "description": "Restores 50 health points.",
+    "healAmount": 50
+  },
+  {
+    "id": "mana_potion",
+    "name": "Mana Potion",
+    "type": "consumable",
+    "rarity": "common",
+    "description": "Restores 25 mana points.",
+    "manaAmount": 25
+  },
+  {
+    "id": "stamina_potion",
+    "name": "Stamina Potion",
+    "type": "consumable",
+    "rarity": "common",
+    "description": "Restores 50 stamina points.",
+    "staminaAmount": 50
+  },
+  {
+    "id": "herb_bundle",
+    "name": "Herb Bundle",
+    "type": "misc",
+    "rarity": "common",
+    "description": "A bundle of medicinal herbs."
+  },
+  {
+    "id": "iron_sword",
+    "name": "Iron Sword",
+    "type": "weapon",
+    "slot": "weapon",
+    "damage": 18,
+    "rarity": "uncommon",
+    "description": "A sturdy iron blade."
+  },
+  {
+    "id": "steel_longsword",
+    "name": "Steel Longsword",
+    "type": "weapon",
+    "slot": "weapon",
+    "damage": 28,
+    "rarity": "rare",
+    "description": "A finely crafted steel longsword."
+  },
+  {
+    "id": "shadow_blade",
+    "name": "Shadow Blade",
+    "type": "weapon",
+    "slot": "weapon",
+    "damage": 42,
+    "rarity": "epic",
+    "description": "A blade forged in darkness."
+  },
+  {
+    "id": "iron_shield",
+    "name": "Iron Shield",
+    "type": "armor",
+    "slot": "armor",
+    "rarity": "uncommon",
+    "description": "A sturdy iron shield.",
+    "defense": 12
+  },
+  {
+    "id": "boar_tusk",
+    "name": "Boar Tusk",
+    "type": "misc",
+    "rarity": "common",
+    "description": "A sharp tusk from a wild boar."
+  },
+  {
+    "id": "raw_meat",
+    "name": "Raw Meat",
+    "type": "misc",
+    "rarity": "common",
+    "description": "Uncooked meat."
+  },
+  {
+    "id": "cooked_meat",
+    "name": "Cooked Meat",
+    "type": "consumable",
+    "rarity": "common",
+    "description": "Restores 30 health.",
+    "healAmount": 30
+  },
+  {
+    "id": "crystal_shard",
+    "name": "Crystal Shard",
+    "type": "misc",
+    "rarity": "rare",
+    "description": "A glowing crystal shard pulsing with energy."
+  },
+  {
+    "id": "enchanted_staff",
+    "name": "Enchanted Staff",
+    "type": "weapon",
+    "slot": "weapon",
+    "damage": 35,
+    "rarity": "epic",
+    "description": "A staff imbued with arcane energy."
   }
 ]

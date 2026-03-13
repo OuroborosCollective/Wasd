@@ -1,14 +1,39 @@
-import pg from 'pg';
-
+import pg from "pg";
 const { Pool } = pg;
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  host: process.env.DB_HOST || "are.postgres.database.azure.com",
+  port: Number(process.env.DB_PORT) || 5432,
+  user: process.env.DB_USER || "Thosu",
+  password: process.env.DB_PASSWORD || "2N00py123-",
+  database: process.env.DB_NAME || "areloria",
+  ssl: { rejectUnauthorized: false },
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+});
+
+pool.on("error", (err) => {
+  console.error("Unexpected database pool error:", err);
+});
+
+pool.on("connect", () => {
+  console.log("Database: Connected to PostgreSQL (Azure).");
 });
 
 export const db = {
   query: (text: string, params?: any[]) => pool.query(text, params),
   getClient: () => pool.connect(),
-  pool
+  pool,
 };
+
+export async function testConnection(): Promise<boolean> {
+  try {
+    const result = await pool.query("SELECT NOW()");
+    console.log("Database: Connection verified at", result.rows[0].now);
+    return true;
+  } catch (err) {
+    console.error("Database: Connection failed:", err);
+    return false;
+  }
+}
