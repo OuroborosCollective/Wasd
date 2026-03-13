@@ -2,6 +2,12 @@ import express from "express";
 import { createServer } from "node:http";
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { WorldTick } from "./WorldTick.js";
+import { db, DatabaseService } from "./Database.js";
+import { runMigrations } from "./Migrations.js";
+import { LandSystem } from "../modules/land/LandSystem.js";
+import { createPayPalRouter } from "../api/paypalRoute.js";
+import { createGLBUploadRouter } from "../api/glbUploadRoute.js";
+import { createLandRouter } from "../api/landRoute.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -13,11 +19,36 @@ export class ServerBootstrap {
     const app = express();
     const httpServer = createServer(app);
 
+    // ── Middleware ─────────────────────────────────────────────────────────
+    app.use(express.json({ limit: "10mb" }));
+    app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+    // CORS for development
+    app.use((_req, res, next) => {
+      res.header("Access-Control-Allow-Origin", "*");
+      res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+      res.header("Access-Control-Allow-Headers", "Content-Type,Authorization,x-player-id");
+      if (_req.method === "OPTIONS") return res.sendStatus(200);
+      next();
+    });
+
+    // ── Database & Systems ─────────────────────────────────────────────────
+    const dbSvc = new DatabaseService();
+    await dbSvc.connect();
+
+    // Run DB migrations to ensure all tables exist
+    await runMigrations();
+
+    const landSystem = new LandSystem(dbSvc);
+    await landSystem.init();
+
+    // ── Health ─────────────────────────────────────────────────────────────
     app.get("/health", (_req, res) => {
       res.json({
         ok: true,
         project: "ARELORIAN MMORPG",
-        version: "0.2.0"
+        version: "0.3.0",
+        features: ["paypal", "glb-upload", "land-system", "marketplace", "mobile"],
       });
     });
 
@@ -29,7 +60,42 @@ export class ServerBootstrap {
       next();
     });
 
-    // Serve client with Vite in development, or static files in production
+       // ── API Routes ─────────────────────────────────────────────────
+    app.use("/api/paypal", createPayPalRouter());
+    app.use("/api/glb", createGLBUploadRouter());
+    app.use("/api/land", createLandRouter(landSystem));
+
+    // Matrix Energy balance endpoint
+    app.get("/api/player/balance", async (req, res) => {
+      const playerId = req.headers["x-player-id"] as string;
+      if (!playerId) return res.status(401).json({ error: "Player ID required" });
+      try {
+        const result = await db.query(
+          `SELECT matrix_energy, glb_enabled, glb_subscription_expires FROM players WHERE id=$1`,
+          [playerId]
+        );
+        const p = result.rows[0];
+        if (!p) return res.status(404).json({ error: "Player not found" });
+        const glbActive = p.glb_enabled &&
+          p.glb_subscription_expires &&
+          new Date(p.glb_subscription_expires) > new Date();
+        res.json({
+          matrixEnergy: p.matrix_energy || 0,
+          glbSubscriptionActive: !!glbActive,
+          glbSubscriptionExpires: p.glb_subscription_expires || null,
+        });
+      } catch {
+        res.json({ matrixEnergy: 0, glbSubscriptionActive: false });
+      }
+    });
+
+    // ── Static uploads (GLB files) ─────────────────────────────────────────
+    const uploadsDir = path.resolve(__dirname, "../../public/uploads");
+    app.use("/uploads", express.static(uploadsDir));
+    const modelsDir = path.resolve(__dirname, "../../public/models");
+    app.use("/models", express.static(modelsDir));
+
+    // ── Serve Client ───────────────────────────────────────────────────────
     if (process.env.NODE_ENV !== "production") {
       try {
         const { createServer: createViteServer } = await import("vite");
@@ -43,18 +109,25 @@ export class ServerBootstrap {
         console.error("Failed to start Vite middleware", e);
       }
     } else {
-      app.use(express.static(path.resolve(__dirname, "../../../client/dist")));
+      const clientDist = path.resolve(__dirname, "../../../client/dist");
+      app.use(express.static(clientDist));
+      // SPA fallback
+      app.get("*", (_req, res) => {
+        res.sendFile(path.join(clientDist, "index.html"));
+      });
     }
 
+    // ── WebSocket & Game Loop ──────────────────────────────────────────────
     const ws = new GameWebSocketServer(httpServer);
     ws.start();
 
     const tick = new WorldTick(ws);
     await tick.init();
-    const port = Number(process.env.PORT || 3000);
 
+    const port = Number(process.env.PORT || 3000);
     httpServer.listen(port, () => {
-      console.log(`Arelorian server listening on ${port}`);
+      console.log(`Arelorian server v0.3.0 listening on ${port}`);
+      console.log(`PayPal: ${process.env.PAYPAL_MODE || "sandbox"} mode`);
       tick.start();
     });
   }

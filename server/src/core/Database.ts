@@ -27,6 +27,28 @@ export const db = {
   pool,
 };
 
+// Type alias for dependency injection
+export type Database = typeof db;
+
+// Class wrapper for modules that need DI
+export class DatabaseService {
+  query(text: string, params?: any[]) {
+    return pool.query(text, params);
+  }
+  getClient() {
+    return pool.connect();
+  }
+  get pool() {
+    return pool;
+  }
+  async connect() {
+    return testConnection();
+  }
+}
+
+// Singleton instance
+export const dbService = new DatabaseService();
+
 export async function testConnection(): Promise<boolean> {
   try {
     const result = await pool.query("SELECT NOW()");
