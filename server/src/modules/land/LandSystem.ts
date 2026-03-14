@@ -93,13 +93,33 @@ export class LandSystem {
     await this.db.query(`ALTER TABLE players ADD COLUMN IF NOT EXISTS glb_enabled BOOLEAN DEFAULT false`).catch(() => {});
     await this.db.query(`ALTER TABLE players ADD COLUMN IF NOT EXISTS glb_subscription_expires TIMESTAMPTZ`).catch(() => {});
 
-    // Load all lands from DB
-    const result = await this.db.query(`SELECT * FROM player_lands`).catch(() => ({ rows: [] }));
-    for (const row of result.rows) {
-      const structResult = await this.db.query(
-        `SELECT * FROM land_structures WHERE land_id=$1`, [row.id]
-      ).catch(() => ({ rows: [] }));
+    // Load all lands and their structures from DB efficiently
+    const [landsResult, structsResult] = await Promise.all([
+      this.db.query(`SELECT * FROM player_lands`).catch(() => ({ rows: [] })),
+      this.db.query(`SELECT * FROM land_structures`).catch(() => ({ rows: [] }))
+    ]);
 
+    // Group structures by landId for fast lookup
+    const structuresByLand = new Map<string, any[]>();
+    for (const s of structsResult.rows) {
+      if (!structuresByLand.has(s.land_id)) {
+        structuresByLand.set(s.land_id, []);
+      }
+      structuresByLand.get(s.land_id)?.push({
+        id: s.id,
+        landId: s.land_id,
+        type: s.type,
+        x: s.x, y: s.y, z: s.z,
+        rotY: s.rot_y,
+        scale: s.scale,
+        glbPath: s.glb_path,
+        name: s.name,
+        placedAt: s.placed_at,
+      });
+    }
+
+    // Populate the lands map
+    for (const row of landsResult.rows) {
       this.lands.set(row.id, {
         id: row.id,
         ownerId: row.owner_id,
@@ -109,17 +129,7 @@ export class LandSystem {
         y: row.y,
         radius: row.radius,
         claimedAt: row.claimed_at,
-        structures: structResult.rows.map((s: any) => ({
-          id: s.id,
-          landId: s.land_id,
-          type: s.type,
-          x: s.x, y: s.y, z: s.z,
-          rotY: s.rot_y,
-          scale: s.scale,
-          glbPath: s.glb_path,
-          name: s.name,
-          placedAt: s.placed_at,
-        })),
+        structures: structuresByLand.get(row.id) || [],
       });
     }
     console.log(`LandSystem: Loaded ${this.lands.size} land plots.`);
