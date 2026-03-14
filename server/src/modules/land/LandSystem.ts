@@ -93,13 +93,33 @@ export class LandSystem {
     await this.db.query(`ALTER TABLE players ADD COLUMN IF NOT EXISTS glb_enabled BOOLEAN DEFAULT false`).catch(() => {});
     await this.db.query(`ALTER TABLE players ADD COLUMN IF NOT EXISTS glb_subscription_expires TIMESTAMPTZ`).catch(() => {});
 
-    // Load all lands from DB
-    const result = await this.db.query(`SELECT * FROM player_lands`).catch(() => ({ rows: [] }));
-    for (const row of result.rows) {
-      const structResult = await this.db.query(
-        `SELECT * FROM land_structures WHERE land_id=$1`, [row.id]
-      ).catch(() => ({ rows: [] }));
+    // Load all lands and their structures from DB efficiently
+    const [landsResult, structsResult] = await Promise.all([
+      this.db.query(`SELECT * FROM player_lands`).catch(() => ({ rows: [] })),
+      this.db.query(`SELECT * FROM land_structures`).catch(() => ({ rows: [] }))
+    ]);
 
+    // Group structures by landId for fast lookup
+    const structuresByLand = new Map<string, any[]>();
+    for (const s of structsResult.rows) {
+      if (!structuresByLand.has(s.land_id)) {
+        structuresByLand.set(s.land_id, []);
+      }
+      structuresByLand.get(s.land_id)?.push({
+        id: s.id,
+        landId: s.land_id,
+        type: s.type,
+        x: s.x, y: s.y, z: s.z,
+        rotY: s.rot_y,
+        scale: s.scale,
+        glbPath: s.glb_path,
+        name: s.name,
+        placedAt: s.placed_at,
+      });
+    }
+
+    // Populate the lands map
+    for (const row of landsResult.rows) {
       this.lands.set(row.id, {
         id: row.id,
         ownerId: row.owner_id,
@@ -109,17 +129,7 @@ export class LandSystem {
         y: row.y,
         radius: row.radius,
         claimedAt: row.claimed_at,
-        structures: structResult.rows.map((s: any) => ({
-          id: s.id,
-          landId: s.land_id,
-          type: s.type,
-          x: s.x, y: s.y, z: s.z,
-          rotY: s.rot_y,
-          scale: s.scale,
-          glbPath: s.glb_path,
-          name: s.name,
-          placedAt: s.placed_at,
-        })),
+        structures: structuresByLand.get(row.id) || [],
       });
     }
     console.log(`LandSystem: Loaded ${this.lands.size} land plots.`);
@@ -153,14 +163,13 @@ export class LandSystem {
     ownerName: string,
     x: number,
     y: number,
-    name: string
+    name: string,
+    dbClient?: any
   ): Promise<{ success: boolean; reason?: string; land?: Land }> {
-    // Check if player already has land
     if (this.getLandByOwner(ownerId)) {
       return { success: false, reason: "You already own land. Sell or abandon it first." };
     }
 
-    // Check distance from other lands
     for (const land of this.lands.values()) {
       const dist = Math.hypot(x - land.x, y - land.y);
       if (dist < MIN_LAND_DISTANCE) {
@@ -180,11 +189,17 @@ export class LandSystem {
       structures: [],
     };
 
-    await this.db.query(
-      `INSERT INTO player_lands (id, owner_id, owner_name, name, x, y, radius)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [landId, ownerId, ownerName, newLand.name, x, y, LAND_RADIUS]
-    ).catch(() => {});
+    const db = dbClient || this.db;
+    try {
+      await db.query(
+        `INSERT INTO player_lands (id, owner_id, owner_name, name, x, y, radius)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [landId, ownerId, ownerName, newLand.name, x, y, LAND_RADIUS]
+      );
+    } catch (err: any) {
+      console.error("LandSystem: Failed to insert land into DB:", err);
+      return { success: false, reason: "Database error claiming land" };
+    }
 
     this.lands.set(landId, newLand);
     return { success: true, land: newLand };

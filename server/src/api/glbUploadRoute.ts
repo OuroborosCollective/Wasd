@@ -117,7 +117,6 @@ export function createGLBUploadRouter(dbParam?: any): Router {
          VALUES ($1, $2, $3, $4, $5, NOW())`,
         [modelId, playerId, modelName, publicPath, req.file.size]
       ).catch(async () => {
-        // Create table if not exists
         await db.query(`
           CREATE TABLE IF NOT EXISTS player_glb_models (
             id VARCHAR(36) PRIMARY KEY,
@@ -297,53 +296,64 @@ export function createGLBUploadRouter(dbParam?: any): Router {
     const { modelId } = req.body;
     if (!buyerId || !modelId) return res.status(400).json({ error: "Buyer and modelId required" });
 
+    const client = await db.getClient();
     try {
-      // Get model info
-      const modelResult = await db.query(
+      await client.query("BEGIN");
+
+      // Get model info with FOR SHARE to prevent modification during transaction
+      const modelResult = await client.query(
         `SELECT id, player_id, name, file_path, marketplace_price, marketplace_listed
-         FROM player_glb_models WHERE id=$1`,
+         FROM player_glb_models WHERE id=$1 FOR SHARE`,
         [modelId]
       );
       const model = modelResult.rows[0];
       if (!model || !model.marketplace_listed) {
+        await client.query("ROLLBACK");
         return res.status(404).json({ error: "Model not listed for sale" });
       }
       if (model.player_id === buyerId) {
+        await client.query("ROLLBACK");
         return res.status(400).json({ error: "Cannot buy your own model" });
       }
 
-      // Check buyer has enough Matrix Energy
-      const buyerResult = await db.query(
-        `SELECT matrix_energy FROM players WHERE id=$1`,
-        [buyerId]
+      // Deduct Matrix Energy from buyer atomically
+      const deductResult = await client.query(
+        `UPDATE players SET matrix_energy = matrix_energy - $1
+         WHERE id = $2 AND COALESCE(matrix_energy, 0) >= $1
+         RETURNING matrix_energy`,
+        [model.marketplace_price, buyerId]
       );
-      const buyer = buyerResult.rows[0];
-      if (!buyer || (buyer.matrix_energy || 0) < model.marketplace_price) {
+
+      if (deductResult.rowCount === 0) {
+        await client.query("ROLLBACK");
         return res.status(400).json({ error: `Not enough Matrix Energy. Need ${model.marketplace_price}` });
       }
 
-      // Transfer Matrix Energy and create copy of model for buyer
-      const newModelId = uuidv4();
-      const newFilename = `${uuidv4()}${path.extname(model.file_path)}`;
-      const srcPath = path.join(UPLOAD_DIR, path.basename(model.file_path));
-      const dstPath = path.join(UPLOAD_DIR, newFilename);
-
-      // Copy file
-      try { fs.copyFileSync(srcPath, dstPath); } catch {}
-
-      await db.query(
-        `UPDATE players SET matrix_energy = matrix_energy - $1 WHERE id = $2`,
-        [model.marketplace_price, buyerId]
-      );
-      await db.query(
+      // Transfer 90% to seller
+      await client.query(
         `UPDATE players SET matrix_energy = COALESCE(matrix_energy, 0) + $1 WHERE id = $2`,
         [Math.floor(model.marketplace_price * 0.9), model.player_id] // 90% to seller, 10% fee
       );
-      await db.query(
+
+      // Create copy record for buyer
+      const newModelId = uuidv4();
+      const newFilename = `${uuidv4()}${path.extname(model.file_path)}`;
+      await client.query(
         `INSERT INTO player_glb_models (id, player_id, name, file_path, created_at)
          VALUES ($1, $2, $3, $4, NOW())`,
         [newModelId, buyerId, model.name, `/uploads/glb/${newFilename}`]
       );
+
+      await client.query("COMMIT");
+
+      // Copy file after successful commit
+      const srcPath = path.join(UPLOAD_DIR, path.basename(model.file_path));
+      const dstPath = path.join(UPLOAD_DIR, newFilename);
+      try {
+        fs.copyFileSync(srcPath, dstPath);
+      } catch (err) {
+        console.error("Marketplace: File copy failed after transaction:", err);
+      }
 
       res.json({
         success: true,
@@ -351,7 +361,11 @@ export function createGLBUploadRouter(dbParam?: any): Router {
         newModelId,
       });
     } catch (e: any) {
+      await client.query("ROLLBACK");
+      console.error("Marketplace purchase error:", e);
       res.status(500).json({ error: e.message });
+    } finally {
+      client.release();
     }
   });
 

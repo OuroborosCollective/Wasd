@@ -48,16 +48,23 @@ export function createLandRouter(landSystem: LandSystem, dbParam?: any): Router 
     if (!playerId) return res.status(401).json({ error: "Player ID required" });
     if (x === undefined || y === undefined) return res.status(400).json({ error: "x and y required" });
 
+    const client = await db.getClient();
     try {
-      // Check Matrix Energy
-      const playerResult = await db.query(
-        `SELECT name, matrix_energy FROM players WHERE id=$1`, [playerId]
+      await client.query("BEGIN");
+
+      // Check Matrix Energy and get player name
+      const playerResult = await client.query(
+        `SELECT name, matrix_energy FROM players WHERE id=$1 FOR UPDATE`, [playerId]
       );
       const player = playerResult.rows[0];
-      if (!player) return res.status(404).json({ error: "Player not found" });
+      if (!player) {
+        await client.query("ROLLBACK");
+        return res.status(404).json({ error: "Player not found" });
+      }
 
       const cost = landSystem.getLandClaimCost();
       if ((player.matrix_energy || 0) < cost) {
+        await client.query("ROLLBACK");
         return res.status(400).json({
           error: `Not enough Matrix Energy. Need ${cost}, have ${player.matrix_energy || 0}`,
           cost,
@@ -65,20 +72,32 @@ export function createLandRouter(landSystem: LandSystem, dbParam?: any): Router 
         });
       }
 
-      const result = await landSystem.claimLand(playerId, player.name, x, y, name);
+      // Deduct cost atomically
+      const deductResult = await client.query(
+        `UPDATE players SET matrix_energy = matrix_energy - $1
+         WHERE id = $2 AND COALESCE(matrix_energy, 0) >= $1`,
+        [cost, playerId]
+      );
+
+      if (deductResult.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ error: "Not enough Matrix Energy (concurrent claim)" });
+      }
+
+      const result = await landSystem.claimLand(playerId, player.name, x, y, name, client);
       if (!result.success) {
+        await client.query("ROLLBACK");
         return res.status(400).json({ error: result.reason });
       }
 
-      // Deduct cost
-      await db.query(
-        `UPDATE players SET matrix_energy = matrix_energy - $1 WHERE id=$2`,
-        [cost, playerId]
-      ).catch(() => {});
-
+      await client.query("COMMIT");
       res.json({ success: true, land: result.land, costPaid: cost });
     } catch (e: any) {
+      await client.query("ROLLBACK");
+      console.error("Land claim error:", e);
       res.status(500).json({ error: e.message });
+    } finally {
+      client.release();
     }
   });
 
