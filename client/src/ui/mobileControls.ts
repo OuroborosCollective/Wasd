@@ -448,23 +448,33 @@ export function initMobileControls(
     let pinchDist = 0;
     let pinchActive = false;
 
+
+    const isPointInRect = (x: number, y: number, rect?: DOMRect) => {
+      if (!rect) return false;
+      return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+    };
+
     canvas.addEventListener("touchstart", (e) => {
       e.preventDefault();
+
       if (e.touches.length === 2) {
         // Pinch zoom
         pinchActive = true;
         cameraTouchId = null;
         const t1 = e.touches[0], t2 = e.touches[1];
         pinchDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-      } else if (e.touches.length === 1) {
+        return;
+      }
+
+      if (e.touches.length === 1) {
         const touch = e.touches[0];
         // Only start camera drag if touch is NOT in joystick zone or action buttons
         const joystickRect = joystickZone.getBoundingClientRect();
         const actionRect = document.getElementById("mobile-action-btns")?.getBoundingClientRect();
-        const inJoystick = touch.clientX >= joystickRect.left && touch.clientX <= joystickRect.right
-                        && touch.clientY >= joystickRect.top && touch.clientY <= joystickRect.bottom;
-        const inActions = actionRect && touch.clientX >= actionRect.left && touch.clientX <= actionRect.right
-                       && touch.clientY >= actionRect.top && touch.clientY <= actionRect.bottom;
+
+        const inJoystick = isPointInRect(touch.clientX, touch.clientY, joystickRect);
+        const inActions = isPointInRect(touch.clientX, touch.clientY, actionRect);
+
         if (!inJoystick && !inActions) {
           cameraTouchId = touch.identifier;
           lastCamX = touch.clientX;
@@ -475,13 +485,17 @@ export function initMobileControls(
 
     canvas.addEventListener("touchmove", (e) => {
       e.preventDefault();
+
       if (pinchActive && e.touches.length === 2) {
         const t1 = e.touches[0], t2 = e.touches[1];
         const newDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
         const delta = (pinchDist - newDist) * 0.05;
         onPinchZoom(delta);
         pinchDist = newDist;
-      } else if (cameraTouchId !== null) {
+        return;
+      }
+
+      if (cameraTouchId !== null) {
         for (let i = 0; i < e.changedTouches.length; i++) {
           const touch = e.changedTouches[i];
           if (touch.identifier !== cameraTouchId) continue;
