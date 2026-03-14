@@ -153,7 +153,8 @@ export class LandSystem {
     ownerName: string,
     x: number,
     y: number,
-    name: string
+    name: string,
+    dbClient?: any
   ): Promise<{ success: boolean; reason?: string; land?: Land }> {
     // Check if player already has land
     if (this.getLandByOwner(ownerId)) {
@@ -180,11 +181,17 @@ export class LandSystem {
       structures: [],
     };
 
-    await this.db.query(
-      `INSERT INTO player_lands (id, owner_id, owner_name, name, x, y, radius)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [landId, ownerId, ownerName, newLand.name, x, y, LAND_RADIUS]
-    ).catch(() => {});
+    const db = dbClient || this.db;
+    try {
+      await db.query(
+        `INSERT INTO player_lands (id, owner_id, owner_name, name, x, y, radius)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [landId, ownerId, ownerName, newLand.name, x, y, LAND_RADIUS]
+      );
+    } catch (err: any) {
+      console.error("LandSystem: Failed to insert land into DB:", err);
+      return { success: false, reason: "Database error claiming land" };
+    }
 
     this.lands.set(landId, newLand);
     return { success: true, land: newLand };
