@@ -117,7 +117,6 @@ export function createGLBUploadRouter(dbParam?: any): Router {
          VALUES ($1, $2, $3, $4, $5, NOW())`,
         [modelId, playerId, modelName, publicPath, req.file.size]
       ).catch(async () => {
-        // Create table if not exists
         await db.query(`
           CREATE TABLE IF NOT EXISTS player_glb_models (
             id VARCHAR(36) PRIMARY KEY,
