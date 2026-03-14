@@ -172,8 +172,10 @@ export class WorldTick {
         const targetId = msg.targetId;
         const npc = this.npcSystem.getNPC(targetId);
         if (npc && npc.health !== undefined) {
-          const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
-          if (dist < 30) {
+          const dx = player.position.x - npc.position.x;
+          const dy = player.position.y - npc.position.y;
+          // Optimization: Use squared distance to avoid Math.hypot() square root
+          if (dx * dx + dy * dy < 900) { // 30^2
             const baseDamage = 10;
             let weaponDamage = 0;
             let weaponName = "fists";
@@ -238,8 +240,10 @@ export class WorldTick {
         const npc = this.npcSystem.getNPC(targetId);
         const loot = this.lootEntities.get(targetId);
         if (npc) {
-          const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
-          if (dist < 20) {
+          const dx = player.position.x - npc.position.x;
+          const dy = player.position.y - npc.position.y;
+          // Optimization: Use squared distance to avoid Math.hypot() square root
+          if (dx * dx + dy * dy < 400) { // 20^2
             // ... NPC interaction logic ...
             const interaction = this.npcSystem.handleInteraction(
               targetId, 
@@ -308,8 +312,10 @@ export class WorldTick {
             });
           }
         } else if (loot) {
-          const dist = Math.hypot(player.position.x - loot.position.x, player.position.y - loot.position.y);
-          if (dist < 20) {
+          const dx = player.position.x - loot.position.x;
+          const dy = player.position.y - loot.position.y;
+          // Optimization: Use squared distance to avoid Math.hypot() square root
+          if (dx * dx + dy * dy < 400) { // 20^2
             this.inventorySystem.addItem(player, loot.item);
             this.lootEntities.delete(targetId);
             this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Picked up ${loot.item.name}!` });

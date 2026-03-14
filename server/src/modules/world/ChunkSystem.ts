@@ -1,5 +1,6 @@
 export class ChunkSystem {
   private chunks = new Map<string, { id: string, x: number, y: number, size: number, entities: Set<string>, active: boolean }>();
+  private activeChunks = new Set<any>();
 
   constructor(public readonly size: number = 64) {}
 
@@ -51,13 +52,18 @@ export class ChunkSystem {
   }
 
   getActiveChunks() {
-    return Array.from(this.chunks.values()).filter(c => c.active);
+    return Array.from(this.activeChunks);
   }
 
   setChunkActive(chunkId: string, active: boolean) {
     const chunk = this.chunks.get(chunkId);
     if (chunk) {
       chunk.active = active;
+      if (active) {
+        this.activeChunks.add(chunk);
+      } else {
+        this.activeChunks.delete(chunk);
+      }
     }
   }
 }

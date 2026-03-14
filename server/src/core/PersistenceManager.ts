@@ -2,35 +2,44 @@ import { db } from './Database.js';
 
 export class PersistenceManager {
   async save(data: any) {
+    const client = await db.getClient();
     try {
+      // Optimization: Use a single transaction for bulk updates to reduce round-trips and overhead
+      await client.query('BEGIN');
+
+      const queryText = `
+        INSERT INTO players (username, email, level, experience, matrix_energy, position_x, position_y, data)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ON CONFLICT (username) DO UPDATE SET
+        level = EXCLUDED.level,
+        experience = EXCLUDED.experience,
+        matrix_energy = EXCLUDED.matrix_energy,
+        position_x = EXCLUDED.position_x,
+        position_y = EXCLUDED.position_y,
+        data = EXCLUDED.data,
+        updated_at = CURRENT_TIMESTAMP
+      `;
+
       for (const id in data) {
         const player = data[id];
-        // Use username as the unique key for now as id in memory might be different from UUID in DB
-        await db.query(
-          `INSERT INTO players (username, email, level, experience, matrix_energy, position_x, position_y, data)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-           ON CONFLICT (username) DO UPDATE SET
-           level = EXCLUDED.level,
-           experience = EXCLUDED.experience,
-           matrix_energy = EXCLUDED.matrix_energy,
-           position_x = EXCLUDED.position_x,
-           position_y = EXCLUDED.position_y,
-           data = EXCLUDED.data,
-           updated_at = CURRENT_TIMESTAMP`,
-          [
-            player.name,
-            player.email || `${player.name.toLowerCase()}@areloria.world`,
-            player.level || 1,
-            player.xp || 0,
-            player.matrixEnergy || 0,
-            player.position.x,
-            player.position.y,
-            JSON.stringify(player)
-          ]
-        );
+        await client.query(queryText, [
+          player.name,
+          player.email || `${player.name.toLowerCase()}@areloria.world`,
+          player.level || 1,
+          player.xp || 0,
+          player.matrixEnergy || 0,
+          player.position.x,
+          player.position.y,
+          JSON.stringify(player)
+        ]);
       }
+
+      await client.query('COMMIT');
     } catch (err) {
-      console.error('Failed to save persistence data to Postgres:', err);
+      await client.query('ROLLBACK');
+      console.error('Failed to save persistence data to Postgres (transaction rolled back):', err);
+    } finally {
+      client.release();
     }
   }
 
