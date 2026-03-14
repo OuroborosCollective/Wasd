@@ -18,6 +18,8 @@ let renderer: THREE.WebGLRenderer;
 let myPlayerId: string | null = null;
 let clock: THREE.Clock;
 let waterMesh: THREE.Mesh | null = null;
+let highlightRing: THREE.Mesh | null = null;
+let highlightPulse = 0;
 
 const playerMeshes = new Map<string, THREE.Object3D>();
 const npcMeshes = new Map<string, THREE.Object3D>();
@@ -116,6 +118,13 @@ function buildScene(s: THREE.Scene) {
   waterMesh = new THREE.Mesh(wGeo, new THREE.MeshLambertMaterial({ color: 0x1a6aaa, transparent: true, opacity: 0.75 }));
   waterMesh.position.set(-200, -3, 200);
   s.add(waterMesh);
+
+  // Highlight Ring
+  const ringGeo = new THREE.RingGeometry(0.8, 1.1, 32);
+  ringGeo.rotateX(-Math.PI / 2);
+  highlightRing = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthTest: false }));
+  highlightRing.visible = false;
+  s.add(highlightRing);
 
   // Trees (fewer on mobile)
   const treePositions = isMobile()
@@ -262,6 +271,14 @@ export function initRenderer(
     // Water animation
     if (waterMesh) {
       waterMesh.position.y = -3 + Math.sin(elapsed * 0.5) * 0.2;
+    }
+
+    if (highlightRing && highlightRing.visible) {
+      highlightPulse += delta * 3;
+      highlightRing.rotation.z += delta; // Rotates horizontally because X is rotated -PI/2
+      const scale = 1 + Math.sin(highlightPulse) * 0.1;
+      highlightRing.scale.set(scale, scale, scale);
+      (highlightRing.material as THREE.MeshBasicMaterial).opacity = 0.5 + Math.sin(highlightPulse * 2) * 0.3;
     }
 
     // Smooth player/NPC movement
@@ -421,8 +438,15 @@ export function updateWorldState(state: any, playerId: string | null) {
     if (nearby) {
       const hint = isMobile() ? "Tap [E]" : "[E]";
       showTooltip(`${hint} ${nearby.type === "loot" ? "Pick up" : "Talk to"} ${nearby.name || nearby.id}`);
+
+      if (highlightRing) {
+        highlightRing.visible = true;
+        highlightRing.position.set(nearby.position.x, getTerrainHeight(nearby.position.x, nearby.position.y) + 0.1, nearby.position.y);
+        (highlightRing.material as THREE.MeshBasicMaterial).color.setHex(nearby.type === "loot" ? 0xffd700 : 0x00ff88);
+      }
     } else {
       hideTooltip();
+      if (highlightRing) highlightRing.visible = false;
     }
   }
 
