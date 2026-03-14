@@ -585,7 +585,6 @@ export class WorldTick {
         return;
       }
 
-      // Check if NPC is a shopkeeper
       if (npc.shopId) {
         const shopItems = this.economySystem.getShop(npc.shopId);
         this.ws.sendToPlayer(id, { type: "shop_data", shopId: npc.shopId, items: shopItems, npcName: npc.name });
