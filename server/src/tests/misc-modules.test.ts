@@ -357,7 +357,15 @@ describe("GameConfig", () => {
   it("matrixCurrency is 'matrix_energy'", () => {
     expect(GameConfig.matrixCurrency).toBe("matrix_energy");
   });
+  it("interactDistance is 25", () => {
+    expect(GameConfig.interactDistance).toBe(25);
+  });
+
+  it("attackDistance is 35", () => {
+    expect(GameConfig.attackDistance).toBe(35);
+  });
 });
+
 
 // ---------------------------------------------------------------------------
 // FeatureFlags
