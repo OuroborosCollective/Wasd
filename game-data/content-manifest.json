@@ -44,7 +44,16 @@
         "starter_sword",
         "wooden_shield",
         "iron_scrap",
-        "wolf_pelt"
+        "wolf_pelt",
+        "fang",
+        "alpha_claw",
+        "bone_fragment",
+        "rusted_blade",
+        "grave_ring",
+        "ancient_coin",
+        "relic_fragment",
+        "forgotten_sigil",
+        "guard_token"
       ],
       "validationResult": "passed"
     }
