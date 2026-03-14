@@ -5,6 +5,7 @@ import { renderAuthUI, renderLogoutBtn } from "./ui/auth";
 import { toggleGMPanel } from "./ui/gmPanel";
 import { initShopPanel, toggleShop } from "./ui/shopPanel";
 import { initGLBManager, toggleGLBManager } from "./ui/glbManager";
+import { openCharacterEditor } from "./ui/characterEditor";
 
 // ── Mobile meta tags ─────────────────────────────────────────────────────────
 const meta = document.createElement("meta");
@@ -77,6 +78,30 @@ renderAuthUI((displayName: string, uid?: string) => {
     initShopPanel(currentPlayerId, currentPlayerName);
     initGLBManager(currentPlayerId, currentPlayerName);
 
+    // ── Character Editor: check if player has appearance saved ───────────────
+    (async () => {
+      try {
+        const res = await fetch(`/api/character/${currentPlayerId}`);
+        const data = await res.json();
+        if (!data.appearance) {
+          // First time: open character editor
+          setTimeout(() => {
+            openCharacterEditor(currentPlayerId, null, (appearance) => {
+              // Update player name in game
+              currentPlayerName = appearance.name;
+              sendMessage({ type: "set_display_name", name: appearance.name });
+              (window as any).showToast(`Willkommen, ${appearance.name}! Dein Abenteuer beginnt!`, "#f0d080");
+            });
+          }, 1500);
+        }
+      } catch {
+        // Non-fatal: skip character editor on error
+      }
+    })();
+
+    // ── Character Editor keyboard shortcut (F4) ───────────────────────────────
+    // Added to keyboard shortcuts below
+
     // ── Top Navigation Bar ────────────────────────────────────────────────────
     const topBar = document.createElement("div");
     topBar.id = "top-nav-bar";
@@ -92,6 +117,7 @@ renderAuthUI((displayName: string, uid?: string) => {
       { id: "gm-toggle-btn", icon: "⚙️", label: "GM", title: "GM Panel (F1)", action: () => toggleGMPanel(), color: "#64b4ff" },
       { id: "shop-toggle-btn", icon: "⚡", label: "Shop", title: "Matrix Shop (F2)", action: () => toggleShop(), color: "#ffaa00" },
       { id: "glb-toggle-btn", icon: "🎨", label: "3D", title: "GLB Manager (F3)", action: () => toggleGLBManager(), color: "#aa44ff" },
+      { id: "char-editor-btn", icon: "👤", label: "Char", title: "Charakter Editor (F4)", action: () => openCharacterEditor(currentPlayerId, null, (app) => { sendMessage({ type: "set_display_name", name: app.name }); }), color: "#44ffaa" },
     ];
 
     navButtons.forEach(({ id, icon, label, title, action, color }) => {
@@ -143,6 +169,7 @@ renderAuthUI((displayName: string, uid?: string) => {
       if (e.key === "F1") { e.preventDefault(); toggleGMPanel(); }
       if (e.key === "F2") { e.preventDefault(); toggleShop(); }
       if (e.key === "F3") { e.preventDefault(); toggleGLBManager(); }
+      if (e.key === "F4") { e.preventDefault(); openCharacterEditor(currentPlayerId, null, (app) => { sendMessage({ type: "set_display_name", name: app.name }); }); }
       // L = claim land shortcut
       if (e.key === "l" || e.key === "L") {
         const activeEl = document.activeElement;

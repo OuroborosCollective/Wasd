@@ -47,6 +47,9 @@ export async function runMigrations(): Promise<void> {
     await db.query(`ALTER TABLE players ADD COLUMN IF NOT EXISTS nation_id VARCHAR(64)`);
     await db.query(`ALTER TABLE players ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE`);
     await db.query(`ALTER TABLE players ADD COLUMN IF NOT EXISTS is_muted BOOLEAN DEFAULT FALSE`);
+    await db.query(`ALTER TABLE players ADD COLUMN IF NOT EXISTS appearance JSONB DEFAULT NULL`);
+    await db.query(`ALTER TABLE players ADD COLUMN IF NOT EXISTS display_name VARCHAR(128)`);
+    await db.query(`ALTER TABLE players ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()`);
 
     // PayPal orders
     await db.query(`

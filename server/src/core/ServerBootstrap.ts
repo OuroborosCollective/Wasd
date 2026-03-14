@@ -8,6 +8,8 @@ import { LandSystem } from "../modules/land/LandSystem.js";
 import { createPayPalRouter } from "../api/paypalRoute.js";
 import { createGLBUploadRouter } from "../api/glbUploadRoute.js";
 import { createLandRouter } from "../api/landRoute.js";
+import characterRouter from "../api/characterRoute.js";
+import { characterAssembly } from "../modules/character/CharacterAssemblySystem.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -42,13 +44,16 @@ export class ServerBootstrap {
     const landSystem = new LandSystem(dbSvc);
     await landSystem.init();
 
+    // Init character assembly system
+    characterAssembly.init();
+
     // ── Health ─────────────────────────────────────────────────────────────
     app.get("/health", (_req, res) => {
       res.json({
         ok: true,
         project: "ARELORIAN MMORPG",
-        version: "0.3.0",
-        features: ["paypal", "glb-upload", "land-system", "marketplace", "mobile"],
+        version: "0.4.0",
+        features: ["paypal", "glb-upload", "land-system", "marketplace", "mobile", "modular-characters"],
       });
     });
 
@@ -64,6 +69,7 @@ export class ServerBootstrap {
     app.use("/api/paypal", createPayPalRouter());
     app.use("/api/glb", createGLBUploadRouter());
     app.use("/api/land", createLandRouter(landSystem));
+    app.use("/api/character", characterRouter);
 
     // Matrix Energy balance endpoint
     app.get("/api/player/balance", async (req, res) => {
@@ -126,7 +132,7 @@ export class ServerBootstrap {
 
     const port = Number(process.env.PORT || 3000);
     httpServer.listen(port, () => {
-      console.log(`Arelorian server v0.3.0 listening on ${port}`);
+      console.log(`Arelorian server v0.4.0 listening on ${port}`);
       console.log(`PayPal: ${process.env.PAYPAL_MODE || "sandbox"} mode`);
       tick.start();
     });
