@@ -9,7 +9,8 @@ export interface GLBLink {
 
 export class GLBRegistry {
   private links: GLBLink[] = [];
-  private linksMap: Map<string, string> = new Map(); // O(1) lookup
+  // Optimization: Map for O(1) lookups of GLB paths by targetType:targetId
+  private linksMap: Map<string, string> = new Map();
   private modelsDir = path.resolve(process.cwd(), '../client/public/assets/models');
 
   constructor() {
@@ -21,19 +22,15 @@ export class GLBRegistry {
     if (fs.existsSync(linksPath)) {
       try {
         this.links = JSON.parse(fs.readFileSync(linksPath, 'utf-8'));
-        this.rebuildMap();
+        this.linksMap.clear();
+        for (const link of this.links) {
+          this.linksMap.set(`${link.targetType}:${link.targetId}`, link.glbPath);
+        }
       } catch (e) {
         console.error("Failed to parse glb-links.json", e);
         this.links = [];
         this.linksMap.clear();
       }
-    }
-  }
-
-  private rebuildMap() {
-    this.linksMap.clear();
-    for (const link of this.links) {
-      this.linksMap.set(`${link.targetType}:${link.targetId}`, link.glbPath);
     }
   }
 
@@ -80,7 +77,7 @@ export class GLBRegistry {
   }
 
   public getModelForTarget(targetType: string, targetId: string): string | null {
-    // Using O(1) Map lookup instead of O(n) Array find for hot path performance
-    return this.linksMap.get(`${targetType}:${targetId}`) ?? null;
+    // Optimized lookup using the internal Map instead of array iteration
+    return this.linksMap.get(`${targetType}:${targetId}`) || null;
   }
 }
