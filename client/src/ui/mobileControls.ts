@@ -106,6 +106,61 @@ const MOBILE_STYLES = `
     touch-action: manipulation;
   }
   #mobile-chat-btn:active { background: rgba(100,180,255,0.3); }
+  /* ── SHORTCUT PANEL ──────────────────────────────────────────────────── */
+  #mob-shortcut-toggle {
+    position: fixed; bottom: 90px; left: 50%;
+    transform: translateX(-50%);
+    width: 48px; height: 48px; border-radius: 50%;
+    background: rgba(20,30,60,0.85); backdrop-filter: blur(8px);
+    border: 2px solid rgba(100,180,255,0.4);
+    color: #c8d8f0; font-size: 22px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 1010;
+    touch-action: manipulation;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+    transition: background 0.15s;
+  }
+  #mob-shortcut-toggle:active { background: rgba(100,180,255,0.3); }
+  #mob-shortcut-panel {
+    position: fixed; bottom: 148px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(10,15,35,0.92); backdrop-filter: blur(12px);
+    border: 1px solid rgba(100,180,255,0.25);
+    border-radius: 16px; padding: 12px 16px;
+    z-index: 1009; display: none;
+    flex-direction: column; gap: 6px;
+    min-width: 220px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+  }
+  #mob-shortcut-panel.open { display: flex; }
+  .mob-shortcut-row {
+    display: flex; gap: 8px; justify-content: center;
+  }
+  .mob-sc-btn {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    width: 56px; height: 52px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.18);
+    color: #c8d8f0; cursor: pointer;
+    touch-action: manipulation;
+    transition: background 0.1s, transform 0.1s;
+    user-select: none;
+  }
+  .mob-sc-btn:active { background: rgba(100,180,255,0.3); transform: scale(0.92); }
+  .mob-sc-icon { font-size: 18px; line-height: 1; }
+  .mob-sc-label { font-size: 9px; margin-top: 2px; color: rgba(200,220,255,0.7); }
+  .mob-sc-key {
+    font-size: 8px; color: rgba(100,180,255,0.8);
+    background: rgba(100,180,255,0.12);
+    border-radius: 3px; padding: 1px 3px;
+    margin-top: 1px;
+  }
+  .mob-sc-sep {
+    height: 1px; background: rgba(255,255,255,0.1);
+    margin: 2px 0;
+  }
   /* Responsive HUD adjustments for mobile */
   @media (max-width: 900px), (pointer: coarse) {
     #hud-bottom { bottom: 230px !important; }
@@ -188,6 +243,84 @@ export function initMobileControls(
 
     <!-- Chat Button -->
     <div id="mobile-chat-btn">💬</div>
+
+    <!-- Shortcut Toggle Button (center bottom) -->
+    <div id="mob-shortcut-toggle" title="Shortcuts">⌨️</div>
+
+    <!-- Shortcut Panel -->
+    <div id="mob-shortcut-panel">
+      <!-- Row 1: GM Tools -->
+      <div class="mob-shortcut-row">
+        <div class="mob-sc-btn" id="mob-sc-gm">
+          <span class="mob-sc-icon">🛡️</span>
+          <span class="mob-sc-label">GM Panel</span>
+          <span class="mob-sc-key">F1</span>
+        </div>
+        <div class="mob-sc-btn" id="mob-sc-shop">
+          <span class="mob-sc-icon">💎</span>
+          <span class="mob-sc-label">Shop</span>
+          <span class="mob-sc-key">F2</span>
+        </div>
+        <div class="mob-sc-btn" id="mob-sc-glb">
+          <span class="mob-sc-icon">📦</span>
+          <span class="mob-sc-label">3D Mgr</span>
+          <span class="mob-sc-key">F3</span>
+        </div>
+        <div class="mob-sc-btn" id="mob-sc-char">
+          <span class="mob-sc-icon">👤</span>
+          <span class="mob-sc-label">Charakter</span>
+          <span class="mob-sc-key">F4</span>
+        </div>
+      </div>
+      <div class="mob-sc-sep"></div>
+      <!-- Row 2: World Actions -->
+      <div class="mob-shortcut-row">
+        <div class="mob-sc-btn" id="mob-sc-land">
+          <span class="mob-sc-icon">🏡</span>
+          <span class="mob-sc-label">Land</span>
+          <span class="mob-sc-key">L</span>
+        </div>
+        <div class="mob-sc-btn" id="mob-sc-craft">
+          <span class="mob-sc-icon">⚒️</span>
+          <span class="mob-sc-label">Crafting</span>
+          <span class="mob-sc-key">C</span>
+        </div>
+        <div class="mob-sc-btn" id="mob-sc-guild">
+          <span class="mob-sc-icon">⚜️</span>
+          <span class="mob-sc-label">Gilde</span>
+          <span class="mob-sc-key">G</span>
+        </div>
+        <div class="mob-sc-btn" id="mob-sc-map2">
+          <span class="mob-sc-icon">🗺️</span>
+          <span class="mob-sc-label">Weltkarte</span>
+          <span class="mob-sc-key">M</span>
+        </div>
+      </div>
+      <div class="mob-sc-sep"></div>
+      <!-- Row 3: Combat -->
+      <div class="mob-shortcut-row">
+        <div class="mob-sc-btn" id="mob-sc-inv2">
+          <span class="mob-sc-icon">🎒</span>
+          <span class="mob-sc-label">Inventar</span>
+          <span class="mob-sc-key">I</span>
+        </div>
+        <div class="mob-sc-btn" id="mob-sc-skills2">
+          <span class="mob-sc-icon">✨</span>
+          <span class="mob-sc-label">Skills</span>
+          <span class="mob-sc-key">K</span>
+        </div>
+        <div class="mob-sc-btn" id="mob-sc-quests2">
+          <span class="mob-sc-icon">📜</span>
+          <span class="mob-sc-label">Quests</span>
+          <span class="mob-sc-key">Q</span>
+        </div>
+        <div class="mob-sc-btn" id="mob-sc-chat2">
+          <span class="mob-sc-icon">💬</span>
+          <span class="mob-sc-label">Chat</span>
+          <span class="mob-sc-key">T</span>
+        </div>
+      </div>
+    </div>
   `;
   document.body.appendChild(container);
 
@@ -257,6 +390,54 @@ export function initMobileControls(
   addTouchBtn("mob-menu-skills", callbacks.onSkills);
   addTouchBtn("mob-menu-map", callbacks.onMap);
   addTouchBtn("mobile-chat-btn", callbacks.onChat);
+
+  // ── SHORTCUT PANEL TOGGLE ────────────────────────────────────────────────────
+  const shortcutToggle = document.getElementById("mob-shortcut-toggle")!;
+  const shortcutPanel = document.getElementById("mob-shortcut-panel")!;
+
+  shortcutToggle.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    shortcutPanel.classList.toggle("open");
+  }, { passive: false });
+  shortcutToggle.addEventListener("click", () => {
+    shortcutPanel.classList.toggle("open");
+  });
+
+  // Close panel when any shortcut button is pressed
+  const closeShortcuts = () => shortcutPanel.classList.remove("open");
+
+  // Helper: fire keyboard event to simulate key press
+  const fireKey = (key: string) => {
+    window.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+    closeShortcuts();
+  };
+
+  // Shortcut buttons – fire the same keyboard events as desktop shortcuts
+  const scBtns: Array<[string, string]> = [
+    ["mob-sc-gm",      "F1"],
+    ["mob-sc-shop",    "F2"],
+    ["mob-sc-glb",     "F3"],
+    ["mob-sc-char",    "F4"],
+    ["mob-sc-land",    "l"],
+    ["mob-sc-craft",   "c"],
+    ["mob-sc-guild",   "g"],
+    ["mob-sc-map2",    "m"],
+    ["mob-sc-inv2",    "i"],
+    ["mob-sc-skills2", "k"],
+    ["mob-sc-quests2", "q"],
+    ["mob-sc-chat2",   "t"],
+  ];
+
+  scBtns.forEach(([id, key]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      fireKey(key);
+    }, { passive: false });
+    el.addEventListener("click", () => fireKey(key));
+  });
 
   // ── CAMERA DRAG (two-finger or right-area single finger) ────────────────────
   const canvas = document.getElementById("game-canvas") as HTMLCanvasElement || document.querySelector("canvas");
