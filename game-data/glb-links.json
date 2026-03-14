@@ -1,0 +1,7 @@
+[
+  {
+    "glbPath": "/assets/models/characters/uschi.glb",
+    "targetType": "npc_single",
+    "targetId": "npc_1"
+  }
+]
