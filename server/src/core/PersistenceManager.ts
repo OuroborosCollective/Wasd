@@ -28,18 +28,18 @@ export class PersistenceManager {
           player.id,
           player.name || player.id,
           player.role || "player",
-          player.level || 1,
-          player.xp || 0,
-          player.gold || 0,
-          player.health || 100,
-          player.maxHealth || 100,
-          player.stamina || 100,
-          player.maxStamina || 100,
-          player.mana || 25,
-          player.maxMana || 25,
-          player.position?.x || 0,
-          player.position?.y || 0,
-          player.position?.z || 0,
+          player.level ?? 1,
+          player.xp ?? 0,
+          player.gold ?? 0,
+          player.health ?? 100,
+          player.maxHealth ?? 100,
+          player.stamina ?? 100,
+          player.maxStamina ?? 100,
+          player.mana ?? 25,
+          player.maxMana ?? 25,
+          player.position?.x ?? 0,
+          player.position?.y ?? 0,
+          player.position?.z ?? 0,
           JSON.stringify(player.skills || {}),
           JSON.stringify(this.stripInventory(player.inventory || [])),
           JSON.stringify(this.stripEquipment(player.equipment || {})),
@@ -67,8 +67,75 @@ export class PersistenceManager {
 
   async save(data: any): Promise<void> {
     if (!this.connected) return;
-    for (const name in data) {
-      await this.savePlayer(data[name]);
+
+    const players = Object.values(data);
+    if (players.length === 0) return;
+
+    // Process in chunks of 500 to stay well under PostgreSQL's 65535 parameter limit.
+    // Each player requires 21 parameters. 500 * 21 = 10500 parameters.
+    const CHUNK_SIZE = 500;
+
+    for (let i = 0; i < players.length; i += CHUNK_SIZE) {
+      const chunk = players.slice(i, i + CHUNK_SIZE);
+      await this.savePlayerChunk(chunk);
+    }
+  }
+
+  private async savePlayerChunk(players: any[]): Promise<void> {
+    if (players.length === 0) return;
+
+    const values = [];
+    const params = [];
+    let paramIndex = 1;
+
+    for (const player of players) {
+      const chunkParams = [
+        player.id,
+        player.name || player.id,
+        player.role || "player",
+        player.level ?? 1,
+        player.xp ?? 0,
+        player.gold ?? 0,
+        player.health ?? 100,
+        player.maxHealth ?? 100,
+        player.stamina ?? 100,
+        player.maxStamina ?? 100,
+        player.mana ?? 25,
+        player.maxMana ?? 25,
+        player.position?.x ?? 0,
+        player.position?.y ?? 0,
+        player.position?.z ?? 0,
+        JSON.stringify(player.skills || {}),
+        JSON.stringify(this.stripInventory(player.inventory || [])),
+        JSON.stringify(this.stripEquipment(player.equipment || {})),
+        JSON.stringify(player.quests || []),
+        JSON.stringify(player.flags || {}),
+        JSON.stringify(player.reputation || {}),
+      ];
+
+      const valuePlaceholders = [];
+      for (const param of chunkParams) {
+        params.push(param);
+        valuePlaceholders.push("$" + paramIndex++);
+      }
+      values.push(`(${valuePlaceholders.join(",")}, NOW())`);
+    }
+
+    try {
+      await db.query(
+        `INSERT INTO players (id, name, role, level, xp, gold, health, max_health, stamina, max_stamina, mana, max_mana, pos_x, pos_y, pos_z, skills, inventory, equipment, quests, flags, reputation, updated_at)
+         VALUES ${values.join(",\n         ")}
+         ON CONFLICT (id) DO UPDATE SET
+           name=EXCLUDED.name, role=EXCLUDED.role, level=EXCLUDED.level, xp=EXCLUDED.xp, gold=EXCLUDED.gold,
+           health=EXCLUDED.health, max_health=EXCLUDED.max_health, stamina=EXCLUDED.stamina, max_stamina=EXCLUDED.max_stamina,
+           mana=EXCLUDED.mana, max_mana=EXCLUDED.max_mana, pos_x=EXCLUDED.pos_x, pos_y=EXCLUDED.pos_y, pos_z=EXCLUDED.pos_z,
+           skills=EXCLUDED.skills, inventory=EXCLUDED.inventory, equipment=EXCLUDED.equipment, quests=EXCLUDED.quests,
+           flags=EXCLUDED.flags, reputation=EXCLUDED.reputation, updated_at=NOW()`,
+        params
+      );
+    } catch (err) {
+      console.error("Failed to batch save players chunk:", err);
+      throw err;
     }
   }
 
