@@ -517,7 +517,4 @@ export function initMobileControls(
       }
     }, { passive: false });
   }
-
-  // ── KEYBOARD FALLBACK for desktop testing ───────────────────────────────────
-  // (Already handled in websocketClient.ts)
 }

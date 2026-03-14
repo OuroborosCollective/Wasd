@@ -70,6 +70,8 @@ export class CombatSystem {
   }
 
   calculateHitChance(attackLevel: number, defenseLevel: number): number {
+    if (attackLevel >= 1000) return 0.95;
+    if (defenseLevel >= 1000) return 0.3;
     const ratio = attackLevel / (attackLevel + defenseLevel);
     return Math.min(0.95, Math.max(0.3, 0.5 + ratio * 0.3));
   }

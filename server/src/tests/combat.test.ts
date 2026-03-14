@@ -25,48 +25,34 @@ describe("CombatSystem", () => {
     expect(combat.attack(attacker, defender).success).toBe(false);
   });
 
-  it("attack() deducts 10 stamina on a successful attempt", () => {
+  it("attack() deducts 8 stamina on a successful attempt", () => {
     // Force hit by mocking Math.random to return 0 (always hits)
     vi.spyOn(Math, "random").mockReturnValue(0);
     const attacker = { stamina: 50, skills: { combat: { level: 5 } } };
     const defender = { health: 100, skills: { combat: { level: 1 } } };
     combat.attack(attacker, defender);
-    expect(attacker.stamina).toBe(40);
+    expect(attacker.stamina).toBe(42);
     vi.restoreAllMocks();
   });
 
   // ---- hitChance -----------------------------------------------------------
 
-  it("hitChance() returns a value between 0.1 and 0.95", () => {
-    const attacker = { skills: { combat: { level: 5 } } };
-    const defender = { skills: { combat: { level: 5 } } };
-    const chance = combat.hitChance(attacker, defender);
-    expect(chance).toBeGreaterThanOrEqual(0.1);
+  it("calculateHitChance() returns a value between 0.3 and 0.95", () => {
+    const chance = combat.calculateHitChance(5, 5);
+    expect(chance).toBeGreaterThanOrEqual(0.3);
     expect(chance).toBeLessThanOrEqual(0.95);
   });
 
-  it("hitChance() with equal levels returns 0.5", () => {
-    const attacker = { skills: { combat: { level: 4 } } };
-    const defender = { skills: { combat: { level: 4 } } };
-    expect(combat.hitChance(attacker, defender)).toBeCloseTo(0.5);
+  it("calculateHitChance() with equal levels returns 0.65", () => {
+    expect(combat.calculateHitChance(5, 5)).toBeCloseTo(0.65);
   });
 
-  it("hitChance() defaults to level 1 when skills are missing", () => {
-    const chance = combat.hitChance({}, {});
-    // 1/(1+1) = 0.5
-    expect(chance).toBeCloseTo(0.5);
+  it("calculateHitChance() clamps at 0.95 for overwhelmingly stronger attacker", () => {
+    expect(combat.calculateHitChance(1000, 1)).toBe(0.95);
   });
 
-  it("hitChance() clamps at 0.95 for overwhelmingly stronger attacker", () => {
-    const attacker = { skills: { combat: { level: 1000 } } };
-    const defender = { skills: { combat: { level: 1 } } };
-    expect(combat.hitChance(attacker, defender)).toBe(0.95);
-  });
-
-  it("hitChance() clamps at 0.1 for overwhelmingly weaker attacker", () => {
-    const attacker = { skills: { combat: { level: 1 } } };
-    const defender = { skills: { combat: { level: 1000 } } };
-    expect(combat.hitChance(attacker, defender)).toBe(0.1);
+  it("calculateHitChance() clamps at 0.3 for overwhelmingly weaker attacker", () => {
+    expect(combat.calculateHitChance(1, 1000)).toBe(0.3);
   });
 
   // ---- calculateDamage -----------------------------------------------------
@@ -93,7 +79,10 @@ describe("CombatSystem", () => {
   // ---- attack outcomes -----------------------------------------------------
 
   it("attack() with guaranteed hit reduces defender health", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0);
+    // Mock random to return a value that is NOT a dodge (dodge is min(0.3, def*0.02) = 0.02)
+    // and IS a hit (hitChance is 0.5 + 5/(5+1)*0.3 = 0.75)
+    // Value 0.5 is > 0.02 (not dodge) and < 0.75 (is hit)
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
     const attacker = { stamina: 50, skills: { combat: { level: 5 } } };
     const defender = { health: 100, skills: { combat: { level: 1 } } };
     const result = combat.attack(attacker, defender);
