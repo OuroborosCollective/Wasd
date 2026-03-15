@@ -1,1 +1,18 @@
-[]
+[
+  {
+    "glbPath": "/assets/models/characters/uschi.glb",
+    "targetType": "npc_single",
+    "targetId": "npc_uschi"
+  },
+  {
+    "glbPath": "/assets/models/monsters/goblin.glb",
+    "targetType": "monster_group",
+    "targetId": "monster_goblin"
+  },
+  {
+    "glbPath": "/assets/models/objects/chest.glb",
+    "targetType": "object_single",
+    "targetId": "object_chest"
+  }
+]
+

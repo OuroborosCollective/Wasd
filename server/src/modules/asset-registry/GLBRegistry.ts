@@ -11,7 +11,8 @@ export class GLBRegistry {
   private links: GLBLink[] = [];
   // Optimization: Map for O(1) lookups of GLB paths by targetType:targetId
   private linksMap: Map<string, string> = new Map();
-  private modelsDir = path.resolve(process.cwd(), 'public/models');
+  private modelsDir = path.resolve(process.cwd(), '../client/public/assets/models');
+
 
   constructor() {
     this.loadLinks();
