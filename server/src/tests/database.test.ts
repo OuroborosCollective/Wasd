@@ -5,6 +5,7 @@ process.env.DB_USER = "user";
 process.env.DB_PASSWORD = "pass";
 process.env.DB_NAME = "db";
 
+
 vi.mock("pg", () => {
   const mq = vi.fn();
   const mc = vi.fn();

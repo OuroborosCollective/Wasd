@@ -16,14 +16,14 @@ export class PersistenceManager {
     if (!this.connected) return;
     try {
       await db.query(
-        `INSERT INTO players (id, name, role, level, xp, gold, health, max_health, stamina, max_stamina, mana, max_mana, pos_x, pos_y, pos_z, skills, inventory, equipment, quests, flags, reputation, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW())
+        `INSERT INTO players (id, name, role, level, xp, gold, health, max_health, stamina, max_stamina, mana, max_mana, pos_x, pos_y, pos_z, skills, inventory, equipment, quests, flags, reputation, appearance, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,NOW())
          ON CONFLICT (id) DO UPDATE SET
            name=$2, role=$3, level=$4, xp=$5, gold=$6, health=$7, max_health=$8,
            stamina=$9, max_stamina=$10, mana=$11, max_mana=$12,
            pos_x=$13, pos_y=$14, pos_z=$15,
            skills=$16, inventory=$17, equipment=$18, quests=$19, flags=$20, reputation=$21,
-           updated_at=NOW()`,
+           appearance=$22, updated_at=NOW()`,
         [
           player.id,
           player.name || player.id,
@@ -46,6 +46,7 @@ export class PersistenceManager {
           JSON.stringify(player.quests || []),
           JSON.stringify(player.flags || {}),
           JSON.stringify(player.reputation || {}),
+          player.appearance ? JSON.stringify(player.appearance) : null,
         ]
       );
     } catch (err) {
@@ -111,6 +112,7 @@ export class PersistenceManager {
         JSON.stringify(player.quests || []),
         JSON.stringify(player.flags || {}),
         JSON.stringify(player.reputation || {}),
+
       ];
 
       const valuePlaceholders = [];
@@ -131,6 +133,7 @@ export class PersistenceManager {
            mana=EXCLUDED.mana, max_mana=EXCLUDED.max_mana, pos_x=EXCLUDED.pos_x, pos_y=EXCLUDED.pos_y, pos_z=EXCLUDED.pos_z,
            skills=EXCLUDED.skills, inventory=EXCLUDED.inventory, equipment=EXCLUDED.equipment, quests=EXCLUDED.quests,
            flags=EXCLUDED.flags, reputation=EXCLUDED.reputation, updated_at=NOW()`,
+
         params
       );
     } catch (err) {
@@ -232,6 +235,7 @@ export class PersistenceManager {
       quests: row.quests || [],
       flags: row.flags || {},
       reputation: row.reputation || {},
+      appearance: row.appearance || null,
     };
   }
 

@@ -1,3 +1,4 @@
+import { afterEach } from "vitest";
 import { describe, it, expect, beforeEach } from "vitest";
 import { QuestRewards } from "../modules/quests/QuestRewards.js";
 import { QuestStateStore } from "../modules/quests/QuestStateStore.js";
@@ -123,5 +124,6 @@ describe("QuestEngine", () => {
       expect(addedQuest).toBeDefined();
       expect(addedQuest.objective).toBe("gather");
     });
+
   });
 });

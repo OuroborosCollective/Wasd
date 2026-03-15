@@ -9,12 +9,14 @@ describe("CraftingSystem Fallback", () => {
 
     const sys = new CraftingSystem();
     await sys.loadRecipes();
+
     expect(consoleSpy).toHaveBeenCalledWith("Failed to load crafting recipes:", expect.any(Error));
     const recipes = sys.getRecipes();
     expect(recipes.length).toBeGreaterThan(0);
     expect(recipes.find(r => r.id === "iron_sword_craft")).toBeDefined();
 
     consoleSpy.mockRestore();
+
     readSpy.mockRestore();
   });
 });
