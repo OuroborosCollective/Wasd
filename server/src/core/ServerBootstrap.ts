@@ -25,12 +25,22 @@ export class ServerBootstrap {
     app.use(express.json({ limit: "10mb" }));
     app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-    // CORS for development
-    app.use((_req, res, next) => {
-      res.header("Access-Control-Allow-Origin", "*");
+    // CORS Configuration
+    app.use((req, res, next) => {
+      const allowedOrigins = process.env.ALLOWED_ORIGINS
+        ? process.env.ALLOWED_ORIGINS.split(',')
+        : (process.env.NODE_ENV === 'production' ? [] : ['*']);
+
+      const origin = req.headers.origin;
+      if (allowedOrigins.includes('*')) {
+        res.header("Access-Control-Allow-Origin", "*");
+      } else if (origin && allowedOrigins.includes(origin)) {
+        res.header("Access-Control-Allow-Origin", origin);
+      }
+
       res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
       res.header("Access-Control-Allow-Headers", "Content-Type,Authorization,x-player-id");
-      if (_req.method === "OPTIONS") return res.sendStatus(200);
+      if (req.method === "OPTIONS") return res.sendStatus(200);
       next();
     });
 
