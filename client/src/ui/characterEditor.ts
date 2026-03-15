@@ -473,10 +473,13 @@ async function updatePreview3D(): Promise<void> {
     const headData = heads.find(h => h.id === currentAppearance.headId);
     if (headData) {
       const headModel = await loadGLBModel(headData.file);
-      // Correct head scale (0.1 to 0.15 is typical for these modular heads)
-      headModel.scale.set(0.12, 0.12, 0.12);
-      // Position head on top of body (approx 1.65m)
-      headModel.position.y = 1.65;
+      // Correct head scale - typical for these models is 1.0 if they are already scaled, 
+      // but let's use a safe value and position it relative to the body height.
+      const headScale = 0.8; 
+      headModel.scale.set(headScale, headScale, headScale);
+      
+      // Position head on top of body (approx 1.65m base * heightScale)
+      headModel.position.y = 1.65 * currentAppearance.heightScale;
       previewCharacterGroup.add(headModel);
     }
     

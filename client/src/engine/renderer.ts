@@ -254,7 +254,7 @@ export function initRenderer(
   window.addEventListener("mousemove", (e) => {
     if (!isDragging) return;
     cameraAngleH -= (e.clientX - lastMouseX) * 0.005;
-    cameraAngleV = Math.max(0.1, Math.min(1.4, cameraAngleV - (e.clientY - lastMouseY) * 0.005));
+    cameraAngleV = Math.max(0.1, Math.min(1.4, cameraAngleV + (e.clientY - lastMouseY) * 0.005));
     lastMouseX = e.clientX; lastMouseY = e.clientY;
   });
   canvas.addEventListener("wheel", (e) => {
@@ -273,7 +273,7 @@ export function initRenderer(
       // Camera drag callback
       (dx: number, dy: number) => {
         cameraAngleH -= dx * 0.008;
-        cameraAngleV = Math.max(0.1, Math.min(1.4, cameraAngleV - dy * 0.008));
+        cameraAngleV = Math.max(0.1, Math.min(1.4, cameraAngleV + dy * 0.008));
       }
     );
   }
@@ -367,21 +367,20 @@ export function updateWorldState(state: any, playerId: string | null) {
       g.position.set(p.position.x, getTerrainHeight(p.position.x, p.position.y), p.position.y);
       scene.add(g); playerMeshes.set(p.id, g);
 
-      if (p.appearance) {
-        // Load modular GLB character
-        const gender = p.appearance.gender || 'male';
-        const bodyUrl = `/assets/models/characters/bodies/Body_${gender}.glb`;
-        const headId = p.appearance.headId || (gender === 'male' ? 'head_male_1' : 'head_female_1');
-        const headUrl = `/assets/models/characters/heads/${headId.replace('head_', 'Head_')}.glb`;
+        if (p.appearance) {
+        // Load modular GLB character using resolved paths from server
+        const bodyUrl = p.appearance.bodyUrl || `/models/characters/bodies/Body_${p.appearance.gender || 'male'}.glb`;
+        const headUrl = p.appearance.headUrl || (p.appearance.gender === 'female' ? '/models/characters/heads/Head_female1.glb' : '/models/characters/heads/Head_male1.glb');
 
         loadModel(bodyUrl, (body) => {
           body.scale.set(p.appearance.widthScale || 1, p.appearance.heightScale || 1, p.appearance.widthScale || 1);
           applyColorTints(body, p.appearance.skinToneColor, p.appearance.hairColor, p.appearance.eyeColor);
           g.add(body);
         });
-
         loadModel(headUrl, (head) => {
-          head.scale.set(0.12, 0.12, 0.12);
+          // Use a consistent scale for the head
+          const headScale = 0.8;
+          head.scale.set(headScale, headScale, headScale);
           head.position.y = 1.65 * (p.appearance.heightScale || 1);
           applyColorTints(head, p.appearance.skinToneColor, p.appearance.hairColor, p.appearance.eyeColor);
           g.add(head);
