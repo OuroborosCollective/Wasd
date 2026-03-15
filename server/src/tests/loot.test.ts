@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { AffixSystem } from "../modules/loot/AffixSystem.js";
 import { ItemGenerator } from "../modules/loot/ItemGenerator.js";
 import { LootTables } from "../modules/loot/LootTables.js";
+import { LootSystem } from "../modules/loot/LootSystem.js";
 
 // ---------------------------------------------------------------------------
 // AffixSystem
@@ -144,5 +145,21 @@ describe("LootTables", () => {
         expect(entry).toHaveProperty("rarity");
       }
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// LootSystem
+// ---------------------------------------------------------------------------
+describe("LootSystem", () => {
+  let lootSystem: LootSystem;
+
+  beforeEach(() => {
+    lootSystem = new LootSystem();
+  });
+
+  it("returns empty items and 0 gold when rolling from a non-existent table", () => {
+    const result = lootSystem.rollFromTable("non_existent_garbage_table");
+    expect(result).toEqual({ items: [], gold: 0 });
   });
 });

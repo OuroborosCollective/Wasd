@@ -1,12 +1,19 @@
 import pg from "pg";
 const { Pool } = pg;
 
+const requiredEnvVars = ["DB_HOST", "DB_USER", "DB_PASSWORD", "DB_NAME"];
+for (const envVar of requiredEnvVars) {
+  if (!process.env[envVar]) {
+    throw new Error(`Missing required environment variable: ${envVar}`);
+  }
+}
+
 const pool = new Pool({
-  host: process.env.DB_HOST || "are.postgres.database.azure.com",
-  port: Number(process.env.DB_PORT) || 5432,
-  user: process.env.DB_USER || "Thosu",
-  password: process.env.DB_PASSWORD || "2N00py123-",
-  database: process.env.DB_NAME || "areloria",
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 5432,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
   ssl: { rejectUnauthorized: false },
   max: 10,
   idleTimeoutMillis: 30000,

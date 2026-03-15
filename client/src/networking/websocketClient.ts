@@ -88,7 +88,6 @@ export function connectSocket(displayName?: string) {
   const localWsUrl = `${wsProtocol}//${location.host}/ws`;
   
   const wsUrl = externalWsUrl || localWsUrl;
-  console.log(`Connecting to WebSocket: ${wsUrl}`);
   
   const ws = new WebSocket(wsUrl);
   globalWs = ws;
