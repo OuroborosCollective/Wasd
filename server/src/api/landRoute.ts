@@ -11,6 +11,7 @@
 import { Router, Request, Response } from "express";
 import { LandSystem } from "../modules/land/LandSystem.js";
 import { db as dbInstance } from "../core/Database.js";
+import { authMiddleware } from "../middleware/authMiddleware.js";
 
 export function createLandRouter(landSystem: LandSystem, dbParam?: any): Router {
   const db = dbParam || dbInstance;
@@ -31,8 +32,8 @@ export function createLandRouter(landSystem: LandSystem, dbParam?: any): Router 
   });
 
   // ── My Land ────────────────────────────────────────────────────────────────
-  router.get("/mine", async (req: Request, res: Response) => {
-    const playerId = req.headers["x-player-id"] as string;
+  router.get("/mine", authMiddleware, async (req: Request, res: Response) => {
+    const playerId = (req as any).playerId;
     if (!playerId) return res.status(401).json({ error: "Player ID required" });
 
     const land = landSystem.getLandByOwner(playerId);
@@ -42,8 +43,8 @@ export function createLandRouter(landSystem: LandSystem, dbParam?: any): Router 
   });
 
   // ── Claim Land ─────────────────────────────────────────────────────────────
-  router.post("/claim", async (req: Request, res: Response) => {
-    const playerId = req.headers["x-player-id"] as string;
+  router.post("/claim", authMiddleware, async (req: Request, res: Response) => {
+    const playerId = (req as any).playerId;
     const { x, y, name } = req.body;
     if (!playerId) return res.status(401).json({ error: "Player ID required" });
     if (x === undefined || y === undefined) return res.status(400).json({ error: "x and y required" });
@@ -102,8 +103,8 @@ export function createLandRouter(landSystem: LandSystem, dbParam?: any): Router 
   });
 
   // ── Abandon Land ───────────────────────────────────────────────────────────
-  router.post("/abandon", async (req: Request, res: Response) => {
-    const playerId = req.headers["x-player-id"] as string;
+  router.post("/abandon", authMiddleware, async (req: Request, res: Response) => {
+    const playerId = (req as any).playerId;
     if (!playerId) return res.status(401).json({ error: "Player ID required" });
 
     const success = await landSystem.abandonLand(playerId);
@@ -111,8 +112,8 @@ export function createLandRouter(landSystem: LandSystem, dbParam?: any): Router 
   });
 
   // ── Add Structure ──────────────────────────────────────────────────────────
-  router.post("/structure", async (req: Request, res: Response) => {
-    const playerId = req.headers["x-player-id"] as string;
+  router.post("/structure", authMiddleware, async (req: Request, res: Response) => {
+    const playerId = (req as any).playerId;
     const { landId, type, x, y, z, rotY, scale, glbPath, name } = req.body;
     if (!playerId) return res.status(401).json({ error: "Player ID required" });
     if (!landId || !type) return res.status(400).json({ error: "landId and type required" });
@@ -147,8 +148,8 @@ export function createLandRouter(landSystem: LandSystem, dbParam?: any): Router 
   });
 
   // ── Remove Structure ───────────────────────────────────────────────────────
-  router.delete("/structure/:structId", async (req: Request, res: Response) => {
-    const playerIdRaw = req.headers["x-player-id"];
+  router.delete("/structure/:structId", authMiddleware, async (req: Request, res: Response) => {
+    const playerIdRaw = (req as any).playerId;
     const playerId = Array.isArray(playerIdRaw) ? playerIdRaw[0] : (playerIdRaw as string);
     const { structId } = req.params;
     const { landId } = req.body;

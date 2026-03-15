@@ -8,6 +8,7 @@ import { LandSystem } from "../modules/land/LandSystem.js";
 import { createPayPalRouter } from "../api/paypalRoute.js";
 import { createGLBUploadRouter } from "../api/glbUploadRoute.js";
 import { createLandRouter } from "../api/landRoute.js";
+import { authMiddleware } from "../middleware/authMiddleware.js";
 import characterRouter from "../api/characterRoute.js";
 import { characterAssembly } from "../modules/character/CharacterAssemblySystem.js";
 import path from "path";
@@ -72,8 +73,8 @@ export class ServerBootstrap {
     app.use("/api/character", characterRouter);
 
     // Matrix Energy balance endpoint
-    app.get("/api/player/balance", async (req, res) => {
-      const playerId = req.headers["x-player-id"] as string;
+    app.get("/api/player/balance", authMiddleware, async (req, res) => {
+      const playerId = (req as any).playerId as string;
       if (!playerId) return res.status(401).json({ error: "Player ID required" });
       try {
         const result = await db.query(
