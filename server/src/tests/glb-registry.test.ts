@@ -52,4 +52,5 @@ describe("GLBRegistry", () => {
   it("should return null for non-existent target", () => {
     expect(registry.getModelForTarget("npc_single", "non_existent")).toBeNull();
   });
+
 });

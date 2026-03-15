@@ -257,14 +257,21 @@ export class NPCSystem {
     for (const npc of this.npcs.values()) {
       // 1. Check for nearby players to interact with
       let interacting = false;
-      for (const player of players) {
-        const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
-        if (dist < 15) { // Interaction range
-          npc.state = "interacting";
-          npc.stateTimer = now + 5000; // Stay interacting for a bit
-          npc.targetPosition = null; // Stop moving
-          interacting = true;
-          break;
+      // Performance: Skip proximity check if already interacting
+      if (npc.state === "interacting" && now < npc.stateTimer) {
+        interacting = true;
+      } else {
+        for (const player of players) {
+          const dx = player.position.x - npc.position.x;
+          const dy = player.position.y - npc.position.y;
+          // Optimization: Use squared distance to avoid Math.hypot() square root
+          if (dx * dx + dy * dy < 225) { // 15^2
+            npc.state = "interacting";
+            npc.stateTimer = now + 5000;
+            npc.targetPosition = null;
+            interacting = true;
+            break;
+          }
         }
       }
 
@@ -308,9 +315,9 @@ export class NPCSystem {
           // Move towards target
           const dx = npc.targetPosition.x - npc.position.x;
           const dy = npc.targetPosition.y - npc.position.y;
-          const dist = Math.hypot(dx, dy);
+          const distSq = dx * dx + dy * dy;
           
-          if (dist < 1) {
+          if (distSq < 1) { // 1^2
             // Reached target
             npc.targetPosition = null;
             if (npc.state === "wandering") {
@@ -321,6 +328,7 @@ export class NPCSystem {
           } else {
             // Move
             const speed = 0.5; // units per tick
+            const dist = Math.sqrt(distSq);
             npc.position.x += (dx / dist) * speed;
             npc.position.y += (dy / dist) * speed;
           }

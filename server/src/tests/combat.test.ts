@@ -53,6 +53,7 @@ describe("CombatSystem", () => {
 
   it("calculateHitChance() clamps at 0.3 for overwhelmingly weaker attacker", () => {
     expect(combat.calculateHitChance(1, 1000)).toBe(0.3);
+
   });
 
   // ---- calculateDamage -----------------------------------------------------
