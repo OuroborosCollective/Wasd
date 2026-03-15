@@ -182,5 +182,12 @@ describe("LootSystem", () => {
     // Verification
     expect(consoleSpy).toHaveBeenCalledWith("Failed to load loot tables:", testError);
     expect(lootSystem).toBeDefined(); // Should construct successfully despite the error
+    lootSystem = new LootSystem();
+  });
+
+  it("returns empty items and 0 gold when rolling from a non-existent table", () => {
+    const result = lootSystem.rollFromTable("non_existent_garbage_table");
+    expect(result).toEqual({ items: [], gold: 0 });
+
   });
 });
