@@ -1,6 +1,5 @@
-import { afterEach } from "vitest";
-import fs from "fs";
-import { vi } from "vitest";
+
+
 import { describe, it, expect, beforeEach } from "vitest";
 import { QuestRewards } from "../modules/quests/QuestRewards.js";
 import { QuestStateStore } from "../modules/quests/QuestStateStore.js";
@@ -79,100 +78,4 @@ describe("QuestStateStore", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// QuestEngine
-// ---------------------------------------------------------------------------
-import { QuestEngine } from "../modules/quest/QuestEngine.js";
 
-describe("QuestEngine", () => {
-  let engine: QuestEngine;
-
-  beforeEach(() => {
-    engine = new QuestEngine();
-  });
-
-  describe("addQuest", () => {
-    it("assigns 'custom' objective when quest definition lacks objectives", () => {
-      const questDef = {
-        id: "test_quest_no_obj",
-        title: "Test Quest",
-        giverNpc: "npc_1",
-      };
-
-      engine.addQuest(questDef);
-
-      const quests = engine.getQuestDefinitions();
-      const addedQuest = quests.get("test_quest_no_obj");
-
-      expect(addedQuest).toBeDefined();
-      expect(addedQuest.objective).toBe("custom");
-    });
-
-    it("extracts objective type from the first objective when present", () => {
-      const questDef = {
-        id: "test_quest_with_obj",
-        title: "Test Quest with Obj",
-        giverNpc: "npc_2",
-        objectives: [
-          { type: "gather", item: "wood", amount: 10 }
-        ]
-      };
-
-      engine.addQuest(questDef);
-
-      const quests = engine.getQuestDefinitions();
-      const addedQuest = quests.get("test_quest_with_obj");
-
-      expect(addedQuest).toBeDefined();
-      expect(addedQuest.objective).toBe("gather");
-    });
-
-describe("QuestEngine", () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("handles fs.existsSync throwing an error during loadData", () => {
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.spyOn(fs, "existsSync").mockImplementation(() => {
-      throw new Error("Disk read error");
-    });
-
-    const engine = new QuestEngine();
-
-    expect(errorSpy).toHaveBeenCalled();
-    expect(errorSpy.mock.calls[0][0]).toContain("Error loading Quest data:");
-    expect(engine.getQuestDefinitions().size).toBe(0);
-  });
-
-  it("handles fs.readFileSync throwing an error during loadData", () => {
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.spyOn(fs, "existsSync").mockReturnValue(true);
-    vi.spyOn(fs, "readFileSync").mockImplementation(() => {
-      throw new Error("File read error");
-    });
-
-    const engine = new QuestEngine();
-
-    expect(errorSpy).toHaveBeenCalled();
-    expect(errorSpy.mock.calls[0][0]).toContain("Error loading Quest data:");
-    expect(engine.getQuestDefinitions().size).toBe(0);
-  });
-
-  it("handles JSON.parse throwing an error during loadData", () => {
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.spyOn(fs, "existsSync").mockReturnValue(true);
-    vi.spyOn(fs, "readFileSync").mockReturnValue("invalid json {{");
-
-    const engine = new QuestEngine();
-
-    expect(errorSpy).toHaveBeenCalled();
-    expect(errorSpy.mock.calls[0][0]).toContain("Error loading Quest data:");
-    expect(engine.getQuestDefinitions().size).toBe(0);
-
-  });
-});

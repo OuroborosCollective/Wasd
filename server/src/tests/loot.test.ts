@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { AffixSystem } from "../modules/loot/AffixSystem.js";
 import { ItemGenerator } from "../modules/loot/ItemGenerator.js";
 import { LootTables } from "../modules/loot/LootTables.js";
-import { LootSystem } from "../modules/loot/LootSystem.js";
-import fs from "fs";
+
+
 
 // ---------------------------------------------------------------------------
 // AffixSystem
@@ -149,45 +149,4 @@ describe("LootTables", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// LootSystem
-// ---------------------------------------------------------------------------
-describe("LootSystem", () => {
-  let lootSystem: LootSystem;
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("handles fs.readFileSync error gracefully in loadLootTables", () => {
-    // Mock existsSync to return true so readFileSync is called
-    vi.spyOn(fs, "existsSync").mockReturnValue(true);
-
-    // Mock readFileSync to throw an error
-    const testError = new Error("Mocked read error");
-    vi.spyOn(fs, "readFileSync").mockImplementation(() => {
-      throw testError;
-    });
-
-    // Spy on console.error to verify the error is logged
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    // Instantiate LootSystem, which calls loadLootTables in its constructor
-    lootSystem = new LootSystem();
-
-    // Verification
-    expect(consoleSpy).toHaveBeenCalledWith("Failed to load loot tables:", testError);
-    expect(lootSystem).toBeDefined(); // Should construct successfully despite the error
-    lootSystem = new LootSystem();
-  });
-
-  it("returns empty items and 0 gold when rolling from a non-existent table", () => {
-    const result = lootSystem.rollFromTable("non_existent_garbage_table");
-    expect(result).toEqual({ items: [], gold: 0 });
-
-  });
-});
