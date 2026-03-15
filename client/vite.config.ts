@@ -3,6 +3,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   server: {
     port: 3001, // Client dev server port
+    allowedHosts: 'all',
     proxy: {
       '/api': {
         target: 'http://localhost:3000',

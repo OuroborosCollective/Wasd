@@ -145,4 +145,13 @@ export class QuestEngine {
 
     return q.reward;
   }
+
+  addQuest(questDef: any) {
+    this.quests.set(questDef.id, {
+      ...questDef,
+      name: questDef.title,
+      giver: questDef.giverNpc,
+      objective: questDef.objectives?.[0]?.type || "custom"
+    });
+  }
 }

@@ -1,15 +1,97 @@
+import { ItemRegistry } from "../inventory/ItemRegistry.js";
+import fs from "fs";
+import path from "path";
+
+export interface Recipe {
+  id: string;
+  name: string;
+  ingredients: { itemId: string; count: number }[];
+  result: { itemId: string; count: number };
+  requiredSkill?: string;
+  requiredLevel?: number;
+  xpReward?: number;
+  skillName?: string;
+}
+
 export class CraftingSystem {
-  canCraft(player:any, recipe:any, inventory:any[]) {
-    if ((player.skills?.[recipe.skill]?.level ?? 0) < (recipe.requiredLevel ?? 1)) return false;
-    return recipe.ingredients.every((ing:any) => inventory.some((item:any) => item.id === ing.id && (item.amount ?? 1) >= ing.amount));
+  private recipes: Map<string, Recipe> = new Map();
+
+  constructor() {
+    this.loadRecipes();
   }
 
-  craft(player:any, recipe:any) {
+  private loadRecipes() {
+    try {
+      const recipesPath = path.resolve(process.cwd(), "game-data/crafting/recipes.json");
+      if (fs.existsSync(recipesPath)) {
+        const data = JSON.parse(fs.readFileSync(recipesPath, "utf-8"));
+        if (Array.isArray(data)) {
+          data.forEach((r: Recipe) => this.recipes.set(r.id, r));
+        } else if (data.recipes) {
+          data.recipes.forEach((r: Recipe) => this.recipes.set(r.id, r));
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load crafting recipes:", e);
+    }
+    if (this.recipes.size === 0) {
+      this.recipes.set("iron_sword_craft", {
+        id: "iron_sword_craft", name: "Craft Iron Sword",
+        ingredients: [{ itemId: "iron_scrap", count: 3 }],
+        result: { itemId: "iron_sword", count: 1 },
+        requiredSkill: "smithing", requiredLevel: 1, xpReward: 50, skillName: "smithing"
+      });
+      this.recipes.set("health_potion_craft", {
+        id: "health_potion_craft", name: "Brew Health Potion",
+        ingredients: [{ itemId: "herb_bundle", count: 2 }],
+        result: { itemId: "health_potion", count: 1 },
+        requiredSkill: "cooking", requiredLevel: 1, xpReward: 30, skillName: "cooking"
+      });
+    }
+  }
+
+  getRecipes(): Recipe[] {
+    return Array.from(this.recipes.values());
+  }
+
+  canCraft(player: any, recipeId: string): { possible: boolean; reason?: string } {
+    const recipe = this.recipes.get(recipeId);
+    if (!recipe) return { possible: false, reason: "Recipe not found" };
+    if (recipe.requiredSkill && recipe.requiredLevel) {
+      const level = player.skills?.[recipe.requiredSkill]?.level ?? 1;
+      if (level < recipe.requiredLevel) {
+        return { possible: false, reason: `Need ${recipe.requiredSkill} level ${recipe.requiredLevel}` };
+      }
+    }
+    for (const ing of recipe.ingredients) {
+      const count = (player.inventory || []).filter((i: any) => i.id === ing.itemId).length;
+      if (count < ing.count) {
+        const itemDef = ItemRegistry.getItem(ing.itemId);
+        return { possible: false, reason: `Need ${ing.count}x ${itemDef?.name || ing.itemId}` };
+      }
+    }
+    return { possible: true };
+  }
+
+  craft(player: any, recipeId: string): { success: boolean; item?: any; xp?: number; skillName?: string; reason?: string } {
+    const check = this.canCraft(player, recipeId);
+    if (!check.possible) return { success: false, reason: check.reason };
+    const recipe = this.recipes.get(recipeId)!;
+    for (const ing of recipe.ingredients) {
+      for (let i = 0; i < ing.count; i++) {
+        const index = player.inventory.findIndex((item: any) => item.id === ing.itemId);
+        if (index !== -1) player.inventory.splice(index, 1);
+      }
+    }
+    for (let i = 0; i < recipe.result.count; i++) {
+      const item = ItemRegistry.createInstance(recipe.result.itemId);
+      if (item) player.inventory.push(item);
+    }
     return {
-      crafted: true,
-      itemId: recipe.result.id,
-      amount: recipe.result.amount ?? 1,
-      xp: recipe.xp ?? 0
+      success: true,
+      item: ItemRegistry.getItem(recipe.result.itemId),
+      xp: recipe.xpReward || 10,
+      skillName: recipe.skillName || "crafting"
     };
   }
 }

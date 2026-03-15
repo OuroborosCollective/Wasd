@@ -1,0 +1,124 @@
+{
+  "version": "1.0.0",
+  "bodies": {
+    "male": {
+      "id": "body_male",
+      "name": "Männlicher Körper",
+      "file": "/models/characters/bodies/Body_male.glb",
+      "gender": "male",
+      "animations": ["idle", "walk", "run", "attack", "death"],
+      "attachPoints": {
+        "head": { "bone": "Neck", "offset": [0, 0, 0] },
+        "leftHand": { "bone": "LeftHand", "offset": [0, 0, 0] },
+        "rightHand": { "bone": "RightHand", "offset": [0, 0, 0] },
+        "back": { "bone": "Spine2", "offset": [0, 0, -0.2] }
+      }
+    },
+    "female": {
+      "id": "body_female",
+      "name": "Weiblicher Körper",
+      "file": "/models/characters/bodies/Body_female.glb",
+      "gender": "female",
+      "animations": ["idle", "walk", "run", "attack", "death"],
+      "attachPoints": {
+        "head": { "bone": "Neck", "offset": [0, 0, 0] },
+        "leftHand": { "bone": "LeftHand", "offset": [0, 0, 0] },
+        "rightHand": { "bone": "RightHand", "offset": [0, 0, 0] },
+        "back": { "bone": "Spine2", "offset": [0, 0, -0.2] }
+      }
+    }
+  },
+  "heads": {
+    "male": [
+      {
+        "id": "head_male_1",
+        "name": "Krieger",
+        "file": "/models/characters/heads/Head_male1.glb",
+        "gender": "male",
+        "thumbnail": "/models/characters/heads/thumb_male1.png"
+      },
+      {
+        "id": "head_male_2",
+        "name": "Abenteurer",
+        "file": "/models/characters/heads/Head_male2.glb",
+        "gender": "male",
+        "thumbnail": "/models/characters/heads/thumb_male2.png"
+      }
+    ],
+    "female": [
+      {
+        "id": "head_female_1",
+        "name": "Waldläuferin",
+        "file": "/models/characters/heads/Head_female1.glb",
+        "gender": "female",
+        "thumbnail": "/models/characters/heads/thumb_female1.png"
+      },
+      {
+        "id": "head_female_2",
+        "name": "Magierin",
+        "file": "/models/characters/heads/Head_female2.glb",
+        "gender": "female",
+        "thumbnail": "/models/characters/heads/thumb_female2.png"
+      }
+    ]
+  },
+  "skinTones": [
+    { "id": "skin_light", "name": "Hell", "color": "#FFDFC4", "hex": "FFDFC4" },
+    { "id": "skin_medium", "name": "Mittel", "color": "#D4956A", "hex": "D4956A" },
+    { "id": "skin_tan", "name": "Gebräunt", "color": "#C68642", "hex": "C68642" },
+    { "id": "skin_dark", "name": "Dunkel", "color": "#8D5524", "hex": "8D5524" },
+    { "id": "skin_very_dark", "name": "Sehr Dunkel", "color": "#4A2912", "hex": "4A2912" },
+    { "id": "skin_pale", "name": "Blass", "color": "#FFE4C4", "hex": "FFE4C4" },
+    { "id": "skin_olive", "name": "Olivfarben", "color": "#B5834A", "hex": "B5834A" },
+    { "id": "skin_fantasy_blue", "name": "Blau (Fantasy)", "color": "#5B8DB8", "hex": "5B8DB8" },
+    { "id": "skin_fantasy_green", "name": "Grün (Ork)", "color": "#4A7C59", "hex": "4A7C59" },
+    { "id": "skin_fantasy_grey", "name": "Grau (Untot)", "color": "#8A8A8A", "hex": "8A8A8A" }
+  ],
+  "hairColors": [
+    { "id": "hair_black", "name": "Schwarz", "color": "#1A1A1A" },
+    { "id": "hair_dark_brown", "name": "Dunkelbraun", "color": "#3B1F0A" },
+    { "id": "hair_brown", "name": "Braun", "color": "#6B3A2A" },
+    { "id": "hair_auburn", "name": "Rotbraun", "color": "#922B21" },
+    { "id": "hair_red", "name": "Rot", "color": "#C0392B" },
+    { "id": "hair_blonde", "name": "Blond", "color": "#F4D03F" },
+    { "id": "hair_platinum", "name": "Platin", "color": "#F0F0F0" },
+    { "id": "hair_white", "name": "Weiß", "color": "#FFFFFF" },
+    { "id": "hair_silver", "name": "Silber", "color": "#BDC3C7" },
+    { "id": "hair_blue", "name": "Blau (Fantasy)", "color": "#2980B9" },
+    { "id": "hair_purple", "name": "Lila (Fantasy)", "color": "#8E44AD" },
+    { "id": "hair_green", "name": "Grün (Fantasy)", "color": "#27AE60" }
+  ],
+  "eyeColors": [
+    { "id": "eye_brown", "name": "Braun", "color": "#6B3A2A" },
+    { "id": "eye_blue", "name": "Blau", "color": "#2980B9" },
+    { "id": "eye_green", "name": "Grün", "color": "#27AE60" },
+    { "id": "eye_grey", "name": "Grau", "color": "#7F8C8D" },
+    { "id": "eye_hazel", "name": "Haselnuss", "color": "#8B6914" },
+    { "id": "eye_amber", "name": "Bernstein", "color": "#F39C12" },
+    { "id": "eye_red", "name": "Rot (Fantasy)", "color": "#E74C3C" },
+    { "id": "eye_purple", "name": "Lila (Fantasy)", "color": "#9B59B6" },
+    { "id": "eye_gold", "name": "Gold (Fantasy)", "color": "#F1C40F" },
+    { "id": "eye_silver", "name": "Silber (Fantasy)", "color": "#BDC3C7" }
+  ],
+  "bodyScales": {
+    "height": { "min": 0.85, "max": 1.15, "default": 1.0, "label": "Größe" },
+    "width": { "min": 0.8, "max": 1.2, "default": 1.0, "label": "Breite" },
+    "muscularity": { "min": 0.9, "max": 1.1, "default": 1.0, "label": "Muskeln" }
+  },
+  "npcModels": {
+    "warrior": {
+      "id": "npc_warrior",
+      "name": "Krieger",
+      "file": "/models/characters/npcs/npc_warrior1.glb",
+      "type": "monster",
+      "animations": ["idle", "walk", "attack", "death"]
+    },
+    "knight": {
+      "id": "npc_knight",
+      "name": "Ritter",
+      "file": "/models/characters/npcs/humanknight.glb",
+      "type": "guard",
+      "animations": ["idle", "walk", "attack", "death"]
+    }
+  }
+}

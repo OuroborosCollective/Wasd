@@ -3,6 +3,7 @@ import { AffixSystem } from "../modules/loot/AffixSystem.js";
 import { ItemGenerator } from "../modules/loot/ItemGenerator.js";
 import { LootTables } from "../modules/loot/LootTables.js";
 
+
 // ---------------------------------------------------------------------------
 // AffixSystem
 // ---------------------------------------------------------------------------
@@ -146,3 +147,4 @@ describe("LootTables", () => {
     }
   });
 });
+

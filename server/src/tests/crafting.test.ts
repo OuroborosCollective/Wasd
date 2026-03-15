@@ -3,6 +3,7 @@ import { CraftingSystem } from "../modules/crafting/CraftingSystem.js";
 import { RecipeRegistry } from "../modules/crafting/RecipeRegistry.js";
 import { RecipeMatcher } from "../modules/crafting/RecipeMatcher.js";
 
+
 // ---------------------------------------------------------------------------
 // CraftingSystem
 // ---------------------------------------------------------------------------
@@ -163,5 +164,6 @@ describe("RecipeMatcher", () => {
   it("returns null for empty input", () => {
     const found = matcher.match([], recipes);
     expect(found).toBeNull();
+
   });
 });

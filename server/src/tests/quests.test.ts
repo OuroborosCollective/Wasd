@@ -1,3 +1,4 @@
+
 import { describe, it, expect, beforeEach } from "vitest";
 import { QuestRewards } from "../modules/quests/QuestRewards.js";
 import { QuestStateStore } from "../modules/quests/QuestStateStore.js";
@@ -75,3 +76,4 @@ describe("QuestStateStore", () => {
     expect(store.list("p1")[0].id).toBe("q1");
   });
 });
+

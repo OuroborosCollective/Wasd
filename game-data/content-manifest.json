@@ -12,7 +12,11 @@
         "npc_wolf",
         "npc_6_hermit",
         "npc_7_merchant",
-        "npc_8_apprentice"
+        "npc_8_apprentice",
+        "npc_boar",
+        "npc_skeleton",
+        "npc_bandit",
+        "npc_shopkeeper"
       ],
       "questIds": [
         "first_steps",
@@ -38,7 +42,8 @@
         "dialogue_dummy",
         "dialogue_npc_6",
         "dialogue_npc_7",
-        "dialogue_npc_8"
+        "dialogue_npc_8",
+        "dialogue_shopkeeper"
       ],
       "itemIds": [
         "starter_sword",
@@ -54,6 +59,7 @@
         "relic_fragment",
         "forgotten_sigil",
         "guard_token"
+
       ],
       "validationResult": "passed"
     }

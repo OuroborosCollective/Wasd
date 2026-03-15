@@ -26,12 +26,14 @@ describe("CombatSystem", () => {
   });
 
   it("attack() deducts 10 stamina on a successful attempt", () => {
+
     // Force hit by mocking Math.random to return 0 (always hits)
     vi.spyOn(Math, "random").mockReturnValue(0);
     const attacker = { stamina: 50, skills: { combat: { level: 5 } } };
     const defender = { health: 100, skills: { combat: { level: 1 } } };
     combat.attack(attacker, defender);
     expect(attacker.stamina).toBe(40);
+
     vi.restoreAllMocks();
   });
 
@@ -67,6 +69,7 @@ describe("CombatSystem", () => {
     const attacker = { skills: { combat: { level: 1 } } };
     const defender = { skills: { combat: { level: 1000 } } };
     expect(combat.hitChance(attacker, defender)).toBe(0.1);
+
   });
 
   // ---- calculateDamage -----------------------------------------------------
@@ -94,6 +97,7 @@ describe("CombatSystem", () => {
 
   it("attack() with guaranteed hit reduces defender health", () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
+
     const attacker = { stamina: 50, skills: { combat: { level: 5 } } };
     const defender = { health: 100, skills: { combat: { level: 1 } } };
     const result = combat.attack(attacker, defender);

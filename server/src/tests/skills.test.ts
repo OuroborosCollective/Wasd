@@ -54,6 +54,7 @@ describe("SkillSystem", () => {
     const player: any = { skills: {} };
     const result = skills.addXP(player, "crafting", 10);
     expect(result).toBe(player.skills.crafting);
+
   });
 
   it("addXP() creates the skill if it does not exist", () => {

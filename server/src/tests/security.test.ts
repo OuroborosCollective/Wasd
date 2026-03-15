@@ -38,6 +38,7 @@ describe("PayloadValidator", () => {
 
   it("rejects an array", () => {
     expect(validator.validateObject([1, 2, 3])).toBe(false);
+
   });
 });
 

@@ -1,346 +1,534 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { showTooltip, hideTooltip, createWorldLabel, removeWorldLabel } from "../ui/hud";
+import { showTooltip, hideTooltip, createWorldLabel, removeWorldLabel, showFloatingText, updateMinimap } from "../ui/hud";
 import { getClosestInteractable } from "../utils/interaction";
+import { initMobileControls, getJoystickState, isMobile } from "../ui/mobileControls";
 
 const gltfLoader = new GLTFLoader();
 const modelCache = new Map<string, THREE.Group>();
 
-function loadModel(path: string, callback: (model: THREE.Group) => void) {
-  if (modelCache.has(path)) {
-    callback(modelCache.get(path)!.clone());
-    return;
-  }
-  gltfLoader.load(path, (gltf) => {
-    modelCache.set(path, gltf.scene);
-    callback(gltf.scene.clone());
-  }, undefined, (error) => {
-    console.error("Error loading model:", path, error);
+function loadModel(path: string, callback: (model: THREE.Group) => void, errorCallback?: (err: any) => void) {
+  if (modelCache.has(path)) { callback(modelCache.get(path)!.clone()); return; }
+  gltfLoader.load(path, (gltf) => { modelCache.set(path, gltf.scene); callback(gltf.scene.clone()); }, undefined, (err) => {
+    console.warn("Model load error:", path, err);
+    if (errorCallback) errorCallback(err);
   });
 }
 
-function projectToScreen(x: number, y: number, z: number) {
-  const vector = new THREE.Vector3(x, y, z);
-  vector.project(camera);
-  return {
-    x: (vector.x + 1) / 2 * window.innerWidth,
-    y: -(vector.y - 1) / 2 * window.innerHeight
-  };
+function applyColorTints(model: THREE.Object3D, skinColor?: string, hairColor?: string, eyeColor?: string): void {
+  const skinHex = skinColor ? new THREE.Color(skinColor) : new THREE.Color(0xD4956A);
+  const hairHex = hairColor ? new THREE.Color(hairColor) : new THREE.Color(0x6B3A2A);
+  const eyeHex = eyeColor ? new THREE.Color(eyeColor) : new THREE.Color(0x6B3A2A);
+  
+  model.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+    const mat = child.material;
+    if (!mat) return;
+    const materials = Array.isArray(mat) ? mat : [mat];
+    materials.forEach((m: THREE.Material) => {
+      if (!(m instanceof THREE.MeshStandardMaterial || m instanceof THREE.MeshLambertMaterial)) return;
+      const name = (m.name || child.name || '').toLowerCase();
+      
+      if (name.includes('skin') || name.includes('body') || name.includes('face') ||
+          name.includes('arm') || name.includes('leg') || name.includes('hand') ||
+          name.includes('neck') || name.includes('head_skin') || name.includes('flesh')) {
+        (m as any).color.set(skinHex);
+      } else if (name.includes('hair') || name.includes('beard') || name.includes('eyebrow') ||
+                 name.includes('brow') || name.includes('mustache')) {
+        (m as any).color.set(hairHex);
+      } else if (name.includes('eye') || name.includes('iris') || name.includes('pupil')) {
+        (m as any).color.set(eyeHex);
+      }
+    });
+  });
 }
 
 let scene: THREE.Scene;
 let camera: THREE.PerspectiveCamera;
 let renderer: THREE.WebGLRenderer;
+let myPlayerId: string | null = null;
+let clock: THREE.Clock;
+let waterMesh: THREE.Mesh | null = null;
+let highlightRing: THREE.Mesh | null = null;
+let highlightPulse = 0;
 
-const playerMeshes = new Map<string, THREE.Mesh>();
+const playerMeshes = new Map<string, THREE.Object3D>();
 const npcMeshes = new Map<string, THREE.Object3D>();
 const lootMeshes = new Map<string, THREE.Object3D>();
-const chunkMeshes = new Map<string, THREE.LineSegments>();
-const activeLabels = new Set<string>();
-
-// For interpolation
 const targetPositions = new Map<string, THREE.Vector3>();
 
-export function showFloatingText(text: string, x: number, y: number) {
-  const vector = new THREE.Vector3(x, 2, y);
-  vector.project(camera);
-  const screenX = (vector.x + 1) / 2 * window.innerWidth;
-  const screenY = -(vector.y - 1) / 2 * window.innerHeight;
-  
-  const div = document.createElement("div");
-  div.style.position = "fixed";
-  div.style.left = `${screenX}px`;
-  div.style.top = `${screenY}px`;
-  div.style.color = "#ff0000";
-  div.style.fontWeight = "bold";
-  div.style.fontSize = "20px";
-  div.style.pointerEvents = "none";
-  div.style.zIndex = "1001";
-  div.textContent = text;
-  document.body.appendChild(div);
-  
-  div.animate([
-    { transform: "translateY(0)", opacity: 1 },
-    { transform: "translateY(-50px)", opacity: 0 }
-  ], {
-    duration: 1000,
-    easing: "ease-out"
-  }).onfinish = () => div.remove();
+let cameraAngleH = 0;
+let cameraAngleV = 0.6;
+let cameraDistance = 18;
+let isDragging = false;
+let lastMouseX = 0;
+let lastMouseY = 0;
+const cameraTarget = new THREE.Vector3(32, 0, 32);
+
+// Mobile joystick movement callback
+let onJoystickMove: ((dx: number, dy: number) => void) | null = null;
+
+export function setJoystickMoveCallback(cb: (dx: number, dy: number) => void) {
+  onJoystickMove = cb;
 }
-export function initRenderer(canvas: HTMLCanvasElement, myPlayerId: string) {
-  renderer = new THREE.WebGLRenderer({ canvas });
+
+export function getTerrainHeight(x: number, z: number): number {
+  let h = Math.sin(x * 0.02) * Math.cos(z * 0.02) * 8
+        + Math.sin(x * 0.05 + 1.3) * Math.cos(z * 0.05 + 0.7) * 4
+        + Math.sin(x * 0.1 + 2.1) * Math.cos(z * 0.1 + 1.5) * 2
+        + Math.sin(x * 0.2) * Math.cos(z * 0.2);
+  const d = Math.sqrt((x - 32) * (x - 32) + (z - 32) * (z - 32));
+  if (d < 80) h *= Math.max(0, (d - 20) / 60);
+  return Math.max(0, h);
+}
+
+export function projectToScreen(x: number, y: number, z: number) {
+  const v = new THREE.Vector3(x, y, z).project(camera);
+  return { x: (v.x + 1) / 2 * window.innerWidth, y: -(v.y - 1) / 2 * window.innerHeight, inFront: v.z < 1 };
+}
+
+function buildTerrain(): THREE.Mesh {
+  // Lower resolution on mobile for performance
+  const segments = isMobile() ? 50 : 80;
+  const geo = new THREE.PlaneGeometry(1000, 1000, segments, segments);
+  geo.rotateX(-Math.PI / 2);
+  const pos = geo.attributes.position;
+  const cols: number[] = [];
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i);
+    const h = getTerrainHeight(x, z);
+    pos.setY(i, h);
+    if (h < 1) cols.push(0.2, 0.35, 0.15);
+    else if (h < 4) cols.push(0.3, 0.5, 0.2);
+    else if (h < 8) cols.push(0.45, 0.55, 0.35);
+    else cols.push(0.55, 0.5, 0.4);
+  }
+  pos.needsUpdate = true;
+  geo.computeVertexNormals();
+  geo.setAttribute("color", new THREE.Float32BufferAttribute(cols, 3));
+  const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }));
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+function buildScene(s: THREE.Scene) {
+  // Sky gradient sphere
+  const skyGeo = new THREE.SphereGeometry(800, 16, 16);
+  const skyMat = new THREE.ShaderMaterial({
+    uniforms: {
+      top: { value: new THREE.Color(0.08, 0.15, 0.45) },
+      bot: { value: new THREE.Color(0.5, 0.7, 0.9) }
+    },
+    vertexShader: `varying vec3 vP; void main(){ vP=(modelMatrix*vec4(position,1.)).xyz; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    fragmentShader: `uniform vec3 top,bot; varying vec3 vP; void main(){ float h=normalize(vP).y; gl_FragColor=vec4(mix(bot,top,clamp(h,0.,1.)),1.);}`,
+    side: THREE.BackSide
+  });
+  s.add(new THREE.Mesh(skyGeo, skyMat));
+
+  // Lights
+  s.add(new THREE.AmbientLight(0xffeedd, 0.6));
+  const sun = new THREE.DirectionalLight(0xfff5e0, 1.2);
+  sun.position.set(200, 300, 100);
+  sun.castShadow = !isMobile(); // Disable shadows on mobile for performance
+  if (!isMobile()) {
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.near = 0.5; sun.shadow.camera.far = 800;
+    sun.shadow.camera.left = -200; sun.shadow.camera.right = 200;
+    sun.shadow.camera.top = 200; sun.shadow.camera.bottom = -200;
+  }
+  s.add(sun);
+  s.add(new THREE.HemisphereLight(0x87ceeb, 0x3a5a2a, 0.4));
+  s.fog = new THREE.FogExp2(0x9ab5cc, isMobile() ? 0.005 : 0.003);
+
+  // Terrain
+  s.add(buildTerrain());
+
+  // Water
+  const wGeo = new THREE.PlaneGeometry(400, 400);
+  wGeo.rotateX(-Math.PI / 2);
+  waterMesh = new THREE.Mesh(wGeo, new THREE.MeshLambertMaterial({ color: 0x1a6aaa, transparent: true, opacity: 0.75 }));
+  waterMesh.position.set(-200, -3, 200);
+  s.add(waterMesh);
+
+  // Highlight Ring
+  const ringGeo = new THREE.RingGeometry(0.8, 1.1, 32);
+  ringGeo.rotateX(-Math.PI / 2);
+  highlightRing = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthTest: false }));
+  highlightRing.visible = false;
+  s.add(highlightRing);
+
+  // Trees (fewer on mobile)
+  const treePositions = isMobile()
+    ? [[150,50],[180,80],[200,120],[300,200],[-200,-100]]
+    : [[150,50],[180,80],[200,120],[160,150],[-100,80],[-80,120],[300,200],[320,180],[-200,-100],[100,-150],[250,300],[280,320],[-150,200],[-180,220],[400,100]];
+
+  treePositions.forEach(([tx, tz]) => {
+    const g = new THREE.Group();
+    const trunk = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.4, 0.6, 4, 6),
+      new THREE.MeshLambertMaterial({ color: 0x4a2a0a })
+    );
+    const leaves = new THREE.Mesh(
+      new THREE.ConeGeometry(3 + Math.random() * 2, 6 + Math.random() * 3, 7),
+      new THREE.MeshLambertMaterial({ color: new THREE.Color(0.1 + Math.random() * 0.1, 0.4 + Math.random() * 0.2, 0.1) })
+    );
+    leaves.position.y = 5;
+    g.add(trunk); g.add(leaves);
+    g.position.set(tx, getTerrainHeight(tx, tz), tz);
+    g.scale.setScalar(0.8 + Math.random() * 0.6);
+    g.rotation.y = Math.random() * Math.PI * 2;
+    if (!isMobile()) { trunk.castShadow = true; leaves.castShadow = true; }
+    s.add(g);
+  });
+
+  // Village buildings
+  const buildings = [
+    { x:20, z:20, w:12, d:10, h:8, c:0x8a7a6a },
+    { x:50, z:20, w:10, d:8, h:6, c:0x9a8a7a },
+    { x:20, z:50, w:8, d:8, h:7, c:0x7a8a6a },
+    { x:50, z:50, w:14, d:12, h:10, c:0x6a7a9a },
+  ];
+  const wallMat = new THREE.MeshLambertMaterial({ color: 0x8a7a5a });
+  buildings.forEach(b => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(b.w, b.h, b.d), new THREE.MeshLambertMaterial({ color: b.c }));
+    mesh.position.set(b.x, b.h/2, b.z);
+    if (!isMobile()) mesh.castShadow = true;
+    s.add(mesh);
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(Math.max(b.w,b.d)*0.8, 3, 4), new THREE.MeshLambertMaterial({ color: 0x6a3a1a }));
+    roof.position.set(b.x, b.h+1.5, b.z); roof.rotation.y = Math.PI/4; s.add(roof);
+  });
+
+  // Village walls
+  [[32,-10,100,2,6],[32,74,100,2,6],[-18,32,2,84,6],[82,32,2,84,6]].forEach(([x,z,w,d,h]) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), wallMat);
+    m.position.set(x,h/2,z); s.add(m);
+  });
+
+  // Torches / lights near village entrance
+  if (!isMobile()) {
+    [[-15, 30], [-15, 35], [80, 30], [80, 35]].forEach(([tx, tz]) => {
+      const torchLight = new THREE.PointLight(0xff8800, 2, 20);
+      torchLight.position.set(tx, 5, tz);
+      s.add(torchLight);
+      const flame = new THREE.Mesh(new THREE.SphereGeometry(0.3, 4, 4), new THREE.MeshBasicMaterial({ color: 0xff8800 }));
+      flame.position.set(tx, 5, tz);
+      s.add(flame);
+    });
+  }
+}
+
+export function initRenderer(
+  canvas: HTMLCanvasElement,
+  playerId: string,
+  wsCallbacks?: {
+    onAttack: () => void;
+    onInteract: () => void;
+    onEquip: () => void;
+    onInventory: () => void;
+    onQuests: () => void;
+    onSkills: () => void;
+    onMap: () => void;
+    onChat: () => void;
+  }
+) {
+  myPlayerId = playerId;
+  clock = new THREE.Clock();
+
+  // Mobile-aware pixel ratio
+  const pixelRatio = isMobile() ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2);
+
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: !isMobile() });
   renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(pixelRatio);
+  renderer.shadowMap.enabled = !isMobile();
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
 
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x222222);
+  camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1500);
+  buildScene(scene);
 
-  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-  camera.position.set(0, 100, 100);
-  camera.lookAt(0, 0, 0);
+  // ── DESKTOP: Mouse camera controls ──────────────────────────────────────
+  canvas.addEventListener("mousedown", (e) => {
+    if (e.button === 2) { isDragging = true; lastMouseX = e.clientX; lastMouseY = e.clientY; }
+  });
+  window.addEventListener("mouseup", () => { isDragging = false; });
+  window.addEventListener("mousemove", (e) => {
+    if (!isDragging) return;
+    cameraAngleH -= (e.clientX - lastMouseX) * 0.005;
+    cameraAngleV = Math.max(0.1, Math.min(1.4, cameraAngleV + (e.clientY - lastMouseY) * 0.005));
+    lastMouseX = e.clientX; lastMouseY = e.clientY;
+  });
+  canvas.addEventListener("wheel", (e) => {
+    cameraDistance = Math.max(5, Math.min(60, cameraDistance + e.deltaY * 0.05));
+  });
+  canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
-  // Add a simple grid helper for the ground
-  const gridHelper = new THREE.GridHelper(1000, 100, 0x444444, 0x444444);
-  scene.add(gridHelper);
-
-  // Add a "Town" marker
-  const townGeo = new THREE.PlaneGeometry(128, 128);
-  const townMat = new THREE.MeshBasicMaterial({ color: 0x334433, side: THREE.DoubleSide });
-  const town = new THREE.Mesh(townGeo, townMat);
-  town.rotation.x = Math.PI / 2;
-  town.position.set(32, 0.1, 32);
-  scene.add(town);
-
-  // Add an "Outpost" marker
-  const outpostGeo = new THREE.PlaneGeometry(64, 64);
-  const outpostMat = new THREE.MeshBasicMaterial({ color: 0x443333, side: THREE.DoubleSide });
-  const outpost = new THREE.Mesh(outpostGeo, outpostMat);
-  outpost.rotation.x = Math.PI / 2;
-  outpost.position.set(500, 0.1, 500);
-  scene.add(outpost);
-
-  // Add a "Combat Training" marker
-  const trainingGeo = new THREE.PlaneGeometry(32, 32);
-  const trainingMat = new THREE.MeshBasicMaterial({ color: 0x444433, side: THREE.DoubleSide });
-  const training = new THREE.Mesh(trainingGeo, trainingMat);
-  training.rotation.x = Math.PI / 2;
-  training.position.set(64, 0.1, 64);
-  scene.add(training);
-
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-  scene.add(ambientLight);
-
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  directionalLight.position.set(100, 200, 50);
-  scene.add(directionalLight);
-
-  function animate() {
-    // Interpolate positions
-    const lerpFactor = 0.2;
-    
-    for (const [id, mesh] of playerMeshes.entries()) {
-      const target = targetPositions.get(id);
-      if (target) {
-        mesh.position.lerp(target, lerpFactor);
-        
-        // Follow camera if it's our player (we'll need a way to identify our player)
-        // For now, we'll check the material color as a hack or pass myPlayerId
-        if ((mesh.material as THREE.MeshStandardMaterial).color.getHex() === 0x00ff00) {
-          camera.position.set(mesh.position.x, 100, mesh.position.z + 100);
-          camera.lookAt(mesh.position.x, 0, mesh.position.z);
-        }
+  // ── MOBILE: Initialize touch controls ───────────────────────────────────
+  if (wsCallbacks) {
+    initMobileControls(
+      wsCallbacks,
+      // Pinch zoom callback
+      (delta: number) => {
+        cameraDistance = Math.max(5, Math.min(60, cameraDistance + delta));
+      },
+      // Camera drag callback
+      (dx: number, dy: number) => {
+        cameraAngleH -= dx * 0.008;
+        cameraAngleV = Math.max(0.1, Math.min(1.4, cameraAngleV + dy * 0.008));
       }
-    }
-
-    for (const [id, mesh] of npcMeshes.entries()) {
-      const target = targetPositions.get(id);
-      if (target) {
-        mesh.position.lerp(target, lerpFactor);
-      }
-    }
-
-    renderer.render(scene, camera);
-    requestAnimationFrame(animate);
+    );
   }
 
+  window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  // ── ANIMATION LOOP ───────────────────────────────────────────────────────
+  let joystickAccumX = 0;
+  let joystickAccumY = 0;
+  const JOYSTICK_SEND_INTERVAL = 100; // ms
+  let lastJoystickSend = 0;
+
+  function animate() {
+    requestAnimationFrame(animate);
+    const delta = clock.getDelta();
+    const elapsed = clock.getElapsedTime();
+    const lf = Math.min(1, delta * 12);
+
+    // Water animation
+    if (waterMesh) {
+      waterMesh.position.y = -3 + Math.sin(elapsed * 0.5) * 0.2;
+    }
+
+    if (highlightRing && highlightRing.visible) {
+      highlightPulse += delta * 3;
+      highlightRing.rotation.z += delta; // Rotates horizontally because X is rotated -PI/2
+      const scale = 1 + Math.sin(highlightPulse) * 0.1;
+      highlightRing.scale.set(scale, scale, scale);
+      (highlightRing.material as THREE.MeshBasicMaterial).opacity = 0.5 + Math.sin(highlightPulse * 2) * 0.3;
+    }
+
+    // Smooth player/NPC movement
+    for (const [id, mesh] of playerMeshes) {
+      const t = targetPositions.get(id);
+      if (t) mesh.position.lerp(t, lf);
+    }
+    for (const [id, mesh] of npcMeshes) {
+      const t = targetPositions.get(id);
+      if (t) mesh.position.lerp(t, lf * 0.8);
+    }
+
+    // Camera follows player
+    const myMesh = playerMeshes.get(myPlayerId || "");
+    if (myMesh) cameraTarget.lerp(myMesh.position, 0.1);
+
+    // Joystick movement (mobile)
+    const js = getJoystickState();
+    if (js.active && onJoystickMove) {
+      joystickAccumX += js.dx * delta * 120;
+      joystickAccumY += js.dy * delta * 120;
+      const now = Date.now();
+      if (now - lastJoystickSend > JOYSTICK_SEND_INTERVAL && (Math.abs(joystickAccumX) > 0.5 || Math.abs(joystickAccumY) > 0.5)) {
+        // Convert joystick direction to world-space based on camera angle
+        const cos = Math.cos(cameraAngleH);
+        const sin = Math.sin(cameraAngleH);
+        const worldDX = joystickAccumX * cos - joystickAccumY * sin;
+        const worldDY = joystickAccumX * sin + joystickAccumY * cos;
+        onJoystickMove(worldDX, worldDY);
+        joystickAccumX = 0;
+        joystickAccumY = 0;
+        lastJoystickSend = now;
+      }
+    }
+
+    // Update camera position
+    camera.position.set(
+      cameraTarget.x + Math.sin(cameraAngleH) * Math.cos(cameraAngleV) * cameraDistance,
+      cameraTarget.y + Math.sin(cameraAngleV) * cameraDistance,
+      cameraTarget.z + Math.cos(cameraAngleH) * Math.cos(cameraAngleV) * cameraDistance
+    );
+    camera.lookAt(cameraTarget.x, cameraTarget.y + 1, cameraTarget.z);
+    renderer.render(scene, camera);
+  }
   animate();
 }
 
-export function updateWorldState(state: any, myPlayerId: string | null) {
+export function updateWorldState(state: any, playerId: string | null) {
   if (!scene) return;
+  myPlayerId = playerId;
 
-  // Render players (Blue cubes)
+  // Players
   const currentPlayers = new Set<string>();
-  for (const p of state.players) {
+  for (const p of state.players || []) {
     currentPlayers.add(p.id);
-    if (!playerMeshes.has(p.id)) {
-      const geo = new THREE.BoxGeometry(4, 4, 4);
-      const mat = new THREE.MeshStandardMaterial({ color: p.id === myPlayerId ? 0x00ff00 : 0x0000ff });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(p.position.x, 2, p.position.y);
-      scene.add(mesh);
-      playerMeshes.set(p.id, mesh);
+       if (!playerMeshes.has(p.id)) {
+      const g = new THREE.Group();
+      g.position.set(p.position.x, getTerrainHeight(p.position.x, p.position.y), p.position.y);
+      scene.add(g); playerMeshes.set(p.id, g);
+      if (p.appearance) {
+        console.log(`[Renderer] Loading GLB for player ${p.id}`, p.appearance);
+        // Load modular GLB character using resolved paths from server
+        let bodyUrl = p.appearance.bodyUrl || `/models/characters/bodies/Body_${p.appearance.gender || 'male'}.glb`;
+        let headUrl = p.appearance.headUrl || (p.appearance.gender === 'female' ? '/models/characters/heads/Head_female1.glb' : '/models/characters/heads/Head_male1.glb');
+
+        // Ensure paths are absolute for the loader
+        if (!bodyUrl.startsWith('/')) bodyUrl = '/' + bodyUrl;
+        if (!headUrl.startsWith('/')) headUrl = '/' + headUrl;
+
+        loadModel(bodyUrl, (body) => {
+          console.log(`[Renderer] Body loaded for ${p.id}: ${bodyUrl}`);
+          body.scale.set(p.appearance.widthScale || 1, p.appearance.heightScale || 1, p.appearance.widthScale || 1);
+          applyColorTints(body, p.appearance.skinToneColor, p.appearance.hairColor, p.appearance.eyeColor);
+          g.add(body);
+        }, (err) => console.error(`[Renderer] Failed to load body for ${p.id}`, err));
+
+        loadModel(headUrl, (head) => {
+          console.log(`[Renderer] Head loaded for ${p.id}: ${headUrl}`);
+          // Use a consistent scale for the head
+          const headScale = 0.8;
+          head.scale.set(headScale, headScale, headScale);
+          head.position.y = 1.65 * (p.appearance.heightScale || 1);
+          applyColorTints(head, p.appearance.skinToneColor, p.appearance.hairColor, p.appearance.eyeColor);
+          g.add(head);
+        }, (err) => console.error(`[Renderer] Failed to load head for ${p.id}`, err));
+      } else {
+        // Fallback to capsule if no appearance data
+        const isMe = p.id === playerId;
+        const body = new THREE.Mesh(
+          new THREE.CapsuleGeometry(0.5, 1.5, 4, 8),
+          new THREE.MeshLambertMaterial({ color: isMe ? 0x00cc66 : 0x4466cc })
+        );
+        body.position.y = 1.25; body.castShadow = !isMobile();
+        const head = new THREE.Mesh(
+          new THREE.SphereGeometry(0.4, 8, 8),
+          new THREE.MeshLambertMaterial({ color: isMe ? 0x00ff88 : 0x6688ee })
+        );
+        head.position.y = 2.4; head.castShadow = !isMobile();
+        g.add(body); g.add(head);
+      }
     }
-    
-    let target = targetPositions.get(p.id);
-    if (!target) {
-      target = new THREE.Vector3();
-      targetPositions.set(p.id, target);
-    }
-    target.set(p.position.x, 2, p.position.y);
+    let t = targetPositions.get(p.id);
+    if (!t) { t = new THREE.Vector3(); targetPositions.set(p.id, t); }
+    t.set(p.position.x, getTerrainHeight(p.position.x, p.position.y), p.position.y);
+    const sp = projectToScreen(t.x, t.y + 3.5, t.z);
+    const lbl = createWorldLabel(p.id, p.name || "Player", "player");
+    if (sp.inFront) { lbl.style.left=`${sp.x}px`; lbl.style.top=`${sp.y}px`; lbl.style.display="block"; } else lbl.style.display="none";
+  }
+  for (const [id, mesh] of playerMeshes) {
+    if (!currentPlayers.has(id)) { scene.remove(mesh); playerMeshes.delete(id); targetPositions.delete(id); removeWorldLabel(id); }
   }
 
-  // Remove disconnected players
-  for (const [id, mesh] of playerMeshes.entries()) {
-    if (!currentPlayers.has(id)) {
-      scene.remove(mesh);
-      playerMeshes.delete(id);
-      targetPositions.delete(id);
-    }
-  }
-
-  // Render NPCs (Red spheres or GLB)
+  // NPCs
   const currentNPCs = new Set<string>();
-  for (const npc of state.npcs) {
+  for (const npc of state.npcs || []) {
     currentNPCs.add(npc.id);
     if (!npcMeshes.has(npc.id)) {
       if (npc.glbPath) {
-        // Create a placeholder while loading
-        const group = new THREE.Group();
-        group.position.set(npc.position.x, 0, npc.position.y);
-        scene.add(group);
-        npcMeshes.set(npc.id, group);
-
-        // Remove "public/" from path if it exists, as client serves from public
-        const modelPath = npc.glbPath.replace(/^public\//, '');
-        
-        loadModel(modelPath, (model) => {
-          // Scale down the model to fit game world better
-          model.scale.set(0.5, 0.5, 0.5);
-          group.add(model);
-        });
+        const g = new THREE.Group();
+        g.position.set(npc.position.x, getTerrainHeight(npc.position.x, npc.position.y), npc.position.y);
+        scene.add(g); npcMeshes.set(npc.id, g);
+        let path = npc.glbPath;
+        if (path.startsWith('public/')) path = path.substring(6);
+        if (!path.startsWith('/')) path = '/' + path;
+        loadModel(path, (m) => { m.scale.set(0.5,0.5,0.5); g.add(m); });
       } else {
-        const geo = new THREE.SphereGeometry(2);
-        const mat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.position.set(npc.position.x, 2, npc.position.y);
-        scene.add(mesh);
-        npcMeshes.set(npc.id, mesh);
+        const isM = npc.role === "monster";
+        const isShop = npc.role === "shopkeeper";
+        const c = isM ? 0xcc2222 : isShop ? 0xffaa00 : 0xddbb88;
+        const body = new THREE.Mesh(
+          new THREE.CapsuleGeometry(isM?0.6:0.45, isM?1.8:1.4, 4, 8),
+          new THREE.MeshLambertMaterial({ color: c })
+        );
+        body.position.y = isM?1.4:1.1; body.castShadow = !isMobile();
+        const head = new THREE.Mesh(
+          new THREE.SphereGeometry(isM?0.5:0.35, 8, 8),
+          new THREE.MeshLambertMaterial({ color: isM?0xee3333:0xffccaa })
+        );
+        head.position.y = isM?2.7:2.2;
+        const g = new THREE.Group(); g.add(body); g.add(head);
+        g.position.set(npc.position.x, getTerrainHeight(npc.position.x, npc.position.y), npc.position.y);
+        scene.add(g); npcMeshes.set(npc.id, g);
       }
     }
-    
-    let target = targetPositions.get(npc.id);
-    if (!target) {
-      target = new THREE.Vector3();
-      targetPositions.set(npc.id, target);
-    }
-    // Adjust Y position based on whether it's a GLB or sphere
-    const yPos = npc.glbPath ? 0 : 2;
-    target.set(npc.position.x, yPos, npc.position.y);
-    
-    // Position label above NPC
-    const screenPos = projectToScreen(npc.position.x, 6, npc.position.y);
-    const label = createWorldLabel(npc.id, npc.name, 'npc', npc.health / npc.maxHealth);
-    label.style.left = `${screenPos.x}px`;
-    label.style.top = `${screenPos.y}px`;
-    label.style.transform = "translate(-50%, -100%)";
-    activeLabels.add(npc.id);
+    let t = targetPositions.get(npc.id);
+    if (!t) { t = new THREE.Vector3(); targetPositions.set(npc.id, t); }
+    t.set(npc.position.x, getTerrainHeight(npc.position.x, npc.position.y), npc.position.y);
+    const hp = npc.maxHealth ? (npc.health / npc.maxHealth) : 1;
+    const lbl = createWorldLabel(npc.id, npc.name || npc.id, "npc", hp);
+    const sp = projectToScreen(t.x, t.y + 3, t.z);
+    if (sp.inFront && cameraDistance < 50) { lbl.style.left=`${sp.x}px`; lbl.style.top=`${sp.y}px`; lbl.style.display="block"; } else lbl.style.display="none";
+  }
+  for (const [id, mesh] of npcMeshes) {
+    if (!currentNPCs.has(id)) { scene.remove(mesh); npcMeshes.delete(id); targetPositions.delete(id); removeWorldLabel(id); }
   }
 
-  // Remove despawned NPCs
-  for (const [id, mesh] of npcMeshes.entries()) {
-    if (!currentNPCs.has(id)) {
-      scene.remove(mesh);
-      npcMeshes.delete(id);
-    }
-  }
-
-  // Render Loot (Thematic bag/chest or GLB)
+  // Loot
   const currentLoot = new Set<string>();
-  for (const loot of state.loot) {
+  for (const loot of state.loot || []) {
     currentLoot.add(loot.id);
-    const lootGroup = lootMeshes.get(loot.id);
-    if (!lootGroup) {
-      const group = new THREE.Group();
-      group.position.set(loot.position.x, 0, loot.position.y);
-      scene.add(group);
-      lootMeshes.set(loot.id, group);
-
+    if (!lootMeshes.has(loot.id)) {
       if (loot.glbPath) {
-        const modelPath = loot.glbPath.replace(/^public\//, '');
-        loadModel(modelPath, (model) => {
-          model.scale.set(0.5, 0.5, 0.5);
-          group.add(model);
-        });
+        const g = new THREE.Group();
+        g.position.set(loot.position.x, getTerrainHeight(loot.position.x, loot.position.y) + 0.5, loot.position.y);
+        scene.add(g); lootMeshes.set(loot.id, g);
+        let path = loot.glbPath;
+        if (path.startsWith('public/')) path = path.substring(6);
+        if (!path.startsWith('/')) path = '/' + path;
+        loadModel(path, (m) => { m.scale.set(0.4, 0.4, 0.4); g.add(m); });
       } else {
-        // Base
-        const baseGeo = new THREE.BoxGeometry(2, 1.5, 2);
-        const baseMat = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
-        const baseMesh = new THREE.Mesh(baseGeo, baseMat);
-        baseMesh.position.y = 0.75;
-        group.add(baseMesh);
-        // Lid
-        const lidGeo = new THREE.BoxGeometry(2.2, 0.5, 2.2);
-        const lidMat = new THREE.MeshStandardMaterial({ color: 0x5D2E0A });
-        const lidMesh = new THREE.Mesh(lidGeo, lidMat);
-        lidMesh.position.y = 1.75;
-        group.add(lidMesh);
+        const rc: Record<string,number> = { common:0xaaaaaa, uncommon:0x00cc00, rare:0x0088ff, epic:0xaa44ff, legendary:0xff8800 };
+        const c = rc[loot.rarity || loot.item?.rarity || "common"] || 0xffd700;
+        const mesh = new THREE.Mesh(
+          new THREE.OctahedronGeometry(0.5, 0),
+          new THREE.MeshLambertMaterial({ color: c, emissive: c, emissiveIntensity: 0.3 })
+        );
+        mesh.position.set(loot.position.x, getTerrainHeight(loot.position.x, loot.position.y) + 0.8, loot.position.y);
+        scene.add(mesh); lootMeshes.set(loot.id, mesh);
       }
-    } else {
-      lootGroup.position.set(loot.position.x, 0, loot.position.y);
     }
-    
-    // Position label above loot
-    const screenPos = projectToScreen(loot.position.x, 4, loot.position.y);
-    const label = createWorldLabel(loot.id, loot.item.name, 'loot');
-    label.style.left = `${screenPos.x}px`;
-    label.style.top = `${screenPos.y}px`;
-    label.style.transform = "translate(-50%, -100%)";
-    activeLabels.add(loot.id);
-  }
-
-  // Remove picked up loot
-  for (const [id, mesh] of lootMeshes.entries()) {
-    if (!currentLoot.has(id)) {
-      scene.remove(mesh);
-      lootMeshes.delete(id);
+    const lm = lootMeshes.get(loot.id);
+    if (lm) {
+      const et = Date.now() * 0.002;
+      const baseHeight = loot.glbPath ? 0.5 : 0.8;
+      lm.position.y = getTerrainHeight(loot.position.x, loot.position.y) + baseHeight + Math.sin(et + loot.position.x) * 0.2;
+      lm.rotation.y += 0.02;
+      const sp = projectToScreen(lm.position.x, lm.position.y + 1, lm.position.z);
+      const name = loot.item?.name || loot.name || "Item";
+      const lbl = createWorldLabel(loot.id, name, "loot");
+      if (sp.inFront && cameraDistance < 30) { lbl.style.left=`${sp.x}px`; lbl.style.top=`${sp.y}px`; lbl.style.display="block"; } else lbl.style.display="none";
     }
   }
+  for (const [id, mesh] of lootMeshes) {
+    if (!currentLoot.has(id)) { scene.remove(mesh); lootMeshes.delete(id); removeWorldLabel(id); }
+  }
 
-  // Tooltip logic
-  const myPlayer = state.players.find((p: any) => p.id === myPlayerId);
-  if (myPlayer) {
-    const closestInteractable = getClosestInteractable(myPlayer, state);
+  // Interaction tooltip
+  const myMesh = playerMeshes.get(playerId || "");
+  if (myMesh) {
+    const nearby = getClosestInteractable({ x: myMesh.position.x, y: myMesh.position.z }, state.npcs || [], state.loot || []);
+    if (nearby) {
+      const hint = isMobile() ? "Tap [E]" : "[E]";
+      showTooltip(`${hint} ${nearby.type === "loot" ? "Pick up" : "Talk to"} ${nearby.name || nearby.id}`);
 
-    if (closestInteractable) {
-      if (closestInteractable.interactionType === 'loot') {
-        const item = closestInteractable.item;
-        const rarity = item.rarity || 'Common';
-        const damage = item.damage ? ` | Dmg: ${item.damage}` : '';
-        showTooltip(`Press E to pick up ${item.name} (${item.type}) [${rarity}]${damage}`);
-      } else {
-        showTooltip(`Press E to interact with ${closestInteractable.name || 'NPC'}`);
+      if (highlightRing) {
+        highlightRing.visible = true;
+        highlightRing.position.set(nearby.position.x, getTerrainHeight(nearby.position.x, nearby.position.y) + 0.1, nearby.position.y);
+        (highlightRing.material as THREE.MeshBasicMaterial).color.setHex(nearby.type === "loot" ? 0xffd700 : 0x00ff88);
       }
     } else {
       hideTooltip();
+      if (highlightRing) highlightRing.visible = false;
     }
   }
 
-  // Render Active Chunks (Yellow boundaries)
-  const currentChunks = new Set<string>();
-  if (state.activeChunkIds) {
-    for (const chunkId of state.activeChunkIds) {
-      currentChunks.add(chunkId);
-      if (!chunkMeshes.has(chunkId)) {
-        const [cx, cy] = chunkId.split(':').map(Number);
-        const chunkSize = 64;
-        
-        // Create a square outline for the chunk
-        const geo = new THREE.EdgesGeometry(new THREE.BoxGeometry(chunkSize, 1, chunkSize));
-        const mat = new THREE.LineBasicMaterial({ color: 0xffff00 });
-        const mesh = new THREE.LineSegments(geo, mat);
-        
-        // Center of the chunk
-        mesh.position.set(cx * chunkSize + chunkSize/2, 0.5, cy * chunkSize + chunkSize/2);
-        scene.add(mesh);
-        chunkMeshes.set(chunkId, mesh);
-      }
-    }
-  }
+  updateMinimap(state, playerId);
+}
 
-  // Remove inactive labels
-  const allLabelIds = new Set(Array.from(document.querySelectorAll('[id^="label-"]')).map(el => el.id.replace('label-', '')));
-  for (const id of allLabelIds) {
-    if (!activeLabels.has(id)) {
-      removeWorldLabel(id);
-    }
-  }
-  activeLabels.clear();
-
-  // Remove inactive chunks
-  for (const [id, mesh] of chunkMeshes.entries()) {
-    if (!currentChunks.has(id)) {
-      scene.remove(mesh);
-      chunkMeshes.delete(id);
-    }
-  }
+export function showFloatingTextAt(text: string, worldX: number, worldZ: number, color = "#ff4444") {
+  const sp = projectToScreen(worldX, getTerrainHeight(worldX, worldZ) + 3, worldZ);
+  if (sp.inFront) showFloatingText(text, sp.x, sp.y, color);
 }

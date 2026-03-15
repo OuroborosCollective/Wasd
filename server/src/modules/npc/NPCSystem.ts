@@ -247,6 +247,10 @@ export class NPCSystem {
     return Array.from(this.npcs.values());
   }
 
+  removeNPC(id: string) {
+    this.npcs.delete(id);
+  }
+
   tick(players: any[]) {
     // Process NPC AI, schedules, needs
     const now = Date.now();
