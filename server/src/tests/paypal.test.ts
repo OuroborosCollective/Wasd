@@ -153,5 +153,6 @@ describe("PayPalService - capturePayPalOrder", () => {
     const result = await capturePayPalOrder("order_123");
 
     expect(result.success).toBe(false);
+
   });
 });
