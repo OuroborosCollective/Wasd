@@ -29,6 +29,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      gltf-validator:
+        specifier: 2.0.0-dev.3.10
+        version: 2.0.0-dev.3.10
       ioredis:
         specifier: ^5.10.0
         version: 5.10.0
@@ -79,6 +82,9 @@ importers:
       '@types/react-dom':
         specifier: ^19
         version: 19.2.3(@types/react@19.2.14)
+      '@types/supertest':
+        specifier: ^7.2.0
+        version: 7.2.0
       '@types/ws':
         specifier: ^8.18.1
         version: 8.18.1
@@ -91,6 +97,9 @@ importers:
       firebase-tools:
         specifier: ^15.0.0
         version: 15.10.0(@cfworker/json-schema@4.1.1)(@types/node@20.19.37)(typescript@5.9.3)
+      supertest:
+        specifier: ^7.2.2
+        version: 7.2.2
       tailwindcss:
         specifier: 4.1.11
         version: 4.1.11

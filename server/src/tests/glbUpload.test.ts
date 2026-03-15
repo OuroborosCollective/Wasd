@@ -1,4 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+// Mock the database environment variables and the pg pool before any other imports
+vi.mock("../core/Database.js", () => ({
+  db: {
+    query: vi.fn(),
+    getClient: vi.fn(),
+  },
+  dbService: {
+    query: vi.fn(),
+    getClient: vi.fn(),
+  },
+}));
+
+
 import request from "supertest";
 import express from "express";
 import fs from "fs";

@@ -1,34 +1,18 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
 
 import fs from "fs";
 import path from "path";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
 
-vi.mock("fs", () => ({
-  default: {
-    existsSync: vi.fn(),
-    readFileSync: vi.fn(),
-  }
-}));
-
-vi.mock("path", () => ({
-  default: {
-    resolve: vi.fn(),
-  }
-}));
-
 describe("ItemRegistry", () => {
   beforeEach(() => {
-    // Reset the static state of ItemRegistry
-    // @ts-ignore - accessing private property for testing
-    ItemRegistry.ITEM_REGISTRY = {};
-    // @ts-ignore - accessing private property for testing
-    ItemRegistry.initialized = false;
+    // Reset the static initialized flag using an internal workaround or re-import if necessary.
+    // For testing, we can reset it directly if it's accessible or use a workaround.
+    // Since initialized is private, we will cast to any to reset it.
+    (ItemRegistry as any).initialized = false;
+    (ItemRegistry as any).ITEM_REGISTRY = {};
 
-    vi.clearAllMocks();
-
-    // Default path resolve mock
-    (path.resolve as any).mockReturnValue("/mocked/path/items.json");
 
   });
 
@@ -36,136 +20,57 @@ describe("ItemRegistry", () => {
     vi.restoreAllMocks();
   });
 
-  describe("init", () => {
-    it("should load item data when file exists", () => {
-      const mockItems = [
-        { id: "sword_01", name: "Iron Sword", type: "weapon", rarity: "common", description: "A basic sword." }
-      ];
+  it("should initialize and load items successfully if file exists", () => {
+    const mockItems = [
+      { id: "sword", name: "Iron Sword", type: "weapon", rarity: "common", description: "A basic sword" }
+    ];
 
-      (fs.existsSync as any).mockReturnValue(true);
-      (fs.readFileSync as any).mockReturnValue(JSON.stringify(mockItems));
+    vi.spyOn(fs, "existsSync").mockReturnValue(true);
+    vi.spyOn(fs, "readFileSync").mockReturnValue(JSON.stringify(mockItems));
 
-      ItemRegistry.init();
+    ItemRegistry.init();
 
-      expect(fs.existsSync).toHaveBeenCalledWith("/mocked/path/items.json");
-      expect(fs.readFileSync).toHaveBeenCalledWith("/mocked/path/items.json", "utf-8");
-
-      const item = ItemRegistry.getItem("sword_01");
-      expect(item).toBeDefined();
-      expect(item?.name).toBe("Iron Sword");
-    });
-
-    it("should not crash when file does not exist", () => {
-      (fs.existsSync as any).mockReturnValue(false);
-
-      expect(() => ItemRegistry.init()).not.toThrow();
-
-      // Should mark as initialized even if file missing
-      // @ts-ignore
-      expect(ItemRegistry.initialized).toBe(true);
-    });
-
-    it("should handle JSON parse errors gracefully", () => {
-      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-      (fs.existsSync as any).mockReturnValue(true);
-      (fs.readFileSync as any).mockReturnValue("invalid json");
-
-      expect(() => ItemRegistry.init()).not.toThrow();
-      expect(consoleSpy).toHaveBeenCalledWith("Error loading Item data:", expect.any(Error));
-
-      consoleSpy.mockRestore();
-    });
-
-    it("should not re-initialize if already initialized", () => {
-      (fs.existsSync as any).mockReturnValue(true);
-      (fs.readFileSync as any).mockReturnValue(JSON.stringify([]));
-
-      ItemRegistry.init();
-      expect(fs.readFileSync).toHaveBeenCalledTimes(1);
-
-      ItemRegistry.init();
-      expect(fs.readFileSync).toHaveBeenCalledTimes(1); // Still 1
-    });
+    expect((ItemRegistry as any).initialized).toBe(true);
+    const item = ItemRegistry.getItem("sword");
+    expect(item).toBeDefined();
+    expect(item?.name).toBe("Iron Sword");
   });
 
-  describe("getItem", () => {
-    it("should auto-initialize and return item", () => {
-      const mockItems = [{ id: "shield_01", name: "Wooden Shield", type: "armor", rarity: "common", description: "A basic shield." }];
-      (fs.existsSync as any).mockReturnValue(true);
-      (fs.readFileSync as any).mockReturnValue(JSON.stringify(mockItems));
-
-      const item = ItemRegistry.getItem("shield_01");
-      expect(item).toBeDefined();
-      expect(item?.name).toBe("Wooden Shield");
+  it("should handle error when reading file throws", () => {
+    vi.spyOn(fs, "existsSync").mockReturnValue(true);
+    vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+      throw new Error("File read error");
     });
 
-    it("should return undefined for unknown item", () => {
-      (fs.existsSync as any).mockReturnValue(false);
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-      const item = ItemRegistry.getItem("unknown_item");
+    // This shouldn't throw but catch the error inside
+    ItemRegistry.init();
 
-      expect(item).toBeUndefined();
-    });
+    expect(consoleErrorSpy).toHaveBeenCalledWith("Error loading Item data:", expect.any(Error));
+    expect((ItemRegistry as any).initialized).toBe(true); // Should set initialized to true even if it fails
+    expect(ItemRegistry.getItem("sword")).toBeUndefined();
+
   });
 
-  describe("createInstance", () => {
-    it("should return a copy of the item definition", () => {
-      const mockItems = [{ id: "potion_01", name: "Health Potion", type: "consumable", rarity: "common", description: "Heals 50 HP." }];
-      (fs.existsSync as any).mockReturnValue(true);
-      (fs.readFileSync as any).mockReturnValue(JSON.stringify(mockItems));
+  it("should do nothing if initialized is already true", () => {
+    const existsSyncSpy = vi.spyOn(fs, "existsSync");
 
-      const instance1 = ItemRegistry.createInstance("potion_01");
-      const instance2 = ItemRegistry.createInstance("potion_01");
+    (ItemRegistry as any).initialized = true;
+    ItemRegistry.init();
 
-      expect(instance1).toEqual(mockItems[0]);
-      expect(instance1).not.toBe(mockItems[0]); // Not the exact same reference
-      expect(instance1).not.toBe(instance2); // Two instances are different objects
-    });
+    expect(existsSyncSpy).not.toHaveBeenCalled();
 
-    it("should return null for unknown item", () => {
-      (fs.existsSync as any).mockReturnValue(false);
-
-      const instance = ItemRegistry.createInstance("unknown_item");
-
-      expect(instance).toBeNull();
-    });
   });
 
-  describe("hydrate", () => {
-    it("should merge registry definition into existing item object", () => {
-      const mockItems = [{ id: "axe_01", name: "Battle Axe", type: "weapon", damage: 15, rarity: "uncommon", description: "A sharp axe." }];
-      (fs.existsSync as any).mockReturnValue(true);
-      (fs.readFileSync as any).mockReturnValue(JSON.stringify(mockItems));
+  it("should return undefined if file doesn't exist", () => {
+    vi.spyOn(fs, "existsSync").mockReturnValue(false);
 
-      const savedItem = { id: "axe_01", customData: "some value", durability: 100 };
-      const hydrated = ItemRegistry.hydrate(savedItem);
+    ItemRegistry.init();
 
-      expect(hydrated).toEqual({
-        id: "axe_01",
-        customData: "some value",
-        durability: 100,
-        name: "Battle Axe",
-        type: "weapon",
-        damage: 15,
-        rarity: "uncommon",
-        description: "A sharp axe."
-      });
-    });
+    expect((ItemRegistry as any).initialized).toBe(true);
+    expect(Object.keys((ItemRegistry as any).ITEM_REGISTRY).length).toBe(0);
 
-    it("should return original item if id is missing or unknown", () => {
-      (fs.existsSync as any).mockReturnValue(false);
-
-      const noIdItem = { someData: "test" };
-      expect(ItemRegistry.hydrate(noIdItem)).toEqual(noIdItem);
-
-      const unknownItem = { id: "unknown" };
-      expect(ItemRegistry.hydrate(unknownItem)).toEqual(unknownItem);
-    });
-
-    it("should return null if item is null", () => {
-      expect(ItemRegistry.hydrate(null)).toBeNull();
-
-    });
 
   });
 

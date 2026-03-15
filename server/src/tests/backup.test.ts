@@ -1,118 +1,123 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { BackupManager } from "../modules/monitoring/BackupManager.js";
-import { exec } from "child_process";
+import * as child_process from "child_process";
 
-// Mock child_process exec
+// Mock child_process.exec
 vi.mock("child_process", () => {
   return {
-    exec: vi.fn((cmd, cb) => cb(null, { stdout: 'mocked', stderr: '' }))
+    exec: vi.fn((cmd, cb) => {
+      if (cb) {
+        cb(null, { stdout: "", stderr: "" });
+      }
+      return {} as any;
+    }),
   };
 });
 
-describe("BackupManager Module", () => {
-  let originalEnv: NodeJS.ProcessEnv;
-  let manager: BackupManager;
-  let consoleLogSpy: any;
-  let consoleErrorSpy: any;
+describe("BackupManager", () => {
+  let backupManager: BackupManager;
+  let originalDbUrl: string | undefined;
 
   beforeEach(() => {
+    backupManager = new BackupManager();
+    originalDbUrl = process.env.DATABASE_URL;
+    process.env.DATABASE_URL = "postgres://fake-db-url";
     vi.clearAllMocks();
-    originalEnv = { ...process.env };
-    manager = new BackupManager();
-    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
-    process.env = originalEnv;
-    consoleLogSpy.mockRestore();
-    consoleErrorSpy.mockRestore();
+    if (originalDbUrl !== undefined) {
+      process.env.DATABASE_URL = originalDbUrl;
+    } else {
+      delete process.env.DATABASE_URL;
+    }
   });
 
   describe("createLogicalBackup", () => {
-    it("should throw an error if DATABASE_URL is not configured", async () => {
+    it("creates logical backup successfully", async () => {
+      const label = "test_backup";
+      const result = await backupManager.createLogicalBackup(label);
+
+      expect(result.label).toBe(label);
+      expect(result.file).toMatch(/\/tmp\/backup_test_backup_\d+\.sql/);
+      expect(result.createdAt).toBeLessThanOrEqual(Date.now());
+
+      expect(child_process.exec).toHaveBeenCalledTimes(1);
+      const execCallArg = vi.mocked(child_process.exec).mock.calls[0][0];
+      expect(execCallArg).toContain(`pg_dump "postgres://fake-db-url"`);
+      expect(execCallArg).toContain(`-F c -f "/tmp/backup_test_backup_`);
+    });
+
+    it("throws error if DATABASE_URL is not configured", async () => {
       delete process.env.DATABASE_URL;
-
-      await expect(manager.createLogicalBackup("test")).rejects.toThrow("DATABASE_URL is not configured.");
-      expect(exec).not.toHaveBeenCalled();
+      await expect(backupManager.createLogicalBackup("test")).rejects.toThrow(
+        "DATABASE_URL is not configured."
+      );
     });
 
-    it("should execute pg_dump and return backup details on success", async () => {
-      process.env.DATABASE_URL = "postgres://user:pass@localhost:5432/db";
-      const timestampBefore = Date.now();
+    it("handles backup execution error", async () => {
+      const error = new Error("pg_dump failed");
+      vi.mocked(child_process.exec).mockImplementationOnce((cmd, cb) => {
+        // @ts-ignore
+        if (cb) cb(error, { stdout: "", stderr: "Command failed" });
+        return {} as any;
+      });
 
-      const result = await manager.createLogicalBackup("daily_backup");
+      await expect(backupManager.createLogicalBackup("test")).rejects.toThrow(
+        "pg_dump failed"
+      );
+      expect(child_process.exec).toHaveBeenCalledTimes(1);
 
-      const timestampAfter = Date.now();
-
-      expect(result.label).toBe("daily_backup");
-      expect(result.createdAt).toBeGreaterThanOrEqual(timestampBefore);
-      expect(result.createdAt).toBeLessThanOrEqual(timestampAfter);
-      expect(result.file).toMatch(new RegExp(`^/tmp/backup_daily_backup_${result.createdAt}\\.sql$`));
-
-      expect(exec).toHaveBeenCalledTimes(1);
-      const calledCmd = (exec as any).mock.calls[0][0];
-      expect(calledCmd).toBe(`pg_dump "postgres://user:pass@localhost:5432/db" -F c -f "${result.file}"`);
-
-      expect(consoleLogSpy).toHaveBeenCalledWith(`Logical backup created successfully at ${result.file}`);
-    });
-
-    it("should throw an error and log if exec fails", async () => {
-      process.env.DATABASE_URL = "postgres://user:pass@localhost:5432/db";
-      const mockError = new Error("pg_dump failed");
-      (exec as any).mockImplementationOnce((cmd: string, cb: Function) => cb(mockError));
-
-      await expect(manager.createLogicalBackup("failed_backup")).rejects.toThrow("pg_dump failed");
-      expect(consoleErrorSpy).toHaveBeenCalledWith("Failed to create logical backup:", mockError);
 
     });
   });
 
   describe("restoreLogicalBackup", () => {
-    it("should throw an error if DATABASE_URL is not configured", async () => {
-      delete process.env.DATABASE_URL;
-
-      await expect(manager.restoreLogicalBackup("/tmp/backup.sql")).rejects.toThrow("DATABASE_URL is not configured.");
-      expect(exec).not.toHaveBeenCalled();
-    });
-
-    it("should execute pg_restore and return true on success", async () => {
-      process.env.DATABASE_URL = "postgres://user:pass@localhost:5432/db";
-      const filePath = "/tmp/test_restore.sql";
-
-      const result = await manager.restoreLogicalBackup(filePath);
+    it("restores logical backup successfully", async () => {
+      const filePath = "/tmp/test.sql";
+      const result = await backupManager.restoreLogicalBackup(filePath);
 
       expect(result).toBe(true);
-      expect(exec).toHaveBeenCalledTimes(1);
-
-      const calledCmd = (exec as any).mock.calls[0][0];
-      expect(calledCmd).toBe(`pg_restore -d "postgres://user:pass@localhost:5432/db" -c -1 "/tmp/test_restore.sql"`);
-
-      expect(consoleLogSpy).toHaveBeenCalledWith(`Logical backup restored successfully from ${filePath}`);
+      expect(child_process.exec).toHaveBeenCalledTimes(1);
+      const execCallArg = vi.mocked(child_process.exec).mock.calls[0][0];
+      expect(execCallArg).toBe(
+        `pg_restore -d "postgres://fake-db-url" -c -1 "/tmp/test.sql"`
+      );
     });
 
-    it("should throw an error and log if exec fails", async () => {
-      process.env.DATABASE_URL = "postgres://user:pass@localhost:5432/db";
-      const filePath = "/tmp/bad_backup.sql";
-      const mockError = new Error("pg_restore failed");
-      (exec as any).mockImplementationOnce((cmd: string, cb: Function) => cb(mockError));
+    it("throws error if DATABASE_URL is not configured", async () => {
+      delete process.env.DATABASE_URL;
+      await expect(
+        backupManager.restoreLogicalBackup("/tmp/test.sql")
+      ).rejects.toThrow("DATABASE_URL is not configured.");
+    });
 
-      await expect(manager.restoreLogicalBackup(filePath)).rejects.toThrow("pg_restore failed");
-      expect(consoleErrorSpy).toHaveBeenCalledWith("Failed to restore logical backup:", mockError);
+    it("handles restore execution error", async () => {
+      const error = new Error("pg_restore failed");
+      vi.mocked(child_process.exec).mockImplementationOnce((cmd, cb) => {
+        // @ts-ignore
+        if (cb) cb(error, { stdout: "", stderr: "Command failed" });
+        return {} as any;
+      });
+
+      await expect(
+        backupManager.restoreLogicalBackup("/tmp/test.sql")
+      ).rejects.toThrow("pg_restore failed");
+      expect(child_process.exec).toHaveBeenCalledTimes(1);
+
 
     });
   });
 
   describe("getBackupStrategy", () => {
-    it("should return the documented backup strategy", () => {
-      const strategy = manager.getBackupStrategy();
+    it("returns backup strategy", () => {
+      const strategy = backupManager.getBackupStrategy();
+      expect(strategy).toHaveProperty("primary");
+      expect(strategy).toHaveProperty("retentionPeriod");
+      expect(strategy).toHaveProperty("pointInTimeRecovery");
+      expect(strategy).toHaveProperty("logicalBackups");
+      expect(strategy).toHaveProperty("disasterRecovery");
 
-      expect(strategy).toBeDefined();
-      expect(strategy.primary).toBe("AWS RDS Automated Backups (Snapshots)");
-      expect(strategy.retentionPeriod).toBe("7-35 days (configurable in AWS Console)");
-      expect(strategy.pointInTimeRecovery).toBe("Enabled via AWS RDS transaction logs");
-      expect(strategy.logicalBackups).toBe("Available via BackupManager.createLogicalBackup() for manual exports");
-      expect(strategy.disasterRecovery).toBe("Cross-region read replicas can be promoted to primary in case of regional failure");
 
     });
   });

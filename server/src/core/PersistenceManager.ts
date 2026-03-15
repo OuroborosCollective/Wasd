@@ -112,7 +112,7 @@ export class PersistenceManager {
         JSON.stringify(player.quests || []),
         JSON.stringify(player.flags || {}),
         JSON.stringify(player.reputation || {}),
-        player.appearance ? JSON.stringify(player.appearance) : null,
+
       ];
 
       const valuePlaceholders = [];
@@ -125,14 +125,15 @@ export class PersistenceManager {
 
     try {
       await db.query(
-        `INSERT INTO players (id, name, role, level, xp, gold, health, max_health, stamina, max_stamina, mana, max_mana, pos_x, pos_y, pos_z, skills, inventory, equipment, quests, flags, reputation, appearance, updated_at)
-	         VALUES ${values.join(",\n         ")}
-	         ON CONFLICT (id) DO UPDATE SET
-	           name=EXCLUDED.name, role=EXCLUDED.role, level=EXCLUDED.level, xp=EXCLUDED.xp, gold=EXCLUDED.gold,
-	           health=EXCLUDED.health, max_health=EXCLUDED.max_health, stamina=EXCLUDED.stamina, max_stamina=EXCLUDED.max_stamina,
-	           mana=EXCLUDED.mana, max_mana=EXCLUDED.max_mana, pos_x=EXCLUDED.pos_x, pos_y=EXCLUDED.pos_y, pos_z=EXCLUDED.pos_z,
-	           skills=EXCLUDED.skills, inventory=EXCLUDED.inventory, equipment=EXCLUDED.equipment, quests=EXCLUDED.quests,
-	           flags=EXCLUDED.flags, reputation=EXCLUDED.reputation, appearance=EXCLUDED.appearance, updated_at=NOW()`,
+        `INSERT INTO players (id, name, role, level, xp, gold, health, max_health, stamina, max_stamina, mana, max_mana, pos_x, pos_y, pos_z, skills, inventory, equipment, quests, flags, reputation, updated_at)
+         VALUES ${values.join(",\n         ")}
+         ON CONFLICT (id) DO UPDATE SET
+           name=EXCLUDED.name, role=EXCLUDED.role, level=EXCLUDED.level, xp=EXCLUDED.xp, gold=EXCLUDED.gold,
+           health=EXCLUDED.health, max_health=EXCLUDED.max_health, stamina=EXCLUDED.stamina, max_stamina=EXCLUDED.max_stamina,
+           mana=EXCLUDED.mana, max_mana=EXCLUDED.max_mana, pos_x=EXCLUDED.pos_x, pos_y=EXCLUDED.pos_y, pos_z=EXCLUDED.pos_z,
+           skills=EXCLUDED.skills, inventory=EXCLUDED.inventory, equipment=EXCLUDED.equipment, quests=EXCLUDED.quests,
+           flags=EXCLUDED.flags, reputation=EXCLUDED.reputation, updated_at=NOW()`,
+
         params
       );
     } catch (err) {
