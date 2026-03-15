@@ -15,9 +15,11 @@ import { SkillSystem } from "../modules/skill/SkillSystem.js";
 import { CraftingSystem } from "../modules/crafting/CraftingSystem.js";
 import { ChatSystem } from "../modules/chat/ChatSystem.js";
 import { LootSystem } from "../modules/loot/LootSystem.js";
+import { characterAssembly } from "../modules/character/CharacterAssemblySystem.js";
 import { cache } from "./Cache.js";
 import fs from "fs";
 import path from "path";
+import { GameConfig } from "../config/GameConfig.js";
 
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 
@@ -177,20 +179,20 @@ export class WorldTick {
         this.ws.sendToPlayer(id, { type: "skills_data", skills: this.skillSystem.getAllSkills(player) });
         break;
       case "admin_glb_scan":
-        if (player.role !== "admin") return;
+        if (player.role !== "admin" && player.role !== "gm") return;
         this.ws.sendToPlayer(id, { type: "admin_glb_scan_result", models: this.glbRegistry.scanModels() });
         break;
       case "admin_glb_list":
-        if (player.role !== "admin") return;
+        if (player.role !== "admin" && player.role !== "gm") return;
         this.ws.sendToPlayer(id, { type: "admin_glb_list_result", links: this.glbRegistry.getLinks() });
         break;
       case "admin_glb_link":
-        if (player.role !== "admin") return;
+        if (player.role !== "admin" && player.role !== "gm") return;
         this.glbRegistry.addLink({ glbPath: msg.glbPath, targetType: msg.targetType, targetId: msg.targetId });
         this.ws.sendToPlayer(id, { type: "admin_glb_list_result", links: this.glbRegistry.getLinks() });
         break;
       case "admin_glb_unlink":
-        if (player.role !== "admin") return;
+        if (player.role !== "admin" && player.role !== "gm") return;
         this.glbRegistry.removeLink(msg.targetType, msg.targetId);
         this.ws.sendToPlayer(id, { type: "admin_glb_list_result", links: this.glbRegistry.getLinks() });
         break;
@@ -436,7 +438,8 @@ export class WorldTick {
         equipment: player.equipment,
         quests: player.quests,
         skills: this.skillSystem.getAllSkills(player),
-        position: player.position
+        position: player.position,
+        appearance: player.appearance
       }
     });
 
@@ -479,7 +482,7 @@ export class WorldTick {
     if (!npc || npc.health === undefined) return;
 
     const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
-    if (dist > 35) {
+    if (dist > GameConfig.attackDistance) {
       this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Target is too far away." });
       return;
     }
@@ -580,12 +583,11 @@ export class WorldTick {
 
     if (npc) {
       const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
-      if (dist > 25) {
+      if (dist > GameConfig.interactDistance) {
         this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Target is too far away." });
         return;
       }
 
-      // Check if NPC is a shopkeeper
       if (npc.shopId) {
         const shopItems = this.economySystem.getShop(npc.shopId);
         this.ws.sendToPlayer(id, { type: "shop_data", shopId: npc.shopId, items: shopItems, npcName: npc.name });
@@ -638,7 +640,7 @@ export class WorldTick {
       }
     } else if (loot) {
       const dist = Math.hypot(player.position.x - loot.position.x, player.position.y - loot.position.y);
-      if (dist > 25) {
+      if (dist > GameConfig.interactDistance) {
         this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Too far away." });
         return;
       }
@@ -792,6 +794,11 @@ export class WorldTick {
       this.playerSystem.setPlayer(name, player);
     }
     console.log(`Loaded ${Object.keys(savedData).length} players from database.`);
+    const savedWorld = await this.persistence.loadWorldState('global_state');
+    if (savedWorld) {
+      Object.assign(this.worldState, savedWorld);
+      console.log("World state loaded from database.");
+    }
     this.loadSpawns();
     console.log(`World initialized. NPCs: ${this.npcSystem.getAllNPCs().length}`);
   }
@@ -811,6 +818,7 @@ export class WorldTick {
       data[p.id] = persistedPlayer;
     }
     await this.persistence.save(data);
+    await this.persistence.saveWorldState('global_state', this.worldState);
   }
 
   private hydratePlayer(player: any) {
@@ -831,6 +839,7 @@ export class WorldTick {
     if (player.gold === undefined) player.gold = 0;
     if (player.xp === undefined) player.xp = 0;
     if (player.level === undefined) player.level = 1;
+    if (player.appearance === undefined) player.appearance = null;
     if (!player.role) player.role = player.name.toLowerCase() === "admin" ? "admin" : "player";
 
     if (player.inventory) {
@@ -976,25 +985,41 @@ export class WorldTick {
       tick: this.tickCount,
       weather,
       activeChunkIds: activeChunks.map(c => c.id),
-      players: players.map(p => ({
-        id: p.id,
-        name: p.name,
-        position: p.position,
-        health: p.health,
-        maxHealth: p.maxHealth || 100,
-        stamina: p.stamina || 100,
-        maxStamina: p.maxStamina || 100,
-        mana: p.mana || 25,
-        maxMana: p.maxMana || 25,
-        gold: p.gold || 0,
-        xp: p.xp || 0,
-        level: p.level || 1,
-        role: p.role,
-        inventory: p.inventory || [],
-        equipment: p.equipment || {},
-        reputation: p.reputation || {},
-        questStatus: this.questSystem.getQuestStatus(p)
-      })),
+      players: players.map(p => {
+        const appearance = p.appearance;
+        let resolvedAppearance = null;
+        if (appearance) {
+          const paths = characterAssembly.resolveModelPaths(appearance);
+          resolvedAppearance = {
+            ...appearance,
+            bodyUrl: paths.bodyUrl,
+            headUrl: paths.headUrl,
+            skinToneColor: paths.skinColor,
+            hairColor: paths.hairColor,
+            eyeColor: paths.eyeColor
+          };
+        }
+        return {
+          id: p.id,
+          name: p.name,
+          position: p.position,
+          health: p.health,
+          maxHealth: p.maxHealth || 100,
+          stamina: p.stamina || 100,
+          maxStamina: p.maxStamina || 100,
+          mana: p.mana || 25,
+          maxMana: p.maxMana || 25,
+          gold: p.gold || 0,
+          xp: p.xp || 0,
+          level: p.level || 1,
+          role: p.role,
+          inventory: p.inventory || [],
+          equipment: p.equipment || {},
+          reputation: p.reputation || {},
+          questStatus: this.questSystem.getQuestStatus(p),
+          appearance: resolvedAppearance
+        };
+      }),
       npcs: npcsWithGlb,
       loot: lootWithGlb,
       onlinePlayers: this.socketToPlayer.size
