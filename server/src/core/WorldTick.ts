@@ -1067,6 +1067,7 @@ export class WorldTick {
 
   async init() {
     await this.persistence.init();
+    await this.craftingSystem.loadRecipes();
     const savedData = await this.persistence.load();
     for (const name in savedData) {
       const player = savedData[name];
