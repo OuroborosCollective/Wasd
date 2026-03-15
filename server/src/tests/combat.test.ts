@@ -70,6 +70,7 @@ describe("CombatSystem", () => {
     const defender = { skills: { combat: { level: 1000 } } };
     expect(combat.hitChance(attacker, defender)).toBe(0.1);
 
+
   });
 
   // ---- calculateDamage -----------------------------------------------------

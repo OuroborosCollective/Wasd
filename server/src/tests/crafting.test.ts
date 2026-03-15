@@ -98,6 +98,7 @@ describe("CraftingSystem", () => {
     const result = crafting.craft({}, recipe);
     expect(result.xp).toBe(0);
   });
+
 });
 
 // ---------------------------------------------------------------------------
@@ -165,5 +166,25 @@ describe("RecipeMatcher", () => {
     const found = matcher.match([], recipes);
     expect(found).toBeNull();
 
+
   });
+});
+
+// ---------------------------------------------------------------------------
+// RecipeMatcher
+// ---------------------------------------------------------------------------
+describe("RecipeMatcher", () => {
+  const recipes = [
+    { inputs: ["iron_ingot", "wood_handle"], id: "iron_sword" },
+    { inputs: ["gold_ingot", "gem"], id: "gold_ring" },
+  ];
+  let matcher: RecipeMatcher;
+
+  beforeEach(() => { matcher = new RecipeMatcher(); });
+
+  it("matches when inputs exactly match recipe (same order)", () => {
+    const found = matcher.match(["iron_ingot", "wood_handle"], recipes);
+    expect(found?.id).toBe("iron_sword");
+  });
+
 });

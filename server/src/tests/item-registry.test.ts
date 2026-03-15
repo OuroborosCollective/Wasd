@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+
 import fs from "fs";
 import path from "path";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
@@ -28,6 +29,7 @@ describe("ItemRegistry", () => {
 
     // Default path resolve mock
     (path.resolve as any).mockReturnValue("/mocked/path/items.json");
+
   });
 
   afterEach(() => {
@@ -101,6 +103,7 @@ describe("ItemRegistry", () => {
       (fs.existsSync as any).mockReturnValue(false);
 
       const item = ItemRegistry.getItem("unknown_item");
+
       expect(item).toBeUndefined();
     });
   });
@@ -123,6 +126,7 @@ describe("ItemRegistry", () => {
       (fs.existsSync as any).mockReturnValue(false);
 
       const instance = ItemRegistry.createInstance("unknown_item");
+
       expect(instance).toBeNull();
     });
   });
@@ -160,6 +164,9 @@ describe("ItemRegistry", () => {
 
     it("should return null if item is null", () => {
       expect(ItemRegistry.hydrate(null)).toBeNull();
+
     });
+
   });
+
 });
