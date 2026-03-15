@@ -18,6 +18,7 @@ import { LootSystem } from "../modules/loot/LootSystem.js";
 import { cache } from "./Cache.js";
 import fs from "fs";
 import path from "path";
+import { GameConfig } from "../config/GameConfig.js";
 
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 
@@ -479,7 +480,7 @@ export class WorldTick {
     if (!npc || npc.health === undefined) return;
 
     const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
-    if (dist > 35) {
+    if (dist > GameConfig.attackDistance) {
       this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Target is too far away." });
       return;
     }
@@ -580,11 +581,12 @@ export class WorldTick {
 
     if (npc) {
       const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
-      if (dist > 25) {
+      if (dist > GameConfig.interactDistance) {
         this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Target is too far away." });
         return;
       }
 
+      // Check if NPC is a shopkeeper
       if (npc.shopId) {
         const shopItems = this.economySystem.getShop(npc.shopId);
         this.ws.sendToPlayer(id, { type: "shop_data", shopId: npc.shopId, items: shopItems, npcName: npc.name });
@@ -637,7 +639,7 @@ export class WorldTick {
       }
     } else if (loot) {
       const dist = Math.hypot(player.position.x - loot.position.x, player.position.y - loot.position.y);
-      if (dist > 25) {
+      if (dist > GameConfig.interactDistance) {
         this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Too far away." });
         return;
       }

@@ -36,10 +36,10 @@ describe("PayloadValidator", () => {
     expect(validator.validateObject(undefined)).toBe(false);
   });
 
-  it("rejects an array (arrays are objects but behave as objects)", () => {
+  it("rejects an array", () => {
     // Arrays are typeof "object" and not null, so the validator returns true.
     // This test documents the current behaviour.
-    expect(validator.validateObject([1, 2, 3])).toBe(true);
+    expect(validator.validateObject([1, 2, 3])).toBe(false);
   });
 });
 

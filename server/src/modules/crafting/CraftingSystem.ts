@@ -17,18 +17,22 @@ export class CraftingSystem {
   private recipes: Map<string, Recipe> = new Map();
 
   constructor() {
-    this.loadRecipes();
   }
 
-  private loadRecipes() {
+  async loadRecipes() {
     try {
       const recipesPath = path.resolve(process.cwd(), "game-data/crafting/recipes.json");
-      if (fs.existsSync(recipesPath)) {
-        const data = JSON.parse(fs.readFileSync(recipesPath, "utf-8"));
+      try {
+        const fileContent = await fs.promises.readFile(recipesPath, "utf-8");
+        const data = JSON.parse(fileContent);
         if (Array.isArray(data)) {
           data.forEach((r: Recipe) => this.recipes.set(r.id, r));
         } else if (data.recipes) {
           data.recipes.forEach((r: Recipe) => this.recipes.set(r.id, r));
+        }
+      } catch (err: any) {
+        if (err.code !== 'ENOENT') {
+          throw err;
         }
       }
     } catch (e) {
