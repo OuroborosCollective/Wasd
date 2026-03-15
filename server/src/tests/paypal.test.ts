@@ -1,189 +1,212 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createPayPalOrder, capturePayPalOrder, getPayPalToken, verifyPayPalWebhook } from "../modules/payment/PayPalService.js";
+import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import https from "https";
 import EventEmitter from "events";
-import { capturePayPalOrder } from "../modules/payment/PayPalService.js";
-import { EventEmitter } from "events";
-vi.mock("https", () => ({
-  default: {
-    request: vi.fn(),
-  },
-}));
+import {
+  getPayPalToken,
+  createPayPalOrder,
+  capturePayPalOrder,
+  verifyPayPalWebhook,
+  MATRIX_PACKAGES,
+  GLB_SUBSCRIPTION
+} from "../modules/payment/PayPalService.js";
+
+
+
+vi.mock("https", () => {
+  return {
+    default: {
+      request: vi.fn(),
+    },
+  };
+});
+
 describe("PayPalService", () => {
-  describe("createPayPalOrder edge cases", () => {
-    it("throws an error for an unknown product ID", async () => {
-      // Mock https.request to immediately resolve a fake token payload
-      // so `getPayPalToken` succeeds and we reach the productId check
-      const mockRequest = vi.fn((options, cb) => {
-        const req = new EventEmitter();
-        (req as any).write = vi.fn();
-        (req as any).end = vi.fn(() => {
-          const res = new EventEmitter();
-          if (cb) cb(res);
-          res.emit("data", JSON.stringify({ access_token: "fake_token" }));
-          res.emit("end");
-        });
-        return req;
-      });
-      (https.request as any) = mockRequest;
-
-      await expect(
-        createPayPalOrder("unknown_product", "player1", "Alice", "http://return", "http://cancel")
-      ).rejects.toThrow("Unknown product: unknown_product");
-
-
-// Mock the https module
-vi.mock("https");
-
-describe("PayPalService - capturePayPalOrder", () => {
-  let mockRequest: any;
-  let mockResponse: any;
+  let requestMock: any;
 
   beforeEach(() => {
+    process.env.PAYPAL_CLIENT_ID = "test_client_id";
+    process.env.PAYPAL_SECRET = "test_secret";
+
+    requestMock = vi.fn();
+    (https.request as any) = requestMock;
+  });
+
+  afterEach(() => {
     vi.clearAllMocks();
+  });
 
-    mockResponse = new EventEmitter();
-    (mockResponse as any).statusCode = 200;
+  function mockHttpsResponses(responses: Array<{ statusCode: number; data: any; shouldReject?: boolean }>) {
+    let callCount = 0;
+    requestMock.mockImplementation((options: any, callback: any) => {
+      const response = responses[callCount++];
+      const req = new EventEmitter() as any;
+      req.write = vi.fn();
+      req.end = vi.fn(() => {
+        if (response.shouldReject) {
+          req.emit("error", new Error("Network error"));
+          return;
+        }
+        const res = new EventEmitter() as any;
+        res.statusCode = response.statusCode;
+        if (callback) callback(res);
+        res.emit("data", typeof response.data === "string" ? response.data : JSON.stringify(response.data));
+        res.emit("end");
+      });
+      return req;
+    });
+  }
 
-    mockRequest = new EventEmitter();
-    mockRequest.write = vi.fn();
-    mockRequest.end = vi.fn(() => {
-      // Check which URL is being requested to mock properly
-      if (mockRequest.isTokenRequest) {
-        mockResponse.emit("data", JSON.stringify({ access_token: "fake-token" }));
-      } else {
-        // Capture order request
-        mockResponse.emit("data", JSON.stringify(mockResponse.mockData || { status: "COMPLETED" }));
-      }
-      mockResponse.emit("end");
+  describe("getPayPalToken", () => {
+    it("should return an access token on success", async () => {
+      mockHttpsResponses([{ statusCode: 200, data: { access_token: "mock_token" } }]);
+      const token = await getPayPalToken();
+      expect(token).toBe("mock_token");
+      expect(requestMock).toHaveBeenCalled();
+      const options = requestMock.mock.calls[0][0];
+      expect(options.method).toBe("POST");
+      expect(options.path).toBe("/v1/oauth2/token");
     });
 
-    (https.request as any).mockImplementation((options: any, callback: any) => {
-      // Determine if it's the token request or capture request
-      mockRequest.isTokenRequest = options.path === "/v1/oauth2/token";
+    it("should throw an error on failure", async () => {
+      mockHttpsResponses([{ statusCode: 400, data: { error: "invalid_client" } }]);
+      await expect(getPayPalToken()).rejects.toThrow();
+    });
 
-      // Store the callback so we can provide our mock response
-      if (callback) {
-        // Run it immediately
-        callback(mockResponse);
-      }
-      return mockRequest;
+    it("should throw on network error", async () => {
+      mockHttpsResponses([{ statusCode: 0, data: {}, shouldReject: true }]);
+      await expect(getPayPalToken()).rejects.toThrow("Network error");
     });
   });
 
-  it("should capture order successfully and parse custom_id as valid JSON", async () => {
-    const customData = {
-      playerId: "player123",
-      productId: "matrix_100",
-      playerName: "Hero"
-    };
+  describe("createPayPalOrder", () => {
+    it("should create an order for GLB subscription", async () => {
+      mockHttpsResponses([
+        { statusCode: 200, data: { access_token: "mock_token" } },
+        { statusCode: 200, data: { id: "mock_order_id", links: [{ rel: "approve", href: "https://approve.url" }] } }
+      ]);
+      const result = await createPayPalOrder("glb_subscription_1month", "player1", "Alice", "http://return", "http://cancel");
+      expect(result.orderId).toBe("mock_order_id");
+      expect(result.approveUrl).toBe("https://approve.url");
+    });
 
-    const mockOrderResponse = {
-      status: "COMPLETED",
-      purchase_units: [
-        {
-          reference_id: "player123_matrix_100_1680000000",
-          custom_id: JSON.stringify(customData),
-          payments: {
-            captures: [
-              {
-                amount: { value: "4.99", currency_code: "EUR" }
-              }
-            ]
-          }
-        }
-      ]
-    };
+    it("should create an order for Matrix Energy package", async () => {
+      mockHttpsResponses([
+        { statusCode: 200, data: { access_token: "mock_token" } },
+        { statusCode: 200, data: { id: "mock_order_id", links: [{ rel: "approve", href: "https://approve.url" }] } }
+      ]);
+      const result = await createPayPalOrder("matrix_100", "player1", "Alice", "http://return", "http://cancel");
+      expect(result.orderId).toBe("mock_order_id");
+    });
 
-    mockResponse.mockData = mockOrderResponse;
+    it("should throw an error for unknown product", async () => {
+      mockHttpsResponses([
+        { statusCode: 200, data: { access_token: "mock_token" } }
+      ]);
+      await expect(createPayPalOrder("unknown_product", "player1", "Alice", "http://return", "http://cancel")).rejects.toThrow("Unknown product");
+    });
 
-    const result = await capturePayPalOrder("order_123");
-
-    expect(result.success).toBe(true);
-    expect(result.playerId).toBe("player123");
-    expect(result.productId).toBe("matrix_100");
-    expect(result.playerName).toBe("Hero");
-    expect(result.amount).toBe("4.99");
-    expect(result.currency).toBe("EUR");
+    it("should throw an error if order creation fails without an id", async () => {
+      mockHttpsResponses([
+        { statusCode: 200, data: { access_token: "mock_token" } },
+        { statusCode: 400, data: { error: "invalid_request" } }
+      ]);
+      await expect(createPayPalOrder("matrix_100", "player1", "Alice", "http://return", "http://cancel")).rejects.toThrow("PayPal order creation failed");
+    });
   });
 
-  it("should handle malformed JSON custom_id silently (catch block) without throwing unhandled exceptions", async () => {
-    // Malformed JSON string that starts with '{' to trigger the JSON.parse block
-    const malformedJson = "{ \"playerId\": \"player123\", \"productId\": \"matrix_100\", \"playerName\": \"Hero\" ";
-
-    const mockOrderResponse = {
-      status: "COMPLETED",
-      purchase_units: [
-        {
-          reference_id: "player456_matrix_500_1680000000",
-          custom_id: malformedJson,
-          payments: {
-            captures: [
-              {
-                amount: { value: "19.99", currency_code: "EUR" }
+  describe("capturePayPalOrder", () => {
+    it("should capture order successfully and parse custom_id from JSON", async () => {
+      mockHttpsResponses([
+        { statusCode: 200, data: { access_token: "mock_token" } },
+        { statusCode: 200, data: {
+            status: "COMPLETED",
+            purchase_units: [{
+              reference_id: "ref123",
+              custom_id: JSON.stringify({ playerId: "player1", productId: "matrix_100", playerName: "Alice" }),
+              payments: {
+                captures: [{
+                  amount: { value: "4.99", currency_code: "EUR" }
+                }]
               }
-            ]
+            }]
           }
         }
-      ]
-    };
+      ]);
+      const result = await capturePayPalOrder("mock_order_id");
+      expect(result.success).toBe(true);
+      expect(result.playerId).toBe("player1");
+      expect(result.productId).toBe("matrix_100");
+      expect(result.playerName).toBe("Alice");
+      expect(result.amount).toBe("4.99");
+      expect(result.currency).toBe("EUR");
+    });
 
-    mockResponse.mockData = mockOrderResponse;
-
-    const result = await capturePayPalOrder("order_123");
-
-    expect(result.success).toBe(true);
-    // Because JSON parsing fails, the catch block is hit. The variables playerId, productId, playerName are not updated.
-    expect(result.playerId).toBe("");
-    expect(result.productId).toBe("");
-    expect(result.playerName).toBe("");
-
-    expect(result.amount).toBe("19.99");
-    expect(result.currency).toBe("EUR");
-  });
-
-  it("should handle fallback logic correctly when custom_id is undefined or not JSON", async () => {
-    const mockOrderResponse = {
-      status: "COMPLETED",
-      purchase_units: [
-        {
-          // format "playerId_productId_timestamp"
-          reference_id: "player456_matrix_500_1680000000",
-          // no custom_id here
-          payments: {
-            captures: [
-              {
-                amount: { value: "19.99", currency_code: "EUR" }
+    it("should fallback to parsing reference_id if custom_id is not JSON", async () => {
+      mockHttpsResponses([
+        { statusCode: 200, data: { access_token: "mock_token" } },
+        { statusCode: 200, data: {
+            status: "COMPLETED",
+            purchase_units: [{
+              reference_id: "player2_matrix_500_123456789",
+              payments: {
+                captures: [{
+                  amount: { value: "19.99", currency_code: "EUR" }
+                }]
               }
-            ]
+            }]
           }
         }
-      ]
-    };
+      ]);
+      const result = await capturePayPalOrder("mock_order_id");
+      expect(result.success).toBe(true);
+      expect(result.playerId).toBe("player2");
+      expect(result.productId).toBe("matrix_500");
+    });
 
-    mockResponse.mockData = mockOrderResponse;
-
-    const result = await capturePayPalOrder("order_123");
-
-    expect(result.success).toBe(true);
-    // Because customRaw is missing or does not start with '{', it goes to the 'else' block
-    // where the fallback logic operates.
-    expect(result.playerId).toBe("player456");
-    expect(result.productId).toBe("matrix_500");
-    expect(result.playerName).toBe("");
-
-    expect(result.amount).toBe("19.99");
-    expect(result.currency).toBe("EUR");
+    it("should return false if status is not COMPLETED", async () => {
+      mockHttpsResponses([
+        { statusCode: 200, data: { access_token: "mock_token" } },
+        { statusCode: 200, data: { status: "PENDING" } }
+      ]);
+      const result = await capturePayPalOrder("mock_order_id");
+      expect(result.success).toBe(false);
+    });
   });
 
-  it("should return success: false if order is not COMPLETED", async () => {
-    mockResponse.mockData = { status: "PENDING" };
+  describe("verifyPayPalWebhook", () => {
+    it("should return true if verification is SUCCESS", async () => {
+      mockHttpsResponses([
+        { statusCode: 200, data: { access_token: "mock_token" } },
+        { statusCode: 200, data: { verification_status: "SUCCESS" } }
+      ]);
+      const result = await verifyPayPalWebhook(
+        { "paypal-auth-algo": "algo", "paypal-cert-url": "url", "paypal-transmission-id": "id", "paypal-transmission-sig": "sig", "paypal-transmission-time": "time" },
+        JSON.stringify({ event: "test" }),
+        "webhook_id"
+      );
+      expect(result).toBe(true);
+    });
 
-    const result = await capturePayPalOrder("order_123");
 
-    expect(result.success).toBe(false);
-
-      const result = await verifyPayPalWebhook(headers, body, "webhook_id");
+    it("should return false if verification is not SUCCESS", async () => {
+      mockHttpsResponses([
+        { statusCode: 200, data: { access_token: "mock_token" } },
+        { statusCode: 200, data: { verification_status: "FAILURE" } }
+      ]);
+      const result = await verifyPayPalWebhook({}, "{}", "webhook_id");
       expect(result).toBe(false);
-      expect(https.request).toHaveBeenCalledTimes(2);
+    });
+
+    it("should return false on network error during verification", async () => {
+      mockHttpsResponses([
+        { statusCode: 200, data: { access_token: "mock_token" } },
+        { statusCode: 0, data: {}, shouldReject: true }
+      ]);
+      const result = await verifyPayPalWebhook({}, "{}", "webhook_id");
+      expect(result).toBe(false);
+
+    });
+  });
+});
+
 
