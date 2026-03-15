@@ -82,6 +82,7 @@ describe("CraftingSystem", () => {
     };
     const result = crafting.craft(player, "iron_sword_craft");
     expect(result.xp).toBe(50);
+
   });
 
 });
