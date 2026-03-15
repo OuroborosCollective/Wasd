@@ -5,6 +5,7 @@ import { RecipeMatcher } from "../modules/crafting/RecipeMatcher.js";
 import fs from "node:fs";
 import path from "node:path";
 
+
 // ---------------------------------------------------------------------------
 // CraftingSystem
 // ---------------------------------------------------------------------------
@@ -21,73 +22,81 @@ describe("CraftingSystem", () => {
     await crafting.loadRecipes();
   });
 
-  it("canCraft() returns true when player meets level and has ingredients", () => {
-    const player = {
-      skills: { smithing: { level: 5 } },
-      inventory: [
-        { id: "iron_scrap" },
-        { id: "iron_scrap" },
-        { id: "iron_scrap" }
-      ]
-    };
-    const result = crafting.canCraft(player, "iron_sword_craft");
-    if (!result.possible) console.log("canCraft failure reason:", result.reason);
 
-    expect(result.possible).toBe(true);
+  it("canCraft() returns true when player meets level and has ingredients", () => {
+    const player = { skills: { smithing: { level: 5 } } };
+    const inventory = [
+      { id: "iron_ingot", amount: 2 },
+      { id: "wood_handle", amount: 1 },
+    ];
+    expect(crafting.canCraft(player, ironSwordRecipe, inventory)).toBe(true);
   });
 
   it("canCraft() returns false when skill level is too low", () => {
-    // Wait, requiredLevel is 1 for iron_sword_craft. Let's make level 0 to fail.
-    const player = {
-      skills: { smithing: { level: 0 } },
-      inventory: [
-        { id: "iron_scrap" },
-        { id: "iron_scrap" },
-        { id: "iron_scrap" }
-
-      ]
-    };
-    const result = crafting.canCraft(player, "iron_sword_craft");
-    expect(result.possible).toBe(false);
+    const player = { skills: { smithing: { level: 4 } } };
+    const inventory = [
+      { id: "iron_ingot", amount: 2 },
+      { id: "wood_handle", amount: 1 },
+    ];
+    expect(crafting.canCraft(player, ironSwordRecipe, inventory)).toBe(false);
   });
 
   it("canCraft() returns false when ingredient is missing", () => {
-    const player = {
-      skills: { smithing: { level: 10 } },
-      inventory: []
-
-    };
-    const result = crafting.canCraft(player, "iron_sword_craft");
-    expect(result.possible).toBe(false);
+    const player = { skills: { smithing: { level: 10 } } };
+    const inventory = [{ id: "iron_ingot", amount: 2 }]; // missing wood_handle
+    expect(crafting.canCraft(player, ironSwordRecipe, inventory)).toBe(false);
   });
 
-  it("craft() returns success: true", () => {
-    const player = {
-      skills: { smithing: { level: 5 } },
-      inventory: [
-        { id: "iron_scrap" },
-        { id: "iron_scrap" },
-        { id: "iron_scrap" }
+  it("canCraft() returns false when ingredient amount is insufficient", () => {
+    const player = { skills: { smithing: { level: 10 } } };
+    const inventory = [
+      { id: "iron_ingot", amount: 1 }, // need 2
+      { id: "wood_handle", amount: 1 },
+    ];
+    expect(crafting.canCraft(player, ironSwordRecipe, inventory)).toBe(false);
+  });
 
-      ]
-    };
-    const result = crafting.craft(player, "iron_sword_craft");
-    expect(result.success).toBe(true);
+  it("canCraft() returns false when player has no skills object", () => {
+    const player = {};
+    const inventory = [
+      { id: "iron_ingot", amount: 2 },
+      { id: "wood_handle", amount: 1 },
+    ];
+    expect(crafting.canCraft(player, ironSwordRecipe, inventory)).toBe(false);
+  });
+
+  it("craft() returns crafted: true", () => {
+    const result = crafting.craft({}, ironSwordRecipe);
+    expect(result.crafted).toBe(true);
+  });
+
+  it("craft() returns the correct itemId", () => {
+    const result = crafting.craft({}, ironSwordRecipe);
+    expect(result.itemId).toBe("iron_sword");
+  });
+
+  it("craft() returns the correct amount", () => {
+    const result = crafting.craft({}, ironSwordRecipe);
+    expect(result.amount).toBe(1);
   });
 
   it("craft() returns the correct xp", () => {
-    const player = {
-      skills: { smithing: { level: 5 } },
-      inventory: [
-        { id: "iron_scrap" },
-        { id: "iron_scrap" },
-        { id: "iron_scrap" }
+    const result = crafting.craft({}, ironSwordRecipe);
+    expect(result.xp).toBe(20);
+  });
 
-      ]
-    };
-    const result = crafting.craft(player, "iron_sword_craft");
-    expect(result.xp).toBe(50);
+  it("craft() defaults amount to 1 if result.amount is undefined", () => {
+    const recipe = { ...ironSwordRecipe, result: { id: "widget" } };
+    const result = crafting.craft({}, recipe);
+    expect(result.amount).toBe(1);
+  });
 
+  it("craft() defaults xp to 0 if recipe.xp is undefined", () => {
+    const recipe = { ...ironSwordRecipe };
+    // @ts-ignore
+    delete recipe.xp;
+    const result = crafting.craft({}, recipe);
+    expect(result.xp).toBe(0);
   });
 
 });
@@ -108,6 +117,7 @@ describe("RecipeRegistry", () => {
 describe("RecipeRegistry", () => {
   it("contains the iron_sword recipe", () => {
     expect(RecipeRegistry.iron_sword).toBeDefined();
+
   });
 });
 
@@ -127,6 +137,7 @@ describe("RecipeMatcher", () => {
     const found = matcher.match(["iron_ingot", "wood_handle"], recipes);
     expect(found?.id).toBe("iron_sword");
   });
+
 });
 
 // ---------------------------------------------------------------------------

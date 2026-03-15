@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { createPayPalOrder } from "../modules/payment/PayPalService.js";
 import https from "https";
+import EventEmitter from "events";
+import { capturePayPalOrder } from "../modules/payment/PayPalService.js";
 import { EventEmitter } from "events";
 
 
@@ -27,7 +29,9 @@ describe("PayPalService", () => {
       await expect(
         createPayPalOrder("unknown_product", "player1", "Alice", "http://return", "http://cancel")
       ).rejects.toThrow("Unknown product: unknown_product");
+
     });
   });
 });
+
 
