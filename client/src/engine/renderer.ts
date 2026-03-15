@@ -9,7 +9,26 @@ const modelCache = new Map<string, THREE.Group>();
 
 function loadModel(path: string, callback: (model: THREE.Group) => void, errorCallback?: (err: any) => void) {
   if (modelCache.has(path)) { callback(modelCache.get(path)!.clone()); return; }
-  gltfLoader.load(path, (gltf) => { modelCache.set(path, gltf.scene); callback(gltf.scene.clone()); }, undefined, (err) => {
+  gltfLoader.load(path, (gltf) => {
+    gltf.scene.traverse((child) => {
+      const mesh = child as THREE.Mesh;
+      if (mesh.isMesh) {
+        let isOpaque = true;
+        if (mesh.material) {
+          const mat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+          if (mat.transparent && mat.opacity < 0.9) {
+             isOpaque = false;
+          }
+        }
+        if (isOpaque && mesh.name.toLowerCase().indexOf('bound') === -1) {
+          mesh.castShadow = !isMobile();
+        }
+        mesh.receiveShadow = true;
+      }
+    });
+    modelCache.set(path, gltf.scene);
+    callback(gltf.scene.clone());
+  }, undefined, (err) => {
     console.warn("Model load error:", path, err);
     if (errorCallback) errorCallback(err);
   });
