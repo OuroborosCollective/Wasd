@@ -179,20 +179,20 @@ export class WorldTick {
         this.ws.sendToPlayer(id, { type: "skills_data", skills: this.skillSystem.getAllSkills(player) });
         break;
       case "admin_glb_scan":
-        if (player.role !== "admin") return;
+        if (player.role !== "admin" && player.role !== "gm") return;
         this.ws.sendToPlayer(id, { type: "admin_glb_scan_result", models: this.glbRegistry.scanModels() });
         break;
       case "admin_glb_list":
-        if (player.role !== "admin") return;
+        if (player.role !== "admin" && player.role !== "gm") return;
         this.ws.sendToPlayer(id, { type: "admin_glb_list_result", links: this.glbRegistry.getLinks() });
         break;
       case "admin_glb_link":
-        if (player.role !== "admin") return;
+        if (player.role !== "admin" && player.role !== "gm") return;
         this.glbRegistry.addLink({ glbPath: msg.glbPath, targetType: msg.targetType, targetId: msg.targetId });
         this.ws.sendToPlayer(id, { type: "admin_glb_list_result", links: this.glbRegistry.getLinks() });
         break;
       case "admin_glb_unlink":
-        if (player.role !== "admin") return;
+        if (player.role !== "admin" && player.role !== "gm") return;
         this.glbRegistry.removeLink(msg.targetType, msg.targetId);
         this.ws.sendToPlayer(id, { type: "admin_glb_list_result", links: this.glbRegistry.getLinks() });
         break;

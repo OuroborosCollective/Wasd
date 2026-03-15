@@ -11,7 +11,7 @@ export class GLBRegistry {
   private links: GLBLink[] = [];
   // Optimization: Map for O(1) lookups of GLB paths by targetType:targetId
   private linksMap: Map<string, string> = new Map();
-  private modelsDir = path.resolve(process.cwd(), '../client/public/assets/models');
+  private modelsDir = path.resolve(process.cwd(), 'public/models');
 
   constructor() {
     this.loadLinks();
@@ -50,7 +50,7 @@ export class GLBRegistry {
         if (fs.statSync(fullPath).isDirectory()) {
           scanDir(fullPath);
         } else if (file.endsWith('.glb')) {
-          models.push('/assets/models/' + path.relative(this.modelsDir, fullPath).replace(/\\/g, '/'));
+          models.push('/models/' + path.relative(this.modelsDir, fullPath).replace(/\\/g, '/'));
         }
       }
     };

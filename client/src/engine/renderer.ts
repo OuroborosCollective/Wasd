@@ -7,9 +7,12 @@ import { initMobileControls, getJoystickState, isMobile } from "../ui/mobileCont
 const gltfLoader = new GLTFLoader();
 const modelCache = new Map<string, THREE.Group>();
 
-function loadModel(path: string, callback: (model: THREE.Group) => void) {
+function loadModel(path: string, callback: (model: THREE.Group) => void, errorCallback?: (err: any) => void) {
   if (modelCache.has(path)) { callback(modelCache.get(path)!.clone()); return; }
-  gltfLoader.load(path, (gltf) => { modelCache.set(path, gltf.scene); callback(gltf.scene.clone()); }, undefined, (err) => console.warn("Model load error:", path, err));
+  gltfLoader.load(path, (gltf) => { modelCache.set(path, gltf.scene); callback(gltf.scene.clone()); }, undefined, (err) => {
+    console.warn("Model load error:", path, err);
+    if (errorCallback) errorCallback(err);
+  });
 }
 
 function applyColorTints(model: THREE.Object3D, skinColor?: string, hairColor?: string, eyeColor?: string): void {
@@ -362,29 +365,36 @@ export function updateWorldState(state: any, playerId: string | null) {
   const currentPlayers = new Set<string>();
   for (const p of state.players || []) {
     currentPlayers.add(p.id);
-    if (!playerMeshes.has(p.id)) {
+       if (!playerMeshes.has(p.id)) {
       const g = new THREE.Group();
       g.position.set(p.position.x, getTerrainHeight(p.position.x, p.position.y), p.position.y);
       scene.add(g); playerMeshes.set(p.id, g);
-
-        if (p.appearance) {
+      if (p.appearance) {
+        console.log(`[Renderer] Loading GLB for player ${p.id}`, p.appearance);
         // Load modular GLB character using resolved paths from server
-        const bodyUrl = p.appearance.bodyUrl || `/models/characters/bodies/Body_${p.appearance.gender || 'male'}.glb`;
-        const headUrl = p.appearance.headUrl || (p.appearance.gender === 'female' ? '/models/characters/heads/Head_female1.glb' : '/models/characters/heads/Head_male1.glb');
+        let bodyUrl = p.appearance.bodyUrl || `/models/characters/bodies/Body_${p.appearance.gender || 'male'}.glb`;
+        let headUrl = p.appearance.headUrl || (p.appearance.gender === 'female' ? '/models/characters/heads/Head_female1.glb' : '/models/characters/heads/Head_male1.glb');
+
+        // Ensure paths are absolute for the loader
+        if (!bodyUrl.startsWith('/')) bodyUrl = '/' + bodyUrl;
+        if (!headUrl.startsWith('/')) headUrl = '/' + headUrl;
 
         loadModel(bodyUrl, (body) => {
+          console.log(`[Renderer] Body loaded for ${p.id}: ${bodyUrl}`);
           body.scale.set(p.appearance.widthScale || 1, p.appearance.heightScale || 1, p.appearance.widthScale || 1);
           applyColorTints(body, p.appearance.skinToneColor, p.appearance.hairColor, p.appearance.eyeColor);
           g.add(body);
-        });
+        }, (err) => console.error(`[Renderer] Failed to load body for ${p.id}`, err));
+
         loadModel(headUrl, (head) => {
+          console.log(`[Renderer] Head loaded for ${p.id}: ${headUrl}`);
           // Use a consistent scale for the head
           const headScale = 0.8;
           head.scale.set(headScale, headScale, headScale);
           head.position.y = 1.65 * (p.appearance.heightScale || 1);
           applyColorTints(head, p.appearance.skinToneColor, p.appearance.hairColor, p.appearance.eyeColor);
           g.add(head);
-        });
+        }, (err) => console.error(`[Renderer] Failed to load head for ${p.id}`, err));
       } else {
         // Fallback to capsule if no appearance data
         const isMe = p.id === playerId;
