@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+
 import fs from "fs";
 import path from "path";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
@@ -28,6 +29,7 @@ describe("ItemRegistry", () => {
 
     // Default path resolve mock
     (path.resolve as any).mockReturnValue("/mocked/path/items.json");
+
   });
 
   afterEach(() => {
@@ -161,5 +163,6 @@ describe("ItemRegistry", () => {
     it("should return null if item is null", () => {
       expect(ItemRegistry.hydrate(null)).toBeNull();
     });
+
   });
 });
