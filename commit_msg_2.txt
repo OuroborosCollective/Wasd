@@ -1,0 +1,6 @@
+🧹 Consolidate remaining hard-coded configuration values in WorldTick
+
+🎯 **What:** The magic numbers for player speed (`3`) and max loot despawn duration (`300000`) in `server/src/core/WorldTick.ts` were replaced with `GameConfig.playerSpeed` and `GameConfig.lootDespawnMs`.
+💡 **Why:** This improves maintainability and readability by centralizing configurable values and standardizing access alongside the other constants recently updated in `WorldTick.ts`.
+✅ **Verification:** Added dedicated test coverage in `misc-modules.test.ts` for the newly configured properties. Ran `pnpm test server/src/tests/world.test.ts` and `misc-modules.test.ts` to ensure everything works properly and existing behavior is preserved.
+✨ **Result:** Better code clarity, no loss of functionality, and robust tests ensuring correctness.
