@@ -1,3 +1,4 @@
+import { afterEach } from "vitest";
 import { describe, it, expect, beforeEach } from "vitest";
 import { QuestRewards } from "../modules/quests/QuestRewards.js";
 import { QuestStateStore } from "../modules/quests/QuestStateStore.js";
@@ -73,5 +74,61 @@ describe("QuestStateStore", () => {
     expect(store.list("p1")).toHaveLength(1);
     expect(store.list("p2")).toHaveLength(1);
     expect(store.list("p1")[0].id).toBe("q1");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// QuestEngine
+// ---------------------------------------------------------------------------
+import { QuestEngine } from "../modules/quest/QuestEngine.js";
+import fs from "fs";
+import { vi } from "vitest";
+
+describe("QuestEngine", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("handles fs.existsSync throwing an error during loadData", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(fs, "existsSync").mockImplementation(() => {
+      throw new Error("Disk read error");
+    });
+
+    const engine = new QuestEngine();
+
+    expect(errorSpy).toHaveBeenCalled();
+    expect(errorSpy.mock.calls[0][0]).toContain("Error loading Quest data:");
+    expect(engine.getQuestDefinitions().size).toBe(0);
+  });
+
+  it("handles fs.readFileSync throwing an error during loadData", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(fs, "existsSync").mockReturnValue(true);
+    vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+      throw new Error("File read error");
+    });
+
+    const engine = new QuestEngine();
+
+    expect(errorSpy).toHaveBeenCalled();
+    expect(errorSpy.mock.calls[0][0]).toContain("Error loading Quest data:");
+    expect(engine.getQuestDefinitions().size).toBe(0);
+  });
+
+  it("handles JSON.parse throwing an error during loadData", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(fs, "existsSync").mockReturnValue(true);
+    vi.spyOn(fs, "readFileSync").mockReturnValue("invalid json {{");
+
+    const engine = new QuestEngine();
+
+    expect(errorSpy).toHaveBeenCalled();
+    expect(errorSpy.mock.calls[0][0]).toContain("Error loading Quest data:");
+    expect(engine.getQuestDefinitions().size).toBe(0);
   });
 });
