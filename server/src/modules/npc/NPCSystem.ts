@@ -247,6 +247,10 @@ export class NPCSystem {
     return Array.from(this.npcs.values());
   }
 
+  removeNPC(id: string) {
+    this.npcs.delete(id);
+  }
+
   tick(players: any[]) {
     // Process NPC AI, schedules, needs
     const now = Date.now();
@@ -328,7 +332,6 @@ export class NPCSystem {
             npc.position.x += (dx / dist) * speed;
             npc.position.y += (dy / dist) * speed;
           }
-            if (Math.random() < 0.005) { npc.lastShout = ["Keep moving!", "Lovely weather, eh?", "Areloria is beautiful today.", "Stay safe!"][Math.floor(Math.random() * 4)]; }
         }
       }
     }

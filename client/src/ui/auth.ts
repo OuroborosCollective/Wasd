@@ -1,7 +1,7 @@
 import { auth } from "../auth/firebase";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
 
-export function renderAuthUI(onLogin: () => void) {
+export function renderAuthUI(onLogin: (displayName: string, uid?: string) => void) {
   const container = document.createElement("div");
   container.id = "auth-container";
   container.style.position = "absolute";
@@ -101,7 +101,8 @@ export function renderAuthUI(onLogin: () => void) {
   const unsubscribe = onAuthStateChanged(auth, (user) => {
     if (user) {
       container.style.display = "none";
-      onLogin();
+      const displayName = user.displayName || user.email?.split("@")[0] || "Adventurer";
+      onLogin(displayName, user.uid);
     } else {
       container.style.display = "flex";
     }

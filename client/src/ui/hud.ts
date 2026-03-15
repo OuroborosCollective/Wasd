@@ -1,361 +1,524 @@
 import { sendDialogueChoice } from "../networking/websocketClient";
 import { toggleAdminAssetPanel } from "./adminAssetPanel";
 
+// ─── State ───────────────────────────────────────────────────────────────────
+let _ws: WebSocket | null = null;
+let _myPlayer: any = null;
+let _minimapCanvas: HTMLCanvasElement | null = null;
+let _minimapCtx: CanvasRenderingContext2D | null = null;
+
+export function setHudWebSocket(ws: WebSocket) { _ws = ws; }
+
+function btnStyle(bg: string, border: string) {
+  return `background:${bg};border:1px solid ${border};border-radius:6px;padding:5px 10px;color:#fff;cursor:pointer;font-size:11px;font-family:'Segoe UI',sans-serif;`;
+}
+function closeBtnStyle() {
+  return `background:rgba(200,50,50,0.3);border:1px solid rgba(200,50,50,0.5);border-radius:6px;padding:4px 10px;color:#fff;cursor:pointer;font-size:13px;`;
+}
+function togglePanel(id: string) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = el.style.display === "none" ? "block" : "none";
+}
+
+// ─── Main HUD ─────────────────────────────────────────────────────────────────
 export function renderHUD() {
-  const hud = document.createElement("div");
-  hud.id = "main-hud";
-  hud.style.position = "fixed";
-  hud.style.top = "12px";
-  hud.style.left = "12px";
-  hud.style.padding = "12px";
-  hud.style.background = "rgba(0,0,0,0.7)";
-  hud.style.color = "#fff";
-  hud.style.fontFamily = "sans-serif";
-  hud.style.borderRadius = "8px";
-  hud.style.display = "flex";
-  hud.style.flexDirection = "column";
-  hud.style.gap = "6px";
-  hud.style.minWidth = "200px";
-  hud.style.border = "1px solid rgba(255,255,255,0.1)";
-  
-  hud.innerHTML = `
-    <div style="font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 4px; margin-bottom: 4px; color: #00ff00;">Areloria Alpha</div>
-    <div id="hud-stats" style="font-size: 0.9em;">
-      Gold: 0 | XP: 0
+  document.getElementById("main-hud")?.remove();
+
+  // Tooltip
+  const tooltip = document.createElement("div");
+  tooltip.id = "world-tooltip";
+  tooltip.style.cssText = "position:fixed;bottom:120px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:#fff;padding:6px 14px;border-radius:20px;font-family:sans-serif;font-size:13px;pointer-events:none;z-index:900;display:none;border:1px solid rgba(255,255,255,0.2);";
+  document.body.appendChild(tooltip);
+
+  // Stats bar (bottom center)
+  const statsBar = document.createElement("div");
+  statsBar.id = "hud-stats-bar";
+  statsBar.style.cssText = "position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:16px;align-items:center;background:rgba(0,0,0,0.8);border:1px solid rgba(255,255,255,0.15);border-radius:12px;padding:10px 20px;z-index:800;font-family:'Segoe UI',sans-serif;min-width:520px;justify-content:center;";
+  statsBar.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:4px;min-width:150px;">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#ccc;"><span>HP</span><span id="hud-hp-text">100/100</span></div>
+      <div style="background:#333;border-radius:4px;height:10px;overflow:hidden;"><div id="hud-hp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#c00,#f44);border-radius:4px;transition:width 0.3s;"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#ccc;"><span>SP</span><span id="hud-sp-text">100/100</span></div>
+      <div style="background:#333;border-radius:4px;height:8px;overflow:hidden;"><div id="hud-sp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#f80,#fc0);border-radius:4px;transition:width 0.3s;"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#ccc;"><span>MP</span><span id="hud-mp-text">25/25</span></div>
+      <div style="background:#333;border-radius:4px;height:8px;overflow:hidden;"><div id="hud-mp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#008,#44f);border-radius:4px;transition:width 0.3s;"></div></div>
     </div>
-    <div id="hud-matrix" style="font-size: 0.8em; color: #00ffff;">
-      Matrix Energy: 0
+    <div style="display:flex;flex-direction:column;gap:4px;min-width:120px;border-left:1px solid rgba(255,255,255,0.15);padding-left:16px;">
+      <div style="font-size:13px;color:#ffd700;font-weight:bold;" id="hud-name">Adventurer</div>
+      <div style="font-size:11px;color:#aaa;">Lv.<span id="hud-level">1</span> | XP:<span id="hud-xp">0</span></div>
+      <div style="font-size:11px;color:#ffd700;">Gold: <span id="hud-gold">0</span></div>
     </div>
-    <div id="hud-inventory" style="font-size: 0.8em; color: #ffcc00;">
-      Inv: Empty
+    <div style="display:flex;gap:8px;border-left:1px solid rgba(255,255,255,0.15);padding-left:16px;">
+      <div id="cd-attack" style="padding:6px 10px;background:rgba(255,60,60,0.2);border:1px solid rgba(255,60,60,0.4);border-radius:6px;font-size:11px;color:#ff6666;text-align:center;min-width:50px;">[F]<br/>Atk</div>
+      <div id="cd-interact" style="padding:6px 10px;background:rgba(60,255,60,0.2);border:1px solid rgba(60,255,60,0.4);border-radius:6px;font-size:11px;color:#66ff66;text-align:center;min-width:50px;">[E]<br/>Talk</div>
+      <div id="cd-equip" style="padding:6px 10px;background:rgba(60,60,255,0.2);border:1px solid rgba(60,60,255,0.4);border-radius:6px;font-size:11px;color:#6666ff;text-align:center;min-width:50px;">[G]<br/>Equip</div>
     </div>
-    <div id="hud-reputation" style="font-size: 0.8em; color: #ff99ff;">
-      Rep: None
-    </div>
-    <div id="hud-brain" style="font-size: 0.8em; color: #ffffff; background: rgba(0,0,0,0.5); padding: 4px; border-radius: 4px;">
-      World State: Balanced
-    </div>
-    <div id="hud-equipment" style="font-size: 0.8em; color: #00ccff;">
-      Equip: None
-    </div>
-    <div id="hud-quests" style="font-size: 0.85em; color: #aaa; font-style: italic;">
-      Active Quest: None
-    </div>
-    <div id="hud-cooldowns" style="font-size: 0.8em; margin-top: 4px; display: flex; gap: 8px;">
-      <span id="cd-attack" style="color: #00ff00; opacity: 0.5;">[F] Attack</span>
-      <span id="cd-interact" style="color: #00ff00; opacity: 0.5;">[E] Interact</span>
-      <span id="cd-equip" style="color: #00ff00; opacity: 0.5;">[G] Equip</span>
-    </div>
-    <div style="font-size: 0.75em; margin-top: 6px; opacity: 0.6; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px;">
-      WASD: Move | E: Interact | F: Attack | G: Equip First | H: Unequip
-    </div>
-    <button id="btn-admin-assets" style="margin-top: 10px; background: #444; color: white; border: none; padding: 5px; cursor: pointer; display: none;">Admin Assets</button>
   `;
-  
-  document.body.appendChild(hud);
+  document.body.appendChild(statsBar);
 
-  document.getElementById("btn-admin-assets")!.onclick = () => {
-    toggleAdminAssetPanel();
+  // Top-left panel
+  const topLeft = document.createElement("div");
+  topLeft.id = "hud-topleft";
+  topLeft.style.cssText = "position:fixed;top:12px;left:12px;z-index:800;display:flex;flex-direction:column;gap:6px;font-family:'Segoe UI',sans-serif;";
+  topLeft.innerHTML = `
+    <div style="background:rgba(0,0,0,0.8);border:1px solid rgba(255,215,0,0.4);border-radius:8px;padding:8px 14px;color:#ffd700;font-weight:bold;font-size:15px;letter-spacing:2px;">ARELORIA</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <button id="btn-inventory" style="${btnStyle('#1a3a1a', '#4CAF50')}">Inv [I]</button>
+      <button id="btn-quests" style="${btnStyle('#1a1a3a', '#4488ff')}">Quests [Q]</button>
+      <button id="btn-skills" style="${btnStyle('#3a1a1a', '#ff8844')}">Skills [K]</button>
+      <button id="btn-map" style="${btnStyle('#1a2a3a', '#44aaff')}">Map [M]</button>
+    </div>
+    <div style="background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:6px 10px;font-size:11px;color:#aaa;">
+      Weapon: <span id="hud-weapon-name" style="color:#fff;">None</span>
+    </div>
+    <div id="hud-active-quest" style="background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,0,0.2);border-radius:6px;padding:6px 10px;font-size:11px;color:#ffff88;display:none;">
+      Quest: <span id="hud-quest-text">None</span>
+    </div>
+    <button id="btn-admin-assets" style="${btnStyle('#2a2a2a', '#888')}display:none;">Admin</button>
+  `;
+  document.body.appendChild(topLeft);
+
+  // Minimap (top right)
+  const minimapContainer = document.createElement("div");
+  minimapContainer.id = "hud-minimap";
+  minimapContainer.style.cssText = "position:fixed;top:12px;right:12px;z-index:800;background:rgba(0,0,0,0.8);border:2px solid rgba(255,215,0,0.4);border-radius:50%;overflow:hidden;width:140px;height:140px;";
+  _minimapCanvas = document.createElement("canvas");
+  _minimapCanvas.width = 140;
+  _minimapCanvas.height = 140;
+  _minimapCtx = _minimapCanvas.getContext("2d");
+  minimapContainer.appendChild(_minimapCanvas);
+  const compass = document.createElement("div");
+  compass.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;font-size:9px;color:rgba(255,215,0,0.7);font-family:sans-serif;";
+  compass.innerHTML = '<span style="position:absolute;top:2px;left:50%;transform:translateX(-50%)">N</span><span style="position:absolute;bottom:2px;left:50%;transform:translateX(-50%)">S</span><span style="position:absolute;left:2px;top:50%;transform:translateY(-50%)">W</span><span style="position:absolute;right:2px;top:50%;transform:translateY(-50%)">E</span>';
+  minimapContainer.appendChild(compass);
+  document.body.appendChild(minimapContainer);
+
+  // Chat box (bottom left)
+  const chatBox = document.createElement("div");
+  chatBox.id = "hud-chat";
+  chatBox.style.cssText = "position:fixed;bottom:100px;left:12px;z-index:800;width:300px;font-family:'Segoe UI',sans-serif;";
+  chatBox.innerHTML = `
+    <div id="chat-messages" style="background:rgba(0,0,0,0.65);border:1px solid rgba(255,255,255,0.1);border-radius:8px 8px 0 0;padding:8px;height:110px;overflow-y:auto;font-size:12px;color:#ddd;display:flex;flex-direction:column;gap:2px;"></div>
+    <div style="display:flex;">
+      <input id="chat-input" type="text" placeholder="Enter to chat..." maxlength="200" style="flex:1;background:rgba(0,0,0,0.8);border:1px solid rgba(255,255,255,0.2);border-top:none;border-radius:0 0 0 8px;padding:6px 10px;color:#fff;font-size:12px;outline:none;"/>
+      <button id="chat-send" style="background:rgba(60,120,60,0.8);border:1px solid rgba(60,200,60,0.4);border-top:none;border-radius:0 0 8px 0;padding:6px 10px;color:#fff;cursor:pointer;font-size:12px;">Send</button>
+    </div>
+  `;
+  document.body.appendChild(chatBox);
+
+  // Dialogue box
+  const dialogueBox = document.createElement("div");
+  dialogueBox.id = "dialogue-box";
+  dialogueBox.style.cssText = "position:fixed;bottom:160px;left:50%;transform:translateX(-50%);background:rgba(10,10,20,0.95);border:1px solid rgba(100,150,255,0.4);border-radius:12px;padding:16px 20px;max-width:500px;min-width:300px;z-index:1500;display:none;font-family:'Segoe UI',sans-serif;box-shadow:0 4px 20px rgba(0,0,0,0.5);";
+  document.body.appendChild(dialogueBox);
+
+  // Inventory panel
+  const invPanel = document.createElement("div");
+  invPanel.id = "inventory-panel";
+  invPanel.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(10,10,20,0.97);border:1px solid rgba(100,150,255,0.4);border-radius:12px;padding:20px;min-width:360px;max-width:480px;z-index:2000;display:none;font-family:'Segoe UI',sans-serif;color:#fff;box-shadow:0 8px 32px rgba(0,0,0,0.7);";
+  document.body.appendChild(invPanel);
+
+  // Quest panel
+  const questPanel = document.createElement("div");
+  questPanel.id = "quest-panel";
+  questPanel.style.cssText = "position:fixed;top:50%;right:20px;transform:translateY(-50%);background:rgba(10,10,20,0.97);border:1px solid rgba(255,200,50,0.4);border-radius:12px;padding:20px;min-width:320px;max-width:400px;z-index:2000;display:none;font-family:'Segoe UI',sans-serif;color:#fff;max-height:70vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.7);";
+  document.body.appendChild(questPanel);
+
+  // Skills panel
+  const skillsPanel = document.createElement("div");
+  skillsPanel.id = "skills-panel";
+  skillsPanel.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(10,10,20,0.97);border:1px solid rgba(255,120,50,0.4);border-radius:12px;padding:20px;min-width:380px;max-width:520px;z-index:2000;display:none;font-family:'Segoe UI',sans-serif;color:#fff;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.7);";
+  document.body.appendChild(skillsPanel);
+
+  // Map panel
+  const mapPanel = document.createElement("div");
+  mapPanel.id = "map-panel";
+  mapPanel.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(10,10,20,0.97);border:1px solid rgba(50,150,255,0.4);border-radius:12px;padding:20px;width:600px;height:500px;z-index:2000;display:none;font-family:'Segoe UI',sans-serif;color:#fff;box-shadow:0 8px 32px rgba(0,0,0,0.7);";
+  mapPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h3 style="margin:0;color:#44aaff;">World Map - Areloria</h3><button onclick="document.getElementById('map-panel').style.display='none'" style="${closeBtnStyle()}">X</button></div><canvas id="world-map-canvas" width="560" height="420" style="border:1px solid rgba(255,255,255,0.1);border-radius:8px;width:100%;"></canvas>`;
+  document.body.appendChild(mapPanel);
+
+  // Event listeners
+  document.getElementById("btn-inventory")!.onclick = () => { togglePanel("inventory-panel"); renderInventoryPanelContent(); };
+  document.getElementById("btn-quests")!.onclick = () => togglePanel("quest-panel");
+  document.getElementById("btn-skills")!.onclick = () => { togglePanel("skills-panel"); renderSkillsPanel(); };
+  document.getElementById("btn-map")!.onclick = () => { togglePanel("map-panel"); renderWorldMap(); };
+  document.getElementById("btn-admin-assets")!.onclick = () => toggleAdminAssetPanel();
+
+  const chatInput = document.getElementById("chat-input") as HTMLInputElement;
+  const doSendChat = () => {
+    const text = chatInput.value.trim();
+    if (!text || !_ws) return;
+    _ws.send(JSON.stringify({ type: "chat", text, channel: "global" }));
+    chatInput.value = "";
   };
+  document.getElementById("chat-send")!.onclick = doSendChat;
+  chatInput.onkeydown = (e) => { if (e.key === "Enter") doSendChat(); };
+
+  window.addEventListener("keydown", (e) => {
+    const tag = (document.activeElement as HTMLElement)?.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    if (e.key === "i" || e.key === "I") { togglePanel("inventory-panel"); renderInventoryPanelContent(); }
+    if (e.key === "q" || e.key === "Q") togglePanel("quest-panel");
+    if (e.key === "k" || e.key === "K") { togglePanel("skills-panel"); renderSkillsPanel(); }
+    if (e.key === "m" || e.key === "M") { togglePanel("map-panel"); renderWorldMap(); }
+    if (e.key === "Escape") {
+      ["inventory-panel","quest-panel","skills-panel","map-panel","dialogue-box"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = "none";
+      });
+    }
+    if (e.key === "Enter") chatInput.focus();
+  });
+
+  (window as any).sendDialogueChoice = (npcId: string, nodeId: string, choiceId: string) => sendDialogueChoice(npcId, nodeId, choiceId);
 }
 
-export function updateHUD(data: { role?: string, gold: number, matrixEnergy?: number, xp: number, quests: any[], inventory: any[], equipment?: any, reputation?: any, questStatus?: any[] }) {
-  const btnAdmin = document.getElementById("btn-admin-assets");
-  if (btnAdmin && data.role === "admin") {
-    btnAdmin.style.display = "block";
+// ─── Update HUD ──────────────────────────────────────────────────────────────
+export function updateHUD(data: {
+  role?: string; gold?: number; xp?: number; level?: number;
+  health?: number; maxHealth?: number; stamina?: number; maxStamina?: number;
+  mana?: number; maxMana?: number; name?: string;
+  quests?: any[]; inventory?: any[]; equipment?: any;
+  reputation?: any; questStatus?: any[];
+}) {
+  _myPlayer = { ..._myPlayer, ...data };
+
+  if (data.role === "admin") {
+    const btn = document.getElementById("btn-admin-assets");
+    if (btn) btn.style.display = "block";
   }
 
-  const stats = document.getElementById("hud-stats");
-  if (stats) {
-    stats.textContent = `Gold: ${data.gold} | XP: ${data.xp}`;
+  if (data.health !== undefined && data.maxHealth !== undefined) {
+    const pct = Math.max(0, Math.min(100, (data.health / data.maxHealth) * 100));
+    const bar = document.getElementById("hud-hp-bar");
+    const txt = document.getElementById("hud-hp-text");
+    if (bar) {
+      bar.style.width = `${pct}%`;
+      bar.style.background = pct > 60 ? "linear-gradient(90deg,#0a0,#0f0)" : pct > 30 ? "linear-gradient(90deg,#880,#ff0)" : "linear-gradient(90deg,#c00,#f44)";
+    }
+    if (txt) txt.textContent = `${Math.round(data.health)}/${data.maxHealth}`;
   }
-  const matrix = document.getElementById("hud-matrix");
-  if (matrix && data.matrixEnergy !== undefined) {
-    matrix.textContent = `Matrix Energy: ${data.matrixEnergy}`;
+  if (data.stamina !== undefined && data.maxStamina !== undefined) {
+    const pct = Math.max(0, Math.min(100, (data.stamina / data.maxStamina) * 100));
+    const bar = document.getElementById("hud-sp-bar");
+    const txt = document.getElementById("hud-sp-text");
+    if (bar) bar.style.width = `${pct}%`;
+    if (txt) txt.textContent = `${Math.round(data.stamina)}/${data.maxStamina}`;
+  }
+  if (data.mana !== undefined && data.maxMana !== undefined) {
+    const pct = Math.max(0, Math.min(100, (data.mana / data.maxMana) * 100));
+    const bar = document.getElementById("hud-mp-bar");
+    const txt = document.getElementById("hud-mp-text");
+    if (bar) bar.style.width = `${pct}%`;
+    if (txt) txt.textContent = `${Math.round(data.mana)}/${data.maxMana}`;
   }
 
-  const inv = document.getElementById("hud-inventory");
-  if (inv) {
-    const items = data.inventory.map(i => i.name).join(", ");
-    inv.textContent = items ? `Inv: ${items}` : "Inv: Empty";
+  if (data.name) { const el = document.getElementById("hud-name"); if (el) el.textContent = data.name; }
+  if (data.level !== undefined) { const el = document.getElementById("hud-level"); if (el) el.textContent = String(data.level); }
+  if (data.xp !== undefined) { const el = document.getElementById("hud-xp"); if (el) el.textContent = String(data.xp); }
+  if (data.gold !== undefined) { const el = document.getElementById("hud-gold"); if (el) el.textContent = String(data.gold); }
+
+  if (data.equipment) {
+    const el = document.getElementById("hud-weapon-name");
+    if (el) el.textContent = data.equipment.weapon ? data.equipment.weapon.name : "None";
   }
 
-  const rep = document.getElementById("hud-reputation");
-  if (rep) {
-    const repStr = data.reputation ? Object.entries(data.reputation).map(([k, v]) => `${k}: ${v}`).join(", ") : "None";
-    rep.textContent = `Rep: ${repStr}`;
+  if (data.quests && data.quests.length > 0) {
+    const active = data.quests.find((q: any) => !q.completed);
+    const el = document.getElementById("hud-active-quest");
+    const txt = document.getElementById("hud-quest-text");
+    if (el && active) {
+      el.style.display = "block";
+      if (txt) txt.textContent = active.title || active.name || "Active Quest";
+    }
   }
 
-  const equip = document.getElementById("hud-equipment");
-  if (equip && data.equipment) {
-    const weapon = data.equipment.weapon ? data.equipment.weapon.name : "None";
-    equip.textContent = `Weapon: ${weapon}`;
-  }
-  
-  const questContainer = document.getElementById("hud-quests");
-  if (questContainer && data.questStatus) {
-    questContainer.innerHTML = `<strong>Quests:</strong><br/>` + data.questStatus.map((q: any) => 
-      `<div style="color: ${q.state === 'active' ? '#00ff00' : q.state === 'completed' ? '#aaa' : q.state === 'available' ? '#ffff00' : '#ff4444'}">
-        ${q.title} [${q.state}]
-      </div>`
-    ).join("");
+  if (data.questStatus && document.getElementById("quest-panel")?.style.display !== "none") {
+    renderQuestPanelContent(data.questStatus);
   }
 }
 
-export function updateCooldowns(cooldowns: { attack: number, interact: number, equip: number }) {
+// ─── Cooldowns ───────────────────────────────────────────────────────────────
+export function updateCooldowns(cooldowns: { attack: number; interact: number; equip: number }) {
   const now = Date.now();
-  
-  const updateCd = (id: string, remaining: number) => {
+  const updateCd = (id: string, remaining: number, label: string, key: string) => {
     const el = document.getElementById(id);
-    if (el) {
-      if (remaining > 0) {
-        el.style.opacity = "1";
-        el.style.color = "#ff4444";
-        el.style.fontWeight = "bold";
-        // Show percentage or just dimmed
-        const percent = Math.ceil((remaining / 1000) * 10) / 10;
-        el.textContent = `[${id.split("-")[1].toUpperCase().charAt(0)}] ${remaining > 100 ? (remaining/1000).toFixed(1) + "s" : "..."}`;
-      } else {
-        el.style.opacity = "0.5";
-        el.style.color = "#00ff00";
-        el.style.fontWeight = "normal";
-        const label = id === "cd-attack" ? "Attack" : id === "cd-interact" ? "Interact" : "Equip";
-        const key = id === "cd-attack" ? "F" : id === "cd-interact" ? "E" : "G";
-        el.textContent = `[${key}] ${label}`;
-      }
+    if (!el) return;
+    if (remaining > 0) {
+      el.style.opacity = "0.5";
+      el.innerHTML = `[${key}]<br/>${(remaining / 1000).toFixed(1)}s`;
+    } else {
+      el.style.opacity = "1";
+      el.innerHTML = `[${key}]<br/>${label}`;
     }
   };
-
-  const attackRemaining = Math.max(0, cooldowns.attack - now);
-  const interactRemaining = Math.max(0, cooldowns.interact - now);
-  const equipRemaining = Math.max(0, cooldowns.equip - now);
-
-  updateCd("cd-attack", attackRemaining);
-  updateCd("cd-interact", interactRemaining);
-  updateCd("cd-equip", equipRemaining);
+  updateCd("cd-attack", Math.max(0, cooldowns.attack - now), "Atk", "F");
+  updateCd("cd-interact", Math.max(0, cooldowns.interact - now), "Talk", "E");
+  updateCd("cd-equip", Math.max(0, cooldowns.equip - now), "Equip", "G");
 }
 
-export function showFloatingText(text: string, x: number, y: number) {
+// ─── Tooltip ─────────────────────────────────────────────────────────────────
+export function showTooltip(text: string) {
+  const el = document.getElementById("world-tooltip");
+  if (el) { el.textContent = text; el.style.display = "block"; }
+}
+export function hideTooltip() {
+  const el = document.getElementById("world-tooltip");
+  if (el) el.style.display = "none";
+}
+
+// ─── Floating Text ───────────────────────────────────────────────────────────
+export function showFloatingText(text: string, x: number, y: number, color = "#ff4444") {
   const div = document.createElement("div");
-  div.style.position = "fixed";
-  div.style.left = `${x}px`;
-  div.style.top = `${y}px`;
-  div.style.color = "#ff0000";
-  div.style.fontWeight = "bold";
-  div.style.fontSize = "20px";
-  div.style.pointerEvents = "none";
-  div.style.zIndex = "1001";
+  div.style.cssText = `position:fixed;left:${x}px;top:${y}px;color:${color};font-weight:bold;font-size:18px;pointer-events:none;z-index:1001;text-shadow:1px 1px 2px #000;font-family:'Segoe UI',sans-serif;`;
   div.textContent = text;
   document.body.appendChild(div);
-  
-  // Animate and remove
-  div.animate([
-    { transform: "translateY(0)", opacity: 1 },
-    { transform: "translateY(-50px)", opacity: 0 }
-  ], {
-    duration: 1000,
-    easing: "ease-out"
-  }).onfinish = () => div.remove();
+  div.animate(
+    [{ transform: "translateY(0) scale(1.2)", opacity: 1 }, { transform: "translateY(-60px) scale(0.8)", opacity: 0 }],
+    { duration: 1200, easing: "ease-out" }
+  ).onfinish = () => div.remove();
 }
 
-export function showTooltip(text: string) {
-  let tooltip = document.getElementById("interaction-tooltip");
-  if (!tooltip) {
-    tooltip = document.createElement("div");
-    tooltip.id = "interaction-tooltip";
-    tooltip.style.position = "fixed";
-    tooltip.style.bottom = "100px";
-    tooltip.style.left = "50%";
-    tooltip.style.transform = "translateX(-50%)";
-    tooltip.style.background = "rgba(0, 0, 0, 0.8)";
-    tooltip.style.color = "#fff";
-    tooltip.style.padding = "8px 16px";
-    tooltip.style.borderRadius = "6px";
-    tooltip.style.border = "1px solid #00ff00";
-    tooltip.style.zIndex = "1000";
-    tooltip.style.pointerEvents = "none";
-    document.body.appendChild(tooltip);
-  }
-  tooltip.textContent = text;
-}
-
-export function hideTooltip() {
-  const tooltip = document.getElementById("interaction-tooltip");
-  if (tooltip && tooltip.parentNode) {
-    tooltip.parentNode.removeChild(tooltip);
-  }
-}
-
-export function showDialogue(source: string, text: string, choices: any[] = [], npcId?: string) {
-  let dialogueBox = document.getElementById("dialogue-box");
-  if (!dialogueBox) {
-    dialogueBox = document.createElement("div");
-    dialogueBox.id = "dialogue-box";
-    dialogueBox.style.position = "fixed";
-    dialogueBox.style.bottom = "20px";
-    dialogueBox.style.left = "50%";
-    dialogueBox.style.transform = "translateX(-50%)";
-    dialogueBox.style.background = "rgba(0, 0, 0, 0.9)";
-    dialogueBox.style.color = "#fff";
-    dialogueBox.style.padding = "20px 30px";
-    dialogueBox.style.borderRadius = "12px";
-    dialogueBox.style.fontFamily = "sans-serif";
-    dialogueBox.style.minWidth = "400px";
-    dialogueBox.style.maxWidth = "600px";
-    dialogueBox.style.textAlign = "left";
-    dialogueBox.style.boxShadow = "0 10px 25px rgba(0,0,0,0.5)";
-    dialogueBox.style.border = "1px solid rgba(255,255,255,0.1)";
-    dialogueBox.style.zIndex = "1000";
-    document.body.appendChild(dialogueBox);
-  }
-  
-  let html = `<div style="margin-bottom: 12px;"><strong style="color: #00ff00; font-size: 1.1em;">${source}:</strong> <span style="line-height: 1.4;">${text}</span></div>`;
-  
-  if (choices && choices.length > 0 && npcId) {
-    html += `<div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;">`;
-    choices.forEach((choice, index) => {
-      html += `
-        <button 
-          class="dialogue-choice-btn" 
-          data-npc-id="${npcId}" 
-          data-node-id="${choice.nextNodeId}"
-          data-choice-id="${choice.id}"
-          style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 8px 12px; border-radius: 6px; cursor: pointer; text-align: left; transition: all 0.2s;"
-          onmouseover="this.style.background='rgba(255,255,255,0.15)'; this.style.borderColor='#00ff00';"
-          onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='rgba(255,255,255,0.2)';"
-        >
-          ${index + 1}. ${choice.text}
-        </button>
-      `;
-    });
-    html += `</div>`;
-  } else {
-    html += `<div style="font-size: 0.8em; opacity: 0.5; margin-top: 12px; text-align: center;">(Press E to continue)</div>`;
-  }
-  
-  dialogueBox.innerHTML = html;
-
-  // Add event listeners to buttons
-  const buttons = dialogueBox.querySelectorAll(".dialogue-choice-btn");
-  buttons.forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      const target = e.currentTarget as HTMLButtonElement;
-      const nid = target.getAttribute("data-npc-id");
-      const node = target.getAttribute("data-node-id");
-      const choiceId = target.getAttribute("data-choice-id");
-      if (nid && node && choiceId) {
-        (window as any).sendDialogueChoice(nid, node, choiceId);
-      }
-    });
-  });
-  
-  // Auto-hide after 10 seconds if no choices
-  if ((window as any).dialogueTimeout) {
-    clearTimeout((window as any).dialogueTimeout);
-  }
-  
-  if (!choices || choices.length === 0) {
-    (window as any).dialogueTimeout = setTimeout(() => {
-      if (dialogueBox && dialogueBox.parentNode) {
-        dialogueBox.parentNode.removeChild(dialogueBox);
-      }
-    }, 5000);
-  }
-}
-
+// ─── World Labels ────────────────────────────────────────────────────────────
 export function removeWorldLabel(id: string) {
-  const label = document.getElementById(`label-${id}`);
-  if (label) label.remove();
+  document.getElementById(`label-${id}`)?.remove();
 }
 
-export function createWorldLabel(id: string, text: string, type: 'npc' | 'loot', healthPercent?: number) {
+export function createWorldLabel(id: string, text: string, type: "npc" | "loot" | "player", healthPercent?: number) {
   let label = document.getElementById(`label-${id}`);
   if (!label) {
     label = document.createElement("div");
     label.id = `label-${id}`;
-    label.style.position = "fixed";
-    label.style.pointerEvents = "none";
-    label.style.zIndex = "1000";
-    label.style.textAlign = "center";
+    label.style.cssText = "position:fixed;pointer-events:none;z-index:1000;text-align:center;transform:translate(-50%,-100%);";
     document.body.appendChild(label);
   }
-  
-  let html = `<div style="color: white; font-size: 12px; text-shadow: 1px 1px 1px black; font-weight: bold;">${text}</div>`;
-  if (type === 'npc' && healthPercent !== undefined) {
-    html += `
-      <div style="width: 40px; height: 6px; background: #333; margin: 2px auto; border: 1px solid #000;">
-        <div style="width: ${Math.max(0, Math.min(100, healthPercent * 100))}%; height: 100%; background: #00ff00;"></div>
-      </div>
-    `;
+  const nameColor = type === "loot" ? "#ffd700" : type === "player" ? "#00ff88" : "#ffffff";
+  let html = `<div style="color:${nameColor};font-size:12px;text-shadow:1px 1px 2px #000;font-weight:bold;font-family:'Segoe UI',sans-serif;white-space:nowrap;">${text}</div>`;
+  if (type === "npc" && healthPercent !== undefined) {
+    const barColor = healthPercent > 0.6 ? "#00cc00" : healthPercent > 0.3 ? "#cccc00" : "#cc0000";
+    html += `<div style="width:48px;height:5px;background:#333;margin:2px auto;border-radius:3px;overflow:hidden;"><div style="width:${Math.max(0, Math.min(100, healthPercent * 100))}%;height:100%;background:${barColor};border-radius:3px;"></div></div>`;
   }
   label.innerHTML = html;
   return label;
 }
 
-export function renderInventoryPanel(player: any, ws: WebSocket) {
-  let panel = document.getElementById("inventory-panel");
-  if (!panel) {
-    panel = document.createElement("div");
-    panel.id = "inventory-panel";
-    panel.style.position = "fixed";
-    panel.style.top = "50%";
-    panel.style.left = "50%";
-    panel.style.transform = "translate(-50%, -50%)";
-    panel.style.background = "rgba(0, 0, 0, 0.9)";
-    panel.style.color = "#fff";
-    panel.style.padding = "20px";
-    panel.style.borderRadius = "12px";
-    panel.style.border = "1px solid #00ff00";
-    panel.style.zIndex = "2000";
-    panel.style.minWidth = "300px";
-    document.body.appendChild(panel);
+// ─── Dialogue ────────────────────────────────────────────────────────────────
+export function showDialogue(source: string, text: string, choices?: any[], npcId?: string) {
+  const box = document.getElementById("dialogue-box");
+  if (!box) return;
+  box.style.display = "block";
+
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><div style="color:#88aaff;font-weight:bold;font-size:13px;">${source}</div><button onclick="document.getElementById('dialogue-box').style.display='none'" style="${closeBtnStyle()}">X</button></div><div style="color:#ddd;font-size:13px;line-height:1.5;margin-bottom:12px;">${text}</div>`;
+
+  if (choices && choices.length > 0) {
+    html += `<div style="display:flex;flex-direction:column;gap:6px;">`;
+    choices.forEach((choice: any, index: number) => {
+      html += `<button class="dialogue-choice-btn" data-npc-id="${npcId || ""}" data-node-id="${choice.nextNodeId || choice.nodeId || ""}" data-choice-id="${choice.id}" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:8px 12px;border-radius:6px;cursor:pointer;text-align:left;font-size:12px;font-family:'Segoe UI',sans-serif;" onmouseover="this.style.background='rgba(100,150,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.08)'">${index + 1}. ${choice.text}</button>`;
+    });
+    html += `</div>`;
+  } else {
+    html += `<div style="font-size:11px;opacity:0.5;text-align:center;">(Press E or X to close)</div>`;
   }
 
-  let html = `<h2 style="margin-top:0; color: #00ff00;">Inventory</h2>`;
-  
-  // Equipment
-  html += `<div style="margin-bottom: 15px; border-bottom: 1px solid #444; padding-bottom: 10px;">
-    <strong>Equipped:</strong><br/>
-    Weapon: ${player.equipment.weapon ? `${player.equipment.weapon.name} <button onclick="window.unequip('weapon')" style="cursor:pointer; background:#555; color:#fff; border:none; padding:2px 5px; border-radius:3px;">Unequip</button>` : 'None'}
-  </div>`;
-
-  // Inventory
-  html += `<strong>Items:</strong><ul style="list-style:none; padding:0;">`;
-  player.inventory.forEach((item: any) => {
-    html += `<li style="margin-bottom: 5px; background: #222; padding: 5px; border-radius: 4px; display:flex; justify-content:space-between;">
-      ${item.name} (${item.type})
-      <div>
-        ${item.type === 'weapon' ? `<button onclick="window.equip('${item.id}')" style="cursor:pointer; background:#008800; color:#fff; border:none; padding:2px 5px; border-radius:3px;">Equip</button>` : ''}
-        <button onclick="window.drop('${item.id}')" style="cursor:pointer; background:#880000; color:#fff; border:none; padding:2px 5px; border-radius:3px;">Drop</button>
-      </div>
-    </li>`;
+  box.innerHTML = html;
+  box.querySelectorAll(".dialogue-choice-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const t = e.currentTarget as HTMLButtonElement;
+      sendDialogueChoice(t.getAttribute("data-npc-id") || "", t.getAttribute("data-node-id") || "", t.getAttribute("data-choice-id") || "");
+    });
   });
-  html += `</ul><button onclick="document.getElementById('inventory-panel').remove()" style="margin-top:10px; cursor:pointer;">Close</button>`;
-  
-  panel.innerHTML = html;
 
-  // Define global actions for buttons
-  (window as any).equip = (itemId: string) => ws.send(JSON.stringify({ type: 'equip', itemId }));
-  (window as any).unequip = (slot: string) => ws.send(JSON.stringify({ type: 'unequip', slot }));
-  (window as any).drop = (itemId: string) => ws.send(JSON.stringify({ type: 'drop', itemId }));
+  if ((window as any).dialogueTimeout) clearTimeout((window as any).dialogueTimeout);
+  if (!choices || choices.length === 0) {
+    (window as any).dialogueTimeout = setTimeout(() => { if (box) box.style.display = "none"; }, 6000);
+  }
 }
 
-export function updateBrainHUD(state: any) {
-  const brainEl = document.getElementById("hud-brain");
-  if (brainEl) {
-    const anomalies = state.activeAnomalies.length > 0 ? `<br/><span style="color: #ff4444; font-size: 0.8em;">${state.activeAnomalies.join(", ")}</span>` : "";
-    brainEl.innerHTML = `World State: <strong>${state.summary}</strong> (${(state.centerValue * 100).toFixed(1)}%)${anomalies}`;
+// ─── Chat ────────────────────────────────────────────────────────────────────
+export function addChatMessage(sender: string, text: string, channel = "global") {
+  const container = document.getElementById("chat-messages");
+  if (!container) return;
+  const colors: Record<string, string> = { global: "#88ccff", local: "#aaffaa", system: "#ffaa44", combat: "#ff6666" };
+  const line = document.createElement("div");
+  line.style.cssText = `color:${colors[channel] || "#ddd"};word-break:break-word;`;
+  const safeText = text.replace(/</g, "&lt;");
+  const safeSender = sender.replace(/</g, "&lt;");
+  line.innerHTML = `<span style="opacity:0.6;font-size:10px;">[${channel}]</span> <span style="font-weight:bold;">${safeSender}:</span> ${safeText}`;
+  container.appendChild(line);
+  container.scrollTop = container.scrollHeight;
+}
 
-    // Pulse effect if anomaly exists
-    if (state.activeAnomalies.length > 0) {
-      brainEl.style.border = "1px solid #ff4444";
-      brainEl.animate([
-        { background: "rgba(255,0,0,0.2)" },
-        { background: "rgba(0,0,0,0.5)" }
-      ], { duration: 1000, iterations: Infinity });
-    } else {
-      brainEl.style.border = "none";
-      brainEl.getAnimations().forEach(a => a.cancel());
+// ─── Inventory Panel ─────────────────────────────────────────────────────────
+export function renderInventoryPanel(player: any, ws: WebSocket) {
+  _ws = ws;
+  _myPlayer = { ..._myPlayer, ...player };
+  const panel = document.getElementById("inventory-panel");
+  if (panel) panel.style.display = "block";
+  renderInventoryPanelContent();
+}
+
+function renderInventoryPanelContent() {
+  const panel = document.getElementById("inventory-panel");
+  if (!panel || !_myPlayer) return;
+  const player = _myPlayer;
+  const rarityColors: Record<string, string> = { common: "#aaa", uncommon: "#1eff00", rare: "#0070dd", epic: "#a335ee", legendary: "#ff8000" };
+
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#88aaff;">Inventory</h3><button onclick="document.getElementById('inventory-panel').style.display='none'" style="${closeBtnStyle()}">X</button></div>`;
+  html += `<div style="margin-bottom:14px;padding:10px;background:rgba(255,255,255,0.05);border-radius:8px;"><div style="font-size:12px;color:#aaa;margin-bottom:6px;font-weight:bold;">EQUIPPED</div><div style="display:flex;gap:8px;">`;
+  html += `<div style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:8px;min-width:100px;text-align:center;"><div style="font-size:10px;color:#888;">Weapon</div><div style="font-size:12px;color:#fff;margin-top:2px;">${player.equipment?.weapon ? player.equipment.weapon.name : "Empty"}</div>${player.equipment?.weapon ? `<button onclick="window._hudUnequip('weapon')" style="margin-top:4px;background:#440000;border:1px solid #ff4444;border-radius:4px;padding:2px 6px;color:#fff;cursor:pointer;font-size:10px;">Unequip</button>` : ""}</div>`;
+  html += `<div style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:8px;min-width:100px;text-align:center;"><div style="font-size:10px;color:#888;">Armor</div><div style="font-size:12px;color:#fff;margin-top:2px;">${player.equipment?.armor ? player.equipment.armor.name : "Empty"}</div>${player.equipment?.armor ? `<button onclick="window._hudUnequip('armor')" style="margin-top:4px;background:#440000;border:1px solid #ff4444;border-radius:4px;padding:2px 6px;color:#fff;cursor:pointer;font-size:10px;">Unequip</button>` : ""}</div>`;
+  html += `</div></div><div style="font-size:12px;color:#aaa;margin-bottom:8px;font-weight:bold;">ITEMS (${(player.inventory || []).length})</div>`;
+
+  if (!player.inventory || player.inventory.length === 0) {
+    html += `<div style="text-align:center;opacity:0.4;padding:20px;font-size:13px;">Inventory is empty</div>`;
+  } else {
+    html += `<div style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;">`;
+    player.inventory.forEach((item: any) => {
+      const rColor = rarityColors[item.rarity || "common"] || "#aaa";
+      html += `<div style="background:rgba(255,255,255,0.05);border:1px solid ${rColor}44;border-radius:6px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-size:12px;color:${rColor};font-weight:bold;">${item.name || item.id}</div><div style="font-size:10px;color:#888;">${item.type || "item"}${item.damage ? ` | Dmg:${item.damage}` : ""}${item.rarity ? ` | ${item.rarity}` : ""}</div></div><div style="display:flex;gap:4px;">${(item.type === "weapon" || item.type === "armor") ? `<button onclick="window._hudEquip('${item.id}')" style="background:#003300;border:1px solid #00aa00;border-radius:4px;padding:2px 6px;color:#fff;cursor:pointer;font-size:10px;">Equip</button>` : ""}${item.type === "consumable" ? `<button onclick="window._hudUse('${item.id}')" style="background:#002244;border:1px solid #0088ff;border-radius:4px;padding:2px 6px;color:#fff;cursor:pointer;font-size:10px;">Use</button>` : ""}<button onclick="window._hudDrop('${item.id}')" style="background:#330000;border:1px solid #aa0000;border-radius:4px;padding:2px 6px;color:#fff;cursor:pointer;font-size:10px;">Drop</button></div></div>`;
+    });
+    html += `</div>`;
+  }
+  html += `<div style="margin-top:12px;font-size:11px;color:#888;border-top:1px solid rgba(255,255,255,0.1);padding-top:8px;">Gold: ${player.gold || 0} | XP: ${player.xp || 0} | Level: ${player.level || 1}</div>`;
+  panel.innerHTML = html;
+
+  (window as any)._hudEquip = (itemId: string) => { if (_ws) _ws.send(JSON.stringify({ type: "equip", itemId })); };
+  (window as any)._hudUnequip = (slot: string) => { if (_ws) _ws.send(JSON.stringify({ type: "unequip", slot })); };
+  (window as any)._hudDrop = (itemId: string) => { if (_ws) _ws.send(JSON.stringify({ type: "drop", itemId })); };
+  (window as any)._hudUse = (itemId: string) => { if (_ws) _ws.send(JSON.stringify({ type: "use_item", itemId })); };
+}
+
+// ─── Quest Panel ─────────────────────────────────────────────────────────────
+function renderQuestPanelContent(questStatus: any[]) {
+  const panel = document.getElementById("quest-panel");
+  if (!panel) return;
+  const stateColors: Record<string, string> = { active: "#00ff88", completed: "#888", available: "#ffd700", locked: "#ff4444" };
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#ffd700;">Quest Log</h3><button onclick="document.getElementById('quest-panel').style.display='none'" style="${closeBtnStyle()}">X</button></div>`;
+
+  if (!questStatus || questStatus.length === 0) {
+    html += `<div style="text-align:center;opacity:0.4;padding:20px;">No quests. Talk to NPCs!</div>`;
+  } else {
+    const groups: Record<string, any[]> = { active: [], available: [], completed: [], locked: [] };
+    questStatus.forEach((q: any) => (groups[q.state] || groups.locked).push(q));
+    for (const [state, quests] of Object.entries(groups)) {
+      if (quests.length === 0) continue;
+      html += `<div style="font-size:11px;color:${stateColors[state]};font-weight:bold;margin:10px 0 6px;text-transform:uppercase;letter-spacing:1px;">${state} (${quests.length})</div>`;
+      quests.forEach((q: any) => {
+        html += `<div style="background:rgba(255,255,255,0.05);border:1px solid ${stateColors[state]}44;border-radius:6px;padding:8px 10px;margin-bottom:6px;"><div style="font-size:12px;color:${stateColors[state]};font-weight:bold;">${q.title || q.name || q.id}</div>${q.description ? `<div style="font-size:11px;color:#888;margin-top:3px;">${q.description}</div>` : ""}${q.reward ? `<div style="font-size:10px;color:#ffd700;margin-top:3px;">Reward: ${q.reward.gold ? `${q.reward.gold}g` : ""} ${q.reward.xp ? `${q.reward.xp}xp` : ""}</div>` : ""}</div>`;
+      });
     }
   }
+  panel.innerHTML = html;
+}
+
+// ─── Skills Panel ────────────────────────────────────────────────────────────
+function renderSkillsPanel() {
+  const panel = document.getElementById("skills-panel");
+  if (!panel) return;
+  const skills = _myPlayer?.skills || {};
+  const skillDefs: [string, string, string][] = [
+    ["attack", "Atk", "#ff6644"], ["defence", "Def", "#4488ff"], ["strength", "Str", "#ff4488"],
+    ["hitpoints", "HP", "#ff2222"], ["woodcutting", "WC", "#88cc44"], ["mining", "Min", "#aaaaaa"],
+    ["fishing", "Fish", "#44aaff"], ["cooking", "Cook", "#ffaa44"], ["crafting", "Craft", "#cc8844"],
+    ["magic", "Mag", "#aa44ff"], ["ranged", "Rng", "#44ff88"], ["prayer", "Pray", "#ffffaa"],
+    ["runecrafting", "RC", "#ff44ff"], ["agility", "Agi", "#44ffff"], ["herblore", "Herb", "#44cc44"],
+    ["thieving", "Thv", "#884488"], ["slayer", "Slay", "#ff0000"], ["farming", "Farm", "#88aa44"],
+    ["smithing", "Smith", "#ff8800"], ["fletching", "Fltch", "#88ff44"],
+  ];
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#ff8844;">Skills</h3><button onclick="document.getElementById('skills-panel').style.display='none'" style="${closeBtnStyle()}">X</button></div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">`;
+  for (const [skillId, label, color] of skillDefs) {
+    const sd = skills[skillId] || { level: 1, xp: 0 };
+    const level = sd.level || 1;
+    const xp = sd.xp || 0;
+    const nextXp = Math.floor(100 * Math.pow(1.15, level));
+    const progress = Math.min(100, (xp / nextXp) * 100);
+    html += `<div style="background:rgba(255,255,255,0.05);border:1px solid ${color}44;border-radius:8px;padding:8px;text-align:center;"><div style="font-size:10px;color:${color};font-weight:bold;text-transform:uppercase;">${label}</div><div style="font-size:18px;color:#fff;font-weight:bold;">${level}</div><div style="background:#333;border-radius:3px;height:4px;margin-top:4px;overflow:hidden;"><div style="width:${progress}%;height:100%;background:${color};border-radius:3px;"></div></div></div>`;
+  }
+  html += `</div>`;
+  panel.innerHTML = html;
+}
+
+// ─── World Map ───────────────────────────────────────────────────────────────
+function renderWorldMap() {
+  const canvas = document.getElementById("world-map-canvas") as HTMLCanvasElement;
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  ctx.fillStyle = "#0a1520";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const scale = canvas.width / 700;
+  const zones = [
+    { name: "Areloria Town", x: 32, y: 32, w: 128, h: 128, color: "#1a4a1a" },
+    { name: "Darkwood Forest", x: 200, y: 50, w: 150, h: 200, color: "#0a2a0a" },
+    { name: "Crystal Caves", x: 400, y: 200, w: 100, h: 100, color: "#1a1a4a" },
+    { name: "Bandit Outpost", x: 500, y: 500, w: 64, h: 64, color: "#4a1a1a" },
+    { name: "Ancient Ruins", x: 300, y: 400, w: 80, h: 80, color: "#3a2a0a" },
+  ];
+  zones.forEach(z => {
+    ctx.fillStyle = z.color;
+    ctx.fillRect(z.x * scale, z.y * scale, z.w * scale, z.h * scale);
+    ctx.strokeStyle = "rgba(255,255,255,0.2)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(z.x * scale, z.y * scale, z.w * scale, z.h * scale);
+    ctx.fillStyle = "rgba(255,255,255,0.7)";
+    ctx.font = `${Math.max(8, 9 * scale)}px sans-serif`;
+    ctx.fillText(z.name, (z.x + 4) * scale, (z.y + 14) * scale);
+  });
+  if (_myPlayer?.position) {
+    const px = _myPlayer.position.x * scale;
+    const py = _myPlayer.position.y * scale;
+    ctx.beginPath();
+    ctx.arc(px, py, 5, 0, Math.PI * 2);
+    ctx.fillStyle = "#00ff88";
+    ctx.fill();
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+}
+
+// ─── Minimap Update ──────────────────────────────────────────────────────────
+export function updateMinimap(worldState: any, myPlayerId: string | null) {
+  if (!_minimapCtx || !_minimapCanvas) return;
+  const ctx = _minimapCtx;
+  const w = _minimapCanvas.width;
+  const h = _minimapCanvas.height;
+  const range = 150;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = "#0a1520";
+  ctx.fillRect(0, 0, w, h);
+  const myPlayer = worldState.players?.find((p: any) => p.id === myPlayerId);
+  const cx = myPlayer?.position?.x || 0;
+  const cy = myPlayer?.position?.y || 0;
+  const toScreen = (wx: number, wy: number) => ({ x: (wx - cx) / range * w + w / 2, y: (wy - cy) / range * h + h / 2 });
+
+  for (const npc of worldState.npcs || []) {
+    const { x, y } = toScreen(npc.position.x, npc.position.y);
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = npc.role === "monster" ? "#ff4444" : "#ffaa44";
+    ctx.fill();
+  }
+  for (const p of worldState.players || []) {
+    if (p.id === myPlayerId) continue;
+    const { x, y } = toScreen(p.position.x, p.position.y);
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = "#4488ff";
+    ctx.fill();
+  }
+  for (const loot of worldState.loot || []) {
+    const { x, y } = toScreen(loot.position.x, loot.position.y);
+    ctx.beginPath();
+    ctx.arc(x, y, 2, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffd700";
+    ctx.fill();
+  }
+  ctx.beginPath();
+  ctx.arc(w / 2, h / 2, 5, 0, Math.PI * 2);
+  ctx.fillStyle = "#00ff88";
+  ctx.fill();
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
 }

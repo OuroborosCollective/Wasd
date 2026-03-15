@@ -1,4 +1,3 @@
-
 [
   {
     "id": "npc_1",
@@ -93,24 +92,49 @@
     "faction": "Neutral"
   },
   {
-    "id": "npc_uschi",
-    "name": "Uschi",
-    "role": "Character",
-    "dialogueId": "dialogue_uschi",
-    "faction": "Neutral"
+    "id": "npc_boar",
+    "name": "Wild Boar",
+    "role": "Enemy",
+    "dialogueId": "dialogue_wolf",
+    "faction": "Hostile",
+    "stats": { "health": 40, "maxHealth": 40 },
+    "dropTable": [
+      { "itemId": "boar_tusk", "chance": 0.7 },
+      { "itemId": "raw_meat", "chance": 0.9 }
+    ]
   },
   {
-    "id": "monster_goblin",
-    "name": "Goblin",
+    "id": "npc_skeleton",
+    "name": "Skeleton Warrior",
     "role": "Enemy",
-    "dialogueId": "dialogue_goblin",
+    "dialogueId": "dialogue_wolf",
     "faction": "Hostile",
-    "stats": {
-      "health": 30,
-      "maxHealth": 30
-    },
+    "stats": { "health": 80, "maxHealth": 80 },
     "dropTable": [
-      { "itemId": "goblin_ear", "chance": 0.5 }
+      { "itemId": "bone_fragment", "chance": 0.8 },
+      { "itemId": "rusted_blade", "chance": 0.3 },
+      { "itemId": "ancient_coin", "chance": 0.15 }
     ]
+  },
+  {
+    "id": "npc_bandit",
+    "name": "Bandit",
+    "role": "Enemy",
+    "dialogueId": "dialogue_wolf",
+    "faction": "Hostile",
+    "stats": { "health": 70, "maxHealth": 70 },
+    "dropTable": [
+      { "itemId": "iron_scrap", "chance": 0.6 },
+      { "itemId": "health_potion", "chance": 0.2 },
+      { "itemId": "ancient_coin", "chance": 0.3 }
+    ]
+  },
+  {
+    "id": "npc_shopkeeper",
+    "name": "Shopkeeper Mira",
+    "role": "Shopkeeper",
+    "dialogueId": "dialogue_shopkeeper",
+    "faction": "Neutral",
+    "shopId": "general_store"
   }
 ]

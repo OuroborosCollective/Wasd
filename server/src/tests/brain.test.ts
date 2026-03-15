@@ -1,19 +1,19 @@
-import { HeuristicWorldBrain } from '../modules/brain/HeuristicWorldBrain.js';
-import assert from 'node:assert';
+import { describe, it, expect } from "vitest";
+import { HeuristicWorldBrain } from "../modules/brain/HeuristicWorldBrain.js";
 
-function testBrain() {
-  const brain = new HeuristicWorldBrain();
-  const context = {
-    economy: { activeMarkets: 1 },
-    politics: {},
-    world: { resourceCount: 500, npcCount: 100 },
-    npcMemory: []
-  };
-  const result = brain.analyze(context);
-  console.log('Brain Analysis Result:', result);
-  assert.strictEqual(result.nodes, 13);
-  assert.ok(result.centerValue >= 0 && result.centerValue <= 1);
-  console.log('testBrain passed!');
-}
+describe("HeuristicWorldBrain", () => {
+  it("should analyze context correctly", () => {
+    const brain = new HeuristicWorldBrain();
+    const context = {
+      economy: { activeMarkets: 1 },
+      politics: {},
+      world: { resourceCount: 500, npcCount: 100 },
+      npcMemory: []
+    } as any;
 
-testBrain();
+    const result = brain.analyze(context);
+    expect(result.nodes).toBe(13);
+    expect(result.centerValue).toBeGreaterThanOrEqual(0);
+    expect(result.centerValue).toBeLessThanOrEqual(1);
+  });
+});

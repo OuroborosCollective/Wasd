@@ -1,45 +1,56 @@
-import { GLBRegistry, GLBLink } from '../modules/asset-registry/GLBRegistry.js';
-import assert from 'node:assert';
-import fs from 'fs';
-import path from 'path';
+import { describe, it, expect, beforeEach } from "vitest";
+import { GLBRegistry, GLBLink } from "../modules/asset-registry/GLBRegistry.js";
 
-async function testGLBRegistry() {
-  const registry = new GLBRegistry();
+describe("GLBRegistry", () => {
+  let registry: GLBRegistry;
 
-  // Test adding a link
-  const testLink: GLBLink = {
-    glbPath: '/assets/models/test.glb',
-    targetType: 'npc_single',
-    targetId: 'test_npc'
-  };
-  registry.addLink(testLink);
+  beforeEach(() => {
+    registry = new GLBRegistry();
+  });
 
-  assert.strictEqual(registry.getModelForTarget('npc_single', 'test_npc'), '/assets/models/test.glb');
-  console.log('Test addLink: PASSED');
+  it("should add a link and retrieve it", () => {
+    const testLink: GLBLink = {
+      glbPath: "/assets/models/test.glb",
+      targetType: "npc_single",
+      targetId: "test_npc"
+    };
+    registry.addLink(testLink);
 
-  // Test updating a link
-  const updatedLink: GLBLink = {
-    glbPath: '/assets/models/test_updated.glb',
-    targetType: 'npc_single',
-    targetId: 'test_npc'
-  };
-  registry.addLink(updatedLink);
-  assert.strictEqual(registry.getModelForTarget('npc_single', 'test_npc'), '/assets/models/test_updated.glb');
-  console.log('Test updateLink: PASSED');
+    expect(registry.getModelForTarget("npc_single", "test_npc")).toBe("/assets/models/test.glb");
+  });
 
-  // Test removing a link
-  registry.removeLink('npc_single', 'test_npc');
-  assert.strictEqual(registry.getModelForTarget('npc_single', 'test_npc'), null);
-  console.log('Test removeLink: PASSED');
+  it("should update an existing link", () => {
+    const initialLink: GLBLink = {
+      glbPath: "/assets/models/test.glb",
+      targetType: "npc_single",
+      targetId: "test_npc"
+    };
+    registry.addLink(initialLink);
 
-  // Clean up if we actually wrote to a file during tests
-  // (GLBRegistry.saveLinks writes to game-data/glb-links.json)
-  // In a real environment we might want to mock fs, but here we'll just check it works.
+    const updatedLink: GLBLink = {
+      glbPath: "/assets/models/test_updated.glb",
+      targetType: "npc_single",
+      targetId: "test_npc"
+    };
+    registry.addLink(updatedLink);
 
-  console.log('All GLBRegistry tests passed!');
-}
+    expect(registry.getModelForTarget("npc_single", "test_npc")).toBe("/assets/models/test_updated.glb");
+  });
 
-testGLBRegistry().catch(err => {
-  console.error('Test failed:', err);
-  process.exit(1);
+  it("should remove a link", () => {
+    const testLink: GLBLink = {
+      glbPath: "/assets/models/test.glb",
+      targetType: "npc_single",
+      targetId: "test_npc"
+    };
+    registry.addLink(testLink);
+    registry.removeLink("npc_single", "test_npc");
+
+    expect(registry.getModelForTarget("npc_single", "test_npc")).toBeNull();
+  });
+
+  it("should return null for non-existent target", () => {
+    expect(registry.getModelForTarget("npc_single", "non_existent")).toBeNull();
+  });
+
 });

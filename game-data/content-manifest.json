@@ -13,8 +13,10 @@
         "npc_6_hermit",
         "npc_7_merchant",
         "npc_8_apprentice",
-        "npc_uschi",
-        "monster_goblin"
+        "npc_boar",
+        "npc_skeleton",
+        "npc_bandit",
+        "npc_shopkeeper"
       ],
       "questIds": [
         "first_steps",
@@ -41,8 +43,7 @@
         "dialogue_npc_6",
         "dialogue_npc_7",
         "dialogue_npc_8",
-        "dialogue_uschi",
-        "dialogue_goblin"
+        "dialogue_shopkeeper"
       ],
       "itemIds": [
         "starter_sword",
@@ -51,7 +52,6 @@
         "wolf_pelt",
         "fang",
         "alpha_claw",
-        "object_chest",
         "bone_fragment",
         "rusted_blade",
         "grave_ring",
@@ -59,7 +59,19 @@
         "relic_fragment",
         "forgotten_sigil",
         "guard_token",
-        "goblin_ear"
+        "health_potion",
+        "mana_potion",
+        "stamina_potion",
+        "herb_bundle",
+        "iron_sword",
+        "steel_longsword",
+        "shadow_blade",
+        "iron_shield",
+        "boar_tusk",
+        "raw_meat",
+        "cooked_meat",
+        "crystal_shard",
+        "enchanted_staff"
       ],
       "validationResult": "passed"
     }

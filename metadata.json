@@ -1,5 +1,5 @@
 {
-  "name": "",
-  "description": "",
+  "name": "Arelorian MMORPG",
+  "description": "A browser-based MMORPG with Three.js renderer, WebSocket synchronization, and PostgreSQL persistence.",
   "requestFramePermissions": []
 }

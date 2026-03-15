@@ -31,11 +31,11 @@ export class HeuristicWorldBrain {
 
   analyze(context: { economy: any, politics: any, world: any, npcMemory: any[] }) {
     // 1. Process World Nodes
-    this.updateNode('resource_density', context.world.resourceCount / 1000);
-    this.updateNode('monster_activity', context.world.npcCount / 500);
+    this.updateNode('resource_density', (context.world?.resourceCount || 0) / 1000);
+    this.updateNode('monster_activity', (context.world?.npcCount || 0) / 500);
 
     // 2. Process Interpretation Nodes
-    const economicHealth = context.economy.activeMarkets > 0 ? 0.8 : 0.2;
+    const economicHealth = (context.economy?.activeMarkets || 0) > 0 ? 0.8 : 0.2;
     this.updateNode('economic_vitality', economicHealth);
 
     // 3. Process Dynamics Nodes
