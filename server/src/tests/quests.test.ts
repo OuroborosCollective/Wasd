@@ -1,4 +1,6 @@
 import { afterEach } from "vitest";
+import fs from "fs";
+import { vi } from "vitest";
 import { describe, it, expect, beforeEach } from "vitest";
 import { QuestRewards } from "../modules/quests/QuestRewards.js";
 import { QuestStateStore } from "../modules/quests/QuestStateStore.js";
@@ -82,6 +84,7 @@ describe("QuestStateStore", () => {
 // ---------------------------------------------------------------------------
 import { QuestEngine } from "../modules/quest/QuestEngine.js";
 
+
 describe("QuestEngine", () => {
   let engine: QuestEngine;
 
@@ -124,6 +127,7 @@ describe("QuestEngine", () => {
       expect(addedQuest).toBeDefined();
       expect(addedQuest.objective).toBe("gather");
     });
+
 
   });
 });

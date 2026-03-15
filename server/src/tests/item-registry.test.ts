@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+
 import fs from "fs";
 import path from "path";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
@@ -11,6 +12,7 @@ describe("ItemRegistry", () => {
     // Since initialized is private, we will cast to any to reset it.
     (ItemRegistry as any).initialized = false;
     (ItemRegistry as any).ITEM_REGISTRY = {};
+
 
   });
 
@@ -48,6 +50,7 @@ describe("ItemRegistry", () => {
     expect(consoleErrorSpy).toHaveBeenCalledWith("Error loading Item data:", expect.any(Error));
     expect((ItemRegistry as any).initialized).toBe(true); // Should set initialized to true even if it fails
     expect(ItemRegistry.getItem("sword")).toBeUndefined();
+
   });
 
   it("should do nothing if initialized is already true", () => {
@@ -57,6 +60,7 @@ describe("ItemRegistry", () => {
     ItemRegistry.init();
 
     expect(existsSyncSpy).not.toHaveBeenCalled();
+
   });
 
   it("should return undefined if file doesn't exist", () => {
@@ -67,5 +71,7 @@ describe("ItemRegistry", () => {
     expect((ItemRegistry as any).initialized).toBe(true);
     expect(Object.keys((ItemRegistry as any).ITEM_REGISTRY).length).toBe(0);
 
+
   });
+
 });

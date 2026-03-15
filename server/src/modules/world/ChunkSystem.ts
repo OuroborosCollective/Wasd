@@ -18,6 +18,7 @@
  */
 export class ChunkSystem {
   private chunks = new Map<string, { id: string, x: number, y: number, size: number, entities: Set<string>, active: boolean }>();
+  private activeChunks = new Set<any>();
 
   /**
    * @param size - Side length of each square chunk in world units.
@@ -126,7 +127,7 @@ export class ChunkSystem {
    * @returns Array of active chunk objects.
    */
   getActiveChunks() {
-    return Array.from(this.chunks.values()).filter(c => c.active);
+    return Array.from(this.activeChunks);
   }
 
   /**
@@ -139,6 +140,11 @@ export class ChunkSystem {
     const chunk = this.chunks.get(chunkId);
     if (chunk) {
       chunk.active = active;
+      if (active) {
+        this.activeChunks.add(chunk);
+      } else {
+        this.activeChunks.delete(chunk);
+      }
     }
   }
 }

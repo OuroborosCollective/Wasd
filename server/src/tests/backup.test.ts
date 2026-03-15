@@ -68,6 +68,7 @@ describe("BackupManager", () => {
       );
       expect(child_process.exec).toHaveBeenCalledTimes(1);
 
+
     });
   });
 
@@ -104,6 +105,7 @@ describe("BackupManager", () => {
       ).rejects.toThrow("pg_restore failed");
       expect(child_process.exec).toHaveBeenCalledTimes(1);
 
+
     });
   });
 
@@ -115,6 +117,7 @@ describe("BackupManager", () => {
       expect(strategy).toHaveProperty("pointInTimeRecovery");
       expect(strategy).toHaveProperty("logicalBackups");
       expect(strategy).toHaveProperty("disasterRecovery");
+
 
     });
   });
