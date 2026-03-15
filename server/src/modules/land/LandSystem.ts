@@ -166,12 +166,10 @@ export class LandSystem {
     name: string,
     dbClient?: any
   ): Promise<{ success: boolean; reason?: string; land?: Land }> {
-    // Check if player already has land
     if (this.getLandByOwner(ownerId)) {
       return { success: false, reason: "You already own land. Sell or abandon it first." };
     }
 
-    // Check distance from other lands
     for (const land of this.lands.values()) {
       const dist = Math.hypot(x - land.x, y - land.y);
       if (dist < MIN_LAND_DISTANCE) {
