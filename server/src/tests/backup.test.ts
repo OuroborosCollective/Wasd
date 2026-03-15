@@ -64,6 +64,7 @@ describe("BackupManager Module", () => {
 
       await expect(manager.createLogicalBackup("failed_backup")).rejects.toThrow("pg_dump failed");
       expect(consoleErrorSpy).toHaveBeenCalledWith("Failed to create logical backup:", mockError);
+
     });
   });
 
@@ -98,6 +99,7 @@ describe("BackupManager Module", () => {
 
       await expect(manager.restoreLogicalBackup(filePath)).rejects.toThrow("pg_restore failed");
       expect(consoleErrorSpy).toHaveBeenCalledWith("Failed to restore logical backup:", mockError);
+
     });
   });
 
@@ -111,6 +113,7 @@ describe("BackupManager Module", () => {
       expect(strategy.pointInTimeRecovery).toBe("Enabled via AWS RDS transaction logs");
       expect(strategy.logicalBackups).toBe("Available via BackupManager.createLogicalBackup() for manual exports");
       expect(strategy.disasterRecovery).toBe("Cross-region read replicas can be promoted to primary in case of regional failure");
+
     });
   });
 });

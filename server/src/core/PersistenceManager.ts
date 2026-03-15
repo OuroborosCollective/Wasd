@@ -138,6 +138,7 @@ export class PersistenceManager {
     } catch (err) {
       console.error("Failed to batch save players chunk:", err);
       throw err;
+
     }
   }
 
