@@ -1,7 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { CraftingSystem } from "../modules/crafting/CraftingSystem.js";
-import { RecipeRegistry } from "../modules/crafting/RecipeRegistry.js";
-import { RecipeMatcher } from "../modules/crafting/RecipeMatcher.js";
 
 // ---------------------------------------------------------------------------
 // CraftingSystem
@@ -29,6 +27,7 @@ describe("CraftingSystem", () => {
     };
     const result = crafting.canCraft(player, "iron_sword_craft");
     if (!result.possible) console.log("canCraft failure reason:", result.reason);
+
     expect(result.possible).toBe(true);
   });
 
@@ -40,6 +39,7 @@ describe("CraftingSystem", () => {
         { id: "iron_scrap" },
         { id: "iron_scrap" },
         { id: "iron_scrap" }
+
       ]
     };
     const result = crafting.canCraft(player, "iron_sword_craft");
@@ -50,6 +50,7 @@ describe("CraftingSystem", () => {
     const player = {
       skills: { smithing: { level: 10 } },
       inventory: []
+
     };
     const result = crafting.canCraft(player, "iron_sword_craft");
     expect(result.possible).toBe(false);
@@ -62,6 +63,7 @@ describe("CraftingSystem", () => {
         { id: "iron_scrap" },
         { id: "iron_scrap" },
         { id: "iron_scrap" }
+
       ]
     };
     const result = crafting.craft(player, "iron_sword_craft");
@@ -75,6 +77,7 @@ describe("CraftingSystem", () => {
         { id: "iron_scrap" },
         { id: "iron_scrap" },
         { id: "iron_scrap" }
+
       ]
     };
     const result = crafting.craft(player, "iron_sword_craft");
@@ -108,4 +111,5 @@ describe("RecipeMatcher", () => {
     const found = matcher.match(["iron_ingot", "wood_handle"], recipes);
     expect(found?.id).toBe("iron_sword");
   });
+
 });
