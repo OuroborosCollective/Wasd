@@ -134,7 +134,7 @@ export function renderHUD() {
   const mapPanel = document.createElement("div");
   mapPanel.id = "map-panel";
   mapPanel.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(10,10,20,0.97);border:1px solid rgba(50,150,255,0.4);border-radius:12px;padding:20px;width:600px;height:500px;z-index:2000;display:none;font-family:'Segoe UI',sans-serif;color:#fff;box-shadow:0 8px 32px rgba(0,0,0,0.7);";
-  mapPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h3 style="margin:0;color:#44aaff;">World Map - Areloria</h3><button onclick="document.getElementById('map-panel').style.display='none'" style="${closeBtnStyle()}">X</button></div><canvas id="world-map-canvas" width="560" height="420" style="border:1px solid rgba(255,255,255,0.1);border-radius:8px;width:100%;"></canvas>`;
+  mapPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h3 style="margin:0;color:#44aaff;">World Map - Areloria</h3><button aria-label="Close panel" onclick="document.getElementById('map-panel').style.display='none'" style="${closeBtnStyle()}">X</button></div><canvas id="world-map-canvas" width="560" height="420" style="border:1px solid rgba(255,255,255,0.1);border-radius:8px;width:100%;"></canvas>`;
   document.body.appendChild(mapPanel);
 
   // Event listeners
@@ -308,7 +308,7 @@ export function showDialogue(source: string, text: string, choices?: any[], npcI
   if (!box) return;
   box.style.display = "block";
 
-  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><div style="color:#88aaff;font-weight:bold;font-size:13px;">${source}</div><button onclick="document.getElementById('dialogue-box').style.display='none'" style="${closeBtnStyle()}">X</button></div><div style="color:#ddd;font-size:13px;line-height:1.5;margin-bottom:12px;">${text}</div>`;
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><div style="color:#88aaff;font-weight:bold;font-size:13px;">${source}</div><button aria-label="Close panel" onclick="document.getElementById('dialogue-box').style.display='none'" style="${closeBtnStyle()}">X</button></div><div style="color:#ddd;font-size:13px;line-height:1.5;margin-bottom:12px;">${text}</div>`;
 
   if (choices && choices.length > 0) {
     html += `<div style="display:flex;flex-direction:column;gap:6px;">`;
@@ -363,7 +363,7 @@ function renderInventoryPanelContent() {
   const player = _myPlayer;
   const rarityColors: Record<string, string> = { common: "#aaa", uncommon: "#1eff00", rare: "#0070dd", epic: "#a335ee", legendary: "#ff8000" };
 
-  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#88aaff;">Inventory</h3><button onclick="document.getElementById('inventory-panel').style.display='none'" style="${closeBtnStyle()}">X</button></div>`;
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#88aaff;">Inventory</h3><button aria-label="Close panel" onclick="document.getElementById('inventory-panel').style.display='none'" style="${closeBtnStyle()}">X</button></div>`;
   html += `<div style="margin-bottom:14px;padding:10px;background:rgba(255,255,255,0.05);border-radius:8px;"><div style="font-size:12px;color:#aaa;margin-bottom:6px;font-weight:bold;">EQUIPPED</div><div style="display:flex;gap:8px;">`;
   html += `<div style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:8px;min-width:100px;text-align:center;"><div style="font-size:10px;color:#888;">Weapon</div><div style="font-size:12px;color:#fff;margin-top:2px;">${player.equipment?.weapon ? player.equipment.weapon.name : "Empty"}</div>${player.equipment?.weapon ? `<button onclick="window._hudUnequip('weapon')" style="margin-top:4px;background:#440000;border:1px solid #ff4444;border-radius:4px;padding:2px 6px;color:#fff;cursor:pointer;font-size:10px;">Unequip</button>` : ""}</div>`;
   html += `<div style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:8px;min-width:100px;text-align:center;"><div style="font-size:10px;color:#888;">Armor</div><div style="font-size:12px;color:#fff;margin-top:2px;">${player.equipment?.armor ? player.equipment.armor.name : "Empty"}</div>${player.equipment?.armor ? `<button onclick="window._hudUnequip('armor')" style="margin-top:4px;background:#440000;border:1px solid #ff4444;border-radius:4px;padding:2px 6px;color:#fff;cursor:pointer;font-size:10px;">Unequip</button>` : ""}</div>`;
@@ -393,7 +393,7 @@ function renderQuestPanelContent(questStatus: any[]) {
   const panel = document.getElementById("quest-panel");
   if (!panel) return;
   const stateColors: Record<string, string> = { active: "#00ff88", completed: "#888", available: "#ffd700", locked: "#ff4444" };
-  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#ffd700;">Quest Log</h3><button onclick="document.getElementById('quest-panel').style.display='none'" style="${closeBtnStyle()}">X</button></div>`;
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#ffd700;">Quest Log</h3><button aria-label="Close panel" onclick="document.getElementById('quest-panel').style.display='none'" style="${closeBtnStyle()}">X</button></div>`;
 
   if (!questStatus || questStatus.length === 0) {
     html += `<div style="text-align:center;opacity:0.4;padding:20px;">No quests. Talk to NPCs!</div>`;
@@ -425,7 +425,7 @@ function renderSkillsPanel() {
     ["thieving", "Thv", "#884488"], ["slayer", "Slay", "#ff0000"], ["farming", "Farm", "#88aa44"],
     ["smithing", "Smith", "#ff8800"], ["fletching", "Fltch", "#88ff44"],
   ];
-  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#ff8844;">Skills</h3><button onclick="document.getElementById('skills-panel').style.display='none'" style="${closeBtnStyle()}">X</button></div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">`;
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#ff8844;">Skills</h3><button aria-label="Close panel" onclick="document.getElementById('skills-panel').style.display='none'" style="${closeBtnStyle()}">X</button></div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">`;
   for (const [skillId, label, color] of skillDefs) {
     const sd = skills[skillId] || { level: 1, xp: 0 };
     const level = sd.level || 1;
