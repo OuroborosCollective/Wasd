@@ -13,3 +13,7 @@
 **Learning:** Running `pnpm install` in a monorepo that isn't fully set up for pnpm (missing `pnpm-workspace.yaml`) can generate a massive `pnpm-lock.yaml` file in the root, which is undesirable for small PRs.
 **Action:** Be extremely careful with installation commands in monorepos; prefer `npm install` within specific package directories if the root workspace configuration is unstable.
 
+
+## 2025-05-15 - [Array Allocations in Hot Loops]
+**Learning:** Calling `getAllPlayers()` multiple times in `WorldTick.ts` `tick()` creates multiple new arrays per tick using `Array.from()`. Since `tick()` runs 10 times per second, this causes unnecessary garbage collection and performance degradation.
+**Action:** Always hoist data retrieval (like getting the player list) outside of repeating blocks in the main game loop to avoid redundant heap allocations.
