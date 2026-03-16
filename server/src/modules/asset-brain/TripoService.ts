@@ -122,6 +122,12 @@ export class TripoService {
     }
 
     const d = data.data;
+    
+    // Debug: Log full response when success but no output
+    if (d.status === 'success' && !d.output) {
+      console.warn('[TripoService] Task success but no output. Full response:', JSON.stringify(d));
+    }
+    
     return {
       taskId: d.task_id,
       status: d.status as TripoTask['status'],
