@@ -47,52 +47,6 @@ export class LandSystem {
   }
 
   async init() {
-    // Create tables if not exist
-    await this.db.query(`
-      CREATE TABLE IF NOT EXISTS player_lands (
-        id VARCHAR(36) PRIMARY KEY,
-        owner_id VARCHAR(255) NOT NULL,
-        owner_name VARCHAR(255),
-        name VARCHAR(255) DEFAULT 'My Land',
-        x FLOAT NOT NULL,
-        y FLOAT NOT NULL,
-        radius FLOAT DEFAULT 100,
-        claimed_at TIMESTAMPTZ DEFAULT NOW()
-      )
-    `).catch(() => {});
-
-    await this.db.query(`
-      CREATE TABLE IF NOT EXISTS land_structures (
-        id VARCHAR(36) PRIMARY KEY,
-        land_id VARCHAR(36) NOT NULL,
-        type VARCHAR(64) NOT NULL,
-        x FLOAT DEFAULT 0,
-        y FLOAT DEFAULT 0,
-        z FLOAT DEFAULT 0,
-        rot_y FLOAT DEFAULT 0,
-        scale FLOAT DEFAULT 1.0,
-        glb_path TEXT,
-        name VARCHAR(255),
-        placed_at TIMESTAMPTZ DEFAULT NOW()
-      )
-    `).catch(() => {});
-
-    await this.db.query(`
-      CREATE TABLE IF NOT EXISTS paypal_orders (
-        order_id VARCHAR(64) PRIMARY KEY,
-        player_id VARCHAR(255) NOT NULL,
-        product_id VARCHAR(128) NOT NULL,
-        status VARCHAR(32) DEFAULT 'PENDING',
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        completed_at TIMESTAMPTZ
-      )
-    `).catch(() => {});
-
-    // Add missing columns to players table
-    await this.db.query(`ALTER TABLE players ADD COLUMN IF NOT EXISTS matrix_energy INTEGER DEFAULT 0`).catch(() => {});
-    await this.db.query(`ALTER TABLE players ADD COLUMN IF NOT EXISTS glb_enabled BOOLEAN DEFAULT false`).catch(() => {});
-    await this.db.query(`ALTER TABLE players ADD COLUMN IF NOT EXISTS glb_subscription_expires TIMESTAMPTZ`).catch(() => {});
-
     // Load all lands and their structures from DB efficiently
     const [landsResult, structsResult] = await Promise.all([
       this.db.query(`SELECT * FROM player_lands`).catch(() => ({ rows: [] })),
