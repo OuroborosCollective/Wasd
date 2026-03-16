@@ -104,17 +104,7 @@ export class TripoService {
   async pollTask(taskId: string): Promise<TripoTask> {
     const data = await this.request<{
       code: number;
-      data: {
-        task_id: string;
-        status: string;
-        progress?: number;
-        output?: {
-          model?: { url: string; type: string };
-          rendered_image?: { url: string };
-          pbr_model?: { url: string };
-        };
-        message?: string;
-      };
+      data: any;
     }>('GET', `/task/${taskId}`);
 
     if (data.code !== 0) {
@@ -123,31 +113,30 @@ export class TripoService {
 
     const d = data.data;
     
-    // Debug: Log all responses for debugging
-    console.log('[TripoService] pollTask response:', JSON.stringify({
-      taskId: d.task_id,
-      status: d.status,
-      progress: d.progress,
-      hasOutput: !!d.output,
-      outputKeys: d.output ? Object.keys(d.output) : [],
-      fullResponse: d
-    }, null, 2));
+    // Tripo3D returns output during generation and result after completion
+    const responseData = d.output || d.result || {};
     
-    if (d.status === 'success' && !d.output) {
-      console.warn('[TripoService] Task success but no output. Full response:', JSON.stringify(d, null, 2));
-    }
+    // Extract model URL from various possible fields
+    let modelUrl: string | undefined;
+    if (responseData.model?.url) modelUrl = responseData.model.url;
+    else if (responseData.pbr_model?.url) modelUrl = responseData.pbr_model.url;
+    else if (responseData.model_url) modelUrl = responseData.model_url;
+    else if (responseData.glb_url) modelUrl = responseData.glb_url;
+    
+    // Extract image URL
+    let imageUrl: string | undefined;
+    if (responseData.rendered_image?.url) imageUrl = responseData.rendered_image.url;
+    else if (responseData.generated_image) imageUrl = responseData.generated_image;
     
     return {
       taskId: d.task_id,
       status: d.status as TripoTask['status'],
       progress: d.progress,
-      result: d.output
-        ? {
-            model: d.output.model,
-            rendered_image: d.output.rendered_image,
-            pbr_model: d.output.pbr_model,
-          }
-        : undefined,
+      result: modelUrl || imageUrl ? {
+        model: modelUrl ? { url: modelUrl } : undefined,
+        rendered_image: imageUrl ? { url: imageUrl } : undefined,
+        pbr_model: modelUrl ? { url: modelUrl } : undefined,
+      } : undefined,
       error: d.message,
     };
   }
