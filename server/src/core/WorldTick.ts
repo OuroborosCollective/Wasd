@@ -1214,7 +1214,7 @@ export class WorldTick {
 
     // 4. Tick NPC AI
     const players = this.playerSystem.getAllPlayers();
-    this.npcSystem.tick(players);
+    this.npcSystem.tick(players, this.chatSystem);
     this.worldSystem.tick();
 
     // 5. Process NPC respawns
