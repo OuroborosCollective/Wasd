@@ -123,9 +123,18 @@ export class TripoService {
 
     const d = data.data;
     
-    // Debug: Log full response when success but no output
+    // Debug: Log all responses for debugging
+    console.log('[TripoService] pollTask response:', JSON.stringify({
+      taskId: d.task_id,
+      status: d.status,
+      progress: d.progress,
+      hasOutput: !!d.output,
+      outputKeys: d.output ? Object.keys(d.output) : [],
+      fullResponse: d
+    }, null, 2));
+    
     if (d.status === 'success' && !d.output) {
-      console.warn('[TripoService] Task success but no output. Full response:', JSON.stringify(d));
+      console.warn('[TripoService] Task success but no output. Full response:', JSON.stringify(d, null, 2));
     }
     
     return {
