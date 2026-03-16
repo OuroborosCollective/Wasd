@@ -117,16 +117,31 @@ export class TripoService {
     const responseData = d.output || d.result || {};
     
     // Extract model URL from various possible fields
+    // pbr_model can be a string URL directly or an object with .url
     let modelUrl: string | undefined;
-    if (responseData.model?.url) modelUrl = responseData.model.url;
-    else if (responseData.pbr_model?.url) modelUrl = responseData.pbr_model.url;
-    else if (responseData.model_url) modelUrl = responseData.model_url;
-    else if (responseData.glb_url) modelUrl = responseData.glb_url;
+    if (typeof responseData.pbr_model === 'string') {
+      modelUrl = responseData.pbr_model;
+    } else if (responseData.pbr_model?.url) {
+      modelUrl = responseData.pbr_model.url;
+    } else if (typeof responseData.model === 'string') {
+      modelUrl = responseData.model;
+    } else if (responseData.model?.url) {
+      modelUrl = responseData.model.url;
+    } else if (responseData.model_url) {
+      modelUrl = responseData.model_url;
+    } else if (responseData.glb_url) {
+      modelUrl = responseData.glb_url;
+    }
     
     // Extract image URL
     let imageUrl: string | undefined;
-    if (responseData.rendered_image?.url) imageUrl = responseData.rendered_image.url;
-    else if (responseData.generated_image) imageUrl = responseData.generated_image;
+    if (typeof responseData.rendered_image === 'string') {
+      imageUrl = responseData.rendered_image;
+    } else if (responseData.rendered_image?.url) {
+      imageUrl = responseData.rendered_image.url;
+    } else if (responseData.generated_image) {
+      imageUrl = responseData.generated_image;
+    }
     
     return {
       taskId: d.task_id,
