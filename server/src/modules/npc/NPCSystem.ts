@@ -1,3 +1,4 @@
+import { NPCBrain } from "../ai/NPCBrain.js";
 import { NPCPersonalityEngine } from "./NPCPersonalityEngine.js";
 import { NPCMemoryEngine } from "./NPCMemoryEngine.js";
 import { NPCGenealogyEngine } from "./NPCGenealogyEngine.js";
@@ -59,7 +60,8 @@ export class NPCSystem {
       homePosition: { x, y },
       targetPosition: null as { x: number, y: number } | null,
       state: "idle",
-      stateTimer: 0
+      stateTimer: 0,
+      brain: new NPCBrain()
     };
     this.npcs.set(id, npc);
     return npc;
@@ -251,7 +253,7 @@ export class NPCSystem {
     this.npcs.delete(id);
   }
 
-  tick(players: any[]) {
+  tick(players: any[], chatSystem?: any) {
     // Process NPC AI, schedules, needs
     const now = Date.now();
     for (const npc of this.npcs.values()) {
@@ -285,25 +287,29 @@ export class NPCSystem {
 
       if (npc.state === "idle") {
         if (now > npc.stateTimer) {
-          // Decide next action
-          const r = Math.random();
-          if (r < 0.4) {
+          if (!npc.brain) npc.brain = new NPCBrain();
+          const decision = npc.brain.update(npc);
+
+          if (chatSystem && npc.state !== decision.action) {
+            chatSystem.systemMessage(`[Thought] ${npc.name}: ${decision.thought}`);
+          }
+
+          if (decision.action === "wander" || decision.action === "wandering") {
             npc.state = "wandering";
-            // Pick a random spot near home
             const angle = Math.random() * Math.PI * 2;
             const dist = Math.random() * 30;
             npc.targetPosition = {
               x: npc.homePosition.x + Math.cos(angle) * dist,
               y: npc.homePosition.y + Math.sin(angle) * dist
             };
-            npc.stateTimer = now + 10000; // Max wander time
-          } else if (r < 0.7) {
+            npc.stateTimer = now + 10000;
+          } else if (decision.action === "work" || decision.action === "working") {
             npc.state = "working";
-            // Move back to home position (workplace)
             npc.targetPosition = { x: npc.homePosition.x, y: npc.homePosition.y };
-            npc.stateTimer = now + 15000; // Work for 15s
+            npc.stateTimer = now + 15000;
           } else {
-            npc.stateTimer = now + Math.random() * 3000 + 2000; // Stay idle
+            npc.state = decision.action;
+            npc.stateTimer = now + Math.random() * 3000 + 2000;
           }
         }
       } else if (npc.state === "wandering" || npc.state === "working") {
