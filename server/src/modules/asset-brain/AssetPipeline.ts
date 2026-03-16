@@ -121,7 +121,17 @@ export class AssetPipeline {
       this.update(job, { status: 'generating_spec', progress: 10 });
 
       const spec = await generateAssetSpecification(job.input);
-      const specRecord = await this.db.createSpecification(job.userId, spec);
+      const specRecord = await this.db.createSpecification({
+        userId: job.userId,
+        assetName: spec.assetName,
+        assetClass: spec.assetClass,
+        style: spec.style,
+        usage: 'game',
+        description: `Generated from: ${job.input}`,
+        tags: [spec.assetClass, spec.style],
+        specification: JSON.stringify(spec),
+        isPublic: false,
+      });
 
       this.update(job, { status: 'spec_ready', progress: 30, specId: specRecord.id });
 
