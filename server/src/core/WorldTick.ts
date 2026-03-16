@@ -15,9 +15,11 @@ import { SkillSystem } from "../modules/skill/SkillSystem.js";
 import { CraftingSystem } from "../modules/crafting/CraftingSystem.js";
 import { ChatSystem } from "../modules/chat/ChatSystem.js";
 import { LootSystem } from "../modules/loot/LootSystem.js";
+import { characterAssembly } from "../modules/character/CharacterAssemblySystem.js";
 import { cache } from "./Cache.js";
 import fs from "fs";
 import path from "path";
+import { GameConfig } from "../config/GameConfig.js";
 
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 
@@ -101,10 +103,291 @@ export class WorldTick {
     };
 
     this.ws.onPlayerMessage = async (id, msg) => {
-      try {
-        await this.handleMessage(id, msg);
-      } catch (e) {
-        console.error("Error handling message:", e);
+      if (msg.type === "login") {
+        const charName = msg.name || `Guest_${id.substring(0, 4)}`;
+        let player = this.playerSystem.getPlayer(charName);
+        if (!player) {
+          player = this.playerSystem.createPlayer(charName, charName);
+          this.hydratePlayer(player);
+        }
+        
+        this.socketToPlayer.set(id, charName);
+        this.observerEngine.register(id, { x: player.position.x, y: player.position.y });
+        
+        this.ws.sendToPlayer(id, {
+          type: "welcome",
+          id: charName,
+          stats: {
+            gold: player.gold,
+            xp: player.xp,
+            inventory: player.inventory,
+            equipment: player.equipment,
+            quests: player.quests
+          }
+        });
+        
+        console.log(`Player ${charName} logged in on socket ${id}`);
+        return;
+      }
+
+      const charName = this.socketToPlayer.get(id);
+      if (!charName) return;
+
+      const player = this.playerSystem.getPlayer(charName);
+      if (!player) return;
+
+      const now = Date.now();
+      const checkCooldown = (cooldown: number) => {
+        const last = this.lastActionTimes.get(charName) || 0;
+        if (now - last < cooldown) return false;
+        this.lastActionTimes.set(charName, now);
+        return true;
+      };
+
+      if (msg.type === "move_intent") {
+        // Server-authoritative movement calculation
+        const speed = 5;
+        // Clamp intent to prevent speed hacking
+        const dx = Math.max(-1, Math.min(1, Number(msg.dx) || 0));
+        const dy = Math.max(-1, Math.min(1, Number(msg.dy) || 0));
+        
+        if (!isNaN(dx) && !isNaN(dy)) {
+          player.position.x += dx * speed;
+          player.position.y += dy * speed;
+          this.observerEngine.updatePosition(id, { x: player.position.x, y: player.position.y });
+        }
+      } else if (msg.type === "admin_glb_scan") {
+        if (player.role !== "admin") return;
+        const models = this.glbRegistry.scanModels();
+        this.ws.sendToPlayer(id, { type: "admin_glb_scan_result", models });
+      } else if (msg.type === "admin_glb_list") {
+        if (player.role !== "admin") return;
+        const links = this.glbRegistry.getLinks();
+        this.ws.sendToPlayer(id, { type: "admin_glb_list_result", links });
+      } else if (msg.type === "admin_glb_link") {
+        if (player.role !== "admin") return;
+        this.glbRegistry.addLink({
+          glbPath: msg.glbPath,
+          targetType: msg.targetType,
+          targetId: msg.targetId
+        });
+        const links = this.glbRegistry.getLinks();
+        this.ws.sendToPlayer(id, { type: "admin_glb_list_result", links });
+      } else if (msg.type === "admin_glb_unlink") {
+        if (player.role !== "admin") return;
+        this.glbRegistry.removeLink(msg.targetType, msg.targetId);
+        const links = this.glbRegistry.getLinks();
+        this.ws.sendToPlayer(id, { type: "admin_glb_list_result", links });
+      } else if (msg.type === "equip") {
+        if (!checkCooldown(500)) return;
+        const itemId = msg.itemId;
+        const equipment = this.inventorySystem.equipItem(player, itemId);
+        if (equipment) {
+          this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Equipped item.` });
+          await this.saveAll();
+        }
+      } else if (msg.type === "unequip") {
+        if (!checkCooldown(500)) return;
+        const slot = msg.slot;
+        const equipment = this.inventorySystem.unequipItem(player, slot);
+        if (equipment) {
+          this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Unequipped ${slot}.` });
+          await this.saveAll();
+        }
+      } else if (msg.type === "attack") {
+        if (!checkCooldown(800)) return;
+        const targetId = msg.targetId;
+        const npc = this.npcSystem.getNPC(targetId);
+        if (npc && npc.health !== undefined) {
+          const dx = player.position.x - npc.position.x;
+          const dy = player.position.y - npc.position.y;
+          // Optimization: Use squared distance to avoid Math.hypot() square root
+          if (dx * dx + dy * dy < 900) { // 30^2
+            const baseDamage = 10;
+            let weaponDamage = 0;
+            let weaponName = "fists";
+
+            if (player.equipment?.weapon) {
+              const itemDef = ItemRegistry.getItem(player.equipment.weapon.id);
+              if (itemDef) {
+                weaponDamage = itemDef.damage || 0;
+                weaponName = itemDef.name;
+              }
+            }
+            
+            const totalDamage = baseDamage + weaponDamage;
+            
+            npc.health -= totalDamage;
+            
+            this.ws.broadcast({
+              type: "combat_feedback",
+              targetId,
+              damage: totalDamage,
+              health: npc.health,
+              maxHealth: npc.maxHealth
+            });
+
+            if (npc.health <= 0) {
+              if (npc.dropTable) {
+                for (const drop of npc.dropTable) {
+                  if (Math.random() < drop.chance) {
+                    const item = ItemRegistry.createInstance(drop.itemId);
+                    if (item) {
+                      const lootId = `loot_${Date.now()}_${Math.random()}`;
+                      this.lootEntities.set(lootId, {
+                        id: lootId,
+                        item: item,
+                        position: { x: npc.position.x, y: npc.position.y }
+                      });
+                      this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `You see ${item.name} drop!` });
+                    }
+                  }
+                }
+              }
+
+              npc.health = npc.maxHealth || 100; // Respawn
+              this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `You destroyed ${npc.name}! It respawns.` });
+
+              // Check for combat quest completion
+              const activeQuests = player.quests.filter((q: any) => !q.completed);
+              for (const q of activeQuests) {
+                if (q.objective === "combat" && q.targetId === targetId) {
+                  const reward = this.questSystem.completeQuest(player, q.id);
+                  if (reward) {
+                    this.broadcastQuestCompletion(id, q, reward);
+                  }
+                }
+              }
+            }
+          }
+        }
+      } else if (msg.type === "interact") {
+        if (!checkCooldown(500)) return;
+        const targetId = msg.targetId;
+        const npc = this.npcSystem.getNPC(targetId);
+        const loot = this.lootEntities.get(targetId);
+        if (npc) {
+          const dx = player.position.x - npc.position.x;
+          const dy = player.position.y - npc.position.y;
+          // Optimization: Use squared distance to avoid Math.hypot() square root
+          if (dx * dx + dy * dy < 400) { // 20^2
+            // ... NPC interaction logic ...
+            const interaction = this.npcSystem.handleInteraction(
+              targetId, 
+              player,
+              this.questSystem.getQuestDefinitions()
+            );
+            if (interaction) {
+              this.ws.sendToPlayer(id, {
+                type: "dialogue",
+                source: interaction.source,
+                text: interaction.text,
+                choices: interaction.choices,
+                npcId: interaction.npcId
+              });
+
+              if (interaction.questId) {
+                const quest = this.questSystem.startQuest(player, interaction.questId);
+                if (quest) {
+                  this.ws.sendToPlayer(id, {
+                    type: "dialogue",
+                    source: "System",
+                    text: `Quest Started: ${quest.name}`
+                  });
+                  await this.saveAll();
+                }
+              }
+
+              // Check for quest completion
+              const activeQuests = player.quests.filter((q: any) => !q.completed);
+              for (const q of activeQuests) {
+                let completed = false;
+                if (q.objective === "talk_to" && q.targetNpcId === targetId) {
+                  completed = true;
+                } else if (q.objective === "collect" && q.targetNpcId === targetId) {
+                  // Check inventory for required items
+                  const count = player.inventory.filter((item: any) => item.id === q.requiredItemId).length;
+                  if (count >= (q.requiredCount || 1)) {
+                    // Consume items
+                    for (let i = 0; i < (q.requiredCount || 1); i++) {
+                      const index = player.inventory.findIndex((item: any) => item.id === q.requiredItemId);
+                      if (index !== -1) player.inventory.splice(index, 1);
+                    }
+                    completed = true;
+                  } else {
+                    this.ws.sendToPlayer(id, {
+                      type: "dialogue",
+                      source: "System",
+                      text: `You need ${q.requiredCount || 1}x ${q.requiredItemId} to complete this quest.`
+                    });
+                  }
+                }
+
+                if (completed) {
+                  const reward = this.questSystem.completeQuest(player, q.id);
+                  if (reward) {
+                    this.broadcastQuestCompletion(id, q, reward);
+                  }
+                }
+              }
+            }
+          } else {
+            this.ws.sendToPlayer(id, {
+              type: "dialogue",
+              source: "System",
+              text: "Target is too far away."
+            });
+          }
+        } else if (loot) {
+          const dx = player.position.x - loot.position.x;
+          const dy = player.position.y - loot.position.y;
+          // Optimization: Use squared distance to avoid Math.hypot() square root
+          if (dx * dx + dy * dy < 400) { // 20^2
+            this.inventorySystem.addItem(player, loot.item);
+            this.lootEntities.delete(targetId);
+            this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Picked up ${loot.item.name}!` });
+          } else {
+            this.ws.sendToPlayer(id, {
+              type: "dialogue",
+              source: "System",
+              text: "Target is too far away."
+            });
+          }
+        }
+      } else if (msg.type === "dialogue_choice") {
+        const { npcId, nodeId, choiceId } = msg;
+        const interaction = this.npcSystem.handleChoice(npcId, nodeId, choiceId, player);
+        if (interaction) {
+          this.ws.sendToPlayer(id, {
+            type: "dialogue",
+            source: interaction.source,
+            text: interaction.text,
+            choices: interaction.choices,
+            npcId: interaction.npcId
+          });
+
+          if (interaction.questId) {
+            const quest = this.questSystem.startQuest(player, interaction.questId);
+            if (quest) {
+              this.ws.sendToPlayer(id, {
+                type: "dialogue",
+                source: "System",
+                text: `Quest Started: ${quest.name}`
+              });
+              this.saveAll();
+            }
+          }
+        }
+      } else if (msg.type === "equip") {
+        this.inventorySystem.equipItem(player, msg.itemId);
+        this.saveAll();
+      } else if (msg.type === "unequip") {
+        this.inventorySystem.unequipItem(player, msg.slot);
+        this.saveAll();
+      } else if (msg.type === "drop") {
+        this.inventorySystem.removeItem(player, msg.itemId);
+        this.saveAll();
+
       }
     };
   }
@@ -177,20 +460,20 @@ export class WorldTick {
         this.ws.sendToPlayer(id, { type: "skills_data", skills: this.skillSystem.getAllSkills(player) });
         break;
       case "admin_glb_scan":
-        if (player.role !== "admin") return;
+        if (player.role !== "admin" && player.role !== "gm") return;
         this.ws.sendToPlayer(id, { type: "admin_glb_scan_result", models: this.glbRegistry.scanModels() });
         break;
       case "admin_glb_list":
-        if (player.role !== "admin") return;
+        if (player.role !== "admin" && player.role !== "gm") return;
         this.ws.sendToPlayer(id, { type: "admin_glb_list_result", links: this.glbRegistry.getLinks() });
         break;
       case "admin_glb_link":
-        if (player.role !== "admin") return;
+        if (player.role !== "admin" && player.role !== "gm") return;
         this.glbRegistry.addLink({ glbPath: msg.glbPath, targetType: msg.targetType, targetId: msg.targetId });
         this.ws.sendToPlayer(id, { type: "admin_glb_list_result", links: this.glbRegistry.getLinks() });
         break;
       case "admin_glb_unlink":
-        if (player.role !== "admin") return;
+        if (player.role !== "admin" && player.role !== "gm") return;
         this.glbRegistry.removeLink(msg.targetType, msg.targetId);
         this.ws.sendToPlayer(id, { type: "admin_glb_list_result", links: this.glbRegistry.getLinks() });
         break;
@@ -436,7 +719,8 @@ export class WorldTick {
         equipment: player.equipment,
         quests: player.quests,
         skills: this.skillSystem.getAllSkills(player),
-        position: player.position
+        position: player.position,
+        appearance: player.appearance
       }
     });
 
@@ -479,7 +763,7 @@ export class WorldTick {
     if (!npc || npc.health === undefined) return;
 
     const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
-    if (dist > 35) {
+    if (dist > GameConfig.attackDistance) {
       this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Target is too far away." });
       return;
     }
@@ -580,7 +864,7 @@ export class WorldTick {
 
     if (npc) {
       const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
-      if (dist > 25) {
+      if (dist > GameConfig.interactDistance) {
         this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Target is too far away." });
         return;
       }
@@ -638,7 +922,7 @@ export class WorldTick {
       }
     } else if (loot) {
       const dist = Math.hypot(player.position.x - loot.position.x, player.position.y - loot.position.y);
-      if (dist > 25) {
+      if (dist > GameConfig.interactDistance) {
         this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Too far away." });
         return;
       }
@@ -784,6 +1068,7 @@ export class WorldTick {
 
   async init() {
     await this.persistence.init();
+    await this.craftingSystem.loadRecipes();
     const savedData = await this.persistence.load();
     for (const name in savedData) {
       const player = savedData[name];
@@ -792,6 +1077,11 @@ export class WorldTick {
       this.playerSystem.setPlayer(name, player);
     }
     console.log(`Loaded ${Object.keys(savedData).length} players from database.`);
+    const savedWorld = await this.persistence.loadWorldState('global_state');
+    if (savedWorld) {
+      Object.assign(this.worldState, savedWorld);
+      console.log("World state loaded from database.");
+    }
     this.loadSpawns();
     console.log(`World initialized. NPCs: ${this.npcSystem.getAllNPCs().length}`);
   }
@@ -811,6 +1101,7 @@ export class WorldTick {
       data[p.id] = persistedPlayer;
     }
     await this.persistence.save(data);
+    await this.persistence.saveWorldState('global_state', this.worldState);
   }
 
   private hydratePlayer(player: any) {
@@ -831,6 +1122,7 @@ export class WorldTick {
     if (player.gold === undefined) player.gold = 0;
     if (player.xp === undefined) player.xp = 0;
     if (player.level === undefined) player.level = 1;
+    if (player.appearance === undefined) player.appearance = null;
     if (!player.role) player.role = player.name.toLowerCase() === "admin" ? "admin" : "player";
 
     if (player.inventory) {
@@ -976,25 +1268,41 @@ export class WorldTick {
       tick: this.tickCount,
       weather,
       activeChunkIds: activeChunks.map(c => c.id),
-      players: players.map(p => ({
-        id: p.id,
-        name: p.name,
-        position: p.position,
-        health: p.health,
-        maxHealth: p.maxHealth || 100,
-        stamina: p.stamina || 100,
-        maxStamina: p.maxStamina || 100,
-        mana: p.mana || 25,
-        maxMana: p.maxMana || 25,
-        gold: p.gold || 0,
-        xp: p.xp || 0,
-        level: p.level || 1,
-        role: p.role,
-        inventory: p.inventory || [],
-        equipment: p.equipment || {},
-        reputation: p.reputation || {},
-        questStatus: this.questSystem.getQuestStatus(p)
-      })),
+      players: players.map(p => {
+        const appearance = p.appearance;
+        let resolvedAppearance = null;
+        if (appearance) {
+          const paths = characterAssembly.resolveModelPaths(appearance);
+          resolvedAppearance = {
+            ...appearance,
+            bodyUrl: paths.bodyUrl,
+            headUrl: paths.headUrl,
+            skinToneColor: paths.skinColor,
+            hairColor: paths.hairColor,
+            eyeColor: paths.eyeColor
+          };
+        }
+        return {
+          id: p.id,
+          name: p.name,
+          position: p.position,
+          health: p.health,
+          maxHealth: p.maxHealth || 100,
+          stamina: p.stamina || 100,
+          maxStamina: p.maxStamina || 100,
+          mana: p.mana || 25,
+          maxMana: p.maxMana || 25,
+          gold: p.gold || 0,
+          xp: p.xp || 0,
+          level: p.level || 1,
+          role: p.role,
+          inventory: p.inventory || [],
+          equipment: p.equipment || {},
+          reputation: p.reputation || {},
+          questStatus: this.questSystem.getQuestStatus(p),
+          appearance: resolvedAppearance
+        };
+      }),
       npcs: npcsWithGlb,
       loot: lootWithGlb,
       onlinePlayers: this.socketToPlayer.size

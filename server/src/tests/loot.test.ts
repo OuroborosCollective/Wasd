@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { AffixSystem } from "../modules/loot/AffixSystem.js";
 import { ItemGenerator } from "../modules/loot/ItemGenerator.js";
 import { LootTables } from "../modules/loot/LootTables.js";
+
+
 
 // ---------------------------------------------------------------------------
 // AffixSystem
@@ -146,3 +148,5 @@ describe("LootTables", () => {
     }
   });
 });
+
+

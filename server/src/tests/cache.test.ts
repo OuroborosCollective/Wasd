@@ -50,4 +50,20 @@ describe("Cache Module", () => {
     const value = await cache.get("customKeep");
     expect(value).toBe("willKeep");
   });
+
+
+  it("should keep value at exact TTL expiration boundary", async () => {
+    cache.set("exactBoundary", "boundaryValue", "EX", 10);
+    vi.advanceTimersByTime(10000); // exactly 10 seconds
+    const value = await cache.get("exactBoundary");
+    expect(value).toBe("boundaryValue");
+  });
+
+  it("should fallback to default TTL when ttl is 0", async () => {
+    cache.set("ttlZero", "zeroValue", "EX", 0);
+    // Default TTL is 60 seconds
+    vi.advanceTimersByTime(60001);
+    const value = await cache.get("ttlZero");
+    expect(value).toBeNull();
+  });
 });

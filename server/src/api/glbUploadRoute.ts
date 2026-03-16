@@ -18,6 +18,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from "uuid";
 import { authMiddleware } from "../middleware/authMiddleware.js";
+
 import { db as dbInstance } from "../core/Database.js";
 type Database = typeof dbInstance;
 
@@ -100,6 +101,18 @@ export function createGLBUploadRouter(dbParam?: any): Router {
     const modelName = req.body.name || path.basename(req.file.originalname, path.extname(req.file.originalname));
     const modelId = uuidv4();
     const publicPath = `/uploads/glb/${req.file.filename}`;
+
+    // Validate file content
+    try {
+      const asset = fs.readFileSync(req.file.path);
+      const report = await validator.validateBytes(new Uint8Array(asset), { maxIssues: 10, ignoredIssues: ['UNSUPPORTED_EXTENSION'] });
+      if (report.issues.numErrors > 0) {
+        throw new Error("Invalid GLB/GLTF file content");
+      }
+    } catch (e: any) {
+      fs.unlinkSync(req.file.path);
+      return res.status(400).json({ error: e.message || "Invalid GLB/GLTF file content" });
+    }
 
     try {
       // Check model count limit

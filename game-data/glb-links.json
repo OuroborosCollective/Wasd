@@ -1,0 +1,21 @@
+[
+  {
+    "glbPath": "/assets/models/characters/uschi.glb",
+    "targetType": "npc_single",
+    "targetId": "npc_1"
+
+  },
+  {
+    "glbPath": "/assets/models/monsters/goblin.glb",
+    "targetType": "monster_group",
+    "targetId": "npc_wolf"
+
+  },
+  {
+    "glbPath": "/assets/models/objects/chest.glb",
+    "targetType": "object_single",
+    "targetId": "starter_sword"
+
+  }
+]
+

@@ -7,6 +7,7 @@ import { TelemetryCollector } from "../modules/analytics/TelemetryCollector.js";
 import { PerformanceBudget } from "../modules/analytics/PerformanceBudget.js";
 import { HousingSystem } from "../modules/housing/HousingSystem.js";
 import { OwnershipRegistry } from "../modules/housing/OwnershipRegistry.js";
+
 import { DungeonGenerator } from "../modules/dungeon/DungeonGenerator.js";
 import { PacketRouter } from "../networking/PacketRouter.js";
 import { GameConfig } from "../config/GameConfig.js";
@@ -255,6 +256,7 @@ describe("OwnershipRegistry", () => {
 });
 
 // ---------------------------------------------------------------------------
+
 // DungeonGenerator
 // ---------------------------------------------------------------------------
 describe("DungeonGenerator", () => {
@@ -358,6 +360,7 @@ describe("GameConfig", () => {
     expect(GameConfig.matrixCurrency).toBe("matrix_energy");
   });
 });
+
 
 // ---------------------------------------------------------------------------
 // FeatureFlags
