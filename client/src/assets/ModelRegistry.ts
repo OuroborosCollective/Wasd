@@ -1,5 +1,5 @@
 export const ModelRegistry = {
   uschi: { path: "/assets/models/characters/uschi.glb", scale: 1 },
-  gm_giraffe: { path: "/assets/models/admin/gm_giraffe.glb", scale: 1 },
-  castle_gate: { path: "/assets/models/buildings/castle_gate.glb", scale: 1 }
+  goblin: { path: "/assets/models/monsters/goblin.glb", scale: 1 },
+  chest: { path: "/assets/models/objects/chest.glb", scale: 1 }
 };

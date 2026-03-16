@@ -19,7 +19,11 @@ npm install
 *(This will install dependencies for both the client and the server based on your `package.json`.)*
 
 ### 2. Configure Environment Variables
-Copy the example environment file to create your local configuration:
+Copy the example environment file to crbash
+npm install -g firebase-tools
+firebase login
+firebase init studio
+configurationationr local configuration:
 ```bash
 cp .env.example .env
 ```

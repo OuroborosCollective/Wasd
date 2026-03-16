@@ -6,6 +6,7 @@
  */
 
 import { sendMessage } from "../networking/websocketClient";
+import { ModelRegistry } from "../assets/ModelRegistry";
 
 let panelOpen = false;
 let activeTab = "world";
@@ -146,6 +147,10 @@ function gm(msg: any) {
 
 // ── TAB CONTENTS ──────────────────────────────────────────────────────────────
 function renderWorldTab(): string {
+  const modelOptions = Object.keys(ModelRegistry)
+    .map(key => `<option value="${key}">${key}</option>`)
+    .join('\n');
+
   return `
     <div class="gm-grid-2">
       <div class="gm-section">
@@ -211,13 +216,7 @@ function renderWorldTab(): string {
       <div class="gm-row">
         <span class="gm-label">Object Type</span>
         <select class="gm-select" id="gm-obj-type">
-          <option value="chest">💰 Treasure Chest</option>
-          <option value="campfire">🔥 Campfire</option>
-          <option value="sign">📋 Sign</option>
-          <option value="tree">🌲 Tree</option>
-          <option value="rock">🪨 Rock</option>
-          <option value="portal">🌀 Portal</option>
-          <option value="shrine">⛩️ Shrine</option>
+          ${modelOptions}
         </select>
         <span class="gm-label">X</span>
         <input class="gm-input" id="gm-obj-x" type="number" placeholder="X" style="max-width:80px">
