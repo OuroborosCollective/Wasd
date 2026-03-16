@@ -2,9 +2,50 @@
  * Asset Brain Architect - Database Operations
  * Handles all CRUD operations for asset specifications and variants
  */
-
 import { Database } from '../../core/Database.js';
-import type { AssetSpecification, AssetVariant, AssetLibraryEntry, BatchJob } from './AssetBrainSchema.js';
+import type { AssetSpecification } from './assetBrainEngine.js';
+
+// ── Local DB record types (not the engine types) ─────────────────────────────
+
+export interface AssetRecord {
+  id: string;
+  userId: string;
+  assetName: string;
+  assetClass: string;
+  style: string;
+  usage: string;
+  description?: string;
+  tags?: string[];
+  specification: string; // JSON-serialized AssetSpecification
+  isPublic: boolean;
+  version: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AssetVariantRecord {
+  id: string;
+  specificationId: string;
+  variantType: 'hero' | 'gameplay' | 'mobileweb';
+  triangleCount: number;
+  boneCount?: number;
+  textureResolution: string;
+  description: string;
+  createdAt: Date;
+}
+
+export interface BatchJobRecord {
+  id: string;
+  userId: string;
+  jobType: 'csv-import' | 'json-import' | 'batch-generate';
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  inputFile: string;
+  outputFile?: string;
+  assetsGenerated: number;
+  errors: string[];
+  createdAt: Date;
+  completedAt?: Date;
+}
 
 export class AssetBrainDatabase {
   constructor(private db: Database) {}
@@ -14,7 +55,6 @@ export class AssetBrainDatabase {
    */
   async initializeTables(): Promise<void> {
     const queries = [
-      // Asset Specifications table
       `CREATE TABLE IF NOT EXISTS asset_specifications (
         id VARCHAR(36) PRIMARY KEY,
         user_id VARCHAR(255) NOT NULL,
@@ -24,18 +64,14 @@ export class AssetBrainDatabase {
         usage TEXT,
         description TEXT,
         tags TEXT,
-        specification JSONB NOT NULL,
-        auto_decisions JSONB,
+        specification TEXT NOT NULL,
         version INTEGER DEFAULT 1,
         is_public BOOLEAN DEFAULT false,
         created_at TIMESTAMPTZ DEFAULT NOW(),
-        updated_at TIMESTAMPTZ DEFAULT NOW(),
-        INDEX idx_user_id (user_id),
-        INDEX idx_asset_class (asset_class),
-        INDEX idx_style (style)
+        updated_at TIMESTAMPTZ DEFAULT NOW()
       )`,
-
-      // Asset Variants table
+      `CREATE INDEX IF NOT EXISTS idx_asset_spec_user ON asset_specifications(user_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_asset_spec_class ON asset_specifications(asset_class)`,
       `CREATE TABLE IF NOT EXISTS asset_variants (
         id VARCHAR(36) PRIMARY KEY,
         specification_id VARCHAR(36) NOT NULL,
@@ -44,33 +80,9 @@ export class AssetBrainDatabase {
         bone_count INTEGER,
         texture_resolution VARCHAR(50),
         description TEXT,
-        variant_data JSONB,
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        FOREIGN KEY (specification_id) REFERENCES asset_specifications(id) ON DELETE CASCADE,
-        INDEX idx_spec_id (specification_id)
+        created_at TIMESTAMPTZ DEFAULT NOW()
       )`,
-
-      // Asset Library (public browseable assets)
-      `CREATE TABLE IF NOT EXISTS asset_library (
-        id VARCHAR(36) PRIMARY KEY,
-        specification_id VARCHAR(36) NOT NULL,
-        asset_name VARCHAR(255) NOT NULL,
-        asset_class VARCHAR(50) NOT NULL,
-        style VARCHAR(100),
-        tags TEXT,
-        thumbnail TEXT,
-        is_public BOOLEAN DEFAULT false,
-        downloads INTEGER DEFAULT 0,
-        rating FLOAT DEFAULT 0,
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        updated_at TIMESTAMPTZ DEFAULT NOW(),
-        FOREIGN KEY (specification_id) REFERENCES asset_specifications(id) ON DELETE CASCADE,
-        INDEX idx_asset_class (asset_class),
-        INDEX idx_style (style),
-        INDEX idx_public (is_public)
-      )`,
-
-      // Batch Jobs table
+      `CREATE INDEX IF NOT EXISTS idx_variant_spec ON asset_variants(specification_id)`,
       `CREATE TABLE IF NOT EXISTS asset_batch_jobs (
         id VARCHAR(36) PRIMARY KEY,
         user_id VARCHAR(255) NOT NULL,
@@ -81,9 +93,7 @@ export class AssetBrainDatabase {
         assets_generated INTEGER DEFAULT 0,
         errors TEXT,
         created_at TIMESTAMPTZ DEFAULT NOW(),
-        completed_at TIMESTAMPTZ,
-        INDEX idx_user_id (user_id),
-        INDEX idx_status (status)
+        completed_at TIMESTAMPTZ
       )`,
     ];
 
@@ -91,7 +101,8 @@ export class AssetBrainDatabase {
       try {
         await this.db.query(query);
       } catch (error) {
-        console.error('Error creating table:', error);
+        // Tables may already exist — ignore
+        console.warn('[AssetBrain] Table init warning:', (error as Error).message);
       }
     }
   }
@@ -99,18 +110,18 @@ export class AssetBrainDatabase {
   /**
    * Create a new asset specification
    */
-  async createSpecification(spec: Omit<AssetSpecification, 'id' | 'createdAt' | 'updatedAt' | 'version'>): Promise<AssetSpecification> {
-    const id = `spec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  async createSpecification(
+    spec: Omit<AssetRecord, 'id' | 'createdAt' | 'updatedAt' | 'version'>
+  ): Promise<AssetRecord> {
+    const id = `spec_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const now = new Date();
-
     const query = `
       INSERT INTO asset_specifications (
-        id, user_id, asset_name, asset_class, style, usage, description, tags, 
-        specification, auto_decisions, version, is_public, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        id, user_id, asset_name, asset_class, style, usage, description, tags,
+        specification, version, is_public, created_at, updated_at
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
       RETURNING *
     `;
-
     const result = await this.db.query(query, [
       id,
       spec.userId,
@@ -118,219 +129,149 @@ export class AssetBrainDatabase {
       spec.assetClass,
       spec.style,
       spec.usage,
-      spec.description || null,
-      JSON.stringify(spec.tags || []),
-      JSON.stringify(spec),
-      JSON.stringify(spec.autoDecisions || []),
+      spec.description ?? null,
+      JSON.stringify(spec.tags ?? []),
+      spec.specification,
       1,
-      spec.isPublic || false,
+      spec.isPublic ?? false,
       now,
       now,
     ]);
-
-    return result.rows[0];
+    return this.mapRow(result.rows[0]);
   }
 
   /**
    * Get specification by ID
    */
-  async getSpecification(id: string): Promise<AssetSpecification | null> {
-    const query = `SELECT * FROM asset_specifications WHERE id = $1`;
-    const result = await this.db.query(query, [id]);
-    return result.rows[0] || null;
+  async getSpecification(id: string): Promise<AssetRecord | null> {
+    const result = await this.db.query(
+      `SELECT * FROM asset_specifications WHERE id = $1`,
+      [id]
+    );
+    return result.rows[0] ? this.mapRow(result.rows[0]) : null;
   }
 
   /**
    * Get all specifications for a user
    */
-  async getUserSpecifications(userId: string): Promise<AssetSpecification[]> {
-    const query = `
-      SELECT * FROM asset_specifications 
-      WHERE user_id = $1 
-      ORDER BY created_at DESC
-    `;
-    const result = await this.db.query(query, [userId]);
-    return result.rows;
+  async getUserSpecifications(userId: string): Promise<AssetRecord[]> {
+    const result = await this.db.query(
+      `SELECT * FROM asset_specifications WHERE user_id = $1 ORDER BY created_at DESC`,
+      [userId]
+    );
+    return result.rows.map((r: any) => this.mapRow(r));
   }
 
   /**
-   * Search specifications by class and style
+   * Search public specifications by class and style
    */
-  async searchSpecifications(assetClass?: string, style?: string): Promise<AssetSpecification[]> {
-    let query = `SELECT * FROM asset_specifications WHERE is_public = true`;
-    const params: any[] = [];
-
-    if (assetClass) {
-      query += ` AND asset_class = $${params.length + 1}`;
-      params.push(assetClass);
-    }
-
-    if (style) {
-      query += ` AND style = $${params.length + 1}`;
-      params.push(style);
-    }
-
-    query += ` ORDER BY created_at DESC`;
-
-    const result = await this.db.query(query, params);
-    return result.rows;
+  async searchSpecifications(assetClass?: string, style?: string): Promise<AssetRecord[]> {
+    const conditions: string[] = ['is_public = true'];
+    const params: unknown[] = [];
+    if (assetClass) { params.push(assetClass); conditions.push(`asset_class = $${params.length}`); }
+    if (style)      { params.push(`%${style}%`); conditions.push(`style ILIKE $${params.length}`); }
+    const result = await this.db.query(
+      `SELECT * FROM asset_specifications WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC LIMIT 50`,
+      params
+    );
+    return result.rows.map((r: any) => this.mapRow(r));
   }
 
   /**
-   * Create asset variants
+   * Search asset library
    */
-  async createVariant(variant: Omit<AssetVariant, 'id' | 'createdAt'>): Promise<AssetVariant> {
-    const id = `var_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  async searchLibrary(assetClass?: string, style?: string): Promise<AssetRecord[]> {
+    return this.searchSpecifications(assetClass, style);
+  }
 
-    const query = `
-      INSERT INTO asset_variants (
-        id, specification_id, variant_type, triangle_count, bone_count, 
-        texture_resolution, description, variant_data, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
-      RETURNING *
-    `;
-
-    const result = await this.db.query(query, [
-      id,
-      variant.specificationId,
-      variant.variantType,
-      variant.triangleCount,
-      variant.boneCount || null,
-      variant.textureResolution,
-      variant.description,
-      JSON.stringify(variant),
-    ]);
-
-    return result.rows[0];
+  /**
+   * Create a variant record
+   */
+  async createVariant(
+    variant: Omit<AssetVariantRecord, 'id' | 'createdAt'>
+  ): Promise<AssetVariantRecord> {
+    const id = `var_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const now = new Date();
+    const result = await this.db.query(
+      `INSERT INTO asset_variants (id, specification_id, variant_type, triangle_count, bone_count, texture_resolution, description, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [id, variant.specificationId, variant.variantType, variant.triangleCount, variant.boneCount ?? null, variant.textureResolution, variant.description, now]
+    );
+    return this.mapVariantRow(result.rows[0]);
   }
 
   /**
    * Get variants for a specification
    */
-  async getVariants(specificationId: string): Promise<AssetVariant[]> {
-    const query = `
-      SELECT * FROM asset_variants 
-      WHERE specification_id = $1 
-      ORDER BY created_at DESC
-    `;
-    const result = await this.db.query(query, [specificationId]);
-    return result.rows;
+  async getVariants(specificationId: string): Promise<AssetVariantRecord[]> {
+    const result = await this.db.query(
+      `SELECT * FROM asset_variants WHERE specification_id = $1 ORDER BY created_at ASC`,
+      [specificationId]
+    );
+    return result.rows.map((r: any) => this.mapVariantRow(r));
   }
 
   /**
-   * Create batch job
+   * Create a batch job
    */
-  async createBatchJob(job: Omit<BatchJob, 'id' | 'createdAt'>): Promise<BatchJob> {
-    const id = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    const query = `
-      INSERT INTO asset_batch_jobs (
-        id, user_id, job_type, status, input_file, assets_generated, errors, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-      RETURNING *
-    `;
-
-    const result = await this.db.query(query, [
-      id,
-      job.userId,
-      job.jobType,
-      job.status,
-      job.inputFile,
-      job.assetsGenerated || 0,
-      JSON.stringify(job.errors || []),
-    ]);
-
-    return result.rows[0];
-  }
-
-  /**
-   * Update batch job status
-   */
-  async updateBatchJob(id: string, updates: Partial<BatchJob>): Promise<void> {
-    const fields: string[] = [];
-    const values: any[] = [];
-    let paramIndex = 1;
-
-    if (updates.status) {
-      fields.push(`status = $${paramIndex++}`);
-      values.push(updates.status);
-    }
-    if (updates.assetsGenerated !== undefined) {
-      fields.push(`assets_generated = $${paramIndex++}`);
-      values.push(updates.assetsGenerated);
-    }
-    if (updates.outputFile) {
-      fields.push(`output_file = $${paramIndex++}`);
-      values.push(updates.outputFile);
-    }
-    if (updates.errors) {
-      fields.push(`errors = $${paramIndex++}`);
-      values.push(JSON.stringify(updates.errors));
-    }
-    if (updates.completedAt) {
-      fields.push(`completed_at = NOW()`);
-    }
-
-    if (fields.length === 0) return;
-
-    values.push(id);
-    const query = `UPDATE asset_batch_jobs SET ${fields.join(', ')} WHERE id = $${paramIndex}`;
-    await this.db.query(query, values);
-  }
-
-  /**
-   * Add to library
-   */
-  async addToLibrary(entry: Omit<AssetLibraryEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<AssetLibraryEntry> {
-    const id = `lib_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  async createBatchJob(
+    job: Omit<BatchJobRecord, 'id' | 'createdAt'>
+  ): Promise<BatchJobRecord> {
+    const id = `job_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const now = new Date();
-
-    const query = `
-      INSERT INTO asset_library (
-        id, specification_id, asset_name, asset_class, style, tags, 
-        thumbnail, is_public, downloads, rating, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-      RETURNING *
-    `;
-
-    const result = await this.db.query(query, [
-      id,
-      entry.specificationId,
-      entry.assetName,
-      entry.assetClass,
-      entry.style,
-      JSON.stringify(entry.tags || []),
-      entry.thumbnail || null,
-      entry.isPublic,
-      entry.downloads || 0,
-      entry.rating || 0,
-      now,
-      now,
-    ]);
-
-    return result.rows[0];
+    const result = await this.db.query(
+      `INSERT INTO asset_batch_jobs (id, user_id, job_type, status, input_file, assets_generated, errors, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [id, job.userId, job.jobType, job.status, job.inputFile, job.assetsGenerated, JSON.stringify(job.errors), now]
+    );
+    return this.mapJobRow(result.rows[0]);
   }
 
-  /**
-   * Search library
-   */
-  async searchLibrary(assetClass?: string, style?: string, tags?: string[]): Promise<AssetLibraryEntry[]> {
-    let query = `SELECT * FROM asset_library WHERE is_public = true`;
-    const params: any[] = [];
+  // ── Row mappers ─────────────────────────────────────────────────────────────
 
-    if (assetClass) {
-      query += ` AND asset_class = $${params.length + 1}`;
-      params.push(assetClass);
-    }
+  private mapRow(row: any): AssetRecord {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      assetName: row.asset_name,
+      assetClass: row.asset_class,
+      style: row.style,
+      usage: row.usage,
+      description: row.description ?? undefined,
+      tags: row.tags ? JSON.parse(row.tags) : [],
+      specification: row.specification,
+      isPublic: row.is_public,
+      version: row.version,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
 
-    if (style) {
-      query += ` AND style = $${params.length + 1}`;
-      params.push(style);
-    }
+  private mapVariantRow(row: any): AssetVariantRecord {
+    return {
+      id: row.id,
+      specificationId: row.specification_id,
+      variantType: row.variant_type,
+      triangleCount: row.triangle_count,
+      boneCount: row.bone_count ?? undefined,
+      textureResolution: row.texture_resolution,
+      description: row.description,
+      createdAt: row.created_at,
+    };
+  }
 
-    query += ` ORDER BY downloads DESC, rating DESC`;
-
-    const result = await this.db.query(query, params);
-    return result.rows;
+  private mapJobRow(row: any): BatchJobRecord {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      jobType: row.job_type,
+      status: row.status,
+      inputFile: row.input_file,
+      outputFile: row.output_file ?? undefined,
+      assetsGenerated: row.assets_generated,
+      errors: row.errors ? JSON.parse(row.errors) : [],
+      createdAt: row.created_at,
+      completedAt: row.completed_at ?? undefined,
+    };
   }
 }

@@ -1,162 +1,30 @@
 /**
- * Asset Brain Architect - Database Schema
- * Stores generated 3D asset specifications with versioning and platform variants
+ * Asset Brain Architect - Schema & Types
+ * Re-exports engine types and adds DB-layer types
  */
+export type {
+  AssetClass,
+  PlatformProfile,
+  PlatformBudget,
+  AssetSpecification,
+} from './assetBrainEngine.js';
 
-export interface AssetSpecification {
+// ── DB-layer types ────────────────────────────────────────────────────────────
+
+export interface AssetRecord {
   id: string;
   userId: string;
   assetName: string;
-  assetClass: 'character' | 'creature' | 'prop' | 'weapon' | 'environment';
+  assetClass: string;
   style: string;
   usage: string;
   description?: string;
   tags?: string[];
-  
-  // Complete specification sections
-  platformProfiles: Record<string, PlatformProfile>;
-  dimensions: DimensionSpec;
-  topology: TopologySpec;
-  uv: UVSpec;
-  materials: MaterialSpec;
-  rig: RigSpec;
-  animations: AnimationSpec;
-  lods: LODSpec;
-  collision: CollisionSpec;
-  attachments: AttachmentSpec;
-  export: ExportSpec;
-  fileContract: FileContract;
-  qa: QASpec;
-  
-  // Auto-decisions made by the engine
-  autoDecisions: string[];
-  
-  // Metadata
+  specification: string; // JSON-serialized AssetSpecification
   createdAt: Date;
   updatedAt: Date;
   version: number;
   isPublic: boolean;
-}
-
-export interface PlatformProfile {
-  platform: 'browser-mmo' | 'android' | 'pc-high-end';
-  targetTriangles: number;
-  maxBones: number;
-  maxMaterials: number;
-  textureResolution: string;
-  lodStrategy: string;
-}
-
-export interface DimensionSpec {
-  height: number;
-  width: number;
-  depth: number;
-  boundingBoxMin: [number, number, number];
-  boundingBoxMax: [number, number, number];
-  recommendedScale: number;
-}
-
-export interface TopologySpec {
-  triangleCount: number;
-  vertexCount: number;
-  edgeCount: number;
-  polygonDensity: string;
-  meshOptimization: string;
-}
-
-export interface UVSpec {
-  uvChannels: number;
-  texelDensity: number;
-  seamHandling: string;
-  atlasSize: string;
-  padding: number;
-}
-
-export interface MaterialSpec {
-  materialCount: number;
-  pbr: boolean;
-  textureTypes: string[];
-  colorSpace: string;
-  alphaBlending: boolean;
-  normalMapping: boolean;
-  roughnessMetallic: boolean;
-}
-
-export interface RigSpec {
-  required: boolean;
-  boneCount?: number;
-  boneHierarchy?: string;
-  skinWeights: boolean;
-  deformationMethod?: string;
-  bindPose?: string;
-}
-
-export interface AnimationSpec {
-  animationCount: number;
-  animationTypes: string[];
-  frameRate: number;
-  blendingSupport: boolean;
-  rootMotion: boolean;
-}
-
-export interface LODSpec {
-  lodCount: number;
-  lod0Triangles: number;
-  lod1Triangles?: number;
-  lod2Triangles?: number;
-  lodStrategy: string;
-  transitionDistance: number;
-}
-
-export interface CollisionSpec {
-  collisionType: string;
-  collisionShapes: string[];
-  physicsEnabled: boolean;
-  convexHull: boolean;
-  simplification: number;
-}
-
-export interface AttachmentSpec {
-  attachmentPoints: string[];
-  socketCount: number;
-  socketNames: string[];
-}
-
-export interface ExportSpec {
-  primaryFormat: 'glb' | 'gltf' | 'fbx' | 'usdz';
-  secondaryFormats: string[];
-  compressionLevel: number;
-  embedTextures: boolean;
-}
-
-export interface FileContract {
-  fileSize: string;
-  deliverables: string[];
-  sourceFiles: string[];
-  textureInclusion: boolean;
-  rigInclusion: boolean;
-  animationInclusion: boolean;
-}
-
-export interface QASpec {
-  checklist: QAChecklistItem[];
-  validationRules: string[];
-  performanceBudget: PerformanceBudget;
-}
-
-export interface QAChecklistItem {
-  category: string;
-  item: string;
-  status: 'pending' | 'passed' | 'failed';
-  notes?: string;
-}
-
-export interface PerformanceBudget {
-  maxTriangles: number;
-  maxBones: number;
-  maxMaterials: number;
-  maxTextureMemory: string;
-  targetFrameRate: number;
 }
 
 export interface AssetVariant {

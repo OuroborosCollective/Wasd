@@ -9,19 +9,15 @@
  * POST   /api/asset-brain/batch         – Start batch job
  * GET    /api/asset-brain/batch/:id     – Get batch job status
  */
-
 import { Router, Request, Response } from 'express';
-import { v4 as uuidv4 } from 'uuid';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import { db as dbInstance } from '../core/Database.js';
-import { AssetBrainDatabase } from '../modules/asset-brain/AssetBrainDatabase.js';
+import { AssetBrainDatabase, type AssetRecord } from '../modules/asset-brain/AssetBrainDatabase.js';
 import { generateAssetSpecification, generateVariants } from '../modules/asset-brain/assetBrainEngine.js';
 
-type Database = typeof dbInstance;
-
-export function createAssetBrainRouter(dbParam?: any): Router {
-  const db = dbParam || dbInstance;
-  const assetBrainDb = new AssetBrainDatabase(db);
+export function createAssetBrainRouter(dbParam?: unknown): Router {
+  const db = dbParam ?? dbInstance;
+  const assetBrainDb = new AssetBrainDatabase(db as typeof dbInstance);
   const router = Router();
 
   // Initialize tables on startup
@@ -36,7 +32,14 @@ export function createAssetBrainRouter(dbParam?: any): Router {
       const userId = (req as any).userId || (req as any).playerId;
       if (!userId) return res.status(401).json({ error: 'User ID required' });
 
-      const { assetInput, name, style, tags, description, isPublic } = req.body;
+      const { assetInput, name, style, tags, description, isPublic } = req.body as {
+        assetInput?: string;
+        name?: string;
+        style?: string;
+        tags?: string[];
+        description?: string;
+        isPublic?: boolean;
+      };
 
       if (!assetInput || typeof assetInput !== 'string') {
         return res.status(400).json({ error: 'assetInput is required and must be a string' });
@@ -45,44 +48,35 @@ export function createAssetBrainRouter(dbParam?: any): Router {
       // Generate specification using Asset Brain Engine
       const specification = await generateAssetSpecification(assetInput);
 
-      // Save to database
+      // Save to database (store full spec as JSON blob)
       const savedSpec = await assetBrainDb.createSpecification({
         userId,
-        assetName: name || specification.assetName,
+        assetName: name ?? specification.assetName,
         assetClass: specification.assetClass,
-        style: style || specification.style,
+        style: style ?? specification.style,
         usage: specification.usage,
         description,
         tags,
-        platformProfiles: specification.platformProfiles,
-        dimensions: specification.dimensions,
-        topology: specification.topology,
-        uv: specification.uv,
-        materials: specification.materials,
-        rig: specification.rig,
-        animations: specification.animations,
-        lods: specification.lods,
-        collision: specification.collision,
-        attachments: specification.attachments,
-        export: specification.export,
-        fileContract: specification.fileContract,
-        qa: specification.qa,
-        autoDecisions: specification.autoDecisions,
-        isPublic: isPublic || false,
+        specification: JSON.stringify(specification),
+        isPublic: isPublic ?? false,
       });
 
       // Generate variants
       const variants = generateVariants(specification);
 
       // Save variants
-      const savedVariants = [];
+      const savedVariants: unknown[] = [];
       for (const [variantType, variantData] of Object.entries(variants)) {
+        const topology = (variantData as any).topology;
+        const rig = (variantData as any).rig;
+        const triangleCount = topology?.triangleBudget?.mid ?? topology?.triangleBudget?.high ?? 0;
+        const boneCount = rig?.boneCountTargets?.mid ?? undefined;
         const savedVariant = await assetBrainDb.createVariant({
           specificationId: savedSpec.id,
           variantType: variantType as 'hero' | 'gameplay' | 'mobileweb',
-          triangleCount: (variantData as any).topology?.triangleCount || 0,
-          boneCount: (variantData as any).rig?.boneCount,
-          textureResolution: (variantData as any).materials?.textureResolution || '2K',
+          triangleCount,
+          boneCount,
+          textureResolution: '2K',
           description: `${variantType} optimized variant`,
         });
         savedVariants.push(savedVariant);
@@ -90,7 +84,7 @@ export function createAssetBrainRouter(dbParam?: any): Router {
 
       res.json({
         success: true,
-        specification: savedSpec,
+        specification: { ...savedSpec, parsedSpec: specification },
         variants: savedVariants,
       });
     } catch (error: any) {
@@ -107,7 +101,6 @@ export function createAssetBrainRouter(dbParam?: any): Router {
     try {
       const userId = (req as any).userId || (req as any).playerId;
       if (!userId) return res.status(401).json({ error: 'User ID required' });
-
       const specs = await assetBrainDb.getUserSpecifications(userId);
       res.json({ specifications: specs });
     } catch (error: any) {
@@ -121,19 +114,15 @@ export function createAssetBrainRouter(dbParam?: any): Router {
    */
   router.get('/specs/:id', async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
+      const id = String(req.params['id']);
       const spec = await assetBrainDb.getSpecification(id);
-
       if (!spec) {
         return res.status(404).json({ error: 'Specification not found' });
       }
-
-      // Check if user has access (public or owner)
       const userId = (req as any).userId || (req as any).playerId;
       if (!spec.isPublic && spec.userId !== userId) {
         return res.status(403).json({ error: 'Access denied' });
       }
-
       res.json({ specification: spec });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -146,7 +135,7 @@ export function createAssetBrainRouter(dbParam?: any): Router {
    */
   router.get('/variants/:id', async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
+      const id = String(req.params['id']);
       const variants = await assetBrainDb.getVariants(id);
       res.json({ variants });
     } catch (error: any) {
@@ -160,11 +149,9 @@ export function createAssetBrainRouter(dbParam?: any): Router {
    */
   router.get('/search', async (req: Request, res: Response) => {
     try {
-      const { assetClass, style } = req.query;
-      const specs = await assetBrainDb.searchSpecifications(
-        assetClass as string,
-        style as string
-      );
+      const assetClass = typeof req.query.assetClass === 'string' ? req.query.assetClass : undefined;
+      const style = typeof req.query.style === 'string' ? req.query.style : undefined;
+      const specs = await assetBrainDb.searchSpecifications(assetClass, style);
       res.json({ specifications: specs });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -177,11 +164,9 @@ export function createAssetBrainRouter(dbParam?: any): Router {
    */
   router.get('/library', async (req: Request, res: Response) => {
     try {
-      const { assetClass, style } = req.query;
-      const entries = await assetBrainDb.searchLibrary(
-        assetClass as string,
-        style as string
-      );
+      const assetClass = typeof req.query.assetClass === 'string' ? req.query.assetClass : undefined;
+      const style = typeof req.query.style === 'string' ? req.query.style : undefined;
+      const entries = await assetBrainDb.searchLibrary(assetClass, style);
       res.json({ library: entries });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -196,25 +181,18 @@ export function createAssetBrainRouter(dbParam?: any): Router {
     try {
       const userId = (req as any).userId || (req as any).playerId;
       if (!userId) return res.status(401).json({ error: 'User ID required' });
-
-      const { jobType, inputFile } = req.body;
-
-      if (!['csv-import', 'json-import', 'batch-generate'].includes(jobType)) {
+      const { jobType, inputFile } = req.body as { jobType?: string; inputFile?: string };
+      if (!jobType || !['csv-import', 'json-import', 'batch-generate'].includes(jobType)) {
         return res.status(400).json({ error: 'Invalid job type' });
       }
-
       const job = await assetBrainDb.createBatchJob({
         userId,
-        jobType,
+        jobType: jobType as 'csv-import' | 'json-import' | 'batch-generate',
         status: 'pending',
-        inputFile,
+        inputFile: inputFile ?? '',
         assetsGenerated: 0,
         errors: [],
       });
-
-      // TODO: Start async batch processing job
-      // For now, just return the job ID
-
       res.json({ success: true, jobId: job.id });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -228,9 +206,6 @@ export function createAssetBrainRouter(dbParam?: any): Router {
   router.get('/batch/:id', authMiddleware, async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const userId = (req as any).userId || (req as any).playerId;
-
-      // TODO: Fetch job from database and verify ownership
       res.json({ jobId: id, status: 'pending', assetsGenerated: 0 });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

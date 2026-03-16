@@ -47,7 +47,7 @@ export class WorldTick {
   private lootEntities: Map<string, any> = new Map();
   private socketToPlayer: Map<string, string> = new Map();
   private playerToSocket: Map<string, string> = new Map();
-  private lastActionTimes: Map<string, Record<string, number>> = new Map();
+  private lastActionTimes: Map<string, any> = new Map();
   private npcRespawnTimers: Map<string, { npcId: string; x: number; y: number; timer: number }> = new Map();
   private keysDown: Map<string, Set<string>> = new Map();
   private saveDebounce: NodeJS.Timeout | null = null;
@@ -1274,8 +1274,7 @@ export class WorldTick {
           const paths = characterAssembly.resolveModelPaths(appearance);
           resolvedAppearance = {
             ...appearance,
-            bodyUrl: paths.bodyUrl,
-            headUrl: paths.headUrl,
+            characterModelUrl: paths.bodyUrl, // Full model URL
             skinToneColor: paths.skinColor,
             hairColor: paths.hairColor,
             eyeColor: paths.eyeColor

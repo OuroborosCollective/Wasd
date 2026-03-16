@@ -1,3 +1,6 @@
+// @ts-ignore
+import gltfValidatorPkg from 'gltf-validator';
+const validator = gltfValidatorPkg;
 /**
  * GLB Upload Routes for Areloria MMORPG
  * POST /api/glb/upload          – Upload a GLB model (requires subscription)
