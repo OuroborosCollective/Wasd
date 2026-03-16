@@ -132,11 +132,11 @@ export class TripoService {
       taskId: d.task_id,
       status: d.status as TripoTask['status'],
       progress: d.progress,
-      result: modelUrl || imageUrl ? {
-        model: modelUrl ? { url: modelUrl } : undefined,
+      result: modelUrl || imageUrl ? ({
+        model: modelUrl ? { url: modelUrl, type: 'glb' } : undefined,
         rendered_image: imageUrl ? { url: imageUrl } : undefined,
         pbr_model: modelUrl ? { url: modelUrl } : undefined,
-      } : undefined,
+      } as any) : undefined,
       error: d.message,
     };
   }
