@@ -1204,8 +1204,8 @@ export class WorldTick {
     const activeChunks = this.chunkSystem.getActiveChunks();
 
     // 3. Regen stamina/health for all players (every 5 ticks = 0.5s)
+    const players = this.playerSystem.getAllPlayers();
     if (this.tickCount % 5 === 0) {
-      const players = this.playerSystem.getAllPlayers();
       for (const p of players) {
         this.combatSystem.regenStamina(p);
         this.combatSystem.regenHealth(p, 0.5);
@@ -1213,7 +1213,6 @@ export class WorldTick {
     }
 
     // 4. Tick NPC AI
-    const players = this.playerSystem.getAllPlayers();
     this.npcSystem.tick(players, this.chatSystem);
     this.worldSystem.tick();
 
