@@ -62,6 +62,8 @@ export class AssetPipeline {
   constructor() {
     this.db = new AssetBrainDatabase(db);
     this.tripo = getTripoService();
+    // Ensure tables exist
+    this.db.initializeTables().catch(console.error);
   }
 
   /**
