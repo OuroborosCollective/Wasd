@@ -36,6 +36,7 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   const emailInput = document.createElement("input");
   emailInput.type = "email";
   emailInput.placeholder = "Email";
+  emailInput.setAttribute("aria-label", "Email address");
   emailInput.style.padding = "0.5rem";
   emailInput.style.borderRadius = "4px";
   emailInput.style.border = "1px solid #444";
@@ -46,6 +47,7 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   const passwordInput = document.createElement("input");
   passwordInput.type = "password";
   passwordInput.placeholder = "Password";
+  passwordInput.setAttribute("aria-label", "Password");
   passwordInput.style.padding = "0.5rem";
   passwordInput.style.borderRadius = "4px";
   passwordInput.style.border = "1px solid #444";
@@ -61,6 +63,7 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
 
   const loginBtn = document.createElement("button");
   loginBtn.innerText = "Login";
+  loginBtn.setAttribute("aria-label", "Login to your account");
   loginBtn.style.padding = "0.5rem";
   loginBtn.style.backgroundColor = "#4CAF50";
   loginBtn.style.color = "white";
@@ -70,15 +73,20 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   loginBtn.onclick = async () => {
     try {
       errorMsg.innerText = "";
+      loginBtn.disabled = true;
+      loginBtn.innerText = "Logging in...";
       await signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
     } catch (e: any) {
       errorMsg.innerText = e.message;
+      loginBtn.disabled = false;
+      loginBtn.innerText = "Login";
     }
   };
   formBox.appendChild(loginBtn);
 
   const signupBtn = document.createElement("button");
   signupBtn.innerText = "Sign Up";
+  signupBtn.setAttribute("aria-label", "Create a new account");
   signupBtn.style.padding = "0.5rem";
   signupBtn.style.backgroundColor = "#2196F3";
   signupBtn.style.color = "white";
@@ -88,9 +96,13 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   signupBtn.onclick = async () => {
     try {
       errorMsg.innerText = "";
+      signupBtn.disabled = true;
+      signupBtn.innerText = "Signing up...";
       await createUserWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
     } catch (e: any) {
       errorMsg.innerText = e.message;
+      signupBtn.disabled = false;
+      signupBtn.innerText = "Sign Up";
     }
   };
   formBox.appendChild(signupBtn);
