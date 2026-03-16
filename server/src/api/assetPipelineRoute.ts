@@ -147,6 +147,37 @@ export function createAssetPipelineRouter(): Router {
     }
   });
 
+  // ── GET /api/pipeline/spec/:specId ─────────────────────────────────────────
+  /**
+   * Get full spec data for a pipeline job's spec (no auth required for testing)
+   */
+  router.get('/spec/:specId', async (req: Request, res: Response) => {
+    try {
+      const specId = String(req.params['specId']);
+      const result = await db.query(
+        'SELECT * FROM asset_specifications WHERE id = $1',
+        [specId]
+      );
+      if (!result.rows || result.rows.length === 0) {
+        return res.status(404).json({ error: 'Spec not found' });
+      }
+      const row = result.rows[0];
+      const spec = typeof row.specification === 'string'
+        ? JSON.parse(row.specification)
+        : row.specification;
+      res.json({
+        id: row.id,
+        assetName: row.asset_name,
+        assetClass: row.asset_class,
+        style: row.style,
+        createdAt: row.created_at,
+        specification: spec,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ── GET /api/pipeline/tripo/balance ───────────────────────────────────────
   /**
    * Check Tripo3D account balance
