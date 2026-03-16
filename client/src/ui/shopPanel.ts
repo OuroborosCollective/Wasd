@@ -1,3 +1,4 @@
+import { getAuthToken } from "./auth";
 /**
  * Shop Panel – Matrix Energy & GLB Creator Pass
  * Handles PayPal checkout flow and subscription status display
@@ -189,7 +190,7 @@ function switchShopTab(tab: string) {
 async function loadBalance() {
   try {
     const res = await fetch("/api/player/balance", {
-      headers: { "x-player-id": currentPlayerId }
+      headers: { "Authorization": `Bearer ${await getAuthToken()}` }
     });
     const data = await res.json();
     const el = document.getElementById("shop-energy-amount");
@@ -203,7 +204,7 @@ async function loadGLBStatus() {
 
   try {
     const res = await fetch("/api/glb/subscription-status", {
-      headers: { "x-player-id": currentPlayerId }
+      headers: { "Authorization": `Bearer ${await getAuthToken()}` }
     });
     const data = await res.json();
 
@@ -318,7 +319,7 @@ async function buyMarketplaceItem(modelId: string, name: string, price: number) 
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-player-id": currentPlayerId,
+        "Authorization": `Bearer ${await getAuthToken()}`,
       },
       body: JSON.stringify({ modelId }),
     });

@@ -1,7 +1,7 @@
 import { initRenderer, setJoystickMoveCallback } from "./engine/renderer";
 import { connectSocket, sendMessage, triggerAttack, triggerInteract } from "./networking/websocketClient";
 import { renderHUD } from "./ui/hud";
-import { renderAuthUI, renderLogoutBtn } from "./ui/auth";
+import { renderAuthUI, renderLogoutBtn, getAuthToken } from "./ui/auth";
 import { toggleGMPanel } from "./ui/gmPanel";
 import { initShopPanel, toggleShop } from "./ui/shopPanel";
 import { initGLBManager, toggleGLBManager } from "./ui/glbManager";
@@ -154,7 +154,7 @@ renderAuthUI((displayName: string, uid?: string) => {
     const refreshEnergy = async () => {
       try {
         const res = await fetch("/api/player/balance", {
-          headers: { "x-player-id": currentPlayerId }
+          headers: { "Authorization": `Bearer ${await getAuthToken()}` }
         });
         const data = await res.json();
         const el = document.getElementById("top-energy-amount");
@@ -187,7 +187,7 @@ renderAuthUI((displayName: string, uid?: string) => {
       try {
         const res = await fetch("/api/land/claim", {
           method: "POST",
-          headers: { "Content-Type": "application/json", "x-player-id": currentPlayerId },
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${await getAuthToken()}` },
           body: JSON.stringify({ x: pos.x, y: pos.z, name }),
         });
         const data = await res.json();
