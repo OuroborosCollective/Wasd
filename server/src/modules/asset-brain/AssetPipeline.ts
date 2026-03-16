@@ -6,7 +6,7 @@
  *   text input → LLM spec → Tripo3D 3D model → download GLB → register in game
  */
 
-import { AssetBrainEngine } from './assetBrainEngine.js';
+import { generateAssetSpecification } from './assetBrainEngine.js';
 import { AssetBrainDatabase } from './AssetBrainDatabase.js';
 import { TripoService, getTripoService } from './TripoService.js';
 import type { AssetSpecification } from './assetBrainEngine.js';
@@ -56,12 +56,10 @@ export interface PipelineResult {
 const pipelineJobs = new Map<string, PipelineJob>();
 
 export class AssetPipeline {
-  private engine: AssetBrainEngine;
   private db: AssetBrainDatabase;
   private tripo: TripoService;
 
   constructor() {
-    this.engine = new AssetBrainEngine();
     this.db = new AssetBrainDatabase(db);
     this.tripo = getTripoService();
   }
@@ -122,7 +120,7 @@ export class AssetPipeline {
       // ── Step 1: Generate Specification ────────────────────────────────────
       this.update(job, { status: 'generating_spec', progress: 10 });
 
-      const spec = await this.engine.generateAssetSpecification(job.input);
+      const spec = await generateAssetSpecification(job.input);
       const specRecord = await this.db.createSpecification(job.userId, spec);
 
       this.update(job, { status: 'spec_ready', progress: 30, specId: specRecord.id });
@@ -138,8 +136,7 @@ export class AssetPipeline {
       const { prompt, negativePrompt, style: tripoStyle } = TripoService.buildGamePrompt(
         spec.assetName,
         spec.assetClass,
-        spec.style,
-        spec as unknown as Record<string, unknown>
+        spec.style
       );
 
       const result = await this.tripo.generateFromText(
