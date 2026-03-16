@@ -1,3 +1,4 @@
+import { getAuthToken } from "./auth";
 /**
  * GLB Manager – Upload, manage and place 3D models on player land
  */
@@ -222,7 +223,7 @@ async function uploadGLBModel() {
 
     const res = await fetch("/api/glb/upload", {
       method: "POST",
-      headers: { "x-player-id": currentPlayerId },
+      headers: { "Authorization": `Bearer ${await getAuthToken()}` },
       body: formData,
     });
 
@@ -264,7 +265,7 @@ async function checkGLBSubscription() {
 
   try {
     const res = await fetch("/api/glb/subscription-status", {
-      headers: { "x-player-id": currentPlayerId }
+      headers: { "Authorization": `Bearer ${await getAuthToken()}` }
     });
     const data = await res.json();
 
@@ -291,7 +292,7 @@ async function loadMyModels() {
 
   try {
     const res = await fetch("/api/glb/my-models", {
-      headers: { "x-player-id": currentPlayerId }
+      headers: { "Authorization": `Bearer ${await getAuthToken()}` }
     });
     const data = await res.json();
     myModels = data.models || [];
@@ -337,7 +338,7 @@ async function placeModelOnLand(modelId: string, name: string, filePath: string)
   const playerPos = (window as any).__playerPosition || { x: 0, y: 0, z: 0 };
 
   if (!myLand) {
-    const res = await fetch("/api/land/mine", { headers: { "x-player-id": currentPlayerId } });
+    const res = await fetch("/api/land/mine", { headers: { "Authorization": `Bearer ${await getAuthToken()}` } });
     const data = await res.json();
     myLand = data.land;
   }
@@ -353,7 +354,7 @@ async function placeModelOnLand(modelId: string, name: string, filePath: string)
   try {
     const res = await fetch("/api/land/structure", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-player-id": currentPlayerId },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${await getAuthToken()}` },
       body: JSON.stringify({
         landId: myLand.id,
         type: "glb_model",
@@ -385,7 +386,7 @@ async function deleteGLBModel(modelId: string, name: string) {
   try {
     const res = await fetch(`/api/glb/${modelId}`, {
       method: "DELETE",
-      headers: { "x-player-id": currentPlayerId },
+      headers: { "Authorization": `Bearer ${await getAuthToken()}` },
     });
     const data = await res.json();
     if (data.success) {
@@ -410,7 +411,7 @@ async function listModelForSale(modelId: string, name: string) {
   try {
     const res = await fetch("/api/glb/marketplace/list", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-player-id": currentPlayerId },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${await getAuthToken()}` },
       body: JSON.stringify({ modelId, price }),
     });
     const data = await res.json();
@@ -453,7 +454,7 @@ async function loadLandInfo() {
   const structEl = document.getElementById("land-structures")!;
 
   try {
-    const res = await fetch("/api/land/mine", { headers: { "x-player-id": currentPlayerId } });
+    const res = await fetch("/api/land/mine", { headers: { "Authorization": `Bearer ${await getAuthToken()}` } });
     const data = await res.json();
     myLand = data.land;
 
@@ -513,7 +514,7 @@ async function removeStructure(landId: string, structId: string) {
   try {
     await fetch(`/api/land/structure/${structId}`, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json", "x-player-id": currentPlayerId },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${await getAuthToken()}` },
       body: JSON.stringify({ landId }),
     });
     loadLandInfo();
