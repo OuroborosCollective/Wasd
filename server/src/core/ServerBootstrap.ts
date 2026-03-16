@@ -8,6 +8,8 @@ import { LandSystem } from "../modules/land/LandSystem.js";
 import { createPayPalRouter } from "../api/paypalRoute.js";
 import { createGLBUploadRouter } from "../api/glbUploadRoute.js";
 import { createLandRouter } from "../api/landRoute.js";
+import { createAssetBrainRouter } from "../api/assetBrainRoute.js";
+import { createAssetPipelineRouter } from "../api/assetPipelineRoute.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import characterRouter from "../api/characterRoute.js";
 import { characterAssembly } from "../modules/character/CharacterAssemblySystem.js";
@@ -81,6 +83,8 @@ export class ServerBootstrap {
     app.use("/api/glb", createGLBUploadRouter());
     app.use("/api/land", createLandRouter(landSystem));
     app.use("/api/character", characterRouter);
+    app.use("/api/asset-brain", createAssetBrainRouter());
+    app.use("/api/pipeline", createAssetPipelineRouter());
 
     // Matrix Energy balance endpoint
     app.get("/api/player/balance", authMiddleware, async (req, res) => {

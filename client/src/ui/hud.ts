@@ -1,5 +1,6 @@
 import { sendDialogueChoice } from "../networking/websocketClient";
 import { toggleAdminAssetPanel } from "./adminAssetPanel";
+import { toggleAssetPipelinePanel } from "./assetPipelinePanel";
 
 // ─── State ───────────────────────────────────────────────────────────────────
 let _ws: WebSocket | null = null;
@@ -75,6 +76,7 @@ export function renderHUD() {
       Quest: <span id="hud-quest-text">None</span>
     </div>
     <button id="btn-admin-assets" style="${btnStyle('#2a2a2a', '#888')}display:none;">Admin</button>
+    <button id="btn-asset-pipeline" style="${btnStyle('#1a1a3a', '#7af')}display:none;">🧠 Assets</button>
   `;
   document.body.appendChild(topLeft);
 
@@ -143,6 +145,7 @@ export function renderHUD() {
   document.getElementById("btn-skills")!.onclick = () => { togglePanel("skills-panel"); renderSkillsPanel(); };
   document.getElementById("btn-map")!.onclick = () => { togglePanel("map-panel"); renderWorldMap(); };
   document.getElementById("btn-admin-assets")!.onclick = () => toggleAdminAssetPanel();
+  document.getElementById("btn-asset-pipeline")!.onclick = () => toggleAssetPipelinePanel();
 
   const chatInput = document.getElementById("chat-input") as HTMLInputElement;
   const doSendChat = () => {
@@ -186,6 +189,8 @@ export function updateHUD(data: {
   if (data.role === "admin") {
     const btn = document.getElementById("btn-admin-assets");
     if (btn) btn.style.display = "block";
+    const pipelineBtn = document.getElementById("btn-asset-pipeline");
+    if (pipelineBtn) pipelineBtn.style.display = "block";
   }
 
   if (data.health !== undefined && data.maxHealth !== undefined) {
