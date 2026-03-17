@@ -7,7 +7,27 @@ import { initMobileControls, getJoystickState, isMobile } from "../ui/mobileCont
 const gltfLoader = new GLTFLoader();
 const modelCache = new Map<string, THREE.Group>();
 
-function loadModel(path: string, callback: (model: THREE.Group) => void, errorCallback?: (err: any) => void) {
+
+const RENDER_CONFIG = {
+  camera: {
+    minDistance: 5,
+    maxDistance: 60,
+    defaultDistance: 18,
+    minAngleV: 0.1,
+    maxAngleV: 1.4,
+    npcLabelVisibleDistance: 50,
+    lootLabelVisibleDistance: 30,
+    zoomSpeedMouse: 0.05,
+    dragSpeedMouse: 0.005,
+    dragSpeedTouch: 0.008
+  },
+  joystick: {
+    sendIntervalMs: 100,
+    moveThreshold: 0.5
+  }
+};
+
+function loadModel(path: string, callback: (model: THREE.Group) => void) {
   if (modelCache.has(path)) { callback(modelCache.get(path)!.clone()); return; }
   gltfLoader.load(path, (gltf) => {
     gltf.scene.traverse((child) => {
@@ -78,7 +98,7 @@ const targetPositions = new Map<string, THREE.Vector3>();
 
 let cameraAngleH = 0;
 let cameraAngleV = 0.6;
-let cameraDistance = 18;
+let cameraDistance = RENDER_CONFIG.camera.defaultDistance;
 let isDragging = false;
 let lastMouseX = 0;
 let lastMouseY = 0;
@@ -276,12 +296,12 @@ export function initRenderer(
   window.addEventListener("mouseup", () => { isDragging = false; });
   window.addEventListener("mousemove", (e) => {
     if (!isDragging) return;
-    cameraAngleH -= (e.clientX - lastMouseX) * 0.005;
-    cameraAngleV = Math.max(0.1, Math.min(1.4, cameraAngleV + (e.clientY - lastMouseY) * 0.005));
+    cameraAngleH -= (e.clientX - lastMouseX) * RENDER_CONFIG.camera.dragSpeedMouse;
+    cameraAngleV = Math.max(RENDER_CONFIG.camera.minAngleV, Math.min(RENDER_CONFIG.camera.maxAngleV, cameraAngleV - (e.clientY - lastMouseY) * RENDER_CONFIG.camera.dragSpeedMouse));
     lastMouseX = e.clientX; lastMouseY = e.clientY;
   });
   canvas.addEventListener("wheel", (e) => {
-    cameraDistance = Math.max(5, Math.min(60, cameraDistance + e.deltaY * 0.05));
+    cameraDistance = Math.max(RENDER_CONFIG.camera.minDistance, Math.min(RENDER_CONFIG.camera.maxDistance, cameraDistance + e.deltaY * RENDER_CONFIG.camera.zoomSpeedMouse));
   });
   canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
@@ -291,12 +311,12 @@ export function initRenderer(
       wsCallbacks,
       // Pinch zoom callback
       (delta: number) => {
-        cameraDistance = Math.max(5, Math.min(60, cameraDistance + delta));
+        cameraDistance = Math.max(RENDER_CONFIG.camera.minDistance, Math.min(RENDER_CONFIG.camera.maxDistance, cameraDistance + delta));
       },
       // Camera drag callback
       (dx: number, dy: number) => {
-        cameraAngleH -= dx * 0.008;
-        cameraAngleV = Math.max(0.1, Math.min(1.4, cameraAngleV + dy * 0.008));
+        cameraAngleH -= dx * RENDER_CONFIG.camera.dragSpeedTouch;
+        cameraAngleV = Math.max(RENDER_CONFIG.camera.minAngleV, Math.min(RENDER_CONFIG.camera.maxAngleV, cameraAngleV - dy * RENDER_CONFIG.camera.dragSpeedTouch));
       }
     );
   }
@@ -310,7 +330,7 @@ export function initRenderer(
   // ── ANIMATION LOOP ───────────────────────────────────────────────────────
   let joystickAccumX = 0;
   let joystickAccumY = 0;
-  const JOYSTICK_SEND_INTERVAL = 100; // ms
+  const JOYSTICK_SEND_INTERVAL = RENDER_CONFIG.joystick.sendIntervalMs; // ms
   let lastJoystickSend = 0;
 
   function animate() {
@@ -358,7 +378,7 @@ export function initRenderer(
       joystickAccumX += js.dx * delta * 120;
       joystickAccumY += js.dy * delta * 120;
       const now = Date.now();
-      if (now - lastJoystickSend > JOYSTICK_SEND_INTERVAL && (Math.abs(joystickAccumX) > 0.5 || Math.abs(joystickAccumY) > 0.5)) {
+      if (now - lastJoystickSend > JOYSTICK_SEND_INTERVAL && (Math.abs(joystickAccumX) > RENDER_CONFIG.joystick.moveThreshold || Math.abs(joystickAccumY) > RENDER_CONFIG.joystick.moveThreshold)) {
         // Convert joystick direction to world-space based on camera angle
         const cos = Math.cos(cameraAngleH);
         const sin = Math.sin(cameraAngleH);
@@ -486,7 +506,7 @@ export function updateWorldState(state: any, playerId: string | null) {
     const hp = npc.maxHealth ? (npc.health / npc.maxHealth) : 1;
     const lbl = createWorldLabel(npc.id, npc.name || npc.id, "npc", hp);
     const sp = projectToScreen(t.x, t.y + 3, t.z);
-    if (sp.inFront && cameraDistance < 50) { lbl.style.left=`${sp.x}px`; lbl.style.top=`${sp.y}px`; lbl.style.display="block"; } else lbl.style.display="none";
+    if (sp.inFront && cameraDistance < RENDER_CONFIG.camera.npcLabelVisibleDistance) { lbl.style.left=`${sp.x}px`; lbl.style.top=`${sp.y}px`; lbl.style.display="block"; } else lbl.style.display="none";
   }
   for (const [id, mesh] of npcMeshes) {
     if (!currentNPCs.has(id)) { scene.remove(mesh); npcMeshes.delete(id); targetPositions.delete(id); removeWorldLabel(id); }
@@ -525,7 +545,7 @@ export function updateWorldState(state: any, playerId: string | null) {
       const sp = projectToScreen(lm.position.x, lm.position.y + 1, lm.position.z);
       const name = loot.item?.name || loot.name || "Item";
       const lbl = createWorldLabel(loot.id, name, "loot");
-      if (sp.inFront && cameraDistance < 30) { lbl.style.left=`${sp.x}px`; lbl.style.top=`${sp.y}px`; lbl.style.display="block"; } else lbl.style.display="none";
+      if (sp.inFront && cameraDistance < RENDER_CONFIG.camera.lootLabelVisibleDistance) { lbl.style.left=`${sp.x}px`; lbl.style.top=`${sp.y}px`; lbl.style.display="block"; } else lbl.style.display="none";
     }
   }
   for (const [id, mesh] of lootMeshes) {
