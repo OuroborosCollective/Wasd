@@ -62,6 +62,20 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   errorMsg.style.minHeight = "1.2rem";
   formBox.appendChild(errorMsg);
 
+  const setFormDisabled = (disabled: boolean) => {
+    loginBtn.disabled = disabled;
+    signupBtn.disabled = disabled;
+    guestBtn.disabled = disabled;
+    emailInput.disabled = disabled;
+    passwordInput.disabled = disabled;
+    loginBtn.style.opacity = disabled ? "0.6" : "1";
+    loginBtn.style.cursor = disabled ? "not-allowed" : "pointer";
+    signupBtn.style.opacity = disabled ? "0.6" : "1";
+    signupBtn.style.cursor = disabled ? "not-allowed" : "pointer";
+    guestBtn.style.opacity = disabled ? "0.6" : "1";
+    guestBtn.style.cursor = disabled ? "not-allowed" : "pointer";
+  };
+
   const loginBtn = document.createElement("button");
   loginBtn.innerText = "Login";
   loginBtn.setAttribute("aria-label", "Login to your account");
@@ -74,12 +88,12 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   loginBtn.onclick = async () => {
     try {
       errorMsg.innerText = "";
-      loginBtn.disabled = true;
+      setFormDisabled(true);
       loginBtn.innerText = "Logging in...";
       await signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
     } catch (e: any) {
       errorMsg.innerText = e.message;
-      loginBtn.disabled = false;
+      setFormDisabled(false);
       loginBtn.innerText = "Login";
     }
   };
@@ -97,12 +111,12 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   signupBtn.onclick = async () => {
     try {
       errorMsg.innerText = "";
-      signupBtn.disabled = true;
+      setFormDisabled(true);
       signupBtn.innerText = "Signing up...";
       await createUserWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
     } catch (e: any) {
       errorMsg.innerText = e.message;
-      signupBtn.disabled = false;
+      setFormDisabled(false);
       signupBtn.innerText = "Sign Up";
     }
   };
