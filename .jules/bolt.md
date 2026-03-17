@@ -10,7 +10,7 @@
 **Action:** Use an internal `Map` for $O(1)$ lookups in registries and managers that are queried frequently in the main game loop.
 
 ## 2025-05-15 - [Monorepo Dependency Management]
-**Learning:** Running `pnpm install` in a monorepo that isn't fully set up for pnpm (missing `pnpm-workspace.yaml`) can generate a massive `pnpm-lock.yaml` file in the root, which is undesirable for small PRs.
+**Learning:** Running `pnpm install` in a monorepo that isn\'t fully set up for pnpm (missing `pnpm-workspace.yaml`) can generate a massive `pnpm-lock.yaml` file in the root, which is undesirable for small PRs.
 **Action:** Be extremely careful with installation commands in monorepos; prefer `npm install` within specific package directories if the root workspace configuration is unstable.
 
 ## 2025-05-15 - [Array Allocations in Hot Loops]
@@ -18,8 +18,8 @@
 **Action:** Always hoist data retrieval (like getting the player list) outside of repeating blocks in the main game loop to avoid redundant heap allocations.
 
 ## 2025-05-15 - [Optimization Purity and Lockfile Pollution]
-**Learning:** Performance optimizations should remain "pure"—avoid changing default return values (like XP rewards) or method signatures unless strictly necessary. Additionally, running `pnpm install` to fix a test environment can accidentally pollute the `pnpm-lock.yaml` with unrelated dependency changes if the environment isn't perfectly clean.
-**Action:** Always revert lockfile changes that are unrelated to the task. Ensure optimizations don't accidentally alter functional game logic (like default rewards) or break existing test assumptions about object structures (e.g., `player.skills` existence).
+**Learning:** Performance optimizations should remain "pure"—avoid changing default return values (like XP rewards) or method signatures unless strictly necessary. Additionally, running `pnpm install` to fix a test environment can accidentally pollute the `pnpm-lock.yaml` with unrelated dependency changes if the environment isn\'t perfectly clean.
+**Action:** Always revert lockfile changes that are unrelated to the task. Ensure optimizations don\'t accidentally alter functional game logic (like default rewards) or break existing test assumptions about object structures (e.g., `player.skills` existence).
 
 ## 2025-05-23 - [Loop-Invariant Code Motion in Matching]
 **Learning:** Performing array sorts (`[...inputIds].sort()`) and serialization (`JSON.stringify`) directly inside `Array.find` or loop conditionals causes redundant $O(N \log N)$ operations and unnecessary string allocations for static data across iterations.
