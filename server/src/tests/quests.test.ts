@@ -77,7 +77,10 @@ describe("QuestStateStore", () => {
   });
 });
 
-
+// ---------------------------------------------------------------------------
+// QuestEngine
+// ---------------------------------------------------------------------------
+import { QuestEngine } from "../modules/quest/QuestEngine.js";
 
 describe("QuestEngine", () => {
   let engine: QuestEngine;
@@ -121,7 +124,5 @@ describe("QuestEngine", () => {
       expect(addedQuest).toBeDefined();
       expect(addedQuest.objective).toBe("gather");
     });
-
-
   });
 });
