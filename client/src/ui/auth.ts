@@ -97,6 +97,23 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   };
   formBox.appendChild(signupBtn);
 
+  // Guest login button for testing (bypasses Firebase)
+  const guestBtn = document.createElement("button");
+  guestBtn.innerText = "Play as Guest";
+  guestBtn.style.padding = "0.5rem";
+  guestBtn.style.marginTop = "0.5rem";
+  guestBtn.style.backgroundColor = "#9C27B0";
+  guestBtn.style.color = "white";
+  guestBtn.style.border = "none";
+  guestBtn.style.borderRadius = "4px";
+  guestBtn.style.cursor = "pointer";
+  guestBtn.onclick = () => {
+    container.style.display = "none";
+    const guestName = "Guest_" + Math.random().toString(36).substring(2, 8);
+    onLogin(guestName, guestName);
+  };
+  formBox.appendChild(guestBtn);
+
   container.appendChild(formBox);
   document.body.appendChild(container);
 
