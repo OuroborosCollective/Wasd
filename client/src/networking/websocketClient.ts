@@ -7,6 +7,44 @@ import { handleGMMessage } from "../ui/gmPanel";
 export let myPlayerId: string | null = null;
 let latestState: any = null;
 
+// WebSocket Reconnection State
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 10;
+const INITIAL_RECONNECT_DELAY = 1000;
+const MAX_RECONNECT_DELAY = 30000;
+let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+let displayNameCache: string | null = null;
+let isReconnecting = false;
+let lastPlayerState: any = null;
+
+// Export for external access to connection state
+export function isConnected(): boolean {
+  return globalWs !== null && globalWs.readyState === WebSocket.OPEN;
+}
+
+export function getReconnectStatus(): { attempts: number; maxAttempts: number; delay: number } {
+  return {
+    attempts: reconnectAttempts,
+    maxAttempts: MAX_RECONNECT_ATTEMPTS,
+    delay: Math.min(INITIAL_RECONNECT_DELAY * Math.pow(2, reconnectAttempts), MAX_RECONNECT_DELAY)
+  };
+}
+
+// Save player state for recovery
+export function savePlayerState(state: any) {
+  if (state && myPlayerId) {
+    const myPlayer = state.players?.find((p: any) => p.id === myPlayerId);
+    if (myPlayer) {
+      lastPlayerState = { ...myPlayer };
+    }
+  }
+}
+
+// Get saved player state
+export function getSavedPlayerState(): any | null {
+  return lastPlayerState;
+}
+
 // Public API for mobile controls
 export function sendMessage(msg: any) {
   if (globalWs && globalWs.readyState === WebSocket.OPEN) {
@@ -81,8 +119,51 @@ export function sendDialogueChoice(npcId: string, nodeId: string, choiceId: stri
 }
 
 let globalWs: WebSocket | null = null;
+let cdInterval: ReturnType<typeof setInterval> | null = null;
+
+// Disconnect and cleanup
+export function disconnectSocket() {
+  if (reconnectTimeout) {
+    clearTimeout(reconnectTimeout);
+    reconnectTimeout = null;
+  }
+  if (cdInterval) {
+    clearInterval(cdInterval);
+    cdInterval = null;
+  }
+  if (globalWs) {
+    globalWs.close();
+    globalWs = null;
+  }
+  reconnectAttempts = 0;
+  isReconnecting = false;
+}
+
+// Attempt to reconnect with exponential backoff
+function attemptReconnect() {
+  if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+    console.error("Max reconnection attempts reached");
+    isReconnecting = false;
+    return;
+  }
+  
+  isReconnecting = true;
+  const delay = Math.min(INITIAL_RECONNECT_DELAY * Math.pow(2, reconnectAttempts), MAX_RECONNECT_DELAY);
+  
+  console.log(`Attempting to reconnect in ${delay}ms (attempt ${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})`);
+  
+  reconnectTimeout = setTimeout(() => {
+    reconnectAttempts++;
+    connectSocket(displayNameCache || undefined);
+  }, delay);
+}
 
 export function connectSocket(displayName?: string) {
+  // Cache display name for reconnection
+  if (displayName) {
+    displayNameCache = displayName;
+  }
+  
   const externalWsUrl = (import.meta.env as any).VITE_WS_URL;
   const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const localWsUrl = `${wsProtocol}//${location.host}/ws`;
@@ -91,18 +172,44 @@ export function connectSocket(displayName?: string) {
   
   const ws = new WebSocket(wsUrl);
   globalWs = ws;
+  
+  // Reset reconnect attempts on new connection
+  reconnectAttempts = 0;
+  isReconnecting = false;
 
   // Update cooldowns UI every frame
-  const cdInterval = setInterval(() => {
+  if (cdInterval) clearInterval(cdInterval);
+  cdInterval = setInterval(() => {
     updateCooldowns(cooldowns);
   }, 100);
 
   ws.onopen = () => {
     console.log("Connected to Arelorian server");
-    // Auto-login with Firebase display name
-    const name = displayName || "Adventurer";
-    ws.send(JSON.stringify({ type: "login", name }));
+    reconnectAttempts = 0;
+    isReconnecting = false;
+    
+    // Auto-login with cached display name
+    const savedState = getSavedPlayerState();
+    const name = displayName || savedState?.name || "Adventurer";
+    ws.send(JSON.stringify({ 
+      type: "login", 
+      name,
+      // Include session recovery info if reconnecting
+      ...(savedState ? { recovery: true, playerId: savedState.id } : {})
+    }));
     console.log(`Auto-logged in as: ${name}`);
+  };
+  
+  ws.onclose = (event) => {
+    console.log("WebSocket closed", event.code, event.reason);
+    // Attempt to reconnect unless intentional close
+    if (!event.wasClean && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+      attemptReconnect();
+    }
+  };
+  
+  ws.onerror = (error) => {
+    console.error("WebSocket error:", error);
   };
   ws.onmessage = (msg) => {
     try {
@@ -122,6 +229,9 @@ export function connectSocket(displayName?: string) {
       } else if (data.type === "world_tick") {
         latestState = data;
         updateWorldState(data, myPlayerId);
+        
+        // Save player state for session recovery
+        savePlayerState(data);
 
         // Update HUD with my player's stats
         if (myPlayerId) {
