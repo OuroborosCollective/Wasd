@@ -73,9 +73,15 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   loginBtn.onclick = async () => {
     try {
       errorMsg.innerText = "";
+      loginBtn.disabled = true;
+      loginBtn.innerText = "Logging in...";
+      loginBtn.setAttribute("aria-busy", "true");
       await signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
     } catch (e: any) {
       errorMsg.innerText = e.message;
+      loginBtn.disabled = false;
+      loginBtn.innerText = "Login";
+      loginBtn.removeAttribute("aria-busy");
     }
   };
   formBox.appendChild(loginBtn);
@@ -91,9 +97,15 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   signupBtn.onclick = async () => {
     try {
       errorMsg.innerText = "";
+      signupBtn.disabled = true;
+      signupBtn.innerText = "Signing up...";
+      signupBtn.setAttribute("aria-busy", "true");
       await createUserWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
     } catch (e: any) {
       errorMsg.innerText = e.message;
+      signupBtn.disabled = false;
+      signupBtn.innerText = "Sign Up";
+      signupBtn.removeAttribute("aria-busy");
     }
   };
   formBox.appendChild(signupBtn);

@@ -96,6 +96,9 @@ importers:
       tailwindcss:
         specifier: 4.1.11
         version: 4.1.11
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
