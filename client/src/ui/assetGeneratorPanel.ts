@@ -101,7 +101,10 @@ export function toggleAssetGeneratorPanel() {
       <div id="asset-preview-canvas" style="width: 100%; height: 300px;"></div>
       <div style="position: absolute; top: 10px; left: 10px; display: flex; gap: 5px;">
         <button id="btn-preview-wireframe" style="padding: 4px 8px; background: rgba(74, 124, 158, 0.5); color: white; border: 1px solid #4a7c9e; border-radius: 3px; cursor: pointer; font-size: 10px;">Wireframe</button>
+        <button id="btn-preview-normals" style="padding: 4px 8px; background: rgba(74, 124, 158, 0.5); color: white; border: 1px solid #4a7c9e; border-radius: 3px; cursor: pointer; font-size: 10px;">Normals</button>
+        <button id="btn-preview-flat" style="padding: 4px 8px; background: rgba(74, 124, 158, 0.5); color: white; border: 1px solid #4a7c9e; border-radius: 3px; cursor: pointer; font-size: 10px;">Flat</button>
       </div>
+      <div id="asset-preview-stats" style="position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 8px; border-radius: 3px; font-size: 10px; color: #4a7c9e; display: none;"></div>
     </div>
   `;
 
@@ -115,9 +118,22 @@ export function toggleAssetGeneratorPanel() {
   if (previewCanvas) {
     viewer = new AssetBrainViewer(previewCanvas);
     
+    let showNormals = false;
+    let flatShading = false;
+    
     document.getElementById('btn-preview-wireframe')!.onclick = () => {
       isWireframe = !isWireframe;
       viewer?.setWireframe(isWireframe);
+    };
+    
+    document.getElementById('btn-preview-normals')!.onclick = () => {
+      showNormals = !showNormals;
+      viewer?.toggleNormals(showNormals);
+    };
+    
+    document.getElementById('btn-preview-flat')!.onclick = () => {
+      flatShading = !flatShading;
+      viewer?.setLightingMode(flatShading ? 'flat' : 'default');
     };
   }
 }
@@ -234,6 +250,13 @@ function displayAssets() {
 
   const previewContainer = document.getElementById('asset-preview-container');
   if (previewContainer) previewContainer.style.display = 'block';
+
+  const stats = viewer.getModelStats();
+  const statsEl = document.getElementById('asset-preview-stats');
+  if (statsEl && stats.meshes > 0) {
+    statsEl.style.display = 'block';
+    statsEl.innerHTML = `Meshes: ${stats.meshes} | Vertices: ${stats.vertices} | Triangles: ${Math.round(stats.triangles)} | Materials: ${stats.materials}`;
+  }
 
   showStatus(`Previewing ${asset.assetName}... (Note: 3D model generation is a separate step)`, 'info');
 };

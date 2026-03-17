@@ -109,6 +109,83 @@ export class AssetBrainViewer {
     });
   }
 
+  public toggleNormals(enabled: boolean) {
+    if (!this.currentModel) return;
+    this.currentModel.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.geometry) {
+        const existing = this.scene.getObjectByName('normalsHelper_' + child.uuid);
+        if (existing) this.scene.remove(existing);
+        if (enabled) {
+          const helper = new THREE.VertexNormalsHelper(child, 0.1, 0x00ff00);
+          helper.name = 'normalsHelper_' + child.uuid;
+          this.scene.add(helper);
+        }
+      }
+    });
+  }
+
+  public setLightingMode(mode: 'default' | 'flat') {
+    if (!this.currentModel) return;
+    this.currentModel.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.material) {
+        const materials = Array.isArray(child.material) ? child.material : [child.material];
+        materials.forEach((mat: THREE.Material) => {
+          if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshPhongMaterial) {
+            (mat as any).flatShading = mode === 'flat';
+            mat.needsUpdate = true;
+          }
+        });
+      }
+    });
+  }
+
+  public getModelStats(): { vertices: number; triangles: number; materials: number; meshes: number } {
+    let vertices = 0;
+    let triangles = 0;
+    let materials = new Set<THREE.Material>();
+    let meshes = 0;
+
+    if (!this.currentModel) return { vertices: 0, triangles: 0, materials: 0, meshes: 0 };
+
+    this.currentModel.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        meshes++;
+        if (child.geometry) {
+          const pos = child.geometry.getAttribute('position');
+          if (pos) vertices += pos.count;
+          if (child.geometry.index) {
+            triangles += child.geometry.index.count / 3;
+          } else {
+            triangles += pos.count / 3;
+          }
+        }
+        if (Array.isArray(child.material)) {
+          child.material.forEach(m => materials.add(m));
+        } else {
+          materials.add(child.material);
+        }
+      }
+    });
+
+    return { vertices, triangles, materials: materials.size, meshes };
+  }
+
+  public resetView() {
+    if (!this.currentModel) return;
+    const box = new THREE.Box3().setFromObject(this.currentModel);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const fov = this.camera.fov * (Math.PI / 180);
+    let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+    cameraZ *= 1.5;
+    
+    this.camera.position.set(center.x, center.y, center.z + cameraZ);
+    this.camera.lookAt(center);
+    this.controls.target.copy(center);
+    this.controls.update();
+  }
+
   public setBackgroundColor(color: number) {
     this.scene.background = new THREE.Color(color);
   }
