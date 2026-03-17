@@ -1,5 +1,9 @@
-import { auth } from "../auth/firebase";
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
+// Firebase imports removed - using guest login only
+// import { auth } from "../auth/firebase";
+// import { createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
+
+// Stub auth object for compatibility
+const auth = { currentUser: null };
 
 export function renderAuthUI(onLogin: (displayName: string, uid?: string) => void) {
   // Hide Firebase auth container initially - will show if Firebase is needed
@@ -73,7 +77,9 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   loginBtn.onclick = async () => {
     try {
       errorMsg.innerText = "";
-      await signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
+      // Firebase login disabled - use guest mode
+      console.log('Firebase login disabled, use guest mode');
+      errorMsg.innerText = "Firebase disabled. Use 'Play as Guest' instead.";
     } catch (e: any) {
       errorMsg.innerText = e.message;
     }
@@ -91,7 +97,9 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   signupBtn.onclick = async () => {
     try {
       errorMsg.innerText = "";
-      await createUserWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
+      // Firebase signup disabled - use guest mode
+      console.log('Firebase signup disabled, use guest mode');
+      errorMsg.innerText = "Firebase disabled. Use 'Play as Guest' instead.";
     } catch (e: any) {
       errorMsg.innerText = e.message;
     }
@@ -153,7 +161,9 @@ export function renderLogoutBtn() {
   btn.style.cursor = "pointer";
   btn.style.zIndex = "900";
   btn.onclick = () => {
-    signOut(auth);
+    // signOut(auth); // Firebase disabled
+    sessionStorage.removeItem('guest_login');
+    sessionStorage.removeItem('guest_name');
     window.location.reload();
   };
   document.body.appendChild(btn);

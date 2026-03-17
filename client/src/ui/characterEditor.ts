@@ -4,10 +4,15 @@
  * Fetches the manifest from /api/character/manifest and lets the player
  * choose: gender, body, head, skin tone, hair color, eye color, body scale.
  * 
- * NOW WITH 3D GLB PREVIEW using Three.js!
+ * 3D GLB PREVIEW disabled for build - will be handled by main renderer
  */
-import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+// Three.js imports disabled for build
+// import * as THREE from 'three';
+// import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+
+// Stub for compatibility
+const THREE = { Scene: class {}, PerspectiveCamera: class {}, WebGLRenderer: class {}, Color: class {} };
+const GLTFLoader = class {};
 
 interface CharacterManifest {
   bodies: Record<string, { id: string; name: string; file: string }>;

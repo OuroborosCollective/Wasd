@@ -14,10 +14,14 @@
     "@genkit-ai/firebase": "^1.29.0",
     "@google/genai": "^1.17.0",
     "@hookform/resolvers": "^5.2.1",
+    "@types/multer": "^2.1.0",
     "@types/supertest": "^7.2.0",
+    "@types/uuid": "^10.0.0",
     "autoprefixer": "^10.4.21",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dotenv": "^17.3.1",
+    "firebase-admin": "^13.7.0",
     "gltf-validator": "2.0.0-dev.3.10",
     "ioredis": "^5.10.0",
     "lucide-react": "^0.553.0",
@@ -27,7 +31,8 @@
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "supertest": "^7.2.2",
-    "tailwind-merge": "^3.3.1"
+    "tailwind-merge": "^3.3.1",
+    "three": "^0.183.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.1",
