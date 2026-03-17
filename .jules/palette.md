@@ -5,3 +5,7 @@
 ## 2024-03-17 - Decorative Emoji Accessibility
 **Learning:** When hiding decorative icons or emojis inside interactive elements like buttons or drop zones, apply `aria-hidden="true"` to an inner wrapper (e.g., `<span>` or `<div>`), not the parent interactive element, to prevent hiding the active target from screen readers.
 **Action:** Consistently review raw DOM elements for unhidden decorative text nodes that may clutter screen reader output, specifically targeting custom UI constructs outside of standard component libraries.
+
+## 2024-03-17 - Manual Loading State Accessibility on DOM Elements
+**Learning:** For manually created DOM elements without a UI library (using `document.createElement`), accessibility attributes for loading states must be explicitly toggled in JavaScript. Adding `aria-busy="true"` and `disabled=true` while updating button text provides immediate context for screen readers when an async network request starts.
+**Action:** Always toggle `.disabled`, update `.innerText`, and set/remove `aria-busy` inside the `try/finally` blocks of click handlers for manually rendered vanilla JS buttons.
