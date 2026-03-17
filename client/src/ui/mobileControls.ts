@@ -334,12 +334,16 @@ export function initMobileControls(
 
   joystickZone.addEventListener("touchstart", (e) => {
     e.preventDefault();
-    const touch = e.changedTouches[0];
-    joystickTouchId = touch.identifier;
-    const rect = joystickZone.getBoundingClientRect();
-    joystickOriginX = rect.left + rect.width / 2;
-    joystickOriginY = rect.top + rect.height / 2;
-    joystickState.active = true;
+    if (joystickTouchId !== null) return;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const touch = e.changedTouches[i];
+      joystickTouchId = touch.identifier;
+      const rect = joystickZone.getBoundingClientRect();
+      joystickOriginX = rect.left + rect.width / 2;
+      joystickOriginY = rect.top + rect.height / 2;
+      joystickState.active = true;
+      break;
+    }
   }, { passive: false });
 
   joystickZone.addEventListener("touchmove", (e) => {
@@ -368,8 +372,16 @@ export function initMobileControls(
     joystickThumb.style.transform = "translate(-50%, -50%)";
   };
 
-  joystickZone.addEventListener("touchend", resetJoystick, { passive: false });
-  joystickZone.addEventListener("touchcancel", resetJoystick, { passive: false });
+  const handleJoystickEnd = (e: TouchEvent) => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === joystickTouchId) {
+        resetJoystick();
+        break;
+      }
+    }
+  };
+  joystickZone.addEventListener("touchend", handleJoystickEnd, { passive: false });
+  joystickZone.addEventListener("touchcancel", handleJoystickEnd, { passive: false });
 
   // ── ACTION BUTTONS ──────────────────────────────────────────────────────────
   const addTouchBtn = (id: string, cb: () => void) => {
