@@ -120,28 +120,18 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   container.appendChild(formBox);
   document.body.appendChild(container);
 
-  // Check if already logged in as guest
+  // Check if already logged in as guest (from previous session)
   if (sessionStorage.getItem('guest_login') === 'true') {
     container.style.display = "none";
-    // Call onLogin with stored guest name or generate new one
     const guestName = sessionStorage.getItem('guest_name') || "Guest_" + Math.random().toString(36).substring(2, 8);
     sessionStorage.setItem('guest_name', guestName);
     onLogin(guestName, guestName);
+    return () => { container.remove(); };
   }
 
-  // Only set up Firebase auth listener if not in guest mode
-  const unsubscribe = onAuthStateChanged(auth, (user) => {
-    // Skip if we're in guest mode
-    if (sessionStorage.getItem('guest_login') === 'true') return;
-    
-    if (user) {
-      container.style.display = "none";
-      const displayName = user.displayName || user.email?.split("@")[0] || "Adventurer";
-      onLogin(displayName, user.uid);
-    } else {
-      container.style.display = "flex";
-    }
-  });
+  // Only set up Firebase auth listener if user explicitly tries Firebase login
+  // This avoids the error on page load
+  let unsubscribe: (() => void) | undefined;
 
   return () => {
     unsubscribe();
