@@ -49,7 +49,7 @@ export function renderHUD() {
   // Top-left panel
   const topLeft = document.createElement("div");
   topLeft.id = "hud-topleft";
-  topLeft.style.cssText = "position:fixed;top:12px;left:12px;z-index:800;display:flex;flex-direction:column;gap:6px;font-family:'Segoe UI',sans-serif;";
+  topLeft.className = "top-left-menu";
   topLeft.innerHTML = `
     <div style="background:rgba(0,0,0,0.8);border:1px solid rgba(255,215,0,0.4);border-radius:8px;padding:8px 14px;color:#ffd700;font-weight:bold;font-size:15px;letter-spacing:2px;">ARELORIA</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;">
@@ -58,10 +58,10 @@ export function renderHUD() {
       <button id="btn-skills" style="${btnStyle(\'#3a1a1a\'), \'#ff8844\')}">Skills [K]</button>
       <button id="btn-map" style="${btnStyle(\'#1a2a3a\'), \'#44aaff\')}">Map [M]</button>
     </div>
-    <div style="background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:6px 10px;font-size:11px;color:#aaa;">
-      Weapon: <span id="hud-weapon-name" style="color:#fff;">None</span>
+    <div class="hud-info-box">
+      Weapon: <span id="hud-weapon-name" style="color:#fff;font-weight:bold;">None</span>
     </div>
-    <div id="hud-active-quest" style="background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,0,0.2);border-radius:6px;padding:6px 10px;font-size:11px;color:#ffff88;display:none;">
+    <div id="hud-active-quest" class="hud-info-box quest" style="display:none;">
       Quest: <span id="hud-quest-text">None</span>
     </div>
     <button id="btn-admin-assets" style="${btnStyle(\'#2a2a2a\'), \'#888\')}display:none;">Admin</button>
@@ -72,14 +72,14 @@ export function renderHUD() {
   // Minimap (top right)
   const minimapContainer = document.createElement("div");
   minimapContainer.id = "hud-minimap";
-  minimapContainer.style.cssText = "position:fixed;top:12px;right:12px;z-index:800;background:rgba(0,0,0,0.8);border:2px solid rgba(255,215,0,0.4);border-radius:50%;overflow:hidden;width:140px;height:140px;";
+  minimapContainer.className = "minimap-container";
   _minimapCanvas = document.createElement("canvas");
-  _minimapCanvas.width = 140;
-  _minimapCanvas.height = 140;
+  _minimapCanvas.width = 150;
+  _minimapCanvas.height = 150;
   _minimapCtx = _minimapCanvas.getContext("2d");
   minimapContainer.appendChild(_minimapCanvas);
   const compass = document.createElement("div");
-  compass.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;font-size:9px;color:rgba(255,215,0,0.7);font-family:sans-serif;";
+  compass.className = "minimap-compass";
   compass.innerHTML = '<span style="position:absolute;top:2px;left:50%;transform:translateX(-50%)">N</span><span style="position:absolute;bottom:2px;left:50%;transform:translateX(-50%)">S</span><span style="position:absolute;left:2px;top:50%;transform:translateY(-50%)">W</span><span style="position:absolute;right:2px;top:50%;transform:translateY(-50%)">E</span>';
   minimapContainer.appendChild(compass);
   document.body.appendChild(minimapContainer);
@@ -87,12 +87,12 @@ export function renderHUD() {
   // Chat box (bottom left)
   const chatBox = document.createElement("div");
   chatBox.id = "hud-chat";
-  chatBox.style.cssText = "position:fixed;bottom:100px;left:12px;z-index:800;width:300px;font-family:'Segoe UI',sans-serif;";
+  chatBox.className = "chat-container";
   chatBox.innerHTML = `
-    <div id="chat-messages" style="background:rgba(0,0,0,0.65);border:1px solid rgba(255,255,255,0.1);border-radius:8px 8px 0 0;padding:8px;height:110px;overflow-y:auto;font-size:12px;color:#ddd;display:flex;flex-direction:column;gap:2px;"></div>
-    <div style="display:flex;">
-      <input id="chat-input" type="text" aria-label="Chat message" placeholder="Enter to chat..." maxlength="200" style="flex:1;background:rgba(0,0,0,0.8);border:1px solid rgba(255,255,255,0.2);border-top:none;border-radius:0 0 0 8px;padding:6px 10px;color:#fff;font-size:12px;outline:none;"/>
-      <button id="chat-send" style="background:rgba(60,120,60,0.8);border:1px solid rgba(60,200,60,0.4);border-top:none;border-radius:0 0 8px 0;padding:6px 10px;color:#fff;cursor:pointer;font-size:12px;">Send</button>
+    <div id="chat-messages" class="chat-messages"></div>
+    <div class="chat-input-row">
+      <input id="chat-input" class="chat-input" type="text" aria-label="Chat message" placeholder="Enter to chat..." maxlength="200" />
+      <button id="chat-send" class="chat-send">Send</button>
     </div>
   `;
   document.body.appendChild(chatBox);
@@ -323,7 +323,7 @@ export function showDialogue(source: string, text: string, choices?: any[], npcI
   if (!box) return;
   box.style.display = "block";
 
-  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><div style="color:#88aaff;font-weight:bold;font-size:13px;">${source}</div><button aria-label="Close Dialogue" onclick="document.getElementById('dialogue-box').style.display='none'" style="${closeBtnStyle()}">X</button></div><div style="color:#ddd;font-size:13px;line-height:1.5;margin-bottom:12px;">${text}</div>`;
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><div style="color:#88aaff;font-weight:bold;font-size:13px;">${source}</div><button class="btn btn-close" aria-label="Close Dialogue" onclick="document.getElementById('dialogue-box').style.display='none'">X</button></div><div style="color:#ddd;font-size:13px;line-height:1.5;margin-bottom:12px;">${text}</div>`;
 
   if (choices && choices.length > 0) {
     html += `<div style="display:flex;flex-direction:column;gap:6px;">`;
