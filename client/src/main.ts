@@ -38,6 +38,9 @@ renderAuthUI((displayName: string, uid?: string) => {
     gameInitialized = true;
     currentPlayerName = displayName;
     currentPlayerId = uid || displayName;
+    
+    // Update loading screen
+    (window as any).loadingScreen?.setStatus('Connecting to server...');
 
     // ── Mobile control callbacks ─────────────────────────────────────────────
     const mobileCallbacks = {
@@ -57,10 +60,17 @@ renderAuthUI((displayName: string, uid?: string) => {
     };
 
     // ── Initialize renderer ──────────────────────────────────────────────────
+    (window as any).loadingScreen?.setStatus('Initializing renderer...');
     initRenderer(canvas, displayName, mobileCallbacks);
 
     // ── Connect WebSocket ────────────────────────────────────────────────────
+    (window as any).loadingScreen?.setStatus('Connecting to game server...');
     connectSocket(displayName);
+    
+    // Hide loading screen after a short delay to ensure connection
+    setTimeout(() => {
+      (window as any).loadingScreen?.hide();
+    }, 1000);
 
     // ── Joystick → move_intent ───────────────────────────────────────────────
     setJoystickMoveCallback((dx: number, dy: number) => {
