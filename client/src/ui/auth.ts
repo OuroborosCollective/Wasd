@@ -89,12 +89,16 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
     try {
       errorMsg.innerText = "";
       setFormDisabled(true);
+      loginBtn.setAttribute("aria-busy", "true");
       loginBtn.innerText = "Logging in...";
+      loginBtn.classList.add("opacity-70", "cursor-not-allowed");
       await signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
     } catch (e: any) {
       errorMsg.innerText = e.message;
       setFormDisabled(false);
+      loginBtn.removeAttribute("aria-busy");
       loginBtn.innerText = "Login";
+      loginBtn.classList.remove("opacity-70", "cursor-not-allowed");
     }
   };
   formBox.appendChild(loginBtn);
@@ -112,12 +116,16 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
     try {
       errorMsg.innerText = "";
       setFormDisabled(true);
+      signupBtn.setAttribute("aria-busy", "true");
       signupBtn.innerText = "Signing up...";
+      signupBtn.classList.add("opacity-70", "cursor-not-allowed");
       await createUserWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
     } catch (e: any) {
       errorMsg.innerText = e.message;
       setFormDisabled(false);
+      signupBtn.removeAttribute("aria-busy");
       signupBtn.innerText = "Sign Up";
+      signupBtn.classList.remove("opacity-70", "cursor-not-allowed");
     }
   };
   formBox.appendChild(signupBtn);
@@ -134,8 +142,8 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   guestBtn.style.cursor = "pointer";
   guestBtn.onclick = () => {
     container.style.display = "none";
-    // Store guest flag in sessionStorage so we don't try Firebase auth
-    sessionStorage.setItem('guest_login', 'true');
+    // Store guest flag in sessionStorage so we don\'t try Firebase auth
+    sessionStorage.setItem(\'guest_login\', \'true\');
     const guestName = "Guest_" + Math.random().toString(36).substring(2, 8);
     onLogin(guestName, guestName);
   };
@@ -145,10 +153,10 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   document.body.appendChild(container);
 
   // Check if already logged in as guest (from previous session)
-  if (sessionStorage.getItem('guest_login') === 'true') {
+  if (sessionStorage.getItem(\'guest_login\') === \'true\') {
     container.style.display = "none";
-    const guestName = sessionStorage.getItem('guest_name') || "Guest_" + Math.random().toString(36).substring(2, 8);
-    sessionStorage.setItem('guest_name', guestName);
+    const guestName = sessionStorage.getItem(\'guest_name\') || "Guest_" + Math.random().toString(36).substring(2, 8);
+    sessionStorage.setItem(\'guest_name\', guestName);
     onLogin(guestName, guestName);
     return () => { container.remove(); };
   } else {
@@ -178,8 +186,8 @@ export function renderLogoutBtn() {
   btn.style.zIndex = "900";
   btn.onclick = () => {
     signOut(auth);
-    sessionStorage.removeItem('guest_login');
-    sessionStorage.removeItem('guest_name');
+    sessionStorage.removeItem(\'guest_login\');
+    sessionStorage.removeItem(\'guest_name\');
     window.location.reload();
   };
   document.body.appendChild(btn);
