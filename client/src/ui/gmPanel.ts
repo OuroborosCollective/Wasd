@@ -7,6 +7,8 @@
 
 import { sendMessage } from "../networking/websocketClient";
 import { ModelRegistry } from "../assets/ModelRegistry";
+import { toggleAssetGeneratorPanel } from "./assetGeneratorPanel";
+import { toggleAssetLibraryPanel } from "./assetLibraryPanel";
 
 let panelOpen = false;
 let activeTab = "world";
@@ -593,6 +595,7 @@ export function initGMPanel() {
       <div class="gm-tab" data-tab="npc">👤 NPCs</div>
       <div class="gm-tab" data-tab="quest">📜 Quests</div>
       <div class="gm-tab" data-tab="glb">📦 3D Models</div>
+      <div class="gm-tab" data-tab="asset-brain">🧠 Asset Brain</div>
       <div class="gm-tab" data-tab="economy">💰 Economy</div>
       <div class="gm-tab" data-tab="players">👥 Players</div>
       <div class="gm-tab" data-tab="nations">🏰 Nations</div>
@@ -621,6 +624,48 @@ export function initGMPanel() {
   registerGMFunctions();
 }
 
+function renderAssetBrainTab(): string {
+  return `
+    <div class="gm-section">
+      <h3>🧠 Asset Brain Generator</h3>
+      <p style="font-size: 12px; color: #8ab0d0; margin-bottom: 12px;">Generate 3D asset specifications from text descriptions using AI.</p>
+      <div class="gm-row">
+        <button class="gm-btn gm-btn-green" onclick="toggleAssetGeneratorPanel()">✨ Open Generator</button>
+        <button class="gm-btn gm-btn-orange" onclick="toggleAssetLibraryPanel()">📚 Browse Library</button>
+      </div>
+    </div>
+
+    <div class="gm-section">
+      <h3>📊 Asset Statistics</h3>
+      <div class="gm-row">
+        <span class="gm-label">Total Assets</span>
+        <span id="gm-asset-total" style="color: #64b4ff;">Loading...</span>
+      </div>
+      <div class="gm-row">
+        <span class="gm-label">Public Assets</span>
+        <span id="gm-asset-public" style="color: #64b4ff;">Loading...</span>
+      </div>
+      <div class="gm-row">
+        <button class="gm-btn" onclick="gmRefreshAssetStats()">🔄 Refresh Stats</button>
+      </div>
+    </div>
+
+    <div class="gm-section">
+      <h3>Asset Classes</h3>
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+        <button class="gm-btn" onclick="gmFilterAssets('character')">👤 Characters</button>
+        <button class="gm-btn" onclick="gmFilterAssets('creature')">🐉 Creatures</button>
+        <button class="gm-btn" onclick="gmFilterAssets('prop')">📦 Props</button>
+        <button class="gm-btn" onclick="gmFilterAssets('weapon')">⚔️ Weapons</button>
+        <button class="gm-btn" onclick="gmFilterAssets('environment')">🌍 Environment</button>
+        <button class="gm-btn" onclick="gmFilterAssets('')">🔄 All Assets</button>
+      </div>
+    </div>
+
+    <div id="gm-asset-status" class="gm-status"></div>
+  `;
+}
+
 function renderActiveTab() {
   const content = document.getElementById("gm-content");
   if (!content) return;
@@ -629,6 +674,7 @@ function renderActiveTab() {
     case "npc": content.innerHTML = renderNPCTab(); break;
     case "quest": content.innerHTML = renderQuestTab(); break;
     case "glb": content.innerHTML = renderGLBTab(); break;
+    case "asset-brain": content.innerHTML = renderAssetBrainTab(); break;
     case "economy": content.innerHTML = renderEconomyTab(); break;
     case "players": content.innerHTML = renderPlayersTab(); break;
     case "nations": content.innerHTML = renderNationsTab(); break;
@@ -942,6 +988,39 @@ function registerGMFunctions() {
     if (!region) { showStatus("gm-nations-status", "Region required!", true); return; }
     gm({ type: "gm_claim_territory", region, owner });
     showStatus("gm-nations-status", `${region} claimed by ${owner}`);
+  };
+
+  w.toggleAssetGeneratorPanel = toggleAssetGeneratorPanel;
+  w.toggleAssetLibraryPanel = toggleAssetLibraryPanel;
+
+  w.gmRefreshAssetStats = async () => {
+    try {
+      const response = await fetch('/api/asset-brain/my-specs', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` }
+      });
+      if (!response.ok) throw new Error('Failed to fetch stats');
+      const data = await response.json();
+      const totalEl = document.getElementById('gm-asset-total');
+      const publicEl = document.getElementById('gm-asset-public');
+      if (totalEl) totalEl.textContent = String(data.specifications?.length || 0);
+      if (publicEl) publicEl.textContent = String(data.specifications?.filter((s: any) => s.isPublic).length || 0);
+    } catch (error) {
+      showStatus('gm-asset-status', `Error: ${(error as Error).message}`, true);
+    }
+  };
+
+  w.gmFilterAssets = async (assetClass: string) => {
+    try {
+      const params = new URLSearchParams();
+      if (assetClass) params.append('assetClass', assetClass);
+      const response = await fetch(`/api/asset-brain/search?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch assets');
+      const data = await response.json();
+      const count = data.specifications?.length || 0;
+      showStatus('gm-asset-status', `Found ${count} asset(s) in class: ${assetClass || 'all'}`);
+    } catch (error) {
+      showStatus('gm-asset-status', `Error: ${(error as Error).message}`, true);
+    }
   };
 }
 
