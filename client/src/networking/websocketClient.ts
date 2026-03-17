@@ -61,7 +61,7 @@ export function triggerAttack() {
       let closestNpc = null;
       let minDistance = Infinity;
       for (const npc of latestState.npcs) {
-        const dist = Math.hypot(myPlayer.position.x - npc.position.x, myPlayer.position.y - npc.position.y);
+        const dist = Math.hypot(myPlayer.position.x - npc.position.x, myPlayer.position.z - npc.position.z);
         if (dist < minDistance) { minDistance = dist; closestNpc = npc; }
       }
       if (closestNpc && minDistance < 40) {
@@ -276,7 +276,7 @@ export function connectSocket(displayName?: string) {
         // Update local player position
         if (latestState && latestState.players) {
           const me = latestState.players.find((p: any) => p.id === myPlayerId);
-          if (me) { me.position.x = data.x; me.position.y = data.y; }
+          if (me) { me.position.x = data.x; me.position.z = data.y; }
         }
       } else if (data.type === "world_event") {
         // Show world event notification
@@ -332,7 +332,7 @@ export function connectSocket(displayName?: string) {
           let minDistance = Infinity;
           
           for (const npc of latestState.npcs) {
-            const dist = Math.hypot(myPlayer.position.x - npc.position.x, myPlayer.position.y - npc.position.y);
+            const dist = Math.hypot(myPlayer.position.x - npc.position.x, myPlayer.position.z - npc.position.z);
             if (dist < minDistance) {
               minDistance = dist;
               closestNpc = npc;
