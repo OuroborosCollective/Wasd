@@ -14,6 +14,7 @@
 import { Router, Request, Response } from 'express';
 import { getAssetPipeline } from '../modules/asset-brain/AssetPipeline.js';
 import { db } from '../core/Database.js';
+import { authMiddleware } from '../middleware/authMiddleware.js';
 
 export function createAssetPipelineRouter(): Router {
   const router = Router();
@@ -23,7 +24,7 @@ export function createAssetPipelineRouter(): Router {
    * Start full pipeline: spec → 3D model → register in game
    * Body: { input: string, generateModel?: boolean, autoRegister?: boolean }
    */
-  router.post('/generate', async (req: Request, res: Response) => {
+  router.post('/generate', authMiddleware, async (req: Request, res: Response) => {
     try {
       const { input, generateModel = true, autoRegister = true } = req.body as {
         input: string;
@@ -57,7 +58,7 @@ export function createAssetPipelineRouter(): Router {
    * Generate specification only (fast, no 3D model)
    * Body: { input: string }
    */
-  router.post('/spec-only', async (req: Request, res: Response) => {
+  router.post('/spec-only', authMiddleware, async (req: Request, res: Response) => {
     try {
       const { input } = req.body as { input: string };
       if (!input || typeof input !== 'string') {
@@ -81,7 +82,7 @@ export function createAssetPipelineRouter(): Router {
   /**
    * Poll job status
    */
-  router.get('/job/:jobId', (req: Request, res: Response) => {
+  router.get('/job/:jobId', authMiddleware, (req: Request, res: Response) => {
     const jobId = String(req.params['jobId']);
     const pipeline = getAssetPipeline();
     const job = pipeline.getJob(jobId);
@@ -97,7 +98,7 @@ export function createAssetPipelineRouter(): Router {
   /**
    * List user's pipeline jobs
    */
-  router.get('/jobs', (req: Request, res: Response) => {
+  router.get('/jobs', authMiddleware, (req: Request, res: Response) => {
     const userId = (req as any).userId || (req as any).playerId || 'anonymous';
     const pipeline = getAssetPipeline();
     const jobs = pipeline.getAllJobs(userId);
@@ -137,7 +138,7 @@ export function createAssetPipelineRouter(): Router {
   /**
    * Delete a generated asset
    */
-  router.delete('/asset/:id', async (req: Request, res: Response) => {
+  router.delete('/asset/:id', authMiddleware, async (req: Request, res: Response) => {
     try {
       const id = String(req.params['id']);
       await db.query('DELETE FROM generated_assets WHERE id = $1', [id]);
