@@ -20,7 +20,6 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from "uuid";
-import validator from "gltf-validator";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import { db as dbInstance } from "../core/Database.js";
 type Database = typeof dbInstance;

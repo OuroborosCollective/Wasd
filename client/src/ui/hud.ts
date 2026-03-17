@@ -2,6 +2,23 @@ import { sendDialogueChoice } from "../networking/websocketClient";
 import { toggleAdminAssetPanel } from "./adminAssetPanel";
 import { toggleAssetPipelinePanel } from "./assetPipelinePanel";
 
+// Export updateCooldowns function
+export function updateCooldowns(cooldowns: { attack: number; interact: number; equip: number }) {
+  const now = Date.now();
+  const attackRemaining = Math.max(0, cooldowns.attack - now);
+  const interactRemaining = Math.max(0, cooldowns.interact - now);
+  const equipRemaining = Math.max(0, cooldowns.equip - now);
+
+  updateCd("cd-attack", attackRemaining);
+  updateCd("cd-interact", interactRemaining);
+  updateCd("cd-equip", equipRemaining);
+}
+
+// Export renderInventoryPanel function
+export function renderInventoryPanel(player: any, ws: WebSocket) {
+  renderInventory(player.inventory);
+}
+
 export function renderHUD() {
   const hud = document.createElement("div");
   hud.id = "main-hud";
@@ -53,10 +70,10 @@ export function renderHUD() {
   topLeft.innerHTML = `
     <div style="background:rgba(0,0,0,0.8);border:1px solid rgba(255,215,0,0.4);border-radius:8px;padding:8px 14px;color:#ffd700;font-weight:bold;font-size:15px;letter-spacing:2px;">ARELORIA</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;">
-      <button id="btn-inventory" style="${btnStyle(\'#1a3a1a\'), \'#4CAF50\')}">Inv [I]</button>
-      <button id="btn-quests" style="${btnStyle(\'#1a1a3a\'), \'#4488ff\')}">Quests [Q]</button>
-      <button id="btn-skills" style="${btnStyle(\'#3a1a1a\'), \'#ff8844\')}">Skills [K]</button>
-      <button id="btn-map" style="${btnStyle(\'#1a2a3a\'), \'#44aaff\')}">Map [M]</button>
+      <button id="btn-inventory" style="${btnStyle('#1a3a1a', '#4CAF50')}">Inv [I]</button>
+      <button id="btn-quests" style="${btnStyle('#1a1a3a', '#4488ff')}">Quests [Q]</button>
+      <button id="btn-skills" style="${btnStyle('#3a1a1a', '#ff8844')}">Skills [K]</button>
+      <button id="btn-map" style="${btnStyle('#1a2a3a', '#44aaff')}">Map [M]</button>
     </div>
     <div class="hud-info-box">
       Weapon: <span id="hud-weapon-name" style="color:#fff;font-weight:bold;">None</span>
@@ -64,8 +81,8 @@ export function renderHUD() {
     <div id="hud-active-quest" class="hud-info-box quest" style="display:none;">
       Quest: <span id="hud-quest-text">None</span>
     </div>
-    <button id="btn-admin-assets" style="${btnStyle(\'#2a2a2a\'), \'#888\')}display:none;">Admin</button>
-    <button id="btn-asset-pipeline" style="${btnStyle(\'#1a1a3a\'), \'#7af\')}display:none;">🧠 Assets</button>
+    <button id="btn-admin-assets" style="${btnStyle('#2a2a2a', '#888')}display:none;">Admin</button>
+    <button id="btn-asset-pipeline" style="${btnStyle('#1a1a3a', '#7af')}display:none;">🧠 Assets</button>
   `;
   document.body.appendChild(topLeft);
 
@@ -148,16 +165,7 @@ mapPanel.innerHTML = `<div style="display:flex;justify-content:space-between;ali
       if (adminBtn) adminBtn.style.display = "none";
       if (assetPipelineBtn) assetPipelineBtn.style.display = "none";
     }
-=======
-  };
-
-  const attackRemaining = Math.max(0, cooldowns.attack - now);
-  const interactRemaining = Math.max(0, cooldowns.interact - now);
-  const equipRemaining = Math.max(0, cooldowns.equip - now);
-
-  updateCd("cd-attack", attackRemaining);
-  updateCd("cd-interact", interactRemaining);
-  updateCd("cd-equip", equipRemaining);
+  });
 }
 
 export function showFloatingText(text: string, x: number, y: number) {
@@ -315,62 +323,6 @@ export function createWorldLabel(id: string, text: string, type: 'npc' | 'loot',
   }
   label.innerHTML = html;
   return label;
-}
-
-// ─── Dialogue ────────────────────────────────────────────────────────────────
-export function showDialogue(source: string, text: string, choices?: any[], npcId?: string) {
-  const box = document.getElementById("dialogue-box");
-  if (!box) return;
-  box.style.display = "block";
-
-  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><div style="color:#88aaff;font-weight:bold;font-size:13px;">${source}</div><button class="btn btn-close" aria-label="Close Dialogue" onclick="document.getElementById('dialogue-box').style.display='none'">X</button></div><div style="color:#ddd;font-size:13px;line-height:1.5;margin-bottom:12px;">${text}</div>`;
-
-  if (choices && choices.length > 0) {
-    html += `<div style="display:flex;flex-direction:column;gap:6px;">`;
-    choices.forEach((choice: any, index: number) => {
-      html += `<button class="dialogue-choice-btn" data-npc-id="${npcId || ""}" data-node-id="${choice.nextNodeId || choice.nodeId || ""}" data-choice-id="${choice.id}" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:8px 12px;border-radius:6px;cursor:pointer;text-align:left;font-size:12px;font-family:'Segoe UI',sans-serif;" onmouseover="this.style.background='rgba(100,150,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.08)'">${index + 1}. ${choice.text}</button>`;
-    });
-    html += `</div>`;
-  } else {
-    html += `<div style="font-size:11px;opacity:0.5;text-align:center;">(Press E or X to close)</div>`;
-  }
-
-  box.innerHTML = html;
-  box.querySelectorAll(".dialogue-choice-btn").forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      const t = e.currentTarget as HTMLButtonElement;
-      sendDialogueChoice(t.getAttribute("data-npc-id") || "", t.getAttribute("data-node-id") || "", t.getAttribute("data-choice-id") || "");
-    });
->>>>>>> 9e51ccd215b7939ff10eca1eb94f74863a0f0852
-  });
-
-  document.getElementById("btn-admin-assets")?.addEventListener("click", toggleAdminAssetPanel);
-  document.getElementById("btn-asset-pipeline")?.addEventListener("click", toggleAssetPipelinePanel);
-
-  // Chat functionality
-  const chatInput = document.getElementById("chat-input") as HTMLInputElement;
-  const chatSendBtn = document.getElementById("chat-send") as HTMLButtonElement;
-  const chatMessages = document.getElementById("chat-messages") as HTMLDivElement;
-
-  chatSendBtn.onclick = () => {
-    const text = chatInput.value.trim();
-    if (text && _ws) {
-      _ws.send(JSON.stringify({ type: "chat", message: text }));
-      chatInput.value = "";
-    }
-  };
-
-  chatInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      chatSendBtn.click();
-    }
-  });
-
-  // Initial render of panels
-  renderInventory();
-  renderQuestLog();
-  renderSkills();
-  renderWorldMap();
 }
 
 export function updateHUD(player: any, worldState: any) {

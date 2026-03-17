@@ -138,8 +138,8 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   guestBtn.style.cursor = "pointer";
   guestBtn.onclick = () => {
     container.style.display = "none";
-    // Store guest flag in sessionStorage so we don\\\"t try Firebase auth
-    sessionStorage.setItem(\'guest_login\', \'true\');
+    // Store guest flag in sessionStorage so we don't try Firebase auth
+    sessionStorage.setItem('guest_login', 'true');
     const guestName = "Guest_" + Math.random().toString(36).substring(2, 8);
     onLogin(guestName, guestName);
   };
@@ -149,10 +149,10 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   document.body.appendChild(container);
 
   // Check if already logged in as guest (from previous session)
-  if (sessionStorage.getItem(\'guest_login\') === \'true\') {
+  if (sessionStorage.getItem('guest_login') === 'true') {
     container.style.display = "none";
-    const guestName = sessionStorage.getItem(\'guest_name\') || "Guest_" + Math.random().toString(36).substring(2, 8);
-    sessionStorage.setItem(\'guest_name\', guestName);
+    const guestName = sessionStorage.getItem('guest_name') || "Guest_" + Math.random().toString(36).substring(2, 8);
+    sessionStorage.setItem('guest_name', guestName);
     onLogin(guestName, guestName);
     return () => { container.remove(); };
   } else {
@@ -182,8 +182,8 @@ export function renderLogoutBtn() {
   btn.style.zIndex = "900";
   btn.onclick = () => {
     signOut(auth);
-    sessionStorage.removeItem(\'guest_login\');
-    sessionStorage.removeItem(\'guest_name\');
+    sessionStorage.removeItem('guest_login');
+    sessionStorage.removeItem('guest_name');
     window.location.reload();
   };
   document.body.appendChild(btn);
