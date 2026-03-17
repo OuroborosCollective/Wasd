@@ -5,6 +5,11 @@
 ## 2026-03-12 - [Registry Lookup Optimization]
 **Learning:** Transitioning from O(N) array searching (`Array.find`) to O(1) `Map` lookups in core registry classes (like `GLBRegistry`) provides a measurable performance gain in hot paths like the world tick loop.
 **Action:** Audit registry-like classes for linear lookups and replace with hash maps where appropriate.
+
+## 2026-03-12 - [Loop-Invariant Code Motion in Matching Algorithms]
+**Learning:** Code patterns that involve checking a dynamic input against a large registry of static definitions (like `RecipeMatcher.match()`) often suffer from hidden multipliers when the input is transformed *inside* the search loop. Sorting arrays and running `JSON.stringify()` on every loop iteration creates unnecessary heap allocations and $O(N \log N)$ overhead.
+**Action:** Always hoist transformations of static input variables (like array sorting or serialization) outside of `.find()`, `.filter()`, or `for` loops. Furthermore, replacing `JSON.stringify(arr)` with `arr.join(',')` provides a faster serialization method for simple arrays of strings or numbers.
+
 ## 2025-05-15 - [GLBRegistry O(1) Optimization]
 **Learning:** The `GLBRegistry.getModelForTarget` method was performing an $O(n)$ array `find` for every NPC and loot item on every world tick (10Hz). In a world with many entities, this becomes a significant bottleneck.
 **Action:** Use an internal `Map` for $O(1)$ lookups in registries and managers that are queried frequently in the main game loop.
@@ -12,7 +17,6 @@
 ## 2025-05-15 - [Monorepo Dependency Management]
 **Learning:** Running `pnpm install` in a monorepo that isn't fully set up for pnpm (missing `pnpm-workspace.yaml`) can generate a massive `pnpm-lock.yaml` file in the root, which is undesirable for small PRs.
 **Action:** Be extremely careful with installation commands in monorepos; prefer `npm install` within specific package directories if the root workspace configuration is unstable.
-
 
 ## 2025-05-15 - [Array Allocations in Hot Loops]
 **Learning:** Calling `getAllPlayers()` multiple times in `WorldTick.ts` `tick()` creates multiple new arrays per tick using `Array.from()`. Since `tick()` runs 10 times per second, this causes unnecessary garbage collection and performance degradation.
