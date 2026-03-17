@@ -2,9 +2,12 @@
  * Asset Brain Generator Panel
  * Allows users to generate 3D asset specifications from text input
  */
+import { AssetBrainViewer } from "./AssetBrainViewer";
 
 let panel: HTMLDivElement | null = null;
 let isGenerating = false;
+let viewer: AssetBrainViewer | null = null;
+let isWireframe = false;
 
 interface GeneratedAsset {
   id: string;
@@ -19,6 +22,10 @@ let generatedAssets: GeneratedAsset[] = [];
 
 export function toggleAssetGeneratorPanel() {
   if (panel) {
+    if (viewer) {
+      viewer.dispose();
+      viewer = null;
+    }
     panel.remove();
     panel = null;
     return;
@@ -87,7 +94,14 @@ export function toggleAssetGeneratorPanel() {
 
     <div id="asset-results" style="display: none;">
       <h3 style="color: #4a7c9e; margin-top: 0;">Generated Assets</h3>
-      <div id="asset-list" style="max-height: 300px; overflow-y: auto;"></div>
+      <div id="asset-list" style="max-height: 200px; overflow-y: auto; margin-bottom: 15px;"></div>
+    </div>
+
+    <div id="asset-preview-container" style="display: none; border: 1px solid #4a7c9e; border-radius: 4px; overflow: hidden; background: #000; position: relative; margin-top: 15px;">
+      <div id="asset-preview-canvas" style="width: 100%; height: 300px;"></div>
+      <div style="position: absolute; top: 10px; left: 10px; display: flex; gap: 5px;">
+        <button id="btn-preview-wireframe" style="padding: 4px 8px; background: rgba(74, 124, 158, 0.5); color: white; border: 1px solid #4a7c9e; border-radius: 3px; cursor: pointer; font-size: 10px;">Wireframe</button>
+      </div>
     </div>
   `;
 
@@ -96,6 +110,16 @@ export function toggleAssetGeneratorPanel() {
   // Event listeners
   document.getElementById('btn-close-asset-gen')!.onclick = () => toggleAssetGeneratorPanel();
   document.getElementById('btn-generate-asset')!.onclick = generateAsset;
+
+  const previewCanvas = document.getElementById('asset-preview-canvas');
+  if (previewCanvas) {
+    viewer = new AssetBrainViewer(previewCanvas);
+    
+    document.getElementById('btn-preview-wireframe')!.onclick = () => {
+      isWireframe = !isWireframe;
+      viewer?.setWireframe(isWireframe);
+    };
+  }
 }
 
 async function generateAsset() {
@@ -192,9 +216,10 @@ function displayAssets() {
         Style: <strong>${asset.style}</strong><br/>
         Variants: <strong>${asset.variants?.length || 0}</strong>
       </div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
-        <button onclick="window.viewAssetDetails('${asset.id}')" style="padding: 5px; background: #4a7c9e; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">View Details</button>
-        <button onclick="window.exportAsset('${asset.id}')" style="padding: 5px; background: #7c4a9e; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">Export</button>
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px;">
+        <button onclick="window.previewAsset('${asset.id}')" style="padding: 5px; background: #4a9e7c; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">Preview</button>
+        <button onclick="window.viewAssetDetails('${asset.id}')" style="padding: 5px; background: #4a7c9e; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">Details</button>
+        <button onclick="window.exportAsset('${asset.id}')" style="padding: 5px; background: #7c4a9e; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">Export</button>
       </div>
     </div>
   `
@@ -203,6 +228,16 @@ function displayAssets() {
 }
 
 // Global functions for button callbacks
+(window as any).previewAsset = async (assetId: string) => {
+  const asset = generatedAssets.find((a) => a.id === assetId);
+  if (!asset || !viewer) return;
+
+  const previewContainer = document.getElementById('asset-preview-container');
+  if (previewContainer) previewContainer.style.display = 'block';
+
+  showStatus(`Previewing ${asset.assetName}... (Note: 3D model generation is a separate step)`, 'info');
+};
+
 (window as any).viewAssetDetails = (assetId: string) => {
   const asset = generatedAssets.find((a) => a.id === assetId);
   if (!asset) return;
@@ -210,10 +245,10 @@ function displayAssets() {
   const detailsWindow = window.open('', '_blank', 'width=800,height=600');
   if (!detailsWindow) return;
 
-  detailsWindow.document.write(`
+  detailsWindow.document.write(\`
     <html>
       <head>
-        <title>${asset.assetName} - Asset Details</title>
+        <title>\${asset.assetName} - Asset Details</title>
         <style>
           body { background: #1a1a2e; color: #e0e0e0; font-family: monospace; padding: 20px; }
           h1 { color: #4a7c9e; }
@@ -222,19 +257,19 @@ function displayAssets() {
         </style>
       </head>
       <body>
-        <h1>${asset.assetName}</h1>
+        <h1>\${asset.assetName}</h1>
         <div class="section">
           <h2>Classification</h2>
-          <p><strong>Class:</strong> ${asset.assetClass}</p>
-          <p><strong>Style:</strong> ${asset.style}</p>
+          <p><strong>Class:</strong> \${asset.assetClass}</p>
+          <p><strong>Style:</strong> \${asset.style}</p>
         </div>
         <div class="section">
           <h2>Full Specification (JSON)</h2>
-          <pre>${JSON.stringify(asset.specification, null, 2)}</pre>
+          <pre>\${JSON.stringify(asset.specification, null, 2)}</pre>
         </div>
       </body>
     </html>
-  `);
+  \`);
   detailsWindow.document.close();
 };
 
@@ -243,9 +278,9 @@ function displayAssets() {
   if (!asset) return;
 
   try {
-    const response = await fetch(`/api/asset-brain/specs/${assetId}/export?format=json`, {
+    const response = await fetch(\`/api/asset-brain/specs/\${assetId}/export?format=json\`, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+        'Authorization': \`Bearer \${localStorage.getItem('token') || ''}\`,
       },
     });
 
@@ -255,10 +290,10 @@ function displayAssets() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${asset.assetName.replace(/\s+/g, '_')}.json`;
+    a.download = \`\${asset.assetName.replace(/\\s+/g, '_')}.json\`;
     a.click();
     URL.revokeObjectURL(url);
   } catch (error) {
-    alert(`Export failed: ${(error as Error).message}`);
+    alert(\`Export failed: \${(error as Error).message}\`);
   }
 };

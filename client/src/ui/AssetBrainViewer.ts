@@ -1,0 +1,140 @@
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+
+export class AssetBrainViewer {
+  private scene: THREE.Scene;
+  private camera: THREE.PerspectiveCamera;
+  private renderer: THREE.WebGLRenderer;
+  private controls: OrbitControls;
+  private loader: GLTFLoader;
+  private container: HTMLElement;
+  private currentModel: THREE.Group | null = null;
+  private animationId: number | null = null;
+
+  constructor(container: HTMLElement) {
+    this.container = container;
+    this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(0x1a1a2e);
+
+    const width = container.clientWidth || 800;
+    const height = container.clientHeight || 600;
+
+    this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    this.camera.position.set(5, 5, 5);
+
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    this.renderer.setSize(width, height);
+    this.renderer.setPixelRatio(window.devicePixelRatio);
+    this.renderer.shadowMap.enabled = true;
+    container.appendChild(this.renderer.domElement);
+
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.enableDamping = true;
+
+    this.loader = new GLTFLoader();
+
+    this.initLights();
+    this.initHelpers();
+    this.animate();
+
+    window.addEventListener('resize', this.onWindowResize.bind(this));
+  }
+
+  private initLights() {
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    this.scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(5, 10, 7.5);
+    directionalLight.castShadow = true;
+    this.scene.add(directionalLight);
+
+    const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.4);
+    this.scene.add(hemisphereLight);
+  }
+
+  private initHelpers() {
+    const gridHelper = new THREE.GridHelper(10, 10, 0x4a7c9e, 0x2a4a5e);
+    this.scene.add(gridHelper);
+
+    const axesHelper = new THREE.AxesHelper(2);
+    this.scene.add(axesHelper);
+  }
+
+  public async loadModel(url: string): Promise<void> {
+    if (this.currentModel) {
+      this.scene.remove(this.currentModel);
+    }
+
+    return new Promise((resolve, reject) => {
+      this.loader.load(
+        url,
+        (gltf) => {
+          this.currentModel = gltf.scene;
+          this.scene.add(this.currentModel);
+
+          // Center and scale model
+          const box = new THREE.Box3().setFromObject(this.currentModel);
+          const center = box.getCenter(new THREE.Vector3());
+          const size = box.getSize(new THREE.Vector3());
+          const maxDim = Math.max(size.x, size.y, size.z);
+          const scale = 3 / maxDim;
+          
+          this.currentModel.scale.setScalar(scale);
+          this.currentModel.position.sub(center.multiplyScalar(scale));
+          this.currentModel.position.y = 0; // Place on grid
+
+          resolve();
+        },
+        undefined,
+        (error) => {
+          console.error("Error loading model:", error);
+          reject(error);
+        }
+      );
+    });
+  }
+
+  public setWireframe(enabled: boolean) {
+    if (!this.currentModel) return;
+    this.currentModel.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        if (Array.isArray(child.material)) {
+          child.material.forEach(m => m.wireframe = enabled);
+        } else {
+          child.material.wireframe = enabled;
+        }
+      }
+    });
+  }
+
+  public setBackgroundColor(color: number) {
+    this.scene.background = new THREE.Color(color);
+  }
+
+  private onWindowResize() {
+    const width = this.container.clientWidth;
+    const height = this.container.clientHeight;
+    this.camera.aspect = width / height;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(width, height);
+  }
+
+  private animate() {
+    this.animationId = requestAnimationFrame(this.animate.bind(this));
+    this.controls.update();
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  public dispose() {
+    if (this.animationId !== null) {
+      cancelAnimationFrame(this.animationId);
+    }
+    window.removeEventListener('resize', this.onWindowResize.bind(this));
+    this.renderer.dispose();
+    if (this.renderer.domElement.parentElement) {
+      this.renderer.domElement.parentElement.removeChild(this.renderer.domElement);
+    }
+  }
+}
