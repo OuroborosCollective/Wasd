@@ -73,9 +73,17 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   loginBtn.onclick = async () => {
     try {
       errorMsg.innerText = "";
+      loginBtn.disabled = true;
+      loginBtn.setAttribute("aria-busy", "true");
+      loginBtn.innerText = "Loading...";
+      loginBtn.classList.add("opacity-70", "cursor-not-allowed");
       await signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
     } catch (e: any) {
       errorMsg.innerText = e.message;
+      loginBtn.disabled = false;
+      loginBtn.removeAttribute("aria-busy");
+      loginBtn.innerText = "Login";
+      loginBtn.classList.remove("opacity-70", "cursor-not-allowed");
     }
   };
   formBox.appendChild(loginBtn);
@@ -91,9 +99,17 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   signupBtn.onclick = async () => {
     try {
       errorMsg.innerText = "";
+      signupBtn.disabled = true;
+      signupBtn.setAttribute("aria-busy", "true");
+      signupBtn.innerText = "Loading...";
+      signupBtn.classList.add("opacity-70", "cursor-not-allowed");
       await createUserWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
     } catch (e: any) {
       errorMsg.innerText = e.message;
+      signupBtn.disabled = false;
+      signupBtn.removeAttribute("aria-busy");
+      signupBtn.innerText = "Sign Up";
+      signupBtn.classList.remove("opacity-70", "cursor-not-allowed");
     }
   };
   formBox.appendChild(signupBtn);
