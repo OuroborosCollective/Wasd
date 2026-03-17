@@ -21,6 +21,6 @@
 **Learning:** Performance optimizations should remain "pure"—avoid changing default return values (like XP rewards) or method signatures unless strictly necessary. Additionally, running `pnpm install` to fix a test environment can accidentally pollute the `pnpm-lock.yaml` with unrelated dependency changes if the environment isn't perfectly clean.
 **Action:** Always revert lockfile changes that are unrelated to the task. Ensure optimizations don't accidentally alter functional game logic (like default rewards) or break existing test assumptions about object structures (e.g., `player.skills` existence).
 
-## 2025-05-15 - [Loop-Invariant Code Motion & Array Allocation]
-**Learning:** In matching algorithms (like `RecipeMatcher.match`) that are evaluated frequently, computing sorting and serialization (`JSON.stringify` or `.join(\'\')`) on static input arrays *inside* a loop over all possible matches forces $O(N \log N)$ operations and generates redundant garbage (arrays/strings) on every iteration.
-**Action:** Always move the preprocessing of static input data (sorting and serializing) *outside* the loop (Loop-Invariant Code Motion). Additionally, replace expensive operations like `JSON.stringify` with faster alternatives like `Array.join(\'\')`, and add early exits (e.g., checking array lengths before sorting) to bypass expensive computations entirely.
+## 2025-05-23 - [Loop-Invariant Code Motion in Matching]
+**Learning:** Performing array sorts (`[...inputIds].sort()`) and serialization (`JSON.stringify`) directly inside `Array.find` or loop conditionals causes redundant $O(N \log N)$ operations and unnecessary string allocations for static data across iterations.
+**Action:** Always apply loop-invariant code motion (hoisting) to move static data processing (like sorting, filtering, or serializing inputs) outside of loop bodies to achieve $O(1)$ constant-time overhead per iteration instead of multiplying it.
