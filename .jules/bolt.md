@@ -17,3 +17,7 @@
 ## 2025-05-15 - [Array Allocations in Hot Loops]
 **Learning:** Calling `getAllPlayers()` multiple times in `WorldTick.ts` `tick()` creates multiple new arrays per tick using `Array.from()`. Since `tick()` runs 10 times per second, this causes unnecessary garbage collection and performance degradation.
 **Action:** Always hoist data retrieval (like getting the player list) outside of repeating blocks in the main game loop to avoid redundant heap allocations.
+
+## 2025-05-15 - [Loop-Invariant Code Motion & Array Allocation]
+**Learning:** In matching algorithms (like `RecipeMatcher.match`) that are evaluated frequently, computing sorting and serialization (`JSON.stringify` or `.join(',')`) on static input arrays *inside* a loop over all possible matches forces $O(N \log N)$ operations and generates redundant garbage (arrays/strings) on every iteration.
+**Action:** Always move the preprocessing of static input data (sorting and serializing) *outside* the loop (Loop-Invariant Code Motion). Additionally, replace expensive operations like `JSON.stringify` with faster alternatives like `Array.join(',')`, and add early exits (e.g., checking array lengths before sorting) to bypass expensive computations entirely.
