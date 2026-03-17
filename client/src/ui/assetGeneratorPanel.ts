@@ -137,17 +137,17 @@ export function toggleAssetGeneratorPanel() {
       showNormals = !showNormals;
       viewer?.toggleNormals(showNormals);
     };
-        document.getElementById(\'btn-preview-flat\')!.onclick = () => {
+        document.getElementById('btn-preview-flat')!.onclick = () => {
       flatShading = !flatShading;
-      viewer?.setLightingMode(flatShading ? \'flat\' : \'default\');
+      viewer?.setLightingMode(flatShading ? 'flat' : 'default');
     };
 
-    document.getElementById(\'btn-play-animation\')!.onclick = () => {
-      const animName = (document.getElementById(\'sel-animation\') as HTMLSelectElement).value;
+    document.getElementById('btn-play-animation')!.onclick = () => {
+      const animName = (document.getElementById('sel-animation') as HTMLSelectElement).value;
       if (animName) viewer?.playAnimation(animName);
     };
 
-    document.getElementById(\'btn-stop-animation\')!.onclick = () => {
+    document.getElementById('btn-stop-animation')!.onclick = () => {
       viewer?.stopAnimations();
     };}
 
@@ -270,25 +270,25 @@ function displayAssets() {
     statsEl.style.display = 'block';
     statsEl.innerHTML = `Meshes: ${stats.meshes} | Vertices: ${stats.vertices} | Triangles: ${Math.round(stats.triangles)} | Materials: ${stats.materials}`;
   }
-  showStatus(`Previewing ${asset.assetName}...`, \'info\');
+  showStatus(`Previewing ${asset.assetName}...`, 'info');
   // In a real scenario, we would load a GLB file here.
   // For now, we'll load a placeholder or try to load a default model if available.
   // This will require an API endpoint to serve the GLB model based on the asset ID.
   try {
     await viewer.loadModel(`/models/placeholder.glb`); // Placeholder GLB
     const animations = viewer.getAnimationNames();
-    const animSelect = document.getElementById(\'sel-animation\') as HTMLSelectElement;
+    const animSelect = document.getElementById('sel-animation') as HTMLSelectElement;
     if (animSelect) {
-      animSelect.innerHTML = \'<option value="">No Animation</option>\' + animations.map(name => `<option value="${name}">${name}</option>`).join(\'\');
+      animSelect.innerHTML = '<option value="">No Animation</option>' + animations.map(name => `<option value="${name}">${name}</option>`).join('');
     }
     const stats = viewer.getModelStats();
-    const statsEl = document.getElementById(\'asset-preview-stats\');
+    const statsEl = document.getElementById('asset-preview-stats');
     if (statsEl) {
-      statsEl.style.display = \'block\';
+      statsEl.style.display = 'block';
       statsEl.innerHTML = `Meshes: ${stats.meshes} | Vertices: ${stats.vertices} | Triangles: ${Math.round(stats.triangles)} | Materials: ${stats.materials}`;
     }
   } catch (error) {
-    showStatus(`Error loading model: ${(error as Error).message}`, \'error\');
+    showStatus(`Error loading model: ${(error as Error).message}`, 'error');
   }};
 
 (window as any).viewAssetDetails = (assetId: string) => {
@@ -298,10 +298,10 @@ function displayAssets() {
   const detailsWindow = window.open('', '_blank', 'width=800,height=600');
   if (!detailsWindow) return;
 
-  detailsWindow.document.write(\`
+  detailsWindow.document.write(`
     <html>
       <head>
-        <title>\${asset.assetName} - Asset Details</title>
+        <title>${asset.assetName} - Asset Details</title>
         <style>
           body { background: #1a1a2e; color: #e0e0e0; font-family: monospace; padding: 20px; }
           h1 { color: #4a7c9e; }
@@ -310,19 +310,19 @@ function displayAssets() {
         </style>
       </head>
       <body>
-        <h1>\${asset.assetName}</h1>
+        <h1>${asset.assetName}</h1>
         <div class="section">
           <h2>Classification</h2>
-          <p><strong>Class:</strong> \${asset.assetClass}</p>
-          <p><strong>Style:</strong> \${asset.style}</p>
+          <p><strong>Class:</strong> ${asset.assetClass}</p>
+          <p><strong>Style:</strong> ${asset.style}</p>
         </div>
         <div class="section">
           <h2>Full Specification (JSON)</h2>
-          <pre>\${JSON.stringify(asset.specification, null, 2)}</pre>
+          <pre>${JSON.stringify(asset.specification, null, 2)}</pre>
         </div>
       </body>
     </html>
-  \`);
+  `);
   detailsWindow.document.close();
 };
 
@@ -331,9 +331,9 @@ function displayAssets() {
   if (!asset) return;
 
   try {
-    const response = await fetch(\`/api/asset-brain/specs/\${assetId}/export?format=json\`, {
+    const response = await fetch(`/api/asset-brain/specs/${assetId}/export?format=json`, {
       headers: {
-        'Authorization': \`Bearer \${localStorage.getItem('token') || ''}\`,
+        'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
       },
     });
 
@@ -343,10 +343,11 @@ function displayAssets() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = \`\${asset.assetName.replace(/\\s+/g, '_')}.json\`;
+    a.download = `${asset.assetName.replace(/\\s+/g, '_')}.json`;
     a.click();
     URL.revokeObjectURL(url);
   } catch (error) {
-    alert(\`Export failed: \${(error as Error).message}\`);
+    alert(`Export failed: ${(error as Error).message}`);
   }
 };
+}

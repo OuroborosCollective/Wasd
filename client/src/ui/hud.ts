@@ -10,12 +10,7 @@ let _minimapCtx: CanvasRenderingContext2D | null = null;
 
 export function setHudWebSocket(ws: WebSocket) { _ws = ws; }
 
-function btnStyle(bg: string, border: string) {
-  return `background:${bg};border:1px solid ${border};border-radius:6px;padding:5px 10px;color:#fff;cursor:pointer;font-size:11px;font-family:'Segoe UI',sans-serif;`;
-}
-function closeBtnStyle() {
-  return `background:rgba(200,50,50,0.3);border:1px solid rgba(200,50,50,0.5);border-radius:6px;padding:4px 10px;color:#fff;cursor:pointer;font-size:13px;`;
-}
+
 function togglePanel(id: string) {
   const el = document.getElementById(id);
   if (el) el.style.display = el.style.display === "none" ? "block" : "none";
@@ -28,31 +23,32 @@ export function renderHUD() {
   // Tooltip
   const tooltip = document.createElement("div");
   tooltip.id = "world-tooltip";
-  tooltip.style.cssText = "position:fixed;bottom:120px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:#fff;padding:6px 14px;border-radius:20px;font-family:sans-serif;font-size:13px;pointer-events:none;z-index:900;display:none;border:1px solid rgba(255,255,255,0.2);";
+  tooltip.className = "hud-info-box";
+  tooltip.style.cssText = "position:fixed;bottom:120px;left:50%;transform:translateX(-50%);pointer-events:none;z-index:900;display:none;background:var(--bg-tooltip);";
   document.body.appendChild(tooltip);
 
   // Stats bar (bottom center)
   const statsBar = document.createElement("div");
   statsBar.id = "hud-stats-bar";
-  statsBar.style.cssText = "position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:16px;align-items:center;background:rgba(0,0,0,0.8);border:1px solid rgba(255,255,255,0.15);border-radius:12px;padding:10px 20px;z-index:800;font-family:'Segoe UI',sans-serif;min-width:520px;justify-content:center;";
+  statsBar.className = "stats-bar-container";
   statsBar.innerHTML = `
-    <div style="display:flex;flex-direction:column;gap:4px;min-width:150px;">
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:#ccc;"><span>HP</span><span id="hud-hp-text">100/100</span></div>
-      <div style="background:#333;border-radius:4px;height:10px;overflow:hidden;"><div id="hud-hp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#c00,#f44);border-radius:4px;transition:width 0.3s;"></div></div>
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:#ccc;"><span>SP</span><span id="hud-sp-text">100/100</span></div>
-      <div style="background:#333;border-radius:4px;height:8px;overflow:hidden;"><div id="hud-sp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#f80,#fc0);border-radius:4px;transition:width 0.3s;"></div></div>
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:#ccc;"><span>MP</span><span id="hud-mp-text">25/25</span></div>
-      <div style="background:#333;border-radius:4px;height:8px;overflow:hidden;"><div id="hud-mp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#008,#44f);border-radius:4px;transition:width 0.3s;"></div></div>
+    <div class="stat-row">
+      <div class="stat-label"><span>HP</span><span id="hud-hp-text">100/100</span></div>
+      <div class="stat-bar-bg"><div id="hud-hp-bar" class="stat-bar-fill hp"></div></div>
+      <div class="stat-label"><span>SP</span><span id="hud-sp-text">100/100</span></div>
+      <div class="stat-bar-bg"><div id="hud-sp-bar" class="stat-bar-fill sp"></div></div>
+      <div class="stat-label"><span>MP</span><span id="hud-mp-text">25/25</span></div>
+      <div class="stat-bar-bg"><div id="hud-mp-bar" class="stat-bar-fill mp"></div></div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:4px;min-width:120px;border-left:1px solid rgba(255,255,255,0.15);padding-left:16px;">
-      <div style="font-size:13px;color:#ffd700;font-weight:bold;" id="hud-name">Adventurer</div>
-      <div style="font-size:11px;color:#aaa;">Lv.<span id="hud-level">1</span> | XP:<span id="hud-xp">0</span></div>
-      <div style="font-size:11px;color:#ffd700;">Gold: <span id="hud-gold">0</span></div>
+    <div class="player-info">
+      <div class="player-name" id="hud-name">Adventurer</div>
+      <div class="player-level-xp">Lv.<span id="hud-level">1</span> | XP:<span id="hud-xp">0</span></div>
+      <div class="player-gold">Gold: <span id="hud-gold">0</span></div>
     </div>
-    <div style="display:flex;gap:8px;border-left:1px solid rgba(255,255,255,0.15);padding-left:16px;">
-      <div id="cd-attack" style="padding:6px 10px;background:rgba(255,60,60,0.2);border:1px solid rgba(255,60,60,0.4);border-radius:6px;font-size:11px;color:#ff6666;text-align:center;min-width:50px;">[F]<br/>Atk</div>
-      <div id="cd-interact" style="padding:6px 10px;background:rgba(60,255,60,0.2);border:1px solid rgba(60,255,60,0.4);border-radius:6px;font-size:11px;color:#66ff66;text-align:center;min-width:50px;">[E]<br/>Talk</div>
-      <div id="cd-equip" style="padding:6px 10px;background:rgba(60,60,255,0.2);border:1px solid rgba(60,60,255,0.4);border-radius:6px;font-size:11px;color:#6666ff;text-align:center;min-width:50px;">[G]<br/>Equip</div>
+    <div class="action-bar">
+      <button id="cd-attack" class="btn-action atk"><span>[F]</span><span>Atk</span></button>
+      <button id="cd-interact" class="btn-action int"><span>[E]</span><span>Talk</span></button>
+      <button id="cd-equip" class="btn-action eqp"><span>[G]</span><span>Equip</span></button>
     </div>
   `;
   document.body.appendChild(statsBar);
@@ -60,37 +56,37 @@ export function renderHUD() {
   // Top-left panel
   const topLeft = document.createElement("div");
   topLeft.id = "hud-topleft";
-  topLeft.style.cssText = "position:fixed;top:12px;left:12px;z-index:800;display:flex;flex-direction:column;gap:6px;font-family:'Segoe UI',sans-serif;";
+  topLeft.className = "top-left-menu";
   topLeft.innerHTML = `
-    <div style="background:rgba(0,0,0,0.8);border:1px solid rgba(255,215,0,0.4);border-radius:8px;padding:8px 14px;color:#ffd700;font-weight:bold;font-size:15px;letter-spacing:2px;">ARELORIA</div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;">
-      <button id="btn-inventory" style="${btnStyle('#1a3a1a', '#4CAF50')}">Inv [I]</button>
-      <button id="btn-quests" style="${btnStyle('#1a1a3a', '#4488ff')}">Quests [Q]</button>
-      <button id="btn-skills" style="${btnStyle('#3a1a1a', '#ff8844')}">Skills [K]</button>
-      <button id="btn-map" style="${btnStyle('#1a2a3a', '#44aaff')}">Map [M]</button>
+    <div class="game-title">ARELORIA</div>
+    <div class="menu-buttons">
+      <button id="btn-inventory" class="btn">Inv [I]</button>
+      <button id="btn-quests" class="btn">Quests [Q]</button>
+      <button id="btn-skills" class="btn">Skills [K]</button>
+      <button id="btn-map" class="btn">Map [M]</button>
     </div>
-    <div style="background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:6px 10px;font-size:11px;color:#aaa;">
-      Weapon: <span id="hud-weapon-name" style="color:#fff;">None</span>
+    <div class="hud-info-box">
+      Weapon: <span id="hud-weapon-name" style="color:#fff;font-weight:bold;">None</span>
     </div>
-    <div id="hud-active-quest" style="background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,0,0.2);border-radius:6px;padding:6px 10px;font-size:11px;color:#ffff88;display:none;">
+    <div id="hud-active-quest" class="hud-info-box quest" style="display:none;">
       Quest: <span id="hud-quest-text">None</span>
     </div>
-    <button id="btn-admin-assets" style="${btnStyle('#2a2a2a', '#888')}display:none;">Admin</button>
-    <button id="btn-asset-pipeline" style="${btnStyle('#1a1a3a', '#7af')}display:none;">🧠 Assets</button>
+    <button id="btn-admin-assets" class="btn" style="display:none;background:rgba(50,50,50,0.8)">Admin</button>
+    <button id="btn-asset-pipeline" class="btn" style="display:none;background:rgba(20,40,80,0.8)">🧠 Assets</button>
   `;
   document.body.appendChild(topLeft);
 
   // Minimap (top right)
   const minimapContainer = document.createElement("div");
   minimapContainer.id = "hud-minimap";
-  minimapContainer.style.cssText = "position:fixed;top:12px;right:12px;z-index:800;background:rgba(0,0,0,0.8);border:2px solid rgba(255,215,0,0.4);border-radius:50%;overflow:hidden;width:140px;height:140px;";
+  minimapContainer.className = "minimap-container";
   _minimapCanvas = document.createElement("canvas");
-  _minimapCanvas.width = 140;
-  _minimapCanvas.height = 140;
+  _minimapCanvas.width = 150;
+  _minimapCanvas.height = 150;
   _minimapCtx = _minimapCanvas.getContext("2d");
   minimapContainer.appendChild(_minimapCanvas);
   const compass = document.createElement("div");
-  compass.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;font-size:9px;color:rgba(255,215,0,0.7);font-family:sans-serif;";
+  compass.className = "minimap-compass";
   compass.innerHTML = '<span style="position:absolute;top:2px;left:50%;transform:translateX(-50%)">N</span><span style="position:absolute;bottom:2px;left:50%;transform:translateX(-50%)">S</span><span style="position:absolute;left:2px;top:50%;transform:translateY(-50%)">W</span><span style="position:absolute;right:2px;top:50%;transform:translateY(-50%)">E</span>';
   minimapContainer.appendChild(compass);
   document.body.appendChild(minimapContainer);
@@ -98,12 +94,12 @@ export function renderHUD() {
   // Chat box (bottom left)
   const chatBox = document.createElement("div");
   chatBox.id = "hud-chat";
-  chatBox.style.cssText = "position:fixed;bottom:100px;left:12px;z-index:800;width:300px;font-family:'Segoe UI',sans-serif;";
+  chatBox.className = "chat-container";
   chatBox.innerHTML = `
-    <div id="chat-messages" style="background:rgba(0,0,0,0.65);border:1px solid rgba(255,255,255,0.1);border-radius:8px 8px 0 0;padding:8px;height:110px;overflow-y:auto;font-size:12px;color:#ddd;display:flex;flex-direction:column;gap:2px;"></div>
-    <div style="display:flex;">
-      <input id="chat-input" type="text" aria-label="Chat message" placeholder="Enter to chat..." maxlength="200" style="flex:1;background:rgba(0,0,0,0.8);border:1px solid rgba(255,255,255,0.2);border-top:none;border-radius:0 0 0 8px;padding:6px 10px;color:#fff;font-size:12px;outline:none;"/>
-      <button id="chat-send" style="background:rgba(60,120,60,0.8);border:1px solid rgba(60,200,60,0.4);border-top:none;border-radius:0 0 8px 0;padding:6px 10px;color:#fff;cursor:pointer;font-size:12px;">Send</button>
+    <div id="chat-messages" class="chat-messages"></div>
+    <div class="chat-input-row">
+      <input id="chat-input" class="chat-input" type="text" aria-label="Chat message" placeholder="Enter to chat..." maxlength="200" />
+      <button id="chat-send" class="chat-send">Send</button>
     </div>
   `;
   document.body.appendChild(chatBox);
@@ -111,32 +107,37 @@ export function renderHUD() {
   // Dialogue box
   const dialogueBox = document.createElement("div");
   dialogueBox.id = "dialogue-box";
-  dialogueBox.style.cssText = "position:fixed;bottom:160px;left:50%;transform:translateX(-50%);background:rgba(10,10,20,0.95);border:1px solid rgba(100,150,255,0.4);border-radius:12px;padding:16px 20px;max-width:500px;min-width:300px;z-index:1500;display:none;font-family:'Segoe UI',sans-serif;box-shadow:0 4px 20px rgba(0,0,0,0.5);";
+  dialogueBox.className = "hud-panel";
+  dialogueBox.style.cssText = "position:fixed;bottom:160px;left:50%;transform:translateX(-50%);min-width:300px;max-width:500px;z-index:1500;";
   document.body.appendChild(dialogueBox);
 
   // Inventory panel
   const invPanel = document.createElement("div");
   invPanel.id = "inventory-panel";
-  invPanel.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(10,10,20,0.97);border:1px solid rgba(100,150,255,0.4);border-radius:12px;padding:20px;min-width:360px;max-width:480px;z-index:2000;display:none;font-family:'Segoe UI',sans-serif;color:#fff;box-shadow:0 8px 32px rgba(0,0,0,0.7);";
+  invPanel.className = "hud-panel";
+  invPanel.style.cssText = "top:50%;left:50%;transform:translate(-50%,-50%);min-width:360px;max-width:480px;";
   document.body.appendChild(invPanel);
 
   // Quest panel
   const questPanel = document.createElement("div");
   questPanel.id = "quest-panel";
-  questPanel.style.cssText = "position:fixed;top:50%;right:20px;transform:translateY(-50%);background:rgba(10,10,20,0.97);border:1px solid rgba(255,200,50,0.4);border-radius:12px;padding:20px;min-width:320px;max-width:400px;z-index:2000;display:none;font-family:'Segoe UI',sans-serif;color:#fff;max-height:70vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.7);";
+  questPanel.className = "hud-panel";
+  questPanel.style.cssText = "top:50%;right:20px;transform:translateY(-50%);min-width:320px;max-width:400px;max-height:70vh;overflow-y:auto;";
   document.body.appendChild(questPanel);
 
   // Skills panel
   const skillsPanel = document.createElement("div");
   skillsPanel.id = "skills-panel";
-  skillsPanel.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(10,10,20,0.97);border:1px solid rgba(255,120,50,0.4);border-radius:12px;padding:20px;min-width:380px;max-width:520px;z-index:2000;display:none;font-family:'Segoe UI',sans-serif;color:#fff;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.7);";
+  skillsPanel.className = "hud-panel";
+  skillsPanel.style.cssText = "top:50%;left:50%;transform:translate(-50%,-50%);min-width:380px;max-width:520px;max-height:80vh;overflow-y:auto;";
   document.body.appendChild(skillsPanel);
 
   // Map panel
   const mapPanel = document.createElement("div");
   mapPanel.id = "map-panel";
-  mapPanel.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(10,10,20,0.97);border:1px solid rgba(50,150,255,0.4);border-radius:12px;padding:20px;width:600px;height:500px;z-index:2000;display:none;font-family:'Segoe UI',sans-serif;color:#fff;box-shadow:0 8px 32px rgba(0,0,0,0.7);";
-  mapPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h3 style="margin:0;color:#44aaff;">World Map - Areloria</h3><button aria-label="Close Map" onclick="document.getElementById('map-panel').style.display='none'" style="${closeBtnStyle()}">X</button></div><canvas id="world-map-canvas" width="560" height="420" style="border:1px solid rgba(255,255,255,0.1);border-radius:8px;width:100%;"></canvas>`;
+  mapPanel.className = "hud-panel";
+  mapPanel.style.cssText = "top:50%;left:50%;transform:translate(-50%,-50%);width:600px;max-width:95vw;height:500px;max-height:85vh;";
+  mapPanel.innerHTML = `<div class="hud-panel-header"><h3 style="margin:0;color:#44aaff;">World Map - Areloria</h3><button class="btn btn-close" aria-label="Close Map" onclick="document.getElementById('map-panel').style.display='none'">X</button></div><canvas id="world-map-canvas" width="560" height="420" style="border:1px solid rgba(255,255,255,0.1);border-radius:8px;width:100%;"></canvas>`;
   document.body.appendChild(mapPanel);
 
   // Event listeners
@@ -313,7 +314,7 @@ export function showDialogue(source: string, text: string, choices?: any[], npcI
   if (!box) return;
   box.style.display = "block";
 
-  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><div style="color:#88aaff;font-weight:bold;font-size:13px;">${source}</div><button aria-label="Close Dialogue" onclick="document.getElementById('dialogue-box').style.display='none'" style="${closeBtnStyle()}">X</button></div><div style="color:#ddd;font-size:13px;line-height:1.5;margin-bottom:12px;">${text}</div>`;
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><div style="color:#88aaff;font-weight:bold;font-size:13px;">${source}</div><button class="btn btn-close" aria-label="Close Dialogue" onclick="document.getElementById('dialogue-box').style.display='none'">X</button></div><div style="color:#ddd;font-size:13px;line-height:1.5;margin-bottom:12px;">${text}</div>`;
 
   if (choices && choices.length > 0) {
     html += `<div style="display:flex;flex-direction:column;gap:6px;">`;
@@ -362,13 +363,13 @@ export function renderInventoryPanel(player: any, ws: WebSocket) {
   renderInventoryPanelContent();
 }
 
-function renderInventoryPanelContent() {
+export function renderInventoryPanelContent() {
   const panel = document.getElementById("inventory-panel");
   if (!panel || !_myPlayer) return;
   const player = _myPlayer;
   const rarityColors: Record<string, string> = { common: "#aaa", uncommon: "#1eff00", rare: "#0070dd", epic: "#a335ee", legendary: "#ff8000" };
 
-  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#88aaff;">Inventory</h3><button aria-label="Close Inventory" onclick="document.getElementById('inventory-panel').style.display='none'" style="${closeBtnStyle()}">X</button></div>`;
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#88aaff;">Inventory</h3><button class="btn btn-close" aria-label="Close Inventory" onclick="document.getElementById('inventory-panel').style.display='none'">X</button></div>`;
   html += `<div style="margin-bottom:14px;padding:10px;background:rgba(255,255,255,0.05);border-radius:8px;"><div style="font-size:12px;color:#aaa;margin-bottom:6px;font-weight:bold;">EQUIPPED</div><div style="display:flex;gap:8px;">`;
   html += `<div style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:8px;min-width:100px;text-align:center;"><div style="font-size:10px;color:#888;">Weapon</div><div style="font-size:12px;color:#fff;margin-top:2px;">${player.equipment?.weapon ? player.equipment.weapon.name : "Empty"}</div>${player.equipment?.weapon ? `<button onclick="window._hudUnequip('weapon')" style="margin-top:4px;background:#440000;border:1px solid #ff4444;border-radius:4px;padding:2px 6px;color:#fff;cursor:pointer;font-size:10px;">Unequip</button>` : ""}</div>`;
   html += `<div style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:8px;min-width:100px;text-align:center;"><div style="font-size:10px;color:#888;">Armor</div><div style="font-size:12px;color:#fff;margin-top:2px;">${player.equipment?.armor ? player.equipment.armor.name : "Empty"}</div>${player.equipment?.armor ? `<button onclick="window._hudUnequip('armor')" style="margin-top:4px;background:#440000;border:1px solid #ff4444;border-radius:4px;padding:2px 6px;color:#fff;cursor:pointer;font-size:10px;">Unequip</button>` : ""}</div>`;
@@ -394,11 +395,11 @@ function renderInventoryPanelContent() {
 }
 
 // ─── Quest Panel ─────────────────────────────────────────────────────────────
-function renderQuestPanelContent(questStatus: any[]) {
+export function renderQuestPanelContent(questStatus: any[]) {
   const panel = document.getElementById("quest-panel");
   if (!panel) return;
   const stateColors: Record<string, string> = { active: "#00ff88", completed: "#888", available: "#ffd700", locked: "#ff4444" };
-  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#ffd700;">Quest Log</h3><button aria-label="Close Quests" onclick="document.getElementById('quest-panel').style.display='none'" style="${closeBtnStyle()}">X</button></div>`;
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#ffd700;">Quest Log</h3><button class="btn btn-close" aria-label="Close Quests" onclick="document.getElementById('quest-panel').style.display='none'">X</button></div>`;
 
   if (!questStatus || questStatus.length === 0) {
     html += `<div style="text-align:center;opacity:0.4;padding:20px;">No quests. Talk to NPCs!</div>`;
@@ -417,7 +418,7 @@ function renderQuestPanelContent(questStatus: any[]) {
 }
 
 // ─── Skills Panel ────────────────────────────────────────────────────────────
-function renderSkillsPanel() {
+export function renderSkillsPanel() {
   const panel = document.getElementById("skills-panel");
   if (!panel) return;
   const skills = _myPlayer?.skills || {};
@@ -430,7 +431,7 @@ function renderSkillsPanel() {
     ["thieving", "Thv", "#884488"], ["slayer", "Slay", "#ff0000"], ["farming", "Farm", "#88aa44"],
     ["smithing", "Smith", "#ff8800"], ["fletching", "Fltch", "#88ff44"],
   ];
-  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#ff8844;">Skills</h3><button aria-label="Close Skills" onclick="document.getElementById('skills-panel').style.display='none'" style="${closeBtnStyle()}">X</button></div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">`;
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#ff8844;">Skills</h3><button class="btn btn-close" aria-label="Close Skills" onclick="document.getElementById('skills-panel').style.display='none'">X</button></div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">`;
   for (const [skillId, label, color] of skillDefs) {
     const sd = skills[skillId] || { level: 1, xp: 0 };
     const level = sd.level || 1;
