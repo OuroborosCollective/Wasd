@@ -95,7 +95,7 @@ function createGLBManagerUI() {
             ondragover="event.preventDefault(); this.style.background='#1a0a3a'"
             ondragleave="this.style.background='transparent'"
             ondrop="handleGLBDrop(event)">
-            <div style="font-size:48px; margin-bottom:12px;">📁</div>
+            <div style="font-size:48px; margin-bottom:12px;" aria-hidden="true">📁</div>
             <p style="color:#aa44ff; font-size:16px; margin:0 0 8px;">GLB/GLTF Datei hier ablegen</p>
             <p style="color:#7a6a9a; font-size:12px; margin:0;">oder klicken zum Auswählen · Max. 50 MB</p>
           </div>
@@ -185,7 +185,7 @@ function setGLBFile(file: File) {
   const nameInput = document.getElementById("glb-model-name") as HTMLInputElement;
 
   dropZone.innerHTML = `
-    <div style="font-size:32px; margin-bottom:8px;">✅</div>
+    <div style="font-size:32px; margin-bottom:8px;" aria-hidden="true">✅</div>
     <p style="color:#44ff44; font-size:14px; margin:0 0 4px;">${file.name}</p>
     <p style="color:#7a9ab5; font-size:12px; margin:0;">${(file.size / 1024 / 1024).toFixed(2)} MB</p>
   `;
