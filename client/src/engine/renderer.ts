@@ -82,7 +82,8 @@ let cameraDistance = 18;
 let isDragging = false;
 let lastMouseX = 0;
 let lastMouseY = 0;
-const cameraTarget = new THREE.Vector3(32, 0, 32);
+// Default camera target at origin (player spawn) - will be updated when player connects
+const cameraTarget = new THREE.Vector3(0, 0, 0);
 
 // Mobile joystick movement callback
 let onJoystickMove: ((dx: number, dy: number) => void) | null = null;
@@ -343,7 +344,13 @@ export function initRenderer(
 
     // Camera follows player
     const myMesh = playerMeshes.get(myPlayerId || "");
-    if (myMesh) cameraTarget.lerp(myMesh.position, 0.1);
+    if (myMesh) {
+      // Immediate snap on first connection, smooth lerp after
+      if (cameraTarget.x === 0 && cameraTarget.z === 0 && (myMesh.position.x !== 0 || myMesh.position.z !== 0)) {
+        cameraTarget.copy(myMesh.position);
+      }
+      cameraTarget.lerp(myMesh.position, 0.1);
+    }
 
     // Joystick movement (mobile)
     const js = getJoystickState();
