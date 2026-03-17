@@ -2,6 +2,7 @@ import { auth } from "../auth/firebase";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
 
 export function renderAuthUI(onLogin: (displayName: string, uid?: string) => void) {
+  // Hide Firebase auth container initially - will show if Firebase is needed
   const container = document.createElement("div");
   container.id = "auth-container";
   container.style.position = "absolute";
@@ -10,7 +11,7 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   container.style.width = "100%";
   container.style.height = "100%";
   container.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
-  container.style.display = "flex";
+  container.style.display = "none"; // Start hidden for guest mode
   container.style.flexDirection = "column";
   container.style.justifyContent = "center";
   container.style.alignItems = "center";
@@ -109,6 +110,8 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   guestBtn.style.cursor = "pointer";
   guestBtn.onclick = () => {
     container.style.display = "none";
+    // Store guest flag in sessionStorage so we don't try Firebase auth
+    sessionStorage.setItem('guest_login', 'true');
     const guestName = "Guest_" + Math.random().toString(36).substring(2, 8);
     onLogin(guestName, guestName);
   };
@@ -117,7 +120,20 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   container.appendChild(formBox);
   document.body.appendChild(container);
 
+  // Check if already logged in as guest
+  if (sessionStorage.getItem('guest_login') === 'true') {
+    container.style.display = "none";
+    // Call onLogin with stored guest name or generate new one
+    const guestName = sessionStorage.getItem('guest_name') || "Guest_" + Math.random().toString(36).substring(2, 8);
+    sessionStorage.setItem('guest_name', guestName);
+    onLogin(guestName, guestName);
+  }
+
+  // Only set up Firebase auth listener if not in guest mode
   const unsubscribe = onAuthStateChanged(auth, (user) => {
+    // Skip if we're in guest mode
+    if (sessionStorage.getItem('guest_login') === 'true') return;
+    
     if (user) {
       container.style.display = "none";
       const displayName = user.displayName || user.email?.split("@")[0] || "Adventurer";
