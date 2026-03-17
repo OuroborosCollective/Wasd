@@ -36,9 +36,6 @@ export class QuestEngine {
 
     // Optimization: Index player quests for O(1) lookup
     const playerQuestMap = new Map<string, any>(player.quests.map((q: any) => [q.id, q]));
-
-    // Optimization: Index player quests for O(1) lookup
-    const playerQuestMap = new Map<string, any>(player.quests.map((q: any) => [q.id, q]));
     
     // Check if already started
     if (playerQuestMap.has(questId)) return null;
