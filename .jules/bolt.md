@@ -17,3 +17,7 @@
 ## 2025-05-15 - [Array Allocations in Hot Loops]
 **Learning:** Calling `getAllPlayers()` multiple times in `WorldTick.ts` `tick()` creates multiple new arrays per tick using `Array.from()`. Since `tick()` runs 10 times per second, this causes unnecessary garbage collection and performance degradation.
 **Action:** Always hoist data retrieval (like getting the player list) outside of repeating blocks in the main game loop to avoid redundant heap allocations.
+
+## 2026-03-17 - [O(1) Map Lookups for Character Assembly]
+**Learning:** The CharacterAssemblySystem was repeatedly scanning large configuration arrays (skin tones, hair colors, etc.) using `.find()` and `.includes()` during every validation and assembly call. This created a significant amount of redundant work, especially as the asset list grew.
+**Action:** Always index static configuration data into Maps during initialization to ensure O(1) lookup performance in high-frequency validation and assembly paths.
