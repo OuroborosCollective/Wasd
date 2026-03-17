@@ -28,9 +28,9 @@ describe("CraftingSystem", () => {
   const ironSwordRecipe = {
     id: "iron_sword_craft",
     name: "Craft Iron Sword",
-    ingredients: [{ itemId: "iron_scrap", count: 3 }],
+    ingredients: [{ itemId: "iron_ingot", count: 2 }, { itemId: "wood_handle", count: 1 }],
     result: { itemId: "iron_sword", count: 1 },
-    requiredSkill: "smithing", requiredLevel: 1, xpReward: 50, skillName: "smithing"
+    requiredSkill: "smithing", requiredLevel: 5, xpReward: 20, skillName: "smithing"
   };
 
   beforeEach(async () => {
