@@ -1,11 +1,6 @@
 import { vi, describe, it, expect, beforeEach } from "vitest";
 
-process.env.DB_HOST = "localhost";
-process.env.DB_USER = "user";
-process.env.DB_PASSWORD = "pass";
-process.env.DB_NAME = "db";
-
-
+// Mock pg before importing Database.ts
 vi.mock("pg", () => {
   const mq = vi.fn();
   const mc = vi.fn();
@@ -21,11 +16,17 @@ vi.mock("pg", () => {
   };
 });
 
+// Set environment variables before any imports
+process.env.DB_HOST = "localhost";
+process.env.DB_USER = "user";
+process.env.DB_PASSWORD = "pass";
+process.env.DB_NAME = "db";
+
 // Mock console.error to avoid noise in the test output
 vi.spyOn(console, "error").mockImplementation(() => {});
 vi.spyOn(console, "log").mockImplementation(() => {});
 
-import { db, DatabaseService, testConnection, dbService } from "../core/Database.js";
+import { db, testConnection, dbService } from "../core/Database.js";
 
 describe("Database Module", () => {
   let poolInstance: any;
