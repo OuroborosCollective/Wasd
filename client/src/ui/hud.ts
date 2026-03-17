@@ -140,8 +140,7 @@ export function renderHUD() {
   const mapPanel = document.createElement("div");
   mapPanel.id = "map-panel";
   mapPanel.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(10,10,20,0.97);border:1px solid rgba(50,150,255,0.4);border-radius:12px;padding:20px;width:600px;height:500px;z-index:2000;display:none;font-family:'Segoe UI',sans-serif;color:#fff;box-shadow:0 8px 32px rgba(0,0,0,0.7);";
-  mapPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h3 style="margin:0;color:#44aaff;">World Map - Areloria</h3><button aria-label="Close panel" onclick="document.getElementById(\'map-panel\').style.display=\'none\'" style="${closeBtnStyle()}">X</button></div><canvas id="world-map-canvas" width="560" height="400" style="border:1px solid #44aaff;"></canvas>`;
-  document.body.appendChild(mapPanel);
+mapPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h3 style="margin:0;color:#44aaff;">World Map - Areloria</h3><button aria-label="Close panel" onclick="document.getElementById(\'map-panel\').style.display=\'none\'" style="${closeBtnStyle()}">X</button></div><canvas id="world-map-canvas" width="560" height="400" style="border:1px solid #44aaff;"></canvas>`;  document.body.appendChild(mapPanel);
 
   // Event Listeners for buttons
   document.getElementById("btn-inventory")?.addEventListener("click", () => togglePanel("inventory-panel"));
@@ -160,6 +159,83 @@ export function renderHUD() {
       if (adminBtn) adminBtn.style.display = "none";
       if (assetPipelineBtn) assetPipelineBtn.style.display = "none";
     }
+=======
+  };
+  updateCd("cd-attack", Math.max(0, cooldowns.attack - now), "Atk", "F");
+  updateCd("cd-interact", Math.max(0, cooldowns.interact - now), "Talk", "E");
+  updateCd("cd-equip", Math.max(0, cooldowns.equip - now), "Equip", "G");
+}
+
+// ─── Tooltip ─────────────────────────────────────────────────────────────────
+export function showTooltip(text: string) {
+  const el = document.getElementById("world-tooltip");
+  if (el) { el.textContent = text; el.style.display = "block"; }
+}
+export function hideTooltip() {
+  const el = document.getElementById("world-tooltip");
+  if (el) el.style.display = "none";
+}
+
+// ─── Floating Text ───────────────────────────────────────────────────────────
+export function showFloatingText(text: string, x: number, y: number, color = "#ff4444") {
+  const div = document.createElement("div");
+  div.style.cssText = `position:fixed;left:${x}px;top:${y}px;color:${color};font-weight:bold;font-size:18px;pointer-events:none;z-index:1001;text-shadow:1px 1px 2px #000;font-family:'Segoe UI',sans-serif;`;
+  div.textContent = text;
+  document.body.appendChild(div);
+  div.animate(
+    [{ transform: "translateY(0) scale(1.2)", opacity: 1 }, { transform: "translateY(-60px) scale(0.8)", opacity: 0 }],
+    { duration: 1200, easing: "ease-out" }
+  ).onfinish = () => div.remove();
+}
+
+// ─── World Labels ────────────────────────────────────────────────────────────
+export function removeWorldLabel(id: string) {
+  document.getElementById(`label-${id}`)?.remove();
+}
+
+export function createWorldLabel(id: string, text: string, type: "npc" | "loot" | "player", healthPercent?: number) {
+  let label = document.getElementById(`label-${id}`);
+  if (!label) {
+    label = document.createElement("div");
+    label.id = `label-${id}`;
+    label.style.cssText = "position:fixed;pointer-events:none;z-index:1000;text-align:center;transform:translate(-50%,-100%);";
+    document.body.appendChild(label);
+  }
+  const nameColor = type === "loot" ? "#ffd700" : type === "player" ? "#00ff88" : "#ffffff";
+  let html = `<div style="color:${nameColor};font-size:12px;text-shadow:1px 1px 2px #000;font-weight:bold;font-family:'Segoe UI',sans-serif;white-space:nowrap;">${text}</div>`;
+  if (type === "npc" && healthPercent !== undefined) {
+    const barColor = healthPercent > 0.6 ? "#00cc00" : healthPercent > 0.3 ? "#cccc00" : "#cc0000";
+    html += `<div style="width:48px;height:5px;background:#333;margin:2px auto;border-radius:3px;overflow:hidden;"><div style="width:${Math.max(0, Math.min(100, healthPercent * 100))}%;height:100%;background:${barColor};border-radius:3px;"></div></div>`;
+  }
+  label.innerHTML = html;
+  return label;
+}
+
+// ─── Dialogue ────────────────────────────────────────────────────────────────
+export function showDialogue(source: string, text: string, choices?: any[], npcId?: string) {
+  const box = document.getElementById("dialogue-box");
+  if (!box) return;
+  box.style.display = "block";
+
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><div style="color:#88aaff;font-weight:bold;font-size:13px;">${source}</div><button aria-label="Close Dialogue" onclick="document.getElementById('dialogue-box').style.display='none'" style="${closeBtnStyle()}">X</button></div><div style="color:#ddd;font-size:13px;line-height:1.5;margin-bottom:12px;">${text}</div>`;
+
+  if (choices && choices.length > 0) {
+    html += `<div style="display:flex;flex-direction:column;gap:6px;">`;
+    choices.forEach((choice: any, index: number) => {
+      html += `<button class="dialogue-choice-btn" data-npc-id="${npcId || ""}" data-node-id="${choice.nextNodeId || choice.nodeId || ""}" data-choice-id="${choice.id}" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:8px 12px;border-radius:6px;cursor:pointer;text-align:left;font-size:12px;font-family:'Segoe UI',sans-serif;" onmouseover="this.style.background='rgba(100,150,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.08)'">${index + 1}. ${choice.text}</button>`;
+    });
+    html += `</div>`;
+  } else {
+    html += `<div style="font-size:11px;opacity:0.5;text-align:center;">(Press E or X to close)</div>`;
+  }
+
+  box.innerHTML = html;
+  box.querySelectorAll(".dialogue-choice-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const t = e.currentTarget as HTMLButtonElement;
+      sendDialogueChoice(t.getAttribute("data-npc-id") || "", t.getAttribute("data-node-id") || "", t.getAttribute("data-choice-id") || "");
+    });
+>>>>>>> 9e51ccd215b7939ff10eca1eb94f74863a0f0852
   });
 
   document.getElementById("btn-admin-assets")?.addEventListener("click", toggleAdminAssetPanel);
@@ -257,7 +333,6 @@ function renderInventory(inventory: any[] = []) {
   if (!grid) return;
 
   grid.innerHTML = ""; // Clear existing items
-
   if (inventory.length === 0) {
     grid.innerHTML = "<div style=\"color:#aaa;text-align:center;grid-column:1/-1;\">Inventory is empty.</div>";
     return;
@@ -341,8 +416,7 @@ function renderSkills(skills: any = {}) {
     ["thieving", "Thv", "#884488"], ["slayer", "Slay", "#ff0000"], ["farming", "Farm", "#88aa44"],
     ["smithing", "Smith", "#ff8800"], ["fletching", "Fltch", "#88ff44"],
   ];
-  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#ff8844;">Skills</h3><button aria-label="Close panel" onclick="document.getElementById(\'skills-panel\').style.display=\'none\'" style="${closeBtnStyle()}">X</button></div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">`;
-  for (const [skillId, label, color] of skillDefs) {
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#ff8844;">Skills</h3><button aria-label="Close panel" onclick="document.getElementById(\'skills-panel\').style.display=\'none\'" style="${closeBtnStyle()}">X</button></div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">`;  for (const [skillId, label, color] of skillDefs) {
     const sd = skills[skillId] || { level: 1, xp: 0 };
     const level = sd.level || 1;
     const xp = sd.xp || 0;

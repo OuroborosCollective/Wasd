@@ -49,7 +49,7 @@ function createGLBManagerUI() {
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
           <div id="glb-sub-badge" style="font-size:12px; padding:4px 10px; border-radius:6px; border:1px solid #555;"></div>
-          <button onclick="document.getElementById('glb-manager').style.display='none'" aria-label="Close"
+          <button onclick="document.getElementById('glb-manager').style.display='none'" aria-label="Close GLB Manager"
             style="background:none; border:1px solid #ff4444; color:#ff4444; border-radius:6px; padding:6px 12px; cursor:pointer;"><span aria-hidden="true">✕</span></button>
         </div>
       </div>
