@@ -58,6 +58,10 @@ export class CraftingSystem {
     return Array.from(this.recipes.values());
   }
 
+  addRecipe(recipe: Recipe) {
+    this.recipes.set(recipe.id, recipe);
+  }
+
   canCraft(player: any, recipeId: string): { possible: boolean; reason?: string } {
     const recipe = this.recipes.get(recipeId);
     if (!recipe) return { possible: false, reason: "Recipe not found" };
