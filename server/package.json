@@ -8,13 +8,15 @@
     "build": "tsx src/tools/validateContent.ts && tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "validate": "tsx src/tools/validateContent.ts",
-    "migrate": "node-pg-migrate"
+    "migrate": "node-pg-migrate",
+    "cli": "tsx src/cli/index.ts"
   },
   "dependencies": {
     "@paypal/checkout-server-sdk": "^1.0.3",
     "@types/multer": "^2.1.0",
     "@types/uuid": "^10.0.0",
     "axios": "^1.13.6",
+    "commander": "^14.0.3",
     "dotenv": "^17.3.1",
     "express": "^4.21.0",
     "file-type": "^21.3.2",

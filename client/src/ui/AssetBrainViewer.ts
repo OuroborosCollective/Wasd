@@ -11,6 +11,8 @@ export class AssetBrainViewer {
   private container: HTMLElement;
   private currentModel: THREE.Group | null = null;
   private animationId: number | null = null;
+  private mixer: THREE.AnimationMixer | null = null;
+  private animations: THREE.AnimationClip[] = [];
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -73,6 +75,14 @@ export class AssetBrainViewer {
         (gltf) => {
           this.currentModel = gltf.scene;
           this.scene.add(this.currentModel);
+
+          this.animations = gltf.animations;
+          if (this.animations.length > 0) {
+            this.mixer = new THREE.AnimationMixer(this.currentModel);
+            // Play the first animation by default
+            const action = this.mixer.clipAction(this.animations[0]);
+            action.play();
+          }
 
           // Center and scale model
           const box = new THREE.Box3().setFromObject(this.currentModel);
@@ -198,8 +208,13 @@ export class AssetBrainViewer {
     this.renderer.setSize(width, height);
   }
 
+  private clock: THREE.Clock;
+
   private animate() {
+    this.clock = new THREE.Clock();
     this.animationId = requestAnimationFrame(this.animate.bind(this));
+    const delta = this.clock.getDelta();
+    if (this.mixer) this.mixer.update(delta);
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
   }
@@ -208,10 +223,32 @@ export class AssetBrainViewer {
     if (this.animationId !== null) {
       cancelAnimationFrame(this.animationId);
     }
-    window.removeEventListener('resize', this.onWindowResize.bind(this));
+    if (this.mixer) {
+      this.mixer.stopAllAction();
+      this.mixer = null;
+    }
+    window.removeEventListener(\'resize\', this.onWindowResize.bind(this));
     this.renderer.dispose();
     if (this.renderer.domElement.parentElement) {
       this.renderer.domElement.parentElement.removeChild(this.renderer.domElement);
     }
+  }
+
+  public getAnimationNames(): string[] {
+    return this.animations.map(clip => clip.name);
+  }
+
+  public playAnimation(name: string) {
+    if (!this.mixer || !this.currentModel) return;
+    const clip = this.animations.find(a => a.name === name);
+    if (clip) {
+      this.mixer.stopAllAction();
+      const action = this.mixer.clipAction(clip);
+      action.play();
+    }
+  }
+
+  public stopAnimations() {
+    this.mixer?.stopAllAction();
   }
 }

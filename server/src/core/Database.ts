@@ -1,12 +1,7 @@
 import pg from "pg";
 const { Pool } = pg;
 
-const requiredEnvVars = ["DB_HOST", "DB_USER", "DB_PASSWORD", "DB_NAME"];
-for (const envVar of requiredEnvVars) {
-  if (!process.env[envVar]) {
-    throw new Error(`Missing required environment variable: ${envVar}`);
-  }
-}
+
 
 const pool = new Pool({
   host: process.env.DB_HOST,
@@ -49,7 +44,17 @@ export class DatabaseService {
     return pool;
   }
   async connect() {
+    const requiredEnvVars = ["DB_HOST", "DB_USER", "DB_PASSWORD", "DB_NAME"];
+    for (const envVar of requiredEnvVars) {
+      if (!process.env[envVar]) {
+        throw new Error(`Missing required environment variable: ${envVar}`);
+      }
+    }
     return testConnection();
+  }
+
+  async disconnect() {
+    await pool.end();
   }
 }
 
