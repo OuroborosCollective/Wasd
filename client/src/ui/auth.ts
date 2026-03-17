@@ -1,9 +1,5 @@
-// Firebase imports removed - using guest login only
-// import { auth } from "../auth/firebase";
-// import { createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
-
-// Stub auth object for compatibility
-const auth = { currentUser: null };
+import { auth } from "../auth/firebase";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
 
 export function renderAuthUI(onLogin: (displayName: string, uid?: string) => void) {
   // Hide Firebase auth container initially - will show if Firebase is needed
@@ -41,7 +37,7 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   const emailInput = document.createElement("input");
   emailInput.type = "email";
   emailInput.placeholder = "Email";
-  emailInput.ariaLabel = "Email";
+  emailInput.setAttribute("aria-label", "Email address");
   emailInput.style.padding = "0.5rem";
   emailInput.style.borderRadius = "4px";
   emailInput.style.border = "1px solid #444";
@@ -52,7 +48,7 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   const passwordInput = document.createElement("input");
   passwordInput.type = "password";
   passwordInput.placeholder = "Password";
-  passwordInput.ariaLabel = "Password";
+  passwordInput.setAttribute("aria-label", "Password");
   passwordInput.style.padding = "0.5rem";
   passwordInput.style.borderRadius = "4px";
   passwordInput.style.border = "1px solid #444";
@@ -68,6 +64,7 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
 
   const loginBtn = document.createElement("button");
   loginBtn.innerText = "Login";
+  loginBtn.setAttribute("aria-label", "Login to your account");
   loginBtn.style.padding = "0.5rem";
   loginBtn.style.backgroundColor = "#4CAF50";
   loginBtn.style.color = "white";
@@ -77,17 +74,20 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   loginBtn.onclick = async () => {
     try {
       errorMsg.innerText = "";
-      // Firebase login disabled - use guest mode
-      console.log('Firebase login disabled, use guest mode');
-      errorMsg.innerText = "Firebase disabled. Use 'Play as Guest' instead.";
+      loginBtn.disabled = true;
+      loginBtn.innerText = "Logging in...";
+      await signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
     } catch (e: any) {
       errorMsg.innerText = e.message;
+      loginBtn.disabled = false;
+      loginBtn.innerText = "Login";
     }
   };
   formBox.appendChild(loginBtn);
 
   const signupBtn = document.createElement("button");
   signupBtn.innerText = "Sign Up";
+  signupBtn.setAttribute("aria-label", "Create a new account");
   signupBtn.style.padding = "0.5rem";
   signupBtn.style.backgroundColor = "#2196F3";
   signupBtn.style.color = "white";
@@ -97,11 +97,13 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   signupBtn.onclick = async () => {
     try {
       errorMsg.innerText = "";
-      // Firebase signup disabled - use guest mode
-      console.log('Firebase signup disabled, use guest mode');
-      errorMsg.innerText = "Firebase disabled. Use 'Play as Guest' instead.";
+      signupBtn.disabled = true;
+      signupBtn.innerText = "Signing up...";
+      await createUserWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
     } catch (e: any) {
       errorMsg.innerText = e.message;
+      signupBtn.disabled = false;
+      signupBtn.innerText = "Sign Up";
     }
   };
   formBox.appendChild(signupBtn);
@@ -161,7 +163,7 @@ export function renderLogoutBtn() {
   btn.style.cursor = "pointer";
   btn.style.zIndex = "900";
   btn.onclick = () => {
-    // signOut(auth); // Firebase disabled
+    signOut(auth);
     sessionStorage.removeItem('guest_login');
     sessionStorage.removeItem('guest_name');
     window.location.reload();
