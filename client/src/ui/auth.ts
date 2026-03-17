@@ -135,14 +135,14 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
     sessionStorage.setItem('guest_name', guestName);
     onLogin(guestName, guestName);
     return () => { container.remove(); };
+  } else {
+    // Show auth container if not logged in as guest
+    container.style.display = "flex";
+    // Hide loading screen when auth UI is shown
+    (window as any).loadingScreen?.hide();
   }
 
-  // Only set up Firebase auth listener if user explicitly tries Firebase login
-  // This avoids the error on page load
-  let unsubscribe: (() => void) | undefined;
-
   return () => {
-    unsubscribe();
     container.remove();
   };
 }
