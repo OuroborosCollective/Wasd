@@ -73,9 +73,17 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   loginBtn.onclick = async () => {
     try {
       errorMsg.innerText = "";
+      loginBtn.disabled = true;
+      loginBtn.innerText = "Logging in...";
+      loginBtn.style.opacity = "0.7";
+      loginBtn.style.cursor = "not-allowed";
       await signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
     } catch (e: any) {
       errorMsg.innerText = e.message;
+      loginBtn.disabled = false;
+      loginBtn.innerText = "Login";
+      loginBtn.style.opacity = "1";
+      loginBtn.style.cursor = "pointer";
     }
   };
   formBox.appendChild(loginBtn);
@@ -91,9 +99,17 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   signupBtn.onclick = async () => {
     try {
       errorMsg.innerText = "";
+      signupBtn.disabled = true;
+      signupBtn.innerText = "Signing up...";
+      signupBtn.style.opacity = "0.7";
+      signupBtn.style.cursor = "not-allowed";
       await createUserWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
     } catch (e: any) {
       errorMsg.innerText = e.message;
+      signupBtn.disabled = false;
+      signupBtn.innerText = "Sign Up";
+      signupBtn.style.opacity = "1";
+      signupBtn.style.cursor = "pointer";
     }
   };
   formBox.appendChild(signupBtn);
