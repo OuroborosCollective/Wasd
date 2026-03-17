@@ -1183,7 +1183,7 @@ export class WorldTick {
       if (keys.has("d") || keys.has("ArrowRight")) dx += 1;
 
       if (dx !== 0 || dy !== 0) {
-        const speed = 3;
+        const speed = GameConfig.playerSpeed;
         player.position.x += dx * speed;
         player.position.y += dy * speed;
         this.observerEngine.updatePosition(socketId, { x: player.position.x, y: player.position.y });
@@ -1231,7 +1231,7 @@ export class WorldTick {
 
     // 7. Auto-remove old loot (5 minutes)
     for (const [lootId, loot] of this.lootEntities) {
-      if (loot.createdAt && now - loot.createdAt > 300000) {
+      if (loot.createdAt && now - loot.createdAt > GameConfig.lootDespawnMs) {
         this.lootEntities.delete(lootId);
       }
     }
