@@ -2,8 +2,9 @@ export class RecipeMatcher {
   match(inputIds: string[], recipes: any[]) {
     if (!inputIds || !recipes || recipes.length === 0) return null;
 
-    // Optimization: Sort and stringify inputs only once outside the loop
-    // Replace expensive JSON.stringify with faster Array.join
+    // Optimization: Loop-Invariant Code Motion + Early Exit
+    // Hoist the O(N log N) sorting and string serialization of the static input array
+    // outside of the recipes loop to eliminate redundant object allocations per iteration.
     const inputKey = [...inputIds].sort().join(',');
 
     for (const r of recipes) {
