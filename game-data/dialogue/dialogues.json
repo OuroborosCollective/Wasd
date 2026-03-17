@@ -3,56 +3,33 @@
     "id": "dialogue_npc_1",
     "greeting": "Hello, I am Test NPC. Welcome to Areloria!",
     "entryNodes": [
-      {
-        "nodeId": "helped",
-        "conditionFlag": "helped_test_npc"
-      }
+      { "nodeId": "helped", "conditionFlag": "helped_test_npc" }
     ],
     "nodes": {
       "root": {
         "text": "Greetings, traveler! I'm in a bit of a bind. Would you be willing to help a simple merchant?",
         "choices": [
-          {
-            "id": "npc1_root_1",
-            "text": "Of course, what do you need?",
-            "nextNodeId": "accept_help"
-          },
-          {
-            "id": "npc1_root_2",
-            "text": "I'm too busy for your problems.",
-            "nextNodeId": "decline_help"
-          }
+          { "id": "npc1_root_1", "text": "Of course, what do you need?", "nextNodeId": "accept_help" },
+          { "id": "npc1_root_2", "text": "I'm too busy for your problems.", "nextNodeId": "decline_help" }
         ]
       },
       "accept_help": {
         "text": "That's the spirit! I've set a mark on your record. Come back when you're ready for work.",
         "setFlag": "helped_test_npc",
         "choices": [
-          {
-            "id": "npc1_accept_1",
-            "text": "I'll be back.",
-            "nextNodeId": "root"
-          }
+          { "id": "npc1_accept_1", "text": "I'll be back.", "nextNodeId": "root" }
         ]
       },
       "decline_help": {
         "text": "Hmph. Typical traveler. Be on your way then.",
         "choices": [
-          {
-            "id": "npc1_decline_1",
-            "text": "Fine.",
-            "nextNodeId": "root"
-          }
+          { "id": "npc1_decline_1", "text": "Fine.", "nextNodeId": "root" }
         ]
       },
       "helped": {
         "text": "Ah, my favorite traveler! Ready to help me again?",
         "choices": [
-          {
-            "id": "npc1_helped_1",
-            "text": "Always.",
-            "nextNodeId": "root"
-          }
+          { "id": "npc1_helped_1", "text": "Always.", "nextNodeId": "root" }
         ]
       }
     },
@@ -91,86 +68,48 @@
     "id": "dialogue_npc_3",
     "greeting": "Welcome to our village. I am the Elder.",
     "entryNodes": [
-      {
-        "nodeId": "respectful",
-        "conditionFlag": "elder_respect"
-      },
-      {
-        "nodeId": "disrespectful",
-        "conditionFlag": "elder_disrespect"
-      }
+      { "nodeId": "respectful", "conditionFlag": "elder_respect" },
+      { "nodeId": "disrespectful", "conditionFlag": "elder_disrespect" }
     ],
     "nodes": {
       "root": {
         "text": "You look like a capable traveler. Tell me, what brings you to our humble village?",
         "choices": [
-          {
-            "id": "npc3_root_1",
-            "text": "I seek to help those in need.",
-            "nextNodeId": "respect_path"
-          },
-          {
-            "id": "npc3_root_2",
-            "text": "I'm just passing through, don't mind me.",
-            "nextNodeId": "neutral_path"
-          },
-          {
-            "id": "npc3_root_3",
-            "text": "None of your business, old man.",
-            "nextNodeId": "disrespect_path"
-          }
+          { "id": "npc3_root_1", "text": "I seek to help those in need.", "nextNodeId": "respect_path" },
+          { "id": "npc3_root_2", "text": "I'm just passing through, don't mind me.", "nextNodeId": "neutral_path" },
+          { "id": "npc3_root_3", "text": "None of your business, old man.", "nextNodeId": "disrespect_path" }
         ]
       },
       "respect_path": {
         "text": "It is rare to find such virtue these days. You have my respect.",
         "setFlag": "elder_respect",
         "choices": [
-          {
-            "id": "npc3_respect_1",
-            "text": "Thank you, Elder.",
-            "nextNodeId": "root"
-          }
+          { "id": "npc3_respect_1", "text": "Thank you, Elder.", "nextNodeId": "root" }
         ]
       },
       "neutral_path": {
         "text": "I see. Well, stay as long as you like, but stay out of trouble.",
         "choices": [
-          {
-            "id": "npc3_neutral_1",
-            "text": "Understood.",
-            "nextNodeId": "root"
-          }
+          { "id": "npc3_neutral_1", "text": "Understood.", "nextNodeId": "root" }
         ]
       },
       "disrespect_path": {
         "text": "Such insolence! I have no time for the likes of you.",
         "setFlag": "elder_disrespect",
         "choices": [
-          {
-            "id": "npc3_disrespect_1",
-            "text": "Whatever.",
-            "nextNodeId": "root"
-          }
+          { "id": "npc3_disrespect_1", "text": "Whatever.", "nextNodeId": "root" }
         ]
       },
       "respectful": {
         "text": "Ah, the virtuous traveler returns. How can I help you today?",
         "choices": [
-          {
-            "id": "npc3_respectful_1",
-            "text": "I was wondering if you had any tasks.",
-            "nextNodeId": "root"
-          }
+          { "id": "npc3_respectful_1", "text": "I was wondering if you had any tasks.", "nextNodeId": "root" }
         ]
       },
       "disrespectful": {
         "text": "You again? I told you I have nothing to say to you.",
         "choices": [
-          {
-            "id": "npc3_disrespectful_1",
-            "text": "Fine, I'm leaving.",
-            "nextNodeId": "root"
-          }
+          { "id": "npc3_disrespectful_1", "text": "Fine, I'm leaving.", "nextNodeId": "root" }
         ]
       }
     },
@@ -192,80 +131,32 @@
     "id": "dialogue_npc_4",
     "greeting": "The forge is hot today. What do you need?",
     "entryNodes": [
-      {
-        "nodeId": "high_rep",
-        "conditionReputation": {
-          "factionId": "blacksmith_guild",
-          "min": 10
-        }
-      },
-      {
-        "nodeId": "low_rep",
-        "conditionReputation": {
-          "factionId": "blacksmith_guild",
-          "max": -5
-        }
-      }
+      { "nodeId": "high_rep", "conditionReputation": { "factionId": "blacksmith_guild", "min": 10 } },
+      { "nodeId": "low_rep", "conditionReputation": { "factionId": "blacksmith_guild", "max": -5 } }
     ],
     "nodes": {
       "root": {
         "text": "The forge is hot today. What do you need?",
         "choices": [
-          {
-            "id": "npc4_learn",
-            "text": "I want to learn the craft.",
-            "nextNodeId": "learn_craft",
-            "changeReputation": {
-              "factionId": "blacksmith_guild",
-              "amount": 2
-            }
-          },
-          {
-            "id": "npc4_insult",
-            "text": "Your work is overpriced.",
-            "nextNodeId": "insult",
-            "changeReputation": {
-              "factionId": "blacksmith_guild",
-              "amount": -2
-            }
-          }
+          { "id": "npc4_learn", "text": "I want to learn the craft.", "nextNodeId": "learn_craft", "changeReputation": { "factionId": "blacksmith_guild", "amount": 2 } },
+          { "id": "npc4_insult", "text": "Your work is overpriced.", "nextNodeId": "insult", "changeReputation": { "factionId": "blacksmith_guild", "amount": -2 } }
         ]
       },
       "learn_craft": {
         "text": "Hah! You have the spirit. Keep at it.",
-        "choices": [
-          {
-            "text": "Thanks.",
-            "nextNodeId": "root"
-          }
-        ]
+        "choices": [{ "text": "Thanks.", "nextNodeId": "root" }]
       },
       "insult": {
         "text": "Get out of my shop!",
-        "choices": [
-          {
-            "text": "Fine.",
-            "nextNodeId": "root"
-          }
-        ]
+        "choices": [{ "text": "Fine.", "nextNodeId": "root" }]
       },
       "high_rep": {
         "text": "Ah, a master of the craft! Welcome back.",
-        "choices": [
-          {
-            "text": "Good to see you.",
-            "nextNodeId": "root"
-          }
-        ]
+        "choices": [{ "text": "Good to see you.", "nextNodeId": "root" }]
       },
       "low_rep": {
         "text": "I don't serve your kind here. Leave.",
-        "choices": [
-          {
-            "text": "...",
-            "nextNodeId": "root"
-          }
-        ]
+        "choices": [{ "text": "...", "nextNodeId": "root" }]
       }
     },
     "questPrerequisiteLines": {
@@ -316,37 +207,17 @@
       "root": {
         "text": "The woods are quiet today. What brings a traveler here?",
         "choices": [
-          {
-            "id": "hermit_root_1",
-            "text": "Just exploring.",
-            "nextNodeId": "exploring"
-          },
-          {
-            "id": "hermit_root_2",
-            "text": "I'm looking for work.",
-            "nextNodeId": "work"
-          }
+          { "id": "hermit_root_1", "text": "Just exploring.", "nextNodeId": "exploring" },
+          { "id": "hermit_root_2", "text": "I'm looking for work.", "nextNodeId": "work" }
         ]
       },
       "exploring": {
         "text": "Be careful, the woods have eyes.",
-        "choices": [
-          {
-            "id": "hermit_exploring_1",
-            "text": "Thanks.",
-            "nextNodeId": "root"
-          }
-        ]
+        "choices": [{ "id": "hermit_exploring_1", "text": "Thanks.", "nextNodeId": "root" }]
       },
       "work": {
         "text": "I have a task for you, if you're brave enough.",
-        "choices": [
-          {
-            "id": "hermit_work_1",
-            "text": "Tell me.",
-            "nextNodeId": "root"
-          }
-        ]
+        "choices": [{ "id": "hermit_work_1", "text": "Tell me.", "nextNodeId": "root" }]
       }
     },
     "questStartLines": {
@@ -365,24 +236,12 @@
     "nodes": {
       "root": {
         "text": "My cart is lost somewhere in the woods.",
-        "choices": [
-          {
-            "id": "merchant_1",
-            "text": "I'll look for it.",
-            "nextNodeId": "root"
-          }
-        ]
+        "choices": [{ "id": "merchant_1", "text": "I'll look for it.", "nextNodeId": "root" }]
       }
     },
-    "questStartLines": {
-      "merchant_quest": "Find my cart!"
-    },
-    "questProgressLines": {
-      "merchant_quest": "Any luck?"
-    },
-    "questCompleteLines": {
-      "merchant_quest": "Thank you!"
-    }
+    "questStartLines": { "merchant_quest": "Find my cart!" },
+    "questProgressLines": { "merchant_quest": "Any luck?" },
+    "questCompleteLines": { "merchant_quest": "Thank you!" }
   },
   {
     "id": "dialogue_npc_8",
@@ -390,75 +249,11 @@
     "nodes": {
       "root": {
         "text": "My master needs rare ingredients.",
-        "choices": [
-          {
-            "id": "apprentice_1",
-            "text": "I can help.",
-            "nextNodeId": "root"
-          }
-        ]
+        "choices": [{ "id": "apprentice_1", "text": "I can help.", "nextNodeId": "root" }]
       }
     },
-    "questStartLines": {
-      "apprentice_quest": "Bring me 5 mushrooms."
-    },
-    "questProgressLines": {
-      "apprentice_quest": "Still need mushrooms."
-    },
-    "questCompleteLines": {
-      "apprentice_quest": "Perfect."
-    }
-  },
-  {
-    "id": "dialogue_shopkeeper",
-    "greeting": "Welcome to my shop! Take a look around.",
-    "nodes": {
-      "root": {
-        "text": "Welcome, traveler! I have wares if you have coin. What can I do for you?",
-        "choices": [
-          {
-            "id": "shop_buy",
-            "text": "Show me what you have.",
-            "nextNodeId": "shop_menu"
-          },
-          {
-            "id": "shop_sell",
-            "text": "I want to sell something.",
-            "nextNodeId": "sell_menu"
-          },
-          {
-            "id": "shop_leave",
-            "text": "Just browsing. Goodbye.",
-            "nextNodeId": "farewell"
-          }
-        ]
-      },
-      "shop_menu": {
-        "text": "Here are my finest goods! (Use the shop panel to buy items)",
-        "triggerShop": "general_store",
-        "choices": [
-          {
-            "id": "shop_back",
-            "text": "Thanks!",
-            "nextNodeId": "root"
-          }
-        ]
-      },
-      "sell_menu": {
-        "text": "I will buy anything useful. Just drop items near me and I will pay you.",
-        "choices": [
-          {
-            "id": "sell_back",
-            "text": "Alright.",
-            "nextNodeId": "root"
-          }
-        ]
-      },
-      "farewell": {
-        "text": "Come back anytime!",
-        "choices": []
-      }
-    },
-    "fallback": "Come back if you need anything!"
+    "questStartLines": { "apprentice_quest": "Bring me 5 mushrooms." },
+    "questProgressLines": { "apprentice_quest": "Still need mushrooms." },
+    "questCompleteLines": { "apprentice_quest": "Perfect." }
   }
 ]

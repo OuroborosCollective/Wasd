@@ -58,17 +58,33 @@ export class CraftingSystem {
     return Array.from(this.recipes.values());
   }
 
+  addRecipe(recipe: Recipe) {
+    this.recipes.set(recipe.id, recipe);
+  }
+
   canCraft(player: any, recipeId: string): { possible: boolean; reason?: string } {
     const recipe = this.recipes.get(recipeId);
     if (!recipe) return { possible: false, reason: "Recipe not found" };
     if (recipe.requiredSkill && recipe.requiredLevel) {
+      if (!player.skills || !player.skills[recipe.requiredSkill]) {
+        return { possible: false, reason: `Need ${recipe.requiredSkill} level ${recipe.requiredLevel}` };
+      }
       const level = player.skills?.[recipe.requiredSkill]?.level ?? 1;
       if (level < recipe.requiredLevel) {
         return { possible: false, reason: `Need ${recipe.requiredSkill} level ${recipe.requiredLevel}` };
       }
     }
+    // Optimization: Use a frequency map for O(N) inventory check instead of O(I*N)
+    const inventory = player.inventory || [];
+    const itemCounts = new Map<string, number>();
+    for (const item of inventory) {
+      const id = item.id;
+      const current = itemCounts.get(id) || 0;
+      itemCounts.set(id, current + 1);
+    }
+
     for (const ing of recipe.ingredients) {
-      const count = (player.inventory || []).filter((i: any) => i.id === ing.itemId).length;
+      const count = itemCounts.get(ing.itemId) || 0;
       if (count < ing.count) {
         const itemDef = ItemRegistry.getItem(ing.itemId);
         return { possible: false, reason: `Need ${ing.count}x ${itemDef?.name || ing.itemId}` };

@@ -33,17 +33,17 @@ export class QuestEngine {
     const quest = this.quests.get(questId);
     if (!quest) return null;
     if (!player.quests) player.quests = [];
-    
-    // Optimization: Index player quests by ID for O(1) lookups
-    const questMap = new Map(player.quests.map((q: any) => [q.id, q]));
+
+    // Optimization: Index player quests for O(1) lookup
+    const playerQuestMap = new Map<string, any>(player.quests.map((q: any) => [q.id, q]));
 
     // Check if already started
-    if (questMap.has(questId)) return null;
+    if (playerQuestMap.has(questId)) return null;
 
     // Check prerequisites
     if (quest.prerequisiteQuestIds && quest.prerequisiteQuestIds.length > 0) {
       for (const preId of quest.prerequisiteQuestIds) {
-        const preQuest = questMap.get(preId);
+        const preQuest = playerQuestMap.get(preId);
         if (!preQuest || !preQuest.completed) {
           return null; // Prerequisite not met
         }
@@ -80,11 +80,11 @@ export class QuestEngine {
 
   getQuestStatus(player: any) {
     const status: any[] = [];
-    // Optimization: Index player quests by ID for O(1) lookups instead of O(N) find in a loop
-    const questMap = player.quests ? new Map(player.quests.map((q: any) => [q.id, q])) : new Map();
+    // Optimization: Index player quests for O(1) lookup to avoid N^2 complexity
+    const playerQuestMap = new Map<string, any>((player.quests || []).map((q: any) => [q.id, q]));
 
     this.quests.forEach((quest, id) => {
-      const playerQuest = questMap.get(id);
+      const playerQuest = playerQuestMap.get(id);
       let state = "locked";
       
       if (playerQuest && playerQuest.completed) {
@@ -96,7 +96,7 @@ export class QuestEngine {
         let prereqsMet = true;
         if (quest.prerequisiteQuestIds) {
           for (const preId of quest.prerequisiteQuestIds) {
-            const preQuest = questMap.get(preId);
+            const preQuest = playerQuestMap.get(preId);
             if (!preQuest || !preQuest.completed) {
               prereqsMet = false;
               break;

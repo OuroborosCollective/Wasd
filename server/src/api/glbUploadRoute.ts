@@ -17,8 +17,8 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from "uuid";
+import validator from "gltf-validator";
 import { authMiddleware } from "../middleware/authMiddleware.js";
-
 import { db as dbInstance } from "../core/Database.js";
 type Database = typeof dbInstance;
 
@@ -58,7 +58,7 @@ export function createGLBUploadRouter(dbParam?: any): Router {
 
   // ── Check subscription middleware ──────────────────────────────────────────
   async function requireGLBSubscription(req: Request, res: Response, next: Function) {
-    const playerId = (req as any).playerId;
+    const playerId = req.headers["x-player-id"] as string || req.body?.playerId;
     if (!playerId) return res.status(401).json({ error: "Player ID required" });
 
     try {

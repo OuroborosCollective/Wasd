@@ -1,8 +1,7 @@
-
-
 import { describe, it, expect, beforeEach } from "vitest";
 import { QuestRewards } from "../modules/quests/QuestRewards.js";
 import { QuestStateStore } from "../modules/quests/QuestStateStore.js";
+import { QuestEngine } from "../modules/quest/QuestEngine.js";
 
 // ---------------------------------------------------------------------------
 // QuestRewards
@@ -126,4 +125,3 @@ describe("QuestEngine", () => {
 
   });
 });
-

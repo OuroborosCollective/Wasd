@@ -1,5 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+// Mock the auth middleware before imports
+vi.mock("../middleware/authMiddleware.js", () => ({
+  authMiddleware: (req, res, next) => {
+    req.playerId = req.headers["x-player-id"] || "test-player-123";
+    next();
+  },
+}));
+
 // Mock the database environment variables and the pg pool before any other imports
 vi.mock("../core/Database.js", () => ({
   db: {
@@ -11,7 +19,6 @@ vi.mock("../core/Database.js", () => ({
     getClient: vi.fn(),
   },
 }));
-
 
 import request from "supertest";
 import express from "express";
