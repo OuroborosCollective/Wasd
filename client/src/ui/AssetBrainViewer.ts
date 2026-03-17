@@ -227,7 +227,7 @@ export class AssetBrainViewer {
       this.mixer.stopAllAction();
       this.mixer = null;
     }
-    window.removeEventListener(\'resize\', this.onWindowResize.bind(this));
+    window.removeEventListener('resize', this.onWindowResize.bind(this));
     this.renderer.dispose();
     if (this.renderer.domElement.parentElement) {
       this.renderer.domElement.parentElement.removeChild(this.renderer.domElement);

@@ -61,7 +61,8 @@ export class NPCSystem {
       targetPosition: null as { x: number, y: number } | null,
       state: "idle",
       stateTimer: 0,
-      brain: new NPCBrain()
+      brain: new NPCBrain(),
+      needs: { hunger: 100, energy: 100 }
     };
     this.npcs.set(id, npc);
     return npc;
@@ -257,6 +258,16 @@ export class NPCSystem {
     // Process NPC AI, schedules, needs
     const now = Date.now();
     for (const npc of this.npcs.values()) {
+      // 0. Process dynamic needs
+      if (!npc.needs) npc.needs = { hunger: 100, energy: 100 }; // Fallback for existing NPCs
+
+      // Decrease hunger slowly (approx 1 unit per 5 seconds assuming 10 ticks/sec, wait we'll make it 1 unit per 100 ticks for testing or simple rate)
+      // Actually let's use a probabilistic approach or a simple small float decrement per tick.
+      // 1 tick = 100ms. So 10 ticks = 1 sec.
+      // 1 hunger per 100 ticks = 1 hunger per 10 sec.
+      npc.needs.hunger = Math.max(0, npc.needs.hunger - 0.01);
+      npc.needs.energy = Math.max(0, npc.needs.energy - 0.005);
+
       // 1. Check for nearby players to interact with
       let interacting = false;
       // Performance: Skip proximity check if already interacting
@@ -311,6 +322,18 @@ export class NPCSystem {
             npc.state = decision.action;
             npc.stateTimer = now + Math.random() * 3000 + 2000;
           }
+        }
+      } else if (npc.state === "sleep") {
+        npc.needs.energy = Math.min(100, npc.needs.energy + 2); // Fast regen while sleeping
+        if (npc.needs.energy >= 100) {
+          npc.state = "idle";
+          npc.stateTimer = now + Math.random() * 2000 + 1000;
+        }
+      } else if (npc.state === "eat") {
+        npc.needs.hunger = Math.min(100, npc.needs.hunger + 5); // Faster regen while eating
+        if (npc.needs.hunger >= 100) {
+          npc.state = "idle";
+          npc.stateTimer = now + Math.random() * 2000 + 1000;
         }
       } else if (npc.state === "wandering" || npc.state === "working") {
         if (now > npc.stateTimer) {
