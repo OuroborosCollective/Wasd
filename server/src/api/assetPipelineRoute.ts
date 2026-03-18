@@ -83,12 +83,17 @@ export function createAssetPipelineRouter(): Router {
    * Poll job status
    */
   router.get('/job/:jobId', authMiddleware, (req: Request, res: Response) => {
+    const userId = (req as any).userId || (req as any).playerId || 'anonymous';
     const jobId = String(req.params['jobId']);
     const pipeline = getAssetPipeline();
     const job = pipeline.getJob(jobId);
 
     if (!job) {
       return res.status(404).json({ error: 'Job not found' });
+    }
+
+    if (job.userId !== userId) {
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     res.json(job);
@@ -140,8 +145,14 @@ export function createAssetPipelineRouter(): Router {
    */
   router.delete('/asset/:id', authMiddleware, async (req: Request, res: Response) => {
     try {
+      const userId = (req as any).userId || (req as any).playerId || 'anonymous';
       const id = String(req.params['id']);
-      await db.query('DELETE FROM generated_assets WHERE id = $1', [id]);
+      const result = await db.query('DELETE FROM generated_assets WHERE id = $1 AND created_by = $2', [id, userId]);
+
+      if (result.rowCount === 0) {
+        return res.status(404).json({ error: 'Asset not found or access denied' });
+      }
+
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

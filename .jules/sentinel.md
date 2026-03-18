@@ -2,3 +2,8 @@
 **Vulnerability:** The POST `/api/character/:playerId` endpoint lacked any authentication (`authMiddleware`) and authorization checks, allowing any unauthenticated user to overwrite the appearance and display name of any other player in the database by specifying their `playerId` in the URL.
 **Learning:** This is a classic Insecure Direct Object Reference (IDOR) and Missing Authentication vulnerability pattern. It highlights a surprising security gap where a route modifying sensitive user data was left completely open without verifying the identity or permission of the requester.
 **Prevention:** Ensure all routes that modify player-specific data require `authMiddleware`. Furthermore, explicitly check that the authenticated user (`(req as any).playerId`) matches the targeted resource owner (`req.params.playerId`) before performing database updates to prevent IDOR attacks.
+
+## 2024-03-18 - [HIGH] Fix IDOR vulnerabilities in Asset Pipeline
+**Vulnerability:** The GET `/api/pipeline/job/:jobId` and DELETE `/api/pipeline/asset/:id` endpoints allowed any authenticated user to fetch the status or delete the generated assets of any other user's pipeline job simply by specifying the job/asset ID.
+**Learning:** This is a classic Insecure Direct Object Reference (IDOR) pattern. Although `authMiddleware` was present, there was no check to ensure the resource owner matched the authenticated user. The `created_by` field was not being populated in the database.
+**Prevention:** Always verify that the authenticated user owns the resource they are trying to access or modify. For database records, this means including `AND created_by = $userId` in the query, and ensuring the `created_by` field is correctly populated when creating the resource.
