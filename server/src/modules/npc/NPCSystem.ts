@@ -9,6 +9,8 @@ export class NPCSystem {
   private npcs: Map<string, any> = new Map();
   private npcDefinitions: Map<string, any> = new Map();
   private dialogues: Map<string, any> = new Map();
+  // ⚡ Bolt Optimization: Cache the NPC list to avoid repeated Array.from() allocations in the tick loop
+  private cachedNPCs: any[] = [];
 
   public personalityEngine: NPCPersonalityEngine;
   public memoryEngine: NPCMemoryEngine;
@@ -65,6 +67,7 @@ export class NPCSystem {
       needs: { hunger: 100, energy: 100 }
     };
     this.npcs.set(id, npc);
+    this.updateCache();
     return npc;
   }
 
@@ -247,11 +250,17 @@ export class NPCSystem {
   }
 
   getAllNPCs() {
-    return Array.from(this.npcs.values());
+    // ⚡ Bolt Optimization: Return cached array instead of creating a new one every call
+    return this.cachedNPCs;
   }
 
   removeNPC(id: string) {
     this.npcs.delete(id);
+    this.updateCache();
+  }
+
+  private updateCache() {
+    this.cachedNPCs = Array.from(this.npcs.values());
   }
 
   tick(players: any[], chatSystem?: any) {

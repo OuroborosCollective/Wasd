@@ -29,3 +29,7 @@
 ## 2026-03-17 - [O(1) Map Lookups for Character Assembly]
 **Learning:** The CharacterAssemblySystem was repeatedly scanning large configuration arrays (skin tones, hair colors, etc.) using `.find()` and `.includes()` during every validation and assembly call. This created a significant amount of redundant work, especially as the asset list grew.
 **Action:** Always index static configuration data into Maps during initialization to ensure O(1) lookup performance in high-frequency validation and assembly paths.
+
+## 2026-05-21 - [Pre-resolving Asset Paths for Tick Loops]
+**Learning:** Performing asset lookups (like GLB model paths) for every entity in the world broadcast tick (10Hz) creates unnecessary Map overhead and object spread allocations.
+**Action:** Cache asset paths directly on entity objects during creation or hydration. This transforms an $O(E \times A)$ lookup (Entities x Assets) into a direct property access in the broadcast loop, significantly reducing per-tick overhead.

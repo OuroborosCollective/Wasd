@@ -35,7 +35,10 @@ export class QuestEngine {
     if (!player.quests) player.quests = [];
 
     // Optimization: Index player quests for O(1) lookup
-    const playerQuestMap = new Map<string, any>(player.quests.map((q: any) => [q.id, q]));
+    const playerQuestMap = new Map<string, any>();
+    for (const q of player.quests) {
+      playerQuestMap.set(q.id, q);
+    }
     
     // Check if already started
     if (playerQuestMap.has(questId)) return null;
@@ -80,10 +83,15 @@ export class QuestEngine {
 
   getQuestStatus(player: any) {
     const status: any[] = [];
-    // Optimization: Index player quests for O(1) lookup to avoid N^2 complexity
-    const playerQuestMap = new Map<string, any>((player.quests || []).map((q: any) => [q.id, q]));
+    // ⚡ Bolt Optimization: Use a single Map constructor pass to avoid intermediate .map() array allocations
+    const playerQuestMap = new Map<string, any>();
+    if (player.quests) {
+      for (const q of player.quests) {
+        playerQuestMap.set(q.id, q);
+      }
+    }
 
-    this.quests.forEach((quest, id) => {
+    for (const [id, quest] of this.quests) {
       const playerQuest = playerQuestMap.get(id);
       let state = "locked";
       
@@ -120,7 +128,7 @@ export class QuestEngine {
         state,
         objective: playerQuest ? playerQuest.objective : quest.objective
       });
-    });
+    }
     return status;
   }
 
