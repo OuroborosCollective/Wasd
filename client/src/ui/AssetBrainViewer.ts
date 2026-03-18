@@ -208,7 +208,7 @@ export class AssetBrainViewer {
     this.renderer.setSize(width, height);
   }
 
-  private clock: THREE.Clock;
+  private clock!: THREE.Clock;
 
   private animate() {
     this.clock = new THREE.Clock();
@@ -227,7 +227,7 @@ export class AssetBrainViewer {
       this.mixer.stopAllAction();
       this.mixer = null;
     }
-    window.removeEventListener(\'resize\', this.onWindowResize.bind(this));
+    window.removeEventListener('resize', this.onWindowResize.bind(this));
     this.renderer.dispose();
     if (this.renderer.domElement.parentElement) {
       this.renderer.domElement.parentElement.removeChild(this.renderer.domElement);

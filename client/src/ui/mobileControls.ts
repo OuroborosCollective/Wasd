@@ -455,9 +455,11 @@ export function initMobileControls(
     };
 
     canvas.addEventListener("touchstart", (e) => {
-      e.preventDefault();
+      // Don't prevent default blindly, only if we take action.
+      // e.preventDefault();
 
       if (e.touches.length === 2) {
+        e.preventDefault();
         // Pinch zoom
         pinchActive = true;
         cameraTouchId = null;
@@ -476,6 +478,7 @@ export function initMobileControls(
         const inActions = isPointInRect(touch.clientX, touch.clientY, actionRect);
 
         if (!inJoystick && !inActions) {
+          e.preventDefault();
           cameraTouchId = touch.identifier;
           lastCamX = touch.clientX;
           lastCamY = touch.clientY;

@@ -20,6 +20,7 @@ import { cache } from "./Cache.js";
 import fs from "fs";
 import path from "path";
 import { GameConfig } from "../config/GameConfig.js";
+import { ResourceSystem } from "../modules/world/ResourceSystem.js";
 
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 
@@ -43,6 +44,7 @@ export class WorldTick {
   public craftingSystem: CraftingSystem;
   public chatSystem: ChatSystem;
   public lootSystem: LootSystem;
+  public resourceSystem: ResourceSystem;
 
   private lootEntities: Map<string, any> = new Map();
   private socketToPlayer: Map<string, string> = new Map();
@@ -84,6 +86,8 @@ export class WorldTick {
     this.craftingSystem = new CraftingSystem();
     this.chatSystem = new ChatSystem();
     this.lootSystem = new LootSystem();
+    this.resourceSystem = new ResourceSystem();
+    this.resourceSystem.initializeNodes();
 
     this.ws.onPlayerConnect = (id) => {
       console.log(`Socket ${id} connected. Waiting for login...`);
@@ -266,6 +270,7 @@ export class WorldTick {
         const targetId = msg.targetId;
         const npc = this.npcSystem.getNPC(targetId);
         const loot = this.lootEntities.get(targetId);
+        const resource = this.resourceSystem.nodes.get(targetId);
         if (npc) {
           const dx = player.position.x - npc.position.x;
           const dy = player.position.y - npc.position.y;
@@ -352,6 +357,20 @@ export class WorldTick {
               source: "System",
               text: "Target is too far away."
             });
+          }
+        } else if (resource) {
+          const dx = player.position.x - resource.position.x;
+          const dy = player.position.y - resource.position.y;
+          if (dx * dx + dy * dy < 400) {
+            const gatherResult = this.resourceSystem.gatherNode(targetId);
+            if (gatherResult.success && gatherResult.item) {
+              this.inventorySystem.addItem(player, gatherResult.item);
+              this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Gathered ${gatherResult.item.name}!` });
+            } else {
+              this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: gatherResult.reason || "Cannot gather that." });
+            }
+          } else {
+            this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Target is too far away." });
           }
         }
       } else if (msg.type === "dialogue_choice") {
@@ -861,6 +880,7 @@ export class WorldTick {
     const targetId = msg.targetId;
     const npc = this.npcSystem.getNPC(targetId);
     const loot = this.lootEntities.get(targetId);
+    const resource = this.resourceSystem.nodes.get(targetId);
 
     if (npc) {
       const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
@@ -929,6 +949,20 @@ export class WorldTick {
       this.inventorySystem.addItem(player, loot.item);
       this.lootEntities.delete(targetId);
       this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Picked up ${loot.item.name}!` });
+      this.debouncedSave();
+    } else if (resource) {
+      const dist = Math.hypot(player.position.x - resource.position.x, player.position.y - resource.position.y);
+      if (dist > GameConfig.interactDistance) {
+        this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Too far away." });
+        return;
+      }
+      const gatherResult = this.resourceSystem.gatherNode(targetId);
+      if (gatherResult.success && gatherResult.item) {
+        this.inventorySystem.addItem(player, gatherResult.item);
+        this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Gathered ${gatherResult.item.name}!` });
+      } else {
+        this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: gatherResult.reason || "Cannot gather that." });
+      }
       this.debouncedSave();
     }
   }
@@ -1215,6 +1249,7 @@ export class WorldTick {
     // 4. Tick NPC AI
     this.npcSystem.tick(players, this.chatSystem);
     this.worldSystem.tick();
+    this.resourceSystem.tick();
 
     // 5. Process NPC respawns
     for (const [key, respawn] of this.npcRespawnTimers) {
@@ -1260,6 +1295,12 @@ export class WorldTick {
       return { ...loot, glbPath };
     });
 
+    const resourcesWithGlb = this.resourceSystem.getAllNodes().map(node => {
+      let glbPath = this.glbRegistry.getModelForTarget("object_single", node.id);
+      if (!glbPath) glbPath = this.glbRegistry.getModelForTarget("object_group", node.type); // "tree", "rock", etc
+      return { ...node, glbPath };
+    });
+
     const weather = this.worldSystem.weatherSystem.nextWeather(Math.floor(this.tickCount / 600));
 
     this.ws.broadcast({
@@ -1303,6 +1344,7 @@ export class WorldTick {
       }),
       npcs: npcsWithGlb,
       loot: lootWithGlb,
+      resources: resourcesWithGlb,
       onlinePlayers: this.socketToPlayer.size
     });
 

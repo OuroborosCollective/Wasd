@@ -202,9 +202,15 @@ export function connectSocket(displayName?: string) {
   
   ws.onclose = (event) => {
     console.log("WebSocket closed", event.code, event.reason);
-    // Attempt to reconnect unless intentional close
-    if (!event.wasClean && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+    // Attempt to reconnect unless it's a normal closure (1000) or we've hit max attempts
+    if (event.code !== 1000 && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
       attemptReconnect();
+    } else if (event.code !== 1000) {
+      console.error("WebSocket disconnected and max reconnect attempts reached.");
+      const notif = document.createElement("div");
+      notif.style.cssText = `position:fixed;top:10px;left:50%;transform:translateX(-50%);background:rgba(255,0,0,0.85);color:white;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:bold;z-index:9999;text-align:center;`;
+      notif.innerHTML = `Connection Lost. Please refresh the page.`;
+      document.body.appendChild(notif);
     }
   };
   
@@ -235,7 +241,7 @@ export function connectSocket(displayName?: string) {
 
         // Update HUD with my player's stats
         if (myPlayerId) {
-          const myPlayer = data.players.find((p: any) => p.id === myPlayerId);
+          const myPlayer = data.players?.find((p: any) => p.id === myPlayerId);
           if (myPlayer) {
             updateHUD({
               role: myPlayer.role,
@@ -274,7 +280,7 @@ export function connectSocket(displayName?: string) {
         window.location.reload();
       } else if (data.type === "teleport") {
         // Update local player position
-        if (latestState && latestState.players) {
+        if (latestState && Array.isArray(latestState.players)) {
           const me = latestState.players.find((p: any) => p.id === myPlayerId);
           if (me) { me.position.x = data.x; me.position.z = data.y; }
         }
