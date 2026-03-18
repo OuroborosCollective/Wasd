@@ -20,6 +20,7 @@ import { cache } from "./Cache.js";
 import fs from "fs";
 import path from "path";
 import { GameConfig } from "../config/GameConfig.js";
+import { ResourceSystem } from "../modules/world/ResourceSystem.js";
 
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 
@@ -43,6 +44,7 @@ export class WorldTick {
   public craftingSystem: CraftingSystem;
   public chatSystem: ChatSystem;
   public lootSystem: LootSystem;
+  public resourceSystem: ResourceSystem;
 
   private lootEntities: Map<string, any> = new Map();
   private socketToPlayer: Map<string, string> = new Map();
@@ -84,6 +86,8 @@ export class WorldTick {
     this.craftingSystem = new CraftingSystem();
     this.chatSystem = new ChatSystem();
     this.lootSystem = new LootSystem();
+    this.resourceSystem = new ResourceSystem();
+    this.resourceSystem.initializeNodes();
 
     this.ws.onPlayerConnect = (id) => {
       console.log(`Socket ${id} connected. Waiting for login...`);
@@ -478,15 +482,10 @@ export class WorldTick {
     const npc = this.npcSystem.getNPC(targetId);
     if (!npc || npc.health === undefined) return;
 
-<<<<<<< HEAD
-    const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
-    if (dist > GameConfig.attackDistance) {
-=======
     const dx = player.position.x - npc.position.x;
     const dy = player.position.y - npc.position.y;
     // Optimization: Use squared distance to avoid Math.hypot() square root
     if (dx * dx + dy * dy > GameConfig.attackDistance * GameConfig.attackDistance) {
->>>>>>> origin/main
       this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Target is too far away." });
       return;
     }
@@ -583,6 +582,7 @@ export class WorldTick {
     const targetId = msg.targetId;
     const npc = this.npcSystem.getNPC(targetId);
     const loot = this.lootEntities.get(targetId);
+    const resource = this.resourceSystem.nodes.get(targetId);
 
     if (npc) {
       const dx = player.position.x - npc.position.x;
@@ -655,6 +655,20 @@ export class WorldTick {
       this.inventorySystem.addItem(player, loot.item);
       this.lootEntities.delete(targetId);
       this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Picked up ${loot.item.name}!` });
+      this.debouncedSave();
+    } else if (resource) {
+      const dist = Math.hypot(player.position.x - resource.position.x, player.position.y - resource.position.y);
+      if (dist > GameConfig.interactDistance) {
+        this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Too far away." });
+        return;
+      }
+      const gatherResult = this.resourceSystem.gatherNode(targetId);
+      if (gatherResult.success && gatherResult.item) {
+        this.inventorySystem.addItem(player, gatherResult.item);
+        this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Gathered ${gatherResult.item.name}!` });
+      } else {
+        this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: gatherResult.reason || "Cannot gather that." });
+      }
       this.debouncedSave();
     }
   }
@@ -973,6 +987,7 @@ export class WorldTick {
     // 4. Tick NPC AI
     this.npcSystem.tick(players, this.chatSystem);
     this.worldSystem.tick();
+    this.resourceSystem.tick();
 
     // 5. Process NPC respawns
     for (const [key, respawn] of this.npcRespawnTimers) {
@@ -1008,6 +1023,12 @@ export class WorldTick {
     // ⚡ Bolt Optimization: Use pre-resolved GLB paths stored on entities to avoid Map lookups and .map() object spreads in the hot broadcast loop
     const npcs = this.npcSystem.getAllNPCs();
     const loot = Array.from(this.lootEntities.values());
+
+    const resourcesWithGlb = this.resourceSystem.getAllNodes().map(node => {
+      let glbPath = this.glbRegistry.getModelForTarget("object_single", node.id);
+      if (!glbPath) glbPath = this.glbRegistry.getModelForTarget("object_group", node.type); // "tree", "rock", etc
+      return { ...node, glbPath };
+    });
 
     const weather = this.worldSystem.weatherSystem.nextWeather(Math.floor(this.tickCount / 600));
 
@@ -1050,8 +1071,9 @@ export class WorldTick {
           appearance: resolvedAppearance
         };
       }),
-      npcs: npcs,
-      loot: loot,
+      npcs: npcsWithGlb,
+      loot: lootWithGlb,
+      resources: resourcesWithGlb,
       onlinePlayers: this.socketToPlayer.size
     });
 

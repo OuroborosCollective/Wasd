@@ -8793,13 +8793,13 @@ snapshots:
 
   '@types/bunyan@1.8.9':
     dependencies:
-      '@types/node': 20.19.37
+      '@types/node': 22.19.15
 
   '@types/caseless@0.12.5': {}
 
   '@types/connect@3.4.36':
     dependencies:
-      '@types/node': 20.19.37
+      '@types/node': 22.19.15
 
   '@types/connect@3.4.38':
     dependencies:
@@ -8837,7 +8837,7 @@ snapshots:
 
   '@types/memcached@2.2.10':
     dependencies:
-      '@types/node': 20.19.37
+      '@types/node': 22.19.15
 
   '@types/methods@1.1.4': {}
 
@@ -8849,7 +8849,7 @@ snapshots:
 
   '@types/mysql@2.15.22':
     dependencies:
-      '@types/node': 20.19.37
+      '@types/node': 22.19.15
 
   '@types/node@20.19.37':
     dependencies:
@@ -8871,7 +8871,7 @@ snapshots:
 
   '@types/pg@8.6.1':
     dependencies:
-      '@types/node': 20.19.37
+      '@types/node': 22.19.15
       pg-protocol: 1.13.0
       pg-types: 2.2.0
 
@@ -8923,7 +8923,7 @@ snapshots:
 
   '@types/tedious@4.0.14':
     dependencies:
-      '@types/node': 20.19.37
+      '@types/node': 22.19.15
 
   '@types/three@0.183.1':
     dependencies:
