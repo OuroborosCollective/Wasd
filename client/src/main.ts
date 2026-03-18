@@ -33,7 +33,7 @@ let gameInitialized = false;
 let currentPlayerId = "";
 let currentPlayerName = "";
 
-renderAuthUI((displayName: string, uid?: string) => {
+const handleAuthComplete = (displayName: string, uid?: string) => {
   if (!gameInitialized) {
     gameInitialized = true;
     currentPlayerName = displayName;
@@ -236,4 +236,20 @@ renderAuthUI((displayName: string, uid?: string) => {
     // ── Expose player position for land system ────────────────────────────────
     (window as any).__playerPosition = { x: 0, y: 0, z: 0 };
   }
-});
+};
+
+// Try to render auth UI
+try {
+  renderAuthUI(handleAuthComplete);
+} catch (e) {
+  console.error('[ERROR] Auth UI failed:', e);
+}
+
+// Emergency fallback: auto-login as guest after 2 seconds if auth UI doesn't respond
+setTimeout(() => {
+  if (!gameInitialized) {
+    console.warn('[EMERGENCY] Auth UI timeout - auto-logging in as guest');
+    const guestName = 'Guest_' + Math.random().toString(36).substring(2, 8);
+    handleAuthComplete(guestName, guestName);
+  }
+}, 2000);
