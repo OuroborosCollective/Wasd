@@ -478,10 +478,15 @@ export class WorldTick {
     const npc = this.npcSystem.getNPC(targetId);
     if (!npc || npc.health === undefined) return;
 
+<<<<<<< HEAD
+    const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
+    if (dist > GameConfig.attackDistance) {
+=======
     const dx = player.position.x - npc.position.x;
     const dy = player.position.y - npc.position.y;
     // Optimization: Use squared distance to avoid Math.hypot() square root
     if (dx * dx + dy * dy > GameConfig.attackDistance * GameConfig.attackDistance) {
+>>>>>>> origin/main
       this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Target is too far away." });
       return;
     }
