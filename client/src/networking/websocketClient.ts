@@ -166,9 +166,12 @@ export function connectSocket(displayName?: string) {
   
   const externalWsUrl = (import.meta.env as any).VITE_WS_URL;
   const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const localWsUrl = `${wsProtocol}//${location.host}/ws`;
+  
+  // Fix: Use hostname instead of host to avoid port issues on Android/HTTPS
+  const localWsUrl = `${wsProtocol}//${location.hostname}/ws`;
   
   const wsUrl = externalWsUrl || localWsUrl;
+  console.log(`[WebSocket] Connecting to: ${wsUrl} (protocol: ${wsProtocol})`);
   
   const ws = new WebSocket(wsUrl);
   globalWs = ws;
