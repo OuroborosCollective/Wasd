@@ -116,6 +116,11 @@ export class ServerBootstrap {
     const modelsDir = path.resolve(__dirname, "../../public/models");
     app.use("/models", express.static(modelsDir));
 
+    // ── WebSocket & Game Loop ──────────────────────────────────────────────
+    // MUST be initialized BEFORE SPA fallback route
+    const ws = new GameWebSocketServer(httpServer);
+    ws.start();
+
     // ── Serve Client ───────────────────────────────────────────────────────
     if (process.env.NODE_ENV !== "production") {
       try {
@@ -132,15 +137,11 @@ export class ServerBootstrap {
     } else {
       const clientDist = path.resolve(__dirname, "../../../client/dist");
       app.use(express.static(clientDist));
-      // SPA fallback
+      // SPA fallback - MUST be after WebSocket
       app.get("*", (_req, res) => {
         res.sendFile(path.join(clientDist, "index.html"));
       });
     }
-
-    // ── WebSocket & Game Loop ──────────────────────────────────────────────
-    const ws = new GameWebSocketServer(httpServer);
-    ws.start();
 
     const tick = new WorldTick(ws);
     await tick.init();
