@@ -1,5 +1,7 @@
 export class PlayerSystem {
   private players: Map<string, any> = new Map();
+  // ⚡ Bolt Optimization: Cache the player list to avoid repeated Array.from() allocations in the tick loop
+  private cachedPlayers: any[] = [];
 
   createPlayer(id: string, name: string) {
     const player = {
@@ -27,11 +29,13 @@ export class PlayerSystem {
       usedChoices: []
     };
     this.players.set(id, player);
+    this.updateCache();
     return player;
   }
 
   setPlayer(id: string, player: any) {
     this.players.set(id, player);
+    this.updateCache();
   }
 
   getPlayer(id: string) {
@@ -39,10 +43,16 @@ export class PlayerSystem {
   }
 
   getAllPlayers() {
-    return Array.from(this.players.values());
+    // ⚡ Bolt Optimization: Return cached array instead of creating a new one every call
+    return this.cachedPlayers;
   }
 
   removePlayer(id: string) {
     this.players.delete(id);
+    this.updateCache();
+  }
+
+  private updateCache() {
+    this.cachedPlayers = Array.from(this.players.values());
   }
 }
