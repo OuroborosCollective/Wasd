@@ -587,7 +587,7 @@ export function initGMPanel() {
       <h1>⚙️ ARELORIA GM PANEL <span class="gm-badge gm-badge-admin">ADMIN</span></h1>
       <div style="display:flex;gap:10px;align-items:center">
         <span style="font-size:11px;color:#8ab0d0">Press F1 to toggle</span>
-        <button id="gm-close">✕ Close</button>
+        <button id="gm-close" aria-label="Close GM Panel"><span aria-hidden="true">✕</span> Close</button>
       </div>
     </div>
     <div id="gm-tabs">

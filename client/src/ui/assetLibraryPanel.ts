@@ -36,7 +36,7 @@ export function toggleAssetLibraryPanel() {
   panel.innerHTML = `
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
       <h2 style="margin: 0; color: #4a9e7c;">Asset Library</h2>
-      <button id="btn-close-lib" style="background: none; border: none; color: #e0e0e0; font-size: 20px; cursor: pointer;">✕</button>
+      <button id="btn-close-lib" aria-label="Close Asset Library" style="background: none; border: none; color: #e0e0e0; font-size: 20px; cursor: pointer;"><span aria-hidden="true">✕</span></button>
     </div>
 
     <div style="margin-bottom: 15px;">

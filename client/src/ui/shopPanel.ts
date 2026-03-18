@@ -52,7 +52,7 @@ function createShopUI() {
             ⚡ <span id="shop-energy-amount">...</span>
           </div>
           <button aria-label="Close Shop" onclick="document.getElementById('shop-panel').style.display='none'"
-            style="background:none; border:1px solid #ff4444; color:#ff4444; border-radius:6px; padding:6px 12px; cursor:pointer; font-size:14px;">✕</button>
+            style="background:none; border:1px solid #ff4444; color:#ff4444; border-radius:6px; padding:6px 12px; cursor:pointer; font-size:14px;"><span aria-hidden="true">✕</span></button>
         </div>
       </div>
 
