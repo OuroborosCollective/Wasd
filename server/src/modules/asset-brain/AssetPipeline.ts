@@ -196,6 +196,7 @@ export class AssetPipeline {
         spec,
         localPath,
         result.glbUrl,
+        job.userId,
         result.thumbnailUrl
       );
 
@@ -258,6 +259,7 @@ export class AssetPipeline {
     spec: AssetSpecification,
     localPath: string,
     remoteUrl: string,
+    userId: string,
     thumbnailUrl?: string
   ): Promise<string> {
     const registryId = `gen_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
@@ -265,8 +267,8 @@ export class AssetPipeline {
     // Insert into generated_assets table
     await db.query(
       `INSERT INTO generated_assets
-        (id, asset_name, asset_class, style, glb_path, glb_remote_url, thumbnail_url, spec_json, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+        (id, asset_name, asset_class, style, glb_path, glb_remote_url, thumbnail_url, spec_json, created_by, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
        ON CONFLICT (id) DO NOTHING`,
       [
         registryId,
@@ -277,6 +279,7 @@ export class AssetPipeline {
         remoteUrl,
         thumbnailUrl ?? null,
         JSON.stringify(spec),
+        userId,
       ]
     );
 
