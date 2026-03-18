@@ -1,0 +1,68 @@
+name: Dependabot Auto-Merge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_run:
+    types: [completed]
+
+jobs:
+  dependabot-auto-merge:
+    runs-on: ubuntu-latest
+    if: ${{ github.actor == 'dependabot[bot]' }}
+    permissions:
+      contents: write
+      pull-requests: write
+      statuses: read
+    
+    steps:
+      - name: Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Wait for required checks
+        id: wait-for-checks
+        run: |
+          # Get the head SHA of the PR
+          PR_HEAD_SHA=$(echo "${{ github.event.pull_request.head.sha }}")
+          echo "PR Head SHA: $PR_HEAD_SHA"
+          
+          # Wait for all status checks to complete (max 30 minutes)
+          TIMEOUT=1800
+          INTERVAL=30
+          ELAPSED=0
+          
+          while [ $ELAPSED -lt $TIMEOUT ]; do
+            # Get combined status for the commit
+            STATUS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/commits/$PR_HEAD_SHA/status")
+            
+            # Check if all checks are completed
+            STATE=$(echo "$STATUS" | grep -o '"state": "[^"]*"' | head -1 | cut -d'"' -f4)
+            echo "Current state: $STATE"
+            
+            if [ "$STATE" = "success" ]; then
+              echo "All checks passed!"
+              exit 0
+            elif [ "$STATE" = "failure" ]; then
+              echo "Checks failed!"
+              exit 1
+            fi
+            
+            sleep $INTERVAL
+            ELAPSED=$((ELAPSED + INTERVAL))
+          done
+          
+          echo "Timeout waiting for checks"
+          exit 1
+
+      - name: Auto-merge the PR
+        if: success()
+        run: |
+          gh pr merge --auto --merge "$PR_URL" --repo "${{ github.repository }}"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
