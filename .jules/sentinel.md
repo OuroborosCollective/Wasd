@@ -1,0 +1,4 @@
+## 2024-03-16 - [CRITICAL] Fix authorization bypass in character appearance updates
+**Vulnerability:** The POST `/api/character/:playerId` endpoint lacked any authentication (`authMiddleware`) and authorization checks, allowing any unauthenticated user to overwrite the appearance and display name of any other player in the database by specifying their `playerId` in the URL.
+**Learning:** This is a classic Insecure Direct Object Reference (IDOR) and Missing Authentication vulnerability pattern. It highlights a surprising security gap where a route modifying sensitive user data was left completely open without verifying the identity or permission of the requester.
+**Prevention:** Ensure all routes that modify player-specific data require `authMiddleware`. Furthermore, explicitly check that the authenticated user (`(req as any).playerId`) matches the targeted resource owner (`req.params.playerId`) before performing database updates to prevent IDOR attacks.

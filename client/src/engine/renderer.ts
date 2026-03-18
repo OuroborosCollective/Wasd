@@ -29,7 +29,57 @@ const RENDER_CONFIG = {
 
 function loadModel(path: string, callback: (model: THREE.Group) => void) {
   if (modelCache.has(path)) { callback(modelCache.get(path)!.clone()); return; }
-  gltfLoader.load(path, (gltf) => { modelCache.set(path, gltf.scene); callback(gltf.scene.clone()); }, undefined, (err) => console.warn("Model load error:", path, err));
+  gltfLoader.load(path, (gltf) => {
+    gltf.scene.traverse((child) => {
+      const mesh = child as THREE.Mesh;
+      if (mesh.isMesh) {
+        let isOpaque = true;
+        if (mesh.material) {
+          const mat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+          if (mat.transparent && mat.opacity < 0.9) {
+             isOpaque = false;
+          }
+        }
+        if (isOpaque && mesh.name.toLowerCase().indexOf('bound') === -1) {
+          mesh.castShadow = !isMobile();
+        }
+        mesh.receiveShadow = true;
+      }
+    });
+    modelCache.set(path, gltf.scene);
+    callback(gltf.scene.clone());
+  }, undefined, (err) => {
+    console.warn("Model load error:", path, err);
+    if (errorCallback) errorCallback(err);
+  });
+}
+
+function applyColorTints(model: THREE.Object3D, skinColor?: string, hairColor?: string, eyeColor?: string): void {
+  const skinHex = skinColor ? new THREE.Color(skinColor) : new THREE.Color(0xD4956A);
+  const hairHex = hairColor ? new THREE.Color(hairColor) : new THREE.Color(0x6B3A2A);
+  const eyeHex = eyeColor ? new THREE.Color(eyeColor) : new THREE.Color(0x6B3A2A);
+  
+  model.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+    const mat = child.material;
+    if (!mat) return;
+    const materials = Array.isArray(mat) ? mat : [mat];
+    materials.forEach((m: THREE.Material) => {
+      if (!(m instanceof THREE.MeshStandardMaterial || m instanceof THREE.MeshLambertMaterial)) return;
+      const name = (m.name || child.name || '').toLowerCase();
+      
+      if (name.includes('skin') || name.includes('body') || name.includes('face') ||
+          name.includes('arm') || name.includes('leg') || name.includes('hand') ||
+          name.includes('neck') || name.includes('head_skin') || name.includes('flesh')) {
+        (m as any).color.set(skinHex);
+      } else if (name.includes('hair') || name.includes('beard') || name.includes('eyebrow') ||
+                 name.includes('brow') || name.includes('mustache')) {
+        (m as any).color.set(hairHex);
+      } else if (name.includes('eye') || name.includes('iris') || name.includes('pupil')) {
+        (m as any).color.set(eyeHex);
+      }
+    });
+  });
 }
 
 let scene: THREE.Scene;
@@ -52,7 +102,8 @@ let cameraDistance = RENDER_CONFIG.camera.defaultDistance;
 let isDragging = false;
 let lastMouseX = 0;
 let lastMouseY = 0;
-const cameraTarget = new THREE.Vector3(32, 0, 32);
+// Default camera target at origin (player spawn) - will be updated when player connects
+const cameraTarget = new THREE.Vector3(0, 0, 0);
 
 // Mobile joystick movement callback
 let onJoystickMove: ((dx: number, dy: number) => void) | null = null;
@@ -313,7 +364,13 @@ export function initRenderer(
 
     // Camera follows player
     const myMesh = playerMeshes.get(myPlayerId || "");
-    if (myMesh) cameraTarget.lerp(myMesh.position, 0.1);
+    if (myMesh) {
+      // Immediate snap on first connection, smooth lerp after
+      if (cameraTarget.x === 0 && cameraTarget.z === 0 && (myMesh.position.x !== 0 || myMesh.position.z !== 0)) {
+        cameraTarget.copy(myMesh.position);
+      }
+      cameraTarget.lerp(myMesh.position, 0.1);
+    }
 
     // Joystick movement (mobile)
     const js = getJoystickState();
@@ -354,25 +411,55 @@ export function updateWorldState(state: any, playerId: string | null) {
   const currentPlayers = new Set<string>();
   for (const p of state.players || []) {
     currentPlayers.add(p.id);
-    if (!playerMeshes.has(p.id)) {
-      const isMe = p.id === playerId;
-      const body = new THREE.Mesh(
-        new THREE.CapsuleGeometry(0.5, 1.5, 4, 8),
-        new THREE.MeshLambertMaterial({ color: isMe ? 0x00cc66 : 0x4466cc })
-      );
-      body.position.y = 1.25; body.castShadow = !isMobile();
-      const head = new THREE.Mesh(
-        new THREE.SphereGeometry(0.4, 8, 8),
-        new THREE.MeshLambertMaterial({ color: isMe ? 0x00ff88 : 0x6688ee })
-      );
-      head.position.y = 2.4; head.castShadow = !isMobile();
-      const g = new THREE.Group(); g.add(body); g.add(head);
-      g.position.set(p.position.x, getTerrainHeight(p.position.x, p.position.y), p.position.y);
+       if (!playerMeshes.has(p.id)) {
+      const g = new THREE.Group();
+      g.position.set(p.position.x, getTerrainHeight(p.position.x, p.position.z), p.position.z);
       scene.add(g); playerMeshes.set(p.id, g);
+      if (p.appearance) {
+        console.log(`[Renderer] Loading GLB for player ${p.id}`, p.appearance);
+        // Load modular GLB character using resolved paths from server
+        let bodyUrl = p.appearance.bodyUrl || `/models/characters/bodies/Body_${p.appearance.gender || 'male'}.glb`;
+        let headUrl = p.appearance.headUrl || (p.appearance.gender === 'female' ? '/models/characters/heads/Head_female1.glb' : '/models/characters/heads/Head_male1.glb');
+
+        // Ensure paths are absolute for the loader
+        if (!bodyUrl.startsWith('/')) bodyUrl = '/' + bodyUrl;
+        if (!headUrl.startsWith('/')) headUrl = '/' + headUrl;
+
+        loadModel(bodyUrl, (body) => {
+          console.log(`[Renderer] Body loaded for ${p.id}: ${bodyUrl}`);
+          body.scale.set(p.appearance.widthScale || 1, p.appearance.heightScale || 1, p.appearance.widthScale || 1);
+          applyColorTints(body, p.appearance.skinToneColor, p.appearance.hairColor, p.appearance.eyeColor);
+          g.add(body);
+        }, (err) => console.error(`[Renderer] Failed to load body for ${p.id}`, err));
+
+        loadModel(headUrl, (head) => {
+          console.log(`[Renderer] Head loaded for ${p.id}: ${headUrl}`);
+          // Use a consistent scale for the head
+          const headScale = 0.8;
+          head.scale.set(headScale, headScale, headScale);
+          head.position.y = 1.65 * (p.appearance.heightScale || 1);
+          applyColorTints(head, p.appearance.skinToneColor, p.appearance.hairColor, p.appearance.eyeColor);
+          g.add(head);
+        }, (err) => console.error(`[Renderer] Failed to load head for ${p.id}`, err));
+      } else {
+        // Fallback to capsule if no appearance data
+        const isMe = p.id === playerId;
+        const body = new THREE.Mesh(
+          new THREE.CapsuleGeometry(0.5, 1.5, 4, 8),
+          new THREE.MeshLambertMaterial({ color: isMe ? 0x00cc66 : 0x4466cc })
+        );
+        body.position.y = 1.25; body.castShadow = !isMobile();
+        const head = new THREE.Mesh(
+          new THREE.SphereGeometry(0.4, 8, 8),
+          new THREE.MeshLambertMaterial({ color: isMe ? 0x00ff88 : 0x6688ee })
+        );
+        head.position.y = 2.4; head.castShadow = !isMobile();
+        g.add(body); g.add(head);
+      }
     }
     let t = targetPositions.get(p.id);
     if (!t) { t = new THREE.Vector3(); targetPositions.set(p.id, t); }
-    t.set(p.position.x, getTerrainHeight(p.position.x, p.position.y), p.position.y);
+    t.set(p.position.x, getTerrainHeight(p.position.x, p.position.z), p.position.z);
     const sp = projectToScreen(t.x, t.y + 3.5, t.z);
     const lbl = createWorldLabel(p.id, p.name || "Player", "player");
     if (sp.inFront) { lbl.style.left=`${sp.x}px`; lbl.style.top=`${sp.y}px`; lbl.style.display="block"; } else lbl.style.display="none";
@@ -388,9 +475,12 @@ export function updateWorldState(state: any, playerId: string | null) {
     if (!npcMeshes.has(npc.id)) {
       if (npc.glbPath) {
         const g = new THREE.Group();
-        g.position.set(npc.position.x, getTerrainHeight(npc.position.x, npc.position.y), npc.position.y);
+        g.position.set(npc.position.x, getTerrainHeight(npc.position.x, npc.position.z), npc.position.z);
         scene.add(g); npcMeshes.set(npc.id, g);
-        loadModel(npc.glbPath.replace(/^public\//, ""), (m) => { m.scale.set(0.5,0.5,0.5); g.add(m); });
+        let path = npc.glbPath;
+        if (path.startsWith('public/')) path = path.substring(6);
+        if (!path.startsWith('/')) path = '/' + path;
+        loadModel(path, (m) => { m.scale.set(0.5,0.5,0.5); g.add(m); });
       } else {
         const isM = npc.role === "monster";
         const isShop = npc.role === "shopkeeper";
@@ -406,13 +496,13 @@ export function updateWorldState(state: any, playerId: string | null) {
         );
         head.position.y = isM?2.7:2.2;
         const g = new THREE.Group(); g.add(body); g.add(head);
-        g.position.set(npc.position.x, getTerrainHeight(npc.position.x, npc.position.y), npc.position.y);
+        g.position.set(npc.position.x, getTerrainHeight(npc.position.x, npc.position.z), npc.position.z);
         scene.add(g); npcMeshes.set(npc.id, g);
       }
     }
     let t = targetPositions.get(npc.id);
     if (!t) { t = new THREE.Vector3(); targetPositions.set(npc.id, t); }
-    t.set(npc.position.x, getTerrainHeight(npc.position.x, npc.position.y), npc.position.y);
+    t.set(npc.position.x, getTerrainHeight(npc.position.x, npc.position.z), npc.position.z);
     const hp = npc.maxHealth ? (npc.health / npc.maxHealth) : 1;
     const lbl = createWorldLabel(npc.id, npc.name || npc.id, "npc", hp);
     const sp = projectToScreen(t.x, t.y + 3, t.z);
@@ -427,19 +517,30 @@ export function updateWorldState(state: any, playerId: string | null) {
   for (const loot of state.loot || []) {
     currentLoot.add(loot.id);
     if (!lootMeshes.has(loot.id)) {
-      const rc: Record<string,number> = { common:0xaaaaaa, uncommon:0x00cc00, rare:0x0088ff, epic:0xaa44ff, legendary:0xff8800 };
-      const c = rc[loot.rarity || loot.item?.rarity || "common"] || 0xffd700;
-      const mesh = new THREE.Mesh(
-        new THREE.OctahedronGeometry(0.5, 0),
-        new THREE.MeshLambertMaterial({ color: c, emissive: c, emissiveIntensity: 0.3 })
-      );
-      mesh.position.set(loot.position.x, getTerrainHeight(loot.position.x, loot.position.y) + 0.8, loot.position.y);
-      scene.add(mesh); lootMeshes.set(loot.id, mesh);
+      if (loot.glbPath) {
+        const g = new THREE.Group();
+        g.position.set(loot.position.x, getTerrainHeight(loot.position.x, loot.position.z) + 0.5, loot.position.z);
+        scene.add(g); lootMeshes.set(loot.id, g);
+        let path = loot.glbPath;
+        if (path.startsWith('public/')) path = path.substring(6);
+        if (!path.startsWith('/')) path = '/' + path;
+        loadModel(path, (m) => { m.scale.set(0.4, 0.4, 0.4); g.add(m); });
+      } else {
+        const rc: Record<string,number> = { common:0xaaaaaa, uncommon:0x00cc00, rare:0x0088ff, epic:0xaa44ff, legendary:0xff8800 };
+        const c = rc[loot.rarity || loot.item?.rarity || "common"] || 0xffd700;
+        const mesh = new THREE.Mesh(
+          new THREE.OctahedronGeometry(0.5, 0),
+          new THREE.MeshLambertMaterial({ color: c, emissive: c, emissiveIntensity: 0.3 })
+        );
+        mesh.position.set(loot.position.x, getTerrainHeight(loot.position.x, loot.position.z) + 0.8, loot.position.z);
+        scene.add(mesh); lootMeshes.set(loot.id, mesh);
+      }
     }
-    const lm = lootMeshes.get(loot.id) as THREE.Mesh;
+    const lm = lootMeshes.get(loot.id);
     if (lm) {
       const et = Date.now() * 0.002;
-      lm.position.y = getTerrainHeight(loot.position.x, loot.position.y) + 0.8 + Math.sin(et + loot.position.x) * 0.2;
+      const baseHeight = loot.glbPath ? 0.5 : 0.8;
+      lm.position.y = getTerrainHeight(loot.position.x, loot.position.z) + baseHeight + Math.sin(et + loot.position.x) * 0.2;
       lm.rotation.y += 0.02;
       const sp = projectToScreen(lm.position.x, lm.position.y + 1, lm.position.z);
       const name = loot.item?.name || loot.name || "Item";
@@ -461,7 +562,7 @@ export function updateWorldState(state: any, playerId: string | null) {
 
       if (highlightRing) {
         highlightRing.visible = true;
-        highlightRing.position.set(nearby.position.x, getTerrainHeight(nearby.position.x, nearby.position.y) + 0.1, nearby.position.y);
+        highlightRing.position.set(nearby.position.x, getTerrainHeight(nearby.position.x, nearby.position.z) + 0.1, nearby.position.z);
         (highlightRing.material as THREE.MeshBasicMaterial).color.setHex(nearby.type === "loot" ? 0xffd700 : 0x00ff88);
       }
     } else {

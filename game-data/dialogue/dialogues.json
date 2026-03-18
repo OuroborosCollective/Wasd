@@ -411,54 +411,51 @@
   },
   {
     "id": "dialogue_shopkeeper",
-    "greeting": "Welcome to my shop! Take a look around.",
+    "greeting": "Welcome! Take a look at my wares.",
     "nodes": {
       "root": {
-        "text": "Welcome, traveler! I have wares if you have coin. What can I do for you?",
+        "text": "Welcome to my shop! Let me know if you see anything you like.",
         "choices": [
           {
             "id": "shop_buy",
-            "text": "Show me what you have.",
-            "nextNodeId": "shop_menu"
+            "text": "I want to buy something.",
+            "nextNodeId": "buy"
           },
           {
             "id": "shop_sell",
-            "text": "I want to sell something.",
-            "nextNodeId": "sell_menu"
+            "text": "I have items to sell.",
+            "nextNodeId": "sell"
           },
           {
-            "id": "shop_leave",
-            "text": "Just browsing. Goodbye.",
-            "nextNodeId": "farewell"
+            "id": "shop_bye",
+            "text": "Just looking, thanks.",
+            "nextNodeId": "bye"
           }
         ]
       },
-      "shop_menu": {
-        "text": "Here are my finest goods! (Use the shop panel to buy items)",
-        "triggerShop": "general_store",
+      "buy": {
+        "text": "Feel free to browse my inventory.",
         "choices": [
           {
             "id": "shop_back",
-            "text": "Thanks!",
+            "text": "Back to main menu.",
             "nextNodeId": "root"
           }
         ]
       },
-      "sell_menu": {
-        "text": "I will buy anything useful. Just drop items near me and I will pay you.",
+      "sell": {
+        "text": "Show me what you have.",
         "choices": [
           {
-            "id": "sell_back",
-            "text": "Alright.",
+            "id": "shop_back2",
+            "text": "Back to main menu.",
             "nextNodeId": "root"
           }
         ]
       },
-      "farewell": {
-        "text": "Come back anytime!",
-        "choices": []
+      "bye": {
+        "text": "Come back anytime!"
       }
-    },
-    "fallback": "Come back if you need anything!"
+    }
   }
 ]

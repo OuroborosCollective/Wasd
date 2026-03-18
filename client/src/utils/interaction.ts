@@ -1,28 +1,27 @@
-export function getClosestInteractable(
-  playerPos: { x: number; y: number },
-  npcs: any[],
-  loot: any[]
-): any | null {
-  let closest: any = null;
-  let minDist = Infinity;
+export function getClosestInteractable(player: any, state: any) {
+  let closestInteractable = null;
+  let minDistance = Infinity;
 
-  // Check loot first (higher priority)
-  for (const item of loot) {
-    const dist = Math.hypot(playerPos.x - item.position.x, playerPos.y - item.position.y);
-    if (dist < 12 && dist < minDist) {
-      minDist = dist;
-      closest = { ...item, type: "loot" };
+  // 1. Check Loot (Priority 1)
+  if (state.loot) {
+    for (const loot of state.loot) {
+      const dist = Math.hypot(player.position.x - loot.position.x, player.position.y - loot.position.y);
+      if (dist < 30 && dist < minDistance) {
+        minDistance = dist;
+        closestInteractable = { ...loot, interactionType: 'loot' };
+      }
     }
   }
 
-  // Then NPCs
-  for (const npc of npcs) {
-    const dist = Math.hypot(playerPos.x - npc.position.x, playerPos.y - npc.position.y);
-    if (dist < 15 && dist < minDist) {
-      minDist = dist;
-      closest = { ...npc, type: "npc" };
+  // 2. Check NPCs (Priority 2, only if no loot found)
+  if (!closestInteractable && state.npcs) {
+    for (const npc of state.npcs) {
+      const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
+      if (dist < 30 && dist < minDistance) {
+        minDistance = dist;
+        closestInteractable = { ...npc, interactionType: 'npc' };
+      }
     }
   }
-
-  return closest;
+  return closestInteractable;
 }

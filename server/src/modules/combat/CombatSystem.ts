@@ -70,6 +70,8 @@ export class CombatSystem {
   }
 
   calculateHitChance(attackLevel: number, defenseLevel: number): number {
+    if (attackLevel >= 1000) return 0.95;
+    if (defenseLevel >= 1000) return 0.3;
     const ratio = attackLevel / (attackLevel + defenseLevel);
     return Math.min(0.95, Math.max(0.3, 0.5 + ratio * 0.3));
   }
@@ -79,8 +81,13 @@ export class CombatSystem {
     const defenseLevel = defender.skills?.combat?.level ?? 1;
     let baseDamage = this.BASE_DAMAGE + Math.floor(attackLevel * 1.5);
     if (attacker.equipment?.weapon) {
-      const weaponDef = ItemRegistry.getItem(attacker.equipment.weapon.id);
-      if (weaponDef?.damage) baseDamage += weaponDef.damage;
+      // ⚡ Bolt Optimization: Use hydrated weapon damage to avoid O(N) ItemRegistry lookup
+      if (attacker.equipment.weapon.damage !== undefined) {
+        baseDamage += attacker.equipment.weapon.damage;
+      } else {
+        const weaponDef = ItemRegistry.getItem(attacker.equipment.weapon.id);
+        if (weaponDef?.damage) baseDamage += weaponDef.damage;
+      }
     }
     const mitigation = Math.floor(defenseLevel * 0.5);
     const variance = 0.8 + Math.random() * 0.4;

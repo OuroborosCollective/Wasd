@@ -8,6 +8,7 @@
 import { Router, Request, Response } from 'express';
 import { characterAssembly, CharacterAppearance } from '../modules/character/CharacterAssemblySystem.js';
 import { db } from '../core/Database.js';
+import { authMiddleware } from '../middleware/authMiddleware.js';
 
 const router = Router();
 
@@ -40,9 +41,15 @@ router.get('/:playerId', async (req: Request, res: Response) => {
 });
 
 /** POST /api/character/:playerId */
-router.post('/:playerId', async (req: Request, res: Response) => {
+router.post('/:playerId', authMiddleware, async (req: Request, res: Response) => {
   try {
     const playerId = Array.isArray(req.params.playerId) ? req.params.playerId[0] : req.params.playerId;
+    const authPlayerId = (req as any).playerId;
+
+    if (authPlayerId !== playerId) {
+      return res.status(403).json({ error: 'You can only update your own character.' });
+    }
+
     const raw = req.body as Partial<CharacterAppearance>;
 
     // Validate and sanitize

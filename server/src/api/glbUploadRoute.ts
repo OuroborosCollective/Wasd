@@ -1,3 +1,6 @@
+// @ts-ignore
+import gltfValidatorPkg from 'gltf-validator';
+const validator = gltfValidatorPkg;
 /**
  * GLB Upload Routes for Areloria MMORPG
  * POST /api/glb/upload          – Upload a GLB model (requires subscription)
@@ -17,6 +20,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from "uuid";
+import { authMiddleware } from "../middleware/authMiddleware.js";
 import { db as dbInstance } from "../core/Database.js";
 type Database = typeof dbInstance;
 
@@ -92,13 +96,25 @@ export function createGLBUploadRouter(dbParam?: any): Router {
   }
 
   // ── Upload GLB ─────────────────────────────────────────────────────────────
-  router.post("/upload", requireGLBSubscription, upload.single("model"), async (req: Request, res: Response) => {
+  router.post("/upload", authMiddleware, requireGLBSubscription, upload.single("model"), async (req: Request, res: Response) => {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
     const playerId = (req as any).playerId;
     const modelName = req.body.name || path.basename(req.file.originalname, path.extname(req.file.originalname));
     const modelId = uuidv4();
     const publicPath = `/uploads/glb/${req.file.filename}`;
+
+    // Validate file content
+    try {
+      const asset = fs.readFileSync(req.file.path);
+      const report = await validator.validateBytes(new Uint8Array(asset), { maxIssues: 10, ignoredIssues: ['UNSUPPORTED_EXTENSION'] });
+      if (report.issues.numErrors > 0) {
+        throw new Error("Invalid GLB/GLTF file content");
+      }
+    } catch (e: any) {
+      fs.unlinkSync(req.file.path);
+      return res.status(400).json({ error: e.message || "Invalid GLB/GLTF file content" });
+    }
 
     try {
       // Check model count limit
@@ -150,8 +166,8 @@ export function createGLBUploadRouter(dbParam?: any): Router {
   });
 
   // ── List My Models ─────────────────────────────────────────────────────────
-  router.get("/my-models", async (req: Request, res: Response) => {
-    const playerId = req.headers["x-player-id"] as string;
+  router.get("/my-models", authMiddleware, async (req: Request, res: Response) => {
+    const playerId = (req as any).playerId;
     if (!playerId) return res.status(401).json({ error: "Player ID required" });
 
     try {
@@ -167,8 +183,8 @@ export function createGLBUploadRouter(dbParam?: any): Router {
   });
 
   // ── Delete Model ───────────────────────────────────────────────────────────
-  router.delete("/:modelId", async (req: Request, res: Response) => {
-    const playerId = req.headers["x-player-id"] as string;
+  router.delete("/:modelId", authMiddleware, async (req: Request, res: Response) => {
+    const playerId = (req as any).playerId;
     const { modelId } = req.params;
     if (!playerId) return res.status(401).json({ error: "Player ID required" });
 
@@ -188,7 +204,7 @@ export function createGLBUploadRouter(dbParam?: any): Router {
   });
 
   // ── Place Model on Land ────────────────────────────────────────────────────
-  router.post("/place", requireGLBSubscription, async (req: Request, res: Response) => {
+  router.post("/place", authMiddleware, requireGLBSubscription, async (req: Request, res: Response) => {
     const playerId = (req as any).playerId;
     const { modelId, x, y, z, rotY, scale, landId } = req.body;
     if (!modelId) return res.status(400).json({ error: "modelId required" });
@@ -237,8 +253,8 @@ export function createGLBUploadRouter(dbParam?: any): Router {
   });
 
   // ── Remove Placed Model ────────────────────────────────────────────────────
-  router.delete("/place/:placeId", async (req: Request, res: Response) => {
-    const playerId = req.headers["x-player-id"] as string;
+  router.delete("/place/:placeId", authMiddleware, async (req: Request, res: Response) => {
+    const playerId = (req as any).playerId;
     const { placeId } = req.params;
     if (!playerId) return res.status(401).json({ error: "Player ID required" });
 
@@ -272,7 +288,7 @@ export function createGLBUploadRouter(dbParam?: any): Router {
   });
 
   // ── List on Marketplace ────────────────────────────────────────────────────
-  router.post("/marketplace/list", requireGLBSubscription, async (req: Request, res: Response) => {
+  router.post("/marketplace/list", authMiddleware, requireGLBSubscription, async (req: Request, res: Response) => {
     const playerId = (req as any).playerId;
     const { modelId, price } = req.body;
     if (!modelId || !price) return res.status(400).json({ error: "modelId and price required" });
@@ -291,8 +307,8 @@ export function createGLBUploadRouter(dbParam?: any): Router {
   });
 
   // ── Buy from Marketplace ───────────────────────────────────────────────────
-  router.post("/marketplace/buy", async (req: Request, res: Response) => {
-    const buyerId = req.headers["x-player-id"] as string;
+  router.post("/marketplace/buy", authMiddleware, async (req: Request, res: Response) => {
+    const buyerId = (req as any).playerId;
     const { modelId } = req.body;
     if (!buyerId || !modelId) return res.status(400).json({ error: "Buyer and modelId required" });
 
@@ -393,8 +409,8 @@ export function createGLBUploadRouter(dbParam?: any): Router {
   });
 
   // ── Check Subscription Status ──────────────────────────────────────────────
-  router.get("/subscription-status", async (req: Request, res: Response) => {
-    const playerId = req.headers["x-player-id"] as string;
+  router.get("/subscription-status", authMiddleware, async (req: Request, res: Response) => {
+    const playerId = (req as any).playerId;
     if (!playerId) return res.status(401).json({ error: "Player ID required" });
 
     try {

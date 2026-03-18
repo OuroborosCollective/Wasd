@@ -17,18 +17,22 @@ export class CraftingSystem {
   private recipes: Map<string, Recipe> = new Map();
 
   constructor() {
-    this.loadRecipes();
   }
 
-  private loadRecipes() {
+  async loadRecipes() {
     try {
       const recipesPath = path.resolve(process.cwd(), "game-data/crafting/recipes.json");
-      if (fs.existsSync(recipesPath)) {
-        const data = JSON.parse(fs.readFileSync(recipesPath, "utf-8"));
+      try {
+        const fileContent = await fs.promises.readFile(recipesPath, "utf-8");
+        const data = JSON.parse(fileContent);
         if (Array.isArray(data)) {
           data.forEach((r: Recipe) => this.recipes.set(r.id, r));
         } else if (data.recipes) {
           data.recipes.forEach((r: Recipe) => this.recipes.set(r.id, r));
+        }
+      } catch (err: any) {
+        if (err.code !== 'ENOENT') {
+          throw err;
         }
       }
     } catch (e) {
@@ -54,17 +58,33 @@ export class CraftingSystem {
     return Array.from(this.recipes.values());
   }
 
+  addRecipe(recipe: Recipe) {
+    this.recipes.set(recipe.id, recipe);
+  }
+
   canCraft(player: any, recipeId: string): { possible: boolean; reason?: string } {
     const recipe = this.recipes.get(recipeId);
     if (!recipe) return { possible: false, reason: "Recipe not found" };
     if (recipe.requiredSkill && recipe.requiredLevel) {
+      if (!player.skills || !player.skills[recipe.requiredSkill]) {
+        return { possible: false, reason: `Need ${recipe.requiredSkill} level ${recipe.requiredLevel}` };
+      }
       const level = player.skills?.[recipe.requiredSkill]?.level ?? 1;
       if (level < recipe.requiredLevel) {
         return { possible: false, reason: `Need ${recipe.requiredSkill} level ${recipe.requiredLevel}` };
       }
     }
+    // Optimization: Use a frequency map for O(N) inventory check instead of O(I*N)
+    const inventory = player.inventory || [];
+    const itemCounts = new Map<string, number>();
+    for (const item of inventory) {
+      const id = item.id;
+      const current = itemCounts.get(id) || 0;
+      itemCounts.set(id, current + 1);
+    }
+
     for (const ing of recipe.ingredients) {
-      const count = (player.inventory || []).filter((i: any) => i.id === ing.itemId).length;
+      const count = itemCounts.get(ing.itemId) || 0;
       if (count < ing.count) {
         const itemDef = ItemRegistry.getItem(ing.itemId);
         return { possible: false, reason: `Need ${ing.count}x ${itemDef?.name || ing.itemId}` };

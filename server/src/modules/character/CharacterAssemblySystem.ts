@@ -51,6 +51,11 @@ const DEFAULT_APPEARANCE: CharacterAppearance = {
 export class CharacterAssemblySystem {
   private manifest: CharacterManifest | null = null;
   private manifestPath: string;
+  // Optimization: Maps for O(1) lookups instead of array iteration
+  private headsMap: Map<string, any> = new Map();
+  private skinTonesMap: Map<string, any> = new Map();
+  private hairColorsMap: Map<string, any> = new Map();
+  private eyeColorsMap: Map<string, any> = new Map();
 
   constructor() {
     // __dirname is dist/modules/character/ so we go up 3 levels to server root, then into public
@@ -65,6 +70,38 @@ export class CharacterAssemblySystem {
     try {
       const raw = fs.readFileSync(this.manifestPath, 'utf-8');
       this.manifest = JSON.parse(raw) as CharacterManifest;
+
+      // Populate optimization maps
+      this.headsMap.clear();
+      if (this.manifest.heads) {
+        for (const gender in this.manifest.heads) {
+          for (const head of this.manifest.heads[gender]) {
+            this.headsMap.set(`${gender}:${(head as any).id}`, head);
+          }
+        }
+      }
+
+      this.skinTonesMap.clear();
+      if (this.manifest.skinTones) {
+        for (const s of this.manifest.skinTones) {
+          this.skinTonesMap.set((s as any).id, s);
+        }
+      }
+
+      this.hairColorsMap.clear();
+      if (this.manifest.hairColors) {
+        for (const h of this.manifest.hairColors) {
+          this.hairColorsMap.set((h as any).id, h);
+        }
+      }
+
+      this.eyeColorsMap.clear();
+      if (this.manifest.eyeColors) {
+        for (const e of this.manifest.eyeColors) {
+          this.eyeColorsMap.set((e as any).id, e);
+        }
+      }
+
       console.log('CharacterAssemblySystem: Manifest loaded successfully.');
     } catch (err) {
       console.warn('CharacterAssemblySystem: Could not load manifest, using defaults.', err);
@@ -95,26 +132,23 @@ export class CharacterAssemblySystem {
       }
 
       // Validate head
-      const validHeads = (manifest.heads[appearance.gender] as Array<{ id: string }>) || [];
-      if (!validHeads.find(h => h.id === appearance.headId)) {
+      if (!this.headsMap.has(`${appearance.gender}:${appearance.headId}`)) {
+        const validHeads = (manifest.heads[appearance.gender] as Array<{ id: string }>) || [];
         appearance.headId = validHeads[0]?.id ?? 'head_male_1';
       }
 
       // Validate skin tone
-      const validSkins = (manifest.skinTones as Array<{ id: string }>).map(s => s.id);
-      if (!validSkins.includes(appearance.skinToneId)) {
+      if (!this.skinTonesMap.has(appearance.skinToneId)) {
         appearance.skinToneId = 'skin_medium';
       }
 
       // Validate hair color
-      const validHair = (manifest.hairColors as Array<{ id: string }>).map(h => h.id);
-      if (!validHair.includes(appearance.hairColorId)) {
+      if (!this.hairColorsMap.has(appearance.hairColorId)) {
         appearance.hairColorId = 'hair_brown';
       }
 
       // Validate eye color
-      const validEyes = (manifest.eyeColors as Array<{ id: string }>).map(e => e.id);
-      if (!validEyes.includes(appearance.eyeColorId)) {
+      if (!this.eyeColorsMap.has(appearance.eyeColorId)) {
         appearance.eyeColorId = 'eye_brown';
       }
     }
@@ -147,20 +181,13 @@ export class CharacterAssemblySystem {
       const body = (manifest.bodies as Record<string, { file: string }>)[appearance.gender];
       if (body) bodyUrl = body.file;
 
-      const heads = (manifest.heads[appearance.gender] as Array<{ id: string; file: string }>) || [];
-      const head = heads.find(h => h.id === appearance.headId);
+      const head = this.headsMap.get(`${appearance.gender}:${appearance.headId}`);
       if (head) headUrl = head.file;
     }
 
-    const skinTone = manifest
-      ? (manifest.skinTones as Array<{ id: string; color: string }>).find(s => s.id === appearance.skinToneId)
-      : null;
-    const hairColor = manifest
-      ? (manifest.hairColors as Array<{ id: string; color: string }>).find(h => h.id === appearance.hairColorId)
-      : null;
-    const eyeColor = manifest
-      ? (manifest.eyeColors as Array<{ id: string; color: string }>).find(e => e.id === appearance.eyeColorId)
-      : null;
+    const skinTone = this.skinTonesMap.get(appearance.skinToneId);
+    const hairColor = this.hairColorsMap.get(appearance.hairColorId);
+    const eyeColor = this.eyeColorsMap.get(appearance.eyeColorId);
 
     return {
       bodyUrl,

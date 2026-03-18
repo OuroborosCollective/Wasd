@@ -1,7 +1,7 @@
 import { initRenderer, setJoystickMoveCallback } from "./engine/renderer";
 import { connectSocket, sendMessage, triggerAttack, triggerInteract } from "./networking/websocketClient";
 import { renderHUD } from "./ui/hud";
-import { renderAuthUI, renderLogoutBtn } from "./ui/auth";
+import { renderAuthUI, renderLogoutBtn, getAuthToken } from "./ui/auth";
 import { toggleGMPanel } from "./ui/gmPanel";
 import { initShopPanel, toggleShop } from "./ui/shopPanel";
 import { initGLBManager, toggleGLBManager } from "./ui/glbManager";
@@ -33,11 +33,14 @@ let gameInitialized = false;
 let currentPlayerId = "";
 let currentPlayerName = "";
 
-renderAuthUI((displayName: string, uid?: string) => {
+const handleAuthComplete = (displayName: string, uid?: string) => {
   if (!gameInitialized) {
     gameInitialized = true;
     currentPlayerName = displayName;
     currentPlayerId = uid || displayName;
+    
+    // Update loading screen
+    (window as any).loadingScreen?.setStatus('Connecting to server...');
 
     // ── Mobile control callbacks ─────────────────────────────────────────────
     const mobileCallbacks = {
@@ -57,10 +60,17 @@ renderAuthUI((displayName: string, uid?: string) => {
     };
 
     // ── Initialize renderer ──────────────────────────────────────────────────
+    (window as any).loadingScreen?.setStatus('Initializing renderer...');
     initRenderer(canvas, displayName, mobileCallbacks);
 
     // ── Connect WebSocket ────────────────────────────────────────────────────
+    (window as any).loadingScreen?.setStatus('Connecting to game server...');
     connectSocket(displayName);
+    
+    // Hide loading screen after a short delay to ensure connection
+    setTimeout(() => {
+      (window as any).loadingScreen?.hide();
+    }, 1000);
 
     // ── Joystick → move_intent ───────────────────────────────────────────────
     setJoystickMoveCallback((dx: number, dy: number) => {
@@ -154,7 +164,7 @@ renderAuthUI((displayName: string, uid?: string) => {
     const refreshEnergy = async () => {
       try {
         const res = await fetch("/api/player/balance", {
-          headers: { "x-player-id": currentPlayerId }
+          headers: { "Authorization": `Bearer ${await getAuthToken()}` }
         });
         const data = await res.json();
         const el = document.getElementById("top-energy-amount");
@@ -187,7 +197,7 @@ renderAuthUI((displayName: string, uid?: string) => {
       try {
         const res = await fetch("/api/land/claim", {
           method: "POST",
-          headers: { "Content-Type": "application/json", "x-player-id": currentPlayerId },
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${await getAuthToken()}` },
           body: JSON.stringify({ x: pos.x, y: pos.z, name }),
         });
         const data = await res.json();
@@ -226,4 +236,20 @@ renderAuthUI((displayName: string, uid?: string) => {
     // ── Expose player position for land system ────────────────────────────────
     (window as any).__playerPosition = { x: 0, y: 0, z: 0 };
   }
-});
+};
+
+// Try to render auth UI
+try {
+  renderAuthUI(handleAuthComplete);
+} catch (e) {
+  console.error('[ERROR] Auth UI failed:', e);
+}
+
+// Emergency fallback: auto-login as guest after 2 seconds if auth UI doesn't respond
+setTimeout(() => {
+  if (!gameInitialized) {
+    console.warn('[EMERGENCY] Auth UI timeout - auto-logging in as guest');
+    const guestName = 'Guest_' + Math.random().toString(36).substring(2, 8);
+    handleAuthComplete(guestName, guestName);
+  }
+}, 2000);

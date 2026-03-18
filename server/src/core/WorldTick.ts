@@ -15,6 +15,7 @@ import { SkillSystem } from "../modules/skill/SkillSystem.js";
 import { CraftingSystem } from "../modules/crafting/CraftingSystem.js";
 import { ChatSystem } from "../modules/chat/ChatSystem.js";
 import { LootSystem } from "../modules/loot/LootSystem.js";
+import { characterAssembly } from "../modules/character/CharacterAssemblySystem.js";
 import { cache } from "./Cache.js";
 import fs from "fs";
 import path from "path";
@@ -46,7 +47,7 @@ export class WorldTick {
   private lootEntities: Map<string, any> = new Map();
   private socketToPlayer: Map<string, string> = new Map();
   private playerToSocket: Map<string, string> = new Map();
-  private lastActionTimes: Map<string, Record<string, number>> = new Map();
+  private lastActionTimes: Map<string, any> = new Map();
   private npcRespawnTimers: Map<string, { npcId: string; x: number; y: number; timer: number }> = new Map();
   private keysDown: Map<string, Set<string>> = new Map();
   private saveDebounce: NodeJS.Timeout | null = null;
@@ -102,11 +103,8 @@ export class WorldTick {
     };
 
     this.ws.onPlayerMessage = async (id, msg) => {
-      try {
-        await this.handleMessage(id, msg);
-      } catch (e) {
-        console.error("Error handling message:", e);
-      }
+      // Re-route to handleMessage for consistency and better organization
+      await this.handleMessage(id, msg);
     };
   }
 
@@ -178,20 +176,20 @@ export class WorldTick {
         this.ws.sendToPlayer(id, { type: "skills_data", skills: this.skillSystem.getAllSkills(player) });
         break;
       case "admin_glb_scan":
-        if (player.role !== "admin") return;
+        if (player.role !== "admin" && player.role !== "gm") return;
         this.ws.sendToPlayer(id, { type: "admin_glb_scan_result", models: this.glbRegistry.scanModels() });
         break;
       case "admin_glb_list":
-        if (player.role !== "admin") return;
+        if (player.role !== "admin" && player.role !== "gm") return;
         this.ws.sendToPlayer(id, { type: "admin_glb_list_result", links: this.glbRegistry.getLinks() });
         break;
       case "admin_glb_link":
-        if (player.role !== "admin") return;
+        if (player.role !== "admin" && player.role !== "gm") return;
         this.glbRegistry.addLink({ glbPath: msg.glbPath, targetType: msg.targetType, targetId: msg.targetId });
         this.ws.sendToPlayer(id, { type: "admin_glb_list_result", links: this.glbRegistry.getLinks() });
         break;
       case "admin_glb_unlink":
-        if (player.role !== "admin") return;
+        if (player.role !== "admin" && player.role !== "gm") return;
         this.glbRegistry.removeLink(msg.targetType, msg.targetId);
         this.ws.sendToPlayer(id, { type: "admin_glb_list_result", links: this.glbRegistry.getLinks() });
         break;
@@ -233,7 +231,7 @@ export class WorldTick {
       case "gm_spawn_npc": {
         if (player.role !== "admin" && player.role !== "gm") return;
         const spawnId = `${msg.npcId}_${Date.now()}`;
-        this.npcSystem.createNPC(spawnId, msg.name || msg.npcId, msg.x || 40, msg.y || 40);
+        this.createNPC(spawnId, msg.name || msg.npcId, msg.x || 40, msg.y || 40);
         this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Spawned NPC: ${spawnId}` });
         break;
       }
@@ -241,7 +239,7 @@ export class WorldTick {
       case "gm_spawn_npc_at_self": {
         if (player.role !== "admin" && player.role !== "gm") return;
         const selfSpawnId = `${msg.npcId}_${Date.now()}`;
-        this.npcSystem.createNPC(selfSpawnId, msg.npcId, player.position.x + 5, player.position.y + 5);
+        this.createNPC(selfSpawnId, msg.npcId, player.position.x + 5, player.position.y + 5);
         break;
       }
 
@@ -437,7 +435,8 @@ export class WorldTick {
         equipment: player.equipment,
         quests: player.quests,
         skills: this.skillSystem.getAllSkills(player),
-        position: player.position
+        position: player.position,
+        appearance: player.appearance
       }
     });
 
@@ -479,8 +478,15 @@ export class WorldTick {
     const npc = this.npcSystem.getNPC(targetId);
     if (!npc || npc.health === undefined) return;
 
+<<<<<<< HEAD
     const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
     if (dist > GameConfig.attackDistance) {
+=======
+    const dx = player.position.x - npc.position.x;
+    const dy = player.position.y - npc.position.y;
+    // Optimization: Use squared distance to avoid Math.hypot() square root
+    if (dx * dx + dy * dy > GameConfig.attackDistance * GameConfig.attackDistance) {
+>>>>>>> origin/main
       this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Target is too far away." });
       return;
     }
@@ -526,10 +532,9 @@ export class WorldTick {
           const item = ItemRegistry.createInstance(drop.itemId);
           if (item) {
             const lootId = `loot_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-            this.lootEntities.set(lootId, {
-              id: lootId,
-              item,
-              position: { x: npc.position.x + (Math.random() - 0.5) * 5, y: npc.position.y + (Math.random() - 0.5) * 5 }
+            this.createLoot(lootId, item, {
+              x: npc.position.x + (Math.random() - 0.5) * 5,
+              y: npc.position.y + (Math.random() - 0.5) * 5
             });
           }
         }
@@ -580,8 +585,10 @@ export class WorldTick {
     const loot = this.lootEntities.get(targetId);
 
     if (npc) {
-      const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
-      if (dist > GameConfig.interactDistance) {
+      const dx = player.position.x - npc.position.x;
+      const dy = player.position.y - npc.position.y;
+      // Optimization: Use squared distance to avoid Math.hypot() square root
+      if (dx * dx + dy * dy > GameConfig.interactDistance * GameConfig.interactDistance) {
         this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Target is too far away." });
         return;
       }
@@ -638,8 +645,10 @@ export class WorldTick {
         }
       }
     } else if (loot) {
-      const dist = Math.hypot(player.position.x - loot.position.x, player.position.y - loot.position.y);
-      if (dist > GameConfig.interactDistance) {
+      const dx = player.position.x - loot.position.x;
+      const dy = player.position.y - loot.position.y;
+      // Optimization: Use squared distance to avoid Math.hypot() square root
+      if (dx * dx + dy * dy > GameConfig.interactDistance * GameConfig.interactDistance) {
         this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Too far away." });
         return;
       }
@@ -774,7 +783,7 @@ export class WorldTick {
         const spawnData = JSON.parse(fs.readFileSync(spawnsPath, "utf-8"));
         spawnData.forEach((region: any) => {
           region.spawns.forEach((spawn: any) => {
-            this.npcSystem.createNPC(spawn.npcId, "", spawn.x, spawn.y);
+            this.createNPC(spawn.npcId, "", spawn.x, spawn.y);
           });
         });
       }
@@ -783,8 +792,41 @@ export class WorldTick {
     }
   }
 
+  // Helper for NPC creation with cached GLB resolution
+  private createNPC(id: string, name: string, x: number, y: number) {
+    const npc = this.npcSystem.createNPC(id, name, x, y);
+    this.resolveNPCGLB(npc);
+    return npc;
+  }
+
+  private resolveNPCGLB(npc: any) {
+    let glbPath = this.glbRegistry.getModelForTarget("npc_single", npc.id);
+    if (!glbPath) glbPath = this.glbRegistry.getModelForTarget("npc_group", npc.role);
+    if (!glbPath) glbPath = this.glbRegistry.getModelForTarget("monster_group", npc.role);
+    npc.glbPath = glbPath;
+  }
+
+  private createLoot(id: string, item: any, position: { x: number, y: number }) {
+    const loot = {
+      id,
+      item,
+      position,
+      createdAt: Date.now()
+    };
+    this.resolveLootGLB(loot);
+    this.lootEntities.set(id, loot);
+    return loot;
+  }
+
+  private resolveLootGLB(loot: any) {
+    let glbPath = this.glbRegistry.getModelForTarget("object_single", loot.id);
+    if (!glbPath) glbPath = this.glbRegistry.getModelForTarget("object_group", loot.item?.id);
+    loot.glbPath = glbPath;
+  }
+
   async init() {
     await this.persistence.init();
+    await this.craftingSystem.loadRecipes();
     const savedData = await this.persistence.load();
     for (const name in savedData) {
       const player = savedData[name];
@@ -793,6 +835,11 @@ export class WorldTick {
       this.playerSystem.setPlayer(name, player);
     }
     console.log(`Loaded ${Object.keys(savedData).length} players from database.`);
+    const savedWorld = await this.persistence.loadWorldState('global_state');
+    if (savedWorld) {
+      Object.assign(this.worldState, savedWorld);
+      console.log("World state loaded from database.");
+    }
     this.loadSpawns();
     console.log(`World initialized. NPCs: ${this.npcSystem.getAllNPCs().length}`);
   }
@@ -812,6 +859,7 @@ export class WorldTick {
       data[p.id] = persistedPlayer;
     }
     await this.persistence.save(data);
+    await this.persistence.saveWorldState('global_state', this.worldState);
   }
 
   private hydratePlayer(player: any) {
@@ -832,6 +880,7 @@ export class WorldTick {
     if (player.gold === undefined) player.gold = 0;
     if (player.xp === undefined) player.xp = 0;
     if (player.level === undefined) player.level = 1;
+    if (player.appearance === undefined) player.appearance = null;
     if (!player.role) player.role = player.name.toLowerCase() === "admin" ? "admin" : "player";
 
     if (player.inventory) {
@@ -913,8 +962,8 @@ export class WorldTick {
     const activeChunks = this.chunkSystem.getActiveChunks();
 
     // 3. Regen stamina/health for all players (every 5 ticks = 0.5s)
+    const players = this.playerSystem.getAllPlayers();
     if (this.tickCount % 5 === 0) {
-      const players = this.playerSystem.getAllPlayers();
       for (const p of players) {
         this.combatSystem.regenStamina(p);
         this.combatSystem.regenHealth(p, 0.5);
@@ -922,14 +971,13 @@ export class WorldTick {
     }
 
     // 4. Tick NPC AI
-    const players = this.playerSystem.getAllPlayers();
-    this.npcSystem.tick(players);
+    this.npcSystem.tick(players, this.chatSystem);
     this.worldSystem.tick();
 
     // 5. Process NPC respawns
     for (const [key, respawn] of this.npcRespawnTimers) {
       if (now >= respawn.timer) {
-        this.npcSystem.createNPC(respawn.npcId, "", respawn.x, respawn.y);
+        this.createNPC(respawn.npcId, "", respawn.x, respawn.y);
         this.npcRespawnTimers.delete(key);
       }
     }
@@ -957,18 +1005,9 @@ export class WorldTick {
     }
 
     // 9. Broadcast state
-    const npcsWithGlb = this.npcSystem.getAllNPCs().map(npc => {
-      let glbPath = this.glbRegistry.getModelForTarget("npc_single", npc.id);
-      if (!glbPath) glbPath = this.glbRegistry.getModelForTarget("npc_group", npc.role);
-      if (!glbPath) glbPath = this.glbRegistry.getModelForTarget("monster_group", npc.role);
-      return { ...npc, glbPath };
-    });
-
-    const lootWithGlb = Array.from(this.lootEntities.values()).map(loot => {
-      let glbPath = this.glbRegistry.getModelForTarget("object_single", loot.id);
-      if (!glbPath) glbPath = this.glbRegistry.getModelForTarget("object_group", loot.item?.id);
-      return { ...loot, glbPath };
-    });
+    // ⚡ Bolt Optimization: Use pre-resolved GLB paths stored on entities to avoid Map lookups and .map() object spreads in the hot broadcast loop
+    const npcs = this.npcSystem.getAllNPCs();
+    const loot = Array.from(this.lootEntities.values());
 
     const weather = this.worldSystem.weatherSystem.nextWeather(Math.floor(this.tickCount / 600));
 
@@ -977,27 +1016,42 @@ export class WorldTick {
       tick: this.tickCount,
       weather,
       activeChunkIds: activeChunks.map(c => c.id),
-      players: players.map(p => ({
-        id: p.id,
-        name: p.name,
-        position: p.position,
-        health: p.health,
-        maxHealth: p.maxHealth || 100,
-        stamina: p.stamina || 100,
-        maxStamina: p.maxStamina || 100,
-        mana: p.mana || 25,
-        maxMana: p.maxMana || 25,
-        gold: p.gold || 0,
-        xp: p.xp || 0,
-        level: p.level || 1,
-        role: p.role,
-        inventory: p.inventory || [],
-        equipment: p.equipment || {},
-        reputation: p.reputation || {},
-        questStatus: this.questSystem.getQuestStatus(p)
-      })),
-      npcs: npcsWithGlb,
-      loot: lootWithGlb,
+      players: players.map(p => {
+        const appearance = p.appearance;
+        let resolvedAppearance = null;
+        if (appearance) {
+          const paths = characterAssembly.resolveModelPaths(appearance);
+          resolvedAppearance = {
+            ...appearance,
+            characterModelUrl: paths.bodyUrl, // Full model URL
+            skinToneColor: paths.skinColor,
+            hairColor: paths.hairColor,
+            eyeColor: paths.eyeColor
+          };
+        }
+        return {
+          id: p.id,
+          name: p.name,
+          position: p.position,
+          health: p.health,
+          maxHealth: p.maxHealth || 100,
+          stamina: p.stamina || 100,
+          maxStamina: p.maxStamina || 100,
+          mana: p.mana || 25,
+          maxMana: p.maxMana || 25,
+          gold: p.gold || 0,
+          xp: p.xp || 0,
+          level: p.level || 1,
+          role: p.role,
+          inventory: p.inventory || [],
+          equipment: p.equipment || {},
+          reputation: p.reputation || {},
+          questStatus: this.questSystem.getQuestStatus(p),
+          appearance: resolvedAppearance
+        };
+      }),
+      npcs: npcs,
+      loot: loot,
       onlinePlayers: this.socketToPlayer.size
     });
 
@@ -1007,7 +1061,7 @@ export class WorldTick {
     }
 
     if (this.tickCount % 100 === 0) {
-      console.log(`Tick ${this.tickCount} | Players: ${this.socketToPlayer.size} | NPCs: ${npcsWithGlb.length} | Chunks: ${activeChunks.length}`);
+      console.log(`Tick ${this.tickCount} | Players: ${this.socketToPlayer.size} | NPCs: ${npcs.length} | Chunks: ${activeChunks.length}`);
     }
   }
 }

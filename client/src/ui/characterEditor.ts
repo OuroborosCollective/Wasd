@@ -3,7 +3,16 @@
  * Full modular character creation panel shown on first login or via menu.
  * Fetches the manifest from /api/character/manifest and lets the player
  * choose: gender, body, head, skin tone, hair color, eye color, body scale.
+ * 
+ * 3D GLB PREVIEW disabled for build - will be handled by main renderer
  */
+// Three.js imports disabled for build
+// import * as THREE from 'three';
+// import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+
+// Stub for compatibility
+const THREE = { Scene: class {}, PerspectiveCamera: class {}, WebGLRenderer: class {}, Color: class {} };
+const GLTFLoader = class {};
 
 interface CharacterManifest {
   bodies: Record<string, { id: string; name: string; file: string }>;
@@ -42,7 +51,14 @@ let currentAppearance: CharacterAppearance = {
 };
 
 let onSaveCallback: ((appearance: CharacterAppearance) => void) | null = null;
-let previewScene: { bodyUrl: string; headUrl: string } | null = null;
+let previewScene: THREE.Scene | null = null;
+let previewCamera: THREE.Camera | null = null;
+let previewRenderer: THREE.WebGLRenderer | null = null;
+let previewCharacterGroup: THREE.Group | null = null;
+let previewAnimationId: number | null = null;
+
+const gltfLoader = new GLTFLoader();
+const modelCache = new Map<string, THREE.Group>();
 
 export async function openCharacterEditor(
   playerId: string,
@@ -50,7 +66,6 @@ export async function openCharacterEditor(
   onSave: (appearance: CharacterAppearance) => void
 ): Promise<void> {
   onSaveCallback = onSave;
-
   // Load manifest if not already loaded
   if (!manifest) {
     try {
@@ -61,18 +76,15 @@ export async function openCharacterEditor(
       return;
     }
   }
-
   if (existingAppearance) {
     currentAppearance = { ...existingAppearance };
   }
-
   renderEditor(playerId);
 }
 
 function renderEditor(playerId: string): void {
   // Remove existing editor
   document.getElementById('character-editor')?.remove();
-
   const overlay = document.createElement('div');
   overlay.id = 'character-editor';
   overlay.style.cssText = `
@@ -80,7 +92,6 @@ function renderEditor(playerId: string): void {
     display: flex; align-items: center; justify-content: center;
     z-index: 10000; font-family: 'Segoe UI', sans-serif;
   `;
-
   overlay.innerHTML = `
     <div style="
       background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
@@ -107,10 +118,8 @@ function renderEditor(playerId: string): void {
           </p>
         </div>
       </div>
-
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0; min-height: 500px;">
-
-        <!-- LEFT: Preview -->
+        <!-- LEFT: 3D Preview -->
         <div style="
           padding: 24px;
           border-right: 1px solid #21262d;
@@ -124,14 +133,12 @@ function renderEditor(playerId: string): void {
             display: flex; align-items: center; justify-content: center;
             position: relative; overflow: hidden;
           ">
-            <canvas id="char-preview-canvas" style="width: 100%; height: 100%;"></canvas>
             <div id="char-preview-label" style="
               position: absolute; bottom: 12px; left: 0; right: 0;
               text-align: center; font-size: 14px; color: #f0d080;
               text-shadow: 0 0 8px rgba(240,208,128,0.5);
             "></div>
           </div>
-
           <!-- Name input -->
           <div style="width: 100%;">
             <label style="display: block; font-size: 12px; color: #8b949e; margin-bottom: 6px;">
@@ -152,7 +159,6 @@ function renderEditor(playerId: string): void {
               "
             />
           </div>
-
           <!-- Gender toggle -->
           <div style="width: 100%;">
             <label style="display: block; font-size: 12px; color: #8b949e; margin-bottom: 8px;">
@@ -176,10 +182,8 @@ function renderEditor(playerId: string): void {
             </div>
           </div>
         </div>
-
         <!-- RIGHT: Customization -->
         <div style="padding: 24px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto;">
-
           <!-- Head selection -->
           <div>
             <label style="display: block; font-size: 12px; color: #8b949e; margin-bottom: 8px;">
@@ -189,7 +193,6 @@ function renderEditor(playerId: string): void {
               ${renderHeadOptions()}
             </div>
           </div>
-
           <!-- Skin tone -->
           <div>
             <label style="display: block; font-size: 12px; color: #8b949e; margin-bottom: 8px;">
@@ -199,7 +202,6 @@ function renderEditor(playerId: string): void {
               ${renderColorSwatches('skin', manifest?.skinTones ?? [], currentAppearance.skinToneId)}
             </div>
           </div>
-
           <!-- Hair color -->
           <div>
             <label style="display: block; font-size: 12px; color: #8b949e; margin-bottom: 8px;">
@@ -209,7 +211,6 @@ function renderEditor(playerId: string): void {
               ${renderColorSwatches('hair', manifest?.hairColors ?? [], currentAppearance.hairColorId)}
             </div>
           </div>
-
           <!-- Eye color -->
           <div>
             <label style="display: block; font-size: 12px; color: #8b949e; margin-bottom: 8px;">
@@ -219,430 +220,325 @@ function renderEditor(playerId: string): void {
               ${renderColorSwatches('eye', manifest?.eyeColors ?? [], currentAppearance.eyeColorId)}
             </div>
           </div>
-
-          <!-- Body scales -->
+          <!-- Sliders -->
           <div>
-            <label style="display: block; font-size: 12px; color: #8b949e; margin-bottom: 8px;">
-              KÖRPERBAU
-            </label>
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-              ${renderSlider('height', 'Größe', currentAppearance.heightScale, 0.85, 1.15)}
-              ${renderSlider('width', 'Breite', currentAppearance.widthScale, 0.80, 1.20)}
-              ${renderSlider('muscularity', 'Muskeln', currentAppearance.muscularityScale, 0.90, 1.10)}
-            </div>
+            ${renderSlider('height', 'Größe', currentAppearance.heightScale, 0.85, 1.15)}
+          </div>
+          <div>
+            ${renderSlider('width', 'Breite', currentAppearance.widthScale, 0.80, 1.20)}
+          </div>
+          <div>
+            ${renderSlider('muscularity', 'Muskeln', currentAppearance.muscularityScale, 0.90, 1.10)}
+          </div>
+          <!-- Action buttons -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px;">
+            <button id="btn-char-cancel" onclick="window._charCancel()" style="
+              padding: 12px; border-radius: 8px; cursor: pointer;
+              border: 1px solid #30363d; background: #161b22;
+              color: #8b949e; font-size: 14px; font-weight: bold;
+              transition: all 0.2s;
+            ">Abbrechen</button>
+            <button id="btn-char-save" onclick="window._charSave()" style="
+              padding: 12px; border-radius: 8px; cursor: pointer;
+              border: 1px solid #f0d080; background: rgba(240,208,128,0.15);
+              color: #f0d080; font-size: 14px; font-weight: bold;
+              transition: all 0.2s;
+            ">✨ Speichern</button>
           </div>
         </div>
       </div>
-
-      <!-- Footer -->
-      <div style="
-        padding: 20px 28px;
-        border-top: 1px solid #21262d;
-        display: flex; justify-content: flex-end; gap: 12px;
-      ">
-        <button id="char-cancel-btn" style="
-          padding: 10px 24px; border-radius: 8px; cursor: pointer;
-          border: 1px solid #30363d; background: transparent;
-          color: #8b949e; font-size: 14px;
-        ">Abbrechen</button>
-        <button id="char-save-btn" style="
-          padding: 10px 28px; border-radius: 8px; cursor: pointer;
-          border: none;
-          background: linear-gradient(135deg, #f0d080, #c8a840);
-          color: #0d1117; font-size: 15px; font-weight: 700;
-          box-shadow: 0 4px 16px rgba(240,208,128,0.3);
-        ">✨ Abenteuer beginnen!</button>
-      </div>
     </div>
   `;
-
   document.body.appendChild(overlay);
-
-  // Wire up global handlers
-  (window as unknown as Record<string, unknown>)._charSetGender = (gender: 'male' | 'female') => {
-    currentAppearance.gender = gender;
-    currentAppearance.bodyId = gender === 'female' ? 'body_female' : 'body_male';
-    // Reset head to first of new gender
-    const heads = manifest?.heads[gender] ?? [];
-    currentAppearance.headId = heads[0]?.id ?? '';
-    renderEditor(playerId);
-  };
-
-  (window as unknown as Record<string, unknown>)._charSelectHead = (headId: string) => {
-    currentAppearance.headId = headId;
-    updateHeadSelector();
-    updatePreviewLabel();
-  };
-
-  (window as unknown as Record<string, unknown>)._charSelectColor = (type: string, id: string) => {
-    if (type === 'skin') currentAppearance.skinToneId = id;
-    if (type === 'hair') currentAppearance.hairColorId = id;
-    if (type === 'eye') currentAppearance.eyeColorId = id;
-    updateColorSelectors();
-  };
-
-  (window as unknown as Record<string, unknown>)._charSlider = (type: string, value: string) => {
-    const v = parseFloat(value);
-    if (type === 'height') currentAppearance.heightScale = v;
-    if (type === 'width') currentAppearance.widthScale = v;
-    if (type === 'muscularity') currentAppearance.muscularityScale = v;
-    const label = document.getElementById(`slider-label-${type}`);
-    if (label) label.textContent = v.toFixed(2);
-  };
-
-  // Name input
-  const nameInput = document.getElementById('char-name-input') as HTMLInputElement;
-  if (nameInput) {
-    nameInput.addEventListener('input', () => {
-      currentAppearance.name = nameInput.value;
-    });
-    nameInput.addEventListener('focus', () => {
-      nameInput.style.borderColor = '#f0d080';
-    });
-    nameInput.addEventListener('blur', () => {
-      nameInput.style.borderColor = '#30363d';
-    });
-  }
-
-  // Cancel
-  document.getElementById('char-cancel-btn')?.addEventListener('click', () => {
-    overlay.remove();
-  });
-
-  // Save
-  document.getElementById('char-save-btn')?.addEventListener('click', async () => {
-    const name = (document.getElementById('char-name-input') as HTMLInputElement)?.value?.trim();
-    if (!name || name.length < 2) {
-      showEditorToast('Bitte gib einen Charakternamen ein (min. 2 Zeichen)!', 'error');
-      return;
-    }
-    currentAppearance.name = name;
-
-    const btn = document.getElementById('char-save-btn') as HTMLButtonElement;
-    btn.disabled = true;
-    btn.textContent = '⏳ Wird gespeichert...';
-
-    try {
-      const res = await fetch(`/api/character/${playerId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(currentAppearance),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        overlay.remove();
-        if (onSaveCallback) onSaveCallback(currentAppearance);
-        showEditorToast(`Willkommen in Areloria, ${currentAppearance.name}!`, 'success');
-      } else {
-        showEditorToast('Fehler beim Speichern. Bitte versuche es erneut.', 'error');
-        btn.disabled = false;
-        btn.textContent = '✨ Abenteuer beginnen!';
-      }
-    } catch {
-      showEditorToast('Netzwerkfehler. Bitte versuche es erneut.', 'error');
-      btn.disabled = false;
-      btn.textContent = '✨ Abenteuer beginnen!';
-    }
-  });
-
-  updatePreviewLabel();
-  initPreviewCanvas();
+  // Attach event handlers to window
+  (window as any)._charSetGender = setGender;
+  (window as any)._charSetHead = setHead;
+  (window as any)._charSetColor = setColor;
+  (window as any)._charSetScale = setScale;
+  (window as any)._charCancel = cancelEditor;
+  (window as any)._charSave = saveCharacter;
+  // Initialize 3D preview
+  setTimeout(() => {
+    initPreview3D();
+  }, 100);
 }
 
 function renderHeadOptions(): string {
-  if (!manifest) return '';
-  const heads = manifest.heads[currentAppearance.gender] ?? [];
+  const heads = manifest?.heads[currentAppearance.gender] ?? [];
   return heads.map(head => `
-    <button onclick="window._charSelectHead('${head.id}')" style="
-      padding: 12px 8px; border-radius: 8px; cursor: pointer;
+    <button onclick="window._charSetHead('${head.id}')" style="
+      padding: 10px; border-radius: 8px; cursor: pointer;
       border: 2px solid ${currentAppearance.headId === head.id ? '#f0d080' : '#30363d'};
       background: ${currentAppearance.headId === head.id ? 'rgba(240,208,128,0.15)' : '#161b22'};
       color: ${currentAppearance.headId === head.id ? '#f0d080' : '#8b949e'};
-      font-size: 13px; transition: all 0.2s; text-align: center;
-    ">
-      <div style="font-size: 24px; margin-bottom: 4px;">👤</div>
-      ${head.name}
-    </button>
+      font-size: 13px; transition: all 0.2s;
+    ">${head.name}</button>
   `).join('');
 }
 
-function renderColorSwatches(
-  type: string,
-  colors: Array<{ id: string; name: string; color: string }>,
-  selectedId: string
-): string {
+function renderColorSwatches(type: string, colors: Array<{ id: string; name: string; color: string }>, selected: string): string {
   return colors.map(c => `
-    <button
-      title="${c.name}"
-      onclick="window._charSelectColor('${type}', '${c.id}')"
-      style="
-        width: 32px; height: 32px; border-radius: 50%; cursor: pointer;
-        background: ${c.color};
-        border: 3px solid ${selectedId === c.id ? '#f0d080' : 'transparent'};
-        box-shadow: ${selectedId === c.id ? '0 0 8px rgba(240,208,128,0.6)' : '0 2px 4px rgba(0,0,0,0.4)'};
-        transition: all 0.2s; outline: none;
-      "
-    ></button>
+    <button onclick="window._charSetColor('${type}', '${c.id}')" title="${c.name}" style="
+      width: 32px; height: 32px; border-radius: 6px; cursor: pointer;
+      border: 2px solid ${selected === c.id ? '#f0d080' : '#30363d'};
+      background: ${c.color}; transition: all 0.2s;
+      box-shadow: ${selected === c.id ? '0 0 12px rgba(240,208,128,0.6)' : 'none'};
+    "></button>
   `).join('');
 }
 
 function renderSlider(type: string, label: string, value: number, min: number, max: number): string {
   return `
-    <div style="display: flex; align-items: center; gap: 12px;">
-      <span style="font-size: 12px; color: #8b949e; width: 70px;">${label}</span>
-      <input
-        type="range"
-        min="${min}" max="${max}" step="0.01"
-        value="${value}"
-        oninput="window._charSlider('${type}', this.value)"
-        style="flex: 1; accent-color: #f0d080;"
+    <div>
+      <label style="display: block; font-size: 12px; color: #8b949e; margin-bottom: 6px;">
+        ${label}: <span id="slider-${type}-value" style="color: #f0d080;">${(value * 100).toFixed(0)}%</span>
+      </label>
+      <input type="range" id="slider-${type}" min="${min}" max="${max}" step="0.01" value="${value}"
+        onchange="window._charSetScale('${type}', this.value)"
+        oninput="document.getElementById('slider-${type}-value').textContent = (this.value * 100).toFixed(0) + '%'"
+        style="width: 100%; cursor: pointer;"
       />
-      <span id="slider-label-${type}" style="font-size: 12px; color: #f0d080; width: 36px; text-align: right;">
-        ${value.toFixed(2)}
-      </span>
     </div>
   `;
 }
 
-function updateHeadSelector(): void {
+function setGender(gender: 'male' | 'female'): void {
+  currentAppearance.gender = gender;
+  currentAppearance.bodyId = gender === 'female' ? 'body_female' : 'body_male';
+  const heads = manifest?.heads[gender] ?? [];
+  if (heads.length > 0) {
+    currentAppearance.headId = heads[0].id;
+  }
   const container = document.getElementById('head-selector');
   if (container) container.innerHTML = renderHeadOptions();
+  updatePreview3D();
 }
 
-function updateColorSelectors(): void {
-  const skinContainer = document.getElementById('skin-selector');
-  if (skinContainer && manifest) {
-    skinContainer.innerHTML = renderColorSwatches('skin', manifest.skinTones, currentAppearance.skinToneId);
-  }
-  const hairContainer = document.getElementById('hair-selector');
-  if (hairContainer && manifest) {
-    hairContainer.innerHTML = renderColorSwatches('hair', manifest.hairColors, currentAppearance.hairColorId);
-  }
-  const eyeContainer = document.getElementById('eye-selector');
-  if (eyeContainer && manifest) {
-    eyeContainer.innerHTML = renderColorSwatches('eye', manifest.eyeColors, currentAppearance.eyeColorId);
-  }
+function setHead(headId: string): void {
+  currentAppearance.headId = headId;
+  const container = document.getElementById('head-selector');
+  if (container) container.innerHTML = renderHeadOptions();
+  updatePreview3D();
 }
 
-function updatePreviewLabel(): void {
+function setColor(type: string, colorId: string): void {
+  if (type === 'skin') {
+    currentAppearance.skinToneId = colorId;
+    const container = document.getElementById('skin-selector');
+    if (container) container.innerHTML = renderColorSwatches('skin', manifest?.skinTones ?? [], colorId);
+  } else if (type === 'hair') {
+    currentAppearance.hairColorId = colorId;
+    const container = document.getElementById('hair-selector');
+    if (container) container.innerHTML = renderColorSwatches('hair', manifest?.hairColors ?? [], colorId);
+  } else if (type === 'eye') {
+    currentAppearance.eyeColorId = colorId;
+    const container = document.getElementById('eye-selector');
+    if (container) container.innerHTML = renderColorSwatches('eye', manifest?.eyeColors ?? [], colorId);
+  }
+  updatePreview3D();
+}
+
+function setScale(type: string, value: string): void {
+  const num = parseFloat(value);
+  if (type === 'height') currentAppearance.heightScale = num;
+  else if (type === 'width') currentAppearance.widthScale = num;
+  else if (type === 'muscularity') currentAppearance.muscularityScale = num;
+  updatePreview3D();
+}
+
+function cancelEditor(): void {
+  if (previewAnimationId !== null) cancelAnimationFrame(previewAnimationId);
+  if (previewRenderer) previewRenderer.dispose();
+  document.getElementById('character-editor')?.remove();
+}
+
+function saveCharacter(): void {
+  const nameInput = document.getElementById('char-name-input') as HTMLInputElement;
+  if (nameInput) {
+    currentAppearance.name = nameInput.value.trim() || 'Adventurer';
+  }
+  if (!currentAppearance.name) {
+    showEditorToast('Bitte gib einen Namen ein!', 'error');
+    return;
+  }
+  // Send to server
+  fetch(`/api/character/${(window as any).currentPlayerId || 'player'}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(currentAppearance),
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        showEditorToast('✨ Charakter gespeichert!', 'success');
+        setTimeout(() => {
+          cancelEditor();
+          if (onSaveCallback) onSaveCallback(currentAppearance);
+        }, 500);
+      } else {
+        showEditorToast('Fehler beim Speichern', 'error');
+      }
+    })
+    .catch(err => {
+      console.error('Save error:', err);
+      showEditorToast('Verbindungsfehler', 'error');
+    });
+}
+
+async function loadGLBModel(url: string): Promise<THREE.Group> {
+  if (modelCache.has(url)) {
+    return modelCache.get(url)!.clone();
+  }
+  return new Promise((resolve, reject) => {
+    gltfLoader.load(
+      url,
+      (gltf) => {
+        modelCache.set(url, gltf.scene);
+        resolve(gltf.scene.clone());
+      },
+      undefined,
+      reject
+    );
+  });
+}
+
+function initPreview3D(): void {
+  const container = document.getElementById('char-preview-container');
+  if (!container) return;
+  
+  const width = container.clientWidth || 300;
+  const height = container.clientHeight || 400;
+  
+  // Create Three.js scene
+  previewScene = new THREE.Scene();
+  previewScene.background = new THREE.Color(0x0d1117);
+  
+  // Camera
+  previewCamera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+  previewCamera.position.set(0, 1, 2.5);
+  previewCamera.lookAt(0, 1, 0);
+  
+  // Renderer
+  previewRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  previewRenderer.setSize(width, height);
+  previewRenderer.setPixelRatio(window.devicePixelRatio);
+  
+  // Clear existing canvas
+  const existingCanvas = container.querySelector('canvas');
+  if (existingCanvas) container.removeChild(existingCanvas);
+  container.appendChild(previewRenderer.domElement);
+  
+  // Lighting
+  const ambientLight = new THREE.AmbientLight(0xffeedd, 0.8);
+  previewScene.add(ambientLight);
+  
+  const directionalLight = new THREE.DirectionalLight(0xfff5e0, 1.0);
+  directionalLight.position.set(5, 10, 7);
+  previewScene.add(directionalLight);
+  
+  // Load and display character
+  updatePreview3D();
+  
+  // Animation loop
+  function animate() {
+    previewAnimationId = requestAnimationFrame(animate);
+    if (previewRenderer && previewScene && previewCamera) {
+      previewRenderer.render(previewScene, previewCamera);
+    }
+  }
+  animate();
+}
+
+async function updatePreview3D(): Promise<void> {
+  if (!previewScene || !manifest) return;
+  
+  // Remove old character
+  if (previewCharacterGroup) {
+    previewScene.remove(previewCharacterGroup);
+  }
+  
+  previewCharacterGroup = new THREE.Group();
+  previewCharacterGroup.position.y = 0;
+  
+  try {
+    // Load body model
+    const bodyData = manifest.bodies[currentAppearance.gender];
+    if (bodyData) {
+      const bodyModel = await loadGLBModel(bodyData.file);
+      bodyModel.scale.set(
+        currentAppearance.widthScale,
+        currentAppearance.heightScale,
+        currentAppearance.widthScale
+      );
+      previewCharacterGroup.add(bodyModel);
+    }
+    
+    // Load head model
+    const heads = manifest.heads[currentAppearance.gender] || [];
+    const headData = heads.find(h => h.id === currentAppearance.headId);
+    if (headData) {
+      const headModel = await loadGLBModel(headData.file);
+      // Correct head scale - typical for these models is 1.0 if they are already scaled, 
+      // but let's use a safe value and position it relative to the body height.
+      const headScale = 0.8; 
+      headModel.scale.set(headScale, headScale, headScale);
+      
+      // Position head on top of body (approx 1.65m base * heightScale)
+      headModel.position.y = 1.65 * currentAppearance.heightScale;
+      previewCharacterGroup.add(headModel);
+    }
+    
+    // Apply color tints
+    const skinTone = manifest.skinTones.find(s => s.id === currentAppearance.skinToneId);
+    const hairColor = manifest.hairColors.find(h => h.id === currentAppearance.hairColorId);
+    const eyeColor = manifest.eyeColors.find(e => e.id === currentAppearance.eyeColorId);
+    
+    if (skinTone || hairColor || eyeColor) {
+      applyColorTints(previewCharacterGroup, skinTone?.color, hairColor?.color, eyeColor?.color);
+    }
+    
+  } catch (err) {
+    console.warn('Error loading character model:', err);
+  }
+  
+  previewScene.add(previewCharacterGroup);
+  
+  // Update label
   const label = document.getElementById('char-preview-label');
-  if (!label || !manifest) return;
-  const heads = manifest.heads[currentAppearance.gender] ?? [];
-  const head = heads.find(h => h.id === currentAppearance.headId);
-  const skin = manifest.skinTones.find(s => s.id === currentAppearance.skinToneId);
-  label.textContent = `${currentAppearance.gender === 'male' ? '♂' : '♀'} ${head?.name ?? ''} · ${skin?.name ?? ''}`;
+  if (label) {
+    const heads = manifest.heads[currentAppearance.gender] ?? [];
+    const head = heads.find(h => h.id === currentAppearance.headId);
+    const skin = manifest.skinTones.find(s => s.id === currentAppearance.skinToneId);
+    label.textContent = `${currentAppearance.gender === 'male' ? '♂' : '♀'} ${head?.name ?? ''} · ${skin?.name ?? ''}`;
+  }
 }
 
-function initPreviewCanvas(): void {
-  const canvas = document.getElementById('char-preview-canvas') as HTMLCanvasElement;
-  if (!canvas) return;
-
-  // Simple 2D preview using canvas (silhouette with colors)
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-
-  canvas.width = canvas.offsetWidth || 300;
-  canvas.height = canvas.offsetHeight || 400;
-
-  drawCharacterSilhouette(ctx, canvas.width, canvas.height);
-}
-
-function drawCharacterSilhouette(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-  if (!manifest) return;
-
-  const skin = manifest.skinTones.find(s => s.id === currentAppearance.skinToneId);
-  const hair = manifest.hairColors.find(h => h.id === currentAppearance.hairColorId);
-  const eye = manifest.eyeColors.find(e => e.id === currentAppearance.eyeColorId);
-
-  const skinColor = skin?.color ?? '#D4956A';
-  const hairColor = hair?.color ?? '#6B3A2A';
-  const eyeColor = eye?.color ?? '#6B3A2A';
-
-  ctx.clearRect(0, 0, w, h);
-
-  // Background glow
-  const gradient = ctx.createRadialGradient(w/2, h*0.6, 0, w/2, h*0.6, w*0.5);
-  gradient.addColorStop(0, 'rgba(240,208,128,0.05)');
-  gradient.addColorStop(1, 'transparent');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, w, h);
-
-  const cx = w / 2;
-  const scale = Math.min(w, h) / 400;
-  const heightMod = currentAppearance.heightScale;
-  const widthMod = currentAppearance.widthScale;
-  const isFemale = currentAppearance.gender === 'female';
-
-  // Shadow
-  ctx.save();
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ctx.beginPath();
-  ctx.ellipse(cx, h * 0.92, 50 * scale * widthMod, 12 * scale, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-
-  const bodyTop = h * 0.25;
-  const bodyH = h * 0.42 * heightMod;
-  const bodyW = (isFemale ? 52 : 62) * scale * widthMod;
-  const headR = 38 * scale;
-  const headY = bodyTop - headR - 8 * scale;
-
-  // Body (torso)
-  ctx.save();
-  ctx.fillStyle = '#3a5a8a';
-  ctx.beginPath();
-  if (isFemale) {
-    // Hourglass shape
-    ctx.moveTo(cx - bodyW * 0.9, bodyTop);
-    ctx.bezierCurveTo(cx - bodyW * 1.1, bodyTop + bodyH * 0.3, cx - bodyW * 0.7, bodyTop + bodyH * 0.5, cx - bodyW * 0.9, bodyTop + bodyH);
-    ctx.lineTo(cx + bodyW * 0.9, bodyTop + bodyH);
-    ctx.bezierCurveTo(cx + bodyW * 0.7, bodyTop + bodyH * 0.5, cx + bodyW * 1.1, bodyTop + bodyH * 0.3, cx + bodyW * 0.9, bodyTop);
-  } else {
-    // Broad shoulders
-    ctx.moveTo(cx - bodyW * 1.1, bodyTop);
-    ctx.lineTo(cx - bodyW * 0.85, bodyTop + bodyH);
-    ctx.lineTo(cx + bodyW * 0.85, bodyTop + bodyH);
-    ctx.lineTo(cx + bodyW * 1.1, bodyTop);
-  }
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
-
-  // Legs
-  ctx.save();
-  ctx.fillStyle = '#2a3a5a';
-  const legW = bodyW * 0.42;
-  const legTop = bodyTop + bodyH;
-  const legH = h * 0.28 * heightMod;
-  // Left leg
-  ctx.beginPath();
-  ctx.roundRect(cx - bodyW * 0.7, legTop, legW, legH, [0, 0, 8, 8]);
-  ctx.fill();
-  // Right leg
-  ctx.beginPath();
-  ctx.roundRect(cx + bodyW * 0.28, legTop, legW, legH, [0, 0, 8, 8]);
-  ctx.fill();
-  ctx.restore();
-
-  // Arms
-  ctx.save();
-  ctx.fillStyle = skinColor;
-  const armW = bodyW * 0.32;
-  const armH = bodyH * 0.85;
-  // Left arm
-  ctx.beginPath();
-  ctx.roundRect(cx - bodyW * 1.35, bodyTop + 10 * scale, armW, armH, 8);
-  ctx.fill();
-  // Right arm
-  ctx.beginPath();
-  ctx.roundRect(cx + bodyW * 1.05, bodyTop + 10 * scale, armW, armH, 8);
-  ctx.fill();
-  ctx.restore();
-
-  // Neck
-  ctx.save();
-  ctx.fillStyle = skinColor;
-  ctx.beginPath();
-  ctx.roundRect(cx - 10 * scale, headY + headR - 4 * scale, 20 * scale, 20 * scale, 4);
-  ctx.fill();
-  ctx.restore();
-
-  // Head
-  ctx.save();
-  ctx.fillStyle = skinColor;
-  ctx.beginPath();
-  ctx.ellipse(cx, headY, headR * widthMod, headR, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-
-  // Hair
-  ctx.save();
-  ctx.fillStyle = hairColor;
-  ctx.beginPath();
-  if (isFemale) {
-    // Long hair
-    ctx.ellipse(cx, headY - headR * 0.3, headR * widthMod * 1.05, headR * 0.55, 0, Math.PI, 0);
-    ctx.fill();
-    // Side hair
-    ctx.beginPath();
-    ctx.ellipse(cx - headR * widthMod * 0.9, headY + headR * 0.3, headR * 0.25, headR * 0.7, -0.2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(cx + headR * widthMod * 0.9, headY + headR * 0.3, headR * 0.25, headR * 0.7, 0.2, 0, Math.PI * 2);
-    ctx.fill();
-  } else {
-    // Short hair
-    ctx.ellipse(cx, headY - headR * 0.2, headR * widthMod * 1.02, headR * 0.5, 0, Math.PI, 0);
-    ctx.fill();
-  }
-  ctx.restore();
-
-  // Eyes
-  ctx.save();
-  ctx.fillStyle = 'white';
-  ctx.beginPath();
-  ctx.ellipse(cx - headR * 0.3, headY, 7 * scale, 5 * scale, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(cx + headR * 0.3, headY, 7 * scale, 5 * scale, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = eyeColor;
-  ctx.beginPath();
-  ctx.ellipse(cx - headR * 0.3, headY, 4 * scale, 4 * scale, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(cx + headR * 0.3, headY, 4 * scale, 4 * scale, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#111';
-  ctx.beginPath();
-  ctx.ellipse(cx - headR * 0.3, headY, 2 * scale, 2 * scale, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(cx + headR * 0.3, headY, 2 * scale, 2 * scale, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-
-  // Eyebrows
-  ctx.save();
-  ctx.strokeStyle = hairColor;
-  ctx.lineWidth = 2.5 * scale;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(cx - headR * 0.5, headY - 9 * scale);
-  ctx.lineTo(cx - headR * 0.1, headY - 10 * scale);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(cx + headR * 0.1, headY - 10 * scale);
-  ctx.lineTo(cx + headR * 0.5, headY - 9 * scale);
-  ctx.stroke();
-  ctx.restore();
-
-  // Mouth
-  ctx.save();
-  ctx.strokeStyle = '#8B4513';
-  ctx.lineWidth = 2 * scale;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.arc(cx, headY + headR * 0.35, 8 * scale, 0.1, Math.PI - 0.1);
-  ctx.stroke();
-  ctx.restore();
-
-  // Armor details
-  ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(cx, bodyTop + 10 * scale);
-  ctx.lineTo(cx, bodyTop + bodyH * 0.7);
-  ctx.stroke();
-  ctx.restore();
-
-  // Glow effect at feet
-  const footGlow = ctx.createRadialGradient(cx, legTop + legH, 0, cx, legTop + legH, 40 * scale);
-  footGlow.addColorStop(0, 'rgba(240,208,128,0.2)');
-  footGlow.addColorStop(1, 'transparent');
-  ctx.fillStyle = footGlow;
-  ctx.fillRect(cx - 60 * scale, legTop + legH - 20 * scale, 120 * scale, 40 * scale);
+function applyColorTints(model: THREE.Group, skinColor?: string, hairColor?: string, eyeColor?: string): void {
+  const skinHex = skinColor ? new THREE.Color(skinColor) : new THREE.Color(0xD4956A);
+  const hairHex = hairColor ? new THREE.Color(hairColor) : new THREE.Color(0x6B3A2A);
+  const eyeHex = eyeColor ? new THREE.Color(eyeColor) : new THREE.Color(0x6B3A2A);
+  
+  model.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+    const mat = child.material;
+    if (!mat) return;
+    const materials = Array.isArray(mat) ? mat : [mat];
+    materials.forEach((m: THREE.Material) => {
+      if (!(m instanceof THREE.MeshStandardMaterial)) return;
+      const name = (m.name || child.name || '').toLowerCase();
+      
+      if (name.includes('skin') || name.includes('body') || name.includes('face') ||
+          name.includes('arm') || name.includes('leg') || name.includes('hand') ||
+          name.includes('neck') || name.includes('head_skin') || name.includes('flesh')) {
+        m.color.set(skinHex);
+      } else if (name.includes('hair') || name.includes('beard') || name.includes('eyebrow') ||
+                 name.includes('brow') || name.includes('mustache')) {
+        m.color.set(hairHex);
+      } else if (name.includes('eye') || name.includes('iris') || name.includes('pupil')) {
+        m.color.set(eyeHex);
+      }
+    });
+  });
 }
 
 function showEditorToast(message: string, type: 'success' | 'error'): void {
@@ -662,22 +558,10 @@ function showEditorToast(message: string, type: 'success' | 'error'): void {
   setTimeout(() => toast.remove(), 4000);
 }
 
-/** Called when appearance changes to refresh the 2D preview */
-export function refreshCharacterPreview(): void {
-  const canvas = document.getElementById('char-preview-canvas') as HTMLCanvasElement;
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-  drawCharacterSilhouette(ctx, canvas.width, canvas.height);
-  updatePreviewLabel();
-}
-
-/** Get the current appearance (for use in game) */
 export function getCurrentAppearance(): CharacterAppearance {
   return { ...currentAppearance };
 }
 
-/** Set appearance from saved data */
 export function setAppearance(appearance: CharacterAppearance): void {
   currentAppearance = { ...appearance };
 }

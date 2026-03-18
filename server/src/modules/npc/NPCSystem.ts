@@ -1,3 +1,4 @@
+import { NPCBrain } from "../ai/NPCBrain.js";
 import { NPCPersonalityEngine } from "./NPCPersonalityEngine.js";
 import { NPCMemoryEngine } from "./NPCMemoryEngine.js";
 import { NPCGenealogyEngine } from "./NPCGenealogyEngine.js";
@@ -8,6 +9,8 @@ export class NPCSystem {
   private npcs: Map<string, any> = new Map();
   private npcDefinitions: Map<string, any> = new Map();
   private dialogues: Map<string, any> = new Map();
+  // ⚡ Bolt Optimization: Cache the NPC list to avoid repeated Array.from() allocations in the tick loop
+  private cachedNPCs: any[] = [];
 
   public personalityEngine: NPCPersonalityEngine;
   public memoryEngine: NPCMemoryEngine;
@@ -59,9 +62,12 @@ export class NPCSystem {
       homePosition: { x, y },
       targetPosition: null as { x: number, y: number } | null,
       state: "idle",
-      stateTimer: 0
+      stateTimer: 0,
+      brain: new NPCBrain(),
+      needs: { hunger: 100, energy: 100 }
     };
     this.npcs.set(id, npc);
+    this.updateCache();
     return npc;
   }
 
@@ -244,27 +250,50 @@ export class NPCSystem {
   }
 
   getAllNPCs() {
-    return Array.from(this.npcs.values());
+    // ⚡ Bolt Optimization: Return cached array instead of creating a new one every call
+    return this.cachedNPCs;
   }
 
   removeNPC(id: string) {
     this.npcs.delete(id);
+    this.updateCache();
   }
 
-  tick(players: any[]) {
+  private updateCache() {
+    this.cachedNPCs = Array.from(this.npcs.values());
+  }
+
+  tick(players: any[], chatSystem?: any) {
     // Process NPC AI, schedules, needs
     const now = Date.now();
     for (const npc of this.npcs.values()) {
+      // 0. Process dynamic needs
+      if (!npc.needs) npc.needs = { hunger: 100, energy: 100 }; // Fallback for existing NPCs
+
+      // Decrease hunger slowly (approx 1 unit per 5 seconds assuming 10 ticks/sec, wait we'll make it 1 unit per 100 ticks for testing or simple rate)
+      // Actually let's use a probabilistic approach or a simple small float decrement per tick.
+      // 1 tick = 100ms. So 10 ticks = 1 sec.
+      // 1 hunger per 100 ticks = 1 hunger per 10 sec.
+      npc.needs.hunger = Math.max(0, npc.needs.hunger - 0.01);
+      npc.needs.energy = Math.max(0, npc.needs.energy - 0.005);
+
       // 1. Check for nearby players to interact with
       let interacting = false;
-      for (const player of players) {
-        const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
-        if (dist < 15) { // Interaction range
-          npc.state = "interacting";
-          npc.stateTimer = now + 5000; // Stay interacting for a bit
-          npc.targetPosition = null; // Stop moving
-          interacting = true;
-          break;
+      // Performance: Skip proximity check if already interacting
+      if (npc.state === "interacting" && now < npc.stateTimer) {
+        interacting = true;
+      } else {
+        for (const player of players) {
+          const dx = player.position.x - npc.position.x;
+          const dy = player.position.y - npc.position.y;
+          // Optimization: Use squared distance to avoid Math.hypot() square root
+          if (dx * dx + dy * dy < 225) { // 15^2
+            npc.state = "interacting";
+            npc.stateTimer = now + 5000;
+            npc.targetPosition = null;
+            interacting = true;
+            break;
+          }
         }
       }
 
@@ -278,26 +307,42 @@ export class NPCSystem {
 
       if (npc.state === "idle") {
         if (now > npc.stateTimer) {
-          // Decide next action
-          const r = Math.random();
-          if (r < 0.4) {
+          if (!npc.brain) npc.brain = new NPCBrain();
+          const decision = npc.brain.update(npc);
+
+          if (chatSystem && npc.state !== decision.action) {
+            chatSystem.systemMessage(`[Thought] ${npc.name}: ${decision.thought}`);
+          }
+
+          if (decision.action === "wander" || decision.action === "wandering") {
             npc.state = "wandering";
-            // Pick a random spot near home
             const angle = Math.random() * Math.PI * 2;
             const dist = Math.random() * 30;
             npc.targetPosition = {
               x: npc.homePosition.x + Math.cos(angle) * dist,
               y: npc.homePosition.y + Math.sin(angle) * dist
             };
-            npc.stateTimer = now + 10000; // Max wander time
-          } else if (r < 0.7) {
+            npc.stateTimer = now + 10000;
+          } else if (decision.action === "work" || decision.action === "working") {
             npc.state = "working";
-            // Move back to home position (workplace)
             npc.targetPosition = { x: npc.homePosition.x, y: npc.homePosition.y };
-            npc.stateTimer = now + 15000; // Work for 15s
+            npc.stateTimer = now + 15000;
           } else {
-            npc.stateTimer = now + Math.random() * 3000 + 2000; // Stay idle
+            npc.state = decision.action;
+            npc.stateTimer = now + Math.random() * 3000 + 2000;
           }
+        }
+      } else if (npc.state === "sleep") {
+        npc.needs.energy = Math.min(100, npc.needs.energy + 2); // Fast regen while sleeping
+        if (npc.needs.energy >= 100) {
+          npc.state = "idle";
+          npc.stateTimer = now + Math.random() * 2000 + 1000;
+        }
+      } else if (npc.state === "eat") {
+        npc.needs.hunger = Math.min(100, npc.needs.hunger + 5); // Faster regen while eating
+        if (npc.needs.hunger >= 100) {
+          npc.state = "idle";
+          npc.stateTimer = now + Math.random() * 2000 + 1000;
         }
       } else if (npc.state === "wandering" || npc.state === "working") {
         if (now > npc.stateTimer) {
@@ -308,9 +353,9 @@ export class NPCSystem {
           // Move towards target
           const dx = npc.targetPosition.x - npc.position.x;
           const dy = npc.targetPosition.y - npc.position.y;
-          const dist = Math.hypot(dx, dy);
+          const distSq = dx * dx + dy * dy;
           
-          if (dist < 1) {
+          if (distSq < 1) { // 1^2
             // Reached target
             npc.targetPosition = null;
             if (npc.state === "wandering") {
@@ -321,6 +366,7 @@ export class NPCSystem {
           } else {
             // Move
             const speed = 0.5; // units per tick
+            const dist = Math.sqrt(distSq);
             npc.position.x += (dx / dist) * speed;
             npc.position.y += (dy / dist) * speed;
           }
