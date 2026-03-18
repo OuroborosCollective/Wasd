@@ -4,12 +4,14 @@ export default defineConfig({
   test: {
     include: ["server/src/tests/**/*.test.ts"],
     environment: "node",
-    deps: {
-      external: [
-        "multer",
-        "firebase/auth",
-        "firebase/firestore",
-      ],
+    server: {
+      deps: {
+        external: [
+          "multer",
+          "firebase/auth",
+          "firebase/firestore",
+        ],
+      },
     },
   },
 });
