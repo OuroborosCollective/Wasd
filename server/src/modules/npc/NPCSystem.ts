@@ -64,7 +64,8 @@ export class NPCSystem {
       state: "idle",
       stateTimer: 0,
       brain: new NPCBrain(),
-      needs: { hunger: 100, energy: 100 }
+      needs: { hunger: 100, energy: 100 },
+      glbPath: undefined // Will be resolved by WorldTick
     };
     this.npcs.set(id, npc);
     this.updateCache();

@@ -10,6 +10,7 @@ export interface ResourceNode {
   regrowRate: number; // Ticks needed to regrow 1 amount
   regrowTimer: number; // Current timer for regrowth
   yields: string; // itemId it yields
+  glbPath?: string; // Cached GLB path
 }
 
 export class ResourceSystem {
@@ -62,6 +63,7 @@ export class ResourceSystem {
         regrowTimer: 0,
         yields: resourceType
       });
+      this.resolveResourceGLB(this.nodes.get(id)!);
     }
   }
 
@@ -93,5 +95,11 @@ export class ResourceSystem {
 
   getAllNodes(): ResourceNode[] {
     return Array.from(this.nodes.values());
+  }
+
+  private resolveResourceGLB(resource: ResourceNode) {
+    let glbPath = this.scatter.getGLBForResource(resource.type, resource.yields);
+    if (!glbPath) glbPath = this.scatter.getGLBForResource("default", resource.type);
+    resource.glbPath = glbPath;
   }
 }

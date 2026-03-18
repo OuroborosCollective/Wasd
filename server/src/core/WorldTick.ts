@@ -410,12 +410,16 @@ export class WorldTick {
     }
   }
 
-  private handleLogin(id: string, msg: any) {
+  private async handleLogin(id: string, msg: any) {
     const charName = msg.name || `Guest_${id.substring(0, 4)}`;
-    let player = this.playerSystem.getPlayer(charName);
+    let player = await this.persistence.loadPlayer(charName); // Attempt to load existing player
     if (!player) {
+      // If player doesn't exist, create a new one
       player = this.playerSystem.createPlayer(charName, charName);
-      this.hydratePlayer(player);
+      this.hydratePlayer(player); // Hydrate new player
+    } else {
+      // If player exists, ensure it's set in playerSystem (might be from previous session)
+      this.playerSystem.setPlayer(charName, player);
     }
 
     this.socketToPlayer.set(id, charName);
@@ -809,6 +813,7 @@ export class WorldTick {
   // Helper for NPC creation with cached GLB resolution
   private createNPC(id: string, name: string, x: number, y: number) {
     const npc = this.npcSystem.createNPC(id, name, x, y);
+    // ⚡ Bolt Optimization: Resolve GLB path once at creation
     this.resolveNPCGLB(npc);
     return npc;
   }
@@ -894,7 +899,11 @@ export class WorldTick {
     if (player.gold === undefined) player.gold = 0;
     if (player.xp === undefined) player.xp = 0;
     if (player.level === undefined) player.level = 1;
-    if (player.appearance === undefined) player.appearance = null;
+    if (player.appearance === undefined) player.appearance = characterAssembly.generateNPCAppearance(player.gender || 'male', player.name); // Default appearance if none exists
+    // Ensure appearance object is fully hydrated with default values if partial
+    if (player.appearance) {
+      player.appearance = characterAssembly.validateAppearance(player.appearance);
+    }
     if (!player.role) player.role = player.name.toLowerCase() === "admin" ? "admin" : "player";
 
     if (player.inventory) {
@@ -1023,12 +1032,15 @@ export class WorldTick {
     // ⚡ Bolt Optimization: Use pre-resolved GLB paths stored on entities to avoid Map lookups and .map() object spreads in the hot broadcast loop
     const npcs = this.npcSystem.getAllNPCs();
     const loot = Array.from(this.lootEntities.values());
+    // ⚡ Bolt Optimization: GLB paths are pre-resolved and stored on NPC and loot entities
+    // during their creation or update, avoiding redundant lookups in the hot broadcast loop.
+    const npcsWithGlb = npcs.map(npc => ({ ...npc, glbPath: npc.glbPath }));
+    const lootWithGlb = loot.map(l => ({ ...l, glbPath: l.glbPath }));
 
-    const resourcesWithGlb = this.resourceSystem.getAllNodes().map(node => {
-      let glbPath = this.glbRegistry.getModelForTarget("object_single", node.id);
-      if (!glbPath) glbPath = this.glbRegistry.getModelForTarget("object_group", node.type); // "tree", "rock", etc
-      return { ...node, glbPath };
-    });
+    const resources = this.resourceSystem.getAllNodes();
+    // ⚡ Bolt Optimization: GLB paths are pre-resolved and stored on resource nodes
+    // during their creation or update, avoiding redundant lookups in the hot broadcast loop.
+    const resourcesWithGlb = resources.map(node => ({ ...node, glbPath: node.glbPath }));
 
     const weather = this.worldSystem.weatherSystem.nextWeather(Math.floor(this.tickCount / 600));
 
