@@ -50,7 +50,7 @@ export function toggleAssetGeneratorPanel() {
   panel.innerHTML = `
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
       <h2 style="margin: 0; color: #4a7c9e;">Asset Brain Generator</h2>
-      <button id="btn-close-asset-gen" style="background: none; border: none; color: #e0e0e0; font-size: 20px; cursor: pointer;">✕</button>
+      <button id="btn-close-asset-gen" aria-label="Close Asset Generator" style="background: none; border: none; color: #e0e0e0; font-size: 20px; cursor: pointer;"><span aria-hidden="true">✕</span></button>
     </div>
     
     <div style="margin-bottom: 15px;">
