@@ -66,6 +66,14 @@ router.post('/:playerId', authMiddleware, async (req: Request, res: Response) =>
       [JSON.stringify(appearance), appearance.name, playerId]
     );
 
+    // ⚡ Bolt Optimization: Tell the connected WorldTick instance to update its cache
+    // so the broadcast loop uses the new resolved paths immediately.
+    import('../core/ServerBootstrap.js').then(({ globalWorldTick }) => {
+       if (globalWorldTick) {
+         globalWorldTick.updatePlayerAppearance(playerId, appearance);
+       }
+    }).catch(err => console.error("Could not update worldTick appearance:", err));
+
     res.json({
       ok: true,
       appearance,

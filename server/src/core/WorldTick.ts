@@ -873,6 +873,22 @@ export class WorldTick {
     await this.persistence.saveWorldState('global_state', this.worldState);
   }
 
+  // ⚡ Bolt Optimization: Update the pre-resolved paths for a player dynamically
+  updatePlayerAppearance(playerId: string, appearance: any) {
+    const player = this.playerSystem.getPlayer(playerId);
+    if (player) {
+      player.appearance = characterAssembly.validateAppearance(appearance);
+      const paths = characterAssembly.resolveModelPaths(player.appearance);
+      player.resolvedAppearance = {
+        ...player.appearance,
+        characterModelUrl: paths.bodyUrl,
+        skinToneColor: paths.skinColor,
+        hairColor: paths.hairColor,
+        eyeColor: paths.eyeColor
+      };
+    }
+  }
+
   private hydratePlayer(player: any) {
     if (!player.id) player.id = "unknown";
     if (!player.name) player.name = player.id;
@@ -895,6 +911,15 @@ export class WorldTick {
     // Ensure appearance object is fully hydrated with default values if partial
     if (player.appearance) {
       player.appearance = characterAssembly.validateAppearance(player.appearance);
+      // ⚡ Bolt Optimization: Pre-resolve model paths during hydration to avoid O(N) overhead in the 10Hz tick loop
+      const paths = characterAssembly.resolveModelPaths(player.appearance);
+      player.resolvedAppearance = {
+        ...player.appearance,
+        characterModelUrl: paths.bodyUrl,
+        skinToneColor: paths.skinColor,
+        hairColor: paths.hairColor,
+        eyeColor: paths.eyeColor
+      };
     }
     if (!player.role) player.role = player.name.toLowerCase() === "admin" ? "admin" : "player";
 
@@ -1042,18 +1067,6 @@ export class WorldTick {
       weather,
       activeChunkIds: activeChunks.map(c => c.id),
       players: players.map(p => {
-        const appearance = p.appearance;
-        let resolvedAppearance = null;
-        if (appearance) {
-          const paths = characterAssembly.resolveModelPaths(appearance);
-          resolvedAppearance = {
-            ...appearance,
-            characterModelUrl: paths.bodyUrl, // Full model URL
-            skinToneColor: paths.skinColor,
-            hairColor: paths.hairColor,
-            eyeColor: paths.eyeColor
-          };
-        }
         return {
           id: p.id,
           name: p.name,
@@ -1072,7 +1085,7 @@ export class WorldTick {
           equipment: p.equipment || {},
           reputation: p.reputation || {},
           questStatus: this.questSystem.getQuestStatus(p),
-          appearance: resolvedAppearance
+          appearance: p.resolvedAppearance || null
         };
       }),
       npcs: npcsWithGlb,
