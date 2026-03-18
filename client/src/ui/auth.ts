@@ -27,6 +27,7 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   formBox.style.flexDirection = "column";
   formBox.style.gap = "1rem";
   formBox.style.width = "300px";
+  formBox.style.zIndex = "1001"; // Ensure form is above container
 
   const title = document.createElement("h2");
   title.innerText = "Login / Sign Up";
