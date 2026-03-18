@@ -149,7 +149,8 @@ export function toggleAssetGeneratorPanel() {
 
     document.getElementById('btn-stop-animation')!.onclick = () => {
       viewer?.stopAnimations();
-    };}
+    };
+}
 
 async function generateAsset() {
   const input = (document.getElementById('inp-asset-input') as HTMLTextAreaElement).value.trim();
@@ -343,12 +344,11 @@ function displayAssets() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${asset.assetName.replace(/\s+/g, '_')}.json`;
+    a.download = `${asset.assetName.replace(/\\\s+/g, '_')}.json`;
     a.click();
     URL.revokeObjectURL(url);
   } catch (error) {
     alert(`Export failed: ${(error as Error).message}`);
   }
 };
-
 }

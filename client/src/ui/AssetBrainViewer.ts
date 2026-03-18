@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { VertexNormalsHelper } from "three/examples/jsm/helpers/VertexNormalsHelper.js";
 
 export class AssetBrainViewer {
   private scene: THREE.Scene;
@@ -126,7 +127,7 @@ export class AssetBrainViewer {
         const existing = this.scene.getObjectByName('normalsHelper_' + child.uuid);
         if (existing) this.scene.remove(existing);
         if (enabled) {
-          const helper = new THREE.VertexNormalsHelper(child, 0.1, 0x00ff00);
+          const helper = new VertexNormalsHelper(child, 0.1, 0x00ff00);
           helper.name = 'normalsHelper_' + child.uuid;
           this.scene.add(helper);
         }

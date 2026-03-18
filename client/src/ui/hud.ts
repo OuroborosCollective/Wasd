@@ -2,101 +2,95 @@ import { sendDialogueChoice } from "../networking/websocketClient";
 import { toggleAdminAssetPanel } from "./adminAssetPanel";
 import { toggleAssetPipelinePanel } from "./assetPipelinePanel";
 
-// Export updateCooldowns function
-export function updateCooldowns(cooldowns: { attack: number; interact: number; equip: number }) {
-  const now = Date.now();
-  const attackRemaining = Math.max(0, cooldowns.attack - now);
-  const interactRemaining = Math.max(0, cooldowns.interact - now);
-  const equipRemaining = Math.max(0, cooldowns.equip - now);
+// ─── State ───────────────────────────────────────────────────────────────────
+let _ws: WebSocket | null = null;
+let _myPlayer: any = null;
+let _minimapCanvas: HTMLCanvasElement | null = null;
+let _minimapCtx: CanvasRenderingContext2D | null = null;
 
-  updateCd("cd-attack", attackRemaining);
-  updateCd("cd-interact", interactRemaining);
-  updateCd("cd-equip", equipRemaining);
+export function setHudWebSocket(ws: WebSocket) { _ws = ws; }
+
+function btnStyle(bg: string, border: string) {
+  return `background:${bg};border:1px solid ${border};border-radius:6px;padding:5px 10px;color:#fff;cursor:pointer;font-size:11px;font-family:'Segoe UI',sans-serif;`;
+}
+function closeBtnStyle() {
+  return `background:rgba(200,50,50,0.3);border:1px solid rgba(200,50,50,0.5);border-radius:6px;padding:4px 10px;color:#fff;cursor:pointer;font-size:13px;`;
+}
+function togglePanel(id: string) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = el.style.display === "none" ? "block" : "none";
 }
 
-// Export renderInventoryPanel function
-export function renderInventoryPanel(player: any, ws: WebSocket) {
-  renderInventory(player.inventory);
-}
-
+// ─── Main HUD ─────────────────────────────────────────────────────────────────
 export function renderHUD() {
-  const hud = document.createElement("div");
-  hud.id = "main-hud";
-  hud.style.position = "fixed";
-  hud.style.top = "12px";
-  hud.style.left = "12px";
-  hud.style.padding = "12px";
-  hud.style.background = "rgba(0,0,0,0.7)";
-  hud.style.color = "#fff";
-  hud.style.fontFamily = "sans-serif";
-  hud.style.borderRadius = "8px";
-  hud.style.display = "flex";
-  hud.style.flexDirection = "column";
-  hud.style.gap = "6px";
-  hud.style.minWidth = "200px";
-  hud.style.border = "1px solid rgba(255,255,255,0.1)";
+  document.getElementById("main-hud")?.remove();
 
-  hud.innerHTML = `
-    <div style="font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 4px; margin-bottom: 4px; color: #00ff00;">Areloria Alpha</div>
-    <div id="hud-stats" style="font-size: 0.9em;">
-      Gold: 0 | XP: 0
+  // Tooltip
+  const tooltip = document.createElement("div");
+  tooltip.id = "world-tooltip";
+  tooltip.style.cssText = "position:fixed;bottom:120px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:#fff;padding:6px 14px;border-radius:20px;font-family:sans-serif;font-size:13px;pointer-events:none;z-index:900;display:none;border:1px solid rgba(255,255,255,0.2);";
+  document.body.appendChild(tooltip);
+
+  // Stats bar (bottom center)
+  const statsBar = document.createElement("div");
+  statsBar.id = "hud-stats-bar";
+  statsBar.style.cssText = "position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:16px;align-items:center;background:rgba(0,0,0,0.8);border:1px solid rgba(255,255,255,0.15);border-radius:12px;padding:10px 20px;z-index:800;font-family:'Segoe UI',sans-serif;min-width:520px;justify-content:center;";
+  statsBar.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:4px;min-width:150px;">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#ccc;"><span>HP</span><span id="hud-hp-text">100/100</span></div>
+      <div style="background:#333;border-radius:4px;height:10px;overflow:hidden;"><div id="hud-hp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#c00,#f44);border-radius:4px;transition:width 0.3s;"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#ccc;"><span>SP</span><span id="hud-sp-text">100/100</span></div>
+      <div style="background:#333;border-radius:4px;height:8px;overflow:hidden;"><div id="hud-sp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#f80,#fc0);border-radius:4px;transition:width 0.3s;"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#ccc;"><span>MP</span><span id="hud-mp-text">25/25</span></div>
+      <div style="background:#333;border-radius:4px;height:8px;overflow:hidden;"><div id="hud-mp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#008,#44f);border-radius:4px;transition:width 0.3s;"></div></div>
     </div>
-    <div id="hud-inventory" style="font-size: 0.8em; color: #ffcc00;">
-      Inv: Empty
+    <div style="display:flex;flex-direction:column;gap:4px;min-width:120px;border-left:1px solid rgba(255,255,255,0.15);padding-left:16px;">
+      <div style="font-size:13px;color:#ffd700;font-weight:bold;" id="hud-name">Adventurer</div>
+      <div style="font-size:11px;color:#aaa;">Lv.<span id="hud-level">1</span> | XP:<span id="hud-xp">0</span></div>
+      <div style="font-size:11px;color:#ffd700;">Gold: <span id="hud-gold">0</span></div>
     </div>
-    <div id="hud-reputation" style="font-size: 0.8em; color: #ff99ff;">
-      Rep: None
-    </div>
-    <div id="hud-equipment" style="font-size: 0.8em; color: #00ccff;">
-      Equip: None
-    </div>
-    <div id="hud-quests" style="font-size: 0.85em; color: #aaa; font-style: italic;">
-      Active Quest: None
-    </div>
-    <div id="hud-cooldowns" style="font-size: 0.8em; margin-top: 4px; display: flex; gap: 8px;">
-      <span id="cd-attack" style="color: #00ff00; opacity: 0.5;">[F] Attack</span>
-      <span id="cd-interact" style="color: #00ff00; opacity: 0.5;">[E] Interact</span>
-      <span id="cd-equip" style="color: #00ff00; opacity: 0.5;">[G] Equip</span>
-    </div>
-    <div style="font-size: 0.75em; margin-top: 6px; opacity: 0.6; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px;">
-      WASD: Move | E: Interact | F: Attack | G: Equip First | H: Unequip
+    <div style="display:flex;gap:8px;border-left:1px solid rgba(255,255,255,0.15);padding-left:16px;">
+      <div id="cd-attack" style="padding:6px 10px;background:rgba(255,60,60,0.2);border:1px solid rgba(255,60,60,0.4);border-radius:6px;font-size:11px;color:#ff6666;text-align:center;min-width:50px;">[F]<br/>Atk</div>
+      <div id="cd-interact" style="padding:6px 10px;background:rgba(60,255,60,0.2);border:1px solid rgba(60,255,60,0.4);border-radius:6px;font-size:11px;color:#66ff66;text-align:center;min-width:50px;">[E]<br/>Talk</div>
+      <div id="cd-equip" style="padding:6px 10px;background:rgba(60,60,255,0.2);border:1px solid rgba(60,60,255,0.4);border-radius:6px;font-size:11px;color:#6666ff;text-align:center;min-width:50px;">[G]<br/>Equip</div>
     </div>
   `;
+  document.body.appendChild(statsBar);
 
   // Top-left panel
   const topLeft = document.createElement("div");
   topLeft.id = "hud-topleft";
-  topLeft.className = "top-left-menu";
+  topLeft.style.cssText = "position:fixed;top:12px;left:12px;z-index:800;display:flex;flex-direction:column;gap:6px;font-family:'Segoe UI',sans-serif;";
   topLeft.innerHTML = `
     <div style="background:rgba(0,0,0,0.8);border:1px solid rgba(255,215,0,0.4);border-radius:8px;padding:8px 14px;color:#ffd700;font-weight:bold;font-size:15px;letter-spacing:2px;">ARELORIA</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;">
-      <button id="btn-inventory" style="${btnStyle('#1a3a1a', '#4CAF50')}">Inv [I]</button>
-      <button id="btn-quests" style="${btnStyle('#1a1a3a', '#4488ff')}">Quests [Q]</button>
-      <button id="btn-skills" style="${btnStyle('#3a1a1a', '#ff8844')}">Skills [K]</button>
-      <button id="btn-map" style="${btnStyle('#1a2a3a', '#44aaff')}">Map [M]</button>
+      <button id="btn-inventory" style="${btnStyle("#1a3a1a", "#4CAF50")}">Inv [I]</button>
+      <button id="btn-quests" style="${btnStyle("#1a1a3a", "#4488ff")}">Quests [Q]</button>
+      <button id="btn-skills" style="${btnStyle("#3a1a1a", "#ff8844")}">Skills [K]</button>
+      <button id="btn-map" style="${btnStyle("#1a2a3a", "#44aaff")}">Map [M]</button>
     </div>
-    <div class="hud-info-box">
-      Weapon: <span id="hud-weapon-name" style="color:#fff;font-weight:bold;">None</span>
+    <div style="background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:6px 10px;font-size:11px;color:#aaa;">
+      Weapon: <span id="hud-weapon-name" style="color:#fff;">None</span>
     </div>
-    <div id="hud-active-quest" class="hud-info-box quest" style="display:none;">
+    <div id="hud-active-quest" style="background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,0,0.2);border-radius:6px;padding:6px 10px;font-size:11px;color:#ffff88;display:none;">
       Quest: <span id="hud-quest-text">None</span>
     </div>
-    <button id="btn-admin-assets" style="${btnStyle('#2a2a2a', '#888')}display:none;">Admin</button>
-    <button id="btn-asset-pipeline" style="${btnStyle('#1a1a3a', '#7af')}display:none;">🧠 Assets</button>
+    <button id="btn-admin-assets" style="${btnStyle("#2a2a2a", "#888")}display:none;">Admin</button>
+    <button id="btn-asset-pipeline" style="${btnStyle("#1a1a3a", "#7af")}display:none;">🧠 Assets</button>
   `;
   document.body.appendChild(topLeft);
 
   // Minimap (top right)
   const minimapContainer = document.createElement("div");
   minimapContainer.id = "hud-minimap";
-  minimapContainer.className = "minimap-container";
+  minimapContainer.style.cssText = "position:fixed;top:12px;right:12px;z-index:800;background:rgba(0,0,0,0.8);border:2px solid rgba(255,215,0,0.4);border-radius:50%;overflow:hidden;width:140px;height:140px;";
   _minimapCanvas = document.createElement("canvas");
-  _minimapCanvas.width = 150;
-  _minimapCanvas.height = 150;
+  _minimapCanvas.width = 140;
+  _minimapCanvas.height = 140;
   _minimapCtx = _minimapCanvas.getContext("2d");
   minimapContainer.appendChild(_minimapCanvas);
   const compass = document.createElement("div");
-  compass.className = "minimap-compass";
+  compass.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;font-size:9px;color:rgba(255,215,0,0.7);font-family:sans-serif;";
   compass.innerHTML = '<span style="position:absolute;top:2px;left:50%;transform:translateX(-50%)">N</span><span style="position:absolute;bottom:2px;left:50%;transform:translateX(-50%)">S</span><span style="position:absolute;left:2px;top:50%;transform:translateY(-50%)">W</span><span style="position:absolute;right:2px;top:50%;transform:translateY(-50%)">E</span>';
   minimapContainer.appendChild(compass);
   document.body.appendChild(minimapContainer);
@@ -104,12 +98,12 @@ export function renderHUD() {
   // Chat box (bottom left)
   const chatBox = document.createElement("div");
   chatBox.id = "hud-chat";
-  chatBox.className = "chat-container";
+  chatBox.style.cssText = "position:fixed;bottom:100px;left:12px;z-index:800;width:300px;font-family:'Segoe UI',sans-serif;";
   chatBox.innerHTML = `
-    <div id="chat-messages" class="chat-messages"></div>
-    <div class="chat-input-row">
-      <input id="chat-input" class="chat-input" type="text" aria-label="Chat message" placeholder="Enter to chat..." maxlength="200" />
-      <button id="chat-send" class="chat-send">Send</button>
+    <div id="chat-messages" style="background:rgba(0,0,0,0.65);border:1px solid rgba(255,255,255,0.1);border-radius:8px 8px 0 0;padding:8px;height:110px;overflow-y:auto;font-size:12px;color:#ddd;display:flex;flex-direction:column;gap:2px;"></div>
+    <div style="display:flex;">
+      <input id="chat-input" type="text" aria-label="Chat message" placeholder="Enter to chat..." maxlength="200" style="flex:1;background:rgba(0,0,0,0.8);border:1px solid rgba(255,255,255,0.2);border-top:none;border-radius:0 0 0 8px;padding:6px 10px;color:#fff;font-size:12px;outline:none;"/>
+      <button id="chat-send" style="background:rgba(60,120,60,0.8);border:1px solid rgba(60,200,60,0.4);border-top:none;border-radius:0 0 8px 0;padding:6px 10px;color:#fff;cursor:pointer;font-size:12px;">Send</button>
     </div>
   `;
   document.body.appendChild(chatBox);
@@ -118,35 +112,36 @@ export function renderHUD() {
   const dialogueBox = document.createElement("div");
   dialogueBox.id = "dialogue-box";
   dialogueBox.style.cssText = "position:fixed;bottom:160px;left:50%;transform:translateX(-50%);background:rgba(10,10,20,0.95);border:1px solid rgba(100,150,255,0.4);border-radius:12px;padding:16px 20px;max-width:500px;min-width:300px;z-index:1500;display:none;font-family:'Segoe UI',sans-serif;box-shadow:0 4px 20px rgba(0,0,0,0.5);";
-  dialogueBox.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h3 id="dialogue-speaker" style="margin:0;color:#fff;"></h3><button aria-label="Close panel" onclick="document.getElementById(\'dialogue-box\').style.display=\'none\'" style="${closeBtnStyle()}">X</button></div><p id="dialogue-text" style="font-size:14px;color:#eee;margin-bottom:15px;line-height:1.5;"></p><div id="dialogue-choices" style="display:flex;flex-direction:column;gap:8px;"></div>`;
+  dialogueBox.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h3 id="dialogue-speaker" style="margin:0;color:#fff;"></h3><button aria-label="Close panel" onclick="document.getElementById("dialogue-box").style.display="none"" style="${closeBtnStyle()}">X</button></div><p id="dialogue-text" style="font-size:14px;color:#eee;margin-bottom:15px;line-height:1.5;"></p><div id="dialogue-choices" style="display:flex;flex-direction:column;gap:8px;"></div>`;
   document.body.appendChild(dialogueBox);
 
   // Inventory panel
   const invPanel = document.createElement("div");
   invPanel.id = "inventory-panel";
   invPanel.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(10,10,20,0.97);border:1px solid rgba(100,150,255,0.4);border-radius:12px;padding:20px;min-width:360px;max-width:480px;z-index:2000;display:none;font-family:'Segoe UI',sans-serif;color:#fff;box-shadow:0 8px 32px rgba(0,0,0,0.7);";
-  invPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#4488ff;">Inventory</h3><button aria-label="Close panel" onclick="document.getElementById(\'inventory-panel\').style.display=\'none\'" style="${closeBtnStyle()}">X</button></div><div id="inventory-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(60px,1fr));gap:10px;padding:10px;border:1px solid #333;border-radius:8px;min-height:120px;"></div><div style="margin-top:10px;font-size:12px;color:#aaa;">Click item to use/equip. Drag to reorder.</div>`;
+  invPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#4488ff;">Inventory</h3><button aria-label="Close panel" onclick="document.getElementById("inventory-panel").style.display="none"" style="${closeBtnStyle()}">X</button></div><div id="inventory-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(60px,1fr));gap:10px;padding:10px;border:1px solid #333;border-radius:8px;min-height:120px;"></div><div style="margin-top:10px;font-size:12px;color:#aaa;">Click item to use/equip. Drag to reorder.</div>`;
   document.body.appendChild(invPanel);
 
   // Quest panel
   const questPanel = document.createElement("div");
   questPanel.id = "quest-panel";
   questPanel.style.cssText = "position:fixed;top:50%;right:20px;transform:translateY(-50%);background:rgba(10,10,20,0.97);border:1px solid rgba(255,200,50,0.4);border-radius:12px;padding:20px;min-width:320px;max-width:400px;z-index:2000;display:none;font-family:'Segoe UI',sans-serif;color:#fff;max-height:70vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.7);";
-  questPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#ffc832;">Quest Log</h3><button aria-label="Close panel" onclick="document.getElementById(\'quest-panel\').style.display=\'none\'" style="${closeBtnStyle()}">X</button></div><div id="quest-list" style="display:flex;flex-direction:column;gap:10px;"></div>`;
+  questPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#ffc832;">Quest Log</h3><button aria-label="Close panel" onclick="document.getElementById("quest-panel").style.display="none"" style="${closeBtnStyle()}">X</button></div><div id="quest-list" style="display:flex;flex-direction:column;gap:10px;"></div>`;
   document.body.appendChild(questPanel);
 
   // Skills panel
   const skillsPanel = document.createElement("div");
   skillsPanel.id = "skills-panel";
   skillsPanel.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(10,10,20,0.97);border:1px solid rgba(255,120,50,0.4);border-radius:12px;padding:20px;min-width:380px;max-width:520px;z-index:2000;display:none;font-family:'Segoe UI',sans-serif;color:#fff;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.7);";
-  skillsPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#ff8844;">Skills</h3><button aria-label="Close panel" onclick="document.getElementById(\'skills-panel\').style.display=\'none\'" style="${closeBtnStyle()}">X</button></div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">`;
+  skillsPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#ff8844;">Skills</h3><button aria-label="Close panel" onclick="document.getElementById("skills-panel").style.display="none"" style="${closeBtnStyle()}">X</button></div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">`;
   document.body.appendChild(skillsPanel);
 
   // Map panel
   const mapPanel = document.createElement("div");
   mapPanel.id = "map-panel";
   mapPanel.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(10,10,20,0.97);border:1px solid rgba(50,150,255,0.4);border-radius:12px;padding:20px;width:600px;height:500px;z-index:2000;display:none;font-family:'Segoe UI',sans-serif;color:#fff;box-shadow:0 8px 32px rgba(0,0,0,0.7);";
-mapPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h3 style="margin:0;color:#44aaff;">World Map - Areloria</h3><button aria-label="Close panel" onclick="document.getElementById(\'map-panel\').style.display=\'none\'" style="${closeBtnStyle()}">X</button></div><canvas id="world-map-canvas" width="560" height="400" style="border:1px solid #44aaff;"></canvas>`;  document.body.appendChild(mapPanel);
+  mapPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h3 style="margin:0;color:#44aaff;">World Map - Areloria</h3><button aria-label="Close panel" onclick="document.getElementById("map-panel").style.display="none"" style="${closeBtnStyle()}">X</button></div><canvas id="world-map-canvas" width="560" height="400" style="border:1px solid #44aaff;"></canvas>`;
+  document.body.appendChild(mapPanel);
 
   // Event Listeners for buttons
   document.getElementById("btn-inventory")?.addEventListener("click", () => togglePanel("inventory-panel"));
@@ -166,163 +161,34 @@ mapPanel.innerHTML = `<div style="display:flex;justify-content:space-between;ali
       if (assetPipelineBtn) assetPipelineBtn.style.display = "none";
     }
   });
-}
 
-export function showFloatingText(text: string, x: number, y: number) {
-  const div = document.createElement("div");
-  div.style.position = "fixed";
-  div.style.left = `${x}px`;
-  div.style.top = `${y}px`;
-  div.style.color = "#ff0000";
-  div.style.fontWeight = "bold";
-  div.style.fontSize = "20px";
-  div.style.pointerEvents = "none";
-  div.style.zIndex = "1001";
-  div.textContent = text;
-  document.body.appendChild(div);
+  document.getElementById("btn-admin-assets")?.addEventListener("click", toggleAdminAssetPanel);
+  document.getElementById("btn-asset-pipeline")?.addEventListener("click", toggleAssetPipelinePanel);
 
-  // Animate and remove
-  div.animate([
-    { transform: "translateY(0)", opacity: 1 },
-    { transform: "translateY(-50px)", opacity: 0 }
-  ], {
-    duration: 1000,
-    easing: "ease-out"
-  }).onfinish = () => div.remove();
-}
+  // Chat functionality
+  const chatInput = document.getElementById("chat-input") as HTMLInputElement;
+  const chatSendBtn = document.getElementById("chat-send") as HTMLButtonElement;
+  const chatMessages = document.getElementById("chat-messages") as HTMLDivElement;
 
-export function showTooltip(text: string) {
-  let tooltip = document.getElementById("interaction-tooltip");
-  if (!tooltip) {
-    tooltip = document.createElement("div");
-    tooltip.id = "interaction-tooltip";
-    tooltip.style.position = "fixed";
-    tooltip.style.bottom = "100px";
-    tooltip.style.left = "50%";
-    tooltip.style.transform = "translateX(-50%)";
-    tooltip.style.background = "rgba(0, 0, 0, 0.8)";
-    tooltip.style.color = "#fff";
-    tooltip.style.padding = "8px 16px";
-    tooltip.style.borderRadius = "6px";
-    tooltip.style.border = "1px solid #00ff00";
-    tooltip.style.zIndex = "1000";
-    tooltip.style.pointerEvents = "none";
-    document.body.appendChild(tooltip);
-  }
-  tooltip.textContent = text;
-}
+  chatSendBtn.onclick = () => {
+    const text = chatInput.value.trim();
+    if (text && _ws) {
+      _ws.send(JSON.stringify({ type: "chat", message: text }));
+      chatInput.value = "";
+    }
+  };
 
-export function hideTooltip() {
-  const tooltip = document.getElementById("interaction-tooltip");
-  if (tooltip && tooltip.parentNode) {
-    tooltip.parentNode.removeChild(tooltip);
-  }
-}
-
-export function showDialogue(source: string, text: string, choices: any[] = [], npcId?: string) {
-  let dialogueBox = document.getElementById("dialogue-box");
-  if (!dialogueBox) {
-    dialogueBox = document.createElement("div");
-    dialogueBox.id = "dialogue-box";
-    dialogueBox.style.position = "fixed";
-    dialogueBox.style.bottom = "20px";
-    dialogueBox.style.left = "50%";
-    dialogueBox.style.transform = "translateX(-50%)";
-    dialogueBox.style.background = "rgba(0, 0, 0, 0.9)";
-    dialogueBox.style.color = "#fff";
-    dialogueBox.style.padding = "20px 30px";
-    dialogueBox.style.borderRadius = "12px";
-    dialogueBox.style.fontFamily = "sans-serif";
-    dialogueBox.style.minWidth = "400px";
-    dialogueBox.style.maxWidth = "600px";
-    dialogueBox.style.textAlign = "left";
-    dialogueBox.style.boxShadow = "0 10px 25px rgba(0,0,0,0.5)";
-    dialogueBox.style.border = "1px solid rgba(255,255,255,0.1)";
-    dialogueBox.style.zIndex = "1000";
-    document.body.appendChild(dialogueBox);
-  }
-
-  let html = `<div style="margin-bottom: 12px;"><strong style="color: #00ff00; font-size: 1.1em;">${source}:</strong> <span style="line-height: 1.4;">${text}</span></div>`;
-
-  if (choices && choices.length > 0 && npcId) {
-    html += `<div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;">`;
-    choices.forEach((choice, index) => {
-      html += `
-        <button
-          class="dialogue-choice-btn"
-          data-npc-id="${npcId}"
-          data-node-id="${choice.nextNodeId}"
-          data-choice-id="${choice.id}"
-          style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 8px 12px; border-radius: 6px; cursor: pointer; text-align: left; transition: all 0.2s;"
-          onmouseover="this.style.background='rgba(255,255,255,0.15)'; this.style.borderColor='#00ff00';"
-          onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='rgba(255,255,255,0.2)';"
-        >
-          ${index + 1}. ${choice.text}
-        </button>
-      `;
-    });
-    html += `</div>`;
-  } else {
-    html += `<div style="font-size: 0.8em; opacity: 0.5; margin-top: 12px; text-align: center;">(Press E to continue)</div>`;
-  }
-
-  dialogueBox.innerHTML = html;
-
-  // Add event listeners to buttons
-  const buttons = dialogueBox.querySelectorAll(".dialogue-choice-btn");
-  buttons.forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      const target = e.currentTarget as HTMLButtonElement;
-      const nid = target.getAttribute("data-npc-id");
-      const node = target.getAttribute("data-node-id");
-      const choiceId = target.getAttribute("data-choice-id");
-      if (nid && node && choiceId) {
-        (window as any).sendDialogueChoice(nid, node, choiceId);
-      }
-    });
+  chatInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      chatSendBtn.click();
+    }
   });
 
-  // Auto-hide after 10 seconds if no choices
-  if ((window as any).dialogueTimeout) {
-    clearTimeout((window as any).dialogueTimeout);
-  }
-
-  if (!choices || choices.length === 0) {
-    (window as any).dialogueTimeout = setTimeout(() => {
-      if (dialogueBox && dialogueBox.parentNode) {
-        dialogueBox.parentNode.removeChild(dialogueBox);
-      }
-    }, 5000);
-  }
-}
-
-export function removeWorldLabel(id: string) {
-  const label = document.getElementById(`label-${id}`);
-  if (label) label.remove();
-}
-
-export function createWorldLabel(id: string, text: string, type: 'npc' | 'loot', healthPercent?: number) {
-  let label = document.getElementById(`label-${id}`);
-  if (!label) {
-    label = document.createElement("div");
-    label.id = `label-${id}`;
-    label.style.position = "fixed";
-    label.style.pointerEvents = "none";
-    label.style.zIndex = "1000";
-    label.style.textAlign = "center";
-    document.body.appendChild(label);
-  }
-
-  let html = `<div style="color: white; font-size: 12px; text-shadow: 1px 1px 1px black; font-weight: bold;">${text}</div>`;
-  if (type === 'npc' && healthPercent !== undefined) {
-    html += `
-      <div style="width: 40px; height: 6px; background: #333; margin: 2px auto; border: 1px solid #000;">
-        <div style="width: ${Math.max(0, Math.min(100, healthPercent * 100))}%; height: 100%; background: #00ff00;"></div>
-      </div>
-    `;
-  }
-  label.innerHTML = html;
-  return label;
+  // Initial render of panels
+  renderInventory();
+  renderQuestLog();
+  renderSkills();
+  renderWorldMap();
 }
 
 export function updateHUD(player: any, worldState: any) {
@@ -391,6 +257,7 @@ function renderInventory(inventory: any[] = []) {
   if (!grid) return;
 
   grid.innerHTML = ""; // Clear existing items
+
   if (inventory.length === 0) {
     grid.innerHTML = "<div style=\"color:#aaa;text-align:center;grid-column:1/-1;\">Inventory is empty.</div>";
     return;
@@ -474,7 +341,8 @@ function renderSkills(skills: any = {}) {
     ["thieving", "Thv", "#884488"], ["slayer", "Slay", "#ff0000"], ["farming", "Farm", "#88aa44"],
     ["smithing", "Smith", "#ff8800"], ["fletching", "Fltch", "#88ff44"],
   ];
-  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#ff8844;">Skills</h3><button aria-label="Close panel" onclick="document.getElementById(\'skills-panel\').style.display=\'none\'" style="${closeBtnStyle()}">X</button></div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">`;  for (const [skillId, label, color] of skillDefs) {
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#ff8844;">Skills</h3><button aria-label="Close panel" onclick="document.getElementById("skills-panel").style.display="none"" style="${closeBtnStyle()}">X</button></div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">`;
+  for (const [skillId, label, color] of skillDefs) {
     const sd = skills[skillId] || { level: 1, xp: 0 };
     const level = sd.level || 1;
     const xp = sd.xp || 0;
@@ -568,3 +436,13 @@ export function updateMinimap(worldState: any, myPlayerId: string | null) {
   ctx.lineWidth = 1.5;
   ctx.stroke();
 }
+
+
+export function updateCooldowns(skillId: string, durationMs: number) {}
+export function showDialogue(speaker: string, text: string, options?: any[]) {}
+export function renderInventoryPanel(inventory: any[]) {}
+export function createWorldLabel(id: string, text: string, color: string) { return document.createElement('div'); }
+export function removeWorldLabel(id: string) {}
+export function showFloatingText(text: string, x: number, y: number, color: string) {}
+export function showTooltip(text: string) {}
+export function hideTooltip() {}

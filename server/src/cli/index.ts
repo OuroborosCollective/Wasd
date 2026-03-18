@@ -106,7 +106,7 @@ program
     try {
       let assets;
       if (options.public) {
-        assets = await assetBrainDb.searchSpecifications(undefined, "public");
+        assets = await assetBrainDb.searchSpecifications("", "");
       } else {
         assets = await assetBrainDb.getUserSpecifications(options.user);
       }

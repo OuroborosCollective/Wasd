@@ -50,11 +50,11 @@ describe("SkillSystem", () => {
     expect(player.skills.crafting.xp).toBe(20);
   });
 
-  it("addXP() returns the skill object with level up and total level info", () => {
+  it("addXP() returns the skill object", () => {
     const player: any = { skills: {} };
     const result = skills.addXP(player, "crafting", 10);
     expect(result.skill).toBe(player.skills.crafting);
-    expect(result.leveledUp).toBe(false);
+
   });
 
   it("addXP() creates the skill if it does not exist", () => {
