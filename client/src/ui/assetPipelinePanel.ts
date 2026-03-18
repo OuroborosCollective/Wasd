@@ -72,7 +72,7 @@ function createPanel() {
         <div style="font-size:18px;font-weight:bold;color:#7af;">🧠 ASSET BRAIN PIPELINE</div>
         <div style="font-size:11px;color:#556;margin-top:2px;">Text → Spec → Tripo3D → GLB → Spiel</div>
       </div>
-      <button id="btn-close-pipeline" aria-label="Close Asset Pipeline" style="background:none;border:1px solid #333;color:#aaa;padding:4px 10px;cursor:pointer;border-radius:6px;"><span aria-hidden="true">✕</span></button>
+      <button id="btn-close-pipeline" aria-label="Close Asset Pipeline" style="background:none;border:1px solid #333;color:#aaa;padding:4px 10px;cursor:pointer;border-radius:6px;">✕</button>
     </div>
 
     <!-- Generator -->

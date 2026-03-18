@@ -50,7 +50,7 @@ export function toggleAssetGeneratorPanel() {
   panel.innerHTML = `
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
       <h2 style="margin: 0; color: #4a7c9e;">Asset Brain Generator</h2>
-      <button id="btn-close-asset-gen" aria-label="Close Asset Generator" style="background: none; border: none; color: #e0e0e0; font-size: 20px; cursor: pointer;"><span aria-hidden="true">✕</span></button>
+      <button id="btn-close-asset-gen" aria-label="Close Asset Generator" style="background: none; border: none; color: #e0e0e0; font-size: 20px; cursor: pointer;">✕</button>
     </div>
     
     <div style="margin-bottom: 15px;">
@@ -149,8 +149,7 @@ export function toggleAssetGeneratorPanel() {
 
     document.getElementById('btn-stop-animation')!.onclick = () => {
       viewer?.stopAnimations();
-    };
-}
+    };}
 
 async function generateAsset() {
   const input = (document.getElementById('inp-asset-input') as HTMLTextAreaElement).value.trim();
@@ -344,11 +343,12 @@ function displayAssets() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${asset.assetName.replace(/\\\s+/g, '_')}.json`;
+    a.download = `${asset.assetName.replace(/\s+/g, '_')}.json`;
     a.click();
     URL.revokeObjectURL(url);
   } catch (error) {
     alert(`Export failed: ${(error as Error).message}`);
   }
 };
+
 }
