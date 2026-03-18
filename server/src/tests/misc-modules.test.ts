@@ -357,7 +357,23 @@ describe("GameConfig", () => {
   it("matrixCurrency is 'matrix_energy'", () => {
     expect(GameConfig.matrixCurrency).toBe("matrix_energy");
   });
+  it("interactDistance is 25", () => {
+    expect(GameConfig.interactDistance).toBe(25);
+  });
+
+  it("attackDistance is 35", () => {
+    expect(GameConfig.attackDistance).toBe(35);
+  });
+  it("playerSpeed is 3", () => {
+    expect(GameConfig.playerSpeed).toBe(3);
+  });
+
+  it("lootDespawnMs is 300000", () => {
+    expect(GameConfig.lootDespawnMs).toBe(300000);
+  });
 });
+
+
 
 // ---------------------------------------------------------------------------
 // FeatureFlags

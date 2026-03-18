@@ -182,6 +182,19 @@ export function connectSocket(displayName?: string) {
     }
   };
 
+
+  ws.onclose = () => {
+    console.error("WebSocket connection closed or timed out. Reconnecting in 3s...");
+    (window as any).showToast && (window as any).showToast("Verbindung verloren. Versuche erneute Verbindung...", "#ff4444");
+    setTimeout(() => {
+      connectSocket(displayName);
+    }, 3000);
+  };
+
+  ws.onerror = (err) => {
+    console.error("WebSocket encountered an error:", err);
+  };
+
   // Basic movement controls for testing
   window.addEventListener("keydown", (e) => {
     if (!myPlayerId) return;
