@@ -47,6 +47,8 @@ export class WorldTick {
   public resourceSystem: ResourceSystem;
 
   private lootEntities: Map<string, any> = new Map();
+  // ⚡ Bolt Optimization: Cache loot entities as an array to avoid repeated Array.from() allocations in the 10Hz world tick loop
+  private cachedLoot: any[] = [];
   private socketToPlayer: Map<string, string> = new Map();
   private playerToSocket: Map<string, string> = new Map();
   private lastActionTimes: Map<string, any> = new Map();
@@ -553,6 +555,7 @@ export class WorldTick {
     for (const reward of questRewards) {
       this.broadcastQuestCompletion(socketId, reward.quest, reward.reward);
     }
+    this.updateLootCache();
 
     // Respawn NPC after delay
     const respawnKey = npcInstanceId;
@@ -650,6 +653,7 @@ export class WorldTick {
       }
       this.inventorySystem.addItem(player, loot.item);
       this.lootEntities.delete(targetId);
+      this.updateLootCache();
       this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Picked up ${loot.item.name}!` });
       this.debouncedSave();
     } else if (resource) {
@@ -826,7 +830,12 @@ export class WorldTick {
     };
     this.resolveLootGLB(loot);
     this.lootEntities.set(id, loot);
+    this.updateLootCache();
     return loot;
+  }
+
+  private updateLootCache() {
+    this.cachedLoot = Array.from(this.lootEntities.values());
   }
 
   private resolveLootGLB(loot: any) {
@@ -1016,11 +1025,14 @@ export class WorldTick {
     }
 
     // 7. Auto-remove old loot (5 minutes)
+    let lootRemoved = false;
     for (const [lootId, loot] of this.lootEntities) {
       if (loot.createdAt && now - loot.createdAt > GameConfig.lootDespawnMs) {
         this.lootEntities.delete(lootId);
+        lootRemoved = true;
       }
     }
+    if (lootRemoved) this.updateLootCache();
 
     // 8. Update cache
     if (cache) {
@@ -1035,16 +1047,10 @@ export class WorldTick {
     // 9. Broadcast state
     // ⚡ Bolt Optimization: Use pre-resolved GLB paths stored on entities to avoid Map lookups and .map() object spreads in the hot broadcast loop
     const npcs = this.npcSystem.getAllNPCs();
-    const loot = Array.from(this.lootEntities.values());
+    const loot = this.cachedLoot;
     // ⚡ Bolt Optimization: GLB paths are pre-resolved and stored on NPC and loot entities
     // during their creation or update, avoiding redundant lookups in the hot broadcast loop.
-    const npcsWithGlb = npcs.map(npc => ({ ...npc, glbPath: npc.glbPath }));
-    const lootWithGlb = loot.map(l => ({ ...l, glbPath: l.glbPath }));
-
     const resources = this.resourceSystem.getAllNodes();
-    // ⚡ Bolt Optimization: GLB paths are pre-resolved and stored on resource nodes
-    // during their creation or update, avoiding redundant lookups in the hot broadcast loop.
-    const resourcesWithGlb = resources.map(node => ({ ...node, glbPath: node.glbPath }));
 
     const weather = this.worldSystem.weatherSystem.nextWeather(Math.floor(this.tickCount / 600));
 
@@ -1052,7 +1058,7 @@ export class WorldTick {
       type: "world_tick",
       tick: this.tickCount,
       weather,
-      activeChunkIds: activeChunks.map(c => c.id),
+      activeChunkIds: this.chunkSystem.getActiveChunkIds(),
       players: players.map(p => {
         return {
           id: p.id,
@@ -1075,9 +1081,9 @@ export class WorldTick {
           appearance: p.resolvedAppearance || null
         };
       }),
-      npcs: npcsWithGlb,
-      loot: lootWithGlb,
-      resources: resourcesWithGlb,
+      npcs: npcs,
+      loot: loot,
+      resources: resources,
       onlinePlayers: this.socketToPlayer.size
     });
 
