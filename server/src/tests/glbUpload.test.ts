@@ -12,7 +12,6 @@ vi.mock("../core/Database.js", () => ({
   },
 }));
 
-
 import request from "supertest";
 import express from "express";
 import fs from "fs";
@@ -22,7 +21,6 @@ import { createGLBUploadRouter } from "../api/glbUploadRoute.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-// /app/server/src/tests -> /app/server/public/uploads/glb
 const TEST_UPLOAD_DIR = path.resolve(__dirname, "../../public/uploads/glb");
 
 const mockDb = {
@@ -32,6 +30,12 @@ const mockDb = {
 
 const app = express();
 app.use(express.json());
+
+// Apply simple mock auth middleware to attach the player ID
+app.use((req, res, next) => {
+  (req as any).playerId = req.headers["x-player-id"] || "test-player-123";
+  next();
+});
 
 app.use("/api/glb", createGLBUploadRouter(mockDb));
 

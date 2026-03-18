@@ -31,7 +31,7 @@ async function initDb() {
 
   await dbService.connect();
   await runMigrations(); // Ensure migrations are run
-  assetBrainDb = new AssetBrainDatabase(dbService.db);
+  assetBrainDb = new AssetBrainDatabase(dbService);
 }
 
 program
@@ -106,7 +106,7 @@ program
     try {
       let assets;
       if (options.public) {
-        assets = await assetBrainDb.searchSpecifications(undefined, undefined, true);
+        assets = await assetBrainDb.searchSpecifications("", "");
       } else {
         assets = await assetBrainDb.getUserSpecifications(options.user);
       }

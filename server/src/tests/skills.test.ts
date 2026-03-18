@@ -53,7 +53,7 @@ describe("SkillSystem", () => {
   it("addXP() returns the skill object", () => {
     const player: any = { skills: {} };
     const result = skills.addXP(player, "crafting", 10);
-    expect(result).toBe(player.skills.crafting);
+    expect(result.skill).toBe(player.skills.crafting);
 
   });
 
