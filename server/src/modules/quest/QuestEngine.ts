@@ -168,4 +168,19 @@ export class QuestEngine {
       objective: questDef.objectives?.[0]?.type || "custom"
     });
   }
+
+  updateCombatQuests(player: any, npcId: string, npcInstanceId: string): { quest: any; reward: any }[] {
+    const completedQuestRewards: { quest: any; reward: any }[] = [];
+    const activeQuests = player.quests.filter((q: any) => !q.completed);
+
+    for (const q of activeQuests) {
+      if ((q.objectiveType === "combat" || q.objective === "combat") && (q.targetId === npcId || q.targetId === npcInstanceId)) {
+        const reward = this.completeQuest(player, q.id);
+        if (reward) {
+          completedQuestRewards.push({ quest: q, reward });
+        }
+      }
+    }
+    return completedQuestRewards;
+  }
 }

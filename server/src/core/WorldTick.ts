@@ -528,38 +528,30 @@ export class WorldTick {
   }
 
   private handleNPCDeath(socketId: string, player: any, npc: any, npcInstanceId: string) {
-    // Drop loot
-    if (npc.dropTable) {
-      for (const drop of npc.dropTable) {
-        if (Math.random() < drop.chance) {
-          const item = ItemRegistry.createInstance(drop.itemId);
-          if (item) {
-            const lootId = `loot_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-            this.createLoot(lootId, item, {
-              x: npc.position.x + (Math.random() - 0.5) * 5,
-              y: npc.position.y + (Math.random() - 0.5) * 5
-            });
-          }
-        }
-      }
+    // Roll loot and gold from NPC's drop table
+    const lootResult = this.lootSystem.rollLoot(npc.dropTable || []);
+
+    for (const item of lootResult.items) {
+      const lootId = `loot_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+      this.createLoot(lootId, item, {
+        x: npc.position.x + (Math.random() - 0.5) * 5,
+        y: npc.position.y + (Math.random() - 0.5) * 5
+      });
     }
 
-    // Gold drop
-    const goldDrop = Math.floor(Math.random() * 20) + 5;
-    this.economySystem.addGold(player, goldDrop);
+    if (lootResult.gold > 0) {
+      this.economySystem.addGold(player, lootResult.gold);
+    }
 
     this.ws.sendToPlayer(socketId, {
       type: "dialogue", source: "System",
-      text: `You defeated ${npc.name}! +${goldDrop} gold`
+      text: `You defeated ${npc.name}! +${lootResult.gold} gold`
     });
 
-    // Check combat quests
-    const activeQuests = player.quests.filter((q: any) => !q.completed);
-    for (const q of activeQuests) {
-      if ((q.objectiveType === "combat" || q.objective === "combat") && (q.targetId === npc.id || q.targetId === npcInstanceId)) {
-        const reward = this.questSystem.completeQuest(player, q.id);
-        if (reward) this.broadcastQuestCompletion(socketId, q, reward);
-      }
+    // Update quests related to NPC combat
+    const questRewards = this.questSystem.updateCombatQuests(player, npc.id, npcInstanceId);
+    for (const reward of questRewards) {
+      this.broadcastQuestCompletion(socketId, reward.quest, reward.reward);
     }
 
     // Respawn NPC after delay
