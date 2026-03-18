@@ -895,6 +895,18 @@ export class WorldTick {
     // Ensure appearance object is fully hydrated with default values if partial
     if (player.appearance) {
       player.appearance = characterAssembly.validateAppearance(player.appearance);
+      // ⚡ Bolt Optimization: Pre-resolve character appearances to avoid O(N) map lookups and
+      // redundant object spreads in the hot broadcast loop (10Hz).
+      const paths = characterAssembly.resolveModelPaths(player.appearance);
+      player.resolvedAppearance = {
+        ...player.appearance,
+        characterModelUrl: paths.bodyUrl, // Full model URL
+        skinToneColor: paths.skinColor,
+        hairColor: paths.hairColor,
+        eyeColor: paths.eyeColor
+      };
+    } else {
+      player.resolvedAppearance = null;
     }
     if (!player.role) player.role = player.name.toLowerCase() === "admin" ? "admin" : "player";
 
@@ -1042,18 +1054,6 @@ export class WorldTick {
       weather,
       activeChunkIds: activeChunks.map(c => c.id),
       players: players.map(p => {
-        const appearance = p.appearance;
-        let resolvedAppearance = null;
-        if (appearance) {
-          const paths = characterAssembly.resolveModelPaths(appearance);
-          resolvedAppearance = {
-            ...appearance,
-            characterModelUrl: paths.bodyUrl, // Full model URL
-            skinToneColor: paths.skinColor,
-            hairColor: paths.hairColor,
-            eyeColor: paths.eyeColor
-          };
-        }
         return {
           id: p.id,
           name: p.name,
@@ -1072,7 +1072,7 @@ export class WorldTick {
           equipment: p.equipment || {},
           reputation: p.reputation || {},
           questStatus: this.questSystem.getQuestStatus(p),
-          appearance: resolvedAppearance
+          appearance: p.resolvedAppearance || null
         };
       }),
       npcs: npcsWithGlb,
