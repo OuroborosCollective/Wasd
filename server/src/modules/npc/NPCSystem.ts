@@ -99,51 +99,8 @@ export class NPCSystem {
     let questId = null;
     let choices = [];
 
-    // Check for quest-specific dialogue (Old Logic)
-    if (npc.questHooks && npc.questHooks.length > 0) {
-      for (const qId of npc.questHooks) {
-        const playerQuest = playerQuests.find((q: any) => q.id === qId);
-        if (!playerQuest) {
-          const questDef = questDefinitions.get(qId);
-          let prereqsMet = true;
-          if (questDef && questDef.prerequisiteQuestIds) {
-            for (const preId of questDef.prerequisiteQuestIds) {
-              const preQuest = playerQuests.find((q: any) => q.id === preId);
-              if (!preQuest || !preQuest.completed) {
-                prereqsMet = false;
-                break;
-              }
-            }
-          }
 
-          if (!prereqsMet) {
-            if (dialogue.questPrerequisiteLines && dialogue.questPrerequisiteLines[qId]) {
-              text = dialogue.questPrerequisiteLines[qId];
-              break;
-            }
-            continue;
-          }
 
-          if (dialogue.questStartLines && dialogue.questStartLines[qId]) {
-            text = dialogue.questStartLines[qId];
-            questId = qId;
-            break;
-          }
-        } else if (!playerQuest.completed) {
-          if (dialogue.questProgressLines && dialogue.questProgressLines[qId]) {
-            text = dialogue.questProgressLines[qId];
-            break;
-          }
-        } else {
-          if (dialogue.questCompleteLines && dialogue.questCompleteLines[qId]) {
-            text = dialogue.questCompleteLines[qId];
-            break;
-          }
-        }
-      }
-    }
-
-    // New Logic: Branching Nodes
     if (dialogue.nodes) {
       // Determine which node to show
       let activeNodeId = "root";
@@ -151,7 +108,7 @@ export class NPCSystem {
       // If we have quest-specific nodes, we could prioritize them here
       // For now, let's just use "root" as default or check for state-based entry nodes
       if (dialogue.entryNodes) {
-        for (const entry of dialogue.entryNodes) {
+        const matchingEntry = dialogue.entryNodes.find((entry: any) => {
           let match = true;
           if (entry.conditionFlag && !playerFlags[entry.conditionFlag]) match = false;
           if (entry.conditionQuestId) {
@@ -165,10 +122,10 @@ export class NPCSystem {
             if (entry.conditionReputation.min !== undefined && rep < entry.conditionReputation.min) match = false;
             if (entry.conditionReputation.max !== undefined && rep > entry.conditionReputation.max) match = false;
           }
-          if (match) {
-            activeNodeId = entry.nodeId;
-            break;
-          }
+          return match;
+        });
+        if (matchingEntry) {
+          activeNodeId = matchingEntry.nodeId;
         }
       }
 
