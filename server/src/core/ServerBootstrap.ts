@@ -19,6 +19,8 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+export let globalWorldTick: WorldTick | null = null;
+
 export class ServerBootstrap {
   async start() {
     const app = express();
@@ -144,6 +146,7 @@ export class ServerBootstrap {
     }
 
     const tick = new WorldTick(ws);
+    globalWorldTick = tick;
     await tick.init();
 
     const port = Number(process.env.PORT || 3000);
