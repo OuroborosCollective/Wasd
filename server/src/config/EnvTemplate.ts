@@ -8,6 +8,5 @@ export const EnvTemplate = {
   CACHE_URL: "redis://axuu-swpkln.serverless.euw1.cache.amazonaws.com:6379",
   MEMCACHED_URL: "h-swpkln.serverless.euw1.cache.amazonaws.com:11211",
   WEBSOCKET_URL: "wss://k2puomjx28.execute-api.eu-west-1.amazonaws.com/production/",
-  WEBSOCKET_CONNECTIONS_URL: "https://k2puomjx28.execute-api.eu-west-1.amazonaws.com/production/@connections",
-  FIREBASE_PROJECT_ID: "your-project-id"
+  WEBSOCKET_CONNECTIONS_URL: "https://k2puomjx28.execute-api.eu-west-1.amazonaws.com/production/@connections"
 };

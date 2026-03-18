@@ -1,6 +1,3 @@
-import { auth } from "../auth/firebase";
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
-
 export function renderAuthUI(onLogin: (displayName: string, uid?: string) => void) {
   const container = document.createElement("div");
   container.id = "auth-container";
@@ -28,30 +25,20 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   formBox.style.width = "300px";
 
   const title = document.createElement("h2");
-  title.innerText = "Login / Sign Up";
+  title.innerText = "Guest Login";
   title.style.margin = "0 0 1rem 0";
   title.style.textAlign = "center";
   formBox.appendChild(title);
 
-  const emailInput = document.createElement("input");
-  emailInput.type = "email";
-  emailInput.placeholder = "Email";
-  emailInput.style.padding = "0.5rem";
-  emailInput.style.borderRadius = "4px";
-  emailInput.style.border = "1px solid #444";
-  emailInput.style.backgroundColor = "#333";
-  emailInput.style.color = "white";
-  formBox.appendChild(emailInput);
-
-  const passwordInput = document.createElement("input");
-  passwordInput.type = "password";
-  passwordInput.placeholder = "Password";
-  passwordInput.style.padding = "0.5rem";
-  passwordInput.style.borderRadius = "4px";
-  passwordInput.style.border = "1px solid #444";
-  passwordInput.style.backgroundColor = "#333";
-  passwordInput.style.color = "white";
-  formBox.appendChild(passwordInput);
+  const nameInput = document.createElement("input");
+  nameInput.type = "text";
+  nameInput.placeholder = "Display Name";
+  nameInput.style.padding = "0.5rem";
+  nameInput.style.borderRadius = "4px";
+  nameInput.style.border = "1px solid #444";
+  nameInput.style.backgroundColor = "#333";
+  nameInput.style.color = "white";
+  formBox.appendChild(nameInput);
 
   const errorMsg = document.createElement("div");
   errorMsg.style.color = "#ff4444";
@@ -60,56 +47,30 @@ export function renderAuthUI(onLogin: (displayName: string, uid?: string) => voi
   formBox.appendChild(errorMsg);
 
   const loginBtn = document.createElement("button");
-  loginBtn.innerText = "Login";
+  loginBtn.innerText = "Play";
   loginBtn.style.padding = "0.5rem";
   loginBtn.style.backgroundColor = "#4CAF50";
   loginBtn.style.color = "white";
   loginBtn.style.border = "none";
   loginBtn.style.borderRadius = "4px";
   loginBtn.style.cursor = "pointer";
-  loginBtn.onclick = async () => {
-    try {
-      errorMsg.innerText = "";
-      await signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
-    } catch (e: any) {
-      errorMsg.innerText = e.message;
+  loginBtn.onclick = () => {
+    const name = nameInput.value.trim();
+    if (!name) {
+      errorMsg.innerText = "Please enter a display name.";
+      return;
     }
+
+    // Bypass authentication and login directly as guest
+    container.style.display = "none";
+    onLogin(name, name);
   };
   formBox.appendChild(loginBtn);
-
-  const signupBtn = document.createElement("button");
-  signupBtn.innerText = "Sign Up";
-  signupBtn.style.padding = "0.5rem";
-  signupBtn.style.backgroundColor = "#2196F3";
-  signupBtn.style.color = "white";
-  signupBtn.style.border = "none";
-  signupBtn.style.borderRadius = "4px";
-  signupBtn.style.cursor = "pointer";
-  signupBtn.onclick = async () => {
-    try {
-      errorMsg.innerText = "";
-      await createUserWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
-    } catch (e: any) {
-      errorMsg.innerText = e.message;
-    }
-  };
-  formBox.appendChild(signupBtn);
 
   container.appendChild(formBox);
   document.body.appendChild(container);
 
-  const unsubscribe = onAuthStateChanged(auth, (user) => {
-    if (user) {
-      container.style.display = "none";
-      const displayName = user.displayName || user.email?.split("@")[0] || "Adventurer";
-      onLogin(displayName, user.uid);
-    } else {
-      container.style.display = "flex";
-    }
-  });
-
   return () => {
-    unsubscribe();
     container.remove();
   };
 }
@@ -128,7 +89,6 @@ export function renderLogoutBtn() {
   btn.style.cursor = "pointer";
   btn.style.zIndex = "900";
   btn.onclick = () => {
-    signOut(auth);
     window.location.reload();
   };
   document.body.appendChild(btn);
