@@ -873,22 +873,6 @@ export class WorldTick {
     await this.persistence.saveWorldState('global_state', this.worldState);
   }
 
-  // ⚡ Bolt Optimization: Update the pre-resolved paths for a player dynamically
-  updatePlayerAppearance(playerId: string, appearance: any) {
-    const player = this.playerSystem.getPlayer(playerId);
-    if (player) {
-      player.appearance = characterAssembly.validateAppearance(appearance);
-      const paths = characterAssembly.resolveModelPaths(player.appearance);
-      player.resolvedAppearance = {
-        ...player.appearance,
-        characterModelUrl: paths.bodyUrl,
-        skinToneColor: paths.skinColor,
-        hairColor: paths.hairColor,
-        eyeColor: paths.eyeColor
-      };
-    }
-  }
-
   private hydratePlayer(player: any) {
     if (!player.id) player.id = "unknown";
     if (!player.name) player.name = player.id;
@@ -911,15 +895,18 @@ export class WorldTick {
     // Ensure appearance object is fully hydrated with default values if partial
     if (player.appearance) {
       player.appearance = characterAssembly.validateAppearance(player.appearance);
-      // ⚡ Bolt Optimization: Pre-resolve model paths during hydration to avoid O(N) overhead in the 10Hz tick loop
+      // ⚡ Bolt Optimization: Pre-resolve character appearances to avoid O(N) map lookups and
+      // redundant object spreads in the hot broadcast loop (10Hz).
       const paths = characterAssembly.resolveModelPaths(player.appearance);
       player.resolvedAppearance = {
         ...player.appearance,
-        characterModelUrl: paths.bodyUrl,
+        characterModelUrl: paths.bodyUrl, // Full model URL
         skinToneColor: paths.skinColor,
         hairColor: paths.hairColor,
         eyeColor: paths.eyeColor
       };
+    } else {
+      player.resolvedAppearance = null;
     }
     if (!player.role) player.role = player.name.toLowerCase() === "admin" ? "admin" : "player";
 

@@ -33,3 +33,7 @@
 ## 2026-05-21 - [Pre-resolving Asset Paths for Tick Loops]
 **Learning:** Performing asset lookups (like GLB model paths) for every entity in the world broadcast tick (10Hz) creates unnecessary Map overhead and object spread allocations.
 **Action:** Cache asset paths directly on entity objects during creation or hydration. This transforms an $O(E \times A)$ lookup (Entities x Assets) into a direct property access in the broadcast loop, significantly reducing per-tick overhead.
+
+## 2026-03-18 - [Pre-resolving Appearance Models for Tick Loops]
+**Learning:** Performing character appearance resolution (via `characterAssembly.resolveModelPaths`) and redundant object spreads for every player inside the 10Hz broadcast loop causes significant overhead as player counts scale.
+**Action:** Always pre-calculate and cache complex resolved data (like character model URLs and colors) on the player object during hydration or update, preventing expensive string concatenations and map lookups on every single tick.
