@@ -12,6 +12,12 @@ vi.mock("../core/Database.js", () => ({
   },
 }));
 
+vi.mock("../middleware/authMiddleware.js", () => ({
+  authMiddleware: (req: any, res: any, next: any) => {
+    req.playerId = "test-player-123";
+    next();
+  }
+}));
 
 import request from "supertest";
 import express from "express";
