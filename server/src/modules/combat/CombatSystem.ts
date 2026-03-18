@@ -80,14 +80,8 @@ export class CombatSystem {
     const attackLevel = attacker.skills?.combat?.level ?? 1;
     const defenseLevel = defender.skills?.combat?.level ?? 1;
     let baseDamage = this.BASE_DAMAGE + Math.floor(attackLevel * 1.5);
-    if (attacker.equipment?.weapon) {
-      // ⚡ Bolt Optimization: Use hydrated weapon damage to avoid O(N) ItemRegistry lookup
-      if (attacker.equipment.weapon.damage !== undefined) {
-        baseDamage += attacker.equipment.weapon.damage;
-      } else {
-        const weaponDef = ItemRegistry.getItem(attacker.equipment.weapon.id);
-        if (weaponDef?.damage) baseDamage += weaponDef.damage;
-      }
+    if (attacker.equipment?.weapon?.damage !== undefined) {
+      baseDamage += attacker.equipment.weapon.damage;
     }
     const mitigation = Math.floor(defenseLevel * 0.5);
     const variance = 0.8 + Math.random() * 0.4;
