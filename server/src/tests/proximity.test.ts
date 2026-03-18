@@ -1,8 +1,8 @@
-import { NPCSystem } from '../modules/npc/NPCSystem.js';
 import { describe, it, expect } from 'vitest';
+import { NPCSystem } from '../modules/npc/NPCSystem.js';
 
-describe('NPC Proximity Optimization', () => {
-  it('should correctly handle proximity interactions', () => {
+describe('Proximity Optimization', () => {
+  it('correctly handles npc proximity states', () => {
     const npcSystem = new NPCSystem();
     const npc = npcSystem.createNPC('test_npc', 'Test NPC', 0, 0);
 
@@ -28,6 +28,6 @@ describe('NPC Proximity Optimization', () => {
     npc.stateTimer = Date.now() + 10000;
 
     npcSystem.tick([]);
-    expect(npc.targetPosition).toBeNull();
+    expect(npc.targetPosition).toBe(null);
   });
 });

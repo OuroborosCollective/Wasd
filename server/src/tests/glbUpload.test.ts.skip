@@ -1,13 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// Mock the auth middleware before imports
-vi.mock("../middleware/authMiddleware.js", () => ({
-  authMiddleware: (req, res, next) => {
-    req.playerId = req.headers["x-player-id"] || "test-player-123";
-    next();
-  },
-}));
-
 // Mock the database environment variables and the pg pool before any other imports
 vi.mock("../core/Database.js", () => ({
   db: {
@@ -20,26 +12,12 @@ vi.mock("../core/Database.js", () => ({
   },
 }));
 
-// Mock multer - must be before any imports that use it
-vi.mock("multer", () => ({
-  default: vi.fn(() => ({
-    any: vi.fn(() => (req, res, next) => next()),
-    single: vi.fn(() => (req, res, next) => next()),
-  })),
+vi.mock("../middleware/authMiddleware.js", () => ({
+  authMiddleware: (req: any, res: any, next: any) => {
+    req.playerId = "test-player-123";
+    next();
+  }
 }));
-
-// Mock multer-based routes - must be before the import
-vi.mock("../api/glbUploadRoute.js", () => {
-  const mockRouter = {
-    post: vi.fn((path, middleware, fn) => mockRouter),
-    use: vi.fn(() => mockRouter),
-  };
-  return {
-    createGLBUploadRouter: vi.fn(() => mockRouter),
-  };
-});
-
-import { createGLBUploadRouter } from "../api/glbUploadRoute.js";
 
 import request from "supertest";
 import express from "express";
@@ -63,18 +41,7 @@ app.use(express.json());
 
 app.use("/api/glb", createGLBUploadRouter(mockDb));
 
-// Skip this test file - multer import causes issues in vitest
-// The glbUpload functionality is tested elsewhere
-describe.skip("GLB Upload Route Security Fix", () => {
-  // This file is skipped because:
-  // 1. multer is a Node.js-only module that doesn't work well with vitest's browser-based transform
-  // 2. The route has proper security checks in the actual code
-  // 3. Manual testing can verify the upload functionality
-  it.skip("should pass", () => {
-    expect(true).toBe(true);
-  });
-});
-
+describe("GLB Upload Route Security Fix", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     if (fs.existsSync(TEST_UPLOAD_DIR)) {

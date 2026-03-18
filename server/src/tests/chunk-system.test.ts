@@ -1,8 +1,8 @@
-import { ChunkSystem } from '../modules/world/ChunkSystem.js';
 import { describe, it, expect } from 'vitest';
+import { ChunkSystem } from '../modules/world/ChunkSystem.js';
 
 describe('ChunkSystem Optimization', () => {
-  it('should correctly track active chunks', () => {
+  it('correctly tracks active chunks', () => {
     const system = new ChunkSystem(64);
 
     // Create some chunks
