@@ -173,7 +173,26 @@ export function connectSocket(displayName?: string) {
   const wsUrl = externalWsUrl || localWsUrl;
   console.log(`[WebSocket] Connecting to: ${wsUrl} (protocol: ${wsProtocol})`);
   
-  const ws = new WebSocket(wsUrl);
+  let connectionTimeout: any = null;
+  let ws: WebSocket;
+  
+  const createConnection = (url: string) => {
+    const socket = new WebSocket(url);
+    if (connectionTimeout) clearTimeout(connectionTimeout);
+    connectionTimeout = setTimeout(() => {
+      if (socket.readyState === WebSocket.CONNECTING) {
+        console.warn(`[WS] Timeout on ${url}, trying fallback...`);
+        socket.close();
+        const fallback = wsProtocol === 'wss:' ? 'ws:' : 'wss:';
+        const fallbackUrl = `${fallback}//${location.hostname}/ws`;
+        console.log(`[WS] Fallback: ${fallbackUrl}`);
+        createConnection(fallbackUrl);
+      }
+    }, 5000);
+    return socket;
+  };
+  
+  ws = createConnection(wsUrl);
   globalWs = ws;
   
   // Reset reconnect attempts on new connection
