@@ -78,7 +78,10 @@ export class ChunkSystem {
    */
   addEntity(entityId: string, x: number, y: number) {
     const chunkId = this.getChunkId(x, y);
-    const [cx, cy] = chunkId.split(':').map(Number);
+    // ⚡ Bolt Optimization: Replace chunkId.split(':').map(Number) to avoid array allocations in hot path
+    const splitIdx = chunkId.indexOf(':');
+    const cx = parseInt(chunkId.slice(0, splitIdx), 10);
+    const cy = parseInt(chunkId.slice(splitIdx + 1), 10);
     const chunk = this.getChunk(cx, cy);
     chunk.entities.add(entityId);
     return chunkId;
