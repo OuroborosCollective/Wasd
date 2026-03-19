@@ -9,3 +9,6 @@
 ## 2024-03-17 - Manual Loading State Accessibility on DOM Elements
 **Learning:** For manually created DOM elements without a UI library (using `document.createElement`), accessibility attributes for loading states must be explicitly toggled in JavaScript. Adding `aria-busy="true"` and `disabled=true` while updating button text provides immediate context for screen readers when an async network request starts.
 **Action:** Always toggle `.disabled`, update `.innerText`, and set/remove `aria-busy` inside the `try/finally` blocks of click handlers for manually rendered vanilla JS buttons.
+## 2024-05-24 - HTML string interpolation escaping bug breaks interactivity
+**Learning:** When using JS string templates to generate raw HTML components with inline handlers like `onclick`, developers mistakenly double-quote arguments and strings inside an already double-quoted HTML attribute (e.g. `onclick="document.getElementById("id").style.display="none""`). Browsers will silently truncate the attribute at the first inner double quote, rendering the button non-interactive and causing a serious accessibility/usability failure with no visible error.
+**Action:** Always test inline event handlers in manually constructed UI strings. Suggest using single quotes (`'`) for Javascript string literals inside double-quoted (`"`) HTML attributes to avoid breaking the HTML parser.
