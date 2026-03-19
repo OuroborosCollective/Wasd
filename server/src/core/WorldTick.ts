@@ -8,6 +8,7 @@ import { GuildSystem } from "../modules/guild/GuildSystem.js";
 import { EconomySystem } from "../modules/economy/EconomySystem.js";
 import { QuestEngine } from "../modules/quest/QuestEngine.js";
 import { WorldSystem } from "../modules/world/WorldSystem.js";
+import { HeuristicWorldBrain } from "../modules/brain/HeuristicWorldBrain.js";
 import { PersistenceManager } from "./PersistenceManager.js";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
 import { GLBRegistry } from "../modules/asset-registry/GLBRegistry.js";
@@ -27,6 +28,7 @@ import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 export class WorldTick {
   private timer: NodeJS.Timeout | null = null;
   private tickCount = 0;
+  private worldBrain: HeuristicWorldBrain;
 
   public chunkSystem: ChunkSystem;
   public observerEngine: ObserverEngine;
@@ -72,6 +74,7 @@ export class WorldTick {
   };
 
   constructor(private ws: GameWebSocketServer) {
+    this.worldBrain = new HeuristicWorldBrain();
     this.chunkSystem = new ChunkSystem(64);
     this.observerEngine = new ObserverEngine();
     this.playerSystem = new PlayerSystem();
@@ -1032,8 +1035,19 @@ export class WorldTick {
       }
     }
 
-    // 4. Tick NPC AI
-    this.npcSystem.tick(players, this.chatSystem);
+    // 3.5. Analyze world state with HeuristicWorldBrain
+    const worldAnalysis = this.worldBrain.analyze({
+      economy: this.economySystem,
+      politics: { diplomacy: this.worldState.diplomacy || [] },
+      world: { 
+        resourceCount: this.resourceSystem.nodes.size,
+        npcCount: this.npcSystem.getNPCCount ? this.npcSystem.getNPCCount() : 0
+      },
+      npcMemory: []
+    });
+
+    // 4. Tick NPC AI with world context
+    this.npcSystem.tick(players, this.chatSystem, worldAnalysis);
     this.worldSystem.tick();
     this.resourceSystem.tick();
 

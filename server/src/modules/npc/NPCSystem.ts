@@ -212,6 +212,10 @@ export class NPCSystem {
     return this.cachedNPCs;
   }
 
+  getNPCCount() {
+    return this.npcs.size;
+  }
+
   removeNPC(id: string) {
     this.npcs.delete(id);
     this.updateCache();
@@ -221,8 +225,8 @@ export class NPCSystem {
     this.cachedNPCs = Array.from(this.npcs.values());
   }
 
-  tick(players: any[], chatSystem?: any) {
-    // Process NPC AI, schedules, needs
+  tick(players: any[], chatSystem?: any, worldAnalysis?: any) {
+    // Process NPC AI, schedules, needs with world context
     const now = Date.now();
     // ⚡ Bolt Optimization: Use cached array instead of .values() iterator for better performance in the 10Hz tick loop
     for (const npc of this.cachedNPCs) {

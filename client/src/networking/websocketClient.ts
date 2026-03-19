@@ -300,6 +300,12 @@ export function connectSocket(displayName?: string) {
           const me = latestState.players.find((p: any) => p.id === myPlayerId);
           if (me) { me.position.x = data.x; me.position.z = data.y; }
         }
+      } else if (data.type === "chat_message") {
+        // Handle chat message from server
+        const { sender, channel, text, timestamp } = data;
+        if (typeof addChatMessage === 'function') {
+          addChatMessage(sender, channel, text, timestamp);
+        }
       } else if (data.type === "world_event") {
         // Show world event notification
         const notif = document.createElement("div");

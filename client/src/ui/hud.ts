@@ -220,12 +220,24 @@ export function updateHUD(player: any, worldState: any) {
   }
 
   updateMinimap(worldState, player.id);
-  renderInventory(player.inventory);
-  renderQuestLog(player.quests);
-  renderSkills(player.skills);
+  
+  // Render panels with initial data
+  if (player.inventory) renderInventory(player.inventory);
+  if (player.quests) renderQuestLog(player.quests);
+  if (player.skills) renderSkills(player.skills);
 }
 
-export function addChatMessage(message: string, type: "system" | "chat" | "error" = "chat") {
+export function addChatMessage(sender?: string, channel?: string, text?: string, timestamp?: number) {
+  let message = sender;
+  let type: "system" | "chat" | "error" = "chat";
+  
+  if (channel && typeof channel === 'string' && (channel === 'system' || channel === 'error' || channel === 'chat')) {
+    type = channel as any;
+  } else if (sender && channel && text) {
+    message = `[${sender}] ${text}`;
+    if (channel === 'system') type = 'system';
+  }
+
   const chatMessages = document.getElementById("chat-messages");
   if (!chatMessages) return;
 
