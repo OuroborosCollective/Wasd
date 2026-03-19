@@ -278,6 +278,19 @@ export class NPCSystem {
           if (chatSystem && npc.state !== decision.action) {
             chatSystem.systemMessage(`[Thought] ${npc.name}: ${decision.thought}`);
           }
+          
+          // React to world state if available
+          if (worldAnalysis && chatSystem) {
+            if (worldAnalysis.centerValue > 0.7) {
+              if (Math.random() < 0.15) {
+                chatSystem.systemMessage(`${npc.name}: *looks around nervously*`);
+              }
+            } else if (worldAnalysis.centerValue < 0.3) {
+              if (Math.random() < 0.1) {
+                chatSystem.systemMessage(`${npc.name}: *yawns* Not much happening today...`);
+              }
+            }
+          }
 
           if (decision.action === "wander" || decision.action === "wandering") {
             npc.state = "wandering";
