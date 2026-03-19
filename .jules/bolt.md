@@ -41,3 +41,7 @@
 ## 2026-03-19 - [Combining Array Iterations]
 **Learning:** Chaining array methods like `.filter()` and `.reduce()` multiple times over the same array leads to redundant O(N) iterations and unnecessary intermediate array allocations, degrading performance, especially on hot paths like heuristic calculations.
 **Action:** Replace multiple chained array methods with a single manual loop (e.g., `for...of`) to perform all filtering, accumulation, and transformation operations in a single O(N) pass without extra array allocations.
+
+## 2026-03-20 - [Array Allocations Before Set Initialization]
+**Learning:** Using `Array.map` to transform data before passing it to a `Set` constructor (e.g., `new Set(items.map(i => i.id))`) creates an unnecessary intermediate array allocation that is immediately discarded. In high-frequency loops like the 10Hz world tick, this causes significant garbage collection pressure.
+**Action:** Use a manual `for...of` loop to iterate over the source data and add elements directly to an initialized `Set` to avoid the intermediate array allocation.
