@@ -43,14 +43,18 @@ export class HeuristicWorldBrain {
     this.updateNode('market_volatility', volatility);
 
     // 4. Update Center
-    const weightedSum = this.nodes
-      .filter(n => n.category !== 'center')
-      .reduce((sum, n) => sum + (n.value * n.weight), 0);
-    const totalWeight = this.nodes
-      .filter(n => n.category !== 'center')
-      .reduce((sum, n) => sum + n.weight, 0);
+    // ⚡ Bolt Optimization: Replace double filter/reduce with a single O(N) loop to eliminate
+    // intermediate array allocations and redundant iterations.
+    let weightedSum = 0;
+    let totalWeight = 0;
+    for (const n of this.nodes) {
+      if (n.category !== 'center') {
+        weightedSum += n.value * n.weight;
+        totalWeight += n.weight;
+      }
+    }
 
-    const centerValue = weightedSum / totalWeight;
+    const centerValue = totalWeight > 0 ? weightedSum / totalWeight : 0;
     this.updateNode('world_center', centerValue);
 
     return {
