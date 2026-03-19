@@ -986,7 +986,12 @@ export class WorldTick {
 
     // 2. Update active chunks
     const observedChunks = this.observerEngine.getObservedChunks();
-    const observedChunkIds = new Set(observedChunks.map(c => c.id));
+    // ⚡ Bolt Optimization: Use manual for...of iteration to populate the Set instead of
+    // observedChunks.map(c => c.id) to avoid intermediate array allocation in the 10Hz loop.
+    const observedChunkIds = new Set<string>();
+    for (const c of observedChunks) {
+      observedChunkIds.add(c.id);
+    }
     const allActive = this.chunkSystem.getActiveChunks();
     for (const chunk of allActive) {
       if (!observedChunkIds.has(chunk.id)) this.chunkSystem.setChunkActive(chunk.id, false);
