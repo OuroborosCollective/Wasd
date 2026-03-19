@@ -43,12 +43,17 @@ export class HeuristicWorldBrain {
     this.updateNode('market_volatility', volatility);
 
     // 4. Update Center
-    const weightedSum = this.nodes
-      .filter(n => n.category !== 'center')
-      .reduce((sum, n) => sum + (n.value * n.weight), 0);
-    const totalWeight = this.nodes
-      .filter(n => n.category !== 'center')
-      .reduce((sum, n) => sum + n.weight, 0);
+    let weightedSum = 0;
+    let totalWeight = 0;
+
+    // ⚡ Bolt Optimization: Use a single for-loop instead of multiple array allocations
+    // from .filter() and .reduce() in a potentially hot path
+    for (const n of this.nodes) {
+      if (n.category !== 'center') {
+        weightedSum += n.value * n.weight;
+        totalWeight += n.weight;
+      }
+    }
 
     const centerValue = weightedSum / totalWeight;
     this.updateNode('world_center', centerValue);
@@ -61,14 +66,23 @@ export class HeuristicWorldBrain {
     };
   }
 
+  // ⚡ Bolt Optimization: Cache nodes by ID for O(1) lookups instead of O(N) array finds
+  private nodeCache: Map<string, BrainNode> | null = null;
+
   private updateNode(id: string, value: number) {
-    const node = this.nodes.find(n => n.id === id);
+    const node = this.getNode(id);
     if (node) {
       node.value = Math.max(0, Math.min(1, value));
     }
   }
 
   private getNode(id: string): BrainNode {
-    return this.nodes.find(n => n.id === id)!;
+    if (!this.nodeCache) {
+      this.nodeCache = new Map();
+      for (const n of this.nodes) {
+        this.nodeCache.set(n.id, n);
+      }
+    }
+    return this.nodeCache.get(id)!;
   }
 }
