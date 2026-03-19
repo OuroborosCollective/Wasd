@@ -224,7 +224,8 @@ export class NPCSystem {
   tick(players: any[], chatSystem?: any) {
     // Process NPC AI, schedules, needs
     const now = Date.now();
-    for (const npc of this.npcs.values()) {
+    // ⚡ Bolt Optimization: Use cached array instead of .values() iterator for better performance in the 10Hz tick loop
+    for (const npc of this.cachedNPCs) {
       // 0. Process dynamic needs
       if (!npc.needs) npc.needs = { hunger: 100, energy: 100 }; // Fallback for existing NPCs
 
@@ -244,6 +245,8 @@ export class NPCSystem {
         for (const player of players) {
           const dx = player.position.x - npc.position.x;
           const dy = player.position.y - npc.position.y;
+          // ⚡ Bolt Optimization: Manhattan distance early-exit to avoid squared distance calculation for distant entities
+          if (Math.abs(dx) > 15 || Math.abs(dy) > 15) continue;
           // Optimization: Use squared distance to avoid Math.hypot() square root
           if (dx * dx + dy * dy < 225) { // 15^2
             npc.state = "interacting";
