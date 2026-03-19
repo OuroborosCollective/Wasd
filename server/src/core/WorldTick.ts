@@ -984,7 +984,7 @@ export class WorldTick {
     this.timer = null;
   }
 
-  tick() {
+  async tick() {
     this.tickCount += 1;
     const now = Date.now();
 
@@ -1051,7 +1051,7 @@ export class WorldTick {
     worldBrainCache.persistState(this.tickCount, worldAnalysis);
 
     // 4. Tick NPC AI with world context
-    this.npcSystem.tick(players, this.chatSystem, worldAnalysis);
+    await this.npcSystem.tick(players, this.chatSystem, worldAnalysis);
     this.worldSystem.tick();
     this.resourceSystem.tick();
 

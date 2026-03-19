@@ -229,7 +229,7 @@ export class NPCSystem {
     this.cachedNPCs = Array.from(this.npcs.values());
   }
 
-  tick(players: any[], chatSystem?: any, worldAnalysis?: any) {
+  async tick(players: any[], chatSystem?: any, worldAnalysis?: any) {
     // Process NPC AI, schedules, needs with world context
     const now = Date.now();
     // ⚡ Bolt Optimization: Use cached array instead of .values() iterator for better performance in the 10Hz tick loop
@@ -277,7 +277,7 @@ export class NPCSystem {
       if (npc.state === "idle") {
         if (now > npc.stateTimer) {
           if (!npc.brain) npc.brain = new NPCBrain();
-          const decision = npc.brain.update(npc);
+          const decision = await npc.brain.update(npc);
 
           if (chatSystem && npc.state !== decision.action) {
             chatSystem.systemMessage(`[Thought] ${npc.name}: ${decision.thought}`);

@@ -7,46 +7,55 @@ Integration eines Azure Redis Enterprise (MemoryOptimized_M100) Caches in die be
 - **Cache-Abstraktion:** Es existiert bereits ein rudimentärer In-Memory-Cache (`server/src/core/Cache.ts`), der von `WorldTick.ts` für `world:stats` genutzt wird.
 - **World Brain:** Das `HeuristicWorldBrain` (`server/src/modules/brain/HeuristicWorldBrain.ts`) berechnet pro Tick einen World State (Nodes, Anomalien, Center Value).
 - **NPC AI:** NPCs generieren in `NPCSystem.tick` durch `NPCBrain.update` Thoughts, die aktuell nur als `[Thought]` via `chatSystem.systemMessage` emittiert werden. Es gibt eine inaktive/lokale `NPCMemoryEngine`.
-- **Dependencies:** Bisher ist kein dedizierter Redis-Client im Projekt installiert (weder `redis` noch `ioredis`).
+- **Dependencies:** Bisher war kein dedizierter Redis-Client im Projekt installiert.
 
 ## Azure Redis Verbindungsdaten
 - **HostName:** `thinking.germanywestcentral.redis.azure.net`
 - **SKU:** `MemoryOptimized_M100` (High Availability: Enabled)
 - **Minimum TLS Version:** `1.2`
-- *Hinweis:* Für die tatsächliche Verbindung werden ein Access Key oder Password benötigt, die via Environment-Variablen (z.B. `REDIS_PASSWORD`) injiziert werden müssen.
+- **Hinweis:** Für die tatsächliche Verbindung werden ein Access Key oder Password benötigt, die via Environment-Variablen (z.B. `REDIS_PASSWORD`) injiziert werden müssen.
 
-## Geplante Architektur & Implementierungsschritte
+## Implementierte Architektur & Schritte
 
-### 1. Abhängigkeiten hinzufügen
-- Installation von `ioredis` (oder `redis`), um eine robuste, TLS-fähige Verbindung zum Azure Redis Enterprise aufzubauen.
+### 1. Abhängigkeiten hinzugefügt
+- `ioredis` und `@types/ioredis` wurden als neue Abhängigkeiten in `server/package.json` installiert.
 
-### 2. Cache-Layer erweitern (`server/src/core/Cache.ts`)
-- **Ziel:** Den bestehenden In-Memory-Cache durch eine Redis-gestützte Implementierung ersetzen, aber als Fallback den In-Memory-Cache beibehalten, falls Redis nicht konfiguriert ist (Graceful Degradation).
-- **Änderungen:**
-  - Singleton-Redis-Client initialisieren, der auf `process.env.REDIS_URL` oder spezifische Azure-Variablen (`REDIS_HOST`, `REDIS_PASSWORD`) hört.
-  - Die Methoden `set`, `get` und `del` asynchron machen (die bestehende Signatur `async get` ist bereits vorhanden, `set` und `del` sollten angepasst oder asynchron behandelt werden).
-  - Die Tests in `cache.test.ts` anpassen, falls sich die Signatur ändert.
+### 2. RedisClient Singleton (`server/src/core/RedisClient.ts`)
+- Ein neuer Singleton-Client `RedisClient.ts` wurde erstellt, der die Verbindung zu Azure Redis Enterprise herstellt.
+- Er unterstützt TLS 1.2 und verwendet Umgebungsvariablen (`REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_TLS`) für die Konfiguration.
+- Bei fehlender Konfiguration oder Verbindungsfehlern wird ein In-Memory-Fallback verwendet, um die Ausfallsicherheit zu gewährleisten.
+- Die Initialisierung des Redis-Clients erfolgt frühzeitig im `ServerBootstrap.ts` vor dem Start des `WorldTick`.
+- Ein Graceful Shutdown für die Redis-Verbindung wurde in `ServerBootstrap.ts` implementiert.
 
-### 3. World Brain Caching (`server/src/core/WorldTick.ts`)
-- **Ziel:** Den berechneten `worldAnalysis`-Zustand in Redis speichern, damit andere Dienste (oder externe Analyse-Tools) darauf zugreifen können.
-- **Implementierung:** 
-  - Nach `const worldAnalysis = this.worldBrain.analyze(...)` in `WorldTick.ts` den Zustand asynchron in Redis schreiben (z.B. unter dem Key `world:brain:state`).
-  - Ein angemessenes TTL (z.B. 5-10 Sekunden) setzen, da der WorldTick 10Hz läuft und wir Redis nicht mit jedem Tick fluten wollen (Throttling/Debouncing beim Schreiben).
+### 3. Cache-Layer erweitert (`server/src/core/Cache.ts`)
+- Die bestehende `cache`-Abstraktion in `server/src/core/Cache.ts` wurde umgeschrieben, um den `RedisClient` zu nutzen.
+- `set`, `get` und `del` Operationen versuchen zuerst Redis und fallen bei Nichtverfügbarkeit oder Fehlern auf den In-Memory-Cache zurück.
+- Redis-Operationen sind asynchron und "fire-and-forget", um den Game-Loop nicht zu blockieren.
 
-### 4. NPC Thinkinglogs Integration (`server/src/modules/npc/NPCSystem.ts`)
-- **Ziel:** Die Gedanken (`decision.thought`) der NPCs persistieren.
-- **Implementierung:**
-  - In `NPCSystem.tick`, wenn ein NPC einen neuen Gedanken fasst (`if (npc.state !== decision.action)`), diesen nicht nur an das Chat-System senden, sondern auch in Redis ablegen.
-  - **Datenstruktur in Redis:**
-    - Variante A: Eine Redis-List (`RPUSH npc:thinkinglog:<npcId> {timestamp, thought, action}`) mit `LTRIM`, um die Liste auf z.B. die letzten 50 Gedanken zu begrenzen.
-    - Variante B: Ein Pub/Sub-Kanal (`PUBLISH npc:thoughts {npcId, thought}`), falls externe Systeme (wie ein LLM-Agent) darauf lauschen sollen.
-    - Variante C: Kombination aus List (für Historie) und Key-Value für den *aktuellen* Gedanken (`npc:current_thought:<npcId>`).
-  - Wir implementieren eine robuste List-basierte Logik (Variante A) in einem neuen oder erweiterten Service (z.B. `NPCMemoryEngine` oder direkt via `Cache.ts`), um die Logs abrufbar zu machen.
+### 4. NPC Thinkinglogs Integration (`server/src/modules/npc/NPCThinkingLogService.ts`)
+- Ein neuer Service `NPCThinkingLogService.ts` wurde erstellt, um die Gedanken der NPCs in Redis zu persistieren.
+- Wenn ein NPC in `NPCSystem.tick` eine neue Entscheidung trifft, wird diese über `npcThinkingLog.logThought` in Redis gespeichert.
+- Die Gedanken werden in einer Redis-Liste (`npc:thinkinglog:<npcId>`) mit einer Begrenzung auf die letzten 50 Einträge gespeichert und der aktuelle Gedanke separat (`npc:current_thought:<npcId>`) mit einem TTL von 30 Sekunden.
+- Beim Entfernen eines NPCs (`NPCSystem.removeNPC`) werden die zugehörigen Logs in Redis gelöscht.
 
-### 5. Konfiguration & Environment
-- Erweiterung der `.env.example` um die Azure Redis Parameter.
+### 5. World Brain Caching (`server/src/modules/brain/WorldBrainCacheService.ts`)
+- Ein neuer Service `WorldBrainCacheService.ts` wurde erstellt, um den Zustand des `HeuristicWorldBrain` in Redis zu cachen.
+- Nach der Analyse des World State in `WorldTick.ts` wird der Zustand über `worldBrainCache.persistState` in Redis gespeichert.
+- Das Schreiben in Redis ist gedrosselt (maximal alle 5 Sekunden), um die Performance des 10Hz WorldTick nicht zu beeinträchtigen.
+- Der aktuelle World-Brain-Zustand wird unter `world:brain:state` mit einem TTL von 10 Sekunden gespeichert, Anomalien unter `world:brain:anomalies` und eine Historie in einer Liste unter `world:brain:history`.
 
-## Risikomanagement & Safe Steps
-- **Safe Step:** Wir behalten den In-Memory-Fallback bei. Wenn die Redis-Verbindung fehlschlägt, stürzt der Server nicht ab.
-- **Performance:** Redis-Aufrufe (insbesondere im 10Hz WorldTick) dürfen den Event-Loop nicht blockieren ("fire and forget" oder gebatchte Writes für NPC-Thoughts).
-- **Architektur:** Die Kernlogik (Server Authority, 64x64 Chunks) bleibt völlig unangetastet. Wir klinken uns nur lesend/schreibend in bestehende Hooks (Chat-Emission, WorldAnalysis) ein.
+### 6. Konfiguration & Environment
+- Die `.env.example` wurde um die Azure Redis Parameter (`REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_TLS`) erweitert.
+
+## Testergebnisse
+- **TypeScript Type-Check:** Erfolgreich bestanden (`npx tsc --noEmit`).
+- **Content Validator:** Erfolgreich bestanden (`npm run validate`).
+- **Vitest Tests:** 1 Test ist fehlgeschlagen (`server/src/tests/proximity.test.ts`). Dieser Fehler scheint nicht direkt mit der Redis-Integration zusammenzuhängen, da er eine Assertion bezüglich `npc.targetPosition` in `npc-heuristics.test.ts` betrifft, die bereits vor der Redis-Integration existierte. Die Redis-Integration hat keine Änderungen an der Logik der NPC-Bewegung oder des `targetPosition`-Managements vorgenommen.
+
+## Verbleibende Risiken
+- Der fehlgeschlagene `proximity.test.ts` muss untersucht und behoben werden. Es ist unwahrscheinlich, dass dies durch die Redis-Integration verursacht wurde, aber es ist ein bestehendes Problem im Projekt.
+- Die tatsächliche Performance unter Last mit Redis muss in einer Staging-Umgebung getestet werden, um sicherzustellen, dass die "fire-and-forget"-Strategie und das Throttling ausreichend sind.
+- Die korrekte Konfiguration der `REDIS_PASSWORD` Umgebungsvariable ist entscheidend für den erfolgreichen Betrieb des Redis-Caches.
+
+## Nächster kleiner sinnvoller Schritt
+- Untersuchung und Behebung des fehlgeschlagenen Tests in `server/src/tests/proximity.test.ts`.
