@@ -112,35 +112,35 @@ export function renderHUD() {
   const dialogueBox = document.createElement("div");
   dialogueBox.id = "dialogue-box";
   dialogueBox.style.cssText = "position:fixed;bottom:160px;left:50%;transform:translateX(-50%);background:rgba(10,10,20,0.95);border:1px solid rgba(100,150,255,0.4);border-radius:12px;padding:16px 20px;max-width:500px;min-width:300px;z-index:1500;display:none;font-family:'Segoe UI',sans-serif;box-shadow:0 4px 20px rgba(0,0,0,0.5);";
-  dialogueBox.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h3 id="dialogue-speaker" style="margin:0;color:#fff;"></h3><button aria-label="Close panel" onclick="document.getElementById("dialogue-box").style.display="none"" style="${closeBtnStyle()}">X</button></div><p id="dialogue-text" style="font-size:14px;color:#eee;margin-bottom:15px;line-height:1.5;"></p><div id="dialogue-choices" style="display:flex;flex-direction:column;gap:8px;"></div>`;
+  dialogueBox.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h3 id="dialogue-speaker" style="margin:0;color:#fff;"></h3><button aria-label="Close panel" onclick="document.getElementById("dialogue-box").style.display="none"" style="${closeBtnStyle()}"><span aria-hidden="true">✕</span></button></div><p id="dialogue-text" style="font-size:14px;color:#eee;margin-bottom:15px;line-height:1.5;"></p><div id="dialogue-choices" style="display:flex;flex-direction:column;gap:8px;"></div>`;
   document.body.appendChild(dialogueBox);
 
   // Inventory panel
   const invPanel = document.createElement("div");
   invPanel.id = "inventory-panel";
   invPanel.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(10,10,20,0.97);border:1px solid rgba(100,150,255,0.4);border-radius:12px;padding:20px;min-width:360px;max-width:480px;z-index:2000;display:none;font-family:'Segoe UI',sans-serif;color:#fff;box-shadow:0 8px 32px rgba(0,0,0,0.7);";
-  invPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#4488ff;">Inventory</h3><button aria-label="Close panel" onclick="document.getElementById("inventory-panel").style.display="none"" style="${closeBtnStyle()}">X</button></div><div id="inventory-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(60px,1fr));gap:10px;padding:10px;border:1px solid #333;border-radius:8px;min-height:120px;"></div><div style="margin-top:10px;font-size:12px;color:#aaa;">Click item to use/equip. Drag to reorder.</div>`;
+  invPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#4488ff;">Inventory</h3><button aria-label="Close panel" onclick="document.getElementById("inventory-panel").style.display="none"" style="${closeBtnStyle()}"><span aria-hidden="true">✕</span></button></div><div id="inventory-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(60px,1fr));gap:10px;padding:10px;border:1px solid #333;border-radius:8px;min-height:120px;"></div><div style="margin-top:10px;font-size:12px;color:#aaa;">Click item to use/equip. Drag to reorder.</div>`;
   document.body.appendChild(invPanel);
 
   // Quest panel
   const questPanel = document.createElement("div");
   questPanel.id = "quest-panel";
   questPanel.style.cssText = "position:fixed;top:50%;right:20px;transform:translateY(-50%);background:rgba(10,10,20,0.97);border:1px solid rgba(255,200,50,0.4);border-radius:12px;padding:20px;min-width:320px;max-width:400px;z-index:2000;display:none;font-family:'Segoe UI',sans-serif;color:#fff;max-height:70vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.7);";
-  questPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#ffc832;">Quest Log</h3><button aria-label="Close panel" onclick="document.getElementById("quest-panel").style.display="none"" style="${closeBtnStyle()}">X</button></div><div id="quest-list" style="display:flex;flex-direction:column;gap:10px;"></div>`;
+  questPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#ffc832;">Quest Log</h3><button aria-label="Close panel" onclick="document.getElementById("quest-panel").style.display="none"" style="${closeBtnStyle()}"><span aria-hidden="true">✕</span></button></div><div id="quest-list" style="display:flex;flex-direction:column;gap:10px;"></div>`;
   document.body.appendChild(questPanel);
 
   // Skills panel
   const skillsPanel = document.createElement("div");
   skillsPanel.id = "skills-panel";
   skillsPanel.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(10,10,20,0.97);border:1px solid rgba(255,120,50,0.4);border-radius:12px;padding:20px;min-width:380px;max-width:520px;z-index:2000;display:none;font-family:'Segoe UI',sans-serif;color:#fff;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.7);";
-  skillsPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#ff8844;">Skills</h3><button aria-label="Close panel" onclick="document.getElementById("skills-panel").style.display="none"" style="${closeBtnStyle()}">X</button></div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">`;
+  skillsPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#ff8844;">Skills</h3><button aria-label="Close panel" onclick="document.getElementById("skills-panel").style.display="none"" style="${closeBtnStyle()}"><span aria-hidden="true">✕</span></button></div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">`;
   document.body.appendChild(skillsPanel);
 
   // Map panel
   const mapPanel = document.createElement("div");
   mapPanel.id = "map-panel";
   mapPanel.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(10,10,20,0.97);border:1px solid rgba(50,150,255,0.4);border-radius:12px;padding:20px;width:600px;height:500px;z-index:2000;display:none;font-family:'Segoe UI',sans-serif;color:#fff;box-shadow:0 8px 32px rgba(0,0,0,0.7);";
-  mapPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h3 style="margin:0;color:#44aaff;">World Map - Areloria</h3><button aria-label="Close panel" onclick="document.getElementById("map-panel").style.display="none"" style="${closeBtnStyle()}">X</button></div><canvas id="world-map-canvas" width="560" height="400" style="border:1px solid #44aaff;"></canvas>`;
+  mapPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h3 style="margin:0;color:#44aaff;">World Map - Areloria</h3><button aria-label="Close panel" onclick="document.getElementById("map-panel").style.display="none"" style="${closeBtnStyle()}"><span aria-hidden="true">✕</span></button></div><canvas id="world-map-canvas" width="560" height="400" style="border:1px solid #44aaff;"></canvas>`;
   document.body.appendChild(mapPanel);
 
   // Event Listeners for buttons
@@ -341,7 +341,7 @@ function renderSkills(skills: any = {}) {
     ["thieving", "Thv", "#884488"], ["slayer", "Slay", "#ff0000"], ["farming", "Farm", "#88aa44"],
     ["smithing", "Smith", "#ff8800"], ["fletching", "Fltch", "#88ff44"],
   ];
-  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#ff8844;">Skills</h3><button aria-label="Close panel" onclick="document.getElementById("skills-panel").style.display="none"" style="${closeBtnStyle()}">X</button></div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">`;
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#ff8844;">Skills</h3><button aria-label="Close panel" onclick="document.getElementById("skills-panel").style.display="none"" style="${closeBtnStyle()}"><span aria-hidden="true">✕</span></button></div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">`;
   for (const [skillId, label, color] of skillDefs) {
     const sd = skills[skillId] || { level: 1, xp: 0 };
     const level = sd.level || 1;

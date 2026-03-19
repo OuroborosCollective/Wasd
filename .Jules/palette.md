@@ -5,3 +5,7 @@
 ## 2026-03-16 - [Added loading and accessible form states]
 **Learning:** [Many forms generated via `document.createElement()` dynamically lack basic ARIA features like labels and button disabled states because they miss native semantic HTML templates. Adding these via `setAttribute('aria-label')` and checking `disabled` during async functions drastically improves form reliability.]
 **Action:** [When creating custom DOM elements (especially inputs/buttons without explicit `<label>` tags), always bind ARIA properties explicitly and disable interactable buttons on await to avoid double submits and confuse screen readers.]
+
+## 2026-03-19 - Standardized modal close buttons
+**Learning:** In vanilla JS apps, it's a common anti-pattern to use an unhidden text node like 'X' for modal close buttons, even when an aria-label is present. This causes screen readers to announce the visual 'X' redundantly.
+**Action:** When adding aria-labels to close buttons, always wrap the visual 'X' or '✕' in a `<span aria-hidden="true">`. Avoid using 'X' as the text node directly.
