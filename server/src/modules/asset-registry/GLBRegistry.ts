@@ -51,7 +51,10 @@ export class GLBRegistry {
         if (fs.statSync(fullPath).isDirectory()) {
           scanDir(fullPath);
         } else if (file.endsWith('.glb')) {
-          models.push('/models/' + path.relative(this.modelsDir, fullPath).replace(/\\/g, '/'));
+          // Pfad relativ zum public-Ordner generieren, damit er vom Client geladen werden kann
+          const publicDir = path.resolve(process.cwd(), '../client/public');
+          const relPath = path.relative(publicDir, fullPath).replace(/\\/g, '/');
+          models.push('/' + relPath);
         }
       }
     };

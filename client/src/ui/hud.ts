@@ -75,7 +75,7 @@ export function renderHUD() {
     <div id="hud-active-quest" style="background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,0,0.2);border-radius:6px;padding:6px 10px;font-size:11px;color:#ffff88;display:none;">
       Quest: <span id="hud-quest-text">None</span>
     </div>
-    <button id="btn-admin-assets" style="${btnStyle("#2a2a2a", "#888")}display:none;">Admin</button>
+    <button id="btn-admin-assets" style="${btnStyle("#2a2a2a", "#888")}">Admin</button>
     <button id="btn-asset-pipeline" style="${btnStyle("#1a1a3a", "#7af")}display:none;">🧠 Assets</button>
   `;
   document.body.appendChild(topLeft);
@@ -148,6 +148,7 @@ export function renderHUD() {
   document.getElementById("btn-quests")?.addEventListener("click", () => togglePanel("quest-panel"));
   document.getElementById("btn-skills")?.addEventListener("click", () => togglePanel("skills-panel"));
   document.getElementById("btn-map")?.addEventListener("click", () => togglePanel("map-panel"));
+  document.getElementById("btn-admin-assets")?.addEventListener("click", () => toggleAdminAssetPanel());
 
   // Admin button visibility
   onAuthStateChanged(auth, (user) => {

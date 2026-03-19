@@ -472,15 +472,17 @@ export function updateWorldState(state: any, playerId: string | null) {
   const currentNPCs = new Set<string>();
   for (const npc of state.npcs || []) {
     currentNPCs.add(npc.id);
-    if (!npcMeshes.has(npc.id)) {
-      if (npc.glbPath) {
+    if (!npcMeshes.has(npc.id))         if (npc.glbPath) {
         const g = new THREE.Group();
         g.position.set(npc.position.x, getTerrainHeight(npc.position.x, npc.position.z), npc.position.z);
         scene.add(g); npcMeshes.set(npc.id, g);
         let path = npc.glbPath;
-        if (path.startsWith('public/')) path = path.substring(6);
+        // Robustere Pfadbereinigung
+        if (path.startsWith('public/')) path = '/' + path.substring(7);
+        if (path.startsWith('assets/')) path = '/' + path;
         if (!path.startsWith('/')) path = '/' + path;
-        loadModel(path, (m) => { m.scale.set(0.5,0.5,0.5); g.add(m); });
+        console.log(`[Renderer] Loading NPC model: ${path} for ${npc.id}`);
+        loadModel(path, (m) => { m.scale.set(0.5,0.5,0.5); g.add(m); }, (err) => console.error(`[Renderer] NPC model load failed: ${path}`, err));
       } else {
         const isM = npc.role === "monster";
         const isShop = npc.role === "shopkeeper";
@@ -522,9 +524,12 @@ export function updateWorldState(state: any, playerId: string | null) {
         g.position.set(loot.position.x, getTerrainHeight(loot.position.x, loot.position.z) + 0.5, loot.position.z);
         scene.add(g); lootMeshes.set(loot.id, g);
         let path = loot.glbPath;
-        if (path.startsWith('public/')) path = path.substring(6);
+        // Robustere Pfadbereinigung
+        if (path.startsWith('public/')) path = '/' + path.substring(7);
+        if (path.startsWith('assets/')) path = '/' + path;
         if (!path.startsWith('/')) path = '/' + path;
-        loadModel(path, (m) => { m.scale.set(0.4, 0.4, 0.4); g.add(m); });
+        console.log(`[Renderer] Loading Loot model: ${path} for ${loot.id}`);
+        loadModel(path, (m) => { m.scale.set(0.4, 0.4, 0.4); g.add(m); }, (err) => console.error(`[Renderer] Loot model load failed: ${path}`, err));
       } else {
         const rc: Record<string,number> = { common:0xaaaaaa, uncommon:0x00cc00, rare:0x0088ff, epic:0xaa44ff, legendary:0xff8800 };
         const c = rc[loot.rarity || loot.item?.rarity || "common"] || 0xffd700;

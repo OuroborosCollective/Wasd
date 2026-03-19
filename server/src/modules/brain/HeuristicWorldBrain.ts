@@ -31,16 +31,32 @@ export class HeuristicWorldBrain {
 
   analyze(context: { economy: any, politics: any, world: any, npcMemory: any[] }) {
     // 1. Process World Nodes
-    this.updateNode('resource_density', (context.world?.resourceCount || 0) / 1000);
-    this.updateNode('monster_activity', (context.world?.npcCount || 0) / 500);
-
+    // Resource density based on available nodes vs total world size
+    this.updateNode('resource_density', (context.world?.resourceCount || 0) / 500);
+    // Monster activity increases with lower territorial integrity
+    const monsterActivity = (context.world?.npcCount || 0) / 300;
+    this.updateNode('monster_activity', monsterActivity);
+    
     // 2. Process Interpretation Nodes
-    const economicHealth = (context.economy?.activeMarkets || 0) > 0 ? 0.8 : 0.2;
+    // Economic vitality based on market activity and resource density
+    const marketActivity = context.economy?.getMarketActivity ? context.economy.getMarketActivity() : 0.5;
+    const economicHealth = (marketActivity + this.getNode('resource_density').value) / 2;
     this.updateNode('economic_vitality', economicHealth);
+    
+    // Social tension increases with monster activity and low economic vitality
+    const socialTension = (monsterActivity + (1 - economicHealth)) / 2;
+    this.updateNode('social_tension', socialTension);
 
     // 3. Process Dynamics Nodes
-    const volatility = (this.getNode('social_tension').value + (1 - economicHealth)) / 2;
+    // Market volatility based on social tension and economic shifts
+    const volatility = (socialTension + (1 - economicHealth)) / 2;
     this.updateNode('market_volatility', volatility);
+    
+    // War momentum increases when social tension is high and political alignment is low
+    const politicalAlignment = context.politics?.diplomacy?.length > 0 ? 0.7 : 0.3;
+    this.updateNode('political_alignment', politicalAlignment);
+    const warMomentum = (socialTension + (1 - politicalAlignment)) / 2;
+    this.updateNode('war_momentum', warMomentum);
 
     // 4. Update Center
     // ⚡ Bolt Optimization: Replace double filter/reduce with a single O(N) loop to eliminate
