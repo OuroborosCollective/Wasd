@@ -343,119 +343,75 @@
         "choices": [
           {
             "id": "hermit_work_1",
-            "text": "Tell me.",
+            "text": "I'm ready.",
             "nextNodeId": "root"
           }
         ]
       }
     },
     "questStartLines": {
-      "hermit_quest": "I need some rare herbs from the deep woods. Can you fetch them?"
+      "hermit_quest": "I need some rare herbs for my tea. Could you find some for me?"
     },
     "questProgressLines": {
-      "hermit_quest": "Still looking for those herbs?"
+      "hermit_quest": "The herbs are still out there."
     },
     "questCompleteLines": {
-      "hermit_quest": "Thank you, these will do nicely."
+      "hermit_quest": "Ah, perfect. These will make a fine brew."
     }
   },
   {
     "id": "dialogue_npc_7",
-    "greeting": "I've lost my cart. Have you seen it?",
-    "nodes": {
-      "root": {
-        "text": "My cart is lost somewhere in the woods.",
-        "choices": [
-          {
-            "id": "merchant_1",
-            "text": "I'll look for it.",
-            "nextNodeId": "root"
-          }
-        ]
-      }
-    },
+    "greeting": "I'm lost... so lost.",
     "questStartLines": {
-      "merchant_quest": "Find my cart!"
+      "merchant_quest": "I've lost my way. Could you help me find the village?"
     },
     "questProgressLines": {
-      "merchant_quest": "Any luck?"
+      "merchant_quest": "Is the village close?"
     },
     "questCompleteLines": {
-      "merchant_quest": "Thank you!"
+      "merchant_quest": "We made it! Thank you so much!"
     }
   },
   {
     "id": "dialogue_npc_8",
-    "greeting": "I need help with my experiments.",
-    "nodes": {
-      "root": {
-        "text": "My master needs rare ingredients.",
-        "choices": [
-          {
-            "id": "apprentice_1",
-            "text": "I can help.",
-            "nextNodeId": "root"
-          }
-        ]
-      }
-    },
+    "greeting": "The Alchemist is going to be furious!",
     "questStartLines": {
-      "apprentice_quest": "Bring me 5 mushrooms."
+      "apprentice_quest": "I've spilled the mushrooms! Please, help me collect some more before the Alchemist returns!"
     },
     "questProgressLines": {
-      "apprentice_quest": "Still need mushrooms."
+      "apprentice_quest": "Hurry, the Alchemist will be back any minute!"
     },
     "questCompleteLines": {
-      "apprentice_quest": "Perfect."
+      "apprentice_quest": "You saved me! Thank you!"
     }
   },
   {
     "id": "dialogue_shopkeeper",
-    "greeting": "Welcome! Take a look at my wares.",
+    "greeting": "Welcome to my shop! Take a look at my wares.",
     "nodes": {
       "root": {
-        "text": "Welcome to my shop! Let me know if you see anything you like.",
+        "text": "Welcome! How can I help you today?",
         "choices": [
           {
-            "id": "shop_buy",
-            "text": "I want to buy something.",
-            "nextNodeId": "buy"
-          },
-          {
-            "id": "shop_sell",
-            "text": "I have items to sell.",
-            "nextNodeId": "sell"
-          },
-          {
-            "id": "shop_bye",
-            "text": "Just looking, thanks.",
-            "nextNodeId": "bye"
-          }
-        ]
-      },
-      "buy": {
-        "text": "Feel free to browse my inventory.",
-        "choices": [
-          {
-            "id": "shop_back",
-            "text": "Back to main menu.",
+            "id": "shop_browse",
+            "text": "I'd like to see what you have for sale.",
             "nextNodeId": "root"
           }
         ]
-      },
-      "sell": {
-        "text": "Show me what you have.",
-        "choices": [
-          {
-            "id": "shop_back2",
-            "text": "Back to main menu.",
-            "nextNodeId": "root"
-          }
-        ]
-      },
-      "bye": {
-        "text": "Come back anytime!"
       }
+    }
+  },
+  {
+    "id": "dialogue_npc_9",
+    "greeting": "The forest is restless today.",
+    "questStartLines": {
+      "boar_menace": "The wild boars are becoming a real problem for the village. Could you help thin their numbers?"
+    },
+    "questProgressLines": {
+      "boar_menace": "The boars are still out there, traveler."
+    },
+    "questCompleteLines": {
+      "boar_menace": "Thank you. The forest feels a bit safer now. Here, take some meat for your trouble."
     }
   }
 ]

@@ -864,6 +864,27 @@ export class WorldTick {
     console.log(`World initialized. NPCs: ${this.npcSystem.getAllNPCs().length}`);
   }
 
+  /**
+   * ⚡ Bolt Optimization: Update a player's appearance in the live world tick cache.
+   * This ensures the broadcast loop uses the new resolved paths immediately.
+   */
+  public updatePlayerAppearance(playerId: string, appearance: any) {
+    const player = this.playerSystem.getPlayer(playerId);
+    if (player) {
+      player.appearance = appearance;
+      // Pre-resolve paths for the hot broadcast loop
+      const paths = characterAssembly.resolveModelPaths(appearance);
+      player.resolvedAppearance = {
+        ...appearance,
+        characterModelUrl: paths.bodyUrl,
+        skinToneColor: paths.skinColor,
+        hairColor: paths.hairColor,
+        eyeColor: paths.eyeColor
+      };
+      console.log(`WorldTick: Updated appearance for player ${player.name}`);
+    }
+  }
+
   private async debouncedSave() {
     if (this.saveDebounce) clearTimeout(this.saveDebounce);
     this.saveDebounce = setTimeout(() => this.saveAll(), 2000);

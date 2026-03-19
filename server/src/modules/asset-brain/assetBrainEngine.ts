@@ -196,7 +196,10 @@ export async function generateAssetSpecification(input: string): Promise<AssetSp
   try {
     const apiKey = process.env.GOOGLE_AI_API_KEY ?? process.env.GEMINI_API_KEY ?? '';
     if (apiKey) {
-      const genaiModule = await import('@google/genai');
+      // @ts-ignore - Module might not be installed in all environments
+      const genaiModule = await import('@google/genai').catch(() => null);
+      if (!genaiModule) throw new Error('Module @google/genai not found');
+      
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const GoogleGenerativeAI = (genaiModule as any).GoogleGenerativeAI;
       const genAI = new GoogleGenerativeAI(apiKey);
