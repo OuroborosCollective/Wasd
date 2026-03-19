@@ -3,6 +3,7 @@ import { NPCPersonalityEngine } from "./NPCPersonalityEngine.js";
 import { NPCMemoryEngine } from "./NPCMemoryEngine.js";
 import { NPCGenealogyEngine } from "./NPCGenealogyEngine.js";
 import { Pathfinding } from "../../utils/Pathfinding.js";
+import { npcThinkingLog } from "./NPCThinkingLogService.js";
 import fs from "fs";
 import path from "path";
 
@@ -220,6 +221,8 @@ export class NPCSystem {
   removeNPC(id: string) {
     this.npcs.delete(id);
     this.updateCache();
+    // Thinkinglogs in Redis aufräumen
+    npcThinkingLog.clearLogs(id);
   }
 
   private updateCache() {
@@ -279,6 +282,9 @@ export class NPCSystem {
           if (chatSystem && npc.state !== decision.action) {
             chatSystem.systemMessage(`[Thought] ${npc.name}: ${decision.thought}`);
           }
+
+          // Thinking-Log in Redis persistieren (fire-and-forget)
+          npcThinkingLog.logThought(npc.id, npc.name, decision.action, decision.thought);
           
           // React to world state if available
           if (worldAnalysis && chatSystem) {

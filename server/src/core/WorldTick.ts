@@ -9,6 +9,7 @@ import { EconomySystem } from "../modules/economy/EconomySystem.js";
 import { QuestEngine } from "../modules/quest/QuestEngine.js";
 import { WorldSystem } from "../modules/world/WorldSystem.js";
 import { HeuristicWorldBrain } from "../modules/brain/HeuristicWorldBrain.js";
+import { worldBrainCache } from "../modules/brain/WorldBrainCacheService.js";
 import { PersistenceManager } from "./PersistenceManager.js";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
 import { GLBRegistry } from "../modules/asset-registry/GLBRegistry.js";
@@ -1045,6 +1046,9 @@ export class WorldTick {
       },
       npcMemory: []
     });
+
+    // 3.6. World-Brain-Zustand in Redis persistieren (throttled, fire-and-forget)
+    worldBrainCache.persistState(this.tickCount, worldAnalysis);
 
     // 4. Tick NPC AI with world context
     this.npcSystem.tick(players, this.chatSystem, worldAnalysis);

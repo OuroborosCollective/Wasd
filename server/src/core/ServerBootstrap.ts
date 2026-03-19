@@ -13,6 +13,7 @@ import { createAssetPipelineRouter } from "../api/assetPipelineRoute.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import characterRouter from "../api/characterRoute.js";
 import { characterAssembly } from "../modules/character/CharacterAssemblySystem.js";
+import { initRedisClient, closeRedisClient } from "./RedisClient.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -145,6 +146,11 @@ export class ServerBootstrap {
       });
     }
 
+    // ── Redis Enterprise (Azure) ───────────────────────────────────────────
+    // Verbindung wird vor dem WorldTick hergestellt, damit der Cache beim ersten Tick bereit ist.
+    // Bei Fehlschlag läuft der Server mit In-Memory-Fallback weiter.
+    await initRedisClient();
+
     const tick = new WorldTick(ws);
     globalWorldTick = tick;
     await tick.init();
@@ -154,6 +160,20 @@ export class ServerBootstrap {
       console.log(`Arelorian server v0.4.0 listening on ${port}`);
       console.log(`PayPal: ${process.env.PAYPAL_MODE || "sandbox"} mode`);
       tick.start();
+    });
+
+    // Graceful Shutdown: Redis-Verbindung sauber schließen
+    process.on("SIGTERM", async () => {
+      console.log("[Server] SIGTERM empfangen – Graceful Shutdown...");
+      tick.stop?.();
+      await closeRedisClient();
+      process.exit(0);
+    });
+    process.on("SIGINT", async () => {
+      console.log("[Server] SIGINT empfangen – Graceful Shutdown...");
+      tick.stop?.();
+      await closeRedisClient();
+      process.exit(0);
     });
   }
 }
