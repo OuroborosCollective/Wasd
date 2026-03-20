@@ -39,3 +39,8 @@ jobs:
         with:
           name: wasd-build-artifact
           path: .
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasd-build-artifact
+          path: .
