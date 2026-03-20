@@ -45,3 +45,6 @@
 ## 2026-03-20 - [Array Allocations Before Set Initialization]
 **Learning:** Using `Array.map` to transform data before passing it to a `Set` constructor (e.g., `new Set(items.map(i => i.id))`) creates an unnecessary intermediate array allocation that is immediately discarded. In high-frequency loops like the 10Hz world tick, this causes significant garbage collection pressure.
 **Action:** Use a manual `for...of` loop to iterate over the source data and add elements directly to an initialized `Set` to avoid the intermediate array allocation.
+## 2026-03-20 - [O(1) Map Lookups for World Brain Nodes]
+**Learning:** The `HeuristicWorldBrain.analyze` method is called 10 times per second during the world tick. Its helper methods `updateNode` and `getNode` were performing (N)$ array `.find()` lookups for every single property update (like market volatility, social tension, etc.). Since an analysis queries/updates these nodes nearly 10 times per pass, it creates hundreds of redundant array scans every second.
+**Action:** Always shadow static configuration arrays (like nodes) with an internal `Map` during initialization to achieve (1)$ constant-time lookup performance in hot execution paths.
