@@ -1,0 +1,245 @@
+/**
+ * Improved Virtual Joystick Styles
+ * Mobile-optimized touch controls with haptic feedback
+ */
+
+.virtual-joystick-container {
+  position: fixed;
+  bottom: 30px;
+  left: 30px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  z-index: 50;
+  transition: all 0.2s ease;
+}
+
+.virtual-joystick-container.active {
+  filter: brightness(1.1);
+}
+
+/* Background circle */
+.joystick-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: radial-gradient(circle at 30% 30%, rgba(100, 150, 255, 0.3), rgba(50, 100, 200, 0.2));
+  border: 3px solid rgba(100, 150, 255, 0.4);
+  box-shadow: 
+    inset 0 0 20px rgba(100, 150, 255, 0.1),
+    0 0 20px rgba(100, 150, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.virtual-joystick-container.active .joystick-background {
+  border-color: rgba(100, 150, 255, 0.8);
+  box-shadow: 
+    inset 0 0 20px rgba(100, 150, 255, 0.2),
+    0 0 30px rgba(100, 150, 255, 0.4);
+}
+
+/* Grid pattern */
+.joystick-grid {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    linear-gradient(0deg, transparent 24%, rgba(100, 150, 255, 0.05) 25%, rgba(100, 150, 255, 0.05) 26%, transparent 27%, transparent 74%, rgba(100, 150, 255, 0.05) 75%, rgba(100, 150, 255, 0.05) 76%, transparent 77%, transparent),
+    linear-gradient(90deg, transparent 24%, rgba(100, 150, 255, 0.05) 25%, rgba(100, 150, 255, 0.05) 26%, transparent 27%, transparent 74%, rgba(100, 150, 255, 0.05) 75%, rgba(100, 150, 255, 0.05) 76%, transparent 77%, transparent);
+  background-size: 50% 50%;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Direction indicators */
+.direction-indicator {
+  position: absolute;
+  font-size: 14px;
+  font-weight: bold;
+  color: rgba(100, 150, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
+  transition: color 0.2s ease;
+}
+
+.direction-indicator.up {
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.direction-indicator.down {
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.direction-indicator.left {
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.direction-indicator.right {
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.virtual-joystick-container.active .direction-indicator {
+  color: rgba(100, 150, 255, 0.6);
+}
+
+/* Knob */
+.joystick-knob {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(150, 200, 255, 0.9), rgba(80, 130, 200, 0.8));
+  border: 2px solid rgba(100, 150, 255, 0.6);
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    inset -2px -2px 8px rgba(0, 0, 0, 0.2),
+    inset 2px 2px 8px rgba(255, 255, 255, 0.3);
+  cursor: grab;
+  transition: all 0.1s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.joystick-knob.dragging {
+  cursor: grabbing;
+  box-shadow: 
+    0 6px 16px rgba(0, 0, 0, 0.4),
+    inset -2px -2px 8px rgba(0, 0, 0, 0.3),
+    inset 2px 2px 8px rgba(255, 255, 255, 0.4),
+    0 0 20px rgba(100, 150, 255, 0.4);
+}
+
+/* Inner knob */
+.knob-inner {
+  position: absolute;
+  width: 70%;
+  height: 70%;
+  background: radial-gradient(circle at 30% 30%, rgba(200, 230, 255, 0.8), rgba(100, 150, 200, 0.6));
+  border-radius: 50%;
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.4);
+}
+
+/* Knob shine */
+.knob-shine {
+  position: absolute;
+  top: 15%;
+  left: 15%;
+  width: 40%;
+  height: 40%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.6), transparent);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Debug info */
+.joystick-debug {
+  position: absolute;
+  top: -80px;
+  left: 0;
+  background: rgba(0, 0, 0, 0.8);
+  color: #0f0;
+  font-family: monospace;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  line-height: 1.4;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .virtual-joystick-container {
+    bottom: 20px;
+    left: 20px;
+  }
+
+  .direction-indicator {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .virtual-joystick-container {
+    bottom: 15px;
+    left: 15px;
+  }
+
+  .joystick-background {
+    border-width: 2px;
+  }
+
+  .direction-indicator {
+    font-size: 10px;
+    width: 20px;
+    height: 20px;
+  }
+
+  .joystick-knob {
+    border-width: 1.5px;
+  }
+}
+
+/* Landscape orientation adjustments */
+@media (max-height: 500px) and (orientation: landscape) {
+  .virtual-joystick-container {
+    bottom: 10px;
+    left: 10px;
+  }
+}
+
+/* Touch device specific styles */
+@media (hover: none) and (pointer: coarse) {
+  .joystick-knob {
+    cursor: pointer;
+  }
+
+  .joystick-background {
+    box-shadow: 
+      inset 0 0 15px rgba(100, 150, 255, 0.1),
+      0 0 15px rgba(100, 150, 255, 0.15);
+  }
+}
+
+/* Animation for idle state */
+@keyframes joystick-idle-pulse {
+  0%, 100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.05);
+  }
+}
+
+.virtual-joystick-container:not(.active) {
+  animation: joystick-idle-pulse 3s ease-in-out infinite;
+}
+
+/* Animation for active state */
+@keyframes joystick-active-glow {
+  0%, 100% {
+    filter: brightness(1.1);
+  }
+  50% {
+    filter: brightness(1.15);
+  }
+}
+
+.virtual-joystick-container.active {
+  animation: joystick-active-glow 0.6s ease-in-out;
+}
