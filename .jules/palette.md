@@ -13,3 +13,7 @@
 ## 2024-03-19 - ARIA Live Regions for Dynamic Chat Overlays
 **Learning:** For dynamic text containers that continuously update with new information (like chat boxes or event logs), adding `role="log"` and `aria-live="polite"` ensures screen readers announce new incoming content without rudely interrupting the user's current task.
 **Action:** When implementing or modifying live-updating UI sections such as chat messages or system notifications, always include these ARIA attributes to maintain a smooth experience for screen reader users.
+
+## 2024-03-20 - HTML String Interpolation for Inline Event Handlers
+**Learning:** When dynamically constructing raw HTML template strings with inline event handlers (e.g., in `client/src/ui/`), strictly use single quotes (`'`) for inner JavaScript strings within double-quoted (`"`) HTML attributes (e.g., `onclick="document.getElementById('id').style.display='none'"`) to prevent breaking the browser's HTML parser and rendering elements non-interactive. Additionally, using an unhidden text node like 'X' or '✕' for modal close buttons is an anti-pattern that causes redundant screen reader announcements. Always wrap the visual text character in a `<span aria-hidden="true">` to hide it from screen readers, while relying on the button's `aria-label` for accessibility.
+**Action:** Review dynamically generated HTML strings to ensure inner event handler string syntax is correct using single quotes and wrap purely visual textual close symbols in `aria-hidden` tags.
