@@ -45,3 +45,7 @@
 ## 2026-03-20 - [Array Allocations Before Set Initialization]
 **Learning:** Using `Array.map` to transform data before passing it to a `Set` constructor (e.g., `new Set(items.map(i => i.id))`) creates an unnecessary intermediate array allocation that is immediately discarded. In high-frequency loops like the 10Hz world tick, this causes significant garbage collection pressure.
 **Action:** Use a manual `for...of` loop to iterate over the source data and add elements directly to an initialized `Set` to avoid the intermediate array allocation.
+
+## 2026-03-21 - [Invalidation-Based Caching for Tick Loops]
+**Learning:** Methods like `QuestEngine.getQuestStatus` and `SkillSystem.getAllSkills` were performing O(N) iterations and redundant object allocations for every player on every world tick (10Hz). This caused significant CPU overhead and GC pressure as player and quest counts scaled.
+**Action:** Implement invalidation-based caching by storing results on the player object (e.g., `_questStatusCache`, `_skillsCache`) and invalidating them (setting to `null`) during state mutations (XP gain, quest start/complete, reputation/flag changes). Use a global `definitionVersion` to handle static data updates.
