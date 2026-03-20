@@ -1,0 +1,388 @@
+/**
+ * InventoryGrid Styles
+ * Grid layout with search, sort, and filter controls
+ */
+
+.inventory-grid-container {
+  position: fixed;
+  right: 20px;
+  top: 20px;
+  width: 400px;
+  max-height: 80vh;
+  background: linear-gradient(135deg, rgba(20, 20, 30, 0.95) 0%, rgba(30, 30, 45, 0.95) 100%);
+  border: 2px solid rgba(100, 150, 255, 0.3);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  z-index: 99;
+  overflow: hidden;
+}
+
+/* Header */
+.inventory-header {
+  padding: 12px;
+  border-bottom: 1px solid rgba(100, 150, 255, 0.2);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.inventory-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: #fff;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.inventory-controls {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Search Control */
+.search-control {
+  flex: 1;
+  min-width: 150px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(100, 150, 255, 0.3);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: rgba(100, 150, 255, 0.8);
+  box-shadow: 0 0 8px rgba(100, 150, 255, 0.2);
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.search-input::placeholder {
+  color: rgba(200, 200, 200, 0.4);
+}
+
+/* Sort Control */
+.sort-control {
+  flex: 1;
+  min-width: 120px;
+}
+
+.sort-select {
+  width: 100%;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(100, 150, 255, 0.3);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sort-select:hover,
+.sort-select:focus {
+  border-color: rgba(100, 150, 255, 0.8);
+  box-shadow: 0 0 8px rgba(100, 150, 255, 0.2);
+}
+
+.sort-select:focus {
+  outline: none;
+}
+
+/* Filter Control */
+.filter-control {
+  flex: 1;
+  min-width: 120px;
+}
+
+.filter-select {
+  width: 100%;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(100, 150, 255, 0.3);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filter-select:hover,
+.filter-select:focus {
+  border-color: rgba(100, 150, 255, 0.8);
+  box-shadow: 0 0 8px rgba(100, 150, 255, 0.2);
+}
+
+.filter-select:focus {
+  outline: none;
+}
+
+/* Stats Toggle Button */
+.stats-toggle {
+  padding: 6px 8px;
+  background: rgba(100, 150, 255, 0.2);
+  border: 1px solid rgba(100, 150, 255, 0.3);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 32px;
+}
+
+.stats-toggle:hover {
+  background: rgba(100, 150, 255, 0.4);
+  border-color: rgba(100, 150, 255, 0.8);
+}
+
+/* Stats Panel */
+.inventory-stats {
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(100, 150, 255, 0.2);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  padding: 4px 6px;
+  background: rgba(50, 100, 200, 0.1);
+  border-radius: 4px;
+  border: 1px solid rgba(100, 150, 255, 0.2);
+}
+
+.stat-label {
+  color: #aaa;
+}
+
+.stat-value {
+  color: #fff;
+  font-weight: bold;
+}
+
+.stat-value.gold {
+  color: #ffd700;
+}
+
+.rarity-breakdown {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.rarity-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  border: 1px solid;
+}
+
+.rarity-item.rarity-common {
+  background: rgba(153, 153, 153, 0.1);
+  border-color: rgba(153, 153, 153, 0.3);
+}
+
+.rarity-item.rarity-uncommon {
+  background: rgba(30, 255, 0, 0.1);
+  border-color: rgba(30, 255, 0, 0.3);
+}
+
+.rarity-item.rarity-rare {
+  background: rgba(0, 112, 221, 0.1);
+  border-color: rgba(0, 112, 221, 0.3);
+}
+
+.rarity-item.rarity-epic {
+  background: rgba(163, 53, 238, 0.1);
+  border-color: rgba(163, 53, 238, 0.3);
+}
+
+.rarity-item.rarity-legendary {
+  background: rgba(255, 128, 0, 0.1);
+  border-color: rgba(255, 128, 0, 0.3);
+}
+
+.rarity-item.rarity-mythic {
+  background: rgba(230, 204, 128, 0.1);
+  border-color: rgba(230, 204, 128, 0.3);
+}
+
+.rarity-name {
+  color: #aaa;
+  text-transform: capitalize;
+}
+
+.rarity-count {
+  color: #fff;
+  font-weight: bold;
+}
+
+/* Grid */
+.inventory-grid {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.inventory-grid::-webkit-scrollbar {
+  width: 6px;
+}
+
+.inventory-grid::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.inventory-grid::-webkit-scrollbar-thumb {
+  background: rgba(100, 150, 255, 0.3);
+  border-radius: 3px;
+}
+
+.inventory-grid::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 150, 255, 0.6);
+}
+
+/* Empty State */
+.inventory-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: rgba(200, 200, 200, 0.5);
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.empty-text {
+  font-size: 14px;
+}
+
+/* No Results */
+.inventory-no-results {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: rgba(200, 200, 200, 0.5);
+  text-align: center;
+}
+
+.no-results-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.no-results-text {
+  font-size: 12px;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .inventory-grid-container {
+    width: 350px;
+  }
+
+  .inventory-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .inventory-grid-container {
+    position: fixed;
+    right: 10px;
+    top: 10px;
+    width: 320px;
+    max-height: 70vh;
+  }
+
+  .inventory-controls {
+    flex-direction: column;
+  }
+
+  .search-control,
+  .sort-control,
+  .filter-control {
+    width: 100%;
+    min-width: auto;
+  }
+
+  .inventory-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .inventory-grid-container {
+    position: fixed;
+    right: 5px;
+    top: 5px;
+    width: 280px;
+    max-height: 60vh;
+    border-radius: 8px;
+  }
+
+  .inventory-header {
+    padding: 10px;
+  }
+
+  .inventory-title {
+    font-size: 14px;
+  }
+
+  .inventory-controls {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .search-input,
+  .sort-select,
+  .filter-select,
+  .stats-toggle {
+    font-size: 11px;
+    padding: 5px 6px;
+  }
+
+  .inventory-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    padding: 8px;
+    grid-auto-rows: 50px;
+  }
+
+  .inventory-stats {
+    padding: 8px;
+    gap: 6px;
+  }
+
+  .stat-item {
+    font-size: 10px;
+    padding: 3px 4px;
+  }
+}
