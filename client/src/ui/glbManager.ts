@@ -112,9 +112,9 @@ function createGLBManagerUI() {
 
           <div id="glb-upload-progress" style="display:none; margin-bottom:16px;">
             <div style="background:#0d2a3a; border-radius:8px; overflow:hidden; height:8px;">
-              <div id="glb-progress-bar" style="height:100%; background:#aa44ff; width:0%; transition:width 0.3s;"></div>
+              <div id="glb-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="height:100%; background:#aa44ff; width:0%; transition:width 0.3s;"></div>
             </div>
-            <p id="glb-upload-status" style="color:#7a6a9a; font-size:12px; margin:8px 0 0; text-align:center;"></p>
+            <p id="glb-upload-status" aria-live="polite" style="color:#7a6a9a; font-size:12px; margin:8px 0 0; text-align:center;"></p>
           </div>
         </div>
       </div>
@@ -212,6 +212,8 @@ async function uploadGLBModel() {
 
   progressDiv.style.display = "block";
   uploadBtn.disabled = true;
+  uploadBtn.setAttribute("aria-busy", "true");
+  uploadBtn.textContent = "⏳ Lade hoch...";
   statusEl.textContent = "Lade hoch...";
 
   const formData = new FormData();
@@ -224,6 +226,7 @@ async function uploadGLBModel() {
     const progressInterval = setInterval(() => {
       progress = Math.min(progress + 10, 90);
       progressBar.style.width = progress + "%";
+      progressBar.setAttribute("aria-valuenow", progress.toString());
     }, 200);
 
     const res = await fetch("/api/glb/upload", {
@@ -234,6 +237,7 @@ async function uploadGLBModel() {
 
     clearInterval(progressInterval);
     progressBar.style.width = "100%";
+    progressBar.setAttribute("aria-valuenow", "100");
 
     const data = await res.json();
 
@@ -261,6 +265,12 @@ async function uploadGLBModel() {
   } catch (e) {
     statusEl.textContent = "❌ Upload fehlgeschlagen. Bitte erneut versuchen.";
     statusEl.style.color = "#ff4444";
+  } finally {
+    uploadBtn.removeAttribute("aria-busy");
+    uploadBtn.textContent = "📤 Hochladen";
+    if (selectedFile) {
+      uploadBtn.disabled = false;
+    }
   }
 }
 
