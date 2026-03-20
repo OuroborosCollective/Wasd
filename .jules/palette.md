@@ -13,3 +13,6 @@
 ## 2024-03-19 - ARIA Live Regions for Dynamic Chat Overlays
 **Learning:** For dynamic text containers that continuously update with new information (like chat boxes or event logs), adding `role="log"` and `aria-live="polite"` ensures screen readers announce new incoming content without rudely interrupting the user's current task.
 **Action:** When implementing or modifying live-updating UI sections such as chat messages or system notifications, always include these ARIA attributes to maintain a smooth experience for screen reader users.
+## 2024-05-15 - [Accessible HTML Close Buttons]
+**Learning:** When building dynamic UI using plain HTML string manipulation (in `.ts` files), it's easy to overlook screen reader accessibility on generic close buttons (like "X").
+**Action:** Always wrap visual text like "X" inside `<span aria-hidden="true">✕</span>` and ensure the parent button has a descriptive `aria-label` like "Close panel".
