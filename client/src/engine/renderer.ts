@@ -472,7 +472,8 @@ export function updateWorldState(state: any, playerId: string | null) {
   const currentNPCs = new Set<string>();
   for (const npc of state.npcs || []) {
     currentNPCs.add(npc.id);
-    if (!npcMeshes.has(npc.id))         if (npc.glbPath) {
+    if (!npcMeshes.has(npc.id)) {
+      if (npc.glbPath) {
         const g = new THREE.Group();
         g.position.set(npc.position.x, getTerrainHeight(npc.position.x, npc.position.z), npc.position.z);
         scene.add(g); npcMeshes.set(npc.id, g);
