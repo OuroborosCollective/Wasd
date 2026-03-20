@@ -117,8 +117,8 @@ function createShopUI() {
           <input id="marketplace-search" type="text" placeholder="Modelle suchen..."
             style="flex:1; background:#0d2a3a; border:1px solid #1a4a6a; border-radius:8px; padding:8px 12px; color:#e0e8ff; font-size:13px;"
             oninput="searchMarketplace(this.value)">
-          <button onclick="loadMarketplace()"
-            style="background:#0d2a3a; border:1px solid #00d4ff; color:#00d4ff; border-radius:8px; padding:8px 16px; cursor:pointer; font-size:13px;">🔄</button>
+          <button aria-label="Refresh Marketplace" onclick="loadMarketplace()"
+            style="background:#0d2a3a; border:1px solid #00d4ff; color:#00d4ff; border-radius:8px; padding:8px 16px; cursor:pointer; font-size:13px;"><span aria-hidden="true">🔄</span></button>
         </div>
         <div id="marketplace-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:12px;">
           <div style="text-align:center; color:#7a9ab5; padding:40px; grid-column:1/-1;">Lade Marktplatz...</div>

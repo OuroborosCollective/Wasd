@@ -184,6 +184,7 @@ export function initMobileControls(
     onSkills: () => void;
     onMap: () => void;
     onChat: () => void;
+    onJoystickMove?: (dx: number, dy: number) => void;
   },
   onPinchZoom: (delta: number) => void,
   onCameraDrag: (dx: number, dy: number) => void
@@ -402,6 +403,22 @@ export function initMobileControls(
   addTouchBtn("mob-menu-skills", callbacks.onSkills);
   addTouchBtn("mob-menu-map", callbacks.onMap);
   addTouchBtn("mobile-chat-btn", callbacks.onChat);
+
+  // JOYSTICK MOVEMENT SENDER
+  let lastJoystickSend = 0;
+  const JOYSTICK_SEND_INTERVAL = 100;
+  
+  setInterval(() => {
+    if (joystickState.active && callbacks.onJoystickMove) {
+      const now = Date.now();
+      if (now - lastJoystickSend > JOYSTICK_SEND_INTERVAL) {
+        if (Math.abs(joystickState.dx) > 0.1 || Math.abs(joystickState.dy) > 0.1) {
+          callbacks.onJoystickMove(joystickState.dx, joystickState.dy);
+          lastJoystickSend = now;
+        }
+      }
+    }
+  }, 50);
 
   // ── SHORTCUT PANEL TOGGLE ────────────────────────────────────────────────────
   const shortcutToggle = document.getElementById("mob-shortcut-toggle")!;

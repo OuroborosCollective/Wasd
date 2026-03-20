@@ -8,6 +8,8 @@ import { GuildSystem } from "../modules/guild/GuildSystem.js";
 import { EconomySystem } from "../modules/economy/EconomySystem.js";
 import { QuestEngine } from "../modules/quest/QuestEngine.js";
 import { WorldSystem } from "../modules/world/WorldSystem.js";
+import { HeuristicWorldBrain } from "../modules/brain/HeuristicWorldBrain.js";
+import { worldBrainCache } from "../modules/brain/WorldBrainCacheService.js";
 import { PersistenceManager } from "./PersistenceManager.js";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
 import { GLBRegistry } from "../modules/asset-registry/GLBRegistry.js";
@@ -27,6 +29,7 @@ import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 export class WorldTick {
   private timer: NodeJS.Timeout | null = null;
   private tickCount = 0;
+  private worldBrain: HeuristicWorldBrain;
 
   public chunkSystem: ChunkSystem;
   public observerEngine: ObserverEngine;
@@ -47,6 +50,8 @@ export class WorldTick {
   public resourceSystem: ResourceSystem;
 
   private lootEntities: Map<string, any> = new Map();
+  // ⚡ Bolt Optimization: Cache loot entities as an array to avoid repeated Array.from() allocations in the 10Hz world tick loop
+  private cachedLoot: any[] = [];
   private socketToPlayer: Map<string, string> = new Map();
   private playerToSocket: Map<string, string> = new Map();
   private lastActionTimes: Map<string, any> = new Map();
@@ -70,6 +75,7 @@ export class WorldTick {
   };
 
   constructor(private ws: GameWebSocketServer) {
+    this.worldBrain = new HeuristicWorldBrain();
     this.chunkSystem = new ChunkSystem(64);
     this.observerEngine = new ObserverEngine();
     this.playerSystem = new PlayerSystem();
@@ -553,6 +559,7 @@ export class WorldTick {
     for (const reward of questRewards) {
       this.broadcastQuestCompletion(socketId, reward.quest, reward.reward);
     }
+    this.updateLootCache();
 
     // Respawn NPC after delay
     const respawnKey = npcInstanceId;
@@ -650,6 +657,7 @@ export class WorldTick {
       }
       this.inventorySystem.addItem(player, loot.item);
       this.lootEntities.delete(targetId);
+      this.updateLootCache();
       this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Picked up ${loot.item.name}!` });
       this.debouncedSave();
     } else if (resource) {
@@ -826,7 +834,12 @@ export class WorldTick {
     };
     this.resolveLootGLB(loot);
     this.lootEntities.set(id, loot);
+    this.updateLootCache();
     return loot;
+  }
+
+  private updateLootCache() {
+    this.cachedLoot = Array.from(this.lootEntities.values());
   }
 
   private resolveLootGLB(loot: any) {
@@ -853,6 +866,27 @@ export class WorldTick {
     }
     this.loadSpawns();
     console.log(`World initialized. NPCs: ${this.npcSystem.getAllNPCs().length}`);
+  }
+
+  /**
+   * ⚡ Bolt Optimization: Update a player's appearance in the live world tick cache.
+   * This ensures the broadcast loop uses the new resolved paths immediately.
+   */
+  public updatePlayerAppearance(playerId: string, appearance: any) {
+    const player = this.playerSystem.getPlayer(playerId);
+    if (player) {
+      player.appearance = appearance;
+      // Pre-resolve paths for the hot broadcast loop
+      const paths = characterAssembly.resolveModelPaths(appearance);
+      player.resolvedAppearance = {
+        ...appearance,
+        characterModelUrl: paths.bodyUrl,
+        skinToneColor: paths.skinColor,
+        hairColor: paths.hairColor,
+        eyeColor: paths.eyeColor
+      };
+      console.log(`WorldTick: Updated appearance for player ${player.name}`);
+    }
   }
 
   private async debouncedSave() {
@@ -950,7 +984,7 @@ export class WorldTick {
     this.timer = null;
   }
 
-  tick() {
+  async tick() {
     this.tickCount += 1;
     const now = Date.now();
 
@@ -977,7 +1011,12 @@ export class WorldTick {
 
     // 2. Update active chunks
     const observedChunks = this.observerEngine.getObservedChunks();
-    const observedChunkIds = new Set(observedChunks.map(c => c.id));
+    // ⚡ Bolt Optimization: Use manual for...of iteration to populate the Set instead of
+    // observedChunks.map(c => c.id) to avoid intermediate array allocation in the 10Hz loop.
+    const observedChunkIds = new Set<string>();
+    for (const c of observedChunks) {
+      observedChunkIds.add(c.id);
+    }
     const allActive = this.chunkSystem.getActiveChunks();
     for (const chunk of allActive) {
       if (!observedChunkIds.has(chunk.id)) this.chunkSystem.setChunkActive(chunk.id, false);
@@ -997,8 +1036,22 @@ export class WorldTick {
       }
     }
 
-    // 4. Tick NPC AI
-    this.npcSystem.tick(players, this.chatSystem);
+    // 3.5. Analyze world state with HeuristicWorldBrain
+    const worldAnalysis = this.worldBrain.analyze({
+      economy: this.economySystem,
+      politics: { diplomacy: this.worldState.diplomacy || [] },
+      world: { 
+        resourceCount: this.resourceSystem.nodes.size,
+        npcCount: this.npcSystem.getNPCCount ? this.npcSystem.getNPCCount() : 0
+      },
+      npcMemory: []
+    });
+
+    // 3.6. World-Brain-Zustand in Redis persistieren (throttled, fire-and-forget)
+    worldBrainCache.persistState(this.tickCount, worldAnalysis);
+
+    // 4. Tick NPC AI with world context
+    await this.npcSystem.tick(players, this.chatSystem, worldAnalysis);
     this.worldSystem.tick();
     this.resourceSystem.tick();
 
@@ -1016,11 +1069,14 @@ export class WorldTick {
     }
 
     // 7. Auto-remove old loot (5 minutes)
+    let lootRemoved = false;
     for (const [lootId, loot] of this.lootEntities) {
       if (loot.createdAt && now - loot.createdAt > GameConfig.lootDespawnMs) {
         this.lootEntities.delete(lootId);
+        lootRemoved = true;
       }
     }
+    if (lootRemoved) this.updateLootCache();
 
     // 8. Update cache
     if (cache) {
@@ -1035,16 +1091,10 @@ export class WorldTick {
     // 9. Broadcast state
     // ⚡ Bolt Optimization: Use pre-resolved GLB paths stored on entities to avoid Map lookups and .map() object spreads in the hot broadcast loop
     const npcs = this.npcSystem.getAllNPCs();
-    const loot = Array.from(this.lootEntities.values());
+    const loot = this.cachedLoot;
     // ⚡ Bolt Optimization: GLB paths are pre-resolved and stored on NPC and loot entities
     // during their creation or update, avoiding redundant lookups in the hot broadcast loop.
-    const npcsWithGlb = npcs.map(npc => ({ ...npc, glbPath: npc.glbPath }));
-    const lootWithGlb = loot.map(l => ({ ...l, glbPath: l.glbPath }));
-
     const resources = this.resourceSystem.getAllNodes();
-    // ⚡ Bolt Optimization: GLB paths are pre-resolved and stored on resource nodes
-    // during their creation or update, avoiding redundant lookups in the hot broadcast loop.
-    const resourcesWithGlb = resources.map(node => ({ ...node, glbPath: node.glbPath }));
 
     const weather = this.worldSystem.weatherSystem.nextWeather(Math.floor(this.tickCount / 600));
 
@@ -1052,7 +1102,7 @@ export class WorldTick {
       type: "world_tick",
       tick: this.tickCount,
       weather,
-      activeChunkIds: activeChunks.map(c => c.id),
+      activeChunkIds: this.chunkSystem.getActiveChunkIds(),
       players: players.map(p => {
         return {
           id: p.id,
@@ -1075,9 +1125,9 @@ export class WorldTick {
           appearance: p.resolvedAppearance || null
         };
       }),
-      npcs: npcsWithGlb,
-      loot: lootWithGlb,
-      resources: resourcesWithGlb,
+      npcs: npcs,
+      loot: loot,
+      resources: resources,
       onlinePlayers: this.socketToPlayer.size
     });
 

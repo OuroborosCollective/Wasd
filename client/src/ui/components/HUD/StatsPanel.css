@@ -1,0 +1,428 @@
+/**
+ * StatsPanel Styles
+ * Responsive, animated stats display for WASD MMORPG
+ */
+
+.stats-panel {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  width: 350px;
+  background: linear-gradient(135deg, rgba(20, 20, 30, 0.95) 0%, rgba(30, 30, 45, 0.95) 100%);
+  border: 2px solid rgba(100, 150, 255, 0.3);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #e0e0e0;
+  transition: all 0.3s ease;
+}
+
+.stats-panel.low-health-warning {
+  border-color: rgba(255, 50, 50, 0.6);
+  box-shadow: 0 0 20px rgba(255, 50, 50, 0.3);
+  animation: pulse-warning 0.6s infinite;
+}
+
+@keyframes pulse-warning {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(255, 50, 50, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(255, 50, 50, 0.6);
+  }
+}
+
+.stats-panel-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Primary Stats Section */
+.primary-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stat-section {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.stat-section:hover {
+  transform: translateX(2px);
+  opacity: 1;
+}
+
+/* Health Bar */
+.health-bar-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: all 0.3s ease;
+}
+
+.health-bar-container.low {
+  animation: health-pulse 0.8s infinite;
+}
+
+.health-bar-container.critical {
+  animation: critical-pulse 0.4s infinite;
+}
+
+@keyframes health-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes critical-pulse {
+  0%, 100% {
+    opacity: 1;
+    filter: brightness(1);
+  }
+  50% {
+    opacity: 0.7;
+    filter: brightness(1.2);
+  }
+}
+
+.health-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #ff6b6b;
+}
+
+.health-bar-background {
+  position: relative;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 100, 100, 0.3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.health-bar-fill {
+  position: relative;
+  height: 100%;
+  background: linear-gradient(90deg, #ff4444 0%, #ff6b6b 50%, #ff8888 100%);
+  transition: width 0.3s ease;
+  box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+.health-bar-fill.animated {
+  animation: health-bar-glow 0.6s infinite;
+}
+
+@keyframes health-bar-glow {
+  0%, 100% {
+    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.2), 0 0 10px rgba(255, 50, 50, 0.3);
+  }
+  50% {
+    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.4), 0 0 20px rgba(255, 50, 50, 0.6);
+  }
+}
+
+.health-bar-shine {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 50%;
+  width: 100%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.3) 0%, transparent 100%);
+  pointer-events: none;
+}
+
+.health-bar-damage-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: rgba(100, 100, 100, 0.2);
+  border-right: 2px solid rgba(255, 100, 100, 0.5);
+  transition: all 0.3s ease;
+}
+
+/* Mana Bar */
+.mana-bar-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mana-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6b9fff;
+}
+
+.mana-bar-background {
+  position: relative;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(100, 150, 255, 0.3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.mana-bar-fill {
+  position: relative;
+  height: 100%;
+  background: linear-gradient(90deg, #4488ff 0%, #6b9fff 50%, #88bbff 100%);
+  transition: width 0.2s ease;
+  box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+.mana-bar-shine {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 50%;
+  width: 100%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.3) 0%, transparent 100%);
+  pointer-events: none;
+}
+
+/* Experience Bar */
+.experience-bar-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.experience-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #88ff88;
+}
+
+.experience-bar-background {
+  position: relative;
+  height: 16px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(100, 200, 100, 0.3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.experience-bar-fill {
+  position: relative;
+  height: 100%;
+  background: linear-gradient(90deg, #44ff44 0%, #88ff88 50%, #aaff88 100%);
+  transition: width 0.3s ease;
+  box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.2);
+}
+
+.experience-bar-shine {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 50%;
+  width: 100%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.3) 0%, transparent 100%);
+  pointer-events: none;
+}
+
+/* Buffs/Debuffs Section */
+.effects-section {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(100, 150, 255, 0.2);
+}
+
+.buff-display {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.buff-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.buff-icon {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid rgba(100, 150, 255, 0.4);
+  background: rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.buff-icon:hover {
+  transform: scale(1.1);
+  border-color: rgba(100, 150, 255, 0.8);
+  box-shadow: 0 4px 12px rgba(100, 150, 255, 0.4);
+}
+
+.buff-icon.buff {
+  border-color: rgba(100, 200, 100, 0.4);
+}
+
+.buff-icon.buff:hover {
+  border-color: rgba(100, 200, 100, 0.8);
+  box-shadow: 0 4px 12px rgba(100, 200, 100, 0.4);
+}
+
+.buff-icon.debuff {
+  border-color: rgba(255, 100, 100, 0.4);
+}
+
+.buff-icon.debuff:hover {
+  border-color: rgba(255, 100, 100, 0.8);
+  box-shadow: 0 4px 12px rgba(255, 100, 100, 0.4);
+}
+
+.buff-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.buff-duration {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 2px 4px;
+  border-radius: 3px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.buff-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  border: 1px solid rgba(100, 150, 255, 0.5);
+  border-radius: 6px;
+  padding: 8px 12px;
+  white-space: nowrap;
+  margin-bottom: 8px;
+  z-index: 1000;
+  pointer-events: none;
+  animation: tooltip-fade-in 0.2s ease;
+}
+
+.buff-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: rgba(0, 0, 0, 0.9);
+}
+
+@keyframes tooltip-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.tooltip-name {
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.tooltip-duration {
+  font-size: 11px;
+  color: #aaa;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .stats-panel {
+    width: 300px;
+    top: 10px;
+    left: 10px;
+    padding: 12px;
+  }
+
+  .health-bar-background,
+  .mana-bar-background,
+  .experience-bar-background {
+    height: 20px;
+  }
+
+  .health-bar-label,
+  .mana-bar-label,
+  .experience-bar-label {
+    font-size: 11px;
+  }
+
+  .buff-icon {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-panel {
+    width: 280px;
+    top: 8px;
+    left: 8px;
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .primary-stats {
+    gap: 8px;
+  }
+
+  .health-bar-background,
+  .mana-bar-background,
+  .experience-bar-background {
+    height: 18px;
+  }
+
+  .health-bar-label,
+  .mana-bar-label,
+  .experience-bar-label {
+    font-size: 10px;
+  }
+
+  .buff-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .buff-duration {
+    font-size: 9px;
+  }
+}

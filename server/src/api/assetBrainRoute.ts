@@ -136,6 +136,19 @@ export function createAssetBrainRouter(dbParam?: unknown): Router {
   router.get('/variants/:id', async (req: Request, res: Response) => {
     try {
       const id = String(req.params['id']);
+      const userId = (req as any).userId || (req as any).playerId;
+      
+      // Get the specification to check authorization
+      const spec = await assetBrainDb.getSpecification(id);
+      if (!spec) {
+        return res.status(404).json({ error: 'Specification not found' });
+      }
+      
+      // Only allow access to public specs or user's own specs
+      if (!spec.isPublic && spec.userId !== userId) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+      
       const variants = await assetBrainDb.getVariants(id);
       res.json({ variants });
     } catch (error: any) {

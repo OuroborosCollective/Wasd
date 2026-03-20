@@ -151,5 +151,17 @@
       "gold": 75,
       "xp": 150
     }
+  },
+  {
+    "id": "boar_menace",
+    "title": "The Boar Menace",
+    "giverNpcId": "npc_9_hunter",
+    "targetId": "npc_boar",
+    "objectiveType": "combat",
+    "reward": {
+      "gold": 120,
+      "xp": 250,
+      "itemId": "raw_meat"
+    }
   }
 ]

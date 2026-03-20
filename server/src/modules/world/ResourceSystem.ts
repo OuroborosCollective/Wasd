@@ -15,6 +15,8 @@ export interface ResourceNode {
 
 export class ResourceSystem {
   public nodes: Map<string, ResourceNode> = new Map();
+  // ⚡ Bolt Optimization: Cache resource nodes as an array to avoid repeated Array.from() allocations in the 10Hz world tick loop
+  private cachedNodes: ResourceNode[] = [];
   public scatter: ResourceScatter;
 
   constructor() {
@@ -65,6 +67,11 @@ export class ResourceSystem {
       });
       this.resolveResourceGLB(this.nodes.get(id)!);
     }
+    this.updateCache();
+  }
+
+  private updateCache() {
+    this.cachedNodes = Array.from(this.nodes.values());
   }
 
   gatherNode(id: string): { success: boolean, item?: any, reason?: string } {
@@ -80,7 +87,8 @@ export class ResourceSystem {
   }
 
   tick() {
-    for (const node of this.nodes.values()) {
+    // ⚡ Bolt Optimization: Use cached array instead of .values() iterator for better performance in the 10Hz tick loop
+    for (const node of this.cachedNodes) {
       if (node.amount < node.maxAmount) {
         node.regrowTimer++;
         if (node.regrowTimer >= node.regrowRate) {
@@ -94,7 +102,8 @@ export class ResourceSystem {
   }
 
   getAllNodes(): ResourceNode[] {
-    return Array.from(this.nodes.values());
+    // ⚡ Bolt Optimization: Return cached array instead of creating a new one every call
+    return this.cachedNodes;
   }
 
   private resolveResourceGLB(resource: ResourceNode) {

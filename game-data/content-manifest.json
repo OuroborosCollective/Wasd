@@ -16,7 +16,8 @@
         "npc_boar",
         "npc_skeleton",
         "npc_bandit",
-        "npc_shopkeeper"
+        "npc_shopkeeper",
+        "npc_9_hunter"
       ],
       "questIds": [
         "first_steps",
@@ -30,7 +31,8 @@
         "blacksmith_master",
         "hermit_quest",
         "merchant_quest",
-        "apprentice_quest"
+        "apprentice_quest",
+        "boar_menace"
       ],
       "dialogueIds": [
         "dialogue_npc_1",
@@ -43,7 +45,8 @@
         "dialogue_npc_6",
         "dialogue_npc_7",
         "dialogue_npc_8",
-        "dialogue_shopkeeper"
+        "dialogue_shopkeeper",
+        "dialogue_npc_9"
       ],
       "itemIds": [
         "starter_sword",

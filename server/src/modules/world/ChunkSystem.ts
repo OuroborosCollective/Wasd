@@ -19,6 +19,9 @@
 export class ChunkSystem {
   private chunks = new Map<string, { id: string, x: number, y: number, size: number, entities: Set<string>, active: boolean }>();
   private activeChunks = new Set<any>();
+  // ⚡ Bolt Optimization: Cache active chunks and their IDs as arrays to avoid repeated Array.from() and .map() calls in the 10Hz world tick loop
+  private cachedActiveChunks: any[] = [];
+  private cachedActiveChunkIds: string[] = [];
 
   /**
    * @param size - Side length of each square chunk in world units.
@@ -75,7 +78,10 @@ export class ChunkSystem {
    */
   addEntity(entityId: string, x: number, y: number) {
     const chunkId = this.getChunkId(x, y);
-    const [cx, cy] = chunkId.split(':').map(Number);
+    // ⚡ Bolt Optimization: Replace chunkId.split(':').map(Number) to avoid array allocations in hot path
+    const splitIdx = chunkId.indexOf(':');
+    const cx = parseInt(chunkId.slice(0, splitIdx), 10);
+    const cy = parseInt(chunkId.slice(splitIdx + 1), 10);
     const chunk = this.getChunk(cx, cy);
     chunk.entities.add(entityId);
     return chunkId;
@@ -127,7 +133,23 @@ export class ChunkSystem {
    * @returns Array of active chunk objects.
    */
   getActiveChunks() {
-    return Array.from(this.activeChunks);
+    // ⚡ Bolt Optimization: Return cached array instead of creating a new one every call
+    return this.cachedActiveChunks;
+  }
+
+  /**
+   * Returns IDs of all chunks that are currently marked as active.
+   *
+   * @returns Array of active chunk ID strings.
+   */
+  getActiveChunkIds() {
+    // ⚡ Bolt Optimization: Return cached array instead of performing .map() every tick
+    return this.cachedActiveChunkIds;
+  }
+
+  private updateActiveCache() {
+    this.cachedActiveChunks = Array.from(this.activeChunks);
+    this.cachedActiveChunkIds = this.cachedActiveChunks.map(c => c.id);
   }
 
   /**
@@ -138,13 +160,14 @@ export class ChunkSystem {
    */
   setChunkActive(chunkId: string, active: boolean) {
     const chunk = this.chunks.get(chunkId);
-    if (chunk) {
+    if (chunk && chunk.active !== active) {
       chunk.active = active;
       if (active) {
         this.activeChunks.add(chunk);
       } else {
         this.activeChunks.delete(chunk);
       }
+      this.updateActiveCache();
     }
   }
 }

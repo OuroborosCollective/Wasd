@@ -136,5 +136,13 @@
     "dialogueId": "dialogue_shopkeeper",
     "faction": "Neutral",
     "shopId": "general_store"
+  },
+  {
+    "id": "npc_9_hunter",
+    "name": "Hunter Kaelen",
+    "role": "Hunter",
+    "dialogueId": "dialogue_npc_9",
+    "questHooks": ["boar_menace"],
+    "faction": "Neutral"
   }
 ]

@@ -47,12 +47,6 @@ export class LandSystem {
   }
 
   async init() {
-    // Load all lands and their structures from DB efficiently
-    const [landsResult, structsResult] = await Promise.all([
-      this.db.query(`SELECT * FROM player_lands`).catch(() => ({ rows: [] })),
-      this.db.query(`SELECT * FROM land_structures`).catch(() => ({ rows: [] }))
-    ]);
-
     await this.db.query(`
       CREATE TABLE IF NOT EXISTS land_structures (
         id VARCHAR(36) PRIMARY KEY,

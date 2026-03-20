@@ -2,6 +2,8 @@ import { NPCBrain } from "../ai/NPCBrain.js";
 import { NPCPersonalityEngine } from "./NPCPersonalityEngine.js";
 import { NPCMemoryEngine } from "./NPCMemoryEngine.js";
 import { NPCGenealogyEngine } from "./NPCGenealogyEngine.js";
+import { Pathfinding } from "../../utils/Pathfinding.js";
+import { npcThinkingLog } from "./NPCThinkingLogService.js";
 import fs from "fs";
 import path from "path";
 
@@ -212,19 +214,26 @@ export class NPCSystem {
     return this.cachedNPCs;
   }
 
+  getNPCCount() {
+    return this.npcs.size;
+  }
+
   removeNPC(id: string) {
     this.npcs.delete(id);
     this.updateCache();
+    // Thinkinglogs in Redis aufräumen
+    npcThinkingLog.clearLogs(id);
   }
 
   private updateCache() {
     this.cachedNPCs = Array.from(this.npcs.values());
   }
 
-  tick(players: any[], chatSystem?: any) {
-    // Process NPC AI, schedules, needs
+  async tick(players: any[], chatSystem?: any, worldAnalysis?: any) {
+    // Process NPC AI, schedules, needs with world context
     const now = Date.now();
-    for (const npc of this.npcs.values()) {
+    // ⚡ Bolt Optimization: Use cached array instead of .values() iterator for better performance in the 10Hz tick loop
+    for (const npc of this.cachedNPCs) {
       // 0. Process dynamic needs
       if (!npc.needs) npc.needs = { hunger: 100, energy: 100 }; // Fallback for existing NPCs
 
@@ -244,6 +253,8 @@ export class NPCSystem {
         for (const player of players) {
           const dx = player.position.x - npc.position.x;
           const dy = player.position.y - npc.position.y;
+          // ⚡ Bolt Optimization: Manhattan distance early-exit to avoid squared distance calculation for distant entities
+          if (Math.abs(dx) > 15 || Math.abs(dy) > 15) continue;
           // Optimization: Use squared distance to avoid Math.hypot() square root
           if (dx * dx + dy * dy < 225) { // 15^2
             npc.state = "interacting";
@@ -266,10 +277,26 @@ export class NPCSystem {
       if (npc.state === "idle") {
         if (now > npc.stateTimer) {
           if (!npc.brain) npc.brain = new NPCBrain();
-          const decision = npc.brain.update(npc);
+          const decision = await npc.brain.update(npc);
 
           if (chatSystem && npc.state !== decision.action) {
             chatSystem.systemMessage(`[Thought] ${npc.name}: ${decision.thought}`);
+          }
+
+          // Thinking-Log in Redis persistieren (fire-and-forget)
+          npcThinkingLog.logThought(npc.id, npc.name, decision.action, decision.thought);
+          
+          // React to world state if available
+          if (worldAnalysis && chatSystem) {
+            if (worldAnalysis.centerValue > 0.7) {
+              if (Math.random() < 0.15) {
+                chatSystem.systemMessage(`${npc.name}: *looks around nervously*`);
+              }
+            } else if (worldAnalysis.centerValue < 0.3) {
+              if (Math.random() < 0.1) {
+                chatSystem.systemMessage(`${npc.name}: *yawns* Not much happening today...`);
+              }
+            }
           }
 
           if (decision.action === "wander" || decision.action === "wandering") {
@@ -306,27 +333,47 @@ export class NPCSystem {
         if (now > npc.stateTimer) {
           npc.state = "idle";
           npc.targetPosition = null;
+          npc.path = [];
           npc.stateTimer = now + Math.random() * 2000 + 1000;
         } else if (npc.targetPosition) {
-          // Move towards target
-          const dx = npc.targetPosition.x - npc.position.x;
-          const dy = npc.targetPosition.y - npc.position.y;
-          const distSq = dx * dx + dy * dy;
-          
-          if (distSq < 1) { // 1^2
-            // Reached target
-            npc.targetPosition = null;
-            if (npc.state === "wandering") {
-              npc.state = "idle";
-              npc.stateTimer = now + Math.random() * 3000 + 1000;
+          // Pathfinding update
+          if (!npc.path || npc.path.length === 0) {
+            npc.path = Pathfinding.findPath(
+              { x: npc.position.x, y: npc.position.y },
+              { x: npc.targetPosition.x, y: npc.targetPosition.y },
+              (x, y) => {
+                // Simple collision check: terrain too high?
+                // Note: We need getTerrainHeight here, but it's usually client-side.
+                // In this project, it seems server doesn't have a direct terrain check in NPCSystem.
+                // We'll skip obstacle check for now or implement a simple one if possible.
+                return false; 
+              }
+            );
+          }
+
+          if (npc.path && npc.path.length > 0) {
+            const nextPoint = npc.path[0];
+            const dx = nextPoint.x - npc.position.x;
+            const dy = nextPoint.y - npc.position.y;
+            const distSq = dx * dx + dy * dy;
+
+            if (distSq < 0.25) { // Reached waypoint
+              npc.path.shift();
+              if (npc.path.length === 0) {
+                // Reached final destination
+                npc.targetPosition = null;
+                if (npc.state === "wandering") {
+                  npc.state = "idle";
+                  npc.stateTimer = now + Math.random() * 3000 + 1000;
+                }
+              }
+            } else {
+              // Move towards waypoint
+              const speed = 0.5;
+              const dist = Math.sqrt(distSq);
+              npc.position.x += (dx / dist) * speed;
+              npc.position.y += (dy / dist) * speed;
             }
-            // If working, just stay there until timer runs out
-          } else {
-            // Move
-            const speed = 0.5; // units per tick
-            const dist = Math.sqrt(distSq);
-            npc.position.x += (dx / dist) * speed;
-            npc.position.y += (dy / dist) * speed;
           }
         }
       }
