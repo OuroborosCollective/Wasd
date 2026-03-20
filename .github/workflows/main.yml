@@ -65,5 +65,6 @@ jobs:
         with:
           app-name: 'Aremmoall'
           slot-name: 'Production'
-          package: . ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true
+          package: . 
+             ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true
           
