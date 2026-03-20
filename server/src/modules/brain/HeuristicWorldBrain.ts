@@ -29,6 +29,17 @@ export class HeuristicWorldBrain {
     { id: 'world_center', category: 'center', value: 0.5, weight: 2.0 }
   ];
 
+  // ⚡ Bolt Optimization: Shadow nodes array with a Map to replace O(N) array.find()
+  // calls with O(1) Map.get() lookups for high-frequency node updates.
+  private nodeMap: Map<string, BrainNode>;
+
+  constructor() {
+    this.nodeMap = new Map<string, BrainNode>();
+    for (const node of this.nodes) {
+      this.nodeMap.set(node.id, node);
+    }
+  }
+
   analyze(context: { economy: any, politics: any, world: any, npcMemory: any[] }) {
     // 1. Process World Nodes
     // Resource density based on available nodes vs total world size
@@ -82,13 +93,13 @@ export class HeuristicWorldBrain {
   }
 
   private updateNode(id: string, value: number) {
-    const node = this.nodes.find(n => n.id === id);
+    const node = this.nodeMap.get(id);
     if (node) {
       node.value = Math.max(0, Math.min(1, value));
     }
   }
 
   private getNode(id: string): BrainNode {
-    return this.nodes.find(n => n.id === id)!;
+    return this.nodeMap.get(id)!;
   }
 }

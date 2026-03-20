@@ -45,3 +45,7 @@
 ## 2026-03-20 - [Array Allocations Before Set Initialization]
 **Learning:** Using `Array.map` to transform data before passing it to a `Set` constructor (e.g., `new Set(items.map(i => i.id))`) creates an unnecessary intermediate array allocation that is immediately discarded. In high-frequency loops like the 10Hz world tick, this causes significant garbage collection pressure.
 **Action:** Use a manual `for...of` loop to iterate over the source data and add elements directly to an initialized `Set` to avoid the intermediate array allocation.
+
+## 2024-05-28 - O(1) Map lookups for static nodes in hot paths
+**Learning:** High-frequency systems like the `HeuristicWorldBrain` or other world tick modules often define static configuration arrays (e.g., `nodes`). Using `array.find()` on these static lists inside hot loops creates an O(N) performance penalty for every single update or retrieval.
+**Action:** Always check if a class with static configuration arrays (`this.nodes`, `this.configs`, etc.) exposes methods that look up these items by ID. Shadow these arrays with a `Map` populated during initialization (e.g., in the constructor) to convert O(N) `find()` calls into O(1) constant-time `Map.get()` lookups. This significantly improves execution times in game ticks with zero loss of functionality.
