@@ -68,5 +68,4 @@ jobs:
         with:
           app-name: 'Wasd'
           slot-name: 'Production'
-          package: .
-          
+          package: .    ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true
