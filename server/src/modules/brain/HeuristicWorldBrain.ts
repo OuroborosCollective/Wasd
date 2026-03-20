@@ -28,6 +28,14 @@ export class HeuristicWorldBrain {
     // Center Node (1)
     { id: 'world_center', category: 'center', value: 0.5, weight: 2.0 }
   ];
+  // ⚡ Bolt Optimization: Cache nodes in a Map for O(1) lookups in the hot analysis path
+  private nodeMap: Map<string, BrainNode> = new Map();
+
+  constructor() {
+    for (const node of this.nodes) {
+      this.nodeMap.set(node.id, node);
+    }
+  }
 
   // ⚡ Bolt Optimization: Shadow nodes array with a Map to replace O(N) array.find()
   // calls with O(1) Map.get() lookups for high-frequency node updates.
