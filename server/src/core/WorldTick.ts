@@ -627,17 +627,29 @@ export class WorldTick {
           if ((q.objectiveType === "talk_to" || q.objective === "talk_to") && q.targetNpcId === npc.id) {
             completed = true;
           } else if ((q.objectiveType === "collect" || q.objective === "collect") && q.targetNpcId === npc.id) {
-            const count = player.inventory.filter((item: any) => item.id === q.requiredItemId).length;
-            if (count >= (q.requiredCount || 1)) {
-              for (let i = 0; i < (q.requiredCount || 1); i++) {
-                const index = player.inventory.findIndex((item: any) => item.id === q.requiredItemId);
-                if (index !== -1) player.inventory.splice(index, 1);
+            // ⚡ Bolt Optimization: Replace O(N) filter().length and multiple findIndex() calls
+            // with a single backwards loop. This eliminates intermediate array allocations and redundant iterations.
+            let count = 0;
+            const required = q.requiredCount || 1;
+            const indicesToRemove: number[] = [];
+            for (let i = player.inventory.length - 1; i >= 0; i--) {
+              if (player.inventory[i].id === q.requiredItemId) {
+                count++;
+                if (indicesToRemove.length < required) {
+                  indicesToRemove.push(i);
+                }
+              }
+            }
+
+            if (count >= required) {
+              for (const index of indicesToRemove) {
+                player.inventory.splice(index, 1);
               }
               completed = true;
             } else {
               this.ws.sendToPlayer(id, {
                 type: "dialogue", source: "System",
-                text: `You need ${q.requiredCount || 1}x ${q.requiredItemId} to complete this quest.`
+                text: `You need ${required}x ${q.requiredItemId} to complete this quest.`
               });
             }
           }
