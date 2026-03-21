@@ -97,10 +97,15 @@ export class CraftingSystem {
     const check = this.canCraft(player, recipeId);
     if (!check.possible) return { success: false, reason: check.reason };
     const recipe = this.recipes.get(recipeId)!;
+    // ⚡ Bolt Optimization: Use a single backwards pass to remove required ingredients,
+    // avoiding multiple O(N) findIndex() and splice() calls that shift the array repeatedly.
     for (const ing of recipe.ingredients) {
-      for (let i = 0; i < ing.count; i++) {
-        const index = player.inventory.findIndex((item: any) => item.id === ing.itemId);
-        if (index !== -1) player.inventory.splice(index, 1);
+      let needed = ing.count;
+      for (let i = player.inventory.length - 1; i >= 0 && needed > 0; i--) {
+        if (player.inventory[i].id === ing.itemId) {
+          player.inventory.splice(i, 1);
+          needed--;
+        }
       }
     }
     for (let i = 0; i < recipe.result.count; i++) {

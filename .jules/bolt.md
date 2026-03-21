@@ -48,3 +48,7 @@
 ## 2026-03-20 - [O(1) Map Lookups for World Brain Nodes]
 **Learning:** The `HeuristicWorldBrain.analyze` method is called 10 times per second during the world tick. Its helper methods `updateNode` and `getNode` were performing (N)$ array `.find()` lookups for every single property update (like market volatility, social tension, etc.). Since an analysis queries/updates these nodes nearly 10 times per pass, it creates hundreds of redundant array scans every second.
 **Action:** Always shadow static configuration arrays (like nodes) with an internal `Map` during initialization to achieve (1)$ constant-time lookup performance in hot execution paths.
+
+## 2026-03-20 - [Single-Pass Array Element Removal]
+**Learning:** Using `findIndex` inside a loop followed by `splice` to remove multiple elements from an array (e.g., in `CraftingSystem.ts`) results in O(N^2) complexity due to repeated array shifting and scanning.
+**Action:** When removing multiple elements from an array based on a condition, always use a single backwards loop. This allows safe use of `splice()` without shifting the indices of the remaining unvisited elements, reducing the operation to a single O(N) pass.
