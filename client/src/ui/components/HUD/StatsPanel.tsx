@@ -10,7 +10,8 @@
  * - Responsive design
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
+import Image from 'next/image';
 import './StatsPanel.css';
 
 export interface PlayerStats {
@@ -176,7 +177,7 @@ const BuffIcon: React.FC<{
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
     >
-      <img src={effect.icon} alt={effect.name} />
+      <Image src={effect.icon} alt={effect.name} width={24} height={24} referrerPolicy="no-referrer" />
       <div className="buff-duration">{Math.ceil(effect.duration)}s</div>
       {showTooltip && (
         <div className="buff-tooltip">
@@ -196,11 +197,7 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({
   onStatClick,
   className = ''
 }) => {
-  const [isLowHealth, setIsLowHealth] = useState(false);
-
-  useEffect(() => {
-    setIsLowHealth(stats.health < stats.maxHealth * 0.3);
-  }, [stats.health, stats.maxHealth]);
+  const isLowHealth = stats.health < stats.maxHealth * 0.3;
 
   return (
     <div className={`stats-panel ${className} ${isLowHealth ? 'low-health-warning' : ''}`}>

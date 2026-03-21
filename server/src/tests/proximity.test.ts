@@ -11,14 +11,14 @@ describe('Proximity Optimization', () => {
     ];
 
     // Test 1: NPC should start interacting when player is close
-    npcSystem.tick(players);
+    npcSystem.tick(players, 1200); // 12:00
     expect(npc.state).toBe('interacting');
 
     // Test 2: NPC should skip proximity check if already interacting
     const farPlayers = [
       { position: { x: 100, y: 100 } } // distSq = 20000 > 225
     ];
-    npcSystem.tick(farPlayers);
+    npcSystem.tick(farPlayers, 1200);
     expect(npc.state).toBe('interacting');
 
     // Test 3: NPC should reach target when distSq < 1
@@ -31,7 +31,7 @@ describe('Proximity Optimization', () => {
     // Da Pathfinding.findPath auf gerundeten Koordinaten arbeitet, kann es 1-2 Ticks dauern,
     // bis der NPC sein Ziel erreicht und targetPosition auf null gesetzt wird.
     for (let i = 0; i < 5; i++) {
-      npcSystem.tick([]);
+      npcSystem.tick([], 1200);
     }
     expect(npc.targetPosition).toBe(null);
   });

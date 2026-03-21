@@ -3,7 +3,6 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   server: {
     port: 3001, // Client dev server port
-    allowedHosts: 'all',
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
@@ -19,8 +18,5 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     sourcemap: true,
-    rollupOptions: {
-      external: (id: string) => id.startsWith('firebase/')
-    }
   }
 });

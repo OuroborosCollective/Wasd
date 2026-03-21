@@ -1,73 +1,66 @@
-import admin from "firebase-admin";
-import { readFileSync, existsSync } from "fs";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
+import { initializeApp, cert, getApps, App } from 'firebase-admin/app';
+import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import { getAuth, Auth } from 'firebase-admin/auth';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+let app: App | null = null;
+let dbInstance: Firestore | null = null;
+let authInstance: Auth | null = null;
 
-let firebaseApp: admin.app.App | null = null;
-let adminAuth: admin.auth.Auth | null = null;
-let adminDb: admin.database.Database | null = null;
+function getFirebaseApp(): App {
+  if (app) return app;
 
-// Try to initialize Firebase Admin SDK with service account
-const serviceAccountPaths = [
-  join(__dirname, "../../service-account.json"),
-  join(__dirname, "../../../service-account.json"),
-  join(process.cwd(), "service-account.json"),
-];
-
-for (const saPath of serviceAccountPaths) {
-  if (existsSync(saPath)) {
-    try {
-      const serviceAccount = JSON.parse(readFileSync(saPath, "utf-8"));
-      firebaseApp = admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        databaseURL: "https://innate-summit-490115-p5-default-rtdb.europe-west1.firebasedatabase.app/"
-      });
-      adminAuth = admin.auth(firebaseApp);
-      adminDb = admin.database(firebaseApp);
-      console.log(`✅ Firebase Admin SDK initialized (project: ${serviceAccount.project_id})`);
-      console.log(`🔗 Realtime Database connected: https://innate-summit-490115-p5-default-rtdb.europe-west1.firebasedatabase.app/`);
-      break;
-    } catch (err: any) {
-      console.warn(`Firebase Admin: Failed to init from ${saPath}: ${err.message}`);
-    }
-  }
-}
-
-if (!firebaseApp) {
-  console.log("Firebase Admin: No service account found, running without Firebase Admin SDK.");
-}
-
-/**
- * Verify a Firebase ID token and return the decoded token.
- * Falls back to returning the uid from the token payload if Admin SDK is not available.
- */
-export async function verifyFirebaseToken(idToken: string): Promise<{ uid: string; email?: string; name?: string } | null> {
-  if (adminAuth) {
-    try {
-      const decoded = await adminAuth.verifyIdToken(idToken);
-      return { uid: decoded.uid, email: decoded.email, name: decoded.name };
-    } catch (err: any) {
-      console.warn("Firebase token verification failed:", err.message);
-      return null;
-    }
+  const existingApps = getApps();
+  if (existingApps.length > 0) {
+    app = existingApps[0];
+    return app;
   }
 
-  // Fallback: decode JWT payload without verification (dev mode only)
+  const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (!serviceAccountKey) {
+    throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY environment variable is required for Firebase Admin operations. Please provide the service account JSON as a string.");
+  }
+
   try {
-    const parts = idToken.split(".");
-    if (parts.length === 3) {
-      const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf-8"));
-      if (payload.user_id || payload.sub) {
-        return { uid: payload.user_id || payload.sub, email: payload.email, name: payload.name };
-      }
-    }
-  } catch (_) {}
-  return null;
+    const serviceAccount = JSON.parse(serviceAccountKey);
+    app = initializeApp({
+      credential: cert(serviceAccount)
+    });
+    return app;
+  } catch (error) {
+    console.error('Error initializing Firebase Admin:', error);
+    throw new Error(`Failed to initialize Firebase Admin: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
-export const db = adminDb;
-export const auth = adminAuth;
-export default firebaseApp;
+export const getDb = (): Firestore => {
+  if (!dbInstance) {
+    dbInstance = getFirestore(getFirebaseApp());
+  }
+  return dbInstance;
+};
+
+export const getAuthInstance = (): Auth => {
+  if (!authInstance) {
+    authInstance = getAuth(getFirebaseApp());
+  }
+  return authInstance;
+};
+
+// For backward compatibility if needed, but lazy getters are better
+export const db = new Proxy({} as Firestore, {
+  get: (_, prop) => (getDb() as any)[prop]
+});
+
+export const auth = new Proxy({} as Auth, {
+  get: (_, prop) => (getAuthInstance() as any)[prop]
+});
+
+export async function verifyFirebaseToken(token: string) {
+  try {
+    const auth = getAuthInstance();
+    return await auth.verifyIdToken(token);
+  } catch (error) {
+    console.error('Error verifying Firebase token:', error);
+    throw error;
+  }
+}

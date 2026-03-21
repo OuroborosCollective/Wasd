@@ -286,19 +286,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   className = ''
 }) => {
   const [selectedChannel, setSelectedChannel] = useState<ChatChannel>('global');
-  const [unreadCounts, setUnreadCounts] = useState<Record<ChatChannel, number>>({
-    global: 0,
-    whisper: 0,
-    guild: 0,
-    faction: 0,
-    party: 0
-  });
 
   // Filter messages by channel
   const filteredMessages = messages.filter((msg) => msg.channel === selectedChannel);
 
   // Calculate unread counts
-  useEffect(() => {
+  const unreadCounts = useMemo(() => {
     const counts: Record<ChatChannel, number> = {
       global: 0,
       whisper: 0,
@@ -312,7 +305,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       counts[channel] = channelMessages.filter((msg) => msg.author !== currentUser).length;
     });
 
-    setUnreadCounts(counts);
+    return counts;
   }, [messages, currentUser, channels]);
 
   const handleSendMessage = (message: string) => {

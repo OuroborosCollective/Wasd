@@ -1,0 +1,102 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: players
+    // Document ID: {playerId} (character name or unique ID)
+    // Fields:
+    //   - id: string (required)
+    //   - name: string (required)
+    //   - class: string
+    //   - appearance: string
+    //   - role: string (player, admin)
+    //   - gold: number
+    //   - xp: number
+    //   - health: number
+    //   - maxHealth: number
+    //   - position: map { x: number, y: number, z: number }
+    //   - inventory: list of maps { id: string }
+    //   - equipment: map { weapon: map, armor: map }
+    //   - quests: list of maps { id: string, completed: bool, currentStep: number }
+    //   - flags: map
+    //   - isOffline: bool
+    //   - lastUpdated: timestamp
+    //
+    // Collection: npcs
+    // Document ID: {npcId}
+    // Fields:
+    //   - id: string
+    //   - name: string
+    //   - role: string
+    //   - health: number
+    //   - maxHealth: number
+    //   - position: map { x: number, y: number }
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "thosu87@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidPlayer(data) {
+      return hasRequiredFields(['id', 'name', 'position']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() < 100 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.position is map &&
+             data.position.x is number && data.position.y is number;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /players/{playerId} {
+      // Allow users to read their own player data
+      // (Assuming playerId matches auth.uid or is linked)
+      // For now, allow read if authenticated for prototype
+      allow read: if isAuthenticated();
+      
+      // Only the server or admin should write player data in a production app,
+      // but for this prototype we allow the owner or admin.
+      allow create: if isAuthenticated() && isValidPlayer(request.resource.data) && (isOwner(playerId) || isAdmin());
+      allow update: if isAuthenticated() && isValidPlayer(request.resource.data) && (isOwner(playerId) || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /npcs/{npcId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

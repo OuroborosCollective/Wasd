@@ -2,92 +2,9 @@ import { updateWorldState, showFloatingTextAt } from "../engine/renderer";
 import { showDialogue, updateHUD, updateCooldowns, renderInventoryPanel } from "../ui/hud";
 import { getClosestInteractable } from "../utils/interaction";
 import { updateAdminAssetModels, updateAdminAssetLinks } from "../ui/adminAssetPanel";
-import { handleGMMessage } from "../ui/gmPanel";
 
 export let myPlayerId: string | null = null;
 let latestState: any = null;
-
-// WebSocket Reconnection State
-let reconnectAttempts = 0;
-const MAX_RECONNECT_ATTEMPTS = 10;
-const INITIAL_RECONNECT_DELAY = 1000;
-const MAX_RECONNECT_DELAY = 30000;
-let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
-let displayNameCache: string | null = null;
-let isReconnecting = false;
-let lastPlayerState: any = null;
-
-// Export for external access to connection state
-export function isConnected(): boolean {
-  return globalWs !== null && globalWs.readyState === WebSocket.OPEN;
-}
-
-export function getReconnectStatus(): { attempts: number; maxAttempts: number; delay: number } {
-  return {
-    attempts: reconnectAttempts,
-    maxAttempts: MAX_RECONNECT_ATTEMPTS,
-    delay: Math.min(INITIAL_RECONNECT_DELAY * Math.pow(2, reconnectAttempts), MAX_RECONNECT_DELAY)
-  };
-}
-
-// Save player state for recovery
-export function savePlayerState(state: any) {
-  if (state && myPlayerId) {
-    const myPlayer = state.players?.find((p: any) => p.id === myPlayerId);
-    if (myPlayer) {
-      lastPlayerState = { ...myPlayer };
-    }
-  }
-}
-
-// Get saved player state
-export function getSavedPlayerState(): any | null {
-  return lastPlayerState;
-}
-
-// Public API for mobile controls
-export function sendMessage(msg: any) {
-  if (globalWs && globalWs.readyState === WebSocket.OPEN) {
-    globalWs.send(JSON.stringify(msg));
-  }
-}
-
-export function triggerAttack() {
-  if (!myPlayerId || !latestState) return;
-  if (Date.now() < cooldowns.attack) return;
-  if (latestState.npcs && latestState.players) {
-    const myPlayer = latestState.players.find((p: any) => p.id === myPlayerId);
-    if (myPlayer) {
-      let closestNpc = null;
-      let minDistance = Infinity;
-      for (const npc of latestState.npcs) {
-        const dist = Math.hypot(myPlayer.position.x - npc.position.x, myPlayer.position.z - npc.position.z);
-        if (dist < minDistance) { minDistance = dist; closestNpc = npc; }
-      }
-      if (closestNpc && minDistance < 40) {
-        cooldowns.attack = Date.now() + CD_DURATIONS.attack;
-        globalWs?.send(JSON.stringify({ type: "attack", targetId: closestNpc.id }));
-      }
-    }
-  }
-}
-
-export function triggerInteract() {
-  if (!myPlayerId || !latestState) return;
-  if (Date.now() < cooldowns.interact) return;
-  const myPlayer = latestState.players?.find((p: any) => p.id === myPlayerId);
-  if (myPlayer) {
-    const closestInteractable = getClosestInteractable(
-      { x: myPlayer.position.x, y: myPlayer.position.y },
-      latestState.npcs || [],
-      latestState.loot || []
-    );
-    if (closestInteractable) {
-      cooldowns.interact = Date.now() + CD_DURATIONS.interact;
-      globalWs?.send(JSON.stringify({ type: "interact", targetId: closestInteractable.id }));
-    }
-  }
-}
 
 const cooldowns = {
   attack: 0,
@@ -119,119 +36,86 @@ export function sendDialogueChoice(npcId: string, nodeId: string, choiceId: stri
 }
 
 let globalWs: WebSocket | null = null;
-let cdInterval: ReturnType<typeof setInterval> | null = null;
 
-// Disconnect and cleanup
-export function disconnectSocket() {
-  if (reconnectTimeout) {
-    clearTimeout(reconnectTimeout);
-    reconnectTimeout = null;
-  }
-  if (cdInterval) {
-    clearInterval(cdInterval);
-    cdInterval = null;
-  }
-  if (globalWs) {
-    globalWs.close();
-    globalWs = null;
-  }
-  reconnectAttempts = 0;
-  isReconnecting = false;
-}
-
-// Attempt to reconnect with exponential backoff
-function attemptReconnect() {
-  if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-    console.error("Max reconnection attempts reached");
-    isReconnecting = false;
-    return;
-  }
-  
-  isReconnecting = true;
-  const delay = Math.min(INITIAL_RECONNECT_DELAY * Math.pow(2, reconnectAttempts), MAX_RECONNECT_DELAY);
-  
-  console.log(`Attempting to reconnect in ${delay}ms (attempt ${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})`);
-  
-  reconnectTimeout = setTimeout(() => {
-    reconnectAttempts++;
-    connectSocket(displayNameCache || undefined);
-  }, delay);
-}
-
-export function connectSocket(displayName?: string) {
-  // Cache display name for reconnection
-  if (displayName) {
-    displayNameCache = displayName;
-  }
-  
-  const externalWsUrl = (import.meta.env as any).VITE_WS_URL;
+export function connectSocket() {
+  const externalWsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL;
   const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  
-  // Fix: Use hostname instead of host to avoid port issues on Android/HTTPS
-  const localWsUrl = `${wsProtocol}//${location.hostname}/ws`;
+  const localWsUrl = `${wsProtocol}//${location.host}/ws`;
   
   const wsUrl = externalWsUrl || localWsUrl;
-  console.log(`[WebSocket] Connecting to: ${wsUrl} (protocol: ${wsProtocol})`);
+  console.log(`Connecting to WebSocket: ${wsUrl}`);
   
-  let connectionTimeout: any = null;
-  let ws: WebSocket;
-  
-  const createConnection = (url: string) => {
-    const socket = new WebSocket(url);
-    if (connectionTimeout) clearTimeout(connectionTimeout);
-    connectionTimeout = setTimeout(() => {
-      if (socket.readyState === WebSocket.CONNECTING) {
-        console.warn(`[WS] Timeout on ${url}, trying fallback...`);
-        socket.close();
-        const fallback = wsProtocol === 'wss:' ? 'ws:' : 'wss:';
-        const fallbackUrl = `${fallback}//${location.hostname}/ws`;
-        console.log(`[WS] Fallback: ${fallbackUrl}`);
-        createConnection(fallbackUrl);
-      }
-    }, 5000);
-    return socket;
-  };
-  
-  ws = createConnection(wsUrl);
+  const ws = new WebSocket(wsUrl);
   globalWs = ws;
-  
-  // Reset reconnect attempts on new connection
-  reconnectAttempts = 0;
-  isReconnecting = false;
 
   // Update cooldowns UI every frame
-  if (cdInterval) clearInterval(cdInterval);
-  cdInterval = setInterval(() => {
+  const cdInterval = setInterval(() => {
     updateCooldowns(cooldowns);
   }, 100);
 
   ws.onopen = () => {
     console.log("Connected to Arelorian server");
-    reconnectAttempts = 0;
-    isReconnecting = false;
     
-    // Auto-login with cached display name
-    const savedState = getSavedPlayerState();
-    const name = displayName || savedState?.name || "Adventurer";
-    ws.send(JSON.stringify({ 
-      type: "login", 
-      name,
-      // Include session recovery info if reconnecting
-      ...(savedState ? { recovery: true, playerId: savedState.id } : {})
-    }));
-    console.log(`Auto-logged in as: ${name}`);
-  };
-  
-  ws.onclose = (event) => {
-    console.log("WebSocket closed", event.code, event.reason);
-    // Attempt to reconnect unless intentional close
-    if (!event.wasClean && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-      attemptReconnect();
-    }
-  };
-  
-  ws.onerror = (error) => {
-    console.error("WebSocket error:", error);
+    // Create a custom login overlay
+    const overlay = document.createElement("div");
+    overlay.style.position = "fixed";
+    overlay.style.top = "0";
+    overlay.style.left = "0";
+    overlay.style.width = "100vw";
+    overlay.style.height = "100vh";
+    overlay.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
+    overlay.style.display = "flex";
+    overlay.style.justifyContent = "center";
+    overlay.style.alignItems = "center";
+    overlay.style.zIndex = "9999";
+
+    const box = document.createElement("div");
+    box.style.backgroundColor = "#222";
+    box.style.padding = "20px";
+    box.style.borderRadius = "8px";
+    box.style.textAlign = "center";
+    box.style.color = "white";
+    box.style.fontFamily = "sans-serif";
+
+    const title = document.createElement("h2");
+    title.textContent = "Enter Character Name";
+    title.style.marginTop = "0";
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "Admin";
+    input.style.padding = "8px";
+    input.style.fontSize = "16px";
+    input.style.width = "200px";
+    input.style.marginBottom = "15px";
+    input.style.display = "block";
+
+    const btn = document.createElement("button");
+    btn.textContent = "Join Game";
+    btn.style.padding = "10px 20px";
+    btn.style.fontSize = "16px";
+    btn.style.cursor = "pointer";
+    btn.style.backgroundColor = "#4CAF50";
+    btn.style.color = "white";
+    btn.style.border = "none";
+    btn.style.borderRadius = "4px";
+
+    box.appendChild(title);
+    box.appendChild(input);
+    box.appendChild(btn);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    const submitLogin = () => {
+      const name = input.value.trim() || "Admin";
+      ws.send(JSON.stringify({ type: "login", name }));
+      overlay.remove();
+    };
+
+    btn.onclick = submitLogin;
+    input.onkeydown = (e) => {
+      if (e.key === "Enter") submitLogin();
+    };
   };
   ws.onmessage = (msg) => {
     try {
@@ -251,9 +135,6 @@ export function connectSocket(displayName?: string) {
       } else if (data.type === "world_tick") {
         latestState = data;
         updateWorldState(data, myPlayerId);
-        
-        // Save player state for session recovery
-        savePlayerState(data);
 
         // Update HUD with my player's stats
         if (myPlayerId) {
@@ -267,7 +148,8 @@ export function connectSocket(displayName?: string) {
               inventory: myPlayer.inventory || [],
               equipment: myPlayer.equipment,
               reputation: myPlayer.reputation,
-              questStatus: myPlayer.questStatus
+              questStatus: myPlayer.questStatus,
+              worldTime: data.worldTime
             });
           }
         }
@@ -275,61 +157,18 @@ export function connectSocket(displayName?: string) {
         showDialogue(data.source, data.text, data.choices, data.npcId);
       } else if (data.type === "combat_feedback") {
         // Find NPC position
-        const npc = latestState?.npcs?.find((n: any) => n.id === data.targetId);
+        const npc = latestState.npcs.find((n: any) => n.id === data.targetId);
         if (npc) {
-          showFloatingTextAt(`-${data.damage}`, npc.position.x, npc.position.y, "#ff4444");
-        }
-        const healTarget = latestState?.players?.find((p: any) => p.id === data.targetId);
-        if (healTarget && data.heal) {
-          showFloatingTextAt(`+${data.heal}`, healTarget.position.x, healTarget.position.y, "#00ff88");
+          showFloatingTextAt(`-${data.damage}`, npc.position.x, npc.position.y);
         }
       } else if (data.type === "admin_glb_scan_result") {
         updateAdminAssetModels(data.models);
-        handleGMMessage(data);
       } else if (data.type === "admin_glb_list_result") {
         updateAdminAssetLinks(data.links);
-        handleGMMessage(data);
-      } else if (data.type === "gm_player_list") {
-        handleGMMessage(data);
-      } else if (data.type === "kick") {
-        alert(`You have been kicked: ${data.reason || "No reason given"}`);
-        window.location.reload();
-      } else if (data.type === "teleport") {
-        // Update local player position
-        if (latestState && latestState.players) {
-          const me = latestState.players.find((p: any) => p.id === myPlayerId);
-          if (me) { me.position.x = data.x; me.position.z = data.y; }
-        }
-      } else if (data.type === "chat_message") {
-        // Handle chat message from server
-        const { sender, channel, text, timestamp } = data;
-        if (typeof addChatMessage === 'function') {
-          addChatMessage(sender, channel, text, timestamp);
-        }
-      } else if (data.type === "world_event") {
-        // Show world event notification
-        const notif = document.createElement("div");
-        notif.style.cssText = `position:fixed;top:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);border:1px solid rgba(255,215,0,0.5);color:#ffd700;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:bold;z-index:5000;text-align:center;max-width:400px;`;
-        notif.innerHTML = `🌍 <strong>${data.title || data.event}</strong>${data.description ? `<br><span style="font-size:12px;color:#c8d8f0">${data.description}</span>` : ""}`;
-        document.body.appendChild(notif);
-        setTimeout(() => notif.remove(), 6000);
       }
     } catch (e) {
       console.error("Failed to parse message", e);
     }
-  };
-
-
-  ws.onclose = () => {
-    console.error("WebSocket connection closed or timed out. Reconnecting in 3s...");
-    (window as any).showToast && (window as any).showToast("Verbindung verloren. Versuche erneute Verbindung...", "#ff4444");
-    setTimeout(() => {
-      connectSocket(displayName);
-    }, 3000);
-  };
-
-  ws.onerror = (err) => {
-    console.error("WebSocket encountered an error:", err);
   };
 
   // Basic movement controls for testing
@@ -373,7 +212,7 @@ export function connectSocket(displayName?: string) {
           let minDistance = Infinity;
           
           for (const npc of latestState.npcs) {
-            const dist = Math.hypot(myPlayer.position.x - npc.position.x, myPlayer.position.z - npc.position.z);
+            const dist = Math.hypot(myPlayer.position.x - npc.position.x, myPlayer.position.y - npc.position.y);
             if (dist < minDistance) {
               minDistance = dist;
               closestNpc = npc;
@@ -398,11 +237,7 @@ export function connectSocket(displayName?: string) {
       if (latestState && (latestState.npcs || latestState.loot) && latestState.players) {
         const myPlayer = latestState.players.find((p: any) => p.id === myPlayerId);
         if (myPlayer) {
-          const closestInteractable = getClosestInteractable(
-            { x: myPlayer.position.x, y: myPlayer.position.y },
-            latestState.npcs || [],
-            latestState.loot || []
-          );
+          const closestInteractable = getClosestInteractable(myPlayer, latestState);
           
           if (closestInteractable) {
             cooldowns.interact = Date.now() + CD_DURATIONS.interact;

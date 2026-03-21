@@ -332,7 +332,8 @@ export const WorldMap: React.FC<WorldMapProps> = ({
   className = ''
 }) => {
   const [zoom, setZoom] = useState(1);
-  const [offset, setOffset] = useState<Vector3>({ x: playerPosition.x, y: playerPosition.y });
+
+  const offset = useMemo(() => ({ x: playerPosition.x, y: playerPosition.y }), [playerPosition.x, playerPosition.y]);
 
   const handleZoomIn = useCallback(() => {
     setZoom((prev) => Math.min(prev * 1.2, 3));
@@ -344,13 +345,9 @@ export const WorldMap: React.FC<WorldMapProps> = ({
 
   const handleResetZoom = useCallback(() => {
     setZoom(1);
-    setOffset({ x: playerPosition.x, y: playerPosition.y });
-  }, [playerPosition]);
+  }, []);
 
-  // Update offset to follow player
-  useEffect(() => {
-    setOffset({ x: playerPosition.x, y: playerPosition.y });
-  }, [playerPosition]);
+  // Map content rendering
 
   return (
     <div className={`world-map-container ${className}`}>

@@ -9,10 +9,7 @@ export interface GLBLink {
 
 export class GLBRegistry {
   private links: GLBLink[] = [];
-  // Optimization: Map for O(1) lookups of GLB paths by targetType:targetId
-  private linksMap: Map<string, string> = new Map();
   private modelsDir = path.resolve(process.cwd(), '../client/public/assets/models');
-
 
   constructor() {
     this.loadLinks();
@@ -23,14 +20,9 @@ export class GLBRegistry {
     if (fs.existsSync(linksPath)) {
       try {
         this.links = JSON.parse(fs.readFileSync(linksPath, 'utf-8'));
-        this.linksMap.clear();
-        for (const link of this.links) {
-          this.linksMap.set(`${link.targetType}:${link.targetId}`, link.glbPath);
-        }
       } catch (e) {
         console.error("Failed to parse glb-links.json", e);
         this.links = [];
-        this.linksMap.clear();
       }
     }
   }
@@ -51,10 +43,7 @@ export class GLBRegistry {
         if (fs.statSync(fullPath).isDirectory()) {
           scanDir(fullPath);
         } else if (file.endsWith('.glb')) {
-          // Pfad relativ zum public-Ordner generieren, damit er vom Client geladen werden kann
-          const publicDir = path.resolve(process.cwd(), '../client/public');
-          const relPath = path.relative(publicDir, fullPath).replace(/\\/g, '/');
-          models.push('/' + relPath);
+          models.push('/assets/models/' + path.relative(this.modelsDir, fullPath).replace(/\\/g, '/'));
         }
       }
     };
@@ -70,18 +59,16 @@ export class GLBRegistry {
     // remove existing link for the same target
     this.links = this.links.filter(l => !(l.targetType === link.targetType && l.targetId === link.targetId));
     this.links.push(link);
-    this.linksMap.set(`${link.targetType}:${link.targetId}`, link.glbPath);
     this.saveLinks();
   }
 
   public removeLink(targetType: string, targetId: string) {
     this.links = this.links.filter(l => !(l.targetType === targetType && l.targetId === targetId));
-    this.linksMap.delete(`${targetType}:${targetId}`);
     this.saveLinks();
   }
 
   public getModelForTarget(targetType: string, targetId: string): string | null {
-    // Optimized lookup using the internal Map instead of array iteration
-    return this.linksMap.get(`${targetType}:${targetId}`) || null;
+    const link = this.links.find(l => l.targetType === targetType && l.targetId === targetId);
+    return link ? link.glbPath : null;
   }
 }

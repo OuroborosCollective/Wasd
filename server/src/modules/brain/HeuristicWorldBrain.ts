@@ -31,7 +31,6 @@ export class HeuristicWorldBrain {
   // ⚡ Bolt Optimization: Cache nodes in a Map for O(1) lookups in the hot analysis path
   private nodeMap: Map<string, BrainNode> = new Map();
 
-
   constructor() {
     for (const node of this.nodes) {
       this.nodeMap.set(node.id, node);
