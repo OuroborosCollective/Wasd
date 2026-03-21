@@ -994,8 +994,10 @@ export class WorldTick {
       this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Picked up ${loot.item.name}!` });
       this.debouncedSave();
     } else if (resource) {
-      const dist = Math.hypot(player.position.x - resource.position.x, player.position.y - resource.position.y);
-      if (dist > GameConfig.interactDistance) {
+      const dx = player.position.x - resource.position.x;
+      const dy = player.position.y - resource.position.y;
+      // ⚡ Bolt Optimization: Use squared distance to avoid Math.hypot() square root
+      if (dx * dx + dy * dy > GameConfig.interactDistance * GameConfig.interactDistance) {
         this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Too far away." });
         return;
       }
