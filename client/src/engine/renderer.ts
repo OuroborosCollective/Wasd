@@ -94,6 +94,7 @@ let highlightPulse = 0;
 const playerMeshes = new Map<string, THREE.Object3D>();
 const npcMeshes = new Map<string, THREE.Object3D>();
 const lootMeshes = new Map<string, THREE.Object3D>();
+const worldObjectMeshes = new Map<string, THREE.Object3D>();
 const targetPositions = new Map<string, THREE.Vector3>();
 
 let cameraAngleH = 0;
@@ -556,6 +557,45 @@ export function updateWorldState(state: any, playerId: string | null) {
   }
   for (const [id, mesh] of lootMeshes) {
     if (!currentLoot.has(id)) { scene.remove(mesh); lootMeshes.delete(id); removeWorldLabel(id); }
+  }
+
+  // World Objects
+  const currentWorldObjects = new Set<string>();
+  for (const obj of state.worldObjects || []) {
+    currentWorldObjects.add(obj.id);
+    if (!worldObjectMeshes.has(obj.id)) {
+      const g = new THREE.Group();
+      g.position.set(obj.position.x, getTerrainHeight(obj.position.x, obj.position.y), obj.position.y);
+      if (obj.rotation) g.rotation.y = obj.rotation;
+      if (obj.scale) g.scale.set(obj.scale, obj.scale, obj.scale);
+      scene.add(g); worldObjectMeshes.set(obj.id, g);
+      
+      if (obj.glbPath) {
+        let path = obj.glbPath;
+        if (path.startsWith('public/')) path = '/' + path.substring(7);
+        if (path.startsWith('assets/')) path = '/' + path;
+        if (!path.startsWith('/')) path = '/' + path;
+        console.log(`[Renderer] Loading World Object model: ${path} for ${obj.id}`);
+        loadModel(path, (m) => { g.add(m); }, (err) => console.error(`[Renderer] World Object model load failed: ${path}`, err));
+      } else {
+        // Fallback placeholder based on type
+        let color = 0x888888;
+        let geometry: THREE.BufferGeometry = new THREE.BoxGeometry(2, 2, 2);
+        if (obj.type === "tree") { color = 0x228B22; geometry = new THREE.ConeGeometry(1, 4, 8); }
+        else if (obj.type === "house") { color = 0x8B4513; geometry = new THREE.BoxGeometry(4, 3, 4); }
+        else if (obj.type === "well") { color = 0x808080; geometry = new THREE.CylinderGeometry(1, 1, 1, 16); }
+        else if (obj.type === "rock") { color = 0x696969; geometry = new THREE.DodecahedronGeometry(1); }
+        
+        const mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ color }));
+        mesh.position.y = geometry.parameters.height ? (geometry.parameters as any).height / 2 : 1;
+        mesh.castShadow = !isMobile();
+        mesh.receiveShadow = true;
+        g.add(mesh);
+      }
+    }
+  }
+  for (const [id, mesh] of worldObjectMeshes) {
+    if (!currentWorldObjects.has(id)) { scene.remove(mesh); worldObjectMeshes.delete(id); }
   }
 
   // Interaction tooltip

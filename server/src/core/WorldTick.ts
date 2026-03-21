@@ -9,6 +9,7 @@ import { EconomySystem } from "../modules/economy/EconomySystem.js";
 import { QuestEngine } from "../modules/quest/QuestEngine.js";
 import { WorldSystem } from "../modules/world/WorldSystem.js";
 import { PersistenceManager } from "./PersistenceManager.js";
+import { verifyFirebaseToken } from "../config/firebase.js";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
 import { GLBRegistry } from "../modules/asset-registry/GLBRegistry.js";
 import { cache } from "./Cache.js";
@@ -48,8 +49,8 @@ export class WorldTick {
     this.guildSystem = new GuildSystem();
     this.economySystem = new EconomySystem();
     this.questSystem = new QuestEngine();
-    this.worldSystem = new WorldSystem();
     this.persistence = new PersistenceManager();
+    this.worldSystem = new WorldSystem(this.persistence);
     this.glbRegistry = new GLBRegistry();
 
     // Create a dummy player in a distant chunk to prove multi-observer union
@@ -80,7 +81,26 @@ export class WorldTick {
 
     this.ws.onPlayerMessage = async (id, msg) => {
       if (msg.type === "login") {
-        const charName = msg.name || `Guest_${id.substring(0, 4)}`;
+        let charName = msg.name || `Guest_${id.substring(0, 4)}`;
+        
+        // Verify token if provided
+        if (msg.token) {
+          try {
+            const decodedToken = await verifyFirebaseToken(msg.token);
+            if (decodedToken) {
+              // Use display name or email prefix as character name
+              charName = decodedToken.name || decodedToken.email?.split('@')[0] || charName;
+              console.log(`Verified player ${charName} with UID ${decodedToken.uid}`);
+            } else {
+              console.warn("Token verification skipped (Firebase not initialized)");
+            }
+          } catch (e) {
+            console.error("Token verification failed:", e);
+            this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed" });
+            return;
+          }
+        }
+
         let player = this.playerSystem.getPlayer(charName);
         
         if (player) {
@@ -141,6 +161,29 @@ export class WorldTick {
           player.position.y += dy * speed;
           this.observerEngine.updatePosition(id, { x: player.position.x, y: player.position.y });
         }
+      } else if (msg.type === "admin_place_object") {
+        if (player.role !== "admin") return;
+        const { type, name, glbPath, scale } = msg;
+        const newObj = {
+          id: `${type}_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
+          type: type || "object",
+          name: name || "New Object",
+          position: { x: player.position.x, y: player.position.y },
+          rotation: 0,
+          scale: scale || 1,
+          glbPath: glbPath
+        };
+        await this.worldSystem.objectSystem.addObject(newObj);
+        this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Placed ${newObj.name} at your position.` });
+      } else if (msg.type === "admin_glb_upload") {
+        if (player.role !== "admin") return;
+        const { filename, data } = msg;
+        if (filename && data) {
+          const buffer = Buffer.from(data, 'base64');
+          this.glbRegistry.saveModel(filename, buffer);
+          const models = this.glbRegistry.scanModels();
+          this.ws.sendToPlayer(id, { type: "admin_glb_scan_result", models });
+        }
       } else if (msg.type === "admin_glb_scan") {
         if (player.role !== "admin") return;
         const models = this.glbRegistry.scanModels();
@@ -163,6 +206,33 @@ export class WorldTick {
         this.glbRegistry.removeLink(msg.targetType, msg.targetId);
         const links = this.glbRegistry.getLinks();
         this.ws.sendToPlayer(id, { type: "admin_glb_list_result", links });
+      } else if (msg.type === "admin_generate_world") {
+        if (player.role !== "admin") return;
+        this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Generating world: ${msg.prompt}...` });
+        import("../modules/ai/WorldGenerationFlow.js").then(({ generateWorldObjectsFlow }) => {
+          generateWorldObjectsFlow({ prompt: msg.prompt, baseX: player.position.x, baseY: player.position.y })
+            .then((objects) => {
+              for (const obj of objects) {
+                // Ensure unique ID
+                obj.id = `${obj.type}_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+                this.worldSystem.objectSystem.addObject(obj);
+              }
+              this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Generated ${objects.length} objects.` });
+            })
+            .catch((err) => {
+              console.error("World generation failed", err);
+              this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `World generation failed: ${err.message}` });
+            });
+        });
+      } else if (msg.type === "chat") {
+        const text = msg.text;
+        if (text && typeof text === "string" && text.trim().length > 0) {
+          this.ws.broadcast({
+            type: "chat_message",
+            source: player.name,
+            text: text.trim()
+          });
+        }
       } else if (msg.type === "equip") {
         if (!checkCooldown(500)) return;
         const itemId = msg.itemId;
@@ -403,6 +473,14 @@ export class WorldTick {
   }
 
   async init() {
+    // Test Firestore connection
+    const connected = await this.persistence.testConnection();
+    if (connected) {
+      console.log("✅ Firestore connection verified successfully.");
+    } else {
+      console.error("❌ Firestore connection failed. Please check your configuration.");
+    }
+
     // Load persisted data
     const savedData = await this.persistence.load();
     for (const name in savedData) {
@@ -580,6 +658,11 @@ export class WorldTick {
       return { ...loot, glbPath };
     });
 
+    const worldObjectsWithGlb = this.worldSystem.objectSystem.getAllObjects().map(obj => {
+      let glbPath = obj.glbPath || this.glbRegistry.getModelForTarget("object_group", obj.type);
+      return { ...obj, glbPath };
+    });
+
     this.ws.broadcast({
       type: "world_tick",
       tick: this.tickCount,
@@ -587,7 +670,8 @@ export class WorldTick {
       activeChunkIds: activeChunks.map(c => c.id),
       players: allPlayers.map(p => ({ ...p, questStatus: this.questSystem.getQuestStatus(p) })),
       npcs: npcsWithGlb,
-      loot: lootWithGlb
+      loot: lootWithGlb,
+      worldObjects: worldObjectsWithGlb
     });
 
     if (this.tickCount % 100 === 0) {

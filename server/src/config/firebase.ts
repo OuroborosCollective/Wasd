@@ -1,10 +1,27 @@
 import { initializeApp, cert, getApps, App } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { getAuth, Auth } from 'firebase-admin/auth';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 let app: App | null = null;
 let dbInstance: Firestore | null = null;
 let authInstance: Auth | null = null;
+
+// Load applet config for database ID
+let appletConfig: any = {};
+try {
+  const configPath = path.resolve(__dirname, '../../../firebase-applet-config.json');
+  if (fs.existsSync(configPath)) {
+    appletConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+  }
+} catch (e) {
+  console.warn('Could not load firebase-applet-config.json in server:', e);
+}
 
 function getFirebaseApp(): App {
   if (app) return app;
@@ -17,7 +34,8 @@ function getFirebaseApp(): App {
 
   const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
   if (!serviceAccountKey) {
-    throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY environment variable is required for Firebase Admin operations. Please provide the service account JSON as a string.");
+    console.warn("FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not defined. Firebase Admin operations will be disabled.");
+    return null as any;
   }
 
   try {
@@ -32,16 +50,25 @@ function getFirebaseApp(): App {
   }
 }
 
-export const getDb = (): Firestore => {
+export const getDb = (): Firestore | null => {
   if (!dbInstance) {
-    dbInstance = getFirestore(getFirebaseApp());
+    const firebaseApp = getFirebaseApp();
+    if (!firebaseApp) return null;
+    // Use the specific database ID if provided in the applet config
+    if (appletConfig.firestoreDatabaseId) {
+      dbInstance = getFirestore(firebaseApp, appletConfig.firestoreDatabaseId);
+    } else {
+      dbInstance = getFirestore(firebaseApp);
+    }
   }
   return dbInstance;
 };
 
-export const getAuthInstance = (): Auth => {
+export const getAuthInstance = (): Auth | null => {
   if (!authInstance) {
-    authInstance = getAuth(getFirebaseApp());
+    const firebaseApp = getFirebaseApp();
+    if (!firebaseApp) return null;
+    authInstance = getAuth(firebaseApp);
   }
   return authInstance;
 };
@@ -58,6 +85,10 @@ export const auth = new Proxy({} as Auth, {
 export async function verifyFirebaseToken(token: string) {
   try {
     const auth = getAuthInstance();
+    if (!auth) {
+      console.warn('Firebase Auth is not initialized. Skipping token verification.');
+      return null;
+    }
     return await auth.verifyIdToken(token);
   } catch (error) {
     console.error('Error verifying Firebase token:', error);

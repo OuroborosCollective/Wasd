@@ -51,6 +51,15 @@ export class GLBRegistry {
     return models;
   }
 
+  public saveModel(filename: string, data: Buffer) {
+    if (!fs.existsSync(this.modelsDir)) {
+      fs.mkdirSync(this.modelsDir, { recursive: true });
+    }
+    const filePath = path.join(this.modelsDir, filename);
+    fs.writeFileSync(filePath, data);
+    console.log(`Saved GLB model to ${filePath}`);
+  }
+
   public getLinks() {
     return this.links;
   }

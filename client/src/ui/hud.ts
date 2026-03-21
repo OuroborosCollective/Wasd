@@ -1,50 +1,58 @@
-import { sendDialogueChoice } from "../networking/websocketClient";
+import { sendDialogueChoice, sendChatMessage } from "../networking/websocketClient";
 import { toggleAdminAssetPanel } from "./adminAssetPanel";
 
 export function renderHUD() {
   const hud = document.createElement("div");
   hud.id = "main-hud";
   hud.style.position = "fixed";
-  hud.style.top = "12px";
-  hud.style.left = "12px";
-  hud.style.padding = "12px";
-  hud.style.background = "rgba(0,0,0,0.7)";
+  hud.style.top = "10px";
+  hud.style.left = "10px";
+  hud.style.padding = "15px";
+  hud.style.background = "rgba(0,0,0,0.85)";
   hud.style.color = "#fff";
   hud.style.fontFamily = "sans-serif";
-  hud.style.borderRadius = "8px";
+  hud.style.borderRadius = "12px";
   hud.style.display = "flex";
   hud.style.flexDirection = "column";
-  hud.style.gap = "6px";
-  hud.style.minWidth = "200px";
-  hud.style.border = "1px solid rgba(255,255,255,0.1)";
+  hud.style.gap = "8px";
+  hud.style.width = "auto";
+  hud.style.maxWidth = "300px";
+  hud.style.border = "2px solid rgba(0,255,0,0.3)";
+  hud.style.boxShadow = "0 4px 15px rgba(0,0,0,0.5)";
+  hud.style.zIndex = "1000";
   
   hud.innerHTML = `
-    <div style="font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 4px; margin-bottom: 4px; color: #00ff00;">Areloria Alpha</div>
-    <div id="hud-time" style="font-size: 0.85em; color: #ffff00; margin-bottom: 4px;">Time: 08:00</div>
-    <div id="hud-stats" style="font-size: 0.9em;">
+    <div style="font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 6px; margin-bottom: 4px; color: #00ff00; font-size: 1.1em;">Areloria Alpha</div>
+    <div id="hud-time" style="font-size: 0.9em; color: #ffff00; margin-bottom: 4px;">Time: 08:00</div>
+    <div id="hud-stats" style="font-size: 1em; font-weight: bold;">
       Gold: 0 | XP: 0
     </div>
-    <div id="hud-inventory" style="font-size: 0.8em; color: #ffcc00;">
+    <div id="hud-inventory" style="font-size: 0.9em; color: #ffcc00; margin-top: 4px;">
       Inv: Empty
     </div>
-    <div id="hud-reputation" style="font-size: 0.8em; color: #ff99ff;">
+    <div id="hud-reputation" style="font-size: 0.9em; color: #ff99ff;">
       Rep: None
     </div>
-    <div id="hud-equipment" style="font-size: 0.8em; color: #00ccff;">
+    <div id="hud-equipment" style="font-size: 0.9em; color: #00ccff;">
       Equip: None
     </div>
-    <div id="hud-quests" style="font-size: 0.85em; color: #aaa; font-style: italic;">
+    <div id="hud-quests" style="font-size: 0.9em; color: #aaa; font-style: italic; margin-top: 4px;">
       Active Quest: None
     </div>
-    <div id="hud-cooldowns" style="font-size: 0.8em; margin-top: 4px; display: flex; gap: 8px;">
-      <span id="cd-attack" style="color: #00ff00; opacity: 0.5;">[F] Attack</span>
-      <span id="cd-interact" style="color: #00ff00; opacity: 0.5;">[E] Interact</span>
-      <span id="cd-equip" style="color: #00ff00; opacity: 0.5;">[G] Equip</span>
+    <div id="hud-cooldowns" style="font-size: 0.9em; margin-top: 8px; display: flex; flex-wrap: wrap; gap: 10px;">
+      <span id="cd-attack" style="color: #00ff00; opacity: 0.5; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px;">[F] Attack</span>
+      <span id="cd-interact" style="color: #00ff00; opacity: 0.5; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px;">[E] Interact</span>
+      <span id="cd-equip" style="color: #00ff00; opacity: 0.5; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px;">[G] Equip</span>
     </div>
-    <div style="font-size: 0.75em; margin-top: 6px; opacity: 0.6; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px;">
-      WASD: Move | E: Interact | F: Attack | G: Equip First | H: Unequip
+    <div style="font-size: 0.8em; margin-top: 10px; opacity: 0.7; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px;">
+      WASD: Move | E: Interact | F: Attack | G: Equip | H: Unequip
     </div>
-    <button id="btn-admin-assets" style="margin-top: 10px; background: #444; color: white; border: none; padding: 5px; cursor: pointer; display: none;">Admin Assets</button>
+    <div id="chat-log" style="margin-top: 10px; max-height: 120px; overflow-y: auto; font-size: 0.9em; display: flex; flex-direction: column; gap: 4px; background: rgba(0,0,0,0.3); padding: 5px; border-radius: 4px;"></div>
+    <div style="margin-top: 8px; display: flex; gap: 6px;">
+      <input type="text" id="chat-input" placeholder="Type /build..." style="flex: 1; padding: 10px; background: #222; color: #fff; border: 1px solid #555; border-radius: 6px; font-size: 16px;" />
+      <button id="chat-send" style="padding: 10px 15px; background: #008800; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Send</button>
+    </div>
+    <button id="btn-admin-assets" style="margin-top: 12px; background: #444; color: white; border: 1px solid #666; padding: 12px; border-radius: 8px; cursor: pointer; display: none; font-weight: bold; width: 100%;">Admin Asset Manager</button>
   `;
   
   document.body.appendChild(hud);
@@ -52,6 +60,35 @@ export function renderHUD() {
   document.getElementById("btn-admin-assets")!.onclick = () => {
     toggleAdminAssetPanel();
   };
+
+  const chatInput = document.getElementById("chat-input") as HTMLInputElement;
+  const chatSend = document.getElementById("chat-send") as HTMLButtonElement;
+
+  const handleSend = () => {
+    const text = chatInput.value.trim();
+    if (text) {
+      sendChatMessage(text);
+      chatInput.value = "";
+    }
+  };
+
+  chatSend.onclick = handleSend;
+  chatInput.onkeydown = (e) => {
+    if (e.key === "Enter") handleSend();
+    e.stopPropagation(); // Prevent WASD movement when typing
+  };
+}
+
+export function addChatMessage(source: string, text: string) {
+  const chatLog = document.getElementById("chat-log");
+  if (!chatLog) return;
+  
+  const msgEl = document.createElement("div");
+  msgEl.style.wordBreak = "break-word";
+  msgEl.innerHTML = `<span style="color: #00ccff; font-weight: bold;">${source}:</span> ${text}`;
+  
+  chatLog.appendChild(msgEl);
+  chatLog.scrollTop = chatLog.scrollHeight;
 }
 
 export function updateHUD(data: { role?: string, gold: number, xp: number, quests: any[], inventory: any[], equipment?: any, reputation?: any, questStatus?: any[], worldTime?: string }) {
@@ -193,22 +230,22 @@ export function showDialogue(source: string, text: string, choices: any[] = [], 
     dialogueBox.style.transform = "translateX(-50%)";
     dialogueBox.style.background = "rgba(0, 0, 0, 0.9)";
     dialogueBox.style.color = "#fff";
-    dialogueBox.style.padding = "20px 30px";
-    dialogueBox.style.borderRadius = "12px";
+    dialogueBox.style.padding = "25px 35px";
+    dialogueBox.style.borderRadius = "16px";
     dialogueBox.style.fontFamily = "sans-serif";
-    dialogueBox.style.minWidth = "400px";
+    dialogueBox.style.width = "90vw";
     dialogueBox.style.maxWidth = "600px";
     dialogueBox.style.textAlign = "left";
-    dialogueBox.style.boxShadow = "0 10px 25px rgba(0,0,0,0.5)";
-    dialogueBox.style.border = "1px solid rgba(255,255,255,0.1)";
-    dialogueBox.style.zIndex = "1000";
+    dialogueBox.style.boxShadow = "0 10px 30px rgba(0,0,0,0.6)";
+    dialogueBox.style.border = "2px solid rgba(0,255,0,0.2)";
+    dialogueBox.style.zIndex = "2000";
     document.body.appendChild(dialogueBox);
   }
   
-  let html = `<div style="margin-bottom: 12px;"><strong style="color: #00ff00; font-size: 1.1em;">${source}:</strong> <span style="line-height: 1.4;">${text}</span></div>`;
+  let html = `<div style="margin-bottom: 15px;"><strong style="color: #00ff00; font-size: 1.2em;">${source}:</strong> <span style="line-height: 1.5; font-size: 1.1em;">${text}</span></div>`;
   
   if (choices && choices.length > 0 && npcId) {
-    html += `<div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;">`;
+    html += `<div style="display: flex; flex-direction: column; gap: 12px; margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">`;
     choices.forEach((choice, index) => {
       html += `
         <button 
@@ -216,9 +253,9 @@ export function showDialogue(source: string, text: string, choices: any[] = [], 
           data-npc-id="${npcId}" 
           data-node-id="${choice.nextNodeId}"
           data-choice-id="${choice.id}"
-          style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 8px 12px; border-radius: 6px; cursor: pointer; text-align: left; transition: all 0.2s;"
-          onmouseover="this.style.background='rgba(255,255,255,0.15)'; this.style.borderColor='#00ff00';"
-          onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='rgba(255,255,255,0.2)';"
+          style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 15px 20px; border-radius: 10px; cursor: pointer; text-align: left; transition: all 0.2s; font-size: 1.1em;"
+          onmouseover="this.style.background='rgba(255,255,255,0.2)'; this.style.borderColor='#00ff00';"
+          onmouseout="this.style.background='rgba(255,255,255,0.08)'; this.style.borderColor='rgba(255,255,255,0.3)';"
         >
           ${index + 1}. ${choice.text}
         </button>
@@ -226,10 +263,21 @@ export function showDialogue(source: string, text: string, choices: any[] = [], 
     });
     html += `</div>`;
   } else {
-    html += `<div style="font-size: 0.8em; opacity: 0.5; margin-top: 12px; text-align: center;">(Press E to continue)</div>`;
+    html += `<div style="font-size: 0.9em; opacity: 0.6; margin-top: 15px; text-align: center; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px;">(Tap here or press E to continue)</div>`;
   }
   
   dialogueBox.innerHTML = html;
+  
+  // Add click listener to the whole box for "continue" if no choices
+  if (!choices || choices.length === 0) {
+    dialogueBox.onclick = () => {
+      if (dialogueBox && dialogueBox.parentNode) {
+        dialogueBox.parentNode.removeChild(dialogueBox);
+      }
+    };
+  } else {
+    dialogueBox.onclick = null;
+  }
 
   // Add event listeners to buttons
   const buttons = dialogueBox.querySelectorAll(".dialogue-choice-btn");
@@ -297,36 +345,41 @@ export function renderInventoryPanel(player: any, ws: WebSocket) {
     panel.style.top = "50%";
     panel.style.left = "50%";
     panel.style.transform = "translate(-50%, -50%)";
-    panel.style.background = "rgba(0, 0, 0, 0.9)";
+    panel.style.background = "rgba(0, 0, 0, 0.95)";
     panel.style.color = "#fff";
-    panel.style.padding = "20px";
-    panel.style.borderRadius = "12px";
-    panel.style.border = "1px solid #00ff00";
+    panel.style.padding = "25px";
+    panel.style.borderRadius = "16px";
+    panel.style.border = "2px solid #00ff00";
     panel.style.zIndex = "2000";
-    panel.style.minWidth = "300px";
+    panel.style.width = "90vw";
+    panel.style.maxWidth = "400px";
+    panel.style.boxShadow = "0 10px 30px rgba(0,0,0,0.7)";
     document.body.appendChild(panel);
   }
 
-  let html = `<h2 style="margin-top:0; color: #00ff00;">Inventory</h2>`;
+  let html = `<h2 style="margin-top:0; color: #00ff00; border-bottom: 1px solid #444; padding-bottom: 10px;">Inventory</h2>`;
   
   // Equipment
-  html += `<div style="margin-bottom: 15px; border-bottom: 1px solid #444; padding-bottom: 10px;">
-    <strong>Equipped:</strong><br/>
-    Weapon: ${player.equipment.weapon ? `${player.equipment.weapon.name} <button onclick="window.unequip('weapon')" style="cursor:pointer; background:#555; color:#fff; border:none; padding:2px 5px; border-radius:3px;">Unequip</button>` : 'None'}
+  html += `<div style="margin-bottom: 20px; border-bottom: 1px solid #444; padding-bottom: 15px;">
+    <strong style="font-size: 1.1em;">Equipped:</strong><br/>
+    <div style="margin-top: 10px; background: #222; padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+      <span>Weapon: ${player.equipment.weapon ? player.equipment.weapon.name : 'None'}</span>
+      ${player.equipment.weapon ? `<button onclick="window.unequip('weapon')" style="cursor:pointer; background:#ff4444; color:#fff; border:none; padding:8px 12px; border-radius:6px; font-weight: bold;">Unequip</button>` : ''}
+    </div>
   </div>`;
 
   // Inventory
-  html += `<strong>Items:</strong><ul style="list-style:none; padding:0;">`;
+  html += `<strong style="font-size: 1.1em;">Items:</strong><ul style="list-style:none; padding:0; margin-top: 10px; max-height: 300px; overflow-y: auto;">`;
   player.inventory.forEach((item: any) => {
-    html += `<li style="margin-bottom: 5px; background: #222; padding: 5px; border-radius: 4px; display:flex; justify-content:space-between;">
-      ${item.name} (${item.type})
-      <div>
-        ${item.type === 'weapon' ? `<button onclick="window.equip('${item.id}')" style="cursor:pointer; background:#008800; color:#fff; border:none; padding:2px 5px; border-radius:3px;">Equip</button>` : ''}
-        <button onclick="window.drop('${item.id}')" style="cursor:pointer; background:#880000; color:#fff; border:none; padding:2px 5px; border-radius:3px;">Drop</button>
+    html += `<li style="margin-bottom: 10px; background: #222; padding: 12px; border-radius: 8px; display:flex; flex-direction: column; gap: 10px;">
+      <div style="font-weight: bold;">${item.name} <span style="font-weight: normal; opacity: 0.6; font-size: 0.8em;">(${item.type})</span></div>
+      <div style="display: flex; gap: 10px;">
+        ${item.type === 'weapon' ? `<button onclick="window.equip('${item.id}')" style="flex: 1; cursor:pointer; background:#008800; color:#fff; border:none; padding:10px; border-radius:6px; font-weight: bold;">Equip</button>` : ''}
+        <button onclick="window.drop('${item.id}')" style="flex: 1; cursor:pointer; background:#880000; color:#fff; border:none; padding:10px; border-radius:6px; font-weight: bold;">Drop</button>
       </div>
     </li>`;
   });
-  html += `</ul><button onclick="document.getElementById('inventory-panel').remove()" style="margin-top:10px; cursor:pointer;">Close</button>`;
+  html += `</ul><button onclick="document.getElementById('inventory-panel').remove()" style="margin-top:20px; cursor:pointer; width: 100%; padding: 15px; background: #444; color: white; border: none; border-radius: 8px; font-weight: bold;">Close</button>`;
   
   panel.innerHTML = html;
 

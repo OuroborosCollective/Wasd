@@ -104,6 +104,28 @@
         "treasury": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" }
       }
+    },
+    "WorldObject": {
+      "title": "World Object",
+      "description": "A static or dynamic object in the world (house, tree, etc).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string" },
+        "name": { "type": "string" },
+        "position": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" }
+          }
+        },
+        "rotation": { "type": "number" },
+        "scale": { "type": "number" },
+        "glbPath": { "type": "string" },
+        "lastUpdated": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "type", "position"]
     }
   },
   "firestore": {
@@ -126,6 +148,10 @@
     "world_state": {
       "schema": "object",
       "description": "Global world state keys."
+    },
+    "worldObjects": {
+      "schema": "WorldObject",
+      "description": "Collection of all placed world objects."
     }
   }
 }

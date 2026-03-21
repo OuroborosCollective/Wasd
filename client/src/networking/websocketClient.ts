@@ -35,9 +35,26 @@ export function sendDialogueChoice(npcId: string, nodeId: string, choiceId: stri
   }
 }
 
+export function sendChatMessage(text: string) {
+  if (globalWs && globalWs.readyState === WebSocket.OPEN) {
+    if (text.startsWith('/build ')) {
+      const prompt = text.substring(7);
+      globalWs.send(JSON.stringify({
+        type: "admin_generate_world",
+        prompt
+      }));
+    } else {
+      globalWs.send(JSON.stringify({
+        type: "chat",
+        text
+      }));
+    }
+  }
+}
+
 let globalWs: WebSocket | null = null;
 
-export function connectSocket() {
+export function connectSocket(token?: string) {
   const externalWsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL;
   const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const localWsUrl = `${wsProtocol}//${location.host}/ws`;
@@ -56,66 +73,8 @@ export function connectSocket() {
   ws.onopen = () => {
     console.log("Connected to Arelorian server");
     
-    // Create a custom login overlay
-    const overlay = document.createElement("div");
-    overlay.style.position = "fixed";
-    overlay.style.top = "0";
-    overlay.style.left = "0";
-    overlay.style.width = "100vw";
-    overlay.style.height = "100vh";
-    overlay.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
-    overlay.style.display = "flex";
-    overlay.style.justifyContent = "center";
-    overlay.style.alignItems = "center";
-    overlay.style.zIndex = "9999";
-
-    const box = document.createElement("div");
-    box.style.backgroundColor = "#222";
-    box.style.padding = "20px";
-    box.style.borderRadius = "8px";
-    box.style.textAlign = "center";
-    box.style.color = "white";
-    box.style.fontFamily = "sans-serif";
-
-    const title = document.createElement("h2");
-    title.textContent = "Enter Character Name";
-    title.style.marginTop = "0";
-
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = "Admin";
-    input.style.padding = "8px";
-    input.style.fontSize = "16px";
-    input.style.width = "200px";
-    input.style.marginBottom = "15px";
-    input.style.display = "block";
-
-    const btn = document.createElement("button");
-    btn.textContent = "Join Game";
-    btn.style.padding = "10px 20px";
-    btn.style.fontSize = "16px";
-    btn.style.cursor = "pointer";
-    btn.style.backgroundColor = "#4CAF50";
-    btn.style.color = "white";
-    btn.style.border = "none";
-    btn.style.borderRadius = "4px";
-
-    box.appendChild(title);
-    box.appendChild(input);
-    box.appendChild(btn);
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-
-    const submitLogin = () => {
-      const name = input.value.trim() || "Admin";
-      ws.send(JSON.stringify({ type: "login", name }));
-      overlay.remove();
-    };
-
-    btn.onclick = submitLogin;
-    input.onkeydown = (e) => {
-      if (e.key === "Enter") submitLogin();
-    };
+    // Send login message with token
+    ws.send(JSON.stringify({ type: "login", token }));
   };
   ws.onmessage = (msg) => {
     try {
@@ -165,6 +124,10 @@ export function connectSocket() {
         updateAdminAssetModels(data.models);
       } else if (data.type === "admin_glb_list_result") {
         updateAdminAssetLinks(data.links);
+      } else if (data.type === "chat_message") {
+        import("../ui/hud").then(({ addChatMessage }) => {
+          addChatMessage(data.source, data.text);
+        });
       }
     } catch (e) {
       console.error("Failed to parse message", e);

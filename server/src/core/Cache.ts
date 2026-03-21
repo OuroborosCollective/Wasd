@@ -13,5 +13,5 @@ if (cache) {
     console.log('Connected to Valkey/Redis Cache');
   });
 } else {
-  console.warn('CACHE_URL not defined. Cache is disabled.');
+  console.log('CACHE_URL not defined. Caching is disabled (this is normal if no Redis/Valkey is configured).');
 }
