@@ -322,6 +322,21 @@ export function createWorldLabel(id: string, text: string, type: 'npc' | 'loot',
     label.style.zIndex = "1000";
     label.style.textAlign = "center";
     document.body.appendChild(label);
+  const skillDefs = [
+    ["mining", "Mine", "#8888ff"], ["woodcutting", "Wood", "#88ff88"], ["fishing", "Fish", "#44aaff"],
+    ["combat", "Cmbat", "#ff4444"], ["magic", "Magic", "#8844ff"], ["archery", "Arch", "#ff88ff"],
+    ["runecrafting", "RC", "#ff44ff"], ["agility", "Agi", "#44ffff"], ["herblore", "Herb", "#44cc44"],
+    ["thieving", "Thv", "#884488"], ["slayer", "Slay", "#ff0000"], ["farming", "Farm", "#88aa44"],
+    ["smithing", "Smith", "#ff8800"], ["fletching", "Fltch", "#88ff44"],
+  ];
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#ff8844;">Skills</h3><button aria-label="Close panel" onclick="document.getElementById('skills-panel').style.display='none'" style="${closeBtnStyle()}"><span aria-hidden="true">X</span></button></div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">`;
+  for (const [skillId, label, color] of skillDefs) {
+    const sd = skills[skillId] || { level: 1, xp: 0 };
+    const level = sd.level || 1;
+    const xp = sd.xp || 0;
+    const nextXp = Math.floor(100 * Math.pow(1.15, level));
+    const progress = Math.min(100, (xp / nextXp) * 100);
+    html += `<div style="background:rgba(255,255,255,0.05);border:1px solid ${color}44;border-radius:8px;padding:8px;text-align:center;"><div style="font-size:10px;color:${color};font-weight:bold;text-transform:uppercase;">${label}</div><div style="font-size:18px;color:#fff;font-weight:bold;">${level}</div><div style="background:#333;border-radius:3px;height:4px;margin-top:4px;overflow:hidden;" role="progressbar" aria-label="${label} skill progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(progress)}"><div style="width:${progress}%;height:100%;background:${color};border-radius:3px;"></div></div></div>`;
   }
   
   let html = `<div style="color: white; font-size: 12px; text-shadow: 1px 1px 1px black; font-weight: bold;">${text}</div>`;
