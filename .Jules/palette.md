@@ -5,3 +5,7 @@
 ## 2026-03-16 - [Added loading and accessible form states]
 **Learning:** [Many forms generated via `document.createElement()` dynamically lack basic ARIA features like labels and button disabled states because they miss native semantic HTML templates. Adding these via `setAttribute('aria-label')` and checking `disabled` during async functions drastically improves form reliability.]
 **Action:** [When creating custom DOM elements (especially inputs/buttons without explicit `<label>` tags), always bind ARIA properties explicitly and disable interactable buttons on await to avoid double submits and confuse screen readers.]
+
+## 2026-03-20 - [Added role="progressbar" to HUD stat bars]
+**Learning:** [When implementing custom progress bars in dynamic HTML templates (e.g. `client/src/ui/hud.ts`), assigning ARIA attributes like `role="progressbar"`, `aria-valuemin`, `aria-valuemax`, and `aria-valuenow` is essential for screen reader context. These values need to be dynamically updated via DOM attributes alongside their visual styles (`style.width`).]
+**Action:** [Always add complete ARIA progressbar attributes to any custom HTML elements that visually represent progress or status thresholds, and tie their updates to the same logic that updates their visual dimensions.]

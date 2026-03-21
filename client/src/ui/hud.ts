@@ -38,11 +38,11 @@ export function renderHUD() {
   statsBar.innerHTML = `
     <div style="display:flex;flex-direction:column;gap:4px;min-width:150px;">
       <div style="display:flex;justify-content:space-between;font-size:11px;color:#ccc;"><span>HP</span><span id="hud-hp-text">100/100</span></div>
-      <div style="background:#333;border-radius:4px;height:10px;overflow:hidden;"><div id="hud-hp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#c00,#f44);border-radius:4px;transition:width 0.3s;"></div></div>
+      <div style="background:#333;border-radius:4px;height:10px;overflow:hidden;"><div id="hud-hp-bar" role="progressbar" aria-label="Health Points" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" style="height:100%;width:100%;background:linear-gradient(90deg,#c00,#f44);border-radius:4px;transition:width 0.3s;"></div></div>
       <div style="display:flex;justify-content:space-between;font-size:11px;color:#ccc;"><span>SP</span><span id="hud-sp-text">100/100</span></div>
-      <div style="background:#333;border-radius:4px;height:8px;overflow:hidden;"><div id="hud-sp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#f80,#fc0);border-radius:4px;transition:width 0.3s;"></div></div>
+      <div style="background:#333;border-radius:4px;height:8px;overflow:hidden;"><div id="hud-sp-bar" role="progressbar" aria-label="Stamina Points" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" style="height:100%;width:100%;background:linear-gradient(90deg,#f80,#fc0);border-radius:4px;transition:width 0.3s;"></div></div>
       <div style="display:flex;justify-content:space-between;font-size:11px;color:#ccc;"><span>MP</span><span id="hud-mp-text">25/25</span></div>
-      <div style="background:#333;border-radius:4px;height:8px;overflow:hidden;"><div id="hud-mp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#008,#44f);border-radius:4px;transition:width 0.3s;"></div></div>
+      <div style="background:#333;border-radius:4px;height:8px;overflow:hidden;"><div id="hud-mp-bar" role="progressbar" aria-label="Mana Points" aria-valuemin="0" aria-valuemax="25" aria-valuenow="25" style="height:100%;width:100%;background:linear-gradient(90deg,#008,#44f);border-radius:4px;transition:width 0.3s;"></div></div>
     </div>
     <div style="display:flex;flex-direction:column;gap:4px;min-width:120px;border-left:1px solid rgba(255,255,255,0.15);padding-left:16px;">
       <div style="font-size:13px;color:#ffd700;font-weight:bold;" id="hud-name">Adventurer</div>
@@ -195,11 +195,22 @@ export function renderHUD() {
 export function updateHUD(player: any, worldState: any) {
   _myPlayer = player;
   document.getElementById("hud-hp-text")!.innerText = `${player.hp}/${player.maxHp}`;
-  document.getElementById("hud-hp-bar")!.style.width = `${(player.hp / player.maxHp) * 100}%`;
+  const hpBar = document.getElementById("hud-hp-bar")!;
+  hpBar.style.width = `${(player.hp / player.maxHp) * 100}%`;
+  hpBar.setAttribute("aria-valuenow", player.hp.toString());
+  hpBar.setAttribute("aria-valuemax", player.maxHp.toString());
+
   document.getElementById("hud-sp-text")!.innerText = `${player.sp}/${player.maxSp}`;
-  document.getElementById("hud-sp-bar")!.style.width = `${(player.sp / player.maxSp) * 100}%`;
+  const spBar = document.getElementById("hud-sp-bar")!;
+  spBar.style.width = `${(player.sp / player.maxSp) * 100}%`;
+  spBar.setAttribute("aria-valuenow", player.sp.toString());
+  spBar.setAttribute("aria-valuemax", player.maxSp.toString());
+
   document.getElementById("hud-mp-text")!.innerText = `${player.mp}/${player.maxMp}`;
-  document.getElementById("hud-mp-bar")!.style.width = `${(player.mp / player.maxMp) * 100}%`;
+  const mpBar = document.getElementById("hud-mp-bar")!;
+  mpBar.style.width = `${(player.mp / player.maxMp) * 100}%`;
+  mpBar.setAttribute("aria-valuenow", player.mp.toString());
+  mpBar.setAttribute("aria-valuemax", player.maxMp.toString());
   document.getElementById("hud-level")!.innerText = player.level;
   document.getElementById("hud-xp")!.innerText = player.xp;
   document.getElementById("hud-gold")!.innerText = player.gold;
@@ -361,7 +372,7 @@ function renderSkills(skills: any = {}) {
     const xp = sd.xp || 0;
     const nextXp = Math.floor(100 * Math.pow(1.15, level));
     const progress = Math.min(100, (xp / nextXp) * 100);
-    html += `<div style="background:rgba(255,255,255,0.05);border:1px solid ${color}44;border-radius:8px;padding:8px;text-align:center;"><div style="font-size:10px;color:${color};font-weight:bold;text-transform:uppercase;">${label}</div><div style="font-size:18px;color:#fff;font-weight:bold;">${level}</div><div style="background:#333;border-radius:3px;height:4px;margin-top:4px;overflow:hidden;"><div style="width:${progress}%;height:100%;background:${color};border-radius:3px;"></div></div></div>`;
+    html += `<div style="background:rgba(255,255,255,0.05);border:1px solid ${color}44;border-radius:8px;padding:8px;text-align:center;"><div style="font-size:10px;color:${color};font-weight:bold;text-transform:uppercase;">${label}</div><div style="font-size:18px;color:#fff;font-weight:bold;">${level}</div><div style="background:#333;border-radius:3px;height:4px;margin-top:4px;overflow:hidden;"><div role="progressbar" aria-label="${label} skill progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(progress)}" style="width:${progress}%;height:100%;background:${color};border-radius:3px;"></div></div></div>`;
   }
   html += `</div>`;
   panel.innerHTML = html;
