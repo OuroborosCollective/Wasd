@@ -4,6 +4,14 @@ import path from "path";
 
 export class QuestEngine {
   private quests: Map<string, any> = new Map();
+  // ⚡ Bolt Optimization: definitionVersion increments whenever quests are added or reloaded,
+  // ensuring the O(1) player quest status cache is globally invalidated when definitions change.
+  private definitionVersion = 0;
+
+  // ⚡ Bolt Optimization: Use WeakMap for caching to avoid leaking memory and preventing
+  // runtime caches from being persisted to the database.
+  private statusCache = new WeakMap<any, any>();
+  private versionCache = new WeakMap<any, number>();
 
   constructor() {
     this.loadData();
@@ -23,10 +31,19 @@ export class QuestEngine {
             objective: quest.objectiveType
           });
         });
+        this.definitionVersion++;
       }
     } catch (error) {
       console.error("Error loading Quest data:", error);
     }
+  }
+
+  /**
+   * ⚡ Bolt Optimization: Explicitly invalidate the player's quest status cache.
+   * This is called whenever a quest state changes or prerequisites might have been met.
+   */
+  public invalidateCache(player: any) {
+    this.statusCache.delete(player);
   }
 
   startQuest(player: any, questId: string) {
@@ -74,6 +91,7 @@ export class QuestEngine {
 
     const newQuest = { ...quest, startedAt: Date.now(), completed: false };
     player.quests.push(newQuest);
+    this.invalidateCache(player);
     return newQuest;
   }
 
@@ -82,6 +100,15 @@ export class QuestEngine {
   }
 
   getQuestStatus(player: any) {
+    // ⚡ Bolt Optimization: Use invalidation-based caching to avoid O(N) recalculations of all
+    // quest states (prerequisites, reputations, etc.) during every world tick (10Hz).
+    const cachedStatus = this.statusCache.get(player);
+    const cachedVersion = this.versionCache.get(player);
+
+    if (cachedStatus && cachedVersion === this.definitionVersion) {
+      return cachedStatus;
+    }
+
     const status: any[] = [];
     // ⚡ Bolt Optimization: Use a single Map constructor pass to avoid intermediate .map() array allocations
     const playerQuestMap = new Map<string, any>();
@@ -129,6 +156,9 @@ export class QuestEngine {
         objective: playerQuest ? playerQuest.objective : quest.objective
       });
     }
+
+    this.statusCache.set(player, status);
+    this.versionCache.set(player, this.definitionVersion);
     return status;
   }
 
@@ -157,6 +187,7 @@ export class QuestEngine {
       }
     }
 
+    this.invalidateCache(player);
     return q.reward;
   }
 
@@ -167,6 +198,7 @@ export class QuestEngine {
       giver: questDef.giverNpc,
       objective: questDef.objectives?.[0]?.type || "custom"
     });
+    this.definitionVersion++;
   }
 
   updateCombatQuests(player: any, npcId: string, npcInstanceId: string): { quest: any; reward: any }[] {
@@ -181,6 +213,7 @@ export class QuestEngine {
         }
       }
     }
+    // Optimization Note: completeQuest already handles cache invalidation
     return completedQuestRewards;
   }
 }

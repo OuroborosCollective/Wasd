@@ -681,6 +681,9 @@ export class WorldTick {
     const { npcId, nodeId, choiceId } = msg;
     const interaction = this.npcSystem.handleChoice(npcId, nodeId, choiceId, player);
     if (interaction) {
+      // ⚡ Bolt Optimization: Invalidate quest cache as dialogue choices can change player flags or reputation
+      this.questSystem.invalidateCache(player);
+
       this.ws.sendToPlayer(id, {
         type: "dialogue",
         source: interaction.source,

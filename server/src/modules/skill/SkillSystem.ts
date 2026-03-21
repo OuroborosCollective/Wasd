@@ -14,6 +14,10 @@ export type SkillName = typeof SKILL_NAMES[number];
 export class SkillSystem {
   private readonly MAX_LEVEL = 99;
 
+  // ⚡ Bolt Optimization: Use WeakMap for caching to avoid leaking memory and preventing
+  // runtime caches from being persisted to the database.
+  private skillsCache = new WeakMap<any, Record<string, SkillData>>();
+
   ensureSkill(player: any, skillName: string): SkillData {
     if (!player.skills) player.skills = {};
     if (!player.skills[skillName]) {
@@ -32,6 +36,10 @@ export class SkillSystem {
     const leveledUp = skill.level > oldLevel;
     player.xp = (player.xp || 0) + amount;
     this.checkPlayerLevel(player);
+
+    // ⚡ Bolt Optimization: Invalidate skills cache when XP is gained
+    this.skillsCache.delete(player);
+
     return { skill, leveledUp, totalLevel: this.getTotalLevel(player) };
   }
 
@@ -64,10 +72,19 @@ export class SkillSystem {
   }
 
   getAllSkills(player: any): Record<string, SkillData> {
+    // ⚡ Bolt Optimization: Use invalidation-based caching with WeakMap to avoid O(N) loops
+    // and multiple object allocations for the same skills data in the 10Hz world tick loop.
+    const cached = this.skillsCache.get(player);
+    if (cached) {
+      return cached;
+    }
+
     const result: Record<string, SkillData> = {};
     for (const name of SKILL_NAMES) {
       result[name] = this.ensureSkill(player, name);
     }
+
+    this.skillsCache.set(player, result);
     return result;
   }
 }
