@@ -37,17 +37,6 @@ export class HeuristicWorldBrain {
     }
   }
 
-  // ⚡ Bolt Optimization: Shadow nodes array with a Map to replace O(N) array.find()
-  // calls with O(1) Map.get() lookups for high-frequency node updates.
-  private nodeMap: Map<string, BrainNode>;
-
-  constructor() {
-    this.nodeMap = new Map<string, BrainNode>();
-    for (const node of this.nodes) {
-      this.nodeMap.set(node.id, node);
-    }
-  }
-
   analyze(context: { economy: any, politics: any, world: any, npcMemory: any[] }) {
     // 1. Process World Nodes
     // Resource density based on available nodes vs total world size

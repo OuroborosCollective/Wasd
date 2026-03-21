@@ -942,7 +942,7 @@ export class WorldTick {
     } else {
       player.resolvedAppearance = null;
     }
-    if (!player.role) player.role = player.name.toLowerCase() === "admin" ? "admin" : "player";
+    if (!player.role) player.role = "player";
 
     if (player.inventory) {
       player.inventory = player.inventory.map((item: any) => ItemRegistry.hydrate(item));
