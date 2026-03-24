@@ -108,7 +108,7 @@ describe("CraftingSystem", () => {
         inventory: [{ id: "iron_ingot" }, { id: "iron_ingot" }, { id: "wood_handle" }]
     };
     const result = crafting.craft(player, ironSwordRecipe.id);
-    expect(result.item.id).toBe("iron_sword");
+    expect(result.item!.id).toBe("iron_sword");
   });
 
   it("craft() returns the correct xp", () => {

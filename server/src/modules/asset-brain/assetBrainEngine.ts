@@ -200,7 +200,6 @@ export async function generateAssetSpecification(input: string): Promise<AssetSp
       const genaiModule = await import('@google/genai').catch(() => null);
       if (!genaiModule) throw new Error('Module @google/genai not found');
       
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const GoogleGenerativeAI = (genaiModule as any).GoogleGenerativeAI;
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });

@@ -22,18 +22,12 @@ export class InventorySystem {
     const itemIndex = player.inventory.findIndex((i: any) => i.id === itemId);
     if (itemIndex === -1) return null;
 
-    let item = player.inventory[itemIndex];
+    const item = player.inventory[itemIndex];
     const itemDef = ItemRegistry.getItem(item.id);
     
     if (itemDef?.type === "weapon") {
       // Swap with current weapon if exists
       const currentWeapon = player.equipment.weapon;
-
-      // ⚡ Bolt Optimization: Hydrate the item when equipping so it caches stats (like damage) for O(1) combat lookups
-      if (item.damage === undefined) {
-        item = ItemRegistry.hydrate(item);
-      }
-
       player.equipment.weapon = item;
       
       // Remove from inventory

@@ -10,7 +10,6 @@ export default defineConfig({
           "multer",
           "firebase/auth",
           "firebase/firestore",
-          "openai",
         ],
       },
     },

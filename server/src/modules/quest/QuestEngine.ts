@@ -33,20 +33,14 @@ export class QuestEngine {
     const quest = this.quests.get(questId);
     if (!quest) return null;
     if (!player.quests) player.quests = [];
-
-    // Optimization: Index player quests for O(1) lookup
-    const playerQuestMap = new Map<string, any>();
-    for (const q of player.quests) {
-      playerQuestMap.set(q.id, q);
-    }
     
     // Check if already started
-    if (playerQuestMap.has(questId)) return null;
+    if (player.quests.find((q: any) => q.id === questId)) return null;
 
     // Check prerequisites
     if (quest.prerequisiteQuestIds && quest.prerequisiteQuestIds.length > 0) {
       for (const preId of quest.prerequisiteQuestIds) {
-        const preQuest = playerQuestMap.get(preId);
+        const preQuest = player.quests.find((q: any) => q.id === preId);
         if (!preQuest || !preQuest.completed) {
           return null; // Prerequisite not met
         }
@@ -83,16 +77,8 @@ export class QuestEngine {
 
   getQuestStatus(player: any) {
     const status: any[] = [];
-    // ⚡ Bolt Optimization: Use a single Map constructor pass to avoid intermediate .map() array allocations
-    const playerQuestMap = new Map<string, any>();
-    if (player.quests) {
-      for (const q of player.quests) {
-        playerQuestMap.set(q.id, q);
-      }
-    }
-
-    for (const [id, quest] of this.quests) {
-      const playerQuest = playerQuestMap.get(id);
+    this.quests.forEach((quest, id) => {
+      const playerQuest = player.quests ? player.quests.find((q: any) => q.id === id) : null;
       let state = "locked";
       
       if (playerQuest && playerQuest.completed) {
@@ -104,7 +90,7 @@ export class QuestEngine {
         let prereqsMet = true;
         if (quest.prerequisiteQuestIds) {
           for (const preId of quest.prerequisiteQuestIds) {
-            const preQuest = playerQuestMap.get(preId);
+            const preQuest = player.quests ? player.quests.find((q: any) => q.id === preId) : null;
             if (!preQuest || !preQuest.completed) {
               prereqsMet = false;
               break;
@@ -128,12 +114,21 @@ export class QuestEngine {
         state,
         objective: playerQuest ? playerQuest.objective : quest.objective
       });
-    }
+    });
     return status;
   }
 
   getQuestDefinitions() {
     return this.quests;
+  }
+
+  addQuest(quest: any) {
+    this.quests.set(quest.id, {
+      ...quest,
+      name: quest.title,
+      giver: quest.giverNpcId,
+      objective: quest.objectiveType || (quest.objectives && quest.objectives.length > 0 ? quest.objectives[0].type : "custom")
+    });
   }
 
   completeQuest(player: any, questId: string) {
@@ -158,29 +153,5 @@ export class QuestEngine {
     }
 
     return q.reward;
-  }
-
-  addQuest(questDef: any) {
-    this.quests.set(questDef.id, {
-      ...questDef,
-      name: questDef.title,
-      giver: questDef.giverNpc,
-      objective: questDef.objectives?.[0]?.type || "custom"
-    });
-  }
-
-  updateCombatQuests(player: any, npcId: string, npcInstanceId: string): { quest: any; reward: any }[] {
-    const completedQuestRewards: { quest: any; reward: any }[] = [];
-    const activeQuests = player.quests.filter((q: any) => !q.completed);
-
-    for (const q of activeQuests) {
-      if ((q.objectiveType === "combat" || q.objective === "combat") && (q.targetId === npcId || q.targetId === npcInstanceId)) {
-        const reward = this.completeQuest(player, q.id);
-        if (reward) {
-          completedQuestRewards.push({ quest: q, reward });
-        }
-      }
-    }
-    return completedQuestRewards;
   }
 }

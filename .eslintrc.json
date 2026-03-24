@@ -1,3 +1,4 @@
 {
-  "extends": "next"
+  "extends": "next",
+  "ignorePatterns": ["dist/", "node_modules/", "client/dist/", "server/dist/"]
 }
