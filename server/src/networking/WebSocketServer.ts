@@ -3,48 +3,32 @@ import { WebSocketServer, WebSocket } from "ws";
 
 export class GameWebSocketServer {
   private wss: WebSocketServer | null = null;
-  public onPlayerConnect?: (id: string, msg?: any) => void;
+  public onPlayerConnect?: (id: string) => void;
   public onPlayerDisconnect?: (id: string) => void;
   public onPlayerMessage?: (id: string, msg: any) => void;
-  // Session recovery callback
-  public onPlayerRecover?: (oldId: string, playerId: string) => void;
 
   constructor(private readonly httpServer: HttpServer) {}
 
   start() {
     this.wss = new WebSocketServer({ server: this.httpServer, path: "/ws" });
 
-    this.wss.on("connection", (socket: WebSocket & { id?: string; playerId?: string; isReconnect?: boolean }) => {
+    this.wss.on("connection", (socket: WebSocket & { id?: string }) => {
       const id = Math.random().toString(36).substring(2, 9);
       socket.id = id;
+
+      if (this.onPlayerConnect) {
+        this.onPlayerConnect(id);
+      }
+
+      socket.send(JSON.stringify({
+        type: "welcome",
+        message: "Arelorian connection established",
+        id
+      }));
 
       socket.on("message", (data) => {
         try {
           const msg = JSON.parse(data.toString());
-          
-          // Handle login with session recovery support
-          if (msg.type === "login") {
-            if (this.onPlayerConnect) {
-              this.onPlayerConnect(id, msg);
-            }
-            
-            // If client is requesting session recovery
-            if (msg.recovery && msg.playerId && this.onPlayerRecover) {
-              // Attempt to recover session - WorldTick will handle this
-              this.onPlayerRecover(id, msg.playerId);
-            }
-            
-            // Send welcome with the assigned ID
-            socket.send(JSON.stringify({
-              type: "welcome",
-              message: "Arelorian connection established",
-              id,
-              recovered: msg.recovery || false
-            }));
-            return;
-          }
-          
-          // Pass other messages to handler
           if (this.onPlayerMessage) {
             this.onPlayerMessage(id, msg);
           }

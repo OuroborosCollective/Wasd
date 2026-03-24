@@ -1,9 +1,15 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 function validate() {
-  const dataDir = path.resolve(process.cwd(), '..', 'game-data');
+  // Robust path resolution: go up from server/src/tools to root, then to game-data
+  const dataDir = path.resolve(__dirname, '../../../game-data');
   
+  console.log(`Validating content in: ${dataDir}`);
   const npcs = JSON.parse(fs.readFileSync(path.join(dataDir, 'npc/npcs.json'), 'utf-8'));
   const dialogues = JSON.parse(fs.readFileSync(path.join(dataDir, 'dialogue/dialogues.json'), 'utf-8'));
   const quests = JSON.parse(fs.readFileSync(path.join(dataDir, 'quests/quests.json'), 'utf-8'));

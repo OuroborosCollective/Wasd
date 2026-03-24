@@ -1,0 +1,157 @@
+{
+  "entities": {
+    "Player": {
+      "title": "Player",
+      "description": "A character in the game world.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique character name/ID." },
+        "name": { "type": "string", "description": "Display name." },
+        "class": { "type": "string", "description": "Character class (e.g., Novice)." },
+        "appearance": { "type": "string", "description": "Appearance identifier." },
+        "role": { "type": "string", "description": "User role (player, admin)." },
+        "gold": { "type": "number", "description": "Current gold balance." },
+        "xp": { "type": "number", "description": "Experience points." },
+        "health": { "type": "number", "description": "Current health." },
+        "maxHealth": { "type": "number", "description": "Maximum health." },
+        "position": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "z": { "type": "number" }
+          }
+        },
+        "inventory": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" }
+            }
+          }
+        },
+        "equipment": {
+          "type": "object",
+          "properties": {
+            "weapon": { "type": "object", "properties": { "id": { "type": "string" } } },
+            "armor": { "type": "object", "properties": { "id": { "type": "string" } } }
+          }
+        },
+        "quests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "completed": { "type": "boolean" },
+              "currentStep": { "type": "number" }
+            }
+          }
+        },
+        "flags": { "type": "object", "description": "Arbitrary player flags." },
+        "isOffline": { "type": "boolean" },
+        "lastUpdated": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "position"]
+    },
+    "NPC": {
+      "title": "NPC",
+      "description": "Non-player character in the world.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "health": { "type": "number" },
+        "maxHealth": { "type": "number" },
+        "position": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" }
+          }
+        }
+      }
+    },
+    "LandPlot": {
+      "title": "Land Plot",
+      "description": "A claimed territory in the world.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "ownerName": { "type": "string" },
+        "name": { "type": "string" },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "radius": { "type": "number" },
+        "structures": { "type": "array" },
+        "claimedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Nation": {
+      "title": "Nation",
+      "description": "A guild or nation of players.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "leaderId": { "type": "string" },
+        "members": { "type": "array" },
+        "territory": { "type": "array" },
+        "diplomacy": { "type": "object" },
+        "treasury": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "WorldObject": {
+      "title": "World Object",
+      "description": "A static or dynamic object in the world (house, tree, etc).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string" },
+        "name": { "type": "string" },
+        "position": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" }
+          }
+        },
+        "rotation": { "type": "number" },
+        "scale": { "type": "number" },
+        "glbPath": { "type": "string" },
+        "lastUpdated": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "type", "position"]
+    }
+  },
+  "firestore": {
+    "players": {
+      "schema": "Player",
+      "description": "Collection of all player characters."
+    },
+    "npcs": {
+      "schema": "NPC",
+      "description": "Collection of NPCs (synced from game data or dynamic)."
+    },
+    "land_plots": {
+      "schema": "LandPlot",
+      "description": "Collection of all claimed land plots."
+    },
+    "nations": {
+      "schema": "Nation",
+      "description": "Collection of all nations and guilds."
+    },
+    "world_state": {
+      "schema": "object",
+      "description": "Global world state keys."
+    },
+    "worldObjects": {
+      "schema": "WorldObject",
+      "description": "Collection of all placed world objects."
+    }
+  }
+}

@@ -1,23 +1,17 @@
-// In-memory cache fallback (no Redis/Valkey required)
-const memoryCache = new Map<string, { value: string; expiry: number }>();
+import Redis from 'ioredis';
 
-export const cache = {
-  set(key: string, value: string, _ex?: string, _ttl?: number): void {
-    const ttl = _ttl || 60;
-    memoryCache.set(key, { value, expiry: Date.now() + ttl * 1000 });
-  },
-  async get(key: string): Promise<string | null> {
-    const entry = memoryCache.get(key);
-    if (!entry) return null;
-    if (Date.now() > entry.expiry) {
-      memoryCache.delete(key);
-      return null;
-    }
-    return entry.value;
-  },
-  del(key: string): void {
-    memoryCache.delete(key);
-  }
-};
+const cacheUrl = process.env.CACHE_URL;
 
-console.log("Using in-memory cache (no Redis required).");
+export const cache = cacheUrl ? new Redis(cacheUrl) : null;
+
+if (cache) {
+  cache.on('error', (err) => {
+    console.error('Valkey/Redis Cache Error:', err);
+  });
+  
+  cache.on('connect', () => {
+    console.log('Connected to Valkey/Redis Cache');
+  });
+} else {
+  console.log('CACHE_URL not defined. Caching is disabled (this is normal if no Redis/Valkey is configured).');
+}

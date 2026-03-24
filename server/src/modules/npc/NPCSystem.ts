@@ -1,7 +1,7 @@
-import { NPCBrain } from "../ai/NPCBrain.js";
 import { NPCPersonalityEngine } from "./NPCPersonalityEngine.js";
 import { NPCMemoryEngine } from "./NPCMemoryEngine.js";
 import { NPCGenealogyEngine } from "./NPCGenealogyEngine.js";
+import { NPCScheduleRegistry } from "./NPCScheduleRegistry.js";
 import fs from "fs";
 import path from "path";
 
@@ -9,8 +9,6 @@ export class NPCSystem {
   private npcs: Map<string, any> = new Map();
   private npcDefinitions: Map<string, any> = new Map();
   private dialogues: Map<string, any> = new Map();
-  // ⚡ Bolt Optimization: Cache the NPC list to avoid repeated Array.from() allocations in the tick loop
-  private cachedNPCs: any[] = [];
 
   public personalityEngine: NPCPersonalityEngine;
   public memoryEngine: NPCMemoryEngine;
@@ -63,12 +61,9 @@ export class NPCSystem {
       targetPosition: null as { x: number, y: number } | null,
       state: "idle",
       stateTimer: 0,
-      brain: new NPCBrain(),
-      needs: { hunger: 100, energy: 100 },
-      glbPath: undefined // Will be resolved by WorldTick
+      currentScheduleAction: null as string | null
     };
     this.npcs.set(id, npc);
-    this.updateCache();
     return npc;
   }
 
@@ -99,8 +94,51 @@ export class NPCSystem {
     let questId = null;
     let choices = [];
 
+    // Check for quest-specific dialogue (Old Logic)
+    if (npc.questHooks && npc.questHooks.length > 0) {
+      for (const qId of npc.questHooks) {
+        const playerQuest = playerQuests.find((q: any) => q.id === qId);
+        if (!playerQuest) {
+          const questDef = questDefinitions.get(qId);
+          let prereqsMet = true;
+          if (questDef && questDef.prerequisiteQuestIds) {
+            for (const preId of questDef.prerequisiteQuestIds) {
+              const preQuest = playerQuests.find((q: any) => q.id === preId);
+              if (!preQuest || !preQuest.completed) {
+                prereqsMet = false;
+                break;
+              }
+            }
+          }
 
+          if (!prereqsMet) {
+            if (dialogue.questPrerequisiteLines && dialogue.questPrerequisiteLines[qId]) {
+              text = dialogue.questPrerequisiteLines[qId];
+              break;
+            }
+            continue;
+          }
 
+          if (dialogue.questStartLines && dialogue.questStartLines[qId]) {
+            text = dialogue.questStartLines[qId];
+            questId = qId;
+            break;
+          }
+        } else if (!playerQuest.completed) {
+          if (dialogue.questProgressLines && dialogue.questProgressLines[qId]) {
+            text = dialogue.questProgressLines[qId];
+            break;
+          }
+        } else {
+          if (dialogue.questCompleteLines && dialogue.questCompleteLines[qId]) {
+            text = dialogue.questCompleteLines[qId];
+            break;
+          }
+        }
+      }
+    }
+
+    // New Logic: Branching Nodes
     if (dialogue.nodes) {
       // Determine which node to show
       let activeNodeId = "root";
@@ -108,7 +146,7 @@ export class NPCSystem {
       // If we have quest-specific nodes, we could prioritize them here
       // For now, let's just use "root" as default or check for state-based entry nodes
       if (dialogue.entryNodes) {
-        const matchingEntry = dialogue.entryNodes.find((entry: any) => {
+        for (const entry of dialogue.entryNodes) {
           let match = true;
           if (entry.conditionFlag && !playerFlags[entry.conditionFlag]) match = false;
           if (entry.conditionQuestId) {
@@ -122,10 +160,10 @@ export class NPCSystem {
             if (entry.conditionReputation.min !== undefined && rep < entry.conditionReputation.min) match = false;
             if (entry.conditionReputation.max !== undefined && rep > entry.conditionReputation.max) match = false;
           }
-          return match;
-        });
-        if (matchingEntry) {
-          activeNodeId = matchingEntry.nodeId;
+          if (match) {
+            activeNodeId = entry.nodeId;
+            break;
+          }
         }
       }
 
@@ -208,53 +246,48 @@ export class NPCSystem {
   }
 
   getAllNPCs() {
-    // ⚡ Bolt Optimization: Return cached array instead of creating a new one every call
-    return this.cachedNPCs;
+    return Array.from(this.npcs.values());
   }
 
-  removeNPC(id: string) {
-    this.npcs.delete(id);
-    this.updateCache();
-  }
-
-  private updateCache() {
-    this.cachedNPCs = Array.from(this.npcs.values());
-  }
-
-  tick(players: any[], chatSystem?: any) {
+  tick(players: any[], worldTime: number) {
     // Process NPC AI, schedules, needs
     const now = Date.now();
-    // ⚡ Bolt Optimization: Use cached array instead of .values() iterator for better performance in the 10Hz tick loop
-    for (const npc of this.cachedNPCs) {
-      // 0. Process dynamic needs
-      if (!npc.needs) npc.needs = { hunger: 100, energy: 100 }; // Fallback for existing NPCs
+    for (const npc of this.npcs.values()) {
+      // 0. Process Schedule
+      const schedule = NPCScheduleRegistry[npc.id];
+      if (schedule) {
+        // Find the most recent schedule entry that has passed
+        let activeEntry = null;
+        for (const entry of schedule) {
+          if (worldTime >= entry.time) {
+            activeEntry = entry;
+          }
+        }
+        // If no entry found (e.g. it's 2 AM and first entry is 6 AM), take the last entry of the previous day
+        if (!activeEntry) {
+          activeEntry = schedule[schedule.length - 1];
+        }
 
-      // Decrease hunger slowly (approx 1 unit per 5 seconds assuming 10 ticks/sec, wait we'll make it 1 unit per 100 ticks for testing or simple rate)
-      // Actually let's use a probabilistic approach or a simple small float decrement per tick.
-      // 1 tick = 100ms. So 10 ticks = 1 sec.
-      // 1 hunger per 100 ticks = 1 hunger per 10 sec.
-      npc.needs.hunger = Math.max(0, npc.needs.hunger - 0.01);
-      npc.needs.energy = Math.max(0, npc.needs.energy - 0.005);
+        if (activeEntry && npc.currentScheduleAction !== activeEntry.action) {
+          npc.currentScheduleAction = activeEntry.action;
+          npc.state = activeEntry.action;
+          if (activeEntry.target) {
+            npc.targetPosition = { x: activeEntry.target.x, y: activeEntry.target.y };
+          }
+          console.log(`NPC ${npc.name} changed schedule to ${activeEntry.action}`);
+        }
+      }
 
       // 1. Check for nearby players to interact with
       let interacting = false;
-      // Performance: Skip proximity check if already interacting
-      if (npc.state === "interacting" && now < npc.stateTimer) {
-        interacting = true;
-      } else {
-        for (const player of players) {
-          const dx = player.position.x - npc.position.x;
-          const dy = player.position.y - npc.position.y;
-          // ⚡ Bolt Optimization: Manhattan distance early-exit to avoid squared distance calculation for distant entities
-          if (Math.abs(dx) > 15 || Math.abs(dy) > 15) continue;
-          // Optimization: Use squared distance to avoid Math.hypot() square root
-          if (dx * dx + dy * dy < 225) { // 15^2
-            npc.state = "interacting";
-            npc.stateTimer = now + 5000;
-            npc.targetPosition = null;
-            interacting = true;
-            break;
-          }
+      for (const player of players) {
+        const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
+        if (dist < 15) { // Interaction range
+          npc.state = "interacting";
+          npc.stateTimer = now + 5000; // Stay interacting for a bit
+          npc.targetPosition = null; // Stop moving
+          interacting = true;
+          break;
         }
       }
 
@@ -262,74 +295,39 @@ export class NPCSystem {
 
       // 2. State machine
       if (npc.state === "interacting" && now > npc.stateTimer) {
-        npc.state = "idle";
+        npc.state = npc.currentScheduleAction || "idle";
         npc.stateTimer = now + Math.random() * 2000 + 1000;
       }
 
-      if (npc.state === "idle") {
+      // Movement logic
+      if (npc.targetPosition) {
+        const dx = npc.targetPosition.x - npc.position.x;
+        const dy = npc.targetPosition.y - npc.position.y;
+        const dist = Math.hypot(dx, dy);
+        
+        if (dist < 1) {
+          npc.targetPosition = null;
+        } else {
+          const speed = 0.5;
+          npc.position.x += (dx / dist) * speed;
+          npc.position.y += (dy / dist) * speed;
+        }
+      } else if (npc.state === "idle" || npc.state === "wandering") {
+        // Random wandering if idle and no schedule target
         if (now > npc.stateTimer) {
-          if (!npc.brain) npc.brain = new NPCBrain();
-          const decision = npc.brain.update(npc);
-
-          if (chatSystem && npc.state !== decision.action) {
-            chatSystem.systemMessage(`[Thought] ${npc.name}: ${decision.thought}`);
-          }
-
-          if (decision.action === "wander" || decision.action === "wandering") {
+          const r = Math.random();
+          if (r < 0.3) {
             npc.state = "wandering";
             const angle = Math.random() * Math.PI * 2;
-            const dist = Math.random() * 30;
+            const dist = Math.random() * 20;
             npc.targetPosition = {
               x: npc.homePosition.x + Math.cos(angle) * dist,
               y: npc.homePosition.y + Math.sin(angle) * dist
             };
             npc.stateTimer = now + 10000;
-          } else if (decision.action === "work" || decision.action === "working") {
-            npc.state = "working";
-            npc.targetPosition = { x: npc.homePosition.x, y: npc.homePosition.y };
-            npc.stateTimer = now + 15000;
           } else {
-            npc.state = decision.action;
+            npc.state = "idle";
             npc.stateTimer = now + Math.random() * 3000 + 2000;
-          }
-        }
-      } else if (npc.state === "sleep") {
-        npc.needs.energy = Math.min(100, npc.needs.energy + 2); // Fast regen while sleeping
-        if (npc.needs.energy >= 100) {
-          npc.state = "idle";
-          npc.stateTimer = now + Math.random() * 2000 + 1000;
-        }
-      } else if (npc.state === "eat") {
-        npc.needs.hunger = Math.min(100, npc.needs.hunger + 5); // Faster regen while eating
-        if (npc.needs.hunger >= 100) {
-          npc.state = "idle";
-          npc.stateTimer = now + Math.random() * 2000 + 1000;
-        }
-      } else if (npc.state === "wandering" || npc.state === "working") {
-        if (now > npc.stateTimer) {
-          npc.state = "idle";
-          npc.targetPosition = null;
-          npc.stateTimer = now + Math.random() * 2000 + 1000;
-        } else if (npc.targetPosition) {
-          // Move towards target
-          const dx = npc.targetPosition.x - npc.position.x;
-          const dy = npc.targetPosition.y - npc.position.y;
-          const distSq = dx * dx + dy * dy;
-          
-          if (distSq < 1) { // 1^2
-            // Reached target
-            npc.targetPosition = null;
-            if (npc.state === "wandering") {
-              npc.state = "idle";
-              npc.stateTimer = now + Math.random() * 3000 + 1000;
-            }
-            // If working, just stay there until timer runs out
-          } else {
-            // Move
-            const speed = 0.5; // units per tick
-            const dist = Math.sqrt(distSq);
-            npc.position.x += (dx / dist) * speed;
-            npc.position.y += (dy / dist) * speed;
           }
         }
       }

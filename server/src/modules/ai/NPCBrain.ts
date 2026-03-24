@@ -1,11 +1,11 @@
-import { BehaviorTree, BrainDecision } from "./BehaviorTree.js";
+import { BehaviorTree } from "./BehaviorTree.js";
 
 export class NPCBrain {
   private tree = new BehaviorTree();
 
-  update(npc: any): BrainDecision {
-    const decision = this.tree.run(npc);
-    npc.currentAction = decision.action;
-    return decision;
+  update(npc: any) {
+    const action = this.tree.run(npc);
+    npc.currentAction = action;
+    return action;
   }
 }

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { showTooltip, hideTooltip, createWorldLabel, removeWorldLabel, showFloatingText, updateMinimap } from "../ui/hud";
+import { showTooltip, hideTooltip, createWorldLabel, removeWorldLabel, showFloatingText } from "../ui/hud";
 import { getClosestInteractable } from "../utils/interaction";
 import { initMobileControls, getJoystickState, isMobile } from "../ui/mobileControls";
 
@@ -94,6 +94,7 @@ let highlightPulse = 0;
 const playerMeshes = new Map<string, THREE.Object3D>();
 const npcMeshes = new Map<string, THREE.Object3D>();
 const lootMeshes = new Map<string, THREE.Object3D>();
+const worldObjectMeshes = new Map<string, THREE.Object3D>();
 const targetPositions = new Map<string, THREE.Vector3>();
 
 let cameraAngleH = 0;
@@ -413,7 +414,7 @@ export function updateWorldState(state: any, playerId: string | null) {
     currentPlayers.add(p.id);
        if (!playerMeshes.has(p.id)) {
       const g = new THREE.Group();
-      g.position.set(p.position.x, getTerrainHeight(p.position.x, p.position.z), p.position.z);
+      g.position.set(p.position.x, getTerrainHeight(p.position.x, p.position.y), p.position.y);
       scene.add(g); playerMeshes.set(p.id, g);
       if (p.appearance) {
         console.log(`[Renderer] Loading GLB for player ${p.id}`, p.appearance);
@@ -459,7 +460,7 @@ export function updateWorldState(state: any, playerId: string | null) {
     }
     let t = targetPositions.get(p.id);
     if (!t) { t = new THREE.Vector3(); targetPositions.set(p.id, t); }
-    t.set(p.position.x, getTerrainHeight(p.position.x, p.position.z), p.position.z);
+    t.set(p.position.x, getTerrainHeight(p.position.x, p.position.y), p.position.y);
     const sp = projectToScreen(t.x, t.y + 3.5, t.z);
     const lbl = createWorldLabel(p.id, p.name || "Player", "player");
     if (sp.inFront) { lbl.style.left=`${sp.x}px`; lbl.style.top=`${sp.y}px`; lbl.style.display="block"; } else lbl.style.display="none";
@@ -475,12 +476,15 @@ export function updateWorldState(state: any, playerId: string | null) {
     if (!npcMeshes.has(npc.id)) {
       if (npc.glbPath) {
         const g = new THREE.Group();
-        g.position.set(npc.position.x, getTerrainHeight(npc.position.x, npc.position.z), npc.position.z);
+        g.position.set(npc.position.x, getTerrainHeight(npc.position.x, npc.position.y), npc.position.y);
         scene.add(g); npcMeshes.set(npc.id, g);
         let path = npc.glbPath;
-        if (path.startsWith('public/')) path = path.substring(6);
+        // Robustere Pfadbereinigung
+        if (path.startsWith('public/')) path = '/' + path.substring(7);
+        if (path.startsWith('assets/')) path = '/' + path;
         if (!path.startsWith('/')) path = '/' + path;
-        loadModel(path, (m) => { m.scale.set(0.5,0.5,0.5); g.add(m); });
+        console.log(`[Renderer] Loading NPC model: ${path} for ${npc.id}`);
+        loadModel(path, (m) => { m.scale.set(0.5,0.5,0.5); g.add(m); }, (err) => console.error(`[Renderer] NPC model load failed: ${path}`, err));
       } else {
         const isM = npc.role === "monster";
         const isShop = npc.role === "shopkeeper";
@@ -496,13 +500,13 @@ export function updateWorldState(state: any, playerId: string | null) {
         );
         head.position.y = isM?2.7:2.2;
         const g = new THREE.Group(); g.add(body); g.add(head);
-        g.position.set(npc.position.x, getTerrainHeight(npc.position.x, npc.position.z), npc.position.z);
+        g.position.set(npc.position.x, getTerrainHeight(npc.position.x, npc.position.y), npc.position.y);
         scene.add(g); npcMeshes.set(npc.id, g);
       }
     }
     let t = targetPositions.get(npc.id);
     if (!t) { t = new THREE.Vector3(); targetPositions.set(npc.id, t); }
-    t.set(npc.position.x, getTerrainHeight(npc.position.x, npc.position.z), npc.position.z);
+    t.set(npc.position.x, getTerrainHeight(npc.position.x, npc.position.y), npc.position.y);
     const hp = npc.maxHealth ? (npc.health / npc.maxHealth) : 1;
     const lbl = createWorldLabel(npc.id, npc.name || npc.id, "npc", hp);
     const sp = projectToScreen(t.x, t.y + 3, t.z);
@@ -519,12 +523,15 @@ export function updateWorldState(state: any, playerId: string | null) {
     if (!lootMeshes.has(loot.id)) {
       if (loot.glbPath) {
         const g = new THREE.Group();
-        g.position.set(loot.position.x, getTerrainHeight(loot.position.x, loot.position.z) + 0.5, loot.position.z);
+        g.position.set(loot.position.x, getTerrainHeight(loot.position.x, loot.position.y) + 0.5, loot.position.y);
         scene.add(g); lootMeshes.set(loot.id, g);
         let path = loot.glbPath;
-        if (path.startsWith('public/')) path = path.substring(6);
+        // Robustere Pfadbereinigung
+        if (path.startsWith('public/')) path = '/' + path.substring(7);
+        if (path.startsWith('assets/')) path = '/' + path;
         if (!path.startsWith('/')) path = '/' + path;
-        loadModel(path, (m) => { m.scale.set(0.4, 0.4, 0.4); g.add(m); });
+        console.log(`[Renderer] Loading Loot model: ${path} for ${loot.id}`);
+        loadModel(path, (m) => { m.scale.set(0.4, 0.4, 0.4); g.add(m); }, (err) => console.error(`[Renderer] Loot model load failed: ${path}`, err));
       } else {
         const rc: Record<string,number> = { common:0xaaaaaa, uncommon:0x00cc00, rare:0x0088ff, epic:0xaa44ff, legendary:0xff8800 };
         const c = rc[loot.rarity || loot.item?.rarity || "common"] || 0xffd700;
@@ -532,7 +539,7 @@ export function updateWorldState(state: any, playerId: string | null) {
           new THREE.OctahedronGeometry(0.5, 0),
           new THREE.MeshLambertMaterial({ color: c, emissive: c, emissiveIntensity: 0.3 })
         );
-        mesh.position.set(loot.position.x, getTerrainHeight(loot.position.x, loot.position.z) + 0.8, loot.position.z);
+        mesh.position.set(loot.position.x, getTerrainHeight(loot.position.x, loot.position.y) + 0.8, loot.position.y);
         scene.add(mesh); lootMeshes.set(loot.id, mesh);
       }
     }
@@ -540,7 +547,7 @@ export function updateWorldState(state: any, playerId: string | null) {
     if (lm) {
       const et = Date.now() * 0.002;
       const baseHeight = loot.glbPath ? 0.5 : 0.8;
-      lm.position.y = getTerrainHeight(loot.position.x, loot.position.z) + baseHeight + Math.sin(et + loot.position.x) * 0.2;
+      lm.position.y = getTerrainHeight(loot.position.x, loot.position.y) + baseHeight + Math.sin(et + loot.position.x) * 0.2;
       lm.rotation.y += 0.02;
       const sp = projectToScreen(lm.position.x, lm.position.y + 1, lm.position.z);
       const name = loot.item?.name || loot.name || "Item";
@@ -550,6 +557,45 @@ export function updateWorldState(state: any, playerId: string | null) {
   }
   for (const [id, mesh] of lootMeshes) {
     if (!currentLoot.has(id)) { scene.remove(mesh); lootMeshes.delete(id); removeWorldLabel(id); }
+  }
+
+  // World Objects
+  const currentWorldObjects = new Set<string>();
+  for (const obj of state.worldObjects || []) {
+    currentWorldObjects.add(obj.id);
+    if (!worldObjectMeshes.has(obj.id)) {
+      const g = new THREE.Group();
+      g.position.set(obj.position.x, getTerrainHeight(obj.position.x, obj.position.y), obj.position.y);
+      if (obj.rotation) g.rotation.y = obj.rotation;
+      if (obj.scale) g.scale.set(obj.scale, obj.scale, obj.scale);
+      scene.add(g); worldObjectMeshes.set(obj.id, g);
+      
+      if (obj.glbPath) {
+        let path = obj.glbPath;
+        if (path.startsWith('public/')) path = '/' + path.substring(7);
+        if (path.startsWith('assets/')) path = '/' + path;
+        if (!path.startsWith('/')) path = '/' + path;
+        console.log(`[Renderer] Loading World Object model: ${path} for ${obj.id}`);
+        loadModel(path, (m) => { g.add(m); }, (err) => console.error(`[Renderer] World Object model load failed: ${path}`, err));
+      } else {
+        // Fallback placeholder based on type
+        let color = 0x888888;
+        let geometry: THREE.BufferGeometry = new THREE.BoxGeometry(2, 2, 2);
+        if (obj.type === "tree") { color = 0x228B22; geometry = new THREE.ConeGeometry(1, 4, 8); }
+        else if (obj.type === "house") { color = 0x8B4513; geometry = new THREE.BoxGeometry(4, 3, 4); }
+        else if (obj.type === "well") { color = 0x808080; geometry = new THREE.CylinderGeometry(1, 1, 1, 16); }
+        else if (obj.type === "rock") { color = 0x696969; geometry = new THREE.DodecahedronGeometry(1); }
+        
+        const mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ color }));
+        mesh.position.y = geometry.parameters.height ? (geometry.parameters as any).height / 2 : 1;
+        mesh.castShadow = !isMobile();
+        mesh.receiveShadow = true;
+        g.add(mesh);
+      }
+    }
+  }
+  for (const [id, mesh] of worldObjectMeshes) {
+    if (!currentWorldObjects.has(id)) { scene.remove(mesh); worldObjectMeshes.delete(id); }
   }
 
   // Interaction tooltip
@@ -562,7 +608,7 @@ export function updateWorldState(state: any, playerId: string | null) {
 
       if (highlightRing) {
         highlightRing.visible = true;
-        highlightRing.position.set(nearby.position.x, getTerrainHeight(nearby.position.x, nearby.position.z) + 0.1, nearby.position.z);
+        highlightRing.position.set(nearby.position.x, getTerrainHeight(nearby.position.x, nearby.position.y) + 0.1, nearby.position.y);
         (highlightRing.material as THREE.MeshBasicMaterial).color.setHex(nearby.type === "loot" ? 0xffd700 : 0x00ff88);
       }
     } else {
@@ -570,8 +616,6 @@ export function updateWorldState(state: any, playerId: string | null) {
       if (highlightRing) highlightRing.visible = false;
     }
   }
-
-  updateMinimap(state, playerId);
 }
 
 export function showFloatingTextAt(text: string, worldX: number, worldZ: number, color = "#ff4444") {

@@ -9,3 +9,7 @@
 ## 2024-03-17 - Manual Loading State Accessibility on DOM Elements
 **Learning:** For manually created DOM elements without a UI library (using `document.createElement`), accessibility attributes for loading states must be explicitly toggled in JavaScript. Adding `aria-busy="true"` and `disabled=true` while updating button text provides immediate context for screen readers when an async network request starts.
 **Action:** Always toggle `.disabled`, update `.innerText`, and set/remove `aria-busy` inside the `try/finally` blocks of click handlers for manually rendered vanilla JS buttons.
+
+## 2024-03-19 - ARIA Live Regions for Dynamic Chat Overlays
+**Learning:** For dynamic text containers that continuously update with new information (like chat boxes or event logs), adding `role="log"` and `aria-live="polite"` ensures screen readers announce new incoming content without rudely interrupting the user's current task.
+**Action:** When implementing or modifying live-updating UI sections such as chat messages or system notifications, always include these ARIA attributes to maintain a smooth experience for screen reader users.

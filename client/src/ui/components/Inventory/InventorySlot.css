@@ -1,0 +1,422 @@
+/**
+ * InventorySlot Styles
+ * Item display with rarity colors and interactions
+ */
+
+.inventory-slot {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, rgba(30, 30, 40, 0.8), rgba(20, 20, 30, 0.9));
+  border: 2px solid rgba(100, 100, 120, 0.4);
+  border-radius: 6px;
+  cursor: grab;
+  transition: all 0.2s ease;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.inventory-slot:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.inventory-slot.drag-over {
+  background: linear-gradient(135deg, rgba(100, 150, 255, 0.3), rgba(50, 100, 200, 0.3));
+  border-color: rgba(100, 150, 255, 0.8);
+  box-shadow: inset 0 0 10px rgba(100, 150, 255, 0.3);
+}
+
+.inventory-slot.equipped {
+  border-color: rgba(100, 200, 100, 0.6);
+  box-shadow: 0 0 10px rgba(100, 200, 100, 0.3);
+}
+
+/* Rarity Colors */
+.inventory-slot.rarity-common {
+  border-color: rgba(153, 153, 153, 0.4);
+}
+
+.inventory-slot.rarity-uncommon {
+  border-color: rgba(30, 255, 0, 0.4);
+}
+
+.inventory-slot.rarity-uncommon:hover {
+  box-shadow: 0 0 15px rgba(30, 255, 0, 0.3);
+}
+
+.inventory-slot.rarity-rare {
+  border-color: rgba(0, 112, 221, 0.4);
+}
+
+.inventory-slot.rarity-rare:hover {
+  box-shadow: 0 0 15px rgba(0, 112, 221, 0.3);
+}
+
+.inventory-slot.rarity-epic {
+  border-color: rgba(163, 53, 238, 0.4);
+}
+
+.inventory-slot.rarity-epic:hover {
+  box-shadow: 0 0 15px rgba(163, 53, 238, 0.3);
+}
+
+.inventory-slot.rarity-legendary {
+  border-color: rgba(255, 128, 0, 0.4);
+}
+
+.inventory-slot.rarity-legendary:hover {
+  box-shadow: 0 0 15px rgba(255, 128, 0, 0.3);
+}
+
+.inventory-slot.rarity-mythic {
+  border-color: rgba(230, 204, 128, 0.4);
+}
+
+.inventory-slot.rarity-mythic:hover {
+  box-shadow: 0 0 15px rgba(230, 204, 128, 0.3);
+}
+
+/* Empty Slot */
+.slot-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: rgba(150, 150, 150, 0.5);
+  font-size: 10px;
+  text-align: center;
+  padding: 4px;
+}
+
+.empty-text {
+  opacity: 0.5;
+}
+
+/* Icon Container */
+.slot-icon-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.slot-icon {
+  width: 90%;
+  height: 90%;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.rarity-border {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  right: 2px;
+  bottom: 2px;
+  border: 1.5px solid;
+  border-radius: 4px;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* Stack Count */
+.stack-count {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 2px 4px;
+  border-radius: 3px;
+  min-width: 18px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Equipped Badge */
+.equipped-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: linear-gradient(135deg, rgba(100, 200, 100, 0.9), rgba(80, 180, 80, 0.9));
+  color: #fff;
+  font-size: 10px;
+  font-weight: bold;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(100, 200, 100, 0.6);
+  box-shadow: 0 2px 6px rgba(100, 200, 100, 0.4);
+}
+
+/* Item Tooltip */
+.item-tooltip-trigger {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  cursor: help;
+}
+
+.item-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, rgba(20, 20, 30, 0.95), rgba(30, 30, 45, 0.95));
+  border: 2px solid rgba(100, 150, 255, 0.5);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 8px;
+  min-width: 250px;
+  max-width: 300px;
+  z-index: 1000;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  animation: tooltip-fade-in 0.2s ease;
+}
+
+.item-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 8px solid transparent;
+  border-top-color: rgba(20, 20, 30, 0.95);
+}
+
+@keyframes tooltip-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.tooltip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(100, 150, 255, 0.2);
+}
+
+.tooltip-name {
+  font-size: 14px;
+  font-weight: bold;
+  color: #fff;
+}
+
+.tooltip-rarity {
+  font-size: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(100, 150, 255, 0.2);
+}
+
+.tooltip-description {
+  font-size: 12px;
+  color: #ccc;
+  margin-bottom: 8px;
+  line-height: 1.4;
+  font-style: italic;
+}
+
+.tooltip-stats {
+  margin-bottom: 8px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+
+.stats-title {
+  font-size: 11px;
+  font-weight: bold;
+  color: #aaa;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  letter-spacing: 0.5px;
+}
+
+.stat-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+
+.stat-name {
+  color: #aaa;
+  text-transform: capitalize;
+}
+
+.stat-value {
+  font-weight: bold;
+  color: #fff;
+}
+
+.stat-value.positive {
+  color: #88ff88;
+}
+
+.stat-value.negative {
+  color: #ff8888;
+}
+
+.tooltip-type,
+.tooltip-value,
+.tooltip-weight {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-bottom: 4px;
+  color: #aaa;
+}
+
+.type-label,
+.value-label,
+.weight-label {
+  color: #888;
+}
+
+.type-value,
+.value-amount,
+.weight-amount {
+  color: #fff;
+  font-weight: 600;
+}
+
+.value-amount {
+  color: #ffd700;
+}
+
+.tooltip-rarity-desc {
+  font-size: 10px;
+  color: #999;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(100, 150, 255, 0.1);
+  font-style: italic;
+}
+
+/* Action Buttons */
+.slot-actions {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 4px;
+  border-radius: 4px;
+  z-index: 100;
+}
+
+.action-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid rgba(100, 150, 255, 0.4);
+  border-radius: 3px;
+  background: rgba(50, 100, 200, 0.3);
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-btn:hover {
+  background: rgba(50, 100, 200, 0.6);
+  border-color: rgba(100, 150, 255, 0.8);
+  box-shadow: 0 0 8px rgba(100, 150, 255, 0.3);
+}
+
+.action-btn.equip-btn:hover {
+  background: rgba(100, 200, 100, 0.4);
+  border-color: rgba(100, 200, 100, 0.8);
+}
+
+.action-btn.unequip-btn:hover {
+  background: rgba(255, 100, 100, 0.4);
+  border-color: rgba(255, 100, 100, 0.8);
+}
+
+.action-btn.use-btn:hover {
+  background: rgba(100, 150, 255, 0.4);
+  border-color: rgba(100, 150, 255, 0.8);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .inventory-slot {
+    width: 52px;
+    height: 52px;
+  }
+
+  .item-tooltip {
+    min-width: 220px;
+    max-width: 280px;
+    font-size: 11px;
+  }
+
+  .tooltip-name {
+    font-size: 12px;
+  }
+
+  .action-btn {
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .inventory-slot {
+    width: 48px;
+    height: 48px;
+  }
+
+  .item-tooltip {
+    min-width: 200px;
+    max-width: 250px;
+    font-size: 10px;
+  }
+
+  .tooltip-name {
+    font-size: 11px;
+  }
+
+  .stack-count {
+    font-size: 9px;
+  }
+
+  .action-btn {
+    width: 20px;
+    height: 20px;
+    font-size: 10px;
+  }
+}

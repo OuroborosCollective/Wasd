@@ -1,30 +1,17 @@
 {
   "wolf": [
-    { "itemId": "wolf_pelt", "chance": 0.8, "minCount": 1, "maxCount": 2 },
-    { "itemId": "fang", "chance": 0.5, "minCount": 1, "maxCount": 3 },
-    { "itemId": "alpha_claw", "chance": 0.1, "minCount": 1, "maxCount": 1 }
+    "wolf_pelt",
+    "fang",
+    "alpha_claw"
   ],
   "skeleton": [
-    { "itemId": "bone_fragment", "chance": 0.7, "minCount": 1, "maxCount": 4 },
-    { "itemId": "rusted_blade", "chance": 0.15, "minCount": 1, "maxCount": 1 },
-    { "itemId": "grave_ring", "chance": 0.05, "minCount": 1, "maxCount": 1 }
+    "bone_fragment",
+    "rusted_blade",
+    "grave_ring"
   ],
   "ruin_cache": [
-    { "itemId": "ancient_coin", "chance": 0.6, "minCount": 2, "maxCount": 10 },
-    { "itemId": "relic_fragment", "chance": 0.2, "minCount": 1, "maxCount": 2 },
-    { "itemId": "forgotten_sigil", "chance": 0.1, "minCount": 1, "maxCount": 1 }
-  ],
-  "goblin": [
-    { "itemId": "iron_scrap", "chance": 0.5, "minCount": 1, "maxCount": 2 },
-    { "itemId": "herb_bundle", "chance": 0.3, "minCount": 1, "maxCount": 2 }
-  ],
-  "boar": [
-    { "itemId": "boar_tusk", "chance": 0.6, "minCount": 1, "maxCount": 2 },
-    { "itemId": "raw_meat", "chance": 0.8, "minCount": 1, "maxCount": 3 }
-  ],
-  "chest": [
-    { "itemId": "gold", "chance": 1.0, "minCount": 10, "maxCount": 50 },
-    { "itemId": "health_potion", "chance": 0.3, "minCount": 1, "maxCount": 2 },
-    { "itemId": "ancient_coin", "chance": 0.2, "minCount": 1, "maxCount": 5 }
+    "ancient_coin",
+    "relic_fragment",
+    "forgotten_sigil"
   ]
 }

@@ -1,0 +1,271 @@
+/**
+ * TouchControls Styles
+ * Mobile touch input system with haptic feedback
+ */
+
+.touch-controls-container {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  z-index: 100;
+  pointer-events: auto;
+}
+
+/* Virtual Joystick */
+.virtual-joystick {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  background: rgba(20, 20, 30, 0.7);
+  border: 2px solid rgba(100, 150, 255, 0.3);
+  border-radius: 50%;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  user-select: none;
+}
+
+.joystick-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+/* Action Buttons */
+.action-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.action-btn {
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  border: 2px solid rgba(100, 150, 255, 0.3);
+  border-radius: 8px;
+  background: rgba(50, 100, 200, 0.2);
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.action-btn:active {
+  transform: scale(0.95);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.action-btn.primary {
+  border-color: rgba(255, 100, 100, 0.5);
+  background: rgba(255, 100, 100, 0.2);
+}
+
+.action-btn.primary:active {
+  background: rgba(255, 100, 100, 0.4);
+  border-color: rgba(255, 100, 100, 0.8);
+}
+
+.action-btn.secondary {
+  border-color: rgba(100, 200, 100, 0.5);
+  background: rgba(100, 200, 100, 0.2);
+}
+
+.action-btn.secondary:active {
+  background: rgba(100, 200, 100, 0.4);
+  border-color: rgba(100, 200, 100, 0.8);
+}
+
+.action-btn.tertiary {
+  border-color: rgba(255, 215, 0, 0.5);
+  background: rgba(255, 215, 0, 0.2);
+}
+
+.action-btn.tertiary:active {
+  background: rgba(255, 215, 0, 0.4);
+  border-color: rgba(255, 215, 0, 0.8);
+}
+
+.action-btn.quaternary {
+  border-color: rgba(100, 150, 255, 0.5);
+  background: rgba(100, 150, 255, 0.2);
+}
+
+.action-btn.quaternary:active {
+  background: rgba(100, 150, 255, 0.4);
+  border-color: rgba(100, 150, 255, 0.8);
+}
+
+/* Gesture Detector */
+.gesture-detector {
+  width: 100%;
+  height: 100%;
+  touch-action: manipulation;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .touch-controls-container {
+    bottom: 16px;
+    left: 16px;
+    gap: 12px;
+  }
+
+  .virtual-joystick {
+    width: 100px;
+    height: 100px;
+  }
+
+  .action-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+    border-width: 1.5px;
+  }
+
+  .action-buttons {
+    gap: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .touch-controls-container {
+    bottom: 12px;
+    left: 12px;
+    gap: 10px;
+  }
+
+  .virtual-joystick {
+    width: 90px;
+    height: 90px;
+    border-width: 1.5px;
+  }
+
+  .action-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+    border-width: 1px;
+  }
+
+  .action-buttons {
+    gap: 4px;
+  }
+}
+
+/* Landscape orientation */
+@media (max-height: 500px) and (orientation: landscape) {
+  .touch-controls-container {
+    bottom: 8px;
+    left: 8px;
+    gap: 8px;
+  }
+
+  .virtual-joystick {
+    width: 80px;
+    height: 80px;
+  }
+
+  .action-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+}
+
+/* Touch device specific optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .action-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .virtual-joystick {
+    min-width: 100px;
+    min-height: 100px;
+  }
+}
+
+/* Animations */
+@keyframes button-press {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.action-btn:active {
+  animation: button-press 0.15s ease-out;
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .action-btn,
+  .virtual-joystick {
+    transition: none;
+  }
+
+  .action-btn:active {
+    animation: none;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: more) {
+  .virtual-joystick {
+    border-width: 3px;
+    border-color: rgba(100, 150, 255, 0.8);
+  }
+
+  .action-btn {
+    border-width: 2px;
+  }
+}
+
+/* Dark mode (default) */
+@media (prefers-color-scheme: dark) {
+  .touch-controls-container {
+    /* Already optimized for dark mode */
+  }
+}
+
+/* Light mode fallback */
+@media (prefers-color-scheme: light) {
+  .virtual-joystick {
+    background: rgba(240, 240, 250, 0.8);
+    border-color: rgba(100, 150, 255, 0.5);
+  }
+
+  .action-btn {
+    background: rgba(200, 220, 255, 0.3);
+    border-color: rgba(100, 150, 255, 0.5);
+  }
+}
+
+/* Safe area insets for notched devices */
+@supports (padding: max(0px)) {
+  .touch-controls-container {
+    bottom: max(20px, env(safe-area-inset-bottom));
+    left: max(20px, env(safe-area-inset-left));
+  }
+}

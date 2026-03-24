@@ -12,11 +12,7 @@
         "npc_wolf",
         "npc_6_hermit",
         "npc_7_merchant",
-        "npc_8_apprentice",
-        "npc_boar",
-        "npc_skeleton",
-        "npc_bandit",
-        "npc_shopkeeper"
+        "npc_8_apprentice"
       ],
       "questIds": [
         "first_steps",
@@ -42,8 +38,7 @@
         "dialogue_dummy",
         "dialogue_npc_6",
         "dialogue_npc_7",
-        "dialogue_npc_8",
-        "dialogue_shopkeeper"
+        "dialogue_npc_8"
       ],
       "itemIds": [
         "starter_sword",
@@ -58,20 +53,7 @@
         "ancient_coin",
         "relic_fragment",
         "forgotten_sigil",
-        "guard_token",
-        "health_potion",
-        "mana_potion",
-        "stamina_potion",
-        "herb_bundle",
-        "iron_sword",
-        "steel_longsword",
-        "shadow_blade",
-        "iron_shield",
-        "boar_tusk",
-        "raw_meat",
-        "cooked_meat",
-        "crystal_shard",
-        "enchanted_staff"
+        "guard_token"
       ],
       "validationResult": "passed"
     }

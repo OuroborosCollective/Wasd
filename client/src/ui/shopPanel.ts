@@ -1,4 +1,3 @@
-import { getAuthToken } from "./auth";
 /**
  * Shop Panel – Matrix Energy & GLB Creator Pass
  * Handles PayPal checkout flow and subscription status display
@@ -51,8 +50,8 @@ function createShopUI() {
           <div id="shop-balance" style="background:#0d2a3a; border:1px solid #00d4ff; border-radius:8px; padding:6px 14px; font-size:14px; color:#00d4ff;">
             ⚡ <span id="shop-energy-amount">...</span>
           </div>
-          <button aria-label="Close Shop" onclick="document.getElementById('shop-panel').style.display='none'"
-            style="background:none; border:1px solid #ff4444; color:#ff4444; border-radius:6px; padding:6px 12px; cursor:pointer; font-size:14px;"><span aria-hidden="true">✕</span></button>
+          <button onclick="document.getElementById('shop-panel').style.display='none'"
+            style="background:none; border:1px solid #ff4444; color:#ff4444; border-radius:6px; padding:6px 12px; cursor:pointer; font-size:14px;">✕</button>
         </div>
       </div>
 
@@ -190,7 +189,7 @@ function switchShopTab(tab: string) {
 async function loadBalance() {
   try {
     const res = await fetch("/api/player/balance", {
-      headers: { "Authorization": `Bearer ${await getAuthToken()}` }
+      headers: { "x-player-id": currentPlayerId }
     });
     const data = await res.json();
     const el = document.getElementById("shop-energy-amount");
@@ -204,7 +203,7 @@ async function loadGLBStatus() {
 
   try {
     const res = await fetch("/api/glb/subscription-status", {
-      headers: { "Authorization": `Bearer ${await getAuthToken()}` }
+      headers: { "x-player-id": currentPlayerId }
     });
     const data = await res.json();
 
@@ -319,7 +318,7 @@ async function buyMarketplaceItem(modelId: string, name: string, price: number) 
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${await getAuthToken()}`,
+        "x-player-id": currentPlayerId,
       },
       body: JSON.stringify({ modelId }),
     });

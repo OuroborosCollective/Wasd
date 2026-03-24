@@ -1,0 +1,263 @@
+/**
+ * PerformanceMonitorUI Styles
+ * Debug overlay for performance metrics
+ */
+
+.performance-monitor {
+  position: fixed;
+  z-index: 9999;
+  background: linear-gradient(135deg, rgba(20, 20, 30, 0.95) 0%, rgba(30, 30, 45, 0.95) 100%);
+  border: 1px solid rgba(100, 150, 255, 0.3);
+  border-radius: 8px;
+  padding: 8px;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  color: #ccc;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  min-width: 180px;
+  max-width: 300px;
+}
+
+/* Positions */
+.performance-monitor.top-left {
+  top: 10px;
+  left: 10px;
+}
+
+.performance-monitor.top-right {
+  top: 10px;
+  right: 10px;
+}
+
+.performance-monitor.bottom-left {
+  bottom: 10px;
+  left: 10px;
+}
+
+.performance-monitor.bottom-right {
+  bottom: 10px;
+  right: 10px;
+}
+
+/* Compact Mode */
+.performance-monitor.compact {
+  padding: 6px;
+  min-width: 120px;
+}
+
+/* Header */
+.monitor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(100, 150, 255, 0.2);
+}
+
+.monitor-title {
+  font-weight: bold;
+  color: #6b9fff;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 10px;
+}
+
+.monitor-toggle {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgba(100, 150, 255, 0.3);
+  border-radius: 3px;
+  background: rgba(50, 100, 200, 0.2);
+  color: #6b9fff;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.monitor-toggle:hover {
+  background: rgba(50, 100, 200, 0.4);
+  border-color: rgba(100, 150, 255, 0.6);
+}
+
+/* Content */
+.monitor-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Metric Row */
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 4px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+  border-left: 2px solid rgba(100, 150, 255, 0.2);
+}
+
+.metric-row.error {
+  border-left-color: rgba(255, 100, 100, 0.5);
+  background: rgba(255, 100, 100, 0.05);
+}
+
+.metric-label {
+  color: #888;
+  text-transform: uppercase;
+  font-weight: bold;
+  font-size: 9px;
+  min-width: 50px;
+}
+
+.metric-value {
+  color: #6b9fff;
+  font-weight: bold;
+  text-align: right;
+  flex: 1;
+}
+
+/* Alerts Section */
+.alerts-section {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(100, 150, 255, 0.2);
+}
+
+.alerts-title {
+  color: #888;
+  text-transform: uppercase;
+  font-size: 9px;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.alerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.alert {
+  padding: 3px 4px;
+  border-radius: 3px;
+  font-size: 9px;
+  display: flex;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.alert-type {
+  min-width: 40px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.alert-message {
+  flex: 1;
+  word-break: break-word;
+}
+
+/* Alert Severity */
+.alert-low {
+  background: rgba(100, 200, 100, 0.1);
+  border-left: 2px solid rgba(100, 200, 100, 0.5);
+  color: #88ff88;
+}
+
+.alert-medium {
+  background: rgba(255, 215, 0, 0.1);
+  border-left: 2px solid rgba(255, 215, 0, 0.5);
+  color: #ffdd88;
+}
+
+.alert-high {
+  background: rgba(255, 150, 100, 0.1);
+  border-left: 2px solid rgba(255, 150, 100, 0.5);
+  color: #ffaa88;
+}
+
+.alert-critical {
+  background: rgba(255, 100, 100, 0.1);
+  border-left: 2px solid rgba(255, 100, 100, 0.8);
+  color: #ff8888;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .performance-monitor {
+    font-size: 10px;
+    padding: 6px;
+    min-width: 140px;
+  }
+
+  .monitor-title {
+    font-size: 9px;
+  }
+
+  .metric-label {
+    font-size: 8px;
+    min-width: 40px;
+  }
+
+  .metric-value {
+    font-size: 10px;
+  }
+
+  .alert {
+    font-size: 8px;
+  }
+
+  .alert-type {
+    min-width: 35px;
+  }
+}
+
+/* Animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.performance-monitor {
+  animation: fade-in 0.3s ease-out;
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .performance-monitor,
+  .monitor-toggle {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: more) {
+  .performance-monitor {
+    border-width: 2px;
+  }
+
+  .monitor-toggle {
+    border-width: 2px;
+  }
+
+  .metric-row {
+    border-left-width: 3px;
+  }
+
+  .alert {
+    border-left-width: 3px;
+  }
+}
