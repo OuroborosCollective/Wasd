@@ -23,9 +23,9 @@ export function getJoystickState(): JoystickState {
 
 // ─── STYLES ────────────────────────────────────────────────────────────────────
 const MOBILE_STYLES = `
-  #mobile-controls { display: none; }
-  @media (max-width: 900px), (pointer: coarse) {
-    #mobile-controls { display: block; }
+  #mobile-controls { display: block; }
+  @media (min-width: 901px) and (pointer: fine) {
+    #mobile-controls { display: none; }
   }
   #joystick-zone {
     position: fixed; bottom: 90px; left: 20px;
@@ -170,6 +170,14 @@ const MOBILE_STYLES = `
     #dialogue-box { bottom: 240px !important; }
     #action-bar { bottom: 170px !important; }
     .world-label { font-size: 10px !important; }
+  }
+  /* Show mobile controls on desktop for testing */
+  @media (min-width: 901px) and (pointer: fine) {
+    #joystick-zone { display: block !important; }
+    #mobile-action-btns { display: grid !important; }
+    #mobile-menu-btns { display: flex !important; }
+    #mob-shortcut-toggle { display: flex !important; }
+    #mobile-chat-btn { display: flex !important; }
   }
 `;
 

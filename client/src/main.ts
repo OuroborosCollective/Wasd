@@ -47,7 +47,17 @@ try {
     if (!gameInitialized) {
       gameInitialized = true;
       try {
-        initRenderer(canvas, "Player"); // Pass a default ID for now
+        const callbacks = {
+          onAttack: () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "f", bubbles: true })),
+          onInteract: () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "e", bubbles: true })),
+          onEquip: () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "g", bubbles: true })),
+          onInventory: () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "i", bubbles: true })),
+          onQuests: () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "q", bubbles: true })),
+          onSkills: () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", bubbles: true })),
+          onMap: () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "m", bubbles: true })),
+          onChat: () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "t", bubbles: true }))
+        };
+        initRenderer(canvas, "Player", callbacks);
         connectSocket(token);
         renderHUD();
         renderLogoutBtn();
