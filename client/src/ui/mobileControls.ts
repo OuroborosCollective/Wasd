@@ -23,9 +23,9 @@ export function getJoystickState(): JoystickState {
 
 // ─── STYLES ────────────────────────────────────────────────────────────────────
 const MOBILE_STYLES = `
-  #mobile-controls { display: none; }
-  @media (max-width: 900px), (pointer: coarse) {
-    #mobile-controls { display: block; }
+  #mobile-controls { display: block; }
+  @media (min-width: 901px) and (pointer: fine) {
+    #mobile-controls { display: none; }
   }
   #joystick-zone {
     position: fixed; bottom: 90px; left: 20px;
@@ -171,6 +171,14 @@ const MOBILE_STYLES = `
     #action-bar { bottom: 170px !important; }
     .world-label { font-size: 10px !important; }
   }
+  /* Show mobile controls on desktop for testing */
+  @media (min-width: 901px) and (pointer: fine) {
+    #joystick-zone { display: block !important; }
+    #mobile-action-btns { display: grid !important; }
+    #mobile-menu-btns { display: flex !important; }
+    #mob-shortcut-toggle { display: flex !important; }
+    #mobile-chat-btn { display: flex !important; }
+  }
 `;
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
@@ -184,7 +192,6 @@ export function initMobileControls(
     onSkills: () => void;
     onMap: () => void;
     onChat: () => void;
-    onJoystickMove?: (dx: number, dy: number) => void;
   },
   onPinchZoom: (delta: number) => void,
   onCameraDrag: (dx: number, dy: number) => void
@@ -335,16 +342,12 @@ export function initMobileControls(
 
   joystickZone.addEventListener("touchstart", (e) => {
     e.preventDefault();
-    if (joystickTouchId !== null) return;
-    for (let i = 0; i < e.changedTouches.length; i++) {
-      const touch = e.changedTouches[i];
-      joystickTouchId = touch.identifier;
-      const rect = joystickZone.getBoundingClientRect();
-      joystickOriginX = rect.left + rect.width / 2;
-      joystickOriginY = rect.top + rect.height / 2;
-      joystickState.active = true;
-      break;
-    }
+    const touch = e.changedTouches[0];
+    joystickTouchId = touch.identifier;
+    const rect = joystickZone.getBoundingClientRect();
+    joystickOriginX = rect.left + rect.width / 2;
+    joystickOriginY = rect.top + rect.height / 2;
+    joystickState.active = true;
   }, { passive: false });
 
   joystickZone.addEventListener("touchmove", (e) => {
@@ -373,16 +376,8 @@ export function initMobileControls(
     joystickThumb.style.transform = "translate(-50%, -50%)";
   };
 
-  const handleJoystickEnd = (e: TouchEvent) => {
-    for (let i = 0; i < e.changedTouches.length; i++) {
-      if (e.changedTouches[i].identifier === joystickTouchId) {
-        resetJoystick();
-        break;
-      }
-    }
-  };
-  joystickZone.addEventListener("touchend", handleJoystickEnd, { passive: false });
-  joystickZone.addEventListener("touchcancel", handleJoystickEnd, { passive: false });
+  joystickZone.addEventListener("touchend", resetJoystick, { passive: false });
+  joystickZone.addEventListener("touchcancel", resetJoystick, { passive: false });
 
   // ── ACTION BUTTONS ──────────────────────────────────────────────────────────
   const addTouchBtn = (id: string, cb: () => void) => {
@@ -403,22 +398,6 @@ export function initMobileControls(
   addTouchBtn("mob-menu-skills", callbacks.onSkills);
   addTouchBtn("mob-menu-map", callbacks.onMap);
   addTouchBtn("mobile-chat-btn", callbacks.onChat);
-
-  // JOYSTICK MOVEMENT SENDER
-  let lastJoystickSend = 0;
-  const JOYSTICK_SEND_INTERVAL = 100;
-  
-  setInterval(() => {
-    if (joystickState.active && callbacks.onJoystickMove) {
-      const now = Date.now();
-      if (now - lastJoystickSend > JOYSTICK_SEND_INTERVAL) {
-        if (Math.abs(joystickState.dx) > 0.1 || Math.abs(joystickState.dy) > 0.1) {
-          callbacks.onJoystickMove(joystickState.dx, joystickState.dy);
-          lastJoystickSend = now;
-        }
-      }
-    }
-  }, 50);
 
   // ── SHORTCUT PANEL TOGGLE ────────────────────────────────────────────────────
   const shortcutToggle = document.getElementById("mob-shortcut-toggle")!;
@@ -477,33 +456,23 @@ export function initMobileControls(
     let pinchDist = 0;
     let pinchActive = false;
 
-
-    const isPointInRect = (x: number, y: number, rect?: DOMRect) => {
-      if (!rect) return false;
-      return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
-    };
-
     canvas.addEventListener("touchstart", (e) => {
       e.preventDefault();
-
       if (e.touches.length === 2) {
         // Pinch zoom
         pinchActive = true;
         cameraTouchId = null;
         const t1 = e.touches[0], t2 = e.touches[1];
         pinchDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-        return;
-      }
-
-      if (e.touches.length === 1) {
+      } else if (e.touches.length === 1) {
         const touch = e.touches[0];
         // Only start camera drag if touch is NOT in joystick zone or action buttons
         const joystickRect = joystickZone.getBoundingClientRect();
         const actionRect = document.getElementById("mobile-action-btns")?.getBoundingClientRect();
-
-        const inJoystick = isPointInRect(touch.clientX, touch.clientY, joystickRect);
-        const inActions = isPointInRect(touch.clientX, touch.clientY, actionRect);
-
+        const inJoystick = touch.clientX >= joystickRect.left && touch.clientX <= joystickRect.right
+                        && touch.clientY >= joystickRect.top && touch.clientY <= joystickRect.bottom;
+        const inActions = actionRect && touch.clientX >= actionRect.left && touch.clientX <= actionRect.right
+                       && touch.clientY >= actionRect.top && touch.clientY <= actionRect.bottom;
         if (!inJoystick && !inActions) {
           cameraTouchId = touch.identifier;
           lastCamX = touch.clientX;
@@ -514,17 +483,13 @@ export function initMobileControls(
 
     canvas.addEventListener("touchmove", (e) => {
       e.preventDefault();
-
       if (pinchActive && e.touches.length === 2) {
         const t1 = e.touches[0], t2 = e.touches[1];
         const newDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
         const delta = (pinchDist - newDist) * 0.05;
         onPinchZoom(delta);
         pinchDist = newDist;
-        return;
-      }
-
-      if (cameraTouchId !== null) {
+      } else if (cameraTouchId !== null) {
         for (let i = 0; i < e.changedTouches.length; i++) {
           const touch = e.changedTouches[i];
           if (touch.identifier !== cameraTouchId) continue;
@@ -546,4 +511,7 @@ export function initMobileControls(
       }
     }, { passive: false });
   }
+
+  // ── KEYBOARD FALLBACK for desktop testing ───────────────────────────────────
+  // (Already handled in websocketClient.ts)
 }

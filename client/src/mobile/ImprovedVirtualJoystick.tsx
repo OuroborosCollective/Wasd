@@ -106,6 +106,17 @@ export const ImprovedVirtualJoystick: React.FC<ImprovedVirtualJoystickProps> = (
   const knobRadius = size / 6;
 
   /**
+   * Update knob visual position
+   */
+  const updateKnobPosition = useCallback((input: JoystickInput) => {
+    const maxDistance = radius - knobRadius;
+    const distance = input.magnitude * maxDistance;
+    const x = Math.cos(input.angle) * distance;
+    const y = Math.sin(input.angle) * distance;
+    setKnobPosition({ x, y });
+  }, [radius, knobRadius]);
+
+  /**
    * Handle touch start
    */
   const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
@@ -134,7 +145,7 @@ export const ImprovedVirtualJoystick: React.FC<ImprovedVirtualJoystickProps> = (
     setCurrentInput(input);
     updateKnobPosition(input);
     onMove?.(input);
-  }, [radius, sensitivity, onMove, onStart]);
+  }, [radius, sensitivity, onMove, onStart, updateKnobPosition]);
 
   /**
    * Handle touch move
@@ -168,7 +179,7 @@ export const ImprovedVirtualJoystick: React.FC<ImprovedVirtualJoystickProps> = (
     if (input.magnitude > 0.8) {
       triggerHaptic('medium');
     }
-  }, [isDragging, radius, sensitivity, onMove]);
+  }, [isDragging, radius, sensitivity, onMove, updateKnobPosition]);
 
   /**
    * Handle touch end
@@ -180,17 +191,6 @@ export const ImprovedVirtualJoystick: React.FC<ImprovedVirtualJoystickProps> = (
     triggerHaptic('light');
     onEnd?.();
   }, [onEnd]);
-
-  /**
-   * Update knob visual position
-   */
-  const updateKnobPosition = (input: JoystickInput) => {
-    const maxDistance = radius - knobRadius;
-    const distance = input.magnitude * maxDistance;
-    const x = Math.cos(input.angle) * distance;
-    const y = Math.sin(input.angle) * distance;
-    setKnobPosition({ x, y });
-  };
 
   /**
    * Handle mouse events (for desktop testing)
@@ -214,7 +214,7 @@ export const ImprovedVirtualJoystick: React.FC<ImprovedVirtualJoystickProps> = (
     handleTouchStart(touchEvent as any);
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!isDragging) return;
     const touchEvent = new TouchEvent('touchmove', {
       touches: [
@@ -231,11 +231,11 @@ export const ImprovedVirtualJoystick: React.FC<ImprovedVirtualJoystickProps> = (
       ] as any
     });
     handleTouchMove(touchEvent as any);
-  };
+  }, [isDragging, handleTouchMove]);
 
-  const handleMouseUp = () => {
+  const handleMouseUp = useCallback(() => {
     handleTouchEnd();
-  };
+  }, [handleTouchEnd]);
 
   useEffect(() => {
     if (isDragging) {
@@ -246,7 +246,7 @@ export const ImprovedVirtualJoystick: React.FC<ImprovedVirtualJoystickProps> = (
         document.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [isDragging]);
+  }, [isDragging, handleMouseMove, handleMouseUp]);
 
   return (
     <div

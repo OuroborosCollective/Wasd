@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * InventorySlot Component
  * Displays a single inventory item with drag & drop support
@@ -12,6 +14,7 @@
  */
 
 import React, { useState, useRef } from 'react';
+import Image from 'next/image';
 import './InventorySlot.css';
 
 export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic';
@@ -215,7 +218,14 @@ export const InventorySlot: React.FC<InventorySlotProps> = ({
         <>
           {/* Item Icon */}
           <div className="slot-icon-container">
-            <img src={item.icon} alt={item.name} className="slot-icon" />
+            <Image 
+              src={item.icon} 
+              alt={item.name} 
+              className="slot-icon" 
+              width={48} 
+              height={48} 
+              referrerPolicy="no-referrer"
+            />
 
             {/* Rarity Border */}
             <div

@@ -1,14 +1,12 @@
-import { ItemRegistry } from "../inventory/ItemRegistry.js";
-import fs from "fs";
-import path from "path";
-
 export interface Recipe {
   id: string;
   name: string;
-  ingredients: { itemId: string; count: number }[];
-  result: { itemId: string; count: number };
+  skill?: string;
   requiredSkill?: string;
-  requiredLevel?: number;
+  requiredLevel: number;
+  ingredients: Array<{ id?: string; itemId?: string; amount?: number; count?: number }>;
+  result: { id?: string; itemId?: string; amount?: number; count?: number };
+  xp?: number;
   xpReward?: number;
   skillName?: string;
 }
@@ -16,102 +14,73 @@ export interface Recipe {
 export class CraftingSystem {
   private recipes: Map<string, Recipe> = new Map();
 
-  constructor() {
-  }
-
   async loadRecipes() {
-    try {
-      const recipesPath = path.resolve(process.cwd(), "game-data/crafting/recipes.json");
-      try {
-        const fileContent = await fs.promises.readFile(recipesPath, "utf-8");
-        const data = JSON.parse(fileContent);
-        if (Array.isArray(data)) {
-          data.forEach((r: Recipe) => this.recipes.set(r.id, r));
-        } else if (data.recipes) {
-          data.recipes.forEach((r: Recipe) => this.recipes.set(r.id, r));
-        }
-      } catch (err: any) {
-        if (err.code !== 'ENOENT') {
-          throw err;
-        }
-      }
-    } catch (e) {
-      console.error("Failed to load crafting recipes:", e);
-    }
-    if (this.recipes.size === 0) {
-      this.recipes.set("iron_sword_craft", {
-        id: "iron_sword_craft", name: "Craft Iron Sword",
-        ingredients: [{ itemId: "iron_scrap", count: 3 }],
-        result: { itemId: "iron_sword", count: 1 },
-        requiredSkill: "smithing", requiredLevel: 1, xpReward: 50, skillName: "smithing"
-      });
-      this.recipes.set("health_potion_craft", {
-        id: "health_potion_craft", name: "Brew Health Potion",
-        ingredients: [{ itemId: "herb_bundle", count: 2 }],
-        result: { itemId: "health_potion", count: 1 },
-        requiredSkill: "cooking", requiredLevel: 1, xpReward: 30, skillName: "cooking"
-      });
-    }
-  }
-
-  getRecipes(): Recipe[] {
-    return Array.from(this.recipes.values());
+    // No-op for now
   }
 
   addRecipe(recipe: Recipe) {
     this.recipes.set(recipe.id, recipe);
   }
 
-  canCraft(player: any, recipeId: string): { possible: boolean; reason?: string } {
+  getRecipes() {
+    return Array.from(this.recipes.values());
+  }
+
+  canCraft(player: any, recipeId: string) {
     const recipe = this.recipes.get(recipeId);
     if (!recipe) return { possible: false, reason: "Recipe not found" };
-    if (recipe.requiredSkill && recipe.requiredLevel) {
-      if (!player.skills || !player.skills[recipe.requiredSkill]) {
-        return { possible: false, reason: `Need ${recipe.requiredSkill} level ${recipe.requiredLevel}` };
-      }
-      const level = player.skills?.[recipe.requiredSkill]?.level ?? 1;
-      if (level < recipe.requiredLevel) {
-        return { possible: false, reason: `Need ${recipe.requiredSkill} level ${recipe.requiredLevel}` };
-      }
-    }
-    // Optimization: Use a frequency map for O(N) inventory check instead of O(I*N)
-    const inventory = player.inventory || [];
-    const itemCounts = new Map<string, number>();
-    for (const item of inventory) {
-      const id = item.id;
-      const current = itemCounts.get(id) || 0;
-      itemCounts.set(id, current + 1);
+
+    const skillName = recipe.skill || recipe.requiredSkill || recipe.skillName;
+    const playerLevel = player.skills?.[skillName as string]?.level ?? 0;
+    if (playerLevel < recipe.requiredLevel) {
+      return { possible: false, reason: "Skill level too low" };
     }
 
-    for (const ing of recipe.ingredients) {
-      const count = itemCounts.get(ing.itemId) || 0;
-      if (count < ing.count) {
-        const itemDef = ItemRegistry.getItem(ing.itemId);
-        return { possible: false, reason: `Need ${ing.count}x ${itemDef?.name || ing.itemId}` };
-      }
+    const hasIngredients = recipe.ingredients.every((ing: any) => {
+      const ingId = ing.id || ing.itemId;
+      const ingCount = ing.amount || ing.count || 1;
+      const count = player.inventory.filter((item: any) => item.id === ingId).length;
+      return count >= ingCount;
+    });
+
+    if (!hasIngredients) {
+      return { possible: false, reason: "Missing ingredients" };
     }
+
     return { possible: true };
   }
 
-  craft(player: any, recipeId: string): { success: boolean; item?: any; xp?: number; skillName?: string; reason?: string } {
-    const check = this.canCraft(player, recipeId);
-    if (!check.possible) return { success: false, reason: check.reason };
+  craft(player: any, recipeId: string) {
+    const canCraftResult = this.canCraft(player, recipeId);
+    if (!canCraftResult.possible) {
+      return { success: false, reason: canCraftResult.reason };
+    }
+
     const recipe = this.recipes.get(recipeId)!;
-    for (const ing of recipe.ingredients) {
-      for (let i = 0; i < ing.count; i++) {
-        const index = player.inventory.findIndex((item: any) => item.id === ing.itemId);
+    
+    // Consume ingredients
+    recipe.ingredients.forEach((ing: any) => {
+      const ingId = ing.id || ing.itemId;
+      const ingCount = ing.amount || ing.count || 1;
+      for (let i = 0; i < ingCount; i++) {
+        const index = player.inventory.findIndex((item: any) => item.id === ingId);
         if (index !== -1) player.inventory.splice(index, 1);
       }
+    });
+
+    // Add result
+    const resultId = recipe.result.id || recipe.result.itemId;
+    const resultCount = recipe.result.amount || recipe.result.count || 1;
+    for (let i = 0; i < resultCount; i++) {
+      player.inventory.push({ id: resultId });
     }
-    for (let i = 0; i < recipe.result.count; i++) {
-      const item = ItemRegistry.createInstance(recipe.result.itemId);
-      if (item) player.inventory.push(item);
-    }
+
     return {
       success: true,
-      item: ItemRegistry.getItem(recipe.result.itemId),
-      xp: recipe.xpReward || 10,
-      skillName: recipe.skillName || "crafting"
+      item: { id: resultId },
+      itemId: resultId,
+      amount: resultCount,
+      xp: recipe.xp || recipe.xpReward || 0
     };
   }
 }

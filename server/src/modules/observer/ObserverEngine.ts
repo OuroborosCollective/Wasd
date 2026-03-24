@@ -30,15 +30,9 @@ export class ObserverEngine {
       }
     }
     
-    // ⚡ Bolt Optimization: Use manual for...of iteration over Set to avoid Array.from() allocations,
-    // and manually parse IDs to bypass .split().map() array creations in the hot world tick path.
-    const result: Array<{ chunkX: number; chunkY: number; id: string }> = [];
-    for (const id of activeChunks) {
-      const splitIdx = id.indexOf(':');
-      const chunkX = parseInt(id.slice(0, splitIdx), 10);
-      const chunkY = parseInt(id.slice(splitIdx + 1), 10);
-      result.push({ chunkX, chunkY, id });
-    }
-    return result;
+    return Array.from(activeChunks).map(id => {
+      const [chunkX, chunkY] = id.split(':').map(Number);
+      return { chunkX, chunkY, id };
+    });
   }
 }

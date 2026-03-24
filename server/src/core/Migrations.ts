@@ -83,38 +83,6 @@ export async function runMigrations(): Promise<void> {
       )
     `);
 
-
-    // Player lands
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS player_lands (
-        id VARCHAR(36) PRIMARY KEY,
-        owner_id VARCHAR(255) NOT NULL,
-        owner_name VARCHAR(255),
-        name VARCHAR(255) DEFAULT 'My Land',
-        x FLOAT NOT NULL,
-        y FLOAT NOT NULL,
-        radius FLOAT DEFAULT 100,
-        claimed_at TIMESTAMPTZ DEFAULT NOW()
-      )
-    `);
-
-    // Land structures
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS land_structures (
-        id VARCHAR(36) PRIMARY KEY,
-        land_id VARCHAR(36) NOT NULL,
-        type VARCHAR(64) NOT NULL,
-        x FLOAT DEFAULT 0,
-        y FLOAT DEFAULT 0,
-        z FLOAT DEFAULT 0,
-        rot_y FLOAT DEFAULT 0,
-        scale FLOAT DEFAULT 1.0,
-        glb_path TEXT,
-        name VARCHAR(255),
-        placed_at TIMESTAMPTZ DEFAULT NOW()
-      )
-    `);
-
     // Land plots
     await db.query(`
       CREATE TABLE IF NOT EXISTS land_plots (
@@ -177,38 +145,6 @@ export async function runMigrations(): Promise<void> {
       )
     `);
 
-    // Asset Brain - Generated Assets (Tripo3D pipeline output)
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS generated_assets (
-        id VARCHAR(64) PRIMARY KEY,
-        asset_name VARCHAR(256) NOT NULL,
-        asset_class VARCHAR(64) NOT NULL,
-        style VARCHAR(64) NOT NULL,
-        glb_path VARCHAR(512),
-        glb_remote_url TEXT,
-        thumbnail_url TEXT,
-        spec_json JSONB,
-        tripo_task_id VARCHAR(128),
-        created_by VARCHAR(128),
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-    // Asset Brain - Spec records
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS asset_brain_specs (
-        id VARCHAR(64) PRIMARY KEY,
-        user_id VARCHAR(128) NOT NULL,
-        asset_name VARCHAR(256) NOT NULL,
-        asset_class VARCHAR(64) NOT NULL,
-        style VARCHAR(64) NOT NULL,
-        platform_targets JSONB DEFAULT '[]',
-        spec_json JSONB NOT NULL,
-        is_public BOOLEAN DEFAULT FALSE,
-        version INTEGER DEFAULT 1,
-        created_at TIMESTAMP DEFAULT NOW(),
-        updated_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
     console.log("✅ Database migrations completed successfully.");
   } catch (err) {
     console.error("Migration error (non-fatal):", err);

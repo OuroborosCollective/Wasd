@@ -24,19 +24,10 @@ export class LLMConnector {
     this.enabled = process.env.LLM_ENABLED === "true";
     this.model = process.env.LLM_MODEL || "gpt-4o-mini"; // Standardmodell
 
-    if (this.enabled && process.env.OPENAI_API_KEY) {
-      this.openai = new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY,
-      });
-      console.log(`[LLMConnector] OpenAI-Client initialisiert mit Modell: ${this.model}`);
-    } else if (this.enabled && process.env.GEMINI_API_KEY) {
-      // TODO: Implement Gemini API integration if needed
-      console.warn("[LLMConnector] Gemini API-Key gefunden, aber Integration noch nicht implementiert.");
-      this.enabled = false; // Deaktivieren, da nicht implementiert
-    } else {
-      this.enabled = false;
-      console.warn("[LLMConnector] LLM ist deaktiviert (LLM_ENABLED=false oder kein API-Key gefunden).");
-    }
+    // LLM standardmäßig deaktivieren, um API-Rate-Limits zu vermeiden
+    this.enabled = false;
+    console.warn("[LLMConnector] LLM wurde manuell deaktiviert, um API-Rate-Limits zu vermeiden.");
+    return;
   }
 
   /**

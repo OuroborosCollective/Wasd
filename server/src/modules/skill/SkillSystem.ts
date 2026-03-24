@@ -3,13 +3,11 @@ export interface SkillData {
   xp: number;
 }
 
-export const SKILL_NAMES = [
-  "combat", "woodcutting", "mining", "smithing",
-  "magic", "fishing", "cooking", "crafting",
-  "agility", "defense"
-] as const;
-
-export type SkillName = typeof SKILL_NAMES[number];
+const SKILL_NAMES = [
+  "mining", "woodcutting", "fishing", "combat", "magic", "archery",
+  "runecrafting", "agility", "herblore", "thieving", "slayer",
+  "farming", "smithing", "fletching"
+];
 
 export class SkillSystem {
   private readonly MAX_LEVEL = 99;
@@ -26,7 +24,7 @@ export class SkillSystem {
     return player.skills[skillName];
   }
 
-  addXP(player: any, skillName: string, amount: number): { skill: SkillData; leveledUp: boolean; totalLevel: number } {
+  addXP(player: any, skillName: string, amount: number) {
     const skill = this.ensureSkill(player, skillName);
     const oldLevel = skill.level;
     skill.xp += amount;
@@ -43,8 +41,7 @@ export class SkillSystem {
     return { skill, leveledUp, totalLevel: this.getTotalLevel(player) };
   }
 
-  nextLevelXP(level: number): number {
-    if (level >= this.MAX_LEVEL) return Infinity;
+  nextLevelXP(level: number) {
     return Math.floor(50 * Math.pow(level, 1.4));
   }
 

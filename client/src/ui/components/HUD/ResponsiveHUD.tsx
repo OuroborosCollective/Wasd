@@ -38,12 +38,25 @@ interface ResponsiveHUDProps {
  * Breakpoint Manager
  */
 const useBreakpoint = () => {
-  const [deviceType, setDeviceType] = useState<DeviceType>('desktop');
-  const [layout, setLayout] = useState<HUDLayout>('standard');
-  const [screenSize, setScreenSize] = useState({
+  const [screenSize, setScreenSize] = useState(() => ({
     width: typeof window !== 'undefined' ? window.innerWidth : 1024,
     height: typeof window !== 'undefined' ? window.innerHeight : 768
-  });
+  }));
+
+  const getDeviceType = (width: number): DeviceType => {
+    if (width < 480) return 'mobile';
+    if (width < 1024) return 'tablet';
+    return 'desktop';
+  };
+
+  const getLayout = (width: number): HUDLayout => {
+    if (width < 480) return 'compact';
+    if (width < 1024) return 'standard';
+    return 'expanded';
+  };
+
+  const [deviceType, setDeviceType] = useState<DeviceType>(() => getDeviceType(screenSize.width));
+  const [layout, setLayout] = useState<HUDLayout>(() => getLayout(screenSize.width));
 
   const updateBreakpoint = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -52,28 +65,11 @@ const useBreakpoint = () => {
     const height = window.innerHeight;
 
     setScreenSize({ width, height });
-
-    // Determine device type
-    let newDeviceType: DeviceType = 'desktop';
-    let newLayout: HUDLayout = 'standard';
-
-    if (width < 480) {
-      newDeviceType = 'mobile';
-      newLayout = 'compact';
-    } else if (width < 1024) {
-      newDeviceType = 'tablet';
-      newLayout = 'standard';
-    } else {
-      newDeviceType = 'desktop';
-      newLayout = 'expanded';
-    }
-
-    setDeviceType(newDeviceType);
-    setLayout(newLayout);
+    setDeviceType(getDeviceType(width));
+    setLayout(getLayout(width));
   }, []);
 
   useEffect(() => {
-    updateBreakpoint();
     window.addEventListener('resize', updateBreakpoint);
     return () => window.removeEventListener('resize', updateBreakpoint);
   }, [updateBreakpoint]);
@@ -358,24 +354,23 @@ export const ResponsiveHUD: React.FC<ResponsiveHUDProps> = ({
 }) => {
   const { deviceType, layout, screenSize } = useBreakpoint();
 
-  const defaultConfig: HUDConfig = {
-    showStats: true,
-    showInventory: true,
-    showQuests: true,
-    showChat: true,
-    showMap: true,
-    compactMode: deviceType === 'mobile',
-    position: 'top'
-  };
+  const config = useMemo(() => {
+    const defaultConfig: HUDConfig = {
+      showStats: true,
+      showInventory: true,
+      showQuests: true,
+      showChat: true,
+      showMap: true,
+      compactMode: deviceType === 'mobile',
+      position: 'top'
+    };
 
-  const config = useMemo(
-    () => ({
+    return {
       ...defaultConfig,
       ...userConfig,
       compactMode: deviceType === 'mobile'
-    }),
-    [userConfig, deviceType]
-  );
+    };
+  }, [userConfig, deviceType]);
 
   const renderLayout = () => {
     switch (deviceType) {

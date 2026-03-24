@@ -1,7 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { cache } from "../core/Cache.js";
+import { cache as rawCache } from "../core/Cache.js";
+const cache = rawCache!;
 
 describe("Cache Module", () => {
+  if (!rawCache) {
+    it("should skip cache tests if CACHE_URL is not defined", () => {
+      console.warn("Skipping cache tests: CACHE_URL not defined");
+    });
+    return;
+  }
+
   beforeEach(() => {
     vi.useFakeTimers();
   });

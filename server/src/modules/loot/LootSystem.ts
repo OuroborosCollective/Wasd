@@ -48,15 +48,6 @@ export class LootSystem {
     let gold = 0;
 
     for (const entry of dropTable) {
-      // Handle special "gold" item as currency amount
-      if (entry.itemId === "gold") {
-        const amount = entry.minCount
-          ? Math.floor(Math.random() * ((entry.maxCount || entry.minCount) - entry.minCount + 1)) + entry.minCount
-          : 1;
-        gold += amount;
-        continue;
-      }
-      
       if (Math.random() < entry.chance) {
         const count = entry.minCount
           ? Math.floor(Math.random() * ((entry.maxCount || entry.minCount) - entry.minCount + 1)) + entry.minCount

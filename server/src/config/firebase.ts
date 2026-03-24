@@ -1,73 +1,97 @@
-import admin from "firebase-admin";
-import { readFileSync, existsSync } from "fs";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
+import { initializeApp, cert, getApps, App } from 'firebase-admin/app';
+import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import { getAuth, Auth } from 'firebase-admin/auth';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = path.dirname(__filename);
 
-let firebaseApp: admin.app.App | null = null;
-let adminAuth: admin.auth.Auth | null = null;
-let adminDb: admin.database.Database | null = null;
+let app: App | null = null;
+let dbInstance: Firestore | null = null;
+let authInstance: Auth | null = null;
 
-// Try to initialize Firebase Admin SDK with service account
-const serviceAccountPaths = [
-  join(__dirname, "../../service-account.json"),
-  join(__dirname, "../../../service-account.json"),
-  join(process.cwd(), "service-account.json"),
-];
+// Load applet config for database ID
+let appletConfig: any = {};
+try {
+  const configPath = path.resolve(__dirname, '../../../firebase-applet-config.json');
+  if (fs.existsSync(configPath)) {
+    appletConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+  }
+} catch (e) {
+  console.warn('Could not load firebase-applet-config.json in server:', e);
+}
 
-for (const saPath of serviceAccountPaths) {
-  if (existsSync(saPath)) {
-    try {
-      const serviceAccount = JSON.parse(readFileSync(saPath, "utf-8"));
-      firebaseApp = admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        databaseURL: "https://innate-summit-490115-p5-default-rtdb.europe-west1.firebasedatabase.app/"
-      });
-      adminAuth = admin.auth(firebaseApp);
-      adminDb = admin.database(firebaseApp);
-      console.log(`✅ Firebase Admin SDK initialized (project: ${serviceAccount.project_id})`);
-      console.log(`🔗 Realtime Database connected: https://innate-summit-490115-p5-default-rtdb.europe-west1.firebasedatabase.app/`);
-      break;
-    } catch (err: any) {
-      console.warn(`Firebase Admin: Failed to init from ${saPath}: ${err.message}`);
-    }
+function getFirebaseApp(): App {
+  if (app) return app;
+
+  const existingApps = getApps();
+  if (existingApps.length > 0) {
+    app = existingApps[0];
+    return app;
+  }
+
+  const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (!serviceAccountKey) {
+    console.warn("FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not defined. Firebase Admin operations will be disabled.");
+    return null as any;
+  }
+
+  try {
+    const serviceAccount = JSON.parse(serviceAccountKey);
+    app = initializeApp({
+      credential: cert(serviceAccount)
+    });
+    return app;
+  } catch (error) {
+    console.error('Error initializing Firebase Admin:', error);
+    throw new Error(`Failed to initialize Firebase Admin: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
-if (!firebaseApp) {
-  console.log("Firebase Admin: No service account found, running without Firebase Admin SDK.");
-}
+export const getDb = (): Firestore | null => {
+  if (!dbInstance) {
+    const firebaseApp = getFirebaseApp();
+    if (!firebaseApp) return null;
+    // Use the specific database ID if provided in the applet config
+    if (appletConfig.firestoreDatabaseId) {
+      dbInstance = getFirestore(firebaseApp, appletConfig.firestoreDatabaseId);
+    } else {
+      dbInstance = getFirestore(firebaseApp);
+    }
+  }
+  return dbInstance;
+};
 
-/**
- * Verify a Firebase ID token and return the decoded token.
- * Falls back to returning the uid from the token payload if Admin SDK is not available.
- */
-export async function verifyFirebaseToken(idToken: string): Promise<{ uid: string; email?: string; name?: string } | null> {
-  if (adminAuth) {
-    try {
-      const decoded = await adminAuth.verifyIdToken(idToken);
-      return { uid: decoded.uid, email: decoded.email, name: decoded.name };
-    } catch (err: any) {
-      console.warn("Firebase token verification failed:", err.message);
+export const getAuthInstance = (): Auth | null => {
+  if (!authInstance) {
+    const firebaseApp = getFirebaseApp();
+    if (!firebaseApp) return null;
+    authInstance = getAuth(firebaseApp);
+  }
+  return authInstance;
+};
+
+// For backward compatibility if needed, but lazy getters are better
+export const db = new Proxy({} as Firestore, {
+  get: (_, prop) => (getDb() as any)[prop]
+});
+
+export const auth = new Proxy({} as Auth, {
+  get: (_, prop) => (getAuthInstance() as any)[prop]
+});
+
+export async function verifyFirebaseToken(token: string) {
+  try {
+    const auth = getAuthInstance();
+    if (!auth) {
+      console.warn('Firebase Auth is not initialized. Skipping token verification.');
       return null;
     }
+    return await auth.verifyIdToken(token);
+  } catch (error) {
+    console.error('Error verifying Firebase token:', error);
+    throw error;
   }
-
-  // Fallback: decode JWT payload without verification (dev mode only)
-  try {
-    const parts = idToken.split(".");
-    if (parts.length === 3) {
-      const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf-8"));
-      if (payload.user_id || payload.sub) {
-        return { uid: payload.user_id || payload.sub, email: payload.email, name: payload.name };
-      }
-    }
-  } catch (_) {}
-  return null;
 }
-
-export const db = adminDb;
-export const auth = adminAuth;
-export default firebaseApp;
