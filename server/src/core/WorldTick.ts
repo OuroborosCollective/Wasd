@@ -522,8 +522,26 @@ export class WorldTick {
     if (player.maxHealth === undefined) player.maxHealth = 100;
     if (player.gold === undefined) player.gold = 0;
     if (player.xp === undefined) player.xp = 0;
-    if (!player.role) player.role = player.name === "Admin" ? "admin" : "player";
-    
+    if (player.level === undefined) player.level = 1;
+    if (player.appearance === undefined) player.appearance = characterAssembly.generateNPCAppearance(player.gender || 'male', player.name); // Default appearance if none exists
+    // Ensure appearance object is fully hydrated with default values if partial
+    if (player.appearance) {
+      player.appearance = characterAssembly.validateAppearance(player.appearance);
+      // ⚡ Bolt Optimization: Pre-resolve character appearances to avoid O(N) map lookups and
+      // redundant object spreads in the hot broadcast loop (10Hz).
+      const paths = characterAssembly.resolveModelPaths(player.appearance);
+      player.resolvedAppearance = {
+        ...player.appearance,
+        characterModelUrl: paths.bodyUrl, // Full model URL
+        skinToneColor: paths.skinColor,
+        hairColor: paths.hairColor,
+        eyeColor: paths.eyeColor
+      };
+    } else {
+      player.resolvedAppearance = null;
+    }
+    if (!player.role) player.role = "player";
+
     if (player.inventory) {
       player.inventory = player.inventory.map((item: any) => ItemRegistry.hydrate(item));
     }
