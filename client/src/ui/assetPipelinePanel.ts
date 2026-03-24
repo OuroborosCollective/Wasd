@@ -101,7 +101,7 @@ function createPanel() {
         <span id="progress-pct" style="font-size:13px;color:#aaa;">0%</span>
       </div>
       <div style="background:#111;border-radius:4px;height:8px;overflow:hidden;">
-        <div id="progress-bar" style="height:100%;background:linear-gradient(90deg,#2a4aff,#7af);width:0%;transition:width 0.5s;border-radius:4px;"></div>
+        <div id="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="height:100%;background:linear-gradient(90deg,#2a4aff,#7af);width:0%;transition:width 0.5s;border-radius:4px;"></div>
       </div>
       <div id="progress-detail" style="font-size:11px;color:#556;margin-top:6px;"></div>
     </div>
@@ -248,6 +248,7 @@ function updateProgress(pct: number, status: string, label: string) {
   const statusInfo = STATUS_LABELS[status] ?? { color: '#aaa' };
 
   bar.style.width = `${pct}%`;
+  bar.setAttribute('aria-valuenow', pct.toString());
   bar.style.background = `linear-gradient(90deg, ${statusInfo.color}88, ${statusInfo.color})`;
   labelEl.textContent = label;
   labelEl.style.color = statusInfo.color;
