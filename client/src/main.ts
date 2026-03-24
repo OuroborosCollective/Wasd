@@ -29,6 +29,18 @@ console.log("Main script starting...");
 
 let gameInitialized = false;
 
+// ── Keyboard shortcuts ───────────────────────────────────────────────────
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    // Hide panels if they exist
+    const panels = ["inventory-panel", "skills-panel", "quests-panel", "map-panel", "dialogue-box"];
+    panels.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = "none";
+    });
+  }
+});
+
 try {
   renderAuthUI((token) => {
     console.log("Auth UI callback triggered with token:", !!token);

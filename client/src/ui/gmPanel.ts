@@ -643,6 +643,14 @@ export function toggleGMPanel() {
   panel.classList.toggle("open", panelOpen);
 }
 
+export function closeGMPanel() {
+  const panel = document.getElementById("gm-panel");
+  if (panel && panelOpen) {
+    panelOpen = false;
+    panel.classList.remove("open");
+  }
+}
+
 // ── GM FUNCTIONS (attached to window for onclick handlers) ────────────────────
 function registerGMFunctions() {
   const w = window as any;
