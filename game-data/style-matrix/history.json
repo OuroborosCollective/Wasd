@@ -1,0 +1,14 @@
+{
+  "ancient": {
+    "materialModifier": "faded"
+  },
+  "classical": {
+    "materialModifier": "matte"
+  },
+  "recent": {
+    "materialModifier": "vibrant"
+  },
+  "current": {
+    "materialModifier": "clean"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "desert": {
+    "palette": ["#E0C097", "#D4A373", "#B5835A"]
+  },
+  "forest": {
+    "palette": ["#3A5A40", "#588157", "#A3B18A"]
+  },
+  "swamp": {
+    "palette": ["#2C362A", "#1A2418", "#0B150A"]
+  },
+  "tundra": {
+    "palette": ["#D8F3DC", "#B7E4C7", "#95D5B2"]
+  }
+}

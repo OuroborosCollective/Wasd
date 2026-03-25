@@ -1,0 +1,17 @@
+{
+  "redfalcon": {
+    "decal": "emblem_redfalcon",
+    "accentColor": "#C1121F"
+  },
+  "sunorder": {
+    "decal": "emblem_sunorder",
+    "accentColor": "#FDF0D5"
+  },
+  "shadowregister": {
+    "decal": "runes_shadow",
+    "accentColor": "#7209B7"
+  },
+  "independent": {
+    "decal": null
+  }
+}

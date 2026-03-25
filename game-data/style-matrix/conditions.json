@@ -1,0 +1,22 @@
+{
+  "clean": {
+    "overlay": "none",
+    "meshVariant": "base"
+  },
+  "worn": {
+    "overlay": "dirt_light",
+    "meshVariant": "base"
+  },
+  "ruined": {
+    "overlay": "dirt_heavy",
+    "meshVariant": "broken"
+  },
+  "sacred": {
+    "overlay": "glow_aura",
+    "meshVariant": "base"
+  },
+  "militarized": {
+    "overlay": "none",
+    "meshVariant": "fortified"
+  }
+}
