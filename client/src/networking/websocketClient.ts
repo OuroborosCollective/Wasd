@@ -1,4 +1,4 @@
-import { updateWorldState, showFloatingTextAt } from "../engine/renderer";
+import { updateWorldState, showFloatingTextAt, setJoystickMoveCallback } from "../engine/renderer";
 import { showDialogue, updateHUD, updateCooldowns, renderInventoryPanel } from "../ui/hud";
 import { getClosestInteractable } from "../utils/interaction";
 import { updateAdminAssetModels, updateAdminAssetLinks } from "../ui/adminAssetPanel";
@@ -65,6 +65,115 @@ export function connectSocket(token?: string) {
   const ws = new WebSocket(wsUrl);
   globalWs = ws;
 
+  // Wire joystick movement to WebSocket (mobile controls)
+  setJoystickMoveCallback((dx: number, dy: number) => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: "move_intent",
+        dx,
+        dy
+      }));
+    }
+  });
+
+  // Setup mobile action buttons after WebSocket opens
+  const setupMobileActionButtons = () => {
+    const attackBtn = document.getElementById('mob-attack');
+    const interactBtn = document.getElementById('mob-interact');
+    const equipBtn = document.getElementById('mob-equip');
+    const questsBtn = document.getElementById('mob-quests');
+    const mapBtn = document.getElementById('mob-map');
+    const chatBtn = document.getElementById('mobile-chat-btn');
+
+    if (attackBtn) {
+      attackBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (Date.now() < cooldowns.attack) return;
+        if (latestState && latestState.npcs && latestState.players) {
+          const myPlayer = latestState.players.find((p: any) => p.id === myPlayerId);
+          if (myPlayer) {
+            let closestNpc = null;
+            let minDistance = Infinity;
+            for (const npc of latestState.npcs) {
+              const dist = Math.hypot(myPlayer.position.x - npc.position.x, myPlayer.position.y - npc.position.y);
+              if (dist < minDistance) {
+                minDistance = dist;
+                closestNpc = npc;
+              }
+            }
+            if (closestNpc && minDistance < 40) {
+              cooldowns.attack = Date.now() + CD_DURATIONS.attack;
+              ws.send(JSON.stringify({ type: "attack", targetId: closestNpc.id }));
+            }
+          }
+        }
+      });
+    }
+
+    if (interactBtn) {
+      interactBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (Date.now() < cooldowns.interact) return;
+        if (latestState && (latestState.npcs || latestState.loot) && latestState.players) {
+          const myPlayer = latestState.players.find((p: any) => p.id === myPlayerId);
+          if (myPlayer) {
+            const closestInteractable = getClosestInteractable(myPlayer, latestState);
+            if (closestInteractable) {
+              cooldowns.interact = Date.now() + CD_DURATIONS.interact;
+              ws.send(JSON.stringify({ type: "interact", targetId: closestInteractable.id }));
+            } else {
+              showDialogue("System", "No one is nearby to interact with.");
+            }
+          }
+        }
+      });
+    }
+
+    if (equipBtn) {
+      equipBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (Date.now() < cooldowns.equip) return;
+        if (latestState && latestState.players) {
+          const myPlayer = latestState.players.find((p: any) => p.id === myPlayerId);
+          if (myPlayer && myPlayer.inventory && myPlayer.inventory.length > 0) {
+            cooldowns.equip = Date.now() + CD_DURATIONS.equip;
+            ws.send(JSON.stringify({ type: "equip", itemId: myPlayer.inventory[0].id }));
+          }
+        }
+      });
+    }
+
+    if (questsBtn) {
+      questsBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const questsPanel = document.getElementById('quests-panel');
+        if (questsPanel) {
+          questsPanel.style.display = questsPanel.style.display === 'none' ? 'block' : 'none';
+        }
+      });
+    }
+
+    if (mapBtn) {
+      mapBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const mapPanel = document.getElementById('map-panel');
+        if (mapPanel) {
+          mapPanel.style.display = mapPanel.style.display === 'none' ? 'block' : 'none';
+        }
+      });
+    }
+
+    if (chatBtn) {
+      chatBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const chatPanel = document.getElementById('chat-panel');
+        if (chatPanel) {
+          chatPanel.style.display = chatPanel.style.display === 'none' ? 'block' : 'none';
+        }
+      });
+    }
+  };
+
   // Update cooldowns UI every frame
   const cdInterval = setInterval(() => {
     updateCooldowns(cooldowns);
@@ -82,6 +191,8 @@ export function connectSocket(token?: string) {
       if (data.type === "welcome") {
         myPlayerId = data.id;
         console.log("Logged in as:", myPlayerId);
+        // Setup mobile action buttons after login
+        setupMobileActionButtons();
         if (data.stats) {
           updateHUD({
             gold: data.stats.gold || 0,
