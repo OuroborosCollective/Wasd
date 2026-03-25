@@ -19,6 +19,22 @@ function getAdminToken() {
   return process.env.MCP_ADMIN_TOKEN || "areloria-admin-secret-dev-token";
 }
 
+/**
+ * Validates that a filepath is within the project's root directory.
+ * @param filepath The path to validate, relative to the project root.
+ * @returns The resolved absolute path.
+ * @throws Error if path traversal is detected.
+ */
+export function validatePath(filepath: string): string {
+  const p = path.resolve(process.cwd(), filepath);
+  // Ensure the resolved path is inside process.cwd()
+  const relative = path.relative(process.cwd(), p);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error(`Path traversal attempt detected: ${filepath}`);
+  }
+  return p;
+}
+
 // --- Define MCP Tools ---
 
 // 1. Read files
@@ -28,11 +44,11 @@ mcpServer.tool(
   { filepath: z.string().describe("Path to the file relative to project root") },
   async ({ filepath }) => {
     try {
-      const p = path.resolve(process.cwd(), filepath);
+      const p = validatePath(filepath);
       const data = await fs.readFile(p, "utf-8");
       return { content: [{ type: "text", text: data }] };
     } catch (e: any) {
-      return { isError: true, content: [{ type: "text", text: \`Error reading file: \${e.message}\` }] };
+      return { isError: true, content: [{ type: "text", text: `Error reading file: ${e.message}` }] };
     }
   }
 );
@@ -47,11 +63,11 @@ mcpServer.tool(
   },
   async ({ filepath, content }) => {
     try {
-      const p = path.resolve(process.cwd(), filepath);
+      const p = validatePath(filepath);
       await fs.writeFile(p, content, "utf-8");
-      return { content: [{ type: "text", text: \`Successfully wrote to \${filepath}\` }] };
+      return { content: [{ type: "text", text: `Successfully wrote to ${filepath}` }] };
     } catch (e: any) {
-      return { isError: true, content: [{ type: "text", text: \`Error writing file: \${e.message}\` }] };
+      return { isError: true, content: [{ type: "text", text: `Error writing file: ${e.message}` }] };
     }
   }
 );
@@ -64,10 +80,10 @@ mcpServer.tool(
   async ({ code }) => {
     try {
       // Very dangerous! For Admin MCPs only!
-      const result = await eval(\`(async () => { \${code} })()\`);
-      return { content: [{ type: "text", text: \`Eval success:\n\${JSON.stringify(result, null, 2)}\` }] };
+      const result = await eval(`(async () => { ${code} })()`);
+      return { content: [{ type: "text", text: `Eval success:\n${JSON.stringify(result, null, 2)}` }] };
     } catch (e: any) {
-      return { isError: true, content: [{ type: "text", text: \`Eval error: \${e.message}\n\${e.stack}\` }] };
+      return { isError: true, content: [{ type: "text", text: `Eval error: ${e.message}\n${e.stack}` }] };
     }
   }
 );
@@ -102,15 +118,15 @@ export function mcpRoute() {
   router.get("/sse", async (req, res) => {
     try {
       const sessionId = (req.query.sessionId as string) || Math.random().toString(36).substring(7);
-      console.log(\`[MCP Admin] Establishing SSE Connection. Session ID: \${sessionId}\`);
+      console.log(`[MCP Admin] Establishing SSE Connection. Session ID: ${sessionId}`);
 
-      const endpoint = \`/api/mcp/messages?sessionId=\${sessionId}\`;
+      const endpoint = `/api/mcp/messages?sessionId=${sessionId}`;
 
       const transport = new SSEServerTransport(endpoint, res as any);
       transports.set(sessionId, transport);
 
       res.on("close", () => {
-        console.log(\`[MCP Admin] Connection closed for session: \${sessionId}\`);
+        console.log(`[MCP Admin] Connection closed for session: ${sessionId}`);
         transports.delete(sessionId);
       });
 
