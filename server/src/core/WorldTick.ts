@@ -1316,8 +1316,15 @@ export class WorldTick {
 
     // 3. Tick global systems
     const allPlayers = this.playerSystem.getAllPlayers();
-    const onlinePlayers = allPlayers.filter(p => !p.isOffline);
-    const offlinePlayers = allPlayers.filter(p => p.isOffline);
+    const onlinePlayers = [];
+    const offlinePlayers = [];
+    for (const p of allPlayers) {
+      if (p.isOffline) {
+        offlinePlayers.push(p);
+      } else {
+        onlinePlayers.push(p);
+      }
+    }
 
     this.npcSystem.tick(onlinePlayers, this.worldSystem.worldTime);
     this.worldSystem.tick();
