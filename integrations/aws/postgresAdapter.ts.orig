@@ -18,10 +18,12 @@ export class PostgresAdapter {
         idleTimeoutMillis: 30000,
         connectionTimeoutMillis: 5000, // Return an error after 5 seconds if connection could not be established
       });
-      
+
       this.primaryPool.on('error', (err) => {
         console.error('Unexpected error on idle primary client', err);
       });
+
+      console.log('PostgreSQL Primary Pool initialized.');
     } else {
       console.warn('No DATABASE_URL provided. Primary DB disabled.');
     }
@@ -35,12 +37,16 @@ export class PostgresAdapter {
         idleTimeoutMillis: 30000,
         connectionTimeoutMillis: 5000,
       });
-      
+
       this.replicaPool.on('error', (err) => {
         console.error('Unexpected error on idle replica client', err);
       });
+
+      console.log('PostgreSQL Read Replica Pool initialized.');
     } else {
       console.warn('No DATABASE_URL_READ provided. Read queries will fall back to Primary.');
+      // Fallback to primary if no replica is configured
+      this.replicaPool = this.primaryPool;
     }
   }
 
@@ -53,12 +59,12 @@ export class PostgresAdapter {
     try {
       const result = await client.query(text, params);
       const duration = Date.now() - start;
-      
+
       // Analyze and log slow queries
       if (duration > SLOW_QUERY_THRESHOLD_MS) {
         console.warn(`[SLOW QUERY - ${type}] ${duration}ms: ${text}`);
       }
-      
+
       return result;
     } catch (error) {
       console.error(`[DB ERROR - ${type}] Query failed: ${text}`, error);
@@ -81,9 +87,8 @@ export class PostgresAdapter {
    * Falls back to primary if no replica is configured.
    */
   async queryRead(text: string, params?: any[]) {
-    const pool = this.replicaPool || this.primaryPool;
-    if (!pool) throw new Error('Read replica (or primary fallback) not connected.');
-    return this.profileQuery(pool, text, params, 'READ');
+    if (!this.replicaPool) throw new Error('Read replica (or primary fallback) not connected.');
+    return this.profileQuery(this.replicaPool, text, params, 'READ');
   }
 
   /**
@@ -96,7 +101,7 @@ export class PostgresAdapter {
 
   async close() {
     if (this.primaryPool) await this.primaryPool.end();
-    if (this.replicaPool) {
+    if (this.replicaPool && this.replicaPool !== this.primaryPool) {
       await this.replicaPool.end();
     }
   }
