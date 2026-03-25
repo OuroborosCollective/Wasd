@@ -85,7 +85,16 @@ export function addChatMessage(source: string, text: string) {
   
   const msgEl = document.createElement("div");
   msgEl.style.wordBreak = "break-word";
-  msgEl.innerHTML = `<span style="color: #00ccff; font-weight: bold;">${source}:</span> ${text}`;
+
+  const sourceSpan = document.createElement("span");
+  sourceSpan.style.color = "#00ccff";
+  sourceSpan.style.fontWeight = "bold";
+  sourceSpan.textContent = source + ":";
+
+  const textNode = document.createTextNode(" " + text);
+
+  msgEl.appendChild(sourceSpan);
+  msgEl.appendChild(textNode);
   
   chatLog.appendChild(msgEl);
   chatLog.scrollTop = chatLog.scrollHeight;
