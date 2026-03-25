@@ -56,22 +56,6 @@ mcpServer.tool(
   }
 );
 
-// 3. Eval Script (Execute arbitrary JS on the server)
-mcpServer.tool(
-  "eval_script",
-  "Execute arbitrary JS on the running server to inspect memory, state, or fix bugs on the fly. Dangerous. Use with caution.",
-  { code: z.string().describe("The javascript code to evaluate in the global context") },
-  async ({ code }) => {
-    try {
-      // Very dangerous! For Admin MCPs only!
-      const result = await eval(\`(async () => { \${code} })()\`);
-      return { content: [{ type: "text", text: \`Eval success:\n\${JSON.stringify(result, null, 2)}\` }] };
-    } catch (e: any) {
-      return { isError: true, content: [{ type: "text", text: \`Eval error: \${e.message}\n\${e.stack}\` }] };
-    }
-  }
-);
-
 // --- Express Route Setup ---
 
 export function mcpRoute() {
