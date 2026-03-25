@@ -56,7 +56,17 @@ export class CraftingSystem {
     const hasIngredients = recipe.ingredients.every((ing: any) => {
       const ingId = ing.id || ing.itemId;
       const ingCount = ing.amount || ing.count || 1;
-      const count = player.inventory.filter((item: any) => item.id === ingId).length;
+
+      let count = 0;
+      for (let i = 0; i < player.inventory.length; i++) {
+        if (player.inventory[i].id === ingId) {
+          count++;
+          if (count >= ingCount) {
+            break;
+          }
+        }
+      }
+
       return count >= ingCount;
     });
 
