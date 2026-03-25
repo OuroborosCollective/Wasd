@@ -54,7 +54,6 @@ export class WorldObjectSystem {
         for (const obj of firestoreObjects) {
           this.objects.set(obj.id, obj);
         }
-        console.log(`Loaded ${firestoreObjects.length} world objects from Firestore.`);
         return;
       }
     }
