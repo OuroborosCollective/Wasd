@@ -25,7 +25,7 @@ describe('Proximity Optimization', () => {
     npc.state = 'wandering';
     npc.position = { x: 0.5, y: 0.5, z: 0 };
     npc.targetPosition = { x: 0.6, y: 0.6 };
-    npc.stateTimer = 0; // Setze den Timer auf 0, damit er sofort abläuft
+    npc.stateTimer = Date.now() + 10000; // Setze den Timer weit in die Zukunft, um Wandering zu verhindern
 
     // Führe mehrere Ticks aus, um dem NPC Zeit zu geben, das Ziel zu erreichen
     // Da Pathfinding.findPath auf gerundeten Koordinaten arbeitet, kann es 1-2 Ticks dauern,

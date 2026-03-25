@@ -73,25 +73,29 @@ describe("Database Module", () => {
   });
 
   describe("testConnection", () => {
-    it("should return true when query succeeds", async () => {
-      poolInstance.query.mockResolvedValueOnce({ rows: [{ now: new Date() }] });
+    it("should return true when connect succeeds", async () => {
+      const mockClient = { release: vi.fn() };
+      poolInstance.connect.mockResolvedValueOnce(mockClient);
       const result = await testConnection();
       expect(result).toBe(true);
-      expect(poolInstance.query).toHaveBeenCalledWith("SELECT NOW()");
+      expect(poolInstance.connect).toHaveBeenCalled();
+      expect(mockClient.release).toHaveBeenCalled();
     });
 
-    it("should return false when query fails", async () => {
-      poolInstance.query.mockRejectedValueOnce(new Error("Connection failed"));
+    it("should return false when connect fails", async () => {
+      poolInstance.connect.mockRejectedValueOnce(new Error("Connection failed"));
       const result = await testConnection();
       expect(result).toBe(false);
     });
   });
 
   describe("DatabaseService.connect", () => {
-    it("should return true when testConnection succeeds", async () => {
-        poolInstance.query.mockResolvedValueOnce({ rows: [{ now: new Date() }] });
-        const result = await dbService.connect();
-        expect(result).toBe(true);
+    it("should call pool.connect and release client", async () => {
+        const mockClient = { release: vi.fn() };
+        poolInstance.connect.mockResolvedValueOnce(mockClient);
+        await dbService.connect();
+        expect(poolInstance.connect).toHaveBeenCalled();
+        expect(mockClient.release).toHaveBeenCalled();
     });
   });
 });
