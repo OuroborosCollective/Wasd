@@ -1,3 +1,20 @@
+export function getClosestNpc(player: any, npcs: any[], maxDistance: number = Infinity) {
+  let closestNpc = null;
+  let minDistance = Infinity;
+
+  if (npcs) {
+    for (const npc of npcs) {
+      const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestNpc = npc;
+      }
+    }
+  }
+
+  return minDistance < maxDistance ? closestNpc : null;
+}
+
 export function getClosestInteractable(player: any, state: any) {
   let closestInteractable = null;
   let minDistance = Infinity;
