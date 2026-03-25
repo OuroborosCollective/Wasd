@@ -2,7 +2,7 @@ export class CombatSystem {
   attack(attacker: any, defender: any) {
     if (attacker.stamina <= 0) return { success: false, reason: "no_stamina" };
 
-    attacker.stamina -= 10;
+    attacker.stamina -= 8;
 
     const hitChance = this.calculateHitChance(attacker, defender);
     if (Math.random() > hitChance) {
