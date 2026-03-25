@@ -3,8 +3,6 @@
  * Handles: Matrix Energy purchases, GLB Subscription, Marketplace transactions
  */
 
-import https from "https";
-
 const PAYPAL_BASE = process.env.PAYPAL_MODE === "live"
   ? "https://api-m.paypal.com"
   : "https://api-m.sandbox.paypal.com";
@@ -29,77 +27,53 @@ export const GLB_SUBSCRIPTION = {
 };
 
 // ── HTTP helper ───────────────────────────────────────────────────────────────
-function paypalRequest(method: string, path: string, body?: any, token?: string): Promise<any> {
-  return new Promise((resolve, reject) => {
-    const bodyStr = body ? JSON.stringify(body) : undefined;
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      "Accept": "application/json",
-    };
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    } else {
-      headers["Authorization"] = `Basic ${Buffer.from(`${CLIENT_ID}:${SECRET}`).toString("base64")}`;
-    }
-    if (bodyStr) headers["Content-Length"] = Buffer.byteLength(bodyStr).toString();
+async function paypalRequest(method: string, path: string, body?: any, token?: string): Promise<any> {
+  const bodyStr = body ? JSON.stringify(body) : undefined;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  } else {
+    headers["Authorization"] = `Basic ${Buffer.from(`${CLIENT_ID}:${SECRET}`).toString("base64")}`;
+  }
 
-    const url = new URL(PAYPAL_BASE + path);
-    const options = {
-      hostname: url.hostname,
-      path: url.pathname + url.search,
-      method,
-      headers,
-    };
-
-    const req = https.request(options, (res) => {
-      let data = "";
-      res.on("data", (chunk) => data += chunk);
-      res.on("end", () => {
-        try {
-          resolve(JSON.parse(data));
-        } catch {
-          resolve({ raw: data, statusCode: res.statusCode });
-        }
-      });
-    });
-    req.on("error", reject);
-    if (bodyStr) req.write(bodyStr);
-    req.end();
+  const res = await fetch(PAYPAL_BASE + path, {
+    method,
+    headers,
+    body: bodyStr,
   });
+
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { raw: text, statusCode: res.status };
+  }
 }
 
 // ── Get OAuth Token ───────────────────────────────────────────────────────────
 export async function getPayPalToken(): Promise<string> {
   const body = "grant_type=client_credentials";
-  return new Promise((resolve, reject) => {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/x-www-form-urlencoded",
-      "Authorization": `Basic ${Buffer.from(`${CLIENT_ID}:${SECRET}`).toString("base64")}`,
-      "Content-Length": Buffer.byteLength(body).toString(),
-    };
-    const url = new URL(PAYPAL_BASE + "/v1/oauth2/token");
-    const req = https.request({
-      hostname: url.hostname,
-      path: url.pathname,
-      method: "POST",
-      headers,
-    }, (res) => {
-      let data = "";
-      res.on("data", (chunk) => data += chunk);
-      res.on("end", () => {
-        try {
-          const parsed = JSON.parse(data);
-          if (parsed.access_token) resolve(parsed.access_token);
-          else reject(new Error("No access_token: " + data));
-        } catch (e) {
-          reject(e);
-        }
-      });
-    });
-    req.on("error", reject);
-    req.write(body);
-    req.end();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/x-www-form-urlencoded",
+    "Authorization": `Basic ${Buffer.from(`${CLIENT_ID}:${SECRET}`).toString("base64")}`,
+  };
+
+  const res = await fetch(PAYPAL_BASE + "/v1/oauth2/token", {
+    method: "POST",
+    headers,
+    body,
   });
+
+  const text = await res.text();
+  const parsed = JSON.parse(text);
+  if (parsed.access_token) {
+    return parsed.access_token;
+  } else {
+    throw new Error("No access_token: " + text);
+  }
 }
 
 // ── Create Order ──────────────────────────────────────────────────────────────

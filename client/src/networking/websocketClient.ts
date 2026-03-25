@@ -92,8 +92,8 @@ export function connectSocket(token?: string) {
         if (latestState && latestState.npcs && latestState.players) {
           const myPlayer = latestState.players.find((p: any) => p.id === myPlayerId);
           if (myPlayer) {
-            const { closestNpc, minDistance } = getClosestNpc(myPlayer, latestState.npcs);
-            if (closestNpc && minDistance < 40) {
+            const closestNpc = getClosestNpc(myPlayer, latestState.npcs, 40);
+            if (closestNpc) {
               cooldowns.attack = Date.now() + CD_DURATIONS.attack;
               ws.send(JSON.stringify({ type: "attack", targetId: closestNpc.id }));
             }
@@ -274,9 +274,9 @@ export function connectSocket(token?: string) {
       if (latestState && latestState.npcs && latestState.players) {
         const myPlayer = latestState.players.find((p: any) => p.id === myPlayerId);
         if (myPlayer) {
-          const { closestNpc, minDistance } = getClosestNpc(myPlayer, latestState.npcs);
+          const closestNpc = getClosestNpc(myPlayer, latestState.npcs, 40);
           
-          if (closestNpc && minDistance < 40) {
+          if (closestNpc) {
             cooldowns.attack = Date.now() + CD_DURATIONS.attack;
             ws.send(JSON.stringify({
               type: "attack",
