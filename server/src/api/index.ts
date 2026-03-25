@@ -9,7 +9,10 @@ import { authRoute } from "./authRoute.js";
 import { mailRoute } from "./mailRoute.js";
 import { auctionRoute } from "./auctionRoute.js";
 
+import { mcpRoute } from "./mcpRoute.js";
+
 export const ApiRoutes = [
+  mcpRoute(),
   healthRoute(),
   playerRoutes(),
   worldRoutes(),

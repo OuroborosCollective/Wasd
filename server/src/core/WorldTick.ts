@@ -64,9 +64,9 @@ export class WorldTick {
     };
 
     this.ws.onPlayerDisconnect = async (id) => {
-      const charName = this.socketToPlayer.get(id);
-      if (charName) {
-        const player = this.playerSystem.getPlayer(charName);
+      const uid = this.socketToPlayer.get(id);
+      if (uid) {
+        const player = this.playerSystem.getPlayer(uid);
         if (player) {
           player.isOffline = true;
           player.state = "idle";
@@ -75,53 +75,68 @@ export class WorldTick {
         this.observerEngine.unregister(id);
         this.socketToPlayer.delete(id);
         await this.saveAll();
-        console.log(`Player ${charName} (Socket ${id}) disconnected. Character remains in world.`);
+        console.log(`Player ${player.name} (Socket ${id}) disconnected. Character remains in world.`);
       }
     };
 
     this.ws.onPlayerMessage = async (id, msg) => {
       if (msg.type === "login") {
-        let charName = msg.name || `Guest_${id.substring(0, 4)}`;
-        
-        // Verify token if provided
-        if (msg.token) {
-          try {
-            const decodedToken = await verifyFirebaseToken(msg.token);
-            if (decodedToken) {
-              // Use display name or email prefix as character name
-              charName = decodedToken.name || decodedToken.email?.split('@')[0] || charName;
-              console.log(`Verified player ${charName} with UID ${decodedToken.uid}`);
-            } else {
-              console.warn("Token verification skipped (Firebase not initialized)");
-            }
-          } catch (e) {
-            console.error("Token verification failed:", e);
-            this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed" });
-            return;
-          }
+        if (!msg.token) {
+          this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed: No token provided" });
+          // Disconnect unauthorized user
+          setTimeout(() => {
+            const client = Array.from(this.ws['wss'].clients).find(c => c.id === id);
+            if (client) client.close();
+          }, 500);
+          return;
         }
 
-        let player = this.playerSystem.getPlayer(charName);
+        let charName = "Unknown";
+        let uid = "";
+        
+        try {
+          const decodedToken = await verifyFirebaseToken(msg.token);
+          if (decodedToken) {
+            uid = decodedToken.uid;
+            charName = decodedToken.name || decodedToken.email?.split('@')[0] || `Player_${uid.substring(0,6)}`;
+            console.log(`Verified player ${charName} with UID ${uid}`);
+          } else {
+            // If Firebase is not initialized, we reject in production but might need to fallback in dev.
+            // For real auth, we must reject if we can't verify.
+            console.error("Firebase not initialized. Cannot verify token.");
+            this.ws.sendToPlayer(id, { type: "error", message: "Authentication service unavailable" });
+            return;
+          }
+        } catch (e) {
+          console.error("Token verification failed:", e);
+          this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed: Invalid token" });
+          return;
+        }
+
+        let player = this.playerSystem.getPlayer(uid); // Use UID as the persistent player ID
         
         if (player) {
           if (player.isOffline) {
             player.isOffline = false;
-            console.log(`Player ${charName} re-possessed their character.`);
+            console.log(`Player ${charName} (UID: ${uid}) re-possessed their character.`);
           } else {
             // Kick old session if already logged in? 
             // For now just allow it or handle as duplicate
           }
         } else {
-          player = this.playerSystem.createPlayer(charName, charName, msg.class, msg.appearance);
+          player = this.playerSystem.createPlayer(uid, charName, msg.class, msg.appearance);
           this.hydratePlayer(player);
         }
         
-        this.socketToPlayer.set(id, charName);
+        // Ensure their display name is up-to-date with Firebase
+        if (player.name !== charName) player.name = charName;
+
+        this.socketToPlayer.set(id, uid); // use UID instead of charName
         this.observerEngine.register(id, { x: player.position.x, y: player.position.y });
         
         this.ws.sendToPlayer(id, {
           type: "welcome",
-          id: charName,
+          id: uid, // Use UID here for frontend as well
           stats: {
             gold: player.gold,
             xp: player.xp,
@@ -135,10 +150,10 @@ export class WorldTick {
         return;
       }
 
-      const charName = this.socketToPlayer.get(id);
-      if (!charName) return;
+      const playerId = this.socketToPlayer.get(id);
+      if (!playerId) return;
 
-      const player = this.playerSystem.getPlayer(charName);
+      const player = this.playerSystem.getPlayer(playerId);
       if (!player) return;
 
       const now = Date.now();
@@ -152,9 +167,14 @@ export class WorldTick {
       if (msg.type === "move_intent") {
         // Server-authoritative movement calculation
         const speed = 5;
-        // Clamp intent to prevent speed hacking
-        const dx = Math.max(-1, Math.min(1, Number(msg.dx) || 0));
-        const dy = Math.max(-1, Math.min(1, Number(msg.dy) || 0));
+        let dx = Number(msg.dx) || 0;
+        let dy = Number(msg.dy) || 0;
+        const magSq = dx * dx + dy * dy;
+        if (magSq > 1) {
+          const mag = Math.sqrt(magSq);
+          dx /= mag;
+          dy /= mag;
+        }
         
         if (!isNaN(dx) && !isNaN(dy)) {
           player.position.x += dx * speed;
@@ -445,9 +465,9 @@ export class WorldTick {
       return this.handleLogin(id, msg);
     }
 
-    const charName = this.socketToPlayer.get(id);
-    if (!charName) return;
-    const player = this.playerSystem.getPlayer(charName);
+    const playerId = this.socketToPlayer.get(id);
+    if (!playerId) return;
+    const player = this.playerSystem.getPlayer(playerId);
     if (!player) return;
 
     switch (msg.type) {
@@ -470,12 +490,12 @@ export class WorldTick {
         this.handleDialogueChoice(id, player, msg);
         break;
       case "equip":
-        if (!this.checkCooldown(charName, "equip", 500)) return;
+        if (!this.checkCooldown(playerId, "equip", 500)) return;
         this.inventorySystem.equipItem(player, msg.itemId);
         this.debouncedSave();
         break;
       case "unequip":
-        if (!this.checkCooldown(charName, "equip", 500)) return;
+        if (!this.checkCooldown(playerId, "equip", 500)) return;
         this.inventorySystem.unequipItem(player, msg.slot);
         this.debouncedSave();
         break;
@@ -797,8 +817,14 @@ export class WorldTick {
 
   private handleMoveIntent(id: string, player: any, msg: any) {
     const speed = 5;
-    const dx = Math.max(-1, Math.min(1, Number(msg.dx) || 0));
-    const dy = Math.max(-1, Math.min(1, Number(msg.dy) || 0));
+    let dx = Number(msg.dx) || 0;
+    let dy = Number(msg.dy) || 0;
+    const magSq = dx * dx + dy * dy;
+    if (magSq > 1) {
+      const mag = Math.sqrt(magSq);
+      dx /= mag;
+      dy /= mag;
+    }
     if (!isNaN(dx) && !isNaN(dy)) {
       player.position.x += dx * speed;
       player.position.y += dy * speed;
@@ -807,8 +833,8 @@ export class WorldTick {
   }
 
   private handleAttack(id: string, player: any, msg: any) {
-    const charName = this.socketToPlayer.get(id)!;
-    if (!this.checkCooldown(charName, "attack", 800)) return;
+    const playerId = this.socketToPlayer.get(id)!;
+    if (!this.checkCooldown(playerId, "attack", 800)) return;
 
     const targetId = msg.targetId;
     const npc = this.npcSystem.getNPC(targetId);
@@ -901,8 +927,8 @@ export class WorldTick {
   }
 
   private handleInteract(id: string, player: any, msg: any) {
-    const charName = this.socketToPlayer.get(id)!;
-    if (!this.checkCooldown(charName, "interact", 500)) return;
+    const playerId = this.socketToPlayer.get(id)!;
+    if (!this.checkCooldown(playerId, "interact", 500)) return;
 
     const targetId = msg.targetId;
     const npc = this.npcSystem.getNPC(targetId);
@@ -1065,8 +1091,8 @@ export class WorldTick {
   }
 
   private handleChat(id: string, player: any, msg: any) {
-    const charName = this.socketToPlayer.get(id)!;
-    const chatMsg = this.chatSystem.sendMessage(charName, player.name, msg.channel || "global", msg.text);
+    const playerId = this.socketToPlayer.get(id)!;
+    const chatMsg = this.chatSystem.sendMessage(playerId, player.name, msg.channel || "global", msg.text);
     if (chatMsg) {
       this.ws.broadcast({ type: "chat_message", ...chatMsg });
     }
@@ -1162,13 +1188,25 @@ export class WorldTick {
       console.error("❌ Firestore connection failed. Please check your configuration.");
     }
 
-    // Load persisted data
+    // Load persisted player data
     const savedData = await this.persistence.load();
-    for (const name in savedData) {
-      const player = savedData[name];
-      if (!player.id) player.id = name;
+    for (const id in savedData) {
+      const player = savedData[id];
+      if (!player.id) player.id = id;
       this.hydratePlayer(player);
-      this.playerSystem.setPlayer(name, player);
+      this.playerSystem.setPlayer(id, player); // ID is now the key
+    }
+
+    // Load persisted world objects
+    if (this.worldSystem.objectSystem) {
+      const savedWorldObjects = await this.persistence.loadWorldObjects();
+      if (savedWorldObjects && savedWorldObjects.length > 0) {
+        for (const obj of savedWorldObjects) {
+          // ensure type compatibility
+          this.worldSystem.objectSystem.objectsMap.set(obj.id, obj);
+        }
+        console.log(`Loaded ${savedWorldObjects.length} world objects from Firestore`);
+      }
     }
 
     // Load Spawns
@@ -1187,6 +1225,14 @@ export class WorldTick {
       }
     }
     await this.persistence.save(data);
+
+    // Save world objects as well
+    if (this.worldSystem.objectSystem) {
+      const allObjects = this.worldSystem.objectSystem.getAllObjects();
+      if (allObjects.length > 0) {
+        await this.persistence.saveWorldObjects(allObjects);
+      }
+    }
   }
 
   private hydratePlayer(player: any) {
@@ -1305,8 +1351,15 @@ export class WorldTick {
 
     // 3. Tick global systems
     const allPlayers = this.playerSystem.getAllPlayers();
-    const onlinePlayers = allPlayers.filter(p => !p.isOffline);
-    const offlinePlayers = allPlayers.filter(p => p.isOffline);
+    const onlinePlayers = [];
+    const offlinePlayers = [];
+    for (const p of allPlayers) {
+      if (p.isOffline) {
+        offlinePlayers.push(p);
+      } else {
+        onlinePlayers.push(p);
+      }
+    }
 
     this.npcSystem.tick(onlinePlayers, this.worldSystem.worldTime);
     this.worldSystem.tick();
@@ -1361,6 +1414,11 @@ export class WorldTick {
       let glbPath = obj.glbPath || this.glbRegistry.getModelForTarget("object_group", obj.type);
       return { ...obj, glbPath };
     });
+
+    // Periodic save every minute
+    if (this.tickCount % 600 === 0) {
+      this.saveAll().catch(e => console.error("Periodic save failed:", e));
+    }
 
     this.ws.broadcast({
       type: "world_tick",

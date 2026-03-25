@@ -36,7 +36,7 @@ describe("CraftingSystem", () => {
   beforeEach(async () => {
     // Delete the mock benchmark file so we fallback to the default recipes that the tests expect.
     try {
-      fs.unlinkSync(path.resolve(process.cwd(), "game-data/crafting/recipes.json"));
+      //
 
     } catch(e) {}
     crafting = new CraftingSystem();
