@@ -217,20 +217,33 @@ export class AssetBrainAnalytics {
       const events = Array.from(this.metricsBuffer.values());
       
       // Insert into analytics table (would need to create this table)
-      for (const event of events) {
-        await this.db.query(
-          `INSERT INTO asset_generation_events (user_id, asset_id, asset_class, generation_time, model_size, success, timestamp)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [
+      const BATCH_SIZE = 1000;
+      for (let i = 0; i < events.length; i += BATCH_SIZE) {
+        const batch = events.slice(i, i + BATCH_SIZE);
+
+        const values = [];
+        const placeholders = [];
+
+        batch.forEach((event, index) => {
+          const offset = index * 7;
+          placeholders.push(`(${offset + 1}, ${offset + 2}, ${offset + 3}, ${offset + 4}, ${offset + 5}, ${offset + 6}, ${offset + 7})`);
+          values.push(
             event.userId,
             event.assetId,
             event.assetClass,
             event.generationTime,
             event.modelSize,
             event.success,
-            event.timestamp,
-          ]
-        ).catch(() => {
+            event.timestamp
+          );
+        });
+
+        const query = `
+          INSERT INTO asset_generation_events (user_id, asset_id, asset_class, generation_time, model_size, success, timestamp)
+          VALUES ${placeholders.join(', ')}
+        `;
+
+        await this.db.query(query, values).catch(() => {
           // Table might not exist yet
         });
       }
