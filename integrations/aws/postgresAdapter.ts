@@ -22,8 +22,6 @@ export class PostgresAdapter {
       this.primaryPool.on('error', (err) => {
         console.error('Unexpected error on idle primary client', err);
       });
-      
-      console.log('PostgreSQL Primary Pool initialized.');
     } else {
       console.warn('No DATABASE_URL provided. Primary DB disabled.');
     }
@@ -41,8 +39,6 @@ export class PostgresAdapter {
       this.replicaPool.on('error', (err) => {
         console.error('Unexpected error on idle replica client', err);
       });
-      
-      console.log('PostgreSQL Read Replica Pool initialized.');
     } else {
       console.warn('No DATABASE_URL_READ provided. Read queries will fall back to Primary.');
       // Fallback to primary if no replica is configured
