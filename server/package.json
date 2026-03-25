@@ -11,6 +11,7 @@
     "migrate": "node-pg-migrate"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "express": "^4.21.0",
     "firebase-admin": "^13.0.0",
     "node-pg-migrate": "^8.0.4",
