@@ -12,6 +12,4 @@ if (cache) {
   cache.on('connect', () => {
     console.log('Connected to Valkey/Redis Cache');
   });
-} else {
-  console.log('CACHE_URL not defined. Caching is disabled (this is normal if no Redis/Valkey is configured).');
 }
