@@ -1,3 +1,5 @@
+import { Item } from '../types/item';
+
 export const inventoryState = {
-  items: [] as any[]
+  items: [] as Item[]
 };
