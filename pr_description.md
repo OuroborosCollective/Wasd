@@ -1,0 +1,3 @@
+🎯 **What:** The XSS vulnerability in `addChatMessage` caused by using `innerHTML` with unsanitized `source` and `text` variables has been fixed.
+⚠️ **Risk:** Left unfixed, an attacker could inject arbitrary malicious scripts (e.g., `<script>alert(1)</script>`) via their username or chat messages, compromising other players' sessions, stealing credentials, or performing unauthorized actions.
+🛡️ **Solution:** Replaced `innerHTML` assignment with safe DOM API methods (`document.createElement`, `textContent`, and `document.createTextNode`). This ensures that user input is treated purely as text and properly escaped by the browser, rendering any HTML tags harmless.
