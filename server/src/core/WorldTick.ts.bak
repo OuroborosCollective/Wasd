@@ -21,7 +21,7 @@ import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 export class WorldTick {
   private timer: NodeJS.Timeout | null = null;
   private tickCount = 0;
-  
+
   public chunkSystem: ChunkSystem;
   public observerEngine: ObserverEngine;
   public playerSystem: PlayerSystem;
@@ -93,7 +93,7 @@ export class WorldTick {
 
         let charName = "Unknown";
         let uid = "";
-        
+
         try {
           const decodedToken = await verifyFirebaseToken(msg.token);
           if (decodedToken) {
@@ -114,26 +114,26 @@ export class WorldTick {
         }
 
         let player = this.playerSystem.getPlayer(uid); // Use UID as the persistent player ID
-        
+
         if (player) {
           if (player.isOffline) {
             player.isOffline = false;
             console.log(`Player ${charName} (UID: ${uid}) re-possessed their character.`);
           } else {
-            // Kick old session if already logged in? 
+            // Kick old session if already logged in?
             // For now just allow it or handle as duplicate
           }
         } else {
           player = this.playerSystem.createPlayer(uid, charName, msg.class, msg.appearance);
           this.hydratePlayer(player);
         }
-        
+
         // Ensure their display name is up-to-date with Firebase
         if (player.name !== charName) player.name = charName;
 
         this.socketToPlayer.set(id, uid); // use UID instead of charName
         this.observerEngine.register(id, { x: player.position.x, y: player.position.y });
-        
+
         this.ws.sendToPlayer(id, {
           type: "welcome",
           id: uid, // Use UID here for frontend as well
@@ -145,7 +145,7 @@ export class WorldTick {
             quests: player.quests
           }
         });
-        
+
         console.log(`Player ${charName} logged in on socket ${id}`);
         return;
       }
@@ -175,7 +175,7 @@ export class WorldTick {
           dx /= mag;
           dy /= mag;
         }
-        
+
         if (!isNaN(dx) && !isNaN(dy)) {
           player.position.x += dx * speed;
           player.position.y += dy * speed;
@@ -287,11 +287,11 @@ export class WorldTick {
                 weaponName = itemDef.name;
               }
             }
-            
+
             const totalDamage = baseDamage + weaponDamage;
-            
+
             npc.health -= totalDamage;
-            
+
             this.ws.broadcast({
               type: "combat_feedback",
               targetId,
@@ -344,7 +344,7 @@ export class WorldTick {
           if (dist < 20) {
             // ... NPC interaction logic ...
             const interaction = this.npcSystem.handleInteraction(
-              targetId, 
+              targetId,
               player,
               this.questSystem.getQuestDefinitions()
             );
@@ -1318,11 +1318,11 @@ export class WorldTick {
       // Note: dummy_player is not a socket, so we don't update observer by socket ID here
       // But for simplicity in this demo we'll just leave it
     }
-    
+
     // 1. Update active chunks based on observers
     const observedChunks = this.observerEngine.getObservedChunks();
     const observedChunkIds = new Set(observedChunks.map(c => c.id));
-    
+
     // Deactivate all chunks first
     const allActive = this.chunkSystem.getActiveChunks();
     for (const chunk of allActive) {
@@ -1330,7 +1330,7 @@ export class WorldTick {
         this.chunkSystem.setChunkActive(chunk.id, false);
       }
     }
-    
+
     for (const chunkInfo of observedChunks) {
       this.chunkSystem.getChunk(chunkInfo.chunkX, chunkInfo.chunkY); // Ensure it exists
       this.chunkSystem.setChunkActive(chunkInfo.id, true);
@@ -1367,7 +1367,7 @@ export class WorldTick {
     // 3.1 Process Offline Player Heuristic (Simulate life)
     for (const p of offlinePlayers) {
       if (p.id === "dummy_player") continue;
-      
+
       const now = Date.now();
       if (p.targetPosition) {
         const dx = p.targetPosition.x - p.position.x;
@@ -1396,7 +1396,7 @@ export class WorldTick {
 
     // 4. Broadcast state to clients
     // We need to broadcast to each socket only what they can see, but for now global broadcast
-    
+
     const npcsWithGlb = this.npcSystem.getAllNPCs().map(npc => {
       let glbPath = this.glbRegistry.getModelForTarget("npc_single", npc.id);
       if (!glbPath) glbPath = this.glbRegistry.getModelForTarget("npc_group", npc.role);
@@ -1431,6 +1431,6 @@ export class WorldTick {
       worldObjects: worldObjectsWithGlb
     });
 
-
+    }
   }
 }
