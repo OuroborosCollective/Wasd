@@ -44,3 +44,5 @@ wird prozedural erzeugt und über Beobachterzonen simuliert.
 - Weltwunder und Schattenregisterportal
 - GM-Editor
 - GLB-Asset-Pipeline
+## Art & Assets
+- See [Procedural Style Matrix](./PROCEDURAL_STYLE_MATRIX.md) for lightweight, data-driven visual styling rules.
