@@ -25,7 +25,7 @@ describe("CombatSystem", () => {
     expect(combat.attack(attacker, defender).success).toBe(false);
   });
 
-  it("attack() deducts 8 stamina on a successful attempt", () => {
+  it("attack() deducts 10 stamina on a successful attempt", () => {
     // Force hit by mocking Math.random to return 0 (always hits)
     vi.spyOn(Math, "random").mockReturnValue(0);
     const attacker = { stamina: 50, skills: { combat: { level: 5 } } };

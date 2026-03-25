@@ -1,9 +1,0 @@
-The reviewer claims that the migrate() method has zero arguments based on the initial issue description snippet. However, looking at the actual source code of `server/src/modules/migration/MigrationEngine.ts`, the implementation is:
-```typescript
-export class MigrationEngine {
-  migrate(groupId: string, from: string, to: string) {
-    return { groupId, from, to, departedAt: Date.now() };
-  }
-}
-```
-Thus, the tests I wrote with 3 arguments are correct, and checking `departedAt` is also correct. The tests pass locally and compile correctly via tsc.
