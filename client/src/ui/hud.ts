@@ -47,10 +47,10 @@ export function renderHUD() {
     <div style="font-size: 0.8em; margin-top: 10px; opacity: 0.7; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px;">
       WASD: Move | E: Interact | F: Attack | G: Equip | H: Unequip
     </div>
-    <div id="chat-log" style="margin-top: 10px; max-height: 120px; overflow-y: auto; font-size: 0.9em; display: flex; flex-direction: column; gap: 4px; background: rgba(0,0,0,0.3); padding: 5px; border-radius: 4px;"></div>
+    <div id="chat-log" role="log" aria-live="polite" aria-atomic="false" style="margin-top: 10px; max-height: 120px; overflow-y: auto; font-size: 0.9em; display: flex; flex-direction: column; gap: 4px; background: rgba(0,0,0,0.3); padding: 5px; border-radius: 4px;"></div>
     <div style="margin-top: 8px; display: flex; gap: 6px;">
-      <input type="text" id="chat-input" placeholder="Type /build..." style="flex: 1; padding: 10px; background: #222; color: #fff; border: 1px solid #555; border-radius: 6px; font-size: 16px;" />
-      <button id="chat-send" style="padding: 10px 15px; background: #008800; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Send</button>
+      <input type="text" id="chat-input" aria-label="Chat message input" placeholder="Type /build..." style="flex: 1; padding: 10px; background: #222; color: #fff; border: 1px solid #555; border-radius: 6px; font-size: 16px;" />
+      <button id="chat-send" aria-label="Send chat message" style="padding: 10px 15px; background: #008800; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Send</button>
     </div>
     <button id="btn-admin-assets" style="margin-top: 12px; background: #444; color: white; border: 1px solid #666; padding: 12px; border-radius: 8px; cursor: pointer; display: none; font-weight: bold; width: 100%;">Admin Asset Manager</button>
   `;
