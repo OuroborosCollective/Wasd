@@ -4,6 +4,7 @@ import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { WorldTick } from "./WorldTick.js";
 import path from "path";
 import { fileURLToPath } from "url";
+import { mcpRoute } from "../api/mcpRoute.js";
 import migrationRoute from "../api/migrationRoute.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -15,6 +16,9 @@ export class ServerBootstrap {
     const httpServer = createServer(app);
 
     app.use("/api", migrationRoute);
+
+    // Admin MCP endpoint
+    app.use("/api/mcp", mcpRoute());
 
     app.get("/health", (_req, res) => {
       res.json({
