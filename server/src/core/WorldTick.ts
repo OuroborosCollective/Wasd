@@ -17,6 +17,7 @@ import fs from "fs";
 import path from "path";
 
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
+import { GameConfig } from "../config/GameConfig.js";
 
 export class WorldTick {
   private timer: NodeJS.Timeout | null = null;
@@ -936,106 +937,121 @@ export class WorldTick {
     const resource = this.resourceSystem.nodes.get(targetId);
 
     if (npc) {
-      const dx = player.position.x - npc.position.x;
-      const dy = player.position.y - npc.position.y;
-      // Optimization: Use squared distance to avoid Math.hypot() square root
-      if (dx * dx + dy * dy > GameConfig.interactDistance * GameConfig.interactDistance) {
-        this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Target is too far away." });
-        return;
-      }
-
-      // Check if NPC is a shopkeeper
-      if (npc.shopId) {
-        const shopItems = this.economySystem.getShop(npc.shopId);
-        this.ws.sendToPlayer(id, { type: "shop_data", shopId: npc.shopId, items: shopItems, npcName: npc.name });
-      }
-
-      const interaction = this.npcSystem.handleInteraction(targetId, player, this.questSystem.getQuestDefinitions());
-      if (interaction) {
-        this.ws.sendToPlayer(id, {
-          type: "dialogue",
-          source: interaction.source,
-          text: interaction.text,
-          choices: interaction.choices,
-          npcId: interaction.npcId
-        });
-
-        if (interaction.questId) {
-          const quest = this.questSystem.startQuest(player, interaction.questId);
-          if (quest) {
-            this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Quest Started: ${quest.title || quest.name}` });
-            this.debouncedSave();
-          }
-        }
-
-        // Check quest completion
-        const activeQuests = player.quests.filter((q: any) => !q.completed);
-        for (const q of activeQuests) {
-          let completed = false;
-          if ((q.objectiveType === "talk_to" || q.objective === "talk_to") && q.targetNpcId === npc.id) {
-            completed = true;
-          } else if ((q.objectiveType === "collect" || q.objective === "collect") && q.targetNpcId === npc.id) {
-            // ⚡ Bolt Optimization: Use a single backwards loop to count and selectively splice items
-            // instead of chaining .filter().length and multiple .findIndex() + .splice() calls
-            let count = 0;
-            const reqCount = q.requiredCount || 1;
-            for (let i = player.inventory.length - 1; i >= 0; i--) {
-              if (player.inventory[i].id === q.requiredItemId) {
-                count++;
-              }
-            }
-            if (count >= reqCount) {
-              let removed = 0;
-              for (let i = player.inventory.length - 1; i >= 0 && removed < reqCount; i--) {
-                if (player.inventory[i].id === q.requiredItemId) {
-                  player.inventory.splice(i, 1);
-                  removed++;
-                }
-              }
-              completed = true;
-            } else {
-              this.ws.sendToPlayer(id, {
-                type: "dialogue", source: "System",
-                text: `You need ${reqCount}x ${q.requiredItemId} to complete this quest.`
-              });
-            }
-          }
-          if (completed) {
-            const reward = this.questSystem.completeQuest(player, q.id);
-            if (reward) this.broadcastQuestCompletion(id, q, reward);
-          }
-        }
-      }
+      this.handleNpcInteract(id, player, targetId, npc);
     } else if (loot) {
-      const dx = player.position.x - loot.position.x;
-      const dy = player.position.y - loot.position.y;
-      // Optimization: Use squared distance to avoid Math.hypot() square root
-      if (dx * dx + dy * dy > GameConfig.interactDistance * GameConfig.interactDistance) {
-        this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Too far away." });
-        return;
-      }
-      this.inventorySystem.addItem(player, loot.item);
-      this.lootEntities.delete(targetId);
-      this.updateLootCache();
-      this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Picked up ${loot.item.name}!` });
-      this.debouncedSave();
+      this.handleLootInteract(id, player, targetId, loot);
     } else if (resource) {
-      const dx = player.position.x - resource.position.x;
-      const dy = player.position.y - resource.position.y;
-      // ⚡ Bolt Optimization: Use squared distance to avoid Math.hypot() square root
-      if (dx * dx + dy * dy > GameConfig.interactDistance * GameConfig.interactDistance) {
-        this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Too far away." });
-        return;
-      }
-      const gatherResult = this.resourceSystem.gatherNode(targetId);
-      if (gatherResult.success && gatherResult.item) {
-        this.inventorySystem.addItem(player, gatherResult.item);
-        this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Gathered ${gatherResult.item.name}!` });
-      } else {
-        this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: gatherResult.reason || "Cannot gather that." });
-      }
-      this.debouncedSave();
+      this.handleResourceInteract(id, player, targetId, resource);
     }
+  }
+
+  private handleNpcInteract(id: string, player: any, targetId: string, npc: any) {
+    const dx = player.position.x - npc.position.x;
+    const dy = player.position.y - npc.position.y;
+    // Optimization: Use squared distance to avoid Math.hypot() square root
+    if (dx * dx + dy * dy > GameConfig.interactDistance * GameConfig.interactDistance) {
+      this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Target is too far away." });
+      return;
+    }
+
+    // Check if NPC is a shopkeeper
+    if (npc.shopId) {
+      const shopItems = this.economySystem.getShop(npc.shopId);
+      this.ws.sendToPlayer(id, { type: "shop_data", shopId: npc.shopId, items: shopItems, npcName: npc.name });
+    }
+
+    const interaction = this.npcSystem.handleInteraction(targetId, player, this.questSystem.getQuestDefinitions());
+    if (interaction) {
+      this.ws.sendToPlayer(id, {
+        type: "dialogue",
+        source: interaction.source,
+        text: interaction.text,
+        choices: interaction.choices,
+        npcId: interaction.npcId
+      });
+
+      if (interaction.questId) {
+        const quest = this.questSystem.startQuest(player, interaction.questId);
+        if (quest) {
+          this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Quest Started: ${quest.title || quest.name}` });
+          this.debouncedSave();
+        }
+      }
+
+      this.checkQuestCompletionOnInteract(id, player, npc.id);
+    }
+  }
+
+  private checkQuestCompletionOnInteract(id: string, player: any, npcId: string) {
+    const activeQuests = player.quests.filter((q: any) => !q.completed);
+    for (const q of activeQuests) {
+      let completed = false;
+      if ((q.objectiveType === "talk_to" || q.objective === "talk_to") && q.targetNpcId === npcId) {
+        completed = true;
+      } else if ((q.objectiveType === "collect" || q.objective === "collect") && q.targetNpcId === npcId) {
+        // ⚡ Bolt Optimization: Use a single backwards loop to count and selectively splice items
+        // instead of chaining .filter().length and multiple .findIndex() + .splice() calls
+        let count = 0;
+        const reqCount = q.requiredCount || 1;
+        for (let i = player.inventory.length - 1; i >= 0; i--) {
+          if (player.inventory[i].id === q.requiredItemId) {
+            count++;
+          }
+        }
+        if (count >= reqCount) {
+          let removed = 0;
+          for (let i = player.inventory.length - 1; i >= 0 && removed < reqCount; i--) {
+            if (player.inventory[i].id === q.requiredItemId) {
+              player.inventory.splice(i, 1);
+              removed++;
+            }
+          }
+          completed = true;
+        } else {
+          this.ws.sendToPlayer(id, {
+            type: "dialogue", source: "System",
+            text: `You need ${reqCount}x ${q.requiredItemId} to complete this quest.`
+          });
+        }
+      }
+      if (completed) {
+        const reward = this.questSystem.completeQuest(player, q.id);
+        if (reward) this.broadcastQuestCompletion(id, q, reward);
+      }
+    }
+  }
+
+  private handleLootInteract(id: string, player: any, targetId: string, loot: any) {
+    const dx = player.position.x - loot.position.x;
+    const dy = player.position.y - loot.position.y;
+    // Optimization: Use squared distance to avoid Math.hypot() square root
+    if (dx * dx + dy * dy > GameConfig.interactDistance * GameConfig.interactDistance) {
+      this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Too far away." });
+      return;
+    }
+    this.inventorySystem.addItem(player, loot.item);
+    this.lootEntities.delete(targetId);
+    this.updateLootCache();
+    this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Picked up ${loot.item.name}!` });
+    this.debouncedSave();
+  }
+
+  private handleResourceInteract(id: string, player: any, targetId: string, resource: any) {
+    const dx = player.position.x - resource.position.x;
+    const dy = player.position.y - resource.position.y;
+    // ⚡ Bolt Optimization: Use squared distance to avoid Math.hypot() square root
+    if (dx * dx + dy * dy > GameConfig.interactDistance * GameConfig.interactDistance) {
+      this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Too far away." });
+      return;
+    }
+    const gatherResult = this.resourceSystem.gatherNode(targetId);
+    if (gatherResult.success && gatherResult.item) {
+      this.inventorySystem.addItem(player, gatherResult.item);
+      this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Gathered ${gatherResult.item.name}!` });
+    } else {
+      this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: gatherResult.reason || "Cannot gather that." });
+    }
+    this.debouncedSave();
   }
 
   private handleDialogueChoice(id: string, player: any, msg: any) {
