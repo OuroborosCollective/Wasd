@@ -17,12 +17,11 @@ import fs from "fs";
 import path from "path";
 
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
-import { GameConfig } from "../config/GameConfig.js";
 
 export class WorldTick {
   private timer: NodeJS.Timeout | null = null;
   private tickCount = 0;
-  
+
   public chunkSystem: ChunkSystem;
   public observerEngine: ObserverEngine;
   public playerSystem: PlayerSystem;
@@ -94,7 +93,7 @@ export class WorldTick {
 
         let charName = "Unknown";
         let uid = "";
-        
+
         try {
           const decodedToken = await verifyFirebaseToken(msg.token);
           if (decodedToken) {
@@ -115,26 +114,26 @@ export class WorldTick {
         }
 
         let player = this.playerSystem.getPlayer(uid); // Use UID as the persistent player ID
-        
+
         if (player) {
           if (player.isOffline) {
             player.isOffline = false;
             console.log(`Player ${charName} (UID: ${uid}) re-possessed their character.`);
           } else {
-            // Kick old session if already logged in? 
+            // Kick old session if already logged in?
             // For now just allow it or handle as duplicate
           }
         } else {
           player = this.playerSystem.createPlayer(uid, charName, msg.class, msg.appearance);
           this.hydratePlayer(player);
         }
-        
+
         // Ensure their display name is up-to-date with Firebase
         if (player.name !== charName) player.name = charName;
 
         this.socketToPlayer.set(id, uid); // use UID instead of charName
         this.observerEngine.register(id, { x: player.position.x, y: player.position.y });
-        
+
         this.ws.sendToPlayer(id, {
           type: "welcome",
           id: uid, // Use UID here for frontend as well
@@ -146,7 +145,7 @@ export class WorldTick {
             quests: player.quests
           }
         });
-        
+
         console.log(`Player ${charName} logged in on socket ${id}`);
         return;
       }
@@ -176,7 +175,7 @@ export class WorldTick {
           dx /= mag;
           dy /= mag;
         }
-        
+
         if (!isNaN(dx) && !isNaN(dy)) {
           player.position.x += dx * speed;
           player.position.y += dy * speed;
@@ -288,11 +287,11 @@ export class WorldTick {
                 weaponName = itemDef.name;
               }
             }
-            
+
             const totalDamage = baseDamage + weaponDamage;
-            
+
             npc.health -= totalDamage;
-            
+
             this.ws.broadcast({
               type: "combat_feedback",
               targetId,
@@ -345,7 +344,7 @@ export class WorldTick {
           if (dist < 20) {
             // ... NPC interaction logic ...
             const interaction = this.npcSystem.handleInteraction(
-              targetId, 
+              targetId,
               player,
               this.questSystem.getQuestDefinitions()
             );
@@ -937,121 +936,106 @@ export class WorldTick {
     const resource = this.resourceSystem.nodes.get(targetId);
 
     if (npc) {
-      this.handleNpcInteract(id, player, targetId, npc);
-    } else if (loot) {
-      this.handleLootInteract(id, player, targetId, loot);
-    } else if (resource) {
-      this.handleResourceInteract(id, player, targetId, resource);
-    }
-  }
-
-  private handleNpcInteract(id: string, player: any, targetId: string, npc: any) {
-    const dx = player.position.x - npc.position.x;
-    const dy = player.position.y - npc.position.y;
-    // Optimization: Use squared distance to avoid Math.hypot() square root
-    if (dx * dx + dy * dy > GameConfig.interactDistance * GameConfig.interactDistance) {
-      this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Target is too far away." });
-      return;
-    }
-
-    // Check if NPC is a shopkeeper
-    if (npc.shopId) {
-      const shopItems = this.economySystem.getShop(npc.shopId);
-      this.ws.sendToPlayer(id, { type: "shop_data", shopId: npc.shopId, items: shopItems, npcName: npc.name });
-    }
-
-    const interaction = this.npcSystem.handleInteraction(targetId, player, this.questSystem.getQuestDefinitions());
-    if (interaction) {
-      this.ws.sendToPlayer(id, {
-        type: "dialogue",
-        source: interaction.source,
-        text: interaction.text,
-        choices: interaction.choices,
-        npcId: interaction.npcId
-      });
-
-      if (interaction.questId) {
-        const quest = this.questSystem.startQuest(player, interaction.questId);
-        if (quest) {
-          this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Quest Started: ${quest.title || quest.name}` });
-          this.debouncedSave();
-        }
+      const dx = player.position.x - npc.position.x;
+      const dy = player.position.y - npc.position.y;
+      // Optimization: Use squared distance to avoid Math.hypot() square root
+      if (dx * dx + dy * dy > GameConfig.interactDistance * GameConfig.interactDistance) {
+        this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Target is too far away." });
+        return;
       }
 
-      this.checkQuestCompletionOnInteract(id, player, npc.id);
-    }
-  }
+      // Check if NPC is a shopkeeper
+      if (npc.shopId) {
+        const shopItems = this.economySystem.getShop(npc.shopId);
+        this.ws.sendToPlayer(id, { type: "shop_data", shopId: npc.shopId, items: shopItems, npcName: npc.name });
+      }
 
-  private checkQuestCompletionOnInteract(id: string, player: any, npcId: string) {
-    const activeQuests = player.quests.filter((q: any) => !q.completed);
-    for (const q of activeQuests) {
-      let completed = false;
-      if ((q.objectiveType === "talk_to" || q.objective === "talk_to") && q.targetNpcId === npcId) {
-        completed = true;
-      } else if ((q.objectiveType === "collect" || q.objective === "collect") && q.targetNpcId === npcId) {
-        // ⚡ Bolt Optimization: Use a single backwards loop to count and selectively splice items
-        // instead of chaining .filter().length and multiple .findIndex() + .splice() calls
-        let count = 0;
-        const reqCount = q.requiredCount || 1;
-        for (let i = player.inventory.length - 1; i >= 0; i--) {
-          if (player.inventory[i].id === q.requiredItemId) {
-            count++;
+      const interaction = this.npcSystem.handleInteraction(targetId, player, this.questSystem.getQuestDefinitions());
+      if (interaction) {
+        this.ws.sendToPlayer(id, {
+          type: "dialogue",
+          source: interaction.source,
+          text: interaction.text,
+          choices: interaction.choices,
+          npcId: interaction.npcId
+        });
+
+        if (interaction.questId) {
+          const quest = this.questSystem.startQuest(player, interaction.questId);
+          if (quest) {
+            this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Quest Started: ${quest.title || quest.name}` });
+            this.debouncedSave();
           }
         }
-        if (count >= reqCount) {
-          let removed = 0;
-          for (let i = player.inventory.length - 1; i >= 0 && removed < reqCount; i--) {
-            if (player.inventory[i].id === q.requiredItemId) {
-              player.inventory.splice(i, 1);
-              removed++;
+
+        // Check quest completion
+        const activeQuests = player.quests.filter((q: any) => !q.completed);
+        for (const q of activeQuests) {
+          let completed = false;
+          if ((q.objectiveType === "talk_to" || q.objective === "talk_to") && q.targetNpcId === npc.id) {
+            completed = true;
+          } else if ((q.objectiveType === "collect" || q.objective === "collect") && q.targetNpcId === npc.id) {
+            // ⚡ Bolt Optimization: Use a single backwards loop to count and selectively splice items
+            // instead of chaining .filter().length and multiple .findIndex() + .splice() calls
+            let count = 0;
+            const reqCount = q.requiredCount || 1;
+            for (let i = player.inventory.length - 1; i >= 0; i--) {
+              if (player.inventory[i].id === q.requiredItemId) {
+                count++;
+              }
+            }
+            if (count >= reqCount) {
+              let removed = 0;
+              for (let i = player.inventory.length - 1; i >= 0 && removed < reqCount; i--) {
+                if (player.inventory[i].id === q.requiredItemId) {
+                  player.inventory.splice(i, 1);
+                  removed++;
+                }
+              }
+              completed = true;
+            } else {
+              this.ws.sendToPlayer(id, {
+                type: "dialogue", source: "System",
+                text: `You need ${reqCount}x ${q.requiredItemId} to complete this quest.`
+              });
             }
           }
-          completed = true;
-        } else {
-          this.ws.sendToPlayer(id, {
-            type: "dialogue", source: "System",
-            text: `You need ${reqCount}x ${q.requiredItemId} to complete this quest.`
-          });
+          if (completed) {
+            const reward = this.questSystem.completeQuest(player, q.id);
+            if (reward) this.broadcastQuestCompletion(id, q, reward);
+          }
         }
       }
-      if (completed) {
-        const reward = this.questSystem.completeQuest(player, q.id);
-        if (reward) this.broadcastQuestCompletion(id, q, reward);
+    } else if (loot) {
+      const dx = player.position.x - loot.position.x;
+      const dy = player.position.y - loot.position.y;
+      // Optimization: Use squared distance to avoid Math.hypot() square root
+      if (dx * dx + dy * dy > GameConfig.interactDistance * GameConfig.interactDistance) {
+        this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Too far away." });
+        return;
       }
+      this.inventorySystem.addItem(player, loot.item);
+      this.lootEntities.delete(targetId);
+      this.updateLootCache();
+      this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Picked up ${loot.item.name}!` });
+      this.debouncedSave();
+    } else if (resource) {
+      const dx = player.position.x - resource.position.x;
+      const dy = player.position.y - resource.position.y;
+      // ⚡ Bolt Optimization: Use squared distance to avoid Math.hypot() square root
+      if (dx * dx + dy * dy > GameConfig.interactDistance * GameConfig.interactDistance) {
+        this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Too far away." });
+        return;
+      }
+      const gatherResult = this.resourceSystem.gatherNode(targetId);
+      if (gatherResult.success && gatherResult.item) {
+        this.inventorySystem.addItem(player, gatherResult.item);
+        this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Gathered ${gatherResult.item.name}!` });
+      } else {
+        this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: gatherResult.reason || "Cannot gather that." });
+      }
+      this.debouncedSave();
     }
-  }
-
-  private handleLootInteract(id: string, player: any, targetId: string, loot: any) {
-    const dx = player.position.x - loot.position.x;
-    const dy = player.position.y - loot.position.y;
-    // Optimization: Use squared distance to avoid Math.hypot() square root
-    if (dx * dx + dy * dy > GameConfig.interactDistance * GameConfig.interactDistance) {
-      this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Too far away." });
-      return;
-    }
-    this.inventorySystem.addItem(player, loot.item);
-    this.lootEntities.delete(targetId);
-    this.updateLootCache();
-    this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Picked up ${loot.item.name}!` });
-    this.debouncedSave();
-  }
-
-  private handleResourceInteract(id: string, player: any, targetId: string, resource: any) {
-    const dx = player.position.x - resource.position.x;
-    const dy = player.position.y - resource.position.y;
-    // ⚡ Bolt Optimization: Use squared distance to avoid Math.hypot() square root
-    if (dx * dx + dy * dy > GameConfig.interactDistance * GameConfig.interactDistance) {
-      this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: "Too far away." });
-      return;
-    }
-    const gatherResult = this.resourceSystem.gatherNode(targetId);
-    if (gatherResult.success && gatherResult.item) {
-      this.inventorySystem.addItem(player, gatherResult.item);
-      this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Gathered ${gatherResult.item.name}!` });
-    } else {
-      this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: gatherResult.reason || "Cannot gather that." });
-    }
-    this.debouncedSave();
   }
 
   private handleDialogueChoice(id: string, player: any, msg: any) {
@@ -1334,11 +1318,11 @@ export class WorldTick {
       // Note: dummy_player is not a socket, so we don't update observer by socket ID here
       // But for simplicity in this demo we'll just leave it
     }
-    
+
     // 1. Update active chunks based on observers
     const observedChunks = this.observerEngine.getObservedChunks();
     const observedChunkIds = new Set(observedChunks.map(c => c.id));
-    
+
     // Deactivate all chunks first
     const allActive = this.chunkSystem.getActiveChunks();
     for (const chunk of allActive) {
@@ -1346,7 +1330,7 @@ export class WorldTick {
         this.chunkSystem.setChunkActive(chunk.id, false);
       }
     }
-    
+
     for (const chunkInfo of observedChunks) {
       this.chunkSystem.getChunk(chunkInfo.chunkX, chunkInfo.chunkY); // Ensure it exists
       this.chunkSystem.setChunkActive(chunkInfo.id, true);
@@ -1383,7 +1367,7 @@ export class WorldTick {
     // 3.1 Process Offline Player Heuristic (Simulate life)
     for (const p of offlinePlayers) {
       if (p.id === "dummy_player") continue;
-      
+
       const now = Date.now();
       if (p.targetPosition) {
         const dx = p.targetPosition.x - p.position.x;
@@ -1412,7 +1396,7 @@ export class WorldTick {
 
     // 4. Broadcast state to clients
     // We need to broadcast to each socket only what they can see, but for now global broadcast
-    
+
     const npcsWithGlb = this.npcSystem.getAllNPCs().map(npc => {
       let glbPath = this.glbRegistry.getModelForTarget("npc_single", npc.id);
       if (!glbPath) glbPath = this.glbRegistry.getModelForTarget("npc_group", npc.role);
@@ -1447,6 +1431,6 @@ export class WorldTick {
       worldObjects: worldObjectsWithGlb
     });
 
-
+    }
   }
 }
