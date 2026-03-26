@@ -1,10 +1,19 @@
 import { updateWorldState, showFloatingTextAt, setJoystickMoveCallback } from "../engine/renderer";
-import { showDialogue, updateHUD, updateCooldowns, renderInventoryPanel } from "../ui/hud";
+import { showDialogue, updateHUD, updateCooldowns } from "../ui/hud";
 import { getClosestInteractable, getClosestNpc } from "../utils/interaction";
 import { updateAdminAssetModels, updateAdminAssetLinks } from "../ui/adminAssetPanel";
+import { renderInventory } from "../ui/inventory";
+import { renderQuestLog } from "../ui/questLog";
+import { renderSkillsPanel } from "../ui/skillsPanel";
+import { renderMapPanel } from "../ui/mapPanel";
 
 export let myPlayerId: string | null = null;
 let latestState: any = null;
+
+export function getMyPlayer() {
+  if (!latestState || !latestState.players) return null;
+  return latestState.players.find((p: any) => p.id === myPlayerId);
+}
 
 const cooldowns = {
   attack: 0,
@@ -81,6 +90,7 @@ export function connectSocket(token?: string) {
     const attackBtn = document.getElementById('mob-attack');
     const interactBtn = document.getElementById('mob-interact');
     const equipBtn = document.getElementById('mob-equip');
+    const skillsBtn = document.getElementById('mob-skills');
     const questsBtn = document.getElementById('mob-quests');
     const mapBtn = document.getElementById('mob-map');
     const chatBtn = document.getElementById('mobile-chat-btn');
@@ -124,34 +134,36 @@ export function connectSocket(token?: string) {
     if (equipBtn) {
       equipBtn.addEventListener('touchstart', (e) => {
         e.preventDefault();
-        if (Date.now() < cooldowns.equip) return;
-        if (latestState && latestState.players) {
-          const myPlayer = latestState.players.find((p: any) => p.id === myPlayerId);
-          if (myPlayer && myPlayer.inventory && myPlayer.inventory.length > 0) {
-            cooldowns.equip = Date.now() + CD_DURATIONS.equip;
-            ws.send(JSON.stringify({ type: "equip", itemId: myPlayer.inventory[0].id }));
-          }
-        }
+        e.stopPropagation();
+        const panel = document.getElementById('inventory-panel');
+        if (panel) { panel.remove(); } else { renderInventory(); }
+      });
+    }
+
+    if (skillsBtn) {
+      skillsBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const panel = document.getElementById('skills-panel');
+        if (panel) { panel.remove(); } else { renderSkillsPanel(); }
       });
     }
 
     if (questsBtn) {
       questsBtn.addEventListener('touchstart', (e) => {
         e.preventDefault();
+        e.stopPropagation();
         const questsPanel = document.getElementById('quests-panel');
-        if (questsPanel) {
-          questsPanel.style.display = questsPanel.style.display === 'none' ? 'block' : 'none';
-        }
+        if (questsPanel) { questsPanel.remove(); } else { renderQuestLog(); }
       });
     }
 
     if (mapBtn) {
       mapBtn.addEventListener('touchstart', (e) => {
         e.preventDefault();
+        e.stopPropagation();
         const mapPanel = document.getElementById('map-panel');
-        if (mapPanel) {
-          mapPanel.style.display = mapPanel.style.display === 'none' ? 'block' : 'none';
-        }
+        if (mapPanel) { mapPanel.remove(); } else { renderMapPanel(); }
       });
     }
 
@@ -311,10 +323,26 @@ export function connectSocket(token?: string) {
     }
 
     if (e.key === "i" || e.key === "I") {
-      const myPlayer = latestState.players.find((p: any) => p.id === myPlayerId);
-      if (myPlayer) {
-        renderInventoryPanel(myPlayer, ws);
-      }
+      const panel = document.getElementById("inventory-panel");
+      if (panel) panel.remove(); else renderInventory();
+      return;
+    }
+
+    if (e.key === "q" || e.key === "Q") {
+      const panel = document.getElementById("quests-panel");
+      if (panel) panel.remove(); else renderQuestLog();
+      return;
+    }
+
+    if (e.key === "k" || e.key === "K") {
+      const panel = document.getElementById("skills-panel");
+      if (panel) panel.remove(); else renderSkillsPanel();
+      return;
+    }
+
+    if (e.key === "m" || e.key === "M") {
+      const panel = document.getElementById("map-panel");
+      if (panel) panel.remove(); else renderMapPanel();
       return;
     }
 

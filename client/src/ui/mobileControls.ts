@@ -384,7 +384,7 @@ export function initMobileControls(
     const el = document.getElementById(id);
     if (!el) return;
     el.addEventListener("touchstart", (e) => { e.preventDefault(); e.stopPropagation(); cb(); }, { passive: false });
-    el.addEventListener("click", cb);
+    el.addEventListener("click", (e) => { e.stopPropagation(); cb(); });
   };
 
   addTouchBtn("mob-attack", callbacks.onAttack);
@@ -407,7 +407,8 @@ export function initMobileControls(
     e.preventDefault();
     shortcutPanel.classList.toggle("open");
   }, { passive: false });
-  shortcutToggle.addEventListener("click", () => {
+  shortcutToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
     shortcutPanel.classList.toggle("open");
   });
 
@@ -444,7 +445,10 @@ export function initMobileControls(
       e.stopPropagation();
       fireKey(key);
     }, { passive: false });
-    el.addEventListener("click", () => fireKey(key));
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      fireKey(key);
+    });
   });
 
   // ── CAMERA DRAG (two-finger or right-area single finger) ────────────────────
