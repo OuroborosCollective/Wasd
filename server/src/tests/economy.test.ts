@@ -193,6 +193,18 @@ describe("PriceBalancer", () => {
     expect(() => balancer.rebalance(100, 0, 10)).not.toThrow();
     expect(balancer.rebalance(100, 0, 10)).toBe(1000);
   });
+
+  it("rebalance() returns at least 1 when demand is negative", () => {
+    expect(balancer.rebalance(100, 10, -5)).toBe(1);
+  });
+
+  it("rebalance() handles negative supply by defaulting to 1", () => {
+    expect(balancer.rebalance(100, -5, 10)).toBe(1000);
+  });
+
+  it("rebalance() handles negative basePrice by returning 1", () => {
+    expect(balancer.rebalance(-100, 10, 10)).toBe(1);
+  });
 });
 
 // ---------------------------------------------------------------------------
