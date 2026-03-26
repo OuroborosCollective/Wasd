@@ -4,8 +4,8 @@ export const GameConfig = {
   defaultPort: 3000,
   maxObserverRadius: 6,
   matrixCurrency: "matrix_energy",
-  interactDistance: 25,
-  attackDistance: 35,
-  playerSpeed: 3,
-  lootDespawnMs: 300000
+  interactDistance: 3,
+  attackDistance: 5,
+  playerSpeed: 5,
+  lootDespawnMs: 60000
 } as const;
