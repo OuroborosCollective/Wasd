@@ -74,7 +74,4 @@ const replace = `    // Load all lands from DB
 if (code.includes(search)) {
   code = code.replace(search, replace);
   fs.writeFileSync(file, code);
-  console.log('Successfully updated LandSystem.ts');
-} else {
-  console.log('Could not find code to replace.');
 }
