@@ -372,7 +372,7 @@ export function renderInventoryPanel(player: any, ws: WebSocket) {
     <strong style="font-size: 1.1em;">Equipped:</strong><br/>
     <div style="margin-top: 10px; background: #222; padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
       <span>Weapon: ${player.equipment.weapon ? player.equipment.weapon.name : 'None'}</span>
-      ${player.equipment.weapon ? `<button onclick="window.unequip('weapon')" style="cursor:pointer; background:#ff4444; color:#fff; border:none; padding:8px 12px; border-radius:6px; font-weight: bold;">Unequip</button>` : ''}
+      ${player.equipment.weapon ? `<button onclick="window.unequip('weapon')" aria-label="Unequip ${player.equipment.weapon.name}" style="cursor:pointer; background:#ff4444; color:#fff; border:none; padding:8px 12px; border-radius:6px; font-weight: bold; transition: background 0.2s;" onmouseover="this.style.background='#ff6666'" onmouseout="this.style.background='#ff4444'">Unequip</button>` : ''}
     </div>
   </div>`;
 
@@ -382,12 +382,12 @@ export function renderInventoryPanel(player: any, ws: WebSocket) {
     html += `<li style="margin-bottom: 10px; background: #222; padding: 12px; border-radius: 8px; display:flex; flex-direction: column; gap: 10px;">
       <div style="font-weight: bold;">${item.name} <span style="font-weight: normal; opacity: 0.6; font-size: 0.8em;">(${item.type})</span></div>
       <div style="display: flex; gap: 10px;">
-        ${item.type === 'weapon' ? `<button onclick="window.equip('${item.id}')" style="flex: 1; cursor:pointer; background:#008800; color:#fff; border:none; padding:10px; border-radius:6px; font-weight: bold;">Equip</button>` : ''}
-        <button onclick="window.drop('${item.id}')" style="flex: 1; cursor:pointer; background:#880000; color:#fff; border:none; padding:10px; border-radius:6px; font-weight: bold;">Drop</button>
+        ${item.type === 'weapon' ? `<button onclick="window.equip('${item.id}')" aria-label="Equip ${item.name}" style="flex: 1; cursor:pointer; background:#008800; color:#fff; border:none; padding:10px; border-radius:6px; font-weight: bold; transition: background 0.2s;" onmouseover="this.style.background='#00aa00'" onmouseout="this.style.background='#008800'">Equip</button>` : ''}
+        <button onclick="window.drop('${item.id}')" aria-label="Drop ${item.name}" style="flex: 1; cursor:pointer; background:#880000; color:#fff; border:none; padding:10px; border-radius:6px; font-weight: bold; transition: background 0.2s;" onmouseover="this.style.background='#aa0000'" onmouseout="this.style.background='#880000'">Drop</button>
       </div>
     </li>`;
   });
-  html += `</ul><button onclick="document.getElementById('inventory-panel').remove()" style="margin-top:20px; cursor:pointer; width: 100%; padding: 15px; background: #444; color: white; border: none; border-radius: 8px; font-weight: bold;">Close</button>`;
+  html += `</ul><button onclick="document.getElementById('inventory-panel').remove()" aria-label="Close inventory" style="margin-top:20px; cursor:pointer; width: 100%; padding: 15px; background: #444; color: white; border: none; border-radius: 8px; font-weight: bold; transition: background 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'">Close</button>`;
   
   panel.innerHTML = html;
 
