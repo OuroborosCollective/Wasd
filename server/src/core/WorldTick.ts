@@ -275,8 +275,8 @@ export class WorldTick {
         const targetId = msg.targetId;
         const npc = this.npcSystem.getNPC(targetId);
         if (npc && npc.health !== undefined) {
-          const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
-          if (dist < 30) {
+          const distSq = (player.position.x - npc.position.x) ** 2 + (player.position.y - npc.position.y) ** 2;
+          if (distSq < 30 * 30) {
             const baseDamage = 10;
             let weaponDamage = 0;
             let weaponName = "fists";
@@ -341,8 +341,8 @@ export class WorldTick {
         const npc = this.npcSystem.getNPC(targetId);
         const loot = this.lootEntities.get(targetId);
         if (npc) {
-          const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
-          if (dist < 20) {
+          const distSq = (player.position.x - npc.position.x) ** 2 + (player.position.y - npc.position.y) ** 2;
+          if (distSq < 20 * 20) {
             // ... NPC interaction logic ...
             const interaction = this.npcSystem.handleInteraction(
               targetId, 
@@ -411,8 +411,8 @@ export class WorldTick {
             });
           }
         } else if (loot) {
-          const dist = Math.hypot(player.position.x - loot.position.x, player.position.y - loot.position.y);
-          if (dist < 20) {
+          const distSq = (player.position.x - loot.position.x) ** 2 + (player.position.y - loot.position.y) ** 2;
+          if (distSq < 20 * 20) {
             this.inventorySystem.addItem(player, loot.item);
             this.lootEntities.delete(targetId);
             this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Picked up ${loot.item.name}!` });
@@ -1388,13 +1388,14 @@ export class WorldTick {
       if (p.targetPosition) {
         const dx = p.targetPosition.x - p.position.x;
         const dy = p.targetPosition.y - p.position.y;
-        const dist = Math.hypot(dx, dy);
-        if (dist < 1) {
+        const distSq = dx * dx + dy * dy;
+        if (distSq < 1) {
           p.targetPosition = null;
           p.state = "idle";
           p.stateTimer = now + Math.random() * 5000 + 2000;
         } else {
           const speed = 0.3; // Slower than active players
+          const dist = Math.sqrt(distSq);
           p.position.x += (dx / dist) * speed;
           p.position.y += (dy / dist) * speed;
         }

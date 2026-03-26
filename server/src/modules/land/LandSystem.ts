@@ -147,8 +147,8 @@ export class LandSystem {
 
   getLandAtPosition(x: number, y: number): Land | null {
     for (const land of this.lands.values()) {
-      const dist = Math.hypot(x - land.x, y - land.y);
-      if (dist <= land.radius) return land;
+      const distSq = (x - land.x) ** 2 + (y - land.y) ** 2;
+      if (distSq <= land.radius * land.radius) return land;
     }
     return null;
   }
@@ -171,8 +171,8 @@ export class LandSystem {
 
     // Check distance from other lands
     for (const land of this.lands.values()) {
-      const dist = Math.hypot(x - land.x, y - land.y);
-      if (dist < MIN_LAND_DISTANCE) {
+      const distSq = (x - land.x) ** 2 + (y - land.y) ** 2;
+      if (distSq < MIN_LAND_DISTANCE * MIN_LAND_DISTANCE) {
         return { success: false, reason: `Too close to ${land.ownerName}'s land. Minimum distance: ${MIN_LAND_DISTANCE}m` };
       }
     }

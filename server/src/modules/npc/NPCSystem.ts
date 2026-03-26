@@ -281,8 +281,8 @@ export class NPCSystem {
       // 1. Check for nearby players to interact with
       let interacting = false;
       for (const player of players) {
-        const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
-        if (dist < 15) { // Interaction range
+        const distSq = (player.position.x - npc.position.x) ** 2 + (player.position.y - npc.position.y) ** 2;
+        if (distSq < 15 * 15) { // Interaction range
           npc.state = "interacting";
           npc.stateTimer = now + 5000; // Stay interacting for a bit
           npc.targetPosition = null; // Stop moving
@@ -303,12 +303,13 @@ export class NPCSystem {
       if (npc.targetPosition) {
         const dx = npc.targetPosition.x - npc.position.x;
         const dy = npc.targetPosition.y - npc.position.y;
-        const dist = Math.hypot(dx, dy);
+        const distSq = dx * dx + dy * dy;
         
-        if (dist < 1) {
+        if (distSq < 1) {
           npc.targetPosition = null;
         } else {
           const speed = 0.5;
+          const dist = Math.sqrt(distSq);
           npc.position.x += (dx / dist) * speed;
           npc.position.y += (dy / dist) * speed;
         }
