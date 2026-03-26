@@ -72,6 +72,8 @@ mcpServer.tool(
   }
 );
 
+<<<<<<< HEAD
+=======
 // 3. Eval Script (Execute arbitrary JS on the server)
 mcpServer.tool(
   "eval_script",
@@ -88,6 +90,7 @@ mcpServer.tool(
   }
 );
 
+>>>>>>> main
 // --- Express Route Setup ---
 
 export function mcpRoute() {
