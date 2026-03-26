@@ -10,10 +10,4 @@ export class MailService {
   inbox(playerId: string) {
     return this.mail.filter(m => m.to === playerId);
   }
-
-  async sendMail(to: string, subject: string, body: string) {
-    const item = { from: "system", to, subject, body, createdAt: Date.now() };
-    this.mail.push(item);
-    return item;
-  }
 }

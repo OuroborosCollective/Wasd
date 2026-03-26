@@ -1,0 +1,15 @@
+{
+  "wooden_plank": {
+    "inputs": {
+      "wood_log": 2
+    },
+    "output": "wood_plank"
+  },
+  "iron_sword": {
+    "inputs": {
+      "iron_ingot": 3,
+      "wood_plank": 1
+    },
+    "output": "iron_sword"
+  }
+}

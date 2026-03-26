@@ -1,6 +1,5 @@
 import type { Server as HttpServer } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
-import { randomUUID } from "node:crypto";
 
 export class GameWebSocketServer {
   private wss: WebSocketServer | null = null;
@@ -14,7 +13,7 @@ export class GameWebSocketServer {
     this.wss = new WebSocketServer({ server: this.httpServer, path: "/ws" });
 
     this.wss.on("connection", (socket: WebSocket & { id?: string }) => {
-      const id = randomUUID();
+      const id = Math.random().toString(36).substring(2, 9);
       socket.id = id;
 
       if (this.onPlayerConnect) {

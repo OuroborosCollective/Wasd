@@ -15,24 +15,7 @@ export class CraftingSystem {
   private recipes: Map<string, Recipe> = new Map();
 
   async loadRecipes() {
-    try {
-      const fs = require("fs");
-      const path = require("path");
-      const recipesPath = path.join(process.cwd(), "game-data", "crafting", "recipes.json");
-      const data = await fs.promises.readFile(recipesPath, "utf8");
-      const recipes = JSON.parse(data);
-      recipes.forEach((r: Recipe) => this.addRecipe(r));
-    } catch (err) {
-      console.error("Failed to load crafting recipes:", err);
-      // Fallback recipes
-      this.addRecipe({
-        id: "iron_sword_craft",
-        name: "Iron Sword",
-        requiredLevel: 1,
-        ingredients: [{ id: "iron_bar", amount: 2 }],
-        result: { id: "iron_sword", amount: 1 }
-      });
-    }
+    // No-op for now
   }
 
   addRecipe(recipe: Recipe) {
