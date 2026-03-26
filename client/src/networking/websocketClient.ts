@@ -1,6 +1,6 @@
 import { updateWorldState, showFloatingTextAt, setJoystickMoveCallback } from "../engine/renderer";
 import { showDialogue, updateHUD, updateCooldowns, renderInventoryPanel } from "../ui/hud";
-import { getClosestInteractable } from "../utils/interaction";
+import { getClosestInteractable, getClosestNpc } from "../utils/interaction";
 import { updateAdminAssetModels, updateAdminAssetLinks } from "../ui/adminAssetPanel";
 
 export let myPlayerId: string | null = null;
@@ -92,15 +92,7 @@ export function connectSocket(token?: string) {
         if (latestState && latestState.npcs && latestState.players) {
           const myPlayer = latestState.players.find((p: any) => p.id === myPlayerId);
           if (myPlayer) {
-            let closestNpc = null;
-            let minDistance = Infinity;
-            for (const npc of latestState.npcs) {
-              const dist = Math.hypot(myPlayer.position.x - npc.position.x, myPlayer.position.y - npc.position.y);
-              if (dist < minDistance) {
-                minDistance = dist;
-                closestNpc = npc;
-              }
-            }
+            const { closestNpc, minDistance } = getClosestNpc(myPlayer, latestState.npcs);
             if (closestNpc && minDistance < 40) {
               cooldowns.attack = Date.now() + CD_DURATIONS.attack;
               ws.send(JSON.stringify({ type: "attack", targetId: closestNpc.id }));
@@ -282,16 +274,7 @@ export function connectSocket(token?: string) {
       if (latestState && latestState.npcs && latestState.players) {
         const myPlayer = latestState.players.find((p: any) => p.id === myPlayerId);
         if (myPlayer) {
-          let closestNpc = null;
-          let minDistance = Infinity;
-          
-          for (const npc of latestState.npcs) {
-            const dist = Math.hypot(myPlayer.position.x - npc.position.x, myPlayer.position.y - npc.position.y);
-            if (dist < minDistance) {
-              minDistance = dist;
-              closestNpc = npc;
-            }
-          }
+          const { closestNpc, minDistance } = getClosestNpc(myPlayer, latestState.npcs);
           
           if (closestNpc && minDistance < 40) {
             cooldowns.attack = Date.now() + CD_DURATIONS.attack;
