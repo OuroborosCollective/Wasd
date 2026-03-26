@@ -10,10 +10,9 @@ const replacementStr = `    for (const npc of this.npcs.values()) {
       // 0. Process dynamic needs
       if (!npc.needs) npc.needs = { hunger: 100, energy: 100 }; // Fallback for existing NPCs
 
-      // Decrease hunger slowly (approx 1 unit per 5 seconds assuming 10 ticks/sec, wait we'll make it 1 unit per 100 ticks for testing or simple rate)
-      // Actually let's use a probabilistic approach or a simple small float decrement per tick.
-      // 1 tick = 100ms. So 10 ticks = 1 sec.
-      // 1 hunger per 100 ticks = 1 hunger per 10 sec.
+      // Decrease needs incrementally based on 10 ticks/sec rate:
+      // Hunger: 1 unit per 10 seconds (0.01/tick)
+      // Energy: 0.5 unit per 10 seconds (0.005/tick)
       npc.needs.hunger = Math.max(0, npc.needs.hunger - 0.01);
       npc.needs.energy = Math.max(0, npc.needs.energy - 0.005);
 

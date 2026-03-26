@@ -253,6 +253,15 @@ export class NPCSystem {
     // Process NPC AI, schedules, needs
     const now = Date.now();
     for (const npc of this.npcs.values()) {
+      // 0. Process dynamic needs
+      if (!npc.needs) npc.needs = { hunger: 100, energy: 100 }; // Fallback for existing NPCs
+
+      // Decrease needs incrementally based on 10 ticks/sec rate:
+      // Hunger: 1 unit per 10 seconds (0.01/tick)
+      // Energy: 0.5 unit per 10 seconds (0.005/tick)
+      npc.needs.hunger = Math.max(0, npc.needs.hunger - 0.01);
+      npc.needs.energy = Math.max(0, npc.needs.energy - 0.005);
+
       // 0. Process Schedule
       const schedule = NPCScheduleRegistry[npc.id];
       if (schedule) {
