@@ -2,6 +2,8 @@
  * Asset Brain Engine - Transforms user input into complete 3D asset specifications
  * Based on MASTER ASSET BRAIN PACK system
  */
+import { buildAssetGenerationPrompt } from './prompts';
+
 export type AssetClass = 'character' | 'creature' | 'prop' | 'weapon' | 'environment';
 export type PlatformProfile = 'mobile' | 'mid' | 'high';
 
@@ -203,7 +205,7 @@ export async function generateAssetSpecification(input: string): Promise<AssetSp
       const GoogleGenerativeAI = (genaiModule as any).GoogleGenerativeAI;
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-      const prompt = `Return ONLY valid JSON (no markdown) for 3D game asset: "${input}" (class:${assetClass}, style:${style}). Required fields: assetName,assetClass,usage,style,platformProfiles(mobile/mid/high each with triangles/materials/bones/textureSize/textureMemory),dimensions(unit/height/width/depth),topology(meshType/triangleBudget/deformationZones/hardSurfaceRules/organicRules),uv(uvSets/mirroringAllowed/texelDensity/seamRules),materials(count/workflow/maps/channels),rig(required/type/boneCountTargets/bones/constraints/facial),animations(required/clips/looping/oneShots),lods(count/strategy/budgets array),collision(type/parts),attachments(sockets array),export(primaryFormat/secondaryFormats/validation),fileContract(rootFolder/requiredFiles/namingRules),qa(checklist/criticalChecks),autoDecisions.`;
+      const prompt = buildAssetGenerationPrompt(input, assetClass, style);
       const result = await model.generateContent(prompt);
       const text: string = result.response.text();
       const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
