@@ -1,4 +1,6 @@
+import { Item } from '../types/item';
+
 export class InventoryState {
-  items: any[] = [];
-  set(items: any[]) { this.items = items; }
+  items: Item[] = [];
+  set(items: Item[]) { this.items = items; }
 }
