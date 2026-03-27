@@ -1,0 +1,40 @@
+name: Continuous Deployment to VPS
+
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    - cron: '0 * * * *' # Stündlich ausführen
+  workflow_dispatch: # Manuelles Triggern ermöglichen
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Deploy to VPS via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.VPS_IP }}
+        username: ${{ secrets.VPS_USER }}
+        password: ${{ secrets.VPS_SSH_PASSWORD }}
+        port: 22
+        script: |
+          cd /var/www/arelogic.space
+          git fetch origin main
+          git reset --hard origin/main
+          
+          # Server aktualisieren und im Hintergrund starten
+          cd server
+          pnpm install
+          # Bestehende Instanzen beenden (falls vorhanden)
+          pkill -f "pnpm run dev" || true
+          nohup pnpm run dev > server.log 2>&1 &
+          
+          # Client aktualisieren und im Hintergrund starten
+          cd ../client
+          pnpm install
+          # Bestehende Instanzen beenden (falls vorhanden)
+          pkill -f "vite" || true
+          nohup pnpm run dev --host > client.log 2>&1 &
+          
+          echo "Deployment successful at $(date)"
