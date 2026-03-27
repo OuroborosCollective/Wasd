@@ -18,6 +18,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from "uuid";
 import { db as dbInstance } from "../core/Database.js";
+import { authMiddleware } from "../middleware/authMiddleware.js";
 type Database = typeof dbInstance;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -168,8 +169,8 @@ export function createGLBUploadRouter(dbParam?: any): Router {
   });
 
   // ── Delete Model ───────────────────────────────────────────────────────────
-  router.delete("/:modelId", async (req: Request, res: Response) => {
-    const playerId = req.headers["x-player-id"] as string;
+  router.delete("/:modelId", authMiddleware, async (req: Request, res: Response) => {
+    const playerId = (req as any).playerId;
     const { modelId } = req.params;
     if (!playerId) return res.status(401).json({ error: "Player ID required" });
 
@@ -238,8 +239,8 @@ export function createGLBUploadRouter(dbParam?: any): Router {
   });
 
   // ── Remove Placed Model ────────────────────────────────────────────────────
-  router.delete("/place/:placeId", async (req: Request, res: Response) => {
-    const playerId = req.headers["x-player-id"] as string;
+  router.delete("/place/:placeId", authMiddleware, async (req: Request, res: Response) => {
+    const playerId = (req as any).playerId;
     const { placeId } = req.params;
     if (!playerId) return res.status(401).json({ error: "Player ID required" });
 
