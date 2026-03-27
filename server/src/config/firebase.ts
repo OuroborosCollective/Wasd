@@ -41,7 +41,7 @@ function getFirebaseApp(): App {
   try {
     const serviceAccount = JSON.parse(serviceAccountKey);
     app = initializeApp({
-      credential: cert(serviceAccount)
+      credential: cert(serviceAccount), projectId: "innate-summit-490115-p5"
     });
     return app;
   } catch (error) {
