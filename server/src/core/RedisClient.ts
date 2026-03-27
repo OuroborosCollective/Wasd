@@ -1,17 +1,18 @@
 /**
  * RedisClient.ts
  *
- * Singleton-Client für Azure Redis Enterprise (MemoryOptimized_M100).
- * Verbindet sich via TLS 1.2 mit dem konfigurierten Azure-Endpunkt.
+ * Singleton-Client für optionales Redis-Caching (Firebase-first architecture).
+ * Unterstützt beliebige Redis-Server (lokal, cloud-gehostet, etc.).
  *
  * Konfiguration via Environment-Variablen:
- *   REDIS_HOST     - Hostname des Redis-Endpunkts (z.B. thinking.germanywestcentral.redis.azure.net)
- *   REDIS_PORT     - Port (Standard: 10000 für Azure Redis Enterprise)
- *   REDIS_PASSWORD - Access Key / Passwort
- *   REDIS_TLS      - "false" deaktiviert TLS (Standard: true wenn REDIS_HOST gesetzt)
+ *   REDIS_HOST     - Hostname des Redis-Endpunkts (z.B. localhost, redis.example.com)
+ *   REDIS_PORT     - Port (Standard: 6379)
+ *   REDIS_PASSWORD - Passwort (optional)
+ *   REDIS_TLS      - "true" aktiviert TLS (Standard: false)
  *
  * Falls REDIS_HOST nicht gesetzt ist, wird kein Redis-Client erstellt und
  * alle Operationen fallen auf den In-Memory-Fallback zurück (Graceful Degradation).
+ * Dies ist die empfohlene Konfiguration für Firebase-only Deployments.
  */
 
 import { Redis } from "ioredis";
@@ -65,10 +66,10 @@ export async function initRedisClient(): Promise<boolean> {
     });
 
     // Event-Handler
-    redisClient.on("connect", () => {
-      redisAvailable = true;
-      console.log(`[Redis] Verbunden mit Azure Redis Enterprise: ${host}:${port} (TLS: ${useTls})`);
-    });
+      redisClient.on("connect", () => {
+        redisAvailable = true;
+        console.log(`[Redis] Verbunden mit Redis-Server: ${host}:${port} (TLS: ${useTls})`);
+      });
 
     redisClient.on("error", (err: Error) => {
       if (redisAvailable) {

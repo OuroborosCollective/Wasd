@@ -1,58 +1,139 @@
 import { sendDialogueChoice, sendChatMessage } from "../networking/websocketClient";
 import { toggleAdminAssetPanel } from "./adminAssetPanel";
+import "./obsidian-relic.css";
 
 export function renderHUD() {
+  // Add global effects
+  const grain = document.createElement("div");
+  grain.className = "asfalt-grain";
+  document.body.appendChild(grain);
+
+  const vignette = document.createElement("div");
+  vignette.className = "vignette";
+  document.body.appendChild(vignette);
+
   const hud = document.createElement("div");
   hud.id = "main-hud";
+  hud.className = "obsidian-relic";
   hud.style.position = "fixed";
-  hud.style.top = "10px";
-  hud.style.left = "10px";
-  hud.style.padding = "15px";
-  hud.style.background = "rgba(0,0,0,0.85)";
-  hud.style.color = "#fff";
-  hud.style.fontFamily = "sans-serif";
-  hud.style.borderRadius = "12px";
-  hud.style.display = "flex";
-  hud.style.flexDirection = "column";
-  hud.style.gap = "8px";
-  hud.style.width = "auto";
-  hud.style.maxWidth = "300px";
-  hud.style.border = "2px solid rgba(0,255,0,0.3)";
-  hud.style.boxShadow = "0 4px 15px rgba(0,0,0,0.5)";
+  hud.style.inset = "0";
+  hud.style.pointerEvents = "none";
   hud.style.zIndex = "1000";
   
   hud.innerHTML = `
-    <div style="font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 6px; margin-bottom: 4px; color: #00ff00; font-size: 1.1em;">Areloria Alpha</div>
-    <div id="hud-time" style="font-size: 0.9em; color: #ffff00; margin-bottom: 4px;">Time: 08:00</div>
-    <div id="hud-stats" style="font-size: 1em; font-weight: bold;">
-      Gold: 0 | XP: 0
+    <!-- Top Left: Character Status -->
+    <div class="panel" style="position: absolute; top: 20px; left: 20px; width: 280px; pointer-events: auto;">
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+        <div style="position: relative;">
+          <div style="width: 56px; height: 56px; border-radius: 4px; overflow: hidden; border: 2px solid var(--primary-gold); background: #000;">
+            <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDutQjQufVrhJpuNngxO9UDFSEYqpU4sIV-UPjRvnkrwBJSaFrwnTxLeSDXVCME_aSOXUBk6Dlb8PUyeHJeyOA5mgcj7cFiRp53PoOqGBZfpdUwmDCmWh8rt8cRjFxE_WSFYf72K14Z3admY0LmzsDTQt6QJdl7i-EUu3-kDKaPCa6GsX5xG9O82wNSMNyA6s1aGRxobV9Y-05jrYcc3Dl6xeRwJr-HzS7LUAqB9_N3NvrTXfgEYL6U6ytF4ci9vxDpLYYaddyhqxxq" style="width: 100%; height: 100%; object-fit: cover;">
+          </div>
+          <div style="position: absolute; bottom: -4px; right: -4px; background: var(--primary-gold); color: #241A00; font-size: 10px; font-weight: 800; padding: 2px 4px; border-radius: 2px;" id="hud-level">1</div>
+        </div>
+        <div>
+          <h2 class="gold-text" style="margin: 0; font-size: 18px; letter-spacing: 1px; text-transform: uppercase;" id="hud-player-name">Arelorian</h2>
+          <p style="margin: 0; font-size: 10px; color: var(--on-surface-variant); letter-spacing: 3px; text-transform: uppercase;" id="hud-player-role">Alpha Explorer</p>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <!-- Health -->
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <div style="display: flex; justify-content: space-between; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--on-surface-variant);">
+            <span>Health</span>
+            <span id="hud-health-val">100 / 100</span>
+          </div>
+          <div class="progress-bar-container">
+            <div class="progress-bar-fill health-fill" id="hud-health-bar" style="width: 100%;"></div>
+          </div>
+        </div>
+        <!-- Mana/Energy -->
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <div style="display: flex; justify-content: space-between; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--on-surface-variant);">
+            <span>Mana</span>
+            <span id="hud-mana-val">50 / 50</span>
+          </div>
+          <div class="progress-bar-container">
+            <div class="progress-bar-fill mana-fill" id="hud-mana-bar" style="width: 100%;"></div>
+          </div>
+        </div>
+        <!-- XP -->
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <div style="display: flex; justify-content: space-between; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--on-surface-variant);">
+            <span>Experience</span>
+            <span id="hud-xp-val">0%</span>
+          </div>
+          <div class="progress-bar-container" style="height: 2px;">
+            <div class="progress-bar-fill xp-fill" id="hud-xp-bar" style="width: 0%;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; font-size: 12px;">
+        <span class="gold-text" id="hud-gold">Gold: 0</span>
+        <span id="hud-time" style="color: var(--on-surface-variant);">08:00</span>
+      </div>
     </div>
-    <div id="hud-inventory" style="font-size: 0.9em; color: #ffcc00; margin-top: 4px;">
-      Inv: Empty
+
+    <!-- Bottom Center: Action Bar -->
+    <div style="position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 12px;">
+      <div style="display: flex; gap: 8px; padding: 12px; background: rgba(19, 19, 22, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(233, 195, 73, 0.3); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        <div class="action-slot" id="cd-attack">
+          <span class="material-symbols-outlined">bolt</span>
+          <span class="key-hint">F</span>
+        </div>
+        <div class="action-slot" id="cd-interact">
+          <span class="material-symbols-outlined">touch_app</span>
+          <span class="key-hint">E</span>
+        </div>
+        <div class="action-slot" id="cd-equip">
+          <span class="material-symbols-outlined">shield</span>
+          <span class="key-hint">G</span>
+        </div>
+        <div class="action-slot">
+          <span class="material-symbols-outlined">inventory_2</span>
+          <span class="key-hint">I</span>
+        </div>
+        <div class="action-slot">
+          <span class="material-symbols-outlined">map</span>
+          <span class="key-hint">M</span>
+        </div>
+      </div>
+      <div style="font-size: 10px; color: var(--on-surface-variant); text-transform: uppercase; letter-spacing: 2px; opacity: 0.6;">
+        WASD: Move | E: Interact | F: Attack | G: Equip
+      </div>
     </div>
-    <div id="hud-reputation" style="font-size: 0.9em; color: #ff99ff;">
-      Rep: None
+
+    <!-- Bottom Left: Chat -->
+    <div class="chat-container" style="position: absolute; bottom: 30px; left: 20px; width: 320px; pointer-events: auto;">
+      <div class="chat-log" id="chat-log" role="log" aria-live="polite" aria-atomic="false"></div>
+      <div class="chat-input-wrapper">
+        <input type="text" id="chat-input" class="chat-input" aria-label="Chat message input" placeholder="Whisper to the void..." />
+        <button id="chat-send" class="btn-gold" aria-label="Send chat message" style="padding: 8px 12px;">
+          <span class="material-symbols-outlined" style="font-size: 18px;">send</span>
+        </button>
+      </div>
     </div>
-    <div id="hud-equipment" style="font-size: 0.9em; color: #00ccff;">
-      Equip: None
+
+    <!-- Right Side: Quests & Inventory -->
+    <div style="position: absolute; top: 20px; right: 20px; width: 240px; display: flex; flex-direction: column; gap: 16px; pointer-events: auto;">
+      <!-- Quests -->
+      <div class="panel" style="border-left: none; border-right: 4px solid var(--primary-gold);">
+        <h3 class="gold-text font-serif" style="margin: 0 0 12px 0; font-size: 16px; text-transform: uppercase; text-align: right;">Active Quests</h3>
+        <div id="hud-quests" style="font-size: 12px; display: flex; flex-direction: column; gap: 8px; text-align: right;">
+          <div style="color: var(--on-surface-variant); font-style: italic;">No active quests</div>
+        </div>
+      </div>
+      <!-- Inventory Summary -->
+      <div class="panel" style="border-left: none; border-right: 4px solid var(--on-surface-variant);">
+        <h3 style="margin: 0 0 12px 0; font-size: 14px; text-transform: uppercase; text-align: right; color: var(--on-surface-variant);">Inventory</h3>
+        <div id="hud-inventory" style="font-size: 11px; color: var(--on-surface-variant); text-align: right;">
+          Empty
+        </div>
+      </div>
+      
+      <button id="btn-admin-assets" class="btn-gold" style="display: none; width: 100%; margin-top: 8px;">Admin Manager</button>
     </div>
-    <div id="hud-quests" style="font-size: 0.9em; color: #aaa; font-style: italic; margin-top: 4px;">
-      Active Quest: None
-    </div>
-    <div id="hud-cooldowns" style="font-size: 0.9em; margin-top: 8px; display: flex; flex-wrap: wrap; gap: 10px;">
-      <span id="cd-attack" style="color: #00ff00; opacity: 0.5; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px;">[F] Attack</span>
-      <span id="cd-interact" style="color: #00ff00; opacity: 0.5; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px;">[E] Interact</span>
-      <span id="cd-equip" style="color: #00ff00; opacity: 0.5; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px;">[G] Equip</span>
-    </div>
-    <div style="font-size: 0.8em; margin-top: 10px; opacity: 0.7; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px;">
-      WASD: Move | E: Interact | F: Attack | G: Equip | H: Unequip
-    </div>
-    <div id="chat-log" role="log" aria-live="polite" aria-atomic="false" style="margin-top: 10px; max-height: 120px; overflow-y: auto; font-size: 0.9em; display: flex; flex-direction: column; gap: 4px; background: rgba(0,0,0,0.3); padding: 5px; border-radius: 4px;"></div>
-    <div style="margin-top: 8px; display: flex; gap: 6px;">
-      <input type="text" id="chat-input" aria-label="Chat message input" placeholder="Type /build..." style="flex: 1; padding: 10px; background: #222; color: #fff; border: 1px solid #555; border-radius: 6px; font-size: 16px;" />
-      <button id="chat-send" aria-label="Send chat message" style="padding: 10px 15px; background: #008800; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Send</button>
-    </div>
-    <button id="btn-admin-assets" style="margin-top: 12px; background: #444; color: white; border: 1px solid #666; padding: 12px; border-radius: 8px; cursor: pointer; display: none; font-weight: bold; width: 100%;">Admin Asset Manager</button>
   `;
   
   document.body.appendChild(hud);
@@ -75,7 +156,7 @@ export function renderHUD() {
   chatSend.onclick = handleSend;
   chatInput.onkeydown = (e) => {
     if (e.key === "Enter") handleSend();
-    e.stopPropagation(); // Prevent WASD movement when typing
+    e.stopPropagation();
   };
 }
 
@@ -85,22 +166,24 @@ export function addChatMessage(source: string, text: string) {
   
   const msgEl = document.createElement("div");
   msgEl.style.wordBreak = "break-word";
-
+  
   const sourceSpan = document.createElement("span");
-  sourceSpan.style.color = "#00ccff";
+  sourceSpan.className = "gold-text";
   sourceSpan.style.fontWeight = "bold";
   sourceSpan.textContent = source + ":";
 
-  const textNode = document.createTextNode(" " + text);
+  const textSpan = document.createElement("span");
+  textSpan.style.color = "var(--on-surface)";
+  textSpan.textContent = " " + text;
 
   msgEl.appendChild(sourceSpan);
-  msgEl.appendChild(textNode);
+  msgEl.appendChild(textSpan);
   
   chatLog.appendChild(msgEl);
   chatLog.scrollTop = chatLog.scrollHeight;
 }
 
-export function updateHUD(data: { role?: string, gold: number, xp: number, quests: any[], inventory: any[], equipment?: any, reputation?: any, questStatus?: any[], worldTime?: string }) {
+export function updateHUD(data: { role?: string, gold: number, xp: number, quests: any[], inventory: any[], equipment?: any, reputation?: any, questStatus?: any[], worldTime?: string, stats?: any }) {
   const btnAdmin = document.getElementById("btn-admin-assets");
   if (btnAdmin && data.role === "admin") {
     btnAdmin.style.display = "block";
@@ -108,39 +191,58 @@ export function updateHUD(data: { role?: string, gold: number, xp: number, quest
 
   const timeEl = document.getElementById("hud-time");
   if (timeEl && data.worldTime) {
-    timeEl.textContent = `Time: ${data.worldTime}`;
+    timeEl.textContent = data.worldTime;
   }
 
-  const stats = document.getElementById("hud-stats");
-  if (stats) {
-    stats.textContent = `Gold: ${data.gold} | XP: ${data.xp}`;
+  const goldEl = document.getElementById("hud-gold");
+  if (goldEl) {
+    goldEl.textContent = `Gold: ${data.gold}`;
+  }
+
+  const xpVal = document.getElementById("hud-xp-val");
+  const xpBar = document.getElementById("hud-xp-bar");
+  if (xpVal && xpBar) {
+    const percent = Math.min(100, data.xp % 100); // Simple level logic for UI
+    xpVal.textContent = `${percent}%`;
+    xpBar.style.width = `${percent}%`;
   }
 
   const inv = document.getElementById("hud-inventory");
   if (inv) {
     const items = data.inventory.map(i => i.name).join(", ");
-    inv.textContent = items ? `Inv: ${items}` : "Inv: Empty";
-  }
-
-  const rep = document.getElementById("hud-reputation");
-  if (rep) {
-    const repStr = data.reputation ? Object.entries(data.reputation).map(([k, v]) => `${k}: ${v}`).join(", ") : "None";
-    rep.textContent = `Rep: ${repStr}`;
-  }
-
-  const equip = document.getElementById("hud-equipment");
-  if (equip && data.equipment) {
-    const weapon = data.equipment.weapon ? data.equipment.weapon.name : "None";
-    equip.textContent = `Weapon: ${weapon}`;
+    inv.textContent = items || "Empty";
   }
   
   const questContainer = document.getElementById("hud-quests");
   if (questContainer && data.questStatus) {
-    questContainer.innerHTML = `<strong>Quests:</strong><br/>` + data.questStatus.map((q: any) => 
-      `<div style="color: ${q.state === 'active' ? '#00ff00' : q.state === 'completed' ? '#aaa' : q.state === 'available' ? '#ffff00' : '#ff4444'}">
-        ${q.title} [${q.state}]
-      </div>`
-    ).join("");
+    if (data.questStatus.length === 0) {
+      questContainer.innerHTML = `<div style="color: var(--on-surface-variant); font-style: italic;">No active quests</div>`;
+    } else {
+      questContainer.innerHTML = data.questStatus.map((q: any) => 
+        `<div style="color: ${q.state === 'active' ? 'var(--primary-gold)' : q.state === 'completed' ? 'var(--on-surface-variant)' : '#ffff00'}">
+          ${q.title} <span style="font-size: 9px; opacity: 0.7;">[${q.state.toUpperCase()}]</span>
+        </div>`
+      ).join("");
+    }
+  }
+
+  // Update Health/Mana if stats provided
+  if (data.stats) {
+    const hpVal = document.getElementById("hud-health-val");
+    const hpBar = document.getElementById("hud-health-bar");
+    if (hpVal && hpBar && data.stats.hp !== undefined) {
+      const maxHp = data.stats.maxHp || 100;
+      hpVal.textContent = `${data.stats.hp} / ${maxHp}`;
+      hpBar.style.width = `${(data.stats.hp / maxHp) * 100}%`;
+    }
+
+    const mpVal = document.getElementById("hud-mana-val");
+    const mpBar = document.getElementById("hud-mana-bar");
+    if (mpVal && mpBar && data.stats.mp !== undefined) {
+      const maxMp = data.stats.maxMp || 100;
+      mpVal.textContent = `${data.stats.mp} / ${maxMp}`;
+      mpBar.style.width = `${(data.stats.mp / maxMp) * 100}%`;
+    }
   }
 }
 
@@ -150,52 +252,52 @@ export function updateCooldowns(cooldowns: { attack: number, interact: number, e
   const updateCd = (id: string, remaining: number) => {
     const el = document.getElementById(id);
     if (el) {
+      const icon = el.querySelector('.material-symbols-outlined') as HTMLElement;
+      const keyHint = el.querySelector('.key-hint') as HTMLElement;
+      
       if (remaining > 0) {
-        el.style.opacity = "1";
-        el.style.color = "#ff4444";
-        el.style.fontWeight = "bold";
-        // Show percentage or just dimmed
-        const percent = Math.ceil((remaining / 1000) * 10) / 10;
-        el.textContent = `[${id.split("-")[1].toUpperCase().charAt(0)}] ${remaining > 100 ? (remaining/1000).toFixed(1) + "s" : "..."}`;
+        el.style.borderColor = "rgba(255, 0, 0, 0.5)";
+        if (icon) icon.style.opacity = "0.3";
+        if (keyHint) {
+          keyHint.textContent = (remaining / 1000).toFixed(1) + "s";
+          keyHint.style.color = "#ff4444";
+        }
       } else {
-        el.style.opacity = "0.5";
-        el.style.color = "#00ff00";
-        el.style.fontWeight = "normal";
-        const label = id === "cd-attack" ? "Attack" : id === "cd-interact" ? "Interact" : "Equip";
-        const key = id === "cd-attack" ? "F" : id === "cd-interact" ? "E" : "G";
-        el.textContent = `[${key}] ${label}`;
+        el.style.borderColor = "rgba(233, 195, 73, 0.3)";
+        if (icon) icon.style.opacity = "1";
+        if (keyHint) {
+          keyHint.textContent = id === "cd-attack" ? "F" : id === "cd-interact" ? "E" : "G";
+          keyHint.style.color = "var(--on-surface-variant)";
+        }
       }
     }
   };
 
-  const attackRemaining = Math.max(0, cooldowns.attack - now);
-  const interactRemaining = Math.max(0, cooldowns.interact - now);
-  const equipRemaining = Math.max(0, cooldowns.equip - now);
-
-  updateCd("cd-attack", attackRemaining);
-  updateCd("cd-interact", interactRemaining);
-  updateCd("cd-equip", equipRemaining);
+  updateCd("cd-attack", Math.max(0, cooldowns.attack - now));
+  updateCd("cd-interact", Math.max(0, cooldowns.interact - now));
+  updateCd("cd-equip", Math.max(0, cooldowns.equip - now));
 }
 
 export function showFloatingText(text: string, x: number, y: number) {
   const div = document.createElement("div");
+  div.className = "obsidian-relic font-serif";
   div.style.position = "fixed";
   div.style.left = `${x}px`;
   div.style.top = `${y}px`;
-  div.style.color = "#ff0000";
-  div.style.fontWeight = "bold";
-  div.style.fontSize = "20px";
+  div.style.color = text.includes("-") ? "#ff4444" : "#44ff44";
+  div.style.fontWeight = "800";
+  div.style.fontSize = "24px";
   div.style.pointerEvents = "none";
   div.style.zIndex = "1001";
+  div.style.textShadow = "0 0 10px rgba(0,0,0,0.8)";
   div.textContent = text;
   document.body.appendChild(div);
   
-  // Animate and remove
   div.animate([
-    { transform: "translateY(0)", opacity: 1 },
-    { transform: "translateY(-50px)", opacity: 0 }
+    { transform: "translateY(0) scale(1)", opacity: 1 },
+    { transform: "translateY(-80px) scale(1.2)", opacity: 0 }
   ], {
-    duration: 1000,
+    duration: 1200,
     easing: "ease-out"
   }).onfinish = () => div.remove();
 }
@@ -205,17 +307,22 @@ export function showTooltip(text: string) {
   if (!tooltip) {
     tooltip = document.createElement("div");
     tooltip.id = "interaction-tooltip";
+    tooltip.className = "obsidian-relic";
     tooltip.style.position = "fixed";
-    tooltip.style.bottom = "100px";
+    tooltip.style.bottom = "140px";
     tooltip.style.left = "50%";
     tooltip.style.transform = "translateX(-50%)";
-    tooltip.style.background = "rgba(0, 0, 0, 0.8)";
-    tooltip.style.color = "#fff";
-    tooltip.style.padding = "8px 16px";
-    tooltip.style.borderRadius = "6px";
-    tooltip.style.border = "1px solid #00ff00";
+    tooltip.style.background = "rgba(19, 19, 22, 0.9)";
+    tooltip.style.color = "var(--primary-gold)";
+    tooltip.style.padding = "10px 20px";
+    tooltip.style.borderRadius = "4px";
+    tooltip.style.border = "1px solid var(--primary-gold)";
+    tooltip.style.boxShadow = "0 0 20px rgba(233, 195, 73, 0.2)";
     tooltip.style.zIndex = "1000";
     tooltip.style.pointerEvents = "none";
+    tooltip.style.textTransform = "uppercase";
+    tooltip.style.letterSpacing = "2px";
+    tooltip.style.fontSize = "12px";
     document.body.appendChild(tooltip);
   }
   tooltip.textContent = text;
@@ -233,28 +340,27 @@ export function showDialogue(source: string, text: string, choices: any[] = [], 
   if (!dialogueBox) {
     dialogueBox = document.createElement("div");
     dialogueBox.id = "dialogue-box";
+    dialogueBox.className = "obsidian-relic panel";
     dialogueBox.style.position = "fixed";
-    dialogueBox.style.bottom = "20px";
+    dialogueBox.style.bottom = "40px";
     dialogueBox.style.left = "50%";
     dialogueBox.style.transform = "translateX(-50%)";
-    dialogueBox.style.background = "rgba(0, 0, 0, 0.9)";
-    dialogueBox.style.color = "#fff";
-    dialogueBox.style.padding = "25px 35px";
-    dialogueBox.style.borderRadius = "16px";
-    dialogueBox.style.fontFamily = "sans-serif";
     dialogueBox.style.width = "90vw";
-    dialogueBox.style.maxWidth = "600px";
-    dialogueBox.style.textAlign = "left";
-    dialogueBox.style.boxShadow = "0 10px 30px rgba(0,0,0,0.6)";
-    dialogueBox.style.border = "2px solid rgba(0,255,0,0.2)";
+    dialogueBox.style.maxWidth = "700px";
     dialogueBox.style.zIndex = "2000";
+    dialogueBox.style.pointerEvents = "auto";
     document.body.appendChild(dialogueBox);
   }
   
-  let html = `<div style="margin-bottom: 15px;"><strong style="color: #00ff00; font-size: 1.2em;">${source}:</strong> <span style="line-height: 1.5; font-size: 1.1em;">${text}</span></div>`;
+  let html = `
+    <div style="margin-bottom: 20px;">
+      <strong class="gold-text font-serif" style="font-size: 20px; display: block; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">${source}</strong>
+      <div style="line-height: 1.6; font-size: 16px; color: var(--on-surface);">${text}</div>
+    </div>
+  `;
   
   if (choices && choices.length > 0 && npcId) {
-    html += `<div style="display: flex; flex-direction: column; gap: 12px; margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">`;
+    html += `<div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">`;
     choices.forEach((choice, index) => {
       html += `
         <button 
@@ -262,84 +368,35 @@ export function showDialogue(source: string, text: string, choices: any[] = [], 
           data-npc-id="${npcId}" 
           data-node-id="${choice.nextNodeId}"
           data-choice-id="${choice.id}"
-          style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 15px 20px; border-radius: 10px; cursor: pointer; text-align: left; transition: all 0.2s; font-size: 1.1em;"
-          onmouseover="this.style.background='rgba(255,255,255,0.2)'; this.style.borderColor='#00ff00';"
-          onmouseout="this.style.background='rgba(255,255,255,0.08)'; this.style.borderColor='rgba(255,255,255,0.3)';"
+          style="background: var(--surface-container-low); border: 1px solid var(--outline-variant); color: var(--on-surface); padding: 12px 20px; border-radius: 2px; cursor: pointer; text-align: left; transition: all 0.2s; font-size: 14px;"
+          onmouseover="this.style.borderColor='var(--primary-gold)'; this.style.background='rgba(233, 195, 73, 0.05)';"
+          onmouseout="this.style.borderColor='var(--outline-variant)'; this.style.background='var(--surface-container-low)';"
         >
-          ${index + 1}. ${choice.text}
+          <span class="gold-text" style="margin-right: 10px; font-weight: 800;">${index + 1}.</span> ${choice.text}
         </button>
       `;
     });
     html += `</div>`;
   } else {
-    html += `<div style="font-size: 0.9em; opacity: 0.6; margin-top: 15px; text-align: center; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px;">(Tap here or press E to continue)</div>`;
+    html += `<div style="font-size: 10px; color: var(--on-surface-variant); text-transform: uppercase; letter-spacing: 2px; margin-top: 20px; text-align: center; opacity: 0.5;">Click anywhere to continue</div>`;
+    
+    const closeHandler = () => {
+      dialogueBox!.remove();
+      document.removeEventListener('click', closeHandler);
+    };
+    setTimeout(() => document.addEventListener('click', closeHandler), 100);
   }
   
   dialogueBox.innerHTML = html;
-  
-  // Add click listener to the whole box for "continue" if no choices
-  if (!choices || choices.length === 0) {
-    dialogueBox.onclick = () => {
-      if (dialogueBox && dialogueBox.parentNode) {
-        dialogueBox.parentNode.removeChild(dialogueBox);
-      }
+
+  dialogueBox.querySelectorAll(".dialogue-choice-btn").forEach((btn: any) => {
+    btn.onclick = (e: any) => {
+      e.stopPropagation();
+      const nid = btn.getAttribute("data-npc-id");
+      const nodeid = btn.getAttribute("data-node-id");
+      const cid = btn.getAttribute("data-choice-id");
+      sendDialogueChoice(nid, nodeid, cid);
+      dialogueBox!.remove();
     };
-  } else {
-    dialogueBox.onclick = null;
-  }
-
-  // Add event listeners to buttons
-  const buttons = dialogueBox.querySelectorAll(".dialogue-choice-btn");
-  buttons.forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      const target = e.currentTarget as HTMLButtonElement;
-      const nid = target.getAttribute("data-npc-id");
-      const node = target.getAttribute("data-node-id");
-      const choiceId = target.getAttribute("data-choice-id");
-      if (nid && node && choiceId) {
-        (window as any).sendDialogueChoice(nid, node, choiceId);
-      }
-    });
   });
-  
-  // Auto-hide after 10 seconds if no choices
-  if ((window as any).dialogueTimeout) {
-    clearTimeout((window as any).dialogueTimeout);
-  }
-  
-  if (!choices || choices.length === 0) {
-    (window as any).dialogueTimeout = setTimeout(() => {
-      if (dialogueBox && dialogueBox.parentNode) {
-        dialogueBox.parentNode.removeChild(dialogueBox);
-      }
-    }, 5000);
-  }
-}
-
-export function removeWorldLabel(id: string) {
-  const label = document.getElementById(`label-${id}`);
-  if (label) label.remove();
-}
-
-export function createWorldLabel(id: string, text: string, type: 'npc' | 'loot', healthPercent?: number) {
-  let label = document.getElementById(`label-${id}`);
-  if (!label) {
-    label = document.createElement("div");
-    label.id = `label-${id}`;
-    label.style.position = "fixed";
-    label.style.pointerEvents = "none";
-    label.style.zIndex = "1000";
-    label.style.textAlign = "center";
-    document.body.appendChild(label);
-  }
-  let html = `<div style="color: white; font-size: 12px; text-shadow: 1px 1px 1px black; font-weight: bold;">${text}</div>`;
-  if (type === 'npc' && healthPercent !== undefined) {
-    html += `
-      <div style="width: 40px; height: 6px; background: #333; margin: 2px auto; border: 1px solid #000;">
-        <div style="width: ${Math.max(0, Math.min(100, healthPercent * 100))}%; height: 100%; background: #00ff00;"></div>
-      </div>
-    `;
-  }
-  label.innerHTML = html;
-  return label;
 }
