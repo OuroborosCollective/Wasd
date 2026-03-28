@@ -16,8 +16,6 @@ export class ServerBootstrap {
     const httpServer = createServer(app);
 
     app.use("/api", migrationRoute);
-
-    // Admin MCP endpoint
     app.use("/api/mcp", mcpRoute());
 
     app.get("/health", (_req, res) => {
@@ -28,7 +26,6 @@ export class ServerBootstrap {
       });
     });
 
-    // Root health check for GCP Load Balancer
     app.get("/", (req, res, next) => {
       if (req.headers["user-agent"]?.includes("GoogleHC")) {
         return res.status(200).send("OK");
@@ -36,7 +33,7 @@ export class ServerBootstrap {
       next();
     });
 
-    // Serve client with Vite in development, or static files in production
+    const clientPath = path.resolve(__dirname, "../../../client/dist");
     if (process.env.NODE_ENV !== "production") {
       try {
         const { createServer: createViteServer } = await import("vite");
@@ -48,9 +45,10 @@ export class ServerBootstrap {
         app.use(vite.middlewares);
       } catch (e) {
         console.error("Failed to start Vite middleware", e);
+        app.use(express.static(clientPath));
       }
     } else {
-      app.use(express.static(path.resolve(__dirname, "../../../client/dist")));
+      app.use(express.static(clientPath));
     }
 
     const ws = new GameWebSocketServer(httpServer);
