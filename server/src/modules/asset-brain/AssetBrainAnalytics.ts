@@ -221,8 +221,8 @@ export class AssetBrainAnalytics {
       for (let i = 0; i < events.length; i += BATCH_SIZE) {
         const batch = events.slice(i, i + BATCH_SIZE);
 
-        const values = [];
-        const placeholders = [];
+        const values: any[] = [];
+        const placeholders: any[] = [];
 
         batch.forEach((event, index) => {
           const offset = index * 7;
