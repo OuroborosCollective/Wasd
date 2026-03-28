@@ -3,7 +3,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { randomUUID } from "node:crypto";
 
 export class GameWebSocketServer {
-  private wss: WebSocketServer | null = null;
+  public wss: WebSocketServer | null = null;
   public onPlayerConnect?: (id: string) => void;
   public onPlayerDisconnect?: (id: string) => void;
   public onPlayerMessage?: (id: string, msg: any) => void;
@@ -20,12 +20,6 @@ export class GameWebSocketServer {
       if (this.onPlayerConnect) {
         this.onPlayerConnect(id);
       }
-
-      socket.send(JSON.stringify({
-        type: "welcome",
-        message: "Arelorian connection established",
-        id
-      }));
 
       socket.on("message", (data) => {
         try {

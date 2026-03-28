@@ -11,9 +11,12 @@
     "migrate": "node-pg-migrate"
   },
   "dependencies": {
+    "@genkit-ai/googleai": "^1.28.0",
     "@modelcontextprotocol/sdk": "^1.27.1",
+    "commander": "^14.0.3",
     "express": "^4.21.0",
     "firebase-admin": "^13.0.0",
+    "genkit": "^1.31.0",
     "node-pg-migrate": "^8.0.4",
     "pg": "^8.11.3",
     "ws": "^8.18.0"
