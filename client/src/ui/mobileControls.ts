@@ -163,12 +163,12 @@ const MOBILE_STYLES = `
   }
   /* Responsive HUD adjustments for mobile */
   @media (max-width: 900px), (pointer: coarse) {
-    #hud-bottom { bottom: 230px !important; }
-    #hud-top-left { top: 10px !important; }
+    #hud-top-left { top: 10px !important; left: 10px !important; width: calc(100% - 130px) !important; padding: 10px !important; }
+    #hud-top-right { display: none !important; } /* Hide right side panels on mobile to save space */
     #minimap { top: 10px !important; right: 10px !important; width: 100px !important; height: 100px !important; }
-    #chat-panel { bottom: 230px !important; max-height: 120px !important; width: calc(100vw - 40px) !important; left: 20px !important; }
+    #chat-panel { bottom: 230px !important; max-height: 120px !important; width: calc(100vw - 20px) !important; left: 10px !important; }
     #dialogue-box { bottom: 240px !important; }
-    #action-bar { bottom: 170px !important; }
+    #action-bar { display: none !important; } /* Hide desktop action bar on mobile */
     .world-label { font-size: 10px !important; }
   }
   /* Show mobile controls on desktop for testing */
@@ -342,6 +342,7 @@ export function initMobileControls(
 
   joystickZone.addEventListener("touchstart", (e) => {
     e.preventDefault();
+    e.stopPropagation();
     const touch = e.changedTouches[0];
     joystickTouchId = touch.identifier;
     const rect = joystickZone.getBoundingClientRect();
@@ -352,6 +353,7 @@ export function initMobileControls(
 
   joystickZone.addEventListener("touchmove", (e) => {
     e.preventDefault();
+    e.stopPropagation();
     for (let i = 0; i < e.changedTouches.length; i++) {
       const touch = e.changedTouches[i];
       if (touch.identifier !== joystickTouchId) continue;

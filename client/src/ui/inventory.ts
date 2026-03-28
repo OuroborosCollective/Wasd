@@ -8,19 +8,20 @@ export function renderInventory() {
   if (!panel) {
     panel = document.createElement("div");
     panel.id = "inventory-panel";
+    panel.className = "obsidian-relic panel";
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("aria-modal", "true");
+    panel.setAttribute("aria-labelledby", "inv-title");
     panel.style.position = "fixed";
     panel.style.top = "50%";
     panel.style.left = "50%";
     panel.style.transform = "translate(-50%, -50%)";
-    panel.style.background = "rgba(0, 0, 0, 0.95)";
-    panel.style.color = "#fff";
-    panel.style.padding = "25px";
-    panel.style.borderRadius = "16px";
-    panel.style.border = "2px solid #00ff00";
     panel.style.zIndex = "2000";
     panel.style.width = "90vw";
     panel.style.maxWidth = "400px";
-    panel.style.boxShadow = "0 10px 30px rgba(0,0,0,0.7)";
+    panel.style.maxHeight = "90vh";
+    panel.style.display = "flex";
+    panel.style.flexDirection = "column";
     document.body.appendChild(panel);
   }
 
@@ -32,42 +33,66 @@ export function renderInventory() {
   panel.addEventListener('click', stopProp);
   panel.addEventListener('wheel', stopProp);
 
-  let html = `<h2 style="margin-top:0; color: #00ff00; border-bottom: 1px solid #444; padding-bottom: 10px;">Inventory</h2>`;
+  let html = `<h2 id="inv-title" class="gold-text font-serif" style="margin-top:0; border-bottom: 1px solid var(--outline-variant); padding-bottom: 10px; text-transform: uppercase;">Inventory</h2>`;
 
   // Equipment
-  html += `<div style="margin-bottom: 20px; border-bottom: 1px solid #444; padding-bottom: 15px;">
-    <strong style="font-size: 1.1em;">Equipped:</strong><br/>
-    <div style="margin-top: 10px; background: #222; padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
-      <span>Weapon: ${player.equipment?.weapon ? player.equipment.weapon.name : 'None'}</span>
-      ${player.equipment?.weapon ? `<button id="inv-btn-unequip-weapon" style="cursor:pointer; background:#ff4444; color:#fff; border:none; padding:8px 12px; border-radius:6px; font-weight: bold;">Unequip</button>` : ''}
-    </div>
-  </div>`;
+  html += `<div style="margin-bottom: 20px; border-bottom: 1px solid var(--outline-variant); padding-bottom: 15px;">
+    <strong style="font-size: 1.1em; color: var(--on-surface-variant);">Equipped:</strong><br/>
+    <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;">`;
+
+  const slots = ['head', 'chest', 'legs', 'feet', 'weapon'];
+  let hasEquipped = false;
+
+  slots.forEach(slot => {
+    if (player.equipment && player.equipment[slot]) {
+      hasEquipped = true;
+      html += `
+      <div style="background: var(--surface-container-low); padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--outline-variant);">
+        <span style="color: var(--on-surface); text-transform: capitalize;">${slot}: <span style="color: var(--primary-gold); font-weight: bold;">${player.equipment[slot].name}</span></span>
+        <button class="inv-btn-unequip btn-gold" data-slot="${slot}" style="padding: 8px 12px; font-size: 12px;">Unequip</button>
+      </div>`;
+    }
+  });
+
+  if (!hasEquipped) {
+     html += `<div style="color: var(--on-surface-variant); font-style: italic; font-size: 0.9em;">Nothing equipped.</div>`;
+  }
+
+  html += `</div></div>`;
 
   // Inventory
-  html += `<strong style="font-size: 1.1em;">Items:</strong><ul style="list-style:none; padding:0; margin-top: 10px; max-height: 300px; overflow-y: auto;">`;
+  html += `<strong style="font-size: 1.1em; color: var(--on-surface-variant);">Items:</strong>
+    <ul style="list-style:none; padding:0; margin-top: 10px; overflow-y: auto; flex: 1;">`;
 
   const inventory = player.inventory || [];
-  inventory.forEach((item: any) => {
-    html += `<li style="margin-bottom: 10px; background: #222; padding: 12px; border-radius: 8px; display:flex; flex-direction: column; gap: 10px;">
-      <div style="font-weight: bold;">${item.name} <span style="font-weight: normal; opacity: 0.6; font-size: 0.8em;">(${item.type})</span></div>
-      <div style="display: flex; gap: 10px;">
-        ${item.type === 'weapon' ? `<button class="inv-btn-equip" data-id="${item.id}" style="flex: 1; cursor:pointer; background:#008800; color:#fff; border:none; padding:10px; border-radius:6px; font-weight: bold;">Equip</button>` : ''}
-        <button class="inv-btn-drop" data-id="${item.id}" style="flex: 1; cursor:pointer; background:#880000; color:#fff; border:none; padding:10px; border-radius:6px; font-weight: bold;">Drop</button>
-      </div>
-    </li>`;
-  });
-  html += `</ul><button id="inv-btn-close" style="margin-top:20px; cursor:pointer; width: 100%; padding: 15px; background: #444; color: white; border: none; border-radius: 8px; font-weight: bold;">Close</button>`;
+  if (inventory.length === 0) {
+    html += `<li style="color: var(--on-surface-variant); font-style: italic; text-align: center; margin-top: 20px;">Your bag is empty.</li>`;
+  } else {
+    inventory.forEach((item: any) => {
+      const isEquippable = item.type === 'weapon' || item.type === 'head' || item.type === 'chest' || item.type === 'legs' || item.type === 'feet';
+      html += `<li style="margin-bottom: 10px; background: var(--surface-container-low); border: 1px solid var(--outline-variant); padding: 12px; border-radius: 8px; display:flex; flex-direction: column; gap: 10px;">
+        <div style="font-weight: bold; color: var(--primary-gold);">${item.name} <span style="font-weight: normal; color: var(--on-surface-variant); font-size: 0.8em; text-transform: capitalize;">(${item.type})</span></div>
+        <div style="display: flex; gap: 10px;">
+          ${isEquippable ? `<button class="inv-btn-equip btn-gold" data-id="${item.id}" style="flex: 1; padding: 12px;">Equip</button>` : ''}
+          <button class="inv-btn-drop" data-id="${item.id}" style="flex: 1; padding: 12px; background: #880000; color: #fff; border: 1px solid #ff4444; border-radius: 2px; font-weight: 800; text-transform: uppercase;">Drop</button>
+        </div>
+      </li>`;
+    });
+  }
+
+  html += `</ul><button id="inv-btn-close" class="btn-gold" style="margin-top:20px; width: 100%; padding: 15px; font-size: 16px;">Close</button>`;
 
   panel.innerHTML = html;
 
   // Add event listeners using Event Delegation instead of inline onclick strings
-  const unequipBtn = document.getElementById("inv-btn-unequip-weapon");
-  if (unequipBtn) {
-    unequipBtn.addEventListener("click", (e) => {
+  const unequipBtns = panel.querySelectorAll(".inv-btn-unequip");
+  unequipBtns.forEach(btn => {
+    btn.addEventListener("click", (e) => {
       e.stopPropagation();
-      sendCommand({ type: 'unequip', slot: 'weapon' });
+      const slot = (e.currentTarget as HTMLElement).getAttribute("data-slot");
+      if (slot) sendCommand({ type: 'unequip', slot });
     });
-  }
+  });
 
   const closeBtn = document.getElementById("inv-btn-close");
   if (closeBtn) {

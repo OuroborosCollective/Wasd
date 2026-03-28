@@ -22,7 +22,7 @@ export function renderHUD() {
   
   hud.innerHTML = `
     <!-- Top Left: Character Status -->
-    <div class="panel" style="position: absolute; top: 20px; left: 20px; width: 280px; pointer-events: auto;">
+    <div id="hud-top-left" class="panel" role="region" aria-label="Character Status" style="position: absolute; top: 20px; left: 20px; width: 280px; pointer-events: auto;">
       <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
         <div style="position: relative;">
           <div style="width: 56px; height: 56px; border-radius: 4px; overflow: hidden; border: 2px solid var(--primary-gold); background: #000;">
@@ -76,7 +76,7 @@ export function renderHUD() {
     </div>
 
     <!-- Bottom Center: Action Bar -->
-    <div style="position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 12px;">
+    <div id="action-bar" role="toolbar" aria-label="Action Bar" style="position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 12px;">
       <div style="display: flex; gap: 8px; padding: 12px; background: rgba(19, 19, 22, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(233, 195, 73, 0.3); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
         <div class="action-slot" id="cd-attack">
           <span class="material-symbols-outlined">bolt</span>
@@ -105,7 +105,7 @@ export function renderHUD() {
     </div>
 
     <!-- Bottom Left: Chat -->
-    <div class="chat-container" style="position: absolute; bottom: 30px; left: 20px; width: 320px; pointer-events: auto;">
+    <div id="chat-panel" class="chat-container" role="region" aria-label="Chat" style="position: absolute; bottom: 30px; left: 20px; width: 320px; pointer-events: auto;">
       <div class="chat-log" id="chat-log" role="log" aria-live="polite" aria-atomic="false"></div>
       <div class="chat-input-wrapper">
         <input type="text" id="chat-input" class="chat-input" aria-label="Chat message input" placeholder="Whisper to the void..." />
@@ -116,7 +116,7 @@ export function renderHUD() {
     </div>
 
     <!-- Right Side: Quests & Inventory -->
-    <div style="position: absolute; top: 20px; right: 20px; width: 240px; display: flex; flex-direction: column; gap: 16px; pointer-events: auto;">
+    <div id="hud-top-right" role="region" aria-label="Quests and Inventory" style="position: absolute; top: 20px; right: 20px; width: 240px; display: flex; flex-direction: column; gap: 16px; pointer-events: auto;">
       <!-- Quests -->
       <div class="panel" style="border-left: none; border-right: 4px solid var(--primary-gold);">
         <h3 class="gold-text font-serif" style="margin: 0 0 12px 0; font-size: 16px; text-transform: uppercase; text-align: right;">Active Quests</h3>
@@ -335,12 +335,57 @@ export function hideTooltip() {
   }
 }
 
+export function createWorldLabel(id: string, text: string, type: "player" | "npc" | "loot", hpRatio?: number): HTMLElement {
+  let label = document.getElementById(`world-label-${id}`);
+  if (!label) {
+    label = document.createElement("div");
+    label.id = `world-label-${id}`;
+    label.className = "world-label";
+    label.style.position = "fixed";
+    label.style.transform = "translate(-50%, -100%)";
+    label.style.pointerEvents = "none";
+    label.style.zIndex = "500";
+    label.style.textAlign = "center";
+    label.style.textShadow = "0px 1px 3px rgba(0,0,0,0.8)";
+    label.style.fontFamily = "'Manrope', sans-serif";
+    label.style.fontWeight = "bold";
+    label.style.fontSize = type === "loot" ? "10px" : "12px";
+
+    if (type === "player") label.style.color = "#00ff88";
+    else if (type === "loot") label.style.color = "#ffd700";
+    else label.style.color = "#ffaaaa";
+
+    document.body.appendChild(label);
+  }
+
+  let html = text;
+  if (type === "npc" && hpRatio !== undefined && hpRatio < 1) {
+    const hpColor = hpRatio > 0.5 ? "#44ff44" : hpRatio > 0.2 ? "#ffff44" : "#ff4444";
+    html += `<div style="width: 30px; height: 3px; background: rgba(0,0,0,0.5); margin: 2px auto 0; border-radius: 2px;">
+      <div style="width: ${hpRatio * 100}%; height: 100%; background: ${hpColor}; border-radius: 2px;"></div>
+    </div>`;
+  }
+
+  label.innerHTML = html;
+  return label;
+}
+
+export function removeWorldLabel(id: string) {
+  const label = document.getElementById(`world-label-${id}`);
+  if (label && label.parentNode) {
+    label.parentNode.removeChild(label);
+  }
+}
+
 export function showDialogue(source: string, text: string, choices: any[] = [], npcId?: string) {
   let dialogueBox = document.getElementById("dialogue-box");
   if (!dialogueBox) {
     dialogueBox = document.createElement("div");
     dialogueBox.id = "dialogue-box";
     dialogueBox.className = "obsidian-relic panel";
+    dialogueBox.setAttribute("role", "dialog");
+    dialogueBox.setAttribute("aria-modal", "true");
+    dialogueBox.setAttribute("aria-labelledby", "dialogue-source");
     dialogueBox.style.position = "fixed";
     dialogueBox.style.bottom = "40px";
     dialogueBox.style.left = "50%";
@@ -354,7 +399,7 @@ export function showDialogue(source: string, text: string, choices: any[] = [], 
   
   let html = `
     <div style="margin-bottom: 20px;">
-      <strong class="gold-text font-serif" style="font-size: 20px; display: block; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">${source}</strong>
+      <strong id="dialogue-source" class="gold-text font-serif" style="font-size: 20px; display: block; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">${source}</strong>
       <div style="line-height: 1.6; font-size: 16px; color: var(--on-surface);">${text}</div>
     </div>
   `;
