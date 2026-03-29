@@ -12,6 +12,11 @@ export class PlayCanvasAdapter implements IEngineBridge {
   private cameraController: PlayCanvasCameraController | null = null;
   private sounds: Map<string, pc.Asset> = new Map();
 
+  // LOD / Distance settings
+  private readonly LOD_DIST_HI = 20;   // High quality: full animations, shadows, nameplates
+  private readonly LOD_DIST_MED = 50;  // Medium: no shadows, simpler anims
+  private readonly LOD_DIST_LOW = 100; // Low: no nameplates, static, hidden
+
   constructor(private app: pc.Application) {
     this.entityFactory = new PlayCanvasEntityFactory(app);
     this.assetLoader = new PlayCanvasAssetLoader(app);
@@ -38,7 +43,7 @@ export class PlayCanvasAdapter implements IEngineBridge {
   private initSounds() {
     const soundUrls = {
       'attack': 'https://raw.githubusercontent.com/playcanvas/playcanvas.github.io/master/assets/audio/impact.mp3',
-      'hit': 'https://raw.githubusercontent.com/playcanvas/playcanvas.github.io/master/assets/audio/footstep.mp3', // Using footstep as a placeholder for hit
+      'hit': 'https://raw.githubusercontent.com/playcanvas/playcanvas.github.io/master/assets/audio/footstep.mp3',
       'footstep': 'https://raw.githubusercontent.com/playcanvas/playcanvas.github.io/master/assets/audio/footstep.mp3',
       'ambient': 'https://raw.githubusercontent.com/playcanvas/playcanvas.github.io/master/assets/audio/ambient.mp3'
     };
@@ -47,8 +52,6 @@ export class PlayCanvasAdapter implements IEngineBridge {
       this.app.assets.loadFromUrl(url, 'audio', (err, asset) => {
         if (!err && asset) {
           this.sounds.set(name, asset);
-          console.log(`Sound loaded: ${name}`);
-
           // If ambient, play it
           if (name === 'ambient') {
             this.playSound(name, { volume: 0.2, loop: true });
@@ -73,7 +76,6 @@ export class PlayCanvasAdapter implements IEngineBridge {
       autoPlay: true
     });
 
-    // Cleanup non-looping slots
     if (!options?.loop) {
       setTimeout(() => {
         if (camera.sound) camera.sound.removeSlot(slotName);
@@ -84,7 +86,6 @@ export class PlayCanvasAdapter implements IEngineBridge {
   createEntity(model: EntityViewModel): void {
     const entity = this.entityFactory.createEntity(model);
     this.pcEntities.set(model.id, entity);
-    console.log(`Entity created: ${model.id}`);
   }
 
   updateEntity(id: string, updates: Partial<EntityViewModel>): void {
@@ -98,7 +99,6 @@ export class PlayCanvasAdapter implements IEngineBridge {
     if (entity) {
       entity.destroy();
       this.pcEntities.delete(id);
-      console.log(`Entity destroyed: ${id}`);
     }
   }
 
@@ -135,6 +135,46 @@ export class PlayCanvasAdapter implements IEngineBridge {
     if (this.cameraController) {
       this.cameraController.update(dt);
     }
+
+    const camera = this.app.root.findByName('MainCamera');
+    const camPos = camera ? camera.getPosition() : pc.Vec3.ZERO;
+
+    // Apply distance-based optimizations (LOD)
+    this.pcEntities.forEach((entity, id) => {
+        if (entity.name.startsWith("Chunk_")) return;
+
+        const dist = entity.getPosition().distance(camPos);
+
+        // 1. Shadow optimization
+        if (entity.model) {
+            entity.model.castShadows = dist < this.LOD_DIST_HI;
+        } else if (entity.render) {
+            entity.render.castShadows = dist < this.LOD_DIST_HI;
+        }
+
+        // 2. Nameplate optimization
+        const nameplate = entity.findByName("Nameplate");
+        if (nameplate) {
+            nameplate.enabled = dist < this.LOD_DIST_MED;
+        }
+
+        // 3. Animation optimization
+        if (entity.animation) {
+            if (dist > this.LOD_DIST_MED) {
+                if (entity.animation.playing) entity.animation.stop();
+            } else if (!entity.animation.playing) {
+                // If we are close again, resume or play default (could be improved)
+                // entity.animation.play(entity.animation.currAnim);
+            }
+        }
+
+        // 4. Far cull
+        if (dist > this.LOD_DIST_LOW) {
+            entity.enabled = false;
+        } else {
+            entity.enabled = true;
+        }
+    });
 
     // Update nav arrow position and rotation
     if (this.navArrow && this.navTarget) {
@@ -179,7 +219,6 @@ export class PlayCanvasAdapter implements IEngineBridge {
     chunkEntity.addChild(ground);
     this.app.root.addChild(chunkEntity);
     this.pcEntities.set(chunk.id, chunkEntity);
-    console.log(`Chunk created: ${chunk.id} at ${chunk.chunkX}, ${chunk.chunkY}`);
   }
 
   destroyChunk(id: string): void {
@@ -187,14 +226,12 @@ export class PlayCanvasAdapter implements IEngineBridge {
     if (chunk) {
       chunk.destroy();
       this.pcEntities.delete(id);
-      console.log(`Chunk destroyed: ${id}`);
     }
   }
 
   triggerEntityAction(entityId: string, action: string): void {
     const entity = this.pcEntities.get(entityId);
     if (entity) {
-      // Trigger animation or effect
       if (action === 'attack') {
         this.entityFactory.playAnimation(entity, 'slash');
       }
@@ -202,7 +239,6 @@ export class PlayCanvasAdapter implements IEngineBridge {
   }
 
   onInput(callback: (input: any) => void): void {
-    // Basic keyboard input mapping
     const keys = ['w', 'a', 's', 'd'];
     this.app.keyboard.on(pc.EVENT_KEYDOWN, (e) => {
       const key = e.key.toLowerCase();
@@ -210,20 +246,17 @@ export class PlayCanvasAdapter implements IEngineBridge {
         callback({ type: 'keydown', key });
       }
       if (e.key === pc.KEY_SPACE) {
-        // Trigger attack via core
         if ((window as any).gameCore) {
           (window as any).gameCore.attack();
         }
       }
       if (e.key === pc.KEY_E) {
-        // Trigger interact via core
         if ((window as any).gameCore) {
           (window as any).gameCore.interact();
         }
       }
     });
 
-    // Touch support for mobile
     if (this.app.touch) {
       let touchStartPos: pc.Vec2 | null = null;
 
@@ -238,7 +271,6 @@ export class PlayCanvasAdapter implements IEngineBridge {
           const dx = e.touches[0].x - touchStartPos.x;
           const dy = e.touches[0].y - touchStartPos.y;
 
-          // Threshold for movement
           const threshold = 30;
           if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
             if (Math.abs(dx) > Math.abs(dy)) {
@@ -246,7 +278,6 @@ export class PlayCanvasAdapter implements IEngineBridge {
             } else {
               callback({ type: 'keydown', key: dy > 0 ? 's' : 'w' });
             }
-            // Reset start pos to allow continuous movement detection
             touchStartPos = new pc.Vec2(e.touches[0].x, e.touches[0].y);
           }
         }
