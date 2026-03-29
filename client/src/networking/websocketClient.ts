@@ -3,7 +3,7 @@ import { MMORPGClientCore } from "../core/MMORPGClientCore";
 let globalWs: WebSocket | null = null;
 
 export function connectSocket(core: MMORPGClientCore) {
-  const ws = new WebSocket(`ws://${location.hostname}:3000/ws`);
+  const ws = new WebSocket(`wss://${location.hostname}/ws`);
   globalWs = ws;
 
   ws.onopen = () => {
