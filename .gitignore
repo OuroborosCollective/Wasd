@@ -4,4 +4,4 @@ dist/
 .env.local
 .DS_Store
 *.log
-coverage/
+coverage/server/firebase-applet-config.json
