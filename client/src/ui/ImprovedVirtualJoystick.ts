@@ -1,4 +1,8 @@
 import { MMORPGClientCore } from "../core/MMORPGClientCore";
+import { renderInventory } from "./inventory";
+import { renderSkillsPanel } from "./skillsPanel";
+import { renderQuestLog } from "./questLog";
+import { renderEquipmentPanel } from "./equipmentPanel";
 
 export interface JoystickInput {
   x: number;
@@ -73,6 +77,37 @@ export function renderImprovedVirtualJoystick(core: MMORPGClientCore) {
 
     .btn-attack { background: rgba(255, 0, 0, 0.6); }
     .btn-interact { background: rgba(0, 0, 255, 0.6); }
+
+    .menu-buttons {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      gap: 10px;
+      z-index: 1000;
+    }
+
+    .menu-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 5px;
+      background: rgba(19, 19, 22, 0.8);
+      border: 1px solid #E9C349;
+      color: #E9C349;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 12px;
+      user-select: none;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+      transition: transform 0.1s, background 0.2s;
+    }
+    .menu-btn:active {
+      transform: scale(0.9);
+      background: rgba(233, 195, 73, 0.3);
+    }
   `;
   document.head.appendChild(style);
 
@@ -142,14 +177,61 @@ export function renderImprovedVirtualJoystick(core: MMORPGClientCore) {
   const attackBtn = document.createElement('div');
   attackBtn.className = 'mobile-btn btn-attack';
   attackBtn.innerText = 'ATTACK';
-  attackBtn.onclick = () => core.attack();
+  attackBtn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    core.attack();
+  });
+  attackBtn.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    core.attack();
+  });
 
   const interactBtn = document.createElement('div');
   interactBtn.className = 'mobile-btn btn-interact';
   interactBtn.innerText = 'TALK (E)';
-  interactBtn.onclick = () => core.interact();
+  interactBtn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    core.interact();
+  });
+  interactBtn.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    core.interact();
+  });
 
   btnContainer.appendChild(interactBtn);
   btnContainer.appendChild(attackBtn);
   document.body.appendChild(btnContainer);
+
+  // Menu Access Buttons
+  const menuContainer = document.createElement('div');
+  menuContainer.className = 'menu-buttons';
+
+  const menus = [
+    { label: 'INV', action: renderInventory },
+    { label: 'EQP', action: renderEquipmentPanel },
+    { label: 'SKL', action: renderSkillsPanel },
+    { label: 'QST', action: renderQuestLog }
+  ];
+
+  menus.forEach(menu => {
+    const btn = document.createElement('div');
+    btn.className = 'menu-btn';
+    btn.innerText = menu.label;
+
+    const handler = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      menu.action();
+    };
+
+    btn.addEventListener('touchstart', handler);
+    btn.addEventListener('mousedown', handler);
+    menuContainer.appendChild(btn);
+  });
+
+  document.body.appendChild(menuContainer);
 }
