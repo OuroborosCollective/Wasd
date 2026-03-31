@@ -117,7 +117,13 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
     try {
       const data = JSON.parse(msg.data);
       if (data.type === 'entity_sync') {
-        if (data.entities) core.syncEntities(data.entities);
+        if (data.entities) {
+          const normalizedEntities = data.entities.map((entity: any) => ({
+            ...entity,
+            modelUrl: entity.modelUrl ?? entity.glbPath,
+          }));
+          core.syncEntities(normalizedEntities);
+        }
         if (data.chunks) core.syncChunks(data.chunks);
       }
       if (data.type === 'entity_action') {

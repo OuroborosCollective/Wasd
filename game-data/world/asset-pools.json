@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "defaults": {
+    "players": "/assets/models/characters/uschi.glb",
+    "npcs": "/assets/models/characters/uschi.glb",
+    "monsters": "/assets/models/monsters/goblin.glb",
+    "loot": "/assets/models/objects/chest.glb",
+    "world_objects": "/assets/models/objects/chest.glb",
+    "resources": "/assets/models/objects/chest.glb",
+    "object": "/assets/models/objects/chest.glb"
+  },
+  "pools": {
+    "players": {
+      "default": "/assets/models/characters/uschi.glb",
+      "warrior": "/assets/models/characters/uschi.glb",
+      "mage": "/assets/models/characters/uschi.glb",
+      "ranger": "/assets/models/characters/uschi.glb"
+    },
+    "npcs": {
+      "default": "/assets/models/characters/uschi.glb",
+      "citizen": "/assets/models/characters/uschi.glb",
+      "merchant": "/assets/models/characters/uschi.glb",
+      "questgiver": "/assets/models/characters/uschi.glb",
+      "guard": "/assets/models/characters/uschi.glb"
+    },
+    "monsters": {
+      "default": "/assets/models/monsters/goblin.glb",
+      "goblin": "/assets/models/monsters/goblin.glb",
+      "wolf": "/assets/models/monsters/goblin.glb",
+      "boar": "/assets/models/monsters/goblin.glb",
+      "undead": "/assets/models/monsters/goblin.glb",
+      "legion_scout": "/assets/models/monsters/goblin.glb",
+      "legion_brute": "/assets/models/monsters/goblin.glb",
+      "legion_overseer": "/assets/models/monsters/goblin.glb"
+    },
+    "loot": {
+      "default": "/assets/models/objects/chest.glb",
+      "gold": "/assets/models/objects/chest.glb",
+      "weapon": "/assets/models/objects/chest.glb",
+      "armor": "/assets/models/objects/chest.glb",
+      "consumable": "/assets/models/objects/chest.glb"
+    },
+    "resources": {
+      "default": "/assets/models/objects/chest.glb",
+      "tree": "/assets/models/objects/chest.glb",
+      "rock": "/assets/models/objects/chest.glb",
+      "bush": "/assets/models/objects/chest.glb",
+      "ore": "/assets/models/objects/chest.glb"
+    },
+    "world_objects": {
+      "default": "/assets/models/objects/chest.glb",
+      "object": "/assets/models/objects/chest.glb",
+      "house": "/assets/models/objects/chest.glb",
+      "tree": "/assets/models/objects/chest.glb",
+      "rock": "/assets/models/objects/chest.glb",
+      "well": "/assets/models/objects/chest.glb",
+      "market": "/assets/models/objects/chest.glb",
+      "dungeon": "/assets/models/objects/chest.glb",
+      "camp": "/assets/models/objects/chest.glb",
+      "tower": "/assets/models/objects/chest.glb",
+      "ruin": "/assets/models/objects/chest.glb",
+      "portal": "/assets/models/objects/chest.glb",
+      "shrine": "/assets/models/objects/chest.glb"
+    }
+  }
+}

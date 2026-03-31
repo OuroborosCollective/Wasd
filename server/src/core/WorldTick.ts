@@ -12,6 +12,7 @@ import { PersistenceManager } from "./PersistenceManager.js";
 import { verifyFirebaseToken } from "../config/firebase.js";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
 import { GLBRegistry } from "../modules/asset-registry/GLBRegistry.js";
+import { AssetPoolResolver } from "../modules/world/AssetPoolResolver.js";
 import { cache } from "./Cache.js";
 import fs from "fs";
 import path from "path";
@@ -214,6 +215,7 @@ export class WorldTick {
   public worldSystem: WorldSystem;
   public persistence: PersistenceManager;
   public glbRegistry: GLBRegistry;
+  private assetPoolResolver: AssetPoolResolver;
   private lootEntities: Map<string, any> = new Map();
 
   private socketToPlayer: Map<string, string> = new Map(); // socketId -> characterName
@@ -975,6 +977,7 @@ export class WorldTick {
     this.persistence = new PersistenceManager();
     this.worldSystem = new WorldSystem(this.persistence);
     this.glbRegistry = new GLBRegistry();
+    this.assetPoolResolver = new AssetPoolResolver();
 
     // Create a dummy player in a distant chunk to prove multi-observer union
     const dummyPlayer = this.playerSystem.createPlayer("dummy_player", "Dummy Player");
@@ -1305,6 +1308,7 @@ export class WorldTick {
         position: { x: p.position.x, y: 0, z: p.position.y }, // Mapping y to z for 3D
         rotation: { x: 0, y: 0, z: 0 },
         name: p.name,
+        glbPath: this.resolveEntityGlbPath("players", p.name || p.id, p.id),
         visible: true
       })),
       ...this.npcSystem.getAllNPCs().map(n => ({
@@ -1313,6 +1317,7 @@ export class WorldTick {
         position: { x: n.position.x, y: 0, z: n.position.y },
         rotation: { x: 0, y: 0, z: 0 },
         name: n.name,
+        glbPath: this.resolveNpcGlbPath(n),
         visible: true
       })),
       ...Array.from(this.lootEntities.values()).map(l => ({
@@ -1320,6 +1325,7 @@ export class WorldTick {
         type: 'loot',
         position: { x: l.position.x, y: 0, z: l.position.y },
         rotation: { x: 0, y: 0, z: 0 },
+        glbPath: this.resolveEntityGlbPath("loot", l.item?.id || l.id, l.id),
         visible: true
       }))
     ];
@@ -1331,6 +1337,7 @@ export class WorldTick {
         type: obj.type || 'object',
         position: { x: obj.position.x, y: 0, z: obj.position.y },
         rotation: { x: 0, y: obj.rotation || 0, z: 0 },
+        glbPath: obj.glbPath || this.resolveWorldObjectGlbPath(obj.type, obj.name || obj.id, obj.id),
         visible: true
       }));
       entities.push(...worldObjects);
@@ -1349,5 +1356,25 @@ export class WorldTick {
     return {
        updateMonsters: () => {} // Shim for WebSocketServer compatibility if needed
     };
+  }
+
+  private resolveNpcGlbPath(npc: any): string | undefined {
+    const single = this.glbRegistry.getModelForTarget("npc_single", npc.id);
+    if (single) return single;
+    const byRole = this.glbRegistry.getModelForTarget("npc_group", String(npc.role || ""));
+    if (byRole) return byRole;
+    return this.resolveEntityGlbPath("npcs", npc.role || npc.name || npc.id, npc.id);
+  }
+
+  private resolveWorldObjectGlbPath(type: string | undefined, name: string | undefined, id: string): string | undefined {
+    const single = this.glbRegistry.getModelForTarget("object_single", id);
+    if (single) return single;
+    const byType = type ? this.glbRegistry.getModelForTarget("object_group", type) : null;
+    if (byType) return byType;
+    return this.resolveEntityGlbPath("world_objects", type || name || id, id);
+  }
+
+  private resolveEntityGlbPath(category: string, key: string | undefined, seed: string): string | undefined {
+    return this.assetPoolResolver.resolvePath(category, key, seed);
   }
 }
