@@ -16,6 +16,7 @@ const state = {
   admin: {
     scannedModels: [],
     links: [],
+    pools: null,
   },
 };
 
@@ -65,6 +66,17 @@ function bindClick(id, handler) {
 function renderAdminState() {
   safeSetValue("adminModels", JSON.stringify(state.admin.scannedModels, null, 2));
   safeSetValue("adminLinks", JSON.stringify(state.admin.links, null, 2));
+  safeSetValue("assetPoolsJson", JSON.stringify(state.admin.pools ?? { version: 1, defaults: {}, pools: {} }, null, 2));
+  safeSetValue(
+    "assetPoolHints",
+    [
+      "Tips:",
+      "- category aliases: npc -> npcs, monster -> monsters, object -> world_objects",
+      "- path can be a single GLB or comma-separated list for deterministic variant rotation",
+      "- entry example: category=world_objects, key=house, path=/assets/models/buildings/house_01.glb",
+      "- default example: category=world_objects, path=/assets/models/objects/chest.glb",
+    ].join("\n")
+  );
   const select = byId("adminModelSelect");
   if (select) {
     const current = select.value;
@@ -78,6 +90,33 @@ function renderAdminState() {
       select.value = current;
     }
   }
+}
+
+function parseEntryInput(raw) {
+  const trimmed = String(raw || "").trim();
+  if (!trimmed) return null;
+  if (trimmed.includes(",")) {
+    const parts = trimmed
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    return parts.length > 0 ? parts : null;
+  }
+  return trimmed;
+}
+
+function applySelectedModelPath() {
+  const modelSelect = byId("adminModelSelect");
+  if (!modelSelect) return;
+  const selected = modelSelect.value;
+  if (!selected) {
+    logLine("Please select a scanned GLB first.", "bad");
+    return;
+  }
+  safeSetValue("adminGlbPath", selected);
+  safeSetValue("registerPath", selected);
+  safeSetValue("poolPath", selected);
+  logLine(`Prefilled model path: ${selected}`, "ok");
 }
 
 function updatePreviewCanvas() {
@@ -162,6 +201,8 @@ function handleMessage(msg) {
     logLine(`Logged in as ${state.playerId || "unknown"}`, "ok");
     send({ type: "gm_preview_request" });
     send({ type: "gm_get_players" });
+    send({ type: "admin_glb_list" });
+    send({ type: "admin_glb_pool_get" });
     return;
   }
   if (msg.type === "entity_sync") {
@@ -182,6 +223,13 @@ function handleMessage(msg) {
     state.admin.links = Array.isArray(msg.links) ? msg.links : [];
     renderAdminState();
     logLine(`Loaded ${state.admin.links.length} link(s).`, "ok");
+    return;
+  }
+  if (msg.type === "admin_glb_pool_result") {
+    state.admin.pools = msg.pools || { version: 1, defaults: {}, pools: {} };
+    renderAdminState();
+    const categories = Object.keys(state.admin.pools?.pools || {});
+    logLine(`Asset pools synced (${categories.length} categories).`, "ok");
     return;
   }
   if (msg.type === "gm_player_list") {
@@ -384,15 +432,13 @@ function initBindings() {
 
   bindClick("adminScanBtn", () => cmd("admin_glb_scan"));
   bindClick("adminListBtn", () => cmd("admin_glb_list"));
+  bindClick("poolLoadBtn", () => cmd("admin_glb_pool_get"));
+  bindClick("poolReloadBtn", () => cmd("admin_glb_pool_reload"));
   const modelSelect = byId("adminModelSelect");
   if (modelSelect) {
-    modelSelect.onchange = () => {
-      const selected = modelSelect.value;
-      if (!selected) return;
-      safeSetValue("adminGlbPath", selected);
-      safeSetValue("registerPath", selected);
-    };
+    modelSelect.onchange = applySelectedModelPath;
   }
+  bindClick("applySelectedModelBtn", applySelectedModelPath);
   bindClick("adminLinkBtn", () =>
     cmd("admin_glb_link", {
       targetType: val("adminTargetType"),
@@ -413,6 +459,42 @@ function initBindings() {
       path: val("registerPath"),
     })
   );
+  bindClick("poolSetBtn", () => {
+    const category = val("poolCategory");
+    const key = val("poolKey");
+    const entry = parseEntryInput(val("poolPath"));
+    if (!category || !key || !entry) {
+      logLine("Pool set requires category, key and path.", "bad");
+      return;
+    }
+    cmd("admin_glb_pool_set", { category, key, path: entry });
+  });
+  bindClick("poolRemoveBtn", () => {
+    const category = val("poolCategory");
+    const key = val("poolKey");
+    if (!category || !key) {
+      logLine("Pool remove requires category and key.", "bad");
+      return;
+    }
+    cmd("admin_glb_pool_remove", { category, key });
+  });
+  bindClick("poolSetDefaultBtn", () => {
+    const category = val("poolCategory");
+    const entry = parseEntryInput(val("poolPath"));
+    if (!category || !entry) {
+      logLine("Default set requires category and path.", "bad");
+      return;
+    }
+    cmd("admin_glb_pool_set_default", { category, path: entry });
+  });
+  bindClick("poolRemoveDefaultBtn", () => {
+    const category = val("poolCategory");
+    if (!category) {
+      logLine("Default remove requires category.", "bad");
+      return;
+    }
+    cmd("admin_glb_pool_remove_default", { category });
+  });
   bindClick("copyFirstModelBtn", () => {
     const first = state.admin.scannedModels[0];
     if (!first) {
@@ -421,6 +503,7 @@ function initBindings() {
     }
     safeSetValue("adminGlbPath", first);
     safeSetValue("registerPath", first);
+    safeSetValue("poolPath", first);
     logLine(`Prefilled model path: ${first}`, "ok");
   });
 }
@@ -431,6 +514,7 @@ function bootstrapDefaults() {
   safeSetValue("wsUrl", `${wsProto}://${loc.host}/ws`);
   safeSetValue("adminTargetType", "object_group");
   safeSetValue("registerCategory", "object");
+  safeSetValue("poolCategory", "world_objects");
 }
 
 bootstrapDefaults();

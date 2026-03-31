@@ -394,6 +394,31 @@
               <textarea id="adminLinks" rows="4" placeholder="Active GLB links appear here"></textarea>
             </div>
           </div>
+
+          <div class="group">
+            <h3>Asset Pool Editor (No-Code Mapping)</h3>
+            <div class="row">
+              <button id="poolLoadBtn">Load Pools</button>
+              <button id="poolReloadBtn" class="secondary">Reload From Disk</button>
+            </div>
+            <div class="row3">
+              <input id="poolCategory" placeholder="category (world_objects, npcs, monsters...)" value="world_objects" />
+              <input id="poolKey" placeholder="key (e.g. house)" value="house" />
+              <input id="poolPath" placeholder="/assets/models/...glb" />
+            </div>
+            <div class="row">
+              <button id="poolSetBtn">Set Entry</button>
+              <button id="poolRemoveBtn" class="bad">Remove Entry</button>
+            </div>
+            <div class="row">
+              <button id="poolSetDefaultBtn" class="secondary">Set Default for Category</button>
+              <button id="poolRemoveDefaultBtn" class="secondary">Remove Category Default</button>
+            </div>
+            <div class="row">
+              <textarea id="assetPoolsJson" rows="8" placeholder="Asset pools JSON appears here"></textarea>
+              <textarea id="assetPoolHints" rows="8" placeholder="Hints and quick usage info"></textarea>
+            </div>
+          </div>
         </div>
 
         <div class="preview">

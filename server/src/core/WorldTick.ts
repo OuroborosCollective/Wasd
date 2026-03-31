@@ -552,6 +552,96 @@ export class WorldTick {
       return true;
     }
 
+    if (t === "admin_glb_pool_get") {
+      this.ws.sendToPlayer(socketId, {
+        type: "admin_glb_pool_result",
+        pools: this.assetPoolResolver.getDocument(),
+      });
+      return true;
+    }
+
+    if (t === "admin_glb_pool_set") {
+      if (!isNonEmptyString(msg.category) || !isNonEmptyString(msg.key) || !isNonEmptyString(msg.path)) {
+        this.sendGMStatus(socketId, "error", "category, key and path are required.");
+        return true;
+      }
+      const saved = this.assetPoolResolver.setEntry(msg.category, msg.key, msg.path);
+      if (!saved) {
+        this.sendGMStatus(socketId, "error", "Failed to save asset pool entry.");
+        return true;
+      }
+      this.ws.sendToPlayer(socketId, {
+        type: "admin_glb_pool_result",
+        pools: this.assetPoolResolver.getDocument(),
+      });
+      this.sendGMStatus(socketId, "info", `Asset pool updated: ${msg.category}.${msg.key}`);
+      return true;
+    }
+
+    if (t === "admin_glb_pool_remove") {
+      if (!isNonEmptyString(msg.category) || !isNonEmptyString(msg.key)) {
+        this.sendGMStatus(socketId, "error", "category and key are required.");
+        return true;
+      }
+      const removed = this.assetPoolResolver.removeEntry(msg.category, msg.key);
+      if (!removed) {
+        this.sendGMStatus(socketId, "error", `Asset pool entry not found: ${msg.category}.${msg.key}`);
+        return true;
+      }
+      this.ws.sendToPlayer(socketId, {
+        type: "admin_glb_pool_result",
+        pools: this.assetPoolResolver.getDocument(),
+      });
+      this.sendGMStatus(socketId, "info", `Asset pool entry removed: ${msg.category}.${msg.key}`);
+      return true;
+    }
+
+    if (t === "admin_glb_pool_set_default") {
+      if (!isNonEmptyString(msg.category) || !isNonEmptyString(msg.path)) {
+        this.sendGMStatus(socketId, "error", "category and path are required.");
+        return true;
+      }
+      const saved = this.assetPoolResolver.setDefault(msg.category, msg.path);
+      if (!saved) {
+        this.sendGMStatus(socketId, "error", "Failed to save default asset pool entry.");
+        return true;
+      }
+      this.ws.sendToPlayer(socketId, {
+        type: "admin_glb_pool_result",
+        pools: this.assetPoolResolver.getDocument(),
+      });
+      this.sendGMStatus(socketId, "info", `Asset pool default updated: ${msg.category}`);
+      return true;
+    }
+
+    if (t === "admin_glb_pool_remove_default") {
+      if (!isNonEmptyString(msg.category)) {
+        this.sendGMStatus(socketId, "error", "category is required.");
+        return true;
+      }
+      const removed = this.assetPoolResolver.removeDefault(msg.category);
+      if (!removed) {
+        this.sendGMStatus(socketId, "error", `Asset pool default not found: ${msg.category}`);
+        return true;
+      }
+      this.ws.sendToPlayer(socketId, {
+        type: "admin_glb_pool_result",
+        pools: this.assetPoolResolver.getDocument(),
+      });
+      this.sendGMStatus(socketId, "info", `Asset pool default removed: ${msg.category}`);
+      return true;
+    }
+
+    if (t === "admin_glb_pool_reload") {
+      this.assetPoolResolver.reload();
+      this.ws.sendToPlayer(socketId, {
+        type: "admin_glb_pool_result",
+        pools: this.assetPoolResolver.getDocument(),
+      });
+      this.sendGMStatus(socketId, "info", "Asset pools reloaded from disk.");
+      return true;
+    }
+
     return false;
   }
 

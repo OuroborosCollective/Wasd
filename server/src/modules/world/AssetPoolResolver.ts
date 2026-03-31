@@ -38,6 +38,74 @@ export class AssetPoolResolver {
     }
   }
 
+  public getDocument(): AssetPoolDocument {
+    return JSON.parse(JSON.stringify(this.document));
+  }
+
+  public setEntry(category: string, key: string, entry: PoolEntry): boolean {
+    const normalizedCategory = this.normalizeCategory(category);
+    const normalizedKey = this.normalizeToken(key);
+    const normalizedEntry = this.normalizeEntry(entry);
+    if (!normalizedCategory || !normalizedKey || !normalizedEntry) {
+      return false;
+    }
+    if (!this.document.pools) {
+      this.document.pools = {};
+    }
+    if (!this.document.pools[normalizedCategory]) {
+      this.document.pools[normalizedCategory] = {};
+    }
+    this.document.pools[normalizedCategory][normalizedKey] = normalizedEntry;
+    this.save();
+    return true;
+  }
+
+  public removeEntry(category: string, key: string): boolean {
+    const normalizedCategory = this.normalizeCategory(category);
+    const normalizedKey = this.normalizeToken(key);
+    if (!normalizedCategory || !normalizedKey || !this.document.pools?.[normalizedCategory]) {
+      return false;
+    }
+    const before = Object.prototype.hasOwnProperty.call(this.document.pools[normalizedCategory], normalizedKey);
+    if (!before) {
+      return false;
+    }
+    delete this.document.pools[normalizedCategory][normalizedKey];
+    if (Object.keys(this.document.pools[normalizedCategory]).length === 0) {
+      delete this.document.pools[normalizedCategory];
+    }
+    this.save();
+    return true;
+  }
+
+  public setDefault(category: string, entry: PoolEntry): boolean {
+    const normalizedCategory = this.normalizeCategory(category);
+    const normalizedEntry = this.normalizeEntry(entry);
+    if (!normalizedCategory || !normalizedEntry) {
+      return false;
+    }
+    if (!this.document.defaults) {
+      this.document.defaults = {};
+    }
+    this.document.defaults[normalizedCategory] = normalizedEntry;
+    this.save();
+    return true;
+  }
+
+  public removeDefault(category: string): boolean {
+    const normalizedCategory = this.normalizeCategory(category);
+    if (!normalizedCategory || !this.document.defaults) {
+      return false;
+    }
+    const before = Object.prototype.hasOwnProperty.call(this.document.defaults, normalizedCategory);
+    if (!before) {
+      return false;
+    }
+    delete this.document.defaults[normalizedCategory];
+    this.save();
+    return true;
+  }
+
   public resolvePath(category: string | undefined, key: string | undefined, seed?: string): string | undefined {
     const normalizedCategory = this.normalizeCategory(category);
     const normalizedKey = this.normalizeToken(key);
@@ -86,6 +154,21 @@ export class AssetPoolResolver {
     return entry[index];
   }
 
+  private normalizeEntry(entry: PoolEntry): PoolEntry | null {
+    if (typeof entry === "string") {
+      const cleaned = entry.trim();
+      return cleaned.length > 0 ? cleaned : null;
+    }
+    if (!Array.isArray(entry)) {
+      return null;
+    }
+    const cleaned = entry.map((value) => String(value).trim()).filter((value) => value.length > 0);
+    if (cleaned.length === 0) {
+      return null;
+    }
+    return cleaned.length === 1 ? cleaned[0] : cleaned;
+  }
+
   private normalizeCategory(category: string | undefined): string {
     const normalized = this.normalizeToken(category);
     if (!normalized) {
@@ -115,5 +198,14 @@ export class AssetPoolResolver {
       hash |= 0;
     }
     return hash;
+  }
+
+  private save() {
+    try {
+      fs.mkdirSync(path.dirname(this.poolsPath), { recursive: true });
+      fs.writeFileSync(this.poolsPath, JSON.stringify(this.document, null, 2));
+    } catch (error) {
+      console.error("Failed to save asset-pools.json", error);
+    }
   }
 }
