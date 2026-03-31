@@ -47,6 +47,38 @@ type GMWorldState = {
   bannedPlayers: string[];
   customDialogues: Record<string, any>;
 };
+type GMTemplateWave = {
+  npcId: string;
+  name?: string;
+  count: number;
+  spread?: number;
+  hp?: number;
+};
+type GMTemplateStep = {
+  delaySec: number;
+  eventId?: string;
+  title?: string;
+  description?: string;
+  broadcast?: string;
+  weather?: string;
+  time?: number;
+  economyEvent?: { eventType: string; duration: number };
+  spawnWaves?: GMTemplateWave[];
+};
+type GMTemplateDefinition = {
+  id: string;
+  name: string;
+  description: string;
+  steps: GMTemplateStep[];
+};
+type ScheduledGMTemplateStep = {
+  runId: string;
+  templateId: string;
+  executeAt: number;
+  originX: number;
+  originY: number;
+  step: GMTemplateStep;
+};
 
 const DEFAULT_SCENE_ID = "didis_hub";
 const DEFAULT_SCENE_PROFILES: Record<string, SceneProfile> = {
@@ -99,6 +131,68 @@ const DEFAULT_SCENE_TRIGGER_ZONES: SceneTriggerZone[] = [
   },
 ];
 const SCENE_LAYOUT_DIRECTORY = path.resolve(process.cwd(), "game-data/scenes");
+const GM_EVENT_TEMPLATES: Record<string, GMTemplateDefinition> = {
+  legion_invasion: {
+    id: "legion_invasion",
+    name: "Legion Invasion",
+    description: "Three-stage invasion with weather change and elite waves.",
+    steps: [
+      {
+        delaySec: 0,
+        weather: "storm",
+        eventId: "legion_invasion_started",
+        title: "Legion Invasion",
+        description: "Demonic portals open across the district.",
+        broadcast: "Legion forces have breached the outer perimeter!",
+      },
+      {
+        delaySec: 25,
+        spawnWaves: [{ npcId: "legion_scout", name: "Legion Scout", count: 6, spread: 10, hp: 130 }],
+        broadcast: "Wave 1: Legion Scouts are advancing!",
+      },
+      {
+        delaySec: 50,
+        spawnWaves: [{ npcId: "legion_brute", name: "Legion Brute", count: 4, spread: 8, hp: 220 }],
+        broadcast: "Wave 2: Legion Brutes entered the battlefield!",
+      },
+      {
+        delaySec: 90,
+        spawnWaves: [{ npcId: "legion_overseer", name: "Legion Overseer", count: 1, spread: 4, hp: 800 }],
+        eventId: "legion_boss_phase",
+        title: "Overseer Arrived",
+        description: "Eliminate the Overseer to end the invasion.",
+        broadcast: "Final Wave: Legion Overseer is here!",
+      },
+    ],
+  },
+  city_defense: {
+    id: "city_defense",
+    name: "City Defense",
+    description: "Defensive event around hub with support guards and raiders.",
+    steps: [
+      {
+        delaySec: 0,
+        weather: "fog",
+        eventId: "city_defense_started",
+        title: "City Defense Activated",
+        description: "Barricades raised. Hold your positions.",
+        broadcast: "Defensive protocol enabled. Raiders incoming.",
+      },
+      {
+        delaySec: 20,
+        spawnWaves: [
+          { npcId: "city_guard", name: "City Guard", count: 5, spread: 12, hp: 180 },
+          { npcId: "raider", name: "Raider", count: 7, spread: 14, hp: 140 },
+        ],
+      },
+      {
+        delaySec: 60,
+        economyEvent: { eventType: "trade_boom", duration: 180 },
+        broadcast: "Supply lines are stable. Temporary trade bonus active.",
+      },
+    ],
+  },
+};
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -356,6 +450,21 @@ export class WorldTick {
           timestamp: Date.now(),
         });
         this.sendGMStatus(socketId, "info", `World event triggered: ${title}`);
+        return true;
+      }
+      case "gm_run_event_template": {
+        const templateId = isNonEmptyString(msg.templateId) ? msg.templateId.trim() : "";
+        if (!templateId) {
+          this.sendGMStatus(socketId, "error", "templateId is required.");
+          return true;
+        }
+        const template = this.eventTemplates.find((t) => t.id === templateId);
+        if (!template) {
+          this.sendGMStatus(socketId, "error", `Event template not found: ${templateId}`);
+          return true;
+        }
+        this.runEventTemplate(template, socketId, caller);
+        this.sendGMStatus(socketId, "info", `Started event template: ${template.name || template.id}`);
         return true;
       }
       case "gm_place_object": {

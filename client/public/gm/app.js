@@ -3,11 +3,15 @@ const state = {
   connected: false,
   playerId: null,
   entities: [],
+  gmToken: "",
+  heatmapEnabled: true,
+  heatmapResolution: 18,
   preview: {
     players: [],
     npcs: [],
     weather: "clear",
     time: "00:00",
+    heatmap: null,
   },
 };
 
@@ -34,7 +38,11 @@ function send(payload) {
     logLine("Socket not connected", "bad");
     return;
   }
-  state.ws.send(JSON.stringify(payload));
+  const message = { ...payload };
+  if (state.gmToken) {
+    message.gmToken = state.gmToken;
+  }
+  state.ws.send(JSON.stringify(message));
 }
 
 function updatePreviewCanvas() {
@@ -59,6 +67,34 @@ function updatePreviewCanvas() {
     ctx.stroke();
   }
 
+  if (state.heatmapEnabled && state.preview.heatmap?.grid) {
+    const hm = state.preview.heatmap;
+    const minX = Number(hm.minX || -50);
+    const minY = Number(hm.minY || -50);
+    const maxX = Number(hm.maxX || 50);
+    const maxY = Number(hm.maxY || 50);
+    const cols = Math.max(1, Number(hm.cols || 1));
+    const rows = Math.max(1, Number(hm.rows || 1));
+    const cellW = (maxX - minX) / cols;
+    const cellH = (maxY - minY) / rows;
+    const maxVal = Math.max(1, Number(hm.max || 1));
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const value = Number(hm.grid[r]?.[c] || 0);
+        if (value <= 0) continue;
+        const intensity = Math.min(1, value / maxVal);
+        const worldX = minX + c * cellW + cellW / 2;
+        const worldY = minY + r * cellH + cellH / 2;
+        const sx = w / 2 + worldX * 4;
+        const sy = h / 2 + worldY * 4;
+        const sw = Math.max(2, cellW * 4);
+        const sh = Math.max(2, cellH * 4);
+        ctx.fillStyle = `rgba(255, 80, 20, ${0.12 + intensity * 0.38})`;
+        ctx.fillRect(sx - sw / 2, sy - sh / 2, sw, sh);
+      }
+    }
+  }
+
   const drawPoint = (x, y, color, label) => {
     const sx = w / 2 + x * 4;
     const sy = h / 2 + y * 4;
@@ -79,7 +115,8 @@ function updatePreviewCanvas() {
     drawPoint(n.x || 0, n.y || 0, "#f08f3a", n.name || n.id || "npc");
   });
 
-  byId("previewMeta").textContent = `Weather: ${state.preview.weather} | Time: ${state.preview.time} | Players: ${state.preview.players.length} | NPCs: ${state.preview.npcs.length}`;
+  byId("previewMeta").textContent =
+    `Weather: ${state.preview.weather} | Time: ${state.preview.time} | Players: ${state.preview.players.length} | NPCs: ${state.preview.npcs.length} | Heatmap: ${state.heatmapEnabled ? "on" : "off"}`;
 }
 
 function handleMessage(msg) {
@@ -108,6 +145,7 @@ function handleMessage(msg) {
     state.preview.npcs = msg.npcs || [];
     state.preview.weather = msg.world?.weather || "clear";
     state.preview.time = msg.world?.time || "00:00";
+    state.preview.heatmap = msg.heatmap || null;
     updatePreviewCanvas();
     return;
   }
@@ -120,6 +158,7 @@ function handleMessage(msg) {
 function connect() {
   const wsUrl = byId("wsUrl").value.trim();
   const token = byId("token").value.trim();
+  const gmToken = byId("gmToken").value.trim();
   const sceneId = byId("sceneId").value.trim() || "didis_hub";
   const spawnKey = byId("spawnKey").value.trim() || "sp_player_default";
   if (!wsUrl) {
@@ -133,6 +172,7 @@ function connect() {
 
   const ws = new WebSocket(wsUrl);
   state.ws = ws;
+  state.gmToken = gmToken;
   setStatus("Connecting…", false);
 
   ws.onopen = () => {
@@ -172,6 +212,11 @@ function initBindings() {
     cmd("gm_preview_request");
     cmd("gm_get_players");
   };
+  byId("heatmapToggle").onclick = () => {
+    state.heatmapEnabled = !state.heatmapEnabled;
+    byId("heatmapToggle").textContent = state.heatmapEnabled ? "Heatmap ON" : "Heatmap OFF";
+    updatePreviewCanvas();
+  };
 
   byId("weatherBtn").onclick = () => cmd("gm_set_weather", { weather: val("weather") || "clear" });
   byId("timeBtn").onclick = () => cmd("gm_set_time", { time: Number(val("time")) || 12 });
@@ -180,6 +225,12 @@ function initBindings() {
       eventId: val("eventId") || "custom_event",
       title: val("eventTitle") || "Custom Event",
       description: val("eventDesc"),
+    });
+  byId("eventTemplateBtn").onclick = () =>
+    cmd("gm_run_event_template", {
+      templateId: val("eventTemplate") || "legion_invasion",
+      centerX: Number(val("eventCenterX")) || 0,
+      centerY: Number(val("eventCenterY")) || 0,
     });
   byId("broadcastBtn").onclick = () =>
     cmd("gm_broadcast", { channel: "system", message: val("broadcastText"), color: "#ffd700" });
@@ -224,6 +275,8 @@ function bootstrapDefaults() {
   const loc = window.location;
   const wsProto = loc.protocol === "https:" ? "wss" : "ws";
   byId("wsUrl").value = `${wsProto}://${loc.host}/ws`;
+  byId("eventCenterX").value = "0";
+  byId("eventCenterY").value = "0";
 }
 
 bootstrapDefaults();

@@ -133,6 +133,25 @@
         border: 1px solid var(--line);
         border-radius: 10px;
       }
+      .legend {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+      }
+      .legend .tag {
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: #101a3a;
+      }
+      .heat-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
       table {
         width: 100%;
         border-collapse: collapse;
@@ -183,18 +202,34 @@
       <div class="top">
         <div class="card">
           <label>MCP/WS Base URL</label>
-          <input id="baseUrl" value="wss://arelogic.space/ws" />
+          <input id="wsUrl" value="wss://arelogic.space/ws" />
         </div>
         <div class="card">
-          <label>Firebase ID Token (GM/Admin account)</label>
+          <label>Firebase ID Token (GM/Admin account, optional if GM_PANEL_TOKEN used)</label>
           <input id="token" placeholder="Paste ID token here" />
         </div>
         <div class="card" style="display:flex;align-items:end;gap:8px;">
           <button id="connectBtn">Connect</button>
-          <button id="previewBtn" class="secondary">Preview Pull</button>
+          <button id="previewRefresh" class="secondary">Preview Pull</button>
         </div>
       </div>
       <div id="connStatus" class="status">Disconnected</div>
+      <div class="card" style="margin-bottom:12px;">
+        <div class="row3">
+          <div>
+            <label>Scene ID</label>
+            <input id="sceneId" value="didis_hub" />
+          </div>
+          <div>
+            <label>Spawn Key</label>
+            <input id="spawnKey" value="sp_player_default" />
+          </div>
+          <div>
+            <label>GM Panel Token (optional)</label>
+            <input id="gmToken" placeholder="GM_PANEL_TOKEN" />
+          </div>
+        </div>
+      </div>
 
       <div class="grid">
         <div class="controls card">
@@ -222,6 +257,15 @@
               <button class="warn" onclick="gmEvent()">Trigger Event</button>
             </div>
             <textarea id="eventDesc" placeholder="Event description">Demons have breached the eastern gate.</textarea>
+            <div class="row" style="margin-top:8px;">
+              <select id="eventTemplate">
+                <option value="">-- Select Event Template --</option>
+                <option value="legion_invasion">Legion Invasion</option>
+                <option value="city_defense">City Defense</option>
+                <option value="world_boss_hunt">World Boss Hunt</option>
+              </select>
+              <button class="warn" onclick="gmRunTemplate()">Run Template</button>
+            </div>
           </div>
 
           <div class="group">
@@ -280,7 +324,16 @@
           <div class="card">
             <h3>Live World Preview</h3>
             <div class="preview-grid">
-              <div class="canvas-wrap"><canvas id="previewCanvas" width="800" height="420"></canvas></div>
+              <div class="canvas-wrap">
+                <canvas id="preview" width="800" height="420"></canvas>
+                <div class="legend">
+                  <span class="tag">🟢 Player online</span>
+                  <span class="tag">⚪ Player offline</span>
+                  <span class="tag">🟠 NPC</span>
+                  <span class="tag">🔥 Heatmap density</span>
+                </div>
+                <div id="previewMeta" style="font-size:11px;color:#9db0e7;margin-top:6px"></div>
+              </div>
               <div class="mini-table">
                 <table>
                   <thead><tr><th>Player</th><th>Pos</th><th>Role</th><th>HP</th></tr></thead>
@@ -288,225 +341,18 @@
                 </table>
               </div>
             </div>
+            <div class="group">
+              <h3>Heat Hotspots (Top 8)</h3>
+              <div id="heatList"></div>
+            </div>
           </div>
           <div class="card log">
             <h3>GM Event Log</h3>
-            <div id="logBox"></div>
+            <div id="log"></div>
           </div>
         </div>
       </div>
     </div>
-
-    <script>
-      let ws = null;
-      let lastSnapshot = { players: [], npcs: [], world: { weather: "clear", time: "00:00" } };
-
-      const connStatus = document.getElementById("connStatus");
-      const logBox = document.getElementById("logBox");
-      const playersTable = document.getElementById("playersTable");
-      const canvas = document.getElementById("previewCanvas");
-      const ctx = canvas.getContext("2d");
-
-      function log(line) {
-        const ts = new Date().toLocaleTimeString();
-        logBox.textContent += `[${ts}] ${line}\n`;
-        logBox.scrollTop = logBox.scrollHeight;
-      }
-
-      function setStatus(text, ok = false, err = false) {
-        connStatus.textContent = text;
-        connStatus.className = `status${ok ? " ok" : ""}${err ? " err" : ""}`;
-      }
-
-      function send(msg) {
-        if (!ws || ws.readyState !== WebSocket.OPEN) {
-          log("Not connected.");
-          return;
-        }
-        ws.send(JSON.stringify(msg));
-      }
-
-      function loginPayload() {
-        return {
-          type: "login",
-          token: document.getElementById("token").value.trim(),
-          sceneId: "didis_hub",
-          spawnKey: "sp_player_default"
-        };
-      }
-
-      function requestPreview() {
-        send({ type: "gm_preview_request" });
-        send({ type: "gm_get_players" });
-      }
-
-      document.getElementById("connectBtn").onclick = () => {
-        const baseUrl = document.getElementById("baseUrl").value.trim();
-        if (!baseUrl) return;
-        ws = new WebSocket(baseUrl);
-        ws.onopen = () => {
-          setStatus("Connected. Logging in...", true);
-          send(loginPayload());
-          log("WS connected.");
-        };
-        ws.onclose = () => {
-          setStatus("Disconnected", false, true);
-          log("WS disconnected.");
-        };
-        ws.onerror = () => {
-          setStatus("Connection error", false, true);
-          log("WS error.");
-        };
-        ws.onmessage = (ev) => {
-          let msg = null;
-          try { msg = JSON.parse(ev.data); } catch { return; }
-          if (msg.type === "welcome") {
-            setStatus(`Logged in as ${msg.playerId || msg.id}`, true);
-            log(`Login welcome: ${msg.playerId || msg.id}`);
-            requestPreview();
-          } else if (msg.type === "gm_status") {
-            log(`GM ${msg.level || "info"}: ${msg.message}`);
-          } else if (msg.type === "gm_preview_snapshot") {
-            lastSnapshot = msg;
-            renderPreview();
-          } else if (msg.type === "gm_player_list") {
-            renderPlayersTable(msg.players || []);
-          } else if (msg.type === "chat_message") {
-            log(`CHAT ${msg.sender || "?"}: ${msg.text || ""}`);
-          } else if (msg.type === "world_event") {
-            log(`WORLD_EVENT ${msg.event || ""} ${msg.title || ""}`);
-          } else if (msg.type === "error") {
-            log(`ERROR: ${msg.message || "unknown"}`);
-          }
-        };
-      };
-
-      document.getElementById("previewBtn").onclick = requestPreview;
-
-      function renderPlayersTable(players) {
-        playersTable.innerHTML = players
-          .map((p) => `<tr>
-            <td>${p.name || p.id}</td>
-            <td>${(p.x || 0).toFixed(1)}, ${(p.y || 0).toFixed(1)}</td>
-            <td>${p.role || "player"}</td>
-            <td>${p.hp ?? 100}</td>
-          </tr>`)
-          .join("");
-      }
-
-      function renderPreview() {
-        const w = canvas.width;
-        const h = canvas.height;
-        ctx.clearRect(0, 0, w, h);
-        ctx.fillStyle = "#0b1330";
-        ctx.fillRect(0, 0, w, h);
-
-        const points = [
-          ...lastSnapshot.players.map((p) => ({ ...p, kind: "player" })),
-          ...lastSnapshot.npcs.map((n) => ({ ...n, kind: "npc" }))
-        ];
-        if (points.length === 0) return;
-        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-        points.forEach((p) => {
-          minX = Math.min(minX, p.x || 0);
-          maxX = Math.max(maxX, p.x || 0);
-          minY = Math.min(minY, p.y || 0);
-          maxY = Math.max(maxY, p.y || 0);
-        });
-        const pad = 20;
-        const sx = (w - pad * 2) / Math.max(1, maxX - minX);
-        const sy = (h - pad * 2) / Math.max(1, maxY - minY);
-        const s = Math.min(sx, sy);
-
-        const tx = (x) => pad + (x - minX) * s;
-        const ty = (y) => h - (pad + (y - minY) * s);
-
-        ctx.strokeStyle = "#24345f";
-        ctx.strokeRect(1, 1, w - 2, h - 2);
-        ctx.fillStyle = "#9fb2eb";
-        ctx.font = "12px sans-serif";
-        ctx.fillText(`Weather: ${lastSnapshot.world.weather}  Time: ${lastSnapshot.world.time}`, 12, 16);
-
-        lastSnapshot.npcs.forEach((n) => {
-          ctx.fillStyle = "#f08b51";
-          ctx.beginPath();
-          ctx.arc(tx(n.x || 0), ty(n.y || 0), 5, 0, Math.PI * 2);
-          ctx.fill();
-        });
-        lastSnapshot.players.forEach((p) => {
-          ctx.fillStyle = p.online ? "#57d196" : "#7c8aad";
-          ctx.beginPath();
-          ctx.arc(tx(p.x || 0), ty(p.y || 0), 6, 0, Math.PI * 2);
-          ctx.fill();
-        });
-      }
-
-      function gmSetWeather() { send({ type: "gm_set_weather", weather: document.getElementById("weather").value }); requestPreview(); }
-      function gmSetTime() { send({ type: "gm_set_time", time: Number(document.getElementById("worldTime").value) || 12 }); requestPreview(); }
-      function gmEvent() {
-        send({
-          type: "gm_world_event",
-          eventId: "custom_event",
-          title: document.getElementById("eventTitle").value || "World Event",
-          description: document.getElementById("eventDesc").value || ""
-        });
-      }
-      function gmSpawnNpc() {
-        send({
-          type: "gm_spawn_npc",
-          npcId: document.getElementById("npcId").value || "event_npc",
-          name: document.getElementById("npcName").value || "Event NPC",
-          x: Number(document.getElementById("npcX").value) || 0,
-          y: Number(document.getElementById("npcY").value) || 0
-        });
-        requestPreview();
-      }
-      function gmRemoveNpc() {
-        send({ type: "gm_remove_npc", npcId: document.getElementById("removeNpcId").value });
-        requestPreview();
-      }
-      function gmTeleport() {
-        send({
-          type: "gm_teleport",
-          player: document.getElementById("targetPlayer").value,
-          x: Number(document.getElementById("tpX").value) || 0,
-          y: Number(document.getElementById("tpY").value) || 0
-        });
-        requestPreview();
-      }
-      function gmKick() { send({ type: "gm_kick", player: document.getElementById("targetPlayer").value }); }
-      function gmBan() { send({ type: "gm_ban", player: document.getElementById("targetPlayer").value }); }
-      function gmUnban() { send({ type: "gm_unban", player: document.getElementById("targetPlayer").value }); }
-      function gmMute() { send({ type: "gm_mute", player: document.getElementById("targetPlayer").value }); }
-      function gmUnmute() { send({ type: "gm_unmute", player: document.getElementById("targetPlayer").value }); }
-      function gmSetPrice() {
-        send({
-          type: "gm_set_price",
-          itemId: document.getElementById("priceItem").value,
-          buy: Number(document.getElementById("priceBuy").value) || 10
-        });
-      }
-      function gmBroadcast() {
-        send({
-          type: "gm_broadcast",
-          channel: "system",
-          message: document.getElementById("bcText").value || ""
-        });
-      }
-
-      window.gmSetWeather = gmSetWeather;
-      window.gmSetTime = gmSetTime;
-      window.gmEvent = gmEvent;
-      window.gmSpawnNpc = gmSpawnNpc;
-      window.gmRemoveNpc = gmRemoveNpc;
-      window.gmTeleport = gmTeleport;
-      window.gmKick = gmKick;
-      window.gmBan = gmBan;
-      window.gmUnban = gmUnban;
-      window.gmMute = gmMute;
-      window.gmUnmute = gmUnmute;
-      window.gmSetPrice = gmSetPrice;
-      window.gmBroadcast = gmBroadcast;
-    </script>
+    <script src="/gm/app.js"></script>
   </body>
 </html>
