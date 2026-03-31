@@ -74,6 +74,33 @@ Use `.cursor/mcp.json` in this repo (or your local Cursor config):
 
 Then restart Cursor.
 
+## 4b) Python SSH helper script
+
+You can use `deploy/vps_connect.py` for interactive SSH or automated deploy commands.
+
+Examples:
+
+```bash
+# 1) Interactive SSH login
+python3 deploy/vps_connect.py --host 46.202.154.25 --user root shell
+
+# 2) Run one command remotely
+python3 deploy/vps_connect.py --host 46.202.154.25 --user root run "uname -a"
+
+# 3) Run the Areloria update flow on VPS
+python3 deploy/vps_connect.py \
+  --host 46.202.154.25 \
+  --user root \
+  --app-dir /opt/areloria \
+  --branch cursor/mmorpq-playcanvas-connection-3e3d \
+  deploy
+```
+
+Notes:
+- The script prefers SSH key auth.
+- If you want non-interactive password auth, set `SSH_PASSWORD` or pass `--password` (requires `sshpass`).
+- Do not commit passwords or tokens in files.
+
 ## 5) Quick verification checklist
 
 1. Health endpoint works:
