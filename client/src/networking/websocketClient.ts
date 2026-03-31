@@ -10,6 +10,21 @@ export type ConnectionOptions = {
   spawnKey?: string;
 };
 
+type SpawnPosition = { x: number; y: number; z: number };
+
+function toEntityPosition(spawnPosition?: Partial<SpawnPosition>) {
+  if (!spawnPosition) {
+    return null;
+  }
+  const x = Number(spawnPosition.x ?? 0);
+  const y = Number(spawnPosition.y ?? 0);
+  const z = Number(spawnPosition.z ?? 0);
+  if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) {
+    return null;
+  }
+  return { x, y, z };
+}
+
 function normalizeWebSocketUrl(rawUrl: string | undefined): string | null {
   if (!rawUrl || rawUrl.trim().length === 0) {
     return null;
@@ -110,7 +125,20 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
       }
       if (data.type === 'welcome') {
         console.log(`Welcome to Areloria! Your ID: ${data.playerId}`);
-        core.setLocalPlayer(data.playerId || data.id);
+        const localPlayerId = data.playerId || data.id;
+        core.setLocalPlayer(localPlayerId);
+        const spawnPos = toEntityPosition(data.spawnPosition);
+        if (spawnPos && localPlayerId) {
+          core.syncEntities([
+            {
+              id: localPlayerId,
+              type: "player",
+              position: spawnPos,
+              rotation: { x: 0, y: 0, z: 0 },
+              visible: true,
+            },
+          ]);
+        }
         if (data.sceneId || data.spawnKey || data.spawnPosition) {
           console.log("Spawn assigned:", {
             sceneId: data.sceneId,
@@ -120,6 +148,19 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         }
       }
       if (data.type === 'scene_changed') {
+        const localPlayerId = core.getLocalPlayerId();
+        const spawnPos = toEntityPosition(data.spawnPosition);
+        if (spawnPos && localPlayerId) {
+          core.syncEntities([
+            {
+              id: localPlayerId,
+              type: "player",
+              position: spawnPos,
+              rotation: { x: 0, y: 0, z: 0 },
+              visible: true,
+            },
+          ]);
+        }
         console.log("Scene changed:", {
           sceneId: data.sceneId,
           spawnKey: data.spawnKey,

@@ -1,7 +1,7 @@
 import { createPlayCanvasApp } from "./engine/playcanvas/PlayCanvasBoot";
 import { PlayCanvasAdapter } from "./engine/playcanvas/PlayCanvasAdapter";
 import { MMORPGClientCore } from "./core/MMORPGClientCore";
-import { connectSocket, type ConnectionOptions } from "./networking/websocketClient";
+import { connectSocket, requestSceneChange, type ConnectionOptions } from "./networking/websocketClient";
 import { renderHUD, showDialogue } from "./ui/hud";
 import { renderImprovedVirtualJoystick } from "./ui/ImprovedVirtualJoystick";
 import { performanceMonitor } from "./utils/PerformanceMonitor";
@@ -33,6 +33,7 @@ if (persistedToken && persistedToken.trim().length > 0) {
   connectionOptions.token = persistedToken;
 }
 connectSocket(core, connectionOptions);
+(window as any).requestSceneChange = requestSceneChange;
 renderHUD();
 renderImprovedVirtualJoystick(core);
 performanceMonitor.start();

@@ -24,6 +24,15 @@ type SceneProfile = {
   defaultSpawnKey: string;
   spawnPoints: Record<string, SpawnPoint>;
 };
+type SceneTriggerZone = {
+  id: string;
+  sceneId: string;
+  x: number;
+  y: number;
+  radius: number;
+  targetSpawnKey: string;
+  allowedSpawnKeys?: string[];
+};
 
 const DEFAULT_SCENE_ID = "didis_hub";
 const SCENE_PROFILES: Record<string, SceneProfile> = {
@@ -36,6 +45,45 @@ const SCENE_PROFILES: Record<string, SceneProfile> = {
     },
   },
 };
+const SCENE_TRIGGER_COOLDOWN_MS = 2500;
+const SCENE_TRIGGER_ZONES: SceneTriggerZone[] = [
+  {
+    id: "tr_to_didi_01",
+    sceneId: "didis_hub",
+    x: 8,
+    y: 0,
+    radius: 2.2,
+    targetSpawnKey: "sp_didi_01",
+    allowedSpawnKeys: ["sp_player_default", "sp_didi_02"],
+  },
+  {
+    id: "tr_to_didi_02",
+    sceneId: "didis_hub",
+    x: -8,
+    y: 0,
+    radius: 2.2,
+    targetSpawnKey: "sp_didi_02",
+    allowedSpawnKeys: ["sp_player_default", "sp_didi_01"],
+  },
+  {
+    id: "tr_to_hub_from_didi_01",
+    sceneId: "didis_hub",
+    x: 18,
+    y: 14,
+    radius: 2.2,
+    targetSpawnKey: "sp_player_default",
+    allowedSpawnKeys: ["sp_didi_01"],
+  },
+  {
+    id: "tr_to_hub_from_didi_02",
+    sceneId: "didis_hub",
+    x: -18,
+    y: 14,
+    radius: 2.2,
+    targetSpawnKey: "sp_player_default",
+    allowedSpawnKeys: ["sp_didi_02"],
+  },
+];
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -61,6 +109,7 @@ export class WorldTick {
 
   private socketToPlayer: Map<string, string> = new Map(); // socketId -> characterName
   private lastActionTimes: Map<string, number> = new Map(); // charName -> timestamp
+  private sceneTriggerCooldowns: Map<string, number> = new Map();
 
   private getSceneProfile(sceneId: string | undefined): { sceneId: string; profile: SceneProfile } {
     const resolvedSceneId = sceneId && SCENE_PROFILES[sceneId] ? sceneId : DEFAULT_SCENE_ID;
@@ -84,6 +133,44 @@ export class WorldTick {
     player.position.y = spawn.spawnPoint.z;
     player.position.z = spawn.spawnPoint.y;
     return spawn;
+  }
+
+  private processSceneTriggers(socketId: string, player: any) {
+    const now = Date.now();
+    const cooldownUntil = this.sceneTriggerCooldowns.get(player.id) || 0;
+    if (now < cooldownUntil) {
+      return;
+    }
+
+    const currentSceneId = isNonEmptyString(player.sceneId) ? player.sceneId : DEFAULT_SCENE_ID;
+    const currentSpawnKey = isNonEmptyString(player.spawnKey) ? player.spawnKey : "";
+    for (const trigger of SCENE_TRIGGER_ZONES) {
+      if (trigger.sceneId !== currentSceneId) {
+        continue;
+      }
+      if (trigger.allowedSpawnKeys && !trigger.allowedSpawnKeys.includes(currentSpawnKey)) {
+        continue;
+      }
+
+      const dx = player.position.x - trigger.x;
+      const dy = player.position.y - trigger.y;
+      if (dx * dx + dy * dy > trigger.radius * trigger.radius) {
+        continue;
+      }
+
+      const spawn = this.applySpawnToPlayer(player, trigger.sceneId, trigger.targetSpawnKey);
+      this.sceneTriggerCooldowns.set(player.id, now + SCENE_TRIGGER_COOLDOWN_MS);
+      this.observerEngine.updatePosition(socketId, player.position);
+      this.ws.sendToPlayer(socketId, {
+        type: "scene_changed",
+        sceneId: spawn.sceneId,
+        spawnKey: spawn.spawnKey,
+        spawnPosition: spawn.spawnPoint,
+        via: "zone_trigger",
+        triggerId: trigger.id,
+      });
+      return;
+    }
   }
 
   constructor(private ws: GameWebSocketServer) {
@@ -225,6 +312,7 @@ export class WorldTick {
           player.position.x += dx * speed;
           player.position.y += dy * speed;
           this.observerEngine.updatePosition(id, player.position);
+          this.processSceneTriggers(id, player);
         }
       }
 
