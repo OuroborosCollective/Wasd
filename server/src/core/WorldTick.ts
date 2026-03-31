@@ -12,6 +12,7 @@ import { PersistenceManager } from "./PersistenceManager.js";
 import { verifyFirebaseToken } from "../config/firebase.js";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
 import { GLBRegistry } from "../modules/asset-registry/GLBRegistry.js";
+import { AssetPoolResolver } from "../modules/world/AssetPoolResolver.js";
 import { cache } from "./Cache.js";
 import fs from "fs";
 import path from "path";
@@ -214,6 +215,7 @@ export class WorldTick {
   public worldSystem: WorldSystem;
   public persistence: PersistenceManager;
   public glbRegistry: GLBRegistry;
+  private assetPoolResolver: AssetPoolResolver;
   private lootEntities: Map<string, any> = new Map();
 
   private socketToPlayer: Map<string, string> = new Map(); // socketId -> characterName
@@ -547,6 +549,96 @@ export class WorldTick {
       this.glbRegistry.removeLink(msg.targetType, msg.targetId);
       this.ws.sendToPlayer(socketId, { type: "admin_glb_list_result", links: this.glbRegistry.getLinks() });
       this.sendGMStatus(socketId, "info", `Unlinked ${msg.targetType}:${msg.targetId}`);
+      return true;
+    }
+
+    if (t === "admin_glb_pool_get") {
+      this.ws.sendToPlayer(socketId, {
+        type: "admin_glb_pool_result",
+        pools: this.assetPoolResolver.getDocument(),
+      });
+      return true;
+    }
+
+    if (t === "admin_glb_pool_set") {
+      if (!isNonEmptyString(msg.category) || !isNonEmptyString(msg.key) || !isNonEmptyString(msg.path)) {
+        this.sendGMStatus(socketId, "error", "category, key and path are required.");
+        return true;
+      }
+      const saved = this.assetPoolResolver.setEntry(msg.category, msg.key, msg.path);
+      if (!saved) {
+        this.sendGMStatus(socketId, "error", "Failed to save asset pool entry.");
+        return true;
+      }
+      this.ws.sendToPlayer(socketId, {
+        type: "admin_glb_pool_result",
+        pools: this.assetPoolResolver.getDocument(),
+      });
+      this.sendGMStatus(socketId, "info", `Asset pool updated: ${msg.category}.${msg.key}`);
+      return true;
+    }
+
+    if (t === "admin_glb_pool_remove") {
+      if (!isNonEmptyString(msg.category) || !isNonEmptyString(msg.key)) {
+        this.sendGMStatus(socketId, "error", "category and key are required.");
+        return true;
+      }
+      const removed = this.assetPoolResolver.removeEntry(msg.category, msg.key);
+      if (!removed) {
+        this.sendGMStatus(socketId, "error", `Asset pool entry not found: ${msg.category}.${msg.key}`);
+        return true;
+      }
+      this.ws.sendToPlayer(socketId, {
+        type: "admin_glb_pool_result",
+        pools: this.assetPoolResolver.getDocument(),
+      });
+      this.sendGMStatus(socketId, "info", `Asset pool entry removed: ${msg.category}.${msg.key}`);
+      return true;
+    }
+
+    if (t === "admin_glb_pool_set_default") {
+      if (!isNonEmptyString(msg.category) || !isNonEmptyString(msg.path)) {
+        this.sendGMStatus(socketId, "error", "category and path are required.");
+        return true;
+      }
+      const saved = this.assetPoolResolver.setDefault(msg.category, msg.path);
+      if (!saved) {
+        this.sendGMStatus(socketId, "error", "Failed to save default asset pool entry.");
+        return true;
+      }
+      this.ws.sendToPlayer(socketId, {
+        type: "admin_glb_pool_result",
+        pools: this.assetPoolResolver.getDocument(),
+      });
+      this.sendGMStatus(socketId, "info", `Asset pool default updated: ${msg.category}`);
+      return true;
+    }
+
+    if (t === "admin_glb_pool_remove_default") {
+      if (!isNonEmptyString(msg.category)) {
+        this.sendGMStatus(socketId, "error", "category is required.");
+        return true;
+      }
+      const removed = this.assetPoolResolver.removeDefault(msg.category);
+      if (!removed) {
+        this.sendGMStatus(socketId, "error", `Asset pool default not found: ${msg.category}`);
+        return true;
+      }
+      this.ws.sendToPlayer(socketId, {
+        type: "admin_glb_pool_result",
+        pools: this.assetPoolResolver.getDocument(),
+      });
+      this.sendGMStatus(socketId, "info", `Asset pool default removed: ${msg.category}`);
+      return true;
+    }
+
+    if (t === "admin_glb_pool_reload") {
+      this.assetPoolResolver.reload();
+      this.ws.sendToPlayer(socketId, {
+        type: "admin_glb_pool_result",
+        pools: this.assetPoolResolver.getDocument(),
+      });
+      this.sendGMStatus(socketId, "info", "Asset pools reloaded from disk.");
       return true;
     }
 
@@ -975,6 +1067,7 @@ export class WorldTick {
     this.persistence = new PersistenceManager();
     this.worldSystem = new WorldSystem(this.persistence);
     this.glbRegistry = new GLBRegistry();
+    this.assetPoolResolver = new AssetPoolResolver();
 
     // Create a dummy player in a distant chunk to prove multi-observer union
     const dummyPlayer = this.playerSystem.createPlayer("dummy_player", "Dummy Player");
@@ -1305,6 +1398,7 @@ export class WorldTick {
         position: { x: p.position.x, y: 0, z: p.position.y }, // Mapping y to z for 3D
         rotation: { x: 0, y: 0, z: 0 },
         name: p.name,
+        glbPath: this.resolveEntityGlbPath("players", p.name || p.id, p.id),
         visible: true
       })),
       ...this.npcSystem.getAllNPCs().map(n => ({
@@ -1313,6 +1407,7 @@ export class WorldTick {
         position: { x: n.position.x, y: 0, z: n.position.y },
         rotation: { x: 0, y: 0, z: 0 },
         name: n.name,
+        glbPath: this.resolveNpcGlbPath(n),
         visible: true
       })),
       ...Array.from(this.lootEntities.values()).map(l => ({
@@ -1320,6 +1415,7 @@ export class WorldTick {
         type: 'loot',
         position: { x: l.position.x, y: 0, z: l.position.y },
         rotation: { x: 0, y: 0, z: 0 },
+        glbPath: this.resolveEntityGlbPath("loot", l.item?.id || l.id, l.id),
         visible: true
       }))
     ];
@@ -1331,6 +1427,7 @@ export class WorldTick {
         type: obj.type || 'object',
         position: { x: obj.position.x, y: 0, z: obj.position.y },
         rotation: { x: 0, y: obj.rotation || 0, z: 0 },
+        glbPath: obj.glbPath || this.resolveWorldObjectGlbPath(obj.type, obj.name || obj.id, obj.id),
         visible: true
       }));
       entities.push(...worldObjects);
@@ -1349,5 +1446,25 @@ export class WorldTick {
     return {
        updateMonsters: () => {} // Shim for WebSocketServer compatibility if needed
     };
+  }
+
+  private resolveNpcGlbPath(npc: any): string | undefined {
+    const single = this.glbRegistry.getModelForTarget("npc_single", npc.id);
+    if (single) return single;
+    const byRole = this.glbRegistry.getModelForTarget("npc_group", String(npc.role || ""));
+    if (byRole) return byRole;
+    return this.resolveEntityGlbPath("npcs", npc.role || npc.name || npc.id, npc.id);
+  }
+
+  private resolveWorldObjectGlbPath(type: string | undefined, name: string | undefined, id: string): string | undefined {
+    const single = this.glbRegistry.getModelForTarget("object_single", id);
+    if (single) return single;
+    const byType = type ? this.glbRegistry.getModelForTarget("object_group", type) : null;
+    if (byType) return byType;
+    return this.resolveEntityGlbPath("world_objects", type || name || id, id);
+  }
+
+  private resolveEntityGlbPath(category: string, key: string | undefined, seed: string): string | undefined {
+    return this.assetPoolResolver.resolvePath(category, key, seed);
   }
 }

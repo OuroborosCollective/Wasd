@@ -3,7 +3,7 @@ import { EntityViewModel } from "./EntityViewModel";
 export interface IEngineBridge {
   // Entity Management
   createEntity(model: EntityViewModel): void;
-  updateEntity(id: string, updates: Partial<EntityViewModel>): void;
+  updateEntity(id: string, updates: Partial<EntityViewModel>, dt?: number): void;
   destroyEntity(id: string): void;
 
   // Camera & View

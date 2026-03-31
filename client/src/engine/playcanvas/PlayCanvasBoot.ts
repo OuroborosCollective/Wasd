@@ -15,11 +15,14 @@ export function createPlayCanvasApp(canvas: HTMLCanvasElement): pc.Application {
 
   app.start();
 
-  // Clustered Lighting (Optimized for many lights)
-  app.scene.layers.getLayerByName("World")!.id; // Ensure World layer exists
-  app.scene.lighting.cells = new pc.Vec3(10, 3, 10);
-  app.scene.lighting.maxLightsPerCell = 8;
-  app.scene.lighting.shadowsEnabled = true;
+  // Clustered lighting is optional; keep it defensive to avoid hard crashes on
+  // environments where specific layer/device assumptions are not met.
+  const worldLayer = app.scene.layers.getLayerByName("World");
+  if (worldLayer && app.scene.lighting) {
+    app.scene.lighting.cells = new pc.Vec3(10, 3, 10);
+    app.scene.lighting.maxLightsPerCell = 8;
+    app.scene.lighting.shadowsEnabled = true;
+  }
 
   // Visual Setup
   app.scene.gammaCorrection = pc.GAMMA_SRGB;
@@ -33,6 +36,7 @@ export function createPlayCanvasApp(canvas: HTMLCanvasElement): pc.Application {
   // Initial Scene Setup
   createDefaultCamera(app);
   createDefaultLight(app);
+  createFallbackGround(app);
 
   // Create a procedural skybox (gradient)
   createProceduralSkybox(app);
@@ -79,4 +83,20 @@ function createProceduralSkybox(app: pc.Application) {
     }
 
     app.scene.skybox = cubemap;
+}
+
+function createFallbackGround(app: pc.Application) {
+  const existing = app.root.findByName("FallbackGround");
+  if (existing) return;
+  const ground = new pc.Entity("FallbackGround");
+  ground.addComponent("render", { type: "box" });
+  ground.setLocalScale(120, 0.2, 120);
+  ground.setLocalPosition(0, -0.1, 0);
+
+  const material = new pc.StandardMaterial();
+  material.diffuse = new pc.Color(0.18, 0.2, 0.24);
+  material.specular = new pc.Color(0.03, 0.03, 0.03);
+  material.update();
+  ground.render!.meshInstances[0].material = material;
+  app.root.addChild(ground);
 }
