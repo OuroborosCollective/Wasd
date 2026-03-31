@@ -17,10 +17,10 @@ export function renderQuestLog() {
   panel.setAttribute("aria-label", "Quest Log");
 
   panel.style.position = "fixed";
-  panel.style.left = "20px";
-  panel.style.top = "80px";
-  panel.style.width = "300px";
-  panel.style.height = "400px";
+  panel.style.left = "5%";
+  panel.style.top = "10%";
+  panel.style.width = "clamp(300px, 25vw, 400px)";
+  panel.style.height = "clamp(400px, 60vh, 600px)";
   panel.style.zIndex = "1000";
   panel.style.display = "flex";
   panel.style.flexDirection = "column";

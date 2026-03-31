@@ -17,10 +17,10 @@ export function renderEquipmentPanel() {
   panel.setAttribute("aria-label", "Equipment Panel");
 
   panel.style.position = "fixed";
-  panel.style.right = "340px"; // Positioned next to inventory
-  panel.style.top = "80px";
-  panel.style.width = "250px";
-  panel.style.height = "400px";
+  panel.style.right = "clamp(320px, 32vw, 420px)"; // Positioned next to inventory
+  panel.style.top = "10%";
+  panel.style.width = "clamp(250px, 20vw, 300px)";
+  panel.style.height = "clamp(400px, 60vh, 600px)";
   panel.style.zIndex = "1000";
   panel.style.display = "flex";
   panel.style.flexDirection = "column";

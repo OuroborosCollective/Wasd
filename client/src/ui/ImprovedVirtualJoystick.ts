@@ -166,9 +166,49 @@ export function renderImprovedVirtualJoystick(core: MMORPGClientCore) {
     knob.style.transform = "translate(-50%, -50%)";
   };
 
-  container.addEventListener("touchstart", (e) => handleStart(e.touches[0].clientX, e.touches[0].clientY));
-  window.addEventListener("touchmove", (e) => handleMove(e.touches[0].clientX, e.touches[0].clientY), { passive: false });
-  window.addEventListener("touchend", handleEnd);
+  container.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleStart(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: false });
+
+  window.addEventListener("touchmove", (e) => {
+    if (active) {
+      e.preventDefault();
+      e.stopPropagation();
+      handleMove(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  }, { passive: false });
+
+  window.addEventListener("touchend", (e) => {
+    if (active) {
+      e.preventDefault();
+      e.stopPropagation();
+      handleEnd();
+    }
+  }, { passive: false });
+
+  container.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleStart(e.clientX, e.clientY);
+  });
+
+  window.addEventListener("mousemove", (e) => {
+    if (active) {
+      e.preventDefault();
+      e.stopPropagation();
+      handleMove(e.clientX, e.clientY);
+    }
+  });
+
+  window.addEventListener("mouseup", (e) => {
+    if (active) {
+      e.preventDefault();
+      e.stopPropagation();
+      handleEnd();
+    }
+  });
 
   // Action Buttons
   const btnContainer = document.createElement('div');

@@ -17,10 +17,10 @@ export function renderSkillsPanel() {
   panel.setAttribute("aria-label", "Skills Panel");
 
   panel.style.position = "fixed";
-  panel.style.left = "20px";
-  panel.style.bottom = "80px";
-  panel.style.width = "300px";
-  panel.style.height = "250px";
+  panel.style.left = "5%";
+  panel.style.bottom = "10%";
+  panel.style.width = "clamp(300px, 25vw, 400px)";
+  panel.style.height = "clamp(250px, 40vh, 400px)";
   panel.style.zIndex = "1000";
   panel.style.display = "flex";
   panel.style.flexDirection = "column";

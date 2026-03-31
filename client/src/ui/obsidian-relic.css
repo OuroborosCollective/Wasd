@@ -164,3 +164,23 @@
     pointer-events: none;
     z-index: 9999;
 }
+
+@media (max-width: 900px) {
+    .obsidian-relic .panel {
+        width: 90% !important;
+        left: 5% !important;
+        right: 5% !important;
+        top: 10% !important;
+        max-height: 80% !important;
+        padding: 15px;
+    }
+
+    .obsidian-relic h2 {
+        font-size: 20px !important;
+    }
+
+    .obsidian-relic .btn-gold {
+        padding: 12px 20px;
+        font-size: 14px !important;
+    }
+}
