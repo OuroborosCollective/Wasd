@@ -2,8 +2,42 @@ import { MMORPGClientCore } from "../core/MMORPGClientCore";
 
 let globalWs: WebSocket | null = null;
 
+function normalizeWebSocketUrl(rawUrl: string | undefined): string | null {
+  if (!rawUrl || rawUrl.trim().length === 0) {
+    return null;
+  }
+
+  const value = rawUrl.trim();
+  if (value.startsWith("ws://") || value.startsWith("wss://")) {
+    return value;
+  }
+
+  if (value.startsWith("http://")) {
+    return `ws://${value.slice("http://".length)}`;
+  }
+
+  if (value.startsWith("https://")) {
+    return `wss://${value.slice("https://".length)}`;
+  }
+
+  return null;
+}
+
+function resolveWebSocketUrl() {
+  const configuredUrl = normalizeWebSocketUrl(
+    (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_WEBSOCKET_URL
+  );
+
+  if (configuredUrl) {
+    return configuredUrl;
+  }
+
+  const protocol = location.protocol === "https:" ? "wss" : "ws";
+  return `${protocol}://${location.host}/ws`;
+}
+
 export function connectSocket(core: MMORPGClientCore) {
-  const ws = new WebSocket(`wss://${location.hostname}/ws`);
+  const ws = new WebSocket(resolveWebSocketUrl());
   globalWs = ws;
 
   ws.onopen = () => {

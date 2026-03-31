@@ -41,5 +41,9 @@ For development: `pnpm run dev`
 - **Networking**: High-frequency entity synchronization via WebSockets.
 - **Server**: Authoritative modules (`server/src/modules/`) integrated into the `WorldTick` loop.
 
+## Cursor MCP + VPS setup
+- Detailed setup guide: `docs/PLAYCANVAS_MCP_CURSOR_VPS_SETUP.md`
+- Example Cursor config: `.cursor/mcp.json`
+
 ## Credits
 Migration and System Re-integration by Jules.
