@@ -56,12 +56,12 @@ npm install
 # ── 6. Build client ───────────────────────────────────────
 echo "[6/10] Building client (Vite)..."
 cd "$APP_DIR/client"
-npx vite build
+npm run build
 
 # ── 7. Build server ───────────────────────────────────────
 echo "[7/10] Building server (TypeScript)..."
 cd "$APP_DIR/server"
-npx tsc
+npm run build
 
 # ── 8. Create symlink for game-data ───────────────────────
 echo "[8/10] Setting up game-data symlink..."
