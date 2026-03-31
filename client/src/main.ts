@@ -4,6 +4,7 @@ import { MMORPGClientCore } from "./core/MMORPGClientCore";
 import { connectSocket, requestSceneChange, type ConnectionOptions } from "./networking/websocketClient";
 import { renderHUD, showDialogue } from "./ui/hud";
 import { renderImprovedVirtualJoystick } from "./ui/ImprovedVirtualJoystick";
+import { renderMobileSceneTeleportPanel } from "./ui/mobileSceneTeleportPanel";
 import { performanceMonitor } from "./utils/PerformanceMonitor";
 
 let canvas = document.getElementById("application-canvas") as HTMLCanvasElement;
@@ -35,6 +36,7 @@ if (persistedToken && persistedToken.trim().length > 0) {
 connectSocket(core, connectionOptions);
 (window as any).requestSceneChange = requestSceneChange;
 renderHUD();
+renderMobileSceneTeleportPanel();
 renderImprovedVirtualJoystick(core);
 performanceMonitor.start();
 
