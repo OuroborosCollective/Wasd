@@ -65,6 +65,19 @@ function bindClick(id, handler) {
 function renderAdminState() {
   safeSetValue("adminModels", JSON.stringify(state.admin.scannedModels, null, 2));
   safeSetValue("adminLinks", JSON.stringify(state.admin.links, null, 2));
+  const select = byId("adminModelSelect");
+  if (select) {
+    const current = select.value;
+    const options = ['<option value="">-- Select scanned GLB --</option>']
+      .concat(
+        state.admin.scannedModels.map((model) => `<option value="${model}">${model}</option>`)
+      )
+      .join("");
+    select.innerHTML = options;
+    if (current && state.admin.scannedModels.includes(current)) {
+      select.value = current;
+    }
+  }
 }
 
 function updatePreviewCanvas() {
@@ -371,6 +384,15 @@ function initBindings() {
 
   bindClick("adminScanBtn", () => cmd("admin_glb_scan"));
   bindClick("adminListBtn", () => cmd("admin_glb_list"));
+  const modelSelect = byId("adminModelSelect");
+  if (modelSelect) {
+    modelSelect.onchange = () => {
+      const selected = modelSelect.value;
+      if (!selected) return;
+      safeSetValue("adminGlbPath", selected);
+      safeSetValue("registerPath", selected);
+    };
+  }
   bindClick("adminLinkBtn", () =>
     cmd("admin_glb_link", {
       targetType: val("adminTargetType"),
