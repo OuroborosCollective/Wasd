@@ -27,7 +27,9 @@ export function renderHUD() {
   loginBtn.onclick = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      const token = await result.user.getIdToken();
+      localStorage.setItem("token", token);
       console.log("Logged in!");
       loginBtn.style.display = "none";
     } catch (e) {

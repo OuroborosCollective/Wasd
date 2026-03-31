@@ -19,6 +19,28 @@ import path from "path";
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { GameConfig } from "../config/GameConfig.js";
 
+type SpawnPoint = { x: number; y: number; z: number };
+type SceneProfile = {
+  defaultSpawnKey: string;
+  spawnPoints: Record<string, SpawnPoint>;
+};
+
+const DEFAULT_SCENE_ID = "didis_hub";
+const SCENE_PROFILES: Record<string, SceneProfile> = {
+  didis_hub: {
+    defaultSpawnKey: "sp_player_default",
+    spawnPoints: {
+      sp_player_default: { x: 0, y: 0, z: 0 },
+      sp_didi_01: { x: 18, y: 0, z: 6 },
+      sp_didi_02: { x: -18, y: 0, z: 6 },
+    },
+  },
+};
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 export class WorldTick {
   private timer: NodeJS.Timeout | null = null;
   private tickCount = 0;
@@ -39,6 +61,30 @@ export class WorldTick {
 
   private socketToPlayer: Map<string, string> = new Map(); // socketId -> characterName
   private lastActionTimes: Map<string, number> = new Map(); // charName -> timestamp
+
+  private getSceneProfile(sceneId: string | undefined): { sceneId: string; profile: SceneProfile } {
+    const resolvedSceneId = sceneId && SCENE_PROFILES[sceneId] ? sceneId : DEFAULT_SCENE_ID;
+    return { sceneId: resolvedSceneId, profile: SCENE_PROFILES[resolvedSceneId] };
+  }
+
+  private resolveSpawn(sceneId: string | undefined, spawnKey: string | undefined) {
+    const { sceneId: resolvedSceneId, profile } = this.getSceneProfile(sceneId);
+    const resolvedSpawnKey = spawnKey && profile.spawnPoints[spawnKey] ? spawnKey : profile.defaultSpawnKey;
+    const spawnPoint = profile.spawnPoints[resolvedSpawnKey];
+    return { sceneId: resolvedSceneId, spawnKey: resolvedSpawnKey, spawnPoint };
+  }
+
+  private applySpawnToPlayer(player: any, sceneId: string | undefined, spawnKey: string | undefined) {
+    const spawn = this.resolveSpawn(sceneId, spawnKey);
+    player.sceneId = spawn.sceneId;
+    player.spawnKey = spawn.spawnKey;
+    player.position = player.position || { x: 0, y: 0, z: 0 };
+    player.position.x = spawn.spawnPoint.x;
+    // The gameplay simulation uses x/y plane and maps y -> z for rendering.
+    player.position.y = spawn.spawnPoint.z;
+    player.position.z = spawn.spawnPoint.y;
+    return spawn;
+  }
 
   constructor(private ws: GameWebSocketServer) {
     this.chunkSystem = new ChunkSystem(64);
@@ -99,13 +145,25 @@ export class WorldTick {
           }
 
           let player = this.playerSystem.getPlayer(uid);
+          let shouldApplySpawn = false;
           if (!player) {
             player = this.playerSystem.createPlayer(uid, charName);
             console.log(`Created new player: ${charName} (${uid})`);
+            shouldApplySpawn = true;
           } else {
             player.isOffline = false;
             console.log(`Player ${charName} reconnected.`);
+            shouldApplySpawn = !isNonEmptyString(player.sceneId) || !isNonEmptyString(player.spawnKey);
           }
+
+          const requestedSceneId = isNonEmptyString(msg.sceneId) ? msg.sceneId.trim() : undefined;
+          const requestedSpawnKey = isNonEmptyString(msg.spawnKey) ? msg.spawnKey.trim() : undefined;
+          if (requestedSceneId || requestedSpawnKey) {
+            shouldApplySpawn = true;
+          }
+          const spawn = shouldApplySpawn
+            ? this.applySpawnToPlayer(player, requestedSceneId ?? player.sceneId, requestedSpawnKey ?? player.spawnKey)
+            : this.resolveSpawn(player.sceneId, player.spawnKey);
 
           this.socketToPlayer.set(id, uid);
           this.observerEngine.register(id, player.position);
@@ -114,6 +172,9 @@ export class WorldTick {
             type: "welcome",
             playerId: uid,
             id: uid, // legacy support
+            sceneId: spawn.sceneId,
+            spawnKey: spawn.spawnKey,
+            spawnPosition: spawn.spawnPoint,
             stats: {
               gold: player.gold,
               xp: player.xp,
@@ -126,6 +187,28 @@ export class WorldTick {
           console.error("Login error:", err);
           this.ws.sendToPlayer(id, { type: "error", message: "Login failed" });
         }
+        return;
+      }
+
+      if (msg.type === "scene_change") {
+        const playerUid = this.socketToPlayer.get(id);
+        const player = playerUid ? this.playerSystem.getPlayer(playerUid) : null;
+        if (!player) {
+          return;
+        }
+
+        const requestedSceneId = isNonEmptyString(msg.sceneId) ? msg.sceneId.trim() : undefined;
+        const requestedSpawnKey = isNonEmptyString(msg.spawnKey) ? msg.spawnKey.trim() : undefined;
+        const spawn = this.applySpawnToPlayer(player, requestedSceneId ?? player.sceneId, requestedSpawnKey ?? player.spawnKey);
+        this.observerEngine.updatePosition(id, player.position);
+
+        this.ws.sendToPlayer(id, {
+          type: "scene_changed",
+          sceneId: spawn.sceneId,
+          spawnKey: spawn.spawnKey,
+          spawnPosition: spawn.spawnPoint,
+        });
+        return;
       }
 
       const playerUid = this.socketToPlayer.get(id);

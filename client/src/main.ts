@@ -1,7 +1,7 @@
 import { createPlayCanvasApp } from "./engine/playcanvas/PlayCanvasBoot";
 import { PlayCanvasAdapter } from "./engine/playcanvas/PlayCanvasAdapter";
 import { MMORPGClientCore } from "./core/MMORPGClientCore";
-import { connectSocket } from "./networking/websocketClient";
+import { connectSocket, type ConnectionOptions } from "./networking/websocketClient";
 import { renderHUD, showDialogue } from "./ui/hud";
 import { renderImprovedVirtualJoystick } from "./ui/ImprovedVirtualJoystick";
 import { performanceMonitor } from "./utils/PerformanceMonitor";
@@ -27,8 +27,12 @@ const core = new MMORPGClientCore(adapter);
 core.registerDefaultInput();
 
 // 4. Connect Systems
-// @ts-ignore
-connectSocket(core);
+const connectionOptions: ConnectionOptions = {};
+const persistedToken = localStorage.getItem("token");
+if (persistedToken && persistedToken.trim().length > 0) {
+  connectionOptions.token = persistedToken;
+}
+connectSocket(core, connectionOptions);
 renderHUD();
 renderImprovedVirtualJoystick(core);
 performanceMonitor.start();
