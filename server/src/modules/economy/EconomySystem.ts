@@ -1,10 +1,12 @@
 export class EconomySystem {
   private goldSupply: number = 0;
   private itemPrices: Map<string, number> = new Map();
+  private defaultPrices: Map<string, number> = new Map();
 
   constructor() {
-    this.itemPrices.set("health_potion", 50);
-    this.itemPrices.set("iron_sword", 150);
+    this.defaultPrices.set("health_potion", 50);
+    this.defaultPrices.set("iron_sword", 150);
+    this.resetPrices();
   }
 
   addGold(player: any, amount: number) {
@@ -29,5 +31,22 @@ export class EconomySystem {
     const currentPrice = this.getPrice(itemId);
     const newPrice = Math.max(1, Math.floor(currentPrice * demandFactor));
     this.itemPrices.set(itemId, newPrice);
+  }
+
+  setPrice(itemId: string, buyPrice: number, _sellPrice?: number) {
+    const normalized = Math.max(1, Math.floor(Number(buyPrice) || 1));
+    this.itemPrices.set(itemId, normalized);
+  }
+
+  resetPrices() {
+    this.itemPrices = new Map(this.defaultPrices);
+  }
+
+  getShop(_shopId: string) {
+    return Array.from(this.itemPrices.entries()).map(([itemId, buyPrice]) => ({
+      itemId,
+      buyPrice,
+      sellPrice: Math.max(1, Math.floor(buyPrice * 0.4)),
+    }));
   }
 }

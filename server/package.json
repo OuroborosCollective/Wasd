@@ -14,20 +14,28 @@
     "@genkit-ai/googleai": "^1.28.0",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "commander": "^14.0.3",
+    "dotenv": "^17.3.1",
     "express": "^4.21.0",
     "firebase-admin": "^13.0.0",
     "genkit": "^1.31.0",
+    "ioredis": "^5.10.0",
+    "multer": "^2.1.1",
     "node-pg-migrate": "^8.0.4",
+    "openai": "^6.32.0",
     "pg": "^8.11.3",
     "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
+    "@types/multer": "^2.0.0",
     "@types/node": "^22.0.0",
     "@types/pg": "^8.11.0",
+    "@types/supertest": "^6.0.3",
     "@types/ws": "^8.5.12",
+    "supertest": "^7.1.4",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vitest": "^3.2.4"
   }
 }

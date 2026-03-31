@@ -64,6 +64,21 @@ export class MMORPGClientCore {
     this.engine.setCameraTarget(id);
   }
 
+  public getLocalPlayerId() {
+    return this.localPlayerId;
+  }
+
+  public teleportLocalPlayerTo(position: { x: number; y: number; z: number }) {
+    if (!this.localPlayerId) return;
+    const player = this.entities.get(this.localPlayerId);
+    if (!player) return;
+
+    player.position = { ...position };
+    this.entities.set(this.localPlayerId, player);
+    this.viewManager.upsert(player, this.lastDt);
+    this.engine.setCameraTarget(this.localPlayerId);
+  }
+
   public handleEntityAction(entityId: string, action: string) {
     this.engine.triggerEntityAction(entityId, action);
 

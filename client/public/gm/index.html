@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Areloria External GM Console</title>
+    <style>
+      :root {
+        --bg: #0b1020;
+        --panel: #131a33;
+        --panel2: #192347;
+        --line: #2f3b6a;
+        --text: #d6def7;
+        --muted: #93a5d8;
+        --ok: #39c27f;
+        --warn: #f0b048;
+        --err: #ef5d5d;
+        --btn: #2f4fcf;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: radial-gradient(circle at 20% 20%, #1b2a5a 0%, var(--bg) 60%);
+        color: var(--text);
+      }
+      .wrap {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 16px;
+      }
+      .top {
+        display: grid;
+        grid-template-columns: 1fr 1fr auto;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .card {
+        background: linear-gradient(180deg, var(--panel2), var(--panel));
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 12px;
+      }
+      input, select, button, textarea {
+        font: inherit;
+      }
+      input, select, textarea {
+        width: 100%;
+        padding: 8px 10px;
+        background: #0d1530;
+        color: var(--text);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+      button {
+        padding: 9px 12px;
+        border: 1px solid #5a73d4;
+        background: var(--btn);
+        color: #fff;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 700;
+      }
+      button.secondary {
+        background: #293863;
+        border-color: #4c609f;
+      }
+      button.warn {
+        background: #7b5518;
+        border-color: #ae7e2f;
+      }
+      button.bad {
+        background: #6b2222;
+        border-color: #9f4040;
+      }
+      .status {
+        font-size: 13px;
+        color: var(--muted);
+        margin-top: 8px;
+      }
+      .status.ok { color: var(--ok); }
+      .status.err { color: var(--err); }
+      .grid {
+        display: grid;
+        grid-template-columns: 360px 1fr;
+        gap: 12px;
+      }
+      .controls h3,
+      .preview h3,
+      .log h3 {
+        margin: 0 0 10px;
+        font-size: 13px;
+        letter-spacing: .4px;
+        text-transform: uppercase;
+        color: #b6c4f2;
+      }
+      .group {
+        border-top: 1px solid var(--line);
+        padding-top: 10px;
+        margin-top: 10px;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .row3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .preview-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .canvas-wrap {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
+        background: #0b1330;
+      }
+      canvas {
+        width: 100%;
+        height: 420px;
+        display: block;
+      }
+      .mini-table {
+        max-height: 420px;
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+      }
+      .legend {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+      }
+      .legend .tag {
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: #101a3a;
+      }
+      .heat-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+      th, td {
+        border-bottom: 1px solid #283661;
+        text-align: left;
+        padding: 6px 8px;
+      }
+      th {
+        background: #111b3b;
+        color: #b4c4f4;
+        position: sticky;
+        top: 0;
+      }
+      .log {
+        margin-top: 12px;
+      }
+      #logBox {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+        background: #0b1330;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        height: 220px;
+        overflow: auto;
+        white-space: pre-wrap;
+      }
+      .pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        border: 1px solid #3e5cb2;
+        background: #1a2b59;
+        color: #adc0ff;
+      }
+      @media (max-width: 1100px) {
+        .grid { grid-template-columns: 1fr; }
+        .preview-grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="top">
+        <div class="card">
+          <label>MCP/WS Base URL</label>
+          <input id="wsUrl" value="wss://arelogic.space/ws" />
+        </div>
+        <div class="card">
+          <label>Firebase ID Token (GM/Admin account, optional if GM_PANEL_TOKEN used)</label>
+          <input id="token" placeholder="Paste ID token here" />
+        </div>
+        <div class="card" style="display:flex;align-items:end;gap:8px;">
+          <button id="connectBtn">Connect</button>
+          <button id="previewRefresh" class="secondary">Preview Pull</button>
+        </div>
+      </div>
+      <div id="connStatus" class="status">Disconnected</div>
+      <div class="card" style="margin-bottom:12px;">
+        <div class="row3">
+          <div>
+            <label>Scene ID</label>
+            <input id="sceneId" value="didis_hub" />
+          </div>
+          <div>
+            <label>Spawn Key</label>
+            <input id="spawnKey" value="sp_player_default" />
+          </div>
+          <div>
+            <label>GM Panel Token (optional)</label>
+            <input id="gmToken" placeholder="GM_PANEL_TOKEN" />
+          </div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="controls card">
+          <h3>GM Command Console</h3>
+          <span class="pill">WoW-style event GM controls</span>
+
+          <div class="group">
+            <h3>World</h3>
+            <div class="row">
+              <select id="weather">
+                <option value="clear">clear</option>
+                <option value="rain">rain</option>
+                <option value="storm">storm</option>
+                <option value="fog">fog</option>
+                <option value="snow">snow</option>
+              </select>
+              <button onclick="gmSetWeather()">Set Weather</button>
+            </div>
+            <div class="row">
+              <input id="worldTime" type="number" min="0" max="23" value="12" />
+              <button onclick="gmSetTime()">Set Time</button>
+            </div>
+            <div class="row">
+              <input id="eventTitle" placeholder="Event title" value="Legion Invasion" />
+              <button class="warn" onclick="gmEvent()">Trigger Event</button>
+            </div>
+            <textarea id="eventDesc" placeholder="Event description">Demons have breached the eastern gate.</textarea>
+            <div class="row" style="margin-top:8px;">
+              <select id="eventTemplate">
+                <option value="">-- Select Event Template --</option>
+                <option value="legion_invasion">Legion Invasion</option>
+                <option value="city_defense">City Defense</option>
+                <option value="world_boss_hunt">World Boss Hunt</option>
+              </select>
+              <button class="warn" onclick="gmRunTemplate()">Run Template</button>
+            </div>
+          </div>
+
+          <div class="group">
+            <h3>NPC / Spawn</h3>
+            <div class="row3">
+              <input id="npcId" placeholder="npc id" value="event_guardian" />
+              <input id="npcX" type="number" placeholder="x" value="12" />
+              <input id="npcY" type="number" placeholder="y" value="4" />
+            </div>
+            <div class="row">
+              <input id="npcName" placeholder="npc name" value="Event Guardian" />
+              <button onclick="gmSpawnNpc()">Spawn NPC</button>
+            </div>
+            <div class="row">
+              <input id="removeNpcId" placeholder="npc id to remove" />
+              <button class="bad" onclick="gmRemoveNpc()">Remove NPC</button>
+            </div>
+          </div>
+
+          <div class="group">
+            <h3>Players / Moderation</h3>
+            <div class="row3">
+              <input id="targetPlayer" placeholder="player id/name" />
+              <input id="tpX" type="number" placeholder="x" />
+              <input id="tpY" type="number" placeholder="y" />
+            </div>
+            <div class="row">
+              <button onclick="gmTeleport()">Teleport</button>
+              <button class="warn" onclick="gmKick()">Kick</button>
+            </div>
+            <div class="row">
+              <button class="bad" onclick="gmBan()">Ban</button>
+              <button onclick="gmUnban()">Unban</button>
+            </div>
+            <div class="row">
+              <button onclick="gmMute()">Mute</button>
+              <button onclick="gmUnmute()">Unmute</button>
+            </div>
+          </div>
+
+          <div class="group">
+            <h3>Economy / Broadcast</h3>
+            <div class="row3">
+              <input id="priceItem" placeholder="item id" value="health_potion" />
+              <input id="priceBuy" type="number" placeholder="buy" value="80" />
+              <button onclick="gmSetPrice()">Set Price</button>
+            </div>
+            <div class="row">
+              <input id="bcText" placeholder="broadcast text" value="Server maintenance in 10 minutes." />
+              <button onclick="gmBroadcast()">Broadcast</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="preview">
+          <div class="card">
+            <h3>Live World Preview</h3>
+            <div class="preview-grid">
+              <div class="canvas-wrap">
+                <canvas id="preview" width="800" height="420"></canvas>
+                <div class="legend">
+                  <span class="tag">🟢 Player online</span>
+                  <span class="tag">⚪ Player offline</span>
+                  <span class="tag">🟠 NPC</span>
+                  <span class="tag">🔥 Heatmap density</span>
+                </div>
+                <div id="previewMeta" style="font-size:11px;color:#9db0e7;margin-top:6px"></div>
+              </div>
+              <div class="mini-table">
+                <table>
+                  <thead><tr><th>Player</th><th>Pos</th><th>Role</th><th>HP</th></tr></thead>
+                  <tbody id="playersTable"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="group">
+              <h3>Heat Hotspots (Top 8)</h3>
+              <div id="heatList"></div>
+            </div>
+          </div>
+          <div class="card log">
+            <h3>GM Event Log</h3>
+            <div id="log"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="/gm/app.js"></script>
+  </body>
+</html>
