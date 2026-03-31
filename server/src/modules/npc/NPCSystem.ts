@@ -72,7 +72,25 @@ export class NPCSystem {
   }
 
   removeNPC(id: string) {
-    this.npcs.delete(id);
+    return this.npcs.delete(id);
+  }
+
+  setRuntimeDialogue(npcId: string, text: string, choices: any[] = []) {
+    const npc = this.npcs.get(npcId);
+    if (!npc) return false;
+    const dialogueId = npc.dialogueId || `runtime_${npcId}`;
+    this.dialogues.set(dialogueId, {
+      id: dialogueId,
+      greeting: text,
+      nodes: {
+        root: {
+          text,
+          choices,
+        },
+      },
+    });
+    npc.dialogueId = dialogueId;
+    return true;
   }
 
   handleInteraction(npcId: string, player: any, questDefinitions: Map<string, any> = new Map()) {

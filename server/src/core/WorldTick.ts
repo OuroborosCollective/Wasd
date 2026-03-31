@@ -236,6 +236,8 @@ export class WorldTick {
     bannedPlayers: [],
     customDialogues: {},
   };
+  private eventTemplates: GMTemplateDefinition[] = Object.values(GM_EVENT_TEMPLATES);
+  private pendingTemplateSteps: ScheduledGMTemplateStep[] = [];
 
   private getSceneProfile(sceneId: string | undefined): { sceneId: string; profile: SceneProfile } {
     const resolvedSceneId = sceneId && this.sceneProfiles[sceneId] ? sceneId : DEFAULT_SCENE_ID;
@@ -296,6 +298,154 @@ export class WorldTick {
         triggerId: trigger.id,
       });
       return;
+    }
+  }
+
+  private loadRuntimeEventTemplates() {
+    const templatesPath = path.resolve(process.cwd(), "game-data/gm/event-templates.json");
+    if (!fs.existsSync(templatesPath)) {
+      return;
+    }
+    try {
+      const parsed = JSON.parse(fs.readFileSync(templatesPath, "utf-8"));
+      if (!Array.isArray(parsed)) {
+        return;
+      }
+      const runtimeTemplates: GMTemplateDefinition[] = [];
+      for (const raw of parsed) {
+        if (!isNonEmptyString(raw?.id) || !isNonEmptyString(raw?.name) || !Array.isArray(raw?.steps)) {
+          continue;
+        }
+        const steps: GMTemplateStep[] = raw.steps
+          .map((step: any) => ({
+            delaySec: Number(step?.delaySec) || 0,
+            eventId: isNonEmptyString(step?.eventId) ? step.eventId.trim() : undefined,
+            title: isNonEmptyString(step?.title) ? step.title.trim() : undefined,
+            description: isNonEmptyString(step?.description) ? step.description.trim() : undefined,
+            broadcast: isNonEmptyString(step?.broadcast) ? step.broadcast.trim() : undefined,
+            weather: isNonEmptyString(step?.weather) ? step.weather.trim() : undefined,
+            time: Number.isFinite(Number(step?.time)) ? Number(step.time) : undefined,
+            economyEvent:
+              step?.economyEvent && isNonEmptyString(step.economyEvent.eventType)
+                ? {
+                    eventType: step.economyEvent.eventType.trim(),
+                    duration: Number(step.economyEvent.duration) || 300,
+                  }
+                : undefined,
+            spawnWaves: Array.isArray(step?.spawnWaves)
+              ? step.spawnWaves
+                  .filter((w: any) => isNonEmptyString(w?.npcId))
+                  .map((w: any) => ({
+                    npcId: w.npcId.trim(),
+                    name: isNonEmptyString(w?.name) ? w.name.trim() : undefined,
+                    count: Math.max(1, Number(w?.count) || 1),
+                    spread: Math.max(0.5, Number(w?.spread) || 6),
+                    hp: Number.isFinite(Number(w?.hp)) ? Number(w.hp) : undefined,
+                  }))
+              : undefined,
+          }))
+          .filter((step: GMTemplateStep) => Number.isFinite(step.delaySec));
+
+        if (steps.length === 0) {
+          continue;
+        }
+        runtimeTemplates.push({
+          id: raw.id.trim(),
+          name: raw.name.trim(),
+          description: isNonEmptyString(raw?.description) ? raw.description.trim() : "",
+          steps,
+        });
+      }
+      if (runtimeTemplates.length > 0) {
+        this.eventTemplates = runtimeTemplates;
+      }
+    } catch (error) {
+      console.error("[GM Templates] Failed to parse runtime templates", error);
+    }
+  }
+
+  private runEventTemplate(template: GMTemplateDefinition, socketId: string, caller: any) {
+    const now = Date.now();
+    const runId = `${template.id}_${now}`;
+    const originX = Number(caller?.position?.x) || 0;
+    const originY = Number(caller?.position?.y) || 0;
+    for (const step of template.steps) {
+      this.pendingTemplateSteps.push({
+        runId,
+        templateId: template.id,
+        executeAt: now + Math.max(0, Number(step.delaySec) || 0) * 1000,
+        originX,
+        originY,
+        step,
+      });
+    }
+    this.pendingTemplateSteps.sort((a, b) => a.executeAt - b.executeAt);
+    this.sendGMStatus(socketId, "info", `Template queued: ${template.name} (${template.steps.length} steps)`, { runId });
+  }
+
+  private executeTemplateStep(job: ScheduledGMTemplateStep) {
+    const step = job.step;
+    if (isNonEmptyString(step.weather)) {
+      this.worldState.weather = step.weather;
+      this.ws.broadcast({ type: "world_event", event: "weather_change", weather: step.weather });
+    }
+    if (Number.isFinite(step.time as number)) {
+      this.worldSystem.worldTime = (((step.time as number) % 24) + 24) % 24;
+      this.ws.broadcast({ type: "world_event", event: "time_change", time: this.worldSystem.worldTime });
+    }
+    if (step.eventId || step.title || step.description) {
+      this.ws.broadcast({
+        type: "world_event",
+        event: step.eventId || "template_event",
+        title: step.title || "Template Event",
+        description: step.description || "",
+        templateId: job.templateId,
+        runId: job.runId,
+      });
+    }
+    if (isNonEmptyString(step.broadcast)) {
+      this.ws.broadcast({
+        type: "chat_message",
+        channel: "system",
+        sender: "[EVENT]",
+        text: step.broadcast,
+        timestamp: Date.now(),
+      });
+    }
+    if (step.economyEvent) {
+      this.ws.broadcast({
+        type: "world_event",
+        event: "economy_event",
+        eventType: step.economyEvent.eventType,
+        duration: step.economyEvent.duration,
+      });
+    }
+    if (Array.isArray(step.spawnWaves)) {
+      for (const wave of step.spawnWaves) {
+        for (let i = 0; i < wave.count; i++) {
+          const angle = (Math.PI * 2 * i) / wave.count;
+          const spread = wave.spread || 6;
+          const spawnX = job.originX + Math.cos(angle) * spread;
+          const spawnY = job.originY + Math.sin(angle) * spread;
+          const npcUid = `${wave.npcId}_${job.runId}_${i}`;
+          const npc = this.npcSystem.createNPC(npcUid, wave.name || wave.npcId, spawnX, spawnY);
+          if (Number.isFinite(wave.hp as number)) {
+            npc.health = wave.hp as number;
+            npc.maxHealth = Math.max(npc.maxHealth || 1, npc.health);
+          }
+        }
+      }
+    }
+  }
+
+  private processTemplateQueue() {
+    if (this.pendingTemplateSteps.length === 0) {
+      return;
+    }
+    const now = Date.now();
+    while (this.pendingTemplateSteps.length > 0 && this.pendingTemplateSteps[0].executeAt <= now) {
+      const step = this.pendingTemplateSteps.shift()!;
+      this.executeTemplateStep(step);
     }
   }
 
@@ -997,6 +1147,7 @@ export class WorldTick {
     for (const id in savedData) {
       this.playerSystem.setPlayer(id, savedData[id]);
     }
+    this.loadRuntimeEventTemplates();
     this.loadSceneLayouts();
     this.loadSpawns();
   }
@@ -1136,6 +1287,7 @@ export class WorldTick {
 
   tick() {
     this.tickCount += 1;
+    this.processTemplateQueue();
     const onlinePlayers = this.playerSystem.getAllPlayers().filter(p => !p.isOffline);
     this.npcSystem.tick(onlinePlayers, this.worldSystem.worldTime);
     this.worldSystem.tick();

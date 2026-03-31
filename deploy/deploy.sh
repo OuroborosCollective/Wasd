@@ -23,8 +23,9 @@ apt-get update -qq && apt-get upgrade -y -qq
 
 # ── 2. Install Node.js ────────────────────────────────────
 echo "[2/10] Installing Node.js ${NODE_VERSION}..."
-if ! command -v node &> /dev/null; then
-  curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash -
+CURRENT_NODE_MAJOR="$(node -v 2>/dev/null | sed -E 's/^v([0-9]+).*/\1/' || echo 0)"
+if [ -z "$CURRENT_NODE_MAJOR" ] || [ "$CURRENT_NODE_MAJOR" -lt "$NODE_VERSION" ]; then
+  curl -fsSL "https://deb.nodesource.com/setup_${NODE_VERSION}.x" | bash -
   apt-get install -y nodejs
 fi
 echo "Node: $(node --version), npm: $(npm --version)"
@@ -46,7 +47,7 @@ fi
 # ── 5. Install dependencies ───────────────────────────────
 echo "[5/10] Installing server dependencies..."
 cd "$APP_DIR/server"
-npm install --production=false
+npm install
 
 echo "[5b/10] Installing client dependencies..."
 cd "$APP_DIR/client"
