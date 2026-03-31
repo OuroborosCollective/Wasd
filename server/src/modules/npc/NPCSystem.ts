@@ -71,6 +71,10 @@ export class NPCSystem {
     return this.npcs.get(id);
   }
 
+  removeNPC(id: string) {
+    this.npcs.delete(id);
+  }
+
   handleInteraction(npcId: string, player: any, questDefinitions: Map<string, any> = new Map()) {
     const npc = this.npcs.get(npcId);
     if (!npc) return null;

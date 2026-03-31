@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Areloria External GM Console</title>
+    <style>
+      :root {
+        --bg: #0b1020;
+        --panel: #131a33;
+        --panel2: #192347;
+        --line: #2f3b6a;
+        --text: #d6def7;
+        --muted: #93a5d8;
+        --ok: #39c27f;
+        --warn: #f0b048;
+        --err: #ef5d5d;
+        --btn: #2f4fcf;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: radial-gradient(circle at 20% 20%, #1b2a5a 0%, var(--bg) 60%);
+        color: var(--text);
+      }
+      .wrap {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 16px;
+      }
+      .top {
+        display: grid;
+        grid-template-columns: 1fr 1fr auto;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .card {
+        background: linear-gradient(180deg, var(--panel2), var(--panel));
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 12px;
+      }
+      input, select, button, textarea {
+        font: inherit;
+      }
+      input, select, textarea {
+        width: 100%;
+        padding: 8px 10px;
+        background: #0d1530;
+        color: var(--text);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+      button {
+        padding: 9px 12px;
+        border: 1px solid #5a73d4;
+        background: var(--btn);
+        color: #fff;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 700;
+      }
+      button.secondary {
+        background: #293863;
+        border-color: #4c609f;
+      }
+      button.warn {
+        background: #7b5518;
+        border-color: #ae7e2f;
+      }
+      button.bad {
+        background: #6b2222;
+        border-color: #9f4040;
+      }
+      .status {
+        font-size: 13px;
+        color: var(--muted);
+        margin-top: 8px;
+      }
+      .status.ok { color: var(--ok); }
+      .status.err { color: var(--err); }
+      .grid {
+        display: grid;
+        grid-template-columns: 360px 1fr;
+        gap: 12px;
+      }
+      .controls h3,
+      .preview h3,
+      .log h3 {
+        margin: 0 0 10px;
+        font-size: 13px;
+        letter-spacing: .4px;
+        text-transform: uppercase;
+        color: #b6c4f2;
+      }
+      .group {
+        border-top: 1px solid var(--line);
+        padding-top: 10px;
+        margin-top: 10px;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .row3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .preview-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .canvas-wrap {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
+        background: #0b1330;
+      }
+      canvas {
+        width: 100%;
+        height: 420px;
+        display: block;
+      }
+      .mini-table {
+        max-height: 420px;
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+      th, td {
+        border-bottom: 1px solid #283661;
+        text-align: left;
+        padding: 6px 8px;
+      }
+      th {
+        background: #111b3b;
+        color: #b4c4f4;
+        position: sticky;
+        top: 0;
+      }
+      .log {
+        margin-top: 12px;
+      }
+      #logBox {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+        background: #0b1330;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        height: 220px;
+        overflow: auto;
+        white-space: pre-wrap;
+      }
+      .pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        border: 1px solid #3e5cb2;
+        background: #1a2b59;
+        color: #adc0ff;
+      }
+      @media (max-width: 1100px) {
+        .grid { grid-template-columns: 1fr; }
+        .preview-grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="top">
+        <div class="card">
+          <label>MCP/WS Base URL</label>
+          <input id="baseUrl" value="wss://arelogic.space/ws" />
+        </div>
+        <div class="card">
+          <label>Firebase ID Token (GM/Admin account)</label>
+          <input id="token" placeholder="Paste ID token here" />
+        </div>
+        <div class="card" style="display:flex;align-items:end;gap:8px;">
+          <button id="connectBtn">Connect</button>
+          <button id="previewBtn" class="secondary">Preview Pull</button>
+        </div>
+      </div>
+      <div id="connStatus" class="status">Disconnected</div>
+
+      <div class="grid">
+        <div class="controls card">
+          <h3>GM Command Console</h3>
+          <span class="pill">WoW-style event GM controls</span>
+
+          <div class="group">
+            <h3>World</h3>
+            <div class="row">
+              <select id="weather">
+                <option value="clear">clear</option>
+                <option value="rain">rain</option>
+                <option value="storm">storm</option>
+                <option value="fog">fog</option>
+                <option value="snow">snow</option>
+              </select>
+              <button onclick="gmSetWeather()">Set Weather</button>
+            </div>
+            <div class="row">
+              <input id="worldTime" type="number" min="0" max="23" value="12" />
+              <button onclick="gmSetTime()">Set Time</button>
+            </div>
+            <div class="row">
+              <input id="eventTitle" placeholder="Event title" value="Legion Invasion" />
+              <button class="warn" onclick="gmEvent()">Trigger Event</button>
+            </div>
+            <textarea id="eventDesc" placeholder="Event description">Demons have breached the eastern gate.</textarea>
+          </div>
+
+          <div class="group">
+            <h3>NPC / Spawn</h3>
+            <div class="row3">
+              <input id="npcId" placeholder="npc id" value="event_guardian" />
+              <input id="npcX" type="number" placeholder="x" value="12" />
+              <input id="npcY" type="number" placeholder="y" value="4" />
+            </div>
+            <div class="row">
+              <input id="npcName" placeholder="npc name" value="Event Guardian" />
+              <button onclick="gmSpawnNpc()">Spawn NPC</button>
+            </div>
+            <div class="row">
+              <input id="removeNpcId" placeholder="npc id to remove" />
+              <button class="bad" onclick="gmRemoveNpc()">Remove NPC</button>
+            </div>
+          </div>
+
+          <div class="group">
+            <h3>Players / Moderation</h3>
+            <div class="row3">
+              <input id="targetPlayer" placeholder="player id/name" />
+              <input id="tpX" type="number" placeholder="x" />
+              <input id="tpY" type="number" placeholder="y" />
+            </div>
+            <div class="row">
+              <button onclick="gmTeleport()">Teleport</button>
+              <button class="warn" onclick="gmKick()">Kick</button>
+            </div>
+            <div class="row">
+              <button class="bad" onclick="gmBan()">Ban</button>
+              <button onclick="gmUnban()">Unban</button>
+            </div>
+            <div class="row">
+              <button onclick="gmMute()">Mute</button>
+              <button onclick="gmUnmute()">Unmute</button>
+            </div>
+          </div>
+
+          <div class="group">
+            <h3>Economy / Broadcast</h3>
+            <div class="row3">
+              <input id="priceItem" placeholder="item id" value="health_potion" />
+              <input id="priceBuy" type="number" placeholder="buy" value="80" />
+              <button onclick="gmSetPrice()">Set Price</button>
+            </div>
+            <div class="row">
+              <input id="bcText" placeholder="broadcast text" value="Server maintenance in 10 minutes." />
+              <button onclick="gmBroadcast()">Broadcast</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="preview">
+          <div class="card">
+            <h3>Live World Preview</h3>
+            <div class="preview-grid">
+              <div class="canvas-wrap"><canvas id="previewCanvas" width="800" height="420"></canvas></div>
+              <div class="mini-table">
+                <table>
+                  <thead><tr><th>Player</th><th>Pos</th><th>Role</th><th>HP</th></tr></thead>
+                  <tbody id="playersTable"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="card log">
+            <h3>GM Event Log</h3>
+            <div id="logBox"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let ws = null;
+      let lastSnapshot = { players: [], npcs: [], world: { weather: "clear", time: "00:00" } };
+
+      const connStatus = document.getElementById("connStatus");
+      const logBox = document.getElementById("logBox");
+      const playersTable = document.getElementById("playersTable");
+      const canvas = document.getElementById("previewCanvas");
+      const ctx = canvas.getContext("2d");
+
+      function log(line) {
+        const ts = new Date().toLocaleTimeString();
+        logBox.textContent += `[${ts}] ${line}\n`;
+        logBox.scrollTop = logBox.scrollHeight;
+      }
+
+      function setStatus(text, ok = false, err = false) {
+        connStatus.textContent = text;
+        connStatus.className = `status${ok ? " ok" : ""}${err ? " err" : ""}`;
+      }
+
+      function send(msg) {
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          log("Not connected.");
+          return;
+        }
+        ws.send(JSON.stringify(msg));
+      }
+
+      function loginPayload() {
+        return {
+          type: "login",
+          token: document.getElementById("token").value.trim(),
+          sceneId: "didis_hub",
+          spawnKey: "sp_player_default"
+        };
+      }
+
+      function requestPreview() {
+        send({ type: "gm_preview_request" });
+        send({ type: "gm_get_players" });
+      }
+
+      document.getElementById("connectBtn").onclick = () => {
+        const baseUrl = document.getElementById("baseUrl").value.trim();
+        if (!baseUrl) return;
+        ws = new WebSocket(baseUrl);
+        ws.onopen = () => {
+          setStatus("Connected. Logging in...", true);
+          send(loginPayload());
+          log("WS connected.");
+        };
+        ws.onclose = () => {
+          setStatus("Disconnected", false, true);
+          log("WS disconnected.");
+        };
+        ws.onerror = () => {
+          setStatus("Connection error", false, true);
+          log("WS error.");
+        };
+        ws.onmessage = (ev) => {
+          let msg = null;
+          try { msg = JSON.parse(ev.data); } catch { return; }
+          if (msg.type === "welcome") {
+            setStatus(`Logged in as ${msg.playerId || msg.id}`, true);
+            log(`Login welcome: ${msg.playerId || msg.id}`);
+            requestPreview();
+          } else if (msg.type === "gm_status") {
+            log(`GM ${msg.level || "info"}: ${msg.message}`);
+          } else if (msg.type === "gm_preview_snapshot") {
+            lastSnapshot = msg;
+            renderPreview();
+          } else if (msg.type === "gm_player_list") {
+            renderPlayersTable(msg.players || []);
+          } else if (msg.type === "chat_message") {
+            log(`CHAT ${msg.sender || "?"}: ${msg.text || ""}`);
+          } else if (msg.type === "world_event") {
+            log(`WORLD_EVENT ${msg.event || ""} ${msg.title || ""}`);
+          } else if (msg.type === "error") {
+            log(`ERROR: ${msg.message || "unknown"}`);
+          }
+        };
+      };
+
+      document.getElementById("previewBtn").onclick = requestPreview;
+
+      function renderPlayersTable(players) {
+        playersTable.innerHTML = players
+          .map((p) => `<tr>
+            <td>${p.name || p.id}</td>
+            <td>${(p.x || 0).toFixed(1)}, ${(p.y || 0).toFixed(1)}</td>
+            <td>${p.role || "player"}</td>
+            <td>${p.hp ?? 100}</td>
+          </tr>`)
+          .join("");
+      }
+
+      function renderPreview() {
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = "#0b1330";
+        ctx.fillRect(0, 0, w, h);
+
+        const points = [
+          ...lastSnapshot.players.map((p) => ({ ...p, kind: "player" })),
+          ...lastSnapshot.npcs.map((n) => ({ ...n, kind: "npc" }))
+        ];
+        if (points.length === 0) return;
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        points.forEach((p) => {
+          minX = Math.min(minX, p.x || 0);
+          maxX = Math.max(maxX, p.x || 0);
+          minY = Math.min(minY, p.y || 0);
+          maxY = Math.max(maxY, p.y || 0);
+        });
+        const pad = 20;
+        const sx = (w - pad * 2) / Math.max(1, maxX - minX);
+        const sy = (h - pad * 2) / Math.max(1, maxY - minY);
+        const s = Math.min(sx, sy);
+
+        const tx = (x) => pad + (x - minX) * s;
+        const ty = (y) => h - (pad + (y - minY) * s);
+
+        ctx.strokeStyle = "#24345f";
+        ctx.strokeRect(1, 1, w - 2, h - 2);
+        ctx.fillStyle = "#9fb2eb";
+        ctx.font = "12px sans-serif";
+        ctx.fillText(`Weather: ${lastSnapshot.world.weather}  Time: ${lastSnapshot.world.time}`, 12, 16);
+
+        lastSnapshot.npcs.forEach((n) => {
+          ctx.fillStyle = "#f08b51";
+          ctx.beginPath();
+          ctx.arc(tx(n.x || 0), ty(n.y || 0), 5, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        lastSnapshot.players.forEach((p) => {
+          ctx.fillStyle = p.online ? "#57d196" : "#7c8aad";
+          ctx.beginPath();
+          ctx.arc(tx(p.x || 0), ty(p.y || 0), 6, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      }
+
+      function gmSetWeather() { send({ type: "gm_set_weather", weather: document.getElementById("weather").value }); requestPreview(); }
+      function gmSetTime() { send({ type: "gm_set_time", time: Number(document.getElementById("worldTime").value) || 12 }); requestPreview(); }
+      function gmEvent() {
+        send({
+          type: "gm_world_event",
+          eventId: "custom_event",
+          title: document.getElementById("eventTitle").value || "World Event",
+          description: document.getElementById("eventDesc").value || ""
+        });
+      }
+      function gmSpawnNpc() {
+        send({
+          type: "gm_spawn_npc",
+          npcId: document.getElementById("npcId").value || "event_npc",
+          name: document.getElementById("npcName").value || "Event NPC",
+          x: Number(document.getElementById("npcX").value) || 0,
+          y: Number(document.getElementById("npcY").value) || 0
+        });
+        requestPreview();
+      }
+      function gmRemoveNpc() {
+        send({ type: "gm_remove_npc", npcId: document.getElementById("removeNpcId").value });
+        requestPreview();
+      }
+      function gmTeleport() {
+        send({
+          type: "gm_teleport",
+          player: document.getElementById("targetPlayer").value,
+          x: Number(document.getElementById("tpX").value) || 0,
+          y: Number(document.getElementById("tpY").value) || 0
+        });
+        requestPreview();
+      }
+      function gmKick() { send({ type: "gm_kick", player: document.getElementById("targetPlayer").value }); }
+      function gmBan() { send({ type: "gm_ban", player: document.getElementById("targetPlayer").value }); }
+      function gmUnban() { send({ type: "gm_unban", player: document.getElementById("targetPlayer").value }); }
+      function gmMute() { send({ type: "gm_mute", player: document.getElementById("targetPlayer").value }); }
+      function gmUnmute() { send({ type: "gm_unmute", player: document.getElementById("targetPlayer").value }); }
+      function gmSetPrice() {
+        send({
+          type: "gm_set_price",
+          itemId: document.getElementById("priceItem").value,
+          buy: Number(document.getElementById("priceBuy").value) || 10
+        });
+      }
+      function gmBroadcast() {
+        send({
+          type: "gm_broadcast",
+          channel: "system",
+          message: document.getElementById("bcText").value || ""
+        });
+      }
+
+      window.gmSetWeather = gmSetWeather;
+      window.gmSetTime = gmSetTime;
+      window.gmEvent = gmEvent;
+      window.gmSpawnNpc = gmSpawnNpc;
+      window.gmRemoveNpc = gmRemoveNpc;
+      window.gmTeleport = gmTeleport;
+      window.gmKick = gmKick;
+      window.gmBan = gmBan;
+      window.gmUnban = gmUnban;
+      window.gmMute = gmMute;
+      window.gmUnmute = gmUnmute;
+      window.gmSetPrice = gmSetPrice;
+      window.gmBroadcast = gmBroadcast;
+    </script>
+  </body>
+</html>
