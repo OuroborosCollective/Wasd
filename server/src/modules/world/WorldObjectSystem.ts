@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { PersistenceManager } from '../../core/PersistenceManager.js';
+import { AssetPoolResolver, type AssetCategory, type AssetResolveInput } from './AssetPoolResolver.js';
 
 export interface WorldObject {
   id: string;
@@ -9,6 +10,9 @@ export interface WorldObject {
   position: { x: number, y: number };
   rotation?: number;
   scale?: number;
+  assetCategory?: AssetCategory;
+  assetKey?: string;
+  variant?: string;
   glbPath?: string;
 }
 
@@ -16,14 +20,27 @@ export class WorldObjectSystem {
   private objects: Map<string, WorldObject> = new Map();
   private dataPath: string;
   private persistence: PersistenceManager | null = null;
+  private assetPoolResolver: AssetPoolResolver;
 
-  constructor(persistence?: PersistenceManager) {
+  constructor(persistence?: PersistenceManager, resolver?: AssetPoolResolver) {
     this.persistence = persistence || null;
+    this.assetPoolResolver = resolver || new AssetPoolResolver();
     this.dataPath = path.resolve(process.cwd(), "game-data/world/objects.json");
     this.load();
   }
 
+  public resolveObjectAsset(input: AssetResolveInput): string | undefined {
+    return this.assetPoolResolver.resolveObject(input);
+  }
+
   public async addObject(obj: WorldObject) {
+    if (!obj.glbPath) {
+      obj.glbPath = this.assetPoolResolver.resolveObject({
+        assetCategory: obj.assetCategory || "prop",
+        assetKey: obj.assetKey || obj.type,
+        variant: obj.variant,
+      });
+    }
     this.objects.set(obj.id, obj);
     await this.save();
   }
@@ -35,6 +52,24 @@ export class WorldObjectSystem {
 
   public getAllObjects(): WorldObject[] {
     return Array.from(this.objects.values());
+  }
+
+  public assignMissingGlbPaths() {
+    let mutated = false;
+    for (const object of this.objects.values()) {
+      if (!object.glbPath) {
+        const resolved = this.assetPoolResolver.resolveObject({
+          assetCategory: object.assetCategory || "prop",
+          assetKey: object.assetKey || object.type,
+          variant: object.variant,
+        });
+        if (resolved) {
+          object.glbPath = resolved;
+          mutated = true;
+        }
+      }
+    }
+    return mutated;
   }
 
   public get objectsMap(): Map<string, WorldObject> {

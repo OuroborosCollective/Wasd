@@ -1,0 +1,37 @@
+{
+  "meta": {
+    "version": 1,
+    "description": "Austauschbare GLB-Pools pro Kategorie. Alle Pfade muessen unter client/public liegen."
+  },
+  "defaults": {
+    "terrain": "/assets/models/objects/chest.glb",
+    "road": "/assets/models/objects/chest.glb",
+    "building": "/assets/models/objects/chest.glb",
+    "vegetation": "/assets/models/objects/chest.glb",
+    "prop": "/assets/models/objects/chest.glb",
+    "special": "/assets/models/objects/chest.glb",
+    "object": "/assets/models/objects/chest.glb"
+  },
+  "objectsByType": {
+    "house": [
+      "/assets/models/objects/chest.glb"
+    ],
+    "tree": [
+      "/assets/models/objects/chest.glb"
+    ],
+    "crate": [
+      "/assets/models/objects/chest.glb"
+    ]
+  },
+  "objectsByAssetKey": {
+    "house_small": [
+      "/assets/models/objects/chest.glb"
+    ],
+    "tree_oak": [
+      "/assets/models/objects/chest.glb"
+    ],
+    "prop_lantern": [
+      "/assets/models/objects/chest.glb"
+    ]
+  }
+}

@@ -26,6 +26,24 @@ export class PlayCanvasEntityFactory {
     entity.setPosition(model.position.x, model.position.y, model.position.z);
     entity.setEulerAngles(model.rotation.x, model.rotation.y, model.rotation.z);
 
+    // World objects can be fully data-driven via modelUrl (GLB path from server mapping).
+    if (model.modelUrl) {
+      entity.addComponent('render', { type: 'box' });
+      this.loader.loadModel(model.modelUrl).then(asset => {
+        if (entity.render) entity.removeComponent('render');
+        entity.addComponent('model', {
+          type: 'asset',
+          asset: asset.resource.model
+        });
+        const s = Number.isFinite(model.scale as number) ? Number(model.scale) : 1;
+        entity.setLocalScale(s, s, s);
+      }).catch(err => {
+        console.warn(`Failed to load mapped model for ${model.id}: ${model.modelUrl}`, err);
+      });
+      this.app.root.addChild(entity);
+      return entity;
+    }
+
     // Default representation
     if (model.type === 'player') {
       // Use placeholder while loading

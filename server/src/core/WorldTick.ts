@@ -1331,7 +1331,8 @@ export class WorldTick {
         type: obj.type || 'object',
         position: { x: obj.position.x, y: 0, z: obj.position.y },
         rotation: { x: 0, y: obj.rotation || 0, z: 0 },
-        visible: true
+        visible: true,
+        modelUrl: obj.glbPath,
       }));
       entities.push(...worldObjects);
     }

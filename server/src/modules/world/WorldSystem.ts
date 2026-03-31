@@ -2,12 +2,14 @@ import { ChunkSystem } from "./ChunkSystem.js";
 import { TerrainGenerator } from "./TerrainGenerator.js";
 import { WeatherSystem } from "./WeatherSystem.js";
 import { WorldObjectSystem } from "./WorldObjectSystem.js";
+import { AssetPoolResolver } from "./AssetPoolResolver.js";
 
 export class WorldSystem {
   public chunkSystem: ChunkSystem;
   public terrainGenerator: TerrainGenerator;
   public weatherSystem: WeatherSystem;
   public objectSystem: WorldObjectSystem;
+  public assetPoolResolver: AssetPoolResolver;
   
   public worldTime: number = 8.0; // Start at 8 AM
   private timeScale: number = 0.01; // Time speed
@@ -16,7 +18,8 @@ export class WorldSystem {
     this.chunkSystem = new ChunkSystem(64);
     this.terrainGenerator = new TerrainGenerator();
     this.weatherSystem = new WeatherSystem();
-    this.objectSystem = new WorldObjectSystem(persistence);
+    this.assetPoolResolver = new AssetPoolResolver();
+    this.objectSystem = new WorldObjectSystem(persistence, this.assetPoolResolver);
   }
 
   tick() {
