@@ -7,7 +7,7 @@
 
 set -e
 
-REPO_URL="https://github.com/thosu87-svg/Wasd.git"
+REPO_URL="https://github.com/OuroborosCollective/Wasd.git"
 APP_DIR="/opt/areloria"
 SERVICE_NAME="areloria"
 NODE_VERSION="22"
