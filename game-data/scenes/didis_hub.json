@@ -1,0 +1,43 @@
+{
+  "sceneId": "didis_hub",
+  "defaultSpawnKey": "sp_player_default",
+  "spawnPoints": {
+    "sp_player_default": { "x": 0, "y": 0, "z": 0 },
+    "sp_didi_01": { "x": 18, "y": 0, "z": 6 },
+    "sp_didi_02": { "x": -18, "y": 0, "z": 6 }
+  },
+  "triggerZones": [
+    {
+      "id": "tr_to_didi_01",
+      "x": 8,
+      "y": 0,
+      "radius": 2.2,
+      "targetSpawnKey": "sp_didi_01",
+      "allowedSpawnKeys": ["sp_player_default", "sp_didi_02"]
+    },
+    {
+      "id": "tr_to_didi_02",
+      "x": -8,
+      "y": 0,
+      "radius": 2.2,
+      "targetSpawnKey": "sp_didi_02",
+      "allowedSpawnKeys": ["sp_player_default", "sp_didi_01"]
+    },
+    {
+      "id": "tr_to_hub_from_didi_01",
+      "x": 18,
+      "y": 14,
+      "radius": 2.2,
+      "targetSpawnKey": "sp_player_default",
+      "allowedSpawnKeys": ["sp_didi_01"]
+    },
+    {
+      "id": "tr_to_hub_from_didi_02",
+      "x": -18,
+      "y": 14,
+      "radius": 2.2,
+      "targetSpawnKey": "sp_player_default",
+      "allowedSpawnKeys": ["sp_didi_02"]
+    }
+  ]
+}

@@ -35,7 +35,7 @@ type SceneTriggerZone = {
 };
 
 const DEFAULT_SCENE_ID = "didis_hub";
-const SCENE_PROFILES: Record<string, SceneProfile> = {
+const DEFAULT_SCENE_PROFILES: Record<string, SceneProfile> = {
   didis_hub: {
     defaultSpawnKey: "sp_player_default",
     spawnPoints: {
@@ -46,7 +46,7 @@ const SCENE_PROFILES: Record<string, SceneProfile> = {
   },
 };
 const SCENE_TRIGGER_COOLDOWN_MS = 2500;
-const SCENE_TRIGGER_ZONES: SceneTriggerZone[] = [
+const DEFAULT_SCENE_TRIGGER_ZONES: SceneTriggerZone[] = [
   {
     id: "tr_to_didi_01",
     sceneId: "didis_hub",
@@ -84,6 +84,7 @@ const SCENE_TRIGGER_ZONES: SceneTriggerZone[] = [
     allowedSpawnKeys: ["sp_didi_02"],
   },
 ];
+const SCENE_LAYOUT_DIRECTORY = path.resolve(process.cwd(), "game-data/scenes");
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -110,10 +111,12 @@ export class WorldTick {
   private socketToPlayer: Map<string, string> = new Map(); // socketId -> characterName
   private lastActionTimes: Map<string, number> = new Map(); // charName -> timestamp
   private sceneTriggerCooldowns: Map<string, number> = new Map();
+  private sceneProfiles: Record<string, SceneProfile> = { ...DEFAULT_SCENE_PROFILES };
+  private sceneTriggerZones: SceneTriggerZone[] = [...DEFAULT_SCENE_TRIGGER_ZONES];
 
   private getSceneProfile(sceneId: string | undefined): { sceneId: string; profile: SceneProfile } {
-    const resolvedSceneId = sceneId && SCENE_PROFILES[sceneId] ? sceneId : DEFAULT_SCENE_ID;
-    return { sceneId: resolvedSceneId, profile: SCENE_PROFILES[resolvedSceneId] };
+    const resolvedSceneId = sceneId && this.sceneProfiles[sceneId] ? sceneId : DEFAULT_SCENE_ID;
+    return { sceneId: resolvedSceneId, profile: this.sceneProfiles[resolvedSceneId] };
   }
 
   private resolveSpawn(sceneId: string | undefined, spawnKey: string | undefined) {
@@ -144,7 +147,7 @@ export class WorldTick {
 
     const currentSceneId = isNonEmptyString(player.sceneId) ? player.sceneId : DEFAULT_SCENE_ID;
     const currentSpawnKey = isNonEmptyString(player.spawnKey) ? player.spawnKey : "";
-    for (const trigger of SCENE_TRIGGER_ZONES) {
+    for (const trigger of this.sceneTriggerZones) {
       if (trigger.sceneId !== currentSceneId) {
         continue;
       }
@@ -338,7 +341,110 @@ export class WorldTick {
     for (const id in savedData) {
       this.playerSystem.setPlayer(id, savedData[id]);
     }
+    this.loadSceneLayouts();
     this.loadSpawns();
+  }
+
+  private loadSceneLayouts() {
+    try {
+      if (!fs.existsSync(SCENE_LAYOUT_DIRECTORY)) {
+        return;
+      }
+
+      const files = fs
+        .readdirSync(SCENE_LAYOUT_DIRECTORY)
+        .filter((name) => name.toLowerCase().endsWith(".json"))
+        .sort((a, b) => a.localeCompare(b));
+
+      if (files.length === 0) {
+        return;
+      }
+
+      const loadedProfiles: Record<string, SceneProfile> = {};
+      const loadedTriggers: SceneTriggerZone[] = [];
+
+      for (const fileName of files) {
+        const absolutePath = path.join(SCENE_LAYOUT_DIRECTORY, fileName);
+        const raw = JSON.parse(fs.readFileSync(absolutePath, "utf-8"));
+        const sceneId = isNonEmptyString(raw?.sceneId) ? raw.sceneId.trim() : "";
+        if (!sceneId) {
+          continue;
+        }
+
+        const fallbackProfile = DEFAULT_SCENE_PROFILES[sceneId];
+        const rawSpawnPoints = raw?.spawnPoints && typeof raw.spawnPoints === "object" ? raw.spawnPoints : {};
+        const spawnPoints: Record<string, SpawnPoint> = {};
+        for (const key of Object.keys(rawSpawnPoints)) {
+          const entry = rawSpawnPoints[key];
+          const x = Number(entry?.x ?? 0);
+          const y = Number(entry?.y ?? 0);
+          const z = Number(entry?.z ?? 0);
+          if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) {
+            spawnPoints[key] = { x, y, z };
+          }
+        }
+
+        const defaultSpawnKey = isNonEmptyString(raw?.defaultSpawnKey)
+          ? raw.defaultSpawnKey.trim()
+          : fallbackProfile?.defaultSpawnKey || "sp_player_default";
+
+        const profileSpawnPoints = Object.keys(spawnPoints).length > 0 ? spawnPoints : fallbackProfile?.spawnPoints;
+        if (!profileSpawnPoints || !profileSpawnPoints[defaultSpawnKey]) {
+          continue;
+        }
+
+        loadedProfiles[sceneId] = {
+          defaultSpawnKey,
+          spawnPoints: profileSpawnPoints,
+        };
+
+        const rawTriggers = Array.isArray(raw?.triggerZones) ? raw.triggerZones : [];
+        for (let i = 0; i < rawTriggers.length; i++) {
+          const trigger = rawTriggers[i];
+          const id = isNonEmptyString(trigger?.id) ? trigger.id.trim() : `${sceneId}_trigger_${i}`;
+          const x = Number(trigger?.x ?? 0);
+          const y = Number(trigger?.y ?? 0);
+          const radius = Number(trigger?.radius ?? 0);
+          const targetSpawnKey = isNonEmptyString(trigger?.targetSpawnKey)
+            ? trigger.targetSpawnKey.trim()
+            : "";
+          if (!id || !targetSpawnKey || !Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(radius)) {
+            continue;
+          }
+          if (!loadedProfiles[sceneId].spawnPoints[targetSpawnKey]) {
+            continue;
+          }
+          const allowedSpawnKeys = Array.isArray(trigger?.allowedSpawnKeys)
+            ? trigger.allowedSpawnKeys.filter((k: unknown) => isNonEmptyString(k)).map((k: string) => k.trim())
+            : undefined;
+
+          loadedTriggers.push({
+            id,
+            sceneId,
+            x,
+            y,
+            radius: Math.max(0.25, radius),
+            targetSpawnKey,
+            allowedSpawnKeys: allowedSpawnKeys && allowedSpawnKeys.length > 0 ? allowedSpawnKeys : undefined,
+          });
+        }
+      }
+
+      if (Object.keys(loadedProfiles).length > 0) {
+        this.sceneProfiles = loadedProfiles;
+      }
+      if (loadedTriggers.length > 0) {
+        this.sceneTriggerZones = loadedTriggers;
+      }
+
+      console.log(
+        `[SceneLayouts] Loaded ${Object.keys(this.sceneProfiles).length} profiles and ${this.sceneTriggerZones.length} trigger zones`
+      );
+    } catch (error) {
+      console.error("[SceneLayouts] Failed to load scene layouts, using defaults", error);
+      this.sceneProfiles = { ...DEFAULT_SCENE_PROFILES };
+      this.sceneTriggerZones = [...DEFAULT_SCENE_TRIGGER_ZONES];
+    }
   }
 
   private loadSpawns() {
