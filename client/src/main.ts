@@ -1,5 +1,5 @@
-import { createPlayCanvasApp } from "./engine/playcanvas/PlayCanvasBoot";
-import { PlayCanvasAdapter } from "./engine/playcanvas/PlayCanvasAdapter";
+import { createBabylonApp } from "./engine/babylon/BabylonBoot";
+import { BabylonAdapter } from "./engine/babylon/BabylonAdapter";
 import { MMORPGClientCore } from "./core/MMORPGClientCore";
 import { connectSocket, requestSceneChange, type ConnectionOptions } from "./networking/websocketClient";
 import { renderHUD, showDialogue } from "./ui/hud";
@@ -15,16 +15,20 @@ if (!canvas) {
 }
 document.body.style.margin = "0";
 document.body.style.overflow = "hidden";
+canvas.style.width = "100vw";
+canvas.style.height = "100vh";
+canvas.style.display = "block";
 
 // 1. Boot Engine
-const app = createPlayCanvasApp(canvas);
+const app = createBabylonApp(canvas);
 
 // 2. Create Adapter
-const adapter = new PlayCanvasAdapter(app);
+const adapter = new BabylonAdapter(app.scene, app.camera);
 
 // 3. Create Core
 const core = new MMORPGClientCore(adapter);
 (window as any).gameCore = core;
+(window as any).babylonScene = app.scene;
 core.registerDefaultInput();
 
 // 4. Connect Systems
@@ -40,8 +44,17 @@ renderMobileSceneTeleportPanel();
 renderImprovedVirtualJoystick(core);
 performanceMonitor.start();
 
+let lastFrameTime = performance.now();
+const tick = (now: number) => {
+  const dt = Math.min((now - lastFrameTime) / 1000, 0.1);
+  lastFrameTime = now;
+  core.update(dt);
+  requestAnimationFrame(tick);
+};
+requestAnimationFrame(tick);
+
 core.events.on('dialogue', (text: string) => {
   showDialogue(text);
 });
 
-console.log("Areloria PlayCanvas Client Initialized");
+console.log("Areloria Babylon Client Initialized");
