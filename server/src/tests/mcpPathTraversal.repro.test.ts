@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import path from "path";
 // Using relative path for testing purposes in this environment
-import { validatePath } from "../api/mcpRoute";
+import { validatePath } from "../api/mcpRoute.js";
 
 describe("MCP Path Traversal Validation", () => {
   it("should allow paths within the project root", () => {
