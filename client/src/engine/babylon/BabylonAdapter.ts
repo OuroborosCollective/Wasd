@@ -24,6 +24,10 @@ import { AssetRegistry } from "../playcanvas/AssetRegistry";
 type EntityNode = {
   root: TransformNode;
   visual: TransformNode | AbstractMesh;
+  /** Set when a glTF attach succeeded; avoids re-running LoadAsset on every entity_sync. */
+  attachedModelUrl?: string;
+  /** URL currently being loaded (async); prevents duplicate concurrent loads for the same entity. */
+  pendingModelUrl?: string;
   label?: Mesh;
   baseScale: number;
   areKappa: number;
@@ -146,7 +150,11 @@ export class BabylonAdapter implements IEngineBridge {
         node.root
       );
     }
-    if (updates.modelUrl) {
+    if (
+      updates.modelUrl &&
+      updates.modelUrl !== node.attachedModelUrl &&
+      updates.modelUrl !== node.pendingModelUrl
+    ) {
       this.tryAttachModel(id, updates.modelUrl);
     }
     if (updates.type) {
@@ -404,6 +412,7 @@ export class BabylonAdapter implements IEngineBridge {
     if (!entity) return;
 
     this.modelAttachQueue.set(entityId, url);
+    entity.pendingModelUrl = url;
     const expectedUrl = url;
     try {
       const container = await this.loadModelContainer(url);
@@ -426,6 +435,7 @@ export class BabylonAdapter implements IEngineBridge {
         entity.visual.dispose(false, true);
       }
       entity.visual = modelRoot;
+      entity.attachedModelUrl = expectedUrl;
       entity.areMeshes = this.collectRenderableMeshes(modelRoot);
       entity.areBaseMaterials = new Map(
         entity.areMeshes.map((mesh) => [mesh.uniqueId, (mesh.material as Material | null) ?? null])
@@ -434,6 +444,11 @@ export class BabylonAdapter implements IEngineBridge {
       this.updateAREShaderUniforms(entity);
     } catch (error) {
       console.warn(`Failed to load model for ${entityId}:`, url, error);
+    } finally {
+      const latest = this.entities.get(entityId);
+      if (latest && latest.pendingModelUrl === expectedUrl) {
+        latest.pendingModelUrl = undefined;
+      }
     }
   }
 
@@ -478,8 +493,9 @@ export class BabylonAdapter implements IEngineBridge {
         scale = Math.max(0.2, node.baseScale + wave);
       }
       node.root.scaling = new Vector3(scale, scale, scale);
-      if (this.areMode === "shader") {
-        this.updateAREShaderUniforms(node);
+      // uTime-only updates for shader mode; avoid touching uniforms every frame in cpu/off
+      if (this.areMode === "shader" && node.areShader) {
+        node.areShader.setFloat("uTime", this.areWaveClock.t);
       }
     }
   }
