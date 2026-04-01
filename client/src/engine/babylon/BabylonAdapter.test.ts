@@ -50,4 +50,15 @@ describe("AREPerformancePolicy", () => {
     const second = evaluateAREAutoModePolicy("shader", 20, 1600, state, config);
     expect(second.nextMode).toBe("cpu");
   });
+
+  it("provides downgrade reason for low FPS transition", () => {
+    let state = defaultAutoPolicyState();
+    let reason: "low_fps" | "stable_fps" | null = null;
+    for (let i = 0; i < 4; i++) {
+      const decision = evaluateAREAutoModePolicy("shader", 18, 30000 + i * 500, state);
+      state = decision.nextState;
+      reason = decision.reason;
+    }
+    expect(reason).toBe("low_fps");
+  });
 });

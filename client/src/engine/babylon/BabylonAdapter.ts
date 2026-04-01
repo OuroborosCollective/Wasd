@@ -51,6 +51,8 @@ type EntityNode = {
   isStaticFrozen: boolean;
 };
 
+type AREModeSource = "manual" | "auto";
+
 const DEFAULT_MODEL_BY_TYPE: Record<string, string> = {
   player: AssetRegistry.Npc_warrior ?? "/world-assets/characters/Npc_warrior.glb",
   npc: AssetRegistry.Questnpc_uschi ?? "/world-assets/characters/Questnpc_uschi.glb",
@@ -82,6 +84,8 @@ export class BabylonAdapter implements IEngineBridge {
   private arePerfAutoReason = "manual";
   private arePerfState: AutoPolicyState = defaultAutoPolicyState();
   private arePolicyConfig: AutoPolicyConfig = normalizeAutoPolicyConfig(undefined);
+  private areModeSource: AREModeSource = "manual";
+  private areModeBadgeElement: HTMLDivElement | null = null;
   private cameraTargetId: string | null = null;
   private navigationMarker: Mesh | null = null;
   private localPlayerId: string | null = null;
@@ -100,9 +104,11 @@ export class BabylonAdapter implements IEngineBridge {
     if (autoModeQuery === "1") {
       this.arePerfAutoMode = true;
       this.arePerfAutoReason = "query";
+      this.areModeSource = "auto";
     } else if (autoModeQuery === "0") {
       this.arePerfAutoMode = false;
       this.arePerfAutoReason = "query-disabled";
+      this.areModeSource = "manual";
     } else {
       const weakDevice =
         (typeof navigator !== "undefined" &&
@@ -111,9 +117,11 @@ export class BabylonAdapter implements IEngineBridge {
         false;
       this.arePerfAutoMode = weakDevice;
       this.arePerfAutoReason = weakDevice ? "weak-device" : "manual";
+      this.areModeSource = weakDevice ? "auto" : "manual";
     }
     if (this.areDebugEnabled) {
       this.areDebugElement = this.mountAREDebugOverlay();
+      this.areModeBadgeElement = this.mountAREModeBadge();
     }
     if (this.arePerfEnabled || this.arePerfAutoMode) {
       this.arePerfElement = this.mountAREPerfOverlay();
@@ -311,7 +319,7 @@ export class BabylonAdapter implements IEngineBridge {
       this.arePerfAutoMode = false;
       this.arePerfAutoReason = "manual-override";
     }
-    this.setAREModeInternal(normalized);
+    this.setAREModeInternal(normalized, "manual", "manual-override");
   }
 
   setAREPolicyConfig(config: {
@@ -362,15 +370,21 @@ export class BabylonAdapter implements IEngineBridge {
     );
     this.arePerfState = decision.nextState;
     if (decision.nextMode) {
-      this.setAREModeInternal(decision.nextMode);
+      this.setAREModeInternal(decision.nextMode, "auto", decision.reason ?? "policy");
     }
   }
 
-  private setAREModeInternal(mode: AREMode): void {
+  private setAREModeInternal(mode: AREMode, source?: AREModeSource, reason?: string): void {
     if (mode === this.areMode) {
       return;
     }
     this.areMode = mode;
+    if (source) {
+      this.areModeSource = source;
+    }
+    if (reason && this.arePerfAutoMode) {
+      this.arePerfAutoReason = reason;
+    }
     for (const node of this.entities.values()) {
       this.applyARELod(node);
       this.applyAREMaterialMode(node);
@@ -820,6 +834,26 @@ export class BabylonAdapter implements IEngineBridge {
     return node;
   }
 
+  private mountAREModeBadge(): HTMLDivElement {
+    const node = document.createElement("div");
+    node.id = "are-mode-badge";
+    node.style.position = "fixed";
+    node.style.top = "12px";
+    node.style.left = "12px";
+    node.style.zIndex = "10001";
+    node.style.padding = "8px 10px";
+    node.style.minWidth = "180px";
+    node.style.background = "rgba(6,12,24,0.82)";
+    node.style.border = "1px solid rgba(120, 188, 255, 0.55)";
+    node.style.borderRadius = "999px";
+    node.style.color = "#e4f2ff";
+    node.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, monospace";
+    node.style.fontSize = "11px";
+    node.style.whiteSpace = "pre";
+    document.body.appendChild(node);
+    return node;
+  }
+
   private updateAREDebugOverlay(): void {
     if (!this.areDebugEnabled || !this.areDebugElement) {
       return;
@@ -834,9 +868,10 @@ export class BabylonAdapter implements IEngineBridge {
     }
     const count = this.entities.size || 1;
     const localNode = this.localPlayerId ? this.entities.get(this.localPlayerId) : null;
+    this.updateAREModeBadge();
     this.areDebugElement.textContent = [
       "ARE DEBUG",
-      `mode: ${this.areMode}`,
+      `mode: ${this.areMode} (${this.areModeSource})`,
       `entities: ${this.entities.size} (visible ${visible})`,
       `avg resonance: ${(resonance / count).toFixed(3)}`,
       `avg plexity: ${(plexity / count).toFixed(3)}`,
@@ -844,6 +879,18 @@ export class BabylonAdapter implements IEngineBridge {
       localNode
         ? `local: k=${localNode.areKappa} idx=${localNode.areLogicalIndex}\nlocal: phase=${localNode.arePhase.toFixed(1)} res=${localNode.areResonance.toFixed(2)} plex=${localNode.arePlexity.toFixed(2)}\nchain: ${localNode.areChain.slice(0, 42)}`
         : "local: -",
+    ].join("\n");
+  }
+
+  private updateAREModeBadge(): void {
+    if (!this.areDebugEnabled || !this.areModeBadgeElement) {
+      return;
+    }
+    const reason = this.arePerfAutoMode ? this.arePerfAutoReason : "manual";
+    this.areModeBadgeElement.textContent = [
+      "ARE MODE",
+      `${this.areMode} (${this.areModeSource})`,
+      `reason: ${reason}`,
     ].join("\n");
   }
 

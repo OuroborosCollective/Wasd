@@ -8,6 +8,7 @@ export type AutoPolicyState = {
 
 export type AutoPolicyDecision = {
   nextMode: AREMode | null;
+  reason: "low_fps" | "stable_fps" | null;
   nextState: AutoPolicyState;
 };
 
@@ -68,7 +69,7 @@ export function evaluateAREAutoModePolicy(
   const policy = resolveConfig(config);
   const state: AutoPolicyState = { ...prev };
   if (nowMs < state.overridesDisabledUntilMs) {
-    return { nextMode: null, nextState: state };
+    return { nextMode: null, reason: null, nextState: state };
   }
 
   if (fps < policy.lowFpsThreshold) {
@@ -87,12 +88,12 @@ export function evaluateAREAutoModePolicy(
     state.stableSamples = 0;
     state.overridesDisabledUntilMs = nowMs + policy.cooldownMs;
     if (currentMode === "shader") {
-      return { nextMode: "cpu", nextState: state };
+      return { nextMode: "cpu", reason: "low_fps", nextState: state };
     }
     if (currentMode === "cpu") {
-      return { nextMode: "off", nextState: state };
+      return { nextMode: "off", reason: "low_fps", nextState: state };
     }
-    return { nextMode: null, nextState: state };
+    return { nextMode: null, reason: null, nextState: state };
   }
 
   if (state.stableSamples >= policy.stableSampleTrigger) {
@@ -100,13 +101,13 @@ export function evaluateAREAutoModePolicy(
     state.stableSamples = 0;
     state.overridesDisabledUntilMs = nowMs + policy.cooldownMs;
     if (currentMode === "off") {
-      return { nextMode: "cpu", nextState: state };
+      return { nextMode: "cpu", reason: "stable_fps", nextState: state };
     }
     if (currentMode === "cpu") {
-      return { nextMode: "shader", nextState: state };
+      return { nextMode: "shader", reason: "stable_fps", nextState: state };
     }
-    return { nextMode: null, nextState: state };
+    return { nextMode: null, reason: null, nextState: state };
   }
 
-  return { nextMode: null, nextState: state };
+  return { nextMode: null, reason: null, nextState: state };
 }

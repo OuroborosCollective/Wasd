@@ -18,6 +18,7 @@ const state = {
     scannedModels: [],
     links: [],
     pools: null,
+    areModeAudit: [],
   },
 };
 
@@ -86,6 +87,18 @@ function renderAdminState() {
       "- path can be a single GLB or comma-separated list for deterministic variant rotation",
       "- entry example: category=world_objects, key=house, path=/assets/models/buildings/house_01.glb",
       "- default example: category=world_objects, path=/assets/models/objects/chest.glb",
+    ].join("\n")
+  );
+  safeSetValue("areAuditLog", JSON.stringify(state.admin.areModeAudit ?? [], null, 2));
+  safeSetValue(
+    "areAuditHint",
+    [
+      "Columns:",
+      "- isoTime",
+      "- actorName / actorRole",
+      "- oldMode -> newMode",
+      "- reason",
+      "- source + socketId",
     ].join("\n")
   );
   const select = byId("adminModelSelect");
@@ -272,6 +285,19 @@ function handleMessage(msg) {
     }
     return;
   }
+  if (msg.type === "gm_are_mode_audit_result") {
+    state.admin.areModeAudit = Array.isArray(msg.entries) ? msg.entries : [];
+    renderAdminState();
+    logLine(`Loaded ${state.admin.areModeAudit.length} ARE audit entr${state.admin.areModeAudit.length === 1 ? "y" : "ies"}.`, "ok");
+    return;
+  }
+  if (msg.type === "gm_are_mode_audit_append") {
+    if (msg.entry && typeof msg.entry === "object") {
+      state.admin.areModeAudit = [msg.entry, ...(state.admin.areModeAudit || [])].slice(0, 200);
+      renderAdminState();
+    }
+    return;
+  }
   if (msg.type === "error") {
     logLine(msg.message || "Server error", "bad");
     return;
@@ -392,9 +418,19 @@ function initBindings() {
   bindClick("timeBtn", () => cmd("gm_set_time", { time: Number(val("worldTime")) || 12 }));
   bindClick("areModeSetBtn", () => {
     const mode = val("areModeSelect") || "shader";
-    cmd("gm_are_mode_set", { mode });
+    const reason = "gm_console";
+    cmd("gm_are_mode_set", { mode, reason });
   });
   bindClick("areModeGetBtn", () => cmd("gm_are_mode_get"));
+  bindClick("areModeAuditBtn", () => {
+    const requested = Number(val("areAuditLimit"));
+    const limit = Number.isFinite(requested) ? Math.max(1, Math.min(200, requested)) : 50;
+    cmd("gm_are_mode_audit_get", { limit });
+  });
+  bindClick("areModeAuditClearBtn", () => {
+    state.admin.areModeAudit = [];
+    renderAdminState();
+  });
   bindClick("eventBtn", () =>
     cmd("gm_world_event", {
       eventId: val("eventId") || "custom_event",
@@ -544,6 +580,7 @@ function bootstrapDefaults() {
   safeSetValue("registerCategory", "object");
   safeSetValue("poolCategory", "world_objects");
   safeSetValue("areModeSelect", "shader");
+  safeSetValue("areAuditLimit", "50");
   syncAREModeUI();
 }
 

@@ -15,6 +15,7 @@ import { GLBRegistry } from "../modules/asset-registry/GLBRegistry.js";
 import { AssetPoolResolver } from "../modules/world/AssetPoolResolver.js";
 import { AREStateCompiler } from "../modules/world/AREStateCompiler.js";
 import { RuntimeSettingsStore, type AREDeviceClass, type AREMode } from "../modules/world/RuntimeSettingsStore.js";
+import { AREModeAuditTrail } from "../modules/world/AREModeAuditTrail.js";
 import { cache } from "./Cache.js";
 import fs from "fs";
 import path from "path";
@@ -256,6 +257,7 @@ export class WorldTick {
   public glbRegistry: GLBRegistry;
   private assetPoolResolver: AssetPoolResolver;
   private runtimeSettings: RuntimeSettingsStore;
+  private areModeAuditTrail: AREModeAuditTrail;
   private areStateCompiler: AREStateCompiler;
   private lootEntities: Map<string, any> = new Map();
 
@@ -726,15 +728,38 @@ export class WorldTick {
         this.ws.sendToPlayer(socketId, { type: "gm_are_mode_result", mode: this.areMode });
         return true;
       }
+      case "gm_are_mode_audit_get": {
+        const requestedLimit = Number(msg.limit);
+        const limit = Number.isFinite(requestedLimit) ? requestedLimit : 50;
+        const entries = this.areModeAuditTrail.getRecent(limit);
+        this.ws.sendToPlayer(socketId, {
+          type: "gm_are_mode_audit_result",
+          entries,
+        });
+        this.sendGMStatus(socketId, "info", `Loaded ${entries.length} ARE audit entries.`);
+        return true;
+      }
       case "gm_are_mode_set": {
         const mode = normalizeAREMode(msg.mode);
         if (!mode) {
           this.sendGMStatus(socketId, "error", "Invalid ARE mode. Use off, cpu or shader.");
           return true;
         }
+        const oldMode = this.areMode;
         this.areMode = mode;
         this.runtimeSettings.setAREMode(mode);
+        const entry = this.areModeAuditTrail.logModeChange({
+          oldMode,
+          newMode: mode,
+          source: "gm_command",
+          actorId: caller?.id,
+          actorName: caller?.name,
+          actorRole: caller?.role,
+          socketId,
+          reason: isNonEmptyString(msg.reason) ? msg.reason : "gm_are_mode_set",
+        });
         this.ws.sendToPlayer(socketId, { type: "gm_are_mode_result", mode: this.areMode });
+        this.ws.sendToPlayer(socketId, { type: "gm_are_mode_audit_append", entry });
         this.ws.broadcast({ type: "world_event", event: "are_mode_changed", mode: this.areMode });
         this.sendGMStatus(socketId, "info", `ARE mode set to ${this.areMode}`);
         return true;
@@ -1129,6 +1154,7 @@ export class WorldTick {
     this.glbRegistry = new GLBRegistry();
     this.assetPoolResolver = new AssetPoolResolver();
     this.runtimeSettings = new RuntimeSettingsStore();
+    this.areModeAuditTrail = new AREModeAuditTrail();
     this.areStateCompiler = new AREStateCompiler();
     this.areMode = this.runtimeSettings.getAREMode();
 
