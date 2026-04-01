@@ -45,6 +45,10 @@ pm2 restart areloria
 
 Oder dauerhaft in `/opt/areloria/.env` ergänzen: `CLIENT_ROOT_DIR=/opt/areloria/client`
 
+### GitHub Actions „Continuous Deployment to VPS“
+
+Der Workflow setzt `CI=1`, sodass `deploy.sh` kein `apt-get upgrade` mehr ausführt (das bricht oft bei SSH ohne TTY). Für manuelle Runs auf dem Server: `SKIP_APT_UPGRADE=1 ./deploy/deploy.sh`. Nach dem ersten Setup nutzt der Workflow `deploy/update.sh` (Pull, Build, PM2).
+
 ---
 
 ## Tastenkürzel im Spiel

@@ -18,8 +18,13 @@ echo "  Areloria MMORPG – Deployment v0.4.0"
 echo "======================================================"
 
 # ── 1. Update system ──────────────────────────────────────
-echo "[1/10] Updating system packages..."
-apt-get update -qq && apt-get upgrade -y -qq
+# Skip full apt upgrade in CI / non-interactive SSH (often fails: locks, prompts, non-root).
+if [ -n "${CI:-}" ] || [ "${SKIP_APT_UPGRADE:-}" = "1" ]; then
+  echo "[1/10] Skipping apt upgrade (CI or SKIP_APT_UPGRADE=1)."
+else
+  echo "[1/10] Updating system packages..."
+  apt-get update -qq && apt-get upgrade -y -qq
+fi
 
 # ── 2. Install Node.js ────────────────────────────────────
 echo "[2/10] Installing Node.js ${NODE_VERSION}..."
