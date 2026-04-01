@@ -17,7 +17,6 @@ import {
   TransformNode,
   Vector3,
 } from "@babylonjs/core";
-import "@babylonjs/loaders/glTF";
 import { IEngineBridge } from "../bridge/IEngineBridge";
 import { EntityViewModel } from "../bridge/EntityViewModel";
 import { AssetRegistry } from "./AssetRegistry";
@@ -408,6 +407,7 @@ export class BabylonAdapter implements IEngineBridge {
     if (existing) {
       return existing;
     }
+    await import("@babylonjs/loaders/glTF");
     const splitIdx = url.lastIndexOf("/");
     const rootUrl = splitIdx >= 0 ? url.slice(0, splitIdx + 1) : "/";
     const fileName = splitIdx >= 0 ? url.slice(splitIdx + 1) : url;
