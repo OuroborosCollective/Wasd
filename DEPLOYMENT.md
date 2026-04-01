@@ -31,6 +31,20 @@ nano /opt/areloria/.env
 pm2 restart areloria
 ```
 
+### Client-Pfad auf dem VPS (schwarze / leere Seite)
+
+Wenn der Node-Prozess nur unter `server/` läuft oder `cwd` nicht das Repo-Root ist, kann der Server fälschlich `/opt/client/dist` statt `/opt/areloria/client/dist` bedienen. Abgeholfen wird durch **Repo-Root als `cwd`** und optional **`CLIENT_ROOT_DIR`**.
+
+Nach `git pull` auf dem VPS (Branch mit dem Fix):
+
+```bash
+cd /opt/areloria
+APP_DIR=/opt/areloria bash deploy/write_pm2_ecosystem.sh
+pm2 restart areloria
+```
+
+Oder dauerhaft in `/opt/areloria/.env` ergänzen: `CLIENT_ROOT_DIR=/opt/areloria/client`
+
 ---
 
 ## Tastenkürzel im Spiel

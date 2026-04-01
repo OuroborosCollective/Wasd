@@ -18,6 +18,10 @@ cd "$APP_DIR/server"
 npm install
 npx tsc
 
+# Keep PM2 cwd + CLIENT_ROOT_DIR aligned with repo (fixes wrong /opt/client static path)
+cd "$APP_DIR"
+APP_DIR="$APP_DIR" bash "$APP_DIR/deploy/write_pm2_ecosystem.sh"
+
 # Restart PM2
 pm2 restart areloria
 
