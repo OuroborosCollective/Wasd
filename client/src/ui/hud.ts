@@ -1,6 +1,12 @@
 import { auth } from "../auth/firebase";
 import { sendDialogueChoice, sendQuestAccept } from "../networking/websocketClient";
-import { getPlayerGold, getPlayerXp, subscribePlayerState } from "../state/playerState";
+import {
+  getPlayerGold,
+  getPlayerHealth,
+  getPlayerMaxHealth,
+  getPlayerXp,
+  subscribePlayerState,
+} from "../state/playerState";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 export function renderHUD() {
@@ -10,7 +16,9 @@ export function renderHUD() {
   statsSpan.id = "arel-hud-stats";
   statsSpan.style.marginRight = "8px";
   const updateStats = () => {
-    statsSpan.textContent = `Gold ${getPlayerGold()} · XP ${getPlayerXp()}`;
+    const hp = getPlayerHealth();
+    const hpMax = getPlayerMaxHealth();
+    statsSpan.textContent = `HP ${hp}/${hpMax} · Gold ${getPlayerGold()} · XP ${getPlayerXp()}`;
   };
   updateStats();
   subscribePlayerState(updateStats);

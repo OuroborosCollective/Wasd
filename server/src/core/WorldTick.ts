@@ -339,11 +339,36 @@ export class WorldTick {
       gold: player.gold ?? 0,
       xp: player.xp ?? 0,
       health: player.health ?? 100,
+      maxHealth: player.maxHealth ?? 100,
       stamina: player.stamina ?? 100,
+      dead: Boolean(player.dead),
+      deathAt: typeof player.deathAt === "number" ? player.deathAt : 0,
+      respawnAvailableAt: player.dead
+        ? (typeof player.deathAt === "number" ? player.deathAt : 0) + GameConfig.playerRespawnDelayMs
+        : 0,
       quests: this.questSystem.getQuestSyncForClient(player),
       inventory: player.inventory || [],
       equipment: player.equipment || {},
     });
+  }
+
+  private killPlayer(socketId: string, player: any) {
+    if (player.dead) return;
+    player.dead = true;
+    player.deathAt = Date.now();
+    player.health = 0;
+    this.playerKeysDown.delete(player.id);
+    this.playerAnalogMove.delete(player.id);
+    for (const npc of this.npcSystem.getAllNPCs()) {
+      if (npc.aggroTargetId === player.id) {
+        npc.aggroTargetId = null;
+      }
+    }
+    this.ws.sendToPlayer(socketId, {
+      type: "toast",
+      text: "You were defeated. Tap Respawn when ready.",
+    });
+    this.pushPlayerStateSync(socketId, player);
   }
 
   private getEquippedWeaponDamageBonus(player: any): number {
@@ -360,18 +385,38 @@ export class WorldTick {
     const py = npc.position.y;
     for (const entry of table) {
       const chance = typeof entry.chance === "number" ? entry.chance : 0;
+      if (chance <= 0 || Math.random() > chance) continue;
+
+      const goldAmount =
+        typeof entry.gold === "number" && entry.gold > 0
+          ? Math.floor(entry.gold)
+          : typeof entry.goldMin === "number" && typeof entry.goldMax === "number"
+            ? Math.floor(entry.goldMin + Math.random() * (entry.goldMax - entry.goldMin + 1))
+            : 0;
+
       const itemId = typeof entry.itemId === "string" ? entry.itemId : "";
-      if (!itemId || chance <= 0) continue;
-      if (Math.random() > chance) continue;
-      const inst = ItemRegistry.createInstance(itemId);
-      if (!inst) continue;
-      const id = `loot_${randomUUID()}`;
-      this.lootEntities.set(id, {
-        id,
-        position: { x: px + (Math.random() - 0.5) * 1.2, y: py + (Math.random() - 0.5) * 1.2 },
-        item: inst,
-        despawnAt: Date.now() + GameConfig.lootDespawnMs,
-      });
+      if (goldAmount > 0) {
+        const id = `loot_${randomUUID()}`;
+        this.lootEntities.set(id, {
+          id,
+          position: { x: px + (Math.random() - 0.5) * 1.2, y: py + (Math.random() - 0.5) * 1.2 },
+          goldAmount,
+          item: null,
+          despawnAt: Date.now() + GameConfig.lootDespawnMs,
+        });
+      }
+
+      if (itemId) {
+        const inst = ItemRegistry.createInstance(itemId);
+        if (!inst) continue;
+        const id = `loot_${randomUUID()}`;
+        this.lootEntities.set(id, {
+          id,
+          position: { x: px + (Math.random() - 0.5) * 1.2, y: py + (Math.random() - 0.5) * 1.2 },
+          item: inst,
+          despawnAt: Date.now() + GameConfig.lootDespawnMs,
+        });
+      }
     }
   }
 
@@ -397,6 +442,17 @@ export class WorldTick {
   private tryPickupLoot(socketId: string, player: any, entry: { id: string; loot: any }): boolean {
     const { id, loot } = entry;
     if (!this.lootEntities.has(id)) return false;
+    const goldAmt = typeof loot.goldAmount === "number" ? loot.goldAmount : 0;
+    if (goldAmt > 0) {
+      player.gold = (player.gold ?? 0) + goldAmt;
+      this.lootEntities.delete(id);
+      this.ws.sendToPlayer(socketId, {
+        type: "toast",
+        text: `Picked up: ${goldAmt} gold`,
+      });
+      this.pushPlayerStateSync(socketId, player);
+      return true;
+    }
     const item = loot.item;
     if (!item?.id) {
       this.lootEntities.delete(id);
@@ -437,6 +493,74 @@ export class WorldTick {
       });
     }
     this.pushPlayerStateSync(victimSocketId, player);
+    if ((player.health ?? 0) <= 0 && !player.dead) {
+      this.killPlayer(victimSocketId, player);
+    }
+  }
+
+  private processHostileNpcAggroAndChase(onlinePlayers: any[]) {
+    const rAggro = GameConfig.npcAggroRadius;
+    const rLeash = GameConfig.npcAggroLeash;
+    const speed = GameConfig.npcChaseSpeed;
+    const rAtk = GameConfig.npcAttackDistance;
+
+    for (const npc of this.npcSystem.getAllNPCs()) {
+      if (!npcWillCounterAttack(npc)) continue;
+      if ((npc.health ?? 0) <= 0) continue;
+
+      let targetPlayer: any = null;
+      let targetSocket: string | undefined;
+
+      if (npc.aggroTargetId) {
+        targetPlayer = this.playerSystem.getPlayer(npc.aggroTargetId);
+        if (!targetPlayer || targetPlayer.isOffline || targetPlayer.dead) {
+          npc.aggroTargetId = null;
+          targetPlayer = null;
+        } else {
+          targetSocket = this.getSocketForPlayer(targetPlayer.id) || this.getSocketForPlayer(targetPlayer.name);
+          const hx = npc.homePosition?.x ?? npc.position.x;
+          const hy = npc.homePosition?.y ?? npc.position.y;
+          const tdx = targetPlayer.position.x - hx;
+          const tdy = targetPlayer.position.y - hy;
+          if (tdx * tdx + tdy * tdy > rLeash * rLeash) {
+            npc.aggroTargetId = null;
+            targetPlayer = null;
+          }
+        }
+      }
+
+      if (!targetPlayer) {
+        let best: { p: any; d2: number } | null = null;
+        for (const p of onlinePlayers) {
+          if (p.dead) continue;
+          const dx = p.position.x - npc.position.x;
+          const dy = p.position.y - npc.position.y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 <= rAggro * rAggro && (!best || d2 < best.d2)) {
+            best = { p, d2 };
+          }
+        }
+        if (best) {
+          npc.aggroTargetId = best.p.id;
+          targetPlayer = best.p;
+          targetSocket = this.getSocketForPlayer(targetPlayer.id) || this.getSocketForPlayer(targetPlayer.name);
+        }
+      }
+
+      if (!targetPlayer || !targetSocket) continue;
+
+      const dx = targetPlayer.position.x - npc.position.x;
+      const dy = targetPlayer.position.y - npc.position.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > 0.05 && dist > rAtk * 0.95) {
+        npc.position.x += (dx / dist) * speed;
+        npc.position.y += (dy / dist) * speed;
+      }
+
+      if (dist <= rAtk && !targetPlayer.dead) {
+        this.performNpcCounterAttack(npc, targetPlayer, targetSocket);
+      }
+    }
   }
 
   private getSceneProfile(sceneId: string | undefined): { sceneId: string; profile: SceneProfile } {
@@ -1344,6 +1468,12 @@ export class WorldTick {
             player.isOffline = false;
             console.log(`Player ${charName} reconnected.`);
             shouldApplySpawn = !isNonEmptyString(player.sceneId) || !isNonEmptyString(player.spawnKey);
+            if (player.dead) {
+              player.dead = false;
+              player.health = player.maxHealth ?? 100;
+              player.stamina = player.maxStamina ?? 100;
+              shouldApplySpawn = true;
+            }
           }
 
           const requestedSceneId = isNonEmptyString(msg.sceneId) ? msg.sceneId.trim() : undefined;
@@ -1369,11 +1499,20 @@ export class WorldTick {
             stats: {
               gold: player.gold,
               xp: player.xp,
+              health: player.health,
+              maxHealth: player.maxHealth ?? 100,
+              stamina: player.stamina,
+              dead: Boolean(player.dead),
+              deathAt: typeof player.deathAt === "number" ? player.deathAt : 0,
+              respawnAvailableAt: player.dead
+                ? (typeof player.deathAt === "number" ? player.deathAt : 0) + GameConfig.playerRespawnDelayMs
+                : 0,
               quests: this.questSystem.getQuestSyncForClient(player),
               inventory: player.inventory,
-              equipment: player.equipment
-            }
+              equipment: player.equipment,
+            },
           });
+          this.pushPlayerStateSync(id, player);
         } catch (err) {
           console.error("Login error:", err);
           this.ws.sendToPlayer(id, { type: "error", message: "Login failed" });
@@ -1409,6 +1548,57 @@ export class WorldTick {
 
       if (this.worldState.bannedPlayers.includes(player.id)) {
         this.ws.sendToPlayer(id, { type: "kick", reason: "Banned player" });
+        return;
+      }
+
+      if (player.dead) {
+        if (msg.type === "respawn") {
+          const now = Date.now();
+          const deathAt = typeof player.deathAt === "number" ? player.deathAt : 0;
+          if (now - deathAt < GameConfig.playerRespawnDelayMs) {
+            this.ws.sendToPlayer(id, { type: "toast", text: "Respawn is not ready yet." });
+            this.pushPlayerStateSync(id, player);
+            return;
+          }
+          player.dead = false;
+          player.deathAt = 0;
+          const spawn = this.applySpawnToPlayer(player, player.sceneId, player.spawnKey);
+          player.health = player.maxHealth ?? 100;
+          player.stamina = player.maxStamina ?? 100;
+          this.observerEngine.updatePosition(id, player.position);
+          this.ws.sendToPlayer(id, {
+            type: "scene_changed",
+            sceneId: spawn.sceneId,
+            spawnKey: spawn.spawnKey,
+            spawnPosition: spawn.spawnPoint,
+            reason: "respawn",
+          });
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        if (msg.type === "quest_sync") {
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        return;
+      }
+
+      if (msg.type === "pickup_loot") {
+        const lid = typeof msg.lootId === "string" ? msg.lootId.trim() : "";
+        const loot = lid ? this.lootEntities.get(lid) : undefined;
+        if (!loot) {
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        const px = player.position.x;
+        const py = player.position.y;
+        const dx = loot.position.x - px;
+        const dy = loot.position.y - py;
+        if (dx * dx + dy * dy > GameConfig.interactDistance * GameConfig.interactDistance) {
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        this.tryPickupLoot(id, player, { id: lid, loot });
         return;
       }
 
@@ -1782,6 +1972,10 @@ export class WorldTick {
         continue;
       }
 
+      if (player.dead) {
+        continue;
+      }
+
       let mx = 0;
       let my = 0;
       const analog = this.playerAnalogMove.get(player.id);
@@ -1810,6 +2004,8 @@ export class WorldTick {
     }
     this.playerAnalogMove.clear();
 
+    this.processHostileNpcAggroAndChase(onlinePlayers);
+
     this.npcSystem.tick(onlinePlayers, this.worldSystem.worldTime);
     this.worldSystem.tick();
 
@@ -1833,7 +2029,7 @@ export class WorldTick {
 
   broadcastState() {
     const tickCount = this.tickCount;
-    const entities = [
+    const entities: any[] = [
       ...this.playerSystem.getAllPlayers().map(p => ({
         id: p.id,
         type: 'player',
@@ -1879,6 +2075,8 @@ export class WorldTick {
         type: 'loot',
         position: { x: l.position.x, y: 0, z: l.position.y },
         rotation: { x: 0, y: 0, z: 0 },
+        lootKind: typeof l.goldAmount === "number" && l.goldAmount > 0 ? "gold" : "item",
+        goldAmount: typeof l.goldAmount === "number" ? l.goldAmount : undefined,
         glbPath: this.resolveEntityGlbPath("loot", l.item?.id || l.id, l.id),
         are: this.areStateCompiler.compileEntity(
           {

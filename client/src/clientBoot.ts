@@ -14,6 +14,7 @@ import {
   preloadGamePanels,
 } from "./ui/lazyPanels";
 import { showBootStatus, showRendererFatalOverlay } from "./bootUi";
+import { initCombatMobileUi } from "./ui/combatMobileUi";
 
 function bootEngineBridge(targetCanvas: HTMLCanvasElement): IEngineBridge {
   const app = createBabylonApp(targetCanvas);
@@ -31,6 +32,8 @@ function bootEngineBridge(targetCanvas: HTMLCanvasElement): IEngineBridge {
 }
 
 export async function bootAreloriaClient(canvas: HTMLCanvasElement): Promise<void> {
+  initCombatMobileUi();
+
   if (!Engine.IsSupported) {
     showRendererFatalOverlay({
       title: "WebGL not available",

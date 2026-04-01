@@ -16,7 +16,11 @@ export type ClientQuestEntry = {
 let gold = 0;
 let xp = 0;
 let health = 100;
+let maxHealth = 100;
 let stamina = 100;
+let dead = false;
+let deathAt = 0;
+let respawnAvailableAt = 0;
 let quests: ClientQuestEntry[] = [];
 let inventory: any[] = [];
 let equipment: Record<string, unknown> = {};
@@ -36,7 +40,11 @@ export function applyStatsPayload(data: {
   gold?: number;
   xp?: number;
   health?: number;
+  maxHealth?: number;
   stamina?: number;
+  dead?: boolean;
+  deathAt?: number;
+  respawnAvailableAt?: number;
   quests?: ClientQuestEntry[];
   inventory?: any[];
   equipment?: Record<string, unknown>;
@@ -44,7 +52,11 @@ export function applyStatsPayload(data: {
   if (typeof data.gold === "number") gold = data.gold;
   if (typeof data.xp === "number") xp = data.xp;
   if (typeof data.health === "number") health = data.health;
+  if (typeof data.maxHealth === "number") maxHealth = data.maxHealth;
   if (typeof data.stamina === "number") stamina = data.stamina;
+  if (typeof data.dead === "boolean") dead = data.dead;
+  if (typeof data.deathAt === "number") deathAt = data.deathAt;
+  if (typeof data.respawnAvailableAt === "number") respawnAvailableAt = data.respawnAvailableAt;
   if (Array.isArray(data.quests)) quests = data.quests;
   if (Array.isArray(data.inventory)) inventory = data.inventory;
   if (data.equipment && typeof data.equipment === "object") equipment = data.equipment;
@@ -56,6 +68,18 @@ export function getPlayerGold() {
 }
 export function getPlayerXp() {
   return xp;
+}
+export function getPlayerHealth() {
+  return health;
+}
+export function getPlayerMaxHealth() {
+  return maxHealth;
+}
+export function getPlayerDead() {
+  return dead;
+}
+export function getRespawnAvailableAt() {
+  return respawnAvailableAt;
 }
 export function getPlayerQuests() {
   return quests;

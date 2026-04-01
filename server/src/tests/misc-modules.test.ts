@@ -371,6 +371,12 @@ describe("GameConfig", () => {
     expect(GameConfig.playerAttackCooldownMs).toBe(450);
     expect(GameConfig.npcCounterAttackCooldownMs).toBe(1200);
   });
+  it("npc aggro and respawn delay are set", () => {
+    expect(GameConfig.npcAggroRadius).toBe(14);
+    expect(GameConfig.npcAggroLeash).toBe(42);
+    expect(GameConfig.npcChaseSpeed).toBe(0.55);
+    expect(GameConfig.playerRespawnDelayMs).toBe(2500);
+  });
   it("playerSpeed is 3", () => {
     expect(GameConfig.playerSpeed).toBe(3);
   });

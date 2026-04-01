@@ -8,6 +8,9 @@ export interface EntityViewModel {
   name?: string;
   health?: number;
   maxHealth?: number;
+  /** Server: gold pile vs item drop */
+  lootKind?: "gold" | "item";
+  goldAmount?: number;
   are?: {
     kappa: number;
     logicalIndex: number;

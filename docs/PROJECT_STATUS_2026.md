@@ -21,7 +21,7 @@ This document is the **authoritative snapshot** of what works today in the repos
 | **Game loop** | `WorldTick` — simulation tick **100 ms**; `entity_sync` broadcast **configurable** (`GameConfig.stateBroadcastIntervalMs`, default **200 ms**) |
 | **Movement** | Held WASD + `move_intent` (joystick); applied each tick with `GameConfig.playerSpeed` |
 | **Interact / dialogue** | `interact` resolves **nearest NPC** or **loot on ground** (whichever is closer in range); `dialogue_choice` / `quest_accept`; `talk_to` quests complete on target NPC contact |
-| **Combat** | `attack` picks **nearest valid target** (training dummy, `faction: Hostile`, or `role: Enemy`); **weapon** `damage` from `ItemRegistry` adds to hit; **hostile NPCs** counter-attack in melee with cooldown; **loot** spawns from `dropTable` on kill, **despawns** after `lootDespawnMs`; **25 combat XP** per kill |
+| **Combat** | `attack` picks **nearest valid target** (training dummy, `faction: Hostile`, or `role: Enemy`); **weapon** `damage` from `ItemRegistry` adds to hit; **hostile NPCs** **chase** in aggro radius + **leash**, counter-attack in melee; **player death** → `dead` + **respawn** message after delay; **loot** from `dropTable` (**items** and/or **goldMin/goldMax**), **pickup_loot** + interact; **mobile**: loot chips + death overlay (**`combatMobileUi.ts`**) |
 | **Scenes** | `game-data/scenes/*.json` — spawns and trigger zones (server-side) |
 | **NPC spawns** | `game-data/spawns/npc-spawns.json` (path resolves from repo root or `server/` cwd) |
 | **Starter content** | **Millbrook** hub: `npc_guide` (Linnea), quests `starter_welcome` / `village_tour`, plus existing Mara / Elder / Guard chain — see `game-data/` |

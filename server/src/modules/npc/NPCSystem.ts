@@ -74,7 +74,9 @@ export class NPCSystem {
       targetPosition: null as { x: number, y: number } | null,
       state: "idle",
       stateTimer: 0,
-      currentScheduleAction: null as string | null
+      currentScheduleAction: null as string | null,
+      /** Player id currently chased (hostile / enemy only) */
+      aggroTargetId: null as string | null,
     };
     this.npcs.set(id, npc);
     return npc;
@@ -337,6 +339,11 @@ export class NPCSystem {
     // Process NPC AI, schedules, needs
     const now = Date.now();
     for (const npc of this.npcs.values()) {
+      // Hostile chase is driven by WorldTick (aggro + pathing)
+      if (npc.aggroTargetId) {
+        continue;
+      }
+
       // 0. Process dynamic needs
       if (!npc.needs) npc.needs = { hunger: 100, energy: 100 }; // Fallback for existing NPCs
 

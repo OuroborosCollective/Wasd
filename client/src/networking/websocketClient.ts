@@ -1,6 +1,7 @@
 import { MMORPGClientCore } from "../core/MMORPGClientCore";
 import { applyStatsPayload } from "../state/playerState";
 import { showToast } from "../ui/toast";
+import { onEntitySyncForCombatUi, setCombatUiLocalPlayerId } from "../ui/combatMobileUi";
 
 let globalWs: WebSocket | null = null;
 const DEFAULT_SCENE_ID = "didis_hub";
@@ -171,8 +172,11 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
             ...entity,
             modelUrl: entity.modelUrl ?? entity.glbPath,
             are: normalizeAREPayload(entity.are),
+            lootKind: entity.lootKind === "gold" || entity.lootKind === "item" ? entity.lootKind : undefined,
+            goldAmount: typeof entity.goldAmount === "number" ? entity.goldAmount : undefined,
           }));
           core.syncEntities(normalizedEntities);
+          onEntitySyncForCombatUi(normalizedEntities);
         }
         if (data.chunks) core.syncChunks(data.chunks);
       }
@@ -183,6 +187,7 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         console.log(`Welcome to Areloria! Your ID: ${data.playerId}`);
         const localPlayerId = data.playerId || data.id;
         core.setLocalPlayer(localPlayerId);
+        setCombatUiLocalPlayerId(localPlayerId);
         if (data.stats && typeof data.stats === "object") {
           applyStatsPayload(data.stats as any);
         }
@@ -287,6 +292,14 @@ export function sendCommand(type: string, payload: any = {}) {
 
 export function requestSceneChange(sceneId: string, spawnKey?: string) {
   sendCommand("scene_change", { sceneId, spawnKey });
+}
+
+export function sendRespawn() {
+  sendCommand("respawn", {});
+}
+
+export function sendPickupLoot(lootId: string) {
+  sendCommand("pickup_loot", { lootId });
 }
 
 export const sendMessage = sendCommand;

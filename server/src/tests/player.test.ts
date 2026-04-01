@@ -28,6 +28,12 @@ describe("PlayerSystem", () => {
     expect(player.health).toBe(100);
   });
 
+  it("createPlayer() initializes maxHealth and alive state", () => {
+    const player = ps.createPlayer("p1", "Alice");
+    expect(player.maxHealth).toBe(100);
+    expect(player.dead).toBe(false);
+  });
+
   it("createPlayer() initializes stamina to 100", () => {
     const player = ps.createPlayer("p1", "Alice");
     expect(player.stamina).toBe(100);

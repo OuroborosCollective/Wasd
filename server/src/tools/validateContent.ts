@@ -36,7 +36,18 @@ function validate() {
     if (!dialogueIds.has(n.dialogueId)) errors.push(`NPC ${n.id} references missing dialogue ${n.dialogueId}`);
     if (n.dropTable) {
       n.dropTable.forEach((d: any) => {
-        if (!itemIds.has(d.itemId)) errors.push(`NPC ${n.id} dropTable references missing item ${d.itemId}`);
+        if (typeof d.itemId === "string" && d.itemId.length > 0 && !itemIds.has(d.itemId)) {
+          errors.push(`NPC ${n.id} dropTable references missing item ${d.itemId}`);
+        }
+        const hasGold =
+          (typeof d.gold === "number" && d.gold > 0) ||
+          (typeof d.goldMin === "number" &&
+            typeof d.goldMax === "number" &&
+            d.goldMax >= d.goldMin &&
+            d.goldMin >= 0);
+        if (!hasGold && !(typeof d.itemId === "string" && d.itemId.length > 0)) {
+          errors.push(`NPC ${n.id} dropTable entry must have itemId or gold/goldMin+goldMax`);
+        }
       });
     }
   });
