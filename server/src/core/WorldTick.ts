@@ -81,6 +81,7 @@ type ScheduledGMTemplateStep = {
   originY: number;
   step: GMTemplateStep;
 };
+type AREMode = "off" | "cpu" | "shader";
 
 const DEFAULT_SCENE_ID = "didis_hub";
 const DEFAULT_SCENE_PROFILES: Record<string, SceneProfile> = {
@@ -200,6 +201,19 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function normalizeAREMode(value: unknown): AREMode | null {
+  if (!isNonEmptyString(value)) {
+    return null;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "off") return "off";
+  if (normalized === "cpu") return "cpu";
+  if (normalized === "shader" || normalized === "on" || normalized === "true" || normalized === "are") {
+    return "shader";
+  }
+  return null;
+}
+
 export class WorldTick {
   private timer: NodeJS.Timeout | null = null;
   private tickCount = 0;
@@ -240,6 +254,7 @@ export class WorldTick {
     bannedPlayers: [],
     customDialogues: {},
   };
+  private areMode: AREMode = "shader";
   private eventTemplates: GMTemplateDefinition[] = Object.values(GM_EVENT_TEMPLATES);
   private pendingTemplateSteps: ScheduledGMTemplateStep[] = [];
 
@@ -496,6 +511,7 @@ export class WorldTick {
       world: {
         weather: this.worldState.weather,
         time: this.worldSystem.getFormattedTime(),
+        areMode: this.areMode,
       },
       players,
       npcs,
@@ -679,6 +695,22 @@ export class WorldTick {
           this.worldState = { ...this.worldState, ...msg.settings };
         }
         this.sendGMStatus(socketId, "info", "World settings updated.");
+        return true;
+      }
+      case "gm_are_mode_get": {
+        this.ws.sendToPlayer(socketId, { type: "gm_are_mode_result", mode: this.areMode });
+        return true;
+      }
+      case "gm_are_mode_set": {
+        const mode = normalizeAREMode(msg.mode);
+        if (!mode) {
+          this.sendGMStatus(socketId, "error", "Invalid ARE mode. Use off, cpu or shader.");
+          return true;
+        }
+        this.areMode = mode;
+        this.ws.sendToPlayer(socketId, { type: "gm_are_mode_result", mode: this.areMode });
+        this.ws.broadcast({ type: "world_event", event: "are_mode_changed", mode: this.areMode });
+        this.sendGMStatus(socketId, "info", `ARE mode set to ${this.areMode}`);
         return true;
       }
       case "gm_world_event": {
@@ -1481,6 +1513,7 @@ export class WorldTick {
 
     this.ws.broadcast({
       type: 'entity_sync',
+      areMode: this.areMode,
       entities,
       chunks: [{ id: 'main', chunkX: 0, chunkY: 0, objects: [] }]
     });

@@ -4,11 +4,14 @@ import {
   AssetContainer,
   Color3,
   DynamicTexture,
+  Effect,
+  Material,
   Mesh,
   MeshBuilder,
   Quaternion,
   Scene,
   SceneLoader,
+  ShaderMaterial,
   StandardMaterial,
   TransformNode,
   Vector3,
@@ -23,9 +26,17 @@ type EntityNode = {
   visual: TransformNode | AbstractMesh;
   label?: Mesh;
   baseScale: number;
+  areKappa: number;
+  areLogicalIndex: number;
+  areChain: string;
   arePhase: number;
   areResonance: number;
   arePlexity: number;
+  areColor: Color3;
+  areShader: ShaderMaterial | null;
+  areMeshes: AbstractMesh[];
+  areBaseMaterials: Map<number, Material | null>;
+  explicitVisible: boolean;
 };
 
 const DEFAULT_MODEL_BY_TYPE: Record<string, string> = {
@@ -42,6 +53,10 @@ export class BabylonAdapter implements IEngineBridge {
   private readonly pressedKeys = new Set<string>();
   private readonly inputCallbacks: Array<(input: any) => void> = [];
   private readonly areWaveClock = { t: 0 };
+  private readonly areDebugEnabled = new URLSearchParams(window.location.search).get("areDebug") === "1";
+  private readonly areDebugElement: HTMLDivElement | null = null;
+  private areMode: "off" | "cpu" | "shader" = "shader";
+  private areShaderRegistered = false;
   private cameraTargetId: string | null = null;
   private navigationMarker: Mesh | null = null;
   private localPlayerId: string | null = null;
@@ -51,6 +66,13 @@ export class BabylonAdapter implements IEngineBridge {
     private readonly scene: Scene,
     private readonly camera: ArcRotateCamera
   ) {
+    const modeFromQuery = this.normalizeAREMode(new URLSearchParams(window.location.search).get("areMode"));
+    if (modeFromQuery) {
+      this.areMode = modeFromQuery;
+    }
+    if (this.areDebugEnabled) {
+      this.areDebugElement = this.mountAREDebugOverlay();
+    }
     this.bindKeyboard();
   }
 
@@ -71,15 +93,24 @@ export class BabylonAdapter implements IEngineBridge {
       root,
       visual: placeholder,
       baseScale: 1,
+      areKappa: model.are?.kappa ?? 1000,
+      areLogicalIndex: model.are?.logicalIndex ?? 0,
+      areChain: model.are?.chain ?? "",
       arePhase: model.are?.phaseShift ?? 0,
       areResonance: model.are?.resonance ?? 0,
       arePlexity: model.are?.plexity ?? 1,
+      areColor: this.colorForType(model.type),
+      areShader: null,
+      areMeshes: [placeholder],
+      areBaseMaterials: new Map([[placeholder.uniqueId, placeholder.material as Material | null]]),
+      explicitVisible: model.visible ?? true,
     };
     if (model.name) {
       node.label = this.createBillboardLabel(model.name, this.colorForType(model.type), root);
     }
 
     this.applyAREState(node, model);
+    this.applyAREMaterialMode(node);
     this.entities.set(model.id, node);
     this.tryAttachModel(model.id, model.modelUrl ?? DEFAULT_MODEL_BY_TYPE[model.type]);
   }
@@ -102,7 +133,8 @@ export class BabylonAdapter implements IEngineBridge {
       node.root.rotation = Vector3.Lerp(node.root.rotation, targetEuler, lerpAlpha);
     }
     if (updates.visible !== undefined) {
-      node.root.setEnabled(updates.visible);
+      node.explicitVisible = updates.visible;
+      this.applyEntityVisibility(node);
     }
     if (updates.name) {
       if (node.label) {
@@ -116,6 +148,10 @@ export class BabylonAdapter implements IEngineBridge {
     }
     if (updates.modelUrl) {
       this.tryAttachModel(id, updates.modelUrl);
+    }
+    if (updates.type) {
+      node.areColor = this.colorForType(updates.type);
+      this.updateAREShaderUniforms(node);
     }
     this.applyAREState(node, updates);
   }
@@ -211,9 +247,22 @@ export class BabylonAdapter implements IEngineBridge {
     this.inputCallbacks.push(callback);
   }
 
+  setAREMode(mode: string): void {
+    const normalized = this.normalizeAREMode(mode);
+    if (!normalized || normalized === this.areMode) {
+      return;
+    }
+    this.areMode = normalized;
+    for (const node of this.entities.values()) {
+      this.applyAREMaterialMode(node);
+      this.applyEntityVisibility(node);
+    }
+  }
+
   update(dt: number): void {
     this.areWaveClock.t += dt;
     this.updateAREVisuals();
+    this.updateAREDebugOverlay();
     this.updateCameraFollow();
   }
 
@@ -377,6 +426,12 @@ export class BabylonAdapter implements IEngineBridge {
         entity.visual.dispose(false, true);
       }
       entity.visual = modelRoot;
+      entity.areMeshes = this.collectRenderableMeshes(modelRoot);
+      entity.areBaseMaterials = new Map(
+        entity.areMeshes.map((mesh) => [mesh.uniqueId, (mesh.material as Material | null) ?? null])
+      );
+      this.applyAREMaterialMode(entity);
+      this.updateAREShaderUniforms(entity);
     } catch (error) {
       console.warn(`Failed to load model for ${entityId}:`, url, error);
     }
@@ -395,31 +450,196 @@ export class BabylonAdapter implements IEngineBridge {
   }
 
   private applyAREState(node: EntityNode, model: Partial<EntityViewModel>): void {
-    if (!model.are) {
-      return;
+    if (model.are) {
+      node.areKappa = Number.isFinite(model.are.kappa) ? model.are.kappa : node.areKappa;
+      node.areLogicalIndex = Number.isFinite(model.are.logicalIndex)
+        ? model.are.logicalIndex
+        : node.areLogicalIndex;
+      node.areChain = typeof model.are.chain === "string" ? model.are.chain : node.areChain;
+      node.arePhase = Number.isFinite(model.are.phaseShift) ? model.are.phaseShift : node.arePhase;
+      node.areResonance = Number.isFinite(model.are.resonance) ? model.are.resonance : node.areResonance;
+      node.arePlexity = Number.isFinite(model.are.plexity)
+        ? Math.max(0.05, Math.min(1, model.are.plexity))
+        : node.arePlexity;
+      node.baseScale = 0.7 + node.arePlexity * 0.6;
     }
-    node.arePhase = Number.isFinite(model.are.phaseShift) ? model.are.phaseShift : node.arePhase;
-    node.areResonance = Number.isFinite(model.are.resonance) ? model.are.resonance : node.areResonance;
-    node.arePlexity = Number.isFinite(model.are.plexity)
-      ? Math.max(0.05, Math.min(1, model.are.plexity))
-      : node.arePlexity;
-    node.baseScale = 0.7 + node.arePlexity * 0.6;
-    const visibilityByPlexity = node.arePlexity > 0.08;
-    const explicitVisible =
-      model.visible !== undefined ? model.visible : (node.root.metadata as any)?.explicitVisible ?? true;
-    node.root.metadata = {
-      ...(node.root.metadata as Record<string, unknown> | null),
-      explicitVisible,
-    };
-    node.root.setEnabled(visibilityByPlexity && explicitVisible);
+    if (model.visible !== undefined) {
+      node.explicitVisible = model.visible;
+    }
+    this.applyEntityVisibility(node);
+    this.updateAREShaderUniforms(node);
   }
 
   private updateAREVisuals(): void {
     for (const node of this.entities.values()) {
       const wave = Math.sin(this.areWaveClock.t * 2 + node.arePhase * 0.01) * 0.05 * (0.25 + node.areResonance);
-      const scale = Math.max(0.2, node.baseScale + wave);
+      let scale = this.areMode === "off" ? 1 : node.baseScale;
+      if (this.areMode === "cpu") {
+        scale = Math.max(0.2, node.baseScale + wave);
+      }
       node.root.scaling = new Vector3(scale, scale, scale);
+      if (this.areMode === "shader") {
+        this.updateAREShaderUniforms(node);
+      }
     }
+  }
+
+  private collectRenderableMeshes(node: TransformNode | AbstractMesh): AbstractMesh[] {
+    if (node instanceof AbstractMesh) {
+      return [node];
+    }
+    return node.getChildMeshes(false);
+  }
+
+  private applyEntityVisibility(node: EntityNode): void {
+    const visibleByPlexity = this.areMode === "off" ? true : node.arePlexity > 0.08;
+    node.root.setEnabled(visibleByPlexity && node.explicitVisible);
+  }
+
+  private applyAREMaterialMode(node: EntityNode): void {
+    if (this.areMode === "shader") {
+      const shader = this.ensureAREShader(node);
+      for (const mesh of node.areMeshes) {
+        mesh.material = shader;
+      }
+      this.updateAREShaderUniforms(node);
+      return;
+    }
+    for (const mesh of node.areMeshes) {
+      if (node.areBaseMaterials.has(mesh.uniqueId)) {
+        mesh.material = node.areBaseMaterials.get(mesh.uniqueId) ?? null;
+      }
+    }
+  }
+
+  private ensureAREShader(node: EntityNode): ShaderMaterial {
+    if (node.areShader) {
+      return node.areShader;
+    }
+    this.ensureAREShaderRegistered();
+    const shader = new ShaderMaterial(
+      `are_shader_${node.root.name}`,
+      this.scene,
+      { vertex: "are", fragment: "are" },
+      {
+        attributes: ["position"],
+        uniforms: [
+          "worldViewProjection",
+          "uTime",
+          "uPhase",
+          "uResonance",
+          "uPlexity",
+          "uColor",
+        ],
+      }
+    );
+    shader.backFaceCulling = false;
+    node.areShader = shader;
+    return shader;
+  }
+
+  private ensureAREShaderRegistered(): void {
+    if (this.areShaderRegistered) {
+      return;
+    }
+    this.areShaderRegistered = true;
+    Effect.ShadersStore.areVertexShader = `
+      precision highp float;
+      attribute vec3 position;
+      uniform mat4 worldViewProjection;
+      uniform float uTime;
+      uniform float uPhase;
+      uniform float uResonance;
+      uniform float uPlexity;
+      varying float vWave;
+      void main(void) {
+        float amp = (0.03 + uResonance * 0.06) * max(0.1, uPlexity);
+        float wave = sin(uTime * 2.5 + uPhase * 0.01 + position.y * 2.0) * amp;
+        vec3 displaced = position + vec3(0.0, wave, 0.0);
+        vWave = wave;
+        gl_Position = worldViewProjection * vec4(displaced, 1.0);
+      }
+    `;
+    Effect.ShadersStore.areFragmentShader = `
+      precision highp float;
+      uniform vec3 uColor;
+      uniform float uPlexity;
+      uniform float uResonance;
+      varying float vWave;
+      void main(void) {
+        float glow = 0.55 + uResonance * 0.35 + abs(vWave) * 3.0;
+        vec3 color = uColor * glow;
+        color = mix(color * 0.35, color, clamp(uPlexity, 0.0, 1.0));
+        gl_FragColor = vec4(color, 1.0);
+      }
+    `;
+  }
+
+  private updateAREShaderUniforms(node: EntityNode): void {
+    if (!node.areShader) {
+      return;
+    }
+    node.areShader.setFloat("uTime", this.areWaveClock.t);
+    node.areShader.setFloat("uPhase", node.arePhase);
+    node.areShader.setFloat("uResonance", node.areResonance);
+    node.areShader.setFloat("uPlexity", node.arePlexity);
+    node.areShader.setColor3("uColor", node.areColor);
+  }
+
+  private normalizeAREMode(mode: unknown): "off" | "cpu" | "shader" | null {
+    if (typeof mode !== "string") return null;
+    const value = mode.trim().toLowerCase();
+    if (value === "off") return "off";
+    if (value === "cpu") return "cpu";
+    if (value === "shader" || value === "on" || value === "are" || value === "true") return "shader";
+    return null;
+  }
+
+  private mountAREDebugOverlay(): HTMLDivElement {
+    const node = document.createElement("div");
+    node.id = "are-debug-overlay";
+    node.style.position = "fixed";
+    node.style.top = "12px";
+    node.style.right = "12px";
+    node.style.zIndex = "10000";
+    node.style.padding = "10px";
+    node.style.minWidth = "220px";
+    node.style.background = "rgba(0,0,0,0.62)";
+    node.style.border = "1px solid rgba(95,160,255,0.5)";
+    node.style.borderRadius = "8px";
+    node.style.color = "#d7e6ff";
+    node.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, monospace";
+    node.style.fontSize = "11px";
+    node.style.whiteSpace = "pre";
+    document.body.appendChild(node);
+    return node;
+  }
+
+  private updateAREDebugOverlay(): void {
+    if (!this.areDebugEnabled || !this.areDebugElement) {
+      return;
+    }
+    let visible = 0;
+    let resonance = 0;
+    let plexity = 0;
+    for (const node of this.entities.values()) {
+      if (node.root.isEnabled()) visible += 1;
+      resonance += node.areResonance;
+      plexity += node.arePlexity;
+    }
+    const count = this.entities.size || 1;
+    const localNode = this.localPlayerId ? this.entities.get(this.localPlayerId) : null;
+    this.areDebugElement.textContent = [
+      "ARE DEBUG",
+      `mode: ${this.areMode}`,
+      `entities: ${this.entities.size} (visible ${visible})`,
+      `avg resonance: ${(resonance / count).toFixed(3)}`,
+      `avg plexity: ${(plexity / count).toFixed(3)}`,
+      `wave t: ${this.areWaveClock.t.toFixed(2)}`,
+      localNode
+        ? `local: k=${localNode.areKappa} idx=${localNode.areLogicalIndex}\nlocal: phase=${localNode.arePhase.toFixed(1)} res=${localNode.areResonance.toFixed(2)} plex=${localNode.arePlexity.toFixed(2)}\nchain: ${localNode.areChain.slice(0, 42)}`
+        : "local: -",
+    ].join("\n");
   }
 
   private inferTypeFromEntityId(id: string): string {

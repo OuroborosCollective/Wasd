@@ -252,6 +252,15 @@
               <input id="worldTime" type="number" min="0" max="23" value="12" />
               <button id="timeBtn">Set Time</button>
             </div>
+            <div class="row3">
+              <select id="areModeSelect">
+                <option value="shader">ARE Mode: shader</option>
+                <option value="cpu">ARE Mode: cpu</option>
+                <option value="off">ARE Mode: off</option>
+              </select>
+              <button id="areModeSetBtn" class="secondary">Set ARE Mode</button>
+              <button id="areModeGetBtn" class="secondary">Get ARE Mode</button>
+            </div>
             <div class="row">
               <input id="eventId" placeholder="event id" value="custom_event" />
               <button id="eventBtn" class="warn">Trigger Event</button>

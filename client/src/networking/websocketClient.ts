@@ -155,6 +155,9 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
     try {
       const data = JSON.parse(msg.data);
       if (data.type === 'entity_sync') {
+        if (typeof data.areMode === "string") {
+          core.setAREMode(data.areMode);
+        }
         if (data.entities) {
           const normalizedEntities = data.entities.map((entity: any) => ({
             ...entity,

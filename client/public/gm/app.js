@@ -11,6 +11,7 @@ const state = {
     npcs: [],
     weather: "clear",
     time: "00:00",
+    areMode: "shader",
     heatmap: null,
   },
   admin: {
@@ -61,6 +62,16 @@ function bindClick(id, handler) {
   const el = byId(id);
   if (!el) return;
   el.onclick = handler;
+}
+
+function syncAREModeUI() {
+  const select = byId("areModeSelect");
+  if (!select) return;
+  const validModes = ["off", "cpu", "shader"];
+  if (!validModes.includes(state.preview.areMode)) {
+    state.preview.areMode = "shader";
+  }
+  select.value = state.preview.areMode;
 }
 
 function renderAdminState() {
@@ -192,7 +203,7 @@ function updatePreviewCanvas() {
   });
 
   byId("previewMeta").textContent =
-    `Weather: ${state.preview.weather} | Time: ${state.preview.time} | Players: ${state.preview.players.length} | NPCs: ${state.preview.npcs.length} | Heatmap: ${state.heatmapEnabled ? "on" : "off"}`;
+    `Weather: ${state.preview.weather} | Time: ${state.preview.time} | ARE: ${state.preview.areMode} | Players: ${state.preview.players.length} | NPCs: ${state.preview.npcs.length} | Heatmap: ${state.heatmapEnabled ? "on" : "off"}`;
 }
 
 function handleMessage(msg) {
@@ -203,6 +214,7 @@ function handleMessage(msg) {
     send({ type: "gm_get_players" });
     send({ type: "admin_glb_list" });
     send({ type: "admin_glb_pool_get" });
+    send({ type: "gm_are_mode_get" });
     return;
   }
   if (msg.type === "entity_sync") {
@@ -243,10 +255,21 @@ function handleMessage(msg) {
     state.preview.npcs = msg.npcs || [];
     state.preview.weather = msg.world?.weather || "clear";
     state.preview.time = msg.world?.time || "00:00";
+    state.preview.areMode = msg.world?.areMode || state.preview.areMode || "shader";
     state.preview.heatmap = msg.heatmap || null;
+    syncAREModeUI();
     renderPlayersTable();
     renderHeatList();
     updatePreviewCanvas();
+    return;
+  }
+  if (msg.type === "gm_are_mode_result") {
+    const mode = String(msg.mode || "").toLowerCase();
+    if (["off", "cpu", "shader"].includes(mode)) {
+      state.preview.areMode = mode;
+      syncAREModeUI();
+      logLine(`ARE mode synced: ${mode}`, "ok");
+    }
     return;
   }
   if (msg.type === "error") {
@@ -367,6 +390,11 @@ function initBindings() {
 
   bindClick("weatherBtn", () => cmd("gm_set_weather", { weather: val("weather") || "clear" }));
   bindClick("timeBtn", () => cmd("gm_set_time", { time: Number(val("worldTime")) || 12 }));
+  bindClick("areModeSetBtn", () => {
+    const mode = val("areModeSelect") || "shader";
+    cmd("gm_are_mode_set", { mode });
+  });
+  bindClick("areModeGetBtn", () => cmd("gm_are_mode_get"));
   bindClick("eventBtn", () =>
     cmd("gm_world_event", {
       eventId: val("eventId") || "custom_event",
@@ -515,6 +543,8 @@ function bootstrapDefaults() {
   safeSetValue("adminTargetType", "object_group");
   safeSetValue("registerCategory", "object");
   safeSetValue("poolCategory", "world_objects");
+  safeSetValue("areModeSelect", "shader");
+  syncAREModeUI();
 }
 
 bootstrapDefaults();
