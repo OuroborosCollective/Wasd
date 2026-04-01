@@ -17,6 +17,25 @@ export type ConnectionOptions = {
   };
 };
 
+type NetStatusKind =
+  | "connecting"
+  | "connected"
+  | "login_sent"
+  | "welcome"
+  | "sync"
+  | "warning"
+  | "error"
+  | "closed";
+
+function emitNetStatus(kind: NetStatusKind, message: string): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent("areloria:net-status", {
+      detail: { kind, message, at: Date.now() },
+    })
+  );
+}
+
 type SpawnPosition = { x: number; y: number; z: number };
 
 function toEntityPosition(spawnPosition?: Partial<SpawnPosition>) {
@@ -130,17 +149,45 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
   if (options.arePolicyConfig && typeof core.setAREPolicyConfig === "function") {
     core.setAREPolicyConfig(options.arePolicyConfig);
   }
+  emitNetStatus("connecting", "Connecting to game server...");
   const ws = new WebSocket(resolveWebSocketUrl());
   globalWs = ws;
+  const sceneId = resolveInitialSceneId(options.sceneId);
+  const spawnKey = resolveInitialSpawnKey(options.spawnKey);
+  let welcomeReceived = false;
+  let attemptedAnonymousFallback = false;
+
+  const sendLogin = (token?: string) => {
+    if (ws.readyState !== WebSocket.OPEN) return;
+    ws.send(
+      JSON.stringify({
+        type: "login",
+        token,
+        sceneId,
+        spawnKey,
+      })
+    );
+    emitNetStatus("login_sent", token ? "Authenticating..." : "Joining world (guest fallback)...");
+  };
 
   ws.onopen = () => {
     console.log("Connected to Arelorian Server");
-    ws.send(JSON.stringify({
-      type: "login",
-      token: options.token,
-      sceneId: resolveInitialSceneId(options.sceneId),
-      spawnKey: resolveInitialSpawnKey(options.spawnKey),
-    }));
+    emitNetStatus("connected", "Connected. Waiting for world login...");
+    sendLogin(options.token);
+
+    window.setTimeout(() => {
+      if (!welcomeReceived && options.token && !attemptedAnonymousFallback && ws.readyState === WebSocket.OPEN) {
+        attemptedAnonymousFallback = true;
+        try {
+          localStorage.removeItem("token");
+        } catch {
+          // localStorage may be unavailable in hardened browser modes.
+        }
+        console.warn("[WS] No welcome received, retrying login without token.");
+        emitNetStatus("warning", "Login timeout. Retrying without stored token...");
+        sendLogin(undefined);
+      }
+    }, 6000);
 
     core.events.on('input', (input: any) => {
       if (ws.readyState === WebSocket.OPEN) {
@@ -164,10 +211,28 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
   ws.onmessage = (msg) => {
     try {
       const data = JSON.parse(msg.data);
+      if (data.type === "error") {
+        const errorMessage = typeof data.message === "string" ? data.message : "Server error";
+        console.error("[WS] Server error:", errorMessage);
+        emitNetStatus("error", errorMessage);
+        const loginError = /login/i.test(errorMessage);
+        if (loginError && options.token && !attemptedAnonymousFallback && ws.readyState === WebSocket.OPEN) {
+          attemptedAnonymousFallback = true;
+          try {
+            localStorage.removeItem("token");
+          } catch {
+            // Ignore storage failures and still try fallback login.
+          }
+          emitNetStatus("warning", "Token rejected. Retrying login without token...");
+          sendLogin(undefined);
+        }
+        return;
+      }
       if (data.type === 'entity_sync') {
         if (typeof data.areMode === "string") {
           core.setAREMode(data.areMode);
         }
+        emitNetStatus("sync", "World synchronized.");
         if (data.entities) {
           const normalizedEntities = data.entities.map((entity: any) => ({
             ...entity,
@@ -183,6 +248,8 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
       }
       if (data.type === 'welcome') {
         console.log(`Welcome to Areloria! Your ID: ${data.playerId}`);
+        welcomeReceived = true;
+        emitNetStatus("welcome", "Joined world.");
         const localPlayerId = data.playerId || data.id;
         core.setLocalPlayer(localPlayerId);
         const spawnPos = toEntityPosition(data.spawnPosition);
@@ -231,6 +298,14 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
     } catch (e) {
       console.warn("Failed to parse server message:", msg.data);
     }
+  };
+
+  ws.onerror = () => {
+    emitNetStatus("error", "Network error while connecting to /ws.");
+  };
+
+  ws.onclose = () => {
+    emitNetStatus("closed", "Disconnected from game server.");
   };
 }
 

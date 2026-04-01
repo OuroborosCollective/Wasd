@@ -30,7 +30,7 @@ canvas.style.width = "100vw";
 canvas.style.height = "100vh";
 canvas.style.display = "block";
 
-function showBootStatus(message: string) {
+function showBootStatus(message: string, tone: "info" | "warn" | "error" | "ok" = "warn") {
   let status = document.getElementById("boot-status-banner") as HTMLDivElement | null;
   if (!status) {
     status = document.createElement("div");
@@ -48,6 +48,14 @@ function showBootStatus(message: string) {
     status.style.maxWidth = "520px";
     document.body.appendChild(status);
   }
+  status.style.borderLeft =
+    tone === "error"
+      ? "3px solid #ef4444"
+      : tone === "ok"
+        ? "3px solid #22c55e"
+        : tone === "info"
+          ? "3px solid #3b82f6"
+          : "3px solid #f27d26";
   status.textContent = message;
 }
 
@@ -83,8 +91,24 @@ async function loadAREPolicyConfig(): Promise<AREPolicyConfig | undefined> {
 }
 
 try {
+  showBootStatus("Booting renderer...", "info");
   // 1. Boot Engine + Adapter
   const adapter = bootEngineBridge(canvas);
+  showBootStatus("Renderer ready. Connecting to world...", "info");
+
+  if (typeof window !== "undefined") {
+    window.addEventListener("areloria:net-status", (event: Event) => {
+      const custom = event as CustomEvent<{ kind?: string; message?: string }>;
+      const kind = String(custom.detail?.kind || "info");
+      const message = String(custom.detail?.message || "");
+      if (!message) return;
+      const tone: "info" | "warn" | "error" | "ok" =
+        kind === "error" || kind === "closed" ? "error" :
+        kind === "welcome" || kind === "sync" ? "ok" :
+        kind === "warning" ? "warn" : "info";
+      showBootStatus(`[NET:${kind}] ${message}`, tone);
+    });
+  }
 
   // 2. Create Core
   const core = new MMORPGClientCore(adapter);
@@ -93,7 +117,12 @@ try {
 
   // 3. Connect Systems
   const connectionOptions: ConnectionOptions = {};
-  const persistedToken = localStorage.getItem("token");
+  let persistedToken: string | null = null;
+  try {
+    persistedToken = localStorage.getItem("token");
+  } catch {
+    showBootStatus("Storage access blocked. Continuing without saved login token.", "warn");
+  }
   if (persistedToken && persistedToken.trim().length > 0) {
     connectionOptions.token = persistedToken;
   }

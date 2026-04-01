@@ -53,6 +53,15 @@ export function createBabylonApp(canvas: HTMLCanvasElement): BabylonApp {
   ground.material = groundMat;
   ground.position.y = -0.02;
 
+  // Keep a visible orientation anchor even before networked entities arrive.
+  const bootAnchor = MeshBuilder.CreateBox("boot-anchor", { size: 1.2 }, scene);
+  const anchorMat = new StandardMaterial("boot-anchor-mat", scene);
+  anchorMat.diffuseColor = new Color3(0.94, 0.52, 0.18);
+  anchorMat.emissiveColor = new Color3(0.14, 0.07, 0.02);
+  anchorMat.specularColor = new Color3(0, 0, 0);
+  bootAnchor.material = anchorMat;
+  bootAnchor.position = new Vector3(0, 0.62, 0);
+
   engine.runRenderLoop(() => {
     scene.render();
   });
