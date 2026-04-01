@@ -8,4 +8,13 @@ export interface EntityViewModel {
   name?: string;
   health?: number;
   maxHealth?: number;
+  are?: {
+    kappa: number;
+    logicalIndex: number;
+    phaseShift: number;
+    resonance: number;
+    plexity: number;
+    chain: string;
+    kappaPos: { x: number; y: number; z: number };
+  };
 }

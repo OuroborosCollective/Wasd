@@ -22,6 +22,10 @@ type EntityNode = {
   root: TransformNode;
   visual: TransformNode | AbstractMesh;
   label?: Mesh;
+  baseScale: number;
+  arePhase: number;
+  areResonance: number;
+  arePlexity: number;
 };
 
 const DEFAULT_MODEL_BY_TYPE: Record<string, string> = {
@@ -37,6 +41,7 @@ export class BabylonAdapter implements IEngineBridge {
   private readonly modelAttachQueue = new Map<string, string>();
   private readonly pressedKeys = new Set<string>();
   private readonly inputCallbacks: Array<(input: any) => void> = [];
+  private readonly areWaveClock = { t: 0 };
   private cameraTargetId: string | null = null;
   private navigationMarker: Mesh | null = null;
   private localPlayerId: string | null = null;
@@ -62,11 +67,19 @@ export class BabylonAdapter implements IEngineBridge {
     const placeholder = this.createPlaceholderMesh(model);
     placeholder.parent = root;
 
-    const node: EntityNode = { root, visual: placeholder };
+    const node: EntityNode = {
+      root,
+      visual: placeholder,
+      baseScale: 1,
+      arePhase: model.are?.phaseShift ?? 0,
+      areResonance: model.are?.resonance ?? 0,
+      arePlexity: model.are?.plexity ?? 1,
+    };
     if (model.name) {
       node.label = this.createBillboardLabel(model.name, this.colorForType(model.type), root);
     }
 
+    this.applyAREState(node, model);
     this.entities.set(model.id, node);
     this.tryAttachModel(model.id, model.modelUrl ?? DEFAULT_MODEL_BY_TYPE[model.type]);
   }
@@ -104,6 +117,7 @@ export class BabylonAdapter implements IEngineBridge {
     if (updates.modelUrl) {
       this.tryAttachModel(id, updates.modelUrl);
     }
+    this.applyAREState(node, updates);
   }
 
   destroyEntity(id: string): void {
@@ -178,10 +192,13 @@ export class BabylonAdapter implements IEngineBridge {
     const node = this.entities.get(entityId);
     if (!node) return;
     if (action === "attack") {
-      node.root.scaling = new Vector3(1.12, 1.12, 1.12);
+      const boost = Math.max(1.12, node.baseScale * 1.08);
+      node.root.scaling = new Vector3(boost, boost, boost);
       setTimeout(() => {
         const latest = this.entities.get(entityId);
-        if (latest) latest.root.scaling = new Vector3(1, 1, 1);
+        if (latest) {
+          latest.root.scaling = new Vector3(latest.baseScale, latest.baseScale, latest.baseScale);
+        }
       }, 120);
     }
   }
@@ -194,7 +211,9 @@ export class BabylonAdapter implements IEngineBridge {
     this.inputCallbacks.push(callback);
   }
 
-  update(_dt: number): void {
+  update(dt: number): void {
+    this.areWaveClock.t += dt;
+    this.updateAREVisuals();
     this.updateCameraFollow();
   }
 
@@ -373,6 +392,34 @@ export class BabylonAdapter implements IEngineBridge {
 
   private toRadians(value: number): number {
     return (value * Math.PI) / 180;
+  }
+
+  private applyAREState(node: EntityNode, model: Partial<EntityViewModel>): void {
+    if (!model.are) {
+      return;
+    }
+    node.arePhase = Number.isFinite(model.are.phaseShift) ? model.are.phaseShift : node.arePhase;
+    node.areResonance = Number.isFinite(model.are.resonance) ? model.are.resonance : node.areResonance;
+    node.arePlexity = Number.isFinite(model.are.plexity)
+      ? Math.max(0.05, Math.min(1, model.are.plexity))
+      : node.arePlexity;
+    node.baseScale = 0.7 + node.arePlexity * 0.6;
+    const visibilityByPlexity = node.arePlexity > 0.08;
+    const explicitVisible =
+      model.visible !== undefined ? model.visible : (node.root.metadata as any)?.explicitVisible ?? true;
+    node.root.metadata = {
+      ...(node.root.metadata as Record<string, unknown> | null),
+      explicitVisible,
+    };
+    node.root.setEnabled(visibilityByPlexity && explicitVisible);
+  }
+
+  private updateAREVisuals(): void {
+    for (const node of this.entities.values()) {
+      const wave = Math.sin(this.areWaveClock.t * 2 + node.arePhase * 0.01) * 0.05 * (0.25 + node.areResonance);
+      const scale = Math.max(0.2, node.baseScale + wave);
+      node.root.scaling = new Vector3(scale, scale, scale);
+    }
   }
 
   private inferTypeFromEntityId(id: string): string {

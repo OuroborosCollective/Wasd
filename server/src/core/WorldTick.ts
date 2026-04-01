@@ -13,6 +13,7 @@ import { verifyFirebaseToken } from "../config/firebase.js";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
 import { GLBRegistry } from "../modules/asset-registry/GLBRegistry.js";
 import { AssetPoolResolver } from "../modules/world/AssetPoolResolver.js";
+import { AREStateCompiler } from "../modules/world/AREStateCompiler.js";
 import { cache } from "./Cache.js";
 import fs from "fs";
 import path from "path";
@@ -216,6 +217,7 @@ export class WorldTick {
   public persistence: PersistenceManager;
   public glbRegistry: GLBRegistry;
   private assetPoolResolver: AssetPoolResolver;
+  private areStateCompiler: AREStateCompiler;
   private lootEntities: Map<string, any> = new Map();
 
   private socketToPlayer: Map<string, string> = new Map(); // socketId -> characterName
@@ -1068,6 +1070,7 @@ export class WorldTick {
     this.worldSystem = new WorldSystem(this.persistence);
     this.glbRegistry = new GLBRegistry();
     this.assetPoolResolver = new AssetPoolResolver();
+    this.areStateCompiler = new AREStateCompiler();
 
     // Create a dummy player in a distant chunk to prove multi-observer union
     const dummyPlayer = this.playerSystem.createPlayer("dummy_player", "Dummy Player");
@@ -1391,6 +1394,7 @@ export class WorldTick {
   }
 
   broadcastState() {
+    const tickCount = this.tickCount;
     const entities = [
       ...this.playerSystem.getAllPlayers().map(p => ({
         id: p.id,
@@ -1399,6 +1403,17 @@ export class WorldTick {
         rotation: { x: 0, y: 0, z: 0 },
         name: p.name,
         glbPath: this.resolveEntityGlbPath("players", p.name || p.id, p.id),
+        are: this.areStateCompiler.compileEntity(
+          {
+            id: p.id,
+            type: "player",
+            position: { x: p.position.x, y: 0, z: p.position.y },
+            health: p.health,
+            maxHealth: p.maxHealth,
+            visible: true,
+          },
+          tickCount
+        ),
         visible: true
       })),
       ...this.npcSystem.getAllNPCs().map(n => ({
@@ -1408,6 +1423,17 @@ export class WorldTick {
         rotation: { x: 0, y: 0, z: 0 },
         name: n.name,
         glbPath: this.resolveNpcGlbPath(n),
+        are: this.areStateCompiler.compileEntity(
+          {
+            id: n.id,
+            type: "npc",
+            position: { x: n.position.x, y: 0, z: n.position.y },
+            health: n.health,
+            maxHealth: n.maxHealth,
+            visible: true,
+          },
+          tickCount
+        ),
         visible: true
       })),
       ...Array.from(this.lootEntities.values()).map(l => ({
@@ -1416,6 +1442,15 @@ export class WorldTick {
         position: { x: l.position.x, y: 0, z: l.position.y },
         rotation: { x: 0, y: 0, z: 0 },
         glbPath: this.resolveEntityGlbPath("loot", l.item?.id || l.id, l.id),
+        are: this.areStateCompiler.compileEntity(
+          {
+            id: l.id,
+            type: "loot",
+            position: { x: l.position.x, y: 0, z: l.position.y },
+            visible: true,
+          },
+          tickCount
+        ),
         visible: true
       }))
     ];
@@ -1428,6 +1463,15 @@ export class WorldTick {
         position: { x: obj.position.x, y: 0, z: obj.position.y },
         rotation: { x: 0, y: obj.rotation || 0, z: 0 },
         glbPath: obj.glbPath || this.resolveWorldObjectGlbPath(obj.type, obj.name || obj.id, obj.id),
+        are: this.areStateCompiler.compileEntity(
+          {
+            id: obj.id,
+            type: obj.type || "object",
+            position: { x: obj.position.x, y: 0, z: obj.position.y },
+            visible: true,
+          },
+          tickCount
+        ),
         visible: true
       }));
       entities.push(...worldObjects);
