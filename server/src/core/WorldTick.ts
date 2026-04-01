@@ -1422,7 +1422,13 @@ export class WorldTick {
 
     if (this.tickCount % 600 === 0) this.saveAll();
 
-    this.broadcastState();
+    const broadcastEveryTicks = Math.max(
+      1,
+      Math.round(GameConfig.stateBroadcastIntervalMs / GameConfig.tickRateMs)
+    );
+    if (this.tickCount % broadcastEveryTicks === 0) {
+      this.broadcastState();
+    }
   }
 
   broadcastState() {
