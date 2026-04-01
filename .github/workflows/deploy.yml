@@ -34,3 +34,7 @@ jobs:
           else
             ./deploy/update.sh
           fi
+          if [ "${SKIP_DEPLOY_HEALTH_CHECK:-}" != "1" ]; then
+            sleep 2
+            curl -sf --max-time 15 http://127.0.0.1:3000/health | grep -q '"ok"' && echo "Deploy health check: OK" || { echo "Deploy health check: FAILED (is the server listening on 3000?)"; exit 1; }
+          fi

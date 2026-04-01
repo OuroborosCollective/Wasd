@@ -22,12 +22,10 @@ npm run build
 cd "$APP_DIR"
 APP_DIR="$APP_DIR" bash "$APP_DIR/deploy/write_pm2_ecosystem.sh"
 
-# Restart or first start PM2
-if pm2 describe areloria >/dev/null 2>&1; then
-  pm2 restart areloria
-else
-  pm2 start "$APP_DIR/ecosystem.config.cjs"
-fi
+# Same as deploy.sh: plain "restart" often keeps old cwd/env; recreate from ecosystem file
+pm2 stop areloria 2>/dev/null || true
+pm2 delete areloria 2>/dev/null || true
+pm2 start "$APP_DIR/ecosystem.config.cjs"
 pm2 save 2>/dev/null || true
 
 echo "✅ Update complete!"
