@@ -1,7 +1,5 @@
 import { createBabylonApp } from "./engine/babylon/BabylonBoot";
 import { BabylonAdapter } from "./engine/babylon/BabylonAdapter";
-import { createPlayCanvasApp } from "./engine/playcanvas/PlayCanvasBoot";
-import { PlayCanvasAdapter } from "./engine/playcanvas/PlayCanvasAdapter";
 import { MMORPGClientCore } from "./core/MMORPGClientCore";
 import { connectSocket, requestSceneChange, type ConnectionOptions } from "./networking/websocketClient";
 import { IEngineBridge } from "./engine/bridge/IEngineBridge";
@@ -49,18 +47,10 @@ function showBootStatus(message: string) {
 }
 
 function bootEngineBridge(targetCanvas: HTMLCanvasElement): IEngineBridge {
-  try {
-    const app = createBabylonApp(targetCanvas);
-    (window as any).babylonScene = app.scene;
-    console.log("Renderer: Babylon");
-    return new BabylonAdapter(app.scene, app.camera);
-  } catch (error) {
-    console.error("Babylon bootstrap failed. Falling back to PlayCanvas.", error);
-    showBootStatus("Babylon failed to initialize. Fallback renderer: PlayCanvas.");
-    const app = createPlayCanvasApp(targetCanvas);
-    console.log("Renderer: PlayCanvas (fallback)");
-    return new PlayCanvasAdapter(app);
-  }
+  const app = createBabylonApp(targetCanvas);
+  (window as any).babylonScene = app.scene;
+  console.log("Renderer: Babylon.js");
+  return new BabylonAdapter(app.scene, app.camera);
 }
 
 try {

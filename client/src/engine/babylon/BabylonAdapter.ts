@@ -20,7 +20,7 @@ import {
 import "@babylonjs/loaders/glTF";
 import { IEngineBridge } from "../bridge/IEngineBridge";
 import { EntityViewModel } from "../bridge/EntityViewModel";
-import { AssetRegistry } from "../playcanvas/AssetRegistry";
+import { AssetRegistry } from "./AssetRegistry";
 import {
   DEFAULT_GROUND_BUMP,
   DEFAULT_GROUND_DIFFUSE,
