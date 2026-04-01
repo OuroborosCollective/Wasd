@@ -6,7 +6,11 @@ import { MMORPGClientCore } from "./core/MMORPGClientCore";
 import { connectSocket, requestSceneChange, type ConnectionOptions } from "./networking/websocketClient";
 import { IEngineBridge } from "./engine/bridge/IEngineBridge";
 import { renderHUD, showDialogue } from "./ui/hud";
-import { renderImprovedVirtualJoystick } from "./ui/ImprovedVirtualJoystick";
+import { initMobileControls } from "./ui/mobileControls";
+import { renderInventory } from "./ui/inventory";
+import { renderSkillsPanel } from "./ui/skillsPanel";
+import { renderQuestLog } from "./ui/questLog";
+import { renderEquipmentPanel } from "./ui/equipmentPanel";
 import { renderMobileSceneTeleportPanel } from "./ui/mobileSceneTeleportPanel";
 import { performanceMonitor } from "./utils/PerformanceMonitor";
 
@@ -77,7 +81,27 @@ try {
   (window as any).requestSceneChange = requestSceneChange;
   renderHUD();
   renderMobileSceneTeleportPanel();
-  renderImprovedVirtualJoystick(core);
+
+  initMobileControls(
+    core,
+    {
+      onAttack: () => core.attack(),
+      onInteract: () => core.interact(),
+      onEquip: renderEquipmentPanel,
+      onInventory: renderInventory,
+      onQuests: renderQuestLog,
+      onSkills: renderSkillsPanel,
+      onMap: () => { console.log('Map toggled'); },
+      onChat: () => { console.log('Chat toggled'); }
+    },
+    (delta: number) => {
+      // Zoom logic placeholder if engine supports it later
+    },
+    (dx: number, dy: number) => {
+      // Camera drag logic placeholder if engine supports it later
+    }
+  );
+
   performanceMonitor.start();
 
   let lastFrameTime = performance.now();

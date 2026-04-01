@@ -45,9 +45,9 @@ export function showDialogue(text: string) {
     dialogueBox = document.createElement('div');
     dialogueBox.id = 'dialogue-box';
     dialogueBox.style.position = 'fixed';
-    dialogueBox.style.bottom = '120px';
+    dialogueBox.style.top = '20%';
     dialogueBox.style.left = '50%';
-    dialogueBox.style.transform = 'translateX(-50%)';
+    dialogueBox.style.transform = 'translate(-50%, -20%)';
     dialogueBox.style.background = 'rgba(0, 0, 0, 0.85)';
     dialogueBox.style.color = 'white';
     dialogueBox.style.padding = '20px';

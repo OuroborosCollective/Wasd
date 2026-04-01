@@ -1,15 +1,20 @@
+import { closeAllPanels } from "./panelManager";
+
 export function renderInventory() {
   let panel = document.getElementById('inventory-panel');
 
   if (panel) {
     // Toggle visibility if it already exists
     if (panel.style.display === 'none') {
-      panel.style.display = 'block';
+      closeAllPanels();
+      panel.style.display = 'flex';
     } else {
       panel.style.display = 'none';
     }
     return;
   }
+
+  closeAllPanels();
 
   panel = document.createElement("div");
   panel.id = "inventory-panel";
@@ -18,10 +23,13 @@ export function renderInventory() {
   panel.setAttribute("aria-label", "Inventory");
 
   panel.style.position = "fixed";
-  panel.style.right = "5%";
-  panel.style.top = "10%";
-  panel.style.width = "clamp(300px, 25vw, 400px)";
-  panel.style.height = "clamp(400px, 60vh, 600px)";
+  panel.style.left = "50%";
+  panel.style.top = "50%";
+  panel.style.transform = "translate(-50%, -50%)";
+  panel.style.width = "90vw";
+  panel.style.maxWidth = "400px";
+  panel.style.height = "80vh";
+  panel.style.maxHeight = "600px";
   panel.style.zIndex = "1000";
   panel.style.display = "flex";
   panel.style.flexDirection = "column";
