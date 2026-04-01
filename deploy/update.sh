@@ -8,10 +8,10 @@ echo "🔄 Updating Areloria MMORPG..."
 cd "$APP_DIR"
 git pull origin main
 
-# Rebuild client
+# Rebuild client (Vite needs extra heap on small VPS default ~2GB limit)
 cd "$APP_DIR/client"
 npm install
-npx vite build
+npm run build
 
 # Rebuild server
 cd "$APP_DIR/server"
