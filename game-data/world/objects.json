@@ -6,7 +6,7 @@
     "position": { "x": 0, "y": 5 },
     "rotation": 0,
     "scale": 2.5,
-    "glbPath": "/assets/models/objects/chest.glb"
+    "glbPath": "/world-assets/props/deko/deko_outdoor1.glb"
   },
   {
     "id": "sv_hut_a",
@@ -15,7 +15,7 @@
     "position": { "x": -10, "y": 4 },
     "rotation": 0.4,
     "scale": 4,
-    "glbPath": "/assets/models/objects/chest.glb"
+    "glbPath": "/world-assets/buildings/woodcillagehouse1.glb"
   },
   {
     "id": "sv_hut_b",
@@ -24,7 +24,7 @@
     "position": { "x": 10, "y": 4 },
     "rotation": -0.35,
     "scale": 4,
-    "glbPath": "/assets/models/objects/chest.glb"
+    "glbPath": "/world-assets/buildings/woodcillagehouse1.glb"
   },
   {
     "id": "sv_hut_c",
@@ -33,7 +33,7 @@
     "position": { "x": -6, "y": -10 },
     "rotation": 2.2,
     "scale": 3.5,
-    "glbPath": "/assets/models/objects/chest.glb"
+    "glbPath": "/world-assets/buildings/woodcillagehouse1.glb"
   },
   {
     "id": "sv_hut_d",
@@ -42,7 +42,7 @@
     "position": { "x": 8, "y": -9 },
     "rotation": -2.0,
     "scale": 3.5,
-    "glbPath": "/assets/models/objects/chest.glb"
+    "glbPath": "/world-assets/buildings/woodcillagehouse1.glb"
   },
   {
     "id": "sv_fence_n",
@@ -51,7 +51,7 @@
     "position": { "x": 0, "y": 14 },
     "rotation": 0,
     "scale": 2,
-    "glbPath": "/assets/models/objects/chest.glb"
+    "glbPath": "/world-assets/props/deko/deko_outdoor2.glb"
   },
   {
     "id": "sv_fence_s",
@@ -60,6 +60,6 @@
     "position": { "x": 0, "y": -14 },
     "rotation": 0,
     "scale": 2,
-    "glbPath": "/assets/models/objects/chest.glb"
+    "glbPath": "/world-assets/props/deko/deko_outdoor2.glb"
   }
 ]
