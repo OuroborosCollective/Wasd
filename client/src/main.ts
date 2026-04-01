@@ -1,18 +1,17 @@
 import { createBabylonApp } from "./engine/babylon/BabylonBoot";
 import { BabylonAdapter } from "./engine/babylon/BabylonAdapter";
-import { createPlayCanvasApp } from "./engine/playcanvas/PlayCanvasBoot";
-import { PlayCanvasAdapter } from "./engine/playcanvas/PlayCanvasAdapter";
 import { MMORPGClientCore } from "./core/MMORPGClientCore";
 import { connectSocket, requestSceneChange, type ConnectionOptions } from "./networking/websocketClient";
 import { IEngineBridge } from "./engine/bridge/IEngineBridge";
 import { renderHUD, showDialogue } from "./ui/hud";
 import { getJoystickState, initMobileControls, isMobile } from "./ui/mobileControls";
-import { renderInventory } from "./ui/inventory";
-import { renderSkillsPanel } from "./ui/skillsPanel";
-import { renderQuestLog } from "./ui/questLog";
-import { renderEquipmentPanel } from "./ui/equipmentPanel";
-import { renderMobileSceneTeleportPanel } from "./ui/mobileSceneTeleportPanel";
-import { performanceMonitor } from "./utils/PerformanceMonitor";
+import {
+  openEquipmentPanel,
+  openInventory,
+  openQuestLog,
+  openSkillsPanel,
+  preloadGamePanels,
+} from "./ui/lazyPanels";
 
 let canvas = document.getElementById("application-canvas") as HTMLCanvasElement;
 if (!canvas) {
@@ -48,18 +47,10 @@ function showBootStatus(message: string) {
 }
 
 function bootEngineBridge(targetCanvas: HTMLCanvasElement): IEngineBridge {
-  try {
-    const app = createBabylonApp(targetCanvas);
-    (window as any).babylonScene = app.scene;
-    console.log("Renderer: Babylon");
-    return new BabylonAdapter(app.scene, app.camera);
-  } catch (error) {
-    console.error("Babylon bootstrap failed. Falling back to PlayCanvas.", error);
-    showBootStatus("Babylon failed to initialize. Fallback renderer: PlayCanvas.");
-    const app = createPlayCanvasApp(targetCanvas);
-    console.log("Renderer: PlayCanvas (fallback)");
-    return new PlayCanvasAdapter(app);
-  }
+  const app = createBabylonApp(targetCanvas);
+  (window as any).babylonScene = app.scene;
+  console.log("Renderer: Babylon.js");
+  return new BabylonAdapter(app.scene, app.camera);
 }
 
 try {
@@ -80,17 +71,26 @@ try {
   connectSocket(core, connectionOptions);
   (window as any).requestSceneChange = requestSceneChange;
   renderHUD();
-  renderMobileSceneTeleportPanel();
+  void import("./ui/mobileSceneTeleportPanel").then((m) => m.renderMobileSceneTeleportPanel());
+  preloadGamePanels();
 
   initMobileControls(
     core,
     {
       onAttack: () => core.attack(),
       onInteract: () => core.interact(),
-      onEquip: renderEquipmentPanel,
-      onInventory: renderInventory,
-      onQuests: renderQuestLog,
-      onSkills: renderSkillsPanel,
+      onEquip: () => {
+        void openEquipmentPanel();
+      },
+      onInventory: () => {
+        void openInventory();
+      },
+      onQuests: () => {
+        void openQuestLog();
+      },
+      onSkills: () => {
+        void openSkillsPanel();
+      },
       onMap: () => { console.log('Map toggled'); },
       onChat: () => { console.log('Chat toggled'); }
     },
@@ -102,7 +102,7 @@ try {
     }
   );
 
-  performanceMonitor.start();
+  void import("./utils/PerformanceMonitor").then((m) => m.performanceMonitor.start());
 
   let lastFrameTime = performance.now();
   const tick = (now: number) => {

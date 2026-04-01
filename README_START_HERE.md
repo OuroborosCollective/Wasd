@@ -17,4 +17,4 @@ This is a **working foundation**, not a finished commercial MMO. Many modules ex
 
 ## Client renderer
 
-**Primary: Babylon.js.** PlayCanvas code under `client/src/engine/playcanvas/` is **legacy fallback** only.
+**Babylon.js only** (`client/src/engine/babylon/`).

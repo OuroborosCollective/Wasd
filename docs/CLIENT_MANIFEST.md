@@ -14,10 +14,6 @@
 
 - `client/src/ui/hud.ts`, `inventory.ts`, `questLog.ts`, `mobileControls.ts`, …  
 
-## Legacy
-
-- `client/src/engine/playcanvas/*` — fallback only  
-
 ---
 
 *The long file list that previously lived here is omitted to avoid drift; use your IDE or `find client/src -name '*.ts'` when needed.*

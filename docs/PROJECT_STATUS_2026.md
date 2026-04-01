@@ -8,7 +8,7 @@ This document is the **authoritative snapshot** of what works today in the repos
 |------|--------|
 | **Primary 3D engine** | **Babylon.js** (`@babylonjs/core`, `@babylonjs/loaders`) |
 | **Boot path** | `client/src/main.ts` → `createBabylonApp` → `BabylonAdapter` |
-| **Legacy / fallback** | `PlayCanvasAdapter` exists under `client/src/engine/playcanvas/` as **emergency fallback** if Babylon bootstrap throws — not the supported path for new work |
+| **Default GLB fallbacks** | `client/src/engine/babylon/AssetRegistry.ts` — used when server does not send a `modelUrl` |
 | **Bridge** | `client/src/engine/bridge/` — `IEngineBridge`, `EntityViewModel`; keep simulation off the client |
 
 ## Server and networking
@@ -62,7 +62,9 @@ See **`docs/ROADMAP_TO_RELEASE.md`** for the full backlog aligned with the desig
 - **Collect quests**: turn-in on **talk** to `targetNpcId` / `giverNpcId` when inventory has `requiredItemId` × count  
 - **`quest_sync`** message + **`stats_sync`** (quests with collect progress, gold, XP)  
 - **Quest log** reads **live** `playerState`; HUD shows **Gold / XP**  
-- **Vite**: `manualChunks` for **babylon** + **firebase**  
+- **Vite**: `manualChunks` for **babylon**, **firebase**, **game UI panels** (inventory/skills vs quest/equipment), **mobile teleport**, **PerformanceMonitor**
+- **Client**: heavy panels loaded via **`dynamic import()`** (`lazyPanels.ts`) + idle **preload** after boot  
+- **PlayCanvas removed**: client is **Babylon.js only**; default GLB map lives in `engine/babylon/AssetRegistry.ts`  
 - **ItemRegistry** resolves `game-data` from `server/` cwd (`../game-data`)  
 
 ---

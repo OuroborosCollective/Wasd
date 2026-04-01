@@ -9,7 +9,6 @@ Browser-based MMORPG: **authoritative Node server** + **Babylon.js client** (Vit
 | **Client** | Vite, TypeScript, **Babylon.js** (`BabylonBoot`, `BabylonAdapter`), bridge pattern under `client/src/engine/bridge/` |
 | **Server** | Express, WebSocket, `WorldTick` (~100 ms sim; configurable `entity_sync` interval) |
 | **Data** | JSON in `game-data/` (NPCs, quests, dialogue, scenes, spawns, world objects) |
-| **Legacy** | `PlayCanvasAdapter` remains as **fallback only** if Babylon fails to boot — not the target renderer for new work |
 
 ## Documentation map
 
