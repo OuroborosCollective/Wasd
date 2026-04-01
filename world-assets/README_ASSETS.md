@@ -1,5 +1,7 @@
 # World Assets
 
+**Workflow:** Dateien hier ablegen → `pnpm run dev` oder `pnpm run build` (sync läuft automatisch) → URLs **`/world-assets/<unterordner>/<datei>.glb`**. Details: **`HOW_TO_ADD_GLBS.md`**.
+
 Lege hier GLB-Assets ab:
 - characters/
 - monsters/
