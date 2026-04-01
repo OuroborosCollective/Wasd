@@ -26,6 +26,7 @@ import {
   DEFAULT_GROUND_DIFFUSE,
   playgroundTextureUrl,
 } from "./playgroundTextures";
+import { applyTiledGroundTextures, chunkGroundUvScale } from "./groundTextureUtils";
 
 type EntityNode = {
   root: TransformNode;
@@ -206,7 +207,8 @@ export class BabylonAdapter implements IEngineBridge {
     const mat = new StandardMaterial(`Chunk_${chunk.id}_mat`, this.scene);
     mat.diffuseTexture = new Texture(playgroundTextureUrl(DEFAULT_GROUND_DIFFUSE), this.scene, false, false);
     mat.bumpTexture = new Texture(playgroundTextureUrl(DEFAULT_GROUND_BUMP), this.scene, false, false);
-    mat.diffuseColor = new Color3(0.82, 0.82, 0.82);
+    applyTiledGroundTextures(mat, chunkGroundUvScale());
+    mat.diffuseColor = new Color3(0.75, 0.78, 0.72);
     mat.specularColor = new Color3(0.02, 0.02, 0.02);
     ground.material = mat;
     this.chunks.set(chunk.id, root);

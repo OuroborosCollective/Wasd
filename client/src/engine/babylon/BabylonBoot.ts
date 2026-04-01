@@ -2,6 +2,7 @@ import {
   ArcRotateCamera,
   Color3,
   Color4,
+  CubeTexture,
   Engine,
   HemisphericLight,
   MeshBuilder,
@@ -13,8 +14,10 @@ import {
 import {
   DEFAULT_GROUND_BUMP,
   DEFAULT_GROUND_DIFFUSE,
+  getPlaygroundTexturesBaseUrl,
   playgroundTextureUrl,
 } from "./playgroundTextures";
+import { applyTiledGroundTextures, MAIN_GROUND_UV_SCALE } from "./groundTextureUtils";
 
 export type BabylonApp = {
   engine: Engine;
@@ -30,7 +33,8 @@ export function createBabylonApp(canvas: HTMLCanvasElement): BabylonApp {
   });
 
   const scene = new Scene(engine);
-  scene.clearColor = new Color4(0.05, 0.06, 0.09, 1);
+  scene.clearColor = new Color4(0.15, 0.22, 0.38, 1);
+  scene.ambientColor = new Color3(0.22, 0.26, 0.34);
 
   const camera = new ArcRotateCamera(
     "MainCamera",
@@ -46,7 +50,25 @@ export function createBabylonApp(canvas: HTMLCanvasElement): BabylonApp {
   camera.wheelDeltaPercentage = 0.01;
 
   const light = new HemisphericLight("sun", new Vector3(0.2, 1, 0.1), scene);
-  light.intensity = 0.9;
+  light.intensity = 1.05;
+  light.groundColor = new Color3(0.2, 0.22, 0.28);
+
+  // Simple skybox from Babylon playground assets (Apache-2.0, same repo as textures)
+  try {
+    const skyBase = `${getPlaygroundTexturesBaseUrl().replace(/\/+$/, "")}/TropicalSunnyDay`;
+    const skyTex = new CubeTexture(skyBase, scene);
+    const skybox = MeshBuilder.CreateBox("world-skybox", { size: 800 }, scene);
+    const skyMat = new StandardMaterial("world-skybox-mat", scene);
+    skyMat.backFaceCulling = false;
+    skyMat.reflectionTexture = skyTex;
+    skyMat.diffuseColor = new Color3(0, 0, 0);
+    skyMat.specularColor = new Color3(0, 0, 0);
+    skybox.material = skyMat;
+    skybox.infiniteDistance = true;
+    skybox.isPickable = false;
+  } catch (e) {
+    console.warn("Skybox load failed, using clear color only", e);
+  }
 
   const ground = MeshBuilder.CreateGround(
     "world-ground",
@@ -57,7 +79,8 @@ export function createBabylonApp(canvas: HTMLCanvasElement): BabylonApp {
   groundMat.diffuseTexture = new Texture(playgroundTextureUrl(DEFAULT_GROUND_DIFFUSE), scene, false, false);
   groundMat.bumpTexture = new Texture(playgroundTextureUrl(DEFAULT_GROUND_BUMP), scene, false, false);
   groundMat.diffuseTexture.level = 1;
-  groundMat.diffuseColor = new Color3(0.85, 0.85, 0.85);
+  applyTiledGroundTextures(groundMat, MAIN_GROUND_UV_SCALE);
+  groundMat.diffuseColor = new Color3(0.75, 0.78, 0.72);
   groundMat.specularColor = new Color3(0.02, 0.02, 0.02);
   ground.material = groundMat;
   ground.position.y = -0.02;

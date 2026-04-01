@@ -343,6 +343,58 @@ export function initMobileControls(
   let joystickOriginX = 0;
   let joystickOriginY = 0;
 
+  const updateJoystickFromTouch = (touch: Touch) => {
+    if (touch.identifier !== joystickTouchId) return;
+    const rawDx = touch.clientX - joystickOriginX;
+    const rawDy = touch.clientY - joystickOriginY;
+    const dist = Math.hypot(rawDx, rawDy);
+    const clampedDist = Math.min(dist, JOYSTICK_RADIUS);
+    const angle = Math.atan2(rawDy, rawDx);
+    const clampedX = Math.cos(angle) * clampedDist;
+    const clampedY = Math.sin(angle) * clampedDist;
+    joystickThumb.style.transform = `translate(calc(-50% + ${clampedX}px), calc(-50% + ${clampedY}px))`;
+    joystickState.dx = clampedX / JOYSTICK_RADIUS;
+    joystickState.dy = clampedY / JOYSTICK_RADIUS;
+  };
+
+  joystickZone.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      updateJoystickFromTouch(e.changedTouches[i]);
+    }
+  }, { passive: false });
+
+  // iOS: touchmove on the zone may not fire when finger leaves the element — follow on document
+  const onDocTouchMove = (e: TouchEvent) => {
+    if (joystickTouchId === null || !joystickState.active) return;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === joystickTouchId) {
+        e.preventDefault();
+        updateJoystickFromTouch(e.changedTouches[i]);
+        break;
+      }
+    }
+  };
+  const onDocTouchEnd = (e: TouchEvent) => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === joystickTouchId) {
+        resetJoystick();
+        break;
+      }
+    }
+  };
+
+  const resetJoystick = () => {
+    joystickTouchId = null;
+    joystickState.active = false;
+    joystickState.dx = 0;
+    joystickState.dy = 0;
+    joystickThumb.style.transform = "translate(-50%, -50%)";
+    document.removeEventListener("touchmove", onDocTouchMove, true);
+    document.removeEventListener("touchend", onDocTouchEnd, true);
+    document.removeEventListener("touchcancel", onDocTouchEnd, true);
+  };
+
   joystickZone.addEventListener("touchstart", (e) => {
     e.preventDefault();
     const touch = e.changedTouches[0];
@@ -351,73 +403,20 @@ export function initMobileControls(
     joystickOriginX = rect.left + rect.width / 2;
     joystickOriginY = rect.top + rect.height / 2;
     joystickState.active = true;
+    document.addEventListener("touchmove", onDocTouchMove, { passive: false, capture: true });
+    document.addEventListener("touchend", onDocTouchEnd, { passive: false, capture: true });
+    document.addEventListener("touchcancel", onDocTouchEnd, { passive: false, capture: true });
+    updateJoystickFromTouch(touch);
   }, { passive: false });
 
-  let currentKeyX: string | null = null;
-  let currentKeyY: string | null = null;
-
-  joystickZone.addEventListener("touchmove", (e) => {
-    e.preventDefault();
+  joystickZone.addEventListener("touchend", (e) => {
     for (let i = 0; i < e.changedTouches.length; i++) {
-      const touch = e.changedTouches[i];
-      if (touch.identifier !== joystickTouchId) continue;
-      const rawDx = touch.clientX - joystickOriginX;
-      const rawDy = touch.clientY - joystickOriginY;
-      const dist = Math.hypot(rawDx, rawDy);
-      const clampedDist = Math.min(dist, JOYSTICK_RADIUS);
-      const angle = Math.atan2(rawDy, rawDx);
-      const clampedX = Math.cos(angle) * clampedDist;
-      const clampedY = Math.sin(angle) * clampedDist;
-      joystickThumb.style.transform = `translate(calc(-50% + ${clampedX}px), calc(-50% + ${clampedY}px))`;
-      joystickState.dx = clampedX / JOYSTICK_RADIUS;
-      joystickState.dy = clampedY / JOYSTICK_RADIUS;
-
-      // Map to WASD inputs
-      const threshold = 0.5;
-      const nx = joystickState.dx;
-      const ny = joystickState.dy;
-
-      let newKeyX: string | null = null;
-      let newKeyY: string | null = null;
-
-      if (nx > threshold) newKeyX = 'd';
-      else if (nx < -threshold) newKeyX = 'a';
-
-      if (ny > threshold) newKeyY = 's';
-      else if (ny < -threshold) newKeyY = 'w';
-
-      if (newKeyX !== currentKeyX) {
-        if (currentKeyX) core.events.emit('input', { type: 'keyup', key: currentKeyX });
-        if (newKeyX) core.events.emit('input', { type: 'keydown', key: newKeyX });
-        currentKeyX = newKeyX;
-      }
-
-      if (newKeyY !== currentKeyY) {
-        if (currentKeyY) core.events.emit('input', { type: 'keyup', key: currentKeyY });
-        if (newKeyY) core.events.emit('input', { type: 'keydown', key: newKeyY });
-        currentKeyY = newKeyY;
+      if (e.changedTouches[i].identifier === joystickTouchId) {
+        resetJoystick();
+        break;
       }
     }
   }, { passive: false });
-
-  const resetJoystick = () => {
-    joystickTouchId = null;
-    joystickState.active = false;
-    joystickState.dx = 0;
-    joystickState.dy = 0;
-    joystickThumb.style.transform = "translate(-50%, -50%)";
-
-    if (currentKeyX) {
-      core.events.emit('input', { type: 'keyup', key: currentKeyX });
-      currentKeyX = null;
-    }
-    if (currentKeyY) {
-      core.events.emit('input', { type: 'keyup', key: currentKeyY });
-      currentKeyY = null;
-    }
-  };
-
-  joystickZone.addEventListener("touchend", resetJoystick, { passive: false });
   joystickZone.addEventListener("touchcancel", resetJoystick, { passive: false });
 
   // ── ACTION BUTTONS ──────────────────────────────────────────────────────────
@@ -493,7 +492,9 @@ export function initMobileControls(
   });
 
   // ── CAMERA DRAG (two-finger or right-area single finger) ────────────────────
-  const canvas = document.getElementById("game-canvas") as HTMLCanvasElement || document.querySelector("canvas");
+  const canvas =
+    (document.getElementById("application-canvas") as HTMLCanvasElement | null) ||
+    (document.querySelector("canvas") as HTMLCanvasElement | null);
   if (canvas) {
     let cameraTouchId: number | null = null;
     let lastCamX = 0;
