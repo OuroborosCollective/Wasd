@@ -1,5 +1,8 @@
 name: Continuous Deployment to VPS
 
+# If the VPS build fails (e.g. Vite OOM), fix is in-repo (client NODE_OPTIONS); re-run
+# from Actions → this workflow → Run workflow (workflow_dispatch).
+
 on:
   push:
     branches: [ main ]

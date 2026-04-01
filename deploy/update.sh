@@ -11,7 +11,7 @@ git pull origin main
 # Rebuild client
 cd "$APP_DIR/client"
 npm install
-npx vite build
+NODE_OPTIONS=--max-old-space-size=8192 npx vite build
 
 # Rebuild server
 cd "$APP_DIR/server"

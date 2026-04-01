@@ -56,7 +56,7 @@ npm install
 # ── 6. Build client ───────────────────────────────────────
 echo "[6/10] Building client (Vite)..."
 cd "$APP_DIR/client"
-npm run build
+NODE_OPTIONS=--max-old-space-size=8192 npm run build
 
 # ── 7. Build server ───────────────────────────────────────
 echo "[7/10] Building server (TypeScript)..."
