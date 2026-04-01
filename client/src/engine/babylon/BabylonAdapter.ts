@@ -13,6 +13,7 @@ import {
   SceneLoader,
   ShaderMaterial,
   StandardMaterial,
+  Texture,
   TransformNode,
   Vector3,
 } from "@babylonjs/core";
@@ -20,6 +21,11 @@ import "@babylonjs/loaders/glTF";
 import { IEngineBridge } from "../bridge/IEngineBridge";
 import { EntityViewModel } from "../bridge/EntityViewModel";
 import { AssetRegistry } from "../playcanvas/AssetRegistry";
+import {
+  DEFAULT_GROUND_BUMP,
+  DEFAULT_GROUND_DIFFUSE,
+  playgroundTextureUrl,
+} from "./playgroundTextures";
 
 type EntityNode = {
   root: TransformNode;
@@ -198,8 +204,10 @@ export class BabylonAdapter implements IEngineBridge {
     ground.parent = root;
     ground.position.y = -0.01;
     const mat = new StandardMaterial(`Chunk_${chunk.id}_mat`, this.scene);
-    mat.diffuseColor = new Color3(0.22, 0.24, 0.28);
-    mat.specularColor = new Color3(0, 0, 0);
+    mat.diffuseTexture = new Texture(playgroundTextureUrl(DEFAULT_GROUND_DIFFUSE), this.scene, false, false);
+    mat.bumpTexture = new Texture(playgroundTextureUrl(DEFAULT_GROUND_BUMP), this.scene, false, false);
+    mat.diffuseColor = new Color3(0.82, 0.82, 0.82);
+    mat.specularColor = new Color3(0.02, 0.02, 0.02);
     ground.material = mat;
     this.chunks.set(chunk.id, root);
   }
