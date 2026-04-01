@@ -5,7 +5,8 @@ on:
     branches: [ main ]
   schedule:
     - cron: '0 * * * *' # Stündlich ausführen
-  workflow_dispatch: # Manuelles Triggern ermöglichen
+  # Re-run from Actions tab if deploy failed (e.g. Vite OOM on the VPS).
+  workflow_dispatch:
 
 jobs:
   deploy:
