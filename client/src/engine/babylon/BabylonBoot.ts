@@ -7,8 +7,14 @@ import {
   MeshBuilder,
   Scene,
   StandardMaterial,
+  Texture,
   Vector3,
 } from "@babylonjs/core";
+import {
+  DEFAULT_GROUND_BUMP,
+  DEFAULT_GROUND_DIFFUSE,
+  playgroundTextureUrl,
+} from "./playgroundTextures";
 
 export type BabylonApp = {
   engine: Engine;
@@ -48,8 +54,11 @@ export function createBabylonApp(canvas: HTMLCanvasElement): BabylonApp {
     scene
   );
   const groundMat = new StandardMaterial("world-ground-mat", scene);
-  groundMat.diffuseColor = new Color3(0.16, 0.18, 0.2);
-  groundMat.specularColor = new Color3(0, 0, 0);
+  groundMat.diffuseTexture = new Texture(playgroundTextureUrl(DEFAULT_GROUND_DIFFUSE), scene, false, false);
+  groundMat.bumpTexture = new Texture(playgroundTextureUrl(DEFAULT_GROUND_BUMP), scene, false, false);
+  groundMat.diffuseTexture.level = 1;
+  groundMat.diffuseColor = new Color3(0.85, 0.85, 0.85);
+  groundMat.specularColor = new Color3(0.02, 0.02, 0.02);
   ground.material = groundMat;
   ground.position.y = -0.02;
 
