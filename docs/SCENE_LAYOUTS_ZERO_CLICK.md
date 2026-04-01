@@ -1,6 +1,6 @@
 ## Zero-Click Scene Layouts (Server Authoritative)
 
-This setup removes PlayCanvas-side trigger logic. The server now loads scene spawns and trigger zones from JSON files in `game-data/scenes/`.
+Scene spawns and trigger zones are **server-driven** (no client-editor trigger scripts required). The server loads them from JSON files in `game-data/scenes/`. The Babylon client only renders state from `entity_sync` and local scene/spawn hints from the server.
 
 ### Active layout file
 

@@ -46,3 +46,21 @@ wird prozedural erzeugt und über Beobachterzonen simuliert.
 - GLB-Asset-Pipeline
 ## Art & Assets
 - See [Procedural Style Matrix](./PROCEDURAL_STYLE_MATRIX.md) for lightweight, data-driven visual styling rules.
+
+---
+
+## Implementation snapshot (engineering, April 2026)
+
+This section links **vision** to **repository reality**. Update it when major pillars land.
+
+| Bible area | In repo today | Doc for detail |
+|------------|---------------|----------------|
+| Persistent world / data | `game-data/`, `WorldTick`, persistence adapters | `docs/PROJECT_STATUS_2026.md` |
+| NPCs / dialogue / quests | `NPCSystem`, `QuestEngine`, JSON content; starter **Millbrook** arc | `game-data/`, `docs/NPC_SYSTEM.md` |
+| 3D client | **Babylon.js** primary; `IEngineBridge` | `docs/CLIENT_ARCHITECTURE.md` |
+| Networking | WebSocket, `entity_sync`, scenes in JSON | `docs/NETWORKING_MODEL.md` |
+| GM / admin | GM routes, panels (coverage varies) | `docs/GM_EDITOR.md` |
+| Economy / Matrix / Brain | Modules + tests; not all in live tick | `docs/ROADMAP_TO_RELEASE.md` |
+
+**Full gap list:** [Roadmap to release](./ROADMAP_TO_RELEASE.md).  
+**Agent doc rule:** any merge that changes player-visible or architectural behavior should update [Project status 2026](./PROJECT_STATUS_2026.md).

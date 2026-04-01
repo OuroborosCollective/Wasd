@@ -1,22 +1,20 @@
-# Arelorian Master Project
+# Arelorian / Ouroboros — Start here
 
-Dieses Paket ist ein **voller Entwicklungs-Scaffold** für das Arelorian/Ouroboros Browser-MMORPG.
-Es ist **kein leeres Ordnerpaket** und **keine Demo-App**, sondern eine strukturierte Grundlage mit:
-- Architektur- und Regeldokumenten
-- Server-Modulen als TypeScript-Skeletons
-- Client-Grundgerüst mit Three.js
-- Game-Data-Dateien
-- Integrationsplatzhaltern für Firebase/AWS
-- Admin-/GM-Editor-Grunddateien
-- Asset-Import-Hinweisen für GLB-Dateien
+Structured browser MMORPG codebase: **Node + WebSocket server**, **Babylon.js (Vite) client**, **`game-data/`** JSON.
 
-## Sofort lesen
-1. `PROJECT_LOCK_RULES.md`
-2. `final-lock/FINAL_TRUTH.md`
-3. `docs/MASTER_DESIGN_BIBLE.md`
-4. `docs/BUILD_SEQUENCE_MASTER.md`
-5. `agent/AGENT_BUILD_INSTRUCTIONS.md`
+## Read first (current)
 
-## Projektstatus
-Dieses Paket liefert ein **ausgebautes Fundament**. Es ist nicht das komplett fertige MMO,
-aber es ist eine **brauchbare, nicht-leere Arbeitsbasis**, die weiter implementiert werden kann.
+1. **`README.md`** — install, stack, links  
+2. **`docs/PROJECT_STATUS_2026.md`** — **today’s behavior** (renderer, networking, deploy)  
+3. **`docs/ROADMAP_TO_RELEASE.md`** — **what remains** to ship  
+4. **`docs/MASTER_DESIGN_BIBLE.md`** — vision and pillars  
+5. **`PROJECT_LOCK_RULES.md`** + **`final-lock/FINAL_TRUTH.md`** — constraints  
+6. **`agent/AGENT_BUILD_INSTRUCTIONS.md`** — build order + **documentation rules**
+
+## Project status
+
+This is a **working foundation**, not a finished commercial MMO. Many modules exist under `server/src/modules/`; wiring, UI, and balance vary by system. Use **`docs/DOCUMENTATION_INDEX.md`** to distinguish **current** docs from **historical** reconstruction packs.
+
+## Client renderer
+
+**Primary: Babylon.js.** PlayCanvas code under `client/src/engine/playcanvas/` is **legacy fallback** only.

@@ -1,9 +1,15 @@
 # Master Index
 
 ## Root
+- README.md
 - README_START_HERE.md
 - PROJECT_LOCK_RULES.md
 - MASTER_INDEX.md
+
+## Status & roadmap (read first for agents)
+- docs/PROJECT_STATUS_2026.md
+- docs/ROADMAP_TO_RELEASE.md
+- docs/DOCUMENTATION_INDEX.md
 
 ## Core Docs
 - docs/MASTER_DESIGN_BIBLE.md

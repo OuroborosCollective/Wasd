@@ -3,7 +3,7 @@
 ## Cursor Cloud specific instructions
 
 ### Project overview
-Arelorian/Ouroboros is a browser-based MMORPG built as a pnpm workspace with two packages: `server/` (Express + WebSocket game server) and `client/` (Vite + Babylon.js/PlayCanvas 3D client). See `README.md` for full architecture.
+Arelorian/Ouroboros is a browser-based MMORPG: `server/` (Express + WebSocket game server) and `client/` (Vite + **Babylon.js** 3D client). Legacy **PlayCanvas** code exists only as a **fallback** if Babylon bootstrap fails. See `README.md` and `docs/PROJECT_STATUS_2026.md`.
 
 ### Running the development server
 - **Command:** `pnpm run dev` (runs `tsx watch src/index.ts` in `server/`).
@@ -27,4 +27,4 @@ Copy `.env.example` to `.env`. Only `PORT` and `NODE_ENV` are needed for local d
 | Client standalone Vite dev server (if run separately) | 3001 |
 
 ### Testing the game loop without a browser
-Connect via WebSocket to `ws://localhost:3000/ws` and send `{"type":"login"}`. The server assigns a dev player and broadcasts `entity_sync` packets every 100ms tick. Use `move_intent`, `interact`, and `attack` message types.
+Connect via WebSocket to `ws://localhost:3000/ws` and send `{"type":"login"}`. The server assigns a dev player; **`entity_sync`** is broadcast on a configurable interval (default **200 ms**, sim tick **100 ms**). Use `input` (WASD keydown/keyup), `move_intent` (analog), `interact`, `dialogue_choice`, and `attack` as needed.

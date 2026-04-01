@@ -23,7 +23,7 @@
 
 | Komponente | Technologie |
 | :--- | :--- |
-| **Frontend** | Vite + React + TypeScript + Three.js/Babylon.js |
+| **Frontend** | Vite + TypeScript + **Babylon.js** (primary); optional PlayCanvas fallback in repo |
 | **Backend** | Node.js + TypeScript + Express/Fastify |
 | **Datenbank** | Firebase Firestore + Redis (Caching/Thinkinglogs) |
 | **Authentifizierung** | OAuth + Session Management |
