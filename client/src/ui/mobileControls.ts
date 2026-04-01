@@ -182,7 +182,10 @@ const MOBILE_STYLES = `
 `;
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
+import { MMORPGClientCore } from "../core/MMORPGClientCore";
+
 export function initMobileControls(
+  core: MMORPGClientCore,
   callbacks: {
     onAttack: () => void;
     onInteract: () => void;
@@ -350,6 +353,9 @@ export function initMobileControls(
     joystickState.active = true;
   }, { passive: false });
 
+  let currentKeyX: string | null = null;
+  let currentKeyY: string | null = null;
+
   joystickZone.addEventListener("touchmove", (e) => {
     e.preventDefault();
     for (let i = 0; i < e.changedTouches.length; i++) {
@@ -365,6 +371,32 @@ export function initMobileControls(
       joystickThumb.style.transform = `translate(calc(-50% + ${clampedX}px), calc(-50% + ${clampedY}px))`;
       joystickState.dx = clampedX / JOYSTICK_RADIUS;
       joystickState.dy = clampedY / JOYSTICK_RADIUS;
+
+      // Map to WASD inputs
+      const threshold = 0.5;
+      const nx = joystickState.dx;
+      const ny = joystickState.dy;
+
+      let newKeyX: string | null = null;
+      let newKeyY: string | null = null;
+
+      if (nx > threshold) newKeyX = 'd';
+      else if (nx < -threshold) newKeyX = 'a';
+
+      if (ny > threshold) newKeyY = 's';
+      else if (ny < -threshold) newKeyY = 'w';
+
+      if (newKeyX !== currentKeyX) {
+        if (currentKeyX) core.events.emit('input', { type: 'keyup', key: currentKeyX });
+        if (newKeyX) core.events.emit('input', { type: 'keydown', key: newKeyX });
+        currentKeyX = newKeyX;
+      }
+
+      if (newKeyY !== currentKeyY) {
+        if (currentKeyY) core.events.emit('input', { type: 'keyup', key: currentKeyY });
+        if (newKeyY) core.events.emit('input', { type: 'keydown', key: newKeyY });
+        currentKeyY = newKeyY;
+      }
     }
   }, { passive: false });
 
@@ -374,6 +406,15 @@ export function initMobileControls(
     joystickState.dx = 0;
     joystickState.dy = 0;
     joystickThumb.style.transform = "translate(-50%, -50%)";
+
+    if (currentKeyX) {
+      core.events.emit('input', { type: 'keyup', key: currentKeyX });
+      currentKeyX = null;
+    }
+    if (currentKeyY) {
+      core.events.emit('input', { type: 'keyup', key: currentKeyY });
+      currentKeyY = null;
+    }
   };
 
   joystickZone.addEventListener("touchend", resetJoystick, { passive: false });

@@ -1,14 +1,19 @@
+import { closeAllPanels } from "./panelManager";
+
 export function renderEquipmentPanel() {
   let panel = document.getElementById('equipment-panel');
 
   if (panel) {
     if (panel.style.display === 'none') {
-      panel.style.display = 'block';
+      closeAllPanels();
+      panel.style.display = 'flex';
     } else {
       panel.style.display = 'none';
     }
     return;
   }
+
+  closeAllPanels();
 
   panel = document.createElement("div");
   panel.id = "equipment-panel";
@@ -17,10 +22,13 @@ export function renderEquipmentPanel() {
   panel.setAttribute("aria-label", "Equipment Panel");
 
   panel.style.position = "fixed";
-  panel.style.right = "clamp(320px, 32vw, 420px)"; // Positioned next to inventory
-  panel.style.top = "10%";
-  panel.style.width = "clamp(250px, 20vw, 300px)";
-  panel.style.height = "clamp(400px, 60vh, 600px)";
+  panel.style.left = "50%";
+  panel.style.top = "50%";
+  panel.style.transform = "translate(-50%, -50%)";
+  panel.style.width = "90vw";
+  panel.style.maxWidth = "400px";
+  panel.style.height = "80vh";
+  panel.style.maxHeight = "600px";
   panel.style.zIndex = "1000";
   panel.style.display = "flex";
   panel.style.flexDirection = "column";

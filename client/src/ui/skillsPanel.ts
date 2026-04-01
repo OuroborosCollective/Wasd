@@ -1,14 +1,19 @@
+import { closeAllPanels } from "./panelManager";
+
 export function renderSkillsPanel() {
   let panel = document.getElementById('skills-panel');
 
   if (panel) {
     if (panel.style.display === 'none') {
-      panel.style.display = 'block';
+      closeAllPanels();
+      panel.style.display = 'flex';
     } else {
       panel.style.display = 'none';
     }
     return;
   }
+
+  closeAllPanels();
 
   panel = document.createElement("div");
   panel.id = "skills-panel";
@@ -17,10 +22,13 @@ export function renderSkillsPanel() {
   panel.setAttribute("aria-label", "Skills Panel");
 
   panel.style.position = "fixed";
-  panel.style.left = "5%";
-  panel.style.bottom = "10%";
-  panel.style.width = "clamp(300px, 25vw, 400px)";
-  panel.style.height = "clamp(250px, 40vh, 400px)";
+  panel.style.left = "50%";
+  panel.style.top = "50%";
+  panel.style.transform = "translate(-50%, -50%)";
+  panel.style.width = "90vw";
+  panel.style.maxWidth = "400px";
+  panel.style.height = "80vh";
+  panel.style.maxHeight = "600px";
   panel.style.zIndex = "1000";
   panel.style.display = "flex";
   panel.style.flexDirection = "column";
