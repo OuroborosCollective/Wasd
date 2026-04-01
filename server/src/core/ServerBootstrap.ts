@@ -1,11 +1,13 @@
 import express from "express";
 import { createServer } from "node:http";
+import fs from "node:fs";
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { WorldTick } from "./WorldTick.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import { mcpRoute } from "../api/mcpRoute.js";
 import migrationRoute from "../api/migrationRoute.js";
+import { resolveClientDistDir, resolveClientViteRoot } from "../utils/clientPaths.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,14 +35,22 @@ export class ServerBootstrap {
       next();
     });
 
-    const clientPath = path.resolve(__dirname, "../../../client/dist");
+    const clientPath = resolveClientDistDir(__dirname);
+    const clientIndex = path.join(clientPath, "index.html");
+    if (!fs.existsSync(clientIndex)) {
+      console.warn(
+        `[ServerBootstrap] No index.html at ${clientPath}. Set CLIENT_DIST_PATH or run the server with cwd at the monorepo root (or use a sibling ../client/dist).`
+      );
+    }
+
     if (process.env.NODE_ENV !== "production") {
       try {
         const { createServer: createViteServer } = await import("vite");
+        const viteRoot = resolveClientViteRoot(__dirname, clientPath);
         const vite = await createViteServer({
           server: { middlewareMode: true },
           appType: "spa",
-          root: path.resolve(__dirname, "../../../client"),
+          root: viteRoot,
         });
         app.use(vite.middlewares);
       } catch (e) {
