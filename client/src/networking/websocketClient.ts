@@ -221,8 +221,15 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
           spawnPosition: data.spawnPosition,
         });
       }
-      if (data.type === 'dialogue') {
-        core.handleDialogue(data.text);
+      if (data.type === "dialogue") {
+        core.handleDialogue({
+          source: data.source,
+          text: data.text,
+          questId: data.questId,
+          choices: data.choices,
+          npcId: data.npcId,
+          nodeId: data.nodeId,
+        });
       }
     } catch (e) {
       console.warn("Failed to parse server message:", msg.data);
@@ -230,9 +237,22 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
   };
 }
 
-export function sendDialogueChoice(npcId: string, choiceId: string) {
+export function sendDialogueChoice(npcId: string, choiceId: string, nodeId?: string) {
   if (globalWs && globalWs.readyState === WebSocket.OPEN) {
-    globalWs.send(JSON.stringify({ type: 'dialogue_choice', npcId, choiceId }));
+    globalWs.send(
+      JSON.stringify({
+        type: "dialogue_choice",
+        npcId,
+        choiceId,
+        ...(nodeId ? { nodeId } : {}),
+      })
+    );
+  }
+}
+
+export function sendQuestAccept(npcId: string, nodeId?: string) {
+  if (globalWs && globalWs.readyState === WebSocket.OPEN) {
+    globalWs.send(JSON.stringify({ type: "quest_accept", npcId, ...(nodeId ? { nodeId } : {}) }));
   }
 }
 

@@ -1,0 +1,65 @@
+[
+  {
+    "id": "sv_well",
+    "type": "prop",
+    "name": "Village Well",
+    "position": { "x": 0, "y": 5 },
+    "rotation": 0,
+    "scale": 2.5,
+    "glbPath": "/assets/models/objects/chest.glb"
+  },
+  {
+    "id": "sv_hut_a",
+    "type": "building",
+    "name": "Hut",
+    "position": { "x": -10, "y": 4 },
+    "rotation": 0.4,
+    "scale": 4,
+    "glbPath": "/assets/models/objects/chest.glb"
+  },
+  {
+    "id": "sv_hut_b",
+    "type": "building",
+    "name": "Hut",
+    "position": { "x": 10, "y": 4 },
+    "rotation": -0.35,
+    "scale": 4,
+    "glbPath": "/assets/models/objects/chest.glb"
+  },
+  {
+    "id": "sv_hut_c",
+    "type": "building",
+    "name": "Hut",
+    "position": { "x": -6, "y": -10 },
+    "rotation": 2.2,
+    "scale": 3.5,
+    "glbPath": "/assets/models/objects/chest.glb"
+  },
+  {
+    "id": "sv_hut_d",
+    "type": "building",
+    "name": "Hut",
+    "position": { "x": 8, "y": -9 },
+    "rotation": -2.0,
+    "scale": 3.5,
+    "glbPath": "/assets/models/objects/chest.glb"
+  },
+  {
+    "id": "sv_fence_n",
+    "type": "prop",
+    "name": "Fence",
+    "position": { "x": 0, "y": 14 },
+    "rotation": 0,
+    "scale": 2,
+    "glbPath": "/assets/models/objects/chest.glb"
+  },
+  {
+    "id": "sv_fence_s",
+    "type": "prop",
+    "name": "Fence",
+    "position": { "x": 0, "y": -14 },
+    "rotation": 0,
+    "scale": 2,
+    "glbPath": "/assets/models/objects/chest.glb"
+  }
+]

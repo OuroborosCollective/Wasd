@@ -1,7 +1,15 @@
 [
   {
+    "id": "npc_guide",
+    "name": "Linnea",
+    "role": "Village Guide",
+    "dialogueId": "dialogue_guide",
+    "questHooks": ["starter_welcome", "village_tour"],
+    "faction": "Neutral"
+  },
+  {
     "id": "npc_1",
-    "name": "Test NPC",
+    "name": "Quartermaster Mara",
     "role": "Quest Giver",
     "dialogueId": "dialogue_npc_1",
     "questHooks": ["first_steps", "missing_letter"],

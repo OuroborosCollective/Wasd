@@ -261,6 +261,55 @@ export class WorldTick {
   private areMode: AREMode = "shader";
   private eventTemplates: GMTemplateDefinition[] = Object.values(GM_EVENT_TEMPLATES);
   private pendingTemplateSteps: ScheduledGMTemplateStep[] = [];
+  /** Last dialogue state per player for dialogue_choice / quest accept */
+  private dialogueContext: Map<
+    string,
+    { npcId: string; pendingQuestId: string | null; nodeId: string }
+  > = new Map();
+
+  private findNearestNpcForInteract(player: any) {
+    const px = player.position.x;
+    const py = player.position.y;
+    const maxD = GameConfig.interactDistance;
+    let best: { npc: any; d2: number } | null = null;
+    for (const npc of this.npcSystem.getAllNPCs()) {
+      const dx = npc.position.x - px;
+      const dy = npc.position.y - py;
+      const d2 = dx * dx + dy * dy;
+      if (d2 <= maxD * maxD && (!best || d2 < best.d2)) {
+        best = { npc, d2 };
+      }
+    }
+    return best?.npc ?? null;
+  }
+
+  private sendDialogueToPlayer(
+    socketId: string,
+    playerId: string,
+    interaction: {
+      source: string;
+      text: string;
+      questId: string | null;
+      choices: any[];
+      npcId: string;
+      nodeId: string;
+    }
+  ) {
+    this.dialogueContext.set(playerId, {
+      npcId: interaction.npcId,
+      pendingQuestId: interaction.questId,
+      nodeId: interaction.nodeId,
+    });
+    this.ws.sendToPlayer(socketId, {
+      type: "dialogue",
+      source: interaction.source,
+      text: interaction.text,
+      questId: interaction.questId,
+      choices: interaction.choices || [],
+      npcId: interaction.npcId,
+      nodeId: interaction.nodeId,
+    });
+  }
 
   private getSceneProfile(sceneId: string | undefined): { sceneId: string; profile: SceneProfile } {
     const resolvedSceneId = sceneId && this.sceneProfiles[sceneId] ? sceneId : DEFAULT_SCENE_ID;
@@ -1132,6 +1181,7 @@ export class WorldTick {
         this.playerToSocket.delete(uid);
         this.playerKeysDown.delete(uid);
         this.playerAnalogMove.delete(uid);
+        this.dialogueContext.delete(uid);
         await this.saveAll();
         console.log(`Player ${player.name} (Socket ${id}) disconnected. Character remains in world.`);
       }
@@ -1278,8 +1328,83 @@ export class WorldTick {
       }
 
       if (msg.type === "interact") {
-        // Interaction logic...
-        this.ws.sendToPlayer(id, { type: 'dialogue', text: "Hello traveler!" });
+        if (!player.flags) player.flags = {};
+        const npc = this.findNearestNpcForInteract(player);
+        if (!npc) {
+          this.ws.sendToPlayer(id, {
+            type: "dialogue",
+            source: "…",
+            text: "There is no one in range to talk to. Move closer to an NPC and try again.",
+            questId: null,
+            choices: [],
+            npcId: "",
+            nodeId: "root",
+          });
+          return;
+        }
+        const defs = this.questSystem.getQuestDefinitions();
+        const interaction = this.npcSystem.handleInteraction(npc.id, player, defs);
+        if (!interaction) return;
+
+        let text = interaction.text;
+        const talkRewards = this.questSystem.checkTalkToQuests(player, npc.id);
+        for (const r of talkRewards) {
+          text += `\n\nQuest completed: ${r.quest.title || r.quest.id}`;
+        }
+
+        this.sendDialogueToPlayer(id, player.id, {
+          source: interaction.source,
+          text,
+          questId: interaction.questId,
+          choices: interaction.choices || [],
+          npcId: interaction.npcId,
+          nodeId: interaction.nodeId || "root",
+        });
+      }
+
+      if (msg.type === "dialogue_choice" || msg.type === "quest_accept") {
+        const ctx = this.dialogueContext.get(player.id);
+        if (!ctx || !ctx.npcId) {
+          return;
+        }
+        const choiceId =
+          msg.type === "quest_accept" ? "sys_quest_accept" : String(msg.choiceId || "");
+        const nodeId = isNonEmptyString(msg.nodeId) ? msg.nodeId.trim() : ctx.nodeId;
+
+        const choice = this.npcSystem.handleChoice(
+          ctx.npcId,
+          nodeId,
+          choiceId,
+          player,
+          ctx.pendingQuestId
+        );
+        if (!choice) {
+          return;
+        }
+
+        if (choice.startQuestId) {
+          this.questSystem.startQuest(player, choice.startQuestId);
+        }
+
+        let text = choice.text;
+        const talkRewards = this.questSystem.checkTalkToQuests(player, ctx.npcId);
+        for (const r of talkRewards) {
+          text += `\n\nQuest completed: ${r.quest.title || r.quest.id}`;
+        }
+
+        const nextPending =
+          choiceId === "sys_quest_accept" || choiceId === "sys_quest_decline"
+            ? null
+            : choice.questId;
+
+        this.sendDialogueToPlayer(id, player.id, {
+          source: choice.source,
+          text,
+          questId: nextPending,
+          choices: choice.choices || [],
+          npcId: choice.npcId,
+          nodeId: choice.nodeId || "root",
+        });
       }
     };
   }

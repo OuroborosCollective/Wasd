@@ -19,7 +19,10 @@ export class WorldObjectSystem {
 
   constructor(persistence?: PersistenceManager) {
     this.persistence = persistence || null;
-    this.dataPath = path.resolve(process.cwd(), "game-data/world/objects.json");
+    const cwd = process.cwd();
+    const a = path.resolve(cwd, "game-data/world/objects.json");
+    const b = path.resolve(cwd, "../game-data/world/objects.json");
+    this.dataPath = fs.existsSync(a) ? a : b;
     this.load();
   }
 
