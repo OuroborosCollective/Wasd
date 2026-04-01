@@ -30,4 +30,7 @@ export interface IEngineBridge {
 
   // Lifecycle
   update(dt: number): void;
+
+  // Optional renderer-specific controls
+  setAREMode?(mode: string): void;
 }

@@ -68,6 +68,12 @@ export class MMORPGClientCore {
     return this.localPlayerId;
   }
 
+  public setAREMode(mode: string) {
+    if (typeof this.engine.setAREMode === "function") {
+      this.engine.setAREMode(mode);
+    }
+  }
+
   public teleportLocalPlayerTo(position: { x: number; y: number; z: number }) {
     if (!this.localPlayerId) return;
     const player = this.entities.get(this.localPlayerId);

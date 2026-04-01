@@ -25,6 +25,44 @@ function toEntityPosition(spawnPosition?: Partial<SpawnPosition>) {
   return { x, y, z };
 }
 
+function normalizeAREPayload(rawAre: any) {
+  if (!rawAre || typeof rawAre !== "object") {
+    return undefined;
+  }
+  const kappa = Number(rawAre.kappa);
+  const logicalIndex = Number(rawAre.logicalIndex);
+  const phaseShift = Number(rawAre.phaseShift);
+  const resonance = Number(rawAre.resonance);
+  const plexity = Number(rawAre.plexity);
+  const kappaPosRaw = rawAre.kappaPos || {};
+  const kappaPos = {
+    x: Number(kappaPosRaw.x),
+    y: Number(kappaPosRaw.y),
+    z: Number(kappaPosRaw.z),
+  };
+  if (
+    !Number.isFinite(kappa) ||
+    !Number.isFinite(logicalIndex) ||
+    !Number.isFinite(phaseShift) ||
+    !Number.isFinite(resonance) ||
+    !Number.isFinite(plexity) ||
+    !Number.isFinite(kappaPos.x) ||
+    !Number.isFinite(kappaPos.y) ||
+    !Number.isFinite(kappaPos.z)
+  ) {
+    return undefined;
+  }
+  return {
+    kappa,
+    logicalIndex,
+    phaseShift,
+    resonance,
+    plexity,
+    chain: typeof rawAre.chain === "string" ? rawAre.chain : "",
+    kappaPos,
+  };
+}
+
 function normalizeWebSocketUrl(rawUrl: string | undefined): string | null {
   if (!rawUrl || rawUrl.trim().length === 0) {
     return null;
@@ -117,10 +155,14 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
     try {
       const data = JSON.parse(msg.data);
       if (data.type === 'entity_sync') {
+        if (typeof data.areMode === "string") {
+          core.setAREMode(data.areMode);
+        }
         if (data.entities) {
           const normalizedEntities = data.entities.map((entity: any) => ({
             ...entity,
             modelUrl: entity.modelUrl ?? entity.glbPath,
+            are: normalizeAREPayload(entity.are),
           }));
           core.syncEntities(normalizedEntities);
         }
