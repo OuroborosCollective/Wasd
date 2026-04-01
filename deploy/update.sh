@@ -8,10 +8,10 @@ echo "🔄 Updating Areloria MMORPG..."
 cd "$APP_DIR"
 git pull origin main
 
-# Rebuild client
+# Rebuild client (heap limit set in client/package.json "build" for large Vite bundles)
 cd "$APP_DIR/client"
 npm install
-npx vite build
+npm run build
 
 # Rebuild server (includes content validation like deploy.sh)
 cd "$APP_DIR/server"

@@ -49,6 +49,8 @@ Oder dauerhaft in `/opt/areloria/.env` ergänzen: `CLIENT_ROOT_DIR=/opt/areloria
 
 Der Workflow setzt `CI=1`, sodass `deploy.sh` kein `apt-get upgrade` mehr ausführt (das bricht oft bei SSH ohne TTY). Für manuelle Runs auf dem Server: `SKIP_APT_UPGRADE=1 ./deploy/deploy.sh`. Nach dem ersten Setup nutzt der Workflow `deploy/update.sh` (Pull, Build, PM2).
 
+Wenn der Client-Build mit **„JavaScript heap out of memory“** abbricht, nutzt `client` bereits ein erhöhtes Limit (`--max-old-space-size=6144` im `build`-Script). Bei sehr kleinen VPS-Plänen ggf. Swap erhöhen oder Build lokal/GitHub Actions ausführen und nur `client/dist` deployen.
+
 ---
 
 ## Tastenkürzel im Spiel
