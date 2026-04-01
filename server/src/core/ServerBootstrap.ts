@@ -1,14 +1,12 @@
 import express from "express";
 import { createServer } from "node:http";
+import fs from "node:fs";
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { WorldTick } from "./WorldTick.js";
 import path from "path";
-import { fileURLToPath } from "url";
 import { mcpRoute } from "../api/mcpRoute.js";
 import migrationRoute from "../api/migrationRoute.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { resolveClientPaths } from "./clientPaths.js";
 
 export class ServerBootstrap {
   async start() {
@@ -33,22 +31,27 @@ export class ServerBootstrap {
       next();
     });
 
-    const clientPath = path.resolve(__dirname, "../../../client/dist");
+    const { root: clientRoot, dist: clientDist } = resolveClientPaths();
+    if (!fs.existsSync(path.join(clientDist, "index.html"))) {
+      console.warn(
+        `Client build missing at ${clientDist} (no index.html). Set CLIENT_DIST_PATH or run from the monorepo root.`
+      );
+    }
     if (process.env.NODE_ENV !== "production") {
       try {
         const { createServer: createViteServer } = await import("vite");
         const vite = await createViteServer({
           server: { middlewareMode: true },
           appType: "spa",
-          root: path.resolve(__dirname, "../../../client"),
+          root: clientRoot,
         });
         app.use(vite.middlewares);
       } catch (e) {
         console.error("Failed to start Vite middleware", e);
-        app.use(express.static(clientPath));
+        app.use(express.static(clientDist));
       }
     } else {
-      app.use(express.static(clientPath));
+      app.use(express.static(clientDist));
     }
 
     const ws = new GameWebSocketServer(httpServer);
