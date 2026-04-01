@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "npm run dev --prefix server",
-    "build": "npm run build --prefix client && npm run build --prefix server",
+    "build": "NODE_OPTIONS=\"${NODE_OPTIONS:---max-old-space-size=8192}\" npm run build --prefix client && npm run build --prefix server",
     "start": "node server/dist/index.js",
     "lint": "eslint .",
     "clean": "next clean",

@@ -57,7 +57,8 @@ npm install
 echo "[6/10] Building client (Vite)..."
 cd "$APP_DIR/client"
 # Avoid OOM on VPS during large Vite bundle render.
-export NODE_OPTIONS="--max-old-space-size=4096"
+BUILD_NODE_OPTIONS="${BUILD_NODE_OPTIONS:---max-old-space-size=6144}"
+export NODE_OPTIONS="$BUILD_NODE_OPTIONS"
 npm run build
 
 # ── 7. Build server ───────────────────────────────────────

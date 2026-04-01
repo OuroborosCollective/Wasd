@@ -22,6 +22,8 @@ jobs:
         run: npm ci
 
       - name: Build client and server
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
         run: npm run build
 
       - name: Run focused ARE tests
