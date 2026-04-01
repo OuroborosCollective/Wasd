@@ -57,15 +57,15 @@ npm install
 echo "[6/10] Building client (Vite)..."
 cd "$APP_DIR/client"
 # Avoid OOM on VPS during large Vite bundle render.
-BUILD_NODE_OPTIONS="${BUILD_NODE_OPTIONS:---max-old-space-size=6144}"
-export NODE_OPTIONS="$BUILD_NODE_OPTIONS"
-npm run build
+BUILD_NODE_OPTIONS="${BUILD_NODE_OPTIONS:---max-old-space-size=8192}"
+echo "Using client build NODE_OPTIONS=${BUILD_NODE_OPTIONS}"
+NODE_OPTIONS="$BUILD_NODE_OPTIONS" node -e "const v8=require('node:v8'); console.log('Heap limit MB:', Math.round(v8.getHeapStatistics().heap_size_limit/1024/1024));"
+NODE_OPTIONS="$BUILD_NODE_OPTIONS" node ./node_modules/vite/bin/vite.js build
 
 # ── 7. Build server ───────────────────────────────────────
 echo "[7/10] Building server (TypeScript)..."
 cd "$APP_DIR/server"
 npm run build
-unset NODE_OPTIONS
 
 # ── 8. Create symlink for game-data ───────────────────────
 echo "[8/10] Setting up game-data symlink..."

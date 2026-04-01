@@ -25,6 +25,7 @@ jobs:
           cd /opt/areloria
           git fetch origin main
           git reset --hard origin/main
+          export BUILD_NODE_OPTIONS="--max-old-space-size=8192"
           chmod +x deploy/deploy.sh
           ./deploy/deploy.sh
 
