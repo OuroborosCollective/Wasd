@@ -10,6 +10,14 @@ import { renderImprovedVirtualJoystick } from "./ui/ImprovedVirtualJoystick";
 import { renderMobileSceneTeleportPanel } from "./ui/mobileSceneTeleportPanel";
 import { performanceMonitor } from "./utils/PerformanceMonitor";
 
+type AREPolicyConfig = {
+  cooldownMs?: number;
+  lowFpsThreshold?: number;
+  stableFpsThreshold?: number;
+  lowSampleTrigger?: number;
+  stableSampleTrigger?: number;
+};
+
 let canvas = document.getElementById("application-canvas") as HTMLCanvasElement;
 if (!canvas) {
   canvas = document.createElement("canvas");
@@ -58,6 +66,22 @@ function bootEngineBridge(targetCanvas: HTMLCanvasElement): IEngineBridge {
   }
 }
 
+async function loadAREPolicyConfig(): Promise<AREPolicyConfig | undefined> {
+  try {
+    const response = await fetch("/world/are-performance-policy.json", { cache: "no-store" });
+    if (!response.ok) {
+      return undefined;
+    }
+    const parsed = await response.json();
+    if (!parsed || typeof parsed !== "object") {
+      return undefined;
+    }
+    return parsed as AREPolicyConfig;
+  } catch {
+    return undefined;
+  }
+}
+
 try {
   // 1. Boot Engine + Adapter
   const adapter = bootEngineBridge(canvas);
@@ -73,7 +97,16 @@ try {
   if (persistedToken && persistedToken.trim().length > 0) {
     connectionOptions.token = persistedToken;
   }
-  connectSocket(core, connectionOptions);
+  const policyPromise = loadAREPolicyConfig().then((policyConfig) => {
+    if (policyConfig) {
+      connectionOptions.arePolicyConfig = policyConfig;
+    }
+  });
+  policyPromise
+    .catch(() => undefined)
+    .finally(() => {
+      connectSocket(core, connectionOptions);
+    });
   (window as any).requestSceneChange = requestSceneChange;
   renderHUD();
   renderMobileSceneTeleportPanel();

@@ -11,11 +11,44 @@ export type AutoPolicyDecision = {
   nextState: AutoPolicyState;
 };
 
-const COOLDOWN_MS = 4000;
-const LOW_FPS_THRESHOLD = 28;
-const STABLE_FPS_THRESHOLD = 48;
-const LOW_SAMPLE_TRIGGER = 4;
-const STABLE_SAMPLE_TRIGGER = 8;
+export type AutoPolicyConfig = {
+  cooldownMs: number;
+  lowFpsThreshold: number;
+  stableFpsThreshold: number;
+  lowSampleTrigger: number;
+  stableSampleTrigger: number;
+};
+
+const DEFAULT_POLICY_CONFIG: AutoPolicyConfig = {
+  cooldownMs: 4000,
+  lowFpsThreshold: 28,
+  stableFpsThreshold: 48,
+  lowSampleTrigger: 4,
+  stableSampleTrigger: 8,
+};
+
+function sanitizeNumber(value: unknown, fallback: number, min: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(min, parsed) : fallback;
+}
+
+export function normalizeAutoPolicyConfig(raw: unknown): AutoPolicyConfig {
+  const source = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  return {
+    cooldownMs: sanitizeNumber(source.cooldownMs, DEFAULT_POLICY_CONFIG.cooldownMs, 250),
+    lowFpsThreshold: sanitizeNumber(source.lowFpsThreshold, DEFAULT_POLICY_CONFIG.lowFpsThreshold, 1),
+    stableFpsThreshold: sanitizeNumber(source.stableFpsThreshold, DEFAULT_POLICY_CONFIG.stableFpsThreshold, 1),
+    lowSampleTrigger: sanitizeNumber(source.lowSampleTrigger, DEFAULT_POLICY_CONFIG.lowSampleTrigger, 1),
+    stableSampleTrigger: sanitizeNumber(source.stableSampleTrigger, DEFAULT_POLICY_CONFIG.stableSampleTrigger, 1),
+  };
+}
+
+function resolveConfig(config?: Partial<AutoPolicyConfig>): AutoPolicyConfig {
+  if (!config) {
+    return DEFAULT_POLICY_CONFIG;
+  }
+  return normalizeAutoPolicyConfig({ ...DEFAULT_POLICY_CONFIG, ...config });
+}
 
 export function defaultAutoPolicyState(): AutoPolicyState {
   return {
@@ -29,17 +62,19 @@ export function evaluateAREAutoModePolicy(
   currentMode: AREMode,
   fps: number,
   nowMs: number,
-  prev: AutoPolicyState
+  prev: AutoPolicyState,
+  config?: Partial<AutoPolicyConfig>
 ): AutoPolicyDecision {
+  const policy = resolveConfig(config);
   const state: AutoPolicyState = { ...prev };
   if (nowMs < state.overridesDisabledUntilMs) {
     return { nextMode: null, nextState: state };
   }
 
-  if (fps < LOW_FPS_THRESHOLD) {
+  if (fps < policy.lowFpsThreshold) {
     state.lowFpsSamples += 1;
     state.stableSamples = 0;
-  } else if (fps > STABLE_FPS_THRESHOLD) {
+  } else if (fps > policy.stableFpsThreshold) {
     state.stableSamples += 1;
     state.lowFpsSamples = Math.max(0, state.lowFpsSamples - 1);
   } else {
@@ -47,10 +82,10 @@ export function evaluateAREAutoModePolicy(
     state.stableSamples = Math.max(0, state.stableSamples - 1);
   }
 
-  if (state.lowFpsSamples >= LOW_SAMPLE_TRIGGER) {
+  if (state.lowFpsSamples >= policy.lowSampleTrigger) {
     state.lowFpsSamples = 0;
     state.stableSamples = 0;
-    state.overridesDisabledUntilMs = nowMs + COOLDOWN_MS;
+    state.overridesDisabledUntilMs = nowMs + policy.cooldownMs;
     if (currentMode === "shader") {
       return { nextMode: "cpu", nextState: state };
     }
@@ -60,10 +95,10 @@ export function evaluateAREAutoModePolicy(
     return { nextMode: null, nextState: state };
   }
 
-  if (state.stableSamples >= STABLE_SAMPLE_TRIGGER) {
+  if (state.stableSamples >= policy.stableSampleTrigger) {
     state.lowFpsSamples = 0;
     state.stableSamples = 0;
-    state.overridesDisabledUntilMs = nowMs + COOLDOWN_MS;
+    state.overridesDisabledUntilMs = nowMs + policy.cooldownMs;
     if (currentMode === "off") {
       return { nextMode: "cpu", nextState: state };
     }

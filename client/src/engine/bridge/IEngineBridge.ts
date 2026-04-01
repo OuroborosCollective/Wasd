@@ -33,4 +33,11 @@ export interface IEngineBridge {
 
   // Optional renderer-specific controls
   setAREMode?(mode: string): void;
+  setAREPolicyConfig?(config: {
+    cooldownMs?: number;
+    lowFpsThreshold?: number;
+    stableFpsThreshold?: number;
+    lowSampleTrigger?: number;
+    stableSampleTrigger?: number;
+  }): void;
 }

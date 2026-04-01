@@ -1,4 +1,9 @@
 {
   "version": 1,
-  "areMode": "shader"
+  "areMode": "shader",
+  "deviceClassDefaults": {
+    "desktop": "shader",
+    "mobile": "cpu",
+    "low_end": "off"
+  }
 }

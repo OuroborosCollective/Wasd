@@ -23,6 +23,8 @@ import { AssetRegistry } from "../playcanvas/AssetRegistry";
 import {
   defaultAutoPolicyState,
   evaluateAREAutoModePolicy,
+  normalizeAutoPolicyConfig,
+  type AutoPolicyConfig,
   type AutoPolicyState,
   type AREMode,
 } from "./AREPerformancePolicy";
@@ -79,6 +81,7 @@ export class BabylonAdapter implements IEngineBridge {
   private arePerfAutoMode = false;
   private arePerfAutoReason = "manual";
   private arePerfState: AutoPolicyState = defaultAutoPolicyState();
+  private arePolicyConfig: AutoPolicyConfig = normalizeAutoPolicyConfig(undefined);
   private cameraTargetId: string | null = null;
   private navigationMarker: Mesh | null = null;
   private localPlayerId: string | null = null;
@@ -311,6 +314,16 @@ export class BabylonAdapter implements IEngineBridge {
     this.setAREModeInternal(normalized);
   }
 
+  setAREPolicyConfig(config: {
+    cooldownMs?: number;
+    lowFpsThreshold?: number;
+    stableFpsThreshold?: number;
+    lowSampleTrigger?: number;
+    stableSampleTrigger?: number;
+  }): void {
+    this.arePolicyConfig = normalizeAutoPolicyConfig(config);
+  }
+
   update(dt: number): void {
     this.updateAREPerfCounters(dt);
     this.areWaveClock.t += dt;
@@ -344,7 +357,8 @@ export class BabylonAdapter implements IEngineBridge {
       this.areMode,
       this.perf.fps,
       performance.now(),
-      this.arePerfState
+      this.arePerfState,
+      this.arePolicyConfig
     );
     this.arePerfState = decision.nextState;
     if (decision.nextMode) {

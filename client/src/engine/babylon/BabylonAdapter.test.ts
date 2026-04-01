@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { defaultAutoPolicyState, evaluateAREAutoModePolicy } from "./AREPerformancePolicy";
+import {
+  defaultAutoPolicyState,
+  evaluateAREAutoModePolicy,
+  normalizeAutoPolicyConfig,
+} from "./AREPerformancePolicy";
 
 describe("AREPerformancePolicy", () => {
   it("downgrades shader to cpu after repeated low FPS samples", () => {
@@ -30,5 +34,20 @@ describe("AREPerformancePolicy", () => {
       }
     }
     expect(decisionMode).toBe("cpu");
+  });
+
+  it("respects custom low-sample trigger from config", () => {
+    let state = defaultAutoPolicyState();
+    const config = normalizeAutoPolicyConfig({
+      lowSampleTrigger: 2,
+      stableSampleTrigger: 99,
+      lowFpsThreshold: 30,
+      stableFpsThreshold: 999,
+      cooldownMs: 1000,
+    });
+    const first = evaluateAREAutoModePolicy("shader", 20, 1000, state, config);
+    state = first.nextState;
+    const second = evaluateAREAutoModePolicy("shader", 20, 1600, state, config);
+    expect(second.nextMode).toBe("cpu");
   });
 });

@@ -8,6 +8,13 @@ export type ConnectionOptions = {
   token?: string;
   sceneId?: string;
   spawnKey?: string;
+  arePolicyConfig?: {
+    cooldownMs?: number;
+    lowFpsThreshold?: number;
+    stableFpsThreshold?: number;
+    lowSampleTrigger?: number;
+    stableSampleTrigger?: number;
+  };
 };
 
 type SpawnPosition = { x: number; y: number; z: number };
@@ -120,6 +127,9 @@ function resolveInitialSpawnKey(configuredSpawnKey?: string) {
 }
 
 export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions = {}) {
+  if (options.arePolicyConfig && typeof core.setAREPolicyConfig === "function") {
+    core.setAREPolicyConfig(options.arePolicyConfig);
+  }
   const ws = new WebSocket(resolveWebSocketUrl());
   globalWs = ws;
 

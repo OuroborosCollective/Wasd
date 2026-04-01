@@ -14,7 +14,7 @@ import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
 import { GLBRegistry } from "../modules/asset-registry/GLBRegistry.js";
 import { AssetPoolResolver } from "../modules/world/AssetPoolResolver.js";
 import { AREStateCompiler } from "../modules/world/AREStateCompiler.js";
-import { RuntimeSettingsStore } from "../modules/world/RuntimeSettingsStore.js";
+import { RuntimeSettingsStore, type AREDeviceClass, type AREMode } from "../modules/world/RuntimeSettingsStore.js";
 import { cache } from "./Cache.js";
 import fs from "fs";
 import path from "path";
@@ -82,8 +82,6 @@ type ScheduledGMTemplateStep = {
   originY: number;
   step: GMTemplateStep;
 };
-type AREMode = "off" | "cpu" | "shader";
-
 const DEFAULT_SCENE_ID = "didis_hub";
 const DEFAULT_SCENE_PROFILES: Record<string, SceneProfile> = {
   didis_hub: {
@@ -212,6 +210,31 @@ function normalizeAREMode(value: unknown): AREMode | null {
   if (normalized === "shader" || normalized === "on" || normalized === "true" || normalized === "are") {
     return "shader";
   }
+  return null;
+}
+
+function resolveAREDeviceClass(rawClass: unknown, userAgentRaw: unknown): AREDeviceClass {
+  const explicit = isNonEmptyString(rawClass) ? rawClass.trim().toLowerCase() : "";
+  if (explicit === "low_end") return "low_end";
+  if (explicit === "mobile") return "mobile";
+  if (explicit === "desktop") return "desktop";
+
+  const userAgent = isNonEmptyString(userAgentRaw) ? userAgentRaw.toLowerCase() : "";
+  if (!userAgent) return "desktop";
+  if (userAgent.includes("android") || userAgent.includes("iphone") || userAgent.includes("ipad")) {
+    return "mobile";
+  }
+  return "desktop";
+}
+
+function normalizeAREDeviceClass(value: unknown): AREDeviceClass | null {
+  if (!isNonEmptyString(value)) {
+    return null;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "mobile") return "mobile";
+  if (normalized === "low_end" || normalized === "lowend" || normalized === "low-end") return "low_end";
+  if (normalized === "desktop") return "desktop";
   return null;
 }
 
@@ -1179,6 +1202,8 @@ export class WorldTick {
           this.playerToSocket.set(uid, id);
           this.observerEngine.register(id, player.position);
 
+          const requestedDeviceClass = resolveAREDeviceClass(msg.areDeviceClass, msg.userAgent);
+          const recommendedMode = this.runtimeSettings.getAREModeForDeviceClass(requestedDeviceClass);
           this.ws.sendToPlayer(id, {
             type: "welcome",
             playerId: uid,
@@ -1186,6 +1211,9 @@ export class WorldTick {
             sceneId: spawn.sceneId,
             spawnKey: spawn.spawnKey,
             spawnPosition: spawn.spawnPoint,
+            areDeviceClass: requestedDeviceClass,
+            areMode: this.areMode,
+            recommendedAreMode: recommendedMode,
             stats: {
               gold: player.gold,
               xp: player.xp,
