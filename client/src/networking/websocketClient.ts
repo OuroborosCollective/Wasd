@@ -138,6 +138,12 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
       }
     });
 
+    core.events.on("move_intent", (payload: { dx: number; dy: number }) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "move_intent", dx: payload.dx, dy: payload.dy }));
+      }
+    });
+
     core.events.on('attack', () => {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'attack' }));

@@ -235,6 +235,10 @@ export class WorldTick {
   private lootEntities: Map<string, any> = new Map();
 
   private socketToPlayer: Map<string, string> = new Map(); // socketId -> characterName
+  /** WASD held per player (uid) — movement applied each tick so hold-to-move works on mobile + desktop */
+  private playerKeysDown: Map<string, Set<string>> = new Map();
+  /** Last analog stick vector from move_intent (-1..1), cleared after each tick */
+  private playerAnalogMove: Map<string, { dx: number; dy: number }> = new Map();
   private lastActionTimes: Map<string, number> = new Map(); // charName -> timestamp
   private sceneTriggerCooldowns: Map<string, number> = new Map();
   private sceneProfiles: Record<string, SceneProfile> = { ...DEFAULT_SCENE_PROFILES };
@@ -1126,6 +1130,8 @@ export class WorldTick {
         this.observerEngine.unregister(id);
         this.socketToPlayer.delete(id);
         this.playerToSocket.delete(uid);
+        this.playerKeysDown.delete(uid);
+        this.playerAnalogMove.delete(uid);
         await this.saveAll();
         console.log(`Player ${player.name} (Socket ${id}) disconnected. Character remains in world.`);
       }
@@ -1240,16 +1246,28 @@ export class WorldTick {
         return;
       }
 
-      if (msg.type === "input" || msg.type === "move_intent") {
-        const dx = msg.input?.key === 'a' ? -1 : msg.input?.key === 'd' ? 1 : msg.dx || 0;
-        const dy = msg.input?.key === 'w' ? -1 : msg.input?.key === 's' ? 1 : msg.dy || 0;
+      if (msg.type === "input") {
+        const keyRaw = typeof msg.input?.key === "string" ? msg.input.key.toLowerCase() : "";
+        const evType = msg.input?.type;
+        if (["w", "a", "s", "d"].includes(keyRaw)) {
+          let set = this.playerKeysDown.get(player.id);
+          if (!set) {
+            set = new Set();
+            this.playerKeysDown.set(player.id, set);
+          }
+          if (evType === "keydown") {
+            set.add(keyRaw);
+          } else if (evType === "keyup") {
+            set.delete(keyRaw);
+          }
+        }
+      }
 
+      if (msg.type === "move_intent") {
+        const dx = Math.max(-1, Math.min(1, Number(msg.dx ?? 0)));
+        const dy = Math.max(-1, Math.min(1, Number(msg.dy ?? 0)));
         if (dx !== 0 || dy !== 0) {
-          const speed = 0.5;
-          player.position.x += dx * speed;
-          player.position.y += dy * speed;
-          this.observerEngine.updatePosition(id, player.position);
-          this.processSceneTriggers(id, player);
+          this.playerAnalogMove.set(player.id, { dx, dy });
         }
       }
 
@@ -1384,16 +1402,25 @@ export class WorldTick {
 
   private loadSpawns() {
     try {
-      const spawnsPath = path.resolve(process.cwd(), "game-data/spawns/npc-spawns.json");
-      if (fs.existsSync(spawnsPath)) {
-        const spawnData = JSON.parse(fs.readFileSync(spawnsPath, "utf-8"));
-        spawnData.forEach((region: any) => {
-          region.spawns.forEach((spawn: any) => {
-            this.npcSystem.createNPC(spawn.npcId, "", spawn.x, spawn.y);
-          });
-        });
+      const cwd = process.cwd();
+      const candidates = [
+        path.resolve(cwd, "game-data/spawns/npc-spawns.json"),
+        path.resolve(cwd, "../game-data/spawns/npc-spawns.json"),
+      ];
+      const spawnsPath = candidates.find((p) => fs.existsSync(p));
+      if (!spawnsPath) {
+        return;
       }
-    } catch (e) {}
+      const spawnData = JSON.parse(fs.readFileSync(spawnsPath, "utf-8"));
+      spawnData.forEach((region: any) => {
+        region.spawns.forEach((spawn: any) => {
+          this.npcSystem.createNPC(spawn.npcId, "", spawn.x, spawn.y);
+        });
+      });
+      console.log(`[NPC Spawns] Loaded from ${spawnsPath}`);
+    } catch (e) {
+      console.warn("[NPC Spawns] Failed to load npc-spawns.json", e);
+    }
   }
 
   async saveAll() {
@@ -1417,6 +1444,44 @@ export class WorldTick {
     this.tickCount += 1;
     this.processTemplateQueue();
     const onlinePlayers = this.playerSystem.getAllPlayers().filter(p => !p.isOffline);
+
+    const moveSpeed = GameConfig.playerSpeed;
+    const step = (moveSpeed * GameConfig.tickRateMs) / 1000;
+
+    for (const player of onlinePlayers) {
+      const socketId = this.playerToSocket.get(player.id);
+      if (!socketId) {
+        continue;
+      }
+
+      let mx = 0;
+      let my = 0;
+      const analog = this.playerAnalogMove.get(player.id);
+      if (analog && (analog.dx !== 0 || analog.dy !== 0)) {
+        mx = analog.dx;
+        my = analog.dy;
+      } else {
+        const keys = this.playerKeysDown.get(player.id);
+        if (keys) {
+          if (keys.has("a")) mx -= 1;
+          if (keys.has("d")) mx += 1;
+          if (keys.has("w")) my -= 1;
+          if (keys.has("s")) my += 1;
+        }
+      }
+
+      if (mx !== 0 || my !== 0) {
+        const len = Math.hypot(mx, my);
+        const nx = mx / len;
+        const ny = my / len;
+        player.position.x += nx * step;
+        player.position.y += ny * step;
+        this.observerEngine.updatePosition(socketId, player.position);
+        this.processSceneTriggers(socketId, player);
+      }
+    }
+    this.playerAnalogMove.clear();
+
     this.npcSystem.tick(onlinePlayers, this.worldSystem.worldTime);
     this.worldSystem.tick();
 

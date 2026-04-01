@@ -6,7 +6,7 @@ import { MMORPGClientCore } from "./core/MMORPGClientCore";
 import { connectSocket, requestSceneChange, type ConnectionOptions } from "./networking/websocketClient";
 import { IEngineBridge } from "./engine/bridge/IEngineBridge";
 import { renderHUD, showDialogue } from "./ui/hud";
-import { initMobileControls } from "./ui/mobileControls";
+import { getJoystickState, initMobileControls, isMobile } from "./ui/mobileControls";
 import { renderInventory } from "./ui/inventory";
 import { renderSkillsPanel } from "./ui/skillsPanel";
 import { renderQuestLog } from "./ui/questLog";
@@ -109,6 +109,12 @@ try {
     const dt = Math.min((now - lastFrameTime) / 1000, 0.1);
     lastFrameTime = now;
     core.update(dt);
+    if (isMobile()) {
+      const j = getJoystickState();
+      if (j.active && (Math.abs(j.dx) > 0.04 || Math.abs(j.dy) > 0.04)) {
+        core.events.emit("move_intent", { dx: j.dx, dy: j.dy });
+      }
+    }
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
