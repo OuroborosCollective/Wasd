@@ -14,7 +14,7 @@ This document translates **`docs/MASTER_DESIGN_BIBLE.md`** into **concrete engin
 
 | ID | Area | Gap | Notes |
 |----|------|-----|-------|
-| A1 | Client | **Bundle size / load time** | **Partial:** `manualChunks` splits Babylon + Firebase; main `index` still large — optional lazy UI imports next |
+| A1 | Client | **Bundle size / load time** | **Partial:** Babylon + Firebase + split UI panel chunks + dynamic `import()` for panels/perf/teleport; main `index` still large (core + hud + mobile + engine bridge) — further splits need deeper refactors |
 | A2 | Combat | **`attack` not fully simulated** | **Partial:** nearest-target hit, HP, dummy respawn, combat quests; still no full aggro/loot-from-NPC loop |
 | A3 | Quests | **`collect` / `combat` completion** | **Partial:** collect turn-in on NPC talk; combat completes on kill; still no rich objective UI |
 | A4 | Persistence | **Production save model** | Firestore/Postgres paths exist; verify one path for player + world state in prod |

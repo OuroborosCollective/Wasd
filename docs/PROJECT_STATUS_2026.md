@@ -62,7 +62,8 @@ See **`docs/ROADMAP_TO_RELEASE.md`** for the full backlog aligned with the desig
 - **Collect quests**: turn-in on **talk** to `targetNpcId` / `giverNpcId` when inventory has `requiredItemId` × count  
 - **`quest_sync`** message + **`stats_sync`** (quests with collect progress, gold, XP)  
 - **Quest log** reads **live** `playerState`; HUD shows **Gold / XP**  
-- **Vite**: `manualChunks` for **babylon** + **firebase**  
+- **Vite**: `manualChunks` for **babylon**, **firebase**, **game UI panels** (inventory/skills vs quest/equipment), **mobile teleport**, **PerformanceMonitor**
+- **Client**: heavy panels loaded via **`dynamic import()`** (`lazyPanels.ts`) + idle **preload** after boot  
 - **ItemRegistry** resolves `game-data` from `server/` cwd (`../game-data`)  
 
 ---

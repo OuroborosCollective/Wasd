@@ -7,12 +7,13 @@ import { connectSocket, requestSceneChange, type ConnectionOptions } from "./net
 import { IEngineBridge } from "./engine/bridge/IEngineBridge";
 import { renderHUD, showDialogue } from "./ui/hud";
 import { getJoystickState, initMobileControls, isMobile } from "./ui/mobileControls";
-import { renderInventory } from "./ui/inventory";
-import { renderSkillsPanel } from "./ui/skillsPanel";
-import { renderQuestLog } from "./ui/questLog";
-import { renderEquipmentPanel } from "./ui/equipmentPanel";
-import { renderMobileSceneTeleportPanel } from "./ui/mobileSceneTeleportPanel";
-import { performanceMonitor } from "./utils/PerformanceMonitor";
+import {
+  openEquipmentPanel,
+  openInventory,
+  openQuestLog,
+  openSkillsPanel,
+  preloadGamePanels,
+} from "./ui/lazyPanels";
 
 let canvas = document.getElementById("application-canvas") as HTMLCanvasElement;
 if (!canvas) {
@@ -80,17 +81,26 @@ try {
   connectSocket(core, connectionOptions);
   (window as any).requestSceneChange = requestSceneChange;
   renderHUD();
-  renderMobileSceneTeleportPanel();
+  void import("./ui/mobileSceneTeleportPanel").then((m) => m.renderMobileSceneTeleportPanel());
+  preloadGamePanels();
 
   initMobileControls(
     core,
     {
       onAttack: () => core.attack(),
       onInteract: () => core.interact(),
-      onEquip: renderEquipmentPanel,
-      onInventory: renderInventory,
-      onQuests: renderQuestLog,
-      onSkills: renderSkillsPanel,
+      onEquip: () => {
+        void openEquipmentPanel();
+      },
+      onInventory: () => {
+        void openInventory();
+      },
+      onQuests: () => {
+        void openQuestLog();
+      },
+      onSkills: () => {
+        void openSkillsPanel();
+      },
       onMap: () => { console.log('Map toggled'); },
       onChat: () => { console.log('Chat toggled'); }
     },
@@ -102,7 +112,7 @@ try {
     }
   );
 
-  performanceMonitor.start();
+  void import("./utils/PerformanceMonitor").then((m) => m.performanceMonitor.start());
 
   let lastFrameTime = performance.now();
   const tick = (now: number) => {

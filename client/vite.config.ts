@@ -30,6 +30,18 @@ export default defineConfig({
           if (id.includes("node_modules/firebase")) {
             return "firebase";
           }
+          if (id.includes("/src/ui/inventory") || id.includes("/src/ui/skillsPanel")) {
+            return "ui-panels-a";
+          }
+          if (id.includes("/src/ui/questLog") || id.includes("/src/ui/equipmentPanel")) {
+            return "ui-panels-b";
+          }
+          if (id.includes("/src/ui/mobileSceneTeleportPanel")) {
+            return "ui-mobile-teleport";
+          }
+          if (id.includes("/src/utils/PerformanceMonitor")) {
+            return "perf-monitor";
+          }
         },
       },
     },
