@@ -7,7 +7,9 @@ This document is the **authoritative snapshot** of what works today in the repos
 | Item | Status |
 |------|--------|
 | **Primary 3D engine** | **Babylon.js** (`@babylonjs/core`, `@babylonjs/loaders`) |
-| **Boot path** | `client/src/main.ts` → `createBabylonApp` → `BabylonAdapter` |
+| **Boot path** | `client/src/main.ts` (thin shell) → `clientBoot.ts` → `createBabylonApp` → `BabylonAdapter` |
+| **Vite chunks** | `babylon-core` vs `babylon-loaders` — glTF plugin loads on **first GLB** (`BabylonAdapter`), not on first paint |
+| **WebGL failure** | `Engine.IsSupported` → full-screen overlay; **context lost** → overlay + link to Babylon WebGL docs |
 | **Default GLB fallbacks** | `client/src/engine/babylon/AssetRegistry.ts` — used when server does not send a `modelUrl` |
 | **Bridge** | `client/src/engine/bridge/` — `IEngineBridge`, `EntityViewModel`; keep simulation off the client |
 
@@ -62,7 +64,7 @@ See **`docs/ROADMAP_TO_RELEASE.md`** for the full backlog aligned with the desig
 - **Collect quests**: turn-in on **talk** to `targetNpcId` / `giverNpcId` when inventory has `requiredItemId` × count  
 - **`quest_sync`** message + **`stats_sync`** (quests with collect progress, gold, XP)  
 - **Quest log** reads **live** `playerState`; HUD shows **Gold / XP**  
-- **Vite**: `manualChunks` for **babylon**, **firebase**, **game UI panels** (inventory/skills vs quest/equipment), **mobile teleport**, **PerformanceMonitor**
+- **Vite**: `manualChunks` for **babylon-core**, **babylon-loaders**, **firebase**, **game UI panels** (inventory/skills vs quest/equipment), **mobile teleport**, **PerformanceMonitor**
 - **Client**: heavy panels loaded via **`dynamic import()`** (`lazyPanels.ts`) + idle **preload** after boot  
 - **PlayCanvas removed**: client is **Babylon.js only**; default GLB map lives in `engine/babylon/AssetRegistry.ts`  
 - **ItemRegistry** resolves `game-data` from `server/` cwd (`../game-data`)  
