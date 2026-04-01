@@ -1,0 +1,56 @@
+# Documentation index
+
+Use this map to avoid reading **obsolete** files as if they were current spec.
+
+## Start here (current)
+
+| Document | Purpose |
+|----------|---------|
+| **`README.md`** | Repo overview, install, architecture summary |
+| **`AGENTS.md`** | Cursor / agent dev commands and constraints |
+| **`docs/PROJECT_STATUS_2026.md`** | **What works today** (renderer, server, deploy) |
+| **`docs/ROADMAP_TO_RELEASE.md`** | **What is left** until release; bible-aligned backlog |
+| **`docs/MASTER_DESIGN_BIBLE.md`** | **Vision** and creative pillars (update rarely) |
+| **`DEPLOYMENT.md`** | VPS / PM2 / GitHub Actions |
+| **`docs/VITE_MCP_AND_VPS_SETUP.md`** | MCP + WebSocket + Nginx (replaces old PlayCanvas-titled doc) |
+
+## Architecture and systems
+
+| Document | Note |
+|----------|------|
+| `ARCHITECTURE_OVERVIEW.md` | High-level diagrams — prefer Babylon for client stack |
+| `ARCHITECTURE_NOTE.md` | Short architecture notes |
+| `LOGIC_DOCUMENTATION.md` | Module-oriented logic reference — verify against code when editing |
+| `docs/CLIENT_ARCHITECTURE.md` | Client layering rules |
+| `docs/NETWORKING_MODEL.md` | WS / packets |
+| `docs/MODULE_MANIFEST.md` | Module inventory |
+| `docs/KNOWN_GAPS.md` | Short gap list — superseded in part by `ROADMAP_TO_RELEASE.md` |
+| `game-data/AUTHORING_GUIDE.md` | Data authoring |
+
+## Historical / pack files (do not use as sole source of truth)
+
+Large reconstruction exports and old packs may still say **Three.js** or **PlayCanvas** as primary client:
+
+- `areloria_reconstruction_pack_*.md`
+- `areloria_final_reconstruction_*.md`
+- `SESSION_CONTEXT.md` (session log — read `PROJECT_STATUS_2026.md` first)
+
+Treat these as **archaeology**, not the live stack description.
+
+## Admin and integrations
+
+- `admin-tools/README_ADMIN.md`
+- `integrations/README_INTEGRATIONS.md`
+- `agent/AGENT_BUILD_INSTRUCTIONS.md` — build order + **doc maintenance rules**
+
+## Final-lock and agent rules
+
+- `final-lock/FINAL_TRUTH.md`
+- `final-lock/DO_NOT_SIMPLIFY.md`
+- `PROJECT_LOCK_RULES.md`
+- `agent/AI_AGENT_FAILSAFE_RULES.md`
+
+## Obsolete filenames
+
+- **`docs/PLAYCANVAS_MCP_CURSOR_VPS_SETUP.md`** — removed; use **`docs/VITE_MCP_AND_VPS_SETUP.md`**
+- **`docs/PLAYCANVAS_DIDI_SCRIPT_IMPORT.md`** — removed; scene flow is **server-driven** (`game-data/scenes/`). Legacy scripts may still exist under `client/public/playcanvas/scripts/` for reference only.

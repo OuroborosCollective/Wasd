@@ -1,5 +1,7 @@
 # Areloria MMORPG – Deployment Guide
 
+**Client:** Babylon.js (Vite build). **Server:** Node + WebSocket. Status: `docs/PROJECT_STATUS_2026.md`.
+
 ## Schnellstart (VPS Hostinger)
 
 ### 1. SSH in deinen VPS einloggen
@@ -9,12 +11,12 @@ ssh root@srv1491137.hstgr.cloud
 
 ### 2. Deployment-Skript ausführen
 ```bash
-curl -fsSL https://raw.githubusercontent.com/thosu87-svg/Wasd/main/deploy/deploy.sh | bash
+curl -fsSL https://raw.githubusercontent.com/OuroborosCollective/Wasd/main/deploy/deploy.sh | bash
 ```
 
 Oder manuell:
 ```bash
-git clone https://github.com/thosu87-svg/Wasd.git /opt/areloria
+git clone https://github.com/OuroborosCollective/Wasd.git /opt/areloria
 cd /opt/areloria
 chmod +x deploy/deploy.sh
 ./deploy/deploy.sh

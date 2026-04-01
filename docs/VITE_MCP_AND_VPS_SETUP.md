@@ -1,14 +1,12 @@
-# PlayCanvas + Cursor MCP Integration (VPS)
+# Vite client + Cursor MCP + VPS
 
-This document explains how to connect your deployed Areloria MMORPG server to Cursor using MCP, and how to keep PlayCanvas WebSocket networking aligned with that deployment.
+This document explains how to connect your deployed Areloria MMORPG server to Cursor using MCP, and how to align the **Babylon.js (Vite) client** WebSocket URL with that deployment.
 
 ## 1) What was added in this repo
 
-- Hardened MCP auth: the MCP API now requires `MCP_ADMIN_TOKEN` and no longer falls back to a default insecure token.
-- New MCP helper tools:
-  - `list_files`
-  - `get_playcanvas_connection_profile`
-- PlayCanvas client WebSocket URL is now configurable through `VITE_WEBSOCKET_URL` and falls back safely based on the current page protocol/host.
+- Hardened MCP auth: the MCP API requires `MCP_ADMIN_TOKEN` and does not fall back to an insecure default token.
+- MCP helper tools (names may vary by server version), including file listing and connection helpers.
+- Client WebSocket URL is configurable through **`VITE_WEBSOCKET_URL`** and falls back to the current page protocol/host (`ws` / `wss`).
 - Team-shareable Cursor config example at `.cursor/mcp.json`.
 
 ## 2) VPS environment variables
@@ -22,11 +20,13 @@ MCP_PUBLIC_MESSAGES_URL=https://your-domain.example/api/mcp/messages?sessionId=<
 PUBLIC_WEBSOCKET_URL=wss://your-domain.example/ws
 ```
 
-For client build/runtime (if needed for your deployment strategy):
+For the client build:
 
 ```bash
 VITE_WEBSOCKET_URL=wss://your-domain.example/ws
 ```
+
+Optional: `CLIENT_ROOT_DIR` if the Node process cwd is not the monorepo root (see `DEPLOYMENT.md`).
 
 ## 3) Reverse proxy requirements (Nginx)
 
@@ -81,34 +81,28 @@ You can use `deploy/vps_connect.py` for interactive SSH or automated deploy comm
 Examples:
 
 ```bash
-# 1) Interactive SSH login
-python3 deploy/vps_connect.py --host 46.202.154.25 --user root shell
-
-# 2) Run one command remotely
-python3 deploy/vps_connect.py --host 46.202.154.25 --user root run "uname -a"
-
-# 3) Run the Areloria update flow on VPS
+python3 deploy/vps_connect.py --host YOUR_HOST --user root shell
+python3 deploy/vps_connect.py --host YOUR_HOST --user root run "uname -a"
 python3 deploy/vps_connect.py \
-  --host 46.202.154.25 \
+  --host YOUR_HOST \
   --user root \
   --app-dir /opt/areloria \
-  --branch cursor/mmorpq-playcanvas-connection-3e3d \
+  --branch main \
   deploy
 ```
 
 Notes:
+
 - The script prefers SSH key auth.
-- If you want non-interactive password auth, set `SSH_PASSWORD` or pass `--password` (requires `sshpass`).
+- For non-interactive password auth, set `SSH_PASSWORD` or pass `--password` (requires `sshpass`).
 - Do not commit passwords or tokens in files.
 
 ## 5) Quick verification checklist
 
-1. Health endpoint works:
-   - `https://your-domain.example/health`
-2. MCP SSE endpoint requires auth:
-   - without bearer token -> unauthorized
-3. Cursor MCP server connects and lists tools.
-4. PlayCanvas client connects to `wss://your-domain.example/ws`.
+1. Health endpoint: `https://your-domain.example/health`
+2. MCP SSE endpoint requires auth (no bearer → unauthorized)
+3. Cursor MCP server connects and lists tools
+4. Game client connects to `wss://your-domain.example/ws` (or same host as the page)
 
 ## 6) Security notes
 
