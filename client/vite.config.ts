@@ -20,6 +20,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    sourcemap: true,
+    // Source maps massively increase peak memory usage during bundling.
+    // Keep them opt-in for production server builds.
+    sourcemap: process.env.VITE_BUILD_SOURCEMAP === "1",
+    reportCompressedSize: false,
   }
 });

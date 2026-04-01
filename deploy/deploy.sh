@@ -61,6 +61,7 @@ BUILD_NODE_OPTIONS="${BUILD_NODE_OPTIONS:---max-old-space-size=8192}"
 echo "Using client build NODE_OPTIONS=${BUILD_NODE_OPTIONS}"
 NODE_OPTIONS="$BUILD_NODE_OPTIONS" node -e "const v8=require('node:v8'); console.log('Heap limit MB:', Math.round(v8.getHeapStatistics().heap_size_limit/1024/1024));"
 NODE_OPTIONS="$BUILD_NODE_OPTIONS" node ./node_modules/vite/bin/vite.js build
+echo "Client build finished with heap guard."
 
 # ── 7. Build server ───────────────────────────────────────
 echo "[7/10] Building server (TypeScript)..."

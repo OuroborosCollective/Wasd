@@ -13,6 +13,8 @@ jobs:
     steps:
     - name: Deploy to VPS via SSH
       uses: appleboy/ssh-action@v1.0.3
+      env:
+        BUILD_NODE_OPTIONS: --max-old-space-size=8192
       with:
         host: ${{ secrets.VPS_IP }}
         username: ${{ secrets.VPS_USER }}
