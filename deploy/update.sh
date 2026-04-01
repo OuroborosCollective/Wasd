@@ -3,6 +3,7 @@
 set -e
 
 APP_DIR="/opt/areloria"
+BUILD_NODE_OPTIONS="${BUILD_NODE_OPTIONS:---max-old-space-size=6144}"
 echo "🔄 Updating Areloria MMORPG..."
 
 cd "$APP_DIR"
@@ -11,7 +12,7 @@ git pull origin main
 # Rebuild client
 cd "$APP_DIR/client"
 npm install
-npx vite build
+NODE_OPTIONS="$BUILD_NODE_OPTIONS" npx vite build
 
 # Rebuild server
 cd "$APP_DIR/server"
