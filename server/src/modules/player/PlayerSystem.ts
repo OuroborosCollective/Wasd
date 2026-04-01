@@ -15,7 +15,7 @@ export class PlayerSystem {
       gold: 0,
       xp: 0,
       quests: [],
-      skills: {},
+      skills: { combat: { level: 1 } },
       inventory: [],
       equipment: {
         weapon: null,

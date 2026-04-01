@@ -1,11 +1,24 @@
 import { auth } from "../auth/firebase";
 import { sendDialogueChoice, sendQuestAccept } from "../networking/websocketClient";
+import { getPlayerGold, getPlayerXp, subscribePlayerState } from "../state/playerState";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 export function renderHUD() {
   const hud = document.createElement("div");
   hud.id = "arel-hud";
-  hud.textContent = "Arelorian HUD online";
+  const statsSpan = document.createElement("span");
+  statsSpan.id = "arel-hud-stats";
+  statsSpan.style.marginRight = "8px";
+  const updateStats = () => {
+    statsSpan.textContent = `Gold ${getPlayerGold()} · XP ${getPlayerXp()}`;
+  };
+  updateStats();
+  subscribePlayerState(updateStats);
+
+  hud.appendChild(statsSpan);
+  const label = document.createElement("span");
+  label.textContent = "Areloria";
+  hud.appendChild(label);
   hud.style.position = "fixed";
   hud.style.top = "12px";
   hud.style.left = "12px";

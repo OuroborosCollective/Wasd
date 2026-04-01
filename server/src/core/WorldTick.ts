@@ -311,6 +311,19 @@ export class WorldTick {
     });
   }
 
+  private pushPlayerStateSync(socketId: string, player: any) {
+    this.ws.sendToPlayer(socketId, {
+      type: "stats_sync",
+      gold: player.gold ?? 0,
+      xp: player.xp ?? 0,
+      health: player.health ?? 100,
+      stamina: player.stamina ?? 100,
+      quests: this.questSystem.getQuestSyncForClient(player),
+      inventory: player.inventory || [],
+      equipment: player.equipment || {},
+    });
+  }
+
   private getSceneProfile(sceneId: string | undefined): { sceneId: string; profile: SceneProfile } {
     const resolvedSceneId = sceneId && this.sceneProfiles[sceneId] ? sceneId : DEFAULT_SCENE_ID;
     return { sceneId: resolvedSceneId, profile: this.sceneProfiles[resolvedSceneId] };
@@ -1240,7 +1253,7 @@ export class WorldTick {
             stats: {
               gold: player.gold,
               xp: player.xp,
-              quests: player.quests,
+              quests: this.questSystem.getQuestSyncForClient(player),
               inventory: player.inventory,
               equipment: player.equipment
             }
@@ -1322,9 +1335,54 @@ export class WorldTick {
       }
 
       if (msg.type === "attack") {
-        // PlayCanvas attack animation trigger
-        this.ws.broadcast({ type: 'entity_action', entityId: player.id, action: 'attack' });
-        // Combat logic here...
+        this.ws.broadcast({ type: "entity_action", entityId: player.id, action: "attack" });
+        const px = player.position.x;
+        const py = player.position.y;
+        const maxD = GameConfig.attackDistance;
+        let best: { npc: any; d2: number } | null = null;
+        for (const npc of this.npcSystem.getAllNPCs()) {
+          if ((npc.health ?? 100) <= 0) continue;
+          const dx = npc.position.x - px;
+          const dy = npc.position.y - py;
+          const d2 = dx * dx + dy * dy;
+          if (d2 <= maxD * maxD && (!best || d2 < best.d2)) {
+            best = { npc, d2 };
+          }
+        }
+        if (!best) {
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        const target = best.npc;
+        const outcome = this.combatSystem.attack(player, target);
+        if (outcome.hit) {
+          this.ws.broadcast({
+            type: "entity_action",
+            entityId: target.id,
+            action: "hit",
+            damage: outcome.damage,
+          });
+        }
+        if ((target.health ?? 0) <= 0) {
+          const combatRewards = this.questSystem.updateCombatQuests(player, target.id, target.id);
+          for (const r of combatRewards) {
+            this.ws.sendToPlayer(id, {
+              type: "toast",
+              text: `Quest completed: ${r.quest.title || r.quest.id}`,
+            });
+          }
+          if (target.id === "npc_dummy" || target.role === "Training") {
+            target.health = target.maxHealth ?? 100;
+          } else {
+            this.npcSystem.removeNPC(target.id);
+          }
+        }
+        this.pushPlayerStateSync(id, player);
+      }
+
+      if (msg.type === "quest_sync") {
+        this.pushPlayerStateSync(id, player);
+        return;
       }
 
       if (msg.type === "interact") {
@@ -1351,6 +1409,10 @@ export class WorldTick {
         for (const r of talkRewards) {
           text += `\n\nQuest completed: ${r.quest.title || r.quest.id}`;
         }
+        const collectRewards = this.questSystem.checkCollectTurnInQuests(player, npc.id);
+        for (const r of collectRewards) {
+          text += `\n\nQuest completed: ${r.quest.title || r.quest.id}`;
+        }
 
         this.sendDialogueToPlayer(id, player.id, {
           source: interaction.source,
@@ -1360,6 +1422,7 @@ export class WorldTick {
           npcId: interaction.npcId,
           nodeId: interaction.nodeId || "root",
         });
+        this.pushPlayerStateSync(id, player);
       }
 
       if (msg.type === "dialogue_choice" || msg.type === "quest_accept") {
@@ -1391,6 +1454,10 @@ export class WorldTick {
         for (const r of talkRewards) {
           text += `\n\nQuest completed: ${r.quest.title || r.quest.id}`;
         }
+        const collectRewards = this.questSystem.checkCollectTurnInQuests(player, ctx.npcId);
+        for (const r of collectRewards) {
+          text += `\n\nQuest completed: ${r.quest.title || r.quest.id}`;
+        }
 
         const nextPending =
           choiceId === "sys_quest_accept" || choiceId === "sys_quest_decline"
@@ -1405,6 +1472,7 @@ export class WorldTick {
           npcId: choice.npcId,
           nodeId: choice.nodeId || "root",
         });
+        this.pushPlayerStateSync(id, player);
       }
     };
   }

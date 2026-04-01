@@ -58,6 +58,16 @@ Der Workflow setzt `CI=1`, sodass `deploy.sh` kein `apt-get upgrade` mehr ausfü
 
 Am Ende des SSH-Skripts: **`curl http://127.0.0.1:3000/health`** – schlägt fehl, wenn der Dienst nicht lauscht (Job wird rot). Zum Überspringen in `.github/workflows/deploy.yml` vor dem Deploy z. B. `export SKIP_DEPLOY_HEALTH_CHECK=1` setzen (nur wenn der Server auf einem anderen Port läuft o. Ä.).
 
+### GitHub Action: `dial tcp …:22: i/o timeout`
+
+Der Runner erreicht den VPS **nicht** auf SSH (Port 22). Typisch:
+
+- Firewall / **ufw** auf dem VPS: Port 22 für **eingehend** erlauben (oder nur für GitHub – siehe [GitHub Meta API](https://api.github.com/meta) unter `actions` für IP-Ranges, falls du einschränken willst).
+- **Falsche `VPS_IP`** oder Server aus / Netzwerkproblem.
+- SSH auf **anderem Port**: Secret `VPS_IP` kann bei manchen Setups nicht den Port setzen – ggf. Workflow auf `port: DEIN_PORT` anpassen oder SSH auf 22 legen.
+
+Der Workflow nutzt `timeout: 120s` für den Verbindungsaufbau; bei dauerhaftem Timeout ist es fast immer **Netzwerk/Firewall**, nicht der Build.
+
 Wenn der Client-Build mit **„JavaScript heap out of memory“** abbricht, nutzt `client` bereits ein erhöhtes Limit (`--max-old-space-size=6144` im `build`-Script). Bei sehr kleinen VPS-Plänen ggf. Swap erhöhen oder Build lokal/GitHub Actions ausführen und nur `client/dist` deployen.
 
 ---

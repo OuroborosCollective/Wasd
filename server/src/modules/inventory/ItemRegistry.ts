@@ -15,11 +15,20 @@ export class ItemRegistry {
   private static ITEM_REGISTRY: Record<string, ItemDefinition> = {};
   private static initialized = false;
 
+  private static resolveItemsPath(): string | null {
+    const cwd = process.cwd();
+    const a = path.resolve(cwd, "game-data/items/items.json");
+    const b = path.resolve(cwd, "../game-data/items/items.json");
+    if (fs.existsSync(a)) return a;
+    if (fs.existsSync(b)) return b;
+    return null;
+  }
+
   static init() {
     if (this.initialized) return;
     try {
-      const itemsPath = path.resolve(process.cwd(), "game-data/items/items.json");
-      if (fs.existsSync(itemsPath)) {
+      const itemsPath = this.resolveItemsPath();
+      if (itemsPath) {
         const itemData = JSON.parse(fs.readFileSync(itemsPath, "utf-8"));
         itemData.forEach((item: ItemDefinition) => {
           this.ITEM_REGISTRY[item.id] = item;

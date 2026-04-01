@@ -14,9 +14,9 @@ This document translates **`docs/MASTER_DESIGN_BIBLE.md`** into **concrete engin
 
 | ID | Area | Gap | Notes |
 |----|------|-----|-------|
-| A1 | Client | **Bundle size / load time** | Single large chunk; add `manualChunks` or lazy routes for non-critical UI |
-| A2 | Combat | **`attack` not fully simulated** | Server broadcasts `entity_action`; damage, aggro, death, loot sync need authoritative rules |
-| A3 | Quests | **`collect` / `combat` completion** | `talk_to` works; extend `QuestEngine` + `WorldTick` for other objective types |
+| A1 | Client | **Bundle size / load time** | **Partial:** `manualChunks` splits Babylon + Firebase; main `index` still large — optional lazy UI imports next |
+| A2 | Combat | **`attack` not fully simulated** | **Partial:** nearest-target hit, HP, dummy respawn, combat quests; still no full aggro/loot-from-NPC loop |
+| A3 | Quests | **`collect` / `combat` completion** | **Partial:** collect turn-in on NPC talk; combat completes on kill; still no rich objective UI |
 | A4 | Persistence | **Production save model** | Firestore/Postgres paths exist; verify one path for player + world state in prod |
 | A5 | Auth | **Real auth on client** | Dev `dev_*` players OK locally; production token flow and session hardening |
 

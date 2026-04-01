@@ -21,5 +21,17 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     sourcemap: true,
-  }
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/@babylonjs")) {
+            return "babylon";
+          }
+          if (id.includes("node_modules/firebase")) {
+            return "firebase";
+          }
+        },
+      },
+    },
+  },
 });

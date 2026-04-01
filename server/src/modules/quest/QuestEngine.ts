@@ -209,13 +209,82 @@ export class QuestEngine {
       if (obj !== "talk_to") continue;
       const target = q.targetNpcId || q.targetId;
       if (target && target === npcId) {
+        const wasOpen = !q.completed;
         const reward = this.completeQuest(player, q.id);
-        if (reward) {
-          completedQuestRewards.push({ quest: q, reward });
+        if (wasOpen && q.completed) {
+          completedQuestRewards.push({ quest: q, reward: reward ?? null });
         }
       }
     }
     return completedQuestRewards;
+  }
+
+  countItemInInventory(player: any, itemId: string): number {
+    const inv = player.inventory || [];
+    return inv.filter((it: any) => it && it.id === itemId).length;
+  }
+
+  /**
+   * Turn in collect quests when talking to the designated NPC while carrying items.
+   */
+  checkCollectTurnInQuests(player: any, npcId: string): { quest: any; reward: any }[] {
+    const completedQuestRewards: { quest: any; reward: any }[] = [];
+    if (!player.quests) return completedQuestRewards;
+    const activeQuests = player.quests.filter((q: any) => !q.completed);
+
+    for (const q of activeQuests) {
+      const obj = q.objectiveType || q.objective;
+      if (obj !== "collect") continue;
+      const turnInNpc = q.targetNpcId || q.giverNpcId;
+      if (!turnInNpc || turnInNpc !== npcId) continue;
+      const needId = q.requiredItemId;
+      const needCount = Math.max(1, Number(q.requiredCount ?? 1));
+      if (!needId) continue;
+      if (this.countItemInInventory(player, needId) < needCount) continue;
+
+      let removed = 0;
+      player.inventory = (player.inventory || []).filter((it: any) => {
+        if (removed >= needCount) return true;
+        if (it && it.id === needId) {
+          removed++;
+          return false;
+        }
+        return true;
+      });
+
+      const wasOpen = !q.completed;
+      const reward = this.completeQuest(player, q.id);
+      if (wasOpen && q.completed) {
+        completedQuestRewards.push({ quest: q, reward: reward ?? null });
+      }
+    }
+    return completedQuestRewards;
+  }
+
+  /** Payload for client quest UI (minimal fields). */
+  getQuestSyncForClient(player: any): any[] {
+    if (!player.quests) return [];
+    return player.quests.map((q: any) => {
+      const obj = q.objectiveType || q.objective;
+      let progress: number | undefined;
+      let progressMax: number | undefined;
+      if (obj === "collect" && q.requiredItemId) {
+        progressMax = Math.max(1, Number(q.requiredCount ?? 1));
+        progress = Math.min(progressMax, this.countItemInInventory(player, q.requiredItemId));
+      }
+      return {
+        id: q.id,
+        title: q.title || q.name || q.id,
+        objectiveType: obj,
+        completed: !!q.completed,
+        targetId: q.targetId,
+        targetNpcId: q.targetNpcId,
+        requiredItemId: q.requiredItemId,
+        requiredCount: q.requiredCount,
+        progress,
+        progressMax,
+      };
+    });
   }
 
   updateCombatQuests(player: any, npcId: string, npcInstanceId: string): { quest: any; reward: any }[] {
@@ -225,9 +294,10 @@ export class QuestEngine {
 
     for (const q of activeQuests) {
       if ((q.objectiveType === "combat" || q.objective === "combat") && (q.targetId === npcId || q.targetId === npcInstanceId)) {
+        const wasOpen = !q.completed;
         const reward = this.completeQuest(player, q.id);
-        if (reward) {
-          completedQuestRewards.push({ quest: q, reward });
+        if (wasOpen && q.completed) {
+          completedQuestRewards.push({ quest: q, reward: reward ?? null });
         }
       }
     }
