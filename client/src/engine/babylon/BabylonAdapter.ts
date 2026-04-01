@@ -53,10 +53,24 @@ export class BabylonAdapter implements IEngineBridge {
   private readonly pressedKeys = new Set<string>();
   private readonly inputCallbacks: Array<(input: any) => void> = [];
   private readonly areWaveClock = { t: 0 };
+  private readonly perf = {
+    frameCount: 0,
+    sampleAccumSec: 0,
+    fps: 60,
+    frameMsAvg: 16.7,
+  };
   private readonly areDebugEnabled = new URLSearchParams(window.location.search).get("areDebug") === "1";
   private readonly areDebugElement: HTMLDivElement | null = null;
   private areMode: "off" | "cpu" | "shader" = "shader";
   private areShaderRegistered = false;
+  private arePerfEnabled = new URLSearchParams(window.location.search).get("arePerf") === "1";
+  private arePerfElement: HTMLDivElement | null = null;
+  private arePerfAutoMode = new URLSearchParams(window.location.search).get("areAutoMode") === "1";
+  private arePerfState = {
+    lowFpsSamples: 0,
+    stableSamples: 0,
+    overridesDisabledUntil: 0,
+  };
   private cameraTargetId: string | null = null;
   private navigationMarker: Mesh | null = null;
   private localPlayerId: string | null = null;
@@ -72,6 +86,9 @@ export class BabylonAdapter implements IEngineBridge {
     }
     if (this.areDebugEnabled) {
       this.areDebugElement = this.mountAREDebugOverlay();
+    }
+    if (this.arePerfEnabled) {
+      this.arePerfElement = this.mountAREPerfOverlay();
     }
     this.bindKeyboard();
   }
@@ -260,10 +277,72 @@ export class BabylonAdapter implements IEngineBridge {
   }
 
   update(dt: number): void {
+    this.updateAREPerfCounters(dt);
     this.areWaveClock.t += dt;
     this.updateAREVisuals();
     this.updateAREDebugOverlay();
+    this.updateAREPerfOverlay();
     this.updateCameraFollow();
+  }
+
+  private updateAREPerfCounters(dt: number): void {
+    this.perf.frameCount += 1;
+    this.perf.sampleAccumSec += dt;
+    if (this.perf.sampleAccumSec < 0.5) {
+      return;
+    }
+    const sampleSeconds = this.perf.sampleAccumSec;
+    const sampleFrames = this.perf.frameCount;
+    this.perf.fps = sampleFrames / sampleSeconds;
+    this.perf.frameMsAvg = 1000 / Math.max(this.perf.fps, 1e-4);
+    this.perf.frameCount = 0;
+    this.perf.sampleAccumSec = 0;
+
+    this.applyAREAutoModePolicy();
+  }
+
+  private applyAREAutoModePolicy(): void {
+    if (!this.arePerfAutoMode) {
+      return;
+    }
+    const now = performance.now();
+    if (now < this.arePerfState.overridesDisabledUntil) {
+      return;
+    }
+    if (this.perf.fps < 28) {
+      this.arePerfState.lowFpsSamples += 1;
+      this.arePerfState.stableSamples = 0;
+    } else if (this.perf.fps > 48) {
+      this.arePerfState.stableSamples += 1;
+      this.arePerfState.lowFpsSamples = Math.max(0, this.arePerfState.lowFpsSamples - 1);
+    } else {
+      this.arePerfState.lowFpsSamples = Math.max(0, this.arePerfState.lowFpsSamples - 1);
+      this.arePerfState.stableSamples = Math.max(0, this.arePerfState.stableSamples - 1);
+    }
+
+    if (this.arePerfState.lowFpsSamples >= 4) {
+      if (this.areMode === "shader") {
+        this.setAREMode("cpu");
+        this.arePerfState.overridesDisabledUntil = now + 4000;
+      } else if (this.areMode === "cpu") {
+        this.setAREMode("off");
+        this.arePerfState.overridesDisabledUntil = now + 4000;
+      }
+      this.arePerfState.lowFpsSamples = 0;
+      this.arePerfState.stableSamples = 0;
+      return;
+    }
+
+    if (this.arePerfState.stableSamples >= 8) {
+      if (this.areMode === "off") {
+        this.setAREMode("cpu");
+        this.arePerfState.overridesDisabledUntil = now + 4000;
+      } else if (this.areMode === "cpu") {
+        this.setAREMode("shader");
+        this.arePerfState.overridesDisabledUntil = now + 4000;
+      }
+      this.arePerfState.stableSamples = 0;
+    }
   }
 
   private updateCameraFollow(): void {
@@ -615,6 +694,26 @@ export class BabylonAdapter implements IEngineBridge {
     return node;
   }
 
+  private mountAREPerfOverlay(): HTMLDivElement {
+    const node = document.createElement("div");
+    node.id = "are-perf-overlay";
+    node.style.position = "fixed";
+    node.style.bottom = "12px";
+    node.style.right = "12px";
+    node.style.zIndex = "10000";
+    node.style.padding = "10px";
+    node.style.minWidth = "260px";
+    node.style.background = "rgba(4,10,18,0.72)";
+    node.style.border = "1px solid rgba(87,176,115,0.55)";
+    node.style.borderRadius = "8px";
+    node.style.color = "#dbffe4";
+    node.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, monospace";
+    node.style.fontSize = "11px";
+    node.style.whiteSpace = "pre";
+    document.body.appendChild(node);
+    return node;
+  }
+
   private updateAREDebugOverlay(): void {
     if (!this.areDebugEnabled || !this.areDebugElement) {
       return;
@@ -639,6 +738,29 @@ export class BabylonAdapter implements IEngineBridge {
       localNode
         ? `local: k=${localNode.areKappa} idx=${localNode.areLogicalIndex}\nlocal: phase=${localNode.arePhase.toFixed(1)} res=${localNode.areResonance.toFixed(2)} plex=${localNode.arePlexity.toFixed(2)}\nchain: ${localNode.areChain.slice(0, 42)}`
         : "local: -",
+    ].join("\n");
+  }
+
+  private updateAREPerfOverlay(): void {
+    if (!this.arePerfEnabled || !this.arePerfElement) {
+      return;
+    }
+    const engine = this.scene.getEngine();
+    const total = this.entities.size;
+    let visible = 0;
+    for (const node of this.entities.values()) {
+      if (node.root.isEnabled()) visible += 1;
+    }
+    const drawCalls = engine.drawCalls?.current ?? 0;
+    this.arePerfElement.textContent = [
+      "ARE PERF",
+      `mode: ${this.areMode}${this.arePerfAutoMode ? " (auto)" : ""}`,
+      `fps: ${this.perf.fps.toFixed(1)}`,
+      `frame: ${this.perf.frameMsAvg.toFixed(2)} ms`,
+      `draw calls: ${drawCalls}`,
+      `entities: ${visible}/${total} visible`,
+      `materials: ${this.areMode === "shader" ? "shader" : "base"}`,
+      `samples: low=${this.arePerfState.lowFpsSamples} stable=${this.arePerfState.stableSamples}`,
     ].join("\n");
   }
 

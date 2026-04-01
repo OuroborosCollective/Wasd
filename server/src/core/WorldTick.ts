@@ -14,6 +14,7 @@ import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
 import { GLBRegistry } from "../modules/asset-registry/GLBRegistry.js";
 import { AssetPoolResolver } from "../modules/world/AssetPoolResolver.js";
 import { AREStateCompiler } from "../modules/world/AREStateCompiler.js";
+import { RuntimeSettingsStore } from "../modules/world/RuntimeSettingsStore.js";
 import { cache } from "./Cache.js";
 import fs from "fs";
 import path from "path";
@@ -231,6 +232,7 @@ export class WorldTick {
   public persistence: PersistenceManager;
   public glbRegistry: GLBRegistry;
   private assetPoolResolver: AssetPoolResolver;
+  private runtimeSettings: RuntimeSettingsStore;
   private areStateCompiler: AREStateCompiler;
   private lootEntities: Map<string, any> = new Map();
 
@@ -708,6 +710,7 @@ export class WorldTick {
           return true;
         }
         this.areMode = mode;
+        this.runtimeSettings.setAREMode(mode);
         this.ws.sendToPlayer(socketId, { type: "gm_are_mode_result", mode: this.areMode });
         this.ws.broadcast({ type: "world_event", event: "are_mode_changed", mode: this.areMode });
         this.sendGMStatus(socketId, "info", `ARE mode set to ${this.areMode}`);
@@ -1102,7 +1105,9 @@ export class WorldTick {
     this.worldSystem = new WorldSystem(this.persistence);
     this.glbRegistry = new GLBRegistry();
     this.assetPoolResolver = new AssetPoolResolver();
+    this.runtimeSettings = new RuntimeSettingsStore();
     this.areStateCompiler = new AREStateCompiler();
+    this.areMode = this.runtimeSettings.getAREMode();
 
     // Create a dummy player in a distant chunk to prove multi-observer union
     const dummyPlayer = this.playerSystem.createPlayer("dummy_player", "Dummy Player");
@@ -1271,6 +1276,7 @@ export class WorldTick {
     if (connected) {
       console.log("✅ Firestore connection verified.");
     }
+    this.areMode = this.runtimeSettings.getAREMode();
     const savedData = await this.persistence.load();
     for (const id in savedData) {
       this.playerSystem.setPlayer(id, savedData[id]);
