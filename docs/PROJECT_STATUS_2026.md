@@ -51,11 +51,19 @@ This document is the **authoritative snapshot** of what works today in the repos
 
 See **`docs/ROADMAP_TO_RELEASE.md`** for the full backlog aligned with the design bible. Short list:
 
-- Client bundle is **large** (Babylon) — code-splitting recommended  
+- Client **index** chunk still large — further **dynamic `import()`** for heavy UI panels possible  
 - Many **server modules** are implemented but not all wired end-to-end in `WorldTick` or exposed to the live client UI  
-- **Combat** `attack` message is thin (broadcast + stub)  
-- **Quest types** `collect` / full **combat** completion need server hooks comparable to `talk_to`  
+- **Combat** is basic (nearest NPC in `attackDistance`, one hit resolution, training dummy respawns)  
 - **React** appears in root dependencies but the **game shell** is largely vanilla TS + DOM UI panels  
+
+### Recently wired (snapshot)
+
+- **`attack`**: nearest hostile NPC in range, `CombatSystem.attack`, HP, combat quest completion, optional NPC removal; **`stats_sync`** + **`toast`** to client  
+- **Collect quests**: turn-in on **talk** to `targetNpcId` / `giverNpcId` when inventory has `requiredItemId` × count  
+- **`quest_sync`** message + **`stats_sync`** (quests with collect progress, gold, XP)  
+- **Quest log** reads **live** `playerState`; HUD shows **Gold / XP**  
+- **Vite**: `manualChunks` for **babylon** + **firebase**  
+- **ItemRegistry** resolves `game-data` from `server/` cwd (`../game-data`)  
 
 ---
 

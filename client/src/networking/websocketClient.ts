@@ -1,4 +1,6 @@
 import { MMORPGClientCore } from "../core/MMORPGClientCore";
+import { applyStatsPayload } from "../state/playerState";
+import { showToast } from "../ui/toast";
 
 let globalWs: WebSocket | null = null;
 const DEFAULT_SCENE_ID = "didis_hub";
@@ -177,10 +179,13 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
       if (data.type === 'entity_action') {
         core.handleEntityAction(data.entityId, data.action);
       }
-      if (data.type === 'welcome') {
+      if (data.type === "welcome") {
         console.log(`Welcome to Areloria! Your ID: ${data.playerId}`);
         const localPlayerId = data.playerId || data.id;
         core.setLocalPlayer(localPlayerId);
+        if (data.stats && typeof data.stats === "object") {
+          applyStatsPayload(data.stats as any);
+        }
         const spawnPos = toEntityPosition(data.spawnPosition);
         if (spawnPos && localPlayerId) {
           core.syncEntities([
@@ -231,6 +236,12 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
           nodeId: data.nodeId,
         });
       }
+      if (data.type === "stats_sync") {
+        applyStatsPayload(data as any);
+      }
+      if (data.type === "toast" && typeof data.text === "string") {
+        showToast(data.text);
+      }
     } catch (e) {
       console.warn("Failed to parse server message:", msg.data);
     }
@@ -253,6 +264,12 @@ export function sendDialogueChoice(npcId: string, choiceId: string, nodeId?: str
 export function sendQuestAccept(npcId: string, nodeId?: string) {
   if (globalWs && globalWs.readyState === WebSocket.OPEN) {
     globalWs.send(JSON.stringify({ type: "quest_accept", npcId, ...(nodeId ? { nodeId } : {}) }));
+  }
+}
+
+export function requestQuestSync() {
+  if (globalWs && globalWs.readyState === WebSocket.OPEN) {
+    globalWs.send(JSON.stringify({ type: "quest_sync" }));
   }
 }
 

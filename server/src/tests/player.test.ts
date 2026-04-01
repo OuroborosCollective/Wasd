@@ -48,9 +48,9 @@ describe("PlayerSystem", () => {
     expect(player.inventory).toEqual([]);
   });
 
-  it("createPlayer() starts with empty skills", () => {
+  it("createPlayer() starts with baseline combat skill", () => {
     const player = ps.createPlayer("p1", "Alice");
-    expect(player.skills).toEqual({});
+    expect(player.skills).toEqual({ combat: { level: 1 } });
   });
 
   it("createPlayer() starts with empty quests", () => {
