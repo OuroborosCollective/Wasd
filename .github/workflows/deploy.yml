@@ -27,3 +27,29 @@ jobs:
           git reset --hard origin/main
           chmod +x deploy/deploy.sh
           ./deploy/deploy.sh
+
+    - name: Verify deployed HTTPS endpoints
+      run: |
+        set -e
+        verify_url() {
+          local url="$1"
+          local name="$2"
+          local attempts=10
+          local wait_sec=6
+          local code=""
+          for i in $(seq 1 "$attempts"); do
+            code="$(curl -s -o /dev/null -w "%{http_code}" "$url" || true)"
+            if [ "$code" = "200" ]; then
+              echo "✅ ${name} OK (${url})"
+              return 0
+            fi
+            echo "⏳ ${name} not ready (${url}) [attempt ${i}/${attempts}] status=${code:-n/a}"
+            sleep "$wait_sec"
+          done
+          echo "❌ ${name} failed after ${attempts} attempts (${url}), last status=${code:-n/a}"
+          return 1
+        }
+
+        verify_url "https://arelogic.space/health" "HTTPS health endpoint"
+        verify_url "https://arelogic.space/" "HTTPS client root"
+        verify_url "https://arelogic.space/gm/" "HTTPS GM console"

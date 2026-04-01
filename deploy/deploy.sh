@@ -147,6 +147,33 @@ pm2 start "$APP_DIR/ecosystem.config.cjs"
 pm2 save
 pm2 startup 2>/dev/null || true
 
+# ── 11. Post-deploy verification gate ─────────────────────
+echo "[11/11] Verifying service health/endpoints..."
+verify_url() {
+  local url="$1"
+  local name="$2"
+  local attempts=12
+  local wait_sec=5
+  local code=""
+
+  for i in $(seq 1 "$attempts"); do
+    code="$(curl -s -o /dev/null -w "%{http_code}" "$url" || true)"
+    if [ "$code" = "200" ]; then
+      echo "✅ ${name} OK (${url})"
+      return 0
+    fi
+    echo "⏳ ${name} not ready (${url}) [attempt ${i}/${attempts}] status=${code:-n/a}"
+    sleep "$wait_sec"
+  done
+
+  echo "❌ ${name} failed after ${attempts} attempts (${url}), last status=${code:-n/a}"
+  return 1
+}
+
+verify_url "http://127.0.0.1:3000/health" "Health endpoint"
+verify_url "http://127.0.0.1:3000/" "Client root"
+verify_url "http://127.0.0.1:3000/gm/" "GM console"
+
 echo ""
 echo "======================================================"
 echo "  ✅ Areloria MMORPG deployed successfully!"
