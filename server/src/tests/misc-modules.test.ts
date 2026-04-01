@@ -366,6 +366,11 @@ describe("GameConfig", () => {
   it("attackDistance is 35", () => {
     expect(GameConfig.attackDistance).toBe(35);
   });
+  it("npcAttackDistance and attack cooldowns are set", () => {
+    expect(GameConfig.npcAttackDistance).toBe(4.5);
+    expect(GameConfig.playerAttackCooldownMs).toBe(450);
+    expect(GameConfig.npcCounterAttackCooldownMs).toBe(1200);
+  });
   it("playerSpeed is 3", () => {
     expect(GameConfig.playerSpeed).toBe(3);
   });

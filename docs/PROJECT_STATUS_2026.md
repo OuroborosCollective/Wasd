@@ -20,7 +20,8 @@ This document is the **authoritative snapshot** of what works today in the repos
 | **Stack** | Node, Express, WebSocket (`server/src/networking/`) |
 | **Game loop** | `WorldTick` — simulation tick **100 ms**; `entity_sync` broadcast **configurable** (`GameConfig.stateBroadcastIntervalMs`, default **200 ms**) |
 | **Movement** | Held WASD + `move_intent` (joystick); applied each tick with `GameConfig.playerSpeed` |
-| **Interact / dialogue** | `interact` resolves **nearest NPC**; `dialogue_choice` / `quest_accept`; `talk_to` quests complete on target NPC contact |
+| **Interact / dialogue** | `interact` resolves **nearest NPC** or **loot on ground** (whichever is closer in range); `dialogue_choice` / `quest_accept`; `talk_to` quests complete on target NPC contact |
+| **Combat** | `attack` picks **nearest valid target** (training dummy, `faction: Hostile`, or `role: Enemy`); **weapon** `damage` from `ItemRegistry` adds to hit; **hostile NPCs** counter-attack in melee with cooldown; **loot** spawns from `dropTable` on kill, **despawns** after `lootDespawnMs`; **25 combat XP** per kill |
 | **Scenes** | `game-data/scenes/*.json` — spawns and trigger zones (server-side) |
 | **NPC spawns** | `game-data/spawns/npc-spawns.json` (path resolves from repo root or `server/` cwd) |
 | **Starter content** | **Millbrook** hub: `npc_guide` (Linnea), quests `starter_welcome` / `village_tour`, plus existing Mara / Elder / Guard chain — see `game-data/` |
@@ -55,12 +56,12 @@ See **`docs/ROADMAP_TO_RELEASE.md`** for the full backlog aligned with the desig
 
 - Client **index** chunk still large — further **dynamic `import()`** for heavy UI panels possible  
 - Many **server modules** are implemented but not all wired end-to-end in `WorldTick` or exposed to the live client UI  
-- **Combat** is basic (nearest NPC in `attackDistance`, one hit resolution, training dummy respawns)  
+- **Combat** still has no death/respawn UI, aggro lists, or ranged abilities — see roadmap Tier A2  
 - **React** appears in root dependencies but the **game shell** is largely vanilla TS + DOM UI panels  
 
 ### Recently wired (snapshot)
 
-- **`attack`**: nearest hostile NPC in range, `CombatSystem.attack`, HP, combat quest completion, optional NPC removal; **`stats_sync`** + **`toast`** to client  
+- **`attack`**: target filter + weapon damage bonus + player attack cooldown; hostile **counter-attack**; loot drops + interact pickup; combat XP on kill; **`stats_sync`** + **`toast`**  
 - **Collect quests**: turn-in on **talk** to `targetNpcId` / `giverNpcId` when inventory has `requiredItemId` × count  
 - **`quest_sync`** message + **`stats_sync`** (quests with collect progress, gold, XP)  
 - **Quest log** reads **live** `playerState`; HUD shows **Gold / XP**  

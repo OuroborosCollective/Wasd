@@ -20,6 +20,8 @@ import path from "path";
 
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { GameConfig } from "../config/GameConfig.js";
+import { SkillSystem } from "../modules/skill/SkillSystem.js";
+import { randomUUID } from "node:crypto";
 
 type SpawnPoint = { x: number; y: number; z: number };
 type SceneProfile = {
@@ -201,6 +203,19 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function npcIsCombatTarget(npc: any): boolean {
+  if (!npc || (npc.health ?? 0) <= 0) return false;
+  if (npc.id === "npc_dummy" || npc.role === "Training") return true;
+  if (npc.faction === "Hostile") return true;
+  if (npc.role === "Enemy") return true;
+  return false;
+}
+
+function npcWillCounterAttack(npc: any): boolean {
+  if (!npc) return false;
+  return npc.faction === "Hostile" || npc.role === "Enemy";
+}
+
 function normalizeAREMode(value: unknown): AREMode | null {
   if (!isNonEmptyString(value)) {
     return null;
@@ -228,11 +243,14 @@ export class WorldTick {
   public economySystem: EconomySystem;
   public questSystem: QuestEngine;
   public worldSystem: WorldSystem;
+  public skillSystem: SkillSystem;
   public persistence: PersistenceManager;
   public glbRegistry: GLBRegistry;
   private assetPoolResolver: AssetPoolResolver;
   private areStateCompiler: AREStateCompiler;
   private lootEntities: Map<string, any> = new Map();
+  private lastPlayerAttackAt: Map<string, number> = new Map();
+  private lastNpcCounterAttackAt: Map<string, number> = new Map();
 
   private socketToPlayer: Map<string, string> = new Map(); // socketId -> characterName
   /** WASD held per player (uid) — movement applied each tick so hold-to-move works on mobile + desktop */
@@ -267,7 +285,7 @@ export class WorldTick {
     { npcId: string; pendingQuestId: string | null; nodeId: string }
   > = new Map();
 
-  private findNearestNpcForInteract(player: any) {
+  private findNearestNpcForInteractWithDistance(player: any): { npc: any; d2: number } | null {
     const px = player.position.x;
     const py = player.position.y;
     const maxD = GameConfig.interactDistance;
@@ -280,7 +298,11 @@ export class WorldTick {
         best = { npc, d2 };
       }
     }
-    return best?.npc ?? null;
+    return best;
+  }
+
+  private findNearestNpcForInteract(player: any) {
+    return this.findNearestNpcForInteractWithDistance(player)?.npc ?? null;
   }
 
   private sendDialogueToPlayer(
@@ -322,6 +344,99 @@ export class WorldTick {
       inventory: player.inventory || [],
       equipment: player.equipment || {},
     });
+  }
+
+  private getEquippedWeaponDamageBonus(player: any): number {
+    const w = player?.equipment?.weapon;
+    if (!w || typeof w.id !== "string") return 0;
+    const def = ItemRegistry.getItem(w.id);
+    return typeof def?.damage === "number" && def.damage > 0 ? def.damage : 0;
+  }
+
+  private dropLootFromNpc(npc: any) {
+    const table = npc?.dropTable;
+    if (!Array.isArray(table) || table.length === 0) return;
+    const px = npc.position.x;
+    const py = npc.position.y;
+    for (const entry of table) {
+      const chance = typeof entry.chance === "number" ? entry.chance : 0;
+      const itemId = typeof entry.itemId === "string" ? entry.itemId : "";
+      if (!itemId || chance <= 0) continue;
+      if (Math.random() > chance) continue;
+      const inst = ItemRegistry.createInstance(itemId);
+      if (!inst) continue;
+      const id = `loot_${randomUUID()}`;
+      this.lootEntities.set(id, {
+        id,
+        position: { x: px + (Math.random() - 0.5) * 1.2, y: py + (Math.random() - 0.5) * 1.2 },
+        item: inst,
+        despawnAt: Date.now() + GameConfig.lootDespawnMs,
+      });
+    }
+  }
+
+  private findNearestLoot(player: any): { id: string; loot: any; d2: number } | null {
+    const px = player.position.x;
+    const py = player.position.y;
+    const maxD = GameConfig.interactDistance;
+    let best: { id: string; loot: any; d2: number } | null = null;
+    for (const [id, loot] of this.lootEntities) {
+      const lx = loot.position.x;
+      const ly = loot.position.y;
+      const dx = lx - px;
+      const dy = ly - py;
+      const d2 = dx * dx + dy * dy;
+      if (d2 > maxD * maxD) continue;
+      if (!best || d2 < best.d2) {
+        best = { id, loot, d2 };
+      }
+    }
+    return best;
+  }
+
+  private tryPickupLoot(socketId: string, player: any, entry: { id: string; loot: any }): boolean {
+    const { id, loot } = entry;
+    if (!this.lootEntities.has(id)) return false;
+    const item = loot.item;
+    if (!item?.id) {
+      this.lootEntities.delete(id);
+      return true;
+    }
+    this.inventorySystem.addItem(player, item);
+    this.lootEntities.delete(id);
+    this.ws.sendToPlayer(socketId, {
+      type: "toast",
+      text: `Picked up: ${item.name || item.id}`,
+    });
+    this.pushPlayerStateSync(socketId, player);
+    return true;
+  }
+
+  private performNpcCounterAttack(npc: any, player: any, victimSocketId: string) {
+    if (!npcWillCounterAttack(npc)) return;
+    const px = player.position.x;
+    const py = player.position.y;
+    const dx = npc.position.x - px;
+    const dy = npc.position.y - py;
+    if (dx * dx + dy * dy > GameConfig.npcAttackDistance * GameConfig.npcAttackDistance) {
+      return;
+    }
+    const now = Date.now();
+    const last = this.lastNpcCounterAttackAt.get(npc.id) ?? 0;
+    if (now - last < GameConfig.npcCounterAttackCooldownMs) {
+      return;
+    }
+    this.lastNpcCounterAttackAt.set(npc.id, now);
+    const outcome = this.combatSystem.attack(npc, player);
+    if (outcome.hit) {
+      this.ws.broadcast({
+        type: "entity_action",
+        entityId: player.id,
+        action: "hit",
+        damage: outcome.damage,
+      });
+    }
+    this.pushPlayerStateSync(victimSocketId, player);
   }
 
   private getSceneProfile(sceneId: string | undefined): { sceneId: string; profile: SceneProfile } {
@@ -1164,6 +1279,7 @@ export class WorldTick {
     this.guildSystem = new GuildSystem();
     this.economySystem = new EconomySystem();
     this.questSystem = new QuestEngine();
+    this.skillSystem = new SkillSystem();
     this.persistence = new PersistenceManager();
     this.worldSystem = new WorldSystem(this.persistence);
     this.glbRegistry = new GLBRegistry();
@@ -1335,13 +1451,20 @@ export class WorldTick {
       }
 
       if (msg.type === "attack") {
+        const nowAtk = Date.now();
+        const lastAtk = this.lastPlayerAttackAt.get(player.id) ?? 0;
+        if (nowAtk - lastAtk < GameConfig.playerAttackCooldownMs) {
+          return;
+        }
+        this.lastPlayerAttackAt.set(player.id, nowAtk);
+
         this.ws.broadcast({ type: "entity_action", entityId: player.id, action: "attack" });
         const px = player.position.x;
         const py = player.position.y;
         const maxD = GameConfig.attackDistance;
         let best: { npc: any; d2: number } | null = null;
         for (const npc of this.npcSystem.getAllNPCs()) {
-          if ((npc.health ?? 100) <= 0) continue;
+          if (!npcIsCombatTarget(npc)) continue;
           const dx = npc.position.x - px;
           const dy = npc.position.y - py;
           const d2 = dx * dx + dy * dy;
@@ -1354,7 +1477,8 @@ export class WorldTick {
           return;
         }
         const target = best.npc;
-        const outcome = this.combatSystem.attack(player, target);
+        const weaponBonus = this.getEquippedWeaponDamageBonus(player);
+        const outcome = this.combatSystem.attackWithWeapon(player, target, weaponBonus);
         if (outcome.hit) {
           this.ws.broadcast({
             type: "entity_action",
@@ -1363,7 +1487,9 @@ export class WorldTick {
             damage: outcome.damage,
           });
         }
+        this.performNpcCounterAttack(target, player, id);
         if ((target.health ?? 0) <= 0) {
+          this.skillSystem.addXP(player, "combat", 25);
           const combatRewards = this.questSystem.updateCombatQuests(player, target.id, target.id);
           for (const r of combatRewards) {
             this.ws.sendToPlayer(id, {
@@ -1374,7 +1500,9 @@ export class WorldTick {
           if (target.id === "npc_dummy" || target.role === "Training") {
             target.health = target.maxHealth ?? 100;
           } else {
+            this.dropLootFromNpc(target);
             this.npcSystem.removeNPC(target.id);
+            this.lastNpcCounterAttackAt.delete(target.id);
           }
         }
         this.pushPlayerStateSync(id, player);
@@ -1387,7 +1515,14 @@ export class WorldTick {
 
       if (msg.type === "interact") {
         if (!player.flags) player.flags = {};
-        const npc = this.findNearestNpcForInteract(player);
+        const lootEntry = this.findNearestLoot(player);
+        const npcNear = this.findNearestNpcForInteractWithDistance(player);
+        const lootD2 = lootEntry?.d2 ?? Number.POSITIVE_INFINITY;
+        const npcD2 = npcNear?.d2 ?? Number.POSITIVE_INFINITY;
+        if (lootEntry && lootD2 <= npcD2 && this.tryPickupLoot(id, player, lootEntry)) {
+          return;
+        }
+        const npc = npcNear?.npc ?? null;
         if (!npc) {
           this.ws.sendToPlayer(id, {
             type: "dialogue",
@@ -1677,6 +1812,13 @@ export class WorldTick {
 
     this.npcSystem.tick(onlinePlayers, this.worldSystem.worldTime);
     this.worldSystem.tick();
+
+    const lootNow = Date.now();
+    for (const [lid, loot] of this.lootEntities) {
+      if (typeof loot.despawnAt === "number" && lootNow > loot.despawnAt) {
+        this.lootEntities.delete(lid);
+      }
+    }
 
     if (this.tickCount % 600 === 0) this.saveAll();
 

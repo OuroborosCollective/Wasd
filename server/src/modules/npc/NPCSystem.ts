@@ -55,9 +55,13 @@ export class NPCSystem {
       id,
       name: name || (def ? def.name : "Unknown NPC"),
       role: def ? def.role : "Citizen",
+      faction: def?.faction ?? "Neutral",
       position: { x, y, z: 0 },
       health: def?.stats?.health || 100,
       maxHealth: def?.stats?.maxHealth || 100,
+      skills: {
+        combat: { level: typeof def?.stats?.combatLevel === "number" ? def.stats.combatLevel : 1 },
+      },
       dropTable: def?.dropTable || [],
       stamina: 100,
       inventory: [],

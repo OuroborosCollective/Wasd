@@ -69,7 +69,8 @@
     "faction": "Hostile",
     "stats": {
       "health": 50,
-      "maxHealth": 50
+      "maxHealth": 50,
+      "combatLevel": 3
     },
     "dropTable": [
       { "itemId": "wolf_pelt", "chance": 1.0 }

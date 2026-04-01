@@ -15,7 +15,7 @@ This document translates **`docs/MASTER_DESIGN_BIBLE.md`** into **concrete engin
 | ID | Area | Gap | Notes |
 |----|------|-----|-------|
 | A1 | Client | **Bundle size / load time** | **Partial:** `babylon-core` / `babylon-loaders` split, lazy glTF registration, thin `main.ts` + `clientBoot.ts`; Firebase + UI chunks + dynamic panels; **next:** trim `@babylonjs/core` surface (side-effect imports), optional CDN for engine |
-| A2 | Combat | **`attack` not fully simulated** | **Partial:** nearest-target hit, HP, dummy respawn, combat quests; still no full aggro/loot-from-NPC loop |
+| A2 | Combat | **`attack` not fully simulated** | **Partial:** filtered targets, weapon damage, cooldowns, hostile counter-attack, dropTable loot + ground pickup + despawn, combat XP, combat quests; still no aggro list, player death, ranged combat, or loot UI beyond toast + inventory |
 | A3 | Quests | **`collect` / `combat` completion** | **Partial:** collect turn-in on NPC talk; combat completes on kill; still no rich objective UI |
 | A4 | Persistence | **Production save model** | Firestore/Postgres paths exist; verify one path for player + world state in prod |
 | A5 | Auth | **Real auth on client** | Dev `dev_*` players OK locally; production token flow and session hardening |
