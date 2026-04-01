@@ -31,6 +31,26 @@ nano /opt/areloria/.env
 pm2 restart areloria
 ```
 
+### Client-Pfad auf dem VPS (schwarze / leere Seite)
+
+Wenn der Node-Prozess nur unter `server/` läuft oder `cwd` nicht das Repo-Root ist, kann der Server fälschlich `/opt/client/dist` statt `/opt/areloria/client/dist` bedienen. Abgeholfen wird durch **Repo-Root als `cwd`** und optional **`CLIENT_ROOT_DIR`**.
+
+Nach `git pull` auf dem VPS (Branch mit dem Fix):
+
+```bash
+cd /opt/areloria
+APP_DIR=/opt/areloria bash deploy/write_pm2_ecosystem.sh
+pm2 restart areloria
+```
+
+Oder dauerhaft in `/opt/areloria/.env` ergänzen: `CLIENT_ROOT_DIR=/opt/areloria/client`
+
+### GitHub Actions „Continuous Deployment to VPS“
+
+Der Workflow setzt `CI=1`, sodass `deploy.sh` kein `apt-get upgrade` mehr ausführt (das bricht oft bei SSH ohne TTY). Für manuelle Runs auf dem Server: `SKIP_APT_UPGRADE=1 ./deploy/deploy.sh`. Nach dem ersten Setup nutzt der Workflow `deploy/update.sh` (Pull, Build, PM2).
+
+Wenn der Client-Build mit **„JavaScript heap out of memory“** abbricht, nutzt `client` bereits ein erhöhtes Limit (`--max-old-space-size=6144` im `build`-Script). Bei sehr kleinen VPS-Plänen ggf. Swap erhöhen oder Build lokal/GitHub Actions ausführen und nur `client/dist` deployen.
+
 ---
 
 ## Tastenkürzel im Spiel

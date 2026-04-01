@@ -18,8 +18,13 @@ echo "  Areloria MMORPG – Deployment v0.4.0"
 echo "======================================================"
 
 # ── 1. Update system ──────────────────────────────────────
-echo "[1/10] Updating system packages..."
-apt-get update -qq && apt-get upgrade -y -qq
+# Skip full apt upgrade in CI / non-interactive SSH (often fails: locks, prompts, non-root).
+if [ -n "${CI:-}" ] || [ "${SKIP_APT_UPGRADE:-}" = "1" ]; then
+  echo "[1/10] Skipping apt upgrade (CI or SKIP_APT_UPGRADE=1)."
+else
+  echo "[1/10] Updating system packages..."
+  apt-get update -qq && apt-get upgrade -y -qq
+fi
 
 # ── 2. Install Node.js ────────────────────────────────────
 echo "[2/10] Installing Node.js ${NODE_VERSION}..."
@@ -109,31 +114,8 @@ fi
 # ── 10. Start with PM2 ───────────────────────────────────
 echo "[10/10] Starting server with PM2..."
 cd "$APP_DIR"
-
-# Create PM2 ecosystem config
-cat > "$APP_DIR/ecosystem.config.cjs" << 'PM2EOF'
-module.exports = {
-  apps: [{
-    name: 'areloria',
-    script: './server/dist/index.js',
-    cwd: '/opt/areloria',
-    instances: 1,
-    autorestart: true,
-    watch: false,
-    max_memory_restart: '512M',
-    env: {
-      NODE_ENV: 'production',
-      PORT: 3000
-    },
-    env_file: '/opt/areloria/.env',
-    error_file: '/var/log/areloria/error.log',
-    out_file: '/var/log/areloria/out.log',
-    log_date_format: 'YYYY-MM-DD HH:mm:ss',
-  }]
-};
-PM2EOF
-
-mkdir -p /var/log/areloria
+# cwd + CLIENT_ROOT_DIR avoid serving from /opt/client/dist when script lives under server/dist only
+APP_DIR="$APP_DIR" bash "$APP_DIR/deploy/write_pm2_ecosystem.sh"
 
 # Stop existing instance if running
 pm2 stop areloria 2>/dev/null || true

@@ -19,11 +19,18 @@ jobs:
         password: ${{ secrets.VPS_SSH_PASSWORD }}
         port: 22
         script: |
+          set -e
+          export CI=1
           if [ ! -d "/opt/areloria/.git" ]; then
             git clone https://github.com/OuroborosCollective/Wasd.git /opt/areloria
           fi
           cd /opt/areloria
           git fetch origin main
           git reset --hard origin/main
-          chmod +x deploy/deploy.sh
-          ./deploy/deploy.sh
+          chmod +x deploy/deploy.sh deploy/update.sh deploy/write_pm2_ecosystem.sh 2>/dev/null || true
+          # Full bootstrap only when Node/server build is missing; else quick update (no apt upgrade)
+          if [ ! -f /opt/areloria/server/dist/index.js ] || ! command -v pm2 >/dev/null 2>&1; then
+            ./deploy/deploy.sh
+          else
+            ./deploy/update.sh
+          fi
