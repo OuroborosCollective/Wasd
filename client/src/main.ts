@@ -119,8 +119,8 @@ try {
   };
   requestAnimationFrame(tick);
 
-  core.events.on("dialogue", (text: string) => {
-    showDialogue(text);
+  core.events.on("dialogue", (payload: unknown) => {
+    showDialogue(payload);
   });
 
   console.log("Areloria Client Initialized");

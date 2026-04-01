@@ -104,8 +104,8 @@ export class MMORPGClientCore {
     }
   }
 
-  public handleDialogue(text: string) {
-    this.events.emit('dialogue', text);
+  public handleDialogue(payload: string | Record<string, unknown>) {
+    this.events.emit("dialogue", payload);
   }
 
   public attack() {

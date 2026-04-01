@@ -2,6 +2,7 @@
   {
     "regionId": "didis_hub_village",
     "spawns": [
+      { "npcId": "npc_guide", "x": 1.5, "y": 1.5 },
       { "npcId": "npc_1", "x": 4, "y": 2 },
       { "npcId": "npc_dummy", "x": -3, "y": 3 },
       { "npcId": "npc_3", "x": 6, "y": -2 },

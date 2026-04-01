@@ -1,7 +1,27 @@
 [
   {
+    "id": "dialogue_guide",
+    "greeting": "Hey! You look new here.",
+    "questStartLines": {
+      "starter_welcome": "This is Millbrook — small, but friendly. Go see Quartermaster Mara by the east hut; she hands out real work to newcomers.",
+      "village_tour": "You've met Mara? Good. Elder Rowan is by the well — listen to what they say about the village."
+    },
+    "questProgressLines": {
+      "starter_welcome": "Mara's the one with the supply crates — you can't miss her.",
+      "village_tour": "The Elder waits near the well. Don't keep them waiting."
+    },
+    "questCompleteLines": {
+      "starter_welcome": "Nice — Mara will take care of you from here.",
+      "village_tour": "Rowan's wise. If they trust you, the village will too."
+    },
+    "questPrerequisiteLines": {
+      "village_tour": "Talk to Mara first — she'll point you in the right direction."
+    },
+    "fallback": "Walk around, say hello. Millbrook grows on you."
+  },
+  {
     "id": "dialogue_npc_1",
-    "greeting": "Hello, I am Test NPC. Welcome to Areloria!",
+    "greeting": "Quartermaster Mara, at your service.",
     "entryNodes": [
       { "nodeId": "helped", "conditionFlag": "helped_test_npc" }
     ],

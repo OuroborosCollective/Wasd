@@ -17,10 +17,19 @@ export class QuestEngine {
     this.loadData();
   }
 
+  private resolveQuestsPath(): string | null {
+    const cwd = process.cwd();
+    const a = path.resolve(cwd, "game-data/quests/quests.json");
+    const b = path.resolve(cwd, "../game-data/quests/quests.json");
+    if (fs.existsSync(a)) return a;
+    if (fs.existsSync(b)) return b;
+    return null;
+  }
+
   private loadData() {
     try {
-      const questsPath = path.resolve(process.cwd(), "game-data/quests/quests.json");
-      if (fs.existsSync(questsPath)) {
+      const questsPath = this.resolveQuestsPath();
+      if (questsPath) {
         const questData = JSON.parse(fs.readFileSync(questsPath, "utf-8"));
         questData.forEach((quest: any) => {
           // Map to internal format if needed
@@ -185,6 +194,28 @@ export class QuestEngine {
 
     this.invalidateCache(player);
     return q.reward;
+  }
+
+  /**
+   * Complete active talk_to quests when the player talks to the target NPC (after dialogue flow).
+   */
+  checkTalkToQuests(player: any, npcId: string): { quest: any; reward: any }[] {
+    const completedQuestRewards: { quest: any; reward: any }[] = [];
+    if (!player.quests) return completedQuestRewards;
+    const activeQuests = player.quests.filter((q: any) => !q.completed);
+
+    for (const q of activeQuests) {
+      const obj = q.objectiveType || q.objective;
+      if (obj !== "talk_to") continue;
+      const target = q.targetNpcId || q.targetId;
+      if (target && target === npcId) {
+        const reward = this.completeQuest(player, q.id);
+        if (reward) {
+          completedQuestRewards.push({ quest: q, reward });
+        }
+      }
+    }
+    return completedQuestRewards;
   }
 
   updateCombatQuests(player: any, npcId: string, npcInstanceId: string): { quest: any; reward: any }[] {
