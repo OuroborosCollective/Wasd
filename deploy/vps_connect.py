@@ -9,7 +9,7 @@ This script avoids hardcoding secrets. You can either:
 Examples:
   python3 deploy/vps_connect.py shell
   python3 deploy/vps_connect.py run "uname -a"
-  python3 deploy/vps_connect.py deploy --branch cursor/mmorpq-playcanvas-connection-3e3d
+  python3 deploy/vps_connect.py deploy --branch main
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ DEFAULT_USER = "root"
 DEFAULT_PORT = 22
 DEFAULT_APP_DIR = "/opt/areloria"
 DEFAULT_REPO = "https://github.com/OuroborosCollective/Wasd.git"
-DEFAULT_BRANCH = "cursor/mmorpq-playcanvas-connection-3e3d"
+DEFAULT_BRANCH = "main"
 
 
 def require_binary(binary_name: str) -> None:

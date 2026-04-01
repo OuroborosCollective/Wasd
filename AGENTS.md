@@ -3,7 +3,7 @@
 ## Cursor Cloud specific instructions
 
 ### Project overview
-Arelorian/Ouroboros is a browser-based MMORPG: `server/` (Express + WebSocket game server) and `client/` (Vite + **Babylon.js** 3D client). Legacy **PlayCanvas** code exists only as a **fallback** if Babylon bootstrap fails. See `README.md` and `docs/PROJECT_STATUS_2026.md`.
+Arelorian/Ouroboros is a browser-based MMORPG: `server/` (Express + WebSocket game server) and `client/` (Vite + **Babylon.js** 3D client). See `README.md` and `docs/PROJECT_STATUS_2026.md`.
 
 ### Running the development server
 - **Command:** `pnpm run dev` (runs `tsx watch src/index.ts` in `server/`).

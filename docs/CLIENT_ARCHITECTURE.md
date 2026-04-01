@@ -1,12 +1,11 @@
 # Client Architecture
 
-The client renders the world (primary: **Babylon.js**), holds local UI state, and synchronizes over **WebSocket** with the server. Legacy **PlayCanvas** code exists under `client/src/engine/playcanvas/` as **fallback only** if Babylon bootstrap fails.
+The client renders the world with **Babylon.js**, holds local UI state, and synchronizes over **WebSocket** with the server.
 
 ## Layers (actual `client/src`)
 
-- `engine/babylon/` — Babylon boot, adapter, ground/sky helpers  
+- `engine/babylon/` — Babylon boot, adapter, ground/sky helpers, default `AssetRegistry` for GLB fallbacks  
 - `engine/bridge/` — `IEngineBridge`, `EntityViewModel` (renderer-agnostic)  
-- `engine/playcanvas/` — legacy fallback adapter  
 - `core/` — `MMORPGClientCore`, event bus, entity view manager  
 - `networking/` — `websocketClient.ts`  
 - `ui/` — HUD, panels, mobile controls  

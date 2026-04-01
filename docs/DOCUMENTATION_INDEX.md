@@ -12,7 +12,7 @@ Use this map to avoid reading **obsolete** files as if they were current spec.
 | **`docs/ROADMAP_TO_RELEASE.md`** | **What is left** until release; bible-aligned backlog |
 | **`docs/MASTER_DESIGN_BIBLE.md`** | **Vision** and creative pillars (update rarely) |
 | **`DEPLOYMENT.md`** | VPS / PM2 / GitHub Actions |
-| **`docs/VITE_MCP_AND_VPS_SETUP.md`** | MCP + WebSocket + Nginx (replaces old PlayCanvas-titled doc) |
+| **`docs/VITE_MCP_AND_VPS_SETUP.md`** | MCP + WebSocket + Nginx (Vite / Babylon client) |
 
 ## Architecture and systems
 
@@ -29,7 +29,7 @@ Use this map to avoid reading **obsolete** files as if they were current spec.
 
 ## Historical / pack files (do not use as sole source of truth)
 
-Large reconstruction exports and old packs may still say **Three.js** or **PlayCanvas** as primary client:
+Large reconstruction exports and old packs may still say **Three.js** or an older client stack as primary:
 
 - `areloria_reconstruction_pack_*.md`
 - `areloria_final_reconstruction_*.md`
@@ -53,4 +53,5 @@ Treat these as **archaeology**, not the live stack description.
 ## Obsolete filenames
 
 - **`docs/PLAYCANVAS_MCP_CURSOR_VPS_SETUP.md`** — removed; use **`docs/VITE_MCP_AND_VPS_SETUP.md`**
-- **`docs/PLAYCANVAS_DIDI_SCRIPT_IMPORT.md`** — removed; scene flow is **server-driven** (`game-data/scenes/`). Legacy scripts may still exist under `client/public/playcanvas/scripts/` for reference only.
+- **`docs/PLAYCANVAS_DIDI_SCRIPT_IMPORT.md`** — removed; scene flow is **server-driven** (`game-data/scenes/`).  
+- **MCP:** tool `get_game_connection_profile` returns WebSocket + MCP URLs (replaces the old `get_playcanvas_connection_profile` name).
