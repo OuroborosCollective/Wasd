@@ -21,7 +21,8 @@ This document is the **authoritative snapshot** of what works today in the repos
 | **Stack** | Node, Express, WebSocket (`server/src/networking/`) |
 | **Player persistence** | **Firestore** when `FIREBASE_SERVICE_ACCOUNT_KEY` is set (whitelisted fields via `playerSnapshot.ts`); otherwise **`data/players.json`** (or `PLAYER_SAVE_FILE`). Load: merge into fresh `createPlayer` (**`isOffline: true`** until login). Saves: disconnect, **~20s** tick, debounced after loot / equip / combat HP / quests / scene / respawn |
 | **WS login** | **Token** → Firebase uid; client uses **`getIdToken()`** on reconnect. Errors: **`invalid_token`** / **`login_required`**. **`REQUIRE_FIREBASE_AUTH=1`** → only token. **Vite:** `VITE_FIREBASE_*` or repo **`firebase-applet-config.json`** |
-| **Skills** | **`use_skill`** e.g. **`ember_bolt`** — mana, cooldown, `spellStrike` damage; same loot/death path as melee |
+| **Skills** | **`use_skill`**: **`ember_bolt`**, **`frost_shard`** — mana, cooldown, `spellStrike`; **Q** / mobile **SPELL** quick-cast primary skill |
+| **Auth (client)** | HUD: **Google**, **email/password** sign-in & create; token refresh on WS reconnect |
 | **WS limits** | **`wsMaxMessageBytes`**, **`wsMaxMessagesPerSecond`** per socket |
 | **Inventory** | **Stacks** for `consumable` + `misc` (override with `stackable` / `maxStack` on items); merge on load; **Quest collect** counts `quantity` |
 | **Combat target** | Client **tap** on canvas → `set_target` (locks **`combatTargetNpcId`**, persisted); **`attack`** prefers locked target in range |

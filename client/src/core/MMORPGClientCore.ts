@@ -116,6 +116,11 @@ export class MMORPGClientCore {
     this.events.emit('interact');
   }
 
+  public useSkill(skillId: string) {
+    if (!skillId || !skillId.trim()) return;
+    this.events.emit("use_skill", { skillId: skillId.trim() });
+  }
+
   public registerDefaultInput() {
     this.engine.onInput((input) => {
       this.events.emit('input', input);

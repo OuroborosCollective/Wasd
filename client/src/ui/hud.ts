@@ -12,7 +12,12 @@ import {
   getPlayerXp,
   subscribePlayerState,
 } from "../state/playerState";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import {
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+} from "firebase/auth";
 import { prefersCompactTouchUi } from "./touchUi";
 
 const GUEST_STORAGE_KEY = "areloria_guest_id";
@@ -114,9 +119,22 @@ export function renderHUD() {
 
   document.body.appendChild(hud);
 
+  const authBox = document.createElement("div");
+  authBox.id = "arel-hud-auth";
+  authBox.style.marginTop = "10px";
+  authBox.style.display = "flex";
+  authBox.style.flexDirection = "column";
+  authBox.style.gap = "8px";
+  authBox.style.maxWidth = "100%";
+
+  const btnRow = document.createElement("div");
+  btnRow.style.display = "flex";
+  btnRow.style.flexWrap = "wrap";
+  btnRow.style.gap = "8px";
+  btnRow.style.alignItems = "center";
+
   const loginBtn = document.createElement("button");
-  loginBtn.textContent = "Login with Google";
-  loginBtn.style.marginTop = "8px";
+  loginBtn.textContent = "Google";
   loginBtn.style.padding = "8px 12px";
   loginBtn.style.minHeight = "44px";
   loginBtn.style.background = "#f27d26";
@@ -128,8 +146,6 @@ export function renderHUD() {
 
   const logoutBtn = document.createElement("button");
   logoutBtn.textContent = "Sign out";
-  logoutBtn.style.marginTop = "8px";
-  logoutBtn.style.marginLeft = "8px";
   logoutBtn.style.padding = "8px 12px";
   logoutBtn.style.minHeight = "44px";
   logoutBtn.style.background = "rgba(60,60,70,0.95)";
@@ -139,19 +155,95 @@ export function renderHUD() {
   logoutBtn.style.border = "1px solid rgba(255,255,255,0.2)";
   logoutBtn.style.touchAction = "manipulation";
 
+  const emailRow = document.createElement("div");
+  emailRow.style.display = "flex";
+  emailRow.style.flexDirection = "column";
+  emailRow.style.gap = "6px";
+  const emailIn = document.createElement("input");
+  emailIn.type = "email";
+  emailIn.placeholder = "Email";
+  emailIn.autocomplete = "username";
+  emailIn.style.padding = "8px 10px";
+  emailIn.style.borderRadius = "8px";
+  emailIn.style.border = "1px solid rgba(255,255,255,0.25)";
+  emailIn.style.background = "rgba(20,22,32,0.9)";
+  emailIn.style.color = "#fff";
+  emailIn.style.fontSize = "14px";
+  const passIn = document.createElement("input");
+  passIn.type = "password";
+  passIn.placeholder = "Password";
+  passIn.autocomplete = "current-password";
+  passIn.style.padding = "8px 10px";
+  passIn.style.borderRadius = "8px";
+  passIn.style.border = "1px solid rgba(255,255,255,0.25)";
+  passIn.style.background = "rgba(20,22,32,0.9)";
+  passIn.style.color = "#fff";
+  passIn.style.fontSize = "14px";
+  const emailErr = document.createElement("div");
+  emailErr.style.fontSize = "11px";
+  emailErr.style.color = "#ff8a8a";
+  emailErr.style.minHeight = "14px";
+  const emailBtnRow = document.createElement("div");
+  emailBtnRow.style.display = "flex";
+  emailBtnRow.style.flexWrap = "wrap";
+  emailBtnRow.style.gap = "8px";
+  const emailLoginBtn = document.createElement("button");
+  emailLoginBtn.type = "button";
+  emailLoginBtn.textContent = "Email sign in";
+  emailLoginBtn.style.padding = "8px 12px";
+  emailLoginBtn.style.minHeight = "44px";
+  emailLoginBtn.style.borderRadius = "8px";
+  emailLoginBtn.style.border = "1px solid rgba(100,180,255,0.45)";
+  emailLoginBtn.style.background = "rgba(35,50,80,0.95)";
+  emailLoginBtn.style.color = "#e8ecf5";
+  emailLoginBtn.style.cursor = "pointer";
+  emailLoginBtn.style.touchAction = "manipulation";
+  const emailSignupBtn = document.createElement("button");
+  emailSignupBtn.type = "button";
+  emailSignupBtn.textContent = "Create account";
+  emailSignupBtn.style.padding = "8px 12px";
+  emailSignupBtn.style.minHeight = "44px";
+  emailSignupBtn.style.borderRadius = "8px";
+  emailSignupBtn.style.border = "1px solid rgba(180,255,180,0.35)";
+  emailSignupBtn.style.background = "rgba(30,55,40,0.95)";
+  emailSignupBtn.style.color = "#e8ecf5";
+  emailSignupBtn.style.cursor = "pointer";
+  emailSignupBtn.style.touchAction = "manipulation";
+  emailBtnRow.appendChild(emailLoginBtn);
+  emailBtnRow.appendChild(emailSignupBtn);
+  emailRow.appendChild(emailIn);
+  emailRow.appendChild(passIn);
+  emailRow.appendChild(emailErr);
+  emailRow.appendChild(emailBtnRow);
+
+  btnRow.appendChild(loginBtn);
+  btnRow.appendChild(logoutBtn);
+  authBox.appendChild(btnRow);
+  authBox.appendChild(emailRow);
+
+  const hint = document.createElement("div");
+  hint.textContent = "Mobile: SPELL button = quick cast · Desktop: Q";
+  hint.style.fontSize = "10px";
+  hint.style.opacity = "0.7";
+  hint.style.marginTop = "2px";
+  authBox.appendChild(hint);
+
   const syncAuthUi = () => {
     const u = auth?.currentUser;
-    loginBtn.style.display = u ? "none" : "inline-block";
+    const out = !u;
+    loginBtn.style.display = out ? "inline-block" : "none";
     logoutBtn.style.display = u ? "inline-block" : "none";
+    emailRow.style.display = out ? "flex" : "none";
   };
   syncAuthUi();
   auth?.onAuthStateChanged(() => syncAuthUi());
 
   if (!isFirebaseClientConfigured() || !auth) {
-    loginBtn.textContent = "Login (configure VITE_FIREBASE_* or firebase-applet-config)";
+    loginBtn.textContent = "Auth (configure Firebase)";
     loginBtn.disabled = true;
     loginBtn.style.opacity = "0.65";
     logoutBtn.style.display = "none";
+    emailRow.style.display = "none";
   } else {
     loginBtn.onclick = async () => {
       const provider = new GoogleAuthProvider();
@@ -162,6 +254,26 @@ export function renderHUD() {
         console.log("Logged in!");
       } catch (e) {
         console.error("Login failed", e);
+      }
+    };
+    emailLoginBtn.onclick = async () => {
+      emailErr.textContent = "";
+      try {
+        const cred = await signInWithEmailAndPassword(auth, emailIn.value.trim(), passIn.value);
+        const token = await cred.user.getIdToken();
+        updateAuthToken(token);
+      } catch (e: unknown) {
+        emailErr.textContent = e instanceof Error ? e.message : "Sign-in failed";
+      }
+    };
+    emailSignupBtn.onclick = async () => {
+      emailErr.textContent = "";
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, emailIn.value.trim(), passIn.value);
+        const token = await cred.user.getIdToken();
+        updateAuthToken(token);
+      } catch (e: unknown) {
+        emailErr.textContent = e instanceof Error ? e.message : "Sign-up failed";
       }
     };
     logoutBtn.onclick = async () => {
@@ -176,8 +288,7 @@ export function renderHUD() {
     };
   }
 
-  hud.appendChild(loginBtn);
-  hud.appendChild(logoutBtn);
+  hud.appendChild(authBox);
 }
 
 export type DialoguePayload = {
