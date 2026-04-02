@@ -18,6 +18,7 @@ import {
   playgroundTextureUrl,
 } from "./playgroundTextures";
 import { applyTiledGroundTextures, MAIN_GROUND_UV_SCALE } from "./groundTextureUtils";
+import { prefersCompactTouchUi } from "../../ui/touchUi";
 
 export type BabylonApp = {
   engine: Engine;
@@ -26,11 +27,22 @@ export type BabylonApp = {
 };
 
 export function createBabylonApp(canvas: HTMLCanvasElement): BabylonApp {
+  const touchFirst = prefersCompactTouchUi();
+  /** `preserveDrawingBuffer` doubles memory bandwidth on many GPUs — avoid on phones (crashes / thermal throttle). */
+  const wantScreenshots =
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("screenshot") === "1";
   const engine = new Engine(canvas, true, {
-    preserveDrawingBuffer: true,
+    preserveDrawingBuffer: wantScreenshots,
     stencil: true,
-    adaptToDeviceRatio: true,
+    /** Full retina + GLB is too heavy on many phones; scale down internal buffer instead. */
+    adaptToDeviceRatio: !touchFirst,
   });
+  if (touchFirst) {
+    const dpr = typeof window !== "undefined" ? Math.min(2, window.devicePixelRatio || 1) : 1;
+    /** ~1.5–2× fewer shaded pixels vs naive full-DPR canvas. */
+    engine.setHardwareScalingLevel(Math.max(1.25, dpr));
+    engine.maxFPS = 30;
+  }
 
   const scene = new Scene(engine);
   scene.clearColor = new Color4(0.15, 0.22, 0.38, 1);

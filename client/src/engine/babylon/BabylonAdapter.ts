@@ -32,6 +32,7 @@ import {
 import { applyTiledGroundTextures, chunkGroundUvScale } from "./groundTextureUtils";
 import { makeSoftClickWavDataUrl } from "./tinyWav";
 import { getQuickCastSkillId } from "../../game/combatSkills";
+import { prefersCompactTouchUi } from "../../ui/touchUi";
 
 type EntityNode = {
   root: TransformNode;
@@ -73,7 +74,8 @@ export class BabylonAdapter implements IEngineBridge {
   private readonly areWaveClock = { t: 0 };
   private readonly areDebugEnabled = new URLSearchParams(window.location.search).get("areDebug") === "1";
   private readonly areDebugElement: HTMLDivElement | null = null;
-  private areMode: "off" | "cpu" | "shader" = "shader";
+  /** Default `shader` on desktop; `off` on touch phones (ARE vertex shader per mesh is very expensive). */
+  private areMode: "off" | "cpu" | "shader" = prefersCompactTouchUi() ? "off" : "shader";
   private areShaderRegistered = false;
   private cameraTargetId: string | null = null;
   private navigationMarker: Mesh | null = null;
@@ -87,6 +89,8 @@ export class BabylonAdapter implements IEngineBridge {
   private lockedTargetEntityId: string | null = null;
   private combatTargetPickHandler: ((entityId: string | null) => void) | null = null;
   private hoverTooltipEl: HTMLDivElement | null = null;
+  private lastHoverPickMs = 0;
+  private lastReticleUpdateMs = 0;
 
   constructor(
     private readonly scene: Scene,
@@ -95,6 +99,8 @@ export class BabylonAdapter implements IEngineBridge {
     const modeFromQuery = this.normalizeAREMode(new URLSearchParams(window.location.search).get("areMode"));
     if (modeFromQuery) {
       this.areMode = modeFromQuery;
+    } else if (prefersCompactTouchUi()) {
+      this.areMode = "off";
     }
     if (this.areDebugEnabled) {
       this.areDebugElement = this.mountAREDebugOverlay();
@@ -234,6 +240,11 @@ export class BabylonAdapter implements IEngineBridge {
 
   private updateHoverTooltip() {
     if (!this.hoverTooltipEl) return;
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const touch = prefersCompactTouchUi();
+    if (touch && now - this.lastHoverPickMs < 220) return;
+    this.lastHoverPickMs = now;
+
     const canvas = this.scene.getEngine().getRenderingCanvas();
     if (!canvas) {
       this.hoverTooltipEl.style.display = "none";
@@ -326,6 +337,11 @@ export class BabylonAdapter implements IEngineBridge {
   }
 
   private updateTargetReticle() {
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const touch = prefersCompactTouchUi();
+    if (touch && now - this.lastReticleUpdateMs < 120) return;
+    this.lastReticleUpdateMs = now;
+
     if (!this.targetReticleEl || !this.localPlayerId) {
       if (this.targetReticleEl) this.targetReticleEl.style.display = "none";
       this.targetReticleEntityId = null;
@@ -938,14 +954,16 @@ export class BabylonAdapter implements IEngineBridge {
   }
 
   private updateAREVisuals(): void {
+    if (this.areMode === "off") {
+      return;
+    }
     for (const node of this.entities.values()) {
       const wave = Math.sin(this.areWaveClock.t * 2 + node.arePhase * 0.01) * 0.05 * (0.25 + node.areResonance);
-      let scale = this.areMode === "off" ? 1 : node.baseScale;
+      let scale = node.baseScale;
       if (this.areMode === "cpu") {
         scale = Math.max(0.2, node.baseScale + wave);
       }
       node.root.scaling = new Vector3(scale, scale, scale);
-      // uTime-only updates for shader mode; avoid touching uniforms every frame in cpu/off
       if (this.areMode === "shader" && node.areShader) {
         node.areShader.setFloat("uTime", this.areWaveClock.t);
       }
