@@ -7,4 +7,10 @@ describe("skillDefinitions", () => {
     expect(s?.manaCost).toBeGreaterThan(0);
     expect(s?.cooldownMs).toBeGreaterThan(0);
   });
+
+  it("frost_shard exists", () => {
+    const s = getSkillDefinition("frost_shard");
+    expect(s?.manaCost).toBeGreaterThan(0);
+    expect(s?.spellPower).toBeGreaterThan(0);
+  });
 });

@@ -312,6 +312,11 @@ function bindCoreInputHandlers(core: MMORPGClientCore) {
       globalWs.send(JSON.stringify({ type: "interact" }));
     }
   });
+  core.events.on("use_skill", (payload: { skillId: string }) => {
+    if (globalWs?.readyState === WebSocket.OPEN && payload?.skillId) {
+      globalWs.send(JSON.stringify({ type: "use_skill", skillId: payload.skillId }));
+    }
+  });
 }
 
 async function openWebSocket(core: MMORPGClientCore, options: ConnectionOptions) {

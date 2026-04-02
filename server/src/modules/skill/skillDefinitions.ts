@@ -20,6 +20,14 @@ export const SKILL_DEFINITIONS: Record<string, SkillDefinition> = {
     range: 48,
     spellPower: 14,
   },
+  frost_shard: {
+    id: "frost_shard",
+    name: "Frost Shard",
+    manaCost: 12,
+    cooldownMs: 3000,
+    range: 45,
+    spellPower: 22,
+  },
 };
 
 export function getSkillDefinition(skillId: string): SkillDefinition | undefined {

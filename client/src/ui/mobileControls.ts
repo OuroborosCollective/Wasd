@@ -50,9 +50,11 @@ const MOBILE_STYLES = `
     transition: none;
     pointer-events: none;
   }
+  .mob-btn-skill { background: rgba(120,60,200,0.45); border-color: rgba(180,120,255,0.55); }
+  .mob-btn-skill:active { background: rgba(160,100,240,0.65); }
   #mobile-action-btns {
     position: fixed; bottom: 90px; right: 20px;
-    display: grid; grid-template-columns: 52px 52px;
+    display: grid; grid-template-columns: 52px 52px 52px;
     grid-template-rows: 52px 52px 52px;
     gap: 8px; z-index: 1000;
     touch-action: none;
@@ -193,6 +195,7 @@ export function initMobileControls(
     onInventory: () => void;
     onQuests: () => void;
     onSkills: () => void;
+    onQuickSkill: () => void;
     onMap: () => void;
     onChat: () => void;
   },
@@ -218,23 +221,27 @@ export function initMobileControls(
 
     <!-- Action Buttons (right side) -->
     <div id="mobile-action-btns">
-      <div class="mob-btn mob-btn-attack" id="mob-attack" style="grid-column:2;grid-row:2;">
-        ⚔️
-        <span class="mob-btn-label">ATK</span>
+      <div class="mob-btn mob-btn-skill" id="mob-skill-cast" style="grid-column:1;grid-row:1;">
+        🔮
+        <span class="mob-btn-label">SPELL</span>
+      </div>
+      <div class="mob-btn" id="mob-skills" style="grid-column:2;grid-row:1;">
+        ✨
+        <span class="mob-btn-label">SKILL</span>
+      </div>
+      <div class="mob-btn" id="mob-equip" style="grid-column:3;grid-row:1;">
+        🎒
+        <span class="mob-btn-label">INV</span>
       </div>
       <div class="mob-btn mob-btn-interact" id="mob-interact" style="grid-column:1;grid-row:2;">
         💬
         <span class="mob-btn-label">TALK</span>
       </div>
-      <div class="mob-btn" id="mob-equip" style="grid-column:2;grid-row:1;">
-        🎒
-        <span class="mob-btn-label">INV</span>
+      <div class="mob-btn mob-btn-attack" id="mob-attack" style="grid-column:2;grid-row:2;">
+        ⚔️
+        <span class="mob-btn-label">ATK</span>
       </div>
-      <div class="mob-btn" id="mob-skills" style="grid-column:1;grid-row:1;">
-        ✨
-        <span class="mob-btn-label">SKILL</span>
-      </div>
-      <div class="mob-btn" id="mob-quests" style="grid-column:1;grid-row:3;">
+      <div class="mob-btn" id="mob-quests" style="grid-column:3;grid-row:2;">
         📜
         <span class="mob-btn-label">QUEST</span>
       </div>
@@ -427,6 +434,7 @@ export function initMobileControls(
     el.addEventListener("click", (e) => { e.stopPropagation(); cb(); });
   };
 
+  addTouchBtn("mob-skill-cast", callbacks.onQuickSkill);
   addTouchBtn("mob-attack", callbacks.onAttack);
   addTouchBtn("mob-interact", callbacks.onInteract);
   addTouchBtn("mob-equip", callbacks.onInventory);

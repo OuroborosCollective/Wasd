@@ -31,6 +31,7 @@ import {
 } from "./playgroundTextures";
 import { applyTiledGroundTextures, chunkGroundUvScale } from "./groundTextureUtils";
 import { makeSoftClickWavDataUrl } from "./tinyWav";
+import { PRIMARY_QUICK_CAST_SKILL_ID } from "../../game/combatSkills";
 
 type EntityNode = {
   root: TransformNode;
@@ -729,6 +730,9 @@ export class BabylonAdapter implements IEngineBridge {
       if (event.code === "Space") {
         this.emitAttack();
       }
+      if (key === "q") {
+        this.emitQuickSkill();
+      }
       if (key === "e") {
         this.emitInteract();
       }
@@ -760,6 +764,13 @@ export class BabylonAdapter implements IEngineBridge {
     const gameCore = (window as any).gameCore;
     if (gameCore && typeof gameCore.interact === "function") {
       gameCore.interact();
+    }
+  }
+
+  private emitQuickSkill(): void {
+    const gameCore = (window as any).gameCore;
+    if (gameCore && typeof gameCore.useSkill === "function") {
+      gameCore.useSkill(PRIMARY_QUICK_CAST_SKILL_ID);
     }
   }
 

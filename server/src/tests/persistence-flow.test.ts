@@ -121,6 +121,14 @@ describe("WS persistence flow (file store)", () => {
         (d) => d.type === "stats_sync" && typeof d.mana === "number" && d.mana >= 20
       );
 
+      ws.send(JSON.stringify({ type: "use_skill", skillId: "ember_bolt" }));
+      await waitForMessage(
+        ws,
+        (d) =>
+          (d.type === "toast" && typeof d.text === "string" && d.text.includes("Ember Bolt")) ||
+          d.type === "entity_action"
+      );
+
       await new Promise<void>((resolve) => {
         ws.once("close", () => resolve());
         ws.close();

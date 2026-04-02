@@ -1,16 +1,9 @@
 import { closeAllPanels } from "./panelManager";
 import { applyGamePanelLayout, panelCloseButtonStyles } from "./panelLayout";
 import { sendUseSkill } from "../networking/websocketClient";
+import { ACTIVE_COMBAT_SKILLS } from "../game/combatSkills";
 
-const ACTIVE_SKILLS = [
-  {
-    id: "ember_bolt",
-    name: "Ember Bolt",
-    detail: "8 mana · 2.2s cooldown · ranged magic hit",
-  },
-];
-
-function skillRow(skill: (typeof ACTIVE_SKILLS)[0], compact: boolean): HTMLDivElement {
+function skillRow(skill: (typeof ACTIVE_COMBAT_SKILLS)[0], compact: boolean): HTMLDivElement {
   const row = document.createElement("div");
   row.style.display = "flex";
   row.style.alignItems = "center";
@@ -65,7 +58,7 @@ function refreshSkillsContent(content: HTMLElement, compact: boolean) {
   hint.style.lineHeight = "1.45";
   hint.style.margin = "0 0 10px 0";
   content.appendChild(hint);
-  for (const s of ACTIVE_SKILLS) {
+  for (const s of ACTIVE_COMBAT_SKILLS) {
     content.appendChild(skillRow(s, compact));
   }
 }
