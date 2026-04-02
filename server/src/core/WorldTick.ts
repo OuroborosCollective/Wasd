@@ -2303,6 +2303,7 @@ export class WorldTick {
       lastSavePlayerCount: this.lastSaveAllPlayerCount,
       lastSaveError: this.lastSaveAllError,
       firestoreConfigured: Boolean(getDb()),
+      persistenceDriver: this.persistence.getDriverName(),
     };
   }
 
