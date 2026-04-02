@@ -23,6 +23,7 @@ import {
 import { showBootStatus, showRendererFatalOverlay } from "./bootUi";
 import { initCombatMobileUi } from "./ui/combatMobileUi";
 import { getQuickCastSkillId } from "./game/combatSkills";
+import { mountSkillBar } from "./ui/skillBar";
 
 function bootEngineBridge(targetCanvas: HTMLCanvasElement): IEngineBridge {
   const app = createBabylonApp(targetCanvas);
@@ -82,6 +83,7 @@ export async function bootAreloriaClient(canvas: HTMLCanvasElement): Promise<voi
   (window as unknown as { requestSceneChange?: typeof requestSceneChange }).requestSceneChange =
     requestSceneChange;
   renderHUD();
+  mountSkillBar();
   void import("./ui/mobileSceneTeleportPanel").then((m) => m.renderMobileSceneTeleportPanel());
   preloadGamePanels();
 

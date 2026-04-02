@@ -4,18 +4,53 @@ export type ClientSkillInfo = {
   id: string;
   name: string;
   detail: string;
+  kind: "offensive" | "self";
+  /** Matches server `skillDefinitions` cooldownMs (for UI progress) */
+  cooldownMs: number;
 };
 
 export const ACTIVE_COMBAT_SKILLS: ClientSkillInfo[] = [
   {
     id: "ember_bolt",
     name: "Ember Bolt",
-    detail: "8 mana · 2.2s cooldown · ranged magic hit",
+    detail: "8 mana · 2.2s · ranged hit",
+    kind: "offensive",
+    cooldownMs: 2200,
   },
   {
     id: "frost_shard",
     name: "Frost Shard",
-    detail: "12 mana · 3s cooldown · heavier magic hit",
+    detail: "12 mana · 3s · heavy hit",
+    kind: "offensive",
+    cooldownMs: 3000,
+  },
+  {
+    id: "arc_spark",
+    name: "Arc Spark",
+    detail: "5 mana · 1.4s · quick zap",
+    kind: "offensive",
+    cooldownMs: 1400,
+  },
+  {
+    id: "vitality_tap",
+    name: "Vitality Tap",
+    detail: "10 mana · 8s · heal self",
+    kind: "self",
+    cooldownMs: 8000,
+  },
+  {
+    id: "shadow_tag",
+    name: "Shadow Tag",
+    detail: "15 mana · 4.5s · burst",
+    kind: "offensive",
+    cooldownMs: 4500,
+  },
+  {
+    id: "aether_pulse",
+    name: "Aether Pulse",
+    detail: "18 mana · 5.5s · wave",
+    kind: "offensive",
+    cooldownMs: 5500,
   },
 ];
 
