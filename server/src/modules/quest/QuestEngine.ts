@@ -221,7 +221,13 @@ export class QuestEngine {
 
   countItemInInventory(player: any, itemId: string): number {
     const inv = player.inventory || [];
-    return inv.filter((it: any) => it && it.id === itemId).length;
+    let sum = 0;
+    for (const it of inv) {
+      if (it && it.id === itemId) {
+        sum += Math.max(1, Math.floor(Number(it.quantity) || 1));
+      }
+    }
+    return sum;
   }
 
   /**
@@ -243,14 +249,22 @@ export class QuestEngine {
       if (this.countItemInInventory(player, needId) < needCount) continue;
 
       let removed = 0;
-      player.inventory = (player.inventory || []).filter((it: any) => {
-        if (removed >= needCount) return true;
-        if (it && it.id === needId) {
-          removed++;
-          return false;
+      const inv = player.inventory || [];
+      for (let i = 0; i < inv.length && removed < needCount; i++) {
+        const it = inv[i];
+        if (!it || it.id !== needId) continue;
+        const q = Math.max(1, Math.floor(Number(it.quantity) || 1));
+        const need = needCount - removed;
+        if (q <= need) {
+          removed += q;
+          inv.splice(i, 1);
+          i--;
+        } else {
+          it.quantity = q - need;
+          removed += need;
         }
-        return true;
-      });
+      }
+      player.inventory = inv;
 
       const wasOpen = !q.completed;
       const reward = this.completeQuest(player, q.id);

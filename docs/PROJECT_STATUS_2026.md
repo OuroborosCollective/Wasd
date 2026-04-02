@@ -12,7 +12,7 @@ This document is the **authoritative snapshot** of what works today in the repos
 | **WebGL failure** | `Engine.IsSupported` → full-screen overlay; **context lost** → overlay + link to Babylon WebGL docs |
 | **Default GLB fallbacks** | `client/src/engine/babylon/AssetRegistry.ts` — used when server does not send a `modelUrl` |
 | **Bridge** | `client/src/engine/bridge/` — `IEngineBridge`, `EntityViewModel`; keep simulation off the client |
-| **HUD / mobile** | HP + stamina + **mana** **bars**; dialogue **bottom sheet**; **inventory / skills / equipment / quest** panels share **`panelLayout.ts`**; **inventory** lists server items + **Equip**; **equipment** shows weapon/armor + **Unequip**; loot chips when **`prefersCompactTouchUi()`**; **target reticle**; UI SFX via **Babylon `Sound`** (tiny WAV data URL) with **Web Audio** fallback |
+| **HUD / mobile** | HP + stamina + **mana** **bars**; dialogue **bottom sheet**; **inventory / skills / equipment / quest** panels share **`panelLayout.ts`**; **inventory** lists stacks (**×N**) + **Equip**/**Use**; **equipment** shows weapon/armor + **Unequip**; loot chips when **`prefersCompactTouchUi()`**; **target reticle**; **world hover tooltip** (NPC role/faction/HP, loot); UI SFX via **Babylon `Sound`** with **Web Audio** fallback |
 
 ## Server and networking
 
@@ -20,7 +20,8 @@ This document is the **authoritative snapshot** of what works today in the repos
 |------|--------|
 | **Stack** | Node, Express, WebSocket (`server/src/networking/`) |
 | **Player persistence** | **Firestore** when `FIREBASE_SERVICE_ACCOUNT_KEY` is set (whitelisted fields via `playerSnapshot.ts`); otherwise **`data/players.json`** (or `PLAYER_SAVE_FILE`). Load: merge into fresh `createPlayer` (**`isOffline: true`** until login). Saves: disconnect, **~20s** tick, debounced after loot / equip / combat HP / quests / scene / respawn |
-| **WS login** | **Token** → Firebase uid. **Production** without token → error unless **`ALLOW_GUEST_LOGIN=1`** (optional stable **`guestId`** from client `localStorage`). **Dev** → `dev_<socketId>` unless **`ALLOW_DEV_LOGIN=0`** |
+| **WS login** | **Token** → Firebase uid. **`REQUIRE_FIREBASE_AUTH=1`** → only token (no guest/dev). Else: **Production** without token → error unless **`ALLOW_GUEST_LOGIN=1`** (stable **`guestId`** in `localStorage`). **Dev** → `dev_<socketId>` unless **`ALLOW_DEV_LOGIN=0`** |
+| **Inventory** | **Stacks** for `consumable` + `misc` (override with `stackable` / `maxStack` on items); merge on load; **Quest collect** counts `quantity` |
 | **Combat target** | Client **tap** on canvas → `set_target` (locks **`combatTargetNpcId`**, persisted); **`attack`** prefers locked target in range |
 | **Mana** | Passive **regen** (`GameConfig.playerManaRegenPerSecond`); consumables e.g. **`minor_mana_draught`** via **`use_item`** |
 | **Observability** | **`GET /health`** includes **`persistence`** (last save timing, Firestore flag, last error) |

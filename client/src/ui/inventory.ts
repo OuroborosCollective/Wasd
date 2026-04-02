@@ -39,8 +39,9 @@ function refreshInventoryContent(content: HTMLElement, compact: boolean) {
     const text = document.createElement("div");
     text.style.flex = "1";
     text.style.minWidth = "0";
+    const qty = Math.max(1, Math.floor(Number((item as { quantity?: number }).quantity) || 1));
     const title = document.createElement("div");
-    title.textContent = itemLabel(item);
+    title.textContent = qty > 1 ? `${itemLabel(item)} ×${qty}` : itemLabel(item);
     title.style.fontWeight = "600";
     title.style.fontSize = compact ? "15px" : "14px";
     title.style.wordBreak = "break-word";

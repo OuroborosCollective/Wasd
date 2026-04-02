@@ -85,6 +85,7 @@ export class BabylonAdapter implements IEngineBridge {
   private babylonUiSoundReady = false;
   private lockedTargetEntityId: string | null = null;
   private combatTargetPickHandler: ((entityId: string | null) => void) | null = null;
+  private hoverTooltipEl: HTMLDivElement | null = null;
 
   constructor(
     private readonly scene: Scene,
@@ -99,6 +100,7 @@ export class BabylonAdapter implements IEngineBridge {
     }
     this.bindKeyboard();
     this.mountTargetReticle();
+    this.mountHoverTooltip();
     this.initBabylonUiSound();
     this.bindCombatTargetPicking();
   }
@@ -162,6 +164,121 @@ export class BabylonAdapter implements IEngineBridge {
     } catch {
       this.babylonUiSound = null;
     }
+  }
+
+  private mountHoverTooltip() {
+    if (typeof document === "undefined") return;
+    const el = document.createElement("div");
+    el.id = "world-hover-tooltip";
+    el.style.cssText = [
+      "display:none",
+      "position:fixed",
+      "z-index:5900",
+      "pointer-events:none",
+      "transform:translate(-50%,-108%)",
+      "max-width:min(280px,50vw)",
+      "padding:8px 10px",
+      "border-radius:8px",
+      "background:rgba(10,12,20,0.92)",
+      "border:1px solid rgba(120,160,255,0.35)",
+      "color:#e8ecf5",
+      "font-family:system-ui,sans-serif",
+      "font-size:12px",
+      "line-height:1.35",
+      "box-shadow:0 4px 14px rgba(0,0,0,0.5)",
+    ].join(";");
+    document.body.appendChild(el);
+    this.hoverTooltipEl = el;
+  }
+
+  private buildWorldTooltipHtml(vm: EntityViewModel): string {
+    const esc = (s: string) =>
+      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    const name = vm.name || vm.id;
+    if (vm.type === "player" && vm.id !== this.localPlayerId) {
+      return `<strong>${esc(name)}</strong><div style="opacity:0.8;margin-top:2px;">Player</div>`;
+    }
+    if (vm.type === "npc") {
+      const role = vm.role ? esc(vm.role) : "";
+      const fac = vm.faction ? esc(vm.faction) : "";
+      const meta = [role, fac].filter(Boolean).join(" · ");
+      let hp = "";
+      if (typeof vm.health === "number" && typeof vm.maxHealth === "number") {
+        hp = `<div style="margin-top:4px;opacity:0.9;">HP ${Math.max(0, Math.round(vm.health))} / ${Math.round(
+          vm.maxHealth
+        )}</div>`;
+      }
+      return `<strong>${esc(name)}</strong>${
+        meta ? `<div style="opacity:0.82;margin-top:2px;">${meta}</div>` : ""
+      }${hp}`;
+    }
+    if (vm.type === "monster") {
+      let hp = "";
+      if (typeof vm.health === "number" && typeof vm.maxHealth === "number") {
+        hp = `<div style="margin-top:4px;">HP ${Math.max(0, Math.round(vm.health))} / ${Math.round(
+          vm.maxHealth
+        )}</div>`;
+      }
+      return `<strong>${esc(name)}</strong>${hp}`;
+    }
+    if (vm.type === "loot") {
+      if (vm.lootKind === "gold" && typeof vm.goldAmount === "number") {
+        return `<strong>Gold</strong><div style="opacity:0.85;margin-top:2px;">${vm.goldAmount} coins</div>`;
+      }
+      const iname = vm.lootItemName || vm.lootItemId || "Item drop";
+      return `<strong>${esc(String(iname))}</strong><div style="opacity:0.8;margin-top:2px;">Loot</div>`;
+    }
+    return `<strong>${esc(name)}</strong>`;
+  }
+
+  private updateHoverTooltip() {
+    if (!this.hoverTooltipEl) return;
+    const canvas = this.scene.getEngine().getRenderingCanvas();
+    if (!canvas) {
+      this.hoverTooltipEl.style.display = "none";
+      return;
+    }
+    const px = this.scene.pointerX;
+    const py = this.scene.pointerY;
+    if (px <= 0 && py <= 0) {
+      this.hoverTooltipEl.style.display = "none";
+      return;
+    }
+    const pick = this.scene.pick(
+      px,
+      py,
+      (m) => m.isPickable !== false && typeof m.name === "string" && !m.name.startsWith("label_")
+    );
+    if (!pick?.hit || !pick.pickedMesh) {
+      this.hoverTooltipEl.style.display = "none";
+      return;
+    }
+    let cur: TransformNode | AbstractMesh | null = pick.pickedMesh;
+    let entityId: string | null = null;
+    while (cur) {
+      if (cur instanceof TransformNode && this.entities.has(cur.name)) {
+        entityId = cur.name;
+        break;
+      }
+      cur = cur.parent as TransformNode | AbstractMesh | null;
+    }
+    if (!entityId || entityId === this.localPlayerId) {
+      this.hoverTooltipEl.style.display = "none";
+      return;
+    }
+    const node = this.entities.get(entityId);
+    const vm = node?._vm;
+    if (!vm) {
+      this.hoverTooltipEl.style.display = "none";
+      return;
+    }
+    this.hoverTooltipEl.innerHTML = this.buildWorldTooltipHtml(vm);
+    const head = node.root.position.add(new Vector3(0, 2.1, 0));
+    const screen = this.projectWorldToScreen(head);
+    if (!screen) return;
+    this.hoverTooltipEl.style.left = `${screen.x}px`;
+    this.hoverTooltipEl.style.top = `${screen.y}px`;
+    this.hoverTooltipEl.style.display = "block";
   }
 
   private mountTargetReticle() {
@@ -591,6 +708,7 @@ export class BabylonAdapter implements IEngineBridge {
     this.updateAREDebugOverlay();
     this.updateCameraFollow();
     this.updateTargetReticle();
+    this.updateHoverTooltip();
   }
 
   private updateCameraFollow(): void {
@@ -661,7 +779,7 @@ export class BabylonAdapter implements IEngineBridge {
     mat.diffuseColor = color;
     mat.specularColor = new Color3(0, 0, 0);
     mesh.material = mat;
-    mesh.isPickable = false;
+    mesh.isPickable = true;
     return mesh;
   }
 
@@ -757,6 +875,9 @@ export class BabylonAdapter implements IEngineBridge {
       entity.visual = modelRoot;
       entity.attachedModelUrl = expectedUrl;
       entity.areMeshes = this.collectRenderableMeshes(modelRoot);
+      for (const m of entity.areMeshes) {
+        m.isPickable = true;
+      }
       entity.areBaseMaterials = new Map(
         entity.areMeshes.map((mesh) => [mesh.uniqueId, (mesh.material as Material | null) ?? null])
       );

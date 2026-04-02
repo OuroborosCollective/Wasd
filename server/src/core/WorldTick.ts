@@ -29,6 +29,7 @@ import {
   selectAttackTarget,
 } from "../modules/combat/selectAttackTarget.js";
 import { mergePersistedPlayerInto } from "../modules/persistence/playerSnapshot.js";
+import { normalizeInventoryStacks } from "../modules/inventory/inventoryStacks.js";
 
 type SpawnPoint = { x: number; y: number; z: number };
 type SceneProfile = {
@@ -1536,6 +1537,7 @@ export class WorldTick {
               player.equipment.weapon = bow;
             }
           }
+          normalizeInventoryStacks(player);
 
           this.socketToPlayer.set(id, uid);
           this.playerToSocket.set(uid, id);
@@ -2290,6 +2292,8 @@ export class WorldTick {
         position: { x: n.position.x, y: 0, z: n.position.y },
         rotation: { x: 0, y: 0, z: 0 },
         name: n.name,
+        role: n.role,
+        faction: n.faction,
         health: n.health,
         maxHealth: n.maxHealth,
         combatThreat: npcIsCombatThreat(n),
@@ -2314,6 +2318,8 @@ export class WorldTick {
         rotation: { x: 0, y: 0, z: 0 },
         lootKind: typeof l.goldAmount === "number" && l.goldAmount > 0 ? "gold" : "item",
         goldAmount: typeof l.goldAmount === "number" ? l.goldAmount : undefined,
+        lootItemName: l.item?.name,
+        lootItemId: l.item?.id,
         glbPath: this.resolveEntityGlbPath("loot", l.item?.id || l.id, l.id),
         are: this.areStateCompiler.compileEntity(
           {
