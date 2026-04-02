@@ -93,6 +93,12 @@ export function getPlayerStamina() {
 export function getPlayerMaxStamina() {
   return maxStamina;
 }
+export function getPlayerMana() {
+  return mana;
+}
+export function getPlayerMaxMana() {
+  return maxMana;
+}
 export function getPlayerLevel() {
   return level;
 }

@@ -8,6 +8,8 @@ export interface EntityViewModel {
   name?: string;
   health?: number;
   maxHealth?: number;
+  /** Server: hostile / enemy NPC (for client targeting UI) */
+  combatThreat?: boolean;
   /** Server: gold pile vs item drop */
   lootKind?: "gold" | "item";
   goldAmount?: number;

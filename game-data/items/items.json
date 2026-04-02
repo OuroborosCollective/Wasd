@@ -9,6 +9,16 @@
     "description": "A simple iron sword given to new recruits."
   },
   {
+    "id": "training_shortbow",
+    "name": "Training Shortbow",
+    "type": "weapon",
+    "slot": "weapon",
+    "damage": 12,
+    "attackRange": 55,
+    "rarity": "common",
+    "description": "Light practice bow — strikes farther than a sword."
+  },
+  {
     "id": "wooden_shield",
     "name": "Wooden Shield",
     "type": "armor",

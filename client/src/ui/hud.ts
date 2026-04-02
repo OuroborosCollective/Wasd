@@ -5,6 +5,8 @@ import {
   getPlayerHealth,
   getPlayerMaxHealth,
   getPlayerLevel,
+  getPlayerMana,
+  getPlayerMaxMana,
   getPlayerMaxStamina,
   getPlayerStamina,
   getPlayerXp,
@@ -84,10 +86,13 @@ export function renderHUD() {
     const hpMax = Math.max(1, getPlayerMaxHealth());
     const st = getPlayerStamina();
     const stMax = Math.max(1, getPlayerMaxStamina());
+    const mp = getPlayerMana();
+    const mpMax = Math.max(1, getPlayerMaxMana());
     statsSpan.textContent = `Lv ${getPlayerLevel()} · Gold ${getPlayerGold()} · XP ${getPlayerXp()}`;
     barsWrap.replaceChildren(
       makeBarRow("♥", (hp / hpMax) * 100, "linear-gradient(90deg,#c42b2b,#ff6b5a)"),
-      makeBarRow("⚡", (st / stMax) * 100, "linear-gradient(90deg,#2b6bc4,#6bb8ff)")
+      makeBarRow("⚡", (st / stMax) * 100, "linear-gradient(90deg,#2b6bc4,#6bb8ff)"),
+      makeBarRow("✦", (mp / mpMax) * 100, "linear-gradient(90deg,#6b2bc4,#c896ff)")
     );
   };
   updateStats();

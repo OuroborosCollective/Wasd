@@ -6,6 +6,7 @@ import {
   DynamicTexture,
   Effect,
   Material,
+  Matrix,
   Mesh,
   MeshBuilder,
   Quaternion,
@@ -16,6 +17,7 @@ import {
   Texture,
   TransformNode,
   Vector3,
+  Viewport,
 } from "@babylonjs/core";
 import { IEngineBridge } from "../bridge/IEngineBridge";
 import { EntityViewModel } from "../bridge/EntityViewModel";
@@ -47,6 +49,8 @@ type EntityNode = {
   areMeshes: AbstractMesh[];
   areBaseMaterials: Map<number, Material | null>;
   explicitVisible: boolean;
+  /** Latest merged view-model for targeting UI (server-driven fields may lag one sync) */
+  _vm?: EntityViewModel;
 };
 
 const DEFAULT_MODEL_BY_TYPE: Record<string, string> = {
@@ -71,6 +75,9 @@ export class BabylonAdapter implements IEngineBridge {
   private navigationMarker: Mesh | null = null;
   private localPlayerId: string | null = null;
   private labelMaterialCounter = 0;
+  private targetReticleEl: HTMLDivElement | null = null;
+  private targetReticleEntityId: string | null = null;
+  private audioCtx: AudioContext | null = null;
 
   constructor(
     private readonly scene: Scene,
@@ -84,6 +91,170 @@ export class BabylonAdapter implements IEngineBridge {
       this.areDebugElement = this.mountAREDebugOverlay();
     }
     this.bindKeyboard();
+    this.mountTargetReticle();
+  }
+
+  private mountTargetReticle() {
+    if (typeof document === "undefined") return;
+    const el = document.createElement("div");
+    el.id = "combat-target-reticle";
+    el.style.cssText = [
+      "display:none",
+      "position:fixed",
+      "z-index:6000",
+      "pointer-events:none",
+      "transform:translate(-50%,-100%)",
+      "min-width:120px",
+      "max-width:min(240px,40vw)",
+      "padding:6px 10px",
+      "border-radius:8px",
+      "background:rgba(12,14,24,0.88)",
+      "border:1px solid rgba(255,120,80,0.45)",
+      "color:#f0f2fa",
+      "font-family:system-ui,sans-serif",
+      "font-size:12px",
+      "line-height:1.25",
+      "box-shadow:0 4px 14px rgba(0,0,0,0.45)",
+    ].join(";");
+    document.body.appendChild(el);
+    this.targetReticleEl = el;
+  }
+
+  private projectWorldToScreen(world: Vector3): { x: number; y: number } | null {
+    const engine = this.scene.getEngine();
+    const canvas = engine.getRenderingCanvas();
+    if (!canvas) return null;
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    if (w <= 0 || h <= 0) return null;
+    const projected = Vector3.Project(
+      world,
+      Matrix.Identity(),
+      this.scene.getTransformMatrix(),
+      new Viewport(0, 0, w, h)
+    );
+    const rect = canvas.getBoundingClientRect();
+    return { x: rect.left + projected.x, y: rect.top + projected.y };
+  }
+
+  private updateTargetReticle() {
+    if (!this.targetReticleEl || !this.localPlayerId) {
+      if (this.targetReticleEl) this.targetReticleEl.style.display = "none";
+      this.targetReticleEntityId = null;
+      return;
+    }
+    const playerNode = this.entities.get(this.localPlayerId);
+    if (!playerNode) {
+      this.targetReticleEl.style.display = "none";
+      this.targetReticleEntityId = null;
+      return;
+    }
+    const px = playerNode.root.position.x;
+    const pz = playerNode.root.position.z;
+    let bestId: string | null = null;
+    let bestD2 = Infinity;
+    let bestName = "";
+    let bestHp = 0;
+    let bestHpMax = 1;
+    for (const [id, node] of this.entities) {
+      if (id === this.localPlayerId) continue;
+      const dx = node.root.position.x - px;
+      const dz = node.root.position.z - pz;
+      const d2 = dx * dx + dz * dz;
+      if (d2 > 35 * 35) continue;
+      const meta = node._vm;
+      const isThreat = meta?.combatThreat === true;
+      const isDummy = meta?.id === "npc_dummy";
+      if (!isThreat && !isDummy) continue;
+      if (d2 < bestD2) {
+        bestD2 = d2;
+        bestId = id;
+        bestName = meta?.name || id;
+        bestHp = typeof meta?.health === "number" ? meta.health : 0;
+        bestHpMax = Math.max(1, typeof meta?.maxHealth === "number" ? meta.maxHealth : 100);
+      }
+    }
+    if (!bestId) {
+      this.targetReticleEl.style.display = "none";
+      this.targetReticleEntityId = null;
+      return;
+    }
+    this.targetReticleEntityId = bestId;
+    const targetNode = this.entities.get(bestId);
+    if (!targetNode) return;
+    const head = targetNode.root.position.add(new Vector3(0, 2.2, 0));
+    const screen = this.projectWorldToScreen(head);
+    if (!screen) return;
+    const pct = Math.round((bestHp / bestHpMax) * 100);
+    this.targetReticleEl.innerHTML = `<strong style="display:block;margin-bottom:4px;">${this.escapeHtml(
+      bestName
+    )}</strong><div style="height:6px;border-radius:3px;background:rgba(255,255,255,0.12);overflow:hidden;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#c42b2b,#ff8a70);"></div></div><div style="margin-top:4px;opacity:0.85;font-size:11px;">HP ${Math.max(
+      0,
+      Math.round(bestHp)
+    )} / ${Math.round(bestHpMax)}</div>`;
+    this.targetReticleEl.style.left = `${screen.x}px`;
+    this.targetReticleEl.style.top = `${screen.y}px`;
+    this.targetReticleEl.style.display = "block";
+  }
+
+  private escapeHtml(s: string): string {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  private ensureAudio(): AudioContext | null {
+    if (typeof window === "undefined") return null;
+    if (this.audioCtx) return this.audioCtx;
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return null;
+    this.audioCtx = new Ctx();
+    return this.audioCtx;
+  }
+
+  private playTone(freq: number, durationSec: number, volume: number, type: OscillatorType = "sine") {
+    const ctx = this.ensureAudio();
+    if (!ctx) return;
+    if (ctx.state === "suspended") {
+      void ctx.resume();
+    }
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.value = volume;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    const now = ctx.currentTime;
+    gain.gain.setValueAtTime(volume * 0.001, now);
+    gain.gain.exponentialRampToValueAtTime(volume, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + durationSec);
+    osc.start(now);
+    osc.stop(now + durationSec + 0.05);
+  }
+
+  private playNoiseBurst(durationSec: number, volume: number) {
+    const ctx = this.ensureAudio();
+    if (!ctx) return;
+    if (ctx.state === "suspended") {
+      void ctx.resume();
+    }
+    const bufferSize = Math.max(256, Math.floor(ctx.sampleRate * durationSec));
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * 0.35;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    const gain = ctx.createGain();
+    gain.gain.value = volume;
+    src.connect(gain);
+    gain.connect(ctx.destination);
+    const now = ctx.currentTime;
+    gain.gain.setValueAtTime(volume * 0.001, now);
+    gain.gain.exponentialRampToValueAtTime(volume, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + durationSec);
+    src.start(now);
+    src.stop(now + durationSec + 0.02);
   }
 
   createEntity(model: EntityViewModel): void {
@@ -121,6 +292,7 @@ export class BabylonAdapter implements IEngineBridge {
 
     this.applyAREState(node, model);
     this.applyAREMaterialMode(node);
+    node._vm = { ...model };
     this.entities.set(model.id, node);
     this.tryAttachModel(model.id, model.modelUrl ?? DEFAULT_MODEL_BY_TYPE[model.type]);
   }
@@ -168,6 +340,22 @@ export class BabylonAdapter implements IEngineBridge {
       this.updateAREShaderUniforms(node);
     }
     this.applyAREState(node, updates);
+    const prevVm = node._vm;
+    node._vm = {
+      ...(prevVm ?? {
+        id,
+        type: this.inferTypeFromEntityId(id),
+        position: {
+          x: node.root.position.x,
+          y: node.root.position.y,
+          z: node.root.position.z,
+        },
+        rotation: { x: 0, y: 0, z: 0 },
+        visible: node.explicitVisible,
+      }),
+      ...updates,
+      id: prevVm?.id ?? id,
+    };
   }
 
   destroyEntity(id: string): void {
@@ -180,6 +368,10 @@ export class BabylonAdapter implements IEngineBridge {
     }
     if (this.localPlayerId === id) {
       this.localPlayerId = null;
+    }
+    if (this.targetReticleEntityId === id) {
+      this.targetReticleEntityId = null;
+      if (this.targetReticleEl) this.targetReticleEl.style.display = "none";
     }
   }
 
@@ -256,8 +448,16 @@ export class BabylonAdapter implements IEngineBridge {
     }
   }
 
-  playSound(_name: string): void {
-    // Kept as no-op for first migration step.
+  playSound(name: string, options?: { volume?: number; loop?: boolean; position?: { x: number; y: number; z: number } }): void {
+    const vol = Math.min(1, Math.max(0, options?.volume ?? 0.45));
+    if (name === "attack") {
+      this.playTone(200, 0.07, vol * 0.4, "triangle");
+    } else if (name === "hit") {
+      this.playNoiseBurst(0.1, vol * 0.35);
+      this.playTone(85, 0.09, vol * 0.28, "sawtooth");
+    } else if (name === "footstep") {
+      this.playNoiseBurst(0.035, vol * 0.22);
+    }
   }
 
   onInput(callback: (input: any) => void): void {
@@ -281,6 +481,7 @@ export class BabylonAdapter implements IEngineBridge {
     this.updateAREVisuals();
     this.updateAREDebugOverlay();
     this.updateCameraFollow();
+    this.updateTargetReticle();
   }
 
   private updateCameraFollow(): void {

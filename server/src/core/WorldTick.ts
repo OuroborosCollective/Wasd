@@ -203,12 +203,17 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function npcIsCombatTarget(npc: any): boolean {
+function npcIsCombatThreat(npc: any): boolean {
   if (!npc || (npc.health ?? 0) <= 0) return false;
-  if (npc.id === "npc_dummy" || npc.role === "Training") return true;
   if (npc.faction === "Hostile") return true;
   if (npc.role === "Enemy") return true;
   return false;
+}
+
+function npcIsCombatTarget(npc: any): boolean {
+  if (!npc || (npc.health ?? 0) <= 0) return false;
+  if (npc.id === "npc_dummy" || npc.role === "Training") return true;
+  return npcIsCombatThreat(npc);
 }
 
 function npcWillCounterAttack(npc: any): boolean {
@@ -389,11 +394,14 @@ export class WorldTick {
     this.pushPlayerStateSync(socketId, player);
   }
 
-  private getEquippedWeaponDamageBonus(player: any): number {
+  private getEquippedWeaponStats(player: any): { damageBonus: number; attackRange: number | null } {
     const w = player?.equipment?.weapon;
-    if (!w || typeof w.id !== "string") return 0;
-    const def = ItemRegistry.getItem(w.id);
-    return typeof def?.damage === "number" && def.damage > 0 ? def.damage : 0;
+    if (!w || typeof w.id !== "string") return { damageBonus: 0, attackRange: null };
+    const def = ItemRegistry.hydrate(w);
+    const damageBonus = typeof def.damage === "number" && def.damage > 0 ? def.damage : 0;
+    const attackRange =
+      typeof def.attackRange === "number" && def.attackRange > 0 ? def.attackRange : null;
+    return { damageBonus, attackRange };
   }
 
   private dropLootFromNpc(npc: any) {
@@ -1503,6 +1511,16 @@ export class WorldTick {
             ? this.applySpawnToPlayer(player, requestedSceneId ?? player.sceneId, requestedSpawnKey ?? player.spawnKey)
             : this.resolveSpawn(player.sceneId, player.spawnKey);
 
+          if (!player.equipment?.weapon) {
+            if (!player.equipment) {
+              player.equipment = { weapon: null, armor: null };
+            }
+            const bow = ItemRegistry.createInstance("training_shortbow");
+            if (bow) {
+              player.equipment.weapon = bow;
+            }
+          }
+
           this.socketToPlayer.set(id, uid);
           this.playerToSocket.set(uid, id);
           this.observerEngine.register(id, player.position);
@@ -1673,27 +1691,36 @@ export class WorldTick {
         this.ws.broadcast({ type: "entity_action", entityId: player.id, action: "attack" });
         const px = player.position.x;
         const py = player.position.y;
-        const maxD = GameConfig.attackDistance;
-        let best: { npc: any; d2: number } | null = null;
+        const { damageBonus: weaponBonus, attackRange: weaponRange } = this.getEquippedWeaponStats(player);
+        const maxD = weaponRange ?? GameConfig.attackDistance;
+        let bestThreat: { npc: any; d2: number } | null = null;
+        let bestDummy: { npc: any; d2: number } | null = null;
         for (const npc of this.npcSystem.getAllNPCs()) {
           if (!npcIsCombatTarget(npc)) continue;
           const dx = npc.position.x - px;
           const dy = npc.position.y - py;
           const d2 = dx * dx + dy * dy;
-          if (d2 <= maxD * maxD && (!best || d2 < best.d2)) {
-            best = { npc, d2 };
+          if (d2 > maxD * maxD) continue;
+          if (npcIsCombatThreat(npc)) {
+            if (!bestThreat || d2 < bestThreat.d2) bestThreat = { npc, d2 };
+          } else if (npc.id === "npc_dummy" || npc.role === "Training") {
+            if (!bestDummy || d2 < bestDummy.d2) bestDummy = { npc, d2 };
           }
         }
+        const best = bestThreat ?? bestDummy;
         if (!best) {
+          const hint =
+            weaponRange && weaponRange > GameConfig.attackDistance
+              ? `No target within ${Math.round(weaponRange)}m — try the training dummy or a hostile.`
+              : "No target in range — move closer to an enemy or the training dummy.";
           this.ws.sendToPlayer(id, {
             type: "toast",
-            text: "No target in range — move closer to an enemy or the training dummy.",
+            text: hint,
           });
           this.pushPlayerStateSync(id, player);
           return;
         }
         const target = best.npc;
-        const weaponBonus = this.getEquippedWeaponDamageBonus(player);
         const outcome = this.combatSystem.attackWithWeapon(player, target, weaponBonus);
         if (outcome.hit) {
           this.ws.broadcast({
@@ -2082,6 +2109,9 @@ export class WorldTick {
         position: { x: n.position.x, y: 0, z: n.position.y },
         rotation: { x: 0, y: 0, z: 0 },
         name: n.name,
+        health: n.health,
+        maxHealth: n.maxHealth,
+        combatThreat: npcIsCombatThreat(n),
         glbPath: this.resolveNpcGlbPath(n),
         are: this.areStateCompiler.compileEntity(
           {

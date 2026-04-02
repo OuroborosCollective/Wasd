@@ -95,11 +95,11 @@ export class MMORPGClientCore {
         volume: 0.5,
         position: entity?.position
       });
-    } else if (action === 'hit') {
+    } else if (action === "hit") {
       const entity = this.entities.get(entityId);
-      this.engine.playSound('hit', {
-        volume: 0.7,
-        position: entity?.position
+      this.engine.playSound("hit", {
+        volume: 0.72,
+        position: entity?.position,
       });
     }
   }
@@ -173,15 +173,17 @@ export class MMORPGClientCore {
     let nearestMonster: EntityViewModel | null = null;
     let minDist = Infinity;
 
-    this.entities.forEach(entity => {
-      if (entity.type === 'monster') {
-        const dx = entity.position.x - player.position.x;
-        const dz = entity.position.z - player.position.z;
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        if (dist < minDist) {
-          minDist = dist;
-          nearestMonster = entity;
-        }
+    this.entities.forEach((entity) => {
+      if (entity.type !== "npc") return;
+      const threat = entity.combatThreat === true;
+      const dummy = entity.id === "npc_dummy";
+      if (!threat && !dummy) return;
+      const dx = entity.position.x - player.position.x;
+      const dz = entity.position.z - player.position.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist < minDist) {
+        minDist = dist;
+        nearestMonster = entity;
       }
     });
 

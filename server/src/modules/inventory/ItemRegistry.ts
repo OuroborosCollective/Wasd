@@ -7,6 +7,8 @@ export interface ItemDefinition {
   type: "weapon" | "armor" | "consumable" | "misc";
   slot?: "weapon" | "armor";
   damage?: number;
+  /** If set on a weapon, `attack` uses this max distance instead of default melee range */
+  attackRange?: number;
   rarity: "common" | "uncommon" | "rare" | "epic" | "legendary";
   description: string;
 }

@@ -1,4 +1,5 @@
 import { closeAllPanels } from "./panelManager";
+import { applyGamePanelLayout, panelCloseButtonStyles } from "./panelLayout";
 
 export function renderInventory() {
   let panel = document.getElementById('inventory-panel');
@@ -22,17 +23,7 @@ export function renderInventory() {
   panel.setAttribute("role", "dialog");
   panel.setAttribute("aria-label", "Inventory");
 
-  panel.style.position = "fixed";
-  panel.style.left = "50%";
-  panel.style.top = "50%";
-  panel.style.transform = "translate(-50%, -50%)";
-  panel.style.width = "90vw";
-  panel.style.maxWidth = "400px";
-  panel.style.height = "80vh";
-  panel.style.maxHeight = "600px";
-  panel.style.zIndex = "1000";
-  panel.style.display = "flex";
-  panel.style.flexDirection = "column";
+  const compact = applyGamePanelLayout(panel);
 
   // Prevent event bubbling
   const stopEvents = (e: Event) => e.stopPropagation();
@@ -56,10 +47,9 @@ export function renderInventory() {
   title.className = "gold-text font-serif";
 
   const closeBtn = document.createElement("button");
-  closeBtn.textContent = "X";
+  closeBtn.textContent = "Close";
   closeBtn.className = "btn-gold";
-  closeBtn.style.padding = "2px 8px";
-  closeBtn.style.fontSize = "12px";
+  Object.assign(closeBtn.style, panelCloseButtonStyles(compact));
   closeBtn.setAttribute("aria-label", "Close Inventory");
 
   closeBtn.onclick = () => {
@@ -85,7 +75,8 @@ export function renderInventory() {
   content.style.gridTemplateColumns = "repeat(4, 1fr)";
   content.style.gap = "8px";
   content.style.overflowY = "auto";
-  content.style.padding = "5px";
+  content.style.webkitOverflowScrolling = "touch";
+  content.style.padding = compact ? "8px 4px" : "5px";
 
   for (let i = 0; i < 16; i++) {
     const slot = document.createElement("div");

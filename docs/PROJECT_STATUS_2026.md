@@ -12,7 +12,7 @@ This document is the **authoritative snapshot** of what works today in the repos
 | **WebGL failure** | `Engine.IsSupported` → full-screen overlay; **context lost** → overlay + link to Babylon WebGL docs |
 | **Default GLB fallbacks** | `client/src/engine/babylon/AssetRegistry.ts` — used when server does not send a `modelUrl` |
 | **Bridge** | `client/src/engine/bridge/` — `IEngineBridge`, `EntityViewModel`; keep simulation off the client |
-| **HUD / mobile** | HP + stamina **bars**; dialogue **bottom sheet** on coarse pointer / narrow width; quest log **full-width bottom sheet** on touch layouts; loot chips only when **`prefersCompactTouchUi()`** (`touchUi.ts`) |
+| **HUD / mobile** | HP + stamina + **mana** **bars**; dialogue **bottom sheet**; **inventory / skills / equipment / quest** panels share **`panelLayout.ts`** (bottom sheet on touch); loot chips only when **`prefersCompactTouchUi()`**; **target reticle** (name + HP) over nearest hostile/dummy in range; **Web Audio** for attack / hit / footstep |
 
 ## Server and networking
 
@@ -22,7 +22,7 @@ This document is the **authoritative snapshot** of what works today in the repos
 | **Game loop** | `WorldTick` — simulation tick **100 ms**; `entity_sync` broadcast **configurable** (`GameConfig.stateBroadcastIntervalMs`, default **200 ms**) |
 | **Movement** | Held WASD + `move_intent` (joystick); applied each tick with `GameConfig.playerSpeed` |
 | **Interact / dialogue** | `interact` resolves **nearest NPC** or **loot on ground** (whichever is closer in range); `dialogue_choice` / `quest_accept`; `talk_to` quests complete on target NPC contact |
-| **Combat** | `attack` picks **nearest valid target**; **toast** if none in range; **weapon** damage; hostile **chase** + **leash** + counter-attack; **player death** + **respawn**; **loot** + **`pickup_loot`**; **`stats_sync`** includes **level**, **maxStamina**, **mana/maxMana**; vitality caps from **`SkillSystem.checkPlayerLevel`** on every sync |
+| **Combat** | `attack` prefers **hostile** over **training dummy** in range; **weapon `attackRange`** extends reach (e.g. **training_shortbow**); new dev logins get bow if no weapon; **`entity_sync` NPCs** include **health/maxHealth** + **`combatThreat`**; rest as before |
 | **Scenes** | `game-data/scenes/*.json` — spawns and trigger zones (server-side) |
 | **NPC spawns** | `game-data/spawns/npc-spawns.json` (path resolves from repo root or `server/` cwd) |
 | **Starter content** | **Millbrook** hub: `npc_guide` (Linnea), quests `starter_welcome` / `village_tour`, plus existing Mara / Elder / Guard chain — see `game-data/` |

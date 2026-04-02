@@ -174,6 +174,9 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
             are: normalizeAREPayload(entity.are),
             lootKind: entity.lootKind === "gold" || entity.lootKind === "item" ? entity.lootKind : undefined,
             goldAmount: typeof entity.goldAmount === "number" ? entity.goldAmount : undefined,
+            health: typeof entity.health === "number" ? entity.health : undefined,
+            maxHealth: typeof entity.maxHealth === "number" ? entity.maxHealth : undefined,
+            combatThreat: entity.combatThreat === true,
           }));
           core.syncEntities(normalizedEntities);
           onEntitySyncForCombatUi(normalizedEntities);
