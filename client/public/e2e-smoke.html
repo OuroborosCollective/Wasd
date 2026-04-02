@@ -7,6 +7,7 @@
   </head>
   <body>
     <p id="e2e-status">connecting…</p>
+    <pre id="e2e-welcome" style="white-space:pre-wrap;word-break:break-all;font-size:11px;opacity:0.85"></pre>
     <script type="module">
       const status = document.getElementById("e2e-status");
       const proto = location.protocol === "https:" ? "wss" : "ws";
@@ -29,6 +30,8 @@
           if (d.type === "welcome") {
             document.body.dataset.e2eReady = "1";
             if (status) status.textContent = "welcome";
+            const pre = document.getElementById("e2e-welcome");
+            if (pre) pre.textContent = JSON.stringify(d);
           }
         } catch {
           /* ignore */

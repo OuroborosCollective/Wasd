@@ -39,6 +39,8 @@ export class PlayerSystem {
       targetPosition: null as { x: number, y: number } | null,
       /** Client-selected NPC id for attacks (optional) */
       combatTargetNpcId: null as string | null,
+      /** skillId -> cooldown end timestamp (ms) */
+      skillCooldowns: {} as Record<string, number>,
     };
     this.players.set(id, player);
     return player;

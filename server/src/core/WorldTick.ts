@@ -30,7 +30,7 @@ import {
 } from "../modules/combat/selectAttackTarget.js";
 import { mergePersistedPlayerInto } from "../modules/persistence/playerSnapshot.js";
 import { normalizeInventoryStacks } from "../modules/inventory/inventoryStacks.js";
-import { getSkillDefinition } from "../modules/skill/skillDefinitions.js";
+import { buildSkillCooldownUntilPayload, getSkillDefinition } from "../modules/skill/skillDefinitions.js";
 
 type SpawnPoint = { x: number; y: number; z: number };
 type SceneProfile = {
@@ -252,7 +252,6 @@ export class WorldTick {
   private lootEntities: Map<string, any> = new Map();
   private lastPlayerAttackAt: Map<string, number> = new Map();
   private lastNpcCounterAttackAt: Map<string, number> = new Map();
-  private lastPlayerSkillAt: Map<string, number> = new Map();
 
   private socketToPlayer: Map<string, string> = new Map(); // socketId -> characterName
   /** WASD held per player (uid) — movement applied each tick so hold-to-move works on mobile + desktop */
@@ -356,6 +355,7 @@ export class WorldTick {
 
   private pushPlayerStateSync(socketId: string, player: any) {
     this.ensurePlayerVitalityCaps(player);
+    const now = Date.now();
     this.ws.sendToPlayer(socketId, {
       type: "stats_sync",
       gold: player.gold ?? 0,
@@ -375,6 +375,7 @@ export class WorldTick {
       quests: this.questSystem.getQuestSyncForClient(player),
       inventory: player.inventory || [],
       equipment: player.equipment || {},
+      skillCooldownUntil: buildSkillCooldownUntilPayload(player, now),
     });
   }
 
@@ -1574,6 +1575,7 @@ export class WorldTick {
               quests: this.questSystem.getQuestSyncForClient(player),
               inventory: player.inventory,
               equipment: player.equipment,
+              skillCooldownUntil: buildSkillCooldownUntilPayload(player, Date.now()),
             },
           });
           this.pushPlayerStateSync(id, player);
@@ -1806,8 +1808,11 @@ export class WorldTick {
           return;
         }
         const nowSk = Date.now();
-        const lastCd = this.lastPlayerSkillAt.get(`${player.id}:${skillId}`) ?? 0;
-        if (nowSk - lastCd < defSkill.cooldownMs) {
+        if (!player.skillCooldowns || typeof player.skillCooldowns !== "object") {
+          player.skillCooldowns = {};
+        }
+        const cdUntil = Number(player.skillCooldowns[skillId]) || 0;
+        if (cdUntil > nowSk) {
           this.ws.sendToPlayer(id, { type: "toast", text: "Skill is not ready yet." });
           this.pushPlayerStateSync(id, player);
           return;
@@ -1815,6 +1820,23 @@ export class WorldTick {
         if ((player.mana ?? 0) < defSkill.manaCost) {
           this.ws.sendToPlayer(id, { type: "toast", text: `Not enough mana (${defSkill.manaCost}).` });
           this.pushPlayerStateSync(id, player);
+          return;
+        }
+        if (player.dead) {
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        if (defSkill.kind === "self") {
+          const heal = typeof defSkill.healAmount === "number" ? defSkill.healAmount : 0;
+          player.mana = Math.max(0, (player.mana ?? 0) - defSkill.manaCost);
+          player.skillCooldowns[skillId] = nowSk + defSkill.cooldownMs;
+          if (heal > 0) {
+            const mh = player.maxHealth ?? 100;
+            player.health = Math.min(mh, (player.health ?? mh) + heal);
+          }
+          this.ws.sendToPlayer(id, { type: "toast", text: `${defSkill.name}!` });
+          this.pushPlayerStateSync(id, player);
+          this.schedulePersistPlayer(player.id);
           return;
         }
         const px = player.position.x;
@@ -1826,7 +1848,7 @@ export class WorldTick {
           return;
         }
         player.mana = Math.max(0, (player.mana ?? 0) - defSkill.manaCost);
-        this.lastPlayerSkillAt.set(`${player.id}:${skillId}`, nowSk);
+        player.skillCooldowns[skillId] = nowSk + defSkill.cooldownMs;
         this.ws.broadcast({ type: "entity_action", entityId: player.id, action: "attack" });
         const target = best.npc;
         const outcome = this.combatSystem.spellStrike(player, target, defSkill.spellPower);

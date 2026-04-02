@@ -36,6 +36,8 @@ export const PLAYER_PERSIST_KEYS = [
   "spawnKey",
   /** Optional locked combat target (NPC id) */
   "combatTargetNpcId",
+  /** Per-skill cooldown end timestamps (ms since epoch) */
+  "skillCooldowns",
 ] as const;
 
 export type PlayerPersistKey = (typeof PLAYER_PERSIST_KEYS)[number];
@@ -74,6 +76,9 @@ export function mergePersistedPlayerInto(player: any, saved: Record<string, unkn
     }
   }
   if (!Array.isArray(player.inventory)) player.inventory = [];
+  if (!player.skillCooldowns || typeof player.skillCooldowns !== "object") {
+    player.skillCooldowns = {};
+  }
   normalizeInventoryStacks(player);
   if (!player.equipment || typeof player.equipment !== "object") {
     player.equipment = { weapon: null, armor: null };
