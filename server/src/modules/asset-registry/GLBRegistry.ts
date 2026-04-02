@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { resolveContentFile } from '../content/contentDataRoot.js';
 
 export interface GLBLink {
   glbPath: string;
@@ -16,7 +17,7 @@ export class GLBRegistry {
   }
 
   private loadLinks() {
-    const linksPath = path.resolve(process.cwd(), 'game-data/glb-links.json');
+    const linksPath = resolveContentFile('glb-links.json');
     if (fs.existsSync(linksPath)) {
       try {
         this.links = JSON.parse(fs.readFileSync(linksPath, 'utf-8'));
@@ -28,7 +29,7 @@ export class GLBRegistry {
   }
 
   public saveLinks() {
-    const linksPath = path.resolve(process.cwd(), 'game-data/glb-links.json');
+    const linksPath = resolveContentFile('glb-links.json');
     fs.mkdirSync(path.dirname(linksPath), { recursive: true });
     fs.writeFileSync(linksPath, JSON.stringify(this.links, null, 2));
   }

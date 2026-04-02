@@ -31,6 +31,7 @@ import {
 import { mergePersistedPlayerInto } from "../modules/persistence/playerSnapshot.js";
 import { normalizeInventoryStacks } from "../modules/inventory/inventoryStacks.js";
 import { buildSkillCooldownUntilPayload, getSkillDefinition } from "../modules/skill/skillDefinitions.js";
+import { resolveContentDir, resolveContentFile } from "../modules/content/contentDataRoot.js";
 
 function resolveStateBroadcastMobileMs(): number {
   const raw = process.env.STATE_BROADCAST_INTERVAL_MOBILE_MS?.trim();
@@ -151,7 +152,6 @@ const DEFAULT_SCENE_TRIGGER_ZONES: SceneTriggerZone[] = [
     allowedSpawnKeys: ["sp_didi_02"],
   },
 ];
-const SCENE_LAYOUT_DIRECTORY = path.resolve(process.cwd(), "game-data/scenes");
 const GM_EVENT_TEMPLATES: Record<string, GMTemplateDefinition> = {
   legion_invasion: {
     id: "legion_invasion",
@@ -687,7 +687,7 @@ export class WorldTick {
   }
 
   private loadRuntimeEventTemplates() {
-    const templatesPath = path.resolve(process.cwd(), "game-data/gm/event-templates.json");
+    const templatesPath = resolveContentFile("gm/event-templates.json");
     if (!fs.existsSync(templatesPath)) {
       return;
     }
@@ -2157,12 +2157,13 @@ export class WorldTick {
 
   private loadSceneLayouts() {
     try {
-      if (!fs.existsSync(SCENE_LAYOUT_DIRECTORY)) {
+      const sceneDir = resolveContentDir("scenes");
+      if (!fs.existsSync(sceneDir)) {
         return;
       }
 
       const files = fs
-        .readdirSync(SCENE_LAYOUT_DIRECTORY)
+        .readdirSync(sceneDir)
         .filter((name) => name.toLowerCase().endsWith(".json"))
         .sort((a, b) => a.localeCompare(b));
 
@@ -2174,7 +2175,7 @@ export class WorldTick {
       const loadedTriggers: SceneTriggerZone[] = [];
 
       for (const fileName of files) {
-        const absolutePath = path.join(SCENE_LAYOUT_DIRECTORY, fileName);
+        const absolutePath = path.join(sceneDir, fileName);
         const raw = JSON.parse(fs.readFileSync(absolutePath, "utf-8"));
         const sceneId = isNonEmptyString(raw?.sceneId) ? raw.sceneId.trim() : "";
         if (!sceneId) {
@@ -2259,13 +2260,8 @@ export class WorldTick {
 
   private loadSpawns() {
     try {
-      const cwd = process.cwd();
-      const candidates = [
-        path.resolve(cwd, "game-data/spawns/npc-spawns.json"),
-        path.resolve(cwd, "../game-data/spawns/npc-spawns.json"),
-      ];
-      const spawnsPath = candidates.find((p) => fs.existsSync(p));
-      if (!spawnsPath) {
+      const spawnsPath = resolveContentFile("spawns/npc-spawns.json");
+      if (!fs.existsSync(spawnsPath)) {
         return;
       }
       const spawnData = JSON.parse(fs.readFileSync(spawnsPath, "utf-8"));

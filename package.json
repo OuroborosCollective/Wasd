@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install chromium",
-    "test:e2e:ci": "playwright install --with-deps chromium && playwright test"
+    "test:e2e:ci": "playwright install --with-deps chromium && playwright test",
+    "content:publish": "node scripts/publish-content-pack.mjs"
   },
   "dependencies": {
     "@genkit-ai/firebase": "^1.30.1",

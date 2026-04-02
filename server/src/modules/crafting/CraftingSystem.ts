@@ -1,5 +1,6 @@
 import { ItemRegistry } from "../inventory/ItemRegistry.js";
 import { normalizeInventoryStacks } from "../inventory/inventoryStacks.js";
+import { resolveContentFile } from "../content/contentDataRoot.js";
 
 export interface Recipe {
   id: string;
@@ -20,8 +21,7 @@ export class CraftingSystem {
   async loadRecipes() {
     try {
       const fs = require("fs");
-      const path = require("path");
-      const recipesPath = path.join(process.cwd(), "game-data", "crafting", "recipes.json");
+      const recipesPath = resolveContentFile("crafting/recipes.json");
       const data = await fs.promises.readFile(recipesPath, "utf8");
       const recipes = JSON.parse(data);
       recipes.forEach((r: Recipe) => this.addRecipe(r));

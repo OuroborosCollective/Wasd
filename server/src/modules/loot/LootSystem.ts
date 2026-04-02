@@ -1,6 +1,7 @@
 import { ItemRegistry, ItemDefinition } from "../inventory/ItemRegistry.js";
 import fs from "fs";
 import path from "path";
+import { resolveContentFile } from "../content/contentDataRoot.js";
 
 export interface LootTableEntry {
   itemId: string;
@@ -25,7 +26,7 @@ export class LootSystem {
 
   private loadLootTables() {
     try {
-      const lootPath = path.resolve(process.cwd(), "game-data/items/loot-tables.json");
+      const lootPath = resolveContentFile("items/loot-tables.json");
       if (fs.existsSync(lootPath)) {
         const data = JSON.parse(fs.readFileSync(lootPath, "utf-8"));
         if (Array.isArray(data)) {

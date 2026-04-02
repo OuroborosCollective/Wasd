@@ -17,6 +17,7 @@ Arelorian/Ouroboros is a browser-based MMORPG: `server/` (Express + WebSocket ga
 - **Test:** `pnpm run test` (Vitest, runs 600+ server tests; config at `vitest.config.ts`).
 - **E2E:** `pnpm run build` then `pnpm run test:e2e` (Playwright; install browsers once with `pnpm run test:e2e:install`). In CI, `pnpm run test:e2e:ci` installs Chromium with system deps then runs tests.
 - **Build:** `pnpm run build` (builds client with Vite, then compiles server TypeScript).
+- **Content pack (optional):** `pnpm run content:publish` — validates, snapshots `game-data/` to `published-content/current/`. Run server with `USE_PUBLISHED_CONTENT=1` to load the snapshot instead of live `game-data/`.
 
 ### Environment variables
 Copy `.env.example` to `.env`. Only `PORT` and `NODE_ENV` are needed for local dev without Firebase. See `.env.example` for full list. Optional: **`WS_MAX_MESSAGES_PER_PLAYER_UID_PER_SECOND`** tightens per-account WS throughput after login. **`STATE_BROADCAST_INTERVAL_MOBILE_MS`** slows **`entity_sync`** for clients that send **`clientHints.lowBandwidth`** on login (touch UI).

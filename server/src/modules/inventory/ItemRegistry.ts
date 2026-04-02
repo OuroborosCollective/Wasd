@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { resolveContentFile } from "../content/contentDataRoot.js";
 
 export interface ItemDefinition {
   id: string;
@@ -28,11 +29,8 @@ export class ItemRegistry {
   private static initialized = false;
 
   private static resolveItemsPath(): string | null {
-    const cwd = process.cwd();
-    const a = path.resolve(cwd, "game-data/items/items.json");
-    const b = path.resolve(cwd, "../game-data/items/items.json");
-    if (fs.existsSync(a)) return a;
-    if (fs.existsSync(b)) return b;
+    const p = resolveContentFile("items/items.json");
+    if (fs.existsSync(p)) return p;
     return null;
   }
 

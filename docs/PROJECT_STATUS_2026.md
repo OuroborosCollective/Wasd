@@ -60,7 +60,8 @@ This document is the **authoritative snapshot** of what works today in the repos
 |------|--------|
 | **Server tests** | Vitest — run `pnpm run test` (600+ tests typical); WebSocket **`use_skill`** in **`use-skill-ws.test.ts`**; **`attack`** / **`set_target`** / **`entity_sync`** NPC fields in **`combat-ws.test.ts`**; per-UID WS cap in **`ws-player-uid-rate.test.ts`** |
 | **Lint** | `pnpm run lint` |
-| **Content validation** | `server` build runs `validateContent.ts` against `game-data/` |
+| **Content validation** | `server` build runs `validateContent.ts` against the active **content root** (default: repo `game-data/`; optional **published pack** — see below) |
+| **Published content (optional)** | `pnpm run content:publish` copies validated `game-data/` → `published-content/current/` + `content-pack-manifest.json`. Server: **`USE_PUBLISHED_CONTENT=1`** or **`CONTENT_PACK_DIR`**. **`GET /health`** returns **`content.mode`** and **`content.root`**. Legacy `game-data/` unchanged if unset |
 
 ## Known gaps (high level)
 
@@ -80,7 +81,7 @@ See **`docs/ROADMAP_TO_RELEASE.md`** for the full backlog aligned with the desig
 - **Vite**: `manualChunks` for **babylon-core**, **babylon-loaders**, **firebase**, **game UI panels** (inventory/skills vs quest/equipment), **mobile teleport**, **PerformanceMonitor**
 - **Client**: heavy panels loaded via **`dynamic import()`** (`lazyPanels.ts`) + idle **preload** after boot  
 - **PlayCanvas removed**: client is **Babylon.js only**; default GLB map lives in `engine/babylon/AssetRegistry.ts`  
-- **ItemRegistry** resolves `game-data` from `server/` cwd (`../game-data`)  
+- **ItemRegistry** and related loaders use **`contentDataRoot`** (`server/src/modules/content/contentDataRoot.ts`) — same layout as `game-data/`, stable path from repo root  
 
 ---
 
