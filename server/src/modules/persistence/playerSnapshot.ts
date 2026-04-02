@@ -32,6 +32,8 @@ export const PLAYER_PERSIST_KEYS = [
   "usedChoices",
   "sceneId",
   "spawnKey",
+  /** Optional locked combat target (NPC id) */
+  "combatTargetNpcId",
 ] as const;
 
 export type PlayerPersistKey = (typeof PLAYER_PERSIST_KEYS)[number];

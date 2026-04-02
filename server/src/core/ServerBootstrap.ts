@@ -56,14 +56,6 @@ export class ServerBootstrap {
     app.use("/api", migrationRoute);
     app.use("/api/mcp", mcpRoute());
 
-    app.get("/health", (_req, res) => {
-      res.json({
-        ok: true,
-        project: "ARELORIAN MMORPG",
-        version: "0.2.0"
-      });
-    });
-
     app.get("/", (req, res, next) => {
       if (req.headers["user-agent"]?.includes("GoogleHC")) {
         return res.status(200).send("OK");
@@ -104,6 +96,17 @@ export class ServerBootstrap {
 
     const tick = new WorldTick(ws);
     await tick.init();
+
+    app.get("/health", (_req, res) => {
+      const persistence = tick.getPersistenceStats();
+      res.json({
+        ok: true,
+        project: "ARELORIAN MMORPG",
+        version: "0.2.0",
+        persistence,
+      });
+    });
+
     const port = Number(process.env.PORT || 3000);
 
     httpServer.listen(port, () => {

@@ -24,4 +24,6 @@ export const GameConfig = {
   lootDespawnMs: 300000,
   /** Ms before server allows respawn after death (mobile-friendly tap cooldown) */
   playerRespawnDelayMs: 2500,
+  /** Mana restored per second while alive (out of combat regen baseline) */
+  playerManaRegenPerSecond: 2.5,
 } as const;

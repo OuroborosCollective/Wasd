@@ -10,6 +10,8 @@ export interface EntityViewModel {
   maxHealth?: number;
   /** Server: hostile / enemy NPC (for client targeting UI) */
   combatThreat?: boolean;
+  /** Server NPC id for combat lock (same as id for npc entities) */
+  combatNpcId?: string;
   /** Server: gold pile vs item drop */
   lootKind?: "gold" | "item";
   goldAmount?: number;

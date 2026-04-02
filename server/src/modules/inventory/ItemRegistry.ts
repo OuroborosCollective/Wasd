@@ -11,6 +11,10 @@ export interface ItemDefinition {
   attackRange?: number;
   /** Mana consumed per attack when set (>0); ranged weapons without this use server default */
   manaCost?: number;
+  /** Consumable: restore health (capped at maxHealth) */
+  healAmount?: number;
+  /** Consumable: restore mana (capped at maxMana) */
+  restoreMana?: number;
   rarity: "common" | "uncommon" | "rare" | "epic" | "legendary";
   description: string;
 }

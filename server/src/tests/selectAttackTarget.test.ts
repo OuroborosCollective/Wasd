@@ -32,6 +32,12 @@ describe("selectAttackTarget", () => {
     expect(pick?.npc.id).toBe("npc_wolf");
   });
 
+  it("respects preferredNpcId when in range", () => {
+    const farWolf = { ...wolf, position: { x: 100, y: 0, z: 0 } };
+    const pick = selectAttackTarget(0, 0, 50, [dummy, farWolf], "npc_dummy");
+    expect(pick?.npc.id).toBe("npc_dummy");
+  });
+
   it("picks dummy when no hostile in range", () => {
     const pick = selectAttackTarget(0, 0, 8, [dummy]);
     expect(pick?.npc.id).toBe("npc_dummy");

@@ -2,8 +2,18 @@ import { ItemRegistry } from "./ItemRegistry.js";
 
 export class InventorySystem {
   addItem(player: any, item: any) {
+    if (!Array.isArray(player.inventory)) player.inventory = [];
     player.inventory.push(item);
     return player.inventory;
+  }
+
+  /** Remove first stack matching itemId; returns removed item or null */
+  takeOneFromBag(player: any, itemId: string): any | null {
+    if (!Array.isArray(player.inventory)) player.inventory = [];
+    const idx = player.inventory.findIndex((i: any) => i?.id === itemId);
+    if (idx === -1) return null;
+    const [removed] = player.inventory.splice(idx, 1);
+    return removed ?? null;
   }
 
   removeItem(player: any, itemId: string) {

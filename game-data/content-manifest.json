@@ -58,7 +58,8 @@
         "ancient_coin",
         "relic_fragment",
         "forgotten_sigil",
-        "guard_token"
+        "guard_token",
+        "minor_mana_draught"
       ],
       "validationResult": "passed"
     }

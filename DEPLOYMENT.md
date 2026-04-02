@@ -28,6 +28,12 @@ nano /opt/areloria/.env
 # Fülle PGPASSWORD und JWT_SECRET aus
 ```
 
+**Spieler-Persistenz (ohne Firestore):** Der Server schreibt nach `data/players.json` (Repo-Root) bzw. `PLAYER_SAVE_FILE`. Diese Datei bei Deploys/Backups **mit sichern** — sonst gehen Charaktere verloren.
+
+**Login:** In Production ist ohne `FIREBASE_SERVICE_ACCOUNT_KEY` nur **Gast-Login** möglich, wenn `ALLOW_GUEST_LOGIN=1` gesetzt ist; sonst müssen Clients ein Firebase **ID-Token** mitsenden. Development: `dev_*`-Login per Socket-ID, abschaltbar mit `ALLOW_DEV_LOGIN=0`.
+
+**Health-Endpoint:** `GET /health` liefert u. a. `persistence` (`lastSaveAt`, `lastSaveDurationMs`, `firestoreConfigured`, `lastSaveError`) für Monitoring.
+
 ### 4. Server starten
 
 Nach Änderungen an `ecosystem.config.cjs` oder `CLIENT_ROOT_DIR` reicht `pm2 restart` oft nicht (alte `cwd`/Env). Besser wie im Repo-Skript:

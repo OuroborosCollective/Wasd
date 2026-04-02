@@ -22,14 +22,29 @@ export type AttackTargetPick = { npc: any; d2: number };
 
 /**
  * Prefer nearest hostile in range, else nearest training dummy in range.
+ * If `preferredNpcId` matches a valid in-range target, that NPC is chosen first.
  */
 export function selectAttackTarget(
   px: number,
   py: number,
   maxRange: number,
-  npcs: any[]
+  npcs: any[],
+  preferredNpcId?: string | null
 ): AttackTargetPick | null {
   const maxD = maxRange;
+  if (isNonEmptyId(preferredNpcId)) {
+    for (const npc of npcs) {
+      if (npc?.id !== preferredNpcId) continue;
+      if (!npcIsCombatTarget(npc)) break;
+      const dx = npc.position.x - px;
+      const dy = npc.position.y - py;
+      const d2 = dx * dx + dy * dy;
+      if (d2 <= maxD * maxD) {
+        return { npc, d2 };
+      }
+      break;
+    }
+  }
   let bestThreat: AttackTargetPick | null = null;
   let bestDummy: AttackTargetPick | null = null;
   for (const npc of npcs) {
@@ -45,4 +60,8 @@ export function selectAttackTarget(
     }
   }
   return bestThreat ?? bestDummy;
+}
+
+function isNonEmptyId(id: string | null | undefined): id is string {
+  return typeof id === "string" && id.trim().length > 0;
 }
