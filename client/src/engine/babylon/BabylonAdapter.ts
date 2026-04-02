@@ -806,7 +806,7 @@ export class BabylonAdapter implements IEngineBridge {
     mat.diffuseColor = color;
     mat.specularColor = new Color3(0, 0, 0);
     mesh.material = mat;
-    mesh.isPickable = true;
+    mesh.isPickable = this.isMeshPickableForInteraction(model.type);
     return mesh;
   }
 
@@ -902,8 +902,9 @@ export class BabylonAdapter implements IEngineBridge {
       entity.visual = modelRoot;
       entity.attachedModelUrl = expectedUrl;
       entity.areMeshes = this.collectRenderableMeshes(modelRoot);
+      const pickable = this.pickableTypeForEntity(entity);
       for (const m of entity.areMeshes) {
-        m.isPickable = true;
+        m.isPickable = pickable;
       }
       entity.areBaseMaterials = new Map(
         entity.areMeshes.map((mesh) => [mesh.uniqueId, (mesh.material as Material | null) ?? null])
@@ -1134,5 +1135,16 @@ export class BabylonAdapter implements IEngineBridge {
     if (id.startsWith("monster")) return "monster";
     if (id.startsWith("loot")) return "loot";
     return "object";
+  }
+
+  /** Only these participate in combat tap + hover pick (large static GLBs must stay false — mobile GPU/driver crashes). */
+  private isMeshPickableForInteraction(entityType: string | undefined): boolean {
+    const t = (entityType || "").toLowerCase();
+    return t === "player" || t === "npc" || t === "monster" || t === "loot";
+  }
+
+  private pickableTypeForEntity(node: EntityNode): boolean {
+    const t = node._vm?.type ?? this.inferTypeFromEntityId(node.root.name);
+    return this.isMeshPickableForInteraction(t);
   }
 }

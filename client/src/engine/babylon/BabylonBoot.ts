@@ -96,6 +96,8 @@ export function createBabylonApp(canvas: HTMLCanvasElement): BabylonApp {
   groundMat.specularColor = new Color3(0.02, 0.02, 0.02);
   ground.material = groundMat;
   ground.position.y = -0.02;
+  /** Huge pickable ground makes every scene.pick() traverse the terrain; combat/hover use entities only. */
+  ground.isPickable = false;
 
   engine.runRenderLoop(() => {
     scene.render();

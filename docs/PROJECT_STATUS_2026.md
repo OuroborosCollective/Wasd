@@ -42,7 +42,7 @@ This document is the **authoritative snapshot** of what works today in the repos
 
 | Item | Status |
 |------|--------|
-| **Static props** | `game-data/world/objects.json` — loaded into `WorldObjectSystem`; **placeholder** models may use `chest.glb` until real village GLBs are wired |
+| **Static props** | `game-data/world/objects.json` — loaded into `WorldObjectSystem`; **placeholder** models may use `chest.glb` until real village GLBs are wired; client **does not** mark these GLB triangles **`isPickable`** (only player/npc/monster/loot) so **`scene.pick`** stays cheap and avoids mobile GPU issues |
 | **Textures (dev)** | Optional Babylon Playground textures via jsDelivr (`client/src/engine/babylon/playgroundTextures.ts`) |
 | **Production assets** | `world-assets/` and `client/public/` — team replaces placeholders |
 
