@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { verifyFirebaseToken } from "../../config/firebase.js";
+import { isFirebaseAuthConfigured, verifyFirebaseToken } from "../../config/firebase.js";
 
 export type LoginMessage = {
   token?: string;
@@ -21,6 +21,11 @@ function devLoginAllowed(): boolean {
 
 function guestLoginAllowed(): boolean {
   const v = process.env.ALLOW_GUEST_LOGIN?.trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes";
+}
+
+function requireFirebaseAuthOnly(): boolean {
+  const v = process.env.REQUIRE_FIREBASE_AUTH?.trim().toLowerCase();
   return v === "1" || v === "true" || v === "yes";
 }
 
@@ -53,6 +58,16 @@ export async function resolveLoginIdentity(
     } catch {
       return { error: "Invalid or expired token" };
     }
+  }
+
+  if (requireFirebaseAuthOnly()) {
+    if (!isFirebaseAuthConfigured()) {
+      return {
+        error:
+          "Server requires Firebase sign-in but FIREBASE_SERVICE_ACCOUNT_KEY is not configured.",
+      };
+    }
+    return { error: "Firebase sign-in required" };
   }
 
   const guestRequested =

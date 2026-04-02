@@ -186,6 +186,10 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
             health: typeof entity.health === "number" ? entity.health : undefined,
             maxHealth: typeof entity.maxHealth === "number" ? entity.maxHealth : undefined,
             combatThreat: entity.combatThreat === true,
+            role: typeof entity.role === "string" ? entity.role : undefined,
+            faction: typeof entity.faction === "string" ? entity.faction : undefined,
+            lootItemName: typeof entity.lootItemName === "string" ? entity.lootItemName : undefined,
+            lootItemId: typeof entity.lootItemId === "string" ? entity.lootItemId : undefined,
             combatNpcId:
               typeof entity.combatNpcId === "string"
                 ? entity.combatNpcId

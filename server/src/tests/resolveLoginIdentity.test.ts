@@ -53,4 +53,5 @@ describe("resolveLoginIdentity", () => {
       error: "Dev login disabled (set ALLOW_DEV_LOGIN=1 or use a token)",
     });
   });
+
 });

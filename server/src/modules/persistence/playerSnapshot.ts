@@ -1,3 +1,5 @@
+import { normalizeInventoryStacks } from "../inventory/inventoryStacks.js";
+
 /**
  * Whitelist of player fields written to disk / Firestore.
  * Omits transient runtime fields (movement state, socket mapping, etc.).
@@ -72,6 +74,7 @@ export function mergePersistedPlayerInto(player: any, saved: Record<string, unkn
     }
   }
   if (!Array.isArray(player.inventory)) player.inventory = [];
+  normalizeInventoryStacks(player);
   if (!player.equipment || typeof player.equipment !== "object") {
     player.equipment = { weapon: null, armor: null };
   } else {

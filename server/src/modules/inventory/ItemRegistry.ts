@@ -15,6 +15,10 @@ export interface ItemDefinition {
   healAmount?: number;
   /** Consumable: restore mana (capped at maxMana) */
   restoreMana?: number;
+  /** If false, never stacks with others of same id */
+  stackable?: boolean;
+  /** Max count per inventory row (default 99) */
+  maxStack?: number;
   rarity: "common" | "uncommon" | "rare" | "epic" | "legendary";
   description: string;
 }
@@ -53,12 +57,25 @@ export class ItemRegistry {
     return this.ITEM_REGISTRY[id];
   }
 
-  static createInstance(id: string) {
+  static createInstance(id: string, quantity = 1) {
     if (!this.initialized) this.init();
     const def = this.getItem(id);
     if (!def) return null;
-    // Return a copy to avoid mutation of the registry
-    return { ...def };
+    const q = Math.max(1, Math.floor(quantity));
+    return { ...def, quantity: q };
+  }
+
+  static stacksWithDefinition(def: ItemDefinition | undefined): boolean {
+    if (!def) return false;
+    if (def.stackable === false) return false;
+    if (def.stackable === true) return true;
+    return def.type === "consumable" || def.type === "misc";
+  }
+
+  static maxStackFor(def: ItemDefinition | undefined): number {
+    if (!def) return 1;
+    const m = typeof def.maxStack === "number" && def.maxStack > 0 ? Math.floor(def.maxStack) : 99;
+    return Math.min(99, Math.max(1, m));
   }
 
   static hydrate(item: any) {

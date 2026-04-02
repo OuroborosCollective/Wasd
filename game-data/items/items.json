@@ -32,6 +32,8 @@
     "id": "iron_scrap",
     "name": "Iron Scrap",
     "type": "misc",
+    "stackable": true,
+    "maxStack": 50,
     "rarity": "common",
     "description": "A piece of rusted iron. Might be useful for someone."
   },
@@ -111,6 +113,8 @@
     "id": "minor_mana_draught",
     "name": "Minor Mana Draught",
     "type": "consumable",
+    "stackable": true,
+    "maxStack": 20,
     "rarity": "common",
     "restoreMana": 15,
     "description": "A small vial that restores a bit of mana."

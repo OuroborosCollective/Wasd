@@ -46,7 +46,9 @@ describe("playerSnapshot", () => {
     expect(fresh.name).toBe("SavedName");
     expect(fresh.gold).toBe(99);
     expect(fresh.sceneId).toBe("hub");
-    expect(fresh.inventory).toEqual([{ id: "iron_scrap" }]);
+    expect(fresh.inventory.length).toBe(1);
+    expect(fresh.inventory[0].id).toBe("iron_scrap");
+    expect(fresh.inventory[0].quantity ?? 1).toBe(1);
     expect(fresh.isOffline).toBe(true);
     expect(fresh.targetPosition).toBeNull();
   });

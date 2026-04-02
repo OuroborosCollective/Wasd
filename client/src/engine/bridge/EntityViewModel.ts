@@ -6,6 +6,8 @@ export interface EntityViewModel {
   modelUrl?: string;
   visible: boolean;
   name?: string;
+  role?: string;
+  faction?: string;
   health?: number;
   maxHealth?: number;
   /** Server: hostile / enemy NPC (for client targeting UI) */
@@ -15,6 +17,8 @@ export interface EntityViewModel {
   /** Server: gold pile vs item drop */
   lootKind?: "gold" | "item";
   goldAmount?: number;
+  lootItemName?: string;
+  lootItemId?: string;
   are?: {
     kappa: number;
     logicalIndex: number;

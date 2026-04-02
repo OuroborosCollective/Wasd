@@ -73,6 +73,10 @@ export const getAuthInstance = (): Auth | null => {
   return authInstance;
 };
 
+export function isFirebaseAuthConfigured(): boolean {
+  return getAuthInstance() !== null;
+}
+
 // For backward compatibility if needed, but lazy getters are better
 export const db = new Proxy({} as Firestore, {
   get: (_, prop) => (getDb() as any)[prop]
