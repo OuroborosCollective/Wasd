@@ -10,7 +10,7 @@ This document is the **authoritative snapshot** of what works today in the repos
 | **Boot path** | `client/src/main.ts` (thin shell) → `clientBoot.ts` → `createBabylonApp` → `BabylonAdapter` |
 | **Vite chunks** | `babylon-core` vs `babylon-loaders` — glTF plugin loads on **first GLB** (`BabylonAdapter`), not on first paint |
 | **WebGL failure** | `Engine.IsSupported` → full-screen overlay; **context lost** → overlay + link to Babylon WebGL docs |
-| **Mobile performance** | Touch / narrow viewports: **no** `preserveDrawingBuffer` (unless `?screenshot=1`), **hardware scaling** (~fewer shaded pixels), **maxFPS 30** (Android **24**), default **ARE mode `off`**, **no skybox** + **no stencil buffer** on Android, **hover tooltip disabled** on touch, **GLB loads serialized** on Android, **static world objects** (`prop`/`building`/`object`) use **placeholders only** on Android (strip `modelUrl` in `websocketClient`), throttled **target reticle** + **navigation marker** |
+| **Mobile performance** | Touch / narrow viewports: **no** `preserveDrawingBuffer` (unless `?screenshot=1`), **hardware scaling**, **maxFPS 30** (Android **24**), default **ARE mode `off`**, **no skybox** + **no stencil buffer** on Android, **hover tooltip disabled** on touch, **GLB loads serialized** on Android (failed loads **do not** abort the queue), **name tags** only rebuilt when the **name string changes** (avoids flicker every `entity_sync`), throttled **target reticle** + **navigation marker** |
 | **Default GLB fallbacks** | `client/src/engine/babylon/AssetRegistry.ts` — used when server does not send a `modelUrl` |
 | **Bridge** | `client/src/engine/bridge/` — `IEngineBridge`, `EntityViewModel`; keep simulation off the client |
 | **HUD / mobile** | HP + stamina + **mana** **bars**; dialogue **bottom sheet**; **inventory / skills / equipment / quest** panels share **`panelLayout.ts`**; **inventory** lists stacks (**×N**) + **Equip**/**Use** + row **`title` tooltips** (stats from server item payloads); **usable** rows (consumable / equippable) get a light highlight when alive; **Use**/**Equip** disabled while **dead**; **equipment** shows weapon/armor + **Unequip**; loot chips when **`prefersCompactTouchUi()`**; **target reticle**; **world hover tooltip** (NPC role/faction/HP, loot); UI SFX via **Babylon `Sound`** with **Web Audio** fallback |
@@ -42,7 +42,7 @@ This document is the **authoritative snapshot** of what works today in the repos
 
 | Item | Status |
 |------|--------|
-| **Static props** | `game-data/world/objects.json` — loaded into `WorldObjectSystem`; **placeholder** models may use `chest.glb` until real village GLBs are wired; client **does not** mark these GLB triangles **`isPickable`** (only player/npc/monster/loot) so **`scene.pick`** stays cheap and avoids mobile GPU issues |
+| **Static props** | `game-data/world/objects.json` — loaded into `WorldObjectSystem`; client keeps **prop/building** GLBs **non-pickable** so **`scene.pick`** stays cheap on mobile |
 | **Textures (dev)** | Optional Babylon Playground textures via jsDelivr (`client/src/engine/babylon/playgroundTextures.ts`) |
 | **Production assets** | `world-assets/` and `client/public/` — team replaces placeholders |
 

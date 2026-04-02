@@ -566,12 +566,14 @@ export class BabylonAdapter implements IEngineBridge {
       node.explicitVisible = updates.visible;
       this.applyEntityVisibility(node);
     }
-    if (updates.name) {
+    const nextName = typeof updates.name === "string" ? updates.name.trim() : "";
+    const prevName = (node._vm?.name && String(node._vm.name).trim()) || "";
+    if (nextName && nextName !== prevName) {
       if (node.label) {
         node.label.dispose();
       }
       node.label = this.createBillboardLabel(
-        updates.name,
+        nextName,
         this.colorForType(updates.type ?? this.inferTypeFromEntityId(id)),
         node.root
       );
@@ -876,7 +878,10 @@ export class BabylonAdapter implements IEngineBridge {
       void this.tryAttachModel(entityId, url);
       return;
     }
-    this.androidModelAttachChain = this.androidModelAttachChain.then(() => this.tryAttachModel(entityId, url));
+    /** One failed decode must not abort the whole queue (left everything on placeholders + flickering labels). */
+    this.androidModelAttachChain = this.androidModelAttachChain
+      .catch(() => undefined)
+      .then(() => this.tryAttachModel(entityId, url));
   }
 
   private async loadModelContainer(url: string): Promise<AssetContainer> {
@@ -897,15 +902,6 @@ export class BabylonAdapter implements IEngineBridge {
     if (!url) return;
     const entity = this.entities.get(entityId);
     if (!entity) return;
-
-    const staticType = (entity._vm?.type ?? "").toLowerCase();
-    if (
-      isAndroid() &&
-      (staticType === "object" || staticType === "prop" || staticType === "building")
-    ) {
-      /** Keep cheap placeholders — decoding many village GLBs OOMs Android WebGL. */
-      return;
-    }
 
     this.modelAttachQueue.set(entityId, url);
     entity.pendingModelUrl = url;

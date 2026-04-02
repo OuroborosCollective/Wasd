@@ -1,7 +1,7 @@
 import { MMORPGClientCore } from "../core/MMORPGClientCore";
 import { applyStatsPayload } from "../state/playerState";
 import { showToast } from "../ui/toast";
-import { isAndroid, prefersCompactTouchUi } from "../ui/touchUi";
+import { prefersCompactTouchUi } from "../ui/touchUi";
 import { onEntitySyncForCombatUi, setCombatUiLocalPlayerId } from "../ui/combatMobileUi";
 
 let globalWs: WebSocket | null = null;
@@ -181,7 +181,7 @@ function handleServerMessage(core: MMORPGClientCore, data: any, options: Connect
       core.setAREMode(data.areMode);
     }
     if (data.entities) {
-      let normalizedEntities = data.entities.map((entity: any) => ({
+      const normalizedEntities = data.entities.map((entity: any) => ({
         ...entity,
         modelUrl: entity.modelUrl ?? entity.glbPath,
         are: normalizeAREPayload(entity.are),
@@ -201,15 +201,6 @@ function handleServerMessage(core: MMORPGClientCore, data: any, options: Connect
               ? entity.id
               : undefined,
       }));
-      if (isAndroid()) {
-        normalizedEntities = normalizedEntities.map((e: any) => {
-          const t = String(e.type || "").toLowerCase();
-          if (t === "object" || t === "prop" || t === "building") {
-            return { ...e, modelUrl: undefined, glbPath: undefined };
-          }
-          return e;
-        });
-      }
       core.syncEntities(normalizedEntities);
       onEntitySyncForCombatUi(normalizedEntities);
     }
