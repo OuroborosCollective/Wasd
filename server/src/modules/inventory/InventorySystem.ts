@@ -26,23 +26,30 @@ export class InventorySystem {
     const itemDef = ItemRegistry.getItem(item.id);
     
     if (itemDef?.type === "weapon") {
-      // Swap with current weapon if exists
       const currentWeapon = player.equipment.weapon;
       player.equipment.weapon = item;
-      
-      // Remove from inventory
       player.inventory.splice(itemIndex, 1);
-      
-      // Put old weapon back in inventory
       if (currentWeapon) {
         player.inventory.push(currentWeapon);
       }
+      return player.equipment;
     }
-    
-    return player.equipment;
+
+    if (itemDef?.type === "armor" && itemDef.slot === "armor") {
+      const currentArmor = player.equipment.armor;
+      player.equipment.armor = item;
+      player.inventory.splice(itemIndex, 1);
+      if (currentArmor) {
+        player.inventory.push(currentArmor);
+      }
+      return player.equipment;
+    }
+
+    return null;
   }
 
   unequipItem(player: any, slot: string) {
+    if (!player.equipment) player.equipment = { weapon: null, armor: null };
     const item = player.equipment[slot];
     if (!item) return null;
 

@@ -49,6 +49,7 @@ Treat these as **archaeology**, not the live stack description.
 - `final-lock/DO_NOT_SIMPLIFY.md`
 - `PROJECT_LOCK_RULES.md`
 - `agent/AI_AGENT_FAILSAFE_RULES.md`
+- `.github/pull_request_template.md` — doc checklist for PRs
 
 ## Obsolete filenames
 

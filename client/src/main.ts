@@ -1,17 +1,5 @@
-import { createBabylonApp } from "./engine/babylon/BabylonBoot";
-import { BabylonAdapter } from "./engine/babylon/BabylonAdapter";
-import { MMORPGClientCore } from "./core/MMORPGClientCore";
-import { connectSocket, requestSceneChange, type ConnectionOptions } from "./networking/websocketClient";
-import { IEngineBridge } from "./engine/bridge/IEngineBridge";
-import { renderHUD, showDialogue } from "./ui/hud";
-import { getJoystickState, initMobileControls, isMobile } from "./ui/mobileControls";
-import {
-  openEquipmentPanel,
-  openInventory,
-  openQuestLog,
-  openSkillsPanel,
-  preloadGamePanels,
-} from "./ui/lazyPanels";
+import { bootAreloriaClient } from "./clientBoot";
+import { showBootStatus } from "./bootUi";
 
 let canvas = document.getElementById("application-canvas") as HTMLCanvasElement;
 if (!canvas) {
@@ -25,106 +13,8 @@ canvas.style.width = "100vw";
 canvas.style.height = "100vh";
 canvas.style.display = "block";
 
-function showBootStatus(message: string) {
-  let status = document.getElementById("boot-status-banner") as HTMLDivElement | null;
-  if (!status) {
-    status = document.createElement("div");
-    status.id = "boot-status-banner";
-    status.style.position = "fixed";
-    status.style.left = "12px";
-    status.style.bottom = "12px";
-    status.style.zIndex = "9999";
-    status.style.padding = "8px 10px";
-    status.style.background = "rgba(0,0,0,0.72)";
-    status.style.borderLeft = "3px solid #f27d26";
-    status.style.color = "#f7f7f7";
-    status.style.fontFamily = "sans-serif";
-    status.style.fontSize = "12px";
-    status.style.maxWidth = "520px";
-    document.body.appendChild(status);
-  }
-  status.textContent = message;
-}
-
-function bootEngineBridge(targetCanvas: HTMLCanvasElement): IEngineBridge {
-  const app = createBabylonApp(targetCanvas);
-  (window as any).babylonScene = app.scene;
-  console.log("Renderer: Babylon.js");
-  return new BabylonAdapter(app.scene, app.camera);
-}
-
-try {
-  // 1. Boot Engine + Adapter
-  const adapter = bootEngineBridge(canvas);
-
-  // 2. Create Core
-  const core = new MMORPGClientCore(adapter);
-  (window as any).gameCore = core;
-  core.registerDefaultInput();
-
-  // 3. Connect Systems
-  const connectionOptions: ConnectionOptions = {};
-  const persistedToken = localStorage.getItem("token");
-  if (persistedToken && persistedToken.trim().length > 0) {
-    connectionOptions.token = persistedToken;
-  }
-  connectSocket(core, connectionOptions);
-  (window as any).requestSceneChange = requestSceneChange;
-  renderHUD();
-  void import("./ui/mobileSceneTeleportPanel").then((m) => m.renderMobileSceneTeleportPanel());
-  preloadGamePanels();
-
-  initMobileControls(
-    core,
-    {
-      onAttack: () => core.attack(),
-      onInteract: () => core.interact(),
-      onEquip: () => {
-        void openEquipmentPanel();
-      },
-      onInventory: () => {
-        void openInventory();
-      },
-      onQuests: () => {
-        void openQuestLog();
-      },
-      onSkills: () => {
-        void openSkillsPanel();
-      },
-      onMap: () => { console.log('Map toggled'); },
-      onChat: () => { console.log('Chat toggled'); }
-    },
-    (delta: number) => {
-      // Zoom logic placeholder if engine supports it later
-    },
-    (dx: number, dy: number) => {
-      // Camera drag logic placeholder if engine supports it later
-    }
-  );
-
-  void import("./utils/PerformanceMonitor").then((m) => m.performanceMonitor.start());
-
-  let lastFrameTime = performance.now();
-  const tick = (now: number) => {
-    const dt = Math.min((now - lastFrameTime) / 1000, 0.1);
-    lastFrameTime = now;
-    core.update(dt);
-    if (isMobile()) {
-      const j = getJoystickState();
-      if (j.active && (Math.abs(j.dx) > 0.04 || Math.abs(j.dy) > 0.04)) {
-        core.events.emit("move_intent", { dx: j.dx, dy: j.dy });
-      }
-    }
-    requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
-
-  core.events.on("dialogue", (payload: unknown) => {
-    showDialogue(payload);
-  });
-
-  console.log("Areloria Client Initialized");
-} catch (error: any) {
+void bootAreloriaClient(canvas).catch((error: unknown) => {
+  const message = error instanceof Error ? error.message : "Unknown error";
   console.error("Fatal client bootstrap error:", error);
-  showBootStatus(`Fatal bootstrap error: ${error?.message || "Unknown error"}`);
-}
+  showBootStatus(`Fatal bootstrap error: ${message}`);
+});

@@ -20,6 +20,13 @@ import path from "path";
 
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { GameConfig } from "../config/GameConfig.js";
+import { SkillSystem } from "../modules/skill/SkillSystem.js";
+import { randomUUID } from "node:crypto";
+import {
+  npcIsCombatTarget,
+  npcIsCombatThreat,
+  selectAttackTarget,
+} from "../modules/combat/selectAttackTarget.js";
 
 type SpawnPoint = { x: number; y: number; z: number };
 type SceneProfile = {
@@ -201,6 +208,11 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function npcWillCounterAttack(npc: any): boolean {
+  if (!npc) return false;
+  return npc.faction === "Hostile" || npc.role === "Enemy";
+}
+
 function normalizeAREMode(value: unknown): AREMode | null {
   if (!isNonEmptyString(value)) {
     return null;
@@ -228,11 +240,14 @@ export class WorldTick {
   public economySystem: EconomySystem;
   public questSystem: QuestEngine;
   public worldSystem: WorldSystem;
+  public skillSystem: SkillSystem;
   public persistence: PersistenceManager;
   public glbRegistry: GLBRegistry;
   private assetPoolResolver: AssetPoolResolver;
   private areStateCompiler: AREStateCompiler;
   private lootEntities: Map<string, any> = new Map();
+  private lastPlayerAttackAt: Map<string, number> = new Map();
+  private lastNpcCounterAttackAt: Map<string, number> = new Map();
 
   private socketToPlayer: Map<string, string> = new Map(); // socketId -> characterName
   /** WASD held per player (uid) — movement applied each tick so hold-to-move works on mobile + desktop */
@@ -267,7 +282,7 @@ export class WorldTick {
     { npcId: string; pendingQuestId: string | null; nodeId: string }
   > = new Map();
 
-  private findNearestNpcForInteract(player: any) {
+  private findNearestNpcForInteractWithDistance(player: any): { npc: any; d2: number } | null {
     const px = player.position.x;
     const py = player.position.y;
     const maxD = GameConfig.interactDistance;
@@ -280,7 +295,11 @@ export class WorldTick {
         best = { npc, d2 };
       }
     }
-    return best?.npc ?? null;
+    return best;
+  }
+
+  private findNearestNpcForInteract(player: any) {
+    return this.findNearestNpcForInteractWithDistance(player)?.npc ?? null;
   }
 
   private sendDialogueToPlayer(
@@ -311,17 +330,263 @@ export class WorldTick {
     });
   }
 
+  /** Keeps maxHealth/maxStamina in sync with level (XP) and clamps current pools when alive. */
+  private ensurePlayerVitalityCaps(player: any) {
+    this.skillSystem.checkPlayerLevel(player);
+    if (!player.dead) {
+      const mh = player.maxHealth ?? 100;
+      const ms = player.maxStamina ?? 100;
+      const mm = player.maxMana ?? 25;
+      player.health = Math.min(Math.max(0, player.health ?? mh), mh);
+      player.stamina = Math.min(Math.max(0, player.stamina ?? ms), ms);
+      player.mana = Math.min(Math.max(0, player.mana ?? mm), mm);
+    }
+  }
+
   private pushPlayerStateSync(socketId: string, player: any) {
+    this.ensurePlayerVitalityCaps(player);
     this.ws.sendToPlayer(socketId, {
       type: "stats_sync",
       gold: player.gold ?? 0,
       xp: player.xp ?? 0,
+      level: player.level ?? 1,
       health: player.health ?? 100,
+      maxHealth: player.maxHealth ?? 100,
       stamina: player.stamina ?? 100,
+      maxStamina: player.maxStamina ?? 100,
+      mana: player.mana ?? 25,
+      maxMana: player.maxMana ?? 25,
+      dead: Boolean(player.dead),
+      deathAt: typeof player.deathAt === "number" ? player.deathAt : 0,
+      respawnAvailableAt: player.dead
+        ? (typeof player.deathAt === "number" ? player.deathAt : 0) + GameConfig.playerRespawnDelayMs
+        : 0,
       quests: this.questSystem.getQuestSyncForClient(player),
       inventory: player.inventory || [],
       equipment: player.equipment || {},
     });
+  }
+
+  private killPlayer(socketId: string, player: any) {
+    if (player.dead) return;
+    player.dead = true;
+    player.deathAt = Date.now();
+    player.health = 0;
+    this.playerKeysDown.delete(player.id);
+    this.playerAnalogMove.delete(player.id);
+    for (const npc of this.npcSystem.getAllNPCs()) {
+      if (npc.aggroTargetId === player.id) {
+        npc.aggroTargetId = null;
+      }
+    }
+    this.ws.sendToPlayer(socketId, {
+      type: "toast",
+      text: "You were defeated. Tap Respawn when ready.",
+    });
+    this.pushPlayerStateSync(socketId, player);
+  }
+
+  private getEquippedWeaponStats(player: any): {
+    damageBonus: number;
+    attackRange: number | null;
+    manaCost: number;
+  } {
+    const w = player?.equipment?.weapon;
+    if (!w || typeof w.id !== "string") return { damageBonus: 0, attackRange: null, manaCost: 0 };
+    const def = ItemRegistry.hydrate(w);
+    const damageBonus = typeof def.damage === "number" && def.damage > 0 ? def.damage : 0;
+    const attackRange =
+      typeof def.attackRange === "number" && def.attackRange > 0 ? def.attackRange : null;
+    let manaCost = typeof def.manaCost === "number" && def.manaCost > 0 ? Math.floor(def.manaCost) : 0;
+    if (manaCost === 0 && attackRange && attackRange > GameConfig.attackDistance) {
+      manaCost = 3;
+    }
+    return { damageBonus, attackRange, manaCost };
+  }
+
+  private dropLootFromNpc(npc: any) {
+    const table = npc?.dropTable;
+    if (!Array.isArray(table) || table.length === 0) return;
+    const px = npc.position.x;
+    const py = npc.position.y;
+    for (const entry of table) {
+      const chance = typeof entry.chance === "number" ? entry.chance : 0;
+      if (chance <= 0 || Math.random() > chance) continue;
+
+      const goldAmount =
+        typeof entry.gold === "number" && entry.gold > 0
+          ? Math.floor(entry.gold)
+          : typeof entry.goldMin === "number" && typeof entry.goldMax === "number"
+            ? Math.floor(entry.goldMin + Math.random() * (entry.goldMax - entry.goldMin + 1))
+            : 0;
+
+      const itemId = typeof entry.itemId === "string" ? entry.itemId : "";
+      if (goldAmount > 0) {
+        const id = `loot_${randomUUID()}`;
+        this.lootEntities.set(id, {
+          id,
+          position: { x: px + (Math.random() - 0.5) * 1.2, y: py + (Math.random() - 0.5) * 1.2 },
+          goldAmount,
+          item: null,
+          despawnAt: Date.now() + GameConfig.lootDespawnMs,
+        });
+      }
+
+      if (itemId) {
+        const inst = ItemRegistry.createInstance(itemId);
+        if (!inst) continue;
+        const id = `loot_${randomUUID()}`;
+        this.lootEntities.set(id, {
+          id,
+          position: { x: px + (Math.random() - 0.5) * 1.2, y: py + (Math.random() - 0.5) * 1.2 },
+          item: inst,
+          despawnAt: Date.now() + GameConfig.lootDespawnMs,
+        });
+      }
+    }
+  }
+
+  private findNearestLoot(player: any): { id: string; loot: any; d2: number } | null {
+    const px = player.position.x;
+    const py = player.position.y;
+    const maxD = GameConfig.interactDistance;
+    let best: { id: string; loot: any; d2: number } | null = null;
+    for (const [id, loot] of this.lootEntities) {
+      const lx = loot.position.x;
+      const ly = loot.position.y;
+      const dx = lx - px;
+      const dy = ly - py;
+      const d2 = dx * dx + dy * dy;
+      if (d2 > maxD * maxD) continue;
+      if (!best || d2 < best.d2) {
+        best = { id, loot, d2 };
+      }
+    }
+    return best;
+  }
+
+  private tryPickupLoot(socketId: string, player: any, entry: { id: string; loot: any }): boolean {
+    const { id, loot } = entry;
+    if (!this.lootEntities.has(id)) return false;
+    const goldAmt = typeof loot.goldAmount === "number" ? loot.goldAmount : 0;
+    if (goldAmt > 0) {
+      player.gold = (player.gold ?? 0) + goldAmt;
+      this.lootEntities.delete(id);
+      this.ws.sendToPlayer(socketId, {
+        type: "toast",
+        text: `Picked up: ${goldAmt} gold`,
+      });
+      this.pushPlayerStateSync(socketId, player);
+      return true;
+    }
+    const item = loot.item;
+    if (!item?.id) {
+      this.lootEntities.delete(id);
+      return true;
+    }
+    this.inventorySystem.addItem(player, item);
+    this.lootEntities.delete(id);
+    this.ws.sendToPlayer(socketId, {
+      type: "toast",
+      text: `Picked up: ${item.name || item.id}`,
+    });
+    this.pushPlayerStateSync(socketId, player);
+    return true;
+  }
+
+  private performNpcCounterAttack(npc: any, player: any, victimSocketId: string) {
+    if (!npcWillCounterAttack(npc)) return;
+    const px = player.position.x;
+    const py = player.position.y;
+    const dx = npc.position.x - px;
+    const dy = npc.position.y - py;
+    if (dx * dx + dy * dy > GameConfig.npcAttackDistance * GameConfig.npcAttackDistance) {
+      return;
+    }
+    const now = Date.now();
+    const last = this.lastNpcCounterAttackAt.get(npc.id) ?? 0;
+    if (now - last < GameConfig.npcCounterAttackCooldownMs) {
+      return;
+    }
+    this.lastNpcCounterAttackAt.set(npc.id, now);
+    const outcome = this.combatSystem.attack(npc, player);
+    if (outcome.hit) {
+      this.ws.broadcast({
+        type: "entity_action",
+        entityId: player.id,
+        action: "hit",
+        damage: outcome.damage,
+      });
+    }
+    this.pushPlayerStateSync(victimSocketId, player);
+    if ((player.health ?? 0) <= 0 && !player.dead) {
+      this.killPlayer(victimSocketId, player);
+    }
+  }
+
+  private processHostileNpcAggroAndChase(onlinePlayers: any[]) {
+    const rAggro = GameConfig.npcAggroRadius;
+    const rLeash = GameConfig.npcAggroLeash;
+    const speed = GameConfig.npcChaseSpeed;
+    const rAtk = GameConfig.npcAttackDistance;
+
+    for (const npc of this.npcSystem.getAllNPCs()) {
+      if (!npcWillCounterAttack(npc)) continue;
+      if ((npc.health ?? 0) <= 0) continue;
+
+      let targetPlayer: any = null;
+      let targetSocket: string | undefined;
+
+      if (npc.aggroTargetId) {
+        targetPlayer = this.playerSystem.getPlayer(npc.aggroTargetId);
+        if (!targetPlayer || targetPlayer.isOffline || targetPlayer.dead) {
+          npc.aggroTargetId = null;
+          targetPlayer = null;
+        } else {
+          targetSocket = this.getSocketForPlayer(targetPlayer.id) || this.getSocketForPlayer(targetPlayer.name);
+          const hx = npc.homePosition?.x ?? npc.position.x;
+          const hy = npc.homePosition?.y ?? npc.position.y;
+          const tdx = targetPlayer.position.x - hx;
+          const tdy = targetPlayer.position.y - hy;
+          if (tdx * tdx + tdy * tdy > rLeash * rLeash) {
+            npc.aggroTargetId = null;
+            targetPlayer = null;
+          }
+        }
+      }
+
+      if (!targetPlayer) {
+        let best: { p: any; d2: number } | null = null;
+        for (const p of onlinePlayers) {
+          if (p.dead) continue;
+          const dx = p.position.x - npc.position.x;
+          const dy = p.position.y - npc.position.y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 <= rAggro * rAggro && (!best || d2 < best.d2)) {
+            best = { p, d2 };
+          }
+        }
+        if (best) {
+          npc.aggroTargetId = best.p.id;
+          targetPlayer = best.p;
+          targetSocket = this.getSocketForPlayer(targetPlayer.id) || this.getSocketForPlayer(targetPlayer.name);
+        }
+      }
+
+      if (!targetPlayer || !targetSocket) continue;
+
+      const dx = targetPlayer.position.x - npc.position.x;
+      const dy = targetPlayer.position.y - npc.position.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > 0.05 && dist > rAtk * 0.95) {
+        npc.position.x += (dx / dist) * speed;
+        npc.position.y += (dy / dist) * speed;
+      }
+
+      if (dist <= rAtk && !targetPlayer.dead) {
+        this.performNpcCounterAttack(npc, targetPlayer, targetSocket);
+      }
+    }
   }
 
   private getSceneProfile(sceneId: string | undefined): { sceneId: string; profile: SceneProfile } {
@@ -1164,6 +1429,7 @@ export class WorldTick {
     this.guildSystem = new GuildSystem();
     this.economySystem = new EconomySystem();
     this.questSystem = new QuestEngine();
+    this.skillSystem = new SkillSystem();
     this.persistence = new PersistenceManager();
     this.worldSystem = new WorldSystem(this.persistence);
     this.glbRegistry = new GLBRegistry();
@@ -1228,6 +1494,12 @@ export class WorldTick {
             player.isOffline = false;
             console.log(`Player ${charName} reconnected.`);
             shouldApplySpawn = !isNonEmptyString(player.sceneId) || !isNonEmptyString(player.spawnKey);
+            if (player.dead) {
+              player.dead = false;
+              player.health = player.maxHealth ?? 100;
+              player.stamina = player.maxStamina ?? 100;
+              shouldApplySpawn = true;
+            }
           }
 
           const requestedSceneId = isNonEmptyString(msg.sceneId) ? msg.sceneId.trim() : undefined;
@@ -1238,6 +1510,16 @@ export class WorldTick {
           const spawn = shouldApplySpawn
             ? this.applySpawnToPlayer(player, requestedSceneId ?? player.sceneId, requestedSpawnKey ?? player.spawnKey)
             : this.resolveSpawn(player.sceneId, player.spawnKey);
+
+          if (!player.equipment?.weapon) {
+            if (!player.equipment) {
+              player.equipment = { weapon: null, armor: null };
+            }
+            const bow = ItemRegistry.createInstance("training_shortbow");
+            if (bow) {
+              player.equipment.weapon = bow;
+            }
+          }
 
           this.socketToPlayer.set(id, uid);
           this.playerToSocket.set(uid, id);
@@ -1253,11 +1535,24 @@ export class WorldTick {
             stats: {
               gold: player.gold,
               xp: player.xp,
+              level: player.level ?? 1,
+              health: player.health,
+              maxHealth: player.maxHealth ?? 100,
+              stamina: player.stamina,
+              maxStamina: player.maxStamina ?? 100,
+              mana: player.mana ?? 25,
+              maxMana: player.maxMana ?? 25,
+              dead: Boolean(player.dead),
+              deathAt: typeof player.deathAt === "number" ? player.deathAt : 0,
+              respawnAvailableAt: player.dead
+                ? (typeof player.deathAt === "number" ? player.deathAt : 0) + GameConfig.playerRespawnDelayMs
+                : 0,
               quests: this.questSystem.getQuestSyncForClient(player),
               inventory: player.inventory,
-              equipment: player.equipment
-            }
+              equipment: player.equipment,
+            },
           });
+          this.pushPlayerStateSync(id, player);
         } catch (err) {
           console.error("Login error:", err);
           this.ws.sendToPlayer(id, { type: "error", message: "Login failed" });
@@ -1293,6 +1588,91 @@ export class WorldTick {
 
       if (this.worldState.bannedPlayers.includes(player.id)) {
         this.ws.sendToPlayer(id, { type: "kick", reason: "Banned player" });
+        return;
+      }
+
+      if (player.dead) {
+        if (msg.type === "respawn") {
+          const now = Date.now();
+          const deathAt = typeof player.deathAt === "number" ? player.deathAt : 0;
+          if (now - deathAt < GameConfig.playerRespawnDelayMs) {
+            this.ws.sendToPlayer(id, { type: "toast", text: "Respawn is not ready yet." });
+            this.pushPlayerStateSync(id, player);
+            return;
+          }
+          player.dead = false;
+          player.deathAt = 0;
+          const spawn = this.applySpawnToPlayer(player, player.sceneId, player.spawnKey);
+          player.health = player.maxHealth ?? 100;
+          player.stamina = player.maxStamina ?? 100;
+          this.observerEngine.updatePosition(id, player.position);
+          this.ws.sendToPlayer(id, {
+            type: "scene_changed",
+            sceneId: spawn.sceneId,
+            spawnKey: spawn.spawnKey,
+            spawnPosition: spawn.spawnPoint,
+            reason: "respawn",
+          });
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        if (msg.type === "quest_sync") {
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        return;
+      }
+
+      if (msg.type === "pickup_loot") {
+        const lid = typeof msg.lootId === "string" ? msg.lootId.trim() : "";
+        const loot = lid ? this.lootEntities.get(lid) : undefined;
+        if (!loot) {
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        const px = player.position.x;
+        const py = player.position.y;
+        const dx = loot.position.x - px;
+        const dy = loot.position.y - py;
+        if (dx * dx + dy * dy > GameConfig.interactDistance * GameConfig.interactDistance) {
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        this.tryPickupLoot(id, player, { id: lid, loot });
+        return;
+      }
+
+      if (msg.type === "equip_item") {
+        const itemId = typeof msg.itemId === "string" ? msg.itemId.trim() : "";
+        if (!itemId) {
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        if (!player.equipment) {
+          player.equipment = { weapon: null, armor: null };
+        }
+        const result = this.inventorySystem.equipItem(player, itemId);
+        if (!result) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Cannot equip that item." });
+        }
+        this.pushPlayerStateSync(id, player);
+        return;
+      }
+
+      if (msg.type === "unequip_item") {
+        const slot = typeof msg.slot === "string" ? msg.slot.trim().toLowerCase() : "";
+        if (slot !== "weapon" && slot !== "armor") {
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        if (!player.equipment) {
+          player.equipment = { weapon: null, armor: null };
+        }
+        const result = this.inventorySystem.unequipItem(player, slot);
+        if (!result) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Nothing equipped in that slot." });
+        }
+        this.pushPlayerStateSync(id, player);
         return;
       }
 
@@ -1335,26 +1715,49 @@ export class WorldTick {
       }
 
       if (msg.type === "attack") {
+        const nowAtk = Date.now();
+        const lastAtk = this.lastPlayerAttackAt.get(player.id) ?? 0;
+        if (nowAtk - lastAtk < GameConfig.playerAttackCooldownMs) {
+          return;
+        }
+        this.lastPlayerAttackAt.set(player.id, nowAtk);
+
         this.ws.broadcast({ type: "entity_action", entityId: player.id, action: "attack" });
         const px = player.position.x;
         const py = player.position.y;
-        const maxD = GameConfig.attackDistance;
-        let best: { npc: any; d2: number } | null = null;
-        for (const npc of this.npcSystem.getAllNPCs()) {
-          if ((npc.health ?? 100) <= 0) continue;
-          const dx = npc.position.x - px;
-          const dy = npc.position.y - py;
-          const d2 = dx * dx + dy * dy;
-          if (d2 <= maxD * maxD && (!best || d2 < best.d2)) {
-            best = { npc, d2 };
-          }
+        const { damageBonus: weaponBonus, attackRange: weaponRange, manaCost: attackManaCost } =
+          this.getEquippedWeaponStats(player);
+        const maxD = weaponRange ?? GameConfig.attackDistance;
+        const best = selectAttackTarget(px, py, maxD, this.npcSystem.getAllNPCs());
+        if (
+          best &&
+          attackManaCost > 0 &&
+          (player.mana ?? 0) < attackManaCost
+        ) {
+          this.ws.sendToPlayer(id, {
+            type: "toast",
+            text: `Not enough mana (${attackManaCost} required for this weapon).`,
+          });
+          this.pushPlayerStateSync(id, player);
+          return;
         }
         if (!best) {
+          const hint =
+            weaponRange && weaponRange > GameConfig.attackDistance
+              ? `No target within ${Math.round(weaponRange)}m — try the training dummy or a hostile.`
+              : "No target in range — move closer to an enemy or the training dummy.";
+          this.ws.sendToPlayer(id, {
+            type: "toast",
+            text: hint,
+          });
           this.pushPlayerStateSync(id, player);
           return;
         }
         const target = best.npc;
-        const outcome = this.combatSystem.attack(player, target);
+        if (attackManaCost > 0) {
+          player.mana = Math.max(0, (player.mana ?? 0) - attackManaCost);
+        }
+        const outcome = this.combatSystem.attackWithWeapon(player, target, weaponBonus);
         if (outcome.hit) {
           this.ws.broadcast({
             type: "entity_action",
@@ -1363,7 +1766,9 @@ export class WorldTick {
             damage: outcome.damage,
           });
         }
+        this.performNpcCounterAttack(target, player, id);
         if ((target.health ?? 0) <= 0) {
+          this.skillSystem.addXP(player, "combat", 25);
           const combatRewards = this.questSystem.updateCombatQuests(player, target.id, target.id);
           for (const r of combatRewards) {
             this.ws.sendToPlayer(id, {
@@ -1374,7 +1779,9 @@ export class WorldTick {
           if (target.id === "npc_dummy" || target.role === "Training") {
             target.health = target.maxHealth ?? 100;
           } else {
+            this.dropLootFromNpc(target);
             this.npcSystem.removeNPC(target.id);
+            this.lastNpcCounterAttackAt.delete(target.id);
           }
         }
         this.pushPlayerStateSync(id, player);
@@ -1387,7 +1794,14 @@ export class WorldTick {
 
       if (msg.type === "interact") {
         if (!player.flags) player.flags = {};
-        const npc = this.findNearestNpcForInteract(player);
+        const lootEntry = this.findNearestLoot(player);
+        const npcNear = this.findNearestNpcForInteractWithDistance(player);
+        const lootD2 = lootEntry?.d2 ?? Number.POSITIVE_INFINITY;
+        const npcD2 = npcNear?.d2 ?? Number.POSITIVE_INFINITY;
+        if (lootEntry && lootD2 <= npcD2 && this.tryPickupLoot(id, player, lootEntry)) {
+          return;
+        }
+        const npc = npcNear?.npc ?? null;
         if (!npc) {
           this.ws.sendToPlayer(id, {
             type: "dialogue",
@@ -1647,6 +2061,10 @@ export class WorldTick {
         continue;
       }
 
+      if (player.dead) {
+        continue;
+      }
+
       let mx = 0;
       let my = 0;
       const analog = this.playerAnalogMove.get(player.id);
@@ -1675,8 +2093,17 @@ export class WorldTick {
     }
     this.playerAnalogMove.clear();
 
+    this.processHostileNpcAggroAndChase(onlinePlayers);
+
     this.npcSystem.tick(onlinePlayers, this.worldSystem.worldTime);
     this.worldSystem.tick();
+
+    const lootNow = Date.now();
+    for (const [lid, loot] of this.lootEntities) {
+      if (typeof loot.despawnAt === "number" && lootNow > loot.despawnAt) {
+        this.lootEntities.delete(lid);
+      }
+    }
 
     if (this.tickCount % 600 === 0) this.saveAll();
 
@@ -1691,7 +2118,7 @@ export class WorldTick {
 
   broadcastState() {
     const tickCount = this.tickCount;
-    const entities = [
+    const entities: any[] = [
       ...this.playerSystem.getAllPlayers().map(p => ({
         id: p.id,
         type: 'player',
@@ -1718,6 +2145,9 @@ export class WorldTick {
         position: { x: n.position.x, y: 0, z: n.position.y },
         rotation: { x: 0, y: 0, z: 0 },
         name: n.name,
+        health: n.health,
+        maxHealth: n.maxHealth,
+        combatThreat: npcIsCombatThreat(n),
         glbPath: this.resolveNpcGlbPath(n),
         are: this.areStateCompiler.compileEntity(
           {
@@ -1737,6 +2167,8 @@ export class WorldTick {
         type: 'loot',
         position: { x: l.position.x, y: 0, z: l.position.y },
         rotation: { x: 0, y: 0, z: 0 },
+        lootKind: typeof l.goldAmount === "number" && l.goldAmount > 0 ? "gold" : "item",
+        goldAmount: typeof l.goldAmount === "number" ? l.goldAmount : undefined,
         glbPath: this.resolveEntityGlbPath("loot", l.item?.id || l.id, l.id),
         are: this.areStateCompiler.compileEntity(
           {

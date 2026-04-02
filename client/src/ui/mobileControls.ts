@@ -561,3 +561,17 @@ export function initMobileControls(
   // ── KEYBOARD FALLBACK for desktop testing ───────────────────────────────────
   // (Already handled in websocketClient.ts)
 }
+
+/** When player is dead, disable joystick and action buttons (mobile-first safety). */
+export function setMobileCombatActionsEnabled(enabled: boolean) {
+  const root = document.getElementById("mobile-controls");
+  if (!root) return;
+  const nodes = root.querySelectorAll(
+    "#joystick-zone, #mobile-action-btns, #mobile-menu-btns, #mob-shortcut-toggle, #mobile-chat-btn"
+  );
+  nodes.forEach((el) => {
+    const h = el as HTMLElement;
+    h.style.pointerEvents = enabled ? "" : "none";
+    h.style.opacity = enabled ? "" : "0.4";
+  });
+}

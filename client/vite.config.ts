@@ -24,8 +24,11 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          if (id.includes("node_modules/@babylonjs/loaders")) {
+            return "babylon-loaders";
+          }
           if (id.includes("node_modules/@babylonjs")) {
-            return "babylon";
+            return "babylon-core";
           }
           if (id.includes("node_modules/firebase")) {
             return "firebase";

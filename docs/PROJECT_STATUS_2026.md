@@ -7,9 +7,12 @@ This document is the **authoritative snapshot** of what works today in the repos
 | Item | Status |
 |------|--------|
 | **Primary 3D engine** | **Babylon.js** (`@babylonjs/core`, `@babylonjs/loaders`) |
-| **Boot path** | `client/src/main.ts` → `createBabylonApp` → `BabylonAdapter` |
+| **Boot path** | `client/src/main.ts` (thin shell) → `clientBoot.ts` → `createBabylonApp` → `BabylonAdapter` |
+| **Vite chunks** | `babylon-core` vs `babylon-loaders` — glTF plugin loads on **first GLB** (`BabylonAdapter`), not on first paint |
+| **WebGL failure** | `Engine.IsSupported` → full-screen overlay; **context lost** → overlay + link to Babylon WebGL docs |
 | **Default GLB fallbacks** | `client/src/engine/babylon/AssetRegistry.ts` — used when server does not send a `modelUrl` |
 | **Bridge** | `client/src/engine/bridge/` — `IEngineBridge`, `EntityViewModel`; keep simulation off the client |
+| **HUD / mobile** | HP + stamina + **mana** **bars**; dialogue **bottom sheet**; **inventory / skills / equipment / quest** panels share **`panelLayout.ts`**; **inventory** lists server items + **Equip**; **equipment** shows weapon/armor + **Unequip**; loot chips when **`prefersCompactTouchUi()`**; **target reticle**; UI SFX via **Babylon `Sound`** (tiny WAV data URL) with **Web Audio** fallback |
 
 ## Server and networking
 
@@ -18,7 +21,8 @@ This document is the **authoritative snapshot** of what works today in the repos
 | **Stack** | Node, Express, WebSocket (`server/src/networking/`) |
 | **Game loop** | `WorldTick` — simulation tick **100 ms**; `entity_sync` broadcast **configurable** (`GameConfig.stateBroadcastIntervalMs`, default **200 ms**) |
 | **Movement** | Held WASD + `move_intent` (joystick); applied each tick with `GameConfig.playerSpeed` |
-| **Interact / dialogue** | `interact` resolves **nearest NPC**; `dialogue_choice` / `quest_accept`; `talk_to` quests complete on target NPC contact |
+| **Interact / dialogue** | `interact` resolves **nearest NPC** or **loot on ground** (whichever is closer in range); `dialogue_choice` / `quest_accept`; `talk_to` quests complete on target NPC contact |
+| **Combat** | Target pick in **`selectAttackTarget.ts`** (tested); **ranged** weapons cost **mana** (`item.manaCost` or default **3** if `attackRange` > melee); **`equip_item`** / **`unequip_item`** WS; **`InventorySystem`** equips **armor** slot; **`entity_sync` NPCs** include **health/maxHealth** + **`combatThreat`** |
 | **Scenes** | `game-data/scenes/*.json` — spawns and trigger zones (server-side) |
 | **NPC spawns** | `game-data/spawns/npc-spawns.json` (path resolves from repo root or `server/` cwd) |
 | **Starter content** | **Millbrook** hub: `npc_guide` (Linnea), quests `starter_welcome` / `village_tour`, plus existing Mara / Elder / Guard chain — see `game-data/` |
@@ -53,16 +57,16 @@ See **`docs/ROADMAP_TO_RELEASE.md`** for the full backlog aligned with the desig
 
 - Client **index** chunk still large — further **dynamic `import()`** for heavy UI panels possible  
 - Many **server modules** are implemented but not all wired end-to-end in `WorldTick` or exposed to the live client UI  
-- **Combat** is basic (nearest NPC in `attackDistance`, one hit resolution, training dummy respawns)  
+- **Combat** still has no death/respawn UI, aggro lists, or ranged abilities — see roadmap Tier A2  
 - **React** appears in root dependencies but the **game shell** is largely vanilla TS + DOM UI panels  
 
 ### Recently wired (snapshot)
 
-- **`attack`**: nearest hostile NPC in range, `CombatSystem.attack`, HP, combat quest completion, optional NPC removal; **`stats_sync`** + **`toast`** to client  
+- **`attack`**: target filter + weapon damage bonus + player attack cooldown; hostile **counter-attack**; loot drops + interact pickup; combat XP on kill; **`stats_sync`** + **`toast`**  
 - **Collect quests**: turn-in on **talk** to `targetNpcId` / `giverNpcId` when inventory has `requiredItemId` × count  
 - **`quest_sync`** message + **`stats_sync`** (quests with collect progress, gold, XP)  
 - **Quest log** reads **live** `playerState`; HUD shows **Gold / XP**  
-- **Vite**: `manualChunks` for **babylon**, **firebase**, **game UI panels** (inventory/skills vs quest/equipment), **mobile teleport**, **PerformanceMonitor**
+- **Vite**: `manualChunks` for **babylon-core**, **babylon-loaders**, **firebase**, **game UI panels** (inventory/skills vs quest/equipment), **mobile teleport**, **PerformanceMonitor**
 - **Client**: heavy panels loaded via **`dynamic import()`** (`lazyPanels.ts`) + idle **preload** after boot  
 - **PlayCanvas removed**: client is **Babylon.js only**; default GLB map lives in `engine/babylon/AssetRegistry.ts`  
 - **ItemRegistry** resolves `game-data` from `server/` cwd (`../game-data`)  

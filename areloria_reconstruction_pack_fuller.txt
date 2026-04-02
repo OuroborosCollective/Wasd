@@ -1,3 +1,5 @@
+> Historical export — not current spec (2026): live client is Babylon.js only. See docs/PROJECT_STATUS_2026.md and docs/DOCUMENTATION_INDEX.md.
+
 # ARELORIA RECONSTRUCTION PACK FULLER
 
 DATEI / PFAD / INHALT für Agent-Rekonstruktion
