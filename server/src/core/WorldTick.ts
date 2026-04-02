@@ -333,14 +333,32 @@ export class WorldTick {
     });
   }
 
+  /** Keeps maxHealth/maxStamina in sync with level (XP) and clamps current pools when alive. */
+  private ensurePlayerVitalityCaps(player: any) {
+    this.skillSystem.checkPlayerLevel(player);
+    if (!player.dead) {
+      const mh = player.maxHealth ?? 100;
+      const ms = player.maxStamina ?? 100;
+      const mm = player.maxMana ?? 25;
+      player.health = Math.min(Math.max(0, player.health ?? mh), mh);
+      player.stamina = Math.min(Math.max(0, player.stamina ?? ms), ms);
+      player.mana = Math.min(Math.max(0, player.mana ?? mm), mm);
+    }
+  }
+
   private pushPlayerStateSync(socketId: string, player: any) {
+    this.ensurePlayerVitalityCaps(player);
     this.ws.sendToPlayer(socketId, {
       type: "stats_sync",
       gold: player.gold ?? 0,
       xp: player.xp ?? 0,
+      level: player.level ?? 1,
       health: player.health ?? 100,
       maxHealth: player.maxHealth ?? 100,
       stamina: player.stamina ?? 100,
+      maxStamina: player.maxStamina ?? 100,
+      mana: player.mana ?? 25,
+      maxMana: player.maxMana ?? 25,
       dead: Boolean(player.dead),
       deathAt: typeof player.deathAt === "number" ? player.deathAt : 0,
       respawnAvailableAt: player.dead
@@ -1499,9 +1517,13 @@ export class WorldTick {
             stats: {
               gold: player.gold,
               xp: player.xp,
+              level: player.level ?? 1,
               health: player.health,
               maxHealth: player.maxHealth ?? 100,
               stamina: player.stamina,
+              maxStamina: player.maxStamina ?? 100,
+              mana: player.mana ?? 25,
+              maxMana: player.maxMana ?? 25,
               dead: Boolean(player.dead),
               deathAt: typeof player.deathAt === "number" ? player.deathAt : 0,
               respawnAvailableAt: player.dead
@@ -1663,6 +1685,10 @@ export class WorldTick {
           }
         }
         if (!best) {
+          this.ws.sendToPlayer(id, {
+            type: "toast",
+            text: "No target in range — move closer to an enemy or the training dummy.",
+          });
           this.pushPlayerStateSync(id, player);
           return;
         }

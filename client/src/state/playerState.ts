@@ -15,9 +15,13 @@ export type ClientQuestEntry = {
 
 let gold = 0;
 let xp = 0;
+let level = 1;
 let health = 100;
 let maxHealth = 100;
 let stamina = 100;
+let maxStamina = 100;
+let mana = 25;
+let maxMana = 25;
 let dead = false;
 let deathAt = 0;
 let respawnAvailableAt = 0;
@@ -39,9 +43,13 @@ function emit() {
 export function applyStatsPayload(data: {
   gold?: number;
   xp?: number;
+  level?: number;
   health?: number;
   maxHealth?: number;
   stamina?: number;
+  maxStamina?: number;
+  mana?: number;
+  maxMana?: number;
   dead?: boolean;
   deathAt?: number;
   respawnAvailableAt?: number;
@@ -51,9 +59,13 @@ export function applyStatsPayload(data: {
 }) {
   if (typeof data.gold === "number") gold = data.gold;
   if (typeof data.xp === "number") xp = data.xp;
+  if (typeof data.level === "number") level = data.level;
   if (typeof data.health === "number") health = data.health;
   if (typeof data.maxHealth === "number") maxHealth = data.maxHealth;
   if (typeof data.stamina === "number") stamina = data.stamina;
+  if (typeof data.maxStamina === "number") maxStamina = data.maxStamina;
+  if (typeof data.mana === "number") mana = data.mana;
+  if (typeof data.maxMana === "number") maxMana = data.maxMana;
   if (typeof data.dead === "boolean") dead = data.dead;
   if (typeof data.deathAt === "number") deathAt = data.deathAt;
   if (typeof data.respawnAvailableAt === "number") respawnAvailableAt = data.respawnAvailableAt;
@@ -74,6 +86,15 @@ export function getPlayerHealth() {
 }
 export function getPlayerMaxHealth() {
   return maxHealth;
+}
+export function getPlayerStamina() {
+  return stamina;
+}
+export function getPlayerMaxStamina() {
+  return maxStamina;
+}
+export function getPlayerLevel() {
+  return level;
 }
 export function getPlayerDead() {
   return dead;

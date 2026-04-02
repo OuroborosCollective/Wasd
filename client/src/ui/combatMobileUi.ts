@@ -2,7 +2,8 @@
  * Mobile-first combat UX: nearby loot chips + death / respawn overlay.
  */
 
-import { isMobile, setMobileCombatActionsEnabled } from "./mobileControls";
+import { setMobileCombatActionsEnabled } from "./mobileControls";
+import { prefersCompactTouchUi } from "./touchUi";
 import { sendRespawn, sendPickupLoot } from "../networking/websocketClient";
 import {
   getPlayerDead,
@@ -95,9 +96,6 @@ function injectStyles() {
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
     }
-    @media (min-width: 901px) and (pointer: fine) {
-      #combat-loot-strip { bottom: 100px; }
-    }
     .loot-chip {
       display: flex;
       align-items: center;
@@ -138,6 +136,12 @@ function scheduleRefresh() {
 
 function refreshLootChips() {
   if (!lootStrip || !localId) return;
+  if (!prefersCompactTouchUi()) {
+    lootStrip.replaceChildren();
+    lootStrip.style.visibility = "hidden";
+    return;
+  }
+  lootStrip.style.visibility = "visible";
   const me = lastEntities.find((e) => e.id === localId);
   if (!me || getPlayerDead()) {
     lootStrip.replaceChildren();
@@ -219,7 +223,13 @@ export function initCombatMobileUi() {
   ensureDeathOverlay();
   injectStyles();
   subscribePlayerState(scheduleRefresh);
-  if (!isMobile() && typeof window !== "undefined" && !window.matchMedia("(pointer:coarse)").matches) {
-    lootStrip!.style.bottom = "88px";
+  if (typeof window !== "undefined") {
+    const mqCoarse = window.matchMedia("(pointer: coarse)");
+    const onLayout = () => scheduleRefresh();
+    mqCoarse.addEventListener?.("change", onLayout);
+    window.addEventListener("resize", onLayout);
+    if (prefersCompactTouchUi()) {
+      lootStrip!.style.bottom = "max(200px, calc(88px + env(safe-area-inset-bottom, 0px)))";
+    }
   }
 }
