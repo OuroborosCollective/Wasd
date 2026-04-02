@@ -30,6 +30,7 @@ import {
 } from "../modules/combat/selectAttackTarget.js";
 import { mergePersistedPlayerInto } from "../modules/persistence/playerSnapshot.js";
 import { normalizeInventoryStacks } from "../modules/inventory/inventoryStacks.js";
+import { getSkillDefinition } from "../modules/skill/skillDefinitions.js";
 
 type SpawnPoint = { x: number; y: number; z: number };
 type SceneProfile = {
@@ -251,6 +252,7 @@ export class WorldTick {
   private lootEntities: Map<string, any> = new Map();
   private lastPlayerAttackAt: Map<string, number> = new Map();
   private lastNpcCounterAttackAt: Map<string, number> = new Map();
+  private lastPlayerSkillAt: Map<string, number> = new Map();
 
   private socketToPlayer: Map<string, string> = new Map(); // socketId -> characterName
   /** WASD held per player (uid) — movement applied each tick so hold-to-move works on mobile + desktop */
@@ -1496,7 +1498,11 @@ export class WorldTick {
         try {
           const identity = await resolveLoginIdentity(id, msg as any);
           if ("error" in identity) {
-            this.ws.sendToPlayer(id, { type: "error", message: identity.error, code: "login_required" });
+            this.ws.sendToPlayer(id, {
+              type: "error",
+              message: identity.error,
+              code: identity.code,
+            });
             return;
           }
           const { uid, charName } = identity;
@@ -1738,8 +1744,18 @@ export class WorldTick {
           this.pushPlayerStateSync(id, player);
           return;
         }
-        const removed = this.inventorySystem.takeOneFromBag(player, itemId);
-        if (!removed) {
+        const rawCount = Number(msg.count);
+        const want = Number.isFinite(rawCount) && rawCount > 0 ? Math.floor(rawCount) : 1;
+        const maxUse = Math.min(20, want);
+        const have = this.questSystem.countItemInInventory(player, itemId);
+        if (have < 1) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Item not in inventory." });
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        const useCount = Math.min(maxUse, have);
+        const removed = this.inventorySystem.takeManyFromBag(player, itemId, useCount);
+        if (removed < 1) {
           this.ws.sendToPlayer(id, { type: "toast", text: "Item not in inventory." });
           this.pushPlayerStateSync(id, player);
           return;
@@ -1747,17 +1763,100 @@ export class WorldTick {
         if (!player.dead) {
           if (typeof def.healAmount === "number" && def.healAmount > 0) {
             const mh = player.maxHealth ?? 100;
-            player.health = Math.min(mh, (player.health ?? mh) + def.healAmount);
+            const add = def.healAmount * removed;
+            player.health = Math.min(mh, (player.health ?? mh) + add);
           }
           if (typeof def.restoreMana === "number" && def.restoreMana > 0) {
             const mm = player.maxMana ?? 25;
-            player.mana = Math.min(mm, (player.mana ?? mm) + def.restoreMana);
+            const add = def.restoreMana * removed;
+            player.mana = Math.min(mm, (player.mana ?? mm) + add);
           }
         }
         this.ws.sendToPlayer(id, {
           type: "toast",
-          text: `Used: ${def.name}`,
+          text: removed > 1 ? `Used ${removed}× ${def.name}` : `Used: ${def.name}`,
         });
+        this.pushPlayerStateSync(id, player);
+        this.schedulePersistPlayer(player.id);
+        return;
+      }
+
+      if (msg.type === "split_stack") {
+        const rowIndex = Number(msg.rowIndex);
+        const amount = Number(msg.amount);
+        if (!Number.isFinite(rowIndex) || !Number.isFinite(amount) || amount < 1) {
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        const ok = this.inventorySystem.splitStackAt(player, rowIndex, amount);
+        if (!ok) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Cannot split that stack." });
+        }
+        this.pushPlayerStateSync(id, player);
+        this.schedulePersistPlayer(player.id);
+        return;
+      }
+
+      if (msg.type === "use_skill") {
+        const skillId = typeof msg.skillId === "string" ? msg.skillId.trim() : "";
+        const defSkill = getSkillDefinition(skillId);
+        if (!defSkill) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Unknown skill." });
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        const nowSk = Date.now();
+        const lastCd = this.lastPlayerSkillAt.get(`${player.id}:${skillId}`) ?? 0;
+        if (nowSk - lastCd < defSkill.cooldownMs) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Skill is not ready yet." });
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        if ((player.mana ?? 0) < defSkill.manaCost) {
+          this.ws.sendToPlayer(id, { type: "toast", text: `Not enough mana (${defSkill.manaCost}).` });
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        const px = player.position.x;
+        const py = player.position.y;
+        const best = selectAttackTarget(px, py, defSkill.range, this.npcSystem.getAllNPCs(), player.combatTargetNpcId);
+        if (!best) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "No target in range for that skill." });
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        player.mana = Math.max(0, (player.mana ?? 0) - defSkill.manaCost);
+        this.lastPlayerSkillAt.set(`${player.id}:${skillId}`, nowSk);
+        this.ws.broadcast({ type: "entity_action", entityId: player.id, action: "attack" });
+        const target = best.npc;
+        const outcome = this.combatSystem.spellStrike(player, target, defSkill.spellPower);
+        if (outcome.hit) {
+          this.ws.broadcast({
+            type: "entity_action",
+            entityId: target.id,
+            action: "hit",
+            damage: outcome.damage,
+          });
+        }
+        this.performNpcCounterAttack(target, player, id);
+        if ((target.health ?? 0) <= 0) {
+          this.skillSystem.addXP(player, "combat", 25);
+          const combatRewards = this.questSystem.updateCombatQuests(player, target.id, target.id);
+          for (const r of combatRewards) {
+            this.ws.sendToPlayer(id, {
+              type: "toast",
+              text: `Quest completed: ${r.quest.title || r.quest.id}`,
+            });
+          }
+          if (target.id === "npc_dummy" || target.role === "Training") {
+            target.health = target.maxHealth ?? 100;
+          } else {
+            this.dropLootFromNpc(target);
+            this.npcSystem.removeNPC(target.id);
+            this.lastNpcCounterAttackAt.delete(target.id);
+          }
+        }
+        this.ws.sendToPlayer(id, { type: "toast", text: `${defSkill.name} cast!` });
         this.pushPlayerStateSync(id, player);
         this.schedulePersistPlayer(player.id);
         return;

@@ -1,5 +1,5 @@
-import { auth } from "../auth/firebase";
-import { sendDialogueChoice, sendQuestAccept } from "../networking/websocketClient";
+import { auth, isFirebaseClientConfigured } from "../auth/firebase";
+import { sendDialogueChoice, sendQuestAccept, updateAuthToken } from "../networking/websocketClient";
 import {
   getPlayerGold,
   getPlayerHealth,
@@ -14,6 +14,8 @@ import {
 } from "../state/playerState";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { prefersCompactTouchUi } from "./touchUi";
+
+const GUEST_STORAGE_KEY = "areloria_guest_id";
 
 function makeBarRow(label: string, fillPct: number, color: string): HTMLDivElement {
   const wrap = document.createElement("div");
@@ -123,19 +125,59 @@ export function renderHUD() {
   loginBtn.style.cursor = "pointer";
   loginBtn.style.border = "none";
   loginBtn.style.touchAction = "manipulation";
-  loginBtn.onclick = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      const result = await signInWithPopup(auth, provider);
-      const token = await result.user.getIdToken();
-      localStorage.setItem("token", token);
-      console.log("Logged in!");
-      loginBtn.style.display = "none";
-    } catch (e) {
-      console.error("Login failed", e);
-    }
+
+  const logoutBtn = document.createElement("button");
+  logoutBtn.textContent = "Sign out";
+  logoutBtn.style.marginTop = "8px";
+  logoutBtn.style.marginLeft = "8px";
+  logoutBtn.style.padding = "8px 12px";
+  logoutBtn.style.minHeight = "44px";
+  logoutBtn.style.background = "rgba(60,60,70,0.95)";
+  logoutBtn.style.color = "#e8ecf5";
+  logoutBtn.style.borderRadius = "8px";
+  logoutBtn.style.cursor = "pointer";
+  logoutBtn.style.border = "1px solid rgba(255,255,255,0.2)";
+  logoutBtn.style.touchAction = "manipulation";
+
+  const syncAuthUi = () => {
+    const u = auth?.currentUser;
+    loginBtn.style.display = u ? "none" : "inline-block";
+    logoutBtn.style.display = u ? "inline-block" : "none";
   };
+  syncAuthUi();
+  auth?.onAuthStateChanged(() => syncAuthUi());
+
+  if (!isFirebaseClientConfigured() || !auth) {
+    loginBtn.textContent = "Login (configure VITE_FIREBASE_* or firebase-applet-config)";
+    loginBtn.disabled = true;
+    loginBtn.style.opacity = "0.65";
+    logoutBtn.style.display = "none";
+  } else {
+    loginBtn.onclick = async () => {
+      const provider = new GoogleAuthProvider();
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const token = await result.user.getIdToken();
+        updateAuthToken(token);
+        console.log("Logged in!");
+      } catch (e) {
+        console.error("Login failed", e);
+      }
+    };
+    logoutBtn.onclick = async () => {
+      try {
+        const { signOut } = await import("firebase/auth");
+        await signOut(auth);
+        updateAuthToken(null);
+        localStorage.removeItem(GUEST_STORAGE_KEY);
+      } catch (e) {
+        console.error("Sign out failed", e);
+      }
+    };
+  }
+
   hud.appendChild(loginBtn);
+  hud.appendChild(logoutBtn);
 }
 
 export type DialoguePayload = {

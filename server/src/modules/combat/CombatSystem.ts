@@ -10,6 +10,22 @@ export class CombatSystem {
     return this.resolveAttack(attacker, defender, weaponBonus);
   }
 
+  /** Spell / skill hit — no stamina cost */
+  spellStrike(attacker: any, defender: any, spellPower: number) {
+    const hitChance = this.calculateHitChance(attacker, defender);
+    if (Math.random() > hitChance) {
+      return { success: true, hit: false, damage: 0 };
+    }
+    const damage = this.calculateDamage(attacker, defender, spellPower);
+    defender.health = Math.max(0, defender.health - damage);
+    return {
+      success: true,
+      hit: true,
+      damage,
+      defenderHealth: defender.health,
+    };
+  }
+
   private resolveAttack(attacker: any, defender: any, weaponBonus: number) {
     const atkStamina = typeof attacker.stamina === "number" ? attacker.stamina : 100;
     if (atkStamina <= 0) return { success: false, reason: "no_stamina" };

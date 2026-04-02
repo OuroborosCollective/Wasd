@@ -4,7 +4,7 @@ import {
   getPlayerInventory,
   subscribePlayerState,
 } from "../state/playerState";
-import { sendEquipItem, sendUseItem } from "../networking/websocketClient";
+import { sendEquipItem, sendSplitStack, sendUseItem } from "../networking/websocketClient";
 
 function itemLabel(item: { name?: string; id?: string }): string {
   return (item.name && String(item.name)) || (item.id && String(item.id)) || "?";
@@ -23,7 +23,7 @@ function refreshInventoryContent(content: HTMLElement, compact: boolean) {
     content.appendChild(empty);
     return;
   }
-  for (const raw of items) {
+  items.forEach((raw, rowIndex) => {
     const item = raw as { id?: string; name?: string; type?: string; slot?: string };
     const row = document.createElement("div");
     row.style.display = "flex";
@@ -55,21 +55,66 @@ function refreshInventoryContent(content: HTMLElement, compact: boolean) {
 
     row.appendChild(text);
 
+    const btnWrap = document.createElement("div");
+    btnWrap.style.display = "flex";
+    btnWrap.style.flexWrap = "wrap";
+    btnWrap.style.gap = "6px";
+    btnWrap.style.justifyContent = "flex-end";
+    btnWrap.style.flexShrink = "0";
+
     if (item.type === "consumable" && item.id) {
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.textContent = "Use";
-      btn.style.flexShrink = "0";
-      btn.style.padding = "10px 16px";
+      btn.textContent = "Use 1";
+      btn.style.padding = "10px 12px";
       btn.style.minHeight = "44px";
       btn.style.borderRadius = "10px";
       btn.style.border = "1px solid rgba(80,160,255,0.45)";
       btn.style.background = "rgba(35,42,58,0.95)";
       btn.style.color = "#e8ecf5";
-      btn.style.fontSize = "14px";
+      btn.style.fontSize = "13px";
       btn.style.touchAction = "manipulation";
-      btn.onclick = () => sendUseItem(item.id!);
-      row.appendChild(btn);
+      btn.onclick = () => sendUseItem(item.id!, 1);
+      btnWrap.appendChild(btn);
+      if (qty > 1) {
+        const all = document.createElement("button");
+        all.type = "button";
+        all.textContent = `Use all (${qty})`;
+        all.style.padding = "10px 12px";
+        all.style.minHeight = "44px";
+        all.style.borderRadius = "10px";
+        all.style.border = "1px solid rgba(120,200,255,0.4)";
+        all.style.background = "rgba(30,48,72,0.95)";
+        all.style.color = "#e8ecf5";
+        all.style.fontSize = "13px";
+        all.style.touchAction = "manipulation";
+        all.onclick = () => sendUseItem(item.id!, qty);
+        btnWrap.appendChild(all);
+      }
+    }
+
+    const stackableTypes = new Set(["consumable", "misc"]);
+    if (item.id && stackableTypes.has(String(item.type)) && qty > 1) {
+      const split = document.createElement("button");
+      split.type = "button";
+      split.textContent = "Split";
+      split.style.padding = "10px 12px";
+      split.style.minHeight = "44px";
+      split.style.borderRadius = "10px";
+      split.style.border = "1px solid rgba(200,200,220,0.35)";
+      split.style.background = "rgba(38,40,52,0.95)";
+      split.style.color = "#e8ecf5";
+      split.style.fontSize = "13px";
+      split.style.touchAction = "manipulation";
+      split.onclick = () => {
+        const half = Math.max(1, Math.floor(qty / 2));
+        sendSplitStack(rowIndex, half);
+      };
+      btnWrap.appendChild(split);
+    }
+
+    if (btnWrap.childNodes.length > 0) {
+      row.appendChild(btnWrap);
     }
 
     if (item.type === "weapon" || (item.type === "armor" && item.slot === "armor")) {
@@ -92,7 +137,7 @@ function refreshInventoryContent(content: HTMLElement, compact: boolean) {
     }
 
     content.appendChild(row);
-  }
+  });
 }
 
 export function renderInventory() {
