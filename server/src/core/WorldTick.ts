@@ -9,7 +9,7 @@ import { EconomySystem } from "../modules/economy/EconomySystem.js";
 import { QuestEngine } from "../modules/quest/QuestEngine.js";
 import { WorldSystem } from "../modules/world/WorldSystem.js";
 import { PersistenceManager } from "./PersistenceManager.js";
-import { verifyFirebaseToken } from "../config/firebase.js";
+import { getDb, verifyFirebaseToken } from "../config/firebase.js";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
 import { GLBRegistry } from "../modules/asset-registry/GLBRegistry.js";
 import { AssetPoolResolver } from "../modules/world/AssetPoolResolver.js";
@@ -27,6 +27,7 @@ import {
   npcIsCombatThreat,
   selectAttackTarget,
 } from "../modules/combat/selectAttackTarget.js";
+import { mergePersistedPlayerInto } from "../modules/persistence/playerSnapshot.js";
 
 type SpawnPoint = { x: number; y: number; z: number };
 type SceneProfile = {
@@ -259,6 +260,8 @@ export class WorldTick {
   private sceneProfiles: Record<string, SceneProfile> = { ...DEFAULT_SCENE_PROFILES };
   private sceneTriggerZones: SceneTriggerZone[] = [...DEFAULT_SCENE_TRIGGER_ZONES];
   private playerToSocket: Map<string, string> = new Map();
+  /** Coalesce rapid saves after inventory/equip changes */
+  private saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private worldState: GMWorldState = {
     weather: "clear",
     pvp: true,
@@ -367,6 +370,17 @@ export class WorldTick {
     });
   }
 
+  private schedulePersistPlayer(playerId: string) {
+    if (playerId === "dummy_player") return;
+    if (this.saveDebounceTimer) {
+      clearTimeout(this.saveDebounceTimer);
+    }
+    this.saveDebounceTimer = setTimeout(() => {
+      this.saveDebounceTimer = null;
+      void this.saveAll();
+    }, 800);
+  }
+
   private killPlayer(socketId: string, player: any) {
     if (player.dead) return;
     player.dead = true;
@@ -384,6 +398,7 @@ export class WorldTick {
       text: "You were defeated. Tap Respawn when ready.",
     });
     this.pushPlayerStateSync(socketId, player);
+    this.schedulePersistPlayer(player.id);
   }
 
   private getEquippedWeaponStats(player: any): {
@@ -477,6 +492,7 @@ export class WorldTick {
         text: `Picked up: ${goldAmt} gold`,
       });
       this.pushPlayerStateSync(socketId, player);
+      this.schedulePersistPlayer(player.id);
       return true;
     }
     const item = loot.item;
@@ -491,6 +507,7 @@ export class WorldTick {
       text: `Picked up: ${item.name || item.id}`,
     });
     this.pushPlayerStateSync(socketId, player);
+    this.schedulePersistPlayer(player.id);
     return true;
   }
 
@@ -521,6 +538,8 @@ export class WorldTick {
     this.pushPlayerStateSync(victimSocketId, player);
     if ((player.health ?? 0) <= 0 && !player.dead) {
       this.killPlayer(victimSocketId, player);
+    } else {
+      this.schedulePersistPlayer(player.id);
     }
   }
 
@@ -1553,6 +1572,7 @@ export class WorldTick {
             },
           });
           this.pushPlayerStateSync(id, player);
+          this.schedulePersistPlayer(uid);
         } catch (err) {
           console.error("Login error:", err);
           this.ws.sendToPlayer(id, { type: "error", message: "Login failed" });
@@ -1571,6 +1591,7 @@ export class WorldTick {
         const requestedSpawnKey = isNonEmptyString(msg.spawnKey) ? msg.spawnKey.trim() : undefined;
         const spawn = this.applySpawnToPlayer(player, requestedSceneId ?? player.sceneId, requestedSpawnKey ?? player.spawnKey);
         this.observerEngine.updatePosition(id, player.position);
+        this.schedulePersistPlayer(player.id);
 
         this.ws.sendToPlayer(id, {
           type: "scene_changed",
@@ -1614,6 +1635,7 @@ export class WorldTick {
             reason: "respawn",
           });
           this.pushPlayerStateSync(id, player);
+          this.schedulePersistPlayer(player.id);
           return;
         }
         if (msg.type === "quest_sync") {
@@ -1656,6 +1678,7 @@ export class WorldTick {
           this.ws.sendToPlayer(id, { type: "toast", text: "Cannot equip that item." });
         }
         this.pushPlayerStateSync(id, player);
+        this.schedulePersistPlayer(player.id);
         return;
       }
 
@@ -1673,6 +1696,7 @@ export class WorldTick {
           this.ws.sendToPlayer(id, { type: "toast", text: "Nothing equipped in that slot." });
         }
         this.pushPlayerStateSync(id, player);
+        this.schedulePersistPlayer(player.id);
         return;
       }
 
@@ -1785,6 +1809,7 @@ export class WorldTick {
           }
         }
         this.pushPlayerStateSync(id, player);
+        this.schedulePersistPlayer(player.id);
       }
 
       if (msg.type === "quest_sync") {
@@ -1837,6 +1862,7 @@ export class WorldTick {
           nodeId: interaction.nodeId || "root",
         });
         this.pushPlayerStateSync(id, player);
+        this.schedulePersistPlayer(player.id);
       }
 
       if (msg.type === "dialogue_choice" || msg.type === "quest_accept") {
@@ -1887,18 +1913,27 @@ export class WorldTick {
           nodeId: choice.nodeId || "root",
         });
         this.pushPlayerStateSync(id, player);
+        this.schedulePersistPlayer(player.id);
       }
     };
   }
 
   async init() {
     const connected = await this.persistence.testConnection();
-    if (connected) {
+    if (connected && getDb()) {
       console.log("✅ Firestore connection verified.");
     }
+    await this.persistence.init();
     const savedData = await this.persistence.load();
     for (const id in savedData) {
-      this.playerSystem.setPlayer(id, savedData[id]);
+      if (id === "dummy_player") continue;
+      const row = savedData[id] as Record<string, unknown>;
+      const fresh = this.playerSystem.createPlayer(
+        id,
+        typeof row.name === "string" && row.name.trim() ? row.name : "Adventurer"
+      );
+      mergePersistedPlayerInto(fresh, row);
+      this.playerSystem.setPlayer(id, fresh);
     }
     this.loadRuntimeEventTemplates();
     this.loadSceneLayouts();
@@ -2105,7 +2140,7 @@ export class WorldTick {
       }
     }
 
-    if (this.tickCount % 600 === 0) this.saveAll();
+    if (this.tickCount % 200 === 0) this.saveAll();
 
     const broadcastEveryTicks = Math.max(
       1,

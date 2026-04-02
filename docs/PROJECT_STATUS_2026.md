@@ -19,6 +19,7 @@ This document is the **authoritative snapshot** of what works today in the repos
 | Item | Status |
 |------|--------|
 | **Stack** | Node, Express, WebSocket (`server/src/networking/`) |
+| **Player persistence** | **Firestore** when `FIREBASE_SERVICE_ACCOUNT_KEY` is set (whitelisted fields via `playerSnapshot.ts`); otherwise **`data/players.json`** (or `PLAYER_SAVE_FILE`). Load: merge into fresh `createPlayer` (**`isOffline: true`** until login). Saves: disconnect, **~20s** tick, debounced after loot / equip / combat HP / quests / scene / respawn |
 | **Game loop** | `WorldTick` — simulation tick **100 ms**; `entity_sync` broadcast **configurable** (`GameConfig.stateBroadcastIntervalMs`, default **200 ms**) |
 | **Movement** | Held WASD + `move_intent` (joystick); applied each tick with `GameConfig.playerSpeed` |
 | **Interact / dialogue** | `interact` resolves **nearest NPC** or **loot on ground** (whichever is closer in range); `dialogue_choice` / `quest_accept`; `talk_to` quests complete on target NPC contact |
