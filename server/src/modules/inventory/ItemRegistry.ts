@@ -9,6 +9,8 @@ export interface ItemDefinition {
   damage?: number;
   /** If set on a weapon, `attack` uses this max distance instead of default melee range */
   attackRange?: number;
+  /** Mana consumed per attack when set (>0); ranged weapons without this use server default */
+  manaCost?: number;
   rarity: "common" | "uncommon" | "rare" | "epic" | "legendary";
   description: string;
 }

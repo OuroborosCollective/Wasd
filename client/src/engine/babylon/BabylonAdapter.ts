@@ -19,6 +19,7 @@ import {
   Vector3,
   Viewport,
 } from "@babylonjs/core";
+import { Sound } from "@babylonjs/core/Audio/sound";
 import { IEngineBridge } from "../bridge/IEngineBridge";
 import { EntityViewModel } from "../bridge/EntityViewModel";
 import { AssetRegistry } from "./AssetRegistry";
@@ -28,6 +29,7 @@ import {
   playgroundTextureUrl,
 } from "./playgroundTextures";
 import { applyTiledGroundTextures, chunkGroundUvScale } from "./groundTextureUtils";
+import { makeSoftClickWavDataUrl } from "./tinyWav";
 
 type EntityNode = {
   root: TransformNode;
@@ -78,6 +80,8 @@ export class BabylonAdapter implements IEngineBridge {
   private targetReticleEl: HTMLDivElement | null = null;
   private targetReticleEntityId: string | null = null;
   private audioCtx: AudioContext | null = null;
+  private babylonUiSound: Sound | null = null;
+  private babylonUiSoundReady = false;
 
   constructor(
     private readonly scene: Scene,
@@ -92,6 +96,18 @@ export class BabylonAdapter implements IEngineBridge {
     }
     this.bindKeyboard();
     this.mountTargetReticle();
+    this.initBabylonUiSound();
+  }
+
+  private initBabylonUiSound() {
+    try {
+      const url = makeSoftClickWavDataUrl();
+      this.babylonUiSound = new Sound("arel-ui-sfx", url, this.scene, () => {
+        this.babylonUiSoundReady = true;
+      });
+    } catch {
+      this.babylonUiSound = null;
+    }
   }
 
   private mountTargetReticle() {
@@ -199,6 +215,21 @@ export class BabylonAdapter implements IEngineBridge {
 
   private escapeHtml(s: string): string {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  private playWebAudioFallback(
+    name: string,
+    vol: number,
+    _position?: { x: number; y: number; z: number }
+  ) {
+    if (name === "attack") {
+      this.playTone(200, 0.07, vol * 0.4, "triangle");
+    } else if (name === "hit") {
+      this.playNoiseBurst(0.1, vol * 0.35);
+      this.playTone(85, 0.09, vol * 0.28, "sawtooth");
+    } else if (name === "footstep") {
+      this.playNoiseBurst(0.035, vol * 0.22);
+    }
   }
 
   private ensureAudio(): AudioContext | null {
@@ -450,14 +481,22 @@ export class BabylonAdapter implements IEngineBridge {
 
   playSound(name: string, options?: { volume?: number; loop?: boolean; position?: { x: number; y: number; z: number } }): void {
     const vol = Math.min(1, Math.max(0, options?.volume ?? 0.45));
-    if (name === "attack") {
-      this.playTone(200, 0.07, vol * 0.4, "triangle");
-    } else if (name === "hit") {
-      this.playNoiseBurst(0.1, vol * 0.35);
-      this.playTone(85, 0.09, vol * 0.28, "sawtooth");
-    } else if (name === "footstep") {
-      this.playNoiseBurst(0.035, vol * 0.22);
+    const mul = name === "hit" ? 1 : name === "attack" ? 0.7 : 0.55;
+    const s = this.babylonUiSound;
+    if (s && this.babylonUiSoundReady) {
+      try {
+        s.spatialSound = Boolean(options?.position);
+        if (options?.position) {
+          s.setPosition(new Vector3(options.position.x, options.position.y, options.position.z));
+        }
+        s.setVolume(vol * mul);
+        s.play();
+        return;
+      } catch {
+        /* fall through */
+      }
     }
+    this.playWebAudioFallback(name, vol, options?.position);
   }
 
   onInput(callback: (input: any) => void): void {

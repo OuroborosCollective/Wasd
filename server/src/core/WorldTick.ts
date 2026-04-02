@@ -22,6 +22,11 @@ import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { GameConfig } from "../config/GameConfig.js";
 import { SkillSystem } from "../modules/skill/SkillSystem.js";
 import { randomUUID } from "node:crypto";
+import {
+  npcIsCombatTarget,
+  npcIsCombatThreat,
+  selectAttackTarget,
+} from "../modules/combat/selectAttackTarget.js";
 
 type SpawnPoint = { x: number; y: number; z: number };
 type SceneProfile = {
@@ -203,19 +208,6 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function npcIsCombatThreat(npc: any): boolean {
-  if (!npc || (npc.health ?? 0) <= 0) return false;
-  if (npc.faction === "Hostile") return true;
-  if (npc.role === "Enemy") return true;
-  return false;
-}
-
-function npcIsCombatTarget(npc: any): boolean {
-  if (!npc || (npc.health ?? 0) <= 0) return false;
-  if (npc.id === "npc_dummy" || npc.role === "Training") return true;
-  return npcIsCombatThreat(npc);
-}
-
 function npcWillCounterAttack(npc: any): boolean {
   if (!npc) return false;
   return npc.faction === "Hostile" || npc.role === "Enemy";
@@ -394,14 +386,22 @@ export class WorldTick {
     this.pushPlayerStateSync(socketId, player);
   }
 
-  private getEquippedWeaponStats(player: any): { damageBonus: number; attackRange: number | null } {
+  private getEquippedWeaponStats(player: any): {
+    damageBonus: number;
+    attackRange: number | null;
+    manaCost: number;
+  } {
     const w = player?.equipment?.weapon;
-    if (!w || typeof w.id !== "string") return { damageBonus: 0, attackRange: null };
+    if (!w || typeof w.id !== "string") return { damageBonus: 0, attackRange: null, manaCost: 0 };
     const def = ItemRegistry.hydrate(w);
     const damageBonus = typeof def.damage === "number" && def.damage > 0 ? def.damage : 0;
     const attackRange =
       typeof def.attackRange === "number" && def.attackRange > 0 ? def.attackRange : null;
-    return { damageBonus, attackRange };
+    let manaCost = typeof def.manaCost === "number" && def.manaCost > 0 ? Math.floor(def.manaCost) : 0;
+    if (manaCost === 0 && attackRange && attackRange > GameConfig.attackDistance) {
+      manaCost = 3;
+    }
+    return { damageBonus, attackRange, manaCost };
   }
 
   private dropLootFromNpc(npc: any) {
@@ -1642,6 +1642,40 @@ export class WorldTick {
         return;
       }
 
+      if (msg.type === "equip_item") {
+        const itemId = typeof msg.itemId === "string" ? msg.itemId.trim() : "";
+        if (!itemId) {
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        if (!player.equipment) {
+          player.equipment = { weapon: null, armor: null };
+        }
+        const result = this.inventorySystem.equipItem(player, itemId);
+        if (!result) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Cannot equip that item." });
+        }
+        this.pushPlayerStateSync(id, player);
+        return;
+      }
+
+      if (msg.type === "unequip_item") {
+        const slot = typeof msg.slot === "string" ? msg.slot.trim().toLowerCase() : "";
+        if (slot !== "weapon" && slot !== "armor") {
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        if (!player.equipment) {
+          player.equipment = { weapon: null, armor: null };
+        }
+        const result = this.inventorySystem.unequipItem(player, slot);
+        if (!result) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Nothing equipped in that slot." });
+        }
+        this.pushPlayerStateSync(id, player);
+        return;
+      }
+
       if (msg.type === "chat" && this.worldState.mutedPlayers.includes(player.id)) {
         this.sendGMStatus(id, "error", "You are muted.");
         return;
@@ -1691,23 +1725,22 @@ export class WorldTick {
         this.ws.broadcast({ type: "entity_action", entityId: player.id, action: "attack" });
         const px = player.position.x;
         const py = player.position.y;
-        const { damageBonus: weaponBonus, attackRange: weaponRange } = this.getEquippedWeaponStats(player);
+        const { damageBonus: weaponBonus, attackRange: weaponRange, manaCost: attackManaCost } =
+          this.getEquippedWeaponStats(player);
         const maxD = weaponRange ?? GameConfig.attackDistance;
-        let bestThreat: { npc: any; d2: number } | null = null;
-        let bestDummy: { npc: any; d2: number } | null = null;
-        for (const npc of this.npcSystem.getAllNPCs()) {
-          if (!npcIsCombatTarget(npc)) continue;
-          const dx = npc.position.x - px;
-          const dy = npc.position.y - py;
-          const d2 = dx * dx + dy * dy;
-          if (d2 > maxD * maxD) continue;
-          if (npcIsCombatThreat(npc)) {
-            if (!bestThreat || d2 < bestThreat.d2) bestThreat = { npc, d2 };
-          } else if (npc.id === "npc_dummy" || npc.role === "Training") {
-            if (!bestDummy || d2 < bestDummy.d2) bestDummy = { npc, d2 };
-          }
+        const best = selectAttackTarget(px, py, maxD, this.npcSystem.getAllNPCs());
+        if (
+          best &&
+          attackManaCost > 0 &&
+          (player.mana ?? 0) < attackManaCost
+        ) {
+          this.ws.sendToPlayer(id, {
+            type: "toast",
+            text: `Not enough mana (${attackManaCost} required for this weapon).`,
+          });
+          this.pushPlayerStateSync(id, player);
+          return;
         }
-        const best = bestThreat ?? bestDummy;
         if (!best) {
           const hint =
             weaponRange && weaponRange > GameConfig.attackDistance
@@ -1721,6 +1754,9 @@ export class WorldTick {
           return;
         }
         const target = best.npc;
+        if (attackManaCost > 0) {
+          player.mana = Math.max(0, (player.mana ?? 0) - attackManaCost);
+        }
         const outcome = this.combatSystem.attackWithWeapon(player, target, weaponBonus);
         if (outcome.hit) {
           this.ws.broadcast({

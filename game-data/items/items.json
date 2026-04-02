@@ -15,6 +15,7 @@
     "slot": "weapon",
     "damage": 12,
     "attackRange": 55,
+    "manaCost": 3,
     "rarity": "common",
     "description": "Light practice bow — strikes farther than a sword."
   },

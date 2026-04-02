@@ -305,4 +305,12 @@ export function sendPickupLoot(lootId: string) {
   sendCommand("pickup_loot", { lootId });
 }
 
+export function sendEquipItem(itemId: string) {
+  sendCommand("equip_item", { itemId });
+}
+
+export function sendUnequipItem(slot: "weapon" | "armor") {
+  sendCommand("unequip_item", { slot });
+}
+
 export const sendMessage = sendCommand;

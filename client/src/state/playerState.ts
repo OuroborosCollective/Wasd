@@ -114,3 +114,7 @@ export function getPlayerQuests() {
 export function getPlayerInventory() {
   return inventory;
 }
+
+export function getPlayerEquipment(): Record<string, unknown> {
+  return equipment;
+}
