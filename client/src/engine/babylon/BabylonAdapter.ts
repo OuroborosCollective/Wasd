@@ -537,9 +537,9 @@ export class BabylonAdapter implements IEngineBridge {
       node.explicitVisible = updates.visible;
       this.applyEntityVisibility(node);
     }
-    if (updates.name) {
+    if (updates.name && updates.name !== node._vm?.name) {
       if (node.label) {
-        node.label.dispose();
+        node.label.dispose(false, true);
       }
       node.label = this.createBillboardLabel(
         updates.name,
@@ -581,6 +581,10 @@ export class BabylonAdapter implements IEngineBridge {
     const node = this.entities.get(id);
     if (!node) return;
     node.root.dispose(false, true);
+    if (node.areShader) {
+      node.areShader.dispose();
+      node.areShader = null;
+    }
     this.entities.delete(id);
     if (this.cameraTargetId === id) {
       this.cameraTargetId = null;
