@@ -57,7 +57,7 @@ This document is the **authoritative snapshot** of what works today in the repos
 
 | Item | Status |
 |------|--------|
-| **Server tests** | Vitest — run `pnpm run test` (600+ tests typical) |
+| **Server tests** | Vitest — run `pnpm run test` (600+ tests typical); WebSocket **`use_skill`** flows in **`server/src/tests/use-skill-ws.test.ts`** (unknown skill, mana, range, cooldown, self-heal) |
 | **Lint** | `pnpm run lint` |
 | **Content validation** | `server` build runs `validateContent.ts` against `game-data/` |
 
