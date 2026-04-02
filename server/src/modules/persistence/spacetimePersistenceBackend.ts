@@ -1,5 +1,6 @@
 import type { IPersistenceBackend } from "./persistenceBackend.js";
 import { FilePersistenceBackend } from "./filePersistenceBackend.js";
+import { spacetimeWsToHttpBase } from "../spacetime/spacetimeHttpUrl.js";
 
 /**
  * Preparation hook for SpacetimeDB: until reducers/SDK are wired, optionally delegates
@@ -27,6 +28,23 @@ export class SpacetimePersistenceBackend implements IPersistenceBackend {
         (url ? ` SPACETIME_DB_URL=${url}` : "") +
         (mod ? ` SPACETIME_MODULE_NAME=${mod}` : "")
     );
+    if (url && mod) {
+      try {
+        const base = spacetimeWsToHttpBase(url);
+        const schemaUrl = `${base}/v1/database/${encodeURIComponent(mod)}/schema`;
+        const token = process.env.SPACETIME_TOKEN?.trim();
+        const headers: Record<string, string> = { Accept: "application/json" };
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const res = await fetch(schemaUrl, { method: "GET", headers });
+        if (res.ok) {
+          console.log("[Persistence] SpacetimeDB HTTP reachable (schema GET ok).");
+        } else {
+          console.warn(`[Persistence] SpacetimeDB schema probe: HTTP ${res.status}`);
+        }
+      } catch (e) {
+        console.warn("[Persistence] SpacetimeDB schema probe failed:", e instanceof Error ? e.message : e);
+      }
+    }
     if (this.fallback) {
       console.log("[Persistence] Spacetime driver using file fallback for players until Spacetime reducers land.");
       await this.fallback.init();

@@ -15,3 +15,7 @@ client/public/world-assets/
 .DS_Store
 *.log
 coverage/server/firebase-applet-config.json
+
+# SpacetimeDB Rust module build output
+spacetimedb-modules/**/target/
+spacetimedb-modules/**/Cargo.lock

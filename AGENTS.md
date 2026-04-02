@@ -24,6 +24,10 @@ Copy `.env.example` to `.env`. Only `PORT` and `NODE_ENV` are needed for local d
 
 **Persistence:** `PERSISTENCE_DRIVER` = `auto` (default: Firestore if `FIREBASE_SERVICE_ACCOUNT_KEY` + DB, else JSON file), `firestore`, `file`, or `spacetime`. The `spacetime` driver is a **stub**: it still saves players to **`PLAYER_SAVE_FILE`** until SpacetimeDB reducers/SDK are wired; set `SPACETIME_PERSIST_FILE_FALLBACK=0` to disable that fallback (empty load). **`GET /health`** → `persistence.persistenceDriver`.
 
+**GLB link overrides (NPC/object model paths):** By default stored in **`glb-links.json`** under the active content root. Set **`GLB_LINKS_STORE=spacetime`** (and **`SPACETIME_DB_URL`**, **`SPACETIME_GLB_MODULE_NAME`** or **`SPACETIME_MODULE_NAME`**, optional **`SPACETIME_TOKEN`**) to persist links in SpacetimeDB via HTTP SQL. Publish the small Rust module in **`spacetimedb-modules/areloria-glb/`** (`spacetime build && spacetime publish …`). **`GET /health`** includes **`glbLinksStore`**: `file` | `spacetime`.
+
+**SpacetimeDB TypeScript SDK:** The server package depends on **`spacetimedb`** for future generated client bindings; runtime GLB sync uses **`fetch`** to **`POST /v1/database/:name/sql`** (see `server/src/modules/spacetime/`).
+
 ### Key ports
 | Service | Port |
 |---------|------|

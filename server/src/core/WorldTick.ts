@@ -13,6 +13,7 @@ import { getDb } from "../config/firebase.js";
 import { resolveLoginIdentity } from "../modules/auth/resolveLoginIdentity.js";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
 import { GLBRegistry } from "../modules/asset-registry/GLBRegistry.js";
+import { GlbLinksSpacetimeBackend } from "../modules/spacetime/glbLinksSpacetimeBackend.js";
 import { AssetPoolResolver } from "../modules/world/AssetPoolResolver.js";
 import { AREStateCompiler } from "../modules/world/AREStateCompiler.js";
 import { cache } from "./Cache.js";
@@ -254,6 +255,7 @@ export class WorldTick {
   public skillSystem: SkillSystem;
   public persistence: PersistenceManager;
   public glbRegistry: GLBRegistry;
+  private readonly glbLinksStore: "file" | "spacetime";
   private assetPoolResolver: AssetPoolResolver;
   private areStateCompiler: AREStateCompiler;
   private lootEntities: Map<string, any> = new Map();
@@ -915,7 +917,7 @@ export class WorldTick {
         this.sendGMStatus(socketId, "error", "glbPath, targetType and targetId are required.");
         return true;
       }
-      this.glbRegistry.addLink({
+      await this.glbRegistry.addLink({
         glbPath: msg.glbPath,
         targetType: msg.targetType,
         targetId: msg.targetId,
@@ -930,7 +932,7 @@ export class WorldTick {
         this.sendGMStatus(socketId, "error", "targetType and targetId are required.");
         return true;
       }
-      this.glbRegistry.removeLink(msg.targetType, msg.targetId);
+      await this.glbRegistry.removeLink(msg.targetType, msg.targetId);
       this.ws.sendToPlayer(socketId, { type: "admin_glb_list_result", links: this.glbRegistry.getLinks() });
       this.sendGMStatus(socketId, "info", `Unlinked ${msg.targetType}:${msg.targetId}`);
       return true;
@@ -1207,7 +1209,7 @@ export class WorldTick {
           category === "monster" ? "monster_group" :
           category === "object" || category === "building" || category === "item" ? "object_group" :
           "npc_group";
-        this.glbRegistry.addLink({
+        await this.glbRegistry.addLink({
           glbPath: msg.path,
           targetType: targetType as any,
           targetId: msg.name,
@@ -1467,7 +1469,29 @@ export class WorldTick {
     this.skillSystem = new SkillSystem();
     this.persistence = new PersistenceManager();
     this.worldSystem = new WorldSystem(this.persistence);
-    this.glbRegistry = new GLBRegistry();
+    const glbStore = process.env.GLB_LINKS_STORE?.trim().toLowerCase();
+    const useSpacetimeGlb =
+      glbStore === "spacetime" ||
+      (glbStore !== "file" && process.env.GLB_LINKS_SPACETIME?.trim() === "1");
+    const stUrl = process.env.SPACETIME_DB_URL?.trim();
+    const stMod =
+      process.env.SPACETIME_GLB_MODULE_NAME?.trim() || process.env.SPACETIME_MODULE_NAME?.trim();
+    const stToken = process.env.SPACETIME_TOKEN?.trim();
+    let glbSt: GlbLinksSpacetimeBackend | null = null;
+    if (useSpacetimeGlb) {
+      if (stUrl && stMod) {
+        glbSt = new GlbLinksSpacetimeBackend(stUrl, stMod, stToken);
+        this.glbLinksStore = "spacetime";
+      } else {
+        console.warn(
+          "[GLBRegistry] GLB_LINKS_STORE=spacetime but SPACETIME_DB_URL or module name missing — using glb-links.json"
+        );
+        this.glbLinksStore = "file";
+      }
+    } else {
+      this.glbLinksStore = "file";
+    }
+    this.glbRegistry = new GLBRegistry({ glbLinksSpacetime: glbSt });
     this.assetPoolResolver = new AssetPoolResolver();
     this.areStateCompiler = new AREStateCompiler();
 
@@ -2139,6 +2163,7 @@ export class WorldTick {
       console.log("✅ Firestore connection verified.");
     }
     await this.persistence.init();
+    await this.glbRegistry.init();
     const savedData = await this.persistence.load();
     for (const id in savedData) {
       if (id === "dummy_player") continue;
@@ -2304,6 +2329,7 @@ export class WorldTick {
       lastSaveError: this.lastSaveAllError,
       firestoreConfigured: Boolean(getDb()),
       persistenceDriver: this.persistence.getDriverName(),
+      glbLinksStore: this.glbLinksStore,
     };
   }
 
