@@ -1,4 +1,5 @@
 import { auth, isFirebaseClientConfigured } from "../auth/firebase";
+import { getQuickCastSkillId } from "../game/combatSkills";
 import { sendDialogueChoice, sendQuestAccept, updateAuthToken } from "../networking/websocketClient";
 import {
   getPlayerGold,
@@ -222,10 +223,14 @@ export function renderHUD() {
   authBox.appendChild(emailRow);
 
   const hint = document.createElement("div");
-  hint.textContent = "Mobile: SPELL button = quick cast · Desktop: Q";
+  const refreshHint = () => {
+    hint.textContent = `Quick cast (Q / SPELL): ${getQuickCastSkillId()} — change in Skills panel`;
+  };
+  refreshHint();
   hint.style.fontSize = "10px";
   hint.style.opacity = "0.7";
   hint.style.marginTop = "2px";
+  window.addEventListener("areloria-quick-cast-changed", refreshHint);
   authBox.appendChild(hint);
 
   const syncAuthUi = () => {

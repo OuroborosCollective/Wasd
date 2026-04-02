@@ -21,7 +21,8 @@ This document is the **authoritative snapshot** of what works today in the repos
 | **Stack** | Node, Express, WebSocket (`server/src/networking/`) |
 | **Player persistence** | **Firestore** when `FIREBASE_SERVICE_ACCOUNT_KEY` is set (whitelisted fields via `playerSnapshot.ts`); otherwise **`data/players.json`** (or `PLAYER_SAVE_FILE`). Load: merge into fresh `createPlayer` (**`isOffline: true`** until login). Saves: disconnect, **~20s** tick, debounced after loot / equip / combat HP / quests / scene / respawn |
 | **WS login** | **Token** → Firebase uid; client uses **`getIdToken()`** on reconnect. Errors: **`invalid_token`** / **`login_required`**. **`REQUIRE_FIREBASE_AUTH=1`** → only token. **Vite:** `VITE_FIREBASE_*` or repo **`firebase-applet-config.json`** |
-| **Skills** | **`use_skill`**: **`ember_bolt`**, **`frost_shard`** — mana, cooldown, `spellStrike`; **Q** / mobile **SPELL** quick-cast primary skill |
+| **Skills** | **`use_skill`**: **`ember_bolt`**, **`frost_shard`** — mana, cooldown, `spellStrike`; **Q** / mobile **SPELL** use **quick-cast** skill (`localStorage` **`areloria_quick_cast_skill_id`**, Skills panel radios + **Set quick**) |
+| **E2E** | **`pnpm run test:e2e`** — Playwright starts built server (`scripts/e2e-webserver.sh`), checks **`/health`** + **`/e2e-smoke.html`** guest WS login |
 | **Auth (client)** | HUD: **Google**, **email/password** sign-in & create; token refresh on WS reconnect |
 | **WS limits** | **`wsMaxMessageBytes`**, **`wsMaxMessagesPerSecond`** per socket |
 | **Inventory** | **Stacks** for `consumable` + `misc` (override with `stackable` / `maxStack` on items); merge on load; **Quest collect** counts `quantity` |

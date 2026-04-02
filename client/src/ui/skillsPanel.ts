@@ -1,7 +1,76 @@
 import { closeAllPanels } from "./panelManager";
 import { applyGamePanelLayout, panelCloseButtonStyles } from "./panelLayout";
 import { sendUseSkill } from "../networking/websocketClient";
-import { ACTIVE_COMBAT_SKILLS } from "../game/combatSkills";
+import {
+  ACTIVE_COMBAT_SKILLS,
+  getQuickCastSkillId,
+  setQuickCastSkillId,
+} from "../game/combatSkills";
+
+function mountQuickCastPicker(container: HTMLElement, compact: boolean): () => void {
+  const wrap = document.createElement("div");
+  wrap.style.marginBottom = "12px";
+  wrap.style.padding = compact ? "10px 8px" : "10px";
+  wrap.style.borderRadius = "10px";
+  wrap.style.background = "rgba(80,50,120,0.2)";
+  wrap.style.border = "1px solid rgba(180,120,255,0.35)";
+  const lab = document.createElement("div");
+  lab.textContent = "Quick cast (Q · mobile SPELL)";
+  lab.style.fontWeight = "600";
+  lab.style.fontSize = compact ? "13px" : "12px";
+  lab.style.marginBottom = "8px";
+  wrap.appendChild(lab);
+  const sub = document.createElement("div");
+  sub.style.fontSize = "11px";
+  sub.style.opacity = "0.8";
+  sub.style.marginBottom = "8px";
+  sub.textContent = "Choice is saved in this browser.";
+  wrap.appendChild(sub);
+
+  const current = getQuickCastSkillId();
+  const radios: HTMLInputElement[] = [];
+
+  const syncChecked = () => {
+    const id = getQuickCastSkillId();
+    for (const r of radios) {
+      r.checked = r.value === id;
+    }
+  };
+
+  for (const s of ACTIVE_COMBAT_SKILLS) {
+    const row = document.createElement("label");
+    row.style.display = "flex";
+    row.style.alignItems = "center";
+    row.style.gap = "8px";
+    row.style.marginBottom = "6px";
+    row.style.cursor = "pointer";
+    row.style.touchAction = "manipulation";
+    const input = document.createElement("input");
+    input.type = "radio";
+    input.name = "arel-quick-cast-skill";
+    input.value = s.id;
+    input.checked = s.id === current;
+    input.style.width = "18px";
+    input.style.height = "18px";
+    input.style.accentColor = "#a78bfa";
+    input.addEventListener("change", () => {
+      if (input.checked) setQuickCastSkillId(s.id);
+    });
+    radios.push(input);
+    const span = document.createElement("span");
+    span.textContent = s.name;
+    span.style.fontSize = compact ? "15px" : "14px";
+    row.appendChild(input);
+    row.appendChild(span);
+    wrap.appendChild(row);
+  }
+
+  container.appendChild(wrap);
+
+  const onChanged = () => syncChecked();
+  window.addEventListener("areloria-quick-cast-changed", onChanged);
+  return () => window.removeEventListener("areloria-quick-cast-changed", onChanged);
+}
 
 function skillRow(skill: (typeof ACTIVE_COMBAT_SKILLS)[0], compact: boolean): HTMLDivElement {
   const row = document.createElement("div");
@@ -29,10 +98,28 @@ function skillRow(skill: (typeof ACTIVE_COMBAT_SKILLS)[0], compact: boolean): HT
   text.appendChild(title);
   text.appendChild(sub);
 
+  const btnWrap = document.createElement("div");
+  btnWrap.style.display = "flex";
+  btnWrap.style.flexDirection = "column";
+  btnWrap.style.gap = "6px";
+  btnWrap.style.flexShrink = "0";
+
+  const setQuick = document.createElement("button");
+  setQuick.type = "button";
+  setQuick.textContent = "Set quick";
+  setQuick.style.padding = "6px 10px";
+  setQuick.style.minHeight = "36px";
+  setQuick.style.borderRadius = "8px";
+  setQuick.style.border = "1px solid rgba(160,140,255,0.45)";
+  setQuick.style.background = "rgba(40,36,58,0.95)";
+  setQuick.style.color = "#e8e4ff";
+  setQuick.style.fontSize = "12px";
+  setQuick.style.touchAction = "manipulation";
+  setQuick.onclick = () => setQuickCastSkillId(skill.id);
+
   const btn = document.createElement("button");
   btn.type = "button";
   btn.textContent = "Cast";
-  btn.style.flexShrink = "0";
   btn.style.padding = "10px 16px";
   btn.style.minHeight = "44px";
   btn.style.borderRadius = "10px";
@@ -43,12 +130,20 @@ function skillRow(skill: (typeof ACTIVE_COMBAT_SKILLS)[0], compact: boolean): HT
   btn.style.touchAction = "manipulation";
   btn.onclick = () => sendUseSkill(skill.id);
 
+  btnWrap.appendChild(setQuick);
+  btnWrap.appendChild(btn);
   row.appendChild(text);
-  row.appendChild(btn);
+  row.appendChild(btnWrap);
   return row;
 }
 
+let quickCastCleanup: (() => void) | null = null;
+
 function refreshSkillsContent(content: HTMLElement, compact: boolean) {
+  if (quickCastCleanup) {
+    quickCastCleanup();
+    quickCastCleanup = null;
+  }
   content.replaceChildren();
   const hint = document.createElement("p");
   hint.textContent =
@@ -58,6 +153,7 @@ function refreshSkillsContent(content: HTMLElement, compact: boolean) {
   hint.style.lineHeight = "1.45";
   hint.style.margin = "0 0 10px 0";
   content.appendChild(hint);
+  quickCastCleanup = mountQuickCastPicker(content, compact);
   for (const s of ACTIVE_COMBAT_SKILLS) {
     content.appendChild(skillRow(s, compact));
   }
