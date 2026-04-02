@@ -32,6 +32,7 @@ import {
 import { applyTiledGroundTextures, chunkGroundUvScale } from "./groundTextureUtils";
 import { makeSoftClickWavDataUrl } from "./tinyWav";
 import { getQuickCastSkillId } from "../../game/combatSkills";
+import { isAndroid, prefersCompactTouchUi } from "../../ui/touchUi";
 
 type EntityNode = {
   root: TransformNode;
@@ -73,7 +74,8 @@ export class BabylonAdapter implements IEngineBridge {
   private readonly areWaveClock = { t: 0 };
   private readonly areDebugEnabled = new URLSearchParams(window.location.search).get("areDebug") === "1";
   private readonly areDebugElement: HTMLDivElement | null = null;
-  private areMode: "off" | "cpu" | "shader" = "shader";
+  /** Default `shader` on desktop; `off` on touch phones (ARE vertex shader per mesh is very expensive). */
+  private areMode: "off" | "cpu" | "shader" = prefersCompactTouchUi() ? "off" : "shader";
   private areShaderRegistered = false;
   private cameraTargetId: string | null = null;
   private navigationMarker: Mesh | null = null;
@@ -87,6 +89,10 @@ export class BabylonAdapter implements IEngineBridge {
   private lockedTargetEntityId: string | null = null;
   private combatTargetPickHandler: ((entityId: string | null) => void) | null = null;
   private hoverTooltipEl: HTMLDivElement | null = null;
+  private lastHoverPickMs = 0;
+  private lastReticleUpdateMs = 0;
+  /** Serialize GLB decode on Android — parallel SceneLoader spikes RAM and kills the tab. */
+  private androidModelAttachChain: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly scene: Scene,
@@ -95,6 +101,8 @@ export class BabylonAdapter implements IEngineBridge {
     const modeFromQuery = this.normalizeAREMode(new URLSearchParams(window.location.search).get("areMode"));
     if (modeFromQuery) {
       this.areMode = modeFromQuery;
+    } else if (prefersCompactTouchUi()) {
+      this.areMode = "off";
     }
     if (this.areDebugEnabled) {
       this.areDebugElement = this.mountAREDebugOverlay();
@@ -128,7 +136,14 @@ export class BabylonAdapter implements IEngineBridge {
       }
       if (!this.combatTargetPickHandler || !this.localPlayerId) return;
 
-      const pick = pi.pickInfo;
+      /** Explicit pick with pickable-only filter — `pickInfo` can hit non-pickable geometry first (mobile crash / miss). */
+      const sx = evt.clientX - rect.left;
+      const sy = evt.clientY - rect.top;
+      const pick = this.scene.pick(sx, sy, (m) => {
+        if (m.isPickable !== true || typeof m.name !== "string") return false;
+        if (m.name.startsWith("label_")) return false;
+        return true;
+      });
       if (!pick?.hit || !pick.pickedMesh) {
         this.lockedTargetEntityId = null;
         this.combatTargetPickHandler(null);
@@ -234,6 +249,15 @@ export class BabylonAdapter implements IEngineBridge {
 
   private updateHoverTooltip() {
     if (!this.hoverTooltipEl) return;
+    /** Hover uses scene.pick every interval — disable on touch entirely (Android still fires pointer move). */
+    if (prefersCompactTouchUi()) {
+      this.hoverTooltipEl.style.display = "none";
+      return;
+    }
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    if (now - this.lastHoverPickMs < 120) return;
+    this.lastHoverPickMs = now;
+
     const canvas = this.scene.getEngine().getRenderingCanvas();
     if (!canvas) {
       this.hoverTooltipEl.style.display = "none";
@@ -326,6 +350,11 @@ export class BabylonAdapter implements IEngineBridge {
   }
 
   private updateTargetReticle() {
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const touch = prefersCompactTouchUi();
+    if (touch && now - this.lastReticleUpdateMs < 120) return;
+    this.lastReticleUpdateMs = now;
+
     if (!this.targetReticleEl || !this.localPlayerId) {
       if (this.targetReticleEl) this.targetReticleEl.style.display = "none";
       this.targetReticleEntityId = null;
@@ -513,7 +542,7 @@ export class BabylonAdapter implements IEngineBridge {
     this.applyAREMaterialMode(node);
     node._vm = { ...model };
     this.entities.set(model.id, node);
-    this.tryAttachModel(model.id, model.modelUrl ?? DEFAULT_MODEL_BY_TYPE[model.type]);
+    this.enqueueModelAttach(model.id, model.modelUrl ?? DEFAULT_MODEL_BY_TYPE[model.type]);
   }
 
   updateEntity(id: string, updates: Partial<EntityViewModel>, dt: number = 0.016): void {
@@ -537,12 +566,14 @@ export class BabylonAdapter implements IEngineBridge {
       node.explicitVisible = updates.visible;
       this.applyEntityVisibility(node);
     }
-    if (updates.name) {
+    const nextName = typeof updates.name === "string" ? updates.name.trim() : "";
+    const prevName = (node._vm?.name && String(node._vm.name).trim()) || "";
+    if (nextName && nextName !== prevName) {
       if (node.label) {
         node.label.dispose();
       }
       node.label = this.createBillboardLabel(
-        updates.name,
+        nextName,
         this.colorForType(updates.type ?? this.inferTypeFromEntityId(id)),
         node.root
       );
@@ -552,7 +583,7 @@ export class BabylonAdapter implements IEngineBridge {
       updates.modelUrl !== node.attachedModelUrl &&
       updates.modelUrl !== node.pendingModelUrl
     ) {
-      this.tryAttachModel(id, updates.modelUrl);
+      this.enqueueModelAttach(id, updates.modelUrl);
     }
     if (updates.type) {
       node.areColor = this.colorForType(updates.type);
@@ -790,7 +821,7 @@ export class BabylonAdapter implements IEngineBridge {
     mat.diffuseColor = color;
     mat.specularColor = new Color3(0, 0, 0);
     mesh.material = mat;
-    mesh.isPickable = true;
+    mesh.isPickable = this.isMeshPickableForInteraction(model.type);
     return mesh;
   }
 
@@ -841,6 +872,18 @@ export class BabylonAdapter implements IEngineBridge {
     return plane;
   }
 
+  private enqueueModelAttach(entityId: string, url?: string): void {
+    if (!url) return;
+    if (!isAndroid()) {
+      void this.tryAttachModel(entityId, url);
+      return;
+    }
+    /** One failed decode must not abort the whole queue (left everything on placeholders + flickering labels). */
+    this.androidModelAttachChain = this.androidModelAttachChain
+      .catch(() => undefined)
+      .then(() => this.tryAttachModel(entityId, url));
+  }
+
   private async loadModelContainer(url: string): Promise<AssetContainer> {
     const existing = this.loadedModels.get(url);
     if (existing) {
@@ -886,8 +929,9 @@ export class BabylonAdapter implements IEngineBridge {
       entity.visual = modelRoot;
       entity.attachedModelUrl = expectedUrl;
       entity.areMeshes = this.collectRenderableMeshes(modelRoot);
+      const pickable = this.pickableTypeForEntity(entity);
       for (const m of entity.areMeshes) {
-        m.isPickable = true;
+        m.isPickable = pickable;
       }
       entity.areBaseMaterials = new Map(
         entity.areMeshes.map((mesh) => [mesh.uniqueId, (mesh.material as Material | null) ?? null])
@@ -938,14 +982,16 @@ export class BabylonAdapter implements IEngineBridge {
   }
 
   private updateAREVisuals(): void {
+    if (this.areMode === "off") {
+      return;
+    }
     for (const node of this.entities.values()) {
       const wave = Math.sin(this.areWaveClock.t * 2 + node.arePhase * 0.01) * 0.05 * (0.25 + node.areResonance);
-      let scale = this.areMode === "off" ? 1 : node.baseScale;
+      let scale = node.baseScale;
       if (this.areMode === "cpu") {
         scale = Math.max(0.2, node.baseScale + wave);
       }
       node.root.scaling = new Vector3(scale, scale, scale);
-      // uTime-only updates for shader mode; avoid touching uniforms every frame in cpu/off
       if (this.areMode === "shader" && node.areShader) {
         node.areShader.setFloat("uTime", this.areWaveClock.t);
       }
@@ -1116,5 +1162,16 @@ export class BabylonAdapter implements IEngineBridge {
     if (id.startsWith("monster")) return "monster";
     if (id.startsWith("loot")) return "loot";
     return "object";
+  }
+
+  /** Only these participate in combat tap + hover pick (large static GLBs must stay false — mobile GPU/driver crashes). */
+  private isMeshPickableForInteraction(entityType: string | undefined): boolean {
+    const t = (entityType || "").toLowerCase();
+    return t === "player" || t === "npc" || t === "monster" || t === "loot";
+  }
+
+  private pickableTypeForEntity(node: EntityNode): boolean {
+    const t = node._vm?.type ?? this.inferTypeFromEntityId(node.root.name);
+    return this.isMeshPickableForInteraction(t);
   }
 }

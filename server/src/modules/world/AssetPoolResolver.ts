@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { resolveContentFile } from "../content/contentDataRoot.js";
 
 type PoolEntry = string | string[];
 
@@ -9,7 +10,7 @@ type AssetPoolDocument = {
   pools?: Record<string, Record<string, PoolEntry>>;
 };
 
-const DEFAULT_POOLS_PATH = path.resolve(process.cwd(), "game-data/world/asset-pools.json");
+const DEFAULT_POOLS_PATH = resolveContentFile("world/asset-pools.json");
 
 export class AssetPoolResolver {
   private poolsPath: string;

@@ -1,6 +1,7 @@
 import { MMORPGClientCore } from "../core/MMORPGClientCore";
 import { applyStatsPayload } from "../state/playerState";
 import { showToast } from "../ui/toast";
+import { prefersCompactTouchUi } from "../ui/touchUi";
 import { onEntitySyncForCombatUi, setCombatUiLocalPlayerId } from "../ui/combatMobileUi";
 
 let globalWs: WebSocket | null = null;
@@ -331,6 +332,9 @@ async function openWebSocket(core: MMORPGClientCore, options: ConnectionOptions)
       sceneId: resolveInitialSceneId(options.sceneId),
       spawnKey: resolveInitialSpawnKey(options.spawnKey),
     };
+    if (prefersCompactTouchUi()) {
+      loginPayload.clientHints = { lowBandwidth: true };
+    }
     if (!token) {
       const stored = localStorage.getItem(GUEST_STORAGE_KEY);
       if (stored && /^guest_[a-zA-Z0-9_-]{8,40}$/.test(stored)) {

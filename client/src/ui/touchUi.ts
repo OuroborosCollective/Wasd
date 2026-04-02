@@ -6,3 +6,9 @@ export function prefersCompactTouchUi(): boolean {
   if (window.innerWidth <= 720) return true;
   return false;
 }
+
+/** Chromium WebView / Android Chrome — often the strictest WebGL memory limits. */
+export function isAndroid(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /Android/i.test(navigator.userAgent || "");
+}

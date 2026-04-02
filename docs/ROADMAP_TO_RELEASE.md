@@ -15,7 +15,7 @@ This document translates **`docs/MASTER_DESIGN_BIBLE.md`** into **concrete engin
 | ID | Area | Gap | Notes |
 |----|------|-----|-------|
 | A1 | Client | **Bundle size / load time** | **Partial:** `babylon-core` / `babylon-loaders` split, lazy glTF registration, thin `main.ts` + `clientBoot.ts`; Firebase + UI chunks + dynamic panels; **next:** trim `@babylonjs/core` surface (side-effect imports), optional CDN for engine |
-| A2 | Combat | **`attack` not fully simulated** | **Partial:** filtered targets, weapon damage, cooldowns, hostile chase+aggro+leash, counter-attack, player death+respawn, gold+item drops, `pickup_loot`, mobile loot strip + death UI; still no ranged combat, party/revive, or full loot log UI |
+| A2 | Combat | **`attack` not fully simulated** | **Partial:** filtered targets, weapon damage+ranged **mana** cost, cooldowns (spam only after valid hit), hostile chase+aggro+leash, counter-attack, player death+respawn, gold+item drops, `pickup_loot`, mobile loot strip + death UI; still no party/revive or full loot log UI |
 | A3 | Quests | **`collect` / `combat` completion** | **Partial:** collect turn-in on NPC talk; combat completes on kill; still no rich objective UI |
 | A4 | Persistence | **Production save model** | Firestore/Postgres paths exist; verify one path for player + world state in prod |
 | A5 | Auth | **Real auth on client** | Dev `dev_*` players OK locally; production token flow and session hardening |
@@ -42,12 +42,21 @@ Cross-reference: **`docs/MASTER_DESIGN_BIBLE.md`**.
 
 ## Tier C — Polish and ship criteria
 
-- **Audio**: `BabylonAdapter.playSound` is stub — wire Web audio or Babylon audio.  
+- **Audio**: Basic tones via **Babylon `Sound`** (+ Web Audio fallback) in `BabylonAdapter`; expand with authored assets when ready.  
 - **Mobile**: Joystick + dialogue; verify all panels on small screens.  
 - **Localization**: Key-based strings if Bible requires multi-language.  
-- **Security**: Rate limits on WS, admin routes, file uploads — see `docs/SECURITY_AND_TRUST_MODEL.md`.  
+- **Security**: WS **per-socket** + **per-player-uid** message caps (`GameConfig` + optional `WS_MAX_MESSAGES_PER_PLAYER_UID_PER_SECOND`); admin routes, file uploads — see `docs/SECURITY_AND_TRUST_MODEL.md`.  
 - **Observability**: Structured logs, metrics, error reporting for VPS.  
 - **Release checklist**: `docs/RELEASE_READINESS.md`, `docs/FINALIZATION_CHECKLIST.md` — keep in sync with this roadmap.
+
+## CI, automated tests, and abuse hardening (living checklist)
+
+| Item | Status |
+|------|--------|
+| **GitHub Actions CI** | **`.github/workflows/ci.yml`** — `pnpm run lint`, `pnpm run test`, `pnpm run build`, `pnpm run test:e2e:ci` |
+| **Playwright smoke** | **`e2e/smoke.spec.ts`** + **`client/public/e2e-smoke.html`** |
+| **Vitest WebSocket** | **`use-skill-ws.test.ts`**, **`combat-ws.test.ts`**, **`ws-player-uid-rate.test.ts`** |
+| **Next** | Metrics when uid-limit drops messages; stricter prod caps; Firebase **App Check** if needed |
 
 ---
 

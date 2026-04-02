@@ -1,25 +1,50 @@
-import fs from 'fs';
-import path from 'path';
+import fs from "fs";
+import path from "path";
+import { resolveContentFile } from "../content/contentDataRoot.js";
+import type { GlbLinksSpacetimeBackend } from "../spacetime/glbLinksSpacetimeBackend.js";
 
 export interface GLBLink {
   glbPath: string;
-  targetType: 'monster_group' | 'npc_group' | 'npc_single' | 'object_group' | 'object_single';
+  targetType: "monster_group" | "npc_group" | "npc_single" | "object_group" | "object_single";
   targetId: string;
 }
 
+export type GLBRegistryOptions = {
+  /** When set, link list is loaded from SpacetimeDB at init() and persisted there on change. */
+  glbLinksSpacetime?: GlbLinksSpacetimeBackend | null;
+};
+
 export class GLBRegistry {
   private links: GLBLink[] = [];
-  private modelsDir = path.resolve(process.cwd(), '../client/public/assets/models');
+  private readonly modelsDir = path.resolve(process.cwd(), "../client/public/assets/models");
+  private readonly spacetime: GlbLinksSpacetimeBackend | null;
 
-  constructor() {
-    this.loadLinks();
+  constructor(options?: GLBRegistryOptions) {
+    this.spacetime = options?.glbLinksSpacetime ?? null;
+    if (!this.spacetime) {
+      this.loadLinksFromFile();
+    }
   }
 
-  private loadLinks() {
-    const linksPath = path.resolve(process.cwd(), 'game-data/glb-links.json');
+  /**
+   * Call once at server startup when using SpacetimeDB for GLB links.
+   */
+  async init(): Promise<void> {
+    if (!this.spacetime) return;
+    try {
+      this.links = await this.spacetime.loadAll();
+      console.log(`[GLBRegistry] Loaded ${this.links.length} GLB link(s) from SpacetimeDB`);
+    } catch (e) {
+      console.error("[GLBRegistry] Spacetime load failed; GLB overrides empty until fixed:", e);
+      this.links = [];
+    }
+  }
+
+  private loadLinksFromFile() {
+    const linksPath = resolveContentFile("glb-links.json");
     if (fs.existsSync(linksPath)) {
       try {
-        this.links = JSON.parse(fs.readFileSync(linksPath, 'utf-8'));
+        this.links = JSON.parse(fs.readFileSync(linksPath, "utf-8"));
       } catch (e) {
         console.error("Failed to parse glb-links.json", e);
         this.links = [];
@@ -27,8 +52,8 @@ export class GLBRegistry {
     }
   }
 
-  public saveLinks() {
-    const linksPath = path.resolve(process.cwd(), 'game-data/glb-links.json');
+  private saveLinksToFile() {
+    const linksPath = resolveContentFile("glb-links.json");
     fs.mkdirSync(path.dirname(linksPath), { recursive: true });
     fs.writeFileSync(linksPath, JSON.stringify(this.links, null, 2));
   }
@@ -42,8 +67,8 @@ export class GLBRegistry {
         const fullPath = path.join(dir, file);
         if (fs.statSync(fullPath).isDirectory()) {
           scanDir(fullPath);
-        } else if (file.endsWith('.glb')) {
-          models.push('/assets/models/' + path.relative(this.modelsDir, fullPath).replace(/\\/g, '/'));
+        } else if (file.endsWith(".glb")) {
+          models.push("/assets/models/" + path.relative(this.modelsDir, fullPath).replace(/\\/g, "/"));
         }
       }
     };
@@ -64,20 +89,27 @@ export class GLBRegistry {
     return this.links;
   }
 
-  public addLink(link: GLBLink) {
-    // remove existing link for the same target
-    this.links = this.links.filter(l => !(l.targetType === link.targetType && l.targetId === link.targetId));
+  public async addLink(link: GLBLink): Promise<void> {
+    this.links = this.links.filter((l) => !(l.targetType === link.targetType && l.targetId === link.targetId));
     this.links.push(link);
-    this.saveLinks();
+    if (this.spacetime) {
+      await this.spacetime.upsert(link);
+    } else {
+      this.saveLinksToFile();
+    }
   }
 
-  public removeLink(targetType: string, targetId: string) {
-    this.links = this.links.filter(l => !(l.targetType === targetType && l.targetId === targetId));
-    this.saveLinks();
+  public async removeLink(targetType: string, targetId: string): Promise<void> {
+    this.links = this.links.filter((l) => !(l.targetType === targetType && l.targetId === targetId));
+    if (this.spacetime) {
+      await this.spacetime.remove(targetType, targetId);
+    } else {
+      this.saveLinksToFile();
+    }
   }
 
   public getModelForTarget(targetType: string, targetId: string): string | null {
-    const link = this.links.find(l => l.targetType === targetType && l.targetId === targetId);
+    const link = this.links.find((l) => l.targetType === targetType && l.targetId === targetId);
     return link ? link.glbPath : null;
   }
 }

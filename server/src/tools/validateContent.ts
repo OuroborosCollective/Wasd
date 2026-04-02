@@ -1,13 +1,14 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { getContentDataRoot } from '../modules/content/contentDataRoot.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 function validate() {
-  // Robust path resolution: go up from server/src/tools to root, then to game-data
-  const dataDir = path.resolve(__dirname, '../../../game-data');
+  // Same root as runtime (legacy game-data or published pack when env is set)
+  const dataDir = getContentDataRoot();
   
   console.log(`Validating content in: ${dataDir}`);
   const npcs = JSON.parse(fs.readFileSync(path.join(dataDir, 'npc/npcs.json'), 'utf-8'));

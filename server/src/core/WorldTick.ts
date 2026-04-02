@@ -13,6 +13,7 @@ import { getDb } from "../config/firebase.js";
 import { resolveLoginIdentity } from "../modules/auth/resolveLoginIdentity.js";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
 import { GLBRegistry } from "../modules/asset-registry/GLBRegistry.js";
+import { GlbLinksSpacetimeBackend } from "../modules/spacetime/glbLinksSpacetimeBackend.js";
 import { AssetPoolResolver } from "../modules/world/AssetPoolResolver.js";
 import { AREStateCompiler } from "../modules/world/AREStateCompiler.js";
 import { cache } from "./Cache.js";
@@ -31,6 +32,14 @@ import {
 import { mergePersistedPlayerInto } from "../modules/persistence/playerSnapshot.js";
 import { normalizeInventoryStacks } from "../modules/inventory/inventoryStacks.js";
 import { buildSkillCooldownUntilPayload, getSkillDefinition } from "../modules/skill/skillDefinitions.js";
+import { resolveContentDir, resolveContentFile } from "../modules/content/contentDataRoot.js";
+
+function resolveStateBroadcastMobileMs(): number {
+  const raw = process.env.STATE_BROADCAST_INTERVAL_MOBILE_MS?.trim();
+  if (!raw) return GameConfig.stateBroadcastIntervalMobileMs;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 50 ? Math.floor(n) : GameConfig.stateBroadcastIntervalMobileMs;
+}
 
 type SpawnPoint = { x: number; y: number; z: number };
 type SceneProfile = {
@@ -144,7 +153,6 @@ const DEFAULT_SCENE_TRIGGER_ZONES: SceneTriggerZone[] = [
     allowedSpawnKeys: ["sp_didi_02"],
   },
 ];
-const SCENE_LAYOUT_DIRECTORY = path.resolve(process.cwd(), "game-data/scenes");
 const GM_EVENT_TEMPLATES: Record<string, GMTemplateDefinition> = {
   legion_invasion: {
     id: "legion_invasion",
@@ -247,6 +255,7 @@ export class WorldTick {
   public skillSystem: SkillSystem;
   public persistence: PersistenceManager;
   public glbRegistry: GLBRegistry;
+  private readonly glbLinksStore: "file" | "spacetime";
   private assetPoolResolver: AssetPoolResolver;
   private areStateCompiler: AREStateCompiler;
   private lootEntities: Map<string, any> = new Map();
@@ -680,7 +689,7 @@ export class WorldTick {
   }
 
   private loadRuntimeEventTemplates() {
-    const templatesPath = path.resolve(process.cwd(), "game-data/gm/event-templates.json");
+    const templatesPath = resolveContentFile("gm/event-templates.json");
     if (!fs.existsSync(templatesPath)) {
       return;
     }
@@ -908,7 +917,7 @@ export class WorldTick {
         this.sendGMStatus(socketId, "error", "glbPath, targetType and targetId are required.");
         return true;
       }
-      this.glbRegistry.addLink({
+      await this.glbRegistry.addLink({
         glbPath: msg.glbPath,
         targetType: msg.targetType,
         targetId: msg.targetId,
@@ -923,7 +932,7 @@ export class WorldTick {
         this.sendGMStatus(socketId, "error", "targetType and targetId are required.");
         return true;
       }
-      this.glbRegistry.removeLink(msg.targetType, msg.targetId);
+      await this.glbRegistry.removeLink(msg.targetType, msg.targetId);
       this.ws.sendToPlayer(socketId, { type: "admin_glb_list_result", links: this.glbRegistry.getLinks() });
       this.sendGMStatus(socketId, "info", `Unlinked ${msg.targetType}:${msg.targetId}`);
       return true;
@@ -1200,7 +1209,7 @@ export class WorldTick {
           category === "monster" ? "monster_group" :
           category === "object" || category === "building" || category === "item" ? "object_group" :
           "npc_group";
-        this.glbRegistry.addLink({
+        await this.glbRegistry.addLink({
           glbPath: msg.path,
           targetType: targetType as any,
           targetId: msg.name,
@@ -1460,9 +1469,33 @@ export class WorldTick {
     this.skillSystem = new SkillSystem();
     this.persistence = new PersistenceManager();
     this.worldSystem = new WorldSystem(this.persistence);
-    this.glbRegistry = new GLBRegistry();
+    const glbStore = process.env.GLB_LINKS_STORE?.trim().toLowerCase();
+    const useSpacetimeGlb =
+      glbStore === "spacetime" ||
+      (glbStore !== "file" && process.env.GLB_LINKS_SPACETIME?.trim() === "1");
+    const stUrl = process.env.SPACETIME_DB_URL?.trim();
+    const stMod =
+      process.env.SPACETIME_GLB_MODULE_NAME?.trim() || process.env.SPACETIME_MODULE_NAME?.trim();
+    const stToken = process.env.SPACETIME_TOKEN?.trim();
+    let glbSt: GlbLinksSpacetimeBackend | null = null;
+    if (useSpacetimeGlb) {
+      if (stUrl && stMod) {
+        glbSt = new GlbLinksSpacetimeBackend(stUrl, stMod, stToken);
+        this.glbLinksStore = "spacetime";
+      } else {
+        console.warn(
+          "[GLBRegistry] GLB_LINKS_STORE=spacetime but SPACETIME_DB_URL or module name missing — using glb-links.json"
+        );
+        this.glbLinksStore = "file";
+      }
+    } else {
+      this.glbLinksStore = "file";
+    }
+    this.glbRegistry = new GLBRegistry({ glbLinksSpacetime: glbSt });
     this.assetPoolResolver = new AssetPoolResolver();
     this.areStateCompiler = new AREStateCompiler();
+
+    this.ws.resolveSocketToPlayerUid = (socketId) => this.socketToPlayer.get(socketId) ?? null;
 
     // Create a dummy player in a distant chunk to prove multi-observer union
     const dummyPlayer = this.playerSystem.createPlayer("dummy_player", "Dummy Player");
@@ -1507,6 +1540,14 @@ export class WorldTick {
             return;
           }
           const { uid, charName } = identity;
+
+          const hints = (msg as { clientHints?: { lowBandwidth?: boolean } }).clientHints;
+          const mobileMs = resolveStateBroadcastMobileMs();
+          if (hints?.lowBandwidth === true) {
+            this.ws.setEntitySyncIntervalForSocket(id, mobileMs);
+          } else {
+            this.ws.setEntitySyncIntervalForSocket(id, GameConfig.stateBroadcastIntervalMs);
+          }
 
           let player = this.playerSystem.getPlayer(uid);
           let shouldApplySpawn = false;
@@ -1557,6 +1598,7 @@ export class WorldTick {
             sceneId: spawn.sceneId,
             spawnKey: spawn.spawnKey,
             spawnPosition: spawn.spawnPoint,
+            entitySyncIntervalMs: hints?.lowBandwidth ? mobileMs : GameConfig.stateBroadcastIntervalMs,
             stats: {
               gold: player.gold,
               xp: player.xp,
@@ -1647,6 +1689,14 @@ export class WorldTick {
           return;
         }
         if (msg.type === "quest_sync") {
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        if (msg.type === "attack" || msg.type === "use_skill") {
+          this.ws.sendToPlayer(id, {
+            type: "toast",
+            text: "You are defeated. Use respawn when the countdown finishes.",
+          });
           this.pushPlayerStateSync(id, player);
           return;
         }
@@ -1928,9 +1978,6 @@ export class WorldTick {
         if (nowAtk - lastAtk < GameConfig.playerAttackCooldownMs) {
           return;
         }
-        this.lastPlayerAttackAt.set(player.id, nowAtk);
-
-        this.ws.broadcast({ type: "entity_action", entityId: player.id, action: "attack" });
         const px = player.position.x;
         const py = player.position.y;
         const { damageBonus: weaponBonus, attackRange: weaponRange, manaCost: attackManaCost } =
@@ -1967,6 +2014,8 @@ export class WorldTick {
           this.pushPlayerStateSync(id, player);
           return;
         }
+        this.lastPlayerAttackAt.set(player.id, nowAtk);
+        this.ws.broadcast({ type: "entity_action", entityId: player.id, action: "attack" });
         const target = best.npc;
         if (attackManaCost > 0) {
           player.mana = Math.max(0, (player.mana ?? 0) - attackManaCost);
@@ -2114,6 +2163,7 @@ export class WorldTick {
       console.log("✅ Firestore connection verified.");
     }
     await this.persistence.init();
+    await this.glbRegistry.init();
     const savedData = await this.persistence.load();
     for (const id in savedData) {
       if (id === "dummy_player") continue;
@@ -2132,12 +2182,13 @@ export class WorldTick {
 
   private loadSceneLayouts() {
     try {
-      if (!fs.existsSync(SCENE_LAYOUT_DIRECTORY)) {
+      const sceneDir = resolveContentDir("scenes");
+      if (!fs.existsSync(sceneDir)) {
         return;
       }
 
       const files = fs
-        .readdirSync(SCENE_LAYOUT_DIRECTORY)
+        .readdirSync(sceneDir)
         .filter((name) => name.toLowerCase().endsWith(".json"))
         .sort((a, b) => a.localeCompare(b));
 
@@ -2149,7 +2200,7 @@ export class WorldTick {
       const loadedTriggers: SceneTriggerZone[] = [];
 
       for (const fileName of files) {
-        const absolutePath = path.join(SCENE_LAYOUT_DIRECTORY, fileName);
+        const absolutePath = path.join(sceneDir, fileName);
         const raw = JSON.parse(fs.readFileSync(absolutePath, "utf-8"));
         const sceneId = isNonEmptyString(raw?.sceneId) ? raw.sceneId.trim() : "";
         if (!sceneId) {
@@ -2234,13 +2285,8 @@ export class WorldTick {
 
   private loadSpawns() {
     try {
-      const cwd = process.cwd();
-      const candidates = [
-        path.resolve(cwd, "game-data/spawns/npc-spawns.json"),
-        path.resolve(cwd, "../game-data/spawns/npc-spawns.json"),
-      ];
-      const spawnsPath = candidates.find((p) => fs.existsSync(p));
-      if (!spawnsPath) {
+      const spawnsPath = resolveContentFile("spawns/npc-spawns.json");
+      if (!fs.existsSync(spawnsPath)) {
         return;
       }
       const spawnData = JSON.parse(fs.readFileSync(spawnsPath, "utf-8"));
@@ -2282,6 +2328,8 @@ export class WorldTick {
       lastSavePlayerCount: this.lastSaveAllPlayerCount,
       lastSaveError: this.lastSaveAllError,
       firestoreConfigured: Boolean(getDb()),
+      persistenceDriver: this.persistence.getDriverName(),
+      glbLinksStore: this.glbLinksStore,
     };
   }
 

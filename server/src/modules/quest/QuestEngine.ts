@@ -1,6 +1,6 @@
 import { ItemRegistry } from "../inventory/ItemRegistry.js";
 import fs from "fs";
-import path from "path";
+import { resolveContentFile } from "../content/contentDataRoot.js";
 
 export class QuestEngine {
   private quests: Map<string, any> = new Map();
@@ -18,11 +18,8 @@ export class QuestEngine {
   }
 
   private resolveQuestsPath(): string | null {
-    const cwd = process.cwd();
-    const a = path.resolve(cwd, "game-data/quests/quests.json");
-    const b = path.resolve(cwd, "../game-data/quests/quests.json");
-    if (fs.existsSync(a)) return a;
-    if (fs.existsSync(b)) return b;
+    const p = resolveContentFile("quests/quests.json");
+    if (fs.existsSync(p)) return p;
     return null;
   }
 

@@ -18,6 +18,8 @@ import {
   signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendEmailVerification,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import { prefersCompactTouchUi } from "./touchUi";
 
@@ -145,6 +147,32 @@ export function renderHUD() {
   loginBtn.style.border = "none";
   loginBtn.style.touchAction = "manipulation";
 
+  const verifyEmailBtn = document.createElement("button");
+  verifyEmailBtn.type = "button";
+  verifyEmailBtn.textContent = "Verify email";
+  verifyEmailBtn.title = "Send a verification link to your address";
+  verifyEmailBtn.style.padding = "8px 12px";
+  verifyEmailBtn.style.minHeight = "44px";
+  verifyEmailBtn.style.background = "rgba(50,80,120,0.95)";
+  verifyEmailBtn.style.color = "#e8ecf5";
+  verifyEmailBtn.style.borderRadius = "8px";
+  verifyEmailBtn.style.cursor = "pointer";
+  verifyEmailBtn.style.border = "1px solid rgba(120,180,255,0.4)";
+  verifyEmailBtn.style.touchAction = "manipulation";
+
+  const resetPassBtn = document.createElement("button");
+  resetPassBtn.type = "button";
+  resetPassBtn.textContent = "Reset password";
+  resetPassBtn.title = "Email a password reset link";
+  resetPassBtn.style.padding = "8px 12px";
+  resetPassBtn.style.minHeight = "44px";
+  resetPassBtn.style.background = "rgba(70,55,40,0.95)";
+  resetPassBtn.style.color = "#e8ecf5";
+  resetPassBtn.style.borderRadius = "8px";
+  resetPassBtn.style.cursor = "pointer";
+  resetPassBtn.style.border = "1px solid rgba(255,180,100,0.35)";
+  resetPassBtn.style.touchAction = "manipulation";
+
   const logoutBtn = document.createElement("button");
   logoutBtn.textContent = "Sign out";
   logoutBtn.style.padding = "8px 12px";
@@ -218,6 +246,8 @@ export function renderHUD() {
   emailRow.appendChild(emailBtnRow);
 
   btnRow.appendChild(loginBtn);
+  btnRow.appendChild(verifyEmailBtn);
+  btnRow.appendChild(resetPassBtn);
   btnRow.appendChild(logoutBtn);
   authBox.appendChild(btnRow);
   authBox.appendChild(emailRow);
@@ -238,6 +268,8 @@ export function renderHUD() {
     const out = !u;
     loginBtn.style.display = out ? "inline-block" : "none";
     logoutBtn.style.display = u ? "inline-block" : "none";
+    verifyEmailBtn.style.display = u ? "inline-block" : "none";
+    resetPassBtn.style.display = u ? "inline-block" : "none";
     emailRow.style.display = out ? "flex" : "none";
   };
   syncAuthUi();
@@ -248,6 +280,8 @@ export function renderHUD() {
     loginBtn.disabled = true;
     loginBtn.style.opacity = "0.65";
     logoutBtn.style.display = "none";
+    verifyEmailBtn.style.display = "none";
+    resetPassBtn.style.display = "none";
     emailRow.style.display = "none";
   } else {
     loginBtn.onclick = async () => {
@@ -279,6 +313,38 @@ export function renderHUD() {
         updateAuthToken(token);
       } catch (e: unknown) {
         emailErr.textContent = e instanceof Error ? e.message : "Sign-up failed";
+      }
+    };
+    verifyEmailBtn.onclick = async () => {
+      emailErr.textContent = "";
+      const u = auth.currentUser;
+      if (!u?.email) {
+        emailErr.textContent = "No email on this account.";
+        return;
+      }
+      try {
+        await sendEmailVerification(u);
+        emailErr.textContent = "Verification email sent.";
+        emailErr.style.color = "#8fdf9a";
+      } catch (e: unknown) {
+        emailErr.textContent = e instanceof Error ? e.message : "Could not send verification";
+        emailErr.style.color = "#ff8a8a";
+      }
+    };
+    resetPassBtn.onclick = async () => {
+      emailErr.textContent = "";
+      const addr = emailIn.value.trim() || auth.currentUser?.email;
+      if (!addr) {
+        emailErr.textContent = "Enter your email above or sign in first.";
+        return;
+      }
+      try {
+        await sendPasswordResetEmail(auth, addr);
+        emailErr.textContent = "Password reset email sent.";
+        emailErr.style.color = "#8fdf9a";
+      } catch (e: unknown) {
+        emailErr.textContent = e instanceof Error ? e.message : "Reset failed";
+        emailErr.style.color = "#ff8a8a";
       }
     };
     logoutBtn.onclick = async () => {

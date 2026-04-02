@@ -7,6 +7,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { mcpRoute } from "../api/mcpRoute.js";
 import migrationRoute from "../api/migrationRoute.js";
+import { getContentDataSourceLabel } from "../modules/content/contentDataRoot.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -99,11 +100,13 @@ export class ServerBootstrap {
 
     app.get("/health", (_req, res) => {
       const persistence = tick.getPersistenceStats();
+      const content = getContentDataSourceLabel();
       res.json({
         ok: true,
         project: "ARELORIAN MMORPG",
         version: "0.2.0",
         persistence,
+        content: { mode: content.mode, root: content.root },
       });
     });
 
