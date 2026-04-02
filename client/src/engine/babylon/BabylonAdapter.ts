@@ -32,7 +32,7 @@ import {
 import { applyTiledGroundTextures, chunkGroundUvScale } from "./groundTextureUtils";
 import { makeSoftClickWavDataUrl } from "./tinyWav";
 import { getQuickCastSkillId } from "../../game/combatSkills";
-import { prefersCompactTouchUi } from "../../ui/touchUi";
+import { isAndroid, prefersCompactTouchUi } from "../../ui/touchUi";
 
 type EntityNode = {
   root: TransformNode;
@@ -91,6 +91,8 @@ export class BabylonAdapter implements IEngineBridge {
   private hoverTooltipEl: HTMLDivElement | null = null;
   private lastHoverPickMs = 0;
   private lastReticleUpdateMs = 0;
+  /** Serialize GLB decode on Android — parallel SceneLoader spikes RAM and kills the tab. */
+  private androidModelAttachChain: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly scene: Scene,
@@ -134,7 +136,14 @@ export class BabylonAdapter implements IEngineBridge {
       }
       if (!this.combatTargetPickHandler || !this.localPlayerId) return;
 
-      const pick = pi.pickInfo;
+      /** Explicit pick with pickable-only filter — `pickInfo` can hit non-pickable geometry first (mobile crash / miss). */
+      const sx = evt.clientX - rect.left;
+      const sy = evt.clientY - rect.top;
+      const pick = this.scene.pick(sx, sy, (m) => {
+        if (m.isPickable !== true || typeof m.name !== "string") return false;
+        if (m.name.startsWith("label_")) return false;
+        return true;
+      });
       if (!pick?.hit || !pick.pickedMesh) {
         this.lockedTargetEntityId = null;
         this.combatTargetPickHandler(null);
@@ -240,9 +249,13 @@ export class BabylonAdapter implements IEngineBridge {
 
   private updateHoverTooltip() {
     if (!this.hoverTooltipEl) return;
+    /** Hover uses scene.pick every interval — disable on touch entirely (Android still fires pointer move). */
+    if (prefersCompactTouchUi()) {
+      this.hoverTooltipEl.style.display = "none";
+      return;
+    }
     const now = typeof performance !== "undefined" ? performance.now() : Date.now();
-    const touch = prefersCompactTouchUi();
-    if (touch && now - this.lastHoverPickMs < 220) return;
+    if (now - this.lastHoverPickMs < 120) return;
     this.lastHoverPickMs = now;
 
     const canvas = this.scene.getEngine().getRenderingCanvas();
@@ -529,7 +542,7 @@ export class BabylonAdapter implements IEngineBridge {
     this.applyAREMaterialMode(node);
     node._vm = { ...model };
     this.entities.set(model.id, node);
-    this.tryAttachModel(model.id, model.modelUrl ?? DEFAULT_MODEL_BY_TYPE[model.type]);
+    this.enqueueModelAttach(model.id, model.modelUrl ?? DEFAULT_MODEL_BY_TYPE[model.type]);
   }
 
   updateEntity(id: string, updates: Partial<EntityViewModel>, dt: number = 0.016): void {
@@ -568,7 +581,7 @@ export class BabylonAdapter implements IEngineBridge {
       updates.modelUrl !== node.attachedModelUrl &&
       updates.modelUrl !== node.pendingModelUrl
     ) {
-      this.tryAttachModel(id, updates.modelUrl);
+      this.enqueueModelAttach(id, updates.modelUrl);
     }
     if (updates.type) {
       node.areColor = this.colorForType(updates.type);
@@ -857,6 +870,15 @@ export class BabylonAdapter implements IEngineBridge {
     return plane;
   }
 
+  private enqueueModelAttach(entityId: string, url?: string): void {
+    if (!url) return;
+    if (!isAndroid()) {
+      void this.tryAttachModel(entityId, url);
+      return;
+    }
+    this.androidModelAttachChain = this.androidModelAttachChain.then(() => this.tryAttachModel(entityId, url));
+  }
+
   private async loadModelContainer(url: string): Promise<AssetContainer> {
     const existing = this.loadedModels.get(url);
     if (existing) {
@@ -875,6 +897,15 @@ export class BabylonAdapter implements IEngineBridge {
     if (!url) return;
     const entity = this.entities.get(entityId);
     if (!entity) return;
+
+    const staticType = (entity._vm?.type ?? "").toLowerCase();
+    if (
+      isAndroid() &&
+      (staticType === "object" || staticType === "prop" || staticType === "building")
+    ) {
+      /** Keep cheap placeholders — decoding many village GLBs OOMs Android WebGL. */
+      return;
+    }
 
     this.modelAttachQueue.set(entityId, url);
     entity.pendingModelUrl = url;
