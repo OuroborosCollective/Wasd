@@ -15,6 +15,7 @@ Arelorian/Ouroboros is a browser-based MMORPG: `server/` (Express + WebSocket ga
 ### Lint, test, build
 - **Lint:** `pnpm run lint` (ESLint from root; ignore the `.eslintignore` deprecation warning).
 - **Test:** `pnpm run test` (Vitest, runs 600+ server tests; config at `vitest.config.ts`).
+- **E2E:** `pnpm run build` then `pnpm run test:e2e` (Playwright; install browsers once with `pnpm run test:e2e:install`).
 - **Build:** `pnpm run build` (builds client with Vite, then compiles server TypeScript).
 
 ### Environment variables

@@ -22,7 +22,7 @@ import {
 } from "./ui/lazyPanels";
 import { showBootStatus, showRendererFatalOverlay } from "./bootUi";
 import { initCombatMobileUi } from "./ui/combatMobileUi";
-import { PRIMARY_QUICK_CAST_SKILL_ID } from "./game/combatSkills";
+import { getQuickCastSkillId } from "./game/combatSkills";
 
 function bootEngineBridge(targetCanvas: HTMLCanvasElement): IEngineBridge {
   const app = createBabylonApp(targetCanvas);
@@ -102,7 +102,7 @@ export async function bootAreloriaClient(canvas: HTMLCanvasElement): Promise<voi
       onSkills: () => {
         void openSkillsPanel();
       },
-      onQuickSkill: () => core.useSkill(PRIMARY_QUICK_CAST_SKILL_ID),
+      onQuickSkill: () => core.useSkill(getQuickCastSkillId()),
       onMap: () => {
         console.log("Map toggled");
       },

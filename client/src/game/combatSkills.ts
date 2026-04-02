@@ -19,5 +19,33 @@ export const ACTIVE_COMBAT_SKILLS: ClientSkillInfo[] = [
   },
 ];
 
-/** Default for keyboard shortcut + mobile quick-cast */
-export const PRIMARY_QUICK_CAST_SKILL_ID = "ember_bolt";
+const STORAGE_KEY = "areloria_quick_cast_skill_id";
+
+/** Default when nothing stored or invalid */
+export const DEFAULT_QUICK_CAST_SKILL_ID = "ember_bolt";
+
+const validIds = new Set(ACTIVE_COMBAT_SKILLS.map((s) => s.id));
+
+export function getQuickCastSkillId(): string {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)?.trim();
+    if (raw && validIds.has(raw)) return raw;
+  } catch {
+    /* private mode */
+  }
+  return DEFAULT_QUICK_CAST_SKILL_ID;
+}
+
+export function setQuickCastSkillId(skillId: string): void {
+  const id = skillId.trim();
+  if (!validIds.has(id)) return;
+  try {
+    localStorage.setItem(STORAGE_KEY, id);
+  } catch {
+    /* ignore */
+  }
+  window.dispatchEvent(new CustomEvent("areloria-quick-cast-changed", { detail: { skillId: id } }));
+}
+
+/** @deprecated use getQuickCastSkillId */
+export const PRIMARY_QUICK_CAST_SKILL_ID = DEFAULT_QUICK_CAST_SKILL_ID;

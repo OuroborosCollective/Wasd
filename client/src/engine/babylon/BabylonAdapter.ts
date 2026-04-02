@@ -31,7 +31,7 @@ import {
 } from "./playgroundTextures";
 import { applyTiledGroundTextures, chunkGroundUvScale } from "./groundTextureUtils";
 import { makeSoftClickWavDataUrl } from "./tinyWav";
-import { PRIMARY_QUICK_CAST_SKILL_ID } from "../../game/combatSkills";
+import { getQuickCastSkillId } from "../../game/combatSkills";
 
 type EntityNode = {
   root: TransformNode;
@@ -770,7 +770,7 @@ export class BabylonAdapter implements IEngineBridge {
   private emitQuickSkill(): void {
     const gameCore = (window as any).gameCore;
     if (gameCore && typeof gameCore.useSkill === "function") {
-      gameCore.useSkill(PRIMARY_QUICK_CAST_SKILL_ID);
+      gameCore.useSkill(getQuickCastSkillId());
     }
   }
 
