@@ -43,6 +43,56 @@ export class InventorySystem {
     return player.inventory;
   }
 
+  /**
+   * Remove up to `count` units of itemId (across stack rows). Returns number removed.
+   */
+  takeManyFromBag(player: any, itemId: string, count: number): number {
+    if (!Array.isArray(player.inventory)) player.inventory = [];
+    let need = Math.max(0, Math.floor(count));
+    if (need <= 0) return 0;
+    let removed = 0;
+    const inv = player.inventory;
+    for (let i = 0; i < inv.length && need > 0; i++) {
+      const row = inv[i];
+      if (!row || row.id !== itemId) continue;
+      const q = Math.max(1, Math.floor(Number(row.quantity) || 1));
+      const take = Math.min(q, need);
+      if (take >= q) {
+        inv.splice(i, 1);
+        i--;
+      } else {
+        row.quantity = q - take;
+      }
+      removed += take;
+      need -= take;
+    }
+    if (removed > 0) normalizeInventoryStacks(player);
+    return removed;
+  }
+
+  /**
+   * Split `amount` units from the stack at `rowIndex` into a new inventory row (same id).
+   * Returns false if invalid.
+   */
+  splitStackAt(player: any, rowIndex: number, amount: number): boolean {
+    if (!Array.isArray(player.inventory)) player.inventory = [];
+    const idx = Math.floor(rowIndex);
+    if (idx < 0 || idx >= player.inventory.length) return false;
+    const row = player.inventory[idx];
+    if (!row || typeof row.id !== "string") return false;
+    const def = ItemRegistry.getItem(row.id);
+    if (!ItemRegistry.stacksWithDefinition(def)) return false;
+    const q = Math.max(1, Math.floor(Number(row.quantity) || 1));
+    const n = Math.max(1, Math.floor(amount));
+    if (n >= q) return false;
+    row.quantity = q - n;
+    const inst = ItemRegistry.createInstance(row.id, n);
+    if (!inst) return false;
+    player.inventory.push({ ...row, ...inst, quantity: n });
+    normalizeInventoryStacks(player);
+    return true;
+  }
+
   /** Remove one unit of itemId from first matching stack row */
   takeOneFromBag(player: any, itemId: string): any | null {
     if (!Array.isArray(player.inventory)) player.inventory = [];

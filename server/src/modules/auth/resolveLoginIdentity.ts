@@ -9,6 +9,8 @@ export type LoginMessage = {
 
 export type ResolvedLogin = { uid: string; charName: string };
 
+export type LoginError = { error: string; code: "invalid_token" | "login_required" };
+
 function isProduction(): boolean {
   return process.env.NODE_ENV === "production";
 }
@@ -41,14 +43,14 @@ const GUEST_ID_RE = /^guest_[a-zA-Z0-9_-]{8,40}$/;
 export async function resolveLoginIdentity(
   socketId: string,
   msg: LoginMessage
-): Promise<ResolvedLogin | { error: string }> {
+): Promise<ResolvedLogin | LoginError> {
   const token = typeof msg.token === "string" ? msg.token.trim() : "";
 
   if (token.length > 0) {
     try {
       const decoded = await verifyFirebaseToken(token);
       if (!decoded?.uid) {
-        return { error: "Invalid or expired token" };
+        return { error: "Invalid or expired token", code: "invalid_token" };
       }
       const charName =
         (typeof decoded.name === "string" && decoded.name.trim()) ||
@@ -56,7 +58,7 @@ export async function resolveLoginIdentity(
         decoded.uid;
       return { uid: decoded.uid, charName };
     } catch {
-      return { error: "Invalid or expired token" };
+      return { error: "Invalid or expired token", code: "invalid_token" };
     }
   }
 
@@ -65,9 +67,10 @@ export async function resolveLoginIdentity(
       return {
         error:
           "Server requires Firebase sign-in but FIREBASE_SERVICE_ACCOUNT_KEY is not configured.",
+        code: "login_required",
       };
     }
-    return { error: "Firebase sign-in required" };
+    return { error: "Firebase sign-in required", code: "login_required" };
   }
 
   const guestRequested =
@@ -88,11 +91,14 @@ export async function resolveLoginIdentity(
   }
 
   if (isProduction()) {
-    return { error: "Sign-in required" };
+    return { error: "Sign-in required", code: "login_required" };
   }
 
   if (!devLoginAllowed()) {
-    return { error: "Dev login disabled (set ALLOW_DEV_LOGIN=1 or use a token)" };
+    return {
+      error: "Dev login disabled (set ALLOW_DEV_LOGIN=1 or use a token)",
+      code: "login_required",
+    };
   }
 
   return {

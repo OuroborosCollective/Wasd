@@ -6,8 +6,10 @@ import {
   connectSocket,
   requestSceneChange,
   sendSetCombatTarget,
+  setAuthTokenProvider,
   type ConnectionOptions,
 } from "./networking/websocketClient";
+import { auth } from "./auth/firebase";
 import { IEngineBridge } from "./engine/bridge/IEngineBridge";
 import { renderHUD, showDialogue } from "./ui/hud";
 import { getJoystickState, initMobileControls, isMobile } from "./ui/mobileControls";
@@ -59,6 +61,16 @@ export async function bootAreloriaClient(canvas: HTMLCanvasElement): Promise<voi
   const core = new MMORPGClientCore(adapter);
   (window as unknown as { gameCore?: MMORPGClientCore }).gameCore = core;
   core.registerDefaultInput();
+
+  setAuthTokenProvider(async () => {
+    const u = auth?.currentUser;
+    if (!u) return null;
+    try {
+      return await u.getIdToken();
+    } catch {
+      return null;
+    }
+  });
 
   const connectionOptions: ConnectionOptions = {};
   const persistedToken = localStorage.getItem("token");

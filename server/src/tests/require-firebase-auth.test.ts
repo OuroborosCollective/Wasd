@@ -25,6 +25,6 @@ describe("REQUIRE_FIREBASE_AUTH", () => {
 
   it("rejects login without token even if guest mode is on", async () => {
     const r = await resolveLoginIdentity("sock1", { guestId: "guest_abcdefghij" });
-    expect(r).toEqual({ error: "Firebase sign-in required" });
+    expect(r).toEqual({ error: "Firebase sign-in required", code: "login_required" });
   });
 });

@@ -20,7 +20,9 @@ This document is the **authoritative snapshot** of what works today in the repos
 |------|--------|
 | **Stack** | Node, Express, WebSocket (`server/src/networking/`) |
 | **Player persistence** | **Firestore** when `FIREBASE_SERVICE_ACCOUNT_KEY` is set (whitelisted fields via `playerSnapshot.ts`); otherwise **`data/players.json`** (or `PLAYER_SAVE_FILE`). Load: merge into fresh `createPlayer` (**`isOffline: true`** until login). Saves: disconnect, **~20s** tick, debounced after loot / equip / combat HP / quests / scene / respawn |
-| **WS login** | **Token** → Firebase uid. **`REQUIRE_FIREBASE_AUTH=1`** → only token (no guest/dev). Else: **Production** without token → error unless **`ALLOW_GUEST_LOGIN=1`** (stable **`guestId`** in `localStorage`). **Dev** → `dev_<socketId>` unless **`ALLOW_DEV_LOGIN=0`** |
+| **WS login** | **Token** → Firebase uid; client uses **`getIdToken()`** on reconnect. Errors: **`invalid_token`** / **`login_required`**. **`REQUIRE_FIREBASE_AUTH=1`** → only token. **Vite:** `VITE_FIREBASE_*` or repo **`firebase-applet-config.json`** |
+| **Skills** | **`use_skill`** e.g. **`ember_bolt`** — mana, cooldown, `spellStrike` damage; same loot/death path as melee |
+| **WS limits** | **`wsMaxMessageBytes`**, **`wsMaxMessagesPerSecond`** per socket |
 | **Inventory** | **Stacks** for `consumable` + `misc` (override with `stackable` / `maxStack` on items); merge on load; **Quest collect** counts `quantity` |
 | **Combat target** | Client **tap** on canvas → `set_target` (locks **`combatTargetNpcId`**, persisted); **`attack`** prefers locked target in range |
 | **Mana** | Passive **regen** (`GameConfig.playerManaRegenPerSecond`); consumables e.g. **`minor_mana_draught`** via **`use_item`** |

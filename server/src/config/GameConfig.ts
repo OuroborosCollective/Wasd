@@ -26,4 +26,8 @@ export const GameConfig = {
   playerRespawnDelayMs: 2500,
   /** Mana restored per second while alive (out of combat regen baseline) */
   playerManaRegenPerSecond: 2.5,
+  /** Max WebSocket JSON message size (bytes) */
+  wsMaxMessageBytes: 65536,
+  /** Max WebSocket messages accepted per socket per rolling second */
+  wsMaxMessagesPerSecond: 48,
 } as const;
