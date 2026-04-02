@@ -1,23 +1,12 @@
 import type { GLBLink } from "../asset-registry/GLBRegistry.js";
 import { buildSpacetimeSqlUrl, spacetimeWsToHttpBase } from "./spacetimeHttpUrl.js";
+import { extractSqlColumnNames, parseGlbLinkRow } from "./spacetimeGlbRowParse.js";
 import { spacetimeSql } from "./spacetimeSqlClient.js";
 
 const TABLE = "glb_link";
 
 function lit(s: string): string {
   return `'${s.replace(/'/g, "''")}'`;
-}
-
-function rowFromProductValue(row: unknown): GLBLink | null {
-  if (!row || typeof row !== "object") return null;
-  const r = row as Record<string, unknown>;
-  const glbPath = r.glb_path ?? r.glbPath;
-  const targetType = r.target_type ?? r.targetType;
-  const targetId = r.target_id ?? r.targetId;
-  if (typeof glbPath !== "string" || typeof targetType !== "string" || typeof targetId !== "string") {
-    return null;
-  }
-  return { glbPath, targetType: targetType as GLBLink["targetType"], targetId };
 }
 
 export class GlbLinksSpacetimeBackend {
@@ -40,8 +29,9 @@ export class GlbLinksSpacetimeBackend {
     for (const block of results) {
       const rows = block.rows;
       if (!Array.isArray(rows)) continue;
+      const colNames = extractSqlColumnNames(block.schema);
       for (const raw of rows) {
-        const link = rowFromProductValue(raw);
+        const link = parseGlbLinkRow(raw, colNames);
         if (link) out.push(link);
       }
     }
