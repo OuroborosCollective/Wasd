@@ -4,7 +4,7 @@ import {
   getPlayerInventory,
   subscribePlayerState,
 } from "../state/playerState";
-import { sendEquipItem } from "../networking/websocketClient";
+import { sendEquipItem, sendUseItem } from "../networking/websocketClient";
 
 function itemLabel(item: { name?: string; id?: string }): string {
   return (item.name && String(item.name)) || (item.id && String(item.id)) || "?";
@@ -53,6 +53,23 @@ function refreshInventoryContent(content: HTMLElement, compact: boolean) {
     if (sub.textContent) text.appendChild(sub);
 
     row.appendChild(text);
+
+    if (item.type === "consumable" && item.id) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = "Use";
+      btn.style.flexShrink = "0";
+      btn.style.padding = "10px 16px";
+      btn.style.minHeight = "44px";
+      btn.style.borderRadius = "10px";
+      btn.style.border = "1px solid rgba(80,160,255,0.45)";
+      btn.style.background = "rgba(35,42,58,0.95)";
+      btn.style.color = "#e8ecf5";
+      btn.style.fontSize = "14px";
+      btn.style.touchAction = "manipulation";
+      btn.onclick = () => sendUseItem(item.id!);
+      row.appendChild(btn);
+    }
 
     if (item.type === "weapon" || (item.type === "armor" && item.slot === "armor")) {
       const btn = document.createElement("button");

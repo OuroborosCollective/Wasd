@@ -7,6 +7,8 @@ let globalWs: WebSocket | null = null;
 const DEFAULT_SCENE_ID = "didis_hub";
 const DEFAULT_SPAWN_KEY = "sp_player_default";
 
+const GUEST_STORAGE_KEY = "areloria_guest_id";
+
 export type ConnectionOptions = {
   token?: string;
   sceneId?: string;
@@ -128,12 +130,19 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
 
   ws.onopen = () => {
     console.log("Connected to Arelorian Server");
-    ws.send(JSON.stringify({
+    const loginPayload: Record<string, unknown> = {
       type: "login",
       token: options.token,
       sceneId: resolveInitialSceneId(options.sceneId),
       spawnKey: resolveInitialSpawnKey(options.spawnKey),
-    }));
+    };
+    if (!options.token || !String(options.token).trim()) {
+      const stored = localStorage.getItem(GUEST_STORAGE_KEY);
+      if (stored && /^guest_[a-zA-Z0-9_-]{8,40}$/.test(stored)) {
+        loginPayload.guestId = stored;
+      }
+    }
+    ws.send(JSON.stringify(loginPayload));
 
     core.events.on('input', (input: any) => {
       if (ws.readyState === WebSocket.OPEN) {
@@ -177,6 +186,12 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
             health: typeof entity.health === "number" ? entity.health : undefined,
             maxHealth: typeof entity.maxHealth === "number" ? entity.maxHealth : undefined,
             combatThreat: entity.combatThreat === true,
+            combatNpcId:
+              typeof entity.combatNpcId === "string"
+                ? entity.combatNpcId
+                : entity.type === "npc" && typeof entity.id === "string"
+                  ? entity.id
+                  : undefined,
           }));
           core.syncEntities(normalizedEntities);
           onEntitySyncForCombatUi(normalizedEntities);
@@ -189,6 +204,13 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
       if (data.type === "welcome") {
         console.log(`Welcome to Areloria! Your ID: ${data.playerId}`);
         const localPlayerId = data.playerId || data.id;
+        if (
+          typeof localPlayerId === "string" &&
+          localPlayerId.startsWith("guest_") &&
+          (!options.token || !String(options.token).trim())
+        ) {
+          localStorage.setItem(GUEST_STORAGE_KEY, localPlayerId);
+        }
         core.setLocalPlayer(localPlayerId);
         setCombatUiLocalPlayerId(localPlayerId);
         if (data.stats && typeof data.stats === "object") {
@@ -311,6 +333,14 @@ export function sendEquipItem(itemId: string) {
 
 export function sendUnequipItem(slot: "weapon" | "armor") {
   sendCommand("unequip_item", { slot });
+}
+
+export function sendSetCombatTarget(npcId: string | null) {
+  sendCommand("set_target", { npcId: npcId ?? "" });
+}
+
+export function sendUseItem(itemId: string) {
+  sendCommand("use_item", { itemId });
 }
 
 export const sendMessage = sendCommand;

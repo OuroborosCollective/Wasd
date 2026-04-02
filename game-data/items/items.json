@@ -106,5 +106,13 @@
     "type": "misc",
     "rarity": "uncommon",
     "description": "A token used by guards."
+  },
+  {
+    "id": "minor_mana_draught",
+    "name": "Minor Mana Draught",
+    "type": "consumable",
+    "rarity": "common",
+    "restoreMana": 15,
+    "description": "A small vial that restores a bit of mana."
   }
 ]

@@ -9,6 +9,7 @@ import {
   Matrix,
   Mesh,
   MeshBuilder,
+  PointerEventTypes,
   Quaternion,
   Scene,
   SceneLoader,
@@ -82,6 +83,8 @@ export class BabylonAdapter implements IEngineBridge {
   private audioCtx: AudioContext | null = null;
   private babylonUiSound: Sound | null = null;
   private babylonUiSoundReady = false;
+  private lockedTargetEntityId: string | null = null;
+  private combatTargetPickHandler: ((entityId: string | null) => void) | null = null;
 
   constructor(
     private readonly scene: Scene,
@@ -97,6 +100,57 @@ export class BabylonAdapter implements IEngineBridge {
     this.bindKeyboard();
     this.mountTargetReticle();
     this.initBabylonUiSound();
+    this.bindCombatTargetPicking();
+  }
+
+  setCombatTargetPickHandler(handler: ((entityId: string | null) => void) | null): void {
+    this.combatTargetPickHandler = handler;
+  }
+
+  private bindCombatTargetPicking() {
+    this.scene.onPointerObservable.add((pi) => {
+      if (pi.type !== PointerEventTypes.POINTERTAP) return;
+      const evt = pi.event as PointerEvent;
+      if (evt.button !== 0) return;
+      const canvas = this.scene.getEngine().getRenderingCanvas();
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      if (
+        evt.clientX < rect.left ||
+        evt.clientX > rect.right ||
+        evt.clientY < rect.top ||
+        evt.clientY > rect.bottom
+      ) {
+        return;
+      }
+      if (!this.combatTargetPickHandler || !this.localPlayerId) return;
+
+      const pick = pi.pickInfo;
+      if (!pick?.hit || !pick.pickedMesh) {
+        this.lockedTargetEntityId = null;
+        this.combatTargetPickHandler(null);
+        return;
+      }
+
+      let cur: TransformNode | AbstractMesh | null = pick.pickedMesh;
+      while (cur) {
+        if (cur instanceof TransformNode && this.entities.has(cur.name)) {
+          const id = cur.name;
+          if (id === this.localPlayerId) return;
+          const meta = this.entities.get(id)?._vm;
+          const lockable = meta?.combatThreat === true || meta?.id === "npc_dummy";
+          if (lockable) {
+            this.lockedTargetEntityId = id;
+            this.combatTargetPickHandler(id);
+            return;
+          }
+          this.lockedTargetEntityId = null;
+          this.combatTargetPickHandler(null);
+          return;
+        }
+        cur = cur.parent as TransformNode | AbstractMesh | null;
+      }
+    });
   }
 
   private initBabylonUiSound() {
@@ -167,27 +221,43 @@ export class BabylonAdapter implements IEngineBridge {
     }
     const px = playerNode.root.position.x;
     const pz = playerNode.root.position.z;
+    const maxR = 55;
     let bestId: string | null = null;
     let bestD2 = Infinity;
     let bestName = "";
     let bestHp = 0;
     let bestHpMax = 1;
-    for (const [id, node] of this.entities) {
-      if (id === this.localPlayerId) continue;
+
+    const consider = (id: string, node: EntityNode) => {
       const dx = node.root.position.x - px;
       const dz = node.root.position.z - pz;
       const d2 = dx * dx + dz * dz;
-      if (d2 > 35 * 35) continue;
+      if (d2 > maxR * maxR) return;
       const meta = node._vm;
       const isThreat = meta?.combatThreat === true;
       const isDummy = meta?.id === "npc_dummy";
-      if (!isThreat && !isDummy) continue;
+      if (!isThreat && !isDummy) return;
       if (d2 < bestD2) {
         bestD2 = d2;
         bestId = id;
         bestName = meta?.name || id;
         bestHp = typeof meta?.health === "number" ? meta.health : 0;
         bestHpMax = Math.max(1, typeof meta?.maxHealth === "number" ? meta.maxHealth : 100);
+      }
+    };
+
+    if (this.lockedTargetEntityId) {
+      const locked = this.entities.get(this.lockedTargetEntityId);
+      if (locked) {
+        consider(this.lockedTargetEntityId, locked);
+      } else {
+        this.lockedTargetEntityId = null;
+      }
+    }
+    if (!bestId) {
+      for (const [id, node] of this.entities) {
+        if (id === this.localPlayerId) continue;
+        consider(id, node);
       }
     }
     if (!bestId) {

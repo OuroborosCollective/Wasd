@@ -9,7 +9,8 @@ import { EconomySystem } from "../modules/economy/EconomySystem.js";
 import { QuestEngine } from "../modules/quest/QuestEngine.js";
 import { WorldSystem } from "../modules/world/WorldSystem.js";
 import { PersistenceManager } from "./PersistenceManager.js";
-import { getDb, verifyFirebaseToken } from "../config/firebase.js";
+import { getDb } from "../config/firebase.js";
+import { resolveLoginIdentity } from "../modules/auth/resolveLoginIdentity.js";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
 import { GLBRegistry } from "../modules/asset-registry/GLBRegistry.js";
 import { AssetPoolResolver } from "../modules/world/AssetPoolResolver.js";
@@ -262,6 +263,10 @@ export class WorldTick {
   private playerToSocket: Map<string, string> = new Map();
   /** Coalesce rapid saves after inventory/equip changes */
   private saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastSaveAllStartedAt = 0;
+  private lastSaveAllDurationMs = 0;
+  private lastSaveAllError: string | null = null;
+  private lastSaveAllPlayerCount = 0;
   private worldState: GMWorldState = {
     weather: "clear",
     pvp: true,
@@ -1487,21 +1492,13 @@ export class WorldTick {
 
     this.ws.onPlayerMessage = async (id, msg) => {
       if (msg.type === "login") {
-        let charName = "Unknown";
-        let uid = "";
-        
         try {
-          if (msg.token) {
-            const decodedToken = await verifyFirebaseToken(msg.token);
-            if (decodedToken) {
-              uid = decodedToken.uid;
-              charName = decodedToken.name || decodedToken.email || uid;
-            }
-          } else {
-             // For testing/dev if token not provided, use a random ID
-             uid = `dev_${id}`;
-             charName = `DevPlayer_${id.substr(0,4)}`;
+          const identity = await resolveLoginIdentity(id, msg as any);
+          if ("error" in identity) {
+            this.ws.sendToPlayer(id, { type: "error", message: identity.error, code: "login_required" });
+            return;
           }
+          const { uid, charName } = identity;
 
           let player = this.playerSystem.getPlayer(uid);
           let shouldApplySpawn = false;
@@ -1572,6 +1569,7 @@ export class WorldTick {
             },
           });
           this.pushPlayerStateSync(id, player);
+          player._lastManaNotifyFloor = Math.floor(Number(player.mana ?? 0));
           this.schedulePersistPlayer(uid);
         } catch (err) {
           console.error("Login error:", err);
@@ -1700,6 +1698,69 @@ export class WorldTick {
         return;
       }
 
+      if (msg.type === "set_target") {
+        const nid = typeof msg.npcId === "string" ? msg.npcId.trim() : "";
+        if (!nid) {
+          player.combatTargetNpcId = null;
+        } else {
+          const npc = this.npcSystem.getNPC(nid);
+          if (!npc || !npcIsCombatTarget(npc)) {
+            this.ws.sendToPlayer(id, { type: "toast", text: "That cannot be targeted." });
+          } else {
+            const px = player.position.x;
+            const py = player.position.y;
+            const dx = npc.position.x - px;
+            const dy = npc.position.y - py;
+            const maxLock = Math.max(GameConfig.interactDistance, GameConfig.attackDistance) * 2;
+            if (dx * dx + dy * dy > maxLock * maxLock) {
+              this.ws.sendToPlayer(id, { type: "toast", text: "Target too far to lock." });
+            } else {
+              player.combatTargetNpcId = nid;
+            }
+          }
+        }
+        this.pushPlayerStateSync(id, player);
+        this.schedulePersistPlayer(player.id);
+        return;
+      }
+
+      if (msg.type === "use_item") {
+        const itemId = typeof msg.itemId === "string" ? msg.itemId.trim() : "";
+        if (!itemId) {
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        const def = ItemRegistry.getItem(itemId);
+        if (!def || def.type !== "consumable") {
+          this.ws.sendToPlayer(id, { type: "toast", text: "You cannot use that." });
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        const removed = this.inventorySystem.takeOneFromBag(player, itemId);
+        if (!removed) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Item not in inventory." });
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        if (!player.dead) {
+          if (typeof def.healAmount === "number" && def.healAmount > 0) {
+            const mh = player.maxHealth ?? 100;
+            player.health = Math.min(mh, (player.health ?? mh) + def.healAmount);
+          }
+          if (typeof def.restoreMana === "number" && def.restoreMana > 0) {
+            const mm = player.maxMana ?? 25;
+            player.mana = Math.min(mm, (player.mana ?? mm) + def.restoreMana);
+          }
+        }
+        this.ws.sendToPlayer(id, {
+          type: "toast",
+          text: `Used: ${def.name}`,
+        });
+        this.pushPlayerStateSync(id, player);
+        this.schedulePersistPlayer(player.id);
+        return;
+      }
+
       if (msg.type === "chat" && this.worldState.mutedPlayers.includes(player.id)) {
         this.sendGMStatus(id, "error", "You are muted.");
         return;
@@ -1752,7 +1813,13 @@ export class WorldTick {
         const { damageBonus: weaponBonus, attackRange: weaponRange, manaCost: attackManaCost } =
           this.getEquippedWeaponStats(player);
         const maxD = weaponRange ?? GameConfig.attackDistance;
-        const best = selectAttackTarget(px, py, maxD, this.npcSystem.getAllNPCs());
+        const best = selectAttackTarget(
+          px,
+          py,
+          maxD,
+          this.npcSystem.getAllNPCs(),
+          player.combatTargetNpcId
+        );
         if (
           best &&
           attackManaCost > 0 &&
@@ -2071,7 +2138,28 @@ export class WorldTick {
     for (const p of allPlayers) {
       if (p.id !== "dummy_player") data[p.id] = p;
     }
-    await this.persistence.save(data);
+    const started = Date.now();
+    this.lastSaveAllStartedAt = started;
+    this.lastSaveAllPlayerCount = Object.keys(data).length;
+    try {
+      await this.persistence.save(data);
+      this.lastSaveAllDurationMs = Date.now() - started;
+      this.lastSaveAllError = null;
+    } catch (e) {
+      this.lastSaveAllDurationMs = Date.now() - started;
+      this.lastSaveAllError = e instanceof Error ? e.message : String(e);
+      console.error("[Persistence] saveAll failed:", e);
+    }
+  }
+
+  getPersistenceStats() {
+    return {
+      lastSaveAt: this.lastSaveAllStartedAt,
+      lastSaveDurationMs: this.lastSaveAllDurationMs,
+      lastSavePlayerCount: this.lastSaveAllPlayerCount,
+      lastSaveError: this.lastSaveAllError,
+      firestoreConfigured: Boolean(getDb()),
+    };
   }
 
   start() {
@@ -2128,6 +2216,27 @@ export class WorldTick {
     }
     this.playerAnalogMove.clear();
 
+    const regen = (GameConfig.playerManaRegenPerSecond * GameConfig.tickRateMs) / 1000;
+    for (const player of onlinePlayers) {
+      if (player.dead) continue;
+      const socketId = this.playerToSocket.get(player.id);
+      if (!socketId) continue;
+      const mm = player.maxMana ?? 25;
+      const before = Number(player.mana ?? mm);
+      if (before < mm) {
+        player.mana = Math.min(mm, before + regen);
+        const floorBefore = Math.floor(before);
+        const floorAfter = Math.floor(player.mana);
+        if (floorAfter > floorBefore) {
+          const last = typeof player._lastManaNotifyFloor === "number" ? player._lastManaNotifyFloor : floorBefore;
+          if (floorAfter > last) {
+            player._lastManaNotifyFloor = floorAfter;
+            this.pushPlayerStateSync(socketId, player);
+          }
+        }
+      }
+    }
+
     this.processHostileNpcAggroAndChase(onlinePlayers);
 
     this.npcSystem.tick(onlinePlayers, this.worldSystem.worldTime);
@@ -2177,6 +2286,7 @@ export class WorldTick {
       ...this.npcSystem.getAllNPCs().map(n => ({
         id: n.id,
         type: 'npc',
+        combatNpcId: n.id,
         position: { x: n.position.x, y: 0, z: n.position.y },
         rotation: { x: 0, y: 0, z: 0 },
         name: n.name,

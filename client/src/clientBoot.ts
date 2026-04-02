@@ -2,7 +2,12 @@ import { Engine } from "@babylonjs/core";
 import { createBabylonApp } from "./engine/babylon/BabylonBoot";
 import { BabylonAdapter } from "./engine/babylon/BabylonAdapter";
 import { MMORPGClientCore } from "./core/MMORPGClientCore";
-import { connectSocket, requestSceneChange, type ConnectionOptions } from "./networking/websocketClient";
+import {
+  connectSocket,
+  requestSceneChange,
+  sendSetCombatTarget,
+  type ConnectionOptions,
+} from "./networking/websocketClient";
 import { IEngineBridge } from "./engine/bridge/IEngineBridge";
 import { renderHUD, showDialogue } from "./ui/hud";
 import { getJoystickState, initMobileControls, isMobile } from "./ui/mobileControls";
@@ -45,6 +50,11 @@ export async function bootAreloriaClient(canvas: HTMLCanvasElement): Promise<voi
   }
 
   const adapter = bootEngineBridge(canvas);
+  if (typeof adapter.setCombatTargetPickHandler === "function") {
+    adapter.setCombatTargetPickHandler((entityId) => {
+      sendSetCombatTarget(entityId);
+    });
+  }
 
   const core = new MMORPGClientCore(adapter);
   (window as unknown as { gameCore?: MMORPGClientCore }).gameCore = core;

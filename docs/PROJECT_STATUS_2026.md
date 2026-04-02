@@ -20,6 +20,10 @@ This document is the **authoritative snapshot** of what works today in the repos
 |------|--------|
 | **Stack** | Node, Express, WebSocket (`server/src/networking/`) |
 | **Player persistence** | **Firestore** when `FIREBASE_SERVICE_ACCOUNT_KEY` is set (whitelisted fields via `playerSnapshot.ts`); otherwise **`data/players.json`** (or `PLAYER_SAVE_FILE`). Load: merge into fresh `createPlayer` (**`isOffline: true`** until login). Saves: disconnect, **~20s** tick, debounced after loot / equip / combat HP / quests / scene / respawn |
+| **WS login** | **Token** → Firebase uid. **Production** without token → error unless **`ALLOW_GUEST_LOGIN=1`** (optional stable **`guestId`** from client `localStorage`). **Dev** → `dev_<socketId>` unless **`ALLOW_DEV_LOGIN=0`** |
+| **Combat target** | Client **tap** on canvas → `set_target` (locks **`combatTargetNpcId`**, persisted); **`attack`** prefers locked target in range |
+| **Mana** | Passive **regen** (`GameConfig.playerManaRegenPerSecond`); consumables e.g. **`minor_mana_draught`** via **`use_item`** |
+| **Observability** | **`GET /health`** includes **`persistence`** (last save timing, Firestore flag, last error) |
 | **Game loop** | `WorldTick` — simulation tick **100 ms**; `entity_sync` broadcast **configurable** (`GameConfig.stateBroadcastIntervalMs`, default **200 ms**) |
 | **Movement** | Held WASD + `move_intent` (joystick); applied each tick with `GameConfig.playerSpeed` |
 | **Interact / dialogue** | `interact` resolves **nearest NPC** or **loot on ground** (whichever is closer in range); `dialogue_choice` / `quest_accept`; `talk_to` quests complete on target NPC contact |

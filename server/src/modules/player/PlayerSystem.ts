@@ -36,7 +36,9 @@ export class PlayerSystem {
       isOffline: false,
       state: "idle",
       stateTimer: 0,
-      targetPosition: null as { x: number, y: number } | null
+      targetPosition: null as { x: number, y: number } | null,
+      /** Client-selected NPC id for attacks (optional) */
+      combatTargetNpcId: null as string | null,
     };
     this.players.set(id, player);
     return player;

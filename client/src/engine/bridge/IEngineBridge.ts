@@ -33,4 +33,7 @@ export interface IEngineBridge {
 
   // Optional renderer-specific controls
   setAREMode?(mode: string): void;
+
+  /** When user taps a combat entity, callback receives server entity id (or null to clear). */
+  setCombatTargetPickHandler?(handler: ((entityId: string | null) => void) | null): void;
 }
