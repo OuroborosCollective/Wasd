@@ -19,7 +19,7 @@ Arelorian/Ouroboros is a browser-based MMORPG: `server/` (Express + WebSocket ga
 - **Build:** `pnpm run build` (builds client with Vite, then compiles server TypeScript).
 
 ### Environment variables
-Copy `.env.example` to `.env`. Only `PORT` and `NODE_ENV` are needed for local dev without Firebase. See `.env.example` for full list. Optional: **`WS_MAX_MESSAGES_PER_PLAYER_UID_PER_SECOND`** tightens per-account WS throughput after login.
+Copy `.env.example` to `.env`. Only `PORT` and `NODE_ENV` are needed for local dev without Firebase. See `.env.example` for full list. Optional: **`WS_MAX_MESSAGES_PER_PLAYER_UID_PER_SECOND`** tightens per-account WS throughput after login. **`STATE_BROADCAST_INTERVAL_MOBILE_MS`** slows **`entity_sync`** for clients that send **`clientHints.lowBandwidth`** on login (touch UI).
 
 ### Key ports
 | Service | Port |

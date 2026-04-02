@@ -3,6 +3,8 @@ export const GameConfig = {
   tickRateMs: 100,
   /** How often full entity state is broadcast to clients (lower = smoother but heavier on CPU/network). */
   stateBroadcastIntervalMs: 200,
+  /** Slower `entity_sync` for sockets that opt in with `login.clientHints.lowBandwidth` (typical phones). */
+  stateBroadcastIntervalMobileMs: 400,
   defaultPort: 3000,
   maxObserverRadius: 6,
   matrixCurrency: "matrix_energy",

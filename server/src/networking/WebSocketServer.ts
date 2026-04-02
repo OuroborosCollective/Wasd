@@ -5,6 +5,12 @@ import { GameConfig } from "../config/GameConfig.js";
 
 const WS_RL_WINDOW_MS = 1000;
 
+type TrackedSocket = WebSocket & {
+  id?: string;
+  _entitySyncIntervalMs?: number;
+  _lastEntitySyncSentAt?: number;
+};
+
 function playerUidMessageCap(): number {
   const raw = process.env.WS_MAX_MESSAGES_PER_PLAYER_UID_PER_SECOND?.trim();
   if (!raw) return GameConfig.wsMaxMessagesPerPlayerUidPerSecond;
@@ -31,6 +37,9 @@ export class GameWebSocketServer {
     this.wss.on("connection", (socket: WebSocket & { id?: string }) => {
       const id = randomUUID();
       socket.id = id;
+      const tracked = socket as TrackedSocket;
+      tracked._entitySyncIntervalMs = GameConfig.stateBroadcastIntervalMs;
+      tracked._lastEntitySyncSentAt = 0;
 
       if (this.onPlayerConnect) {
         this.onPlayerConnect(id);
@@ -95,11 +104,37 @@ export class GameWebSocketServer {
     });
   }
 
+  /**
+   * Per-socket minimum spacing for `entity_sync` so mobile clients can use a longer interval
+   * without slowing desktop peers. Default interval is set on connect; login may widen it.
+   */
+  setEntitySyncIntervalForSocket(socketId: string, intervalMs: number): void {
+    if (!this.wss || !Number.isFinite(intervalMs) || intervalMs < 50) return;
+    for (const client of this.wss.clients as Set<TrackedSocket>) {
+      if (client.id === socketId && client.readyState === 1) {
+        client._entitySyncIntervalMs = Math.floor(intervalMs);
+        return;
+      }
+    }
+  }
+
   broadcast(data: any) {
     if (!this.wss) return;
     const message = JSON.stringify(data);
+    if (data?.type === "entity_sync") {
+      const now = Date.now();
+      for (const client of this.wss.clients as Set<TrackedSocket>) {
+        if (client.readyState !== 1) continue;
+        const minEvery = client._entitySyncIntervalMs ?? GameConfig.stateBroadcastIntervalMs;
+        const last = client._lastEntitySyncSentAt ?? 0;
+        if (now - last < minEvery) continue;
+        client._lastEntitySyncSentAt = now;
+        client.send(message);
+      }
+      return;
+    }
     for (const client of this.wss.clients) {
-      if (client.readyState === 1) { // OPEN
+      if (client.readyState === 1) {
         client.send(message);
       }
     }

@@ -32,6 +32,13 @@ import { mergePersistedPlayerInto } from "../modules/persistence/playerSnapshot.
 import { normalizeInventoryStacks } from "../modules/inventory/inventoryStacks.js";
 import { buildSkillCooldownUntilPayload, getSkillDefinition } from "../modules/skill/skillDefinitions.js";
 
+function resolveStateBroadcastMobileMs(): number {
+  const raw = process.env.STATE_BROADCAST_INTERVAL_MOBILE_MS?.trim();
+  if (!raw) return GameConfig.stateBroadcastIntervalMobileMs;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 50 ? Math.floor(n) : GameConfig.stateBroadcastIntervalMobileMs;
+}
+
 type SpawnPoint = { x: number; y: number; z: number };
 type SceneProfile = {
   defaultSpawnKey: string;
@@ -1510,6 +1517,14 @@ export class WorldTick {
           }
           const { uid, charName } = identity;
 
+          const hints = (msg as { clientHints?: { lowBandwidth?: boolean } }).clientHints;
+          const mobileMs = resolveStateBroadcastMobileMs();
+          if (hints?.lowBandwidth === true) {
+            this.ws.setEntitySyncIntervalForSocket(id, mobileMs);
+          } else {
+            this.ws.setEntitySyncIntervalForSocket(id, GameConfig.stateBroadcastIntervalMs);
+          }
+
           let player = this.playerSystem.getPlayer(uid);
           let shouldApplySpawn = false;
           if (!player) {
@@ -1559,6 +1574,7 @@ export class WorldTick {
             sceneId: spawn.sceneId,
             spawnKey: spawn.spawnKey,
             spawnPosition: spawn.spawnPoint,
+            entitySyncIntervalMs: hints?.lowBandwidth ? mobileMs : GameConfig.stateBroadcastIntervalMs,
             stats: {
               gold: player.gold,
               xp: player.xp,
