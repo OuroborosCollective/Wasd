@@ -12,7 +12,7 @@ This document is the **authoritative snapshot** of what works today in the repos
 | **WebGL failure** | `Engine.IsSupported` → full-screen overlay; **context lost** → overlay + link to Babylon WebGL docs |
 | **Default GLB fallbacks** | `client/src/engine/babylon/AssetRegistry.ts` — used when server does not send a `modelUrl` |
 | **Bridge** | `client/src/engine/bridge/` — `IEngineBridge`, `EntityViewModel`; keep simulation off the client |
-| **HUD / mobile** | HP + stamina + **mana** **bars**; dialogue **bottom sheet**; **inventory / skills / equipment / quest** panels share **`panelLayout.ts`**; **inventory** lists stacks (**×N**) + **Equip**/**Use**; **equipment** shows weapon/armor + **Unequip**; loot chips when **`prefersCompactTouchUi()`**; **target reticle**; **world hover tooltip** (NPC role/faction/HP, loot); UI SFX via **Babylon `Sound`** with **Web Audio** fallback |
+| **HUD / mobile** | HP + stamina + **mana** **bars**; dialogue **bottom sheet**; **inventory / skills / equipment / quest** panels share **`panelLayout.ts`**; **inventory** lists stacks (**×N**) + **Equip**/**Use** + row **`title` tooltips** (stats from server item payloads); **usable** rows (consumable / equippable) get a light highlight when alive; **Use**/**Equip** disabled while **dead**; **equipment** shows weapon/armor + **Unequip**; loot chips when **`prefersCompactTouchUi()`**; **target reticle**; **world hover tooltip** (NPC role/faction/HP, loot); UI SFX via **Babylon `Sound`** with **Web Audio** fallback |
 
 ## Server and networking
 
@@ -23,16 +23,16 @@ This document is the **authoritative snapshot** of what works today in the repos
 | **WS login** | **Token** → Firebase uid; client uses **`getIdToken()`** on reconnect. Errors: **`invalid_token`** / **`login_required`**. **`REQUIRE_FIREBASE_AUTH=1`** → only token. **Vite:** `VITE_FIREBASE_*` or repo **`firebase-applet-config.json`** |
 | **Skills** | **`use_skill`**: **`ember_bolt`**, **`frost_shard`**, **`arc_spark`**, **`vitality_tap`**, **`shadow_tag`**, **`aether_pulse`** — mana, cooldown, `spellStrike` / self-heal; **skill bar** (server cooldown fill); **Q** / mobile **SPELL** use **quick-cast** skill (`localStorage` **`areloria_quick_cast_skill_id`**, Skills panel radios + **Set quick**) |
 | **E2E** | **`pnpm run test:e2e`** — Playwright starts built server (`scripts/e2e-webserver.sh`), checks **`/health`** + **`/e2e-smoke.html`** guest WS login + **`welcome.stats`** shape; CI: **`.github/workflows/ci.yml`** runs **`pnpm run test:e2e:ci`** after build |
-| **Auth (client)** | HUD: **Google**, **email/password** sign-in & create; token refresh on WS reconnect |
-| **WS limits** | **`wsMaxMessageBytes`**, **`wsMaxMessagesPerSecond`** per socket |
+| **Auth (client)** | HUD: **Google**, **email/password** sign-in & create; **Verify email** / **Reset password** (Firebase); token refresh on WS reconnect |
+| **WS limits** | **`wsMaxMessageBytes`**, **`wsMaxMessagesPerSecond`** per socket; **`wsMaxMessagesPerPlayerUidPerSecond`** per logged-in account (rolling 1s); override with **`WS_MAX_MESSAGES_PER_PLAYER_UID_PER_SECOND`** |
 | **Inventory** | **Stacks** for `consumable` + `misc` (override with `stackable` / `maxStack` on items); merge on load; **Quest collect** counts `quantity` |
 | **Combat target** | Client **tap** on canvas → `set_target` (locks **`combatTargetNpcId`**, persisted); **`attack`** prefers locked target in range |
-| **Mana** | Passive **regen** (`GameConfig.playerManaRegenPerSecond`); consumables e.g. **`minor_mana_draught`** via **`use_item`** |
+| **Mana** | Passive **regen** (`GameConfig.playerManaRegenPerSecond`); **`playerManaPerLevel`** (+5 max mana per character level above 1; current mana increases by the same delta on level-up); consumables e.g. **`minor_mana_draught`** via **`use_item`** |
 | **Observability** | **`GET /health`** includes **`persistence`** (last save timing, Firestore flag, last error) |
 | **Game loop** | `WorldTick` — simulation tick **100 ms**; `entity_sync` broadcast **configurable** (`GameConfig.stateBroadcastIntervalMs`, default **200 ms**) |
 | **Movement** | Held WASD + `move_intent` (joystick); applied each tick with `GameConfig.playerSpeed` |
 | **Interact / dialogue** | `interact` resolves **nearest NPC** or **loot on ground** (whichever is closer in range); `dialogue_choice` / `quest_accept`; `talk_to` quests complete on target NPC contact |
-| **Combat** | Target pick in **`selectAttackTarget.ts`** (tested); **ranged** weapons cost **mana** (`item.manaCost` or default **3** if `attackRange` > melee); **`equip_item`** / **`unequip_item`** WS; **`InventorySystem`** equips **armor** slot; **`entity_sync` NPCs** include **health/maxHealth** + **`combatThreat`** |
+| **Combat** | Target pick in **`selectAttackTarget.ts`** (tested); **ranged** weapons cost **mana** (`item.manaCost` or default **3** if `attackRange` > melee); attack **cooldown** applies only after a valid swing (mana + target OK); while **dead**, **`attack`** / **`use_skill`** get a **toast** (not silent); **`equip_item`** / **`unequip_item`** WS; **`InventorySystem`** equips **armor** slot; **`entity_sync` NPCs** include **health/maxHealth** + **`combatThreat`** / **`combatNpcId`** / **`role`** |
 | **Scenes** | `game-data/scenes/*.json` — spawns and trigger zones (server-side) |
 | **NPC spawns** | `game-data/spawns/npc-spawns.json` (path resolves from repo root or `server/` cwd) |
 | **Starter content** | **Millbrook** hub: `npc_guide` (Linnea), quests `starter_welcome` / `village_tour`, plus existing Mara / Elder / Guard chain — see `game-data/` |
@@ -49,7 +49,7 @@ This document is the **authoritative snapshot** of what works today in the repos
 
 | Item | Status |
 |------|--------|
-| **CI / VPS** | `.github/workflows/deploy.yml` — SSH deploy, `update.sh` when build exists, **health check** on `/health` |
+| **CI / VPS** | **`.github/workflows/ci.yml`** — lint, Vitest, build, Playwright; **`.github/workflows/deploy.yml`** — SSH deploy, `update.sh` when build exists, **health check** on `/health` |
 | **PM2** | `deploy/write_pm2_ecosystem.sh` — `cwd` = repo root, `CLIENT_ROOT_DIR` for static client |
 | **Details** | Root `DEPLOYMENT.md`, `deploy/deploy.sh`, `deploy/update.sh` |
 
@@ -57,7 +57,7 @@ This document is the **authoritative snapshot** of what works today in the repos
 
 | Item | Status |
 |------|--------|
-| **Server tests** | Vitest — run `pnpm run test` (600+ tests typical); WebSocket **`use_skill`** flows in **`server/src/tests/use-skill-ws.test.ts`** (unknown skill, mana, range, cooldown, self-heal) |
+| **Server tests** | Vitest — run `pnpm run test` (600+ tests typical); WebSocket **`use_skill`** in **`use-skill-ws.test.ts`**; **`attack`** / **`set_target`** / **`entity_sync`** NPC fields in **`combat-ws.test.ts`**; per-UID WS cap in **`ws-player-uid-rate.test.ts`** |
 | **Lint** | `pnpm run lint` |
 | **Content validation** | `server` build runs `validateContent.ts` against `game-data/` |
 
@@ -67,7 +67,7 @@ See **`docs/ROADMAP_TO_RELEASE.md`** for the full backlog aligned with the desig
 
 - Client **index** chunk still large — further **dynamic `import()`** for heavy UI panels possible  
 - Many **server modules** are implemented but not all wired end-to-end in `WorldTick` or exposed to the live client UI  
-- **Combat** still has no death/respawn UI, aggro lists, or ranged abilities — see roadmap Tier A2  
+- **Combat** still has no party/revive, aggro UI lists, or full combat log — see roadmap Tier A2  
 - **React** appears in root dependencies but the **game shell** is largely vanilla TS + DOM UI panels  
 
 ### Recently wired (snapshot)
