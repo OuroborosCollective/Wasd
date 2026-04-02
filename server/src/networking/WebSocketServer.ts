@@ -5,11 +5,23 @@ import { GameConfig } from "../config/GameConfig.js";
 
 const WS_RL_WINDOW_MS = 1000;
 
+function playerUidMessageCap(): number {
+  const raw = process.env.WS_MAX_MESSAGES_PER_PLAYER_UID_PER_SECOND?.trim();
+  if (!raw) return GameConfig.wsMaxMessagesPerPlayerUidPerSecond;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : GameConfig.wsMaxMessagesPerPlayerUidPerSecond;
+}
+
 export class GameWebSocketServer {
   public wss: WebSocketServer | null = null;
   public onPlayerConnect?: (id: string) => void;
   public onPlayerDisconnect?: (id: string) => void;
   public onPlayerMessage?: (id: string, msg: any) => void;
+  /** After login, map socket id → player uid for per-account rate limiting */
+  public resolveSocketToPlayerUid?: (socketId: string) => string | null | undefined;
+
+  private readonly socketToPlayerUid = new Map<string, string>();
+  private readonly playerUidRateAt = new Map<string, number[]>();
 
   constructor(private readonly httpServer: HttpServer) {}
 
@@ -43,6 +55,29 @@ export class GameWebSocketServer {
           sock._rlAt.push(now);
 
           const msg = JSON.parse(raw.toString());
+          if (msg?.type === "login") {
+            this.socketToPlayerUid.delete(id);
+          } else {
+            let uid = this.socketToPlayerUid.get(id);
+            if (!uid && this.resolveSocketToPlayerUid) {
+              uid = this.resolveSocketToPlayerUid(id) ?? undefined;
+              if (uid) this.socketToPlayerUid.set(id, uid);
+            }
+            if (uid) {
+              let arr = this.playerUidRateAt.get(uid);
+              if (!arr) {
+                arr = [];
+                this.playerUidRateAt.set(uid, arr);
+              }
+              arr = arr.filter((t) => now - t < WS_RL_WINDOW_MS);
+              if (arr.length >= playerUidMessageCap()) {
+                return;
+              }
+              arr.push(now);
+              this.playerUidRateAt.set(uid, arr);
+            }
+          }
+
           if (this.onPlayerMessage) {
             this.onPlayerMessage(id, msg);
           }
@@ -52,6 +87,7 @@ export class GameWebSocketServer {
       });
 
       socket.on("close", () => {
+        this.socketToPlayerUid.delete(id);
         if (this.onPlayerDisconnect) {
           this.onPlayerDisconnect(id);
         }

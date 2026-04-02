@@ -30,4 +30,8 @@ export const GameConfig = {
   wsMaxMessageBytes: 65536,
   /** Max WebSocket messages accepted per socket per rolling second */
   wsMaxMessagesPerSecond: 48,
+  /** Max WebSocket messages per logged-in player uid per rolling second (multi-tab / reconnect abuse) */
+  wsMaxMessagesPerPlayerUidPerSecond: 48,
+  /** Base mana pool at level 1; each level adds this much max mana (current mana grows on level-up) */
+  playerManaPerLevel: 5,
 } as const;

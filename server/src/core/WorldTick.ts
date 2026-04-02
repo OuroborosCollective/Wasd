@@ -1464,6 +1464,8 @@ export class WorldTick {
     this.assetPoolResolver = new AssetPoolResolver();
     this.areStateCompiler = new AREStateCompiler();
 
+    this.ws.resolveSocketToPlayerUid = (socketId) => this.socketToPlayer.get(socketId) ?? null;
+
     // Create a dummy player in a distant chunk to prove multi-observer union
     const dummyPlayer = this.playerSystem.createPlayer("dummy_player", "Dummy Player");
     dummyPlayer.position.x = 500;
@@ -1647,6 +1649,14 @@ export class WorldTick {
           return;
         }
         if (msg.type === "quest_sync") {
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        if (msg.type === "attack" || msg.type === "use_skill") {
+          this.ws.sendToPlayer(id, {
+            type: "toast",
+            text: "You are defeated. Use respawn when the countdown finishes.",
+          });
           this.pushPlayerStateSync(id, player);
           return;
         }
@@ -1928,9 +1938,6 @@ export class WorldTick {
         if (nowAtk - lastAtk < GameConfig.playerAttackCooldownMs) {
           return;
         }
-        this.lastPlayerAttackAt.set(player.id, nowAtk);
-
-        this.ws.broadcast({ type: "entity_action", entityId: player.id, action: "attack" });
         const px = player.position.x;
         const py = player.position.y;
         const { damageBonus: weaponBonus, attackRange: weaponRange, manaCost: attackManaCost } =
@@ -1967,6 +1974,8 @@ export class WorldTick {
           this.pushPlayerStateSync(id, player);
           return;
         }
+        this.lastPlayerAttackAt.set(player.id, nowAtk);
+        this.ws.broadcast({ type: "entity_action", entityId: player.id, action: "attack" });
         const target = best.npc;
         if (attackManaCost > 0) {
           player.mana = Math.max(0, (player.mana ?? 0) - attackManaCost);
