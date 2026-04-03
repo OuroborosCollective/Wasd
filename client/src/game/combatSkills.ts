@@ -54,7 +54,7 @@ export const ACTIVE_COMBAT_SKILLS: ClientSkillInfo[] = [
   },
 ];
 
-const STORAGE_KEY = "areloria_quick_cast_skill_id";
+export const QUICK_CAST_SKILL_STORAGE_KEY = "areloria_quick_cast_skill_id";
 
 /** Default when nothing stored or invalid */
 export const DEFAULT_QUICK_CAST_SKILL_ID = "ember_bolt";
@@ -63,7 +63,7 @@ const validIds = new Set(ACTIVE_COMBAT_SKILLS.map((s) => s.id));
 
 export function getQuickCastSkillId(): string {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)?.trim();
+    const raw = localStorage.getItem(QUICK_CAST_SKILL_STORAGE_KEY)?.trim();
     if (raw && validIds.has(raw)) return raw;
   } catch {
     /* private mode */
@@ -75,7 +75,7 @@ export function setQuickCastSkillId(skillId: string): void {
   const id = skillId.trim();
   if (!validIds.has(id)) return;
   try {
-    localStorage.setItem(STORAGE_KEY, id);
+    localStorage.setItem(QUICK_CAST_SKILL_STORAGE_KEY, id);
   } catch {
     /* ignore */
   }

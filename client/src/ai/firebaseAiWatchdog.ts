@@ -1,16 +1,24 @@
 /**
- * Optional "watchdog": sends recent client errors to Firebase AI Logic (Gemini) and runs
- * only whitelisted recovery actions. Does not modify server config or execute arbitrary code.
+ * Optional watchdog: classifies errors into a functional module, asks Firebase AI Logic for ONE
+ * whitelisted action allowed **only for that module** — no arbitrary code or cross-module edits.
  *
- * Enable: VITE_FIREBASE_AI_WATCHDOG=1 (requires Firebase app + AI Logic setup in console).
+ * Enable: VITE_FIREBASE_AI_WATCHDOG=1
  */
 import { getFirebaseAppOrNull, isFirebaseClientConfigured } from "../auth/firebase";
 import { reconnectGameSocket } from "../networking/websocketClient";
 import {
   formatSnapshotForPrompt,
   getWatchdogLogSnapshot,
+  inferDominantModuleFromSnapshot,
   pushWatchdogLog,
+  type WatchdogModuleId,
 } from "./watchdogTelemetry";
+import {
+  babylonReduceRenderLoad,
+  babylonSoftRecover,
+  clearGameLocalStorageKeys,
+  clearStaleWsTokenOnly,
+} from "./watchdogRecovery";
 
 const WATCHDOG_FLAG = () => {
   const v = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env
@@ -32,11 +40,20 @@ let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 let reloadUsedAt = 0;
 const RELOAD_COOLDOWN_MS = 120_000;
 
-type AgentAction =
-  | { action: "none"; reason?: string }
-  | { action: "clear_auth_storage"; reason?: string }
-  | { action: "reconnect_websocket"; reason?: string }
-  | { action: "reload_page"; reason?: string };
+/** Actions the model may name; execution is hard-coded per id (module-scoped allow list). */
+const ALLOWED_BY_MODULE: Record<WatchdogModuleId, ReadonlySet<string>> = {
+  network: new Set(["none", "clear_stale_ws_token", "reconnect_websocket", "reload_page"]),
+  firebase_auth: new Set(["none", "clear_auth_storage", "reconnect_websocket", "reload_page"]),
+  renderer: new Set(["none", "babylon_soft_recover", "babylon_reduce_render_load", "reload_page"]),
+  storage: new Set(["none", "clear_game_local_storage", "reconnect_websocket", "reload_page"]),
+  unknown: new Set(["none", "reconnect_websocket", "reload_page"]),
+};
+
+type AgentDecision = {
+  module: WatchdogModuleId;
+  action: string;
+  reason?: string;
+};
 
 function stripJsonFence(text: string): string {
   const t = text.trim();
@@ -45,26 +62,33 @@ function stripJsonFence(text: string): string {
   return t;
 }
 
-function parseAgentJson(raw: string): AgentAction | null {
+function parseAgentJson(raw: string, expectedModule: WatchdogModuleId): AgentDecision | null {
   try {
     const s = stripJsonFence(raw);
     const i = s.indexOf("{");
     const j = s.lastIndexOf("}");
     if (i < 0 || j <= i) return null;
     const obj = JSON.parse(s.slice(i, j + 1)) as Record<string, unknown>;
-    const action = typeof obj.action === "string" ? obj.action : "";
+    const mod = typeof obj.module === "string" ? obj.module.trim() : "";
+    const action = typeof obj.action === "string" ? obj.action.trim() : "";
     const reason = typeof obj.reason === "string" ? obj.reason : undefined;
-    if (action === "none") return { action: "none", reason };
-    if (action === "clear_auth_storage") return { action: "clear_auth_storage", reason };
-    if (action === "reconnect_websocket") return { action: "reconnect_websocket", reason };
-    if (action === "reload_page") return { action: "reload_page", reason };
-    return null;
+    const validModules: WatchdogModuleId[] = [
+      "network",
+      "firebase_auth",
+      "renderer",
+      "storage",
+      "unknown",
+    ];
+    if (!validModules.includes(mod as WatchdogModuleId)) return null;
+    if (mod !== expectedModule) return null;
+    if (!ALLOWED_BY_MODULE[mod as WatchdogModuleId].has(action)) return null;
+    return { module: mod as WatchdogModuleId, action, reason };
   } catch {
     return null;
   }
 }
 
-async function runGeminiDecision(logText: string): Promise<AgentAction | null> {
+async function runGeminiDecision(logText: string, domain: WatchdogModuleId): Promise<AgentDecision | null> {
   const firebaseApp = getFirebaseAppOrNull();
   if (!firebaseApp) return null;
 
@@ -73,60 +97,95 @@ async function runGeminiDecision(logText: string): Promise<AgentAction | null> {
   const ai = getAI(firebaseApp, { backend: new GoogleAIBackend() });
   const model = getGenerativeModel(ai, { model: MODEL });
 
-  const system = `You are a safety watchdog for a browser game client. You ONLY choose recovery actions from this exact JSON schema. No other actions exist.
-Respond with a single JSON object only, no markdown, no code fences:
-{"action":"none"|"clear_auth_storage"|"reconnect_websocket"|"reload_page","reason":"short"}
+  const actionsList = [...ALLOWED_BY_MODULE[domain]].join('", "');
 
-Rules:
-- Use "clear_auth_storage" when logs indicate invalid/expired Firebase or WS auth token, or stale localStorage token.
-- Use "reconnect_websocket" when connection/auth errors might be fixed by a fresh WebSocket after storage fix.
-- Use "reload_page" ONLY if the client is likely stuck after token clear + reconnect would not help; use rarely.
-- Use "none" if unsure, logs are benign, or the issue needs a human/server change.
+  const system = `You are a recovery assistant for a browser game client. Errors are classified into ONE functional domain. You must stay inside that domain.
+
+CLASSIFIED_DOMAIN (you MUST copy this exact string into the JSON field "module"): "${domain}"
+
+You ONLY output one JSON object, no markdown, no code fences:
+{"module":"${domain}","action":"<one of allowed>","reason":"short"}
+
+Allowed actions for THIS domain only:
+"${actionsList}"
+
+Semantics:
+- none: do nothing automated.
+- clear_stale_ws_token: remove only the saved WebSocket JWT from localStorage (network).
+- clear_auth_storage: remove token + sign out Firebase web session (firebase_auth).
+- clear_game_local_storage: remove game-related local keys (guest id, quick-cast skill, token) — storage issues.
+- reconnect_websocket: open a fresh WebSocket (network / after auth or storage fix).
+- babylon_soft_recover: clear Babylon GPU/shader caches if WebGL hiccup (renderer).
+- babylon_reduce_render_load: lower internal resolution scaling for stability (renderer).
+- reload_page: full reload — last resort, use rarely.
+
+Pick the smallest fix. Prefer none if logs are unclear.
 
 Recent client logs:
 ${logText}`;
 
   const result = await model.generateContent(system);
   const text = result.response.text();
-  return parseAgentJson(text);
+  return parseAgentJson(text, domain);
 }
 
-function executeAction(act: AgentAction): void {
-  if (act.action === "none") {
-    pushWatchdogLog("info", "ai-watchdog", "No automated action (AI)", act.reason);
+async function firebaseSignOutSafe(): Promise<void> {
+  try {
+    const { auth } = await import("../auth/firebase");
+    const { signOut } = await import("firebase/auth");
+    if (auth) await signOut(auth);
+  } catch {
+    /* ignore */
+  }
+}
+
+function scheduleReconnect(delayMs: number): void {
+  window.setTimeout(() => reconnectGameSocket(), delayMs);
+}
+
+function executeDecision(dec: AgentDecision): void {
+  const { action, reason, module } = dec;
+  if (action === "none") {
+    pushWatchdogLog("info", "ai-watchdog", `No action (${module})`, reason);
     return;
   }
-  pushWatchdogLog("warn", "ai-watchdog", `Executing: ${act.action}`, act.reason);
+  pushWatchdogLog("warn", "ai-watchdog", `[${module}] ${action}`, reason);
 
-  if (act.action === "clear_auth_storage") {
-    try {
-      localStorage.removeItem("token");
-    } catch {
-      /* ignore */
-    }
-    void (async () => {
-      try {
-        const { auth } = await import("../auth/firebase");
-        const { signOut } = await import("firebase/auth");
-        if (auth) await signOut(auth);
-      } catch {
-        /* ignore */
+  switch (action) {
+    case "clear_stale_ws_token":
+      clearStaleWsTokenOnly();
+      scheduleReconnect(400);
+      break;
+    case "clear_auth_storage":
+      clearStaleWsTokenOnly();
+      void firebaseSignOutSafe();
+      scheduleReconnect(500);
+      break;
+    case "clear_game_local_storage":
+      clearGameLocalStorageKeys();
+      scheduleReconnect(500);
+      break;
+    case "reconnect_websocket":
+      scheduleReconnect(0);
+      break;
+    case "babylon_soft_recover":
+      babylonSoftRecover();
+      break;
+    case "babylon_reduce_render_load":
+      babylonReduceRenderLoad();
+      break;
+    case "reload_page": {
+      const now = Date.now();
+      if (now - reloadUsedAt < RELOAD_COOLDOWN_MS) {
+        pushWatchdogLog("warn", "ai-watchdog", "reload_page skipped (cooldown)");
+        return;
       }
-    })();
-  }
-
-  if (act.action === "clear_auth_storage" || act.action === "reconnect_websocket") {
-    window.setTimeout(() => reconnectGameSocket(), 400);
-  }
-
-  if (act.action === "reload_page") {
-    const now = Date.now();
-    if (now - reloadUsedAt < RELOAD_COOLDOWN_MS) {
-      pushWatchdogLog("warn", "ai-watchdog", "reload_page skipped (cooldown)");
-      return;
+      reloadUsedAt = now;
+      window.setTimeout(() => location.reload(), 800);
+      break;
     }
-    reloadUsedAt = now;
-    window.setTimeout(() => location.reload(), 800);
+    default:
+      pushWatchdogLog("warn", "ai-watchdog", `Unknown action ignored: ${action}`);
   }
 }
 
@@ -140,17 +199,18 @@ async function runWatchdogCycle(trigger: string): Promise<void> {
   const recentErrors = snapshot.filter((e) => e.level === "error" && now - e.t < 120_000);
   if (recentErrors.length === 0) return;
 
+  const domain = inferDominantModuleFromSnapshot(snapshot);
   lastAiRun = now;
-  pushWatchdogLog("info", "ai-watchdog", `Consulting model (${trigger})…`);
+  pushWatchdogLog("info", "ai-watchdog", `Consulting model (${trigger}) domain=${domain}`);
 
   try {
     const logText = formatSnapshotForPrompt(snapshot.slice(-40));
-    const decision = await runGeminiDecision(logText);
+    const decision = await runGeminiDecision(logText, domain);
     if (!decision) {
-      pushWatchdogLog("warn", "ai-watchdog", "Could not parse AI response");
+      pushWatchdogLog("warn", "ai-watchdog", "Invalid AI response or module mismatch");
       return;
     }
-    executeAction(decision);
+    executeDecision(decision);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     pushWatchdogLog("warn", "ai-watchdog", "AI watchdog call failed", msg.slice(0, 300));
@@ -214,6 +274,6 @@ export function installFirebaseAiWatchdog(): void {
   });
 
   if (WATCHDOG_FLAG() && isFirebaseClientConfigured()) {
-    pushWatchdogLog("info", "ai-watchdog", "Watchdog active (Firebase AI Logic)");
+    pushWatchdogLog("info", "ai-watchdog", "Watchdog active — module-scoped actions only");
   }
 }
