@@ -8,9 +8,18 @@
       "/assets/models/monsters/blob_GreenBlob.gltf"
     ],
     "loot": "/assets/models/kaykit/dungeon/chest.gltf",
-    "world_objects": "/assets/models/kaykit/medieval_hex/buildings/blue/building_home_A_blue.gltf",
-    "resources": "/assets/models/kaykit/forest/Rock_1_A_Color1.gltf",
-    "object": "/assets/models/kaykit/medieval_hex/buildings/blue/building_home_A_blue.gltf"
+    "world_objects": [
+      "/assets/models/kaykit/medieval_hex/buildings/blue/building_home_A_blue.gltf",
+      "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
+    ],
+    "resources": [
+      "/assets/models/kaykit/forest/Rock_1_A_Color1.gltf",
+      "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
+    ],
+    "object": [
+      "/assets/models/kaykit/medieval_hex/buildings/blue/building_home_A_blue.gltf",
+      "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
+    ]
   },
   "pools": {
     "players": {
@@ -105,38 +114,57 @@
       "consumable": "/assets/models/kaykit/adventurers/mug_full.gltf"
     },
     "resources": {
-      "default": "/assets/models/kaykit/forest/Rock_1_A_Color1.gltf",
+      "default": [
+        "/assets/models/kaykit/forest/Rock_1_A_Color1.gltf",
+        "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
+      ],
       "tree": [
         "/assets/models/kaykit/forest/Tree_1_A_Color1.gltf",
         "/assets/models/kaykit/forest/Tree_2_A_Color1.gltf",
-        "/assets/models/kaykit/forest/Tree_3_A_Color1.gltf"
+        "/assets/models/kaykit/forest/Tree_3_A_Color1.gltf",
+        "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
       ],
       "rock": [
         "/assets/models/kaykit/forest/Rock_1_A_Color1.gltf",
         "/assets/models/kaykit/forest/Rock_1_B_Color1.gltf",
-        "/assets/models/kaykit/forest/Rock_2_A_Color1.gltf"
+        "/assets/models/kaykit/forest/Rock_2_A_Color1.gltf",
+        "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
       ],
       "bush": [
         "/assets/models/kaykit/forest/Bush_1_A_Color1.gltf",
         "/assets/models/kaykit/forest/Bush_2_A_Color1.gltf",
-        "/assets/models/kaykit/forest/Bush_4_A_Color1.gltf"
+        "/assets/models/kaykit/forest/Bush_4_A_Color1.gltf",
+        "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
       ],
       "ore": [
         "/assets/models/kaykit/resource_bits/Copper_Nugget_Large.gltf",
         "/assets/models/kaykit/resource_bits/Iron_Nugget_Large.gltf",
         "/assets/models/kaykit/resource_bits/Gold_Nugget_Large.gltf"
-      ]
+      ],
+      "coniferous_forest_assets_pack": "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
     },
     "world_objects": {
-      "default": "/assets/models/kaykit/medieval_hex/buildings/blue/building_home_A_blue.gltf",
-      "object": "/assets/models/kaykit/medieval_hex/buildings/blue/building_home_A_blue.gltf",
+      "default": [
+        "/assets/models/kaykit/medieval_hex/buildings/blue/building_home_A_blue.gltf",
+        "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
+      ],
+      "object": [
+        "/assets/models/kaykit/medieval_hex/buildings/blue/building_home_A_blue.gltf",
+        "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
+      ],
       "house": [
         "/assets/models/kaykit/medieval_hex/buildings/blue/building_home_A_blue.gltf",
         "/assets/models/kaykit/medieval_hex/buildings/blue/building_home_B_blue.gltf",
         "/assets/models/kaykit/medieval_hex/buildings/blue/building_tavern_blue.gltf"
       ],
-      "tree": "/assets/models/kaykit/forest/Tree_1_A_Color1.gltf",
-      "rock": "/assets/models/kaykit/forest/Rock_1_A_Color1.gltf",
+      "tree": [
+        "/assets/models/kaykit/forest/Tree_1_A_Color1.gltf",
+        "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
+      ],
+      "rock": [
+        "/assets/models/kaykit/forest/Rock_1_A_Color1.gltf",
+        "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
+      ],
       "well": "/assets/models/kaykit/medieval_hex/buildings/blue/building_well_blue.gltf",
       "market": [
         "/assets/models/kaykit/medieval_hex/buildings/blue/building_market_blue.gltf",
@@ -150,7 +178,8 @@
       "camp": [
         "/assets/models/kaykit/medieval_hex/decoration/props/tent.gltf",
         "/assets/models/kaykit/dungeon/torch_lit.gltf",
-        "/assets/models/kaykit/dungeon/barrel_small.gltf"
+        "/assets/models/kaykit/dungeon/barrel_small.gltf",
+        "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
       ],
       "tower": [
         "/assets/models/kaykit/medieval_hex/buildings/blue/building_tower_A_blue.gltf",
@@ -162,7 +191,8 @@
         "/assets/models/kaykit/dungeon/pillar.gltf"
       ],
       "portal": "/assets/models/kaykit/medieval_hex/decoration/nature/cloud_big.gltf",
-      "shrine": "/assets/models/kaykit/dungeon/sword_shield_gold.gltf"
+      "shrine": "/assets/models/kaykit/dungeon/sword_shield_gold.gltf",
+      "coniferous_forest_assets_pack": "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
     }
   }
 }

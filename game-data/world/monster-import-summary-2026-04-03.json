@@ -15,5 +15,6 @@
   "monsterDefaults": [
     "/assets/models/monsters/big_Demon.gltf",
     "/assets/models/monsters/blob_GreenBlob.gltf"
-  ]
+  ],
+  "extraFiles": []
 }

@@ -36,3 +36,10 @@ Known note:
 - The `Flying` section in this Drive folder was incomplete for glTF in this run
   (one Google Drive file could not be fetched by gdown and no `glTF` subfolder was available in the downloaded subset).
   Big + Blob content is fully integrated and usable now.
+
+Note on later single-file follow-up:
+- The additional single-file link (`1yzI3afGRkOndqVm7YauI4drV_FS-L_9A`) was identified as a
+  **tree/nature pack** (`Coniferous Forest Assets Pack.glb`), not a monster pack.
+- It is therefore tracked separately in:
+  - `docs/TREE_IMPORT_LOG_2026-04-03.md`
+  - `game-data/world/tree-import-summary-2026-04-03.json`
