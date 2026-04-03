@@ -6,6 +6,35 @@ const DEFAULT_SPAWN_KEY = "sp_player_default";
 const GUEST_STORAGE_KEY = "areloria_guest_id";
 let authTokenProvider: (() => Promise<string | null>) | null = null;
 
+/** Last connectSocket target so we can reconnect after Google login refreshes the JWT. */
+let reconnectTarget: { core: MMORPGClientCore; options: ConnectionOptions } | null = null;
+
+type BoundWsHandlers = {
+  core: MMORPGClientCore;
+  onInput: (input: any) => void;
+  onAttack: () => void;
+  onInteract: () => void;
+};
+let boundWsHandlers: BoundWsHandlers | null = null;
+let wsConnectionGeneration = 0;
+
+function detachSocketInputHandlers(): void {
+  if (!boundWsHandlers) return;
+  const { core, onInput, onAttack, onInteract } = boundWsHandlers;
+  core.events.off("input", onInput);
+  core.events.off("attack", onAttack);
+  core.events.off("interact", onInteract);
+  boundWsHandlers = null;
+}
+
+function scheduleReconnectAfterAuth(): void {
+  if (!reconnectTarget) return;
+  const { core, options } = reconnectTarget;
+  window.setTimeout(() => {
+    connectSocket(core, { ...options, token: undefined });
+  }, 0);
+}
+
 export type ConnectionOptions = {
   token?: string;
   sceneId?: string;
@@ -176,7 +205,9 @@ async function resolveTokenForLogin(fallback?: string): Promise<string | undefin
   return undefined;
 }
 
-export function updateAuthToken(token: string | null) {
+export type UpdateAuthTokenOptions = { reconnect?: boolean };
+
+export function updateAuthToken(token: string | null, opts?: UpdateAuthTokenOptions) {
   try {
     if (token && token.trim().length > 0) {
       localStorage.setItem("token", token.trim());
@@ -186,12 +217,34 @@ export function updateAuthToken(token: string | null) {
   } catch {
     // ignore storage access issues
   }
-  if (globalWs?.readyState === WebSocket.OPEN) {
-    globalWs.close(4000, "auth refresh");
+  if (globalWs?.readyState === WebSocket.OPEN || globalWs?.readyState === WebSocket.CONNECTING) {
+    try {
+      globalWs.close(4000, "auth refresh");
+    } catch {
+      /* ignore */
+    }
+  }
+  if (opts?.reconnect) {
+    scheduleReconnectAfterAuth();
   }
 }
 
 export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions = {}) {
+  reconnectTarget = { core, options: { ...options } };
+
+  if (globalWs) {
+    try {
+      globalWs.close(4998, "reconnect");
+    } catch {
+      /* ignore */
+    }
+    globalWs = null;
+  }
+  detachSocketInputHandlers();
+
+  wsConnectionGeneration += 1;
+  const myGen = wsConnectionGeneration;
+
   if (options.arePolicyConfig && typeof core.setAREPolicyConfig === "function") {
     core.setAREPolicyConfig(options.arePolicyConfig);
   }
@@ -218,6 +271,7 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
   };
 
   ws.onopen = async () => {
+    if (myGen !== wsConnectionGeneration || ws !== globalWs) return;
     console.log("Connected to Arelorian Server");
     emitNetStatus("connected", "Connected. Waiting for world login...");
     const token = await resolveTokenForLogin(options.token);
@@ -248,26 +302,29 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
       }
     }, 6000);
 
-    core.events.on('input', (input: any) => {
+    const onInput = (input: any) => {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'input', input }));
+        ws.send(JSON.stringify({ type: "input", input }));
       }
-    });
-
-    core.events.on('attack', () => {
+    };
+    const onAttack = () => {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'attack' }));
+        ws.send(JSON.stringify({ type: "attack" }));
       }
-    });
-
-    core.events.on('interact', () => {
+    };
+    const onInteract = () => {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'interact' }));
+        ws.send(JSON.stringify({ type: "interact" }));
       }
-    });
+    };
+    boundWsHandlers = { core, onInput, onAttack, onInteract };
+    core.events.on("input", onInput);
+    core.events.on("attack", onAttack);
+    core.events.on("interact", onInteract);
   };
 
   ws.onmessage = (msg) => {
+    if (myGen !== wsConnectionGeneration || ws !== globalWs) return;
     try {
       const data = JSON.parse(msg.data);
       if (data.type === "error") {
@@ -392,10 +449,12 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
   };
 
   ws.onerror = () => {
+    if (myGen !== wsConnectionGeneration) return;
     emitNetStatus("error", "Network error while connecting to /ws.");
   };
 
   ws.onclose = () => {
+    if (myGen !== wsConnectionGeneration) return;
     emitNetStatus("closed", "Disconnected from game server.");
   };
 }

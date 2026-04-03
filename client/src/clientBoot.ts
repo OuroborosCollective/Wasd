@@ -82,7 +82,7 @@ export async function bootAreloriaClient(canvas: HTMLCanvasElement): Promise<voi
         const t = await user.getIdToken(true);
         if (t?.trim()) {
           const { updateAuthToken } = await import("./networking/websocketClient");
-          updateAuthToken(t);
+          updateAuthToken(t, { reconnect: true });
         }
       } catch {
         /* ignore */

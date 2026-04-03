@@ -289,7 +289,7 @@ export function renderHUD() {
       try {
         const result = await signInWithPopup(auth, provider);
         const token = await result.user.getIdToken(true);
-        updateAuthToken(token);
+        updateAuthToken(token, { reconnect: true });
         console.log("Logged in!");
       } catch (e) {
         console.error("Login failed", e);
@@ -300,7 +300,7 @@ export function renderHUD() {
       try {
         const cred = await signInWithEmailAndPassword(auth, emailIn.value.trim(), passIn.value);
         const token = await cred.user.getIdToken(true);
-        updateAuthToken(token);
+        updateAuthToken(token, { reconnect: true });
       } catch (e: unknown) {
         emailErr.textContent = e instanceof Error ? e.message : "Sign-in failed";
       }
@@ -310,7 +310,7 @@ export function renderHUD() {
       try {
         const cred = await createUserWithEmailAndPassword(auth, emailIn.value.trim(), passIn.value);
         const token = await cred.user.getIdToken(true);
-        updateAuthToken(token);
+        updateAuthToken(token, { reconnect: true });
       } catch (e: unknown) {
         emailErr.textContent = e instanceof Error ? e.message : "Sign-up failed";
       }
@@ -351,7 +351,7 @@ export function renderHUD() {
       try {
         const { signOut } = await import("firebase/auth");
         await signOut(auth);
-        updateAuthToken(null);
+        updateAuthToken(null, { reconnect: true });
         localStorage.removeItem(GUEST_STORAGE_KEY);
       } catch (e) {
         console.error("Sign out failed", e);
