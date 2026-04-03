@@ -1,4 +1,5 @@
 import { MMORPGClientCore } from "../core/MMORPGClientCore";
+import { wantsMobileNetworkHints } from "../ui/touchUi";
 
 let globalWs: WebSocket | null = null;
 const DEFAULT_SCENE_ID = "didis_hub";
@@ -263,6 +264,7 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
 
   const sendLogin = (token?: string, guestId?: string) => {
     if (ws.readyState !== WebSocket.OPEN) return;
+    const lowBandwidth = wantsMobileNetworkHints();
     ws.send(
       JSON.stringify({
         type: "login",
@@ -270,6 +272,7 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         ...(guestId ? { guestId } : {}),
         sceneId,
         spawnKey,
+        ...(lowBandwidth ? { clientHints: { lowBandwidth: true } } : {}),
       })
     );
     emitNetStatus("login_sent", token ? "Authenticating..." : "Joining world (guest fallback)...");

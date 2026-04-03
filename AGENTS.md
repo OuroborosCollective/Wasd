@@ -16,6 +16,7 @@ Arelorian/Ouroboros is a browser-based MMORPG: `server/` (Express + WebSocket ga
 - Firebase/Firestore is optional for local dev. Without `FIREBASE_SERVICE_ACCOUNT_KEY`, the server logs warnings but continues with in-memory state. **Game WebSocket login:** by default Firebase JWT is **not** verified (`USE_FIREBASE_WS_LOGIN` unset/0) — use dev/guest login while building gameplay; set `USE_FIREBASE_WS_LOGIN=1` to verify tokens again. **Client HUD:** Firebase buttons hidden by default (`VITE_DISABLE_FIREBASE_AUTH` unset = off); set `VITE_DISABLE_FIREBASE_AUTH=0` to show Google/email login again.
 - Redis and PostgreSQL are optional; the server falls back gracefully without them.
 - **Static assets:** The game serves the Vite build from `client/dist` and also mounts repo-root **`world-assets/`** at **`/world-assets/*`** (large GLB tree). If the server `cwd` is not the monorepo root, set **`WORLD_ASSETS_DIR`** (absolute path to `world-assets`). Same idea as **`CLIENT_ROOT_DIR`** for the client package.
+- **Android / touch performance:** Client sends **`login.clientHints.lowBandwidth`** on Android and coarse-pointer / narrow viewports so the server uses **`STATE_BROADCAST_INTERVAL_MOBILE_MS`**. Babylon: lower `maxFPS`, higher `hardwareScalingLevel`, serialized GLB loads, coarser nav torus, batched name labels. Vite splits **`babylon-core`** / **`babylon-loaders`** chunks for parse caching.
 
 ### Lint, test, build
 - **Lint:** `pnpm run lint` (ESLint from root; ignore the `.eslintignore` deprecation warning).

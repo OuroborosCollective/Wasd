@@ -24,5 +24,13 @@ export default defineConfig({
     // Keep them opt-in for production server builds.
     sourcemap: process.env.VITE_BUILD_SOURCEMAP === "1",
     reportCompressedSize: false,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/@babylonjs/loaders')) return 'babylon-loaders';
+          if (id.includes('node_modules/@babylonjs/core')) return 'babylon-core';
+        },
+      },
+    },
   }
 });

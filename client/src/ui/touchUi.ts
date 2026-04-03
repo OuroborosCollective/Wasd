@@ -12,3 +12,8 @@ export function isAndroid(): boolean {
   if (typeof navigator === "undefined") return false;
   return /Android/i.test(navigator.userAgent || "");
 }
+
+/** Prefer lower server sync rate + client perf heuristics (Android or coarse pointer / narrow viewport). */
+export function wantsMobileNetworkHints(): boolean {
+  return isAndroid() || prefersCompactTouchUi();
+}

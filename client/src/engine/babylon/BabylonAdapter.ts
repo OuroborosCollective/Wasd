@@ -19,7 +19,7 @@ import {
 import "@babylonjs/loaders/glTF";
 import { IEngineBridge } from "../bridge/IEngineBridge";
 import { EntityViewModel } from "../bridge/EntityViewModel";
-import { AssetRegistry } from "../assets/AssetRegistry";
+import { isAndroid } from "../../ui/touchUi";
 import {
   defaultAutoPolicyState,
   evaluateAREAutoModePolicy,
@@ -91,6 +91,11 @@ export class BabylonAdapter implements IEngineBridge {
   private navigationMarker: Mesh | null = null;
   private localPlayerId: string | null = null;
   private labelMaterialCounter = 0;
+  private readonly androidMobile = isAndroid();
+  /** Serialize GLB decode on Android — parallel loads often OOM the GPU process. */
+  private glbLoadChain: Promise<void> = Promise.resolve();
+  private readonly pendingLabelText = new Map<string, string>();
+  private labelFlushAccum = 0;
 
   constructor(
     private readonly scene: Scene,
@@ -130,6 +135,23 @@ export class BabylonAdapter implements IEngineBridge {
     this.bindKeyboard();
   }
 
+  private enqueueGlbLoad(task: () => Promise<void>): void {
+    this.glbLoadChain = this.glbLoadChain.then(task).catch(() => undefined);
+  }
+
+  private flushPendingLabels(): void {
+    if (this.pendingLabelText.size === 0) return;
+    for (const [id, text] of this.pendingLabelText) {
+      const node = this.entities.get(id);
+      if (!node) continue;
+      if (node.label) {
+        node.label.dispose();
+      }
+      node.label = this.createBillboardLabel(text, this.colorForType(this.inferTypeFromEntityId(id)), node.root);
+    }
+    this.pendingLabelText.clear();
+  }
+
   createEntity(model: EntityViewModel): void {
     const root = new TransformNode(model.id, this.scene);
     root.position = new Vector3(model.position.x, model.position.y, model.position.z);
@@ -164,13 +186,22 @@ export class BabylonAdapter implements IEngineBridge {
       isStaticFrozen: false,
     };
     if (model.name) {
-      node.label = this.createBillboardLabel(model.name, this.colorForType(model.type), root);
+      if (this.androidMobile) {
+        this.pendingLabelText.set(model.id, model.name);
+      } else {
+        node.label = this.createBillboardLabel(model.name, this.colorForType(model.type), root);
+      }
     }
 
     this.applyAREState(node, model);
     this.applyAREMaterialMode(node);
     this.entities.set(model.id, node);
-    this.tryAttachModel(model.id, model.modelUrl ?? DEFAULT_MODEL_BY_TYPE[model.type]);
+    const url = model.modelUrl ?? DEFAULT_MODEL_BY_TYPE[model.type];
+    if (this.androidMobile) {
+      this.enqueueGlbLoad(() => this.tryAttachModel(model.id, url));
+    } else {
+      void this.tryAttachModel(model.id, url);
+    }
   }
 
   updateEntity(id: string, updates: Partial<EntityViewModel>, dt: number = 0.016): void {
@@ -201,17 +232,26 @@ export class BabylonAdapter implements IEngineBridge {
       this.applyEntityVisibility(node);
     }
     if (updates.name) {
-      if (node.label) {
-        node.label.dispose();
+      const nm = updates.name;
+      if (this.androidMobile) {
+        this.pendingLabelText.set(id, nm);
+      } else {
+        if (node.label) {
+          node.label.dispose();
+        }
+        node.label = this.createBillboardLabel(
+          nm,
+          this.colorForType(updates.type ?? this.inferTypeFromEntityId(id)),
+          node.root
+        );
       }
-      node.label = this.createBillboardLabel(
-        updates.name,
-        this.colorForType(updates.type ?? this.inferTypeFromEntityId(id)),
-        node.root
-      );
     }
     if (updates.modelUrl) {
-      this.tryAttachModel(id, updates.modelUrl);
+      if (this.androidMobile) {
+        this.enqueueGlbLoad(() => this.tryAttachModel(id, updates.modelUrl));
+      } else {
+        void this.tryAttachModel(id, updates.modelUrl);
+      }
     }
     if (updates.type) {
       node.areColor = this.colorForType(updates.type);
@@ -223,6 +263,7 @@ export class BabylonAdapter implements IEngineBridge {
   destroyEntity(id: string): void {
     const node = this.entities.get(id);
     if (!node) return;
+    this.pendingLabelText.delete(id);
     node.root.dispose(false, true);
     this.entities.delete(id);
     if (this.cameraTargetId === id) {
@@ -273,9 +314,10 @@ export class BabylonAdapter implements IEngineBridge {
       return;
     }
     if (!this.navigationMarker) {
+      const navTess = this.androidMobile ? 16 : 32;
       this.navigationMarker = MeshBuilder.CreateTorus(
         "navigation-marker",
-        { diameter: 1.5, thickness: 0.08, tessellation: 32 },
+        { diameter: 1.5, thickness: 0.08, tessellation: navTess },
         this.scene
       );
       const mat = new StandardMaterial("navigation-marker-mat", this.scene);
@@ -335,6 +377,13 @@ export class BabylonAdapter implements IEngineBridge {
 
   update(dt: number): void {
     this.updateAREPerfCounters(dt);
+    if (this.androidMobile && this.pendingLabelText.size > 0) {
+      this.labelFlushAccum += dt;
+      if (this.labelFlushAccum >= 0.45) {
+        this.labelFlushAccum = 0;
+        this.flushPendingLabels();
+      }
+    }
     this.areWaveClock.t += dt;
     this.updateAREVisuals();
     this.updateAREDebugOverlay();

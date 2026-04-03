@@ -43,9 +43,10 @@ export function createBabylonApp(canvas: HTMLCanvasElement): BabylonApp {
     const dpr = typeof window !== "undefined" ? Math.min(2, window.devicePixelRatio || 1) : 1;
     /** Android: extra internal resolution drop — fewer fragment shader invocations. */
     let level = Math.max(1.25, dpr);
-    if (android) level = Math.max(2.25, level);
+    if (android) level = Math.max(2.75, level);
     engine.setHardwareScalingLevel(level);
-    engine.maxFPS = android ? 24 : 30;
+    /** Cap frame rate harder on Android to reduce thermal throttling and WebGL instability. */
+    engine.maxFPS = android ? 18 : 30;
   }
 
   const scene = new Scene(engine);
