@@ -33,5 +33,9 @@ jobs:
       - name: Build
         run: pnpm run build
 
+      - name: Model path audit (informational)
+        continue-on-error: true
+        run: pnpm run audit:model-paths
+
       - name: E2E (Playwright)
         run: pnpm run test:e2e:ci
