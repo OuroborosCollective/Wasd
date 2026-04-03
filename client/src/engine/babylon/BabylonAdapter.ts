@@ -19,7 +19,7 @@ import {
 import "@babylonjs/loaders/glTF";
 import { IEngineBridge } from "../bridge/IEngineBridge";
 import { EntityViewModel } from "../bridge/EntityViewModel";
-import { AssetRegistry } from "../playcanvas/AssetRegistry";
+import { AssetRegistry } from "../assets/AssetRegistry";
 import {
   defaultAutoPolicyState,
   evaluateAREAutoModePolicy,

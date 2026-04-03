@@ -12,7 +12,6 @@
     "@babylonjs/core": "^9.0.0",
     "@babylonjs/loaders": "^9.0.0",
     "firebase": "^11.0.0",
-    "playcanvas": "^2.17.2",
     "three": "^0.169.0"
   },
   "devDependencies": {
