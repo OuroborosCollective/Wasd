@@ -18,6 +18,7 @@ Browser-based MMORPG: **authoritative Node server** + **Babylon.js client** (Vit
 - **`docs/MASTER_DESIGN_BIBLE.md`** — creative / systems vision  
 - **`AGENTS.md`** — dev commands for Cursor agents  
 - **`DEPLOYMENT.md`** — VPS, PM2, GitHub Actions (Secrets inkl. optional **`DEPLOY_VERIFY_BASE_URL`**)  
+- **`deploy/ENV_SETUP.md`** — `.env` auf dem VPS per Datei/SCP (ohne viele SSH-Befehle); Vorlage **`deploy/.env.production.template`**  
 
 ## Prerequisites
 

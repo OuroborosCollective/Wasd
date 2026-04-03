@@ -16,6 +16,8 @@ Use this map to avoid reading **obsolete** files as if they were current spec.
 | **`docs/SPACETIME_PERSISTENCE_NEXT.md`** | SpacetimeDB-Persistenz — nächste Implementierungsschritte |
 | **`docs/CONTENT_DRAFT_VS_LIVE.md`** | Entwurf vs. Live: game-data, published pack, GLB-Links |
 | **`docs/FIREBASE_VPS_CHECKLIST.md`** | Firebase Admin + WS-Login + Client — VPS-Schritte und `/health` |
+| **`deploy/ENV_SETUP.md`** | .env ohne SSH-Stress: SCP/SFTP, Vorlage, PM2 |
+| **`deploy/.env.production.template`** | VPS `.env` Vorlage (nicht mit Secrets füllen ins Git) |
 | **`docs/VITE_MCP_AND_VPS_SETUP.md`** | MCP + WebSocket + Nginx (Vite / Babylon client) |
 
 ## Architecture and systems

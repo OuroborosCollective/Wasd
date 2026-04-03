@@ -44,9 +44,12 @@ chmod +x deploy/deploy.sh
 ```
 
 ### 3. .env konfigurieren
+
+**Ohne viele SSH-Befehle:** siehe **`deploy/ENV_SETUP.md`** — Vorlage **`deploy/.env.production.template`** per SCP/SFTP nach `/opt/areloria/.env` kopieren und im Editor ausfüllen.
+
 ```bash
 nano /opt/areloria/.env
-# Fülle PGPASSWORD und JWT_SECRET aus
+# Mindestens: JWT_SECRET, FIREBASE_*, ADMIN_PANEL_TOKEN, PUBLIC_WEBSOCKET_URL — siehe Vorlage
 ```
 
 ### Firebase Admin auf dem VPS (Node — Token-Verifikation / Firestore)

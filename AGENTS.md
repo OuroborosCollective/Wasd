@@ -9,6 +9,9 @@ Arelorian/Ouroboros is a browser-based MMORPG: `server/` (Express + WebSocket ga
 
 **Optional AI watchdog (client):** `VITE_FIREBASE_AI_WATCHDOG=1` enables `client/src/ai/firebaseAiWatchdog.ts`. It classifies recent errors into a **functional domain** (`network` | `firebase_auth` | `renderer` | `storage` | `unknown`), then asks Gemini for **one action** from a **domain-specific allow list** only (e.g. network: `clear_stale_ws_token`, `reconnect_websocket`; renderer: `babylon_soft_recover`, `babylon_reduce_render_load`). The model must echo the same `module` string; mismatches are rejected. No generated code, no cross-module file edits. Telemetry: `areloria:watchdog-log`, `watchdogTelemetry.ts`, handlers in `watchdogRecovery.ts`.
 
+### Production .env (VPS)
+- Step-by-step without relying on many shell one-liners: **`deploy/ENV_SETUP.md`**. Copy **`deploy/.env.production.template`** to `/opt/areloria/.env` via SCP/SFTP, fill secrets in an editor, restart PM2.
+
 ### VPS deploy + Firebase Admin (production)
 - Deploy script: `deploy/deploy.sh` (GitHub Action runs it on push to `main`). PM2 loads `/opt/areloria/.env` via `ecosystem.config.cjs` (`deploy/write_pm2_ecosystem.sh`).
 - **Do not commit** the Service Account JSON. On the VPS: place the key at `/opt/areloria/secrets/firebase-adminsdk.json` or run `deploy/setup-firebase-service-account.sh /path/to/key.json`. Deploy appends **`FIREBASE_SERVICE_ACCOUNT_KEY`** and **`GOOGLE_APPLICATION_CREDENTIALS`** when that file exists. Alternatively leave `FIREBASE_SERVICE_ACCOUNT_KEY` empty and use only **`GOOGLE_APPLICATION_CREDENTIALS`** + **`FIREBASE_PROJECT_ID`** — the server then uses **`applicationDefault()`** (same idea as `admin.credential.applicationDefault()`). On GCP VMs: **`FIREBASE_ADMIN_USE_APPLICATION_DEFAULT=1`**. See `DEPLOYMENT.md`.
