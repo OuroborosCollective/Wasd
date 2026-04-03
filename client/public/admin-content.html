@@ -51,6 +51,37 @@
       to { stroke-dashoffset: 0; }
     }
 
+    /* Konfetti (aus bei prefers-reduced-motion) */
+    .confetti-layer {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9998;
+      overflow: hidden;
+    }
+    .confetti-piece {
+      position: absolute;
+      width: 7px;
+      height: 10px;
+      top: -12px;
+      left: var(--cx);
+      margin-left: -4px;
+      background: hsl(var(--h), 72%, 62%);
+      border-radius: 2px;
+      opacity: 0.95;
+      animation: confettiFall var(--dur) cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+      animation-delay: var(--d);
+    }
+    @keyframes confettiFall {
+      to {
+        transform: translate(var(--tx), calc(100vh + 20px)) rotate(var(--rot));
+        opacity: 0.35;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .confetti-layer { display: none !important; }
+    }
+
     .page-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; animation: fadeSlide 0.45s ease-out; }
     .page-head .logo {
       width: 48px; height: 48px; border-radius: 14px;
@@ -175,6 +206,8 @@
   </style>
 </head>
 <body>
+  <div id="confettiLayer" class="confetti-layer" aria-hidden="true"></div>
+
   <header class="page-head">
     <div class="logo" aria-hidden="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="#8ab4ff" stroke-width="1.6" stroke-linecap="round">
@@ -306,6 +339,81 @@
       loot: "Beute",
       world_objects: "Welt-Objekte",
     };
+
+    function prefersReducedMotion() {
+      return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    }
+
+    document.body.addEventListener(
+      "click",
+      function unlockAudioOnce() {
+        try {
+          const Ctx = window.AudioContext || window.webkitAudioContext;
+          if (Ctx) {
+            const c = new Ctx();
+            if (c.state === "suspended") c.resume();
+            c.close();
+          }
+        } catch { /* */ }
+      },
+      { once: true }
+    );
+
+    function playSuccessChime() {
+      if (prefersReducedMotion()) return;
+      try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        const ctx = new Ctx();
+        const now = ctx.currentTime;
+        const freqs = [523.25, 659.25];
+        freqs.forEach(function (freq, i) {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.connect(g);
+          g.connect(ctx.destination);
+          o.type = "sine";
+          o.frequency.value = freq;
+          const t0 = now + i * 0.08;
+          g.gain.setValueAtTime(0, t0);
+          g.gain.linearRampToValueAtTime(0.055, t0 + 0.025);
+          g.gain.exponentialRampToValueAtTime(0.0008, t0 + 0.2);
+          o.start(t0);
+          o.stop(t0 + 0.22);
+        });
+        setTimeout(function () {
+          try {
+            ctx.close();
+          } catch { /* */ }
+        }, 500);
+      } catch { /* */ }
+    }
+
+    function burstConfetti() {
+      if (prefersReducedMotion()) return;
+      const layer = document.getElementById("confettiLayer");
+      if (!layer) return;
+      layer.innerHTML = "";
+      for (let i = 0; i < 26; i++) {
+        const p = document.createElement("div");
+        p.className = "confetti-piece";
+        p.style.setProperty("--cx", Math.random() * 100 + "%");
+        p.style.setProperty("--h", String(Math.floor(Math.random() * 300)));
+        p.style.setProperty("--dur", (1.35 + Math.random() * 0.75).toFixed(2) + "s");
+        p.style.setProperty("--d", (Math.random() * 0.12).toFixed(2) + "s");
+        p.style.setProperty("--tx", (Math.random() * 100 - 50) + "px");
+        p.style.setProperty("--rot", (Math.random() * 540 - 270) + "deg");
+        layer.appendChild(p);
+      }
+      setTimeout(function () {
+        layer.innerHTML = "";
+      }, 2600);
+    }
+
+    function celebrateSuccess(withConfetti) {
+      playSuccessChime();
+      if (withConfetti !== false) burstConfetti();
+    }
 
     const HINTS = {
       npc_single: "NPC-ID, z. B. npc_guide",
@@ -467,6 +575,7 @@
               pushHistory(true, "Gelöscht: " + label);
               setFlow(4);
               show("saveMsg", "Erledigt — siehe Ergebnis-Karte.", "ok");
+              celebrateSuccess();
             } catch (e) {
               pushHistory(false, "Löschen: " + (e.message || e));
               show("saveMsg", String(e.message || e), "err");
@@ -531,6 +640,7 @@
           l3: "Modus", v3: m.readOnly ? "Lesen" : "Ändern",
         });
         pushHistory(true, "Login OK");
+        celebrateSuccess();
         await afterLoginRefresh();
         setFlow(2);
       } catch (e) {
@@ -564,6 +674,7 @@
         show("saveMsg", "Fertig — Ergebnis oben.", "ok");
         document.getElementById("inTargetId").value = "";
         await refreshLists();
+        celebrateSuccess();
       } catch (e) {
         pushHistory(false, "Speichern: " + (e.message || e));
         show("saveMsg", String(e.message || e), "err");
@@ -592,6 +703,7 @@
         show("defMsg", "Gespeichert.", "ok");
         const pools = await req("GET", "/asset-pools");
         document.getElementById("techPools").value = JSON.stringify(pools, null, 2);
+        celebrateSuccess();
       } catch (e) {
         pushHistory(false, "Standard: " + (e.message || e));
         show("defMsg", String(e.message || e), "err");
@@ -611,6 +723,7 @@
         pushHistory(true, "Liste neu");
         setFlow(4);
         show("saveMsg", "Liste neu.", "ok");
+        celebrateSuccess(false);
       } catch (e) {
         show("saveMsg", String(e.message || e), "err");
       }
