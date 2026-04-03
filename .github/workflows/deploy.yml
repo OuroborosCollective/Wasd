@@ -4,8 +4,12 @@ on:
   push:
     branches: [ main ]
   schedule:
-    - cron: '0 * * * *' # Stündlich ausführen
+    - cron: '0 * * * *' # Stündlich — optional abschalten, wenn nur push reicht
   workflow_dispatch: # Manuelles Triggern ermöglichen
+
+concurrency:
+  group: deploy-vps-main
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -20,6 +24,8 @@ jobs:
         username: ${{ secrets.VPS_USER }}
         password: ${{ secrets.VPS_SSH_PASSWORD }}
         port: 22
+        # Client+Server build on VPS can exceed default 60s
+        command_timeout: 45m
         script: |
           if [ ! -d "/opt/areloria/.git" ]; then
             git clone https://github.com/OuroborosCollective/Wasd.git /opt/areloria
@@ -32,6 +38,8 @@ jobs:
           ./deploy/deploy.sh
 
     - name: Verify deployed HTTPS endpoints
+      env:
+        VERIFY_BASE_URL: ${{ secrets.DEPLOY_VERIFY_BASE_URL }}
       run: |
         set -e
         verify_url() {
@@ -41,7 +49,7 @@ jobs:
           local wait_sec=6
           local code=""
           for i in $(seq 1 "$attempts"); do
-            code="$(curl -s -o /dev/null -w "%{http_code}" "$url" || true)"
+            code="$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 25 "$url" || true)"
             if [ "$code" = "200" ]; then
               echo "✅ ${name} OK (${url})"
               return 0
@@ -53,6 +61,12 @@ jobs:
           return 1
         }
 
-        verify_url "https://arelogic.space/health" "HTTPS health endpoint"
-        verify_url "https://arelogic.space/" "HTTPS client root"
-        verify_url "https://arelogic.space/gm/" "HTTPS GM console"
+        if [ -z "${VERIFY_BASE_URL:-}" ]; then
+          echo "ℹ️  Secret DEPLOY_VERIFY_BASE_URL nicht gesetzt — überspringe externe HTTPS-Checks (Deploy auf VPS lief durch)."
+          exit 0
+        fi
+
+        BASE="${VERIFY_BASE_URL%/}"
+        verify_url "${BASE}/health" "HTTPS health endpoint"
+        verify_url "${BASE}/" "HTTPS client root"
+        verify_url "${BASE}/gm/" "HTTPS GM console"

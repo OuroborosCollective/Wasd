@@ -2,6 +2,21 @@
 
 **Client:** Babylon.js (Vite build). **Server:** Node + WebSocket. Status: `docs/PROJECT_STATUS_2026.md`.
 
+## GitHub Actions → VPS (Continuous Deployment)
+
+Workflow: **`.github/workflows/deploy.yml`** (Push auf `main`, optional stündlich, `workflow_dispatch`).
+
+**Repository-Secrets (Settings → Secrets and variables → Actions):**
+
+| Secret | Bedeutung |
+|--------|-----------|
+| `VPS_IP` | Hostname oder IP des Servers |
+| `VPS_USER` | SSH-Benutzer (z. B. `root`) |
+| `VPS_SSH_PASSWORD` | Passwort für SSH (oder Key-basiertes Setup später) |
+| `DEPLOY_VERIFY_BASE_URL` | **Optional:** öffentliche Basis-URL **ohne** trailing slash, z. B. `https://deine-domain.tld`. Wenn **leer / nicht gesetzt**, schlägt der Workflow **nicht** fehl, nur die externen HTTPS-Checks werden übersprungen (sinnvoll wenn DNS/SSL noch nicht zur VPS-IP passt). |
+
+Auf dem Server führt der Job **`deploy/deploy.sh`** aus: **pnpm** + **`pnpm install --frozen-lockfile`** am Repo-Root (wie CI), dann **`pnpm run build`**. SSH-Schritt hat **45 Minuten** Timeout für große Client-Builds.
+
 ## Schnellstart (VPS Hostinger)
 
 ### 1. SSH in deinen VPS einloggen
