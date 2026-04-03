@@ -270,8 +270,11 @@
       <option value="object_group">Alle Objekte eines Typs</option>
       <option value="monster_group">Monster-Typ / Gruppe</option>
     </select>
-    <label for="inTargetId">Name oder ID</label>
-    <input id="inTargetId" placeholder="z. B. merchant" />
+    <label for="selTargetPick">Aus Spielinhalt wählen (optional)</label>
+    <select id="selTargetPick"><option value="">— Typ oben wählen, dann hier —</option></select>
+    <p class="hint" id="pickHint">Oder unten selbst eintippen — muss exakt zur ID im Spiel passen.</p>
+    <label for="inTargetId">Name oder ID (manuell)</label>
+    <input id="inTargetId" placeholder="z. B. npc_guide" />
     <p class="hint" id="targetHint"></p>
     <button type="button" id="btnSaveLink">Speichern</button>
     <div id="saveMsg" class="msg hidden"></div>
@@ -292,6 +295,15 @@
     <select id="selDefModel"><option value="">— wählen —</option></select>
     <button type="button" id="btnSaveDefault">Standard speichern</button>
     <div id="defMsg" class="msg hidden"></div>
+  </div>
+
+  <div class="card hidden" id="stepPublish">
+    <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg></span> Prüfen &amp; veröffentlichen</div>
+    <p class="hint" style="margin-top:0"><strong>1)</strong> Prüfen = ob der aktive Inhalt auf dem Server konsistent ist (Quests, NPCs, Dialoge). <strong>2)</strong> Veröffentlichen = Kopie nach <code>published-content/current</code> — der Live-Server braucht <code>USE_PUBLISHED_CONTENT=1</code> oder <code>CONTENT_PACK_DIR</code> und Neustart.</p>
+    <button type="button" class="ghost" id="btnValidate">Inhalt prüfen</button>
+    <button type="button" id="btnPublish">Inhalt veröffentlichen (Pack bauen)</button>
+    <div id="publishMsg" class="msg hidden"></div>
+    <ul class="hint" id="validateErrors" style="margin-top:8px;padding-left:18px;display:none"></ul>
   </div>
 
   <div class="card hidden" id="stepList">
@@ -416,12 +428,55 @@
     }
 
     const HINTS = {
-      npc_single: "NPC-ID, z. B. npc_guide",
-      npc_group: "Rolle klein: merchant, guard …",
-      object_single: "Objekt-ID aus den Daten",
-      object_group: "Typ: tree, house …",
-      monster_group: "z. B. goblin",
+      npc_single: "NPC aus der Liste wählen oder ID exakt eintragen.",
+      npc_group: "Rolle aus der Liste — entspricht dem Spielinhalt (normalisiert).",
+      object_single: "Objekt aus der Liste oder ID eintragen.",
+      object_group: "Objekt-Typ aus der Liste.",
+      monster_group: "Monster-Gruppe aus den Standard-Pools (asset-pools).",
     };
+
+    let choicesCache = null;
+
+    function errDeFromJson(j, fallback) {
+      if (j && typeof j.errorDe === "string" && j.errorDe.trim()) return j.errorDe.trim();
+      if (j && typeof j.error === "string") return j.error;
+      return fallback || "Unbekannter Fehler";
+    }
+
+    function fillTargetPick() {
+      const sel = document.getElementById("selTargetPick");
+      const use = document.getElementById("selUse").value;
+      const c = choicesCache;
+      let opts = '<option value="">— Wählen —</option>';
+      if (!c) {
+        sel.innerHTML = opts;
+        return;
+      }
+      if (use === "npc_single" && Array.isArray(c.npcs)) {
+        c.npcs.forEach(function (n) {
+          const lab = n.id + " — " + (n.name || "") + (n.role ? " (" + n.role + ")" : "");
+          opts += '<option value="' + escapeAttr(n.id) + '">' + escapeHtml(lab) + "</option>";
+        });
+      } else if (use === "npc_group" && Array.isArray(c.npcRoles)) {
+        c.npcRoles.forEach(function (r) {
+          opts += '<option value="' + escapeAttr(r) + '">' + escapeHtml(r) + "</option>";
+        });
+      } else if (use === "object_single" && Array.isArray(c.worldObjects)) {
+        c.worldObjects.forEach(function (o) {
+          const lab = o.id + (o.name ? " — " + o.name : "") + (o.type ? " [" + o.type + "]" : "");
+          opts += '<option value="' + escapeAttr(o.id) + '">' + escapeHtml(lab) + "</option>";
+        });
+      } else if (use === "object_group" && Array.isArray(c.objectTypes)) {
+        c.objectTypes.forEach(function (t) {
+          opts += '<option value="' + escapeAttr(t) + '">' + escapeHtml(t) + "</option>";
+        });
+      } else if (use === "monster_group" && Array.isArray(c.monsterGroups)) {
+        c.monsterGroups.forEach(function (m) {
+          opts += '<option value="' + escapeAttr(m) + '">' + escapeHtml(m) + "</option>";
+        });
+      }
+      sel.innerHTML = opts;
+    }
 
     function nowTime() {
       return new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -512,7 +567,7 @@
       const text = await r.text();
       let j = null;
       try { j = JSON.parse(text); } catch { /* */ }
-      if (!r.ok) throw new Error((j && j.error) || text || "Fehler " + r.status);
+      if (!r.ok) throw new Error(errDeFromJson(j, text || "Fehler " + r.status));
       return j !== null ? j : text;
     }
 
@@ -587,6 +642,12 @@
     }
 
     async function afterLoginRefresh() {
+      try {
+        choicesCache = await req("GET", "/choices");
+      } catch {
+        choicesCache = null;
+      }
+      fillTargetPick();
       const models = (await req("GET", "/glb-scan")).models || [];
       fillModelSelects(models);
       await refreshLists();
@@ -600,8 +661,14 @@
 
     document.getElementById("selUse").onchange = function () {
       document.getElementById("targetHint").textContent = HINTS[this.value] || "";
+      document.getElementById("selTargetPick").value = "";
+      fillTargetPick();
     };
     document.getElementById("selUse").dispatchEvent(new Event("change"));
+
+    document.getElementById("selTargetPick").onchange = function () {
+      if (this.value) document.getElementById("inTargetId").value = this.value;
+    };
 
     document.getElementById("btnClearHistory").onclick = function () {
       sessionStorage.removeItem(HKEY);
@@ -626,7 +693,7 @@
         const m = await req("GET", "/meta");
         show("loginMsg", "Verbunden — du kannst zuordnen.", "ok");
         document.getElementById("techMeta").value = JSON.stringify(m, null, 2);
-        ["cardFlow", "cardHistory", "stepWork", "stepDefaults", "stepList", "stepExpert"].forEach(function (id) {
+        ["cardFlow", "cardHistory", "stepWork", "stepDefaults", "stepPublish", "stepList", "stepExpert"].forEach(function (id) {
           document.getElementById(id).classList.remove("hidden");
         });
         setFlow(2);
@@ -649,13 +716,74 @@
       }
     };
 
+    document.getElementById("btnValidate").onclick = async function () {
+      const ul = document.getElementById("validateErrors");
+      ul.style.display = "none";
+      ul.innerHTML = "";
+      try {
+        const glbPath = document.getElementById("selModel").value.trim();
+        const prev = await req("POST", "/validate-preview", glbPath ? { glbPath } : {});
+        if (prev.contentOk && prev.glbPathOk !== false) {
+          show("publishMsg", "Prüfung: Inhalt in Ordnung." + (glbPath && prev.glbPathOk ? " Modell-Datei auf dem Server gefunden." : ""), "ok");
+          celebrateSuccess(false);
+        } else {
+          const parts = [];
+          if (!prev.contentOk && Array.isArray(prev.contentErrorsDe)) {
+            parts.push("Inhalt: " + prev.contentErrorsDe.length + " Problem(e).");
+            ul.style.display = "block";
+            prev.contentErrorsDe.slice(0, 20).forEach(function (line) {
+              ul.innerHTML += "<li>" + escapeHtml(line) + "</li>";
+            });
+          }
+          if (prev.glbPathOk === false && prev.glbPathMessageDe) {
+            parts.push(prev.glbPathMessageDe);
+          }
+          show("publishMsg", parts.join(" ") || "Prüfung: siehe Liste.", "err");
+        }
+      } catch (e) {
+        show("publishMsg", String(e.message || e), "err");
+      }
+    };
+
+    document.getElementById("btnPublish").onclick = async function () {
+      const ul = document.getElementById("validateErrors");
+      ul.style.display = "none";
+      ul.innerHTML = "";
+      try {
+        const r = await fetch(BASE + "/publish-pack", { method: "POST", headers: headers() });
+        const text = await r.text();
+        let j = null;
+        try {
+          j = JSON.parse(text);
+        } catch { /* */ }
+        if (!r.ok) {
+          show("publishMsg", errDeFromJson(j, text), "err");
+          const list = j && Array.isArray(j.errorsDe) ? j.errorsDe : [];
+          if (list.length) {
+            ul.style.display = "block";
+            list.slice(0, 25).forEach(function (line) {
+              ul.innerHTML += "<li>" + escapeHtml(String(line)) + "</li>";
+            });
+          }
+          return;
+        }
+        show("publishMsg", "Pack erstellt: " + (j && j.dest ? j.dest : "") + ". Server neu starten mit USE_PUBLISHED_CONTENT=1 oder CONTENT_PACK_DIR.", "ok");
+        pushHistory(true, "Pack veröffentlicht");
+        celebrateSuccess();
+      } catch (e) {
+        show("publishMsg", String(e.message || e), "err");
+      }
+    };
+
     document.getElementById("btnSaveLink").onclick = async function () {
       hide("saveMsg");
       const glbPath = document.getElementById("selModel").value.trim();
       const targetType = document.getElementById("selUse").value;
-      const targetId = document.getElementById("inTargetId").value.trim();
+      const pick = document.getElementById("selTargetPick").value.trim();
+      const manual = document.getElementById("inTargetId").value.trim();
+      const targetId = pick || manual;
       if (!glbPath) { show("saveMsg", "Bitte ein Modell wählen.", "err"); return; }
-      if (!targetId) { show("saveMsg", "Bitte Name oder ID eintragen.", "err"); return; }
+      if (!targetId) { show("saveMsg", "Bitte in der Liste wählen oder ID eintragen.", "err"); return; }
       try {
         const res = await req("POST", "/glb-links", { glbPath, targetType, targetId });
         const n = Array.isArray(res.links) ? res.links.length : "?";
