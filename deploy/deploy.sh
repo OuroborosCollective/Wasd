@@ -61,6 +61,8 @@ npm install
 # ── 6. Build client ───────────────────────────────────────
 echo "[6/10] Building client (Vite)..."
 cd "$APP_DIR/client"
+echo "[6a/10] Sync world-assets → client/public (and assets/models mirror)..."
+node "$APP_DIR/scripts/sync-world-assets.mjs" || true
 # Avoid OOM on VPS during large Vite bundle render.
 BUILD_NODE_OPTIONS="${BUILD_NODE_OPTIONS:---max-old-space-size=8192}"
 echo "Using client build NODE_OPTIONS=${BUILD_NODE_OPTIONS}"

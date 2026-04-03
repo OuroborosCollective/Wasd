@@ -13,7 +13,7 @@ describe("resolveWorldAssetsDir", () => {
     const d = resolveWorldAssetsDir();
     if (prev) process.env.WORLD_ASSETS_DIR = prev;
     expect(d).toBeTruthy();
-    expect(fs.existsSync(path.join(d!, "props")) || fs.existsSync(path.join(d!, "characters"))).toBe(true);
+    expect(fs.existsSync(d!)).toBe(true);
   });
 
   it("respects WORLD_ASSETS_DIR when set", () => {

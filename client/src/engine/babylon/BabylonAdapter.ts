@@ -55,7 +55,7 @@ type EntityNode = {
 
 type AREModeSource = "manual" | "auto";
 
-/** Prefer `/assets/models/*` (always in client dist); `/world-assets/*` needs server static mount. */
+/** Prefer `/assets/models/*` (in client dist); large trees use `/assets/models/world-assets/*` after sync-world-assets. */
 const DEFAULT_MODEL_BY_TYPE: Record<string, string> = {
   player: "/assets/models/characters/uschi.glb",
   npc: "/assets/models/characters/uschi.glb",

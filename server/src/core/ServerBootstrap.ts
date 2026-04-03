@@ -10,6 +10,7 @@ import migrationRoute from "../api/migrationRoute.js";
 import { adminContentRouter } from "../api/adminContentRoute.js";
 import { getContentDataSourceLabel } from "../modules/content/contentDataRoot.js";
 import { resolveWorldAssetsDir } from "./resolveWorldAssetsDir.js";
+import { resolveMirroredWorldAssetsDir } from "./resolveMirroredWorldAssetsDir.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -117,7 +118,8 @@ export class ServerBootstrap {
       app.use(express.static(clientPath));
     }
 
-    const worldAssetsDir = resolveWorldAssetsDir();
+    const mirroredWorld = resolveMirroredWorldAssetsDir();
+    const worldAssetsDir = mirroredWorld ?? resolveWorldAssetsDir();
     if (worldAssetsDir) {
       app.use(
         "/world-assets",
@@ -126,10 +128,14 @@ export class ServerBootstrap {
           fallthrough: false,
         })
       );
-      console.log(`[ServerBootstrap] Serving /world-assets from ${worldAssetsDir}`);
+      console.log(
+        `[ServerBootstrap] Serving /world-assets from ${worldAssetsDir}` +
+          (mirroredWorld ? " (client mirror: assets/models/world-assets)" : "")
+      );
     } else {
       console.warn(
-        "[ServerBootstrap] world-assets/ not found — GLB paths under /world-assets/* will 404 unless WORLD_ASSETS_DIR is set."
+        "[ServerBootstrap] world-assets mirror and repo world-assets/ missing — /world-assets/* may 404. " +
+          "Run client prebuild (sync-world-assets) or set WORLD_ASSETS_DIR."
       );
     }
 
