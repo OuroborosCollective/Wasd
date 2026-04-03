@@ -288,7 +288,7 @@ export function renderHUD() {
       const provider = new GoogleAuthProvider();
       try {
         const result = await signInWithPopup(auth, provider);
-        const token = await result.user.getIdToken();
+        const token = await result.user.getIdToken(true);
         updateAuthToken(token);
         console.log("Logged in!");
       } catch (e) {
@@ -299,7 +299,7 @@ export function renderHUD() {
       emailErr.textContent = "";
       try {
         const cred = await signInWithEmailAndPassword(auth, emailIn.value.trim(), passIn.value);
-        const token = await cred.user.getIdToken();
+        const token = await cred.user.getIdToken(true);
         updateAuthToken(token);
       } catch (e: unknown) {
         emailErr.textContent = e instanceof Error ? e.message : "Sign-in failed";
@@ -309,7 +309,7 @@ export function renderHUD() {
       emailErr.textContent = "";
       try {
         const cred = await createUserWithEmailAndPassword(auth, emailIn.value.trim(), passIn.value);
-        const token = await cred.user.getIdToken();
+        const token = await cred.user.getIdToken(true);
         updateAuthToken(token);
       } catch (e: unknown) {
         emailErr.textContent = e instanceof Error ? e.message : "Sign-up failed";

@@ -68,11 +68,27 @@ export async function bootAreloriaClient(canvas: HTMLCanvasElement): Promise<voi
     const u = auth?.currentUser;
     if (!u) return null;
     try {
-      return await u.getIdToken();
+      // Force refresh so WS login never sends an expired token from a previous session.
+      return await u.getIdToken(true);
     } catch {
       return null;
     }
   });
+
+  if (auth) {
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) return;
+      try {
+        const t = await user.getIdToken(true);
+        if (t?.trim()) {
+          const { updateAuthToken } = await import("./networking/websocketClient");
+          updateAuthToken(t);
+        }
+      } catch {
+        /* ignore */
+      }
+    });
+  }
 
   const connectionOptions: ConnectionOptions = {};
   const persistedToken = localStorage.getItem("token");

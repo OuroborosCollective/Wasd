@@ -39,9 +39,14 @@ function getFirebaseApp(): App {
   }
 
   try {
-    const serviceAccount = JSON.parse(serviceAccountKey);
+    const serviceAccount = JSON.parse(serviceAccountKey) as { project_id?: string };
+    const projectId =
+      process.env.FIREBASE_PROJECT_ID?.trim() ||
+      (typeof serviceAccount.project_id === "string" ? serviceAccount.project_id.trim() : "") ||
+      "innate-summit-490115-p5";
     app = initializeApp({
-      credential: cert(serviceAccount), projectId: "innate-summit-490115-p5"
+      credential: cert(serviceAccount as any),
+      projectId,
     });
     return app;
   } catch (error) {
@@ -94,8 +99,15 @@ export async function verifyFirebaseToken(token: string) {
       return null;
     }
     return await auth.verifyIdToken(token);
-  } catch (error) {
-    console.error('Error verifying Firebase token:', error);
+  } catch (error: unknown) {
+    const code =
+      error && typeof error === "object" && "code" in error
+        ? String((error as { code?: string }).code)
+        : "";
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(
+      `[Firebase] verifyIdToken failed${code ? ` (${code})` : ""}: ${msg.slice(0, 200)}`
+    );
     throw error;
   }
 }
