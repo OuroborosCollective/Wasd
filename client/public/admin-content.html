@@ -5,152 +5,275 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Areloria — Modelle zuordnen</title>
   <style>
-    :root { font-family: system-ui, sans-serif; background: #0f1118; color: #e8ecf5; line-height: 1.45; }
-    body { max-width: 520px; margin: 0 auto; padding: 16px; padding-bottom: 48px; }
-    h1 { font-size: 1.15rem; font-weight: 700; margin: 0 0 6px; }
-    .lead { font-size: 14px; opacity: 0.88; margin: 0 0 16px; }
-    .card { background: #1a1f2e; border: 1px solid #2a3348; border-radius: 12px; padding: 16px; margin-bottom: 14px; }
-    .card h2 { font-size: 0.95rem; margin: 0 0 12px; color: #b8c5e8; }
-    label { display: block; font-size: 13px; margin-top: 10px; font-weight: 500; }
-    .hint { font-size: 12px; opacity: 0.75; margin-top: 4px; }
-    input, select, button { width: 100%; box-sizing: border-box; margin-top: 6px; padding: 10px 12px; border-radius: 8px; border: 1px solid #3d4a66; background: #0f1118; color: #e8ecf5; font-size: 15px; }
-    button { cursor: pointer; background: #2d5a9e; border-color: #4a7ad4; font-weight: 600; margin-top: 14px; }
-    button:disabled { opacity: 0.45; cursor: not-allowed; }
-    button.ghost { background: transparent; border-color: #555; color: #aaa; margin-top: 8px; }
-    button.danger { background: #5a2d2d; border-color: #844; }
-    .msg { font-size: 13px; padding: 10px; border-radius: 8px; margin-top: 10px; }
-    .msg.ok { background: #1a3d2a; color: #9ee0a8; }
-    .msg.err { background: #3d1a1a; color: #ffaaaa; }
-    .msg.wait { background: #2a2a3d; color: #c5c5e8; }
-    table { width: 100%; font-size: 12px; border-collapse: collapse; margin-top: 8px; }
-    th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #2a3348; vertical-align: top; }
-    th { color: #9aa8c9; font-weight: 600; }
-    .btn-sm { width: auto; padding: 4px 10px; font-size: 12px; margin: 0; }
-    a { color: #8ab4ff; }
-    details { margin-top: 12px; font-size: 12px; opacity: 0.9; }
-    details summary { cursor: pointer; color: #8ab4ff; }
-    textarea.tech { width: 100%; min-height: 100px; font-family: ui-monospace, monospace; font-size: 11px; margin-top: 8px; }
+    :root {
+      --bg: #0c0e14;
+      --card: #161b28;
+      --border: #2a3348;
+      --text: #e8ecf5;
+      --muted: #8b9ab8;
+      --accent: #5b8def;
+      --accent-dim: #3d5a8c;
+      --ok: #3ecf7a;
+      --ok-bg: rgba(62, 207, 122, 0.12);
+      --err: #ff7a7a;
+      --err-bg: rgba(255, 90, 90, 0.1);
+      --warn: #e8c547;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+    }
+    * { box-sizing: border-box; }
+    body { max-width: 540px; margin: 0 auto; padding: 16px 16px 56px; }
+
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes popIn {
+      0% { transform: scale(0.92); opacity: 0; }
+      70% { transform: scale(1.02); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes pulseRing {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(91, 141, 239, 0.35); }
+      50% { box-shadow: 0 0 0 6px rgba(91, 141, 239, 0); }
+    }
+    @keyframes flowLine {
+      to { stroke-dashoffset: 0; }
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-4px); }
+      75% { transform: translateX(4px); }
+    }
+    @keyframes checkDraw {
+      to { stroke-dashoffset: 0; }
+    }
+
+    .page-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; animation: fadeSlide 0.45s ease-out; }
+    .page-head .logo {
+      width: 48px; height: 48px; border-radius: 14px;
+      background: linear-gradient(145deg, #2a3f6e, #1a2540);
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+    }
+    .page-head .logo svg { width: 28px; height: 28px; }
+    h1 { font-size: 1.2rem; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.02em; }
+    .lead { font-size: 14px; color: var(--muted); margin: 0; }
+    .lead a { color: var(--accent); }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 16px 18px;
+      margin-bottom: 14px;
+      animation: fadeSlide 0.4s ease-out backwards;
+    }
+    .card:nth-child(1) { animation-delay: 0.02s; }
+    .card:nth-child(2) { animation-delay: 0.05s; }
+    .card.reveal-in { animation: popIn 0.38s cubic-bezier(0.22, 1, 0.36, 1); }
+
+    .card-h {
+      display: flex; align-items: center; gap: 10px;
+      margin: 0 0 10px;
+      font-size: 0.95rem;
+      font-weight: 650;
+      color: #c5d4f0;
+    }
+    .card-h .ih { width: 32px; height: 32px; border-radius: 10px; background: #1e2436; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .card-h .ih svg { width: 18px; height: 18px; opacity: 0.95; }
+
+    label { display: block; font-size: 13px; margin-top: 12px; font-weight: 550; color: #b4c0dc; }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 5px; line-height: 1.4; }
+    input, select, button {
+      width: 100%; margin-top: 6px; padding: 11px 12px; border-radius: 10px;
+      border: 1px solid var(--border); background: #0f121c; color: var(--text); font-size: 15px;
+    }
+    button {
+      cursor: pointer; background: linear-gradient(180deg, #3d62a8, #2d4a82);
+      border-color: #4a6ec4; font-weight: 650; margin-top: 14px;
+      transition: transform 0.12s ease, filter 0.15s;
+    }
+    button:hover { filter: brightness(1.08); }
+    button:active { transform: scale(0.98); }
+    button.ghost { background: transparent; border-color: #444; color: #aaa; font-weight: 500; }
+    button.danger { background: linear-gradient(180deg, #7a3535, #5a2525); border-color: #844; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    .msg { font-size: 13px; padding: 11px 12px; border-radius: 10px; margin-top: 10px; display: flex; align-items: flex-start; gap: 10px; animation: fadeSlide 0.3s ease-out; }
+    .msg .mi { flex-shrink: 0; margin-top: 1px; }
+    .msg.ok { background: var(--ok-bg); border: 1px solid rgba(62, 207, 122, 0.35); color: #a8f0c4; }
+    .msg.err { background: var(--err-bg); border: 1px solid rgba(255, 100, 100, 0.35); animation: fadeSlide 0.3s ease-out, shake 0.35s ease; }
+    .msg.wait { background: #1e2230; border: 1px solid var(--border); color: #c5c5e8; }
+
+    table { width: 100%; font-size: 12px; border-collapse: collapse; margin-top: 10px; }
+    th, td { text-align: left; padding: 9px 6px; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .btn-sm { width: auto; padding: 5px 12px; font-size: 12px; margin: 0; }
+
+    details.card summary { cursor: pointer; color: var(--accent); font-weight: 500; }
+    textarea.tech { width: 100%; min-height: 90px; font-family: ui-monospace, monospace; font-size: 11px; margin-top: 8px; border-radius: 8px; border: 1px solid var(--border); background: #0f121c; color: #aab; }
     .hidden { display: none !important; }
 
-    /* Ablauf-Leiste */
-    .flow { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-    .flow span { font-size: 11px; padding: 6px 10px; border-radius: 999px; background: #252b3d; border: 1px solid #3d4a66; color: #9aa8c9; }
-    .flow span.done { background: #1a3d2a; border-color: #2d6a4a; color: #9ee0a8; }
-    .flow span.active { background: #2a3d5a; border-color: #4a7ad4; color: #c5d8ff; }
+    /* Ablauf */
+    .flow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
+    .flow .step {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 11px; padding: 8px 12px; border-radius: 999px;
+      background: #1e2436; border: 1px solid var(--border); color: var(--muted);
+      transition: background 0.25s, border-color 0.25s, color 0.25s, transform 0.2s;
+    }
+    .flow .step svg { width: 14px; height: 14px; opacity: 0.7; }
+    .flow .step.done { background: var(--ok-bg); border-color: rgba(62, 207, 122, 0.45); color: #9ee0b8; }
+    .flow .step.done svg { opacity: 1; }
+    .flow .step.active { background: rgba(91, 141, 239, 0.18); border-color: var(--accent); color: #c5d8ff; animation: pulseRing 2s ease-in-out infinite; }
+    .flow .step.active svg { opacity: 1; }
 
-    /* Letzte Aktion — sichtbare Logik */
-    .result-box { margin-top: 10px; padding: 12px; border-radius: 10px; border: 1px solid #3d4a66; background: #141824; }
-    .result-box h3 { margin: 0 0 8px; font-size: 13px; color: #b8c5e8; }
-    .result-box ul { margin: 0; padding-left: 18px; font-size: 13px; }
-    .result-box li { margin: 4px 0; }
-    .result-box .next { margin-top: 10px; font-size: 12px; opacity: 0.85; padding-top: 8px; border-top: 1px solid #2a3348; }
+    /* Ergebnis-Diagramm */
+    .viz { display: flex; align-items: stretch; justify-content: space-between; gap: 6px; margin: 14px 0 12px; flex-wrap: wrap; }
+    .viz-box {
+      flex: 1; min-width: 72px; text-align: center; padding: 10px 8px; border-radius: 12px;
+      background: #12151f; border: 1px solid var(--border); font-size: 11px; color: var(--muted);
+      animation: fadeSlide 0.45s ease-out backwards;
+    }
+    .viz-box:nth-child(1) { animation-delay: 0.05s; }
+    .viz-box:nth-child(3) { animation-delay: 0.15s; }
+    .viz-box:nth-child(5) { animation-delay: 0.25s; }
+    .viz-box strong { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; color: #6a7a9a; }
+    .viz-box .v { font-size: 12px; color: #dce4f5; word-break: break-all; line-height: 1.35; }
+    .viz-arrow { display: flex; align-items: center; justify-content: center; color: var(--accent); flex-shrink: 0; width: 28px; }
+    .viz-arrow svg { width: 22px; height: 22px; }
+    .viz-arrow path { stroke-dasharray: 24; stroke-dashoffset: 24; animation: flowLine 0.6s ease forwards 0.15s; }
 
-    /* Verlauf */
-    .log-list { list-style: none; margin: 0; padding: 0; font-size: 12px; max-height: 200px; overflow-y: auto; }
-    .log-list li { padding: 8px 0; border-bottom: 1px solid #2a3348; }
-    .log-list .t { color: #7a8aad; font-size: 10px; }
-    .log-list .ok { color: #8fdf9a; }
-    .log-list .bad { color: #ff9a9a; }
+    .result-box { margin-top: 8px; padding: 0; border: none; background: transparent; }
+    .result-box h3 { margin: 0 0 10px; font-size: 14px; color: #d0daf2; display: flex; align-items: center; gap: 8px; }
+    .result-box h3 .badge-ok {
+      width: 22px; height: 22px; border-radius: 50%; background: var(--ok-bg); border: 1px solid rgba(62,207,122,0.5);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .result-box h3 .badge-ok svg { width: 12px; height: 12px; }
+    .result-box h3 .badge-ok path { stroke-dasharray: 20; stroke-dashoffset: 20; animation: checkDraw 0.4s ease forwards 0.2s; }
+    .result-box ul { margin: 0; padding-left: 18px; font-size: 13px; color: #c8d2ea; }
+    .result-box li { margin: 5px 0; }
+    .result-box .next { margin-top: 12px; font-size: 12px; color: var(--muted); padding: 10px; border-radius: 10px; background: #12151f; border: 1px dashed var(--border); }
+
+    .log-list { list-style: none; margin: 0; padding: 0; font-size: 12px; max-height: 220px; overflow-y: auto; }
+    .log-list li { padding: 10px 0; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: flex-start; animation: fadeSlide 0.25s ease-out; }
+    .log-list .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+    .log-list .dot.ok { background: var(--ok); box-shadow: 0 0 8px rgba(62,207,122,0.5); }
+    .log-list .dot.bad { background: var(--err); }
+    .log-list .t { color: #5a6a88; font-size: 10px; }
+    .log-list .line { color: #c5cde0; }
+    .log-list .line.ok { color: #9ee0b8; }
+    .log-list .line.bad { color: #ffaaaa; }
+
+    .section-num { display: inline-block; min-width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 6px; background: var(--accent-dim); color: #fff; font-size: 11px; font-weight: 700; margin-right: 6px; vertical-align: middle; }
   </style>
 </head>
 <body>
-  <h1>Modelle zuordnen</h1>
-  <p class="lead">
-    Hier legst du fest, <strong>welches 3D-Modell</strong> für welche Figur oder welches Objekt im Spiel erscheint — ohne Dateien oder Code anzufassen.
-    <a href="/">Zurück zum Spiel</a>
-  </p>
+  <header class="page-head">
+    <div class="logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#8ab4ff" stroke-width="1.6" stroke-linecap="round">
+        <path d="M12 3L4 7v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V7l-8-4z"/>
+        <path d="M9 12l2 2 4-4" stroke="#5b8def"/>
+      </svg>
+    </div>
+    <div>
+      <h1>Modelle zuordnen</h1>
+      <p class="lead">Welches <strong>3D-Modell</strong> gehört zu wem — ohne Dateien oder Code. <a href="/">Zum Spiel</a></p>
+    </div>
+  </header>
 
   <div class="card hidden" id="cardFlow">
-    <h2>Ablauf</h2>
-    <p class="hint" style="margin:0">So läuft eine typische Änderung — die Schritte werden nach deinen Aktionen markiert.</p>
+    <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></svg></span> Ablauf</div>
+    <p class="hint" style="margin:0">Ein Schritt nach dem anderen — erledigt grün, aktuell blau hervorgehoben.</p>
     <div class="flow" id="flowSteps">
-      <span data-step="1">1. Verbunden</span>
-      <span data-step="2">2. Modell wählen</span>
-      <span data-step="3">3. Speichern</span>
-      <span data-step="4">4. Liste prüfen</span>
+      <span class="step" data-step="1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12l4 4L20 6"/></svg>Verbunden</span>
+      <span class="step" data-step="2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 14l2 2 4-4"/></svg>Modell</span>
+      <span class="step" data-step="3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><path d="M17 21v-8H7v8"/></svg>Speichern</span>
+      <span class="step" data-step="4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Prüfen</span>
     </div>
   </div>
 
   <div class="card hidden" id="cardLastResult">
-    <h2>Ergebnis der letzten Aktion</h2>
-    <p class="hint" style="margin-top:0">Kurz zusammengefasst, was der Server gemacht hat — damit du siehst, dass es angekommen ist.</p>
+    <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></span> Ergebnis</div>
+    <p class="hint" style="margin-top:0">So hat der Server reagiert — in Worten und als kleines Bild.</p>
+    <div id="vizWrap" class="viz hidden"></div>
     <div id="lastResultInner" class="result-box hidden"></div>
   </div>
 
   <div class="card hidden" id="cardHistory">
-    <h2>Verlauf</h2>
-    <p class="hint" style="margin-top:0">Die letzten Schritte in dieser Sitzung (nur in diesem Browser).</p>
+    <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 8v4l3 3M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></span> Verlauf</div>
+    <p class="hint" style="margin-top:0">Nur in diesem Browser, bis du die Seite schließt.</p>
     <ul class="log-list" id="historyList"></ul>
     <button type="button" class="ghost" id="btnClearHistory">Verlauf leeren</button>
   </div>
 
   <div class="card" id="stepLogin">
-    <h2>Schritt 1 — Anmelden</h2>
-    <p class="hint" style="margin:0 0 8px">Das Passwort bekommst du vom Betreiber (heißt technisch „Admin-Token“).</p>
-    <label for="token">Zugangscode</label>
-    <input type="password" id="token" autocomplete="off" placeholder="Einfügen und auf Anmelden tippen" />
+    <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M12 15v2M9 7a3 3 0 016 0v4H9V7z"/></svg></span> <span><span class="section-num">1</span>Anmelden</span></div>
+    <p class="hint" style="margin:0 0 8px">Zugangscode vom Betreiber.</p>
+    <label for="token">Code</label>
+    <input type="password" id="token" autocomplete="off" placeholder="Einfügen, dann Anmelden" />
     <button type="button" id="btnLogin">Anmelden</button>
-    <button type="button" class="ghost" id="btnSaveToken">Code nur in diesem Browser merken</button>
+    <button type="button" class="ghost" id="btnSaveToken">In diesem Browser merken</button>
     <div id="loginMsg" class="msg hidden"></div>
   </div>
 
   <div class="card hidden" id="stepWork">
-    <h2>Schritt 2 — Neues Modell verknüpfen</h2>
-    <p class="hint" style="margin-top:0">Wähle ein Modell und sage, wofür es gelten soll. Dann auf <strong>Speichern</strong>.</p>
-
+    <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/></svg></span> <span><span class="section-num">2</span>Modell verknüpfen</span></div>
+    <p class="hint" style="margin-top:0">Modell wählen, Ziel angeben, <strong>Speichern</strong>.</p>
     <label for="selModel">3D-Modell</label>
-    <select id="selModel"><option value="">— Zuerst anmelden (Liste lädt automatisch) —</option></select>
-    <p class="hint">Nur Modelle, die auf dem Server liegen. Fehlt eins, muss der Betreiber die Datei bereitstellen.</p>
-
-    <label for="selUse">Wofür soll das Modell gelten?</label>
+    <select id="selModel"><option value="">— Nach Anmeldung erscheint die Liste —</option></select>
+    <p class="hint">Nur Dateien, die auf dem Server liegen.</p>
+    <label for="selUse">Wofür?</label>
     <select id="selUse">
-      <option value="npc_single">Ein bestimmter NPC (du brauchst seine technische ID)</option>
-      <option value="npc_group">Alle NPCs mit derselben Rolle (z. B. Händler, Wache)</option>
-      <option value="object_single">Ein bestimmtes Welt-Objekt (technische ID)</option>
-      <option value="object_group">Alle Objekte eines Typs (z. B. Baum, Haus)</option>
-      <option value="monster_group">Eine Monster-Gruppe / Gegner-Typ</option>
+      <option value="npc_single">Ein bestimmter NPC (ID nötig)</option>
+      <option value="npc_group">Alle NPCs einer Rolle (z. B. Händler)</option>
+      <option value="object_single">Ein Welt-Objekt (ID)</option>
+      <option value="object_group">Alle Objekte eines Typs</option>
+      <option value="monster_group">Monster-Typ / Gruppe</option>
     </select>
-
     <label for="inTargetId">Name oder ID</label>
-    <input id="inTargetId" placeholder="z. B. merchant oder npc_guide" />
-    <p class="hint" id="targetHint">Bei „einzelner NPC“: die ID aus dem Spielinhalt (frag den Betreiber oder siehe Liste unten).</p>
-
+    <input id="inTargetId" placeholder="z. B. merchant" />
+    <p class="hint" id="targetHint"></p>
     <button type="button" id="btnSaveLink">Speichern</button>
     <div id="saveMsg" class="msg hidden"></div>
   </div>
 
   <div class="card hidden" id="stepDefaults">
-    <h2>Optional — Standard-Modelle</h2>
-    <p class="hint" style="margin-top:0">Fällt zurück, wenn keine eigene Zuordnung existiert.</p>
+    <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></span> Standard-Modelle</div>
+    <p class="hint" style="margin-top:0">Wenn es keine eigene Zuordnung gibt.</p>
     <label for="selDefCat">Bereich</label>
     <select id="selDefCat">
-      <option value="players">Spieler-Figuren</option>
-      <option value="npcs">NPCs (allgemein)</option>
+      <option value="players">Spieler</option>
+      <option value="npcs">NPCs</option>
       <option value="monsters">Monster</option>
-      <option value="loot">Beute / Kisten</option>
-      <option value="world_objects">Welt-Objekte (allgemein)</option>
+      <option value="loot">Beute</option>
+      <option value="world_objects">Welt-Objekte</option>
     </select>
     <label for="selDefModel">Modell</label>
-    <select id="selDefModel"><option value="">— wie oben —</option></select>
+    <select id="selDefModel"><option value="">— wählen —</option></select>
     <button type="button" id="btnSaveDefault">Standard speichern</button>
     <div id="defMsg" class="msg hidden"></div>
   </div>
 
   <div class="card hidden" id="stepList">
-    <h2>Aktuelle Zuordnungen</h2>
-    <p class="hint" style="margin-top:0">Was gerade gespeichert ist. <strong>Entfernen</strong> löscht nur diese eine Zeile.</p>
+    <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span> Aktuelle Zuordnungen</div>
+    <p class="hint" style="margin-top:0"><strong>Entfernen</strong> = nur diese eine Zeile.</p>
     <div id="linksTableWrap"></div>
-    <button type="button" class="ghost" id="btnRefresh">Liste neu laden</button>
+    <button type="button" class="ghost" id="btnRefresh">Neu laden</button>
   </div>
 
   <details class="card hidden" id="stepExpert">
-    <summary>Technische Details (nur für Support)</summary>
-    <p class="hint">Rohe Daten für Fehlersuche.</p>
-    <label>Server-Info</label>
+    <summary>Für Support — technische Rohdaten</summary>
     <textarea class="tech" id="techMeta" readonly></textarea>
-    <label>GLB-Links (JSON)</label>
+    <label style="margin-top:10px">GLB-Links</label>
     <textarea class="tech" id="techLinks" readonly></textarea>
-    <label>Asset-Pools (JSON)</label>
+    <label style="margin-top:10px">Asset-Pools</label>
     <textarea class="tech" id="techPools" readonly></textarea>
   </details>
 
@@ -159,6 +282,14 @@
     const TKEY = "areloria_admin_content_token";
     const HKEY = "areloria_admin_activity_log_v1";
     const MAX_LOG = 20;
+
+    const ICON = {
+      ok: '<svg class="mi" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12l4 4L20 6"/></svg>',
+      err: '<svg class="mi" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>',
+      wait: '<svg class="mi" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/></svg>',
+    };
+
+    const ARROW_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
 
     const USE_LABELS = {
       npc_single: "Einzelner NPC",
@@ -169,65 +300,52 @@
     };
 
     const DEF_CAT_LABELS = {
-      players: "Spieler-Figuren",
-      npcs: "NPCs (allgemein)",
+      players: "Spieler",
+      npcs: "NPCs",
       monsters: "Monster",
-      loot: "Beute / Kisten",
-      world_objects: "Welt-Objekte (allgemein)",
+      loot: "Beute",
+      world_objects: "Welt-Objekte",
     };
 
     const HINTS = {
-      npc_single: "Technische NPC-ID (z. B. npc_guide). Steht oft in den Spieldaten.",
-      npc_group: "Rollenname klein geschrieben, z. B. merchant, guard, questgiver.",
-      object_single: "Objekt-ID aus den Spieldaten.",
-      object_group: "Typ-Name klein, z. B. tree, house, rock.",
-      monster_group: "Gegner-Typ / Gruppe, z. B. goblin.",
+      npc_single: "NPC-ID, z. B. npc_guide",
+      npc_group: "Rolle klein: merchant, guard …",
+      object_single: "Objekt-ID aus den Daten",
+      object_group: "Typ: tree, house …",
+      monster_group: "z. B. goblin",
     };
 
     function nowTime() {
-      const d = new Date();
-      return d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      return new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     }
 
     function loadHistory() {
       try {
         const raw = sessionStorage.getItem(HKEY);
         return raw ? JSON.parse(raw) : [];
-      } catch {
-        return [];
-      }
+      } catch { return []; }
     }
     function saveHistory(arr) {
       sessionStorage.setItem(HKEY, JSON.stringify(arr.slice(0, MAX_LOG)));
     }
     function pushHistory(ok, line) {
-      const arr = [{ t: nowTime(), ok, line }, ...loadHistory()].slice(0, MAX_LOG);
-      saveHistory(arr);
+      saveHistory([{ t: nowTime(), ok, line }, ...loadHistory()].slice(0, MAX_LOG));
       renderHistory();
     }
     function renderHistory() {
       const ul = document.getElementById("historyList");
       const items = loadHistory();
       if (items.length === 0) {
-        ul.innerHTML = "<li class=\"hint\">Noch keine Einträge.</li>";
+        ul.innerHTML = '<li class="hint">Noch nichts passiert.</li>';
         return;
       }
-      ul.innerHTML = items
-        .map(
-          (x) =>
-            "<li><span class=\"t\">" +
-            escapeHtml(x.t) +
-            "</span><br><span class=\"" +
-            (x.ok ? "ok" : "bad") +
-            "\">" +
-            escapeHtml(x.line) +
-            "</span></li>"
-        )
-        .join("");
+      ul.innerHTML = items.map(function (x) {
+        return '<li><span class="dot ' + (x.ok ? "ok" : "bad") + '"></span><div><span class="t">' + escapeHtml(x.t) + '</span><br><span class="line ' + (x.ok ? "ok" : "bad") + '">' + escapeHtml(x.line) + "</span></div></li>";
+      }).join("");
     }
 
     function setFlow(step) {
-      document.querySelectorAll("#flowSteps span").forEach(function (el) {
+      document.querySelectorAll("#flowSteps .step").forEach(function (el) {
         const n = parseInt(el.getAttribute("data-step"), 10);
         el.classList.remove("done", "active");
         if (n < step) el.classList.add("done");
@@ -235,25 +353,47 @@
       });
     }
 
-    function showLastResult(title, bullets, nextHint) {
-      const box = document.getElementById("lastResultInner");
+    function showViz(leftLabel, leftVal, midLabel, midVal, rightLabel, rightVal) {
+      const w = document.getElementById("vizWrap");
+      w.classList.remove("hidden");
+      w.innerHTML =
+        '<div class="viz-box"><strong>' + escapeHtml(leftLabel) + '</strong><div class="v">' + escapeHtml(leftVal) + "</div></div>" +
+        '<div class="viz-arrow" aria-hidden="true">' + ARROW_SVG + "</div>" +
+        '<div class="viz-box"><strong>' + escapeHtml(midLabel) + '</strong><div class="v">' + escapeHtml(midVal) + "</div></div>" +
+        '<div class="viz-arrow" aria-hidden="true">' + ARROW_SVG + "</div>" +
+        '<div class="viz-box"><strong>' + escapeHtml(rightLabel) + '</strong><div class="v">' + escapeHtml(rightVal) + "</div></div>";
+    }
+    function hideViz() {
+      document.getElementById("vizWrap").classList.add("hidden");
+      document.getElementById("vizWrap").innerHTML = "";
+    }
+
+    function showLastResult(title, bullets, nextHint, viz) {
       const wrap = document.getElementById("cardLastResult");
+      const box = document.getElementById("lastResultInner");
       wrap.classList.remove("hidden");
+      wrap.classList.remove("reveal-in");
+      void wrap.offsetWidth;
+      wrap.classList.add("reveal-in");
+      if (viz) {
+        showViz(viz.l1, viz.v1, viz.l2, viz.v2, viz.l3, viz.v3);
+      } else {
+        hideViz();
+      }
       box.classList.remove("hidden");
-      let html = "<h3>" + escapeHtml(title) + "</h3><ul>";
-      bullets.forEach(function (b) {
-        html += "<li>" + escapeHtml(b) + "</li>";
-      });
+      const checkSvg = '<span class="badge-ok" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#3ecf7a" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></span>';
+      let html = "<h3>" + checkSvg + escapeHtml(title) + "</h3><ul>";
+      bullets.forEach(function (b) { html += "<li>" + escapeHtml(b) + "</li>"; });
       html += "</ul>";
       if (nextHint) {
-        html += "<div class=\"next\"><strong>Als Nächstes:</strong> " + escapeHtml(nextHint) + "</div>";
+        html += '<div class="next"><strong>Als Nächstes:</strong> ' + escapeHtml(nextHint) + "</div>";
       }
       box.innerHTML = html;
     }
 
     function headers() {
       const t = document.getElementById("token").value.trim();
-      if (!t) throw new Error("Bitte zuerst den Zugangscode eingeben.");
+      if (!t) throw new Error("Bitte zuerst den Code eingeben.");
       return { Authorization: "Bearer " + t, "Content-Type": "application/json" };
     }
 
@@ -263,16 +403,15 @@
       const r = await fetch(BASE + path, init);
       const text = await r.text();
       let j = null;
-      try {
-        j = JSON.parse(text);
-      } catch { /* */ }
+      try { j = JSON.parse(text); } catch { /* */ }
       if (!r.ok) throw new Error((j && j.error) || text || "Fehler " + r.status);
       return j !== null ? j : text;
     }
 
     function show(elId, text, cls) {
       const el = document.getElementById(elId);
-      el.textContent = text;
+      const ic = cls === "err" ? ICON.err : cls === "ok" ? ICON.ok : ICON.wait;
+      el.innerHTML = ic + "<span>" + escapeHtml(text) + "</span>";
       el.className = "msg " + (cls || "wait");
       el.classList.remove("hidden");
     }
@@ -281,9 +420,7 @@
     }
 
     function fillModelSelects(models) {
-      const opts =
-        '<option value="">— Modell wählen —</option>' +
-        models.map((m) => '<option value="' + escapeAttr(m) + '">' + escapeHtml(m) + "</option>").join("");
+      const opts = '<option value="">— Modell wählen —</option>' + models.map((m) => '<option value="' + escapeAttr(m) + '">' + escapeHtml(m) + "</option>").join("");
       document.getElementById("selModel").innerHTML = opts;
       document.getElementById("selDefModel").innerHTML = opts;
     }
@@ -295,59 +432,49 @@
       return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
     }
 
+    function shortPath(p) {
+      if (p.length <= 28) return p;
+      return "…" + p.slice(-26);
+    }
+
     async function refreshLists() {
       const d = await req("GET", "/glb-links");
       const links = d.links || [];
       if (links.length === 0) {
-        document.getElementById("linksTableWrap").innerHTML =
-          "<p class=\"hint\">Noch keine eigenen Zuordnungen — nur Standard-Modelle.</p>";
+        document.getElementById("linksTableWrap").innerHTML = '<p class="hint">Keine eigenen Zuordnungen — es gelten die Standard-Modelle.</p>';
       } else {
-        const rows = links
-          .map(function (L) {
-            return (
-              "<tr><td>" +
-              escapeHtml(L.glbPath) +
-              "</td><td>" +
-              escapeHtml(USE_LABELS[L.targetType] || L.targetType) +
-              "</td><td>" +
-              escapeHtml(L.targetId) +
-              "</td><td><button type=\"button\" class=\"danger btn-sm\" data-tt=\"" +
-              escapeAttr(L.targetType) +
-              "\" data-tid=\"" +
-              escapeAttr(L.targetId) +
-              "\">Entfernen</button></td></tr>"
-            );
-          })
-          .join("");
-        document.getElementById("linksTableWrap").innerHTML =
-          "<table><thead><tr><th>Modell</th><th>Art</th><th>Name/ID</th><th></th></tr></thead><tbody>" +
-          rows +
-          "</tbody></table>";
+        const rows = links.map(function (L) {
+          return "<tr><td>" + escapeHtml(L.glbPath) + "</td><td>" + escapeHtml(USE_LABELS[L.targetType] || L.targetType) + "</td><td>" + escapeHtml(L.targetId) + '</td><td><button type="button" class="danger btn-sm" data-tt="' + escapeAttr(L.targetType) + '" data-tid="' + escapeAttr(L.targetId) + '">Entfernen</button></td></tr>';
+        }).join("");
+        document.getElementById("linksTableWrap").innerHTML = "<table><thead><tr><th>Modell</th><th>Art</th><th>ID</th><th></th></tr></thead><tbody>" + rows + "</tbody></table>";
         document.querySelectorAll("#linksTableWrap button[data-tid]").forEach(function (btn) {
           btn.onclick = async function () {
-            if (!confirm("Diese Zuordnung wirklich löschen?")) return;
+            if (!confirm("Wirklich löschen?")) return;
             const tt = btn.getAttribute("data-tt");
             const tid = btn.getAttribute("data-tid");
             try {
               await req("DELETE", "/glb-links?targetType=" + encodeURIComponent(tt) + "&targetId=" + encodeURIComponent(tid));
               await afterLoginRefresh();
-              const label = (USE_LABELS[tt] || tt) + " » " + tid;
+              const label = (USE_LABELS[tt] || tt) + " · " + tid;
               showLastResult("Zuordnung entfernt", [
-                "Der Server hat die Verknüpfung für „" + label + "“ gelöscht.",
-                "Im Spiel erscheint wieder das Standard-Modell (nach nächstem Laden / wenn der Server die Liste neu ausliefert).",
-              ], "Prüfe die Tabelle „Aktuelle Zuordnungen“ — die Zeile sollte weg sein.");
+                "Die Verknüpfung für „" + label + "“ ist auf dem Server gelöscht.",
+                "Im Spiel wieder Standard-Modell (Seite neu laden kann nötig sein).",
+              ], "Tabelle unten prüfen — die Zeile sollte fehlen.", {
+                l1: "War", v1: shortPath("Zuordnung"),
+                l2: "Aktion", v2: "Gelöscht",
+                l3: "Jetzt", v3: "Standard",
+              });
               pushHistory(true, "Gelöscht: " + label);
               setFlow(4);
-              show("saveMsg", "Gelöscht — siehe „Ergebnis der letzten Aktion“.", "ok");
+              show("saveMsg", "Erledigt — siehe Ergebnis-Karte.", "ok");
             } catch (e) {
-              pushHistory(false, "Löschen fehlgeschlagen: " + (e.message || e));
+              pushHistory(false, "Löschen: " + (e.message || e));
               show("saveMsg", String(e.message || e), "err");
             }
           };
         });
       }
       document.getElementById("techLinks").value = JSON.stringify(d, null, 2);
-      return links.length;
     }
 
     async function afterLoginRefresh() {
@@ -375,8 +502,8 @@
     document.getElementById("btnSaveToken").onclick = function () {
       const t = document.getElementById("token").value.trim();
       if (t) sessionStorage.setItem(TKEY, t);
-      show("loginMsg", "Code für diesen Browser gespeichert.", "ok");
-      pushHistory(true, "Zugangscode im Browser gespeichert");
+      show("loginMsg", "Gemerkt für diesen Browser.", "ok");
+      pushHistory(true, "Code gespeichert");
     };
     (function () {
       const s = sessionStorage.getItem(TKEY);
@@ -388,27 +515,27 @@
       hide("loginMsg");
       try {
         const m = await req("GET", "/meta");
-        show("loginMsg", "Angemeldet — du kannst jetzt Modelle zuordnen.", "ok");
+        show("loginMsg", "Verbunden — du kannst zuordnen.", "ok");
         document.getElementById("techMeta").value = JSON.stringify(m, null, 2);
-        document.getElementById("cardFlow").classList.remove("hidden");
-        document.getElementById("cardHistory").classList.remove("hidden");
-        document.getElementById("stepWork").classList.remove("hidden");
-        document.getElementById("stepDefaults").classList.remove("hidden");
-        document.getElementById("stepList").classList.remove("hidden");
-        document.getElementById("stepExpert").classList.remove("hidden");
+        ["cardFlow", "cardHistory", "stepWork", "stepDefaults", "stepList", "stepExpert"].forEach(function (id) {
+          document.getElementById(id).classList.remove("hidden");
+        });
         setFlow(2);
-        showLastResult("Verbunden mit dem Server", [
-          "Dein Zugangscode wurde akzeptiert.",
-          "Inhalte kommen aus: " + (m.contentMode || "unbekannt") + ".",
-          "GLB-Zuordnungen werden gespeichert in: " + (m.glbLinksStore || "unbekannt") + ".",
-          m.readOnly ? "Hinweis: Nur Lesen — Speichern ist gesperrt." : "Du darfst Änderungen speichern.",
-        ], "Wähle ein Modell und eine Zielgruppe, dann auf „Speichern“.");
-        pushHistory(true, "Anmeldung OK — " + (m.glbLinksStore || "") + " / " + (m.contentMode || ""));
+        showLastResult("Mit Server verbunden", [
+          "Zugangscode akzeptiert.",
+          "Inhalte: " + (m.contentMode || "?") + " · Speicher: " + (m.glbLinksStore || "?") + ".",
+          m.readOnly ? "Nur Lesen — Speichern ist aus." : "Du darfst speichern.",
+        ], "Modell wählen und Ziel eintragen.", {
+          l1: "Du", v1: "Admin",
+          l2: "Server", v2: "Bereit",
+          l3: "Modus", v3: m.readOnly ? "Lesen" : "Ändern",
+        });
+        pushHistory(true, "Login OK");
         await afterLoginRefresh();
         setFlow(2);
       } catch (e) {
-        show("loginMsg", "Anmeldung fehlgeschlagen: " + (e.message || e) + " — Prüfe den Code oder frag den Betreiber.", "err");
-        pushHistory(false, "Anmeldung fehlgeschlagen");
+        show("loginMsg", "Login fehlgeschlagen: " + (e.message || e), "err");
+        pushHistory(false, "Login fehlgeschlagen");
       }
     };
 
@@ -417,31 +544,28 @@
       const glbPath = document.getElementById("selModel").value.trim();
       const targetType = document.getElementById("selUse").value;
       const targetId = document.getElementById("inTargetId").value.trim();
-      if (!glbPath) {
-        show("saveMsg", "Bitte ein Modell aus der Liste wählen.", "err");
-        return;
-      }
-      if (!targetId) {
-        show("saveMsg", "Bitte Name oder ID eintragen (siehe Hinweis unter dem Feld).", "err");
-        return;
-      }
+      if (!glbPath) { show("saveMsg", "Bitte ein Modell wählen.", "err"); return; }
+      if (!targetId) { show("saveMsg", "Bitte Name oder ID eintragen.", "err"); return; }
       try {
         const res = await req("POST", "/glb-links", { glbPath, targetType, targetId });
         const n = Array.isArray(res.links) ? res.links.length : "?";
         const kind = USE_LABELS[targetType] || targetType;
-        showLastResult("Modell-Verknüpfung gespeichert", [
-          "Ausgewähltes Modell: " + glbPath,
-          "Gilt für: " + kind + " mit der ID „" + targetId + "“.",
-          "Der Server hat die Liste aktualisiert — insgesamt " + n + " Zuordnung(en) in der Datenbank/Datei.",
-          "Alte Zuordnung für dieselbe ID wurde ersetzt, falls es eine gab.",
-        ], "Sieh in der Tabelle unten nach — deine Zeile sollte erscheinen. Im Spiel kann ein kurzer Moment vergehen oder ein Neuladen nötig sein.");
-        pushHistory(true, "Gespeichert: " + glbPath + " → " + kind + " / " + targetId);
+        showLastResult("Gespeichert", [
+          "Modell: " + glbPath,
+          "Ziel: " + kind + " · „" + targetId + "“",
+          "Server hat " + n + " Zuordnung(en) gesamt.",
+        ], "Tabelle unten prüfen oder Spiel neu laden.", {
+          l1: "Modell", v1: shortPath(glbPath.split("/").pop() || glbPath),
+          l2: "Ziel", v2: kind + " · " + targetId,
+          l3: "Server", v3: n + " Einträge",
+        });
+        pushHistory(true, glbPath + " → " + targetId);
         setFlow(4);
-        show("saveMsg", "Gespeichert — Details stehen oben unter „Ergebnis der letzten Aktion“.", "ok");
+        show("saveMsg", "Fertig — Ergebnis oben.", "ok");
         document.getElementById("inTargetId").value = "";
         await refreshLists();
       } catch (e) {
-        pushHistory(false, "Speichern fehlgeschlagen: " + (e.message || e));
+        pushHistory(false, "Speichern: " + (e.message || e));
         show("saveMsg", String(e.message || e), "err");
       }
     };
@@ -450,25 +574,26 @@
       hide("defMsg");
       const category = document.getElementById("selDefCat").value;
       const path = document.getElementById("selDefModel").value.trim();
-      if (!path) {
-        show("defMsg", "Bitte ein Modell wählen.", "err");
-        return;
-      }
+      if (!path) { show("defMsg", "Modell wählen.", "err"); return; }
       try {
         await req("POST", "/asset-pools/default", { category, path });
         const catLabel = DEF_CAT_LABELS[category] || category;
-        showLastResult("Standard-Modell gespeichert", [
-          "Bereich: " + catLabel + " (" + category + ").",
-          "Neues Standard-Modell: " + path,
-          "Das gilt für alle Einträge in diesem Bereich, die keine eigene Zuordnung haben.",
-        ], "Optional: Liste der Einzel-Zuordnungen unten prüfen — die bleiben Vorrang vor dem Standard.");
-        pushHistory(true, "Standard: " + catLabel + " → " + path);
+        showLastResult("Standard gespeichert", [
+          "Bereich: " + catLabel,
+          "Datei: " + path,
+          "Gilt als Fallback ohne eigene Zuordnung.",
+        ], "Einzel-Zuordnungen haben Vorrang.", {
+          l1: "Bereich", v1: catLabel,
+          l2: "Standard", v2: shortPath(path.split("/").pop() || path),
+          l3: "Gilt für", v3: "Alle ohne Link",
+        });
+        pushHistory(true, "Standard " + catLabel);
         setFlow(3);
-        show("defMsg", "Gespeichert — siehe „Ergebnis der letzten Aktion“.", "ok");
+        show("defMsg", "Gespeichert.", "ok");
         const pools = await req("GET", "/asset-pools");
         document.getElementById("techPools").value = JSON.stringify(pools, null, 2);
       } catch (e) {
-        pushHistory(false, "Standard speichern fehlgeschlagen: " + (e.message || e));
+        pushHistory(false, "Standard: " + (e.message || e));
         show("defMsg", String(e.message || e), "err");
       }
     };
@@ -476,15 +601,17 @@
     document.getElementById("btnRefresh").onclick = async function () {
       try {
         await afterLoginRefresh();
-        showLastResult("Liste vom Server neu geladen", [
-          "Modell-Liste und Zuordnungstabelle wurden vom Server geholt.",
-          "So siehst du den Stand, den der Server gerade verwendet.",
-        ], "Vergleiche mit deiner letzten Aktion — beide sollten übereinstimmen.");
-        pushHistory(true, "Liste neu geladen");
+        showLastResult("Liste aktualisiert", [
+          "Modell-Liste und Tabelle vom Server geholt.",
+        ], "Mit deiner letzten Aktion abgleichen.", {
+          l1: "Aktion", v1: "Aktualisieren",
+          l2: "Quelle", v2: "Server",
+          l3: "Stand", v3: "Jetzt",
+        });
+        pushHistory(true, "Liste neu");
         setFlow(4);
-        show("saveMsg", "Aktualisiert — siehe „Ergebnis der letzten Aktion“.", "ok");
+        show("saveMsg", "Liste neu.", "ok");
       } catch (e) {
-        pushHistory(false, "Aktualisieren fehlgeschlagen: " + (e.message || e));
         show("saveMsg", String(e.message || e), "err");
       }
     };
