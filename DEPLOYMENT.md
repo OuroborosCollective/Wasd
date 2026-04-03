@@ -68,6 +68,16 @@ Der **private Service-Account-JSON-Key** gehört **nicht** ins Git. Auf dem Serv
 4. **Neustart:** `pm2 restart areloria`  
    Prüfen: `curl -s http://127.0.0.1:3000/health` → `persistence` / Firebase-Hinweise.
 
+**Alternative (Application Default Credentials, wie `admin.credential.applicationDefault()`):**  
+In `.env` **`FIREBASE_SERVICE_ACCOUNT_KEY` leer lassen** und setzen:
+
+```bash
+GOOGLE_APPLICATION_CREDENTIALS=/opt/areloria/secrets/firebase-adminsdk.json
+FIREBASE_PROJECT_ID=deine-gcp-projekt-id
+```
+
+Der Server initialisiert dann mit **`applicationDefault()`** (liest die JSON-Datei über `GOOGLE_APPLICATION_CREDENTIALS`). Auf **GCP** (Compute Engine / Cloud Run mit Dienstkonto) reicht oft **`FIREBASE_ADMIN_USE_APPLICATION_DEFAULT=1`** + **`FIREBASE_PROJECT_ID`**.
+
 **Client (Vite):** Weiterhin **`VITE_FIREBASE_*`** in `.env` am Repo-Root setzen (Build), damit Browser-Login und Projekt zum Admin-Key passen.
 
 **Spieler-Persistenz (ohne Firestore):** Der Server schreibt nach `data/players.json` (Repo-Root) bzw. `PLAYER_SAVE_FILE`. Diese Datei bei Deploys/Backups **mit sichern** — sonst gehen Charaktere verloren.

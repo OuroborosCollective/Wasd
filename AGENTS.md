@@ -11,7 +11,7 @@ Arelorian/Ouroboros is a browser-based MMORPG: `server/` (Express + WebSocket ga
 
 ### VPS deploy + Firebase Admin (production)
 - Deploy script: `deploy/deploy.sh` (GitHub Action runs it on push to `main`). PM2 loads `/opt/areloria/.env` via `ecosystem.config.cjs` (`deploy/write_pm2_ecosystem.sh`).
-- **Do not commit** the Service Account JSON. On the VPS: place the key at `/opt/areloria/secrets/firebase-adminsdk.json` or run `deploy/setup-firebase-service-account.sh /path/to/key.json`. Deploy auto-appends `FIREBASE_SERVICE_ACCOUNT_KEY` to `.env` when that file exists. See `DEPLOYMENT.md`.
+- **Do not commit** the Service Account JSON. On the VPS: place the key at `/opt/areloria/secrets/firebase-adminsdk.json` or run `deploy/setup-firebase-service-account.sh /path/to/key.json`. Deploy appends **`FIREBASE_SERVICE_ACCOUNT_KEY`** and **`GOOGLE_APPLICATION_CREDENTIALS`** when that file exists. Alternatively leave `FIREBASE_SERVICE_ACCOUNT_KEY` empty and use only **`GOOGLE_APPLICATION_CREDENTIALS`** + **`FIREBASE_PROJECT_ID`** — the server then uses **`applicationDefault()`** (same idea as `admin.credential.applicationDefault()`). On GCP VMs: **`FIREBASE_ADMIN_USE_APPLICATION_DEFAULT=1`**. See `DEPLOYMENT.md`.
 
 ### Running the development server
 - **Command:** `pnpm run dev` (runs `tsx watch src/index.ts` in `server/`).
