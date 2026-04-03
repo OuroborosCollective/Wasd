@@ -28,6 +28,27 @@ nano /opt/areloria/.env
 # Fülle PGPASSWORD und JWT_SECRET aus
 ```
 
+### Firebase Admin auf dem VPS (Node — Token-Verifikation / Firestore)
+
+Der **private Service-Account-JSON-Key** gehört **nicht** ins Git. Auf dem Server:
+
+1. **JSON von der Firebase/Google Cloud Console** herunterladen (einmalig).
+2. Auf den VPS kopieren und installieren:
+   ```bash
+   cd /opt/areloria
+   chmod +x deploy/setup-firebase-service-account.sh
+   ./deploy/setup-firebase-service-account.sh /root/firebase-adminsdk-xxxxx.json
+   ```
+   Oder manuell nach `/opt/areloria/secrets/firebase-adminsdk.json` legen (`chmod 600`) — beim nächsten **`./deploy/deploy.sh`** wird in `.env` automatisch  
+   `FIREBASE_SERVICE_ACCOUNT_KEY=/opt/areloria/secrets/firebase-adminsdk.json` ergänzt, **falls** die Zeile noch fehlt.
+
+3. Optional in `.env`: **`FIREBASE_PROJECT_ID=…`** (Projekt-ID aus der Console), falls sie nicht im JSON steht.
+
+4. **Neustart:** `pm2 restart areloria`  
+   Prüfen: `curl -s http://127.0.0.1:3000/health` → `persistence` / Firebase-Hinweise.
+
+**Client (Vite):** Weiterhin **`VITE_FIREBASE_*`** in `.env` am Repo-Root setzen (Build), damit Browser-Login und Projekt zum Admin-Key passen.
+
 **Spieler-Persistenz (ohne Firestore):** Der Server schreibt nach `data/players.json` (Repo-Root) bzw. `PLAYER_SAVE_FILE`. Diese Datei bei Deploys/Backups **mit sichern** — sonst gehen Charaktere verloren.
 
 **Login:** In Production ist ohne `FIREBASE_SERVICE_ACCOUNT_KEY` nur **Gast-Login** möglich, wenn `ALLOW_GUEST_LOGIN=1` gesetzt ist; sonst müssen Clients ein Firebase **ID-Token** mitsenden. Development: `dev_*`-Login per Socket-ID, abschaltbar mit `ALLOW_DEV_LOGIN=0`. **`REQUIRE_FIREBASE_AUTH=1`** erzwingt ausschließlich Token-Login (kein Gast/Dev); ohne konfiguriertes Firebase-Admin-Key meldet der Server einen klaren Fehler.

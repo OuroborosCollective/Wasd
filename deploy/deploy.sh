@@ -78,8 +78,13 @@ echo "[8/10] Setting up game-data symlink..."
 cd "$APP_DIR/server"
 ln -sf ../game-data game-data 2>/dev/null || true
 
-# ── 9. Create .env if not exists ─────────────────────────
+# ── 9. Create .env if not exists + Firebase Admin key path ──
 echo "[9/10] Checking .env configuration..."
+SECRETS_DIR="$APP_DIR/secrets"
+FIREBASE_KEY_FILE="$SECRETS_DIR/firebase-adminsdk.json"
+mkdir -p "$SECRETS_DIR"
+chmod 700 "$SECRETS_DIR" 2>/dev/null || true
+
 if [ ! -f "$APP_DIR/.env" ]; then
   echo "⚠️  WARNING: No .env file found! Creating template..."
   cat > "$APP_DIR/.env" << 'ENVEOF'
@@ -112,8 +117,26 @@ PAYPAL_MODE=live
 
 # JWT Secret (change this!)
 JWT_SECRET=CHANGE_THIS_TO_A_RANDOM_SECRET_STRING
+
+# Firebase Admin (server) — upload JSON to secrets/ then run:
+#   ./deploy/setup-firebase-service-account.sh /path/to/key.json
+# Or place file at: /opt/areloria/secrets/firebase-adminsdk.json (deploy links it on next run)
+# FIREBASE_SERVICE_ACCOUNT_KEY=/opt/areloria/secrets/firebase-adminsdk.json
+# FIREBASE_PROJECT_ID=your-gcp-project-id
 ENVEOF
   echo "⚠️  Please edit $APP_DIR/.env and fill in PGPASSWORD and JWT_SECRET!"
+fi
+
+# If Admin SDK JSON exists and .env has no FIREBASE_SERVICE_ACCOUNT_KEY, append path (no secret in repo).
+if [ -f "$FIREBASE_KEY_FILE" ] && [ -f "$APP_DIR/.env" ]; then
+  if ! grep -q '^[[:space:]]*FIREBASE_SERVICE_ACCOUNT_KEY=' "$APP_DIR/.env" 2>/dev/null; then
+    {
+      echo ""
+      echo "# Firebase Admin — auto-linked (file present at deploy time)"
+      echo "FIREBASE_SERVICE_ACCOUNT_KEY=$FIREBASE_KEY_FILE"
+    } >> "$APP_DIR/.env"
+    echo "✅ Linked FIREBASE_SERVICE_ACCOUNT_KEY -> $FIREBASE_KEY_FILE"
+  fi
 fi
 
 # ── 10. Start with PM2 ───────────────────────────────────

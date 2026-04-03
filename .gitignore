@@ -12,6 +12,9 @@ published-content/current/
 client/public/world-assets/
 .env
 .env.local
+# VPS-style secrets (never commit Firebase Admin JSON)
+secrets/
+**/firebase-adminsdk*.json
 .DS_Store
 *.log
 coverage/server/firebase-applet-config.json

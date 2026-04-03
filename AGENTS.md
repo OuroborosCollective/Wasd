@@ -9,6 +9,10 @@ Arelorian/Ouroboros is a browser-based MMORPG: `server/` (Express + WebSocket ga
 
 **Optional AI watchdog (client):** `VITE_FIREBASE_AI_WATCHDOG=1` enables `client/src/ai/firebaseAiWatchdog.ts`. It classifies recent errors into a **functional domain** (`network` | `firebase_auth` | `renderer` | `storage` | `unknown`), then asks Gemini for **one action** from a **domain-specific allow list** only (e.g. network: `clear_stale_ws_token`, `reconnect_websocket`; renderer: `babylon_soft_recover`, `babylon_reduce_render_load`). The model must echo the same `module` string; mismatches are rejected. No generated code, no cross-module file edits. Telemetry: `areloria:watchdog-log`, `watchdogTelemetry.ts`, handlers in `watchdogRecovery.ts`.
 
+### VPS deploy + Firebase Admin (production)
+- Deploy script: `deploy/deploy.sh` (GitHub Action runs it on push to `main`). PM2 loads `/opt/areloria/.env` via `ecosystem.config.cjs` (`deploy/write_pm2_ecosystem.sh`).
+- **Do not commit** the Service Account JSON. On the VPS: place the key at `/opt/areloria/secrets/firebase-adminsdk.json` or run `deploy/setup-firebase-service-account.sh /path/to/key.json`. Deploy auto-appends `FIREBASE_SERVICE_ACCOUNT_KEY` to `.env` when that file exists. See `DEPLOYMENT.md`.
+
 ### Running the development server
 - **Command:** `pnpm run dev` (runs `tsx watch src/index.ts` in `server/`).
 - The server starts on port 3000 and embeds the Vite client dev middleware (serves the client at `/`).
