@@ -3,7 +3,9 @@
 Diese Datei fasst den Projektverlauf und den **aktuellen Stand** zusammen, damit eine neue Cursor-Instanz ohne vollen Chat-Kontext einsteigen kann.
 **Pflege:** Bei größeren Meilensteinen kurz nachtragen (Datum, was geändert wurde, offene Punkte).
 
-**Stand der Zusammenfassung:** 2026-04-01 (Branch: siehe unten, letzter bekannter Fokus: No-Code-Admin + GLB-Pipeline).
+**Stand der Zusammenfassung:** 2026-04-03 (Default-Branch: **`main`**; letzter Fokus: No-Code-Admin, GLB-Galerie/Upload, Babylon-only Client).
+
+**Diese Datei im Repo finden:** Im Monorepo-Root unter **`docs/CURSOR_STATUS_LOGBUCH.md`**. Auf GitHub (wenn `main` aktiv): `https://github.com/OuroborosCollective/Wasd/blob/main/docs/CURSOR_STATUS_LOGBUCH.md`
 
 ---
 
@@ -116,8 +118,9 @@ Diese Datei fasst den Projektverlauf und den **aktuellen Stand** zusammen, damit
 
 ## 9. Git / PR (Referenz)
 
-- Entwicklung auf dem vom Cloud-Agent vorgegebenen Feature-Branch (z. B. `cursor/...`).
-- GLB-Galerie/Upload: PR **#277** (Stand bei Erstellung dieses Logbuchs) — nach Merge Branch-Status prüfen.
+- Feature-Arbeit läuft typisch auf `cursor/...`-Branches; **Merge in `main`** über GitHub-PRs.
+- **PR #277** (GLB-Galerie, `/glb-upload`, Admin-UI) ist in **`main` gemergt** (Merge-Commit u. a. `3a348e0` — Stand je nach History).
+- Neuere Follow-ups auf `main` können z. B. weitere No-Code-Asset-Ops, Playwright/CI oder Worldgen-Packs betreffen — `git log main` prüfen.
 
 ---
 
@@ -126,4 +129,5 @@ Diese Datei fasst den Projektverlauf und den **aktuellen Stand** zusammen, damit
 ### Änderungsprotokoll (manuell pflegen)
 
 - **2026-04-01:** Datei angelegt — Zusammenfassung aus Chat-Verlauf + letzter Stand GLB-Admin-Galerie/Upload.
-- **2026-04-01 (Composer 2 Follow-up):** In der aktuellen Cloud-Instanz als Handoff-Basis übernommen. Wichtige Klarstellung: Falls die Datei auf `main` fehlt, liegt sie im zugehörigen Feature-Branch/PR und ist erst nach Merge unter `docs/CURSOR_STATUS_LOGBUCH.md` auf `main` verfügbar.
+- **2026-04-01 (Composer 2 Follow-up):** Handoff-Klarstellung: Datei liegt nach Merge von PR #277 auf **`main`** unter `docs/CURSOR_STATUS_LOGBUCH.md`.
+- **2026-04-03:** Abschnitt 9 aktualisiert (PR #277 = gemergt); Auffindbarkeit + GitHub-Link ergänzt.
