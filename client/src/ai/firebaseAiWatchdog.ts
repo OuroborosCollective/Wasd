@@ -14,6 +14,11 @@ import {
   type WatchdogModuleId,
 } from "./watchdogTelemetry";
 import {
+  parseWatchdogAgentJson,
+  WATCHDOG_ALLOWED_BY_MODULE,
+  type WatchdogAgentDecision,
+} from "./watchdogAgentParse";
+import {
   babylonReduceRenderLoad,
   babylonSoftRecover,
   clearGameLocalStorageKeys,
@@ -40,55 +45,10 @@ let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 let reloadUsedAt = 0;
 const RELOAD_COOLDOWN_MS = 120_000;
 
-/** Actions the model may name; execution is hard-coded per id (module-scoped allow list). */
-const ALLOWED_BY_MODULE: Record<WatchdogModuleId, ReadonlySet<string>> = {
-  network: new Set(["none", "clear_stale_ws_token", "reconnect_websocket", "reload_page"]),
-  firebase_auth: new Set(["none", "clear_auth_storage", "reconnect_websocket", "reload_page"]),
-  renderer: new Set(["none", "babylon_soft_recover", "babylon_reduce_render_load", "reload_page"]),
-  storage: new Set(["none", "clear_game_local_storage", "reconnect_websocket", "reload_page"]),
-  unknown: new Set(["none", "reconnect_websocket", "reload_page"]),
-};
-
-type AgentDecision = {
-  module: WatchdogModuleId;
-  action: string;
-  reason?: string;
-};
-
-function stripJsonFence(text: string): string {
-  const t = text.trim();
-  const m = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (m?.[1]) return m[1].trim();
-  return t;
-}
-
-function parseAgentJson(raw: string, expectedModule: WatchdogModuleId): AgentDecision | null {
-  try {
-    const s = stripJsonFence(raw);
-    const i = s.indexOf("{");
-    const j = s.lastIndexOf("}");
-    if (i < 0 || j <= i) return null;
-    const obj = JSON.parse(s.slice(i, j + 1)) as Record<string, unknown>;
-    const mod = typeof obj.module === "string" ? obj.module.trim() : "";
-    const action = typeof obj.action === "string" ? obj.action.trim() : "";
-    const reason = typeof obj.reason === "string" ? obj.reason : undefined;
-    const validModules: WatchdogModuleId[] = [
-      "network",
-      "firebase_auth",
-      "renderer",
-      "storage",
-      "unknown",
-    ];
-    if (!validModules.includes(mod as WatchdogModuleId)) return null;
-    if (mod !== expectedModule) return null;
-    if (!ALLOWED_BY_MODULE[mod as WatchdogModuleId].has(action)) return null;
-    return { module: mod as WatchdogModuleId, action, reason };
-  } catch {
-    return null;
-  }
-}
-
-async function runGeminiDecision(logText: string, domain: WatchdogModuleId): Promise<AgentDecision | null> {
+async function runGeminiDecision(
+  logText: string,
+  domain: WatchdogModuleId
+): Promise<WatchdogAgentDecision | null> {
   const firebaseApp = getFirebaseAppOrNull();
   if (!firebaseApp) return null;
 
@@ -97,7 +57,7 @@ async function runGeminiDecision(logText: string, domain: WatchdogModuleId): Pro
   const ai = getAI(firebaseApp, { backend: new GoogleAIBackend() });
   const model = getGenerativeModel(ai, { model: MODEL });
 
-  const actionsList = [...ALLOWED_BY_MODULE[domain]].join('", "');
+  const actionsList = [...WATCHDOG_ALLOWED_BY_MODULE[domain]].join('", "');
 
   const system = `You are a recovery assistant for a browser game client. Errors are classified into ONE functional domain. You must stay inside that domain.
 
@@ -126,7 +86,7 @@ ${logText}`;
 
   const result = await model.generateContent(system);
   const text = result.response.text();
-  return parseAgentJson(text, domain);
+  return parseWatchdogAgentJson(text, domain);
 }
 
 async function firebaseSignOutSafe(): Promise<void> {
@@ -143,7 +103,7 @@ function scheduleReconnect(delayMs: number): void {
   window.setTimeout(() => reconnectGameSocket(), delayMs);
 }
 
-function executeDecision(dec: AgentDecision): void {
+function executeDecision(dec: WatchdogAgentDecision): void {
   const { action, reason, module } = dec;
   if (action === "none") {
     pushWatchdogLog("info", "ai-watchdog", `No action (${module})`, reason);
