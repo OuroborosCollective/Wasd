@@ -12,6 +12,8 @@ Use this map to avoid reading **obsolete** files as if they were current spec.
 | **`docs/ROADMAP_TO_RELEASE.md`** | **What is left** until release; bible-aligned backlog |
 | **`docs/MASTER_DESIGN_BIBLE.md`** | **Vision** and creative pillars (update rarely) |
 | **`DEPLOYMENT.md`** | VPS / PM2 / GitHub Actions |
+| **`docs/CI_VPS_RUNBOOK.md`** | CI prüfen, VPS verify, Secret `DEPLOY_VERIFY_BASE_URL` |
+| **`docs/SPACETIME_PERSISTENCE_NEXT.md`** | SpacetimeDB-Persistenz — nächste Implementierungsschritte |
 | **`docs/VITE_MCP_AND_VPS_SETUP.md`** | MCP + WebSocket + Nginx (Vite / Babylon client) |
 
 ## Architecture and systems

@@ -224,6 +224,8 @@
     .gly-bin { flex: 1; word-break: break-all; color: #a8b0c8; font-style: italic; }
     .gly-bin .gly-bin-hint { font-size: 10px; color: var(--muted); font-style: normal; display: block; margin-top: 2px; }
     input[type="file"] { padding: 8px; font-size: 13px; }
+    .ref-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+    .ref-row select { flex: 1; min-width: 200px; font-size: 13px; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: #0f121c; color: var(--text); }
   </style>
 </head>
 <body>
@@ -310,7 +312,10 @@
     <select id="selTargetPick"><option value="">— Typ oben wählen, dann hier —</option></select>
     <p class="hint" id="pickHint">Oder unten selbst eintippen — muss exakt zur ID im Spiel passen.</p>
     <label for="inTargetId">Name oder ID (manuell)</label>
-    <input id="inTargetId" placeholder="z. B. npc_guide" />
+    <div class="ref-row">
+      <input id="inTargetId" placeholder="z. B. npc_guide" style="flex:1;min-width:160px" />
+      <button type="button" class="ghost btn-sm" id="btnCopyTargetId">ID kopieren</button>
+    </div>
     <p class="hint" id="targetHint"></p>
     <button type="button" id="btnSaveLink">Speichern</button>
     <div id="saveMsg" class="msg hidden"></div>
@@ -342,6 +347,22 @@
     <div id="publishMsg" class="msg hidden"></div>
     <ul class="hint" id="validateErrors" style="margin-top:8px;padding-left:18px;display:none"></ul>
     <ul class="hint" id="auditPathsList" style="margin-top:8px;padding-left:18px;display:none"></ul>
+  </div>
+
+  <div class="card hidden" id="stepContentRef">
+    <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 12h6M9 16h6M5 8h14M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg></span> Quests &amp; Dialoge — IDs</div>
+    <p class="hint" style="margin-top:0">Zum Eintragen in Tabellen oder Notizen: ID auswählen und kopieren (kein Bearbeiten der Dateien hier).</p>
+    <label for="selQuestRef">Quest</label>
+    <div class="ref-row">
+      <select id="selQuestRef"><option value="">— wählen —</option></select>
+      <button type="button" class="ghost btn-sm" id="btnCopyQuestId">Quest-ID kopieren</button>
+    </div>
+    <label for="selDialogueRef" style="margin-top:12px;display:block">Dialog</label>
+    <div class="ref-row">
+      <select id="selDialogueRef"><option value="">— wählen —</option></select>
+      <button type="button" class="ghost btn-sm" id="btnCopyDialogueId">Dialog-ID kopieren</button>
+    </div>
+    <div id="copyRefMsg" class="msg hidden" style="margin-top:10px"></div>
   </div>
 
   <div class="card hidden" id="stepList">
@@ -479,6 +500,55 @@
       if (j && typeof j.errorDe === "string" && j.errorDe.trim()) return j.errorDe.trim();
       if (j && typeof j.error === "string") return j.error;
       return fallback || "Unbekannter Fehler";
+    }
+
+    function fillQuestDialogueRefs() {
+      const c = choicesCache;
+      const qSel = document.getElementById("selQuestRef");
+      const dSel = document.getElementById("selDialogueRef");
+      let qo = '<option value="">— wählen —</option>';
+      let do_ = '<option value="">— wählen —</option>';
+      if (c && Array.isArray(c.quests)) {
+        c.quests.forEach(function (q) {
+          const lab = q.id + (q.title ? " — " + q.title : "");
+          qo += '<option value="' + escapeAttr(q.id) + '">' + escapeHtml(lab) + "</option>";
+        });
+      }
+      if (c && Array.isArray(c.dialogues)) {
+        c.dialogues.forEach(function (d) {
+          do_ += '<option value="' + escapeAttr(d.id) + '">' + escapeHtml(d.id) + "</option>";
+        });
+      }
+      qSel.innerHTML = qo;
+      dSel.innerHTML = do_;
+    }
+
+    function copyTextToClipboard(text, okMsg) {
+      const t = String(text || "").trim();
+      if (!t) {
+        show("copyRefMsg", "Nichts zum Kopieren.", "err");
+        return;
+      }
+      function done(ok) {
+        show("copyRefMsg", ok ? okMsg : "Kopieren fehlgeschlagen — manuell markieren.", ok ? "ok" : "err");
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(t).then(function () { done(true); }).catch(function () { done(false); });
+      } else {
+        try {
+          const ta = document.createElement("textarea");
+          ta.value = t;
+          ta.style.position = "fixed";
+          ta.style.left = "-9999px";
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          document.body.removeChild(ta);
+          done(true);
+        } catch (e) {
+          done(false);
+        }
+      }
     }
 
     function fillTargetPick() {
@@ -839,6 +909,7 @@
         choicesCache = null;
       }
       fillTargetPick();
+      fillQuestDialogueRefs();
       try {
         const galleryData = await req("GET", "/glb-gallery-tree");
         renderGalleryTree(galleryData);
@@ -883,6 +954,16 @@
       if (this.value) document.getElementById("inTargetId").value = this.value;
     };
 
+    document.getElementById("btnCopyTargetId").onclick = function () {
+      copyTextToClipboard(document.getElementById("inTargetId").value, "Ziel-ID kopiert.");
+    };
+    document.getElementById("btnCopyQuestId").onclick = function () {
+      copyTextToClipboard(document.getElementById("selQuestRef").value, "Quest-ID kopiert.");
+    };
+    document.getElementById("btnCopyDialogueId").onclick = function () {
+      copyTextToClipboard(document.getElementById("selDialogueRef").value, "Dialog-ID kopiert.");
+    };
+
     document.getElementById("btnClearHistory").onclick = function () {
       sessionStorage.removeItem(HKEY);
       renderHistory();
@@ -906,7 +987,7 @@
         const m = await req("GET", "/meta");
         show("loginMsg", "Verbunden — du kannst zuordnen.", "ok");
         document.getElementById("techMeta").value = JSON.stringify(m, null, 2);
-        ["cardFlow", "cardHistory", "stepGallery", "stepWork", "stepDefaults", "stepPublish", "stepList", "stepExpert"].forEach(function (id) {
+        ["cardFlow", "cardHistory", "stepGallery", "stepWork", "stepDefaults", "stepContentRef", "stepPublish", "stepList", "stepExpert"].forEach(function (id) {
           document.getElementById(id).classList.remove("hidden");
         });
         setFlow(2);

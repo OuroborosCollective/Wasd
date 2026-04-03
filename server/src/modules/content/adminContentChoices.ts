@@ -5,6 +5,8 @@ import { getContentDataRoot, resolveContentFile } from "./contentDataRoot.js";
 export type NpcChoice = { id: string; name: string; role?: string };
 export type WorldObjectChoice = { id: string; name?: string; type?: string };
 export type PoolKeyChoice = { category: string; key: string; label: string };
+export type QuestChoice = { id: string; title?: string };
+export type DialogueChoice = { id: string };
 
 function safeReadJsonArray(fileRel: string): any[] {
   const p = resolveContentFile(fileRel);
@@ -76,6 +78,25 @@ export function loadObjectTypeChoicesForAdmin(): string[] {
     }
   }
   return [...types].sort((a, b) => a.localeCompare(b));
+}
+
+export function loadQuestChoicesForAdmin(): QuestChoice[] {
+  const arr = safeReadJsonArray("quests/quests.json");
+  return arr
+    .filter((q: any) => q && typeof q.id === "string")
+    .map((q: any) => ({
+      id: q.id,
+      title: typeof q.title === "string" ? q.title : undefined,
+    }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+export function loadDialogueChoicesForAdmin(): DialogueChoice[] {
+  const arr = safeReadJsonArray("dialogue/dialogues.json");
+  return arr
+    .filter((d: any) => d && typeof d.id === "string")
+    .map((d: any) => ({ id: d.id }))
+    .sort((a, b) => a.id.localeCompare(b.id));
 }
 
 /** Human-readable content root label for admin UI */

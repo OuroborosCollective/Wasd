@@ -17,6 +17,12 @@ Workflow: **`.github/workflows/deploy.yml`** (Push auf `main` und manuell **`wor
 
 Auf dem Server führt der Job **`deploy/deploy.sh`** aus: **pnpm** + **`pnpm install --frozen-lockfile`** am Repo-Root (wie CI), dann **`pnpm run build`**. SSH-Schritt hat **45 Minuten** Timeout für große Client-Builds.
 
+**Lokal (Entwickler):** `pnpm run ci:verify` = Lint, Tests, Build, Modell-Pfad-Audit (ohne Playwright). Voll wie GitHub: danach `pnpm run test:e2e:ci`.
+
+**Auf dem VPS nach Deploy:** `bash deploy/verify-vps-local.sh` (prüft `/health`, `/`, `/gm/` auf `127.0.0.1:3000`).
+
+Ausführliches Runbook: **`docs/CI_VPS_RUNBOOK.md`**.
+
 ## Schnellstart (VPS Hostinger)
 
 ### 1. SSH in deinen VPS einloggen

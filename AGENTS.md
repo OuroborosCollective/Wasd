@@ -27,6 +27,7 @@ Arelorian/Ouroboros is a browser-based MMORPG: `server/` (Express + WebSocket ga
 - **Test:** `pnpm run test` (Vitest, runs 600+ server tests; config at `vitest.config.ts`).
 - **E2E:** `pnpm run build` then `pnpm run test:e2e` (Playwright; install browsers once with `pnpm run test:e2e:install`). In CI, `pnpm run test:e2e:ci` installs Chromium with system deps then runs tests.
 - **Build:** `pnpm run build` (builds client with Vite, then compiles server TypeScript).
+- **Pre-push (no E2E):** `pnpm run ci:verify` — lint, unit tests, build, `audit:model-paths`. Full CI also runs Playwright (`pnpm run test:e2e:ci`).
 - **Content pack (optional):** `pnpm run content:publish` — validates, snapshots `game-data/` to `published-content/current/`. Run server with `USE_PUBLISHED_CONTENT=1` to load the snapshot instead of live `game-data/`.
 - **Model path audit:** `pnpm run audit:model-paths` — lists `glb-links.json`, `world/objects.json`, and `world/asset-pools.json` references under `/assets/models/…` or `/world-assets/…` missing on disk. Resolves monorepo root even when `cwd` is `server/` (ignores `server/game-data` symlink). **CI** runs this after build (must pass). Admin UI: **„3D-Pfade prüfen“** → `GET /api/admin/content/model-path-audit`.
 

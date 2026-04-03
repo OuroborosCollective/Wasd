@@ -13,6 +13,8 @@ import {
   loadNpcRoleChoicesForAdmin,
   loadObjectTypeChoicesForAdmin,
   loadWorldObjectChoicesForAdmin,
+  loadQuestChoicesForAdmin,
+  loadDialogueChoicesForAdmin,
 } from "../modules/content/adminContentChoices.js";
 import { getServerPublicModelsDir, validateAdminGlbPathForServer } from "../modules/content/adminGlbPathCheck.js";
 import {
@@ -110,6 +112,8 @@ export function adminContentRouter(tick: WorldTick): Router {
       monsterGroups: loadMonsterGroupKeysForAdmin(),
       npcRoles: loadNpcRoleChoicesForAdmin(),
       objectTypes: loadObjectTypeChoicesForAdmin(),
+      quests: loadQuestChoicesForAdmin(),
+      dialogues: loadDialogueChoicesForAdmin(),
     });
   });
 
