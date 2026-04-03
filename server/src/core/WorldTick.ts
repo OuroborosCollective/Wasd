@@ -13,6 +13,7 @@ import { getDb } from "../config/firebase.js";
 import { resolveLoginIdentity } from "../modules/auth/resolveLoginIdentity.js";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
 import { GLBRegistry } from "../modules/asset-registry/GLBRegistry.js";
+import { GlbLinksSpacetimeBackend } from "../modules/spacetime/glbLinksSpacetimeBackend.js";
 import { AssetPoolResolver } from "../modules/world/AssetPoolResolver.js";
 import { AREStateCompiler } from "../modules/world/AREStateCompiler.js";
 import { cache } from "./Cache.js";
@@ -30,6 +31,15 @@ import {
 } from "../modules/combat/selectAttackTarget.js";
 import { mergePersistedPlayerInto } from "../modules/persistence/playerSnapshot.js";
 import { normalizeInventoryStacks } from "../modules/inventory/inventoryStacks.js";
+import { buildSkillCooldownUntilPayload, getSkillDefinition } from "../modules/skill/skillDefinitions.js";
+import { resolveContentDir, resolveContentFile } from "../modules/content/contentDataRoot.js";
+
+function resolveStateBroadcastMobileMs(): number {
+  const raw = process.env.STATE_BROADCAST_INTERVAL_MOBILE_MS?.trim();
+  if (!raw) return GameConfig.stateBroadcastIntervalMobileMs;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 50 ? Math.floor(n) : GameConfig.stateBroadcastIntervalMobileMs;
+}
 
 type SpawnPoint = { x: number; y: number; z: number };
 type SceneProfile = {
@@ -143,7 +153,6 @@ const DEFAULT_SCENE_TRIGGER_ZONES: SceneTriggerZone[] = [
     allowedSpawnKeys: ["sp_didi_02"],
   },
 ];
-const SCENE_LAYOUT_DIRECTORY = path.resolve(process.cwd(), "game-data/scenes");
 const GM_EVENT_TEMPLATES: Record<string, GMTemplateDefinition> = {
   legion_invasion: {
     id: "legion_invasion",
@@ -246,6 +255,7 @@ export class WorldTick {
   public skillSystem: SkillSystem;
   public persistence: PersistenceManager;
   public glbRegistry: GLBRegistry;
+  private readonly glbLinksStore: "file" | "spacetime";
   private assetPoolResolver: AssetPoolResolver;
   private areStateCompiler: AREStateCompiler;
   private lootEntities: Map<string, any> = new Map();
@@ -354,6 +364,7 @@ export class WorldTick {
 
   private pushPlayerStateSync(socketId: string, player: any) {
     this.ensurePlayerVitalityCaps(player);
+    const now = Date.now();
     this.ws.sendToPlayer(socketId, {
       type: "stats_sync",
       gold: player.gold ?? 0,
@@ -373,6 +384,7 @@ export class WorldTick {
       quests: this.questSystem.getQuestSyncForClient(player),
       inventory: player.inventory || [],
       equipment: player.equipment || {},
+      skillCooldownUntil: buildSkillCooldownUntilPayload(player, now),
     });
   }
 
@@ -677,7 +689,7 @@ export class WorldTick {
   }
 
   private loadRuntimeEventTemplates() {
-    const templatesPath = path.resolve(process.cwd(), "game-data/gm/event-templates.json");
+    const templatesPath = resolveContentFile("gm/event-templates.json");
     if (!fs.existsSync(templatesPath)) {
       return;
     }
@@ -905,7 +917,7 @@ export class WorldTick {
         this.sendGMStatus(socketId, "error", "glbPath, targetType and targetId are required.");
         return true;
       }
-      this.glbRegistry.addLink({
+      await this.glbRegistry.addLink({
         glbPath: msg.glbPath,
         targetType: msg.targetType,
         targetId: msg.targetId,
@@ -920,7 +932,7 @@ export class WorldTick {
         this.sendGMStatus(socketId, "error", "targetType and targetId are required.");
         return true;
       }
-      this.glbRegistry.removeLink(msg.targetType, msg.targetId);
+      await this.glbRegistry.removeLink(msg.targetType, msg.targetId);
       this.ws.sendToPlayer(socketId, { type: "admin_glb_list_result", links: this.glbRegistry.getLinks() });
       this.sendGMStatus(socketId, "info", `Unlinked ${msg.targetType}:${msg.targetId}`);
       return true;
@@ -1197,7 +1209,7 @@ export class WorldTick {
           category === "monster" ? "monster_group" :
           category === "object" || category === "building" || category === "item" ? "object_group" :
           "npc_group";
-        this.glbRegistry.addLink({
+        await this.glbRegistry.addLink({
           glbPath: msg.path,
           targetType: targetType as any,
           targetId: msg.name,
@@ -1457,9 +1469,33 @@ export class WorldTick {
     this.skillSystem = new SkillSystem();
     this.persistence = new PersistenceManager();
     this.worldSystem = new WorldSystem(this.persistence);
-    this.glbRegistry = new GLBRegistry();
+    const glbStore = process.env.GLB_LINKS_STORE?.trim().toLowerCase();
+    const useSpacetimeGlb =
+      glbStore === "spacetime" ||
+      (glbStore !== "file" && process.env.GLB_LINKS_SPACETIME?.trim() === "1");
+    const stUrl = process.env.SPACETIME_DB_URL?.trim();
+    const stMod =
+      process.env.SPACETIME_GLB_MODULE_NAME?.trim() || process.env.SPACETIME_MODULE_NAME?.trim();
+    const stToken = process.env.SPACETIME_TOKEN?.trim();
+    let glbSt: GlbLinksSpacetimeBackend | null = null;
+    if (useSpacetimeGlb) {
+      if (stUrl && stMod) {
+        glbSt = new GlbLinksSpacetimeBackend(stUrl, stMod, stToken);
+        this.glbLinksStore = "spacetime";
+      } else {
+        console.warn(
+          "[GLBRegistry] GLB_LINKS_STORE=spacetime but SPACETIME_DB_URL or module name missing — using glb-links.json"
+        );
+        this.glbLinksStore = "file";
+      }
+    } else {
+      this.glbLinksStore = "file";
+    }
+    this.glbRegistry = new GLBRegistry({ glbLinksSpacetime: glbSt });
     this.assetPoolResolver = new AssetPoolResolver();
     this.areStateCompiler = new AREStateCompiler();
+
+    this.ws.resolveSocketToPlayerUid = (socketId) => this.socketToPlayer.get(socketId) ?? null;
 
     // Create a dummy player in a distant chunk to prove multi-observer union
     const dummyPlayer = this.playerSystem.createPlayer("dummy_player", "Dummy Player");
@@ -1496,10 +1532,22 @@ export class WorldTick {
         try {
           const identity = await resolveLoginIdentity(id, msg as any);
           if ("error" in identity) {
-            this.ws.sendToPlayer(id, { type: "error", message: identity.error, code: "login_required" });
+            this.ws.sendToPlayer(id, {
+              type: "error",
+              message: identity.error,
+              code: identity.code,
+            });
             return;
           }
           const { uid, charName } = identity;
+
+          const hints = (msg as { clientHints?: { lowBandwidth?: boolean } }).clientHints;
+          const mobileMs = resolveStateBroadcastMobileMs();
+          if (hints?.lowBandwidth === true) {
+            this.ws.setEntitySyncIntervalForSocket(id, mobileMs);
+          } else {
+            this.ws.setEntitySyncIntervalForSocket(id, GameConfig.stateBroadcastIntervalMs);
+          }
 
           let player = this.playerSystem.getPlayer(uid);
           let shouldApplySpawn = false;
@@ -1550,6 +1598,7 @@ export class WorldTick {
             sceneId: spawn.sceneId,
             spawnKey: spawn.spawnKey,
             spawnPosition: spawn.spawnPoint,
+            entitySyncIntervalMs: hints?.lowBandwidth ? mobileMs : GameConfig.stateBroadcastIntervalMs,
             stats: {
               gold: player.gold,
               xp: player.xp,
@@ -1568,6 +1617,7 @@ export class WorldTick {
               quests: this.questSystem.getQuestSyncForClient(player),
               inventory: player.inventory,
               equipment: player.equipment,
+              skillCooldownUntil: buildSkillCooldownUntilPayload(player, Date.now()),
             },
           });
           this.pushPlayerStateSync(id, player);
@@ -1639,6 +1689,14 @@ export class WorldTick {
           return;
         }
         if (msg.type === "quest_sync") {
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        if (msg.type === "attack" || msg.type === "use_skill") {
+          this.ws.sendToPlayer(id, {
+            type: "toast",
+            text: "You are defeated. Use respawn when the countdown finishes.",
+          });
           this.pushPlayerStateSync(id, player);
           return;
         }
@@ -1738,8 +1796,18 @@ export class WorldTick {
           this.pushPlayerStateSync(id, player);
           return;
         }
-        const removed = this.inventorySystem.takeOneFromBag(player, itemId);
-        if (!removed) {
+        const rawCount = Number(msg.count);
+        const want = Number.isFinite(rawCount) && rawCount > 0 ? Math.floor(rawCount) : 1;
+        const maxUse = Math.min(20, want);
+        const have = this.questSystem.countItemInInventory(player, itemId);
+        if (have < 1) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Item not in inventory." });
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        const useCount = Math.min(maxUse, have);
+        const removed = this.inventorySystem.takeManyFromBag(player, itemId, useCount);
+        if (removed < 1) {
           this.ws.sendToPlayer(id, { type: "toast", text: "Item not in inventory." });
           this.pushPlayerStateSync(id, player);
           return;
@@ -1747,17 +1815,120 @@ export class WorldTick {
         if (!player.dead) {
           if (typeof def.healAmount === "number" && def.healAmount > 0) {
             const mh = player.maxHealth ?? 100;
-            player.health = Math.min(mh, (player.health ?? mh) + def.healAmount);
+            const add = def.healAmount * removed;
+            player.health = Math.min(mh, (player.health ?? mh) + add);
           }
           if (typeof def.restoreMana === "number" && def.restoreMana > 0) {
             const mm = player.maxMana ?? 25;
-            player.mana = Math.min(mm, (player.mana ?? mm) + def.restoreMana);
+            const add = def.restoreMana * removed;
+            player.mana = Math.min(mm, (player.mana ?? mm) + add);
           }
         }
         this.ws.sendToPlayer(id, {
           type: "toast",
-          text: `Used: ${def.name}`,
+          text: removed > 1 ? `Used ${removed}× ${def.name}` : `Used: ${def.name}`,
         });
+        this.pushPlayerStateSync(id, player);
+        this.schedulePersistPlayer(player.id);
+        return;
+      }
+
+      if (msg.type === "split_stack") {
+        const rowIndex = Number(msg.rowIndex);
+        const amount = Number(msg.amount);
+        if (!Number.isFinite(rowIndex) || !Number.isFinite(amount) || amount < 1) {
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        const ok = this.inventorySystem.splitStackAt(player, rowIndex, amount);
+        if (!ok) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Cannot split that stack." });
+        }
+        this.pushPlayerStateSync(id, player);
+        this.schedulePersistPlayer(player.id);
+        return;
+      }
+
+      if (msg.type === "use_skill") {
+        const skillId = typeof msg.skillId === "string" ? msg.skillId.trim() : "";
+        const defSkill = getSkillDefinition(skillId);
+        if (!defSkill) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Unknown skill." });
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        const nowSk = Date.now();
+        if (!player.skillCooldowns || typeof player.skillCooldowns !== "object") {
+          player.skillCooldowns = {};
+        }
+        const cdUntil = Number(player.skillCooldowns[skillId]) || 0;
+        if (cdUntil > nowSk) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Skill is not ready yet." });
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        if ((player.mana ?? 0) < defSkill.manaCost) {
+          this.ws.sendToPlayer(id, { type: "toast", text: `Not enough mana (${defSkill.manaCost}).` });
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        if (player.dead) {
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        if (defSkill.kind === "self") {
+          const heal = typeof defSkill.healAmount === "number" ? defSkill.healAmount : 0;
+          player.mana = Math.max(0, (player.mana ?? 0) - defSkill.manaCost);
+          player.skillCooldowns[skillId] = nowSk + defSkill.cooldownMs;
+          if (heal > 0) {
+            const mh = player.maxHealth ?? 100;
+            player.health = Math.min(mh, (player.health ?? mh) + heal);
+          }
+          this.ws.sendToPlayer(id, { type: "toast", text: `${defSkill.name}!` });
+          this.pushPlayerStateSync(id, player);
+          this.schedulePersistPlayer(player.id);
+          return;
+        }
+        const px = player.position.x;
+        const py = player.position.y;
+        const best = selectAttackTarget(px, py, defSkill.range, this.npcSystem.getAllNPCs(), player.combatTargetNpcId);
+        if (!best) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "No target in range for that skill." });
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+        player.mana = Math.max(0, (player.mana ?? 0) - defSkill.manaCost);
+        player.skillCooldowns[skillId] = nowSk + defSkill.cooldownMs;
+        this.ws.broadcast({ type: "entity_action", entityId: player.id, action: "attack" });
+        const target = best.npc;
+        const outcome = this.combatSystem.spellStrike(player, target, defSkill.spellPower);
+        if (outcome.hit) {
+          this.ws.broadcast({
+            type: "entity_action",
+            entityId: target.id,
+            action: "hit",
+            damage: outcome.damage,
+          });
+        }
+        this.performNpcCounterAttack(target, player, id);
+        if ((target.health ?? 0) <= 0) {
+          this.skillSystem.addXP(player, "combat", 25);
+          const combatRewards = this.questSystem.updateCombatQuests(player, target.id, target.id);
+          for (const r of combatRewards) {
+            this.ws.sendToPlayer(id, {
+              type: "toast",
+              text: `Quest completed: ${r.quest.title || r.quest.id}`,
+            });
+          }
+          if (target.id === "npc_dummy" || target.role === "Training") {
+            target.health = target.maxHealth ?? 100;
+          } else {
+            this.dropLootFromNpc(target);
+            this.npcSystem.removeNPC(target.id);
+            this.lastNpcCounterAttackAt.delete(target.id);
+          }
+        }
+        this.ws.sendToPlayer(id, { type: "toast", text: `${defSkill.name} cast!` });
         this.pushPlayerStateSync(id, player);
         this.schedulePersistPlayer(player.id);
         return;
@@ -1807,9 +1978,6 @@ export class WorldTick {
         if (nowAtk - lastAtk < GameConfig.playerAttackCooldownMs) {
           return;
         }
-        this.lastPlayerAttackAt.set(player.id, nowAtk);
-
-        this.ws.broadcast({ type: "entity_action", entityId: player.id, action: "attack" });
         const px = player.position.x;
         const py = player.position.y;
         const { damageBonus: weaponBonus, attackRange: weaponRange, manaCost: attackManaCost } =
@@ -1846,6 +2014,8 @@ export class WorldTick {
           this.pushPlayerStateSync(id, player);
           return;
         }
+        this.lastPlayerAttackAt.set(player.id, nowAtk);
+        this.ws.broadcast({ type: "entity_action", entityId: player.id, action: "attack" });
         const target = best.npc;
         if (attackManaCost > 0) {
           player.mana = Math.max(0, (player.mana ?? 0) - attackManaCost);
@@ -1993,6 +2163,7 @@ export class WorldTick {
       console.log("✅ Firestore connection verified.");
     }
     await this.persistence.init();
+    await this.glbRegistry.init();
     const savedData = await this.persistence.load();
     for (const id in savedData) {
       if (id === "dummy_player") continue;
@@ -2011,12 +2182,13 @@ export class WorldTick {
 
   private loadSceneLayouts() {
     try {
-      if (!fs.existsSync(SCENE_LAYOUT_DIRECTORY)) {
+      const sceneDir = resolveContentDir("scenes");
+      if (!fs.existsSync(sceneDir)) {
         return;
       }
 
       const files = fs
-        .readdirSync(SCENE_LAYOUT_DIRECTORY)
+        .readdirSync(sceneDir)
         .filter((name) => name.toLowerCase().endsWith(".json"))
         .sort((a, b) => a.localeCompare(b));
 
@@ -2028,7 +2200,7 @@ export class WorldTick {
       const loadedTriggers: SceneTriggerZone[] = [];
 
       for (const fileName of files) {
-        const absolutePath = path.join(SCENE_LAYOUT_DIRECTORY, fileName);
+        const absolutePath = path.join(sceneDir, fileName);
         const raw = JSON.parse(fs.readFileSync(absolutePath, "utf-8"));
         const sceneId = isNonEmptyString(raw?.sceneId) ? raw.sceneId.trim() : "";
         if (!sceneId) {
@@ -2113,13 +2285,8 @@ export class WorldTick {
 
   private loadSpawns() {
     try {
-      const cwd = process.cwd();
-      const candidates = [
-        path.resolve(cwd, "game-data/spawns/npc-spawns.json"),
-        path.resolve(cwd, "../game-data/spawns/npc-spawns.json"),
-      ];
-      const spawnsPath = candidates.find((p) => fs.existsSync(p));
-      if (!spawnsPath) {
+      const spawnsPath = resolveContentFile("spawns/npc-spawns.json");
+      if (!fs.existsSync(spawnsPath)) {
         return;
       }
       const spawnData = JSON.parse(fs.readFileSync(spawnsPath, "utf-8"));
@@ -2161,6 +2328,8 @@ export class WorldTick {
       lastSavePlayerCount: this.lastSaveAllPlayerCount,
       lastSaveError: this.lastSaveAllError,
       firestoreConfigured: Boolean(getDb()),
+      persistenceDriver: this.persistence.getDriverName(),
+      glbLinksStore: this.glbLinksStore,
     };
   }
 

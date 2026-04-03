@@ -32,6 +32,10 @@ nano /opt/areloria/.env
 
 **Login:** In Production ist ohne `FIREBASE_SERVICE_ACCOUNT_KEY` nur **Gast-Login** möglich, wenn `ALLOW_GUEST_LOGIN=1` gesetzt ist; sonst müssen Clients ein Firebase **ID-Token** mitsenden. Development: `dev_*`-Login per Socket-ID, abschaltbar mit `ALLOW_DEV_LOGIN=0`. **`REQUIRE_FIREBASE_AUTH=1`** erzwingt ausschließlich Token-Login (kein Gast/Dev); ohne konfiguriertes Firebase-Admin-Key meldet der Server einen klaren Fehler.
 
+**Client-Build:** Für Google/Email-Login im Browser die **Vite-Variablen** `VITE_FIREBASE_*` (und optional `VITE_FIRESTORE_DATABASE_ID`) setzen — siehe `.env.example`. Ohne diese Keys nutzt der Build weiterhin `firebase-applet-config.json` im Repo-Root (nur für Entwicklung geeignet). Nach Login refresht der Client das **ID-Token** automatisch und reconnectet die WebSocket.
+
+**WebSocket-Schutz:** Max. Nachrichtengröße und Rate-Limit pro Verbindung sind in `GameConfig` (`wsMaxMessageBytes`, `wsMaxMessagesPerSecond`).
+
 **Health-Endpoint:** `GET /health` liefert u. a. `persistence` (`lastSaveAt`, `lastSaveDurationMs`, `firestoreConfigured`, `lastSaveError`) für Monitoring.
 
 ### 4. Server starten

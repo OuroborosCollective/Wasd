@@ -44,6 +44,7 @@ describe("PlayerSystem", () => {
   it("createPlayer() initializes mana to 25", () => {
     const player = ps.createPlayer("p1", "Alice");
     expect(player.mana).toBe(25);
+    expect(player.maxMana).toBe(25);
   });
 
   it("createPlayer() initializes gold to 0", () => {

@@ -17,7 +17,7 @@ describe("resolveLoginIdentity", () => {
     delete process.env.ALLOW_GUEST_LOGIN;
     const { resolveLoginIdentity } = await import("../modules/auth/resolveLoginIdentity.js");
     const r = await resolveLoginIdentity("sock1", {});
-    expect(r).toEqual({ error: "Sign-in required" });
+    expect(r).toEqual({ error: "Sign-in required", code: "login_required" });
   });
 
   it("guest mode returns stable guest id when client sends valid guestId", async () => {
@@ -51,6 +51,7 @@ describe("resolveLoginIdentity", () => {
     const r = await resolveLoginIdentity("sock1", {});
     expect(r).toEqual({
       error: "Dev login disabled (set ALLOW_DEV_LOGIN=1 or use a token)",
+      code: "login_required",
     });
   });
 

@@ -1,5 +1,6 @@
-import { auth } from "../auth/firebase";
-import { sendDialogueChoice, sendQuestAccept } from "../networking/websocketClient";
+import { auth, isFirebaseClientConfigured } from "../auth/firebase";
+import { getQuickCastSkillId } from "../game/combatSkills";
+import { sendDialogueChoice, sendQuestAccept, updateAuthToken } from "../networking/websocketClient";
 import {
   getPlayerGold,
   getPlayerHealth,
@@ -12,8 +13,17 @@ import {
   getPlayerXp,
   subscribePlayerState,
 } from "../state/playerState";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import {
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+} from "firebase/auth";
 import { prefersCompactTouchUi } from "./touchUi";
+
+const GUEST_STORAGE_KEY = "areloria_guest_id";
 
 function makeBarRow(label: string, fillPct: number, color: string): HTMLDivElement {
   const wrap = document.createElement("div");
@@ -112,9 +122,22 @@ export function renderHUD() {
 
   document.body.appendChild(hud);
 
+  const authBox = document.createElement("div");
+  authBox.id = "arel-hud-auth";
+  authBox.style.marginTop = "10px";
+  authBox.style.display = "flex";
+  authBox.style.flexDirection = "column";
+  authBox.style.gap = "8px";
+  authBox.style.maxWidth = "100%";
+
+  const btnRow = document.createElement("div");
+  btnRow.style.display = "flex";
+  btnRow.style.flexWrap = "wrap";
+  btnRow.style.gap = "8px";
+  btnRow.style.alignItems = "center";
+
   const loginBtn = document.createElement("button");
-  loginBtn.textContent = "Login with Google";
-  loginBtn.style.marginTop = "8px";
+  loginBtn.textContent = "Google";
   loginBtn.style.padding = "8px 12px";
   loginBtn.style.minHeight = "44px";
   loginBtn.style.background = "#f27d26";
@@ -123,19 +146,220 @@ export function renderHUD() {
   loginBtn.style.cursor = "pointer";
   loginBtn.style.border = "none";
   loginBtn.style.touchAction = "manipulation";
-  loginBtn.onclick = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      const result = await signInWithPopup(auth, provider);
-      const token = await result.user.getIdToken();
-      localStorage.setItem("token", token);
-      console.log("Logged in!");
-      loginBtn.style.display = "none";
-    } catch (e) {
-      console.error("Login failed", e);
-    }
+
+  const verifyEmailBtn = document.createElement("button");
+  verifyEmailBtn.type = "button";
+  verifyEmailBtn.textContent = "Verify email";
+  verifyEmailBtn.title = "Send a verification link to your address";
+  verifyEmailBtn.style.padding = "8px 12px";
+  verifyEmailBtn.style.minHeight = "44px";
+  verifyEmailBtn.style.background = "rgba(50,80,120,0.95)";
+  verifyEmailBtn.style.color = "#e8ecf5";
+  verifyEmailBtn.style.borderRadius = "8px";
+  verifyEmailBtn.style.cursor = "pointer";
+  verifyEmailBtn.style.border = "1px solid rgba(120,180,255,0.4)";
+  verifyEmailBtn.style.touchAction = "manipulation";
+
+  const resetPassBtn = document.createElement("button");
+  resetPassBtn.type = "button";
+  resetPassBtn.textContent = "Reset password";
+  resetPassBtn.title = "Email a password reset link";
+  resetPassBtn.style.padding = "8px 12px";
+  resetPassBtn.style.minHeight = "44px";
+  resetPassBtn.style.background = "rgba(70,55,40,0.95)";
+  resetPassBtn.style.color = "#e8ecf5";
+  resetPassBtn.style.borderRadius = "8px";
+  resetPassBtn.style.cursor = "pointer";
+  resetPassBtn.style.border = "1px solid rgba(255,180,100,0.35)";
+  resetPassBtn.style.touchAction = "manipulation";
+
+  const logoutBtn = document.createElement("button");
+  logoutBtn.textContent = "Sign out";
+  logoutBtn.style.padding = "8px 12px";
+  logoutBtn.style.minHeight = "44px";
+  logoutBtn.style.background = "rgba(60,60,70,0.95)";
+  logoutBtn.style.color = "#e8ecf5";
+  logoutBtn.style.borderRadius = "8px";
+  logoutBtn.style.cursor = "pointer";
+  logoutBtn.style.border = "1px solid rgba(255,255,255,0.2)";
+  logoutBtn.style.touchAction = "manipulation";
+
+  const emailRow = document.createElement("div");
+  emailRow.style.display = "flex";
+  emailRow.style.flexDirection = "column";
+  emailRow.style.gap = "6px";
+  const emailIn = document.createElement("input");
+  emailIn.type = "email";
+  emailIn.placeholder = "Email";
+  emailIn.autocomplete = "username";
+  emailIn.style.padding = "8px 10px";
+  emailIn.style.borderRadius = "8px";
+  emailIn.style.border = "1px solid rgba(255,255,255,0.25)";
+  emailIn.style.background = "rgba(20,22,32,0.9)";
+  emailIn.style.color = "#fff";
+  emailIn.style.fontSize = "14px";
+  const passIn = document.createElement("input");
+  passIn.type = "password";
+  passIn.placeholder = "Password";
+  passIn.autocomplete = "current-password";
+  passIn.style.padding = "8px 10px";
+  passIn.style.borderRadius = "8px";
+  passIn.style.border = "1px solid rgba(255,255,255,0.25)";
+  passIn.style.background = "rgba(20,22,32,0.9)";
+  passIn.style.color = "#fff";
+  passIn.style.fontSize = "14px";
+  const emailErr = document.createElement("div");
+  emailErr.style.fontSize = "11px";
+  emailErr.style.color = "#ff8a8a";
+  emailErr.style.minHeight = "14px";
+  const emailBtnRow = document.createElement("div");
+  emailBtnRow.style.display = "flex";
+  emailBtnRow.style.flexWrap = "wrap";
+  emailBtnRow.style.gap = "8px";
+  const emailLoginBtn = document.createElement("button");
+  emailLoginBtn.type = "button";
+  emailLoginBtn.textContent = "Email sign in";
+  emailLoginBtn.style.padding = "8px 12px";
+  emailLoginBtn.style.minHeight = "44px";
+  emailLoginBtn.style.borderRadius = "8px";
+  emailLoginBtn.style.border = "1px solid rgba(100,180,255,0.45)";
+  emailLoginBtn.style.background = "rgba(35,50,80,0.95)";
+  emailLoginBtn.style.color = "#e8ecf5";
+  emailLoginBtn.style.cursor = "pointer";
+  emailLoginBtn.style.touchAction = "manipulation";
+  const emailSignupBtn = document.createElement("button");
+  emailSignupBtn.type = "button";
+  emailSignupBtn.textContent = "Create account";
+  emailSignupBtn.style.padding = "8px 12px";
+  emailSignupBtn.style.minHeight = "44px";
+  emailSignupBtn.style.borderRadius = "8px";
+  emailSignupBtn.style.border = "1px solid rgba(180,255,180,0.35)";
+  emailSignupBtn.style.background = "rgba(30,55,40,0.95)";
+  emailSignupBtn.style.color = "#e8ecf5";
+  emailSignupBtn.style.cursor = "pointer";
+  emailSignupBtn.style.touchAction = "manipulation";
+  emailBtnRow.appendChild(emailLoginBtn);
+  emailBtnRow.appendChild(emailSignupBtn);
+  emailRow.appendChild(emailIn);
+  emailRow.appendChild(passIn);
+  emailRow.appendChild(emailErr);
+  emailRow.appendChild(emailBtnRow);
+
+  btnRow.appendChild(loginBtn);
+  btnRow.appendChild(verifyEmailBtn);
+  btnRow.appendChild(resetPassBtn);
+  btnRow.appendChild(logoutBtn);
+  authBox.appendChild(btnRow);
+  authBox.appendChild(emailRow);
+
+  const hint = document.createElement("div");
+  const refreshHint = () => {
+    hint.textContent = `Quick cast (Q / SPELL): ${getQuickCastSkillId()} — change in Skills panel`;
   };
-  hud.appendChild(loginBtn);
+  refreshHint();
+  hint.style.fontSize = "10px";
+  hint.style.opacity = "0.7";
+  hint.style.marginTop = "2px";
+  window.addEventListener("areloria-quick-cast-changed", refreshHint);
+  authBox.appendChild(hint);
+
+  const syncAuthUi = () => {
+    const u = auth?.currentUser;
+    const out = !u;
+    loginBtn.style.display = out ? "inline-block" : "none";
+    logoutBtn.style.display = u ? "inline-block" : "none";
+    verifyEmailBtn.style.display = u ? "inline-block" : "none";
+    resetPassBtn.style.display = u ? "inline-block" : "none";
+    emailRow.style.display = out ? "flex" : "none";
+  };
+  syncAuthUi();
+  auth?.onAuthStateChanged(() => syncAuthUi());
+
+  if (!isFirebaseClientConfigured() || !auth) {
+    loginBtn.textContent = "Auth (configure Firebase)";
+    loginBtn.disabled = true;
+    loginBtn.style.opacity = "0.65";
+    logoutBtn.style.display = "none";
+    verifyEmailBtn.style.display = "none";
+    resetPassBtn.style.display = "none";
+    emailRow.style.display = "none";
+  } else {
+    loginBtn.onclick = async () => {
+      const provider = new GoogleAuthProvider();
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const token = await result.user.getIdToken();
+        updateAuthToken(token);
+        console.log("Logged in!");
+      } catch (e) {
+        console.error("Login failed", e);
+      }
+    };
+    emailLoginBtn.onclick = async () => {
+      emailErr.textContent = "";
+      try {
+        const cred = await signInWithEmailAndPassword(auth, emailIn.value.trim(), passIn.value);
+        const token = await cred.user.getIdToken();
+        updateAuthToken(token);
+      } catch (e: unknown) {
+        emailErr.textContent = e instanceof Error ? e.message : "Sign-in failed";
+      }
+    };
+    emailSignupBtn.onclick = async () => {
+      emailErr.textContent = "";
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, emailIn.value.trim(), passIn.value);
+        const token = await cred.user.getIdToken();
+        updateAuthToken(token);
+      } catch (e: unknown) {
+        emailErr.textContent = e instanceof Error ? e.message : "Sign-up failed";
+      }
+    };
+    verifyEmailBtn.onclick = async () => {
+      emailErr.textContent = "";
+      const u = auth.currentUser;
+      if (!u?.email) {
+        emailErr.textContent = "No email on this account.";
+        return;
+      }
+      try {
+        await sendEmailVerification(u);
+        emailErr.textContent = "Verification email sent.";
+        emailErr.style.color = "#8fdf9a";
+      } catch (e: unknown) {
+        emailErr.textContent = e instanceof Error ? e.message : "Could not send verification";
+        emailErr.style.color = "#ff8a8a";
+      }
+    };
+    resetPassBtn.onclick = async () => {
+      emailErr.textContent = "";
+      const addr = emailIn.value.trim() || auth.currentUser?.email;
+      if (!addr) {
+        emailErr.textContent = "Enter your email above or sign in first.";
+        return;
+      }
+      try {
+        await sendPasswordResetEmail(auth, addr);
+        emailErr.textContent = "Password reset email sent.";
+        emailErr.style.color = "#8fdf9a";
+      } catch (e: unknown) {
+        emailErr.textContent = e instanceof Error ? e.message : "Reset failed";
+        emailErr.style.color = "#ff8a8a";
+      }
+    };
+    logoutBtn.onclick = async () => {
+      try {
+        const { signOut } = await import("firebase/auth");
+        await signOut(auth);
+        updateAuthToken(null);
+        localStorage.removeItem(GUEST_STORAGE_KEY);
+      } catch (e) {
+        console.error("Sign out failed", e);
+      }
+    };
+  }
+
+  hud.appendChild(authBox);
 }
 
 export type DialoguePayload = {
@@ -241,8 +465,8 @@ export function showDialogue(payload: string | DialoguePayload) {
       const isCoarse = prefersCompactTouchUi();
       if (isCoarse) {
         dialogueBox!.style.top = "auto";
-        dialogueBox!.style.bottom = "max(16px, env(safe-area-inset-bottom, 0px))";
-        dialogueBox!.style.maxHeight = "min(65vh, 480px)";
+        dialogueBox!.style.bottom = "max(240px, env(safe-area-inset-bottom, 0px))";
+        dialogueBox!.style.maxHeight = "min(50vh, 480px)";
       } else {
         dialogueBox!.style.bottom = "auto";
         dialogueBox!.style.top = "max(12%, env(safe-area-inset-top, 0px))";
@@ -306,8 +530,8 @@ export function showDialogue(payload: string | DialoguePayload) {
     const isCoarse = prefersCompactTouchUi();
     if (isCoarse) {
       dialogueBox.style.top = "auto";
-      dialogueBox.style.bottom = "max(16px, env(safe-area-inset-bottom, 0px))";
-      dialogueBox.style.maxHeight = "min(65vh, 480px)";
+      dialogueBox.style.bottom = "max(240px, env(safe-area-inset-bottom, 0px))";
+      dialogueBox.style.maxHeight = "min(50vh, 480px)";
     } else {
       dialogueBox.style.bottom = "auto";
       dialogueBox.style.top = "max(12%, env(safe-area-inset-top, 0px))";

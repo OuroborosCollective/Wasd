@@ -2,6 +2,13 @@ import { auth } from "../auth/firebase";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 export function renderAuthUI(onLogin: (token?: string) => void) {
+  if (!auth) {
+    const err = document.createElement("div");
+    err.textContent = "Firebase is not configured (missing VITE_FIREBASE_* or config).";
+    err.style.cssText = "padding:2rem;color:#f88;";
+    document.body.appendChild(err);
+    return () => err.remove();
+  }
   const container = document.createElement("div");
   container.id = "auth-container";
   container.style.position = "absolute";
@@ -50,7 +57,7 @@ export function renderAuthUI(onLogin: (token?: string) => void) {
   googleBtn.onclick = async () => {
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      await signInWithPopup(auth!, provider);
     } catch (e: any) {
       errorMsg.innerText = e.message;
     }
@@ -106,7 +113,7 @@ export function renderAuthUI(onLogin: (token?: string) => void) {
   loginBtn.onclick = async () => {
     try {
       errorMsg.innerText = "";
-      await signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
+      await signInWithEmailAndPassword(auth!, emailInput.value, passwordInput.value);
     } catch (e: any) {
       errorMsg.innerText = e.message;
     }
@@ -126,7 +133,7 @@ export function renderAuthUI(onLogin: (token?: string) => void) {
   signupBtn.onclick = async () => {
     try {
       errorMsg.innerText = "";
-      await createUserWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
+      await createUserWithEmailAndPassword(auth!, emailInput.value, passwordInput.value);
     } catch (e: any) {
       errorMsg.innerText = e.message;
     }
@@ -136,7 +143,7 @@ export function renderAuthUI(onLogin: (token?: string) => void) {
   container.appendChild(formBox);
   document.body.appendChild(container);
 
-  const unsubscribe = onAuthStateChanged(auth, async (user) => {
+  const unsubscribe = onAuthStateChanged(auth!, async (user) => {
     if (user) {
       container.style.display = "none";
       const token = await user.getIdToken();
@@ -153,6 +160,7 @@ export function renderAuthUI(onLogin: (token?: string) => void) {
 }
 
 export function renderLogoutBtn() {
+  if (!auth) return;
   const btn = document.createElement("button");
   btn.innerText = "Logout";
   btn.style.position = "fixed";
@@ -167,7 +175,7 @@ export function renderLogoutBtn() {
   btn.style.zIndex = "2000";
   btn.style.fontWeight = "bold";
   btn.onclick = () => {
-    signOut(auth);
+    signOut(auth!);
     window.location.reload();
   };
   document.body.appendChild(btn);

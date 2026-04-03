@@ -28,6 +28,8 @@ let respawnAvailableAt = 0;
 let quests: ClientQuestEntry[] = [];
 let inventory: any[] = [];
 let equipment: Record<string, unknown> = {};
+/** skillId -> server timestamp (ms) when cooldown ends */
+let skillCooldownUntil: Record<string, number> = {};
 
 const listeners = new Set<() => void>();
 
@@ -56,6 +58,7 @@ export function applyStatsPayload(data: {
   quests?: ClientQuestEntry[];
   inventory?: any[];
   equipment?: Record<string, unknown>;
+  skillCooldownUntil?: Record<string, number>;
 }) {
   if (typeof data.gold === "number") gold = data.gold;
   if (typeof data.xp === "number") xp = data.xp;
@@ -72,6 +75,9 @@ export function applyStatsPayload(data: {
   if (Array.isArray(data.quests)) quests = data.quests;
   if (Array.isArray(data.inventory)) inventory = data.inventory;
   if (data.equipment && typeof data.equipment === "object") equipment = data.equipment;
+  if (data.skillCooldownUntil && typeof data.skillCooldownUntil === "object") {
+    skillCooldownUntil = { ...data.skillCooldownUntil };
+  }
   emit();
 }
 
@@ -117,4 +123,8 @@ export function getPlayerInventory() {
 
 export function getPlayerEquipment(): Record<string, unknown> {
   return equipment;
+}
+
+export function getSkillCooldownUntil(): Record<string, number> {
+  return { ...skillCooldownUntil };
 }

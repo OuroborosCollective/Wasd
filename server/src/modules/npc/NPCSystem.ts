@@ -4,6 +4,7 @@ import { NPCGenealogyEngine } from "./NPCGenealogyEngine.js";
 import { NPCScheduleRegistry } from "./NPCScheduleRegistry.js";
 import fs from "fs";
 import path from "path";
+import { resolveContentFile } from "../content/contentDataRoot.js";
 
 export class NPCSystem {
   private npcs: Map<string, any> = new Map();
@@ -22,11 +23,8 @@ export class NPCSystem {
   }
 
   private resolveGameDataPath(file: string): string | null {
-    const cwd = process.cwd();
-    const a = path.resolve(cwd, `game-data/${file}`);
-    const b = path.resolve(cwd, `../game-data/${file}`);
-    if (fs.existsSync(a)) return a;
-    if (fs.existsSync(b)) return b;
+    const p = resolveContentFile(file);
+    if (fs.existsSync(p)) return p;
     return null;
   }
 

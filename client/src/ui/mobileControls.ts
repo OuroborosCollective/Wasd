@@ -50,9 +50,11 @@ const MOBILE_STYLES = `
     transition: none;
     pointer-events: none;
   }
+  .mob-btn-skill { background: rgba(120,60,200,0.45); border-color: rgba(180,120,255,0.55); }
+  .mob-btn-skill:active { background: rgba(160,100,240,0.65); }
   #mobile-action-btns {
     position: fixed; bottom: 90px; right: 20px;
-    display: grid; grid-template-columns: 52px 52px;
+    display: grid; grid-template-columns: 52px 52px 52px;
     grid-template-rows: 52px 52px 52px;
     gap: 8px; z-index: 1000;
     touch-action: none;
@@ -167,7 +169,6 @@ const MOBILE_STYLES = `
     #hud-top-left { top: 10px !important; }
     #minimap { top: 10px !important; right: 10px !important; width: 100px !important; height: 100px !important; }
     #chat-panel { bottom: 230px !important; max-height: 120px !important; width: calc(100vw - 40px) !important; left: 20px !important; }
-    #dialogue-box { bottom: 240px !important; }
     #action-bar { bottom: 170px !important; }
     .world-label { font-size: 10px !important; }
   }
@@ -193,6 +194,7 @@ export function initMobileControls(
     onInventory: () => void;
     onQuests: () => void;
     onSkills: () => void;
+    onQuickSkill: () => void;
     onMap: () => void;
     onChat: () => void;
   },
@@ -218,23 +220,27 @@ export function initMobileControls(
 
     <!-- Action Buttons (right side) -->
     <div id="mobile-action-btns">
-      <div class="mob-btn mob-btn-attack" id="mob-attack" style="grid-column:2;grid-row:2;">
-        ⚔️
-        <span class="mob-btn-label">ATK</span>
+      <div class="mob-btn mob-btn-skill" id="mob-skill-cast" style="grid-column:1;grid-row:1;">
+        🔮
+        <span class="mob-btn-label">SPELL</span>
+      </div>
+      <div class="mob-btn" id="mob-skills" style="grid-column:2;grid-row:1;">
+        ✨
+        <span class="mob-btn-label">SKILL</span>
+      </div>
+      <div class="mob-btn" id="mob-equip" style="grid-column:3;grid-row:1;">
+        🎒
+        <span class="mob-btn-label">INV</span>
       </div>
       <div class="mob-btn mob-btn-interact" id="mob-interact" style="grid-column:1;grid-row:2;">
         💬
         <span class="mob-btn-label">TALK</span>
       </div>
-      <div class="mob-btn" id="mob-equip" style="grid-column:2;grid-row:1;">
-        🎒
-        <span class="mob-btn-label">INV</span>
+      <div class="mob-btn mob-btn-attack" id="mob-attack" style="grid-column:2;grid-row:2;">
+        ⚔️
+        <span class="mob-btn-label">ATK</span>
       </div>
-      <div class="mob-btn" id="mob-skills" style="grid-column:1;grid-row:1;">
-        ✨
-        <span class="mob-btn-label">SKILL</span>
-      </div>
-      <div class="mob-btn" id="mob-quests" style="grid-column:1;grid-row:3;">
+      <div class="mob-btn" id="mob-quests" style="grid-column:3;grid-row:2;">
         📜
         <span class="mob-btn-label">QUEST</span>
       </div>
@@ -423,10 +429,12 @@ export function initMobileControls(
   const addTouchBtn = (id: string, cb: () => void) => {
     const el = document.getElementById(id);
     if (!el) return;
+    el.style.pointerEvents = "auto";
     el.addEventListener("touchstart", (e) => { e.preventDefault(); e.stopPropagation(); cb(); }, { passive: false });
     el.addEventListener("click", (e) => { e.stopPropagation(); cb(); });
   };
 
+  addTouchBtn("mob-skill-cast", callbacks.onQuickSkill);
   addTouchBtn("mob-attack", callbacks.onAttack);
   addTouchBtn("mob-interact", callbacks.onInteract);
   addTouchBtn("mob-equip", callbacks.onInventory);
@@ -503,8 +511,8 @@ export function initMobileControls(
     let pinchActive = false;
 
     canvas.addEventListener("touchstart", (e) => {
-      e.preventDefault();
       if (e.touches.length === 2) {
+        e.preventDefault();
         // Pinch zoom
         pinchActive = true;
         cameraTouchId = null;
@@ -512,14 +520,21 @@ export function initMobileControls(
         pinchDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
       } else if (e.touches.length === 1) {
         const touch = e.touches[0];
-        // Only start camera drag if touch is NOT in joystick zone or action buttons
-        const joystickRect = joystickZone.getBoundingClientRect();
-        const actionRect = document.getElementById("mobile-action-btns")?.getBoundingClientRect();
-        const inJoystick = touch.clientX >= joystickRect.left && touch.clientX <= joystickRect.right
-                        && touch.clientY >= joystickRect.top && touch.clientY <= joystickRect.bottom;
-        const inActions = actionRect && touch.clientX >= actionRect.left && touch.clientX <= actionRect.right
-                       && touch.clientY >= actionRect.top && touch.clientY <= actionRect.bottom;
-        if (!inJoystick && !inActions) {
+        // Only start camera drag if touch is NOT in joystick zone, action buttons, or other UI
+        const isUIElement = (el: Element | null): boolean => {
+          if (!el) return false;
+          if (el.id === "mobile-controls" || el.closest("#mobile-controls")) return true;
+          if (el.id === "arel-hud" || el.closest("#arel-hud")) return true;
+          if (el.id === "dialogue-box" || el.closest("#dialogue-box")) return true;
+          if (el.id === "chat-panel" || el.closest("#chat-panel")) return true;
+          if (el.classList.contains("panel") || el.closest(".panel")) return true;
+          if (el.id === "combat-loot-strip" || el.closest("#combat-loot-strip")) return true;
+          return false;
+        };
+        const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+
+        if (!isUIElement(targetElement)) {
+          e.preventDefault();
           cameraTouchId = touch.identifier;
           lastCamX = touch.clientX;
           lastCamY = touch.clientY;

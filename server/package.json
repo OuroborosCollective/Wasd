@@ -23,6 +23,7 @@
     "node-pg-migrate": "^8.0.4",
     "openai": "^6.32.0",
     "pg": "^8.11.3",
+    "spacetimedb": "^2.1.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {

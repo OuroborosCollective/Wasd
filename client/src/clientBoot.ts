@@ -6,8 +6,10 @@ import {
   connectSocket,
   requestSceneChange,
   sendSetCombatTarget,
+  setAuthTokenProvider,
   type ConnectionOptions,
 } from "./networking/websocketClient";
+import { auth } from "./auth/firebase";
 import { IEngineBridge } from "./engine/bridge/IEngineBridge";
 import { renderHUD, showDialogue } from "./ui/hud";
 import { getJoystickState, initMobileControls, isMobile } from "./ui/mobileControls";
@@ -20,6 +22,8 @@ import {
 } from "./ui/lazyPanels";
 import { showBootStatus, showRendererFatalOverlay } from "./bootUi";
 import { initCombatMobileUi } from "./ui/combatMobileUi";
+import { getQuickCastSkillId } from "./game/combatSkills";
+import { mountSkillBar } from "./ui/skillBar";
 
 function bootEngineBridge(targetCanvas: HTMLCanvasElement): IEngineBridge {
   const app = createBabylonApp(targetCanvas);
@@ -60,6 +64,16 @@ export async function bootAreloriaClient(canvas: HTMLCanvasElement): Promise<voi
   (window as unknown as { gameCore?: MMORPGClientCore }).gameCore = core;
   core.registerDefaultInput();
 
+  setAuthTokenProvider(async () => {
+    const u = auth?.currentUser;
+    if (!u) return null;
+    try {
+      return await u.getIdToken();
+    } catch {
+      return null;
+    }
+  });
+
   const connectionOptions: ConnectionOptions = {};
   const persistedToken = localStorage.getItem("token");
   if (persistedToken && persistedToken.trim().length > 0) {
@@ -69,6 +83,7 @@ export async function bootAreloriaClient(canvas: HTMLCanvasElement): Promise<voi
   (window as unknown as { requestSceneChange?: typeof requestSceneChange }).requestSceneChange =
     requestSceneChange;
   renderHUD();
+  mountSkillBar();
   void import("./ui/mobileSceneTeleportPanel").then((m) => m.renderMobileSceneTeleportPanel());
   preloadGamePanels();
 
@@ -89,6 +104,7 @@ export async function bootAreloriaClient(canvas: HTMLCanvasElement): Promise<voi
       onSkills: () => {
         void openSkillsPanel();
       },
+      onQuickSkill: () => core.useSkill(getQuickCastSkillId()),
       onMap: () => {
         console.log("Map toggled");
       },
