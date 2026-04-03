@@ -11,6 +11,7 @@ Arelorian/Ouroboros is a browser-based MMORPG: `server/` (Express + WebSocket ga
 - **Known gotcha:** `tsx watch` may restart in a loop because Vite middleware writes temp files to `client/node_modules/.vite-temp/`. For a stable session, run `npx tsx server/src/index.ts` directly (without watch) from the workspace root.
 - Firebase/Firestore is optional for local dev. Without `FIREBASE_SERVICE_ACCOUNT_KEY`, the server logs warnings but continues with in-memory state. Auth tokens are bypassed in dev mode (any WS login without a token creates a `dev_*` player).
 - Redis and PostgreSQL are optional; the server falls back gracefully without them.
+- **Static assets:** The game serves the Vite build from `client/dist` and also mounts repo-root **`world-assets/`** at **`/world-assets/*`** (large GLB tree). If the server `cwd` is not the monorepo root, set **`WORLD_ASSETS_DIR`** (absolute path to `world-assets`). Same idea as **`CLIENT_ROOT_DIR`** for the client package.
 
 ### Lint, test, build
 - **Lint:** `pnpm run lint` (ESLint from root; ignore the `.eslintignore` deprecation warning).

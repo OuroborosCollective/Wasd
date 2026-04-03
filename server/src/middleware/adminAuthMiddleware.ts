@@ -55,7 +55,13 @@ export async function adminAuthMiddleware(req: AdminRequest, res: Response, next
     req.adminAuth = { mode: "firebase", uid: decoded.uid };
     next();
   } catch {
-    return res.status(401).json({ error: "Invalid Firebase token" });
+    const errorDe = panel
+      ? "Firebase-Token vom Admin-Formular abgelehnt. Nutze den langen ADMIN_PANEL_TOKEN aus der Server-Umgebung (nicht das Google-Login), oder entferne ADMIN_PANEL_TOKEN und nutze nur Firebase mit passender ADMIN_UID_ALLOWLIST."
+      : undefined;
+    return res.status(401).json({
+      error: "Invalid Firebase token",
+      ...(errorDe ? { errorDe } : {}),
+    });
   }
 }
 

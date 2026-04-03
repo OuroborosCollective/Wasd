@@ -53,10 +53,11 @@ type EntityNode = {
 
 type AREModeSource = "manual" | "auto";
 
+/** Prefer `/assets/models/*` (always in client dist); `/world-assets/*` needs server static mount. */
 const DEFAULT_MODEL_BY_TYPE: Record<string, string> = {
-  player: AssetRegistry.Npc_warrior ?? "/world-assets/characters/Npc_warrior.glb",
-  npc: AssetRegistry.Questnpc_uschi ?? "/world-assets/characters/Questnpc_uschi.glb",
-  monster: AssetRegistry.boar01 ?? "/world-assets/monsters/boar01.glb",
+  player: "/assets/models/characters/uschi.glb",
+  npc: "/assets/models/characters/uschi.glb",
+  monster: "/assets/models/monsters/goblin.glb",
 };
 
 export class BabylonAdapter implements IEngineBridge {

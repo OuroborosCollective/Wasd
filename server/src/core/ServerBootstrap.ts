@@ -9,6 +9,7 @@ import { mcpRoute } from "../api/mcpRoute.js";
 import migrationRoute from "../api/migrationRoute.js";
 import { adminContentRouter } from "../api/adminContentRoute.js";
 import { getContentDataSourceLabel } from "../modules/content/contentDataRoot.js";
+import { resolveWorldAssetsDir } from "./resolveWorldAssetsDir.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -114,6 +115,22 @@ export class ServerBootstrap {
       }
     } else {
       app.use(express.static(clientPath));
+    }
+
+    const worldAssetsDir = resolveWorldAssetsDir();
+    if (worldAssetsDir) {
+      app.use(
+        "/world-assets",
+        express.static(worldAssetsDir, {
+          maxAge: process.env.NODE_ENV === "production" ? "7d" : 0,
+          fallthrough: false,
+        })
+      );
+      console.log(`[ServerBootstrap] Serving /world-assets from ${worldAssetsDir}`);
+    } else {
+      console.warn(
+        "[ServerBootstrap] world-assets/ not found — GLB paths under /world-assets/* will 404 unless WORLD_ASSETS_DIR is set."
+      );
     }
 
     const ws = new GameWebSocketServer(httpServer);
