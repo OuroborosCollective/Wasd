@@ -38,3 +38,16 @@ jobs:
 
       - name: E2E (Playwright)
         run: pnpm run test:e2e:ci
+
+      - name: CI summary
+        if: always()
+        run: |
+          echo "## CI finished" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Step | Note |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Lint / Test / Build / Audit | Same as \`pnpm run ci:verify\` + E2E below |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Deploy | Separate workflow **Continuous Deployment to VPS** (push main) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Secret \`DEPLOY_VERIFY_BASE_URL\` | Optional HTTPS checks after deploy |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "VPS after deploy: \`bash deploy/pull-and-deploy.sh\` or \`bash deploy/verify-vps-local.sh\`." >> "$GITHUB_STEP_SUMMARY"

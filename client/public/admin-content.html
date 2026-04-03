@@ -226,6 +226,7 @@
     input[type="file"] { padding: 8px; font-size: 13px; }
     .ref-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
     .ref-row select { flex: 1; min-width: 200px; font-size: 13px; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: #0f121c; color: var(--text); }
+    .preview-box { margin-top: 10px; font-family: ui-monospace, monospace; font-size: 11px; line-height: 1.35; white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: #0a0c12; color: #c5d0e8; }
   </style>
 </head>
 <body>
@@ -356,12 +357,16 @@
     <div class="ref-row">
       <select id="selQuestRef"><option value="">— wählen —</option></select>
       <button type="button" class="ghost btn-sm" id="btnCopyQuestId">Quest-ID kopieren</button>
+      <button type="button" class="ghost btn-sm" id="btnPreviewQuest">Vorschau (nur lesen)</button>
     </div>
+    <div id="questPreview" class="preview-box hidden" aria-live="polite"></div>
     <label for="selDialogueRef" style="margin-top:12px;display:block">Dialog</label>
     <div class="ref-row">
       <select id="selDialogueRef"><option value="">— wählen —</option></select>
       <button type="button" class="ghost btn-sm" id="btnCopyDialogueId">Dialog-ID kopieren</button>
+      <button type="button" class="ghost btn-sm" id="btnPreviewDialogue">Vorschau (nur lesen)</button>
     </div>
+    <div id="dialoguePreview" class="preview-box hidden" aria-live="polite"></div>
     <div id="copyRefMsg" class="msg hidden" style="margin-top:10px"></div>
   </div>
 
@@ -962,6 +967,42 @@
     };
     document.getElementById("btnCopyDialogueId").onclick = function () {
       copyTextToClipboard(document.getElementById("selDialogueRef").value, "Dialog-ID kopiert.");
+    };
+
+    async function loadContentPreview(kind, id, elId) {
+      const box = document.getElementById(elId);
+      if (!id) {
+        box.classList.add("hidden");
+        box.textContent = "";
+        show("copyRefMsg", "Bitte zuerst eine ID aus der Liste wählen.", "err");
+        return;
+      }
+      try {
+        const r = await fetch(BASE + "/content-preview?kind=" + encodeURIComponent(kind) + "&id=" + encodeURIComponent(id), {
+          headers: authHeadersOnly(),
+        });
+        const text = await r.text();
+        let j = null;
+        try { j = JSON.parse(text); } catch { /* */ }
+        if (!r.ok) {
+          show("copyRefMsg", errDeFromJson(j, text), "err");
+          box.classList.add("hidden");
+          return;
+        }
+        box.textContent = j && j.json ? j.json : text;
+        box.classList.remove("hidden");
+        hide("copyRefMsg");
+      } catch (e) {
+        show("copyRefMsg", String(e.message || e), "err");
+        box.classList.add("hidden");
+      }
+    }
+
+    document.getElementById("btnPreviewQuest").onclick = function () {
+      loadContentPreview("quest", document.getElementById("selQuestRef").value.trim(), "questPreview");
+    };
+    document.getElementById("btnPreviewDialogue").onclick = function () {
+      loadContentPreview("dialogue", document.getElementById("selDialogueRef").value.trim(), "dialoguePreview");
     };
 
     document.getElementById("btnClearHistory").onclick = function () {

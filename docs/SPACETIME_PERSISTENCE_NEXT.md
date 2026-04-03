@@ -23,3 +23,12 @@ Aktuell: `PERSISTENCE_DRIVER=spacetime` nutzt optional **JSON-File-Fallback** f�
    - Backup-Strategie für Spacetime-Instanz dokumentieren; Health-Check optional um DB-Latenz erweitern.
 
 Referenz: `server/src/modules/spacetime/`, `spacetimedb-modules/areloria-glb/README.md`.
+
+## Beispiel-SQL (HTTP API), sobald Tabelle existiert
+
+```sql
+-- Illustration only — Spalten an euer Modul anpassen
+SELECT * FROM player_snapshot WHERE uid = '...';
+```
+
+Reducers im Rust-Modul ersetzen ad-hoc-SQL für Produktion.

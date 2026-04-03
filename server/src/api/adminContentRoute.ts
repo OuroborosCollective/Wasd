@@ -15,6 +15,8 @@ import {
   loadWorldObjectChoicesForAdmin,
   loadQuestChoicesForAdmin,
   loadDialogueChoicesForAdmin,
+  loadQuestJsonPreviewById,
+  loadDialogueJsonPreviewById,
 } from "../modules/content/adminContentChoices.js";
 import { getServerPublicModelsDir, validateAdminGlbPathForServer } from "../modules/content/adminGlbPathCheck.js";
 import {
@@ -115,6 +117,25 @@ export function adminContentRouter(tick: WorldTick): Router {
       quests: loadQuestChoicesForAdmin(),
       dialogues: loadDialogueChoicesForAdmin(),
     });
+  });
+
+  router.get("/content-preview", adminAuthMiddleware, (req: AdminRequest, res: Response) => {
+    const kind = String(req.query.kind ?? "").toLowerCase().trim();
+    const id = String(req.query.id ?? "").trim();
+    if (!id) {
+      return jsonError(res, 400, "Parameter „id“ fehlt.", "id required");
+    }
+    if (kind === "quest") {
+      const r = loadQuestJsonPreviewById(id);
+      if (!r.ok) return res.status(404).json({ ok: false, errorDe: r.errorDe });
+      return res.json({ ok: true, kind: "quest", id, json: r.json });
+    }
+    if (kind === "dialogue" || kind === "dialog") {
+      const r = loadDialogueJsonPreviewById(id);
+      if (!r.ok) return res.status(404).json({ ok: false, errorDe: r.errorDe });
+      return res.json({ ok: true, kind: "dialogue", id, json: r.json });
+    }
+    return jsonError(res, 400, "Unbekannter „kind“ — nutze quest oder dialogue.", "invalid kind");
   });
 
   router.get("/model-path-audit", adminAuthMiddleware, (_req: AdminRequest, res: Response) => {

@@ -99,6 +99,43 @@ export function loadDialogueChoicesForAdmin(): DialogueChoice[] {
     .sort((a, b) => a.id.localeCompare(b.id));
 }
 
+const MAX_PREVIEW_CHARS = 48_000;
+
+function trimPreviewJson(s: string): string {
+  if (s.length <= MAX_PREVIEW_CHARS) return s;
+  return s.slice(0, MAX_PREVIEW_CHARS) + "\n\n… (gekürzt, max. " + MAX_PREVIEW_CHARS + " Zeichen)";
+}
+
+export function loadQuestJsonPreviewById(
+  questId: string
+): { ok: true; json: string } | { ok: false; errorDe: string } {
+  const id = questId.trim();
+  if (!id) return { ok: false, errorDe: "Keine Quest-ID." };
+  const arr = safeReadJsonArray("quests/quests.json");
+  const row = arr.find((q: any) => q && typeof q.id === "string" && q.id === id);
+  if (!row) return { ok: false, errorDe: "Quest nicht gefunden: " + id };
+  try {
+    return { ok: true, json: trimPreviewJson(JSON.stringify(row, null, 2)) };
+  } catch {
+    return { ok: false, errorDe: "Quest konnte nicht als JSON dargestellt werden." };
+  }
+}
+
+export function loadDialogueJsonPreviewById(
+  dialogueId: string
+): { ok: true; json: string } | { ok: false; errorDe: string } {
+  const id = dialogueId.trim();
+  if (!id) return { ok: false, errorDe: "Keine Dialog-ID." };
+  const arr = safeReadJsonArray("dialogue/dialogues.json");
+  const row = arr.find((d: any) => d && typeof d.id === "string" && d.id === id);
+  if (!row) return { ok: false, errorDe: "Dialog nicht gefunden: " + id };
+  try {
+    return { ok: true, json: trimPreviewJson(JSON.stringify(row, null, 2)) };
+  } catch {
+    return { ok: false, errorDe: "Dialog konnte nicht als JSON dargestellt werden." };
+  }
+}
+
 /** Human-readable content root label for admin UI */
 export function getAdminContentRootHint(): string {
   return getContentDataRoot();

@@ -20,10 +20,10 @@ pnpm run ci:verify
 Auf dem Server (Repo-Root, z. B. `/opt/areloria`):
 
 ```bash
-git fetch origin main && git reset --hard origin/main
-chmod +x deploy/deploy.sh && ./deploy/deploy.sh
-bash deploy/verify-vps-local.sh
+bash deploy/pull-and-deploy.sh
 ```
+
+(Intern: `git fetch` + `reset --hard origin/main`, `./deploy/deploy.sh`, `verify-vps-local.sh`.)
 
 ## 3. Secret `DEPLOY_VERIFY_BASE_URL`
 
