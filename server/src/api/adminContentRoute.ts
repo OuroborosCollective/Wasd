@@ -1,5 +1,8 @@
+import fs from "node:fs";
+import path from "node:path";
 import { Router, type Response } from "express";
 import express from "express";
+import multer from "multer";
 import type { WorldTick } from "../core/WorldTick.js";
 import type { GLBLink } from "../modules/asset-registry/GLBRegistry.js";
 import { adminAuthMiddleware, adminWriteBlocked, type AdminRequest } from "../middleware/adminAuthMiddleware.js";
@@ -11,10 +14,30 @@ import {
   loadObjectTypeChoicesForAdmin,
   loadWorldObjectChoicesForAdmin,
 } from "../modules/content/adminContentChoices.js";
-import { validateAdminGlbPathForServer } from "../modules/content/adminGlbPathCheck.js";
+import { getServerPublicModelsDir, validateAdminGlbPathForServer } from "../modules/content/adminGlbPathCheck.js";
+import {
+  scanGlbGalleryTree,
+  sanitizeAdminGlbFilename,
+  sanitizeAdminGlbRelativeFolder,
+} from "../modules/content/adminGlbGallery.js";
 import { publishContentPackFromRepo } from "../modules/content/publishContentPackFromRepo.js";
 import { validateContentRoot } from "../modules/content/validateContentCore.js";
 import { getContentDataRoot } from "../modules/content/contentDataRoot.js";
+
+const MAX_ADMIN_GLB_MB = Math.min(
+  120,
+  Math.max(1, parseInt(process.env.MAX_ADMIN_GLB_UPLOAD_MB || process.env.MAX_GLB_SIZE_MB || "50", 10) || 50)
+);
+
+const adminGlbUploadMulter = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_ADMIN_GLB_MB * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ext === ".glb" || ext === ".gltf") cb(null, true);
+    else cb(new Error("Nur .glb oder .gltf."));
+  },
+});
 
 const TARGET_TYPES = new Set<string>([
   "monster_group",
@@ -124,6 +147,64 @@ export function adminContentRouter(tick: WorldTick): Router {
   router.get("/glb-scan", adminAuthMiddleware, (_req: AdminRequest, res: Response) => {
     res.json({ models: tick.glbRegistry.scanModels() });
   });
+
+  router.get("/glb-gallery-tree", adminAuthMiddleware, (_req: AdminRequest, res: Response) => {
+    const { modelsRoot, items } = scanGlbGalleryTree();
+    res.json({ modelsRoot, items, maxUploadMb: MAX_ADMIN_GLB_MB });
+  });
+
+  router.post(
+    "/glb-upload",
+    adminAuthMiddleware,
+    adminWriteBlocked,
+    (req: AdminRequest, res: Response, next: express.NextFunction) => {
+      adminGlbUploadMulter.single("file")(req, res, (err: unknown) => {
+        if (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (msg.toLowerCase().includes("too large") || (err as { code?: string })?.code === "LIMIT_FILE_SIZE") {
+            return jsonError(res, 413, `Datei zu groß (max. ${MAX_ADMIN_GLB_MB} MB).`, "file too large");
+          }
+          return jsonError(res, 400, msg.includes("Nur .glb") ? msg : "Upload fehlgeschlagen: " + msg, msg);
+        }
+        next();
+      });
+    },
+    (req: AdminRequest, res: Response) => {
+      const file = req.file;
+      if (!file?.buffer?.length) {
+        return jsonError(res, 400, "Keine Datei empfangen (Formular-Feld: file).", "file required");
+      }
+      const folderSan = sanitizeAdminGlbRelativeFolder((req.body as { folder?: unknown })?.folder);
+      if (!folderSan.ok) {
+        return jsonError(res, 400, folderSan.errorDe, folderSan.errorDe);
+      }
+      const nameSan = sanitizeAdminGlbFilename(file.originalname);
+      if (!nameSan.ok) {
+        return jsonError(res, 400, nameSan.errorDe, nameSan.errorDe);
+      }
+      const modelsRoot = getServerPublicModelsDir();
+      const relPath = folderSan.folder ? path.join(folderSan.folder, nameSan.filename) : nameSan.filename;
+      const absPath = path.resolve(path.join(modelsRoot, relPath));
+      const relCheck = path.relative(path.resolve(modelsRoot), absPath);
+      if (relCheck.startsWith("..") || path.isAbsolute(relCheck)) {
+        return jsonError(res, 400, "Ungültiger Zielpfad.", "path traversal");
+      }
+      try {
+        fs.mkdirSync(path.dirname(absPath), { recursive: true });
+        fs.writeFileSync(absPath, file.buffer);
+      } catch (e) {
+        const m = e instanceof Error ? e.message : String(e);
+        return res.status(500).json({ error: m, errorDe: "Speichern auf dem Server fehlgeschlagen." });
+      }
+      const urlPath = "/assets/models/" + relPath.replace(/\\/g, "/");
+      res.json({
+        ok: true,
+        url: urlPath,
+        relativePath: relPath.replace(/\\/g, "/"),
+        maxUploadMb: MAX_ADMIN_GLB_MB,
+      });
+    }
+  );
 
   router.post("/glb-links", adminAuthMiddleware, adminWriteBlocked, async (req: AdminRequest, res: Response) => {
     const b = req.body as Partial<GLBLink>;
