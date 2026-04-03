@@ -25,6 +25,8 @@ import { resolveWorldAssetsDir } from "../core/resolveWorldAssetsDir.js";
 import { publishContentPackFromRepo } from "../modules/content/publishContentPackFromRepo.js";
 import { validateContentRoot } from "../modules/content/validateContentCore.js";
 import { getContentDataRoot } from "../modules/content/contentDataRoot.js";
+import { findRepoRootWithGameData } from "../modules/content/repoRoot.js";
+import { auditContentModelPaths } from "../modules/content/auditContentModelPaths.js";
 
 const MAX_ADMIN_GLB_MB = Math.min(
   120,
@@ -108,6 +110,27 @@ export function adminContentRouter(tick: WorldTick): Router {
       monsterGroups: loadMonsterGroupKeysForAdmin(),
       npcRoles: loadNpcRoleChoicesForAdmin(),
       objectTypes: loadObjectTypeChoicesForAdmin(),
+    });
+  });
+
+  router.get("/model-path-audit", adminAuthMiddleware, (_req: AdminRequest, res: Response) => {
+    const contentRoot = getContentDataRoot();
+    const repoRoot = findRepoRootWithGameData() ?? path.resolve(process.cwd(), "..");
+    const audit = auditContentModelPaths(contentRoot, repoRoot);
+    const missingDe = audit.missing.map((m) =>
+      m.urlPath.startsWith("(")
+        ? `${m.source}: ${m.urlPath}`
+        : `Fehlende Datei: ${m.urlPath} (${m.source})`
+    );
+    res.json({
+      ok: audit.ok,
+      checked: audit.checked,
+      uniqueModelUrls: audit.uniqueModelUrls,
+      missingCount: audit.missing.length,
+      missing: audit.missing,
+      missingDe,
+      contentRoot: audit.contentRoot,
+      repoRoot: audit.repoRoot,
     });
   });
 

@@ -12,7 +12,8 @@
     "test:e2e": "npx playwright test",
     "test:e2e:install": "npx playwright install --with-deps chromium",
     "test:e2e:ci": "npx playwright install --with-deps chromium && npx playwright test",
-    "sync:world-assets": "node scripts/sync-world-assets.mjs"
+    "sync:world-assets": "node scripts/sync-world-assets.mjs",
+    "audit:model-paths": "npm run audit:model-paths --prefix server"
   },
   "dependencies": {
     "@genkit-ai/firebase": "^1.30.1",

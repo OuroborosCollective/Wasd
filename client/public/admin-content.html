@@ -337,9 +337,11 @@
     <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg></span> Prüfen &amp; veröffentlichen</div>
     <p class="hint" style="margin-top:0"><strong>1)</strong> Prüfen = ob der aktive Inhalt auf dem Server konsistent ist (Quests, NPCs, Dialoge). <strong>2)</strong> Veröffentlichen = Kopie nach <code>published-content/current</code> — der Live-Server braucht <code>USE_PUBLISHED_CONTENT=1</code> oder <code>CONTENT_PACK_DIR</code> und Neustart.</p>
     <button type="button" class="ghost" id="btnValidate">Inhalt prüfen</button>
+    <button type="button" class="ghost" id="btnAuditModelPaths">3D-Pfade prüfen (fehlende Dateien)</button>
     <button type="button" id="btnPublish">Inhalt veröffentlichen (Pack bauen)</button>
     <div id="publishMsg" class="msg hidden"></div>
     <ul class="hint" id="validateErrors" style="margin-top:8px;padding-left:18px;display:none"></ul>
+    <ul class="hint" id="auditPathsList" style="margin-top:8px;padding-left:18px;display:none"></ul>
   </div>
 
   <div class="card hidden" id="stepList">
@@ -951,6 +953,44 @@
           }
           show("publishMsg", parts.join(" ") || "Prüfung: siehe Liste.", "err");
         }
+      } catch (e) {
+        show("publishMsg", String(e.message || e), "err");
+      }
+    };
+
+    document.getElementById("btnAuditModelPaths").onclick = async function () {
+      const ul = document.getElementById("auditPathsList");
+      ul.style.display = "none";
+      ul.innerHTML = "";
+      try {
+        const a = await req("GET", "/model-path-audit");
+        if (a.ok) {
+          show(
+            "publishMsg",
+            "3D-Pfade: alle " +
+              (a.uniqueModelUrls != null ? a.uniqueModelUrls : "?") +
+              " eindeutigen Modell-URLs aus game-data haben eine Datei auf dem Server.",
+            "ok"
+          );
+          celebrateSuccess(false);
+        } else {
+          const lines = Array.isArray(a.missingDe) ? a.missingDe : [];
+          ul.style.display = "block";
+          lines.slice(0, 40).forEach(function (line) {
+            ul.innerHTML += "<li>" + escapeHtml(String(line)) + "</li>";
+          });
+          if (lines.length > 40) {
+            ul.innerHTML += "<li>… weitere in den Server-Logs oder per <code>pnpm audit:model-paths</code></li>";
+          }
+          show(
+            "publishMsg",
+            "3D-Pfade: " +
+              (a.missingCount != null ? a.missingCount : lines.length) +
+              " Referenz(en) ohne Datei — Liste unten. Tipp: <code>world-assets</code> sync + Build oder Dateien nach <code>client/public/assets/models</code>.",
+            "err"
+          );
+        }
+        pushHistory(!!a.ok, "Modell-Pfad-Audit");
       } catch (e) {
         show("publishMsg", String(e.message || e), "err");
       }
