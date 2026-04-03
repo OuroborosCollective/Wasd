@@ -22,6 +22,7 @@ import {
   sendPasswordResetEmail,
 } from "firebase/auth";
 import { prefersCompactTouchUi } from "./touchUi";
+import { isFirebaseGameAuthDisabled } from "../config/gameAuth";
 
 const GUEST_STORAGE_KEY = "areloria_guest_id";
 
@@ -125,7 +126,7 @@ export function renderHUD() {
   const authBox = document.createElement("div");
   authBox.id = "arel-hud-auth";
   authBox.style.marginTop = "10px";
-  authBox.style.display = "flex";
+  authBox.style.display = isFirebaseGameAuthDisabled() ? "none" : "flex";
   authBox.style.flexDirection = "column";
   authBox.style.gap = "8px";
   authBox.style.maxWidth = "100%";
@@ -275,7 +276,9 @@ export function renderHUD() {
   syncAuthUi();
   auth?.onAuthStateChanged(() => syncAuthUi());
 
-  if (!isFirebaseClientConfigured() || !auth) {
+  if (isFirebaseGameAuthDisabled()) {
+    /* Game auth off — server uses guest/dev login; no Firebase UI */
+  } else if (!isFirebaseClientConfigured() || !auth) {
     loginBtn.textContent = "Auth (configure Firebase)";
     loginBtn.disabled = true;
     loginBtn.style.opacity = "0.65";

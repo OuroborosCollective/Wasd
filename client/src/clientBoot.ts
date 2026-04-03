@@ -10,6 +10,7 @@ import {
   type ConnectionOptions,
 } from "./networking/websocketClient";
 import { auth } from "./auth/firebase";
+import { isFirebaseGameAuthDisabled } from "./config/gameAuth";
 import { IEngineBridge } from "./engine/bridge/IEngineBridge";
 import { renderHUD, showDialogue } from "./ui/hud";
 import { getJoystickState, initMobileControls, isMobile } from "./ui/mobileControls";
@@ -64,36 +65,47 @@ export async function bootAreloriaClient(canvas: HTMLCanvasElement): Promise<voi
   (window as unknown as { gameCore?: MMORPGClientCore }).gameCore = core;
   core.registerDefaultInput();
 
-  setAuthTokenProvider(async () => {
-    const u = auth?.currentUser;
-    if (!u) return null;
+  const firebaseGameOff = isFirebaseGameAuthDisabled();
+  if (firebaseGameOff) {
     try {
-      // Force refresh so WS login never sends an expired token from a previous session.
-      return await u.getIdToken(true);
+      localStorage.removeItem("token");
     } catch {
-      return null;
+      /* ignore */
     }
-  });
-
-  if (auth) {
-    auth.onAuthStateChanged(async (user) => {
-      if (!user) return;
+    setAuthTokenProvider(null);
+  } else {
+    setAuthTokenProvider(async () => {
+      const u = auth?.currentUser;
+      if (!u) return null;
       try {
-        const t = await user.getIdToken(true);
-        if (t?.trim()) {
-          const { updateAuthToken } = await import("./networking/websocketClient");
-          updateAuthToken(t, { reconnect: true });
-        }
+        return await u.getIdToken(true);
       } catch {
-        /* ignore */
+        return null;
       }
     });
+
+    if (auth) {
+      auth.onAuthStateChanged(async (user) => {
+        if (!user) return;
+        try {
+          const t = await user.getIdToken(true);
+          if (t?.trim()) {
+            const { updateAuthToken } = await import("./networking/websocketClient");
+            updateAuthToken(t, { reconnect: true });
+          }
+        } catch {
+          /* ignore */
+        }
+      });
+    }
   }
 
   const connectionOptions: ConnectionOptions = {};
-  const persistedToken = localStorage.getItem("token");
-  if (persistedToken && persistedToken.trim().length > 0) {
-    connectionOptions.token = persistedToken;
+  if (!firebaseGameOff) {
+    const persistedToken = localStorage.getItem("token");
+    if (persistedToken && persistedToken.trim().length > 0) {
+      connectionOptions.token = persistedToken;
+    }
   }
   connectSocket(core, connectionOptions);
   (window as unknown as { requestSceneChange?: typeof requestSceneChange }).requestSceneChange =

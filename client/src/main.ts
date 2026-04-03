@@ -7,6 +7,7 @@ import { renderHUD, showDialogue } from "./ui/hud";
 import { renderImprovedVirtualJoystick } from "./ui/ImprovedVirtualJoystick";
 import { renderMobileSceneTeleportPanel } from "./ui/mobileSceneTeleportPanel";
 import { performanceMonitor } from "./utils/PerformanceMonitor";
+import { isFirebaseGameAuthDisabled } from "./config/gameAuth";
 
 type AREPolicyConfig = {
   cooldownMs?: number;
@@ -107,14 +108,22 @@ try {
 
   // 3. Connect Systems
   const connectionOptions: ConnectionOptions = {};
-  let persistedToken: string | null = null;
-  try {
-    persistedToken = localStorage.getItem("token");
-  } catch {
-    showBootStatus("Storage access blocked. Continuing without saved login token.", "warn");
-  }
-  if (persistedToken && persistedToken.trim().length > 0) {
-    connectionOptions.token = persistedToken;
+  if (!isFirebaseGameAuthDisabled()) {
+    let persistedToken: string | null = null;
+    try {
+      persistedToken = localStorage.getItem("token");
+    } catch {
+      showBootStatus("Storage access blocked. Continuing without saved login token.", "warn");
+    }
+    if (persistedToken && persistedToken.trim().length > 0) {
+      connectionOptions.token = persistedToken;
+    }
+  } else {
+    try {
+      localStorage.removeItem("token");
+    } catch {
+      /* ignore */
+    }
   }
   const policyPromise = loadAREPolicyConfig().then((policyConfig) => {
     if (policyConfig) {

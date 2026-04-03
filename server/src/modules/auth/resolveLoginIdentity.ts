@@ -31,11 +31,18 @@ function requireFirebaseAuthOnly(): boolean {
   return v === "1" || v === "true" || v === "yes";
 }
 
+/** When unset or 0/false/no: ignore JWT on WebSocket login (dev / ship-game-first). Set to 1 to verify Firebase tokens again. */
+function isFirebaseWsLoginEnabled(): boolean {
+  const v = process.env.USE_FIREBASE_WS_LOGIN?.trim().toLowerCase();
+  if (!v) return false;
+  return v === "1" || v === "true" || v === "yes";
+}
+
 const GUEST_ID_RE = /^guest_[a-zA-Z0-9_-]{8,40}$/;
 
 /**
  * Resolves stable player uid + display name for WebSocket `login`.
- * - Valid Firebase ID token → Firebase uid.
+ * - Valid Firebase ID token → Firebase uid (only if USE_FIREBASE_WS_LOGIN=1).
  * - Production without token → error unless guest mode.
  * - Non-production: dev socket id login unless ALLOW_DEV_LOGIN disables it.
  * - Guest: ALLOW_GUEST_LOGIN + optional client `guestId` / server-generated id.
@@ -46,7 +53,7 @@ export async function resolveLoginIdentity(
 ): Promise<ResolvedLogin | LoginError> {
   const token = typeof msg.token === "string" ? msg.token.trim() : "";
 
-  if (token.length > 0) {
+  if (token.length > 0 && isFirebaseWsLoginEnabled()) {
     try {
       const decoded = await verifyFirebaseToken(token);
       if (!decoded?.uid) {

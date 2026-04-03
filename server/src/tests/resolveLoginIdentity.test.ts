@@ -55,4 +55,15 @@ describe("resolveLoginIdentity", () => {
     });
   });
 
+  it("ignores JWT when USE_FIREBASE_WS_LOGIN is unset (dev login)", async () => {
+    process.env.NODE_ENV = "development";
+    delete process.env.USE_FIREBASE_WS_LOGIN;
+    delete process.env.ALLOW_GUEST_LOGIN;
+    const { resolveLoginIdentity } = await import("../modules/auth/resolveLoginIdentity.js");
+    const r = await resolveLoginIdentity("sock-z", { token: "not-a-real-jwt" });
+    expect("error" in r).toBe(false);
+    if (!("error" in r)) {
+      expect(r.uid).toBe("dev_sock-z");
+    }
+  });
 });
