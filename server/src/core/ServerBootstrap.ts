@@ -50,6 +50,19 @@ function resolveClientRoot(): string {
   return path.resolve(__dirname, "../../../client");
 }
 
+function resolveAdminContentHtmlPath(clientRoot: string, clientDist: string): string | null {
+  const candidates = [
+    path.join(clientDist, "admin-content.html"),
+    path.join(clientRoot, "public", "admin-content.html"),
+  ];
+  for (const p of candidates) {
+    if (existsSync(p)) {
+      return path.resolve(p);
+    }
+  }
+  return null;
+}
+
 export class ServerBootstrap {
   async start() {
     const app = express();
@@ -67,6 +80,16 @@ export class ServerBootstrap {
 
     const clientRoot = resolveClientRoot();
     const clientPath = path.join(clientRoot, "dist");
+    const adminContentPath = resolveAdminContentHtmlPath(clientRoot, clientPath);
+    if (adminContentPath) {
+      app.get("/admin-content.html", (_req, res) => {
+        res.sendFile(adminContentPath);
+      });
+    } else {
+      console.warn(
+        "[ServerBootstrap] admin-content.html not found under client/dist or client/public — run client build or copy the file."
+      );
+    }
     if (
       process.env.NODE_ENV === "production" &&
       !existsSync(path.join(clientPath, "index.html"))
