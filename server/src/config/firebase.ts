@@ -12,6 +12,46 @@ let app: App | null = null;
 let dbInstance: Firestore | null = null;
 let authInstance: Auth | null = null;
 
+/**
+ * Parse FIREBASE_SERVICE_ACCOUNT_KEY: raw JSON, base64(JSON), or path to a JSON file.
+ */
+export function parseServiceAccountFromEnv(raw: string): Record<string, unknown> | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  try {
+    if (trimmed.startsWith("{")) {
+      return JSON.parse(trimmed) as Record<string, unknown>;
+    }
+  } catch {
+    /* fall through */
+  }
+  try {
+    const compact = trimmed.replace(/\s/g, "");
+    if (/^[A-Za-z0-9+/=]+$/.test(compact) && !trimmed.startsWith("{")) {
+      const decoded = Buffer.from(compact, "base64").toString("utf8");
+      const d = decoded.trim();
+      if (d.startsWith("{")) {
+        return JSON.parse(d) as Record<string, unknown>;
+      }
+    }
+  } catch {
+    /* fall through */
+  }
+  try {
+    const p = path.isAbsolute(trimmed) ? trimmed : path.resolve(process.cwd(), trimmed);
+    if (fs.existsSync(p)) {
+      return JSON.parse(fs.readFileSync(p, "utf-8")) as Record<string, unknown>;
+    }
+  } catch {
+    /* fall through */
+  }
+  try {
+    return JSON.parse(trimmed) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
 // Load applet config for database ID
 let appletConfig: any = {};
 try {
@@ -39,10 +79,17 @@ function getFirebaseApp(): App {
   }
 
   try {
-    const serviceAccount = JSON.parse(serviceAccountKey) as { project_id?: string };
+    const serviceAccount = parseServiceAccountFromEnv(serviceAccountKey);
+    if (!serviceAccount || typeof serviceAccount !== "object") {
+      console.error(
+        "[Firebase] FIREBASE_SERVICE_ACCOUNT_KEY is set but could not be parsed (expect JSON object, base64 JSON, or path to .json)."
+      );
+      return null as any;
+    }
+    const pid = serviceAccount.project_id;
     const projectId =
       process.env.FIREBASE_PROJECT_ID?.trim() ||
-      (typeof serviceAccount.project_id === "string" ? serviceAccount.project_id.trim() : "") ||
+      (typeof pid === "string" ? pid.trim() : "") ||
       "innate-summit-490115-p5";
     app = initializeApp({
       credential: cert(serviceAccount as any),

@@ -13,6 +13,7 @@ import { getDb } from "../config/firebase.js";
 import { resolveLoginIdentity } from "../modules/auth/resolveLoginIdentity.js";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
 import { GLBRegistry } from "../modules/asset-registry/GLBRegistry.js";
+import { ensureGlbUrl } from "../modules/asset-registry/builtinModelFallbacks.js";
 import { GlbLinksSpacetimeBackend } from "../modules/spacetime/glbLinksSpacetimeBackend.js";
 import { AssetPoolResolver } from "../modules/world/AssetPoolResolver.js";
 import { AREStateCompiler } from "../modules/world/AREStateCompiler.js";
@@ -2440,7 +2441,7 @@ export class WorldTick {
         position: { x: p.position.x, y: 0, z: p.position.y }, // Mapping y to z for 3D
         rotation: { x: 0, y: 0, z: 0 },
         name: p.name,
-        glbPath: this.resolveEntityGlbPath("players", p.name || p.id, p.id),
+        glbPath: ensureGlbUrl("player", this.resolveEntityGlbPath("players", p.name || p.id, p.id)),
         are: this.areStateCompiler.compileEntity(
           {
             id: p.id,
@@ -2466,7 +2467,7 @@ export class WorldTick {
         health: n.health,
         maxHealth: n.maxHealth,
         combatThreat: npcIsCombatThreat(n),
-        glbPath: this.resolveNpcGlbPath(n),
+        glbPath: ensureGlbUrl("npc", this.resolveNpcGlbPath(n)),
         are: this.areStateCompiler.compileEntity(
           {
             id: n.id,
@@ -2489,7 +2490,7 @@ export class WorldTick {
         goldAmount: typeof l.goldAmount === "number" ? l.goldAmount : undefined,
         lootItemName: l.item?.name,
         lootItemId: l.item?.id,
-        glbPath: this.resolveEntityGlbPath("loot", l.item?.id || l.id, l.id),
+        glbPath: ensureGlbUrl("loot", this.resolveEntityGlbPath("loot", l.item?.id || l.id, l.id)),
         are: this.areStateCompiler.compileEntity(
           {
             id: l.id,
@@ -2510,7 +2511,10 @@ export class WorldTick {
         type: obj.type || 'object',
         position: { x: obj.position.x, y: 0, z: obj.position.y },
         rotation: { x: 0, y: obj.rotation || 0, z: 0 },
-        glbPath: obj.glbPath || this.resolveWorldObjectGlbPath(obj.type, obj.name || obj.id, obj.id),
+        glbPath: ensureGlbUrl(
+          obj.type || "object",
+          obj.glbPath || this.resolveWorldObjectGlbPath(obj.type, obj.name || obj.id, obj.id)
+        ),
         are: this.areStateCompiler.compileEntity(
           {
             id: obj.id,
