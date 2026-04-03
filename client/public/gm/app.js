@@ -19,6 +19,8 @@ const state = {
     links: [],
     pools: null,
     areModeAudit: [],
+    opsStatus: null,
+    poolSnapshots: [],
   },
 };
 
@@ -84,11 +86,14 @@ function renderAdminState() {
     [
       "Tips:",
       "- category aliases: npc -> npcs, monster -> monsters, object -> world_objects",
-      "- path can be a single GLB or comma-separated list for deterministic variant rotation",
-      "- entry example: category=world_objects, key=house, path=/assets/models/buildings/house_01.glb",
+      "- path can be a single GLB/GLTF or comma-separated list for deterministic variant rotation",
+      "- entry example: category=world_objects, key=house, path=/assets/models/buildings/house_01.gltf",
       "- default example: category=world_objects, path=/assets/models/objects/chest.glb",
+      "- snapshots: create before big edits, then restore by selecting a snapshot",
     ].join("\n")
   );
+  safeSetValue("adminOpsStatus", JSON.stringify(state.admin.opsStatus ?? {}, null, 2));
+  safeSetValue("poolSnapshotsJson", JSON.stringify(state.admin.poolSnapshots ?? [], null, 2));
   safeSetValue("areAuditLog", JSON.stringify(state.admin.areModeAudit ?? [], null, 2));
   safeSetValue(
     "areAuditHint",
@@ -112,6 +117,22 @@ function renderAdminState() {
     select.innerHTML = options;
     if (current && state.admin.scannedModels.includes(current)) {
       select.value = current;
+    }
+  }
+  const snapshotSelect = byId("poolSnapshotSelect");
+  if (snapshotSelect) {
+    const current = snapshotSelect.value;
+    const options = ['<option value="">-- Select snapshot --</option>']
+      .concat(
+        (state.admin.poolSnapshots || []).map((snapshot) => {
+          const label = `${snapshot.fileName} (${snapshot.createdAtIso || "unknown"})`;
+          return `<option value="${snapshot.id}">${label}</option>`;
+        })
+      )
+      .join("");
+    snapshotSelect.innerHTML = options;
+    if (current && (state.admin.poolSnapshots || []).some((snapshot) => snapshot.id === current)) {
+      snapshotSelect.value = current;
     }
   }
 }
@@ -227,6 +248,8 @@ function handleMessage(msg) {
     send({ type: "gm_get_players" });
     send({ type: "admin_glb_list" });
     send({ type: "admin_glb_pool_get" });
+    send({ type: "admin_glb_pool_snapshots_list", limit: 50 });
+    send({ type: "admin_glb_ops_status" });
     send({ type: "gm_are_mode_get" });
     return;
   }
@@ -255,6 +278,31 @@ function handleMessage(msg) {
     renderAdminState();
     const categories = Object.keys(state.admin.pools?.pools || {});
     logLine(`Asset pools synced (${categories.length} categories).`, "ok");
+    return;
+  }
+  if (msg.type === "admin_glb_ops_status_result") {
+    state.admin.opsStatus = msg.status || null;
+    renderAdminState();
+    return;
+  }
+  if (msg.type === "admin_glb_pool_snapshots_result") {
+    state.admin.poolSnapshots = Array.isArray(msg.snapshots) ? msg.snapshots : [];
+    renderAdminState();
+    logLine(`Loaded ${state.admin.poolSnapshots.length} snapshot(s).`, "ok");
+    return;
+  }
+  if (msg.type === "admin_glb_pool_snapshot_result") {
+    if (msg.snapshot?.fileName) {
+      logLine(`Snapshot created: ${msg.snapshot.fileName}`, "ok");
+    }
+    return;
+  }
+  if (msg.type === "admin_glb_pool_restore_result") {
+    if (msg.snapshot?.fileName) {
+      logLine(`Snapshot restored: ${msg.snapshot.fileName}`, "ok");
+    } else {
+      logLine("Snapshot restored.", "ok");
+    }
     return;
   }
   if (msg.type === "gm_player_list") {
@@ -498,6 +546,25 @@ function initBindings() {
   bindClick("adminListBtn", () => cmd("admin_glb_list"));
   bindClick("poolLoadBtn", () => cmd("admin_glb_pool_get"));
   bindClick("poolReloadBtn", () => cmd("admin_glb_pool_reload"));
+  bindClick("opsStatusBtn", () => cmd("admin_glb_ops_status"));
+  bindClick("snapshotCreateBtn", () =>
+    cmd("admin_glb_pool_snapshot", {
+      label: val("poolSnapshotLabel") || undefined,
+    })
+  );
+  bindClick("snapshotRefreshBtn", () => {
+    const requested = Number(val("poolSnapshotLimit"));
+    const limit = Number.isFinite(requested) ? Math.max(1, Math.min(200, requested)) : 50;
+    cmd("admin_glb_pool_snapshots_list", { limit });
+  });
+  bindClick("snapshotRestoreBtn", () => {
+    const snapshotId = val("poolSnapshotSelect");
+    if (!snapshotId) {
+      logLine("Please select a snapshot to restore.", "bad");
+      return;
+    }
+    cmd("admin_glb_pool_restore", { snapshotId });
+  });
   const modelSelect = byId("adminModelSelect");
   if (modelSelect) {
     modelSelect.onchange = applySelectedModelPath;
@@ -581,6 +648,7 @@ function bootstrapDefaults() {
   safeSetValue("poolCategory", "world_objects");
   safeSetValue("areModeSelect", "shader");
   safeSetValue("areAuditLimit", "50");
+  safeSetValue("poolSnapshotLimit", "50");
   syncAREModeUI();
 }
 

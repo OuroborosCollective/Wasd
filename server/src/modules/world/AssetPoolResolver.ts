@@ -10,13 +10,24 @@ type AssetPoolDocument = {
 };
 
 const DEFAULT_POOLS_PATH = path.resolve(process.cwd(), "game-data/world/asset-pools.json");
+const DEFAULT_SNAPSHOT_DIR = path.resolve(process.cwd(), "game-data/world/asset-pool-snapshots");
+
+export type AssetPoolSnapshotMeta = {
+  id: string;
+  fileName: string;
+  createdAtIso: string;
+  createdAtMs: number;
+  bytes: number;
+};
 
 export class AssetPoolResolver {
   private poolsPath: string;
+  private snapshotDir: string;
   private document: AssetPoolDocument = { defaults: {}, pools: {} };
 
-  constructor(poolsPath: string = DEFAULT_POOLS_PATH) {
+  constructor(poolsPath: string = DEFAULT_POOLS_PATH, snapshotDir: string = DEFAULT_SNAPSHOT_DIR) {
     this.poolsPath = poolsPath;
+    this.snapshotDir = snapshotDir;
     this.reload();
   }
 
@@ -40,6 +51,81 @@ export class AssetPoolResolver {
 
   public getDocument(): AssetPoolDocument {
     return JSON.parse(JSON.stringify(this.document));
+  }
+
+  public createSnapshot(label?: string): AssetPoolSnapshotMeta | null {
+    try {
+      fs.mkdirSync(this.snapshotDir, { recursive: true });
+      const now = Date.now();
+      const stamp = new Date(now).toISOString().replace(/[:.]/g, "-");
+      const cleanedLabel = this.sanitizeSnapshotLabel(label);
+      const fileName = cleanedLabel
+        ? `asset-pools.${stamp}.${cleanedLabel}.json`
+        : `asset-pools.${stamp}.json`;
+      const target = path.join(this.snapshotDir, fileName);
+      fs.writeFileSync(target, JSON.stringify(this.document, null, 2));
+      return this.buildSnapshotMeta(target);
+    } catch (error) {
+      console.error("Failed to create asset-pool snapshot", error);
+      return null;
+    }
+  }
+
+  public listSnapshots(limit: number = 20): AssetPoolSnapshotMeta[] {
+    const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(200, Math.floor(limit))) : 20;
+    if (!fs.existsSync(this.snapshotDir)) {
+      return [];
+    }
+    try {
+      const files = fs
+        .readdirSync(this.snapshotDir)
+        .filter((name) => name.startsWith("asset-pools.") && name.toLowerCase().endsWith(".json"))
+        .map((name) => path.join(this.snapshotDir, name))
+        .map((absPath) => this.buildSnapshotMeta(absPath))
+        .sort((a, b) => b.createdAtMs - a.createdAtMs);
+      return files.slice(0, safeLimit);
+    } catch (error) {
+      console.error("Failed to list asset-pool snapshots", error);
+      return [];
+    }
+  }
+
+  public restoreSnapshot(snapshotId: string): { ok: boolean; error?: string; snapshot?: AssetPoolSnapshotMeta } {
+    const candidate = String(snapshotId || "").trim();
+    if (!candidate) {
+      return { ok: false, error: "snapshotId is required." };
+    }
+    if (candidate.includes("/") || candidate.includes("\\") || candidate.includes("..")) {
+      return { ok: false, error: "Invalid snapshotId." };
+    }
+    if (!/^asset-pools\.[a-z0-9_.-]+\.json$/i.test(candidate)) {
+      return { ok: false, error: "Invalid snapshotId." };
+    }
+    const snapshotPath = path.join(this.snapshotDir, candidate);
+    const resolvedSnapshotPath = path.resolve(snapshotPath);
+    const resolvedSnapshotDir = path.resolve(this.snapshotDir);
+    if (!resolvedSnapshotPath.startsWith(`${resolvedSnapshotDir}${path.sep}`)) {
+      return { ok: false, error: "Invalid snapshotId." };
+    }
+    if (!fs.existsSync(resolvedSnapshotPath)) {
+      return { ok: false, error: `Snapshot not found: ${candidate}` };
+    }
+    try {
+      const parsed = JSON.parse(fs.readFileSync(resolvedSnapshotPath, "utf-8")) as AssetPoolDocument;
+      this.document = {
+        version: parsed.version ?? 1,
+        defaults: parsed.defaults ?? {},
+        pools: parsed.pools ?? {},
+      };
+      this.save();
+      return {
+        ok: true,
+        snapshot: this.buildSnapshotMeta(resolvedSnapshotPath),
+      };
+    } catch (error) {
+      console.error("Failed to restore asset-pool snapshot", error);
+      return { ok: false, error: "Snapshot parse failed." };
+    }
   }
 
   public setEntry(category: string, key: string, entry: PoolEntry): boolean {
@@ -198,6 +284,28 @@ export class AssetPoolResolver {
       hash |= 0;
     }
     return hash;
+  }
+
+  private sanitizeSnapshotLabel(label: string | undefined): string {
+    if (!label) return "";
+    return String(label)
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 40);
+  }
+
+  private buildSnapshotMeta(absolutePath: string): AssetPoolSnapshotMeta {
+    const stat = fs.statSync(absolutePath);
+    const fileName = path.basename(absolutePath);
+    return {
+      id: fileName,
+      fileName,
+      createdAtIso: new Date(stat.mtimeMs).toISOString(),
+      createdAtMs: stat.mtimeMs,
+      bytes: stat.size,
+    };
   }
 
   private save() {

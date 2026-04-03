@@ -201,6 +201,13 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function hasAssetPoolEntry(value: unknown): value is string | string[] {
+  if (isNonEmptyString(value)) {
+    return true;
+  }
+  return Array.isArray(value) && value.some((item) => isNonEmptyString(item));
+}
+
 function normalizeAREMode(value: unknown): AREMode | null {
   if (!isNonEmptyString(value)) {
     return null;
@@ -545,6 +552,33 @@ export class WorldTick {
     });
   }
 
+  private sendAdminGlbOpsStatus(socketId: string) {
+    const pools = this.assetPoolResolver.getDocument();
+    const poolCategories = Object.keys(pools.pools ?? {});
+    const poolEntryCount = poolCategories.reduce(
+      (total, category) => total + Object.keys((pools.pools ?? {})[category] ?? {}).length,
+      0
+    );
+    const poolDefaultCount = Object.keys(pools.defaults ?? {}).length;
+    const models = this.glbRegistry.scanModels();
+    const links = this.glbRegistry.getLinks();
+    const snapshots = this.assetPoolResolver.listSnapshots(10);
+
+    this.ws.sendToPlayer(socketId, {
+      type: "admin_glb_ops_status_result",
+      status: {
+        modelCount: models.length,
+        linkCount: links.length,
+        poolCategoryCount: poolCategories.length,
+        poolEntryCount,
+        poolDefaultCount,
+        snapshotCount: snapshots.length,
+        lastSnapshotAt: snapshots[0]?.createdAtIso ?? null,
+        areMode: this.areMode,
+      },
+    });
+  }
+
   private hasGMTokenOverride(msg: any) {
     const configuredToken = process.env.GM_PANEL_TOKEN?.trim();
     if (!configuredToken) return false;
@@ -563,11 +597,18 @@ export class WorldTick {
 
     if (t === "admin_glb_scan") {
       this.ws.sendToPlayer(socketId, { type: "admin_glb_scan_result", models: this.glbRegistry.scanModels() });
+      this.sendAdminGlbOpsStatus(socketId);
       return true;
     }
 
     if (t === "admin_glb_list") {
       this.ws.sendToPlayer(socketId, { type: "admin_glb_list_result", links: this.glbRegistry.getLinks() });
+      this.sendAdminGlbOpsStatus(socketId);
+      return true;
+    }
+
+    if (t === "admin_glb_ops_status") {
+      this.sendAdminGlbOpsStatus(socketId);
       return true;
     }
 
@@ -582,6 +623,7 @@ export class WorldTick {
         targetId: msg.targetId,
       } as any);
       this.ws.sendToPlayer(socketId, { type: "admin_glb_list_result", links: this.glbRegistry.getLinks() });
+      this.sendAdminGlbOpsStatus(socketId);
       this.sendGMStatus(socketId, "info", `Linked ${msg.glbPath} to ${msg.targetType}:${msg.targetId}`);
       return true;
     }
@@ -593,6 +635,7 @@ export class WorldTick {
       }
       this.glbRegistry.removeLink(msg.targetType, msg.targetId);
       this.ws.sendToPlayer(socketId, { type: "admin_glb_list_result", links: this.glbRegistry.getLinks() });
+      this.sendAdminGlbOpsStatus(socketId);
       this.sendGMStatus(socketId, "info", `Unlinked ${msg.targetType}:${msg.targetId}`);
       return true;
     }
@@ -602,11 +645,70 @@ export class WorldTick {
         type: "admin_glb_pool_result",
         pools: this.assetPoolResolver.getDocument(),
       });
+      this.sendAdminGlbOpsStatus(socketId);
+      return true;
+    }
+
+    if (t === "admin_glb_pool_snapshot") {
+      const snapshot = this.assetPoolResolver.createSnapshot(isNonEmptyString(msg.label) ? msg.label : undefined);
+      if (!snapshot) {
+        this.sendGMStatus(socketId, "error", "Failed to create asset-pool snapshot.");
+        return true;
+      }
+      this.ws.sendToPlayer(socketId, {
+        type: "admin_glb_pool_snapshot_result",
+        snapshot,
+      });
+      this.ws.sendToPlayer(socketId, {
+        type: "admin_glb_pool_snapshots_result",
+        snapshots: this.assetPoolResolver.listSnapshots(50),
+      });
+      this.sendAdminGlbOpsStatus(socketId);
+      this.sendGMStatus(socketId, "info", `Asset pool snapshot created: ${snapshot.fileName}`);
+      return true;
+    }
+
+    if (t === "admin_glb_pool_snapshots_list") {
+      const requestedLimit = Number(msg.limit);
+      const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(200, requestedLimit)) : 50;
+      this.ws.sendToPlayer(socketId, {
+        type: "admin_glb_pool_snapshots_result",
+        snapshots: this.assetPoolResolver.listSnapshots(limit),
+      });
+      this.sendAdminGlbOpsStatus(socketId);
+      return true;
+    }
+
+    if (t === "admin_glb_pool_restore") {
+      const snapshotId = isNonEmptyString(msg.snapshotId) ? msg.snapshotId.trim() : "";
+      if (!snapshotId) {
+        this.sendGMStatus(socketId, "error", "snapshotId is required.");
+        return true;
+      }
+      const restored = this.assetPoolResolver.restoreSnapshot(snapshotId);
+      if (!restored.ok) {
+        this.sendGMStatus(socketId, "error", restored.error || "Failed to restore asset-pool snapshot.");
+        return true;
+      }
+      this.ws.sendToPlayer(socketId, {
+        type: "admin_glb_pool_restore_result",
+        snapshot: restored.snapshot,
+      });
+      this.ws.sendToPlayer(socketId, {
+        type: "admin_glb_pool_result",
+        pools: this.assetPoolResolver.getDocument(),
+      });
+      this.ws.sendToPlayer(socketId, {
+        type: "admin_glb_pool_snapshots_result",
+        snapshots: this.assetPoolResolver.listSnapshots(50),
+      });
+      this.sendAdminGlbOpsStatus(socketId);
+      this.sendGMStatus(socketId, "info", `Asset pool restored from snapshot: ${snapshotId}`);
       return true;
     }
 
     if (t === "admin_glb_pool_set") {
-      if (!isNonEmptyString(msg.category) || !isNonEmptyString(msg.key) || !isNonEmptyString(msg.path)) {
+      if (!isNonEmptyString(msg.category) || !isNonEmptyString(msg.key) || !hasAssetPoolEntry(msg.path)) {
         this.sendGMStatus(socketId, "error", "category, key and path are required.");
         return true;
       }
@@ -619,6 +721,7 @@ export class WorldTick {
         type: "admin_glb_pool_result",
         pools: this.assetPoolResolver.getDocument(),
       });
+      this.sendAdminGlbOpsStatus(socketId);
       this.sendGMStatus(socketId, "info", `Asset pool updated: ${msg.category}.${msg.key}`);
       return true;
     }
@@ -637,12 +740,13 @@ export class WorldTick {
         type: "admin_glb_pool_result",
         pools: this.assetPoolResolver.getDocument(),
       });
+      this.sendAdminGlbOpsStatus(socketId);
       this.sendGMStatus(socketId, "info", `Asset pool entry removed: ${msg.category}.${msg.key}`);
       return true;
     }
 
     if (t === "admin_glb_pool_set_default") {
-      if (!isNonEmptyString(msg.category) || !isNonEmptyString(msg.path)) {
+      if (!isNonEmptyString(msg.category) || !hasAssetPoolEntry(msg.path)) {
         this.sendGMStatus(socketId, "error", "category and path are required.");
         return true;
       }
@@ -655,6 +759,7 @@ export class WorldTick {
         type: "admin_glb_pool_result",
         pools: this.assetPoolResolver.getDocument(),
       });
+      this.sendAdminGlbOpsStatus(socketId);
       this.sendGMStatus(socketId, "info", `Asset pool default updated: ${msg.category}`);
       return true;
     }
@@ -673,6 +778,7 @@ export class WorldTick {
         type: "admin_glb_pool_result",
         pools: this.assetPoolResolver.getDocument(),
       });
+      this.sendAdminGlbOpsStatus(socketId);
       this.sendGMStatus(socketId, "info", `Asset pool default removed: ${msg.category}`);
       return true;
     }
@@ -683,6 +789,7 @@ export class WorldTick {
         type: "admin_glb_pool_result",
         pools: this.assetPoolResolver.getDocument(),
       });
+      this.sendAdminGlbOpsStatus(socketId);
       this.sendGMStatus(socketId, "info", "Asset pools reloaded from disk.");
       return true;
     }

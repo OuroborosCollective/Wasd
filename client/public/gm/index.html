@@ -376,14 +376,14 @@
           </div>
 
           <div class="group">
-            <h3>Admin GLB Asset Linking (Babylon)</h3>
+            <h3>Admin 3D Asset Linking (Babylon)</h3>
             <div class="row">
-              <button id="adminScanBtn">Scan Server GLBs</button>
+              <button id="adminScanBtn">Scan Server GLB/GLTF</button>
               <button id="adminListBtn" class="secondary">Refresh Links</button>
             </div>
             <div class="row">
               <select id="adminModelSelect">
-                <option value="">-- Scan models first --</option>
+                <option value="">-- Scan models first (.glb/.gltf) --</option>
               </select>
               <button id="applySelectedModelBtn" class="secondary">Use Selected Model</button>
             </div>
@@ -396,7 +396,7 @@
                 <option value="monster_group">monster_group</option>
               </select>
               <input id="adminTargetId" placeholder="targetId (e.g. house, npc_1)" />
-              <input id="adminGlbPath" placeholder="/assets/models/..." />
+              <input id="adminGlbPath" placeholder="/assets/models/...(.glb|.gltf)" />
             </div>
             <div class="row">
               <button id="adminLinkBtn">Link GLB</button>
@@ -405,7 +405,7 @@
             <div class="row3">
               <input id="registerCategory" placeholder="category (npc/object/monster)" value="object" />
               <input id="registerName" placeholder="name/key (e.g. house)" />
-              <input id="registerPath" placeholder="/assets/models/...glb" />
+              <input id="registerPath" placeholder="/assets/models/...(.glb|.gltf)" />
             </div>
             <div class="row">
               <button id="registerGlbBtn" class="secondary">Quick Register (gm_register_glb)</button>
@@ -423,10 +423,25 @@
               <button id="poolLoadBtn">Load Pools</button>
               <button id="poolReloadBtn" class="secondary">Reload From Disk</button>
             </div>
+            <div class="row">
+              <button id="opsStatusBtn" class="secondary">Refresh Ops Status</button>
+              <input id="poolSnapshotLabel" placeholder="snapshot label (optional)" />
+            </div>
+            <div class="row3">
+              <input id="poolSnapshotLimit" type="number" min="1" max="200" value="50" />
+              <button id="snapshotCreateBtn" class="secondary">Create Snapshot</button>
+              <button id="snapshotRefreshBtn" class="secondary">List Snapshots</button>
+            </div>
+            <div class="row">
+              <select id="poolSnapshotSelect">
+                <option value="">-- Select snapshot --</option>
+              </select>
+              <button id="snapshotRestoreBtn" class="warn">Restore Snapshot</button>
+            </div>
             <div class="row3">
               <input id="poolCategory" placeholder="category (world_objects, npcs, monsters...)" value="world_objects" />
               <input id="poolKey" placeholder="key (e.g. house)" value="house" />
-              <input id="poolPath" placeholder="/assets/models/...glb" />
+              <input id="poolPath" placeholder="/assets/models/...(.glb|.gltf)" />
             </div>
             <div class="row">
               <button id="poolSetBtn">Set Entry</button>
@@ -439,6 +454,10 @@
             <div class="row">
               <textarea id="assetPoolsJson" rows="8" placeholder="Asset pools JSON appears here"></textarea>
               <textarea id="assetPoolHints" rows="8" placeholder="Hints and quick usage info"></textarea>
+            </div>
+            <div class="row">
+              <textarea id="adminOpsStatus" rows="6" placeholder="Ops status (models, links, pools, snapshots)"></textarea>
+              <textarea id="poolSnapshotsJson" rows="6" placeholder="Asset pool snapshots appear here"></textarea>
             </div>
           </div>
         </div>
