@@ -7,6 +7,8 @@ Arelorian/Ouroboros is a browser-based MMORPG: `server/` (Express + WebSocket ga
 
 **Firebase AI Logic (Web):** shipped inside the **`firebase`** npm package in `client/` (currently **^12.11.0**). Use `import { getAI, getGenerativeModel, GoogleAIBackend } from "firebase/ai"` after `initializeApp`. Complete the [Firebase console AI Logic setup](https://console.firebase.google.com/) (Gemini API provider); do **not** embed API keys in client code. Official guide: [Get started with Firebase AI Logic (Web)](https://firebase.google.com/docs/ai-logic/get-started?platform=web).
 
+**Optional AI watchdog (client):** `VITE_FIREBASE_AI_WATCHDOG=1` enables `client/src/ai/firebaseAiWatchdog.ts` — it buffers recent `console.error`, `window.onerror`, `unhandledrejection`, and `areloria:net-status` errors, periodically asks Gemini (via Firebase AI Logic) for one of four **whitelisted** actions: `none`, `clear_auth_storage`, `reconnect_websocket`, `reload_page` (reload rate-limited). It cannot change server env or run arbitrary code. Telemetry: `areloria:watchdog-log` events and `getWatchdogLogSnapshot()` in `watchdogTelemetry.ts`.
+
 ### Running the development server
 - **Command:** `pnpm run dev` (runs `tsx watch src/index.ts` in `server/`).
 - The server starts on port 3000 and embeds the Vite client dev middleware (serves the client at `/`).

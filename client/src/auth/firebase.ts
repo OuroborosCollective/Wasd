@@ -1,4 +1,4 @@
-import { initializeApp, type FirebaseApp } from "firebase/app";
+import { getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
 import fallbackConfig from "../../../firebase-applet-config.json";
@@ -59,4 +59,11 @@ export const db: Firestore | null =
 
 export function isFirebaseClientConfigured(): boolean {
   return Boolean(app && webConfig.apiKey);
+}
+
+/** Default FirebaseApp for AI Logic (`firebase/ai`) — same instance as Auth when configured. */
+export function getFirebaseAppOrNull(): FirebaseApp | null {
+  if (app) return app;
+  const existing = getApps();
+  return existing.length > 0 ? existing[0]! : null;
 }

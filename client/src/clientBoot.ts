@@ -11,6 +11,7 @@ import {
 } from "./networking/websocketClient";
 import { auth } from "./auth/firebase";
 import { isFirebaseGameAuthDisabled } from "./config/gameAuth";
+import { installFirebaseAiWatchdog } from "./ai/firebaseAiWatchdog";
 import { IEngineBridge } from "./engine/bridge/IEngineBridge";
 import { renderHUD, showDialogue } from "./ui/hud";
 import { getJoystickState, initMobileControls, isMobile } from "./ui/mobileControls";
@@ -42,6 +43,7 @@ function bootEngineBridge(targetCanvas: HTMLCanvasElement): IEngineBridge {
 }
 
 export async function bootAreloriaClient(canvas: HTMLCanvasElement): Promise<void> {
+  installFirebaseAiWatchdog();
   initCombatMobileUi();
 
   if (!Engine.IsSupported) {

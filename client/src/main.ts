@@ -8,6 +8,7 @@ import { renderImprovedVirtualJoystick } from "./ui/ImprovedVirtualJoystick";
 import { renderMobileSceneTeleportPanel } from "./ui/mobileSceneTeleportPanel";
 import { performanceMonitor } from "./utils/PerformanceMonitor";
 import { isFirebaseGameAuthDisabled } from "./config/gameAuth";
+import { installFirebaseAiWatchdog } from "./ai/firebaseAiWatchdog";
 
 type AREPolicyConfig = {
   cooldownMs?: number;
@@ -82,6 +83,7 @@ async function loadAREPolicyConfig(): Promise<AREPolicyConfig | undefined> {
 }
 
 try {
+  installFirebaseAiWatchdog();
   showBootStatus("Booting renderer...", "info");
   // 1. Boot Engine + Adapter
   const adapter = bootEngineBridge(canvas);

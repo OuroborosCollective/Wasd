@@ -35,6 +35,11 @@ function scheduleReconnectAfterAuth(): void {
   }, 0);
 }
 
+/** Safe recovery hook: open a fresh WebSocket (e.g. AI watchdog after clearing bad auth state). */
+export function reconnectGameSocket(): void {
+  scheduleReconnectAfterAuth();
+}
+
 export type ConnectionOptions = {
   token?: string;
   sceneId?: string;
