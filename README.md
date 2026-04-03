@@ -17,7 +17,7 @@ Browser-based MMORPG: **authoritative Node server** + **Babylon.js client** (Vit
 - **`docs/DOCUMENTATION_INDEX.md`** — index of all docs + what is historical  
 - **`docs/MASTER_DESIGN_BIBLE.md`** — creative / systems vision  
 - **`AGENTS.md`** — dev commands for Cursor agents  
-- **`DEPLOYMENT.md`** — VPS, PM2, GitHub Actions  
+- **`DEPLOYMENT.md`** — VPS, PM2, GitHub Actions (Secrets inkl. optional **`DEPLOY_VERIFY_BASE_URL`**)  
 
 ## Prerequisites
 

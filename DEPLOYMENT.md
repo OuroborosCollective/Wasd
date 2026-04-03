@@ -4,7 +4,7 @@
 
 ## GitHub Actions → VPS (Continuous Deployment)
 
-Workflow: **`.github/workflows/deploy.yml`** (Push auf `main`, optional stündlich, `workflow_dispatch`).
+Workflow: **`.github/workflows/deploy.yml`** (Push auf `main` und manuell **`workflow_dispatch`** — kein stündlicher Cron).
 
 **Repository-Secrets (Settings → Secrets and variables → Actions):**
 
@@ -13,7 +13,7 @@ Workflow: **`.github/workflows/deploy.yml`** (Push auf `main`, optional stündli
 | `VPS_IP` | Hostname oder IP des Servers |
 | `VPS_USER` | SSH-Benutzer (z. B. `root`) |
 | `VPS_SSH_PASSWORD` | Passwort für SSH (oder Key-basiertes Setup später) |
-| `DEPLOY_VERIFY_BASE_URL` | **Optional:** öffentliche Basis-URL **ohne** trailing slash, z. B. `https://deine-domain.tld`. Wenn **leer / nicht gesetzt**, schlägt der Workflow **nicht** fehl, nur die externen HTTPS-Checks werden übersprungen (sinnvoll wenn DNS/SSL noch nicht zur VPS-IP passt). |
+| `DEPLOY_VERIFY_BASE_URL` | **Optional:** öffentliche Basis-URL **ohne** trailing slash (z. B. `https://deine-spiel-domain.tld`). Gesetzt = nach Deploy werden **`/health`**, **`/`**, **`/gm/`** per HTTPS geprüft. **Nicht** gesetzt = nur SSH-Deploy, kein externer Check (DNS/SSL kann später nachgezogen werden). |
 
 Auf dem Server führt der Job **`deploy/deploy.sh`** aus: **pnpm** + **`pnpm install --frozen-lockfile`** am Repo-Root (wie CI), dann **`pnpm run build`**. SSH-Schritt hat **45 Minuten** Timeout für große Client-Builds.
 

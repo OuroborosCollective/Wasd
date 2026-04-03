@@ -33,8 +33,7 @@ jobs:
       - name: Build
         run: pnpm run build
 
-      - name: Model path audit (informational)
-        continue-on-error: true
+      - name: Model path audit
         run: pnpm run audit:model-paths
 
       - name: E2E (Playwright)
