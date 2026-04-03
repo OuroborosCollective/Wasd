@@ -17,6 +17,7 @@ import {
   loadDialogueChoicesForAdmin,
   loadQuestJsonPreviewById,
   loadDialogueJsonPreviewById,
+  loadNpcJsonPreviewById,
 } from "../modules/content/adminContentChoices.js";
 import { getServerPublicModelsDir, validateAdminGlbPathForServer } from "../modules/content/adminGlbPathCheck.js";
 import {
@@ -135,7 +136,12 @@ export function adminContentRouter(tick: WorldTick): Router {
       if (!r.ok) return res.status(404).json({ ok: false, errorDe: r.errorDe });
       return res.json({ ok: true, kind: "dialogue", id, json: r.json });
     }
-    return jsonError(res, 400, "Unbekannter „kind“ — nutze quest oder dialogue.", "invalid kind");
+    if (kind === "npc") {
+      const r = loadNpcJsonPreviewById(id);
+      if (!r.ok) return res.status(404).json({ ok: false, errorDe: r.errorDe });
+      return res.json({ ok: true, kind: "npc", id, json: r.json });
+    }
+    return jsonError(res, 400, "Unbekannter „kind“ — nutze quest, dialogue oder npc.", "invalid kind");
   });
 
   router.get("/model-path-audit", adminAuthMiddleware, (_req: AdminRequest, res: Response) => {

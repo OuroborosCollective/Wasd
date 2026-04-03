@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   loadQuestJsonPreviewById,
   loadDialogueJsonPreviewById,
+  loadNpcJsonPreviewById,
 } from "../modules/content/adminContentChoices.js";
 
 describe("admin content JSON preview", () => {
@@ -25,6 +26,14 @@ describe("admin content JSON preview", () => {
     if (r.ok) {
       expect(r.json).toContain("dialogue_guide");
       expect(r.json).toContain("greeting");
+    }
+  });
+
+  it("returns npc JSON for known id", () => {
+    const r = loadNpcJsonPreviewById("npc_guide");
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.json).toContain("npc_guide");
     }
   });
 });

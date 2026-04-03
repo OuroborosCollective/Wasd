@@ -351,8 +351,8 @@
   </div>
 
   <div class="card hidden" id="stepContentRef">
-    <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 12h6M9 16h6M5 8h14M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg></span> Quests &amp; Dialoge — IDs</div>
-    <p class="hint" style="margin-top:0">Zum Eintragen in Tabellen oder Notizen: ID auswählen und kopieren (kein Bearbeiten der Dateien hier).</p>
+    <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 12h6M9 16h6M5 8h14M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg></span> Quests, Dialoge, NPCs — IDs &amp; Vorschau</div>
+    <p class="hint" style="margin-top:0"><strong>Nur lesen</strong> — IDs kopieren oder JSON-Vorschau. Live-Änderungen: Git / Veröffentlichen-Pack (siehe <code>docs/CONTENT_DRAFT_VS_LIVE.md</code>).</p>
     <label for="selQuestRef">Quest</label>
     <div class="ref-row">
       <select id="selQuestRef"><option value="">— wählen —</option></select>
@@ -367,6 +367,13 @@
       <button type="button" class="ghost btn-sm" id="btnPreviewDialogue">Vorschau (nur lesen)</button>
     </div>
     <div id="dialoguePreview" class="preview-box hidden" aria-live="polite"></div>
+    <label for="selNpcRef" style="margin-top:12px;display:block">NPC</label>
+    <div class="ref-row">
+      <select id="selNpcRef"><option value="">— wählen —</option></select>
+      <button type="button" class="ghost btn-sm" id="btnCopyNpcId">NPC-ID kopieren</button>
+      <button type="button" class="ghost btn-sm" id="btnPreviewNpc">Vorschau (nur lesen)</button>
+    </div>
+    <div id="npcPreview" class="preview-box hidden" aria-live="polite"></div>
     <div id="copyRefMsg" class="msg hidden" style="margin-top:10px"></div>
   </div>
 
@@ -524,8 +531,17 @@
           do_ += '<option value="' + escapeAttr(d.id) + '">' + escapeHtml(d.id) + "</option>";
         });
       }
+      const nSel = document.getElementById("selNpcRef");
+      let no = '<option value="">— wählen —</option>';
+      if (c && Array.isArray(c.npcs)) {
+        c.npcs.forEach(function (n) {
+          const lab = n.id + " — " + (n.name || "") + (n.role ? " (" + n.role + ")" : "");
+          no += '<option value="' + escapeAttr(n.id) + '">' + escapeHtml(lab) + "</option>";
+        });
+      }
       qSel.innerHTML = qo;
       dSel.innerHTML = do_;
+      nSel.innerHTML = no;
     }
 
     function copyTextToClipboard(text, okMsg) {
@@ -1003,6 +1019,12 @@
     };
     document.getElementById("btnPreviewDialogue").onclick = function () {
       loadContentPreview("dialogue", document.getElementById("selDialogueRef").value.trim(), "dialoguePreview");
+    };
+    document.getElementById("btnCopyNpcId").onclick = function () {
+      copyTextToClipboard(document.getElementById("selNpcRef").value, "NPC-ID kopiert.");
+    };
+    document.getElementById("btnPreviewNpc").onclick = function () {
+      loadContentPreview("npc", document.getElementById("selNpcRef").value.trim(), "npcPreview");
     };
 
     document.getElementById("btnClearHistory").onclick = function () {

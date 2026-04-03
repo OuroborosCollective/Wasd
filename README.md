@@ -49,6 +49,16 @@ pnpm run start
 
 Hub scene **`didis_hub`** with NPCs and quests defined under `game-data/` (e.g. `npc_guide`, `starter_welcome`, `village_tour`). Replace placeholder world objects in `game-data/world/objects.json` when final GLBs are ready.
 
+## VPS (production)
+
+After each deploy-worthy change on `main`:
+
+```bash
+cd /opt/areloria && bash deploy/pull-and-deploy.sh
+```
+
+Optional GitHub Secret **`DEPLOY_VERIFY_BASE_URL`** (no trailing slash) enables HTTPS checks after deploy. See **`DEPLOYMENT.md`** and **`docs/CI_VPS_RUNBOOK.md`**.
+
 ## Cursor MCP + VPS
 
 See **`docs/VITE_MCP_AND_VPS_SETUP.md`** and `.cursor/mcp.json`.

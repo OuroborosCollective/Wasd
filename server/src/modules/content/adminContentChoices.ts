@@ -136,6 +136,19 @@ export function loadDialogueJsonPreviewById(
   }
 }
 
+export function loadNpcJsonPreviewById(npcId: string): { ok: true; json: string } | { ok: false; errorDe: string } {
+  const id = npcId.trim();
+  if (!id) return { ok: false, errorDe: "Keine NPC-ID." };
+  const arr = safeReadJsonArray("npc/npcs.json");
+  const row = arr.find((n: any) => n && typeof n.id === "string" && n.id === id);
+  if (!row) return { ok: false, errorDe: "NPC nicht gefunden: " + id };
+  try {
+    return { ok: true, json: trimPreviewJson(JSON.stringify(row, null, 2)) };
+  } catch {
+    return { ok: false, errorDe: "NPC konnte nicht als JSON dargestellt werden." };
+  }
+}
+
 /** Human-readable content root label for admin UI */
 export function getAdminContentRootHint(): string {
   return getContentDataRoot();
