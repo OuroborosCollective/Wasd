@@ -66,4 +66,39 @@ describe("resolveLoginIdentity", () => {
       expect(r.uid).toBe("dev_sock-z");
     }
   });
+
+  it("verifies Firebase token when USE_FIREBASE_WS_LOGIN=1", async () => {
+    process.env.NODE_ENV = "development";
+    process.env.USE_FIREBASE_WS_LOGIN = "1";
+    delete process.env.ALLOW_GUEST_LOGIN;
+    const verifyFirebaseToken = vi.fn().mockResolvedValue({
+      uid: "fb-user-9",
+      name: "  Pat  ",
+    });
+    vi.doMock("../config/firebase.js", () => ({
+      isFirebaseAuthConfigured: vi.fn(() => true),
+      verifyFirebaseToken,
+    }));
+    const { resolveLoginIdentity } = await import("../modules/auth/resolveLoginIdentity.js");
+    const r = await resolveLoginIdentity("sock", { token: "  id-token  " });
+    expect(verifyFirebaseToken).toHaveBeenCalledWith("id-token");
+    expect("error" in r).toBe(false);
+    if (!("error" in r)) {
+      expect(r.uid).toBe("fb-user-9");
+      expect(r.charName).toBe("Pat");
+    }
+  });
+
+  it("returns invalid_token when Firebase verify fails with USE_FIREBASE_WS_LOGIN=1", async () => {
+    process.env.NODE_ENV = "development";
+    process.env.USE_FIREBASE_WS_LOGIN = "true";
+    delete process.env.ALLOW_GUEST_LOGIN;
+    vi.doMock("../config/firebase.js", () => ({
+      isFirebaseAuthConfigured: vi.fn(() => true),
+      verifyFirebaseToken: vi.fn().mockRejectedValue(new Error("expired")),
+    }));
+    const { resolveLoginIdentity } = await import("../modules/auth/resolveLoginIdentity.js");
+    const r = await resolveLoginIdentity("sock", { token: "bad" });
+    expect(r).toEqual({ error: "Invalid or expired token", code: "invalid_token" });
+  });
 });
