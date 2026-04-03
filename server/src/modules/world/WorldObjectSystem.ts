@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { PersistenceManager } from '../../core/PersistenceManager.js';
+import { resolveContentFile } from '../content/contentDataRoot.js';
 
 export interface WorldObject {
   id: string;
@@ -19,7 +20,7 @@ export class WorldObjectSystem {
 
   constructor(persistence?: PersistenceManager) {
     this.persistence = persistence || null;
-    this.dataPath = path.resolve(process.cwd(), "game-data/world/objects.json");
+    this.dataPath = resolveContentFile("world/objects.json");
     this.load();
   }
 

@@ -28,6 +28,14 @@ describe("PlayerSystem", () => {
     expect(player.health).toBe(100);
   });
 
+  it("createPlayer() initializes maxHealth and alive state", () => {
+    const player = ps.createPlayer("p1", "Alice");
+    expect(player.maxHealth).toBe(100);
+    expect(player.maxStamina).toBe(100);
+    expect(player.level).toBe(1);
+    expect(player.dead).toBe(false);
+  });
+
   it("createPlayer() initializes stamina to 100", () => {
     const player = ps.createPlayer("p1", "Alice");
     expect(player.stamina).toBe(100);
@@ -36,6 +44,7 @@ describe("PlayerSystem", () => {
   it("createPlayer() initializes mana to 25", () => {
     const player = ps.createPlayer("p1", "Alice");
     expect(player.mana).toBe(25);
+    expect(player.maxMana).toBe(25);
   });
 
   it("createPlayer() initializes gold to 0", () => {
@@ -48,9 +57,9 @@ describe("PlayerSystem", () => {
     expect(player.inventory).toEqual([]);
   });
 
-  it("createPlayer() starts with empty skills", () => {
+  it("createPlayer() starts with baseline combat skill", () => {
     const player = ps.createPlayer("p1", "Alice");
-    expect(player.skills).toEqual({});
+    expect(player.skills).toEqual({ combat: { level: 1 } });
   });
 
   it("createPlayer() starts with empty quests", () => {

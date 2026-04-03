@@ -1,3 +1,7 @@
+import { ItemRegistry } from "../inventory/ItemRegistry.js";
+import { normalizeInventoryStacks } from "../inventory/inventoryStacks.js";
+import { resolveContentFile } from "../content/contentDataRoot.js";
+
 export interface Recipe {
   id: string;
   name: string;
@@ -17,8 +21,7 @@ export class CraftingSystem {
   async loadRecipes() {
     try {
       const fs = require("fs");
-      const path = require("path");
-      const recipesPath = path.join(process.cwd(), "game-data", "crafting", "recipes.json");
+      const recipesPath = resolveContentFile("crafting/recipes.json");
       const data = await fs.promises.readFile(recipesPath, "utf8");
       const recipes = JSON.parse(data);
       recipes.forEach((r: Recipe) => this.addRecipe(r));
@@ -56,18 +59,13 @@ export class CraftingSystem {
     const hasIngredients = recipe.ingredients.every((ing: any) => {
       const ingId = ing.id || ing.itemId;
       const ingCount = ing.amount || ing.count || 1;
-
-      let count = 0;
-      for (let i = 0; i < player.inventory.length; i++) {
-        if (player.inventory[i].id === ingId) {
-          count++;
-          if (count >= ingCount) {
-            break;
-          }
+      let have = 0;
+      for (const row of player.inventory) {
+        if (row?.id === ingId) {
+          have += Math.max(1, Math.floor(Number(row.quantity) || 1));
         }
       }
-
-      return count >= ingCount;
+      return have >= ingCount;
     });
 
     if (!hasIngredients) {
@@ -84,23 +82,47 @@ export class CraftingSystem {
     }
 
     const recipe = this.recipes.get(recipeId)!;
-    
-    // Consume ingredients
-    recipe.ingredients.forEach((ing: any) => {
+    if (!Array.isArray(player.inventory)) player.inventory = [];
+    const inv = player.inventory;
+
+    for (const ing of recipe.ingredients) {
       const ingId = ing.id || ing.itemId;
       const ingCount = ing.amount || ing.count || 1;
-      for (let i = 0; i < ingCount; i++) {
-        const index = player.inventory.findIndex((item: any) => item.id === ingId);
-        if (index !== -1) player.inventory.splice(index, 1);
+      let removed = 0;
+      for (let i = 0; i < inv.length && removed < ingCount; i++) {
+        const it = inv[i];
+        if (!it || it.id !== ingId) continue;
+        const q = Math.max(1, Math.floor(Number(it.quantity) || 1));
+        const need = ingCount - removed;
+        if (q <= need) {
+          removed += q;
+          inv.splice(i, 1);
+          i--;
+        } else {
+          it.quantity = q - need;
+          removed += need;
+        }
       }
-    });
-
-    // Add result
-    const resultId = recipe.result.id || recipe.result.itemId;
-    const resultCount = recipe.result.amount || recipe.result.count || 1;
-    for (let i = 0; i < resultCount; i++) {
-      player.inventory.push({ id: resultId });
     }
+
+    const resultId = recipe.result.id || recipe.result.itemId;
+    if (!resultId) {
+      return { success: false, reason: "Invalid recipe result" };
+    }
+    const resultCount = recipe.result.amount || recipe.result.count || 1;
+    const max = ItemRegistry.maxStackFor(ItemRegistry.getItem(resultId));
+    let rem = resultCount;
+    while (rem > 0) {
+      const n = Math.min(max, rem);
+      const inst = ItemRegistry.createInstance(resultId, n);
+      if (inst) {
+        inv.push(inst);
+      } else {
+        inv.push({ id: resultId, quantity: n });
+      }
+      rem -= n;
+    }
+    normalizeInventoryStacks(player);
 
     return {
       success: true,

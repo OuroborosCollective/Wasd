@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>E2E smoke</title>
+  </head>
+  <body>
+    <p id="e2e-status">connecting…</p>
+    <pre id="e2e-welcome" style="white-space:pre-wrap;word-break:break-all;font-size:11px;opacity:0.85"></pre>
+    <script type="module">
+      const status = document.getElementById("e2e-status");
+      const proto = location.protocol === "https:" ? "wss" : "ws";
+      const wsUrl = `${proto}://${location.host}/ws`;
+      const ws = new WebSocket(wsUrl);
+      ws.onopen = () => {
+        ws.send(
+          JSON.stringify({
+            type: "login",
+            guestId: "guest_e2e_smoke01",
+            guestName: "E2E",
+            sceneId: "didis_hub",
+            spawnKey: "sp_player_default",
+          })
+        );
+      };
+      ws.onmessage = (ev) => {
+        try {
+          const d = JSON.parse(ev.data);
+          if (d.type === "welcome") {
+            document.body.dataset.e2eReady = "1";
+            if (status) status.textContent = "welcome";
+            const pre = document.getElementById("e2e-welcome");
+            if (pre) pre.textContent = JSON.stringify(d);
+          }
+        } catch {
+          /* ignore */
+        }
+      };
+      ws.onerror = () => {
+        if (status) status.textContent = "ws error";
+      };
+    </script>
+  </body>
+</html>

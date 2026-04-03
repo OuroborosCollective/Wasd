@@ -1,66 +1,19 @@
-# Client Manifest
+# Client manifest
 
-- assets/AssetLoader.ts
-- assets/GLBValidation.ts
-- assets/ModelRegistry.ts
-- audio/AmbiencePlayer.ts
-- audio/AudioBus.ts
-- editor/EditorHotkeys.ts
-- editor/GMCommandConsole.ts
-- editor/GMCommandPalette.ts
-- editor/PlacementTool.ts
-- editor/SelectionTool.ts
-- editor/TerrainBrush.ts
-- editor/TerrainBrushTool.ts
-- editor/WorldEditorUI.ts
-- engine/renderer.ts
-- engine/worldLoader.ts
-- gameplay/combatSystem.ts
-- gameplay/farmingSystem.ts
-- gameplay/inventoryState.ts
-- gameplay/playerController.ts
-- gameplay/skillSystem.ts
-- localization/locale.ts
-- main.ts
-- networking/reconnect.ts
-- networking/websocketClient.ts
-- state/auctionState.ts
-- state/inventoryState.ts
-- state/mailState.ts
-- state/notificationState.ts
-- state/questState.ts
-- state/sessionState.ts
-- state/settingsState.ts
-- state/socialState.ts
-- ui/adminAudit.ts
-- ui/adminMountPanel.ts
-- ui/auctionPanel.ts
-- ui/audioPanel.ts
-- ui/chat.ts
-- ui/chatPanel.ts
-- ui/combatPanel.ts
-- ui/crafting.ts
-- ui/debugPanel.ts
-- ui/diplomacy.ts
-- ui/equipmentPanel.ts
-- ui/guildPanel.ts
-- ui/hud.ts
-- ui/inventory.ts
-- ui/loginPanel.ts
-- ui/mailPanel.ts
-- ui/mapPanel.ts
-- ui/market.ts
-- ui/minimap.ts
-- ui/mountPanel.ts
-- ui/notifications.ts
-- ui/oraclePanel.ts
-- ui/partyPanel.ts
-- ui/questLog.ts
-- ui/releaseBanner.ts
-- ui/reputation.ts
-- ui/reputationPanel.ts
-- ui/routeOverlay.ts
-- ui/settingsPanel.ts
-- ui/skillsPanel.ts
-- ui/titlePanel.ts
-- ui/weatherOverlay.ts
+> **Note (2026):** This file described an idealized client tree. The **actual** layout is under `client/src/`. Primary renderer: **Babylon.js** (`engine/babylon/`, `main.ts`). See **`docs/PROJECT_STATUS_2026.md`** and **`docs/CLIENT_ARCHITECTURE.md`**.
+
+## Key entrypoints (current)
+
+- `client/src/main.ts` — bootstrap, core, socket, HUD  
+- `client/src/engine/babylon/BabylonBoot.ts` — scene, camera, ground, skybox  
+- `client/src/engine/babylon/BabylonAdapter.ts` — `IEngineBridge` implementation  
+- `client/src/core/MMORPGClientCore.ts` — entities, events  
+- `client/src/networking/websocketClient.ts` — WebSocket protocol  
+
+## UI (partial list)
+
+- `client/src/ui/hud.ts`, `inventory.ts`, `questLog.ts`, `mobileControls.ts`, …  
+
+---
+
+*The long file list that previously lived here is omitted to avoid drift; use your IDE or `find client/src -name '*.ts'` when needed.*

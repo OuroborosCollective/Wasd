@@ -3,6 +3,8 @@ import { MMORPGClientCore } from "../core/MMORPGClientCore";
 let globalWs: WebSocket | null = null;
 const DEFAULT_SCENE_ID = "didis_hub";
 const DEFAULT_SPAWN_KEY = "sp_player_default";
+const GUEST_STORAGE_KEY = "areloria_guest_id";
+let authTokenProvider: (() => Promise<string | null>) | null = null;
 
 export type ConnectionOptions = {
   token?: string;
@@ -145,6 +147,50 @@ function resolveInitialSpawnKey(configuredSpawnKey?: string) {
   return DEFAULT_SPAWN_KEY;
 }
 
+export function setAuthTokenProvider(fn: (() => Promise<string | null>) | null) {
+  authTokenProvider = fn;
+}
+
+async function resolveTokenForLogin(fallback?: string): Promise<string | undefined> {
+  if (authTokenProvider) {
+    try {
+      const fresh = await authTokenProvider();
+      if (fresh && fresh.trim().length > 0) {
+        return fresh.trim();
+      }
+    } catch {
+      // fall through to fallback/persisted token
+    }
+  }
+  if (fallback && fallback.trim().length > 0) {
+    return fallback.trim();
+  }
+  try {
+    const persisted = localStorage.getItem("token");
+    if (persisted && persisted.trim().length > 0) {
+      return persisted.trim();
+    }
+  } catch {
+    // ignore storage access issues
+  }
+  return undefined;
+}
+
+export function updateAuthToken(token: string | null) {
+  try {
+    if (token && token.trim().length > 0) {
+      localStorage.setItem("token", token.trim());
+    } else {
+      localStorage.removeItem("token");
+    }
+  } catch {
+    // ignore storage access issues
+  }
+  if (globalWs?.readyState === WebSocket.OPEN) {
+    globalWs.close(4000, "auth refresh");
+  }
+}
+
 export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions = {}) {
   if (options.arePolicyConfig && typeof core.setAREPolicyConfig === "function") {
     core.setAREPolicyConfig(options.arePolicyConfig);
@@ -157,12 +203,13 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
   let welcomeReceived = false;
   let attemptedAnonymousFallback = false;
 
-  const sendLogin = (token?: string) => {
+  const sendLogin = (token?: string, guestId?: string) => {
     if (ws.readyState !== WebSocket.OPEN) return;
     ws.send(
       JSON.stringify({
         type: "login",
         token,
+        ...(guestId ? { guestId } : {}),
         sceneId,
         spawnKey,
       })
@@ -170,13 +217,25 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
     emitNetStatus("login_sent", token ? "Authenticating..." : "Joining world (guest fallback)...");
   };
 
-  ws.onopen = () => {
+  ws.onopen = async () => {
     console.log("Connected to Arelorian Server");
     emitNetStatus("connected", "Connected. Waiting for world login...");
-    sendLogin(options.token);
+    const token = await resolveTokenForLogin(options.token);
+    let guestId: string | undefined;
+    if (!token) {
+      try {
+        const stored = localStorage.getItem(GUEST_STORAGE_KEY);
+        if (stored && /^guest_[a-zA-Z0-9_-]{6,64}$/.test(stored)) {
+          guestId = stored;
+        }
+      } catch {
+        // ignore storage access issues
+      }
+    }
+    sendLogin(token, guestId);
 
     window.setTimeout(() => {
-      if (!welcomeReceived && options.token && !attemptedAnonymousFallback && ws.readyState === WebSocket.OPEN) {
+      if (!welcomeReceived && !attemptedAnonymousFallback && ws.readyState === WebSocket.OPEN) {
         attemptedAnonymousFallback = true;
         try {
           localStorage.removeItem("token");
@@ -251,6 +310,17 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         welcomeReceived = true;
         emitNetStatus("welcome", "Joined world.");
         const localPlayerId = data.playerId || data.id;
+        if (
+          typeof localPlayerId === "string" &&
+          localPlayerId.startsWith("guest_") &&
+          (!options.token || !String(options.token).trim())
+        ) {
+          try {
+            localStorage.setItem(GUEST_STORAGE_KEY, localPlayerId);
+          } catch {
+            // ignore storage access issues
+          }
+        }
         core.setLocalPlayer(localPlayerId);
         const spawnPos = toEntityPosition(data.spawnPosition);
         if (spawnPos && localPlayerId) {
@@ -293,7 +363,14 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         });
       }
       if (data.type === 'dialogue') {
-        core.handleDialogue(data.text);
+        core.handleDialogue({
+          source: data.source,
+          text: data.text,
+          questId: data.questId,
+          choices: data.choices,
+          npcId: data.npcId,
+          nodeId: data.nodeId,
+        });
       }
     } catch (e) {
       console.warn("Failed to parse server message:", msg.data);
@@ -309,9 +386,28 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
   };
 }
 
-export function sendDialogueChoice(npcId: string, choiceId: string) {
+export function sendDialogueChoice(npcId: string, choiceId: string, nodeId?: string) {
   if (globalWs && globalWs.readyState === WebSocket.OPEN) {
-    globalWs.send(JSON.stringify({ type: 'dialogue_choice', npcId, choiceId }));
+    globalWs.send(
+      JSON.stringify({
+        type: "dialogue_choice",
+        npcId,
+        choiceId,
+        ...(nodeId ? { nodeId } : {}),
+      })
+    );
+  }
+}
+
+export function sendQuestAccept(npcId: string, nodeId?: string) {
+  if (globalWs && globalWs.readyState === WebSocket.OPEN) {
+    globalWs.send(JSON.stringify({ type: "quest_accept", npcId, ...(nodeId ? { nodeId } : {}) }));
+  }
+}
+
+export function requestQuestSync() {
+  if (globalWs && globalWs.readyState === WebSocket.OPEN) {
+    globalWs.send(JSON.stringify({ type: "quest_sync" }));
   }
 }
 
@@ -329,6 +425,38 @@ export function sendCommand(type: string, payload: any = {}) {
 
 export function requestSceneChange(sceneId: string, spawnKey?: string) {
   sendCommand("scene_change", { sceneId, spawnKey });
+}
+
+export function sendRespawn() {
+  sendCommand("respawn", {});
+}
+
+export function sendPickupLoot(lootId: string) {
+  sendCommand("pickup_loot", { lootId });
+}
+
+export function sendEquipItem(itemId: string) {
+  sendCommand("equip_item", { itemId });
+}
+
+export function sendUnequipItem(slot: "weapon" | "armor") {
+  sendCommand("unequip_item", { slot });
+}
+
+export function sendSetCombatTarget(npcId: string | null) {
+  sendCommand("set_target", { npcId: npcId ?? "" });
+}
+
+export function sendUseItem(itemId: string, count = 1) {
+  sendCommand("use_item", { itemId, count });
+}
+
+export function sendSplitStack(rowIndex: number, amount: number) {
+  sendCommand("split_stack", { rowIndex, amount });
+}
+
+export function sendUseSkill(skillId: string) {
+  sendCommand("use_skill", { skillId });
 }
 
 export const sendMessage = sendCommand;

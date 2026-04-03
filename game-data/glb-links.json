@@ -1,16 +1,61 @@
 [
   {
-    "glbPath": "/assets/models/characters/uschi.glb",
+    "glbPath": "/world-assets/characters/Npc001.glb",
+    "targetType": "npc_single",
+    "targetId": "npc_guide"
+  },
+  {
+    "glbPath": "/world-assets/characters/Npc_warrior.glb",
     "targetType": "npc_single",
     "targetId": "npc_1"
   },
   {
-    "glbPath": "/assets/models/monsters/goblin.glb",
-    "targetType": "monster_group",
+    "glbPath": "/world-assets/characters/humanknight.glb",
+    "targetType": "npc_single",
+    "targetId": "npc_2"
+  },
+  {
+    "glbPath": "/world-assets/characters/npc_warrior1.glb",
+    "targetType": "npc_single",
+    "targetId": "npc_dummy"
+  },
+  {
+    "glbPath": "/world-assets/characters/Body_male.glb",
+    "targetType": "npc_single",
+    "targetId": "npc_3"
+  },
+  {
+    "glbPath": "/world-assets/characters/blacksmith_npc.glb",
+    "targetType": "npc_single",
+    "targetId": "npc_4"
+  },
+  {
+    "glbPath": "/world-assets/characters/Warrior_gltf_fall_slash_run_walk_idle.glb",
+    "targetType": "npc_single",
+    "targetId": "npc_5"
+  },
+  {
+    "glbPath": "/world-assets/monsters/wolfredeye.glb",
+    "targetType": "npc_single",
     "targetId": "npc_wolf"
   },
   {
-    "glbPath": "/assets/models/objects/chest.glb",
+    "glbPath": "/world-assets/characters/mageenemy01.glb",
+    "targetType": "npc_single",
+    "targetId": "npc_6_hermit"
+  },
+  {
+    "glbPath": "/world-assets/characters/Body_female.glb",
+    "targetType": "npc_single",
+    "targetId": "npc_7_merchant"
+  },
+  {
+    "glbPath": "/world-assets/characters/head_femalea1.glb",
+    "targetType": "npc_single",
+    "targetId": "npc_8_apprentice"
+  },
+  {
+    "glbPath": "/world-assets/props/weapons/1h_sword_01.glb",
     "targetType": "object_single",
     "targetId": "starter_sword"
   }

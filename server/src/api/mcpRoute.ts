@@ -131,7 +131,7 @@ function createMcpServer() {
   // 3. List files
   mcpServer.tool(
     "list_files",
-    "List project files for MMORPG and PlayCanvas integration work.",
+    "List project files for MMORPG client and server work.",
     {
       directory: z.string().default(".").describe("Directory path relative to project root"),
       maxDepth: z.number().int().min(0).max(8).default(3),
@@ -155,10 +155,10 @@ function createMcpServer() {
     }
   );
 
-  // 4. PlayCanvas + MMORPG connection profile
+  // 4. WebSocket + MCP connection profile (Babylon.js / Vite client)
   mcpServer.tool(
-    "get_playcanvas_connection_profile",
-    "Return recommended WebSocket and MCP endpoint settings for PlayCanvas MMORPG deployment.",
+    "get_game_connection_profile",
+    "Return recommended WebSocket and MCP endpoint settings for Areloria deployment (browser client + game server).",
     {},
     async () => {
       return { content: [{ type: "text", text: JSON.stringify(getConnectionProfile(), null, 2) }] };

@@ -262,7 +262,8 @@ export class WorldTick {
   public worldSystem: WorldSystem;
   public persistence: PersistenceManager;
   public glbRegistry: GLBRegistry;
-  private assetPoolResolver: AssetPoolResolver;
+  public assetPoolResolver: AssetPoolResolver;
+  private readonly glbLinksStore: "file" | "spacetime";
   private runtimeSettings: RuntimeSettingsStore;
   private areModeAuditTrail: AREModeAuditTrail;
   private areStateCompiler: AREStateCompiler;
@@ -1258,6 +1259,7 @@ export class WorldTick {
     this.questSystem = new QuestEngine();
     this.persistence = new PersistenceManager();
     this.worldSystem = new WorldSystem(this.persistence);
+    this.glbLinksStore = process.env.GLB_LINKS_STORE?.trim().toLowerCase() === "spacetime" ? "spacetime" : "file";
     this.glbRegistry = new GLBRegistry();
     this.assetPoolResolver = new AssetPoolResolver();
     this.runtimeSettings = new RuntimeSettingsStore();
@@ -1689,6 +1691,13 @@ export class WorldTick {
   public getWorld() {
     return {
        updateMonsters: () => {} // Shim for WebSocketServer compatibility if needed
+    };
+  }
+
+  public getPersistenceStats() {
+    return {
+      driver: this.persistence.getDriverName(),
+      glbLinksStore: this.glbLinksStore,
     };
   }
 

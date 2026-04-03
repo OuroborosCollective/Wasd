@@ -89,4 +89,16 @@ describe("SkillSystem", () => {
     skills.addXP(player, "farming", 20);
     expect(player.skills.farming.xp).toBe(40);
   });
+
+  it("checkPlayerLevel() increases maxMana by playerManaPerLevel per level and grants mana on level-up", () => {
+    const player: any = { xp: 0, level: 1, mana: 25, maxMana: 25 };
+    skills.checkPlayerLevel(player);
+    expect(player.level).toBe(1);
+    expect(player.maxMana).toBe(25);
+    player.xp = 100;
+    skills.checkPlayerLevel(player);
+    expect(player.level).toBe(2);
+    expect(player.maxMana).toBe(30);
+    expect(player.mana).toBe(30);
+  });
 });

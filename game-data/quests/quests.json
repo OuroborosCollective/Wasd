@@ -1,5 +1,28 @@
 [
   {
+    "id": "starter_welcome",
+    "title": "Welcome to Millbrook",
+    "giverNpcId": "npc_guide",
+    "targetNpcId": "npc_1",
+    "objectiveType": "talk_to",
+    "reward": {
+      "gold": 25,
+      "xp": 40
+    }
+  },
+  {
+    "id": "village_tour",
+    "title": "The Elder's Word",
+    "giverNpcId": "npc_guide",
+    "targetNpcId": "npc_3",
+    "objectiveType": "talk_to",
+    "prerequisiteQuestIds": ["starter_welcome"],
+    "reward": {
+      "gold": 35,
+      "xp": 60
+    }
+  },
+  {
     "id": "first_steps",
     "title": "First Steps",
     "giverNpcId": "npc_1",

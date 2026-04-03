@@ -3,6 +3,7 @@
     {
       "name": "Core Content",
       "npcIds": [
+        "npc_guide",
         "npc_1",
         "npc_2",
         "npc_dummy",
@@ -15,6 +16,8 @@
         "npc_8_apprentice"
       ],
       "questIds": [
+        "starter_welcome",
+        "village_tour",
         "first_steps",
         "missing_letter",
         "dummy_slayer",
@@ -29,6 +32,7 @@
         "apprentice_quest"
       ],
       "dialogueIds": [
+        "dialogue_guide",
         "dialogue_npc_1",
         "dialogue_npc_2",
         "dialogue_npc_3",
@@ -42,6 +46,7 @@
       ],
       "itemIds": [
         "starter_sword",
+        "training_shortbow",
         "wooden_shield",
         "iron_scrap",
         "wolf_pelt",
@@ -53,7 +58,8 @@
         "ancient_coin",
         "relic_fragment",
         "forgotten_sigil",
-        "guard_token"
+        "guard_token",
+        "minor_mana_draught"
       ],
       "validationResult": "passed"
     }

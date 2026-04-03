@@ -50,9 +50,11 @@ const MOBILE_STYLES = `
     transition: none;
     pointer-events: none;
   }
+  .mob-btn-skill { background: rgba(120,60,200,0.45); border-color: rgba(180,120,255,0.55); }
+  .mob-btn-skill:active { background: rgba(160,100,240,0.65); }
   #mobile-action-btns {
     position: fixed; bottom: 90px; right: 20px;
-    display: grid; grid-template-columns: 52px 52px;
+    display: grid; grid-template-columns: 52px 52px 52px;
     grid-template-rows: 52px 52px 52px;
     gap: 8px; z-index: 1000;
     touch-action: none;
@@ -167,7 +169,6 @@ const MOBILE_STYLES = `
     #hud-top-left { top: 10px !important; }
     #minimap { top: 10px !important; right: 10px !important; width: 100px !important; height: 100px !important; }
     #chat-panel { bottom: 230px !important; max-height: 120px !important; width: calc(100vw - 40px) !important; left: 20px !important; }
-    #dialogue-box { bottom: 240px !important; }
     #action-bar { bottom: 170px !important; }
     .world-label { font-size: 10px !important; }
   }
@@ -182,7 +183,10 @@ const MOBILE_STYLES = `
 `;
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
+import { MMORPGClientCore } from "../core/MMORPGClientCore";
+
 export function initMobileControls(
+  core: MMORPGClientCore,
   callbacks: {
     onAttack: () => void;
     onInteract: () => void;
@@ -190,6 +194,7 @@ export function initMobileControls(
     onInventory: () => void;
     onQuests: () => void;
     onSkills: () => void;
+    onQuickSkill: () => void;
     onMap: () => void;
     onChat: () => void;
   },
@@ -215,23 +220,27 @@ export function initMobileControls(
 
     <!-- Action Buttons (right side) -->
     <div id="mobile-action-btns">
-      <div class="mob-btn mob-btn-attack" id="mob-attack" style="grid-column:2;grid-row:2;">
-        ⚔️
-        <span class="mob-btn-label">ATK</span>
+      <div class="mob-btn mob-btn-skill" id="mob-skill-cast" style="grid-column:1;grid-row:1;">
+        🔮
+        <span class="mob-btn-label">SPELL</span>
+      </div>
+      <div class="mob-btn" id="mob-skills" style="grid-column:2;grid-row:1;">
+        ✨
+        <span class="mob-btn-label">SKILL</span>
+      </div>
+      <div class="mob-btn" id="mob-equip" style="grid-column:3;grid-row:1;">
+        🎒
+        <span class="mob-btn-label">INV</span>
       </div>
       <div class="mob-btn mob-btn-interact" id="mob-interact" style="grid-column:1;grid-row:2;">
         💬
         <span class="mob-btn-label">TALK</span>
       </div>
-      <div class="mob-btn" id="mob-equip" style="grid-column:2;grid-row:1;">
-        🎒
-        <span class="mob-btn-label">INV</span>
+      <div class="mob-btn mob-btn-attack" id="mob-attack" style="grid-column:2;grid-row:2;">
+        ⚔️
+        <span class="mob-btn-label">ATK</span>
       </div>
-      <div class="mob-btn" id="mob-skills" style="grid-column:1;grid-row:1;">
-        ✨
-        <span class="mob-btn-label">SKILL</span>
-      </div>
-      <div class="mob-btn" id="mob-quests" style="grid-column:1;grid-row:3;">
+      <div class="mob-btn" id="mob-quests" style="grid-column:3;grid-row:2;">
         📜
         <span class="mob-btn-label">QUEST</span>
       </div>
@@ -340,6 +349,58 @@ export function initMobileControls(
   let joystickOriginX = 0;
   let joystickOriginY = 0;
 
+  const updateJoystickFromTouch = (touch: Touch) => {
+    if (touch.identifier !== joystickTouchId) return;
+    const rawDx = touch.clientX - joystickOriginX;
+    const rawDy = touch.clientY - joystickOriginY;
+    const dist = Math.hypot(rawDx, rawDy);
+    const clampedDist = Math.min(dist, JOYSTICK_RADIUS);
+    const angle = Math.atan2(rawDy, rawDx);
+    const clampedX = Math.cos(angle) * clampedDist;
+    const clampedY = Math.sin(angle) * clampedDist;
+    joystickThumb.style.transform = `translate(calc(-50% + ${clampedX}px), calc(-50% + ${clampedY}px))`;
+    joystickState.dx = clampedX / JOYSTICK_RADIUS;
+    joystickState.dy = clampedY / JOYSTICK_RADIUS;
+  };
+
+  joystickZone.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      updateJoystickFromTouch(e.changedTouches[i]);
+    }
+  }, { passive: false });
+
+  // iOS: touchmove on the zone may not fire when finger leaves the element — follow on document
+  const onDocTouchMove = (e: TouchEvent) => {
+    if (joystickTouchId === null || !joystickState.active) return;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === joystickTouchId) {
+        e.preventDefault();
+        updateJoystickFromTouch(e.changedTouches[i]);
+        break;
+      }
+    }
+  };
+  const onDocTouchEnd = (e: TouchEvent) => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === joystickTouchId) {
+        resetJoystick();
+        break;
+      }
+    }
+  };
+
+  const resetJoystick = () => {
+    joystickTouchId = null;
+    joystickState.active = false;
+    joystickState.dx = 0;
+    joystickState.dy = 0;
+    joystickThumb.style.transform = "translate(-50%, -50%)";
+    document.removeEventListener("touchmove", onDocTouchMove, true);
+    document.removeEventListener("touchend", onDocTouchEnd, true);
+    document.removeEventListener("touchcancel", onDocTouchEnd, true);
+  };
+
   joystickZone.addEventListener("touchstart", (e) => {
     e.preventDefault();
     const touch = e.changedTouches[0];
@@ -348,45 +409,32 @@ export function initMobileControls(
     joystickOriginX = rect.left + rect.width / 2;
     joystickOriginY = rect.top + rect.height / 2;
     joystickState.active = true;
+    document.addEventListener("touchmove", onDocTouchMove, { passive: false, capture: true });
+    document.addEventListener("touchend", onDocTouchEnd, { passive: false, capture: true });
+    document.addEventListener("touchcancel", onDocTouchEnd, { passive: false, capture: true });
+    updateJoystickFromTouch(touch);
   }, { passive: false });
 
-  joystickZone.addEventListener("touchmove", (e) => {
-    e.preventDefault();
+  joystickZone.addEventListener("touchend", (e) => {
     for (let i = 0; i < e.changedTouches.length; i++) {
-      const touch = e.changedTouches[i];
-      if (touch.identifier !== joystickTouchId) continue;
-      const rawDx = touch.clientX - joystickOriginX;
-      const rawDy = touch.clientY - joystickOriginY;
-      const dist = Math.hypot(rawDx, rawDy);
-      const clampedDist = Math.min(dist, JOYSTICK_RADIUS);
-      const angle = Math.atan2(rawDy, rawDx);
-      const clampedX = Math.cos(angle) * clampedDist;
-      const clampedY = Math.sin(angle) * clampedDist;
-      joystickThumb.style.transform = `translate(calc(-50% + ${clampedX}px), calc(-50% + ${clampedY}px))`;
-      joystickState.dx = clampedX / JOYSTICK_RADIUS;
-      joystickState.dy = clampedY / JOYSTICK_RADIUS;
+      if (e.changedTouches[i].identifier === joystickTouchId) {
+        resetJoystick();
+        break;
+      }
     }
   }, { passive: false });
-
-  const resetJoystick = () => {
-    joystickTouchId = null;
-    joystickState.active = false;
-    joystickState.dx = 0;
-    joystickState.dy = 0;
-    joystickThumb.style.transform = "translate(-50%, -50%)";
-  };
-
-  joystickZone.addEventListener("touchend", resetJoystick, { passive: false });
   joystickZone.addEventListener("touchcancel", resetJoystick, { passive: false });
 
   // ── ACTION BUTTONS ──────────────────────────────────────────────────────────
   const addTouchBtn = (id: string, cb: () => void) => {
     const el = document.getElementById(id);
     if (!el) return;
+    el.style.pointerEvents = "auto";
     el.addEventListener("touchstart", (e) => { e.preventDefault(); e.stopPropagation(); cb(); }, { passive: false });
     el.addEventListener("click", (e) => { e.stopPropagation(); cb(); });
   };
 
+  addTouchBtn("mob-skill-cast", callbacks.onQuickSkill);
   addTouchBtn("mob-attack", callbacks.onAttack);
   addTouchBtn("mob-interact", callbacks.onInteract);
   addTouchBtn("mob-equip", callbacks.onInventory);
@@ -452,7 +500,9 @@ export function initMobileControls(
   });
 
   // ── CAMERA DRAG (two-finger or right-area single finger) ────────────────────
-  const canvas = document.getElementById("game-canvas") as HTMLCanvasElement || document.querySelector("canvas");
+  const canvas =
+    (document.getElementById("application-canvas") as HTMLCanvasElement | null) ||
+    (document.querySelector("canvas") as HTMLCanvasElement | null);
   if (canvas) {
     let cameraTouchId: number | null = null;
     let lastCamX = 0;
@@ -461,8 +511,8 @@ export function initMobileControls(
     let pinchActive = false;
 
     canvas.addEventListener("touchstart", (e) => {
-      e.preventDefault();
       if (e.touches.length === 2) {
+        e.preventDefault();
         // Pinch zoom
         pinchActive = true;
         cameraTouchId = null;
@@ -470,14 +520,21 @@ export function initMobileControls(
         pinchDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
       } else if (e.touches.length === 1) {
         const touch = e.touches[0];
-        // Only start camera drag if touch is NOT in joystick zone or action buttons
-        const joystickRect = joystickZone.getBoundingClientRect();
-        const actionRect = document.getElementById("mobile-action-btns")?.getBoundingClientRect();
-        const inJoystick = touch.clientX >= joystickRect.left && touch.clientX <= joystickRect.right
-                        && touch.clientY >= joystickRect.top && touch.clientY <= joystickRect.bottom;
-        const inActions = actionRect && touch.clientX >= actionRect.left && touch.clientX <= actionRect.right
-                       && touch.clientY >= actionRect.top && touch.clientY <= actionRect.bottom;
-        if (!inJoystick && !inActions) {
+        // Only start camera drag if touch is NOT in joystick zone, action buttons, or other UI
+        const isUIElement = (el: Element | null): boolean => {
+          if (!el) return false;
+          if (el.id === "mobile-controls" || el.closest("#mobile-controls")) return true;
+          if (el.id === "arel-hud" || el.closest("#arel-hud")) return true;
+          if (el.id === "dialogue-box" || el.closest("#dialogue-box")) return true;
+          if (el.id === "chat-panel" || el.closest("#chat-panel")) return true;
+          if (el.classList.contains("panel") || el.closest(".panel")) return true;
+          if (el.id === "combat-loot-strip" || el.closest("#combat-loot-strip")) return true;
+          return false;
+        };
+        const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+
+        if (!isUIElement(targetElement)) {
+          e.preventDefault();
           cameraTouchId = touch.identifier;
           lastCamX = touch.clientX;
           lastCamY = touch.clientY;
@@ -518,4 +575,18 @@ export function initMobileControls(
 
   // ── KEYBOARD FALLBACK for desktop testing ───────────────────────────────────
   // (Already handled in websocketClient.ts)
+}
+
+/** When player is dead, disable joystick and action buttons (mobile-first safety). */
+export function setMobileCombatActionsEnabled(enabled: boolean) {
+  const root = document.getElementById("mobile-controls");
+  if (!root) return;
+  const nodes = root.querySelectorAll(
+    "#joystick-zone, #mobile-action-btns, #mobile-menu-btns, #mob-shortcut-toggle, #mobile-chat-btn"
+  );
+  nodes.forEach((el) => {
+    const h = el as HTMLElement;
+    h.style.pointerEvents = enabled ? "" : "none";
+    h.style.opacity = enabled ? "" : "0.4";
+  });
 }

@@ -1,0 +1,63 @@
+%% Data architecture: content vs runtime persistence vs PostgreSQL
+%% Regenerate PDF (mermaid-cli 11+): mmdc -i docs/diagrams/data-stores-overview.mmd -o docs/diagrams/data-stores-overview.pdf -w 1600 -H 1100 -e pdf -f
+
+flowchart TB
+  subgraph Client["Client (Browser, Babylon.js)"]
+    UI["WebSocket + REST"]
+  end
+
+  subgraph Server["Game server (Node, Express + WS)"]
+    WT["WorldTick, registries, systems"]
+    PM["PersistenceManager<br/>PERSISTENCE_DRIVER"]
+    CDR["Content root<br/>getContentDataRoot()"]
+  end
+
+  subgraph Content["Content (read-mostly, versioned)"]
+    GD["game-data/*.json<br/>items, quests, NPCs, scenes, …"]
+    PC["published-content/current/<br/>optional snapshot"]
+    GLJ["glb-links.json<br/>model overrides by target"]
+  end
+
+  subgraph Persist["Runtime player / world snapshot"]
+    FS["Firestore<br/>collections: players, worldObjects<br/>doc id = player id"]
+    PF["JSON file<br/>PLAYER_SAVE_FILE / data/players.json"]
+    STP["SpacetimeDB driver<br/>stub: players → file fallback"]
+  end
+
+  subgraph SpacetimeOpt["SpacetimeDB optional (GLB links only)"]
+    STG["Table glb_link<br/>glb_path, target_type, target_id<br/>module: areloria-glb"]
+  end
+
+  subgraph PG["PostgreSQL DATABASE_URL optional"]
+    P1["players, paypal_orders,<br/>player_glb_models, placed_glb_models"]
+    P2["land_plots, player_lands,<br/>land_structures, nations"]
+    P3["chat_messages, world_state,<br/>marketplace_transactions"]
+    P4["asset_specifications,<br/>asset_variants, asset_batch_jobs"]
+  end
+
+  UI <-->|"WS entity_sync, login"| WT
+  WT --> CDR
+  CDR --> GD
+  CDR -.->|"USE_PUBLISHED_CONTENT / CONTENT_PACK_DIR"| PC
+  WT -->|"resolve model paths"| GLJ
+  WT -.->|"GLB_LINKS_STORE=spacetime"| STG
+
+  WT --> PM
+  PM --> FS
+  PM --> PF
+  PM --> STP
+  STP -.->|"default"| PF
+
+  WT -->|"GLB upload, land, PayPal, …<br/>when DATABASE_URL set"| P1
+  WT --> P2
+  WT --> P3
+  WT --> P4
+
+  classDef content fill:#e8f4fc,stroke:#1565c0;
+  classDef persist fill:#fff3e0,stroke:#ef6c00;
+  classDef pg fill:#e8f5e9,stroke:#2e7d32;
+  classDef st fill:#f3e5f5,stroke:#7b1fa2;
+  class GD,PC,GLJ content;
+  class FS,PF,STP persist;
+  class P1,P2,P3,P4 pg;
+  class STG st;

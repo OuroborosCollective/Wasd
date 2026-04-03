@@ -1,14 +1,42 @@
+import { closeAllPanels } from "./panelManager";
+import { getPlayerQuests, subscribePlayerState, type ClientQuestEntry } from "../state/playerState";
+import { requestQuestSync } from "../networking/websocketClient";
+import { applyGamePanelLayout, panelCloseButtonStyles } from "./panelLayout";
+
+function formatQuestLine(q: ClientQuestEntry): string {
+  if (q.completed) return "Completed";
+  const obj = q.objectiveType || "";
+  if (obj === "talk_to") {
+    return `Talk to NPC: ${q.targetNpcId || q.targetId || "?"}`;
+  }
+  if (obj === "combat") {
+    return `Defeat: ${q.targetId || "?"}`;
+  }
+  if (obj === "collect" && q.requiredItemId) {
+    const cur = q.progress ?? 0;
+    const max = q.progressMax ?? q.requiredCount ?? 1;
+    return `Collect ${q.requiredItemId}: ${cur}/${max} (turn in at quest NPC)`;
+  }
+  return "In progress";
+}
+
 export function renderQuestLog() {
-  let panel = document.getElementById('questlog-panel');
+  let panel = document.getElementById("questlog-panel");
 
   if (panel) {
-    if (panel.style.display === 'none') {
-      panel.style.display = 'block';
+    if (panel.style.display === "none") {
+      closeAllPanels();
+      panel.style.display = "flex";
+      requestQuestSync();
+      refreshQuestPanelContent(panel);
     } else {
-      panel.style.display = 'none';
+      panel.style.display = "none";
     }
     return;
   }
+
+  closeAllPanels();
+  requestQuestSync();
 
   panel = document.createElement("div");
   panel.id = "questlog-panel";
@@ -16,22 +44,13 @@ export function renderQuestLog() {
   panel.setAttribute("role", "dialog");
   panel.setAttribute("aria-label", "Quest Log");
 
-  panel.style.position = "fixed";
-  panel.style.left = "5%";
-  panel.style.top = "10%";
-  panel.style.width = "clamp(300px, 25vw, 400px)";
-  panel.style.height = "clamp(400px, 60vh, 600px)";
-  panel.style.zIndex = "1000";
-  panel.style.display = "flex";
-  panel.style.flexDirection = "column";
+  const compact = applyGamePanelLayout(panel);
 
-  // Prevent event bubbling
   const stopEvents = (e: Event) => e.stopPropagation();
-  ['touchstart', 'touchmove', 'mousedown', 'pointerdown', 'click'].forEach(evt => {
+  ["touchstart", "touchmove", "mousedown", "pointerdown", "click"].forEach((evt) => {
     panel!.addEventListener(evt, stopEvents, { passive: false });
   });
 
-  // Header
   const header = document.createElement("div");
   header.style.display = "flex";
   header.style.justifyContent = "space-between";
@@ -47,66 +66,82 @@ export function renderQuestLog() {
   title.className = "gold-text font-serif";
 
   const closeBtn = document.createElement("button");
-  closeBtn.textContent = "X";
+  closeBtn.textContent = "Close";
   closeBtn.className = "btn-gold";
-  closeBtn.style.padding = "2px 8px";
-  closeBtn.style.fontSize = "12px";
+  Object.assign(closeBtn.style, panelCloseButtonStyles(compact));
   closeBtn.setAttribute("aria-label", "Close Quest Log");
-
   closeBtn.onclick = () => {
     panel!.style.display = "none";
   };
-
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape' && panel!.style.display !== 'none') {
-      panel!.style.display = 'none';
-    }
-  };
-  window.addEventListener('keydown', handleKeyDown);
 
   header.appendChild(title);
   header.appendChild(closeBtn);
   panel.appendChild(header);
 
-  // Content (Placeholder list)
   const content = document.createElement("div");
+  content.id = "questlog-content";
   content.style.flex = "1";
   content.style.display = "flex";
   content.style.flexDirection = "column";
   content.style.gap = "10px";
   content.style.overflowY = "auto";
-  content.style.padding = "5px";
+  content.style.webkitOverflowScrolling = "touch";
+  content.style.padding = compact ? "8px 4px" : "5px";
+  panel.appendChild(content);
 
-  const quests = [
-    { name: "Slay the Goblins", objective: "0/10 Goblins Slain" },
-    { name: "Gather Herbs", objective: "5/5 Herbs Gathered" },
-    { name: "Talk to the Elder", objective: "In Progress" }
-  ];
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Escape" && panel!.style.display !== "none") {
+      panel!.style.display = "none";
+    }
+  };
+  window.addEventListener("keydown", handleKeyDown);
 
-  quests.forEach(q => {
+  document.body.appendChild(panel);
+  refreshQuestPanelContent(panel);
+  subscribePlayerState(() => {
+    if (panel && panel.style.display !== "none") {
+      refreshQuestPanelContent(panel);
+    }
+  });
+}
+
+function refreshQuestPanelContent(panel: HTMLElement) {
+  const content = panel.querySelector("#questlog-content");
+  if (!content) return;
+  content.innerHTML = "";
+  const quests = getPlayerQuests();
+
+  if (quests.length === 0) {
+    const empty = document.createElement("div");
+    empty.textContent = "No quests yet — talk to NPCs in the village.";
+    empty.style.fontSize = "13px";
+    empty.style.color = "var(--on-surface-variant)";
+    content.appendChild(empty);
+    return;
+  }
+
+  quests.forEach((q) => {
     const item = document.createElement("div");
-    item.style.padding = "10px";
+    item.style.padding = compact ? "14px 12px" : "10px";
     item.style.background = "var(--surface-container-high)";
     item.style.border = "1px solid var(--outline-variant)";
     item.style.borderRadius = "4px";
 
     const qTitle = document.createElement("div");
-    qTitle.textContent = q.name;
+    qTitle.textContent = q.title || q.id;
     qTitle.style.fontWeight = "bold";
-    qTitle.style.fontSize = "14px";
+    qTitle.style.fontSize = compact ? "16px" : "14px";
     qTitle.style.color = "var(--primary-gold)";
     qTitle.style.marginBottom = "4px";
 
     const qObj = document.createElement("div");
-    qObj.textContent = q.objective;
-    qObj.style.fontSize = "12px";
+    qObj.textContent = formatQuestLine(q);
+    qObj.style.fontSize = compact ? "14px" : "12px";
+    qObj.style.lineHeight = "1.45";
     qObj.style.color = "var(--on-surface-variant)";
 
     item.appendChild(qTitle);
     item.appendChild(qObj);
     content.appendChild(item);
   });
-
-  panel.appendChild(content);
-  document.body.appendChild(panel);
 }

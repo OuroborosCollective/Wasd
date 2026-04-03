@@ -4,6 +4,7 @@ import { NPCGenealogyEngine } from "./NPCGenealogyEngine.js";
 import { NPCScheduleRegistry } from "./NPCScheduleRegistry.js";
 import fs from "fs";
 import path from "path";
+import { resolveContentFile } from "../content/contentDataRoot.js";
 
 export class NPCSystem {
   private npcs: Map<string, any> = new Map();
@@ -21,17 +22,23 @@ export class NPCSystem {
     this.loadData();
   }
 
+  private resolveGameDataPath(file: string): string | null {
+    const p = resolveContentFile(file);
+    if (fs.existsSync(p)) return p;
+    return null;
+  }
+
   private loadData() {
     try {
-      const npcsPath = path.resolve(process.cwd(), "game-data/npc/npcs.json");
-      const dialoguesPath = path.resolve(process.cwd(), "game-data/dialogue/dialogues.json");
+      const npcsPath = this.resolveGameDataPath("npc/npcs.json");
+      const dialoguesPath = this.resolveGameDataPath("dialogue/dialogues.json");
 
-      if (fs.existsSync(npcsPath)) {
+      if (npcsPath) {
         const npcData = JSON.parse(fs.readFileSync(npcsPath, "utf-8"));
         npcData.forEach((npc: any) => this.npcDefinitions.set(npc.id, npc));
       }
 
-      if (fs.existsSync(dialoguesPath)) {
+      if (dialoguesPath) {
         const dialogueData = JSON.parse(fs.readFileSync(dialoguesPath, "utf-8"));
         dialogueData.forEach((dialogue: any) => this.dialogues.set(dialogue.id, dialogue));
       }
@@ -46,9 +53,13 @@ export class NPCSystem {
       id,
       name: name || (def ? def.name : "Unknown NPC"),
       role: def ? def.role : "Citizen",
+      faction: def?.faction ?? "Neutral",
       position: { x, y, z: 0 },
       health: def?.stats?.health || 100,
       maxHealth: def?.stats?.maxHealth || 100,
+      skills: {
+        combat: { level: typeof def?.stats?.combatLevel === "number" ? def.stats.combatLevel : 1 },
+      },
       dropTable: def?.dropTable || [],
       stamina: 100,
       inventory: [],
@@ -61,7 +72,9 @@ export class NPCSystem {
       targetPosition: null as { x: number, y: number } | null,
       state: "idle",
       stateTimer: 0,
-      currentScheduleAction: null as string | null
+      currentScheduleAction: null as string | null,
+      /** Player id currently chased (hostile / enemy only) */
+      aggroTargetId: null as string | null,
     };
     this.npcs.set(id, npc);
     return npc;
@@ -106,7 +119,10 @@ export class NPCSystem {
       return {
         source: npc.name,
         text: `Hello, I am ${npc.name}. Welcome to Areloria!`,
-        questId: null
+        questId: null,
+        choices: [] as any[],
+        npcId,
+        nodeId: "root",
       };
     }
 
@@ -127,6 +143,14 @@ export class NPCSystem {
             for (const preId of questDef.prerequisiteQuestIds) {
               const preQuest = playerQuests.find((q: any) => q.id === preId);
               if (!preQuest || !preQuest.completed) {
+                prereqsMet = false;
+                break;
+              }
+            }
+          }
+          if (prereqsMet && questDef?.requiredFlags?.length) {
+            for (const flag of questDef.requiredFlags) {
+              if (!playerFlags[flag]) {
                 prereqsMet = false;
                 break;
               }
@@ -160,13 +184,9 @@ export class NPCSystem {
       }
     }
 
-    // New Logic: Branching Nodes
-    if (dialogue.nodes) {
-      // Determine which node to show
-      let activeNodeId = "root";
-      
-      // If we have quest-specific nodes, we could prioritize them here
-      // For now, let's just use "root" as default or check for state-based entry nodes
+    // Branching nodes — but do not overwrite quest-offer / progress lines from hooks above
+    let activeNodeId = "root";
+    if (!questId && dialogue.nodes) {
       if (dialogue.entryNodes) {
         for (const entry of dialogue.entryNodes) {
           let match = true;
@@ -202,6 +222,13 @@ export class NPCSystem {
           return true;
         });
       }
+    } else if (questId && dialogue.nodes) {
+      // Quest is being offered: keep hook text, add accept / decline
+      activeNodeId = "root";
+      choices = [
+        { id: "sys_quest_accept", text: "Accept quest", nextNodeId: "__accept__" },
+        { id: "sys_quest_decline", text: "Not now", nextNodeId: "__decline__" },
+      ];
     }
 
     return {
@@ -209,13 +236,44 @@ export class NPCSystem {
       text,
       questId,
       choices,
-      npcId
+      npcId,
+      nodeId: activeNodeId,
     };
   }
 
-  handleChoice(npcId: string, nodeId: string, choiceId: string, player: any) {
+  handleChoice(
+    npcId: string,
+    nodeId: string,
+    choiceId: string,
+    player: any,
+    pendingQuestId: string | null
+  ) {
     const npc = this.npcs.get(npcId);
     if (!npc) return null;
+
+    if (!player.flags) player.flags = {};
+
+    if (choiceId === "sys_quest_accept" && pendingQuestId) {
+      return {
+        source: npc.name,
+        text: "Good luck — I'll be here if you need anything.",
+        questId: null,
+        choices: [] as any[],
+        npcId,
+        nodeId: "root",
+        startQuestId: pendingQuestId,
+      };
+    }
+    if (choiceId === "sys_quest_decline") {
+      return {
+        source: npc.name,
+        text: "Alright. Come back when you're ready.",
+        questId: null,
+        choices: [] as any[],
+        npcId,
+        nodeId: "root",
+      };
+    }
 
     const dialogue = this.dialogues.get(npc.dialogueId);
     if (!dialogue || !dialogue.nodes) return null;
@@ -226,14 +284,12 @@ export class NPCSystem {
     const choice = (node.choices || []).find((c: any) => c.id === choiceId);
     if (!choice) return null;
 
-    // Check if choice is already used (if it changes reputation)
     if (choice.changeReputation) {
       if (!player.usedChoices) player.usedChoices = [];
-      if (player.usedChoices.includes(choiceId)) return null; // Already used
+      if (player.usedChoices.includes(choiceId)) return null;
       player.usedChoices.push(choiceId);
     }
 
-    // Apply effects of the choice
     if (choice.setFlag) {
       player.flags[choice.setFlag] = true;
     }
@@ -246,7 +302,11 @@ export class NPCSystem {
     const nextNode = dialogue.nodes[choice.nextNodeId];
     if (!nextNode) return null;
 
-    let questId = nextNode.triggerQuestId || null;
+    if (nextNode.setFlag) {
+      player.flags[nextNode.setFlag] = true;
+    }
+
+    const triggeredQuestId = nextNode.triggerQuestId || null;
     let text = nextNode.text;
     let choices = (nextNode.choices || []).filter((c: any) => {
       if (c.conditionFlag && !player.flags[c.conditionFlag]) return false;
@@ -261,9 +321,11 @@ export class NPCSystem {
     return {
       source: npc.name,
       text,
-      questId,
+      questId: triggeredQuestId,
       choices,
-      npcId
+      npcId,
+      nodeId: choice.nextNodeId,
+      startQuestId: triggeredQuestId,
     };
   }
 
@@ -275,6 +337,11 @@ export class NPCSystem {
     // Process NPC AI, schedules, needs
     const now = Date.now();
     for (const npc of this.npcs.values()) {
+      // Hostile chase is driven by WorldTick (aggro + pathing)
+      if (npc.aggroTargetId) {
+        continue;
+      }
+
       // 0. Process dynamic needs
       if (!npc.needs) npc.needs = { hunger: 100, energy: 100 }; // Fallback for existing NPCs
 

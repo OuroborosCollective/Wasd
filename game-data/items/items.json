@@ -9,6 +9,17 @@
     "description": "A simple iron sword given to new recruits."
   },
   {
+    "id": "training_shortbow",
+    "name": "Training Shortbow",
+    "type": "weapon",
+    "slot": "weapon",
+    "damage": 12,
+    "attackRange": 55,
+    "manaCost": 3,
+    "rarity": "common",
+    "description": "Light practice bow — strikes farther than a sword."
+  },
+  {
     "id": "wooden_shield",
     "name": "Wooden Shield",
     "type": "armor",
@@ -21,6 +32,8 @@
     "id": "iron_scrap",
     "name": "Iron Scrap",
     "type": "misc",
+    "stackable": true,
+    "maxStack": 50,
     "rarity": "common",
     "description": "A piece of rusted iron. Might be useful for someone."
   },
@@ -95,5 +108,15 @@
     "type": "misc",
     "rarity": "uncommon",
     "description": "A token used by guards."
+  },
+  {
+    "id": "minor_mana_draught",
+    "name": "Minor Mana Draught",
+    "type": "consumable",
+    "stackable": true,
+    "maxStack": 20,
+    "rarity": "common",
+    "restoreMana": 15,
+    "description": "A small vial that restores a bit of mana."
   }
 ]

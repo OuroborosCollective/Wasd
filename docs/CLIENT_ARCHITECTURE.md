@@ -1,16 +1,21 @@
 # Client Architecture
 
-Der Client rendert die Welt, hält lokale UI-Zustände und synchronisiert sich über WebSocket mit dem Server.
+The client renders the world with **Babylon.js**, holds local UI state, and synchronizes over **WebSocket** with the server.
 
-## Schichten
-- engine/
-- gameplay/
-- networking/
-- ui/
-- editor/
-- assets/
+## Layers (actual `client/src`)
 
-## Regeln
-- Keine autoritative Logik im Client
-- Keine Persistenzentscheidungen im Client
-- Asset- und Renderlogik bleiben getrennt von Simulation und Politik
+- `main.ts` — minimal shell (canvas + `bootAreloriaClient`)  
+- `clientBoot.ts` — engine + core + socket + HUD + game loop  
+- `bootUi.ts` — bootstrap banner and **WebGL / context-lost** full-screen overlay  
+- `engine/babylon/` — Babylon boot, adapter, ground/sky helpers, default `AssetRegistry` for GLB fallbacks  
+- `engine/bridge/` — `IEngineBridge`, `EntityViewModel` (renderer-agnostic)  
+- `core/` — `MMORPGClientCore`, event bus, entity view manager  
+- `networking/` — `websocketClient.ts`  
+- `ui/` — HUD, panels, mobile controls  
+
+## Rules
+
+- No authoritative simulation on the client  
+- No persistence decisions on the client  
+- Keep rendering separate from server politics and economy  
+- See **`docs/PROJECT_STATUS_2026.md`** for message types and current behavior  
