@@ -465,8 +465,8 @@ export function showDialogue(payload: string | DialoguePayload) {
       const isCoarse = prefersCompactTouchUi();
       if (isCoarse) {
         dialogueBox!.style.top = "auto";
-        dialogueBox!.style.bottom = "max(16px, env(safe-area-inset-bottom, 0px))";
-        dialogueBox!.style.maxHeight = "min(65vh, 480px)";
+        dialogueBox!.style.bottom = "max(240px, env(safe-area-inset-bottom, 0px))";
+        dialogueBox!.style.maxHeight = "min(50vh, 480px)";
       } else {
         dialogueBox!.style.bottom = "auto";
         dialogueBox!.style.top = "max(12%, env(safe-area-inset-top, 0px))";
@@ -530,8 +530,8 @@ export function showDialogue(payload: string | DialoguePayload) {
     const isCoarse = prefersCompactTouchUi();
     if (isCoarse) {
       dialogueBox.style.top = "auto";
-      dialogueBox.style.bottom = "max(16px, env(safe-area-inset-bottom, 0px))";
-      dialogueBox.style.maxHeight = "min(65vh, 480px)";
+      dialogueBox.style.bottom = "max(240px, env(safe-area-inset-bottom, 0px))";
+      dialogueBox.style.maxHeight = "min(50vh, 480px)";
     } else {
       dialogueBox.style.bottom = "auto";
       dialogueBox.style.top = "max(12%, env(safe-area-inset-top, 0px))";
