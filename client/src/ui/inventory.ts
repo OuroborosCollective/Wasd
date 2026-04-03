@@ -123,7 +123,7 @@ export function renderInventory() {
   panel.dataset.compact = compact ? "1" : "0";
 
   const stopEvents = (e: Event) => e.stopPropagation();
-  ["touchstart", "touchmove", "mousedown", "pointerdown", "click"].forEach((evt) => {
+  ["touchstart", "touchmove", "mousedown", "pointerdown", "pointerup", "pointercancel", "click"].forEach((evt) => {
     panel!.addEventListener(evt, stopEvents, { passive: false });
   });
 
