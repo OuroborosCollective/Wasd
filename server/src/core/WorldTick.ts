@@ -9,7 +9,6 @@ import { EconomySystem } from "../modules/economy/EconomySystem.js";
 import { QuestEngine } from "../modules/quest/QuestEngine.js";
 import { WorldSystem } from "../modules/world/WorldSystem.js";
 import { PersistenceManager } from "./PersistenceManager.js";
-import { verifyFirebaseToken } from "../config/firebase.js";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
 import { GLBRegistry } from "../modules/asset-registry/GLBRegistry.js";
 import { AssetPoolResolver } from "../modules/world/AssetPoolResolver.js";
@@ -19,6 +18,8 @@ import { AREModeAuditTrail } from "../modules/world/AREModeAuditTrail.js";
 import { cache } from "./Cache.js";
 import fs from "fs";
 import path from "path";
+import { resolveLoginIdentity } from "../modules/auth/resolveLoginIdentity.js";
+import { getSkillDefinition, buildSkillCooldownUntilPayload } from "../modules/skill/skillDefinitions.js";
 
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { GameConfig } from "../config/GameConfig.js";
@@ -292,6 +293,10 @@ export class WorldTick {
   private areMode: AREMode = "shader";
   private eventTemplates: GMTemplateDefinition[] = Object.values(GM_EVENT_TEMPLATES);
   private pendingTemplateSteps: ScheduledGMTemplateStep[] = [];
+  private readonly USE_ITEM_TOASTS: Record<string, string> = {
+    minor_mana_draught: "You drink Minor Mana Draught (+mana).",
+    health_potion: "You drink Health Potion (+hp).",
+  };
 
   private getSceneProfile(sceneId: string | undefined): { sceneId: string; profile: SceneProfile } {
     const resolvedSceneId = sceneId && this.sceneProfiles[sceneId] ? sceneId : DEFAULT_SCENE_ID;
@@ -353,6 +358,53 @@ export class WorldTick {
       });
       return;
     }
+  }
+
+  private pushPlayerStateSync(socketId: string, player: any) {
+    this.ws.sendToPlayer(socketId, {
+      type: "stats_sync",
+      gold: player.gold,
+      xp: player.xp,
+      level: player.level ?? 1,
+      health: player.health,
+      maxHealth: player.maxHealth ?? 100,
+      stamina: player.stamina,
+      maxStamina: player.maxStamina ?? 100,
+      mana: player.mana ?? 25,
+      maxMana: player.maxMana ?? 25,
+      dead: Boolean(player.dead),
+      deathAt: typeof player.deathAt === "number" ? player.deathAt : 0,
+      respawnAvailableAt: player.dead
+        ? (typeof player.deathAt === "number" ? player.deathAt : 0) + GameConfig.playerRespawnDelayMs
+        : 0,
+      quests: this.questSystem.getQuestSyncForClient(player),
+      inventory: player.inventory,
+      equipment: player.equipment,
+      skillCooldownUntil: buildSkillCooldownUntilPayload(player, Date.now()),
+    });
+  }
+
+  private findTargetNpcForPlayer(player: any): any | null {
+    const targetId = typeof player?.combatTargetNpcId === "string" ? player.combatTargetNpcId : "";
+    if (targetId) {
+      const explicit = this.npcSystem.getNPC(targetId);
+      if (explicit && explicit.health > 0) return explicit;
+    }
+    let best: any | null = null;
+    let bestDist = Infinity;
+    for (const npc of this.npcSystem.getAllNPCs()) {
+      if (!npc || npc.health <= 0) continue;
+      const dist = Math.hypot((npc.position?.x ?? 0) - player.position.x, (npc.position?.y ?? 0) - player.position.y);
+      if (dist < bestDist) {
+        best = npc;
+        bestDist = dist;
+      }
+    }
+    return best;
+  }
+
+  private isWithinDistance(a: { x: number; y: number }, b: { x: number; y: number }, d: number): boolean {
+    return Math.hypot(a.x - b.x, a.y - b.y) <= d;
   }
 
   private loadRuntimeEventTemplates() {
@@ -1298,19 +1350,15 @@ export class WorldTick {
       if (msg.type === "login") {
         let charName = "Unknown";
         let uid = "";
-        
+
         try {
-          if (msg.token) {
-            const decodedToken = await verifyFirebaseToken(msg.token);
-            if (decodedToken) {
-              uid = decodedToken.uid;
-              charName = decodedToken.name || decodedToken.email || uid;
-            }
-          } else {
-             // For testing/dev if token not provided, use a random ID
-             uid = `dev_${id}`;
-             charName = `DevPlayer_${id.substr(0,4)}`;
+          const identity = await resolveLoginIdentity(id, msg ?? {});
+          if ("error" in identity) {
+            this.ws.sendToPlayer(id, { type: "error", message: identity.error, code: identity.code });
+            return;
           }
+          uid = identity.uid;
+          charName = identity.charName;
 
           let player = this.playerSystem.getPlayer(uid);
           let shouldApplySpawn = false;
@@ -1336,6 +1384,14 @@ export class WorldTick {
           this.socketToPlayer.set(id, uid);
           this.playerToSocket.set(uid, id);
           this.observerEngine.register(id, player.position);
+          this.ws.resolveSocketToPlayerUid = (socketId: string) => this.socketToPlayer.get(socketId) ?? null;
+
+          const hints = msg?.clientHints && typeof msg.clientHints === "object" ? msg.clientHints : undefined;
+          const mobileMs = GameConfig.stateBroadcastIntervalMobileMs;
+          this.ws.setEntitySyncIntervalForSocket(
+            id,
+            hints?.lowBandwidth ? mobileMs : GameConfig.stateBroadcastIntervalMs
+          );
 
           const requestedDeviceClass = resolveAREDeviceClass(msg.areDeviceClass, msg.userAgent);
           const recommendedMode = this.runtimeSettings.getAREModeForDeviceClass(requestedDeviceClass);
@@ -1352,11 +1408,25 @@ export class WorldTick {
             stats: {
               gold: player.gold,
               xp: player.xp,
+              level: player.level ?? 1,
+              health: player.health,
+              maxHealth: player.maxHealth ?? 100,
+              stamina: player.stamina,
+              maxStamina: player.maxStamina ?? 100,
+              mana: player.mana ?? 25,
+              maxMana: player.maxMana ?? 25,
+              dead: Boolean(player.dead),
+              deathAt: typeof player.deathAt === "number" ? player.deathAt : 0,
+              respawnAvailableAt: player.dead
+                ? (typeof player.deathAt === "number" ? player.deathAt : 0) + GameConfig.playerRespawnDelayMs
+                : 0,
               quests: player.quests,
               inventory: player.inventory,
-              equipment: player.equipment
-            }
+              equipment: player.equipment,
+              skillCooldownUntil: buildSkillCooldownUntilPayload(player, Date.now()),
+            },
           });
+          this.pushPlayerStateSync(id, player);
         } catch (err) {
           console.error("Login error:", err);
           this.ws.sendToPlayer(id, { type: "error", message: "Login failed" });
@@ -1421,15 +1491,125 @@ export class WorldTick {
         }
       }
 
+      if (msg.type === "set_target") {
+        const requested = typeof msg.npcId === "string" ? msg.npcId.trim() : "";
+        player.combatTargetNpcId = requested.length > 0 ? requested : null;
+        this.pushPlayerStateSync(id, player);
+        return;
+      }
+
+      if (msg.type === "use_item") {
+        const itemId = typeof msg.itemId === "string" ? msg.itemId.trim() : "";
+        if (!itemId) return;
+        const take = this.inventorySystem.takeOneFromBag(player, itemId);
+        if (!take) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Item not found in inventory." });
+          return;
+        }
+        const def = ItemRegistry.getItem(itemId);
+        if (def?.healAmount) {
+          player.health = Math.min(player.maxHealth ?? 100, (player.health ?? 0) + def.healAmount);
+        }
+        if (def?.restoreMana) {
+          player.mana = Math.min(player.maxMana ?? 25, (player.mana ?? 0) + def.restoreMana);
+        }
+        this.pushPlayerStateSync(id, player);
+        const toast = this.USE_ITEM_TOASTS[itemId];
+        if (toast) {
+          this.ws.sendToPlayer(id, { type: "toast", text: toast });
+        }
+        return;
+      }
+
+      if (msg.type === "use_skill") {
+        const skillId = typeof msg.skillId === "string" ? msg.skillId.trim() : "";
+        const skill = getSkillDefinition(skillId);
+        if (!skill) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Unknown skill." });
+          return;
+        }
+        const now = Date.now();
+        if (!player.skillCooldowns || typeof player.skillCooldowns !== "object") {
+          player.skillCooldowns = {};
+        }
+        const until = Number(player.skillCooldowns[skill.id] ?? 0);
+        if (Number.isFinite(until) && until > now) {
+          this.ws.sendToPlayer(id, { type: "toast", text: `${skill.name} is not ready yet.` });
+          return;
+        }
+        const mana = Number(player.mana ?? 0);
+        if (!Number.isFinite(mana) || mana < skill.manaCost) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Not enough mana." });
+          return;
+        }
+
+        if (skill.kind === "offensive") {
+          const target = this.findTargetNpcForPlayer(player);
+          if (!target || !this.isWithinDistance(player.position, target.position, skill.range)) {
+            this.ws.sendToPlayer(id, { type: "toast", text: "No target in range." });
+            return;
+          }
+          player.mana = mana - skill.manaCost;
+          player.skillCooldowns[skill.id] = now + skill.cooldownMs;
+          const hit = this.combatSystem.spellStrike(player, target, skill.spellPower);
+          this.ws.broadcast({ type: "entity_action", entityId: player.id, action: "attack" });
+          this.ws.sendToPlayer(id, {
+            type: "toast",
+            text: hit.hit ? `${skill.name} hits for ${hit.damage}.` : `${skill.name} missed.`,
+          });
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
+
+        // self skill
+        player.mana = mana - skill.manaCost;
+        player.skillCooldowns[skill.id] = now + skill.cooldownMs;
+        if (skill.healAmount && skill.healAmount > 0) {
+          player.health = Math.min(player.maxHealth ?? 100, (player.health ?? 0) + skill.healAmount);
+        }
+        this.ws.sendToPlayer(id, { type: "toast", text: `${skill.name} activated.` });
+        this.pushPlayerStateSync(id, player);
+        return;
+      }
+
       if (msg.type === "attack") {
-        // PlayCanvas attack animation trigger
-        this.ws.broadcast({ type: 'entity_action', entityId: player.id, action: 'attack' });
-        // Combat logic here...
+        if (player.dead) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "You are defeated." });
+          return;
+        }
+        const weapon = player.equipment?.weapon || null;
+        const weaponRangeRaw = Number(weapon?.attackRange);
+        const weaponRange =
+          Number.isFinite(weaponRangeRaw) && weaponRangeRaw > 0 ? weaponRangeRaw : GameConfig.attackDistance;
+        const weaponManaRaw = Number(weapon?.manaCost);
+        const manaCost = Number.isFinite(weaponManaRaw) && weaponManaRaw >= 0 ? weaponManaRaw : 5;
+        if ((player.mana ?? 0) < manaCost) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Not enough mana." });
+          return;
+        }
+
+        const target = this.findTargetNpcForPlayer(player);
+        if (!target || !this.isWithinDistance(player.position, target.position, weaponRange)) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "No target in range." });
+          return;
+        }
+
+        player.mana = Math.max(0, (player.mana ?? 0) - manaCost);
+        const weaponBonus = Number(weapon?.damage) || 0;
+        this.combatSystem.attackWithWeapon(player, target, weaponBonus);
+        this.ws.broadcast({ type: "entity_action", entityId: player.id, action: "attack" });
+        this.pushPlayerStateSync(id, player);
+        if (target.health <= 0) {
+          target.health = 0;
+          target.aggroTargetId = null;
+        }
+        return;
       }
 
       if (msg.type === "interact") {
         // Interaction logic...
         this.ws.sendToPlayer(id, { type: 'dialogue', text: "Hello traveler!" });
+        return;
       }
     };
   }
@@ -1623,6 +1803,12 @@ export class WorldTick {
         position: { x: n.position.x, y: 0, z: n.position.y },
         rotation: { x: 0, y: 0, z: 0 },
         name: n.name,
+        health: n.health,
+        maxHealth: n.maxHealth,
+        role: n.role,
+        faction: n.faction,
+        combatNpcId: n.id,
+        combatThreat: n.faction === "Hostile" || n.role === "Enemy",
         glbPath: this.resolveNpcGlbPath(n),
         are: this.areStateCompiler.compileEntity(
           {
