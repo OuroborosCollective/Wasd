@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Areloria — Content Admin (GLB &amp; Asset-Pools)</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; background: #0f1118; color: #e8ecf5; }
+    body { max-width: 960px; margin: 0 auto; padding: 16px; }
+    h1 { font-size: 1.25rem; }
+    section { background: #1a1f2e; border: 1px solid #2a3348; border-radius: 10px; padding: 14px; margin: 14px 0; }
+    label { display: block; font-size: 12px; opacity: 0.85; margin-top: 8px; }
+    input, select, textarea, button { width: 100%; box-sizing: border-box; margin-top: 4px; padding: 8px; border-radius: 6px; border: 1px solid #3d4a66; background: #0f1118; color: #e8ecf5; }
+    textarea { min-height: 120px; font-family: ui-monospace, monospace; font-size: 12px; }
+    button { cursor: pointer; background: #2d4a8c; border-color: #4a6ec4; font-weight: 600; margin-top: 10px; }
+    button.secondary { background: #333; border-color: #555; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 640px) { .row { grid-template-columns: 1fr; } }
+    .status { font-size: 12px; padding: 8px; border-radius: 6px; background: #252b3d; margin-top: 8px; white-space: pre-wrap; }
+    .err { color: #ff9a9a; }
+    .ok { color: #8fdf9a; }
+    a { color: #8ab4ff; }
+  </style>
+</head>
+<body>
+  <h1>Content Admin — GLB-Links &amp; Asset-Pools</h1>
+  <p style="font-size:13px;opacity:0.85">
+    Kein JSON von Hand bearbeiten: Änderungen laufen über die API. Auth: <code>ADMIN_PANEL_TOKEN</code> (Bearer oder Header <code>X-Admin-Token</code>) oder Firebase-ID-Token (nach Google-Login aus der Konsole).
+    Zurück zum Spiel: <a href="/">/</a>
+  </p>
+
+  <section>
+    <h2>1. Zugang</h2>
+    <label>Token (Panel-Token oder Firebase ID-Token)</label>
+    <input type="password" id="token" placeholder="Bearer-Token einfügen" autocomplete="off" />
+    <div class="row">
+      <button type="button" id="btnMeta">Meta laden</button>
+      <button type="button" class="secondary" id="btnSaveToken">Token merken (Session)</button>
+    </div>
+    <div id="metaOut" class="status"></div>
+  </section>
+
+  <section>
+    <h2>2. GLB-Links</h2>
+    <div class="row">
+      <button type="button" id="btnLinks">Liste laden</button>
+      <button type="button" id="btnScan">Verfügbare Modelle (Scan)</button>
+    </div>
+    <label>Neuer / geänderter Link</label>
+    <div class="row">
+      <div>
+        <label>targetType</label>
+        <select id="ltType">
+          <option>npc_single</option>
+          <option>npc_group</option>
+          <option>object_single</option>
+          <option>object_group</option>
+          <option>monster_group</option>
+        </select>
+      </div>
+      <div>
+        <label>targetId</label>
+        <input id="ltId" placeholder="z. B. merchant oder npc_123" />
+      </div>
+    </div>
+    <label>glbPath</label>
+    <input id="ltPath" placeholder="/assets/models/characters/uschi.glb" />
+    <button type="button" id="btnLinkSave">Link speichern</button>
+    <button type="button" class="secondary" id="btnLinkDel">Link löschen (targetType + targetId)</button>
+    <label>JSON-Ansicht</label>
+    <textarea id="linksOut" readonly></textarea>
+  </section>
+
+  <section>
+    <h2>3. Asset-Pools (<code>world/asset-pools.json</code>)</h2>
+    <button type="button" id="btnPools">Dokument laden</button>
+    <button type="button" class="secondary" id="btnReload">Resolver reload</button>
+    <label>Pool-Eintrag setzen</label>
+    <div class="row">
+      <div><label>category</label><input id="peCat" placeholder="npcs" /></div>
+      <div><label>key</label><input id="peKey" placeholder="merchant" /></div>
+    </div>
+    <label>path (ein GLB) oder paths (kommagetrennt für Variante)</label>
+    <input id="pePath" placeholder="/assets/models/characters/uschi.glb" />
+    <button type="button" id="btnPoolEntry">Eintrag speichern</button>
+    <button type="button" class="secondary" id="btnPoolDel">Eintrag löschen</button>
+    <label>JSON</label>
+    <textarea id="poolsOut" readonly></textarea>
+  </section>
+
+  <script>
+    const BASE = "/api/admin/content";
+    const TKEY = "areloria_admin_content_token";
+
+    function headers() {
+      const t = document.getElementById("token").value.trim();
+      if (!t) throw new Error("Token fehlt");
+      return { Authorization: "Bearer " + t, "Content-Type": "application/json" };
+    }
+
+    async function req(method, path, body) {
+      const init = { method, headers: headers() };
+      if (body !== undefined) init.body = JSON.stringify(body);
+      const r = await fetch(BASE + path, init);
+      const text = await r.text();
+      let j = null;
+      try { j = JSON.parse(text); } catch { /* plain */ }
+      if (!r.ok) throw new Error((j && j.error) || text || r.status);
+      return j !== null ? j : text;
+    }
+
+    function out(el, msg, ok) {
+      const e = document.getElementById(el);
+      e.textContent = typeof msg === "string" ? msg : JSON.stringify(msg, null, 2);
+      e.className = "status " + (ok ? "ok" : "err");
+    }
+
+    document.getElementById("btnSaveToken").onclick = () => {
+      const t = document.getElementById("token").value.trim();
+      if (t) sessionStorage.setItem(TKEY, t);
+      out("metaOut", "Token in sessionStorage gespeichert.", true);
+    };
+    (function initToken() {
+      const s = sessionStorage.getItem(TKEY);
+      if (s) document.getElementById("token").value = s;
+    })();
+
+    document.getElementById("btnMeta").onclick = async () => {
+      try {
+        const m = await req("GET", "/meta");
+        out("metaOut", m, true);
+      } catch (e) {
+        out("metaOut", String(e.message || e), false);
+      }
+    };
+
+    document.getElementById("btnLinks").onclick = async () => {
+      try {
+        const d = await req("GET", "/glb-links");
+        document.getElementById("linksOut").value = JSON.stringify(d, null, 2);
+      } catch (e) {
+        document.getElementById("linksOut").value = String(e.message || e);
+      }
+    };
+    document.getElementById("btnScan").onclick = async () => {
+      try {
+        const d = await req("GET", "/glb-scan");
+        document.getElementById("linksOut").value = JSON.stringify(d, null, 2);
+      } catch (e) {
+        document.getElementById("linksOut").value = String(e.message || e);
+      }
+    };
+    document.getElementById("btnLinkSave").onclick = async () => {
+      try {
+        const body = {
+          glbPath: document.getElementById("ltPath").value.trim(),
+          targetType: document.getElementById("ltType").value,
+          targetId: document.getElementById("ltId").value.trim(),
+        };
+        const d = await req("POST", "/glb-links", body);
+        document.getElementById("linksOut").value = JSON.stringify(d, null, 2);
+      } catch (e) {
+        document.getElementById("linksOut").value = String(e.message || e);
+      }
+    };
+    document.getElementById("btnLinkDel").onclick = async () => {
+      try {
+        const tt = encodeURIComponent(document.getElementById("ltType").value);
+        const tid = encodeURIComponent(document.getElementById("ltId").value.trim());
+        const d = await req("DELETE", "/glb-links?targetType=" + tt + "&targetId=" + tid);
+        document.getElementById("linksOut").value = JSON.stringify(d, null, 2);
+      } catch (e) {
+        document.getElementById("linksOut").value = String(e.message || e);
+      }
+    };
+
+    document.getElementById("btnPools").onclick = async () => {
+      try {
+        const d = await req("GET", "/asset-pools");
+        document.getElementById("poolsOut").value = JSON.stringify(d, null, 2);
+      } catch (e) {
+        document.getElementById("poolsOut").value = String(e.message || e);
+      }
+    };
+    document.getElementById("btnReload").onclick = async () => {
+      try {
+        const d = await req("POST", "/asset-pools/reload", {});
+        document.getElementById("poolsOut").value = JSON.stringify(d, null, 2);
+      } catch (e) {
+        document.getElementById("poolsOut").value = String(e.message || e);
+      }
+    };
+    document.getElementById("btnPoolEntry").onclick = async () => {
+      try {
+        const raw = document.getElementById("pePath").value.trim();
+        const paths = raw.includes(",") ? raw.split(",").map((s) => s.trim()).filter(Boolean) : null;
+        const body = {
+          category: document.getElementById("peCat").value.trim(),
+          key: document.getElementById("peKey").value.trim(),
+        };
+        if (paths && paths.length) body.paths = paths;
+        else body.path = raw;
+        const d = await req("POST", "/asset-pools/entry", body);
+        document.getElementById("poolsOut").value = JSON.stringify(d, null, 2);
+      } catch (e) {
+        document.getElementById("poolsOut").value = String(e.message || e);
+      }
+    };
+    document.getElementById("btnPoolDel").onclick = async () => {
+      try {
+        const c = encodeURIComponent(document.getElementById("peCat").value.trim());
+        const k = encodeURIComponent(document.getElementById("peKey").value.trim());
+        const d = await req("DELETE", "/asset-pools/entry?category=" + c + "&key=" + k);
+        document.getElementById("poolsOut").value = JSON.stringify(d, null, 2);
+      } catch (e) {
+        document.getElementById("poolsOut").value = String(e.message || e);
+      }
+    };
+  </script>
+</body>
+</html>

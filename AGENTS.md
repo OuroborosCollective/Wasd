@@ -28,6 +28,8 @@ Copy `.env.example` to `.env`. Only `PORT` and `NODE_ENV` are needed for local d
 
 **SpacetimeDB TypeScript SDK:** The server package depends on **`spacetimedb`** for future generated client bindings; runtime GLB sync uses **`fetch`** to **`POST /v1/database/:name/sql`** (see `server/src/modules/spacetime/`).
 
+**No-code content admin (start: GLB + asset pools):** REST API **`/api/admin/content/*`** (see `server/src/api/adminContentRoute.ts`). Auth: set **`ADMIN_PANEL_TOKEN`** and send `Authorization: Bearer <token>` or **`X-Admin-Token`**; or omit token env and use a **Firebase ID token** (optional **`ADMIN_UID_ALLOWLIST`**). Read-only mode: **`CONTENT_ADMIN_READONLY=1`**. Minimal UI: **`/admin-content.html`** (served from `client/public/`). Writes go to the active content root (`glb-links.json`, `world/asset-pools.json`) or Spacetime for GLB when `GLB_LINKS_STORE=spacetime`.
+
 ### Key ports
 | Service | Port |
 |---------|------|

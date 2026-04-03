@@ -257,7 +257,7 @@ export class WorldTick {
   public persistence: PersistenceManager;
   public glbRegistry: GLBRegistry;
   private readonly glbLinksStore: "file" | "spacetime";
-  private assetPoolResolver: AssetPoolResolver;
+  public assetPoolResolver: AssetPoolResolver;
   private areStateCompiler: AREStateCompiler;
   private lootEntities: Map<string, any> = new Map();
   private lastPlayerAttackAt: Map<string, number> = new Map();

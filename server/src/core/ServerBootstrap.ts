@@ -7,6 +7,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { mcpRoute } from "../api/mcpRoute.js";
 import migrationRoute from "../api/migrationRoute.js";
+import { adminContentRouter } from "../api/adminContentRoute.js";
 import { getContentDataSourceLabel } from "../modules/content/contentDataRoot.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -97,6 +98,7 @@ export class ServerBootstrap {
 
     const tick = new WorldTick(ws);
     await tick.init();
+    app.use("/api/admin/content", adminContentRouter(tick));
 
     app.get("/health", (_req, res) => {
       const persistence = tick.getPersistenceStats();
