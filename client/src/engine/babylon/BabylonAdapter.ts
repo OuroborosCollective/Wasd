@@ -23,7 +23,6 @@ import {
 import { Sound } from "@babylonjs/core/Audio/sound";
 import { IEngineBridge } from "../bridge/IEngineBridge";
 import { EntityViewModel } from "../bridge/EntityViewModel";
-import { AssetRegistry } from "./AssetRegistry";
 import {
   DEFAULT_GROUND_BUMP,
   DEFAULT_GROUND_DIFFUSE,
@@ -58,10 +57,13 @@ type EntityNode = {
   _vm?: EntityViewModel;
 };
 
+/** Prefer `/assets/models/*` — always present in minimal client dist; `/world-assets` may be missing on VPS. */
 const DEFAULT_MODEL_BY_TYPE: Record<string, string> = {
-  player: AssetRegistry.Npc_warrior ?? "/world-assets/characters/Npc_warrior.glb",
-  npc: AssetRegistry.Questnpc_uschi ?? "/world-assets/characters/Questnpc_uschi.glb",
-  monster: AssetRegistry.boar01 ?? "/world-assets/monsters/boar01.glb",
+  player: "/assets/models/characters/uschi.glb",
+  npc: "/assets/models/characters/uschi.glb",
+  monster: "/assets/models/monsters/goblin.glb",
+  loot: "/assets/models/objects/chest.glb",
+  object: "/assets/models/objects/chest.glb",
 };
 
 export class BabylonAdapter implements IEngineBridge {

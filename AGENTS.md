@@ -28,6 +28,8 @@ Copy `.env.example` to `.env`. Only `PORT` and `NODE_ENV` are needed for local d
 
 **SpacetimeDB TypeScript SDK:** The server package depends on **`spacetimedb`** for future generated client bindings; runtime GLB sync uses **`fetch`** to **`POST /v1/database/:name/sql`** (see `server/src/modules/spacetime/`).
 
+**No-code content admin (GLB + asset pools):** REST **`/api/admin/content/*`** (`server/src/api/adminContentRoute.ts`). **`GET /choices`** — NPCs, Weltobjekte, Rollen, Objekttypen, Monster-Gruppen aus dem **aktiven Content-Root**. **`GET /glb-gallery-tree`** — Baum aller **`.glb`/`.gltf`** unter **`client/public/assets/models`**. **`POST /glb-upload`** — multipart **`file`** + optional **`folder`** (sichere Unterordner-Segmente); schreibt ins gleiche Verzeichnis (Admin-Auth + nicht readonly). Max-Größe: **`MAX_ADMIN_GLB_UPLOAD_MB`** (Standard 50, Deckel 120) oder Fallback **`MAX_GLB_SIZE_MB`**. **`POST /validate-preview`** — gleiche Regeln wie `validateContent.ts` + optional Prüfung, ob eine **`/assets/models/...`**-Datei auf dem Server existiert. **`POST /publish-pack`** — validiert Repo-**`game-data/`** und kopiert nach **`published-content/current/`** (funktioniert, wenn `process.cwd()` zum Monorepo auflösbar ist; sonst `pnpm run content:publish`). Auth: **`ADMIN_PANEL_TOKEN`** / **`X-Admin-Token`** oder Firebase Bearer + **`ADMIN_UID_ALLOWLIST`**; **`CONTENT_ADMIN_READONLY=1`**. UI: **`/admin-content.html`** (dist oder `public`-Fallback).
+
 ### Key ports
 | Service | Port |
 |---------|------|

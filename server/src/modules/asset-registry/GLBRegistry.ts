@@ -38,17 +38,59 @@ export class GLBRegistry {
       console.error("[GLBRegistry] Spacetime load failed; GLB overrides empty until fixed:", e);
       this.links = [];
     }
+    this.mergeFileLinksIfEnabled();
+  }
+
+  /**
+   * When Spacetime is active, merge in `glb-links.json` for targets not present in DB.
+   * Disable with GLB_LINKS_MERGE_FILE=0 if Spacetime should be the only source.
+   */
+  private mergeFileLinksIfEnabled() {
+    if (!this.spacetime) return;
+    if (process.env.GLB_LINKS_MERGE_FILE?.trim() === "0") return;
+    const before = this.links.length;
+    const fileLinks = this.readLinksFromFile();
+    if (fileLinks.length === 0) return;
+    const key = (l: GLBLink) => `${l.targetType}\0${l.targetId}`;
+    const seen = new Set(this.links.map(key));
+    let added = 0;
+    for (const l of fileLinks) {
+      if (!seen.has(key(l))) {
+        this.links.push(l);
+        seen.add(key(l));
+        added++;
+      }
+    }
+    if (added > 0) {
+      console.log(
+        `[GLBRegistry] Merged ${added} GLB link(s) from glb-links.json (${before} from Spacetime → ${this.links.length} total)`
+      );
+    }
+  }
+
+  private readLinksFromFile(): GLBLink[] {
+    const linksPath = resolveContentFile("glb-links.json");
+    if (!fs.existsSync(linksPath)) return [];
+    try {
+      const parsed = JSON.parse(fs.readFileSync(linksPath, "utf-8"));
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
   }
 
   private loadLinksFromFile() {
     const linksPath = resolveContentFile("glb-links.json");
-    if (fs.existsSync(linksPath)) {
-      try {
-        this.links = JSON.parse(fs.readFileSync(linksPath, "utf-8"));
-      } catch (e) {
-        console.error("Failed to parse glb-links.json", e);
-        this.links = [];
-      }
+    if (!fs.existsSync(linksPath)) {
+      this.links = [];
+      return;
+    }
+    try {
+      const parsed = JSON.parse(fs.readFileSync(linksPath, "utf-8"));
+      this.links = Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.error("Failed to parse glb-links.json", e);
+      this.links = [];
     }
   }
 

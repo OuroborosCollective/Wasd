@@ -1,1 +1,1064 @@
-gm/index.html
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Areloria — Modelle zuordnen</title>
+  <style>
+    :root {
+      --bg: #0c0e14;
+      --card: #161b28;
+      --border: #2a3348;
+      --text: #e8ecf5;
+      --muted: #8b9ab8;
+      --accent: #5b8def;
+      --accent-dim: #3d5a8c;
+      --ok: #3ecf7a;
+      --ok-bg: rgba(62, 207, 122, 0.12);
+      --err: #ff7a7a;
+      --err-bg: rgba(255, 90, 90, 0.1);
+      --warn: #e8c547;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+    }
+    * { box-sizing: border-box; }
+    body { max-width: 640px; margin: 0 auto; padding: 16px 16px 56px; }
+
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes popIn {
+      0% { transform: scale(0.92); opacity: 0; }
+      70% { transform: scale(1.02); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes pulseRing {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(91, 141, 239, 0.35); }
+      50% { box-shadow: 0 0 0 6px rgba(91, 141, 239, 0); }
+    }
+    @keyframes flowLine {
+      to { stroke-dashoffset: 0; }
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-4px); }
+      75% { transform: translateX(4px); }
+    }
+    @keyframes checkDraw {
+      to { stroke-dashoffset: 0; }
+    }
+
+    /* Konfetti (aus bei prefers-reduced-motion) */
+    .confetti-layer {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9998;
+      overflow: hidden;
+    }
+    .confetti-piece {
+      position: absolute;
+      width: 7px;
+      height: 10px;
+      top: -12px;
+      left: var(--cx);
+      margin-left: -4px;
+      background: hsl(var(--h), 72%, 62%);
+      border-radius: 2px;
+      opacity: 0.95;
+      animation: confettiFall var(--dur) cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+      animation-delay: var(--d);
+    }
+    @keyframes confettiFall {
+      to {
+        transform: translate(var(--tx), calc(100vh + 20px)) rotate(var(--rot));
+        opacity: 0.35;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .confetti-layer { display: none !important; }
+    }
+
+    .page-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; animation: fadeSlide 0.45s ease-out; }
+    .page-head .logo {
+      width: 48px; height: 48px; border-radius: 14px;
+      background: linear-gradient(145deg, #2a3f6e, #1a2540);
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+    }
+    .page-head .logo svg { width: 28px; height: 28px; }
+    h1 { font-size: 1.2rem; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.02em; }
+    .lead { font-size: 14px; color: var(--muted); margin: 0; }
+    .lead a { color: var(--accent); }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 16px 18px;
+      margin-bottom: 14px;
+      animation: fadeSlide 0.4s ease-out backwards;
+    }
+    .card:nth-child(1) { animation-delay: 0.02s; }
+    .card:nth-child(2) { animation-delay: 0.05s; }
+    .card.reveal-in { animation: popIn 0.38s cubic-bezier(0.22, 1, 0.36, 1); }
+
+    .card-h {
+      display: flex; align-items: center; gap: 10px;
+      margin: 0 0 10px;
+      font-size: 0.95rem;
+      font-weight: 650;
+      color: #c5d4f0;
+    }
+    .card-h .ih { width: 32px; height: 32px; border-radius: 10px; background: #1e2436; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .card-h .ih svg { width: 18px; height: 18px; opacity: 0.95; }
+
+    label { display: block; font-size: 13px; margin-top: 12px; font-weight: 550; color: #b4c0dc; }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 5px; line-height: 1.4; }
+    input, select, button {
+      width: 100%; margin-top: 6px; padding: 11px 12px; border-radius: 10px;
+      border: 1px solid var(--border); background: #0f121c; color: var(--text); font-size: 15px;
+    }
+    button {
+      cursor: pointer; background: linear-gradient(180deg, #3d62a8, #2d4a82);
+      border-color: #4a6ec4; font-weight: 650; margin-top: 14px;
+      transition: transform 0.12s ease, filter 0.15s;
+    }
+    button:hover { filter: brightness(1.08); }
+    button:active { transform: scale(0.98); }
+    button.ghost { background: transparent; border-color: #444; color: #aaa; font-weight: 500; }
+    button.danger { background: linear-gradient(180deg, #7a3535, #5a2525); border-color: #844; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    .msg { font-size: 13px; padding: 11px 12px; border-radius: 10px; margin-top: 10px; display: flex; align-items: flex-start; gap: 10px; animation: fadeSlide 0.3s ease-out; }
+    .msg .mi { flex-shrink: 0; margin-top: 1px; }
+    .msg.ok { background: var(--ok-bg); border: 1px solid rgba(62, 207, 122, 0.35); color: #a8f0c4; }
+    .msg.err { background: var(--err-bg); border: 1px solid rgba(255, 100, 100, 0.35); animation: fadeSlide 0.3s ease-out, shake 0.35s ease; }
+    .msg.wait { background: #1e2230; border: 1px solid var(--border); color: #c5c5e8; }
+
+    table { width: 100%; font-size: 12px; border-collapse: collapse; margin-top: 10px; }
+    th, td { text-align: left; padding: 9px 6px; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .btn-sm { width: auto; padding: 5px 12px; font-size: 12px; margin: 0; }
+
+    details.card summary { cursor: pointer; color: var(--accent); font-weight: 500; }
+    textarea.tech { width: 100%; min-height: 90px; font-family: ui-monospace, monospace; font-size: 11px; margin-top: 8px; border-radius: 8px; border: 1px solid var(--border); background: #0f121c; color: #aab; }
+    .hidden { display: none !important; }
+
+    /* Ablauf */
+    .flow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
+    .flow .step {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 11px; padding: 8px 12px; border-radius: 999px;
+      background: #1e2436; border: 1px solid var(--border); color: var(--muted);
+      transition: background 0.25s, border-color 0.25s, color 0.25s, transform 0.2s;
+    }
+    .flow .step svg { width: 14px; height: 14px; opacity: 0.7; }
+    .flow .step.done { background: var(--ok-bg); border-color: rgba(62, 207, 122, 0.45); color: #9ee0b8; }
+    .flow .step.done svg { opacity: 1; }
+    .flow .step.active { background: rgba(91, 141, 239, 0.18); border-color: var(--accent); color: #c5d8ff; animation: pulseRing 2s ease-in-out infinite; }
+    .flow .step.active svg { opacity: 1; }
+
+    /* Ergebnis-Diagramm */
+    .viz { display: flex; align-items: stretch; justify-content: space-between; gap: 6px; margin: 14px 0 12px; flex-wrap: wrap; }
+    .viz-box {
+      flex: 1; min-width: 72px; text-align: center; padding: 10px 8px; border-radius: 12px;
+      background: #12151f; border: 1px solid var(--border); font-size: 11px; color: var(--muted);
+      animation: fadeSlide 0.45s ease-out backwards;
+    }
+    .viz-box:nth-child(1) { animation-delay: 0.05s; }
+    .viz-box:nth-child(3) { animation-delay: 0.15s; }
+    .viz-box:nth-child(5) { animation-delay: 0.25s; }
+    .viz-box strong { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; color: #6a7a9a; }
+    .viz-box .v { font-size: 12px; color: #dce4f5; word-break: break-all; line-height: 1.35; }
+    .viz-arrow { display: flex; align-items: center; justify-content: center; color: var(--accent); flex-shrink: 0; width: 28px; }
+    .viz-arrow svg { width: 22px; height: 22px; }
+    .viz-arrow path { stroke-dasharray: 24; stroke-dashoffset: 24; animation: flowLine 0.6s ease forwards 0.15s; }
+
+    .result-box { margin-top: 8px; padding: 0; border: none; background: transparent; }
+    .result-box h3 { margin: 0 0 10px; font-size: 14px; color: #d0daf2; display: flex; align-items: center; gap: 8px; }
+    .result-box h3 .badge-ok {
+      width: 22px; height: 22px; border-radius: 50%; background: var(--ok-bg); border: 1px solid rgba(62,207,122,0.5);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .result-box h3 .badge-ok svg { width: 12px; height: 12px; }
+    .result-box h3 .badge-ok path { stroke-dasharray: 20; stroke-dashoffset: 20; animation: checkDraw 0.4s ease forwards 0.2s; }
+    .result-box ul { margin: 0; padding-left: 18px; font-size: 13px; color: #c8d2ea; }
+    .result-box li { margin: 5px 0; }
+    .result-box .next { margin-top: 12px; font-size: 12px; color: var(--muted); padding: 10px; border-radius: 10px; background: #12151f; border: 1px dashed var(--border); }
+
+    .log-list { list-style: none; margin: 0; padding: 0; font-size: 12px; max-height: 220px; overflow-y: auto; }
+    .log-list li { padding: 10px 0; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: flex-start; animation: fadeSlide 0.25s ease-out; }
+    .log-list .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+    .log-list .dot.ok { background: var(--ok); box-shadow: 0 0 8px rgba(62,207,122,0.5); }
+    .log-list .dot.bad { background: var(--err); }
+    .log-list .t { color: #5a6a88; font-size: 10px; }
+    .log-list .line { color: #c5cde0; }
+    .log-list .line.ok { color: #9ee0b8; }
+    .log-list .line.bad { color: #ffaaaa; }
+
+    .section-num { display: inline-block; min-width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 6px; background: var(--accent-dim); color: #fff; font-size: 11px; font-weight: 700; margin-right: 6px; vertical-align: middle; }
+
+    .gly-tree {
+      font-size: 12px; margin-top: 10px; max-height: 340px; overflow: auto;
+      border: 1px solid var(--border); border-radius: 10px; padding: 6px 4px;
+      background: #0f121c;
+    }
+    .gly-row {
+      display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 6px; min-height: 32px;
+    }
+    .gly-row:hover { background: rgba(91, 141, 239, 0.07); }
+    .gly-indent { flex-shrink: 0; border-left: 2px solid var(--border); opacity: 0.6; }
+    .gly-dir { color: #9aa8c4; font-weight: 600; flex: 1; word-break: break-all; }
+    .gly-file { flex: 1; word-break: break-all; color: #dce4f5; }
+    .gly-size { color: var(--muted); font-size: 10px; flex-shrink: 0; white-space: nowrap; }
+    .gly-row .btn-sm { margin: 0; flex-shrink: 0; }
+    input[type="file"] { padding: 8px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div id="confettiLayer" class="confetti-layer" aria-hidden="true"></div>
+
+  <header class="page-head">
+    <div class="logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#8ab4ff" stroke-width="1.6" stroke-linecap="round">
+        <path d="M12 3L4 7v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V7l-8-4z"/>
+        <path d="M9 12l2 2 4-4" stroke="#5b8def"/>
+      </svg>
+    </div>
+    <div>
+      <h1>Modelle zuordnen</h1>
+      <p class="lead">Welches <strong>3D-Modell</strong> gehört zu wem — ohne Dateien oder Code. <a href="/">Zum Spiel</a></p>
+    </div>
+  </header>
+
+  <div class="card hidden" id="cardFlow">
+    <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></svg></span> Ablauf</div>
+    <p class="hint" style="margin:0">Ein Schritt nach dem anderen — erledigt grün, aktuell blau hervorgehoben.</p>
+    <div class="flow" id="flowSteps">
+      <span class="step" data-step="1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12l4 4L20 6"/></svg>Verbunden</span>
+      <span class="step" data-step="2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 14l2 2 4-4"/></svg>Modell</span>
+      <span class="step" data-step="3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><path d="M17 21v-8H7v8"/></svg>Speichern</span>
+      <span class="step" data-step="4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Prüfen</span>
+    </div>
+  </div>
+
+  <div class="card hidden" id="cardLastResult">
+    <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></span> Ergebnis</div>
+    <p class="hint" style="margin-top:0">So hat der Server reagiert — in Worten und als kleines Bild.</p>
+    <div id="vizWrap" class="viz hidden"></div>
+    <div id="lastResultInner" class="result-box hidden"></div>
+  </div>
+
+  <div class="card hidden" id="cardHistory">
+    <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 8v4l3 3M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></span> Verlauf</div>
+    <p class="hint" style="margin-top:0">Nur in diesem Browser, bis du die Seite schließt.</p>
+    <ul class="log-list" id="historyList"></ul>
+    <button type="button" class="ghost" id="btnClearHistory">Verlauf leeren</button>
+  </div>
+
+  <div class="card" id="stepLogin">
+    <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M12 15v2M9 7a3 3 0 016 0v4H9V7z"/></svg></span> <span><span class="section-num">1</span>Anmelden</span></div>
+    <p class="hint" style="margin:0 0 8px">Zugangscode vom Betreiber.</p>
+    <label for="token">Code</label>
+    <input type="password" id="token" autocomplete="off" placeholder="Einfügen, dann Anmelden" />
+    <button type="button" id="btnLogin">Anmelden</button>
+    <button type="button" class="ghost" id="btnSaveToken">In diesem Browser merken</button>
+    <div id="loginMsg" class="msg hidden"></div>
+  </div>
+
+  <div class="card hidden" id="stepGallery">
+    <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M4 6h16v12H4z"/></svg></span> <span><span class="section-num">2</span>Modell-Galerie &amp; Upload</span></div>
+    <p class="hint" style="margin-top:0">Alle <strong>.glb / .gltf</strong> unter <code>client/public/assets/models</code> — gleiche Pfade wie im Auswahlmenü (<code>/assets/models/…</code>).</p>
+    <p class="hint">Neue Dateien: sinnvoller Unterordner z. B. <code>characters</code>, <code>monsters</code>, <code>objects</code> — nur Buchstaben, Zahlen und Unterstriche.</p>
+    <button type="button" class="ghost" id="btnRefreshGallery">Baum neu laden</button>
+    <div id="galleryTree" class="gly-tree"><p class="hint" style="margin:8px">Nach Anmeldung erscheint die Liste.</p></div>
+    <label for="uploadFolder">Unterordner (optional)</label>
+    <input id="uploadFolder" placeholder="z. B. monsters oder leer für Wurzel" autocomplete="off" />
+    <label for="uploadFile">Datei hochladen</label>
+    <input type="file" id="uploadFile" accept=".glb,.gltf,model/gltf-binary" />
+    <button type="button" id="btnUploadGlb">Hochladen</button>
+    <div id="galleryMsg" class="msg hidden"></div>
+  </div>
+
+  <div class="card hidden" id="stepWork">
+    <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/></svg></span> <span><span class="section-num">3</span>Modell verknüpfen</span></div>
+    <p class="hint" style="margin-top:0">Modell wählen, Ziel angeben, <strong>Speichern</strong>.</p>
+    <label for="selModel">3D-Modell</label>
+    <select id="selModel"><option value="">— Nach Anmeldung erscheint die Liste —</option></select>
+    <p class="hint">Nur Dateien, die auf dem Server liegen.</p>
+    <label for="selUse">Wofür?</label>
+    <select id="selUse">
+      <option value="npc_single">Ein bestimmter NPC (ID nötig)</option>
+      <option value="npc_group">Alle NPCs einer Rolle (z. B. Händler)</option>
+      <option value="object_single">Ein Welt-Objekt (ID)</option>
+      <option value="object_group">Alle Objekte eines Typs</option>
+      <option value="monster_group">Monster-Typ / Gruppe</option>
+    </select>
+    <label for="selTargetPick">Aus Spielinhalt wählen (optional)</label>
+    <select id="selTargetPick"><option value="">— Typ oben wählen, dann hier —</option></select>
+    <p class="hint" id="pickHint">Oder unten selbst eintippen — muss exakt zur ID im Spiel passen.</p>
+    <label for="inTargetId">Name oder ID (manuell)</label>
+    <input id="inTargetId" placeholder="z. B. npc_guide" />
+    <p class="hint" id="targetHint"></p>
+    <button type="button" id="btnSaveLink">Speichern</button>
+    <div id="saveMsg" class="msg hidden"></div>
+  </div>
+
+  <div class="card hidden" id="stepDefaults">
+    <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></span> Standard-Modelle</div>
+    <p class="hint" style="margin-top:0">Wenn es keine eigene Zuordnung gibt.</p>
+    <label for="selDefCat">Bereich</label>
+    <select id="selDefCat">
+      <option value="players">Spieler</option>
+      <option value="npcs">NPCs</option>
+      <option value="monsters">Monster</option>
+      <option value="loot">Beute</option>
+      <option value="world_objects">Welt-Objekte</option>
+    </select>
+    <label for="selDefModel">Modell</label>
+    <select id="selDefModel"><option value="">— wählen —</option></select>
+    <button type="button" id="btnSaveDefault">Standard speichern</button>
+    <div id="defMsg" class="msg hidden"></div>
+  </div>
+
+  <div class="card hidden" id="stepPublish">
+    <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg></span> Prüfen &amp; veröffentlichen</div>
+    <p class="hint" style="margin-top:0"><strong>1)</strong> Prüfen = ob der aktive Inhalt auf dem Server konsistent ist (Quests, NPCs, Dialoge). <strong>2)</strong> Veröffentlichen = Kopie nach <code>published-content/current</code> — der Live-Server braucht <code>USE_PUBLISHED_CONTENT=1</code> oder <code>CONTENT_PACK_DIR</code> und Neustart.</p>
+    <button type="button" class="ghost" id="btnValidate">Inhalt prüfen</button>
+    <button type="button" id="btnPublish">Inhalt veröffentlichen (Pack bauen)</button>
+    <div id="publishMsg" class="msg hidden"></div>
+    <ul class="hint" id="validateErrors" style="margin-top:8px;padding-left:18px;display:none"></ul>
+  </div>
+
+  <div class="card hidden" id="stepList">
+    <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span> Aktuelle Zuordnungen</div>
+    <p class="hint" style="margin-top:0"><strong>Entfernen</strong> = nur diese eine Zeile.</p>
+    <div id="linksTableWrap"></div>
+    <button type="button" class="ghost" id="btnRefresh">Neu laden</button>
+  </div>
+
+  <details class="card hidden" id="stepExpert">
+    <summary>Für Support — technische Rohdaten</summary>
+    <textarea class="tech" id="techMeta" readonly></textarea>
+    <label style="margin-top:10px">GLB-Links</label>
+    <textarea class="tech" id="techLinks" readonly></textarea>
+    <label style="margin-top:10px">Asset-Pools</label>
+    <textarea class="tech" id="techPools" readonly></textarea>
+  </details>
+
+  <script>
+    const BASE = "/api/admin/content";
+    const TKEY = "areloria_admin_content_token";
+    const HKEY = "areloria_admin_activity_log_v1";
+    const MAX_LOG = 20;
+
+    const ICON = {
+      ok: '<svg class="mi" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12l4 4L20 6"/></svg>',
+      err: '<svg class="mi" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>',
+      wait: '<svg class="mi" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/></svg>',
+    };
+
+    const ARROW_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+
+    const USE_LABELS = {
+      npc_single: "Einzelner NPC",
+      npc_group: "NPC-Rolle",
+      object_single: "Einzelnes Objekt",
+      object_group: "Objekt-Typ",
+      monster_group: "Monster-Gruppe",
+    };
+
+    const DEF_CAT_LABELS = {
+      players: "Spieler",
+      npcs: "NPCs",
+      monsters: "Monster",
+      loot: "Beute",
+      world_objects: "Welt-Objekte",
+    };
+
+    function prefersReducedMotion() {
+      return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    }
+
+    document.body.addEventListener(
+      "click",
+      function unlockAudioOnce() {
+        try {
+          const Ctx = window.AudioContext || window.webkitAudioContext;
+          if (Ctx) {
+            const c = new Ctx();
+            if (c.state === "suspended") c.resume();
+            c.close();
+          }
+        } catch { /* */ }
+      },
+      { once: true }
+    );
+
+    function playSuccessChime() {
+      if (prefersReducedMotion()) return;
+      try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        const ctx = new Ctx();
+        const now = ctx.currentTime;
+        const freqs = [523.25, 659.25];
+        freqs.forEach(function (freq, i) {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.connect(g);
+          g.connect(ctx.destination);
+          o.type = "sine";
+          o.frequency.value = freq;
+          const t0 = now + i * 0.08;
+          g.gain.setValueAtTime(0, t0);
+          g.gain.linearRampToValueAtTime(0.055, t0 + 0.025);
+          g.gain.exponentialRampToValueAtTime(0.0008, t0 + 0.2);
+          o.start(t0);
+          o.stop(t0 + 0.22);
+        });
+        setTimeout(function () {
+          try {
+            ctx.close();
+          } catch { /* */ }
+        }, 500);
+      } catch { /* */ }
+    }
+
+    function burstConfetti() {
+      if (prefersReducedMotion()) return;
+      const layer = document.getElementById("confettiLayer");
+      if (!layer) return;
+      layer.innerHTML = "";
+      for (let i = 0; i < 26; i++) {
+        const p = document.createElement("div");
+        p.className = "confetti-piece";
+        p.style.setProperty("--cx", Math.random() * 100 + "%");
+        p.style.setProperty("--h", String(Math.floor(Math.random() * 300)));
+        p.style.setProperty("--dur", (1.35 + Math.random() * 0.75).toFixed(2) + "s");
+        p.style.setProperty("--d", (Math.random() * 0.12).toFixed(2) + "s");
+        p.style.setProperty("--tx", (Math.random() * 100 - 50) + "px");
+        p.style.setProperty("--rot", (Math.random() * 540 - 270) + "deg");
+        layer.appendChild(p);
+      }
+      setTimeout(function () {
+        layer.innerHTML = "";
+      }, 2600);
+    }
+
+    function celebrateSuccess(withConfetti) {
+      playSuccessChime();
+      if (withConfetti !== false) burstConfetti();
+    }
+
+    const HINTS = {
+      npc_single: "NPC aus der Liste wählen oder ID exakt eintragen.",
+      npc_group: "Rolle aus der Liste — entspricht dem Spielinhalt (normalisiert).",
+      object_single: "Objekt aus der Liste oder ID eintragen.",
+      object_group: "Objekt-Typ aus der Liste.",
+      monster_group: "Monster-Gruppe aus den Standard-Pools (asset-pools).",
+    };
+
+    let choicesCache = null;
+
+    function errDeFromJson(j, fallback) {
+      if (j && typeof j.errorDe === "string" && j.errorDe.trim()) return j.errorDe.trim();
+      if (j && typeof j.error === "string") return j.error;
+      return fallback || "Unbekannter Fehler";
+    }
+
+    function fillTargetPick() {
+      const sel = document.getElementById("selTargetPick");
+      const use = document.getElementById("selUse").value;
+      const c = choicesCache;
+      let opts = '<option value="">— Wählen —</option>';
+      if (!c) {
+        sel.innerHTML = opts;
+        return;
+      }
+      if (use === "npc_single" && Array.isArray(c.npcs)) {
+        c.npcs.forEach(function (n) {
+          const lab = n.id + " — " + (n.name || "") + (n.role ? " (" + n.role + ")" : "");
+          opts += '<option value="' + escapeAttr(n.id) + '">' + escapeHtml(lab) + "</option>";
+        });
+      } else if (use === "npc_group" && Array.isArray(c.npcRoles)) {
+        c.npcRoles.forEach(function (r) {
+          opts += '<option value="' + escapeAttr(r) + '">' + escapeHtml(r) + "</option>";
+        });
+      } else if (use === "object_single" && Array.isArray(c.worldObjects)) {
+        c.worldObjects.forEach(function (o) {
+          const lab = o.id + (o.name ? " — " + o.name : "") + (o.type ? " [" + o.type + "]" : "");
+          opts += '<option value="' + escapeAttr(o.id) + '">' + escapeHtml(lab) + "</option>";
+        });
+      } else if (use === "object_group" && Array.isArray(c.objectTypes)) {
+        c.objectTypes.forEach(function (t) {
+          opts += '<option value="' + escapeAttr(t) + '">' + escapeHtml(t) + "</option>";
+        });
+      } else if (use === "monster_group" && Array.isArray(c.monsterGroups)) {
+        c.monsterGroups.forEach(function (m) {
+          opts += '<option value="' + escapeAttr(m) + '">' + escapeHtml(m) + "</option>";
+        });
+      }
+      sel.innerHTML = opts;
+    }
+
+    function nowTime() {
+      return new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    }
+
+    function loadHistory() {
+      try {
+        const raw = sessionStorage.getItem(HKEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch { return []; }
+    }
+    function saveHistory(arr) {
+      sessionStorage.setItem(HKEY, JSON.stringify(arr.slice(0, MAX_LOG)));
+    }
+    function pushHistory(ok, line) {
+      saveHistory([{ t: nowTime(), ok, line }, ...loadHistory()].slice(0, MAX_LOG));
+      renderHistory();
+    }
+    function renderHistory() {
+      const ul = document.getElementById("historyList");
+      const items = loadHistory();
+      if (items.length === 0) {
+        ul.innerHTML = '<li class="hint">Noch nichts passiert.</li>';
+        return;
+      }
+      ul.innerHTML = items.map(function (x) {
+        return '<li><span class="dot ' + (x.ok ? "ok" : "bad") + '"></span><div><span class="t">' + escapeHtml(x.t) + '</span><br><span class="line ' + (x.ok ? "ok" : "bad") + '">' + escapeHtml(x.line) + "</span></div></li>";
+      }).join("");
+    }
+
+    function setFlow(step) {
+      document.querySelectorAll("#flowSteps .step").forEach(function (el) {
+        const n = parseInt(el.getAttribute("data-step"), 10);
+        el.classList.remove("done", "active");
+        if (n < step) el.classList.add("done");
+        if (n === step) el.classList.add("active");
+      });
+    }
+
+    function showViz(leftLabel, leftVal, midLabel, midVal, rightLabel, rightVal) {
+      const w = document.getElementById("vizWrap");
+      w.classList.remove("hidden");
+      w.innerHTML =
+        '<div class="viz-box"><strong>' + escapeHtml(leftLabel) + '</strong><div class="v">' + escapeHtml(leftVal) + "</div></div>" +
+        '<div class="viz-arrow" aria-hidden="true">' + ARROW_SVG + "</div>" +
+        '<div class="viz-box"><strong>' + escapeHtml(midLabel) + '</strong><div class="v">' + escapeHtml(midVal) + "</div></div>" +
+        '<div class="viz-arrow" aria-hidden="true">' + ARROW_SVG + "</div>" +
+        '<div class="viz-box"><strong>' + escapeHtml(rightLabel) + '</strong><div class="v">' + escapeHtml(rightVal) + "</div></div>";
+    }
+    function hideViz() {
+      document.getElementById("vizWrap").classList.add("hidden");
+      document.getElementById("vizWrap").innerHTML = "";
+    }
+
+    function showLastResult(title, bullets, nextHint, viz) {
+      const wrap = document.getElementById("cardLastResult");
+      const box = document.getElementById("lastResultInner");
+      wrap.classList.remove("hidden");
+      wrap.classList.remove("reveal-in");
+      void wrap.offsetWidth;
+      wrap.classList.add("reveal-in");
+      if (viz) {
+        showViz(viz.l1, viz.v1, viz.l2, viz.v2, viz.l3, viz.v3);
+      } else {
+        hideViz();
+      }
+      box.classList.remove("hidden");
+      const checkSvg = '<span class="badge-ok" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#3ecf7a" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></span>';
+      let html = "<h3>" + checkSvg + escapeHtml(title) + "</h3><ul>";
+      bullets.forEach(function (b) { html += "<li>" + escapeHtml(b) + "</li>"; });
+      html += "</ul>";
+      if (nextHint) {
+        html += '<div class="next"><strong>Als Nächstes:</strong> ' + escapeHtml(nextHint) + "</div>";
+      }
+      box.innerHTML = html;
+    }
+
+    function headers() {
+      const t = document.getElementById("token").value.trim();
+      if (!t) throw new Error("Bitte zuerst den Code eingeben.");
+      return { Authorization: "Bearer " + t, "Content-Type": "application/json" };
+    }
+
+    function authHeadersOnly() {
+      const t = document.getElementById("token").value.trim();
+      if (!t) throw new Error("Bitte zuerst den Code eingeben.");
+      return { Authorization: "Bearer " + t };
+    }
+
+    async function req(method, path, body) {
+      const init = { method, headers: headers() };
+      if (body !== undefined) init.body = JSON.stringify(body);
+      const r = await fetch(BASE + path, init);
+      const text = await r.text();
+      let j = null;
+      try { j = JSON.parse(text); } catch { /* */ }
+      if (!r.ok) throw new Error(errDeFromJson(j, text || "Fehler " + r.status));
+      return j !== null ? j : text;
+    }
+
+    function show(elId, text, cls) {
+      const el = document.getElementById(elId);
+      const ic = cls === "err" ? ICON.err : cls === "ok" ? ICON.ok : ICON.wait;
+      el.innerHTML = ic + "<span>" + escapeHtml(text) + "</span>";
+      el.className = "msg " + (cls || "wait");
+      el.classList.remove("hidden");
+    }
+    function hide(elId) {
+      document.getElementById(elId).classList.add("hidden");
+    }
+
+    function fillModelSelects(models) {
+      const opts = '<option value="">— Modell wählen —</option>' + models.map((m) => '<option value="' + escapeAttr(m) + '">' + escapeHtml(m) + "</option>").join("");
+      document.getElementById("selModel").innerHTML = opts;
+      document.getElementById("selDefModel").innerHTML = opts;
+    }
+
+    function formatBytes(n) {
+      if (n == null || n < 0) return "";
+      if (n < 1024) return n + " B";
+      if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+      return (n / (1024 * 1024)).toFixed(1) + " MB";
+    }
+
+    function applyGlbUrlToSelects(url) {
+      if (!url) return;
+      const sel = document.getElementById("selModel");
+      const def = document.getElementById("selDefModel");
+      let hit = false;
+      [sel, def].forEach(function (s) {
+        for (let i = 0; i < s.options.length; i++) {
+          if (s.options[i].value === url) {
+            s.selectedIndex = i;
+            hit = true;
+            return;
+          }
+        }
+      });
+      if (!hit) {
+        const opt = document.createElement("option");
+        opt.value = url;
+        opt.textContent = url.replace(/^\/assets\/models\//, "");
+        sel.appendChild(opt.cloneNode(true));
+        def.appendChild(opt);
+        sel.value = url;
+        def.value = url;
+      }
+      sel.dispatchEvent(new Event("change"));
+    }
+
+    function renderGalleryTree(data) {
+      const root = document.getElementById("galleryTree");
+      const items = Array.isArray(data.items) ? data.items.slice() : [];
+      items.sort(function (a, b) {
+        return String(a.relativePath).localeCompare(String(b.relativePath), undefined, { sensitivity: "base" });
+      });
+      if (items.length === 0) {
+        root.innerHTML = '<p class="hint" style="margin:8px">Keine Modelle gefunden — Ordner fehlt oder ist leer.</p>';
+        return;
+      }
+      const maxMb = data.maxUploadMb != null ? data.maxUploadMb : "";
+      let html = "";
+      if (maxMb !== "") {
+        html += '<p class="hint" style="margin:4px 6px 8px">Max. Upload: ca. ' + escapeHtml(String(maxMb)) + " MB pro Datei.</p>";
+      }
+      items.forEach(function (it) {
+        const parts = String(it.relativePath || "").split("/");
+        const depth = Math.max(0, parts.length - 1);
+        const pad = depth * 16;
+        const sz = !it.isDirectory && it.sizeBytes != null ? '<span class="gly-size">' + escapeHtml(formatBytes(it.sizeBytes)) + "</span>" : "";
+        if (it.isDirectory) {
+          html +=
+            '<div class="gly-row" style="padding-left:' +
+            (6 + pad) +
+            'px"><span class="gly-dir">📁 ' +
+            escapeHtml(it.name) +
+            "</span>" +
+            sz +
+            "</div>";
+        } else {
+          html +=
+            '<div class="gly-row" style="padding-left:' +
+            (6 + pad) +
+            'px"><span class="gly-file">' +
+            escapeHtml(it.name) +
+            '</span>' +
+            sz +
+            '<button type="button" class="ghost btn-sm gly-use" data-url="' +
+            escapeAttr(it.url) +
+            '">Übernehmen</button></div>';
+        }
+      });
+      root.innerHTML = html;
+      root.querySelectorAll(".gly-use").forEach(function (b) {
+        b.onclick = function () {
+          const u = b.getAttribute("data-url");
+          applyGlbUrlToSelects(u);
+          showLastResult("Modell aus Galerie", ["Pfad: " + u, "In den Auswahlfeldern gesetzt."], "Unten „Modell verknüpfen“ oder Standard speichern.", {
+            l1: "Datei",
+            v1: shortPath((u || "").split("/").pop() || u),
+            l2: "Pfad",
+            v2: "Übernommen",
+            l3: "Menü",
+            v3: "Bereit",
+          });
+          pushHistory(true, "Galerie: " + u);
+          setFlow(3);
+          celebrateSuccess(false);
+        };
+      });
+    }
+
+    async function loadGalleryTree() {
+      const data = await req("GET", "/glb-gallery-tree");
+      renderGalleryTree(data);
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+    }
+    function escapeAttr(s) {
+      return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+    }
+
+    function shortPath(p) {
+      if (p.length <= 28) return p;
+      return "…" + p.slice(-26);
+    }
+
+    async function refreshLists() {
+      const d = await req("GET", "/glb-links");
+      const links = d.links || [];
+      if (links.length === 0) {
+        document.getElementById("linksTableWrap").innerHTML = '<p class="hint">Keine eigenen Zuordnungen — es gelten die Standard-Modelle.</p>';
+      } else {
+        const rows = links.map(function (L) {
+          return "<tr><td>" + escapeHtml(L.glbPath) + "</td><td>" + escapeHtml(USE_LABELS[L.targetType] || L.targetType) + "</td><td>" + escapeHtml(L.targetId) + '</td><td><button type="button" class="danger btn-sm" data-tt="' + escapeAttr(L.targetType) + '" data-tid="' + escapeAttr(L.targetId) + '">Entfernen</button></td></tr>';
+        }).join("");
+        document.getElementById("linksTableWrap").innerHTML = "<table><thead><tr><th>Modell</th><th>Art</th><th>ID</th><th></th></tr></thead><tbody>" + rows + "</tbody></table>";
+        document.querySelectorAll("#linksTableWrap button[data-tid]").forEach(function (btn) {
+          btn.onclick = async function () {
+            if (!confirm("Wirklich löschen?")) return;
+            const tt = btn.getAttribute("data-tt");
+            const tid = btn.getAttribute("data-tid");
+            try {
+              await req("DELETE", "/glb-links?targetType=" + encodeURIComponent(tt) + "&targetId=" + encodeURIComponent(tid));
+              await afterLoginRefresh();
+              const label = (USE_LABELS[tt] || tt) + " · " + tid;
+              showLastResult("Zuordnung entfernt", [
+                "Die Verknüpfung für „" + label + "“ ist auf dem Server gelöscht.",
+                "Im Spiel wieder Standard-Modell (Seite neu laden kann nötig sein).",
+              ], "Tabelle unten prüfen — die Zeile sollte fehlen.", {
+                l1: "War", v1: shortPath("Zuordnung"),
+                l2: "Aktion", v2: "Gelöscht",
+                l3: "Jetzt", v3: "Standard",
+              });
+              pushHistory(true, "Gelöscht: " + label);
+              setFlow(4);
+              show("saveMsg", "Erledigt — siehe Ergebnis-Karte.", "ok");
+              celebrateSuccess();
+            } catch (e) {
+              pushHistory(false, "Löschen: " + (e.message || e));
+              show("saveMsg", String(e.message || e), "err");
+            }
+          };
+        });
+      }
+      document.getElementById("techLinks").value = JSON.stringify(d, null, 2);
+    }
+
+    async function afterLoginRefresh() {
+      try {
+        choicesCache = await req("GET", "/choices");
+      } catch {
+        choicesCache = null;
+      }
+      fillTargetPick();
+      const models = (await req("GET", "/glb-scan")).models || [];
+      fillModelSelects(models);
+      try {
+        await loadGalleryTree();
+      } catch (e) {
+        document.getElementById("galleryTree").innerHTML =
+          '<p class="hint" style="margin:8px;color:var(--err)">' + escapeHtml(String(e.message || e)) + "</p>";
+      }
+      await refreshLists();
+      try {
+        const pools = await req("GET", "/asset-pools");
+        document.getElementById("techPools").value = JSON.stringify(pools, null, 2);
+      } catch (e) {
+        document.getElementById("techPools").value = String(e.message || e);
+      }
+    }
+
+    document.getElementById("selUse").onchange = function () {
+      document.getElementById("targetHint").textContent = HINTS[this.value] || "";
+      document.getElementById("selTargetPick").value = "";
+      fillTargetPick();
+    };
+    document.getElementById("selUse").dispatchEvent(new Event("change"));
+
+    document.getElementById("selTargetPick").onchange = function () {
+      if (this.value) document.getElementById("inTargetId").value = this.value;
+    };
+
+    document.getElementById("btnClearHistory").onclick = function () {
+      sessionStorage.removeItem(HKEY);
+      renderHistory();
+    };
+
+    document.getElementById("btnSaveToken").onclick = function () {
+      const t = document.getElementById("token").value.trim();
+      if (t) sessionStorage.setItem(TKEY, t);
+      show("loginMsg", "Gemerkt für diesen Browser.", "ok");
+      pushHistory(true, "Code gespeichert");
+    };
+    (function () {
+      const s = sessionStorage.getItem(TKEY);
+      if (s) document.getElementById("token").value = s;
+      renderHistory();
+    })();
+
+    document.getElementById("btnLogin").onclick = async function () {
+      hide("loginMsg");
+      try {
+        const m = await req("GET", "/meta");
+        show("loginMsg", "Verbunden — du kannst zuordnen.", "ok");
+        document.getElementById("techMeta").value = JSON.stringify(m, null, 2);
+        ["cardFlow", "cardHistory", "stepGallery", "stepWork", "stepDefaults", "stepPublish", "stepList", "stepExpert"].forEach(function (id) {
+          document.getElementById(id).classList.remove("hidden");
+        });
+        setFlow(2);
+        showLastResult("Mit Server verbunden", [
+          "Zugangscode akzeptiert.",
+          "Inhalte: " + (m.contentMode || "?") + " · Speicher: " + (m.glbLinksStore || "?") + ".",
+          m.readOnly ? "Nur Lesen — Speichern ist aus." : "Du darfst speichern.",
+        ], "Modell wählen und Ziel eintragen.", {
+          l1: "Du", v1: "Admin",
+          l2: "Server", v2: "Bereit",
+          l3: "Modus", v3: m.readOnly ? "Lesen" : "Ändern",
+        });
+        pushHistory(true, "Login OK");
+        celebrateSuccess();
+        await afterLoginRefresh();
+        setFlow(2);
+      } catch (e) {
+        show("loginMsg", "Login fehlgeschlagen: " + (e.message || e), "err");
+        pushHistory(false, "Login fehlgeschlagen");
+      }
+    };
+
+    document.getElementById("btnValidate").onclick = async function () {
+      const ul = document.getElementById("validateErrors");
+      ul.style.display = "none";
+      ul.innerHTML = "";
+      try {
+        const glbPath = document.getElementById("selModel").value.trim();
+        const prev = await req("POST", "/validate-preview", glbPath ? { glbPath } : {});
+        if (prev.contentOk && prev.glbPathOk !== false) {
+          show("publishMsg", "Prüfung: Inhalt in Ordnung." + (glbPath && prev.glbPathOk ? " Modell-Datei auf dem Server gefunden." : ""), "ok");
+          celebrateSuccess(false);
+        } else {
+          const parts = [];
+          if (!prev.contentOk && Array.isArray(prev.contentErrorsDe)) {
+            parts.push("Inhalt: " + prev.contentErrorsDe.length + " Problem(e).");
+            ul.style.display = "block";
+            prev.contentErrorsDe.slice(0, 20).forEach(function (line) {
+              ul.innerHTML += "<li>" + escapeHtml(line) + "</li>";
+            });
+          }
+          if (prev.glbPathOk === false && prev.glbPathMessageDe) {
+            parts.push(prev.glbPathMessageDe);
+          }
+          show("publishMsg", parts.join(" ") || "Prüfung: siehe Liste.", "err");
+        }
+      } catch (e) {
+        show("publishMsg", String(e.message || e), "err");
+      }
+    };
+
+    document.getElementById("btnPublish").onclick = async function () {
+      const ul = document.getElementById("validateErrors");
+      ul.style.display = "none";
+      ul.innerHTML = "";
+      try {
+        const r = await fetch(BASE + "/publish-pack", { method: "POST", headers: headers() });
+        const text = await r.text();
+        let j = null;
+        try {
+          j = JSON.parse(text);
+        } catch { /* */ }
+        if (!r.ok) {
+          show("publishMsg", errDeFromJson(j, text), "err");
+          const list = j && Array.isArray(j.errorsDe) ? j.errorsDe : [];
+          if (list.length) {
+            ul.style.display = "block";
+            list.slice(0, 25).forEach(function (line) {
+              ul.innerHTML += "<li>" + escapeHtml(String(line)) + "</li>";
+            });
+          }
+          return;
+        }
+        show("publishMsg", "Pack erstellt: " + (j && j.dest ? j.dest : "") + ". Server neu starten mit USE_PUBLISHED_CONTENT=1 oder CONTENT_PACK_DIR.", "ok");
+        pushHistory(true, "Pack veröffentlicht");
+        celebrateSuccess();
+      } catch (e) {
+        show("publishMsg", String(e.message || e), "err");
+      }
+    };
+
+    document.getElementById("btnSaveLink").onclick = async function () {
+      hide("saveMsg");
+      const glbPath = document.getElementById("selModel").value.trim();
+      const targetType = document.getElementById("selUse").value;
+      const pick = document.getElementById("selTargetPick").value.trim();
+      const manual = document.getElementById("inTargetId").value.trim();
+      const targetId = pick || manual;
+      if (!glbPath) { show("saveMsg", "Bitte ein Modell wählen.", "err"); return; }
+      if (!targetId) { show("saveMsg", "Bitte in der Liste wählen oder ID eintragen.", "err"); return; }
+      try {
+        const res = await req("POST", "/glb-links", { glbPath, targetType, targetId });
+        const n = Array.isArray(res.links) ? res.links.length : "?";
+        const kind = USE_LABELS[targetType] || targetType;
+        showLastResult("Gespeichert", [
+          "Modell: " + glbPath,
+          "Ziel: " + kind + " · „" + targetId + "“",
+          "Server hat " + n + " Zuordnung(en) gesamt.",
+        ], "Tabelle unten prüfen oder Spiel neu laden.", {
+          l1: "Modell", v1: shortPath(glbPath.split("/").pop() || glbPath),
+          l2: "Ziel", v2: kind + " · " + targetId,
+          l3: "Server", v3: n + " Einträge",
+        });
+        pushHistory(true, glbPath + " → " + targetId);
+        setFlow(4);
+        show("saveMsg", "Fertig — Ergebnis oben.", "ok");
+        document.getElementById("inTargetId").value = "";
+        await refreshLists();
+        celebrateSuccess();
+      } catch (e) {
+        pushHistory(false, "Speichern: " + (e.message || e));
+        show("saveMsg", String(e.message || e), "err");
+      }
+    };
+
+    document.getElementById("btnSaveDefault").onclick = async function () {
+      hide("defMsg");
+      const category = document.getElementById("selDefCat").value;
+      const path = document.getElementById("selDefModel").value.trim();
+      if (!path) { show("defMsg", "Modell wählen.", "err"); return; }
+      try {
+        await req("POST", "/asset-pools/default", { category, path });
+        const catLabel = DEF_CAT_LABELS[category] || category;
+        showLastResult("Standard gespeichert", [
+          "Bereich: " + catLabel,
+          "Datei: " + path,
+          "Gilt als Fallback ohne eigene Zuordnung.",
+        ], "Einzel-Zuordnungen haben Vorrang.", {
+          l1: "Bereich", v1: catLabel,
+          l2: "Standard", v2: shortPath(path.split("/").pop() || path),
+          l3: "Gilt für", v3: "Alle ohne Link",
+        });
+        pushHistory(true, "Standard " + catLabel);
+        setFlow(3);
+        show("defMsg", "Gespeichert.", "ok");
+        const pools = await req("GET", "/asset-pools");
+        document.getElementById("techPools").value = JSON.stringify(pools, null, 2);
+        celebrateSuccess();
+      } catch (e) {
+        pushHistory(false, "Standard: " + (e.message || e));
+        show("defMsg", String(e.message || e), "err");
+      }
+    };
+
+    document.getElementById("btnRefreshGallery").onclick = async function () {
+      hide("galleryMsg");
+      try {
+        await loadGalleryTree();
+        const scan = await req("GET", "/glb-scan");
+        fillModelSelects(scan.models || []);
+        show("galleryMsg", "Galerie aktualisiert.", "ok");
+        pushHistory(true, "Galerie neu");
+        celebrateSuccess(false);
+      } catch (e) {
+        show("galleryMsg", String(e.message || e), "err");
+      }
+    };
+
+    document.getElementById("btnUploadGlb").onclick = async function () {
+      hide("galleryMsg");
+      const inp = document.getElementById("uploadFile");
+      const folder = document.getElementById("uploadFolder").value.trim();
+      if (!inp.files || !inp.files[0]) {
+        show("galleryMsg", "Bitte eine .glb- oder .gltf-Datei wählen.", "err");
+        return;
+      }
+      const fd = new FormData();
+      fd.append("file", inp.files[0]);
+      if (folder) fd.append("folder", folder);
+      try {
+        const r = await fetch(BASE + "/glb-upload", { method: "POST", headers: authHeadersOnly(), body: fd });
+        const text = await r.text();
+        let j = null;
+        try {
+          j = JSON.parse(text);
+        } catch { /* */ }
+        if (!r.ok) throw new Error(errDeFromJson(j, text || "Fehler " + r.status));
+        const url = j.url || "";
+        show("galleryMsg", "Gespeichert: " + url, "ok");
+        applyGlbUrlToSelects(url);
+        await loadGalleryTree();
+        const scan = await req("GET", "/glb-scan");
+        fillModelSelects(scan.models || []);
+        inp.value = "";
+        showLastResult("Modell hochgeladen", ["Datei liegt jetzt auf dem Server.", "Pfad: " + url], "Zuordnung speichern oder Standard setzen.", {
+          l1: "Upload",
+          v1: "OK",
+          l2: "Pfad",
+          v2: shortPath(url.split("/").pop() || url),
+          l3: "Spiel",
+          v3: "Nutzt URL",
+        });
+        pushHistory(true, "Upload: " + url);
+        setFlow(3);
+        celebrateSuccess();
+      } catch (e) {
+        show("galleryMsg", String(e.message || e), "err");
+        pushHistory(false, "Upload: " + (e.message || e));
+      }
+    };
+
+    document.getElementById("btnRefresh").onclick = async function () {
+      try {
+        await afterLoginRefresh();
+        showLastResult("Liste aktualisiert", [
+          "Modell-Liste und Tabelle vom Server geholt.",
+        ], "Mit deiner letzten Aktion abgleichen.", {
+          l1: "Aktion", v1: "Aktualisieren",
+          l2: "Quelle", v2: "Server",
+          l3: "Stand", v3: "Jetzt",
+        });
+        pushHistory(true, "Liste neu");
+        setFlow(4);
+        show("saveMsg", "Liste neu.", "ok");
+        celebrateSuccess(false);
+      } catch (e) {
+        show("saveMsg", String(e.message || e), "err");
+      }
+    };
+
+    document.getElementById("selModel").addEventListener("change", function () {
+      if (this.value) setFlow(3);
+    });
+  </script>
+</body>
+</html>
