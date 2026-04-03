@@ -218,6 +218,11 @@
     .gly-file { flex: 1; word-break: break-all; color: #dce4f5; }
     .gly-size { color: var(--muted); font-size: 10px; flex-shrink: 0; white-space: nowrap; }
     .gly-row .btn-sm { margin: 0; flex-shrink: 0; }
+    .gly-section { margin-bottom: 12px; }
+    .gly-section-title { font-size: 11px; font-weight: 700; color: var(--accent); margin: 10px 6px 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .gly-root-path { font-weight: 400; color: var(--muted); font-size: 10px; word-break: break-all; }
+    .gly-bin { flex: 1; word-break: break-all; color: #a8b0c8; font-style: italic; }
+    .gly-bin .gly-bin-hint { font-size: 10px; color: var(--muted); font-style: normal; display: block; margin-top: 2px; }
     input[type="file"] { padding: 8px; font-size: 13px; }
   </style>
 </head>
@@ -274,14 +279,15 @@
 
   <div class="card hidden" id="stepGallery">
     <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M4 6h16v12H4z"/></svg></span> <span><span class="section-num">2</span>Modell-Galerie &amp; Upload</span></div>
-    <p class="hint" style="margin-top:0">Alle <strong>.glb / .gltf</strong> unter <code>client/public/assets/models</code> — gleiche Pfade wie im Auswahlmenü (<code>/assets/models/…</code>).</p>
-    <p class="hint">Neue Dateien: sinnvoller Unterordner z. B. <code>characters</code>, <code>monsters</code>, <code>objects</code> — nur Buchstaben, Zahlen und Unterstriche.</p>
+    <p class="hint" style="margin-top:0">Zwei Bereiche: <strong>Client-Paket</strong> (nach Build unter <code>/assets/models/…</code>) und <strong>World-Assets</strong> (Quelle <code>world-assets/</code> auf dem Server — Pfade <code>/assets/models/world-assets/…</code> nach Sync).</p>
+    <p class="hint"><strong>.gltf + .bin:</strong> Beide werden angezeigt — zum Verknüpfen immer die <strong>.gltf</strong> wählen („Übernehmen“); die .bin lädt der Browser mit.</p>
+    <p class="hint">Upload: <code>.glb</code>, <code>.gltf</code> oder <code>.bin</code> — Unterordner z. B. <code>characters</code>, <code>monsters</code> (nur Buchstaben, Zahlen, Unterstriche).</p>
     <button type="button" class="ghost" id="btnRefreshGallery">Baum neu laden</button>
     <div id="galleryTree" class="gly-tree"><p class="hint" style="margin:8px">Nach Anmeldung erscheint die Liste.</p></div>
     <label for="uploadFolder">Unterordner (optional)</label>
     <input id="uploadFolder" placeholder="z. B. monsters oder leer für Wurzel" autocomplete="off" />
     <label for="uploadFile">Datei hochladen</label>
-    <input type="file" id="uploadFile" accept=".glb,.gltf,model/gltf-binary" />
+    <input type="file" id="uploadFile" accept=".glb,.gltf,.bin,model/gltf-binary" />
     <button type="button" id="btnUploadGlb">Hochladen</button>
     <div id="galleryMsg" class="msg hidden"></div>
   </div>
@@ -291,7 +297,7 @@
     <p class="hint" style="margin-top:0">Modell wählen, Ziel angeben, <strong>Speichern</strong>.</p>
     <label for="selModel">3D-Modell</label>
     <select id="selModel"><option value="">— Nach Anmeldung erscheint die Liste —</option></select>
-    <p class="hint">Nur Dateien, die auf dem Server liegen.</p>
+    <p class="hint">Liste = alle <code>.glb/.gltf</code> unter <code>assets/models</code> (inkl. Spiegel). Pfade aus der Galerie übernehmen.</p>
     <label for="selUse">Wofür?</label>
     <select id="selUse">
       <option value="npc_single">Ein bestimmter NPC (ID nötig)</option>
@@ -657,26 +663,17 @@
       sel.dispatchEvent(new Event("change"));
     }
 
-    function renderGalleryTree(data) {
-      const root = document.getElementById("galleryTree");
-      const items = Array.isArray(data.items) ? data.items.slice() : [];
-      items.sort(function (a, b) {
+    function renderGalleryItemRows(items) {
+      const sorted = items.slice().sort(function (a, b) {
         return String(a.relativePath).localeCompare(String(b.relativePath), undefined, { sensitivity: "base" });
       });
-      if (items.length === 0) {
-        root.innerHTML = '<p class="hint" style="margin:8px">Keine Modelle gefunden — Ordner fehlt oder ist leer.</p>';
-        return;
-      }
-      const maxMb = data.maxUploadMb != null ? data.maxUploadMb : "";
       let html = "";
-      if (maxMb !== "") {
-        html += '<p class="hint" style="margin:4px 6px 8px">Max. Upload: ca. ' + escapeHtml(String(maxMb)) + " MB pro Datei.</p>";
-      }
-      items.forEach(function (it) {
+      sorted.forEach(function (it) {
         const parts = String(it.relativePath || "").split("/");
         const depth = Math.max(0, parts.length - 1);
         const pad = depth * 16;
         const sz = !it.isDirectory && it.sizeBytes != null ? '<span class="gly-size">' + escapeHtml(formatBytes(it.sizeBytes)) + "</span>" : "";
+        const canUse = !it.isDirectory && it.url && it.selectable !== false;
         if (it.isDirectory) {
           html +=
             '<div class="gly-row" style="padding-left:' +
@@ -686,7 +683,7 @@
             "</span>" +
             sz +
             "</div>";
-        } else {
+        } else if (canUse) {
           html +=
             '<div class="gly-row" style="padding-left:' +
             (6 + pad) +
@@ -697,8 +694,56 @@
             '<button type="button" class="ghost btn-sm gly-use" data-url="' +
             escapeAttr(it.url) +
             '">Übernehmen</button></div>';
+        } else {
+          html +=
+            '<div class="gly-row" style="padding-left:' +
+            (6 + pad) +
+            'px"><span class="gly-bin">' +
+            escapeHtml(it.name) +
+            '<span class="gly-bin-hint">Gehört zu einer .gltf daneben — zum Zuordnen die .gltf mit „Übernehmen“ wählen.</span></span>' +
+            sz +
+            "</div>";
         }
       });
+      return html;
+    }
+
+    function renderGalleryTree(data) {
+      const root = document.getElementById("galleryTree");
+      const maxMb = data.maxUploadMb != null ? data.maxUploadMb : "";
+      const sections = Array.isArray(data.sections) ? data.sections : null;
+
+      let html = "";
+      if (maxMb !== "") {
+        html += '<p class="hint" style="margin:4px 6px 8px">Max. Upload: ca. ' + escapeHtml(String(maxMb)) + " MB pro Datei.</p>";
+      }
+
+      if (sections && sections.length) {
+        sections.forEach(function (sec) {
+          const list = Array.isArray(sec.items) ? sec.items : [];
+          html += '<div class="gly-section">';
+          html += '<div class="gly-section-title">' + escapeHtml(sec.labelDe || sec.id || "Bereich") + "</div>";
+          if (sec.root) {
+            html += '<div class="gly-root-path">' + escapeHtml(String(sec.root)) + "</div>";
+          } else if (sec.id === "world") {
+            html += '<div class="gly-root-path">Nicht gefunden — setze WORLD_ASSETS_DIR oder lege world-assets/ im Repo an.</div>';
+          }
+          if (list.length === 0) {
+            html += '<p class="hint" style="margin:8px">Keine Einträge.</p>';
+          } else {
+            html += renderGalleryItemRows(list);
+          }
+          html += "</div>";
+        });
+      } else {
+        const items = Array.isArray(data.items) ? data.items : [];
+        if (items.length === 0) {
+          root.innerHTML = html + '<p class="hint" style="margin:8px">Keine Modelle gefunden — Ordner fehlt oder ist leer.</p>';
+          return;
+        }
+        html += renderGalleryItemRows(items);
+      }
+
       root.innerHTML = html;
       root.querySelectorAll(".gly-use").forEach(function (b) {
         b.onclick = function () {
@@ -722,6 +767,14 @@
     async function loadGalleryTree() {
       const data = await req("GET", "/glb-gallery-tree");
       renderGalleryTree(data);
+      const urlSet = {};
+      (data.items || []).forEach(function (it) {
+        if (!it.isDirectory && it.selectable !== false && it.url) urlSet[it.url] = true;
+      });
+      const merged = Object.keys(urlSet).sort(function (a, b) {
+        return a.localeCompare(b, undefined, { sensitivity: "base" });
+      });
+      if (merged.length) fillModelSelects(merged);
     }
 
     function escapeHtml(s) {
@@ -784,13 +837,29 @@
         choicesCache = null;
       }
       fillTargetPick();
-      const models = (await req("GET", "/glb-scan")).models || [];
-      fillModelSelects(models);
       try {
-        await loadGalleryTree();
+        const galleryData = await req("GET", "/glb-gallery-tree");
+        renderGalleryTree(galleryData);
+        const urlSet = {};
+        (galleryData.items || []).forEach(function (it) {
+          if (!it.isDirectory && it.selectable !== false && it.url) urlSet[it.url] = true;
+        });
+        const merged = Object.keys(urlSet).sort(function (a, b) {
+          return a.localeCompare(b, undefined, { sensitivity: "base" });
+        });
+        if (merged.length) {
+          fillModelSelects(merged);
+        } else {
+          const models = (await req("GET", "/glb-scan")).models || [];
+          fillModelSelects(models);
+        }
       } catch (e) {
         document.getElementById("galleryTree").innerHTML =
           '<p class="hint" style="margin:8px;color:var(--err)">' + escapeHtml(String(e.message || e)) + "</p>";
+        try {
+          const models = (await req("GET", "/glb-scan")).models || [];
+          fillModelSelects(models);
+        } catch { /* */ }
       }
       await refreshLists();
       try {

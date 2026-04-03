@@ -17,9 +17,11 @@ import {
 import { getServerPublicModelsDir, validateAdminGlbPathForServer } from "../modules/content/adminGlbPathCheck.js";
 import {
   scanGlbGalleryTree,
+  scanGlbGalleryTreeAt,
   sanitizeAdminGlbFilename,
   sanitizeAdminGlbRelativeFolder,
 } from "../modules/content/adminGlbGallery.js";
+import { resolveWorldAssetsDir } from "../core/resolveWorldAssetsDir.js";
 import { publishContentPackFromRepo } from "../modules/content/publishContentPackFromRepo.js";
 import { validateContentRoot } from "../modules/content/validateContentCore.js";
 import { getContentDataRoot } from "../modules/content/contentDataRoot.js";
@@ -34,8 +36,8 @@ const adminGlbUploadMulter = multer({
   limits: { fileSize: MAX_ADMIN_GLB_MB * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    if (ext === ".glb" || ext === ".gltf") cb(null, true);
-    else cb(new Error("Nur .glb oder .gltf."));
+    if (ext === ".glb" || ext === ".gltf" || ext === ".bin") cb(null, true);
+    else cb(new Error("Nur .glb, .gltf oder .bin."));
   },
 });
 
@@ -149,8 +151,29 @@ export function adminContentRouter(tick: WorldTick): Router {
   });
 
   router.get("/glb-gallery-tree", adminAuthMiddleware, (_req: AdminRequest, res: Response) => {
-    const { modelsRoot, items } = scanGlbGalleryTree();
-    res.json({ modelsRoot, items, maxUploadMb: MAX_ADMIN_GLB_MB });
+    const { modelsRoot, items: clientItems } = scanGlbGalleryTree();
+    const worldDir = resolveWorldAssetsDir();
+    const worldItems = worldDir ? scanGlbGalleryTreeAt(worldDir, "/assets/models/world-assets/", "world") : [];
+    res.json({
+      modelsRoot,
+      worldAssetsRoot: worldDir,
+      maxUploadMb: MAX_ADMIN_GLB_MB,
+      sections: [
+        {
+          id: "client",
+          labelDe: "Im Client-Paket (nach Build mit dabei)",
+          root: modelsRoot,
+          items: clientItems,
+        },
+        {
+          id: "world",
+          labelDe: "World-Assets (Quelle auf dem Server — vor Build/sync)",
+          root: worldDir,
+          items: worldItems,
+        },
+      ],
+      items: [...clientItems, ...worldItems],
+    });
   });
 
   router.post(
