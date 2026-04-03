@@ -5,6 +5,8 @@
 ### Project overview
 Arelorian/Ouroboros is a browser-based MMORPG: `server/` (Express + WebSocket game server) and `client/` (Vite + **Babylon.js** 3D client). See `README.md` and `docs/PROJECT_STATUS_2026.md`.
 
+**Firebase AI Logic (Web):** shipped inside the **`firebase`** npm package in `client/` (currently **^12.11.0**). Use `import { getAI, getGenerativeModel, GoogleAIBackend } from "firebase/ai"` after `initializeApp`. Complete the [Firebase console AI Logic setup](https://console.firebase.google.com/) (Gemini API provider); do **not** embed API keys in client code. Official guide: [Get started with Firebase AI Logic (Web)](https://firebase.google.com/docs/ai-logic/get-started?platform=web).
+
 ### Running the development server
 - **Command:** `pnpm run dev` (runs `tsx watch src/index.ts` in `server/`).
 - The server starts on port 3000 and embeds the Vite client dev middleware (serves the client at `/`).
