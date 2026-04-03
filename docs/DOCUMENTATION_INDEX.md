@@ -15,6 +15,7 @@ Use this map to avoid reading **obsolete** files as if they were current spec.
 | **`docs/CI_VPS_RUNBOOK.md`** | CI prüfen, VPS verify, Secret `DEPLOY_VERIFY_BASE_URL` |
 | **`docs/SPACETIME_PERSISTENCE_NEXT.md`** | SpacetimeDB-Persistenz — nächste Implementierungsschritte |
 | **`docs/CONTENT_DRAFT_VS_LIVE.md`** | Entwurf vs. Live: game-data, published pack, GLB-Links |
+| **`docs/FIREBASE_VPS_CHECKLIST.md`** | Firebase Admin + WS-Login + Client — VPS-Schritte und `/health` |
 | **`docs/VITE_MCP_AND_VPS_SETUP.md`** | MCP + WebSocket + Nginx (Vite / Babylon client) |
 
 ## Architecture and systems

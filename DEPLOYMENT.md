@@ -66,7 +66,7 @@ Der **private Service-Account-JSON-Key** gehört **nicht** ins Git. Auf dem Serv
 3. Optional in `.env`: **`FIREBASE_PROJECT_ID=…`** (Projekt-ID aus der Console), falls sie nicht im JSON steht.
 
 4. **Neustart:** `pm2 restart areloria`  
-   Prüfen: `curl -s http://127.0.0.1:3000/health` → `persistence` / Firebase-Hinweise.
+   Prüfen: `curl -s http://127.0.0.1:3000/health` — Felder **`firebase`** (`configured`, `initMode`, `projectId`) und **`auth`** (`useFirebaseWsLogin`, …). Detaillierte Schritte: **`docs/FIREBASE_VPS_CHECKLIST.md`**.
 
 **Alternative (Application Default Credentials, wie `admin.credential.applicationDefault()`):**  
 In `.env` **`FIREBASE_SERVICE_ACCOUNT_KEY` leer lassen** und setzen:

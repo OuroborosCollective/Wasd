@@ -161,6 +161,46 @@ export function isFirebaseAuthConfigured(): boolean {
   return getAuthInstance() !== null;
 }
 
+export type FirebaseAdminInitMode = "cert" | "application_default" | "none";
+
+/** Env-based intent only — does not call initializeApp (safe for tests). */
+export function getFirebaseAdminInitInfo(): {
+  initMode: FirebaseAdminInitMode;
+  projectId: string;
+  hasServiceAccountKeyEnv: boolean;
+  hasGoogleApplicationCredentials: boolean;
+  useApplicationDefaultFlag: boolean;
+} {
+  const sak = process.env.FIREBASE_SERVICE_ACCOUNT_KEY?.trim();
+  let initMode: FirebaseAdminInitMode = "none";
+  if (sak) initMode = "cert";
+  else if (wantsApplicationDefault()) initMode = "application_default";
+
+  let projectId = defaultFirebaseProjectId(null);
+  if (sak) {
+    const acc = parseServiceAccountFromEnv(sak);
+    projectId = defaultFirebaseProjectId(acc);
+  }
+
+  return {
+    initMode,
+    projectId,
+    hasServiceAccountKeyEnv: Boolean(sak),
+    hasGoogleApplicationCredentials: Boolean(process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim()),
+    useApplicationDefaultFlag: TRUTHY_ADC.has(process.env.FIREBASE_ADMIN_USE_APPLICATION_DEFAULT?.trim().toLowerCase() || ""),
+  };
+}
+
+/**
+ * For /health: env intent + whether lazy init produced a working Auth instance.
+ */
+export function getFirebaseAdminSummary(): ReturnType<typeof getFirebaseAdminInitInfo> & { configured: boolean } {
+  return {
+    ...getFirebaseAdminInitInfo(),
+    configured: isFirebaseAuthConfigured(),
+  };
+}
+
 // For backward compatibility if needed, but lazy getters are better
 export const db = new Proxy({} as Firestore, {
   get: (_, prop) => (getDb() as any)[prop]
