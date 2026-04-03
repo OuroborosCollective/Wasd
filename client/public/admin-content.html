@@ -3,98 +3,136 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Areloria — Content Admin (GLB &amp; Asset-Pools)</title>
+  <title>Areloria — Modelle zuordnen</title>
   <style>
-    :root { font-family: system-ui, sans-serif; background: #0f1118; color: #e8ecf5; }
-    body { max-width: 960px; margin: 0 auto; padding: 16px; }
-    h1 { font-size: 1.25rem; }
-    section { background: #1a1f2e; border: 1px solid #2a3348; border-radius: 10px; padding: 14px; margin: 14px 0; }
-    label { display: block; font-size: 12px; opacity: 0.85; margin-top: 8px; }
-    input, select, textarea, button { width: 100%; box-sizing: border-box; margin-top: 4px; padding: 8px; border-radius: 6px; border: 1px solid #3d4a66; background: #0f1118; color: #e8ecf5; }
-    textarea { min-height: 120px; font-family: ui-monospace, monospace; font-size: 12px; }
-    button { cursor: pointer; background: #2d4a8c; border-color: #4a6ec4; font-weight: 600; margin-top: 10px; }
-    button.secondary { background: #333; border-color: #555; }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    @media (max-width: 640px) { .row { grid-template-columns: 1fr; } }
-    .status { font-size: 12px; padding: 8px; border-radius: 6px; background: #252b3d; margin-top: 8px; white-space: pre-wrap; }
-    .err { color: #ff9a9a; }
-    .ok { color: #8fdf9a; }
+    :root { font-family: system-ui, sans-serif; background: #0f1118; color: #e8ecf5; line-height: 1.45; }
+    body { max-width: 520px; margin: 0 auto; padding: 16px; padding-bottom: 48px; }
+    h1 { font-size: 1.15rem; font-weight: 700; margin: 0 0 6px; }
+    .lead { font-size: 14px; opacity: 0.88; margin: 0 0 16px; }
+    .card { background: #1a1f2e; border: 1px solid #2a3348; border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+    .card h2 { font-size: 0.95rem; margin: 0 0 12px; color: #b8c5e8; }
+    label { display: block; font-size: 13px; margin-top: 10px; font-weight: 500; }
+    .hint { font-size: 12px; opacity: 0.75; margin-top: 4px; }
+    input, select, button { width: 100%; box-sizing: border-box; margin-top: 6px; padding: 10px 12px; border-radius: 8px; border: 1px solid #3d4a66; background: #0f1118; color: #e8ecf5; font-size: 15px; }
+    button { cursor: pointer; background: #2d5a9e; border-color: #4a7ad4; font-weight: 600; margin-top: 14px; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    button.ghost { background: transparent; border-color: #555; color: #aaa; margin-top: 8px; }
+    button.danger { background: #5a2d2d; border-color: #844; }
+    .msg { font-size: 13px; padding: 10px; border-radius: 8px; margin-top: 10px; }
+    .msg.ok { background: #1a3d2a; color: #9ee0a8; }
+    .msg.err { background: #3d1a1a; color: #ffaaaa; }
+    .msg.wait { background: #2a2a3d; color: #c5c5e8; }
+    table { width: 100%; font-size: 12px; border-collapse: collapse; margin-top: 8px; }
+    th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #2a3348; vertical-align: top; }
+    th { color: #9aa8c9; font-weight: 600; }
+    .btn-sm { width: auto; padding: 4px 10px; font-size: 12px; margin: 0; }
     a { color: #8ab4ff; }
+    details { margin-top: 12px; font-size: 12px; opacity: 0.9; }
+    details summary { cursor: pointer; color: #8ab4ff; }
+    textarea.tech { width: 100%; min-height: 100px; font-family: ui-monospace, monospace; font-size: 11px; margin-top: 8px; }
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
-  <h1>Content Admin — GLB-Links &amp; Asset-Pools</h1>
-  <p style="font-size:13px;opacity:0.85">
-    Kein JSON von Hand bearbeiten: Änderungen laufen über die API. Auth: <code>ADMIN_PANEL_TOKEN</code> (Bearer oder Header <code>X-Admin-Token</code>) oder Firebase-ID-Token (nach Google-Login aus der Konsole).
-    Zurück zum Spiel: <a href="/">/</a>
+  <h1>Modelle zuordnen</h1>
+  <p class="lead">
+    Hier legst du fest, <strong>welches 3D-Modell</strong> für welche Figur oder welches Objekt im Spiel erscheint — ohne Dateien oder Code anzufassen.
+    <a href="/">Zurück zum Spiel</a>
   </p>
 
-  <section>
-    <h2>1. Zugang</h2>
-    <label>Token (Panel-Token oder Firebase ID-Token)</label>
-    <input type="password" id="token" placeholder="Bearer-Token einfügen" autocomplete="off" />
-    <div class="row">
-      <button type="button" id="btnMeta">Meta laden</button>
-      <button type="button" class="secondary" id="btnSaveToken">Token merken (Session)</button>
-    </div>
-    <div id="metaOut" class="status"></div>
-  </section>
+  <div class="card" id="stepLogin">
+    <h2>Schritt 1 — Anmelden</h2>
+    <p class="hint" style="margin:0 0 8px">Das Passwort bekommst du vom Betreiber (heißt technisch „Admin-Token“).</p>
+    <label for="token">Zugangscode</label>
+    <input type="password" id="token" autocomplete="off" placeholder="Einfügen und auf Anmelden tippen" />
+    <button type="button" id="btnLogin">Anmelden</button>
+    <button type="button" class="ghost" id="btnSaveToken">Code nur in diesem Browser merken</button>
+    <div id="loginMsg" class="msg hidden"></div>
+  </div>
 
-  <section>
-    <h2>2. GLB-Links</h2>
-    <div class="row">
-      <button type="button" id="btnLinks">Liste laden</button>
-      <button type="button" id="btnScan">Verfügbare Modelle (Scan)</button>
-    </div>
-    <label>Neuer / geänderter Link</label>
-    <div class="row">
-      <div>
-        <label>targetType</label>
-        <select id="ltType">
-          <option>npc_single</option>
-          <option>npc_group</option>
-          <option>object_single</option>
-          <option>object_group</option>
-          <option>monster_group</option>
-        </select>
-      </div>
-      <div>
-        <label>targetId</label>
-        <input id="ltId" placeholder="z. B. merchant oder npc_123" />
-      </div>
-    </div>
-    <label>glbPath</label>
-    <input id="ltPath" placeholder="/assets/models/characters/uschi.glb" />
-    <button type="button" id="btnLinkSave">Link speichern</button>
-    <button type="button" class="secondary" id="btnLinkDel">Link löschen (targetType + targetId)</button>
-    <label>JSON-Ansicht</label>
-    <textarea id="linksOut" readonly></textarea>
-  </section>
+  <div class="card hidden" id="stepWork">
+    <h2>Schritt 2 — Neues Modell verknüpfen</h2>
+    <p class="hint" style="margin-top:0">Wähle ein Modell und sage, wofür es gelten soll. Dann auf <strong>Speichern</strong>.</p>
 
-  <section>
-    <h2>3. Asset-Pools (<code>world/asset-pools.json</code>)</h2>
-    <button type="button" id="btnPools">Dokument laden</button>
-    <button type="button" class="secondary" id="btnReload">Resolver reload</button>
-    <label>Pool-Eintrag setzen</label>
-    <div class="row">
-      <div><label>category</label><input id="peCat" placeholder="npcs" /></div>
-      <div><label>key</label><input id="peKey" placeholder="merchant" /></div>
-    </div>
-    <label>path (ein GLB) oder paths (kommagetrennt für Variante)</label>
-    <input id="pePath" placeholder="/assets/models/characters/uschi.glb" />
-    <button type="button" id="btnPoolEntry">Eintrag speichern</button>
-    <button type="button" class="secondary" id="btnPoolDel">Eintrag löschen</button>
-    <label>JSON</label>
-    <textarea id="poolsOut" readonly></textarea>
-  </section>
+    <label for="selModel">3D-Modell</label>
+    <select id="selModel"><option value="">— Zuerst anmelden (Liste lädt automatisch) —</option></select>
+    <p class="hint">Nur Modelle, die auf dem Server liegen. Fehlt eins, muss der Betreiber die Datei bereitstellen.</p>
+
+    <label for="selUse">Wofür soll das Modell gelten?</label>
+    <select id="selUse">
+      <option value="npc_single">Ein bestimmter NPC (du brauchst seine technische ID)</option>
+      <option value="npc_group">Alle NPCs mit derselben Rolle (z. B. Händler, Wache)</option>
+      <option value="object_single">Ein bestimmtes Welt-Objekt (technische ID)</option>
+      <option value="object_group">Alle Objekte eines Typs (z. B. Baum, Haus)</option>
+      <option value="monster_group">Eine Monster-Gruppe / Gegner-Typ</option>
+    </select>
+
+    <label for="inTargetId">Name oder ID</label>
+    <input id="inTargetId" placeholder="z. B. merchant oder npc_guide" />
+    <p class="hint" id="targetHint">Bei „einzelner NPC“: die ID aus dem Spielinhalt (frag den Betreiber oder siehe Liste unten).</p>
+
+    <button type="button" id="btnSaveLink">Speichern</button>
+    <div id="saveMsg" class="msg hidden"></div>
+  </div>
+
+  <div class="card hidden" id="stepDefaults">
+    <h2>Optional — Standard-Modelle</h2>
+    <p class="hint" style="margin-top:0">Fällt zurück, wenn keine eigene Zuordnung existiert.</p>
+    <label for="selDefCat">Bereich</label>
+    <select id="selDefCat">
+      <option value="players">Spieler-Figuren</option>
+      <option value="npcs">NPCs (allgemein)</option>
+      <option value="monsters">Monster</option>
+      <option value="loot">Beute / Kisten</option>
+      <option value="world_objects">Welt-Objekte (allgemein)</option>
+    </select>
+    <label for="selDefModel">Modell</label>
+    <select id="selDefModel"><option value="">— wie oben —</option></select>
+    <button type="button" id="btnSaveDefault">Standard speichern</button>
+    <div id="defMsg" class="msg hidden"></div>
+  </div>
+
+  <div class="card hidden" id="stepList">
+    <h2>Aktuelle Zuordnungen</h2>
+    <p class="hint" style="margin-top:0">Was gerade gespeichert ist. <strong>Entfernen</strong> löscht nur diese eine Zeile.</p>
+    <div id="linksTableWrap"></div>
+    <button type="button" class="ghost" id="btnRefresh">Liste neu laden</button>
+  </div>
+
+  <details class="card hidden" id="stepExpert">
+    <summary>Technische Details (nur für Support)</summary>
+    <p class="hint">Rohe Daten für Fehlersuche.</p>
+    <label>Server-Info</label>
+    <textarea class="tech" id="techMeta" readonly></textarea>
+    <label>GLB-Links (JSON)</label>
+    <textarea class="tech" id="techLinks" readonly></textarea>
+    <label>Asset-Pools (JSON)</label>
+    <textarea class="tech" id="techPools" readonly></textarea>
+  </details>
 
   <script>
     const BASE = "/api/admin/content";
     const TKEY = "areloria_admin_content_token";
 
+    const USE_LABELS = {
+      npc_single: "Einzelner NPC",
+      npc_group: "NPC-Rolle",
+      object_single: "Einzelnes Objekt",
+      object_group: "Objekt-Typ",
+      monster_group: "Monster-Gruppe",
+    };
+
+    const HINTS = {
+      npc_single: "Technische NPC-ID (z. B. npc_guide). Steht oft in den Spieldaten.",
+      npc_group: "Rollenname klein geschrieben, z. B. merchant, guard, questgiver.",
+      object_single: "Objekt-ID aus den Spieldaten.",
+      object_group: "Typ-Name klein, z. B. tree, house, rock.",
+      monster_group: "Gegner-Typ / Gruppe, z. B. goblin.",
+    };
+
     function headers() {
       const t = document.getElementById("token").value.trim();
-      if (!t) throw new Error("Token fehlt");
+      if (!t) throw new Error("Bitte zuerst den Zugangscode eingeben.");
       return { Authorization: "Bearer " + t, "Content-Type": "application/json" };
     }
 
@@ -104,116 +142,154 @@
       const r = await fetch(BASE + path, init);
       const text = await r.text();
       let j = null;
-      try { j = JSON.parse(text); } catch { /* plain */ }
-      if (!r.ok) throw new Error((j && j.error) || text || r.status);
+      try { j = JSON.parse(text); } catch { /* */ }
+      if (!r.ok) throw new Error((j && j.error) || text || "Fehler " + r.status);
       return j !== null ? j : text;
     }
 
-    function out(el, msg, ok) {
-      const e = document.getElementById(el);
-      e.textContent = typeof msg === "string" ? msg : JSON.stringify(msg, null, 2);
-      e.className = "status " + (ok ? "ok" : "err");
+    function show(elId, text, cls) {
+      const el = document.getElementById(elId);
+      el.textContent = text;
+      el.className = "msg " + (cls || "wait");
+      el.classList.remove("hidden");
+    }
+    function hide(elId) {
+      document.getElementById(elId).classList.add("hidden");
     }
 
-    document.getElementById("btnSaveToken").onclick = () => {
+    function fillModelSelects(models) {
+      const opts = '<option value="">— Modell wählen —</option>' +
+        models.map((m) => '<option value="' + escapeAttr(m) + '">' + escapeHtml(m) + "</option>").join("");
+      document.getElementById("selModel").innerHTML = opts;
+      document.getElementById("selDefModel").innerHTML = opts;
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+    }
+    function escapeAttr(s) {
+      return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+    }
+
+    async function refreshLists() {
+      const d = await req("GET", "/glb-links");
+      const links = d.links || [];
+      if (links.length === 0) {
+        document.getElementById("linksTableWrap").innerHTML = "<p class=\"hint\">Noch keine eigenen Zuordnungen — nur Standard-Modelle.</p>";
+      } else {
+        let rows = links.map(function (L) {
+          return "<tr><td>" + escapeHtml(L.glbPath) + "</td><td>" + escapeHtml(USE_LABELS[L.targetType] || L.targetType) + "</td><td>" + escapeHtml(L.targetId) + "</td><td><button type=\"button\" class=\"danger btn-sm\" data-tt=\"" + escapeAttr(L.targetType) + "\" data-tid=\"" + escapeAttr(L.targetId) + "\">Entfernen</button></td></tr>";
+        }).join("");
+        document.getElementById("linksTableWrap").innerHTML =
+          "<table><thead><tr><th>Modell</th><th>Art</th><th>Name/ID</th><th></th></tr></thead><tbody>" + rows + "</tbody></table>";
+        document.querySelectorAll("#linksTableWrap button[data-tid]").forEach(function (btn) {
+          btn.onclick = async function () {
+            if (!confirm("Diese Zuordnung wirklich löschen?")) return;
+            try {
+              const tt = btn.getAttribute("data-tt");
+              const tid = btn.getAttribute("data-tid");
+              await req("DELETE", "/glb-links?targetType=" + encodeURIComponent(tt) + "&targetId=" + encodeURIComponent(tid));
+              await afterLoginRefresh();
+              show("saveMsg", "Gelöscht.", "ok");
+            } catch (e) {
+              show("saveMsg", String(e.message || e), "err");
+            }
+          };
+        });
+      }
+      document.getElementById("techLinks").value = JSON.stringify(d, null, 2);
+    }
+
+    async function afterLoginRefresh() {
+      const models = (await req("GET", "/glb-scan")).models || [];
+      fillModelSelects(models);
+      await refreshLists();
+      try {
+        const pools = await req("GET", "/asset-pools");
+        document.getElementById("techPools").value = JSON.stringify(pools, null, 2);
+      } catch (e) {
+        document.getElementById("techPools").value = String(e.message || e);
+      }
+    }
+
+    document.getElementById("selUse").onchange = function () {
+      document.getElementById("targetHint").textContent = HINTS[this.value] || "";
+    };
+    document.getElementById("selUse").dispatchEvent(new Event("change"));
+
+    document.getElementById("btnSaveToken").onclick = function () {
       const t = document.getElementById("token").value.trim();
       if (t) sessionStorage.setItem(TKEY, t);
-      out("metaOut", "Token in sessionStorage gespeichert.", true);
+      show("loginMsg", "Code für diesen Browser gespeichert.", "ok");
     };
-    (function initToken() {
+    (function () {
       const s = sessionStorage.getItem(TKEY);
       if (s) document.getElementById("token").value = s;
     })();
 
-    document.getElementById("btnMeta").onclick = async () => {
+    document.getElementById("btnLogin").onclick = async function () {
+      hide("loginMsg");
       try {
         const m = await req("GET", "/meta");
-        out("metaOut", m, true);
+        show("loginMsg", "Angemeldet. Inhalt: " + (m.contentMode || "?") + " — GLB-Speicher: " + (m.glbLinksStore || "?"), "ok");
+        document.getElementById("techMeta").value = JSON.stringify(m, null, 2);
+        document.getElementById("stepWork").classList.remove("hidden");
+        document.getElementById("stepDefaults").classList.remove("hidden");
+        document.getElementById("stepList").classList.remove("hidden");
+        document.getElementById("stepExpert").classList.remove("hidden");
+        await afterLoginRefresh();
       } catch (e) {
-        out("metaOut", String(e.message || e), false);
+        show("loginMsg", "Anmeldung fehlgeschlagen: " + (e.message || e) + " — Prüfe den Code oder frag den Betreiber.", "err");
       }
     };
 
-    document.getElementById("btnLinks").onclick = async () => {
-      try {
-        const d = await req("GET", "/glb-links");
-        document.getElementById("linksOut").value = JSON.stringify(d, null, 2);
-      } catch (e) {
-        document.getElementById("linksOut").value = String(e.message || e);
+    document.getElementById("btnSaveLink").onclick = async function () {
+      hide("saveMsg");
+      const glbPath = document.getElementById("selModel").value.trim();
+      const targetType = document.getElementById("selUse").value;
+      const targetId = document.getElementById("inTargetId").value.trim();
+      if (!glbPath) {
+        show("saveMsg", "Bitte ein Modell aus der Liste wählen.", "err");
+        return;
       }
-    };
-    document.getElementById("btnScan").onclick = async () => {
-      try {
-        const d = await req("GET", "/glb-scan");
-        document.getElementById("linksOut").value = JSON.stringify(d, null, 2);
-      } catch (e) {
-        document.getElementById("linksOut").value = String(e.message || e);
+      if (!targetId) {
+        show("saveMsg", "Bitte Name oder ID eintragen (siehe Hinweis unter dem Feld).", "err");
+        return;
       }
-    };
-    document.getElementById("btnLinkSave").onclick = async () => {
       try {
-        const body = {
-          glbPath: document.getElementById("ltPath").value.trim(),
-          targetType: document.getElementById("ltType").value,
-          targetId: document.getElementById("ltId").value.trim(),
-        };
-        const d = await req("POST", "/glb-links", body);
-        document.getElementById("linksOut").value = JSON.stringify(d, null, 2);
+        await req("POST", "/glb-links", { glbPath, targetType, targetId });
+        show("saveMsg", "Gespeichert.", "ok");
+        document.getElementById("inTargetId").value = "";
+        await refreshLists();
       } catch (e) {
-        document.getElementById("linksOut").value = String(e.message || e);
-      }
-    };
-    document.getElementById("btnLinkDel").onclick = async () => {
-      try {
-        const tt = encodeURIComponent(document.getElementById("ltType").value);
-        const tid = encodeURIComponent(document.getElementById("ltId").value.trim());
-        const d = await req("DELETE", "/glb-links?targetType=" + tt + "&targetId=" + tid);
-        document.getElementById("linksOut").value = JSON.stringify(d, null, 2);
-      } catch (e) {
-        document.getElementById("linksOut").value = String(e.message || e);
+        show("saveMsg", String(e.message || e), "err");
       }
     };
 
-    document.getElementById("btnPools").onclick = async () => {
+    document.getElementById("btnSaveDefault").onclick = async function () {
+      hide("defMsg");
+      const category = document.getElementById("selDefCat").value;
+      const path = document.getElementById("selDefModel").value.trim();
+      if (!path) {
+        show("defMsg", "Bitte ein Modell wählen.", "err");
+        return;
+      }
       try {
-        const d = await req("GET", "/asset-pools");
-        document.getElementById("poolsOut").value = JSON.stringify(d, null, 2);
+        await req("POST", "/asset-pools/default", { category, path });
+        show("defMsg", "Standard gespeichert.", "ok");
+        const pools = await req("GET", "/asset-pools");
+        document.getElementById("techPools").value = JSON.stringify(pools, null, 2);
       } catch (e) {
-        document.getElementById("poolsOut").value = String(e.message || e);
+        show("defMsg", String(e.message || e), "err");
       }
     };
-    document.getElementById("btnReload").onclick = async () => {
+
+    document.getElementById("btnRefresh").onclick = async function () {
       try {
-        const d = await req("POST", "/asset-pools/reload", {});
-        document.getElementById("poolsOut").value = JSON.stringify(d, null, 2);
+        await afterLoginRefresh();
+        show("saveMsg", "Liste aktualisiert.", "ok");
       } catch (e) {
-        document.getElementById("poolsOut").value = String(e.message || e);
-      }
-    };
-    document.getElementById("btnPoolEntry").onclick = async () => {
-      try {
-        const raw = document.getElementById("pePath").value.trim();
-        const paths = raw.includes(",") ? raw.split(",").map((s) => s.trim()).filter(Boolean) : null;
-        const body = {
-          category: document.getElementById("peCat").value.trim(),
-          key: document.getElementById("peKey").value.trim(),
-        };
-        if (paths && paths.length) body.paths = paths;
-        else body.path = raw;
-        const d = await req("POST", "/asset-pools/entry", body);
-        document.getElementById("poolsOut").value = JSON.stringify(d, null, 2);
-      } catch (e) {
-        document.getElementById("poolsOut").value = String(e.message || e);
-      }
-    };
-    document.getElementById("btnPoolDel").onclick = async () => {
-      try {
-        const c = encodeURIComponent(document.getElementById("peCat").value.trim());
-        const k = encodeURIComponent(document.getElementById("peKey").value.trim());
-        const d = await req("DELETE", "/asset-pools/entry?category=" + c + "&key=" + k);
-        document.getElementById("poolsOut").value = JSON.stringify(d, null, 2);
-      } catch (e) {
-        document.getElementById("poolsOut").value = String(e.message || e);
+        show("saveMsg", String(e.message || e), "err");
       }
     };
   </script>
