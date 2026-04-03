@@ -31,6 +31,26 @@
     details summary { cursor: pointer; color: #8ab4ff; }
     textarea.tech { width: 100%; min-height: 100px; font-family: ui-monospace, monospace; font-size: 11px; margin-top: 8px; }
     .hidden { display: none !important; }
+
+    /* Ablauf-Leiste */
+    .flow { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .flow span { font-size: 11px; padding: 6px 10px; border-radius: 999px; background: #252b3d; border: 1px solid #3d4a66; color: #9aa8c9; }
+    .flow span.done { background: #1a3d2a; border-color: #2d6a4a; color: #9ee0a8; }
+    .flow span.active { background: #2a3d5a; border-color: #4a7ad4; color: #c5d8ff; }
+
+    /* Letzte Aktion — sichtbare Logik */
+    .result-box { margin-top: 10px; padding: 12px; border-radius: 10px; border: 1px solid #3d4a66; background: #141824; }
+    .result-box h3 { margin: 0 0 8px; font-size: 13px; color: #b8c5e8; }
+    .result-box ul { margin: 0; padding-left: 18px; font-size: 13px; }
+    .result-box li { margin: 4px 0; }
+    .result-box .next { margin-top: 10px; font-size: 12px; opacity: 0.85; padding-top: 8px; border-top: 1px solid #2a3348; }
+
+    /* Verlauf */
+    .log-list { list-style: none; margin: 0; padding: 0; font-size: 12px; max-height: 200px; overflow-y: auto; }
+    .log-list li { padding: 8px 0; border-bottom: 1px solid #2a3348; }
+    .log-list .t { color: #7a8aad; font-size: 10px; }
+    .log-list .ok { color: #8fdf9a; }
+    .log-list .bad { color: #ff9a9a; }
   </style>
 </head>
 <body>
@@ -39,6 +59,30 @@
     Hier legst du fest, <strong>welches 3D-Modell</strong> für welche Figur oder welches Objekt im Spiel erscheint — ohne Dateien oder Code anzufassen.
     <a href="/">Zurück zum Spiel</a>
   </p>
+
+  <div class="card hidden" id="cardFlow">
+    <h2>Ablauf</h2>
+    <p class="hint" style="margin:0">So läuft eine typische Änderung — die Schritte werden nach deinen Aktionen markiert.</p>
+    <div class="flow" id="flowSteps">
+      <span data-step="1">1. Verbunden</span>
+      <span data-step="2">2. Modell wählen</span>
+      <span data-step="3">3. Speichern</span>
+      <span data-step="4">4. Liste prüfen</span>
+    </div>
+  </div>
+
+  <div class="card hidden" id="cardLastResult">
+    <h2>Ergebnis der letzten Aktion</h2>
+    <p class="hint" style="margin-top:0">Kurz zusammengefasst, was der Server gemacht hat — damit du siehst, dass es angekommen ist.</p>
+    <div id="lastResultInner" class="result-box hidden"></div>
+  </div>
+
+  <div class="card hidden" id="cardHistory">
+    <h2>Verlauf</h2>
+    <p class="hint" style="margin-top:0">Die letzten Schritte in dieser Sitzung (nur in diesem Browser).</p>
+    <ul class="log-list" id="historyList"></ul>
+    <button type="button" class="ghost" id="btnClearHistory">Verlauf leeren</button>
+  </div>
 
   <div class="card" id="stepLogin">
     <h2>Schritt 1 — Anmelden</h2>
@@ -113,6 +157,8 @@
   <script>
     const BASE = "/api/admin/content";
     const TKEY = "areloria_admin_content_token";
+    const HKEY = "areloria_admin_activity_log_v1";
+    const MAX_LOG = 20;
 
     const USE_LABELS = {
       npc_single: "Einzelner NPC",
@@ -122,6 +168,14 @@
       monster_group: "Monster-Gruppe",
     };
 
+    const DEF_CAT_LABELS = {
+      players: "Spieler-Figuren",
+      npcs: "NPCs (allgemein)",
+      monsters: "Monster",
+      loot: "Beute / Kisten",
+      world_objects: "Welt-Objekte (allgemein)",
+    };
+
     const HINTS = {
       npc_single: "Technische NPC-ID (z. B. npc_guide). Steht oft in den Spieldaten.",
       npc_group: "Rollenname klein geschrieben, z. B. merchant, guard, questgiver.",
@@ -129,6 +183,73 @@
       object_group: "Typ-Name klein, z. B. tree, house, rock.",
       monster_group: "Gegner-Typ / Gruppe, z. B. goblin.",
     };
+
+    function nowTime() {
+      const d = new Date();
+      return d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    }
+
+    function loadHistory() {
+      try {
+        const raw = sessionStorage.getItem(HKEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch {
+        return [];
+      }
+    }
+    function saveHistory(arr) {
+      sessionStorage.setItem(HKEY, JSON.stringify(arr.slice(0, MAX_LOG)));
+    }
+    function pushHistory(ok, line) {
+      const arr = [{ t: nowTime(), ok, line }, ...loadHistory()].slice(0, MAX_LOG);
+      saveHistory(arr);
+      renderHistory();
+    }
+    function renderHistory() {
+      const ul = document.getElementById("historyList");
+      const items = loadHistory();
+      if (items.length === 0) {
+        ul.innerHTML = "<li class=\"hint\">Noch keine Einträge.</li>";
+        return;
+      }
+      ul.innerHTML = items
+        .map(
+          (x) =>
+            "<li><span class=\"t\">" +
+            escapeHtml(x.t) +
+            "</span><br><span class=\"" +
+            (x.ok ? "ok" : "bad") +
+            "\">" +
+            escapeHtml(x.line) +
+            "</span></li>"
+        )
+        .join("");
+    }
+
+    function setFlow(step) {
+      document.querySelectorAll("#flowSteps span").forEach(function (el) {
+        const n = parseInt(el.getAttribute("data-step"), 10);
+        el.classList.remove("done", "active");
+        if (n < step) el.classList.add("done");
+        if (n === step) el.classList.add("active");
+      });
+    }
+
+    function showLastResult(title, bullets, nextHint) {
+      const box = document.getElementById("lastResultInner");
+      const wrap = document.getElementById("cardLastResult");
+      wrap.classList.remove("hidden");
+      box.classList.remove("hidden");
+      let html = "<h3>" + escapeHtml(title) + "</h3><ul>";
+      bullets.forEach(function (b) {
+        html += "<li>" + escapeHtml(b) + "</li>";
+      });
+      html += "</ul>";
+      if (nextHint) {
+        html += "<div class=\"next\"><strong>Als Nächstes:</strong> " + escapeHtml(nextHint) + "</div>";
+      }
+      box.innerHTML = html;
+    }
 
     function headers() {
       const t = document.getElementById("token").value.trim();
@@ -142,7 +263,9 @@
       const r = await fetch(BASE + path, init);
       const text = await r.text();
       let j = null;
-      try { j = JSON.parse(text); } catch { /* */ }
+      try {
+        j = JSON.parse(text);
+      } catch { /* */ }
       if (!r.ok) throw new Error((j && j.error) || text || "Fehler " + r.status);
       return j !== null ? j : text;
     }
@@ -158,7 +281,8 @@
     }
 
     function fillModelSelects(models) {
-      const opts = '<option value="">— Modell wählen —</option>' +
+      const opts =
+        '<option value="">— Modell wählen —</option>' +
         models.map((m) => '<option value="' + escapeAttr(m) + '">' + escapeHtml(m) + "</option>").join("");
       document.getElementById("selModel").innerHTML = opts;
       document.getElementById("selDefModel").innerHTML = opts;
@@ -175,29 +299,55 @@
       const d = await req("GET", "/glb-links");
       const links = d.links || [];
       if (links.length === 0) {
-        document.getElementById("linksTableWrap").innerHTML = "<p class=\"hint\">Noch keine eigenen Zuordnungen — nur Standard-Modelle.</p>";
-      } else {
-        let rows = links.map(function (L) {
-          return "<tr><td>" + escapeHtml(L.glbPath) + "</td><td>" + escapeHtml(USE_LABELS[L.targetType] || L.targetType) + "</td><td>" + escapeHtml(L.targetId) + "</td><td><button type=\"button\" class=\"danger btn-sm\" data-tt=\"" + escapeAttr(L.targetType) + "\" data-tid=\"" + escapeAttr(L.targetId) + "\">Entfernen</button></td></tr>";
-        }).join("");
         document.getElementById("linksTableWrap").innerHTML =
-          "<table><thead><tr><th>Modell</th><th>Art</th><th>Name/ID</th><th></th></tr></thead><tbody>" + rows + "</tbody></table>";
+          "<p class=\"hint\">Noch keine eigenen Zuordnungen — nur Standard-Modelle.</p>";
+      } else {
+        const rows = links
+          .map(function (L) {
+            return (
+              "<tr><td>" +
+              escapeHtml(L.glbPath) +
+              "</td><td>" +
+              escapeHtml(USE_LABELS[L.targetType] || L.targetType) +
+              "</td><td>" +
+              escapeHtml(L.targetId) +
+              "</td><td><button type=\"button\" class=\"danger btn-sm\" data-tt=\"" +
+              escapeAttr(L.targetType) +
+              "\" data-tid=\"" +
+              escapeAttr(L.targetId) +
+              "\">Entfernen</button></td></tr>"
+            );
+          })
+          .join("");
+        document.getElementById("linksTableWrap").innerHTML =
+          "<table><thead><tr><th>Modell</th><th>Art</th><th>Name/ID</th><th></th></tr></thead><tbody>" +
+          rows +
+          "</tbody></table>";
         document.querySelectorAll("#linksTableWrap button[data-tid]").forEach(function (btn) {
           btn.onclick = async function () {
             if (!confirm("Diese Zuordnung wirklich löschen?")) return;
+            const tt = btn.getAttribute("data-tt");
+            const tid = btn.getAttribute("data-tid");
             try {
-              const tt = btn.getAttribute("data-tt");
-              const tid = btn.getAttribute("data-tid");
               await req("DELETE", "/glb-links?targetType=" + encodeURIComponent(tt) + "&targetId=" + encodeURIComponent(tid));
               await afterLoginRefresh();
-              show("saveMsg", "Gelöscht.", "ok");
+              const label = (USE_LABELS[tt] || tt) + " » " + tid;
+              showLastResult("Zuordnung entfernt", [
+                "Der Server hat die Verknüpfung für „" + label + "“ gelöscht.",
+                "Im Spiel erscheint wieder das Standard-Modell (nach nächstem Laden / wenn der Server die Liste neu ausliefert).",
+              ], "Prüfe die Tabelle „Aktuelle Zuordnungen“ — die Zeile sollte weg sein.");
+              pushHistory(true, "Gelöscht: " + label);
+              setFlow(4);
+              show("saveMsg", "Gelöscht — siehe „Ergebnis der letzten Aktion“.", "ok");
             } catch (e) {
+              pushHistory(false, "Löschen fehlgeschlagen: " + (e.message || e));
               show("saveMsg", String(e.message || e), "err");
             }
           };
         });
       }
       document.getElementById("techLinks").value = JSON.stringify(d, null, 2);
+      return links.length;
     }
 
     async function afterLoginRefresh() {
@@ -217,29 +367,48 @@
     };
     document.getElementById("selUse").dispatchEvent(new Event("change"));
 
+    document.getElementById("btnClearHistory").onclick = function () {
+      sessionStorage.removeItem(HKEY);
+      renderHistory();
+    };
+
     document.getElementById("btnSaveToken").onclick = function () {
       const t = document.getElementById("token").value.trim();
       if (t) sessionStorage.setItem(TKEY, t);
       show("loginMsg", "Code für diesen Browser gespeichert.", "ok");
+      pushHistory(true, "Zugangscode im Browser gespeichert");
     };
     (function () {
       const s = sessionStorage.getItem(TKEY);
       if (s) document.getElementById("token").value = s;
+      renderHistory();
     })();
 
     document.getElementById("btnLogin").onclick = async function () {
       hide("loginMsg");
       try {
         const m = await req("GET", "/meta");
-        show("loginMsg", "Angemeldet. Inhalt: " + (m.contentMode || "?") + " — GLB-Speicher: " + (m.glbLinksStore || "?"), "ok");
+        show("loginMsg", "Angemeldet — du kannst jetzt Modelle zuordnen.", "ok");
         document.getElementById("techMeta").value = JSON.stringify(m, null, 2);
+        document.getElementById("cardFlow").classList.remove("hidden");
+        document.getElementById("cardHistory").classList.remove("hidden");
         document.getElementById("stepWork").classList.remove("hidden");
         document.getElementById("stepDefaults").classList.remove("hidden");
         document.getElementById("stepList").classList.remove("hidden");
         document.getElementById("stepExpert").classList.remove("hidden");
+        setFlow(2);
+        showLastResult("Verbunden mit dem Server", [
+          "Dein Zugangscode wurde akzeptiert.",
+          "Inhalte kommen aus: " + (m.contentMode || "unbekannt") + ".",
+          "GLB-Zuordnungen werden gespeichert in: " + (m.glbLinksStore || "unbekannt") + ".",
+          m.readOnly ? "Hinweis: Nur Lesen — Speichern ist gesperrt." : "Du darfst Änderungen speichern.",
+        ], "Wähle ein Modell und eine Zielgruppe, dann auf „Speichern“.");
+        pushHistory(true, "Anmeldung OK — " + (m.glbLinksStore || "") + " / " + (m.contentMode || ""));
         await afterLoginRefresh();
+        setFlow(2);
       } catch (e) {
         show("loginMsg", "Anmeldung fehlgeschlagen: " + (e.message || e) + " — Prüfe den Code oder frag den Betreiber.", "err");
+        pushHistory(false, "Anmeldung fehlgeschlagen");
       }
     };
 
@@ -257,11 +426,22 @@
         return;
       }
       try {
-        await req("POST", "/glb-links", { glbPath, targetType, targetId });
-        show("saveMsg", "Gespeichert.", "ok");
+        const res = await req("POST", "/glb-links", { glbPath, targetType, targetId });
+        const n = Array.isArray(res.links) ? res.links.length : "?";
+        const kind = USE_LABELS[targetType] || targetType;
+        showLastResult("Modell-Verknüpfung gespeichert", [
+          "Ausgewähltes Modell: " + glbPath,
+          "Gilt für: " + kind + " mit der ID „" + targetId + "“.",
+          "Der Server hat die Liste aktualisiert — insgesamt " + n + " Zuordnung(en) in der Datenbank/Datei.",
+          "Alte Zuordnung für dieselbe ID wurde ersetzt, falls es eine gab.",
+        ], "Sieh in der Tabelle unten nach — deine Zeile sollte erscheinen. Im Spiel kann ein kurzer Moment vergehen oder ein Neuladen nötig sein.");
+        pushHistory(true, "Gespeichert: " + glbPath + " → " + kind + " / " + targetId);
+        setFlow(4);
+        show("saveMsg", "Gespeichert — Details stehen oben unter „Ergebnis der letzten Aktion“.", "ok");
         document.getElementById("inTargetId").value = "";
         await refreshLists();
       } catch (e) {
+        pushHistory(false, "Speichern fehlgeschlagen: " + (e.message || e));
         show("saveMsg", String(e.message || e), "err");
       }
     };
@@ -276,10 +456,19 @@
       }
       try {
         await req("POST", "/asset-pools/default", { category, path });
-        show("defMsg", "Standard gespeichert.", "ok");
+        const catLabel = DEF_CAT_LABELS[category] || category;
+        showLastResult("Standard-Modell gespeichert", [
+          "Bereich: " + catLabel + " (" + category + ").",
+          "Neues Standard-Modell: " + path,
+          "Das gilt für alle Einträge in diesem Bereich, die keine eigene Zuordnung haben.",
+        ], "Optional: Liste der Einzel-Zuordnungen unten prüfen — die bleiben Vorrang vor dem Standard.");
+        pushHistory(true, "Standard: " + catLabel + " → " + path);
+        setFlow(3);
+        show("defMsg", "Gespeichert — siehe „Ergebnis der letzten Aktion“.", "ok");
         const pools = await req("GET", "/asset-pools");
         document.getElementById("techPools").value = JSON.stringify(pools, null, 2);
       } catch (e) {
+        pushHistory(false, "Standard speichern fehlgeschlagen: " + (e.message || e));
         show("defMsg", String(e.message || e), "err");
       }
     };
@@ -287,11 +476,22 @@
     document.getElementById("btnRefresh").onclick = async function () {
       try {
         await afterLoginRefresh();
-        show("saveMsg", "Liste aktualisiert.", "ok");
+        showLastResult("Liste vom Server neu geladen", [
+          "Modell-Liste und Zuordnungstabelle wurden vom Server geholt.",
+          "So siehst du den Stand, den der Server gerade verwendet.",
+        ], "Vergleiche mit deiner letzten Aktion — beide sollten übereinstimmen.");
+        pushHistory(true, "Liste neu geladen");
+        setFlow(4);
+        show("saveMsg", "Aktualisiert — siehe „Ergebnis der letzten Aktion“.", "ok");
       } catch (e) {
+        pushHistory(false, "Aktualisieren fehlgeschlagen: " + (e.message || e));
         show("saveMsg", String(e.message || e), "err");
       }
     };
+
+    document.getElementById("selModel").addEventListener("change", function () {
+      if (this.value) setFlow(3);
+    });
   </script>
 </body>
 </html>
