@@ -169,7 +169,6 @@ const MOBILE_STYLES = `
     #hud-top-left { top: 10px !important; }
     #minimap { top: 10px !important; right: 10px !important; width: 100px !important; height: 100px !important; }
     #chat-panel { bottom: 230px !important; max-height: 120px !important; width: calc(100vw - 40px) !important; left: 20px !important; }
-    #dialogue-box { bottom: 240px !important; }
     #action-bar { bottom: 170px !important; }
     .world-label { font-size: 10px !important; }
   }
@@ -430,6 +429,7 @@ export function initMobileControls(
   const addTouchBtn = (id: string, cb: () => void) => {
     const el = document.getElementById(id);
     if (!el) return;
+    el.style.pointerEvents = "auto";
     el.addEventListener("touchstart", (e) => { e.preventDefault(); e.stopPropagation(); cb(); }, { passive: false });
     el.addEventListener("click", (e) => { e.stopPropagation(); cb(); });
   };
@@ -511,8 +511,8 @@ export function initMobileControls(
     let pinchActive = false;
 
     canvas.addEventListener("touchstart", (e) => {
-      e.preventDefault();
       if (e.touches.length === 2) {
+        e.preventDefault();
         // Pinch zoom
         pinchActive = true;
         cameraTouchId = null;
@@ -520,14 +520,21 @@ export function initMobileControls(
         pinchDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
       } else if (e.touches.length === 1) {
         const touch = e.touches[0];
-        // Only start camera drag if touch is NOT in joystick zone or action buttons
-        const joystickRect = joystickZone.getBoundingClientRect();
-        const actionRect = document.getElementById("mobile-action-btns")?.getBoundingClientRect();
-        const inJoystick = touch.clientX >= joystickRect.left && touch.clientX <= joystickRect.right
-                        && touch.clientY >= joystickRect.top && touch.clientY <= joystickRect.bottom;
-        const inActions = actionRect && touch.clientX >= actionRect.left && touch.clientX <= actionRect.right
-                       && touch.clientY >= actionRect.top && touch.clientY <= actionRect.bottom;
-        if (!inJoystick && !inActions) {
+        // Only start camera drag if touch is NOT in joystick zone, action buttons, or other UI
+        const isUIElement = (el: Element | null): boolean => {
+          if (!el) return false;
+          if (el.id === "mobile-controls" || el.closest("#mobile-controls")) return true;
+          if (el.id === "arel-hud" || el.closest("#arel-hud")) return true;
+          if (el.id === "dialogue-box" || el.closest("#dialogue-box")) return true;
+          if (el.id === "chat-panel" || el.closest("#chat-panel")) return true;
+          if (el.classList.contains("panel") || el.closest(".panel")) return true;
+          if (el.id === "combat-loot-strip" || el.closest("#combat-loot-strip")) return true;
+          return false;
+        };
+        const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+
+        if (!isUIElement(targetElement)) {
+          e.preventDefault();
           cameraTouchId = touch.identifier;
           lastCamX = touch.clientX;
           lastCamY = touch.clientY;
