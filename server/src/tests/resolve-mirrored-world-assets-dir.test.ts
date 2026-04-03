@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveMirroredWorldAssetsDir } from "../core/resolveMirroredWorldAssetsDir.js";
@@ -20,11 +21,14 @@ describe("resolveMirroredWorldAssetsDir", () => {
     expect(fs.existsSync(d)).toBe(true);
   });
 
-  it("respects MIRRORED_WORLD_ASSETS_DIR when set", () => {
-    const repo = path.resolve(__dirname, "../../../");
-    const w = path.join(repo, "client", "public", "assets", "models", "world-assets");
-    process.env.MIRRORED_WORLD_ASSETS_DIR = w;
-    expect(resolveMirroredWorldAssetsDir()).toBe(w);
-    delete process.env.MIRRORED_WORLD_ASSETS_DIR;
+  it("respects MIRRORED_WORLD_ASSETS_DIR when set and directory exists", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "arelor-world-assets-"));
+    process.env.MIRRORED_WORLD_ASSETS_DIR = tmp;
+    try {
+      expect(resolveMirroredWorldAssetsDir()).toBe(tmp);
+    } finally {
+      delete process.env.MIRRORED_WORLD_ASSETS_DIR;
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
   });
 });
