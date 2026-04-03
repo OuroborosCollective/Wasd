@@ -76,6 +76,18 @@ export class MMORPGClientCore {
     }
   }
 
+  public setAREPolicyConfig(config: {
+    cooldownMs?: number;
+    lowFpsThreshold?: number;
+    stableFpsThreshold?: number;
+    lowSampleTrigger?: number;
+    stableSampleTrigger?: number;
+  }) {
+    if (typeof this.engine.setAREPolicyConfig === "function") {
+      this.engine.setAREPolicyConfig(config);
+    }
+  }
+
   public teleportLocalPlayerTo(position: { x: number; y: number; z: number }) {
     if (!this.localPlayerId) return;
     const player = this.entities.get(this.localPlayerId);

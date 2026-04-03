@@ -20,33 +20,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    sourcemap: true,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes("node_modules/@babylonjs/loaders")) {
-            return "babylon-loaders";
-          }
-          if (id.includes("node_modules/@babylonjs")) {
-            return "babylon-core";
-          }
-          if (id.includes("node_modules/firebase")) {
-            return "firebase";
-          }
-          if (id.includes("/src/ui/inventory") || id.includes("/src/ui/skillsPanel")) {
-            return "ui-panels-a";
-          }
-          if (id.includes("/src/ui/questLog") || id.includes("/src/ui/equipmentPanel")) {
-            return "ui-panels-b";
-          }
-          if (id.includes("/src/ui/mobileSceneTeleportPanel")) {
-            return "ui-mobile-teleport";
-          }
-          if (id.includes("/src/utils/PerformanceMonitor")) {
-            return "perf-monitor";
-          }
-        },
-      },
-    },
-  },
+    // Source maps massively increase peak memory usage during bundling.
+    // Keep them opt-in for production server builds.
+    sourcemap: process.env.VITE_BUILD_SOURCEMAP === "1",
+    reportCompressedSize: false,
+  }
 });

@@ -3,30 +3,50 @@
 set -e
 
 APP_DIR="/opt/areloria"
-echo "🔄 Updating Areloria MMORPG..."
+BUILD_NODE_OPTIONS="${BUILD_NODE_OPTIONS:---max-old-space-size=6144}"
+SERVER_BUILD_NODE_OPTIONS="${SERVER_BUILD_NODE_OPTIONS:---max-old-space-size=4096}"
+echo "Updating Areloria MMORPG..."
 
 cd "$APP_DIR"
 git pull origin main
 
-# Rebuild client (heap limit set in client/package.json "build" for large Vite bundles)
+# Rebuild client
 cd "$APP_DIR/client"
 npm install
-npm run build
+NODE_OPTIONS="$BUILD_NODE_OPTIONS" npm run build
 
-# Rebuild server (includes content validation like deploy.sh)
+# Rebuild server
 cd "$APP_DIR/server"
 npm install
-npm run build
+NODE_OPTIONS="$SERVER_BUILD_NODE_OPTIONS" npm run build
 
-# Keep PM2 cwd + CLIENT_ROOT_DIR aligned with repo (fixes wrong /opt/client static path)
-cd "$APP_DIR"
-APP_DIR="$APP_DIR" bash "$APP_DIR/deploy/write_pm2_ecosystem.sh"
+# Restart PM2
+pm2 restart areloria
 
-# Same as deploy.sh: plain "restart" often keeps old cwd/env; recreate from ecosystem file
-pm2 stop areloria 2>/dev/null || true
-pm2 delete areloria 2>/dev/null || true
-pm2 start "$APP_DIR/ecosystem.config.cjs"
-pm2 save 2>/dev/null || true
+# Post-update verification
+verify_url() {
+  local url="$1"
+  local name="$2"
+  local attempts=10
+  local wait_sec=3
+  local code=""
 
-echo "✅ Update complete!"
+  for i in $(seq 1 "$attempts"); do
+    code="$(curl -s -o /dev/null -w "%{http_code}" "$url" || true)"
+    if [ "$code" = "200" ]; then
+      echo "${name} OK (${url})"
+      return 0
+    fi
+    echo "${name} not ready (${url}) [attempt ${i}/${attempts}] status=${code:-n/a}"
+    sleep "$wait_sec"
+  done
+
+  echo "${name} failed after ${attempts} attempts (${url}), last status=${code:-n/a}"
+  return 1
+}
+
+verify_url "http://127.0.0.1:3000/health" "Health endpoint"
+verify_url "http://127.0.0.1:3000/" "Client root"
+
+echo "Update complete!"
 pm2 status

@@ -6,64 +6,57 @@ import {
   DynamicTexture,
   Effect,
   Material,
-  Matrix,
   Mesh,
   MeshBuilder,
-  PointerEventTypes,
   Quaternion,
   Scene,
   SceneLoader,
   ShaderMaterial,
   StandardMaterial,
-  Texture,
   TransformNode,
   Vector3,
-  Viewport,
 } from "@babylonjs/core";
-import { Sound } from "@babylonjs/core/Audio/sound";
+import "@babylonjs/loaders/glTF";
 import { IEngineBridge } from "../bridge/IEngineBridge";
 import { EntityViewModel } from "../bridge/EntityViewModel";
+import { AssetRegistry } from "../assets/AssetRegistry";
 import {
-  DEFAULT_GROUND_BUMP,
-  DEFAULT_GROUND_DIFFUSE,
-  playgroundTextureUrl,
-} from "./playgroundTextures";
-import { applyTiledGroundTextures, chunkGroundUvScale } from "./groundTextureUtils";
-import { makeSoftClickWavDataUrl } from "./tinyWav";
-import { getQuickCastSkillId } from "../../game/combatSkills";
-import { isAndroid, prefersCompactTouchUi } from "../../ui/touchUi";
+  defaultAutoPolicyState,
+  evaluateAREAutoModePolicy,
+  normalizeAutoPolicyConfig,
+  type AutoPolicyConfig,
+  type AutoPolicyState,
+  type AREMode,
+} from "./AREPerformancePolicy";
 
 type EntityNode = {
   root: TransformNode;
   visual: TransformNode | AbstractMesh;
-  /** Set when a glTF attach succeeded; avoids re-running LoadAsset on every entity_sync. */
-  attachedModelUrl?: string;
-  /** URL currently being loaded (async); prevents duplicate concurrent loads for the same entity. */
-  pendingModelUrl?: string;
   label?: Mesh;
   baseScale: number;
   areKappa: number;
+  areKappaPos: { x: number; y: number; z: number };
   areLogicalIndex: number;
   areChain: string;
   arePhase: number;
   areResonance: number;
   arePlexity: number;
+  areLodTier: "hidden" | "low" | "mid" | "high";
   areColor: Color3;
   areShader: ShaderMaterial | null;
   areMeshes: AbstractMesh[];
   areBaseMaterials: Map<number, Material | null>;
   explicitVisible: boolean;
-  /** Latest merged view-model for targeting UI (server-driven fields may lag one sync) */
-  _vm?: EntityViewModel;
+  isStaticCandidate: boolean;
+  isStaticFrozen: boolean;
 };
 
-/** Prefer `/assets/models/*` — always present in minimal client dist; `/world-assets` may be missing on VPS. */
+type AREModeSource = "manual" | "auto";
+
 const DEFAULT_MODEL_BY_TYPE: Record<string, string> = {
-  player: "/assets/models/characters/uschi.glb",
-  npc: "/assets/models/characters/uschi.glb",
-  monster: "/assets/models/monsters/goblin.glb",
-  loot: "/assets/models/objects/chest.glb",
-  object: "/assets/models/objects/chest.glb",
+  player: AssetRegistry.Npc_warrior ?? "/world-assets/characters/Npc_warrior.glb",
+  npc: AssetRegistry.Questnpc_uschi ?? "/world-assets/characters/Questnpc_uschi.glb",
+  monster: AssetRegistry.boar01 ?? "/world-assets/monsters/boar01.glb",
 };
 
 export class BabylonAdapter implements IEngineBridge {
@@ -74,406 +67,66 @@ export class BabylonAdapter implements IEngineBridge {
   private readonly pressedKeys = new Set<string>();
   private readonly inputCallbacks: Array<(input: any) => void> = [];
   private readonly areWaveClock = { t: 0 };
+  private readonly perf = {
+    frameCount: 0,
+    sampleAccumSec: 0,
+    fps: 60,
+    frameMsAvg: 16.7,
+    sceneDrawCallsAvg: 0,
+  };
   private readonly areDebugEnabled = new URLSearchParams(window.location.search).get("areDebug") === "1";
   private readonly areDebugElement: HTMLDivElement | null = null;
-  /** Default `shader` on desktop; `off` on touch phones (ARE vertex shader per mesh is very expensive). */
-  private areMode: "off" | "cpu" | "shader" = prefersCompactTouchUi() ? "off" : "shader";
+  private areMode: "off" | "cpu" | "shader" = "shader";
   private areShaderRegistered = false;
+  private arePerfEnabled = new URLSearchParams(window.location.search).get("arePerf") === "1";
+  private arePerfElement: HTMLDivElement | null = null;
+  private arePerfAutoMode = false;
+  private arePerfAutoReason = "manual";
+  private arePerfState: AutoPolicyState = defaultAutoPolicyState();
+  private arePolicyConfig: AutoPolicyConfig = normalizeAutoPolicyConfig(undefined);
+  private areModeSource: AREModeSource = "manual";
+  private areModeBadgeElement: HTMLDivElement | null = null;
   private cameraTargetId: string | null = null;
   private navigationMarker: Mesh | null = null;
   private localPlayerId: string | null = null;
   private labelMaterialCounter = 0;
-  private targetReticleEl: HTMLDivElement | null = null;
-  private targetReticleEntityId: string | null = null;
-  private audioCtx: AudioContext | null = null;
-  private babylonUiSound: Sound | null = null;
-  private babylonUiSoundReady = false;
-  private lockedTargetEntityId: string | null = null;
-  private combatTargetPickHandler: ((entityId: string | null) => void) | null = null;
-  private hoverTooltipEl: HTMLDivElement | null = null;
-  private lastHoverPickMs = 0;
-  private lastReticleUpdateMs = 0;
-  /** Serialize GLB decode on Android — parallel SceneLoader spikes RAM and kills the tab. */
-  private androidModelAttachChain: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly scene: Scene,
     private readonly camera: ArcRotateCamera
   ) {
-    const modeFromQuery = this.normalizeAREMode(new URLSearchParams(window.location.search).get("areMode"));
+    const query = new URLSearchParams(window.location.search);
+    const modeFromQuery = this.normalizeAREMode(query.get("areMode"));
     if (modeFromQuery) {
       this.areMode = modeFromQuery;
-    } else if (prefersCompactTouchUi()) {
-      this.areMode = "off";
+    }
+    const autoModeQuery = query.get("areAutoMode");
+    if (autoModeQuery === "1") {
+      this.arePerfAutoMode = true;
+      this.arePerfAutoReason = "query";
+      this.areModeSource = "auto";
+    } else if (autoModeQuery === "0") {
+      this.arePerfAutoMode = false;
+      this.arePerfAutoReason = "query-disabled";
+      this.areModeSource = "manual";
+    } else {
+      const weakDevice =
+        (typeof navigator !== "undefined" &&
+          (((navigator as any).deviceMemory && Number((navigator as any).deviceMemory) <= 4) ||
+            (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4))) ||
+        false;
+      this.arePerfAutoMode = weakDevice;
+      this.arePerfAutoReason = weakDevice ? "weak-device" : "manual";
+      this.areModeSource = weakDevice ? "auto" : "manual";
     }
     if (this.areDebugEnabled) {
       this.areDebugElement = this.mountAREDebugOverlay();
+      this.areModeBadgeElement = this.mountAREModeBadge();
+    }
+    if (this.arePerfEnabled || this.arePerfAutoMode) {
+      this.arePerfElement = this.mountAREPerfOverlay();
     }
     this.bindKeyboard();
-    this.mountTargetReticle();
-    this.mountHoverTooltip();
-    this.initBabylonUiSound();
-    this.bindCombatTargetPicking();
-  }
-
-  setCombatTargetPickHandler(handler: ((entityId: string | null) => void) | null): void {
-    this.combatTargetPickHandler = handler;
-  }
-
-  private bindCombatTargetPicking() {
-    this.scene.onPointerObservable.add((pi) => {
-      if (pi.type !== PointerEventTypes.POINTERTAP) return;
-      const evt = pi.event as PointerEvent;
-      if (evt.button !== 0) return;
-      const canvas = this.scene.getEngine().getRenderingCanvas();
-      if (!canvas) return;
-      const rect = canvas.getBoundingClientRect();
-      if (
-        evt.clientX < rect.left ||
-        evt.clientX > rect.right ||
-        evt.clientY < rect.top ||
-        evt.clientY > rect.bottom
-      ) {
-        return;
-      }
-      if (!this.combatTargetPickHandler || !this.localPlayerId) return;
-
-      /** Explicit pick with pickable-only filter — `pickInfo` can hit non-pickable geometry first (mobile crash / miss). */
-      const sx = evt.clientX - rect.left;
-      const sy = evt.clientY - rect.top;
-      const pick = this.scene.pick(sx, sy, (m) => {
-        if (m.isPickable !== true || typeof m.name !== "string") return false;
-        if (m.name.startsWith("label_")) return false;
-        return true;
-      });
-      if (!pick?.hit || !pick.pickedMesh) {
-        this.lockedTargetEntityId = null;
-        this.combatTargetPickHandler(null);
-        return;
-      }
-
-      let cur: TransformNode | AbstractMesh | null = pick.pickedMesh;
-      while (cur) {
-        if (cur instanceof TransformNode && this.entities.has(cur.name)) {
-          const id = cur.name;
-          if (id === this.localPlayerId) return;
-          const meta = this.entities.get(id)?._vm;
-          const lockable = meta?.combatThreat === true || meta?.id === "npc_dummy";
-          if (lockable) {
-            this.lockedTargetEntityId = id;
-            this.combatTargetPickHandler(id);
-            return;
-          }
-          this.lockedTargetEntityId = null;
-          this.combatTargetPickHandler(null);
-          return;
-        }
-        cur = cur.parent as TransformNode | AbstractMesh | null;
-      }
-    });
-  }
-
-  private initBabylonUiSound() {
-    try {
-      const url = makeSoftClickWavDataUrl();
-      this.babylonUiSound = new Sound("arel-ui-sfx", url, this.scene, () => {
-        this.babylonUiSoundReady = true;
-      });
-    } catch {
-      this.babylonUiSound = null;
-    }
-  }
-
-  private mountHoverTooltip() {
-    if (typeof document === "undefined") return;
-    const el = document.createElement("div");
-    el.id = "world-hover-tooltip";
-    el.style.cssText = [
-      "display:none",
-      "position:fixed",
-      "z-index:5900",
-      "pointer-events:none",
-      "transform:translate(-50%,-108%)",
-      "max-width:min(280px,50vw)",
-      "padding:8px 10px",
-      "border-radius:8px",
-      "background:rgba(10,12,20,0.92)",
-      "border:1px solid rgba(120,160,255,0.35)",
-      "color:#e8ecf5",
-      "font-family:system-ui,sans-serif",
-      "font-size:12px",
-      "line-height:1.35",
-      "box-shadow:0 4px 14px rgba(0,0,0,0.5)",
-    ].join(";");
-    document.body.appendChild(el);
-    this.hoverTooltipEl = el;
-  }
-
-  private buildWorldTooltipHtml(vm: EntityViewModel): string {
-    const esc = (s: string) =>
-      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-    const name = vm.name || vm.id;
-    if (vm.type === "player" && vm.id !== this.localPlayerId) {
-      return `<strong>${esc(name)}</strong><div style="opacity:0.8;margin-top:2px;">Player</div>`;
-    }
-    if (vm.type === "npc") {
-      const role = vm.role ? esc(vm.role) : "";
-      const fac = vm.faction ? esc(vm.faction) : "";
-      const meta = [role, fac].filter(Boolean).join(" · ");
-      let hp = "";
-      if (typeof vm.health === "number" && typeof vm.maxHealth === "number") {
-        hp = `<div style="margin-top:4px;opacity:0.9;">HP ${Math.max(0, Math.round(vm.health))} / ${Math.round(
-          vm.maxHealth
-        )}</div>`;
-      }
-      return `<strong>${esc(name)}</strong>${
-        meta ? `<div style="opacity:0.82;margin-top:2px;">${meta}</div>` : ""
-      }${hp}`;
-    }
-    if (vm.type === "monster") {
-      let hp = "";
-      if (typeof vm.health === "number" && typeof vm.maxHealth === "number") {
-        hp = `<div style="margin-top:4px;">HP ${Math.max(0, Math.round(vm.health))} / ${Math.round(
-          vm.maxHealth
-        )}</div>`;
-      }
-      return `<strong>${esc(name)}</strong>${hp}`;
-    }
-    if (vm.type === "loot") {
-      if (vm.lootKind === "gold" && typeof vm.goldAmount === "number") {
-        return `<strong>Gold</strong><div style="opacity:0.85;margin-top:2px;">${vm.goldAmount} coins</div>`;
-      }
-      const iname = vm.lootItemName || vm.lootItemId || "Item drop";
-      return `<strong>${esc(String(iname))}</strong><div style="opacity:0.8;margin-top:2px;">Loot</div>`;
-    }
-    return `<strong>${esc(name)}</strong>`;
-  }
-
-  private updateHoverTooltip() {
-    if (!this.hoverTooltipEl) return;
-    /** Hover uses scene.pick every interval — disable on touch entirely (Android still fires pointer move). */
-    if (prefersCompactTouchUi()) {
-      this.hoverTooltipEl.style.display = "none";
-      return;
-    }
-    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
-    if (now - this.lastHoverPickMs < 120) return;
-    this.lastHoverPickMs = now;
-
-    const canvas = this.scene.getEngine().getRenderingCanvas();
-    if (!canvas) {
-      this.hoverTooltipEl.style.display = "none";
-      return;
-    }
-    const px = this.scene.pointerX;
-    const py = this.scene.pointerY;
-    if (px <= 0 && py <= 0) {
-      this.hoverTooltipEl.style.display = "none";
-      return;
-    }
-    const pick = this.scene.pick(
-      px,
-      py,
-      (m) => m.isPickable !== false && typeof m.name === "string" && !m.name.startsWith("label_")
-    );
-    if (!pick?.hit || !pick.pickedMesh) {
-      this.hoverTooltipEl.style.display = "none";
-      return;
-    }
-
-    let cur: TransformNode | AbstractMesh | null = pick.pickedMesh;
-    while (cur) {
-      if (cur instanceof TransformNode && this.entities.has(cur.name)) {
-        const id = cur.name;
-        const vm = this.entities.get(id)?._vm;
-        if (vm) {
-          this.hoverTooltipEl.innerHTML = this.buildWorldTooltipHtml(vm);
-          this.hoverTooltipEl.style.display = "block";
-          this.hoverTooltipEl.style.left = `${px}px`;
-          this.hoverTooltipEl.style.top = `${py}px`;
-          return;
-        }
-      }
-      cur = cur.parent as TransformNode | AbstractMesh | null;
-    }
-    this.hoverTooltipEl.style.display = "none";
-  }
-
-  private mountTargetReticle() {
-    if (typeof document === "undefined") return;
-    const el = document.createElement("div");
-    el.id = "world-target-reticle";
-    el.style.cssText = [
-      "display:none",
-      "position:fixed",
-      "width:48px",
-      "height:48px",
-      "border:2px solid #ff4d4d",
-      "border-radius:50%",
-      "pointer-events:none",
-      "transform:translate(-50%,-50%)",
-      "z-index:5000",
-      "box-shadow:0 0 10px rgba(255,77,77,0.6), inset 0 0 10px rgba(255,77,77,0.4)",
-      "transition:width 0.15s ease-out, height 0.15s ease-out",
-    ].join(";");
-    const dot = document.createElement("div");
-    dot.style.cssText =
-      "position:absolute;top:50%;left:50%;width:4px;height:4px;background:#ff4d4d;border-radius:50%;transform:translate(-50%,-50%)";
-    el.appendChild(dot);
-    document.body.appendChild(el);
-    this.targetReticleEl = el;
-  }
-
-  private updateTargetReticle() {
-    if (!this.targetReticleEl) return;
-    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
-    if (now - this.lastReticleUpdateMs < 16) return;
-    this.lastReticleUpdateMs = now;
-
-    const id = this.lockedTargetEntityId;
-    if (!id) {
-      this.targetReticleEl.style.display = "none";
-      this.targetReticleEntityId = null;
-      return;
-    }
-    const node = this.entities.get(id);
-    if (!node || !node.root.isEnabled()) {
-      this.targetReticleEl.style.display = "none";
-      this.targetReticleEntityId = null;
-      return;
-    }
-
-    const pos = node.root.getAbsolutePosition();
-    const screen = Vector3.Project(
-      pos,
-      Matrix.Identity(),
-      this.scene.getTransformMatrix(),
-      this.camera.viewport.toGlobal(this.scene.getEngine().getRenderWidth(), this.scene.getEngine().getRenderHeight())
-    );
-
-    if (screen.z < 0 || screen.z > 1) {
-      this.targetReticleEl.style.display = "none";
-      return;
-    }
-
-    this.targetReticleEl.style.display = "block";
-    this.targetReticleEl.style.left = `${screen.x}px`;
-    this.targetReticleEl.style.top = `${screen.y}px`;
-
-    if (this.targetReticleEntityId !== id) {
-      this.targetReticleEntityId = id;
-      this.targetReticleEl.style.width = "64px";
-      this.targetReticleEl.style.height = "64px";
-      setTimeout(() => {
-        if (this.targetReticleEntityId === id) {
-          this.targetReticleEl!.style.width = "48px";
-          this.targetReticleEl!.style.height = "48px";
-        }
-      }, 150);
-    }
-  }
-
-  private bindKeyboard() {
-    if (typeof window === "undefined") return;
-    window.addEventListener("keydown", (e) => {
-      if (this.isInputFocused()) return;
-      this.pressedKeys.add(e.code);
-    });
-    window.addEventListener("keyup", (e) => {
-      this.pressedKeys.delete(e.code);
-    });
-  }
-
-  private isInputFocused(): boolean {
-    if (typeof document === "undefined") return false;
-    const active = document.activeElement;
-    if (!active) return false;
-    return active.tagName === "INPUT" || active.tagName === "TEXTAREA" || (active as HTMLElement).isContentEditable;
-  }
-
-  onInput(callback: (input: any) => void): void {
-    this.inputCallbacks.push(callback);
-  }
-
-  update(dt: number): void {
-    this.areWaveClock.t += dt;
-    this.updateAREShaderTime();
-    this.processInput();
-    this.updateTargetReticle();
-    this.updateHoverTooltip();
-  }
-
-  private processInput() {
-    const input: any = {
-      up: this.pressedKeys.has("KeyW") || this.pressedKeys.has("ArrowUp"),
-      down: this.pressedKeys.has("KeyS") || this.pressedKeys.has("ArrowDown"),
-      left: this.pressedKeys.has("KeyA") || this.pressedKeys.has("ArrowLeft"),
-      right: this.pressedKeys.has("KeyD") || this.pressedKeys.has("ArrowRight"),
-      skill1: this.pressedKeys.has("Digit1"),
-      skill2: this.pressedKeys.has("Digit2"),
-      skill3: this.pressedKeys.has("Digit3"),
-      skill4: this.pressedKeys.has("Digit4"),
-    };
-
-    if (this.pressedKeys.has("KeyQ")) {
-      const qid = getQuickCastSkillId(1);
-      if (qid) input.skill1 = true;
-    }
-    if (this.pressedKeys.has("KeyE")) {
-      const qid = getQuickCastSkillId(2);
-      if (qid) input.skill2 = true;
-    }
-
-    if (Object.values(input).some((v) => v)) {
-      for (const cb of this.inputCallbacks) {
-        cb(input);
-      }
-    }
-  }
-
-  playAudio(id: string, url: string, volume: number = 0.5): void {
-    if (!this.audioCtx) {
-      this.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    }
-    if (this.audioCtx.state === "suspended") {
-      this.audioCtx.resume();
-    }
-    this.loadAndPlayBuffer(url, volume);
-  }
-
-  private async loadAndPlayBuffer(url: string, volume: number) {
-    try {
-      const res = await fetch(url);
-      const arrayBuffer = await res.arrayBuffer();
-      const audioBuffer = await this.audioCtx!.decodeAudioData(arrayBuffer);
-      const source = this.audioCtx!.createBufferSource();
-      source.buffer = audioBuffer;
-      const gainNode = this.audioCtx!.createGain();
-      gainNode.gain.value = volume;
-      source.connect(gainNode);
-      gainNode.connect(this.audioCtx!.destination);
-      source.start(0);
-    } catch (e) {
-      console.error("Audio playback failed", e);
-    }
-  }
-
-  playBeep(frequency: number, durationSec: number, volume: number = 0.1): void {
-    if (!this.audioCtx) {
-      this.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    }
-    const now = this.audioCtx.currentTime;
-    const src = this.audioCtx.createOscillator();
-    const gain = this.audioCtx.createGain();
-    src.type = "sine";
-    src.frequency.setValueAtTime(frequency, now);
-    src.connect(gain);
-    gain.connect(this.audioCtx.destination);
-    gain.gain.setValueAtTime(volume * 0.001, now);
-    gain.gain.exponentialRampToValueAtTime(volume, now + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + durationSec);
-    src.start(now);
-    src.stop(now + durationSec + 0.02);
   }
 
   createEntity(model: EntityViewModel): void {
@@ -494,16 +147,20 @@ export class BabylonAdapter implements IEngineBridge {
       visual: placeholder,
       baseScale: 1,
       areKappa: model.are?.kappa ?? 1000,
+      areKappaPos: model.are?.kappaPos ?? { x: 0, y: 0, z: 0 },
       areLogicalIndex: model.are?.logicalIndex ?? 0,
       areChain: model.are?.chain ?? "",
       arePhase: model.are?.phaseShift ?? 0,
       areResonance: model.are?.resonance ?? 0,
       arePlexity: model.are?.plexity ?? 1,
+      areLodTier: "high",
       areColor: this.colorForType(model.type),
       areShader: null,
       areMeshes: [placeholder],
       areBaseMaterials: new Map([[placeholder.uniqueId, placeholder.material as Material | null]]),
       explicitVisible: model.visible ?? true,
+      isStaticCandidate: model.type === "object" || model.type === "loot",
+      isStaticFrozen: false,
     };
     if (model.name) {
       node.label = this.createBillboardLabel(model.name, this.colorForType(model.type), root);
@@ -511,9 +168,8 @@ export class BabylonAdapter implements IEngineBridge {
 
     this.applyAREState(node, model);
     this.applyAREMaterialMode(node);
-    node._vm = { ...model };
     this.entities.set(model.id, node);
-    this.enqueueModelAttach(model.id, model.modelUrl ?? DEFAULT_MODEL_BY_TYPE[model.type]);
+    this.tryAttachModel(model.id, model.modelUrl ?? DEFAULT_MODEL_BY_TYPE[model.type]);
   }
 
   updateEntity(id: string, updates: Partial<EntityViewModel>, dt: number = 0.016): void {
@@ -522,10 +178,16 @@ export class BabylonAdapter implements IEngineBridge {
 
     const lerpAlpha = Math.min(1, Math.max(0.12, dt * 12));
     if (updates.position) {
+      if (node.isStaticFrozen) {
+        this.unfreezeStaticNode(node);
+      }
       const target = new Vector3(updates.position.x, updates.position.y, updates.position.z);
       node.root.position = Vector3.Lerp(node.root.position, target, lerpAlpha);
     }
     if (updates.rotation) {
+      if (node.isStaticFrozen) {
+        this.unfreezeStaticNode(node);
+      }
       const targetEuler = new Vector3(
         this.toRadians(updates.rotation.x),
         this.toRadians(updates.rotation.y),
@@ -537,67 +199,36 @@ export class BabylonAdapter implements IEngineBridge {
       node.explicitVisible = updates.visible;
       this.applyEntityVisibility(node);
     }
-
-    const nextName = typeof updates.name === "string" ? updates.name.trim() : "";
-    const prevName = (node._vm?.name && String(node._vm.name).trim()) || "";
-    if (nextName && nextName !== prevName) {
+    if (updates.name) {
       if (node.label) {
-        node.label.dispose(false, true);
+        node.label.dispose();
       }
       node.label = this.createBillboardLabel(
-        nextName,
+        updates.name,
         this.colorForType(updates.type ?? this.inferTypeFromEntityId(id)),
         node.root
       );
     }
-    if (
-      updates.modelUrl &&
-      updates.modelUrl !== node.attachedModelUrl &&
-      updates.modelUrl !== node.pendingModelUrl
-    ) {
-      this.enqueueModelAttach(id, updates.modelUrl);
+    if (updates.modelUrl) {
+      this.tryAttachModel(id, updates.modelUrl);
     }
     if (updates.type) {
       node.areColor = this.colorForType(updates.type);
       this.updateAREShaderUniforms(node);
     }
     this.applyAREState(node, updates);
-    const prevVm = node._vm;
-    node._vm = {
-      ...(prevVm ?? {
-        id,
-        type: this.inferTypeFromEntityId(id),
-        position: {
-          x: node.root.position.x,
-          y: node.root.position.y,
-          z: node.root.position.z,
-        },
-        rotation: { x: 0, y: 0, z: 0 },
-        visible: node.explicitVisible,
-      }),
-      ...updates,
-      id: prevVm?.id ?? id,
-    };
   }
 
   destroyEntity(id: string): void {
     const node = this.entities.get(id);
     if (!node) return;
     node.root.dispose(false, true);
-    if (node.areShader) {
-      node.areShader.dispose();
-      node.areShader = null;
-    }
     this.entities.delete(id);
     if (this.cameraTargetId === id) {
       this.cameraTargetId = null;
     }
     if (this.localPlayerId === id) {
       this.localPlayerId = null;
-    }
-    if (this.targetReticleEntityId === id) {
-      this.targetReticleEntityId = null;
-      if (this.targetReticleEl) this.targetReticleEl.style.display = "none";
     }
   }
 
@@ -616,187 +247,681 @@ export class BabylonAdapter implements IEngineBridge {
     root.position = new Vector3(chunk.chunkX * 16, 0, chunk.chunkY * 16);
     const ground = MeshBuilder.CreateGround(
       `Chunk_${chunk.id}_ground`,
-      { width: 16, height: 16, subdivisions: 4 },
+      { width: 16, height: 16, subdivisions: 1 },
       this.scene
     );
     ground.parent = root;
-    ground.position = new Vector3(8, 0, 8);
-    ground.isPickable = false;
-    applyTiledGroundTextures(ground, chunk.biome, chunkGroundUvScale);
+    ground.position.y = -0.01;
+    const mat = new StandardMaterial(`Chunk_${chunk.id}_mat`, this.scene);
+    mat.diffuseColor = new Color3(0.22, 0.24, 0.28);
+    mat.specularColor = new Color3(0, 0, 0);
+    ground.material = mat;
     this.chunks.set(chunk.id, root);
   }
 
-  removeChunk(id: string): void {
-    const root = this.chunks.get(id);
-    if (root) {
-      root.dispose();
-      this.chunks.delete(id);
+  destroyChunk(id: string): void {
+    const chunk = this.chunks.get(id);
+    if (!chunk) return;
+    chunk.dispose(false, true);
+    this.chunks.delete(id);
+  }
+
+  setNavigationTarget(position: { x: number; y: number; z: number } | null): void {
+    if (!position) {
+      if (this.navigationMarker) this.navigationMarker.setEnabled(false);
+      return;
+    }
+    if (!this.navigationMarker) {
+      this.navigationMarker = MeshBuilder.CreateTorus(
+        "navigation-marker",
+        { diameter: 1.5, thickness: 0.08, tessellation: 32 },
+        this.scene
+      );
+      const mat = new StandardMaterial("navigation-marker-mat", this.scene);
+      mat.emissiveColor = new Color3(0.2, 0.9, 0.3);
+      mat.diffuseColor = new Color3(0.2, 0.9, 0.3);
+      this.navigationMarker.material = mat;
+      this.navigationMarker.rotation.x = Math.PI / 2;
+    }
+    this.navigationMarker.setEnabled(true);
+    this.navigationMarker.position = new Vector3(position.x, position.y + 0.08, position.z);
+  }
+
+  triggerEntityAction(entityId: string, action: string): void {
+    const node = this.entities.get(entityId);
+    if (!node) return;
+    if (action === "attack") {
+      const boost = Math.max(1.12, node.baseScale * 1.08);
+      node.root.scaling = new Vector3(boost, boost, boost);
+      setTimeout(() => {
+        const latest = this.entities.get(entityId);
+        if (latest) {
+          latest.root.scaling = new Vector3(latest.baseScale, latest.baseScale, latest.baseScale);
+        }
+      }, 120);
     }
   }
 
-  private createBillboardLabel(text: string, color: Color3, parent: TransformNode): Mesh {
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return MeshBuilder.CreatePlane("label_error", { size: 1 }, this.scene);
+  playSound(_name: string): void {
+    // Kept as no-op for first migration step.
+  }
 
-    const fontSize = 48;
-    ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
-    const metrics = ctx.measureText(text);
-    canvas.width = Math.pow(2, Math.ceil(Math.log2(metrics.width + 32)));
-    canvas.height = 64;
+  onInput(callback: (input: any) => void): void {
+    this.inputCallbacks.push(callback);
+  }
 
-    ctx.fillStyle = "rgba(0,0,0,0.5)";
-    ctx.roundRect?.(0, 0, canvas.width, canvas.height, 12);
-    ctx.fill();
+  setAREMode(mode: string): void {
+    const normalized = this.normalizeAREMode(mode);
+    if (!normalized || normalized === this.areMode) {
+      return;
+    }
+    if (this.arePerfAutoMode && normalized !== this.areMode) {
+      this.arePerfAutoMode = false;
+      this.arePerfAutoReason = "manual-override";
+    }
+    this.setAREModeInternal(normalized, "manual", "manual-override");
+  }
 
-    ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = color.toHexString();
-    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+  setAREPolicyConfig(config: {
+    cooldownMs?: number;
+    lowFpsThreshold?: number;
+    stableFpsThreshold?: number;
+    lowSampleTrigger?: number;
+    stableSampleTrigger?: number;
+  }): void {
+    this.arePolicyConfig = normalizeAutoPolicyConfig(config);
+  }
 
-    const texture = new DynamicTexture(`label_tex_${this.labelMaterialCounter++}`, canvas, this.scene, false);
-    texture.hasAlpha = true;
+  update(dt: number): void {
+    this.updateAREPerfCounters(dt);
+    this.areWaveClock.t += dt;
+    this.updateAREVisuals();
+    this.updateAREDebugOverlay();
+    this.updateAREPerfOverlay();
+    this.updateCameraFollow();
+  }
 
-    const mat = new StandardMaterial(`label_mat_${this.labelMaterialCounter}`, this.scene);
-    mat.diffuseTexture = texture;
-    mat.emissiveColor = Color3.White();
-    mat.useAlphaFromDiffuseTexture = true;
-    mat.disableLighting = true;
-    mat.backFaceCulling = false;
+  private updateAREPerfCounters(dt: number): void {
+    this.perf.frameCount += 1;
+    this.perf.sampleAccumSec += dt;
+    if (this.perf.sampleAccumSec < 0.5) {
+      return;
+    }
+    const sampleSeconds = this.perf.sampleAccumSec;
+    const sampleFrames = this.perf.frameCount;
+    this.perf.fps = sampleFrames / sampleSeconds;
+    this.perf.frameMsAvg = 1000 / Math.max(this.perf.fps, 1e-4);
+    this.perf.frameCount = 0;
+    this.perf.sampleAccumSec = 0;
 
-    const plane = MeshBuilder.CreatePlane(`label_${parent.name}`, { width: canvas.width / 100, height: 0.64 }, this.scene);
-    plane.material = mat;
-    plane.parent = parent;
-    plane.position = new Vector3(0, 2.2, 0);
-    plane.billboardMode = Mesh.BILLBOARDMODE_ALL;
-    plane.isPickable = false;
+    this.applyAREAutoModePolicy();
+  }
 
-    return plane;
+  private applyAREAutoModePolicy(): void {
+    if (!this.arePerfAutoMode) {
+      return;
+    }
+    const decision = evaluateAREAutoModePolicy(
+      this.areMode,
+      this.perf.fps,
+      performance.now(),
+      this.arePerfState,
+      this.arePolicyConfig
+    );
+    this.arePerfState = decision.nextState;
+    if (decision.nextMode) {
+      this.setAREModeInternal(decision.nextMode, "auto", decision.reason ?? "policy");
+    }
+  }
+
+  private setAREModeInternal(mode: AREMode, source?: AREModeSource, reason?: string): void {
+    if (mode === this.areMode) {
+      return;
+    }
+    this.areMode = mode;
+    if (source) {
+      this.areModeSource = source;
+    }
+    if (reason && this.arePerfAutoMode) {
+      this.arePerfAutoReason = reason;
+    }
+    for (const node of this.entities.values()) {
+      this.applyARELod(node);
+      this.applyAREMaterialMode(node);
+      this.applyEntityVisibility(node);
+    }
+  }
+
+  private updateCameraFollow(): void {
+    if (!this.cameraTargetId) return;
+    const targetNode = this.entities.get(this.cameraTargetId);
+    if (!targetNode) return;
+    const desiredTarget = targetNode.root.position.add(new Vector3(0, 1.4, 0));
+    this.camera.target = Vector3.Lerp(this.camera.target, desiredTarget, 0.16);
+  }
+
+  private bindKeyboard(): void {
+    window.addEventListener("keydown", (event) => {
+      const key = event.key.toLowerCase();
+      if (["w", "a", "s", "d"].includes(key) && !this.pressedKeys.has(key)) {
+        this.pressedKeys.add(key);
+        this.emitInput({ type: "keydown", key });
+      }
+      if (event.code === "Space") {
+        this.emitAttack();
+      }
+      if (key === "e") {
+        this.emitInteract();
+      }
+    });
+
+    window.addEventListener("keyup", (event) => {
+      const key = event.key.toLowerCase();
+      if (["w", "a", "s", "d"].includes(key) && this.pressedKeys.has(key)) {
+        this.pressedKeys.delete(key);
+        this.emitInput({ type: "keyup", key });
+      }
+    });
+  }
+
+  private emitInput(input: any): void {
+    for (const callback of this.inputCallbacks) {
+      callback(input);
+    }
+  }
+
+  private emitAttack(): void {
+    const gameCore = (window as any).gameCore;
+    if (gameCore && typeof gameCore.attack === "function") {
+      gameCore.attack();
+    }
+  }
+
+  private emitInteract(): void {
+    const gameCore = (window as any).gameCore;
+    if (gameCore && typeof gameCore.interact === "function") {
+      gameCore.interact();
+    }
   }
 
   private createPlaceholderMesh(model: EntityViewModel): Mesh {
-    const mesh = MeshBuilder.CreateBox(`placeholder_${model.id}`, { size: 1 }, this.scene);
-    const mat = new StandardMaterial(`mat_placeholder_${model.id}`, this.scene);
-    mat.diffuseColor = this.colorForType(model.type);
+    const color = this.colorForType(model.type);
+    let mesh: Mesh;
+    if (model.type === "player") {
+      mesh = MeshBuilder.CreateCapsule(`${model.id}_capsule`, { height: 1.8, radius: 0.35 }, this.scene);
+    } else if (model.type === "npc") {
+      mesh = MeshBuilder.CreateCylinder(`${model.id}_npc`, { height: 1.6, diameter: 0.65 }, this.scene);
+    } else if (model.type === "monster") {
+      mesh = MeshBuilder.CreateBox(`${model.id}_monster`, { size: 1.1 }, this.scene);
+    } else {
+      mesh = MeshBuilder.CreateBox(`${model.id}_box`, { size: 0.9 }, this.scene);
+    }
+    const mat = new StandardMaterial(`${model.id}_placeholder_mat`, this.scene);
+    mat.diffuseColor = color;
+    mat.specularColor = new Color3(0, 0, 0);
     mesh.material = mat;
-    mesh.position.y = 0.5;
+    mesh.isPickable = false;
     return mesh;
   }
 
-  private colorForType(type: string): Color3 {
-    switch (type) {
-      case "player":
-        return new Color3(0.4, 0.6, 1.0);
-      case "npc":
-        return new Color3(0.4, 1.0, 0.4);
-      case "monster":
-        return new Color3(1.0, 0.4, 0.4);
-      case "loot":
-        return new Color3(1.0, 0.9, 0.3);
-      default:
-        return new Color3(0.8, 0.8, 0.8);
+  private createBillboardLabel(
+    text: string,
+    color: Color3,
+    parent: TransformNode
+  ): Mesh {
+    const plane = MeshBuilder.CreatePlane(
+      `label_${parent.name}_${this.labelMaterialCounter++}`,
+      { width: 1.7, height: 0.42 },
+      this.scene
+    );
+    plane.parent = parent;
+    plane.position = new Vector3(0, 2.3, 0);
+    plane.billboardMode = Mesh.BILLBOARDMODE_ALL;
+    plane.isPickable = false;
+
+    const texture = new DynamicTexture(
+      `label_tex_${parent.name}_${this.labelMaterialCounter}`,
+      { width: 512, height: 128 },
+      this.scene,
+      false
+    );
+    texture.hasAlpha = true;
+    const ctx = texture.getContext();
+    if (ctx) {
+      ctx.clearRect(0, 0, 512, 128);
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.fillRect(8, 10, 496, 108);
+      ctx.fillStyle = `rgb(${Math.round(color.r * 255)},${Math.round(color.g * 255)},${Math.round(
+        color.b * 255
+      )})`;
+      ctx.font = "bold 58px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, 256, 64);
+      texture.update();
     }
-  }
 
-  private toRadians(degrees: number): number {
-    return (degrees * Math.PI) / 180;
-  }
-
-  private normalizeAREMode(mode: string | null): "off" | "cpu" | "shader" | null {
-    if (mode === "off" || mode === "cpu" || mode === "shader") return mode;
-    return null;
-  }
-
-  private mountAREDebugOverlay(): HTMLDivElement {
-    const el = document.createElement("div");
-    el.style.cssText = "position:fixed;top:10px;right:10px;background:rgba(0,0,0,0.7);color:#0f0;padding:10px;font-family:monospace;z-index:9999;pointer-events:none;font-size:12px;border-radius:4px;border:1px solid #0f0";
-    document.body.appendChild(el);
-    return el;
-  }
-
-  private updateAREShaderTime() {
-    if (this.areMode !== "shader") return;
-    for (const node of this.entities.values()) {
-      if (node.areShader) {
-        node.areShader.setFloat("time", this.areWaveClock.t);
-      }
-    }
-  }
-
-  private updateAREShaderUniforms(node: EntityNode) {
-    if (!node.areShader) return;
-    node.areShader.setFloat("kappa", node.areKappa);
-    node.areShader.setFloat("logicalIndex", node.areLogicalIndex);
-    node.areShader.setColor3("baseColor", node.areColor);
-    node.areShader.setFloat("resonance", node.areResonance);
-    node.areShader.setFloat("plexity", node.arePlexity);
-    node.areShader.setFloat("phaseShift", node.arePhase);
-  }
-
-  private applyAREState(node: EntityNode, updates: Partial<EntityViewModel>) {
-    if (updates.are?.kappa !== undefined) node.areKappa = updates.are.kappa;
-    if (updates.are?.logicalIndex !== undefined) node.areLogicalIndex = updates.are.logicalIndex;
-    if (updates.are?.chain !== undefined) node.areChain = updates.are.chain;
-    if (updates.are?.phaseShift !== undefined) node.arePhase = updates.are.phaseShift;
-    if (updates.are?.resonance !== undefined) node.areResonance = updates.are.resonance;
-    if (updates.are?.plexity !== undefined) node.arePlexity = updates.are.plexity;
-    this.updateAREShaderUniforms(node);
-  }
-
-  private applyAREMaterialMode(node: EntityNode) {
-    // Placeholder for shader application logic
-  }
-
-  private applyEntityVisibility(node: EntityNode) {
-    node.root.setEnabled(node.explicitVisible);
-  }
-
-  private inferTypeFromEntityId(id: string): string {
-    if (id.startsWith("p_")) return "player";
-    if (id.startsWith("m_")) return "monster";
-    if (id.startsWith("npc_")) return "npc";
-    if (id.startsWith("loot_")) return "loot";
-    return "object";
+    const mat = new StandardMaterial(`label_mat_${parent.name}_${this.labelMaterialCounter}`, this.scene);
+    mat.diffuseTexture = texture;
+    mat.emissiveColor = new Color3(1, 1, 1);
+    mat.specularColor = new Color3(0, 0, 0);
+    mat.backFaceCulling = false;
+    mat.disableLighting = true;
+    plane.material = mat;
+    return plane;
   }
 
   private async loadModelContainer(url: string): Promise<AssetContainer> {
-    if (this.loadedModels.has(url)) return this.loadedModels.get(url)!;
-    const container = await SceneLoader.LoadAssetContainerAsync("", url, this.scene);
+    const existing = this.loadedModels.get(url);
+    if (existing) {
+      return existing;
+    }
+    const splitIdx = url.lastIndexOf("/");
+    const rootUrl = splitIdx >= 0 ? url.slice(0, splitIdx + 1) : "/";
+    const fileName = splitIdx >= 0 ? url.slice(splitIdx + 1) : url;
+    const container = await SceneLoader.LoadAssetContainerAsync(rootUrl, fileName, this.scene);
     this.loadedModels.set(url, container);
     return container;
   }
 
-  private enqueueModelAttach(id: string, url: string) {
-    const node = this.entities.get(id);
-    if (!node) return;
-    node.pendingModelUrl = url;
-    
-    const task = async () => {
-      try {
-        const container = await this.loadModelContainer(url);
-        if (node.pendingModelUrl !== url) return;
-        
-        node.visual.dispose();
-        const instance = container.instantiateModelsToScene();
-        const visual = instance.rootNodes[0] as TransformNode;
-        visual.parent = node.root;
-        node.visual = visual;
-        node.attachedModelUrl = url;
-        node.pendingModelUrl = undefined;
-        
-        node.areMeshes = visual.getChildMeshes();
-        this.applyAREMaterialMode(node);
-      } catch (e) {
-        console.error("Model attach failed", e);
-      }
-    };
+  private async tryAttachModel(entityId: string, url?: string): Promise<void> {
+    if (!url) return;
+    const entity = this.entities.get(entityId);
+    if (!entity) return;
 
-    if (isAndroid()) {
-      this.androidModelAttachChain = this.androidModelAttachChain.then(task);
-    } else {
-      task();
+    this.modelAttachQueue.set(entityId, url);
+    const expectedUrl = url;
+    try {
+      const container = await this.loadModelContainer(url);
+      if (this.modelAttachQueue.get(entityId) !== expectedUrl) {
+        return;
+      }
+
+      const instance = container.instantiateModelsToScene((name) => `${entityId}_${name}`);
+      const roots = instance.rootNodes.filter((node): node is TransformNode => node instanceof TransformNode);
+      if (roots.length === 0) return;
+
+      const modelRoot = roots[0];
+      modelRoot.parent = entity.root;
+      modelRoot.position = Vector3.Zero();
+      modelRoot.rotationQuaternion = Quaternion.Identity();
+      modelRoot.rotation = Vector3.Zero();
+      modelRoot.scaling = new Vector3(0.01, 0.01, 0.01);
+
+      if (entity.visual) {
+        entity.visual.dispose(false, true);
+      }
+      entity.visual = modelRoot;
+      entity.areMeshes = this.collectRenderableMeshes(modelRoot);
+      entity.areBaseMaterials = new Map(
+        entity.areMeshes.map((mesh) => [mesh.uniqueId, (mesh.material as Material | null) ?? null])
+      );
+      this.applyAREMaterialMode(entity);
+      this.applyARELod(entity);
+      this.updateAREShaderUniforms(entity);
+    } catch (error) {
+      console.warn(`Failed to load model for ${entityId}:`, url, error);
     }
   }
+
+  private colorForType(type?: string): Color3 {
+    if (type === "player") return new Color3(0.25, 0.9, 0.4);
+    if (type === "monster") return new Color3(0.95, 0.25, 0.25);
+    if (type === "npc") return new Color3(0.35, 0.55, 1);
+    if (type === "loot") return new Color3(0.95, 0.8, 0.2);
+    return new Color3(0.85, 0.85, 0.85);
+  }
+
+  private toRadians(value: number): number {
+    return (value * Math.PI) / 180;
+  }
+
+  private applyAREState(node: EntityNode, model: Partial<EntityViewModel>): void {
+    if (model.are) {
+      node.areKappa = Number.isFinite(model.are.kappa) ? model.are.kappa : node.areKappa;
+      if (model.are.kappaPos) {
+        node.areKappaPos = {
+          x: Number.isFinite(model.are.kappaPos.x) ? model.are.kappaPos.x : node.areKappaPos.x,
+          y: Number.isFinite(model.are.kappaPos.y) ? model.are.kappaPos.y : node.areKappaPos.y,
+          z: Number.isFinite(model.are.kappaPos.z) ? model.are.kappaPos.z : node.areKappaPos.z,
+        };
+      }
+      node.areChain = typeof model.are.chain === "string" ? model.are.chain : node.areChain;
+      node.areLogicalIndex = Number.isFinite(model.are.logicalIndex)
+        ? model.are.logicalIndex
+        : node.areLogicalIndex;
+      node.arePhase = Number.isFinite(model.are.phaseShift) ? model.are.phaseShift : node.arePhase;
+      node.areResonance = Number.isFinite(model.are.resonance) ? model.are.resonance : node.areResonance;
+      node.arePlexity = Number.isFinite(model.are.plexity)
+        ? Math.max(0.05, Math.min(1, model.are.plexity))
+        : node.arePlexity;
+      node.areLodTier = this.resolveARELodTier(node.arePlexity);
+      node.baseScale = 0.7 + node.arePlexity * 0.6;
+    }
+    if (model.visible !== undefined) {
+      node.explicitVisible = model.visible;
+    }
+    this.applyARELod(node);
+    this.applyEntityVisibility(node);
+    this.updateAREShaderUniforms(node);
+  }
+
+  private updateAREVisuals(): void {
+    for (const node of this.entities.values()) {
+      const wave = Math.sin(this.areWaveClock.t * 2 + node.arePhase * 0.01) * 0.05 * (0.25 + node.areResonance);
+      let scale = this.areMode === "off" ? 1 : node.baseScale;
+      if (this.areMode === "cpu") {
+        scale = Math.max(0.2, node.baseScale + wave);
+      }
+      node.root.scaling = new Vector3(scale, scale, scale);
+      if (this.areMode === "shader") {
+        this.updateAREShaderUniforms(node);
+      }
+    }
+  }
+
+  private collectRenderableMeshes(node: TransformNode | AbstractMesh): AbstractMesh[] {
+    if (node instanceof AbstractMesh) {
+      return [node];
+    }
+    return node.getChildMeshes(false);
+  }
+
+  private applyEntityVisibility(node: EntityNode): void {
+    const visibleByPlexity = this.areMode === "off" ? true : node.arePlexity > 0.08;
+    const lodVisible = node.areLodTier !== "hidden";
+    node.root.setEnabled(visibleByPlexity && lodVisible && node.explicitVisible);
+  }
+
+  private resolveARELodTier(plexity: number): "hidden" | "low" | "mid" | "high" {
+    if (plexity < 0.08) return "hidden";
+    if (plexity < 0.28) return "low";
+    if (plexity < 0.62) return "mid";
+    return "high";
+  }
+
+  private applyARELod(node: EntityNode): void {
+    if (this.areMode === "off") {
+      node.areLodTier = "high";
+      for (const mesh of node.areMeshes) {
+        mesh.setEnabled(true);
+      }
+      this.unfreezeStaticNode(node);
+      return;
+    }
+
+    for (const mesh of node.areMeshes) {
+      if (node.areLodTier === "hidden") {
+        mesh.setEnabled(false);
+        continue;
+      }
+      mesh.setEnabled(true);
+      if (node.areLodTier === "low") {
+        mesh.visibility = 0.35;
+      } else if (node.areLodTier === "mid") {
+        mesh.visibility = 0.7;
+      } else {
+        mesh.visibility = 1;
+      }
+    }
+    if (node.label) {
+      node.label.setEnabled(node.areLodTier !== "hidden");
+    }
+
+    if (node.isStaticCandidate && node.areLodTier !== "high") {
+      this.tryFreezeStaticNode(node);
+    } else {
+      this.unfreezeStaticNode(node);
+    }
+  }
+
+  private tryFreezeStaticNode(node: EntityNode): void {
+    if (node.isStaticFrozen) {
+      return;
+    }
+    for (const mesh of node.areMeshes) {
+      mesh.freezeWorldMatrix();
+    }
+    node.isStaticFrozen = true;
+  }
+
+  private unfreezeStaticNode(node: EntityNode): void {
+    if (!node.isStaticFrozen) {
+      return;
+    }
+    for (const mesh of node.areMeshes) {
+      mesh.unfreezeWorldMatrix();
+    }
+    node.isStaticFrozen = false;
+  }
+
+  private applyAREMaterialMode(node: EntityNode): void {
+    if (this.areMode === "shader") {
+      const shader = this.ensureAREShader(node);
+      for (const mesh of node.areMeshes) {
+        mesh.material = shader;
+      }
+      this.updateAREShaderUniforms(node);
+      return;
+    }
+    for (const mesh of node.areMeshes) {
+      if (node.areBaseMaterials.has(mesh.uniqueId)) {
+        mesh.material = node.areBaseMaterials.get(mesh.uniqueId) ?? null;
+      }
+    }
+  }
+
+  private ensureAREShader(node: EntityNode): ShaderMaterial {
+    if (node.areShader) {
+      return node.areShader;
+    }
+    this.ensureAREShaderRegistered();
+    const shader = new ShaderMaterial(
+      `are_shader_${node.root.name}`,
+      this.scene,
+      { vertex: "are", fragment: "are" },
+      {
+        attributes: ["position"],
+        uniforms: [
+          "worldViewProjection",
+          "uTime",
+          "uPhase",
+          "uResonance",
+          "uPlexity",
+          "uColor",
+        ],
+      }
+    );
+    shader.backFaceCulling = false;
+    node.areShader = shader;
+    return shader;
+  }
+
+  private ensureAREShaderRegistered(): void {
+    if (this.areShaderRegistered) {
+      return;
+    }
+    this.areShaderRegistered = true;
+    Effect.ShadersStore.areVertexShader = `
+      precision highp float;
+      attribute vec3 position;
+      uniform mat4 worldViewProjection;
+      uniform float uTime;
+      uniform float uPhase;
+      uniform float uResonance;
+      uniform float uPlexity;
+      varying float vWave;
+      void main(void) {
+        float amp = (0.03 + uResonance * 0.06) * max(0.1, uPlexity);
+        float wave = sin(uTime * 2.5 + uPhase * 0.01 + position.y * 2.0) * amp;
+        vec3 displaced = position + vec3(0.0, wave, 0.0);
+        vWave = wave;
+        gl_Position = worldViewProjection * vec4(displaced, 1.0);
+      }
+    `;
+    Effect.ShadersStore.areFragmentShader = `
+      precision highp float;
+      uniform vec3 uColor;
+      uniform float uPlexity;
+      uniform float uResonance;
+      varying float vWave;
+      void main(void) {
+        float glow = 0.55 + uResonance * 0.35 + abs(vWave) * 3.0;
+        vec3 color = uColor * glow;
+        color = mix(color * 0.35, color, clamp(uPlexity, 0.0, 1.0));
+        gl_FragColor = vec4(color, 1.0);
+      }
+    `;
+  }
+
+  private updateAREShaderUniforms(node: EntityNode): void {
+    if (!node.areShader) {
+      return;
+    }
+    node.areShader.setFloat("uTime", this.areWaveClock.t);
+    node.areShader.setFloat("uPhase", node.arePhase);
+    node.areShader.setFloat("uResonance", node.areResonance);
+    node.areShader.setFloat("uPlexity", node.arePlexity);
+    node.areShader.setColor3("uColor", node.areColor);
+  }
+
+  private normalizeAREMode(mode: unknown): "off" | "cpu" | "shader" | null {
+    if (typeof mode !== "string") return null;
+    const value = mode.trim().toLowerCase();
+    if (value === "off") return "off";
+    if (value === "cpu") return "cpu";
+    if (value === "shader" || value === "on" || value === "are" || value === "true") return "shader";
+    return null;
+  }
+
+  private mountAREDebugOverlay(): HTMLDivElement {
+    const node = document.createElement("div");
+    node.id = "are-debug-overlay";
+    node.style.position = "fixed";
+    node.style.top = "12px";
+    node.style.right = "12px";
+    node.style.zIndex = "10000";
+    node.style.padding = "10px";
+    node.style.minWidth = "220px";
+    node.style.background = "rgba(0,0,0,0.62)";
+    node.style.border = "1px solid rgba(95,160,255,0.5)";
+    node.style.borderRadius = "8px";
+    node.style.color = "#d7e6ff";
+    node.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, monospace";
+    node.style.fontSize = "11px";
+    node.style.whiteSpace = "pre";
+    document.body.appendChild(node);
+    return node;
+  }
+
+  private mountAREPerfOverlay(): HTMLDivElement {
+    const node = document.createElement("div");
+    node.id = "are-perf-overlay";
+    node.style.position = "fixed";
+    node.style.bottom = "12px";
+    node.style.right = "12px";
+    node.style.zIndex = "10000";
+    node.style.padding = "10px";
+    node.style.minWidth = "260px";
+    node.style.background = "rgba(4,10,18,0.72)";
+    node.style.border = "1px solid rgba(87,176,115,0.55)";
+    node.style.borderRadius = "8px";
+    node.style.color = "#dbffe4";
+    node.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, monospace";
+    node.style.fontSize = "11px";
+    node.style.whiteSpace = "pre";
+    document.body.appendChild(node);
+    return node;
+  }
+
+  private mountAREModeBadge(): HTMLDivElement {
+    const node = document.createElement("div");
+    node.id = "are-mode-badge";
+    node.style.position = "fixed";
+    node.style.top = "12px";
+    node.style.left = "12px";
+    node.style.zIndex = "10001";
+    node.style.padding = "8px 10px";
+    node.style.minWidth = "180px";
+    node.style.background = "rgba(6,12,24,0.82)";
+    node.style.border = "1px solid rgba(120, 188, 255, 0.55)";
+    node.style.borderRadius = "999px";
+    node.style.color = "#e4f2ff";
+    node.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, monospace";
+    node.style.fontSize = "11px";
+    node.style.whiteSpace = "pre";
+    document.body.appendChild(node);
+    return node;
+  }
+
+  private updateAREDebugOverlay(): void {
+    if (!this.areDebugEnabled || !this.areDebugElement) {
+      return;
+    }
+    let visible = 0;
+    let resonance = 0;
+    let plexity = 0;
+    for (const node of this.entities.values()) {
+      if (node.root.isEnabled()) visible += 1;
+      resonance += node.areResonance;
+      plexity += node.arePlexity;
+    }
+    const count = this.entities.size || 1;
+    const localNode = this.localPlayerId ? this.entities.get(this.localPlayerId) : null;
+    this.updateAREModeBadge();
+    this.areDebugElement.textContent = [
+      "ARE DEBUG",
+      `mode: ${this.areMode} (${this.areModeSource})`,
+      `entities: ${this.entities.size} (visible ${visible})`,
+      `avg resonance: ${(resonance / count).toFixed(3)}`,
+      `avg plexity: ${(plexity / count).toFixed(3)}`,
+      `wave t: ${this.areWaveClock.t.toFixed(2)}`,
+      localNode
+        ? `local: k=${localNode.areKappa} idx=${localNode.areLogicalIndex}\nlocal: phase=${localNode.arePhase.toFixed(1)} res=${localNode.areResonance.toFixed(2)} plex=${localNode.arePlexity.toFixed(2)}\nchain: ${localNode.areChain.slice(0, 42)}`
+        : "local: -",
+    ].join("\n");
+  }
+
+  private updateAREModeBadge(): void {
+    if (!this.areDebugEnabled || !this.areModeBadgeElement) {
+      return;
+    }
+    const reason = this.arePerfAutoMode ? this.arePerfAutoReason : "manual";
+    this.areModeBadgeElement.textContent = [
+      "ARE MODE",
+      `${this.areMode} (${this.areModeSource})`,
+      `reason: ${reason}`,
+    ].join("\n");
+  }
+
+  private updateAREPerfOverlay(): void {
+    if (!this.arePerfElement) {
+      return;
+    }
+    const engine = this.scene.getEngine();
+    const total = this.entities.size;
+    let visible = 0;
+    for (const node of this.entities.values()) {
+      if (node.root.isEnabled()) visible += 1;
+    }
+    const drawCalls = engine.drawCalls?.current ?? 0;
+    this.arePerfElement.textContent = [
+      "ARE PERF",
+      `mode: ${this.areMode}${this.arePerfAutoMode ? ` (auto:${this.arePerfAutoReason})` : ""}`,
+      `fps: ${this.perf.fps.toFixed(1)}`,
+      `frame: ${this.perf.frameMsAvg.toFixed(2)} ms`,
+      `draw calls: ${drawCalls}`,
+      `entities: ${visible}/${total} visible`,
+      `materials: ${this.areMode === "shader" ? "shader" : "base"}`,
+      `samples: low=${this.arePerfState.lowFpsSamples} stable=${this.arePerfState.stableSamples}`,
+    ].join("\n");
+  }
+
+  private inferTypeFromEntityId(id: string): string {
+    if (id.startsWith("player")) return "player";
+    if (id.startsWith("npc")) return "npc";
+    if (id.startsWith("monster")) return "monster";
+    if (id.startsWith("loot")) return "loot";
+    return "object";
+  }
 }
-// Webhook test commit: Thu Apr  2 19:40:44 EDT 2026

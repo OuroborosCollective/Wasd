@@ -1,66 +1,198 @@
 {
   "version": 1,
   "defaults": {
-    "players": "/assets/models/characters/uschi.glb",
-    "npcs": "/assets/models/characters/uschi.glb",
-    "monsters": "/assets/models/monsters/goblin.glb",
-    "loot": "/assets/models/objects/chest.glb",
-    "world_objects": "/assets/models/objects/chest.glb",
-    "resources": "/assets/models/objects/chest.glb",
-    "object": "/assets/models/objects/chest.glb"
+    "players": "/assets/models/kaykit/adventurers/Knight.glb",
+    "npcs": "/assets/models/kaykit/adventurers/Knight.glb",
+    "monsters": [
+      "/assets/models/monsters/big_Demon.gltf",
+      "/assets/models/monsters/blob_GreenBlob.gltf"
+    ],
+    "loot": "/assets/models/kaykit/dungeon/chest.gltf",
+    "world_objects": [
+      "/assets/models/kaykit/medieval_hex/buildings/blue/building_home_A_blue.gltf",
+      "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
+    ],
+    "resources": [
+      "/assets/models/kaykit/forest/Rock_1_A_Color1.gltf",
+      "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
+    ],
+    "object": [
+      "/assets/models/kaykit/medieval_hex/buildings/blue/building_home_A_blue.gltf",
+      "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
+    ]
   },
   "pools": {
     "players": {
-      "default": "/assets/models/characters/uschi.glb",
-      "warrior": "/assets/models/characters/uschi.glb",
-      "mage": "/assets/models/characters/uschi.glb",
-      "ranger": "/assets/models/characters/uschi.glb"
+      "default": "/assets/models/kaykit/adventurers/Knight.glb",
+      "warrior": "/assets/models/kaykit/adventurers/Barbarian.glb",
+      "mage": "/assets/models/kaykit/adventurers/Mage.glb",
+      "ranger": "/assets/models/kaykit/adventurers/Ranger.glb"
     },
     "npcs": {
-      "default": "/assets/models/characters/uschi.glb",
-      "citizen": "/assets/models/characters/uschi.glb",
-      "merchant": "/assets/models/characters/uschi.glb",
-      "questgiver": "/assets/models/characters/uschi.glb",
-      "guard": "/assets/models/characters/uschi.glb"
+      "default": "/assets/models/kaykit/adventurers/Knight.glb",
+      "citizen": "/assets/models/kaykit/adventurers/Ranger.glb",
+      "merchant": "/assets/models/kaykit/adventurers/Rogue.glb",
+      "questgiver": "/assets/models/kaykit/adventurers/Mage.glb",
+      "guard": "/assets/models/kaykit/adventurers/Knight.glb",
+      "warrior": "/assets/models/kaykit/adventurers/Barbarian.glb",
+      "mage": "/assets/models/kaykit/adventurers/Mage.glb",
+      "ranger": "/assets/models/kaykit/adventurers/Ranger.glb",
+      "rogue": "/assets/models/kaykit/adventurers/Rogue.glb"
     },
     "monsters": {
-      "default": "/assets/models/monsters/goblin.glb",
-      "goblin": "/assets/models/monsters/goblin.glb",
-      "wolf": "/assets/models/monsters/goblin.glb",
-      "boar": "/assets/models/monsters/goblin.glb",
-      "undead": "/assets/models/monsters/goblin.glb",
-      "legion_scout": "/assets/models/monsters/goblin.glb",
-      "legion_brute": "/assets/models/monsters/goblin.glb",
-      "legion_overseer": "/assets/models/monsters/goblin.glb"
+      "default": [
+        "/assets/models/monsters/big_Demon.gltf",
+        "/assets/models/monsters/blob_GreenBlob.gltf"
+      ],
+      "goblin": [
+        "/assets/models/monsters/big_Orc.gltf",
+        "/assets/models/monsters/blob_GreenBlob.gltf"
+      ],
+      "wolf": [
+        "/assets/models/monsters/big_Birb.gltf",
+        "/assets/models/monsters/blob_Dog.gltf"
+      ],
+      "boar": [
+        "/assets/models/monsters/big_Dino.gltf",
+        "/assets/models/monsters/blob_Cactoro.gltf"
+      ],
+      "undead": [
+        "/assets/models/monsters/big_Orc_Skull.gltf",
+        "/assets/models/monsters/big_Demon.gltf"
+      ],
+      "legion_scout": [
+        "/assets/models/monsters/big_BlueDemon.gltf",
+        "/assets/models/monsters/blob_Ninja.gltf"
+      ],
+      "legion_brute": [
+        "/assets/models/monsters/big_Yeti.gltf",
+        "/assets/models/monsters/big_MushroomKing.gltf"
+      ],
+      "legion_overseer": [
+        "/assets/models/monsters/big_Demon.gltf",
+        "/assets/models/monsters/big_BlueDemon.gltf"
+      ],
+      "alien": "/assets/models/monsters/big_Alien.gltf",
+      "birb": "/assets/models/monsters/big_Birb.gltf",
+      "bluedemon": "/assets/models/monsters/big_BlueDemon.gltf",
+      "bunny": "/assets/models/monsters/big_Bunny.gltf",
+      "cactoro": "/assets/models/monsters/big_Cactoro.gltf",
+      "demon": "/assets/models/monsters/big_Demon.gltf",
+      "dino": "/assets/models/monsters/big_Dino.gltf",
+      "fish": "/assets/models/monsters/big_Fish.gltf",
+      "frog": "/assets/models/monsters/big_Frog.gltf",
+      "monkroose": "/assets/models/monsters/big_Monkroose.gltf",
+      "mushroomking": "/assets/models/monsters/big_MushroomKing.gltf",
+      "ninja": "/assets/models/monsters/big_Ninja.gltf",
+      "orc": "/assets/models/monsters/big_Orc.gltf",
+      "orc_skull": "/assets/models/monsters/big_Orc_Skull.gltf",
+      "tribal": "/assets/models/monsters/big_Tribal.gltf",
+      "yeti": "/assets/models/monsters/big_Yeti.gltf",
+      "blob_alien": "/assets/models/monsters/blob_Alien.gltf",
+      "blob_birb": "/assets/models/monsters/blob_Birb.gltf",
+      "blob_cactoro": "/assets/models/monsters/blob_Cactoro.gltf",
+      "blob_cat": "/assets/models/monsters/blob_Cat.gltf",
+      "blob_chicken": "/assets/models/monsters/blob_Chicken.gltf",
+      "blob_dog": "/assets/models/monsters/blob_Dog.gltf",
+      "blob_fish": "/assets/models/monsters/blob_Fish.gltf",
+      "blob_greenblob": "/assets/models/monsters/blob_GreenBlob.gltf",
+      "blob_greenspikyblob": "/assets/models/monsters/blob_GreenSpikyBlob.gltf",
+      "blob_mushnub": "/assets/models/monsters/blob_Mushnub.gltf",
+      "blob_mushnub_evolved": "/assets/models/monsters/blob_Mushnub_Evolved.gltf",
+      "blob_ninja": "/assets/models/monsters/blob_Ninja.gltf",
+      "blob_orc": "/assets/models/monsters/blob_Orc.gltf",
+      "blob_pigeon": "/assets/models/monsters/blob_Pigeon.gltf",
+      "blob_pinkblob": "/assets/models/monsters/blob_PinkBlob.gltf",
+      "blob_wizard": "/assets/models/monsters/blob_Wizard.gltf",
+      "blob_yeti": "/assets/models/monsters/blob_Yeti.gltf"
     },
     "loot": {
-      "default": "/assets/models/objects/chest.glb",
-      "gold": "/assets/models/objects/chest.glb",
-      "weapon": "/assets/models/objects/chest.glb",
-      "armor": "/assets/models/objects/chest.glb",
-      "consumable": "/assets/models/objects/chest.glb"
+      "default": "/assets/models/kaykit/dungeon/chest.gltf",
+      "gold": "/assets/models/kaykit/resource_bits/Gold_Nuggets.gltf",
+      "weapon": "/assets/models/kaykit/adventurers/sword_1handed.gltf",
+      "armor": "/assets/models/kaykit/adventurers/shield_round.gltf",
+      "consumable": "/assets/models/kaykit/adventurers/mug_full.gltf"
     },
     "resources": {
-      "default": "/assets/models/objects/chest.glb",
-      "tree": "/assets/models/objects/chest.glb",
-      "rock": "/assets/models/objects/chest.glb",
-      "bush": "/assets/models/objects/chest.glb",
-      "ore": "/assets/models/objects/chest.glb"
+      "default": [
+        "/assets/models/kaykit/forest/Rock_1_A_Color1.gltf",
+        "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
+      ],
+      "tree": [
+        "/assets/models/kaykit/forest/Tree_1_A_Color1.gltf",
+        "/assets/models/kaykit/forest/Tree_2_A_Color1.gltf",
+        "/assets/models/kaykit/forest/Tree_3_A_Color1.gltf",
+        "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
+      ],
+      "rock": [
+        "/assets/models/kaykit/forest/Rock_1_A_Color1.gltf",
+        "/assets/models/kaykit/forest/Rock_1_B_Color1.gltf",
+        "/assets/models/kaykit/forest/Rock_2_A_Color1.gltf",
+        "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
+      ],
+      "bush": [
+        "/assets/models/kaykit/forest/Bush_1_A_Color1.gltf",
+        "/assets/models/kaykit/forest/Bush_2_A_Color1.gltf",
+        "/assets/models/kaykit/forest/Bush_4_A_Color1.gltf",
+        "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
+      ],
+      "ore": [
+        "/assets/models/kaykit/resource_bits/Copper_Nugget_Large.gltf",
+        "/assets/models/kaykit/resource_bits/Iron_Nugget_Large.gltf",
+        "/assets/models/kaykit/resource_bits/Gold_Nugget_Large.gltf"
+      ],
+      "coniferous_forest_assets_pack": "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
     },
     "world_objects": {
-      "default": "/assets/models/objects/chest.glb",
-      "object": "/assets/models/objects/chest.glb",
-      "house": "/assets/models/objects/chest.glb",
-      "tree": "/assets/models/objects/chest.glb",
-      "rock": "/assets/models/objects/chest.glb",
-      "well": "/assets/models/objects/chest.glb",
-      "market": "/assets/models/objects/chest.glb",
-      "dungeon": "/assets/models/objects/chest.glb",
-      "camp": "/assets/models/objects/chest.glb",
-      "tower": "/assets/models/objects/chest.glb",
-      "ruin": "/assets/models/objects/chest.glb",
-      "portal": "/assets/models/objects/chest.glb",
-      "shrine": "/assets/models/objects/chest.glb"
+      "default": [
+        "/assets/models/kaykit/medieval_hex/buildings/blue/building_home_A_blue.gltf",
+        "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
+      ],
+      "object": [
+        "/assets/models/kaykit/medieval_hex/buildings/blue/building_home_A_blue.gltf",
+        "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
+      ],
+      "house": [
+        "/assets/models/kaykit/medieval_hex/buildings/blue/building_home_A_blue.gltf",
+        "/assets/models/kaykit/medieval_hex/buildings/blue/building_home_B_blue.gltf",
+        "/assets/models/kaykit/medieval_hex/buildings/blue/building_tavern_blue.gltf"
+      ],
+      "tree": [
+        "/assets/models/kaykit/forest/Tree_1_A_Color1.gltf",
+        "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
+      ],
+      "rock": [
+        "/assets/models/kaykit/forest/Rock_1_A_Color1.gltf",
+        "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
+      ],
+      "well": "/assets/models/kaykit/medieval_hex/buildings/blue/building_well_blue.gltf",
+      "market": [
+        "/assets/models/kaykit/medieval_hex/buildings/blue/building_market_blue.gltf",
+        "/assets/models/kaykit/medieval_hex/decoration/props/sack.gltf"
+      ],
+      "dungeon": [
+        "/assets/models/kaykit/dungeon/wall.gltf",
+        "/assets/models/kaykit/dungeon/floor_tile_large.gltf",
+        "/assets/models/kaykit/dungeon/wall_doorway.gltf"
+      ],
+      "camp": [
+        "/assets/models/kaykit/medieval_hex/decoration/props/tent.gltf",
+        "/assets/models/kaykit/dungeon/torch_lit.gltf",
+        "/assets/models/kaykit/dungeon/barrel_small.gltf",
+        "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
+      ],
+      "tower": [
+        "/assets/models/kaykit/medieval_hex/buildings/blue/building_tower_A_blue.gltf",
+        "/assets/models/kaykit/medieval_hex/buildings/blue/building_tower_B_blue.gltf"
+      ],
+      "ruin": [
+        "/assets/models/kaykit/dungeon/wall_broken.gltf",
+        "/assets/models/kaykit/dungeon/rubble_large.gltf",
+        "/assets/models/kaykit/dungeon/pillar.gltf"
+      ],
+      "portal": "/assets/models/kaykit/medieval_hex/decoration/nature/cloud_big.gltf",
+      "shrine": "/assets/models/kaykit/dungeon/sword_shield_gold.gltf",
+      "coniferous_forest_assets_pack": "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
     }
   }
 }

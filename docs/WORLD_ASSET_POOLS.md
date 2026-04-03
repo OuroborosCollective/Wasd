@@ -66,3 +66,23 @@ Beispiel:
   - `"house": "/assets/models/buildings/house_01.glb"`
 
 Keine Codeaenderung erforderlich, nur JSON-Mapping.
+
+## NoCode Ops: Snapshot & Rollback (GM Console)
+
+Im GM-Panel (Bereich **Asset Pool Editor**) gibt es jetzt zusaetzlich:
+
+- **Create Snapshot**: Speichert den aktuellen Stand der Asset-Pools als Datei.
+- **List Snapshots**: Laedt vorhandene Snapshots in die Auswahl.
+- **Restore Snapshot**: Rollback auf den gewaehlten Snapshot.
+- **Refresh Ops Status**: Zeigt aktuelle Kennzahlen (Models, Links, Pool-Eintraege, Snapshots, ARE-Mode).
+
+Snapshot-Dateien liegen unter:
+
+- `game-data/world/asset-pool-snapshots/`
+
+Empfohlener Ablauf:
+
+1. Snapshot vor groesseren Mapping-Aenderungen erstellen.
+2. Pool-Eintraege/Defaults im GM-Panel anpassen.
+3. Ergebnis im Client pruefen.
+4. Bei Bedarf Snapshot auswaehlen und per Restore zurueckrollen.

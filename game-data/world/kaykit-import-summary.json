@@ -1,0 +1,24 @@
+{
+  "packsImported": [
+    "KayKit_Adventurers_2.0_FREE",
+    "KayKit_DungeonRemastered_1.1_FREE",
+    "KayKit_Forest_Nature_Pack_1.0_FREE",
+    "KayKit_Medieval_Hexagon_Pack_1.0_FREE",
+    "KayKit_ResourceBits_1.0_FREE"
+  ],
+  "copiedAssets": {
+    "gltf": 644,
+    "glb": 6,
+    "bin": 644,
+    "png": 21
+  },
+  "finalDefaults": {
+    "players": "/assets/models/kaykit/adventurers/Knight.glb",
+    "npcs": "/assets/models/kaykit/adventurers/Knight.glb",
+    "monsters": "/assets/models/monsters/goblin.glb",
+    "loot": "/assets/models/kaykit/dungeon/chest.gltf",
+    "world_objects": "/assets/models/kaykit/medieval_hex/buildings/blue/building_home_A_blue.gltf",
+    "resources": "/assets/models/kaykit/forest/Rock_1_A_Color1.gltf",
+    "object": "/assets/models/kaykit/medieval_hex/buildings/blue/building_home_A_blue.gltf"
+  }
+}

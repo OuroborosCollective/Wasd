@@ -13,30 +13,46 @@ jobs:
     steps:
     - name: Deploy to VPS via SSH
       uses: appleboy/ssh-action@v1.0.3
+      env:
+        BUILD_NODE_OPTIONS: --max-old-space-size=8192
       with:
         host: ${{ secrets.VPS_IP }}
         username: ${{ secrets.VPS_USER }}
         password: ${{ secrets.VPS_SSH_PASSWORD }}
         port: 22
-        timeout: 120s
-        command_timeout: 20m
         script: |
-          set -e
-          export CI=1
           if [ ! -d "/opt/areloria/.git" ]; then
             git clone https://github.com/OuroborosCollective/Wasd.git /opt/areloria
           fi
           cd /opt/areloria
           git fetch origin main
           git reset --hard origin/main
-          chmod +x deploy/deploy.sh deploy/update.sh deploy/write_pm2_ecosystem.sh 2>/dev/null || true
-          # Full bootstrap only when Node/server build is missing; else quick update (no apt upgrade)
-          if [ ! -f /opt/areloria/server/dist/index.js ] || ! command -v pm2 >/dev/null 2>&1; then
-            ./deploy/deploy.sh
-          else
-            ./deploy/update.sh
-          fi
-          if [ "${SKIP_DEPLOY_HEALTH_CHECK:-}" != "1" ]; then
-            sleep 2
-            curl -sf --max-time 15 http://127.0.0.1:3000/health | grep -q '"ok"' && echo "Deploy health check: OK" || { echo "Deploy health check: FAILED (is the server listening on 3000?)"; exit 1; }
-          fi
+          export BUILD_NODE_OPTIONS="--max-old-space-size=8192"
+          chmod +x deploy/deploy.sh
+          ./deploy/deploy.sh
+
+    - name: Verify deployed HTTPS endpoints
+      run: |
+        set -e
+        verify_url() {
+          local url="$1"
+          local name="$2"
+          local attempts=10
+          local wait_sec=6
+          local code=""
+          for i in $(seq 1 "$attempts"); do
+            code="$(curl -s -o /dev/null -w "%{http_code}" "$url" || true)"
+            if [ "$code" = "200" ]; then
+              echo "✅ ${name} OK (${url})"
+              return 0
+            fi
+            echo "⏳ ${name} not ready (${url}) [attempt ${i}/${attempts}] status=${code:-n/a}"
+            sleep "$wait_sec"
+          done
+          echo "❌ ${name} failed after ${attempts} attempts (${url}), last status=${code:-n/a}"
+          return 1
+        }
+
+        verify_url "https://arelogic.space/health" "HTTPS health endpoint"
+        verify_url "https://arelogic.space/" "HTTPS client root"
+        verify_url "https://arelogic.space/gm/" "HTTPS GM console"

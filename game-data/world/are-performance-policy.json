@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "thresholds": {
+    "lowFps": 28,
+    "stableFps": 48,
+    "lowSamples": 4,
+    "stableSamples": 8,
+    "cooldownMs": 4000
+  }
+}

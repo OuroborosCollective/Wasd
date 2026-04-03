@@ -1,6 +1,6 @@
 # Cursor-Instanz: Status-Logbuch (Handoff)
 
-Diese Datei fasst den Projektverlauf und den **aktuellen Stand** zusammen, damit eine neue Cursor-Instanz ohne vollen Chat-Kontext einsteigen kann.  
+Diese Datei fasst den Projektverlauf und den **aktuellen Stand** zusammen, damit eine neue Cursor-Instanz ohne vollen Chat-Kontext einsteigen kann.
 **Pflege:** Bei größeren Meilensteinen kurz nachtragen (Datum, was geändert wurde, offene Punkte).
 
 **Stand der Zusammenfassung:** 2026-04-01 (Branch: siehe unten, letzter bekannter Fokus: No-Code-Admin + GLB-Pipeline).
@@ -17,8 +17,8 @@ Diese Datei fasst den Projektverlauf und den **aktuellen Stand** zusammen, damit
 
 | Phase | Inhalt (kurz) |
 |--------|----------------|
-| Deployment / Client-Pfad | VPS: falscher Pfad zu `client/dist` → behoben (Repo-Root / Symlink / Nginx). |
-| Performance Mobile | Starke Lags & Abstürze Android → u. a. Babylon-Tuning, `hardwareScalingLevel`, `maxFPS`, kein `preserveDrawingBuffer`, serialisiertes GLB-Laden, weniger Pick/UI-Last, Namens-Tags optimiert. |
+| Deployment / Client-Pfad | VPS: falscher Pfad zu `client/dist` -> behoben (Repo-Root / Symlink / Nginx). |
+| Performance Mobile | Starke Lags & Abstürze Android -> u. a. Babylon-Tuning, `hardwareScalingLevel`, `maxFPS`, kein `preserveDrawingBuffer`, serialisiertes GLB-Laden, weniger Pick/UI-Last, Namens-Tags optimiert. |
 | Doku | PlayCanvas entfernt/aus Doku, Babylon als Engine, README/AGENTS/Status-Dokumente, Roadmap, Design-Bible-Bezug. |
 | Gameplay | Combat (Targeting, Reichweite, Aggro/Leash), Tod/Respawn, Loot/Gold, HUD (HP/Stamina/Mana/Level), Mobile-UI (Bottom-Sheets, Loot-Strip, Reticle), Web Audio / Babylon-Sounds. |
 | Persistenz | Spieler-Persistenz (Firestore + JSON-Fallback), Login-Policy (Firebase / Gast / Dev), Mana-Regen, `use_item`, Health-Endpoint-Stats. |
@@ -44,7 +44,7 @@ Diese Datei fasst den Projektverlauf und den **aktuellen Stand** zusammen, damit
 - `PERSISTENCE_DRIVER`: `auto`, `firestore`, `file`, `spacetime` (Spacetime-Teil teils Stub mit File-Fallback — Details in `AGENTS.md` und Code).
 
 ### 3.4 GLB / Modelle
-- Öffentliche Modelle: **`client/public/assets/models/`** → URLs **`/assets/models/...`**.
+- Öffentliche Modelle: **`client/public/assets/models/`** -> URLs **`/assets/models/...`**.
 - Overrides: **`glb-links.json`** im Content-Root oder **`GLB_LINKS_STORE=spacetime`** (+ Env für Spacetime).
 - Server-Fallbacks: `builtinModelFallbacks` / `ensureGlbUrl` damit nie „leere“ GLB-Pfade.
 
@@ -108,15 +108,15 @@ Diese Datei fasst den Projektverlauf und den **aktuellen Stand** zusammen, damit
 
 ## 8. Sinnvolle nächste Schritte (Vorschlag)
 
-1. Optional: **`scanModels()`** um `.gltf` ergänzen für konsistente Dropdowns.  
-2. No-Code-Roadmap aus dem großen Prompt: Content-Registry, Zonen-Editor, NPC/Quest-Editoren schrittweise — weiterhin **Runtime-first**, keine parallele „Schein-CMS“-Welt.  
+1. Optional: **`scanModels()`** um `.gltf` ergänzen für konsistente Dropdowns.
+2. No-Code-Roadmap aus dem großen Prompt: Content-Registry, Zonen-Editor, NPC/Quest-Editoren schrittweise — weiterhin **Runtime-first**, keine parallele „Schein-CMS“-Welt.
 3. Rechte/Rollen im Admin (nur Lesen vs. Publish vs. Asset-Upload) verfeinern, falls nötig.
 
 ---
 
 ## 9. Git / PR (Referenz)
 
-- Entwicklung auf dem vom Cloud-Agent vorgegebenen Feature-Branch (z. B. `cursor/...`).  
+- Entwicklung auf dem vom Cloud-Agent vorgegebenen Feature-Branch (z. B. `cursor/...`).
 - GLB-Galerie/Upload: PR **#277** (Stand bei Erstellung dieses Logbuchs) — nach Merge Branch-Status prüfen.
 
 ---
@@ -126,3 +126,4 @@ Diese Datei fasst den Projektverlauf und den **aktuellen Stand** zusammen, damit
 ### Änderungsprotokoll (manuell pflegen)
 
 - **2026-04-01:** Datei angelegt — Zusammenfassung aus Chat-Verlauf + letzter Stand GLB-Admin-Galerie/Upload.
+- **2026-04-01 (Composer 2 Follow-up):** In der aktuellen Cloud-Instanz als Handoff-Basis übernommen. Wichtige Klarstellung: Falls die Datei auf `main` fehlt, liegt sie im zugehörigen Feature-Branch/PR und ist erst nach Merge unter `docs/CURSOR_STATUS_LOGBUCH.md` auf `main` verfügbar.
