@@ -3,7 +3,10 @@
   "defaults": {
     "players": "/assets/models/kaykit/adventurers/Knight.glb",
     "npcs": "/assets/models/kaykit/adventurers/Knight.glb",
-    "monsters": "/assets/models/monsters/goblin.glb",
+    "monsters": [
+      "/assets/models/monsters/big_Demon.gltf",
+      "/assets/models/monsters/blob_GreenBlob.gltf"
+    ],
     "loot": "/assets/models/kaykit/dungeon/chest.gltf",
     "world_objects": "/assets/models/kaykit/medieval_hex/buildings/blue/building_home_A_blue.gltf",
     "resources": "/assets/models/kaykit/forest/Rock_1_A_Color1.gltf",
@@ -28,14 +31,71 @@
       "rogue": "/assets/models/kaykit/adventurers/Rogue.glb"
     },
     "monsters": {
-      "default": "/assets/models/monsters/goblin.glb",
-      "goblin": "/assets/models/monsters/goblin.glb",
-      "wolf": "/assets/models/monsters/goblin.glb",
-      "boar": "/assets/models/monsters/goblin.glb",
-      "undead": "/assets/models/monsters/goblin.glb",
-      "legion_scout": "/assets/models/monsters/goblin.glb",
-      "legion_brute": "/assets/models/monsters/goblin.glb",
-      "legion_overseer": "/assets/models/monsters/goblin.glb"
+      "default": [
+        "/assets/models/monsters/big_Demon.gltf",
+        "/assets/models/monsters/blob_GreenBlob.gltf"
+      ],
+      "goblin": [
+        "/assets/models/monsters/big_Orc.gltf",
+        "/assets/models/monsters/blob_GreenBlob.gltf"
+      ],
+      "wolf": [
+        "/assets/models/monsters/big_Birb.gltf",
+        "/assets/models/monsters/blob_Dog.gltf"
+      ],
+      "boar": [
+        "/assets/models/monsters/big_Dino.gltf",
+        "/assets/models/monsters/blob_Cactoro.gltf"
+      ],
+      "undead": [
+        "/assets/models/monsters/big_Orc_Skull.gltf",
+        "/assets/models/monsters/big_Demon.gltf"
+      ],
+      "legion_scout": [
+        "/assets/models/monsters/big_BlueDemon.gltf",
+        "/assets/models/monsters/blob_Ninja.gltf"
+      ],
+      "legion_brute": [
+        "/assets/models/monsters/big_Yeti.gltf",
+        "/assets/models/monsters/big_MushroomKing.gltf"
+      ],
+      "legion_overseer": [
+        "/assets/models/monsters/big_Demon.gltf",
+        "/assets/models/monsters/big_BlueDemon.gltf"
+      ],
+      "alien": "/assets/models/monsters/big_Alien.gltf",
+      "birb": "/assets/models/monsters/big_Birb.gltf",
+      "bluedemon": "/assets/models/monsters/big_BlueDemon.gltf",
+      "bunny": "/assets/models/monsters/big_Bunny.gltf",
+      "cactoro": "/assets/models/monsters/big_Cactoro.gltf",
+      "demon": "/assets/models/monsters/big_Demon.gltf",
+      "dino": "/assets/models/monsters/big_Dino.gltf",
+      "fish": "/assets/models/monsters/big_Fish.gltf",
+      "frog": "/assets/models/monsters/big_Frog.gltf",
+      "monkroose": "/assets/models/monsters/big_Monkroose.gltf",
+      "mushroomking": "/assets/models/monsters/big_MushroomKing.gltf",
+      "ninja": "/assets/models/monsters/big_Ninja.gltf",
+      "orc": "/assets/models/monsters/big_Orc.gltf",
+      "orc_skull": "/assets/models/monsters/big_Orc_Skull.gltf",
+      "tribal": "/assets/models/monsters/big_Tribal.gltf",
+      "yeti": "/assets/models/monsters/big_Yeti.gltf",
+      "blob_alien": "/assets/models/monsters/blob_Alien.gltf",
+      "blob_birb": "/assets/models/monsters/blob_Birb.gltf",
+      "blob_cactoro": "/assets/models/monsters/blob_Cactoro.gltf",
+      "blob_cat": "/assets/models/monsters/blob_Cat.gltf",
+      "blob_chicken": "/assets/models/monsters/blob_Chicken.gltf",
+      "blob_dog": "/assets/models/monsters/blob_Dog.gltf",
+      "blob_fish": "/assets/models/monsters/blob_Fish.gltf",
+      "blob_greenblob": "/assets/models/monsters/blob_GreenBlob.gltf",
+      "blob_greenspikyblob": "/assets/models/monsters/blob_GreenSpikyBlob.gltf",
+      "blob_mushnub": "/assets/models/monsters/blob_Mushnub.gltf",
+      "blob_mushnub_evolved": "/assets/models/monsters/blob_Mushnub_Evolved.gltf",
+      "blob_ninja": "/assets/models/monsters/blob_Ninja.gltf",
+      "blob_orc": "/assets/models/monsters/blob_Orc.gltf",
+      "blob_pigeon": "/assets/models/monsters/blob_Pigeon.gltf",
+      "blob_pinkblob": "/assets/models/monsters/blob_PinkBlob.gltf",
+      "blob_wizard": "/assets/models/monsters/blob_Wizard.gltf",
+      "blob_yeti": "/assets/models/monsters/blob_Yeti.gltf"
     },
     "loot": {
       "default": "/assets/models/kaykit/dungeon/chest.gltf",
