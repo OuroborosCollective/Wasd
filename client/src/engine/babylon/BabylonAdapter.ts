@@ -33,6 +33,8 @@ type EntityNode = {
   root: TransformNode;
   visual: TransformNode | AbstractMesh;
   label?: Mesh;
+  /** Avoid re-attaching the same GLB on every entity_sync tick (major lag / load loop). */
+  lastAttachedModelUrl?: string;
   baseScale: number;
   areKappa: number;
   areKappaPos: { x: number; y: number; z: number };
@@ -246,11 +248,14 @@ export class BabylonAdapter implements IEngineBridge {
         );
       }
     }
-    if (updates.modelUrl) {
-      if (this.androidMobile) {
-        this.enqueueGlbLoad(() => this.tryAttachModel(id, updates.modelUrl));
-      } else {
-        void this.tryAttachModel(id, updates.modelUrl);
+    if (updates.modelUrl !== undefined) {
+      const nextUrl = updates.modelUrl.trim();
+      if (nextUrl && nextUrl !== node.lastAttachedModelUrl) {
+        if (this.androidMobile) {
+          this.enqueueGlbLoad(() => this.tryAttachModel(id, nextUrl));
+        } else {
+          void this.tryAttachModel(id, nextUrl);
+        }
       }
     }
     if (updates.type) {
@@ -263,6 +268,7 @@ export class BabylonAdapter implements IEngineBridge {
   destroyEntity(id: string): void {
     const node = this.entities.get(id);
     if (!node) return;
+    this.modelAttachQueue.delete(id);
     this.pendingLabelText.delete(id);
     node.root.dispose(false, true);
     this.entities.delete(id);
@@ -578,6 +584,9 @@ export class BabylonAdapter implements IEngineBridge {
     if (!url) return;
     const entity = this.entities.get(entityId);
     if (!entity) return;
+    if (entity.lastAttachedModelUrl === url) {
+      return;
+    }
 
     this.modelAttachQueue.set(entityId, url);
     const expectedUrl = url;
@@ -609,6 +618,7 @@ export class BabylonAdapter implements IEngineBridge {
       this.applyAREMaterialMode(entity);
       this.applyARELod(entity);
       this.updateAREShaderUniforms(entity);
+      entity.lastAttachedModelUrl = expectedUrl;
     } catch (error) {
       console.warn(`Failed to load model for ${entityId}:`, url, error);
     }

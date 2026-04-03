@@ -29,4 +29,14 @@ describe("adminAuthMiddleware", () => {
     const r = await request(app).get("/t").set("X-Admin-Token", "panel-secret-xyz");
     expect(r.status).toBe(200);
   });
+
+  it("rejects JWT-shaped Bearer when ADMIN_PANEL_TOKEN is set (use panel token, not Google login)", async () => {
+    process.env.ADMIN_PANEL_TOKEN = "panel-secret-xyz";
+    const app = express();
+    app.get("/t", adminAuthMiddleware, (_req, res) => res.json({ ok: true }));
+    const jwtLike = `eyJhbG.${"x".repeat(90)}.sig`;
+    const r = await request(app).get("/t").set("Authorization", `Bearer ${jwtLike}`);
+    expect(r.status).toBe(401);
+    expect(r.body.errorDe).toMatch(/ADMIN_PANEL_TOKEN/);
+  });
 });

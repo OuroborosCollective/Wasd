@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { verifyFirebaseToken } from "../config/firebase.js";
+import { isFirebaseAuthConfigured, verifyFirebaseToken } from "../config/firebase.js";
 
 export type AdminRequest = Request & {
   adminAuth?: { mode: "token" } | { mode: "firebase"; uid: string };
@@ -43,7 +43,28 @@ export async function adminAuthMiddleware(req: AdminRequest, res: Response, next
     return res.status(401).json({ error: "Missing Authorization: Bearer <token>" });
   }
 
+  if (panel && bearer !== panel && !headerToken) {
+    const jwtLike = bearer.split(".").length >= 3 && bearer.length > 80;
+    if (jwtLike) {
+      return res.status(401).json({
+        error: "Use admin panel token, not Google JWT",
+        errorDe:
+          "Im Feld „Code“ steht vermutlich ein Google-/Firebase-Login-Token. Dort gehört der lange **ADMIN_PANEL_TOKEN** aus der Server-.env — nicht das Spiel-Login. Oder nutze den Header **X-Admin-Token** mit dem Panel-Token.",
+      });
+    }
+  }
+
   try {
+    if (!isFirebaseAuthConfigured()) {
+      const msg =
+        "Firebase Admin ist auf dem Server nicht konfiguriert (FIREBASE_SERVICE_ACCOUNT_KEY). " +
+        "Admin-API mit Google-Token geht dann nicht — nutze ADMIN_PANEL_TOKEN im Feld „Code“ " +
+        "oder setze den Service-Account auf dem VPS.";
+      return res.status(503).json({
+        error: "Firebase Admin not configured",
+        errorDe: msg,
+      });
+    }
     const decoded = await verifyFirebaseToken(bearer);
     if (!decoded?.uid) {
       return res.status(401).json({ error: "Invalid Firebase token" });
