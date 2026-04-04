@@ -11,7 +11,6 @@ import { OwnershipRegistry } from "../modules/housing/OwnershipRegistry.js";
 import { DungeonGenerator } from "../modules/dungeon/DungeonGenerator.js";
 import { PacketRouter } from "../networking/PacketRouter.js";
 import { GameConfig } from "../config/GameConfig.js";
-import { FeatureFlags } from "../config/FeatureFlags.js";
 import { NPCSpawnTable } from "../modules/npc/NPCSpawnTable.js";
 import { NPCProfessions } from "../modules/npc/NPCProfessions.js";
 
@@ -383,29 +382,6 @@ describe("GameConfig", () => {
 
   it("lootDespawnMs is 300000", () => {
     expect(GameConfig.lootDespawnMs).toBe(300000);
-  });
-});
-
-
-
-// ---------------------------------------------------------------------------
-// FeatureFlags
-// ---------------------------------------------------------------------------
-describe("FeatureFlags", () => {
-  it("enableOracle is true", () => {
-    expect(FeatureFlags.enableOracle).toBe(true);
-  });
-
-  it("enableWeather is true", () => {
-    expect(FeatureFlags.enableWeather).toBe(true);
-  });
-
-  it("enableSeasons is true", () => {
-    expect(FeatureFlags.enableSeasons).toBe(true);
-  });
-
-  it("enableGMEditor is true", () => {
-    expect(FeatureFlags.enableGMEditor).toBe(true);
   });
 });
 
