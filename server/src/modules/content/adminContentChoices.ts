@@ -5,6 +5,8 @@ import { getContentDataRoot, resolveContentFile } from "./contentDataRoot.js";
 export type NpcChoice = { id: string; name: string; role?: string };
 export type WorldObjectChoice = { id: string; name?: string; type?: string };
 export type PoolKeyChoice = { category: string; key: string; label: string };
+export type QuestChoice = { id: string; title?: string };
+export type DialogueChoice = { id: string };
 
 function safeReadJsonArray(fileRel: string): any[] {
   const p = resolveContentFile(fileRel);
@@ -76,6 +78,75 @@ export function loadObjectTypeChoicesForAdmin(): string[] {
     }
   }
   return [...types].sort((a, b) => a.localeCompare(b));
+}
+
+export function loadQuestChoicesForAdmin(): QuestChoice[] {
+  const arr = safeReadJsonArray("quests/quests.json");
+  return arr
+    .filter((q: any) => q && typeof q.id === "string")
+    .map((q: any) => ({
+      id: q.id,
+      title: typeof q.title === "string" ? q.title : undefined,
+    }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+export function loadDialogueChoicesForAdmin(): DialogueChoice[] {
+  const arr = safeReadJsonArray("dialogue/dialogues.json");
+  return arr
+    .filter((d: any) => d && typeof d.id === "string")
+    .map((d: any) => ({ id: d.id }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+const MAX_PREVIEW_CHARS = 48_000;
+
+function trimPreviewJson(s: string): string {
+  if (s.length <= MAX_PREVIEW_CHARS) return s;
+  return s.slice(0, MAX_PREVIEW_CHARS) + "\n\n… (gekürzt, max. " + MAX_PREVIEW_CHARS + " Zeichen)";
+}
+
+export function loadQuestJsonPreviewById(
+  questId: string
+): { ok: true; json: string } | { ok: false; errorDe: string } {
+  const id = questId.trim();
+  if (!id) return { ok: false, errorDe: "Keine Quest-ID." };
+  const arr = safeReadJsonArray("quests/quests.json");
+  const row = arr.find((q: any) => q && typeof q.id === "string" && q.id === id);
+  if (!row) return { ok: false, errorDe: "Quest nicht gefunden: " + id };
+  try {
+    return { ok: true, json: trimPreviewJson(JSON.stringify(row, null, 2)) };
+  } catch {
+    return { ok: false, errorDe: "Quest konnte nicht als JSON dargestellt werden." };
+  }
+}
+
+export function loadDialogueJsonPreviewById(
+  dialogueId: string
+): { ok: true; json: string } | { ok: false; errorDe: string } {
+  const id = dialogueId.trim();
+  if (!id) return { ok: false, errorDe: "Keine Dialog-ID." };
+  const arr = safeReadJsonArray("dialogue/dialogues.json");
+  const row = arr.find((d: any) => d && typeof d.id === "string" && d.id === id);
+  if (!row) return { ok: false, errorDe: "Dialog nicht gefunden: " + id };
+  try {
+    return { ok: true, json: trimPreviewJson(JSON.stringify(row, null, 2)) };
+  } catch {
+    return { ok: false, errorDe: "Dialog konnte nicht als JSON dargestellt werden." };
+  }
+}
+
+export function loadNpcJsonPreviewById(npcId: string): { ok: true; json: string } | { ok: false; errorDe: string } {
+  const id = npcId.trim();
+  if (!id) return { ok: false, errorDe: "Keine NPC-ID." };
+  const arr = safeReadJsonArray("npc/npcs.json");
+  const row = arr.find((n: any) => n && typeof n.id === "string" && n.id === id);
+  if (!row) return { ok: false, errorDe: "NPC nicht gefunden: " + id };
+  try {
+    return { ok: true, json: trimPreviewJson(JSON.stringify(row, null, 2)) };
+  } catch {
+    return { ok: false, errorDe: "NPC konnte nicht als JSON dargestellt werden." };
+  }
 }
 
 /** Human-readable content root label for admin UI */
