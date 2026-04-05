@@ -1,3 +1,3 @@
 export function renderAdminAudit() {
-  console.log("Admin audit UI ready");
+  // TODO: Implement Admin Audit UI
 }

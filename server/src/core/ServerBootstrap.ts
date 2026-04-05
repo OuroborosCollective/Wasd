@@ -9,6 +9,7 @@ import { mcpRoute } from "../api/mcpRoute.js";
 import migrationRoute from "../api/migrationRoute.js";
 import { adminContentRouter } from "../api/adminContentRoute.js";
 import { getContentDataSourceLabel } from "../modules/content/contentDataRoot.js";
+import { getFirebaseAdminSummary } from "../config/firebase.js";
 import { resolveWorldAssetsDir } from "./resolveWorldAssetsDir.js";
 import { resolveMirroredWorldAssetsDir } from "./resolveMirroredWorldAssetsDir.js";
 
@@ -149,12 +150,23 @@ export class ServerBootstrap {
     app.get("/health", (_req, res) => {
       const persistence = tick.getPersistenceStats();
       const content = getContentDataSourceLabel();
+      const envTruthy = (key: string) => {
+        const v = process.env[key]?.trim().toLowerCase();
+        return v === "1" || v === "true" || v === "yes";
+      };
       res.json({
         ok: true,
         project: "ARELORIAN MMORPG",
         version: "0.2.0",
         persistence,
         content: { mode: content.mode, root: content.root },
+        firebase: getFirebaseAdminSummary(),
+        auth: {
+          useFirebaseWsLogin: envTruthy("USE_FIREBASE_WS_LOGIN"),
+          requireFirebaseAuth: envTruthy("REQUIRE_FIREBASE_AUTH"),
+          allowGuestLogin: envTruthy("ALLOW_GUEST_LOGIN"),
+          allowDevLogin: !["0", "false", "no"].includes(process.env.ALLOW_DEV_LOGIN?.trim().toLowerCase() || ""),
+        },
       });
     });
 

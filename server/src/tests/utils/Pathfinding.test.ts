@@ -77,4 +77,20 @@ describe("Pathfinding utils", () => {
     expect(path[0]).toEqual({ x: 0, y: 0 });
     expect(path[path.length - 1]).toEqual({ x: 1, y: 1 });
   });
+
+  it("should return fallback linear path when start is completely boxed in (no path possible)", () => {
+    const start: Point = { x: 0, y: 0 };
+    const end: Point = { x: 5, y: 5 };
+
+    // Box around start (all 8 surrounding cells are obstacles)
+    const isObstacle = (x: number, y: number) => {
+      if (Math.abs(x) <= 1 && Math.abs(y) <= 1 && !(x === 0 && y === 0)) return true;
+      return false;
+    };
+
+    const path = Pathfinding.findPath(start, end, isObstacle);
+
+    // Fallback is [start, end]
+    expect(path).toEqual([start, end]);
+  });
 });
