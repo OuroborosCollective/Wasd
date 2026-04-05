@@ -293,7 +293,6 @@ export function renderHUD() {
         const result = await signInWithPopup(auth, provider);
         const token = await result.user.getIdToken(true);
         updateAuthToken(token, { reconnect: true });
-        console.log("Logged in!");
       } catch (e) {
         console.error("Login failed", e);
       }

@@ -1,6 +1,6 @@
 # areloria-glb (SpacetimeDB module)
 
-Stores **GLB model link overrides** (`glb_path`, `target_type`, `target_id`) in a **public** table `glb_link` so the game server can replace the JSON file `game-data/glb-links.json` when `GLB_LINKS_STORE=spacetime` is set.
+Stores **GLB model link overrides** in **`glb_link`** and an optional **`player_row`** table (`uid`, `json`, `updated_at_ms`) for future player persistence via the same published module. Node still uses `PLAYER_SAVE_FILE` until the server writes SQL/reducers against `player_row`.
 
 ## Requirements
 
