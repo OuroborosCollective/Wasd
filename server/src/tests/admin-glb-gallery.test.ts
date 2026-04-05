@@ -24,6 +24,7 @@ describe("adminGlbGallery sanitize", () => {
 
   it("sanitizes filename", () => {
     expect(sanitizeAdminGlbFilename("model.glb")).toEqual({ ok: true, filename: "model.glb" });
+    expect(sanitizeAdminGlbFilename("mesh.bin")).toEqual({ ok: true, filename: "mesh.bin" });
     expect(sanitizeAdminGlbFilename("../../evil.glb").ok).toBe(false);
     expect(sanitizeAdminGlbFilename("sub/model.glb").ok).toBe(false);
     expect(sanitizeAdminGlbFilename("noext").ok).toBe(false);
