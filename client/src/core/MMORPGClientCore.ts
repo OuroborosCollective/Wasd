@@ -12,7 +12,6 @@ export class MMORPGClientCore {
 
   constructor(private engine: IEngineBridge) {
     this.viewManager = new EntityViewManager(engine);
-    console.log("MMORPG Client Core Initialized with ViewManager");
   }
 
   private lastDt: number = 0.016;
