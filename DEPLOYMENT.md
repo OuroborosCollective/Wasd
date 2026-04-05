@@ -4,7 +4,7 @@
 
 ## GitHub Actions → VPS (Continuous Deployment)
 
-Workflow: **`.github/workflows/deploy.yml`** (Push auf `main`, optional stündlich, `workflow_dispatch`).
+Workflow: **`.github/workflows/deploy.yml`** (Push auf `main` und manuell **`workflow_dispatch`** — kein stündlicher Cron).
 
 **Repository-Secrets (Settings → Secrets and variables → Actions):**
 
@@ -13,9 +13,15 @@ Workflow: **`.github/workflows/deploy.yml`** (Push auf `main`, optional stündli
 | `VPS_IP` | Hostname oder IP des Servers |
 | `VPS_USER` | SSH-Benutzer (z. B. `root`) |
 | `VPS_SSH_PASSWORD` | Passwort für SSH (oder Key-basiertes Setup später) |
-| `DEPLOY_VERIFY_BASE_URL` | **Optional:** öffentliche Basis-URL **ohne** trailing slash, z. B. `https://deine-domain.tld`. Wenn **leer / nicht gesetzt**, schlägt der Workflow **nicht** fehl, nur die externen HTTPS-Checks werden übersprungen (sinnvoll wenn DNS/SSL noch nicht zur VPS-IP passt). |
+| `DEPLOY_VERIFY_BASE_URL` | **Optional:** öffentliche Basis-URL **ohne** trailing slash (z. B. `https://deine-spiel-domain.tld`). Gesetzt = nach Deploy werden **`/health`**, **`/`**, **`/gm/`** per HTTPS geprüft. **Nicht** gesetzt = nur SSH-Deploy, kein externer Check (DNS/SSL kann später nachgezogen werden). |
 
 Auf dem Server führt der Job **`deploy/deploy.sh`** aus: **pnpm** + **`pnpm install --frozen-lockfile`** am Repo-Root (wie CI), dann **`pnpm run build`**. SSH-Schritt hat **45 Minuten** Timeout für große Client-Builds.
+
+**Lokal (Entwickler):** `pnpm run ci:verify` = Lint, Tests, Build, Modell-Pfad-Audit (ohne Playwright). Voll wie GitHub: danach `pnpm run test:e2e:ci`.
+
+**Auf dem VPS nach Deploy:** `bash deploy/verify-vps-local.sh` (prüft `/health`, `/`, `/gm/` auf `127.0.0.1:3000`).
+
+Ausführliches Runbook: **`docs/CI_VPS_RUNBOOK.md`**.
 
 ## Schnellstart (VPS Hostinger)
 
@@ -38,9 +44,12 @@ chmod +x deploy/deploy.sh
 ```
 
 ### 3. .env konfigurieren
+
+**Ohne viele SSH-Befehle:** siehe **`deploy/ENV_SETUP.md`** — Vorlage **`deploy/.env.production.template`** per SCP/SFTP nach `/opt/areloria/.env` kopieren und im Editor ausfüllen.
+
 ```bash
 nano /opt/areloria/.env
-# Fülle PGPASSWORD und JWT_SECRET aus
+# Mindestens: JWT_SECRET, FIREBASE_*, ADMIN_PANEL_TOKEN, PUBLIC_WEBSOCKET_URL — siehe Vorlage
 ```
 
 ### Firebase Admin auf dem VPS (Node — Token-Verifikation / Firestore)
@@ -60,7 +69,17 @@ Der **private Service-Account-JSON-Key** gehört **nicht** ins Git. Auf dem Serv
 3. Optional in `.env`: **`FIREBASE_PROJECT_ID=…`** (Projekt-ID aus der Console), falls sie nicht im JSON steht.
 
 4. **Neustart:** `pm2 restart areloria`  
-   Prüfen: `curl -s http://127.0.0.1:3000/health` → `persistence` / Firebase-Hinweise.
+   Prüfen: `curl -s http://127.0.0.1:3000/health` — Felder **`firebase`** (`configured`, `initMode`, `projectId`) und **`auth`** (`useFirebaseWsLogin`, …). Detaillierte Schritte: **`docs/FIREBASE_VPS_CHECKLIST.md`**.
+
+**Alternative (Application Default Credentials, wie `admin.credential.applicationDefault()`):**  
+In `.env` **`FIREBASE_SERVICE_ACCOUNT_KEY` leer lassen** und setzen:
+
+```bash
+GOOGLE_APPLICATION_CREDENTIALS=/opt/areloria/secrets/firebase-adminsdk.json
+FIREBASE_PROJECT_ID=deine-gcp-projekt-id
+```
+
+Der Server initialisiert dann mit **`applicationDefault()`** (liest die JSON-Datei über `GOOGLE_APPLICATION_CREDENTIALS`). Auf **GCP** (Compute Engine / Cloud Run mit Dienstkonto) reicht oft **`FIREBASE_ADMIN_USE_APPLICATION_DEFAULT=1`** + **`FIREBASE_PROJECT_ID`**.
 
 **Client (Vite):** Weiterhin **`VITE_FIREBASE_*`** in `.env` am Repo-Root setzen (Build), damit Browser-Login und Projekt zum Admin-Key passen.
 

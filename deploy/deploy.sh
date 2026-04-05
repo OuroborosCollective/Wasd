@@ -134,7 +134,7 @@ ENVEOF
   echo "⚠️  Please edit $APP_DIR/.env and fill in PGPASSWORD and JWT_SECRET!"
 fi
 
-# If Admin SDK JSON exists and .env has no FIREBASE_SERVICE_ACCOUNT_KEY, append path (no secret in repo).
+# If Admin SDK JSON exists and .env has no Firebase lines, append paths (no secret in repo).
 if [ -f "$FIREBASE_KEY_FILE" ] && [ -f "$APP_DIR/.env" ]; then
   if ! grep -q '^[[:space:]]*FIREBASE_SERVICE_ACCOUNT_KEY=' "$APP_DIR/.env" 2>/dev/null; then
     {
@@ -143,6 +143,10 @@ if [ -f "$FIREBASE_KEY_FILE" ] && [ -f "$APP_DIR/.env" ]; then
       echo "FIREBASE_SERVICE_ACCOUNT_KEY=$FIREBASE_KEY_FILE"
     } >> "$APP_DIR/.env"
     echo "✅ Linked FIREBASE_SERVICE_ACCOUNT_KEY -> $FIREBASE_KEY_FILE"
+  fi
+  if ! grep -q '^[[:space:]]*GOOGLE_APPLICATION_CREDENTIALS=' "$APP_DIR/.env" 2>/dev/null; then
+    echo "GOOGLE_APPLICATION_CREDENTIALS=$FIREBASE_KEY_FILE" >> "$APP_DIR/.env"
+    echo "✅ Linked GOOGLE_APPLICATION_CREDENTIALS -> $FIREBASE_KEY_FILE"
   fi
 fi
 

@@ -3,9 +3,7 @@ name: Continuous Deployment to VPS
 on:
   push:
     branches: [ main ]
-  schedule:
-    - cron: '0 * * * *' # Stündlich — optional abschalten, wenn nur push reicht
-  workflow_dispatch: # Manuelles Triggern ermöglichen
+  workflow_dispatch: # Manuelles Triggern
 
 concurrency:
   group: deploy-vps-main

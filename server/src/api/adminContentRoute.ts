@@ -13,6 +13,11 @@ import {
   loadNpcRoleChoicesForAdmin,
   loadObjectTypeChoicesForAdmin,
   loadWorldObjectChoicesForAdmin,
+  loadQuestChoicesForAdmin,
+  loadDialogueChoicesForAdmin,
+  loadQuestJsonPreviewById,
+  loadDialogueJsonPreviewById,
+  loadNpcJsonPreviewById,
 } from "../modules/content/adminContentChoices.js";
 import { getServerPublicModelsDir, validateAdminGlbPathForServer } from "../modules/content/adminGlbPathCheck.js";
 import {
@@ -110,7 +115,33 @@ export function adminContentRouter(tick: WorldTick): Router {
       monsterGroups: loadMonsterGroupKeysForAdmin(),
       npcRoles: loadNpcRoleChoicesForAdmin(),
       objectTypes: loadObjectTypeChoicesForAdmin(),
+      quests: loadQuestChoicesForAdmin(),
+      dialogues: loadDialogueChoicesForAdmin(),
     });
+  });
+
+  router.get("/content-preview", adminAuthMiddleware, (req: AdminRequest, res: Response) => {
+    const kind = String(req.query.kind ?? "").toLowerCase().trim();
+    const id = String(req.query.id ?? "").trim();
+    if (!id) {
+      return jsonError(res, 400, "Parameter „id“ fehlt.", "id required");
+    }
+    if (kind === "quest") {
+      const r = loadQuestJsonPreviewById(id);
+      if (!r.ok) return res.status(404).json({ ok: false, errorDe: r.errorDe });
+      return res.json({ ok: true, kind: "quest", id, json: r.json });
+    }
+    if (kind === "dialogue" || kind === "dialog") {
+      const r = loadDialogueJsonPreviewById(id);
+      if (!r.ok) return res.status(404).json({ ok: false, errorDe: r.errorDe });
+      return res.json({ ok: true, kind: "dialogue", id, json: r.json });
+    }
+    if (kind === "npc") {
+      const r = loadNpcJsonPreviewById(id);
+      if (!r.ok) return res.status(404).json({ ok: false, errorDe: r.errorDe });
+      return res.json({ ok: true, kind: "npc", id, json: r.json });
+    }
+    return jsonError(res, 400, "Unbekannter „kind“ — nutze quest, dialogue oder npc.", "invalid kind");
   });
 
   router.get("/model-path-audit", adminAuthMiddleware, (_req: AdminRequest, res: Response) => {
