@@ -106,7 +106,15 @@ export function renderEquipmentPanel() {
   panel.dataset.compact = compact ? "1" : "0";
 
   const stopEvents = (e: Event) => e.stopPropagation();
-  ["touchstart", "touchmove", "mousedown", "pointerdown", "click"].forEach((evt) => {
+  ["touchstart", "touchmove"].forEach((evt) => {
+    panel!.addEventListener(evt, stopEvents, { passive: true });
+  });
+  [
+    "touchend", "touchcancel",
+    "mousedown", "mouseup", "mousemove",
+    "pointerdown", "pointerup", "pointermove",
+    "click"
+  ].forEach((evt) => {
     panel!.addEventListener(evt, stopEvents, { passive: false });
   });
 
