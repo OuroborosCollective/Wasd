@@ -134,7 +134,7 @@ const ItemTooltip: React.FC<{ item: Item }> = ({ item }) => {
 /**
  * Main InventorySlot Component
  */
-export const InventorySlot: React.FC<InventorySlotProps> = ({
+export const InventorySlot: React.FC<InventorySlotProps> = React.memo(({
   item,
   slot,
   isEquipped = false,
@@ -273,6 +273,8 @@ export const InventorySlot: React.FC<InventorySlotProps> = ({
       )}
     </div>
   );
-};
+});
+
+InventorySlot.displayName = 'InventorySlot';
 
 export default InventorySlot;

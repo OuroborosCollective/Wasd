@@ -140,6 +140,36 @@ export const InventoryGrid: React.FC<InventoryGridProps> = ({
 
   const rows = Math.ceil(items.length / columns);
 
+  /**
+   * Pre-compute equipped item IDs for O(1) lookup during render
+   */
+  const equippedItemIds = useMemo(() => {
+    return new Set(Object.values(equippedItems).map(eq => eq?.id).filter(Boolean));
+  }, [equippedItems]);
+
+  /**
+   * Stable callbacks for InventorySlot items
+   */
+  const handleItemMove = useCallback((fromSlot: number, toSlot: number) => {
+    onItemMove?.(fromSlot, toSlot);
+  }, [onItemMove]);
+
+  const handleEquip = useCallback((slot: number) => {
+    onEquip?.(slot);
+  }, [onEquip]);
+
+  const handleUnequip = useCallback((slot: number) => {
+    onUnequip?.(slot);
+  }, [onUnequip]);
+
+  const handleUse = useCallback((slot: number) => {
+    onUse?.(slot);
+  }, [onUse]);
+
+  const handleDragStart = useCallback((slot: number, draggedItem: Item) => {
+    // Drag start logic
+  }, []);
+
   return (
     <div className={`inventory-grid-container ${className}`}>
       {/* Header */}
@@ -236,28 +266,18 @@ export const InventoryGrid: React.FC<InventoryGridProps> = ({
         }}
       >
         {items.map((item, index) => {
-          const isEquipped = Object.values(equippedItems).some(eq => eq?.id === item?.id);
+          const isEquipped = !!item?.id && equippedItemIds.has(item.id);
           return (
             <InventorySlot
               key={index}
               item={item}
               slot={index}
               isEquipped={isEquipped}
-              onDragStart={(slot, draggedItem) => {
-                // Drag start logic
-              }}
-              onDrop={(fromSlot, toSlot) => {
-                onItemMove?.(fromSlot, toSlot);
-              }}
-              onEquip={(slot) => {
-                onEquip?.(slot);
-              }}
-              onUnequip={(slot) => {
-                onUnequip?.(slot);
-              }}
-              onUse={(slot) => {
-                onUse?.(slot);
-              }}
+              onDragStart={handleDragStart}
+              onDrop={handleItemMove}
+              onEquip={handleEquip}
+              onUnequip={handleUnequip}
+              onUse={handleUse}
             />
           );
         })}
