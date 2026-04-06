@@ -2,21 +2,30 @@ import fs from "node:fs";
 import path from "node:path";
 import { getServerPublicModelsDir } from "./adminGlbPathCheck.js";
 
+export type GlbGalleryTreeId = "client" | "world";
+
 export type GlbGalleryItem = {
   relativePath: string;
-  /** URL path starting with /assets/models/ */
+  /** Loadable model URL (empty for .bin sidecars — not linked alone). */
   url: string;
   name: string;
   isDirectory: boolean;
   sizeBytes?: number;
+  tree: GlbGalleryTreeId;
+  /** false for .bin buffers next to separated glTF */
+  selectable: boolean;
 };
 
 /**
- * Recursively list .glb/.gltf files and directories under client/public/assets/models.
+ * Recursively list directories, .glb/.gltf (selectable), and .bin (visible, not selectable).
  */
-export function scanGlbGalleryTree(): { modelsRoot: string; items: GlbGalleryItem[] } {
-  const modelsRoot = getServerPublicModelsDir();
+export function scanGlbGalleryTreeAt(
+  modelsRoot: string,
+  urlPrefix: string,
+  tree: GlbGalleryTreeId
+): GlbGalleryItem[] {
   const items: GlbGalleryItem[] = [];
+  const base = urlPrefix.endsWith("/") ? urlPrefix : urlPrefix + "/";
 
   function walk(relDir: string) {
     const absDir = path.join(modelsRoot, relDir);
@@ -27,24 +36,40 @@ export function scanGlbGalleryTree(): { modelsRoot: string; items: GlbGalleryIte
       const rel = relDir ? path.join(relDir, name) : name;
       const abs = path.join(modelsRoot, rel);
       const st = fs.statSync(abs);
+      const relPosix = rel.replace(/\\/g, "/");
       if (st.isDirectory()) {
         items.push({
-          relativePath: rel.replace(/\\/g, "/"),
-          url: "/assets/models/" + rel.replace(/\\/g, "/"),
+          relativePath: relPosix,
+          url: base + relPosix,
           name,
           isDirectory: true,
+          tree,
+          selectable: false,
         });
         walk(rel);
       } else if (st.isFile()) {
         const lower = name.toLowerCase();
-        if (!lower.endsWith(".glb") && !lower.endsWith(".gltf")) continue;
-        items.push({
-          relativePath: rel.replace(/\\/g, "/"),
-          url: "/assets/models/" + rel.replace(/\\/g, "/"),
-          name,
-          isDirectory: false,
-          sizeBytes: st.size,
-        });
+        if (lower.endsWith(".glb") || lower.endsWith(".gltf")) {
+          items.push({
+            relativePath: relPosix,
+            url: base + relPosix,
+            name,
+            isDirectory: false,
+            sizeBytes: st.size,
+            tree,
+            selectable: true,
+          });
+        } else if (lower.endsWith(".bin")) {
+          items.push({
+            relativePath: relPosix,
+            url: "",
+            name,
+            isDirectory: false,
+            sizeBytes: st.size,
+            tree,
+            selectable: false,
+          });
+        }
       }
     }
   }
@@ -53,11 +78,20 @@ export function scanGlbGalleryTree(): { modelsRoot: string; items: GlbGalleryIte
     walk("");
   }
 
+  return items;
+}
+
+/**
+ * Recursively list under client/public/assets/models (URLs /assets/models/…).
+ */
+export function scanGlbGalleryTree(): { modelsRoot: string; items: GlbGalleryItem[] } {
+  const modelsRoot = getServerPublicModelsDir();
+  const items = scanGlbGalleryTreeAt(modelsRoot, "/assets/models/", "client");
   return { modelsRoot, items };
 }
 
 const SAFE_FOLDER = /^[a-z0-9]+(?:_[a-z0-9]+)*$/i;
-const SAFE_FILE = /^[a-zA-Z0-9][a-zA-Z0-9._-]*\.(glb|gltf)$/i;
+const SAFE_FILE = /^[a-zA-Z0-9][a-zA-Z0-9._-]*\.(glb|gltf|bin)$/i;
 
 /**
  * Normalize folder like "characters/custom" — only safe segments.
@@ -92,7 +126,8 @@ export function sanitizeAdminGlbFilename(original: string): { ok: true; filename
   if (!SAFE_FILE.test(base)) {
     return {
       ok: false,
-      errorDe: "Dateiname: nur .glb oder .gltf, z. B. merchant_red.glb (Buchstaben, Zahlen, _ -).",
+      errorDe:
+        "Dateiname: nur .glb, .gltf oder .bin (z. B. model.gltf + model.bin), Buchstaben, Zahlen, _ -.",
     };
   }
   return { ok: true, filename: base };
