@@ -15,7 +15,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v3
         with:
-          version: 9
+          version: 10.30.3
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -30,6 +30,7 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=8192
         run: pnpm -w run build
+        run: pnpm run build
 
       - name: Run focused ARE tests
         run: npx vitest run server/src/tests/runtime-settings-store.test.ts client/src/engine/babylon/BabylonAdapter.test.ts

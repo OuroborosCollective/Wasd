@@ -29,6 +29,8 @@ jobs:
           cd /opt/areloria
           git fetch origin main
           git reset --hard origin/main
+          chmod +x deploy/deploy.sh
+          ./deploy/deploy.sh
           chmod +x deploy/deploy.sh deploy/update.sh deploy/write_pm2_ecosystem.sh 2>/dev/null || true
           if [ ! -f /opt/areloria/server/dist/index.js ] || ! command -v pm2 >/dev/null 2>&1; then
             ./deploy/deploy.sh
