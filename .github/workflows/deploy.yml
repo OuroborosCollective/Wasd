@@ -19,23 +19,11 @@ jobs:
         password: ${{ secrets.VPS_SSH_PASSWORD }}
         port: 22
         script: |
-          cd /var/www/arelogic.space
+          if [ ! -d "/opt/areloria/.git" ]; then
+            git clone https://github.com/OuroborosCollective/Wasd.git /opt/areloria
+          fi
+          cd /opt/areloria
           git fetch origin main
           git reset --hard origin/main
-          
-          # Server aktualisieren und im Hintergrund starten
-          cd server
-          pnpm install
-          # Bestehende Instanzen beenden (falls vorhanden)
-          pkill -f "pnpm run dev" || true
-          nohup pnpm run dev > server.log 2>&1 &
-          
-          # Client aktualisieren und im Hintergrund starten
-          cd ../client
-          pnpm install
-          # Bestehende Instanzen beenden (falls vorhanden)
-          pkill -f "vite" || true
-          nohup pnpm run dev --host > client.log 2>&1 &
-          
-          echo "Deployment successful at $(date)"
-          
+          chmod +x deploy/deploy.sh
+          ./deploy/deploy.sh
