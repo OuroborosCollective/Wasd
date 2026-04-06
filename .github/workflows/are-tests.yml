@@ -29,6 +29,7 @@ jobs:
       - name: Build client and server
         env:
           NODE_OPTIONS: --max-old-space-size=8192
+        run: pnpm -w run build
         run: pnpm run build
 
       - name: Run focused ARE tests
