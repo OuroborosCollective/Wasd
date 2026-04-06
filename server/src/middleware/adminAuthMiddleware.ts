@@ -57,9 +57,9 @@ export async function adminAuthMiddleware(req: AdminRequest, res: Response, next
   try {
     if (!isFirebaseAuthConfigured()) {
       const msg =
-        "Firebase Admin ist auf dem Server nicht konfiguriert (FIREBASE_SERVICE_ACCOUNT_KEY). " +
-        "Admin-API mit Google-Token geht dann nicht — nutze ADMIN_PANEL_TOKEN im Feld „Code“ " +
-        "oder setze den Service-Account auf dem VPS.";
+        "Firebase Admin ist auf dem Server nicht konfiguriert. Setze z. B. FIREBASE_SERVICE_ACCOUNT_KEY (Pfad/JSON), " +
+        "oder GOOGLE_APPLICATION_CREDENTIALS=/pfad/zum-adminsdk.json, oder auf GCP FIREBASE_ADMIN_USE_APPLICATION_DEFAULT=1 " +
+        "plus FIREBASE_PROJECT_ID. Sonst: ADMIN_PANEL_TOKEN im Admin-Feld „Code“.";
       return res.status(503).json({
         error: "Firebase Admin not configured",
         errorDe: msg,
