@@ -20,6 +20,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
+          node-version: "22"
           node-version: "20"
           cache: "pnpm"
 
@@ -29,6 +30,7 @@ jobs:
       - name: Build client and server
         env:
           NODE_OPTIONS: --max-old-space-size=8192
+        run: pnpm -w run build
         run: pnpm run build
 
       - name: Run focused ARE tests
