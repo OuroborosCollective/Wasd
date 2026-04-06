@@ -13,16 +13,25 @@ import {
   loadNpcRoleChoicesForAdmin,
   loadObjectTypeChoicesForAdmin,
   loadWorldObjectChoicesForAdmin,
+  loadQuestChoicesForAdmin,
+  loadDialogueChoicesForAdmin,
+  loadQuestJsonPreviewById,
+  loadDialogueJsonPreviewById,
+  loadNpcJsonPreviewById,
 } from "../modules/content/adminContentChoices.js";
 import { getServerPublicModelsDir, validateAdminGlbPathForServer } from "../modules/content/adminGlbPathCheck.js";
 import {
   scanGlbGalleryTree,
+  scanGlbGalleryTreeAt,
   sanitizeAdminGlbFilename,
   sanitizeAdminGlbRelativeFolder,
 } from "../modules/content/adminGlbGallery.js";
+import { resolveWorldAssetsDir } from "../core/resolveWorldAssetsDir.js";
 import { publishContentPackFromRepo } from "../modules/content/publishContentPackFromRepo.js";
 import { validateContentRoot } from "../modules/content/validateContentCore.js";
 import { getContentDataRoot } from "../modules/content/contentDataRoot.js";
+import { findRepoRootWithGameData } from "../modules/content/repoRoot.js";
+import { auditContentModelPaths } from "../modules/content/auditContentModelPaths.js";
 
 const MAX_ADMIN_GLB_MB = Math.min(
   120,
@@ -34,8 +43,8 @@ const adminGlbUploadMulter = multer({
   limits: { fileSize: MAX_ADMIN_GLB_MB * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    if (ext === ".glb" || ext === ".gltf") cb(null, true);
-    else cb(new Error("Nur .glb oder .gltf."));
+    if (ext === ".glb" || ext === ".gltf" || ext === ".bin") cb(null, true);
+    else cb(new Error("Nur .glb, .gltf oder .bin."));
   },
 });
 
@@ -106,6 +115,53 @@ export function adminContentRouter(tick: WorldTick): Router {
       monsterGroups: loadMonsterGroupKeysForAdmin(),
       npcRoles: loadNpcRoleChoicesForAdmin(),
       objectTypes: loadObjectTypeChoicesForAdmin(),
+      quests: loadQuestChoicesForAdmin(),
+      dialogues: loadDialogueChoicesForAdmin(),
+    });
+  });
+
+  router.get("/content-preview", adminAuthMiddleware, (req: AdminRequest, res: Response) => {
+    const kind = String(req.query.kind ?? "").toLowerCase().trim();
+    const id = String(req.query.id ?? "").trim();
+    if (!id) {
+      return jsonError(res, 400, "Parameter „id“ fehlt.", "id required");
+    }
+    if (kind === "quest") {
+      const r = loadQuestJsonPreviewById(id);
+      if (!r.ok) return res.status(404).json({ ok: false, errorDe: r.errorDe });
+      return res.json({ ok: true, kind: "quest", id, json: r.json });
+    }
+    if (kind === "dialogue" || kind === "dialog") {
+      const r = loadDialogueJsonPreviewById(id);
+      if (!r.ok) return res.status(404).json({ ok: false, errorDe: r.errorDe });
+      return res.json({ ok: true, kind: "dialogue", id, json: r.json });
+    }
+    if (kind === "npc") {
+      const r = loadNpcJsonPreviewById(id);
+      if (!r.ok) return res.status(404).json({ ok: false, errorDe: r.errorDe });
+      return res.json({ ok: true, kind: "npc", id, json: r.json });
+    }
+    return jsonError(res, 400, "Unbekannter „kind“ — nutze quest, dialogue oder npc.", "invalid kind");
+  });
+
+  router.get("/model-path-audit", adminAuthMiddleware, (_req: AdminRequest, res: Response) => {
+    const contentRoot = getContentDataRoot();
+    const repoRoot = findRepoRootWithGameData() ?? path.resolve(process.cwd(), "..");
+    const audit = auditContentModelPaths(contentRoot, repoRoot);
+    const missingDe = audit.missing.map((m) =>
+      m.urlPath.startsWith("(")
+        ? `${m.source}: ${m.urlPath}`
+        : `Fehlende Datei: ${m.urlPath} (${m.source})`
+    );
+    res.json({
+      ok: audit.ok,
+      checked: audit.checked,
+      uniqueModelUrls: audit.uniqueModelUrls,
+      missingCount: audit.missing.length,
+      missing: audit.missing,
+      missingDe,
+      contentRoot: audit.contentRoot,
+      repoRoot: audit.repoRoot,
     });
   });
 
@@ -149,8 +205,29 @@ export function adminContentRouter(tick: WorldTick): Router {
   });
 
   router.get("/glb-gallery-tree", adminAuthMiddleware, (_req: AdminRequest, res: Response) => {
-    const { modelsRoot, items } = scanGlbGalleryTree();
-    res.json({ modelsRoot, items, maxUploadMb: MAX_ADMIN_GLB_MB });
+    const { modelsRoot, items: clientItems } = scanGlbGalleryTree();
+    const worldDir = resolveWorldAssetsDir();
+    const worldItems = worldDir ? scanGlbGalleryTreeAt(worldDir, "/assets/models/world-assets/", "world") : [];
+    res.json({
+      modelsRoot,
+      worldAssetsRoot: worldDir,
+      maxUploadMb: MAX_ADMIN_GLB_MB,
+      sections: [
+        {
+          id: "client",
+          labelDe: "Im Client-Paket (nach Build mit dabei)",
+          root: modelsRoot,
+          items: clientItems,
+        },
+        {
+          id: "world",
+          labelDe: "World-Assets (Quelle auf dem Server — vor Build/sync)",
+          root: worldDir,
+          items: worldItems,
+        },
+      ],
+      items: [...clientItems, ...worldItems],
+    });
   });
 
   router.post(

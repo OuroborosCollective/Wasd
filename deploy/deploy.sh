@@ -43,37 +43,42 @@ npm install -g pnpm pm2 2>/dev/null || true
 echo "[4/10] Cloning/updating repository..."
 if [ -d "$APP_DIR/.git" ]; then
   cd "$APP_DIR"
-  git pull origin main
+  git fetch origin main
+  git reset --hard origin/main
 else
   git clone "$REPO_URL" "$APP_DIR"
   cd "$APP_DIR"
 fi
 
-# ── 5. Install dependencies ───────────────────────────────
-echo "[5/10] Installing server dependencies..."
-cd "$APP_DIR/server"
-npm install
+# ── 5–7. Install (workspace) + build ─────────────────────
+# Prefer pnpm + pnpm-lock.yaml (same as GitHub CI). Falls back to per-package npm if needed.
+export BUILD_NODE_OPTIONS="${BUILD_NODE_OPTIONS:---max-old-space-size=8192}"
+cd "$APP_DIR"
 
-echo "[5b/10] Installing client dependencies..."
-cd "$APP_DIR/client"
-npm install
-
-# ── 6. Build client ───────────────────────────────────────
-echo "[6/10] Building client (Vite)..."
-cd "$APP_DIR/client"
-echo "[6a/10] Sync world-assets → client/public (and assets/models mirror)..."
-node "$APP_DIR/scripts/sync-world-assets.mjs" || true
-# Avoid OOM on VPS during large Vite bundle render.
-BUILD_NODE_OPTIONS="${BUILD_NODE_OPTIONS:---max-old-space-size=8192}"
-echo "Using client build NODE_OPTIONS=${BUILD_NODE_OPTIONS}"
-NODE_OPTIONS="$BUILD_NODE_OPTIONS" node -e "const v8=require('node:v8'); console.log('Heap limit MB:', Math.round(v8.getHeapStatistics().heap_size_limit/1024/1024));"
-NODE_OPTIONS="$BUILD_NODE_OPTIONS" node ./node_modules/vite/bin/vite.js build
-echo "Client build finished with heap guard."
-
-# ── 7. Build server ───────────────────────────────────────
-echo "[7/10] Building server (TypeScript)..."
-cd "$APP_DIR/server"
-npm run build
+if command -v pnpm >/dev/null 2>&1 && [ -f "$APP_DIR/pnpm-lock.yaml" ]; then
+  echo "[5/10] pnpm install (workspace, frozen lockfile)..."
+  corepack enable 2>/dev/null || true
+  pnpm install --frozen-lockfile
+  echo "[6–7/10] Sync world-assets + pnpm run build (client prebuild + server)..."
+  node "$APP_DIR/scripts/sync-world-assets.mjs" || true
+  NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm run build
+else
+  echo "[5/10] pnpm workspace not available — npm install in server/ and client/..."
+  cd "$APP_DIR/server"
+  npm install
+  cd "$APP_DIR/client"
+  npm install
+  echo "[6/10] Building client (Vite)..."
+  cd "$APP_DIR/client"
+  echo "[6a/10] Sync world-assets → client/public (and assets/models mirror)..."
+  node "$APP_DIR/scripts/sync-world-assets.mjs" || true
+  echo "Using client build NODE_OPTIONS=${BUILD_NODE_OPTIONS}"
+  NODE_OPTIONS="$BUILD_NODE_OPTIONS" node -e "const v8=require('node:v8'); console.log('Heap limit MB:', Math.round(v8.getHeapStatistics().heap_size_limit/1024/1024));"
+  NODE_OPTIONS="$BUILD_NODE_OPTIONS" node ./node_modules/vite/bin/vite.js build
+  echo "[7/10] Building server (TypeScript)..."
+  cd "$APP_DIR/server"
+  npm run build
+fi
 
 # ── 8. Create symlink for game-data ───────────────────────
 echo "[8/10] Setting up game-data symlink..."
@@ -129,7 +134,7 @@ ENVEOF
   echo "⚠️  Please edit $APP_DIR/.env and fill in PGPASSWORD and JWT_SECRET!"
 fi
 
-# If Admin SDK JSON exists and .env has no FIREBASE_SERVICE_ACCOUNT_KEY, append path (no secret in repo).
+# If Admin SDK JSON exists and .env has no Firebase lines, append paths (no secret in repo).
 if [ -f "$FIREBASE_KEY_FILE" ] && [ -f "$APP_DIR/.env" ]; then
   if ! grep -q '^[[:space:]]*FIREBASE_SERVICE_ACCOUNT_KEY=' "$APP_DIR/.env" 2>/dev/null; then
     {
@@ -138,6 +143,10 @@ if [ -f "$FIREBASE_KEY_FILE" ] && [ -f "$APP_DIR/.env" ]; then
       echo "FIREBASE_SERVICE_ACCOUNT_KEY=$FIREBASE_KEY_FILE"
     } >> "$APP_DIR/.env"
     echo "✅ Linked FIREBASE_SERVICE_ACCOUNT_KEY -> $FIREBASE_KEY_FILE"
+  fi
+  if ! grep -q '^[[:space:]]*GOOGLE_APPLICATION_CREDENTIALS=' "$APP_DIR/.env" 2>/dev/null; then
+    echo "GOOGLE_APPLICATION_CREDENTIALS=$FIREBASE_KEY_FILE" >> "$APP_DIR/.env"
+    echo "✅ Linked GOOGLE_APPLICATION_CREDENTIALS -> $FIREBASE_KEY_FILE"
   fi
 fi
 

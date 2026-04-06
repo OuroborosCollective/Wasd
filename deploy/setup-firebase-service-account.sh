@@ -42,17 +42,23 @@ if [ ! -f "$ENV_FILE" ]; then
   exit 0
 fi
 
-# Remove old line if re-running
-if grep -q '^FIREBASE_SERVICE_ACCOUNT_KEY=' "$ENV_FILE" 2>/dev/null; then
-  grep -v '^FIREBASE_SERVICE_ACCOUNT_KEY=' "$ENV_FILE" > "$ENV_FILE.tmp" && mv "$ENV_FILE.tmp" "$ENV_FILE"
-fi
+# Remove old lines if re-running
+for key in FIREBASE_SERVICE_ACCOUNT_KEY GOOGLE_APPLICATION_CREDENTIALS; do
+  if grep -q "^${key}=" "$ENV_FILE" 2>/dev/null; then
+    grep -v "^${key}=" "$ENV_FILE" > "$ENV_FILE.tmp" && mv "$ENV_FILE.tmp" "$ENV_FILE"
+  fi
+done
 
 {
   echo ""
-  echo "# Firebase Admin SDK (server) — path to JSON key (set by setup-firebase-service-account.sh)"
+  echo "# Firebase Admin SDK (server) — set by setup-firebase-service-account.sh"
+  echo "# Uses explicit cert path (Option A). For applicationDefault() instead, comment the next line and use:"
+  echo "# GOOGLE_APPLICATION_CREDENTIALS=$DEST"
   echo "FIREBASE_SERVICE_ACCOUNT_KEY=$DEST"
+  echo "GOOGLE_APPLICATION_CREDENTIALS=$DEST"
 } >> "$ENV_FILE"
 
-echo "Updated $ENV_FILE with FIREBASE_SERVICE_ACCOUNT_KEY=$DEST"
+echo "Updated $ENV_FILE: FIREBASE_SERVICE_ACCOUNT_KEY and GOOGLE_APPLICATION_CREDENTIALS -> $DEST"
+echo "Note: Server prefers FIREBASE_SERVICE_ACCOUNT_KEY when set; GOOGLE_APPLICATION_CREDENTIALS enables ADC-style tools too."
 echo "Restart: cd $APP_DIR && pm2 restart areloria"
 echo "Check:   curl -s http://127.0.0.1:3000/health | head -c 500"

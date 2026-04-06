@@ -73,7 +73,7 @@ export async function resolveLoginIdentity(
     if (!isFirebaseAuthConfigured()) {
       return {
         error:
-          "Server requires Firebase sign-in but FIREBASE_SERVICE_ACCOUNT_KEY is not configured.",
+          "Server requires Firebase sign-in but Firebase Admin is not configured (service account or GOOGLE_APPLICATION_CREDENTIALS / application default).",
         code: "login_required",
       };
     }
