@@ -4,7 +4,9 @@ import { MMORPGClientCore } from "./core/MMORPGClientCore";
 import { connectSocket, requestSceneChange, type ConnectionOptions } from "./networking/websocketClient";
 import { IEngineBridge } from "./engine/bridge/IEngineBridge";
 import { renderHUD, showDialogue } from "./ui/hud";
-import { renderImprovedVirtualJoystick } from "./ui/ImprovedVirtualJoystick";
+import { getJoystickState, initMobileControls, isMobile } from "./ui/mobileControls";
+import { openEquipmentPanel, openInventory, openQuestLog, openSkillsPanel } from "./ui/lazyPanels";
+import { getQuickCastSkillId } from "./game/combatSkills";
 import { renderMobileSceneTeleportPanel } from "./ui/mobileSceneTeleportPanel";
 import { performanceMonitor } from "./utils/PerformanceMonitor";
 import { isFirebaseGameAuthDisabled } from "./config/gameAuth";
@@ -140,7 +142,34 @@ try {
   (window as any).requestSceneChange = requestSceneChange;
   renderHUD();
   renderMobileSceneTeleportPanel();
-  renderImprovedVirtualJoystick(core);
+  initMobileControls(
+    core,
+    {
+      onAttack: () => core.attack(),
+      onInteract: () => core.interact(),
+      onEquip: () => {
+        void openEquipmentPanel();
+      },
+      onInventory: () => {
+        void openInventory();
+      },
+      onQuests: () => {
+        void openQuestLog();
+      },
+      onSkills: () => {
+        void openSkillsPanel();
+      },
+      onQuickSkill: () => core.useSkill(getQuickCastSkillId()),
+      onMap: () => {
+        console.log("Map toggled");
+      },
+      onChat: () => {
+        console.log("Chat toggled");
+      },
+    },
+    (_delta: number) => {},
+    (_dx: number, _dy: number) => {}
+  );
   performanceMonitor.start();
 
   let lastFrameTime = performance.now();
@@ -148,6 +177,12 @@ try {
     const dt = Math.min((now - lastFrameTime) / 1000, 0.1);
     lastFrameTime = now;
     core.update(dt);
+    if (isMobile()) {
+      const j = getJoystickState();
+      if (j.active && (Math.abs(j.dx) > 0.04 || Math.abs(j.dy) > 0.04)) {
+        core.events.emit("move_intent", { dx: j.dx, dy: j.dy });
+      }
+    }
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
