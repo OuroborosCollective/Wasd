@@ -3,7 +3,7 @@ import { EntityViewModel } from "./EntityViewModel";
 export interface IEngineBridge {
   // Entity Management
   createEntity(model: EntityViewModel): void;
-  updateEntity(id: string, updates: Partial<EntityViewModel>): void;
+  updateEntity(id: string, updates: Partial<EntityViewModel>, dt?: number): void;
   destroyEntity(id: string): void;
 
   // Camera & View
@@ -30,4 +30,14 @@ export interface IEngineBridge {
 
   // Lifecycle
   update(dt: number): void;
+
+  // Optional renderer-specific controls
+  setAREMode?(mode: string): void;
+  setAREPolicyConfig?(config: {
+    cooldownMs?: number;
+    lowFpsThreshold?: number;
+    stableFpsThreshold?: number;
+    lowSampleTrigger?: number;
+    stableSampleTrigger?: number;
+  }): void;
 }

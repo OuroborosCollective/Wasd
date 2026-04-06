@@ -20,6 +20,17 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    sourcemap: true,
+    // Source maps massively increase peak memory usage during bundling.
+    // Keep them opt-in for production server builds.
+    sourcemap: process.env.VITE_BUILD_SOURCEMAP === "1",
+    reportCompressedSize: false,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/@babylonjs/loaders')) return 'babylon-loaders';
+          if (id.includes('node_modules/@babylonjs/core')) return 'babylon-core';
+        },
+      },
+    },
   }
 });

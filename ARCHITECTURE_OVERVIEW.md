@@ -7,7 +7,7 @@
 │                            CLIENT LAYER                                      │
 │                                                                               │
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │  Browser (Vite + React + Three.js/Babylon.js)                      │   │
+│  │  Browser (Vite + TypeScript + Babylon.js)                            │   │
 │  │  - 3D-Rendering                                                     │   │
 │  │  - Input Handling (WASD, Mouse, Touch)                             │   │
 │  │  - UI Components (Inventory, Chat, Minimap)                        │   │
@@ -307,7 +307,7 @@ WorldTick: broadcastEntitySync()
 Client: Receive "entitySync"
         │
         ▼
-Update Three.js/Babylon.js scene
+Update Babylon.js scene (via engine bridge)
         │
         ├─ Update player position
         ├─ Update NPC positions

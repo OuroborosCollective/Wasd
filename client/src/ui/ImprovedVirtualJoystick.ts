@@ -1,8 +1,10 @@
 import { MMORPGClientCore } from "../core/MMORPGClientCore";
-import { renderInventory } from "./inventory";
-import { renderSkillsPanel } from "./skillsPanel";
-import { renderQuestLog } from "./questLog";
-import { renderEquipmentPanel } from "./equipmentPanel";
+import {
+  openEquipmentPanel,
+  openInventory,
+  openQuestLog,
+  openSkillsPanel,
+} from "./lazyPanels";
 
 export interface JoystickInput {
   x: number;
@@ -166,9 +168,49 @@ export function renderImprovedVirtualJoystick(core: MMORPGClientCore) {
     knob.style.transform = "translate(-50%, -50%)";
   };
 
-  container.addEventListener("touchstart", (e) => handleStart(e.touches[0].clientX, e.touches[0].clientY));
-  window.addEventListener("touchmove", (e) => handleMove(e.touches[0].clientX, e.touches[0].clientY), { passive: false });
-  window.addEventListener("touchend", handleEnd);
+  container.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleStart(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: false });
+
+  window.addEventListener("touchmove", (e) => {
+    if (active) {
+      e.preventDefault();
+      e.stopPropagation();
+      handleMove(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  }, { passive: false });
+
+  window.addEventListener("touchend", (e) => {
+    if (active) {
+      e.preventDefault();
+      e.stopPropagation();
+      handleEnd();
+    }
+  }, { passive: false });
+
+  container.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleStart(e.clientX, e.clientY);
+  });
+
+  window.addEventListener("mousemove", (e) => {
+    if (active) {
+      e.preventDefault();
+      e.stopPropagation();
+      handleMove(e.clientX, e.clientY);
+    }
+  });
+
+  window.addEventListener("mouseup", (e) => {
+    if (active) {
+      e.preventDefault();
+      e.stopPropagation();
+      handleEnd();
+    }
+  });
 
   // Action Buttons
   const btnContainer = document.createElement('div');
@@ -211,10 +253,10 @@ export function renderImprovedVirtualJoystick(core: MMORPGClientCore) {
   menuContainer.className = 'menu-buttons';
 
   const menus = [
-    { label: 'INV', action: renderInventory },
-    { label: 'EQP', action: renderEquipmentPanel },
-    { label: 'SKL', action: renderSkillsPanel },
-    { label: 'QST', action: renderQuestLog }
+    { label: "INV", action: () => void openInventory() },
+    { label: "EQP", action: () => void openEquipmentPanel() },
+    { label: "SKL", action: () => void openSkillsPanel() },
+    { label: "QST", action: () => void openQuestLog() },
   ];
 
   menus.forEach(menu => {

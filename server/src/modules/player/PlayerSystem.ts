@@ -9,13 +9,19 @@ export class PlayerSystem {
       appearance,
       role: name.toLowerCase() === "admin" ? "admin" : "player",
       position: { x: 0, y: 0, z: 0 },
+      level: 1,
       health: 100,
+      maxHealth: 100,
+      dead: false,
+      deathAt: 0,
       stamina: 100,
+      maxStamina: 100,
       mana: 25,
+      maxMana: 25,
       gold: 0,
       xp: 0,
       quests: [],
-      skills: {},
+      skills: { combat: { level: 1 } },
       inventory: [],
       equipment: {
         weapon: null,
@@ -30,7 +36,11 @@ export class PlayerSystem {
       isOffline: false,
       state: "idle",
       stateTimer: 0,
-      targetPosition: null as { x: number, y: number } | null
+      targetPosition: null as { x: number, y: number } | null,
+      /** Client-selected NPC id for attacks (optional) */
+      combatTargetNpcId: null as string | null,
+      /** skillId -> cooldown end timestamp (ms) */
+      skillCooldowns: {} as Record<string, number>,
     };
     this.players.set(id, player);
     return player;

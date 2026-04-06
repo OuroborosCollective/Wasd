@@ -2,6 +2,7 @@ import { IEngineBridge } from "../engine/bridge/IEngineBridge";
 import { EntityViewModel } from "../engine/bridge/EntityViewModel";
 import { CoreEventBus } from "./CoreEventBus";
 import { EntityViewManager } from "./EntityViewManager";
+import { prefersCompactTouchUi } from "../ui/touchUi";
 
 export class MMORPGClientCore {
   private entities: Map<string, EntityViewModel> = new Map();
@@ -11,12 +12,12 @@ export class MMORPGClientCore {
 
   constructor(private engine: IEngineBridge) {
     this.viewManager = new EntityViewManager(engine);
-    console.log("MMORPG Client Core Initialized with ViewManager");
   }
 
   private lastDt: number = 0.016;
   private footstepTimer: number = 0;
   private lastPlayerPos: { x: number, y: number, z: number } | null = null;
+  private lastNavigationUpdateMs = 0;
 
   public syncEntities(serverEntities: EntityViewModel[]) {
     const currentIds = new Set(this.entities.keys());
@@ -64,6 +65,39 @@ export class MMORPGClientCore {
     this.engine.setCameraTarget(id);
   }
 
+  public getLocalPlayerId() {
+    return this.localPlayerId;
+  }
+
+  public setAREMode(mode: string) {
+    if (typeof this.engine.setAREMode === "function") {
+      this.engine.setAREMode(mode);
+    }
+  }
+
+  public setAREPolicyConfig(config: {
+    cooldownMs?: number;
+    lowFpsThreshold?: number;
+    stableFpsThreshold?: number;
+    lowSampleTrigger?: number;
+    stableSampleTrigger?: number;
+  }) {
+    if (typeof this.engine.setAREPolicyConfig === "function") {
+      this.engine.setAREPolicyConfig(config);
+    }
+  }
+
+  public teleportLocalPlayerTo(position: { x: number; y: number; z: number }) {
+    if (!this.localPlayerId) return;
+    const player = this.entities.get(this.localPlayerId);
+    if (!player) return;
+
+    player.position = { ...position };
+    this.entities.set(this.localPlayerId, player);
+    this.viewManager.upsert(player, this.lastDt);
+    this.engine.setCameraTarget(this.localPlayerId);
+  }
+
   public handleEntityAction(entityId: string, action: string) {
     this.engine.triggerEntityAction(entityId, action);
 
@@ -74,17 +108,17 @@ export class MMORPGClientCore {
         volume: 0.5,
         position: entity?.position
       });
-    } else if (action === 'hit') {
+    } else if (action === "hit") {
       const entity = this.entities.get(entityId);
-      this.engine.playSound('hit', {
-        volume: 0.7,
-        position: entity?.position
+      this.engine.playSound("hit", {
+        volume: 0.72,
+        position: entity?.position,
       });
     }
   }
 
-  public handleDialogue(text: string) {
-    this.events.emit('dialogue', text);
+  public handleDialogue(payload: string | Record<string, unknown>) {
+    this.events.emit("dialogue", payload);
   }
 
   public attack() {
@@ -93,6 +127,11 @@ export class MMORPGClientCore {
 
   public interact() {
     this.events.emit('interact');
+  }
+
+  public useSkill(skillId: string) {
+    if (!skillId || !skillId.trim()) return;
+    this.events.emit("use_skill", { skillId: skillId.trim() });
   }
 
   public registerDefaultInput() {
@@ -146,21 +185,28 @@ export class MMORPGClientCore {
 
   private updateNavigation() {
     if (!this.localPlayerId) return;
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const minIntervalMs = prefersCompactTouchUi() ? 280 : 90;
+    if (now - this.lastNavigationUpdateMs < minIntervalMs) return;
+    this.lastNavigationUpdateMs = now;
+
     const player = this.entities.get(this.localPlayerId);
     if (!player) return;
 
     let nearestMonster: EntityViewModel | null = null;
     let minDist = Infinity;
 
-    this.entities.forEach(entity => {
-      if (entity.type === 'monster') {
-        const dx = entity.position.x - player.position.x;
-        const dz = entity.position.z - player.position.z;
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        if (dist < minDist) {
-          minDist = dist;
-          nearestMonster = entity;
-        }
+    this.entities.forEach((entity) => {
+      if (entity.type !== "npc") return;
+      const threat = entity.combatThreat === true;
+      const dummy = entity.id === "npc_dummy";
+      if (!threat && !dummy) return;
+      const dx = entity.position.x - player.position.x;
+      const dz = entity.position.z - player.position.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist < minDist) {
+        minDist = dist;
+        nearestMonster = entity;
       }
     });
 

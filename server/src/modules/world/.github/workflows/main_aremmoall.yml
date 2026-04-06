@@ -33,6 +33,7 @@ jobs:
 
       - name: Build
         run: |
+          export NODE_OPTIONS="--max-old-space-size=8192"
           npm run build --prefix client
           npm run build --prefix server
 

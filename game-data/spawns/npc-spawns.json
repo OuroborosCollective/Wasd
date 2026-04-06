@@ -1,17 +1,23 @@
 [
   {
-    "regionId": "starting_zone",
+    "regionId": "didis_hub_village",
     "spawns": [
-      { "npcId": "npc_1", "x": 32, "y": 32 },
-      { "npcId": "npc_dummy", "x": 64, "y": 64 },
-      { "npcId": "npc_2", "x": 500, "y": 500 },
-      { "npcId": "npc_3", "x": 100, "y": 100 },
-      { "npcId": "npc_4", "x": 150, "y": 150 },
-      { "npcId": "npc_5", "x": 200, "y": 200 },
-      { "npcId": "npc_wolf", "x": 250, "y": 250 },
-      { "npcId": "npc_6_hermit", "x": 300, "y": 300 },
-      { "npcId": "npc_7_merchant", "x": 350, "y": 350 },
-      { "npcId": "npc_8_apprentice", "x": 400, "y": 400 }
+      { "npcId": "npc_guide", "x": 1.5, "y": 1.5 },
+      { "npcId": "npc_1", "x": 4, "y": 2 },
+      { "npcId": "npc_dummy", "x": -3, "y": 3 },
+      { "npcId": "npc_3", "x": 6, "y": -2 },
+      { "npcId": "npc_7_merchant", "x": -5, "y": -1 },
+      { "npcId": "npc_8_apprentice", "x": 2, "y": -5 }
+    ]
+  },
+  {
+    "regionId": "outskirts",
+    "spawns": [
+      { "npcId": "npc_2", "x": 22, "y": 8 },
+      { "npcId": "npc_4", "x": -18, "y": 12 },
+      { "npcId": "npc_5", "x": 30, "y": -10 },
+      { "npcId": "npc_wolf", "x": 40, "y": -20 },
+      { "npcId": "npc_6_hermit", "x": -35, "y": 25 }
     ]
   }
 ]

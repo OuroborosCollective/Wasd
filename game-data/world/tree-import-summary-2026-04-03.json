@@ -1,0 +1,23 @@
+{
+  "sourceLink": "https://drive.google.com/file/d/1yzI3afGRkOndqVm7YauI4drV_FS-L_9A/view?usp=drivesdk",
+  "detectedType": "single tree/nature pack",
+  "runtimeModel": "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb",
+  "runtimeTextures": "/assets/models/external/coniferous/textures/*.png",
+  "mappedTo": [
+    "defaults.resources",
+    "defaults.world_objects",
+    "defaults.object",
+    "pools.resources.default",
+    "pools.resources.tree",
+    "pools.resources.bush",
+    "pools.resources.rock",
+    "pools.world_objects.default",
+    "pools.world_objects.object",
+    "pools.world_objects.tree",
+    "pools.world_objects.rock",
+    "pools.world_objects.camp",
+    "pools.resources.coniferous_forest_assets_pack",
+    "pools.world_objects.coniferous_forest_assets_pack"
+  ],
+  "note": "Classified as environment vegetation assets, not monster content."
+}
