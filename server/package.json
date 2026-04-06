@@ -8,6 +8,7 @@
     "build": "tsx src/tools/validateContent.ts && tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "validate": "tsx src/tools/validateContent.ts",
+    "audit:model-paths": "tsx src/tools/auditModelPaths.ts",
     "migrate": "node-pg-migrate"
   },
   "dependencies": {
