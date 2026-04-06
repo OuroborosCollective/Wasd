@@ -218,7 +218,15 @@
     .gly-file { flex: 1; word-break: break-all; color: #dce4f5; }
     .gly-size { color: var(--muted); font-size: 10px; flex-shrink: 0; white-space: nowrap; }
     .gly-row .btn-sm { margin: 0; flex-shrink: 0; }
+    .gly-section { margin-bottom: 12px; }
+    .gly-section-title { font-size: 11px; font-weight: 700; color: var(--accent); margin: 10px 6px 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .gly-root-path { font-weight: 400; color: var(--muted); font-size: 10px; word-break: break-all; }
+    .gly-bin { flex: 1; word-break: break-all; color: #a8b0c8; font-style: italic; }
+    .gly-bin .gly-bin-hint { font-size: 10px; color: var(--muted); font-style: normal; display: block; margin-top: 2px; }
     input[type="file"] { padding: 8px; font-size: 13px; }
+    .ref-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+    .ref-row select { flex: 1; min-width: 200px; font-size: 13px; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: #0f121c; color: var(--text); }
+    .preview-box { margin-top: 10px; font-family: ui-monospace, monospace; font-size: 11px; line-height: 1.35; white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: #0a0c12; color: #c5d0e8; }
   </style>
 </head>
 <body>
@@ -274,14 +282,15 @@
 
   <div class="card hidden" id="stepGallery">
     <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M4 6h16v12H4z"/></svg></span> <span><span class="section-num">2</span>Modell-Galerie &amp; Upload</span></div>
-    <p class="hint" style="margin-top:0">Alle <strong>.glb / .gltf</strong> unter <code>client/public/assets/models</code> — gleiche Pfade wie im Auswahlmenü (<code>/assets/models/…</code>).</p>
-    <p class="hint">Neue Dateien: sinnvoller Unterordner z. B. <code>characters</code>, <code>monsters</code>, <code>objects</code> — nur Buchstaben, Zahlen und Unterstriche.</p>
+    <p class="hint" style="margin-top:0">Zwei Bereiche: <strong>Client-Paket</strong> (nach Build unter <code>/assets/models/…</code>) und <strong>World-Assets</strong> (Quelle <code>world-assets/</code> auf dem Server — Pfade <code>/assets/models/world-assets/…</code> nach Sync).</p>
+    <p class="hint"><strong>.gltf + .bin:</strong> Beide werden angezeigt — zum Verknüpfen immer die <strong>.gltf</strong> wählen („Übernehmen“); die .bin lädt der Browser mit.</p>
+    <p class="hint">Upload: <code>.glb</code>, <code>.gltf</code> oder <code>.bin</code> — Unterordner z. B. <code>characters</code>, <code>monsters</code> (nur Buchstaben, Zahlen, Unterstriche).</p>
     <button type="button" class="ghost" id="btnRefreshGallery">Baum neu laden</button>
     <div id="galleryTree" class="gly-tree"><p class="hint" style="margin:8px">Nach Anmeldung erscheint die Liste.</p></div>
     <label for="uploadFolder">Unterordner (optional)</label>
     <input id="uploadFolder" placeholder="z. B. monsters oder leer für Wurzel" autocomplete="off" />
     <label for="uploadFile">Datei hochladen</label>
-    <input type="file" id="uploadFile" accept=".glb,.gltf,model/gltf-binary" />
+    <input type="file" id="uploadFile" accept=".glb,.gltf,.bin,model/gltf-binary" />
     <button type="button" id="btnUploadGlb">Hochladen</button>
     <div id="galleryMsg" class="msg hidden"></div>
   </div>
@@ -291,7 +300,7 @@
     <p class="hint" style="margin-top:0">Modell wählen, Ziel angeben, <strong>Speichern</strong>.</p>
     <label for="selModel">3D-Modell</label>
     <select id="selModel"><option value="">— Nach Anmeldung erscheint die Liste —</option></select>
-    <p class="hint">Nur Dateien, die auf dem Server liegen.</p>
+    <p class="hint">Liste = alle <code>.glb/.gltf</code> unter <code>assets/models</code> (inkl. Spiegel). Pfade aus der Galerie übernehmen.</p>
     <label for="selUse">Wofür?</label>
     <select id="selUse">
       <option value="npc_single">Ein bestimmter NPC (ID nötig)</option>
@@ -304,7 +313,10 @@
     <select id="selTargetPick"><option value="">— Typ oben wählen, dann hier —</option></select>
     <p class="hint" id="pickHint">Oder unten selbst eintippen — muss exakt zur ID im Spiel passen.</p>
     <label for="inTargetId">Name oder ID (manuell)</label>
-    <input id="inTargetId" placeholder="z. B. npc_guide" />
+    <div class="ref-row">
+      <input id="inTargetId" placeholder="z. B. npc_guide" style="flex:1;min-width:160px" />
+      <button type="button" class="ghost btn-sm" id="btnCopyTargetId">ID kopieren</button>
+    </div>
     <p class="hint" id="targetHint"></p>
     <button type="button" id="btnSaveLink">Speichern</button>
     <div id="saveMsg" class="msg hidden"></div>
@@ -331,9 +343,38 @@
     <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg></span> Prüfen &amp; veröffentlichen</div>
     <p class="hint" style="margin-top:0"><strong>1)</strong> Prüfen = ob der aktive Inhalt auf dem Server konsistent ist (Quests, NPCs, Dialoge). <strong>2)</strong> Veröffentlichen = Kopie nach <code>published-content/current</code> — der Live-Server braucht <code>USE_PUBLISHED_CONTENT=1</code> oder <code>CONTENT_PACK_DIR</code> und Neustart.</p>
     <button type="button" class="ghost" id="btnValidate">Inhalt prüfen</button>
+    <button type="button" class="ghost" id="btnAuditModelPaths">3D-Pfade prüfen (fehlende Dateien)</button>
     <button type="button" id="btnPublish">Inhalt veröffentlichen (Pack bauen)</button>
     <div id="publishMsg" class="msg hidden"></div>
     <ul class="hint" id="validateErrors" style="margin-top:8px;padding-left:18px;display:none"></ul>
+    <ul class="hint" id="auditPathsList" style="margin-top:8px;padding-left:18px;display:none"></ul>
+  </div>
+
+  <div class="card hidden" id="stepContentRef">
+    <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 12h6M9 16h6M5 8h14M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg></span> Quests, Dialoge, NPCs — IDs &amp; Vorschau</div>
+    <p class="hint" style="margin-top:0"><strong>Nur lesen</strong> — IDs kopieren oder JSON-Vorschau. Live-Änderungen: Git / Veröffentlichen-Pack (siehe <code>docs/CONTENT_DRAFT_VS_LIVE.md</code>).</p>
+    <label for="selQuestRef">Quest</label>
+    <div class="ref-row">
+      <select id="selQuestRef"><option value="">— wählen —</option></select>
+      <button type="button" class="ghost btn-sm" id="btnCopyQuestId">Quest-ID kopieren</button>
+      <button type="button" class="ghost btn-sm" id="btnPreviewQuest">Vorschau (nur lesen)</button>
+    </div>
+    <div id="questPreview" class="preview-box hidden" aria-live="polite"></div>
+    <label for="selDialogueRef" style="margin-top:12px;display:block">Dialog</label>
+    <div class="ref-row">
+      <select id="selDialogueRef"><option value="">— wählen —</option></select>
+      <button type="button" class="ghost btn-sm" id="btnCopyDialogueId">Dialog-ID kopieren</button>
+      <button type="button" class="ghost btn-sm" id="btnPreviewDialogue">Vorschau (nur lesen)</button>
+    </div>
+    <div id="dialoguePreview" class="preview-box hidden" aria-live="polite"></div>
+    <label for="selNpcRef" style="margin-top:12px;display:block">NPC</label>
+    <div class="ref-row">
+      <select id="selNpcRef"><option value="">— wählen —</option></select>
+      <button type="button" class="ghost btn-sm" id="btnCopyNpcId">NPC-ID kopieren</button>
+      <button type="button" class="ghost btn-sm" id="btnPreviewNpc">Vorschau (nur lesen)</button>
+    </div>
+    <div id="npcPreview" class="preview-box hidden" aria-live="polite"></div>
+    <div id="copyRefMsg" class="msg hidden" style="margin-top:10px"></div>
   </div>
 
   <div class="card hidden" id="stepList">
@@ -471,6 +512,64 @@
       if (j && typeof j.errorDe === "string" && j.errorDe.trim()) return j.errorDe.trim();
       if (j && typeof j.error === "string") return j.error;
       return fallback || "Unbekannter Fehler";
+    }
+
+    function fillQuestDialogueRefs() {
+      const c = choicesCache;
+      const qSel = document.getElementById("selQuestRef");
+      const dSel = document.getElementById("selDialogueRef");
+      let qo = '<option value="">— wählen —</option>';
+      let do_ = '<option value="">— wählen —</option>';
+      if (c && Array.isArray(c.quests)) {
+        c.quests.forEach(function (q) {
+          const lab = q.id + (q.title ? " — " + q.title : "");
+          qo += '<option value="' + escapeAttr(q.id) + '">' + escapeHtml(lab) + "</option>";
+        });
+      }
+      if (c && Array.isArray(c.dialogues)) {
+        c.dialogues.forEach(function (d) {
+          do_ += '<option value="' + escapeAttr(d.id) + '">' + escapeHtml(d.id) + "</option>";
+        });
+      }
+      const nSel = document.getElementById("selNpcRef");
+      let no = '<option value="">— wählen —</option>';
+      if (c && Array.isArray(c.npcs)) {
+        c.npcs.forEach(function (n) {
+          const lab = n.id + " — " + (n.name || "") + (n.role ? " (" + n.role + ")" : "");
+          no += '<option value="' + escapeAttr(n.id) + '">' + escapeHtml(lab) + "</option>";
+        });
+      }
+      qSel.innerHTML = qo;
+      dSel.innerHTML = do_;
+      nSel.innerHTML = no;
+    }
+
+    function copyTextToClipboard(text, okMsg) {
+      const t = String(text || "").trim();
+      if (!t) {
+        show("copyRefMsg", "Nichts zum Kopieren.", "err");
+        return;
+      }
+      function done(ok) {
+        show("copyRefMsg", ok ? okMsg : "Kopieren fehlgeschlagen — manuell markieren.", ok ? "ok" : "err");
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(t).then(function () { done(true); }).catch(function () { done(false); });
+      } else {
+        try {
+          const ta = document.createElement("textarea");
+          ta.value = t;
+          ta.style.position = "fixed";
+          ta.style.left = "-9999px";
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          document.body.removeChild(ta);
+          done(true);
+        } catch (e) {
+          done(false);
+        }
+      }
     }
 
     function fillTargetPick() {
@@ -657,26 +756,17 @@
       sel.dispatchEvent(new Event("change"));
     }
 
-    function renderGalleryTree(data) {
-      const root = document.getElementById("galleryTree");
-      const items = Array.isArray(data.items) ? data.items.slice() : [];
-      items.sort(function (a, b) {
+    function renderGalleryItemRows(items) {
+      const sorted = items.slice().sort(function (a, b) {
         return String(a.relativePath).localeCompare(String(b.relativePath), undefined, { sensitivity: "base" });
       });
-      if (items.length === 0) {
-        root.innerHTML = '<p class="hint" style="margin:8px">Keine Modelle gefunden — Ordner fehlt oder ist leer.</p>';
-        return;
-      }
-      const maxMb = data.maxUploadMb != null ? data.maxUploadMb : "";
       let html = "";
-      if (maxMb !== "") {
-        html += '<p class="hint" style="margin:4px 6px 8px">Max. Upload: ca. ' + escapeHtml(String(maxMb)) + " MB pro Datei.</p>";
-      }
-      items.forEach(function (it) {
+      sorted.forEach(function (it) {
         const parts = String(it.relativePath || "").split("/");
         const depth = Math.max(0, parts.length - 1);
         const pad = depth * 16;
         const sz = !it.isDirectory && it.sizeBytes != null ? '<span class="gly-size">' + escapeHtml(formatBytes(it.sizeBytes)) + "</span>" : "";
+        const canUse = !it.isDirectory && it.url && it.selectable !== false;
         if (it.isDirectory) {
           html +=
             '<div class="gly-row" style="padding-left:' +
@@ -686,7 +776,7 @@
             "</span>" +
             sz +
             "</div>";
-        } else {
+        } else if (canUse) {
           html +=
             '<div class="gly-row" style="padding-left:' +
             (6 + pad) +
@@ -697,8 +787,56 @@
             '<button type="button" class="ghost btn-sm gly-use" data-url="' +
             escapeAttr(it.url) +
             '">Übernehmen</button></div>';
+        } else {
+          html +=
+            '<div class="gly-row" style="padding-left:' +
+            (6 + pad) +
+            'px"><span class="gly-bin">' +
+            escapeHtml(it.name) +
+            '<span class="gly-bin-hint">Gehört zu einer .gltf daneben — zum Zuordnen die .gltf mit „Übernehmen“ wählen.</span></span>' +
+            sz +
+            "</div>";
         }
       });
+      return html;
+    }
+
+    function renderGalleryTree(data) {
+      const root = document.getElementById("galleryTree");
+      const maxMb = data.maxUploadMb != null ? data.maxUploadMb : "";
+      const sections = Array.isArray(data.sections) ? data.sections : null;
+
+      let html = "";
+      if (maxMb !== "") {
+        html += '<p class="hint" style="margin:4px 6px 8px">Max. Upload: ca. ' + escapeHtml(String(maxMb)) + " MB pro Datei.</p>";
+      }
+
+      if (sections && sections.length) {
+        sections.forEach(function (sec) {
+          const list = Array.isArray(sec.items) ? sec.items : [];
+          html += '<div class="gly-section">';
+          html += '<div class="gly-section-title">' + escapeHtml(sec.labelDe || sec.id || "Bereich") + "</div>";
+          if (sec.root) {
+            html += '<div class="gly-root-path">' + escapeHtml(String(sec.root)) + "</div>";
+          } else if (sec.id === "world") {
+            html += '<div class="gly-root-path">Nicht gefunden — setze WORLD_ASSETS_DIR oder lege world-assets/ im Repo an.</div>';
+          }
+          if (list.length === 0) {
+            html += '<p class="hint" style="margin:8px">Keine Einträge.</p>';
+          } else {
+            html += renderGalleryItemRows(list);
+          }
+          html += "</div>";
+        });
+      } else {
+        const items = Array.isArray(data.items) ? data.items : [];
+        if (items.length === 0) {
+          root.innerHTML = html + '<p class="hint" style="margin:8px">Keine Modelle gefunden — Ordner fehlt oder ist leer.</p>';
+          return;
+        }
+        html += renderGalleryItemRows(items);
+      }
+
       root.innerHTML = html;
       root.querySelectorAll(".gly-use").forEach(function (b) {
         b.onclick = function () {
@@ -722,6 +860,14 @@
     async function loadGalleryTree() {
       const data = await req("GET", "/glb-gallery-tree");
       renderGalleryTree(data);
+      const urlSet = {};
+      (data.items || []).forEach(function (it) {
+        if (!it.isDirectory && it.selectable !== false && it.url) urlSet[it.url] = true;
+      });
+      const merged = Object.keys(urlSet).sort(function (a, b) {
+        return a.localeCompare(b, undefined, { sensitivity: "base" });
+      });
+      if (merged.length) fillModelSelects(merged);
     }
 
     function escapeHtml(s) {
@@ -784,13 +930,30 @@
         choicesCache = null;
       }
       fillTargetPick();
-      const models = (await req("GET", "/glb-scan")).models || [];
-      fillModelSelects(models);
+      fillQuestDialogueRefs();
       try {
-        await loadGalleryTree();
+        const galleryData = await req("GET", "/glb-gallery-tree");
+        renderGalleryTree(galleryData);
+        const urlSet = {};
+        (galleryData.items || []).forEach(function (it) {
+          if (!it.isDirectory && it.selectable !== false && it.url) urlSet[it.url] = true;
+        });
+        const merged = Object.keys(urlSet).sort(function (a, b) {
+          return a.localeCompare(b, undefined, { sensitivity: "base" });
+        });
+        if (merged.length) {
+          fillModelSelects(merged);
+        } else {
+          const models = (await req("GET", "/glb-scan")).models || [];
+          fillModelSelects(models);
+        }
       } catch (e) {
         document.getElementById("galleryTree").innerHTML =
           '<p class="hint" style="margin:8px;color:var(--err)">' + escapeHtml(String(e.message || e)) + "</p>";
+        try {
+          const models = (await req("GET", "/glb-scan")).models || [];
+          fillModelSelects(models);
+        } catch { /* */ }
       }
       await refreshLists();
       try {
@@ -810,6 +973,58 @@
 
     document.getElementById("selTargetPick").onchange = function () {
       if (this.value) document.getElementById("inTargetId").value = this.value;
+    };
+
+    document.getElementById("btnCopyTargetId").onclick = function () {
+      copyTextToClipboard(document.getElementById("inTargetId").value, "Ziel-ID kopiert.");
+    };
+    document.getElementById("btnCopyQuestId").onclick = function () {
+      copyTextToClipboard(document.getElementById("selQuestRef").value, "Quest-ID kopiert.");
+    };
+    document.getElementById("btnCopyDialogueId").onclick = function () {
+      copyTextToClipboard(document.getElementById("selDialogueRef").value, "Dialog-ID kopiert.");
+    };
+
+    async function loadContentPreview(kind, id, elId) {
+      const box = document.getElementById(elId);
+      if (!id) {
+        box.classList.add("hidden");
+        box.textContent = "";
+        show("copyRefMsg", "Bitte zuerst eine ID aus der Liste wählen.", "err");
+        return;
+      }
+      try {
+        const r = await fetch(BASE + "/content-preview?kind=" + encodeURIComponent(kind) + "&id=" + encodeURIComponent(id), {
+          headers: authHeadersOnly(),
+        });
+        const text = await r.text();
+        let j = null;
+        try { j = JSON.parse(text); } catch { /* */ }
+        if (!r.ok) {
+          show("copyRefMsg", errDeFromJson(j, text), "err");
+          box.classList.add("hidden");
+          return;
+        }
+        box.textContent = j && j.json ? j.json : text;
+        box.classList.remove("hidden");
+        hide("copyRefMsg");
+      } catch (e) {
+        show("copyRefMsg", String(e.message || e), "err");
+        box.classList.add("hidden");
+      }
+    }
+
+    document.getElementById("btnPreviewQuest").onclick = function () {
+      loadContentPreview("quest", document.getElementById("selQuestRef").value.trim(), "questPreview");
+    };
+    document.getElementById("btnPreviewDialogue").onclick = function () {
+      loadContentPreview("dialogue", document.getElementById("selDialogueRef").value.trim(), "dialoguePreview");
+    };
+    document.getElementById("btnCopyNpcId").onclick = function () {
+      copyTextToClipboard(document.getElementById("selNpcRef").value, "NPC-ID kopiert.");
+    };
+    document.getElementById("btnPreviewNpc").onclick = function () {
+      loadContentPreview("npc", document.getElementById("selNpcRef").value.trim(), "npcPreview");
     };
 
     document.getElementById("btnClearHistory").onclick = function () {
@@ -835,7 +1050,7 @@
         const m = await req("GET", "/meta");
         show("loginMsg", "Verbunden — du kannst zuordnen.", "ok");
         document.getElementById("techMeta").value = JSON.stringify(m, null, 2);
-        ["cardFlow", "cardHistory", "stepGallery", "stepWork", "stepDefaults", "stepPublish", "stepList", "stepExpert"].forEach(function (id) {
+        ["cardFlow", "cardHistory", "stepGallery", "stepWork", "stepDefaults", "stepContentRef", "stepPublish", "stepList", "stepExpert"].forEach(function (id) {
           document.getElementById(id).classList.remove("hidden");
         });
         setFlow(2);
@@ -882,6 +1097,44 @@
           }
           show("publishMsg", parts.join(" ") || "Prüfung: siehe Liste.", "err");
         }
+      } catch (e) {
+        show("publishMsg", String(e.message || e), "err");
+      }
+    };
+
+    document.getElementById("btnAuditModelPaths").onclick = async function () {
+      const ul = document.getElementById("auditPathsList");
+      ul.style.display = "none";
+      ul.innerHTML = "";
+      try {
+        const a = await req("GET", "/model-path-audit");
+        if (a.ok) {
+          show(
+            "publishMsg",
+            "3D-Pfade: alle " +
+              (a.uniqueModelUrls != null ? a.uniqueModelUrls : "?") +
+              " eindeutigen Modell-URLs aus game-data haben eine Datei auf dem Server.",
+            "ok"
+          );
+          celebrateSuccess(false);
+        } else {
+          const lines = Array.isArray(a.missingDe) ? a.missingDe : [];
+          ul.style.display = "block";
+          lines.slice(0, 40).forEach(function (line) {
+            ul.innerHTML += "<li>" + escapeHtml(String(line)) + "</li>";
+          });
+          if (lines.length > 40) {
+            ul.innerHTML += "<li>… weitere in den Server-Logs oder per <code>pnpm audit:model-paths</code></li>";
+          }
+          show(
+            "publishMsg",
+            "3D-Pfade: " +
+              (a.missingCount != null ? a.missingCount : lines.length) +
+              " Referenz(en) ohne Datei — Liste unten. Tipp: <code>world-assets</code> sync + Build oder Dateien nach <code>client/public/assets/models</code>.",
+            "err"
+          );
+        }
+        pushHistory(!!a.ok, "Modell-Pfad-Audit");
       } catch (e) {
         show("publishMsg", String(e.message || e), "err");
       }

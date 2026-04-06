@@ -293,7 +293,6 @@ export function renderHUD() {
         const result = await signInWithPopup(auth, provider);
         const token = await result.user.getIdToken(true);
         updateAuthToken(token, { reconnect: true });
-        console.log("Logged in!");
       } catch (e) {
         console.error("Login failed", e);
       }
@@ -423,6 +422,12 @@ export function showDialogue(payload: string | DialoguePayload) {
     scrollWrap.style.webkitOverflowScrolling = "touch";
     scrollWrap.style.paddingRight = "4px";
 
+    // Stop pointer/touch from bleeding through dialogue scroll
+    scrollWrap.addEventListener("touchstart", (e) => e.stopPropagation(), { passive: true });
+    scrollWrap.addEventListener("touchmove", (e) => e.stopPropagation(), { passive: true });
+    scrollWrap.addEventListener("pointerdown", (e) => e.stopPropagation(), { passive: false });
+    scrollWrap.addEventListener("wheel", (e) => e.stopPropagation(), { passive: true });
+
     const textEl = document.createElement("div");
     textEl.id = "dialogue-text";
     textEl.style.lineHeight = "1.5";
@@ -461,6 +466,12 @@ export function showDialogue(payload: string | DialoguePayload) {
       e.stopPropagation();
       dialogueBox!.style.display = "none";
     };
+    closeBtn.addEventListener("touchstart", (e) => {
+      e.stopPropagation();
+    }, { passive: false });
+    closeBtn.addEventListener("pointerdown", (e) => {
+      e.stopPropagation();
+    }, { passive: false });
     closeRow.appendChild(closeBtn);
     dialogueBox.appendChild(closeRow);
 
@@ -524,6 +535,12 @@ export function showDialogue(payload: string | DialoguePayload) {
             sendDialogueChoice(npcId, c.id, nodeId);
           }
         };
+        btn.addEventListener("touchstart", (e) => {
+          e.stopPropagation();
+        }, { passive: false });
+        btn.addEventListener("pointerdown", (e) => {
+          e.stopPropagation();
+        }, { passive: false });
         choicesEl.appendChild(btn);
       }
     }
