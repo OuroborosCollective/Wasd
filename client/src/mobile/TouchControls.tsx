@@ -258,29 +258,33 @@ const ActionButtons: React.FC<{
         className="action-btn primary"
         onTouchStart={() => handleAction('attack')}
         title="Attack"
+        aria-label="Attack"
       >
-        ⚔️
+        <span aria-hidden="true">⚔️</span>
       </button>
       <button
         className="action-btn secondary"
         onTouchStart={() => handleAction('skill')}
         title="Skill"
+        aria-label="Skill"
       >
-        ✨
+        <span aria-hidden="true">✨</span>
       </button>
       <button
         className="action-btn tertiary"
         onTouchStart={() => handleAction('interact')}
         title="Interact"
+        aria-label="Interact"
       >
-        🔧
+        <span aria-hidden="true">🔧</span>
       </button>
       <button
         className="action-btn quaternary"
         onTouchStart={() => handleAction('menu')}
         title="Menu"
+        aria-label="Menu"
       >
-        ⚙️
+        <span aria-hidden="true">⚙️</span>
       </button>
     </div>
   );

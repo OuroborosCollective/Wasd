@@ -9,3 +9,7 @@
 ## 2026-03-25 - [Added ARIA Labels and Live Regions to Dynamic Chat UI]
 **Learning:** Dynamic UI components created via raw HTML strings (like the HUD chat) often lack essential accessibility features. Specifically, screen readers will not announce new chat messages without `aria-live="polite"` and `role="log"` on the container. Additionally, inputs created without a dedicated `<label>` element must have an explicit `aria-label` attribute, otherwise they are completely inaccessible to screen reader users who cannot rely on `placeholder` text alone.
 **Action:** Always include semantic attributes (`aria-label`, `aria-live`, `role`) directly inside the HTML template strings when building dynamic, form-like components via `innerHTML`.
+
+## 2026-04-06 - [Added ARIA Labels to Mobile Touch Action Buttons]
+**Learning:** Icon-only buttons used in touch-based mobile UI controls are completely invisible to screen readers if they only rely on the `title` attribute, which generally requires a hover state not available on mobile devices. Emojis can also be confusing for screen readers without proper context.
+**Action:** Always add explicit `aria-label` attributes to icon-only buttons, especially in touch-specific interfaces, and wrap raw emoji/icon characters in `<span aria-hidden="true">` to prevent screen readers from announcing confusing character descriptions instead of the action name.
