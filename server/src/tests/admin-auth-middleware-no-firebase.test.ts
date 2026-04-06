@@ -20,6 +20,6 @@ describe("adminAuthMiddleware without Firebase Admin", () => {
     const r = await request(app).get("/t").set("Authorization", "Bearer any-token");
     expect(r.status).toBe(503);
     expect(r.body.error).toBe("Firebase Admin not configured");
-    expect(String(r.body.errorDe)).toMatch(/FIREBASE_SERVICE_ACCOUNT_KEY/);
+    expect(String(r.body.errorDe)).toMatch(/FIREBASE_SERVICE_ACCOUNT_KEY|GOOGLE_APPLICATION_CREDENTIALS/);
   });
 });

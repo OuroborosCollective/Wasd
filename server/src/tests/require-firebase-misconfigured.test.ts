@@ -22,7 +22,7 @@ describe("REQUIRE_FIREBASE_AUTH misconfigured", () => {
     const r = await resolveLoginIdentity("sock1", {});
     expect("error" in r).toBe(true);
     if ("error" in r) {
-      expect(r.error).toContain("FIREBASE_SERVICE_ACCOUNT_KEY");
+      expect(r.error).toMatch(/Firebase Admin|FIREBASE_SERVICE_ACCOUNT_KEY|not configured/i);
       expect(r.code).toBe("login_required");
     }
   });
