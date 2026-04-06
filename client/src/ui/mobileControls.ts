@@ -529,6 +529,8 @@ export function initMobileControls(
           if (el.id === "chat-panel" || el.closest("#chat-panel")) return true;
           if (el.classList.contains("panel") || el.closest(".panel")) return true;
           if (el.id === "combat-loot-strip" || el.closest("#combat-loot-strip")) return true;
+          if (el.id === "notification-container" || el.closest("#notification-container")) return true;
+          if (el.id === "target-frame" || el.closest("#target-frame")) return true;
           return false;
         };
         const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
