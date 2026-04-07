@@ -524,6 +524,10 @@ export function initMobileControls(
         const isUIElement = (el: Element | null): boolean => {
           if (!el) return false;
           if (el.id === "mobile-controls" || el.closest("#mobile-controls")) return true;
+          if (el.id === "mobile-action-btns" || el.closest("#mobile-action-btns")) return true;
+          if (el.id === "mobile-menu-btns" || el.closest("#mobile-menu-btns")) return true;
+          if (el.id === "joystick-zone" || el.closest("#joystick-zone")) return true;
+          if (el.id === "mob-shortcut-panel" || el.closest("#mob-shortcut-panel")) return true;
           if (el.id === "arel-hud" || el.closest("#arel-hud")) return true;
           if (el.id === "dialogue-box" || el.closest("#dialogue-box")) return true;
           if (el.id === "chat-panel" || el.closest("#chat-panel")) return true;
