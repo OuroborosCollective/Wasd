@@ -34,9 +34,7 @@ jobs:
           git fetch origin main
           git reset --hard origin/main
           chmod +x deploy/deploy.sh
-          ./deploy/deploy.sh
           export BUILD_NODE_OPTIONS="--max-old-space-size=8192"
-          chmod +x deploy/deploy.sh
           ./deploy/deploy.sh
 
     - name: Verify deployed HTTPS endpoints
