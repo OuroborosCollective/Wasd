@@ -7,7 +7,7 @@ import { prefersCompactTouchUi } from "./touchUi";
 export function applyGamePanelLayout(panel: HTMLElement): boolean {
   const compact = prefersCompactTouchUi();
   panel.style.position = "fixed";
-  panel.style.zIndex = "1000";
+  panel.style.zIndex = "2000";
   panel.style.display = "flex";
   panel.style.flexDirection = "column";
   panel.style.boxSizing = "border-box";

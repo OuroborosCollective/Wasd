@@ -28,7 +28,8 @@ export function renderQuestLog() {
       closeAllPanels();
       panel.style.display = "flex";
       requestQuestSync();
-      refreshQuestPanelContent(panel);
+      const compact = panel.dataset.compact === "1";
+      refreshQuestPanelContent(panel, compact);
     } else {
       panel.style.display = "none";
     }
@@ -45,6 +46,7 @@ export function renderQuestLog() {
   panel.setAttribute("aria-label", "Quest Log");
 
   const compact = applyGamePanelLayout(panel);
+  panel.dataset.compact = compact ? "1" : "0";
 
   const stopEvents = (e: Event) => e.stopPropagation();
   ["touchstart", "touchmove"].forEach((evt) => {
@@ -105,15 +107,16 @@ export function renderQuestLog() {
   window.addEventListener("keydown", handleKeyDown);
 
   document.body.appendChild(panel);
-  refreshQuestPanelContent(panel);
+  refreshQuestPanelContent(panel, compact);
   subscribePlayerState(() => {
     if (panel && panel.style.display !== "none") {
-      refreshQuestPanelContent(panel);
+      const isCompact = panel.dataset.compact === "1";
+      refreshQuestPanelContent(panel, isCompact);
     }
   });
 }
 
-function refreshQuestPanelContent(panel: HTMLElement) {
+function refreshQuestPanelContent(panel: HTMLElement, compact: boolean) {
   const content = panel.querySelector("#questlog-content");
   if (!content) return;
   content.innerHTML = "";

@@ -113,7 +113,7 @@ function refreshInventoryContent(content: HTMLElement, compact: boolean) {
       btn.style.touchAction = "manipulation";
       btn.disabled = dead;
       btn.style.opacity = dead ? "0.45" : "1";
-      btn.onclick = () => sendUseItem(item.id!, 1);
+      btn.onclick = (e) => { e.stopPropagation(); sendUseItem(item.id!, 1); };
       btnWrap.appendChild(btn);
       if (qty > 1) {
         const all = document.createElement("button");
@@ -129,7 +129,7 @@ function refreshInventoryContent(content: HTMLElement, compact: boolean) {
         all.style.touchAction = "manipulation";
         all.disabled = dead;
         all.style.opacity = dead ? "0.45" : "1";
-        all.onclick = () => sendUseItem(item.id!, qty);
+        all.onclick = (e) => { e.stopPropagation(); sendUseItem(item.id!, qty); };
         btnWrap.appendChild(all);
       }
     }
@@ -147,7 +147,8 @@ function refreshInventoryContent(content: HTMLElement, compact: boolean) {
       split.style.color = "#e8ecf5";
       split.style.fontSize = "13px";
       split.style.touchAction = "manipulation";
-      split.onclick = () => {
+      split.onclick = (e) => {
+        e.stopPropagation();
         const half = Math.max(1, Math.floor(qty / 2));
         sendSplitStack(rowIndex, half);
       };
@@ -173,7 +174,8 @@ function refreshInventoryContent(content: HTMLElement, compact: boolean) {
       btn.style.touchAction = "manipulation";
       btn.disabled = dead;
       btn.style.opacity = dead ? "0.45" : "1";
-      btn.onclick = () => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
         if (item.id) sendEquipItem(item.id);
       };
       row.appendChild(btn);
