@@ -115,7 +115,7 @@ function skillRow(skill: (typeof ACTIVE_COMBAT_SKILLS)[0], compact: boolean): HT
   setQuick.style.color = "#e8e4ff";
   setQuick.style.fontSize = "12px";
   setQuick.style.touchAction = "manipulation";
-  setQuick.onclick = () => setQuickCastSkillId(skill.id);
+  setQuick.onclick = (e) => { e.stopPropagation(); setQuickCastSkillId(skill.id); };
 
   const btn = document.createElement("button");
   btn.type = "button";
@@ -128,7 +128,7 @@ function skillRow(skill: (typeof ACTIVE_COMBAT_SKILLS)[0], compact: boolean): HT
   btn.style.color = "#f0e8ff";
   btn.style.fontSize = "14px";
   btn.style.touchAction = "manipulation";
-  btn.onclick = () => sendUseSkill(skill.id);
+  btn.onclick = (e) => { e.stopPropagation(); sendUseSkill(skill.id); };
 
   btnWrap.appendChild(setQuick);
   btnWrap.appendChild(btn);

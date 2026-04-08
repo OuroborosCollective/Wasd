@@ -55,7 +55,7 @@ function slotRow(
     btn.style.color = "#e8ecf5";
     btn.style.fontSize = "14px";
     btn.style.touchAction = "manipulation";
-    btn.onclick = () => sendUnequipItem(slot);
+    btn.onclick = (e) => { e.stopPropagation(); sendUnequipItem(slot); };
     row.appendChild(btn);
   }
 
