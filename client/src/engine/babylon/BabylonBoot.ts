@@ -5,6 +5,8 @@ import {
   CubeTexture,
   Engine,
   HemisphericLight,
+  ImageProcessingConfiguration,
+  Mesh,
   MeshBuilder,
   Scene,
   StandardMaterial,
@@ -29,29 +31,56 @@ export type BabylonApp = {
 export function createBabylonApp(canvas: HTMLCanvasElement): BabylonApp {
   const touchFirst = prefersCompactTouchUi();
   const android = isAndroid();
+  const query =
+    typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
+  const qualityHigh = query.get("quality") === "high";
+  /** Treat large tablets as desktop for resolution when they report fine pointer. */
+  const touchButDesktopClass =
+    touchFirst && !android && typeof window !== "undefined" && window.innerWidth >= 1024;
+  const useMobileRenderBudget = touchFirst && !qualityHigh && !touchButDesktopClass;
   /** `preserveDrawingBuffer` doubles memory bandwidth on many GPUs — avoid on phones (crashes / thermal throttle). */
   const wantScreenshots =
     typeof window !== "undefined" && new URLSearchParams(window.location.search).get("screenshot") === "1";
   const engine = new Engine(canvas, true, {
     preserveDrawingBuffer: wantScreenshots,
     /** Stencil + skybox cube map are easy OOM / driver crash targets on Android WebGL. */
-    stencil: !(touchFirst || android),
+    stencil: !(useMobileRenderBudget || android),
     /** Full retina + GLB is too heavy on many phones; scale down internal buffer instead. */
-    adaptToDeviceRatio: !touchFirst,
+    adaptToDeviceRatio: !useMobileRenderBudget,
   });
-  if (touchFirst) {
+  if (useMobileRenderBudget) {
     const dpr = typeof window !== "undefined" ? Math.min(2, window.devicePixelRatio || 1) : 1;
     /** Android: extra internal resolution drop — fewer fragment shader invocations. */
     let level = Math.max(1.25, dpr);
-    if (android) level = Math.max(2.75, level);
+    if (android) level = Math.max(2.25, level);
     engine.setHardwareScalingLevel(level);
     /** Cap frame rate harder on Android to reduce thermal throttling and WebGL instability. */
-    engine.maxFPS = android ? 18 : 30;
+    engine.maxFPS = android ? 24 : 45;
+  } else if (!android) {
+    engine.setHardwareScalingLevel(1);
+    engine.maxFPS = 0;
   }
 
   const scene = new Scene(engine);
-  scene.clearColor = new Color4(0.15, 0.22, 0.38, 1);
-  scene.ambientColor = new Color3(0.22, 0.26, 0.34);
+  scene.clearColor = new Color4(0.12, 0.18, 0.34, 1);
+  scene.ambientColor = new Color3(0.24, 0.28, 0.36);
+  scene.fogMode = Scene.FOGMODE_EXP2;
+  scene.fogDensity = android ? 0.012 : 0.006;
+  scene.fogColor = new Color3(0.45, 0.58, 0.82);
+
+  if (!android) {
+    const ipc = scene.imageProcessingConfiguration;
+    ipc.exposure = 1.05;
+    ipc.contrast = 1.08;
+    ipc.toneMappingEnabled = true;
+    ipc.toneMappingType = ImageProcessingConfiguration.TONEMAPPING_KHR_PBR_NEUTRAL;
+    ipc.vignetteEnabled = true;
+    ipc.vignetteWeight = 0.28;
+    ipc.vignetteColor = new Color4(0, 0, 0, 0);
+    ipc.vignetteBlendMode = ImageProcessingConfiguration.VIGNETTEMODE_MULTIPLY;
+    ipc.ditheringEnabled = true;
+    ipc.isEnabled = true;
+  }
 
   const camera = new ArcRotateCamera(
     "MainCamera",
@@ -66,12 +95,32 @@ export function createBabylonApp(canvas: HTMLCanvasElement): BabylonApp {
   camera.upperRadiusLimit = 40;
   camera.wheelDeltaPercentage = 0.01;
 
-  const light = new HemisphericLight("sun", new Vector3(0.2, 1, 0.1), scene);
-  light.intensity = 1.05;
-  light.groundColor = new Color3(0.2, 0.22, 0.28);
+  const light = new HemisphericLight("sun", new Vector3(0.25, 1, 0.15), scene);
+  light.intensity = android ? 1.12 : 1.18;
+  light.groundColor = new Color3(0.22, 0.24, 0.3);
 
-  // Skybox = 6 face textures + large cube — skip on Android to reduce VRAM / compile pressure.
-  if (!android) {
+  // Sky: cube map on desktop; lightweight gradient dome on Android (no 6-face fetch / cubemap).
+  if (android) {
+    try {
+      const skyDome = MeshBuilder.CreateSphere(
+        "world-sky-dome",
+        { diameter: 800, segments: 16, sideOrientation: Mesh.BACKSIDE },
+        scene
+      );
+      const skyMat = new StandardMaterial("world-sky-dome-mat", scene);
+      skyMat.backFaceCulling = false;
+      skyMat.disableLighting = true;
+      skyMat.emissiveColor = new Color3(0.35, 0.52, 0.88);
+      skyMat.diffuseColor = new Color3(0, 0, 0);
+      skyMat.specularColor = new Color3(0, 0, 0);
+      skyDome.material = skyMat;
+      skyDome.infiniteDistance = true;
+      skyDome.isPickable = false;
+      skyDome.rotation.x = Math.PI;
+    } catch (e) {
+      console.warn("Sky dome create failed, using clear color only", e);
+    }
+  } else {
     try {
       const skyBase = `${getPlaygroundTexturesBaseUrl().replace(/\/+$/, "")}/TropicalSunnyDay`;
       const skyTex = new CubeTexture(skyBase, scene);
