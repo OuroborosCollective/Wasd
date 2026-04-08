@@ -1,61 +1,61 @@
 [
   {
-    "glbPath": "/assets/models/world-assets/characters/Npc001.glb",
+    "glbPath": "/assets/models/characters/uschi.glb",
     "targetType": "npc_single",
     "targetId": "npc_guide"
   },
   {
-    "glbPath": "/assets/models/world-assets/characters/Npc_warrior.glb",
+    "glbPath": "/assets/models/characters/Npc_warrior.glb",
     "targetType": "npc_single",
     "targetId": "npc_1"
   },
   {
-    "glbPath": "/assets/models/world-assets/characters/humanknight.glb",
+    "glbPath": "/assets/models/characters/npc_valkyrie.glb",
     "targetType": "npc_single",
     "targetId": "npc_2"
   },
   {
-    "glbPath": "/assets/models/world-assets/characters/npc_warrior1.glb",
+    "glbPath": "/assets/models/characters/Npc_warrior.glb",
     "targetType": "npc_single",
     "targetId": "npc_dummy"
   },
   {
-    "glbPath": "/assets/models/world-assets/characters/Body_male.glb",
+    "glbPath": "/assets/models/characters/Npc_warrior.glb",
     "targetType": "npc_single",
     "targetId": "npc_3"
   },
   {
-    "glbPath": "/assets/models/world-assets/characters/blacksmith_npc.glb",
+    "glbPath": "/assets/models/characters/Npc_warrior.glb",
     "targetType": "npc_single",
     "targetId": "npc_4"
   },
   {
-    "glbPath": "/assets/models/world-assets/characters/Warrior_gltf_fall_slash_run_walk_idle.glb",
+    "glbPath": "/assets/models/characters/Npc_warrior.glb",
     "targetType": "npc_single",
     "targetId": "npc_5"
   },
   {
-    "glbPath": "/assets/models/world-assets/monsters/wolfredeye.glb",
+    "glbPath": "/assets/models/monsters/goblin.glb",
     "targetType": "npc_single",
     "targetId": "npc_wolf"
   },
   {
-    "glbPath": "/assets/models/world-assets/characters/mageenemy01.glb",
+    "glbPath": "/assets/models/characters/npc_valkyrie.glb",
     "targetType": "npc_single",
     "targetId": "npc_6_hermit"
   },
   {
-    "glbPath": "/assets/models/world-assets/characters/Body_female.glb",
+    "glbPath": "/assets/models/characters/Questnpc_uschi.glb",
     "targetType": "npc_single",
     "targetId": "npc_7_merchant"
   },
   {
-    "glbPath": "/assets/models/world-assets/characters/head_femalea1.glb",
+    "glbPath": "/assets/models/characters/Questnpc_uschi.glb",
     "targetType": "npc_single",
     "targetId": "npc_8_apprentice"
   },
   {
-    "glbPath": "/assets/models/world-assets/props/weapons/1h_sword_01.glb",
+    "glbPath": "/assets/models/kaykit/adventurers/sword_1handed.gltf",
     "targetType": "object_single",
     "targetId": "starter_sword"
   }

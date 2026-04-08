@@ -62,6 +62,35 @@ const DEFAULT_MODEL_BY_TYPE: Record<string, string> = {
   monster: "/assets/models/monsters/goblin.glb",
 };
 
+/** Map legacy admin / content paths to bundled URLs so GLB/GLTF always resolve. */
+function normalizeModelUrl(raw: string): string {
+  const t = raw.trim();
+  if (!t) return t;
+  if (/^https?:\/\//i.test(t)) {
+    try {
+      const u = new URL(t);
+      return normalizeModelPath(u.pathname + u.search);
+    } catch {
+      return t;
+    }
+  }
+  return normalizeModelPath(t);
+}
+
+function normalizeModelPath(pathWithQuery: string): string {
+  let path = pathWithQuery.split("#")[0] ?? "";
+  const qIdx = path.indexOf("?");
+  const search = qIdx >= 0 ? path.slice(qIdx) : "";
+  if (qIdx >= 0) path = path.slice(0, qIdx);
+  if (!path.startsWith("/")) path = `/${path}`;
+  if (path.startsWith("/world-assets/")) {
+    path = `/assets/models/world-assets${path.slice("/world-assets".length)}`;
+  } else if (path.startsWith("/models/")) {
+    path = `/assets/models${path.slice("/models".length)}`;
+  }
+  return path + search;
+}
+
 export class BabylonAdapter implements IEngineBridge {
   private readonly entities = new Map<string, EntityNode>();
   private readonly chunks = new Map<string, TransformNode>();
@@ -198,7 +227,7 @@ export class BabylonAdapter implements IEngineBridge {
     this.applyAREState(node, model);
     this.applyAREMaterialMode(node);
     this.entities.set(model.id, node);
-    const url = model.modelUrl ?? DEFAULT_MODEL_BY_TYPE[model.type];
+    const url = normalizeModelUrl(model.modelUrl ?? DEFAULT_MODEL_BY_TYPE[model.type] ?? "");
     if (this.androidMobile) {
       this.enqueueGlbLoad(() => this.tryAttachModel(model.id, url));
     } else {
@@ -249,7 +278,7 @@ export class BabylonAdapter implements IEngineBridge {
       }
     }
     if (updates.modelUrl !== undefined) {
-      const nextUrl = updates.modelUrl.trim();
+      const nextUrl = normalizeModelUrl(updates.modelUrl);
       if (nextUrl && nextUrl !== node.lastAttachedModelUrl) {
         if (this.androidMobile) {
           this.enqueueGlbLoad(() => this.tryAttachModel(id, nextUrl));
@@ -582,6 +611,7 @@ export class BabylonAdapter implements IEngineBridge {
 
   private async tryAttachModel(entityId: string, url?: string): Promise<void> {
     if (!url) return;
+    url = normalizeModelUrl(url);
     const entity = this.entities.get(entityId);
     if (!entity) return;
     if (entity.lastAttachedModelUrl === url) {
