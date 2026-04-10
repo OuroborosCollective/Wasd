@@ -532,6 +532,8 @@ export function initMobileControls(
           if (el.id === "dialogue-box" || el.closest("#dialogue-box")) return true;
           if (el.id === "chat-panel" || el.closest("#chat-panel")) return true;
           if (el.classList.contains("panel") || el.closest(".panel")) return true;
+          if (el.tagName === "BUTTON" || el.closest("button")) return true;
+          if (el.classList.contains("btn-gold") || el.closest(".btn-gold")) return true;
           if (el.id === "combat-loot-strip" || el.closest("#combat-loot-strip")) return true;
           if (el.id === "notification-container" || el.closest("#notification-container")) return true;
           if (el.id === "target-frame" || el.closest("#target-frame")) return true;

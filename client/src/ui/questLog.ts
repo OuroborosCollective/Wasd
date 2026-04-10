@@ -83,6 +83,8 @@ export function renderQuestLog() {
   closeBtn.onclick = () => {
     panel!.style.display = "none";
   };
+  closeBtn.addEventListener("touchstart", (e) => { e.stopPropagation(); }, { passive: false });
+  closeBtn.addEventListener("pointerdown", (e) => { e.stopPropagation(); }, { passive: false });
 
   header.appendChild(title);
   header.appendChild(closeBtn);

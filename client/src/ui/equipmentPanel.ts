@@ -56,6 +56,8 @@ function slotRow(
     btn.style.fontSize = "14px";
     btn.style.touchAction = "manipulation";
     btn.onclick = (e) => { e.stopPropagation(); sendUnequipItem(slot); };
+    btn.addEventListener("touchstart", (e) => { e.stopPropagation(); }, { passive: false });
+    btn.addEventListener("pointerdown", (e) => { e.stopPropagation(); }, { passive: false });
     row.appendChild(btn);
   }
 
@@ -140,6 +142,8 @@ export function renderEquipmentPanel() {
   closeBtn.onclick = () => {
     panel!.style.display = "none";
   };
+  closeBtn.addEventListener("touchstart", (e) => { e.stopPropagation(); }, { passive: false });
+  closeBtn.addEventListener("pointerdown", (e) => { e.stopPropagation(); }, { passive: false });
 
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Escape" && panel!.style.display !== "none") {
