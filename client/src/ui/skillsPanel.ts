@@ -116,6 +116,8 @@ function skillRow(skill: (typeof ACTIVE_COMBAT_SKILLS)[0], compact: boolean): HT
   setQuick.style.fontSize = "12px";
   setQuick.style.touchAction = "manipulation";
   setQuick.onclick = (e) => { e.stopPropagation(); setQuickCastSkillId(skill.id); };
+  setQuick.addEventListener("touchstart", (e) => { e.stopPropagation(); }, { passive: false });
+  setQuick.addEventListener("pointerdown", (e) => { e.stopPropagation(); }, { passive: false });
 
   const btn = document.createElement("button");
   btn.type = "button";
@@ -129,6 +131,8 @@ function skillRow(skill: (typeof ACTIVE_COMBAT_SKILLS)[0], compact: boolean): HT
   btn.style.fontSize = "14px";
   btn.style.touchAction = "manipulation";
   btn.onclick = (e) => { e.stopPropagation(); sendUseSkill(skill.id); };
+  btn.addEventListener("touchstart", (e) => { e.stopPropagation(); }, { passive: false });
+  btn.addEventListener("pointerdown", (e) => { e.stopPropagation(); }, { passive: false });
 
   btnWrap.appendChild(setQuick);
   btnWrap.appendChild(btn);
@@ -221,6 +225,8 @@ export function renderSkillsPanel() {
   closeBtn.onclick = () => {
     panel!.style.display = "none";
   };
+  closeBtn.addEventListener("touchstart", (e) => { e.stopPropagation(); }, { passive: false });
+  closeBtn.addEventListener("pointerdown", (e) => { e.stopPropagation(); }, { passive: false });
 
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Escape" && panel!.style.display !== "none") {

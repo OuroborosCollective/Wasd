@@ -114,6 +114,8 @@ function refreshInventoryContent(content: HTMLElement, compact: boolean) {
       btn.disabled = dead;
       btn.style.opacity = dead ? "0.45" : "1";
       btn.onclick = (e) => { e.stopPropagation(); sendUseItem(item.id!, 1); };
+      btn.addEventListener("touchstart", (e) => { e.stopPropagation(); }, { passive: false });
+      btn.addEventListener("pointerdown", (e) => { e.stopPropagation(); }, { passive: false });
       btnWrap.appendChild(btn);
       if (qty > 1) {
         const all = document.createElement("button");
@@ -130,6 +132,8 @@ function refreshInventoryContent(content: HTMLElement, compact: boolean) {
         all.disabled = dead;
         all.style.opacity = dead ? "0.45" : "1";
         all.onclick = (e) => { e.stopPropagation(); sendUseItem(item.id!, qty); };
+        all.addEventListener("touchstart", (e) => { e.stopPropagation(); }, { passive: false });
+        all.addEventListener("pointerdown", (e) => { e.stopPropagation(); }, { passive: false });
         btnWrap.appendChild(all);
       }
     }
@@ -152,6 +156,8 @@ function refreshInventoryContent(content: HTMLElement, compact: boolean) {
         const half = Math.max(1, Math.floor(qty / 2));
         sendSplitStack(rowIndex, half);
       };
+      split.addEventListener("touchstart", (e) => { e.stopPropagation(); }, { passive: false });
+      split.addEventListener("pointerdown", (e) => { e.stopPropagation(); }, { passive: false });
       btnWrap.appendChild(split);
     }
 
@@ -178,6 +184,8 @@ function refreshInventoryContent(content: HTMLElement, compact: boolean) {
         e.stopPropagation();
         if (item.id) sendEquipItem(item.id);
       };
+      btn.addEventListener("touchstart", (e) => { e.stopPropagation(); }, { passive: false });
+      btn.addEventListener("pointerdown", (e) => { e.stopPropagation(); }, { passive: false });
       row.appendChild(btn);
     }
 
@@ -247,6 +255,8 @@ export function renderInventory() {
   closeBtn.onclick = () => {
     panel!.style.display = "none";
   };
+  closeBtn.addEventListener("touchstart", (e) => { e.stopPropagation(); }, { passive: false });
+  closeBtn.addEventListener("pointerdown", (e) => { e.stopPropagation(); }, { passive: false });
 
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Escape" && panel!.style.display !== "none") {
