@@ -222,7 +222,8 @@ export function renderSkillsPanel() {
   closeBtn.className = "btn-gold";
   Object.assign(closeBtn.style, panelCloseButtonStyles(compact));
   closeBtn.setAttribute("aria-label", "Close Skills Panel");
-  closeBtn.onclick = () => {
+  closeBtn.onclick = (e) => {
+    e.stopPropagation();
     panel!.style.display = "none";
   };
   closeBtn.addEventListener("touchstart", (e) => { e.stopPropagation(); }, { passive: false });

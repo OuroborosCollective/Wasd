@@ -80,7 +80,8 @@ export function renderQuestLog() {
   closeBtn.className = "btn-gold";
   Object.assign(closeBtn.style, panelCloseButtonStyles(compact));
   closeBtn.setAttribute("aria-label", "Close Quest Log");
-  closeBtn.onclick = () => {
+  closeBtn.onclick = (e) => {
+    e.stopPropagation();
     panel!.style.display = "none";
   };
   closeBtn.addEventListener("touchstart", (e) => { e.stopPropagation(); }, { passive: false });
