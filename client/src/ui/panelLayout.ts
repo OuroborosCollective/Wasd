@@ -11,6 +11,7 @@ export function applyGamePanelLayout(panel: HTMLElement): boolean {
   panel.style.display = "flex";
   panel.style.flexDirection = "column";
   panel.style.boxSizing = "border-box";
+  panel.style.pointerEvents = "auto";
 
   if (compact) {
     panel.style.left = "0";

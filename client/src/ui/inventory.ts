@@ -252,7 +252,8 @@ export function renderInventory() {
   closeBtn.className = "btn-gold";
   Object.assign(closeBtn.style, panelCloseButtonStyles(compact));
   closeBtn.setAttribute("aria-label", "Close Inventory");
-  closeBtn.onclick = () => {
+  closeBtn.onclick = (e) => {
+    e.stopPropagation();
     panel!.style.display = "none";
   };
   closeBtn.addEventListener("touchstart", (e) => { e.stopPropagation(); }, { passive: false });
