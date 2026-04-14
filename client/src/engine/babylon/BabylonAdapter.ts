@@ -108,7 +108,7 @@ export class BabylonAdapter implements IEngineBridge {
   };
   private readonly areDebugEnabled = new URLSearchParams(window.location.search).get("areDebug") === "1";
   private readonly areDebugElement: HTMLDivElement | null = null;
-  private areMode: "off" | "cpu" | "shader" = "shader";
+  private areMode: "off" | "cpu" | "shader" = "off";
   private areShaderRegistered = false;
   private arePerfEnabled = new URLSearchParams(window.location.search).get("arePerf") === "1";
   private arePerfElement: HTMLDivElement | null = null;
@@ -635,7 +635,7 @@ export class BabylonAdapter implements IEngineBridge {
       modelRoot.position = Vector3.Zero();
       modelRoot.rotationQuaternion = Quaternion.Identity();
       modelRoot.rotation = Vector3.Zero();
-      modelRoot.scaling = new Vector3(0.01, 0.01, 0.01);
+      modelRoot.scaling = new Vector3(1, 1, 1);
 
       if (entity.visual) {
         entity.visual.dispose(false, true);
@@ -645,8 +645,8 @@ export class BabylonAdapter implements IEngineBridge {
       entity.areBaseMaterials = new Map(
         entity.areMeshes.map((mesh) => [mesh.uniqueId, (mesh.material as Material | null) ?? null])
       );
-      this.applyAREMaterialMode(entity);
       this.applyARELod(entity);
+      this.applyAREMaterialMode(entity);
       this.updateAREShaderUniforms(entity);
       entity.lastAttachedModelUrl = expectedUrl;
     } catch (error) {

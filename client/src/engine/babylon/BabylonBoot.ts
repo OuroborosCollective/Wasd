@@ -99,43 +99,21 @@ export function createBabylonApp(canvas: HTMLCanvasElement): BabylonApp {
   light.intensity = android ? 1.12 : 1.18;
   light.groundColor = new Color3(0.22, 0.24, 0.3);
 
-  // Sky: cube map on desktop; lightweight gradient dome on Android (no 6-face fetch / cubemap).
-  if (android) {
-    try {
-      const skyDome = MeshBuilder.CreateSphere(
-        "world-sky-dome",
-        { diameter: 800, segments: 16, sideOrientation: Mesh.BACKSIDE },
-        scene
-      );
-      const skyMat = new StandardMaterial("world-sky-dome-mat", scene);
-      skyMat.backFaceCulling = false;
-      skyMat.disableLighting = true;
-      skyMat.emissiveColor = new Color3(0.35, 0.52, 0.88);
-      skyMat.diffuseColor = new Color3(0, 0, 0);
-      skyMat.specularColor = new Color3(0, 0, 0);
-      skyDome.material = skyMat;
-      skyDome.infiniteDistance = true;
-      skyDome.isPickable = false;
-      skyDome.rotation.x = Math.PI;
-    } catch (e) {
-      console.warn("Sky dome create failed, using clear color only", e);
-    }
-  } else {
-    try {
-      const skyBase = `${getPlaygroundTexturesBaseUrl().replace(/\/+$/, "")}/TropicalSunnyDay`;
-      const skyTex = new CubeTexture(skyBase, scene);
-      const skybox = MeshBuilder.CreateBox("world-skybox", { size: 800 }, scene);
-      const skyMat = new StandardMaterial("world-skybox-mat", scene);
-      skyMat.backFaceCulling = false;
-      skyMat.reflectionTexture = skyTex;
-      skyMat.diffuseColor = new Color3(0, 0, 0);
-      skyMat.specularColor = new Color3(0, 0, 0);
-      skybox.material = skyMat;
-      skybox.infiniteDistance = true;
-      skybox.isPickable = false;
-    } catch (e) {
-      console.warn("Skybox load failed, using clear color only", e);
-    }
+  // Sky: cube map for all platforms (Bug #5 Fix)
+  try {
+    const skyBase = `${getPlaygroundTexturesBaseUrl().replace(/\/+$/, "")}/TropicalSunnyDay`;
+    const skyTex = new CubeTexture(skyBase, scene);
+    const skybox = MeshBuilder.CreateBox("world-skybox", { size: 800 }, scene);
+    const skyMat = new StandardMaterial("world-skybox-mat", scene);
+    skyMat.backFaceCulling = false;
+    skyMat.reflectionTexture = skyTex;
+    skyMat.diffuseColor = new Color3(0, 0, 0);
+    skyMat.specularColor = new Color3(0, 0, 0);
+    skybox.material = skyMat;
+    skybox.infiniteDistance = true;
+    skybox.isPickable = false;
+  } catch (e) {
+    console.warn("Skybox load failed, using clear color only", e);
   }
 
   const ground = MeshBuilder.CreateGround(
