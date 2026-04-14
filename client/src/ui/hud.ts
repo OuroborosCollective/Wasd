@@ -125,6 +125,20 @@ export function renderHUD() {
 
   const authBox = document.createElement("div");
   authBox.id = "arel-hud-auth";
+
+  const stopAuthEvents = (e: Event) => e.stopPropagation();
+  ["touchstart", "touchmove"].forEach((evt) => {
+    authBox.addEventListener(evt, stopAuthEvents, { passive: true });
+  });
+  [
+    "touchend", "touchcancel",
+    "mousedown", "mouseup", "mousemove",
+    "pointerdown", "pointerup", "pointermove",
+    "click"
+  ].forEach((evt) => {
+    authBox.addEventListener(evt, stopAuthEvents, { passive: false });
+  });
+
   authBox.style.marginTop = "10px";
   authBox.style.display = isFirebaseGameAuthDisabled() ? "none" : "flex";
   authBox.style.flexDirection = "column";
@@ -384,6 +398,19 @@ export function showDialogue(payload: string | DialoguePayload) {
     dialogueBox = document.createElement("div");
     dialogueBox.id = "dialogue-box";
     dialogueBox.style.position = "fixed";
+
+    const stopEvents = (e: Event) => e.stopPropagation();
+    ["touchstart", "touchmove"].forEach((evt) => {
+      dialogueBox!.addEventListener(evt, stopEvents, { passive: true });
+    });
+    [
+      "touchend", "touchcancel",
+      "mousedown", "mouseup", "mousemove",
+      "pointerdown", "pointerup", "pointermove",
+      "click"
+    ].forEach((evt) => {
+      dialogueBox!.addEventListener(evt, stopEvents, { passive: false });
+    });
     dialogueBox.style.left = "50%";
     dialogueBox.style.transform = "translateX(-50%)";
     dialogueBox.style.background = "rgba(0, 0, 0, 0.9)";
