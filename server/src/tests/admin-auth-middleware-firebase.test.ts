@@ -18,6 +18,8 @@ describe("adminAuthMiddleware with Firebase Admin", () => {
   beforeEach(() => {
     delete process.env.ADMIN_PANEL_TOKEN;
     delete process.env.ADMIN_UID_ALLOWLIST;
+    delete process.env.SUPABASE_JWT_SECRET;
+    delete process.env.JWT_SECRET;
     verifyFirebaseToken.mockReset();
     isFirebaseAuthConfigured.mockReturnValue(true);
   });
@@ -25,6 +27,8 @@ describe("adminAuthMiddleware with Firebase Admin", () => {
   afterEach(() => {
     delete process.env.ADMIN_PANEL_TOKEN;
     delete process.env.ADMIN_UID_ALLOWLIST;
+    delete process.env.SUPABASE_JWT_SECRET;
+    delete process.env.JWT_SECRET;
   });
 
   it("accepts valid Firebase Bearer and attaches uid", async () => {
@@ -57,7 +61,7 @@ describe("adminAuthMiddleware with Firebase Admin", () => {
     app.get("/t", adminAuthMiddleware, (_req, res) => res.json({ ok: true }));
     const r = await request(app).get("/t").set("Authorization", "Bearer some-jwt");
     expect(r.status).toBe(401);
-    expect(r.body.error).toBe("Invalid Firebase token");
+    expect(r.body.error).toBe("Invalid token");
     expect(String(r.body.errorDe)).toMatch(/ADMIN_PANEL_TOKEN/);
   });
 });

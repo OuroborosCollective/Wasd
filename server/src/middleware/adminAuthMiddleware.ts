@@ -1,8 +1,9 @@
 import type { Request, Response, NextFunction } from "express";
 import { isFirebaseAuthConfigured, verifyFirebaseToken } from "../config/firebase.js";
+import { isSupabaseAuthConfigured, verifySupabaseToken } from "../config/supabase.js";
 
 export type AdminRequest = Request & {
-  adminAuth?: { mode: "token" } | { mode: "firebase"; uid: string };
+  adminAuth?: { mode: "token" } | { mode: "firebase"; uid: string } | { mode: "supabase"; uid: string };
 };
 
 function parseUidAllowlist(): Set<string> {
@@ -19,8 +20,8 @@ function parseUidAllowlist(): Set<string> {
 /**
  * Protects no-code admin HTTP APIs.
  * - If `ADMIN_PANEL_TOKEN` is set: accept `Authorization: Bearer <token>` or `X-Admin-Token: <token>`.
- * - Else: require Firebase ID token (`Authorization: Bearer <jwt>`).
- * - If `ADMIN_UID_ALLOWLIST` is non-empty, Firebase uid must be listed.
+ * - Else: require Supabase/Firebase ID token (`Authorization: Bearer <jwt>`).
+ * - If `ADMIN_UID_ALLOWLIST` is non-empty, token uid must be listed.
  */
 export async function adminAuthMiddleware(req: AdminRequest, res: Response, next: NextFunction) {
   const panel = process.env.ADMIN_PANEL_TOKEN?.trim();
@@ -55,32 +56,50 @@ export async function adminAuthMiddleware(req: AdminRequest, res: Response, next
   }
 
   try {
-    if (!isFirebaseAuthConfigured()) {
+    const allow = parseUidAllowlist();
+
+    if (isSupabaseAuthConfigured()) {
+      const claims = verifySupabaseToken(bearer);
+      const uid = typeof claims.sub === "string" ? claims.sub.trim() : "";
+      if (!uid) {
+        return res.status(401).json({ error: "Invalid Supabase token" });
+      }
+      if (allow.size > 0 && !allow.has(uid)) {
+        return res.status(403).json({ error: "Forbidden: uid not in ADMIN_UID_ALLOWLIST" });
+      }
+      req.adminAuth = { mode: "supabase", uid };
+      return next();
+    }
+
+    if (isFirebaseAuthConfigured()) {
+      const decoded = await verifyFirebaseToken(bearer);
+      if (!decoded?.uid) {
+        return res.status(401).json({ error: "Invalid Firebase token" });
+      }
+      if (allow.size > 0 && !allow.has(decoded.uid)) {
+        return res.status(403).json({ error: "Forbidden: uid not in ADMIN_UID_ALLOWLIST" });
+      }
+      req.adminAuth = { mode: "firebase", uid: decoded.uid };
+      return next();
+    }
+
+    if (!isSupabaseAuthConfigured() && !isFirebaseAuthConfigured()) {
       const msg =
-        "Firebase Admin ist auf dem Server nicht konfiguriert. Setze z. B. FIREBASE_SERVICE_ACCOUNT_KEY (Pfad/JSON), " +
-        "oder GOOGLE_APPLICATION_CREDENTIALS=/pfad/zum-adminsdk.json, oder auf GCP FIREBASE_ADMIN_USE_APPLICATION_DEFAULT=1 " +
-        "plus FIREBASE_PROJECT_ID. Sonst: ADMIN_PANEL_TOKEN im Admin-Feld „Code“.";
+        "Kein externer Auth-Provider konfiguriert. Für Supabase: SUPABASE_JWT_SECRET (oder JWT_SECRET) setzen. " +
+        "Für Firebase: FIREBASE_SERVICE_ACCOUNT_KEY oder GOOGLE_APPLICATION_CREDENTIALS setzen. " +
+        "Alternativ ADMIN_PANEL_TOKEN im Admin-Feld „Code“ nutzen.";
       return res.status(503).json({
-        error: "Firebase Admin not configured",
+        error: "Auth provider not configured",
         errorDe: msg,
       });
     }
-    const decoded = await verifyFirebaseToken(bearer);
-    if (!decoded?.uid) {
-      return res.status(401).json({ error: "Invalid Firebase token" });
-    }
-    const allow = parseUidAllowlist();
-    if (allow.size > 0 && !allow.has(decoded.uid)) {
-      return res.status(403).json({ error: "Forbidden: uid not in ADMIN_UID_ALLOWLIST" });
-    }
-    req.adminAuth = { mode: "firebase", uid: decoded.uid };
-    next();
+    return res.status(401).json({ error: "Invalid token" });
   } catch {
     const errorDe = panel
-      ? "Firebase-Token vom Admin-Formular abgelehnt. Nutze den langen ADMIN_PANEL_TOKEN aus der Server-Umgebung (nicht das Google-Login), oder entferne ADMIN_PANEL_TOKEN und nutze nur Firebase mit passender ADMIN_UID_ALLOWLIST."
+      ? "Token vom Admin-Formular abgelehnt. Nutze den langen ADMIN_PANEL_TOKEN aus der Server-Umgebung (nicht das Spiel-Login), oder setze eine gueltige Supabase/Firebase Konfiguration."
       : undefined;
     return res.status(401).json({
-      error: "Invalid Firebase token",
+      error: "Invalid token",
       ...(errorDe ? { errorDe } : {}),
     });
   }

@@ -18,12 +18,20 @@ scp /pfad/zum/repo/deploy/.env.production.template root@DEINE_SERVER_IP:/opt/are
 
 | Variable | Was |
 |----------|-----|
-| `FIREBASE_PROJECT_ID` | Aus Firebase Console |
-| `FIREBASE_SERVICE_ACCOUNT_KEY` | Pfad zur JSON, z. B. `/opt/areloria/secrets/firebase-adminsdk.json` |
+| `VITE_AUTH_PROVIDER` | `supabase` (empfohlen) oder `firebase` |
+| `VITE_SUPABASE_URL` | Öffentliche Supabase URL |
+| `VITE_SUPABASE_ANON_KEY` | Public Anon Key für Browser-Login |
+| `SUPABASE_JWT_SECRET` | JWT-Secret aus Supabase Stack (Serverprüfung von Access Tokens) |
+| `DATABASE_URL` | Postgres DSN (Supabase/Postgres) |
 | `JWT_SECRET` | Lange zufällige Zeichenkette |
 | `ADMIN_PANEL_TOKEN` | Langes Geheimnis für `/admin-content.html` |
 | `PUBLIC_WEBSOCKET_URL` | z. B. `wss://deine-domain.tld/ws` |
-| `USE_FIREBASE_WS_LOGIN` | `1` wenn Google-Login im Spiel soll |
+| `USE_SUPABASE_WS_LOGIN` | `1` wenn Supabase JWT auf WS-Login geprüft werden soll |
+
+Firebase-Variablen bleiben optional (nur wenn ihr bewusst Firebase parallel nutzt):
+- `FIREBASE_SERVICE_ACCOUNT_KEY`
+- `GOOGLE_APPLICATION_CREDENTIALS`
+- `USE_FIREBASE_WS_LOGIN`
 
 Firebase-JSON auf den Server kopieren (wieder per SCP/SFTP), z. B. nach:
 
@@ -56,8 +64,13 @@ Im Browser oder vom PC:
 `https://deine-domain/health`  
 oder `http://SERVER-IP:3000/health`
 
-Dort siehst du `firebase.configured`, `firebase.initMode`, `auth.useFirebaseWsLogin`.
+Dort siehst du u. a.:
+- `supabase.configured`
+- `persistence.driver`
+- `auth.useSupabaseWsLogin`
+- (optional) `firebase.configured`
 
 ## Vollständige Liste aller Variablen
 
 Siehe Repo-Root **`.env.example`** (Referenz) und **`deploy/.env.production.template`** (VPS-Mindestset).
+Für Supabase-Migration inkl. GitHub-Secret-Mapping: **`deploy/SUPABASE_SECRETS.md`**.

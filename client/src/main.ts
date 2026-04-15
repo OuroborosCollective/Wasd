@@ -9,7 +9,7 @@ import { openEquipmentPanel, openInventory, openQuestLog, openSkillsPanel } from
 import { getQuickCastSkillId } from "./game/combatSkills";
 import { renderMobileSceneTeleportPanel } from "./ui/mobileSceneTeleportPanel";
 import { performanceMonitor } from "./utils/PerformanceMonitor";
-import { isFirebaseGameAuthDisabled } from "./config/gameAuth";
+import { resolveGameAuthProvider } from "./config/gameAuth";
 import { installFirebaseAiWatchdog } from "./ai/firebaseAiWatchdog";
 
 type AREPolicyConfig = {
@@ -112,7 +112,8 @@ try {
 
   // 3. Connect Systems
   const connectionOptions: ConnectionOptions = {};
-  if (!isFirebaseGameAuthDisabled()) {
+  const authProvider = resolveGameAuthProvider();
+  if (authProvider !== "none") {
     let persistedToken: string | null = null;
     try {
       persistedToken = localStorage.getItem("token");

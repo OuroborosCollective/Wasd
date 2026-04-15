@@ -10,7 +10,8 @@ import {
   type ConnectionOptions,
 } from "./networking/websocketClient";
 import { auth } from "./auth/firebase";
-import { isFirebaseGameAuthDisabled } from "./config/gameAuth";
+import { getSupabaseAccessToken, onSupabaseAuthStateChanged } from "./auth/supabase";
+import { resolveGameAuthProvider } from "./config/gameAuth";
 import { installFirebaseAiWatchdog } from "./ai/firebaseAiWatchdog";
 import { IEngineBridge } from "./engine/bridge/IEngineBridge";
 import { renderHUD, showDialogue } from "./ui/hud";
@@ -67,15 +68,15 @@ export async function bootAreloriaClient(canvas: HTMLCanvasElement): Promise<voi
   (window as unknown as { gameCore?: MMORPGClientCore }).gameCore = core;
   core.registerDefaultInput();
 
-  const firebaseGameOff = isFirebaseGameAuthDisabled();
-  if (firebaseGameOff) {
+  const authProvider = resolveGameAuthProvider();
+  if (authProvider === "none") {
     try {
       localStorage.removeItem("token");
     } catch {
       /* ignore */
     }
     setAuthTokenProvider(null);
-  } else {
+  } else if (authProvider === "firebase") {
     setAuthTokenProvider(async () => {
       const u = auth?.currentUser;
       if (!u) return null;
@@ -100,10 +101,25 @@ export async function bootAreloriaClient(canvas: HTMLCanvasElement): Promise<voi
         }
       });
     }
+  } else {
+    setAuthTokenProvider(async () => {
+      try {
+        return await getSupabaseAccessToken();
+      } catch {
+        return null;
+      }
+    });
+    onSupabaseAuthStateChanged((session) => {
+      void import("./networking/websocketClient")
+        .then(({ updateAuthToken }) => {
+          updateAuthToken(session?.access_token ?? null, { reconnect: true });
+        })
+        .catch(() => undefined);
+    });
   }
 
   const connectionOptions: ConnectionOptions = {};
-  if (!firebaseGameOff) {
+  if (authProvider !== "none") {
     const persistedToken = localStorage.getItem("token");
     if (persistedToken && persistedToken.trim().length > 0) {
       connectionOptions.token = persistedToken;

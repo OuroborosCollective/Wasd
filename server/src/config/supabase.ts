@@ -1,0 +1,126 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+export type SupabaseJwtClaims = {
+  sub?: string;
+  email?: string;
+  role?: string;
+  exp?: number;
+  iat?: number;
+  [key: string]: unknown;
+};
+
+export type SupabaseAuthVerifyMode = "jwt_secret" | "none";
+
+function envTrim(key: string): string {
+  const value = process.env[key];
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function decodeBase64UrlToString(value: string): string {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+  return Buffer.from(padded, "base64").toString("utf8");
+}
+
+function encodeBase64Url(buffer: Buffer): string {
+  return buffer
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function getJwtSecret(): string {
+  return envTrim("SUPABASE_JWT_SECRET") || envTrim("JWT_SECRET");
+}
+
+function parseTokenClaims(token: string): SupabaseJwtClaims {
+  const parts = token.split(".");
+  if (parts.length !== 3) {
+    throw new Error("Invalid token format");
+  }
+  const [, payload] = parts;
+  if (!payload) {
+    throw new Error("Missing token payload");
+  }
+  try {
+    const parsed = JSON.parse(decodeBase64UrlToString(payload)) as SupabaseJwtClaims;
+    if (!parsed || typeof parsed !== "object") {
+      throw new Error("Invalid token payload");
+    }
+    return parsed;
+  } catch {
+    throw new Error("Invalid token payload");
+  }
+}
+
+export function verifySupabaseToken(token: string): SupabaseJwtClaims {
+  const cleanToken = token.trim();
+  if (!cleanToken) {
+    throw new Error("Token is empty");
+  }
+
+  const jwtSecret = getJwtSecret();
+  if (!jwtSecret) {
+    throw new Error("SUPABASE_JWT_SECRET or JWT_SECRET is required to verify Supabase tokens");
+  }
+
+  const parts = cleanToken.split(".");
+  if (parts.length !== 3) {
+    throw new Error("Invalid token format");
+  }
+  const [headerEncoded, payloadEncoded, signatureEncoded] = parts;
+  if (!headerEncoded || !payloadEncoded || !signatureEncoded) {
+    throw new Error("Invalid token format");
+  }
+
+  const signedData = `${headerEncoded}.${payloadEncoded}`;
+  const expectedSig = encodeBase64Url(createHmac("sha256", jwtSecret).update(signedData).digest());
+  const provided = Buffer.from(signatureEncoded);
+  const expected = Buffer.from(expectedSig);
+  if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
+    throw new Error("Invalid token signature");
+  }
+
+  const claims = parseTokenClaims(cleanToken);
+  const exp = Number(claims.exp ?? 0);
+  if (!Number.isFinite(exp) || exp <= 0) {
+    throw new Error("Invalid token expiration");
+  }
+  const nowSec = Math.floor(Date.now() / 1000);
+  if (exp <= nowSec) {
+    throw new Error("Token expired");
+  }
+  return claims;
+}
+
+export function isSupabaseAuthConfigured(): boolean {
+  return getSupabaseAuthInitInfo().verifyMode !== "none";
+}
+
+export function getSupabaseAuthInitInfo(): {
+  verifyMode: SupabaseAuthVerifyMode;
+  hasUrl: boolean;
+  hasAnonKey: boolean;
+  hasServiceRoleKey: boolean;
+  hasJwtSecret: boolean;
+} {
+  const jwtSecret = getJwtSecret();
+  return {
+    verifyMode: jwtSecret ? "jwt_secret" : "none",
+    hasUrl: Boolean(envTrim("SUPABASE_URL") || envTrim("SUPABASE_PUBLIC_URL")),
+    hasAnonKey: Boolean(envTrim("SUPABASE_ANON_KEY")),
+    hasServiceRoleKey: Boolean(envTrim("SUPABASE_SERVICE_ROLE_KEY")),
+    hasJwtSecret: Boolean(jwtSecret),
+  };
+}
+
+export function getSupabaseSummary(): ReturnType<typeof getSupabaseAuthInitInfo> & {
+  configured: boolean;
+} {
+  const info = getSupabaseAuthInitInfo();
+  return {
+    ...info,
+    configured: info.verifyMode !== "none",
+  };
+}

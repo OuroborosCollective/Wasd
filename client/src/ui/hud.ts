@@ -1,4 +1,5 @@
 import { auth, isFirebaseClientConfigured } from "../auth/firebase";
+import { getSupabaseAccessToken, isSupabaseClientConfigured, onSupabaseAuthStateChanged, supabase } from "../auth/supabase";
 import { getQuickCastSkillId } from "../game/combatSkills";
 import { sendDialogueChoice, sendQuestAccept, updateAuthToken } from "../networking/websocketClient";
 import {
@@ -15,14 +16,22 @@ import {
 } from "../state/playerState";
 import {
   GoogleAuthProvider,
-  signInWithPopup,
-  signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendEmailVerification,
   sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signInWithPopup,
 } from "firebase/auth";
 import { prefersCompactTouchUi } from "./touchUi";
-import { isFirebaseGameAuthDisabled } from "../config/gameAuth";
+import { resolveGameAuthProvider } from "../config/gameAuth";
+import {
+  mapFirebaseAuthError,
+  mapSupabaseAuthError,
+  normalizeAuthEmail,
+  validateEmailForAuth,
+  validatePasswordForLogin,
+  validatePasswordForSignup,
+} from "./authMessages";
 
 const GUEST_STORAGE_KEY = "areloria_guest_id";
 
@@ -140,7 +149,8 @@ export function renderHUD() {
   });
 
   authBox.style.marginTop = "10px";
-  authBox.style.display = isFirebaseGameAuthDisabled() ? "none" : "flex";
+  const authProvider = resolveGameAuthProvider();
+  authBox.style.display = authProvider === "none" ? "none" : "flex";
   authBox.style.flexDirection = "column";
   authBox.style.gap = "8px";
   authBox.style.maxWidth = "100%";
@@ -260,6 +270,13 @@ export function renderHUD() {
   emailRow.appendChild(emailErr);
   emailRow.appendChild(emailBtnRow);
 
+  const signupStatus = document.createElement("div");
+  signupStatus.style.fontSize = "11px";
+  signupStatus.style.color = "#8fdf9a";
+  signupStatus.style.minHeight = "14px";
+  signupStatus.style.lineHeight = "1.35";
+  emailRow.appendChild(signupStatus);
+
   btnRow.appendChild(loginBtn);
   btnRow.appendChild(verifyEmailBtn);
   btnRow.appendChild(resetPassBtn);
@@ -278,20 +295,200 @@ export function renderHUD() {
   window.addEventListener("areloria-quick-cast-changed", refreshHint);
   authBox.appendChild(hint);
 
+  let supabaseSignedIn = false;
   const syncAuthUi = () => {
-    const u = auth?.currentUser;
-    const out = !u;
+    const hasFirebaseUser = Boolean(auth?.currentUser);
+    const userSignedIn = authProvider === "firebase" ? hasFirebaseUser : supabaseSignedIn;
+    const out = !userSignedIn;
     loginBtn.style.display = out ? "inline-block" : "none";
-    logoutBtn.style.display = u ? "inline-block" : "none";
-    verifyEmailBtn.style.display = u ? "inline-block" : "none";
-    resetPassBtn.style.display = u ? "inline-block" : "none";
+    logoutBtn.style.display = userSignedIn ? "inline-block" : "none";
+    verifyEmailBtn.style.display = userSignedIn ? "inline-block" : "none";
+    resetPassBtn.style.display = userSignedIn ? "inline-block" : "none";
     emailRow.style.display = out ? "flex" : "none";
   };
   syncAuthUi();
   auth?.onAuthStateChanged(() => syncAuthUi());
+  if (supabase) {
+    onSupabaseAuthStateChanged((session) => {
+      supabaseSignedIn = Boolean(session?.user);
+      try {
+        if (session?.access_token) {
+          localStorage.setItem("token", session.access_token);
+        } else {
+          localStorage.removeItem("token");
+        }
+      } catch {
+        /* ignore */
+      }
+      syncAuthUi();
+    });
+    void supabase.auth.getSession().then(({ data }) => {
+      supabaseSignedIn = Boolean(data.session?.user);
+      syncAuthUi();
+    });
+  }
 
-  if (isFirebaseGameAuthDisabled()) {
-    /* Game auth off — server uses guest/dev login; no Firebase UI */
+  const setAuthError = (message: string) => {
+    emailErr.textContent = message;
+    emailErr.style.color = "#ff8a8a";
+  };
+
+  const setAuthInfo = (message: string) => {
+    signupStatus.textContent = message;
+    signupStatus.style.color = "#8fdf9a";
+  };
+
+  const clearAuthMessages = () => {
+    emailErr.textContent = "";
+    emailErr.style.color = "#ff8a8a";
+    signupStatus.textContent = "";
+    signupStatus.style.color = "#8fdf9a";
+  };
+
+  if (authProvider === "none") {
+    /* Game auth off — server uses guest/dev login; no external auth UI */
+  } else if (authProvider === "supabase") {
+    loginBtn.textContent = "Google";
+    if (!isSupabaseClientConfigured() || !supabase) {
+      loginBtn.textContent = "Auth (configure Supabase)";
+      loginBtn.disabled = true;
+      loginBtn.style.opacity = "0.65";
+      logoutBtn.style.display = "none";
+      verifyEmailBtn.style.display = "none";
+      resetPassBtn.style.display = "none";
+      emailRow.style.display = "none";
+    } else {
+      loginBtn.onclick = async () => {
+        clearAuthMessages();
+        try {
+          const redirectTo = window.location.origin + window.location.pathname;
+          const { error } = await supabase.auth.signInWithOAuth({
+            provider: "google",
+            options: { redirectTo },
+          });
+          if (error) {
+            throw error;
+          }
+          setAuthInfo("Redirecting to Google sign-in...");
+        } catch (e: unknown) {
+          setAuthError(mapSupabaseAuthError(e));
+        }
+      };
+
+      emailLoginBtn.onclick = async () => {
+        clearAuthMessages();
+        const email = normalizeAuthEmail(emailIn.value);
+        const emailValidation = validateEmailForAuth(email);
+        if (emailValidation) {
+          setAuthError(emailValidation);
+          return;
+        }
+        const passwordValidation = validatePasswordForLogin(passIn.value);
+        if (passwordValidation) {
+          setAuthError(passwordValidation);
+          return;
+        }
+        try {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password: passIn.value,
+          });
+          if (error) throw error;
+          const token = data.session?.access_token ?? (await getSupabaseAccessToken());
+          if (token) {
+            updateAuthToken(token, { reconnect: true });
+          }
+        } catch (e: unknown) {
+          setAuthError(mapSupabaseAuthError(e));
+        }
+      };
+
+      emailSignupBtn.onclick = async () => {
+        clearAuthMessages();
+        const email = normalizeAuthEmail(emailIn.value);
+        const password = passIn.value;
+        const emailValidation = validateEmailForAuth(email);
+        if (emailValidation) {
+          setAuthError(emailValidation);
+          return;
+        }
+        const passwordValidation = validatePasswordForSignup(password);
+        if (passwordValidation) {
+          setAuthError(passwordValidation);
+          return;
+        }
+        try {
+          const redirectTo = window.location.origin + window.location.pathname;
+          const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: { emailRedirectTo: redirectTo },
+          });
+          if (error) throw error;
+          if (data.session?.access_token) {
+            updateAuthToken(data.session.access_token, { reconnect: true });
+            setAuthInfo("Account created and signed in.");
+          } else {
+            setAuthInfo("Account created. Confirmation email sent — check inbox/spam.");
+          }
+        } catch (e: unknown) {
+          setAuthError(mapSupabaseAuthError(e));
+        }
+      };
+
+      verifyEmailBtn.onclick = async () => {
+        clearAuthMessages();
+        const addr = normalizeAuthEmail(emailIn.value);
+        if (!addr) {
+          setAuthError("Enter your account email above to resend verification.");
+          return;
+        }
+        try {
+          const redirectTo = window.location.origin + window.location.pathname;
+          const { error } = await supabase.auth.resend({
+            type: "signup",
+            email: addr,
+            options: { emailRedirectTo: redirectTo },
+          });
+          if (error) throw error;
+          setAuthInfo("Verification email sent.");
+        } catch (e: unknown) {
+          setAuthError(mapSupabaseAuthError(e));
+        }
+      };
+
+      resetPassBtn.onclick = async () => {
+        clearAuthMessages();
+        const addr = normalizeAuthEmail(emailIn.value);
+        if (!addr) {
+          setAuthError("Enter your email above.");
+          return;
+        }
+        const emailValidation = validateEmailForAuth(addr);
+        if (emailValidation) {
+          setAuthError(emailValidation);
+          return;
+        }
+        try {
+          const redirectTo = window.location.origin + window.location.pathname;
+          const { error } = await supabase.auth.resetPasswordForEmail(addr, { redirectTo });
+          if (error) throw error;
+          setAuthInfo("Password reset email sent.");
+        } catch (e: unknown) {
+          setAuthError(mapSupabaseAuthError(e));
+        }
+      };
+
+      logoutBtn.onclick = async () => {
+        try {
+          await supabase.auth.signOut();
+          updateAuthToken(null, { reconnect: true });
+          localStorage.removeItem(GUEST_STORAGE_KEY);
+        } catch (e) {
+          console.error("Sign out failed", e);
+        }
+      };
+    }
   } else if (!isFirebaseClientConfigured() || !auth) {
     loginBtn.textContent = "Auth (configure Firebase)";
     loginBtn.disabled = true;
@@ -312,55 +509,88 @@ export function renderHUD() {
       }
     };
     emailLoginBtn.onclick = async () => {
-      emailErr.textContent = "";
+      clearAuthMessages();
+      const email = normalizeAuthEmail(emailIn.value);
+      const emailValidation = validateEmailForAuth(email);
+      if (emailValidation) {
+        setAuthError(emailValidation);
+        return;
+      }
+      const passwordValidation = validatePasswordForLogin(passIn.value);
+      if (passwordValidation) {
+        setAuthError(passwordValidation);
+        return;
+      }
       try {
-        const cred = await signInWithEmailAndPassword(auth, emailIn.value.trim(), passIn.value);
+        const cred = await signInWithEmailAndPassword(auth, email, passIn.value);
         const token = await cred.user.getIdToken(true);
         updateAuthToken(token, { reconnect: true });
       } catch (e: unknown) {
-        emailErr.textContent = e instanceof Error ? e.message : "Sign-in failed";
+        setAuthError(mapFirebaseAuthError(e));
       }
     };
     emailSignupBtn.onclick = async () => {
-      emailErr.textContent = "";
+      clearAuthMessages();
+      const email = normalizeAuthEmail(emailIn.value);
+      const password = passIn.value;
+      const emailValidation = validateEmailForAuth(email);
+      if (emailValidation) {
+        setAuthError(emailValidation);
+        return;
+      }
+      const passwordValidation = validatePasswordForSignup(password);
+      if (passwordValidation) {
+        setAuthError(passwordValidation);
+        return;
+      }
       try {
-        const cred = await createUserWithEmailAndPassword(auth, emailIn.value.trim(), passIn.value);
+        const cred = await createUserWithEmailAndPassword(auth, email, password);
+        try {
+          await sendEmailVerification(cred.user);
+          setAuthInfo("Account created. Verification email sent — check inbox/spam.");
+        } catch (verificationError: unknown) {
+          // Account still exists; give actionable next step.
+          setAuthError(
+            `Account created, but verification email failed. ${mapFirebaseAuthError(verificationError)}`
+          );
+        }
         const token = await cred.user.getIdToken(true);
         updateAuthToken(token, { reconnect: true });
       } catch (e: unknown) {
-        emailErr.textContent = e instanceof Error ? e.message : "Sign-up failed";
+        setAuthError(mapFirebaseAuthError(e));
       }
     };
     verifyEmailBtn.onclick = async () => {
-      emailErr.textContent = "";
+      clearAuthMessages();
       const u = auth.currentUser;
       if (!u?.email) {
-        emailErr.textContent = "No email on this account.";
+        setAuthError("No email on this account.");
         return;
       }
       try {
         await sendEmailVerification(u);
-        emailErr.textContent = "Verification email sent.";
-        emailErr.style.color = "#8fdf9a";
+        setAuthInfo("Verification email sent.");
       } catch (e: unknown) {
-        emailErr.textContent = e instanceof Error ? e.message : "Could not send verification";
-        emailErr.style.color = "#ff8a8a";
+        setAuthError(mapFirebaseAuthError(e));
       }
     };
     resetPassBtn.onclick = async () => {
-      emailErr.textContent = "";
-      const addr = emailIn.value.trim() || auth.currentUser?.email;
+      clearAuthMessages();
+      const addr = normalizeAuthEmail(emailIn.value) || auth.currentUser?.email;
       if (!addr) {
-        emailErr.textContent = "Enter your email above or sign in first.";
+        setAuthError("Enter your email above or sign in first.");
+        return;
+      }
+      const emailValidation = validateEmailForAuth(addr);
+      if (emailValidation) {
+        setAuthError(emailValidation);
         return;
       }
       try {
         await sendPasswordResetEmail(auth, addr);
-        emailErr.textContent = "Password reset email sent.";
-        emailErr.style.color = "#8fdf9a";
+        setAuthInfo("Password reset email sent.");
       } catch (e: unknown) {
-        emailErr.textContent = e instanceof Error ? e.message : "Reset failed";
-        emailErr.style.color = "#ff8a8a";
+        setAuthError(mapFirebaseAuthError(e));
       }
     };
     logoutBtn.onclick = async () => {

@@ -65,4 +65,14 @@ describe("PersistenceManager driver selection", () => {
     const loaded = await pm.load();
     expect(loaded.u2?.gold).toBe(2);
   });
+
+  it("PERSISTENCE_DRIVER=postgres selects postgres backend", async () => {
+    vi.resetModules();
+    process.env.PERSISTENCE_DRIVER = "postgres";
+    delete process.env.DATABASE_URL;
+    vi.doMock("../config/firebase.js", () => ({ getDb: () => null }));
+    const { PersistenceManager } = await import("../core/PersistenceManager.js");
+    const pm = new PersistenceManager();
+    expect(pm.getDriverName()).toBe("postgres");
+  });
 });

@@ -13,6 +13,7 @@
   "dependencies": {
     "@babylonjs/core": "^9.0.0",
     "@babylonjs/loaders": "^9.0.0",
+    "@supabase/supabase-js": "^2.103.2",
     "firebase": "^12.12.0",
     "three": "^0.183.2"
   },

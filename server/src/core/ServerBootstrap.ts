@@ -10,6 +10,7 @@ import migrationRoute from "../api/migrationRoute.js";
 import { adminContentRouter } from "../api/adminContentRoute.js";
 import { getContentDataSourceLabel } from "../modules/content/contentDataRoot.js";
 import { getFirebaseAdminSummary } from "../config/firebase.js";
+import { getSupabaseSummary } from "../config/supabase.js";
 import { resolveWorldAssetsDir } from "./resolveWorldAssetsDir.js";
 import { resolveMirroredWorldAssetsDir } from "./resolveMirroredWorldAssetsDir.js";
 import {
@@ -176,9 +177,12 @@ export class ServerBootstrap {
         persistence,
         content: { mode: content.mode, root: content.root },
         firebase: getFirebaseAdminSummary(),
+        supabase: getSupabaseSummary(),
         auth: {
           useFirebaseWsLogin: envTruthy("USE_FIREBASE_WS_LOGIN"),
+          useSupabaseWsLogin: envTruthy("USE_SUPABASE_WS_LOGIN"),
           requireFirebaseAuth: envTruthy("REQUIRE_FIREBASE_AUTH"),
+          requireSupabaseAuth: envTruthy("REQUIRE_SUPABASE_AUTH"),
           allowGuestLogin: envTruthy("ALLOW_GUEST_LOGIN"),
           allowDevLogin: !["0", "false", "no"].includes(process.env.ALLOW_DEV_LOGIN?.trim().toLowerCase() || ""),
         },

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { isFirebaseAuthConfigured, verifyFirebaseToken } from "../../config/firebase.js";
+import { isSupabaseAuthConfigured, verifySupabaseToken } from "../../config/supabase.js";
 
 export type LoginMessage = {
   token?: string;
@@ -31,9 +32,20 @@ function requireFirebaseAuthOnly(): boolean {
   return v === "1" || v === "true" || v === "yes";
 }
 
+function requireSupabaseAuthOnly(): boolean {
+  const v = process.env.REQUIRE_SUPABASE_AUTH?.trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes";
+}
+
 /** When unset or 0/false/no: ignore JWT on WebSocket login (dev / ship-game-first). Set to 1 to verify Firebase tokens again. */
 function isFirebaseWsLoginEnabled(): boolean {
   const v = process.env.USE_FIREBASE_WS_LOGIN?.trim().toLowerCase();
+  if (!v) return false;
+  return v === "1" || v === "true" || v === "yes";
+}
+
+function isSupabaseWsLoginEnabled(): boolean {
+  const v = process.env.USE_SUPABASE_WS_LOGIN?.trim().toLowerCase();
   if (!v) return false;
   return v === "1" || v === "true" || v === "yes";
 }
@@ -52,8 +64,27 @@ export async function resolveLoginIdentity(
   msg: LoginMessage
 ): Promise<ResolvedLogin | LoginError> {
   const token = typeof msg.token === "string" ? msg.token.trim() : "";
+  const verifySupabase = isSupabaseWsLoginEnabled() || requireSupabaseAuthOnly();
+  const verifyFirebase = isFirebaseWsLoginEnabled() || requireFirebaseAuthOnly();
 
-  if (token.length > 0 && isFirebaseWsLoginEnabled()) {
+  if (token.length > 0 && verifySupabase) {
+    try {
+      const decoded = verifySupabaseToken(token);
+      const uid = typeof decoded.sub === "string" ? decoded.sub.trim() : "";
+      if (!uid) {
+        return { error: "Invalid or expired token", code: "invalid_token" };
+      }
+      const charName =
+        (typeof decoded.email === "string" && decoded.email.trim()) ||
+        (typeof decoded.user_name === "string" && decoded.user_name.trim()) ||
+        uid;
+      return { uid, charName };
+    } catch {
+      return { error: "Invalid or expired token", code: "invalid_token" };
+    }
+  }
+
+  if (token.length > 0 && verifyFirebase) {
     try {
       const decoded = await verifyFirebaseToken(token);
       if (!decoded?.uid) {
@@ -67,6 +98,17 @@ export async function resolveLoginIdentity(
     } catch {
       return { error: "Invalid or expired token", code: "invalid_token" };
     }
+  }
+
+  if (requireSupabaseAuthOnly()) {
+    if (!isSupabaseAuthConfigured()) {
+      return {
+        error:
+          "Server requires Supabase sign-in but SUPABASE_JWT_SECRET (or JWT_SECRET) is not configured.",
+        code: "login_required",
+      };
+    }
+    return { error: "Supabase sign-in required", code: "login_required" };
   }
 
   if (requireFirebaseAuthOnly()) {
