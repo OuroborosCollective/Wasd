@@ -12,6 +12,11 @@ import { getContentDataSourceLabel } from "../modules/content/contentDataRoot.js
 import { getFirebaseAdminSummary } from "../config/firebase.js";
 import { resolveWorldAssetsDir } from "./resolveWorldAssetsDir.js";
 import { resolveMirroredWorldAssetsDir } from "./resolveMirroredWorldAssetsDir.js";
+import {
+  registerSelfHealingDashboard,
+  selfHealingMiddleware,
+  type SelfHealingSystem,
+} from "../selfhealing/SelfHealingSystem.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -66,10 +71,17 @@ function resolveAdminContentHtmlPath(clientRoot: string, clientDist: string): st
   return null;
 }
 
+type ServerBootstrapOptions = {
+  selfHealing?: SelfHealingSystem;
+};
+
 export class ServerBootstrap {
+  constructor(private readonly options: ServerBootstrapOptions = {}) {}
+
   async start() {
     const app = express();
     const httpServer = createServer(app);
+    const selfHealing = this.options.selfHealing;
 
     app.use("/api", migrationRoute);
     app.use("/api/mcp", mcpRoute());
@@ -146,6 +158,9 @@ export class ServerBootstrap {
     const tick = new WorldTick(ws);
     await tick.init();
     app.use("/api/admin/content", adminContentRouter(tick));
+    if (selfHealing) {
+      registerSelfHealingDashboard(app, selfHealing);
+    }
 
     app.get("/health", (_req, res) => {
       const persistence = tick.getPersistenceStats();
@@ -161,6 +176,15 @@ export class ServerBootstrap {
         persistence,
         content: { mode: content.mode, root: content.root },
         firebase: getFirebaseAdminSummary(),
+        selfHealing: selfHealing?.getHealthSummary() ?? {
+          enabled: false,
+          active: false,
+          patchMode: "log-only",
+          dashboardRoutePrefix: "/selfhealing",
+          totalErrors: 0,
+          totalHealed: 0,
+          healingRate: "0%",
+        },
         auth: {
           useFirebaseWsLogin: envTruthy("USE_FIREBASE_WS_LOGIN"),
           requireFirebaseAuth: envTruthy("REQUIRE_FIREBASE_AUTH"),
@@ -169,6 +193,10 @@ export class ServerBootstrap {
         },
       });
     });
+
+    if (selfHealing) {
+      app.use(selfHealingMiddleware(selfHealing));
+    }
 
     const port = Number(process.env.PORT || 3000);
 

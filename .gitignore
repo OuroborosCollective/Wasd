@@ -5,6 +5,7 @@ test-results/
 playwright-report/
 node_modules/
 dist/
+.selfhealing/
 # Optional published content snapshot (scripts/publish-content-pack.mjs)
 published-content/current/
 

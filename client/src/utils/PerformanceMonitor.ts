@@ -3,6 +3,8 @@
  * Comprehensive performance monitoring and metrics collection
  */
 
+import { pushWatchdogLog } from "../ai/watchdogTelemetry";
+
 export interface PerformanceMetrics {
   fps: number;
   frameTime: number;
@@ -143,6 +145,24 @@ class PerformanceMonitor {
         timestamp: Date.now()
       });
     }
+    if (metrics.network.latency > this.latencyThreshold) {
+      this.addAlert({
+        type: 'network',
+        severity: metrics.network.latency > this.latencyThreshold * 2 ? 'high' : 'medium',
+        message: `High latency: ${metrics.network.latency}ms`,
+        value: metrics.network.latency,
+        timestamp: Date.now()
+      });
+    }
+    if (metrics.memory && metrics.memory.percentage > this.memoryThreshold) {
+      this.addAlert({
+        type: 'memory',
+        severity: metrics.memory.percentage > 0.93 ? 'critical' : 'high',
+        message: `High memory usage: ${Math.round(metrics.memory.percentage * 100)}%`,
+        value: metrics.memory.percentage,
+        timestamp: Date.now()
+      });
+    }
   }
 
   private addAlert(alert: PerformanceAlert) {
@@ -152,15 +172,27 @@ class PerformanceMonitor {
     if (recentSimilar) return;
     this.alerts.push(alert);
     if (this.alerts.length > 100) this.alerts.shift();
+    const level = alert.severity === 'critical' || alert.severity === 'high' ? 'error' : 'warn';
+    const moduleHint =
+      alert.type === 'fps' || alert.type === 'memory'
+        ? 'renderer'
+        : alert.type === 'network'
+          ? 'network'
+          : 'unknown';
+    pushWatchdogLog(level, "performance-monitor", alert.message, undefined, moduleHint);
     this.onAlert?.(alert);
   }
 
   private setupErrorTracking() {
     window.addEventListener('error', (event) => {
-      this.addAlert({ type: 'error', severity: 'high', message: event.message, timestamp: Date.now() });
+      const message = event.message || "window error";
+      this.addAlert({ type: 'error', severity: 'high', message, timestamp: Date.now() });
+      pushWatchdogLog("error", "performance-window-error", message, event.filename ? `${event.filename}:${event.lineno}` : undefined);
     });
     window.addEventListener('unhandledrejection', (event) => {
-      this.addAlert({ type: 'error', severity: 'high', message: `Unhandled Promise Rejection: ${event.reason}`, timestamp: Date.now() });
+      const message = `Unhandled Promise Rejection: ${event.reason}`;
+      this.addAlert({ type: 'error', severity: 'high', message, timestamp: Date.now() });
+      pushWatchdogLog("error", "performance-unhandledrejection", message);
     });
   }
 
@@ -171,9 +203,14 @@ class PerformanceMonitor {
       try {
         const response = await originalFetch(...args);
         this.recordNetworkRequest(performance.now() - startTime, response.status);
+        if (response.status >= 500) {
+          pushWatchdogLog("warn", "performance-fetch", `Fetch returned ${response.status}`);
+        }
         return response;
       } catch (error) {
         this.recordNetworkRequest(performance.now() - startTime, 0);
+        const message = error instanceof Error ? error.message : String(error);
+        pushWatchdogLog("error", "performance-fetch", "Fetch failed", message, "network");
         throw error;
       }
     };

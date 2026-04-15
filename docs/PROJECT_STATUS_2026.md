@@ -10,6 +10,7 @@ This document is the **authoritative snapshot** of what works today in the repos
 | **Boot path** | `client/src/main.ts` (thin shell) → `clientBoot.ts` → `createBabylonApp` → `BabylonAdapter` |
 | **Vite chunks** | `babylon-core` vs `babylon-loaders` — glTF plugin loads on **first GLB** (`BabylonAdapter`), not on first paint |
 | **WebGL failure** | `Engine.IsSupported` → full-screen overlay; **context lost** → overlay + link to Babylon WebGL docs |
+| **Client watchdog** | Optional **Firebase AI watchdog** (`VITE_FIREBASE_AI_WATCHDOG=1`) now also ingests **`PerformanceMonitor`** alerts (FPS / memory / latency / fetch failures) through `watchdogTelemetry.ts`, so renderer/network symptoms reach the same allow-listed recovery path |
 | **Mobile performance** | Touch / narrow viewports: **no** `preserveDrawingBuffer` (unless `?screenshot=1`), **hardware scaling**, **maxFPS 30** (Android **24**), default **ARE mode `off`**, **no skybox** + **no stencil buffer** on Android, **hover tooltip disabled** on touch, **GLB loads serialized** on Android (failed loads **do not** abort the queue), **name tags** only rebuilt when the **name string changes** (avoids flicker every `entity_sync`), throttled **target reticle** + **navigation marker** |
 | **Default GLB fallbacks** | Server **`ensureGlbUrl`** + client **`BabylonAdapter`** defaults under **`/assets/models/*`** when paths missing; `AssetRegistry` / **`/world-assets`** only if those files are deployed |
 | **Bridge** | `client/src/engine/bridge/` — `IEngineBridge`, `EntityViewModel`; keep simulation off the client |
@@ -30,6 +31,7 @@ This document is the **authoritative snapshot** of what works today in the repos
 | **Combat target** | Client **tap** on canvas → `set_target` (locks **`combatTargetNpcId`**, persisted); **`attack`** prefers locked target in range |
 | **Mana** | Passive **regen** (`GameConfig.playerManaRegenPerSecond`); **`playerManaPerLevel`** (+5 max mana per character level above 1; current mana increases by the same delta on level-up); consumables e.g. **`minor_mana_draught`** via **`use_item`** |
 | **Observability** | **`GET /health`** includes **`persistence`** (last save timing, Firestore flag, last error) |
+| **Server self-healing** | Local **`server/src/selfhealing/SelfHealingSystem.ts`** is active from `server/src/index.ts`: process hooks, bounded auto-patching with backups/audit/learning under **`.selfhealing/`**, Express error middleware, and read-only dashboard endpoints under **`/selfhealing/*`**; **`GET /health`** now includes **`selfHealing`** summary |
 | **No-code content admin (GLB + asset pools)** | **`/api/admin/content`**: **`/choices`** (NPC/Objekt/Rolle/Typ/Monster aus Content-Root), **`/validate-preview`**, **`/publish-pack`** (Repo-`game-data` → `published-content/current` wenn cwd zum Monorepo passt). GLB-Pfade unter **`/assets/models/`** werden gegen **`client/public/assets/models`** geprüft. UI **`/admin-content.html`** (DE) |
 | **Game loop** | `WorldTick` — simulation tick **100 ms**; global `entity_sync` tick from **`stateBroadcastIntervalMs`** (default **200 ms**); sockets with **`login.clientHints.lowBandwidth`** (touch client) get **per-socket throttle** at **`stateBroadcastIntervalMobileMs`** (default **400 ms**, override **`STATE_BROADCAST_INTERVAL_MOBILE_MS`**) |
 | **Movement** | Held WASD + `move_intent` (joystick); applied each tick with `GameConfig.playerSpeed` |
@@ -52,6 +54,7 @@ This document is the **authoritative snapshot** of what works today in the repos
 | Item | Status |
 |------|--------|
 | **CI / VPS** | **`.github/workflows/ci.yml`** — lint, Vitest, build, Playwright; **`.github/workflows/deploy.yml`** — SSH deploy, `update.sh` when build exists, **health check** on `/health` |
+| **Self-heal runtime config** | `.env` / VPS `.env` support **`SELF_HEALING_*`** flags (`ENABLED`, `PATCH_MODE`, `DASHBOARD`, `DASHBOARD_PREFIX`, `MAX_ATTEMPTS`, `COOLDOWN_MS`) for local/dedicated runtime healing policy |
 | **PM2** | `deploy/write_pm2_ecosystem.sh` — `cwd` = repo root, `CLIENT_ROOT_DIR` for static client |
 | **Details** | Root `DEPLOYMENT.md`, `deploy/deploy.sh`, `deploy/update.sh` |
 
