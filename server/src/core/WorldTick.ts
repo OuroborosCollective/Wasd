@@ -1615,9 +1615,10 @@ export class WorldTick {
   }
 
   async init() {
+    await this.persistence.init();
     const connected = await this.persistence.testConnection();
     if (connected) {
-      console.log("✅ Firestore connection verified.");
+      console.log("✅ Persistence backend connection verified.");
     }
     this.areMode = this.runtimeSettings.getAREMode();
     const savedData = await this.persistence.load();
