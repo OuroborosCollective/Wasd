@@ -1,5 +1,6 @@
 import {
   AbstractMesh,
+  AnimationGroup,
   ArcRotateCamera,
   AssetContainer,
   Color3,
@@ -33,6 +34,8 @@ type EntityNode = {
   root: TransformNode;
   visual: TransformNode | AbstractMesh;
   label?: Mesh;
+  entityType: string;
+  activeAnimationGroups: AnimationGroup[];
   /** Avoid re-attaching the same GLB on every entity_sync tick (major lag / load loop). */
   lastAttachedModelUrl?: string;
   baseScale: number;
@@ -199,6 +202,8 @@ export class BabylonAdapter implements IEngineBridge {
     const node: EntityNode = {
       root,
       visual: placeholder,
+      entityType: model.type,
+      activeAnimationGroups: [],
       baseScale: 1,
       areKappa: model.are?.kappa ?? 1000,
       areKappaPos: model.are?.kappaPos ?? { x: 0, y: 0, z: 0 },
@@ -288,6 +293,7 @@ export class BabylonAdapter implements IEngineBridge {
       }
     }
     if (updates.type) {
+      node.entityType = updates.type;
       node.areColor = this.colorForType(updates.type);
       this.updateAREShaderUniforms(node);
     }
@@ -299,6 +305,7 @@ export class BabylonAdapter implements IEngineBridge {
     if (!node) return;
     this.modelAttachQueue.delete(id);
     this.pendingLabelText.delete(id);
+    this.clearEntityAnimations(node);
     node.root.dispose(false, true);
     this.entities.delete(id);
     if (this.cameraTargetId === id) {
@@ -627,20 +634,27 @@ export class BabylonAdapter implements IEngineBridge {
       }
 
       const instance = container.instantiateModelsToScene((name) => `${entityId}_${name}`);
-      const roots = instance.rootNodes.filter((node): node is TransformNode => node instanceof TransformNode);
-      if (roots.length === 0) return;
+      if (!Array.isArray(instance.rootNodes) || instance.rootNodes.length === 0) return;
 
-      const modelRoot = roots[0];
+      const modelRoot = new TransformNode(`${entityId}_model_root`, this.scene);
+      for (const rootNode of instance.rootNodes) {
+        if (!rootNode) continue;
+        rootNode.parent = modelRoot;
+      }
       modelRoot.parent = entity.root;
       modelRoot.position = Vector3.Zero();
       modelRoot.rotationQuaternion = Quaternion.Identity();
       modelRoot.rotation = Vector3.Zero();
       modelRoot.scaling = new Vector3(1, 1, 1);
+      this.fitModelRootToEntity(entity, modelRoot, expectedUrl);
 
+      this.clearEntityAnimations(entity);
       if (entity.visual) {
         entity.visual.dispose(false, true);
       }
       entity.visual = modelRoot;
+      entity.activeAnimationGroups = Array.isArray(instance.animationGroups) ? instance.animationGroups : [];
+      this.startEntityAnimations(entity);
       entity.areMeshes = this.collectRenderableMeshes(modelRoot);
       entity.areBaseMaterials = new Map(
         entity.areMeshes.map((mesh) => [mesh.uniqueId, (mesh.material as Material | null) ?? null])
@@ -652,6 +666,86 @@ export class BabylonAdapter implements IEngineBridge {
     } catch (error) {
       console.warn(`Failed to load model for ${entityId}:`, url, error);
     }
+  }
+
+  private clearEntityAnimations(entity: EntityNode): void {
+    if (!Array.isArray(entity.activeAnimationGroups) || entity.activeAnimationGroups.length === 0) {
+      entity.activeAnimationGroups = [];
+      return;
+    }
+    for (const group of entity.activeAnimationGroups) {
+      try {
+        group.stop();
+        group.dispose();
+      } catch {
+        /* ignore animation cleanup errors */
+      }
+    }
+    entity.activeAnimationGroups = [];
+  }
+
+  private startEntityAnimations(entity: EntityNode): void {
+    const shouldAnimate =
+      entity.entityType === "player" || entity.entityType === "npc" || entity.entityType === "monster";
+    if (!shouldAnimate || entity.activeAnimationGroups.length === 0) {
+      return;
+    }
+    for (const group of entity.activeAnimationGroups) {
+      try {
+        group.start(true);
+      } catch {
+        try {
+          group.play(true);
+        } catch {
+          /* ignore animation start errors */
+        }
+      }
+    }
+  }
+
+  private fitModelRootToEntity(entity: EntityNode, modelRoot: TransformNode, modelUrl: string): void {
+    modelRoot.computeWorldMatrix(true);
+    const bounds = modelRoot.getHierarchyBoundingVectors(true);
+    const rawHeight = bounds.max.y - bounds.min.y;
+    if (Number.isFinite(rawHeight) && rawHeight > 1e-4) {
+      const profile = this.resolveModelSizingProfile(entity, modelUrl);
+      if (rawHeight < profile.minHeight || rawHeight > profile.maxHeight) {
+        const normalizedScale = Math.min(80, Math.max(0.01, profile.idealHeight / rawHeight));
+        modelRoot.scaling = new Vector3(normalizedScale, normalizedScale, normalizedScale);
+        modelRoot.computeWorldMatrix(true);
+      }
+    }
+
+    const fittedBounds = modelRoot.getHierarchyBoundingVectors(true);
+    const anchorY = entity.root.getAbsolutePosition().y;
+    const groundOffset = anchorY - fittedBounds.min.y;
+    if (Number.isFinite(groundOffset)) {
+      modelRoot.position.y += groundOffset;
+      modelRoot.computeWorldMatrix(true);
+    }
+  }
+
+  private resolveModelSizingProfile(
+    entity: EntityNode,
+    modelUrl: string
+  ): { idealHeight: number; minHeight: number; maxHeight: number } {
+    const signature = `${entity.root.name} ${modelUrl}`.toLowerCase();
+    const looksLikeStructure = /(house|building|castle|tower|gate|wall|inn|market|stall|barn|fort|temple|village)/.test(
+      signature
+    );
+    if (entity.entityType === "player" || entity.entityType === "npc") {
+      return { idealHeight: 1.75, minHeight: 1.2, maxHeight: 2.6 };
+    }
+    if (entity.entityType === "monster") {
+      return { idealHeight: 2.2, minHeight: 1.0, maxHeight: 4.5 };
+    }
+    if (entity.entityType === "loot") {
+      return { idealHeight: 0.55, minHeight: 0.18, maxHeight: 1.4 };
+    }
+    if (looksLikeStructure) {
+      return { idealHeight: 6.0, minHeight: 2.0, maxHeight: 30 };
+    }
+    return { idealHeight: 2.4, minHeight: 0.6, maxHeight: 12 };
   }
 
   private colorForType(type?: string): Color3 {
