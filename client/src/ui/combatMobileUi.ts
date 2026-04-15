@@ -24,6 +24,7 @@ let lastEntities: import("../engine/bridge/EntityViewModel").EntityViewModel[] =
 let localId: string | null = null;
 let rafScheduled = false;
 let deathTick: ReturnType<typeof setInterval> | null = null;
+let wsListenersBound = false;
 
 function ensureLootStrip() {
   if (lootStrip) return;
@@ -224,6 +225,20 @@ export function initCombatMobileUi() {
   injectStyles();
   subscribePlayerState(scheduleRefresh);
   if (typeof window !== "undefined") {
+    if (!wsListenersBound) {
+      window.addEventListener("areloria:entity-sync", (event: Event) => {
+        const custom = event as CustomEvent<{ entities?: import("../engine/bridge/EntityViewModel").EntityViewModel[] }>;
+        if (Array.isArray(custom.detail?.entities)) {
+          onEntitySyncForCombatUi(custom.detail.entities);
+        }
+      });
+      window.addEventListener("areloria:local-player", (event: Event) => {
+        const custom = event as CustomEvent<{ playerId?: string | null }>;
+        const playerId = custom.detail?.playerId;
+        setCombatUiLocalPlayerId(typeof playerId === "string" && playerId.trim().length > 0 ? playerId : null);
+      });
+      wsListenersBound = true;
+    }
     const mqCoarse = window.matchMedia("(pointer: coarse)");
     const onLayout = () => scheduleRefresh();
     mqCoarse.addEventListener?.("change", onLayout);

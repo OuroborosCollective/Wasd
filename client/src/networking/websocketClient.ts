@@ -1,5 +1,7 @@
 import { MMORPGClientCore } from "../core/MMORPGClientCore";
 import { wantsMobileNetworkHints } from "../ui/touchUi";
+import { applyStatsPayload } from "../state/playerState";
+import { showGameplayToast } from "../ui/gameplayToast";
 
 let globalWs: WebSocket | null = null;
 const DEFAULT_SCENE_ID = "didis_hub";
@@ -15,16 +17,20 @@ type BoundWsHandlers = {
   onInput: (input: any) => void;
   onAttack: () => void;
   onInteract: () => void;
+  onMoveIntent: (payload: { dx?: number; dy?: number }) => void;
+  onUseSkill: (payload: { skillId?: string }) => void;
 };
 let boundWsHandlers: BoundWsHandlers | null = null;
 let wsConnectionGeneration = 0;
 
 function detachSocketInputHandlers(): void {
   if (!boundWsHandlers) return;
-  const { core, onInput, onAttack, onInteract } = boundWsHandlers;
+  const { core, onInput, onAttack, onInteract, onMoveIntent, onUseSkill } = boundWsHandlers;
   core.events.off("input", onInput);
   core.events.off("attack", onAttack);
   core.events.off("interact", onInteract);
+  core.events.off("move_intent", onMoveIntent);
+  core.events.off("use_skill", onUseSkill);
   boundWsHandlers = null;
 }
 
@@ -71,6 +77,11 @@ function emitNetStatus(kind: NetStatusKind, message: string): void {
       detail: { kind, message, at: Date.now() },
     })
   );
+}
+
+function emitUiEvent<T>(eventName: string, detail: T): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(eventName, { detail }));
 }
 
 type SpawnPosition = { x: number; y: number; z: number };
@@ -325,10 +336,25 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         ws.send(JSON.stringify({ type: "interact" }));
       }
     };
-    boundWsHandlers = { core, onInput, onAttack, onInteract };
+    const onMoveIntent = (payload: { dx?: number; dy?: number }) => {
+      if (ws.readyState !== WebSocket.OPEN) return;
+      const dx = Number(payload?.dx ?? 0);
+      const dy = Number(payload?.dy ?? 0);
+      if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
+      ws.send(JSON.stringify({ type: "move_intent", dx, dy }));
+    };
+    const onUseSkill = (payload: { skillId?: string }) => {
+      if (ws.readyState !== WebSocket.OPEN) return;
+      const skillId = typeof payload?.skillId === "string" ? payload.skillId.trim() : "";
+      if (!skillId) return;
+      ws.send(JSON.stringify({ type: "use_skill", skillId }));
+    };
+    boundWsHandlers = { core, onInput, onAttack, onInteract, onMoveIntent, onUseSkill };
     core.events.on("input", onInput);
     core.events.on("attack", onAttack);
     core.events.on("interact", onInteract);
+    core.events.on("move_intent", onMoveIntent);
+    core.events.on("use_skill", onUseSkill);
   };
 
   ws.onmessage = (msg) => {
@@ -371,13 +397,14 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
           core.setAREMode(data.areMode);
         }
         emitNetStatus("sync", "World synchronized.");
-        if (data.entities) {
+        if (Array.isArray(data.entities)) {
           const normalizedEntities = data.entities.map((entity: any) => ({
             ...entity,
             modelUrl: entity.modelUrl ?? entity.glbPath,
             are: normalizeAREPayload(entity.are),
           }));
           core.syncEntities(normalizedEntities);
+          emitUiEvent("areloria:entity-sync", { entities: normalizedEntities });
         }
         if (data.chunks) core.syncChunks(data.chunks);
       }
@@ -401,6 +428,10 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
           }
         }
         core.setLocalPlayer(localPlayerId);
+        emitUiEvent("areloria:local-player", { playerId: typeof localPlayerId === "string" ? localPlayerId : null });
+        if (data.stats && typeof data.stats === "object") {
+          applyStatsPayload(data.stats);
+        }
         const spawnPos = toEntityPosition(data.spawnPosition);
         if (spawnPos && localPlayerId) {
           core.syncEntities([
@@ -412,6 +443,17 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
               visible: true,
             },
           ]);
+          emitUiEvent("areloria:entity-sync", {
+            entities: [
+              {
+                id: localPlayerId,
+                type: "player",
+                position: spawnPos,
+                rotation: { x: 0, y: 0, z: 0 },
+                visible: true,
+              },
+            ],
+          });
         }
         if (data.sceneId || data.spawnKey || data.spawnPosition) {
           console.log("Spawn assigned:", {
@@ -450,6 +492,16 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
           npcId: data.npcId,
           nodeId: data.nodeId,
         });
+      }
+      if (data.type === "stats_sync" && data && typeof data === "object") {
+        applyStatsPayload(data);
+      }
+      if (data.type === "toast") {
+        const text = typeof data.text === "string" ? data.text.trim() : "";
+        if (text) {
+          showGameplayToast(text);
+          emitUiEvent("areloria:toast", { text });
+        }
       }
     } catch (e) {
       console.warn("Failed to parse server message:", msg.data);

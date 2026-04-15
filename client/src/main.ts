@@ -11,6 +11,8 @@ import { renderMobileSceneTeleportPanel } from "./ui/mobileSceneTeleportPanel";
 import { performanceMonitor } from "./utils/PerformanceMonitor";
 import { isFirebaseGameAuthDisabled } from "./config/gameAuth";
 import { installFirebaseAiWatchdog } from "./ai/firebaseAiWatchdog";
+import { initCombatMobileUi } from "./ui/combatMobileUi";
+import { mountSkillBar } from "./ui/skillBar";
 
 type AREPolicyConfig = {
   cooldownMs?: number;
@@ -141,6 +143,8 @@ try {
     });
   (window as any).requestSceneChange = requestSceneChange;
   renderHUD();
+  mountSkillBar();
+  initCombatMobileUi();
   renderMobileSceneTeleportPanel();
   initMobileControls(
     core,
