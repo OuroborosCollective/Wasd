@@ -16,7 +16,7 @@ import {
   TransformNode,
   Vector3,
 } from "@babylonjs/core";
-import "@babylonjs/loaders/glTF";
+import { GLTFFileLoader } from "@babylonjs/loaders/glTF";
 import { IEngineBridge } from "../bridge/IEngineBridge";
 import { EntityViewModel } from "../bridge/EntityViewModel";
 import { isAndroid } from "../../ui/touchUi";
@@ -91,6 +91,18 @@ function normalizeModelPath(pathWithQuery: string): string {
   return path + search;
 }
 
+let gltfPluginEnsured = false;
+
+function ensureGltfPluginRegistered(): void {
+  if (gltfPluginEnsured) return;
+  const hasGlbPlugin = SceneLoader.IsPluginForExtensionAvailable(".glb");
+  const hasGltfPlugin = SceneLoader.IsPluginForExtensionAvailable(".gltf");
+  if (!hasGlbPlugin || !hasGltfPlugin) {
+    SceneLoader.RegisterPlugin(new GLTFFileLoader());
+  }
+  gltfPluginEnsured = true;
+}
+
 export class BabylonAdapter implements IEngineBridge {
   private readonly entities = new Map<string, EntityNode>();
   private readonly chunks = new Map<string, TransformNode>();
@@ -132,6 +144,7 @@ export class BabylonAdapter implements IEngineBridge {
     private readonly scene: Scene,
     private readonly camera: ArcRotateCamera
   ) {
+    ensureGltfPluginRegistered();
     const query = new URLSearchParams(window.location.search);
     const modeFromQuery = this.normalizeAREMode(query.get("areMode"));
     if (modeFromQuery) {
@@ -597,6 +610,7 @@ export class BabylonAdapter implements IEngineBridge {
   }
 
   private async loadModelContainer(url: string): Promise<AssetContainer> {
+    ensureGltfPluginRegistered();
     const existing = this.loadedModels.get(url);
     if (existing) {
       return existing;

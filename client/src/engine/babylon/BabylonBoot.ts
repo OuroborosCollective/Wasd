@@ -57,7 +57,9 @@ export function createBabylonApp(canvas: HTMLCanvasElement): BabylonApp {
     /** Cap frame rate harder on Android to reduce thermal throttling and WebGL instability. */
     engine.maxFPS = android ? 24 : 45;
   } else if (!android) {
-    engine.setHardwareScalingLevel(1);
+    const desktopDpr = typeof window !== "undefined" ? Math.max(1, window.devicePixelRatio || 1) : 1;
+    // Keep desktop/HiDPI output crisp instead of forcing a 1x internal render buffer.
+    engine.setHardwareScalingLevel(1 / desktopDpr);
     engine.maxFPS = 0;
   }
 
@@ -147,6 +149,10 @@ export function createBabylonApp(canvas: HTMLCanvasElement): BabylonApp {
   });
 
   window.addEventListener("resize", () => {
+    if (!useMobileRenderBudget && !android) {
+      const desktopDpr = typeof window !== "undefined" ? Math.max(1, window.devicePixelRatio || 1) : 1;
+      engine.setHardwareScalingLevel(1 / desktopDpr);
+    }
     engine.resize();
   });
 
