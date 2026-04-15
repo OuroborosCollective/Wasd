@@ -172,19 +172,19 @@ function envPatchMode(fallback: PatchMode): PatchMode {
   return fallback;
 }
 
-function toJsonDateArray<T extends { [key: string]: unknown }>(
+function toJsonDateArray<T extends object>(
   value: T[],
   dateKeys: (keyof T)[]
 ): T[] {
   return value.map((entry) => {
-    const copy = { ...entry };
+    const copy = { ...entry } as Record<string, unknown>;
     for (const key of dateKeys) {
-      const existing = copy[key];
+      const existing = copy[key as string];
       if (typeof existing === "string" || typeof existing === "number" || existing instanceof Date) {
-        copy[key] = new Date(existing) as T[keyof T];
+        copy[key as string] = new Date(existing);
       }
     }
-    return copy;
+    return copy as T;
   });
 }
 
@@ -1315,10 +1315,14 @@ export class SelfHealingSystem extends EventEmitter {
   }
 
   private captureGameState(): GameStateSnapshot {
+    const modules = [process.argv[1], ...process.execArgv]
+      .filter((entry): entry is string => typeof entry === "string" && entry.length > 0)
+      .map((entry) => path.basename(entry))
+      .slice(-20);
     return {
       timestamp: new Date(),
       activeFeatures: this.featureRegistry.getActiveFeatureNames(),
-      runningModules: process.moduleLoadList.slice(-20),
+      runningModules: modules,
       errorCount: this.totalErrors,
       healingCount: this.totalHealed,
       uptime: Date.now() - this.startTime.getTime(),
