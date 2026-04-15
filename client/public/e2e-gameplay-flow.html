@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>E2E gameplay flow</title>
+  </head>
+  <body>
+    <p id="e2e-gameplay-status">connecting…</p>
+    <pre id="e2e-gameplay-result" style="white-space: pre-wrap; word-break: break-all; font-size: 11px; opacity: 0.9"></pre>
+    <script type="module">
+      const statusEl = document.getElementById("e2e-gameplay-status");
+      const resultEl = document.getElementById("e2e-gameplay-result");
+      const setStatus = (msg) => {
+        if (statusEl) statusEl.textContent = msg;
+      };
+      const setResult = (obj) => {
+        if (resultEl) resultEl.textContent = JSON.stringify(obj);
+      };
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+      const proto = location.protocol === "https:" ? "wss" : "ws";
+      const ws = new WebSocket(`${proto}://${location.host}/ws`);
+      const userAgent = navigator.userAgent || "";
+      const isLikelyMobile =
+        /Android|iPhone|iPad|iPod/i.test(userAgent) ||
+        (window.matchMedia?.("(pointer: coarse)").matches && navigator.maxTouchPoints > 0);
+      const guestId = `guest_e2e_gameplay_${Math.random().toString(16).slice(2, 10)}`;
+
+      let ready = false;
+      let scenarioStarted = false;
+      let localPlayerId = "";
+      let welcome = null;
+      let lastStats = null;
+      let latestEntities = [];
+      const toasts = [];
+      const dialogues = [];
+      const sceneChanges = [];
+
+      function pushLimited(target, item, max = 80) {
+        target.push(item);
+        if (target.length > max) target.splice(0, target.length - max);
+      }
+
+      function getEntity2d(entity) {
+        const x = Number(entity?.position?.x ?? 0);
+        const y = Number(entity?.position?.z ?? entity?.position?.y ?? 0);
+        return { x, y };
+      }
+
+      function getLocalPlayerEntity() {
+        if (!localPlayerId) return null;
+        return latestEntities.find((e) => e.id === localPlayerId) || null;
+      }
+
+      function nearestLoot(maxDistance = 25) {
+        const me = getLocalPlayerEntity();
+        if (!me) return null;
+        const mePos = getEntity2d(me);
+        let best = null;
+        let bestDist = Infinity;
+        for (const e of latestEntities) {
+          if (e.type !== "loot") continue;
+          const p = getEntity2d(e);
+          const d = Math.hypot(p.x - mePos.x, p.y - mePos.y);
+          if (d <= maxDistance && d < bestDist) {
+            best = e;
+            bestDist = d;
+          }
+        }
+        return best;
+      }
+
+      function nearestHostile(maxDistance = Number.POSITIVE_INFINITY) {
+        const me = getLocalPlayerEntity();
+        if (!me) return null;
+        const mePos = getEntity2d(me);
+        let best = null;
+        let bestDist = Infinity;
+        for (const e of latestEntities) {
+          const isHostile = e?.faction === "Hostile" || e?.role === "Enemy" || e?.combatThreat === true;
+          if (!isHostile || e?.type !== "npc") continue;
+          if (Number(e?.health ?? 0) <= 0) continue;
+          const p = getEntity2d(e);
+          const d = Math.hypot(p.x - mePos.x, p.y - mePos.y);
+          if (d <= maxDistance && d < bestDist) {
+            best = e;
+            bestDist = d;
+          }
+        }
+        return best;
+      }
+
+      function send(payload) {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify(payload));
+        }
+      }
+
+      async function waitFor(label, predicate, timeoutMs = 15_000) {
+        const started = Date.now();
+        while (Date.now() - started < timeoutMs) {
+          if (predicate()) return;
+          await sleep(60);
+        }
+        throw new Error(`waitFor timeout: ${label}`);
+      }
+
+      async function moveTo(targetX, targetY, timeoutMs = 20_000) {
+        const started = Date.now();
+        await waitFor("local-player-entity", () => Boolean(getLocalPlayerEntity()), 8_000);
+        while (Date.now() - started < timeoutMs) {
+          const me = getLocalPlayerEntity();
+          if (!me) {
+            await sleep(80);
+            continue;
+          }
+          const pos = getEntity2d(me);
+          const dx = targetX - pos.x;
+          const dy = targetY - pos.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < 3) return;
+          if (dist > 1e-6) {
+            send({ type: "move_intent", dx: dx / dist, dy: dy / dist });
+          }
+          await sleep(70);
+        }
+        throw new Error("moveTo timeout");
+      }
+
+      async function runScenario() {
+        const result = {
+          guestId,
+          welcomeDeviceClass: null,
+          questAccepted: false,
+          questCompleted: false,
+          skillCastConfirmed: false,
+          lootDropConfirmed: false,
+          lootPickupConfirmed: false,
+          deathConfirmed: false,
+          respawnConfirmed: false,
+        };
+        try {
+          setStatus("waiting for welcome");
+          await waitFor("welcome", () => Boolean(welcome), 12_000);
+          result.welcomeDeviceClass = welcome?.areDeviceClass ?? null;
+
+          setStatus("quest: interact guide");
+          send({ type: "interact", npcId: "npc_guide" });
+          await waitFor(
+            "guide quest offer dialogue",
+            () =>
+              dialogues.some(
+                (d) =>
+                  d?.npcId === "npc_guide" &&
+                  d?.questId === "starter_welcome" &&
+                  Array.isArray(d?.choices) &&
+                  d.choices.some((c) => c?.id === "sys_quest_accept")
+              ),
+            12_000
+          );
+
+          setStatus("quest: accept");
+          send({ type: "quest_accept", npcId: "npc_guide" });
+          await waitFor(
+            "quest accepted stats_sync",
+            () =>
+              Array.isArray(lastStats?.quests) &&
+              lastStats.quests.some((q) => q.id === "starter_welcome" && q.completed === false),
+            10_000
+          );
+          result.questAccepted = true;
+
+          setStatus("quest: complete with quartermaster");
+          send({ type: "interact", npcId: "npc_1" });
+          await waitFor(
+            "quest complete stats_sync",
+            () =>
+              Array.isArray(lastStats?.quests) &&
+              lastStats.quests.some((q) => q.id === "starter_welcome" && q.completed === true),
+            12_000
+          );
+          result.questCompleted = true;
+
+          setStatus("combat: cast skill on dummy");
+          send({ type: "set_target", npcId: "npc_dummy" });
+          await sleep(160);
+          const manaBeforeSkill = Number(lastStats?.mana ?? 9999);
+          send({ type: "use_skill", skillId: "arc_spark" });
+          await waitFor(
+            "arc spark toast",
+            () => toasts.some((t) => typeof t === "string" && t.includes("Arc Spark")),
+            10_000
+          );
+          await waitFor(
+            "arc spark cooldown sync",
+            () =>
+              typeof lastStats?.skillCooldownUntil?.arc_spark === "number" &&
+              Number(lastStats?.mana ?? manaBeforeSkill) <= manaBeforeSkill,
+            10_000
+          );
+          result.skillCastConfirmed = true;
+
+          setStatus("combat: prepare mana sustain");
+          const forceSyncStats = async () => {
+            send({ type: "quest_sync" });
+            await waitFor("stats sync refresh", () => Boolean(lastStats), 5_000);
+          };
+          await forceSyncStats();
+
+          const ensureManaForCombat = async (required = 5, timeoutMs = 35_000) => {
+            const started = Date.now();
+            while (Date.now() - started < timeoutMs) {
+              await forceSyncStats();
+              const manaNow = Number(lastStats?.mana ?? 0);
+              if (manaNow >= required) return;
+
+              const inv = Array.isArray(lastStats?.inventory) ? lastStats.inventory : [];
+              const manaItem = inv.find((item) => item && item.id === "minor_mana_draught");
+              if (manaItem?.id) {
+                send({ type: "use_item", itemId: "minor_mana_draught" });
+              }
+              await sleep(420);
+            }
+            const manaNow = Number(lastStats?.mana ?? 0);
+            throw new Error(`Mana not recovered for combat (need >= ${required}, got ${manaNow})`);
+          };
+
+          setStatus("combat: defeat dummy until loot appears");
+          const lootDeadline = Date.now() + 100_000;
+          let loop = 0;
+          let loot = nearestLoot(25);
+          while (!loot && Date.now() < lootDeadline) {
+            await ensureManaForCombat(5);
+            send({ type: "set_target", npcId: "npc_dummy" });
+            const cooldownUntil = Number(lastStats?.skillCooldownUntil?.arc_spark ?? 0);
+            if (!Number.isFinite(cooldownUntil) || cooldownUntil <= Date.now()) {
+              send({ type: "use_skill", skillId: "arc_spark" });
+            }
+            loop += 1;
+            await sleep(520 + (loop % 3) * 60);
+            loot = nearestLoot(25);
+          }
+          if (!loot) {
+            throw new Error("No nearby loot after repeated dummy kills");
+          }
+          result.lootDropConfirmed = true;
+
+          setStatus("loot: pickup");
+          const invBefore = Array.isArray(lastStats?.inventory) ? lastStats.inventory.length : 0;
+          const goldBefore = Number(lastStats?.gold ?? 0);
+          send({ type: "pickup_loot", lootId: loot.id });
+          await waitFor(
+            "loot pickup stats_sync",
+            () => {
+              const invNow = Array.isArray(lastStats?.inventory) ? lastStats.inventory.length : 0;
+              const goldNow = Number(lastStats?.gold ?? 0);
+              return invNow > invBefore || goldNow > goldBefore;
+            },
+            12_000
+          );
+          result.lootPickupConfirmed = true;
+
+          setStatus("respawn: approach hostile npc");
+          await waitFor("hostile npc available", () => Boolean(nearestHostile()), 12_000);
+          const initialHostile = nearestHostile();
+          const initialPos = getEntity2d(initialHostile);
+          await moveTo(initialPos.x, initialPos.y, 35_000);
+
+          setStatus("respawn: wait for hostile defeat");
+          const deathDeadline = Date.now() + 90_000;
+          while (Date.now() < deathDeadline && lastStats?.dead !== true) {
+            const hostile = nearestHostile();
+            if (hostile) {
+              const h = getEntity2d(hostile);
+              const me = getLocalPlayerEntity();
+              if (me) {
+                const p = getEntity2d(me);
+                const dx = h.x - p.x;
+                const dy = h.y - p.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist > 2.5 && dist > 1e-6) {
+                  send({ type: "move_intent", dx: dx / dist, dy: dy / dist });
+                }
+              }
+            }
+            await sleep(180);
+          }
+          if (lastStats?.dead !== true) {
+            throw new Error("player was not defeated by hostile npc in time");
+          }
+          result.deathConfirmed = true;
+
+          setStatus("respawn: trigger and validate");
+          send({ type: "respawn" });
+          const readyAt = Number(lastStats?.respawnAvailableAt ?? 0);
+          if (Number.isFinite(readyAt) && readyAt > Date.now()) {
+            await sleep(readyAt - Date.now() + 120);
+          } else {
+            await sleep(300);
+          }
+          const sceneCountBefore = sceneChanges.length;
+          send({ type: "respawn" });
+          await waitFor("scene_changed via respawn", () => sceneChanges.length > sceneCountBefore, 12_000);
+          await waitFor("stats_sync alive after respawn", () => lastStats?.dead === false && Number(lastStats?.health ?? 0) > 0, 12_000);
+          result.respawnConfirmed = true;
+
+          ready = true;
+          document.body.dataset.e2eReady = "1";
+          setStatus("complete");
+          setResult(result);
+        } catch (error) {
+          document.body.dataset.e2eFailed = "1";
+          setStatus("failed");
+          setResult({
+            ...result,
+            error: error instanceof Error ? error.message : String(error),
+            toasts,
+            lastStats,
+            localPlayerId,
+          });
+          console.error("[e2e-gameplay-flow] failed", error);
+        }
+      }
+
+      ws.onopen = () => {
+        send({
+          type: "login",
+          guestId,
+          guestName: "E2EGameplay",
+          sceneId: "didis_hub",
+          spawnKey: "sp_player_default",
+          userAgent,
+          areDeviceClass: isLikelyMobile ? "mobile" : "desktop",
+          ...(isLikelyMobile ? { clientHints: { lowBandwidth: true } } : {}),
+        });
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === "welcome") {
+            welcome = data;
+            localPlayerId = String(data.playerId || data.id || "");
+            if (data.stats && typeof data.stats === "object") {
+              lastStats = data.stats;
+            }
+            if (!scenarioStarted) {
+              scenarioStarted = true;
+              void runScenario();
+            }
+            return;
+          }
+          if (data.type === "stats_sync") {
+            lastStats = data;
+            return;
+          }
+          if (data.type === "entity_sync" && Array.isArray(data.entities)) {
+            latestEntities = data.entities;
+            return;
+          }
+          if (data.type === "dialogue") {
+            pushLimited(dialogues, data);
+            return;
+          }
+          if (data.type === "toast") {
+            pushLimited(toasts, String(data.text || ""));
+            return;
+          }
+          if (data.type === "scene_changed") {
+            pushLimited(sceneChanges, data);
+          }
+        } catch {
+          // ignore parse errors
+        }
+      };
+
+      ws.onerror = () => {
+        if (!ready) {
+          document.body.dataset.e2eFailed = "1";
+          setStatus("ws error");
+        }
+      };
+      ws.onclose = () => {
+        if (!ready && !document.body.dataset.e2eFailed) {
+          document.body.dataset.e2eFailed = "1";
+          setStatus("ws closed");
+        }
+      };
+    </script>
+  </body>
+</html>

@@ -376,6 +376,9 @@ describe("GameConfig", () => {
     expect(GameConfig.npcChaseSpeed).toBe(0.55);
     expect(GameConfig.playerRespawnDelayMs).toBe(2500);
   });
+  it("player mana regen baseline is set", () => {
+    expect(GameConfig.playerManaRegenPerSecond).toBe(2.5);
+  });
   it("playerSpeed is 3", () => {
     expect(GameConfig.playerSpeed).toBe(3);
   });

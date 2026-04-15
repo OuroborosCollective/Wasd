@@ -272,6 +272,7 @@ export class WorldTick {
   private lootEntities: Map<string, any> = new Map();
   private skillSystem: SkillSystem;
   private pendingQuestOffers: Map<string, { npcId: string; questId: string }> = new Map();
+  private npcLastCounterAttackAt: Map<string, number> = new Map();
 
   private socketToPlayer: Map<string, string> = new Map(); // socketId -> characterName
   private lastActionTimes: Map<string, number> = new Map(); // charName -> timestamp
@@ -385,6 +386,129 @@ export class WorldTick {
       equipment: player.equipment,
       skillCooldownUntil: buildSkillCooldownUntilPayload(player, Date.now()),
     });
+  }
+
+  private isHostileNpc(npc: any): boolean {
+    return Boolean(npc) && (npc.faction === "Hostile" || npc.role === "Enemy");
+  }
+
+  /**
+   * Restores hostile NPC pressure loop (chase + counter-hit + player death state)
+   * so the respawn path can be reached in live gameplay, not only in tests.
+   */
+  private processHostileNpcCombat(): void {
+    const now = Date.now();
+    const onlinePlayers = this.playerSystem
+      .getAllPlayers()
+      .filter((p) => !p.isOffline && p.id !== "dummy_player");
+    const onlineById = new Map(onlinePlayers.map((p) => [p.id, p]));
+    const activeNpcIds = new Set<string>();
+
+    for (const npc of this.npcSystem.getAllNPCs()) {
+      if (!npc || !this.isHostileNpc(npc) || Number(npc.health ?? 0) <= 0) {
+        continue;
+      }
+      const npcId = String(npc.id || "");
+      if (!npcId) continue;
+      activeNpcIds.add(npcId);
+
+      const homeX = Number(npc.homePosition?.x ?? npc.position?.x ?? 0);
+      const homeY = Number(npc.homePosition?.y ?? npc.position?.y ?? 0);
+      const leash = GameConfig.npcAggroLeash;
+
+      let target =
+        typeof npc.aggroTargetId === "string" && npc.aggroTargetId.trim()
+          ? onlineById.get(npc.aggroTargetId)
+          : undefined;
+
+      if (target) {
+        const dead = Boolean(target.dead) || Number(target.health ?? 0) <= 0;
+        const distFromHome = Math.hypot(
+          Number(target.position?.x ?? 0) - homeX,
+          Number(target.position?.y ?? 0) - homeY
+        );
+        if (dead || distFromHome > leash) {
+          target = undefined;
+        }
+      }
+
+      if (!target) {
+        let best: any | undefined;
+        let bestDist = Infinity;
+        for (const player of onlinePlayers) {
+          if (Boolean(player.dead) || Number(player.health ?? 0) <= 0) continue;
+          const dist = Math.hypot(
+            Number(player.position?.x ?? 0) - Number(npc.position?.x ?? 0),
+            Number(player.position?.y ?? 0) - Number(npc.position?.y ?? 0)
+          );
+          if (dist <= GameConfig.npcAggroRadius && dist < bestDist) {
+            best = player;
+            bestDist = dist;
+          }
+        }
+        target = best;
+      }
+
+      npc.aggroTargetId = target ? String(target.id) : null;
+      if (!target) {
+        continue;
+      }
+
+      const npcX = Number(npc.position?.x ?? 0);
+      const npcY = Number(npc.position?.y ?? 0);
+      const targetX = Number(target.position?.x ?? 0);
+      const targetY = Number(target.position?.y ?? 0);
+      const dx = targetX - npcX;
+      const dy = targetY - npcY;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist > GameConfig.npcAttackDistance) {
+        const step = GameConfig.npcChaseSpeed;
+        if (dist > 1e-6) {
+          npc.position.x = npcX + (dx / dist) * step;
+          npc.position.y = npcY + (dy / dist) * step;
+        }
+        continue;
+      }
+
+      const lastAttackAt = this.npcLastCounterAttackAt.get(npcId) ?? 0;
+      if (now - lastAttackAt < GameConfig.npcCounterAttackCooldownMs) {
+        continue;
+      }
+      this.npcLastCounterAttackAt.set(npcId, now);
+
+      const npcCombatLevel = Number(npc.skills?.combat?.level ?? 1);
+      const damage = Math.max(1, 4 + npcCombatLevel + Math.floor(Math.random() * 4));
+      target.health = Math.max(0, Number(target.health ?? target.maxHealth ?? 100) - damage);
+
+      const socketId = this.playerToSocket.get(String(target.id));
+      if (socketId) {
+        this.ws.sendToPlayer(socketId, { type: "toast", text: `${npc.name} hits you for ${damage}.` });
+      }
+
+      if (target.health <= 0) {
+        target.dead = true;
+        target.deathAt = now;
+        target.health = 0;
+        target.combatTargetNpcId = null;
+        npc.aggroTargetId = null;
+        if (socketId) {
+          this.ws.sendToPlayer(socketId, { type: "toast", text: `You were defeated by ${npc.name}.` });
+          this.pushPlayerStateSync(socketId, target);
+        }
+        continue;
+      }
+
+      if (socketId) {
+        this.pushPlayerStateSync(socketId, target);
+      }
+    }
+
+    for (const npcId of Array.from(this.npcLastCounterAttackAt.keys())) {
+      if (!activeNpcIds.has(npcId)) {
+        this.npcLastCounterAttackAt.delete(npcId);
+      }
+    }
   }
 
   private findTargetNpcForPlayer(player: any): any | null {
@@ -1655,6 +1779,11 @@ export class WorldTick {
         this.socketToPlayer.delete(id);
         this.playerToSocket.delete(uid);
         this.pendingQuestOffers.delete(uid);
+        for (const npc of this.npcSystem.getAllNPCs()) {
+          if (npc?.aggroTargetId === uid) {
+            npc.aggroTargetId = null;
+          }
+        }
         await this.saveAll();
         console.log(`Player ${player.name} (Socket ${id}) disconnected. Character remains in world.`);
       }
@@ -2139,7 +2268,19 @@ export class WorldTick {
     this.tickCount += 1;
     this.processTemplateQueue();
     const onlinePlayers = this.playerSystem.getAllPlayers().filter(p => !p.isOffline);
+    const manaRegenPerTick = (GameConfig.playerManaRegenPerSecond * GameConfig.tickRateMs) / 1000;
+    if (manaRegenPerTick > 0) {
+      for (const player of onlinePlayers) {
+        if (player?.dead) continue;
+        const maxMana = Number(player?.maxMana ?? 25);
+        const currentMana = Number(player?.mana ?? 0);
+        if (!Number.isFinite(maxMana) || maxMana <= 0 || !Number.isFinite(currentMana)) continue;
+        if (currentMana >= maxMana) continue;
+        player.mana = Math.min(maxMana, currentMana + manaRegenPerTick);
+      }
+    }
     this.npcSystem.tick(onlinePlayers, this.worldSystem.worldTime);
+    this.processHostileNpcCombat();
     this.worldSystem.tick();
 
     if (this.tickCount % 600 === 0) this.saveAll();
