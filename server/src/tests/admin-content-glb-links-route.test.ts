@@ -3,6 +3,8 @@ import express from "express";
 import request from "supertest";
 import type { WorldTick } from "../core/WorldTick.js";
 import { adminContentRouter } from "../api/adminContentRoute.js";
+import type { GLBLink } from "../modules/asset-registry/GLBRegistry.js";
+import type { AssetPoolResolver } from "../modules/world/AssetPoolResolver.js";
 
 function buildTestApp(tick: Pick<WorldTick, "glbRegistry" | "assetPoolResolver">) {
   const app = express();
@@ -11,7 +13,7 @@ function buildTestApp(tick: Pick<WorldTick, "glbRegistry" | "assetPoolResolver">
 }
 
 describe("admin content /glb-links routes", () => {
-  let links: Array<{ glbPath: string; targetType: string; targetId: string }>;
+  let links: GLBLink[];
 
   beforeEach(() => {
     delete process.env.CONTENT_ADMIN_READONLY;
@@ -28,7 +30,7 @@ describe("admin content /glb-links routes", () => {
   function makeTick(): Pick<WorldTick, "glbRegistry" | "assetPoolResolver"> {
     return {
       glbRegistry: {
-        addLink: vi.fn(async (link: { glbPath: string; targetType: string; targetId: string }) => {
+        addLink: vi.fn(async (link: GLBLink) => {
           links = links.filter((l) => !(l.targetType === link.targetType && l.targetId === link.targetId));
           links.push(link);
         }),
@@ -36,7 +38,7 @@ describe("admin content /glb-links routes", () => {
           links = links.filter((l) => !(l.targetType === targetType && l.targetId === targetId));
         }),
         getLinks: () => links,
-      },
+      } as any,
       assetPoolResolver: {
         getDocument: () => ({}),
         setEntry: () => true,
@@ -44,7 +46,7 @@ describe("admin content /glb-links routes", () => {
         setDefault: () => true,
         removeDefault: () => true,
         reload: () => {},
-      } as WorldTick["assetPoolResolver"],
+      } as unknown as AssetPoolResolver,
     };
   }
 
