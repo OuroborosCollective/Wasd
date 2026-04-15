@@ -54,3 +54,9 @@ Copy `.env.example` to `.env`. Only `PORT` and `NODE_ENV` are needed for local d
 
 ### Testing the game loop without a browser
 Connect via WebSocket to `ws://localhost:3000/ws` and send `{"type":"login"}`. The server assigns a dev player; **`entity_sync`** is broadcast on a configurable interval (default **200 ms**, sim tick **100 ms**). Use `input` (WASD keydown/keyup), `move_intent` (analog), `interact`, `dialogue_choice`, and `attack` as needed.
+
+### Cloud agent gotchas
+- **`/health` in dev mode:** Vite SPA middleware (registered before Express routes) intercepts `/health`. Use the WebSocket game loop to verify the server is running instead.
+- **GCP metadata warnings:** Without `FIREBASE_SERVICE_ACCOUNT_KEY`, the server emits noisy `MetadataLookupWarning` and `GcpLogger` errors to stderr. These are harmless — the server continues with in-memory/JSON fallback.
+- **pnpm strict `node_modules`:** The `ws` package (and other server deps) is only resolvable from `server/` directory context, not from workspace root. Run WebSocket test scripts with `cd server && node -e "..." --input-type=module`.
+- **Node/pnpm versions:** Node 22.x and pnpm 10.x work with the lockfile (v9.0 format). No `.nvmrc` or `engines` field pins versions.
