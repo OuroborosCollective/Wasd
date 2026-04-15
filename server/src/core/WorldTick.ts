@@ -20,6 +20,7 @@ import fs from "fs";
 import path from "path";
 import { resolveLoginIdentity } from "../modules/auth/resolveLoginIdentity.js";
 import { getSkillDefinition, buildSkillCooldownUntilPayload } from "../modules/skill/skillDefinitions.js";
+import { SkillSystem } from "../modules/skill/SkillSystem.js";
 
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { GameConfig } from "../config/GameConfig.js";
@@ -269,6 +270,8 @@ export class WorldTick {
   private areModeAuditTrail: AREModeAuditTrail;
   private areStateCompiler: AREStateCompiler;
   private lootEntities: Map<string, any> = new Map();
+  private skillSystem: SkillSystem;
+  private pendingQuestOffers: Map<string, { npcId: string; questId: string }> = new Map();
 
   private socketToPlayer: Map<string, string> = new Map(); // socketId -> characterName
   private lastActionTimes: Map<string, number> = new Map(); // charName -> timestamp
@@ -405,6 +408,315 @@ export class WorldTick {
 
   private isWithinDistance(a: { x: number; y: number }, b: { x: number; y: number }, d: number): boolean {
     return Math.hypot(a.x - b.x, a.y - b.y) <= d;
+  }
+
+  private getNearestNpcInRange(player: any, maxDistance: number, preferredNpcId?: string): any | null {
+    if (isNonEmptyString(preferredNpcId)) {
+      const explicit = this.npcSystem.getNPC(preferredNpcId.trim());
+      if (explicit && this.isWithinDistance(player.position, explicit.position, maxDistance)) {
+        return explicit;
+      }
+      return null;
+    }
+    let nearest: any | null = null;
+    let bestDist = Infinity;
+    for (const npc of this.npcSystem.getAllNPCs()) {
+      const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
+      if (dist <= maxDistance && dist < bestDist) {
+        nearest = npc;
+        bestDist = dist;
+      }
+    }
+    return nearest;
+  }
+
+  private getNearestLootInRange(player: any, maxDistance: number, preferredLootId?: string): any | null {
+    if (isNonEmptyString(preferredLootId)) {
+      const explicit = this.lootEntities.get(preferredLootId.trim());
+      if (explicit && this.isWithinDistance(player.position, explicit.position, maxDistance)) {
+        return explicit;
+      }
+      return null;
+    }
+    let nearest: any | null = null;
+    let bestDist = Infinity;
+    for (const loot of this.lootEntities.values()) {
+      const dist = Math.hypot(player.position.x - loot.position.x, player.position.y - loot.position.y);
+      if (dist <= maxDistance && dist < bestDist) {
+        nearest = loot;
+        bestDist = dist;
+      }
+    }
+    return nearest;
+  }
+
+  private describeReward(reward: any): string {
+    if (!reward || typeof reward !== "object") {
+      return "";
+    }
+    const parts: string[] = [];
+    if (Number.isFinite(Number(reward.gold)) && Number(reward.gold) > 0) {
+      parts.push(`+${Number(reward.gold)} gold`);
+    }
+    if (Number.isFinite(Number(reward.xp)) && Number(reward.xp) > 0) {
+      parts.push(`+${Number(reward.xp)} XP`);
+    }
+    if (isNonEmptyString(reward.itemId)) {
+      parts.push(`item: ${reward.itemId}`);
+    }
+    return parts.length > 0 ? ` (${parts.join(", ")})` : "";
+  }
+
+  private emitQuestStarted(socketId: string, quest: any): void {
+    const questTitle = String(quest?.title || quest?.name || quest?.id || "Quest");
+    this.ws.sendToPlayer(socketId, {
+      type: "dialogue",
+      source: "System",
+      text: `Quest started: ${questTitle}`,
+    });
+  }
+
+  private emitQuestCompleted(socketId: string, quest: any, reward: any): void {
+    const questTitle = String(quest?.title || quest?.name || quest?.id || "Quest");
+    this.ws.sendToPlayer(socketId, {
+      type: "dialogue",
+      source: "System",
+      text: `Quest completed: ${questTitle}${this.describeReward(reward)}`,
+    });
+  }
+
+  private handleQuestCompletionsForNpcInteraction(socketId: string, player: any, npcId: string): boolean {
+    const completed = [
+      ...this.questSystem.checkTalkToQuests(player, npcId),
+      ...this.questSystem.checkCollectTurnInQuests(player, npcId),
+    ];
+    if (completed.length === 0) {
+      return false;
+    }
+    for (const entry of completed) {
+      this.emitQuestCompleted(socketId, entry.quest, entry.reward);
+    }
+    this.pushPlayerStateSync(socketId, player);
+    return true;
+  }
+
+  private handleLootPickup(socketId: string, player: any, lootEntity: any): boolean {
+    if (!lootEntity || !lootEntity.id) {
+      return false;
+    }
+    this.inventorySystem.addItem(player, lootEntity.item);
+    this.lootEntities.delete(lootEntity.id);
+    const itemName = String(lootEntity?.item?.name || lootEntity?.item?.id || "item");
+    this.ws.sendToPlayer(socketId, { type: "toast", text: `Picked up ${itemName}.` });
+    this.pushPlayerStateSync(socketId, player);
+    return true;
+  }
+
+  private async handleNpcInteractionMessage(socketId: string, player: any, msg: any): Promise<boolean> {
+    const requestedTargetId = isNonEmptyString(msg?.targetId) ? msg.targetId.trim() : "";
+    const requestedNpcId =
+      isNonEmptyString(msg?.npcId) ? msg.npcId.trim() : requestedTargetId.startsWith("npc_") ? requestedTargetId : "";
+    const requestedLootId =
+      isNonEmptyString(msg?.lootId)
+        ? msg.lootId.trim()
+        : requestedTargetId.startsWith("loot_")
+          ? requestedTargetId
+          : "";
+
+    const nearbyLoot = this.getNearestLootInRange(player, 12, requestedLootId || undefined);
+    if (nearbyLoot) {
+      if (this.handleLootPickup(socketId, player, nearbyLoot)) {
+        await this.saveAll();
+      }
+      return true;
+    }
+
+    const nearbyNpc = this.getNearestNpcInRange(player, GameConfig.interactDistance, requestedNpcId || undefined);
+    if (!nearbyNpc) {
+      this.ws.sendToPlayer(socketId, { type: "toast", text: "Nothing nearby to interact with." });
+      return true;
+    }
+
+    const interaction = this.npcSystem.handleInteraction(nearbyNpc.id, player, this.questSystem.getQuestDefinitions());
+    if (!interaction) {
+      this.ws.sendToPlayer(socketId, { type: "toast", text: "Interaction unavailable right now." });
+      return true;
+    }
+
+    if (isNonEmptyString(interaction.questId)) {
+      this.pendingQuestOffers.set(player.id, { npcId: nearbyNpc.id, questId: interaction.questId });
+    } else {
+      const pending = this.pendingQuestOffers.get(player.id);
+      if (pending && pending.npcId === nearbyNpc.id) {
+        this.pendingQuestOffers.delete(player.id);
+      }
+    }
+
+    this.ws.sendToPlayer(socketId, {
+      type: "dialogue",
+      source: interaction.source,
+      text: interaction.text,
+      questId: interaction.questId,
+      choices: interaction.choices,
+      npcId: interaction.npcId,
+      nodeId: interaction.nodeId,
+    });
+
+    const completedAny = this.handleQuestCompletionsForNpcInteraction(socketId, player, nearbyNpc.id);
+    if (completedAny) {
+      await this.saveAll();
+    }
+    return true;
+  }
+
+  private async handleQuestAcceptMessage(socketId: string, player: any, msg: any): Promise<boolean> {
+    const npcId = isNonEmptyString(msg?.npcId) ? msg.npcId.trim() : "";
+    let questId = isNonEmptyString(msg?.questId) ? msg.questId.trim() : "";
+
+    if (!questId) {
+      const pending = this.pendingQuestOffers.get(player.id);
+      if (pending && (!npcId || pending.npcId === npcId)) {
+        questId = pending.questId;
+      }
+    }
+    if (!questId && npcId) {
+      const interaction = this.npcSystem.handleInteraction(npcId, player, this.questSystem.getQuestDefinitions());
+      if (isNonEmptyString(interaction?.questId)) {
+        questId = interaction.questId;
+      }
+    }
+
+    if (!questId) {
+      this.ws.sendToPlayer(socketId, { type: "toast", text: "No quest is currently available." });
+      return true;
+    }
+
+    const started = this.questSystem.startQuest(player, questId);
+    if (!started) {
+      this.ws.sendToPlayer(socketId, { type: "toast", text: "Quest cannot be started right now." });
+      return true;
+    }
+
+    this.pendingQuestOffers.delete(player.id);
+    this.emitQuestStarted(socketId, started);
+    this.pushPlayerStateSync(socketId, player);
+    await this.saveAll();
+    return true;
+  }
+
+  private async handleDialogueChoiceMessage(socketId: string, player: any, msg: any): Promise<boolean> {
+    const npcId = isNonEmptyString(msg?.npcId) ? msg.npcId.trim() : "";
+    const nodeId = isNonEmptyString(msg?.nodeId) ? msg.nodeId.trim() : "root";
+    const choiceId = isNonEmptyString(msg?.choiceId) ? msg.choiceId.trim() : "";
+    if (!npcId || !choiceId) {
+      return true;
+    }
+
+    const pending = this.pendingQuestOffers.get(player.id);
+    const pendingQuestId = pending && pending.npcId === npcId ? pending.questId : null;
+    const interaction = this.npcSystem.handleChoice(npcId, nodeId, choiceId, player, pendingQuestId);
+    if (!interaction) {
+      this.ws.sendToPlayer(socketId, { type: "toast", text: "Dialogue option no longer available." });
+      return true;
+    }
+
+    this.ws.sendToPlayer(socketId, {
+      type: "dialogue",
+      source: interaction.source,
+      text: interaction.text,
+      questId: interaction.questId,
+      choices: interaction.choices,
+      npcId: interaction.npcId,
+      nodeId: interaction.nodeId,
+    });
+
+    let changedState = false;
+    const startQuestId = isNonEmptyString(interaction.startQuestId)
+      ? interaction.startQuestId
+      : isNonEmptyString(interaction.questId)
+        ? interaction.questId
+        : "";
+    if (startQuestId) {
+      const started = this.questSystem.startQuest(player, startQuestId);
+      if (started) {
+        this.emitQuestStarted(socketId, started);
+        this.pendingQuestOffers.delete(player.id);
+        changedState = true;
+      }
+    }
+    if (choiceId === "sys_quest_decline") {
+      this.pendingQuestOffers.delete(player.id);
+    }
+
+    changedState = this.handleQuestCompletionsForNpcInteraction(socketId, player, npcId) || changedState;
+    if (changedState) {
+      this.pushPlayerStateSync(socketId, player);
+      await this.saveAll();
+    }
+    return true;
+  }
+
+  private handleNpcDefeat(socketId: string, player: any, npc: any): void {
+    if (!npc) return;
+    npc.health = 0;
+    npc.aggroTargetId = null;
+
+    const combatLevel = Number(npc?.skills?.combat?.level ?? 1);
+    const xpReward = Math.max(5, combatLevel * 20);
+    const skillGain = this.skillSystem.addXP(player, "combat", xpReward);
+    this.ws.sendToPlayer(socketId, { type: "toast", text: `${npc.name} defeated (+${xpReward} XP).` });
+    if (skillGain.leveledUp) {
+      this.ws.sendToPlayer(socketId, {
+        type: "toast",
+        text: `Level up! You reached level ${skillGain.skill.level} in combat.`,
+      });
+    }
+
+    let goldGained = 0;
+    const drops = Array.isArray(npc.dropTable) ? npc.dropTable : [];
+    for (const drop of drops) {
+      const chanceRaw = Number(drop?.chance);
+      const chance = Number.isFinite(chanceRaw) ? Math.min(1, Math.max(0, chanceRaw)) : 1;
+      if (Math.random() > chance) continue;
+
+      if (isNonEmptyString(drop?.itemId)) {
+        const quantityRaw = Number(drop?.quantity);
+        const quantity = Number.isFinite(quantityRaw) && quantityRaw > 0 ? Math.floor(quantityRaw) : 1;
+        const item = ItemRegistry.createInstance(drop.itemId, quantity);
+        if (item) {
+          const lootId = `loot_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
+          this.lootEntities.set(lootId, {
+            id: lootId,
+            item,
+            position: { x: npc.position.x, y: npc.position.y },
+          });
+        }
+      }
+
+      const flatGold = Number(drop?.gold);
+      const goldMinRaw = Number(drop?.goldMin);
+      const goldMaxRaw = Number(drop?.goldMax);
+      if (Number.isFinite(flatGold) && flatGold > 0) {
+        goldGained += Math.floor(flatGold);
+      } else if (Number.isFinite(goldMinRaw) || Number.isFinite(goldMaxRaw)) {
+        const min = Math.max(0, Math.floor(Number.isFinite(goldMinRaw) ? goldMinRaw : 0));
+        const max = Math.max(min, Math.floor(Number.isFinite(goldMaxRaw) ? goldMaxRaw : min));
+        goldGained += Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+    }
+
+    if (goldGained > 0) {
+      player.gold = (player.gold || 0) + goldGained;
+      this.ws.sendToPlayer(socketId, { type: "toast", text: `You looted ${goldGained} gold.` });
+    }
+
+    const completedCombatQuests = this.questSystem.updateCombatQuests(player, npc.id, npc.id);
+    for (const entry of completedCombatQuests) {
+      this.emitQuestCompleted(socketId, entry.quest, entry.reward);
+    }
+
+    npc.health = npc.maxHealth || 100;
+    this.pushPlayerStateSync(socketId, player);
   }
 
   private loadRuntimeEventTemplates() {
@@ -1309,6 +1621,7 @@ export class WorldTick {
     this.guildSystem = new GuildSystem();
     this.economySystem = new EconomySystem();
     this.questSystem = new QuestEngine();
+    this.skillSystem = new SkillSystem();
     this.persistence = new PersistenceManager();
     this.worldSystem = new WorldSystem(this.persistence);
     this.glbLinksStore = process.env.GLB_LINKS_STORE?.trim().toLowerCase() === "spacetime" ? "spacetime" : "file";
@@ -1341,6 +1654,7 @@ export class WorldTick {
         this.observerEngine.unregister(id);
         this.socketToPlayer.delete(id);
         this.playerToSocket.delete(uid);
+        this.pendingQuestOffers.delete(uid);
         await this.saveAll();
         console.log(`Player ${player.name} (Socket ${id}) disconnected. Character remains in world.`);
       }
@@ -1498,6 +1812,62 @@ export class WorldTick {
         return;
       }
 
+      if (msg.type === "quest_sync") {
+        this.pushPlayerStateSync(id, player);
+        return;
+      }
+
+      if (msg.type === "quest_accept") {
+        await this.handleQuestAcceptMessage(id, player, msg);
+        return;
+      }
+
+      if (msg.type === "dialogue_choice") {
+        await this.handleDialogueChoiceMessage(id, player, msg);
+        return;
+      }
+
+      if (msg.type === "pickup_loot") {
+        const requestedLootId = isNonEmptyString(msg?.lootId) ? msg.lootId.trim() : "";
+        const lootEntity = this.getNearestLootInRange(player, GameConfig.interactDistance, requestedLootId || undefined);
+        if (!lootEntity) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "No loot in range." });
+          return;
+        }
+        if (this.handleLootPickup(id, player, lootEntity)) {
+          await this.saveAll();
+        }
+        return;
+      }
+
+      if (msg.type === "respawn") {
+        if (!player.dead) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "You are already alive." });
+          return;
+        }
+        const deathAt = typeof player.deathAt === "number" ? player.deathAt : 0;
+        const readyAt = deathAt + GameConfig.playerRespawnDelayMs;
+        if (Date.now() < readyAt) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Respawn is not ready yet." });
+          return;
+        }
+        const spawn = this.applySpawnToPlayer(player, player.sceneId, player.spawnKey);
+        player.dead = false;
+        player.deathAt = 0;
+        player.health = player.maxHealth ?? 100;
+        player.mana = player.maxMana ?? 25;
+        this.observerEngine.updatePosition(id, player.position);
+        this.ws.sendToPlayer(id, {
+          type: "scene_changed",
+          sceneId: spawn.sceneId,
+          spawnKey: spawn.spawnKey,
+          spawnPosition: spawn.spawnPoint,
+          via: "respawn",
+        });
+        this.pushPlayerStateSync(id, player);
+        return;
+      }
+
       if (msg.type === "use_item") {
         const itemId = typeof msg.itemId === "string" ? msg.itemId.trim() : "";
         if (!itemId) return;
@@ -1557,7 +1927,11 @@ export class WorldTick {
             type: "toast",
             text: hit.hit ? `${skill.name} hits for ${hit.damage}.` : `${skill.name} missed.`,
           });
-          this.pushPlayerStateSync(id, player);
+          if (target.health <= 0) {
+            this.handleNpcDefeat(id, player, target);
+          } else {
+            this.pushPlayerStateSync(id, player);
+          }
           return;
         }
 
@@ -1598,17 +1972,16 @@ export class WorldTick {
         const weaponBonus = Number(weapon?.damage) || 0;
         this.combatSystem.attackWithWeapon(player, target, weaponBonus);
         this.ws.broadcast({ type: "entity_action", entityId: player.id, action: "attack" });
-        this.pushPlayerStateSync(id, player);
         if (target.health <= 0) {
-          target.health = 0;
-          target.aggroTargetId = null;
+          this.handleNpcDefeat(id, player, target);
+        } else {
+          this.pushPlayerStateSync(id, player);
         }
         return;
       }
 
       if (msg.type === "interact") {
-        // Interaction logic...
-        this.ws.sendToPlayer(id, { type: 'dialogue', text: "Hello traveler!" });
+        await this.handleNpcInteractionMessage(id, player, msg);
         return;
       }
     };

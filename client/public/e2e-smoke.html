@@ -13,6 +13,10 @@
       const proto = location.protocol === "https:" ? "wss" : "ws";
       const wsUrl = `${proto}://${location.host}/ws`;
       const ws = new WebSocket(wsUrl);
+      const userAgent = navigator.userAgent || "";
+      const isLikelyMobile =
+        /Android|iPhone|iPad|iPod/i.test(userAgent) ||
+        (window.matchMedia?.("(pointer: coarse)").matches && navigator.maxTouchPoints > 0);
       ws.onopen = () => {
         ws.send(
           JSON.stringify({
@@ -21,6 +25,9 @@
             guestName: "E2E",
             sceneId: "didis_hub",
             spawnKey: "sp_player_default",
+            userAgent,
+            areDeviceClass: isLikelyMobile ? "mobile" : "desktop",
+            ...(isLikelyMobile ? { clientHints: { lowBandwidth: true } } : {}),
           })
         );
       };

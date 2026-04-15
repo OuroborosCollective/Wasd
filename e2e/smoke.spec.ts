@@ -7,7 +7,7 @@ test("health endpoint responds", async ({ request }) => {
   expect(j.ok).toBe(true);
 });
 
-test("e2e-smoke page completes guest login over WebSocket", async ({ page }) => {
+test("e2e-smoke page completes guest login over WebSocket", async ({ page }, testInfo) => {
   await page.goto("/e2e-smoke.html", { waitUntil: "domcontentloaded", timeout: 60_000 });
   await expect(page.locator("body")).toHaveAttribute("data-e2e-ready", "1", { timeout: 30_000 });
   await expect(page.locator("#e2e-status")).toHaveText("welcome");
@@ -17,9 +17,18 @@ test("e2e-smoke page completes guest login over WebSocket", async ({ page }) => 
     type?: string;
     stats?: Record<string, unknown>;
     sceneId?: string;
+    areDeviceClass?: string;
+    recommendedAreMode?: string;
   };
   expect(welcome.type).toBe("welcome");
   expect(welcome.sceneId).toBeTruthy();
+  const isAndroidProfile = testInfo.project.name.includes("android-");
+  if (isAndroidProfile) {
+    expect(welcome.areDeviceClass).toBeTruthy();
+    expect(welcome.recommendedAreMode).toBeTruthy();
+  } else {
+    expect(welcome.areDeviceClass).toBe("desktop");
+  }
   const st = welcome.stats;
   expect(st).toBeTruthy();
   expect(typeof st!.gold).toBe("number");

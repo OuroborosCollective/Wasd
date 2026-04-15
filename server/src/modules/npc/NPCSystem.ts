@@ -222,8 +222,9 @@ export class NPCSystem {
           return true;
         });
       }
-    } else if (questId && dialogue.nodes) {
-      // Quest is being offered: keep hook text, add accept / decline
+    } else if (questId) {
+      // Quest is being offered: keep hook text and always provide accept / decline.
+      // Some dialogue definitions intentionally have no `nodes` section.
       activeNodeId = "root";
       choices = [
         { id: "sys_quest_accept", text: "Accept quest", nextNodeId: "__accept__" },
