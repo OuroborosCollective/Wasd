@@ -129,6 +129,23 @@
       color: var(--muted);
       line-height: 1.35;
     }
+    .quick-checklist {
+      margin: 10px 0 0;
+      padding-left: 18px;
+      color: #cbd6ef;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .quick-checklist li {
+      margin: 5px 0;
+    }
+    .quick-checklist code {
+      background: #0f121c;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 1px 5px;
+      font-size: 11px;
+    }
     @media (max-width: 760px) {
       .onboard-steps {
         grid-template-columns: 1fr;
@@ -299,6 +316,24 @@
         <p>Spiel neu laden. Bei Bedarf zeigt die Ergebnis-Karte sofort den nächsten Schritt.</p>
       </div>
     </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h">
+      <span class="ih" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M12 2v5M12 17v5M4.9 4.9l3.5 3.5M15.6 15.6l3.5 3.5M2 12h5M17 12h5"/>
+        </svg>
+      </span>
+      <span>Wenn ein Modell nicht sofort sichtbar ist (30‑Sekunden‑Check)</span>
+    </div>
+    <ul class="quick-checklist">
+      <li><strong>1)</strong> Spielseite einmal neu laden (Browser aktualisieren).</li>
+      <li><strong>2)</strong> In „Aktuelle Zuordnungen“ auf <strong>„Neu laden“</strong> klicken und prüfen, ob die Zeile da ist.</li>
+      <li><strong>3)</strong> In „Prüfen &amp; veröffentlichen“ auf <strong>„3D‑Pfade prüfen“</strong> klicken (fehlende Datei sofort sichtbar).</li>
+      <li><strong>4)</strong> Wenn ihr mit veröffentlichtem Inhalt arbeitet: <strong>„Inhalt veröffentlichen“</strong> ausführen und Server neu starten (<code>USE_PUBLISHED_CONTENT=1</code>).</li>
+      <li><strong>5)</strong> Bei NPC/Objekten kurz neu einloggen oder Szene neu laden, damit die Ansicht sofort aktualisiert wird.</li>
+    </ul>
   </div>
 
   <div class="card hidden" id="cardFlow">
