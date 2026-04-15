@@ -8,7 +8,7 @@ This document is the **authoritative snapshot** of what works today in the repos
 |------|--------|
 | **Primary 3D engine** | **Babylon.js** (`@babylonjs/core`, `@babylonjs/loaders`) |
 | **Boot path** | `client/src/main.ts` (thin shell) → `clientBoot.ts` → `createBabylonApp` → `BabylonAdapter` |
-| **Vite chunks** | `babylon-core` vs `babylon-loaders`; `BabylonAdapter` now **explicitly ensures** `.glb/.gltf` loader plugin registration before first model load to avoid silent missing-plugin failures |
+| **Vite chunks** | `babylon-core` vs `babylon-loaders`; `BabylonAdapter` imports `@babylonjs/loaders/glTF` as a side effect so `.glb/.gltf` loader registration is available before first model load |
 | **WebGL failure** | `Engine.IsSupported` → full-screen overlay; **context lost** → overlay + link to Babylon WebGL docs |
 | **Mobile performance** | Touch / narrow viewports: **no** `preserveDrawingBuffer` (unless `?screenshot=1`), **hardware scaling**, **maxFPS 30** (Android **24**), default **ARE mode `off`**, **no skybox** + **no stencil buffer** on Android, **hover tooltip disabled** on touch, **GLB loads serialized** on Android (failed loads **do not** abort the queue), **name tags** only rebuilt when the **name string changes** (avoids flicker every `entity_sync`), throttled **target reticle** + **navigation marker**. Desktop/non-mobile path uses `1 / devicePixelRatio` scaling for crisp HiDPI output (no forced blur at scale level 1). |
 | **Default GLB fallbacks** | Server **`ensureGlbUrl`** + client **`BabylonAdapter`** defaults under **`/assets/models/*`** when paths missing; `AssetRegistry` / **`/world-assets`** only if those files are deployed |
