@@ -104,6 +104,36 @@
       margin-bottom: 14px;
       animation: fadeSlide 0.4s ease-out backwards;
     }
+    .onboard-steps {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .onboard-step {
+      background: #121826;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      min-height: 84px;
+    }
+    .onboard-step strong {
+      display: block;
+      font-size: 12px;
+      color: #d3dcf5;
+      margin-bottom: 5px;
+    }
+    .onboard-step p {
+      margin: 0;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+    @media (max-width: 760px) {
+      .onboard-steps {
+        grid-template-columns: 1fr;
+      }
+    }
     .card:nth-child(1) { animation-delay: 0.02s; }
     .card:nth-child(2) { animation-delay: 0.05s; }
     .card.reveal-in { animation: popIn 0.38s cubic-bezier(0.22, 1, 0.36, 1); }
@@ -244,6 +274,32 @@
       <p class="lead">Welches <strong>3D-Modell</strong> gehört zu wem — ohne Dateien oder Code. <a href="/">Zum Spiel</a></p>
     </div>
   </header>
+
+  <div class="card">
+    <div class="card-h">
+      <span class="ih" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M5 12h14M12 5v14"/>
+        </svg>
+      </span>
+      <span>Start hier (ohne Technikwissen)</span>
+    </div>
+    <p class="hint" style="margin-top:0">Wenn du nur ein Modell ins Spiel bringen willst, nutze nur diese 3 Schritte:</p>
+    <div class="onboard-steps">
+      <div class="onboard-step">
+        <strong>1) Anmelden</strong>
+        <p>Oben den Admin-Code eingeben und auf „Anmelden“ klicken.</p>
+      </div>
+      <div class="onboard-step">
+        <strong>2) Schnellmodus</strong>
+        <p>Kategorie wählen, Datei auswählen, „Schnell anwenden“ klicken.</p>
+      </div>
+      <div class="onboard-step">
+        <strong>3) Im Spiel prüfen</strong>
+        <p>Spiel neu laden. Bei Bedarf zeigt die Ergebnis-Karte sofort den nächsten Schritt.</p>
+      </div>
+    </div>
+  </div>
 
   <div class="card hidden" id="cardFlow">
     <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></svg></span> Ablauf</div>
