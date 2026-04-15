@@ -26,6 +26,11 @@ import {
   sanitizeAdminGlbFilename,
   sanitizeAdminGlbRelativeFolder,
 } from "../modules/content/adminGlbGallery.js";
+import {
+  decideSmartGlbAction,
+  suggestFolderForSmartCategory,
+  type SmartCategory,
+} from "../modules/content/adminGlbSmartLink.js";
 import { resolveWorldAssetsDir } from "../core/resolveWorldAssetsDir.js";
 import { publishContentPackFromRepo } from "../modules/content/publishContentPackFromRepo.js";
 import { validateContentRoot } from "../modules/content/validateContentCore.js";
@@ -54,6 +59,15 @@ const TARGET_TYPES = new Set<string>([
   "npc_single",
   "object_group",
   "object_single",
+]);
+
+const SMART_CATEGORIES = new Set<SmartCategory>([
+  "npcs",
+  "monsters",
+  "world_objects",
+  "players",
+  "loot",
+  "resources",
 ]);
 
 /** Rough German hints for validateContent errors (admin UI). */
@@ -91,6 +105,30 @@ function parsePoolEntry(body: unknown): string | string[] | null {
     return arr.length === 1 ? arr[0]! : arr;
   }
   return null;
+}
+
+function normalizeSmartCategory(raw: unknown): SmartCategory | null {
+  if (!isNonEmptyString(raw)) {
+    return null;
+  }
+  const normalized = raw
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  const mapped =
+    normalized === "npc"
+      ? "npcs"
+      : normalized === "monster"
+        ? "monsters"
+        : normalized === "world"
+          ? "world_objects"
+          : normalized === "object"
+            ? "world_objects"
+            : normalized;
+
+  return SMART_CATEGORIES.has(mapped as SmartCategory) ? (mapped as SmartCategory) : null;
 }
 
 export function adminContentRouter(tick: WorldTick): Router {
@@ -279,6 +317,134 @@ export function adminContentRouter(tick: WorldTick): Router {
         url: urlPath,
         relativePath: relPath.replace(/\\/g, "/"),
         maxUploadMb: MAX_ADMIN_GLB_MB,
+      });
+    }
+  );
+
+  router.post(
+    "/glb-smart-upload",
+    adminAuthMiddleware,
+    adminWriteBlocked,
+    (req: AdminRequest, res: Response, next: express.NextFunction) => {
+      adminGlbUploadMulter.single("file")(req, res, (err: unknown) => {
+        if (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (msg.toLowerCase().includes("too large") || (err as { code?: string })?.code === "LIMIT_FILE_SIZE") {
+            return jsonError(res, 413, `Datei zu groß (max. ${MAX_ADMIN_GLB_MB} MB).`, "file too large");
+          }
+          return jsonError(res, 400, msg.includes("Nur .glb") ? msg : "Upload fehlgeschlagen: " + msg, msg);
+        }
+        next();
+      });
+    },
+    async (req: AdminRequest, res: Response) => {
+      const file = req.file;
+      if (!file?.buffer?.length) {
+        return jsonError(res, 400, "Keine Datei empfangen (Formular-Feld: file).", "file required");
+      }
+
+      const category = normalizeSmartCategory((req.body as { category?: unknown })?.category);
+      if (!category) {
+        return jsonError(
+          res,
+          400,
+          "Kategorie fehlt oder ist ungültig (npcs, monsters, world_objects, players, loot, resources).",
+          "invalid category"
+        );
+      }
+
+      const folderRaw = (req.body as { folder?: unknown })?.folder;
+      const chosenFolder = isNonEmptyString(folderRaw)
+        ? folderRaw.trim()
+        : suggestFolderForSmartCategory(category);
+      const folderSan = sanitizeAdminGlbRelativeFolder(chosenFolder);
+      if (!folderSan.ok) {
+        return jsonError(res, 400, folderSan.errorDe, folderSan.errorDe);
+      }
+
+      const nameSan = sanitizeAdminGlbFilename(file.originalname);
+      if (!nameSan.ok) {
+        return jsonError(res, 400, nameSan.errorDe, nameSan.errorDe);
+      }
+
+      const modelsRoot = getServerPublicModelsDir();
+      const relPath = folderSan.folder ? path.join(folderSan.folder, nameSan.filename) : nameSan.filename;
+      const absPath = path.resolve(path.join(modelsRoot, relPath));
+      const relCheck = path.relative(path.resolve(modelsRoot), absPath);
+      if (relCheck.startsWith("..") || path.isAbsolute(relCheck)) {
+        return jsonError(res, 400, "Ungültiger Zielpfad.", "path traversal");
+      }
+
+      try {
+        fs.mkdirSync(path.dirname(absPath), { recursive: true });
+        fs.writeFileSync(absPath, file.buffer);
+      } catch (e) {
+        const m = e instanceof Error ? e.message : String(e);
+        return res.status(500).json({ error: m, errorDe: "Speichern auf dem Server fehlgeschlagen." });
+      }
+
+      const urlPath = "/assets/models/" + relPath.replace(/\\/g, "/");
+      const smartDecision = decideSmartGlbAction({
+        category,
+        fileName: nameSan.filename,
+        choices: {
+          npcIds: loadNpcChoicesForAdmin().map((n) => n.id),
+          npcRoles: loadNpcRoleChoicesForAdmin(),
+          worldObjectIds: loadWorldObjectChoicesForAdmin().map((o) => o.id),
+          objectTypes: loadObjectTypeChoicesForAdmin(),
+          monsterGroups: loadMonsterGroupKeysForAdmin(),
+        },
+      });
+
+      let appliedAction:
+        | { type: "glb_link"; targetType: GLBLink["targetType"]; targetId: string }
+        | { type: "pool_default"; category: SmartCategory };
+
+      try {
+        if (smartDecision.kind === "link") {
+          await tick.glbRegistry.addLink({
+            glbPath: urlPath,
+            targetType: smartDecision.targetType,
+            targetId: smartDecision.targetId,
+          });
+          appliedAction = {
+            type: "glb_link",
+            targetType: smartDecision.targetType,
+            targetId: smartDecision.targetId,
+          };
+        } else {
+          const saved = tick.assetPoolResolver.setDefault(smartDecision.category, urlPath);
+          if (!saved) {
+            return res.status(500).json({
+              error: "Automatische Standard-Zuordnung konnte nicht gespeichert werden.",
+              errorDe: "Automatische Standard-Zuordnung konnte nicht gespeichert werden.",
+            });
+          }
+          appliedAction = { type: "pool_default", category: smartDecision.category };
+        }
+      } catch (e) {
+        return res.status(500).json({
+          error: e instanceof Error ? e.message : String(e),
+          errorDe: "Automatische Zuordnung fehlgeschlagen.",
+        });
+      }
+
+      res.json({
+        ok: true,
+        category,
+        url: urlPath,
+        relativePath: relPath.replace(/\\/g, "/"),
+        maxUploadMb: MAX_ADMIN_GLB_MB,
+        automation: {
+          decisionKind: smartDecision.kind,
+          confidence: smartDecision.confidence,
+          reason: smartDecision.reason,
+          normalizedName: smartDecision.normalizedName,
+          suggestions: smartDecision.suggestions,
+          appliedAction,
+        },
+        links: tick.glbRegistry.getLinks(),
+        pools: tick.assetPoolResolver.getDocument(),
       });
     }
   );

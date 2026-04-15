@@ -17,6 +17,14 @@
     "ci:verify": "pnpm run lint && pnpm run test && pnpm run build && pnpm run audit:model-paths"
   },
   "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "protobufjs",
+      "sharp",
+      "@firebase/util",
+      "re2",
+      "unrs-resolver"
+    ],
     "overrides": {
       "handlebars": "^4.7.9",
       "lodash": "^4.18.0",
