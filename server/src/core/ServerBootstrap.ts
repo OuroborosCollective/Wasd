@@ -12,6 +12,13 @@ import { getContentDataSourceLabel } from "../modules/content/contentDataRoot.js
 import { getFirebaseAdminSummary } from "../config/firebase.js";
 import { resolveWorldAssetsDir } from "./resolveWorldAssetsDir.js";
 import { resolveMirroredWorldAssetsDir } from "./resolveMirroredWorldAssetsDir.js";
+import {
+  bootstrapSelfHealing,
+  resolveSelfHealingConfigFromEnv,
+  resolveSelfHealingDashboardConfigFromEnv,
+  selfHealingMiddleware,
+} from "../selfhealing/SelfHealingSystem.js";
+import { registerSelfHealingDashboard } from "../selfhealing/SelfHealingDashboard.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -66,10 +73,16 @@ function resolveAdminContentHtmlPath(clientRoot: string, clientDist: string): st
   return null;
 }
 
+function envTruthy(key: string): boolean {
+  const value = process.env[key]?.trim().toLowerCase();
+  return value === "1" || value === "true" || value === "yes";
+}
+
 export class ServerBootstrap {
   async start() {
     const app = express();
     const httpServer = createServer(app);
+    const selfHealingRuntime = bootstrapSelfHealing(resolveSelfHealingConfigFromEnv());
 
     app.use("/api", migrationRoute);
     app.use("/api/mcp", mcpRoute());
@@ -146,14 +159,16 @@ export class ServerBootstrap {
     const tick = new WorldTick(ws);
     await tick.init();
     app.use("/api/admin/content", adminContentRouter(tick));
+    registerSelfHealingDashboard(
+      app,
+      selfHealingRuntime.system,
+      resolveSelfHealingDashboardConfigFromEnv()
+    );
 
     app.get("/health", (_req, res) => {
       const persistence = tick.getPersistenceStats();
       const content = getContentDataSourceLabel();
-      const envTruthy = (key: string) => {
-        const v = process.env[key]?.trim().toLowerCase();
-        return v === "1" || v === "true" || v === "yes";
-      };
+      const selfHealingStatus = selfHealingRuntime.system.getStatus();
       res.json({
         ok: true,
         project: "ARELORIAN MMORPG",
@@ -167,8 +182,17 @@ export class ServerBootstrap {
           allowGuestLogin: envTruthy("ALLOW_GUEST_LOGIN"),
           allowDevLogin: !["0", "false", "no"].includes(process.env.ALLOW_DEV_LOGIN?.trim().toLowerCase() || ""),
         },
+        selfHealing: {
+          active: selfHealingStatus.active,
+          patchMode: selfHealingStatus.config.patchMode,
+          totalErrors: selfHealingStatus.totalErrors,
+          totalHealed: selfHealingStatus.totalHealed,
+          healingRate: selfHealingStatus.healingRate,
+          featuresProtected: selfHealingStatus.featuresProtected,
+        },
       });
     });
+    app.use(selfHealingMiddleware());
 
     const port = Number(process.env.PORT || 3000);
 
