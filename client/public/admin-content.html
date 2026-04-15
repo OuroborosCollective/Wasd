@@ -295,6 +295,27 @@
     <div id="galleryMsg" class="msg hidden"></div>
   </div>
 
+  <div class="card hidden" id="stepSmart">
+    <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h6l2-3 4 6 2-3h4"/><path d="M12 3v4M12 17v4"/></svg></span> <span>Schnellmodus: Upload + Auto-Zuordnung</span></div>
+    <p class="hint" style="margin-top:0">Für Admins ohne Code-Kenntnisse: Datei hochladen, Kategorie wählen, fertig. Das System versucht automatisch die passende Live-Zuordnung (ID/Rolle/Typ) und setzt sonst einen sicheren Standard.</p>
+    <label for="smartCategory">Kategorie</label>
+    <select id="smartCategory">
+      <option value="npcs">NPCs</option>
+      <option value="monsters">Monster</option>
+      <option value="world_objects">Weltobjekte</option>
+      <option value="players">Spieler</option>
+      <option value="loot">Beute</option>
+      <option value="resources">Ressourcen</option>
+    </select>
+    <label for="smartFolder">Unterordner (optional)</label>
+    <input id="smartFolder" placeholder="Leer lassen = automatisch passend zur Kategorie" autocomplete="off" />
+    <label for="smartFile">Modell-Datei</label>
+    <input type="file" id="smartFile" accept=".glb,.gltf,.bin,model/gltf-binary" />
+    <p class="hint" id="smartHints">Tipps erscheinen nach Anmeldung.</p>
+    <button type="button" id="btnSmartUpload">Upload + automatisch anwenden</button>
+    <div id="smartMsg" class="msg hidden"></div>
+  </div>
+
   <div class="card hidden" id="stepWork">
     <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/></svg></span> <span><span class="section-num">3</span>Modell verknüpfen</span></div>
     <p class="hint" style="margin-top:0">Modell wählen, Ziel angeben, <strong>Speichern</strong>.</p>
@@ -421,6 +442,24 @@
       monsters: "Monster",
       loot: "Beute",
       world_objects: "Welt-Objekte",
+    };
+
+    const SMART_CAT_LABELS = {
+      npcs: "NPCs",
+      monsters: "Monster",
+      world_objects: "Weltobjekte",
+      players: "Spieler",
+      loot: "Beute",
+      resources: "Ressourcen",
+    };
+
+    const SMART_DEFAULT_FOLDERS = {
+      npcs: "npcs",
+      monsters: "monsters",
+      world_objects: "objects",
+      players: "characters",
+      loot: "items",
+      resources: "resources",
     };
 
     function prefersReducedMotion() {
@@ -605,6 +644,36 @@
         });
       }
       sel.innerHTML = opts;
+    }
+
+    function updateSmartHints() {
+      const cat = document.getElementById("smartCategory").value;
+      const el = document.getElementById("smartHints");
+      const folder = SMART_DEFAULT_FOLDERS[cat] || "";
+      const c = choicesCache || {};
+
+      let samples = [];
+      if (cat === "npcs" && Array.isArray(c.npcs)) {
+        samples = c.npcs.slice(0, 4).map(function (x) { return x.id; });
+      } else if (cat === "monsters" && Array.isArray(c.monsterGroups)) {
+        samples = c.monsterGroups.slice(0, 4);
+      } else if (cat === "world_objects" && Array.isArray(c.worldObjects)) {
+        samples = c.worldObjects.slice(0, 4).map(function (x) { return x.id; });
+      }
+
+      let tip = "Empfohlenes Benennen: Datei möglichst wie Ziel-ID/Rolle/Typ benennen.";
+      if (samples.length) {
+        tip += " Beispiele: " + samples.join(", ") + ".";
+      }
+      if (folder) {
+        tip += " Vorschlag Unterordner: " + folder + ".";
+      }
+      if (cat === "players" || cat === "loot" || cat === "resources") {
+        tip += " Für diese Kategorie setzt der Schnellmodus standardmäßig ein Kategorie-Fallback (kein einzelnes Ziel nötig).";
+      } else {
+        tip += " Bei Treffer wird automatisch Live-Link gesetzt, sonst sicherer Kategorie-Standard.";
+      }
+      el.textContent = tip;
     }
 
     function nowTime() {
@@ -931,6 +1000,11 @@
       }
       fillTargetPick();
       fillQuestDialogueRefs();
+      if (!document.getElementById("smartFolder").value.trim()) {
+        const c = document.getElementById("smartCategory").value;
+        document.getElementById("smartFolder").value = SMART_DEFAULT_FOLDERS[c] || "";
+      }
+      updateSmartHints();
       try {
         const galleryData = await req("GET", "/glb-gallery-tree");
         renderGalleryTree(galleryData);
@@ -970,6 +1044,15 @@
       fillTargetPick();
     };
     document.getElementById("selUse").dispatchEvent(new Event("change"));
+
+    document.getElementById("smartCategory").onchange = function () {
+      const folderInput = document.getElementById("smartFolder");
+      if (!folderInput.value.trim()) {
+        folderInput.value = SMART_DEFAULT_FOLDERS[this.value] || "";
+      }
+      updateSmartHints();
+    };
+    document.getElementById("smartCategory").dispatchEvent(new Event("change"));
 
     document.getElementById("selTargetPick").onchange = function () {
       if (this.value) document.getElementById("inTargetId").value = this.value;
@@ -1050,7 +1133,7 @@
         const m = await req("GET", "/meta");
         show("loginMsg", "Verbunden — du kannst zuordnen.", "ok");
         document.getElementById("techMeta").value = JSON.stringify(m, null, 2);
-        ["cardFlow", "cardHistory", "stepGallery", "stepWork", "stepDefaults", "stepContentRef", "stepPublish", "stepList", "stepExpert"].forEach(function (id) {
+        ["cardFlow", "cardHistory", "stepGallery", "stepSmart", "stepWork", "stepDefaults", "stepContentRef", "stepPublish", "stepList", "stepExpert"].forEach(function (id) {
           document.getElementById(id).classList.remove("hidden");
         });
         setFlow(2);
@@ -1230,6 +1313,76 @@
       } catch (e) {
         pushHistory(false, "Standard: " + (e.message || e));
         show("defMsg", String(e.message || e), "err");
+      }
+    };
+
+    document.getElementById("btnSmartUpload").onclick = async function () {
+      hide("smartMsg");
+      const fileInput = document.getElementById("smartFile");
+      const file = fileInput.files && fileInput.files[0];
+      if (!file) {
+        show("smartMsg", "Bitte eine Modell-Datei auswählen.", "err");
+        return;
+      }
+      const category = document.getElementById("smartCategory").value;
+      const folder = document.getElementById("smartFolder").value.trim();
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("category", category);
+      if (folder) fd.append("folder", folder);
+      try {
+        const r = await fetch(BASE + "/glb-smart-upload", {
+          method: "POST",
+          headers: authHeadersOnly(),
+          body: fd,
+        });
+        const text = await r.text();
+        let j = null;
+        try { j = JSON.parse(text); } catch { /* */ }
+        if (!r.ok) throw new Error(errDeFromJson(j, text || "Fehler " + r.status));
+
+        const url = (j && j.url) || "";
+        const automation = (j && j.automation) || {};
+        const applied = automation.appliedAction || {};
+        const confidence = automation.confidence || "unknown";
+        const reason = automation.reason || "Automatische Zuordnung wurde ausgeführt.";
+        let actionText = "Standard-Zuordnung gesetzt";
+        if (applied.type === "glb_link") {
+          actionText = "Direkt verknüpft mit " + (USE_LABELS[applied.targetType] || applied.targetType) + " · " + applied.targetId;
+          document.getElementById("selUse").value = applied.targetType;
+          document.getElementById("selUse").dispatchEvent(new Event("change"));
+          document.getElementById("inTargetId").value = applied.targetId || "";
+        } else if (applied.type === "pool_default") {
+          actionText = "Kategorie-Standard gesetzt: " + (SMART_CAT_LABELS[applied.category] || applied.category);
+          document.getElementById("selDefCat").value = applied.category || document.getElementById("selDefCat").value;
+        }
+
+        applyGlbUrlToSelects(url);
+        fileInput.value = "";
+        await refreshLists();
+        if (j && j.pools) {
+          document.getElementById("techPools").value = JSON.stringify(j.pools, null, 2);
+        }
+
+        show("smartMsg", "Fertig: " + actionText + " (" + confidence + " confidence)", "ok");
+        showLastResult("Schnellmodus abgeschlossen", [
+          "Datei hochgeladen: " + url,
+          actionText,
+          "Begründung: " + reason,
+        ], "Bei Bedarf unten manuell feinjustieren — meist nicht nötig.", {
+          l1: "Kategorie",
+          v1: SMART_CAT_LABELS[category] || category,
+          l2: "Aktion",
+          v2: applied.type === "glb_link" ? "Live-Link" : "Kategorie-Standard",
+          l3: "Sicherheit",
+          v3: confidence,
+        });
+        pushHistory(true, "Schnellmodus: " + (file.name || "Datei") + " → " + actionText);
+        setFlow(4);
+        celebrateSuccess();
+      } catch (e) {
+        show("smartMsg", String(e.message || e), "err");
+        pushHistory(false, "Schnellmodus Fehler: " + (e.message || e));
       }
     };
 
