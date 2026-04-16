@@ -126,6 +126,11 @@ export class BabylonAdapter implements IEngineBridge {
   private localPlayerId: string | null = null;
   private labelMaterialCounter = 0;
   private readonly androidMobile = isAndroid();
+  private readonly shaderModeBlockedForDevice =
+    this.androidMobile ||
+    (typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(pointer: coarse)").matches);
   /** Serialize GLB decode on Android — parallel loads often OOM the GPU process. */
   private glbLoadChain: Promise<void> = Promise.resolve();
   private readonly pendingLabelText = new Map<string, string>();
@@ -138,7 +143,7 @@ export class BabylonAdapter implements IEngineBridge {
     const query = new URLSearchParams(window.location.search);
     const modeFromQuery = this.normalizeAREMode(query.get("areMode"));
     if (modeFromQuery) {
-      this.areMode = modeFromQuery;
+      this.areMode = this.clampAREModeForDevice(modeFromQuery);
     }
     const autoModeQuery = query.get("areAutoMode");
     if (autoModeQuery === "1") {
@@ -467,6 +472,7 @@ export class BabylonAdapter implements IEngineBridge {
   }
 
   private setAREModeInternal(mode: AREMode, source?: AREModeSource, reason?: string): void {
+    mode = this.clampAREModeForDevice(mode);
     if (mode === this.areMode) {
       return;
     }
@@ -976,6 +982,17 @@ export class BabylonAdapter implements IEngineBridge {
     if (value === "cpu") return "cpu";
     if (value === "shader" || value === "on" || value === "are" || value === "true") return "shader";
     return null;
+  }
+
+  /**
+   * The custom ARE shader path does not support skinned animation data and is too destructive on touch/mobile.
+   * Clamp shader requests to CPU mode for those devices so GLB materials + animations stay intact.
+   */
+  private clampAREModeForDevice(mode: AREMode): AREMode {
+    if (this.shaderModeBlockedForDevice && mode === "shader") {
+      return "cpu";
+    }
+    return mode;
   }
 
   private mountAREDebugOverlay(): HTMLDivElement {

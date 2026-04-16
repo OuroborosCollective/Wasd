@@ -367,8 +367,14 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         return;
       }
       if (data.type === 'entity_sync') {
-        if (typeof data.areMode === "string") {
-          core.setAREMode(data.areMode);
+        const nextAreMode =
+          typeof data.recommendedAreMode === "string"
+            ? data.recommendedAreMode
+            : typeof data.areMode === "string"
+              ? data.areMode
+              : null;
+        if (typeof nextAreMode === "string") {
+          core.setAREMode(nextAreMode);
         }
         emitNetStatus("sync", "World synchronized.");
         if (data.entities) {
@@ -388,6 +394,15 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         console.log(`Welcome to Areloria! Your ID: ${data.playerId}`);
         welcomeReceived = true;
         emitNetStatus("welcome", "Joined world.");
+        const initialAreMode =
+          typeof data.recommendedAreMode === "string"
+            ? data.recommendedAreMode
+            : typeof data.areMode === "string"
+              ? data.areMode
+              : null;
+        if (typeof initialAreMode === "string") {
+          core.setAREMode(initialAreMode);
+        }
         const localPlayerId = data.playerId || data.id;
         if (
           typeof localPlayerId === "string" &&

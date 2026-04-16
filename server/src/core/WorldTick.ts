@@ -290,7 +290,7 @@ export class WorldTick {
     bannedPlayers: [],
     customDialogues: {},
   };
-  private areMode: AREMode = "shader";
+  private areMode: AREMode = "off";
   private eventTemplates: GMTemplateDefinition[] = Object.values(GM_EVENT_TEMPLATES);
   private pendingTemplateSteps: ScheduledGMTemplateStep[] = [];
   private readonly USE_ITEM_TOASTS: Record<string, string> = {
