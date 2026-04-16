@@ -1,3 +1,10 @@
+function resolveWsMaxMessageBytes(): number {
+  const raw = process.env.WS_MAX_MESSAGE_BYTES?.trim();
+  if (!raw) return 65536;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 65536;
+}
+
 export const GameConfig = {
   chunkSize: 64,
   tickRateMs: 100,
@@ -28,8 +35,8 @@ export const GameConfig = {
   playerRespawnDelayMs: 2500,
   /** Mana restored per second while alive (out of combat regen baseline) */
   playerManaRegenPerSecond: 2.5,
-  /** Max WebSocket JSON message size (bytes) */
-  wsMaxMessageBytes: 65536,
+  /** Max WebSocket JSON message size (bytes); override with `WS_MAX_MESSAGE_BYTES`. */
+  wsMaxMessageBytes: resolveWsMaxMessageBytes(),
   /** Max WebSocket messages accepted per socket per rolling second */
   wsMaxMessagesPerSecond: 48,
   /** Max WebSocket messages per logged-in player uid per rolling second (multi-tab / reconnect abuse) */

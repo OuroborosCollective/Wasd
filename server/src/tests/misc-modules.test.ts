@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ReligionSystem } from "../modules/religion/ReligionSystem.js";
 import { SiegeEngine } from "../modules/siege/SiegeEngine.js";
 import { ProphecyGenerator } from "../modules/oracle/ProphecyGenerator.js";
@@ -382,6 +382,30 @@ describe("GameConfig", () => {
 
   it("lootDespawnMs is 300000", () => {
     expect(GameConfig.lootDespawnMs).toBe(300000);
+  });
+});
+
+describe("GameConfig WS_MAX_MESSAGE_BYTES", () => {
+  const prev = process.env.WS_MAX_MESSAGE_BYTES;
+
+  afterEach(() => {
+    if (prev === undefined) delete process.env.WS_MAX_MESSAGE_BYTES;
+    else process.env.WS_MAX_MESSAGE_BYTES = prev;
+    vi.resetModules();
+  });
+
+  it("defaults wsMaxMessageBytes to 65536 when env unset", async () => {
+    delete process.env.WS_MAX_MESSAGE_BYTES;
+    vi.resetModules();
+    const { GameConfig: G } = await import("../config/GameConfig.js");
+    expect(G.wsMaxMessageBytes).toBe(65536);
+  });
+
+  it("honors WS_MAX_MESSAGE_BYTES when set", async () => {
+    process.env.WS_MAX_MESSAGE_BYTES = "8192";
+    vi.resetModules();
+    const { GameConfig: G } = await import("../config/GameConfig.js");
+    expect(G.wsMaxMessageBytes).toBe(8192);
   });
 });
 
