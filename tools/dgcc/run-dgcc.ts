@@ -76,6 +76,13 @@ function printHeader(mode: string, fix: boolean) {
   console.log(`[DGCC] mode=${mode} fix=${fix ? "on" : "off"}`);
 }
 
+/** CI uses full system deps; local DGCC uses a faster Chromium-only install to avoid multi-minute apt runs. */
+function e2ePnpmScript() {
+  const fromEnv = process.env.DGCC_E2E_SCRIPT?.trim();
+  if (fromEnv) return fromEnv;
+  return process.env.CI ? "test:e2e:ci" : "test:e2e:reliable";
+}
+
 async function assetsAudit(report: DgccReport, contract: any, fix: boolean) {
   const clientDir = path.join(ROOT, contract.rules.assets.clientModelsDir);
   if (!fs.existsSync(clientDir)) {
@@ -159,12 +166,15 @@ async function main() {
 
   async function runCheck(name: CheckName, fn: () => Promise<void>) {
     const t0 = Date.now();
+    console.log(`[DGCC] check:start ${name}`);
     try {
       await fn();
       report.checks.push({ name, ok: true, durationMs: Date.now() - t0 });
+      console.log(`[DGCC] check:ok ${name} (${Date.now() - t0}ms)`);
     } catch (e: any) {
       report.ok = false;
       report.checks.push({ name, ok: false, durationMs: Date.now() - t0, summary: String(e?.message ?? e) });
+      console.log(`[DGCC] check:fail ${name} (${Date.now() - t0}ms) ${String(e?.message ?? e)}`);
     }
   }
 
@@ -199,10 +209,17 @@ async function main() {
 
   if (checks.includes("e2e")) {
     await runCheck("e2e", async () => {
-      const r = await run("pnpm", ["run", "test:e2e:ci"]);
+      const script = e2ePnpmScript();
+      const e2eWhy = process.env.DGCC_E2E_SCRIPT
+        ? "DGCC_E2E_SCRIPT"
+        : process.env.CI
+          ? "CI"
+          : "default-local";
+      console.log(`[DGCC] e2e script=${script} (${e2eWhy})`);
+      const r = await run("pnpm", ["run", script]);
       fs.writeFileSync(path.join(outDir, "e2e.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["e2e"] = "dgcc-artifacts/e2e.out.txt";
-      if (r.code !== 0) throw new Error("e2e failed");
+      if (r.code !== 0) throw new Error(`e2e failed (${script})`);
     });
   }
 
