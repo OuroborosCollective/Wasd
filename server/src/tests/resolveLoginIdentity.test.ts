@@ -101,4 +101,33 @@ describe("resolveLoginIdentity", () => {
     const r = await resolveLoginIdentity("sock", { token: "bad" });
     expect(r).toEqual({ error: "Invalid or expired token", code: "invalid_token" });
   });
+
+  it("falls back to Firebase when Supabase verify fails and both providers are enabled", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.USE_SUPABASE_WS_LOGIN = "1";
+    process.env.USE_FIREBASE_WS_LOGIN = "1";
+    delete process.env.ALLOW_GUEST_LOGIN;
+    vi.doMock("../config/supabase.js", () => ({
+      isSupabaseAuthConfigured: vi.fn(() => true),
+      verifySupabaseToken: vi.fn(() => {
+        throw new Error("bad supabase token");
+      }),
+    }));
+    const verifyFirebaseToken = vi.fn().mockResolvedValue({
+      uid: "fb-fallback-user",
+      email: "fallback@example.com",
+    });
+    vi.doMock("../config/firebase.js", () => ({
+      isFirebaseAuthConfigured: vi.fn(() => true),
+      verifyFirebaseToken,
+    }));
+    const { resolveLoginIdentity } = await import("../modules/auth/resolveLoginIdentity.js");
+    const result = await resolveLoginIdentity("sock-fallback", { token: "token" });
+    expect(verifyFirebaseToken).toHaveBeenCalledWith("token");
+    expect("error" in result).toBe(false);
+    if (!("error" in result)) {
+      expect(result.uid).toBe("fb-fallback-user");
+      expect(result.charName).toBe("fallback@example.com");
+    }
+  });
 });

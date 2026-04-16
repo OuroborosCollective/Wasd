@@ -99,6 +99,25 @@ export function renderHUD() {
   statsSpan.id = "arel-hud-stats";
   statsSpan.style.fontSize = "12px";
   statsSpan.style.lineHeight = "1.3";
+  statsSpan.style.flex = "1 1 auto";
+
+  const leaderboardBtn = document.createElement("button");
+  leaderboardBtn.type = "button";
+  leaderboardBtn.textContent = "🏆";
+  leaderboardBtn.title = "Open leaderboard";
+  leaderboardBtn.style.padding = "6px 10px";
+  leaderboardBtn.style.minHeight = "36px";
+  leaderboardBtn.style.borderRadius = "8px";
+  leaderboardBtn.style.border = "1px solid rgba(255,255,255,0.25)";
+  leaderboardBtn.style.background = "rgba(255,255,255,0.08)";
+  leaderboardBtn.style.color = "#fff";
+  leaderboardBtn.style.cursor = "pointer";
+  leaderboardBtn.style.touchAction = "manipulation";
+  leaderboardBtn.onclick = () => {
+    void import("./leaderboardPanel").then((m) => m.openLeaderboard()).catch((error) => {
+      console.error("Leaderboard panel failed to open", error);
+    });
+  };
 
   const barsWrap = document.createElement("div");
   barsWrap.id = "arel-hud-bars";
@@ -125,6 +144,7 @@ export function renderHUD() {
   subscribePlayerState(updateStats);
 
   topRow.appendChild(statsSpan);
+  topRow.appendChild(leaderboardBtn);
   hud.appendChild(topRow);
   hud.appendChild(barsWrap);
 

@@ -22,6 +22,8 @@ export const PLAYER_PERSIST_KEYS = [
   "maxMana",
   "gold",
   "xp",
+  "kills",
+  "deaths",
   "quests",
   "skills",
   "inventory",

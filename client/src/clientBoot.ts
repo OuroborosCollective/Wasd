@@ -5,6 +5,7 @@ import { MMORPGClientCore } from "./core/MMORPGClientCore";
 import {
   connectSocket,
   requestSceneChange,
+  sendCommand,
   sendSetCombatTarget,
   setAuthTokenProvider,
   type ConnectionOptions,
@@ -27,6 +28,8 @@ import { showBootStatus, showRendererFatalOverlay } from "./bootUi";
 import { initCombatMobileUi } from "./ui/combatMobileUi";
 import { getQuickCastSkillId } from "./game/combatSkills";
 import { mountSkillBar } from "./ui/skillBar";
+import { initChat, focusChatInput } from "./ui/chat";
+import { initMinimap, toggleMinimapVisibility } from "./ui/minimap";
 
 function bootEngineBridge(targetCanvas: HTMLCanvasElement): IEngineBridge {
   const app = createBabylonApp(targetCanvas);
@@ -129,6 +132,8 @@ export async function bootAreloriaClient(canvas: HTMLCanvasElement): Promise<voi
   (window as unknown as { requestSceneChange?: typeof requestSceneChange }).requestSceneChange =
     requestSceneChange;
   renderHUD();
+  initChat((type, payload) => sendCommand(type, payload));
+  initMinimap();
   mountSkillBar();
   // Legacy quick-port UI intentionally disabled.
   preloadGamePanels();
@@ -152,10 +157,10 @@ export async function bootAreloriaClient(canvas: HTMLCanvasElement): Promise<voi
       },
       onQuickSkill: () => core.useSkill(getQuickCastSkillId()),
       onMap: () => {
-        console.log("Map toggled");
+        toggleMinimapVisibility();
       },
       onChat: () => {
-        console.log("Chat toggled");
+        focusChatInput();
       },
     },
     (_delta: number) => {},

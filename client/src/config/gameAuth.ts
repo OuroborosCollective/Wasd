@@ -1,37 +1,32 @@
-/**
- * Firebase (Google/email) for the **game** WebSocket login is optional.
- * Default: off — set `VITE_DISABLE_FIREBASE_AUTH=0` to show login UI and send JWT again.
- */
 export type GameAuthProvider = "supabase" | "firebase" | "none";
 
-function trimEnv(key: string): string {
-  const v = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.[key];
-  return typeof v === "string" ? v.trim() : "";
+function trim(value: string | undefined): string {
+  return typeof value === "string" ? value.trim() : "";
 }
 
-export function resolveGameAuthProvider(): GameAuthProvider {
-  const explicit = trimEnv("VITE_AUTH_PROVIDER").toLowerCase();
+export function resolveGameAuthProviderFromEnv(
+  env: Record<string, string | undefined>
+): GameAuthProvider {
+  const explicit = trim(env.VITE_AUTH_PROVIDER).toLowerCase();
   if (explicit === "supabase" || explicit === "firebase" || explicit === "none") {
     return explicit;
   }
 
   const hasSupabase = Boolean(
-    (trimEnv("VITE_SUPABASE_URL") || trimEnv("VITE_SUPABASE_PUBLIC_URL")) && trimEnv("VITE_SUPABASE_ANON_KEY")
+    (trim(env.VITE_SUPABASE_URL) || trim(env.VITE_SUPABASE_PUBLIC_URL)) && trim(env.VITE_SUPABASE_ANON_KEY)
   );
   if (hasSupabase) {
     return "supabase";
   }
-  return isFirebaseGameAuthDisabled() ? "none" : "firebase";
+
+  const hasFirebase =
+    Boolean(trim(env.VITE_FIREBASE_API_KEY)) &&
+    Boolean(trim(env.VITE_FIREBASE_AUTH_DOMAIN) || trim(env.VITE_FIREBASE_PROJECT_ID));
+
+  return hasFirebase ? "firebase" : "none";
 }
 
-export function isFirebaseGameAuthDisabled(): boolean {
-  const v = trimEnv("VITE_DISABLE_FIREBASE_AUTH");
-  if (v === undefined || v === "") {
-    return true;
-  }
-  const t = String(v).toLowerCase();
-  if (t === "0" || t === "false" || t === "no") {
-    return false;
-  }
-  return t === "1" || t === "true" || t === "yes" || t === "on";
+export function resolveGameAuthProvider(): GameAuthProvider {
+  const env = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env ?? {};
+  return resolveGameAuthProviderFromEnv(env);
 }
