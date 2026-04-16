@@ -100,6 +100,18 @@ export function mapSupabaseAuthError(error: unknown): string {
   }
 
   const m = message.toLowerCase();
+  if (m.includes("failed to fetch")) {
+    return "Network problem while contacting Supabase. Please check your connection and server URL.";
+  }
+  if (m.includes("fetch")) {
+    return "Could not reach authentication server. Please try again in a moment.";
+  }
+  if (m.includes("unauthorized redirect uri") || m.includes("redirect url")) {
+    return "Google login redirect is not allowed yet. Add this URL in Supabase Auth redirect settings.";
+  }
+  if (m.includes("provider is not enabled") || m.includes("unsupported provider")) {
+    return "Google login is not enabled in Supabase Auth providers.";
+  }
   if (m.includes("invalid login credentials")) {
     return "Email or password is incorrect.";
   }

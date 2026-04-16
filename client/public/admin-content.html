@@ -846,13 +846,17 @@
     function headers() {
       const t = document.getElementById("token").value.trim();
       if (!t) throw new Error("Bitte zuerst den Code eingeben.");
-      return { Authorization: "Bearer " + t, "Content-Type": "application/json" };
+      return {
+        Authorization: "Bearer " + t,
+        "X-Admin-Token": t,
+        "Content-Type": "application/json",
+      };
     }
 
     function authHeadersOnly() {
       const t = document.getElementById("token").value.trim();
       if (!t) throw new Error("Bitte zuerst den Code eingeben.");
-      return { Authorization: "Bearer " + t };
+      return { Authorization: "Bearer " + t, "X-Admin-Token": t };
     }
 
     async function req(method, path, body) {

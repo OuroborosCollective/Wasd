@@ -291,6 +291,7 @@ export class WorldTick {
     customDialogues: {},
   };
   private areMode: AREMode = "off";
+  private readonly socketAREModeOverride = new Map<string, AREMode>();
   private eventTemplates: GMTemplateDefinition[] = Object.values(GM_EVENT_TEMPLATES);
   private pendingTemplateSteps: ScheduledGMTemplateStep[] = [];
   private readonly USE_ITEM_TOASTS: Record<string, string> = {

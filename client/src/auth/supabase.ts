@@ -21,6 +21,15 @@ export const supabase =
       })
     : null;
 
+export function getSupabaseRedirectUrl(pathname = "/"): string {
+  if (typeof window === "undefined") {
+    return pathname;
+  }
+  const fromEnv = trimEnv("VITE_SUPABASE_SITE_URL");
+  const base = fromEnv || window.location.origin;
+  return `${base.replace(/\/+$/, "")}${pathname.startsWith("/") ? pathname : `/${pathname}`}`;
+}
+
 export function isSupabaseClientConfigured(): boolean {
   return Boolean(supabase);
 }

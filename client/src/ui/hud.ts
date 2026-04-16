@@ -361,10 +361,10 @@ export function renderHUD() {
       loginBtn.onclick = async () => {
         clearAuthMessages();
         try {
-          const redirectTo = window.location.origin + window.location.pathname;
+          const redirectTo = window.location.origin + "/";
           const { error } = await supabase.auth.signInWithOAuth({
             provider: "google",
-            options: { redirectTo },
+            options: { redirectTo, skipBrowserRedirect: false },
           });
           if (error) {
             throw error;
@@ -418,7 +418,7 @@ export function renderHUD() {
           return;
         }
         try {
-          const redirectTo = window.location.origin + window.location.pathname;
+          const redirectTo = window.location.origin + "/";
           const { data, error } = await supabase.auth.signUp({
             email,
             password,
@@ -444,7 +444,7 @@ export function renderHUD() {
           return;
         }
         try {
-          const redirectTo = window.location.origin + window.location.pathname;
+          const redirectTo = window.location.origin + "/";
           const { error } = await supabase.auth.resend({
             type: "signup",
             email: addr,
@@ -470,7 +470,7 @@ export function renderHUD() {
           return;
         }
         try {
-          const redirectTo = window.location.origin + window.location.pathname;
+          const redirectTo = window.location.origin + "/";
           const { error } = await supabase.auth.resetPasswordForEmail(addr, { redirectTo });
           if (error) throw error;
           setAuthInfo("Password reset email sent.");

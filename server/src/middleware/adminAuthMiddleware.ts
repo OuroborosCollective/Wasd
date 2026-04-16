@@ -25,13 +25,19 @@ function parseUidAllowlist(): Set<string> {
  */
 export async function adminAuthMiddleware(req: AdminRequest, res: Response, next: NextFunction) {
   const panel = process.env.ADMIN_PANEL_TOKEN?.trim();
+  const legacyPanel = process.env.GM_PANEL_TOKEN?.trim();
+  const acceptedPanelTokens = [panel, legacyPanel].filter(
+    (v): v is string => Boolean(v && v.trim().length > 0)
+  );
   const authHeader = req.headers.authorization;
   const bearer =
     authHeader && authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
   const headerToken = (req.headers["x-admin-token"] as string | undefined)?.trim() || "";
+  const hasPanelCandidate =
+    acceptedPanelTokens.includes(bearer) || acceptedPanelTokens.includes(headerToken);
 
-  if (panel) {
-    if (bearer === panel || headerToken === panel) {
+  if (acceptedPanelTokens.length > 0) {
+    if (hasPanelCandidate) {
       req.adminAuth = { mode: "token" };
       return next();
     }
@@ -44,13 +50,13 @@ export async function adminAuthMiddleware(req: AdminRequest, res: Response, next
     return res.status(401).json({ error: "Missing Authorization: Bearer <token>" });
   }
 
-  if (panel && bearer !== panel && !headerToken) {
+  if (acceptedPanelTokens.length > 0 && !hasPanelCandidate && !headerToken) {
     const jwtLike = bearer.split(".").length >= 3 && bearer.length > 80;
     if (jwtLike) {
       return res.status(401).json({
         error: "Use admin panel token, not Google JWT",
         errorDe:
-          "Im Feld „Code“ steht vermutlich ein Google-/Firebase-Login-Token. Dort gehört der lange **ADMIN_PANEL_TOKEN** aus der Server-.env — nicht das Spiel-Login. Oder nutze den Header **X-Admin-Token** mit dem Panel-Token.",
+          "Im Feld „Code“ steht vermutlich ein Google-/Firebase-Login-Token. Dort gehört der lange **ADMIN_PANEL_TOKEN** (oder kompatibel **GM_PANEL_TOKEN**) aus der Server-.env — nicht das Spiel-Login. Oder nutze den Header **X-Admin-Token** mit dem Panel-Token.",
       });
     }
   }
@@ -95,8 +101,8 @@ export async function adminAuthMiddleware(req: AdminRequest, res: Response, next
     }
     return res.status(401).json({ error: "Invalid token" });
   } catch {
-    const errorDe = panel
-      ? "Token vom Admin-Formular abgelehnt. Nutze den langen ADMIN_PANEL_TOKEN aus der Server-Umgebung (nicht das Spiel-Login), oder setze eine gueltige Supabase/Firebase Konfiguration."
+    const errorDe = acceptedPanelTokens.length > 0
+      ? "Token vom Admin-Formular abgelehnt. Nutze den langen ADMIN_PANEL_TOKEN (oder GM_PANEL_TOKEN) aus der Server-Umgebung (nicht das Spiel-Login), oder setze eine gueltige Supabase/Firebase Konfiguration."
       : undefined;
     return res.status(401).json({
       error: "Invalid token",
