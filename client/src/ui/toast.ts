@@ -13,6 +13,7 @@ export function showToast(text: string, ms = 4500) {
     "border:1px solid rgba(242,125,38,0.5)",
     "border-radius:10px",
     "font:13px/1.4 system-ui,sans-serif",
+    "white-space:pre-line",
     "z-index:10050",
     "box-shadow:0 8px 24px rgba(0,0,0,0.45)",
     "pointer-events:none",

@@ -8,6 +8,7 @@ import { sendPickupLoot, sendSetCombatTarget } from "../networking/websocketClie
 import { getCombatTargetNpcId, subscribePlayerState } from "../state/playerState";
 import { getQuestlineSnapshot, subscribeQuestlineState } from "../state/questlineState";
 import { showToast } from "./toast";
+import { showRandomWorldFragmentToast } from "./worldFragmentToast";
 
 export function mountGameHudOverlay(core: MMORPGClientCore) {
   let rootEl = document.getElementById("game-hud-react-root");
@@ -39,10 +40,21 @@ export function mountGameHudOverlay(core: MMORPGClientCore) {
     const [connected, setConnected] = useState(false);
     const [targetId, setTargetId] = useState<string | undefined>();
     const [, setQuestlineTick] = useState(0);
+    const loreToastPendingRef = useRef(false);
 
     useEffect(() => {
       return subscribeQuestlineState(() => setQuestlineTick((n) => n + 1));
     }, []);
+
+    useEffect(() => {
+      if (!connected) {
+        loreToastPendingRef.current = false;
+        return;
+      }
+      if (loreToastPendingRef.current) return;
+      loreToastPendingRef.current = true;
+      void showRandomWorldFragmentToast(showToast);
+    }, [connected]);
 
     useEffect(() => {
       registerGameHudWsBridge({
