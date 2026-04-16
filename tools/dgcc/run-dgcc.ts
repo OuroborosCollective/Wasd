@@ -2,6 +2,7 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 type Severity = "info" | "warn" | "error";
 type CheckName =
@@ -26,7 +27,24 @@ type DgccReport = {
   artifacts: Record<string, string>;
 };
 
-const ROOT = process.cwd();
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT_FALLBACK = path.resolve(SCRIPT_DIR, "../..");
+
+function findWorkspaceRoot(): string {
+  let dir = process.cwd();
+  for (let i = 0; i < 12; i++) {
+    const candidate = path.join(dir, "tools/dgcc/dgcc.contract.json");
+    if (fs.existsSync(candidate)) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  const fallbackContract = path.join(REPO_ROOT_FALLBACK, "tools/dgcc/dgcc.contract.json");
+  if (fs.existsSync(fallbackContract)) return REPO_ROOT_FALLBACK;
+  return process.cwd();
+}
+
+const ROOT = findWorkspaceRoot();
 const CONTRACT_PATH = path.join(ROOT, "tools/dgcc/dgcc.contract.json");
 
 function readJson<T>(p: string): T {
@@ -44,6 +62,7 @@ function nowIso() {
 function run(cmd: string, args: string[], opts?: { env?: Record<string, string> }) {
   return new Promise<{ code: number; stdout: string; stderr: string; durationMs: number }>((resolve) => {
     const t0 = Date.now();
+    // On POSIX, shell: true breaks stdout/stderr capture for pnpm (output goes to the TTY).
     const child = spawn(cmd, args, {
       cwd: ROOT,
       shell: process.platform === "win32",
@@ -135,6 +154,11 @@ async function uiA11ySmoke(report: DgccReport) {
 }
 
 async function main() {
+  if (!fs.existsSync(CONTRACT_PATH)) {
+    console.error(`[DGCC] missing contract at ${CONTRACT_PATH} (cwd=${process.cwd()} resolvedRoot=${ROOT})`);
+    process.exit(3);
+  }
+
   const mode = parseMode();
   const contract = readJson<any>(CONTRACT_PATH);
   const fix = wantFixes(contract, mode);
@@ -198,7 +222,7 @@ async function main() {
 
   if (checks.includes("contentValidate")) {
     await runCheck("contentValidate", async () => {
-      const r = await run("pnpm", ["--prefix", "server", "run", "validate"]);
+      const r = await run("pnpm", ["-C", "server", "run", "validate"]);
       fs.writeFileSync(path.join(outDir, "content-validate.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["contentValidate"] = "dgcc-artifacts/content-validate.out.txt";
       if (r.code !== 0) throw new Error("content validation failed (server validate)");
@@ -207,7 +231,7 @@ async function main() {
 
   if (checks.includes("clientBuild")) {
     await runCheck("clientBuild", async () => {
-      const r = await run("pnpm", ["--prefix", "client", "run", "build"], {
+      const r = await run("pnpm", ["-C", "client", "run", "build"], {
         env: {
           NODE_OPTIONS: process.env.NODE_OPTIONS || "--max-old-space-size=6144",
         },
@@ -220,7 +244,7 @@ async function main() {
 
   if (checks.includes("serverBuild")) {
     await runCheck("serverBuild", async () => {
-      const r = await run("pnpm", ["--prefix", "server", "run", "build"]);
+      const r = await run("pnpm", ["-C", "server", "run", "build"]);
       fs.writeFileSync(path.join(outDir, "server-build.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["serverBuild"] = "dgcc-artifacts/server-build.out.txt";
       if (r.code !== 0) throw new Error("server build failed");
