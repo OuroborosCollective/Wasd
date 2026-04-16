@@ -182,10 +182,14 @@
     button.danger { background: linear-gradient(180deg, #7a3535, #5a2525); border-color: #844; }
     button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 
-    .msg { font-size: 13px; padding: 11px 12px; border-radius: 10px; margin-top: 10px; display: flex; align-items: flex-start; gap: 10px; animation: fadeSlide 0.3s ease-out; }
+    .msg {
+      --msg-anim: fadeSlide 0.3s ease-out;
+      font-size: 13px; padding: 11px 12px; border-radius: 10px; margin-top: 10px; display: flex; align-items: flex-start; gap: 10px;
+      animation: var(--msg-anim);
+    }
     .msg .mi { flex-shrink: 0; margin-top: 1px; }
     .msg.ok { background: var(--ok-bg); border: 1px solid rgba(62, 207, 122, 0.35); color: #a8f0c4; }
-    .msg.err { background: var(--err-bg); border: 1px solid rgba(255, 100, 100, 0.35); animation: fadeSlide 0.3s ease-out, shake 0.35s ease; }
+    .msg.err { --msg-anim: fadeSlide 0.3s ease-out, shake 0.35s ease; background: var(--err-bg); border: 1px solid rgba(255, 100, 100, 0.35); }
     .msg.wait { background: #1e2230; border: 1px solid var(--border); color: #c5c5e8; }
 
     table { width: 100%; font-size: 12px; border-collapse: collapse; margin-top: 10px; }
@@ -798,7 +802,9 @@
 
     function setFlow(step) {
       document.querySelectorAll("#flowSteps .step").forEach(function (el) {
-        const n = parseInt(el.getAttribute("data-step"), 10);
+        const raw = el.getAttribute("data-step");
+        const n = raw !== null ? parseInt(raw, 10) : -1;
+        if (isNaN(n)) return;
         el.classList.remove("done", "active");
         if (n < step) el.classList.add("done");
         if (n === step) el.classList.add("active");
@@ -816,15 +822,18 @@
         '<div class="viz-box"><strong>' + escapeHtml(rightLabel) + '</strong><div class="v">' + escapeHtml(rightVal) + "</div></div>";
     }
     function hideViz() {
-      document.getElementById("vizWrap").classList.add("hidden");
-      document.getElementById("vizWrap").innerHTML = "";
+      const w = document.getElementById("vizWrap");
+      w.classList.add("hidden");
+      requestAnimationFrame(function () {
+        w.innerHTML = "";
+      });
     }
 
     function showLastResult(title, bullets, nextHint, viz) {
       const wrap = document.getElementById("cardLastResult");
       const box = document.getElementById("lastResultInner");
-      wrap.classList.remove("hidden");
       wrap.classList.remove("reveal-in");
+      wrap.classList.remove("hidden");
       void wrap.offsetWidth;
       wrap.classList.add("reveal-in");
       if (viz) {
