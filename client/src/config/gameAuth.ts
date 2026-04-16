@@ -1,6 +1,7 @@
 /**
- * Firebase (Google/email) for the **game** WebSocket login is optional.
- * Default: off — set `VITE_DISABLE_FIREBASE_AUTH=0` to show login UI and send JWT again.
+ * Resolves which external identity provider drives **game** WebSocket login (JWT on the wire).
+ * Set `VITE_AUTH_PROVIDER` to `supabase` | `firebase` | `none`. When unset, Supabase is used if
+ * URL and anon key are present; otherwise Firebase (including `firebase-applet-config.json` fallback).
  */
 export type GameAuthProvider = "supabase" | "firebase" | "none";
 
@@ -21,17 +22,5 @@ export function resolveGameAuthProvider(): GameAuthProvider {
   if (hasSupabase) {
     return "supabase";
   }
-  return isFirebaseGameAuthDisabled() ? "none" : "firebase";
-}
-
-export function isFirebaseGameAuthDisabled(): boolean {
-  const v = trimEnv("VITE_DISABLE_FIREBASE_AUTH");
-  if (v === undefined || v === "") {
-    return true;
-  }
-  const t = String(v).toLowerCase();
-  if (t === "0" || t === "false" || t === "no") {
-    return false;
-  }
-  return t === "1" || t === "true" || t === "yes" || t === "on";
+  return "firebase";
 }
