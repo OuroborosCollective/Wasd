@@ -13,7 +13,7 @@ import { questlineRouter } from "../api/questlineRoute.js";
 import { loreRouter } from "../api/loreRoute.js";
 import { getContentDataSourceLabel } from "../modules/content/contentDataRoot.js";
 import { getFirebaseAdminSummary } from "../config/firebase.js";
-import { getSupabaseSummary } from "../config/supabase.js";
+import { getSupabaseSummary, verifySupabaseToken } from "../config/supabase.js";
 import { resolveWorldAssetsDir } from "./resolveWorldAssetsDir.js";
 import { resolveMirroredWorldAssetsDir } from "./resolveMirroredWorldAssetsDir.js";
 import {
@@ -127,19 +127,6 @@ export function resolveSupabaseProxyBaseUrl(): string | null {
   return normalizeSupabaseBaseUrl(configured);
 }
 
-function decodeJwtSegment(segment: string): Record<string, unknown> | null {
-  try {
-    const normalized = segment.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
-    const json = Buffer.from(padded, "base64").toString("utf8");
-    const parsed = JSON.parse(json) as unknown;
-    if (!parsed || typeof parsed !== "object") return null;
-    return parsed as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-}
-
 function supabaseOriginFromRef(ref: string): string | null {
   const clean = ref.trim().toLowerCase();
   if (!/^[a-z0-9]{8,32}$/.test(clean)) return null;
@@ -149,10 +136,13 @@ function supabaseOriginFromRef(ref: string): string | null {
 function inferSupabaseProxyBaseFromApiKey(rawApiKey: string): string | null {
   const apiKey = rawApiKey.trim();
   if (!apiKey) return null;
-  const segments = apiKey.split(".");
-  if (segments.length < 2) return null;
-  const payload = decodeJwtSegment(segments[1]);
-  if (!payload) return null;
+  /** Never trust JWT payload for upstream URL without verifying (forged iss → SSRF). */
+  let payload: Record<string, unknown>;
+  try {
+    payload = verifySupabaseToken(apiKey) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
 
   const refValue = payload.ref;
   if (typeof refValue === "string") {
