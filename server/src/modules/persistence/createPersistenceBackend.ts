@@ -9,6 +9,9 @@ import { isDatabaseConfigured } from "../../core/Database.js";
 
 export function createPersistenceBackend(): IPersistenceBackend {
   const driver = resolvePersistenceDriver();
+  if (driver === "postgres") {
+    return new PostgresPersistenceBackend();
+  }
   if (driver === "spacetime") {
     return new SpacetimePersistenceBackend();
   }
@@ -17,9 +20,6 @@ export function createPersistenceBackend(): IPersistenceBackend {
   }
   if (driver === "firestore") {
     return new FirestorePersistenceBackend();
-  }
-  if (driver === "postgres") {
-    return new PostgresPersistenceBackend();
   }
   /** auto */
   return pickAutoBackend();

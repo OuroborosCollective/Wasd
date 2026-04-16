@@ -583,6 +583,44 @@ export class WorldTick {
     return this.playerSystem.getAllPlayers().find((p: any) => p.name === playerNameOrId) || null;
   }
 
+  private resolvePlayerRespawnPoint(player: any): { x: number; z: number; label?: string } {
+    const profiles = this.sceneProfiles;
+    const sceneId = player.sceneId ?? player.currentZone ?? "didis_hub";
+    const profile = profiles?.[sceneId];
+    const defaultSp = profile?.spawnPoints?.["sp_player_default"];
+    if (defaultSp) return { x: defaultSp.x, z: defaultSp.z ?? defaultSp.y ?? 0, label: sceneId };
+    return { x: 0, z: 0, label: "Hub" };
+  }
+
+  private async broadcastPartySyncForParty(partyId: string): Promise<void> {
+    const { getPartyById } = await import("../modules/party/partySystem.js");
+    const party = getPartyById(partyId);
+    if (!party) return;
+
+    const membersPayload = [...party.members].map((mid) => {
+      const p = this.playerSystem.getPlayer(mid);
+      return {
+        id: mid,
+        name: p?.name ?? mid,
+        health: p?.health ?? 0,
+        maxHealth: p?.maxHealth ?? 100,
+        level: p?.level ?? 1,
+        isLeader: mid === party.leaderId,
+      };
+    });
+
+    for (const mid of party.members) {
+      const sock = this.getSocketForPlayer(mid);
+      if (sock) {
+        this.ws.sendToPlayer(sock, {
+          type: "party_sync",
+          partyId: party.id,
+          members: membersPayload,
+        });
+      }
+    }
+  }
+
   private sendGMStatus(socketId: string, level: "info" | "error", message: string, extra: Record<string, any> = {}) {
     this.ws.sendToPlayer(socketId, { type: "gm_status", level, message, ...extra });
   }
@@ -1331,7 +1369,8 @@ export class WorldTick {
     }
     if (t === "gm_revive") {
       target.health = target.maxHealth || 100;
-      target.isDead = false;
+      target.dead = false;
+      target.deathAt = 0;
       this.sendGMStatus(socketId, "info", `${target.name} revived`);
       return true;
     }
@@ -1709,6 +1748,82 @@ export class WorldTick {
           player.kills = Math.max(0, Number(player.kills) || 0) + 1;
           this.pushPlayerStateSync(id, player);
         }
+        return;
+      }
+
+      if (msg.type === "respawn") {
+        if (!player.dead) return;
+        const now = Date.now();
+        const respawnAt = (typeof player.deathAt === "number" ? player.deathAt : 0) + GameConfig.playerRespawnDelayMs;
+        if (now < respawnAt) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Respawn not yet available." });
+          return;
+        }
+        const spawnPoint = this.resolvePlayerRespawnPoint(player);
+        player.dead = false;
+        player.health = Math.floor((player.maxHealth ?? 100) * 0.3);
+        player.mana = Math.floor((player.maxMana ?? 25) * 0.3);
+        player.position.x = spawnPoint.x;
+        player.position.y = spawnPoint.z;
+        player.deathAt = 0;
+        this.ws.sendToPlayer(id, {
+          type: "player_respawned",
+          x: spawnPoint.x,
+          z: spawnPoint.z,
+          health: player.health,
+          mana: player.mana,
+          label: spawnPoint.label ?? "Hub",
+        });
+        this.pushPlayerStateSync(id, player);
+        return;
+      }
+
+      if (msg.type === "party_create") {
+        const { createParty, getPartyForPlayer } = await import("../modules/party/partySystem.js");
+        const party = createParty(player.id);
+        this.broadcastPartySyncForParty(party.id);
+        this.ws.sendToPlayer(id, { type: "toast", text: "Party created!" });
+        return;
+      }
+
+      if (msg.type === "party_invite") {
+        const targetName = typeof msg.targetName === "string" ? msg.targetName.trim() : "";
+        if (!targetName) return;
+        const { inviteToParty, getPartyForPlayer } = await import("../modules/party/partySystem.js");
+        const target = this.playerSystem.getAllPlayers().find((p) => p.name === targetName && !p.isOffline);
+        if (!target) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Player not found." });
+          return;
+        }
+        const result = inviteToParty(player.id, target.id);
+        if (!result.ok) {
+          const reasons: Record<string, string> = {
+            not_in_party: "Create a party first.",
+            not_leader: "Only the leader can invite.",
+            party_full: "Party is full (max 4).",
+            target_in_party: "Player is already in a party.",
+          };
+          this.ws.sendToPlayer(id, { type: "toast", text: reasons[result.reason ?? ""] ?? "Cannot invite." });
+          return;
+        }
+        const party = getPartyForPlayer(player.id);
+        if (party) this.broadcastPartySyncForParty(party.id);
+        const targetSocket = this.getSocketForPlayer(target.id);
+        if (targetSocket) {
+          this.ws.sendToPlayer(targetSocket, { type: "toast", text: `You joined ${player.name}'s party!` });
+        }
+        this.ws.sendToPlayer(id, { type: "toast", text: `${target.name} joined the party!` });
+        return;
+      }
+
+      if (msg.type === "party_leave") {
+        const { leaveParty, getPartyForPlayer } = await import("../modules/party/partySystem.js");
+        const oldParty = getPartyForPlayer(player.id);
+        const oldPartyId = oldParty?.id;
+        leaveParty(player.id);
+        this.ws.sendToPlayer(id, { type: "party_sync", partyId: null, members: [] });
+        this.ws.sendToPlayer(id, { type: "toast", text: "You left the party." });
+        if (oldPartyId) this.broadcastPartySyncForParty(oldPartyId);
         return;
       }
 

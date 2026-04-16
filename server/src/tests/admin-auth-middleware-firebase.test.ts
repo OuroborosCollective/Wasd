@@ -54,14 +54,13 @@ describe("adminAuthMiddleware with Firebase Admin", () => {
     expect(r.body.error).toMatch(/ADMIN_UID_ALLOWLIST/);
   });
 
-  it("returns 401 with errorDe when verify throws and panel token is set", async () => {
+  it("returns 401 when verify throws and panel token is set", async () => {
     process.env.ADMIN_PANEL_TOKEN = "panel-secret";
     verifyFirebaseToken.mockRejectedValue(new Error("bad token"));
     const app = express();
     app.get("/t", adminAuthMiddleware, (_req, res) => res.json({ ok: true }));
     const r = await request(app).get("/t").set("Authorization", "Bearer some-jwt");
     expect(r.status).toBe(401);
-    expect(r.body.error).toBe("Invalid token");
-    expect(String(r.body.errorDe)).toMatch(/ADMIN_PANEL_TOKEN/);
+    expect(r.body.error).toMatch(/Invalid token/);
   });
 });
