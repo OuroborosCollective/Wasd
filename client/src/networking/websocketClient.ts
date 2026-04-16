@@ -1,5 +1,8 @@
 import { MMORPGClientCore } from "../core/MMORPGClientCore";
 import { wantsMobileNetworkHints } from "../ui/touchUi";
+import { applyStatsPayload } from "../state/playerState";
+import { onChatMessage } from "../ui/chat";
+import { setMinimapLocalPlayer, updateMinimapEntities } from "../ui/minimap";
 
 let globalWs: WebSocket | null = null;
 const DEFAULT_SCENE_ID = "didis_hub";
@@ -384,6 +387,7 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
             are: normalizeAREPayload(entity.are),
           }));
           core.syncEntities(normalizedEntities);
+          updateMinimapEntities(normalizedEntities);
         }
         if (data.chunks) core.syncChunks(data.chunks);
       }
@@ -416,6 +420,10 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
           }
         }
         core.setLocalPlayer(localPlayerId);
+        setMinimapLocalPlayer(typeof localPlayerId === "string" ? localPlayerId : null);
+        if (data.stats && typeof data.stats === "object") {
+          applyStatsPayload(data.stats);
+        }
         const spawnPos = toEntityPosition(data.spawnPosition);
         if (spawnPos && localPlayerId) {
           core.syncEntities([
@@ -435,6 +443,29 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
             spawnPosition: data.spawnPosition,
           });
         }
+      }
+      if (data.type === "stats_sync") {
+        applyStatsPayload(data);
+      }
+      if (data.type === "chat_message") {
+        const payload = data.payload && typeof data.payload === "object" ? data.payload : data;
+        onChatMessage({
+          senderName:
+            typeof payload.senderName === "string"
+              ? payload.senderName
+              : typeof payload.sender === "string"
+                ? payload.sender
+                : "Unknown",
+          text: typeof payload.text === "string" ? payload.text : "",
+          scope:
+            typeof payload.scope === "string"
+              ? payload.scope
+              : typeof payload.channel === "string"
+                ? payload.channel
+                : "global",
+          ts: Number(payload.ts),
+          timestamp: Number(payload.timestamp),
+        });
       }
       if (data.type === 'scene_changed') {
         const localPlayerId = core.getLocalPlayerId();
@@ -509,7 +540,7 @@ export function requestQuestSync() {
 
 export function sendChatMessage(text: string) {
   if (globalWs && globalWs.readyState === WebSocket.OPEN) {
-    globalWs.send(JSON.stringify({ type: 'chat_message', text }));
+    globalWs.send(JSON.stringify({ type: "chat_send", scope: "global", text }));
   }
 }
 

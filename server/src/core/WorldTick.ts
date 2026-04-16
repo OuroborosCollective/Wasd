@@ -20,6 +20,7 @@ import fs from "fs";
 import path from "path";
 import { resolveLoginIdentity } from "../modules/auth/resolveLoginIdentity.js";
 import { getSkillDefinition, buildSkillCooldownUntilPayload } from "../modules/skill/skillDefinitions.js";
+import { initChatSystem, onChatMessage, sendChat, type ChatMessage, type ChatScope } from "../modules/chat/chatSystem.js";
 
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { GameConfig } from "../config/GameConfig.js";
@@ -294,6 +295,7 @@ export class WorldTick {
   private readonly socketAREModeOverride = new Map<string, AREMode>();
   private eventTemplates: GMTemplateDefinition[] = Object.values(GM_EVENT_TEMPLATES);
   private pendingTemplateSteps: ScheduledGMTemplateStep[] = [];
+  private chatUnsubscribe: (() => void) | null = null;
   private readonly USE_ITEM_TOASTS: Record<string, string> = {
     minor_mana_draught: "You drink Minor Mana Draught (+mana).",
     health_potion: "You drink Health Potion (+hp).",
@@ -366,6 +368,8 @@ export class WorldTick {
       type: "stats_sync",
       gold: player.gold,
       xp: player.xp,
+      kills: Number(player.kills) || 0,
+      deaths: Number(player.deaths) || 0,
       level: player.level ?? 1,
       health: player.health,
       maxHealth: player.maxHealth ?? 100,
@@ -575,6 +579,59 @@ export class WorldTick {
 
   private sendGMStatus(socketId: string, level: "info" | "error", message: string, extra: Record<string, any> = {}) {
     this.ws.sendToPlayer(socketId, { type: "gm_status", level, message, ...extra });
+  }
+
+  private resolveChatScope(value: unknown): ChatScope {
+    if (!isNonEmptyString(value)) return "global";
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "zone") return "zone";
+    if (normalized === "party") return "party";
+    return "global";
+  }
+
+  private resolvePlayerZoneId(player: any): string | undefined {
+    return isNonEmptyString(player?.sceneId) ? player.sceneId.trim() : undefined;
+  }
+
+  private resolvePlayerPartyId(player: any): string | undefined {
+    return isNonEmptyString(player?.partyId) ? player.partyId.trim() : undefined;
+  }
+
+  private broadcastChatMessage(msg: ChatMessage): void {
+    const payload = {
+      type: "chat_message",
+      payload: msg,
+      scope: msg.scope,
+      channel: msg.scope,
+      sender: msg.senderName,
+      senderId: msg.senderId,
+      senderName: msg.senderName,
+      text: msg.text,
+      zoneId: msg.zoneId,
+      partyId: msg.partyId,
+      ts: msg.ts,
+      timestamp: msg.ts,
+    };
+
+    if (msg.scope === "global") {
+      this.ws.broadcast(payload);
+      return;
+    }
+
+    for (const player of this.playerSystem.getAllPlayers()) {
+      const socketId = this.playerToSocket.get(player.id);
+      if (!socketId) continue;
+
+      if (msg.scope === "zone") {
+        const zoneId = this.resolvePlayerZoneId(player);
+        if (!zoneId || zoneId !== msg.zoneId) continue;
+      } else if (msg.scope === "party") {
+        const partyId = this.resolvePlayerPartyId(player);
+        if (!partyId || partyId !== msg.partyId) continue;
+      }
+
+      this.ws.sendToPlayer(socketId, payload);
+    }
   }
 
   private sendGMPreviewSnapshot(socketId: string) {
@@ -1319,6 +1376,10 @@ export class WorldTick {
     this.areModeAuditTrail = new AREModeAuditTrail();
     this.areStateCompiler = new AREStateCompiler();
     this.areMode = this.runtimeSettings.getAREMode();
+    void initChatSystem();
+    this.chatUnsubscribe = onChatMessage((chatMessage) => {
+      this.broadcastChatMessage(chatMessage);
+    });
 
     // Create a dummy player in a distant chunk to prove multi-observer union
     const dummyPlayer = this.playerSystem.createPlayer("dummy_player", "Dummy Player");
@@ -1409,6 +1470,8 @@ export class WorldTick {
             stats: {
               gold: player.gold,
               xp: player.xp,
+              kills: Number(player.kills) || 0,
+              deaths: Number(player.deaths) || 0,
               level: player.level ?? 1,
               health: player.health,
               maxHealth: player.maxHealth ?? 100,
@@ -1466,7 +1529,8 @@ export class WorldTick {
         return;
       }
 
-      if (msg.type === "chat" && this.worldState.mutedPlayers.includes(player.id)) {
+      const isChatSend = msg.type === "chat_send" || msg.type === "chat" || msg.type === "chat_message";
+      if (isChatSend && this.worldState.mutedPlayers.includes(player.id)) {
         this.sendGMStatus(id, "error", "You are muted.");
         return;
       }
@@ -1476,6 +1540,32 @@ export class WorldTick {
       }
 
       if (await this.handleGMCommand(id, player, msg)) {
+        return;
+      }
+
+      if (isChatSend) {
+        const text = typeof msg.text === "string" ? msg.text : "";
+        if (!text.trim()) {
+          return;
+        }
+        const requestedScope = this.resolveChatScope(msg.scope ?? msg.channel);
+        const zoneId = this.resolvePlayerZoneId(player);
+        const partyId = this.resolvePlayerPartyId(player);
+        const effectiveScope: ChatScope =
+          requestedScope === "zone" && !zoneId
+            ? "global"
+            : requestedScope === "party" && !partyId
+              ? "global"
+              : requestedScope;
+        await sendChat({
+          scope: effectiveScope,
+          senderId: String(player.id),
+          senderName: isNonEmptyString(player.name) ? player.name : String(player.id),
+          text,
+          zoneId,
+          partyId,
+          ts: Date.now(),
+        });
         return;
       }
 
@@ -1603,6 +1693,8 @@ export class WorldTick {
         if (target.health <= 0) {
           target.health = 0;
           target.aggroTargetId = null;
+          player.kills = Math.max(0, Number(player.kills) || 0) + 1;
+          this.pushPlayerStateSync(id, player);
         }
         return;
       }

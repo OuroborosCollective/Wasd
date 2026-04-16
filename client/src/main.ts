@@ -1,7 +1,7 @@
 import { createBabylonApp } from "./engine/babylon/BabylonBoot";
 import { BabylonAdapter } from "./engine/babylon/BabylonAdapter";
 import { MMORPGClientCore } from "./core/MMORPGClientCore";
-import { connectSocket, requestSceneChange, type ConnectionOptions } from "./networking/websocketClient";
+import { connectSocket, requestSceneChange, sendCommand, type ConnectionOptions } from "./networking/websocketClient";
 import { IEngineBridge } from "./engine/bridge/IEngineBridge";
 import { renderHUD, showDialogue } from "./ui/hud";
 import { getJoystickState, initMobileControls, isMobile } from "./ui/mobileControls";
@@ -10,6 +10,8 @@ import { getQuickCastSkillId } from "./game/combatSkills";
 import { performanceMonitor } from "./utils/PerformanceMonitor";
 import { resolveGameAuthProvider } from "./config/gameAuth";
 import { installFirebaseAiWatchdog } from "./ai/firebaseAiWatchdog";
+import { initChat, focusChatInput } from "./ui/chat";
+import { initMinimap } from "./ui/minimap";
 
 type AREPolicyConfig = {
   cooldownMs?: number;
@@ -141,6 +143,8 @@ try {
     });
   (window as any).requestSceneChange = requestSceneChange;
   renderHUD();
+  initChat((type, payload) => sendCommand(type, payload));
+  initMinimap();
   // Legacy quick-teleport panel removed from gameplay HUD.
   initMobileControls(
     core,
@@ -164,7 +168,7 @@ try {
         console.log("Map toggled");
       },
       onChat: () => {
-        console.log("Chat toggled");
+        focusChatInput();
       },
     },
     (_delta: number) => {},
