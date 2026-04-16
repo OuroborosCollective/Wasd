@@ -20,6 +20,7 @@ import {
   selfHealingMiddleware,
 } from "../selfhealing/SelfHealingSystem.js";
 import { registerSelfHealingDashboard } from "../selfhealing/SelfHealingDashboard.js";
+import { URL } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -79,11 +80,45 @@ function envTruthy(key: string): boolean {
   return value === "1" || value === "true" || value === "yes";
 }
 
+function trimEnv(key: string): string {
+  const value = process.env[key];
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeSupabaseBaseUrl(raw: string): string | null {
+  try {
+    const parsed = new URL(raw.trim());
+    const cleanPath = parsed.pathname
+      .replace(/\/+$/, "")
+      .replace(/\/auth\/v1$/i, "")
+      .replace(/\/+$/, "");
+    return `${parsed.origin}${cleanPath}`;
+  } catch {
+    return null;
+  }
+}
+
+function resolveSupabaseProxyBaseUrl(): string | null {
+  const configured =
+    trimEnv("SUPABASE_URL") ||
+    trimEnv("SUPABASE_PUBLIC_URL") ||
+    trimEnv("VITE_SUPABASE_URL") ||
+    trimEnv("VITE_SUPABASE_PUBLIC_URL");
+  if (!configured) return null;
+  return normalizeSupabaseBaseUrl(configured);
+}
+
+function shouldProxyBody(method: string): boolean {
+  const upper = method.toUpperCase();
+  return upper !== "GET" && upper !== "HEAD";
+}
+
 export class ServerBootstrap {
   async start() {
     const app = express();
     const httpServer = createServer(app);
     const selfHealingRuntime = bootstrapSelfHealing(resolveSelfHealingConfigFromEnv());
+    const supabaseProxyBaseUrl = resolveSupabaseProxyBaseUrl();
 
     app.use("/api", migrationRoute);
     app.use("/api/mcp", mcpRoute());
@@ -93,6 +128,67 @@ export class ServerBootstrap {
         return res.status(200).send("OK");
       }
       next();
+    });
+
+    app.use("/auth/v1", async (req, res) => {
+      if (!supabaseProxyBaseUrl) {
+        return res.status(502).json({
+          error: "supabase_auth_proxy_not_configured",
+          message:
+            "SUPABASE_URL/SUPABASE_PUBLIC_URL is missing on the server. Configure one of them to enable /auth/v1 proxy.",
+        });
+      }
+
+      try {
+        const upstreamUrl = new URL(
+          req.originalUrl,
+          `${supabaseProxyBaseUrl.replace(/\/+$/, "")}/`
+        ).toString();
+        const headers = new Headers();
+        for (const [key, value] of Object.entries(req.headers)) {
+          if (!value) continue;
+          const lower = key.toLowerCase();
+          if (lower === "host" || lower === "content-length" || lower === "connection") continue;
+          if (Array.isArray(value)) {
+            headers.set(key, value.join(", "));
+          } else {
+            headers.set(key, value);
+          }
+        }
+        if (!headers.has("x-forwarded-host") && req.headers.host) {
+          headers.set("x-forwarded-host", String(req.headers.host));
+        }
+        if (!headers.has("x-forwarded-proto")) {
+          const proto = req.headers["x-forwarded-proto"];
+          headers.set("x-forwarded-proto", proto ? String(proto) : req.protocol);
+        }
+
+        const init: RequestInit & { duplex?: "half" } = {
+          method: req.method,
+          headers,
+          redirect: "manual",
+        };
+        if (shouldProxyBody(req.method)) {
+          init.body = req as unknown as BodyInit;
+          init.duplex = "half";
+        }
+
+        const upstreamResponse = await fetch(upstreamUrl, init);
+        res.status(upstreamResponse.status);
+        upstreamResponse.headers.forEach((value, key) => {
+          const lower = key.toLowerCase();
+          if (lower === "content-length" || lower === "content-encoding") return;
+          res.setHeader(key, value);
+        });
+        const body = Buffer.from(await upstreamResponse.arrayBuffer());
+        return res.send(body);
+      } catch (error) {
+        console.error("[ServerBootstrap] Supabase auth proxy failed:", error);
+        return res.status(502).json({
+          error: "supabase_auth_proxy_upstream_failed",
+          message: "Network problem while contacting Supabase. Please check your connection and server URL.",
+        });
+      }
     });
 
     const clientRoot = resolveClientRoot();
