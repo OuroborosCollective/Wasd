@@ -6,6 +6,7 @@ import { useGameHudState } from "./useGameHudState";
 import type { MMORPGClientCore } from "../core/MMORPGClientCore";
 import { sendPickupLoot, sendSetCombatTarget } from "../networking/websocketClient";
 import { getCombatTargetNpcId, subscribePlayerState } from "../state/playerState";
+import { getQuestlineSnapshot, subscribeQuestlineState } from "../state/questlineState";
 import { showToast } from "./toast";
 
 export function mountGameHudOverlay(core: MMORPGClientCore) {
@@ -34,6 +35,11 @@ export function mountGameHudOverlay(core: MMORPGClientCore) {
 
     const [connected, setConnected] = useState(false);
     const [targetId, setTargetId] = useState<string | undefined>();
+    const [, setQuestlineTick] = useState(0);
+
+    useEffect(() => {
+      return subscribeQuestlineState(() => setQuestlineTick((n) => n + 1));
+    }, []);
 
     useEffect(() => {
       registerGameHudWsBridge({
@@ -89,6 +95,12 @@ export function mountGameHudOverlay(core: MMORPGClientCore) {
       showToast("Housing: platziere Items über den Server-Befehl house_place (Demo).");
     }, []);
 
+    const ql = getQuestlineSnapshot();
+    const qlProgress =
+      ql && ql.featureSchedule.length > 0
+        ? `${ql.featureSchedule.filter((r) => r.satisfied).length}/${ql.featureSchedule.length} Features · Node ${ql.currentNode}`
+        : null;
+
     return (
       <Hud
         connected={connected}
@@ -104,6 +116,7 @@ export function mountGameHudOverlay(core: MMORPGClientCore) {
         onCraftOpen={onCraftOpen}
         onHousingOpen={onHousingOpen}
         fxFeed={fxFeed}
+        questlineProgress={qlProgress}
       />
     );
   }

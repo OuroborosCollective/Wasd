@@ -3,6 +3,7 @@ import { EntityViewModel } from "../engine/bridge/EntityViewModel";
 import { CoreEventBus } from "./CoreEventBus";
 import { EntityViewManager } from "./EntityViewManager";
 import { prefersCompactTouchUi } from "../ui/touchUi";
+import { getClosestInteractable } from "../utils/interaction";
 
 export class MMORPGClientCore {
   private entities: Map<string, EntityViewModel> = new Map();
@@ -125,8 +126,41 @@ export class MMORPGClientCore {
     this.events.emit('attack');
   }
 
-  public interact() {
-    this.events.emit('interact');
+  public getWorldSnapshotForInteract(): {
+    player: { position: { x: number; y: number } } | null;
+    npcs: Array<{ id: string; position: { x: number; y: number } }>;
+    loot: Array<{ id: string; position: { x: number; y: number } }>;
+  } {
+    const playerId = this.localPlayerId;
+    const p = playerId ? this.entities.get(playerId) : undefined;
+    const npcs: Array<{ id: string; position: { x: number; y: number } }> = [];
+    const loot: Array<{ id: string; position: { x: number; y: number } }> = [];
+    this.entities.forEach((e) => {
+      if (e.type === "npc") {
+        npcs.push({ id: e.id, position: { x: e.position.x, y: e.position.z } });
+      } else if (e.type === "loot") {
+        loot.push({ id: e.id, position: { x: e.position.x, y: e.position.z } });
+      }
+    });
+    return {
+      player: p ? { position: { x: p.position.x, y: p.position.z } } : null,
+      npcs,
+      loot,
+    };
+  }
+
+  public interact(npcId?: string | null) {
+    let resolved = typeof npcId === "string" ? npcId.trim() : "";
+    if (!resolved) {
+      const snap = this.getWorldSnapshotForInteract();
+      if (snap.player) {
+        const hit = getClosestInteractable(snap.player, snap);
+        if (hit?.interactionType === "npc" && typeof hit.id === "string") {
+          resolved = hit.id;
+        }
+      }
+    }
+    this.events.emit("interact", resolved || undefined);
   }
 
   public useSkill(skillId: string) {

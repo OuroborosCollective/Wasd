@@ -20,6 +20,8 @@ type Props = {
   onCraftOpen: () => void;
   onHousingOpen: () => void;
   fxFeed: Array<{ id: string; kind: FxKind; n?: number; x: number; y: number; t: number }>;
+  /** Optional questline feature coverage line from `questline_state` */
+  questlineProgress?: string | null;
 };
 
 export function Hud(p: Props) {
@@ -56,6 +58,12 @@ export function Hud(p: Props) {
 
       <div className="pointer-events-none absolute left-3 top-[150px] w-[min(420px,calc(100vw-24px))] md:left-4 md:top-[170px]">
         <QuestTracker quests={p.quests} />
+        {p.questlineProgress ? (
+          <div className="pointer-events-none mt-2 rounded-2xl border border-violet-500/30 bg-black/40 p-2 text-[11px] text-violet-200/90 backdrop-blur-md">
+            <div className="mb-1 text-[10px] uppercase tracking-widest text-violet-300/80">Leinenstrang</div>
+            <div className="leading-snug">{p.questlineProgress}</div>
+          </div>
+        ) : null}
       </div>
 
       <div className="pointer-events-none absolute right-3 top-[150px] w-[min(360px,calc(100vw-24px))] md:right-4 md:top-[170px]">

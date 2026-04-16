@@ -14,6 +14,7 @@ import {
   pushLootSpawnedToGameHud,
   pushProtocolMsgToGameHud,
 } from "../ui/gameHudBridge";
+import { applyQuestlineFeatures, applyQuestlineState } from "../state/questlineState";
 
 let globalWs: WebSocket | null = null;
 const DEFAULT_SCENE_ID = "didis_hub";
@@ -28,7 +29,7 @@ type BoundWsHandlers = {
   core: MMORPGClientCore;
   onInput: (input: any) => void;
   onAttack: () => void;
-  onInteract: () => void;
+  onInteract: (npcId?: string) => void;
 };
 let boundWsHandlers: BoundWsHandlers | null = null;
 let wsConnectionGeneration = 0;
@@ -335,9 +336,13 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         ws.send(JSON.stringify({ type: "attack" }));
       }
     };
-    const onInteract = () => {
+    const onInteract = (npcId?: string) => {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "interact" }));
+        const payload: Record<string, unknown> = { type: "interact" };
+        if (typeof npcId === "string" && npcId.trim()) {
+          payload.npcId = npcId.trim();
+        }
+        ws.send(JSON.stringify(payload));
       }
     };
     boundWsHandlers = { core, onInput, onAttack, onInteract };
@@ -447,6 +452,11 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         if (data.stats && typeof data.stats === "object") {
           applyStatsPayload(data.stats);
         }
+        window.setTimeout(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "quest_sync", questlineId: "mainline_awakening" }));
+          }
+        }, 0);
         const spawnPos = toEntityPosition(data.spawnPosition);
         if (spawnPos && localPlayerId) {
           core.syncEntities([
@@ -469,6 +479,15 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
       }
       if (data.type === "stats_sync") {
         applyStatsPayload(data);
+      }
+      if (data.type === "questline_state") {
+        applyQuestlineState(data);
+      }
+      if (data.type === "questline_features") {
+        const unlocked = applyQuestlineFeatures(data);
+        if (unlocked.length) {
+          showToast(`Questline: ${unlocked.join(", ")}`);
+        }
       }
       if (data.type === "chat_message") {
         const payload = data.payload && typeof data.payload === "object" ? data.payload : data;
@@ -645,6 +664,12 @@ export function sendPickupLoot(lootId: string) {
 
 export function sendEquipGear(itemUid: string) {
   sendCommand("equip_gear", { itemUid });
+}
+
+export function sendQuestlineSync(questlineId = "mainline_awakening") {
+  if (globalWs && globalWs.readyState === WebSocket.OPEN) {
+    globalWs.send(JSON.stringify({ type: "quest_sync", questlineId }));
+  }
 }
 
 export function sendEquipItem(itemId: string) {
