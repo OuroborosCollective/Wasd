@@ -6,6 +6,7 @@ export default defineConfig({
     environment: "node",
     server: {
       deps: {
+        inline: ["@supabase/supabase-js"],
         external: [
           "multer",
           "firebase/auth",
