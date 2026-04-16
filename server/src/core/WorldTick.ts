@@ -1563,7 +1563,7 @@ export class WorldTick {
             : requestedScope === "party" && !partyId
               ? "global"
               : requestedScope;
-        await publishChatMessage({
+        const chatResult = await publishChatMessage({
           scope: effectiveScope,
           senderId: String(player.id),
           senderName: isNonEmptyString(player.name) ? player.name : String(player.id),
@@ -1572,6 +1572,13 @@ export class WorldTick {
           partyId,
           ts: Date.now(),
         });
+        if (!chatResult.ok && chatResult.reason === "rate_limited") {
+          const waitSeconds = Math.max(0.1, Number(chatResult.retryAfterMs ?? 500) / 1000);
+          this.ws.sendToPlayer(id, {
+            type: "toast",
+            text: `Chat cooldown active (${waitSeconds.toFixed(1)}s).`,
+          });
+        }
         return;
       }
 

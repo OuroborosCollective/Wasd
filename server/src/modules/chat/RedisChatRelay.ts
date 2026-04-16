@@ -16,12 +16,17 @@ export interface ChatMessage {
 }
 
 type ChatListener = (msg: ChatMessage) => void;
+type PublishFailureReason = "invalid" | "rate_limited";
+export type PublishChatResult =
+  | { ok: true; message: ChatMessage }
+  | { ok: false; reason: PublishFailureReason; retryAfterMs?: number };
 
 let initialized = false;
 const listeners = new Set<ChatListener>();
 let publisher: Redis | null = null;
 let subscriber: Redis | null = null;
 let redisPubSubReady = false;
+const senderLastMessageAt = new Map<string, number>();
 
 function trimEnv(name: string): string {
   const value = process.env[name];
@@ -54,6 +59,36 @@ function normalizeScope(scope: unknown): ChatScope {
 function sanitizeText(raw: unknown): string {
   if (typeof raw !== "string") return "";
   return raw.replace(/\s+/g, " ").trim().slice(0, 200);
+}
+
+function resolveChatRateLimitMs(): number {
+  const raw = Number(trimEnv("CHAT_RATE_LIMIT_MS"));
+  if (!Number.isFinite(raw)) {
+    return 500;
+  }
+  return Math.max(0, Math.min(10_000, Math.floor(raw)));
+}
+
+function enforceRateLimit(senderId: string, nowMs: number): { ok: true } | { ok: false; retryAfterMs: number } {
+  const rateLimitMs = resolveChatRateLimitMs();
+  if (rateLimitMs <= 0) {
+    return { ok: true };
+  }
+  const last = senderLastMessageAt.get(senderId) ?? 0;
+  if (last > 0 && nowMs - last < rateLimitMs) {
+    return { ok: false, retryAfterMs: Math.max(1, rateLimitMs - (nowMs - last)) };
+  }
+  senderLastMessageAt.set(senderId, nowMs);
+  // Keep memory bounded if many unique senders pass through.
+  if (senderLastMessageAt.size > 20_000) {
+    const cutoff = nowMs - Math.max(rateLimitMs * 4, 10_000);
+    for (const [id, at] of senderLastMessageAt) {
+      if (at < cutoff) {
+        senderLastMessageAt.delete(id);
+      }
+    }
+  }
+  return { ok: true };
 }
 
 function dispatchLocal(msg: ChatMessage): void {
@@ -141,14 +176,20 @@ export function onRedisChatMessage(listener: ChatListener): () => void {
   };
 }
 
-export async function publishChatMessage(msg: Partial<ChatMessage>): Promise<void> {
+export async function publishChatMessage(msg: Partial<ChatMessage>): Promise<PublishChatResult> {
   const normalized = normalizeIncoming(msg);
   if (!normalized) {
-    return;
+    return { ok: false, reason: "invalid" };
+  }
+  const now = Date.now();
+  const rateLimit = enforceRateLimit(normalized.senderId, now);
+  if (!rateLimit.ok) {
+    return { ok: false, reason: "rate_limited", retryAfterMs: rateLimit.retryAfterMs };
   }
   if (redisPubSubReady && publisher) {
     await publisher.publish(CHANNEL, JSON.stringify(normalized));
-    return;
+    return { ok: true, message: normalized };
   }
   dispatchLocal(normalized);
+  return { ok: true, message: normalized };
 }

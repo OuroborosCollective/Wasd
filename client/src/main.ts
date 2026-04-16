@@ -11,7 +11,7 @@ import { performanceMonitor } from "./utils/PerformanceMonitor";
 import { resolveGameAuthProvider } from "./config/gameAuth";
 import { installFirebaseAiWatchdog } from "./ai/firebaseAiWatchdog";
 import { initChat, focusChatInput } from "./ui/chat";
-import { initMinimap } from "./ui/minimap";
+import { initMinimap, toggleMinimapVisibility } from "./ui/minimap";
 
 type AREPolicyConfig = {
   cooldownMs?: number;
@@ -165,7 +165,7 @@ try {
       },
       onQuickSkill: () => core.useSkill(getQuickCastSkillId()),
       onMap: () => {
-        console.log("Map toggled");
+        toggleMinimapVisibility();
       },
       onChat: () => {
         focusChatInput();

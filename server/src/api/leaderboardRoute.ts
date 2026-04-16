@@ -20,6 +20,10 @@ const SORT_COLUMN: Record<LeaderboardSort, string> = {
   kills: "kills",
 };
 
+type LeaderboardPayload = { sort: LeaderboardSort; rows: LeaderboardRow[] };
+type CacheEntry = { expiresAt: number; payload: LeaderboardPayload };
+const leaderboardCache = new Map<string, CacheEntry>();
+
 function parseSort(input: unknown): LeaderboardSort {
   if (typeof input !== "string") {
     return "xp";
@@ -43,6 +47,51 @@ function toNumber(value: unknown): number {
   return Number.isFinite(num) ? num : 0;
 }
 
+function resolveCacheTtlMs(): number {
+  const raw = Number(process.env.LEADERBOARD_CACHE_TTL_MS);
+  if (!Number.isFinite(raw)) {
+    return 30_000;
+  }
+  return Math.max(0, Math.min(10 * 60_000, Math.floor(raw)));
+}
+
+function shouldForceRefresh(input: unknown): boolean {
+  if (typeof input !== "string") {
+    return false;
+  }
+  const normalized = input.trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes";
+}
+
+function cacheKey(sort: LeaderboardSort, limit: number): string {
+  return `${sort}:${limit}`;
+}
+
+function expectedRefreshToken(): string {
+  const primary = process.env.ADMIN_PANEL_TOKEN?.trim() || "";
+  if (primary) return primary;
+  return process.env.AUTH_FALLBACK_PANEL_TOKEN?.trim() || "";
+}
+
+function providedRefreshToken(req: Request): string {
+  const direct = req.header("x-admin-token")?.trim();
+  if (direct) return direct;
+  const auth = req.header("authorization")?.trim() || "";
+  if (auth.toLowerCase().startsWith("bearer ")) {
+    return auth.slice(7).trim();
+  }
+  return "";
+}
+
+function isRefreshAuthorized(req: Request): boolean {
+  const expected = expectedRefreshToken();
+  if (!expected) {
+    return true;
+  }
+  const provided = providedRefreshToken(req);
+  return provided.length > 0 && provided === expected;
+}
+
 export function leaderboardRouter(): Router {
   const router = Router();
 
@@ -58,6 +107,15 @@ export function leaderboardRouter(): Router {
     const sort = parseSort(req.query.sort);
     const limit = parseLimit(req.query.limit);
     const sortColumn = SORT_COLUMN[sort];
+    const forceRefresh = shouldForceRefresh(req.query.refresh);
+    const key = cacheKey(sort, limit);
+    const now = Date.now();
+    if (!forceRefresh) {
+      const existing = leaderboardCache.get(key);
+      if (existing && existing.expiresAt > now) {
+        return res.json({ ...existing.payload, cached: true });
+      }
+    }
 
     try {
       const { rows } = await db.query(
@@ -88,12 +146,42 @@ export function leaderboardRouter(): Router {
         deaths: toNumber(row.deaths),
         updated_at: row.updated_at ? String(row.updated_at) : "",
       }));
-
-      return res.json({ sort, rows: normalizedRows });
+      const payload: LeaderboardPayload = { sort, rows: normalizedRows };
+      const ttlMs = resolveCacheTtlMs();
+      if (ttlMs > 0) {
+        leaderboardCache.set(key, { expiresAt: now + ttlMs, payload });
+      }
+      return res.json({ ...payload, cached: false });
     } catch (error) {
       console.error("[leaderboard] query failed:", error);
       return res.status(500).json({ error: "db_error" });
     }
+  });
+
+  // POST /api/leaderboard/refresh
+  // Clears in-memory cache and (if available) refreshes the optional materialized view helper.
+  router.post("/refresh", async (req: Request, res: Response) => {
+    if (!isRefreshAuthorized(req)) {
+      return res.status(403).json({ error: "forbidden" });
+    }
+
+    leaderboardCache.clear();
+    let materializedRefresh: "ok" | "unavailable" | "skipped" = "skipped";
+    if (isDatabaseConfigured()) {
+      try {
+        await db.query("SELECT refresh_leaderboard()");
+        materializedRefresh = "ok";
+      } catch {
+        materializedRefresh = "unavailable";
+      }
+    }
+
+    return res.json({
+      ok: true,
+      cacheCleared: true,
+      materializedRefresh,
+      cacheTtlMs: resolveCacheTtlMs(),
+    });
   });
 
   return router;

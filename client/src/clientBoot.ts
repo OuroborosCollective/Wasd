@@ -29,7 +29,7 @@ import { initCombatMobileUi } from "./ui/combatMobileUi";
 import { getQuickCastSkillId } from "./game/combatSkills";
 import { mountSkillBar } from "./ui/skillBar";
 import { initChat, focusChatInput } from "./ui/chat";
-import { initMinimap } from "./ui/minimap";
+import { initMinimap, toggleMinimapVisibility } from "./ui/minimap";
 
 function bootEngineBridge(targetCanvas: HTMLCanvasElement): IEngineBridge {
   const app = createBabylonApp(targetCanvas);
@@ -157,7 +157,7 @@ export async function bootAreloriaClient(canvas: HTMLCanvasElement): Promise<voi
       },
       onQuickSkill: () => core.useSkill(getQuickCastSkillId()),
       onMap: () => {
-        console.log("Map toggled");
+        toggleMinimapVisibility();
       },
       onChat: () => {
         focusChatInput();
