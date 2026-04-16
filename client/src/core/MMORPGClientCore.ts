@@ -149,18 +149,37 @@ export class MMORPGClientCore {
     };
   }
 
-  public interact(npcId?: string | null) {
-    let resolved = typeof npcId === "string" ? npcId.trim() : "";
-    if (!resolved) {
-      const snap = this.getWorldSnapshotForInteract();
-      if (snap.player) {
-        const hit = getClosestInteractable(snap.player, snap);
-        if (hit?.interactionType === "npc" && typeof hit.id === "string") {
-          resolved = hit.id;
-        }
+  public interact(entityId?: string | null) {
+    const trimmed = typeof entityId === "string" ? entityId.trim() : "";
+    const snap = this.getWorldSnapshotForInteract();
+
+    if (trimmed && snap.player) {
+      const inLoot = snap.loot.some((l) => l.id === trimmed);
+      const inNpc = snap.npcs.some((n) => n.id === trimmed);
+      if (inLoot) {
+        this.events.emit("interact", { kind: "loot" as const, lootId: trimmed });
+        return;
+      }
+      if (inNpc) {
+        this.events.emit("interact", { kind: "npc" as const, npcId: trimmed });
+        return;
+      }
+      this.events.emit("interact", { kind: "npc" as const, npcId: trimmed });
+      return;
+    }
+
+    if (snap.player) {
+      const hit = getClosestInteractable(snap.player, snap);
+      if (hit?.interactionType === "npc" && typeof hit.id === "string") {
+        this.events.emit("interact", { kind: "npc" as const, npcId: hit.id });
+        return;
+      }
+      if (hit?.interactionType === "loot" && typeof hit.id === "string") {
+        this.events.emit("interact", { kind: "loot" as const, lootId: hit.id });
+        return;
       }
     }
-    this.events.emit("interact", resolved || undefined);
+    this.events.emit("interact", undefined);
   }
 
   public useSkill(skillId: string) {
