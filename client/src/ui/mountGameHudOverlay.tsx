@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Hud } from "./Hud";
 import { registerGameHudWsBridge } from "./gameHudBridge";
@@ -20,6 +20,9 @@ export function mountGameHudOverlay(core: MMORPGClientCore) {
   const root = createRoot(rootEl);
 
   function GameHudApp() {
+    const coreRef = useRef(core);
+    coreRef.current = core;
+
     const {
       youId,
       entities,
@@ -58,12 +61,12 @@ export function mountGameHudOverlay(core: MMORPGClientCore) {
         const t = e.target as HTMLElement | null;
         if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
         if (e.key === "1" || e.key === "Digit1") {
-          core.attack();
+          coreRef.current.attack();
         }
       };
       window.addEventListener("keydown", onKey);
       return () => window.removeEventListener("keydown", onKey);
-    }, [core]);
+    }, []);
 
     useEffect(() => {
       const syncTarget = () => {
@@ -80,8 +83,8 @@ export function mountGameHudOverlay(core: MMORPGClientCore) {
     }, []);
 
     const onAttack = useCallback(() => {
-      core.attack();
-    }, [core]);
+      coreRef.current.attack();
+    }, []);
 
     const onLootTake = useCallback((lootId: string) => {
       sendPickupLoot(lootId);

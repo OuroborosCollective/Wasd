@@ -442,6 +442,68 @@ export class WorldTick {
     return Math.hypot(a.x - b.x, a.y - b.y) <= d;
   }
 
+  /** True only when the bag existed, was allowed, in range, and contents were granted. */
+  private tryPickupLoot(socketId: string, player: any, lootId: string): boolean {
+    const trimmed = typeof lootId === "string" ? lootId.trim() : "";
+    if (!trimmed) return false;
+    const bag = this.lootEntities.get(trimmed);
+    if (!bag) {
+      this.ws.sendToPlayer(socketId, { type: "toast", text: "Loot not found." });
+      return false;
+    }
+    if (bag.ownerId && bag.ownerId !== player.id && Date.now() < (bag.ownerExclusiveUntil ?? 0)) {
+      this.ws.sendToPlayer(socketId, { type: "toast", text: "Loot belongs to another player." });
+      return false;
+    }
+    const lootPos = bag.position ?? { x: bag.x ?? 0, y: bag.y ?? 0 };
+    if (!this.isWithinDistance(player.position, lootPos, GameConfig.interactDistance)) {
+      this.ws.sendToPlayer(socketId, { type: "toast", text: "Too far away." });
+      return false;
+    }
+    ensureDualInventoryFields(player);
+    const pickedItems: { itemId: string; qty: number; name?: string }[] = [];
+    const pickedGear: any[] = [];
+    if (Array.isArray(bag.items)) {
+      for (const it of bag.items) {
+        if (!it?.id) continue;
+        const qty = Math.max(1, Number(it.quantity) || 1);
+        this.inventorySystem.addItem(player, { id: it.id, quantity: qty });
+        const def = ItemRegistry.getItem(it.id);
+        pickedItems.push({ itemId: it.id, qty, name: def?.name });
+      }
+    }
+    if (Array.isArray(bag.gear)) {
+      for (const g of bag.gear) {
+        if (!g || typeof g.uid !== "string") continue;
+        addGearToPlayer(player, g);
+        pickedGear.push({
+          uid: g.uid,
+          baseId: g.baseId,
+          name: g.name,
+          rarity: g.rarity,
+          ilvl: g.ilvl,
+        });
+      }
+    }
+    const gold = typeof bag.gold === "number" ? bag.gold : 0;
+    if (gold > 0) player.gold = (player.gold ?? 0) + gold;
+    this.lootEntities.delete(trimmed);
+    this.ws.broadcast({ type: "loot_despawned", lootId: trimmed });
+    this.ws.sendToPlayer(socketId, {
+      type: "loot_picked",
+      lootId: trimmed,
+      items: pickedItems,
+      gear: pickedGear,
+      gold,
+    });
+    if (gold > 0) {
+      this.ws.sendToPlayer(socketId, { type: "fx", at: player.position, kind: "gold", n: gold });
+    }
+    this.ws.sendToPlayer(socketId, { type: "toast", text: `Beute eingesammelt${gold > 0 ? ` (+${gold} Gold)` : ""}.` });
+    this.pushPlayerStateSync(socketId, player);
+    return true;
+  }
+
   private loadRuntimeEventTemplates() {
     const templatesPath = path.resolve(process.cwd(), "game-data/gm/event-templates.json");
     if (!fs.existsSync(templatesPath)) {
@@ -2155,62 +2217,7 @@ export class WorldTick {
 
       if (msg.type === "pickup_loot") {
         const lootId = typeof msg.lootId === "string" ? msg.lootId.trim() : "";
-        if (!lootId) return;
-        const bag = this.lootEntities.get(lootId);
-        if (!bag) {
-          this.ws.sendToPlayer(id, { type: "toast", text: "Loot not found." });
-          return;
-        }
-        if (bag.ownerId && bag.ownerId !== player.id && Date.now() < (bag.ownerExclusiveUntil ?? 0)) {
-          this.ws.sendToPlayer(id, { type: "toast", text: "Loot belongs to another player." });
-          return;
-        }
-        const lootPos = bag.position ?? { x: bag.x ?? 0, y: bag.y ?? 0 };
-        if (!this.isWithinDistance(player.position, lootPos, GameConfig.interactDistance)) {
-          this.ws.sendToPlayer(id, { type: "toast", text: "Too far away." });
-          return;
-        }
-        ensureDualInventoryFields(player);
-        const pickedItems: { itemId: string; qty: number; name?: string }[] = [];
-        const pickedGear: any[] = [];
-        if (Array.isArray(bag.items)) {
-          for (const it of bag.items) {
-            if (!it?.id) continue;
-            const qty = Math.max(1, Number(it.quantity) || 1);
-            this.inventorySystem.addItem(player, { id: it.id, quantity: qty });
-            const def = ItemRegistry.getItem(it.id);
-            pickedItems.push({ itemId: it.id, qty, name: def?.name });
-          }
-        }
-        if (Array.isArray(bag.gear)) {
-          for (const g of bag.gear) {
-            if (!g || typeof g.uid !== "string") continue;
-            addGearToPlayer(player, g);
-            pickedGear.push({
-              uid: g.uid,
-              baseId: g.baseId,
-              name: g.name,
-              rarity: g.rarity,
-              ilvl: g.ilvl,
-            });
-          }
-        }
-        const gold = typeof bag.gold === "number" ? bag.gold : 0;
-        if (gold > 0) player.gold = (player.gold ?? 0) + gold;
-        this.lootEntities.delete(lootId);
-        this.ws.broadcast({ type: "loot_despawned", lootId });
-        this.ws.sendToPlayer(id, {
-          type: "loot_picked",
-          lootId,
-          items: pickedItems,
-          gear: pickedGear,
-          gold,
-        });
-        if (gold > 0) {
-          this.ws.sendToPlayer(id, { type: "fx", at: player.position, kind: "gold", n: gold });
-        }
-        this.ws.sendToPlayer(id, { type: "toast", text: `Beute eingesammelt${gold > 0 ? ` (+${gold} Gold)` : ""}.` });
-        this.pushPlayerStateSync(id, player);
+        if (!this.tryPickupLoot(id, player, lootId)) return;
         return;
       }
 
@@ -2263,12 +2270,15 @@ export class WorldTick {
       }
 
       if (msg.type === "interact") {
+        const lootId = typeof msg.lootId === "string" ? msg.lootId.trim() : "";
+        const didLoot = lootId ? this.tryPickupLoot(id, player, lootId) : false;
         const npcId =
           typeof msg.npcId === "string"
             ? msg.npcId.trim()
             : typeof msg.targetNpcId === "string"
               ? msg.targetNpcId.trim()
               : "";
+        let didNpc = false;
         if (npcId) {
           const talkRewards = this.questSystem.checkTalkToQuests(player, npcId);
           const collectRewards = this.questSystem.checkCollectTurnInQuests(player, npcId);
@@ -2276,8 +2286,11 @@ export class WorldTick {
           if (talkRewards.length || collectRewards.length || qlDone.length) {
             this.pushPlayerStateSync(id, player);
           }
+          didNpc = true;
         }
-        this.ws.sendToPlayer(id, { type: "dialogue", text: "Hello traveler!" });
+        if (didNpc && !didLoot) {
+          this.ws.sendToPlayer(id, { type: "dialogue", text: "Hello traveler!" });
+        }
         return;
       }
     };

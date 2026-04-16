@@ -14,7 +14,9 @@
     "test:e2e:ci": "npx playwright install --with-deps chromium && npx playwright test",
     "sync:world-assets": "node scripts/sync-world-assets.mjs",
     "audit:model-paths": "npm run audit:model-paths --prefix server",
-    "ci:verify": "pnpm run lint && pnpm run test && pnpm run build && pnpm run audit:model-paths"
+    "ci:verify": "pnpm run lint && pnpm run test && pnpm run build && pnpm run audit:model-paths",
+    "dgcc": "tsx tools/dgcc/run-dgcc.ts",
+    "dgcc:extreme": "tsx tools/dgcc/run-dgcc.ts --mode=extreme"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

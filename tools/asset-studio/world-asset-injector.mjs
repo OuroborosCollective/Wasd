@@ -93,4 +93,5 @@ if (fs.existsSync(REGISTRY_PATH) && fs.existsSync(WORLD_OBJECTS_PATH)) {
   syncAssets();
 }
 
-export default { syncAssets };
+const worldAssetInjector = { syncAssets };
+export default worldAssetInjector;
