@@ -10,11 +10,26 @@ type CheckName =
   | "checkInteract"
   | "e2e"
   | "contentValidate"
+  | "modelPathsAudit"
   | "assetsAudit"
   | "wsSchemaSmoke"
   | "uiA11ySmoke"
   | "clientBuild"
   | "serverBuild";
+
+const KNOWN_CHECKS: readonly CheckName[] = [
+  "lint",
+  "unit",
+  "checkInteract",
+  "e2e",
+  "contentValidate",
+  "modelPathsAudit",
+  "assetsAudit",
+  "wsSchemaSmoke",
+  "uiA11ySmoke",
+  "clientBuild",
+  "serverBuild",
+] as const;
 
 type DgccReport = {
   startedAt: string;
@@ -32,6 +47,27 @@ const CONTRACT_PATH = path.join(ROOT, "tools/dgcc/dgcc.contract.json");
 
 function readJson<T>(p: string): T {
   return JSON.parse(fs.readFileSync(p, "utf8")) as T;
+}
+
+function loadContract(): any {
+  if (!fs.existsSync(CONTRACT_PATH)) {
+    console.error(`[DGCC] missing contract file: ${path.relative(ROOT, CONTRACT_PATH)}`);
+    process.exit(3);
+  }
+  return readJson(CONTRACT_PATH);
+}
+
+function assertKnownChecks(checks: unknown): checks is CheckName[] {
+  if (!Array.isArray(checks) || checks.length === 0) {
+    console.error("[DGCC] contract modes.*.checks must be a non-empty array");
+    return false;
+  }
+  const bad = checks.filter((c) => typeof c !== "string" || !KNOWN_CHECKS.includes(c as CheckName));
+  if (bad.length) {
+    console.error(`[DGCC] unknown check id(s) in contract: ${bad.join(", ")}`);
+    return false;
+  }
+  return true;
 }
 
 function ensureDir(p: string) {
@@ -137,11 +173,21 @@ async function uiA11ySmoke(report: DgccReport) {
 
 async function main() {
   const mode = parseMode();
-  const contract = readJson<any>(CONTRACT_PATH);
+  const contract = loadContract();
+  if (!contract.modes || typeof contract.modes !== "object") {
+    console.error("[DGCC] contract missing modes object");
+    process.exit(3);
+  }
+  const modeCfg = contract.modes[mode];
+  if (!modeCfg) {
+    console.error(`[DGCC] unknown mode "${mode}" (defined: ${Object.keys(contract.modes).join(", ")})`);
+    process.exit(3);
+  }
+  if (!assertKnownChecks(modeCfg.checks)) {
+    process.exit(3);
+  }
   const fix = wantFixes(contract, mode);
   printHeader(mode, fix);
-
-  const modeCfg = contract.modes[mode] ?? contract.modes.minimal;
 
   const report: DgccReport = {
     startedAt: nowIso(),
@@ -212,6 +258,15 @@ async function main() {
       fs.writeFileSync(path.join(outDir, "content-validate.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["contentValidate"] = "dgcc-artifacts/content-validate.out.txt";
       if (r.code !== 0) throw new Error("content validation failed (server validate)");
+    });
+  }
+
+  if (checks.includes("modelPathsAudit")) {
+    await runCheck("modelPathsAudit", async () => {
+      const r = await run("pnpm", ["run", "audit:model-paths"]);
+      fs.writeFileSync(path.join(outDir, "model-paths-audit.out.txt"), r.stdout + "\n" + r.stderr);
+      report.artifacts["modelPathsAudit"] = "dgcc-artifacts/model-paths-audit.out.txt";
+      if (r.code !== 0) throw new Error("model path audit failed");
     });
   }
 
