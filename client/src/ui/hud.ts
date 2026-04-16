@@ -1,5 +1,11 @@
 import { auth, isFirebaseClientConfigured } from "../auth/firebase";
-import { getSupabaseAccessToken, isSupabaseClientConfigured, onSupabaseAuthStateChanged, supabase } from "../auth/supabase";
+import {
+  getSupabaseAccessToken,
+  getSupabaseRedirectUrl,
+  isSupabaseClientConfigured,
+  onSupabaseAuthStateChanged,
+  supabase,
+} from "../auth/supabase";
 import { getQuickCastSkillId } from "../game/combatSkills";
 import { sendDialogueChoice, sendQuestAccept, updateAuthToken } from "../networking/websocketClient";
 import {
@@ -361,7 +367,7 @@ export function renderHUD() {
       loginBtn.onclick = async () => {
         clearAuthMessages();
         try {
-          const redirectTo = window.location.origin + "/";
+          const redirectTo = getSupabaseRedirectUrl("/");
           const { error } = await supabase.auth.signInWithOAuth({
             provider: "google",
             options: { redirectTo, skipBrowserRedirect: false },
@@ -418,7 +424,7 @@ export function renderHUD() {
           return;
         }
         try {
-          const redirectTo = window.location.origin + "/";
+          const redirectTo = getSupabaseRedirectUrl("/");
           const { data, error } = await supabase.auth.signUp({
             email,
             password,
@@ -444,7 +450,7 @@ export function renderHUD() {
           return;
         }
         try {
-          const redirectTo = window.location.origin + "/";
+          const redirectTo = getSupabaseRedirectUrl("/");
           const { error } = await supabase.auth.resend({
             type: "signup",
             email: addr,
@@ -470,7 +476,7 @@ export function renderHUD() {
           return;
         }
         try {
-          const redirectTo = window.location.origin + "/";
+          const redirectTo = getSupabaseRedirectUrl("/");
           const { error } = await supabase.auth.resetPasswordForEmail(addr, { redirectTo });
           if (error) throw error;
           setAuthInfo("Password reset email sent.");
