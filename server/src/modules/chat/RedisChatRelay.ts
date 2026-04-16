@@ -18,7 +18,7 @@ export interface ChatMessage {
 type ChatListener = (msg: ChatMessage) => void;
 
 let initialized = false;
-let listeners = new Set<ChatListener>();
+const listeners = new Set<ChatListener>();
 let publisher: Redis | null = null;
 let subscriber: Redis | null = null;
 let redisPubSubReady = false;
@@ -86,7 +86,7 @@ function normalizeIncoming(raw: Partial<ChatMessage>): ChatMessage | null {
   };
 }
 
-export async function initChatSystem(): Promise<void> {
+export async function initRedisChatRelay(): Promise<void> {
   if (initialized) {
     return;
   }
@@ -134,14 +134,14 @@ export async function initChatSystem(): Promise<void> {
   }
 }
 
-export function onChatMessage(listener: ChatListener): () => void {
+export function onRedisChatMessage(listener: ChatListener): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
   };
 }
 
-export async function sendChat(msg: Partial<ChatMessage>): Promise<void> {
+export async function publishChatMessage(msg: Partial<ChatMessage>): Promise<void> {
   const normalized = normalizeIncoming(msg);
   if (!normalized) {
     return;

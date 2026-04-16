@@ -20,7 +20,13 @@ import fs from "fs";
 import path from "path";
 import { resolveLoginIdentity } from "../modules/auth/resolveLoginIdentity.js";
 import { getSkillDefinition, buildSkillCooldownUntilPayload } from "../modules/skill/skillDefinitions.js";
-import { initChatSystem, onChatMessage, sendChat, type ChatMessage, type ChatScope } from "../modules/chat/chatSystem.js";
+import {
+  initRedisChatRelay,
+  onRedisChatMessage,
+  publishChatMessage,
+  type ChatMessage as RelayedChatMessage,
+  type ChatScope as RelayedChatScope,
+} from "../modules/chat/RedisChatRelay.js";
 
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { GameConfig } from "../config/GameConfig.js";
@@ -581,7 +587,7 @@ export class WorldTick {
     this.ws.sendToPlayer(socketId, { type: "gm_status", level, message, ...extra });
   }
 
-  private resolveChatScope(value: unknown): ChatScope {
+  private resolveChatScope(value: unknown): RelayedChatScope {
     if (!isNonEmptyString(value)) return "global";
     const normalized = value.trim().toLowerCase();
     if (normalized === "zone") return "zone";
@@ -597,7 +603,7 @@ export class WorldTick {
     return isNonEmptyString(player?.partyId) ? player.partyId.trim() : undefined;
   }
 
-  private broadcastChatMessage(msg: ChatMessage): void {
+  private broadcastChatMessage(msg: RelayedChatMessage): void {
     const payload = {
       type: "chat_message",
       payload: msg,
@@ -1376,8 +1382,8 @@ export class WorldTick {
     this.areModeAuditTrail = new AREModeAuditTrail();
     this.areStateCompiler = new AREStateCompiler();
     this.areMode = this.runtimeSettings.getAREMode();
-    void initChatSystem();
-    this.chatUnsubscribe = onChatMessage((chatMessage) => {
+    void initRedisChatRelay();
+    this.chatUnsubscribe = onRedisChatMessage((chatMessage: RelayedChatMessage) => {
       this.broadcastChatMessage(chatMessage);
     });
 
@@ -1551,13 +1557,13 @@ export class WorldTick {
         const requestedScope = this.resolveChatScope(msg.scope ?? msg.channel);
         const zoneId = this.resolvePlayerZoneId(player);
         const partyId = this.resolvePlayerPartyId(player);
-        const effectiveScope: ChatScope =
+        const effectiveScope: RelayedChatScope =
           requestedScope === "zone" && !zoneId
             ? "global"
             : requestedScope === "party" && !partyId
               ? "global"
               : requestedScope;
-        await sendChat({
+        await publishChatMessage({
           scope: effectiveScope,
           senderId: String(player.id),
           senderName: isNonEmptyString(player.name) ? player.name : String(player.id),
