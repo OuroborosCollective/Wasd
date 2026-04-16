@@ -16,7 +16,8 @@
     "audit:model-paths": "npm run audit:model-paths --prefix server",
     "ci:verify": "pnpm run lint && pnpm run test && pnpm run build && pnpm run audit:model-paths",
     "dgcc": "tsx tools/dgcc/run-dgcc.ts",
-    "dgcc:extreme": "tsx tools/dgcc/run-dgcc.ts --mode=extreme"
+    "dgcc:extreme": "tsx tools/dgcc/run-dgcc.ts --mode=extreme",
+    "dgcc:selfheal": "bash tools/dgcc/selfheal-wrapper.sh"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
