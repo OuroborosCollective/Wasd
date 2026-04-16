@@ -16,6 +16,23 @@ CREATE TABLE IF NOT EXISTS world_object_snapshots (
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );`;
 
+/** Same as repo `migrations/005_questline_supabase.sql` — ensures Supabase Postgres works without a separate SQL run. */
+const CREATE_QUESTLINE_PROGRESS_SQL = `
+CREATE TABLE IF NOT EXISTS questline_progress (
+  player_id     TEXT NOT NULL,
+  questline_id  TEXT NOT NULL,
+  strand_key    TEXT NOT NULL DEFAULT 'A',
+  current_node  TEXT NOT NULL DEFAULT 'start',
+  state_json    JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (player_id, questline_id)
+);`;
+
+const CREATE_QUESTLINE_PROGRESS_INDEXES_SQL = [
+  `CREATE INDEX IF NOT EXISTS questline_progress_player_idx ON questline_progress (player_id);`,
+  `CREATE INDEX IF NOT EXISTS questline_progress_updated_idx ON questline_progress (updated_at DESC);`,
+];
+
 export class PostgresPersistenceBackend implements IPersistenceBackend {
   readonly name = "postgres";
 
@@ -27,6 +44,10 @@ export class PostgresPersistenceBackend implements IPersistenceBackend {
     try {
       await db.query(CREATE_PLAYER_TABLE_SQL);
       await db.query(CREATE_WORLD_OBJECTS_TABLE_SQL);
+      await db.query(CREATE_QUESTLINE_PROGRESS_SQL);
+      for (const sql of CREATE_QUESTLINE_PROGRESS_INDEXES_SQL) {
+        await db.query(sql);
+      }
     } catch (err) {
       console.error("[Persistence] Failed to initialize Postgres persistence tables:", err);
     }
