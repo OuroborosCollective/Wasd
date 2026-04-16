@@ -2,6 +2,7 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 type Severity = "info" | "warn" | "error";
 type CheckName =
@@ -10,6 +11,7 @@ type CheckName =
   | "checkInteract"
   | "e2e"
   | "contentValidate"
+  | "modelPathsAudit"
   | "assetsAudit"
   | "wsSchemaSmoke"
   | "uiA11ySmoke"
@@ -27,7 +29,19 @@ type DgccReport = {
   artifacts: Record<string, string>;
 };
 
-const ROOT = process.cwd();
+function resolveRepoRoot(): string {
+  let dir = path.dirname(fileURLToPath(import.meta.url));
+  while (true) {
+    const contractAt = path.join(dir, "tools", "dgcc", "dgcc.contract.json");
+    if (fs.existsSync(contractAt)) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return process.cwd();
+}
+
+const ROOT = resolveRepoRoot();
 const CONTRACT_PATH = path.join(ROOT, "tools/dgcc/dgcc.contract.json");
 
 function readJson<T>(p: string): T {
@@ -47,7 +61,8 @@ function run(cmd: string, args: string[], opts?: { env?: Record<string, string> 
     const t0 = Date.now();
     const child = spawn(cmd, args, {
       cwd: ROOT,
-      shell: process.platform === "win32",
+      // pnpm is often a shell script on Unix; `shell: false` can yield ENOENT.
+      shell: true,
       env: { ...process.env, ...(opts?.env ?? {}) },
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -136,6 +151,11 @@ async function uiA11ySmoke(report: DgccReport) {
 }
 
 async function main() {
+  if (!fs.existsSync(CONTRACT_PATH)) {
+    console.error(`[DGCC] missing contract file: ${CONTRACT_PATH}`);
+    process.exit(1);
+  }
+
   const mode = parseMode();
   const contract = readJson<any>(CONTRACT_PATH);
   const fix = wantFixes(contract, mode);
@@ -212,6 +232,15 @@ async function main() {
       fs.writeFileSync(path.join(outDir, "content-validate.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["contentValidate"] = "dgcc-artifacts/content-validate.out.txt";
       if (r.code !== 0) throw new Error("content validation failed (server validate)");
+    });
+  }
+
+  if (checks.includes("modelPathsAudit")) {
+    await runCheck("modelPathsAudit", async () => {
+      const r = await run("pnpm", ["run", "audit:model-paths"]);
+      fs.writeFileSync(path.join(outDir, "model-paths-audit.out.txt"), r.stdout + "\n" + r.stderr);
+      report.artifacts["modelPathsAudit"] = "dgcc-artifacts/model-paths-audit.out.txt";
+      if (r.code !== 0) throw new Error("model path audit failed");
     });
   }
 
