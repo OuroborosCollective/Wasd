@@ -1,3 +1,5 @@
+import { showNotification } from "./notifications";
+
 type FragmentSummary = { id: string; title?: { de?: string; en?: string } };
 
 type FragmentsResponse = {
@@ -25,10 +27,10 @@ function fragmentTitle(frag: FragmentSummary, lang: "de" | "en"): string {
 }
 
 /**
- * After game welcome: fetch `/api/lore/fragments` and show one random Weltenfragment as a toast.
+ * After game welcome: fetch `/api/lore/fragments` and show one random Weltenfragment.
  * Safe no-op on network/CORS failure (e.g. client-only Vite dev on another origin).
  */
-export async function showRandomWorldFragmentToast(showToast: (text: string, ms?: number) => void): Promise<void> {
+export async function showRandomWorldFragmentToast(): Promise<void> {
   let res: Response;
   try {
     res = await fetch("/api/lore/fragments", { credentials: "same-origin" });
@@ -52,5 +54,10 @@ export async function showRandomWorldFragmentToast(showToast: (text: string, ms?
     lang === "de"
       ? "Ein Weltenfragment flüstert dir zu… (Lore unter /api/lore/fragments)"
       : "A world fragment whispers to you… (lore at /api/lore/fragments)";
-  showToast(`Weltenfragment: ${title}\n${line2}`, 6500);
+  const fragTitle = lang === "de" ? "Weltenfragment" : "World fragment";
+  showNotification(line2, "info", {
+    duration: 6500,
+    title: `${fragTitle}: ${title}`,
+    icon: "📜",
+  });
 }

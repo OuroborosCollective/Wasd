@@ -53,7 +53,7 @@ export function mountGameHudOverlay(core: MMORPGClientCore) {
       }
       if (loreToastPendingRef.current) return;
       loreToastPendingRef.current = true;
-      void showRandomWorldFragmentToast(showToast);
+      void showRandomWorldFragmentToast();
     }, [connected]);
 
     useEffect(() => {

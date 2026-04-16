@@ -4,7 +4,7 @@ import { applyStatsPayload } from "../state/playerState";
 import { onChatMessage } from "../ui/chat";
 import { setMinimapLocalPlayer, updateMinimapEntities } from "../ui/minimap";
 import { showDeathScreen, hideDeathScreen } from "../ui/deathScreen";
-import { showToast } from "../ui/toast";
+import { showNotification, notifySuccess, notifyWarn } from "../ui/notifications";
 import { applyPartySync } from "../state/partyState";
 import { spawnFloatingNumber } from "../ui/floatingNumbers";
 import {
@@ -491,7 +491,7 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
       if (data.type === "questline_features") {
         const unlocked = applyQuestlineFeatures(data);
         if (unlocked.length) {
-          showToast(`Questline: ${unlocked.join(", ")}`);
+          notifySuccess(unlocked.join(", "), { title: "Questline" });
         }
       }
       if (data.type === "chat_message") {
@@ -537,7 +537,9 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
       if (data.type === "toast") {
         const kind = typeof data.kind === "string" ? data.kind : "info";
         const text = typeof data.text === "string" ? data.text : "";
-        showToast(kind === "err" ? `\u{274C} ${text}` : text);
+        const tone =
+          kind === "err" ? "error" : kind === "ok" ? "success" : kind === "warn" ? "warn" : "info";
+        showNotification(text, tone);
       }
       if (data.type === "fx") {
         const cx = window.innerWidth / 2;
@@ -553,7 +555,7 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         pushProtocolMsgToGameHud(data);
       }
       if (data.type === "loot_spawned") {
-        showToast("Loot dropped nearby!");
+        notifyWarn("Loot dropped nearby!", { title: "Beute" });
         if (data.loot) pushLootSpawnedToGameHud(data.loot);
       }
       if (data.type === "loot_despawned" && typeof data.lootId === "string") {
@@ -562,7 +564,7 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
       if (data.type === "loot_picked") {
         const items = Array.isArray(data.items) ? data.items : [];
         for (const it of items) {
-          if (it.name) showToast(`+${it.qty}x ${it.name}`);
+          if (it.name) notifySuccess(`+${it.qty}x ${it.name}`, { title: "Eingesammelt" });
         }
         if (typeof data.gold === "number" && data.gold > 0) {
           spawnFloatingNumber(window.innerWidth / 2, window.innerHeight / 2 - 30, "gold", data.gold);
@@ -585,7 +587,7 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
           }]);
         }
         if (typeof data.label === "string") {
-          showToast(`Respawned at ${data.label}`);
+          notifySuccess(`Respawned at ${data.label}`, { title: "Respawn" });
         }
       }
       if (data.type === "party_sync") {

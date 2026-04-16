@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { showRandomWorldFragmentToast } from "./worldFragmentToast";
 
@@ -5,6 +6,7 @@ describe("showRandomWorldFragmentToast", () => {
   const origFetch = globalThis.fetch;
 
   beforeEach(() => {
+    document.body.innerHTML = "";
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
@@ -25,20 +27,21 @@ describe("showRandomWorldFragmentToast", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     globalThis.fetch = origFetch;
+    document.body.innerHTML = "";
+    document.getElementById("arel-notifications")?.remove();
   });
 
-  it("shows a toast with a fragment title when fetch succeeds", async () => {
-    const toasts: string[] = [];
-    await showRandomWorldFragmentToast((t) => toasts.push(t));
-    expect(toasts.length).toBe(1);
-    expect(toasts[0]).toMatch(/Weltenfragment:/);
-    expect(toasts[0]).toMatch(/Titel [AB]|Title [AB]/);
+  it("shows a notification when fetch succeeds", async () => {
+    await showRandomWorldFragmentToast();
+    const c = document.getElementById("arel-notifications");
+    expect(c).toBeTruthy();
+    expect(c?.textContent).toMatch(/Weltenfragment|World fragment/);
+    expect(c?.textContent).toMatch(/Titel [AB]|Title [AB]/);
   });
 
-  it("no toast when fetch fails", async () => {
+  it("no notification when fetch fails", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 503 })));
-    const toasts: string[] = [];
-    await showRandomWorldFragmentToast((t) => toasts.push(t));
-    expect(toasts.length).toBe(0);
+    await showRandomWorldFragmentToast();
+    expect(document.getElementById("arel-notifications")).toBeFalsy();
   });
 });
