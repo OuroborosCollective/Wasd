@@ -66,8 +66,10 @@ export async function resolveLoginIdentity(
   const token = typeof msg.token === "string" ? msg.token.trim() : "";
   const verifySupabase = isSupabaseWsLoginEnabled() || requireSupabaseAuthOnly();
   const verifyFirebase = isFirebaseWsLoginEnabled() || requireFirebaseAuthOnly();
+  let attemptedTokenVerification = false;
 
   if (token.length > 0 && verifySupabase) {
+    attemptedTokenVerification = true;
     try {
       const decoded = verifySupabaseToken(token);
       const uid = typeof decoded.sub === "string" ? decoded.sub.trim() : "";
@@ -80,11 +82,15 @@ export async function resolveLoginIdentity(
         uid;
       return { uid, charName };
     } catch {
-      return { error: "Invalid or expired token", code: "invalid_token" };
+      // If Firebase verification is also enabled, continue with Firebase as fallback.
+      if (!verifyFirebase) {
+        return { error: "Invalid or expired token", code: "invalid_token" };
+      }
     }
   }
 
   if (token.length > 0 && verifyFirebase) {
+    attemptedTokenVerification = true;
     try {
       const decoded = await verifyFirebaseToken(token);
       if (!decoded?.uid) {
@@ -98,6 +104,10 @@ export async function resolveLoginIdentity(
     } catch {
       return { error: "Invalid or expired token", code: "invalid_token" };
     }
+  }
+
+  if (token.length > 0 && attemptedTokenVerification) {
+    return { error: "Invalid or expired token", code: "invalid_token" };
   }
 
   if (requireSupabaseAuthOnly()) {

@@ -63,33 +63,44 @@ export async function adminAuthMiddleware(req: AdminRequest, res: Response, next
 
   try {
     const allow = parseUidAllowlist();
+    const hasSupabaseProvider = isSupabaseAuthConfigured();
+    const hasFirebaseProvider = isFirebaseAuthConfigured();
+    const authErrors: string[] = [];
 
-    if (isSupabaseAuthConfigured()) {
-      const claims = verifySupabaseToken(bearer);
-      const uid = typeof claims.sub === "string" ? claims.sub.trim() : "";
-      if (!uid) {
-        return res.status(401).json({ error: "Invalid Supabase token" });
+    if (hasSupabaseProvider) {
+      try {
+        const claims = verifySupabaseToken(bearer);
+        const uid = typeof claims.sub === "string" ? claims.sub.trim() : "";
+        if (!uid) {
+          return res.status(401).json({ error: "Invalid Supabase token" });
+        }
+        if (allow.size > 0 && !allow.has(uid)) {
+          return res.status(403).json({ error: "Forbidden: uid not in ADMIN_UID_ALLOWLIST" });
+        }
+        req.adminAuth = { mode: "supabase", uid };
+        return next();
+      } catch (error: any) {
+        authErrors.push(`supabase:${String(error?.message || "invalid_token")}`);
       }
-      if (allow.size > 0 && !allow.has(uid)) {
-        return res.status(403).json({ error: "Forbidden: uid not in ADMIN_UID_ALLOWLIST" });
-      }
-      req.adminAuth = { mode: "supabase", uid };
-      return next();
     }
 
-    if (isFirebaseAuthConfigured()) {
-      const decoded = await verifyFirebaseToken(bearer);
-      if (!decoded?.uid) {
-        return res.status(401).json({ error: "Invalid Firebase token" });
+    if (hasFirebaseProvider) {
+      try {
+        const decoded = await verifyFirebaseToken(bearer);
+        if (!decoded?.uid) {
+          return res.status(401).json({ error: "Invalid Firebase token" });
+        }
+        if (allow.size > 0 && !allow.has(decoded.uid)) {
+          return res.status(403).json({ error: "Forbidden: uid not in ADMIN_UID_ALLOWLIST" });
+        }
+        req.adminAuth = { mode: "firebase", uid: decoded.uid };
+        return next();
+      } catch (error: any) {
+        authErrors.push(`firebase:${String(error?.message || "invalid_token")}`);
       }
-      if (allow.size > 0 && !allow.has(decoded.uid)) {
-        return res.status(403).json({ error: "Forbidden: uid not in ADMIN_UID_ALLOWLIST" });
-      }
-      req.adminAuth = { mode: "firebase", uid: decoded.uid };
-      return next();
     }
 
-    if (!isSupabaseAuthConfigured() && !isFirebaseAuthConfigured()) {
+    if (!hasSupabaseProvider && !hasFirebaseProvider) {
       const msg =
         "Kein externer Auth-Provider konfiguriert. Für Supabase: SUPABASE_JWT_SECRET (oder JWT_SECRET) setzen. " +
         "Für Firebase: FIREBASE_SERVICE_ACCOUNT_KEY oder GOOGLE_APPLICATION_CREDENTIALS setzen. " +
@@ -99,7 +110,8 @@ export async function adminAuthMiddleware(req: AdminRequest, res: Response, next
         errorDe: msg,
       });
     }
-    return res.status(401).json({ error: "Invalid token" });
+    const details = authErrors.length > 0 ? ` (${authErrors.join("; ")})` : "";
+    return res.status(401).json({ error: `Invalid token${details}` });
   } catch {
     const errorDe = acceptedPanelTokens.length > 0
       ? "Token vom Admin-Formular abgelehnt. Nutze den langen ADMIN_PANEL_TOKEN (oder GM_PANEL_TOKEN) aus der Server-Umgebung (nicht das Spiel-Login), oder setze eine gueltige Supabase/Firebase Konfiguration."

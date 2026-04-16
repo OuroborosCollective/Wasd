@@ -9,32 +9,45 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   }
 
   const token = authHeader.split(" ")[1];
+  const authErrors: string[] = [];
+  const hasSupabaseProvider = isSupabaseAuthConfigured();
+  const hasFirebaseProvider = isFirebaseAuthConfigured();
   try {
-    if (isSupabaseAuthConfigured()) {
-      const claims = verifySupabaseToken(token);
-      const uid = typeof claims.sub === "string" ? claims.sub.trim() : "";
-      if (!uid) {
-        return res.status(401).json({ error: "Invalid token" });
+    if (hasSupabaseProvider) {
+      try {
+        const claims = verifySupabaseToken(token);
+        const uid = typeof claims.sub === "string" ? claims.sub.trim() : "";
+        if (uid) {
+          (req as any).playerId = uid;
+          return next();
+        }
+      } catch (error: any) {
+        authErrors.push(`supabase:${String(error?.message || "invalid_token")}`);
       }
-      (req as any).playerId = uid;
-      return next();
     }
 
-    if (isFirebaseAuthConfigured()) {
-      const decoded = await verifyFirebaseToken(token);
-      if (!decoded || !decoded.uid) {
-        return res.status(401).json({ error: "Invalid token" });
+    if (hasFirebaseProvider) {
+      try {
+        const decoded = await verifyFirebaseToken(token);
+        if (decoded?.uid) {
+          // Attach the verified uid to the request object
+          (req as any).playerId = decoded.uid;
+          return next();
+        }
+      } catch (error: any) {
+        authErrors.push(`firebase:${String(error?.message || "invalid_token")}`);
       }
-
-      // Attach the verified uid to the request object
-      (req as any).playerId = decoded.uid;
-      return next();
     }
 
-    return res.status(503).json({
-      error: "No auth provider configured (Supabase/Firebase).",
-    });
+    if (!hasSupabaseProvider && !hasFirebaseProvider) {
+      return res.status(503).json({
+        error: "No auth provider configured (Supabase/Firebase).",
+      });
+    }
+    const details = authErrors.length > 0 ? ` (${authErrors.join("; ")})` : "";
+    return res.status(401).json({ error: `Invalid token${details}` });
   } catch (err: any) {
-    return res.status(401).json({ error: "Unauthorized: " + err.message });
+    const details = authErrors.length > 0 ? ` (${authErrors.join("; ")})` : "";
+    return res.status(401).json({ error: `Unauthorized: Invalid token${details}` });
   }
 }
