@@ -152,8 +152,10 @@ export function useGameHudState() {
       syncInventoryFromPlayerState();
       syncQuestsFromPlayerState();
     });
-    syncInventoryFromPlayerState();
-    syncQuestsFromPlayerState();
+    queueMicrotask(() => {
+      syncInventoryFromPlayerState();
+      syncQuestsFromPlayerState();
+    });
     return unsub;
   }, [syncInventoryFromPlayerState, syncQuestsFromPlayerState]);
 
