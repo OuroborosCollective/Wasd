@@ -1,0 +1,83 @@
+[
+  {
+    "id": "FEAT-GAME-CORE",
+    "name": "Game Core Loop",
+    "description": "Main world tick and core game loop logic",
+    "filePatterns": [
+      "**/WorldTick.ts",
+      "**/WebSocketServer.ts",
+      "**/index.ts"
+    ],
+    "codeSignatures": [
+      "tick.start",
+      "worldTick",
+      "entity_sync",
+      "simulation tick"
+    ],
+    "priority": "critical",
+    "addedBy": "system",
+    "doNotDelete": true,
+    "doNotDisable": true,
+    "addedAt": "2026-04-16T02:17:56.494Z"
+  },
+  {
+    "id": "FEAT-PLAYER",
+    "name": "Player System",
+    "description": "Player login, movement, and state synchronization",
+    "filePatterns": [
+      "**/player*.ts",
+      "**/Player*.ts",
+      "**/auth*.ts"
+    ],
+    "codeSignatures": [
+      "playerState",
+      "login",
+      "move_intent",
+      "resolveLoginIdentity"
+    ],
+    "priority": "critical",
+    "addedBy": "system",
+    "doNotDelete": true,
+    "doNotDisable": true,
+    "addedAt": "2026-04-16T02:17:56.494Z"
+  },
+  {
+    "id": "FEAT-MULTIPLAYER",
+    "name": "Multiplayer Network",
+    "description": "WebSocket transport and payload orchestration",
+    "filePatterns": [
+      "**/networking/*.ts",
+      "**/WebSocket*.ts"
+    ],
+    "codeSignatures": [
+      "socket.send",
+      "ws.on",
+      "broadcast",
+      "PacketRouter"
+    ],
+    "priority": "critical",
+    "addedBy": "system",
+    "doNotDelete": true,
+    "doNotDisable": true,
+    "addedAt": "2026-04-16T02:17:56.494Z"
+  },
+  {
+    "id": "FEAT-ADMIN-CONTENT",
+    "name": "Content Admin",
+    "description": "No-code content admin API and upload controls",
+    "filePatterns": [
+      "**/adminContentRoute.ts",
+      "**/glbUploadRoute.ts"
+    ],
+    "codeSignatures": [
+      "/api/admin/content",
+      "glb-upload",
+      "validate-preview"
+    ],
+    "priority": "high",
+    "addedBy": "system",
+    "doNotDelete": true,
+    "doNotDisable": true,
+    "addedAt": "2026-04-16T02:17:56.494Z"
+  }
+]

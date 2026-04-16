@@ -1,0 +1,92 @@
+{
+  "dev_b64f03e3-75f3-4a70-b222-cfe5d37d5ebf": {
+    "id": "dev_b64f03e3-75f3-4a70-b222-cfe5d37d5ebf",
+    "name": "DevPlayer_b64f",
+    "class": "Novice",
+    "appearance": "default",
+    "role": "player",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "level": 1,
+    "health": 100,
+    "maxHealth": 100,
+    "dead": false,
+    "deathAt": 0,
+    "stamina": 100,
+    "maxStamina": 100,
+    "mana": 25,
+    "maxMana": 25,
+    "gold": 0,
+    "xp": 0,
+    "quests": [],
+    "skills": {
+      "combat": {
+        "level": 1
+      }
+    },
+    "inventory": [],
+    "equipment": {
+      "weapon": null,
+      "armor": null
+    },
+    "faction": null,
+    "civilization": null,
+    "matrixEnergy": 0,
+    "flags": {},
+    "reputation": {},
+    "usedChoices": [],
+    "sceneId": "didis_hub",
+    "spawnKey": "sp_player_default",
+    "combatTargetNpcId": null,
+    "skillCooldowns": {},
+    "lastUpdated": "2026-04-16T02:23:02.515Z"
+  },
+  "dev_53475bbb-6d37-40a4-be19-a882daa4d4b3": {
+    "id": "dev_53475bbb-6d37-40a4-be19-a882daa4d4b3",
+    "name": "DevPlayer_5347",
+    "class": "Novice",
+    "appearance": "default",
+    "role": "player",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "level": 1,
+    "health": 100,
+    "maxHealth": 100,
+    "dead": false,
+    "deathAt": 0,
+    "stamina": 100,
+    "maxStamina": 100,
+    "mana": 25,
+    "maxMana": 25,
+    "gold": 0,
+    "xp": 0,
+    "quests": [],
+    "skills": {
+      "combat": {
+        "level": 1
+      }
+    },
+    "inventory": [],
+    "equipment": {
+      "weapon": null,
+      "armor": null
+    },
+    "faction": null,
+    "civilization": null,
+    "matrixEnergy": 0,
+    "flags": {},
+    "reputation": {},
+    "usedChoices": [],
+    "sceneId": "didis_hub",
+    "spawnKey": "sp_player_default",
+    "combatTargetNpcId": null,
+    "skillCooldowns": {},
+    "lastUpdated": "2026-04-16T02:23:02.515Z"
+  }
+}
