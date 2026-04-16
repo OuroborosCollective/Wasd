@@ -87,6 +87,21 @@ function trimEnv(key: string): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+/** Public anon config for the browser bundle (no service role). */
+export function buildClientPublicConfigJson(): string {
+  const url =
+    trimEnv("VITE_SUPABASE_URL") ||
+    trimEnv("VITE_SUPABASE_PUBLIC_URL") ||
+    trimEnv("SUPABASE_PUBLIC_URL") ||
+    trimEnv("SUPABASE_URL") ||
+    trimEnv("API_EXTERNAL_URL");
+  const anonKey = trimEnv("VITE_SUPABASE_ANON_KEY") || trimEnv("SUPABASE_ANON_KEY") || trimEnv("ANON_KEY");
+  return JSON.stringify({
+    supabaseUrl: url || null,
+    supabaseAnonKey: anonKey || null,
+  });
+}
+
 function normalizeSupabaseBaseUrl(raw: string): string | null {
   try {
     const parsed = new URL(raw.trim());
@@ -195,6 +210,12 @@ export class ServerBootstrap {
     app.use("/api/leaderboard", leaderboardRouter());
     app.use("/api/questlines", questlineRouter());
     app.use("/api/lore", loreRouter());
+
+    app.get("/client-config.json", (_req, res) => {
+      res.type("application/json");
+      res.setHeader("Cache-Control", "no-store");
+      res.send(buildClientPublicConfigJson());
+    });
 
     app.get("/", (req, res, next) => {
       if (req.headers["user-agent"]?.includes("GoogleHC")) {

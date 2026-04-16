@@ -11,7 +11,12 @@ import {
   type ConnectionOptions,
 } from "./networking/websocketClient";
 import { auth } from "./auth/firebase";
-import { getSupabaseAccessToken, onSupabaseAuthStateChanged } from "./auth/supabase";
+import {
+  getSupabaseAccessToken,
+  getSupabaseClientSync,
+  initSupabaseClient,
+  onSupabaseAuthStateChanged,
+} from "./auth/supabase";
 import { resolveGameAuthProvider } from "./config/gameAuth";
 import { installFirebaseAiWatchdog } from "./ai/firebaseAiWatchdog";
 import { IEngineBridge } from "./engine/bridge/IEngineBridge";
@@ -71,7 +76,12 @@ export async function bootAreloriaClient(canvas: HTMLCanvasElement): Promise<voi
   (window as unknown as { gameCore?: MMORPGClientCore }).gameCore = core;
   core.registerDefaultInput();
 
-  const authProvider = resolveGameAuthProvider();
+  await initSupabaseClient();
+
+  let authProvider = resolveGameAuthProvider();
+  if (authProvider === "none" && getSupabaseClientSync()) {
+    authProvider = "supabase";
+  }
   if (authProvider === "none") {
     try {
       localStorage.removeItem("token");
