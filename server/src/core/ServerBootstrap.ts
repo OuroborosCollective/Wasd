@@ -100,10 +100,12 @@ function normalizeSupabaseBaseUrl(raw: string): string | null {
   }
 }
 
-function resolveSupabaseProxyBaseUrl(): string | null {
+/** Exported for tests — Kong / GoTrue base URL (no trailing /auth/v1). */
+export function resolveSupabaseProxyBaseUrl(): string | null {
   const configured =
     trimEnv("SUPABASE_URL") ||
     trimEnv("SUPABASE_PUBLIC_URL") ||
+    trimEnv("API_EXTERNAL_URL") ||
     trimEnv("VITE_SUPABASE_URL") ||
     trimEnv("VITE_SUPABASE_PUBLIC_URL");
   if (!configured) return null;
@@ -146,8 +148,14 @@ function inferSupabaseProxyBaseFromApiKey(rawApiKey: string): string | null {
   const issuerValue = payload.iss;
   if (typeof issuerValue === "string") {
     const normalized = normalizeSupabaseBaseUrl(issuerValue);
-    if (normalized && /^https:\/\/[a-z0-9-]+\.supabase\.co(?:$|\/)/i.test(normalized)) {
-      return normalized;
+    if (normalized) {
+      if (/^https:\/\/[a-z0-9-]+\.supabase\.co(?:$|\/)/i.test(normalized)) {
+        return normalized;
+      }
+      /** Self-hosted GoTrue: iss is typically …/auth/v1 */
+      if (/\/auth\/v1(?:\/|$)/i.test(issuerValue)) {
+        return normalized;
+      }
     }
   }
 

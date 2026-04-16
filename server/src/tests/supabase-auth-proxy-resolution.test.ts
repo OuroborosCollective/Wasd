@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, afterEach } from "vitest";
 import type { Request } from "express";
-import { resolveSupabaseProxyBaseUrlForRequest } from "../core/ServerBootstrap.js";
+import {
+  resolveSupabaseProxyBaseUrl,
+  resolveSupabaseProxyBaseUrlForRequest,
+} from "../core/ServerBootstrap.js";
 
 function base64Url(input: string): string {
   return Buffer.from(input, "utf8")
@@ -21,6 +24,17 @@ function reqWithHeaders(headers: Record<string, string>): Request {
 }
 
 describe("resolveSupabaseProxyBaseUrlForRequest", () => {
+  afterEach(() => {
+    delete process.env.API_EXTERNAL_URL;
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_PUBLIC_URL;
+  });
+
+  it("uses API_EXTERNAL_URL when SUPABASE_* unset", () => {
+    process.env.API_EXTERNAL_URL = "http://supabase.arelogic.space:8000";
+    expect(resolveSupabaseProxyBaseUrl()).toBe("http://supabase.arelogic.space:8000");
+  });
+
   it("prefers configured SUPABASE_URL when available", () => {
     const req = reqWithHeaders({});
     const resolved = resolveSupabaseProxyBaseUrlForRequest(req, "https://cfg-project.supabase.co");
@@ -39,6 +53,13 @@ describe("resolveSupabaseProxyBaseUrlForRequest", () => {
     const req = reqWithHeaders({ apikey: anon });
     const resolved = resolveSupabaseProxyBaseUrlForRequest(req, null);
     expect(resolved).toBe("https://zzzzzzzzzzzzzzzzzzzz.supabase.co");
+  });
+
+  it("infers self-hosted base from iss …/auth/v1 (non supabase.co)", () => {
+    const anon = makeUnsignedJwt({ iss: "http://supabase.arelogic.space:8000/auth/v1" });
+    const req = reqWithHeaders({ apikey: anon });
+    const resolved = resolveSupabaseProxyBaseUrlForRequest(req, null);
+    expect(resolved).toBe("http://supabase.arelogic.space:8000");
   });
 
   it("returns null without config and without usable token payload", () => {
