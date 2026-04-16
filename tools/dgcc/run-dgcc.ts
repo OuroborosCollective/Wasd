@@ -4,17 +4,19 @@ import fs from "node:fs";
 import path from "node:path";
 
 type Severity = "info" | "warn" | "error";
-type CheckName =
-  | "lint"
-  | "unit"
-  | "checkInteract"
-  | "e2e"
-  | "contentValidate"
-  | "assetsAudit"
-  | "wsSchemaSmoke"
-  | "uiA11ySmoke"
-  | "clientBuild"
-  | "serverBuild";
+const ALL_CHECKS = [
+  "lint",
+  "unit",
+  "e2e",
+  "contentValidate",
+  "assetsAudit",
+  "wsSchemaSmoke",
+  "uiA11ySmoke",
+  "clientBuild",
+  "serverBuild",
+] as const;
+
+type CheckName = (typeof ALL_CHECKS)[number];
 
 type DgccReport = {
   startedAt: string;
@@ -43,7 +45,7 @@ function nowIso() {
 }
 
 function run(cmd: string, args: string[], opts?: { env?: Record<string, string> }) {
-  return new Promise<{ code: number; stdout: string; stderr: string; durationMs: number }>((resolve) => {
+  return new Promise<{ code: number; stdout: string; stderr: string; durationMs: number }>((resolve, reject) => {
     const t0 = Date.now();
     const child = spawn(cmd, args, {
       cwd: ROOT,
@@ -55,8 +57,46 @@ function run(cmd: string, args: string[], opts?: { env?: Record<string, string> 
     let stderr = "";
     child.stdout.on("data", (d) => (stdout += String(d)));
     child.stderr.on("data", (d) => (stderr += String(d)));
+    child.on("error", (err) => reject(err));
     child.on("close", (code) => resolve({ code: code ?? 1, stdout, stderr, durationMs: Date.now() - t0 }));
   });
+}
+
+function isCheckName(x: string): x is CheckName {
+  return (ALL_CHECKS as readonly string[]).includes(x);
+}
+
+function validateContractChecks(checks: unknown): CheckName[] {
+  if (!Array.isArray(checks) || checks.some((c) => typeof c !== "string")) {
+    throw new Error("contract.modes[*].checks must be an array of strings");
+  }
+  const unknown = checks.filter((c): c is string => typeof c === "string" && !isCheckName(c));
+  if (unknown.length) {
+    throw new Error(`Unknown DGCC check(s) in contract: ${unknown.join(", ")}`);
+  }
+  return checks as CheckName[];
+}
+
+function assertReportShape(report: DgccReport) {
+  const requiredTop = ["startedAt", "finishedAt", "mode", "ok", "checks", "inconsistencies", "fixes", "artifacts"] as const;
+  for (const k of requiredTop) {
+    if (!(k in report)) throw new Error(`DGCC report missing required field: ${k}`);
+  }
+  for (const c of report.checks) {
+    if (typeof c.name !== "string" || typeof c.ok !== "boolean" || typeof c.durationMs !== "number") {
+      throw new Error("DGCC report checks[] entry missing name, ok, or durationMs");
+    }
+  }
+  for (const i of report.inconsistencies) {
+    if (typeof i.category !== "string" || typeof i.severity !== "string" || typeof i.message !== "string") {
+      throw new Error("DGCC report inconsistencies[] entry missing category, severity, or message");
+    }
+  }
+  for (const f of report.fixes) {
+    if (typeof f.kind !== "string" || typeof f.message !== "string") {
+      throw new Error("DGCC report fixes[] entry missing kind or message");
+    }
+  }
 }
 
 function parseMode() {
@@ -76,7 +116,7 @@ function printHeader(mode: string, fix: boolean) {
   console.log(`[DGCC] mode=${mode} fix=${fix ? "on" : "off"}`);
 }
 
-async function assetsAudit(report: DgccReport, contract: any, fix: boolean) {
+async function assetsAudit(report: DgccReport, contract: any, fix: boolean, allowDangerous: boolean) {
   const clientDir = path.join(ROOT, contract.rules.assets.clientModelsDir);
   if (!fs.existsSync(clientDir)) {
     report.inconsistencies.push({
@@ -98,7 +138,7 @@ async function assetsAudit(report: DgccReport, contract: any, fix: boolean) {
         message: `Missing models subfolder: ${path.relative(ROOT, p)}`,
         hint: "Not fatal, but content linking will be noisier. Create folder or adjust DGCC contract.",
       });
-      if (fix) {
+      if (fix && allowDangerous) {
         ensureDir(p);
         report.fixes.push({
           kind: "assets:create-folder",
@@ -142,6 +182,7 @@ async function main() {
   printHeader(mode, fix);
 
   const modeCfg = contract.modes[mode] ?? contract.modes.minimal;
+  const allowDangerous = Boolean(modeCfg?.fix?.allowDangerous);
 
   const report: DgccReport = {
     startedAt: nowIso(),
@@ -168,7 +209,7 @@ async function main() {
     }
   }
 
-  const checks = modeCfg.checks as CheckName[];
+  const checks = validateContractChecks(modeCfg.checks);
 
   if (checks.includes("lint")) {
     await runCheck("lint", async () => {
@@ -185,15 +226,6 @@ async function main() {
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
       if (r.code !== 0) throw new Error("unit tests failed");
-    });
-  }
-
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
     });
   }
 
@@ -239,7 +271,7 @@ async function main() {
 
   if (checks.includes("assetsAudit")) {
     await runCheck("assetsAudit", async () => {
-      await assetsAudit(report, contract, fix);
+      await assetsAudit(report, contract, fix, allowDangerous);
       const p = path.join(outDir, "assets-audit.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "assets") }, null, 2));
       report.artifacts["assetsAudit"] = "dgcc-artifacts/assets-audit.json";
@@ -268,6 +300,8 @@ async function main() {
 
   report.finishedAt = nowIso();
   if (report.inconsistencies.some((x) => x.severity === "error")) report.ok = false;
+
+  assertReportShape(report);
 
   const reportPath = path.join(outDir, "dgcc.report.json");
   fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));

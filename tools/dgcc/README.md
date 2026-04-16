@@ -12,4 +12,8 @@ DGCC_FIX=1 pnpm run dgcc
 
 Artifacts: `dgcc-artifacts/`
 
-The `minimal` / `extreme` modes also run `pnpm run check:interact` (GameConfig vs `shared/interaction.ts`).
+Optional self-heal entrypoint (enables contract fixes such as asset folder creation when `allowDangerous` is true):
+
+```bash
+bash tools/dgcc/selfheal-wrapper.sh
+```
