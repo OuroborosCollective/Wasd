@@ -8,6 +8,7 @@
   },
   "include": [
     "src/**/*",
-    "../shared/protocol.ts"
+    "../shared/protocol.ts",
+    "../shared/interaction.ts"
   ]
 }

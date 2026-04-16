@@ -14,7 +14,8 @@ export type ClientMsg =
   | { t: "house_place"; itemId: string; x: number; y: number; r?: number }
   | { t: "use_item"; itemId: string }
   | { t: "use_skill"; skillId: string }
-  | { t: "interact"; npcId?: string }
+  /** @deprecated Prefer `lootId` for bags; `npcId` for NPCs. */
+  | { t: "interact"; npcId?: string; lootId?: string }
   | { t: "set_target"; npcId: string }
   | { t: "respawn" }
   | { t: "party_create" }

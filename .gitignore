@@ -19,6 +19,8 @@ secrets/
 **/firebase-adminsdk*.json
 .DS_Store
 *.log
+# Transpiled stray output next to shared TS sources (do not commit)
+shared/*.js
 coverage/server/firebase-applet-config.json
 
 # SpacetimeDB Rust module build output
