@@ -24,6 +24,8 @@ export interface ItemDefinition {
   weight?: number;
   /** Tags for filtering/categorization (e.g. "furniture", "material") */
   tags?: string[];
+  /** Optional legendary / aspect id for combat proc hooks (see `legendaryPowers.ts`). */
+  legendaryPowerId?: string;
   rarity: "common" | "uncommon" | "rare" | "epic" | "legendary";
   description: string;
 }

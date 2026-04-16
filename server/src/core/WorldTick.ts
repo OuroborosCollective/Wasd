@@ -2,6 +2,7 @@ import { ChunkSystem } from "../modules/world/ChunkSystem.js";
 import { ObserverEngine } from "../modules/observer/ObserverEngine.js";
 import { PlayerSystem } from "../modules/player/PlayerSystem.js";
 import { CombatSystem } from "../modules/combat/CombatSystem.js";
+import { applyLegendaryPowersFromEquipment } from "../modules/items/legendaryPowers.js";
 import { InventorySystem } from "../modules/inventory/InventorySystem.js";
 import { NPCSystem } from "../modules/npc/NPCSystem.js";
 import { GuildSystem } from "../modules/guild/GuildSystem.js";
@@ -1834,6 +1835,29 @@ export class WorldTick {
         player.mana = Math.max(0, (player.mana ?? 0) - manaCost);
         const weaponBonus = Number(weapon?.damage) || 0;
         const atkResult = this.combatSystem.attackWithWeapon(player, target, weaponBonus);
+        let reportedDamage = atkResult.damage;
+        if (atkResult.hit) {
+          const proc = applyLegendaryPowersFromEquipment(player.equipment ?? {}, {
+            attacker: {
+              health: player.health ?? 0,
+              maxHealth: player.maxHealth ?? 100,
+            },
+            target: {
+              health: target.health ?? 0,
+              maxHealth: target.maxHealth ?? target.health ?? 100,
+            },
+            dmg: atkResult.damage,
+            crit: atkResult.crit ?? false,
+          });
+          if (proc.extraDmg > 0) {
+            target.health = Math.max(0, (target.health ?? 0) - proc.extraDmg);
+            reportedDamage += proc.extraDmg;
+          }
+          if (proc.heal > 0) {
+            const mh = player.maxHealth ?? 100;
+            player.health = Math.min(mh, (player.health ?? 0) + proc.heal);
+          }
+        }
         this.ws.broadcast({ type: "entity_action", entityId: player.id, action: "attack" });
         if (atkResult.fx) {
           this.ws.broadcast({
@@ -1844,20 +1868,22 @@ export class WorldTick {
           });
         }
         if (atkResult.hit) {
+          const killed = (target.health ?? 0) <= 0;
+          if (killed) target.health = 0;
           this.ws.broadcast({
             type: "combat_result",
             attackerId: player.id,
             targetId: target.id,
-            damage: atkResult.damage,
+            damage: reportedDamage,
             crit: atkResult.crit ?? false,
             hit: true,
             targetHp: target.health,
             targetHpMax: target.maxHealth ?? target.health,
-            killed: atkResult.killed ?? false,
+            killed,
           });
         }
         this.pushPlayerStateSync(id, player);
-        if (target.health <= 0) {
+        if ((target.health ?? 0) <= 0) {
           target.health = 0;
           target.aggroTargetId = null;
           player.kills = Math.max(0, Number(player.kills) || 0) + 1;
