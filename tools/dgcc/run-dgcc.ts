@@ -87,9 +87,11 @@ async function assetsAudit(report: DgccReport, contract: any, fix: boolean) {
     });
     return;
   }
-  const mustHave = ["characters", "monsters", "npcs", "objects", "items", "resources"].map((x) =>
-    path.join(clientDir, x)
-  );
+  const subfolders: string[] =
+    Array.isArray(contract.rules?.assets?.mustHaveSubfolders) && contract.rules.assets.mustHaveSubfolders.length
+      ? contract.rules.assets.mustHaveSubfolders
+      : ["characters", "monsters", "objects"];
+  const mustHave = subfolders.map((x) => path.join(clientDir, x));
   for (const p of mustHave) {
     if (!fs.existsSync(p)) {
       report.inconsistencies.push({
@@ -169,54 +171,50 @@ async function main() {
   }
 
   const checks = modeCfg.checks as CheckName[];
-
-  if (checks.includes("lint")) {
-    await runCheck("lint", async () => {
+  const known: CheckName[] = [
+    "lint",
+    "unit",
+    "checkInteract",
+    "contentValidate",
+    "serverBuild",
+    "clientBuild",
+    "e2e",
+    "assetsAudit",
+    "wsSchemaSmoke",
+    "uiA11ySmoke",
+  ];
+  const handlers: Record<CheckName, () => Promise<void>> = {
+    lint: async () => {
       const r = await run("pnpm", ["run", "lint"]);
       fs.writeFileSync(path.join(outDir, "lint.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["lint"] = "dgcc-artifacts/lint.out.txt";
       if (r.code !== 0) throw new Error("lint failed");
-    });
-  }
-
-  if (checks.includes("unit")) {
-    await runCheck("unit", async () => {
+    },
+    unit: async () => {
       const r = await run("pnpm", ["run", "test"]);
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
       if (r.code !== 0) throw new Error("unit tests failed");
-    });
-  }
-
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
+    },
+    checkInteract: async () => {
       const r = await run("pnpm", ["run", "check:interact"]);
       fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
       if (r.code !== 0) throw new Error("interact distance consistency check failed");
-    });
-  }
-
-  if (checks.includes("e2e")) {
-    await runCheck("e2e", async () => {
-      const r = await run("pnpm", ["run", "test:e2e:ci"]);
-      fs.writeFileSync(path.join(outDir, "e2e.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["e2e"] = "dgcc-artifacts/e2e.out.txt";
-      if (r.code !== 0) throw new Error("e2e failed");
-    });
-  }
-
-  if (checks.includes("contentValidate")) {
-    await runCheck("contentValidate", async () => {
+    },
+    contentValidate: async () => {
       const r = await run("pnpm", ["--prefix", "server", "run", "validate"]);
       fs.writeFileSync(path.join(outDir, "content-validate.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["contentValidate"] = "dgcc-artifacts/content-validate.out.txt";
       if (r.code !== 0) throw new Error("content validation failed (server validate)");
-    });
-  }
-
-  if (checks.includes("clientBuild")) {
-    await runCheck("clientBuild", async () => {
+    },
+    serverBuild: async () => {
+      const r = await run("pnpm", ["--prefix", "server", "run", "build"]);
+      fs.writeFileSync(path.join(outDir, "server-build.out.txt"), r.stdout + "\n" + r.stderr);
+      report.artifacts["serverBuild"] = "dgcc-artifacts/server-build.out.txt";
+      if (r.code !== 0) throw new Error("server build failed");
+    },
+    clientBuild: async () => {
       const r = await run("pnpm", ["--prefix", "client", "run", "build"], {
         env: {
           NODE_OPTIONS: process.env.NODE_OPTIONS || "--max-old-space-size=6144",
@@ -225,45 +223,41 @@ async function main() {
       fs.writeFileSync(path.join(outDir, "client-build.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["clientBuild"] = "dgcc-artifacts/client-build.out.txt";
       if (r.code !== 0) throw new Error("client build failed");
-    });
-  }
-
-  if (checks.includes("serverBuild")) {
-    await runCheck("serverBuild", async () => {
-      const r = await run("pnpm", ["--prefix", "server", "run", "build"]);
-      fs.writeFileSync(path.join(outDir, "server-build.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["serverBuild"] = "dgcc-artifacts/server-build.out.txt";
-      if (r.code !== 0) throw new Error("server build failed");
-    });
-  }
-
-  if (checks.includes("assetsAudit")) {
-    await runCheck("assetsAudit", async () => {
+    },
+    e2e: async () => {
+      const r = await run("pnpm", ["run", "test:e2e:ci"]);
+      fs.writeFileSync(path.join(outDir, "e2e.out.txt"), r.stdout + "\n" + r.stderr);
+      report.artifacts["e2e"] = "dgcc-artifacts/e2e.out.txt";
+      if (r.code !== 0) throw new Error("e2e failed");
+    },
+    assetsAudit: async () => {
       await assetsAudit(report, contract, fix);
       const p = path.join(outDir, "assets-audit.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "assets") }, null, 2));
       report.artifacts["assetsAudit"] = "dgcc-artifacts/assets-audit.json";
-    });
-  }
-
-  if (checks.includes("wsSchemaSmoke")) {
-    await runCheck("wsSchemaSmoke", async () => {
+    },
+    wsSchemaSmoke: async () => {
       await wsSchemaSmoke(report);
       const p = path.join(outDir, "ws-smoke.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "ws") }, null, 2));
       report.artifacts["wsSchemaSmoke"] = "dgcc-artifacts/ws-smoke.json";
       const hasWsError = report.inconsistencies.some((x) => x.category === "ws" && x.severity === "error");
       if (hasWsError) throw new Error("ws schema smoke failed");
-    });
-  }
-
-  if (checks.includes("uiA11ySmoke")) {
-    await runCheck("uiA11ySmoke", async () => {
+    },
+    uiA11ySmoke: async () => {
       await uiA11ySmoke(report);
       const p = path.join(outDir, "ui-a11y.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "ui") }, null, 2));
       report.artifacts["uiA11ySmoke"] = "dgcc-artifacts/ui-a11y.json";
-    });
+    },
+  };
+
+  for (const name of checks) {
+    if (!known.includes(name)) {
+      console.warn(`[DGCC] unknown check "${name}" — skipping`);
+      continue;
+    }
+    await runCheck(name, handlers[name]);
   }
 
   report.finishedAt = nowIso();
