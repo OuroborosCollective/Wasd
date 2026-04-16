@@ -29,6 +29,8 @@ export type FxKind = "hit" | "crit" | "heal" | "miss" | "block" | "xp" | "gold";
 export type ServerMsg =
   | { t: "fx"; at: Vec2; kind: FxKind; n?: number; color?: string }
   | { t: "toast"; kind: "ok" | "err" | "info"; text: string }
+  /** Optional world snapshot for HUD overlays (client may also derive from `entity_sync`). */
+  | { t: "snapshot"; you: string; entities: EntityNet[]; loot: LootNet[] }
   | { t: "loot_spawned"; loot: LootNet }
   | { t: "loot_despawned"; lootId: string }
   | { t: "loot_picked"; lootId: string; items: ItemStackNet[]; gold: number }

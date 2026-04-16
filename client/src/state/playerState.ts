@@ -27,9 +27,14 @@ let deathAt = 0;
 let respawnAvailableAt = 0;
 let quests: ClientQuestEntry[] = [];
 let inventory: any[] = [];
+/** Carried weight and cap (from server `stats_sync`). */
+let inventoryWeight = 0;
+let maxCarryWeight = 200;
 let equipment: Record<string, unknown> = {};
 /** skillId -> server timestamp (ms) when cooldown ends */
 let skillCooldownUntil: Record<string, number> = {};
+/** Server combat target NPC id (from `stats_sync` / `welcome.stats`). */
+let combatTargetNpcId: string | null = null;
 
 const listeners = new Set<() => void>();
 
@@ -57,8 +62,11 @@ export function applyStatsPayload(data: {
   respawnAvailableAt?: number;
   quests?: ClientQuestEntry[];
   inventory?: any[];
+  maxWeight?: number;
+  inventoryWeight?: number;
   equipment?: Record<string, unknown>;
   skillCooldownUntil?: Record<string, number>;
+  combatTargetNpcId?: string | null;
 }) {
   if (typeof data.gold === "number") gold = data.gold;
   if (typeof data.xp === "number") xp = data.xp;
@@ -74,9 +82,19 @@ export function applyStatsPayload(data: {
   if (typeof data.respawnAvailableAt === "number") respawnAvailableAt = data.respawnAvailableAt;
   if (Array.isArray(data.quests)) quests = data.quests;
   if (Array.isArray(data.inventory)) inventory = data.inventory;
+  if (typeof data.maxWeight === "number" && data.maxWeight > 0) maxCarryWeight = data.maxWeight;
+  if (typeof data.inventoryWeight === "number" && Number.isFinite(data.inventoryWeight)) {
+    inventoryWeight = data.inventoryWeight;
+  }
   if (data.equipment && typeof data.equipment === "object") equipment = data.equipment;
   if (data.skillCooldownUntil && typeof data.skillCooldownUntil === "object") {
     skillCooldownUntil = { ...data.skillCooldownUntil };
+  }
+  if (data.combatTargetNpcId === null) {
+    combatTargetNpcId = null;
+  } else if (typeof data.combatTargetNpcId === "string") {
+    const t = data.combatTargetNpcId.trim();
+    combatTargetNpcId = t.length > 0 ? t : null;
   }
   emit();
 }
@@ -121,10 +139,22 @@ export function getPlayerInventory() {
   return inventory;
 }
 
+export function getPlayerInventoryWeight() {
+  return inventoryWeight;
+}
+
+export function getPlayerMaxCarryWeight() {
+  return maxCarryWeight;
+}
+
 export function getPlayerEquipment(): Record<string, unknown> {
   return equipment;
 }
 
 export function getSkillCooldownUntil(): Record<string, number> {
   return { ...skillCooldownUntil };
+}
+
+export function getCombatTargetNpcId(): string | null {
+  return combatTargetNpcId;
 }

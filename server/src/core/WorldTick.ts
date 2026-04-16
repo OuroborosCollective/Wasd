@@ -373,6 +373,7 @@ export class WorldTick {
   }
 
   private pushPlayerStateSync(socketId: string, player: any) {
+    const invSummary = this.inventorySystem.getInventorySummary(player);
     this.ws.sendToPlayer(socketId, {
       type: "stats_sync",
       gold: player.gold,
@@ -394,7 +395,10 @@ export class WorldTick {
       quests: this.questSystem.getQuestSyncForClient(player),
       inventory: player.inventory,
       equipment: player.equipment,
+      maxWeight: invSummary.maxWeight,
+      inventoryWeight: invSummary.weight,
       skillCooldownUntil: buildSkillCooldownUntilPayload(player, Date.now()),
+      combatTargetNpcId: player.combatTargetNpcId ?? null,
     });
   }
 
@@ -1569,7 +1573,9 @@ export class WorldTick {
             areDeviceClass: requestedDeviceClass,
             areMode: this.areMode,
             recommendedAreMode: recommendedMode,
-            stats: {
+            stats: (() => {
+              const invWelcome = this.inventorySystem.getInventorySummary(player);
+              return {
               gold: player.gold,
               xp: player.xp,
               kills: Number(player.kills) || 0,
@@ -1589,8 +1595,12 @@ export class WorldTick {
               quests: player.quests,
               inventory: player.inventory,
               equipment: player.equipment,
+              maxWeight: invWelcome.maxWeight,
+              inventoryWeight: invWelcome.weight,
               skillCooldownUntil: buildSkillCooldownUntilPayload(player, Date.now()),
-            },
+              combatTargetNpcId: player.combatTargetNpcId ?? null,
+            };
+            })(),
           });
           this.pushPlayerStateSync(id, player);
         } catch (err) {
@@ -2209,6 +2219,7 @@ export class WorldTick {
         position: { x: p.position.x, y: 0, z: p.position.y }, // Mapping y to z for 3D
         rotation: { x: 0, y: 0, z: 0 },
         name: p.name,
+        level: p.level ?? 1,
         glbPath: this.resolveEntityGlbPath("players", p.name || p.id, p.id),
         are: this.areStateCompiler.compileEntity(
           {
@@ -2229,6 +2240,7 @@ export class WorldTick {
         position: { x: n.position.x, y: 0, z: n.position.y },
         rotation: { x: 0, y: 0, z: 0 },
         name: n.name,
+        level: typeof n?.skills?.combat?.level === "number" ? n.skills.combat.level : 1,
         health: n.health,
         maxHealth: n.maxHealth,
         role: n.role,

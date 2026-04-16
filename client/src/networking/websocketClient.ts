@@ -7,6 +7,13 @@ import { showDeathScreen, hideDeathScreen } from "../ui/deathScreen";
 import { showToast } from "../ui/toast";
 import { applyPartySync } from "../state/partyState";
 import { spawnFloatingNumber } from "../ui/floatingNumbers";
+import {
+  pushEntitySyncToGameHud,
+  pushGameHudConnected,
+  pushLootDespawnedToGameHud,
+  pushLootSpawnedToGameHud,
+  pushProtocolMsgToGameHud,
+} from "../ui/gameHudBridge";
 
 let globalWs: WebSocket | null = null;
 const DEFAULT_SCENE_ID = "didis_hub";
@@ -288,6 +295,7 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
   ws.onopen = async () => {
     if (myGen !== wsConnectionGeneration || ws !== globalWs) return;
     console.log("Connected to Arelorian Server");
+    pushGameHudConnected(false);
     emitNetStatus("connected", "Connected. Waiting for world login...");
     const token = await resolveTokenForLogin(options.token);
     let guestId: string | undefined;
@@ -392,6 +400,7 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
           }));
           core.syncEntities(normalizedEntities);
           updateMinimapEntities(normalizedEntities);
+          pushEntitySyncToGameHud(normalizedEntities);
         }
         if (data.chunks) core.syncChunks(data.chunks);
       }
@@ -425,6 +434,16 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         }
         core.setLocalPlayer(localPlayerId);
         setMinimapLocalPlayer(typeof localPlayerId === "string" ? localPlayerId : null);
+        if (typeof localPlayerId === "string" && localPlayerId.length > 0) {
+          try {
+            window.dispatchEvent(
+              new CustomEvent("areloria:local-player-id", { detail: { playerId: localPlayerId } })
+            );
+          } catch {
+            /* ignore */
+          }
+        }
+        pushGameHudConnected(true);
         if (data.stats && typeof data.stats === "object") {
           applyStatsPayload(data.stats);
         }
@@ -500,15 +519,21 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         const cx = window.innerWidth / 2;
         const cy = window.innerHeight / 2;
         spawnFloatingNumber(cx + (Math.random() - 0.5) * 80, cy - 40, data.kind, data.n);
+        pushProtocolMsgToGameHud(data);
       }
       if (data.type === "combat_result") {
         const cx = window.innerWidth / 2;
         const cy = window.innerHeight / 2;
         const kind = data.crit ? "crit" : data.hit ? "hit" : "miss";
         spawnFloatingNumber(cx + (Math.random() - 0.5) * 60, cy - 60, kind, data.damage);
+        pushProtocolMsgToGameHud(data);
       }
       if (data.type === "loot_spawned") {
         showToast("Loot dropped nearby!");
+        if (data.loot) pushLootSpawnedToGameHud(data.loot);
+      }
+      if (data.type === "loot_despawned" && typeof data.lootId === "string") {
+        pushLootDespawnedToGameHud(data.lootId);
       }
       if (data.type === "loot_picked") {
         const items = Array.isArray(data.items) ? data.items : [];
@@ -564,6 +589,7 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
 
   ws.onclose = () => {
     if (myGen !== wsConnectionGeneration) return;
+    pushGameHudConnected(false);
     emitNetStatus("closed", "Disconnected from game server.");
   };
 }
