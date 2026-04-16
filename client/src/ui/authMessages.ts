@@ -127,6 +127,15 @@ export function mapSupabaseAuthError(error: unknown): string {
   if (m.includes("rate limit")) {
     return "Too many attempts. Please wait a moment and try again.";
   }
+  if (m.includes("failed to fetch") || m.includes("networkerror")) {
+    return "Could not reach Supabase Auth. Check URL/SSL/CORS configuration and try again.";
+  }
+  if (m.includes("timeout")) {
+    return "Authentication request timed out. Please retry.";
+  }
+  if (m.includes(":8000")) {
+    return "Auth endpoint points to port 8000, which is usually a stale public URL. Use your HTTPS domain URL.";
+  }
 
   if (message) return message;
   if (error instanceof Error && error.message.trim().length > 0) {

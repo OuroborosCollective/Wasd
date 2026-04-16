@@ -19,7 +19,13 @@ function normalizeSupabaseUrl(raw: string): string {
     const isLocal =
       host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0" || host.endsWith(".local");
     if (isLocal) return value;
-    return value.replace(/^http:\/\//i, "https://");
+    parsed.protocol = "https:";
+    // Legacy templates often pointed to internal docker ports (:8000/:3000). In browser HTTPS mode
+    // those are commonly unreachable or blocked, so prefer the standard TLS endpoint.
+    if (parsed.port === "8000" || parsed.port === "3000") {
+      parsed.port = "";
+    }
+    return parsed.toString().replace(/\/$/, "");
   } catch {
     return value;
   }
@@ -43,11 +49,8 @@ export function getSupabaseRedirectUrl(pathname = "/"): string {
   if (typeof window === "undefined") {
     return pathname;
   }
-  // Avoid redirecting users to outdated explicit site URLs (e.g. stale :8000 values).
-  // Runtime origin is the safest default for OAuth and email links.
-  const fromEnv = trimEnv("VITE_SUPABASE_SITE_URL");
-  const useEnv = Boolean(fromEnv && /^https?:\/\//i.test(fromEnv));
-  const base = useEnv ? fromEnv : window.location.origin;
+  // Always use current runtime origin to avoid stale env redirects (e.g. old :8000 site URL).
+  const base = window.location.origin;
   return `${base.replace(/\/+$/, "")}${pathname.startsWith("/") ? pathname : `/${pathname}`}`;
 }
 

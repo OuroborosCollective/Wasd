@@ -344,6 +344,31 @@ export function renderHUD() {
     signupStatus.style.color = "#8fdf9a";
   };
 
+  const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
+    return await new Promise<T>((resolve, reject) => {
+      const timer = window.setTimeout(() => {
+        reject(new Error(`${label} timed out`));
+      }, ms);
+      promise
+        .then((value) => {
+          window.clearTimeout(timer);
+          resolve(value);
+        })
+        .catch((error) => {
+          window.clearTimeout(timer);
+          reject(error);
+        });
+    });
+  };
+
+  const setAuthBusy = (busy: boolean) => {
+    const controls = [loginBtn, emailLoginBtn, emailSignupBtn, verifyEmailBtn, resetPassBtn, logoutBtn];
+    for (const c of controls) {
+      c.disabled = busy;
+      c.style.opacity = busy ? "0.75" : "1";
+    }
+  };
+
   const clearAuthMessages = () => {
     emailErr.textContent = "";
     emailErr.style.color = "#ff8a8a";
@@ -366,12 +391,17 @@ export function renderHUD() {
     } else {
       loginBtn.onclick = async () => {
         clearAuthMessages();
+        setAuthBusy(true);
         try {
           const redirectTo = getSupabaseRedirectUrl("/");
-          const { data, error } = await supabase.auth.signInWithOAuth({
-            provider: "google",
-            options: { redirectTo, skipBrowserRedirect: false },
-          });
+          const { data, error } = await withTimeout(
+            supabase.auth.signInWithOAuth({
+              provider: "google",
+              options: { redirectTo, skipBrowserRedirect: false },
+            }),
+            15000,
+            "Google sign-in"
+          );
           if (error) {
             throw error;
           }
@@ -385,6 +415,8 @@ export function renderHUD() {
           );
         } catch (e: unknown) {
           setAuthError(mapSupabaseAuthError(e));
+        } finally {
+          setAuthBusy(false);
         }
       };
 
@@ -401,18 +433,28 @@ export function renderHUD() {
           setAuthError(passwordValidation);
           return;
         }
+        setAuthBusy(true);
         try {
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password: passIn.value,
-          });
+          const { data, error } = await withTimeout(
+            supabase.auth.signInWithPassword({
+              email,
+              password: passIn.value,
+            }),
+            15000,
+            "Email sign-in"
+          );
           if (error) throw error;
-          const token = data.session?.access_token ?? (await getSupabaseAccessToken());
+          const token =
+            data.session?.access_token ??
+            (await withTimeout(getSupabaseAccessToken(), 10000, "Session fetch"));
           if (token) {
             updateAuthToken(token, { reconnect: true });
+            setAuthInfo("Signed in.");
           }
         } catch (e: unknown) {
           setAuthError(mapSupabaseAuthError(e));
+        } finally {
+          setAuthBusy(false);
         }
       };
 
@@ -430,13 +472,18 @@ export function renderHUD() {
           setAuthError(passwordValidation);
           return;
         }
+        setAuthBusy(true);
         try {
           const redirectTo = getSupabaseRedirectUrl("/");
-          const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: { emailRedirectTo: redirectTo },
-          });
+          const { data, error } = await withTimeout(
+            supabase.auth.signUp({
+              email,
+              password,
+              options: { emailRedirectTo: redirectTo },
+            }),
+            20000,
+            "Account creation"
+          );
           if (error) throw error;
           if (data.session?.access_token) {
             updateAuthToken(data.session.access_token, { reconnect: true });
@@ -446,6 +493,8 @@ export function renderHUD() {
           }
         } catch (e: unknown) {
           setAuthError(mapSupabaseAuthError(e));
+        } finally {
+          setAuthBusy(false);
         }
       };
 
@@ -456,17 +505,24 @@ export function renderHUD() {
           setAuthError("Enter your account email above to resend verification.");
           return;
         }
+        setAuthBusy(true);
         try {
           const redirectTo = getSupabaseRedirectUrl("/");
-          const { error } = await supabase.auth.resend({
-            type: "signup",
-            email: addr,
-            options: { emailRedirectTo: redirectTo },
-          });
+          const { error } = await withTimeout(
+            supabase.auth.resend({
+              type: "signup",
+              email: addr,
+              options: { emailRedirectTo: redirectTo },
+            }),
+            15000,
+            "Verification email"
+          );
           if (error) throw error;
           setAuthInfo("Verification email sent.");
         } catch (e: unknown) {
           setAuthError(mapSupabaseAuthError(e));
+        } finally {
+          setAuthBusy(false);
         }
       };
 
@@ -482,13 +538,20 @@ export function renderHUD() {
           setAuthError(emailValidation);
           return;
         }
+        setAuthBusy(true);
         try {
           const redirectTo = getSupabaseRedirectUrl("/");
-          const { error } = await supabase.auth.resetPasswordForEmail(addr, { redirectTo });
+          const { error } = await withTimeout(
+            supabase.auth.resetPasswordForEmail(addr, { redirectTo }),
+            15000,
+            "Password reset"
+          );
           if (error) throw error;
           setAuthInfo("Password reset email sent.");
         } catch (e: unknown) {
           setAuthError(mapSupabaseAuthError(e));
+        } finally {
+          setAuthBusy(false);
         }
       };
 
