@@ -11,6 +11,7 @@ type CheckName =
   | "e2e"
   | "contentValidate"
   | "assetsAudit"
+  | "modelPathsAudit"
   | "wsSchemaSmoke"
   | "uiA11ySmoke"
   | "clientBuild"
@@ -27,7 +28,18 @@ type DgccReport = {
   artifacts: Record<string, string>;
 };
 
-const ROOT = process.cwd();
+function resolveRepoRoot(start: string): string {
+  let d = path.resolve(start);
+  for (let i = 0; i < 8; i++) {
+    if (fs.existsSync(path.join(d, "tools/dgcc/dgcc.contract.json"))) return d;
+    const parent = path.dirname(d);
+    if (parent === d) break;
+    d = parent;
+  }
+  return path.resolve(start);
+}
+
+const ROOT = resolveRepoRoot(process.cwd());
 const CONTRACT_PATH = path.join(ROOT, "tools/dgcc/dgcc.contract.json");
 
 function readJson<T>(p: string): T {
@@ -40,6 +52,10 @@ function ensureDir(p: string) {
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function packageManager(): "pnpm" | "npm" {
+  return fs.existsSync(path.join(ROOT, "pnpm-lock.yaml")) ? "pnpm" : "npm";
 }
 
 function run(cmd: string, args: string[], opts?: { env?: Record<string, string> }) {
@@ -57,6 +73,11 @@ function run(cmd: string, args: string[], opts?: { env?: Record<string, string> 
     child.stderr.on("data", (d) => (stderr += String(d)));
     child.on("close", (code) => resolve({ code: code ?? 1, stdout, stderr, durationMs: Date.now() - t0 }));
   });
+}
+
+function runScript(pm: "pnpm" | "npm", script: string, extraEnv?: Record<string, string>) {
+  const args = pm === "pnpm" ? ["run", script] : ["run", script];
+  return run(pm, args, extraEnv ? { env: { ...process.env, ...extraEnv } } : undefined);
 }
 
 function parseMode() {
@@ -136,6 +157,11 @@ async function uiA11ySmoke(report: DgccReport) {
 }
 
 async function main() {
+  if (!fs.existsSync(CONTRACT_PATH)) {
+    console.error(`[DGCC] fatal: contract not found at ${CONTRACT_PATH} (cwd was ${process.cwd()})`);
+    process.exit(3);
+  }
+
   const mode = parseMode();
   const contract = readJson<any>(CONTRACT_PATH);
   const fix = wantFixes(contract, mode);
@@ -169,10 +195,11 @@ async function main() {
   }
 
   const checks = modeCfg.checks as CheckName[];
+  const pm = packageManager();
 
   if (checks.includes("lint")) {
     await runCheck("lint", async () => {
-      const r = await run("pnpm", ["run", "lint"]);
+      const r = await runScript(pm, "lint");
       fs.writeFileSync(path.join(outDir, "lint.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["lint"] = "dgcc-artifacts/lint.out.txt";
       if (r.code !== 0) throw new Error("lint failed");
@@ -181,7 +208,7 @@ async function main() {
 
   if (checks.includes("unit")) {
     await runCheck("unit", async () => {
-      const r = await run("pnpm", ["run", "test"]);
+      const r = await runScript(pm, "test");
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
       if (r.code !== 0) throw new Error("unit tests failed");
@@ -190,7 +217,7 @@ async function main() {
 
   if (checks.includes("checkInteract")) {
     await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
+      const r = await runScript(pm, "check:interact");
       fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
       if (r.code !== 0) throw new Error("interact distance consistency check failed");
@@ -199,7 +226,15 @@ async function main() {
 
   if (checks.includes("e2e")) {
     await runCheck("e2e", async () => {
-      const r = await run("pnpm", ["run", "test:e2e:ci"]);
+      const install =
+        pm === "pnpm"
+          ? await run("pnpm", ["exec", "playwright", "install", "--with-deps", "chromium"])
+          : await run("npx", ["--yes", "playwright", "install", "--with-deps", "chromium"]);
+      fs.writeFileSync(path.join(outDir, "e2e-playwright-install.out.txt"), install.stdout + "\n" + install.stderr);
+      if (install.code !== 0) {
+        throw new Error(`playwright install chromium failed (code ${install.code})`);
+      }
+      const r = await runScript(pm, "test:e2e:ci");
       fs.writeFileSync(path.join(outDir, "e2e.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["e2e"] = "dgcc-artifacts/e2e.out.txt";
       if (r.code !== 0) throw new Error("e2e failed");
@@ -208,7 +243,10 @@ async function main() {
 
   if (checks.includes("contentValidate")) {
     await runCheck("contentValidate", async () => {
-      const r = await run("pnpm", ["--prefix", "server", "run", "validate"]);
+      const r =
+        pm === "pnpm"
+          ? await run("pnpm", ["--prefix", "server", "run", "validate"])
+          : await run("npm", ["run", "validate", "--prefix", "server"]);
       fs.writeFileSync(path.join(outDir, "content-validate.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["contentValidate"] = "dgcc-artifacts/content-validate.out.txt";
       if (r.code !== 0) throw new Error("content validation failed (server validate)");
@@ -217,11 +255,18 @@ async function main() {
 
   if (checks.includes("clientBuild")) {
     await runCheck("clientBuild", async () => {
-      const r = await run("pnpm", ["--prefix", "client", "run", "build"], {
-        env: {
-          NODE_OPTIONS: process.env.NODE_OPTIONS || "--max-old-space-size=6144",
-        },
-      });
+      const r =
+        pm === "pnpm"
+          ? await run("pnpm", ["--prefix", "client", "run", "build"], {
+              env: {
+                NODE_OPTIONS: process.env.NODE_OPTIONS || "--max-old-space-size=6144",
+              },
+            })
+          : await run("npm", ["run", "build", "--prefix", "client"], {
+              env: {
+                NODE_OPTIONS: process.env.NODE_OPTIONS || "--max-old-space-size=6144",
+              },
+            });
       fs.writeFileSync(path.join(outDir, "client-build.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["clientBuild"] = "dgcc-artifacts/client-build.out.txt";
       if (r.code !== 0) throw new Error("client build failed");
@@ -230,7 +275,10 @@ async function main() {
 
   if (checks.includes("serverBuild")) {
     await runCheck("serverBuild", async () => {
-      const r = await run("pnpm", ["--prefix", "server", "run", "build"]);
+      const r =
+        pm === "pnpm"
+          ? await run("pnpm", ["--prefix", "server", "run", "build"])
+          : await run("npm", ["run", "build", "--prefix", "server"]);
       fs.writeFileSync(path.join(outDir, "server-build.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["serverBuild"] = "dgcc-artifacts/server-build.out.txt";
       if (r.code !== 0) throw new Error("server build failed");
@@ -243,6 +291,15 @@ async function main() {
       const p = path.join(outDir, "assets-audit.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "assets") }, null, 2));
       report.artifacts["assetsAudit"] = "dgcc-artifacts/assets-audit.json";
+    });
+  }
+
+  if (checks.includes("modelPathsAudit")) {
+    await runCheck("modelPathsAudit", async () => {
+      const r = await runScript(pm, "audit:model-paths");
+      fs.writeFileSync(path.join(outDir, "model-paths-audit.out.txt"), r.stdout + "\n" + r.stderr);
+      report.artifacts["modelPathsAudit"] = "dgcc-artifacts/model-paths-audit.out.txt";
+      if (r.code !== 0) throw new Error("model path audit failed");
     });
   }
 
