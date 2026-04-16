@@ -2,6 +2,7 @@ import type { Server as HttpServer } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 import { randomUUID } from "node:crypto";
 import { GameConfig } from "../config/GameConfig.js";
+import { resolveWsMaxMessageBytes } from "../config/resolveWsMaxMessageBytes.js";
 
 const WS_RL_WINDOW_MS = 1000;
 
@@ -50,7 +51,7 @@ export class GameWebSocketServer {
           const raw =
             typeof data === "string" ? data : Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer);
           const byteLen = Buffer.byteLength(raw);
-          if (byteLen > GameConfig.wsMaxMessageBytes) {
+          if (byteLen > resolveWsMaxMessageBytes()) {
             console.warn(`WS message too large (${byteLen} bytes), ignoring`);
             return;
           }
