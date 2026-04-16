@@ -94,6 +94,8 @@ export function mapSupabaseAuthError(error: unknown): string {
     user_already_exists: "This email is already registered. Try signing in instead.",
     signup_disabled: "Email/password sign-up is currently disabled.",
     over_request_rate_limit: "Too many attempts. Please wait a moment and try again.",
+    supabase_auth_proxy_not_configured:
+      "Server auth proxy is not configured yet. Set SUPABASE_URL on the server or deploy with a valid Supabase anon key.",
   };
   if (code && mappedByCode[code]) {
     return mappedByCode[code];

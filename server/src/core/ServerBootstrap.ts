@@ -1,4 +1,4 @@
-import express from "express";
+import express, { type Request } from "express";
 import { createServer } from "node:http";
 import { existsSync } from "node:fs";
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
@@ -109,6 +109,76 @@ function resolveSupabaseProxyBaseUrl(): string | null {
   return normalizeSupabaseBaseUrl(configured);
 }
 
+function decodeJwtSegment(segment: string): Record<string, unknown> | null {
+  try {
+    const normalized = segment.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+    const json = Buffer.from(padded, "base64").toString("utf8");
+    const parsed = JSON.parse(json) as unknown;
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function supabaseOriginFromRef(ref: string): string | null {
+  const clean = ref.trim().toLowerCase();
+  if (!/^[a-z0-9]{8,32}$/.test(clean)) return null;
+  return `https://${clean}.supabase.co`;
+}
+
+function inferSupabaseProxyBaseFromApiKey(rawApiKey: string): string | null {
+  const apiKey = rawApiKey.trim();
+  if (!apiKey) return null;
+  const segments = apiKey.split(".");
+  if (segments.length < 2) return null;
+  const payload = decodeJwtSegment(segments[1]);
+  if (!payload) return null;
+
+  const refValue = payload.ref;
+  if (typeof refValue === "string") {
+    const fromRef = supabaseOriginFromRef(refValue);
+    if (fromRef) return fromRef;
+  }
+
+  const issuerValue = payload.iss;
+  if (typeof issuerValue === "string") {
+    const normalized = normalizeSupabaseBaseUrl(issuerValue);
+    if (normalized && /^https:\/\/[a-z0-9-]+\.supabase\.co(?:$|\/)/i.test(normalized)) {
+      return normalized;
+    }
+  }
+
+  return null;
+}
+
+function resolveRequestApiKey(req: Request): string {
+  const fromApiKeyHeader = req.headers["apikey"];
+  if (typeof fromApiKeyHeader === "string" && fromApiKeyHeader.trim()) {
+    return fromApiKeyHeader.trim();
+  }
+  if (Array.isArray(fromApiKeyHeader) && fromApiKeyHeader.length > 0) {
+    const first = fromApiKeyHeader.find((v) => typeof v === "string" && v.trim().length > 0);
+    if (first) return first.trim();
+  }
+  const authHeader = req.headers.authorization;
+  if (typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
+    return authHeader.slice(7).trim();
+  }
+  return "";
+}
+
+export function resolveSupabaseProxyBaseUrlForRequest(
+  req: Request,
+  configuredBaseUrl: string | null
+): string | null {
+  if (configuredBaseUrl) return configuredBaseUrl;
+  const apiKey = resolveRequestApiKey(req);
+  if (!apiKey) return null;
+  return inferSupabaseProxyBaseFromApiKey(apiKey);
+}
+
 function shouldProxyBody(method: string): boolean {
   const upper = method.toUpperCase();
   return upper !== "GET" && upper !== "HEAD";
@@ -133,18 +203,19 @@ export class ServerBootstrap {
     });
 
     app.use("/auth/v1", async (req, res) => {
-      if (!supabaseProxyBaseUrl) {
+      const resolvedProxyBaseUrl = resolveSupabaseProxyBaseUrlForRequest(req, supabaseProxyBaseUrl);
+      if (!resolvedProxyBaseUrl) {
         return res.status(502).json({
           error: "supabase_auth_proxy_not_configured",
           message:
-            "SUPABASE_URL/SUPABASE_PUBLIC_URL is missing on the server. Configure one of them to enable /auth/v1 proxy.",
+            "SUPABASE_URL/SUPABASE_PUBLIC_URL is missing and no valid Supabase apikey/ref was provided. Configure SUPABASE_URL or send the Supabase anon key so /auth/v1 can be resolved.",
         });
       }
 
       try {
         const upstreamUrl = new URL(
           req.originalUrl,
-          `${supabaseProxyBaseUrl.replace(/\/+$/, "")}/`
+          `${resolvedProxyBaseUrl.replace(/\/+$/, "")}/`
         ).toString();
         const headers = new Headers();
         for (const [key, value] of Object.entries(req.headers)) {
