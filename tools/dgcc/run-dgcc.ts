@@ -2,6 +2,7 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 type Severity = "info" | "warn" | "error";
 type CheckName =
@@ -27,8 +28,9 @@ type DgccReport = {
   artifacts: Record<string, string>;
 };
 
-const ROOT = process.cwd();
-const CONTRACT_PATH = path.join(ROOT, "tools/dgcc/dgcc.contract.json");
+const DGCC_DIR = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(DGCC_DIR, "../..");
+const CONTRACT_PATH = path.join(DGCC_DIR, "dgcc.contract.json");
 
 function readJson<T>(p: string): T {
   return JSON.parse(fs.readFileSync(p, "utf8")) as T;
@@ -136,6 +138,11 @@ async function uiA11ySmoke(report: DgccReport) {
 }
 
 async function main() {
+  if (!fs.existsSync(CONTRACT_PATH)) {
+    console.error(`[DGCC] fatal: missing contract at ${CONTRACT_PATH} (resolved repo root: ${ROOT})`);
+    process.exit(3);
+  }
+
   const mode = parseMode();
   const contract = readJson<any>(CONTRACT_PATH);
   const fix = wantFixes(contract, mode);
