@@ -529,6 +529,7 @@ export function initMobileControls(
           if (el.id === "joystick-zone" || el.closest("#joystick-zone")) return true;
           if (el.id === "mob-shortcut-panel" || el.closest("#mob-shortcut-panel")) return true;
           if (el.id === "arel-hud" || el.closest("#arel-hud")) return true;
+          if (el.id === "game-hud-react-root" || el.closest("#game-hud-react-root")) return true;
           if (el.id === "dialogue-box" || el.closest("#dialogue-box")) return true;
           if (el.id === "chat-panel" || el.closest("#chat-panel")) return true;
           if (el.classList.contains("panel") || el.closest(".panel")) return true;
