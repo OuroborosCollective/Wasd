@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -76,6 +77,27 @@ function printHeader(mode: string, fix: boolean) {
   console.log(`[DGCC] mode=${mode} fix=${fix ? "on" : "off"}`);
 }
 
+function workspaceDepsResolvable(): boolean {
+  const req = createRequire(path.join(ROOT, "package.json"));
+  try {
+    req.resolve("jsdom");
+    req.resolve("@supabase/supabase-js");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function ensureWorkspaceDepsInstalled() {
+  if (process.env.DGCC_SKIP_INSTALL === "1") return;
+  if (workspaceDepsResolvable()) return;
+  console.log("[DGCC] workspace dependencies incomplete; running pnpm install …");
+  const r = await run("pnpm", ["install", "--frozen-lockfile"]);
+  if (r.code !== 0) {
+    throw new Error(`pnpm install failed (${r.code})\n${r.stderr.slice(-4000)}`);
+  }
+}
+
 async function assetsAudit(report: DgccReport, contract: any, fix: boolean) {
   const clientDir = path.join(ROOT, contract.rules.assets.clientModelsDir);
   if (!fs.existsSync(clientDir)) {
@@ -137,6 +159,8 @@ async function uiA11ySmoke(report: DgccReport) {
 
 async function main() {
   const mode = parseMode();
+  await ensureWorkspaceDepsInstalled();
+
   const contract = readJson<any>(CONTRACT_PATH);
   const fix = wantFixes(contract, mode);
   printHeader(mode, fix);
@@ -267,7 +291,8 @@ async function main() {
   }
 
   report.finishedAt = nowIso();
-  if (report.inconsistencies.some((x) => x.severity === "error")) report.ok = false;
+  const hasErrorInconsistency = report.inconsistencies.some((x) => x.severity === "error");
+  if (hasErrorInconsistency) report.ok = false;
 
   const reportPath = path.join(outDir, "dgcc.report.json");
   fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
