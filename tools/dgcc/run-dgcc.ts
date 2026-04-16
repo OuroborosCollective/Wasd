@@ -2,6 +2,7 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 type Severity = "info" | "warn" | "error";
 type CheckName =
@@ -27,8 +28,39 @@ type DgccReport = {
   artifacts: Record<string, string>;
 };
 
-const ROOT = process.cwd();
-const CONTRACT_PATH = path.join(ROOT, "tools/dgcc/dgcc.contract.json");
+const ALL_CHECKS: readonly CheckName[] = [
+  "lint",
+  "unit",
+  "checkInteract",
+  "e2e",
+  "contentValidate",
+  "assetsAudit",
+  "wsSchemaSmoke",
+  "uiA11ySmoke",
+  "clientBuild",
+  "serverBuild",
+] as const;
+
+function isCheckName(x: string): x is CheckName {
+  return (ALL_CHECKS as readonly string[]).includes(x);
+}
+
+/** Monorepo root even when the shell cwd is elsewhere (e.g. `pnpm exec` from a subpackage). */
+function resolveRepoRoot(): string {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  let dir = here;
+  for (let i = 0; i < 12; i += 1) {
+    const contractAt = path.join(dir, "tools", "dgcc", "dgcc.contract.json");
+    if (fs.existsSync(contractAt)) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return process.cwd();
+}
+
+const ROOT = resolveRepoRoot();
+const CONTRACT_PATH = path.join(ROOT, "tools", "dgcc", "dgcc.contract.json");
 
 function readJson<T>(p: string): T {
   return JSON.parse(fs.readFileSync(p, "utf8")) as T;
@@ -137,6 +169,10 @@ async function uiA11ySmoke(report: DgccReport) {
 
 async function main() {
   const mode = parseMode();
+  if (!fs.existsSync(CONTRACT_PATH)) {
+    console.error(`[DGCC] missing contract at ${CONTRACT_PATH} (cwd=${process.cwd()})`);
+    process.exit(3);
+  }
   const contract = readJson<any>(CONTRACT_PATH);
   const fix = wantFixes(contract, mode);
   printHeader(mode, fix);
@@ -168,7 +204,19 @@ async function main() {
     }
   }
 
-  const checks = modeCfg.checks as CheckName[];
+  const rawChecks = Array.isArray(modeCfg.checks) ? (modeCfg.checks as string[]) : [];
+  const checks: CheckName[] = [];
+  for (const c of rawChecks) {
+    if (isCheckName(c)) checks.push(c);
+    else {
+      report.inconsistencies.push({
+        category: "dgcc",
+        severity: "warn",
+        message: `Unknown check in contract (ignored): ${String(c)}`,
+        hint: `Valid checks: ${ALL_CHECKS.join(", ")}`,
+      });
+    }
+  }
 
   if (checks.includes("lint")) {
     await runCheck("lint", async () => {
