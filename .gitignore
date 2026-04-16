@@ -4,6 +4,7 @@
 test-results/
 playwright-report/
 dgcc-artifacts/
+.selfhealing/
 node_modules/
 dist/
 # Optional published content snapshot (scripts/publish-content-pack.mjs)
