@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { getFactionByStrand, type Faction } from "./factionRegistry.js";
 import { spawnRegion, seededPick, seededRandom, type City, type Region } from "./worldSpawner.js";
 import { buildFeatureTriggerSchedule, type FeatureTrigger } from "./featureTrigger.js";
@@ -255,7 +254,7 @@ export function generateStrandQuestPack(opts: {
 
   const schedule = buildFeatureTriggerSchedule(stepIds, faction.features);
   const flavor = faction.belief.questFlavor;
-  const mainQuestId = `quest_${opts.questlineId}_main_${randomUUID().slice(0, 8)}`;
+  const mainQuestId = `ql_${opts.questlineId}_main`;
 
   const mainSteps: QuestStep[] = schedule.map((t, i) =>
     generateStep({
@@ -287,7 +286,7 @@ export function generateStrandQuestPack(opts: {
   };
 
   const sideQuests: GeneratedQuest[] = faction.questThemes.side.map((sideTitle, i) => {
-    const qid = `quest_${opts.questlineId}_side_${i}_${randomUUID().slice(0, 6)}`;
+    const qid = `ql_${opts.questlineId}_side_${i}`;
     const cityId = cityForStepIndex(cities, i + 1);
     return {
       id: qid,
@@ -316,7 +315,7 @@ export function generateStrandQuestPack(opts: {
   });
 
   const warQuest: GeneratedQuest = {
-    id: `quest_${opts.questlineId}_war_${randomUUID().slice(0, 6)}`,
+    id: `ql_${opts.questlineId}_war`,
     title: faction.questThemes.war,
     description: `Kriegsstrang — ${faction.landName}.`,
     type: "war",
@@ -342,7 +341,7 @@ export function generateStrandQuestPack(opts: {
   };
 
   const pvpQuest: GeneratedQuest = {
-    id: `quest_${opts.questlineId}_pvp_${randomUUID().slice(0, 6)}`,
+    id: `ql_${opts.questlineId}_pvp`,
     title: faction.questThemes.pvp,
     description: `Wettkampf im Zeichen von ${faction.belief.name}.`,
     type: "pvp",

@@ -46,6 +46,8 @@ export const PLAYER_PERSIST_KEYS = [
   "combatTargetNpcId",
   /** Per-skill cooldown end timestamps (ms since epoch) */
   "skillCooldowns",
+  /** Questline graph + feature schedule (Leinenstrang runtime) */
+  "questlineRuntime",
 ] as const;
 
 export type PlayerPersistKey = (typeof PLAYER_PERSIST_KEYS)[number];
@@ -93,6 +95,10 @@ export function mergePersistedPlayerInto(player: any, saved: Record<string, unkn
   }
   if (!player.skillCooldowns || typeof player.skillCooldowns !== "object") {
     player.skillCooldowns = {};
+  }
+  if (player.questlineRuntime && typeof player.questlineRuntime === "object") {
+    const ql = player.questlineRuntime as { featureSchedule?: unknown[] };
+    if (!Array.isArray(ql.featureSchedule)) ql.featureSchedule = [];
   }
   normalizeInventoryStacks(player);
   if (!player.equipment || typeof player.equipment !== "object") {

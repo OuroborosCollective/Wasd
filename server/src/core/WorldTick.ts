@@ -13,6 +13,15 @@ import { NPCSystem } from "../modules/npc/NPCSystem.js";
 import { GuildSystem } from "../modules/guild/GuildSystem.js";
 import { EconomySystem } from "../modules/economy/EconomySystem.js";
 import { QuestEngine } from "../modules/quest/QuestEngine.js";
+import { QuestlineEngine } from "../modules/questline/questlineEngine.js";
+import { enrichQuestlineContext } from "../modules/questline/questlineGenerator.js";
+import {
+  applyQuestCompletionToQuestline,
+  registerProceduralQuestPack,
+  registeredProceduralQuestIdsByQuestline,
+  setPlayerQuestlineRuntime,
+  tryCompleteQuestlineTalkAtNpc,
+} from "../modules/questline/questlineBridge.js";
 import { WorldSystem } from "../modules/world/WorldSystem.js";
 import { PersistenceManager } from "./PersistenceManager.js";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
@@ -285,6 +294,7 @@ export class WorldTick {
   private lootEntities: Map<string, any> = new Map();
   private housingObjects: Map<string, any> = new Map();
   private craftingSystem: any = null;
+  private questlineEngine: QuestlineEngine;
 
   private socketToPlayer: Map<string, string> = new Map(); // socketId -> characterName
   private lastActionTimes: Map<string, number> = new Map(); // charName -> timestamp
@@ -1535,6 +1545,26 @@ export class WorldTick {
     this.guildSystem = new GuildSystem();
     this.economySystem = new EconomySystem();
     this.questSystem = new QuestEngine();
+    this.questlineEngine = new QuestlineEngine();
+    for (const seed of this.questlineEngine.listSeeds()) {
+      const ctx = enrichQuestlineContext(seed);
+      if (ctx.questPack) {
+        registerProceduralQuestPack(this.questSystem, ctx.questPack, seed.id);
+      }
+    }
+    this.questSystem.setOnQuestCompleted((player, row, def) => {
+      const unlocked = applyQuestCompletionToQuestline(player, row, def, this.questSystem);
+      if (unlocked.length) {
+        const sock = this.getSocketForPlayer(player.id);
+        if (sock) {
+          this.ws.sendToPlayer(sock, {
+            type: "questline_features",
+            unlocked: unlocked,
+            questlineId: def?.questlineId,
+          });
+        }
+      }
+    });
     this.persistence = new PersistenceManager();
     this.worldSystem = new WorldSystem(this.persistence);
     this.glbLinksStore = process.env.GLB_LINKS_STORE?.trim().toLowerCase() === "spacetime" ? "spacetime" : "file";
@@ -1671,6 +1701,36 @@ export class WorldTick {
           console.error("Login error:", err);
           this.ws.sendToPlayer(id, { type: "error", message: "Login failed" });
         }
+        return;
+      }
+
+      if (msg.type === "quest_sync") {
+        const playerUid = this.socketToPlayer.get(id);
+        const player = playerUid ? this.playerSystem.getPlayer(playerUid) : null;
+        if (!player) return;
+        const questlineId =
+          typeof msg.questlineId === "string" && msg.questlineId.trim()
+            ? msg.questlineId.trim()
+            : "mainline_awakening";
+        const state = this.questlineEngine.startQuestline(questlineId);
+        if (!state) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Questline not found." });
+          return;
+        }
+        state.proceduralQuestIds = registeredProceduralQuestIdsByQuestline.get(questlineId) ?? [];
+        const first = `ql_${questlineId}_step_0`;
+        if (this.questSystem.getQuestDefinitions().has(first)) {
+          this.questSystem.startQuest(player, first);
+        }
+        setPlayerQuestlineRuntime(player, state);
+        this.ws.sendToPlayer(id, {
+          type: "questline_state",
+          questlineId,
+          currentNode: state.currentNode,
+          unlockedFeatures: state.unlockedFeatures,
+          featureSchedule: state.featureSchedule,
+        });
+        this.pushPlayerStateSync(id, player);
         return;
       }
 
@@ -2203,8 +2263,21 @@ export class WorldTick {
       }
 
       if (msg.type === "interact") {
-        // Interaction logic...
-        this.ws.sendToPlayer(id, { type: 'dialogue', text: "Hello traveler!" });
+        const npcId =
+          typeof msg.npcId === "string"
+            ? msg.npcId.trim()
+            : typeof msg.targetNpcId === "string"
+              ? msg.targetNpcId.trim()
+              : "";
+        if (npcId) {
+          const talkRewards = this.questSystem.checkTalkToQuests(player, npcId);
+          const collectRewards = this.questSystem.checkCollectTurnInQuests(player, npcId);
+          const qlDone = tryCompleteQuestlineTalkAtNpc(player, this.questSystem, npcId);
+          if (talkRewards.length || collectRewards.length || qlDone.length) {
+            this.pushPlayerStateSync(id, player);
+          }
+        }
+        this.ws.sendToPlayer(id, { type: "dialogue", text: "Hello traveler!" });
         return;
       }
     };

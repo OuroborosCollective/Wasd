@@ -9,6 +9,10 @@ export type QuestlineRuntimeState = {
   currentNode: string;
   unlockedFeatures: string[];
   triggers: FeatureTrigger[];
+  /** Full feature coverage schedule (same refs as procedural pack); mutated on quest complete */
+  featureSchedule: FeatureTrigger[];
+  activeQuestlineId: string;
+  proceduralQuestIds: string[];
   lastContext?: ReturnType<typeof enrichQuestlineContext>;
 };
 
@@ -56,11 +60,18 @@ export class QuestlineEngine {
     for (const fid of node.featureTriggers ?? []) {
       triggers.push(createTrigger(fid, node.id, "introduce"));
     }
+    const ctx = enrichQuestlineContext(seed);
+    const featureSchedule = ctx.questPack
+      ? ctx.questPack.featureSchedule.map((t) => ({ ...t }))
+      : [];
     return {
       currentNode: seed.entryNode,
       unlockedFeatures: [],
       triggers,
-      lastContext: enrichQuestlineContext(seed),
+      featureSchedule,
+      activeQuestlineId: questlineId,
+      proceduralQuestIds: [],
+      lastContext: ctx,
     };
   }
 
@@ -83,6 +94,9 @@ export class QuestlineEngine {
       ...state,
       currentNode: res.nextNode,
       triggers,
+      featureSchedule: state.featureSchedule,
+      activeQuestlineId: questlineId,
+      proceduralQuestIds: state.proceduralQuestIds,
       lastContext: enrichQuestlineContext(seed),
     };
   }

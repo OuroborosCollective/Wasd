@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { QuestlineEngine } from "../modules/questline/questlineEngine.js";
+import { registeredProceduralQuestIdsByQuestline } from "../modules/questline/questlineBridge.js";
 import {
   loadQuestlineProgress,
   upsertQuestlineProgress,
@@ -85,6 +86,7 @@ export function questlineRouter() {
     const qid = paramStr(req.params.questlineId);
     const state = engine.startQuestline(qid);
     if (!state) return res.status(404).json({ error: "questline_not_found" });
+    state.proceduralQuestIds = registeredProceduralQuestIdsByQuestline.get(qid) ?? [];
     const seed = engine.getSeed(qid);
     if (isDatabaseConfigured() && seed) {
       await upsertQuestlineProgress({
@@ -114,6 +116,9 @@ export function questlineRouter() {
       if (saved) state = saved;
     }
     if (!state) return res.status(404).json({ error: "questline_not_found" });
+    if (!state.proceduralQuestIds?.length) {
+      state.proceduralQuestIds = registeredProceduralQuestIdsByQuestline.get(qid) ?? [];
+    }
 
     const next = engine.choose(state, qid, choiceId, flags);
     if ("error" in next) return res.status(400).json({ error: next.error });

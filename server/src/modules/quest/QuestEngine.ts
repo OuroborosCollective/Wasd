@@ -4,6 +4,8 @@ import { resolveContentFile } from "../content/contentDataRoot.js";
 
 export class QuestEngine {
   private quests: Map<string, any> = new Map();
+  /** Optional hook after a quest is completed (e.g. questline feature triggers + auto-chain). */
+  private onQuestCompletedHook: ((player: any, questRow: any, questDef: any) => void) | null = null;
   // ⚡ Bolt Optimization: definitionVersion increments whenever quests are added or reloaded,
   // ensuring the O(1) player quest status cache is globally invalidated when definitions change.
   private definitionVersion = 0;
@@ -15,6 +17,10 @@ export class QuestEngine {
 
   constructor() {
     this.loadData();
+  }
+
+  setOnQuestCompleted(cb: (player: any, questRow: any, questDef: any) => void) {
+    this.onQuestCompletedHook = cb;
   }
 
   private resolveQuestsPath(): string | null {
@@ -190,6 +196,14 @@ export class QuestEngine {
     }
 
     this.invalidateCache(player);
+    const def = this.quests.get(questId);
+    if (this.onQuestCompletedHook && def) {
+      try {
+        this.onQuestCompletedHook(player, q, def);
+      } catch (e) {
+        console.warn("[QuestEngine] onQuestCompleted hook failed", e);
+      }
+    }
     return q.reward;
   }
 
