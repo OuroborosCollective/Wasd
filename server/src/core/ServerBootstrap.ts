@@ -10,7 +10,7 @@ import migrationRoute from "../api/migrationRoute.js";
 import { adminContentRouter } from "../api/adminContentRoute.js";
 import { leaderboardRouter } from "../api/leaderboardRoute.js";
 import { questlineRouter } from "../api/questlineRoute.js";
-import { loreInteractRouter } from "../api/loreInteractRoute.js";
+import { loreRouter } from "../api/loreRoute.js";
 import { getContentDataSourceLabel } from "../modules/content/contentDataRoot.js";
 import { getFirebaseAdminSummary } from "../config/firebase.js";
 import { getSupabaseSummary } from "../config/supabase.js";
@@ -196,7 +196,7 @@ export class ServerBootstrap {
     app.use("/api/mcp", mcpRoute());
     app.use("/api/leaderboard", leaderboardRouter());
     app.use("/api/questlines", questlineRouter());
-    app.use("/api/lore", loreInteractRouter());
+    app.use("/api/lore", loreRouter());
 
     app.get("/", (req, res, next) => {
       if (req.headers["user-agent"]?.includes("GoogleHC")) {
