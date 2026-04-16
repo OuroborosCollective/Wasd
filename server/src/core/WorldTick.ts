@@ -442,23 +442,23 @@ export class WorldTick {
     return Math.hypot(a.x - b.x, a.y - b.y) <= d;
   }
 
-  /** Returns true when `lootId` was non-empty and pickup was attempted (success or failure with toast). */
+  /** True only when the bag existed, was allowed, in range, and contents were granted. */
   private tryPickupLoot(socketId: string, player: any, lootId: string): boolean {
     const trimmed = typeof lootId === "string" ? lootId.trim() : "";
     if (!trimmed) return false;
     const bag = this.lootEntities.get(trimmed);
     if (!bag) {
       this.ws.sendToPlayer(socketId, { type: "toast", text: "Loot not found." });
-      return true;
+      return false;
     }
     if (bag.ownerId && bag.ownerId !== player.id && Date.now() < (bag.ownerExclusiveUntil ?? 0)) {
       this.ws.sendToPlayer(socketId, { type: "toast", text: "Loot belongs to another player." });
-      return true;
+      return false;
     }
     const lootPos = bag.position ?? { x: bag.x ?? 0, y: bag.y ?? 0 };
     if (!this.isWithinDistance(player.position, lootPos, GameConfig.interactDistance)) {
       this.ws.sendToPlayer(socketId, { type: "toast", text: "Too far away." });
-      return true;
+      return false;
     }
     ensureDualInventoryFields(player);
     const pickedItems: { itemId: string; qty: number; name?: string }[] = [];
@@ -2278,6 +2278,7 @@ export class WorldTick {
             : typeof msg.targetNpcId === "string"
               ? msg.targetNpcId.trim()
               : "";
+        let didNpc = false;
         if (npcId) {
           const talkRewards = this.questSystem.checkTalkToQuests(player, npcId);
           const collectRewards = this.questSystem.checkCollectTurnInQuests(player, npcId);
@@ -2285,8 +2286,9 @@ export class WorldTick {
           if (talkRewards.length || collectRewards.length || qlDone.length) {
             this.pushPlayerStateSync(id, player);
           }
+          didNpc = true;
         }
-        if (!didLoot) {
+        if (didNpc && !didLoot) {
           this.ws.sendToPlayer(id, { type: "dialogue", text: "Hello traveler!" });
         }
         return;
