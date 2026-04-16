@@ -2,9 +2,8 @@ import { auth, isFirebaseClientConfigured } from "../auth/firebase";
 import {
   getSupabaseAccessToken,
   getSupabaseRedirectUrl,
-  isSupabaseClientConfigured,
+  initSupabaseClient,
   onSupabaseAuthStateChanged,
-  supabase,
 } from "../auth/supabase";
 import { getQuickCastSkillId } from "../game/combatSkills";
 import { sendDialogueChoice, sendQuestAccept, updateAuthToken } from "../networking/websocketClient";
@@ -106,6 +105,22 @@ export function renderHUD() {
   authBox.style.flexDirection = "column";
   authBox.style.gap = "8px";
   authBox.style.maxWidth = "100%";
+  if (prefersCompactTouchUi()) {
+    authBox.style.position = "fixed";
+    authBox.style.left = "50%";
+    authBox.style.top = "50%";
+    authBox.style.transform = "translate(-50%, -50%)";
+    authBox.style.width = "min(420px, calc(100vw - 24px))";
+    authBox.style.maxHeight = "min(70vh, 520px)";
+    authBox.style.overflowY = "auto";
+    authBox.style.zIndex = "12000";
+    authBox.style.marginTop = "0";
+    authBox.style.padding = "14px";
+    authBox.style.background = "rgba(12,14,22,0.96)";
+    authBox.style.border = "1px solid rgba(242,125,38,0.45)";
+    authBox.style.borderRadius = "14px";
+    authBox.style.boxShadow = "0 16px 48px rgba(0,0,0,0.65)";
+  }
 
   const btnRow = document.createElement("div");
   btnRow.style.display = "flex";
@@ -260,25 +275,6 @@ export function renderHUD() {
   };
   syncAuthUi();
   auth?.onAuthStateChanged(() => syncAuthUi());
-  if (supabase) {
-    onSupabaseAuthStateChanged((session) => {
-      supabaseSignedIn = Boolean(session?.user);
-      try {
-        if (session?.access_token) {
-          localStorage.setItem("token", session.access_token);
-        } else {
-          localStorage.removeItem("token");
-        }
-      } catch {
-        /* ignore */
-      }
-      syncAuthUi();
-    });
-    void supabase.auth.getSession().then(({ data }) => {
-      supabaseSignedIn = Boolean(data.session?.user);
-      syncAuthUi();
-    });
-  }
 
   const setAuthError = (message: string) => {
     emailErr.textContent = message;
@@ -325,23 +321,48 @@ export function renderHUD() {
   if (authProvider === "none") {
     /* Game auth off — server uses guest/dev login; no external auth UI */
   } else if (authProvider === "supabase") {
-    loginBtn.textContent = "Google";
-    if (!isSupabaseClientConfigured() || !supabase) {
-      loginBtn.textContent = "Auth (configure Supabase)";
-      loginBtn.disabled = true;
-      loginBtn.style.opacity = "0.65";
-      logoutBtn.style.display = "none";
-      verifyEmailBtn.style.display = "none";
-      resetPassBtn.style.display = "none";
-      emailRow.style.display = "none";
-    } else {
+    loginBtn.textContent = "Auth wird geladen…";
+    loginBtn.disabled = true;
+    void initSupabaseClient().then((sb) => {
+      if (!sb) {
+        loginBtn.textContent = "Auth (configure Supabase)";
+        loginBtn.disabled = true;
+        loginBtn.style.opacity = "0.65";
+        logoutBtn.style.display = "none";
+        verifyEmailBtn.style.display = "none";
+        resetPassBtn.style.display = "none";
+        emailRow.style.display = "none";
+        return;
+      }
+      loginBtn.textContent = "Google";
+      loginBtn.disabled = false;
+      loginBtn.style.opacity = "1";
+
+      onSupabaseAuthStateChanged((session) => {
+        supabaseSignedIn = Boolean(session?.user);
+        try {
+          if (session?.access_token) {
+            localStorage.setItem("token", session.access_token);
+          } else {
+            localStorage.removeItem("token");
+          }
+        } catch {
+          /* ignore */
+        }
+        syncAuthUi();
+      });
+      void sb.auth.getSession().then(({ data }) => {
+        supabaseSignedIn = Boolean(data.session?.user);
+        syncAuthUi();
+      });
+
       loginBtn.onclick = async () => {
         clearAuthMessages();
         setAuthBusy(true);
         try {
           const redirectTo = getSupabaseRedirectUrl("/");
           const { data, error } = await withTimeout(
-            supabase.auth.signInWithOAuth({
+            sb.auth.signInWithOAuth({
               provider: "google",
               options: { redirectTo, skipBrowserRedirect: false },
             }),
@@ -382,7 +403,7 @@ export function renderHUD() {
         setAuthBusy(true);
         try {
           const { data, error } = await withTimeout(
-            supabase.auth.signInWithPassword({
+            sb.auth.signInWithPassword({
               email,
               password: passIn.value,
             }),
@@ -422,7 +443,7 @@ export function renderHUD() {
         try {
           const redirectTo = getSupabaseRedirectUrl("/");
           const { data, error } = await withTimeout(
-            supabase.auth.signUp({
+            sb.auth.signUp({
               email,
               password,
               options: { emailRedirectTo: redirectTo },
@@ -455,7 +476,7 @@ export function renderHUD() {
         try {
           const redirectTo = getSupabaseRedirectUrl("/");
           const { error } = await withTimeout(
-            supabase.auth.resend({
+            sb.auth.resend({
               type: "signup",
               email: addr,
               options: { emailRedirectTo: redirectTo },
@@ -488,7 +509,7 @@ export function renderHUD() {
         try {
           const redirectTo = getSupabaseRedirectUrl("/");
           const { error } = await withTimeout(
-            supabase.auth.resetPasswordForEmail(addr, { redirectTo }),
+            sb.auth.resetPasswordForEmail(addr, { redirectTo }),
             15000,
             "Password reset"
           );
@@ -503,14 +524,14 @@ export function renderHUD() {
 
       logoutBtn.onclick = async () => {
         try {
-          await supabase.auth.signOut();
+          await sb.auth.signOut();
           updateAuthToken(null, { reconnect: true });
           localStorage.removeItem(GUEST_STORAGE_KEY);
         } catch (e) {
           console.error("Sign out failed", e);
         }
       };
-    }
+    });
   } else if (!isFirebaseClientConfigured() || !auth) {
     loginBtn.textContent = "Auth (configure Firebase)";
     loginBtn.disabled = true;

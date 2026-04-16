@@ -1,10 +1,56 @@
-import { createClient, type Session, type User } from "@supabase/supabase-js";
+import { createClient, type Session, type SupabaseClient, type User } from "@supabase/supabase-js";
 
 type AuthStateCallback = (session: Session | null, user: User | null) => void;
+
+type RuntimePublicConfig = {
+  supabaseUrl: string | null;
+  supabaseAnonKey: string | null;
+};
+
+let runtimeConfig: RuntimePublicConfig | null = null;
+let runtimeConfigPromise: Promise<RuntimePublicConfig> | null = null;
 
 function trimEnv(key: string): string {
   const value = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.[key];
   return typeof value === "string" ? value.trim() : "";
+}
+
+function readWindowRuntime(): RuntimePublicConfig | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as { __AREL_CLIENT_CONFIG__?: RuntimePublicConfig };
+  if (!w.__AREL_CLIENT_CONFIG__) return null;
+  const c = w.__AREL_CLIENT_CONFIG__;
+  if (c.supabaseUrl && c.supabaseAnonKey) return c;
+  return null;
+}
+
+async function loadRuntimePublicConfig(): Promise<RuntimePublicConfig> {
+  const fromWindow = readWindowRuntime();
+  if (fromWindow) return fromWindow;
+  try {
+    const res = await fetch("/client-config.json", { cache: "no-store" });
+    if (!res.ok) return { supabaseUrl: null, supabaseAnonKey: null };
+    const data = (await res.json()) as unknown;
+    if (!data || typeof data !== "object") return { supabaseUrl: null, supabaseAnonKey: null };
+    const o = data as Record<string, unknown>;
+    const supabaseUrl = typeof o.supabaseUrl === "string" && o.supabaseUrl.trim() ? o.supabaseUrl.trim() : null;
+    const supabaseAnonKey =
+      typeof o.supabaseAnonKey === "string" && o.supabaseAnonKey.trim() ? o.supabaseAnonKey.trim() : null;
+    return { supabaseUrl, supabaseAnonKey };
+  } catch {
+    return { supabaseUrl: null, supabaseAnonKey: null };
+  }
+}
+
+export async function ensureSupabaseRuntimeConfig(): Promise<RuntimePublicConfig> {
+  if (runtimeConfig) return runtimeConfig;
+  if (!runtimeConfigPromise) {
+    runtimeConfigPromise = loadRuntimePublicConfig().then((c) => {
+      runtimeConfig = c;
+      return c;
+    });
+  }
+  return runtimeConfigPromise;
 }
 
 function normalizeSupabaseUrl(raw: string): string {
@@ -20,8 +66,6 @@ function normalizeSupabaseUrl(raw: string): string {
       host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0" || host.endsWith(".local");
     if (isLocal) return value;
     parsed.protocol = "https:";
-    // Legacy templates often pointed to internal docker ports (:8000/:3000). In browser HTTPS mode
-    // those are commonly unreachable or blocked, so prefer the standard TLS endpoint.
     if (parsed.port === "8000" || parsed.port === "3000") {
       parsed.port = "";
     }
@@ -31,45 +75,89 @@ function normalizeSupabaseUrl(raw: string): string {
   }
 }
 
-const supabaseUrl = normalizeSupabaseUrl(trimEnv("VITE_SUPABASE_URL") || trimEnv("VITE_SUPABASE_PUBLIC_URL"));
-const supabaseAnonKey = trimEnv("VITE_SUPABASE_ANON_KEY");
+function resolveUrlFromEnv(): string {
+  return normalizeSupabaseUrl(trimEnv("VITE_SUPABASE_URL") || trimEnv("VITE_SUPABASE_PUBLIC_URL"));
+}
 
-export const supabase =
-  supabaseUrl && supabaseAnonKey
-    ? createClient(supabaseUrl, supabaseAnonKey, {
-        auth: {
-          autoRefreshToken: true,
-          persistSession: true,
-          detectSessionInUrl: true,
-        },
-      })
-    : null;
+function resolveKeyFromEnv(): string {
+  return trimEnv("VITE_SUPABASE_ANON_KEY");
+}
+
+let client: SupabaseClient | null = null;
+let initPromise: Promise<SupabaseClient | null> | null = null;
+
+async function getOrCreateClient(): Promise<SupabaseClient | null> {
+  const envUrl = resolveUrlFromEnv();
+  const envKey = resolveKeyFromEnv();
+  if (envUrl && envKey) {
+    if (!client) {
+      client = createClient(envUrl, envKey, {
+        auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true },
+      });
+    }
+    return client;
+  }
+
+  const cfg = await ensureSupabaseRuntimeConfig();
+  if (cfg.supabaseUrl && cfg.supabaseAnonKey) {
+    if (!client) {
+      client = createClient(normalizeSupabaseUrl(cfg.supabaseUrl), cfg.supabaseAnonKey, {
+        auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true },
+      });
+    }
+    return client;
+  }
+  return null;
+}
+
+/** Synchronous: null until env or runtime fetch has configured the client. */
+export function getSupabaseClientSync(): SupabaseClient | null {
+  return client;
+}
+
+export async function initSupabaseClient(): Promise<SupabaseClient | null> {
+  if (initPromise) return initPromise;
+  initPromise = getOrCreateClient();
+  return initPromise;
+}
+
+/** Legacy export — prefer getSupabaseClientSync() after initSupabaseClient(). */
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_t, prop, receiver) {
+    const c = client;
+    if (!c) return undefined;
+    const v = Reflect.get(c, prop, receiver);
+    return typeof v === "function" ? (v as (...a: unknown[]) => unknown).bind(c) : v;
+  },
+});
 
 export function getSupabaseRedirectUrl(pathname = "/"): string {
   if (typeof window === "undefined") {
     return pathname;
   }
-  // Always use current runtime origin to avoid stale env redirects (e.g. old :8000 site URL).
   const base = window.location.origin;
   return `${base.replace(/\/+$/, "")}${pathname.startsWith("/") ? pathname : `/${pathname}`}`;
 }
 
 export function isSupabaseClientConfigured(): boolean {
-  return Boolean(supabase);
+  return Boolean(client);
 }
 
 export async function getSupabaseAccessToken(): Promise<string | null> {
-  if (!supabase) return null;
-  const { data } = await supabase.auth.getSession();
+  const c = await getOrCreateClient();
+  if (!c) return null;
+  const { data } = await c.auth.getSession();
   return data.session?.access_token ?? null;
 }
 
 export function onSupabaseAuthStateChanged(cb: AuthStateCallback): () => void {
-  if (!supabase) return () => undefined;
-  const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-    cb(session ?? null, session?.user ?? null);
+  let unsub = () => {};
+  void getOrCreateClient().then((c) => {
+    if (!c) return;
+    const { data } = c.auth.onAuthStateChange((_event, session) => {
+      cb(session ?? null, session?.user ?? null);
+    });
+    unsub = () => data.subscription.unsubscribe();
   });
-  return () => {
-    data.subscription.unsubscribe();
-  };
+  return () => unsub();
 }

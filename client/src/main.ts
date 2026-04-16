@@ -4,8 +4,9 @@ import { BabylonAdapter } from "./engine/babylon/BabylonAdapter";
 import { MMORPGClientCore } from "./core/MMORPGClientCore";
 import { connectSocket, requestSceneChange, sendCommand, type ConnectionOptions } from "./networking/websocketClient";
 import { IEngineBridge } from "./engine/bridge/IEngineBridge";
-import { renderHUD, showDialogue } from "./ui/hud";
+import { showDialogue } from "./ui/hud";
 import { mountGameHudOverlay } from "./ui/mountGameHudOverlay";
+import { initSupabaseClient, getSupabaseClientSync } from "./auth/supabase";
 import { getJoystickState, initMobileControls, isMobile } from "./ui/mobileControls";
 import { openEquipmentPanel, openInventory, openQuestLog, openSkillsPanel } from "./ui/lazyPanels";
 import { getQuickCastSkillId } from "./game/combatSkills";
@@ -87,6 +88,7 @@ async function loadAREPolicyConfig(): Promise<AREPolicyConfig | undefined> {
   }
 }
 
+void (async () => {
 try {
   installFirebaseAiWatchdog();
   showBootStatus("Booting renderer...", "info");
@@ -114,9 +116,14 @@ try {
   mountGameHudOverlay(core);
   core.registerDefaultInput();
 
+  await initSupabaseClient();
+
   // 3. Connect Systems
   const connectionOptions: ConnectionOptions = {};
-  const authProvider = resolveGameAuthProvider();
+  let authProvider = resolveGameAuthProvider();
+  if (authProvider === "none" && getSupabaseClientSync()) {
+    authProvider = "supabase";
+  }
   if (authProvider !== "none") {
     let persistedToken: string | null = null;
     try {
@@ -145,7 +152,6 @@ try {
       connectSocket(core, connectionOptions);
     });
   (window as any).requestSceneChange = requestSceneChange;
-  renderHUD();
   initChat((type, payload) => sendCommand(type, payload));
   initMinimap();
   // Legacy quick-teleport panel removed from gameplay HUD.
@@ -203,3 +209,4 @@ try {
   console.error("Fatal client bootstrap error:", error);
   showBootStatus(`Fatal bootstrap error: ${error?.message || "Unknown error"}`);
 }
+})();
