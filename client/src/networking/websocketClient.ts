@@ -25,11 +25,15 @@ let authTokenProvider: (() => Promise<string | null>) | null = null;
 /** Last connectSocket target so we can reconnect after Google login refreshes the JWT. */
 let reconnectTarget: { core: MMORPGClientCore; options: ConnectionOptions } | null = null;
 
+export type InteractWirePayload =
+  | { kind: "npc"; npcId: string }
+  | { kind: "loot"; lootId: string };
+
 type BoundWsHandlers = {
   core: MMORPGClientCore;
   onInput: (input: any) => void;
   onAttack: () => void;
-  onInteract: (npcId?: string) => void;
+  onInteract: (payload?: InteractWirePayload) => void;
 };
 let boundWsHandlers: BoundWsHandlers | null = null;
 let wsConnectionGeneration = 0;
@@ -336,14 +340,15 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         ws.send(JSON.stringify({ type: "attack" }));
       }
     };
-    const onInteract = (npcId?: string) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        const payload: Record<string, unknown> = { type: "interact" };
-        if (typeof npcId === "string" && npcId.trim()) {
-          payload.npcId = npcId.trim();
-        }
-        ws.send(JSON.stringify(payload));
+    const onInteract = (detail?: InteractWirePayload) => {
+      if (ws.readyState !== WebSocket.OPEN) return;
+      const payload: Record<string, unknown> = { type: "interact" };
+      if (detail?.kind === "loot") {
+        payload.lootId = detail.lootId;
+      } else if (detail?.kind === "npc") {
+        payload.npcId = detail.npcId;
       }
+      ws.send(JSON.stringify(payload));
     };
     boundWsHandlers = { core, onInput, onAttack, onInteract };
     core.events.on("input", onInput);
