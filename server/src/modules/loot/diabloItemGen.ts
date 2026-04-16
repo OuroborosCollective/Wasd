@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { scaleRoll } from "./rollScale.js";
 
 export type Rarity = "common" | "magic" | "rare" | "legendary" | "set";
 
@@ -127,7 +128,8 @@ export function generateItem(opts: {
 
   for (const a of chosen) {
     for (const rr of a.rolls) {
-      const v = randInt(rr.min, rr.max);
+      const scaled = scaleRoll(rr.min, rr.max, opts.ilvl);
+      const v = randInt(scaled.min, scaled.max);
       stats[rr.stat] = (stats[rr.stat] ?? 0) + v;
     }
   }

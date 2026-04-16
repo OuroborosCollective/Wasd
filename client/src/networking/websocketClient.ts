@@ -643,6 +643,10 @@ export function sendPickupLoot(lootId: string) {
   sendCommand("pickup_loot", { lootId });
 }
 
+export function sendEquipGear(itemUid: string) {
+  sendCommand("equip_gear", { itemUid });
+}
+
 export function sendEquipItem(itemId: string) {
   sendCommand("equip_item", { itemId });
 }

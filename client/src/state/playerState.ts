@@ -27,6 +27,8 @@ let deathAt = 0;
 let respawnAvailableAt = 0;
 let quests: ClientQuestEntry[] = [];
 let inventory: any[] = [];
+/** UID gear rows from `stats_sync` / `welcome.stats` (parallel to stackable `inventory`). */
+let gearInventory: any[] = [];
 /** Carried weight and cap (from server `stats_sync`). */
 let inventoryWeight = 0;
 let maxCarryWeight = 200;
@@ -62,6 +64,7 @@ export function applyStatsPayload(data: {
   respawnAvailableAt?: number;
   quests?: ClientQuestEntry[];
   inventory?: any[];
+  gear?: any[];
   maxWeight?: number;
   inventoryWeight?: number;
   equipment?: Record<string, unknown>;
@@ -82,6 +85,7 @@ export function applyStatsPayload(data: {
   if (typeof data.respawnAvailableAt === "number") respawnAvailableAt = data.respawnAvailableAt;
   if (Array.isArray(data.quests)) quests = data.quests;
   if (Array.isArray(data.inventory)) inventory = data.inventory;
+  if (Array.isArray(data.gear)) gearInventory = data.gear;
   if (typeof data.maxWeight === "number" && data.maxWeight > 0) maxCarryWeight = data.maxWeight;
   if (typeof data.inventoryWeight === "number" && Number.isFinite(data.inventoryWeight)) {
     inventoryWeight = data.inventoryWeight;
@@ -137,6 +141,10 @@ export function getPlayerQuests() {
 }
 export function getPlayerInventory() {
   return inventory;
+}
+
+export function getPlayerGearInventory() {
+  return gearInventory;
 }
 
 export function getPlayerInventoryWeight() {

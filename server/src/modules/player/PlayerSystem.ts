@@ -24,6 +24,12 @@ export class PlayerSystem {
       quests: [],
       skills: { combat: { level: 1 } },
       inventory: [],
+      gearInventory: [] as unknown[],
+      lootPity: { killsSinceLegendary: 0, killsSinceSet: 0 },
+      lootFilter: {
+        showRarities: ["magic", "rare", "legendary", "set"],
+        autoPickupStackIds: [] as string[],
+      },
       equipment: {
         weapon: null,
         armor: null

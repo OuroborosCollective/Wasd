@@ -27,6 +27,10 @@ export const PLAYER_PERSIST_KEYS = [
   "quests",
   "skills",
   "inventory",
+  /** UID-bound gear (Diablo-style); parallel to stackable `inventory`. */
+  "gearInventory",
+  "lootPity",
+  "lootFilter",
   "equipment",
   "faction",
   "civilization",
@@ -80,6 +84,13 @@ export function mergePersistedPlayerInto(player: any, saved: Record<string, unkn
     }
   }
   if (!Array.isArray(player.inventory)) player.inventory = [];
+  if (!Array.isArray(player.gearInventory)) player.gearInventory = [];
+  if (!player.lootPity || typeof player.lootPity !== "object") {
+    player.lootPity = { killsSinceLegendary: 0, killsSinceSet: 0 };
+  }
+  if (!player.lootFilter || typeof player.lootFilter !== "object") {
+    player.lootFilter = { showRarities: ["magic", "rare", "legendary", "set"], autoPickupStackIds: [] };
+  }
   if (!player.skillCooldowns || typeof player.skillCooldowns !== "object") {
     player.skillCooldowns = {};
   }

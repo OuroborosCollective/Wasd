@@ -53,14 +53,30 @@ function mergeProc(into: LegendaryProcResult, next: { extraDmg?: number; heal?: 
 }
 
 /** Collect procs from optional `legendaryPowerId` on equipped weapon/armor rows. */
+function legendaryIdFromEquipRow(
+  row: { legendaryPowerId?: string; uid?: string } | null | undefined,
+  gearInventory: unknown
+): string | undefined {
+  if (row && typeof row.legendaryPowerId === "string" && row.legendaryPowerId.trim()) {
+    return row.legendaryPowerId.trim();
+  }
+  const uid = typeof row?.uid === "string" ? row.uid.trim() : "";
+  if (!uid || !Array.isArray(gearInventory)) return undefined;
+  const g = gearInventory.find((x: any) => x && x.uid === uid);
+  const lid = g?.legendaryPowerId;
+  return typeof lid === "string" && lid.trim() ? lid.trim() : undefined;
+}
+
 export function applyLegendaryPowersFromEquipment(
-  equipment: { weapon?: { legendaryPowerId?: string } | null; armor?: { legendaryPowerId?: string } | null },
-  ctx: PowerContext
+  equipment: { weapon?: { legendaryPowerId?: string; uid?: string } | null; armor?: { legendaryPowerId?: string; uid?: string } | null },
+  ctx: PowerContext,
+  gearInventory?: unknown
 ): LegendaryProcResult {
   const out = emptyProcResult();
-  const ids = [equipment?.weapon?.legendaryPowerId, equipment?.armor?.legendaryPowerId].filter(
-    (x): x is string => typeof x === "string" && x.length > 0
-  );
+  const ids = [
+    legendaryIdFromEquipRow(equipment?.weapon, gearInventory),
+    legendaryIdFromEquipRow(equipment?.armor, gearInventory),
+  ].filter((x): x is string => Boolean(x));
   for (const id of ids) {
     const p = POWERS[id];
     if (!p?.onHit) continue;

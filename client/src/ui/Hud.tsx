@@ -206,7 +206,12 @@ function LootPanel({ loot, onTake }: { loot: LootNet[]; onTake: (id: string) => 
           >
             <div className="min-w-0">
               <div className="text-xs text-slate-200/80">
-                {b.items.map((i) => `${i.qty}× ${i.itemId}`).join(", ")} {b.gold ? `+${b.gold}g` : ""}
+                {b.items.map((i) => `${i.qty}× ${i.itemId}`).join(", ")}
+                {b.gear?.length
+                  ? (b.items.length ? " · " : "") +
+                    b.gear.map((g) => `[${g.rarity}] ${g.name}`).join(", ")
+                  : ""}{" "}
+                {b.gold ? `+${b.gold}g` : ""}
               </div>
               <div className="text-[11px] text-slate-200/60">ID: {b.id.slice(0, 8)}</div>
             </div>

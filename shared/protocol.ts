@@ -61,6 +61,8 @@ export interface LootNet {
   x: number;
   y: number;
   items: ItemStackNet[];
+  /** Optional UID gear previews on the ground (server sends summary). */
+  gear?: Array<{ uid: string; baseId: string; name: string; rarity: string; ilvl: number }>;
   gold: number;
   ownerId?: string;
   despawnAt: number;

@@ -3,6 +3,11 @@ import { ObserverEngine } from "../modules/observer/ObserverEngine.js";
 import { PlayerSystem } from "../modules/player/PlayerSystem.js";
 import { CombatSystem } from "../modules/combat/CombatSystem.js";
 import { applyLegendaryPowersFromEquipment } from "../modules/items/legendaryPowers.js";
+import { addGearToPlayer, ensureDualInventoryFields } from "../modules/items/dualInventoryTypes.js";
+import { generateItem, rarityRoll } from "../modules/loot/diabloItemGen.js";
+import { generatedItemToGearItem } from "../modules/loot/gearConvert.js";
+import { pityBonus } from "../modules/loot/pity.js";
+import { SAMPLE_DROP_AFFIXES, SAMPLE_DROP_BASES } from "../modules/loot/diabloSampleData.js";
 import { InventorySystem } from "../modules/inventory/InventorySystem.js";
 import { NPCSystem } from "../modules/npc/NPCSystem.js";
 import { GuildSystem } from "../modules/guild/GuildSystem.js";
@@ -395,6 +400,7 @@ export class WorldTick {
         : 0,
       quests: this.questSystem.getQuestSyncForClient(player),
       inventory: player.inventory,
+      gear: invSummary.gear ?? player.gearInventory ?? [],
       equipment: player.equipment,
       maxWeight: invSummary.maxWeight,
       inventoryWeight: invSummary.weight,
@@ -591,6 +597,24 @@ export class WorldTick {
     return this.playerSystem.getAllPlayers().find((p: any) => p.name === playerNameOrId) || null;
   }
 
+  private resolveWeaponDamageBonus(player: any, weaponRow: any): number {
+    let bonus = Number(weaponRow?.damage) || 0;
+    const uid = typeof weaponRow?.uid === "string" ? weaponRow.uid.trim() : "";
+    if (!uid || !Array.isArray(player.gearInventory)) return bonus;
+    const g = player.gearInventory.find((x: any) => x && x.uid === uid);
+    if (!g?.stats || typeof g.stats !== "object") return bonus;
+    const dMin = Number(g.stats.dmgMin);
+    const dMax = Number(g.stats.dmgMax);
+    if (Number.isFinite(dMin) && Number.isFinite(dMax)) {
+      bonus += Math.floor((dMin + dMax) / 2);
+    } else if (Number.isFinite(dMax)) {
+      bonus += Math.floor(dMax);
+    } else if (Number.isFinite(dMin)) {
+      bonus += Math.floor(dMin);
+    }
+    return bonus;
+  }
+
   private spawnLootFromNpc(npc: any, killerId: string): void {
     let items: any[] = [];
     let gold = Math.floor(Math.random() * 5) + 1;
@@ -605,6 +629,34 @@ export class WorldTick {
     } catch {
       /* LootSystem load may fail if loot-tables.json not configured */
     }
+
+    const killer = this.playerSystem.getPlayer(killerId);
+    if (killer) {
+      ensureDualInventoryFields(killer);
+      killer.lootPity.killsSinceLegendary += 1;
+      killer.lootPity.killsSinceSet += 1;
+    }
+
+    const gearPieces: any[] = [];
+    const base = SAMPLE_DROP_BASES["rusted_blade"];
+    if (base && killer) {
+      const mf =
+        pityBonus(killer.lootPity.killsSinceLegendary) + pityBonus(killer.lootPity.killsSinceSet, 0.002, 0.06);
+      const rarity = rarityRoll(mf);
+      const ilvl = Math.max(1, Math.floor(Number(killer.level) || 1));
+      const gen = generateItem({
+        base,
+        ilvl,
+        rarity,
+        affixes: SAMPLE_DROP_AFFIXES,
+        mf,
+        legendaryPowerId: rarity === "legendary" ? "lp_vampiric" : undefined,
+      });
+      gearPieces.push(generatedItemToGearItem(gen));
+      if (rarity === "legendary") killer.lootPity.killsSinceLegendary = 0;
+      if (rarity === "set") killer.lootPity.killsSinceSet = 0;
+    }
+
     const id = `loot_${Date.now()}_${npc.id}`;
     const bag: any = {
       id,
@@ -613,6 +665,7 @@ export class WorldTick {
         id: it.id ?? it.itemId,
         quantity: it.quantity ?? it.qty ?? 1,
       })),
+      gear: gearPieces,
       gold,
       ownerId: killerId,
       ownerExclusiveUntil: Date.now() + 30_000,
@@ -626,6 +679,15 @@ export class WorldTick {
         x: bag.position.x,
         y: bag.position.y,
         items: bag.items.map((it: any) => ({ itemId: it.id, qty: it.quantity })),
+        gear: Array.isArray(bag.gear)
+          ? bag.gear.map((g: any) => ({
+              uid: g.uid,
+              baseId: g.baseId,
+              name: g.name,
+              rarity: g.rarity,
+              ilvl: g.ilvl,
+            }))
+          : [],
         gold: bag.gold,
         ownerId: killerId,
         despawnAt: bag.despawnAt,
@@ -1595,6 +1657,7 @@ export class WorldTick {
                 : 0,
               quests: player.quests,
               inventory: player.inventory,
+              gear: invWelcome.gear ?? player.gearInventory ?? [],
               equipment: player.equipment,
               maxWeight: invWelcome.maxWeight,
               inventoryWeight: invWelcome.weight,
@@ -1833,22 +1896,26 @@ export class WorldTick {
         }
 
         player.mana = Math.max(0, (player.mana ?? 0) - manaCost);
-        const weaponBonus = Number(weapon?.damage) || 0;
+        const weaponBonus = this.resolveWeaponDamageBonus(player, weapon);
         const atkResult = this.combatSystem.attackWithWeapon(player, target, weaponBonus);
         let reportedDamage = atkResult.damage;
         if (atkResult.hit) {
-          const proc = applyLegendaryPowersFromEquipment(player.equipment ?? {}, {
-            attacker: {
-              health: player.health ?? 0,
-              maxHealth: player.maxHealth ?? 100,
+          const proc = applyLegendaryPowersFromEquipment(
+            player.equipment ?? {},
+            {
+              attacker: {
+                health: player.health ?? 0,
+                maxHealth: player.maxHealth ?? 100,
+              },
+              target: {
+                health: target.health ?? 0,
+                maxHealth: target.maxHealth ?? target.health ?? 100,
+              },
+              dmg: atkResult.damage,
+              crit: atkResult.crit ?? false,
             },
-            target: {
-              health: target.health ?? 0,
-              maxHealth: target.maxHealth ?? target.health ?? 100,
-            },
-            dmg: atkResult.damage,
-            crit: atkResult.crit ?? false,
-          });
+            player.gearInventory
+          );
           if (proc.extraDmg > 0) {
             target.health = Math.max(0, (target.health ?? 0) - proc.extraDmg);
             reportedDamage += proc.extraDmg;
@@ -1970,6 +2037,62 @@ export class WorldTick {
         return;
       }
 
+      if (msg.type === "equip_gear") {
+        const itemUid = typeof msg.itemUid === "string" ? msg.itemUid.trim() : "";
+        if (!itemUid) return;
+        ensureDualInventoryFields(player);
+        const idx = player.gearInventory.findIndex((x: any) => x && x.uid === itemUid);
+        if (idx < 0) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Gear not found." });
+          return;
+        }
+        const g = player.gearInventory[idx];
+        const def = ItemRegistry.getItem(g.baseId);
+        if (!def || (def.type !== "weapon" && def.type !== "armor")) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Cannot equip this gear type yet." });
+          return;
+        }
+        const slot = def.type === "weapon" ? "weapon" : "armor";
+        if (def.type === "armor" && def.slot !== "armor") {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Armor slot not supported for this item." });
+          return;
+        }
+        const equipRow = {
+          ...def,
+          id: g.baseId,
+          uid: g.uid,
+          name: typeof g.name === "string" ? g.name : def.name,
+          rarity: g.rarity ?? "magic",
+          ilvl: typeof g.ilvl === "number" ? g.ilvl : player.level ?? 1,
+          stats: g.stats && typeof g.stats === "object" ? g.stats : {},
+          ...(typeof g.legendaryPowerId === "string" ? { legendaryPowerId: g.legendaryPowerId } : {}),
+          ...(Array.isArray(g.socketed) ? { socketed: g.socketed } : {}),
+        };
+        const prev = player.equipment?.[slot] ?? null;
+        if (prev) {
+          if (typeof prev.uid === "string" && prev.uid) {
+            player.gearInventory.push({
+              uid: prev.uid,
+              baseId: prev.id,
+              name: typeof prev.name === "string" ? prev.name : prev.id,
+              rarity: prev.rarity ?? "magic",
+              ilvl: typeof prev.ilvl === "number" ? prev.ilvl : player.level ?? 1,
+              stats: prev.stats && typeof prev.stats === "object" ? prev.stats : {},
+              ...(typeof prev.legendaryPowerId === "string" ? { legendaryPowerId: prev.legendaryPowerId } : {}),
+              ...(Array.isArray(prev.socketed) ? { socketed: prev.socketed } : {}),
+            });
+          } else {
+            this.inventorySystem.addItem(player, { id: prev.id, quantity: prev.quantity ?? 1 });
+          }
+        }
+        player.gearInventory.splice(idx, 1);
+        if (!player.equipment) player.equipment = { weapon: null, armor: null };
+        (player.equipment as any)[slot] = equipRow;
+        this.ws.sendToPlayer(id, { type: "toast", text: `Equipped ${equipRow.name}.` });
+        this.pushPlayerStateSync(id, player);
+        return;
+      }
+
       if (msg.type === "pickup_loot") {
         const lootId = typeof msg.lootId === "string" ? msg.lootId.trim() : "";
         if (!lootId) return;
@@ -1987,7 +2110,9 @@ export class WorldTick {
           this.ws.sendToPlayer(id, { type: "toast", text: "Too far away." });
           return;
         }
+        ensureDualInventoryFields(player);
         const pickedItems: { itemId: string; qty: number; name?: string }[] = [];
+        const pickedGear: any[] = [];
         if (Array.isArray(bag.items)) {
           for (const it of bag.items) {
             if (!it?.id) continue;
@@ -1995,6 +2120,19 @@ export class WorldTick {
             this.inventorySystem.addItem(player, { id: it.id, quantity: qty });
             const def = ItemRegistry.getItem(it.id);
             pickedItems.push({ itemId: it.id, qty, name: def?.name });
+          }
+        }
+        if (Array.isArray(bag.gear)) {
+          for (const g of bag.gear) {
+            if (!g || typeof g.uid !== "string") continue;
+            addGearToPlayer(player, g);
+            pickedGear.push({
+              uid: g.uid,
+              baseId: g.baseId,
+              name: g.name,
+              rarity: g.rarity,
+              ilvl: g.ilvl,
+            });
           }
         }
         const gold = typeof bag.gold === "number" ? bag.gold : 0;
@@ -2005,6 +2143,7 @@ export class WorldTick {
           type: "loot_picked",
           lootId,
           items: pickedItems,
+          gear: pickedGear,
           gold,
         });
         if (gold > 0) {

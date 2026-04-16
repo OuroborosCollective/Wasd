@@ -7,14 +7,23 @@ const DEFAULT_MAX_WEIGHT = 200;
 export class InventorySystem {
   /** Calculate total weight of a player's inventory. */
   calculateWeight(player: any): number {
-    if (!Array.isArray(player.inventory)) return 0;
     let total = 0;
-    for (const row of player.inventory) {
-      if (!row || typeof row.id !== "string") continue;
-      const def = ItemRegistry.getItem(row.id);
-      const unitWeight = ItemRegistry.weightOf(def);
-      const qty = Math.max(1, Math.floor(Number(row.quantity) || 1));
-      total += unitWeight * qty;
+    if (Array.isArray(player.inventory)) {
+      for (const row of player.inventory) {
+        if (!row || typeof row.id !== "string") continue;
+        const def = ItemRegistry.getItem(row.id);
+        const unitWeight = ItemRegistry.weightOf(def);
+        const qty = Math.max(1, Math.floor(Number(row.quantity) || 1));
+        total += unitWeight * qty;
+      }
+    }
+    if (Array.isArray(player.gearInventory)) {
+      for (const g of player.gearInventory) {
+        if (!g || typeof g.baseId !== "string") continue;
+        const def = ItemRegistry.getItem(g.baseId);
+        const w = ItemRegistry.weightOf(def);
+        total += Math.max(1, w);
+      }
     }
     return total;
   }
@@ -27,9 +36,16 @@ export class InventorySystem {
   }
 
   /** Returns an inventory summary for the client `inv` protocol message. */
-  getInventorySummary(player: any): { items: any[]; gold: number; maxWeight: number; weight: number } {
+  getInventorySummary(player: any): {
+    items: any[];
+    gear?: unknown[];
+    gold: number;
+    maxWeight: number;
+    weight: number;
+  } {
     return {
       items: Array.isArray(player.inventory) ? player.inventory.filter(Boolean) : [],
+      gear: Array.isArray(player.gearInventory) ? player.gearInventory.filter(Boolean) : [],
       gold: player.gold ?? 0,
       maxWeight: this.getMaxWeight(player),
       weight: this.calculateWeight(player),
