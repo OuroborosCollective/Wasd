@@ -106,11 +106,20 @@ export function getSupabaseAuthInitInfo(): {
   hasJwtSecret: boolean;
 } {
   const jwtSecret = getJwtSecret();
+  const hasUrl = Boolean(
+    envTrim("SUPABASE_URL") ||
+      envTrim("SUPABASE_PUBLIC_URL") ||
+      envTrim("API_EXTERNAL_URL") ||
+      envTrim("VITE_SUPABASE_URL") ||
+      envTrim("VITE_SUPABASE_PUBLIC_URL")
+  );
+  const hasAnonKey = Boolean(envTrim("SUPABASE_ANON_KEY") || envTrim("ANON_KEY"));
+  const hasServiceRoleKey = Boolean(envTrim("SUPABASE_SERVICE_ROLE_KEY") || envTrim("SERVICE_ROLE_KEY"));
   return {
     verifyMode: jwtSecret ? "jwt_secret" : "none",
-    hasUrl: Boolean(envTrim("SUPABASE_URL") || envTrim("SUPABASE_PUBLIC_URL")),
-    hasAnonKey: Boolean(envTrim("SUPABASE_ANON_KEY")),
-    hasServiceRoleKey: Boolean(envTrim("SUPABASE_SERVICE_ROLE_KEY")),
+    hasUrl,
+    hasAnonKey,
+    hasServiceRoleKey,
     hasJwtSecret: Boolean(jwtSecret),
   };
 }
