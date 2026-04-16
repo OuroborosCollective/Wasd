@@ -81,6 +81,3 @@ export function setQuickCastSkillId(skillId: string): void {
   }
   window.dispatchEvent(new CustomEvent("areloria-quick-cast-changed", { detail: { skillId: id } }));
 }
-
-/** @deprecated use getQuickCastSkillId */
-export const PRIMARY_QUICK_CAST_SKILL_ID = DEFAULT_QUICK_CAST_SKILL_ID;

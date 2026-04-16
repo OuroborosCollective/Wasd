@@ -9,18 +9,6 @@ import {
 import { getQuickCastSkillId } from "../game/combatSkills";
 import { sendDialogueChoice, sendQuestAccept, updateAuthToken } from "../networking/websocketClient";
 import {
-  getPlayerGold,
-  getPlayerHealth,
-  getPlayerMaxHealth,
-  getPlayerLevel,
-  getPlayerMana,
-  getPlayerMaxMana,
-  getPlayerMaxStamina,
-  getPlayerStamina,
-  getPlayerXp,
-  subscribePlayerState,
-} from "../state/playerState";
-import {
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
   sendEmailVerification,
@@ -40,37 +28,6 @@ import {
 } from "./authMessages";
 
 const GUEST_STORAGE_KEY = "areloria_guest_id";
-
-function makeBarRow(label: string, fillPct: number, color: string): HTMLDivElement {
-  const wrap = document.createElement("div");
-  wrap.style.display = "flex";
-  wrap.style.alignItems = "center";
-  wrap.style.gap = "6px";
-  wrap.style.minWidth = "0";
-  const lab = document.createElement("span");
-  lab.textContent = label;
-  lab.style.fontSize = "10px";
-  lab.style.opacity = "0.85";
-  lab.style.width = "14px";
-  lab.style.flexShrink = "0";
-  const track = document.createElement("div");
-  track.style.flex = "1";
-  track.style.height = "8px";
-  track.style.borderRadius = "4px";
-  track.style.background = "rgba(255,255,255,0.12)";
-  track.style.overflow = "hidden";
-  track.style.minWidth = "40px";
-  const fill = document.createElement("div");
-  fill.style.height = "100%";
-  fill.style.width = `${Math.min(100, Math.max(0, fillPct))}%`;
-  fill.style.background = color;
-  fill.style.borderRadius = "4px";
-  fill.style.transition = "width 0.2s ease";
-  track.appendChild(fill);
-  wrap.appendChild(lab);
-  wrap.appendChild(track);
-  return wrap;
-}
 
 export function renderHUD() {
   const hud = document.createElement("div");
@@ -92,14 +49,9 @@ export function renderHUD() {
   topRow.style.display = "flex";
   topRow.style.flexWrap = "wrap";
   topRow.style.alignItems = "center";
+  topRow.style.justifyContent = "flex-end";
   topRow.style.gap = "8px";
   topRow.style.marginBottom = "8px";
-
-  const statsSpan = document.createElement("span");
-  statsSpan.id = "arel-hud-stats";
-  statsSpan.style.fontSize = "12px";
-  statsSpan.style.lineHeight = "1.3";
-  statsSpan.style.flex = "1 1 auto";
 
   const leaderboardBtn = document.createElement("button");
   leaderboardBtn.type = "button";
@@ -119,34 +71,8 @@ export function renderHUD() {
     });
   };
 
-  const barsWrap = document.createElement("div");
-  barsWrap.id = "arel-hud-bars";
-  barsWrap.style.display = "flex";
-  barsWrap.style.flexDirection = "column";
-  barsWrap.style.gap = "4px";
-  barsWrap.style.width = "100%";
-
-  const updateStats = () => {
-    const hp = getPlayerHealth();
-    const hpMax = Math.max(1, getPlayerMaxHealth());
-    const st = getPlayerStamina();
-    const stMax = Math.max(1, getPlayerMaxStamina());
-    const mp = getPlayerMana();
-    const mpMax = Math.max(1, getPlayerMaxMana());
-    statsSpan.textContent = `Lv ${getPlayerLevel()} · Gold ${getPlayerGold()} · XP ${getPlayerXp()}`;
-    barsWrap.replaceChildren(
-      makeBarRow("♥", (hp / hpMax) * 100, "linear-gradient(90deg,#c42b2b,#ff6b5a)"),
-      makeBarRow("⚡", (st / stMax) * 100, "linear-gradient(90deg,#2b6bc4,#6bb8ff)"),
-      makeBarRow("✦", (mp / mpMax) * 100, "linear-gradient(90deg,#6b2bc4,#c896ff)")
-    );
-  };
-  updateStats();
-  subscribePlayerState(updateStats);
-
-  topRow.appendChild(statsSpan);
   topRow.appendChild(leaderboardBtn);
   hud.appendChild(topRow);
-  hud.appendChild(barsWrap);
 
   const label = document.createElement("span");
   label.textContent = "Areloria";
