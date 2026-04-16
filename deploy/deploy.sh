@@ -96,42 +96,62 @@ if [ ! -f "$APP_DIR/.env" ]; then
   echo "⚠️  WARNING: No .env file found! Creating template..."
   cat > "$APP_DIR/.env" << 'ENVEOF'
 # Areloria MMORPG Environment Variables
-# Fill in all values before starting the server!
+# Supabase/Postgres keys can be merged from CI via deploy/sync-supabase-env.sh (GitHub Actions secrets).
+# Fill secrets in an editor on the VPS — do not commit real values.
 
 # Server
 PORT=3000
 NODE_ENV=production
 
-# PostgreSQL (Azure)
-PGHOST=are.postgres.database.azure.com
+# --- Supabase (client + server auth / proxy) ---
+VITE_AUTH_PROVIDER=supabase
+VITE_SUPABASE_URL=
+VITE_SUPABASE_PUBLIC_URL=
+VITE_SUPABASE_ANON_KEY=
+SUPABASE_URL=
+SUPABASE_PUBLIC_URL=
+API_EXTERNAL_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_JWT_SECRET=
+
+# --- Postgres (persistence / questlines) ---
+# Prefer DATABASE_URL=postgresql://user:pass@host:5432/dbname
+DATABASE_URL=
+PGHOST=
 PGPORT=5432
-PGDATABASE=areloria
-PGUSER=Thosu
-PGPASSWORD=CHANGE_ME
-PGSSL=true
+PGDATABASE=postgres
+PGUSER=postgres
+PGPASSWORD=
+POSTGRES_HOST=
+POSTGRES_PORT=
+POSTGRES_DB=
+POSTGRES_USER=
+POSTGRES_PASSWORD=
+POOLER_PROXY_PORT_TRANSACTION=
+# Docker internal db without TLS: DATABASE_SSL_DISABLED=1
+# PGSSL=true
 
-# Firebase (Client Auth)
-VITE_FIREBASE_API_KEY=AIzaSyA96_GG61GsDBHh4ysw4-AfoRHVJ_MNQJw
-VITE_FIREBASE_AUTH_DOMAIN=studio-8985161445-f6ce5.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=studio-8985161445-f6ce5
-VITE_FIREBASE_MESSAGING_SENDER_ID=426167977735
-VITE_FIREBASE_APP_ID=1:426167977735:web:5e2951f4365b233af167a2
+# --- Optional: Firebase web (if VITE_AUTH_PROVIDER=firebase) ---
+# VITE_FIREBASE_API_KEY=
+# VITE_FIREBASE_AUTH_DOMAIN=
+# VITE_FIREBASE_PROJECT_ID=
+# VITE_FIREBASE_MESSAGING_SENDER_ID=
+# VITE_FIREBASE_APP_ID=
 
-# PayPal (Live)
-PAYPAL_CLIENT_ID=Ad9Dhbq69h7OJgx9sXhdOCpQWVmIxy03i4gPIZLYPpn23h9vca3UHop996hP8i_BVV3CckntggNTiZwR
-PAYPAL_CLIENT_SECRET=EFj9uptvjpqrnvy6V38dlkDHbuYwRgNNoY9ptsXehEEj0ftKADHZ8XgRz3vMCN_l1Yw2oIgR2xoGWBkF
-PAYPAL_MODE=live
+# --- Optional: PayPal ---
+# PAYPAL_CLIENT_ID=
+# PAYPAL_CLIENT_SECRET=
+# PAYPAL_MODE=sandbox
 
-# JWT Secret (change this!)
+# JWT fallback (server also accepts SUPABASE_JWT_SECRET for Supabase tokens)
 JWT_SECRET=CHANGE_THIS_TO_A_RANDOM_SECRET_STRING
 
-# Firebase Admin (server) — upload JSON to secrets/ then run:
-#   ./deploy/setup-firebase-service-account.sh /path/to/key.json
-# Or place file at: /opt/areloria/secrets/firebase-adminsdk.json (deploy links it on next run)
+# Firebase Admin (server) — place JSON at secrets/ then deploy links it:
 # FIREBASE_SERVICE_ACCOUNT_KEY=/opt/areloria/secrets/firebase-adminsdk.json
 # FIREBASE_PROJECT_ID=your-gcp-project-id
 ENVEOF
-  echo "⚠️  Please edit $APP_DIR/.env and fill in PGPASSWORD and JWT_SECRET!"
+  echo "⚠️  Please edit $APP_DIR/.env (DATABASE_URL or PG*, SUPABASE_*, JWT/SUPABASE_JWT_SECRET)."
 fi
 
 # If Admin SDK JSON exists and .env has no Firebase lines, append paths (no secret in repo).

@@ -3,7 +3,9 @@ name: Continuous Deployment to VPS
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: # Manuelles Triggern
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
 
 concurrency:
   group: deploy-vps-main
@@ -12,61 +14,172 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_PUBLIC_URL: ${{ secrets.SUPABASE_PUBLIC_URL }}
+      API_EXTERNAL_URL: ${{ secrets.API_EXTERNAL_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      ANON_KEY: ${{ secrets.ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SERVICE_ROLE_KEY: ${{ secrets.SERVICE_ROLE_KEY }}
+      SUPABASE_JWT_SECRET: ${{ secrets.SUPABASE_JWT_SECRET }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      PGHOST: ${{ secrets.PGHOST }}
+      POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+      PGPORT: ${{ secrets.PGPORT }}
+      POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
+      PGDATABASE: ${{ secrets.PGDATABASE }}
+      POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+      PGUSER: ${{ secrets.PGUSER }}
+      POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+      PGPASSWORD: ${{ secrets.PGPASSWORD }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      POOLER_PROXY_PORT_TRANSACTION: ${{ secrets.POOLER_PROXY_PORT_TRANSACTION }}
+
     steps:
-    - name: Deploy to VPS via SSH
-      uses: appleboy/ssh-action@v1.0.3
-      env:
-        BUILD_NODE_OPTIONS: --max-old-space-size=8192
-      with:
-        host: ${{ secrets.VPS_IP }}
-        username: ${{ secrets.VPS_USER }}
-        password: ${{ secrets.VPS_SSH_PASSWORD }}
-        port: 22
-        # Default 30s is too tight when GitHub→VPS routing is slow (dial tcp …:22: i/o timeout).
-        timeout: 120s
-        # Client+Server build on VPS can exceed default 60s
-        command_timeout: 45m
-        script: |
-          if [ ! -d "/opt/areloria/.git" ]; then
-            git clone https://github.com/OuroborosCollective/Wasd.git /opt/areloria
-          fi
-          cd /opt/areloria
-          git fetch origin main
-          git reset --hard origin/main
-          chmod +x deploy/deploy.sh
-          export BUILD_NODE_OPTIONS="--max-old-space-size=8192"
-          ./deploy/deploy.sh
-
-    - name: Verify deployed HTTPS endpoints
-      env:
-        VERIFY_BASE_URL: ${{ secrets.DEPLOY_VERIFY_BASE_URL }}
-      run: |
-        set -e
-        verify_url() {
-          local url="$1"
-          local name="$2"
-          local attempts=10
-          local wait_sec=6
-          local code=""
-          for i in $(seq 1 "$attempts"); do
-            code="$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 25 "$url" || true)"
-            if [ "$code" = "200" ]; then
-              echo "✅ ${name} OK (${url})"
-              return 0
+      - name: Sync Supabase secrets → VPS .env
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_IP }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_SSH_PASSWORD }}
+          port: 22
+          timeout: 60s
+          command_timeout: 5m
+          envs: VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY,SUPABASE_URL,SUPABASE_PUBLIC_URL,API_EXTERNAL_URL,SUPABASE_ANON_KEY,ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,SERVICE_ROLE_KEY,SUPABASE_JWT_SECRET,JWT_SECRET,DATABASE_URL,PGHOST,POSTGRES_HOST,PGPORT,POSTGRES_PORT,PGDATABASE,POSTGRES_DB,PGUSER,POSTGRES_USER,PGPASSWORD,POSTGRES_PASSWORD,POOLER_PROXY_PORT_TRANSACTION
+          script: |
+            set -e
+            export VITE_SUPABASE_URL="${VITE_SUPABASE_URL:-}"
+            export VITE_SUPABASE_ANON_KEY="${VITE_SUPABASE_ANON_KEY:-}"
+            export SUPABASE_URL="${SUPABASE_URL:-}"
+            export SUPABASE_PUBLIC_URL="${SUPABASE_PUBLIC_URL:-}"
+            export API_EXTERNAL_URL="${API_EXTERNAL_URL:-}"
+            export SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}"
+            export ANON_KEY="${ANON_KEY:-}"
+            export SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY:-}"
+            export SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-}"
+            export SUPABASE_JWT_SECRET="${SUPABASE_JWT_SECRET:-}"
+            export JWT_SECRET="${JWT_SECRET:-}"
+            export DATABASE_URL="${DATABASE_URL:-}"
+            export PGHOST="${PGHOST:-}"
+            export POSTGRES_HOST="${POSTGRES_HOST:-}"
+            export PGPORT="${PGPORT:-}"
+            export POSTGRES_PORT="${POSTGRES_PORT:-}"
+            export PGDATABASE="${PGDATABASE:-}"
+            export POSTGRES_DB="${POSTGRES_DB:-}"
+            export PGUSER="${PGUSER:-}"
+            export POSTGRES_USER="${POSTGRES_USER:-}"
+            export PGPASSWORD="${PGPASSWORD:-}"
+            export POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-}"
+            export POOLER_PROXY_PORT_TRANSACTION="${POOLER_PROXY_PORT_TRANSACTION:-}"
+            export USE_SUPABASE_WS_LOGIN="${USE_SUPABASE_WS_LOGIN:-1}"
+            export REQUIRE_SUPABASE_AUTH="${REQUIRE_SUPABASE_AUTH:-1}"
+            export PERSISTENCE_DRIVER="${PERSISTENCE_DRIVER:-postgres}"
+            export ALLOW_GUEST_LOGIN="${ALLOW_GUEST_LOGIN:-0}"
+            export ALLOW_DEV_LOGIN="${ALLOW_DEV_LOGIN:-0}"
+            if [ -f /opt/areloria/deploy/sync-supabase-env.sh ]; then
+              chmod +x /opt/areloria/deploy/sync-supabase-env.sh
+              bash /opt/areloria/deploy/sync-supabase-env.sh
+            else
+              echo "⚠️  sync-supabase-env.sh not found yet (first deploy before clone) — will run after pull step"
             fi
-            echo "⏳ ${name} not ready (${url}) [attempt ${i}/${attempts}] status=${code:-n/a}"
-            sleep "$wait_sec"
-          done
-          echo "❌ ${name} failed after ${attempts} attempts (${url}), last status=${code:-n/a}"
-          return 1
-        }
 
-        if [ -z "${VERIFY_BASE_URL:-}" ]; then
-          echo "ℹ️  Secret DEPLOY_VERIFY_BASE_URL nicht gesetzt — überspringe externe HTTPS-Checks (Deploy auf VPS lief durch)."
-          exit 0
-        fi
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          BUILD_NODE_OPTIONS: --max-old-space-size=8192
+        with:
+          host: ${{ secrets.VPS_IP }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_SSH_PASSWORD }}
+          port: 22
+          timeout: 120s
+          command_timeout: 45m
+          envs: VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY,SUPABASE_URL,SUPABASE_PUBLIC_URL,API_EXTERNAL_URL,SUPABASE_ANON_KEY,ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,SERVICE_ROLE_KEY,SUPABASE_JWT_SECRET,JWT_SECRET,DATABASE_URL,PGHOST,POSTGRES_HOST,PGPORT,POSTGRES_PORT,PGDATABASE,POSTGRES_DB,PGUSER,POSTGRES_USER,PGPASSWORD,POSTGRES_PASSWORD,POOLER_PROXY_PORT_TRANSACTION
+          script: |
+            set -e
+            export CI=1
+            export BUILD_NODE_OPTIONS="--max-old-space-size=8192"
+            export VITE_SUPABASE_URL="${VITE_SUPABASE_URL:-}"
+            export VITE_SUPABASE_ANON_KEY="${VITE_SUPABASE_ANON_KEY:-}"
+            export SUPABASE_URL="${SUPABASE_URL:-}"
+            export SUPABASE_PUBLIC_URL="${SUPABASE_PUBLIC_URL:-}"
+            export API_EXTERNAL_URL="${API_EXTERNAL_URL:-}"
+            export SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}"
+            export ANON_KEY="${ANON_KEY:-}"
+            export SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY:-}"
+            export SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-}"
+            export SUPABASE_JWT_SECRET="${SUPABASE_JWT_SECRET:-}"
+            export JWT_SECRET="${JWT_SECRET:-}"
+            export DATABASE_URL="${DATABASE_URL:-}"
+            export PGHOST="${PGHOST:-}"
+            export POSTGRES_HOST="${POSTGRES_HOST:-}"
+            export PGPORT="${PGPORT:-}"
+            export POSTGRES_PORT="${POSTGRES_PORT:-}"
+            export PGDATABASE="${PGDATABASE:-}"
+            export POSTGRES_DB="${POSTGRES_DB:-}"
+            export PGUSER="${PGUSER:-}"
+            export POSTGRES_USER="${POSTGRES_USER:-}"
+            export PGPASSWORD="${PGPASSWORD:-}"
+            export POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-}"
+            export POOLER_PROXY_PORT_TRANSACTION="${POOLER_PROXY_PORT_TRANSACTION:-}"
+            export USE_SUPABASE_WS_LOGIN="${USE_SUPABASE_WS_LOGIN:-1}"
+            export REQUIRE_SUPABASE_AUTH="${REQUIRE_SUPABASE_AUTH:-1}"
+            export PERSISTENCE_DRIVER="${PERSISTENCE_DRIVER:-postgres}"
+            export ALLOW_GUEST_LOGIN="${ALLOW_GUEST_LOGIN:-0}"
+            export ALLOW_DEV_LOGIN="${ALLOW_DEV_LOGIN:-0}"
+            if [ ! -d "/opt/areloria/.git" ]; then
+              git clone https://github.com/OuroborosCollective/Wasd.git /opt/areloria
+            fi
+            cd /opt/areloria
+            git fetch origin main
+            git reset --hard origin/main
+            chmod +x deploy/deploy.sh deploy/sync-supabase-env.sh 2>/dev/null || true
+            bash deploy/sync-supabase-env.sh
+            chmod +x deploy/update.sh deploy/write_pm2_ecosystem.sh 2>/dev/null || true
+            if [ ! -f /opt/areloria/server/dist/index.js ] || ! command -v pm2 >/dev/null 2>&1; then
+              ./deploy/deploy.sh
+            else
+              ./deploy/update.sh
+            fi
+            if [ "${SKIP_DEPLOY_HEALTH_CHECK:-}" != "1" ]; then
+              sleep 2
+              curl -sf --max-time 15 http://127.0.0.1:3000/health | grep -q '"ok"' && echo "Deploy health check: OK" || { echo "Deploy health check: FAILED (is the server listening on 3000?)"; exit 1; }
+            fi
 
-        BASE="${VERIFY_BASE_URL%/}"
-        verify_url "${BASE}/health" "HTTPS health endpoint"
-        verify_url "${BASE}/" "HTTPS client root"
-        verify_url "${BASE}/gm/" "HTTPS GM console"
+      - name: Verify deployed HTTPS endpoints
+        env:
+          VERIFY_BASE_URL: ${{ secrets.DEPLOY_VERIFY_BASE_URL }}
+        run: |
+          set -e
+          verify_url() {
+            local url="$1"
+            local name="$2"
+            local attempts=10
+            local wait_sec=6
+            local code=""
+            for i in $(seq 1 "$attempts"); do
+              code="$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 25 "$url" || true)"
+              if [ "$code" = "200" ]; then
+                echo "✅ ${name} OK (${url})"
+                return 0
+              fi
+              echo "⏳ ${name} not ready (${url}) [attempt ${i}/${attempts}] status=${code:-n/a}"
+              sleep "$wait_sec"
+            done
+            echo "❌ ${name} failed after ${attempts} attempts (${url}), last status=${code:-n/a}"
+            return 1
+          }
+
+          if [ -z "${VERIFY_BASE_URL:-}" ]; then
+            echo "ℹ️  Secret DEPLOY_VERIFY_BASE_URL nicht gesetzt — überspringe externe HTTPS-Checks (Deploy auf VPS lief durch)."
+            exit 0
+          fi
+
+          BASE="${VERIFY_BASE_URL%/}"
+          verify_url "${BASE}/health" "HTTPS health endpoint"
+          verify_url "${BASE}/" "HTTPS client root"
+          verify_url "${BASE}/gm/" "HTTPS GM console"

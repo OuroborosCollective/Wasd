@@ -2,6 +2,8 @@
 
 Secrets gehören **nicht** ins Git. Diese Anleitung nutzt **Kopieren per Datei** (SCP, SFTP, Panel „Dateimanager“, WinSCP, FileZilla).
 
+**CI/CD:** Der Workflow `.github/workflows/deploy.yml` kann dieselben Werte aus **GitHub Actions Secrets** per SSH nach `/opt/areloria/.env` schreiben (`deploy/sync-supabase-env.sh`) — ohne Werte ins Repo zu legen. Repository Secrets müssen in GitHub unter *Settings → Secrets and variables* angelegt werden (z. B. `DATABASE_URL`, `SUPABASE_JWT_SECRET`, `VITE_SUPABASE_*`, optional `API_EXTERNAL_URL` / `ANON_KEY` / `SERVICE_ROLE_KEY` als Aliase).
+
 ## Einmalig: Vorlage auf den Server legen
 
 **Option A — mit SCP vom eigenen PC** (Terminal auf **deinem** Rechner, nicht „irgendwo“):
