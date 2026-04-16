@@ -1,9 +1,11 @@
+import "./styles/tailwind.css";
 import { createBabylonApp } from "./engine/babylon/BabylonBoot";
 import { BabylonAdapter } from "./engine/babylon/BabylonAdapter";
 import { MMORPGClientCore } from "./core/MMORPGClientCore";
 import { connectSocket, requestSceneChange, sendCommand, type ConnectionOptions } from "./networking/websocketClient";
 import { IEngineBridge } from "./engine/bridge/IEngineBridge";
 import { renderHUD, showDialogue } from "./ui/hud";
+import { mountGameHudOverlay } from "./ui/mountGameHudOverlay";
 import { getJoystickState, initMobileControls, isMobile } from "./ui/mobileControls";
 import { openEquipmentPanel, openInventory, openQuestLog, openSkillsPanel } from "./ui/lazyPanels";
 import { getQuickCastSkillId } from "./game/combatSkills";
@@ -143,6 +145,7 @@ try {
     });
   (window as any).requestSceneChange = requestSceneChange;
   renderHUD();
+  mountGameHudOverlay();
   initChat((type, payload) => sendCommand(type, payload));
   initMinimap();
   // Legacy quick-teleport panel removed from gameplay HUD.

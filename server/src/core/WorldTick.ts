@@ -395,13 +395,97 @@ export class WorldTick {
       inventory: player.inventory,
       equipment: player.equipment,
       skillCooldownUntil: buildSkillCooldownUntilPayload(player, Date.now()),
+      combatTargetNpcId:
+        typeof player.combatTargetNpcId === "string" && player.combatTargetNpcId.trim().length > 0
+          ? player.combatTargetNpcId.trim()
+          : null,
+    });
+    this.pushHudInvAndQuests(socketId, player);
+  }
+
+  /** HUD protocol (`inv` / `quests`) aligned with `shared/protocol.ts`. */
+  private pushHudInvAndQuests(socketId: string, player: any) {
+    const inv = this.inventorySystem.getInventorySummary(player);
+    this.ws.sendToPlayer(socketId, {
+      type: "inv",
+      gold: inv.gold,
+      weight: inv.weight,
+      maxWeight: inv.maxWeight,
+      items: inv.items
+        .map((row: any) => ({
+          itemId: typeof row?.id === "string" ? row.id : "",
+          qty: Math.max(1, Math.floor(Number(row?.quantity) || 1)),
+        }))
+        .filter((row: { itemId: string }) => row.itemId.length > 0),
+    });
+    this.ws.sendToPlayer(socketId, {
+      type: "quests",
+      active: this.hudQuestStatesForPlayer(player),
     });
   }
 
+  private hudQuestStatesForPlayer(player: any): any[] {
+    const rows = this.questSystem.getQuestSyncForClient(player);
+    return rows.map((q: any) => {
+      const goal = Math.max(1, Number(q.progressMax ?? q.requiredCount ?? 1));
+      const progressRaw = typeof q.progress === "number" ? q.progress : q.completed ? goal : 0;
+      const progress = Math.min(goal, Math.max(0, progressRaw));
+      let goalText = "";
+      const obj = q.objectiveType || q.objective;
+      if (obj === "collect" && q.requiredItemId) {
+        goalText = `Sammle ${q.requiredItemId}`;
+      } else if (obj === "combat" || q.objective === "combat") {
+        goalText = "Besiege das Ziel";
+      }
+      return {
+        id: q.id,
+        title: q.title || q.name || q.id,
+        step: 0,
+        done: !!q.completed,
+        progress,
+        goal,
+        goalText: goalText || (q.title || q.id),
+      };
+    });
+  }
+
+  private hudLootNetFromBag(bag: any) {
+    const items = Array.isArray(bag.items)
+      ? bag.items
+          .map((it: any) => ({
+            itemId: String(it?.id ?? it?.itemId ?? ""),
+            qty: Math.max(1, Math.floor(Number(it?.quantity ?? it?.qty) || 1)),
+          }))
+          .filter((it: { itemId: string }) => it.itemId.length > 0)
+      : [];
+    const pos = bag.position ?? { x: bag.x ?? 0, y: bag.y ?? 0 };
+    const gold = typeof bag.gold === "number" ? bag.gold : 0;
+    return {
+      id: bag.id,
+      x: pos.x,
+      y: pos.y,
+      items,
+      gold,
+      ownerId: typeof bag.ownerId === "string" ? bag.ownerId : undefined,
+      despawnAt: typeof bag.despawnAt === "number" ? bag.despawnAt : 0,
+    };
+  }
+
   private findTargetNpcForPlayer(player: any): any | null {
-    const targetId = typeof player?.combatTargetNpcId === "string" ? player.combatTargetNpcId : "";
+    const targetId = typeof player?.combatTargetNpcId === "string" ? player.combatTargetNpcId.trim() : "";
     if (targetId) {
-      const explicit = this.npcSystem.getNPC(targetId);
+      let explicit = this.npcSystem.getNPC(targetId);
+      if (!explicit || explicit.health <= 0) {
+        explicit =
+          this.npcSystem
+            .getAllNPCs()
+            .find(
+              (n: any) =>
+                n &&
+                n.health > 0 &&
+                (n.id === targetId || n.name === targetId || `${n.id}` === targetId)
+            ) ?? null;
+      }
       if (explicit && explicit.health > 0) return explicit;
     }
     let best: any | null = null;
@@ -1804,6 +1888,11 @@ export class WorldTick {
           this.ws.sendToPlayer(id, { type: "toast", text: "You are defeated." });
           return;
         }
+        const requestedTarget =
+          typeof (msg as any).targetId === "string" ? String((msg as any).targetId).trim() : "";
+        if (requestedTarget.length > 0) {
+          player.combatTargetNpcId = requestedTarget;
+        }
         const weapon = player.equipment?.weapon || null;
         const weaponRangeRaw = Number(weapon?.attackRange);
         const weaponRange =
@@ -2209,6 +2298,10 @@ export class WorldTick {
         position: { x: p.position.x, y: 0, z: p.position.y }, // Mapping y to z for 3D
         rotation: { x: 0, y: 0, z: 0 },
         name: p.name,
+        level: p.level ?? 1,
+        hp: p.health ?? 0,
+        hpMax: p.maxHealth ?? 100,
+        mousePickTargetId: p.id,
         glbPath: this.resolveEntityGlbPath("players", p.name || p.id, p.id),
         are: this.areStateCompiler.compileEntity(
           {
@@ -2231,6 +2324,10 @@ export class WorldTick {
         name: n.name,
         health: n.health,
         maxHealth: n.maxHealth,
+        level: typeof n?.skills?.combat?.level === "number" ? n.skills.combat.level : 1,
+        hp: n.health,
+        hpMax: n.maxHealth,
+        mousePickTargetId: n.id,
         role: n.role,
         faction: n.faction,
         combatNpcId: n.id,
@@ -2249,23 +2346,39 @@ export class WorldTick {
         ),
         visible: true
       })),
-      ...Array.from(this.lootEntities.values()).map(l => ({
-        id: l.id,
-        type: 'loot',
-        position: { x: l.position.x, y: 0, z: l.position.y },
-        rotation: { x: 0, y: 0, z: 0 },
-        glbPath: this.resolveEntityGlbPath("loot", l.item?.id || l.id, l.id),
-        are: this.areStateCompiler.compileEntity(
-          {
-            id: l.id,
-            type: "loot",
-            position: { x: l.position.x, y: 0, z: l.position.y },
-            visible: true,
-          },
-          tickCount
-        ),
-        visible: true
-      }))
+      ...Array.from(this.lootEntities.values()).map(l => {
+        const items = Array.isArray(l.items)
+          ? l.items.map((it: any) => ({
+              itemId: String(it?.id ?? ""),
+              qty: Math.max(1, Math.floor(Number(it?.quantity) || 1)),
+            })).filter((it: { itemId: string }) => it.itemId.length > 0)
+          : [];
+        const gold = typeof l.gold === "number" ? l.gold : 0;
+        return {
+          id: l.id,
+          type: 'loot',
+          position: { x: l.position.x, y: 0, z: l.position.y },
+          rotation: { x: 0, y: 0, z: 0 },
+          name: "Loot",
+          level: 1,
+          hp: 1,
+          hpMax: 1,
+          mousePickTargetId: l.id,
+          lootItems: items,
+          lootGold: gold,
+          glbPath: this.resolveEntityGlbPath("loot", l.item?.id || l.id, l.id),
+          are: this.areStateCompiler.compileEntity(
+            {
+              id: l.id,
+              type: "loot",
+              position: { x: l.position.x, y: 0, z: l.position.y },
+              visible: true,
+            },
+            tickCount
+          ),
+          visible: true,
+        };
+      })
     ];
 
     // Include world objects if they exist
@@ -2275,6 +2388,11 @@ export class WorldTick {
         type: obj.type || 'object',
         position: { x: obj.position.x, y: 0, z: obj.position.y },
         rotation: { x: 0, y: obj.rotation || 0, z: 0 },
+        name: obj.name || obj.id,
+        level: 1,
+        hp: 1,
+        hpMax: 1,
+        mousePickTargetId: obj.id,
         glbPath: obj.glbPath || this.resolveWorldObjectGlbPath(obj.type, obj.name || obj.id, obj.id),
         are: this.areStateCompiler.compileEntity(
           {

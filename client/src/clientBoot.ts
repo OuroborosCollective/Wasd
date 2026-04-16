@@ -13,9 +13,11 @@ import {
 import { auth } from "./auth/firebase";
 import { getSupabaseAccessToken, onSupabaseAuthStateChanged } from "./auth/supabase";
 import { resolveGameAuthProvider } from "./config/gameAuth";
+import "./styles/tailwind.css";
 import { installFirebaseAiWatchdog } from "./ai/firebaseAiWatchdog";
 import { IEngineBridge } from "./engine/bridge/IEngineBridge";
 import { renderHUD, showDialogue } from "./ui/hud";
+import { mountGameHudOverlay } from "./ui/mountGameHudOverlay";
 import { getJoystickState, initMobileControls, isMobile } from "./ui/mobileControls";
 import {
   openEquipmentPanel,
@@ -132,6 +134,7 @@ export async function bootAreloriaClient(canvas: HTMLCanvasElement): Promise<voi
   (window as unknown as { requestSceneChange?: typeof requestSceneChange }).requestSceneChange =
     requestSceneChange;
   renderHUD();
+  mountGameHudOverlay();
   initChat((type, payload) => sendCommand(type, payload));
   initMinimap();
   mountSkillBar();

@@ -27,6 +27,7 @@ describe("Shared protocol types", () => {
     expect(content).toContain('"fx"');
     expect(content).toContain("loot_spawned");
     expect(content).toContain("loot_picked");
+    expect(content).toContain('"snapshot"');
   });
 
   it("protocol exports LootNet interface", () => {

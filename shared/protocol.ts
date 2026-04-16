@@ -27,6 +27,7 @@ export type ClientMsg =
 export type FxKind = "hit" | "crit" | "heal" | "miss" | "block" | "xp" | "gold";
 
 export type ServerMsg =
+  | { t: "snapshot"; you: string; entities: EntityNet[]; loot: LootNet[] }
   | { t: "fx"; at: Vec2; kind: FxKind; n?: number; color?: string }
   | { t: "toast"; kind: "ok" | "err" | "info"; text: string }
   | { t: "loot_spawned"; loot: LootNet }
@@ -67,6 +68,7 @@ export interface LootNet {
 export interface ItemStackNet {
   itemId: string;
   qty: number;
+  /** Display name when known (e.g. from server item defs). */
   name?: string;
   rarity?: string;
 }

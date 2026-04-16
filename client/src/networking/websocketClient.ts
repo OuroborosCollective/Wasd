@@ -1,12 +1,19 @@
 import { MMORPGClientCore } from "../core/MMORPGClientCore";
 import { wantsMobileNetworkHints } from "../ui/touchUi";
-import { applyStatsPayload } from "../state/playerState";
+import { applyStatsPayload, getCombatTargetNpcId } from "../state/playerState";
 import { onChatMessage } from "../ui/chat";
 import { setMinimapLocalPlayer, updateMinimapEntities } from "../ui/minimap";
 import { showDeathScreen, hideDeathScreen } from "../ui/deathScreen";
 import { showToast } from "../ui/toast";
 import { applyPartySync } from "../state/partyState";
 import { spawnFloatingNumber } from "../ui/floatingNumbers";
+import {
+  getHudLootSnapshot,
+  isReactGameHudActive,
+  relayGameHudFromWs,
+  relayProtocolHudMessage,
+} from "../ui/gameHudBridge";
+import type { EntityNet, LootNet } from "@shared/protocol";
 
 let globalWs: WebSocket | null = null;
 const DEFAULT_SCENE_ID = "didis_hub";
@@ -131,6 +138,40 @@ function normalizeAREPayload(rawAre: any) {
     chain: typeof rawAre.chain === "string" ? rawAre.chain : "",
     kappaPos,
   };
+}
+
+function entitySyncToHudSnapshot(
+  localPlayerId: string | null,
+  rawEntities: any[]
+): { t: "snapshot"; you: string; entities: EntityNet[]; loot: LootNet[] } | null {
+  if (!localPlayerId) return null;
+  const entities: EntityNet[] = [];
+  for (const e of rawEntities) {
+    if (!e || typeof e.id !== "string") continue;
+    const pos = e.position && typeof e.position === "object" ? e.position : {};
+    const planeX = Number((pos as any).x) || 0;
+    const planeY = Number((pos as any).z) || 0;
+    const typ = typeof e.type === "string" ? e.type : "";
+    const hostile =
+      Boolean(e.combatThreat) || e.faction === "Hostile" || e.role === "Enemy";
+    const kind: EntityNet["kind"] =
+      typ === "player"
+        ? "player"
+        : typ === "loot"
+          ? "loot"
+          : typ === "object"
+            ? "object"
+            : typ === "npc" && hostile
+              ? "monster"
+              : "npc";
+    const name = typeof e.name === "string" && e.name.length > 0 ? e.name : e.id;
+    const hp = typeof e.hp === "number" ? e.hp : typeof e.health === "number" ? e.health : 0;
+    const hpMax =
+      typeof e.hpMax === "number" ? e.hpMax : typeof e.maxHealth === "number" ? e.maxHealth : Math.max(1, hp);
+    const level = typeof e.level === "number" && Number.isFinite(e.level) ? Math.floor(e.level) : 1;
+    entities.push({ id: e.id, name, x: planeX, y: planeY, hp, hpMax, level, kind });
+  }
+  return { t: "snapshot", you: localPlayerId, entities, loot: getHudLootSnapshot() };
 }
 
 function normalizeWebSocketUrl(rawUrl: string | undefined): string | null {
@@ -324,7 +365,13 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
     };
     const onAttack = () => {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "attack" }));
+        const tid = getCombatTargetNpcId();
+        ws.send(
+          JSON.stringify({
+            type: "attack",
+            ...(tid && tid.trim().length > 0 ? { targetId: tid.trim() } : {}),
+          })
+        );
       }
     };
     const onInteract = () => {
@@ -392,6 +439,8 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
           }));
           core.syncEntities(normalizedEntities);
           updateMinimapEntities(normalizedEntities);
+          const snap = entitySyncToHudSnapshot(core.getLocalPlayerId(), normalizedEntities);
+          if (snap) relayProtocolHudMessage(snap as unknown as Record<string, unknown>);
         }
         if (data.chunks) core.syncChunks(data.chunks);
       }
@@ -427,6 +476,7 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         setMinimapLocalPlayer(typeof localPlayerId === "string" ? localPlayerId : null);
         if (data.stats && typeof data.stats === "object") {
           applyStatsPayload(data.stats);
+          relayGameHudFromWs({ type: "stats_sync", ...data.stats });
         }
         const spawnPos = toEntityPosition(data.spawnPosition);
         if (spawnPos && localPlayerId) {
@@ -450,6 +500,7 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
       }
       if (data.type === "stats_sync") {
         applyStatsPayload(data);
+        relayGameHudFromWs(data);
       }
       if (data.type === "chat_message") {
         const payload = data.payload && typeof data.payload === "object" ? data.payload : data;
@@ -497,27 +548,40 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         showToast(kind === "err" ? `\u{274C} ${text}` : text);
       }
       if (data.type === "fx") {
-        const cx = window.innerWidth / 2;
-        const cy = window.innerHeight / 2;
-        spawnFloatingNumber(cx + (Math.random() - 0.5) * 80, cy - 40, data.kind, data.n);
+        relayGameHudFromWs(data);
+        if (!isReactGameHudActive()) {
+          const cx = window.innerWidth / 2;
+          const cy = window.innerHeight / 2;
+          spawnFloatingNumber(cx + (Math.random() - 0.5) * 80, cy - 40, data.kind, data.n);
+        }
       }
       if (data.type === "combat_result") {
-        const cx = window.innerWidth / 2;
-        const cy = window.innerHeight / 2;
-        const kind = data.crit ? "crit" : data.hit ? "hit" : "miss";
-        spawnFloatingNumber(cx + (Math.random() - 0.5) * 60, cy - 60, kind, data.damage);
+        relayGameHudFromWs(data);
+        if (!isReactGameHudActive()) {
+          const cx = window.innerWidth / 2;
+          const cy = window.innerHeight / 2;
+          const kind = data.crit ? "crit" : data.hit ? "hit" : "miss";
+          spawnFloatingNumber(cx + (Math.random() - 0.5) * 60, cy - 60, kind, data.damage);
+        }
       }
       if (data.type === "loot_spawned") {
+        relayGameHudFromWs(data);
         showToast("Loot dropped nearby!");
       }
       if (data.type === "loot_picked") {
+        relayGameHudFromWs(data);
         const items = Array.isArray(data.items) ? data.items : [];
         for (const it of items) {
           if (it.name) showToast(`+${it.qty}x ${it.name}`);
         }
         if (typeof data.gold === "number" && data.gold > 0) {
-          spawnFloatingNumber(window.innerWidth / 2, window.innerHeight / 2 - 30, "gold", data.gold);
+          if (!isReactGameHudActive()) {
+            spawnFloatingNumber(window.innerWidth / 2, window.innerHeight / 2 - 30, "gold", data.gold);
+          }
         }
+      }
+      if (data.type === "loot_despawned") {
+        relayGameHudFromWs(data);
       }
       if (data.type === "player_died") {
         const ms = typeof data.respawnInMs === "number" ? data.respawnInMs : 8000;
@@ -615,6 +679,17 @@ export function sendRespawn() {
 
 export function sendPickupLoot(lootId: string) {
   sendCommand("pickup_loot", { lootId });
+}
+
+export function sendAttackWithOptionalTarget(targetNpcId?: string) {
+  if (globalWs && globalWs.readyState === WebSocket.OPEN) {
+    globalWs.send(
+      JSON.stringify({
+        type: "attack",
+        ...(targetNpcId && targetNpcId.trim().length > 0 ? { targetId: targetNpcId.trim() } : {}),
+      })
+    );
+  }
 }
 
 export function sendEquipItem(itemId: string) {
