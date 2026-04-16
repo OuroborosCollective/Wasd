@@ -1,37 +1,39 @@
 /**
- * Firebase (Google/email) for the **game** WebSocket login is optional.
- * Default: off — set `VITE_DISABLE_FIREBASE_AUTH=0` to show login UI and send JWT again.
+ * Resolves which auth stack the **game** client uses for WebSocket login (JWT).
+ * Use `VITE_AUTH_PROVIDER` to override auto-detection: `supabase` | `firebase` | `none`.
  */
 export type GameAuthProvider = "supabase" | "firebase" | "none";
 
-function trimEnv(key: string): string {
-  const v = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.[key];
+function trimEnvFrom(
+  env: Record<string, string | undefined> | undefined,
+  key: string
+): string {
+  const v = env?.[key];
   return typeof v === "string" ? v.trim() : "";
 }
 
-export function resolveGameAuthProvider(): GameAuthProvider {
-  const explicit = trimEnv("VITE_AUTH_PROVIDER").toLowerCase();
+/**
+ * Pure resolver for tests and for `resolveGameAuthProvider()`.
+ */
+export function resolveGameAuthProviderFromEnv(
+  env: Record<string, string | undefined> | undefined
+): GameAuthProvider {
+  const explicit = trimEnvFrom(env, "VITE_AUTH_PROVIDER").toLowerCase();
   if (explicit === "supabase" || explicit === "firebase" || explicit === "none") {
     return explicit;
   }
 
   const hasSupabase = Boolean(
-    (trimEnv("VITE_SUPABASE_URL") || trimEnv("VITE_SUPABASE_PUBLIC_URL")) && trimEnv("VITE_SUPABASE_ANON_KEY")
+    (trimEnvFrom(env, "VITE_SUPABASE_URL") || trimEnvFrom(env, "VITE_SUPABASE_PUBLIC_URL")) &&
+      trimEnvFrom(env, "VITE_SUPABASE_ANON_KEY")
   );
   if (hasSupabase) {
     return "supabase";
   }
-  return isFirebaseGameAuthDisabled() ? "none" : "firebase";
+  return "none";
 }
 
-export function isFirebaseGameAuthDisabled(): boolean {
-  const v = trimEnv("VITE_DISABLE_FIREBASE_AUTH");
-  if (v === undefined || v === "") {
-    return true;
-  }
-  const t = String(v).toLowerCase();
-  if (t === "0" || t === "false" || t === "no") {
-    return false;
-  }
-  return t === "1" || t === "true" || t === "yes" || t === "on";
+export function resolveGameAuthProvider(): GameAuthProvider {
+  const env = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
+  return resolveGameAuthProviderFromEnv(env);
 }
