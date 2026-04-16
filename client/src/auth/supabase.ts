@@ -43,8 +43,11 @@ export function getSupabaseRedirectUrl(pathname = "/"): string {
   if (typeof window === "undefined") {
     return pathname;
   }
+  // Avoid redirecting users to outdated explicit site URLs (e.g. stale :8000 values).
+  // Runtime origin is the safest default for OAuth and email links.
   const fromEnv = trimEnv("VITE_SUPABASE_SITE_URL");
-  const base = fromEnv || window.location.origin;
+  const useEnv = Boolean(fromEnv && /^https?:\/\//i.test(fromEnv));
+  const base = useEnv ? fromEnv : window.location.origin;
   return `${base.replace(/\/+$/, "")}${pathname.startsWith("/") ? pathname : `/${pathname}`}`;
 }
 

@@ -368,14 +368,21 @@ export function renderHUD() {
         clearAuthMessages();
         try {
           const redirectTo = getSupabaseRedirectUrl("/");
-          const { error } = await supabase.auth.signInWithOAuth({
+          const { data, error } = await supabase.auth.signInWithOAuth({
             provider: "google",
             options: { redirectTo, skipBrowserRedirect: false },
           });
           if (error) {
             throw error;
           }
-          setAuthInfo("Redirecting to Google sign-in...");
+          if (data?.url) {
+            setAuthInfo("Redirecting to Google sign-in...");
+            window.location.assign(data.url);
+            return;
+          }
+          setAuthError(
+            "Google sign-in could not start. Check Supabase URL/redirect settings and try again."
+          );
         } catch (e: unknown) {
           setAuthError(mapSupabaseAuthError(e));
         }

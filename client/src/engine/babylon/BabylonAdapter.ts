@@ -168,7 +168,8 @@ export class BabylonAdapter implements IEngineBridge {
       this.areDebugElement = this.mountAREDebugOverlay();
       this.areModeBadgeElement = this.mountAREModeBadge();
     }
-    if (this.arePerfEnabled || this.arePerfAutoMode) {
+    // Keep perf overlay opt-in only (query flag) to avoid noisy HUD in normal gameplay.
+    if (this.arePerfEnabled) {
       this.arePerfElement = this.mountAREPerfOverlay();
     }
     this.bindKeyboard();

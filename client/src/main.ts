@@ -7,7 +7,6 @@ import { renderHUD, showDialogue } from "./ui/hud";
 import { getJoystickState, initMobileControls, isMobile } from "./ui/mobileControls";
 import { openEquipmentPanel, openInventory, openQuestLog, openSkillsPanel } from "./ui/lazyPanels";
 import { getQuickCastSkillId } from "./game/combatSkills";
-import { renderMobileSceneTeleportPanel } from "./ui/mobileSceneTeleportPanel";
 import { performanceMonitor } from "./utils/PerformanceMonitor";
 import { resolveGameAuthProvider } from "./config/gameAuth";
 import { installFirebaseAiWatchdog } from "./ai/firebaseAiWatchdog";
@@ -142,7 +141,7 @@ try {
     });
   (window as any).requestSceneChange = requestSceneChange;
   renderHUD();
-  renderMobileSceneTeleportPanel();
+  // Legacy quick-teleport panel removed from gameplay HUD.
   initMobileControls(
     core,
     {

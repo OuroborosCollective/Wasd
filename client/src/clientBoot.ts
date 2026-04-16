@@ -130,7 +130,7 @@ export async function bootAreloriaClient(canvas: HTMLCanvasElement): Promise<voi
     requestSceneChange;
   renderHUD();
   mountSkillBar();
-  void import("./ui/mobileSceneTeleportPanel").then((m) => m.renderMobileSceneTeleportPanel());
+  // Legacy quick-port UI intentionally disabled.
   preloadGamePanels();
 
   initMobileControls(
