@@ -20,6 +20,10 @@ export interface ItemDefinition {
   stackable?: boolean;
   /** Max count per inventory row (default 99) */
   maxStack?: number;
+  /** Weight per unit (default 1). Used for carry capacity checks. */
+  weight?: number;
+  /** Tags for filtering/categorization (e.g. "furniture", "material") */
+  tags?: string[];
   rarity: "common" | "uncommon" | "rare" | "epic" | "legendary";
   description: string;
 }
@@ -74,6 +78,11 @@ export class ItemRegistry {
     if (!def) return 1;
     const m = typeof def.maxStack === "number" && def.maxStack > 0 ? Math.floor(def.maxStack) : 99;
     return Math.min(99, Math.max(1, m));
+  }
+
+  static weightOf(def: ItemDefinition | undefined): number {
+    if (!def) return 0;
+    return typeof def.weight === "number" && def.weight > 0 ? def.weight : 1;
   }
 
   static hydrate(item: any) {

@@ -1,7 +1,41 @@
 import { ItemRegistry } from "./ItemRegistry.js";
 import { normalizeInventoryStacks } from "./inventoryStacks.js";
 
+/** Default max carry weight for a player */
+const DEFAULT_MAX_WEIGHT = 200;
+
 export class InventorySystem {
+  /** Calculate total weight of a player's inventory. */
+  calculateWeight(player: any): number {
+    if (!Array.isArray(player.inventory)) return 0;
+    let total = 0;
+    for (const row of player.inventory) {
+      if (!row || typeof row.id !== "string") continue;
+      const def = ItemRegistry.getItem(row.id);
+      const unitWeight = ItemRegistry.weightOf(def);
+      const qty = Math.max(1, Math.floor(Number(row.quantity) || 1));
+      total += unitWeight * qty;
+    }
+    return total;
+  }
+
+  /** Get the max weight for a player (can be overridden per-player in future). */
+  getMaxWeight(player: any): number {
+    return typeof player.maxWeight === "number" && player.maxWeight > 0
+      ? player.maxWeight
+      : DEFAULT_MAX_WEIGHT;
+  }
+
+  /** Returns an inventory summary for the client `inv` protocol message. */
+  getInventorySummary(player: any): { items: any[]; gold: number; maxWeight: number; weight: number } {
+    return {
+      items: Array.isArray(player.inventory) ? player.inventory.filter(Boolean) : [],
+      gold: player.gold ?? 0,
+      maxWeight: this.getMaxWeight(player),
+      weight: this.calculateWeight(player),
+    };
+  }
+
   addItem(player: any, item: any) {
     if (!Array.isArray(player.inventory)) player.inventory = [];
     if (!item || typeof item.id !== "string") return player.inventory;

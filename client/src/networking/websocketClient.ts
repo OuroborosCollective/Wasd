@@ -6,6 +6,7 @@ import { setMinimapLocalPlayer, updateMinimapEntities } from "../ui/minimap";
 import { showDeathScreen, hideDeathScreen } from "../ui/deathScreen";
 import { showToast } from "../ui/toast";
 import { applyPartySync } from "../state/partyState";
+import { spawnFloatingNumber } from "../ui/floatingNumbers";
 
 let globalWs: WebSocket | null = null;
 const DEFAULT_SCENE_ID = "didis_hub";
@@ -491,7 +492,32 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         });
       }
       if (data.type === "toast") {
-        showToast(typeof data.text === "string" ? data.text : "");
+        const kind = typeof data.kind === "string" ? data.kind : "info";
+        const text = typeof data.text === "string" ? data.text : "";
+        showToast(kind === "err" ? `\u{274C} ${text}` : text);
+      }
+      if (data.type === "fx") {
+        const cx = window.innerWidth / 2;
+        const cy = window.innerHeight / 2;
+        spawnFloatingNumber(cx + (Math.random() - 0.5) * 80, cy - 40, data.kind, data.n);
+      }
+      if (data.type === "combat_result") {
+        const cx = window.innerWidth / 2;
+        const cy = window.innerHeight / 2;
+        const kind = data.crit ? "crit" : data.hit ? "hit" : "miss";
+        spawnFloatingNumber(cx + (Math.random() - 0.5) * 60, cy - 60, kind, data.damage);
+      }
+      if (data.type === "loot_spawned") {
+        showToast("Loot dropped nearby!");
+      }
+      if (data.type === "loot_picked") {
+        const items = Array.isArray(data.items) ? data.items : [];
+        for (const it of items) {
+          if (it.name) showToast(`+${it.qty}x ${it.name}`);
+        }
+        if (typeof data.gold === "number" && data.gold > 0) {
+          spawnFloatingNumber(window.innerWidth / 2, window.innerHeight / 2 - 30, "gold", data.gold);
+        }
       }
       if (data.type === "player_died") {
         const ms = typeof data.respawnInMs === "number" ? data.respawnInMs : 8000;

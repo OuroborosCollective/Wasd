@@ -20,6 +20,7 @@ import fs from "fs";
 import path from "path";
 import { resolveLoginIdentity } from "../modules/auth/resolveLoginIdentity.js";
 import { getSkillDefinition, buildSkillCooldownUntilPayload } from "../modules/skill/skillDefinitions.js";
+import { CraftingSystem } from "../modules/crafting/CraftingSystem.js";
 import {
   initRedisChatRelay,
   onRedisChatMessage,
@@ -276,6 +277,8 @@ export class WorldTick {
   private areModeAuditTrail: AREModeAuditTrail;
   private areStateCompiler: AREStateCompiler;
   private lootEntities: Map<string, any> = new Map();
+  private housingObjects: Map<string, any> = new Map();
+  private craftingSystem: any = null;
 
   private socketToPlayer: Map<string, string> = new Map(); // socketId -> characterName
   private lastActionTimes: Map<string, number> = new Map(); // charName -> timestamp
@@ -581,6 +584,59 @@ export class WorldTick {
     const byId = this.playerSystem.getPlayer(playerNameOrId);
     if (byId) return byId;
     return this.playerSystem.getAllPlayers().find((p: any) => p.name === playerNameOrId) || null;
+  }
+
+  private spawnLootFromNpc(npc: any, killerId: string): void {
+    let items: any[] = [];
+    let gold = Math.floor(Math.random() * 5) + 1;
+    try {
+      const { LootSystem } = require("../modules/loot/LootSystem.js");
+      const ls = new LootSystem();
+      const roll = ls.rollLoot(npc.lootTableId ?? npc.id);
+      if (roll) {
+        if (Array.isArray(roll.items) && roll.items.length > 0) items = roll.items;
+        if (typeof roll.gold === "number" && roll.gold > 0) gold = roll.gold;
+      }
+    } catch {
+      /* LootSystem load may fail if loot-tables.json not configured */
+    }
+    const id = `loot_${Date.now()}_${npc.id}`;
+    const bag: any = {
+      id,
+      position: { x: npc.position?.x ?? 0, y: npc.position?.y ?? 0 },
+      items: items.map((it: any) => ({
+        id: it.id ?? it.itemId,
+        quantity: it.quantity ?? it.qty ?? 1,
+      })),
+      gold,
+      ownerId: killerId,
+      ownerExclusiveUntil: Date.now() + 30_000,
+      despawnAt: Date.now() + GameConfig.lootDespawnMs,
+    };
+    this.lootEntities.set(id, bag);
+    this.ws.broadcast({
+      type: "loot_spawned",
+      loot: {
+        id,
+        x: bag.position.x,
+        y: bag.position.y,
+        items: bag.items.map((it: any) => ({ itemId: it.id, qty: it.quantity })),
+        gold: bag.gold,
+        ownerId: killerId,
+        despawnAt: bag.despawnAt,
+      },
+    });
+  }
+
+  private cleanupExpiredLoot(): void {
+    if (this.tickCount % 10 !== 0) return;
+    const now = Date.now();
+    for (const [id, bag] of this.lootEntities) {
+      if (typeof bag.despawnAt === "number" && bag.despawnAt <= now) {
+        this.lootEntities.delete(id);
+        this.ws.broadcast({ type: "loot_despawned", lootId: id });
+      }
+    }
   }
 
   private resolvePlayerRespawnPoint(player: any): { x: number; z: number; label?: string } {
@@ -1420,6 +1476,7 @@ export class WorldTick {
     this.runtimeSettings = new RuntimeSettingsStore();
     this.areModeAuditTrail = new AREModeAuditTrail();
     this.areStateCompiler = new AREStateCompiler();
+    this.craftingSystem = new CraftingSystem();
     this.areMode = this.runtimeSettings.getAREMode();
     void initRedisChatRelay();
     this.chatUnsubscribe = onRedisChatMessage((chatMessage: RelayedChatMessage) => {
@@ -1696,10 +1753,37 @@ export class WorldTick {
           player.skillCooldowns[skill.id] = now + skill.cooldownMs;
           const hit = this.combatSystem.spellStrike(player, target, skill.spellPower);
           this.ws.broadcast({ type: "entity_action", entityId: player.id, action: "attack" });
+          if (hit.fx) {
+            this.ws.broadcast({
+              type: "fx",
+              at: { x: target.position.x, y: target.position.y },
+              kind: hit.fx.kind,
+              n: hit.fx.n,
+            });
+          }
+          if (hit.hit) {
+            this.ws.broadcast({
+              type: "combat_result",
+              attackerId: player.id,
+              targetId: target.id,
+              damage: hit.damage,
+              crit: hit.crit ?? false,
+              hit: true,
+              targetHp: target.health,
+              targetHpMax: target.maxHealth ?? target.health,
+              killed: hit.killed ?? false,
+            });
+          }
           this.ws.sendToPlayer(id, {
             type: "toast",
-            text: hit.hit ? `${skill.name} hits for ${hit.damage}.` : `${skill.name} missed.`,
+            text: hit.hit ? `${skill.name} hits for ${hit.damage}${hit.crit ? " (CRIT!)" : ""}.` : `${skill.name} missed.`,
           });
+          if (hit.killed && target.health <= 0) {
+            target.aggroTargetId = null;
+            player.kills = Math.max(0, Number(player.kills) || 0) + 1;
+            this.spawnLootFromNpc(target, player.id);
+            this.questSystem.updateCombatQuests(player, target.id ?? target.name, target.id);
+          }
           this.pushPlayerStateSync(id, player);
           return;
         }
@@ -1739,13 +1823,36 @@ export class WorldTick {
 
         player.mana = Math.max(0, (player.mana ?? 0) - manaCost);
         const weaponBonus = Number(weapon?.damage) || 0;
-        this.combatSystem.attackWithWeapon(player, target, weaponBonus);
+        const atkResult = this.combatSystem.attackWithWeapon(player, target, weaponBonus);
         this.ws.broadcast({ type: "entity_action", entityId: player.id, action: "attack" });
+        if (atkResult.fx) {
+          this.ws.broadcast({
+            type: "fx",
+            at: { x: target.position.x, y: target.position.y },
+            kind: atkResult.fx.kind,
+            n: atkResult.fx.n,
+          });
+        }
+        if (atkResult.hit) {
+          this.ws.broadcast({
+            type: "combat_result",
+            attackerId: player.id,
+            targetId: target.id,
+            damage: atkResult.damage,
+            crit: atkResult.crit ?? false,
+            hit: true,
+            targetHp: target.health,
+            targetHpMax: target.maxHealth ?? target.health,
+            killed: atkResult.killed ?? false,
+          });
+        }
         this.pushPlayerStateSync(id, player);
         if (target.health <= 0) {
           target.health = 0;
           target.aggroTargetId = null;
           player.kills = Math.max(0, Number(player.kills) || 0) + 1;
+          this.spawnLootFromNpc(target, player.id);
+          this.questSystem.updateCombatQuests(player, target.id ?? target.name, target.id);
           this.pushPlayerStateSync(id, player);
         }
         return;
@@ -1827,6 +1934,99 @@ export class WorldTick {
         return;
       }
 
+      if (msg.type === "pickup_loot") {
+        const lootId = typeof msg.lootId === "string" ? msg.lootId.trim() : "";
+        if (!lootId) return;
+        const bag = this.lootEntities.get(lootId);
+        if (!bag) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Loot not found." });
+          return;
+        }
+        if (bag.ownerId && bag.ownerId !== player.id && Date.now() < (bag.ownerExclusiveUntil ?? 0)) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Loot belongs to another player." });
+          return;
+        }
+        const lootPos = bag.position ?? { x: bag.x ?? 0, y: bag.y ?? 0 };
+        if (!this.isWithinDistance(player.position, lootPos, GameConfig.interactDistance)) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Too far away." });
+          return;
+        }
+        const pickedItems: { itemId: string; qty: number; name?: string }[] = [];
+        if (Array.isArray(bag.items)) {
+          for (const it of bag.items) {
+            if (!it?.id) continue;
+            const qty = Math.max(1, Number(it.quantity) || 1);
+            this.inventorySystem.addItem(player, { id: it.id, quantity: qty });
+            const def = ItemRegistry.getItem(it.id);
+            pickedItems.push({ itemId: it.id, qty, name: def?.name });
+          }
+        }
+        const gold = typeof bag.gold === "number" ? bag.gold : 0;
+        if (gold > 0) player.gold = (player.gold ?? 0) + gold;
+        this.lootEntities.delete(lootId);
+        this.ws.broadcast({ type: "loot_despawned", lootId });
+        this.ws.sendToPlayer(id, {
+          type: "loot_picked",
+          lootId,
+          items: pickedItems,
+          gold,
+        });
+        if (gold > 0) {
+          this.ws.sendToPlayer(id, { type: "fx", at: player.position, kind: "gold", n: gold });
+        }
+        this.ws.sendToPlayer(id, { type: "toast", text: `Beute eingesammelt${gold > 0 ? ` (+${gold} Gold)` : ""}.` });
+        this.pushPlayerStateSync(id, player);
+        return;
+      }
+
+      if (msg.type === "craft") {
+        const recipeId = typeof msg.recipeId === "string" ? msg.recipeId.trim() : "";
+        if (!recipeId) return;
+        const count = Math.max(1, Math.min(50, Math.floor(Number(msg.count) || 1)));
+        let crafted = 0;
+        let lastName = recipeId;
+        for (let i = 0; i < count; i++) {
+          const result = this.craftingSystem?.craft(player, recipeId);
+          if (!result || !result.success) {
+            if (crafted === 0) {
+              this.ws.sendToPlayer(id, { type: "toast", text: result?.reason ?? "Crafting failed." });
+            }
+            break;
+          }
+          crafted++;
+          if (result.itemId) lastName = result.itemId;
+        }
+        if (crafted > 0) {
+          this.ws.sendToPlayer(id, { type: "toast", text: `Hergestellt: ${crafted}x ${lastName}` });
+        }
+        this.pushPlayerStateSync(id, player);
+        return;
+      }
+
+      if (msg.type === "house_place") {
+        const itemId = typeof msg.itemId === "string" ? msg.itemId.trim() : "";
+        const hx = Number(msg.x);
+        const hy = Number(msg.y);
+        const hr = Number(msg.r) || 0;
+        if (!itemId || !Number.isFinite(hx) || !Number.isFinite(hy)) return;
+        const taken = this.inventorySystem.takeOneFromBag(player, itemId);
+        if (!taken) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Item not in inventory." });
+          return;
+        }
+        this.housingObjects.set(`ho_${Date.now()}_${player.id}`, {
+          id: `ho_${Date.now()}_${player.id}`,
+          ownerId: player.id,
+          itemId,
+          x: hx,
+          y: hy,
+          r: hr,
+        });
+        this.ws.sendToPlayer(id, { type: "toast", text: "Platziert." });
+        this.pushPlayerStateSync(id, player);
+        return;
+      }
+
       if (msg.type === "interact") {
         // Interaction logic...
         this.ws.sendToPlayer(id, { type: 'dialogue', text: "Hello traveler!" });
@@ -1849,6 +2049,9 @@ export class WorldTick {
     this.loadRuntimeEventTemplates();
     this.loadSceneLayouts();
     this.loadSpawns();
+    if (this.craftingSystem?.loadRecipes) {
+      this.craftingSystem.loadRecipes().catch(() => {});
+    }
   }
 
   private loadSceneLayouts() {
@@ -1990,6 +2193,7 @@ export class WorldTick {
     const onlinePlayers = this.playerSystem.getAllPlayers().filter(p => !p.isOffline);
     this.npcSystem.tick(onlinePlayers, this.worldSystem.worldTime);
     this.worldSystem.tick();
+    this.cleanupExpiredLoot();
 
     if (this.tickCount % 600 === 0) this.saveAll();
 
