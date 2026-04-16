@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 
 type Severity = "info" | "warn" | "error";
@@ -28,6 +29,7 @@ type DgccReport = {
 };
 
 const ROOT = process.cwd();
+const requireFromRoot = createRequire(path.join(ROOT, "package.json"));
 const CONTRACT_PATH = path.join(ROOT, "tools/dgcc/dgcc.contract.json");
 
 function readJson<T>(p: string): T {
@@ -74,6 +76,28 @@ function wantFixes(contract: { modes?: Record<string, { fix?: { enabled?: boolea
 
 function printHeader(mode: string, fix: boolean) {
   console.log(`[DGCC] mode=${mode} fix=${fix ? "on" : "off"}`);
+}
+
+/**
+ * Fail fast with a clear message when the workspace install is incomplete
+ * (common in fresh clones / partial CI caches).
+ */
+function verifyDevDependencies(checks: CheckName[]) {
+  if (!checks.includes("unit")) return;
+  try {
+    requireFromRoot.resolve("jsdom/package.json");
+  } catch {
+    throw new Error('DGCC: missing dev dependency "jsdom" — run `pnpm install` at the repo root.');
+  }
+  try {
+    requireFromRoot.resolve("@supabase/supabase-js/package.json", {
+      paths: [path.join(ROOT, "server")],
+    });
+  } catch {
+    throw new Error(
+      'DGCC: missing workspace dependency "@supabase/supabase-js" under server/ — run `pnpm install` at the repo root.'
+    );
+  }
 }
 
 async function assetsAudit(report: DgccReport, contract: any, fix: boolean) {
@@ -169,6 +193,8 @@ async function main() {
   }
 
   const checks = modeCfg.checks as CheckName[];
+
+  verifyDevDependencies(checks);
 
   if (checks.includes("lint")) {
     await runCheck("lint", async () => {
