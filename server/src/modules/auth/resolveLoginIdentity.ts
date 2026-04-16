@@ -66,13 +66,15 @@ export async function resolveLoginIdentity(
   const token = typeof msg.token === "string" ? msg.token.trim() : "";
   const verifySupabase = isSupabaseWsLoginEnabled() || requireSupabaseAuthOnly();
   const verifyFirebase = isFirebaseWsLoginEnabled() || requireFirebaseAuthOnly();
+  let tokenVerificationAttempted = false;
 
   if (token.length > 0 && verifySupabase) {
+    tokenVerificationAttempted = true;
     try {
       const decoded = verifySupabaseToken(token);
       const uid = typeof decoded.sub === "string" ? decoded.sub.trim() : "";
       if (!uid) {
-        return { error: "Invalid or expired token", code: "invalid_token" };
+        throw new Error("Supabase token missing subject");
       }
       const charName =
         (typeof decoded.email === "string" && decoded.email.trim()) ||
@@ -80,15 +82,16 @@ export async function resolveLoginIdentity(
         uid;
       return { uid, charName };
     } catch {
-      return { error: "Invalid or expired token", code: "invalid_token" };
+      // Supabase verification failed; if Firebase verification is enabled, try it next.
     }
   }
 
   if (token.length > 0 && verifyFirebase) {
+    tokenVerificationAttempted = true;
     try {
       const decoded = await verifyFirebaseToken(token);
       if (!decoded?.uid) {
-        return { error: "Invalid or expired token", code: "invalid_token" };
+        throw new Error("Firebase token missing uid");
       }
       const charName =
         (typeof decoded.name === "string" && decoded.name.trim()) ||
@@ -96,8 +99,12 @@ export async function resolveLoginIdentity(
         decoded.uid;
       return { uid: decoded.uid, charName };
     } catch {
-      return { error: "Invalid or expired token", code: "invalid_token" };
+      // Keep checking other enabled providers (if any). If all fail, return invalid_token below.
     }
+  }
+
+  if (token.length > 0 && tokenVerificationAttempted) {
+    return { error: "Invalid or expired token", code: "invalid_token" };
   }
 
   if (requireSupabaseAuthOnly()) {

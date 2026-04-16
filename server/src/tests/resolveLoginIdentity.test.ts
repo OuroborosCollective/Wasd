@@ -89,6 +89,30 @@ describe("resolveLoginIdentity", () => {
     }
   });
 
+  it("falls back to Firebase when Supabase verify fails and both providers are enabled", async () => {
+    process.env.NODE_ENV = "development";
+    process.env.USE_SUPABASE_WS_LOGIN = "1";
+    process.env.USE_FIREBASE_WS_LOGIN = "1";
+    process.env.JWT_SECRET = "legacy-app-secret";
+    delete process.env.ALLOW_GUEST_LOGIN;
+    const verifyFirebaseToken = vi.fn().mockResolvedValue({
+      uid: "fb-user-fallback",
+      email: "fallback@example.com",
+    });
+    vi.doMock("../config/firebase.js", () => ({
+      isFirebaseAuthConfigured: vi.fn(() => true),
+      verifyFirebaseToken,
+    }));
+    const { resolveLoginIdentity } = await import("../modules/auth/resolveLoginIdentity.js");
+    const r = await resolveLoginIdentity("sock-fallback", { token: "firebase-id-token" });
+    expect(verifyFirebaseToken).toHaveBeenCalledWith("firebase-id-token");
+    expect("error" in r).toBe(false);
+    if (!("error" in r)) {
+      expect(r.uid).toBe("fb-user-fallback");
+      expect(r.charName).toBe("fallback@example.com");
+    }
+  });
+
   it("returns invalid_token when Firebase verify fails with USE_FIREBASE_WS_LOGIN=1", async () => {
     process.env.NODE_ENV = "development";
     process.env.USE_FIREBASE_WS_LOGIN = "true";

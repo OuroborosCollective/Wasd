@@ -44,6 +44,20 @@ describe("adminAuthMiddleware with Firebase Admin", () => {
     expect(verifyFirebaseToken).toHaveBeenCalledWith("fake-jwt");
   });
 
+  it("falls back to Firebase when JWT_SECRET makes Supabase look configured", async () => {
+    process.env.JWT_SECRET = "legacy-app-secret";
+    verifyFirebaseToken.mockResolvedValue({ uid: "firebase-admin-uid" });
+    const app = express();
+    app.get("/t", adminAuthMiddleware, (req, res) => {
+      const r = req as import("../middleware/adminAuthMiddleware.js").AdminRequest;
+      res.json({ mode: r.adminAuth?.mode, uid: r.adminAuth && "uid" in r.adminAuth ? r.adminAuth.uid : null });
+    });
+    const r = await request(app).get("/t").set("Authorization", "Bearer firebase-id-token");
+    expect(r.status).toBe(200);
+    expect(r.body).toEqual({ mode: "firebase", uid: "firebase-admin-uid" });
+    expect(verifyFirebaseToken).toHaveBeenCalledWith("firebase-id-token");
+  });
+
   it("returns 403 when uid is not in ADMIN_UID_ALLOWLIST", async () => {
     process.env.ADMIN_UID_ALLOWLIST = "other_uid, another";
     verifyFirebaseToken.mockResolvedValue({ uid: "not-listed" });
