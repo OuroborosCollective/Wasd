@@ -4,9 +4,13 @@ import { resolvePersistenceDriver } from "./persistenceBackend.js";
 import { FilePersistenceBackend } from "./filePersistenceBackend.js";
 import { FirestorePersistenceBackend } from "./firestorePersistenceBackend.js";
 import { SpacetimePersistenceBackend } from "./spacetimePersistenceBackend.js";
+import { PostgresPersistenceBackend } from "./postgresBackend.js";
 
 export function createPersistenceBackend(): IPersistenceBackend {
   const driver = resolvePersistenceDriver();
+  if (driver === "postgres") {
+    return new PostgresPersistenceBackend();
+  }
   if (driver === "spacetime") {
     return new SpacetimePersistenceBackend();
   }
@@ -21,6 +25,9 @@ export function createPersistenceBackend(): IPersistenceBackend {
 }
 
 function pickAutoBackend(): IPersistenceBackend {
+  if (process.env.DATABASE_URL?.trim()) {
+    return new PostgresPersistenceBackend();
+  }
   if (getDb()) {
     return new FirestorePersistenceBackend();
   }
@@ -32,5 +39,6 @@ export function createPersistenceBackendForTest(driver: PersistenceDriverName): 
   if (driver === "file") return new FilePersistenceBackend();
   if (driver === "firestore") return new FirestorePersistenceBackend();
   if (driver === "spacetime") return new SpacetimePersistenceBackend();
+  if (driver === "postgres") return new PostgresPersistenceBackend();
   return pickAutoBackend();
 }

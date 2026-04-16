@@ -1,5 +1,9 @@
 import { MMORPGClientCore } from "../core/MMORPGClientCore";
 import { wantsMobileNetworkHints } from "../ui/touchUi";
+import { showDeathScreen, hideDeathScreen } from "../ui/deathScreen";
+import { applyStatsPayload } from "../state/playerState";
+import { showToast } from "../ui/toast";
+import { applyPartySync } from "../state/partyState";
 
 let globalWs: WebSocket | null = null;
 const DEFAULT_SCENE_ID = "didis_hub";
@@ -440,6 +444,35 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
           spawnKey: data.spawnKey,
           spawnPosition: data.spawnPosition,
         });
+      }
+      if (data.type === "stats_sync") {
+        applyStatsPayload(data);
+      }
+      if (data.type === "toast") {
+        showToast(typeof data.text === "string" ? data.text : "");
+      }
+      if (data.type === "player_died") {
+        const ms = typeof data.respawnInMs === "number" ? data.respawnInMs : 8000;
+        showDeathScreen(ms);
+      }
+      if (data.type === "player_respawned") {
+        hideDeathScreen();
+        const localPlayerId = core.getLocalPlayerId();
+        if (localPlayerId && typeof data.x === "number" && typeof data.z === "number") {
+          core.syncEntities([{
+            id: localPlayerId,
+            type: "player",
+            position: { x: data.x, y: 0, z: data.z },
+            rotation: { x: 0, y: 0, z: 0 },
+            visible: true,
+          }]);
+        }
+        if (typeof data.label === "string") {
+          showToast(`Respawned at ${data.label}`);
+        }
+      }
+      if (data.type === "party_sync") {
+        applyPartySync(data);
       }
       if (data.type === 'dialogue') {
         core.handleDialogue({

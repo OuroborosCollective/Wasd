@@ -1,6 +1,6 @@
 /** Pluggable persistence for players + optional world objects (Firestore, file, future SpacetimeDB). */
 
-export type PersistenceDriverName = "auto" | "firestore" | "file" | "spacetime";
+export type PersistenceDriverName = "auto" | "firestore" | "file" | "spacetime" | "postgres";
 
 export interface IPersistenceBackend {
   readonly name: string;
@@ -14,7 +14,7 @@ export interface IPersistenceBackend {
 
 export function resolvePersistenceDriver(): PersistenceDriverName {
   const raw = process.env.PERSISTENCE_DRIVER?.trim().toLowerCase();
-  if (raw === "firestore" || raw === "file" || raw === "spacetime") {
+  if (raw === "firestore" || raw === "file" || raw === "spacetime" || raw === "postgres") {
     return raw;
   }
   return "auto";

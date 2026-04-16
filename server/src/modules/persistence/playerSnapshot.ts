@@ -34,6 +34,8 @@ export const PLAYER_PERSIST_KEYS = [
   "usedChoices",
   "sceneId",
   "spawnKey",
+  /** Lifetime death counter */
+  "totalDeaths",
   /** Optional locked combat target (NPC id) */
   "combatTargetNpcId",
   /** Per-skill cooldown end timestamps (ms since epoch) */

@@ -14,6 +14,7 @@ export class PlayerSystem {
       maxHealth: 100,
       dead: false,
       deathAt: 0,
+      totalDeaths: 0,
       stamina: 100,
       maxStamina: 100,
       mana: 25,
