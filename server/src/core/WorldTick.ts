@@ -373,6 +373,7 @@ export class WorldTick {
   }
 
   private pushPlayerStateSync(socketId: string, player: any) {
+    const invSummary = this.inventorySystem.getInventorySummary(player);
     this.ws.sendToPlayer(socketId, {
       type: "stats_sync",
       gold: player.gold,
@@ -391,6 +392,9 @@ export class WorldTick {
       respawnAvailableAt: player.dead
         ? (typeof player.deathAt === "number" ? player.deathAt : 0) + GameConfig.playerRespawnDelayMs
         : 0,
+      combatTargetNpcId: typeof player.combatTargetNpcId === "string" ? player.combatTargetNpcId : null,
+      inventoryWeight: invSummary.weight,
+      inventoryMaxWeight: invSummary.maxWeight,
       quests: this.questSystem.getQuestSyncForClient(player),
       inventory: player.inventory,
       equipment: player.equipment,
@@ -2202,13 +2206,17 @@ export class WorldTick {
 
   broadcastState() {
     const tickCount = this.tickCount;
-    const entities = [
+    /** Mixed entity payloads (players, NPCs, loot, world objects); keep loose for WS broadcast typing. */
+    const entities: any[] = [
       ...this.playerSystem.getAllPlayers().map(p => ({
         id: p.id,
         type: 'player',
         position: { x: p.position.x, y: 0, z: p.position.y }, // Mapping y to z for 3D
         rotation: { x: 0, y: 0, z: 0 },
         name: p.name,
+        level: typeof p.level === "number" && p.level > 0 ? p.level : 1,
+        health: p.health,
+        maxHealth: p.maxHealth,
         glbPath: this.resolveEntityGlbPath("players", p.name || p.id, p.id),
         are: this.areStateCompiler.compileEntity(
           {
@@ -2229,6 +2237,7 @@ export class WorldTick {
         position: { x: n.position.x, y: 0, z: n.position.y },
         rotation: { x: 0, y: 0, z: 0 },
         name: n.name,
+        level: typeof n.skills?.combat?.level === "number" && n.skills.combat.level > 0 ? n.skills.combat.level : 1,
         health: n.health,
         maxHealth: n.maxHealth,
         role: n.role,
@@ -2249,23 +2258,48 @@ export class WorldTick {
         ),
         visible: true
       })),
-      ...Array.from(this.lootEntities.values()).map(l => ({
-        id: l.id,
-        type: 'loot',
-        position: { x: l.position.x, y: 0, z: l.position.y },
-        rotation: { x: 0, y: 0, z: 0 },
-        glbPath: this.resolveEntityGlbPath("loot", l.item?.id || l.id, l.id),
-        are: this.areStateCompiler.compileEntity(
-          {
-            id: l.id,
-            type: "loot",
-            position: { x: l.position.x, y: 0, z: l.position.y },
-            visible: true,
-          },
-          tickCount
-        ),
-        visible: true
-      }))
+      ...Array.from(this.lootEntities.values()).map((l) => {
+        const items = Array.isArray(l.items)
+          ? l.items
+              .filter((it: any) => it && typeof it.id === "string")
+              .map((it: any) => {
+                const qty = Math.max(1, Math.floor(Number(it.quantity) || 1));
+                const def = ItemRegistry.getItem(it.id);
+                return {
+                  itemId: it.id,
+                  qty,
+                  name: def?.name,
+                };
+              })
+          : [];
+        const gold = typeof l.gold === "number" ? l.gold : 0;
+        const despawnAt = typeof l.despawnAt === "number" ? l.despawnAt : 0;
+        return {
+          id: l.id,
+          type: "loot" as const,
+          position: { x: l.position.x, y: 0, z: l.position.y },
+          rotation: { x: 0, y: 0, z: 0 },
+          lootKind: gold > 0 && items.length === 0 ? ("gold" as const) : ("item" as const),
+          goldAmount: gold > 0 ? gold : undefined,
+          lootItemId: items[0]?.itemId,
+          lootItemName: items[0]?.name,
+          items,
+          gold,
+          ownerId: typeof l.ownerId === "string" ? l.ownerId : undefined,
+          despawnAt,
+          glbPath: this.resolveEntityGlbPath("loot", l.item?.id || l.id, l.id),
+          are: this.areStateCompiler.compileEntity(
+            {
+              id: l.id,
+              type: "loot",
+              position: { x: l.position.x, y: 0, z: l.position.y },
+              visible: true,
+            },
+            tickCount
+          ),
+          visible: true,
+        };
+      })
     ];
 
     // Include world objects if they exist

@@ -5,8 +5,17 @@ import { onChatMessage } from "../ui/chat";
 import { setMinimapLocalPlayer, updateMinimapEntities } from "../ui/minimap";
 import { showDeathScreen, hideDeathScreen } from "../ui/deathScreen";
 import { showToast } from "../ui/toast";
+import { onEntitySyncForCombatUi } from "../ui/combatMobileUi";
 import { applyPartySync } from "../state/partyState";
-import { spawnFloatingNumber } from "../ui/floatingNumbers";
+import {
+  applyEntitySyncPayload,
+  applyStatsSyncHudFields,
+  mergeLootSpawned,
+  pushFx,
+  removeLootFromHud,
+  setGameHudConnected,
+  setGameHudYouId,
+} from "../ui/gameHudStore";
 
 let globalWs: WebSocket | null = null;
 const DEFAULT_SCENE_ID = "didis_hub";
@@ -288,6 +297,7 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
   ws.onopen = async () => {
     if (myGen !== wsConnectionGeneration || ws !== globalWs) return;
     console.log("Connected to Arelorian Server");
+    setGameHudConnected(true);
     emitNetStatus("connected", "Connected. Waiting for world login...");
     const token = await resolveTokenForLogin(options.token);
     let guestId: string | undefined;
@@ -385,6 +395,7 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         }
         emitNetStatus("sync", "World synchronized.");
         if (data.entities) {
+          applyEntitySyncPayload({ entities: data.entities });
           const normalizedEntities = data.entities.map((entity: any) => ({
             ...entity,
             modelUrl: entity.modelUrl ?? entity.glbPath,
@@ -392,6 +403,7 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
           }));
           core.syncEntities(normalizedEntities);
           updateMinimapEntities(normalizedEntities);
+          onEntitySyncForCombatUi(normalizedEntities);
         }
         if (data.chunks) core.syncChunks(data.chunks);
       }
@@ -424,6 +436,7 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
           }
         }
         core.setLocalPlayer(localPlayerId);
+        setGameHudYouId(typeof localPlayerId === "string" ? localPlayerId : undefined);
         setMinimapLocalPlayer(typeof localPlayerId === "string" ? localPlayerId : null);
         if (data.stats && typeof data.stats === "object") {
           applyStatsPayload(data.stats);
@@ -450,6 +463,7 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
       }
       if (data.type === "stats_sync") {
         applyStatsPayload(data);
+        applyStatsSyncHudFields(data as Record<string, unknown>);
       }
       if (data.type === "chat_message") {
         const payload = data.payload && typeof data.payload === "object" ? data.payload : data;
@@ -497,26 +511,36 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         showToast(kind === "err" ? `\u{274C} ${text}` : text);
       }
       if (data.type === "fx") {
-        const cx = window.innerWidth / 2;
-        const cy = window.innerHeight / 2;
-        spawnFloatingNumber(cx + (Math.random() - 0.5) * 80, cy - 40, data.kind, data.n);
+        const at = data.at && typeof data.at === "object" ? data.at : {};
+        pushFx(
+          { x: Number((at as { x?: number }).x), y: Number((at as { y?: number }).y) },
+          data.kind,
+          typeof data.n === "number" ? data.n : undefined
+        );
       }
       if (data.type === "combat_result") {
-        const cx = window.innerWidth / 2;
-        const cy = window.innerHeight / 2;
         const kind = data.crit ? "crit" : data.hit ? "hit" : "miss";
-        spawnFloatingNumber(cx + (Math.random() - 0.5) * 60, cy - 60, kind, data.damage);
+        pushFx(undefined, kind, typeof data.damage === "number" ? data.damage : undefined);
       }
       if (data.type === "loot_spawned") {
         showToast("Loot dropped nearby!");
+        if (data.loot && typeof data.loot === "object" && typeof data.loot.id === "string") {
+          mergeLootSpawned(data.loot);
+        }
+      }
+      if (data.type === "loot_despawned" && typeof data.lootId === "string") {
+        removeLootFromHud(data.lootId);
       }
       if (data.type === "loot_picked") {
+        if (typeof data.lootId === "string") {
+          removeLootFromHud(data.lootId);
+        }
         const items = Array.isArray(data.items) ? data.items : [];
         for (const it of items) {
           if (it.name) showToast(`+${it.qty}x ${it.name}`);
         }
         if (typeof data.gold === "number" && data.gold > 0) {
-          spawnFloatingNumber(window.innerWidth / 2, window.innerHeight / 2 - 30, "gold", data.gold);
+          pushFx(undefined, "gold", data.gold);
         }
       }
       if (data.type === "player_died") {
@@ -564,6 +588,7 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
 
   ws.onclose = () => {
     if (myGen !== wsConnectionGeneration) return;
+    setGameHudConnected(false);
     emitNetStatus("closed", "Disconnected from game server.");
   };
 }

@@ -34,6 +34,8 @@ export type ServerMsg =
   | { t: "loot_picked"; lootId: string; items: ItemStackNet[]; gold: number }
   | { t: "inv"; items: ItemStackNet[]; gold: number; maxWeight: number; weight: number }
   | { t: "quests"; active: QuestStateNet[] }
+  /** Logical world snapshot (same data the Babylon client already receives as `entity_sync` + player id). */
+  | { t: "snapshot"; you: string; entities: EntityNet[]; loot: LootNet[] }
   | { t: "combat_result"; attackerId: string; targetId: string; damage: number; crit: boolean; hit: boolean; targetHp: number; targetHpMax: number; killed: boolean };
 
 // ─── Shared data shapes ───────────────────────────────────────
