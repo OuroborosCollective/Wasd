@@ -4,8 +4,7 @@ The client renders the world with **Babylon.js**, holds local UI state, and sync
 
 ## Layers (actual `client/src`)
 
-- `main.ts` — minimal shell (canvas + `bootAreloriaClient`)  
-- `clientBoot.ts` — engine + core + socket + HUD + game loop  
+- `main.ts` — canvas, Babylon boot (`createBabylonApp` → `BabylonAdapter`), `MMORPGClientCore`, React HUD overlay, Supabase init + legacy `renderHUD()`, WebSocket connect, mobile controls, game loop  
 - `bootUi.ts` — bootstrap banner and **WebGL / context-lost** full-screen overlay  
 - `engine/babylon/` — Babylon boot, adapter, ground/sky helpers, default `AssetRegistry` for GLB fallbacks  
 - `engine/bridge/` — `IEngineBridge`, `EntityViewModel` (renderer-agnostic)  
