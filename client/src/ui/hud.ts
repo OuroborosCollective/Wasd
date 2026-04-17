@@ -29,6 +29,7 @@ import {
 const GUEST_STORAGE_KEY = "areloria_guest_id";
 
 export function renderHUD() {
+  document.getElementById("arel-hud")?.remove();
   const hud = document.createElement("div");
   hud.id = "arel-hud";
   hud.style.position = "fixed";

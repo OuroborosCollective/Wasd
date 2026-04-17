@@ -4,7 +4,7 @@ import { BabylonAdapter } from "./engine/babylon/BabylonAdapter";
 import { MMORPGClientCore } from "./core/MMORPGClientCore";
 import { connectSocket, requestSceneChange, sendCommand, type ConnectionOptions } from "./networking/websocketClient";
 import { IEngineBridge } from "./engine/bridge/IEngineBridge";
-import { showDialogue } from "./ui/hud";
+import { renderHUD, showDialogue } from "./ui/hud";
 import { mountGameHudOverlay } from "./ui/mountGameHudOverlay";
 import { initSupabaseClient, getSupabaseClientSync } from "./auth/supabase";
 import { getJoystickState, initMobileControls, isMobile } from "./ui/mobileControls";
@@ -117,6 +117,8 @@ try {
   core.registerDefaultInput();
 
   await initSupabaseClient();
+  // Legacy DOM HUD: Supabase/Firebase sign-in + guest controls (React HUD has no auth forms).
+  renderHUD();
 
   // 3. Connect Systems
   const connectionOptions: ConnectionOptions = {};
