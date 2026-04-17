@@ -43,56 +43,10 @@ jobs:
       POOLER_PROXY_PORT_TRANSACTION: ${{ secrets.POOLER_PROXY_PORT_TRANSACTION }}
 
     steps:
-      - name: Sync Supabase secrets → VPS .env
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VPS_IP }}
-          username: ${{ secrets.VPS_USER }}
-          password: ${{ secrets.VPS_SSH_PASSWORD }}
-          port: 22
-          timeout: 60s
-          command_timeout: 5m
-          envs: VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY,SUPABASE_URL,SUPABASE_PUBLIC_URL,API_EXTERNAL_URL,SUPABASE_ANON_KEY,ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,SERVICE_ROLE_KEY,SUPABASE_JWT_SECRET,JWT_SECRET,GOTRUE_JWT_SECRET,AUTH_JWT_SECRET,SECRET_KEY_BASE,DATABASE_URL,PGHOST,POSTGRES_HOST,PGPORT,POSTGRES_PORT,PGDATABASE,POSTGRES_DB,PGUSER,POSTGRES_USER,PGPASSWORD,POSTGRES_PASSWORD,POOLER_PROXY_PORT_TRANSACTION
-          script: |
-            set -e
-            export VITE_SUPABASE_URL="${VITE_SUPABASE_URL:-}"
-            export VITE_SUPABASE_ANON_KEY="${VITE_SUPABASE_ANON_KEY:-}"
-            export SUPABASE_URL="${SUPABASE_URL:-}"
-            export SUPABASE_PUBLIC_URL="${SUPABASE_PUBLIC_URL:-}"
-            export API_EXTERNAL_URL="${API_EXTERNAL_URL:-}"
-            export SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}"
-            export ANON_KEY="${ANON_KEY:-}"
-            export SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY:-}"
-            export SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-}"
-            export SUPABASE_JWT_SECRET="${SUPABASE_JWT_SECRET:-}"
-            export JWT_SECRET="${JWT_SECRET:-}"
-            export GOTRUE_JWT_SECRET="${GOTRUE_JWT_SECRET:-}"
-            export AUTH_JWT_SECRET="${AUTH_JWT_SECRET:-}"
-            export SECRET_KEY_BASE="${SECRET_KEY_BASE:-}"
-            export DATABASE_URL="${DATABASE_URL:-}"
-            export PGHOST="${PGHOST:-}"
-            export POSTGRES_HOST="${POSTGRES_HOST:-}"
-            export PGPORT="${PGPORT:-}"
-            export POSTGRES_PORT="${POSTGRES_PORT:-}"
-            export PGDATABASE="${PGDATABASE:-}"
-            export POSTGRES_DB="${POSTGRES_DB:-}"
-            export PGUSER="${PGUSER:-}"
-            export POSTGRES_USER="${POSTGRES_USER:-}"
-            export PGPASSWORD="${PGPASSWORD:-${POSTGRES_PASSWORD:-}}"
-            export POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-}"
-            export POOLER_PROXY_PORT_TRANSACTION="${POOLER_PROXY_PORT_TRANSACTION:-}"
-            export USE_SUPABASE_WS_LOGIN="${USE_SUPABASE_WS_LOGIN:-1}"
-            export REQUIRE_SUPABASE_AUTH="${REQUIRE_SUPABASE_AUTH:-1}"
-            export PERSISTENCE_DRIVER="${PERSISTENCE_DRIVER:-postgres}"
-            export ALLOW_GUEST_LOGIN="${ALLOW_GUEST_LOGIN:-0}"
-            export ALLOW_DEV_LOGIN="${ALLOW_DEV_LOGIN:-0}"
-            if [ -f /opt/areloria/deploy/sync-supabase-env.sh ]; then
-              chmod +x /opt/areloria/deploy/sync-supabase-env.sh
-              bash /opt/areloria/deploy/sync-supabase-env.sh
-            else
-              echo "⚠️  sync-supabase-env.sh not found yet (first deploy before clone) — will run after pull step"
-            fi
-
+      # Single SSH session: avoids a redundant first connection (which used a 60s
+      # dial timeout and failed the whole job on transient network blips — see
+      # actions/run 24586463273). Supabase secrets are merged in the same step
+      # via deploy/sync-supabase-env.sh after the repo is updated.
       - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1.0.3
         env:
@@ -102,7 +56,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           password: ${{ secrets.VPS_SSH_PASSWORD }}
           port: 22
-          timeout: 120s
+          timeout: 3m
           command_timeout: 45m
           envs: VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY,SUPABASE_URL,SUPABASE_PUBLIC_URL,API_EXTERNAL_URL,SUPABASE_ANON_KEY,ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,SERVICE_ROLE_KEY,SUPABASE_JWT_SECRET,JWT_SECRET,GOTRUE_JWT_SECRET,AUTH_JWT_SECRET,SECRET_KEY_BASE,DATABASE_URL,PGHOST,POSTGRES_HOST,PGPORT,POSTGRES_PORT,PGDATABASE,POSTGRES_DB,PGUSER,POSTGRES_USER,PGPASSWORD,POSTGRES_PASSWORD,POOLER_PROXY_PORT_TRANSACTION
           script: |
