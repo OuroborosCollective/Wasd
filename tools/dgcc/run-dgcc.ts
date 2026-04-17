@@ -14,7 +14,22 @@ type CheckName =
   | "wsSchemaSmoke"
   | "uiA11ySmoke"
   | "clientBuild"
-  | "serverBuild";
+  | "serverBuild"
+  | "auditModelPaths";
+
+const KNOWN_CHECKS: readonly CheckName[] = [
+  "lint",
+  "unit",
+  "checkInteract",
+  "e2e",
+  "contentValidate",
+  "assetsAudit",
+  "wsSchemaSmoke",
+  "uiA11ySmoke",
+  "clientBuild",
+  "serverBuild",
+  "auditModelPaths",
+] as const;
 
 type DgccReport = {
   startedAt: string;
@@ -43,7 +58,7 @@ function nowIso() {
 }
 
 function run(cmd: string, args: string[], opts?: { env?: Record<string, string> }) {
-  return new Promise<{ code: number; stdout: string; stderr: string; durationMs: number }>((resolve) => {
+  return new Promise<{ code: number; stdout: string; stderr: string; durationMs: number }>((resolve, reject) => {
     const t0 = Date.now();
     const child = spawn(cmd, args, {
       cwd: ROOT,
@@ -53,10 +68,27 @@ function run(cmd: string, args: string[], opts?: { env?: Record<string, string> 
     });
     let stdout = "";
     let stderr = "";
+    let settled = false;
     child.stdout.on("data", (d) => (stdout += String(d)));
     child.stderr.on("data", (d) => (stderr += String(d)));
-    child.on("close", (code) => resolve({ code: code ?? 1, stdout, stderr, durationMs: Date.now() - t0 }));
+    child.on("error", (err) => {
+      if (settled) return;
+      settled = true;
+      reject(err);
+    });
+    child.on("close", (code) => {
+      if (settled) return;
+      settled = true;
+      resolve({ code: code ?? 1, stdout, stderr, durationMs: Date.now() - t0 });
+    });
   });
+}
+
+function assertKnownChecks(checks: string[]): asserts checks is CheckName[] {
+  const bad = checks.filter((c) => !KNOWN_CHECKS.includes(c as CheckName));
+  if (bad.length) {
+    throw new Error(`Unknown DGCC check(s) in contract: ${bad.join(", ")}. Known: ${KNOWN_CHECKS.join(", ")}`);
+  }
 }
 
 function parseMode() {
@@ -142,6 +174,8 @@ async function main() {
   printHeader(mode, fix);
 
   const modeCfg = contract.modes[mode] ?? contract.modes.minimal;
+  const checksRaw = modeCfg.checks as string[];
+  assertKnownChecks(checksRaw);
 
   const report: DgccReport = {
     startedAt: nowIso(),
@@ -168,7 +202,7 @@ async function main() {
     }
   }
 
-  const checks = modeCfg.checks as CheckName[];
+  const checks = checksRaw;
 
   if (checks.includes("lint")) {
     await runCheck("lint", async () => {
@@ -234,6 +268,15 @@ async function main() {
       fs.writeFileSync(path.join(outDir, "server-build.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["serverBuild"] = "dgcc-artifacts/server-build.out.txt";
       if (r.code !== 0) throw new Error("server build failed");
+    });
+  }
+
+  if (checks.includes("auditModelPaths")) {
+    await runCheck("auditModelPaths", async () => {
+      const r = await run("pnpm", ["run", "audit:model-paths"]);
+      fs.writeFileSync(path.join(outDir, "audit-model-paths.out.txt"), r.stdout + "\n" + r.stderr);
+      report.artifacts["auditModelPaths"] = "dgcc-artifacts/audit-model-paths.out.txt";
+      if (r.code !== 0) throw new Error("model path audit failed");
     });
   }
 
