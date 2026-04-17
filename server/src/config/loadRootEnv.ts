@@ -1,7 +1,8 @@
 /**
  * Load `.env` before any other server config reads `process.env`.
- * PM2 `cwd` is usually the repo root, but some setups run with a different cwd;
- * we always try the monorepo `.env` next to `server/` (from `server/dist/` → `../../.env`).
+ * PM2 `cwd` is often the monorepo root, but some setups run with `cwd` under `server/`
+ * or only deploy `server/dist`. We always load the repo-root `.env` from this file's
+ * location (`server/src/config` or `server/dist/config` → three levels up to repo root).
  */
 import dotenv from "dotenv";
 import fs from "node:fs";
@@ -15,12 +16,17 @@ function tryLoad(p: string, override: boolean): void {
   dotenv.config({ path: p, override });
 }
 
+/** Repo-root `.env` (same directory as `server/`). Exported for tests. */
+export function resolveMonorepoRootEnvPath(): string {
+  return path.resolve(__dirname, "../../../.env");
+}
+
 export function loadRootEnvFiles(): void {
-  const fromDist = path.resolve(__dirname, "../../.env");
+  const fromMonorepoRoot = resolveMonorepoRootEnvPath();
   const fromCwd = path.resolve(process.cwd(), ".env");
   const opt = "/opt/areloria/.env";
 
-  tryLoad(fromDist, false);
+  tryLoad(fromMonorepoRoot, false);
   tryLoad(fromCwd, true);
   tryLoad(opt, true);
 }
