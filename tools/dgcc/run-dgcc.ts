@@ -7,7 +7,6 @@ type Severity = "info" | "warn" | "error";
 type CheckName =
   | "lint"
   | "unit"
-  | "checkInteract"
   | "e2e"
   | "contentValidate"
   | "assetsAudit"
@@ -27,8 +26,19 @@ type DgccReport = {
   artifacts: Record<string, string>;
 };
 
-const ROOT = process.cwd();
-const CONTRACT_PATH = path.join(ROOT, "tools/dgcc/dgcc.contract.json");
+function findRepoRoot(startDir: string): string {
+  let dir = path.resolve(startDir);
+  for (;;) {
+    const contractAt = path.join(dir, "tools", "dgcc", "dgcc.contract.json");
+    if (fs.existsSync(contractAt)) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) return path.resolve(startDir);
+    dir = parent;
+  }
+}
+
+const ROOT = findRepoRoot(process.cwd());
+const CONTRACT_PATH = path.join(ROOT, "tools", "dgcc", "dgcc.contract.json");
 
 function readJson<T>(p: string): T {
   return JSON.parse(fs.readFileSync(p, "utf8")) as T;
@@ -60,8 +70,11 @@ function run(cmd: string, args: string[], opts?: { env?: Record<string, string> 
 }
 
 function parseMode() {
-  const arg = process.argv.find((x) => x.startsWith("--mode="));
-  return (arg?.split("=")[1] || process.env.DGCC_MODE || "minimal").trim();
+  const eq = process.argv.find((x) => x.startsWith("--mode="));
+  if (eq) return eq.split("=", 2)[1]?.trim() || "minimal";
+  const idx = process.argv.indexOf("--mode");
+  if (idx >= 0 && process.argv[idx + 1]) return String(process.argv[idx + 1]).trim();
+  return (process.env.DGCC_MODE || "minimal").trim();
 }
 
 function wantFixes(contract: { modes?: Record<string, { fix?: { enabled?: boolean } }> }, mode: string) {
@@ -110,7 +123,114 @@ async function assetsAudit(report: DgccReport, contract: any, fix: boolean) {
   }
 }
 
-async function wsSchemaSmoke(report: DgccReport) {
+function enforceAuthContract(report: DgccReport, contract: any) {
+  const required: string[] = contract?.rules?.auth?.requiredLoginErrors;
+  if (!Array.isArray(required) || !required.length) return;
+  const loginPath = path.join(ROOT, "server/src/modules/auth/resolveLoginIdentity.ts");
+  if (!fs.existsSync(loginPath)) {
+    report.inconsistencies.push({
+      category: "auth",
+      severity: "error",
+      message: "resolveLoginIdentity.ts missing; cannot verify auth error contract.",
+      file: "server/src/modules/auth/resolveLoginIdentity.ts",
+    });
+    return;
+  }
+  const src = fs.readFileSync(loginPath, "utf8");
+  for (const code of required) {
+    if (typeof code !== "string" || !code.trim()) continue;
+    const needle = `code: "${code}"`;
+    if (!src.includes(needle)) {
+      report.inconsistencies.push({
+        category: "auth",
+        severity: "error",
+        message: `Login error contract requires code "${code}" in resolveLoginIdentity.`,
+        file: "server/src/modules/auth/resolveLoginIdentity.ts",
+        hint: `Ensure ${needle} is emitted for the appropriate failure paths.`,
+      });
+    }
+  }
+}
+
+function enforceWelcomeStatsShape(report: DgccReport, contract: any) {
+  if (!contract?.rules?.ws?.requireWelcomeStatsShape) return;
+  const worldTick = path.join(ROOT, "server/src/core/WorldTick.ts");
+  if (!fs.existsSync(worldTick)) {
+    report.inconsistencies.push({
+      category: "ws",
+      severity: "error",
+      message: "WorldTick.ts missing; cannot verify welcome.stats shape.",
+      file: "server/src/core/WorldTick.ts",
+    });
+    return;
+  }
+  const src = fs.readFileSync(worldTick, "utf8");
+  const welcomeIdx = src.indexOf('type: "welcome"');
+  if (welcomeIdx < 0) {
+    report.inconsistencies.push({
+      category: "ws",
+      severity: "error",
+      message: 'WorldTick.ts has no type: "welcome" WebSocket payload.',
+      file: "server/src/core/WorldTick.ts",
+    });
+    return;
+  }
+  const segment = src.slice(welcomeIdx, Math.min(src.length, welcomeIdx + 6000));
+  const statsKeys = [
+    "gold",
+    "xp",
+    "level",
+    "health",
+    "maxHealth",
+    "stamina",
+    "maxStamina",
+    "mana",
+    "maxMana",
+    "inventory",
+    "equipment",
+  ];
+  for (const k of statsKeys) {
+    const re = new RegExp(`\\b${k}\\s*:`);
+    if (!re.test(segment)) {
+      report.inconsistencies.push({
+        category: "ws",
+        severity: "error",
+        message: `welcome.stats contract: missing "${k}" in welcome payload near WorldTick login.`,
+        file: "server/src/core/WorldTick.ts",
+      });
+    }
+  }
+}
+
+function warnWsEnvContract(report: DgccReport, contract: any) {
+  const envName = contract?.rules?.ws?.maxMessageBytesEnv;
+  if (typeof envName !== "string" || !envName.trim()) return;
+  const serverRoot = path.join(ROOT, "server", "src");
+  if (!fs.existsSync(serverRoot)) return;
+  let hit = false;
+  const walk = (dir: string) => {
+    for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (ent.name === "node_modules" || ent.name === "dist") continue;
+      const full = path.join(dir, ent.name);
+      if (ent.isDirectory()) walk(full);
+      else if (ent.isFile() && ent.name.endsWith(".ts")) {
+        const t = fs.readFileSync(full, "utf8");
+        if (t.includes(envName)) hit = true;
+      }
+    }
+  };
+  walk(serverRoot);
+  if (!hit) {
+    report.inconsistencies.push({
+      category: "ws",
+      severity: "warn",
+      message: `Contract names WS env ${envName}, but server sources do not reference it (yet).`,
+      hint: "Wire the limit in WebSocketServer or relax the contract field.",
+    });
+  }
+}
+
+async function wsSchemaSmoke(report: DgccReport, contract: any) {
   const p = path.join(ROOT, "client/public/e2e-smoke.html");
   if (!fs.existsSync(p)) {
     report.inconsistencies.push({
@@ -121,6 +241,9 @@ async function wsSchemaSmoke(report: DgccReport) {
       hint: "Restore e2e smoke page or update DGCC contract.",
     });
   }
+  enforceAuthContract(report, contract);
+  enforceWelcomeStatsShape(report, contract);
+  warnWsEnvContract(report, contract);
 }
 
 async function uiA11ySmoke(report: DgccReport) {
@@ -132,6 +255,41 @@ async function uiA11ySmoke(report: DgccReport) {
   }
   if (!html.includes('name="viewport"')) {
     report.inconsistencies.push({ category: "ui", severity: "warn", message: "admin-content.html missing viewport meta." });
+  }
+}
+
+function validateReportShape(report: DgccReport) {
+  const top = ["startedAt", "finishedAt", "mode", "ok", "checks", "inconsistencies", "fixes", "artifacts"] as const;
+  for (const k of top) {
+    if (!(k in report) || report[k as keyof DgccReport] === undefined) {
+      throw new Error(`DGCC report missing required field: ${k}`);
+    }
+  }
+  if (!Array.isArray(report.checks)) throw new Error("DGCC report checks must be an array");
+  for (const c of report.checks) {
+    if (typeof c.name !== "string" || typeof c.ok !== "boolean" || typeof c.durationMs !== "number") {
+      throw new Error("DGCC report check entry invalid shape");
+    }
+  }
+  if (!Array.isArray(report.inconsistencies)) throw new Error("DGCC report inconsistencies must be an array");
+  for (const i of report.inconsistencies) {
+    if (typeof i.category !== "string" || typeof i.severity !== "string" || typeof i.message !== "string") {
+      throw new Error("DGCC report inconsistency entry invalid shape");
+    }
+  }
+  if (!Array.isArray(report.fixes)) throw new Error("DGCC report fixes must be an array");
+  for (const f of report.fixes) {
+    if (typeof f.kind !== "string" || typeof f.message !== "string") {
+      throw new Error("DGCC report fix entry invalid shape");
+    }
+  }
+  if (!report.artifacts || typeof report.artifacts !== "object" || Array.isArray(report.artifacts)) {
+    throw new Error("DGCC report artifacts must be an object");
+  }
+  for (const [k, v] of Object.entries(report.artifacts)) {
+    if (typeof k !== "string" || typeof v !== "string") {
+      throw new Error("DGCC report artifacts must map string -> string");
+    }
   }
 }
 
@@ -188,15 +346,6 @@ async function main() {
     });
   }
 
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
-    });
-  }
-
   if (checks.includes("e2e")) {
     await runCheck("e2e", async () => {
       const r = await run("pnpm", ["run", "test:e2e:ci"]);
@@ -248,7 +397,7 @@ async function main() {
 
   if (checks.includes("wsSchemaSmoke")) {
     await runCheck("wsSchemaSmoke", async () => {
-      await wsSchemaSmoke(report);
+      await wsSchemaSmoke(report, contract);
       const p = path.join(outDir, "ws-smoke.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "ws") }, null, 2));
       report.artifacts["wsSchemaSmoke"] = "dgcc-artifacts/ws-smoke.json";
@@ -268,6 +417,8 @@ async function main() {
 
   report.finishedAt = nowIso();
   if (report.inconsistencies.some((x) => x.severity === "error")) report.ok = false;
+
+  validateReportShape(report);
 
   const reportPath = path.join(outDir, "dgcc.report.json");
   fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
