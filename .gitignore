@@ -1,6 +1,9 @@
 # Local player persistence (file fallback when Firestore is off)
 /data/
 
+# Local self-heal / automation state (not part of the app)
+.selfhealing/
+
 test-results/
 playwright-report/
 dgcc-artifacts/
