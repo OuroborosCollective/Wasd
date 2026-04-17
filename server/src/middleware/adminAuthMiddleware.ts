@@ -102,7 +102,7 @@ export async function adminAuthMiddleware(req: AdminRequest, res: Response, next
 
     if (!hasSupabaseProvider && !hasFirebaseProvider) {
       const msg =
-        "Kein externer Auth-Provider konfiguriert. Für Supabase: SUPABASE_JWT_SECRET (oder JWT_SECRET) setzen. " +
+        "Kein externer Auth-Provider konfiguriert. Für Supabase: SUPABASE_JWT_SECRET, JWT_SECRET, GOTRUE_JWT_SECRET oder (self-hosted) SECRET_KEY_BASE setzen — muss mit GoTrue JWT-Signatur übereinstimmen. " +
         "Für Firebase: FIREBASE_SERVICE_ACCOUNT_KEY oder GOOGLE_APPLICATION_CREDENTIALS setzen. " +
         "Alternativ ADMIN_PANEL_TOKEN im Admin-Feld „Code“ nutzen.";
       return res.status(503).json({

@@ -114,7 +114,7 @@ export async function resolveLoginIdentity(
     if (!isSupabaseAuthConfigured()) {
       return {
         error:
-          "Server requires Supabase sign-in but SUPABASE_JWT_SECRET (or JWT_SECRET) is not configured.",
+          "Server requires Supabase sign-in but no JWT verification secret is configured (set SUPABASE_JWT_SECRET, JWT_SECRET, GOTRUE_JWT_SECRET, or self-hosted SECRET_KEY_BASE to match GoTrue).",
         code: "login_required",
       };
     }

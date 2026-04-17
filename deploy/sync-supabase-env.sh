@@ -32,8 +32,17 @@ set_key() {
 }
 
 # Self-hosted stack aliases (match server Database.ts / supabase config)
-if [ -n "${JWT_SECRET:-}" ] && [ -z "${SUPABASE_JWT_SECRET:-}" ]; then
+if [ -z "${SUPABASE_JWT_SECRET:-}" ] && [ -n "${JWT_SECRET:-}" ]; then
   export SUPABASE_JWT_SECRET="${JWT_SECRET}"
+fi
+if [ -z "${SUPABASE_JWT_SECRET:-}" ] && [ -n "${GOTRUE_JWT_SECRET:-}" ]; then
+  export SUPABASE_JWT_SECRET="${GOTRUE_JWT_SECRET}"
+fi
+if [ -z "${SUPABASE_JWT_SECRET:-}" ] && [ -n "${AUTH_JWT_SECRET:-}" ]; then
+  export SUPABASE_JWT_SECRET="${AUTH_JWT_SECRET}"
+fi
+if [ -z "${SUPABASE_JWT_SECRET:-}" ] && [ -n "${SECRET_KEY_BASE:-}" ]; then
+  export SUPABASE_JWT_SECRET="${SECRET_KEY_BASE}"
 fi
 if [ -n "${ANON_KEY:-}" ] && [ -z "${SUPABASE_ANON_KEY:-}" ]; then
   export SUPABASE_ANON_KEY="${ANON_KEY}"
@@ -58,6 +67,10 @@ set_key "API_EXTERNAL_URL" "${API_EXTERNAL_URL:-}"
 set_key "SUPABASE_ANON_KEY" "${SUPABASE_ANON_KEY:-}"
 set_key "SUPABASE_SERVICE_ROLE_KEY" "${SUPABASE_SERVICE_ROLE_KEY:-}"
 set_key "SUPABASE_JWT_SECRET" "${SUPABASE_JWT_SECRET:-}"
+set_key "JWT_SECRET" "${JWT_SECRET:-}"
+set_key "GOTRUE_JWT_SECRET" "${GOTRUE_JWT_SECRET:-}"
+set_key "AUTH_JWT_SECRET" "${AUTH_JWT_SECRET:-}"
+set_key "SECRET_KEY_BASE" "${SECRET_KEY_BASE:-}"
 set_key "DATABASE_URL" "${DATABASE_URL:-}"
 set_key "SUPABASE_DB_URL" "${SUPABASE_DB_URL:-}"
 set_key "PGHOST" "${PGHOST:-}"
