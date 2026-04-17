@@ -30,6 +30,22 @@ type DgccReport = {
 const ROOT = process.cwd();
 const CONTRACT_PATH = path.join(ROOT, "tools/dgcc/dgcc.contract.json");
 
+/** Vitest resolves `jsdom` from the workspace root; DGCC fails confusingly if `pnpm install` was skipped. */
+function assertWorkspaceTestDeps() {
+  const jsdom = path.join(ROOT, "node_modules", "jsdom", "package.json");
+  if (!fs.existsSync(jsdom)) {
+    throw new Error(
+      "Missing root devDependency `jsdom` (required by Vitest). From the repo root run `pnpm install`, then re-run DGCC."
+    );
+  }
+  const supabase = path.join(ROOT, "server", "node_modules", "@supabase", "supabase-js", "package.json");
+  if (!fs.existsSync(supabase)) {
+    throw new Error(
+      "Missing server dependency `@supabase/supabase-js`. From the repo root run `pnpm install`, then re-run DGCC."
+    );
+  }
+}
+
 function readJson<T>(p: string): T {
   return JSON.parse(fs.readFileSync(p, "utf8")) as T;
 }
@@ -137,6 +153,7 @@ async function uiA11ySmoke(report: DgccReport) {
 
 async function main() {
   const mode = parseMode();
+  assertWorkspaceTestDeps();
   const contract = readJson<any>(CONTRACT_PATH);
   const fix = wantFixes(contract, mode);
   printHeader(mode, fix);
