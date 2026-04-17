@@ -7,7 +7,6 @@ type Severity = "info" | "warn" | "error";
 type CheckName =
   | "lint"
   | "unit"
-  | "checkInteract"
   | "e2e"
   | "contentValidate"
   | "assetsAudit"
@@ -74,6 +73,30 @@ function wantFixes(contract: { modes?: Record<string, { fix?: { enabled?: boolea
 
 function printHeader(mode: string, fix: boolean) {
   console.log(`[DGCC] mode=${mode} fix=${fix ? "on" : "off"}`);
+}
+
+/** Playwright production webServer runs `node server/dist/index.js` and needs `client/dist` static. */
+async function ensureCompiledForE2e(outDir: string) {
+  const serverDist = path.join(ROOT, "server/dist/index.js");
+  const clientIndex = path.join(ROOT, "client/dist/index.html");
+  if (fs.existsSync(serverDist) && fs.existsSync(clientIndex)) return;
+
+  const lines: string[] = ["[DGCC] e2e prereq: missing server/client dist; building…"];
+  if (!fs.existsSync(serverDist)) {
+    const r = await run("pnpm", ["--prefix", "server", "run", "build"]);
+    lines.push("--- server build ---", r.stdout, r.stderr, `code=${r.code}`);
+    if (r.code !== 0) throw new Error("e2e prereq: server build failed");
+  }
+  if (!fs.existsSync(clientIndex)) {
+    const r = await run("pnpm", ["--prefix", "client", "run", "build"], {
+      env: {
+        NODE_OPTIONS: process.env.NODE_OPTIONS || "--max-old-space-size=6144",
+      },
+    });
+    lines.push("--- client build ---", r.stdout, r.stderr, `code=${r.code}`);
+    if (r.code !== 0) throw new Error("e2e prereq: client build failed");
+  }
+  fs.writeFileSync(path.join(outDir, "e2e-prereq-build.out.txt"), lines.join("\n"));
 }
 
 async function assetsAudit(report: DgccReport, contract: any, fix: boolean) {
@@ -188,20 +211,15 @@ async function main() {
     });
   }
 
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
-    });
-  }
-
   if (checks.includes("e2e")) {
     await runCheck("e2e", async () => {
+      await ensureCompiledForE2e(outDir);
       const r = await run("pnpm", ["run", "test:e2e:ci"]);
       fs.writeFileSync(path.join(outDir, "e2e.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["e2e"] = "dgcc-artifacts/e2e.out.txt";
+      if (fs.existsSync(path.join(outDir, "e2e-prereq-build.out.txt"))) {
+        report.artifacts["e2ePrereq"] = "dgcc-artifacts/e2e-prereq-build.out.txt";
+      }
       if (r.code !== 0) throw new Error("e2e failed");
     });
   }

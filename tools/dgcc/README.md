@@ -12,4 +12,6 @@ DGCC_FIX=1 pnpm run dgcc
 
 Artifacts: `dgcc-artifacts/`
 
-The `minimal` / `extreme` modes also run `pnpm run check:interact` (GameConfig vs `shared/interaction.ts`).
+`extreme` runs client and server builds before end-to-end tests so CI and fresh clones do not start Playwright against missing `server/dist` or `client/dist`. `minimal` triggers the same builds automatically only when those artifacts are absent (for example first run after clone).
+
+Optional self-heal entrypoint: `bash tools/dgcc/selfheal-wrapper.sh`

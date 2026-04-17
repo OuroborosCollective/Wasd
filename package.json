@@ -68,6 +68,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
+    "@supabase/supabase-js": "^2.103.2",
     "@tailwindcss/postcss": "^4.2.1",
     "@tailwindcss/typography": "^0.5.19",
     "@types/express": "^5.0.6",
