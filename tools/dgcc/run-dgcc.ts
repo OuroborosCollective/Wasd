@@ -2,6 +2,7 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 type Severity = "info" | "warn" | "error";
 type CheckName =
@@ -27,7 +28,27 @@ type DgccReport = {
   artifacts: Record<string, string>;
 };
 
-const ROOT = process.cwd();
+function findRepoRoot(): string {
+  const env = process.env.DGCC_ROOT?.trim();
+  if (env && fs.existsSync(path.join(env, "tools/dgcc/dgcc.contract.json"))) {
+    return path.resolve(env);
+  }
+  let dir = path.resolve(process.cwd());
+  for (let i = 0; i < 32; i += 1) {
+    if (fs.existsSync(path.join(dir, "tools/dgcc/dgcc.contract.json"))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+  const contractBesideRunner = path.join(scriptDir, "dgcc.contract.json");
+  if (fs.existsSync(contractBesideRunner)) {
+    return path.resolve(scriptDir, "..", "..");
+  }
+  return path.resolve(process.cwd());
+}
+
+const ROOT = findRepoRoot();
 const CONTRACT_PATH = path.join(ROOT, "tools/dgcc/dgcc.contract.json");
 
 function readJson<T>(p: string): T {
@@ -45,9 +66,10 @@ function nowIso() {
 function run(cmd: string, args: string[], opts?: { env?: Record<string, string> }) {
   return new Promise<{ code: number; stdout: string; stderr: string; durationMs: number }>((resolve) => {
     const t0 = Date.now();
+    const useShell = process.platform === "win32" || cmd === "pnpm";
     const child = spawn(cmd, args, {
       cwd: ROOT,
-      shell: process.platform === "win32",
+      shell: useShell,
       env: { ...process.env, ...(opts?.env ?? {}) },
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -199,10 +221,17 @@ async function main() {
 
   if (checks.includes("e2e")) {
     await runCheck("e2e", async () => {
-      const r = await run("pnpm", ["run", "test:e2e:ci"]);
-      fs.writeFileSync(path.join(outDir, "e2e.out.txt"), r.stdout + "\n" + r.stderr);
+      // Avoid `playwright install --with-deps` here: it runs apt-get and fails when another process holds the apt lock (common in shared agents).
+      const install = await run("pnpm", ["exec", "playwright", "install", "chromium"]);
+      let combined = install.stdout + "\n" + install.stderr;
+      if (install.code !== 0) {
+        throw new Error(`playwright install chromium failed (code ${install.code})`);
+      }
+      const test = await run("pnpm", ["exec", "playwright", "test"]);
+      combined += "\n--- playwright test ---\n" + test.stdout + "\n" + test.stderr;
+      fs.writeFileSync(path.join(outDir, "e2e.out.txt"), combined);
       report.artifacts["e2e"] = "dgcc-artifacts/e2e.out.txt";
-      if (r.code !== 0) throw new Error("e2e failed");
+      if (test.code !== 0) throw new Error("e2e failed");
     });
   }
 
