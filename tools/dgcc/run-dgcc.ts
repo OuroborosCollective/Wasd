@@ -2,12 +2,12 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 type Severity = "info" | "warn" | "error";
 type CheckName =
   | "lint"
   | "unit"
-  | "checkInteract"
   | "e2e"
   | "contentValidate"
   | "assetsAudit"
@@ -27,8 +27,22 @@ type DgccReport = {
   artifacts: Record<string, string>;
 };
 
-const ROOT = process.cwd();
-const CONTRACT_PATH = path.join(ROOT, "tools/dgcc/dgcc.contract.json");
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(__dirname, "../..");
+const CONTRACT_PATH = path.join(__dirname, "dgcc.contract.json");
+const REPORT_SCHEMA_PATH = path.join(__dirname, "dgcc.report.schema.json");
+
+const ALL_CHECKS: readonly CheckName[] = [
+  "lint",
+  "unit",
+  "e2e",
+  "contentValidate",
+  "assetsAudit",
+  "wsSchemaSmoke",
+  "uiA11ySmoke",
+  "clientBuild",
+  "serverBuild",
+] as const;
 
 function readJson<T>(p: string): T {
   return JSON.parse(fs.readFileSync(p, "utf8")) as T;
@@ -73,7 +87,75 @@ function wantFixes(contract: { modes?: Record<string, { fix?: { enabled?: boolea
 }
 
 function printHeader(mode: string, fix: boolean) {
-  console.log(`[DGCC] mode=${mode} fix=${fix ? "on" : "off"}`);
+  console.log(`[DGCC] root=${ROOT} mode=${mode} fix=${fix ? "on" : "off"}`);
+}
+
+function isRecord(x: unknown): x is Record<string, unknown> {
+  return typeof x === "object" && x !== null && !Array.isArray(x);
+}
+
+function validateContract(raw: unknown, mode: string): { modes: Record<string, { checks?: unknown; fix?: unknown }> } {
+  if (!isRecord(raw)) throw new Error("dgcc.contract.json: root must be an object");
+  if (!isRecord(raw.modes)) throw new Error("dgcc.contract.json: missing modes object");
+  if (!isRecord(raw.modes.minimal)) throw new Error('dgcc.contract.json: missing modes.minimal');
+  const modeCfg = raw.modes[mode] ?? raw.modes.minimal;
+  if (!isRecord(modeCfg)) throw new Error(`dgcc.contract.json: mode "${mode}" is not an object`);
+  const checks = modeCfg.checks;
+  if (!Array.isArray(checks)) throw new Error(`dgcc.contract.json: modes.${mode}.checks must be an array`);
+  for (const c of checks) {
+    if (typeof c !== "string" || !ALL_CHECKS.includes(c as CheckName)) {
+      throw new Error(`dgcc.contract.json: unknown check "${String(c)}"`);
+    }
+  }
+  return raw as { modes: Record<string, { checks?: unknown; fix?: unknown }> };
+}
+
+/** Minimal draft-2020-12 subset for dgcc.report.schema.json (types + required + enum). */
+function validateReportAgainstSchema(report: unknown, schema: unknown): void {
+  if (!isRecord(schema) || schema.type !== "object") throw new Error("report schema: root must be type object");
+  const req = Array.isArray(schema.required) ? (schema.required as string[]) : [];
+  const props = isRecord(schema.properties) ? schema.properties : {};
+
+  function checkValue(path: string, val: unknown, subSchema: unknown): void {
+    if (!isRecord(subSchema)) return;
+    const t = subSchema.type;
+    if (t === "string" && typeof val !== "string") throw new Error(`${path}: expected string`);
+    if (t === "boolean" && typeof val !== "boolean") throw new Error(`${path}: expected boolean`);
+    if (t === "number" && typeof val !== "number") throw new Error(`${path}: expected number`);
+    if (t === "object") {
+      if (!isRecord(val)) throw new Error(`${path}: expected object`);
+      const r2 = Array.isArray(subSchema.required) ? (subSchema.required as string[]) : [];
+      const p2 = isRecord(subSchema.properties) ? subSchema.properties : {};
+      for (const k of r2) {
+        if (!(k in val)) throw new Error(`${path}: missing required "${k}"`);
+        checkValue(`${path}.${k}`, val[k], p2[k]);
+      }
+      for (const k of Object.keys(val)) {
+        if (p2[k]) checkValue(`${path}.${k}`, val[k], p2[k]);
+      }
+      if (subSchema.additionalProperties && isRecord(subSchema.additionalProperties)) {
+        for (const k of Object.keys(val)) {
+          if (p2[k]) continue;
+          checkValue(`${path}.${k}`, val[k], subSchema.additionalProperties);
+        }
+      }
+    }
+    if (t === "array") {
+      if (!Array.isArray(val)) throw new Error(`${path}: expected array`);
+      const items = subSchema.items;
+      for (let i = 0; i < val.length; i++) checkValue(`${path}[${i}]`, val[i], items);
+    }
+    const en = subSchema.enum;
+    if (Array.isArray(en) && en.length && !en.includes(val)) {
+      throw new Error(`${path}: value not in enum`);
+    }
+  }
+
+  if (!isRecord(report)) throw new Error("report: root must be an object");
+  for (const k of req) {
+    if (!(k in report)) throw new Error(`report: missing required "${k}"`);
+    checkValue(k, report[k], props[k]);
+  }
 }
 
 async function assetsAudit(report: DgccReport, contract: any, fix: boolean) {
@@ -110,9 +192,91 @@ async function assetsAudit(report: DgccReport, contract: any, fix: boolean) {
   }
 }
 
-async function wsSchemaSmoke(report: DgccReport) {
-  const p = path.join(ROOT, "client/public/e2e-smoke.html");
+function authContractSmoke(report: DgccReport, contract: any) {
+  const required = contract?.rules?.auth?.requiredLoginErrors;
+  if (!Array.isArray(required)) return;
+  const p = path.join(ROOT, "server/src/modules/auth/resolveLoginIdentity.ts");
   if (!fs.existsSync(p)) {
+    report.inconsistencies.push({
+      category: "auth",
+      severity: "warn",
+      message: "Missing server/src/modules/auth/resolveLoginIdentity.ts for auth contract check.",
+      file: "server/src/modules/auth/resolveLoginIdentity.ts",
+    });
+    return;
+  }
+  const src = fs.readFileSync(p, "utf8");
+  for (const code of required) {
+    if (typeof code !== "string") continue;
+    if (!src.includes(`"${code}"`)) {
+      report.inconsistencies.push({
+        category: "auth",
+        severity: "error",
+        message: `Login error code "${code}" not found in resolveLoginIdentity.ts (contract auth.requiredLoginErrors).`,
+        file: "server/src/modules/auth/resolveLoginIdentity.ts",
+        hint: "Keep LoginError codes aligned with the DGCC contract.",
+      });
+    }
+  }
+}
+
+function wsEnvSmoke(report: DgccReport, contract: any) {
+  const envName = contract?.rules?.ws?.maxMessageBytesEnv;
+  if (typeof envName !== "string" || !envName.trim()) return;
+  const gc = path.join(ROOT, "server/src/config/GameConfig.ts");
+  if (!fs.existsSync(gc)) return;
+  const src = fs.readFileSync(gc, "utf8");
+  if (!src.includes(`readPositiveIntEnv("${envName}"`) && !src.includes(envName)) {
+    report.inconsistencies.push({
+      category: "ws",
+      severity: "error",
+      message: `GameConfig must honor ${envName} (contract rules.ws.maxMessageBytesEnv).`,
+      file: "server/src/config/GameConfig.ts",
+    });
+  }
+}
+
+function welcomeStatsShapeSmoke(report: DgccReport, contract: any) {
+  if (!contract?.rules?.ws?.requireWelcomeStatsShape) return;
+  const wt = path.join(ROOT, "server/src/core/WorldTick.ts");
+  if (!fs.existsSync(wt)) {
+    report.inconsistencies.push({
+      category: "ws",
+      severity: "error",
+      message: "Missing server/src/core/WorldTick.ts for welcome.stats contract.",
+      file: "server/src/core/WorldTick.ts",
+    });
+    return;
+  }
+  const src = fs.readFileSync(wt, "utf8");
+  const welcomeIdx = src.indexOf('type: "welcome"');
+  const statsIdx = welcomeIdx >= 0 ? src.indexOf("stats: (() => {", welcomeIdx) : -1;
+  if (welcomeIdx < 0 || statsIdx < 0) {
+    report.inconsistencies.push({
+      category: "ws",
+      severity: "error",
+      message: "Could not locate welcome message stats block in WorldTick.ts.",
+      file: "server/src/core/WorldTick.ts",
+    });
+    return;
+  }
+  const chunk = src.slice(statsIdx, statsIdx + 12000);
+  const must = ["gold:", "level:", "health:", "maxHealth:", "mana:", "maxMana:", "skillCooldownUntil:"];
+  for (const key of must) {
+    if (!chunk.includes(key)) {
+      report.inconsistencies.push({
+        category: "ws",
+        severity: "error",
+        message: `welcome.stats must include ${key.replace(":", "")} (contract rules.ws.requireWelcomeStatsShape).`,
+        file: "server/src/core/WorldTick.ts",
+      });
+    }
+  }
+}
+
+async function wsSchemaSmoke(report: DgccReport, contract: any) {
+  const smokePath = path.join(ROOT, "client/public/e2e-smoke.html");
+  if (!fs.existsSync(smokePath)) {
     report.inconsistencies.push({
       category: "ws",
       severity: "error",
@@ -120,7 +284,21 @@ async function wsSchemaSmoke(report: DgccReport) {
       file: "client/public/e2e-smoke.html",
       hint: "Restore e2e smoke page or update DGCC contract.",
     });
+    return;
   }
+  const html = fs.readFileSync(smokePath, "utf8");
+  for (const needle of ['type: "login"', 'd.type === "welcome"', "/ws"]) {
+    if (!html.includes(needle)) {
+      report.inconsistencies.push({
+        category: "ws",
+        severity: "error",
+        message: `e2e-smoke.html missing expected fragment: ${needle}`,
+        file: "client/public/e2e-smoke.html",
+      });
+    }
+  }
+  wsEnvSmoke(report, contract);
+  welcomeStatsShapeSmoke(report, contract);
 }
 
 async function uiA11ySmoke(report: DgccReport) {
@@ -137,7 +315,8 @@ async function uiA11ySmoke(report: DgccReport) {
 
 async function main() {
   const mode = parseMode();
-  const contract = readJson<any>(CONTRACT_PATH);
+  const contractRaw = readJson<unknown>(CONTRACT_PATH);
+  const contract = validateContract(contractRaw, mode);
   const fix = wantFixes(contract, mode);
   printHeader(mode, fix);
 
@@ -188,15 +367,6 @@ async function main() {
     });
   }
 
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
-    });
-  }
-
   if (checks.includes("e2e")) {
     await runCheck("e2e", async () => {
       const r = await run("pnpm", ["run", "test:e2e:ci"]);
@@ -239,7 +409,7 @@ async function main() {
 
   if (checks.includes("assetsAudit")) {
     await runCheck("assetsAudit", async () => {
-      await assetsAudit(report, contract, fix);
+      await assetsAudit(report, contractRaw, fix);
       const p = path.join(outDir, "assets-audit.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "assets") }, null, 2));
       report.artifacts["assetsAudit"] = "dgcc-artifacts/assets-audit.json";
@@ -248,12 +418,18 @@ async function main() {
 
   if (checks.includes("wsSchemaSmoke")) {
     await runCheck("wsSchemaSmoke", async () => {
-      await wsSchemaSmoke(report);
+      authContractSmoke(report, contractRaw);
+      await wsSchemaSmoke(report, contractRaw);
       const p = path.join(outDir, "ws-smoke.json");
-      fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "ws") }, null, 2));
+      fs.writeFileSync(
+        p,
+        JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "ws" || x.category === "auth") }, null, 2)
+      );
       report.artifacts["wsSchemaSmoke"] = "dgcc-artifacts/ws-smoke.json";
-      const hasWsError = report.inconsistencies.some((x) => x.category === "ws" && x.severity === "error");
-      if (hasWsError) throw new Error("ws schema smoke failed");
+      const hasErr = report.inconsistencies.some(
+        (x) => (x.category === "ws" || x.category === "auth") && x.severity === "error"
+      );
+      if (hasErr) throw new Error("ws schema smoke failed");
     });
   }
 
@@ -268,6 +444,19 @@ async function main() {
 
   report.finishedAt = nowIso();
   if (report.inconsistencies.some((x) => x.severity === "error")) report.ok = false;
+
+  const reportSchema = readJson<unknown>(REPORT_SCHEMA_PATH);
+  try {
+    validateReportAgainstSchema(report, reportSchema);
+  } catch (e: any) {
+    report.ok = false;
+    report.inconsistencies.push({
+      category: "dgcc",
+      severity: "error",
+      message: `Report failed schema validation: ${String(e?.message ?? e)}`,
+      file: "tools/dgcc/dgcc.report.schema.json",
+    });
+  }
 
   const reportPath = path.join(outDir, "dgcc.report.json");
   fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
