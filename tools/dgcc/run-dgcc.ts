@@ -199,7 +199,10 @@ async function main() {
 
   if (checks.includes("e2e")) {
     await runCheck("e2e", async () => {
-      const r = await run("pnpm", ["run", "test:e2e:ci"]);
+      // Prefer system Google Chrome when apt-based `install --with-deps` is unavailable (restricted CI/agent sandboxes).
+      const r = await run("pnpm", ["run", "test:e2e:run"], {
+        env: { PLAYWRIGHT_CHROMIUM_USE_SYSTEM: "1" },
+      });
       fs.writeFileSync(path.join(outDir, "e2e.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["e2e"] = "dgcc-artifacts/e2e.out.txt";
       if (r.code !== 0) throw new Error("e2e failed");
