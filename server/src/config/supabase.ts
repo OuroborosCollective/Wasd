@@ -16,6 +16,14 @@ function envTrim(key: string): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+/** Strip BOM / zero-width chars — editors sometimes save secrets with invisible prefixes. */
+function normalizeJwtSecretMaterial(raw: string): string {
+  return raw
+    .replace(/^\uFEFF/, "")
+    .trim()
+    .replace(/[\u200B-\u200D\uFEFF]/g, "");
+}
+
 function decodeBase64UrlToString(value: string): string {
   const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
   const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
@@ -30,8 +38,33 @@ function encodeBase64Url(buffer: Buffer): string {
     .replace(/=+$/g, "");
 }
 
+/**
+ * Secret used to verify Supabase-issued JWTs (must match GoTrue / Auth).
+ * Self-hosted stacks often expose GOTRUE_JWT_SECRET or reuse SECRET_KEY_BASE.
+ */
+const JWT_SECRET_KEYS = [
+  "SUPABASE_JWT_SECRET",
+  "JWT_SECRET",
+  "GOTRUE_JWT_SECRET",
+  "AUTH_JWT_SECRET",
+  "SECRET_KEY_BASE",
+] as const;
+
 function getJwtSecret(): string {
-  return envTrim("SUPABASE_JWT_SECRET") || envTrim("JWT_SECRET");
+  for (const k of JWT_SECRET_KEYS) {
+    const v = normalizeJwtSecretMaterial(envTrim(k));
+    if (v) return v;
+  }
+  return "";
+}
+
+/** Which env key supplied the JWT verification secret (no value). */
+export function getSupabaseJwtSecretSourceKey(): (typeof JWT_SECRET_KEYS)[number] | null {
+  for (const k of JWT_SECRET_KEYS) {
+    const v = normalizeJwtSecretMaterial(envTrim(k));
+    if (v) return k;
+  }
+  return null;
 }
 
 function parseTokenClaims(token: string): SupabaseJwtClaims {
@@ -104,8 +137,10 @@ export function getSupabaseAuthInitInfo(): {
   hasAnonKey: boolean;
   hasServiceRoleKey: boolean;
   hasJwtSecret: boolean;
+  jwtSecretSourceKey: (typeof JWT_SECRET_KEYS)[number] | null;
 } {
   const jwtSecret = getJwtSecret();
+  const jwtSecretSourceKey = getSupabaseJwtSecretSourceKey();
   const hasUrl = Boolean(
     envTrim("SUPABASE_URL") ||
       envTrim("SUPABASE_PUBLIC_URL") ||
@@ -121,6 +156,7 @@ export function getSupabaseAuthInitInfo(): {
     hasAnonKey,
     hasServiceRoleKey,
     hasJwtSecret: Boolean(jwtSecret),
+    jwtSecretSourceKey,
   };
 }
 
