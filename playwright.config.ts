@@ -20,7 +20,8 @@ export default defineConfig({
     : {
         command: "bash scripts/e2e-webserver.sh",
         url: `${baseURL}/health`,
-        reuseExistingServer: !process.env.CI,
+        // Default off: a stray Vite dev server on the same port serves HTML for `/health` and breaks JSON checks.
+        reuseExistingServer: process.env.E2E_REUSE_WEBSERVER === "1",
         timeout: 180_000,
         stdout: "pipe",
         stderr: "pipe",

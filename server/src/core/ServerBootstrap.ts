@@ -307,43 +307,6 @@ export class ServerBootstrap {
           "Build the client or set CLIENT_ROOT_DIR to the client package directory (e.g. /opt/areloria/client)."
       );
     }
-    if (process.env.NODE_ENV !== "production") {
-      try {
-        const { createServer: createViteServer } = await import("vite");
-        const vite = await createViteServer({
-          server: { middlewareMode: true },
-          appType: "spa",
-          root: clientRoot,
-        });
-        app.use(vite.middlewares);
-      } catch (e) {
-        console.error("Failed to start Vite middleware", e);
-        app.use(express.static(clientPath));
-      }
-    } else {
-      app.use(express.static(clientPath));
-    }
-
-    const mirroredWorld = resolveMirroredWorldAssetsDir();
-    const worldAssetsDir = mirroredWorld ?? resolveWorldAssetsDir();
-    if (worldAssetsDir) {
-      app.use(
-        "/world-assets",
-        express.static(worldAssetsDir, {
-          maxAge: process.env.NODE_ENV === "production" ? "7d" : 0,
-          fallthrough: false,
-        })
-      );
-      console.log(
-        `[ServerBootstrap] Serving /world-assets from ${worldAssetsDir}` +
-          (mirroredWorld ? " (client mirror: assets/models/world-assets)" : "")
-      );
-    } else {
-      console.warn(
-        "[ServerBootstrap] world-assets mirror and repo world-assets/ missing — /world-assets/* may 404. " +
-          "Run client prebuild (sync-world-assets) or set WORLD_ASSETS_DIR."
-      );
-    }
 
     const ws = new GameWebSocketServer(httpServer);
     ws.start();
@@ -388,6 +351,45 @@ export class ServerBootstrap {
       });
     });
     app.use(selfHealingMiddleware());
+
+    // Register after `/health` and API routes: Vite SPA middleware otherwise answers GET /health with index.html in dev.
+    if (process.env.NODE_ENV !== "production") {
+      try {
+        const { createServer: createViteServer } = await import("vite");
+        const vite = await createViteServer({
+          server: { middlewareMode: true },
+          appType: "spa",
+          root: clientRoot,
+        });
+        app.use(vite.middlewares);
+      } catch (e) {
+        console.error("Failed to start Vite middleware", e);
+        app.use(express.static(clientPath));
+      }
+    } else {
+      app.use(express.static(clientPath));
+    }
+
+    const mirroredWorld = resolveMirroredWorldAssetsDir();
+    const worldAssetsDir = mirroredWorld ?? resolveWorldAssetsDir();
+    if (worldAssetsDir) {
+      app.use(
+        "/world-assets",
+        express.static(worldAssetsDir, {
+          maxAge: process.env.NODE_ENV === "production" ? "7d" : 0,
+          fallthrough: false,
+        })
+      );
+      console.log(
+        `[ServerBootstrap] Serving /world-assets from ${worldAssetsDir}` +
+          (mirroredWorld ? " (client mirror: assets/models/world-assets)" : "")
+      );
+    } else {
+      console.warn(
+        "[ServerBootstrap] world-assets mirror and repo world-assets/ missing — /world-assets/* may 404. " +
+          "Run client prebuild (sync-world-assets) or set WORLD_ASSETS_DIR."
+      );
+    }
 
     const port = Number(process.env.PORT || 3000);
 
