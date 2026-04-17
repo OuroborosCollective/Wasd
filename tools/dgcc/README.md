@@ -12,4 +12,6 @@ DGCC_FIX=1 pnpm run dgcc
 
 Artifacts: `dgcc-artifacts/`
 
-The `minimal` / `extreme` modes also run `pnpm run check:interact` (GameConfig vs `shared/interaction.ts`).
+Modes also run `pnpm run check:interact` (GameConfig vs `shared/interaction.ts`). Playwright e2e starts the compiled server (`server/dist`) and expects a built client (`client/dist`), so DGCC runs `clientBuild` and `serverBuild` **before** `e2e`.
+
+Self-heal (fixes on, extreme by default): `bash tools/dgcc/selfheal-wrapper.sh`

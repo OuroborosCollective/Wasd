@@ -3,6 +3,7 @@
 
 test-results/
 playwright-report/
+.selfhealing/
 dgcc-artifacts/
 node_modules/
 dist/
