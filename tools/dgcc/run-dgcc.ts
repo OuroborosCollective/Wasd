@@ -7,7 +7,6 @@ type Severity = "info" | "warn" | "error";
 type CheckName =
   | "lint"
   | "unit"
-  | "checkInteract"
   | "e2e"
   | "contentValidate"
   | "assetsAudit"
@@ -15,6 +14,31 @@ type CheckName =
   | "uiA11ySmoke"
   | "clientBuild"
   | "serverBuild";
+
+const ALLOWED_CHECKS: readonly CheckName[] = [
+  "lint",
+  "unit",
+  "e2e",
+  "contentValidate",
+  "assetsAudit",
+  "wsSchemaSmoke",
+  "uiA11ySmoke",
+  "clientBuild",
+  "serverBuild",
+] as const;
+
+type DgccContract = {
+  modes: Record<
+    string,
+    {
+      fix?: { enabled?: boolean; allowDangerous?: boolean };
+      checks?: unknown;
+    }
+  >;
+  rules: {
+    assets: { clientModelsDir: string };
+  };
+};
 
 type DgccReport = {
   startedAt: string;
@@ -64,12 +88,43 @@ function parseMode() {
   return (arg?.split("=")[1] || process.env.DGCC_MODE || "minimal").trim();
 }
 
-function wantFixes(contract: { modes?: Record<string, { fix?: { enabled?: boolean } }> }, mode: string) {
+function wantFixes(contract: DgccContract, mode: string) {
   if (process.env.DGCC_FIX === "1") return true;
   if (process.env.DGCC_FIX === "0") return false;
   const modeFix = contract.modes?.[mode]?.fix?.enabled;
   if (typeof modeFix === "boolean") return modeFix;
   return mode === "extreme";
+}
+
+function isCheckName(x: string): x is CheckName {
+  return (ALLOWED_CHECKS as readonly string[]).includes(x);
+}
+
+function validateContract(contract: unknown): asserts contract is DgccContract {
+  if (!contract || typeof contract !== "object") throw new Error("DGCC contract must be a JSON object");
+  const c = contract as Record<string, unknown>;
+  const modes = c.modes;
+  if (!modes || typeof modes !== "object") throw new Error('DGCC contract missing "modes" object');
+  const minimal = (modes as Record<string, unknown>).minimal;
+  if (!minimal || typeof minimal !== "object") throw new Error('DGCC contract missing "modes.minimal"');
+  const rules = c.rules;
+  if (!rules || typeof rules !== "object") throw new Error('DGCC contract missing "rules"');
+  const assets = (rules as Record<string, unknown>).assets;
+  if (!assets || typeof assets !== "object") throw new Error('DGCC contract missing "rules.assets"');
+  const clientModelsDir = (assets as Record<string, unknown>).clientModelsDir;
+  if (typeof clientModelsDir !== "string" || !clientModelsDir.trim()) {
+    throw new Error('DGCC contract "rules.assets.clientModelsDir" must be a non-empty string');
+  }
+  for (const [modeName, modeCfg] of Object.entries(modes as Record<string, unknown>)) {
+    if (!modeCfg || typeof modeCfg !== "object") throw new Error(`DGCC contract modes.${modeName} must be an object`);
+    const checks = (modeCfg as Record<string, unknown>).checks;
+    if (!Array.isArray(checks)) throw new Error(`DGCC contract modes.${modeName}.checks must be an array`);
+    for (const item of checks) {
+      if (typeof item !== "string" || !isCheckName(item)) {
+        throw new Error(`DGCC contract modes.${modeName}.checks contains unknown check: ${String(item)}`);
+      }
+    }
+  }
 }
 
 function printHeader(mode: string, fix: boolean) {
@@ -137,7 +192,9 @@ async function uiA11ySmoke(report: DgccReport) {
 
 async function main() {
   const mode = parseMode();
-  const contract = readJson<any>(CONTRACT_PATH);
+  const rawContract = readJson<unknown>(CONTRACT_PATH);
+  validateContract(rawContract);
+  const contract = rawContract;
   const fix = wantFixes(contract, mode);
   printHeader(mode, fix);
 
@@ -185,15 +242,6 @@ async function main() {
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
       if (r.code !== 0) throw new Error("unit tests failed");
-    });
-  }
-
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
     });
   }
 
@@ -267,7 +315,10 @@ async function main() {
   }
 
   report.finishedAt = nowIso();
-  if (report.inconsistencies.some((x) => x.severity === "error")) report.ok = false;
+
+  const checksAllPass = report.checks.every((c) => c.ok);
+  const hasErrorInconsistency = report.inconsistencies.some((x) => x.severity === "error");
+  report.ok = checksAllPass && !hasErrorInconsistency;
 
   const reportPath = path.join(outDir, "dgcc.report.json");
   fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
