@@ -18,6 +18,13 @@ function playerUidMessageCap(): number {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : GameConfig.wsMaxMessagesPerPlayerUidPerSecond;
 }
 
+function maxWsMessageBytes(): number {
+  const raw = process.env.WS_MAX_MESSAGE_BYTES?.trim();
+  if (!raw) return GameConfig.wsMaxMessageBytes;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : GameConfig.wsMaxMessageBytes;
+}
+
 export class GameWebSocketServer {
   public wss: WebSocketServer | null = null;
   public onPlayerConnect?: (id: string) => void;
@@ -50,7 +57,8 @@ export class GameWebSocketServer {
           const raw =
             typeof data === "string" ? data : Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer);
           const byteLen = Buffer.byteLength(raw);
-          if (byteLen > GameConfig.wsMaxMessageBytes) {
+          const cap = maxWsMessageBytes();
+          if (byteLen > cap) {
             console.warn(`WS message too large (${byteLen} bytes), ignoring`);
             return;
           }

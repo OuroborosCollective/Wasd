@@ -362,7 +362,7 @@
     <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 8v4l3 3M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></span> Verlauf</div>
     <p class="hint" style="margin-top:0">Nur in diesem Browser, bis du die Seite schließt.</p>
     <ul class="log-list" id="historyList"></ul>
-    <button type="button" class="ghost" id="btnClearHistory">Verlauf leeren</button>
+    <button type="button" class="ghost" id="btnClearHistory" aria-label="Verlauf leeren">Verlauf leeren</button>
   </div>
 
   <div class="card" id="stepLogin">
@@ -370,8 +370,8 @@
     <p class="hint" style="margin:0 0 8px">Zugangscode vom Betreiber.</p>
     <label for="token">Code</label>
     <input type="password" id="token" autocomplete="off" placeholder="Einfügen, dann Anmelden" />
-    <button type="button" id="btnLogin">Anmelden</button>
-    <button type="button" class="ghost" id="btnSaveToken">In diesem Browser merken</button>
+    <button type="button" id="btnLogin" aria-label="Anmelden">Anmelden</button>
+    <button type="button" class="ghost" id="btnSaveToken" aria-label="Zugangscode in diesem Browser merken">In diesem Browser merken</button>
     <div id="loginMsg" class="msg hidden"></div>
   </div>
 
@@ -380,13 +380,13 @@
     <p class="hint" style="margin-top:0">Zwei Bereiche: <strong>Client-Paket</strong> (nach Build unter <code>/assets/models/…</code>) und <strong>World-Assets</strong> (Quelle <code>world-assets/</code> auf dem Server — Pfade <code>/assets/models/world-assets/…</code> nach Sync).</p>
     <p class="hint"><strong>.gltf + .bin:</strong> Beide werden angezeigt — zum Verknüpfen immer die <strong>.gltf</strong> wählen („Übernehmen“); die .bin lädt der Browser mit.</p>
     <p class="hint">Upload: <code>.glb</code>, <code>.gltf</code> oder <code>.bin</code> — Unterordner z. B. <code>characters</code>, <code>monsters</code> (nur Buchstaben, Zahlen, Unterstriche).</p>
-    <button type="button" class="ghost" id="btnRefreshGallery">Baum neu laden</button>
+    <button type="button" class="ghost" id="btnRefreshGallery" aria-label="Modell-Galerie-Baum neu laden">Baum neu laden</button>
     <div id="galleryTree" class="gly-tree"><p class="hint" style="margin:8px">Nach Anmeldung erscheint die Liste.</p></div>
     <label for="uploadFolder">Unterordner (optional)</label>
     <input id="uploadFolder" placeholder="z. B. monsters oder leer für Wurzel" autocomplete="off" />
     <label for="uploadFile">Datei hochladen</label>
     <input type="file" id="uploadFile" accept=".glb,.gltf,.bin,model/gltf-binary" />
-    <button type="button" id="btnUploadGlb">Hochladen</button>
+    <button type="button" id="btnUploadGlb" aria-label="Ausgewählte Datei hochladen">Hochladen</button>
     <div id="galleryMsg" class="msg hidden"></div>
   </div>
 
@@ -407,7 +407,7 @@
     <label for="smartFile">Modell-Datei</label>
     <input type="file" id="smartFile" accept=".glb,.gltf,.bin,model/gltf-binary" />
     <p class="hint" id="smartHints">Tipps erscheinen nach Anmeldung.</p>
-    <button type="button" id="btnSmartUpload">Upload + automatisch anwenden</button>
+    <button type="button" id="btnSmartUpload" aria-label="Upload und automatisch anwenden">Upload + automatisch anwenden</button>
     <div id="smartMsg" class="msg hidden"></div>
   </div>
 
@@ -431,10 +431,10 @@
     <label for="inTargetId">Name oder ID (manuell)</label>
     <div class="ref-row">
       <input id="inTargetId" placeholder="z. B. npc_guide" style="flex:1;min-width:160px" />
-      <button type="button" class="ghost btn-sm" id="btnCopyTargetId">ID kopieren</button>
+      <button type="button" class="ghost btn-sm" id="btnCopyTargetId" aria-label="Ziel-ID in die Zwischenablage kopieren">ID kopieren</button>
     </div>
     <p class="hint" id="targetHint"></p>
-    <button type="button" id="btnSaveLink">Speichern</button>
+    <button type="button" id="btnSaveLink" aria-label="Modell-Verknüpfung speichern">Speichern</button>
     <div id="saveMsg" class="msg hidden"></div>
   </div>
 
@@ -451,16 +451,16 @@
     </select>
     <label for="selDefModel">Modell</label>
     <select id="selDefModel"><option value="">— wählen —</option></select>
-    <button type="button" id="btnSaveDefault">Standard speichern</button>
+    <button type="button" id="btnSaveDefault" aria-label="Standard-Modell speichern">Standard speichern</button>
     <div id="defMsg" class="msg hidden"></div>
   </div>
 
   <div class="card hidden" id="stepPublish">
     <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg></span> Prüfen &amp; veröffentlichen</div>
     <p class="hint" style="margin-top:0"><strong>1)</strong> Prüfen = ob der aktive Inhalt auf dem Server konsistent ist (Quests, NPCs, Dialoge). <strong>2)</strong> Veröffentlichen = Kopie nach <code>published-content/current</code> — der Live-Server braucht <code>USE_PUBLISHED_CONTENT=1</code> oder <code>CONTENT_PACK_DIR</code> und Neustart.</p>
-    <button type="button" class="ghost" id="btnValidate">Inhalt prüfen</button>
-    <button type="button" class="ghost" id="btnAuditModelPaths">3D-Pfade prüfen (fehlende Dateien)</button>
-    <button type="button" id="btnPublish">Inhalt veröffentlichen (Pack bauen)</button>
+    <button type="button" class="ghost" id="btnValidate" aria-label="Spielinhalt auf dem Server prüfen">Inhalt prüfen</button>
+    <button type="button" class="ghost" id="btnAuditModelPaths" aria-label="3D-Modellpfade prüfen (fehlende Dateien)">3D-Pfade prüfen (fehlende Dateien)</button>
+    <button type="button" id="btnPublish" aria-label="Inhalt veröffentlichen und Pack bauen">Inhalt veröffentlichen (Pack bauen)</button>
     <div id="publishMsg" class="msg hidden"></div>
     <ul class="hint" id="validateErrors" style="margin-top:8px;padding-left:18px;display:none"></ul>
     <ul class="hint" id="auditPathsList" style="margin-top:8px;padding-left:18px;display:none"></ul>
@@ -472,22 +472,22 @@
     <label for="selQuestRef">Quest</label>
     <div class="ref-row">
       <select id="selQuestRef"><option value="">— wählen —</option></select>
-      <button type="button" class="ghost btn-sm" id="btnCopyQuestId">Quest-ID kopieren</button>
-      <button type="button" class="ghost btn-sm" id="btnPreviewQuest">Vorschau (nur lesen)</button>
+      <button type="button" class="ghost btn-sm" id="btnCopyQuestId" aria-label="Quest-ID kopieren">Quest-ID kopieren</button>
+      <button type="button" class="ghost btn-sm" id="btnPreviewQuest" aria-label="Quest JSON-Vorschau (nur lesen)">Vorschau (nur lesen)</button>
     </div>
     <div id="questPreview" class="preview-box hidden" aria-live="polite"></div>
     <label for="selDialogueRef" style="margin-top:12px;display:block">Dialog</label>
     <div class="ref-row">
       <select id="selDialogueRef"><option value="">— wählen —</option></select>
-      <button type="button" class="ghost btn-sm" id="btnCopyDialogueId">Dialog-ID kopieren</button>
-      <button type="button" class="ghost btn-sm" id="btnPreviewDialogue">Vorschau (nur lesen)</button>
+      <button type="button" class="ghost btn-sm" id="btnCopyDialogueId" aria-label="Dialog-ID kopieren">Dialog-ID kopieren</button>
+      <button type="button" class="ghost btn-sm" id="btnPreviewDialogue" aria-label="Dialog JSON-Vorschau (nur lesen)">Vorschau (nur lesen)</button>
     </div>
     <div id="dialoguePreview" class="preview-box hidden" aria-live="polite"></div>
     <label for="selNpcRef" style="margin-top:12px;display:block">NPC</label>
     <div class="ref-row">
       <select id="selNpcRef"><option value="">— wählen —</option></select>
-      <button type="button" class="ghost btn-sm" id="btnCopyNpcId">NPC-ID kopieren</button>
-      <button type="button" class="ghost btn-sm" id="btnPreviewNpc">Vorschau (nur lesen)</button>
+      <button type="button" class="ghost btn-sm" id="btnCopyNpcId" aria-label="NPC-ID kopieren">NPC-ID kopieren</button>
+      <button type="button" class="ghost btn-sm" id="btnPreviewNpc" aria-label="NPC JSON-Vorschau (nur lesen)">Vorschau (nur lesen)</button>
     </div>
     <div id="npcPreview" class="preview-box hidden" aria-live="polite"></div>
     <div id="copyRefMsg" class="msg hidden" style="margin-top:10px"></div>
@@ -497,7 +497,7 @@
     <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span> Aktuelle Zuordnungen</div>
     <p class="hint" style="margin-top:0"><strong>Entfernen</strong> = nur diese eine Zeile.</p>
     <div id="linksTableWrap"></div>
-    <button type="button" class="ghost" id="btnRefresh">Neu laden</button>
+    <button type="button" class="ghost" id="btnRefresh" aria-label="Zuordnungsliste neu laden">Neu laden</button>
   </div>
 
   <details class="card hidden" id="stepExpert">
@@ -957,7 +957,7 @@
             escapeHtml(it.name) +
             '</span>' +
             sz +
-            '<button type="button" class="ghost btn-sm gly-use" data-url="' +
+            '<button type="button" class="ghost btn-sm gly-use" aria-label="Modellpfad übernehmen" data-url="' +
             escapeAttr(it.url) +
             '">Übernehmen</button></div>';
         } else {
@@ -1062,7 +1062,7 @@
         document.getElementById("linksTableWrap").innerHTML = '<p class="hint">Keine eigenen Zuordnungen — es gelten die Standard-Modelle.</p>';
       } else {
         const rows = links.map(function (L) {
-          return "<tr><td>" + escapeHtml(L.glbPath) + "</td><td>" + escapeHtml(USE_LABELS[L.targetType] || L.targetType) + "</td><td>" + escapeHtml(L.targetId) + '</td><td><button type="button" class="danger btn-sm" data-tt="' + escapeAttr(L.targetType) + '" data-tid="' + escapeAttr(L.targetId) + '">Entfernen</button></td></tr>';
+          return "<tr><td>" + escapeHtml(L.glbPath) + "</td><td>" + escapeHtml(USE_LABELS[L.targetType] || L.targetType) + "</td><td>" + escapeHtml(L.targetId) + '</td><td><button type="button" class="danger btn-sm" aria-label="Zuordnung entfernen" data-tt="' + escapeAttr(L.targetType) + '" data-tid="' + escapeAttr(L.targetId) + '">Entfernen</button></td></tr>';
         }).join("");
         document.getElementById("linksTableWrap").innerHTML = "<table><thead><tr><th>Modell</th><th>Art</th><th>ID</th><th></th></tr></thead><tbody>" + rows + "</tbody></table>";
         document.querySelectorAll("#linksTableWrap button[data-tid]").forEach(function (btn) {
