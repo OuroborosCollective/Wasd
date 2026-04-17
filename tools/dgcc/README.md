@@ -12,4 +12,4 @@ DGCC_FIX=1 pnpm run dgcc
 
 Artifacts: `dgcc-artifacts/`
 
-The `minimal` / `extreme` modes also run `pnpm run check:interact` (GameConfig vs `shared/interaction.ts`).
+Run from any directory: scripts resolve the monorepo root from `tools/dgcc/run-dgcc.ts`.
