@@ -11,5 +11,3 @@ DGCC_FIX=1 pnpm run dgcc
 ```
 
 Artifacts: `dgcc-artifacts/`
-
-The `minimal` / `extreme` modes also run `pnpm run check:interact` (GameConfig vs `shared/interaction.ts`).

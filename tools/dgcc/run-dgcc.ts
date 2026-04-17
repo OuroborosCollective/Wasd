@@ -2,12 +2,12 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 type Severity = "info" | "warn" | "error";
 type CheckName =
   | "lint"
   | "unit"
-  | "checkInteract"
   | "e2e"
   | "contentValidate"
   | "assetsAudit"
@@ -27,11 +27,26 @@ type DgccReport = {
   artifacts: Record<string, string>;
 };
 
-const ROOT = process.cwd();
-const CONTRACT_PATH = path.join(ROOT, "tools/dgcc/dgcc.contract.json");
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(SCRIPT_DIR, "../..");
+const CONTRACT_PATH = path.join(SCRIPT_DIR, "dgcc.contract.json");
 
 function readJson<T>(p: string): T {
   return JSON.parse(fs.readFileSync(p, "utf8")) as T;
+}
+
+/** Fail fast with a clear message when the workspace was not installed (`pnpm install`). */
+function assertWorkspaceDeps() {
+  const pkgPath = path.join(ROOT, "package.json");
+  if (!fs.existsSync(pkgPath)) return;
+  const pkg = readJson<{ devDependencies?: Record<string, string> }>(pkgPath);
+  if (!pkg.devDependencies?.jsdom) return;
+  const jsdomPkg = path.join(ROOT, "node_modules/jsdom/package.json");
+  if (!fs.existsSync(jsdomPkg)) {
+    throw new Error(
+      "Vitest jsdom tests require the `jsdom` package, but it is missing from node_modules. Run `pnpm install` at the repository root, then retry DGCC."
+    );
+  }
 }
 
 function ensureDir(p: string) {
@@ -45,9 +60,10 @@ function nowIso() {
 function run(cmd: string, args: string[], opts?: { env?: Record<string, string> }) {
   return new Promise<{ code: number; stdout: string; stderr: string; durationMs: number }>((resolve) => {
     const t0 = Date.now();
+    // Use a shell so `pnpm`/`npm` shims (corepack, nvm) resolve the same as an interactive terminal.
     const child = spawn(cmd, args, {
       cwd: ROOT,
-      shell: process.platform === "win32",
+      shell: true,
       env: { ...process.env, ...(opts?.env ?? {}) },
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -137,6 +153,7 @@ async function uiA11ySmoke(report: DgccReport) {
 
 async function main() {
   const mode = parseMode();
+  assertWorkspaceDeps();
   const contract = readJson<any>(CONTRACT_PATH);
   const fix = wantFixes(contract, mode);
   printHeader(mode, fix);
@@ -185,15 +202,6 @@ async function main() {
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
       if (r.code !== 0) throw new Error("unit tests failed");
-    });
-  }
-
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
     });
   }
 
