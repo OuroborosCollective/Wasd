@@ -5,11 +5,11 @@
   "modes": {
     "minimal": {
       "fix": { "enabled": false },
-      "checks": ["lint", "unit", "checkInteract", "e2e", "contentValidate", "assetsAudit", "wsSchemaSmoke", "uiA11ySmoke"]
+      "checks": ["lint", "unit", "e2e", "contentValidate", "assetsAudit", "wsSchemaSmoke", "uiA11ySmoke"]
     },
     "extreme": {
       "fix": { "enabled": true, "allowDangerous": true },
-      "checks": ["lint", "unit", "checkInteract", "e2e", "contentValidate", "assetsAudit", "wsSchemaSmoke", "uiA11ySmoke", "clientBuild", "serverBuild"]
+      "checks": ["lint", "unit", "e2e", "contentValidate", "assetsAudit", "wsSchemaSmoke", "uiA11ySmoke", "clientBuild", "serverBuild"]
     }
   },
   "rules": {

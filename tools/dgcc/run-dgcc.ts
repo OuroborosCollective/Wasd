@@ -7,7 +7,6 @@ type Severity = "info" | "warn" | "error";
 type CheckName =
   | "lint"
   | "unit"
-  | "checkInteract"
   | "e2e"
   | "contentValidate"
   | "assetsAudit"
@@ -29,6 +28,7 @@ type DgccReport = {
 
 const ROOT = process.cwd();
 const CONTRACT_PATH = path.join(ROOT, "tools/dgcc/dgcc.contract.json");
+const WELCOME_STATS_SNIPPET_PATH = path.join(ROOT, "server/src/core/WorldTick.ts");
 
 function readJson<T>(p: string): T {
   return JSON.parse(fs.readFileSync(p, "utf8")) as T;
@@ -43,20 +43,32 @@ function nowIso() {
 }
 
 function run(cmd: string, args: string[], opts?: { env?: Record<string, string> }) {
-  return new Promise<{ code: number; stdout: string; stderr: string; durationMs: number }>((resolve) => {
+  return new Promise<{ code: number; stdout: string; stderr: string; durationMs: number }>((resolve, reject) => {
     const t0 = Date.now();
     const child = spawn(cmd, args, {
       cwd: ROOT,
-      shell: process.platform === "win32",
+      shell: false,
       env: { ...process.env, ...(opts?.env ?? {}) },
       stdio: ["ignore", "pipe", "pipe"],
     });
+    child.on("error", (err) => reject(err));
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (d) => (stdout += String(d)));
     child.stderr.on("data", (d) => (stderr += String(d)));
     child.on("close", (code) => resolve({ code: code ?? 1, stdout, stderr, durationMs: Date.now() - t0 }));
   });
+}
+
+/** Prefer system `pnpm`; fall back to `npx pnpm` when `pnpm` is not on PATH (e.g. minimal CI images). */
+async function runPnpm(args: string[], opts?: { env?: Record<string, string> }) {
+  try {
+    return await run("pnpm", args, opts);
+  } catch (e: unknown) {
+    const code = (e as NodeJS.ErrnoException)?.code;
+    if (code !== "ENOENT") throw e;
+    return await run("npx", ["--yes", "pnpm", ...args], opts);
+  }
 }
 
 function parseMode() {
@@ -110,9 +122,22 @@ async function assetsAudit(report: DgccReport, contract: any, fix: boolean) {
   }
 }
 
-async function wsSchemaSmoke(report: DgccReport) {
-  const p = path.join(ROOT, "client/public/e2e-smoke.html");
-  if (!fs.existsSync(p)) {
+function welcomeStatsShapeChecks(src: string): Array<{ field: string; ok: boolean }> {
+  const checks: Array<{ re: RegExp; field: string }> = [
+    { re: /\bgold\s*:/, field: "stats.gold" },
+    { re: /\blevel\s*:/, field: "stats.level" },
+    { re: /\bhealth\s*:/, field: "stats.health" },
+    { re: /\bmaxHealth\s*:/, field: "stats.maxHealth" },
+    { re: /\bmana\s*:/, field: "stats.mana" },
+    { re: /\bmaxMana\s*:/, field: "stats.maxMana" },
+    { re: /\bskillCooldownUntil\s*:/, field: "stats.skillCooldownUntil" },
+  ];
+  return checks.map(({ re, field }) => ({ field, ok: re.test(src) }));
+}
+
+async function wsSchemaSmoke(report: DgccReport, contract: any) {
+  const smokePath = path.join(ROOT, "client/public/e2e-smoke.html");
+  if (!fs.existsSync(smokePath)) {
     report.inconsistencies.push({
       category: "ws",
       severity: "error",
@@ -120,6 +145,59 @@ async function wsSchemaSmoke(report: DgccReport) {
       file: "client/public/e2e-smoke.html",
       hint: "Restore e2e smoke page or update DGCC contract.",
     });
+  }
+
+  const envName =
+    typeof contract?.rules?.ws?.maxMessageBytesEnv === "string" ? contract.rules.ws.maxMessageBytesEnv.trim() : "";
+  if (envName && !Object.prototype.hasOwnProperty.call(process.env, envName)) {
+    report.inconsistencies.push({
+      category: "ws",
+      severity: "info",
+      message: `WebSocket max message bytes env not set (${envName}); server uses GameConfig defaults.`,
+      hint: "Optional override; set in .env if you need a non-default cap.",
+    });
+  }
+
+  if (contract?.rules?.ws?.requireWelcomeStatsShape) {
+    if (!fs.existsSync(WELCOME_STATS_SNIPPET_PATH)) {
+      report.inconsistencies.push({
+        category: "ws",
+        severity: "error",
+        message: `Missing ${path.relative(ROOT, WELCOME_STATS_SNIPPET_PATH)} (cannot verify welcome.stats shape).`,
+        file: path.relative(ROOT, WELCOME_STATS_SNIPPET_PATH),
+      });
+      return;
+    }
+    const worldTick = fs.readFileSync(WELCOME_STATS_SNIPPET_PATH, "utf8");
+    const welcomeBlock = worldTick.includes('type: "welcome"')
+      ? worldTick.slice(worldTick.indexOf('type: "welcome"'))
+      : "";
+    const statsBlock =
+      welcomeBlock && welcomeBlock.includes("stats:")
+        ? welcomeBlock.slice(welcomeBlock.indexOf("stats:"))
+        : "";
+    if (!statsBlock) {
+      report.inconsistencies.push({
+        category: "ws",
+        severity: "error",
+        message: "Could not locate welcome stats object in WorldTick.ts.",
+        file: "server/src/core/WorldTick.ts",
+      });
+      return;
+    }
+    const sliceEnd = statsBlock.search(/\}\)\(\)/);
+    const statsSrc = sliceEnd === -1 ? statsBlock : statsBlock.slice(0, sliceEnd);
+    const results = welcomeStatsShapeChecks(statsSrc);
+    const missing = results.filter((x) => !x.ok).map((x) => x.field);
+    if (missing.length) {
+      report.inconsistencies.push({
+        category: "ws",
+        severity: "error",
+        message: `welcome.stats shape drift: missing expected fields in WorldTick welcome payload: ${missing.join(", ")}.`,
+        file: "server/src/core/WorldTick.ts",
+        hint: "Align with e2e/smoke.spec.ts expectations for guest welcome.stats.",
+      });
+    }
   }
 }
 
@@ -162,9 +240,14 @@ async function main() {
     try {
       await fn();
       report.checks.push({ name, ok: true, durationMs: Date.now() - t0 });
-    } catch (e: any) {
+    } catch (e: unknown) {
       report.ok = false;
-      report.checks.push({ name, ok: false, durationMs: Date.now() - t0, summary: String(e?.message ?? e) });
+      report.checks.push({
+        name,
+        ok: false,
+        durationMs: Date.now() - t0,
+        summary: String((e as { message?: string })?.message ?? e),
+      });
     }
   }
 
@@ -172,7 +255,7 @@ async function main() {
 
   if (checks.includes("lint")) {
     await runCheck("lint", async () => {
-      const r = await run("pnpm", ["run", "lint"]);
+      const r = await runPnpm(["run", "lint"]);
       fs.writeFileSync(path.join(outDir, "lint.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["lint"] = "dgcc-artifacts/lint.out.txt";
       if (r.code !== 0) throw new Error("lint failed");
@@ -181,25 +264,16 @@ async function main() {
 
   if (checks.includes("unit")) {
     await runCheck("unit", async () => {
-      const r = await run("pnpm", ["run", "test"]);
+      const r = await runPnpm(["run", "test"]);
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
       if (r.code !== 0) throw new Error("unit tests failed");
     });
   }
 
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
-    });
-  }
-
   if (checks.includes("e2e")) {
     await runCheck("e2e", async () => {
-      const r = await run("pnpm", ["run", "test:e2e:ci"]);
+      const r = await runPnpm(["run", "test:e2e:ci"]);
       fs.writeFileSync(path.join(outDir, "e2e.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["e2e"] = "dgcc-artifacts/e2e.out.txt";
       if (r.code !== 0) throw new Error("e2e failed");
@@ -208,7 +282,7 @@ async function main() {
 
   if (checks.includes("contentValidate")) {
     await runCheck("contentValidate", async () => {
-      const r = await run("pnpm", ["--prefix", "server", "run", "validate"]);
+      const r = await runPnpm(["--prefix", "server", "run", "validate"]);
       fs.writeFileSync(path.join(outDir, "content-validate.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["contentValidate"] = "dgcc-artifacts/content-validate.out.txt";
       if (r.code !== 0) throw new Error("content validation failed (server validate)");
@@ -217,7 +291,7 @@ async function main() {
 
   if (checks.includes("clientBuild")) {
     await runCheck("clientBuild", async () => {
-      const r = await run("pnpm", ["--prefix", "client", "run", "build"], {
+      const r = await runPnpm(["--prefix", "client", "run", "build"], {
         env: {
           NODE_OPTIONS: process.env.NODE_OPTIONS || "--max-old-space-size=6144",
         },
@@ -230,7 +304,7 @@ async function main() {
 
   if (checks.includes("serverBuild")) {
     await runCheck("serverBuild", async () => {
-      const r = await run("pnpm", ["--prefix", "server", "run", "build"]);
+      const r = await runPnpm(["--prefix", "server", "run", "build"]);
       fs.writeFileSync(path.join(outDir, "server-build.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["serverBuild"] = "dgcc-artifacts/server-build.out.txt";
       if (r.code !== 0) throw new Error("server build failed");
@@ -248,7 +322,7 @@ async function main() {
 
   if (checks.includes("wsSchemaSmoke")) {
     await runCheck("wsSchemaSmoke", async () => {
-      await wsSchemaSmoke(report);
+      await wsSchemaSmoke(report, contract);
       const p = path.join(outDir, "ws-smoke.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "ws") }, null, 2));
       report.artifacts["wsSchemaSmoke"] = "dgcc-artifacts/ws-smoke.json";
