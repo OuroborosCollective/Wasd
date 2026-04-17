@@ -2,6 +2,7 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 type Severity = "info" | "warn" | "error";
 type CheckName =
@@ -27,8 +28,23 @@ type DgccReport = {
   artifacts: Record<string, string>;
 };
 
-const ROOT = process.cwd();
-const CONTRACT_PATH = path.join(ROOT, "tools/dgcc/dgcc.contract.json");
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+/** Monorepo root (stable even when cwd is not the repo root). */
+const ROOT = path.resolve(SCRIPT_DIR, "../..");
+const CONTRACT_PATH = path.join(SCRIPT_DIR, "dgcc.contract.json");
+
+const KNOWN_CHECKS = new Set<CheckName>([
+  "lint",
+  "unit",
+  "checkInteract",
+  "e2e",
+  "contentValidate",
+  "assetsAudit",
+  "wsSchemaSmoke",
+  "uiA11ySmoke",
+  "clientBuild",
+  "serverBuild",
+]);
 
 function readJson<T>(p: string): T {
   return JSON.parse(fs.readFileSync(p, "utf8")) as T;
@@ -135,13 +151,32 @@ async function uiA11ySmoke(report: DgccReport) {
   }
 }
 
+function loadContract(): any {
+  if (!fs.existsSync(CONTRACT_PATH)) {
+    console.error(`[DGCC] missing contract: ${CONTRACT_PATH}`);
+    process.exit(3);
+  }
+  return readJson<any>(CONTRACT_PATH);
+}
+
 async function main() {
   const mode = parseMode();
-  const contract = readJson<any>(CONTRACT_PATH);
+  const contract = loadContract();
   const fix = wantFixes(contract, mode);
   printHeader(mode, fix);
 
   const modeCfg = contract.modes[mode] ?? contract.modes.minimal;
+  const rawChecks = modeCfg.checks as unknown[];
+  if (!Array.isArray(rawChecks) || rawChecks.length === 0) {
+    console.error("[DGCC] contract modes.*.checks must be a non-empty array");
+    process.exit(3);
+  }
+  for (const c of rawChecks) {
+    if (typeof c !== "string" || !KNOWN_CHECKS.has(c as CheckName)) {
+      console.error(`[DGCC] unknown check in contract: ${String(c)}`);
+      process.exit(3);
+    }
+  }
 
   const report: DgccReport = {
     startedAt: nowIso(),
