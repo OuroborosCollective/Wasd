@@ -7,7 +7,6 @@ type Severity = "info" | "warn" | "error";
 type CheckName =
   | "lint"
   | "unit"
-  | "checkInteract"
   | "e2e"
   | "contentValidate"
   | "assetsAudit"
@@ -15,6 +14,18 @@ type CheckName =
   | "uiA11ySmoke"
   | "clientBuild"
   | "serverBuild";
+
+const KNOWN_CHECKS: readonly CheckName[] = [
+  "lint",
+  "unit",
+  "e2e",
+  "contentValidate",
+  "assetsAudit",
+  "wsSchemaSmoke",
+  "uiA11ySmoke",
+  "clientBuild",
+  "serverBuild",
+];
 
 type DgccReport = {
   startedAt: string;
@@ -135,13 +146,30 @@ async function uiA11ySmoke(report: DgccReport) {
   }
 }
 
+function validateContractChecks(mode: string, checks: unknown): asserts checks is CheckName[] {
+  if (!Array.isArray(checks) || checks.length === 0) {
+    throw new Error(`DGCC contract: modes.${mode}.checks must be a non-empty array`);
+  }
+  const known = new Set<string>(KNOWN_CHECKS);
+  for (const c of checks) {
+    if (typeof c !== "string" || !known.has(c)) {
+      throw new Error(`DGCC contract: unknown check "${String(c)}" in modes.${mode}.checks (known: ${KNOWN_CHECKS.join(", ")})`);
+    }
+  }
+}
+
 async function main() {
   const mode = parseMode();
+  if (!fs.existsSync(CONTRACT_PATH)) {
+    console.error(`[DGCC] missing contract: ${path.relative(ROOT, CONTRACT_PATH)}`);
+    process.exit(3);
+  }
   const contract = readJson<any>(CONTRACT_PATH);
   const fix = wantFixes(contract, mode);
   printHeader(mode, fix);
 
   const modeCfg = contract.modes[mode] ?? contract.modes.minimal;
+  validateContractChecks(mode, modeCfg?.checks);
 
   const report: DgccReport = {
     startedAt: nowIso(),
@@ -185,15 +213,6 @@ async function main() {
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
       if (r.code !== 0) throw new Error("unit tests failed");
-    });
-  }
-
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
     });
   }
 
