@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -10,11 +11,26 @@ type CheckName =
   | "checkInteract"
   | "e2e"
   | "contentValidate"
+  | "modelPathAudit"
   | "assetsAudit"
   | "wsSchemaSmoke"
   | "uiA11ySmoke"
   | "clientBuild"
   | "serverBuild";
+
+const KNOWN_CHECKS = new Set<CheckName>([
+  "lint",
+  "unit",
+  "checkInteract",
+  "e2e",
+  "contentValidate",
+  "modelPathAudit",
+  "assetsAudit",
+  "wsSchemaSmoke",
+  "uiA11ySmoke",
+  "clientBuild",
+  "serverBuild",
+]);
 
 type DgccReport = {
   startedAt: string;
@@ -42,12 +58,15 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-function run(cmd: string, args: string[], opts?: { env?: Record<string, string> }) {
-  return new Promise<{ code: number; stdout: string; stderr: string; durationMs: number }>((resolve) => {
+/**
+ * Run via the platform shell so `pnpm`/`npm` resolve the same way as an interactive terminal (PATH, nvm, etc.).
+ */
+function runShell(commandLine: string, opts?: { env?: Record<string, string> }) {
+  return new Promise<{ code: number; stdout: string; stderr: string; durationMs: number }>((resolve, reject) => {
     const t0 = Date.now();
-    const child = spawn(cmd, args, {
+    const isWin = process.platform === "win32";
+    const child = spawn(isWin ? "cmd.exe" : "sh", isWin ? ["/d", "/s", "/c", commandLine] : ["-c", commandLine], {
       cwd: ROOT,
-      shell: process.platform === "win32",
       env: { ...process.env, ...(opts?.env ?? {}) },
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -55,6 +74,7 @@ function run(cmd: string, args: string[], opts?: { env?: Record<string, string> 
     let stderr = "";
     child.stdout.on("data", (d) => (stdout += String(d)));
     child.stderr.on("data", (d) => (stderr += String(d)));
+    child.on("error", (err) => reject(err));
     child.on("close", (code) => resolve({ code: code ?? 1, stdout, stderr, durationMs: Date.now() - t0 }));
   });
 }
@@ -110,7 +130,41 @@ async function assetsAudit(report: DgccReport, contract: any, fix: boolean) {
   }
 }
 
-async function wsSchemaSmoke(report: DgccReport) {
+function assertWelcomeStatsShapeInE2eSpec(report: DgccReport) {
+  const specPath = path.join(ROOT, "e2e/smoke.spec.ts");
+  if (!fs.existsSync(specPath)) {
+    report.inconsistencies.push({
+      category: "ws",
+      severity: "error",
+      message: "Missing e2e/smoke.spec.ts (required for welcome.stats contract).",
+      file: "e2e/smoke.spec.ts",
+    });
+    return;
+  }
+  const src = fs.readFileSync(specPath, "utf8");
+  const need = [
+    "welcome.stats",
+    "st!.gold",
+    "st!.level",
+    "st!.health",
+    "st!.maxHealth",
+    "st!.mana",
+    "st!.maxMana",
+    "st!.skillCooldownUntil",
+  ];
+  const missing = need.filter((s) => !src.includes(s));
+  if (missing.length > 0) {
+    report.inconsistencies.push({
+      category: "ws",
+      severity: "error",
+      message: `e2e/smoke.spec.ts no longer asserts welcome.stats shape (missing: ${missing.join(", ")}).`,
+      file: "e2e/smoke.spec.ts",
+      hint: "Keep smoke expectations aligned with the server welcome payload.",
+    });
+  }
+}
+
+async function wsSchemaSmoke(report: DgccReport, contract: any) {
   const p = path.join(ROOT, "client/public/e2e-smoke.html");
   if (!fs.existsSync(p)) {
     report.inconsistencies.push({
@@ -119,6 +173,76 @@ async function wsSchemaSmoke(report: DgccReport) {
       message: "Missing client/public/e2e-smoke.html (required for ws smoke).",
       file: "client/public/e2e-smoke.html",
       hint: "Restore e2e smoke page or update DGCC contract.",
+    });
+  }
+  if (contract.rules?.ws?.requireWelcomeStatsShape) {
+    assertWelcomeStatsShapeInE2eSpec(report);
+  }
+}
+
+function validateContractChecks(mode: string, raw: unknown[], report: DgccReport): CheckName[] {
+  const out: CheckName[] = [];
+  for (const name of raw) {
+    if (typeof name !== "string") continue;
+    if (!KNOWN_CHECKS.has(name as CheckName)) {
+      report.inconsistencies.push({
+        category: "contract",
+        severity: "error",
+        message: `Unknown check "${name}" in modes.${mode}.checks`,
+        hint: `Known checks: ${[...KNOWN_CHECKS].sort().join(", ")}`,
+      });
+      continue;
+    }
+    out.push(name as CheckName);
+  }
+  return out;
+}
+
+function validateAuthRules(report: DgccReport, contract: any) {
+  const required = contract.rules?.auth?.requiredLoginErrors as string[] | undefined;
+  if (!Array.isArray(required) || required.length === 0) return;
+  const loginPath = path.join(ROOT, "server/src/modules/auth/resolveLoginIdentity.ts");
+  if (!fs.existsSync(loginPath)) return;
+  const src = fs.readFileSync(loginPath, "utf8");
+  for (const code of required) {
+    if (!src.includes(`"${code}"`)) {
+      report.inconsistencies.push({
+        category: "auth",
+        severity: "error",
+        message: `Login error code "${code}" not found in resolveLoginIdentity (contract rules.auth.requiredLoginErrors).`,
+        file: "server/src/modules/auth/resolveLoginIdentity.ts",
+      });
+    }
+  }
+}
+
+function validateWsMaxMessageEnv(report: DgccReport, contract: any) {
+  const envName = contract.rules?.ws?.maxMessageBytesEnv as string | undefined;
+  if (!envName || typeof envName !== "string") return;
+  const serverRoot = path.join(ROOT, "server/src");
+  if (!fs.existsSync(serverRoot)) return;
+  let hit = false;
+  const walk = (dir: string) => {
+    for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, ent.name);
+      if (ent.isDirectory()) walk(full);
+      else if (ent.isFile() && ent.name.endsWith(".ts")) {
+        const s = fs.readFileSync(full, "utf8");
+        if (s.includes(envName)) hit = true;
+      }
+    }
+  };
+  try {
+    walk(serverRoot);
+  } catch {
+    /* ignore */
+  }
+  if (!hit) {
+    report.inconsistencies.push({
+      category: "ws",
+      severity: "warn",
+      message: `Contract references ${envName} but server TypeScript sources do not mention it (WS framing may be unchecked).`,
+      hint: "Wire max message size to this env var or relax the contract.",
     });
   }
 }
@@ -154,6 +278,9 @@ async function main() {
     artifacts: {},
   };
 
+  validateAuthRules(report, contract);
+  validateWsMaxMessageEnv(report, contract);
+
   const outDir = path.join(ROOT, "dgcc-artifacts");
   ensureDir(outDir);
 
@@ -168,11 +295,11 @@ async function main() {
     }
   }
 
-  const checks = modeCfg.checks as CheckName[];
+  const checks = validateContractChecks(mode, Array.isArray(modeCfg.checks) ? modeCfg.checks : [], report);
 
   if (checks.includes("lint")) {
     await runCheck("lint", async () => {
-      const r = await run("pnpm", ["run", "lint"]);
+      const r = await runShell("pnpm run lint");
       fs.writeFileSync(path.join(outDir, "lint.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["lint"] = "dgcc-artifacts/lint.out.txt";
       if (r.code !== 0) throw new Error("lint failed");
@@ -181,7 +308,7 @@ async function main() {
 
   if (checks.includes("unit")) {
     await runCheck("unit", async () => {
-      const r = await run("pnpm", ["run", "test"]);
+      const r = await runShell("pnpm run test");
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
       if (r.code !== 0) throw new Error("unit tests failed");
@@ -190,7 +317,7 @@ async function main() {
 
   if (checks.includes("checkInteract")) {
     await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
+      const r = await runShell("pnpm run check:interact");
       fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
       if (r.code !== 0) throw new Error("interact distance consistency check failed");
@@ -199,7 +326,7 @@ async function main() {
 
   if (checks.includes("e2e")) {
     await runCheck("e2e", async () => {
-      const r = await run("pnpm", ["run", "test:e2e:ci"]);
+      const r = await runShell("pnpm run test:e2e:ci");
       fs.writeFileSync(path.join(outDir, "e2e.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["e2e"] = "dgcc-artifacts/e2e.out.txt";
       if (r.code !== 0) throw new Error("e2e failed");
@@ -208,16 +335,25 @@ async function main() {
 
   if (checks.includes("contentValidate")) {
     await runCheck("contentValidate", async () => {
-      const r = await run("pnpm", ["--prefix", "server", "run", "validate"]);
+      const r = await runShell("pnpm --prefix server run validate");
       fs.writeFileSync(path.join(outDir, "content-validate.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["contentValidate"] = "dgcc-artifacts/content-validate.out.txt";
       if (r.code !== 0) throw new Error("content validation failed (server validate)");
     });
   }
 
+  if (checks.includes("modelPathAudit")) {
+    await runCheck("modelPathAudit", async () => {
+      const r = await runShell("pnpm run audit:model-paths");
+      fs.writeFileSync(path.join(outDir, "model-path-audit.out.txt"), r.stdout + "\n" + r.stderr);
+      report.artifacts["modelPathAudit"] = "dgcc-artifacts/model-path-audit.out.txt";
+      if (r.code !== 0) throw new Error("model path audit failed");
+    });
+  }
+
   if (checks.includes("clientBuild")) {
     await runCheck("clientBuild", async () => {
-      const r = await run("pnpm", ["--prefix", "client", "run", "build"], {
+      const r = await runShell("pnpm --prefix client run build", {
         env: {
           NODE_OPTIONS: process.env.NODE_OPTIONS || "--max-old-space-size=6144",
         },
@@ -230,7 +366,7 @@ async function main() {
 
   if (checks.includes("serverBuild")) {
     await runCheck("serverBuild", async () => {
-      const r = await run("pnpm", ["--prefix", "server", "run", "build"]);
+      const r = await runShell("pnpm --prefix server run build");
       fs.writeFileSync(path.join(outDir, "server-build.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["serverBuild"] = "dgcc-artifacts/server-build.out.txt";
       if (r.code !== 0) throw new Error("server build failed");
@@ -248,7 +384,7 @@ async function main() {
 
   if (checks.includes("wsSchemaSmoke")) {
     await runCheck("wsSchemaSmoke", async () => {
-      await wsSchemaSmoke(report);
+      await wsSchemaSmoke(report, contract);
       const p = path.join(outDir, "ws-smoke.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "ws") }, null, 2));
       report.artifacts["wsSchemaSmoke"] = "dgcc-artifacts/ws-smoke.json";

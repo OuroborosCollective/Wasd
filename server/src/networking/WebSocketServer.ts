@@ -5,6 +5,13 @@ import { GameConfig } from "../config/GameConfig.js";
 
 const WS_RL_WINDOW_MS = 1000;
 
+function maxIncomingWsMessageBytes(): number {
+  const raw = process.env.WS_MAX_MESSAGE_BYTES?.trim();
+  if (!raw) return GameConfig.wsMaxMessageBytes;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : GameConfig.wsMaxMessageBytes;
+}
+
 type TrackedSocket = WebSocket & {
   id?: string;
   _entitySyncIntervalMs?: number;
@@ -50,7 +57,7 @@ export class GameWebSocketServer {
           const raw =
             typeof data === "string" ? data : Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer);
           const byteLen = Buffer.byteLength(raw);
-          if (byteLen > GameConfig.wsMaxMessageBytes) {
+          if (byteLen > maxIncomingWsMessageBytes()) {
             console.warn(`WS message too large (${byteLen} bytes), ignoring`);
             return;
           }
