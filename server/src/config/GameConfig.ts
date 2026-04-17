@@ -1,3 +1,10 @@
+function readPositiveIntEnv(name: string, fallback: number): number {
+  const raw = process.env[name]?.trim();
+  if (!raw) return fallback;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+}
+
 export const GameConfig = {
   chunkSize: 64,
   tickRateMs: 100,
@@ -28,8 +35,8 @@ export const GameConfig = {
   playerRespawnDelayMs: 2500,
   /** Mana restored per second while alive (out of combat regen baseline) */
   playerManaRegenPerSecond: 2.5,
-  /** Max WebSocket JSON message size (bytes) */
-  wsMaxMessageBytes: 65536,
+  /** Max WebSocket JSON message size (bytes); override with WS_MAX_MESSAGE_BYTES */
+  wsMaxMessageBytes: readPositiveIntEnv("WS_MAX_MESSAGE_BYTES", 65536),
   /** Max WebSocket messages accepted per socket per rolling second */
   wsMaxMessagesPerSecond: 48,
   /** Max WebSocket messages per logged-in player uid per rolling second (multi-tab / reconnect abuse) */
