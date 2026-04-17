@@ -8,6 +8,7 @@ Run the repository-wide Design+Gameplay Consistency Contract gate.
 pnpm run dgcc
 pnpm run dgcc:extreme
 DGCC_FIX=1 pnpm run dgcc
+bash tools/dgcc/selfheal-wrapper.sh
 ```
 
 Artifacts: `dgcc-artifacts/`
