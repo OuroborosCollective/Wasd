@@ -1,5 +1,5 @@
 # Areloria MMORPG — WASD
-
+ 
 > Structured browser MMORPG: **Node.js + WebSocket server**, **Babylon.js (Vite) client**, **`game-data/` JSON content layer**.
 
 ---
