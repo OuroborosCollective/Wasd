@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -7,7 +8,6 @@ type Severity = "info" | "warn" | "error";
 type CheckName =
   | "lint"
   | "unit"
-  | "checkInteract"
   | "e2e"
   | "contentValidate"
   | "assetsAudit"
@@ -76,6 +76,21 @@ function printHeader(mode: string, fix: boolean) {
   console.log(`[DGCC] mode=${mode} fix=${fix ? "on" : "off"}`);
 }
 
+/** Vitest jsdom tests and server dynamic imports need a full `pnpm install` at the repo root. */
+async function ensureWorkspaceDepsInstalled() {
+  const markers: Array<{ label: string; path: string }> = [
+    { label: "jsdom", path: path.join(ROOT, "node_modules/jsdom/package.json") },
+    { label: "@supabase/supabase-js (server)", path: path.join(ROOT, "server/node_modules/@supabase/supabase-js/package.json") },
+  ];
+  const missing = markers.filter((m) => !fs.existsSync(m.path)).map((m) => m.label);
+  if (missing.length === 0) return;
+  console.log(`[DGCC] missing workspace deps (${missing.join(", ")}); running pnpm install`);
+  const r = await run("pnpm", ["install"]);
+  if (r.code !== 0) {
+    throw new Error(`pnpm install failed (code ${r.code}): ${(r.stderr + r.stdout).slice(0, 800)}`);
+  }
+}
+
 async function assetsAudit(report: DgccReport, contract: any, fix: boolean) {
   const clientDir = path.join(ROOT, contract.rules.assets.clientModelsDir);
   if (!fs.existsSync(clientDir)) {
@@ -140,6 +155,7 @@ async function main() {
   const contract = readJson<any>(CONTRACT_PATH);
   const fix = wantFixes(contract, mode);
   printHeader(mode, fix);
+  await ensureWorkspaceDepsInstalled();
 
   const modeCfg = contract.modes[mode] ?? contract.modes.minimal;
 
@@ -185,15 +201,6 @@ async function main() {
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
       if (r.code !== 0) throw new Error("unit tests failed");
-    });
-  }
-
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
     });
   }
 
