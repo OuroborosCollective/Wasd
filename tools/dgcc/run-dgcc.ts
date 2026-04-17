@@ -2,6 +2,7 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 type Severity = "info" | "warn" | "error";
 type CheckName =
@@ -27,7 +28,10 @@ type DgccReport = {
   artifacts: Record<string, string>;
 };
 
-const ROOT = process.cwd();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+/** Monorepo root — stable even when cwd is not the repo (cron, subdir invokes). */
+const ROOT = path.resolve(__dirname, "../..");
 const CONTRACT_PATH = path.join(ROOT, "tools/dgcc/dgcc.contract.json");
 
 function readJson<T>(p: string): T {
@@ -43,7 +47,7 @@ function nowIso() {
 }
 
 function run(cmd: string, args: string[], opts?: { env?: Record<string, string> }) {
-  return new Promise<{ code: number; stdout: string; stderr: string; durationMs: number }>((resolve) => {
+  return new Promise<{ code: number; stdout: string; stderr: string; durationMs: number }>((resolve, reject) => {
     const t0 = Date.now();
     const child = spawn(cmd, args, {
       cwd: ROOT,
@@ -51,12 +55,62 @@ function run(cmd: string, args: string[], opts?: { env?: Record<string, string> 
       env: { ...process.env, ...(opts?.env ?? {}) },
       stdio: ["ignore", "pipe", "pipe"],
     });
+    child.on("error", (err) => reject(err));
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (d) => (stdout += String(d)));
     child.stderr.on("data", (d) => (stderr += String(d)));
     child.on("close", (code) => resolve({ code: code ?? 1, stdout, stderr, durationMs: Date.now() - t0 }));
   });
+}
+
+const CLIENT_DIST_INDEX = path.join(ROOT, "client", "dist", "index.html");
+const SERVER_DIST_MAIN = path.join(ROOT, "server", "dist", "index.js");
+
+async function ensureClientDistForE2e() {
+  if (fs.existsSync(CLIENT_DIST_INDEX)) return;
+  console.log("[DGCC] client/dist missing — building client for e2e (Playwright serves static dist).");
+  const r = await run("pnpm", ["--prefix", "client", "run", "build"], {
+    env: {
+      NODE_OPTIONS: process.env.NODE_OPTIONS || "--max-old-space-size=6144",
+    },
+  });
+  if (r.code !== 0) {
+    throw new Error(`client build failed (needed for e2e): ${r.stderr.slice(-2000)}`);
+  }
+  if (!fs.existsSync(CLIENT_DIST_INDEX)) {
+    throw new Error("client build finished but client/dist/index.html is still missing");
+  }
+}
+
+async function ensureServerDistForE2e() {
+  if (fs.existsSync(SERVER_DIST_MAIN)) return;
+  console.log("[DGCC] server/dist missing — building server for e2e (webServer runs node server/dist/index.js).");
+  const r = await run("pnpm", ["--prefix", "server", "run", "build"]);
+  if (r.code !== 0) {
+    throw new Error(`server build failed (needed for e2e): ${r.stderr.slice(-2000)}`);
+  }
+  if (!fs.existsSync(SERVER_DIST_MAIN)) {
+    throw new Error("server build finished but server/dist/index.js is still missing");
+  }
+}
+
+/** Run checks in dependency order regardless of contract array order. */
+function sortChecks(checks: CheckName[]): CheckName[] {
+  const order: CheckName[] = [
+    "lint",
+    "unit",
+    "checkInteract",
+    "contentValidate",
+    "clientBuild",
+    "serverBuild",
+    "assetsAudit",
+    "wsSchemaSmoke",
+    "uiA11ySmoke",
+    "e2e",
+  ];
+  const set = new Set(checks);
+  return order.filter((n) => set.has(n));
 }
 
 function parseMode() {
@@ -137,6 +191,10 @@ async function uiA11ySmoke(report: DgccReport) {
 
 async function main() {
   const mode = parseMode();
+  if (!fs.existsSync(CONTRACT_PATH)) {
+    console.error(`[DGCC] missing contract at ${CONTRACT_PATH}`);
+    process.exit(3);
+  }
   const contract = readJson<any>(CONTRACT_PATH);
   const fix = wantFixes(contract, mode);
   printHeader(mode, fix);
@@ -168,7 +226,7 @@ async function main() {
     }
   }
 
-  const checks = modeCfg.checks as CheckName[];
+  const checks = sortChecks(modeCfg.checks as CheckName[]);
 
   if (checks.includes("lint")) {
     await runCheck("lint", async () => {
@@ -199,6 +257,8 @@ async function main() {
 
   if (checks.includes("e2e")) {
     await runCheck("e2e", async () => {
+      await ensureClientDistForE2e();
+      await ensureServerDistForE2e();
       const r = await run("pnpm", ["run", "test:e2e:ci"]);
       fs.writeFileSync(path.join(outDir, "e2e.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["e2e"] = "dgcc-artifacts/e2e.out.txt";
