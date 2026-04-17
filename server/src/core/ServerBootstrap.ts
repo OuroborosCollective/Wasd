@@ -307,6 +307,52 @@ export class ServerBootstrap {
           "Build the client or set CLIENT_ROOT_DIR to the client package directory (e.g. /opt/areloria/client)."
       );
     }
+
+    const ws = new GameWebSocketServer(httpServer);
+    ws.start();
+
+    const tick = new WorldTick(ws);
+    await tick.init();
+    app.use("/api/admin/content", adminContentRouter(tick));
+    registerSelfHealingDashboard(
+      app,
+      selfHealingRuntime.system,
+      resolveSelfHealingDashboardConfigFromEnv()
+    );
+
+    // Register before Vite / static SPA middleware so /health always returns JSON (e.g. e2e + .env NODE_ENV=development).
+    app.get("/health", (_req, res) => {
+      const persistence = tick.getPersistenceStats();
+      const content = getContentDataSourceLabel();
+      const selfHealingStatus = selfHealingRuntime.system.getStatus();
+      res.json({
+        ok: true,
+        project: "ARELORIAN MMORPG",
+        version: "0.2.0",
+        persistence,
+        content: { mode: content.mode, root: content.root },
+        firebase: getFirebaseAdminSummary(),
+        supabase: getSupabaseSummary(),
+        auth: {
+          useFirebaseWsLogin: envTruthy("USE_FIREBASE_WS_LOGIN"),
+          useSupabaseWsLogin: envTruthy("USE_SUPABASE_WS_LOGIN"),
+          requireFirebaseAuth: envTruthy("REQUIRE_FIREBASE_AUTH"),
+          requireSupabaseAuth: envTruthy("REQUIRE_SUPABASE_AUTH"),
+          allowGuestLogin: envTruthy("ALLOW_GUEST_LOGIN"),
+          allowDevLogin: !["0", "false", "no"].includes(process.env.ALLOW_DEV_LOGIN?.trim().toLowerCase() || ""),
+        },
+        selfHealing: {
+          active: selfHealingStatus.active,
+          patchMode: selfHealingStatus.config.patchMode,
+          totalErrors: selfHealingStatus.totalErrors,
+          totalHealed: selfHealingStatus.totalHealed,
+          healingRate: selfHealingStatus.healingRate,
+          featuresProtected: selfHealingStatus.featuresProtected,
+        },
+      });
+    });
+    app.use(selfHealingMiddleware());
+
     if (process.env.NODE_ENV !== "production") {
       try {
         const { createServer: createViteServer } = await import("vite");
@@ -344,50 +390,6 @@ export class ServerBootstrap {
           "Run client prebuild (sync-world-assets) or set WORLD_ASSETS_DIR."
       );
     }
-
-    const ws = new GameWebSocketServer(httpServer);
-    ws.start();
-
-    const tick = new WorldTick(ws);
-    await tick.init();
-    app.use("/api/admin/content", adminContentRouter(tick));
-    registerSelfHealingDashboard(
-      app,
-      selfHealingRuntime.system,
-      resolveSelfHealingDashboardConfigFromEnv()
-    );
-
-    app.get("/health", (_req, res) => {
-      const persistence = tick.getPersistenceStats();
-      const content = getContentDataSourceLabel();
-      const selfHealingStatus = selfHealingRuntime.system.getStatus();
-      res.json({
-        ok: true,
-        project: "ARELORIAN MMORPG",
-        version: "0.2.0",
-        persistence,
-        content: { mode: content.mode, root: content.root },
-        firebase: getFirebaseAdminSummary(),
-        supabase: getSupabaseSummary(),
-        auth: {
-          useFirebaseWsLogin: envTruthy("USE_FIREBASE_WS_LOGIN"),
-          useSupabaseWsLogin: envTruthy("USE_SUPABASE_WS_LOGIN"),
-          requireFirebaseAuth: envTruthy("REQUIRE_FIREBASE_AUTH"),
-          requireSupabaseAuth: envTruthy("REQUIRE_SUPABASE_AUTH"),
-          allowGuestLogin: envTruthy("ALLOW_GUEST_LOGIN"),
-          allowDevLogin: !["0", "false", "no"].includes(process.env.ALLOW_DEV_LOGIN?.trim().toLowerCase() || ""),
-        },
-        selfHealing: {
-          active: selfHealingStatus.active,
-          patchMode: selfHealingStatus.config.patchMode,
-          totalErrors: selfHealingStatus.totalErrors,
-          totalHealed: selfHealingStatus.totalHealed,
-          healingRate: selfHealingStatus.healingRate,
-          featuresProtected: selfHealingStatus.featuresProtected,
-        },
-      });
-    });
-    app.use(selfHealingMiddleware());
 
     const port = Number(process.env.PORT || 3000);
 
