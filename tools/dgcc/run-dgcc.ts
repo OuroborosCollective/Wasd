@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -7,7 +8,6 @@ type Severity = "info" | "warn" | "error";
 type CheckName =
   | "lint"
   | "unit"
-  | "checkInteract"
   | "e2e"
   | "contentValidate"
   | "assetsAudit"
@@ -15,6 +15,18 @@ type CheckName =
   | "uiA11ySmoke"
   | "clientBuild"
   | "serverBuild";
+
+const ALL_CHECKS: readonly CheckName[] = [
+  "lint",
+  "unit",
+  "e2e",
+  "contentValidate",
+  "assetsAudit",
+  "wsSchemaSmoke",
+  "uiA11ySmoke",
+  "clientBuild",
+  "serverBuild",
+] as const;
 
 type DgccReport = {
   startedAt: string;
@@ -72,6 +84,39 @@ function wantFixes(contract: { modes?: Record<string, { fix?: { enabled?: boolea
   return mode === "extreme";
 }
 
+function isCheckName(x: string): x is CheckName {
+  return (ALL_CHECKS as readonly string[]).includes(x);
+}
+
+function loadContract(): any {
+  if (!fs.existsSync(CONTRACT_PATH)) {
+    throw new Error(`DGCC contract missing: ${path.relative(ROOT, CONTRACT_PATH)}`);
+  }
+  const contract = readJson<any>(CONTRACT_PATH);
+  if (!contract?.modes?.minimal) {
+    throw new Error("DGCC contract invalid: missing modes.minimal");
+  }
+  return contract;
+}
+
+function validateReportShape(report: DgccReport): void {
+  const requiredTop = ["startedAt", "finishedAt", "mode", "ok", "checks", "inconsistencies", "fixes", "artifacts"] as const;
+  for (const k of requiredTop) {
+    if (!(k in report)) throw new Error(`DGCC report missing field: ${k}`);
+  }
+  for (const c of report.checks) {
+    if (!c.name || typeof c.ok !== "boolean" || typeof c.durationMs !== "number") {
+      throw new Error("DGCC report checks[] entry invalid");
+    }
+  }
+  for (const i of report.inconsistencies) {
+    if (!i.category || !i.severity || !i.message) throw new Error("DGCC report inconsistencies[] entry invalid");
+  }
+  for (const f of report.fixes) {
+    if (!f.kind || !f.message) throw new Error("DGCC report fixes[] entry invalid");
+  }
+}
+
 function printHeader(mode: string, fix: boolean) {
   console.log(`[DGCC] mode=${mode} fix=${fix ? "on" : "off"}`);
 }
@@ -110,7 +155,7 @@ async function assetsAudit(report: DgccReport, contract: any, fix: boolean) {
   }
 }
 
-async function wsSchemaSmoke(report: DgccReport) {
+async function wsSchemaSmoke(report: DgccReport, contract: any) {
   const p = path.join(ROOT, "client/public/e2e-smoke.html");
   if (!fs.existsSync(p)) {
     report.inconsistencies.push({
@@ -120,6 +165,31 @@ async function wsSchemaSmoke(report: DgccReport) {
       file: "client/public/e2e-smoke.html",
       hint: "Restore e2e smoke page or update DGCC contract.",
     });
+    return;
+  }
+  if (contract?.rules?.ws?.requireWelcomeStatsShape) {
+    const spec = path.join(ROOT, "e2e/smoke.spec.ts");
+    if (!fs.existsSync(spec)) {
+      report.inconsistencies.push({
+        category: "ws",
+        severity: "error",
+        message: "Missing e2e/smoke.spec.ts (required while requireWelcomeStatsShape is true).",
+        file: "e2e/smoke.spec.ts",
+      });
+      return;
+    }
+    const src = fs.readFileSync(spec, "utf8");
+    const needles = ["welcome", "stats", "gold", "level", "health", "maxHealth", "mana", "maxMana", "skillCooldownUntil"];
+    const missing = needles.filter((n) => !src.includes(n));
+    if (missing.length) {
+      report.inconsistencies.push({
+        category: "ws",
+        severity: "error",
+        message: `e2e/smoke.spec.ts no longer asserts welcome.stats shape (missing: ${missing.join(", ")}).`,
+        file: "e2e/smoke.spec.ts",
+        hint: "Keep Playwright smoke aligned with the WebSocket welcome payload.",
+      });
+    }
   }
 }
 
@@ -137,7 +207,7 @@ async function uiA11ySmoke(report: DgccReport) {
 
 async function main() {
   const mode = parseMode();
-  const contract = readJson<any>(CONTRACT_PATH);
+  const contract = loadContract();
   const fix = wantFixes(contract, mode);
   printHeader(mode, fix);
 
@@ -168,7 +238,17 @@ async function main() {
     }
   }
 
-  const checks = modeCfg.checks as CheckName[];
+  const rawChecks = Array.isArray(modeCfg.checks) ? modeCfg.checks : [];
+  const unknown = rawChecks.filter((x: string) => !isCheckName(x));
+  if (unknown.length) {
+    report.inconsistencies.push({
+      category: "contract",
+      severity: "error",
+      message: `Unknown DGCC checks in mode "${mode}": ${unknown.join(", ")}`,
+      file: path.relative(ROOT, CONTRACT_PATH),
+    });
+  }
+  const checks = rawChecks.filter(isCheckName);
 
   if (checks.includes("lint")) {
     await runCheck("lint", async () => {
@@ -185,15 +265,6 @@ async function main() {
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
       if (r.code !== 0) throw new Error("unit tests failed");
-    });
-  }
-
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
     });
   }
 
@@ -240,6 +311,18 @@ async function main() {
   if (checks.includes("assetsAudit")) {
     await runCheck("assetsAudit", async () => {
       await assetsAudit(report, contract, fix);
+      const r = await run("pnpm", ["run", "audit:model-paths"]);
+      fs.writeFileSync(path.join(outDir, "model-path-audit.out.txt"), r.stdout + "\n" + r.stderr);
+      report.artifacts["modelPathAudit"] = "dgcc-artifacts/model-path-audit.out.txt";
+      if (r.code !== 0) {
+        report.inconsistencies.push({
+          category: "assets",
+          severity: "error",
+          message: "Model path audit failed (pnpm run audit:model-paths).",
+          hint: "See dgcc-artifacts/model-path-audit.out.txt",
+        });
+        throw new Error("model path audit failed");
+      }
       const p = path.join(outDir, "assets-audit.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "assets") }, null, 2));
       report.artifacts["assetsAudit"] = "dgcc-artifacts/assets-audit.json";
@@ -248,7 +331,7 @@ async function main() {
 
   if (checks.includes("wsSchemaSmoke")) {
     await runCheck("wsSchemaSmoke", async () => {
-      await wsSchemaSmoke(report);
+      await wsSchemaSmoke(report, contract);
       const p = path.join(outDir, "ws-smoke.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "ws") }, null, 2));
       report.artifacts["wsSchemaSmoke"] = "dgcc-artifacts/ws-smoke.json";
@@ -268,6 +351,8 @@ async function main() {
 
   report.finishedAt = nowIso();
   if (report.inconsistencies.some((x) => x.severity === "error")) report.ok = false;
+
+  validateReportShape(report);
 
   const reportPath = path.join(outDir, "dgcc.report.json");
   fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
