@@ -91,7 +91,7 @@ jobs:
             export PGPASSWORD="${PGPASSWORD:-${POSTGRES_PASSWORD:-}}"
             export POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-}"
             export POOLER_PROXY_PORT_TRANSACTION="${POOLER_PROXY_PORT_TRANSACTION:-}"
-            export SUPABASE_PROXY_URL="${SUPABASE_PROXY_URL:-http://127.0.0.1:8000}"
+            export SUPABASE_PROXY_URL="${SUPABASE_PROXY_URL:-http://supabase.arelogic.space:8000}"
             export GAME_ORIGIN="${GAME_ORIGIN:-https://arelogic.space}"
             export USE_SUPABASE_WS_LOGIN="${USE_SUPABASE_WS_LOGIN:-1}"
             export REQUIRE_SUPABASE_AUTH="${REQUIRE_SUPABASE_AUTH:-1}"
