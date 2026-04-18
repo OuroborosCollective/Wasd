@@ -49,6 +49,8 @@ import { NPCMemoryCache } from "../modules/npc/NPCMemoryCache.js";
 import { setSupabaseClient, loadNpcMemory, flushDirtyEntries } from "../modules/npc/NPCMemoryPersistence.js";
 import { tickNpcChat } from "../modules/npc/NPCChatAgent.js";
 import { LOCAL_CHAT_RADIUS } from "../modules/chat/chatChannelTypes.js";
+import { OuroborosEngine } from "../modules/ouroboros/OuroborosEngine.js";
+import { NPCRelationshipSystem } from "../modules/npc/NPCRelationshipSystem.js";
 
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { GameConfig } from "../config/GameConfig.js";
@@ -330,6 +332,8 @@ export class WorldTick {
   public chatChannelRouter: ChatChannelRouter;
   public statusEmitter!: StatusEmitter;
   public npcMemoryCache: NPCMemoryCache;
+  public ouroborosEngine: OuroborosEngine;
+  public npcRelationships: NPCRelationshipSystem;
   private readonly USE_ITEM_TOASTS: Record<string, string> = {
     minor_mana_draught: "You drink Minor Mana Draught (+mana).",
     health_potion: "You drink Health Potion (+hp).",
@@ -1653,6 +1657,8 @@ export class WorldTick {
 
     this.chatChannelRouter = new ChatChannelRouter();
     this.npcMemoryCache = new NPCMemoryCache();
+    this.ouroborosEngine = new OuroborosEngine();
+    this.npcRelationships = new NPCRelationshipSystem();
     this.statusEmitter = new StatusEmitter(
       this.chatChannelRouter,
       () => this.getChatRecipients(),
@@ -2519,9 +2525,10 @@ export class WorldTick {
 
     if (this.tickCount % 600 === 0) this.saveAll();
 
+    const recipients = this.getChatRecipients();
+
     // NPC chat agent: every 10 ticks (~1s) let NPCs near players chat
     if (this.tickCount % 10 === 0 && onlinePlayers.length > 0) {
-      const recipients = this.getChatRecipients();
       for (const npc of this.npcSystem.getAllNPCs()) {
         const nearPlayer = onlinePlayers.some(
           (p: any) => Math.hypot(p.position.x - npc.position.x, p.position.y - npc.position.y) <= LOCAL_CHAT_RADIUS,
@@ -2550,6 +2557,22 @@ export class WorldTick {
         );
       }
     }
+
+    // Ouroboros engine: perceive → evaluate → act → remember → update
+    this.ouroborosEngine.tick(
+      this.tickCount,
+      this.npcSystem.getAllNPCs().map((n: any) => ({ id: n.id, name: n.name, position: { x: n.position.x, y: n.position.y }, faction: n.faction })),
+      onlinePlayers.map((p: any) => ({ id: p.id, name: p.name || p.id, position: { x: p.position.x, y: p.position.y } })),
+      this.npcMemoryCache,
+      this.npcRelationships,
+      this.worldSystem.worldTime,
+      this.chatChannelRouter,
+      this.statusEmitter,
+      recipients,
+      (sid: string, payload: unknown) => this.ws.sendToPlayer(sid, payload),
+      (payload: unknown) => this.ws.broadcast(payload),
+      (pid: string) => this.playerToSocket.get(pid),
+    );
 
     // Flush dirty NPC memory to Supabase every 300 ticks (~30s)
     if (this.tickCount % 300 === 0) {
@@ -2671,6 +2694,7 @@ export class WorldTick {
     return {
       driver: this.persistence.getDriverName(),
       glbLinksStore: this.glbLinksStore,
+      ouroboros: this.ouroborosEngine.getStats(),
     };
   }
 
