@@ -43,6 +43,12 @@ import {
   type ChatMessage as RelayedChatMessage,
   type ChatScope as RelayedChatScope,
 } from "../modules/chat/RedisChatRelay.js";
+import { ChatChannelRouter, type ChatRecipient } from "../modules/chat/ChatChannelRouter.js";
+import { StatusEmitter } from "../modules/chat/StatusEmitter.js";
+import { NPCMemoryCache } from "../modules/npc/NPCMemoryCache.js";
+import { setSupabaseClient, loadNpcMemory, flushDirtyEntries } from "../modules/npc/NPCMemoryPersistence.js";
+import { tickNpcChat } from "../modules/npc/NPCChatAgent.js";
+import { LOCAL_CHAT_RADIUS } from "../modules/chat/chatChannelTypes.js";
 
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { GameConfig } from "../config/GameConfig.js";
@@ -321,6 +327,9 @@ export class WorldTick {
   private eventTemplates: GMTemplateDefinition[] = Object.values(GM_EVENT_TEMPLATES);
   private pendingTemplateSteps: ScheduledGMTemplateStep[] = [];
   private chatUnsubscribe: (() => void) | null = null;
+  public chatChannelRouter: ChatChannelRouter;
+  public statusEmitter!: StatusEmitter;
+  public npcMemoryCache: NPCMemoryCache;
   private readonly USE_ITEM_TOASTS: Record<string, string> = {
     minor_mana_draught: "You drink Minor Mana Draught (+mana).",
     health_potion: "You drink Health Potion (+hp).",
@@ -1642,6 +1651,23 @@ export class WorldTick {
       this.broadcastChatMessage(chatMessage);
     });
 
+    this.chatChannelRouter = new ChatChannelRouter();
+    this.npcMemoryCache = new NPCMemoryCache();
+    this.statusEmitter = new StatusEmitter(
+      this.chatChannelRouter,
+      () => this.getChatRecipients(),
+      (sid, payload) => this.ws.sendToPlayer(sid, payload),
+      (pid) => this.playerToSocket.get(pid),
+    );
+
+    try {
+      const { getSupabaseAdmin } = require("../lib/supabaseAdmin.js");
+      const sb = getSupabaseAdmin();
+      setSupabaseClient(sb);
+    } catch {
+      setSupabaseClient(null);
+    }
+
     // Create a dummy player in a distant chunk to prove multi-observer union
     const dummyPlayer = this.playerSystem.createPlayer("dummy_player", "Dummy Player");
     dummyPlayer.position.x = 500;
@@ -1846,6 +1872,31 @@ export class WorldTick {
         if (!text.trim()) {
           return;
         }
+
+        // Route through 3-channel system (local/global/status)
+        const rawChannel = typeof msg.channel === "string" ? msg.channel.trim().toLowerCase() : (typeof msg.scope === "string" ? msg.scope.trim().toLowerCase() : "");
+        if (rawChannel === "local" || rawChannel === "global") {
+          const sent = this.chatChannelRouter.publish(
+            {
+              channel: rawChannel as "local" | "global",
+              senderType: "player",
+              senderId: String(player.id),
+              senderName: isNonEmptyString(player.name) ? player.name : String(player.id),
+              text,
+              position: { x: player.position.x, y: player.position.y },
+            },
+            this.getChatRecipients(),
+            (sid, payload) => this.ws.sendToPlayer(sid, payload),
+            (payload) => this.ws.broadcast(payload),
+            (pid) => this.playerToSocket.get(pid),
+          );
+          if (!sent) {
+            this.ws.sendToPlayer(id, { type: "toast", text: "Chat cooldown active." });
+          }
+          return;
+        }
+
+        // Legacy path: global/zone/party via Redis relay
         const requestedScope = this.resolveChatScope(msg.scope ?? msg.channel);
         const zoneId = this.resolvePlayerZoneId(player);
         const partyId = this.resolvePlayerPartyId(player);
@@ -2296,6 +2347,12 @@ export class WorldTick {
     };
   }
 
+  private getChatRecipients(): ChatRecipient[] {
+    return this.playerSystem.getAllPlayers()
+      .filter((p: any) => !p.isOffline && this.playerToSocket.has(p.id))
+      .map((p: any) => ({ id: p.id, position: { x: p.position.x, y: p.position.y } }));
+  }
+
   async init() {
     await this.persistence.init();
     const connected = await this.persistence.testConnection();
@@ -2312,6 +2369,10 @@ export class WorldTick {
     this.loadSpawns();
     if (this.craftingSystem?.loadRecipes) {
       this.craftingSystem.loadRecipes().catch(() => {});
+    }
+
+    for (const npc of this.npcSystem.getAllNPCs()) {
+      void loadNpcMemory(this.npcMemoryCache, npc.id).catch(() => {});
     }
   }
 
@@ -2457,6 +2518,43 @@ export class WorldTick {
     this.cleanupExpiredLoot();
 
     if (this.tickCount % 600 === 0) this.saveAll();
+
+    // NPC chat agent: every 10 ticks (~1s) let NPCs near players chat
+    if (this.tickCount % 10 === 0 && onlinePlayers.length > 0) {
+      const recipients = this.getChatRecipients();
+      for (const npc of this.npcSystem.getAllNPCs()) {
+        const nearPlayer = onlinePlayers.some(
+          (p: any) => Math.hypot(p.position.x - npc.position.x, p.position.y - npc.position.y) <= LOCAL_CHAT_RADIUS,
+        );
+        if (!nearPlayer) continue;
+
+        // Feed recent chat into NPC memory
+        const recentChat = this.chatChannelRouter.getRecentForPosition(npc.position, 10);
+        for (const cm of recentChat) {
+          this.npcMemoryCache.recordChat(npc.id, {
+            text: cm.text,
+            sender: cm.senderName,
+            channel: cm.channel,
+            ts: cm.ts,
+          });
+        }
+
+        tickNpcChat(
+          npc,
+          this.npcMemoryCache,
+          this.chatChannelRouter,
+          recipients,
+          (sid, payload) => this.ws.sendToPlayer(sid, payload),
+          (payload) => this.ws.broadcast(payload),
+          (pid) => this.playerToSocket.get(pid),
+        );
+      }
+    }
+
+    // Flush dirty NPC memory to Supabase every 300 ticks (~30s)
+    if (this.tickCount % 300 === 0) {
+      void flushDirtyEntries(this.npcMemoryCache).catch(() => {});
+    }
 
     this.broadcastState();
   }

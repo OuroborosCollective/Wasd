@@ -510,6 +510,9 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
               : typeof payload.channel === "string"
                 ? payload.channel
                 : "global",
+          channel: typeof payload.channel === "string" ? payload.channel : undefined,
+          senderType: typeof payload.senderType === "string" ? payload.senderType : undefined,
+          npcId: typeof payload.npcId === "string" ? payload.npcId : undefined,
           ts: Number(payload.ts),
           timestamp: Number(payload.timestamp),
         });
@@ -645,9 +648,9 @@ export function requestQuestSync() {
   }
 }
 
-export function sendChatMessage(text: string) {
+export function sendChatMessage(text: string, channel: string = "global") {
   if (globalWs && globalWs.readyState === WebSocket.OPEN) {
-    globalWs.send(JSON.stringify({ type: "chat_send", scope: "global", text }));
+    globalWs.send(JSON.stringify({ type: "chat_send", channel, text }));
   }
 }
 
