@@ -30,6 +30,7 @@ const GUEST_STORAGE_KEY = "areloria_guest_id";
 
 export function renderHUD() {
   document.getElementById("arel-hud")?.remove();
+  const compact = prefersCompactTouchUi();
   const hud = document.createElement("div");
   hud.id = "arel-hud";
   hud.style.position = "fixed";
@@ -42,8 +43,12 @@ export function renderHUD() {
   hud.style.borderRadius = "10px";
   hud.style.borderLeft = "3px solid #f27d26";
   hud.style.zIndex = "5000";
-  hud.style.maxWidth = prefersCompactTouchUi() ? "min(92vw, 280px)" : "320px";
+  hud.style.maxWidth = compact ? "min(92vw, 280px)" : "320px";
   hud.style.boxSizing = "border-box";
+  hud.style.transition = "max-height 0.25s ease, padding 0.25s ease, opacity 0.2s ease";
+  hud.style.overflow = "hidden";
+
+  let hudCollapsed = compact;
 
   const topRow = document.createElement("div");
   topRow.style.display = "flex";
@@ -74,15 +79,44 @@ export function renderHUD() {
   topRow.appendChild(leaderboardBtn);
   hud.appendChild(topRow);
 
+  const hudBody = document.createElement("div");
+  hudBody.id = "arel-hud-body";
+
   const label = document.createElement("span");
   label.textContent = "Areloria";
   label.style.fontSize = "11px";
   label.style.opacity = "0.65";
   label.style.display = "block";
   label.style.marginTop = "4px";
-  hud.appendChild(label);
+  hudBody.appendChild(label);
 
+  hud.appendChild(hudBody);
   document.body.appendChild(hud);
+
+  const applyCollapseState = () => {
+    if (hudCollapsed) {
+      hud.style.maxHeight = "60px";
+      hud.style.padding = "6px 10px";
+      hudBody.style.display = "none";
+      topRow.style.marginBottom = "0";
+    } else {
+      hud.style.maxHeight = "none";
+      hud.style.padding = "10px 12px";
+      hudBody.style.display = "block";
+      topRow.style.marginBottom = "8px";
+    }
+  };
+
+  if (compact) {
+    hud.style.cursor = "pointer";
+    hud.addEventListener("click", (e) => {
+      if ((e.target as HTMLElement).tagName === "BUTTON" || (e.target as HTMLElement).tagName === "INPUT") return;
+      hudCollapsed = !hudCollapsed;
+      applyCollapseState();
+    });
+    hud.addEventListener("touchstart", (e) => e.stopPropagation(), { passive: true });
+    applyCollapseState();
+  }
 
   const authBox = document.createElement("div");
   authBox.id = "arel-hud-auth";
@@ -649,7 +683,7 @@ export function renderHUD() {
     };
   }
 
-  hud.appendChild(authBox);
+  hudBody.appendChild(authBox);
 }
 
 export type DialoguePayload = {
