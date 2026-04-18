@@ -221,10 +221,8 @@ export function renderInventory() {
   panel.dataset.compact = compact ? "1" : "0";
 
   const stopEvents = (e: Event) => e.stopPropagation();
-  ["touchstart", "touchmove"].forEach((evt) => {
-    panel!.addEventListener(evt, stopEvents, { passive: true });
-  });
   [
+    "touchstart", "touchmove",
     "touchend", "touchcancel",
     "mousedown", "mouseup", "mousemove",
     "pointerdown", "pointerup", "pointermove",
@@ -279,6 +277,10 @@ export function renderInventory() {
   content.style.overflowY = "auto";
   content.style.webkitOverflowScrolling = "touch";
   content.style.padding = compact ? "8px 4px" : "5px";
+
+  ["touchstart", "touchmove"].forEach((evt) => {
+    content.addEventListener(evt, (e) => e.stopPropagation(), { passive: false });
+  });
 
   refreshInventoryContent(content, compact);
   panel.appendChild(content);

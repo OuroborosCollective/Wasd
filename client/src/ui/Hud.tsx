@@ -114,7 +114,11 @@ function MiniPanels({
   onHousingOpen: () => void;
 }) {
   return (
-    <div className="pointer-events-auto flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-black/45 p-2.5 backdrop-blur-md sm:p-3 md:p-4">
+    <div
+      className="pointer-events-auto flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-black/45 p-2.5 backdrop-blur-md sm:p-3 md:p-4"
+      onTouchStart={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
       <div className="min-w-0 flex-1">
         <div className="text-[10px] uppercase tracking-widest text-slate-300/80 sm:text-xs">Inventar</div>
         <div className="text-xs font-semibold sm:text-sm">
@@ -147,7 +151,11 @@ function TargetFrame({
 }) {
   if (!target) return null;
   return (
-    <div className="pointer-events-auto flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-black/45 p-2.5 backdrop-blur-md sm:p-3 md:p-4">
+    <div
+      className="pointer-events-auto flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-black/45 p-2.5 backdrop-blur-md sm:p-3 md:p-4"
+      onTouchStart={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
       <div className="min-w-0">
         <div className="text-[10px] uppercase tracking-widest text-slate-300/80 sm:text-xs">Ziel</div>
         <div className="truncate text-xs font-semibold sm:text-sm">
@@ -205,7 +213,11 @@ function QuestTracker({ quests }: { quests: QuestStateNet[] }) {
 function LootPanel({ loot, onTake }: { loot: LootNet[]; onTake: (id: string) => void }) {
   if (!loot.length) return null;
   return (
-    <div className="pointer-events-auto rounded-2xl border border-white/10 bg-black/35 p-2.5 backdrop-blur-md sm:p-3">
+    <div
+      className="pointer-events-auto rounded-2xl border border-white/10 bg-black/35 p-2.5 backdrop-blur-md sm:p-3"
+      onTouchStart={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
       <div className="mb-1.5 text-[10px] uppercase tracking-widest text-slate-300/80 sm:mb-2 sm:text-xs">Beute in der Nähe</div>
       <div className="space-y-1.5 sm:space-y-2">
         {loot.map((b) => (
@@ -236,7 +248,11 @@ function LootPanel({ loot, onTake }: { loot: LootNet[]; onTake: (id: string) => 
 
 function Hotbar({ onAttack, disabled }: { onAttack: () => void; disabled: boolean }) {
   return (
-    <div className="w-full max-w-[min(100%,28rem)] rounded-2xl border border-white/10 bg-black/60 p-1.5 shadow-[0_12px_50px_rgba(0,0,0,0.55)] backdrop-blur-md sm:max-w-none sm:p-2 md:p-3">
+    <div
+      className="pointer-events-auto w-full max-w-[min(100%,28rem)] rounded-2xl border border-white/10 bg-black/60 p-1.5 shadow-[0_12px_50px_rgba(0,0,0,0.55)] backdrop-blur-md sm:max-w-none sm:p-2 md:p-3"
+      onTouchStart={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
       <div className="flex flex-wrap justify-center gap-1 sm:gap-2">
         <KeySlot keyHint="1" label="Atk" onClick={onAttack} disabled={disabled} />
         <KeySlot keyHint="2" label="Skl" onClick={() => {}} disabled />

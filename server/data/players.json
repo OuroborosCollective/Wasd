@@ -1,0 +1,1989 @@
+{
+  "dev_ae502848-45be-4ef2-87f0-aa4aae5faa1c": {
+    "id": "dev_ae502848-45be-4ef2-87f0-aa4aae5faa1c",
+    "name": "DevPlayer_ae50",
+    "class": "Novice",
+    "appearance": "default",
+    "role": "player",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "level": 1,
+    "health": 100,
+    "maxHealth": 100,
+    "dead": false,
+    "deathAt": 0,
+    "stamina": 100,
+    "maxStamina": 100,
+    "mana": 25,
+    "maxMana": 25,
+    "gold": 0,
+    "xp": 0,
+    "quests": [
+      {
+        "id": "ql_mainline_awakening_step_0",
+        "title": "⚔️ Besiege city_a_region_a_mainline_awakening_0",
+        "giverNpcId": "npc_guide",
+        "targetId": "target_A_0",
+        "objectiveType": "combat",
+        "prerequisiteQuestIds": [],
+        "reward": {
+          "gold": 5,
+          "xp": 15
+        },
+        "questlineId": "mainline_awakening",
+        "questlineStepIndex": 0,
+        "questlineFeatureId": "combat",
+        "name": "⚔️ Besiege city_a_region_a_mainline_awakening_0",
+        "giver": "npc_guide",
+        "objective": "combat",
+        "questlineNextQuestId": "ql_mainline_awakening_step_1",
+        "startedAt": 1776480247503,
+        "completed": false
+      }
+    ],
+    "skills": {
+      "combat": {
+        "level": 1
+      }
+    },
+    "inventory": [],
+    "gearInventory": [],
+    "lootPity": {
+      "killsSinceLegendary": 0,
+      "killsSinceSet": 0
+    },
+    "lootFilter": {
+      "showRarities": [
+        "magic",
+        "rare",
+        "legendary",
+        "set"
+      ],
+      "autoPickupStackIds": []
+    },
+    "equipment": {
+      "weapon": null,
+      "armor": null
+    },
+    "faction": null,
+    "civilization": null,
+    "matrixEnergy": 0,
+    "flags": {},
+    "reputation": {},
+    "usedChoices": [],
+    "sceneId": "didis_hub",
+    "spawnKey": "sp_player_default",
+    "totalDeaths": 0,
+    "combatTargetNpcId": null,
+    "skillCooldowns": {},
+    "questlineRuntime": {
+      "currentNode": "start",
+      "unlockedFeatures": [],
+      "triggers": [
+        {
+          "featureId": "combat",
+          "questStepId": "start",
+          "triggerType": "introduce",
+          "description": "Du wirst in deinen ersten Kampf verwickelt.",
+          "params": {
+            "unlockAction": "enable_combat_ui",
+            "requiredLevel": 1
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "exploration",
+          "questStepId": "start",
+          "triggerType": "introduce",
+          "description": "Die Karte vor dir ist leer — noch.",
+          "params": {
+            "unlockAction": "enable_exploration_ui",
+            "requiredLevel": 1
+          },
+          "satisfied": false
+        }
+      ],
+      "featureSchedule": [
+        {
+          "featureId": "combat",
+          "questStepId": "city_a_region_a_mainline_awakening_0",
+          "triggerType": "introduce",
+          "description": "Du wirst in deinen ersten Kampf verwickelt.",
+          "params": {
+            "unlockAction": "enable_combat_ui",
+            "requiredLevel": 1
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "crafting",
+          "questStepId": "city_a_region_a_mainline_awakening_1",
+          "triggerType": "introduce",
+          "description": "Ein Schmied zeigt dir die Grundlagen des Handwerks.",
+          "params": {
+            "unlockAction": "enable_crafting_ui",
+            "requiredLevel": 2
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "trading",
+          "questStepId": "city_a_region_a_mainline_awakening_2",
+          "triggerType": "introduce",
+          "description": "Du erreichst den ersten Marktplatz.",
+          "params": {
+            "unlockAction": "enable_trading_ui",
+            "requiredLevel": 1
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "guilds",
+          "questStepId": "city_a_region_a_mainline_awakening_0",
+          "triggerType": "introduce",
+          "description": "Eine Gilde öffnet dir ihre Tore.",
+          "params": {
+            "unlockAction": "enable_guild_ui",
+            "requiredLevel": 5
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "stealth",
+          "questStepId": "city_a_region_a_mainline_awakening_1",
+          "triggerType": "unlock",
+          "description": "Im Schatten lernst du dich zu bewegen.",
+          "params": {
+            "unlockAction": "enable_stealth_mechanics",
+            "requiredLevel": 3
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "assassination",
+          "questStepId": "city_a_region_a_mainline_awakening_2",
+          "triggerType": "unlock",
+          "description": "Dein erster Auftrag im Dunkel.",
+          "params": {
+            "unlockAction": "enable_assassination_quests",
+            "requiredLevel": 8
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "blackmarket",
+          "questStepId": "city_a_region_a_mainline_awakening_0",
+          "triggerType": "unlock",
+          "description": "Eine versteckte Tür führt in die Unterwelt.",
+          "params": {
+            "unlockAction": "enable_blackmarket_ui",
+            "requiredLevel": 5
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "espionage",
+          "questStepId": "city_a_region_a_mainline_awakening_1",
+          "triggerType": "unlock",
+          "description": "Informationen sind das wertvollste Gut.",
+          "params": {
+            "unlockAction": "enable_espionage_system",
+            "requiredLevel": 6
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "alchemy",
+          "questStepId": "city_a_region_a_mainline_awakening_2",
+          "triggerType": "unlock",
+          "description": "Dein erster Trank sprudelt im Kessel.",
+          "params": {
+            "unlockAction": "enable_alchemy_ui",
+            "requiredLevel": 2
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "beastmastery",
+          "questStepId": "city_a_region_a_mainline_awakening_0",
+          "triggerType": "unlock",
+          "description": "Ein Wildtier blickt dich an — und folgt dir.",
+          "params": {
+            "unlockAction": "enable_beastmastery_ui",
+            "requiredLevel": 4
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "herbalism",
+          "questStepId": "city_a_region_a_mainline_awakening_1",
+          "triggerType": "unlock",
+          "description": "Die Natur hält viele Geheimnisse bereit.",
+          "params": {
+            "unlockAction": "enable_herbalism_ui",
+            "requiredLevel": 1
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "druidcraft",
+          "questStepId": "city_a_region_a_mainline_awakening_2",
+          "triggerType": "unlock",
+          "description": "Die Urkraft der Natur fließt durch dich.",
+          "params": {
+            "unlockAction": "enable_druidcraft_ui",
+            "requiredLevel": 7
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "necromancy",
+          "questStepId": "city_a_region_a_mainline_awakening_0",
+          "triggerType": "unlock",
+          "description": "Die Grenze zwischen Leben und Tod verschwimmt.",
+          "params": {
+            "unlockAction": "enable_necromancy_ui",
+            "requiredLevel": 9
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "mindbending",
+          "questStepId": "city_a_region_a_mainline_awakening_1",
+          "triggerType": "unlock",
+          "description": "Gedanken sind formbar — wenn man weiß wie.",
+          "params": {
+            "unlockAction": "enable_mindbending_ui",
+            "requiredLevel": 10
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "runemagic",
+          "questStepId": "city_a_region_a_mainline_awakening_2",
+          "triggerType": "unlock",
+          "description": "Uralte Schriftzeichen erwachen zu Leben.",
+          "params": {
+            "unlockAction": "enable_runemagic_ui",
+            "requiredLevel": 6
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "soulbinding",
+          "questStepId": "city_a_region_a_mainline_awakening_0",
+          "triggerType": "unlock",
+          "description": "Eine Seele wird an dich gebunden — für immer.",
+          "params": {
+            "unlockAction": "enable_soulbinding_ui",
+            "requiredLevel": 11
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "diplomacy",
+          "questStepId": "city_a_region_a_mainline_awakening_1",
+          "triggerType": "unlock",
+          "description": "Worte können mehr bewirken als Schwerter.",
+          "params": {
+            "unlockAction": "enable_diplomacy_ui",
+            "requiredLevel": 3
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "building",
+          "questStepId": "city_a_region_a_mainline_awakening_2",
+          "triggerType": "unlock",
+          "description": "Dein erstes Gebäude erhebt sich aus dem Boden.",
+          "params": {
+            "unlockAction": "enable_building_ui",
+            "requiredLevel": 4
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "politics",
+          "questStepId": "city_a_region_a_mainline_awakening_0",
+          "triggerType": "unlock",
+          "description": "Der Rat der Ältesten lädt dich ein.",
+          "params": {
+            "unlockAction": "enable_politics_ui",
+            "requiredLevel": 8
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "exploration",
+          "questStepId": "city_a_region_a_mainline_awakening_1",
+          "triggerType": "unlock",
+          "description": "Die Karte vor dir ist leer — noch.",
+          "params": {
+            "unlockAction": "enable_exploration_ui",
+            "requiredLevel": 1
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "pvp",
+          "questStepId": "city_a_region_a_mainline_awakening_2",
+          "triggerType": "unlock",
+          "description": "Ein anderer Spieler fordert dich heraus.",
+          "params": {
+            "unlockAction": "enable_pvp_flag",
+            "requiredLevel": 5
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "pve",
+          "questStepId": "city_a_region_a_mainline_awakening_0",
+          "triggerType": "unlock",
+          "description": "Ein Kerker wartet auf mutige Seelen.",
+          "params": {
+            "unlockAction": "enable_pve_dungeons",
+            "requiredLevel": 3
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "housing",
+          "questStepId": "city_a_region_a_mainline_awakening_1",
+          "triggerType": "unlock",
+          "description": "Ein Grundstück gehört dir — bau dir ein Zuhause.",
+          "params": {
+            "unlockAction": "enable_housing_ui",
+            "requiredLevel": 6
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "fishing",
+          "questStepId": "city_a_region_a_mainline_awakening_2",
+          "triggerType": "unlock",
+          "description": "Am ruhigen Ufer wartet die erste Angel.",
+          "params": {
+            "unlockAction": "enable_fishing_ui",
+            "requiredLevel": 1
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "mining",
+          "questStepId": "city_a_region_a_mainline_awakening_0",
+          "triggerType": "unlock",
+          "description": "Tief im Berg schlummern Erze und Geheimnisse.",
+          "params": {
+            "unlockAction": "enable_mining_ui",
+            "requiredLevel": 2
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "woodcutting",
+          "questStepId": "city_a_region_a_mainline_awakening_1",
+          "triggerType": "unlock",
+          "description": "Eine Axt, ein Baum — der Anfang von allem.",
+          "params": {
+            "unlockAction": "enable_woodcutting_ui",
+            "requiredLevel": 1
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "cooking",
+          "questStepId": "city_a_region_a_mainline_awakening_2",
+          "triggerType": "unlock",
+          "description": "Ein warmes Mahl stärkt Körper und Geist.",
+          "params": {
+            "unlockAction": "enable_cooking_ui",
+            "requiredLevel": 1
+          },
+          "satisfied": false
+        },
+        {
+          "featureId": "enchanting",
+          "questStepId": "city_a_region_a_mainline_awakening_0",
+          "triggerType": "unlock",
+          "description": "Magische Energie fließt in deinen Gegenstand.",
+          "params": {
+            "unlockAction": "enable_enchanting_ui",
+            "requiredLevel": 7
+          },
+          "satisfied": false
+        }
+      ],
+      "activeQuestlineId": "mainline_awakening",
+      "proceduralQuestIds": [
+        "ql_mainline_awakening_step_0",
+        "ql_mainline_awakening_step_1",
+        "ql_mainline_awakening_step_2",
+        "ql_mainline_awakening_step_3",
+        "ql_mainline_awakening_step_4",
+        "ql_mainline_awakening_step_5",
+        "ql_mainline_awakening_step_6",
+        "ql_mainline_awakening_step_7",
+        "ql_mainline_awakening_step_8",
+        "ql_mainline_awakening_step_9",
+        "ql_mainline_awakening_step_10",
+        "ql_mainline_awakening_step_11",
+        "ql_mainline_awakening_step_12",
+        "ql_mainline_awakening_step_13",
+        "ql_mainline_awakening_step_14",
+        "ql_mainline_awakening_step_15",
+        "ql_mainline_awakening_step_16",
+        "ql_mainline_awakening_step_17",
+        "ql_mainline_awakening_step_18",
+        "ql_mainline_awakening_step_19",
+        "ql_mainline_awakening_step_20",
+        "ql_mainline_awakening_step_21",
+        "ql_mainline_awakening_step_22",
+        "ql_mainline_awakening_step_23",
+        "ql_mainline_awakening_step_24",
+        "ql_mainline_awakening_step_25",
+        "ql_mainline_awakening_step_26",
+        "ql_mainline_awakening_step_27",
+        "ql_mainline_awakening_side_0",
+        "ql_mainline_awakening_side_1",
+        "ql_mainline_awakening_side_2",
+        "ql_mainline_awakening_war",
+        "ql_mainline_awakening_pvp"
+      ],
+      "lastContext": {
+        "questlineId": "mainline_awakening",
+        "strandKey": "A",
+        "faction": {
+          "id": "kaiserreich_aelion",
+          "name": "Kaiserreich Aelion",
+          "kingdom": "Das Goldene Kaiserreich",
+          "landName": "Aeloria",
+          "belief": {
+            "id": "solaren",
+            "name": "Sonnenorden",
+            "deity": "Aelios, der Ewige Morgen",
+            "ethos": "order",
+            "rituals": [
+              "Morgengebet",
+              "Sonnenopfer",
+              "Reinigungsritus"
+            ],
+            "questFlavor": "heilig"
+          },
+          "strandKey": "A",
+          "features": [
+            "combat",
+            "crafting",
+            "trading",
+            "guilds"
+          ],
+          "enemies": [
+            "dunkelrat",
+            "leerkirche_fraktion"
+          ],
+          "allies": [],
+          "cityPrefixes": [
+            "Sonnen",
+            "Gold",
+            "Licht",
+            "Heilig",
+            "Groß"
+          ],
+          "citySuffixes": [
+            "burg",
+            "hafen",
+            "tal",
+            "hain",
+            "fels"
+          ],
+          "questThemes": {
+            "main": "Reinigung der Lande von Dunkelheit",
+            "side": [
+              "Tempelschutz",
+              "Piratenjagd",
+              "Adelsstreit"
+            ],
+            "war": "Feldzug gegen den Dunkelrat",
+            "pvp": "Tourniere des Kaisers"
+          }
+        },
+        "region": {
+          "id": "region_a_mainline_awakening",
+          "name": "Aeloria — Gebiet ning",
+          "landName": "Aeloria",
+          "factionId": "kaiserreich_aelion",
+          "strandKey": "A",
+          "biome": "desert",
+          "cities": [
+            {
+              "id": "city_a_region_a_mainline_awakening_0",
+              "name": "Sonnenhain",
+              "regionId": "region_a_mainline_awakening",
+              "factionId": "kaiserreich_aelion",
+              "strandKey": "A",
+              "type": "capital",
+              "biome": "desert",
+              "features": [
+                "combat",
+                "crafting",
+                "trading",
+                "guilds"
+              ],
+              "npcs": [
+                {
+                  "id": "npc_city_a_region_a_mainline_awakening_0_knight_0",
+                  "role": "knight",
+                  "factionId": "kaiserreich_aelion",
+                  "cityId": "city_a_region_a_mainline_awakening_0",
+                  "name": "Knight von city_a_region_a_mainline_awakening_0",
+                  "dialogue": "dialogue_city_a_region_a_mainline_awakening_0_knight",
+                  "quest": "quest_city_a_region_a_mainline_awakening_0_knight_intro"
+                },
+                {
+                  "id": "npc_city_a_region_a_mainline_awakening_0_priest_1",
+                  "role": "priest",
+                  "factionId": "kaiserreich_aelion",
+                  "cityId": "city_a_region_a_mainline_awakening_0",
+                  "name": "Priest von city_a_region_a_mainline_awakening_0",
+                  "dialogue": "dialogue_city_a_region_a_mainline_awakening_0_priest",
+                  "quest": "quest_city_a_region_a_mainline_awakening_0_priest_intro"
+                },
+                {
+                  "id": "npc_city_a_region_a_mainline_awakening_0_merchant_2",
+                  "role": "merchant",
+                  "factionId": "kaiserreich_aelion",
+                  "cityId": "city_a_region_a_mainline_awakening_0",
+                  "name": "Merchant von city_a_region_a_mainline_awakening_0",
+                  "dialogue": "dialogue_city_a_region_a_mainline_awakening_0_merchant",
+                  "quest": "quest_city_a_region_a_mainline_awakening_0_merchant_intro"
+                },
+                {
+                  "id": "npc_city_a_region_a_mainline_awakening_0_herald_3",
+                  "role": "herald",
+                  "factionId": "kaiserreich_aelion",
+                  "cityId": "city_a_region_a_mainline_awakening_0",
+                  "name": "Herald von city_a_region_a_mainline_awakening_0",
+                  "dialogue": "dialogue_city_a_region_a_mainline_awakening_0_herald",
+                  "quest": "quest_city_a_region_a_mainline_awakening_0_herald_intro"
+                }
+              ],
+              "shops": [
+                {
+                  "id": "shop_city_a_region_a_mainline_awakening_0_smith",
+                  "name": "Schmied",
+                  "type": "crafting"
+                },
+                {
+                  "id": "shop_city_a_region_a_mainline_awakening_0_general",
+                  "name": "Allgemeinladen",
+                  "type": "general"
+                }
+              ],
+              "quests": [
+                "quest_city_a_region_a_mainline_awakening_0_main",
+                "quest_city_a_region_a_mainline_awakening_0_side_1",
+                "quest_city_a_region_a_mainline_awakening_0_side_2"
+              ],
+              "worldPos": {
+                "x": 601,
+                "z": 10
+              },
+              "generatedFor": "mainline_awakening",
+              "population": "large",
+              "createdAt": 1776480247502
+            },
+            {
+              "id": "city_a_region_a_mainline_awakening_1",
+              "name": "Goldhafen",
+              "regionId": "region_a_mainline_awakening",
+              "factionId": "kaiserreich_aelion",
+              "strandKey": "A",
+              "type": "village",
+              "biome": "desert",
+              "features": [
+                "combat",
+                "crafting",
+                "trading",
+                "guilds"
+              ],
+              "npcs": [
+                {
+                  "id": "npc_city_a_region_a_mainline_awakening_1_knight_0",
+                  "role": "knight",
+                  "factionId": "kaiserreich_aelion",
+                  "cityId": "city_a_region_a_mainline_awakening_1",
+                  "name": "Knight von city_a_region_a_mainline_awakening_1",
+                  "dialogue": "dialogue_city_a_region_a_mainline_awakening_1_knight",
+                  "quest": "quest_city_a_region_a_mainline_awakening_1_knight_intro"
+                },
+                {
+                  "id": "npc_city_a_region_a_mainline_awakening_1_priest_1",
+                  "role": "priest",
+                  "factionId": "kaiserreich_aelion",
+                  "cityId": "city_a_region_a_mainline_awakening_1",
+                  "name": "Priest von city_a_region_a_mainline_awakening_1",
+                  "dialogue": "dialogue_city_a_region_a_mainline_awakening_1_priest",
+                  "quest": "quest_city_a_region_a_mainline_awakening_1_priest_intro"
+                },
+                {
+                  "id": "npc_city_a_region_a_mainline_awakening_1_merchant_2",
+                  "role": "merchant",
+                  "factionId": "kaiserreich_aelion",
+                  "cityId": "city_a_region_a_mainline_awakening_1",
+                  "name": "Merchant von city_a_region_a_mainline_awakening_1",
+                  "dialogue": "dialogue_city_a_region_a_mainline_awakening_1_merchant",
+                  "quest": "quest_city_a_region_a_mainline_awakening_1_merchant_intro"
+                },
+                {
+                  "id": "npc_city_a_region_a_mainline_awakening_1_herald_3",
+                  "role": "herald",
+                  "factionId": "kaiserreich_aelion",
+                  "cityId": "city_a_region_a_mainline_awakening_1",
+                  "name": "Herald von city_a_region_a_mainline_awakening_1",
+                  "dialogue": "dialogue_city_a_region_a_mainline_awakening_1_herald",
+                  "quest": "quest_city_a_region_a_mainline_awakening_1_herald_intro"
+                }
+              ],
+              "shops": [
+                {
+                  "id": "shop_city_a_region_a_mainline_awakening_1_smith",
+                  "name": "Schmied",
+                  "type": "crafting"
+                },
+                {
+                  "id": "shop_city_a_region_a_mainline_awakening_1_general",
+                  "name": "Allgemeinladen",
+                  "type": "general"
+                }
+              ],
+              "quests": [
+                "quest_city_a_region_a_mainline_awakening_1_main",
+                "quest_city_a_region_a_mainline_awakening_1_side_1",
+                "quest_city_a_region_a_mainline_awakening_1_side_2"
+              ],
+              "worldPos": {
+                "x": 890,
+                "z": 135
+              },
+              "generatedFor": "mainline_awakening",
+              "population": "small",
+              "createdAt": 1776480247502
+            },
+            {
+              "id": "city_a_region_a_mainline_awakening_2",
+              "name": "Lichthafen",
+              "regionId": "region_a_mainline_awakening",
+              "factionId": "kaiserreich_aelion",
+              "strandKey": "A",
+              "type": "ruin",
+              "biome": "desert",
+              "features": [
+                "combat",
+                "crafting",
+                "trading",
+                "guilds"
+              ],
+              "npcs": [
+                {
+                  "id": "npc_city_a_region_a_mainline_awakening_2_knight_0",
+                  "role": "knight",
+                  "factionId": "kaiserreich_aelion",
+                  "cityId": "city_a_region_a_mainline_awakening_2",
+                  "name": "Knight von city_a_region_a_mainline_awakening_2",
+                  "dialogue": "dialogue_city_a_region_a_mainline_awakening_2_knight",
+                  "quest": "quest_city_a_region_a_mainline_awakening_2_knight_intro"
+                },
+                {
+                  "id": "npc_city_a_region_a_mainline_awakening_2_priest_1",
+                  "role": "priest",
+                  "factionId": "kaiserreich_aelion",
+                  "cityId": "city_a_region_a_mainline_awakening_2",
+                  "name": "Priest von city_a_region_a_mainline_awakening_2",
+                  "dialogue": "dialogue_city_a_region_a_mainline_awakening_2_priest",
+                  "quest": "quest_city_a_region_a_mainline_awakening_2_priest_intro"
+                },
+                {
+                  "id": "npc_city_a_region_a_mainline_awakening_2_merchant_2",
+                  "role": "merchant",
+                  "factionId": "kaiserreich_aelion",
+                  "cityId": "city_a_region_a_mainline_awakening_2",
+                  "name": "Merchant von city_a_region_a_mainline_awakening_2",
+                  "dialogue": "dialogue_city_a_region_a_mainline_awakening_2_merchant",
+                  "quest": "quest_city_a_region_a_mainline_awakening_2_merchant_intro"
+                },
+                {
+                  "id": "npc_city_a_region_a_mainline_awakening_2_herald_3",
+                  "role": "herald",
+                  "factionId": "kaiserreich_aelion",
+                  "cityId": "city_a_region_a_mainline_awakening_2",
+                  "name": "Herald von city_a_region_a_mainline_awakening_2",
+                  "dialogue": "dialogue_city_a_region_a_mainline_awakening_2_herald",
+                  "quest": "quest_city_a_region_a_mainline_awakening_2_herald_intro"
+                }
+              ],
+              "shops": [
+                {
+                  "id": "shop_city_a_region_a_mainline_awakening_2_smith",
+                  "name": "Schmied",
+                  "type": "crafting"
+                },
+                {
+                  "id": "shop_city_a_region_a_mainline_awakening_2_general",
+                  "name": "Allgemeinladen",
+                  "type": "general"
+                }
+              ],
+              "quests": [
+                "quest_city_a_region_a_mainline_awakening_2_main",
+                "quest_city_a_region_a_mainline_awakening_2_side_1",
+                "quest_city_a_region_a_mainline_awakening_2_side_2"
+              ],
+              "worldPos": {
+                "x": 1200,
+                "z": 31
+              },
+              "generatedFor": "mainline_awakening",
+              "population": "small",
+              "createdAt": 1776480247502
+            }
+          ],
+          "features": [
+            "combat",
+            "crafting",
+            "trading",
+            "guilds"
+          ],
+          "createdAt": 1776480247502
+        },
+        "sideQuests": [
+          "Stille Spur (main)",
+          "Verborgenes Zeichen (main)"
+        ],
+        "generatedQuests": {
+          "mainQuestId": "ql_mainline_awakening_main",
+          "sideQuestIds": [
+            "ql_mainline_awakening_side_0",
+            "ql_mainline_awakening_side_1",
+            "ql_mainline_awakening_side_2"
+          ],
+          "warQuestId": "ql_mainline_awakening_war",
+          "pvpQuestId": "ql_mainline_awakening_pvp",
+          "featureCoveragePending": 28
+        },
+        "questPack": {
+          "region": {
+            "id": "region_a_mainline_awakening",
+            "name": "Aeloria — Gebiet ning",
+            "landName": "Aeloria",
+            "factionId": "kaiserreich_aelion",
+            "strandKey": "A",
+            "biome": "desert",
+            "cities": [
+              {
+                "id": "city_a_region_a_mainline_awakening_0",
+                "name": "Sonnenhain",
+                "regionId": "region_a_mainline_awakening",
+                "factionId": "kaiserreich_aelion",
+                "strandKey": "A",
+                "type": "capital",
+                "biome": "desert",
+                "features": [
+                  "combat",
+                  "crafting",
+                  "trading",
+                  "guilds"
+                ],
+                "npcs": [
+                  {
+                    "id": "npc_city_a_region_a_mainline_awakening_0_knight_0",
+                    "role": "knight",
+                    "factionId": "kaiserreich_aelion",
+                    "cityId": "city_a_region_a_mainline_awakening_0",
+                    "name": "Knight von city_a_region_a_mainline_awakening_0",
+                    "dialogue": "dialogue_city_a_region_a_mainline_awakening_0_knight",
+                    "quest": "quest_city_a_region_a_mainline_awakening_0_knight_intro"
+                  },
+                  {
+                    "id": "npc_city_a_region_a_mainline_awakening_0_priest_1",
+                    "role": "priest",
+                    "factionId": "kaiserreich_aelion",
+                    "cityId": "city_a_region_a_mainline_awakening_0",
+                    "name": "Priest von city_a_region_a_mainline_awakening_0",
+                    "dialogue": "dialogue_city_a_region_a_mainline_awakening_0_priest",
+                    "quest": "quest_city_a_region_a_mainline_awakening_0_priest_intro"
+                  },
+                  {
+                    "id": "npc_city_a_region_a_mainline_awakening_0_merchant_2",
+                    "role": "merchant",
+                    "factionId": "kaiserreich_aelion",
+                    "cityId": "city_a_region_a_mainline_awakening_0",
+                    "name": "Merchant von city_a_region_a_mainline_awakening_0",
+                    "dialogue": "dialogue_city_a_region_a_mainline_awakening_0_merchant",
+                    "quest": "quest_city_a_region_a_mainline_awakening_0_merchant_intro"
+                  },
+                  {
+                    "id": "npc_city_a_region_a_mainline_awakening_0_herald_3",
+                    "role": "herald",
+                    "factionId": "kaiserreich_aelion",
+                    "cityId": "city_a_region_a_mainline_awakening_0",
+                    "name": "Herald von city_a_region_a_mainline_awakening_0",
+                    "dialogue": "dialogue_city_a_region_a_mainline_awakening_0_herald",
+                    "quest": "quest_city_a_region_a_mainline_awakening_0_herald_intro"
+                  }
+                ],
+                "shops": [
+                  {
+                    "id": "shop_city_a_region_a_mainline_awakening_0_smith",
+                    "name": "Schmied",
+                    "type": "crafting"
+                  },
+                  {
+                    "id": "shop_city_a_region_a_mainline_awakening_0_general",
+                    "name": "Allgemeinladen",
+                    "type": "general"
+                  }
+                ],
+                "quests": [
+                  "quest_city_a_region_a_mainline_awakening_0_main",
+                  "quest_city_a_region_a_mainline_awakening_0_side_1",
+                  "quest_city_a_region_a_mainline_awakening_0_side_2"
+                ],
+                "worldPos": {
+                  "x": 601,
+                  "z": 10
+                },
+                "generatedFor": "mainline_awakening",
+                "population": "large",
+                "createdAt": 1776480247502
+              },
+              {
+                "id": "city_a_region_a_mainline_awakening_1",
+                "name": "Goldhafen",
+                "regionId": "region_a_mainline_awakening",
+                "factionId": "kaiserreich_aelion",
+                "strandKey": "A",
+                "type": "village",
+                "biome": "desert",
+                "features": [
+                  "combat",
+                  "crafting",
+                  "trading",
+                  "guilds"
+                ],
+                "npcs": [
+                  {
+                    "id": "npc_city_a_region_a_mainline_awakening_1_knight_0",
+                    "role": "knight",
+                    "factionId": "kaiserreich_aelion",
+                    "cityId": "city_a_region_a_mainline_awakening_1",
+                    "name": "Knight von city_a_region_a_mainline_awakening_1",
+                    "dialogue": "dialogue_city_a_region_a_mainline_awakening_1_knight",
+                    "quest": "quest_city_a_region_a_mainline_awakening_1_knight_intro"
+                  },
+                  {
+                    "id": "npc_city_a_region_a_mainline_awakening_1_priest_1",
+                    "role": "priest",
+                    "factionId": "kaiserreich_aelion",
+                    "cityId": "city_a_region_a_mainline_awakening_1",
+                    "name": "Priest von city_a_region_a_mainline_awakening_1",
+                    "dialogue": "dialogue_city_a_region_a_mainline_awakening_1_priest",
+                    "quest": "quest_city_a_region_a_mainline_awakening_1_priest_intro"
+                  },
+                  {
+                    "id": "npc_city_a_region_a_mainline_awakening_1_merchant_2",
+                    "role": "merchant",
+                    "factionId": "kaiserreich_aelion",
+                    "cityId": "city_a_region_a_mainline_awakening_1",
+                    "name": "Merchant von city_a_region_a_mainline_awakening_1",
+                    "dialogue": "dialogue_city_a_region_a_mainline_awakening_1_merchant",
+                    "quest": "quest_city_a_region_a_mainline_awakening_1_merchant_intro"
+                  },
+                  {
+                    "id": "npc_city_a_region_a_mainline_awakening_1_herald_3",
+                    "role": "herald",
+                    "factionId": "kaiserreich_aelion",
+                    "cityId": "city_a_region_a_mainline_awakening_1",
+                    "name": "Herald von city_a_region_a_mainline_awakening_1",
+                    "dialogue": "dialogue_city_a_region_a_mainline_awakening_1_herald",
+                    "quest": "quest_city_a_region_a_mainline_awakening_1_herald_intro"
+                  }
+                ],
+                "shops": [
+                  {
+                    "id": "shop_city_a_region_a_mainline_awakening_1_smith",
+                    "name": "Schmied",
+                    "type": "crafting"
+                  },
+                  {
+                    "id": "shop_city_a_region_a_mainline_awakening_1_general",
+                    "name": "Allgemeinladen",
+                    "type": "general"
+                  }
+                ],
+                "quests": [
+                  "quest_city_a_region_a_mainline_awakening_1_main",
+                  "quest_city_a_region_a_mainline_awakening_1_side_1",
+                  "quest_city_a_region_a_mainline_awakening_1_side_2"
+                ],
+                "worldPos": {
+                  "x": 890,
+                  "z": 135
+                },
+                "generatedFor": "mainline_awakening",
+                "population": "small",
+                "createdAt": 1776480247502
+              },
+              {
+                "id": "city_a_region_a_mainline_awakening_2",
+                "name": "Lichthafen",
+                "regionId": "region_a_mainline_awakening",
+                "factionId": "kaiserreich_aelion",
+                "strandKey": "A",
+                "type": "ruin",
+                "biome": "desert",
+                "features": [
+                  "combat",
+                  "crafting",
+                  "trading",
+                  "guilds"
+                ],
+                "npcs": [
+                  {
+                    "id": "npc_city_a_region_a_mainline_awakening_2_knight_0",
+                    "role": "knight",
+                    "factionId": "kaiserreich_aelion",
+                    "cityId": "city_a_region_a_mainline_awakening_2",
+                    "name": "Knight von city_a_region_a_mainline_awakening_2",
+                    "dialogue": "dialogue_city_a_region_a_mainline_awakening_2_knight",
+                    "quest": "quest_city_a_region_a_mainline_awakening_2_knight_intro"
+                  },
+                  {
+                    "id": "npc_city_a_region_a_mainline_awakening_2_priest_1",
+                    "role": "priest",
+                    "factionId": "kaiserreich_aelion",
+                    "cityId": "city_a_region_a_mainline_awakening_2",
+                    "name": "Priest von city_a_region_a_mainline_awakening_2",
+                    "dialogue": "dialogue_city_a_region_a_mainline_awakening_2_priest",
+                    "quest": "quest_city_a_region_a_mainline_awakening_2_priest_intro"
+                  },
+                  {
+                    "id": "npc_city_a_region_a_mainline_awakening_2_merchant_2",
+                    "role": "merchant",
+                    "factionId": "kaiserreich_aelion",
+                    "cityId": "city_a_region_a_mainline_awakening_2",
+                    "name": "Merchant von city_a_region_a_mainline_awakening_2",
+                    "dialogue": "dialogue_city_a_region_a_mainline_awakening_2_merchant",
+                    "quest": "quest_city_a_region_a_mainline_awakening_2_merchant_intro"
+                  },
+                  {
+                    "id": "npc_city_a_region_a_mainline_awakening_2_herald_3",
+                    "role": "herald",
+                    "factionId": "kaiserreich_aelion",
+                    "cityId": "city_a_region_a_mainline_awakening_2",
+                    "name": "Herald von city_a_region_a_mainline_awakening_2",
+                    "dialogue": "dialogue_city_a_region_a_mainline_awakening_2_herald",
+                    "quest": "quest_city_a_region_a_mainline_awakening_2_herald_intro"
+                  }
+                ],
+                "shops": [
+                  {
+                    "id": "shop_city_a_region_a_mainline_awakening_2_smith",
+                    "name": "Schmied",
+                    "type": "crafting"
+                  },
+                  {
+                    "id": "shop_city_a_region_a_mainline_awakening_2_general",
+                    "name": "Allgemeinladen",
+                    "type": "general"
+                  }
+                ],
+                "quests": [
+                  "quest_city_a_region_a_mainline_awakening_2_main",
+                  "quest_city_a_region_a_mainline_awakening_2_side_1",
+                  "quest_city_a_region_a_mainline_awakening_2_side_2"
+                ],
+                "worldPos": {
+                  "x": 1200,
+                  "z": 31
+                },
+                "generatedFor": "mainline_awakening",
+                "population": "small",
+                "createdAt": 1776480247502
+              }
+            ],
+            "features": [
+              "combat",
+              "crafting",
+              "trading",
+              "guilds"
+            ],
+            "createdAt": 1776480247502
+          },
+          "mainQuest": {
+            "id": "ql_mainline_awakening_main",
+            "title": "Reinigung der Lande von Dunkelheit (Kaiserreich Aelion)",
+            "description": "Leinenstrang A: Aeloria — Gebiet ning",
+            "type": "main",
+            "strandKey": "A",
+            "factionId": "kaiserreich_aelion",
+            "cityId": "city_a_region_a_mainline_awakening_0",
+            "regionId": "region_a_mainline_awakening",
+            "steps": [
+              {
+                "id": "ql_mainline_awakening_main_step_0",
+                "type": "kill",
+                "title": "⚔️ Besiege city_a_region_a_mainline_awakening_0",
+                "description": "Bezwinge die Feinde, die das Land heilig belagern.",
+                "cityId": "city_a_region_a_mainline_awakening_0",
+                "targetId": "target_A_0",
+                "targetCount": 2,
+                "featureTriggers": [
+                  "combat"
+                ],
+                "rewards": {
+                  "xp": 10,
+                  "gold": 0
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_1",
+                "type": "craft",
+                "title": "🔨 Fertige an city_a_region_a_mainline_awakening_1",
+                "description": "Stelle in city_a_region_a_mainline_awakening_1 einen Gegenstand her, der deine heilige Reise symbolisiert.",
+                "cityId": "city_a_region_a_mainline_awakening_1",
+                "targetCount": 5,
+                "featureTriggers": [
+                  "crafting"
+                ],
+                "rewards": {
+                  "xp": 15,
+                  "gold": 2
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_2",
+                "type": "talk",
+                "title": "💬 Sprich mit city_a_region_a_mainline_awakening_2",
+                "description": "Finde den Informanten in city_a_region_a_mainline_awakening_2 und sprich mit ihm.",
+                "cityId": "city_a_region_a_mainline_awakening_2",
+                "npcId": "npc_city_a_region_a_mainline_awakening_2_contact_2",
+                "targetCount": 1,
+                "featureTriggers": [
+                  "trading"
+                ],
+                "rewards": {
+                  "xp": 20,
+                  "gold": 4
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_3",
+                "type": "talk",
+                "title": "💬 Sprich mit city_a_region_a_mainline_awakening_0",
+                "description": "Finde den Informanten in city_a_region_a_mainline_awakening_0 und sprich mit ihm.",
+                "cityId": "city_a_region_a_mainline_awakening_0",
+                "npcId": "npc_city_a_region_a_mainline_awakening_0_contact_3",
+                "targetCount": 2,
+                "featureTriggers": [
+                  "guilds"
+                ],
+                "rewards": {
+                  "xp": 25,
+                  "gold": 6
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_4",
+                "type": "spy",
+                "title": "👁️ Spioniere aus city_a_region_a_mainline_awakening_1",
+                "description": "Beobachte unauffällig die heiligen Kreise um city_a_region_a_mainline_awakening_1.",
+                "cityId": "city_a_region_a_mainline_awakening_1",
+                "targetCount": 1,
+                "featureTriggers": [
+                  "stealth"
+                ],
+                "rewards": {
+                  "xp": 30,
+                  "gold": 8
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_5",
+                "type": "kill",
+                "title": "⚔️ Besiege city_a_region_a_mainline_awakening_2",
+                "description": "Vernichte 4 Widersacher in city_a_region_a_mainline_awakening_2.",
+                "cityId": "city_a_region_a_mainline_awakening_2",
+                "targetId": "target_A_5",
+                "targetCount": 4,
+                "featureTriggers": [
+                  "assassination"
+                ],
+                "rewards": {
+                  "xp": 35,
+                  "gold": 10
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_6",
+                "type": "collect",
+                "title": "📦 Sammle city_a_region_a_mainline_awakening_0",
+                "description": "Die gesuchten Gegenstände liegen verborgen in der Nähe von city_a_region_a_mainline_awakening_0.",
+                "cityId": "city_a_region_a_mainline_awakening_0",
+                "targetId": "target_A_6",
+                "targetCount": 5,
+                "featureTriggers": [
+                  "blackmarket"
+                ],
+                "rewards": {
+                  "xp": 40,
+                  "gold": 12
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_7",
+                "type": "spy",
+                "title": "👁️ Spioniere aus city_a_region_a_mainline_awakening_1",
+                "description": "Lüfte das Geheimnis, das sich hinter den Mauern von city_a_region_a_mainline_awakening_1 verbirgt.",
+                "cityId": "city_a_region_a_mainline_awakening_1",
+                "targetCount": 4,
+                "featureTriggers": [
+                  "espionage"
+                ],
+                "rewards": {
+                  "xp": 45,
+                  "gold": 14
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_8",
+                "type": "collect",
+                "title": "📦 Sammle city_a_region_a_mainline_awakening_2",
+                "description": "Die gesuchten Gegenstände liegen verborgen in der Nähe von city_a_region_a_mainline_awakening_2.",
+                "cityId": "city_a_region_a_mainline_awakening_2",
+                "targetId": "target_A_8",
+                "targetCount": 3,
+                "featureTriggers": [
+                  "alchemy"
+                ],
+                "rewards": {
+                  "xp": 50,
+                  "gold": 16
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_9",
+                "type": "escort",
+                "title": "🛡️ Beschütze city_a_region_a_mainline_awakening_0",
+                "description": "Beschütze eine Karawane auf dem Weg durch city_a_region_a_mainline_awakening_0.",
+                "cityId": "city_a_region_a_mainline_awakening_0",
+                "targetCount": 2,
+                "featureTriggers": [
+                  "beastmastery"
+                ],
+                "rewards": {
+                  "xp": 55,
+                  "gold": 18
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_10",
+                "type": "collect",
+                "title": "📦 Sammle city_a_region_a_mainline_awakening_1",
+                "description": "Sammle 5 heilige Ressourcen ein.",
+                "cityId": "city_a_region_a_mainline_awakening_1",
+                "targetId": "target_A_10",
+                "targetCount": 5,
+                "featureTriggers": [
+                  "herbalism"
+                ],
+                "rewards": {
+                  "xp": 60,
+                  "gold": 20
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_11",
+                "type": "ritual",
+                "title": "🕯️ Vollführe city_a_region_a_mainline_awakening_2",
+                "description": "Die Sterne stehen günstig für eine Zeremonie bei city_a_region_a_mainline_awakening_2.",
+                "cityId": "city_a_region_a_mainline_awakening_2",
+                "targetCount": 5,
+                "featureTriggers": [
+                  "druidcraft"
+                ],
+                "rewards": {
+                  "xp": 65,
+                  "gold": 22
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_12",
+                "type": "ritual",
+                "title": "🕯️ Vollführe city_a_region_a_mainline_awakening_0",
+                "description": "Vollführe in city_a_region_a_mainline_awakening_0 ein heiliges Ritual gemäß der Lehre deiner Fraktion.",
+                "cityId": "city_a_region_a_mainline_awakening_0",
+                "targetCount": 4,
+                "featureTriggers": [
+                  "necromancy"
+                ],
+                "rewards": {
+                  "xp": 70,
+                  "gold": 24
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_13",
+                "type": "spy",
+                "title": "👁️ Spioniere aus city_a_region_a_mainline_awakening_1",
+                "description": "Lüfte das Geheimnis, das sich hinter den Mauern von city_a_region_a_mainline_awakening_1 verbirgt.",
+                "cityId": "city_a_region_a_mainline_awakening_1",
+                "targetCount": 4,
+                "featureTriggers": [
+                  "mindbending"
+                ],
+                "rewards": {
+                  "xp": 75,
+                  "gold": 26
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_14",
+                "type": "explore",
+                "title": "🔍 Erkunde city_a_region_a_mainline_awakening_2",
+                "description": "Kartiere die heilige Wildnis jenseits von city_a_region_a_mainline_awakening_2.",
+                "cityId": "city_a_region_a_mainline_awakening_2",
+                "targetCount": 5,
+                "featureTriggers": [
+                  "runemagic"
+                ],
+                "rewards": {
+                  "xp": 80,
+                  "gold": 28
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_15",
+                "type": "ritual",
+                "title": "🕯️ Vollführe city_a_region_a_mainline_awakening_0",
+                "description": "Vollführe in city_a_region_a_mainline_awakening_0 ein heiliges Ritual gemäß der Lehre deiner Fraktion.",
+                "cityId": "city_a_region_a_mainline_awakening_0",
+                "targetCount": 3,
+                "featureTriggers": [
+                  "soulbinding"
+                ],
+                "rewards": {
+                  "xp": 85,
+                  "gold": 30
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_16",
+                "type": "diplomacy",
+                "title": "🤝 Verhandle mit city_a_region_a_mainline_awakening_1",
+                "description": "Verhandle mit den Machthabern von city_a_region_a_mainline_awakening_1 — der Ton bleibt heilig.",
+                "cityId": "city_a_region_a_mainline_awakening_1",
+                "npcId": "npc_city_a_region_a_mainline_awakening_1_contact_16",
+                "targetCount": 1,
+                "featureTriggers": [
+                  "diplomacy"
+                ],
+                "rewards": {
+                  "xp": 90,
+                  "gold": 32
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_17",
+                "type": "build",
+                "title": "🏗️ Baue city_a_region_a_mainline_awakening_2",
+                "description": "Errichte in city_a_region_a_mainline_awakening_2 eine Stätte, die deiner Fraktion Ehre macht.",
+                "cityId": "city_a_region_a_mainline_awakening_2",
+                "targetCount": 5,
+                "featureTriggers": [
+                  "building"
+                ],
+                "rewards": {
+                  "xp": 95,
+                  "gold": 34
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_18",
+                "type": "diplomacy",
+                "title": "🤝 Verhandle mit city_a_region_a_mainline_awakening_0",
+                "description": "Verhandle mit den Machthabern von city_a_region_a_mainline_awakening_0 — der Ton bleibt heilig.",
+                "cityId": "city_a_region_a_mainline_awakening_0",
+                "npcId": "npc_city_a_region_a_mainline_awakening_0_contact_18",
+                "targetCount": 1,
+                "featureTriggers": [
+                  "politics"
+                ],
+                "rewards": {
+                  "xp": 100,
+                  "gold": 36
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_19",
+                "type": "explore",
+                "title": "🔍 Erkunde city_a_region_a_mainline_awakening_1",
+                "description": "Kartiere die heilige Wildnis jenseits von city_a_region_a_mainline_awakening_1.",
+                "cityId": "city_a_region_a_mainline_awakening_1",
+                "targetCount": 3,
+                "featureTriggers": [
+                  "exploration"
+                ],
+                "rewards": {
+                  "xp": 105,
+                  "gold": 38
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_20",
+                "type": "kill",
+                "title": "⚔️ Besiege city_a_region_a_mainline_awakening_2",
+                "description": "Vernichte 4 Widersacher in city_a_region_a_mainline_awakening_2.",
+                "cityId": "city_a_region_a_mainline_awakening_2",
+                "targetId": "target_A_20",
+                "targetCount": 4,
+                "featureTriggers": [
+                  "pvp"
+                ],
+                "rewards": {
+                  "xp": 110,
+                  "gold": 40
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_21",
+                "type": "kill",
+                "title": "⚔️ Besiege city_a_region_a_mainline_awakening_0",
+                "description": "Vernichte 3 Widersacher in city_a_region_a_mainline_awakening_0.",
+                "cityId": "city_a_region_a_mainline_awakening_0",
+                "targetId": "target_A_21",
+                "targetCount": 3,
+                "featureTriggers": [
+                  "pve"
+                ],
+                "rewards": {
+                  "xp": 115,
+                  "gold": 42
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_22",
+                "type": "build",
+                "title": "🏗️ Baue city_a_region_a_mainline_awakening_1",
+                "description": "Errichte in city_a_region_a_mainline_awakening_1 eine Stätte, die deiner Fraktion Ehre macht.",
+                "cityId": "city_a_region_a_mainline_awakening_1",
+                "targetCount": 1,
+                "featureTriggers": [
+                  "housing"
+                ],
+                "rewards": {
+                  "xp": 120,
+                  "gold": 44
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_23",
+                "type": "collect",
+                "title": "📦 Sammle city_a_region_a_mainline_awakening_2",
+                "description": "Sammle 5 heilige Ressourcen ein.",
+                "cityId": "city_a_region_a_mainline_awakening_2",
+                "targetId": "target_A_23",
+                "targetCount": 5,
+                "featureTriggers": [
+                  "fishing"
+                ],
+                "rewards": {
+                  "xp": 125,
+                  "gold": 46
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_24",
+                "type": "collect",
+                "title": "📦 Sammle city_a_region_a_mainline_awakening_0",
+                "description": "Die gesuchten Gegenstände liegen verborgen in der Nähe von city_a_region_a_mainline_awakening_0.",
+                "cityId": "city_a_region_a_mainline_awakening_0",
+                "targetId": "target_A_24",
+                "targetCount": 1,
+                "featureTriggers": [
+                  "mining"
+                ],
+                "rewards": {
+                  "xp": 130,
+                  "gold": 48
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_25",
+                "type": "collect",
+                "title": "📦 Sammle city_a_region_a_mainline_awakening_1",
+                "description": "Sammle 5 heilige Ressourcen ein.",
+                "cityId": "city_a_region_a_mainline_awakening_1",
+                "targetId": "target_A_25",
+                "targetCount": 5,
+                "featureTriggers": [
+                  "woodcutting"
+                ],
+                "rewards": {
+                  "xp": 135,
+                  "gold": 50
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_26",
+                "type": "craft",
+                "title": "🔨 Fertige an city_a_region_a_mainline_awakening_2",
+                "description": "Stelle in city_a_region_a_mainline_awakening_2 einen Gegenstand her, der deine heilige Reise symbolisiert.",
+                "cityId": "city_a_region_a_mainline_awakening_2",
+                "targetCount": 3,
+                "featureTriggers": [
+                  "cooking"
+                ],
+                "rewards": {
+                  "xp": 140,
+                  "gold": 52
+                },
+                "completed": false
+              },
+              {
+                "id": "ql_mainline_awakening_main_step_27",
+                "type": "craft",
+                "title": "🔨 Fertige an city_a_region_a_mainline_awakening_0",
+                "description": "Stelle in city_a_region_a_mainline_awakening_0 einen Gegenstand her, der deine heilige Reise symbolisiert.",
+                "cityId": "city_a_region_a_mainline_awakening_0",
+                "targetCount": 2,
+                "featureTriggers": [
+                  "enchanting"
+                ],
+                "rewards": {
+                  "xp": 145,
+                  "gold": 54
+                },
+                "completed": false
+              }
+            ],
+            "flavor": "heilig",
+            "rewards": {
+              "titleUnlock": "strand_A_main"
+            },
+            "status": "locked",
+            "createdAt": 1776480247503
+          },
+          "sideQuests": [
+            {
+              "id": "ql_mainline_awakening_side_0",
+              "title": "Tempelschutz",
+              "description": "Nebenquest im Gebiet Aeloria.",
+              "type": "side",
+              "strandKey": "A",
+              "factionId": "kaiserreich_aelion",
+              "cityId": "city_a_region_a_mainline_awakening_1",
+              "regionId": "region_a_mainline_awakening",
+              "steps": [
+                {
+                  "id": "ql_mainline_awakening_side_0_step_0",
+                  "type": "kill",
+                  "title": "⚔️ Besiege city_a_region_a_mainline_awakening_1",
+                  "description": "Bezwinge die Feinde, die das Land heilig belagern.",
+                  "cityId": "city_a_region_a_mainline_awakening_1",
+                  "targetId": "target_A_0",
+                  "targetCount": 5,
+                  "featureTriggers": [],
+                  "rewards": {
+                    "xp": 10,
+                    "gold": 0
+                  },
+                  "completed": false
+                }
+              ],
+              "flavor": "heilig",
+              "rewards": {
+                "xp": 25
+              },
+              "status": "locked",
+              "createdAt": 1776480247503
+            },
+            {
+              "id": "ql_mainline_awakening_side_1",
+              "title": "Piratenjagd",
+              "description": "Nebenquest im Gebiet Aeloria.",
+              "type": "side",
+              "strandKey": "A",
+              "factionId": "kaiserreich_aelion",
+              "cityId": "city_a_region_a_mainline_awakening_2",
+              "regionId": "region_a_mainline_awakening",
+              "steps": [
+                {
+                  "id": "ql_mainline_awakening_side_1_step_0",
+                  "type": "talk",
+                  "title": "💬 Sprich mit city_a_region_a_mainline_awakening_2",
+                  "description": "Finde den Informanten in city_a_region_a_mainline_awakening_2 und sprich mit ihm.",
+                  "cityId": "city_a_region_a_mainline_awakening_2",
+                  "npcId": "npc_city_a_region_a_mainline_awakening_2_contact_0",
+                  "targetCount": 2,
+                  "featureTriggers": [],
+                  "rewards": {
+                    "xp": 10,
+                    "gold": 0
+                  },
+                  "completed": false
+                }
+              ],
+              "flavor": "heilig",
+              "rewards": {
+                "xp": 25
+              },
+              "status": "locked",
+              "createdAt": 1776480247503
+            },
+            {
+              "id": "ql_mainline_awakening_side_2",
+              "title": "Adelsstreit",
+              "description": "Nebenquest im Gebiet Aeloria.",
+              "type": "side",
+              "strandKey": "A",
+              "factionId": "kaiserreich_aelion",
+              "cityId": "city_a_region_a_mainline_awakening_0",
+              "regionId": "region_a_mainline_awakening",
+              "steps": [
+                {
+                  "id": "ql_mainline_awakening_side_2_step_0",
+                  "type": "escort",
+                  "title": "🛡️ Beschütze city_a_region_a_mainline_awakening_0",
+                  "description": "Ein wichtiger Bote muss unbeschadet city_a_region_a_mainline_awakening_0 verlassen.",
+                  "cityId": "city_a_region_a_mainline_awakening_0",
+                  "targetCount": 3,
+                  "featureTriggers": [],
+                  "rewards": {
+                    "xp": 10,
+                    "gold": 0
+                  },
+                  "completed": false
+                }
+              ],
+              "flavor": "heilig",
+              "rewards": {
+                "xp": 25
+              },
+              "status": "locked",
+              "createdAt": 1776480247503
+            }
+          ],
+          "warQuest": {
+            "id": "ql_mainline_awakening_war",
+            "title": "Feldzug gegen den Dunkelrat",
+            "description": "Kriegsstrang — Aeloria.",
+            "type": "war",
+            "strandKey": "A",
+            "factionId": "kaiserreich_aelion",
+            "cityId": "city_a_region_a_mainline_awakening_0",
+            "regionId": "region_a_mainline_awakening",
+            "steps": [
+              {
+                "id": "war_mainline_awakening_step_0",
+                "type": "kill",
+                "title": "⚔️ Besiege city_a_region_a_mainline_awakening_0",
+                "description": "Bezwinge die Feinde, die das Land heilig belagern.",
+                "cityId": "city_a_region_a_mainline_awakening_0",
+                "targetId": "target_A_0",
+                "targetCount": 2,
+                "featureTriggers": [
+                  "combat"
+                ],
+                "rewards": {
+                  "xp": 10,
+                  "gold": 0
+                },
+                "completed": false
+              }
+            ],
+            "flavor": "heilig",
+            "rewards": {
+              "warToken": 1
+            },
+            "status": "locked",
+            "createdAt": 1776480247503
+          },
+          "pvpQuest": {
+            "id": "ql_mainline_awakening_pvp",
+            "title": "Tourniere des Kaisers",
+            "description": "Wettkampf im Zeichen von Sonnenorden.",
+            "type": "pvp",
+            "strandKey": "A",
+            "factionId": "kaiserreich_aelion",
+            "cityId": "city_a_region_a_mainline_awakening_1",
+            "regionId": "region_a_mainline_awakening",
+            "steps": [
+              {
+                "id": "pvp_mainline_awakening_step_0",
+                "type": "kill",
+                "title": "⚔️ Besiege city_a_region_a_mainline_awakening_1",
+                "description": "Vernichte 1 Widersacher in city_a_region_a_mainline_awakening_1.",
+                "cityId": "city_a_region_a_mainline_awakening_1",
+                "targetId": "target_A_0",
+                "targetCount": 1,
+                "featureTriggers": [
+                  "pvp"
+                ],
+                "rewards": {
+                  "xp": 10,
+                  "gold": 0
+                },
+                "completed": false
+              }
+            ],
+            "flavor": "heilig",
+            "rewards": {
+              "honor": 10
+            },
+            "status": "locked",
+            "createdAt": 1776480247503
+          },
+          "featureSchedule": [
+            {
+              "featureId": "combat",
+              "questStepId": "city_a_region_a_mainline_awakening_0",
+              "triggerType": "introduce",
+              "description": "Du wirst in deinen ersten Kampf verwickelt.",
+              "params": {
+                "unlockAction": "enable_combat_ui",
+                "requiredLevel": 1
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "crafting",
+              "questStepId": "city_a_region_a_mainline_awakening_1",
+              "triggerType": "introduce",
+              "description": "Ein Schmied zeigt dir die Grundlagen des Handwerks.",
+              "params": {
+                "unlockAction": "enable_crafting_ui",
+                "requiredLevel": 2
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "trading",
+              "questStepId": "city_a_region_a_mainline_awakening_2",
+              "triggerType": "introduce",
+              "description": "Du erreichst den ersten Marktplatz.",
+              "params": {
+                "unlockAction": "enable_trading_ui",
+                "requiredLevel": 1
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "guilds",
+              "questStepId": "city_a_region_a_mainline_awakening_0",
+              "triggerType": "introduce",
+              "description": "Eine Gilde öffnet dir ihre Tore.",
+              "params": {
+                "unlockAction": "enable_guild_ui",
+                "requiredLevel": 5
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "stealth",
+              "questStepId": "city_a_region_a_mainline_awakening_1",
+              "triggerType": "unlock",
+              "description": "Im Schatten lernst du dich zu bewegen.",
+              "params": {
+                "unlockAction": "enable_stealth_mechanics",
+                "requiredLevel": 3
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "assassination",
+              "questStepId": "city_a_region_a_mainline_awakening_2",
+              "triggerType": "unlock",
+              "description": "Dein erster Auftrag im Dunkel.",
+              "params": {
+                "unlockAction": "enable_assassination_quests",
+                "requiredLevel": 8
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "blackmarket",
+              "questStepId": "city_a_region_a_mainline_awakening_0",
+              "triggerType": "unlock",
+              "description": "Eine versteckte Tür führt in die Unterwelt.",
+              "params": {
+                "unlockAction": "enable_blackmarket_ui",
+                "requiredLevel": 5
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "espionage",
+              "questStepId": "city_a_region_a_mainline_awakening_1",
+              "triggerType": "unlock",
+              "description": "Informationen sind das wertvollste Gut.",
+              "params": {
+                "unlockAction": "enable_espionage_system",
+                "requiredLevel": 6
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "alchemy",
+              "questStepId": "city_a_region_a_mainline_awakening_2",
+              "triggerType": "unlock",
+              "description": "Dein erster Trank sprudelt im Kessel.",
+              "params": {
+                "unlockAction": "enable_alchemy_ui",
+                "requiredLevel": 2
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "beastmastery",
+              "questStepId": "city_a_region_a_mainline_awakening_0",
+              "triggerType": "unlock",
+              "description": "Ein Wildtier blickt dich an — und folgt dir.",
+              "params": {
+                "unlockAction": "enable_beastmastery_ui",
+                "requiredLevel": 4
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "herbalism",
+              "questStepId": "city_a_region_a_mainline_awakening_1",
+              "triggerType": "unlock",
+              "description": "Die Natur hält viele Geheimnisse bereit.",
+              "params": {
+                "unlockAction": "enable_herbalism_ui",
+                "requiredLevel": 1
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "druidcraft",
+              "questStepId": "city_a_region_a_mainline_awakening_2",
+              "triggerType": "unlock",
+              "description": "Die Urkraft der Natur fließt durch dich.",
+              "params": {
+                "unlockAction": "enable_druidcraft_ui",
+                "requiredLevel": 7
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "necromancy",
+              "questStepId": "city_a_region_a_mainline_awakening_0",
+              "triggerType": "unlock",
+              "description": "Die Grenze zwischen Leben und Tod verschwimmt.",
+              "params": {
+                "unlockAction": "enable_necromancy_ui",
+                "requiredLevel": 9
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "mindbending",
+              "questStepId": "city_a_region_a_mainline_awakening_1",
+              "triggerType": "unlock",
+              "description": "Gedanken sind formbar — wenn man weiß wie.",
+              "params": {
+                "unlockAction": "enable_mindbending_ui",
+                "requiredLevel": 10
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "runemagic",
+              "questStepId": "city_a_region_a_mainline_awakening_2",
+              "triggerType": "unlock",
+              "description": "Uralte Schriftzeichen erwachen zu Leben.",
+              "params": {
+                "unlockAction": "enable_runemagic_ui",
+                "requiredLevel": 6
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "soulbinding",
+              "questStepId": "city_a_region_a_mainline_awakening_0",
+              "triggerType": "unlock",
+              "description": "Eine Seele wird an dich gebunden — für immer.",
+              "params": {
+                "unlockAction": "enable_soulbinding_ui",
+                "requiredLevel": 11
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "diplomacy",
+              "questStepId": "city_a_region_a_mainline_awakening_1",
+              "triggerType": "unlock",
+              "description": "Worte können mehr bewirken als Schwerter.",
+              "params": {
+                "unlockAction": "enable_diplomacy_ui",
+                "requiredLevel": 3
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "building",
+              "questStepId": "city_a_region_a_mainline_awakening_2",
+              "triggerType": "unlock",
+              "description": "Dein erstes Gebäude erhebt sich aus dem Boden.",
+              "params": {
+                "unlockAction": "enable_building_ui",
+                "requiredLevel": 4
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "politics",
+              "questStepId": "city_a_region_a_mainline_awakening_0",
+              "triggerType": "unlock",
+              "description": "Der Rat der Ältesten lädt dich ein.",
+              "params": {
+                "unlockAction": "enable_politics_ui",
+                "requiredLevel": 8
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "exploration",
+              "questStepId": "city_a_region_a_mainline_awakening_1",
+              "triggerType": "unlock",
+              "description": "Die Karte vor dir ist leer — noch.",
+              "params": {
+                "unlockAction": "enable_exploration_ui",
+                "requiredLevel": 1
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "pvp",
+              "questStepId": "city_a_region_a_mainline_awakening_2",
+              "triggerType": "unlock",
+              "description": "Ein anderer Spieler fordert dich heraus.",
+              "params": {
+                "unlockAction": "enable_pvp_flag",
+                "requiredLevel": 5
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "pve",
+              "questStepId": "city_a_region_a_mainline_awakening_0",
+              "triggerType": "unlock",
+              "description": "Ein Kerker wartet auf mutige Seelen.",
+              "params": {
+                "unlockAction": "enable_pve_dungeons",
+                "requiredLevel": 3
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "housing",
+              "questStepId": "city_a_region_a_mainline_awakening_1",
+              "triggerType": "unlock",
+              "description": "Ein Grundstück gehört dir — bau dir ein Zuhause.",
+              "params": {
+                "unlockAction": "enable_housing_ui",
+                "requiredLevel": 6
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "fishing",
+              "questStepId": "city_a_region_a_mainline_awakening_2",
+              "triggerType": "unlock",
+              "description": "Am ruhigen Ufer wartet die erste Angel.",
+              "params": {
+                "unlockAction": "enable_fishing_ui",
+                "requiredLevel": 1
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "mining",
+              "questStepId": "city_a_region_a_mainline_awakening_0",
+              "triggerType": "unlock",
+              "description": "Tief im Berg schlummern Erze und Geheimnisse.",
+              "params": {
+                "unlockAction": "enable_mining_ui",
+                "requiredLevel": 2
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "woodcutting",
+              "questStepId": "city_a_region_a_mainline_awakening_1",
+              "triggerType": "unlock",
+              "description": "Eine Axt, ein Baum — der Anfang von allem.",
+              "params": {
+                "unlockAction": "enable_woodcutting_ui",
+                "requiredLevel": 1
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "cooking",
+              "questStepId": "city_a_region_a_mainline_awakening_2",
+              "triggerType": "unlock",
+              "description": "Ein warmes Mahl stärkt Körper und Geist.",
+              "params": {
+                "unlockAction": "enable_cooking_ui",
+                "requiredLevel": 1
+              },
+              "satisfied": false
+            },
+            {
+              "featureId": "enchanting",
+              "questStepId": "city_a_region_a_mainline_awakening_0",
+              "triggerType": "unlock",
+              "description": "Magische Energie fließt in deinen Gegenstand.",
+              "params": {
+                "unlockAction": "enable_enchanting_ui",
+                "requiredLevel": 7
+              },
+              "satisfied": false
+            }
+          ]
+        }
+      }
+    },
+    "lastUpdated": "2026-04-18T02:47:17.182Z"
+  }
+}
