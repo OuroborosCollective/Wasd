@@ -89,12 +89,21 @@ function trimEnv(key: string): string {
 
 /** Public anon config for the browser bundle (no service role). */
 export function buildClientPublicConfigJson(): string {
-  const url =
-    trimEnv("VITE_SUPABASE_URL") ||
-    trimEnv("VITE_SUPABASE_PUBLIC_URL") ||
-    trimEnv("SUPABASE_PUBLIC_URL") ||
-    trimEnv("SUPABASE_URL") ||
-    trimEnv("API_EXTERNAL_URL");
+  // When the server uses an internal proxy URL, the browser client should talk
+  // to the game server origin — NOT directly to a self-signed Supabase endpoint.
+  const proxyUrl = trimEnv("SUPABASE_PROXY_URL");
+  const gameOrigin = trimEnv("GAME_ORIGIN") || trimEnv("APP_ORIGIN");
+  let url: string;
+  if (proxyUrl && gameOrigin) {
+    url = gameOrigin;
+  } else {
+    url =
+      trimEnv("VITE_SUPABASE_URL") ||
+      trimEnv("VITE_SUPABASE_PUBLIC_URL") ||
+      trimEnv("SUPABASE_PUBLIC_URL") ||
+      trimEnv("SUPABASE_URL") ||
+      trimEnv("API_EXTERNAL_URL");
+  }
   const anonKey = trimEnv("VITE_SUPABASE_ANON_KEY") || trimEnv("SUPABASE_ANON_KEY") || trimEnv("ANON_KEY");
   return JSON.stringify({
     supabaseUrl: url || null,
@@ -118,6 +127,7 @@ function normalizeSupabaseBaseUrl(raw: string): string | null {
 /** Exported for tests — Kong / GoTrue base URL (no trailing /auth/v1). */
 export function resolveSupabaseProxyBaseUrl(): string | null {
   const configured =
+    trimEnv("SUPABASE_PROXY_URL") ||
     trimEnv("SUPABASE_URL") ||
     trimEnv("SUPABASE_PUBLIC_URL") ||
     trimEnv("API_EXTERNAL_URL") ||

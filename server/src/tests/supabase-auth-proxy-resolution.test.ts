@@ -121,4 +121,10 @@ describe("resolveSupabaseProxyBaseUrlForRequest", () => {
     const resolved = resolveSupabaseProxyBaseUrlForRequest(req, null);
     expect(resolved).toBeNull();
   });
+
+  it("prefers SUPABASE_PROXY_URL over SUPABASE_URL", () => {
+    process.env.SUPABASE_PROXY_URL = "http://supabase.internal:8000";
+    process.env.SUPABASE_URL = "https://supabase.example:8443";
+    expect(resolveSupabaseProxyBaseUrl()).toBe("http://supabase.internal:8000");
+  });
 });

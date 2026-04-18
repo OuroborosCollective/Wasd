@@ -58,8 +58,27 @@ if [ -n "${POSTGRES_PASSWORD:-}" ] && [ -z "${PGPASSWORD:-}" ]; then
   export PGPASSWORD="${POSTGRES_PASSWORD}"
 fi
 
+# Auto-derive VITE_SUPABASE_* from server-side aliases when not explicitly provided.
+# This avoids requiring duplicate GitHub secrets for build-time vars.
+#
+# SUPABASE_PROXY_URL: server-side internal URL for the auth proxy (e.g. http://supabase:8000).
+# When set and no explicit VITE_SUPABASE_URL, the browser client should use the game server
+# origin (GAME_ORIGIN or APP_ORIGIN) as its Supabase URL — the server /auth/v1 proxy handles
+# the rest.  This avoids self-signed-cert / mixed-content problems with direct Supabase access.
+if [ -z "${VITE_SUPABASE_URL:-}" ]; then
+  if [ -n "${SUPABASE_PROXY_URL:-}" ]; then
+    # Prefer GAME_ORIGIN → APP_ORIGIN → fall back to Supabase public URL
+    export VITE_SUPABASE_URL="${GAME_ORIGIN:-${APP_ORIGIN:-${VITE_SUPABASE_PUBLIC_URL:-${SUPABASE_PUBLIC_URL:-${API_EXTERNAL_URL:-${SUPABASE_URL:-}}}}}}"
+  else
+    export VITE_SUPABASE_URL="${VITE_SUPABASE_PUBLIC_URL:-${SUPABASE_PUBLIC_URL:-${API_EXTERNAL_URL:-${SUPABASE_URL:-}}}}"
+  fi
+fi
+if [ -z "${VITE_SUPABASE_ANON_KEY:-}" ]; then
+  export VITE_SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-${ANON_KEY:-}}"
+fi
+
 set_key "VITE_SUPABASE_URL" "${VITE_SUPABASE_URL:-}"
-set_key "VITE_SUPABASE_PUBLIC_URL" "${VITE_SUPABASE_PUBLIC_URL:-}"
+set_key "VITE_SUPABASE_PUBLIC_URL" "${VITE_SUPABASE_PUBLIC_URL:-${VITE_SUPABASE_URL:-}}"
 set_key "VITE_SUPABASE_ANON_KEY" "${VITE_SUPABASE_ANON_KEY:-}"
 set_key "SUPABASE_URL" "${SUPABASE_URL:-}"
 set_key "SUPABASE_PUBLIC_URL" "${SUPABASE_PUBLIC_URL:-}"
@@ -85,6 +104,9 @@ set_key "POSTGRES_USER" "${POSTGRES_USER:-}"
 set_key "POSTGRES_PASSWORD" "${POSTGRES_PASSWORD:-}"
 set_key "POOLER_PROXY_PORT_TRANSACTION" "${POOLER_PROXY_PORT_TRANSACTION:-}"
 
+set_key "SUPABASE_PROXY_URL" "${SUPABASE_PROXY_URL:-}"
+set_key "GAME_ORIGIN" "${GAME_ORIGIN:-}"
+set_key "APP_ORIGIN" "${APP_ORIGIN:-}"
 set_key "USE_SUPABASE_WS_LOGIN" "${USE_SUPABASE_WS_LOGIN:-}"
 set_key "REQUIRE_SUPABASE_AUTH" "${REQUIRE_SUPABASE_AUTH:-}"
 set_key "PERSISTENCE_DRIVER" "${PERSISTENCE_DRIVER:-}"
