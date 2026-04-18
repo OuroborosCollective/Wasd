@@ -57,6 +57,8 @@ function normalizeSupabaseUrl(raw: string): string {
   const value = raw.trim();
   if (!value) return value;
   if (typeof window === "undefined") return value;
+  // Already HTTPS — no changes needed (including non-standard ports like :8443)
+  if (value.startsWith("https://")) return value.replace(/\/$/, "");
   if (!value.startsWith("http://")) return value;
   if (window.location.protocol !== "https:") return value;
   try {
@@ -65,8 +67,11 @@ function normalizeSupabaseUrl(raw: string): string {
     const isLocal =
       host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0" || host.endsWith(".local");
     if (isLocal) return value;
+    // Only strip port for standard Supabase hosted (*.supabase.co / .in / .red)
+    // Self-hosted Supabase on custom ports (e.g. :8443) must keep the port
+    const isHostedSupabase = /\.supabase\.(co|in|red)$/.test(host);
     parsed.protocol = "https:";
-    if (parsed.port === "8000" || parsed.port === "3000") {
+    if (isHostedSupabase && (parsed.port === "8000" || parsed.port === "3000")) {
       parsed.port = "";
     }
     return parsed.toString().replace(/\/$/, "");
