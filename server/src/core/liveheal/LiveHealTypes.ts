@@ -379,3 +379,18 @@ export interface LiveHealEvents {
   "asset:validated": GLBValidationResult;
   "learning:scored": { signatureKey: string; bestStrategy: string; score: number };
 }
+
+// ─── Root Cause Analysis ───────────────────────────────────────────────────
+
+export interface RootCauseCandidate {
+  subsystemId: string;
+  score: number;
+  reasons: string[];
+}
+
+export interface RootCauseAnalysis {
+  candidates: RootCauseCandidate[];
+  topSuspect: string | null;
+  victims: string[];
+  timestamp: number;
+}

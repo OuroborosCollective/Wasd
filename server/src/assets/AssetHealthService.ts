@@ -17,7 +17,7 @@ import type {
   GLBValidationResult,
   AssetHealthConfig,
   QuarantineEntry,
-} from "../../core/liveheal/LiveHealTypes.js";
+} from "../core/liveheal/LiveHealTypes.js";
 import { validateGLBFile } from "./GLBAssetValidator.js";
 import { AssetValidationCache } from "./AssetValidationCache.js";
 import { AssetQuarantineService } from "./AssetQuarantineService.js";

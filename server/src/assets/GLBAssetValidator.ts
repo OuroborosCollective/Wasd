@@ -14,7 +14,7 @@ import type {
   GLBValidationResult,
   GLBValidationIssue,
   GLBValidationSeverity,
-} from "../../core/liveheal/LiveHealTypes.js";
+} from "../core/liveheal/LiveHealTypes.js";
 
 // GLB constants
 const GLB_MAGIC = 0x46546C67; // "glTF" in little-endian

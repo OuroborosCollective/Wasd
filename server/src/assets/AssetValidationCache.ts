@@ -11,7 +11,7 @@ import * as crypto from "node:crypto";
 import type {
   AssetCacheEntry,
   GLBValidationResult,
-} from "../../core/liveheal/LiveHealTypes.js";
+} from "../core/liveheal/LiveHealTypes.js";
 
 function safeReadJson<T>(filePath: string, fallback: T): T {
   try {

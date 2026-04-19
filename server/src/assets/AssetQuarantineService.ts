@@ -12,7 +12,7 @@ import type {
   GLBValidationResult,
   QuarantineEntry,
   GLBValidationIssue,
-} from "../../core/liveheal/LiveHealTypes.js";
+} from "../core/liveheal/LiveHealTypes.js";
 
 function ensureDir(dirPath: string): void {
   try {
@@ -53,7 +53,7 @@ function computeFileHash(filePath: string): string | undefined {
 export class AssetQuarantineService {
   private readonly quarantineDir: string;
   private readonly manifestPath: string;
-  private readonly manifest: QuarantineEntry[] = [];
+  private manifest: QuarantineEntry[] = [];
 
   constructor(quarantineDir: string) {
     this.quarantineDir = quarantineDir;
@@ -106,8 +106,8 @@ export class AssetQuarantineService {
       originalPath: sourcePath,
       quarantinePath,
       reason: result.issues
-        .filter((i) => i.severity === "hardFailure")
-        .map((i) => `${i.code}: ${i.message}`)
+        .filter((i: { severity: string }) => i.severity === "hardFailure")
+        .map((i: { code: string; message: string }) => `${i.code}: ${i.message}`)
         .join("; "),
       issues: result.issues,
       quarantinedAt: Date.now(),

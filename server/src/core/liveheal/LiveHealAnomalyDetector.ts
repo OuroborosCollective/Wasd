@@ -121,7 +121,7 @@ export class LiveHealAnomalyDetector {
 
     pushValue(window, value);
 
-    const thresholds = (this.thresholds as Record<string, { warning: number; critical: number }>)[metricName];
+    const thresholds = (this.thresholds as unknown as Record<string, { warning: number; critical: number }>)[metricName];
     if (!thresholds) {
       return;
     }
@@ -171,7 +171,7 @@ export class LiveHealAnomalyDetector {
   getEma(subsystemId: string, metric: string): number | null {
     const metrics = this.subsystemWindows.get(subsystemId);
     if (!metrics) return null;
-    const w = (metrics as Record<string, SlidingWindow>)[metric];
+    const w = (metrics as unknown as Record<string, SlidingWindow>)[metric];
     return w?.ema ?? null;
   }
 

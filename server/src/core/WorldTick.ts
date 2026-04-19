@@ -3518,6 +3518,7 @@ export class WorldTick {
     ]);
 
     // Register adaptive strategies
+    const assetHealthSvc = this.assetHealthService;
     lh.registerStrategy({
       name: "asset_rescan",
       subsystems: ["asset-health"],
@@ -3529,7 +3530,7 @@ export class WorldTick {
       preservesFeatures: true,
       async run(subsystemId: string): Promise<import("./liveheal/LiveHealTypes.js").HealingResult> {
         const start = Date.now();
-        await this.assetHealthService.incrementalScan();
+        await assetHealthSvc.incrementalScan();
         return {
           success: true,
           strategyName: "asset_rescan",
