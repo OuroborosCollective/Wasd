@@ -117,7 +117,27 @@ jobs:
                 fi
                 export DATABASE_URL="$_db_url"
                 echo "DATABASE_URL set (host=$_pg_host port=$_pg_port)"
+              else
+                echo "WARNING: No POSTGRES_PASSWORD found, cannot construct DATABASE_URL"
               fi
+            else
+              echo "DATABASE_URL already set (from secret)"
+            fi
+            # Debug: show connection info (without password)
+            _db_host_port=$(echo "$DATABASE_URL" | sed -E 's|.*@||;s|/.*||;s|\?.*||' 2>/dev/null || echo 'N/A')
+            echo "DB target: $_db_host_port"
+            # Verify port is actually reachable before deploying
+            _db_host=$(echo "$_db_host_port" | cut -d: -f1)
+            _db_port=$(echo "$_db_host_port" | cut -d: -f2)
+            echo "Testing connection to $_db_host:$_db_port..."
+            if timeout 5 bash -c "cat < /dev/null > /dev/tcp/$_db_host/$_db_port" 2>/dev/null; then
+              echo "  -> Port $_db_port is REACHABLE on $_db_host"
+            else
+              echo "  -> WARNING: Port $_db_port is NOT reachable on $_db_host"
+              echo "  -> Checking all listening ports..."
+              ss -tlnp 2>/dev/null | grep -E '5432|6543' || echo "  -> No Postgres ports listening!"
+              echo "  -> Docker containers:"
+              docker ps --format '{{.Names}} {{.Ports}}' 2>/dev/null | grep -i 'db\|postgres\|pooler' || echo "  -> No matching containers found"
             fi
             export USE_SUPABASE_WS_LOGIN="${USE_SUPABASE_WS_LOGIN:-1}"
             export REQUIRE_SUPABASE_AUTH="${REQUIRE_SUPABASE_AUTH:-1}"
