@@ -409,6 +409,31 @@ export class ServerBootstrap {
           healingRate: selfHealingStatus.healingRate,
           featuresProtected: selfHealingStatus.featuresProtected,
         },
+        liveHeal: (() => {
+          const status = tick.liveHeal.getStatus();
+          return {
+            tickCount: status.tickCount,
+            subsystems: status.subsystems.map(s => ({
+              id: s.id,
+              state: s.state,
+              score: s.score,
+              healingLocked: s.healingLocked,
+            })),
+            learningEntries: status.learningEntries,
+            logEntries: status.logEntries,
+          };
+        })(),
+        assetHealth: (() => {
+          const stats = tick.assetHealthService.getStats();
+          return {
+            totalScanned: stats.totalScanned,
+            totalValid: stats.totalValid,
+            totalWarnings: stats.totalWarnings,
+            totalHardFailures: stats.totalHardFailures,
+            totalQuarantined: stats.totalQuarantined,
+            startupScanDone: stats.startupScanDone,
+          };
+        })(),
       });
     });
     app.use(selfHealingMiddleware());
@@ -418,6 +443,16 @@ export class ServerBootstrap {
     httpServer.listen(port, () => {
       console.log(`Arelorian server listening on ${port}`);
       tick.start();
+
+      // Graceful shutdown: flush LiveHeal learning data
+      const shutdownHandler = () => {
+        console.log("[LiveHeal] Flushing data on shutdown...");
+        tick.liveHeal.flush();
+        tick.assetHealthService.flush();
+        process.exit(0);
+      };
+      process.on("SIGTERM", shutdownHandler);
+      process.on("SIGINT", shutdownHandler);
     });
   }
 }

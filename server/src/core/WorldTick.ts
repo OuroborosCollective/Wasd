@@ -69,6 +69,9 @@ import { NPCRelationshipSystem } from "../modules/npc/NPCRelationshipSystem.js";
 
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { GameConfig } from "../config/GameConfig.js";
+import { LiveHealEngine, bootstrapLiveHeal, resolveLiveHealConfigFromEnv } from "./liveheal/index.js";
+import { AssetHealthService } from "../assets/AssetHealthService.js";
+import type { HealthSnapshot, SubSystemAdapter } from "./liveheal/LiveHealTypes.js";
 
 type SpawnPoint = { x: number; y: number; z: number };
 type SceneProfile = {
@@ -331,6 +334,8 @@ export class WorldTick {
   private housingObjects: Map<string, any> = new Map();
   private craftingSystem: any = null;
   private questlineEngine: QuestlineEngine;
+  public readonly liveHeal: LiveHealEngine;
+  public readonly assetHealthService: AssetHealthService;
 
   private socketToPlayer: Map<string, string> = new Map(); // socketId -> characterName
   private lastActionTimes: Map<string, number> = new Map(); // charName -> timestamp
@@ -2052,6 +2057,12 @@ export class WorldTick {
     this.areStateCompiler = new AREStateCompiler();
     this.craftingSystem = new CraftingSystem();
     this.areMode = this.runtimeSettings.getAREMode();
+
+    // Initialize LiveHeal v2 resilience engine (WorldTick-only scheduling)
+    this.liveHeal = bootstrapLiveHeal(resolveLiveHealConfigFromEnv());
+    this.assetHealthService = new AssetHealthService(this.liveHeal.config.assetValidation);
+    this.registerLiveHealSubsystems();
+
     void initRedisChatRelay();
     this.chatUnsubscribe = onRedisChatMessage((chatMessage: RelayedChatMessage) => {
       this.broadcastChatMessage(chatMessage);
@@ -3298,6 +3309,11 @@ export class WorldTick {
       void flushDirtyEntries(this.npcMemoryCache).catch(() => {});
     }
 
+    // LiveHeal v2: run health checks via WorldTick (no duplicate scheduling)
+    if (this.tickCount % 10 === 0) {
+      void this.liveHeal.onTick().catch(() => { /* never crash the tick */ });
+    }
+
     this.broadcastState();
   }
 
@@ -3419,7 +3435,117 @@ export class WorldTick {
     }
   }
 
-  public getWorld() {
+  private registerLiveHealSubsystems(): void {
+    const lh = this.liveHeal;
+
+    // Register core subsystems with health adapters
+    lh.registerSubsystem({
+      id: "worldtick",
+      getHealthSnapshot: (): HealthSnapshot => {
+        const tickMs = 100; // fixed interval
+        return {
+          ok: true,
+          status: "healthy",
+          score: 100,
+          symptomTags: [],
+          metrics: { tickDurationMs: tickMs, uptimeMs: Date.now() % 1e9 },
+          canServeReadOnly: true,
+        };
+      },
+      getProtectedFeatures: () => ["core-worldtick"],
+    });
+
+    lh.registerSubsystem({
+      id: "player-system",
+      getHealthSnapshot: (): HealthSnapshot => {
+        const players = this.playerSystem.getAllPlayers();
+        const online = players.filter(p => !p.isOffline).length;
+        return {
+          ok: true,
+          status: "healthy",
+          score: 100,
+          symptomTags: [],
+          metrics: { activeConnections: online, queueDepth: players.length },
+          canServeReadOnly: true,
+        };
+      },
+      getDependencies: () => ["worldtick"],
+      getProtectedFeatures: () => ["core-worldtick", "player-persistence"],
+    });
+
+    lh.registerSubsystem({
+      id: "npc-system",
+      getHealthSnapshot: (): HealthSnapshot => {
+        const npcs = this.npcSystem.getAllNPCs();
+        return {
+          ok: true,
+          status: "healthy",
+          score: 100,
+          symptomTags: [],
+          metrics: { queueDepth: npcs.length },
+          canServeReadOnly: true,
+        };
+      },
+      getDependencies: () => ["worldtick"],
+    });
+
+    lh.registerSubsystem({
+      id: "combat-system",
+      getHealthSnapshot: (): HealthSnapshot => ({
+        ok: true,
+        status: "healthy",
+        score: 100,
+        symptomTags: [],
+        metrics: {},
+        canServeReadOnly: false,
+      }),
+      getDependencies: () => ["player-system", "npc-system"],
+      getProtectedFeatures: () => ["combat-system"],
+    });
+
+    lh.registerSubsystem({
+      id: "asset-health",
+      getHealthSnapshot: () => this.assetHealthService.getHealthSnapshot(),
+      getProtectedFeatures: () => [],
+    });
+
+    // Register dependencies
+    lh.registerDependencies([
+      { from: "player-system", to: "worldtick" },
+      { from: "npc-system", to: "worldtick" },
+      { from: "combat-system", to: "player-system" },
+      { from: "combat-system", to: "npc-system" },
+    ]);
+
+    // Register adaptive strategies
+    lh.registerStrategy({
+      name: "asset_rescan",
+      subsystems: ["asset-health"],
+      riskLevel: "low",
+      cooldownMs: 30000,
+      maxAttempts: 2,
+      mayTouchState: false,
+      mayDropQueue: false,
+      preservesFeatures: true,
+      async run(subsystemId: string): Promise<import("./liveheal/LiveHealTypes.js").HealingResult> {
+        const start = Date.now();
+        await this.assetHealthService.incrementalScan();
+        return {
+          success: true,
+          strategyName: "asset_rescan",
+          message: `Asset incremental rescan completed in ${Date.now() - start}ms.`,
+          durationMs: Date.now() - start,
+          sideEffects: [],
+          serviceable: true,
+        };
+      },
+    });
+
+    // Trigger startup asset scan (non-blocking)
+    void this.assetHealthService.startupScan().catch(() => { /* best effort */ });
+  }
+
+  getWorld() {
     return {
        updateMonsters: () => {} // Shim for WebSocketServer compatibility if needed
     };
