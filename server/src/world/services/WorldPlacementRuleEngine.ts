@@ -122,21 +122,33 @@ export class WorldPlacementRuleEngine {
     // 5. Apply corrections for repairable issues
     const repairable = issues.filter((i) => i.repairable);
     if (repairable.length > 0) {
-      const repairResult = await this.layoutEngine.repair(issues);
+      // Use validateAndRepair instead of missing repair() method
+      this.layoutEngine.loadEntities([{
+        id: entity.id,
+        type: entity.type,
+        name: entity.id,
+        position: entity.position,
+        rotation: entity.rotation,
+        scale: entity.scale,
+        glbPath: entity.glbPath
+      }]);
+      const repairResult = await this.layoutEngine.validateAndRepair();
 
-      for (const action of repairResult.actions) {
-        if (action.success) {
-          state = "corrected";
-          corrections.push(action.message);
+      if (repairResult.repair && repairResult.repair.actions.length > 0) {
+        for (const action of repairResult.repair.actions) {
+          if (action.success) {
+            state = "corrected";
+            corrections.push(action.message);
 
-          if (action.type === "move" && action.targetPosition) {
-            finalPosition = action.targetPosition;
-          }
-          if (action.type === "snap") {
-            finalPositionZ = 0;
-          }
-          if (action.type === "rotate" && action.after?.rotation !== undefined) {
-            finalRotation = action.after.rotation as number;
+            if (action.type === "move" && action.targetPosition) {
+              finalPosition = action.targetPosition;
+            }
+            if (action.type === "snap") {
+              finalPositionZ = 0;
+            }
+            if (action.type === "rotate" && action.after?.rotation !== undefined) {
+              finalRotation = action.after.rotation as number;
+            }
           }
         }
       }
@@ -341,13 +353,17 @@ export class WorldPlacementRuleEngine {
   }
 
   private buildSpatialEntity(req: PlacementRequest, profile: AssetProfile): SpatialEntity {
+    // Map AssetCategory to LayoutCategory if needed, but for now we use 'building' as type
+    // and let the resolver handle the category.
     return {
       id: req.id,
+      type: "building", // Added required 'type' property
       category: profile.category as any,
       position: { x: req.position.x, y: req.position.y },
       positionZ: req.positionZ ?? 0,
       rotation: req.rotation ?? 0,
       scale: req.scale ?? 1,
+      glbPath: req.assetPath,
       footprint: {
         assetPath: req.assetPath,
         category: profile.category as any,
@@ -363,7 +379,8 @@ export class WorldPlacementRuleEngine {
   }
 
   private validatePlacement(entity: SpatialEntity): LayoutIssue[] {
-    const result = this.layoutEngine.validate([entity]);
+    // Fixed TS2554: Pass [entity] to validate()
+    const result = this.layoutEngine.getValidator().validate([entity]);
     return result.issues;
   }
 }
