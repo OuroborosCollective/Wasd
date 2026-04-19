@@ -149,4 +149,66 @@ describe("resolveLoginIdentity", () => {
       expect(result.charName).toBe("fallback@example.com");
     }
   });
+
+  it("returns invalid_token when both Supabase and Firebase fail to verify", async () => {
+    setNodeEnv("production");
+    process.env.USE_SUPABASE_WS_LOGIN = "1";
+    process.env.USE_FIREBASE_WS_LOGIN = "1";
+    process.env.ALLOW_GUEST_LOGIN = "0";
+    vi.doMock("../config/supabase.js", () => ({
+      isSupabaseAuthConfigured: vi.fn(() => true),
+      verifySupabaseToken: vi.fn(() => {
+        throw new Error("bad supabase token");
+      }),
+    }));
+    vi.doMock("../config/firebase.js", () => ({
+      isFirebaseAuthConfigured: vi.fn(() => true),
+      verifyFirebaseToken: vi.fn().mockRejectedValue(new Error("bad firebase token")),
+    }));
+    const { resolveLoginIdentity } =
+      await import("../modules/auth/resolveLoginIdentity.js");
+    const result = await resolveLoginIdentity("sock-bad", {
+      token: "bad-token",
+    });
+    expect(result).toEqual({
+      error: "Invalid or expired token",
+      code: "invalid_token",
+    });
+  });
+
+  it("returns invalid_token not login_required when Supabase required and bad token given", async () => {
+    setNodeEnv("production");
+    process.env.USE_SUPABASE_WS_LOGIN = "1";
+    process.env.REQUIRE_SUPABASE_AUTH = "1";
+    process.env.ALLOW_GUEST_LOGIN = "0";
+    vi.doMock("../config/supabase.js", () => ({
+      isSupabaseAuthConfigured: vi.fn(() => true),
+      verifySupabaseToken: vi.fn(() => {
+        throw new Error("expired");
+      }),
+    }));
+    const { resolveLoginIdentity } =
+      await import("../modules/auth/resolveLoginIdentity.js");
+    const result = await resolveLoginIdentity("sock-bad-token", {
+      token: "expired-token",
+    });
+    expect(result).toEqual({
+      error: "Invalid or expired token",
+      code: "invalid_token",
+    });
+  });
+
+  it("guest login overrides requireSupabaseAuth when ALLOW_GUEST_LOGIN=1", async () => {
+    setNodeEnv("production");
+    process.env.REQUIRE_SUPABASE_AUTH = "1";
+    process.env.ALLOW_GUEST_LOGIN = "1";
+    const { resolveLoginIdentity } =
+      await import("../modules/auth/resolveLoginIdentity.js");
+    const result = await resolveLoginIdentity("sock-guest", {});
+    expect("error" in result).toBe(false);
+    if (!("error" in result)) {
+      expect(result.uid).toMatch(/^guest_/);
+      expect(result.charName).toBe("Guest");
+    }
+  });
 });

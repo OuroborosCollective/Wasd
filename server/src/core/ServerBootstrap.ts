@@ -398,7 +398,11 @@ export class ServerBootstrap {
           useSupabaseWsLogin: envTruthy("USE_SUPABASE_WS_LOGIN"),
           requireFirebaseAuth: envTruthy("REQUIRE_FIREBASE_AUTH"),
           requireSupabaseAuth: envTruthy("REQUIRE_SUPABASE_AUTH"),
-          allowGuestLogin: envTruthy("ALLOW_GUEST_LOGIN"),
+          allowGuestLogin: (() => {
+            const v = process.env.ALLOW_GUEST_LOGIN?.trim().toLowerCase();
+            if (v === "0" || v === "false" || v === "no") return false;
+            return true;
+          })(),
           allowDevLogin: !["0", "false", "no"].includes(process.env.ALLOW_DEV_LOGIN?.trim().toLowerCase() || ""),
         },
         selfHealing: {
