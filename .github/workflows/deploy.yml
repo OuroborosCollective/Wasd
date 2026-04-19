@@ -93,6 +93,22 @@ jobs:
             export POOLER_PROXY_PORT_TRANSACTION="${POOLER_PROXY_PORT_TRANSACTION:-}"
             export SUPABASE_PROXY_URL="${SUPABASE_PROXY_URL:-http://supabase.arelogic.space:8000}"
             export GAME_ORIGIN="${GAME_ORIGIN:-https://arelogic.space}"
+            # Construct DATABASE_URL from individual PG secrets if not set directly
+            if [ -z "${DATABASE_URL:-}" ]; then
+              _pg_host="${POSTGRES_HOST:-${PGHOST:-127.0.0.1}}"
+              # Docker-internal hostnames like 'db' won't work from PM2; use localhost
+              if [ "$_pg_host" = "db" ] || [ "$_pg_host" = "supabase-db" ]; then
+                _pg_host="127.0.0.1"
+              fi
+              _pg_port="${POSTGRES_PORT:-${PGPORT:-5432}}"
+              _pg_db="${POSTGRES_DB:-${PGDATABASE:-postgres}}"
+              _pg_user="${POSTGRES_USER:-${PGUSER:-postgres}}"
+              _pg_pass="${POSTGRES_PASSWORD:-${PGPASSWORD:-}}"
+              if [ -n "$_pg_pass" ]; then
+                export DATABASE_URL="postgresql://${_pg_user}:$(python3 -c "import urllib.parse; print(urllib.parse.quote('$_pg_pass',''))" 2>/dev/null || echo "$_pg_pass")@${_pg_host}:${_pg_port}/${_pg_db}"
+                echo "Constructed DATABASE_URL from individual PG secrets (host=$_pg_host)"
+              fi
+            fi
             export USE_SUPABASE_WS_LOGIN="${USE_SUPABASE_WS_LOGIN:-1}"
             export REQUIRE_SUPABASE_AUTH="${REQUIRE_SUPABASE_AUTH:-1}"
             export PERSISTENCE_DRIVER="${PERSISTENCE_DRIVER:-postgres}"
