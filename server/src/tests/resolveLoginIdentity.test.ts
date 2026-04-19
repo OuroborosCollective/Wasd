@@ -17,7 +17,7 @@ describe("resolveLoginIdentity", () => {
 
   it("production without token or guest returns error", async () => {
     setNodeEnv("production");
-    delete process.env.ALLOW_GUEST_LOGIN;
+    process.env.ALLOW_GUEST_LOGIN = "0";
     const { resolveLoginIdentity } =
       await import("../modules/auth/resolveLoginIdentity.js");
     const r = await resolveLoginIdentity("sock1", {});
@@ -42,7 +42,7 @@ describe("resolveLoginIdentity", () => {
 
   it("development allows dev login when ALLOW_DEV_LOGIN unset", async () => {
     setNodeEnv("development");
-    delete process.env.ALLOW_GUEST_LOGIN;
+    process.env.ALLOW_GUEST_LOGIN = "0";
     const { resolveLoginIdentity } =
       await import("../modules/auth/resolveLoginIdentity.js");
     const r = await resolveLoginIdentity("abc-uuid-long", {});
@@ -55,7 +55,7 @@ describe("resolveLoginIdentity", () => {
   it("development blocks dev login when ALLOW_DEV_LOGIN=0", async () => {
     setNodeEnv("development");
     process.env.ALLOW_DEV_LOGIN = "0";
-    delete process.env.ALLOW_GUEST_LOGIN;
+    process.env.ALLOW_GUEST_LOGIN = "0";
     const { resolveLoginIdentity } =
       await import("../modules/auth/resolveLoginIdentity.js");
     const r = await resolveLoginIdentity("sock1", {});
@@ -68,7 +68,7 @@ describe("resolveLoginIdentity", () => {
   it("ignores JWT when USE_FIREBASE_WS_LOGIN is unset (dev login)", async () => {
     setNodeEnv("development");
     delete process.env.USE_FIREBASE_WS_LOGIN;
-    delete process.env.ALLOW_GUEST_LOGIN;
+    process.env.ALLOW_GUEST_LOGIN = "0";
     const { resolveLoginIdentity } =
       await import("../modules/auth/resolveLoginIdentity.js");
     const r = await resolveLoginIdentity("sock-z", { token: "not-a-real-jwt" });
