@@ -14,7 +14,7 @@ git pull origin main
 cd "$APP_DIR"
 if command -v pnpm >/dev/null 2>&1; then
   echo "Using pnpm for installation and build..."
-  pnpm install --frozen-lockfile
+  pnpm install --no-frozen-lockfile
   NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm run build
 else
   echo "pnpm not found, falling back to npm..."

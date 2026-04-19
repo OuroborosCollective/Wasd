@@ -24,7 +24,7 @@
     "@babylonjs/havok": "^1.3.12",
     "@babylonjs/addons": "^9.0.0",
     "@babylonjs/materials": "^9.0.0",
-    "recast-detour": "^1.6.5"
+    "recast-detour": "^1.6.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.11",
