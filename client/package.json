@@ -12,14 +12,19 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.0",
+    "@supabase/supabase-js": "^2.103.2",
     "@babylonjs/core": "^9.0.0",
     "@babylonjs/loaders": "^9.0.0",
-    "@supabase/supabase-js": "^2.103.2",
     "firebase": "^12.12.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
-    "three": "^0.183.2"
+    "three": "^0.183.2",
+    "@babylonjs/gui": "^9.0.0",
+    "@babylonjs/inspector": "^9.0.0",
+    "@babylonjs/havok": "^9.0.0",
+    "@babylonjs/addons": "^9.0.0",
+    "@babylonjs/materials": "^9.0.0",
+    "recast-detour": "^1.6.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.11",
