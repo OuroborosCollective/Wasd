@@ -105,8 +105,18 @@ jobs:
               _pg_user="${POSTGRES_USER:-${PGUSER:-postgres}}"
               _pg_pass="${POSTGRES_PASSWORD:-${PGPASSWORD:-}}"
               if [ -n "$_pg_pass" ]; then
-                export DATABASE_URL="postgresql://${_pg_user}:$(python3 -c "import urllib.parse; print(urllib.parse.quote('$_pg_pass',''))" 2>/dev/null || echo "$_pg_pass")@${_pg_host}:${_pg_port}/${_pg_db}"
-                echo "Constructed DATABASE_URL from individual PG secrets (host=$_pg_host)"
+                # URL-encode the password (may contain special chars like !)
+                _pg_pass_enc=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${_pg_pass}',''))" 2>/dev/null || echo "$_pg_pass")
+                # Try direct port first, then pooler port
+                _db_url="postgresql://${_pg_user}:${_pg_pass_enc}@${_pg_host}:${_pg_port}/${_pg_db}"
+                if ! timeout 3 bash -c "cat < /dev/null > /dev/tcp/${_pg_host}/${_pg_port}" 2>/dev/null; then
+                  echo "Port ${_pg_port} not reachable on ${_pg_host}, trying pooler port 6543..."
+                  _pg_port="6543"
+                  # Pooler uses transaction mode — add sslmode=require for remote
+                  _db_url="postgresql://${_pg_user}:${_pg_pass_enc}@${_pg_host}:${_pg_port}/${_pg_db}?sslmode=require"
+                fi
+                export DATABASE_URL="$_db_url"
+                echo "DATABASE_URL set (host=$_pg_host port=$_pg_port)"
               fi
             fi
             export USE_SUPABASE_WS_LOGIN="${USE_SUPABASE_WS_LOGIN:-1}"
