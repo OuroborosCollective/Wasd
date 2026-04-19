@@ -2272,6 +2272,28 @@ export class WorldTick {
         return;
       }
 
+      if (msg.type === "equip_item") {
+        const itemId = typeof msg.itemId === "string" ? msg.itemId.trim() : "";
+        if (!itemId) return;
+        const equipment = this.inventorySystem.equipItem(player, itemId);
+        if (equipment) {
+          this.ws.sendToPlayer(id, { type: "toast", text: `Equipped item.` });
+          this.pushPlayerStateSync(id, player);
+        }
+        return;
+      }
+
+      if (msg.type === "unequip_item") {
+        const slot = typeof msg.slot === "string" ? msg.slot.trim() : "";
+        if (!slot || (slot !== "weapon" && slot !== "armor")) return;
+        const equipment = this.inventorySystem.unequipItem(player, slot);
+        if (equipment) {
+          this.ws.sendToPlayer(id, { type: "toast", text: `Unequipped ${slot}.` });
+          this.pushPlayerStateSync(id, player);
+        }
+        return;
+      }
+
       if (msg.type === "pickup_loot") {
         const lootId = typeof msg.lootId === "string" ? msg.lootId.trim() : "";
         if (!this.tryPickupLoot(id, player, lootId)) return;
