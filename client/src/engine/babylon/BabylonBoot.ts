@@ -66,8 +66,8 @@ export function createBabylonApp(canvas: HTMLCanvasElement): BabylonApp {
   const scene = new Scene(engine);
   scene.clearColor = new Color4(0.12, 0.18, 0.34, 1);
   scene.ambientColor = new Color3(0.24, 0.28, 0.36);
-  scene.fogMode = Scene.FOGMODE_EXP2;
-  scene.fogDensity = android ? 0.012 : 0.006;
+  scene.fogMode = useMobileRenderBudget ? Scene.FOGMODE_NONE : Scene.FOGMODE_EXP2;
+  scene.fogDensity = android ? 0 : 0.006;
   scene.fogColor = new Color3(0.45, 0.58, 0.82);
 
   if (!android) {

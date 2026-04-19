@@ -3,6 +3,7 @@ export type ChatScope = "global" | "zone" | "party" | "local" | "status";
 type ChatSendFn = (type: string, payload: Record<string, unknown>) => void;
 
 const MAX_LINES = 100;
+const MAX_STATUS_LINES = 40;
 
 interface ChatLine {
   html: string;
@@ -38,8 +39,23 @@ function renderLines(): void {
 }
 
 function appendChatLine(line: ChatLine): void {
+  if (line.channel === "status") {
+    const firstStatusIdx = allLines.findIndex((entry) => entry.channel === "status");
+    const statusCount = allLines.reduce((count, entry) => count + (entry.channel === "status" ? 1 : 0), 0);
+    if (statusCount >= MAX_STATUS_LINES && firstStatusIdx >= 0) {
+      allLines.splice(firstStatusIdx, 1);
+    }
+  }
   allLines.push(line);
-  if (allLines.length > MAX_LINES) allLines.shift();
+  if (allLines.length > MAX_LINES) {
+    // Preserve local/global player chatter by dropping the oldest status line first.
+    const firstStatusIdx = allLines.findIndex((entry) => entry.channel === "status");
+    if (firstStatusIdx >= 0) {
+      allLines.splice(firstStatusIdx, 1);
+    } else {
+      allLines.shift();
+    }
+  }
   renderLines();
 }
 
