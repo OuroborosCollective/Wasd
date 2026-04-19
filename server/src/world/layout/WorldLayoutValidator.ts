@@ -21,6 +21,7 @@ import { createDoorValidatorRule } from "./WorldLayoutDoorValidator.js";
 import { createDungeonDistanceRule } from "./WorldLayoutDungeonDistanceValidator.js";
 import { createPathValidatorRule } from "./WorldLayoutPathValidator.js";
 import { createGLBPlacementRule } from "./GLBPlacementValidator.js";
+import { createTreePlacementRule } from "./TreePlacementValidator.js";
 
 export class WorldLayoutValidator {
   private readonly registry = new WorldLayoutConstraintRegistry();
@@ -44,6 +45,7 @@ export class WorldLayoutValidator {
     ));
     this.registry.register(createPathValidatorRule());
     this.registry.register(createGLBPlacementRule());
+    this.registry.register(createTreePlacementRule());
   }
 
   /**

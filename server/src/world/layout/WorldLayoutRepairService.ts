@@ -116,10 +116,15 @@ export class WorldLayoutRepairService {
       case "building_overlap":
       case "building_too_close":
       case "glb_overlap":
+      case "tree_on_road":
+      case "tree_in_building":
+      case "tree_blocks_door":
+      case "tree_too_close":
         return this.repairOverlap(issue, startTime);
 
       case "glb_floating":
       case "glb_buried":
+      case "tree_not_grounded":
         return this.repairGroundLevel(issue, startTime);
 
       case "glb_bad_rotation":
