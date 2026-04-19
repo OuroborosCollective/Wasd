@@ -6,6 +6,11 @@ export class QuestEngine {
   private quests: Map<string, any> = new Map();
   /** Optional hook after a quest is completed (e.g. questline feature triggers + auto-chain). */
   private onQuestCompletedHook: ((player: any, questRow: any, questDef: any) => void) | null = null;
+  /**
+   * Optional central XP applier hook (e.g. global modifiers such as vote buffs).
+   * Returns the final applied XP amount.
+   */
+  private xpRewardApplier: ((player: any, baseXp: number, context: { questId: string }) => number) | null = null;
   // ⚡ Bolt Optimization: definitionVersion increments whenever quests are added or reloaded,
   // ensuring the O(1) player quest status cache is globally invalidated when definitions change.
   private definitionVersion = 0;
@@ -21,6 +26,10 @@ export class QuestEngine {
 
   setOnQuestCompleted(cb: (player: any, questRow: any, questDef: any) => void) {
     this.onQuestCompletedHook = cb;
+  }
+
+  setXpRewardApplier(cb: (player: any, baseXp: number, context: { questId: string }) => number) {
+    this.xpRewardApplier = cb;
   }
 
   private resolveQuestsPath(): string | null {
@@ -184,7 +193,12 @@ export class QuestEngine {
     // Apply rewards
     if (q.reward) {
       player.gold = (player.gold || 0) + (q.reward.gold || 0);
-      player.xp = (player.xp || 0) + (q.reward.xp || 0);
+      const baseXp = Math.max(0, Number(q.reward.xp) || 0);
+      if (baseXp > 0 && this.xpRewardApplier) {
+        this.xpRewardApplier(player, baseXp, { questId });
+      } else if (baseXp > 0) {
+        player.xp = (player.xp || 0) + baseXp;
+      }
       
       if (q.reward.itemId) {
         if (!player.inventory) player.inventory = [];

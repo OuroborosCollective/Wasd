@@ -10,6 +10,7 @@ import { initSupabaseClient, getSupabaseClientSync } from "./auth/supabase";
 import { getJoystickState, initMobileControls, isMobile } from "./ui/mobileControls";
 import { openEquipmentPanel, openInventory, openQuestLog, openSkillsPanel } from "./ui/lazyPanels";
 import { getQuickCastSkillId } from "./game/combatSkills";
+import { triggerImpactBusterClientGuard } from "./game/impactBuster";
 import { performanceMonitor } from "./utils/PerformanceMonitor";
 import { resolveGameAuthProvider } from "./config/gameAuth";
 import { installFirebaseAiWatchdog } from "./ai/firebaseAiWatchdog";
@@ -174,7 +175,14 @@ try {
       onSkills: () => {
         void openSkillsPanel();
       },
-      onQuickSkill: () => core.useSkill(getQuickCastSkillId()),
+      onQuickSkill: () => {
+        const quick = getQuickCastSkillId();
+        if (quick === "impact_buster") {
+          triggerImpactBusterClientGuard();
+          return;
+        }
+        core.useSkill(quick);
+      },
       onMap: () => {
         toggleMinimapVisibility();
       },
@@ -186,6 +194,19 @@ try {
     (_dx: number, _dy: number) => {}
   );
   performanceMonitor.start();
+
+  window.addEventListener("keydown", (event) => {
+    const target = event.target as HTMLElement | null;
+    if (
+      target &&
+      (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)
+    ) {
+      return;
+    }
+    if (event.key.toLowerCase() === "f") {
+      triggerImpactBusterClientGuard();
+    }
+  });
 
   let lastFrameTime = performance.now();
   const tick = (now: number) => {

@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "npm run dev --prefix server",
     "build": "NODE_OPTIONS=\"${NODE_OPTIONS:---max-old-space-size=8192}\" npm run build --prefix client && npm run build --prefix server",
+    "build:itch": "NODE_OPTIONS=\"${NODE_OPTIONS:---max-old-space-size=8192}\" npm run build:itch --prefix client",
     "start": "node server/dist/index.js",
     "lint": "eslint .",
     "clean": "next clean",

@@ -7,6 +7,7 @@ export type ClientSkillInfo = {
   kind: "offensive" | "self";
   /** Matches server `skillDefinitions` cooldownMs (for UI progress) */
   cooldownMs: number;
+  unlockRequired?: "worldboss_first_clear";
 };
 
 export const ACTIVE_COMBAT_SKILLS: ClientSkillInfo[] = [
@@ -51,6 +52,14 @@ export const ACTIVE_COMBAT_SKILLS: ClientSkillInfo[] = [
     detail: "18 mana · 5.5s · wave",
     kind: "offensive",
     cooldownMs: 5500,
+  },
+  {
+    id: "impact_buster",
+    name: "Impact Buster",
+    detail: "30 stamina · 8s · aoe burst",
+    kind: "offensive",
+    cooldownMs: 8000,
+    unlockRequired: "worldboss_first_clear",
   },
 ];
 

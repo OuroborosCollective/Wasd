@@ -35,6 +35,7 @@ let maxCarryWeight = 200;
 let equipment: Record<string, unknown> = {};
 /** skillId -> server timestamp (ms) when cooldown ends */
 let skillCooldownUntil: Record<string, number> = {};
+let impactBusterUnlocked = false;
 /** Server combat target NPC id (from `stats_sync` / `welcome.stats`). */
 let combatTargetNpcId: string | null = null;
 
@@ -69,6 +70,7 @@ export function applyStatsPayload(data: {
   inventoryWeight?: number;
   equipment?: Record<string, unknown>;
   skillCooldownUntil?: Record<string, number>;
+  impactBusterUnlocked?: boolean;
   combatTargetNpcId?: string | null;
 }) {
   if (typeof data.gold === "number") gold = data.gold;
@@ -93,6 +95,9 @@ export function applyStatsPayload(data: {
   if (data.equipment && typeof data.equipment === "object") equipment = data.equipment;
   if (data.skillCooldownUntil && typeof data.skillCooldownUntil === "object") {
     skillCooldownUntil = { ...data.skillCooldownUntil };
+  }
+  if (typeof data.impactBusterUnlocked === "boolean") {
+    impactBusterUnlocked = data.impactBusterUnlocked;
   }
   if (data.combatTargetNpcId === null) {
     combatTargetNpcId = null;
@@ -161,6 +166,10 @@ export function getPlayerEquipment(): Record<string, unknown> {
 
 export function getSkillCooldownUntil(): Record<string, number> {
   return { ...skillCooldownUntil };
+}
+
+export function isImpactBusterUnlocked(): boolean {
+  return impactBusterUnlocked;
 }
 
 export function getCombatTargetNpcId(): string | null {

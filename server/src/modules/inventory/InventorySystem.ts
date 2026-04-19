@@ -1,5 +1,9 @@
 import { ItemRegistry } from "./ItemRegistry.js";
 import { normalizeInventoryStacks } from "./inventoryStacks.js";
+import {
+  isItemBoundOrNonTransferable,
+  normalizeBoundItemMeta,
+} from "../items/itemBindingPolicy.js";
 
 /** Default max carry weight for a player */
 const DEFAULT_MAX_WEIGHT = 200;
@@ -63,9 +67,13 @@ export class InventorySystem {
       for (let i = 0; i < addQty; i++) {
         const one = ItemRegistry.createInstance(item.id, 1);
         if (one) {
-          player.inventory.push({ ...item, ...one, quantity: 1 });
+          player.inventory.push(
+            normalizeBoundItemMeta({ ...item, ...one, quantity: 1 }),
+          );
         } else {
-          player.inventory.push({ ...item, id: item.id, quantity: 1 });
+          player.inventory.push(
+            normalizeBoundItemMeta({ ...item, id: item.id, quantity: 1 }),
+          );
         }
       }
       return player.inventory;
@@ -86,7 +94,11 @@ export class InventorySystem {
     while (remaining > 0) {
       const n = Math.min(max, remaining);
       const inst = ItemRegistry.createInstance(item.id, n);
-      if (inst) player.inventory.push({ ...item, ...inst, quantity: n });
+      if (inst) {
+        player.inventory.push(
+          normalizeBoundItemMeta({ ...item, ...inst, quantity: n }),
+        );
+      }
       remaining -= n;
     }
     normalizeInventoryStacks(player);
@@ -156,7 +168,9 @@ export class InventorySystem {
     }
     row.quantity = q - 1;
     const inst = ItemRegistry.createInstance(itemId, 1);
-    return inst ? { ...row, ...inst, quantity: 1 } : { ...row, quantity: 1 };
+    return normalizeBoundItemMeta(
+      inst ? { ...row, ...inst, quantity: 1 } : { ...row, quantity: 1 },
+    );
   }
 
   removeItem(player: any, itemId: string) {
@@ -169,12 +183,17 @@ export class InventorySystem {
     if (player.equipment?.armor && player.equipment.armor.id === itemId) {
       player.equipment.armor = null;
     }
+    if (player.equipment?.offHand && player.equipment.offHand.id === itemId) {
+      player.equipment.offHand = null;
+    }
 
     return player.inventory;
   }
 
   equipItem(player: any, itemId: string) {
-    if (!player.equipment) player.equipment = { weapon: null, armor: null };
+    if (!player.equipment) {
+      player.equipment = { weapon: null, armor: null, offHand: null };
+    }
     if (!Array.isArray(player.inventory)) player.inventory = [];
 
     const itemIndex = player.inventory.findIndex((i: any) => i.id === itemId);
@@ -195,7 +214,7 @@ export class InventorySystem {
     };
 
     if (itemDef.type === "weapon") {
-      const toEquip = takeEquippedRow();
+      const toEquip = normalizeBoundItemMeta(takeEquippedRow());
       const currentWeapon = player.equipment.weapon;
       player.equipment.weapon = toEquip;
       if (currentWeapon) {
@@ -206,7 +225,7 @@ export class InventorySystem {
     }
 
     if (itemDef.type === "armor" && itemDef.slot === "armor") {
-      const toEquip = takeEquippedRow();
+      const toEquip = normalizeBoundItemMeta(takeEquippedRow());
       const currentArmor = player.equipment.armor;
       player.equipment.armor = toEquip;
       if (currentArmor) {
@@ -216,13 +235,29 @@ export class InventorySystem {
       return player.equipment;
     }
 
+    if (itemDef.type === "armor" && itemDef.slot === "offHand") {
+      const toEquip = normalizeBoundItemMeta(takeEquippedRow());
+      const currentOffHand = player.equipment.offHand;
+      player.equipment.offHand = toEquip;
+      if (currentOffHand) {
+        this.addItem(player, currentOffHand);
+      }
+      normalizeInventoryStacks(player);
+      return player.equipment;
+    }
+
     return null;
   }
 
   unequipItem(player: any, slot: string) {
-    if (!player.equipment) player.equipment = { weapon: null, armor: null };
+    if (!player.equipment) {
+      player.equipment = { weapon: null, armor: null, offHand: null };
+    }
     const item = player.equipment[slot];
     if (!item) return null;
+    if (isItemBoundOrNonTransferable(item)) {
+      return null;
+    }
 
     player.equipment[slot] = null;
     this.addItem(player, item);

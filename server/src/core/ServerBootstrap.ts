@@ -8,6 +8,7 @@ import { fileURLToPath } from "url";
 import { mcpRoute } from "../api/mcpRoute.js";
 import migrationRoute from "../api/migrationRoute.js";
 import { adminContentRouter } from "../api/adminContentRoute.js";
+import { voteRouter } from "../api/voteRoute.js";
 import { leaderboardRouter } from "../api/leaderboardRoute.js";
 import { questlineRouter } from "../api/questlineRoute.js";
 import { loreRouter } from "../api/loreRoute.js";
@@ -296,8 +297,22 @@ export class ServerBootstrap {
       }
     });
 
+    const ws = new GameWebSocketServer(httpServer);
+    ws.start();
+
+    const tick = new WorldTick(ws);
+    await tick.init();
+    app.use("/api/admin/content", adminContentRouter(tick));
+    app.use("/api/vote", voteRouter(tick));
+    registerSelfHealingDashboard(
+      app,
+      selfHealingRuntime.system,
+      resolveSelfHealingDashboardConfigFromEnv()
+    );
+
     const clientRoot = resolveClientRoot();
     const clientPath = path.join(clientRoot, "dist");
+    const itchClientPath = path.join(clientRoot, "dist-itch");
     const adminContentPath = resolveAdminContentHtmlPath(clientRoot, clientPath);
     if (adminContentPath) {
       app.get("/admin-content.html", (_req, res) => {
@@ -316,6 +331,17 @@ export class ServerBootstrap {
         `[ServerBootstrap] No index.html under ${clientPath}. ` +
           "Build the client or set CLIENT_ROOT_DIR to the client package directory (e.g. /opt/areloria/client)."
       );
+    }
+    if (existsSync(path.join(itchClientPath, "index.html"))) {
+      app.use(
+        "/itch",
+        express.static(itchClientPath, {
+          index: "index.html",
+        }),
+      );
+      app.get("/itch/*", (_req, res) => {
+        res.sendFile(path.join(itchClientPath, "index.html"));
+      });
     }
     if (process.env.NODE_ENV !== "production") {
       try {
@@ -354,18 +380,6 @@ export class ServerBootstrap {
           "Run client prebuild (sync-world-assets) or set WORLD_ASSETS_DIR."
       );
     }
-
-    const ws = new GameWebSocketServer(httpServer);
-    ws.start();
-
-    const tick = new WorldTick(ws);
-    await tick.init();
-    app.use("/api/admin/content", adminContentRouter(tick));
-    registerSelfHealingDashboard(
-      app,
-      selfHealingRuntime.system,
-      resolveSelfHealingDashboardConfigFromEnv()
-    );
 
     app.get("/health", (_req, res) => {
       const persistence = tick.getPersistenceStats();

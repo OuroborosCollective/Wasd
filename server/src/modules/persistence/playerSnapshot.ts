@@ -32,6 +32,10 @@ export const PLAYER_PERSIST_KEYS = [
   "lootPity",
   "lootFilter",
   "equipment",
+  "impactBusterUnlocked",
+  "worldBossProgress",
+  "pendingRewards",
+  "voteProgress",
   "faction",
   "civilization",
   "matrixEnergy",
@@ -102,10 +106,63 @@ export function mergePersistedPlayerInto(player: any, saved: Record<string, unkn
   }
   normalizeInventoryStacks(player);
   if (!player.equipment || typeof player.equipment !== "object") {
-    player.equipment = { weapon: null, armor: null };
+    player.equipment = { weapon: null, armor: null, offHand: null };
   } else {
     if (!("weapon" in player.equipment)) player.equipment.weapon = null;
     if (!("armor" in player.equipment)) player.equipment.armor = null;
+    if (!("offHand" in player.equipment)) player.equipment.offHand = null;
+  }
+  if (typeof player.impactBusterUnlocked !== "boolean") {
+    player.impactBusterUnlocked = false;
+  }
+  if (!player.worldBossProgress || typeof player.worldBossProgress !== "object") {
+    player.worldBossProgress = {
+      firstClearAt: 0,
+      totalClears: 0,
+      clearedDungeonIds: [],
+      rewardHistory: [],
+    };
+  } else {
+    if (!Array.isArray(player.worldBossProgress.clearedDungeonIds)) {
+      player.worldBossProgress.clearedDungeonIds = [];
+    }
+    if (!Array.isArray(player.worldBossProgress.rewardHistory)) {
+      player.worldBossProgress.rewardHistory = [];
+    }
+    if (typeof player.worldBossProgress.firstClearAt !== "number") {
+      player.worldBossProgress.firstClearAt = 0;
+    }
+    if (typeof player.worldBossProgress.totalClears !== "number") {
+      player.worldBossProgress.totalClears = 0;
+    }
+  }
+  if (!Array.isArray(player.pendingRewards)) {
+    player.pendingRewards = [];
+  }
+  if (!player.voteProgress || typeof player.voteProgress !== "object") {
+    player.voteProgress = {
+      lastClaimByBanner: {},
+      pendingSessions: [],
+      activeBuffBlocks: [],
+      rewardHistory: [],
+      auditLog: [],
+    };
+  } else {
+    if (!player.voteProgress.lastClaimByBanner || typeof player.voteProgress.lastClaimByBanner !== "object") {
+      player.voteProgress.lastClaimByBanner = {};
+    }
+    if (!Array.isArray(player.voteProgress.pendingSessions)) {
+      player.voteProgress.pendingSessions = [];
+    }
+    if (!Array.isArray(player.voteProgress.activeBuffBlocks)) {
+      player.voteProgress.activeBuffBlocks = [];
+    }
+    if (!Array.isArray(player.voteProgress.rewardHistory)) {
+      player.voteProgress.rewardHistory = [];
+    }
+    if (!Array.isArray(player.voteProgress.auditLog)) {
+      player.voteProgress.auditLog = [];
+    }
   }
   if (!player.position || typeof player.position !== "object") {
     player.position = { x: 0, y: 0, z: 0 };

@@ -6,7 +6,7 @@ export interface ItemDefinition {
   id: string;
   name: string;
   type: "weapon" | "armor" | "consumable" | "misc";
-  slot?: "weapon" | "armor";
+  slot?: "weapon" | "armor" | "offHand";
   damage?: number;
   /** If set on a weapon, `attack` uses this max distance instead of default melee range */
   attackRange?: number;
@@ -26,6 +26,14 @@ export interface ItemDefinition {
   tags?: string[];
   /** Optional legendary / aspect id for combat proc hooks (see `legendaryPowers.ts`). */
   legendaryPowerId?: string;
+  /** Bind on acquire: item cannot be moved to other players/systems. */
+  boundOnAcquire?: boolean;
+  /** Hard block for any transfer channels. */
+  nonTransferable?: boolean;
+  /** Explicitly forbid player-to-player or market trade. */
+  tradeable?: boolean;
+  /** Explicitly forbid dropping from inventory/equipment. */
+  droppable?: boolean;
   rarity: "common" | "uncommon" | "rare" | "epic" | "legendary";
   description: string;
 }

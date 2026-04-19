@@ -36,7 +36,7 @@ describe("PersistenceManager driver selection", () => {
         name: "A",
         gold: 1,
         inventory: [],
-        equipment: { weapon: null, armor: null },
+        equipment: { weapon: null, armor: null, offHand: null },
         position: { x: 0, y: 0, z: 0 },
       },
     });
@@ -58,7 +58,7 @@ describe("PersistenceManager driver selection", () => {
         name: "B",
         gold: 2,
         inventory: [],
-        equipment: { weapon: null, armor: null },
+        equipment: { weapon: null, armor: null, offHand: null },
         position: { x: 0, y: 0, z: 0 },
       },
     });

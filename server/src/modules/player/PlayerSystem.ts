@@ -32,7 +32,8 @@ export class PlayerSystem {
       },
       equipment: {
         weapon: null,
-        armor: null
+        armor: null,
+        offHand: null,
       },
       faction: null,
       civilization: null,
@@ -48,6 +49,25 @@ export class PlayerSystem {
       combatTargetNpcId: null as string | null,
       /** skillId -> cooldown end timestamp (ms) */
       skillCooldowns: {} as Record<string, number>,
+      /** Unlockable gameplay skill progression */
+      impactBusterUnlocked: false,
+      /** Worldboss progression + anti-duplicate reward history */
+      worldBossProgress: {
+        firstClearAt: 0,
+        totalClears: 0,
+        clearedDungeonIds: [] as string[],
+        rewardHistory: [] as string[],
+      },
+      /** Server-side safe fallback queue for rewards when direct grant fails */
+      pendingRewards: [] as unknown[],
+      /** Toplist voting history/sessions/buff stacking state (server-authoritative). */
+      voteProgress: {
+        lastClaimByBanner: {} as Record<string, number>,
+        pendingSessions: [] as unknown[],
+        activeBuffBlocks: [] as unknown[],
+        rewardHistory: [] as unknown[],
+        auditLog: [] as unknown[],
+      },
     };
     this.players.set(id, player);
     return player;

@@ -11,6 +11,59 @@ import {
   type ClientQuestEntry,
 } from "../state/playerState";
 
+export type WorldBossEncounterHud = {
+  dungeonId: string;
+  sceneId: string;
+  bossName: string;
+  bossHp: number;
+  bossHpMax: number;
+  respawnRemainingMs: number;
+  updatedAt: number;
+};
+
+export type WorldBossRankingRow = {
+  playerId: string;
+  playerName: string;
+  rank: number;
+  damage: number;
+};
+
+export type VoteBuffHud = {
+  activeMultiplier: number;
+  totalRemainingMs: number;
+  blocks: Array<{
+    id: string;
+    bannerId: string;
+    providerKey: string;
+    expiresAt: number;
+    remainingMs: number;
+  }>;
+};
+
+export type VoteBannerHud = {
+  internalId: string;
+  providerKey: string;
+  displayName: string;
+  bannerImage: string;
+  targetUrl: string;
+  description?: string;
+  sortOrder: number;
+  buffHours: number;
+  cooldownHours: number;
+  voteWindowHours: number;
+  claimInstructions?: string;
+  status: "ready" | "cooldown" | "pending" | "claimable";
+  cooldownRemainingMs: number;
+  nextEligibleAt: number;
+  session?: {
+    id: string;
+    status: string;
+    expiresAt: number;
+    verifiedAt?: number;
+    voteUrl: string;
+  };
+};
+
 function mapEntityKind(type: unknown): EntityNet["kind"] {
   const t = typeof type === "string" ? type : "";
   if (t === "player" || t === "npc" || t === "monster" || t === "loot" || t === "object") {
@@ -79,6 +132,14 @@ export function useGameHudState() {
   const [fxFeed, setFxFeed] = useState<
     Array<{ id: string; kind: FxKind; n?: number; x: number; y: number; t: number }>
   >([]);
+  const [worldBossEncounter, setWorldBossEncounter] = useState<WorldBossEncounterHud | null>(null);
+  const [worldBossTop, setWorldBossTop] = useState<WorldBossRankingRow[]>([]);
+  const [voteBuff, setVoteBuff] = useState<VoteBuffHud>({
+    activeMultiplier: 1,
+    totalRemainingMs: 0,
+    blocks: [],
+  });
+  const [voteBanners, setVoteBanners] = useState<VoteBannerHud[]>([]);
 
   const fxId = useRef(0);
 
@@ -90,6 +151,80 @@ export function useGameHudState() {
     window.setTimeout(() => {
       setFxFeed((cur) => cur.filter((e) => e.id !== id));
     }, 900);
+  }, []);
+
+  const applyVoteStatusPayload = useCallback((payload: Record<string, unknown>) => {
+    const buffRaw = payload.buff && typeof payload.buff === "object" ? (payload.buff as Record<string, unknown>) : {};
+    const blocksRaw = Array.isArray(buffRaw.blocks) ? buffRaw.blocks : [];
+    setVoteBuff({
+      activeMultiplier: Math.max(1, Number(buffRaw.activeMultiplier ?? 1)),
+      totalRemainingMs: Math.max(0, Number(buffRaw.totalRemainingMs ?? 0)),
+      blocks: blocksRaw
+        .map((row) => {
+          if (!row || typeof row !== "object") return null;
+          const r = row as Record<string, unknown>;
+          const id = typeof r.id === "string" ? r.id : "";
+          if (!id) return null;
+          return {
+            id,
+            bannerId: typeof r.bannerId === "string" ? r.bannerId : "",
+            providerKey: typeof r.providerKey === "string" ? r.providerKey : "",
+            expiresAt: Math.max(0, Number(r.expiresAt ?? 0)),
+            remainingMs: Math.max(0, Number(r.remainingMs ?? 0)),
+          };
+        })
+        .filter((row): row is VoteBuffHud["blocks"][number] => Boolean(row))
+        .sort((a, b) => a.expiresAt - b.expiresAt),
+    });
+    if (Array.isArray(payload.banners)) {
+      setVoteBanners(
+        payload.banners
+          .map((row) => {
+            if (!row || typeof row !== "object") return null;
+            const b = row as Record<string, unknown>;
+            const internalId = typeof b.internalId === "string" ? b.internalId : "";
+            const displayName = typeof b.displayName === "string" ? b.displayName : "";
+            if (!internalId || !displayName) return null;
+            const status = typeof b.status === "string" ? b.status : "ready";
+            const sessionRaw =
+              b.session && typeof b.session === "object" ? (b.session as Record<string, unknown>) : null;
+            return {
+              internalId,
+              providerKey: typeof b.providerKey === "string" ? b.providerKey : "",
+              displayName,
+              bannerImage: typeof b.bannerImage === "string" ? b.bannerImage : "",
+              targetUrl: typeof b.targetUrl === "string" ? b.targetUrl : "",
+              description: typeof b.description === "string" ? b.description : undefined,
+              sortOrder: Math.max(0, Number(b.sortOrder ?? 0)),
+              buffHours: Math.max(1, Number(b.buffHours ?? 4)),
+              cooldownHours: Math.max(1, Number(b.cooldownHours ?? 24)),
+              voteWindowHours: Math.max(1, Number(b.voteWindowHours ?? 12)),
+              claimInstructions:
+                typeof b.claimInstructions === "string" ? b.claimInstructions : undefined,
+              status:
+                status === "cooldown" || status === "pending" || status === "claimable"
+                  ? status
+                  : "ready",
+              cooldownRemainingMs: Math.max(0, Number(b.cooldownRemainingMs ?? 0)),
+              nextEligibleAt: Math.max(0, Number(b.nextEligibleAt ?? 0)),
+              session: sessionRaw
+                ? {
+                    id: typeof sessionRaw.id === "string" ? sessionRaw.id : "",
+                    status: typeof sessionRaw.status === "string" ? sessionRaw.status : "pending",
+                    expiresAt: Math.max(0, Number(sessionRaw.expiresAt ?? 0)),
+                    verifiedAt:
+                      typeof sessionRaw.verifiedAt === "number"
+                        ? Math.max(0, sessionRaw.verifiedAt)
+                        : undefined,
+                    voteUrl: typeof sessionRaw.voteUrl === "string" ? sessionRaw.voteUrl : "",
+                  }
+                : undefined,
+            } satisfies VoteBannerHud;
+          })
+          .filter((row): row is VoteBannerHud => Boolean(row))
+          .sort((a, b) => a.sortOrder - b.sortOrder),
+      );
+    }
   }, []);
 
   const onServerMsg = useCallback(
@@ -123,8 +258,149 @@ export function useGameHudState() {
       if (mapped) {
         onServerMsg(mapped);
       }
+      const msgType = typeof data.type === "string" ? data.type : "";
+      if (msgType === "worldboss_spawned") {
+        setWorldBossEncounter((prev) => ({
+          dungeonId: typeof data.dungeonId === "string" ? data.dungeonId : prev?.dungeonId ?? "worldboss_obsidian_fracture",
+          sceneId: typeof data.sceneId === "string" ? data.sceneId : prev?.sceneId ?? "worldboss_obsidian_fracture",
+          bossName: typeof data.name === "string" ? data.name : prev?.bossName ?? "Worldboss",
+          bossHp: Number(prev?.bossHp ?? 0),
+          bossHpMax: Number(prev?.bossHpMax ?? 0),
+          respawnRemainingMs: 0,
+          updatedAt: Date.now(),
+        }));
+      } else if (msgType === "worldboss_encounter_update") {
+        setWorldBossEncounter({
+          dungeonId: typeof data.dungeonId === "string" ? data.dungeonId : "worldboss_obsidian_fracture",
+          sceneId: typeof data.sceneId === "string" ? data.sceneId : "worldboss_obsidian_fracture",
+          bossName: typeof data.bossName === "string" ? data.bossName : "Worldboss",
+          bossHp: Math.max(0, Number(data.hp ?? 0)),
+          bossHpMax: Math.max(1, Number(data.maxHp ?? 1)),
+          respawnRemainingMs: 0,
+          updatedAt: Date.now(),
+        });
+      } else if (msgType === "worldboss_status") {
+        setWorldBossEncounter({
+          dungeonId: typeof data.dungeonId === "string" ? data.dungeonId : "worldboss_obsidian_fracture",
+          sceneId: typeof data.sceneId === "string" ? data.sceneId : "worldboss_obsidian_fracture",
+          bossName: typeof data.bossName === "string" ? data.bossName : "Worldboss",
+          bossHp: Math.max(0, Number(data.bossHp ?? 0)),
+          bossHpMax: Math.max(1, Number(data.bossHpMax ?? 1)),
+          respawnRemainingMs: Math.max(0, Number(data.respawnRemainingMs ?? 0)),
+          updatedAt: Date.now(),
+        });
+        if (Array.isArray(data.top)) {
+          setWorldBossTop(
+            data.top
+              .map((row) => {
+                if (!row || typeof row !== "object") return null;
+                const entry = row as Record<string, unknown>;
+                return {
+                  playerId: typeof entry.playerId === "string" ? entry.playerId : "",
+                  playerName: typeof entry.playerName === "string" ? entry.playerName : "Unknown",
+                  rank: Math.max(1, Number(entry.rank ?? 99)),
+                  damage: Math.max(0, Number(entry.damage ?? 0)),
+                } satisfies WorldBossRankingRow;
+              })
+              .filter((row): row is WorldBossRankingRow => Boolean(row?.playerId))
+              .sort((a, b) => a.rank - b.rank)
+              .slice(0, 5)
+          );
+        }
+      } else if (msgType === "worldboss_defeated") {
+        setWorldBossEncounter((prev) =>
+          prev
+            ? {
+                ...prev,
+                bossHp: 0,
+                respawnRemainingMs: Math.max(prev.respawnRemainingMs, 1),
+                updatedAt: Date.now(),
+              }
+            : null
+        );
+        if (Array.isArray(data.top)) {
+          setWorldBossTop(
+            data.top
+              .map((row) => {
+                if (!row || typeof row !== "object") return null;
+                const entry = row as Record<string, unknown>;
+                return {
+                  playerId: typeof entry.playerId === "string" ? entry.playerId : "",
+                  playerName: typeof entry.playerName === "string" ? entry.playerName : "Unknown",
+                  rank: Math.max(1, Number(entry.rank ?? 99)),
+                  damage: Math.max(0, Number(entry.damage ?? 0)),
+                } satisfies WorldBossRankingRow;
+              })
+              .filter((row): row is WorldBossRankingRow => Boolean(row?.playerId))
+              .sort((a, b) => a.rank - b.rank)
+              .slice(0, 5)
+          );
+        }
+      } else if (msgType === "worldboss_ranking" && Array.isArray(data.top)) {
+        setWorldBossTop(
+          data.top
+            .map((row) => {
+              if (!row || typeof row !== "object") return null;
+              const entry = row as Record<string, unknown>;
+              return {
+                playerId: typeof entry.playerId === "string" ? entry.playerId : "",
+                playerName: typeof entry.playerName === "string" ? entry.playerName : "Unknown",
+                rank: Math.max(1, Number(entry.rank ?? 99)),
+                damage: Math.max(0, Number(entry.damage ?? 0)),
+              } satisfies WorldBossRankingRow;
+            })
+            .filter((row): row is WorldBossRankingRow => Boolean(row?.playerId))
+            .sort((a, b) => a.rank - b.rank)
+            .slice(0, 5)
+        );
+      } else if (msgType === "vote_status") {
+        applyVoteStatusPayload(data);
+      } else if (
+        (msgType === "vote_session_opened" ||
+          msgType === "vote_verify_result" ||
+          msgType === "vote_claim_result") &&
+        data.status &&
+        typeof data.status === "object"
+      ) {
+        applyVoteStatusPayload(data.status as Record<string, unknown>);
+      } else if (msgType === "vote_banners" && Array.isArray(data.banners)) {
+        setVoteBanners((prev) => {
+          const byId = new Map(prev.map((row) => [row.internalId, row]));
+          const merged = data.banners
+            .map((row) => {
+              if (!row || typeof row !== "object") return null;
+              const b = row as Record<string, unknown>;
+              const internalId = typeof b.internalId === "string" ? b.internalId : "";
+              if (!internalId) return null;
+              const existing = byId.get(internalId);
+              return {
+                internalId,
+                providerKey: typeof b.providerKey === "string" ? b.providerKey : existing?.providerKey ?? "",
+                displayName: typeof b.displayName === "string" ? b.displayName : existing?.displayName ?? internalId,
+                bannerImage: typeof b.bannerImage === "string" ? b.bannerImage : existing?.bannerImage ?? "",
+                targetUrl: typeof b.targetUrl === "string" ? b.targetUrl : existing?.targetUrl ?? "",
+                description: typeof b.description === "string" ? b.description : existing?.description,
+                sortOrder: Math.max(0, Number(b.sortOrder ?? existing?.sortOrder ?? 0)),
+                buffHours: Math.max(1, Number(b.buffHours ?? existing?.buffHours ?? 4)),
+                cooldownHours: Math.max(1, Number(b.cooldownHours ?? existing?.cooldownHours ?? 24)),
+                voteWindowHours: Math.max(1, Number(b.voteWindowHours ?? existing?.voteWindowHours ?? 12)),
+                claimInstructions:
+                  typeof b.claimInstructions === "string"
+                    ? b.claimInstructions
+                    : existing?.claimInstructions,
+                status: existing?.status ?? "ready",
+                cooldownRemainingMs: existing?.cooldownRemainingMs ?? 0,
+                nextEligibleAt: existing?.nextEligibleAt ?? 0,
+                session: existing?.session,
+              } satisfies VoteBannerHud;
+            })
+            .filter((row): row is VoteBannerHud => Boolean(row))
+            .sort((a, b) => a.sortOrder - b.sortOrder);
+          return merged;
+        });
+      }
     },
-    [onServerMsg]
+    [applyVoteStatusPayload, onServerMsg]
   );
 
   const syncInventoryFromPlayerState = useCallback(() => {
@@ -224,6 +500,10 @@ export function useGameHudState() {
     quests,
     inv,
     fxFeed,
+    worldBossEncounter,
+    worldBossTop,
+    voteBuff,
+    voteBanners,
     onServerMsg,
     onWirePayload,
     onEntitySync,

@@ -6,7 +6,7 @@ import { sendUnequipItem } from "../networking/websocketClient";
 function slotRow(
   label: string,
   item: { name?: string; id?: string } | null,
-  slot: "weapon" | "armor",
+  slot: "weapon" | "armor" | "offHand",
   compact: boolean,
 ): HTMLDivElement {
   const row = document.createElement("div");
@@ -82,13 +82,19 @@ function slotRow(
 
 function refreshEquipmentContent(wrap: HTMLElement, compact: boolean) {
   wrap.replaceChildren();
-  const eq = getPlayerEquipment() as { weapon?: unknown; armor?: unknown };
+  const eq = getPlayerEquipment() as {
+    weapon?: unknown;
+    armor?: unknown;
+    offHand?: unknown;
+  };
   const weapon = (eq?.weapon as { name?: string; id?: string } | null) || null;
   const armor = (eq?.armor as { name?: string; id?: string } | null) || null;
+  const offHand = (eq?.offHand as { name?: string; id?: string } | null) || null;
   wrap.appendChild(slotRow("Weapon", weapon, "weapon", compact));
   wrap.appendChild(slotRow("Armor", armor, "armor", compact));
+  wrap.appendChild(slotRow("Off-Hand", offHand, "offHand", compact));
   const hint = document.createElement("p");
-  hint.textContent = "Use Inventory to equip weapons and body armor.";
+  hint.textContent = "Use Inventory to equip weapon, armor, and off-hand items.";
   hint.style.fontSize = "13px";
   hint.style.opacity = "0.75";
   hint.style.marginTop = "12px";

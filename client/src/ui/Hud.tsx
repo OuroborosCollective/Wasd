@@ -1,5 +1,18 @@
 import React, { useMemo } from "react";
 import type { EntityNet, FxKind, LootNet, QuestStateNet } from "../../../shared/protocol";
+import type {
+  WorldBossEncounterHud,
+  WorldBossRankingRow,
+} from "./useGameHudState";
+
+function formatMsCompact(ms: number): string {
+  const safe = Math.max(0, Math.floor(ms));
+  const totalMinutes = Math.ceil(safe / 60000);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  if (h <= 0) return `${m}m`;
+  return `${h}h ${m}m`;
+}
 
 type Props = {
   connected: boolean;
@@ -21,6 +34,46 @@ type Props = {
   onHousingOpen: () => void;
   fxFeed: Array<{ id: string; kind: FxKind; n?: number; x: number; y: number; t: number }>;
   questlineProgress?: string | null;
+  worldBossEncounter?: WorldBossEncounterHud | null;
+  worldBossTop?: WorldBossRankingRow[];
+  voteBuff?: {
+    activeMultiplier: number;
+    totalRemainingMs: number;
+    blocks: Array<{
+      id: string;
+      bannerId: string;
+      providerKey: string;
+      expiresAt: number;
+      remainingMs: number;
+    }>;
+  };
+  voteBanners?: Array<{
+    internalId: string;
+    providerKey: string;
+    displayName: string;
+    bannerImage: string;
+    targetUrl: string;
+    description?: string;
+    sortOrder: number;
+    buffHours: number;
+    cooldownHours: number;
+    voteWindowHours: number;
+    claimInstructions?: string;
+    status: "ready" | "cooldown" | "pending" | "claimable";
+    cooldownRemainingMs: number;
+    nextEligibleAt: number;
+    session?: {
+      id: string;
+      status: string;
+      expiresAt: number;
+      verifiedAt?: number;
+      voteUrl: string;
+    };
+  }>;
+  onVoteRefresh: () => void;
+  onVoteOpen: (bannerId: string) => void;
+  onVoteVerify: (sessionId: string) => void;
+  onVoteClaim: (sessionId: string) => void;
 };
 
 export function Hud(p: Props) {
@@ -63,11 +116,28 @@ export function Hud(p: Props) {
                   <div className="leading-snug">{p.questlineProgress}</div>
                 </div>
               ) : null}
+              {p.worldBossEncounter ? (
+                <div className="mt-2">
+                  <WorldBossPanel
+                    encounter={p.worldBossEncounter}
+                    ranking={p.worldBossTop ?? []}
+                  />
+                </div>
+              ) : null}
             </div>
             <LootPanel loot={nearLoot} onTake={p.onLootTake} />
           </div>
         </div>
       </div>
+
+      <VoteMiniPanel
+        voteBuff={p.voteBuff}
+        voteBanners={p.voteBanners ?? []}
+        onRefresh={p.onVoteRefresh}
+        onVoteOpen={p.onVoteOpen}
+        onVoteVerify={p.onVoteVerify}
+        onVoteClaim={p.onVoteClaim}
+      />
 
       <div className="pointer-events-auto fixed bottom-0 left-0 right-0 z-[5600] border-t border-white/5 bg-gradient-to-t from-black/70 to-transparent px-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-1 md:px-4 md:pb-3 md:pt-2">
         <div className="mx-auto flex max-w-6xl justify-center">
@@ -295,6 +365,189 @@ function HpBar({ hp, hpMax }: { hp: number; hpMax: number }) {
       <div className="mt-0.5 text-[10px] text-slate-200/70 sm:mt-1 sm:text-[11px]">
         {hp}/{hpMax}
       </div>
+    </div>
+  );
+}
+
+function WorldBossPanel({
+  encounter,
+  ranking,
+}: {
+  encounter: WorldBossEncounterHud;
+  ranking: WorldBossRankingRow[];
+}) {
+  const hpPct = Math.max(
+    0,
+    Math.min(
+      100,
+      Math.floor((encounter.bossHp / Math.max(1, encounter.bossHpMax)) * 100),
+    ),
+  );
+  const respawnSecs = Math.max(
+    0,
+    Math.ceil((encounter.respawnRemainingMs ?? 0) / 1000),
+  );
+  return (
+    <div className="pointer-events-none rounded-2xl border border-red-500/35 bg-black/45 p-2.5 text-[11px] backdrop-blur-md sm:p-3 sm:text-xs">
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <div className="uppercase tracking-widest text-red-300/90">Worldboss</div>
+        <div className="text-red-100/80">{encounter.bossName}</div>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-white/10">
+        <div
+          className="h-full bg-gradient-to-r from-red-600 to-orange-400"
+          style={{ width: `${hpPct}%` }}
+        />
+      </div>
+      <div className="mt-1 text-slate-200/80">
+        HP {Math.max(0, Math.floor(encounter.bossHp))}/
+        {Math.max(1, Math.floor(encounter.bossHpMax))}
+        {respawnSecs > 0 ? ` · Respawn ${respawnSecs}s` : ""}
+      </div>
+      {ranking.length > 0 ? (
+        <div className="mt-2 space-y-1 text-slate-100/90">
+          <div className="uppercase tracking-widest text-[10px] text-amber-300/90">
+            Damage Top 5
+          </div>
+          {ranking.map((row) => (
+            <div key={`${row.playerId}-${row.rank}`} className="flex justify-between gap-2">
+              <span>
+                #{row.rank} {row.playerName}
+              </span>
+              <span className="text-amber-200">{Math.max(0, Math.floor(row.damage))}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function voteStatusLabel(status: string): string {
+  if (status === "claimable") return "Belohnung claimbar";
+  if (status === "pending") return "Verifikation läuft";
+  if (status === "cooldown") return "Heute bereits gevotet";
+  return "Jetzt voten";
+}
+
+function voteActionLabel(status: string): string {
+  if (status === "claimable") return "Claim";
+  if (status === "pending") return "Verify";
+  return "Vote";
+}
+
+function VoteMiniPanel({
+  voteBuff,
+  voteBanners,
+  onRefresh,
+  onVoteOpen,
+  onVoteVerify,
+  onVoteClaim,
+}: {
+  voteBuff: Props["voteBuff"];
+  voteBanners: NonNullable<Props["voteBanners"]>;
+  onRefresh: Props["onVoteRefresh"];
+  onVoteOpen: Props["onVoteOpen"];
+  onVoteVerify: Props["onVoteVerify"];
+  onVoteClaim: Props["onVoteClaim"];
+}) {
+  const [open, setOpen] = React.useState(false);
+  const remaining = voteBuff?.totalRemainingMs ?? 0;
+  const hasBuff = (voteBuff?.activeMultiplier ?? 1) > 1 && remaining > 0;
+
+  return (
+    <div className="pointer-events-auto fixed right-2 top-1/2 z-[5650] -translate-y-1/2 sm:right-3">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="group flex min-h-[44px] items-center gap-2 rounded-full border border-indigo-400/40 bg-black/60 px-3 py-2 text-xs text-indigo-100 shadow-[0_10px_28px_rgba(0,0,0,0.45)] backdrop-blur-md"
+      >
+        <span className="text-base">🗳️</span>
+        <span className="font-semibold">Vote</span>
+        <span className={hasBuff ? "text-emerald-300" : "text-slate-300/80"}>
+          {hasBuff ? `x${voteBuff?.activeMultiplier ?? 2}` : "x1"}
+        </span>
+      </button>
+      {open ? (
+        <div className="mt-2 w-[min(88vw,420px)] rounded-2xl border border-indigo-400/30 bg-black/80 p-3 text-[11px] text-slate-100 shadow-[0_20px_60px_rgba(0,0,0,0.55)] backdrop-blur-md sm:text-xs">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="uppercase tracking-widest text-indigo-200">Stimmen-Schmiede</div>
+            <button type="button" onClick={onRefresh} className={btn("sm")}>
+              Refresh
+            </button>
+          </div>
+          <div className="mb-2 text-slate-200/90">
+            Aktiver Vote-Buff:{" "}
+            <span className={hasBuff ? "text-emerald-300" : "text-slate-300/80"}>
+              {hasBuff ? `x${voteBuff?.activeMultiplier ?? 2} (${formatMsCompact(remaining)})` : "nicht aktiv"}
+            </span>
+          </div>
+          {voteBanners.length === 0 ? (
+            <div className="rounded-xl border border-white/10 bg-white/5 p-2 text-slate-300/80">
+              Keine aktiven Vote-Banner konfiguriert.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {voteBanners.map((banner) => {
+                const sessionId = banner.session?.id ?? "";
+                return (
+                  <div key={banner.internalId} className="rounded-xl border border-white/10 bg-white/5 p-2">
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <div className="font-semibold text-indigo-100">{banner.displayName}</div>
+                      <div className="text-[10px] text-slate-300">{voteStatusLabel(banner.status)}</div>
+                    </div>
+                    {banner.description ? (
+                      <div className="mb-1 text-[10px] text-slate-300/85">{banner.description}</div>
+                    ) : null}
+                    <div className="mb-2 text-[10px] text-slate-300/80">
+                      +{banner.buffHours}h XP-Buff · Cooldown {banner.cooldownHours}h
+                      {banner.status === "cooldown"
+                        ? ` · wieder in ${formatMsCompact(banner.cooldownRemainingMs)}`
+                        : ""}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (banner.status === "claimable" && sessionId) {
+                            onVoteClaim(sessionId);
+                            return;
+                          }
+                          if (banner.status === "pending" && sessionId) {
+                            onVoteVerify(sessionId);
+                            return;
+                          }
+                          onVoteOpen(banner.internalId);
+                        }}
+                        className={btn("sm", "primary")}
+                      >
+                        {voteActionLabel(banner.status)}
+                      </button>
+                      <a
+                        href={banner.session?.voteUrl || banner.targetUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex min-h-[36px] items-center rounded-xl border border-white/15 px-2 py-1 text-[11px] text-slate-100 hover:bg-white/10"
+                      >
+                        Extern öffnen
+                      </a>
+                      {banner.status === "pending" && sessionId ? (
+                        <button
+                          type="button"
+                          onClick={() => onVoteVerify(sessionId)}
+                          className={btn("sm")}
+                        >
+                          Verify now
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

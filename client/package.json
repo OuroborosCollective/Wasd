@@ -8,6 +8,7 @@
     "prebuild": "node ../scripts/sync-world-assets.mjs",
     "dev": "vite",
     "build": "node --max-old-space-size=6144 ./node_modules/vite/bin/vite.js build || node --max-old-space-size=6144 ../node_modules/vite/bin/vite.js build",
+    "build:itch": "node --max-old-space-size=6144 ./node_modules/vite/bin/vite.js build --mode itch || node --max-old-space-size=6144 ../node_modules/vite/bin/vite.js build --mode itch",
     "preview": "vite preview"
   },
   "dependencies": {

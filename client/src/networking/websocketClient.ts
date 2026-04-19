@@ -7,6 +7,9 @@ import { showDeathScreen, hideDeathScreen } from "../ui/deathScreen";
 import { showNotification, notifySuccess, notifyWarn } from "../ui/notifications";
 import { applyPartySync } from "../state/partyState";
 import { spawnFloatingNumber } from "../ui/floatingNumbers";
+import { IMPACT_BUSTER_SKILL_ID } from "../game/impactBusterConfig";
+import { setMobileImpactButtonState } from "../ui/mobileControls";
+import { isImpactBusterUnlocked } from "../state/playerState";
 import {
   pushEntitySyncToGameHud,
   pushGameHudConnected,
@@ -15,6 +18,30 @@ import {
   pushProtocolMsgToGameHud,
 } from "../ui/gameHudBridge";
 import { applyQuestlineFeatures, applyQuestlineState } from "../state/questlineState";
+
+let lastImpactPulseAt = 0;
+
+function triggerImpactLocalPulse(at?: { x?: number; y?: number }, radius?: number) {
+  const now = Date.now();
+  if (now - lastImpactPulseAt < 120) return;
+  lastImpactPulseAt = now;
+  const gameCore = (window as any).gameCore as
+    | { pulseScreenShakeAndFlash?: () => void }
+    | undefined;
+  if (typeof gameCore?.pulseScreenShakeAndFlash === "function") {
+    gameCore.pulseScreenShakeAndFlash();
+  }
+  window.dispatchEvent(
+    new CustomEvent("areloria:impact-buster-pulse", {
+      detail: {
+        at: now,
+        x: Number(at?.x ?? 0),
+        y: Number(at?.y ?? 0),
+        radius: Number(radius ?? 5.5),
+      },
+    }),
+  );
+}
 
 let globalWs: WebSocket | null = null;
 const DEFAULT_SCENE_ID = "didis_hub";
@@ -456,6 +483,17 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         pushGameHudConnected(true);
         if (data.stats && typeof data.stats === "object") {
           applyStatsPayload(data.stats);
+          const cooldowns = data.stats.skillCooldownUntil && typeof data.stats.skillCooldownUntil === "object"
+            ? data.stats.skillCooldownUntil
+            : {};
+          const impactUntil = Number(cooldowns[IMPACT_BUSTER_SKILL_ID] ?? 0);
+          const left = impactUntil > Date.now() ? impactUntil - Date.now() : 0;
+          setMobileImpactButtonState({
+            unlocked: typeof data.stats.impactBusterUnlocked === "boolean"
+              ? data.stats.impactBusterUnlocked
+              : isImpactBusterUnlocked(),
+            cooldownRemainingMs: left,
+          });
         }
         window.setTimeout(() => {
           if (ws.readyState === WebSocket.OPEN) {
@@ -484,6 +522,17 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
       }
       if (data.type === "stats_sync") {
         applyStatsPayload(data);
+        const cooldowns = data.skillCooldownUntil && typeof data.skillCooldownUntil === "object"
+          ? data.skillCooldownUntil
+          : {};
+        const impactUntil = Number(cooldowns[IMPACT_BUSTER_SKILL_ID] ?? 0);
+        const left = impactUntil > Date.now() ? impactUntil - Date.now() : 0;
+        setMobileImpactButtonState({
+          unlocked: typeof data.impactBusterUnlocked === "boolean"
+            ? data.impactBusterUnlocked
+            : isImpactBusterUnlocked(),
+          cooldownRemainingMs: left,
+        });
       }
       if (data.type === "questline_state") {
         applyQuestlineState(data);
@@ -548,6 +597,37 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         const cx = window.innerWidth / 2;
         const cy = window.innerHeight / 2;
         spawnFloatingNumber(cx + (Math.random() - 0.5) * 80, cy - 40, data.kind, data.n);
+        pushProtocolMsgToGameHud(data);
+      }
+      if (data.type === "impact_buster_fx") {
+        const at =
+          data.at && typeof data.at === "object"
+            ? {
+                x: Number((data.at as Record<string, unknown>).x ?? 0),
+                y: Number((data.at as Record<string, unknown>).y ?? 0),
+              }
+            : undefined;
+        const radius = Number(data.radius ?? 5.5);
+        triggerImpactLocalPulse(at, radius);
+        pushProtocolMsgToGameHud(data);
+      }
+      if (data.type === "worldboss_entered") {
+        notifySuccess("Worldboss Dungeon betreten.", { title: "Worldboss" });
+        pushProtocolMsgToGameHud(data);
+      }
+      if (data.type === "worldboss_spawned" || data.type === "worldboss_defeated") {
+        pushProtocolMsgToGameHud(data);
+      }
+      if (data.type === "worldboss_encounter_update" || data.type === "worldboss_ranking") {
+        pushProtocolMsgToGameHud(data);
+      }
+      if (
+        data.type === "vote_status" ||
+        data.type === "vote_banners" ||
+        data.type === "vote_session_opened" ||
+        data.type === "vote_verify_result" ||
+        data.type === "vote_claim_result"
+      ) {
         pushProtocolMsgToGameHud(data);
       }
       if (data.type === "combat_result") {
@@ -686,7 +766,7 @@ export function sendEquipItem(itemId: string) {
   sendCommand("equip_item", { itemId });
 }
 
-export function sendUnequipItem(slot: "weapon" | "armor") {
+export function sendUnequipItem(slot: "weapon" | "armor" | "offHand") {
   sendCommand("unequip_item", { slot });
 }
 
@@ -704,6 +784,26 @@ export function sendSplitStack(rowIndex: number, amount: number) {
 
 export function sendUseSkill(skillId: string) {
   sendCommand("use_skill", { skillId });
+}
+
+export function requestVoteBanners() {
+  sendCommand("vote_banners", {});
+}
+
+export function requestVoteStatus() {
+  sendCommand("vote_status", {});
+}
+
+export function openVoteSession(bannerId: string) {
+  sendCommand("vote_open", { bannerId });
+}
+
+export function verifyVoteSession(sessionId: string) {
+  sendCommand("vote_verify", { sessionId });
+}
+
+export function claimVoteSession(sessionId: string) {
+  sendCommand("vote_claim", { sessionId });
 }
 
 export const sendMessage = sendCommand;

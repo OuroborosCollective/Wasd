@@ -1253,6 +1253,7 @@
         pushHistory(true, "Login OK");
         celebrateSuccess();
         await afterLoginRefresh();
+        document.dispatchEvent(new Event("areloria-admin-login-success"));
         setFlow(2);
       } catch (e) {
         show("loginMsg", "Login fehlgeschlagen: " + (e.message || e), "err");
@@ -1570,5 +1571,6 @@
       if (this.value) setFlow(3);
     });
   </script>
+  <script src="/vote-admin-panel.js"></script>
 </body>
 </html>

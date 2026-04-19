@@ -21,7 +21,7 @@ describe("Player snapshot — death/respawn fields", () => {
       id: "p1",
       totalDeaths: 0,
       inventory: [],
-      equipment: { weapon: null, armor: null },
+      equipment: { weapon: null, armor: null, offHand: null },
       position: { x: 0, y: 0, z: 0 },
       skillCooldowns: {},
     };

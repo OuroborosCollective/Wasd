@@ -4,6 +4,7 @@ import { PlayerSystem } from "../modules/player/PlayerSystem.js";
 import { CombatSystem } from "../modules/combat/CombatSystem.js";
 import { applyLegendaryPowersFromEquipment } from "../modules/items/legendaryPowers.js";
 import { addGearToPlayer, ensureDualInventoryFields } from "../modules/items/dualInventoryTypes.js";
+import { normalizeBoundItemMeta } from "../modules/items/itemBindingPolicy.js";
 import { generateItem, rarityRoll } from "../modules/loot/diabloItemGen.js";
 import { generatedItemToGearItem } from "../modules/loot/gearConvert.js";
 import { pityBonus } from "../modules/loot/pity.js";
@@ -33,8 +34,22 @@ import { AREModeAuditTrail } from "../modules/world/AREModeAuditTrail.js";
 import { cache } from "./Cache.js";
 import fs from "fs";
 import path from "path";
+import { randomUUID } from "node:crypto";
 import { resolveLoginIdentity } from "../modules/auth/resolveLoginIdentity.js";
 import { getSkillDefinition, buildSkillCooldownUntilPayload } from "../modules/skill/skillDefinitions.js";
+import {
+  IMPACT_BUSTER_COOLDOWN_KEY,
+  IMPACT_BUSTER_SKILL_ID,
+} from "../modules/skill/impactBusterConfig.js";
+import { canUseImpactBuster, executeImpactBuster } from "./ImpactBusterHandler.js";
+import {
+  MEGA_IRON_FIST_ITEM_ID,
+  WORLD_BOSS_DUNGEON_ID,
+  WORLD_BOSS_SCENE_ID,
+  WorldBossDungeonSystem,
+} from "./WorldBossDungeonSystem.js";
+import { VoteSystem } from "../modules/vote/VoteSystem.js";
+import { ensurePlayerVoteProgress } from "../modules/vote/playerVoteProgress.js";
 import { CraftingSystem } from "../modules/crafting/CraftingSystem.js";
 import {
   initRedisChatRelay,
@@ -66,7 +81,10 @@ type SceneTriggerZone = {
   x: number;
   y: number;
   radius: number;
+  targetSceneId?: string;
   targetSpawnKey: string;
+  triggerType?: string;
+  dungeonId?: string;
   allowedSpawnKeys?: string[];
 };
 type GMWorldState = {
@@ -114,6 +132,16 @@ type ScheduledGMTemplateStep = {
   originX: number;
   originY: number;
   step: GMTemplateStep;
+};
+type WorldBossRankingSummary = {
+  dungeonId: string;
+  encounterId: string;
+  top: Array<{
+    playerId: string;
+    playerName: string;
+    rank: number;
+    damage: number;
+  }>;
 };
 const DEFAULT_SCENE_ID = "didis_hub";
 const DEFAULT_SCENE_PROFILES: Record<string, SceneProfile> = {
@@ -334,10 +362,352 @@ export class WorldTick {
   public npcMemoryCache: NPCMemoryCache;
   public ouroborosEngine: OuroborosEngine;
   public npcRelationships: NPCRelationshipSystem;
+  private worldBossDungeonSystem: WorldBossDungeonSystem;
+  private voteSystem: VoteSystem;
+  private worldBossRespawnAt = 0;
+  private worldBossEncounterSummaries: any[] = [];
   private readonly USE_ITEM_TOASTS: Record<string, string> = {
     minor_mana_draught: "You drink Minor Mana Draught (+mana).",
     health_potion: "You drink Health Potion (+hp).",
   };
+
+  private ensurePlayerProgressDefaults(player: any): void {
+    this.worldBossDungeonSystem.ensurePlayerProgressFields(player);
+    ensurePlayerVoteProgress(player);
+    if (!player.equipment || typeof player.equipment !== "object") {
+      player.equipment = { weapon: null, armor: null, offHand: null };
+      return;
+    }
+    if (!("weapon" in player.equipment)) player.equipment.weapon = null;
+    if (!("armor" in player.equipment)) player.equipment.armor = null;
+    if (!("offHand" in player.equipment)) player.equipment.offHand = null;
+  }
+
+  private grantWorldBossWeaponReward(player: any): boolean {
+    this.ensurePlayerProgressDefaults(player);
+    const rewardHistory = player.worldBossProgress.rewardHistory as string[];
+    if (rewardHistory.includes(MEGA_IRON_FIST_ITEM_ID)) {
+      return false;
+    }
+    ensureDualInventoryFields(player);
+    const hasInGear = Array.isArray(player.gearInventory)
+      && player.gearInventory.some((g: any) => g?.baseId === MEGA_IRON_FIST_ITEM_ID);
+    const hasEquipped = player.equipment?.offHand?.id === MEGA_IRON_FIST_ITEM_ID;
+    if (hasInGear || hasEquipped) {
+      rewardHistory.push(MEGA_IRON_FIST_ITEM_ID);
+      return false;
+    }
+    const gear = normalizeBoundItemMeta({
+      uid: `wb_${randomUUID()}`,
+      baseId: MEGA_IRON_FIST_ITEM_ID,
+      name: "Mega-Iron-Fist-Frustinator",
+      rarity: "legendary",
+      ilvl: Math.max(1, Number(player.level) || 1),
+      stats: {
+        dmgMin: 14,
+        dmgMax: 26,
+        staminaBonus: 22,
+        impactBusterBonus: 12,
+      },
+    });
+    addGearToPlayer(player, gear as any);
+    rewardHistory.push(MEGA_IRON_FIST_ITEM_ID);
+    return true;
+  }
+
+  private grantImpactBusterUnlock(player: any): boolean {
+    this.ensurePlayerProgressDefaults(player);
+    if (player.impactBusterUnlocked) return false;
+    player.impactBusterUnlocked = true;
+    return true;
+  }
+
+  private deliverQueuedRewards(socketId: string, player: any): void {
+    this.ensurePlayerProgressDefaults(player);
+    if (!Array.isArray(player.pendingRewards) || player.pendingRewards.length === 0) {
+      return;
+    }
+    const queue = [...player.pendingRewards];
+    player.pendingRewards = [];
+    for (const reward of queue) {
+      if (reward?.type === "gear" && reward?.item) {
+        addGearToPlayer(player, normalizeBoundItemMeta(reward.item));
+      } else {
+        player.pendingRewards.push(reward);
+      }
+    }
+    if (queue.length > 0) {
+      this.ws.sendToPlayer(socketId, {
+        type: "toast",
+        kind: "ok",
+        text: `Claimed ${queue.length} queued Worldboss reward(s).`,
+      });
+      this.pushPlayerStateSync(socketId, player);
+    }
+  }
+
+  private getVoteCallbackBaseUrl(): string {
+    const wsUrl = process.env.PUBLIC_WEBSOCKET_URL?.trim();
+    if (wsUrl && /^wss?:\/\//i.test(wsUrl)) {
+      return wsUrl.replace(/^ws/i, "http").replace(/\/ws\/?$/i, "");
+    }
+    const gameOrigin = process.env.GAME_ORIGIN?.trim() || process.env.APP_ORIGIN?.trim();
+    if (gameOrigin && /^https?:\/\//i.test(gameOrigin)) {
+      return gameOrigin.replace(/\/+$/, "");
+    }
+    const port = Number(process.env.PORT || 3000);
+    return `http://localhost:${Number.isFinite(port) ? port : 3000}`;
+  }
+
+  private getVoteXpMultiplier(player: any): number {
+    this.ensurePlayerProgressDefaults(player);
+    return this.voteSystem.getXpMultiplier(player, Date.now());
+  }
+
+  private applyXpGainWithVoteBuff(
+    player: any,
+    baseXp: number,
+    source: string,
+  ): { baseXp: number; finalXp: number; multiplier: number } {
+    const normalizedBase = Math.max(0, Math.floor(Number(baseXp) || 0));
+    if (normalizedBase <= 0) return { baseXp: 0, finalXp: 0, multiplier: 1 };
+    const multiplier = this.getVoteXpMultiplier(player);
+    const finalXp = Math.max(
+      normalizedBase,
+      Math.floor(normalizedBase * Math.max(1, multiplier)),
+    );
+    player.xp = (player.xp || 0) + finalXp;
+    if (multiplier > 1) {
+      const progress = ensurePlayerVoteProgress(player);
+      progress.auditLog.push({
+        at: Date.now(),
+        action: "xp_boost_applied",
+        detail: `${source}:${normalizedBase}->${finalXp}`,
+      });
+      if (progress.auditLog.length > 250) {
+        progress.auditLog = progress.auditLog.slice(-250);
+      }
+    }
+    return { baseXp: normalizedBase, finalXp, multiplier };
+  }
+
+  private tryHandleWorldBossDefeat(killer: any, target: any): boolean {
+    if (!this.worldBossDungeonSystem.isWorldBossNpc(target)) return false;
+    const playersById = new Map<string, any>();
+    for (const p of this.playerSystem.getAllPlayers()) {
+      playersById.set(p.id, p);
+    }
+    const summary = this.worldBossDungeonSystem.finalizeBossDefeat({
+      bossNpc: target,
+      playersById,
+      grantWeaponReward: (player) => this.grantWorldBossWeaponReward(player),
+      grantUnlock: (player) => this.grantImpactBusterUnlock(player),
+    });
+    if (!summary) return true;
+    this.worldBossEncounterSummaries.push(summary);
+    if (this.worldBossEncounterSummaries.length > 15) {
+      this.worldBossEncounterSummaries = this.worldBossEncounterSummaries.slice(-15);
+    }
+    for (const reward of summary.topRewards) {
+      const socketId = this.getSocketForPlayer(reward.playerId);
+      if (!socketId) continue;
+      if (reward.weaponGranted) {
+        this.ws.sendToPlayer(socketId, {
+          type: "toast",
+          kind: "ok",
+          text: `Worldboss Reward: Mega-Iron-Fist-Frustinator (Rank ${reward.rank}).`,
+        });
+      }
+      if (reward.unlockGranted) {
+        this.ws.sendToPlayer(socketId, {
+          type: "toast",
+          kind: "ok",
+          text: "Impact Buster unlocked permanently!",
+        });
+      }
+      const p = this.playerSystem.getPlayer(reward.playerId);
+      if (p) this.pushPlayerStateSync(socketId, p);
+    }
+    this.ws.broadcast({
+      type: "worldboss_defeated",
+      dungeonId: summary.dungeonId,
+      encounterId: summary.encounterId,
+      bossNpcId: summary.bossNpcId,
+      defeatedAt: summary.defeatedAt,
+      top: summary.topRewards.map((r) => ({
+        playerId: r.playerId,
+        playerName: r.playerName,
+        rank: r.rank,
+        damage: r.damage,
+      })),
+    });
+    this.worldBossRespawnAt = Date.now() + this.worldBossDungeonSystem.getPrimaryDefinition().respawnMs;
+    this.worldBossDungeonSystem.prepareNextBossInstance();
+    return true;
+  }
+
+  private spawnWorldBossNow(): void {
+    const cfg = this.worldBossDungeonSystem.prepareNextBossInstance();
+    const boss = this.npcSystem.createNPC(cfg.npcId, cfg.name, cfg.position.x, cfg.position.y) as any;
+    boss.role = cfg.role;
+    boss.faction = cfg.faction;
+    boss.position.z = cfg.position.z;
+    boss.health = cfg.stats.health;
+    boss.maxHealth = cfg.stats.maxHealth;
+    if (!boss.skills || typeof boss.skills !== "object") boss.skills = {};
+    if (!boss.skills.combat || typeof boss.skills.combat !== "object") {
+      boss.skills.combat = { level: cfg.stats.combatLevel };
+    } else {
+      boss.skills.combat.level = cfg.stats.combatLevel;
+    }
+    boss.dropTable = cfg.dropTable;
+    boss.worldBoss = true;
+    boss.worldBossMeta = cfg.worldBossMeta;
+    boss.damageMultiplier = cfg.stats.damageMultiplier;
+    this.worldBossDungeonSystem.maybeStartEncounterIfMissing(boss);
+    this.ws.broadcast({
+      type: "worldboss_spawned",
+      dungeonId: cfg.worldBossMeta.dungeonId,
+      bossNpcId: boss.id,
+      sceneId: WORLD_BOSS_SCENE_ID,
+      name: boss.name,
+    });
+  }
+
+  private handleWorldBossDamageAttribution(player: any, npc: any, damage: number): void {
+    if (!player || !npc) return;
+    if (!this.worldBossDungeonSystem.isWorldBossNpc(npc)) return;
+    if (!Number.isFinite(damage) || damage <= 0) return;
+    this.worldBossDungeonSystem.noteEncounterDamage(player, npc, Math.floor(damage));
+  }
+
+  private getVoteBuffState(player: any): ReturnType<VoteSystem["getBuffState"]> {
+    this.ensurePlayerProgressDefaults(player);
+    return this.voteSystem.getBuffState(player, Date.now());
+  }
+
+  private grantPlayerXpWithVoteBuff(
+    player: any,
+    baseXp: number,
+    _source: "quest" | "crafting" | "gathering" | "combat" | "other" = "other",
+  ): number {
+    const base = Math.max(0, Math.floor(Number(baseXp) || 0));
+    if (base <= 0) return 0;
+    this.ensurePlayerProgressDefaults(player);
+    const multiplier = this.voteSystem.getXpMultiplier(player, Date.now());
+    const finalXp = Math.max(0, Math.floor(base * multiplier));
+    player.xp = Math.max(0, Math.floor(Number(player.xp) || 0) + finalXp);
+    return finalXp;
+  }
+
+  private grantCraftXpIfAny(socketId: string, player: any, baseXp: number): number {
+    const gained = this.grantPlayerXpWithVoteBuff(player, baseXp, "crafting");
+    if (gained > 0) {
+      this.ws.sendToPlayer(socketId, {
+        type: "toast",
+        kind: "ok",
+        text: `Craft XP +${gained}`,
+      });
+      this.ws.broadcast({
+        type: "fx",
+        at: { x: player.position.x, y: player.position.y },
+        kind: "xp",
+        n: gained,
+      });
+    }
+    return gained;
+  }
+
+  private resolvePublicBaseUrl(): string {
+    const fromEnv = process.env.PUBLIC_BASE_URL?.trim();
+    if (fromEnv) return fromEnv.replace(/\/+$/, "");
+    const gameOrigin = process.env.GAME_ORIGIN?.trim() || process.env.APP_ORIGIN?.trim();
+    if (gameOrigin) return gameOrigin.replace(/\/+$/, "");
+    const port = Number(process.env.PORT || 3000);
+    return `http://localhost:${Number.isFinite(port) ? port : 3000}`;
+  }
+
+  private pushVoteStatus(socketId: string, player: any): void {
+    const status = this.voteSystem.getPlayerVoteStatus(player);
+    this.ws.sendToPlayer(socketId, {
+      type: "vote_status",
+      buff: status.buff,
+      banners: status.banners,
+    });
+  }
+
+  public getPublicVoteBanners() {
+    return this.voteSystem.listActiveBannersPublic();
+  }
+
+  public getAdminVoteBanners() {
+    return this.voteSystem.listAdminBanners();
+  }
+
+  public upsertVoteBanner(input: {
+    internalId?: string;
+    providerKey: string;
+    displayName: string;
+    bannerImage: string;
+    targetUrl: string;
+    description?: string;
+    isActive?: boolean;
+    sortOrder?: number;
+    voteWindowHours?: number;
+    cooldownHours?: number;
+    buffHours?: number;
+    verificationMode?: "api_poll" | "callback_token";
+    providerConfig?: Record<string, unknown>;
+    claimInstructions?: string;
+    metadata?: Record<string, unknown>;
+  }) {
+    return this.voteSystem.upsertBanner(input);
+  }
+
+  public deleteVoteBanner(internalId: string): boolean {
+    return this.voteSystem.deleteBanner(internalId);
+  }
+
+  public setVoteBannerOrder(idsInOrder: string[]) {
+    return this.voteSystem.setBannerOrder(idsInOrder);
+  }
+
+  public getVoteAdminDiagnostics(limit = 120) {
+    return this.voteSystem.getAdminDiagnostics(this.playerSystem.getAllPlayers(), limit);
+  }
+
+  public handleVoteProviderCallback(payload: {
+    sessionId: string;
+    callbackToken: string;
+    providerKey?: string;
+    bannerId?: string;
+    providerVoteId?: string;
+    evidence?: Record<string, unknown>;
+  }): {
+    ok: boolean;
+    reason?: string;
+    playerId?: string;
+    bannerId?: string;
+    sessionId?: string;
+  } {
+    const result = this.voteSystem.markCallbackVerified(
+      this.playerSystem.getAllPlayers(),
+      payload,
+    );
+    if (result.ok && result.playerId) {
+      const socketId = this.getSocketForPlayer(result.playerId);
+      const player = this.playerSystem.getPlayer(result.playerId);
+      if (socketId && player) {
+        this.ws.sendToPlayer(socketId, {
+          type: "toast",
+          kind: "ok",
+          text: "Vote verification callback received. Claim your reward in the vote menu.",
+        });
+        this.pushVoteStatus(socketId, player);
+      }
+    }
+    return result;
+  }
 
   private getSceneProfile(sceneId: string | undefined): { sceneId: string; profile: SceneProfile } {
     const resolvedSceneId = sceneId && this.sceneProfiles[sceneId] ? sceneId : DEFAULT_SCENE_ID;
@@ -386,7 +756,19 @@ export class WorldTick {
         continue;
       }
 
-      const spawn = this.applySpawnToPlayer(player, trigger.sceneId, trigger.targetSpawnKey);
+      if (trigger.dungeonId === WORLD_BOSS_DUNGEON_ID) {
+        const entryCheck = this.worldBossDungeonSystem.canEnterWorldBossDungeon(player);
+        if (!entryCheck.ok) {
+          this.ws.sendToPlayer(socketId, {
+            type: "toast",
+            kind: "warn",
+            text: entryCheck.reason ?? "You cannot enter this dungeon now.",
+          });
+          return;
+        }
+      }
+      const targetSceneId = trigger.targetSceneId || trigger.sceneId;
+      const spawn = this.applySpawnToPlayer(player, targetSceneId, trigger.targetSpawnKey);
       this.sceneTriggerCooldowns.set(player.id, now + SCENE_TRIGGER_COOLDOWN_MS);
       this.observerEngine.updatePosition(socketId, player.position);
       this.ws.sendToPlayer(socketId, {
@@ -396,7 +778,15 @@ export class WorldTick {
         spawnPosition: spawn.spawnPoint,
         via: "zone_trigger",
         triggerId: trigger.id,
+        dungeonId: trigger.dungeonId,
       });
+      if (trigger.dungeonId === WORLD_BOSS_DUNGEON_ID) {
+        this.ws.sendToPlayer(socketId, {
+          type: "worldboss_entered",
+          dungeonId: WORLD_BOSS_DUNGEON_ID,
+          sceneId: WORLD_BOSS_SCENE_ID,
+        });
+      }
       return;
     }
   }
@@ -428,7 +818,9 @@ export class WorldTick {
       maxWeight: invSummary.maxWeight,
       inventoryWeight: invSummary.weight,
       skillCooldownUntil: buildSkillCooldownUntilPayload(player, Date.now()),
+      impactBusterUnlocked: Boolean(player.impactBusterUnlocked),
       combatTargetNpcId: player.combatTargetNpcId ?? null,
+      voteBuffState: this.getVoteBuffState(player),
     });
   }
 
@@ -1300,6 +1692,13 @@ export class WorldTick {
         this.sendGMPreviewSnapshot(socketId);
         return true;
       }
+      case "gm_spawn_worldboss": {
+        this.worldBossRespawnAt = 0;
+        this.spawnWorldBossNow();
+        this.sendGMStatus(socketId, "info", "Worldboss spawned.");
+        this.sendGMPreviewSnapshot(socketId);
+        return true;
+      }
       case "gm_spawn_npc_at_self": {
         const npcId = isNonEmptyString(msg.npcId) ? msg.npcId.trim() : `npc_${Date.now()}`;
         const name = isNonEmptyString(msg.name) ? msg.name.trim() : npcId;
@@ -1640,6 +2039,9 @@ export class WorldTick {
         }
       }
     });
+    this.questSystem.setXpRewardApplier((player, baseXp) =>
+      this.grantPlayerXpWithVoteBuff(player, baseXp, "quest")
+    );
     this.persistence = new PersistenceManager();
     this.worldSystem = new WorldSystem(this.persistence);
     this.glbLinksStore = process.env.GLB_LINKS_STORE?.trim().toLowerCase() === "spacetime" ? "spacetime" : "file";
@@ -1659,6 +2061,10 @@ export class WorldTick {
     this.npcMemoryCache = new NPCMemoryCache();
     this.ouroborosEngine = new OuroborosEngine();
     this.npcRelationships = new NPCRelationshipSystem();
+    this.worldBossDungeonSystem = new WorldBossDungeonSystem();
+    this.voteSystem = new VoteSystem();
+    this.worldBossRespawnAt = Date.now() + 1000;
+    this.worldBossDungeonSystem.ensureWorldBossPortalObject(this.worldSystem.objectSystem);
     this.statusEmitter = new StatusEmitter(
       this.chatChannelRouter,
       () => this.getChatRecipients(),
@@ -1673,6 +2079,8 @@ export class WorldTick {
     } catch {
       setSupabaseClient(null);
     }
+
+    this.worldBossDungeonSystem.ensureWorldBossPortalObject(this.worldSystem.objectSystem);
 
     // Create a dummy player in a distant chunk to prove multi-observer union
     const dummyPlayer = this.playerSystem.createPlayer("dummy_player", "Dummy Player");
@@ -1726,6 +2134,8 @@ export class WorldTick {
             console.log(`Player ${charName} reconnected.`);
             shouldApplySpawn = !isNonEmptyString(player.sceneId) || !isNonEmptyString(player.spawnKey);
           }
+          this.ensurePlayerProgressDefaults(player);
+          this.deliverQueuedRewards(id, player);
 
           const requestedSceneId = isNonEmptyString(msg.sceneId) ? msg.sceneId.trim() : undefined;
           const requestedSpawnKey = isNonEmptyString(msg.spawnKey) ? msg.spawnKey.trim() : undefined;
@@ -1786,11 +2196,14 @@ export class WorldTick {
               maxWeight: invWelcome.maxWeight,
               inventoryWeight: invWelcome.weight,
               skillCooldownUntil: buildSkillCooldownUntilPayload(player, Date.now()),
+              impactBusterUnlocked: Boolean(player.impactBusterUnlocked),
               combatTargetNpcId: player.combatTargetNpcId ?? null,
+              voteBuffState: this.getVoteBuffState(player),
             };
             })(),
           });
           this.pushPlayerStateSync(id, player);
+          this.pushVoteStatus(id, player);
         } catch (err) {
           console.error("Login error:", err);
           this.ws.sendToPlayer(id, { type: "error", message: "Login failed" });
@@ -1834,6 +2247,17 @@ export class WorldTick {
         if (!player) {
           return;
         }
+        if (msg.sceneId === WORLD_BOSS_SCENE_ID) {
+          const entryCheck = this.worldBossDungeonSystem.canEnterWorldBossDungeon(player);
+          if (!entryCheck.ok) {
+            this.ws.sendToPlayer(id, {
+              type: "toast",
+              kind: "warn",
+              text: entryCheck.reason ?? "You cannot enter this dungeon now.",
+            });
+            return;
+          }
+        }
 
         const requestedSceneId = isNonEmptyString(msg.sceneId) ? msg.sceneId.trim() : undefined;
         const requestedSpawnKey = isNonEmptyString(msg.spawnKey) ? msg.spawnKey.trim() : undefined;
@@ -1846,6 +2270,26 @@ export class WorldTick {
           spawnKey: spawn.spawnKey,
           spawnPosition: spawn.spawnPoint,
         });
+        if (spawn.sceneId === WORLD_BOSS_SCENE_ID) {
+          this.ws.sendToPlayer(id, {
+            type: "worldboss_entered",
+            dungeonId: WORLD_BOSS_DUNGEON_ID,
+            sceneId: WORLD_BOSS_SCENE_ID,
+          });
+        }
+        return;
+      }
+
+      if (msg.type === "worldboss_info_request") {
+        const now = Date.now();
+        this.ws.sendToPlayer(id, {
+          type: "worldboss_status",
+          dungeonId: WORLD_BOSS_DUNGEON_ID,
+          sceneId: WORLD_BOSS_SCENE_ID,
+          respawnAt: this.worldBossRespawnAt,
+          respawnRemainingMs: Math.max(0, this.worldBossRespawnAt - now),
+          top: this.worldBossEncounterSummaries.at(-1)?.topRewards ?? [],
+        });
         return;
       }
 
@@ -1853,6 +2297,7 @@ export class WorldTick {
       const player = playerUid ? this.playerSystem.getPlayer(playerUid) : null;
 
       if (!player) return;
+      this.ensurePlayerProgressDefaults(player);
 
       if (this.worldState.bannedPlayers.includes(player.id)) {
         this.ws.sendToPlayer(id, { type: "kick", reason: "Banned player" });
@@ -1944,10 +2389,159 @@ export class WorldTick {
         }
       }
 
+      if (msg.type === "vote_banners") {
+        this.ws.sendToPlayer(id, {
+          type: "vote_banners",
+          banners: this.getPublicVoteBanners(),
+        });
+        this.pushVoteStatus(id, player);
+        return;
+      }
+
       if (msg.type === "set_target") {
         const requested = typeof msg.npcId === "string" ? msg.npcId.trim() : "";
+        if (requested && this.worldBossDungeonSystem.isWorldBossNpc(this.npcSystem.getNPC(requested))) {
+          this.worldBossDungeonSystem.maybeStartEncounterIfMissing(this.npcSystem.getNPC(requested));
+        }
         player.combatTargetNpcId = requested.length > 0 ? requested : null;
         this.pushPlayerStateSync(id, player);
+        return;
+      }
+
+      if (msg.type === "worldboss_status") {
+        const boss = this.npcSystem.getNPC(this.worldBossDungeonSystem.getCurrentBossNpcId());
+        const respawnRemainingMs = this.worldBossRespawnAt > 0 ? Math.max(0, this.worldBossRespawnAt - Date.now()) : 0;
+        this.ws.sendToPlayer(id, {
+          type: "worldboss_status",
+          dungeonId: WORLD_BOSS_DUNGEON_ID,
+          sceneId: WORLD_BOSS_SCENE_ID,
+          bossNpcId: boss?.id ?? null,
+          bossName: boss?.name ?? "Frustinator Prime",
+          bossHp: boss?.health ?? 0,
+          bossHpMax: boss?.maxHealth ?? 0,
+          respawnRemainingMs,
+        });
+        return;
+      }
+
+      if (msg.type === "vote_status" || msg.type === "vote_info_request") {
+        this.pushVoteStatus(id, player);
+        return;
+      }
+
+      if (msg.type === "vote_open") {
+        const bannerId = typeof msg.bannerId === "string" ? msg.bannerId.trim() : "";
+        if (!bannerId) {
+          this.ws.sendToPlayer(id, { type: "toast", kind: "warn", text: "Vote banner is missing." });
+          return;
+        }
+        const created = this.voteSystem.createVoteSession(
+          player,
+          bannerId,
+          this.resolvePublicBaseUrl(),
+        );
+        if (!created.ok || !created.session || !created.status) {
+          this.ws.sendToPlayer(id, {
+            type: "toast",
+            kind: "warn",
+            text: created.reason ?? "Unable to start vote session.",
+          });
+          this.pushVoteStatus(id, player);
+          return;
+        }
+        this.ws.sendToPlayer(id, {
+          type: "vote_session_opened",
+          bannerId,
+          session: {
+            id: created.session.id,
+            status: created.session.status,
+            expiresAt: created.session.expiresAt,
+            voteUrl: created.session.voteUrl,
+          },
+          status: created.status,
+        });
+        this.pushVoteStatus(id, player);
+        return;
+      }
+
+      if (msg.type === "vote_verify") {
+        const sessionId = typeof msg.sessionId === "string" ? msg.sessionId.trim() : "";
+        if (!sessionId) {
+          this.ws.sendToPlayer(id, { type: "toast", kind: "warn", text: "Vote session is missing." });
+          return;
+        }
+        const verified = await this.voteSystem.verifySession(player, sessionId);
+        if (!verified.ok) {
+          this.ws.sendToPlayer(id, {
+            type: "vote_verify_result",
+            ok: false,
+            verified: false,
+            sessionId,
+            reason: verified.reason,
+            retryAfterMs: verified.retryAfterMs,
+            status: verified.status,
+          });
+          this.ws.sendToPlayer(id, {
+            type: "toast",
+            kind: "warn",
+            text: verified.reason ?? "Vote verification failed.",
+          });
+          this.pushVoteStatus(id, player);
+          return;
+        }
+        this.ws.sendToPlayer(id, {
+          type: "vote_verify_result",
+          ok: true,
+          verified: true,
+          sessionId,
+          status: verified.status,
+        });
+        this.ws.sendToPlayer(id, {
+          type: "toast",
+          kind: "ok",
+          text: "Vote verified. Claim your reward.",
+        });
+        this.pushVoteStatus(id, player);
+        return;
+      }
+
+      if (msg.type === "vote_claim") {
+        const sessionId = typeof msg.sessionId === "string" ? msg.sessionId.trim() : "";
+        if (!sessionId) {
+          this.ws.sendToPlayer(id, { type: "toast", kind: "warn", text: "Vote session is missing." });
+          return;
+        }
+        const claimed = this.voteSystem.claimSession(player, sessionId);
+        if (!claimed.ok) {
+          this.ws.sendToPlayer(id, {
+            type: "vote_claim_result",
+            ok: false,
+            sessionId,
+            reason: claimed.reason,
+            status: claimed.status,
+          });
+          this.ws.sendToPlayer(id, {
+            type: "toast",
+            kind: "warn",
+            text: claimed.reason ?? "Vote claim failed.",
+          });
+          this.pushVoteStatus(id, player);
+          return;
+        }
+        this.ws.sendToPlayer(id, {
+          type: "vote_claim_result",
+          ok: true,
+          sessionId,
+          gainedMs: claimed.gainedMs ?? 0,
+          status: claimed.status,
+        });
+        this.ws.sendToPlayer(id, {
+          type: "toast",
+          kind: "ok",
+          text: `Vote reward claimed (+${Math.round((claimed.gainedMs ?? 0) / 3_600_000)}h XP buff).`,
+        });
+        this.pushPlayerStateSync(id, player);
+        this.pushVoteStatus(id, player);
         return;
       }
 
@@ -1976,6 +2570,68 @@ export class WorldTick {
 
       if (msg.type === "use_skill") {
         const skillId = typeof msg.skillId === "string" ? msg.skillId.trim() : "";
+        if (skillId === IMPACT_BUSTER_SKILL_ID) {
+          const now = Date.now();
+          const eligibility = canUseImpactBuster(player, now);
+          if (!eligibility.ok) {
+            this.ws.sendToPlayer(id, {
+              type: "toast",
+              kind: eligibility.reason === "locked" ? "warn" : "info",
+              text: eligibility.toast,
+            });
+            return;
+          }
+          const impact = executeImpactBuster(player, this.npcSystem.getAllNPCs(), now);
+          player.skillCooldowns[IMPACT_BUSTER_COOLDOWN_KEY] = impact.cooldownUntil;
+          this.ws.broadcast({
+            type: "impact_buster_fx",
+            casterId: player.id,
+            at: { x: player.position.x, y: player.position.y },
+            radius: 5.5,
+          });
+          this.ws.sendToPlayer(id, {
+            type: "toast",
+            kind: "ok",
+            text:
+              impact.hits.length > 0
+                ? `Impact Buster hits ${impact.hits.length} target(s) for ${impact.totalDamage}.`
+                : "Impact Buster unleashed, but nothing was in range.",
+          });
+          for (const hit of impact.hits) {
+            const target = this.npcSystem.getNPC(hit.npcId);
+            if (!target) continue;
+            this.handleWorldBossDamageAttribution(player, target, hit.damage);
+            this.ws.broadcast({
+              type: "combat_result",
+              attackerId: player.id,
+              targetId: hit.npcId,
+              damage: hit.damage,
+              crit: false,
+              hit: true,
+              targetHp: hit.healthAfter,
+              targetHpMax: target.maxHealth ?? target.health,
+              killed: hit.killed,
+            });
+            this.ws.broadcast({
+              type: "fx",
+              at: { x: target.position.x, y: target.position.y },
+              kind: "hit",
+              n: hit.damage,
+            });
+            if (hit.killed && target.health <= 0) {
+              target.health = 0;
+              target.aggroTargetId = null;
+              player.kills = Math.max(0, Number(player.kills) || 0) + 1;
+              const handledBossDefeat = this.tryHandleWorldBossDefeat(player, target);
+              if (!handledBossDefeat) {
+                this.spawnLootFromNpc(target, player.id);
+              }
+              this.questSystem.updateCombatQuests(player, target.id ?? target.name, target.id);
+            }
+          }
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
         const skill = getSkillDefinition(skillId);
         if (!skill) {
           this.ws.sendToPlayer(id, { type: "toast", text: "Unknown skill." });
@@ -2015,6 +2671,7 @@ export class WorldTick {
             });
           }
           if (hit.hit) {
+            this.handleWorldBossDamageAttribution(player, target, hit.damage);
             this.ws.broadcast({
               type: "combat_result",
               attackerId: player.id,
@@ -2034,7 +2691,10 @@ export class WorldTick {
           if (hit.killed && target.health <= 0) {
             target.aggroTargetId = null;
             player.kills = Math.max(0, Number(player.kills) || 0) + 1;
-            this.spawnLootFromNpc(target, player.id);
+            const handledBossDefeat = this.tryHandleWorldBossDefeat(player, target);
+            if (!handledBossDefeat) {
+              this.spawnLootFromNpc(target, player.id);
+            }
             this.questSystem.updateCombatQuests(player, target.id ?? target.name, target.id);
           }
           this.pushPlayerStateSync(id, player);
@@ -2114,6 +2774,7 @@ export class WorldTick {
           });
         }
         if (atkResult.hit) {
+          this.handleWorldBossDamageAttribution(player, target, reportedDamage);
           const killed = (target.health ?? 0) <= 0;
           if (killed) target.health = 0;
           this.ws.broadcast({
@@ -2133,7 +2794,10 @@ export class WorldTick {
           target.health = 0;
           target.aggroTargetId = null;
           player.kills = Math.max(0, Number(player.kills) || 0) + 1;
-          this.spawnLootFromNpc(target, player.id);
+          const handledBossDefeat = this.tryHandleWorldBossDefeat(player, target);
+          if (!handledBossDefeat) {
+            this.spawnLootFromNpc(target, player.id);
+          }
           this.questSystem.updateCombatQuests(player, target.id ?? target.name, target.id);
           this.pushPlayerStateSync(id, player);
         }
@@ -2231,8 +2895,8 @@ export class WorldTick {
           this.ws.sendToPlayer(id, { type: "toast", text: "Cannot equip this gear type yet." });
           return;
         }
-        const slot = def.type === "weapon" ? "weapon" : "armor";
-        if (def.type === "armor" && def.slot !== "armor") {
+        const slot = def.type === "weapon" ? "weapon" : def.slot === "offHand" ? "offHand" : "armor";
+        if (def.type === "armor" && def.slot !== "armor" && def.slot !== "offHand") {
           this.ws.sendToPlayer(id, { type: "toast", text: "Armor slot not supported for this item." });
           return;
         }
@@ -2265,7 +2929,7 @@ export class WorldTick {
           }
         }
         player.gearInventory.splice(idx, 1);
-        if (!player.equipment) player.equipment = { weapon: null, armor: null };
+        if (!player.equipment) player.equipment = { weapon: null, armor: null, offHand: null };
         (player.equipment as any)[slot] = equipRow;
         this.ws.sendToPlayer(id, { type: "toast", text: `Equipped ${equipRow.name}.` });
         this.pushPlayerStateSync(id, player);
@@ -2285,11 +2949,17 @@ export class WorldTick {
 
       if (msg.type === "unequip_item") {
         const slot = typeof msg.slot === "string" ? msg.slot.trim() : "";
-        if (!slot || (slot !== "weapon" && slot !== "armor")) return;
+        if (!slot || (slot !== "weapon" && slot !== "armor" && slot !== "offHand")) return;
         const equipment = this.inventorySystem.unequipItem(player, slot);
         if (equipment) {
           this.ws.sendToPlayer(id, { type: "toast", text: `Unequipped ${slot}.` });
           this.pushPlayerStateSync(id, player);
+        } else {
+          this.ws.sendToPlayer(id, {
+            type: "toast",
+            kind: "warn",
+            text: "This bound item cannot be unequipped via transfer slots.",
+          });
         }
         return;
       }
@@ -2306,6 +2976,7 @@ export class WorldTick {
         const count = Math.max(1, Math.min(50, Math.floor(Number(msg.count) || 1)));
         let crafted = 0;
         let lastName = recipeId;
+        let totalCraftXp = 0;
         for (let i = 0; i < count; i++) {
           const result = this.craftingSystem?.craft(player, recipeId);
           if (!result || !result.success) {
@@ -2316,9 +2987,11 @@ export class WorldTick {
           }
           crafted++;
           if (result.itemId) lastName = result.itemId;
+          totalCraftXp += Math.max(0, Number(result.xp) || 0);
         }
         if (crafted > 0) {
           this.ws.sendToPlayer(id, { type: "toast", text: `Hergestellt: ${crafted}x ${lastName}` });
+          this.grantCraftXpIfAny(id, player, totalCraftXp);
         }
         this.pushPlayerStateSync(id, player);
         return;
@@ -2390,10 +3063,12 @@ export class WorldTick {
     this.areMode = this.runtimeSettings.getAREMode();
     const savedData = await this.persistence.load();
     for (const id in savedData) {
+      this.ensurePlayerProgressDefaults(savedData[id]);
       this.playerSystem.setPlayer(id, savedData[id]);
     }
     this.loadRuntimeEventTemplates();
     this.loadSceneLayouts();
+    this.worldBossDungeonSystem.ensureWorldBossPortalObject(this.worldSystem.objectSystem);
     this.loadSpawns();
     if (this.craftingSystem?.loadRecipes) {
       this.craftingSystem.loadRecipes().catch(() => {});
@@ -2495,6 +3170,8 @@ export class WorldTick {
       if (loadedTriggers.length > 0) {
         this.sceneTriggerZones = loadedTriggers;
       }
+      this.sceneProfiles = this.worldBossDungeonSystem.buildSceneProfileOverrides(this.sceneProfiles);
+      this.sceneTriggerZones = this.worldBossDungeonSystem.buildTriggerOverrides(this.sceneTriggerZones);
 
       console.log(
         `[SceneLayouts] Loaded ${Object.keys(this.sceneProfiles).length} profiles and ${this.sceneTriggerZones.length} trigger zones`
@@ -2517,6 +3194,7 @@ export class WorldTick {
           });
         });
       }
+      this.spawnWorldBossNow();
     } catch (e) {}
   }
 
@@ -2541,6 +3219,25 @@ export class WorldTick {
     this.tickCount += 1;
     this.processTemplateQueue();
     const onlinePlayers = this.playerSystem.getAllPlayers().filter(p => !p.isOffline);
+    if (this.worldBossRespawnAt > 0 && Date.now() >= this.worldBossRespawnAt) {
+      this.worldBossRespawnAt = 0;
+      this.spawnWorldBossNow();
+    }
+    const currentBoss = this.npcSystem.getNPC(this.worldBossDungeonSystem.getCurrentBossNpcId());
+    if (currentBoss && currentBoss.health > 0) {
+      this.worldBossDungeonSystem.maybeStartEncounterIfMissing(currentBoss);
+      if (this.worldBossDungeonSystem.shouldBroadcastEncounterPulse()) {
+        this.ws.broadcast({
+          type: "worldboss_encounter_update",
+          dungeonId: WORLD_BOSS_DUNGEON_ID,
+          sceneId: WORLD_BOSS_SCENE_ID,
+          bossNpcId: currentBoss.id,
+          bossName: currentBoss.name,
+          hp: currentBoss.health,
+          maxHp: currentBoss.maxHealth,
+        });
+      }
+    }
     this.npcSystem.tick(onlinePlayers, this.worldSystem.worldTime);
     this.worldSystem.tick();
     this.cleanupExpiredLoot();
@@ -2639,6 +3336,8 @@ export class WorldTick {
         maxHealth: n.maxHealth,
         role: n.role,
         faction: n.faction,
+        worldBoss: Boolean(n.worldBoss),
+        worldBossDungeonId: n.worldBossMeta?.dungeonId ?? null,
         combatNpcId: n.id,
         combatThreat: n.faction === "Hostile" || n.role === "Enemy",
         glbPath: this.resolveNpcGlbPath(n),
@@ -2704,6 +3403,20 @@ export class WorldTick {
       entities,
       chunks: [{ id: 'main', chunkX: 0, chunkY: 0, objects: [] }]
     });
+    if (this.worldBossEncounterSummaries.length > 0 && this.tickCount % 25 === 0) {
+      const latest = this.worldBossEncounterSummaries[this.worldBossEncounterSummaries.length - 1];
+      this.ws.broadcast({
+        type: "worldboss_ranking",
+        dungeonId: latest.dungeonId,
+        encounterId: latest.encounterId,
+        top: latest.topRewards.map((row: any) => ({
+          playerId: row.playerId,
+          playerName: row.playerName,
+          rank: row.rank,
+          damage: row.damage,
+        })),
+      });
+    }
   }
 
   public getWorld() {
@@ -2718,6 +3431,10 @@ export class WorldTick {
       glbLinksStore: this.glbLinksStore,
       ouroboros: this.ouroborosEngine.getStats(),
     };
+  }
+
+  public listActiveVoteBanners() {
+    return this.getPublicVoteBanners();
   }
 
   private resolveNpcGlbPath(npc: any): string | undefined {
@@ -2739,4 +3456,5 @@ export class WorldTick {
   private resolveEntityGlbPath(category: string, key: string | undefined, seed: string): string | undefined {
     return this.assetPoolResolver.resolvePath(category, key, seed);
   }
+
 }

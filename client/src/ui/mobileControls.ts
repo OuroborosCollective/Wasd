@@ -586,3 +586,26 @@ export function setMobileCombatActionsEnabled(enabled: boolean) {
     h.style.opacity = enabled ? "" : "0.4";
   });
 }
+
+export function setMobileImpactButtonState(options: {
+  unlocked: boolean;
+  cooldownRemainingMs?: number;
+}) {
+  const btn = document.getElementById("mob-skill-cast") as HTMLElement | null;
+  const label = btn?.querySelector(".mob-btn-label") as HTMLElement | null;
+  if (!btn || !label) return;
+  if (!options.unlocked) {
+    btn.style.filter = "grayscale(1)";
+    btn.style.opacity = "0.6";
+    label.textContent = "LOCK";
+    return;
+  }
+  btn.style.filter = "";
+  btn.style.opacity = "";
+  if (typeof options.cooldownRemainingMs === "number" && options.cooldownRemainingMs > 0) {
+    const secs = Math.max(0.1, options.cooldownRemainingMs / 1000);
+    label.textContent = `${secs.toFixed(1)}s`;
+  } else {
+    label.textContent = "READY";
+  }
+}

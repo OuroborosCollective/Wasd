@@ -5,8 +5,13 @@ import { registerGameHudWsBridge } from "./gameHudBridge";
 import { useGameHudState } from "./useGameHudState";
 import type { MMORPGClientCore } from "../core/MMORPGClientCore";
 import {
+  claimVoteSession,
+  openVoteSession,
+  requestVoteBanners,
+  requestVoteStatus,
   sendPickupLoot,
   sendSetCombatTarget,
+  verifyVoteSession,
 } from "../networking/websocketClient";
 import {
   getCombatTargetNpcId,
@@ -40,6 +45,10 @@ export function mountGameHudOverlay(core: MMORPGClientCore) {
       quests,
       inv,
       fxFeed,
+      worldBossEncounter,
+      worldBossTop,
+      voteBuff,
+      voteBanners,
       onWirePayload,
       onEntitySync,
       onLootSpawned,
@@ -79,6 +88,12 @@ export function mountGameHudOverlay(core: MMORPGClientCore) {
       });
       return () => registerGameHudWsBridge(null);
     }, [onEntitySync, onLootSpawned, onLootDespawned, onWirePayload]);
+
+    useEffect(() => {
+      if (!connected) return;
+      requestVoteBanners();
+      requestVoteStatus();
+    }, [connected]);
 
     useEffect(() => {
       const onKey = (e: KeyboardEvent) => {
@@ -155,6 +170,17 @@ export function mountGameHudOverlay(core: MMORPGClientCore) {
         onHousingOpen={onHousingOpen}
         fxFeed={fxFeed}
         questlineProgress={qlProgress}
+        worldBossEncounter={worldBossEncounter}
+        worldBossTop={worldBossTop}
+        voteBuff={voteBuff}
+        voteBanners={voteBanners}
+        onVoteRefresh={() => {
+          requestVoteBanners();
+          requestVoteStatus();
+        }}
+        onVoteOpen={(bannerId) => openVoteSession(bannerId)}
+        onVoteVerify={(sessionId) => verifyVoteSession(sessionId)}
+        onVoteClaim={(sessionId) => claimVoteSession(sessionId)}
       />
     );
   }

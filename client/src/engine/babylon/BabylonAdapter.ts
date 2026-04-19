@@ -58,6 +58,13 @@ type EntityNode = {
 };
 
 type AREModeSource = "manual" | "auto";
+type ImpactShockwave = {
+  mesh: Mesh;
+  material: StandardMaterial;
+  startTime: number;
+  durationMs: number;
+  maxRadius: number;
+};
 
 /** Prefer `/assets/models/*` (in client dist); large trees use `/assets/models/world-assets/*` after sync-world-assets. */
 const DEFAULT_MODEL_BY_TYPE: Record<string, string> = {
@@ -139,6 +146,23 @@ export class BabylonAdapter implements IEngineBridge {
   private glbLoadChain: Promise<void> = Promise.resolve();
   private readonly pendingLabelText = new Map<string, string>();
   private labelFlushAccum = 0;
+  private impactFlashOverlay: HTMLDivElement | null = null;
+  private readonly onImpactPulseEvent = (event: Event) => {
+    const detail =
+      (event as CustomEvent<{ x?: number; y?: number; radius?: number }>).detail ??
+      {};
+    this.spawnImpactShockwave(
+      {
+        x: Number(detail.x ?? 0),
+        y: Number(detail.y ?? 0),
+        z: 0,
+      },
+      Number(detail.radius ?? 5.5),
+    );
+  };
+  private impactShakeUntil = 0;
+  private impactShakePower = 0;
+  private impactShockwaves: ImpactShockwave[] = [];
 
   constructor(
     private readonly scene: Scene,
@@ -178,6 +202,7 @@ export class BabylonAdapter implements IEngineBridge {
     if (this.arePerfEnabled) {
       this.arePerfElement = this.mountAREPerfOverlay();
     }
+    window.addEventListener("areloria:impact-buster-pulse", this.onImpactPulseEvent);
     this.bindKeyboard();
   }
 
@@ -478,6 +503,7 @@ export class BabylonAdapter implements IEngineBridge {
     }
     this.areWaveClock.t += dt;
     this.updateAREVisuals();
+    this.updateImpactShockwaves();
     this.updateAREDebugOverlay();
     this.updateAREPerfOverlay();
     this.updateCameraFollow();
@@ -548,7 +574,18 @@ export class BabylonAdapter implements IEngineBridge {
     const targetNode = this.entities.get(this.cameraTargetId);
     if (!targetNode) return;
     const desiredTarget = targetNode.root.position.add(new Vector3(0, 1.4, 0));
-    this.camera.target = Vector3.Lerp(this.camera.target, desiredTarget, 0.16);
+    const nextTarget = Vector3.Lerp(this.camera.target, desiredTarget, 0.16);
+    const now = performance.now();
+    if (this.impactShakeUntil > now && this.impactShakePower > 0) {
+      const t = this.areWaveClock.t * 32;
+      const remaining = Math.max(0, this.impactShakeUntil - now);
+      const damp = Math.min(1, remaining / 240);
+      const offsetX = Math.sin(t) * this.impactShakePower * damp;
+      const offsetY = Math.cos(t * 0.85) * this.impactShakePower * 0.65 * damp;
+      this.camera.target = nextTarget.add(new Vector3(offsetX, offsetY, 0));
+    } else {
+      this.camera.target = nextTarget;
+    }
   }
 
   private bindKeyboard(): void {
@@ -593,6 +630,41 @@ export class BabylonAdapter implements IEngineBridge {
     if (gameCore && typeof gameCore.interact === "function") {
       gameCore.interact();
     }
+  }
+
+  pulseScreenShakeAndFlash(): void {
+    this.impactShakeUntil = performance.now() + 240;
+    this.impactShakePower = this.androidMobile ? 0.06 : 0.11;
+    this.triggerImpactFlash();
+  }
+
+  spawnImpactShockwave(origin: { x: number; y: number; z?: number }, radius = 5.5): void {
+    const mesh = MeshBuilder.CreateTorus(
+      `impact_shockwave_${Date.now()}_${Math.floor(Math.random() * 9999)}`,
+      {
+        diameter: 0.9,
+        thickness: 0.15,
+        tessellation: this.androidMobile ? 20 : 36,
+      },
+      this.scene,
+    );
+    mesh.rotation.x = Math.PI / 2;
+    mesh.position = new Vector3(origin.x, Number(origin.z ?? 0) + 0.08, origin.y);
+    mesh.isPickable = false;
+    const material = new StandardMaterial(`impact_shockwave_mat_${mesh.uniqueId}`, this.scene);
+    material.emissiveColor = new Color3(0.9, 0.95, 1);
+    material.diffuseColor = new Color3(0.45, 0.55, 1);
+    material.alpha = 0.72;
+    material.backFaceCulling = false;
+    mesh.material = material;
+    const maxRadius = Math.max(2.2, Number(radius) * 2.05);
+    this.impactShockwaves.push({
+      mesh,
+      material,
+      startTime: performance.now(),
+      durationMs: 520,
+      maxRadius,
+    });
   }
 
   private createPlaceholderMesh(model: EntityViewModel): Mesh {
@@ -1260,5 +1332,50 @@ export class BabylonAdapter implements IEngineBridge {
     if (id.startsWith("monster")) return "monster";
     if (id.startsWith("loot")) return "loot";
     return "object";
+  }
+
+  private triggerImpactFlash(): void {
+    const overlay = this.ensureImpactFlashOverlay();
+    overlay.style.opacity = "0.32";
+    overlay.animate(
+      [{ opacity: 0.35 }, { opacity: 0.18, offset: 0.2 }, { opacity: 0 }],
+      { duration: 240, easing: "ease-out", fill: "forwards" },
+    );
+  }
+
+  private ensureImpactFlashOverlay(): HTMLDivElement {
+    if (this.impactFlashOverlay) {
+      return this.impactFlashOverlay;
+    }
+    const node = document.createElement("div");
+    node.id = "impact-buster-flash-overlay";
+    node.style.position = "fixed";
+    node.style.inset = "0";
+    node.style.zIndex = "5401";
+    node.style.pointerEvents = "none";
+    node.style.opacity = "0";
+    node.style.background =
+      "radial-gradient(circle at 50% 50%, rgba(190,220,255,0.78) 0%, rgba(130,170,255,0.38) 32%, rgba(20,28,46,0) 70%)";
+    document.body.appendChild(node);
+    this.impactFlashOverlay = node;
+    return node;
+  }
+
+  private updateImpactShockwaves(): void {
+    if (this.impactShockwaves.length === 0) return;
+    const now = performance.now();
+    this.impactShockwaves = this.impactShockwaves.filter((wave) => {
+      const elapsed = now - wave.startTime;
+      const t = Math.max(0, Math.min(1, elapsed / wave.durationMs));
+      if (t >= 1) {
+        wave.mesh.dispose(false, true);
+        wave.material.dispose();
+        return false;
+      }
+      const r = 0.3 + (wave.maxRadius - 0.3) * t;
+      wave.mesh.scaling = new Vector3(r, r, r);
+      wave.material.alpha = (1 - t) * 0.72;
+      return true;
+    });
   }
 }

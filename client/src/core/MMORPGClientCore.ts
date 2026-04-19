@@ -208,6 +208,15 @@ export class MMORPGClientCore {
     this.updateFootsteps(dt);
   }
 
+  public pulseScreenShakeAndFlash() {
+    const anyEngine = this.engine as unknown as {
+      pulseScreenShakeAndFlash?: () => void;
+    };
+    if (typeof anyEngine.pulseScreenShakeAndFlash === "function") {
+      anyEngine.pulseScreenShakeAndFlash();
+    }
+  }
+
   private updateFootsteps(dt: number) {
     if (!this.localPlayerId) return;
     const player = this.entities.get(this.localPlayerId);

@@ -15,6 +15,11 @@ export type GearItem = {
   rarity: Rarity;
   ilvl: number;
   stats: Record<string, number>;
+  bound?: boolean;
+  boundOnAcquire?: boolean;
+  nonTransferable?: boolean;
+  tradeable?: boolean;
+  droppable?: boolean;
   setId?: string;
   legendaryPowerId?: string;
   /** Optional socket indices filled with stackable gem item ids */
