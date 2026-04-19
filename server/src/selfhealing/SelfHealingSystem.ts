@@ -151,7 +151,14 @@ const DEFAULT_STORAGE_DIR = path.join(process.cwd(), ".selfhealing");
 const DEFAULT_SELF_HEAL_CONFIG: SelfHealingConfig = {
   enabled: true,
   watchPaths: ["src", "server", "shared", "game-data", "scripts"],
-  ignorePaths: ["node_modules", ".git", "dist", "build", ".selfhealing", "coverage"],
+  ignorePaths: [
+    "node_modules",
+    ".git",
+    "dist",
+    "build",
+    ".selfhealing",
+    "coverage",
+  ],
   storageDirectory: DEFAULT_STORAGE_DIR,
   backupDirectory: path.join(DEFAULT_STORAGE_DIR, "backups"),
   auditLogPath: path.join(DEFAULT_STORAGE_DIR, "audit.json"),
@@ -178,7 +185,12 @@ function envTruthy(value: string | undefined, fallback = false): boolean {
     return fallback;
   }
   const normalized = value.trim().toLowerCase();
-  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+  return (
+    normalized === "1" ||
+    normalized === "true" ||
+    normalized === "yes" ||
+    normalized === "on"
+  );
 }
 
 function normalizePathForMatch(input: string): string {
@@ -265,7 +277,9 @@ function extractVariableName(msg: string): string {
   if (direct?.[1]) {
     return direct[1];
   }
-  const readReference = msg.match(/Cannot access ['"]?(\w+)['"]? before initialization/i);
+  const readReference = msg.match(
+    /Cannot access ['"]?(\w+)['"]? before initialization/i,
+  );
   if (readReference?.[1]) {
     return readReference[1];
   }
@@ -290,28 +304,44 @@ function extractObjectName(msg: string, line?: string): string {
 
 function getIntelligentFallback(msg: string): unknown {
   const variableName = extractVariableName(msg).toLowerCase();
-  if (/count|score|health|mana|level|damage|gold|exp|xp|speed|timer/.test(variableName)) {
+  if (
+    /count|score|health|mana|level|damage|gold|exp|xp|speed|timer/.test(
+      variableName,
+    )
+  ) {
     return 0;
   }
   if (/name|title|label|text|message|description|tag/.test(variableName)) {
     return "";
   }
-  if (/list|items|array|players|enemies|objects|children|entities/.test(variableName)) {
+  if (
+    /list|items|array|players|enemies|objects|children|entities/.test(
+      variableName,
+    )
+  ) {
     return [];
   }
   if (/config|options|settings|data|map|state|info/.test(variableName)) {
     return {};
   }
-  if (/enabled|active|visible|running|alive|dead|open|closed/.test(variableName)) {
+  if (
+    /enabled|active|visible|running|alive|dead|open|closed/.test(variableName)
+  ) {
     return false;
   }
   return null;
 }
 
-function extractStackLocation(stack: string): { filePath?: string; lineNumber?: number; columnNumber?: number } {
+function extractStackLocation(stack: string): {
+  filePath?: string;
+  lineNumber?: number;
+  columnNumber?: number;
+} {
   const lines = stack.split("\n");
   for (const line of lines) {
-    const match = line.match(/(?:\()?(file:\/\/\/[^():\s]+|\/[^():\s]+):(\d+):(\d+)\)?/);
+    const match = line.match(
+      /(?:\()?(file:\/\/\/[^():\s]+|\/[^():\s]+):(\d+):(\d+)\)?/,
+    );
     if (!match) {
       continue;
     }
@@ -359,7 +389,10 @@ class FeatureProtectionRegistry {
   private load(): void {
     const existing = safeReadJson<ProtectedFeature[]>(this.registryPath, []);
     for (const feature of existing) {
-      this.features.set(feature.id, { ...feature, addedAt: new Date(feature.addedAt) });
+      this.features.set(feature.id, {
+        ...feature,
+        addedAt: new Date(feature.addedAt),
+      });
     }
   }
 
@@ -373,8 +406,17 @@ class FeatureProtectionRegistry {
         id: "FEAT-GAME-CORE",
         name: "Game Core Loop",
         description: "Main world tick and core game loop logic",
-        filePatterns: ["**/WorldTick.ts", "**/WebSocketServer.ts", "**/index.ts"],
-        codeSignatures: ["tick.start", "worldTick", "entity_sync", "simulation tick"],
+        filePatterns: [
+          "**/WorldTick.ts",
+          "**/WebSocketServer.ts",
+          "**/index.ts",
+        ],
+        codeSignatures: [
+          "tick.start",
+          "worldTick",
+          "entity_sync",
+          "simulation tick",
+        ],
         priority: "critical",
         addedBy: "system",
         doNotDelete: true,
@@ -385,7 +427,12 @@ class FeatureProtectionRegistry {
         name: "Player System",
         description: "Player login, movement, and state synchronization",
         filePatterns: ["**/player*.ts", "**/Player*.ts", "**/auth*.ts"],
-        codeSignatures: ["playerState", "login", "move_intent", "resolveLoginIdentity"],
+        codeSignatures: [
+          "playerState",
+          "login",
+          "move_intent",
+          "resolveLoginIdentity",
+        ],
         priority: "critical",
         addedBy: "system",
         doNotDelete: true,
@@ -407,7 +454,11 @@ class FeatureProtectionRegistry {
         name: "Content Admin",
         description: "No-code content admin API and upload controls",
         filePatterns: ["**/adminContentRoute.ts", "**/glbUploadRoute.ts"],
-        codeSignatures: ["/api/admin/content", "glb-upload", "validate-preview"],
+        codeSignatures: [
+          "/api/admin/content",
+          "glb-upload",
+          "validate-preview",
+        ],
         priority: "high",
         addedBy: "system",
         doNotDelete: true,
@@ -431,7 +482,9 @@ class FeatureProtectionRegistry {
   public isFeatureCode(content: string, filePath: string): boolean {
     const normalizedPath = normalizePathForMatch(filePath);
     for (const feature of this.features.values()) {
-      if (feature.codeSignatures.some((signature) => content.includes(signature))) {
+      if (
+        feature.codeSignatures.some((signature) => content.includes(signature))
+      ) {
         return true;
       }
       if (
@@ -470,7 +523,10 @@ class BackupManager {
       return null;
     }
     const fileName = path.basename(filePath);
-    const backupPath = path.join(this.backupDirectory, `${fileName}.${Date.now()}.backup`);
+    const backupPath = path.join(
+      this.backupDirectory,
+      `${fileName}.${Date.now()}.backup`,
+    );
     if (!safeWriteFile(backupPath, content)) {
       return null;
     }
@@ -494,7 +550,9 @@ class BackupManager {
 
   public listBackups(): string[] {
     try {
-      return fs.readdirSync(this.backupDirectory).filter((entry) => entry.endsWith(".backup"));
+      return fs
+        .readdirSync(this.backupDirectory)
+        .filter((entry) => entry.endsWith(".backup"));
     } catch {
       return [];
     }
@@ -504,7 +562,9 @@ class BackupManager {
     try {
       return fs
         .readdirSync(this.backupDirectory)
-        .filter((entry) => entry.startsWith(fileName) && entry.endsWith(".backup"))
+        .filter(
+          (entry) => entry.startsWith(fileName) && entry.endsWith(".backup"),
+        )
         .map((entry) => path.join(this.backupDirectory, entry))
         .sort();
     } catch {
@@ -517,7 +577,10 @@ class BackupManager {
     if (backups.length <= this.maxBackupsPerFile) {
       return;
     }
-    const staleBackups = backups.slice(0, backups.length - this.maxBackupsPerFile);
+    const staleBackups = backups.slice(
+      0,
+      backups.length - this.maxBackupsPerFile,
+    );
     for (const stale of staleBackups) {
       try {
         fs.unlinkSync(stale);
@@ -541,7 +604,10 @@ class AuditLogger {
 
   private load(): void {
     const read = safeReadJson<HealingLog[]>(this.logPath, []);
-    this.logs = read.map((entry) => ({ ...entry, timestamp: new Date(entry.timestamp) }));
+    this.logs = read.map((entry) => ({
+      ...entry,
+      timestamp: new Date(entry.timestamp),
+    }));
   }
 
   private persist(): void {
@@ -576,7 +642,8 @@ class AuditLogger {
     }
     const mostCommonError =
       [...counter.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "none";
-    const successRate = total === 0 ? "0%" : `${((successful / total) * 100).toFixed(1)}%`;
+    const successRate =
+      total === 0 ? "0%" : `${((successful / total) * 100).toFixed(1)}%`;
     return { total, successful, failed, successRate, mostCommonError };
   }
 }
@@ -593,7 +660,10 @@ class LocalLearningEngine {
   private load(): void {
     const persisted = safeReadJson<LearnedPattern[]>(this.knowledgePath, []);
     for (const entry of persisted) {
-      this.patterns.set(entry.pattern, { ...entry, lastUpdated: new Date(entry.lastUpdated) });
+      this.patterns.set(entry.pattern, {
+        ...entry,
+        lastUpdated: new Date(entry.lastUpdated),
+      });
     }
   }
 
@@ -644,7 +714,9 @@ class LocalLearningEngine {
   }
 
   public getAllPatterns(): LearnedPattern[] {
-    return Array.from(this.patterns.values()).sort((a, b) => b.occurrences - a.occurrences);
+    return Array.from(this.patterns.values()).sort(
+      (a, b) => b.occurrences - a.occurrences,
+    );
   }
 
   private normalizePattern(message: string): string {
@@ -652,7 +724,7 @@ class LocalLearningEngine {
       .replace(/\d+/g, "N")
       .replace(/'[^']*'/g, "'X'")
       .replace(/"[^"]*"/g, '"X"')
-      .replace(/\bat\b.*/gis, "")
+      .replace(/\bat\b.*/gi, "")
       .trim()
       .toLowerCase()
       .slice(0, 140);
@@ -664,7 +736,9 @@ class LocalLearningEngine {
     if (setA.size === 0 && setB.size === 0) {
       return 1;
     }
-    const intersection = Array.from(setA).filter((token) => setB.has(token)).length;
+    const intersection = Array.from(setA).filter((token) =>
+      setB.has(token),
+    ).length;
     const union = new Set([...setA, ...setB]).size;
     return union === 0 ? 0 : intersection / union;
   }
@@ -731,7 +805,9 @@ class ErrorTracker {
   public getStats(): { tracked: number; healed: number; persistent: number } {
     const entries = Array.from(this.occurrences.values());
     const healed = entries.filter((entry) => entry.healed).length;
-    const persistent = entries.filter((entry) => !entry.healed && entry.count > this.maxAttempts).length;
+    const persistent = entries.filter(
+      (entry) => !entry.healed && entry.count > this.maxAttempts,
+    ).length;
     return { tracked: entries.length, healed, persistent };
   }
 }
@@ -740,7 +816,7 @@ class CodePatcher {
   constructor(
     private readonly backupManager: BackupManager,
     private readonly featureRegistry: FeatureProtectionRegistry,
-    private readonly isPathEligible: (filePath: string) => boolean
+    private readonly isPathEligible: (filePath: string) => boolean,
   ) {}
 
   public applyPatch(filePath: string, patch: CodePatch): boolean {
@@ -756,19 +832,28 @@ class CodePatcher {
     const lines = existingContent.split("\n");
     const index = patch.lineNumber - 1;
     if (index < 0 || index >= lines.length) {
-      colorLog("warn", `Patch line ${patch.lineNumber} out of bounds for ${filePath}`);
+      colorLog(
+        "warn",
+        `Patch line ${patch.lineNumber} out of bounds for ${filePath}`,
+      );
       return false;
     }
     const currentLine = lines[index];
     const currentTrimmed = currentLine.trim();
     const patchTrimmed = patch.originalLine.trim();
     if (currentTrimmed !== patchTrimmed && currentLine !== patch.originalLine) {
-      colorLog("warn", `Patch skipped because source line changed at ${filePath}:${patch.lineNumber}`);
+      colorLog(
+        "warn",
+        `Patch skipped because source line changed at ${filePath}:${patch.lineNumber}`,
+      );
       return false;
     }
 
     if (this.featureRegistry.isFeatureCode(currentLine, filePath)) {
-      colorLog("warn", `Patch denied by feature protection for ${filePath}:${patch.lineNumber}`);
+      colorLog(
+        "warn",
+        `Patch denied by feature protection for ${filePath}:${patch.lineNumber}`,
+      );
       return false;
     }
 
@@ -781,7 +866,10 @@ class CodePatcher {
     lines[index] = patch.repairedLine;
     const writeSuccess = safeWriteFile(filePath, lines.join("\n"));
     if (writeSuccess) {
-      colorLog("heal", `Patched ${path.basename(filePath)}:${patch.lineNumber}`);
+      colorLog(
+        "heal",
+        `Patched ${path.basename(filePath)}:${patch.lineNumber}`,
+      );
     }
     return writeSuccess;
   }
@@ -796,9 +884,11 @@ function createBuiltInHealingRules(): HealingRule[] {
     {
       id: "HEAL-001",
       name: "Null Reference Guard",
-      description: "Adds an inline null/undefined guard for failing property access",
+      description:
+        "Adds an inline null/undefined guard for failing property access",
       priority: 1,
-      pattern: /Cannot read propert(?:y|ies) .* of (?:null|undefined)|Cannot read properties of undefined/i,
+      pattern:
+        /Cannot read propert(?:y|ies) .* of (?:null|undefined)|Cannot read properties of undefined/i,
       errorType: "null",
       isFeatureDestructive: false,
       fix: (ctx): HealingAction => {
@@ -826,7 +916,8 @@ function createBuiltInHealingRules(): HealingRule[] {
       name: "ReferenceError Fallback",
       description: "Computes a sensible fallback value for undefined symbols",
       priority: 2,
-      pattern: /(\w+) is not defined|Cannot access ['"]?\w+['"]? before initialization/i,
+      pattern:
+        /(\w+) is not defined|Cannot access ['"]?\w+['"]? before initialization/i,
       errorType: "reference",
       isFeatureDestructive: false,
       fix: (ctx): HealingAction => ({
@@ -964,7 +1055,7 @@ function createBuiltInHealingRules(): HealingRule[] {
         const patchedLine = line.includes("JSON.parse")
           ? line.replace(
               /JSON\.parse\(([^)]+)\)/g,
-              "(() => { try { return JSON.parse($1); } catch { return {}; } })()"
+              "(() => { try { return JSON.parse($1); } catch { return {}; } })()",
             )
           : `try { ${line.trim()} } catch (_selfHealJsonErr) { /* self-healed */ }`;
         return {
@@ -1033,7 +1124,10 @@ export class SelfHealingSystem extends EventEmitter {
   private readonly uncaughtExceptionHandler = (error: Error): void => {
     colorLog("error", `uncaughtException captured: ${error.message}`);
     this.heal(error).catch((healError) => {
-      colorLog("error", `healing failed after uncaughtException: ${(healError as Error).message}`);
+      colorLog(
+        "error",
+        `healing failed after uncaughtException: ${(healError as Error).message}`,
+      );
     });
   };
 
@@ -1041,14 +1135,19 @@ export class SelfHealingSystem extends EventEmitter {
     const error = reason instanceof Error ? reason : new Error(String(reason));
     colorLog("error", `unhandledRejection captured: ${error.message}`);
     this.heal(error).catch((healError) => {
-      colorLog("error", `healing failed after unhandledRejection: ${(healError as Error).message}`);
+      colorLog(
+        "error",
+        `healing failed after unhandledRejection: ${(healError as Error).message}`,
+      );
     });
   };
 
   constructor(config: Partial<SelfHealingConfig> = {}) {
     super();
     const merged = { ...DEFAULT_SELF_HEAL_CONFIG, ...config };
-    const writableStorageDir = makeWritableDirectory(path.resolve(merged.storageDirectory));
+    const writableStorageDir = makeWritableDirectory(
+      path.resolve(merged.storageDirectory),
+    );
     this.config = {
       ...merged,
       storageDirectory: writableStorageDir,
@@ -1062,25 +1161,40 @@ export class SelfHealingSystem extends EventEmitter {
     ensureDir(this.config.storageDirectory);
     ensureDir(this.config.backupDirectory);
 
-    this.featureRegistry = new FeatureProtectionRegistry(this.config.protectedFeaturesPath);
+    this.featureRegistry = new FeatureProtectionRegistry(
+      this.config.protectedFeaturesPath,
+    );
     this.backupManager = new BackupManager(this.config.backupDirectory);
-    this.auditLogger = new AuditLogger(this.config.auditLogPath, this.config.maxAuditEntries);
-    this.learningEngine = new LocalLearningEngine(this.config.knowledgeBasePath);
+    this.auditLogger = new AuditLogger(
+      this.config.auditLogPath,
+      this.config.maxAuditEntries,
+    );
+    this.learningEngine = new LocalLearningEngine(
+      this.config.knowledgeBasePath,
+    );
     this.errorTracker = new ErrorTracker(
       this.config.healingCooldownMs,
-      this.config.maxHealingAttemptsPerError
+      this.config.maxHealingAttemptsPerError,
     );
     this.codePatcher = new CodePatcher(
       this.backupManager,
       this.featureRegistry,
-      (filePath) => this.isPathEligible(filePath)
+      (filePath) => this.isPathEligible(filePath),
     );
-    this.rules = createBuiltInHealingRules().sort((a, b) => a.priority - b.priority);
+    this.rules = createBuiltInHealingRules().sort(
+      (a, b) => a.priority - b.priority,
+    );
 
     colorLog("success", "SelfHealingSystem initialized");
     colorLog("info", `rules loaded: ${this.rules.length}`);
-    colorLog("info", `protected features: ${this.featureRegistry.getAll().length}`);
-    colorLog("info", `learned patterns: ${this.learningEngine.getPatternCount()}`);
+    colorLog(
+      "info",
+      `protected features: ${this.featureRegistry.getAll().length}`,
+    );
+    colorLog(
+      "info",
+      `learned patterns: ${this.learningEngine.getPatternCount()}`,
+    );
   }
 
   public activate(): void {
@@ -1120,7 +1234,10 @@ export class SelfHealingSystem extends EventEmitter {
 
   public addCustomRule(rule: HealingRule): void {
     if (rule.isFeatureDestructive !== false) {
-      colorLog("error", `Rejected custom rule ${rule.id} because it can be destructive.`);
+      colorLog(
+        "error",
+        `Rejected custom rule ${rule.id} because it can be destructive.`,
+      );
       return;
     }
     this.rules.push(rule);
@@ -1143,7 +1260,9 @@ export class SelfHealingSystem extends EventEmitter {
   } {
     const uptimeMs = Date.now() - this.startedAt.getTime();
     const healingRate =
-      this.totalErrors === 0 ? "0%" : `${((this.totalHealed / this.totalErrors) * 100).toFixed(1)}%`;
+      this.totalErrors === 0
+        ? "0%"
+        : `${((this.totalHealed / this.totalErrors) * 100).toFixed(1)}%`;
     return {
       active: this.active,
       uptime: formatDuration(uptimeMs),
@@ -1184,8 +1303,12 @@ export class SelfHealingSystem extends EventEmitter {
     console.log(separator);
     console.log(`active: ${status.active}`);
     console.log(`uptime: ${status.uptime}`);
-    console.log(`errors/healed: ${status.totalErrors}/${status.totalHealed} (${status.healingRate})`);
-    console.log(`rules: ${status.rulesLoaded}, protected features: ${status.featuresProtected}`);
+    console.log(
+      `errors/healed: ${status.totalErrors}/${status.totalHealed} (${status.healingRate})`,
+    );
+    console.log(
+      `rules: ${status.rulesLoaded}, protected features: ${status.featuresProtected}`,
+    );
     console.log(`learned patterns: ${status.learnedPatterns}`);
     console.log(`audit success rate: ${status.auditStats.successRate}`);
     console.log(separator);
@@ -1199,13 +1322,18 @@ export class SelfHealingSystem extends EventEmitter {
     const started = Date.now();
     const occurrence = this.errorTracker.track(error);
     if (!this.errorTracker.shouldHeal(error)) {
-      colorLog("warn", `Healing skipped due to cooldown/limit for: ${error.message.slice(0, 120)}`);
+      colorLog(
+        "warn",
+        `Healing skipped due to cooldown/limit for: ${error.message.slice(0, 120)}`,
+      );
       return false;
     }
 
     const stackLocation = extractStackLocation(error.stack ?? "");
     const resolvedPath = filePath ?? stackLocation.filePath;
-    const fileContent = resolvedPath ? safeReadFile(resolvedPath) ?? undefined : undefined;
+    const fileContent = resolvedPath
+      ? (safeReadFile(resolvedPath) ?? undefined)
+      : undefined;
     const context: ErrorContext = {
       error,
       errorMessage: error.message,
@@ -1225,7 +1353,10 @@ export class SelfHealingSystem extends EventEmitter {
     }
     const action = rule.fix(context);
     if (action.preservesFeatures !== true) {
-      colorLog("error", `Rule ${rule.id} blocked because action does not preserve features.`);
+      colorLog(
+        "error",
+        `Rule ${rule.id} blocked because action does not preserve features.`,
+      );
       return false;
     }
 
@@ -1233,7 +1364,10 @@ export class SelfHealingSystem extends EventEmitter {
     try {
       success = await this.executeAction(action, context);
     } catch (executionError) {
-      colorLog("error", `Failed to execute healing action: ${(executionError as Error).message}`);
+      colorLog(
+        "error",
+        `Failed to execute healing action: ${(executionError as Error).message}`,
+      );
       success = false;
     }
 
@@ -1257,9 +1391,15 @@ export class SelfHealingSystem extends EventEmitter {
     });
 
     if (success) {
-      colorLog("success", `Self-heal success in ${formatDuration(durationMs)} via ${rule.id}`);
+      colorLog(
+        "success",
+        `Self-heal success in ${formatDuration(durationMs)} via ${rule.id}`,
+      );
     } else {
-      colorLog("warn", `Self-heal incomplete in ${formatDuration(durationMs)} via ${rule.id}`);
+      colorLog(
+        "warn",
+        `Self-heal incomplete in ${formatDuration(durationMs)} via ${rule.id}`,
+      );
     }
     this.emit("healed", {
       success,
@@ -1275,17 +1415,20 @@ export class SelfHealingSystem extends EventEmitter {
     const normalized = normalizePathForMatch(path.resolve(filePath));
     if (
       this.config.ignorePaths.some((blockedPath) =>
-        normalized.includes(normalizePathForMatch(path.resolve(blockedPath)))
+        normalized.includes(normalizePathForMatch(path.resolve(blockedPath))),
       )
     ) {
       return false;
     }
     return this.config.watchPaths.some((watchPath) =>
-      normalized.startsWith(normalizePathForMatch(path.resolve(watchPath)))
+      normalized.startsWith(normalizePathForMatch(path.resolve(watchPath))),
     );
   }
 
-  private findBestRule(error: Error, context: ErrorContext): HealingRule | undefined {
+  private findBestRule(
+    error: Error,
+    context: ErrorContext,
+  ): HealingRule | undefined {
     const learnedRuleId = this.learningEngine.getSuggestedRuleId(error.message);
     if (learnedRuleId) {
       const learnedRule = this.rules.find((rule) => rule.id === learnedRuleId);
@@ -1297,7 +1440,10 @@ export class SelfHealingSystem extends EventEmitter {
     return this.rules.find((rule) => rule.pattern.test(fullText));
   }
 
-  private async executeAction(action: HealingAction, context: ErrorContext): Promise<boolean> {
+  private async executeAction(
+    action: HealingAction,
+    context: ErrorContext,
+  ): Promise<boolean> {
     if (this.config.patchMode === "log-only") {
       colorLog("info", `[log-only] ${action.description}`);
       return true;
@@ -1359,7 +1505,10 @@ export class SelfHealingWatchdog {
   private consecutiveFailures = 0;
   private readonly maxFailures = 5;
 
-  constructor(private readonly system: SelfHealingSystem, private readonly intervalMs: number) {}
+  constructor(
+    private readonly system: SelfHealingSystem,
+    private readonly intervalMs: number,
+  ) {}
 
   public start(): void {
     if (this.intervalHandle) {
@@ -1369,7 +1518,10 @@ export class SelfHealingWatchdog {
       this.performHealthCheck();
     }, this.intervalMs);
     this.intervalHandle.unref?.();
-    colorLog("info", `Self-heal watchdog started (interval: ${formatDuration(this.intervalMs)})`);
+    colorLog(
+      "info",
+      `Self-heal watchdog started (interval: ${formatDuration(this.intervalMs)})`,
+    );
   }
 
   public stop(): void {
@@ -1400,15 +1552,24 @@ export class SelfHealingWatchdog {
       this.consecutiveFailures = 0;
       this.lastHealthCheck = new Date();
       if (status.config.verboseLogging) {
-        colorLog("info", `Watchdog ok (${status.totalHealed}/${status.totalErrors} healed)`);
+        colorLog(
+          "info",
+          `Watchdog ok (${status.totalHealed}/${status.totalErrors} healed)`,
+        );
       }
     } catch (error) {
-      colorLog("error", `Watchdog health check failed: ${(error as Error).message}`);
+      colorLog(
+        "error",
+        `Watchdog health check failed: ${(error as Error).message}`,
+      );
     }
   }
 }
 
-function parsePositiveNumber(value: string | undefined, fallback: number): number {
+function parsePositiveNumber(
+  value: string | undefined,
+  fallback: number,
+): number {
   if (!value || value.trim() === "") {
     return fallback;
   }
@@ -1423,12 +1584,17 @@ export function resolveSelfHealingConfigFromEnv(): Partial<SelfHealingConfig> {
   const storageDirectory = process.env.SELF_HEAL_STORAGE_DIR?.trim();
   const patchModeRaw = process.env.SELF_HEAL_PATCH_MODE?.trim().toLowerCase();
   const patchMode: PatchMode =
-    patchModeRaw === "log-only" || patchModeRaw === "auto" ? patchModeRaw : DEFAULT_SELF_HEAL_CONFIG.patchMode;
+    patchModeRaw === "log-only" || patchModeRaw === "auto"
+      ? patchModeRaw
+      : DEFAULT_SELF_HEAL_CONFIG.patchMode;
 
   return {
     enabled: envTruthy(process.env.SELF_HEAL_ENABLED, true),
     patchMode,
-    verboseLogging: envTruthy(process.env.SELF_HEAL_VERBOSE, DEFAULT_SELF_HEAL_CONFIG.verboseLogging),
+    verboseLogging: envTruthy(
+      process.env.SELF_HEAL_VERBOSE,
+      DEFAULT_SELF_HEAL_CONFIG.verboseLogging,
+    ),
     storageDirectory:
       storageDirectory && storageDirectory.length > 0
         ? path.isAbsolute(storageDirectory)
@@ -1437,15 +1603,15 @@ export function resolveSelfHealingConfigFromEnv(): Partial<SelfHealingConfig> {
         : DEFAULT_SELF_HEAL_CONFIG.storageDirectory,
     healingCooldownMs: parsePositiveNumber(
       process.env.SELF_HEAL_COOLDOWN_MS,
-      DEFAULT_SELF_HEAL_CONFIG.healingCooldownMs
+      DEFAULT_SELF_HEAL_CONFIG.healingCooldownMs,
     ),
     maxHealingAttemptsPerError: parsePositiveNumber(
       process.env.SELF_HEAL_MAX_ATTEMPTS,
-      DEFAULT_SELF_HEAL_CONFIG.maxHealingAttemptsPerError
+      DEFAULT_SELF_HEAL_CONFIG.maxHealingAttemptsPerError,
     ),
     watchdogIntervalMs: parsePositiveNumber(
       process.env.SELF_HEAL_WATCHDOG_INTERVAL_MS,
-      DEFAULT_SELF_HEAL_CONFIG.watchdogIntervalMs
+      DEFAULT_SELF_HEAL_CONFIG.watchdogIntervalMs,
     ),
   };
 }
@@ -1453,25 +1619,38 @@ export function resolveSelfHealingConfigFromEnv(): Partial<SelfHealingConfig> {
 export function resolveSelfHealingDashboardConfigFromEnv(): SelfHealingDashboardConfig {
   return {
     ...DEFAULT_DASHBOARD_CONFIG,
-    enabled: envTruthy(process.env.SELF_HEAL_DASHBOARD_ENABLED, DEFAULT_DASHBOARD_CONFIG.enabled),
-    routePrefix: process.env.SELF_HEAL_DASHBOARD_PREFIX?.trim() || DEFAULT_DASHBOARD_CONFIG.routePrefix,
-    allowCors: envTruthy(process.env.SELF_HEAL_DASHBOARD_CORS, DEFAULT_DASHBOARD_CONFIG.allowCors),
+    enabled: envTruthy(
+      process.env.SELF_HEAL_DASHBOARD_ENABLED,
+      DEFAULT_DASHBOARD_CONFIG.enabled,
+    ),
+    routePrefix:
+      process.env.SELF_HEAL_DASHBOARD_PREFIX?.trim() ||
+      DEFAULT_DASHBOARD_CONFIG.routePrefix,
+    allowCors: envTruthy(
+      process.env.SELF_HEAL_DASHBOARD_CORS,
+      DEFAULT_DASHBOARD_CONFIG.allowCors,
+    ),
     allowedOrigin:
-      process.env.SELF_HEAL_DASHBOARD_ALLOWED_ORIGIN?.trim() || DEFAULT_DASHBOARD_CONFIG.allowedOrigin,
+      process.env.SELF_HEAL_DASHBOARD_ALLOWED_ORIGIN?.trim() ||
+      DEFAULT_DASHBOARD_CONFIG.allowedOrigin,
   };
 }
 
 let globalSelfHealingSystem: SelfHealingSystem | null = null;
 let globalWatchdog: SelfHealingWatchdog | null = null;
 
-export function getSelfHealingSystem(config?: Partial<SelfHealingConfig>): SelfHealingSystem {
+export function getSelfHealingSystem(
+  config?: Partial<SelfHealingConfig>,
+): SelfHealingSystem {
   if (!globalSelfHealingSystem) {
     globalSelfHealingSystem = new SelfHealingSystem(config);
   }
   return globalSelfHealingSystem;
 }
 
-export function createSelfHealingSystem(config?: Partial<SelfHealingConfig>): SelfHealingSystem {
+export function createSelfHealingSystem(
+  config?: Partial<SelfHealingConfig>,
+): SelfHealingSystem {
   globalWatchdog?.stop();
   globalWatchdog = null;
   globalSelfHealingSystem?.deactivate();
@@ -1479,7 +1658,9 @@ export function createSelfHealingSystem(config?: Partial<SelfHealingConfig>): Se
   return globalSelfHealingSystem;
 }
 
-export function activateSelfHealing(config?: Partial<SelfHealingConfig>): SelfHealingSystem {
+export function activateSelfHealing(
+  config?: Partial<SelfHealingConfig>,
+): SelfHealingSystem {
   const system = getSelfHealingSystem(config);
   system.activate();
   return system;
@@ -1500,12 +1681,22 @@ export function bootstrapSelfHealing(config?: Partial<SelfHealingConfig>): {
 }
 
 type BasicRequest = { method?: string; url?: string };
-type BasicResponse = { status: (code: number) => { json: (body: unknown) => void } };
+type BasicResponse = {
+  status: (code: number) => { json: (body: unknown) => void };
+};
 type NextFn = (err?: unknown) => void;
 
 export function selfHealingMiddleware() {
-  return (error: Error, req: BasicRequest, res: BasicResponse, _next: NextFn): void => {
-    colorLog("error", `HTTP error on ${req.method ?? "?"} ${req.url ?? "?"}: ${error.message}`);
+  return (
+    error: Error,
+    req: BasicRequest,
+    res: BasicResponse,
+    _next: NextFn,
+  ): void => {
+    colorLog(
+      "error",
+      `HTTP error on ${req.method ?? "?"} ${req.url ?? "?"}: ${error.message}`,
+    );
     const system = getSelfHealingSystem();
     system.submitError(error).catch(() => {
       // Do not break response flow if healing itself fails.
@@ -1521,15 +1712,16 @@ export function selfHealingMiddleware() {
 export async function safeExecute<T>(
   fn: () => T | Promise<T>,
   fallbackValue: T,
-  context?: string
+  context?: string,
 ): Promise<T> {
   try {
     return await Promise.resolve(fn());
   } catch (error) {
-    const normalizedError = error instanceof Error ? error : new Error(String(error));
+    const normalizedError =
+      error instanceof Error ? error : new Error(String(error));
     colorLog(
       "error",
-      `safeExecute failed${context ? ` (${context})` : ""}: ${normalizedError.message}`
+      `safeExecute failed${context ? ` (${context})` : ""}: ${normalizedError.message}`,
     );
     const system = getSelfHealingSystem();
     await system.submitError(normalizedError);
@@ -1537,14 +1729,19 @@ export async function safeExecute<T>(
   }
 }
 
-export function safeExecuteSync<T>(fn: () => T, fallbackValue: T, context?: string): T {
+export function safeExecuteSync<T>(
+  fn: () => T,
+  fallbackValue: T,
+  context?: string,
+): T {
   try {
     return fn();
   } catch (error) {
-    const normalizedError = error instanceof Error ? error : new Error(String(error));
+    const normalizedError =
+      error instanceof Error ? error : new Error(String(error));
     colorLog(
       "error",
-      `safeExecuteSync failed${context ? ` (${context})` : ""}: ${normalizedError.message}`
+      `safeExecuteSync failed${context ? ` (${context})` : ""}: ${normalizedError.message}`,
     );
     const system = getSelfHealingSystem();
     system.submitError(normalizedError).catch(() => {

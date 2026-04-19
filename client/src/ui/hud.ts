@@ -6,7 +6,11 @@ import {
   onSupabaseAuthStateChanged,
 } from "../auth/supabase";
 import { getQuickCastSkillId } from "../game/combatSkills";
-import { sendDialogueChoice, sendQuestAccept, updateAuthToken } from "../networking/websocketClient";
+import {
+  sendDialogueChoice,
+  sendQuestAccept,
+  updateAuthToken,
+} from "../networking/websocketClient";
 import {
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
@@ -45,7 +49,8 @@ export function renderHUD() {
   hud.style.zIndex = "5000";
   hud.style.maxWidth = compact ? "min(92vw, 280px)" : "320px";
   hud.style.boxSizing = "border-box";
-  hud.style.transition = "max-height 0.25s ease, padding 0.25s ease, opacity 0.2s ease";
+  hud.style.transition =
+    "max-height 0.25s ease, padding 0.25s ease, opacity 0.2s ease";
   hud.style.overflow = "hidden";
 
   let hudCollapsed = compact;
@@ -71,9 +76,11 @@ export function renderHUD() {
   leaderboardBtn.style.cursor = "pointer";
   leaderboardBtn.style.touchAction = "manipulation";
   leaderboardBtn.onclick = () => {
-    void import("./leaderboardPanel").then((m) => m.openLeaderboard()).catch((error) => {
-      console.error("Leaderboard panel failed to open", error);
-    });
+    void import("./leaderboardPanel")
+      .then((m) => m.openLeaderboard())
+      .catch((error) => {
+        console.error("Leaderboard panel failed to open", error);
+      });
   };
 
   topRow.appendChild(leaderboardBtn);
@@ -110,11 +117,17 @@ export function renderHUD() {
   if (compact) {
     hud.style.cursor = "pointer";
     hud.addEventListener("click", (e) => {
-      if ((e.target as HTMLElement).tagName === "BUTTON" || (e.target as HTMLElement).tagName === "INPUT") return;
+      if (
+        (e.target as HTMLElement).tagName === "BUTTON" ||
+        (e.target as HTMLElement).tagName === "INPUT"
+      )
+        return;
       hudCollapsed = !hudCollapsed;
       applyCollapseState();
     });
-    hud.addEventListener("touchstart", (e) => e.stopPropagation(), { passive: true });
+    hud.addEventListener("touchstart", (e) => e.stopPropagation(), {
+      passive: true,
+    });
     applyCollapseState();
   }
 
@@ -126,10 +139,15 @@ export function renderHUD() {
     authBox.addEventListener(evt, stopAuthEvents, { passive: true });
   });
   [
-    "touchend", "touchcancel",
-    "mousedown", "mouseup", "mousemove",
-    "pointerdown", "pointerup", "pointermove",
-    "click"
+    "touchend",
+    "touchcancel",
+    "mousedown",
+    "mouseup",
+    "mousemove",
+    "pointerdown",
+    "pointerup",
+    "pointermove",
+    "click",
   ].forEach((evt) => {
     authBox.addEventListener(evt, stopAuthEvents, { passive: false });
   });
@@ -300,7 +318,8 @@ export function renderHUD() {
   let supabaseSignedIn = false;
   const syncAuthUi = () => {
     const hasFirebaseUser = Boolean(auth?.currentUser);
-    const userSignedIn = authProvider === "firebase" ? hasFirebaseUser : supabaseSignedIn;
+    const userSignedIn =
+      authProvider === "firebase" ? hasFirebaseUser : supabaseSignedIn;
     const out = !userSignedIn;
     loginBtn.style.display = out ? "inline-block" : "none";
     logoutBtn.style.display = userSignedIn ? "inline-block" : "none";
@@ -321,7 +340,11 @@ export function renderHUD() {
     signupStatus.style.color = "#8fdf9a";
   };
 
-  const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
+  const withTimeout = async <T>(
+    promise: Promise<T>,
+    ms: number,
+    label: string,
+  ): Promise<T> => {
     return await new Promise<T>((resolve, reject) => {
       const timer = window.setTimeout(() => {
         reject(new Error(`${label} timed out`));
@@ -339,7 +362,14 @@ export function renderHUD() {
   };
 
   const setAuthBusy = (busy: boolean) => {
-    const controls = [loginBtn, emailLoginBtn, emailSignupBtn, verifyEmailBtn, resetPassBtn, logoutBtn];
+    const controls = [
+      loginBtn,
+      emailLoginBtn,
+      emailSignupBtn,
+      verifyEmailBtn,
+      resetPassBtn,
+      logoutBtn,
+    ];
     for (const c of controls) {
       c.disabled = busy;
       c.style.opacity = busy ? "0.75" : "1";
@@ -402,7 +432,7 @@ export function renderHUD() {
               options: { redirectTo, skipBrowserRedirect: false },
             }),
             15000,
-            "Google sign-in"
+            "Google sign-in",
           );
           if (error) {
             throw error;
@@ -413,7 +443,7 @@ export function renderHUD() {
             return;
           }
           setAuthError(
-            "Google sign-in could not start. Check Supabase URL/redirect settings and try again."
+            "Google sign-in could not start. Check Supabase URL/redirect settings and try again.",
           );
         } catch (e: unknown) {
           setAuthError(mapSupabaseAuthError(e));
@@ -443,12 +473,16 @@ export function renderHUD() {
               password: passIn.value,
             }),
             15000,
-            "Email sign-in"
+            "Email sign-in",
           );
           if (error) throw error;
           const token =
             data.session?.access_token ??
-            (await withTimeout(getSupabaseAccessToken(), 10000, "Session fetch"));
+            (await withTimeout(
+              getSupabaseAccessToken(),
+              10000,
+              "Session fetch",
+            ));
           if (token) {
             updateAuthToken(token, { reconnect: true });
             setAuthInfo("Signed in.");
@@ -484,14 +518,16 @@ export function renderHUD() {
               options: { emailRedirectTo: redirectTo },
             }),
             20000,
-            "Account creation"
+            "Account creation",
           );
           if (error) throw error;
           if (data.session?.access_token) {
             updateAuthToken(data.session.access_token, { reconnect: true });
             setAuthInfo("Account created and signed in.");
           } else {
-            setAuthInfo("Account created. Confirmation email sent — check inbox/spam.");
+            setAuthInfo(
+              "Account created. Confirmation email sent — check inbox/spam.",
+            );
           }
         } catch (e: unknown) {
           setAuthError(mapSupabaseAuthError(e));
@@ -504,7 +540,9 @@ export function renderHUD() {
         clearAuthMessages();
         const addr = normalizeAuthEmail(emailIn.value);
         if (!addr) {
-          setAuthError("Enter your account email above to resend verification.");
+          setAuthError(
+            "Enter your account email above to resend verification.",
+          );
           return;
         }
         setAuthBusy(true);
@@ -517,7 +555,7 @@ export function renderHUD() {
               options: { emailRedirectTo: redirectTo },
             }),
             15000,
-            "Verification email"
+            "Verification email",
           );
           if (error) throw error;
           setAuthInfo("Verification email sent.");
@@ -546,7 +584,7 @@ export function renderHUD() {
           const { error } = await withTimeout(
             sb.auth.resetPasswordForEmail(addr, { redirectTo }),
             15000,
-            "Password reset"
+            "Password reset",
           );
           if (error) throw error;
           setAuthInfo("Password reset email sent.");
@@ -576,10 +614,11 @@ export function renderHUD() {
     resetPassBtn.style.display = "none";
     emailRow.style.display = "none";
   } else {
+    const firebaseAuth = auth;
     loginBtn.onclick = async () => {
       const provider = new GoogleAuthProvider();
       try {
-        const result = await signInWithPopup(auth, provider);
+        const result = await signInWithPopup(firebaseAuth, provider);
         const token = await result.user.getIdToken(true);
         updateAuthToken(token, { reconnect: true });
       } catch (e) {
@@ -600,7 +639,11 @@ export function renderHUD() {
         return;
       }
       try {
-        const cred = await signInWithEmailAndPassword(auth, email, passIn.value);
+        const cred = await signInWithEmailAndPassword(
+          firebaseAuth,
+          email,
+          passIn.value,
+        );
         const token = await cred.user.getIdToken(true);
         updateAuthToken(token, { reconnect: true });
       } catch (e: unknown) {
@@ -622,14 +665,20 @@ export function renderHUD() {
         return;
       }
       try {
-        const cred = await createUserWithEmailAndPassword(auth, email, password);
+        const cred = await createUserWithEmailAndPassword(
+          firebaseAuth,
+          email,
+          password,
+        );
         try {
           await sendEmailVerification(cred.user);
-          setAuthInfo("Account created. Verification email sent — check inbox/spam.");
+          setAuthInfo(
+            "Account created. Verification email sent — check inbox/spam.",
+          );
         } catch (verificationError: unknown) {
           // Account still exists; give actionable next step.
           setAuthError(
-            `Account created, but verification email failed. ${mapFirebaseAuthError(verificationError)}`
+            `Account created, but verification email failed. ${mapFirebaseAuthError(verificationError)}`,
           );
         }
         const token = await cred.user.getIdToken(true);
@@ -640,7 +689,7 @@ export function renderHUD() {
     };
     verifyEmailBtn.onclick = async () => {
       clearAuthMessages();
-      const u = auth.currentUser;
+      const u = firebaseAuth.currentUser;
       if (!u?.email) {
         setAuthError("No email on this account.");
         return;
@@ -654,7 +703,8 @@ export function renderHUD() {
     };
     resetPassBtn.onclick = async () => {
       clearAuthMessages();
-      const addr = normalizeAuthEmail(emailIn.value) || auth.currentUser?.email;
+      const addr =
+        normalizeAuthEmail(emailIn.value) || firebaseAuth.currentUser?.email;
       if (!addr) {
         setAuthError("Enter your email above or sign in first.");
         return;
@@ -665,7 +715,7 @@ export function renderHUD() {
         return;
       }
       try {
-        await sendPasswordResetEmail(auth, addr);
+        await sendPasswordResetEmail(firebaseAuth, addr);
         setAuthInfo("Password reset email sent.");
       } catch (e: unknown) {
         setAuthError(mapFirebaseAuthError(e));
@@ -674,7 +724,7 @@ export function renderHUD() {
     logoutBtn.onclick = async () => {
       try {
         const { signOut } = await import("firebase/auth");
-        await signOut(auth);
+        await signOut(firebaseAuth);
         updateAuthToken(null, { reconnect: true });
         localStorage.removeItem(GUEST_STORAGE_KEY);
       } catch (e) {
@@ -712,10 +762,15 @@ export function showDialogue(payload: string | DialoguePayload) {
       dialogueBox!.addEventListener(evt, stopEvents, { passive: true });
     });
     [
-      "touchend", "touchcancel",
-      "mousedown", "mouseup", "mousemove",
-      "pointerdown", "pointerup", "pointermove",
-      "click"
+      "touchend",
+      "touchcancel",
+      "mousedown",
+      "mouseup",
+      "mousemove",
+      "pointerdown",
+      "pointerup",
+      "pointermove",
+      "click",
     ].forEach((evt) => {
       dialogueBox!.addEventListener(evt, stopEvents, { passive: false });
     });
@@ -754,14 +809,22 @@ export function showDialogue(payload: string | DialoguePayload) {
     scrollWrap.style.minHeight = "0";
     scrollWrap.style.overflowY = "auto";
     scrollWrap.style.overflowX = "hidden";
-    scrollWrap.style.webkitOverflowScrolling = "touch";
+    scrollWrap.style.setProperty("-webkit-overflow-scrolling", "touch");
     scrollWrap.style.paddingRight = "4px";
 
     // Stop pointer/touch from bleeding through dialogue scroll
-    scrollWrap.addEventListener("touchstart", (e) => e.stopPropagation(), { passive: true });
-    scrollWrap.addEventListener("touchmove", (e) => e.stopPropagation(), { passive: true });
-    scrollWrap.addEventListener("pointerdown", (e) => e.stopPropagation(), { passive: false });
-    scrollWrap.addEventListener("wheel", (e) => e.stopPropagation(), { passive: true });
+    scrollWrap.addEventListener("touchstart", (e) => e.stopPropagation(), {
+      passive: true,
+    });
+    scrollWrap.addEventListener("touchmove", (e) => e.stopPropagation(), {
+      passive: true,
+    });
+    scrollWrap.addEventListener("pointerdown", (e) => e.stopPropagation(), {
+      passive: false,
+    });
+    scrollWrap.addEventListener("wheel", (e) => e.stopPropagation(), {
+      passive: true,
+    });
 
     const textEl = document.createElement("div");
     textEl.id = "dialogue-text";
@@ -801,12 +864,20 @@ export function showDialogue(payload: string | DialoguePayload) {
       e.stopPropagation();
       dialogueBox!.style.display = "none";
     };
-    closeBtn.addEventListener("touchstart", (e) => {
-      e.stopPropagation();
-    }, { passive: false });
-    closeBtn.addEventListener("pointerdown", (e) => {
-      e.stopPropagation();
-    }, { passive: false });
+    closeBtn.addEventListener(
+      "touchstart",
+      (e) => {
+        e.stopPropagation();
+      },
+      { passive: false },
+    );
+    closeBtn.addEventListener(
+      "pointerdown",
+      (e) => {
+        e.stopPropagation();
+      },
+      { passive: false },
+    );
     closeRow.appendChild(closeBtn);
     dialogueBox.appendChild(closeRow);
 
@@ -814,7 +885,8 @@ export function showDialogue(payload: string | DialoguePayload) {
       const isCoarse = prefersCompactTouchUi();
       if (isCoarse) {
         dialogueBox!.style.top = "auto";
-        dialogueBox!.style.bottom = "max(240px, env(safe-area-inset-bottom, 0px))";
+        dialogueBox!.style.bottom =
+          "max(240px, env(safe-area-inset-bottom, 0px))";
         dialogueBox!.style.maxHeight = "min(50vh, 480px)";
       } else {
         dialogueBox!.style.bottom = "auto";
@@ -870,12 +942,20 @@ export function showDialogue(payload: string | DialoguePayload) {
             sendDialogueChoice(npcId, c.id, nodeId);
           }
         };
-        btn.addEventListener("touchstart", (e) => {
-          e.stopPropagation();
-        }, { passive: false });
-        btn.addEventListener("pointerdown", (e) => {
-          e.stopPropagation();
-        }, { passive: false });
+        btn.addEventListener(
+          "touchstart",
+          (e) => {
+            e.stopPropagation();
+          },
+          { passive: false },
+        );
+        btn.addEventListener(
+          "pointerdown",
+          (e) => {
+            e.stopPropagation();
+          },
+          { passive: false },
+        );
         choicesEl.appendChild(btn);
       }
     }

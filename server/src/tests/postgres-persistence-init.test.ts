@@ -7,7 +7,9 @@ describe("PostgresPersistenceBackend.init", () => {
 
   beforeEach(() => {
     vi.spyOn(Database, "isDatabaseConfigured").mockReturnValue(true);
-    querySpy = vi.spyOn(Database.db, "query").mockResolvedValue({ rows: [] } as any);
+    querySpy = vi
+      .spyOn(Database.db, "query")
+      .mockResolvedValue({ rows: [] } as any);
   });
 
   afterEach(() => {
@@ -17,10 +19,20 @@ describe("PostgresPersistenceBackend.init", () => {
   it("creates player_snapshots, world_object_snapshots, and questline_progress", async () => {
     const backend = new PostgresPersistenceBackend();
     await backend.init();
-    const calls = querySpy.mock.calls.map((c) => String(c[0]));
-    expect(calls.some((sql) => sql.includes("player_snapshots"))).toBe(true);
-    expect(calls.some((sql) => sql.includes("world_object_snapshots"))).toBe(true);
-    expect(calls.some((sql) => sql.includes("questline_progress"))).toBe(true);
-    expect(calls.some((sql) => sql.includes("questline_progress_player_idx"))).toBe(true);
+    const calls = querySpy.mock.calls.map((c: unknown[]) => String(c[0]));
+    expect(calls.some((sql: string) => sql.includes("player_snapshots"))).toBe(
+      true,
+    );
+    expect(
+      calls.some((sql: string) => sql.includes("world_object_snapshots")),
+    ).toBe(true);
+    expect(
+      calls.some((sql: string) => sql.includes("questline_progress")),
+    ).toBe(true);
+    expect(
+      calls.some((sql: string) =>
+        sql.includes("questline_progress_player_idx"),
+      ),
+    ).toBe(true);
   });
 });

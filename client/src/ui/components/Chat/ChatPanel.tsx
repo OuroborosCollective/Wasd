@@ -1,7 +1,7 @@
 /**
  * ChatPanel Component
  * Full-featured chat system with multiple channels
- * 
+ *
  * Features:
  * - Multiple chat channels (Global, Whisper, Guild, Faction)
  * - Message history with scrolling
@@ -13,10 +13,16 @@
  * - Responsive design
  */
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import './ChatPanel.css';
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
+import "./ChatPanel.css";
 
-export type ChatChannel = 'global' | 'whisper' | 'guild' | 'faction' | 'party';
+export type ChatChannel = "global" | "whisper" | "guild" | "faction" | "party";
 
 export interface ChatMessage {
   id: string;
@@ -41,38 +47,43 @@ interface ChatPanelProps {
 /**
  * Message Component
  */
-const Message: React.FC<{ message: ChatMessage; onMention?: (username: string) => void }> = ({
-  message,
-  onMention
-}) => {
+const Message: React.FC<{
+  message: ChatMessage;
+  onMention?: (username: string) => void;
+}> = ({ message, onMention }) => {
   const formatMessage = (content: string): React.ReactNode => {
     // Simple formatting support
     let formatted = content;
 
     // Bold: **text**
-    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
 
     // Italic: *text*
-    formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    formatted = formatted.replace(/\*(.*?)\*/g, "<em>$1</em>");
 
     // Color: {color:text}
-    formatted = formatted.replace(/\{([^:]+):([^}]+)\}/g, '<span style="color: $1">$2</span>');
+    formatted = formatted.replace(
+      /\{([^:]+):([^}]+)\}/g,
+      '<span style="color: $1">$2</span>',
+    );
 
     return <div dangerouslySetInnerHTML={{ __html: formatted }} />;
   };
 
   const time = new Date(message.timestamp).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit'
+    hour: "2-digit",
+    minute: "2-digit",
   });
 
   return (
-    <div className={`chat-message ${message.isSystem ? 'system' : ''} ${message.isMention ? 'mention' : ''}`}>
+    <div
+      className={`chat-message ${message.isSystem ? "system" : ""} ${message.isMention ? "mention" : ""}`}
+    >
       <div className="message-header">
         <span
           className="message-author"
           onClick={() => onMention?.(message.author)}
-          style={{ color: message.color || '#fff' }}
+          style={{ color: message.color || "#fff" }}
         >
           {message.author}
         </span>
@@ -94,7 +105,7 @@ const MessageHistory: React.FC<{
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   return (
@@ -106,11 +117,7 @@ const MessageHistory: React.FC<{
         </div>
       ) : (
         messages.map((msg) => (
-          <Message
-            key={msg.id}
-            message={msg}
-            onMention={onMention}
-          />
+          <Message key={msg.id} message={msg} onMention={onMention} />
         ))
       )}
       <div ref={endRef} />
@@ -129,11 +136,11 @@ const ChannelTabs: React.FC<{
 }> = ({ channels, selected, onSelect, unreadCounts = {} }) => {
   const getChannelIcon = (channel: ChatChannel): string => {
     const icons: Record<ChatChannel, string> = {
-      global: '🌍',
-      whisper: '💬',
-      guild: '🏰',
-      faction: '⚔️',
-      party: '👥'
+      global: "🌍",
+      whisper: "💬",
+      guild: "🏰",
+      faction: "⚔️",
+      party: "👥",
     };
     return icons[channel];
   };
@@ -143,14 +150,14 @@ const ChannelTabs: React.FC<{
       {channels.map((channel) => (
         <button
           key={channel}
-          className={`channel-tab ${channel} ${selected === channel ? 'active' : ''}`}
+          className={`channel-tab ${channel} ${selected === channel ? "active" : ""}`}
           onClick={() => onSelect(channel)}
           title={channel.charAt(0).toUpperCase() + channel.slice(1)}
         >
           <span className="channel-icon">{getChannelIcon(channel)}</span>
           <span className="channel-name">{channel}</span>
-          {unreadCounts[channel] > 0 && (
-            <span className="unread-badge">{unreadCounts[channel]}</span>
+          {(unreadCounts[channel] ?? 0) > 0 && (
+            <span className="unread-badge">{unreadCounts[channel] ?? 0}</span>
           )}
         </button>
       ))}
@@ -165,26 +172,26 @@ const ChatInput: React.FC<{
   onSendMessage: (message: string) => void;
   currentChannel: ChatChannel;
 }> = ({ onSendMessage, currentChannel }) => {
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [showFormatting, setShowFormatting] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSend = useCallback(() => {
     if (input.trim()) {
       onSendMessage(input);
-      setInput('');
+      setInput("");
       inputRef.current?.focus();
     }
   }, [input, onSendMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
   };
 
-  const insertFormatting = (before: string, after: string = '') => {
+  const insertFormatting = (before: string, after: string = "") => {
     const textarea = inputRef.current;
     if (!textarea) return;
 
@@ -212,28 +219,28 @@ const ChatInput: React.FC<{
         <div className="formatting-toolbar">
           <button
             className="format-btn bold"
-            onClick={() => insertFormatting('**', '**')}
+            onClick={() => insertFormatting("**", "**")}
             title="Bold"
           >
             <strong>B</strong>
           </button>
           <button
             className="format-btn italic"
-            onClick={() => insertFormatting('*', '*')}
+            onClick={() => insertFormatting("*", "*")}
             title="Italic"
           >
             <em>I</em>
           </button>
           <button
             className="format-btn color"
-            onClick={() => insertFormatting('{#ff0000:', '}')}
+            onClick={() => insertFormatting("{#ff0000:", "}")}
             title="Color"
           >
             🎨
           </button>
           <button
             className="format-btn emote"
-            onClick={() => insertFormatting(':smile:')}
+            onClick={() => insertFormatting(":smile:")}
             title="Emote"
           >
             😊
@@ -280,15 +287,17 @@ const ChatInput: React.FC<{
 export const ChatPanel: React.FC<ChatPanelProps> = ({
   messages,
   currentUser,
-  channels = ['global', 'whisper', 'guild', 'faction', 'party'],
+  channels = ["global", "whisper", "guild", "faction", "party"],
   onSendMessage,
   onMention,
-  className = ''
+  className = "",
 }) => {
-  const [selectedChannel, setSelectedChannel] = useState<ChatChannel>('global');
+  const [selectedChannel, setSelectedChannel] = useState<ChatChannel>("global");
 
   // Filter messages by channel
-  const filteredMessages = messages.filter((msg) => msg.channel === selectedChannel);
+  const filteredMessages = messages.filter(
+    (msg) => msg.channel === selectedChannel,
+  );
 
   // Calculate unread counts
   const unreadCounts = useMemo(() => {
@@ -297,12 +306,14 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       whisper: 0,
       guild: 0,
       faction: 0,
-      party: 0
+      party: 0,
     };
 
     channels.forEach((channel) => {
       const channelMessages = messages.filter((msg) => msg.channel === channel);
-      counts[channel] = channelMessages.filter((msg) => msg.author !== currentUser).length;
+      counts[channel] = channelMessages.filter(
+        (msg) => msg.author !== currentUser,
+      ).length;
     });
 
     return counts;
@@ -335,7 +346,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       />
 
       {/* Chat Input */}
-      <ChatInput onSendMessage={handleSendMessage} currentChannel={selectedChannel} />
+      <ChatInput
+        onSendMessage={handleSendMessage}
+        currentChannel={selectedChannel}
+      />
     </div>
   );
 };

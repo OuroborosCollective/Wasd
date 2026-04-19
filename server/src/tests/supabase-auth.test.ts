@@ -48,7 +48,7 @@ describe("Supabase auth integration", () => {
         role: "authenticated",
         exp,
       },
-      process.env.SUPABASE_JWT_SECRET
+      process.env.SUPABASE_JWT_SECRET,
     );
     const { verifySupabaseToken } = await import("../config/supabase.js");
     const claims = verifySupabaseToken(token);
@@ -59,7 +59,9 @@ describe("Supabase auth integration", () => {
   it("resolveLoginIdentity accepts Supabase token when USE_SUPABASE_WS_LOGIN=1", async () => {
     process.env.SUPABASE_JWT_SECRET = "test-supabase-secret";
     process.env.USE_SUPABASE_WS_LOGIN = "1";
-    process.env.NODE_ENV = "production";
+    process.env = { ...process.env, NODE_ENV: "production" };
+    const jwtSecret = process.env.SUPABASE_JWT_SECRET;
+    expect(jwtSecret).toBeTruthy();
     const exp = Math.floor(Date.now() / 1000) + 3600;
     const token = makeJwt(
       {
@@ -68,9 +70,10 @@ describe("Supabase auth integration", () => {
         role: "authenticated",
         exp,
       },
-      process.env.SUPABASE_JWT_SECRET
+      jwtSecret!,
     );
-    const { resolveLoginIdentity } = await import("../modules/auth/resolveLoginIdentity.js");
+    const { resolveLoginIdentity } =
+      await import("../modules/auth/resolveLoginIdentity.js");
     const result = await resolveLoginIdentity("sock-1", { token });
     expect("error" in result).toBe(false);
     if (!("error" in result)) {
@@ -89,16 +92,21 @@ describe("Supabase auth integration", () => {
         role: "authenticated",
         exp,
       },
-      process.env.SUPABASE_JWT_SECRET
+      process.env.SUPABASE_JWT_SECRET,
     );
 
-    const { adminAuthMiddleware } = await import("../middleware/adminAuthMiddleware.js");
+    const { adminAuthMiddleware } =
+      await import("../middleware/adminAuthMiddleware.js");
     const app = express();
     app.get("/admin-auth-test", adminAuthMiddleware, (req, res) => {
-      const adminReq = req as import("../middleware/adminAuthMiddleware.js").AdminRequest;
+      const adminReq =
+        req as import("../middleware/adminAuthMiddleware.js").AdminRequest;
       res.json({
         mode: adminReq.adminAuth?.mode,
-        uid: adminReq.adminAuth && "uid" in adminReq.adminAuth ? adminReq.adminAuth.uid : null,
+        uid:
+          adminReq.adminAuth && "uid" in adminReq.adminAuth
+            ? adminReq.adminAuth.uid
+            : null,
       });
     });
 

@@ -4,9 +4,18 @@ import { Hud } from "./Hud";
 import { registerGameHudWsBridge } from "./gameHudBridge";
 import { useGameHudState } from "./useGameHudState";
 import type { MMORPGClientCore } from "../core/MMORPGClientCore";
-import { sendPickupLoot, sendSetCombatTarget } from "../networking/websocketClient";
-import { getCombatTargetNpcId, subscribePlayerState } from "../state/playerState";
-import { getQuestlineSnapshot, subscribeQuestlineState } from "../state/questlineState";
+import {
+  sendPickupLoot,
+  sendSetCombatTarget,
+} from "../networking/websocketClient";
+import {
+  getCombatTargetNpcId,
+  subscribePlayerState,
+} from "../state/playerState";
+import {
+  getQuestlineSnapshot,
+  subscribeQuestlineState,
+} from "../state/questlineState";
 import { showToast } from "./toast";
 import { showRandomWorldFragmentToast } from "./worldFragmentToast";
 
@@ -61,7 +70,11 @@ export function mountGameHudOverlay(core: MMORPGClientCore) {
         onEntitySync,
         onLootSpawned,
         onLootDespawned,
-        onProtocolMsg: onWirePayload,
+        onProtocolMsg: (msg: unknown) => {
+          if (msg && typeof msg === "object") {
+            onWirePayload(msg as Record<string, unknown>);
+          }
+        },
         onGameConnected: setConnected,
       });
       return () => registerGameHudWsBridge(null);
@@ -71,7 +84,13 @@ export function mountGameHudOverlay(core: MMORPGClientCore) {
       const onKey = (e: KeyboardEvent) => {
         if (e.repeat) return;
         const t = e.target as HTMLElement | null;
-        if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+        if (
+          t &&
+          (t.tagName === "INPUT" ||
+            t.tagName === "TEXTAREA" ||
+            t.isContentEditable)
+        )
+          return;
         if (e.key === "1" || e.key === "Digit1") {
           coreRef.current.attack();
         }
@@ -103,11 +122,15 @@ export function mountGameHudOverlay(core: MMORPGClientCore) {
     }, []);
 
     const onCraftOpen = useCallback(() => {
-      void import("./crafting").then((m) => m.renderCraftingUI()).catch(() => showToast("Crafting"));
+      void import("./crafting")
+        .then((m) => m.renderCraftingUI())
+        .catch(() => showToast("Crafting"));
     }, []);
 
     const onHousingOpen = useCallback(() => {
-      showToast("Housing: platziere Items über den Server-Befehl house_place (Demo).");
+      showToast(
+        "Housing: platziere Items über den Server-Befehl house_place (Demo).",
+      );
     }, []);
 
     const ql = getQuestlineSnapshot();

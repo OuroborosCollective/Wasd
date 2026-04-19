@@ -7,7 +7,7 @@ function slotRow(
   label: string,
   item: { name?: string; id?: string } | null,
   slot: "weapon" | "armor",
-  compact: boolean
+  compact: boolean,
 ): HTMLDivElement {
   const row = document.createElement("div");
   row.style.display = "flex";
@@ -17,7 +17,8 @@ function slotRow(
   row.style.padding = compact ? "12px 10px" : "10px 8px";
   row.style.minHeight = compact ? "56px" : "48px";
   row.style.borderRadius = "10px";
-  row.style.background = "var(--surface-container-high, rgba(255,255,255,0.06))";
+  row.style.background =
+    "var(--surface-container-high, rgba(255,255,255,0.06))";
   row.style.border = "1px solid var(--outline-variant, rgba(255,255,255,0.12))";
   row.style.width = "100%";
   row.style.maxWidth = "360px";
@@ -55,9 +56,24 @@ function slotRow(
     btn.style.color = "#e8ecf5";
     btn.style.fontSize = "14px";
     btn.style.touchAction = "manipulation";
-    btn.onclick = (e) => { e.stopPropagation(); sendUnequipItem(slot); };
-    btn.addEventListener("touchstart", (e) => { e.stopPropagation(); }, { passive: false });
-    btn.addEventListener("pointerdown", (e) => { e.stopPropagation(); }, { passive: false });
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      sendUnequipItem(slot);
+    };
+    btn.addEventListener(
+      "touchstart",
+      (e) => {
+        e.stopPropagation();
+      },
+      { passive: false },
+    );
+    btn.addEventListener(
+      "pointerdown",
+      (e) => {
+        e.stopPropagation();
+      },
+      { passive: false },
+    );
     row.appendChild(btn);
   }
 
@@ -112,10 +128,15 @@ export function renderEquipmentPanel() {
     panel!.addEventListener(evt, stopEvents, { passive: true });
   });
   [
-    "touchend", "touchcancel",
-    "mousedown", "mouseup", "mousemove",
-    "pointerdown", "pointerup", "pointermove",
-    "click"
+    "touchend",
+    "touchcancel",
+    "mousedown",
+    "mouseup",
+    "mousemove",
+    "pointerdown",
+    "pointerup",
+    "pointermove",
+    "click",
   ].forEach((evt) => {
     panel!.addEventListener(evt, stopEvents, { passive: false });
   });
@@ -143,8 +164,20 @@ export function renderEquipmentPanel() {
     e.stopPropagation();
     panel!.style.display = "none";
   };
-  closeBtn.addEventListener("touchstart", (e) => { e.stopPropagation(); }, { passive: false });
-  closeBtn.addEventListener("pointerdown", (e) => { e.stopPropagation(); }, { passive: false });
+  closeBtn.addEventListener(
+    "touchstart",
+    (e) => {
+      e.stopPropagation();
+    },
+    { passive: false },
+  );
+  closeBtn.addEventListener(
+    "pointerdown",
+    (e) => {
+      e.stopPropagation();
+    },
+    { passive: false },
+  );
 
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Escape" && panel!.style.display !== "none") {
@@ -165,7 +198,7 @@ export function renderEquipmentPanel() {
   wrap.style.alignItems = "center";
   wrap.style.gap = "12px";
   wrap.style.overflowY = "auto";
-  wrap.style.webkitOverflowScrolling = "touch";
+  wrap.style.setProperty("-webkit-overflow-scrolling", "touch");
   wrap.style.padding = compact ? "8px 4px" : "5px";
 
   refreshEquipmentContent(wrap, compact);

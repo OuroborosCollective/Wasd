@@ -4,7 +4,10 @@
  *
  * Enable: VITE_FIREBASE_AI_WATCHDOG=1
  */
-import { getFirebaseAppOrNull, isFirebaseClientConfigured } from "../auth/firebase";
+import {
+  getFirebaseAppOrNull,
+  isFirebaseClientConfigured,
+} from "../auth/firebase";
 import { reconnectGameSocket } from "../networking/websocketClient";
 import {
   formatSnapshotForPrompt,
@@ -26,16 +29,18 @@ import {
 } from "./watchdogRecovery";
 
 const WATCHDOG_FLAG = () => {
-  const v = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env
-    ?.VITE_FIREBASE_AI_WATCHDOG;
+  const v = (
+    import.meta as ImportMeta & { env?: Record<string, string | undefined> }
+  ).env?.VITE_FIREBASE_AI_WATCHDOG;
   if (!v) return false;
   const t = String(v).trim().toLowerCase();
   return t === "1" || t === "true" || t === "yes" || t === "on";
 };
 
 const MODEL =
-  (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env
-    ?.VITE_FIREBASE_AI_WATCHDOG_MODEL?.trim() || "gemini-2.0-flash";
+  (
+    import.meta as ImportMeta & { env?: Record<string, string | undefined> }
+  ).env?.VITE_FIREBASE_AI_WATCHDOG_MODEL?.trim() || "gemini-2.0-flash";
 
 const MIN_INTERVAL_MS = 45_000;
 const DEBOUNCE_MS = 2500;
@@ -47,12 +52,13 @@ const RELOAD_COOLDOWN_MS = 120_000;
 
 async function runGeminiDecision(
   logText: string,
-  domain: WatchdogModuleId
+  domain: WatchdogModuleId,
 ): Promise<WatchdogAgentDecision | null> {
   const firebaseApp = getFirebaseAppOrNull();
   if (!firebaseApp) return null;
 
-  const { getAI, getGenerativeModel, GoogleAIBackend } = await import("firebase/ai");
+  const { getAI, getGenerativeModel, GoogleAIBackend } =
+    await import("firebase/ai");
 
   const ai = getAI(firebaseApp, { backend: new GoogleAIBackend() });
   const model = getGenerativeModel(ai, { model: MODEL });
@@ -137,7 +143,11 @@ function executeDecision(dec: WatchdogAgentDecision): void {
     case "reload_page": {
       const now = Date.now();
       if (now - reloadUsedAt < RELOAD_COOLDOWN_MS) {
-        pushWatchdogLog("warn", "ai-watchdog", "reload_page skipped (cooldown)");
+        pushWatchdogLog(
+          "warn",
+          "ai-watchdog",
+          "reload_page skipped (cooldown)",
+        );
         return;
       }
       reloadUsedAt = now;
@@ -145,7 +155,11 @@ function executeDecision(dec: WatchdogAgentDecision): void {
       break;
     }
     default:
-      pushWatchdogLog("warn", "ai-watchdog", `Unknown action ignored: ${action}`);
+      pushWatchdogLog(
+        "warn",
+        "ai-watchdog",
+        `Unknown action ignored: ${action}`,
+      );
   }
 }
 
@@ -156,31 +170,46 @@ async function runWatchdogCycle(trigger: string): Promise<void> {
   if (now - lastAiRun < MIN_INTERVAL_MS) return;
 
   const snapshot = getWatchdogLogSnapshot();
-  const recentErrors = snapshot.filter((e) => e.level === "error" && now - e.t < 120_000);
+  const recentErrors = snapshot.filter(
+    (e) => e.level === "error" && now - e.t < 120_000,
+  );
   if (recentErrors.length === 0) return;
 
   const domain = inferDominantModuleFromSnapshot(snapshot);
   lastAiRun = now;
-  pushWatchdogLog("info", "ai-watchdog", `Consulting model (${trigger}) domain=${domain}`);
+  pushWatchdogLog(
+    "info",
+    "ai-watchdog",
+    `Consulting model (${trigger}) domain=${domain}`,
+  );
 
   try {
     const logText = formatSnapshotForPrompt(snapshot.slice(-40));
     const decision = await runGeminiDecision(logText, domain);
     if (!decision) {
-      pushWatchdogLog("warn", "ai-watchdog", "Invalid AI response or module mismatch");
+      pushWatchdogLog(
+        "warn",
+        "ai-watchdog",
+        "Invalid AI response or module mismatch",
+      );
       return;
     }
     executeDecision(decision);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    pushWatchdogLog("warn", "ai-watchdog", "AI watchdog call failed", msg.slice(0, 300));
+    pushWatchdogLog(
+      "warn",
+      "ai-watchdog",
+      "AI watchdog call failed",
+      msg.slice(0, 300),
+    );
   }
 }
 
 function scheduleWatchdog(trigger: string): void {
   if (!WATCHDOG_FLAG()) return;
   if (debounceTimer) clearTimeout(debounceTimer);
-  debounceTimer = window.setTimeout(() => {
+  debounceTimer = setTimeout(() => {
     debounceTimer = null;
     void runWatchdogCycle(trigger);
   }, DEBOUNCE_MS);
@@ -195,7 +224,9 @@ export function installFirebaseAiWatchdog(): void {
   const origErr = console.error.bind(console);
   console.error = (...args: unknown[]) => {
     try {
-      const msg = args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" ");
+      const msg = args
+        .map((a) => (typeof a === "string" ? a : JSON.stringify(a)))
+        .join(" ");
       if (msg.length > 20) {
         pushWatchdogLog("error", "console.error", msg.slice(0, 1500));
         scheduleWatchdog("console.error");
@@ -234,6 +265,10 @@ export function installFirebaseAiWatchdog(): void {
   });
 
   if (WATCHDOG_FLAG() && isFirebaseClientConfigured()) {
-    pushWatchdogLog("info", "ai-watchdog", "Watchdog active — module-scoped actions only");
+    pushWatchdogLog(
+      "info",
+      "ai-watchdog",
+      "Watchdog active — module-scoped actions only",
+    );
   }
 }

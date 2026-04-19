@@ -1,4 +1,5 @@
 import {
+  AbstractEngine,
   AbstractMesh,
   AnimationGroup,
   ArcRotateCamera,
@@ -109,16 +110,19 @@ export class BabylonAdapter implements IEngineBridge {
     frameMsAvg: 16.7,
     sceneDrawCallsAvg: 0,
   };
-  private readonly areDebugEnabled = new URLSearchParams(window.location.search).get("areDebug") === "1";
+  private readonly areDebugEnabled =
+    new URLSearchParams(window.location.search).get("areDebug") === "1";
   private readonly areDebugElement: HTMLDivElement | null = null;
   private areMode: "off" | "cpu" | "shader" = "off";
   private areShaderRegistered = false;
-  private arePerfEnabled = new URLSearchParams(window.location.search).get("arePerf") === "1";
+  private arePerfEnabled =
+    new URLSearchParams(window.location.search).get("arePerf") === "1";
   private arePerfElement: HTMLDivElement | null = null;
   private arePerfAutoMode = false;
   private arePerfAutoReason = "manual";
   private arePerfState: AutoPolicyState = defaultAutoPolicyState();
-  private arePolicyConfig: AutoPolicyConfig = normalizeAutoPolicyConfig(undefined);
+  private arePolicyConfig: AutoPolicyConfig =
+    normalizeAutoPolicyConfig(undefined);
   private areModeSource: AREModeSource = "manual";
   private areModeBadgeElement: HTMLDivElement | null = null;
   private cameraTargetId: string | null = null;
@@ -138,7 +142,7 @@ export class BabylonAdapter implements IEngineBridge {
 
   constructor(
     private readonly scene: Scene,
-    private readonly camera: ArcRotateCamera
+    private readonly camera: ArcRotateCamera,
   ) {
     const query = new URLSearchParams(window.location.search);
     const modeFromQuery = this.normalizeAREMode(query.get("areMode"));
@@ -157,8 +161,10 @@ export class BabylonAdapter implements IEngineBridge {
     } else {
       const weakDevice =
         (typeof navigator !== "undefined" &&
-          (((navigator as any).deviceMemory && Number((navigator as any).deviceMemory) <= 4) ||
-            (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4))) ||
+          (((navigator as any).deviceMemory &&
+            Number((navigator as any).deviceMemory) <= 4) ||
+            (navigator.hardwareConcurrency &&
+              navigator.hardwareConcurrency <= 4))) ||
         false;
       this.arePerfAutoMode = weakDevice;
       this.arePerfAutoReason = weakDevice ? "weak-device" : "manual";
@@ -187,18 +193,26 @@ export class BabylonAdapter implements IEngineBridge {
       if (node.label) {
         node.label.dispose();
       }
-      node.label = this.createBillboardLabel(text, this.colorForType(this.inferTypeFromEntityId(id)), node.root);
+      node.label = this.createBillboardLabel(
+        text,
+        this.colorForType(this.inferTypeFromEntityId(id)),
+        node.root,
+      );
     }
     this.pendingLabelText.clear();
   }
 
   createEntity(model: EntityViewModel): void {
     const root = new TransformNode(model.id, this.scene);
-    root.position = new Vector3(model.position.x, model.position.y, model.position.z);
+    root.position = new Vector3(
+      model.position.x,
+      model.position.y,
+      model.position.z,
+    );
     root.rotation = new Vector3(
       this.toRadians(model.rotation.x),
       this.toRadians(model.rotation.y),
-      this.toRadians(model.rotation.z)
+      this.toRadians(model.rotation.z),
     );
     root.setEnabled(model.visible ?? true);
 
@@ -222,7 +236,9 @@ export class BabylonAdapter implements IEngineBridge {
       areColor: this.colorForType(model.type),
       areShader: null,
       areMeshes: [placeholder],
-      areBaseMaterials: new Map([[placeholder.uniqueId, placeholder.material as Material | null]]),
+      areBaseMaterials: new Map([
+        [placeholder.uniqueId, placeholder.material as Material | null],
+      ]),
       explicitVisible: model.visible ?? true,
       isStaticCandidate: model.type === "object" || model.type === "loot",
       isStaticFrozen: false,
@@ -231,14 +247,20 @@ export class BabylonAdapter implements IEngineBridge {
       if (this.androidMobile) {
         this.pendingLabelText.set(model.id, model.name);
       } else {
-        node.label = this.createBillboardLabel(model.name, this.colorForType(model.type), root);
+        node.label = this.createBillboardLabel(
+          model.name,
+          this.colorForType(model.type),
+          root,
+        );
       }
     }
 
     this.applyAREState(node, model);
     this.applyAREMaterialMode(node);
     this.entities.set(model.id, node);
-    const url = normalizeModelUrl(model.modelUrl ?? DEFAULT_MODEL_BY_TYPE[model.type] ?? "");
+    const url = normalizeModelUrl(
+      model.modelUrl ?? DEFAULT_MODEL_BY_TYPE[model.type] ?? "",
+    );
     if (this.androidMobile) {
       this.enqueueGlbLoad(() => this.tryAttachModel(model.id, url));
     } else {
@@ -246,7 +268,11 @@ export class BabylonAdapter implements IEngineBridge {
     }
   }
 
-  updateEntity(id: string, updates: Partial<EntityViewModel>, dt: number = 0.016): void {
+  updateEntity(
+    id: string,
+    updates: Partial<EntityViewModel>,
+    dt: number = 0.016,
+  ): void {
     const node = this.entities.get(id);
     if (!node) return;
 
@@ -255,7 +281,11 @@ export class BabylonAdapter implements IEngineBridge {
       if (node.isStaticFrozen) {
         this.unfreezeStaticNode(node);
       }
-      const target = new Vector3(updates.position.x, updates.position.y, updates.position.z);
+      const target = new Vector3(
+        updates.position.x,
+        updates.position.y,
+        updates.position.z,
+      );
       node.root.position = Vector3.Lerp(node.root.position, target, lerpAlpha);
     }
     if (updates.rotation) {
@@ -265,9 +295,13 @@ export class BabylonAdapter implements IEngineBridge {
       const targetEuler = new Vector3(
         this.toRadians(updates.rotation.x),
         this.toRadians(updates.rotation.y),
-        this.toRadians(updates.rotation.z)
+        this.toRadians(updates.rotation.z),
       );
-      node.root.rotation = Vector3.Lerp(node.root.rotation, targetEuler, lerpAlpha);
+      node.root.rotation = Vector3.Lerp(
+        node.root.rotation,
+        targetEuler,
+        lerpAlpha,
+      );
     }
     if (updates.visible !== undefined) {
       node.explicitVisible = updates.visible;
@@ -284,7 +318,7 @@ export class BabylonAdapter implements IEngineBridge {
         node.label = this.createBillboardLabel(
           nm,
           this.colorForType(updates.type ?? this.inferTypeFromEntityId(id)),
-          node.root
+          node.root,
         );
       }
     }
@@ -338,7 +372,7 @@ export class BabylonAdapter implements IEngineBridge {
     const ground = MeshBuilder.CreateGround(
       `Chunk_${chunk.id}_ground`,
       { width: 16, height: 16, subdivisions: 1 },
-      this.scene
+      this.scene,
     );
     ground.parent = root;
     ground.position.y = -0.01;
@@ -356,7 +390,9 @@ export class BabylonAdapter implements IEngineBridge {
     this.chunks.delete(id);
   }
 
-  setNavigationTarget(position: { x: number; y: number; z: number } | null): void {
+  setNavigationTarget(
+    position: { x: number; y: number; z: number } | null,
+  ): void {
     if (!position) {
       if (this.navigationMarker) this.navigationMarker.setEnabled(false);
       return;
@@ -366,7 +402,7 @@ export class BabylonAdapter implements IEngineBridge {
       this.navigationMarker = MeshBuilder.CreateTorus(
         "navigation-marker",
         { diameter: 1.5, thickness: 0.08, tessellation: navTess },
-        this.scene
+        this.scene,
       );
       const mat = new StandardMaterial("navigation-marker-mat", this.scene);
       mat.emissiveColor = new Color3(0.2, 0.9, 0.3);
@@ -375,7 +411,11 @@ export class BabylonAdapter implements IEngineBridge {
       this.navigationMarker.rotation.x = Math.PI / 2;
     }
     this.navigationMarker.setEnabled(true);
-    this.navigationMarker.position = new Vector3(position.x, position.y + 0.08, position.z);
+    this.navigationMarker.position = new Vector3(
+      position.x,
+      position.y + 0.08,
+      position.z,
+    );
   }
 
   triggerEntityAction(entityId: string, action: string): void {
@@ -387,7 +427,11 @@ export class BabylonAdapter implements IEngineBridge {
       setTimeout(() => {
         const latest = this.entities.get(entityId);
         if (latest) {
-          latest.root.scaling = new Vector3(latest.baseScale, latest.baseScale, latest.baseScale);
+          latest.root.scaling = new Vector3(
+            latest.baseScale,
+            latest.baseScale,
+            latest.baseScale,
+          );
         }
       }, 120);
     }
@@ -464,15 +508,23 @@ export class BabylonAdapter implements IEngineBridge {
       this.perf.fps,
       performance.now(),
       this.arePerfState,
-      this.arePolicyConfig
+      this.arePolicyConfig,
     );
     this.arePerfState = decision.nextState;
     if (decision.nextMode) {
-      this.setAREModeInternal(decision.nextMode, "auto", decision.reason ?? "policy");
+      this.setAREModeInternal(
+        decision.nextMode,
+        "auto",
+        decision.reason ?? "policy",
+      );
     }
   }
 
-  private setAREModeInternal(mode: AREMode, source?: AREModeSource, reason?: string): void {
+  private setAREModeInternal(
+    mode: AREMode,
+    source?: AREModeSource,
+    reason?: string,
+  ): void {
     mode = this.clampAREModeForDevice(mode);
     if (mode === this.areMode) {
       return;
@@ -547,13 +599,29 @@ export class BabylonAdapter implements IEngineBridge {
     const color = this.colorForType(model.type);
     let mesh: Mesh;
     if (model.type === "player") {
-      mesh = MeshBuilder.CreateCapsule(`${model.id}_capsule`, { height: 1.8, radius: 0.35 }, this.scene);
+      mesh = MeshBuilder.CreateCapsule(
+        `${model.id}_capsule`,
+        { height: 1.8, radius: 0.35 },
+        this.scene,
+      );
     } else if (model.type === "npc") {
-      mesh = MeshBuilder.CreateCylinder(`${model.id}_npc`, { height: 1.6, diameter: 0.65 }, this.scene);
+      mesh = MeshBuilder.CreateCylinder(
+        `${model.id}_npc`,
+        { height: 1.6, diameter: 0.65 },
+        this.scene,
+      );
     } else if (model.type === "monster") {
-      mesh = MeshBuilder.CreateBox(`${model.id}_monster`, { size: 1.1 }, this.scene);
+      mesh = MeshBuilder.CreateBox(
+        `${model.id}_monster`,
+        { size: 1.1 },
+        this.scene,
+      );
     } else {
-      mesh = MeshBuilder.CreateBox(`${model.id}_box`, { size: 0.9 }, this.scene);
+      mesh = MeshBuilder.CreateBox(
+        `${model.id}_box`,
+        { size: 0.9 },
+        this.scene,
+      );
     }
     const mat = new StandardMaterial(`${model.id}_placeholder_mat`, this.scene);
     mat.diffuseColor = color;
@@ -566,12 +634,12 @@ export class BabylonAdapter implements IEngineBridge {
   private createBillboardLabel(
     text: string,
     color: Color3,
-    parent: TransformNode
+    parent: TransformNode,
   ): Mesh {
     const plane = MeshBuilder.CreatePlane(
       `label_${parent.name}_${this.labelMaterialCounter++}`,
       { width: 1.7, height: 0.42 },
-      this.scene
+      this.scene,
     );
     plane.parent = parent;
     plane.position = new Vector3(0, 2.3, 0);
@@ -582,16 +650,16 @@ export class BabylonAdapter implements IEngineBridge {
       `label_tex_${parent.name}_${this.labelMaterialCounter}`,
       { width: 512, height: 128 },
       this.scene,
-      false
+      false,
     );
     texture.hasAlpha = true;
-    const ctx = texture.getContext();
+    const ctx = texture.getContext() as CanvasRenderingContext2D | null;
     if (ctx) {
       ctx.clearRect(0, 0, 512, 128);
       ctx.fillStyle = "rgba(0,0,0,0.35)";
       ctx.fillRect(8, 10, 496, 108);
       ctx.fillStyle = `rgb(${Math.round(color.r * 255)},${Math.round(color.g * 255)},${Math.round(
-        color.b * 255
+        color.b * 255,
       )})`;
       ctx.font = "bold 58px sans-serif";
       ctx.textAlign = "center";
@@ -600,7 +668,10 @@ export class BabylonAdapter implements IEngineBridge {
       texture.update();
     }
 
-    const mat = new StandardMaterial(`label_mat_${parent.name}_${this.labelMaterialCounter}`, this.scene);
+    const mat = new StandardMaterial(
+      `label_mat_${parent.name}_${this.labelMaterialCounter}`,
+      this.scene,
+    );
     mat.diffuseTexture = texture;
     mat.emissiveColor = new Color3(1, 1, 1);
     mat.specularColor = new Color3(0, 0, 0);
@@ -618,7 +689,11 @@ export class BabylonAdapter implements IEngineBridge {
     const splitIdx = url.lastIndexOf("/");
     const rootUrl = splitIdx >= 0 ? url.slice(0, splitIdx + 1) : "/";
     const fileName = splitIdx >= 0 ? url.slice(splitIdx + 1) : url;
-    const container = await SceneLoader.LoadAssetContainerAsync(rootUrl, fileName, this.scene);
+    const container = await SceneLoader.LoadAssetContainerAsync(
+      rootUrl,
+      fileName,
+      this.scene,
+    );
     this.loadedModels.set(url, container);
     return container;
   }
@@ -640,8 +715,11 @@ export class BabylonAdapter implements IEngineBridge {
         return;
       }
 
-      const instance = container.instantiateModelsToScene((name) => `${entityId}_${name}`);
-      if (!Array.isArray(instance.rootNodes) || instance.rootNodes.length === 0) return;
+      const instance = container.instantiateModelsToScene(
+        (name) => `${entityId}_${name}`,
+      );
+      if (!Array.isArray(instance.rootNodes) || instance.rootNodes.length === 0)
+        return;
 
       const modelRoot = new TransformNode(`${entityId}_model_root`, this.scene);
       for (const rootNode of instance.rootNodes) {
@@ -660,11 +738,16 @@ export class BabylonAdapter implements IEngineBridge {
         entity.visual.dispose(false, true);
       }
       entity.visual = modelRoot;
-      entity.activeAnimationGroups = Array.isArray(instance.animationGroups) ? instance.animationGroups : [];
+      entity.activeAnimationGroups = Array.isArray(instance.animationGroups)
+        ? instance.animationGroups
+        : [];
       this.startEntityAnimations(entity);
       entity.areMeshes = this.collectRenderableMeshes(modelRoot);
       entity.areBaseMaterials = new Map(
-        entity.areMeshes.map((mesh) => [mesh.uniqueId, (mesh.material as Material | null) ?? null])
+        entity.areMeshes.map((mesh) => [
+          mesh.uniqueId,
+          (mesh.material as Material | null) ?? null,
+        ]),
       );
       this.applyARELod(entity);
       this.applyAREMaterialMode(entity);
@@ -676,7 +759,10 @@ export class BabylonAdapter implements IEngineBridge {
   }
 
   private clearEntityAnimations(entity: EntityNode): void {
-    if (!Array.isArray(entity.activeAnimationGroups) || entity.activeAnimationGroups.length === 0) {
+    if (
+      !Array.isArray(entity.activeAnimationGroups) ||
+      entity.activeAnimationGroups.length === 0
+    ) {
       entity.activeAnimationGroups = [];
       return;
     }
@@ -693,7 +779,9 @@ export class BabylonAdapter implements IEngineBridge {
 
   private startEntityAnimations(entity: EntityNode): void {
     const shouldAnimate =
-      entity.entityType === "player" || entity.entityType === "npc" || entity.entityType === "monster";
+      entity.entityType === "player" ||
+      entity.entityType === "npc" ||
+      entity.entityType === "monster";
     if (!shouldAnimate || entity.activeAnimationGroups.length === 0) {
       return;
     }
@@ -710,15 +798,26 @@ export class BabylonAdapter implements IEngineBridge {
     }
   }
 
-  private fitModelRootToEntity(entity: EntityNode, modelRoot: TransformNode, modelUrl: string): void {
+  private fitModelRootToEntity(
+    entity: EntityNode,
+    modelRoot: TransformNode,
+    modelUrl: string,
+  ): void {
     modelRoot.computeWorldMatrix(true);
     const bounds = modelRoot.getHierarchyBoundingVectors(true);
     const rawHeight = bounds.max.y - bounds.min.y;
     if (Number.isFinite(rawHeight) && rawHeight > 1e-4) {
       const profile = this.resolveModelSizingProfile(entity, modelUrl);
       if (rawHeight < profile.minHeight || rawHeight > profile.maxHeight) {
-        const normalizedScale = Math.min(80, Math.max(0.01, profile.idealHeight / rawHeight));
-        modelRoot.scaling = new Vector3(normalizedScale, normalizedScale, normalizedScale);
+        const normalizedScale = Math.min(
+          80,
+          Math.max(0.01, profile.idealHeight / rawHeight),
+        );
+        modelRoot.scaling = new Vector3(
+          normalizedScale,
+          normalizedScale,
+          normalizedScale,
+        );
         modelRoot.computeWorldMatrix(true);
       }
     }
@@ -734,12 +833,13 @@ export class BabylonAdapter implements IEngineBridge {
 
   private resolveModelSizingProfile(
     entity: EntityNode,
-    modelUrl: string
+    modelUrl: string,
   ): { idealHeight: number; minHeight: number; maxHeight: number } {
     const signature = `${entity.root.name} ${modelUrl}`.toLowerCase();
-    const looksLikeStructure = /(house|building|castle|tower|gate|wall|inn|market|stall|barn|fort|temple|village)/.test(
-      signature
-    );
+    const looksLikeStructure =
+      /(house|building|castle|tower|gate|wall|inn|market|stall|barn|fort|temple|village)/.test(
+        signature,
+      );
     if (entity.entityType === "player" || entity.entityType === "npc") {
       return { idealHeight: 1.75, minHeight: 1.2, maxHeight: 2.6 };
     }
@@ -767,22 +867,38 @@ export class BabylonAdapter implements IEngineBridge {
     return (value * Math.PI) / 180;
   }
 
-  private applyAREState(node: EntityNode, model: Partial<EntityViewModel>): void {
+  private applyAREState(
+    node: EntityNode,
+    model: Partial<EntityViewModel>,
+  ): void {
     if (model.are) {
-      node.areKappa = Number.isFinite(model.are.kappa) ? model.are.kappa : node.areKappa;
+      node.areKappa = Number.isFinite(model.are.kappa)
+        ? model.are.kappa
+        : node.areKappa;
       if (model.are.kappaPos) {
         node.areKappaPos = {
-          x: Number.isFinite(model.are.kappaPos.x) ? model.are.kappaPos.x : node.areKappaPos.x,
-          y: Number.isFinite(model.are.kappaPos.y) ? model.are.kappaPos.y : node.areKappaPos.y,
-          z: Number.isFinite(model.are.kappaPos.z) ? model.are.kappaPos.z : node.areKappaPos.z,
+          x: Number.isFinite(model.are.kappaPos.x)
+            ? model.are.kappaPos.x
+            : node.areKappaPos.x,
+          y: Number.isFinite(model.are.kappaPos.y)
+            ? model.are.kappaPos.y
+            : node.areKappaPos.y,
+          z: Number.isFinite(model.are.kappaPos.z)
+            ? model.are.kappaPos.z
+            : node.areKappaPos.z,
         };
       }
-      node.areChain = typeof model.are.chain === "string" ? model.are.chain : node.areChain;
+      node.areChain =
+        typeof model.are.chain === "string" ? model.are.chain : node.areChain;
       node.areLogicalIndex = Number.isFinite(model.are.logicalIndex)
         ? model.are.logicalIndex
         : node.areLogicalIndex;
-      node.arePhase = Number.isFinite(model.are.phaseShift) ? model.are.phaseShift : node.arePhase;
-      node.areResonance = Number.isFinite(model.are.resonance) ? model.are.resonance : node.areResonance;
+      node.arePhase = Number.isFinite(model.are.phaseShift)
+        ? model.are.phaseShift
+        : node.arePhase;
+      node.areResonance = Number.isFinite(model.are.resonance)
+        ? model.are.resonance
+        : node.areResonance;
       node.arePlexity = Number.isFinite(model.are.plexity)
         ? Math.max(0.05, Math.min(1, model.are.plexity))
         : node.arePlexity;
@@ -799,7 +915,10 @@ export class BabylonAdapter implements IEngineBridge {
 
   private updateAREVisuals(): void {
     for (const node of this.entities.values()) {
-      const wave = Math.sin(this.areWaveClock.t * 2 + node.arePhase * 0.01) * 0.05 * (0.25 + node.areResonance);
+      const wave =
+        Math.sin(this.areWaveClock.t * 2 + node.arePhase * 0.01) *
+        0.05 *
+        (0.25 + node.areResonance);
       let scale = this.areMode === "off" ? 1 : node.baseScale;
       if (this.areMode === "cpu") {
         scale = Math.max(0.2, node.baseScale + wave);
@@ -811,7 +930,9 @@ export class BabylonAdapter implements IEngineBridge {
     }
   }
 
-  private collectRenderableMeshes(node: TransformNode | AbstractMesh): AbstractMesh[] {
+  private collectRenderableMeshes(
+    node: TransformNode | AbstractMesh,
+  ): AbstractMesh[] {
     if (node instanceof AbstractMesh) {
       return [node];
     }
@@ -819,12 +940,17 @@ export class BabylonAdapter implements IEngineBridge {
   }
 
   private applyEntityVisibility(node: EntityNode): void {
-    const visibleByPlexity = this.areMode === "off" ? true : node.arePlexity > 0.08;
+    const visibleByPlexity =
+      this.areMode === "off" ? true : node.arePlexity > 0.08;
     const lodVisible = node.areLodTier !== "hidden";
-    node.root.setEnabled(visibleByPlexity && lodVisible && node.explicitVisible);
+    node.root.setEnabled(
+      visibleByPlexity && lodVisible && node.explicitVisible,
+    );
   }
 
-  private resolveARELodTier(plexity: number): "hidden" | "low" | "mid" | "high" {
+  private resolveARELodTier(
+    plexity: number,
+  ): "hidden" | "low" | "mid" | "high" {
     if (plexity < 0.08) return "hidden";
     if (plexity < 0.28) return "low";
     if (plexity < 0.62) return "mid";
@@ -921,7 +1047,7 @@ export class BabylonAdapter implements IEngineBridge {
           "uPlexity",
           "uColor",
         ],
-      }
+      },
     );
     shader.backFaceCulling = false;
     node.areShader = shader;
@@ -981,7 +1107,13 @@ export class BabylonAdapter implements IEngineBridge {
     const value = mode.trim().toLowerCase();
     if (value === "off") return "off";
     if (value === "cpu") return "cpu";
-    if (value === "shader" || value === "on" || value === "are" || value === "true") return "shader";
+    if (
+      value === "shader" ||
+      value === "on" ||
+      value === "are" ||
+      value === "true"
+    )
+      return "shader";
     return null;
   }
 
@@ -1069,7 +1201,9 @@ export class BabylonAdapter implements IEngineBridge {
       plexity += node.arePlexity;
     }
     const count = this.entities.size || 1;
-    const localNode = this.localPlayerId ? this.entities.get(this.localPlayerId) : null;
+    const localNode = this.localPlayerId
+      ? this.entities.get(this.localPlayerId)
+      : null;
     this.updateAREModeBadge();
     this.areDebugElement.textContent = [
       "ARE DEBUG",
@@ -1106,7 +1240,8 @@ export class BabylonAdapter implements IEngineBridge {
     for (const node of this.entities.values()) {
       if (node.root.isEnabled()) visible += 1;
     }
-    const drawCalls = engine.drawCalls?.current ?? 0;
+    const drawCalls =
+      (engine as unknown as { _drawCalls?: number })._drawCalls ?? 0;
     this.arePerfElement.textContent = [
       "ARE PERF",
       `mode: ${this.areMode}${this.arePerfAutoMode ? ` (auto:${this.arePerfAutoReason})` : ""}`,

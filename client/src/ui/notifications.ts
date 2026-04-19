@@ -25,7 +25,13 @@ const liveItems: HTMLElement[] = [];
 
 const TONE_STYLES: Record<
   NotificationTone,
-  { icon: string; borderColor: string; iconColor: string; barColor: string; titleColor: string }
+  {
+    icon: string;
+    borderColor: string;
+    iconColor: string;
+    barColor: string;
+    titleColor: string;
+  }
 > = {
   info: {
     icon: "ℹ️",
@@ -100,10 +106,13 @@ function dismissItem(el: HTMLElement): void {
 export function showNotification(
   message: string,
   tone: NotificationTone = "info",
-  options: NotificationOptions = {}
+  options: NotificationOptions = {},
 ): void {
   const { title, icon, duration: durationOpt, persistent = false } = options;
-  const duration = typeof durationOpt === "number" && durationOpt > 0 ? durationOpt : DEFAULT_DURATION;
+  const duration =
+    typeof durationOpt === "number" && durationOpt > 0
+      ? durationOpt
+      : DEFAULT_DURATION;
   const theme = TONE_STYLES[tone];
   const container = getContainer();
 
@@ -260,7 +269,7 @@ export function showNotification(
       if (e.target === closeBtn) return;
       handleDismiss(e);
     },
-    { passive: true }
+    { passive: true },
   );
   closeBtn.addEventListener("click", handleDismiss, { passive: true });
 
@@ -270,7 +279,7 @@ export function showNotification(
     (e) => {
       touchStartX = e.touches[0]?.clientX ?? 0;
     },
-    { passive: true }
+    { passive: true },
   );
   el.addEventListener(
     "touchend",
@@ -278,13 +287,13 @@ export function showNotification(
       const endX = e.changedTouches[0]?.clientX ?? 0;
       if (endX - touchStartX > 60) dismissItem(el);
     },
-    { passive: true }
+    { passive: true },
   );
 
   let paused = false;
   let remainingMs = duration;
   let startedAt = 0;
-  let autoTimer: ReturnType<typeof window.setTimeout> | null = null;
+  let autoTimer: number | null = null;
 
   const startCountdown = (ms: number) => {
     if (persistent) return;
