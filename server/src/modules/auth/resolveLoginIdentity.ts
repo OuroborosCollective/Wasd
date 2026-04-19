@@ -24,7 +24,9 @@ function devLoginAllowed(): boolean {
 
 function guestLoginAllowed(): boolean {
   const v = process.env.ALLOW_GUEST_LOGIN?.trim().toLowerCase();
-  return v === "1" || v === "true" || v === "yes";
+  // Default: allow guest login unless explicitly disabled
+  if (v === "0" || v === "false" || v === "no") return false;
+  return true;
 }
 
 function requireFirebaseAuthOnly(): boolean {
@@ -117,6 +119,12 @@ export async function resolveLoginIdentity(
           "Server requires Supabase sign-in but no JWT verification secret is configured (set SUPABASE_JWT_SECRET, JWT_SECRET, GOTRUE_JWT_SECRET, or self-hosted SECRET_KEY_BASE to match GoTrue).",
         code: "login_required",
       };
+    }
+    // Fallback: if guest login is configured, allow anonymous even when Supabase is required
+    if (guestLoginAllowed()) {
+      const gid = `guest_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
+      const gn = typeof msg.guestName === "string" ? msg.guestName.trim().slice(0, 32) : "";
+      return { uid: gid, charName: gn || "Guest" };
     }
     return { error: "Supabase sign-in required", code: "login_required" };
   }
