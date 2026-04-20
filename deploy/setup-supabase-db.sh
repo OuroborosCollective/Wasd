@@ -34,7 +34,8 @@ echo "=== Configuring Supabase/Postgres connection ==="
 # --- Database ---
 # Direct Postgres on localhost (Supabase stack exposes 5432 to host)
 set_key "DATABASE_URL" "postgresql://postgres:Sup3base-1491137-Strong!@127.0.0.1:5432/postgres"
-set_key "PERSISTENCE_DRIVER" "postgres"
+set_key "DATABASE_SSL_DISABLED" "1"
+set_key "PERSISTENCE_DRIVER" "auto"
 
 # --- Supabase Auth ---
 set_key "SUPABASE_URL" "https://supabase.arelogic.space:8443"
@@ -50,8 +51,7 @@ set_key "SUPABASE_JWT_SECRET" "Sup3baseJWTSecret-1491137-LongEnough"
 
 # --- WebSocket Auth ---
 set_key "USE_SUPABASE_WS_LOGIN" "1"
-set_key "REQUIRE_SUPABASE_AUTH" "1"
-set_key "ALLOW_GUEST_LOGIN" "0"
+set_key "ALLOW_GUEST_LOGIN" "1"
 set_key "ALLOW_DEV_LOGIN" "0"
 
 # --- Client Config (served to browser) ---
@@ -62,6 +62,9 @@ set_key "VITE_SUPABASE_ANON_KEY" "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgI
 
 # --- JWT secret for own tokens ---
 set_key "JWT_SECRET" "Sup3baseJWTSecret-1491137-LongEnough"
+
+# --- Site ---
+set_key "SITE_URL" "https://arelogic.space"
 
 echo ""
 echo "=== .env configured ==="
@@ -78,10 +81,18 @@ fi
 
 echo ""
 echo "Checking if Supabase API is reachable..."
-if curl -s -o /dev/null -w "%{http_code}" "https://supabase.arelogic.space:8443/rest/v1/" --max-time 5 2>/dev/null | grep -q "200\|401\|404"; then
-  echo "  -> Supabase API is reachable"
+if curl -sk -o /dev/null -w "%{http_code}" "https://supabase.arelogic.space:8443/rest/v1/" --max-time 5 2>/dev/null | grep -q "200\|401\|404"; then
+  echo "  -> Supabase REST API is reachable"
 else
   echo "  -> WARNING: Cannot reach https://supabase.arelogic.space:8443"
+fi
+
+echo ""
+echo "Checking Supabase Auth..."
+if curl -sk -o /dev/null -w "%{http_code}" "https://supabase.arelogic.space:8443/auth/v1/health" --max-time 5 2>/dev/null | grep -q "200"; then
+  echo "  -> Supabase Auth is healthy"
+else
+  echo "  -> WARNING: Auth health check failed"
 fi
 
 echo ""

@@ -13,11 +13,14 @@ describe("supabaseAdmin lazy client", () => {
   });
 
   it("throws a clear error when URL or key missing", async () => {
-    delete process.env.SUPABASE_URL;
-    delete process.env.SUPABASE_PUBLIC_URL;
-    delete process.env.API_EXTERNAL_URL;
-    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
-    delete process.env.SERVICE_ROLE_KEY;
+    // Set to empty strings so dotenv.config() on re-import won't re-inject from .env
+    process.env.SUPABASE_URL = "";
+    process.env.SUPABASE_PUBLIC_URL = "";
+    process.env.API_EXTERNAL_URL = "";
+    process.env.VITE_SUPABASE_URL = "";
+    process.env.VITE_SUPABASE_PUBLIC_URL = "";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "";
+    process.env.SERVICE_ROLE_KEY = "";
     const { getSupabaseAdmin } = await import("../lib/supabaseAdmin.js");
     expect(() => getSupabaseAdmin()).toThrow(/SUPABASE_URL|API_EXTERNAL_URL/);
   });

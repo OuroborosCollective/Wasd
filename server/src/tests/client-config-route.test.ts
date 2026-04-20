@@ -27,6 +27,8 @@ describe("buildClientPublicConfigJson", () => {
 
   it("uses GAME_ORIGIN when SUPABASE_PROXY_URL is set", () => {
     delete process.env.VITE_SUPABASE_URL;
+    delete process.env.VITE_SUPABASE_ANON_KEY;
+    delete process.env.SUPABASE_ANON_KEY;
     process.env.SUPABASE_PROXY_URL = "http://supabase.internal:8000";
     process.env.GAME_ORIGIN = "https://mygame.example.com";
     process.env.SUPABASE_PUBLIC_URL = "https://supabase.external:8443";
