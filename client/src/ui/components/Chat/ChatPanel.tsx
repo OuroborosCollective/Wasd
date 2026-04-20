@@ -20,6 +20,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
+import { escapeHtml } from "../../lib/escapeHtml";
 import "./ChatPanel.css";
 
 export type ChatChannel = "global" | "whisper" | "guild" | "faction" | "party";
@@ -52,8 +53,8 @@ const Message: React.FC<{
   onMention?: (username: string) => void;
 }> = ({ message, onMention }) => {
   const formatMessage = (content: string): React.ReactNode => {
-    // Simple formatting support
-    let formatted = content;
+    // Escape HTML entities first to prevent XSS
+    let formatted = escapeHtml(content);
 
     // Bold: **text**
     formatted = formatted.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
@@ -61,10 +62,15 @@ const Message: React.FC<{
     // Italic: *text*
     formatted = formatted.replace(/\*(.*?)\*/g, "<em>$1</em>");
 
-    // Color: {color:text}
+    // Color: {color:text} — only allow safe color values (hex, named colors, rgb/rgba)
     formatted = formatted.replace(
-      /\{([^:]+):([^}]+)\}/g,
-      '<span style="color: $1">$2</span>',
+      /\{([^:}]+):([^}]+)\}/g,
+      (_match, color, text) => {
+        const safeColor = /^#[0-9a-fA-F]{3,8}$|^[a-zA-Z]+$|^rgba?\([\d\s.,/%]+\)$/.test(color.trim());
+        return safeColor
+          ? `<span style="color: ${color}">${text}</span>`
+          : text;
+      },
     );
 
     return <div dangerouslySetInnerHTML={{ __html: formatted }} />;

@@ -27,7 +27,7 @@ export class StatusEmitter {
     position: { x: number; y: number; z?: number },
   ): void {
     this.router.emitStatus(
-      `${attackerName} trifft ${targetName} für ${amount} Schaden.`,
+      `${attackerName} hits ${targetName} for ${amount} damage.`,
       position,
       this.getRecipients(),
       this.sendToPlayer,
@@ -42,7 +42,7 @@ export class StatusEmitter {
     position: { x: number; y: number; z?: number },
   ): void {
     this.router.emitStatus(
-      `${killerName} hat ${victimName} besiegt!`,
+      `${killerName} defeated ${victimName}!`,
       position,
       this.getRecipients(),
       this.sendToPlayer,
@@ -57,7 +57,7 @@ export class StatusEmitter {
     position: { x: number; y: number; z?: number },
   ): void {
     this.router.emitStatus(
-      `${playerName} hat Level ${newLevel} erreicht!`,
+      `${playerName} reached level ${newLevel}!`,
       position,
       this.getRecipients(),
       this.sendToPlayer,

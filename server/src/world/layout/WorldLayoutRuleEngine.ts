@@ -78,20 +78,56 @@ export class WorldLayoutRuleEngine {
   }>): void {
     this.spatialIndex.clear();
     for (const obj of objects) {
-      const category = resolveCategory(obj.type, obj.name, obj.glbPath);
-      const footprint = resolveFootprint(obj.glbPath, category, this.footprintRegistry);
-      const entity: SpatialEntity = {
-        id: obj.id,
-        type: obj.type,
-        category,
-        position: obj.position,
-        rotation: obj.rotation,
-        scale: obj.scale,
-        glbPath: obj.glbPath,
-        footprint,
-      };
-      this.spatialIndex.insert(entity);
+      this.insertEntity(obj);
     }
+  }
+
+  /**
+   * Add entities to the spatial index without clearing existing ones.
+   */
+  addEntities(objects: Array<{
+    id: string;
+    type: string;
+    name: string;
+    position: { x: number; y: number };
+    rotation?: number;
+    scale?: number;
+    glbPath?: string;
+  }>): void {
+    for (const obj of objects) {
+      this.insertEntity(obj);
+    }
+  }
+
+  /**
+   * Remove an entity from the spatial index by ID.
+   */
+  removeEntity(id: string): void {
+    this.spatialIndex.remove(id);
+  }
+
+  private insertEntity(obj: {
+    id: string;
+    type: string;
+    name: string;
+    position: { x: number; y: number };
+    rotation?: number;
+    scale?: number;
+    glbPath?: string;
+  }): void {
+    const category = resolveCategory(obj.type, obj.name, obj.glbPath);
+    const footprint = resolveFootprint(obj.glbPath, category, this.footprintRegistry);
+    const entity: SpatialEntity = {
+      id: obj.id,
+      type: obj.type,
+      category,
+      position: obj.position,
+      rotation: obj.rotation,
+      scale: obj.scale,
+      glbPath: obj.glbPath,
+      footprint,
+    };
+    this.spatialIndex.insert(entity);
   }
 
   /**

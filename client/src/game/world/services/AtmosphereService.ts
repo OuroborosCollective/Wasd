@@ -27,6 +27,7 @@ const DEFAULT_CONFIG: AtmosphereConfig = {
 
 export class AtmosphereService {
   private scene: Scene | null = null;
+  private atmosphereInstance: any = null;
   private config: AtmosphereConfig;
   private initialized = false;
   private timeOfDay = 0.5; // 0=midnight, 0.5=noon, 1=midnight
@@ -43,7 +44,7 @@ export class AtmosphereService {
       // Try to load the atmosphere addon
       const addons = await import("@babylonjs/addons");
       if (addons.Atmosphere) {
-        const atmosphere = new addons.Atmosphere(scene);
+        this.atmosphereInstance = new addons.Atmosphere(scene);
         // Configure
         scene.clearColor = new Color3(0.53, 0.81, 0.92).toColor4(1);
         console.log("[AtmosphereService] Atmosphere addon initialized.");
@@ -77,7 +78,7 @@ export class AtmosphereService {
     const sunHeight = Math.sin(angle);
     const brightness = Math.max(0.05, sunHeight);
 
-    const hemiLight = this.scene.lights.find((l) => l.name === "__default__light__");
+    const hemiLight = this.scene.lights.find((l) => l.name === "sun") ?? this.scene.lights[0];
     if (hemiLight) {
       hemiLight.intensity = brightness * 1.2;
     }
@@ -118,6 +119,8 @@ export class AtmosphereService {
   }
 
   dispose(): void {
+    this.atmosphereInstance = null;
+    this.scene = null;
     this.initialized = false;
   }
 }

@@ -1,6 +1,6 @@
 [
   {
-    "glbPath": "/assets/models/characters/uschi.glb",
+    "glbPath": "/assets/models/characters/Questnpc_uschi.glb",
     "targetType": "npc_single",
     "targetId": "npc_guide"
   },
@@ -35,7 +35,7 @@
     "targetId": "npc_5"
   },
   {
-    "glbPath": "/assets/models/monsters/goblin.glb",
+    "glbPath": "/assets/models/monsters/big_Demon.gltf",
     "targetType": "npc_single",
     "targetId": "npc_wolf"
   },

@@ -158,6 +158,7 @@ export function defaultLeafMaterial(scene: Scene): StandardMaterial {
  */
 export function createBush(scene: Scene, options: CreateTreeOptions = {}): Mesh {
   return createTree(scene, {
+    ...options,
     trunkHeight: options.trunkHeight ?? 1.5,
     trunkTaper: options.trunkTaper ?? 0.4,
     trunkSlices: options.trunkSlices ?? 6,
@@ -170,7 +171,6 @@ export function createBush(scene: Scene, options: CreateTreeOptions = {}): Mesh 
     bowHeight: options.bowHeight ?? 0.2,
     leavesOnBranch: options.leavesOnBranch ?? 8,
     leafWHRatio: options.leafWHRatio ?? 0.7,
-    ...options,
   });
 }
 
@@ -179,6 +179,7 @@ export function createBush(scene: Scene, options: CreateTreeOptions = {}): Mesh 
  */
 export function createPine(scene: Scene, options: CreateTreeOptions = {}): Mesh {
   return createTree(scene, {
+    ...options,
     trunkHeight: options.trunkHeight ?? 8,
     trunkTaper: options.trunkTaper ?? 0.3,
     trunkSlices: options.trunkSlices ?? 12,
@@ -191,6 +192,5 @@ export function createPine(scene: Scene, options: CreateTreeOptions = {}): Mesh 
     bowHeight: options.bowHeight ?? 0.3,
     leavesOnBranch: options.leavesOnBranch ?? 4,
     leafWHRatio: options.leafWHRatio ?? 0.3,
-    ...options,
   });
 }

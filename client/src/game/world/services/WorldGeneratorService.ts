@@ -84,6 +84,7 @@ export class WorldGeneratorService {
   private trees: Mesh[] = [];
   private trunkMaterial: StandardMaterial | null = null;
   private leafMaterial: StandardMaterial | null = null;
+  private terrainObserver: any = null;
   private initialized = false;
   private rand: () => number = () => 0;
 
@@ -142,7 +143,7 @@ export class WorldGeneratorService {
     this.terrain.mesh.material = mat;
     this.terrain.computeNormals = true;
 
-    scene.onBeforeRenderObservable.add(() => {
+    this.terrainObserver = scene.onBeforeRenderObservable.add(() => {
       this.terrain!.update(false);
     });
 

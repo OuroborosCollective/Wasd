@@ -304,7 +304,7 @@ export function initMobileControls(
       <div class="mob-shortcut-row">
         <div class="mob-sc-btn" id="mob-sc-inv2">
           <span class="mob-sc-icon">🎒</span>
-          <span class="mob-sc-label">Inventar</span>
+          <span class="mob-sc-label">Inventory</span>
           <span class="mob-sc-key">I</span>
         </div>
         <div class="mob-sc-btn" id="mob-sc-skills2">

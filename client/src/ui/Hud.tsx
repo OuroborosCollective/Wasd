@@ -112,7 +112,7 @@ export function Hud(p: Props) {
               <QuestTracker quests={p.quests} />
               {p.questlineProgress ? (
                 <div className="pointer-events-none mt-2 rounded-2xl border border-violet-500/30 bg-black/40 p-2 text-[11px] text-violet-200/90 backdrop-blur-md">
-                  <div className="mb-1 text-[10px] uppercase tracking-widest text-violet-300/80">Leinenstrang</div>
+                  <div className="mb-1 text-[10px] uppercase tracking-widest text-violet-300/80">Questline</div>
                   <div className="leading-snug">{p.questlineProgress}</div>
                 </div>
               ) : null}
@@ -186,12 +186,12 @@ function MiniPanels({
   return (
     <div className="pointer-events-auto flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-black/45 p-2.5 backdrop-blur-md sm:p-3 md:p-4">
       <div className="min-w-0 flex-1">
-        <div className="text-[10px] uppercase tracking-widest text-slate-300/80 sm:text-xs">Inventar</div>
+        <div className="text-[10px] uppercase tracking-widest text-slate-300/80 sm:text-xs">Inventory</div>
         <div className="text-xs font-semibold sm:text-sm">
           Gold: <span className="text-amber-300">{inv?.gold ?? 0}</span>
         </div>
         <div className="text-[10px] text-slate-300/80 sm:text-xs">
-          Gewicht: {inv ? `${inv.weight}/${inv.maxWeight}` : "—"}
+          Weight: {inv ? `${inv.weight}/${inv.maxWeight}` : "—"}
         </div>
       </div>
       <div className="flex shrink-0 gap-1.5 sm:gap-2">
@@ -241,7 +241,7 @@ function QuestTracker({ quests }: { quests: QuestStateNet[] }) {
   if (!quests?.length) {
     return (
       <div className="pointer-events-none rounded-2xl border border-white/10 bg-black/35 p-2.5 text-[11px] text-slate-200/80 backdrop-blur-md sm:p-3 sm:text-xs">
-        Keine aktiven Quests.
+        No active quests.
       </div>
     );
   }
@@ -315,7 +315,7 @@ function Hotbar({ onAttack, disabled }: { onAttack: () => void; disabled: boolea
         <KeySlot keyHint="Q" label="Qst" onClick={() => {}} disabled />
       </div>
       <div className="mt-1 hidden text-center text-[10px] text-slate-200/70 sm:mt-2 md:block md:text-[11px]">
-        Tipp: Monster antippen → „Atk“ oder Taste 1.
+        Tip: Tap a monster to attack (press 1).
       </div>
     </div>
   );
@@ -424,10 +424,10 @@ function WorldBossPanel({
 }
 
 function voteStatusLabel(status: string): string {
-  if (status === "claimable") return "Belohnung claimbar";
-  if (status === "pending") return "Verifikation läuft";
-  if (status === "cooldown") return "Heute bereits gevotet";
-  return "Jetzt voten";
+  if (status === "claimable") return "Reward claimable";
+  if (status === "pending") return "Verification running";
+  if (status === "cooldown") return "Already voted today";
+  return "Vote now";
 }
 
 function voteActionLabel(status: string): string {
@@ -471,20 +471,20 @@ function VoteMiniPanel({
       {open ? (
         <div className="mt-2 w-[min(88vw,420px)] rounded-2xl border border-indigo-400/30 bg-black/80 p-3 text-[11px] text-slate-100 shadow-[0_20px_60px_rgba(0,0,0,0.55)] backdrop-blur-md sm:text-xs">
           <div className="mb-2 flex items-center justify-between gap-2">
-            <div className="uppercase tracking-widest text-indigo-200">Stimmen-Schmiede</div>
+            <div className="uppercase tracking-widest text-indigo-200">Vote Forge</div>
             <button type="button" onClick={onRefresh} className={btn("sm")}>
               Refresh
             </button>
           </div>
           <div className="mb-2 text-slate-200/90">
-            Aktiver Vote-Buff:{" "}
+            Active Vote Buff:{" "}
             <span className={hasBuff ? "text-emerald-300" : "text-slate-300/80"}>
-              {hasBuff ? `x${voteBuff?.activeMultiplier ?? 2} (${formatMsCompact(remaining)})` : "nicht aktiv"}
+              {hasBuff ? `x${voteBuff?.activeMultiplier ?? 2} (${formatMsCompact(remaining)})` : "not active"}
             </span>
           </div>
           {voteBanners.length === 0 ? (
             <div className="rounded-xl border border-white/10 bg-white/5 p-2 text-slate-300/80">
-              Keine aktiven Vote-Banner konfiguriert.
+              No active vote banners configured.
             </div>
           ) : (
             <div className="space-y-2">
@@ -529,7 +529,7 @@ function VoteMiniPanel({
                         rel="noreferrer"
                         className="inline-flex min-h-[36px] items-center rounded-xl border border-white/15 px-2 py-1 text-[11px] text-slate-100 hover:bg-white/10"
                       >
-                        Extern öffnen
+                        Open External
                       </a>
                       {banner.status === "pending" && sessionId ? (
                         <button

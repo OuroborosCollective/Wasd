@@ -105,7 +105,10 @@ export class OuroborosEngine {
       );
 
       if (action) {
-        statusEmitter.emitNpcThinking(npc.name, `[${action}]`, npc.position);
+        const noisyActions = new Set(["trade_seek", "trade_buy"]);
+        if (!noisyActions.has(action)) {
+          statusEmitter.emitNpcThinking(npc.name, `[${action}]`, npc.position);
+        }
       }
     }
 

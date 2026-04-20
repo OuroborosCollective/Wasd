@@ -229,6 +229,7 @@ try {
     const dt = Math.min((now - lastFrameTime) / 1000, 0.1);
     lastFrameTime = now;
     core.update(dt);
+    worldService.update();
     if (isMobile()) {
       const j = getJoystickState();
       if (j.active && (Math.abs(j.dx) > 0.04 || Math.abs(j.dy) > 0.04)) {
@@ -244,6 +245,11 @@ try {
   });
 
   console.log("Areloria Client Initialized");
+
+  // Cleanup on page unload
+  window.addEventListener("beforeunload", () => {
+    worldService.dispose();
+  });
 } catch (error: any) {
   console.error("Fatal client bootstrap error:", error);
   showBootStatus(`Fatal bootstrap error: ${error?.message || "Unknown error"}`);

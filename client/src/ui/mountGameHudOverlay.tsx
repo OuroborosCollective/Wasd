@@ -143,9 +143,9 @@ export function mountGameHudOverlay(core: MMORPGClientCore) {
     }, []);
 
     const onHousingOpen = useCallback(() => {
-      showToast(
-        "Housing: platziere Items über den Server-Befehl house_place (Demo).",
-      );
+      void import("./housing")
+        .then((m) => m.renderHousingUI())
+        .catch(() => showToast("Housing"));
     }, []);
 
     const ql = getQuestlineSnapshot();

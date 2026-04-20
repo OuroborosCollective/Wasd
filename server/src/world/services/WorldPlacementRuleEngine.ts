@@ -122,8 +122,8 @@ export class WorldPlacementRuleEngine {
     // 5. Apply corrections for repairable issues
     const repairable = issues.filter((i) => i.repairable);
     if (repairable.length > 0) {
-      // Use validateAndRepair instead of missing repair() method
-      this.layoutEngine.loadEntities([{
+      // Add entity temporarily for validation (don't wipe existing world data)
+      this.layoutEngine.addEntities([{
         id: entity.id,
         type: entity.type,
         name: entity.id,
@@ -133,6 +133,8 @@ export class WorldPlacementRuleEngine {
         glbPath: entity.glbPath
       }]);
       const repairResult = await this.layoutEngine.validateAndRepair();
+      // Remove temporary entity after validation
+      this.layoutEngine.removeEntity(entity.id);
 
       if (repairResult.repair && repairResult.repair.actions.length > 0) {
         for (const action of repairResult.repair.actions) {
