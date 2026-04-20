@@ -61,17 +61,13 @@ fi
 # Auto-derive VITE_SUPABASE_* from server-side aliases when not explicitly provided.
 # This avoids requiring duplicate GitHub secrets for build-time vars.
 #
-# SUPABASE_PROXY_URL: server-side internal URL for the auth proxy (e.g. http://supabase:8000).
-# When set and no explicit VITE_SUPABASE_URL, the browser client should use the game server
-# origin (GAME_ORIGIN or APP_ORIGIN) as its Supabase URL — the server /auth/v1 proxy handles
-# the rest.  This avoids self-signed-cert / mixed-content problems with direct Supabase access.
+# IMPORTANT: The browser client connects DIRECTLY to Supabase (no proxy).
+# VITE_SUPABASE_URL must be the public Supabase URL the browser can reach.
+# When SUPABASE_PROXY_URL is set (server-side internal URL), we still need
+# a public URL for the client — use SUPABASE_PUBLIC_URL or SUPABASE_URL.
 if [ -z "${VITE_SUPABASE_URL:-}" ]; then
-  if [ -n "${SUPABASE_PROXY_URL:-}" ]; then
-    # Prefer GAME_ORIGIN → APP_ORIGIN → fall back to Supabase public URL
-    export VITE_SUPABASE_URL="${GAME_ORIGIN:-${APP_ORIGIN:-${VITE_SUPABASE_PUBLIC_URL:-${SUPABASE_PUBLIC_URL:-${API_EXTERNAL_URL:-${SUPABASE_URL:-}}}}}}"
-  else
-    export VITE_SUPABASE_URL="${VITE_SUPABASE_PUBLIC_URL:-${SUPABASE_PUBLIC_URL:-${API_EXTERNAL_URL:-${SUPABASE_URL:-}}}}"
-  fi
+  # Prefer the most specific public URL; fall back through aliases
+  export VITE_SUPABASE_URL="${SUPABASE_PUBLIC_URL:-${API_EXTERNAL_URL:-${SUPABASE_URL:-}}}"
 fi
 if [ -z "${VITE_SUPABASE_ANON_KEY:-}" ]; then
   export VITE_SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-${ANON_KEY:-}}"

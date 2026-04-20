@@ -53,6 +53,24 @@ fi
 # ── 5–7. Install (workspace) + build ─────────────────────
 # Prefer pnpm + pnpm-lock.yaml (same as GitHub CI). Falls back to per-package npm if needed.
 export BUILD_NODE_OPTIONS="${BUILD_NODE_OPTIONS:---max-old-space-size=8192}"
+
+# ── Load .env so VITE_* vars are available at build time ──
+# Vite bakes VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY into the client JS
+# at BUILD time.  Without this, the client gets empty strings and login breaks.
+# (In CI, sync-supabase-env.sh already exported them, but this covers the case
+# where deploy.sh runs standalone or after a git reset overwrites .env.)
+ENV_FILE="$APP_DIR/.env"
+if [ -f "$ENV_FILE" ]; then
+  echo "[5a] Loading build-time env from $ENV_FILE ..."
+  set -a
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+  set +a
+  echo "  VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-(empty!)}"
+  echo "  VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY:+***set***}"
+else
+  echo "[5a] WARNING: $ENV_FILE not found — VITE_* build vars may be empty!"
+fi
 cd "$APP_DIR"
 
 if command -v pnpm >/dev/null 2>&1 && [ -f "$APP_DIR/pnpm-lock.yaml" ]; then

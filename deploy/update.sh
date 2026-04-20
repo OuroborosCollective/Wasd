@@ -10,6 +10,22 @@ echo "Updating Areloria MMORPG..."
 cd "$APP_DIR"
 git pull origin main
 
+# ── Load .env so VITE_* vars are available at build time ──
+# Vite bakes VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY into the client JS
+# at BUILD time.  Without this, the client gets empty strings and login breaks.
+ENV_FILE="$APP_DIR/.env"
+if [ -f "$ENV_FILE" ]; then
+  echo "Loading build-time env from $ENV_FILE ..."
+  set -a
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+  set +a
+  echo "  VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-(empty!)}"
+  echo "  VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY:+***set***}"
+else
+  echo "WARNING: $ENV_FILE not found — VITE_* build vars may be empty!"
+fi
+
 # Rebuild using pnpm (workspace aware)
 cd "$APP_DIR"
 if command -v pnpm >/dev/null 2>&1; then

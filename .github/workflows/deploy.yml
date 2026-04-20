@@ -93,6 +93,9 @@ jobs:
             export POOLER_PROXY_PORT_TRANSACTION="${POOLER_PROXY_PORT_TRANSACTION:-}"
             export SUPABASE_PROXY_URL="${SUPABASE_PROXY_URL:-http://supabase.arelogic.space:8000}"
             export GAME_ORIGIN="${GAME_ORIGIN:-https://arelogic.space}"
+            # Public Supabase URL the browser can reach (for VITE_SUPABASE_URL at build time)
+            export SUPABASE_PUBLIC_URL="${SUPABASE_PUBLIC_URL:-https://supabase.arelogic.space:8443}"
+            export SUPABASE_URL="${SUPABASE_URL:-https://supabase.arelogic.space:8443}"
             # Construct DATABASE_URL from individual PG secrets if not set directly
             if [ -z "${DATABASE_URL:-}" ]; then
               _pg_host="${POSTGRES_HOST:-${PGHOST:-127.0.0.1}}"
@@ -138,6 +141,25 @@ jobs:
               ss -tlnp 2>/dev/null | grep -E '5432|6543' || echo "  -> No Postgres ports listening!"
               echo "  -> Docker containers:"
               docker ps --format '{{.Names}} {{.Ports}}' 2>/dev/null | grep -i 'db\|postgres\|pooler' || echo "  -> No matching containers found"
+            fi
+            # If no anon key provided, generate standard Supabase anon JWT from JWT_SECRET
+            if [ -z "${SUPABASE_ANON_KEY:-}" ] && [ -z "${ANON_KEY:-}" ] && [ -n "${SUPABASE_JWT_SECRET:-${JWT_SECRET:-}}" ]; then
+              _jwt_secret="${SUPABASE_JWT_SECRET:-${JWT_SECRET:-}}"
+              # Generate anon key: HS256 JWT with role=anon, 10-year expiry
+              _anon_key=$(SUPABASE_JWT_SECRET="$_jwt_secret" python3 -c "
+import hmac, hashlib, base64, time, json, os
+secret = os.environ.get('SUPABASE_JWT_SECRET', '')
+header = base64.urlsafe_b64encode(json.dumps({'alg':'HS256','typ':'JWT'},separators=(',',':')).encode()).decode().rstrip('=')
+exp = int(time.time()) + 315360000
+payload = base64.urlsafe_b64encode(json.dumps({'iss':'supabase','ref':'areloria','role':'anon','iat':int(time.time()),'exp':exp},separators=(',',':')).encode()).decode().rstrip('=')
+msg = f'{header}.{payload}'
+sig = base64.urlsafe_b64encode(hmac.new(secret.encode(), msg.encode(), hashlib.sha256).digest()).decode().rstrip('=')
+print(f'{msg}.{sig}')
+" 2>/dev/null || echo "")
+              if [ -n "$_anon_key" ]; then
+                export SUPABASE_ANON_KEY="$_anon_key"
+                echo "Generated SUPABASE_ANON_KEY from JWT_SECRET"
+              fi
             fi
             export USE_SUPABASE_WS_LOGIN="${USE_SUPABASE_WS_LOGIN:-1}"
             export REQUIRE_SUPABASE_AUTH="${REQUIRE_SUPABASE_AUTH:-1}"
