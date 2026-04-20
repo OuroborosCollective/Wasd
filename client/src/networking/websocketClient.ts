@@ -393,12 +393,11 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         console.error("[WS] Server error:", errorMessage, errCode ? `(${errCode})` : "");
         emitNetStatus("error", errorMessage);
         const loginError = /login/i.test(errorMessage) || errCode === "invalid_token" || errCode === "login_required";
-        const badFirebaseToken =
+        const badToken =
           errCode === "invalid_token" ||
-          /invalid or expired token/i.test(errorMessage) ||
-          /firebase sign-in required/i.test(errorMessage);
+          /invalid or expired token/i.test(errorMessage);
         if (
-          (loginError || badFirebaseToken) &&
+          (loginError || badToken) &&
           !attemptedAnonymousFallback &&
           ws.readyState === WebSocket.OPEN
         ) {
@@ -410,8 +409,8 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
           }
           emitNetStatus(
             "warning",
-            badFirebaseToken
-              ? "Anmelde-Token ungültig oder abgelaufen — neuer Versuch (bitte ggf. erneut bei Google anmelden)."
+            badToken
+              ? "Login token invalid or expired — retrying."
               : "Token rejected. Retrying login without token..."
           );
           sendLogin(undefined);

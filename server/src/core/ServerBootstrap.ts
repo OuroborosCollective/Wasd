@@ -6,14 +6,12 @@ import { WorldTick } from "./WorldTick.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import { mcpRoute } from "../api/mcpRoute.js";
-import migrationRoute from "../api/migrationRoute.js";
 import { adminContentRouter } from "../api/adminContentRoute.js";
 import { voteRouter } from "../api/voteRoute.js";
 import { leaderboardRouter } from "../api/leaderboardRoute.js";
 import { questlineRouter } from "../api/questlineRoute.js";
 import { loreRouter } from "../api/loreRoute.js";
 import { getContentDataSourceLabel } from "../modules/content/contentDataRoot.js";
-import { getFirebaseAdminSummary } from "../config/firebase.js";
 import { getSupabaseSummary, verifySupabaseToken } from "../config/supabase.js";
 import { resolveWorldAssetsDir } from "./resolveWorldAssetsDir.js";
 import { resolveMirroredWorldAssetsDir } from "./resolveMirroredWorldAssetsDir.js";
@@ -216,7 +214,6 @@ export class ServerBootstrap {
     const selfHealingRuntime = bootstrapSelfHealing(resolveSelfHealingConfigFromEnv());
     const supabaseProxyBaseUrl = resolveSupabaseProxyBaseUrl();
 
-    app.use("/api", migrationRoute);
     app.use("/api/mcp", mcpRoute());
     app.use("/api/leaderboard", leaderboardRouter());
     app.use("/api/questlines", questlineRouter());
@@ -391,12 +388,9 @@ export class ServerBootstrap {
         version: "0.2.0",
         persistence,
         content: { mode: content.mode, root: content.root },
-        firebase: getFirebaseAdminSummary(),
         supabase: getSupabaseSummary(),
         auth: {
-          useFirebaseWsLogin: envTruthy("USE_FIREBASE_WS_LOGIN"),
           useSupabaseWsLogin: envTruthy("USE_SUPABASE_WS_LOGIN"),
-          requireFirebaseAuth: envTruthy("REQUIRE_FIREBASE_AUTH"),
           requireSupabaseAuth: envTruthy("REQUIRE_SUPABASE_AUTH"),
           allowGuestLogin: (() => {
             const v = process.env.ALLOW_GUEST_LOGIN?.trim().toLowerCase();

@@ -58,7 +58,7 @@ export class FilePersistenceBackend implements IPersistenceBackend {
   }
 
   async saveWorldObjects(_objects: any[]): Promise<void> {
-    console.warn("[Persistence] File backend does not persist world objects (use Firestore or Spacetime when implemented).");
+    console.warn("[Persistence] File backend does not persist world objects (use Spacetime when implemented).");
   }
 
   async loadWorldObjects(): Promise<any[]> {

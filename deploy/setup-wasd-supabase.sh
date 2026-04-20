@@ -41,7 +41,7 @@ if [ -d "$APP_DIR/.git" ]; then
   git fetch origin main
   git reset --hard origin/main
 else
-  git clone "https://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@github.com/OuroborosCollective/Wasd.git" "$APP_DIR"
+  git clone "https://github.com/OuroborosCollective/Wasd.git" "$APP_DIR"
   cd "$APP_DIR"
 fi
 

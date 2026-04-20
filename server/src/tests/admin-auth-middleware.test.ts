@@ -37,6 +37,6 @@ describe("adminAuthMiddleware", () => {
     const jwtLike = `eyJhbG.${"x".repeat(90)}.sig`;
     const r = await request(app).get("/t").set("Authorization", `Bearer ${jwtLike}`);
     expect(r.status).toBe(401);
-    expect(r.body.errorDe).toMatch(/ADMIN_PANEL_TOKEN/);
+    expect(r.body.error).toMatch(/ADMIN_PANEL_TOKEN/);
   });
 });

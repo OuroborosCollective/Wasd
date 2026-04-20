@@ -1,4 +1,3 @@
-import { auth, isFirebaseClientConfigured } from "../auth/firebase";
 import {
   getSupabaseAccessToken,
   getSupabaseRedirectUrl,
@@ -11,18 +10,9 @@ import {
   sendQuestAccept,
   updateAuthToken,
 } from "../networking/websocketClient";
-import {
-  GoogleAuthProvider,
-  createUserWithEmailAndPassword,
-  sendEmailVerification,
-  sendPasswordResetEmail,
-  signInWithEmailAndPassword,
-  signInWithPopup,
-} from "firebase/auth";
 import { prefersCompactTouchUi } from "./touchUi";
 import { resolveGameAuthProvider } from "../config/gameAuth";
 import {
-  mapFirebaseAuthError,
   mapSupabaseAuthError,
   normalizeAuthEmail,
   validateEmailForAuth,
@@ -317,9 +307,7 @@ export function renderHUD() {
 
   let supabaseSignedIn = false;
   const syncAuthUi = () => {
-    const hasFirebaseUser = Boolean(auth?.currentUser);
-    const userSignedIn =
-      authProvider === "firebase" ? hasFirebaseUser : supabaseSignedIn;
+    const userSignedIn = supabaseSignedIn;
     const out = !userSignedIn;
     loginBtn.style.display = out ? "inline-block" : "none";
     logoutBtn.style.display = userSignedIn ? "inline-block" : "none";
@@ -328,7 +316,6 @@ export function renderHUD() {
     emailRow.style.display = out ? "flex" : "none";
   };
   syncAuthUi();
-  auth?.onAuthStateChanged(() => syncAuthUi());
 
   const setAuthError = (message: string) => {
     emailErr.textContent = message;
@@ -605,132 +592,6 @@ export function renderHUD() {
         }
       };
     });
-  } else if (!isFirebaseClientConfigured() || !auth) {
-    loginBtn.textContent = "Auth (configure Firebase)";
-    loginBtn.disabled = true;
-    loginBtn.style.opacity = "0.65";
-    logoutBtn.style.display = "none";
-    verifyEmailBtn.style.display = "none";
-    resetPassBtn.style.display = "none";
-    emailRow.style.display = "none";
-  } else {
-    const firebaseAuth = auth;
-    loginBtn.onclick = async () => {
-      const provider = new GoogleAuthProvider();
-      try {
-        const result = await signInWithPopup(firebaseAuth, provider);
-        const token = await result.user.getIdToken(true);
-        updateAuthToken(token, { reconnect: true });
-      } catch (e) {
-        console.error("Login failed", e);
-      }
-    };
-    emailLoginBtn.onclick = async () => {
-      clearAuthMessages();
-      const email = normalizeAuthEmail(emailIn.value);
-      const emailValidation = validateEmailForAuth(email);
-      if (emailValidation) {
-        setAuthError(emailValidation);
-        return;
-      }
-      const passwordValidation = validatePasswordForLogin(passIn.value);
-      if (passwordValidation) {
-        setAuthError(passwordValidation);
-        return;
-      }
-      try {
-        const cred = await signInWithEmailAndPassword(
-          firebaseAuth,
-          email,
-          passIn.value,
-        );
-        const token = await cred.user.getIdToken(true);
-        updateAuthToken(token, { reconnect: true });
-      } catch (e: unknown) {
-        setAuthError(mapFirebaseAuthError(e));
-      }
-    };
-    emailSignupBtn.onclick = async () => {
-      clearAuthMessages();
-      const email = normalizeAuthEmail(emailIn.value);
-      const password = passIn.value;
-      const emailValidation = validateEmailForAuth(email);
-      if (emailValidation) {
-        setAuthError(emailValidation);
-        return;
-      }
-      const passwordValidation = validatePasswordForSignup(password);
-      if (passwordValidation) {
-        setAuthError(passwordValidation);
-        return;
-      }
-      try {
-        const cred = await createUserWithEmailAndPassword(
-          firebaseAuth,
-          email,
-          password,
-        );
-        try {
-          await sendEmailVerification(cred.user);
-          setAuthInfo(
-            "Account created. Verification email sent — check inbox/spam.",
-          );
-        } catch (verificationError: unknown) {
-          // Account still exists; give actionable next step.
-          setAuthError(
-            `Account created, but verification email failed. ${mapFirebaseAuthError(verificationError)}`,
-          );
-        }
-        const token = await cred.user.getIdToken(true);
-        updateAuthToken(token, { reconnect: true });
-      } catch (e: unknown) {
-        setAuthError(mapFirebaseAuthError(e));
-      }
-    };
-    verifyEmailBtn.onclick = async () => {
-      clearAuthMessages();
-      const u = firebaseAuth.currentUser;
-      if (!u?.email) {
-        setAuthError("No email on this account.");
-        return;
-      }
-      try {
-        await sendEmailVerification(u);
-        setAuthInfo("Verification email sent.");
-      } catch (e: unknown) {
-        setAuthError(mapFirebaseAuthError(e));
-      }
-    };
-    resetPassBtn.onclick = async () => {
-      clearAuthMessages();
-      const addr =
-        normalizeAuthEmail(emailIn.value) || firebaseAuth.currentUser?.email;
-      if (!addr) {
-        setAuthError("Enter your email above or sign in first.");
-        return;
-      }
-      const emailValidation = validateEmailForAuth(addr);
-      if (emailValidation) {
-        setAuthError(emailValidation);
-        return;
-      }
-      try {
-        await sendPasswordResetEmail(firebaseAuth, addr);
-        setAuthInfo("Password reset email sent.");
-      } catch (e: unknown) {
-        setAuthError(mapFirebaseAuthError(e));
-      }
-    };
-    logoutBtn.onclick = async () => {
-      try {
-        const { signOut } = await import("firebase/auth");
-        await signOut(firebaseAuth);
-        updateAuthToken(null, { reconnect: true });
-        localStorage.removeItem(GUEST_STORAGE_KEY);
-      } catch (e) {
-        console.error("Sign out failed", e);
-      }
-    };
   }
 
   hudBody.appendChild(authBox);

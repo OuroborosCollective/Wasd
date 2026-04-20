@@ -65,9 +65,8 @@ describe("resolveLoginIdentity", () => {
     });
   });
 
-  it("ignores JWT when USE_FIREBASE_WS_LOGIN is unset (dev login)", async () => {
+  it("ignores JWT when USE_SUPABASE_WS_LOGIN is unset (dev login)", async () => {
     setNodeEnv("development");
-    delete process.env.USE_FIREBASE_WS_LOGIN;
     process.env.ALLOW_GUEST_LOGIN = "0";
     const { resolveLoginIdentity } =
       await import("../modules/auth/resolveLoginIdentity.js");
@@ -78,82 +77,9 @@ describe("resolveLoginIdentity", () => {
     }
   });
 
-  it("verifies Firebase token when USE_FIREBASE_WS_LOGIN=1", async () => {
-    setNodeEnv("development");
-    process.env.USE_FIREBASE_WS_LOGIN = "1";
-    delete process.env.ALLOW_GUEST_LOGIN;
-    const verifyFirebaseToken = vi.fn().mockResolvedValue({
-      uid: "fb-user-9",
-      name: "  Pat  ",
-    });
-    vi.doMock("../config/firebase.js", () => ({
-      isFirebaseAuthConfigured: vi.fn(() => true),
-      verifyFirebaseToken,
-    }));
-    const { resolveLoginIdentity } =
-      await import("../modules/auth/resolveLoginIdentity.js");
-    const r = await resolveLoginIdentity("sock", { token: "  id-token  " });
-    expect(verifyFirebaseToken).toHaveBeenCalledWith("id-token");
-    expect("error" in r).toBe(false);
-    if (!("error" in r)) {
-      expect(r.uid).toBe("fb-user-9");
-      expect(r.charName).toBe("Pat");
-    }
-  });
-
-  it("returns invalid_token when Firebase verify fails with USE_FIREBASE_WS_LOGIN=1", async () => {
-    setNodeEnv("development");
-    process.env.USE_FIREBASE_WS_LOGIN = "true";
-    delete process.env.ALLOW_GUEST_LOGIN;
-    vi.doMock("../config/firebase.js", () => ({
-      isFirebaseAuthConfigured: vi.fn(() => true),
-      verifyFirebaseToken: vi.fn().mockRejectedValue(new Error("expired")),
-    }));
-    const { resolveLoginIdentity } =
-      await import("../modules/auth/resolveLoginIdentity.js");
-    const r = await resolveLoginIdentity("sock", { token: "bad" });
-    expect(r).toEqual({
-      error: "Invalid or expired token",
-      code: "invalid_token",
-    });
-  });
-
-  it("falls back to Firebase when Supabase verify fails and both providers are enabled", async () => {
+  it("returns invalid_token when Supabase verify fails in production", async () => {
     setNodeEnv("production");
     process.env.USE_SUPABASE_WS_LOGIN = "1";
-    process.env.USE_FIREBASE_WS_LOGIN = "1";
-    delete process.env.ALLOW_GUEST_LOGIN;
-    vi.doMock("../config/supabase.js", () => ({
-      isSupabaseAuthConfigured: vi.fn(() => true),
-      verifySupabaseToken: vi.fn(() => {
-        throw new Error("bad supabase token");
-      }),
-    }));
-    const verifyFirebaseToken = vi.fn().mockResolvedValue({
-      uid: "fb-fallback-user",
-      email: "fallback@example.com",
-    });
-    vi.doMock("../config/firebase.js", () => ({
-      isFirebaseAuthConfigured: vi.fn(() => true),
-      verifyFirebaseToken,
-    }));
-    const { resolveLoginIdentity } =
-      await import("../modules/auth/resolveLoginIdentity.js");
-    const result = await resolveLoginIdentity("sock-fallback", {
-      token: "token",
-    });
-    expect(verifyFirebaseToken).toHaveBeenCalledWith("token");
-    expect("error" in result).toBe(false);
-    if (!("error" in result)) {
-      expect(result.uid).toBe("fb-fallback-user");
-      expect(result.charName).toBe("fallback@example.com");
-    }
-  });
-
-  it("returns invalid_token when both Supabase and Firebase fail to verify", async () => {
-    setNodeEnv("production");
-    process.env.USE_SUPABASE_WS_LOGIN = "1";
-    process.env.USE_FIREBASE_WS_LOGIN = "1";
     process.env.ALLOW_GUEST_LOGIN = "0";
     vi.doMock("../config/supabase.js", () => ({
       isSupabaseAuthConfigured: vi.fn(() => true),
@@ -161,16 +87,10 @@ describe("resolveLoginIdentity", () => {
         throw new Error("bad supabase token");
       }),
     }));
-    vi.doMock("../config/firebase.js", () => ({
-      isFirebaseAuthConfigured: vi.fn(() => true),
-      verifyFirebaseToken: vi.fn().mockRejectedValue(new Error("bad firebase token")),
-    }));
     const { resolveLoginIdentity } =
       await import("../modules/auth/resolveLoginIdentity.js");
-    const result = await resolveLoginIdentity("sock-bad", {
-      token: "bad-token",
-    });
-    expect(result).toEqual({
+    const r = await resolveLoginIdentity("sock-bad-supabase", { token: "bad" });
+    expect(r).toEqual({
       error: "Invalid or expired token",
       code: "invalid_token",
     });

@@ -13,7 +13,6 @@ import { getQuickCastSkillId } from "./game/combatSkills";
 import { triggerImpactBusterClientGuard } from "./game/impactBuster";
 import { performanceMonitor } from "./utils/PerformanceMonitor";
 import { resolveGameAuthProvider } from "./config/gameAuth";
-import { installFirebaseAiWatchdog } from "./ai/firebaseAiWatchdog";
 import { initChat, focusChatInput } from "./ui/chat";
 import { initMinimap, toggleMinimapVisibility } from "./ui/minimap";
 import { worldService } from "./game/world/services";
@@ -92,7 +91,6 @@ async function loadAREPolicyConfig(): Promise<AREPolicyConfig | undefined> {
 
 void (async () => {
 try {
-  installFirebaseAiWatchdog();
   showBootStatus("Booting renderer...", "info");
   // 1. Boot Engine + Adapter
   const adapter = bootEngineBridge(canvas);
@@ -134,7 +132,7 @@ try {
   core.registerDefaultInput();
 
   await initSupabaseClient();
-  // Legacy DOM HUD: Supabase/Firebase sign-in + guest controls (React HUD has no auth forms).
+  // Legacy DOM HUD: Supabase sign-in + guest controls (React HUD has no auth forms).
   renderHUD();
 
   // 3. Connect Systems

@@ -1,8 +1,3 @@
-type FirebaseLikeError = {
-  code?: unknown;
-  message?: unknown;
-};
-
 type SupabaseLikeError = {
   code?: unknown;
   message?: unknown;
@@ -46,37 +41,6 @@ function asErrorCode(input: unknown): string {
     return "";
   }
   return input.trim().toLowerCase();
-}
-
-export function mapFirebaseAuthError(error: unknown): string {
-  const candidate = (error ?? {}) as FirebaseLikeError;
-  const code = asErrorCode(candidate.code);
-
-  const mappedByCode: Record<string, string> = {
-    "auth/email-already-in-use": "This email is already registered. Try signing in instead.",
-    "auth/invalid-email": "The email address is invalid.",
-    "auth/missing-password": "Please enter a password.",
-    "auth/weak-password": "Password is too weak. Use at least 6 characters.",
-    "auth/invalid-credential": "Email or password is incorrect.",
-    "auth/user-not-found": "No account exists for this email.",
-    "auth/wrong-password": "Email or password is incorrect.",
-    "auth/too-many-requests": "Too many attempts. Please wait a moment and try again.",
-    "auth/network-request-failed": "Network problem. Check your connection and try again.",
-    "auth/operation-not-allowed": "Email/password sign-in is disabled in Firebase Auth.",
-    "auth/popup-closed-by-user": "Google sign-in popup was closed before completion.",
-    "auth/popup-blocked": "Browser blocked the Google popup. Please allow popups and retry.",
-  };
-  if (code && mappedByCode[code]) {
-    return mappedByCode[code];
-  }
-
-  if (typeof candidate.message === "string" && candidate.message.trim().length > 0) {
-    return candidate.message.trim();
-  }
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return error.message.trim();
-  }
-  return "Authentication failed. Please try again.";
 }
 
 export function mapSupabaseAuthError(error: unknown): string {

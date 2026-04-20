@@ -29,9 +29,7 @@ describe("Supabase auth integration", () => {
   beforeEach(() => {
     vi.resetModules();
     process.env = { ...originalEnv };
-    delete process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-    delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
-    delete process.env.FIREBASE_ADMIN_USE_APPLICATION_DEFAULT;
+    // Ensure Supabase is the only auth provider
   });
 
   afterEach(() => {

@@ -2,7 +2,7 @@ import { createPersistenceBackend } from "../modules/persistence/createPersisten
 import type { IPersistenceBackend } from "../modules/persistence/persistenceBackend.js";
 
 /**
- * Facade for WorldTick / WorldObjectSystem. Delegates to Firestore, file, or Spacetime (stub + file fallback).
+ * Facade for WorldTick / WorldObjectSystem. Delegates to file, Postgres, or Spacetime (stub + file fallback).
  */
 export class PersistenceManager {
   private readonly backend: IPersistenceBackend;

@@ -1,9 +1,8 @@
 import type { Request, Response, NextFunction } from "express";
-import { isFirebaseAuthConfigured, verifyFirebaseToken } from "../config/firebase.js";
 import { isSupabaseAuthConfigured, verifySupabaseToken } from "../config/supabase.js";
 
 export type AdminRequest = Request & {
-  adminAuth?: { mode: "token" } | { mode: "firebase"; uid: string } | { mode: "supabase"; uid: string };
+  adminAuth?: { mode: "token" } | { mode: "supabase"; uid: string };
 };
 
 function parseUidAllowlist(): Set<string> {
@@ -19,8 +18,8 @@ function parseUidAllowlist(): Set<string> {
 
 /**
  * Protects no-code admin HTTP APIs.
- * - If `ADMIN_PANEL_TOKEN` is set: accept `Authorization: Bearer <token>` or `X-Admin-Token: <token>`.
- * - Else: require Supabase/Firebase ID token (`Authorization: Bearer <jwt>`).
+ * - If `ADMIN_PANEL_TOKEN` is set: accept `Authorization: Bearer ***` or `X-Admin-Token: <token>`.
+ * - Else: require Supabase ID token (`Authorization: Bearer ***`).
  * - If `ADMIN_UID_ALLOWLIST` is non-empty, token uid must be listed.
  */
 export async function adminAuthMiddleware(req: AdminRequest, res: Response, next: NextFunction) {
@@ -42,84 +41,49 @@ export async function adminAuthMiddleware(req: AdminRequest, res: Response, next
       return next();
     }
     if (!bearer && !headerToken) {
-      return res.status(401).json({ error: "Admin token or Firebase Bearer required" });
+      return res.status(401).json({ error: "Admin token or Supabase Bearer required" });
     }
-  }
-
-  if (!bearer) {
-    return res.status(401).json({ error: "Missing Authorization: Bearer <token>" });
-  }
-
-  if (acceptedPanelTokens.length > 0 && !hasPanelCandidate && !headerToken) {
-    const jwtLike = bearer.split(".").length >= 3 && bearer.length > 80;
-    if (jwtLike) {
+    // JWT-shaped bearer with panel token set → remind to use the panel token
+    if (bearer && bearer.split(".").length === 3 && !acceptedPanelTokens.includes(bearer)) {
       return res.status(401).json({
-        error: "Use admin panel token, not Google JWT",
-        errorDe:
-          "Im Feld „Code“ steht vermutlich ein Google-/Firebase-Login-Token. Dort gehört der lange **ADMIN_PANEL_TOKEN** (oder kompatibel **GM_PANEL_TOKEN**) aus der Server-.env — nicht das Spiel-Login. Oder nutze den Header **X-Admin-Token** mit dem Panel-Token.",
+        error: "ADMIN_PANEL_TOKEN is set — send it as Bearer, not a Google/Firebase token",
       });
     }
   }
 
+  if (!bearer) {
+    return res.status(401).json({ error: "Missing Authorization: Bearer ***" });
+  }
+
   try {
     const allow = parseUidAllowlist();
-    const hasSupabaseProvider = isSupabaseAuthConfigured();
-    const hasFirebaseProvider = isFirebaseAuthConfigured();
-    const authErrors: string[] = [];
 
-    if (hasSupabaseProvider) {
+    if (isSupabaseAuthConfigured()) {
       try {
         const claims = verifySupabaseToken(bearer);
         const uid = typeof claims.sub === "string" ? claims.sub.trim() : "";
         if (!uid) {
-          return res.status(401).json({ error: "Invalid Supabase token" });
+          return res.status(401).json({ error: "Invalid token" });
         }
         if (allow.size > 0 && !allow.has(uid)) {
           return res.status(403).json({ error: "Forbidden: uid not in ADMIN_UID_ALLOWLIST" });
         }
         req.adminAuth = { mode: "supabase", uid };
         return next();
-      } catch (error: any) {
-        authErrors.push(`supabase:${String(error?.message || "invalid_token")}`);
+      } catch {
+        // Fall through to generic error
       }
     }
 
-    if (hasFirebaseProvider) {
-      try {
-        const decoded = await verifyFirebaseToken(bearer);
-        if (!decoded?.uid) {
-          return res.status(401).json({ error: "Invalid Firebase token" });
-        }
-        if (allow.size > 0 && !allow.has(decoded.uid)) {
-          return res.status(403).json({ error: "Forbidden: uid not in ADMIN_UID_ALLOWLIST" });
-        }
-        req.adminAuth = { mode: "firebase", uid: decoded.uid };
-        return next();
-      } catch (error: any) {
-        authErrors.push(`firebase:${String(error?.message || "invalid_token")}`);
-      }
-    }
-
-    if (!hasSupabaseProvider && !hasFirebaseProvider) {
-      const msg =
-        "Kein externer Auth-Provider konfiguriert. Für Supabase: SUPABASE_JWT_SECRET, JWT_SECRET, GOTRUE_JWT_SECRET oder (self-hosted) SECRET_KEY_BASE setzen — muss mit GoTrue JWT-Signatur übereinstimmen. " +
-        "Für Firebase: FIREBASE_SERVICE_ACCOUNT_KEY oder GOOGLE_APPLICATION_CREDENTIALS setzen. " +
-        "Alternativ ADMIN_PANEL_TOKEN im Admin-Feld „Code“ nutzen.";
+    const hasPanel = acceptedPanelTokens.length > 0;
+    if (!isSupabaseAuthConfigured() && !hasPanel) {
       return res.status(503).json({
-        error: "Auth provider not configured",
-        errorDe: msg,
+        error: "Auth provider not configured. Set SUPABASE_JWT_SECRET (or JWT_SECRET / GOTRUE_JWT_SECRET) to match GoTrue, or use ADMIN_PANEL_TOKEN.",
       });
     }
-    const details = authErrors.length > 0 ? ` (${authErrors.join("; ")})` : "";
-    return res.status(401).json({ error: `Invalid token${details}` });
+    return res.status(401).json({ error: "Invalid token" });
   } catch {
-    const errorDe = acceptedPanelTokens.length > 0
-      ? "Token vom Admin-Formular abgelehnt. Nutze den langen ADMIN_PANEL_TOKEN (oder GM_PANEL_TOKEN) aus der Server-Umgebung (nicht das Spiel-Login), oder setze eine gueltige Supabase/Firebase Konfiguration."
-      : undefined;
-    return res.status(401).json({
-      error: "Invalid token",
-      ...(errorDe ? { errorDe } : {}),
-    });
+    return res.status(401).json({ error: "Invalid token" });
   }
 }
 

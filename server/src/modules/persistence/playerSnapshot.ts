@@ -1,7 +1,7 @@
 import { normalizeInventoryStacks } from "../inventory/inventoryStacks.js";
 
 /**
- * Whitelist of player fields written to disk / Firestore.
+ * Whitelist of player fields written to disk / persistence backends.
  * Omits transient runtime fields (movement state, socket mapping, etc.).
  */
 export const PLAYER_PERSIST_KEYS = [

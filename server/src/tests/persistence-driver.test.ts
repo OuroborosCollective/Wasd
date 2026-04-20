@@ -26,7 +26,6 @@ describe("PersistenceManager driver selection", () => {
   it("PERSISTENCE_DRIVER=file uses file backend", async () => {
     vi.resetModules();
     process.env.PERSISTENCE_DRIVER = "file";
-    vi.doMock("../config/firebase.js", () => ({ getDb: () => ({}) }));
     const { PersistenceManager } = await import("../core/PersistenceManager.js");
     const pm = new PersistenceManager();
     await pm.init();
@@ -48,7 +47,6 @@ describe("PersistenceManager driver selection", () => {
     vi.resetModules();
     process.env.PERSISTENCE_DRIVER = "spacetime";
     delete process.env.SPACETIME_PERSIST_FILE_FALLBACK;
-    vi.doMock("../config/firebase.js", () => ({ getDb: () => null }));
     const { PersistenceManager } = await import("../core/PersistenceManager.js");
     const pm = new PersistenceManager();
     await pm.init();
@@ -70,7 +68,6 @@ describe("PersistenceManager driver selection", () => {
     vi.resetModules();
     process.env.PERSISTENCE_DRIVER = "postgres";
     delete process.env.DATABASE_URL;
-    vi.doMock("../config/firebase.js", () => ({ getDb: () => null }));
     const { PersistenceManager } = await import("../core/PersistenceManager.js");
     const pm = new PersistenceManager();
     expect(pm.getDriverName()).toBe("postgres");

@@ -4,10 +4,6 @@ import os from "node:os";
 import path from "node:path";
 import { vi } from "vitest";
 
-vi.mock("../config/firebase.js", () => ({
-  getDb: () => null,
-}));
-
 import { PersistenceManager } from "../core/PersistenceManager.js";
 
 describe("PersistenceManager file fallback", () => {

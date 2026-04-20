@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { isFirebaseAuthConfigured, verifyFirebaseToken } from "../../config/firebase.js";
 import { isSupabaseAuthConfigured, verifySupabaseToken } from "../../config/supabase.js";
 
 export type LoginMessage = {
@@ -29,20 +28,8 @@ function guestLoginAllowed(): boolean {
   return true;
 }
 
-function requireFirebaseAuthOnly(): boolean {
-  const v = process.env.REQUIRE_FIREBASE_AUTH?.trim().toLowerCase();
-  return v === "1" || v === "true" || v === "yes";
-}
-
 function requireSupabaseAuthOnly(): boolean {
   const v = process.env.REQUIRE_SUPABASE_AUTH?.trim().toLowerCase();
-  return v === "1" || v === "true" || v === "yes";
-}
-
-/** When unset or 0/false/no: ignore JWT on WebSocket login (dev / ship-game-first). Set to 1 to verify Firebase tokens again. */
-function isFirebaseWsLoginEnabled(): boolean {
-  const v = process.env.USE_FIREBASE_WS_LOGIN?.trim().toLowerCase();
-  if (!v) return false;
   return v === "1" || v === "true" || v === "yes";
 }
 
@@ -56,7 +43,7 @@ const GUEST_ID_RE = /^guest_[a-zA-Z0-9_-]{8,40}$/;
 
 /**
  * Resolves stable player uid + display name for WebSocket `login`.
- * - Valid Firebase ID token → Firebase uid (only if USE_FIREBASE_WS_LOGIN=1).
+ * - Valid Supabase JWT → Supabase uid (when USE_SUPABASE_WS_LOGIN=1 or REQUIRE_SUPABASE_AUTH=1).
  * - Production without token → error unless guest mode.
  * - Non-production: dev socket id login unless ALLOW_DEV_LOGIN disables it.
  * - Guest: ALLOW_GUEST_LOGIN + optional client `guestId` / server-generated id.
@@ -67,11 +54,8 @@ export async function resolveLoginIdentity(
 ): Promise<ResolvedLogin | LoginError> {
   const token = typeof msg.token === "string" ? msg.token.trim() : "";
   const verifySupabase = isSupabaseWsLoginEnabled() || requireSupabaseAuthOnly();
-  const verifyFirebase = isFirebaseWsLoginEnabled() || requireFirebaseAuthOnly();
-  let attemptedTokenVerification = false;
 
   if (token.length > 0 && verifySupabase) {
-    attemptedTokenVerification = true;
     try {
       const decoded = verifySupabaseToken(token);
       const uid = typeof decoded.sub === "string" ? decoded.sub.trim() : "";
@@ -84,32 +68,8 @@ export async function resolveLoginIdentity(
         uid;
       return { uid, charName };
     } catch {
-      // If Firebase verification is also enabled, continue with Firebase as fallback.
-      if (!verifyFirebase) {
-        return { error: "Invalid or expired token", code: "invalid_token" };
-      }
-    }
-  }
-
-  if (token.length > 0 && verifyFirebase) {
-    attemptedTokenVerification = true;
-    try {
-      const decoded = await verifyFirebaseToken(token);
-      if (!decoded?.uid) {
-        return { error: "Invalid or expired token", code: "invalid_token" };
-      }
-      const charName =
-        (typeof decoded.name === "string" && decoded.name.trim()) ||
-        (typeof decoded.email === "string" && decoded.email.trim()) ||
-        decoded.uid;
-      return { uid: decoded.uid, charName };
-    } catch {
       return { error: "Invalid or expired token", code: "invalid_token" };
     }
-  }
-
-  if (token.length > 0 && attemptedTokenVerification) {
-    return { error: "Invalid or expired token", code: "invalid_token" };
   }
 
   if (requireSupabaseAuthOnly()) {
@@ -120,24 +80,12 @@ export async function resolveLoginIdentity(
         code: "login_required",
       };
     }
-    // Fallback: if guest login is configured, allow anonymous even when Supabase is required
     if (guestLoginAllowed()) {
       const gid = `guest_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
       const gn = typeof msg.guestName === "string" ? msg.guestName.trim().slice(0, 32) : "";
       return { uid: gid, charName: gn || "Guest" };
     }
     return { error: "Supabase sign-in required", code: "login_required" };
-  }
-
-  if (requireFirebaseAuthOnly()) {
-    if (!isFirebaseAuthConfigured()) {
-      return {
-        error:
-          "Server requires Firebase sign-in but Firebase Admin is not configured (service account or GOOGLE_APPLICATION_CREDENTIALS / application default).",
-        code: "login_required",
-      };
-    }
-    return { error: "Firebase sign-in required", code: "login_required" };
   }
 
   const guestRequested =
