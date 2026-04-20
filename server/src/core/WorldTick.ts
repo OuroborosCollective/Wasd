@@ -48,6 +48,10 @@ import {
   WORLD_BOSS_SCENE_ID,
   WorldBossDungeonSystem,
 } from "./WorldBossDungeonSystem.js";
+import { WorldPlacementRuleEngine } from "../world/services/WorldPlacementRuleEngine.js";
+import { WorldLayoutRuleEngine, createDefaultLayoutConfig } from "../world/layout/WorldLayoutRuleEngine.js";
+import { ServerTerrainAdapter } from "../world/adapters/ExistingDynamicTerrainAdapter.js";
+import { ExistingTreeGeneratorAdapter } from "../world/adapters/ExistingTreeGeneratorAdapter.js";
 import { VoteSystem } from "../modules/vote/VoteSystem.js";
 import { ensurePlayerVoteProgress } from "../modules/vote/playerVoteProgress.js";
 import { CraftingSystem } from "../modules/crafting/CraftingSystem.js";
@@ -336,6 +340,11 @@ export class WorldTick {
   private questlineEngine: QuestlineEngine;
   public readonly liveHeal: LiveHealEngine;
   public readonly assetHealthService: AssetHealthService;
+
+  // World generation / placement pipeline
+  public readonly placementEngine: WorldPlacementRuleEngine;
+  public readonly terrainAdapter: ServerTerrainAdapter;
+  public readonly treeAdapter: ExistingTreeGeneratorAdapter;
 
   private socketToPlayer: Map<string, string> = new Map(); // socketId -> characterName
   private lastActionTimes: Map<string, number> = new Map(); // charName -> timestamp
@@ -2075,6 +2084,15 @@ export class WorldTick {
     this.worldBossDungeonSystem = new WorldBossDungeonSystem();
     this.voteSystem = new VoteSystem();
     this.worldBossRespawnAt = Date.now() + 1000;
+
+    // World generation / placement pipeline
+    this.terrainAdapter = new ServerTerrainAdapter();
+    this.treeAdapter = new ExistingTreeGeneratorAdapter();
+    const layoutEngine = new WorldLayoutRuleEngine(createDefaultLayoutConfig("/tmp/world-layout"));
+    this.placementEngine = new WorldPlacementRuleEngine(layoutEngine);
+    this.placementEngine.setTerrainAdapter(this.terrainAdapter);
+    this.placementEngine.setVegetationAdapter(this.treeAdapter);
+    console.log("[WorldTick] Placement engine initialized with terrain + vegetation adapters.");
     this.worldBossDungeonSystem.ensureWorldBossPortalObject(this.worldSystem.objectSystem);
     this.statusEmitter = new StatusEmitter(
       this.chatChannelRouter,

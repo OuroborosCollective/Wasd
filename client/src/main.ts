@@ -16,6 +16,7 @@ import { resolveGameAuthProvider } from "./config/gameAuth";
 import { installFirebaseAiWatchdog } from "./ai/firebaseAiWatchdog";
 import { initChat, focusChatInput } from "./ui/chat";
 import { initMinimap, toggleMinimapVisibility } from "./ui/minimap";
+import { worldService } from "./game/world/services";
 
 type AREPolicyConfig = {
   cooldownMs?: number;
@@ -67,9 +68,9 @@ function showBootStatus(message: string, tone: "info" | "warn" | "error" | "ok" 
 }
 
 function bootEngineBridge(targetCanvas: HTMLCanvasElement): IEngineBridge {
-  const app = createBabylonApp(targetCanvas);
+  const app = createBabylonApp(targetCanvas, { skipGround: true });
   (window as any).babylonScene = app.scene;
-  console.log("Renderer: Babylon");
+  console.log("Renderer: Babylon (DynamicTerrain enabled)");
   return new BabylonAdapter(app.scene, app.camera);
 }
 
@@ -96,6 +97,21 @@ try {
   // 1. Boot Engine + Adapter
   const adapter = bootEngineBridge(canvas);
   showBootStatus("Renderer ready. Connecting to world...", "info");
+
+  // Initialize world services (terrain, trees, physics, atmosphere, etc.)
+  try {
+    const scene = (window as any).babylonScene;
+    if (scene) {
+      // Find the camera in the scene
+      const camera = scene.activeCamera;
+      if (camera) {
+        await worldService.init(scene, camera);
+        console.log("[main] World services initialized.");
+      }
+    }
+  } catch (e) {
+    console.warn("[main] World service init failed (non-fatal):", e);
+  }
 
   if (typeof window !== "undefined") {
     window.addEventListener("areloria:net-status", (event: Event) => {

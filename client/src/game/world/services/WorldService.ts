@@ -12,6 +12,7 @@ import { networkInterpolation } from "./NetworkInterpolationService.js";
 import { atmosphereService } from "./AtmosphereService.js";
 import { textLabelService } from "./TextLabelService.js";
 import { streamingService } from "./StreamingRegistrationService.js";
+import { worldGenerator, type WorldGeneratorConfig } from "./WorldGeneratorService.js";
 
 export interface WorldServiceConfig {
   enablePhysics: boolean;
@@ -20,7 +21,9 @@ export interface WorldServiceConfig {
   enableTextLabels: boolean;
   enableStreaming: boolean;
   enableInterpolation: boolean;
+  enableWorldGeneration: boolean;
   streamRadii: Record<string, number>;
+  worldGenerator?: Partial<WorldGeneratorConfig>;
 }
 
 const DEFAULT_CONFIG: WorldServiceConfig = {
@@ -30,6 +33,7 @@ const DEFAULT_CONFIG: WorldServiceConfig = {
   enableTextLabels: true,
   enableStreaming: true,
   enableInterpolation: true,
+  enableWorldGeneration: true,
   streamRadii: {
     buildings: 80,
     roads: 60,
@@ -79,6 +83,13 @@ export class WorldService {
       } catch (e) { console.warn("[WorldService] TextLabel init failed:", e); }
     }
 
+    // World generation (terrain + trees) — must come after physics so ground colliders work
+    if (this.config.enableWorldGeneration) {
+      try {
+        await worldGenerator.init(scene, camera);
+      } catch (e) { console.warn("[WorldService] World generation init failed:", e); }
+    }
+
     this.initialized = true;
     console.log("[WorldService] All world services initialized.");
   }
@@ -104,6 +115,11 @@ export class WorldService {
       streamingService.update(this.camera.position);
     }
 
+    // World generator (terrain LOD is handled internally, but we can update tree LOD here later)
+    if (this.config.enableWorldGeneration) {
+      worldGenerator.update();
+    }
+
     // Navigation dirty rebuild (throttled)
     if (this.config.enableNavigation && navigationService.needsRebuild()) {
       navigationService.rebuildDirtyRegions();
@@ -119,6 +135,7 @@ export class WorldService {
       textLabels: textLabelService.getStats(),
       streaming: streamingService.getStats(),
       atmosphere: { active: atmosphereService.isActive() },
+      worldGenerator: worldGenerator.getStats(),
     };
   }
 
@@ -128,6 +145,7 @@ export class WorldService {
   get atmosphere() { return atmosphereService; }
   get textLabels() { return textLabelService; }
   get streaming() { return streamingService; }
+  get worldGen() { return worldGenerator; }
 
   dispose(): void {
     physicsService.dispose();
@@ -136,6 +154,7 @@ export class WorldService {
     atmosphereService.dispose();
     textLabelService.dispose();
     streamingService.clear();
+    worldGenerator.dispose();
     this.initialized = false;
   }
 }

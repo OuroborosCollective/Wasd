@@ -8,3 +8,4 @@ export { NetworkInterpolationService, networkInterpolation } from "./NetworkInte
 export { AtmosphereService, atmosphereService } from "./AtmosphereService.js";
 export { TextLabelService, textLabelService } from "./TextLabelService.js";
 export { StreamingRegistrationService, streamingService } from "./StreamingRegistrationService.js";
+export { WorldGeneratorService, worldGenerator } from "./WorldGeneratorService.js";

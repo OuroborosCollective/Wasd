@@ -26,9 +26,13 @@ export type BabylonApp = {
   engine: Engine;
   scene: Scene;
   camera: ArcRotateCamera;
+  ground: Mesh;
 };
 
-export function createBabylonApp(canvas: HTMLCanvasElement): BabylonApp {
+export function createBabylonApp(
+  canvas: HTMLCanvasElement,
+  options?: { skipGround?: boolean }
+): BabylonApp {
   const touchFirst = prefersCompactTouchUi();
   const android = isAndroid();
   const query =
@@ -118,20 +122,24 @@ export function createBabylonApp(canvas: HTMLCanvasElement): BabylonApp {
     console.warn("Skybox load failed, using clear color only", e);
   }
 
-  const ground = MeshBuilder.CreateGround(
-    "world-ground",
-    { width: 128, height: 128, subdivisions: 2 },
-    scene
-  );
-  const groundMat = new StandardMaterial("world-ground-mat", scene);
-  groundMat.diffuseTexture = new Texture(playgroundTextureUrl(DEFAULT_GROUND_DIFFUSE), scene, false, false);
-  groundMat.bumpTexture = new Texture(playgroundTextureUrl(DEFAULT_GROUND_BUMP), scene, false, false);
-  groundMat.diffuseTexture.level = 1;
-  applyTiledGroundTextures(groundMat, MAIN_GROUND_UV_SCALE);
-  groundMat.diffuseColor = new Color3(0.75, 0.78, 0.72);
-  groundMat.specularColor = new Color3(0.02, 0.02, 0.02);
-  ground.material = groundMat;
-  ground.position.y = -0.02;
+  const ground = options?.skipGround
+    ? MeshBuilder.CreateBox("world-ground-placeholder", { size: 0.01 }, scene)
+    : MeshBuilder.CreateGround(
+        "world-ground",
+        { width: 128, height: 128, subdivisions: 2 },
+        scene
+      );
+  if (!options?.skipGround) {
+    const groundMat = new StandardMaterial("world-ground-mat", scene);
+    groundMat.diffuseTexture = new Texture(playgroundTextureUrl(DEFAULT_GROUND_DIFFUSE), scene, false, false);
+    groundMat.bumpTexture = new Texture(playgroundTextureUrl(DEFAULT_GROUND_BUMP), scene, false, false);
+    groundMat.diffuseTexture.level = 1;
+    applyTiledGroundTextures(groundMat, MAIN_GROUND_UV_SCALE);
+    groundMat.diffuseColor = new Color3(0.75, 0.78, 0.72);
+    groundMat.specularColor = new Color3(0.02, 0.02, 0.02);
+    ground.material = groundMat;
+    ground.position.y = -0.02;
+  }
   /** Huge pickable ground makes every scene.pick() traverse the terrain; combat/hover use entities only. */
   ground.isPickable = false;
 
@@ -156,5 +164,5 @@ export function createBabylonApp(canvas: HTMLCanvasElement): BabylonApp {
     engine.resize();
   });
 
-  return { engine, scene, camera };
+  return { engine, scene, camera, ground };
 }
