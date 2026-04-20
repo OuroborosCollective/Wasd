@@ -330,7 +330,7 @@ export class WorldTick {
   public persistence: PersistenceManager;
   public glbRegistry: GLBRegistry;
   public assetPoolResolver: AssetPoolResolver;
-  private readonly glbLinksStore: "file" | "spacetime";
+  private readonly glbLinksStore: "file";
   private runtimeSettings: RuntimeSettingsStore;
   private areModeAuditTrail: AREModeAuditTrail;
   private areStateCompiler: AREStateCompiler;
@@ -2058,7 +2058,7 @@ export class WorldTick {
     );
     this.persistence = new PersistenceManager();
     this.worldSystem = new WorldSystem(this.persistence);
-    this.glbLinksStore = process.env.GLB_LINKS_STORE?.trim().toLowerCase() === "spacetime" ? "spacetime" : "file";
+    this.glbLinksStore = "file";
     this.glbRegistry = new GLBRegistry();
     this.assetPoolResolver = new AssetPoolResolver();
     this.runtimeSettings = new RuntimeSettingsStore();

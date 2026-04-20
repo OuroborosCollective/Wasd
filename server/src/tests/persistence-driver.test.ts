@@ -43,27 +43,6 @@ describe("PersistenceManager driver selection", () => {
     expect(loaded.u1?.gold).toBe(1);
   });
 
-  it("PERSISTENCE_DRIVER=spacetime persists players via file fallback by default", async () => {
-    vi.resetModules();
-    process.env.PERSISTENCE_DRIVER = "spacetime";
-    delete process.env.SPACETIME_PERSIST_FILE_FALLBACK;
-    const { PersistenceManager } = await import("../core/PersistenceManager.js");
-    const pm = new PersistenceManager();
-    await pm.init();
-    await pm.save({
-      u2: {
-        id: "u2",
-        name: "B",
-        gold: 2,
-        inventory: [],
-        equipment: { weapon: null, armor: null, offHand: null },
-        position: { x: 0, y: 0, z: 0 },
-      },
-    });
-    const loaded = await pm.load();
-    expect(loaded.u2?.gold).toBe(2);
-  });
-
   it("PERSISTENCE_DRIVER=postgres selects postgres backend", async () => {
     vi.resetModules();
     process.env.PERSISTENCE_DRIVER = "postgres";

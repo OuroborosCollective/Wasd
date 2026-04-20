@@ -1,7 +1,6 @@
 import type { IPersistenceBackend, PersistenceDriverName } from "./persistenceBackend.js";
 import { resolvePersistenceDriver } from "./persistenceBackend.js";
 import { FilePersistenceBackend } from "./filePersistenceBackend.js";
-import { SpacetimePersistenceBackend } from "./spacetimePersistenceBackend.js";
 import { PostgresPersistenceBackend } from "./postgresPersistenceBackend.js";
 import { isDatabaseConfigured } from "../../core/Database.js";
 
@@ -9,9 +8,6 @@ export function createPersistenceBackend(): IPersistenceBackend {
   const driver = resolvePersistenceDriver();
   if (driver === "postgres") {
     return new PostgresPersistenceBackend();
-  }
-  if (driver === "spacetime") {
-    return new SpacetimePersistenceBackend();
   }
   if (driver === "file") {
     return new FilePersistenceBackend();
@@ -30,7 +26,6 @@ function pickAutoBackend(): IPersistenceBackend {
 /** For tests: inject a backend without env */
 export function createPersistenceBackendForTest(driver: PersistenceDriverName): IPersistenceBackend {
   if (driver === "file") return new FilePersistenceBackend();
-  if (driver === "spacetime") return new SpacetimePersistenceBackend();
   if (driver === "postgres") return new PostgresPersistenceBackend();
   return new FilePersistenceBackend();
 }
