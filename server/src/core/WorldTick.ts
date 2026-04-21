@@ -376,20 +376,31 @@ export class WorldTick {
                 if (q.objective === "talk_to" && q.targetNpcId === targetId) {
                   completed = true;
                 } else if (q.objective === "collect" && q.targetNpcId === targetId) {
-                  // Check inventory for required items
-                  const count = player.inventory.filter((item: any) => item.id === q.requiredItemId).length;
-                  if (count >= (q.requiredCount || 1)) {
+                  // ⚡ Bolt Optimization: Use a single backwards loop to count and selectively splice items
+                  // instead of chaining .filter().length and multiple .findIndex() + .splice() calls
+                  let count = 0;
+                  const reqCount = q.requiredCount || 1;
+                  for (let i = player.inventory.length - 1; i >= 0; i--) {
+                    if (player.inventory[i].id === q.requiredItemId) {
+                      count++;
+                    }
+                  }
+
+                  if (count >= reqCount) {
                     // Consume items
-                    for (let i = 0; i < (q.requiredCount || 1); i++) {
-                      const index = player.inventory.findIndex((item: any) => item.id === q.requiredItemId);
-                      if (index !== -1) player.inventory.splice(index, 1);
+                    let removed = 0;
+                    for (let i = player.inventory.length - 1; i >= 0 && removed < reqCount; i--) {
+                      if (player.inventory[i].id === q.requiredItemId) {
+                        player.inventory.splice(i, 1);
+                        removed++;
+                      }
                     }
                     completed = true;
                   } else {
                     this.ws.sendToPlayer(id, {
                       type: "dialogue",
                       source: "System",
-                      text: `You need ${q.requiredCount || 1}x ${q.requiredItemId} to complete this quest.`
+                      text: `You need ${reqCount}x ${q.requiredItemId} to complete this quest.`
                     });
                   }
                 }
