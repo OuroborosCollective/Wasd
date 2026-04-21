@@ -58,7 +58,7 @@ function normalizeSupabaseUrl(raw: string): string {
   if (!value) return value;
   if (typeof window === "undefined") return value;
   // Already HTTPS — no changes needed (including non-standard ports like :8443)
-  if (value.startsWith("https://")) return value.replace(/\/$/, "");
+  if (value.startsWith("https://")) return value.replace(/\/+$/, "");
   if (!value.startsWith("http://")) return value;
   if (window.location.protocol !== "https:") return value;
   try {
@@ -74,7 +74,7 @@ function normalizeSupabaseUrl(raw: string): string {
     if (isHostedSupabase && (parsed.port === "8000" || parsed.port === "3000")) {
       parsed.port = "";
     }
-    return parsed.toString().replace(/\/$/, "");
+    return parsed.toString().replace(/\/+$/, "");
   } catch {
     return value;
   }
@@ -91,6 +91,44 @@ function resolveKeyFromEnv(): string {
 let client: SupabaseClient | null = null;
 let initPromise: Promise<SupabaseClient | null> | null = null;
 
+/**
+ * Custom fetch function that transforms auth requests to work with GoTrue.
+ * GoTrue expects grant_type in the query string, but Supabase client sends it in the body.
+ */
+async function customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  // Only transform POST requests to /auth/v1/token
+  if (init?.method === 'POST' && typeof input === 'string' && input.includes('/auth/v1/token')) {
+    try {
+      const url = new URL(input);
+      const body = init.body ? JSON.parse(init.body as string) : {};
+      
+      // If grant_type is in the body, move it to the query string
+      if (body.grant_type) {
+        url.searchParams.set('grant_type', body.grant_type);
+        delete body.grant_type;
+        
+        // Update the request
+        const newInit = {
+          ...init,
+          body: JSON.stringify(body),
+          headers: {
+            ...init.headers,
+            'Content-Type': 'application/json',
+          },
+        };
+        
+        return fetch(url.toString(), newInit);
+      }
+    } catch (e) {
+      // If parsing fails, just use the original request
+      console.warn('[customFetch] Failed to transform request:', e);
+    }
+  }
+  
+  // For all other requests, use the default fetch
+  return fetch(input, init);
+}
+
 async function getOrCreateClient(): Promise<SupabaseClient | null> {
   const envUrl = resolveUrlFromEnv();
   const envKey = resolveKeyFromEnv();
@@ -98,6 +136,7 @@ async function getOrCreateClient(): Promise<SupabaseClient | null> {
     if (!client) {
       client = createClient(envUrl, envKey, {
         auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true },
+        global: { fetch: customFetch },
       });
     }
     return client;
@@ -108,6 +147,7 @@ async function getOrCreateClient(): Promise<SupabaseClient | null> {
     if (!client) {
       client = createClient(normalizeSupabaseUrl(cfg.supabaseUrl), cfg.supabaseAnonKey, {
         auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true },
+        global: { fetch: customFetch },
       });
     }
     return client;

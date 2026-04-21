@@ -1,4 +1,4 @@
-import { supabase } from "../lib/supabase";
+import { supabase } from "../auth/supabase";
 
 /**
  * Service für Datenbankoperationen im Frontend.
