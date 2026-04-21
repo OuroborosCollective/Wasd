@@ -22,4 +22,11 @@ describe("skillDefinitions", () => {
     expect(a?.cooldownMs).toBeGreaterThan(0);
     expect(b?.cooldownMs).toBeGreaterThan(0);
   });
+
+  it("impact_buster exists and uses 8s cooldown", () => {
+    const s = getSkillDefinition("impact_buster");
+    expect(s?.name).toBe("Impact Buster");
+    expect(s?.cooldownMs).toBe(8000);
+    expect(s?.range).toBeGreaterThan(5);
+  });
 });

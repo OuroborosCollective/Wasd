@@ -1,5 +1,5 @@
 /**
- * Hard fallbacks when asset-pools.json / glb-links / Spacetime yield no path.
+ * Hard fallbacks when asset-pools.json / glb-links yield no path.
  * Must match files shipped under client/public/assets/models/ (or nginx equivalent).
  */
 export const BUILTIN_GLB_BY_ENTITY_TYPE: Record<string, string> = {

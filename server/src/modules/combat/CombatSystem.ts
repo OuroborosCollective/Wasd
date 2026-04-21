@@ -1,49 +1,74 @@
+export type FxKind = "hit" | "crit" | "heal" | "miss" | "block" | "xp" | "gold";
+
+export interface CombatResult {
+  success: boolean;
+  hit: boolean;
+  damage: number;
+  crit?: boolean;
+  defenderHealth?: number;
+  killed?: boolean;
+  reason?: string;
+  fx?: { kind: FxKind; n?: number };
+}
+
 export class CombatSystem {
-  attack(attacker: any, defender: any) {
+  attack(attacker: any, defender: any): CombatResult {
     return this.resolveAttack(attacker, defender, 0);
   }
 
   /**
    * Melee attack with optional flat weapon bonus (ItemRegistry `damage` on equipped weapon).
    */
-  attackWithWeapon(attacker: any, defender: any, weaponBonus = 0) {
+  attackWithWeapon(attacker: any, defender: any, weaponBonus = 0): CombatResult {
     return this.resolveAttack(attacker, defender, weaponBonus);
   }
 
   /** Spell / skill hit — no stamina cost */
-  spellStrike(attacker: any, defender: any, spellPower: number) {
+  spellStrike(attacker: any, defender: any, spellPower: number): CombatResult {
     const hitChance = this.calculateHitChance(attacker, defender);
     if (Math.random() > hitChance) {
-      return { success: true, hit: false, damage: 0 };
+      return { success: true, hit: false, damage: 0, crit: false, fx: { kind: "miss" } };
     }
-    const damage = this.calculateDamage(attacker, defender, spellPower);
+    const crit = Math.random() < 0.08;
+    const baseDamage = this.calculateDamage(attacker, defender, spellPower);
+    const damage = crit ? Math.floor(baseDamage * 1.75) : baseDamage;
     defender.health = Math.max(0, defender.health - damage);
+    const killed = defender.health <= 0;
     return {
       success: true,
       hit: true,
       damage,
+      crit,
       defenderHealth: defender.health,
+      killed,
+      fx: { kind: crit ? "crit" : "hit", n: damage },
     };
   }
 
-  private resolveAttack(attacker: any, defender: any, weaponBonus: number) {
+  private resolveAttack(attacker: any, defender: any, weaponBonus: number): CombatResult {
     const atkStamina = typeof attacker.stamina === "number" ? attacker.stamina : 100;
-    if (atkStamina <= 0) return { success: false, reason: "no_stamina" };
+    if (atkStamina <= 0) return { success: false, hit: false, damage: 0, reason: "no_stamina" };
     attacker.stamina = atkStamina - 8;
 
     const hitChance = this.calculateHitChance(attacker, defender);
     if (Math.random() > hitChance) {
-      return { success: true, hit: false, damage: 0 };
+      return { success: true, hit: false, damage: 0, crit: false, fx: { kind: "miss" } };
     }
 
-    const damage = this.calculateDamage(attacker, defender, weaponBonus);
+    const crit = Math.random() < 0.08;
+    const baseDamage = this.calculateDamage(attacker, defender, weaponBonus);
+    const damage = crit ? Math.floor(baseDamage * 1.75) : baseDamage;
     defender.health = Math.max(0, defender.health - damage);
+    const killed = defender.health <= 0;
 
     return {
       success: true,
       hit: true,
       damage,
+      crit,
       defenderHealth: defender.health,
+      killed,
+      fx: { kind: crit ? "crit" : "hit", n: damage },
     };
   }
 

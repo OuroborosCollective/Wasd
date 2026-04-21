@@ -60,6 +60,7 @@ SceneInitializer.prototype.setupNetwork = function() {
 
         socket.onmessage = function(event) {
             var data = JSON.parse(event.data);
+
             if (data.type === "world_tick") {
                 // Here we would call the factory to update entities
                 // self.updateWorld(data);

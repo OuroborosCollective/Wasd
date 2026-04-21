@@ -1,5 +1,9 @@
 import { closeAllPanels } from "./panelManager";
-import { getPlayerQuests, subscribePlayerState, type ClientQuestEntry } from "../state/playerState";
+import {
+  getPlayerQuests,
+  subscribePlayerState,
+  type ClientQuestEntry,
+} from "../state/playerState";
 import { requestQuestSync } from "../networking/websocketClient";
 import { applyGamePanelLayout, panelCloseButtonStyles } from "./panelLayout";
 
@@ -28,7 +32,8 @@ export function renderQuestLog() {
       closeAllPanels();
       panel.style.display = "flex";
       requestQuestSync();
-      refreshQuestPanelContent(panel);
+      const compact = panel.dataset.compact === "1";
+      refreshQuestPanelContent(panel, compact);
     } else {
       panel.style.display = "none";
     }
@@ -45,9 +50,23 @@ export function renderQuestLog() {
   panel.setAttribute("aria-label", "Quest Log");
 
   const compact = applyGamePanelLayout(panel);
+  panel.dataset.compact = compact ? "1" : "0";
 
   const stopEvents = (e: Event) => e.stopPropagation();
-  ["touchstart", "touchmove", "mousedown", "pointerdown", "click"].forEach((evt) => {
+  ["touchstart", "touchmove"].forEach((evt) => {
+    panel!.addEventListener(evt, stopEvents, { passive: true });
+  });
+  [
+    "touchend",
+    "touchcancel",
+    "mousedown",
+    "mouseup",
+    "mousemove",
+    "pointerdown",
+    "pointerup",
+    "pointermove",
+    "click",
+  ].forEach((evt) => {
     panel!.addEventListener(evt, stopEvents, { passive: false });
   });
 
@@ -70,9 +89,24 @@ export function renderQuestLog() {
   closeBtn.className = "btn-gold";
   Object.assign(closeBtn.style, panelCloseButtonStyles(compact));
   closeBtn.setAttribute("aria-label", "Close Quest Log");
-  closeBtn.onclick = () => {
+  closeBtn.onclick = (e) => {
+    e.stopPropagation();
     panel!.style.display = "none";
   };
+  closeBtn.addEventListener(
+    "touchstart",
+    (e) => {
+      e.stopPropagation();
+    },
+    { passive: false },
+  );
+  closeBtn.addEventListener(
+    "pointerdown",
+    (e) => {
+      e.stopPropagation();
+    },
+    { passive: false },
+  );
 
   header.appendChild(title);
   header.appendChild(closeBtn);
@@ -85,7 +119,7 @@ export function renderQuestLog() {
   content.style.flexDirection = "column";
   content.style.gap = "10px";
   content.style.overflowY = "auto";
-  content.style.webkitOverflowScrolling = "touch";
+  content.style.setProperty("-webkit-overflow-scrolling", "touch");
   content.style.padding = compact ? "8px 4px" : "5px";
   panel.appendChild(content);
 
@@ -97,15 +131,16 @@ export function renderQuestLog() {
   window.addEventListener("keydown", handleKeyDown);
 
   document.body.appendChild(panel);
-  refreshQuestPanelContent(panel);
+  refreshQuestPanelContent(panel, compact);
   subscribePlayerState(() => {
     if (panel && panel.style.display !== "none") {
-      refreshQuestPanelContent(panel);
+      const isCompact = panel.dataset.compact === "1";
+      refreshQuestPanelContent(panel, isCompact);
     }
   });
 }
 
-function refreshQuestPanelContent(panel: HTMLElement) {
+function refreshQuestPanelContent(panel: HTMLElement, compact: boolean) {
   const content = panel.querySelector("#questlog-content");
   if (!content) return;
   content.innerHTML = "";

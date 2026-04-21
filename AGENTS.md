@@ -9,16 +9,20 @@ Arelorian/Ouroboros is a browser-based MMORPG: `server/` (Express + WebSocket ga
 
 **Optional AI watchdog (client):** `VITE_FIREBASE_AI_WATCHDOG=1` enables `client/src/ai/firebaseAiWatchdog.ts`. It classifies recent errors into a **functional domain** (`network` | `firebase_auth` | `renderer` | `storage` | `unknown`), then asks Gemini for **one action** from a **domain-specific allow list** only (e.g. network: `clear_stale_ws_token`, `reconnect_websocket`; renderer: `babylon_soft_recover`, `babylon_reduce_render_load`). The model must echo the same `module` string; mismatches are rejected. No generated code, no cross-module file edits. Telemetry: `areloria:watchdog-log`, `watchdogTelemetry.ts`, handlers in `watchdogRecovery.ts`.
 
+### Production .env (VPS)
+- Step-by-step without relying on many shell one-liners: **`deploy/ENV_SETUP.md`**. Copy **`deploy/.env.production.template`** to `/opt/areloria/.env` via SCP/SFTP, fill secrets in an editor, restart PM2.
+
 ### VPS deploy + Firebase Admin (production)
 - Deploy script: `deploy/deploy.sh` (GitHub Action runs it on push to `main`). PM2 loads `/opt/areloria/.env` via `ecosystem.config.cjs` (`deploy/write_pm2_ecosystem.sh`).
-- **Do not commit** the Service Account JSON. On the VPS: place the key at `/opt/areloria/secrets/firebase-adminsdk.json` or run `deploy/setup-firebase-service-account.sh /path/to/key.json`. Deploy auto-appends `FIREBASE_SERVICE_ACCOUNT_KEY` to `.env` when that file exists. See `DEPLOYMENT.md`.
+- **Do not commit** the Service Account JSON. On the VPS: place the key at `/opt/areloria/secrets/firebase-adminsdk.json` or run `deploy/setup-firebase-service-account.sh /path/to/key.json`. Deploy appends **`FIREBASE_SERVICE_ACCOUNT_KEY`** and **`GOOGLE_APPLICATION_CREDENTIALS`** when that file exists. Alternatively leave `FIREBASE_SERVICE_ACCOUNT_KEY` empty and use only **`GOOGLE_APPLICATION_CREDENTIALS`** + **`FIREBASE_PROJECT_ID`** — the server then uses **`applicationDefault()`** (same idea as `admin.credential.applicationDefault()`). On GCP VMs: **`FIREBASE_ADMIN_USE_APPLICATION_DEFAULT=1`**. See `DEPLOYMENT.md`.
 
 ### Running the development server
 - **Command:** `pnpm run dev` (runs `tsx watch src/index.ts` in `server/`).
 - The server starts on port 3000 and embeds the Vite client dev middleware (serves the client at `/`).
 - **Known gotcha:** `tsx watch` may restart in a loop because Vite middleware writes temp files to `client/node_modules/.vite-temp/`. For a stable session, run `npx tsx server/src/index.ts` directly (without watch) from the workspace root.
-- Firebase/Firestore is optional for local dev. Without `FIREBASE_SERVICE_ACCOUNT_KEY`, the server logs warnings but continues with in-memory state. **Game WebSocket login:** by default Firebase JWT is **not** verified (`USE_FIREBASE_WS_LOGIN` unset/0) — use dev/guest login while building gameplay; set `USE_FIREBASE_WS_LOGIN=1` to verify tokens again. **Client HUD:** Firebase buttons hidden by default (`VITE_DISABLE_FIREBASE_AUTH` unset = off); set `VITE_DISABLE_FIREBASE_AUTH=0` to show Google/email login again.
+- Firebase/Firestore is optional for local dev. Without `FIREBASE_SERVICE_ACCOUNT_KEY`, the server logs warnings but continues with in-memory state. **Game WebSocket login:** by default Firebase JWT is **not** verified (`USE_FIREBASE_WS_LOGIN` unset/0) — use dev/guest login while building gameplay; set `USE_FIREBASE_WS_LOGIN=1` to verify tokens again. **Client HUD:** select provider with `VITE_AUTH_PROVIDER` (`firebase` to show Google/email login, `none` to hide).
 - Redis and PostgreSQL are optional; the server falls back gracefully without them.
+- **`GET /health`** includes **`firebase`** (`configured`, `initMode`: cert | application_default | none, `projectId`, credential flags) and **`auth`** (`useFirebaseWsLogin`, `requireFirebaseAuth`, `allowGuestLogin`, `allowDevLogin`). See **`docs/FIREBASE_VPS_CHECKLIST.md`**.
 - **Static assets:** Repo-root **`world-assets/`** is mirrored by **`scripts/sync-world-assets.mjs`** into **`client/public/assets/models/world-assets/`** (bundled as **`/assets/models/world-assets/*`**) and into **`client/public/world-assets/`** (dev). Client **`predev`/`prebuild`** runs the sync. **`pnpm run sync:world-assets`** at repo root does the same. The server serves legacy **`/world-assets/*`** from that mirror when present, else from repo **`world-assets/`** (**`WORLD_ASSETS_DIR`** / **`MIRRORED_WORLD_ASSETS_DIR`** override). Prefer **`CLIENT_ROOT_DIR`** when `cwd` is not the monorepo root.
 - **Android / touch performance:** Client sends **`login.clientHints.lowBandwidth`** on Android and coarse-pointer / narrow viewports so the server uses **`STATE_BROADCAST_INTERVAL_MOBILE_MS`**. Babylon: lower `maxFPS`, higher `hardwareScalingLevel`, serialized GLB loads, coarser nav torus, batched name labels. Vite splits **`babylon-core`** / **`babylon-loaders`** chunks for parse caching.
 
@@ -27,7 +31,9 @@ Arelorian/Ouroboros is a browser-based MMORPG: `server/` (Express + WebSocket ga
 - **Test:** `pnpm run test` (Vitest, runs 600+ server tests; config at `vitest.config.ts`).
 - **E2E:** `pnpm run build` then `pnpm run test:e2e` (Playwright; install browsers once with `pnpm run test:e2e:install`). In CI, `pnpm run test:e2e:ci` installs Chromium with system deps then runs tests.
 - **Build:** `pnpm run build` (builds client with Vite, then compiles server TypeScript).
+- **Pre-push (no E2E):** `pnpm run ci:verify` — lint, unit tests, build, `audit:model-paths`. Full CI also runs Playwright (`pnpm run test:e2e:ci`).
 - **Content pack (optional):** `pnpm run content:publish` — validates, snapshots `game-data/` to `published-content/current/`. Run server with `USE_PUBLISHED_CONTENT=1` to load the snapshot instead of live `game-data/`.
+- **Model path audit:** `pnpm run audit:model-paths` — lists `glb-links.json`, `world/objects.json`, and `world/asset-pools.json` references under `/assets/models/…` or `/world-assets/…` missing on disk. Resolves monorepo root even when `cwd` is `server/` (ignores `server/game-data` symlink). **CI** runs this after build (must pass). Admin UI: **„3D-Pfade prüfen“** → `GET /api/admin/content/model-path-audit`.
 
 ### Environment variables
 Copy `.env.example` to `.env`. Only `PORT` and `NODE_ENV` are needed for local dev without Firebase. See `.env.example` for full list. Optional: **`WS_MAX_MESSAGES_PER_PLAYER_UID_PER_SECOND`** tightens per-account WS throughput after login. **`STATE_BROADCAST_INTERVAL_MOBILE_MS`** slows **`entity_sync`** for clients that send **`clientHints.lowBandwidth`** on login (touch UI).
@@ -48,3 +54,9 @@ Copy `.env.example` to `.env`. Only `PORT` and `NODE_ENV` are needed for local d
 
 ### Testing the game loop without a browser
 Connect via WebSocket to `ws://localhost:3000/ws` and send `{"type":"login"}`. The server assigns a dev player; **`entity_sync`** is broadcast on a configurable interval (default **200 ms**, sim tick **100 ms**). Use `input` (WASD keydown/keyup), `move_intent` (analog), `interact`, `dialogue_choice`, and `attack` as needed.
+
+### Cloud agent gotchas
+- **`/health` in dev mode:** Vite SPA middleware (registered before Express routes) intercepts `/health`. Use the WebSocket game loop to verify the server is running instead.
+- **GCP metadata warnings:** Without `FIREBASE_SERVICE_ACCOUNT_KEY`, the server emits noisy `MetadataLookupWarning` and `GcpLogger` errors to stderr. These are harmless — the server continues with in-memory/JSON fallback.
+- **pnpm strict `node_modules`:** The `ws` package (and other server deps) is only resolvable from `server/` directory context, not from workspace root. Run WebSocket test scripts with `cd server && node -e "..." --input-type=module`.
+- **Node/pnpm versions:** Node 22.x and pnpm 10.x work with the lockfile (v9.0 format). No `.nvmrc` or `engines` field pins versions.

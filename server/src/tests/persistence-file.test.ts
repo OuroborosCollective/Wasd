@@ -4,10 +4,6 @@ import os from "node:os";
 import path from "node:path";
 import { vi } from "vitest";
 
-vi.mock("../config/firebase.js", () => ({
-  getDb: () => null,
-}));
-
 import { PersistenceManager } from "../core/PersistenceManager.js";
 
 describe("PersistenceManager file fallback", () => {
@@ -38,7 +34,7 @@ describe("PersistenceManager file fallback", () => {
         name: "One",
         gold: 5,
         inventory: [{ id: "x" }],
-        equipment: { weapon: null, armor: null },
+        equipment: { weapon: null, armor: null, offHand: null },
         isOffline: true,
         state: "run",
         position: { x: 1, y: 2, z: 0 },

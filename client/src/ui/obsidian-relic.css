@@ -31,6 +31,7 @@
     border-left: 4px solid var(--primary-gold);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
     padding: 20px;
+    pointer-events: auto;
 }
 
 .obsidian-relic .progress-bar-container {
@@ -167,11 +168,6 @@
 
 @media (max-width: 900px) {
     .obsidian-relic .panel {
-        width: 90% !important;
-        left: 5% !important;
-        right: 5% !important;
-        top: 10% !important;
-        max-height: 80% !important;
         padding: 15px;
     }
 

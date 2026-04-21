@@ -14,6 +14,7 @@ export class PlayerSystem {
       maxHealth: 100,
       dead: false,
       deathAt: 0,
+      totalDeaths: 0,
       stamina: 100,
       maxStamina: 100,
       mana: 25,
@@ -23,9 +24,16 @@ export class PlayerSystem {
       quests: [],
       skills: { combat: { level: 1 } },
       inventory: [],
+      gearInventory: [] as unknown[],
+      lootPity: { killsSinceLegendary: 0, killsSinceSet: 0 },
+      lootFilter: {
+        showRarities: ["magic", "rare", "legendary", "set"],
+        autoPickupStackIds: [] as string[],
+      },
       equipment: {
         weapon: null,
-        armor: null
+        armor: null,
+        offHand: null,
       },
       faction: null,
       civilization: null,
@@ -41,6 +49,25 @@ export class PlayerSystem {
       combatTargetNpcId: null as string | null,
       /** skillId -> cooldown end timestamp (ms) */
       skillCooldowns: {} as Record<string, number>,
+      /** Unlockable gameplay skill progression */
+      impactBusterUnlocked: false,
+      /** Worldboss progression + anti-duplicate reward history */
+      worldBossProgress: {
+        firstClearAt: 0,
+        totalClears: 0,
+        clearedDungeonIds: [] as string[],
+        rewardHistory: [] as string[],
+      },
+      /** Server-side safe fallback queue for rewards when direct grant fails */
+      pendingRewards: [] as unknown[],
+      /** Toplist voting history/sessions/buff stacking state (server-authoritative). */
+      voteProgress: {
+        lastClaimByBanner: {} as Record<string, number>,
+        pendingSessions: [] as unknown[],
+        activeBuffBlocks: [] as unknown[],
+        rewardHistory: [] as unknown[],
+        auditLog: [] as unknown[],
+      },
     };
     this.players.set(id, player);
     return player;

@@ -1,5 +1,47 @@
 import { MMORPGClientCore } from "../core/MMORPGClientCore";
 import { wantsMobileNetworkHints } from "../ui/touchUi";
+import { applyStatsPayload } from "../state/playerState";
+import { onChatMessage } from "../ui/chat";
+import { setMinimapLocalPlayer, updateMinimapEntities } from "../ui/minimap";
+import { showDeathScreen, hideDeathScreen } from "../ui/deathScreen";
+import { showNotification, notifySuccess, notifyWarn } from "../ui/notifications";
+import { applyPartySync } from "../state/partyState";
+import { spawnFloatingNumber } from "../ui/floatingNumbers";
+import { IMPACT_BUSTER_SKILL_ID } from "../game/impactBusterConfig";
+import { setMobileImpactButtonState } from "../ui/mobileControls";
+import { isImpactBusterUnlocked } from "../state/playerState";
+import {
+  pushEntitySyncToGameHud,
+  pushGameHudConnected,
+  pushLootDespawnedToGameHud,
+  pushLootSpawnedToGameHud,
+  pushProtocolMsgToGameHud,
+} from "../ui/gameHudBridge";
+import { applyQuestlineFeatures, applyQuestlineState } from "../state/questlineState";
+
+let lastImpactPulseAt = 0;
+
+function triggerImpactLocalPulse(at?: { x?: number; y?: number }, radius?: number) {
+  const now = Date.now();
+  if (now - lastImpactPulseAt < 120) return;
+  lastImpactPulseAt = now;
+  const gameCore = (window as any).gameCore as
+    | { pulseScreenShakeAndFlash?: () => void }
+    | undefined;
+  if (typeof gameCore?.pulseScreenShakeAndFlash === "function") {
+    gameCore.pulseScreenShakeAndFlash();
+  }
+  window.dispatchEvent(
+    new CustomEvent("areloria:impact-buster-pulse", {
+      detail: {
+        at: now,
+        x: Number(at?.x ?? 0),
+        y: Number(at?.y ?? 0),
+        radius: Number(radius ?? 5.5),
+      },
+    }),
+  );
+}
 
 let globalWs: WebSocket | null = null;
 const DEFAULT_SCENE_ID = "didis_hub";
@@ -10,11 +52,15 @@ let authTokenProvider: (() => Promise<string | null>) | null = null;
 /** Last connectSocket target so we can reconnect after Google login refreshes the JWT. */
 let reconnectTarget: { core: MMORPGClientCore; options: ConnectionOptions } | null = null;
 
+export type InteractWirePayload =
+  | { kind: "npc"; npcId: string }
+  | { kind: "loot"; lootId: string };
+
 type BoundWsHandlers = {
   core: MMORPGClientCore;
   onInput: (input: any) => void;
   onAttack: () => void;
-  onInteract: () => void;
+  onInteract: (payload?: InteractWirePayload) => void;
 };
 let boundWsHandlers: BoundWsHandlers | null = null;
 let wsConnectionGeneration = 0;
@@ -281,6 +327,7 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
   ws.onopen = async () => {
     if (myGen !== wsConnectionGeneration || ws !== globalWs) return;
     console.log("Connected to Arelorian Server");
+    pushGameHudConnected(false);
     emitNetStatus("connected", "Connected. Waiting for world login...");
     const token = await resolveTokenForLogin(options.token);
     let guestId: string | undefined;
@@ -320,10 +367,15 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         ws.send(JSON.stringify({ type: "attack" }));
       }
     };
-    const onInteract = () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "interact" }));
+    const onInteract = (detail?: InteractWirePayload) => {
+      if (ws.readyState !== WebSocket.OPEN) return;
+      const payload: Record<string, unknown> = { type: "interact" };
+      if (detail?.kind === "loot") {
+        payload.lootId = detail.lootId;
+      } else if (detail?.kind === "npc") {
+        payload.npcId = detail.npcId;
       }
+      ws.send(JSON.stringify(payload));
     };
     boundWsHandlers = { core, onInput, onAttack, onInteract };
     core.events.on("input", onInput);
@@ -341,12 +393,11 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         console.error("[WS] Server error:", errorMessage, errCode ? `(${errCode})` : "");
         emitNetStatus("error", errorMessage);
         const loginError = /login/i.test(errorMessage) || errCode === "invalid_token" || errCode === "login_required";
-        const badFirebaseToken =
+        const badToken =
           errCode === "invalid_token" ||
-          /invalid or expired token/i.test(errorMessage) ||
-          /firebase sign-in required/i.test(errorMessage);
+          /invalid or expired token/i.test(errorMessage);
         if (
-          (loginError || badFirebaseToken) &&
+          (loginError || badToken) &&
           !attemptedAnonymousFallback &&
           ws.readyState === WebSocket.OPEN
         ) {
@@ -358,8 +409,8 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
           }
           emitNetStatus(
             "warning",
-            badFirebaseToken
-              ? "Anmelde-Token ungültig oder abgelaufen — neuer Versuch (bitte ggf. erneut bei Google anmelden)."
+            badToken
+              ? "Login token invalid or expired — retrying."
               : "Token rejected. Retrying login without token..."
           );
           sendLogin(undefined);
@@ -367,8 +418,14 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         return;
       }
       if (data.type === 'entity_sync') {
-        if (typeof data.areMode === "string") {
-          core.setAREMode(data.areMode);
+        const nextAreMode =
+          typeof data.recommendedAreMode === "string"
+            ? data.recommendedAreMode
+            : typeof data.areMode === "string"
+              ? data.areMode
+              : null;
+        if (typeof nextAreMode === "string") {
+          core.setAREMode(nextAreMode);
         }
         emitNetStatus("sync", "World synchronized.");
         if (data.entities) {
@@ -378,6 +435,8 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
             are: normalizeAREPayload(entity.are),
           }));
           core.syncEntities(normalizedEntities);
+          updateMinimapEntities(normalizedEntities);
+          pushEntitySyncToGameHud(normalizedEntities);
         }
         if (data.chunks) core.syncChunks(data.chunks);
       }
@@ -388,6 +447,15 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         console.log(`Welcome to Areloria! Your ID: ${data.playerId}`);
         welcomeReceived = true;
         emitNetStatus("welcome", "Joined world.");
+        const initialAreMode =
+          typeof data.recommendedAreMode === "string"
+            ? data.recommendedAreMode
+            : typeof data.areMode === "string"
+              ? data.areMode
+              : null;
+        if (typeof initialAreMode === "string") {
+          core.setAREMode(initialAreMode);
+        }
         const localPlayerId = data.playerId || data.id;
         if (
           typeof localPlayerId === "string" &&
@@ -401,6 +469,36 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
           }
         }
         core.setLocalPlayer(localPlayerId);
+        setMinimapLocalPlayer(typeof localPlayerId === "string" ? localPlayerId : null);
+        if (typeof localPlayerId === "string" && localPlayerId.length > 0) {
+          try {
+            window.dispatchEvent(
+              new CustomEvent("areloria:local-player-id", { detail: { playerId: localPlayerId } })
+            );
+          } catch {
+            /* ignore */
+          }
+        }
+        pushGameHudConnected(true);
+        if (data.stats && typeof data.stats === "object") {
+          applyStatsPayload(data.stats);
+          const cooldowns = data.stats.skillCooldownUntil && typeof data.stats.skillCooldownUntil === "object"
+            ? data.stats.skillCooldownUntil
+            : {};
+          const impactUntil = Number(cooldowns[IMPACT_BUSTER_SKILL_ID] ?? 0);
+          const left = impactUntil > Date.now() ? impactUntil - Date.now() : 0;
+          setMobileImpactButtonState({
+            unlocked: typeof data.stats.impactBusterUnlocked === "boolean"
+              ? data.stats.impactBusterUnlocked
+              : isImpactBusterUnlocked(),
+            cooldownRemainingMs: left,
+          });
+        }
+        window.setTimeout(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "quest_sync", questlineId: "mainline_awakening" }));
+          }
+        }, 0);
         const spawnPos = toEntityPosition(data.spawnPosition);
         if (spawnPos && localPlayerId) {
           core.syncEntities([
@@ -421,6 +519,52 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
           });
         }
       }
+      if (data.type === "stats_sync") {
+        applyStatsPayload(data);
+        const cooldowns = data.skillCooldownUntil && typeof data.skillCooldownUntil === "object"
+          ? data.skillCooldownUntil
+          : {};
+        const impactUntil = Number(cooldowns[IMPACT_BUSTER_SKILL_ID] ?? 0);
+        const left = impactUntil > Date.now() ? impactUntil - Date.now() : 0;
+        setMobileImpactButtonState({
+          unlocked: typeof data.impactBusterUnlocked === "boolean"
+            ? data.impactBusterUnlocked
+            : isImpactBusterUnlocked(),
+          cooldownRemainingMs: left,
+        });
+      }
+      if (data.type === "questline_state") {
+        applyQuestlineState(data);
+      }
+      if (data.type === "questline_features") {
+        const unlocked = applyQuestlineFeatures(data);
+        if (unlocked.length) {
+          notifySuccess(unlocked.join(", "), { title: "Questline" });
+        }
+      }
+      if (data.type === "chat_message") {
+        const payload = data.payload && typeof data.payload === "object" ? data.payload : data;
+        onChatMessage({
+          senderName:
+            typeof payload.senderName === "string"
+              ? payload.senderName
+              : typeof payload.sender === "string"
+                ? payload.sender
+                : "Unknown",
+          text: typeof payload.text === "string" ? payload.text : "",
+          scope:
+            typeof payload.scope === "string"
+              ? payload.scope
+              : typeof payload.channel === "string"
+                ? payload.channel
+                : "global",
+          channel: typeof payload.channel === "string" ? payload.channel : undefined,
+          senderType: typeof payload.senderType === "string" ? payload.senderType : undefined,
+          npcId: typeof payload.npcId === "string" ? payload.npcId : undefined,
+          ts: Number(payload.ts),
+          timestamp: Number(payload.timestamp),
+        });
+      }
       if (data.type === 'scene_changed') {
         const localPlayerId = core.getLocalPlayerId();
         const spawnPos = toEntityPosition(data.spawnPosition);
@@ -440,6 +584,96 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
           spawnKey: data.spawnKey,
           spawnPosition: data.spawnPosition,
         });
+      }
+      if (data.type === "toast") {
+        const kind = typeof data.kind === "string" ? data.kind : "info";
+        const text = typeof data.text === "string" ? data.text : "";
+        const tone =
+          kind === "err" ? "error" : kind === "ok" ? "success" : kind === "warn" ? "warn" : "info";
+        showNotification(text, tone);
+      }
+      if (data.type === "fx") {
+        const cx = window.innerWidth / 2;
+        const cy = window.innerHeight / 2;
+        spawnFloatingNumber(cx + (Math.random() - 0.5) * 80, cy - 40, data.kind, data.n);
+        pushProtocolMsgToGameHud(data);
+      }
+      if (data.type === "impact_buster_fx") {
+        const at =
+          data.at && typeof data.at === "object"
+            ? {
+                x: Number((data.at as Record<string, unknown>).x ?? 0),
+                y: Number((data.at as Record<string, unknown>).y ?? 0),
+              }
+            : undefined;
+        const radius = Number(data.radius ?? 5.5);
+        triggerImpactLocalPulse(at, radius);
+        pushProtocolMsgToGameHud(data);
+      }
+      if (data.type === "worldboss_entered") {
+        notifySuccess("Worldboss Dungeon betreten.", { title: "Worldboss" });
+        pushProtocolMsgToGameHud(data);
+      }
+      if (data.type === "worldboss_spawned" || data.type === "worldboss_defeated") {
+        pushProtocolMsgToGameHud(data);
+      }
+      if (data.type === "worldboss_encounter_update" || data.type === "worldboss_ranking") {
+        pushProtocolMsgToGameHud(data);
+      }
+      if (
+        data.type === "vote_status" ||
+        data.type === "vote_banners" ||
+        data.type === "vote_session_opened" ||
+        data.type === "vote_verify_result" ||
+        data.type === "vote_claim_result"
+      ) {
+        pushProtocolMsgToGameHud(data);
+      }
+      if (data.type === "combat_result") {
+        const cx = window.innerWidth / 2;
+        const cy = window.innerHeight / 2;
+        const kind = data.crit ? "crit" : data.hit ? "hit" : "miss";
+        spawnFloatingNumber(cx + (Math.random() - 0.5) * 60, cy - 60, kind, data.damage);
+        pushProtocolMsgToGameHud(data);
+      }
+      if (data.type === "loot_spawned") {
+        notifyWarn("Loot dropped nearby!", { title: "Beute" });
+        if (data.loot) pushLootSpawnedToGameHud(data.loot);
+      }
+      if (data.type === "loot_despawned" && typeof data.lootId === "string") {
+        pushLootDespawnedToGameHud(data.lootId);
+      }
+      if (data.type === "loot_picked") {
+        const items = Array.isArray(data.items) ? data.items : [];
+        for (const it of items) {
+          if (it.name) notifySuccess(`+${it.qty}x ${it.name}`, { title: "Eingesammelt" });
+        }
+        if (typeof data.gold === "number" && data.gold > 0) {
+          spawnFloatingNumber(window.innerWidth / 2, window.innerHeight / 2 - 30, "gold", data.gold);
+        }
+      }
+      if (data.type === "player_died") {
+        const ms = typeof data.respawnInMs === "number" ? data.respawnInMs : 8000;
+        showDeathScreen(ms);
+      }
+      if (data.type === "player_respawned") {
+        hideDeathScreen();
+        const localPlayerId = core.getLocalPlayerId();
+        if (localPlayerId && typeof data.x === "number" && typeof data.z === "number") {
+          core.syncEntities([{
+            id: localPlayerId,
+            type: "player",
+            position: { x: data.x, y: 0, z: data.z },
+            rotation: { x: 0, y: 0, z: 0 },
+            visible: true,
+          }]);
+        }
+        if (typeof data.label === "string") {
+          notifySuccess(`Respawned at ${data.label}`, { title: "Respawn" });
+        }
+      }
+      if (data.type === "party_sync") {
+        applyPartySync(data);
       }
       if (data.type === 'dialogue') {
         core.handleDialogue({
@@ -463,6 +697,7 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
 
   ws.onclose = () => {
     if (myGen !== wsConnectionGeneration) return;
+    pushGameHudConnected(false);
     emitNetStatus("closed", "Disconnected from game server.");
   };
 }
@@ -492,9 +727,9 @@ export function requestQuestSync() {
   }
 }
 
-export function sendChatMessage(text: string) {
+export function sendChatMessage(text: string, channel: string = "global") {
   if (globalWs && globalWs.readyState === WebSocket.OPEN) {
-    globalWs.send(JSON.stringify({ type: 'chat_message', text }));
+    globalWs.send(JSON.stringify({ type: "chat_send", channel, text }));
   }
 }
 
@@ -516,11 +751,21 @@ export function sendPickupLoot(lootId: string) {
   sendCommand("pickup_loot", { lootId });
 }
 
+export function sendEquipGear(itemUid: string) {
+  sendCommand("equip_gear", { itemUid });
+}
+
+export function sendQuestlineSync(questlineId = "mainline_awakening") {
+  if (globalWs && globalWs.readyState === WebSocket.OPEN) {
+    globalWs.send(JSON.stringify({ type: "quest_sync", questlineId }));
+  }
+}
+
 export function sendEquipItem(itemId: string) {
   sendCommand("equip_item", { itemId });
 }
 
-export function sendUnequipItem(slot: "weapon" | "armor") {
+export function sendUnequipItem(slot: "weapon" | "armor" | "offHand") {
   sendCommand("unequip_item", { slot });
 }
 
@@ -538,6 +783,26 @@ export function sendSplitStack(rowIndex: number, amount: number) {
 
 export function sendUseSkill(skillId: string) {
   sendCommand("use_skill", { skillId });
+}
+
+export function requestVoteBanners() {
+  sendCommand("vote_banners", {});
+}
+
+export function requestVoteStatus() {
+  sendCommand("vote_status", {});
+}
+
+export function openVoteSession(bannerId: string) {
+  sendCommand("vote_open", { bannerId });
+}
+
+export function verifyVoteSession(sessionId: string) {
+  sendCommand("vote_verify", { sessionId });
+}
+
+export function claimVoteSession(sessionId: string) {
+  sendCommand("vote_claim", { sessionId });
 }
 
 export const sendMessage = sendCommand;
