@@ -96,14 +96,19 @@ let initPromise: Promise<SupabaseClient | null> | null = null;
  * GoTrue expects grant_type in the query string, but Supabase client sends it in the body.
  */
 async function customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  console.log('[customFetch] Called with:', { input, method: init?.method, hasBody: !!init?.body });
+  
   // Only transform POST requests to /auth/v1/token
   if (init?.method === 'POST' && typeof input === 'string' && input.includes('/auth/v1/token')) {
+    console.log('[customFetch] Transforming auth request');
     try {
       const url = new URL(input);
       const body = init.body ? JSON.parse(init.body as string) : {};
+      console.log('[customFetch] Parsed body:', body);
       
       // If grant_type is in the body, move it to the query string
       if (body.grant_type) {
+        console.log('[customFetch] Moving grant_type to query string:', body.grant_type);
         url.searchParams.set('grant_type', body.grant_type);
         delete body.grant_type;
         
@@ -117,7 +122,10 @@ async function customFetch(input: RequestInfo | URL, init?: RequestInit): Promis
           },
         };
         
+        console.log('[customFetch] Transformed request:', { url: url.toString(), body });
         return fetch(url.toString(), newInit);
+      } else {
+        console.log('[customFetch] No grant_type in body, using original request');
       }
     } catch (e) {
       // If parsing fails, just use the original request
