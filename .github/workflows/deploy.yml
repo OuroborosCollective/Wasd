@@ -93,7 +93,12 @@ jobs:
             export POOLER_PROXY_PORT_TRANSACTION="${POOLER_PROXY_PORT_TRANSACTION:-}"
             export SUPABASE_PROXY_URL="${SUPABASE_PROXY_URL:-http://supabase.arelogic.space:8000}"
             export GAME_ORIGIN="${GAME_ORIGIN:-https://arelogic.space}"
-            # Public Supabase URL the browser can reach (for VITE_SUPABASE_URL at build time)
+            # VITE_SUPABASE_URL is baked into the client at build time.
+            # It MUST point to the game origin (server proxy), NOT directly to GoTrue/Congress,
+            # because the browser cannot reach Supabase services directly (CORS + network).
+            # Auth requests go to /auth/v1/* on the game server, which proxies to GoTrue.
+            export VITE_SUPABASE_URL="${VITE_SUPABASE_URL:-${GAME_ORIGIN:-https://arelogic.space}}"
+            # Server-side Supabase URLs (used by the backend, NOT the browser)
             export SUPABASE_PUBLIC_URL="${SUPABASE_PUBLIC_URL:-https://supabase.arelogic.space:8443}"
             export SUPABASE_URL="${SUPABASE_URL:-https://supabase.arelogic.space:8443}"
             # Construct DATABASE_URL from individual PG secrets if not set directly
