@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { PersistenceManager } from '../../core/PersistenceManager.js';
+import { resolveContentFile } from '../content/contentDataRoot.js';
 
 export interface WorldObject {
   id: string;
@@ -19,7 +20,7 @@ export class WorldObjectSystem {
 
   constructor(persistence?: PersistenceManager) {
     this.persistence = persistence || null;
-    this.dataPath = path.resolve(process.cwd(), "game-data/world/objects.json");
+    this.dataPath = resolveContentFile("world/objects.json");
     this.load();
   }
 
@@ -47,14 +48,13 @@ export class WorldObjectSystem {
   }
 
   private async load() {
-    // 1. Try Firestore first if available
+    // 1. Try persistence backend first if available
     if (this.persistence) {
-      const firestoreObjects = await this.persistence.loadWorldObjects();
-      if (firestoreObjects && firestoreObjects.length > 0) {
-        for (const obj of firestoreObjects) {
+      const persistedObjects = await this.persistence.loadWorldObjects();
+      if (persistedObjects && persistedObjects.length > 0) {
+        for (const obj of persistedObjects) {
           this.objects.set(obj.id, obj);
         }
-        console.log(`Loaded ${firestoreObjects.length} world objects from Firestore.`);
         return;
       }
     }
@@ -73,7 +73,7 @@ export class WorldObjectSystem {
   }
 
   private async save() {
-    // 1. Save to Firestore if available
+    // 1. Save to persistence backend if available
     if (this.persistence) {
       await this.persistence.saveWorldObjects(this.getAllObjects());
     }

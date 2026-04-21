@@ -4,17 +4,36 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "node ../scripts/sync-world-assets.mjs",
+    "prebuild": "node ../scripts/sync-world-assets.mjs",
     "dev": "vite",
-    "build": "vite build",
+    "build": "node --max-old-space-size=6144 ./node_modules/vite/bin/vite.js build || node --max-old-space-size=6144 ../node_modules/vite/bin/vite.js build",
+    "build:itch": "node --max-old-space-size=6144 ./node_modules/vite/bin/vite.js build --mode itch || node --max-old-space-size=6144 ../node_modules/vite/bin/vite.js build --mode itch",
     "preview": "vite preview"
   },
   "dependencies": {
-    "firebase": "^11.0.0",
-    "three": "^0.169.0"
+    "@supabase/supabase-js": "^2.103.2",
+    "@babylonjs/core": "^9.0.0",
+    "@babylonjs/loaders": "^9.0.0",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "three": "^0.183.2",
+    "@babylonjs/gui": "^9.0.0",
+    "@babylonjs/inspector": "^9.0.0",
+    "@babylonjs/havok": "^1.3.12",
+    "@babylonjs/addons": "^9.0.0",
+    "@babylonjs/materials": "^9.0.0",
+    "recast-detour": "^1.6.4"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.11",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
     "@types/three": "^0.183.1",
-    "typescript": "^5.6.0",
-    "vite": "^5.4.0"
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.11",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.8"
   }
 }

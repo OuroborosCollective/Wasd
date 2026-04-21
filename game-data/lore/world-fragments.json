@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "fragments": [
+    {
+      "id": "ouroboros_ring",
+      "title": { "de": "Der Ring der Ouroboros", "en": "The Ouroboros Ring" },
+      "text": {
+        "de": "Wo der Schwanz den Kopf berührt, endet kein Weg — die Welt speichert jeden Schritt zweimal: einmal im Staub, einmal im Echo der Server.",
+        "en": "Where tail meets head, no road truly ends — the world remembers each footfall twice: once in dust, once in the server’s echo."
+      },
+      "tags": ["meta", "hub", "cycle"],
+      "mood": "mysterious"
+    },
+    {
+      "id": "didis_hub_dawn",
+      "title": { "de": "Dämmerung über Didis Hub", "en": "Dawn over Didi's Hub" },
+      "text": {
+        "de": "Laternen flackern noch, während die ersten Spieler spawnen. Der Nebel riecht nach warmem Kupfer und kalten Promises.",
+        "en": "Lanterns still flicker as the first players spawn. The fog smells of warm copper and cold promises."
+      },
+      "tags": ["hub", "atmosphere", "players"],
+      "mood": "bittersweet"
+    },
+    {
+      "id": "merchant_crows",
+      "title": { "de": "Die Raben-Bilanz", "en": "The Crow Ledger" },
+      "text": {
+        "de": "Jeder Händler hier führt unsichtbare Bücher; die Raben sind nur die Buchhalter, die laut kichern, wenn Gold die Hand wechselt.",
+        "en": "Every merchant keeps invisible ledgers; the crows are merely accountants who cackle when gold changes hands."
+      },
+      "tags": ["economy", "npc", "birds"],
+      "mood": "wry"
+    },
+    {
+      "id": "loot_breath",
+      "title": { "de": "Atem der Truhen", "en": "Breath of the Chests" },
+      "text": {
+        "de": "Beute ruht nicht — sie wartet in einem Radius, den Code und Instinkt gleichermaßen messen. Wer näher tritt, hört den leisen Klick des Zufalls.",
+        "en": "Loot does not sleep — it waits inside a radius that code and instinct measure alike. Step closer and you hear the soft click of chance."
+      },
+      "tags": ["loot", "interact", "rng"],
+      "mood": "tense"
+    },
+    {
+      "id": "questline_thread",
+      "title": { "de": "Faden der Questlinien", "en": "Thread of the Questlines" },
+      "text": {
+        "de": "Manche Geschichten weben sich selbst: Knoten aus Daten, Quasten aus Entscheidungen. Ein Ruck am Faden, und eine ganze Region zuckt mit.",
+        "en": "Some stories weave themselves: knots of data, tassels of choices. Tug one thread and a whole region shudders along."
+      },
+      "tags": ["quests", "procedural", "world"],
+      "mood": "epic"
+    }
+  ]
+}

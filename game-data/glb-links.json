@@ -2,16 +2,256 @@
   {
     "glbPath": "/assets/models/characters/uschi.glb",
     "targetType": "npc_single",
+    "targetId": "npc_guide"
+  },
+  {
+    "glbPath": "/assets/models/characters/Npc_warrior.glb",
+    "targetType": "npc_single",
     "targetId": "npc_1"
   },
   {
-    "glbPath": "/assets/models/monsters/goblin.glb",
-    "targetType": "monster_group",
+    "glbPath": "/assets/models/world-assets/characters/npc_valkyrie.glb",
+    "targetType": "npc_single",
+    "targetId": "npc_2"
+  },
+  {
+    "glbPath": "/assets/models/characters/Npc_warrior.glb",
+    "targetType": "npc_single",
+    "targetId": "npc_dummy"
+  },
+  {
+    "glbPath": "/assets/models/characters/Npc_warrior.glb",
+    "targetType": "npc_single",
+    "targetId": "npc_3"
+  },
+  {
+    "glbPath": "/assets/models/characters/Npc_warrior.glb",
+    "targetType": "npc_single",
+    "targetId": "npc_4"
+  },
+  {
+    "glbPath": "/assets/models/characters/Npc_warrior.glb",
+    "targetType": "npc_single",
+    "targetId": "npc_5"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/monsters/goblin.glb",
+    "targetType": "npc_single",
     "targetId": "npc_wolf"
   },
   {
-    "glbPath": "/assets/models/objects/chest.glb",
+    "glbPath": "/assets/models/world-assets/characters/npc_valkyrie.glb",
+    "targetType": "npc_single",
+    "targetId": "npc_6_hermit"
+  },
+  {
+    "glbPath": "/assets/models/characters/Questnpc_uschi.glb",
+    "targetType": "npc_single",
+    "targetId": "npc_7_merchant"
+  },
+  {
+    "glbPath": "/assets/models/characters/Questnpc_uschi.glb",
+    "targetType": "npc_single",
+    "targetId": "npc_8_apprentice"
+  },
+  {
+    "glbPath": "/assets/models/kaykit/adventurers/sword_1handed.gltf",
     "targetType": "object_single",
     "targetId": "starter_sword"
+  },
+  {
+    "glbPath": "/assets/models/props/portal.glb",
+    "targetType": "object_single",
+    "targetId": "obj_worldboss_portal_obsidian"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/characters/player_warrior.glb",
+    "targetType": "player_default",
+    "targetId": "warrior"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/characters/player_mage.glb",
+    "targetType": "player_default",
+    "targetId": "mage"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/characters/player_ranger.glb",
+    "targetType": "player_default",
+    "targetId": "ranger"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/characters/npc_guard.glb",
+    "targetType": "npc_single",
+    "targetId": "npc_guard"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/characters/npc_merchant.glb",
+    "targetType": "npc_single",
+    "targetId": "npc_merchant"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/characters/npc_blacksmith.glb",
+    "targetType": "npc_single",
+    "targetId": "npc_blacksmith"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/monsters/wolf_red.glb",
+    "targetType": "monster",
+    "targetId": "wolf_red"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/monsters/bear_brown.glb",
+    "targetType": "monster",
+    "targetId": "bear_brown"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/monsters/skeleton_warrior.glb",
+    "targetType": "monster",
+    "targetId": "skeleton_warrior"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/monsters/orc_grunt.glb",
+    "targetType": "monster",
+    "targetId": "orc_grunt"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/buildings/house_small.glb",
+    "targetType": "world_object",
+    "targetId": "house_small"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/buildings/house_medium.glb",
+    "targetType": "world_object",
+    "targetId": "house_medium"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/buildings/tavern.glb",
+    "targetType": "world_object",
+    "targetId": "tavern"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/buildings/shop.glb",
+    "targetType": "world_object",
+    "targetId": "shop"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/buildings/blacksmith.glb",
+    "targetType": "world_object",
+    "targetId": "blacksmith"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/buildings/castle_tower.glb",
+    "targetType": "world_object",
+    "targetId": "castle_tower"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/buildings/castle_keep.glb",
+    "targetType": "world_object",
+    "targetId": "castle_keep"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/props/wall_straight.glb",
+    "targetType": "world_object",
+    "targetId": "wall_straight"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/props/wall_gate.glb",
+    "targetType": "world_object",
+    "targetId": "wall_gate"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/props/dungeon_entrance.glb",
+    "targetType": "world_object",
+    "targetId": "dungeon_entrance"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/props/dungeon_corridor.glb",
+    "targetType": "world_object",
+    "targetId": "dungeon_corridor"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/props/dungeon_room.glb",
+    "targetType": "world_object",
+    "targetId": "dungeon_room"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/props/road_straight.glb",
+    "targetType": "world_object",
+    "targetId": "road_straight"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/props/road_corner.glb",
+    "targetType": "world_object",
+    "targetId": "road_corner"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/props/road_junction.glb",
+    "targetType": "world_object",
+    "targetId": "road_junction"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/props/road_crossroads.glb",
+    "targetType": "world_object",
+    "targetId": "road_crossroads"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/props/tree_oak.glb",
+    "targetType": "world_object",
+    "targetId": "tree_oak"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/props/tree_pine.glb",
+    "targetType": "world_object",
+    "targetId": "tree_pine"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/props/rock_large.glb",
+    "targetType": "world_object",
+    "targetId": "rock_large"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/props/well.glb",
+    "targetType": "world_object",
+    "targetId": "well"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/equipment/weapons/sword_iron.glb",
+    "targetType": "object_single",
+    "targetId": "sword_iron"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/equipment/weapons/axe_battle.glb",
+    "targetType": "object_single",
+    "targetId": "axe_battle"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/equipment/weapons/staff_mage.glb",
+    "targetType": "object_single",
+    "targetId": "staff_mage"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/props/potion_health.glb",
+    "targetType": "object_single",
+    "targetId": "potion_health"
+  },
+  {
+    "glbPath": "/assets/models/world-assets/props/chest_treasure.glb",
+    "targetType": "object_single",
+    "targetId": "chest_treasure"
+  },
+  {
+    "glbPath": "/assets/models/buildings/village_house_small.glb",
+    "targetType": "world_object",
+    "targetId": "house_village_small"
+  },
+  {
+    "glbPath": "/assets/models/buildings/village_house_medium.glb",
+    "targetType": "world_object",
+    "targetId": "house_village_medium"
+  },
+  {
+    "glbPath": "/assets/models/buildings/village_shop_general.glb",
+    "targetType": "world_object",
+    "targetId": "shop_general"
   }
 ]

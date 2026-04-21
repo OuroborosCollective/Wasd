@@ -29,6 +29,8 @@ jobs:
         run: npm install --prefix client
       
       - name: Build
+        env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
         run: |
           npm run build --prefix client
           npm run build --prefix server

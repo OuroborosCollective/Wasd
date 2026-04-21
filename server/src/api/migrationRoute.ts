@@ -1,10 +1,11 @@
 import { Router } from 'express';
+import { adminAuthMiddleware } from '../middleware/adminAuthMiddleware.js';
 import { db as pgDb } from '../core/Database.js';
 import { db as firestoreDb } from '../config/firebase.js';
 
 const router = Router();
 
-router.get('/migrate', async (req, res) => {
+router.post('/migrate', adminAuthMiddleware, async (req, res) => {
   try {
     console.log('Starting full migration from PostgreSQL to Firestore...');
     const results: any = {};

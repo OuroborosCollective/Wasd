@@ -1,74 +1,255 @@
-import { initRenderer } from "./engine/renderer";
-import { connectSocket } from "./networking/websocketClient";
-import { renderHUD } from "./ui/hud";
-import { renderAuthUI, renderLogoutBtn } from "./ui/auth";
+import "./styles/tailwind.css";
+import { createBabylonApp } from "./engine/babylon/BabylonBoot";
+import { BabylonAdapter } from "./engine/babylon/BabylonAdapter";
+import { MMORPGClientCore } from "./core/MMORPGClientCore";
+import { connectSocket, requestSceneChange, sendCommand, type ConnectionOptions } from "./networking/websocketClient";
+import { IEngineBridge } from "./engine/bridge/IEngineBridge";
+import { renderHUD, showDialogue } from "./ui/hud";
+import { mountGameHudOverlay } from "./ui/mountGameHudOverlay";
+import { initSupabaseClient, getSupabaseClientSync } from "./auth/supabase";
+import { getJoystickState, initMobileControls, isMobile } from "./ui/mobileControls";
+import { openEquipmentPanel, openInventory, openQuestLog, openSkillsPanel } from "./ui/lazyPanels";
+import { getQuickCastSkillId } from "./game/combatSkills";
+import { triggerImpactBusterClientGuard } from "./game/impactBuster";
+import { performanceMonitor } from "./utils/PerformanceMonitor";
+import { resolveGameAuthProvider } from "./config/gameAuth";
+import { initChat, focusChatInput } from "./ui/chat";
+import { initMinimap, toggleMinimapVisibility } from "./ui/minimap";
+import { worldService } from "./game/world/services";
 
-// Global error logger for debugging white screen
-window.onerror = (msg, url, line, col, error) => {
-  const errDiv = document.createElement("div");
-  errDiv.style.position = "fixed";
-  errDiv.style.top = "0";
-  errDiv.style.left = "0";
-  errDiv.style.width = "100%";
-  errDiv.style.padding = "20px";
-  errDiv.style.background = "red";
-  errDiv.style.color = "white";
-  errDiv.style.zIndex = "9999";
-  errDiv.style.fontFamily = "monospace";
-  errDiv.style.whiteSpace = "pre-wrap";
-  errDiv.innerText = `CLIENT ERROR: ${msg}\nAt: ${url}:${line}:${col}\nStack: ${error?.stack}`;
-  document.body.appendChild(errDiv);
+type AREPolicyConfig = {
+  cooldownMs?: number;
+  lowFpsThreshold?: number;
+  stableFpsThreshold?: number;
+  lowSampleTrigger?: number;
+  stableSampleTrigger?: number;
 };
 
-const canvas = document.createElement("canvas");
+let canvas = document.getElementById("application-canvas") as HTMLCanvasElement;
+if (!canvas) {
+  canvas = document.createElement("canvas");
+  canvas.id = "application-canvas";
+  document.body.appendChild(canvas);
+}
 document.body.style.margin = "0";
-document.body.style.backgroundColor = "#111"; // Set a dark background so we know if script started
-document.body.appendChild(canvas);
+document.body.style.overflow = "hidden";
+canvas.style.width = "100vw";
+canvas.style.height = "100vh";
+canvas.style.display = "block";
 
-console.log("Main script starting...");
-
-let gameInitialized = false;
-
-// ── Keyboard shortcuts ───────────────────────────────────────────────────
-window.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") {
-    // Hide panels if they exist
-    const panels = ["inventory-panel", "skills-panel", "quests-panel", "map-panel", "dialogue-box"];
-    panels.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.display = "none";
-    });
+function showBootStatus(message: string, tone: "info" | "warn" | "error" | "ok" = "warn") {
+  let status = document.getElementById("boot-status-banner") as HTMLDivElement | null;
+  if (!status) {
+    status = document.createElement("div");
+    status.id = "boot-status-banner";
+    status.style.position = "fixed";
+    status.style.left = "12px";
+    status.style.bottom = "12px";
+    status.style.zIndex = "9999";
+    status.style.padding = "8px 10px";
+    status.style.background = "rgba(0,0,0,0.72)";
+    status.style.borderLeft = "3px solid #f27d26";
+    status.style.color = "#f7f7f7";
+    status.style.fontFamily = "sans-serif";
+    status.style.fontSize = "12px";
+    status.style.maxWidth = "520px";
+    document.body.appendChild(status);
   }
-});
+  status.style.borderLeft =
+    tone === "error"
+      ? "3px solid #ef4444"
+      : tone === "ok"
+        ? "3px solid #22c55e"
+        : tone === "info"
+          ? "3px solid #3b82f6"
+          : "3px solid #f27d26";
+  status.textContent = message;
+}
 
+function bootEngineBridge(targetCanvas: HTMLCanvasElement): IEngineBridge {
+  const app = createBabylonApp(targetCanvas, { skipGround: true });
+  (window as any).babylonScene = app.scene;
+  console.log("Renderer: Babylon (DynamicTerrain enabled)");
+  return new BabylonAdapter(app.scene, app.camera);
+}
+
+async function loadAREPolicyConfig(): Promise<AREPolicyConfig | undefined> {
+  try {
+    const response = await fetch("/world/are-performance-policy.json", { cache: "no-store" });
+    if (!response.ok) {
+      return undefined;
+    }
+    const parsed = await response.json();
+    if (!parsed || typeof parsed !== "object") {
+      return undefined;
+    }
+    return parsed as AREPolicyConfig;
+  } catch {
+    return undefined;
+  }
+}
+
+void (async () => {
 try {
-  renderAuthUI((token) => {
-    console.log("Auth UI callback triggered with token:", !!token);
-    if (!gameInitialized) {
-      gameInitialized = true;
-      try {
-        const callbacks = {
-          onAttack: () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "f", bubbles: true })),
-          onInteract: () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "e", bubbles: true })),
-          onEquip: () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "g", bubbles: true })),
-          onInventory: () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "i", bubbles: true })),
-          onQuests: () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "q", bubbles: true })),
-          onSkills: () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", bubbles: true })),
-          onMap: () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "m", bubbles: true })),
-          onChat: () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "t", bubbles: true }))
-        };
-        initRenderer(canvas, "Player", callbacks);
-        connectSocket(token);
-        renderHUD();
-        renderLogoutBtn();
-        console.log("Game systems initialized successfully");
-      } catch (e: any) {
-        console.error("Initialization error:", e);
-        window.onerror?.(e.message, "", 0, 0, e);
+  showBootStatus("Booting renderer...", "info");
+  // 1. Boot Engine + Adapter
+  const adapter = bootEngineBridge(canvas);
+  showBootStatus("Renderer ready. Connecting to world...", "info");
+
+  // Initialize world services (terrain, trees, physics, atmosphere, etc.)
+  try {
+    const scene = (window as any).babylonScene;
+    if (scene) {
+      // Find the camera in the scene
+      const camera = scene.activeCamera;
+      if (camera) {
+        await worldService.init(scene, camera);
+        console.log("[main] World services initialized.");
       }
     }
+  } catch (e) {
+    console.warn("[main] World service init failed (non-fatal):", e);
+  }
+
+  if (typeof window !== "undefined") {
+    window.addEventListener("areloria:net-status", (event: Event) => {
+      const custom = event as CustomEvent<{ kind?: string; message?: string }>;
+      const kind = String(custom.detail?.kind || "info");
+      const message = String(custom.detail?.message || "");
+      if (!message) return;
+      const tone: "info" | "warn" | "error" | "ok" =
+        kind === "error" || kind === "closed" ? "error" :
+        kind === "welcome" || kind === "sync" ? "ok" :
+        kind === "warning" ? "warn" : "info";
+      showBootStatus(`[NET:${kind}] ${message}`, tone);
+    });
+  }
+
+  // 2. Create Core
+  const core = new MMORPGClientCore(adapter);
+  (window as any).gameCore = core;
+  mountGameHudOverlay(core);
+  core.registerDefaultInput();
+
+  await initSupabaseClient();
+  // Legacy DOM HUD: Supabase sign-in + guest controls (React HUD has no auth forms).
+  renderHUD();
+
+  // 3. Connect Systems
+  const connectionOptions: ConnectionOptions = {};
+  let authProvider = resolveGameAuthProvider();
+  if (authProvider === "none" && getSupabaseClientSync()) {
+    authProvider = "supabase";
+  }
+  if (authProvider !== "none") {
+    let persistedToken: string | null = null;
+    try {
+      persistedToken = localStorage.getItem("token");
+    } catch {
+      showBootStatus("Storage access blocked. Continuing without saved login token.", "warn");
+    }
+    if (persistedToken && persistedToken.trim().length > 0) {
+      connectionOptions.token = persistedToken;
+    }
+  } else {
+    try {
+      localStorage.removeItem("token");
+    } catch {
+      /* ignore */
+    }
+  }
+  const policyPromise = loadAREPolicyConfig().then((policyConfig) => {
+    if (policyConfig) {
+      connectionOptions.arePolicyConfig = policyConfig;
+    }
   });
-} catch (e: any) {
-  console.error("Auth UI render error:", e);
-  window.onerror?.(e.message, "", 0, 0, e);
+  policyPromise
+    .catch(() => undefined)
+    .finally(() => {
+      connectSocket(core, connectionOptions);
+    });
+  (window as any).requestSceneChange = requestSceneChange;
+  initChat((type, payload) => sendCommand(type, payload));
+  initMinimap();
+  // Legacy quick-teleport panel removed from gameplay HUD.
+  initMobileControls(
+    core,
+    {
+      onAttack: () => core.attack(),
+      onInteract: () => core.interact(),
+      onEquip: () => {
+        void openEquipmentPanel();
+      },
+      onInventory: () => {
+        void openInventory();
+      },
+      onQuests: () => {
+        void openQuestLog();
+      },
+      onSkills: () => {
+        void openSkillsPanel();
+      },
+      onQuickSkill: () => {
+        const quick = getQuickCastSkillId();
+        if (quick === "impact_buster") {
+          triggerImpactBusterClientGuard();
+          return;
+        }
+        core.useSkill(quick);
+      },
+      onMap: () => {
+        toggleMinimapVisibility();
+      },
+      onChat: () => {
+        focusChatInput();
+      },
+    },
+    (_delta: number) => {},
+    (_dx: number, _dy: number) => {}
+  );
+  performanceMonitor.start();
+
+  window.addEventListener("keydown", (event) => {
+    const target = event.target as HTMLElement | null;
+    if (
+      target &&
+      (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)
+    ) {
+      return;
+    }
+    if (event.key.toLowerCase() === "f") {
+      triggerImpactBusterClientGuard();
+    }
+  });
+
+  let lastFrameTime = performance.now();
+  const tick = (now: number) => {
+    const dt = Math.min((now - lastFrameTime) / 1000, 0.1);
+    lastFrameTime = now;
+    core.update(dt);
+    worldService.update();
+    if (isMobile()) {
+      const j = getJoystickState();
+      if (j.active && (Math.abs(j.dx) > 0.04 || Math.abs(j.dy) > 0.04)) {
+        core.events.emit("move_intent", { dx: j.dx, dy: j.dy });
+      }
+    }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+
+  core.events.on("dialogue", (text: string) => {
+    showDialogue(text);
+  });
+
+  console.log("Areloria Client Initialized");
+
+  // Cleanup on page unload
+  window.addEventListener("beforeunload", () => {
+    worldService.dispose();
+  });
+} catch (error: any) {
+  console.error("Fatal client bootstrap error:", error);
+  showBootStatus(`Fatal bootstrap error: ${error?.message || "Unknown error"}`);
 }
+})();

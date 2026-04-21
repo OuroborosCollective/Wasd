@@ -42,7 +42,7 @@ export class GLBRegistry {
         const fullPath = path.join(dir, file);
         if (fs.statSync(fullPath).isDirectory()) {
           scanDir(fullPath);
-        } else if (file.endsWith('.glb')) {
+        } else if (file.toLowerCase().endsWith('.glb') || file.toLowerCase().endsWith('.gltf')) {
           models.push('/assets/models/' + path.relative(this.modelsDir, fullPath).replace(/\\/g, '/'));
         }
       }

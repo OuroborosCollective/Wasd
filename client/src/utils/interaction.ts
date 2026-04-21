@@ -1,59 +1,10 @@
-export function getClosestNpc(player: any, npcs: any[], maxDistance: number = Infinity) {
-  let closestNpc = null;
-  let minDistance = Infinity;
-
-  if (npcs) {
-    for (const npc of npcs) {
-      const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
-      if (dist < minDistance) {
-        minDistance = dist;
-        closestNpc = npc;
-      }
-    }
-  }
-
-  return minDistance < maxDistance ? closestNpc : null;
-}
-
-export function getClosestInteractable(player: any, state: any) {
-  let closestInteractable = null;
-  let minDistance = Infinity;
-
-  // 1. Check Loot (Priority 1)
-  if (state.loot) {
-    for (const loot of state.loot) {
-      const dist = Math.hypot(player.position.x - loot.position.x, player.position.y - loot.position.y);
-      if (dist < 30 && dist < minDistance) {
-        minDistance = dist;
-        closestInteractable = { ...loot, interactionType: 'loot' };
-      }
-    }
-  }
-
-  // 2. Check NPCs (Priority 2, only if no loot found)
-  if (!closestInteractable && state.npcs) {
-    for (const npc of state.npcs) {
-      const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
-      if (dist < 30 && dist < minDistance) {
-        minDistance = dist;
-        closestInteractable = { ...npc, interactionType: 'npc' };
-      }
-    }
-  }
-  return closestInteractable;
-}
-
-export function getClosestNpc(player: any, npcs: any[]) {
-  let closestNpc = null;
-  let minDistance = Infinity;
-  if (npcs) {
-    for (const npc of npcs) {
-      const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
-      if (dist < minDistance) {
-        minDistance = dist;
-        closestNpc = npc;
-      }
-    }
-  }
-  return { closestNpc, minDistance };
-}
+export {
+  INTERACT_DISTANCE,
+  getClosestNpc,
+  getClosestInteractable,
+  type InteractWorldSnapshot,
+  type ClosestInteractable,
+  type InteractNpcSnapshot,
+  type InteractLootSnapshot,
+  type InteractPoint,
+} from "../../../shared/interaction";

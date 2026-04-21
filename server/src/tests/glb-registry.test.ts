@@ -8,43 +8,43 @@ describe("GLBRegistry", () => {
     registry = new GLBRegistry();
   });
 
-  it("should add a link and retrieve it", () => {
+  it("should add a link and retrieve it", async () => {
     const testLink: GLBLink = {
       glbPath: "/assets/models/test.glb",
       targetType: "npc_single",
       targetId: "test_npc"
     };
-    registry.addLink(testLink);
+    await registry.addLink(testLink);
 
     expect(registry.getModelForTarget("npc_single", "test_npc")).toBe("/assets/models/test.glb");
   });
 
-  it("should update an existing link", () => {
+  it("should update an existing link", async () => {
     const initialLink: GLBLink = {
       glbPath: "/assets/models/test.glb",
       targetType: "npc_single",
       targetId: "test_npc"
     };
-    registry.addLink(initialLink);
+    await registry.addLink(initialLink);
 
     const updatedLink: GLBLink = {
       glbPath: "/assets/models/test_updated.glb",
       targetType: "npc_single",
       targetId: "test_npc"
     };
-    registry.addLink(updatedLink);
+    await registry.addLink(updatedLink);
 
     expect(registry.getModelForTarget("npc_single", "test_npc")).toBe("/assets/models/test_updated.glb");
   });
 
-  it("should remove a link", () => {
+  it("should remove a link", async () => {
     const testLink: GLBLink = {
       glbPath: "/assets/models/test.glb",
       targetType: "npc_single",
       targetId: "test_npc"
     };
-    registry.addLink(testLink);
-    registry.removeLink("npc_single", "test_npc");
+    await registry.addLink(testLink);
+    await registry.removeLink("npc_single", "test_npc");
 
     expect(registry.getModelForTarget("npc_single", "test_npc")).toBeNull();
   });

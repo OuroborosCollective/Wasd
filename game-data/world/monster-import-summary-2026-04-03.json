@@ -1,0 +1,20 @@
+{
+  "sourceFolder": "https://drive.google.com/drive/folders/18m4KpzpEzhC9wl7jzr6dUc0N8Jozr79C",
+  "imported": {
+    "big_gltf": 16,
+    "blob_gltf": 17,
+    "atlas_png": [
+      "/assets/models/monsters/big_Atlas_Monsters.png",
+      "/assets/models/monsters/blob_Atlas_Monsters.png"
+    ]
+  },
+  "notes": [
+    "Flying pack download was incomplete due Google Drive access limit on one file and no glTF folder available in the downloaded subset.",
+    "Big and Blob glTF packs were fully integrated and wired into monster worldgen mappings."
+  ],
+  "monsterDefaults": [
+    "/assets/models/monsters/big_Demon.gltf",
+    "/assets/models/monsters/blob_GreenBlob.gltf"
+  ],
+  "extraFiles": []
+}

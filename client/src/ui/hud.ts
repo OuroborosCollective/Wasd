@@ -1,398 +1,839 @@
-import { sendDialogueChoice, sendChatMessage } from "../networking/websocketClient";
-import { toggleAdminAssetPanel } from "./adminAssetPanel";
+import {
+  getSupabaseAccessToken,
+  getSupabaseRedirectUrl,
+  initSupabaseClient,
+  onSupabaseAuthStateChanged,
+} from "../auth/supabase";
+import { getQuickCastSkillId } from "../game/combatSkills";
+import {
+  sendDialogueChoice,
+  sendQuestAccept,
+  updateAuthToken,
+} from "../networking/websocketClient";
+import { prefersCompactTouchUi } from "./touchUi";
+import { resolveGameAuthProvider } from "../config/gameAuth";
+import {
+  mapSupabaseAuthError,
+  normalizeAuthEmail,
+  validateEmailForAuth,
+  validatePasswordForLogin,
+  validatePasswordForSignup,
+} from "./authMessages";
+
+const GUEST_STORAGE_KEY = "areloria_guest_id";
 
 export function renderHUD() {
+  document.getElementById("arel-hud")?.remove();
+  const compact = prefersCompactTouchUi();
   const hud = document.createElement("div");
-  hud.id = "main-hud";
+  hud.id = "arel-hud";
   hud.style.position = "fixed";
-  hud.style.top = "10px";
-  hud.style.left = "10px";
-  hud.style.padding = "15px";
-  hud.style.background = "rgba(0,0,0,0.85)";
+  hud.style.top = "12px";
+  hud.style.left = "12px";
+  hud.style.padding = "10px 12px";
+  hud.style.background = "rgba(0,0,0,0.58)";
   hud.style.color = "#fff";
-  hud.style.fontFamily = "sans-serif";
-  hud.style.borderRadius = "12px";
-  hud.style.display = "flex";
-  hud.style.flexDirection = "column";
-  hud.style.gap = "8px";
-  hud.style.width = "auto";
-  hud.style.maxWidth = "300px";
-  hud.style.border = "2px solid rgba(0,255,0,0.3)";
-  hud.style.boxShadow = "0 4px 15px rgba(0,0,0,0.5)";
-  hud.style.zIndex = "1000";
-  
-  hud.innerHTML = `
-    <div style="font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 6px; margin-bottom: 4px; color: #00ff00; font-size: 1.1em;">Areloria Alpha</div>
-    <div id="hud-time" style="font-size: 0.9em; color: #ffff00; margin-bottom: 4px;">Time: 08:00</div>
-    <div id="hud-stats" style="font-size: 1em; font-weight: bold;">
-      Gold: 0 | XP: 0
-    </div>
-    <div id="hud-inventory" style="font-size: 0.9em; color: #ffcc00; margin-top: 4px;">
-      Inv: Empty
-    </div>
-    <div id="hud-reputation" style="font-size: 0.9em; color: #ff99ff;">
-      Rep: None
-    </div>
-    <div id="hud-equipment" style="font-size: 0.9em; color: #00ccff;">
-      Equip: None
-    </div>
-    <div id="hud-quests" style="font-size: 0.9em; color: #aaa; font-style: italic; margin-top: 4px;">
-      Active Quest: None
-    </div>
-    <div id="hud-cooldowns" style="font-size: 0.9em; margin-top: 8px; display: flex; flex-wrap: wrap; gap: 10px;">
-      <span id="cd-attack" style="color: #00ff00; opacity: 0.5; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px;">[F] Attack</span>
-      <span id="cd-interact" style="color: #00ff00; opacity: 0.5; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px;">[E] Interact</span>
-      <span id="cd-equip" style="color: #00ff00; opacity: 0.5; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px;">[G] Equip</span>
-    </div>
-    <div style="font-size: 0.8em; margin-top: 10px; opacity: 0.7; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px;">
-      WASD: Move | E: Interact | F: Attack | G: Equip | H: Unequip
-    </div>
-    <div id="chat-log" role="log" aria-live="polite" aria-atomic="false" style="margin-top: 10px; max-height: 120px; overflow-y: auto; font-size: 0.9em; display: flex; flex-direction: column; gap: 4px; background: rgba(0,0,0,0.3); padding: 5px; border-radius: 4px;"></div>
-    <div style="margin-top: 8px; display: flex; gap: 6px;">
-      <input type="text" id="chat-input" aria-label="Chat message input" placeholder="Type /build..." style="flex: 1; padding: 10px; background: #222; color: #fff; border: 1px solid #555; border-radius: 6px; font-size: 16px;" />
-      <button id="chat-send" aria-label="Send chat message" style="padding: 10px 15px; background: #008800; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Send</button>
-    </div>
-    <button id="btn-admin-assets" style="margin-top: 12px; background: #444; color: white; border: 1px solid #666; padding: 12px; border-radius: 8px; cursor: pointer; display: none; font-weight: bold; width: 100%;">Admin Asset Manager</button>
-  `;
-  
+  hud.style.fontFamily = "system-ui, sans-serif";
+  hud.style.borderRadius = "10px";
+  hud.style.borderLeft = "3px solid #f27d26";
+  hud.style.zIndex = "5000";
+  hud.style.maxWidth = compact ? "min(92vw, 280px)" : "320px";
+  hud.style.boxSizing = "border-box";
+  hud.style.transition =
+    "max-height 0.25s ease, padding 0.25s ease, opacity 0.2s ease";
+  hud.style.overflow = "hidden";
+
+  let hudCollapsed = compact;
+
+  const topRow = document.createElement("div");
+  topRow.style.display = "flex";
+  topRow.style.flexWrap = "wrap";
+  topRow.style.alignItems = "center";
+  topRow.style.justifyContent = "flex-end";
+  topRow.style.gap = "8px";
+  topRow.style.marginBottom = "8px";
+
+  const leaderboardBtn = document.createElement("button");
+  leaderboardBtn.type = "button";
+  leaderboardBtn.textContent = "🏆";
+  leaderboardBtn.title = "Open leaderboard";
+  leaderboardBtn.style.padding = "6px 10px";
+  leaderboardBtn.style.minHeight = "36px";
+  leaderboardBtn.style.borderRadius = "8px";
+  leaderboardBtn.style.border = "1px solid rgba(255,255,255,0.25)";
+  leaderboardBtn.style.background = "rgba(255,255,255,0.08)";
+  leaderboardBtn.style.color = "#fff";
+  leaderboardBtn.style.cursor = "pointer";
+  leaderboardBtn.style.touchAction = "manipulation";
+  leaderboardBtn.onclick = () => {
+    void import("./leaderboardPanel")
+      .then((m) => m.openLeaderboard())
+      .catch((error) => {
+        console.error("Leaderboard panel failed to open", error);
+      });
+  };
+
+  topRow.appendChild(leaderboardBtn);
+  hud.appendChild(topRow);
+
+  const hudBody = document.createElement("div");
+  hudBody.id = "arel-hud-body";
+
+  const label = document.createElement("span");
+  label.textContent = "Areloria";
+  label.style.fontSize = "11px";
+  label.style.opacity = "0.65";
+  label.style.display = "block";
+  label.style.marginTop = "4px";
+  hudBody.appendChild(label);
+
+  hud.appendChild(hudBody);
   document.body.appendChild(hud);
 
-  document.getElementById("btn-admin-assets")!.onclick = () => {
-    toggleAdminAssetPanel();
-  };
-
-  const chatInput = document.getElementById("chat-input") as HTMLInputElement;
-  const chatSend = document.getElementById("chat-send") as HTMLButtonElement;
-
-  const handleSend = () => {
-    const text = chatInput.value.trim();
-    if (text) {
-      sendChatMessage(text);
-      chatInput.value = "";
+  const applyCollapseState = () => {
+    if (hudCollapsed) {
+      hud.style.maxHeight = "60px";
+      hud.style.padding = "6px 10px";
+      hudBody.style.display = "none";
+      topRow.style.marginBottom = "0";
+    } else {
+      hud.style.maxHeight = "none";
+      hud.style.padding = "10px 12px";
+      hudBody.style.display = "block";
+      topRow.style.marginBottom = "8px";
     }
   };
 
-  chatSend.onclick = handleSend;
-  chatInput.onkeydown = (e) => {
-    if (e.key === "Enter") handleSend();
-    e.stopPropagation(); // Prevent WASD movement when typing
+  if (compact) {
+    hud.style.cursor = "pointer";
+    hud.addEventListener("click", (e) => {
+      if (
+        (e.target as HTMLElement).tagName === "BUTTON" ||
+        (e.target as HTMLElement).tagName === "INPUT"
+      )
+        return;
+      hudCollapsed = !hudCollapsed;
+      applyCollapseState();
+    });
+    hud.addEventListener("touchstart", (e) => e.stopPropagation(), {
+      passive: true,
+    });
+    applyCollapseState();
+  }
+
+  const authBox = document.createElement("div");
+  authBox.id = "arel-hud-auth";
+
+  const stopAuthEvents = (e: Event) => e.stopPropagation();
+  ["touchstart", "touchmove"].forEach((evt) => {
+    authBox.addEventListener(evt, stopAuthEvents, { passive: true });
+  });
+  [
+    "touchend",
+    "touchcancel",
+    "mousedown",
+    "mouseup",
+    "mousemove",
+    "pointerdown",
+    "pointerup",
+    "pointermove",
+    "click",
+  ].forEach((evt) => {
+    authBox.addEventListener(evt, stopAuthEvents, { passive: false });
+  });
+
+  authBox.style.marginTop = "10px";
+  const authProvider = resolveGameAuthProvider();
+  authBox.style.display = authProvider === "none" ? "none" : "flex";
+  authBox.style.flexDirection = "column";
+  authBox.style.gap = "8px";
+  authBox.style.maxWidth = "100%";
+  if (prefersCompactTouchUi()) {
+    authBox.style.position = "fixed";
+    authBox.style.left = "50%";
+    authBox.style.top = "50%";
+    authBox.style.transform = "translate(-50%, -50%)";
+    authBox.style.width = "min(420px, calc(100vw - 24px))";
+    authBox.style.maxHeight = "min(70vh, 520px)";
+    authBox.style.overflowY = "auto";
+    authBox.style.zIndex = "12000";
+    authBox.style.marginTop = "0";
+    authBox.style.padding = "14px";
+    authBox.style.background = "rgba(12,14,22,0.96)";
+    authBox.style.border = "1px solid rgba(242,125,38,0.45)";
+    authBox.style.borderRadius = "14px";
+    authBox.style.boxShadow = "0 16px 48px rgba(0,0,0,0.65)";
+  }
+
+  const btnRow = document.createElement("div");
+  btnRow.style.display = "flex";
+  btnRow.style.flexWrap = "wrap";
+  btnRow.style.gap = "8px";
+  btnRow.style.alignItems = "center";
+
+  const loginBtn = document.createElement("button");
+  loginBtn.textContent = "Google";
+  loginBtn.style.padding = "8px 12px";
+  loginBtn.style.minHeight = "44px";
+  loginBtn.style.background = "#f27d26";
+  loginBtn.style.color = "#fff";
+  loginBtn.style.borderRadius = "8px";
+  loginBtn.style.cursor = "pointer";
+  loginBtn.style.border = "none";
+  loginBtn.style.touchAction = "manipulation";
+
+  const verifyEmailBtn = document.createElement("button");
+  verifyEmailBtn.type = "button";
+  verifyEmailBtn.textContent = "Verify email";
+  verifyEmailBtn.title = "Send a verification link to your address";
+  verifyEmailBtn.style.padding = "8px 12px";
+  verifyEmailBtn.style.minHeight = "44px";
+  verifyEmailBtn.style.background = "rgba(50,80,120,0.95)";
+  verifyEmailBtn.style.color = "#e8ecf5";
+  verifyEmailBtn.style.borderRadius = "8px";
+  verifyEmailBtn.style.cursor = "pointer";
+  verifyEmailBtn.style.border = "1px solid rgba(120,180,255,0.4)";
+  verifyEmailBtn.style.touchAction = "manipulation";
+
+  const resetPassBtn = document.createElement("button");
+  resetPassBtn.type = "button";
+  resetPassBtn.textContent = "Reset password";
+  resetPassBtn.title = "Email a password reset link";
+  resetPassBtn.style.padding = "8px 12px";
+  resetPassBtn.style.minHeight = "44px";
+  resetPassBtn.style.background = "rgba(70,55,40,0.95)";
+  resetPassBtn.style.color = "#e8ecf5";
+  resetPassBtn.style.borderRadius = "8px";
+  resetPassBtn.style.cursor = "pointer";
+  resetPassBtn.style.border = "1px solid rgba(255,180,100,0.35)";
+  resetPassBtn.style.touchAction = "manipulation";
+
+  const logoutBtn = document.createElement("button");
+  logoutBtn.textContent = "Sign out";
+  logoutBtn.style.padding = "8px 12px";
+  logoutBtn.style.minHeight = "44px";
+  logoutBtn.style.background = "rgba(60,60,70,0.95)";
+  logoutBtn.style.color = "#e8ecf5";
+  logoutBtn.style.borderRadius = "8px";
+  logoutBtn.style.cursor = "pointer";
+  logoutBtn.style.border = "1px solid rgba(255,255,255,0.2)";
+  logoutBtn.style.touchAction = "manipulation";
+
+  const emailRow = document.createElement("div");
+  emailRow.style.display = "flex";
+  emailRow.style.flexDirection = "column";
+  emailRow.style.gap = "6px";
+  const emailIn = document.createElement("input");
+  emailIn.type = "email";
+  emailIn.placeholder = "Email";
+  emailIn.autocomplete = "username";
+  emailIn.style.padding = "8px 10px";
+  emailIn.style.borderRadius = "8px";
+  emailIn.style.border = "1px solid rgba(255,255,255,0.25)";
+  emailIn.style.background = "rgba(20,22,32,0.9)";
+  emailIn.style.color = "#fff";
+  emailIn.style.fontSize = "14px";
+  const passIn = document.createElement("input");
+  passIn.type = "password";
+  passIn.placeholder = "Password";
+  passIn.autocomplete = "current-password";
+  passIn.style.padding = "8px 10px";
+  passIn.style.borderRadius = "8px";
+  passIn.style.border = "1px solid rgba(255,255,255,0.25)";
+  passIn.style.background = "rgba(20,22,32,0.9)";
+  passIn.style.color = "#fff";
+  passIn.style.fontSize = "14px";
+  const emailErr = document.createElement("div");
+  emailErr.style.fontSize = "11px";
+  emailErr.style.color = "#ff8a8a";
+  emailErr.style.minHeight = "14px";
+  const emailBtnRow = document.createElement("div");
+  emailBtnRow.style.display = "flex";
+  emailBtnRow.style.flexWrap = "wrap";
+  emailBtnRow.style.gap = "8px";
+  const emailLoginBtn = document.createElement("button");
+  emailLoginBtn.type = "button";
+  emailLoginBtn.textContent = "Email sign in";
+  emailLoginBtn.style.padding = "8px 12px";
+  emailLoginBtn.style.minHeight = "44px";
+  emailLoginBtn.style.borderRadius = "8px";
+  emailLoginBtn.style.border = "1px solid rgba(100,180,255,0.45)";
+  emailLoginBtn.style.background = "rgba(35,50,80,0.95)";
+  emailLoginBtn.style.color = "#e8ecf5";
+  emailLoginBtn.style.cursor = "pointer";
+  emailLoginBtn.style.touchAction = "manipulation";
+  const emailSignupBtn = document.createElement("button");
+  emailSignupBtn.type = "button";
+  emailSignupBtn.textContent = "Create account";
+  emailSignupBtn.style.padding = "8px 12px";
+  emailSignupBtn.style.minHeight = "44px";
+  emailSignupBtn.style.borderRadius = "8px";
+  emailSignupBtn.style.border = "1px solid rgba(180,255,180,0.35)";
+  emailSignupBtn.style.background = "rgba(30,55,40,0.95)";
+  emailSignupBtn.style.color = "#e8ecf5";
+  emailSignupBtn.style.cursor = "pointer";
+  emailSignupBtn.style.touchAction = "manipulation";
+  emailBtnRow.appendChild(emailLoginBtn);
+  emailBtnRow.appendChild(emailSignupBtn);
+  emailRow.appendChild(emailIn);
+  emailRow.appendChild(passIn);
+  emailRow.appendChild(emailErr);
+  emailRow.appendChild(emailBtnRow);
+
+  const signupStatus = document.createElement("div");
+  signupStatus.style.fontSize = "11px";
+  signupStatus.style.color = "#8fdf9a";
+  signupStatus.style.minHeight = "14px";
+  signupStatus.style.lineHeight = "1.35";
+  emailRow.appendChild(signupStatus);
+
+  btnRow.appendChild(loginBtn);
+  btnRow.appendChild(verifyEmailBtn);
+  btnRow.appendChild(resetPassBtn);
+  btnRow.appendChild(logoutBtn);
+  authBox.appendChild(btnRow);
+  authBox.appendChild(emailRow);
+
+  const hint = document.createElement("div");
+  const refreshHint = () => {
+    hint.textContent = `Quick cast (Q / SPELL): ${getQuickCastSkillId()} — change in Skills panel`;
   };
-}
+  refreshHint();
+  hint.style.fontSize = "10px";
+  hint.style.opacity = "0.7";
+  hint.style.marginTop = "2px";
+  window.addEventListener("areloria-quick-cast-changed", refreshHint);
+  authBox.appendChild(hint);
 
-export function addChatMessage(source: string, text: string) {
-  const chatLog = document.getElementById("chat-log");
-  if (!chatLog) return;
-  
-  const msgEl = document.createElement("div");
-  msgEl.style.wordBreak = "break-word";
+  let supabaseSignedIn = false;
+  const syncAuthUi = () => {
+    const userSignedIn = supabaseSignedIn;
+    const out = !userSignedIn;
+    loginBtn.style.display = out ? "inline-block" : "none";
+    logoutBtn.style.display = userSignedIn ? "inline-block" : "none";
+    verifyEmailBtn.style.display = userSignedIn ? "inline-block" : "none";
+    resetPassBtn.style.display = userSignedIn ? "inline-block" : "none";
+    emailRow.style.display = out ? "flex" : "none";
+  };
+  syncAuthUi();
 
-  const sourceSpan = document.createElement("span");
-  sourceSpan.style.color = "#00ccff";
-  sourceSpan.style.fontWeight = "bold";
-  sourceSpan.textContent = source + ":";
+  const setAuthError = (message: string) => {
+    emailErr.textContent = message;
+    emailErr.style.color = "#ff8a8a";
+  };
 
-  const textNode = document.createTextNode(" " + text);
+  const setAuthInfo = (message: string) => {
+    signupStatus.textContent = message;
+    signupStatus.style.color = "#8fdf9a";
+  };
 
-  msgEl.appendChild(sourceSpan);
-  msgEl.appendChild(textNode);
-  
-  chatLog.appendChild(msgEl);
-  chatLog.scrollTop = chatLog.scrollHeight;
-}
+  const withTimeout = async <T>(
+    promise: Promise<T>,
+    ms: number,
+    label: string,
+  ): Promise<T> => {
+    return await new Promise<T>((resolve, reject) => {
+      const timer = window.setTimeout(() => {
+        reject(new Error(`${label} timed out`));
+      }, ms);
+      promise
+        .then((value) => {
+          window.clearTimeout(timer);
+          resolve(value);
+        })
+        .catch((error) => {
+          window.clearTimeout(timer);
+          reject(error);
+        });
+    });
+  };
 
-export function updateHUD(data: { role?: string, gold: number, xp: number, quests: any[], inventory: any[], equipment?: any, reputation?: any, questStatus?: any[], worldTime?: string }) {
-  const btnAdmin = document.getElementById("btn-admin-assets");
-  if (btnAdmin && data.role === "admin") {
-    btnAdmin.style.display = "block";
-  }
+  const setAuthBusy = (busy: boolean) => {
+    const controls = [
+      loginBtn,
+      emailLoginBtn,
+      emailSignupBtn,
+      verifyEmailBtn,
+      resetPassBtn,
+      logoutBtn,
+    ];
+    for (const c of controls) {
+      c.disabled = busy;
+      c.style.opacity = busy ? "0.75" : "1";
+    }
+  };
 
-  const timeEl = document.getElementById("hud-time");
-  if (timeEl && data.worldTime) {
-    timeEl.textContent = `Time: ${data.worldTime}`;
-  }
+  const clearAuthMessages = () => {
+    emailErr.textContent = "";
+    emailErr.style.color = "#ff8a8a";
+    signupStatus.textContent = "";
+    signupStatus.style.color = "#8fdf9a";
+  };
 
-  const stats = document.getElementById("hud-stats");
-  if (stats) {
-    stats.textContent = `Gold: ${data.gold} | XP: ${data.xp}`;
-  }
-
-  const inv = document.getElementById("hud-inventory");
-  if (inv) {
-    const items = data.inventory.map(i => i.name).join(", ");
-    inv.textContent = items ? `Inv: ${items}` : "Inv: Empty";
-  }
-
-  const rep = document.getElementById("hud-reputation");
-  if (rep) {
-    const repStr = data.reputation ? Object.entries(data.reputation).map(([k, v]) => `${k}: ${v}`).join(", ") : "None";
-    rep.textContent = `Rep: ${repStr}`;
-  }
-
-  const equip = document.getElementById("hud-equipment");
-  if (equip && data.equipment) {
-    const weapon = data.equipment.weapon ? data.equipment.weapon.name : "None";
-    equip.textContent = `Weapon: ${weapon}`;
-  }
-  
-  const questContainer = document.getElementById("hud-quests");
-  if (questContainer && data.questStatus) {
-    questContainer.innerHTML = `<strong>Quests:</strong><br/>` + data.questStatus.map((q: any) => 
-      `<div style="color: ${q.state === 'active' ? '#00ff00' : q.state === 'completed' ? '#aaa' : q.state === 'available' ? '#ffff00' : '#ff4444'}">
-        ${q.title} [${q.state}]
-      </div>`
-    ).join("");
-  }
-}
-
-export function updateCooldowns(cooldowns: { attack: number, interact: number, equip: number }) {
-  const now = Date.now();
-  
-  const updateCd = (id: string, remaining: number) => {
-    const el = document.getElementById(id);
-    if (el) {
-      if (remaining > 0) {
-        el.style.opacity = "1";
-        el.style.color = "#ff4444";
-        el.style.fontWeight = "bold";
-        // Show percentage or just dimmed
-        const percent = Math.ceil((remaining / 1000) * 10) / 10;
-        el.textContent = `[${id.split("-")[1].toUpperCase().charAt(0)}] ${remaining > 100 ? (remaining/1000).toFixed(1) + "s" : "..."}`;
-      } else {
-        el.style.opacity = "0.5";
-        el.style.color = "#00ff00";
-        el.style.fontWeight = "normal";
-        const label = id === "cd-attack" ? "Attack" : id === "cd-interact" ? "Interact" : "Equip";
-        const key = id === "cd-attack" ? "F" : id === "cd-interact" ? "E" : "G";
-        el.textContent = `[${key}] ${label}`;
+  if (authProvider === "none") {
+    /* Game auth off — server uses guest/dev login; no external auth UI */
+  } else if (authProvider === "supabase") {
+    loginBtn.textContent = "Auth wird geladen…";
+    loginBtn.disabled = true;
+    void initSupabaseClient().then((sb) => {
+      if (!sb) {
+        loginBtn.textContent = "Auth (configure Supabase)";
+        loginBtn.disabled = true;
+        loginBtn.style.opacity = "0.65";
+        logoutBtn.style.display = "none";
+        verifyEmailBtn.style.display = "none";
+        resetPassBtn.style.display = "none";
+        emailRow.style.display = "none";
+        return;
       }
-    }
-  };
+      loginBtn.textContent = "Google";
+      loginBtn.disabled = false;
+      loginBtn.style.opacity = "1";
 
-  const attackRemaining = Math.max(0, cooldowns.attack - now);
-  const interactRemaining = Math.max(0, cooldowns.interact - now);
-  const equipRemaining = Math.max(0, cooldowns.equip - now);
+      onSupabaseAuthStateChanged((session) => {
+        supabaseSignedIn = Boolean(session?.user);
+        try {
+          if (session?.access_token) {
+            localStorage.setItem("token", session.access_token);
+          } else {
+            localStorage.removeItem("token");
+          }
+        } catch {
+          /* ignore */
+        }
+        syncAuthUi();
+      });
+      void sb.auth.getSession().then(({ data }) => {
+        supabaseSignedIn = Boolean(data.session?.user);
+        syncAuthUi();
+      });
 
-  updateCd("cd-attack", attackRemaining);
-  updateCd("cd-interact", interactRemaining);
-  updateCd("cd-equip", equipRemaining);
-}
+      loginBtn.onclick = async () => {
+        clearAuthMessages();
+        setAuthBusy(true);
+        try {
+          const redirectTo = getSupabaseRedirectUrl("/");
+          const { data, error } = await withTimeout(
+            sb.auth.signInWithOAuth({
+              provider: "google",
+              options: { redirectTo, skipBrowserRedirect: false },
+            }),
+            15000,
+            "Google sign-in",
+          );
+          if (error) {
+            throw error;
+          }
+          if (data?.url) {
+            setAuthInfo("Redirecting to Google sign-in...");
+            window.location.assign(data.url);
+            return;
+          }
+          setAuthError(
+            "Google sign-in could not start. Check Supabase URL/redirect settings and try again.",
+          );
+        } catch (e: unknown) {
+          setAuthError(mapSupabaseAuthError(e));
+        } finally {
+          setAuthBusy(false);
+        }
+      };
 
-export function showFloatingText(text: string, x: number, y: number) {
-  const div = document.createElement("div");
-  div.style.position = "fixed";
-  div.style.left = `${x}px`;
-  div.style.top = `${y}px`;
-  div.style.color = "#ff0000";
-  div.style.fontWeight = "bold";
-  div.style.fontSize = "20px";
-  div.style.pointerEvents = "none";
-  div.style.zIndex = "1001";
-  div.textContent = text;
-  document.body.appendChild(div);
-  
-  // Animate and remove
-  div.animate([
-    { transform: "translateY(0)", opacity: 1 },
-    { transform: "translateY(-50px)", opacity: 0 }
-  ], {
-    duration: 1000,
-    easing: "ease-out"
-  }).onfinish = () => div.remove();
-}
+      emailLoginBtn.onclick = async () => {
+        clearAuthMessages();
+        const email = normalizeAuthEmail(emailIn.value);
+        const emailValidation = validateEmailForAuth(email);
+        if (emailValidation) {
+          setAuthError(emailValidation);
+          return;
+        }
+        const passwordValidation = validatePasswordForLogin(passIn.value);
+        if (passwordValidation) {
+          setAuthError(passwordValidation);
+          return;
+        }
+        setAuthBusy(true);
+        try {
+          const { data, error } = await withTimeout(
+            sb.auth.signInWithPassword({
+              email,
+              password: passIn.value,
+            }),
+            15000,
+            "Email sign-in",
+          );
+          if (error) throw error;
+          const token =
+            data.session?.access_token ??
+            (await withTimeout(
+              getSupabaseAccessToken(),
+              10000,
+              "Session fetch",
+            ));
+          if (token) {
+            updateAuthToken(token, { reconnect: true });
+            setAuthInfo("Signed in.");
+          }
+        } catch (e: unknown) {
+          setAuthError(mapSupabaseAuthError(e));
+        } finally {
+          setAuthBusy(false);
+        }
+      };
 
-export function showTooltip(text: string) {
-  let tooltip = document.getElementById("interaction-tooltip");
-  if (!tooltip) {
-    tooltip = document.createElement("div");
-    tooltip.id = "interaction-tooltip";
-    tooltip.style.position = "fixed";
-    tooltip.style.bottom = "100px";
-    tooltip.style.left = "50%";
-    tooltip.style.transform = "translateX(-50%)";
-    tooltip.style.background = "rgba(0, 0, 0, 0.8)";
-    tooltip.style.color = "#fff";
-    tooltip.style.padding = "8px 16px";
-    tooltip.style.borderRadius = "6px";
-    tooltip.style.border = "1px solid #00ff00";
-    tooltip.style.zIndex = "1000";
-    tooltip.style.pointerEvents = "none";
-    document.body.appendChild(tooltip);
+      emailSignupBtn.onclick = async () => {
+        clearAuthMessages();
+        const email = normalizeAuthEmail(emailIn.value);
+        const password = passIn.value;
+        const emailValidation = validateEmailForAuth(email);
+        if (emailValidation) {
+          setAuthError(emailValidation);
+          return;
+        }
+        const passwordValidation = validatePasswordForSignup(password);
+        if (passwordValidation) {
+          setAuthError(passwordValidation);
+          return;
+        }
+        setAuthBusy(true);
+        try {
+          const redirectTo = getSupabaseRedirectUrl("/");
+          const { data, error } = await withTimeout(
+            sb.auth.signUp({
+              email,
+              password,
+              options: { emailRedirectTo: redirectTo },
+            }),
+            20000,
+            "Account creation",
+          );
+          if (error) throw error;
+          if (data.session?.access_token) {
+            updateAuthToken(data.session.access_token, { reconnect: true });
+            setAuthInfo("Account created and signed in.");
+          } else {
+            setAuthInfo(
+              "Account created. Confirmation email sent — check inbox/spam.",
+            );
+          }
+        } catch (e: unknown) {
+          setAuthError(mapSupabaseAuthError(e));
+        } finally {
+          setAuthBusy(false);
+        }
+      };
+
+      verifyEmailBtn.onclick = async () => {
+        clearAuthMessages();
+        const addr = normalizeAuthEmail(emailIn.value);
+        if (!addr) {
+          setAuthError(
+            "Enter your account email above to resend verification.",
+          );
+          return;
+        }
+        setAuthBusy(true);
+        try {
+          const redirectTo = getSupabaseRedirectUrl("/");
+          const { error } = await withTimeout(
+            sb.auth.resend({
+              type: "signup",
+              email: addr,
+              options: { emailRedirectTo: redirectTo },
+            }),
+            15000,
+            "Verification email",
+          );
+          if (error) throw error;
+          setAuthInfo("Verification email sent.");
+        } catch (e: unknown) {
+          setAuthError(mapSupabaseAuthError(e));
+        } finally {
+          setAuthBusy(false);
+        }
+      };
+
+      resetPassBtn.onclick = async () => {
+        clearAuthMessages();
+        const addr = normalizeAuthEmail(emailIn.value);
+        if (!addr) {
+          setAuthError("Enter your email above.");
+          return;
+        }
+        const emailValidation = validateEmailForAuth(addr);
+        if (emailValidation) {
+          setAuthError(emailValidation);
+          return;
+        }
+        setAuthBusy(true);
+        try {
+          const redirectTo = getSupabaseRedirectUrl("/");
+          const { error } = await withTimeout(
+            sb.auth.resetPasswordForEmail(addr, { redirectTo }),
+            15000,
+            "Password reset",
+          );
+          if (error) throw error;
+          setAuthInfo("Password reset email sent.");
+        } catch (e: unknown) {
+          setAuthError(mapSupabaseAuthError(e));
+        } finally {
+          setAuthBusy(false);
+        }
+      };
+
+      logoutBtn.onclick = async () => {
+        try {
+          await sb.auth.signOut();
+          updateAuthToken(null, { reconnect: true });
+          localStorage.removeItem(GUEST_STORAGE_KEY);
+        } catch (e) {
+          console.error("Sign out failed", e);
+        }
+      };
+    });
   }
-  tooltip.textContent = text;
+
+  hudBody.appendChild(authBox);
 }
 
-export function hideTooltip() {
-  const tooltip = document.getElementById("interaction-tooltip");
-  if (tooltip && tooltip.parentNode) {
-    tooltip.parentNode.removeChild(tooltip);
-  }
-}
+export type DialoguePayload = {
+  source?: string;
+  text?: string;
+  questId?: string | null;
+  choices?: Array<{ id: string; text: string }>;
+  npcId?: string;
+  nodeId?: string;
+};
 
-export function showDialogue(source: string, text: string, choices: any[] = [], npcId?: string) {
+export function showDialogue(payload: string | DialoguePayload) {
+  const data: DialoguePayload =
+    typeof payload === "string" ? { text: payload } : payload || {};
+  const body = data.text ?? "";
+  const compact = prefersCompactTouchUi();
+
   let dialogueBox = document.getElementById("dialogue-box");
   if (!dialogueBox) {
     dialogueBox = document.createElement("div");
     dialogueBox.id = "dialogue-box";
     dialogueBox.style.position = "fixed";
-    dialogueBox.style.bottom = "20px";
+
+    const stopEvents = (e: Event) => e.stopPropagation();
+    ["touchstart", "touchmove"].forEach((evt) => {
+      dialogueBox!.addEventListener(evt, stopEvents, { passive: true });
+    });
+    [
+      "touchend",
+      "touchcancel",
+      "mousedown",
+      "mouseup",
+      "mousemove",
+      "pointerdown",
+      "pointerup",
+      "pointermove",
+      "click",
+    ].forEach((evt) => {
+      dialogueBox!.addEventListener(evt, stopEvents, { passive: false });
+    });
     dialogueBox.style.left = "50%";
     dialogueBox.style.transform = "translateX(-50%)";
     dialogueBox.style.background = "rgba(0, 0, 0, 0.9)";
-    dialogueBox.style.color = "#fff";
-    dialogueBox.style.padding = "25px 35px";
-    dialogueBox.style.borderRadius = "16px";
-    dialogueBox.style.fontFamily = "sans-serif";
-    dialogueBox.style.width = "90vw";
-    dialogueBox.style.maxWidth = "600px";
+    dialogueBox.style.color = "white";
+    dialogueBox.style.padding = "16px 16px 12px";
+    dialogueBox.style.borderRadius = "14px";
+    dialogueBox.style.border = "2px solid #f27d26";
+    dialogueBox.style.maxWidth = "min(520px, 94vw)";
+    dialogueBox.style.width = "min(520px, 94vw)";
+    dialogueBox.style.maxHeight = "min(72vh, 520px)";
+    dialogueBox.style.display = "flex";
+    dialogueBox.style.flexDirection = "column";
     dialogueBox.style.textAlign = "left";
-    dialogueBox.style.boxShadow = "0 10px 30px rgba(0,0,0,0.6)";
-    dialogueBox.style.border = "2px solid rgba(0,255,0,0.2)";
     dialogueBox.style.zIndex = "2000";
+    dialogueBox.style.fontFamily = "system-ui, sans-serif";
+    dialogueBox.style.boxShadow = "0 10px 28px rgba(0,0,0,0.55)";
+    dialogueBox.style.boxSizing = "border-box";
     document.body.appendChild(dialogueBox);
-  }
-  
-  let html = `<div style="margin-bottom: 15px;"><strong style="color: #00ff00; font-size: 1.2em;">${source}:</strong> <span style="line-height: 1.5; font-size: 1.1em;">${text}</span></div>`;
-  
-  if (choices && choices.length > 0 && npcId) {
-    html += `<div style="display: flex; flex-direction: column; gap: 12px; margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">`;
-    choices.forEach((choice, index) => {
-      html += `
-        <button 
-          class="dialogue-choice-btn" 
-          data-npc-id="${npcId}" 
-          data-node-id="${choice.nextNodeId}"
-          data-choice-id="${choice.id}"
-          style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 15px 20px; border-radius: 10px; cursor: pointer; text-align: left; transition: all 0.2s; font-size: 1.1em;"
-          onmouseover="this.style.background='rgba(255,255,255,0.2)'; this.style.borderColor='#00ff00';"
-          onmouseout="this.style.background='rgba(255,255,255,0.08)'; this.style.borderColor='rgba(255,255,255,0.3)';"
-        >
-          ${index + 1}. ${choice.text}
-        </button>
-      `;
+
+    const titleEl = document.createElement("div");
+    titleEl.id = "dialogue-title";
+    titleEl.style.fontSize = "11px";
+    titleEl.style.textTransform = "uppercase";
+    titleEl.style.letterSpacing = "0.08em";
+    titleEl.style.opacity = "0.75";
+    titleEl.style.marginBottom = "6px";
+    titleEl.style.flexShrink = "0";
+    dialogueBox.appendChild(titleEl);
+
+    const scrollWrap = document.createElement("div");
+    scrollWrap.id = "dialogue-scroll";
+    scrollWrap.style.flex = "1";
+    scrollWrap.style.minHeight = "0";
+    scrollWrap.style.overflowY = "auto";
+    scrollWrap.style.overflowX = "hidden";
+    scrollWrap.style.setProperty("-webkit-overflow-scrolling", "touch");
+    scrollWrap.style.paddingRight = "4px";
+
+    // Stop pointer/touch from bleeding through dialogue scroll
+    scrollWrap.addEventListener("touchstart", (e) => e.stopPropagation(), {
+      passive: true,
     });
-    html += `</div>`;
-  } else {
-    html += `<div style="font-size: 0.9em; opacity: 0.6; margin-top: 15px; text-align: center; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px;">(Tap here or press E to continue)</div>`;
-  }
-  
-  dialogueBox.innerHTML = html;
-  
-  // Add click listener to the whole box for "continue" if no choices
-  if (!choices || choices.length === 0) {
-    dialogueBox.onclick = () => {
-      if (dialogueBox && dialogueBox.parentNode) {
-        dialogueBox.parentNode.removeChild(dialogueBox);
+    scrollWrap.addEventListener("touchmove", (e) => e.stopPropagation(), {
+      passive: true,
+    });
+    scrollWrap.addEventListener("pointerdown", (e) => e.stopPropagation(), {
+      passive: false,
+    });
+    scrollWrap.addEventListener("wheel", (e) => e.stopPropagation(), {
+      passive: true,
+    });
+
+    const textEl = document.createElement("div");
+    textEl.id = "dialogue-text";
+    textEl.style.lineHeight = "1.5";
+    textEl.style.whiteSpace = "pre-wrap";
+    textEl.style.fontSize = compact ? "15px" : "14px";
+    textEl.style.wordBreak = "break-word";
+    scrollWrap.appendChild(textEl);
+    dialogueBox.appendChild(scrollWrap);
+
+    const choicesEl = document.createElement("div");
+    choicesEl.id = "dialogue-choices";
+    choicesEl.style.marginTop = "12px";
+    choicesEl.style.display = "flex";
+    choicesEl.style.flexDirection = "column";
+    choicesEl.style.gap = "10px";
+    choicesEl.style.flexShrink = "0";
+    dialogueBox.appendChild(choicesEl);
+
+    const closeRow = document.createElement("div");
+    closeRow.style.marginTop = "12px";
+    closeRow.style.display = "flex";
+    closeRow.style.justifyContent = "flex-end";
+    closeRow.style.flexShrink = "0";
+    const closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.textContent = "Close";
+    closeBtn.style.padding = "12px 20px";
+    closeBtn.style.minHeight = "44px";
+    closeBtn.style.borderRadius = "10px";
+    closeBtn.style.border = "1px solid rgba(255,255,255,0.25)";
+    closeBtn.style.background = "rgba(40,40,40,0.95)";
+    closeBtn.style.color = "#eee";
+    closeBtn.style.cursor = "pointer";
+    closeBtn.style.touchAction = "manipulation";
+    closeBtn.onclick = (e) => {
+      e.stopPropagation();
+      dialogueBox!.style.display = "none";
+    };
+    closeBtn.addEventListener(
+      "touchstart",
+      (e) => {
+        e.stopPropagation();
+      },
+      { passive: false },
+    );
+    closeBtn.addEventListener(
+      "pointerdown",
+      (e) => {
+        e.stopPropagation();
+      },
+      { passive: false },
+    );
+    closeRow.appendChild(closeBtn);
+    dialogueBox.appendChild(closeRow);
+
+    const positionDialogue = () => {
+      const isCoarse = prefersCompactTouchUi();
+      if (isCoarse) {
+        dialogueBox!.style.top = "auto";
+        dialogueBox!.style.bottom =
+          "max(240px, env(safe-area-inset-bottom, 0px))";
+        dialogueBox!.style.maxHeight = "min(50vh, 480px)";
+      } else {
+        dialogueBox!.style.bottom = "auto";
+        dialogueBox!.style.top = "max(12%, env(safe-area-inset-top, 0px))";
+        dialogueBox!.style.maxHeight = "min(72vh, 520px)";
       }
     };
-  } else {
-    dialogueBox.onclick = null;
+    positionDialogue();
+    window.addEventListener("resize", positionDialogue);
   }
 
-  // Add event listeners to buttons
-  const buttons = dialogueBox.querySelectorAll(".dialogue-choice-btn");
-  buttons.forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      const target = e.currentTarget as HTMLButtonElement;
-      const nid = target.getAttribute("data-npc-id");
-      const node = target.getAttribute("data-node-id");
-      const choiceId = target.getAttribute("data-choice-id");
-      if (nid && node && choiceId) {
-        (window as any).sendDialogueChoice(nid, node, choiceId);
+  const titleEl = document.getElementById("dialogue-title");
+  if (titleEl) {
+    titleEl.textContent = data.source ? data.source : " ";
+  }
+
+  const textEl = document.getElementById("dialogue-text");
+  if (textEl) {
+    textEl.textContent = body;
+    textEl.style.fontSize = compact ? "15px" : "14px";
+  }
+
+  const choicesEl = document.getElementById("dialogue-choices");
+  if (choicesEl) {
+    choicesEl.innerHTML = "";
+    const choices = Array.isArray(data.choices) ? data.choices : [];
+    const npcId = typeof data.npcId === "string" ? data.npcId : "";
+    const nodeId = typeof data.nodeId === "string" ? data.nodeId : "root";
+
+    if (choices.length > 0) {
+      for (const c of choices) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = c.text || c.id;
+        btn.style.textAlign = "left";
+        btn.style.padding = "14px 14px";
+        btn.style.minHeight = "48px";
+        btn.style.borderRadius = "10px";
+        btn.style.border = "1px solid rgba(242,125,38,0.5)";
+        btn.style.background = "rgba(30,35,50,0.98)";
+        btn.style.color = "#e8ecf5";
+        btn.style.cursor = "pointer";
+        btn.style.touchAction = "manipulation";
+        btn.style.fontSize = compact ? "15px" : "14px";
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          if (!npcId) return;
+          if (c.id === "sys_quest_accept") {
+            sendQuestAccept(npcId, nodeId);
+          } else if (c.id === "sys_quest_decline") {
+            sendDialogueChoice(npcId, "sys_quest_decline", nodeId);
+          } else {
+            sendDialogueChoice(npcId, c.id, nodeId);
+          }
+        };
+        btn.addEventListener(
+          "touchstart",
+          (e) => {
+            e.stopPropagation();
+          },
+          { passive: false },
+        );
+        btn.addEventListener(
+          "pointerdown",
+          (e) => {
+            e.stopPropagation();
+          },
+          { passive: false },
+        );
+        choicesEl.appendChild(btn);
       }
-    });
-  });
-  
-  // Auto-hide after 10 seconds if no choices
-  if ((window as any).dialogueTimeout) {
-    clearTimeout((window as any).dialogueTimeout);
-  }
-  
-  if (!choices || choices.length === 0) {
-    (window as any).dialogueTimeout = setTimeout(() => {
-      if (dialogueBox && dialogueBox.parentNode) {
-        dialogueBox.parentNode.removeChild(dialogueBox);
-      }
-    }, 5000);
-  }
-}
-
-export function removeWorldLabel(id: string) {
-  const label = document.getElementById(`label-${id}`);
-  if (label) label.remove();
-}
-
-export function createWorldLabel(id: string, text: string, type: 'npc' | 'loot', healthPercent?: number) {
-  let label = document.getElementById(`label-${id}`);
-  if (!label) {
-    label = document.createElement("div");
-    label.id = `label-${id}`;
-    label.style.position = "fixed";
-    label.style.pointerEvents = "none";
-    label.style.zIndex = "1000";
-    label.style.textAlign = "center";
-    document.body.appendChild(label);
-  }
-  let html = `<div style="color: white; font-size: 12px; text-shadow: 1px 1px 1px black; font-weight: bold;">${text}</div>`;
-  if (type === 'npc' && healthPercent !== undefined) {
-    html += `
-      <div style="width: 40px; height: 6px; background: #333; margin: 2px auto; border: 1px solid #000;">
-        <div style="width: ${Math.max(0, Math.min(100, healthPercent * 100))}%; height: 100%; background: #00ff00;"></div>
-      </div>
-    `;
-  }
-  label.innerHTML = html;
-  return label;
-}
-
-export function renderInventoryPanel(player: any, ws: WebSocket) {
-  let panel = document.getElementById("inventory-panel");
-  if (!panel) {
-    panel = document.createElement("div");
-    panel.id = "inventory-panel";
-    panel.style.position = "fixed";
-    panel.style.top = "50%";
-    panel.style.left = "50%";
-    panel.style.transform = "translate(-50%, -50%)";
-    panel.style.background = "rgba(0, 0, 0, 0.95)";
-    panel.style.color = "#fff";
-    panel.style.padding = "25px";
-    panel.style.borderRadius = "16px";
-    panel.style.border = "2px solid #00ff00";
-    panel.style.zIndex = "2000";
-    panel.style.width = "90vw";
-    panel.style.maxWidth = "400px";
-    panel.style.boxShadow = "0 10px 30px rgba(0,0,0,0.7)";
-    document.body.appendChild(panel);
+    }
   }
 
-  let html = `<h2 style="margin-top:0; color: #00ff00; border-bottom: 1px solid #444; padding-bottom: 10px;">Inventory</h2>`;
-  
-  // Equipment
-  html += `<div style="margin-bottom: 20px; border-bottom: 1px solid #444; padding-bottom: 15px;">
-    <strong style="font-size: 1.1em;">Equipped:</strong><br/>
-    <div style="margin-top: 10px; background: #222; padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
-      <span>Weapon: ${player.equipment.weapon ? player.equipment.weapon.name : 'None'}</span>
-      ${player.equipment.weapon ? `<button onclick="window.unequip('weapon')" style="cursor:pointer; background:#ff4444; color:#fff; border:none; padding:8px 12px; border-radius:6px; font-weight: bold;">Unequip</button>` : ''}
-    </div>
-  </div>`;
+  if (dialogueBox) {
+    const isCoarse = prefersCompactTouchUi();
+    if (isCoarse) {
+      dialogueBox.style.top = "auto";
+      dialogueBox.style.bottom = "max(240px, env(safe-area-inset-bottom, 0px))";
+      dialogueBox.style.maxHeight = "min(50vh, 480px)";
+    } else {
+      dialogueBox.style.bottom = "auto";
+      dialogueBox.style.top = "max(12%, env(safe-area-inset-top, 0px))";
+      dialogueBox.style.maxHeight = "min(72vh, 520px)";
+    }
+  }
 
-  // Inventory
-  html += `<strong style="font-size: 1.1em;">Items:</strong><ul style="list-style:none; padding:0; margin-top: 10px; max-height: 300px; overflow-y: auto;">`;
-  player.inventory.forEach((item: any) => {
-    html += `<li style="margin-bottom: 10px; background: #222; padding: 12px; border-radius: 8px; display:flex; flex-direction: column; gap: 10px;">
-      <div style="font-weight: bold;">${item.name} <span style="font-weight: normal; opacity: 0.6; font-size: 0.8em;">(${item.type})</span></div>
-      <div style="display: flex; gap: 10px;">
-        ${item.type === 'weapon' ? `<button onclick="window.equip('${item.id}')" style="flex: 1; cursor:pointer; background:#008800; color:#fff; border:none; padding:10px; border-radius:6px; font-weight: bold;">Equip</button>` : ''}
-        <button onclick="window.drop('${item.id}')" style="flex: 1; cursor:pointer; background:#880000; color:#fff; border:none; padding:10px; border-radius:6px; font-weight: bold;">Drop</button>
-      </div>
-    </li>`;
-  });
-  html += `</ul><button onclick="document.getElementById('inventory-panel').remove()" style="margin-top:20px; cursor:pointer; width: 100%; padding: 15px; background: #444; color: white; border: none; border-radius: 8px; font-weight: bold;">Close</button>`;
-  
-  panel.innerHTML = html;
-
-  // Define global actions for buttons
-  (window as any).equip = (itemId: string) => ws.send(JSON.stringify({ type: 'equip', itemId }));
-  (window as any).unequip = (slot: string) => ws.send(JSON.stringify({ type: 'unequip', slot }));
-  (window as any).drop = (itemId: string) => ws.send(JSON.stringify({ type: 'drop', itemId }));
+  dialogueBox!.style.display = "flex";
 }

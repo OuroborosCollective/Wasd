@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "areloria-vps": {
+      "url": "https://your-domain.example/api/mcp/sse",
+      "headers": {
+        "Authorization": "Bearer REPLACE_WITH_MCP_ADMIN_TOKEN"
+      }
+    }
+  }
+}

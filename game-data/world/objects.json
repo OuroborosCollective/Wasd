@@ -1,0 +1,18 @@
+[
+  {
+    "id": "obj_worldboss_portal_obsidian",
+    "type": "portal",
+    "name": "Worldboss Dungeon Portal",
+    "position": {
+      "x": 26,
+      "y": -6
+    },
+    "rotation": 0,
+    "scale": 2.8,
+    "glbPath": "/assets/models/kaykit/dungeon/portal.gltf",
+    "interaction": {
+      "type": "worldboss_dungeon",
+      "dungeonId": "obsidian_fracture"
+    }
+  }
+]

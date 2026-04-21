@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Areloria Asset Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; }
+        .card { background-color: #1e293b; border: 1px solid #334155; }
+        .btn-primary { background-color: #3b82f6; color: white; }
+        .btn-primary:hover { background-color: #2563eb; }
+        .btn-danger { background-color: #ef4444; color: white; }
+        .btn-danger:hover { background-color: #dc2626; }
+    </style>
+</head>
+<body class="p-8">
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-8 flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-blue-400">Areloria Asset Studio</h1>
+                <p class="text-slate-400">GLB & Grafik Manager für Wasd</p>
+            </div>
+            <div id="status" class="px-3 py-1 rounded-full text-xs font-medium bg-green-900 text-green-300">Verbunden</div>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <!-- Sidebar: Kategorien -->
+            <aside class="md:col-span-1">
+                <div class="card rounded-lg p-4 sticky top-8">
+                    <h2 class="text-lg font-semibold mb-4 border-b border-slate-700 pb-2">Kategorien</h2>
+                    <nav id="category-list" class="space-y-2">
+                        <!-- Kategorien werden hier geladen -->
+                    </nav>
+                    <button onclick="showAddCategory()" class="mt-6 w-full py-2 px-4 border border-blue-500 text-blue-400 rounded hover:bg-blue-500 hover:text-white transition text-sm">
+                        + Neue Kategorie
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Main: Asset Liste -->
+            <main class="md:col-span-3">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 id="current-category-title" class="text-2xl font-bold">Alle Assets</h2>
+                    <button onclick="document.getElementById('file-upload').click()" class="btn-primary px-4 py-2 rounded font-medium">
+                        Asset hochladen
+                    </button>
+                    <input type="file" id="file-upload" class="hidden" accept=".glb,.gltf,.png,.jpg,.jpeg,.webp" onchange="handleFileUpload(this)">
+                </div>
+
+                <div id="asset-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Assets werden hier geladen -->
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-backdrop" class="fixed inset-0 bg-black/70 hidden flex items-center justify-center z-50">
+        <div id="category-modal" class="card p-6 rounded-lg w-full max-w-md hidden">
+            <h3 class="text-xl font-bold mb-4">Neue Kategorie anlegen</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">ID (intern)</label>
+                    <input type="text" id="cat-id" placeholder="z.B. furniture" class="w-full bg-slate-800 border border-slate-700 rounded p-2">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Anzeige-Name</label>
+                    <input type="text" id="cat-label" placeholder="z.B. Möbel" class="w-full bg-slate-800 border border-slate-700 rounded p-2">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Unterverzeichnis</label>
+                    <input type="text" id="cat-path" placeholder="z.B. props/furniture" class="w-full bg-slate-800 border border-slate-700 rounded p-2">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Spawn-Typ</label>
+                    <select id="cat-spawn" class="w-full bg-slate-800 border border-slate-700 rounded p-2">
+                        <option value="object">Objekt (statisch)</option>
+                        <option value="npc">NPC (belebt)</option>
+                        <option value="monster">Monster (feindlich)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end gap-3">
+                <button onclick="closeModals()" class="px-4 py-2 text-slate-400 hover:text-white">Abbrechen</button>
+                <button onclick="createCategory()" class="btn-primary px-4 py-2 rounded">Erstellen</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentCategory = null;
+        let registry = null;
+
+        async function loadData() {
+            const res = await fetch('/api/registry');
+            registry = await res.json();
+            renderCategories();
+            renderAssets();
+        }
+
+        function renderCategories() {
+            const list = document.getElementById('category-list');
+            list.innerHTML = '';
+            
+            // All Assets
+            const allBtn = document.createElement('button');
+            allBtn.className = `w-full text-left px-3 py-2 rounded transition ${!currentCategory ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`;
+            allBtn.innerText = 'Alle Assets';
+            allBtn.onclick = () => { currentCategory = null; renderCategories(); renderAssets(); };
+            list.appendChild(allBtn);
+
+            Object.entries(registry.categories).forEach(([id, cat]) => {
+                const btn = document.createElement('button');
+                btn.className = `w-full text-left px-3 py-2 rounded transition ${currentCategory === id ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`;
+                btn.innerHTML = `<div class="flex justify-between"><span>${cat.label}</span><span class="text-xs opacity-50">${cat.assets.length}</span></div>`;
+                btn.onclick = () => { currentCategory = id; renderCategories(); renderAssets(); };
+                list.appendChild(btn);
+            });
+        }
+
+        function renderAssets() {
+            const grid = document.getElementById('asset-grid');
+            const title = document.getElementById('current-category-title');
+            grid.innerHTML = '';
+
+            let assetsToShow = [];
+            if (currentCategory) {
+                assetsToShow = registry.categories[currentCategory].assets;
+                title.innerText = registry.categories[currentCategory].label;
+            } else {
+                Object.values(registry.categories).forEach(cat => assetsToShow.push(...cat.assets));
+                title.innerText = 'Alle Assets';
+            }
+
+            if (assetsToShow.length === 0) {
+                grid.innerHTML = '<div class="col-span-full text-center py-20 text-slate-500">Keine Assets gefunden. Lade eins hoch!</div>';
+                return;
+            }
+
+            assetsToShow.forEach(asset => {
+                const card = document.createElement('div');
+                card.className = 'card rounded-lg overflow-hidden flex flex-col';
+                const isGlb = asset.filename.toLowerCase().endsWith('.glb');
+                
+                card.innerHTML = `
+                    <div class="h-40 bg-slate-900 flex items-center justify-center relative group">
+                        ${isGlb ? '<span class="text-4xl">📦</span>' : `<img src="${asset.modelUrl}" class="max-h-full object-contain">`}
+                        <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
+                            <button onclick="deployAsset('${asset.category}', '${asset.id}')" class="bg-green-600 p-2 rounded text-white text-xs">Deploy</button>
+                            <button onclick="deleteAsset('${asset.category}', '${asset.id}')" class="bg-red-600 p-2 rounded text-white text-xs">Löschen</button>
+                        </div>
+                    </div>
+                    <div class="p-4 flex-grow">
+                        <div class="text-sm font-bold truncate" title="${asset.filename}">${asset.filename}</div>
+                        <div class="text-xs text-slate-500 mt-1">${asset.category} • ${(asset.size / 1024 / 1024).toFixed(2)} MB</div>
+                        ${asset.deployed ? '<div class="mt-2 text-[10px] bg-green-900/50 text-green-400 px-2 py-0.5 rounded inline-block">LIVE IM SPIEL</div>' : ''}
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        async function handleFileUpload(input) {
+            if (!input.files || !input.files[0]) return;
+            const file = input.files[0];
+            const category = currentCategory || 'custom';
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('category', category);
+
+            const res = await fetch('/api/upload', { method: 'POST', body: formData });
+            if (res.ok) {
+                loadData();
+                input.value = '';
+            } else {
+                const err = await res.json();
+                alert('Upload fehlgeschlagen: ' + err.error);
+            }
+        }
+
+        async function deleteAsset(category, id) {
+            if (!confirm('Asset wirklich löschen?')) return;
+            const res = await fetch(`/api/asset/${category}/${id}`, { method: 'DELETE' });
+            if (res.ok) loadData();
+        }
+
+        async function deployAsset(category, id) {
+            const res = await fetch('/api/deploy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ assetId: id, category })
+            });
+            if (res.ok) {
+                alert('Asset erfolgreich für das Spiel freigegeben!');
+                loadData();
+            } else {
+                const err = await res.json();
+                alert('Deploy fehlgeschlagen: ' + err.error);
+            }
+        }
+
+        function showAddCategory() {
+            document.getElementById('modal-backdrop').classList.remove('hidden');
+            document.getElementById('category-modal').classList.remove('hidden');
+        }
+
+        function closeModals() {
+            document.getElementById('modal-backdrop').classList.add('hidden');
+            document.getElementById('category-modal').classList.add('hidden');
+        }
+
+        async function createCategory() {
+            const id = document.getElementById('cat-id').value;
+            const label = document.getElementById('cat-label').value;
+            const path = document.getElementById('cat-path').value;
+            const spawnType = document.getElementById('cat-spawn').value;
+
+            const res = await fetch('/api/category', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, label, path, spawnType })
+            });
+
+            if (res.ok) {
+                closeModals();
+                loadData();
+            } else {
+                const err = await res.json();
+                alert('Fehler: ' + err.error);
+            }
+        }
+
+        // WebSocket für Live-Updates
+        const ws = new WebSocket(`ws://${location.host}`);
+        ws.onmessage = (msg) => {
+            const data = JSON.parse(msg.data);
+            if (data.type === 'registry_update') loadData();
+        };
+
+        loadData();
+    </script>
+</body>
+</html>

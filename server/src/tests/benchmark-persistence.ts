@@ -42,7 +42,7 @@ async function run() {
   console.log(`Saved ${numPlayers} players in ${end - start}ms`);
 
   // clean up
-  await db.query("DELETE FROM players WHERE id LIKE 'player_%'");
+  await db.query("DELETE FROM player_snapshots WHERE id LIKE 'player_%'");
   process.exit(0);
 }
 

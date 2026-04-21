@@ -11,7 +11,6 @@ import { OwnershipRegistry } from "../modules/housing/OwnershipRegistry.js";
 import { DungeonGenerator } from "../modules/dungeon/DungeonGenerator.js";
 import { PacketRouter } from "../networking/PacketRouter.js";
 import { GameConfig } from "../config/GameConfig.js";
-import { FeatureFlags } from "../config/FeatureFlags.js";
 import { NPCSpawnTable } from "../modules/npc/NPCSpawnTable.js";
 import { NPCProfessions } from "../modules/npc/NPCProfessions.js";
 
@@ -366,35 +365,23 @@ describe("GameConfig", () => {
   it("attackDistance is 35", () => {
     expect(GameConfig.attackDistance).toBe(35);
   });
+  it("npcAttackDistance and attack cooldowns are set", () => {
+    expect(GameConfig.npcAttackDistance).toBe(4.5);
+    expect(GameConfig.playerAttackCooldownMs).toBe(450);
+    expect(GameConfig.npcCounterAttackCooldownMs).toBe(1200);
+  });
+  it("npc aggro and respawn delay are set", () => {
+    expect(GameConfig.npcAggroRadius).toBe(14);
+    expect(GameConfig.npcAggroLeash).toBe(42);
+    expect(GameConfig.npcChaseSpeed).toBe(0.55);
+    expect(GameConfig.playerRespawnDelayMs).toBe(2500);
+  });
   it("playerSpeed is 3", () => {
     expect(GameConfig.playerSpeed).toBe(3);
   });
 
   it("lootDespawnMs is 300000", () => {
     expect(GameConfig.lootDespawnMs).toBe(300000);
-  });
-});
-
-
-
-// ---------------------------------------------------------------------------
-// FeatureFlags
-// ---------------------------------------------------------------------------
-describe("FeatureFlags", () => {
-  it("enableOracle is true", () => {
-    expect(FeatureFlags.enableOracle).toBe(true);
-  });
-
-  it("enableWeather is true", () => {
-    expect(FeatureFlags.enableWeather).toBe(true);
-  });
-
-  it("enableSeasons is true", () => {
-    expect(FeatureFlags.enableSeasons).toBe(true);
-  });
-
-  it("enableGMEditor is true", () => {
-    expect(FeatureFlags.enableGMEditor).toBe(true);
   });
 });
 

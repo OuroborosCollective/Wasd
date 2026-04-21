@@ -1,7 +1,15 @@
 [
   {
+    "id": "npc_guide",
+    "name": "Linnea",
+    "role": "Village Guide",
+    "dialogueId": "dialogue_guide",
+    "questHooks": ["starter_welcome", "village_tour"],
+    "faction": "Neutral"
+  },
+  {
     "id": "npc_1",
-    "name": "Test NPC",
+    "name": "Quartermaster Mara",
     "role": "Quest Giver",
     "dialogueId": "dialogue_npc_1",
     "questHooks": ["first_steps", "missing_letter"],
@@ -61,10 +69,12 @@
     "faction": "Hostile",
     "stats": {
       "health": 50,
-      "maxHealth": 50
+      "maxHealth": 50,
+      "combatLevel": 3
     },
     "dropTable": [
-      { "itemId": "wolf_pelt", "chance": 1.0 }
+      { "itemId": "wolf_pelt", "chance": 1.0 },
+      { "goldMin": 2, "goldMax": 8, "chance": 0.85 }
     ]
   },
   {

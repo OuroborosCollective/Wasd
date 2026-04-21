@@ -1,0 +1,57 @@
+[
+  {
+    "id": "legion_invasion",
+    "title": "Legion Invasion",
+    "description": "Demonic forces attack the didis_hub frontier.",
+    "phases": [
+      {
+        "delayMs": 0,
+        "broadcast": "[Phase 1] Scouts spotted near the eastern gate!",
+        "weather": "storm",
+        "spawnNpcs": [
+          { "npcId": "legion_scout_1", "name": "Legion Scout", "x": 10, "y": 2, "hp": 120 },
+          { "npcId": "legion_scout_2", "name": "Legion Scout", "x": 12, "y": 3, "hp": 120 }
+        ]
+      },
+      {
+        "delayMs": 15000,
+        "broadcast": "[Phase 2] The first wave has arrived!",
+        "spawnNpcs": [
+          { "npcId": "legion_brute_1", "name": "Legion Brute", "x": 8, "y": 0, "hp": 220 },
+          { "npcId": "legion_brute_2", "name": "Legion Brute", "x": -8, "y": 0, "hp": 220 }
+        ]
+      },
+      {
+        "delayMs": 30000,
+        "broadcast": "[Phase 3] Commander entering the battlefield!",
+        "weather": "rain",
+        "spawnNpcs": [
+          { "npcId": "legion_commander", "name": "Legion Commander", "x": 0, "y": 6, "hp": 450 }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "harvest_festival",
+    "title": "Harvest Festival",
+    "description": "A peaceful event with merchants and celebration NPCs.",
+    "phases": [
+      {
+        "delayMs": 0,
+        "broadcast": "[Festival] Market stalls are opening!",
+        "weather": "clear",
+        "spawnNpcs": [
+          { "npcId": "festival_merchant_1", "name": "Festival Merchant", "x": 4, "y": -3, "hp": 100 },
+          { "npcId": "festival_bard", "name": "Traveling Bard", "x": -4, "y": -3, "hp": 100 }
+        ]
+      },
+      {
+        "delayMs": 10000,
+        "broadcast": "[Festival] Fireworks and blessings begin!",
+        "spawnNpcs": [
+          { "npcId": "festival_priest", "name": "Festival Priest", "x": 0, "y": -5, "hp": 100 }
+        ]
+      }
+    ]
+  }
+]

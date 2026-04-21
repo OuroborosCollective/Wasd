@@ -123,4 +123,18 @@ describe("CombatSystem", () => {
     expect(result).toHaveProperty("defenderHealth");
     vi.restoreAllMocks();
   });
+
+  it("attackWithWeapon() deals more damage than bare attack with same RNG", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.1);
+    const attacker = { stamina: 50, skills: { combat: { level: 5 } } };
+    const defenderA = { health: 500, skills: { combat: { level: 1 } } };
+    const defenderB = { health: 500, skills: { combat: { level: 1 } } };
+    combat.attack(attacker, defenderA);
+    const dmgBare = 500 - defenderA.health;
+    attacker.stamina = 50;
+    combat.attackWithWeapon(attacker, defenderB, 25);
+    const dmgWeapon = 500 - defenderB.health;
+    expect(dmgWeapon).toBeGreaterThan(dmgBare);
+    vi.restoreAllMocks();
+  });
 });

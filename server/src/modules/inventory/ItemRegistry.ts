@@ -1,12 +1,39 @@
 import fs from "fs";
 import path from "path";
+import { resolveContentFile } from "../content/contentDataRoot.js";
 
 export interface ItemDefinition {
   id: string;
   name: string;
   type: "weapon" | "armor" | "consumable" | "misc";
-  slot?: "weapon" | "armor";
+  slot?: "weapon" | "armor" | "offHand";
   damage?: number;
+  /** If set on a weapon, `attack` uses this max distance instead of default melee range */
+  attackRange?: number;
+  /** Mana consumed per attack when set (>0); ranged weapons without this use server default */
+  manaCost?: number;
+  /** Consumable: restore health (capped at maxHealth) */
+  healAmount?: number;
+  /** Consumable: restore mana (capped at maxMana) */
+  restoreMana?: number;
+  /** If false, never stacks with others of same id */
+  stackable?: boolean;
+  /** Max count per inventory row (default 99) */
+  maxStack?: number;
+  /** Weight per unit (default 1). Used for carry capacity checks. */
+  weight?: number;
+  /** Tags for filtering/categorization (e.g. "furniture", "material") */
+  tags?: string[];
+  /** Optional legendary / aspect id for combat proc hooks (see `legendaryPowers.ts`). */
+  legendaryPowerId?: string;
+  /** Bind on acquire: item cannot be moved to other players/systems. */
+  boundOnAcquire?: boolean;
+  /** Hard block for any transfer channels. */
+  nonTransferable?: boolean;
+  /** Explicitly forbid player-to-player or market trade. */
+  tradeable?: boolean;
+  /** Explicitly forbid dropping from inventory/equipment. */
+  droppable?: boolean;
   rarity: "common" | "uncommon" | "rare" | "epic" | "legendary";
   description: string;
 }
@@ -15,11 +42,17 @@ export class ItemRegistry {
   private static ITEM_REGISTRY: Record<string, ItemDefinition> = {};
   private static initialized = false;
 
+  private static resolveItemsPath(): string | null {
+    const p = resolveContentFile("items/items.json");
+    if (fs.existsSync(p)) return p;
+    return null;
+  }
+
   static init() {
     if (this.initialized) return;
     try {
-      const itemsPath = path.resolve(process.cwd(), "game-data/items/items.json");
-      if (fs.existsSync(itemsPath)) {
+      const itemsPath = this.resolveItemsPath();
+      if (itemsPath) {
         const itemData = JSON.parse(fs.readFileSync(itemsPath, "utf-8"));
         itemData.forEach((item: ItemDefinition) => {
           this.ITEM_REGISTRY[item.id] = item;
@@ -36,12 +69,30 @@ export class ItemRegistry {
     return this.ITEM_REGISTRY[id];
   }
 
-  static createInstance(id: string) {
+  static createInstance(id: string, quantity = 1) {
     if (!this.initialized) this.init();
     const def = this.getItem(id);
     if (!def) return null;
-    // Return a copy to avoid mutation of the registry
-    return { ...def };
+    const q = Math.max(1, Math.floor(quantity));
+    return { ...def, quantity: q };
+  }
+
+  static stacksWithDefinition(def: ItemDefinition | undefined): boolean {
+    if (!def) return false;
+    if (def.stackable === false) return false;
+    if (def.stackable === true) return true;
+    return def.type === "consumable" || def.type === "misc";
+  }
+
+  static maxStackFor(def: ItemDefinition | undefined): number {
+    if (!def) return 1;
+    const m = typeof def.maxStack === "number" && def.maxStack > 0 ? Math.floor(def.maxStack) : 99;
+    return Math.min(99, Math.max(1, m));
+  }
+
+  static weightOf(def: ItemDefinition | undefined): number {
+    if (!def) return 0;
+    return typeof def.weight === "number" && def.weight > 0 ? def.weight : 1;
   }
 
   static hydrate(item: any) {

@@ -1,0 +1,220 @@
+name: Continuous Deployment to VPS
+
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-vps-main
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_PUBLIC_URL: ${{ secrets.SUPABASE_PUBLIC_URL }}
+      API_EXTERNAL_URL: ${{ secrets.API_EXTERNAL_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      ANON_KEY: ${{ secrets.ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SERVICE_ROLE_KEY: ${{ secrets.SERVICE_ROLE_KEY }}
+      SUPABASE_JWT_SECRET: ${{ secrets.SUPABASE_JWT_SECRET }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      GOTRUE_JWT_SECRET: ${{ secrets.GOTRUE_JWT_SECRET }}
+      AUTH_JWT_SECRET: ${{ secrets.AUTH_JWT_SECRET }}
+      SECRET_KEY_BASE: ${{ secrets.SECRET_KEY_BASE }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      PGHOST: ${{ secrets.PGHOST }}
+      POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+      PGPORT: ${{ secrets.PGPORT }}
+      POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
+      PGDATABASE: ${{ secrets.PGDATABASE }}
+      POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+      PGUSER: ${{ secrets.PGUSER }}
+      POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+      PGPASSWORD: ${{ secrets.PGPASSWORD }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      POOLER_PROXY_PORT_TRANSACTION: ${{ secrets.POOLER_PROXY_PORT_TRANSACTION }}
+      SUPABASE_PROXY_URL: ${{ secrets.SUPABASE_PROXY_URL }}
+      GAME_ORIGIN: ${{ secrets.GAME_ORIGIN }}
+
+    steps:
+      # Single SSH session: avoids a redundant first connection (which used a 60s
+      # dial timeout and failed the whole job on transient network blips — see
+      # actions/run 24586463273). Supabase secrets are merged in the same step
+      # via deploy/sync-supabase-env.sh after the repo is updated.
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          BUILD_NODE_OPTIONS: --max-old-space-size=8192
+        with:
+          host: ${{ secrets.VPS_IP }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_SSH_PASSWORD }}
+          port: 22
+          timeout: 3m
+          command_timeout: 45m
+          envs: VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY,SUPABASE_URL,SUPABASE_PUBLIC_URL,API_EXTERNAL_URL,SUPABASE_ANON_KEY,ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,SERVICE_ROLE_KEY,SUPABASE_JWT_SECRET,JWT_SECRET,GOTRUE_JWT_SECRET,AUTH_JWT_SECRET,SECRET_KEY_BASE,DATABASE_URL,PGHOST,POSTGRES_HOST,PGPORT,POSTGRES_PORT,PGDATABASE,POSTGRES_DB,PGUSER,POSTGRES_USER,PGPASSWORD,POSTGRES_PASSWORD,POOLER_PROXY_PORT_TRANSACTION,SUPABASE_PROXY_URL,GAME_ORIGIN
+          script: |
+            set -e
+            export CI=1
+            export BUILD_NODE_OPTIONS="--max-old-space-size=8192"
+            export VITE_SUPABASE_URL="${VITE_SUPABASE_URL:-}"
+            export VITE_SUPABASE_ANON_KEY="${VITE_SUPABASE_ANON_KEY:-}"
+            export SUPABASE_URL="${SUPABASE_URL:-}"
+            export SUPABASE_PUBLIC_URL="${SUPABASE_PUBLIC_URL:-}"
+            export API_EXTERNAL_URL="${API_EXTERNAL_URL:-}"
+            export SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}"
+            export ANON_KEY="${ANON_KEY:-}"
+            export SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY:-}"
+            export SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-}"
+            export SUPABASE_JWT_SECRET="${SUPABASE_JWT_SECRET:-}"
+            export JWT_SECRET="${JWT_SECRET:-}"
+            export GOTRUE_JWT_SECRET="${GOTRUE_JWT_SECRET:-}"
+            export AUTH_JWT_SECRET="${AUTH_JWT_SECRET:-}"
+            export SECRET_KEY_BASE="${SECRET_KEY_BASE:-}"
+            export DATABASE_URL="${DATABASE_URL:-}"
+            export PGHOST="${PGHOST:-}"
+            export POSTGRES_HOST="${POSTGRES_HOST:-}"
+            export PGPORT="${PGPORT:-}"
+            export POSTGRES_PORT="${POSTGRES_PORT:-}"
+            export PGDATABASE="${PGDATABASE:-}"
+            export POSTGRES_DB="${POSTGRES_DB:-}"
+            export PGUSER="${PGUSER:-}"
+            export POSTGRES_USER="${POSTGRES_USER:-}"
+            export PGPASSWORD="${PGPASSWORD:-${POSTGRES_PASSWORD:-}}"
+            export POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-}"
+            export POOLER_PROXY_PORT_TRANSACTION="${POOLER_PROXY_PORT_TRANSACTION:-}"
+            export SUPABASE_PROXY_URL="${SUPABASE_PROXY_URL:-http://supabase.arelogic.space:8000}"
+            export GAME_ORIGIN="${GAME_ORIGIN:-https://arelogic.space}"
+            # Public Supabase URL the browser can reach (for VITE_SUPABASE_URL at build time)
+            export SUPABASE_PUBLIC_URL="${SUPABASE_PUBLIC_URL:-https://supabase.arelogic.space:8443}"
+            export SUPABASE_URL="${SUPABASE_URL:-https://supabase.arelogic.space:8443}"
+            # Construct DATABASE_URL from individual PG secrets if not set directly
+            if [ -z "${DATABASE_URL:-}" ]; then
+              _pg_host="${POSTGRES_HOST:-${PGHOST:-127.0.0.1}}"
+              # Docker-internal hostnames like 'db' won't work from PM2; use localhost
+              if [ "$_pg_host" = "db" ] || [ "$_pg_host" = "supabase-db" ]; then
+                _pg_host="127.0.0.1"
+              fi
+              _pg_port="${POSTGRES_PORT:-${PGPORT:-5432}}"
+              _pg_db="${POSTGRES_DB:-${PGDATABASE:-postgres}}"
+              _pg_user="${POSTGRES_USER:-${PGUSER:-postgres}}"
+              _pg_pass="${POSTGRES_PASSWORD:-${PGPASSWORD:-}}"
+              if [ -n "$_pg_pass" ]; then
+                # URL-encode the password (may contain special chars like !)
+                _pg_pass_enc=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${_pg_pass}',''))" 2>/dev/null || echo "$_pg_pass")
+                # Try direct port first, then pooler port
+                _db_url="postgresql://${_pg_user}:${_pg_pass_enc}@${_pg_host}:${_pg_port}/${_pg_db}"
+                if ! timeout 3 bash -c "cat < /dev/null > /dev/tcp/${_pg_host}/${_pg_port}" 2>/dev/null; then
+                  echo "Port ${_pg_port} not reachable on ${_pg_host}, trying pooler port 6543..."
+                  _pg_port="6543"
+                  # Pooler uses transaction mode — add sslmode=require for remote
+                  _db_url="postgresql://${_pg_user}:${_pg_pass_enc}@${_pg_host}:${_pg_port}/${_pg_db}?sslmode=require"
+                fi
+                export DATABASE_URL="$_db_url"
+                echo "DATABASE_URL set (host=$_pg_host port=$_pg_port)"
+              else
+                echo "WARNING: No POSTGRES_PASSWORD found, cannot construct DATABASE_URL"
+              fi
+            else
+              echo "DATABASE_URL already set (from secret)"
+            fi
+            # Debug: show connection info (without password)
+            _db_host_port=$(echo "$DATABASE_URL" | sed -E 's|.*@||;s|/.*||;s|\?.*||' 2>/dev/null || echo 'N/A')
+            echo "DB target: $_db_host_port"
+            # Verify port is actually reachable before deploying
+            _db_host=$(echo "$_db_host_port" | cut -d: -f1)
+            _db_port=$(echo "$_db_host_port" | cut -d: -f2)
+            echo "Testing connection to $_db_host:$_db_port..."
+            if timeout 5 bash -c "cat < /dev/null > /dev/tcp/$_db_host/$_db_port" 2>/dev/null; then
+              echo "  -> Port $_db_port is REACHABLE on $_db_host"
+            else
+              echo "  -> WARNING: Port $_db_port is NOT reachable on $_db_host"
+              echo "  -> Checking all listening ports..."
+              ss -tlnp 2>/dev/null | grep -E '5432|6543' || echo "  -> No Postgres ports listening!"
+              echo "  -> Docker containers:"
+              docker ps --format '{{.Names}} {{.Ports}}' 2>/dev/null | grep -i 'db\|postgres\|pooler' || echo "  -> No matching containers found"
+            fi
+            # If no anon key provided, generate standard Supabase anon JWT from JWT_SECRET
+            if [ -z "${SUPABASE_ANON_KEY:-}" ] && [ -z "${ANON_KEY:-}" ] && [ -n "${SUPABASE_JWT_SECRET:-${JWT_SECRET:-}}" ]; then
+              _jwt_secret="${SUPABASE_JWT_SECRET:-${JWT_SECRET:-}}"
+              # Generate anon key: HS256 JWT with role=anon, 10-year expiry
+              _anon_key=$(SUPABASE_JWT_SECRET="$_jwt_secret" python3 -c "
+import hmac, hashlib, base64, time, json, os
+secret = os.environ.get('SUPABASE_JWT_SECRET', '')
+header = base64.urlsafe_b64encode(json.dumps({'alg':'HS256','typ':'JWT'},separators=(',',':')).encode()).decode().rstrip('=')
+exp = int(time.time()) + 315360000
+payload = base64.urlsafe_b64encode(json.dumps({'iss':'supabase','ref':'areloria','role':'anon','iat':int(time.time()),'exp':exp},separators=(',',':')).encode()).decode().rstrip('=')
+msg = f'{header}.{payload}'
+sig = base64.urlsafe_b64encode(hmac.new(secret.encode(), msg.encode(), hashlib.sha256).digest()).decode().rstrip('=')
+print(f'{msg}.{sig}')
+" 2>/dev/null || echo "")
+              if [ -n "$_anon_key" ]; then
+                export SUPABASE_ANON_KEY="$_anon_key"
+                echo "Generated SUPABASE_ANON_KEY from JWT_SECRET"
+              fi
+            fi
+            export USE_SUPABASE_WS_LOGIN="${USE_SUPABASE_WS_LOGIN:-1}"
+            export REQUIRE_SUPABASE_AUTH="${REQUIRE_SUPABASE_AUTH:-1}"
+            export PERSISTENCE_DRIVER="${PERSISTENCE_DRIVER:-postgres}"
+            export ALLOW_GUEST_LOGIN="${ALLOW_GUEST_LOGIN:-0}"
+            export ALLOW_DEV_LOGIN="${ALLOW_DEV_LOGIN:-0}"
+            if [ ! -d "/opt/areloria/.git" ]; then
+              git clone https://github.com/OuroborosCollective/Wasd.git /opt/areloria
+            fi
+            cd /opt/areloria
+            git fetch origin main
+            git reset --hard origin/main
+            chmod +x deploy/deploy.sh deploy/sync-supabase-env.sh 2>/dev/null || true
+            bash deploy/sync-supabase-env.sh
+            chmod +x deploy/update.sh deploy/write_pm2_ecosystem.sh 2>/dev/null || true
+            if [ ! -f /opt/areloria/server/dist/index.js ] || ! command -v pm2 >/dev/null 2>&1; then
+              ./deploy/deploy.sh
+            else
+              ./deploy/update.sh
+            fi
+            if [ "${SKIP_DEPLOY_HEALTH_CHECK:-}" != "1" ]; then
+              sleep 2
+              curl -sf --max-time 15 http://127.0.0.1:3000/health | grep -q '"ok"' && echo "Deploy health check: OK" || { echo "Deploy health check: FAILED (is the server listening on 3000?)"; exit 1; }
+            fi
+
+      - name: Verify deployed HTTPS endpoints
+        env:
+          VERIFY_BASE_URL: ${{ secrets.DEPLOY_VERIFY_BASE_URL }}
+        run: |
+          set -e
+          verify_url() {
+            local url="$1"
+            local name="$2"
+            local attempts=10
+            local wait_sec=6
+            local code=""
+            for i in $(seq 1 "$attempts"); do
+              code="$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 25 "$url" || true)"
+              if [ "$code" = "200" ]; then
+                echo "✅ ${name} OK (${url})"
+                return 0
+              fi
+              echo "⏳ ${name} not ready (${url}) [attempt ${i}/${attempts}] status=${code:-n/a}"
+              sleep "$wait_sec"
+            done
+            echo "❌ ${name} failed after ${attempts} attempts (${url}), last status=${code:-n/a}"
+            return 1
+          }
+
+          if [ -z "${VERIFY_BASE_URL:-}" ]; then
+            echo "ℹ️  Secret DEPLOY_VERIFY_BASE_URL nicht gesetzt — überspringe externe HTTPS-Checks (Deploy auf VPS lief durch)."
+            exit 0
+          fi
+
+          BASE="${VERIFY_BASE_URL%/}"
+          verify_url "${BASE}/health" "HTTPS health endpoint"
+          verify_url "${BASE}/" "HTTPS client root"
+          verify_url "${BASE}/gm/" "HTTPS GM console"

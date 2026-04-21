@@ -1,9 +1,16 @@
 import { ItemRegistry } from "../inventory/ItemRegistry.js";
 import fs from "fs";
-import path from "path";
+import { resolveContentFile } from "../content/contentDataRoot.js";
 
 export class QuestEngine {
   private quests: Map<string, any> = new Map();
+  /** Optional hook after a quest is completed (e.g. questline feature triggers + auto-chain). */
+  private onQuestCompletedHook: ((player: any, questRow: any, questDef: any) => void) | null = null;
+  /**
+   * Optional central XP applier hook (e.g. global modifiers such as vote buffs).
+   * Returns the final applied XP amount.
+   */
+  private xpRewardApplier: ((player: any, baseXp: number, context: { questId: string }) => number) | null = null;
   // ⚡ Bolt Optimization: definitionVersion increments whenever quests are added or reloaded,
   // ensuring the O(1) player quest status cache is globally invalidated when definitions change.
   private definitionVersion = 0;
@@ -17,10 +24,24 @@ export class QuestEngine {
     this.loadData();
   }
 
+  setOnQuestCompleted(cb: (player: any, questRow: any, questDef: any) => void) {
+    this.onQuestCompletedHook = cb;
+  }
+
+  setXpRewardApplier(cb: (player: any, baseXp: number, context: { questId: string }) => number) {
+    this.xpRewardApplier = cb;
+  }
+
+  private resolveQuestsPath(): string | null {
+    const p = resolveContentFile("quests/quests.json");
+    if (fs.existsSync(p)) return p;
+    return null;
+  }
+
   private loadData() {
     try {
-      const questsPath = path.resolve(process.cwd(), "game-data/quests/quests.json");
-      if (fs.existsSync(questsPath)) {
+      const questsPath = this.resolveQuestsPath();
+      if (questsPath) {
         const questData = JSON.parse(fs.readFileSync(questsPath, "utf-8"));
         questData.forEach((quest: any) => {
           // Map to internal format if needed
@@ -172,7 +193,12 @@ export class QuestEngine {
     // Apply rewards
     if (q.reward) {
       player.gold = (player.gold || 0) + (q.reward.gold || 0);
-      player.xp = (player.xp || 0) + (q.reward.xp || 0);
+      const baseXp = Math.max(0, Number(q.reward.xp) || 0);
+      if (baseXp > 0 && this.xpRewardApplier) {
+        this.xpRewardApplier(player, baseXp, { questId });
+      } else if (baseXp > 0) {
+        player.xp = (player.xp || 0) + baseXp;
+      }
       
       if (q.reward.itemId) {
         if (!player.inventory) player.inventory = [];
@@ -184,7 +210,120 @@ export class QuestEngine {
     }
 
     this.invalidateCache(player);
+    const def = this.quests.get(questId);
+    if (this.onQuestCompletedHook && def) {
+      try {
+        this.onQuestCompletedHook(player, q, def);
+      } catch (e) {
+        console.warn("[QuestEngine] onQuestCompleted hook failed", e);
+      }
+    }
     return q.reward;
+  }
+
+  /**
+   * Complete active talk_to quests when the player talks to the target NPC (after dialogue flow).
+   */
+  checkTalkToQuests(player: any, npcId: string): { quest: any; reward: any }[] {
+    const completedQuestRewards: { quest: any; reward: any }[] = [];
+    if (!player.quests) return completedQuestRewards;
+    const activeQuests = player.quests.filter((q: any) => !q.completed);
+
+    for (const q of activeQuests) {
+      const obj = q.objectiveType || q.objective;
+      if (obj !== "talk_to") continue;
+      const target = q.targetNpcId || q.targetId;
+      if (target && target === npcId) {
+        const wasOpen = !q.completed;
+        const reward = this.completeQuest(player, q.id);
+        if (wasOpen && q.completed) {
+          completedQuestRewards.push({ quest: q, reward: reward ?? null });
+        }
+      }
+    }
+    return completedQuestRewards;
+  }
+
+  countItemInInventory(player: any, itemId: string): number {
+    const inv = player.inventory || [];
+    let sum = 0;
+    for (const it of inv) {
+      if (it && it.id === itemId) {
+        sum += Math.max(1, Math.floor(Number(it.quantity) || 1));
+      }
+    }
+    return sum;
+  }
+
+  /**
+   * Turn in collect quests when talking to the designated NPC while carrying items.
+   */
+  checkCollectTurnInQuests(player: any, npcId: string): { quest: any; reward: any }[] {
+    const completedQuestRewards: { quest: any; reward: any }[] = [];
+    if (!player.quests) return completedQuestRewards;
+    const activeQuests = player.quests.filter((q: any) => !q.completed);
+
+    for (const q of activeQuests) {
+      const obj = q.objectiveType || q.objective;
+      if (obj !== "collect") continue;
+      const turnInNpc = q.targetNpcId || q.giverNpcId;
+      if (!turnInNpc || turnInNpc !== npcId) continue;
+      const needId = q.requiredItemId;
+      const needCount = Math.max(1, Number(q.requiredCount ?? 1));
+      if (!needId) continue;
+      if (this.countItemInInventory(player, needId) < needCount) continue;
+
+      let removed = 0;
+      const inv = player.inventory || [];
+      for (let i = 0; i < inv.length && removed < needCount; i++) {
+        const it = inv[i];
+        if (!it || it.id !== needId) continue;
+        const q = Math.max(1, Math.floor(Number(it.quantity) || 1));
+        const need = needCount - removed;
+        if (q <= need) {
+          removed += q;
+          inv.splice(i, 1);
+          i--;
+        } else {
+          it.quantity = q - need;
+          removed += need;
+        }
+      }
+      player.inventory = inv;
+
+      const wasOpen = !q.completed;
+      const reward = this.completeQuest(player, q.id);
+      if (wasOpen && q.completed) {
+        completedQuestRewards.push({ quest: q, reward: reward ?? null });
+      }
+    }
+    return completedQuestRewards;
+  }
+
+  /** Payload for client quest UI (minimal fields). */
+  getQuestSyncForClient(player: any): any[] {
+    if (!player.quests) return [];
+    return player.quests.map((q: any) => {
+      const obj = q.objectiveType || q.objective;
+      let progress: number | undefined;
+      let progressMax: number | undefined;
+      if (obj === "collect" && q.requiredItemId) {
+        progressMax = Math.max(1, Number(q.requiredCount ?? 1));
+        progress = Math.min(progressMax, this.countItemInInventory(player, q.requiredItemId));
+      }
+      return {
+        id: q.id,
+        title: q.title || q.name || q.id,
+        objectiveType: obj,
+        completed: !!q.completed,
+        targetId: q.targetId,
+        targetNpcId: q.targetNpcId,
+        requiredItemId: q.requiredItemId,
+        requiredCount: q.requiredCount,
+        progress,
+        progressMax,
+      };
+    });
   }
 
   updateCombatQuests(player: any, npcId: string, npcInstanceId: string): { quest: any; reward: any }[] {
@@ -194,9 +333,10 @@ export class QuestEngine {
 
     for (const q of activeQuests) {
       if ((q.objectiveType === "combat" || q.objective === "combat") && (q.targetId === npcId || q.targetId === npcInstanceId)) {
+        const wasOpen = !q.completed;
         const reward = this.completeQuest(player, q.id);
-        if (reward) {
-          completedQuestRewards.push({ quest: q, reward });
+        if (wasOpen && q.completed) {
+          completedQuestRewards.push({ quest: q, reward: reward ?? null });
         }
       }
     }

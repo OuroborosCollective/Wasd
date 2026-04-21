@@ -1,3 +1,5 @@
+> **Historical export — not current spec (2026):** The live game client is **Babylon.js** only. Authoritative status: `docs/PROJECT_STATUS_2026.md`. Index: `docs/DOCUMENTATION_INDEX.md`.
+
 # ARELORIA RECONSTRUCTION PACK WORKING
 
 Dieses Dokument ist für No-Code/Agent-Rekonstruktion gedacht.
