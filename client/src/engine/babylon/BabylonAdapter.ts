@@ -753,21 +753,31 @@ export class BabylonAdapter implements IEngineBridge {
     return plane;
   }
 
+  private failedModels = new Set<string>();
+
   private async loadModelContainer(url: string): Promise<AssetContainer> {
     const existing = this.loadedModels.get(url);
     if (existing) {
       return existing;
     }
+    if (this.failedModels.has(url)) {
+      throw new Error(`Model previously failed to load: ${url}`);
+    }
     const splitIdx = url.lastIndexOf("/");
     const rootUrl = splitIdx >= 0 ? url.slice(0, splitIdx + 1) : "/";
     const fileName = splitIdx >= 0 ? url.slice(splitIdx + 1) : url;
-    const container = await SceneLoader.LoadAssetContainerAsync(
-      rootUrl,
-      fileName,
-      this.scene,
-    );
-    this.loadedModels.set(url, container);
-    return container;
+    try {
+      const container = await SceneLoader.LoadAssetContainerAsync(
+        rootUrl,
+        fileName,
+        this.scene,
+      );
+      this.loadedModels.set(url, container);
+      return container;
+    } catch (error) {
+      this.failedModels.add(url);
+      throw error;
+    }
   }
 
   private async tryAttachModel(entityId: string, url?: string): Promise<void> {
@@ -827,6 +837,8 @@ export class BabylonAdapter implements IEngineBridge {
       entity.lastAttachedModelUrl = expectedUrl;
     } catch (error) {
       console.warn(`Failed to load model for ${entityId}:`, url, error);
+      // Mark URL as attempted so entity_sync ticks don't re-trigger the same failed load
+      entity.lastAttachedModelUrl = expectedUrl;
     }
   }
 
