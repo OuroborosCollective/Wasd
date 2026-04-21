@@ -6,22 +6,12 @@
  */
 import { Scene, Mesh, Material, StandardMaterial, Color3 } from "@babylonjs/core";
 
-// Side-effect import: the IIFE creates module-scoped `var BABYLON` and `var createTree`.
+// Side-effect import: the IIFE sets window.createTree, window.createTreeBase (now patched to use window.*)
 import "./TreeGenerator.js";
 
-// The IIFE creates `var createTree` at module scope. In ESM, this is module-scoped (not global).
-// We need to capture it via eval which runs in the module scope.
+// createTree is now attached to window by the patched IIFE
 function getCreateTree(): CreateTreeFn {
-  let fn: CreateTreeFn | undefined;
-  try {
-    fn = (0, eval)("typeof createTree !== 'undefined' ? createTree : undefined");
-  } catch {
-    // eval might be blocked
-  }
-  if (!fn) {
-    const globalBABYLON = (globalThis as any).BABYLON;
-    fn = (globalThis as any).createTree || globalBABYLON?.createTree;
-  }
+  const fn: CreateTreeFn | undefined = (globalThis as any).createTree;
   if (typeof fn !== "function") {
     throw new Error(
       "[TreeGenerator] Failed to load. Ensure @babylonjs/core is imported before this module."

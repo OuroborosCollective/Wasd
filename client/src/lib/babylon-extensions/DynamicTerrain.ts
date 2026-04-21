@@ -1,43 +1,23 @@
 /**
  * ESM wrapper for BabylonJS DynamicTerrain extension.
- * The legacy IIFE script populates a local BABYLON namespace.
- * We import it as a side-effect and capture DynamicTerrain from its scope.
+ * The legacy IIFE script attaches DynamicTerrain to window.BABYLON.
  *
  * Source: https://github.com/BabylonJS/Extensions/tree/master/DynamicTerrain
  */
 import { Scene, Mesh, Camera, Vector3, Color3, SolidParticleSystem } from "@babylonjs/core";
 
-// Side-effect import: the IIFE creates `var BABYLON` and attaches DynamicTerrain to it.
-// Since this runs as an ESM module, the `var BABYLON` is module-scoped (not global).
-// We need to capture it from the module scope before it gets garbage collected.
+// Side-effect import: the IIFE now attaches to window.BABYLON (patched from var BABYLON to window.BABYLON)
 import "./babylon.dynamicTerrain.min.js";
 
-// The IIFE creates `var BABYLON` at module scope. In ESM, `var` at top level
-// does NOT create a global — it creates a module-level binding.
-// We need to access it via a workaround: eval in the module scope.
-let _DynamicTerrain: unknown;
-try {
-  // The IIFE attached DynamicTerrain to the module-scoped BABYLON variable.
-  // We can access it by evaluating in the same scope.
-  _DynamicTerrain = (0, eval)("typeof BABYLON !== 'undefined' ? BABYLON.DynamicTerrain : undefined");
-} catch {
-  // eval might be blocked in strict mode
-}
+const BABYLON_NS = (globalThis as any).BABYLON;
 
-if (!_DynamicTerrain) {
-  // Fallback: check globalThis.BABYLON (in case legacy module was imported)
-  const globalBABYLON = (globalThis as any).BABYLON;
-  _DynamicTerrain = globalBABYLON?.DynamicTerrain;
-}
-
-if (!_DynamicTerrain) {
+if (!BABYLON_NS?.DynamicTerrain) {
   throw new Error(
-    "[DynamicTerrain] Failed to load. Ensure @babylonjs/core is imported before this module " +
-    "so the BABYLON global namespace is populated."
+    "[DynamicTerrain] Failed to load. Ensure @babylonjs/core/Legacy/legacy is imported so window.BABYLON is populated."
   );
 }
 
-export const DynamicTerrain: DynamicTerrainConstructor = _DynamicTerrain as DynamicTerrainConstructor;
+export const DynamicTerrain: DynamicTerrainConstructor = BABYLON_NS.DynamicTerrain;
 
 export interface DynamicTerrainOptions {
   terrainSub?: number;
