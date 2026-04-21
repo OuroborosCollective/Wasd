@@ -10,7 +10,7 @@
     "targetId": "npc_1"
   },
   {
-    "glbPath": "/assets/models/world-assets/characters/npc_valkyrie.glb",
+    "glbPath": "/assets/models/characters/npc_valkyrie.glb",
     "targetType": "npc_single",
     "targetId": "npc_2"
   },
@@ -40,7 +40,7 @@
     "targetId": "npc_wolf"
   },
   {
-    "glbPath": "/assets/models/world-assets/characters/npc_valkyrie.glb",
+    "glbPath": "/assets/models/characters/npc_valkyrie.glb",
     "targetType": "npc_single",
     "targetId": "npc_6_hermit"
   },
@@ -80,17 +80,17 @@
     "targetId": "ranger"
   },
   {
-    "glbPath": "/assets/models/world-assets/characters/npc_guard.glb",
+    "glbPath": "/assets/models/kaykit/adventurers/Knight.glb",
     "targetType": "npc_single",
     "targetId": "npc_guard"
   },
   {
-    "glbPath": "/assets/models/world-assets/characters/npc_merchant.glb",
+    "glbPath": "/assets/models/kaykit/adventurers/Rogue_Hooded.glb",
     "targetType": "npc_single",
     "targetId": "npc_merchant"
   },
   {
-    "glbPath": "/assets/models/world-assets/characters/npc_blacksmith.glb",
+    "glbPath": "/assets/models/world-assets/characters/blacksmith_npc.glb",
     "targetType": "npc_single",
     "targetId": "npc_blacksmith"
   },
@@ -115,37 +115,37 @@
     "targetId": "orc_grunt"
   },
   {
-    "glbPath": "/assets/models/world-assets/buildings/house_small.glb",
+    "glbPath": "/assets/models/world-assets/buildings/woodcillagehouse1.glb",
     "targetType": "world_object",
     "targetId": "house_small"
   },
   {
-    "glbPath": "/assets/models/world-assets/buildings/house_medium.glb",
+    "glbPath": "/assets/models/kaykit/medieval_hex/buildings/blue/building_home_B_blue.gltf",
     "targetType": "world_object",
     "targetId": "house_medium"
   },
   {
-    "glbPath": "/assets/models/world-assets/buildings/tavern.glb",
+    "glbPath": "/assets/models/kaykit/medieval_hex/buildings/blue/building_tavern_blue.gltf",
     "targetType": "world_object",
     "targetId": "tavern"
   },
   {
-    "glbPath": "/assets/models/world-assets/buildings/shop.glb",
+    "glbPath": "/assets/models/kaykit/medieval_hex/buildings/blue/building_market_blue.gltf",
     "targetType": "world_object",
     "targetId": "shop"
   },
   {
-    "glbPath": "/assets/models/world-assets/buildings/blacksmith.glb",
+    "glbPath": "/assets/models/kaykit/medieval_hex/buildings/blue/building_blacksmith_blue.gltf",
     "targetType": "world_object",
     "targetId": "blacksmith"
   },
   {
-    "glbPath": "/assets/models/world-assets/buildings/castle_tower.glb",
+    "glbPath": "/assets/models/kaykit/medieval_hex/buildings/blue/building_tower_A_blue.gltf",
     "targetType": "world_object",
     "targetId": "castle_tower"
   },
   {
-    "glbPath": "/assets/models/world-assets/buildings/castle_keep.glb",
+    "glbPath": "/assets/models/kaykit/medieval_hex/buildings/blue/building_castle_blue.gltf",
     "targetType": "world_object",
     "targetId": "castle_keep"
   },
@@ -165,12 +165,12 @@
     "targetId": "dungeon_entrance"
   },
   {
-    "glbPath": "/assets/models/world-assets/props/dungeon_corridor.glb",
+    "glbPath": "/assets/models/world-assets/props/dungeon/dungeon_corridor_01.glb",
     "targetType": "world_object",
     "targetId": "dungeon_corridor"
   },
   {
-    "glbPath": "/assets/models/world-assets/props/dungeon_room.glb",
+    "glbPath": "/assets/models/world-assets/props/dungeon/dungeon_chamber_01.glb",
     "targetType": "world_object",
     "targetId": "dungeon_room"
   },
@@ -183,16 +183,6 @@
     "glbPath": "/assets/models/world-assets/props/road_corner.glb",
     "targetType": "world_object",
     "targetId": "road_corner"
-  },
-  {
-    "glbPath": "/assets/models/world-assets/props/road_junction.glb",
-    "targetType": "world_object",
-    "targetId": "road_junction"
-  },
-  {
-    "glbPath": "/assets/models/world-assets/props/road_crossroads.glb",
-    "targetType": "world_object",
-    "targetId": "road_crossroads"
   },
   {
     "glbPath": "/assets/models/world-assets/props/tree_oak.glb",
@@ -225,32 +215,32 @@
     "targetId": "axe_battle"
   },
   {
-    "glbPath": "/assets/models/world-assets/equipment/weapons/staff_mage.glb",
+    "glbPath": "/assets/models/kaykit/adventurers/staff.gltf",
     "targetType": "object_single",
     "targetId": "staff_mage"
   },
   {
-    "glbPath": "/assets/models/world-assets/props/potion_health.glb",
+    "glbPath": "/assets/models/kaykit/dungeon/bottle_A_green.gltf",
     "targetType": "object_single",
     "targetId": "potion_health"
   },
   {
-    "glbPath": "/assets/models/world-assets/props/chest_treasure.glb",
+    "glbPath": "/assets/models/kaykit/dungeon/chest_gold.gltf",
     "targetType": "object_single",
     "targetId": "chest_treasure"
   },
   {
-    "glbPath": "/assets/models/buildings/village_house_small.glb",
+    "glbPath": "/assets/models/world-assets/buildings/woodcillagehouse1.glb",
     "targetType": "world_object",
     "targetId": "house_village_small"
   },
   {
-    "glbPath": "/assets/models/buildings/village_house_medium.glb",
+    "glbPath": "/assets/models/kaykit/medieval_hex/buildings/blue/building_home_B_blue.gltf",
     "targetType": "world_object",
     "targetId": "house_village_medium"
   },
   {
-    "glbPath": "/assets/models/buildings/village_shop_general.glb",
+    "glbPath": "/assets/models/kaykit/medieval_hex/buildings/blue/building_market_blue.gltf",
     "targetType": "world_object",
     "targetId": "shop_general"
   }

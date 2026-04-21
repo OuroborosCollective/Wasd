@@ -31,14 +31,14 @@
     "npcs": {
       "default": "/assets/models/kaykit/adventurers/Knight.glb",
       "citizen": "/assets/models/kaykit/adventurers/Ranger.glb",
-      "merchant": "/assets/models/world-assets/characters/npc_merchant.glb",
+      "merchant": "/assets/models/kaykit/adventurers/Rogue_Hooded.glb",
       "questgiver": "/assets/models/kaykit/adventurers/Mage.glb",
-      "guard": "/assets/models/world-assets/characters/npc_guard.glb",
+      "guard": "/assets/models/kaykit/adventurers/Knight.glb",
       "warrior": "/assets/models/kaykit/adventurers/Barbarian.glb",
       "mage": "/assets/models/kaykit/adventurers/Mage.glb",
       "ranger": "/assets/models/kaykit/adventurers/Ranger.glb",
       "rogue": "/assets/models/kaykit/adventurers/Rogue.glb",
-      "blacksmith": "/assets/models/world-assets/characters/npc_blacksmith.glb"
+      "blacksmith": "/assets/models/world-assets/characters/blacksmith_npc.glb"
     },
     "monsters": {
       "default": [
@@ -118,9 +118,9 @@
       "consumable": "/assets/models/kaykit/adventurers/mug_full.gltf",
       "sword": "/assets/models/world-assets/equipment/weapons/sword_iron.glb",
       "axe": "/assets/models/world-assets/equipment/weapons/axe_battle.glb",
-      "staff": "/assets/models/world-assets/equipment/weapons/staff_mage.glb",
-      "potion": "/assets/models/world-assets/props/potion_health.glb",
-      "chest": "/assets/models/world-assets/props/chest_treasure.glb"
+      "staff": "/assets/models/kaykit/adventurers/staff.gltf",
+      "potion": "/assets/models/kaykit/dungeon/bottle_A_green.gltf",
+      "chest": "/assets/models/kaykit/dungeon/chest_gold.gltf"
     },
     "resources": {
       "default": [
@@ -162,15 +162,15 @@
         "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb"
       ],
       "house": [
-        "/assets/models/world-assets/buildings/village_house_small.glb",
-        "/assets/models/world-assets/buildings/village_house_medium.glb"
+        "/assets/models/world-assets/buildings/woodcillagehouse1.glb",
+        "/assets/models/kaykit/medieval_hex/buildings/blue/building_home_B_blue.gltf"
       ],
       "tree": [
         "/assets/models/world-assets/props/tree_oak.glb",
         "/assets/models/world-assets/props/tree_pine.glb"
       ],
       "rock": "/assets/models/world-assets/props/rock_large.glb",
-      "well": "/assets/models/world-assets/props/village_well.glb",
+      "well": "/assets/models/world-assets/props/well.glb",
       "market": [
         "/assets/models/kaykit/medieval_hex/buildings/blue/building_market_blue.gltf",
         "/assets/models/kaykit/medieval_hex/decoration/props/sack.gltf"
@@ -198,21 +198,19 @@
       "portal": "/assets/models/kaykit/medieval_hex/decoration/nature/cloud_big.gltf",
       "shrine": "/assets/models/kaykit/dungeon/sword_shield_gold.gltf",
       "coniferous_forest_assets_pack": "/assets/models/external/coniferous/source/Coniferous_Forest_Assets_Pack.glb",
-      "tavern": "/assets/models/world-assets/buildings/village_tavern.glb",
-      "shop": "/assets/models/world-assets/buildings/village_shop_general.glb",
-      "blacksmith": "/assets/models/world-assets/buildings/village_blacksmith.glb",
-      "castle_tower": "/assets/models/world-assets/buildings/castle_tower.glb",
-      "castle_keep": "/assets/models/world-assets/buildings/castle_keep.glb",
+      "tavern": "/assets/models/kaykit/medieval_hex/buildings/blue/building_tavern_blue.gltf",
+      "shop": "/assets/models/kaykit/medieval_hex/buildings/blue/building_market_blue.gltf",
+      "blacksmith": "/assets/models/kaykit/medieval_hex/buildings/blue/building_blacksmith_blue.gltf",
+      "castle_tower": "/assets/models/kaykit/medieval_hex/buildings/blue/building_tower_A_blue.gltf",
+      "castle_keep": "/assets/models/kaykit/medieval_hex/buildings/blue/building_castle_blue.gltf",
       "wall": "/assets/models/world-assets/props/wall_straight.glb",
       "gate": "/assets/models/world-assets/props/wall_gate.glb",
-      "dungeon_entrance": "/assets/models/world-assets/props/dungeon_entrance.glb",
-      "dungeon_corridor": "/assets/models/world-assets/props/dungeon_corridor.glb",
-      "dungeon_room": "/assets/models/world-assets/props/dungeon_room.glb",
+      "dungeon_entrance": "/assets/models/world-assets/props/dungeon/dungeon_entrance_01.glb",
+      "dungeon_corridor": "/assets/models/world-assets/props/dungeon/dungeon_corridor_01.glb",
+      "dungeon_room": "/assets/models/world-assets/props/dungeon/dungeon_chamber_01.glb",
       "road": [
         "/assets/models/world-assets/props/road_straight.glb",
-        "/assets/models/world-assets/props/road_corner.glb",
-        "/assets/models/world-assets/props/road_junction.glb",
-        "/assets/models/world-assets/props/road_crossroads.glb"
+        "/assets/models/world-assets/props/road_corner.glb"
       ]
     }
   }
