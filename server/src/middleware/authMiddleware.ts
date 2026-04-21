@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { verifyFirebaseToken } from "../config/firebase.js";
+import { isSupabaseAuthConfigured, verifySupabaseToken } from "../config/supabase.js";
 
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
@@ -8,16 +8,20 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   }
 
   const token = authHeader.split(" ")[1];
+
+  if (!isSupabaseAuthConfigured()) {
+    return res.status(503).json({ error: "No auth provider configured (Supabase required)." });
+  }
+
   try {
-    const decoded = await verifyFirebaseToken(token);
-    if (!decoded || !decoded.uid) {
+    const claims = verifySupabaseToken(token);
+    const uid = typeof claims.sub === "string" ? claims.sub.trim() : "";
+    if (!uid) {
       return res.status(401).json({ error: "Invalid token" });
     }
-
-    // Attach the verified uid to the request object
-    (req as any).playerId = decoded.uid;
-    next();
-  } catch (err: any) {
-    return res.status(401).json({ error: "Unauthorized: " + err.message });
+    (req as any).playerId = uid;
+    return next();
+  } catch {
+    return res.status(401).json({ error: "Invalid token" });
   }
 }

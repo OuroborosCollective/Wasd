@@ -1,0 +1,154 @@
+{
+  "completed": [],
+  "failed": [
+    {
+      "file": "player_warrior.glb",
+      "error": "No refine ID: {'message': 'Invalid values: PreviewTaskID is a required field'}"
+    },
+    {
+      "file": "player_mage.glb",
+      "error": "Timeout after 600s: IN_PROGRESS"
+    },
+    {
+      "file": "player_ranger.glb",
+      "error": "No refine ID: {'message': 'Invalid values: PreviewTaskID is a required field'}"
+    },
+    {
+      "file": "npc_guard.glb",
+      "error": "No refine ID: {'message': 'Invalid values: PreviewTaskID is a required field'}"
+    },
+    {
+      "file": "npc_merchant.glb",
+      "error": "Preview FAILED"
+    },
+    {
+      "file": "npc_blacksmith.glb",
+      "error": "No refine ID: {'message': 'Invalid values: PreviewTaskID is a required field'}"
+    },
+    {
+      "file": "wolf_red.glb",
+      "error": "No refine ID: {'message': 'Invalid values: PreviewTaskID is a required field'}"
+    },
+    {
+      "file": "bear_brown.glb",
+      "error": "No refine ID: {'message': 'Invalid values: PreviewTaskID is a required field'}"
+    },
+    {
+      "file": "skeleton_warrior.glb",
+      "error": "Timeout after 600s: IN_PROGRESS"
+    },
+    {
+      "file": "orc_grunt.glb",
+      "error": "Timeout after 600s: IN_PROGRESS"
+    },
+    {
+      "file": "house_small.glb",
+      "error": "No refine ID: {'message': 'Invalid values: PreviewTaskID is a required field'}"
+    },
+    {
+      "file": "house_medium.glb",
+      "error": "No refine ID: {'message': 'Invalid values: PreviewTaskID is a required field'}"
+    },
+    {
+      "file": "tavern.glb",
+      "error": "No refine ID: {'message': 'Invalid values: PreviewTaskID is a required field'}"
+    },
+    {
+      "file": "shop.glb",
+      "error": "No refine ID: {'message': 'Invalid values: PreviewTaskID is a required field'}"
+    },
+    {
+      "file": "blacksmith.glb",
+      "error": "No refine ID: {'message': 'Invalid values: PreviewTaskID is a required field'}"
+    },
+    {
+      "file": "castle_tower.glb",
+      "error": "No refine ID: {'message': 'Invalid values: PreviewTaskID is a required field'}"
+    },
+    {
+      "file": "castle_keep.glb",
+      "error": "No refine ID: {'message': 'Invalid values: PreviewTaskID is a required field'}"
+    },
+    {
+      "file": "wall_straight.glb",
+      "error": "No refine ID: {'message': 'Invalid values: PreviewTaskID is a required field'}"
+    },
+    {
+      "file": "wall_gate.glb",
+      "error": "No refine ID: {'message': 'Invalid values: PreviewTaskID is a required field'}"
+    },
+    {
+      "file": "dungeon_entrance.glb",
+      "error": "No refine ID: {'message': 'Invalid values: PreviewTaskID is a required field'}"
+    },
+    {
+      "file": "dungeon_corridor.glb",
+      "error": "Timeout after 600s: IN_PROGRESS"
+    },
+    {
+      "file": "dungeon_room.glb",
+      "error": "Timeout after 600s: IN_PROGRESS"
+    },
+    {
+      "file": "road_straight.glb",
+      "error": "No refine ID: {'message': 'Invalid values: PreviewTaskID is a required field'}"
+    },
+    {
+      "file": "road_corner.glb",
+      "error": "No refine ID: {'message': 'Invalid values: PreviewTaskID is a required field'}"
+    },
+    {
+      "file": "road_junction.glb",
+      "error": "No refine ID: {'message': 'Invalid values: PreviewTaskID is a required field'}"
+    },
+    {
+      "file": "road_crossroads.glb",
+      "error": "No preview ID: {'message': 'Insufficient funds'}"
+    },
+    {
+      "file": "tree_oak.glb",
+      "error": "No preview ID: {'message': 'Insufficient funds'}"
+    },
+    {
+      "file": "tree_pine.glb",
+      "error": "No preview ID: {'message': 'Insufficient funds'}"
+    },
+    {
+      "file": "rock_large.glb",
+      "error": "No preview ID: {'message': 'Insufficient funds'}"
+    },
+    {
+      "file": "well.glb",
+      "error": "No preview ID: {'message': 'Insufficient funds'}"
+    },
+    {
+      "file": "sword_iron.glb",
+      "error": "No preview ID: {'message': 'Insufficient funds'}"
+    },
+    {
+      "file": "axe_battle.glb",
+      "error": "No preview ID: {'message': 'Insufficient funds'}"
+    },
+    {
+      "file": "staff_mage.glb",
+      "error": "No preview ID: {'message': 'Insufficient funds'}"
+    },
+    {
+      "file": "potion_health.glb",
+      "error": "No preview ID: {'message': 'Insufficient funds'}"
+    },
+    {
+      "file": "chest_treasure.glb",
+      "error": "No preview ID: {'message': 'Insufficient funds'}"
+    },
+    {
+      "file": "portal.glb",
+      "error": "No preview ID: {'message': 'Insufficient funds'}"
+    },
+    {
+      "file": "goblin.glb",
+      "error": "No preview ID: {'message': 'Insufficient funds'}"
+    }
+  ],
+  "tasks": {}
+}

@@ -3,22 +3,44 @@
 set -e
 
 APP_DIR="/opt/areloria"
-BUILD_NODE_OPTIONS="${BUILD_NODE_OPTIONS:---max-old-space-size=6144}"
-SERVER_BUILD_NODE_OPTIONS="${SERVER_BUILD_NODE_OPTIONS:---max-old-space-size=4096}"
+BUILD_NODE_OPTIONS="${BUILD_NODE_OPTIONS:---max-old-space-size=8192}"
+SERVER_BUILD_NODE_OPTIONS="${SERVER_BUILD_NODE_OPTIONS:---max-old-space-size=8192}"
 echo "Updating Areloria MMORPG..."
 
 cd "$APP_DIR"
 git pull origin main
 
-# Rebuild client
-cd "$APP_DIR/client"
-npm install
-NODE_OPTIONS="$BUILD_NODE_OPTIONS" npm run build
+# ── Load .env so VITE_* vars are available at build time ──
+# Vite bakes VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY into the client JS
+# at BUILD time.  Without this, the client gets empty strings and login breaks.
+ENV_FILE="$APP_DIR/.env"
+if [ -f "$ENV_FILE" ]; then
+  echo "Loading build-time env from $ENV_FILE ..."
+  set -a
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+  set +a
+  echo "  VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-(empty!)}"
+  echo "  VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY:+***set***}"
+else
+  echo "WARNING: $ENV_FILE not found — VITE_* build vars may be empty!"
+fi
 
-# Rebuild server
-cd "$APP_DIR/server"
-npm install
-NODE_OPTIONS="$SERVER_BUILD_NODE_OPTIONS" npm run build
+# Rebuild using pnpm (workspace aware)
+cd "$APP_DIR"
+if command -v pnpm >/dev/null 2>&1; then
+  echo "Using pnpm for installation and build..."
+  pnpm install --no-frozen-lockfile
+  NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm run build
+else
+  echo "pnpm not found, falling back to npm..."
+  cd "$APP_DIR/client"
+  npm install
+  NODE_OPTIONS="$BUILD_NODE_OPTIONS" npm run build
+  cd "$APP_DIR/server"
+  npm install
+  NODE_OPTIONS="$SERVER_BUILD_NODE_OPTIONS" npm run build
+fi
 
 # Restart PM2
 pm2 restart areloria

@@ -32,6 +32,6 @@ export function preloadGamePanels(): void {
   if (typeof window !== "undefined" && "requestIdleCallback" in window) {
     window.requestIdleCallback(run, { timeout: 5000 });
   } else {
-    window.setTimeout(run, 2500);
+    setTimeout(run, 2500);
   }
 }

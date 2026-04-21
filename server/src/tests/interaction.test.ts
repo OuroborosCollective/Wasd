@@ -1,169 +1,94 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from "vitest";
+import {
+  INTERACT_DISTANCE,
+  getClosestInteractable,
+  type InteractWorldSnapshot,
+} from "../../../shared/interaction";
 
-// Test the interaction utility functions without importing
-// This replicates the logic from client/src/utils/interaction.ts
+describe("shared interaction", () => {
+  const playerPos = { x: 0, y: 0 };
 
-describe('interaction utils', () => {
-  // Replicate the getClosestInteractable function for testing
-  function getClosestInteractable(
-    playerPos: { x: number; y: number },
-    npcs: any[],
-    loot: any[]
-  ): any | null {
-    let closest: any = null;
-    let minDist = Infinity;
-
-    // Check loot first (higher priority)
-    for (const item of loot) {
-      const dist = Math.hypot(playerPos.x - item.position.x, playerPos.y - item.position.y);
-      if (dist < 12 && dist < minDist) {
-        minDist = dist;
-        closest = { ...item, type: "loot" };
-      }
-    }
-
-    // Then NPCs
-    for (const npc of npcs) {
-      const dist = Math.hypot(playerPos.x - npc.position.x, playerPos.y - npc.position.y);
-      if (dist < 15 && dist < minDist) {
-        minDist = dist;
-        closest = { ...npc, type: "npc" };
-      }
-    }
-
-    return closest;
+  function snap(npcs: InteractWorldSnapshot["npcs"], loot: InteractWorldSnapshot["loot"]): InteractWorldSnapshot {
+    return { player: { position: playerPos }, npcs, loot };
   }
 
-  describe('getClosestInteractable', () => {
-    const playerPos = { x: 0, y: 0 };
+  it("returns null when no NPCs or loot exist", () => {
+    expect(getClosestInteractable({ position: playerPos }, snap([], []))).toBeNull();
+  });
 
-    it('should return null when no NPCs or loot exist', () => {
-      const result = getClosestInteractable(playerPos, [], []);
-      expect(result).toBeNull();
-    });
+  it("returns null when all entities are out of range", () => {
+    const state = snap(
+      [{ id: "npc1", position: { x: 100, y: 100 } }],
+      [{ id: "loot1", position: { x: 200, y: 200 } }]
+    );
+    expect(getClosestInteractable({ position: playerPos }, state)).toBeNull();
+  });
 
-    it('should return null when all entities are out of range', () => {
-      const npcs = [{ id: 'npc1', position: { x: 100, y: 100 } }];
-      const loot = [{ id: 'loot1', position: { x: 200, y: 200 } }];
-      
-      const result = getClosestInteractable(playerPos, npcs, loot);
-      expect(result).toBeNull();
-    });
+  it("returns loot when within interact distance", () => {
+    const state = snap([], [{ id: "loot1", position: { x: 5, y: 5 } }]);
+    const r = getClosestInteractable({ position: playerPos }, state);
+    expect(r).not.toBeNull();
+    expect(r?.interactionType).toBe("loot");
+    expect(r && "id" in r ? r.id : "").toBe("loot1");
+  });
 
-    it('should return loot when within range (12 units)', () => {
-      const loot = [{ id: 'loot1', position: { x: 5, y: 5 }, item: 'Gold' }];
-      
-      const result = getClosestInteractable(playerPos, [], loot);
-      
-      expect(result).not.toBeNull();
-      expect(result?.id).toBe('loot1');
-      expect(result?.type).toBe('loot');
-    });
+  it("returns NPC when within range and no loot in range", () => {
+    const state = snap([{ id: "npc1", position: { x: 10, y: 10 } }], []);
+    const r = getClosestInteractable({ position: playerPos }, state);
+    expect(r?.interactionType).toBe("npc");
+    expect(r && "id" in r ? r.id : "").toBe("npc1");
+  });
 
-    it('should return NPC when within range (15 units)', () => {
-      const npcs = [{ id: 'npc1', position: { x: 10, y: 10 }, name: 'Merchant' }];
-      
-      const result = getClosestInteractable(playerPos, npcs, []);
-      
-      expect(result).not.toBeNull();
-      expect(result?.id).toBe('npc1');
-      expect(result?.type).toBe('npc');
-    });
+  it("prioritizes loot over NPC when both are in range", () => {
+    const state = snap([{ id: "npc1", position: { x: 5, y: 5 } }], [{ id: "loot1", position: { x: 3, y: 3 } }]);
+    const r = getClosestInteractable({ position: playerPos }, state);
+    expect(r?.interactionType).toBe("loot");
+    expect(r && "id" in r ? r.id : "").toBe("loot1");
+  });
 
-    it('should prioritize loot over NPC when both are in range', () => {
-      const npcs = [{ id: 'npc1', position: { x: 5, y: 5 } }];
-      const loot = [{ id: 'loot1', position: { x: 3, y: 3 } }];
-      
-      const result = getClosestInteractable(playerPos, npcs, loot);
-      
-      expect(result?.id).toBe('loot1');
-      expect(result?.type).toBe('loot');
-    });
+  it("returns the closest loot when multiple bags in range", () => {
+    const state = snap(
+      [],
+      [
+        { id: "loot1", position: { x: 2, y: 2 } },
+        { id: "loot2", position: { x: 10, y: 10 } },
+      ]
+    );
+    const r = getClosestInteractable({ position: playerPos }, state);
+    expect(r?.interactionType).toBe("loot");
+    expect(r && "id" in r ? r.id : "").toBe("loot1");
+  });
 
-    it('should return the closest entity when multiple are in range', () => {
-      const loot = [
-        { id: 'loot1', position: { x: 2, y: 2 } },
-        { id: 'loot2', position: { x: 10, y: 10 } }
-      ];
-      
-      const result = getClosestInteractable(playerPos, [], loot);
-      
-      expect(result?.id).toBe('loot1');
-    });
+  it("treats exact boundary as in range (<= radius)", () => {
+    const state = snap([], [{ id: "loot1", position: { x: INTERACT_DISTANCE, y: 0 } }]);
+    const r = getClosestInteractable({ position: playerPos }, state);
+    expect(r?.interactionType).toBe("loot");
+  });
 
-    it('should handle entities at exact boundary distance', () => {
-      const loot = [{ id: 'loot1', position: { x: 12, y: 0 } }]; // exactly at 12
-      
-      const result = getClosestInteractable(playerPos, [], loot);
-      
-      expect(result).toBeNull(); // 12 is not < 12
-    });
+  it("returns closest NPC when loot is out of range", () => {
+    const state = snap([{ id: "npc1", position: { x: 10, y: 0 } }], [{ id: "loot1", position: { x: 100, y: 0 } }]);
+    const r = getClosestInteractable({ position: playerPos }, state);
+    expect(r?.interactionType).toBe("npc");
+    expect(r && "id" in r ? r.id : "").toBe("npc1");
+  });
 
-    it('should return closest NPC when loot is out of range', () => {
-      const npcs = [{ id: 'npc1', position: { x: 10, y: 10 } }];
-      const loot = [{ id: 'loot1', position: { x: 100, y: 100 } }];
-      
-      const result = getClosestInteractable(playerPos, npcs, loot);
-      
-      expect(result?.id).toBe('npc1');
-      expect(result?.type).toBe('npc');
-    });
+  it("returns NPC when loot is just outside radius", () => {
+    const state = snap(
+      [{ id: "npc1", position: { x: 5, y: 0 } }],
+      [{ id: "loot1", position: { x: INTERACT_DISTANCE + 1, y: 0 } }]
+    );
+    const r = getClosestInteractable({ position: playerPos }, state);
+    expect(r?.interactionType).toBe("npc");
+  });
 
-    it('should create a copy of the entity with type property', () => {
-      const npcs = [{ id: 'npc1', position: { x: 5, y: 5 }, name: 'Test NPC' }];
-      
-      const result = getClosestInteractable(playerPos, npcs, []);
-      
-      expect(result).not.toBe(npcs[0]); // Should be a copy
-      expect(result).toEqual(expect.objectContaining({
-        id: 'npc1',
-        type: 'npc',
-        name: 'Test NPC'
-      }));
-    });
-
-    it('should handle negative coordinates', () => {
-      const playerPos = { x: -50, y: -50 };
-      const npcs = [{ id: 'npc1', position: { x: -48, y: -48 } }];
-      
-      const result = getClosestInteractable(playerPos, npcs, []);
-      
-      expect(result?.id).toBe('npc1');
-    });
-
-    it('should calculate distance correctly using hypotenuse', () => {
-      // Player at (0,0), NPC at (3,4) = distance of 5
-      const npcs = [{ id: 'npc1', position: { x: 3, y: 4 } }];
-      
-      const result = getClosestInteractable(playerPos, npcs, []);
-      
-      expect(result?.id).toBe('npc1');
-    });
-
-    it('should handle loot just outside NPC range', () => {
-      // Loot at 13 (outside loot range of 12), NPC at 5 (inside NPC range of 15)
-      const loot = [{ id: 'loot1', position: { x: 13, y: 0 } }];
-      const npcs = [{ id: 'npc1', position: { x: 5, y: 0 } }];
-      
-      const result = getClosestInteractable(playerPos, npcs, loot);
-      
-      expect(result?.id).toBe('npc1');
-      expect(result?.type).toBe('npc');
-    });
-
-    it('should handle empty arrays correctly', () => {
-      const result = getClosestInteractable(playerPos, [], []);
-      expect(result).toBeNull();
-    });
-
-    it('should use spread operator to create new object', () => {
-      const npcs = [{ id: 'npc1', position: { x: 5, y: 5 }, data: { foo: 'bar' } }];
-      
-      const result = getClosestInteractable(playerPos, npcs, []);
-      
-      // Verify it's a shallow copy
-      expect(result).toEqual(expect.objectContaining({ data: { foo: 'bar' } }));
-      expect(result).not.toBe(npcs[0]);
-    });
+  it("handles negative coordinates", () => {
+    const p = { x: -50, y: -50 };
+    const state: InteractWorldSnapshot = {
+      player: { position: p },
+      npcs: [{ id: "npc1", position: { x: -48, y: -48 } }],
+      loot: [],
+    };
+    const r = getClosestInteractable({ position: p }, state);
+    expect(r && "id" in r ? r.id : "").toBe("npc1");
   });
 });

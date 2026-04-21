@@ -8,8 +8,6 @@ export default defineConfig({
       deps: {
         external: [
           "multer",
-          "firebase/auth",
-          "firebase/firestore",
         ],
       },
     },

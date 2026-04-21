@@ -1,4 +1,10 @@
 /** Server-side active skills (mana + cooldown). Extend as gameplay grows. */
+import {
+  IMPACT_BUSTER_COOLDOWN_KEY,
+  IMPACT_BUSTER_COOLDOWN_MS,
+  IMPACT_BUSTER_RADIUS,
+  IMPACT_BUSTER_SKILL_ID,
+} from "./impactBusterConfig.js";
 
 export type SkillKind = "offensive" | "self";
 
@@ -71,6 +77,15 @@ export const SKILL_DEFINITIONS: Record<string, SkillDefinition> = {
     kind: "offensive",
     range: 32,
     spellPower: 30,
+  },
+  [IMPACT_BUSTER_SKILL_ID]: {
+    id: IMPACT_BUSTER_SKILL_ID,
+    name: "Impact Buster",
+    manaCost: 0,
+    cooldownMs: IMPACT_BUSTER_COOLDOWN_MS,
+    kind: "offensive",
+    range: IMPACT_BUSTER_RADIUS,
+    spellPower: 0,
   },
 };
 

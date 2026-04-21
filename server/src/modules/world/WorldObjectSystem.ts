@@ -48,11 +48,11 @@ export class WorldObjectSystem {
   }
 
   private async load() {
-    // 1. Try Firestore first if available
+    // 1. Try persistence backend first if available
     if (this.persistence) {
-      const firestoreObjects = await this.persistence.loadWorldObjects();
-      if (firestoreObjects && firestoreObjects.length > 0) {
-        for (const obj of firestoreObjects) {
+      const persistedObjects = await this.persistence.loadWorldObjects();
+      if (persistedObjects && persistedObjects.length > 0) {
+        for (const obj of persistedObjects) {
           this.objects.set(obj.id, obj);
         }
         return;
@@ -73,7 +73,7 @@ export class WorldObjectSystem {
   }
 
   private async save() {
-    // 1. Save to Firestore if available
+    // 1. Save to persistence backend if available
     if (this.persistence) {
       await this.persistence.saveWorldObjects(this.getAllObjects());
     }

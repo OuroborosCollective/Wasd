@@ -1,5 +1,5 @@
 /** Functional area for scoped recovery (AI may only pick actions allowed for this area). */
-export type WatchdogModuleId = "network" | "renderer" | "firebase_auth" | "storage" | "unknown";
+export type WatchdogModuleId = "network" | "renderer" | "auth" | "storage" | "unknown";
 
 export type WatchdogLogEntry = {
   t: number;
@@ -26,8 +26,8 @@ export function inferWatchdogModule(source: string, message: string, detail?: st
   ) {
     return "renderer";
   }
-  if (/\bfirebase\b|\bgetidtoken\b|\bid token\b|sign.?in|auth\/|invalid.*token/i.test(blob)) {
-    return "firebase_auth";
+  if (/\bgetidtoken\b|\bid token\b|sign.?in|auth\/|invalid.*token/i.test(blob)) {
+    return "auth";
   }
   if (/\blocalstorage\b|\bstorage\b|quota/i.test(blob)) {
     return "storage";
