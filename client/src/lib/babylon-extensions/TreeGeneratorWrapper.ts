@@ -13,13 +13,15 @@ const BABYLON_NS = (globalThis as any).BABYLON;
 
 // The script defines createTree as a global var, not on BABYLON namespace
 // We need to grab it from the global scope
-const _createTree: CreateTreeFn | undefined =
-  (globalThis as any).createTree || BABYLON_NS?.createTree;
-
-if (typeof _createTree !== "function") {
-  throw new Error(
-    "[TreeGenerator] Failed to load. Ensure @babylonjs/core is imported before this module."
-  );
+function getCreateTree(): CreateTreeFn {
+  const fn: CreateTreeFn | undefined =
+    (globalThis as any).createTree || BABYLON_NS?.createTree;
+  if (typeof fn !== "function") {
+    throw new Error(
+      "[TreeGenerator] Failed to load. Ensure @babylonjs/core is imported before this module."
+    );
+  }
+  return fn;
 }
 
 export interface CreateTreeOptions {
@@ -116,7 +118,7 @@ export function createTree(scene: Scene, options: CreateTreeOptions = {}): Mesh 
   const leafWHRatio = options.leafWHRatio ?? 0.5;
   const leafMaterial = options.leafMaterial ?? defaultLeafMaterial(scene);
 
-  return _createTree!(
+  return getCreateTree()(
     trunkHeight,
     trunkTaper,
     trunkSlices,
