@@ -243,8 +243,31 @@ export class ServerBootstrap {
       }
 
       try {
+        // GoTrue requires grant_type in the query string, but @supabase/supabase-js
+        // sends it in the JSON body. Transform the URL if needed.
+        let upstreamPath = req.originalUrl;
+        if (req.method === "POST" && req.originalUrl.includes("/token") && !req.originalUrl.includes("grant_type=")) {
+          try {
+            const chunks: Buffer[] = [];
+            const body = await new Promise<string>((resolve) => {
+              req.on("data", (c: Buffer) => chunks.push(c));
+              req.on("end", () => resolve(Buffer.concat(chunks).toString()));
+            });
+            const parsed = JSON.parse(body);
+            if (parsed.grant_type) {
+              const sep = upstreamPath.includes("?") ? "&" : "?";
+              upstreamPath = `${upstreamPath}${sep}grant_type=${encodeURIComponent(parsed.grant_type)}`;
+              delete parsed.grant_type;
+              // Replace the request body without grant_type
+              (req as unknown as { _transformedBody?: string })._transformedBody = JSON.stringify(parsed);
+            }
+          } catch {
+            // Body parsing failed — forward as-is
+          }
+        }
+
         const upstreamUrl = new URL(
-          req.originalUrl,
+          upstreamPath,
           `${resolvedProxyBaseUrl.replace(/\/+$/, "")}/`
         ).toString();
         const headers = new Headers();
@@ -272,7 +295,8 @@ export class ServerBootstrap {
           redirect: "manual",
         };
         if (shouldProxyBody(req.method)) {
-          init.body = req as unknown as BodyInit;
+          const transformedBody = (req as unknown as { _transformedBody?: string })._transformedBody;
+          init.body = transformedBody ?? (req as unknown as BodyInit);
           init.duplex = "half";
         }
 
