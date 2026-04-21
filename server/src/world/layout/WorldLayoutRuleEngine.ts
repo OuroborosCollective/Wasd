@@ -5,6 +5,7 @@
  * Designed for integration with LiveHeal / WorldTick.
  */
 
+import { resolve } from "node:path";
 import type {
   WorldLayoutConfig,
   SpatialEntity,
@@ -53,10 +54,10 @@ export class WorldLayoutRuleEngine {
     this.footprintRegistry = footprintRegistry ?? new Map();
     this.spatialIndex = new WorldLayoutSpatialIndex(config.chunkSize);
     this.learningStore = new WorldLayoutLearningStore(
-      require("node:path").resolve(config.storageDir, "layout-learning.json")
+      resolve(config.storageDir, "layout-learning.json")
     );
     this.reportLog = new WorldLayoutReportLog(
-      require("node:path").resolve(config.storageDir, "layout-report.ndjson")
+      resolve(config.storageDir, "layout-report.ndjson")
     );
     this.validator = new WorldLayoutValidator(config, this.spatialIndex);
     this.repairService = new WorldLayoutRepairService(
