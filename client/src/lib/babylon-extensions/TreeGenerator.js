@@ -87,7 +87,7 @@ var createBranch = function(branchAt, branchSys, branchLength, branchTaper, bran
 **The parameter forkRatio gives the fraction of branch length as branches are added to branches.
 **The angle of a new branch to the one it is growing from is given by forkAngle. 
 */
-var createTreeBase = function(trunkHeight, trunkTaper, trunkSlices, boughs, forks, forkAngle, forkRatio, bowFreq, bowHeight, scene) {   
+window.createTreeBase = function(trunkHeight, trunkTaper, trunkSlices, boughs, forks, forkAngle, forkRatio, bowFreq, bowHeight, scene) {   
 	var _PHI = 2/(1+Math.sqrt(5)); //golden ratio for scale	
     
     var _trunk_direction = new BABYLON.Vector3(0, 1, 0);  //trunk starts in y direction
@@ -174,7 +174,7 @@ var createTreeBase = function(trunkHeight, trunkTaper, trunkSlices, boughs, fork
 ** @Param leafMaterial -material used for all leaves.
 ** @Param scene - BABYLON scene.
 */
-var createTree = function(trunkHeight, trunkTaper, trunkSlices, trunkMaterial, boughs, forks, forkAngle, forkRatio, branches, branchAngle, bowFreq, bowHeight, leavesOnBranch, leafWHRatio, leafMaterial, scene) {        
+window.createTree = function(trunkHeight, trunkTaper, trunkSlices, trunkMaterial, boughs, forks, forkAngle, forkRatio, branches, branchAngle, bowFreq, bowHeight, leavesOnBranch, leafWHRatio, leafMaterial, scene) {        
     if(!(boughs ==1 || boughs ==2)) {
         boughs = 1;
     }  

@@ -1,0 +1,41 @@
+name: Check Server Status
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_IP }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_SSH_PASSWORD }}
+          port: 22
+          timeout: 3m
+          command_timeout: 10m
+          script_stop: true
+          script: |
+            echo "=== PM2 STATUS ==="
+            pm2 status
+            echo ""
+            echo "=== PM2 LOGS (last 30) ==="
+            pm2 logs areloria --lines 30 --nostream 2>&1
+            echo ""
+            echo "=== PORT CHECK ==="
+            ss -tlnp | grep -E '3000|8000'
+            echo ""
+            echo "=== PROCESS CHECK ==="
+            ps aux | grep -i "node\|areloria" | grep -v grep
+            echo ""
+            echo "=== VITE URL IN BUNDLE ==="
+            grep -o 'VITE_SUPABASE_URL[^,}]*' /opt/areloria/client/dist/assets/index-*.js 2>/dev/null | head -3
+            echo ""
+            echo "=== DIRECT CURL ==="
+            curl -sf --max-time 5 http://127.0.0.1:3000/health 2>&1 || echo "PORT_3000_NOT_RESPONDING"
+            echo ""
+            echo "=== NGINX CONFIG ==="
+            cat /etc/nginx/sites-enabled/* 2>/dev/null | grep -E 'proxy_pass|server_name|listen' | head -10
+            echo ""
+            echo "=== DONE ==="

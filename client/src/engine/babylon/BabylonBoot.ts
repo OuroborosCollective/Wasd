@@ -1,3 +1,5 @@
+// Populate window.BABYLON global namespace for legacy IIFE extensions (DynamicTerrain, TreeGenerator)
+import "@babylonjs/core/Legacy/legacy";
 import {
   ArcRotateCamera,
   Color3,

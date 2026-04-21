@@ -1,21 +1,19 @@
 /**
  * ESM wrapper for BabylonJS DynamicTerrain extension.
- * The legacy IIFE script populates window.BABYLON.DynamicTerrain.
- * This module ensures it's loaded and re-exports the class.
+ * The legacy IIFE script attaches DynamicTerrain to window.BABYLON.
  *
  * Source: https://github.com/BabylonJS/Extensions/tree/master/DynamicTerrain
  */
 import { Scene, Mesh, Camera, Vector3, Color3, SolidParticleSystem } from "@babylonjs/core";
 
-// Side-effect import: runs the IIFE which attaches to (window as any).BABYLON
+// Side-effect import: the IIFE now attaches to window.BABYLON (patched from var BABYLON to window.BABYLON)
 import "./babylon.dynamicTerrain.min.js";
 
 const BABYLON_NS = (globalThis as any).BABYLON;
 
 if (!BABYLON_NS?.DynamicTerrain) {
   throw new Error(
-    "[DynamicTerrain] Failed to load. Ensure @babylonjs/core is imported before this module " +
-    "so the BABYLON global namespace is populated."
+    "[DynamicTerrain] Failed to load. Ensure @babylonjs/core/Legacy/legacy is imported so window.BABYLON is populated."
   );
 }
 

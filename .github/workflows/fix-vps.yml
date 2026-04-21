@@ -1,0 +1,59 @@
+name: Fix VPS Server
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fix and restart server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_IP }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_SSH_PASSWORD }}
+          port: 22
+          timeout: 3m
+          command_timeout: 30m
+          script_stop: true
+          script: |
+            set -e
+            echo "=== Starting VPS fix ==="
+            cd /opt/areloria
+            
+            echo "=== Pulling latest code ==="
+            git fetch origin main
+            git reset --hard origin/main
+            
+            echo "=== Loading .env ==="
+            if [ -f .env ]; then
+              set -a
+              source .env
+              set +a
+              echo "VITE_SUPABASE_URL from .env: ${VITE_SUPABASE_URL:-(empty)}"
+            fi
+            
+            # Override VITE_SUPABASE_URL to use game origin (not GoTrue direct)
+            export VITE_SUPABASE_URL="https://arelogic.space"
+            echo "Using VITE_SUPABASE_URL=$VITE_SUPABASE_URL"
+            
+            echo "=== Installing dependencies ==="
+            pnpm install --no-frozen-lockfile 2>&1 | tail -5
+            
+            echo "=== Building ==="
+            NODE_OPTIONS="--max-old-space-size=8192" pnpm run build 2>&1 | tail -10
+            
+            echo "=== Restarting PM2 ==="
+            pm2 restart areloria 2>&1 || pm2 start server/dist/index.js --name areloria 2>&1
+            
+            echo "=== Waiting for server ==="
+            sleep 5
+            curl -sf --max-time 10 http://127.0.0.1:3000/health | head -c 200 || echo "SERVER_NOT_RESPONDING"
+            
+            echo "=== PM2 status ==="
+            pm2 status
+            
+            echo "=== VITE_SUPABASE_URL in bundle ==="
+            grep -o 'VITE_SUPABASE_URL:`[^`]*`' /opt/areloria/client/dist/assets/index-*.js 2>/dev/null | head -3 || echo "Could not check bundle"
+            
+            echo "=== Done ==="

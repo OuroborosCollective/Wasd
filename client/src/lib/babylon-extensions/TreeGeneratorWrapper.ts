@@ -6,20 +6,18 @@
  */
 import { Scene, Mesh, Material, StandardMaterial, Color3 } from "@babylonjs/core";
 
-// Side-effect import: runs the IIFE which attaches createTree to (window as any).BABYLON
+// Side-effect import: the IIFE sets window.createTree, window.createTreeBase (now patched to use window.*)
 import "./TreeGenerator.js";
 
-const BABYLON_NS = (globalThis as any).BABYLON;
-
-// The script defines createTree as a global var, not on BABYLON namespace
-// We need to grab it from the global scope
-const _createTree: CreateTreeFn | undefined =
-  (globalThis as any).createTree || BABYLON_NS?.createTree;
-
-if (typeof _createTree !== "function") {
-  throw new Error(
-    "[TreeGenerator] Failed to load. Ensure @babylonjs/core is imported before this module."
-  );
+// createTree is now attached to window by the patched IIFE
+function getCreateTree(): CreateTreeFn {
+  const fn: CreateTreeFn | undefined = (globalThis as any).createTree;
+  if (typeof fn !== "function") {
+    throw new Error(
+      "[TreeGenerator] Failed to load. Ensure @babylonjs/core is imported before this module."
+    );
+  }
+  return fn;
 }
 
 export interface CreateTreeOptions {
@@ -116,7 +114,7 @@ export function createTree(scene: Scene, options: CreateTreeOptions = {}): Mesh 
   const leafWHRatio = options.leafWHRatio ?? 0.5;
   const leafMaterial = options.leafMaterial ?? defaultLeafMaterial(scene);
 
-  return _createTree!(
+  return getCreateTree()(
     trunkHeight,
     trunkTaper,
     trunkSlices,

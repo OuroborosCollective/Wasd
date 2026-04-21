@@ -1,3 +1,4 @@
+import fs from "fs";
 import { ItemRegistry } from "../inventory/ItemRegistry.js";
 import { normalizeInventoryStacks } from "../inventory/inventoryStacks.js";
 import { resolveContentFile } from "../content/contentDataRoot.js";
@@ -20,7 +21,6 @@ export class CraftingSystem {
 
   async loadRecipes() {
     try {
-      const fs = require("fs");
       const recipesPath = resolveContentFile("crafting/recipes.json");
       const data = await fs.promises.readFile(recipesPath, "utf8");
       const recipes = JSON.parse(data);

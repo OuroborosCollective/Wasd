@@ -61,10 +61,13 @@ fi
 # Auto-derive VITE_SUPABASE_* from server-side aliases when not explicitly provided.
 # This avoids requiring duplicate GitHub secrets for build-time vars.
 #
-# IMPORTANT: The browser client connects DIRECTLY to Supabase (no proxy).
-# VITE_SUPABASE_URL must be the public Supabase URL the browser can reach.
-# When SUPABASE_PROXY_URL is set (server-side internal URL), we still need
-# a public URL for the client — use SUPABASE_PUBLIC_URL or SUPABASE_URL.
+# IMPORTANT: The browser client connects to Supabase THROUGH the game server proxy.
+# VITE_SUPABASE_URL should point to the game origin (e.g. https://arelogic.space),
+# which proxies /auth/v1/* requests to GoTrue. The deploy workflow sets this
+# explicitly — this fallback is for local builds or manual deploys only.
+#
+# When SUPABASE_PROXY_URL is set (server-side internal URL), the game server
+# proxy forwards auth requests there. The browser does NOT reach Supabase directly.
 if [ -z "${VITE_SUPABASE_URL:-}" ]; then
   # Prefer the most specific public URL; fall back through aliases
   export VITE_SUPABASE_URL="${SUPABASE_PUBLIC_URL:-${API_EXTERNAL_URL:-${SUPABASE_URL:-}}}"
