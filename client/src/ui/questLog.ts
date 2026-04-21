@@ -1,5 +1,9 @@
 import { closeAllPanels } from "./panelManager";
-import { getPlayerQuests, subscribePlayerState, type ClientQuestEntry } from "../state/playerState";
+import {
+  getPlayerQuests,
+  subscribePlayerState,
+  type ClientQuestEntry,
+} from "../state/playerState";
 import { requestQuestSync } from "../networking/websocketClient";
 import { applyGamePanelLayout, panelCloseButtonStyles } from "./panelLayout";
 
@@ -53,10 +57,15 @@ export function renderQuestLog() {
     panel!.addEventListener(evt, stopEvents, { passive: true });
   });
   [
-    "touchend", "touchcancel",
-    "mousedown", "mouseup", "mousemove",
-    "pointerdown", "pointerup", "pointermove",
-    "click"
+    "touchend",
+    "touchcancel",
+    "mousedown",
+    "mouseup",
+    "mousemove",
+    "pointerdown",
+    "pointerup",
+    "pointermove",
+    "click",
   ].forEach((evt) => {
     panel!.addEventListener(evt, stopEvents, { passive: false });
   });
@@ -80,9 +89,24 @@ export function renderQuestLog() {
   closeBtn.className = "btn-gold";
   Object.assign(closeBtn.style, panelCloseButtonStyles(compact));
   closeBtn.setAttribute("aria-label", "Close Quest Log");
-  closeBtn.onclick = () => {
+  closeBtn.onclick = (e) => {
+    e.stopPropagation();
     panel!.style.display = "none";
   };
+  closeBtn.addEventListener(
+    "touchstart",
+    (e) => {
+      e.stopPropagation();
+    },
+    { passive: false },
+  );
+  closeBtn.addEventListener(
+    "pointerdown",
+    (e) => {
+      e.stopPropagation();
+    },
+    { passive: false },
+  );
 
   header.appendChild(title);
   header.appendChild(closeBtn);
@@ -95,7 +119,7 @@ export function renderQuestLog() {
   content.style.flexDirection = "column";
   content.style.gap = "10px";
   content.style.overflowY = "auto";
-  content.style.webkitOverflowScrolling = "touch";
+  content.style.setProperty("-webkit-overflow-scrolling", "touch");
   content.style.padding = compact ? "8px 4px" : "5px";
   panel.appendChild(content);
 

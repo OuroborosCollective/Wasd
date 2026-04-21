@@ -2,11 +2,27 @@ import { ChunkSystem } from "../modules/world/ChunkSystem.js";
 import { ObserverEngine } from "../modules/observer/ObserverEngine.js";
 import { PlayerSystem } from "../modules/player/PlayerSystem.js";
 import { CombatSystem } from "../modules/combat/CombatSystem.js";
+import { applyLegendaryPowersFromEquipment } from "../modules/items/legendaryPowers.js";
+import { addGearToPlayer, ensureDualInventoryFields } from "../modules/items/dualInventoryTypes.js";
+import { normalizeBoundItemMeta } from "../modules/items/itemBindingPolicy.js";
+import { generateItem, rarityRoll } from "../modules/loot/diabloItemGen.js";
+import { generatedItemToGearItem } from "../modules/loot/gearConvert.js";
+import { pityBonus } from "../modules/loot/pity.js";
+import { SAMPLE_DROP_AFFIXES, SAMPLE_DROP_BASES } from "../modules/loot/diabloSampleData.js";
 import { InventorySystem } from "../modules/inventory/InventorySystem.js";
 import { NPCSystem } from "../modules/npc/NPCSystem.js";
 import { GuildSystem } from "../modules/guild/GuildSystem.js";
 import { EconomySystem } from "../modules/economy/EconomySystem.js";
 import { QuestEngine } from "../modules/quest/QuestEngine.js";
+import { QuestlineEngine } from "../modules/questline/questlineEngine.js";
+import { enrichQuestlineContext } from "../modules/questline/questlineGenerator.js";
+import {
+  applyQuestCompletionToQuestline,
+  registerProceduralQuestPack,
+  registeredProceduralQuestIdsByQuestline,
+  setPlayerQuestlineRuntime,
+  tryCompleteQuestlineTalkAtNpc,
+} from "../modules/questline/questlineBridge.js";
 import { WorldSystem } from "../modules/world/WorldSystem.js";
 import { PersistenceManager } from "./PersistenceManager.js";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
@@ -18,11 +34,48 @@ import { AREModeAuditTrail } from "../modules/world/AREModeAuditTrail.js";
 import { cache } from "./Cache.js";
 import fs from "fs";
 import path from "path";
+import { randomUUID } from "node:crypto";
 import { resolveLoginIdentity } from "../modules/auth/resolveLoginIdentity.js";
 import { getSkillDefinition, buildSkillCooldownUntilPayload } from "../modules/skill/skillDefinitions.js";
+import {
+  IMPACT_BUSTER_COOLDOWN_KEY,
+  IMPACT_BUSTER_SKILL_ID,
+} from "../modules/skill/impactBusterConfig.js";
+import { canUseImpactBuster, executeImpactBuster } from "./ImpactBusterHandler.js";
+import {
+  MEGA_IRON_FIST_ITEM_ID,
+  WORLD_BOSS_DUNGEON_ID,
+  WORLD_BOSS_SCENE_ID,
+  WorldBossDungeonSystem,
+} from "./WorldBossDungeonSystem.js";
+import { WorldPlacementRuleEngine } from "../world/services/WorldPlacementRuleEngine.js";
+import { WorldLayoutRuleEngine, createDefaultLayoutConfig } from "../world/layout/WorldLayoutRuleEngine.js";
+import { ServerTerrainAdapter } from "../world/adapters/ExistingDynamicTerrainAdapter.js";
+import { ExistingTreeGeneratorAdapter } from "../world/adapters/ExistingTreeGeneratorAdapter.js";
+import { VoteSystem } from "../modules/vote/VoteSystem.js";
+import { ensurePlayerVoteProgress } from "../modules/vote/playerVoteProgress.js";
+import { CraftingSystem } from "../modules/crafting/CraftingSystem.js";
+import {
+  initRedisChatRelay,
+  onRedisChatMessage,
+  publishChatMessage,
+  type ChatMessage as RelayedChatMessage,
+  type ChatScope as RelayedChatScope,
+} from "../modules/chat/RedisChatRelay.js";
+import { ChatChannelRouter, type ChatRecipient } from "../modules/chat/ChatChannelRouter.js";
+import { StatusEmitter } from "../modules/chat/StatusEmitter.js";
+import { NPCMemoryCache } from "../modules/npc/NPCMemoryCache.js";
+import { setSupabaseClient, loadNpcMemory, flushDirtyEntries } from "../modules/npc/NPCMemoryPersistence.js";
+import { tickNpcChat } from "../modules/npc/NPCChatAgent.js";
+import { LOCAL_CHAT_RADIUS } from "../modules/chat/chatChannelTypes.js";
+import { OuroborosEngine } from "../modules/ouroboros/OuroborosEngine.js";
+import { NPCRelationshipSystem } from "../modules/npc/NPCRelationshipSystem.js";
 
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { GameConfig } from "../config/GameConfig.js";
+import { LiveHealEngine, bootstrapLiveHeal, resolveLiveHealConfigFromEnv } from "./liveheal/index.js";
+import { AssetHealthService } from "../assets/AssetHealthService.js";
+import type { HealthSnapshot, SubSystemAdapter } from "./liveheal/LiveHealTypes.js";
 
 type SpawnPoint = { x: number; y: number; z: number };
 type SceneProfile = {
@@ -35,7 +88,10 @@ type SceneTriggerZone = {
   x: number;
   y: number;
   radius: number;
+  targetSceneId?: string;
   targetSpawnKey: string;
+  triggerType?: string;
+  dungeonId?: string;
   allowedSpawnKeys?: string[];
 };
 type GMWorldState = {
@@ -83,6 +139,16 @@ type ScheduledGMTemplateStep = {
   originX: number;
   originY: number;
   step: GMTemplateStep;
+};
+type WorldBossRankingSummary = {
+  dungeonId: string;
+  encounterId: string;
+  top: Array<{
+    playerId: string;
+    playerName: string;
+    rank: number;
+    damage: number;
+  }>;
 };
 const DEFAULT_SCENE_ID = "didis_hub";
 const DEFAULT_SCENE_PROFILES: Record<string, SceneProfile> = {
@@ -264,11 +330,21 @@ export class WorldTick {
   public persistence: PersistenceManager;
   public glbRegistry: GLBRegistry;
   public assetPoolResolver: AssetPoolResolver;
-  private readonly glbLinksStore: "file" | "spacetime";
+  private readonly glbLinksStore: "file";
   private runtimeSettings: RuntimeSettingsStore;
   private areModeAuditTrail: AREModeAuditTrail;
   private areStateCompiler: AREStateCompiler;
   private lootEntities: Map<string, any> = new Map();
+  private housingObjects: Map<string, any> = new Map();
+  private craftingSystem: any = null;
+  private questlineEngine: QuestlineEngine;
+  public readonly liveHeal: LiveHealEngine;
+  public readonly assetHealthService: AssetHealthService;
+
+  // World generation / placement pipeline
+  public readonly placementEngine: WorldPlacementRuleEngine;
+  public readonly terrainAdapter: ServerTerrainAdapter;
+  public readonly treeAdapter: ExistingTreeGeneratorAdapter;
 
   private socketToPlayer: Map<string, string> = new Map(); // socketId -> characterName
   private lastActionTimes: Map<string, number> = new Map(); // charName -> timestamp
@@ -290,13 +366,362 @@ export class WorldTick {
     bannedPlayers: [],
     customDialogues: {},
   };
-  private areMode: AREMode = "shader";
+  private areMode: AREMode = "off";
+  private readonly socketAREModeOverride = new Map<string, AREMode>();
   private eventTemplates: GMTemplateDefinition[] = Object.values(GM_EVENT_TEMPLATES);
   private pendingTemplateSteps: ScheduledGMTemplateStep[] = [];
+  private chatUnsubscribe: (() => void) | null = null;
+  public chatChannelRouter: ChatChannelRouter;
+  public statusEmitter!: StatusEmitter;
+  public npcMemoryCache: NPCMemoryCache;
+  public ouroborosEngine: OuroborosEngine;
+  public npcRelationships: NPCRelationshipSystem;
+  private worldBossDungeonSystem: WorldBossDungeonSystem;
+  private voteSystem: VoteSystem;
+  private worldBossRespawnAt = 0;
+  private worldBossEncounterSummaries: any[] = [];
   private readonly USE_ITEM_TOASTS: Record<string, string> = {
     minor_mana_draught: "You drink Minor Mana Draught (+mana).",
     health_potion: "You drink Health Potion (+hp).",
   };
+
+  private ensurePlayerProgressDefaults(player: any): void {
+    this.worldBossDungeonSystem.ensurePlayerProgressFields(player);
+    ensurePlayerVoteProgress(player);
+    if (!player.equipment || typeof player.equipment !== "object") {
+      player.equipment = { weapon: null, armor: null, offHand: null };
+      return;
+    }
+    if (!("weapon" in player.equipment)) player.equipment.weapon = null;
+    if (!("armor" in player.equipment)) player.equipment.armor = null;
+    if (!("offHand" in player.equipment)) player.equipment.offHand = null;
+  }
+
+  private grantWorldBossWeaponReward(player: any): boolean {
+    this.ensurePlayerProgressDefaults(player);
+    const rewardHistory = player.worldBossProgress.rewardHistory as string[];
+    if (rewardHistory.includes(MEGA_IRON_FIST_ITEM_ID)) {
+      return false;
+    }
+    ensureDualInventoryFields(player);
+    const hasInGear = Array.isArray(player.gearInventory)
+      && player.gearInventory.some((g: any) => g?.baseId === MEGA_IRON_FIST_ITEM_ID);
+    const hasEquipped = player.equipment?.offHand?.id === MEGA_IRON_FIST_ITEM_ID;
+    if (hasInGear || hasEquipped) {
+      rewardHistory.push(MEGA_IRON_FIST_ITEM_ID);
+      return false;
+    }
+    const gear = normalizeBoundItemMeta({
+      uid: `wb_${randomUUID()}`,
+      baseId: MEGA_IRON_FIST_ITEM_ID,
+      name: "Mega-Iron-Fist-Frustinator",
+      rarity: "legendary",
+      ilvl: Math.max(1, Number(player.level) || 1),
+      stats: {
+        dmgMin: 14,
+        dmgMax: 26,
+        staminaBonus: 22,
+        impactBusterBonus: 12,
+      },
+    });
+    addGearToPlayer(player, gear as any);
+    rewardHistory.push(MEGA_IRON_FIST_ITEM_ID);
+    return true;
+  }
+
+  private grantImpactBusterUnlock(player: any): boolean {
+    this.ensurePlayerProgressDefaults(player);
+    if (player.impactBusterUnlocked) return false;
+    player.impactBusterUnlocked = true;
+    return true;
+  }
+
+  private deliverQueuedRewards(socketId: string, player: any): void {
+    this.ensurePlayerProgressDefaults(player);
+    if (!Array.isArray(player.pendingRewards) || player.pendingRewards.length === 0) {
+      return;
+    }
+    const queue = [...player.pendingRewards];
+    player.pendingRewards = [];
+    for (const reward of queue) {
+      if (reward?.type === "gear" && reward?.item) {
+        addGearToPlayer(player, normalizeBoundItemMeta(reward.item));
+      } else {
+        player.pendingRewards.push(reward);
+      }
+    }
+    if (queue.length > 0) {
+      this.ws.sendToPlayer(socketId, {
+        type: "toast",
+        kind: "ok",
+        text: `Claimed ${queue.length} queued Worldboss reward(s).`,
+      });
+      this.pushPlayerStateSync(socketId, player);
+    }
+  }
+
+  private getVoteCallbackBaseUrl(): string {
+    const wsUrl = process.env.PUBLIC_WEBSOCKET_URL?.trim();
+    if (wsUrl && /^wss?:\/\//i.test(wsUrl)) {
+      return wsUrl.replace(/^ws/i, "http").replace(/\/ws\/?$/i, "");
+    }
+    const gameOrigin = process.env.GAME_ORIGIN?.trim() || process.env.APP_ORIGIN?.trim();
+    if (gameOrigin && /^https?:\/\//i.test(gameOrigin)) {
+      return gameOrigin.replace(/\/+$/, "");
+    }
+    const port = Number(process.env.PORT || 3000);
+    return `http://localhost:${Number.isFinite(port) ? port : 3000}`;
+  }
+
+  private getVoteXpMultiplier(player: any): number {
+    this.ensurePlayerProgressDefaults(player);
+    return this.voteSystem.getXpMultiplier(player, Date.now());
+  }
+
+  private applyXpGainWithVoteBuff(
+    player: any,
+    baseXp: number,
+    source: string,
+  ): { baseXp: number; finalXp: number; multiplier: number } {
+    const normalizedBase = Math.max(0, Math.floor(Number(baseXp) || 0));
+    if (normalizedBase <= 0) return { baseXp: 0, finalXp: 0, multiplier: 1 };
+    const multiplier = this.getVoteXpMultiplier(player);
+    const finalXp = Math.max(
+      normalizedBase,
+      Math.floor(normalizedBase * Math.max(1, multiplier)),
+    );
+    player.xp = (player.xp || 0) + finalXp;
+    if (multiplier > 1) {
+      const progress = ensurePlayerVoteProgress(player);
+      progress.auditLog.push({
+        at: Date.now(),
+        action: "xp_boost_applied",
+        detail: `${source}:${normalizedBase}->${finalXp}`,
+      });
+      if (progress.auditLog.length > 250) {
+        progress.auditLog = progress.auditLog.slice(-250);
+      }
+    }
+    return { baseXp: normalizedBase, finalXp, multiplier };
+  }
+
+  private tryHandleWorldBossDefeat(killer: any, target: any): boolean {
+    if (!this.worldBossDungeonSystem.isWorldBossNpc(target)) return false;
+    const playersById = new Map<string, any>();
+    for (const p of this.playerSystem.getAllPlayers()) {
+      playersById.set(p.id, p);
+    }
+    const summary = this.worldBossDungeonSystem.finalizeBossDefeat({
+      bossNpc: target,
+      playersById,
+      grantWeaponReward: (player) => this.grantWorldBossWeaponReward(player),
+      grantUnlock: (player) => this.grantImpactBusterUnlock(player),
+    });
+    if (!summary) return true;
+    this.worldBossEncounterSummaries.push(summary);
+    if (this.worldBossEncounterSummaries.length > 15) {
+      this.worldBossEncounterSummaries = this.worldBossEncounterSummaries.slice(-15);
+    }
+    for (const reward of summary.topRewards) {
+      const socketId = this.getSocketForPlayer(reward.playerId);
+      if (!socketId) continue;
+      if (reward.weaponGranted) {
+        this.ws.sendToPlayer(socketId, {
+          type: "toast",
+          kind: "ok",
+          text: `Worldboss Reward: Mega-Iron-Fist-Frustinator (Rank ${reward.rank}).`,
+        });
+      }
+      if (reward.unlockGranted) {
+        this.ws.sendToPlayer(socketId, {
+          type: "toast",
+          kind: "ok",
+          text: "Impact Buster unlocked permanently!",
+        });
+      }
+      const p = this.playerSystem.getPlayer(reward.playerId);
+      if (p) this.pushPlayerStateSync(socketId, p);
+    }
+    this.ws.broadcast({
+      type: "worldboss_defeated",
+      dungeonId: summary.dungeonId,
+      encounterId: summary.encounterId,
+      bossNpcId: summary.bossNpcId,
+      defeatedAt: summary.defeatedAt,
+      top: summary.topRewards.map((r) => ({
+        playerId: r.playerId,
+        playerName: r.playerName,
+        rank: r.rank,
+        damage: r.damage,
+      })),
+    });
+    this.worldBossRespawnAt = Date.now() + this.worldBossDungeonSystem.getPrimaryDefinition().respawnMs;
+    this.worldBossDungeonSystem.prepareNextBossInstance();
+    return true;
+  }
+
+  private spawnWorldBossNow(): void {
+    const cfg = this.worldBossDungeonSystem.prepareNextBossInstance();
+    const boss = this.npcSystem.createNPC(cfg.npcId, cfg.name, cfg.position.x, cfg.position.y) as any;
+    boss.role = cfg.role;
+    boss.faction = cfg.faction;
+    boss.position.z = cfg.position.z;
+    boss.health = cfg.stats.health;
+    boss.maxHealth = cfg.stats.maxHealth;
+    if (!boss.skills || typeof boss.skills !== "object") boss.skills = {};
+    if (!boss.skills.combat || typeof boss.skills.combat !== "object") {
+      boss.skills.combat = { level: cfg.stats.combatLevel };
+    } else {
+      boss.skills.combat.level = cfg.stats.combatLevel;
+    }
+    boss.dropTable = cfg.dropTable;
+    boss.worldBoss = true;
+    boss.worldBossMeta = cfg.worldBossMeta;
+    boss.damageMultiplier = cfg.stats.damageMultiplier;
+    this.worldBossDungeonSystem.maybeStartEncounterIfMissing(boss);
+    this.ws.broadcast({
+      type: "worldboss_spawned",
+      dungeonId: cfg.worldBossMeta.dungeonId,
+      bossNpcId: boss.id,
+      sceneId: WORLD_BOSS_SCENE_ID,
+      name: boss.name,
+    });
+  }
+
+  private handleWorldBossDamageAttribution(player: any, npc: any, damage: number): void {
+    if (!player || !npc) return;
+    if (!this.worldBossDungeonSystem.isWorldBossNpc(npc)) return;
+    if (!Number.isFinite(damage) || damage <= 0) return;
+    this.worldBossDungeonSystem.noteEncounterDamage(player, npc, Math.floor(damage));
+  }
+
+  private getVoteBuffState(player: any): ReturnType<VoteSystem["getBuffState"]> {
+    this.ensurePlayerProgressDefaults(player);
+    return this.voteSystem.getBuffState(player, Date.now());
+  }
+
+  private grantPlayerXpWithVoteBuff(
+    player: any,
+    baseXp: number,
+    _source: "quest" | "crafting" | "gathering" | "combat" | "other" = "other",
+  ): number {
+    const base = Math.max(0, Math.floor(Number(baseXp) || 0));
+    if (base <= 0) return 0;
+    this.ensurePlayerProgressDefaults(player);
+    const multiplier = this.voteSystem.getXpMultiplier(player, Date.now());
+    const finalXp = Math.max(0, Math.floor(base * multiplier));
+    player.xp = Math.max(0, Math.floor(Number(player.xp) || 0) + finalXp);
+    return finalXp;
+  }
+
+  private grantCraftXpIfAny(socketId: string, player: any, baseXp: number): number {
+    const gained = this.grantPlayerXpWithVoteBuff(player, baseXp, "crafting");
+    if (gained > 0) {
+      this.ws.sendToPlayer(socketId, {
+        type: "toast",
+        kind: "ok",
+        text: `Craft XP +${gained}`,
+      });
+      this.ws.broadcast({
+        type: "fx",
+        at: { x: player.position.x, y: player.position.y },
+        kind: "xp",
+        n: gained,
+      });
+    }
+    return gained;
+  }
+
+  private resolvePublicBaseUrl(): string {
+    const fromEnv = process.env.PUBLIC_BASE_URL?.trim();
+    if (fromEnv) return fromEnv.replace(/\/+$/, "");
+    const gameOrigin = process.env.GAME_ORIGIN?.trim() || process.env.APP_ORIGIN?.trim();
+    if (gameOrigin) return gameOrigin.replace(/\/+$/, "");
+    const port = Number(process.env.PORT || 3000);
+    return `http://localhost:${Number.isFinite(port) ? port : 3000}`;
+  }
+
+  private pushVoteStatus(socketId: string, player: any): void {
+    const status = this.voteSystem.getPlayerVoteStatus(player);
+    this.ws.sendToPlayer(socketId, {
+      type: "vote_status",
+      buff: status.buff,
+      banners: status.banners,
+    });
+  }
+
+  public getPublicVoteBanners() {
+    return this.voteSystem.listActiveBannersPublic();
+  }
+
+  public getAdminVoteBanners() {
+    return this.voteSystem.listAdminBanners();
+  }
+
+  public upsertVoteBanner(input: {
+    internalId?: string;
+    providerKey: string;
+    displayName: string;
+    bannerImage: string;
+    targetUrl: string;
+    description?: string;
+    isActive?: boolean;
+    sortOrder?: number;
+    voteWindowHours?: number;
+    cooldownHours?: number;
+    buffHours?: number;
+    verificationMode?: "api_poll" | "callback_token";
+    providerConfig?: Record<string, unknown>;
+    claimInstructions?: string;
+    metadata?: Record<string, unknown>;
+  }) {
+    return this.voteSystem.upsertBanner(input);
+  }
+
+  public deleteVoteBanner(internalId: string): boolean {
+    return this.voteSystem.deleteBanner(internalId);
+  }
+
+  public setVoteBannerOrder(idsInOrder: string[]) {
+    return this.voteSystem.setBannerOrder(idsInOrder);
+  }
+
+  public getVoteAdminDiagnostics(limit = 120) {
+    return this.voteSystem.getAdminDiagnostics(this.playerSystem.getAllPlayers(), limit);
+  }
+
+  public handleVoteProviderCallback(payload: {
+    sessionId: string;
+    callbackToken: string;
+    providerKey?: string;
+    bannerId?: string;
+    providerVoteId?: string;
+    evidence?: Record<string, unknown>;
+  }): {
+    ok: boolean;
+    reason?: string;
+    playerId?: string;
+    bannerId?: string;
+    sessionId?: string;
+  } {
+    const result = this.voteSystem.markCallbackVerified(
+      this.playerSystem.getAllPlayers(),
+      payload,
+    );
+    if (result.ok && result.playerId) {
+      const socketId = this.getSocketForPlayer(result.playerId);
+      const player = this.playerSystem.getPlayer(result.playerId);
+      if (socketId && player) {
+        this.ws.sendToPlayer(socketId, {
+          type: "toast",
+          kind: "ok",
+          text: "Vote verification callback received. Claim your reward in the vote menu.",
+        });
+        this.pushVoteStatus(socketId, player);
+      }
+    }
+    return result;
+  }
 
   private getSceneProfile(sceneId: string | undefined): { sceneId: string; profile: SceneProfile } {
     const resolvedSceneId = sceneId && this.sceneProfiles[sceneId] ? sceneId : DEFAULT_SCENE_ID;
@@ -345,7 +770,19 @@ export class WorldTick {
         continue;
       }
 
-      const spawn = this.applySpawnToPlayer(player, trigger.sceneId, trigger.targetSpawnKey);
+      if (trigger.dungeonId === WORLD_BOSS_DUNGEON_ID) {
+        const entryCheck = this.worldBossDungeonSystem.canEnterWorldBossDungeon(player);
+        if (!entryCheck.ok) {
+          this.ws.sendToPlayer(socketId, {
+            type: "toast",
+            kind: "warn",
+            text: entryCheck.reason ?? "You cannot enter this dungeon now.",
+          });
+          return;
+        }
+      }
+      const targetSceneId = trigger.targetSceneId || trigger.sceneId;
+      const spawn = this.applySpawnToPlayer(player, targetSceneId, trigger.targetSpawnKey);
       this.sceneTriggerCooldowns.set(player.id, now + SCENE_TRIGGER_COOLDOWN_MS);
       this.observerEngine.updatePosition(socketId, player.position);
       this.ws.sendToPlayer(socketId, {
@@ -355,16 +792,27 @@ export class WorldTick {
         spawnPosition: spawn.spawnPoint,
         via: "zone_trigger",
         triggerId: trigger.id,
+        dungeonId: trigger.dungeonId,
       });
+      if (trigger.dungeonId === WORLD_BOSS_DUNGEON_ID) {
+        this.ws.sendToPlayer(socketId, {
+          type: "worldboss_entered",
+          dungeonId: WORLD_BOSS_DUNGEON_ID,
+          sceneId: WORLD_BOSS_SCENE_ID,
+        });
+      }
       return;
     }
   }
 
   private pushPlayerStateSync(socketId: string, player: any) {
+    const invSummary = this.inventorySystem.getInventorySummary(player);
     this.ws.sendToPlayer(socketId, {
       type: "stats_sync",
       gold: player.gold,
       xp: player.xp,
+      kills: Number(player.kills) || 0,
+      deaths: Number(player.deaths) || 0,
       level: player.level ?? 1,
       health: player.health,
       maxHealth: player.maxHealth ?? 100,
@@ -379,8 +827,14 @@ export class WorldTick {
         : 0,
       quests: this.questSystem.getQuestSyncForClient(player),
       inventory: player.inventory,
+      gear: invSummary.gear ?? player.gearInventory ?? [],
       equipment: player.equipment,
+      maxWeight: invSummary.maxWeight,
+      inventoryWeight: invSummary.weight,
       skillCooldownUntil: buildSkillCooldownUntilPayload(player, Date.now()),
+      impactBusterUnlocked: Boolean(player.impactBusterUnlocked),
+      combatTargetNpcId: player.combatTargetNpcId ?? null,
+      voteBuffState: this.getVoteBuffState(player),
     });
   }
 
@@ -405,6 +859,68 @@ export class WorldTick {
 
   private isWithinDistance(a: { x: number; y: number }, b: { x: number; y: number }, d: number): boolean {
     return Math.hypot(a.x - b.x, a.y - b.y) <= d;
+  }
+
+  /** True only when the bag existed, was allowed, in range, and contents were granted. */
+  private tryPickupLoot(socketId: string, player: any, lootId: string): boolean {
+    const trimmed = typeof lootId === "string" ? lootId.trim() : "";
+    if (!trimmed) return false;
+    const bag = this.lootEntities.get(trimmed);
+    if (!bag) {
+      this.ws.sendToPlayer(socketId, { type: "toast", text: "Loot not found." });
+      return false;
+    }
+    if (bag.ownerId && bag.ownerId !== player.id && Date.now() < (bag.ownerExclusiveUntil ?? 0)) {
+      this.ws.sendToPlayer(socketId, { type: "toast", text: "Loot belongs to another player." });
+      return false;
+    }
+    const lootPos = bag.position ?? { x: bag.x ?? 0, y: bag.y ?? 0 };
+    if (!this.isWithinDistance(player.position, lootPos, GameConfig.interactDistance)) {
+      this.ws.sendToPlayer(socketId, { type: "toast", text: "Too far away." });
+      return false;
+    }
+    ensureDualInventoryFields(player);
+    const pickedItems: { itemId: string; qty: number; name?: string }[] = [];
+    const pickedGear: any[] = [];
+    if (Array.isArray(bag.items)) {
+      for (const it of bag.items) {
+        if (!it?.id) continue;
+        const qty = Math.max(1, Number(it.quantity) || 1);
+        this.inventorySystem.addItem(player, { id: it.id, quantity: qty });
+        const def = ItemRegistry.getItem(it.id);
+        pickedItems.push({ itemId: it.id, qty, name: def?.name });
+      }
+    }
+    if (Array.isArray(bag.gear)) {
+      for (const g of bag.gear) {
+        if (!g || typeof g.uid !== "string") continue;
+        addGearToPlayer(player, g);
+        pickedGear.push({
+          uid: g.uid,
+          baseId: g.baseId,
+          name: g.name,
+          rarity: g.rarity,
+          ilvl: g.ilvl,
+        });
+      }
+    }
+    const gold = typeof bag.gold === "number" ? bag.gold : 0;
+    if (gold > 0) player.gold = (player.gold ?? 0) + gold;
+    this.lootEntities.delete(trimmed);
+    this.ws.broadcast({ type: "loot_despawned", lootId: trimmed });
+    this.ws.sendToPlayer(socketId, {
+      type: "loot_picked",
+      lootId: trimmed,
+      items: pickedItems,
+      gear: pickedGear,
+      gold,
+    });
+    if (gold > 0) {
+      this.ws.sendToPlayer(socketId, { type: "fx", at: player.position, kind: "gold", n: gold });
+    }
+    this.ws.sendToPlayer(socketId, { type: "toast", text: `Beute eingesammelt${gold > 0 ? ` (+${gold} Gold)` : ""}.` });
+    this.pushPlayerStateSync(socketId, player);
+    return true;
   }
 
   private loadRuntimeEventTemplates() {
@@ -572,8 +1088,208 @@ export class WorldTick {
     return this.playerSystem.getAllPlayers().find((p: any) => p.name === playerNameOrId) || null;
   }
 
+  private resolveWeaponDamageBonus(player: any, weaponRow: any): number {
+    let bonus = Number(weaponRow?.damage) || 0;
+    const uid = typeof weaponRow?.uid === "string" ? weaponRow.uid.trim() : "";
+    if (!uid || !Array.isArray(player.gearInventory)) return bonus;
+    const g = player.gearInventory.find((x: any) => x && x.uid === uid);
+    if (!g?.stats || typeof g.stats !== "object") return bonus;
+    const dMin = Number(g.stats.dmgMin);
+    const dMax = Number(g.stats.dmgMax);
+    if (Number.isFinite(dMin) && Number.isFinite(dMax)) {
+      bonus += Math.floor((dMin + dMax) / 2);
+    } else if (Number.isFinite(dMax)) {
+      bonus += Math.floor(dMax);
+    } else if (Number.isFinite(dMin)) {
+      bonus += Math.floor(dMin);
+    }
+    return bonus;
+  }
+
+  private spawnLootFromNpc(npc: any, killerId: string): void {
+    let items: any[] = [];
+    let gold = Math.floor(Math.random() * 5) + 1;
+    try {
+      const { LootSystem } = require("../modules/loot/LootSystem.js");
+      const ls = new LootSystem();
+      const roll = ls.rollLoot(npc.lootTableId ?? npc.id);
+      if (roll) {
+        if (Array.isArray(roll.items) && roll.items.length > 0) items = roll.items;
+        if (typeof roll.gold === "number" && roll.gold > 0) gold = roll.gold;
+      }
+    } catch {
+      /* LootSystem load may fail if loot-tables.json not configured */
+    }
+
+    const killer = this.playerSystem.getPlayer(killerId);
+    if (killer) {
+      ensureDualInventoryFields(killer);
+      killer.lootPity.killsSinceLegendary += 1;
+      killer.lootPity.killsSinceSet += 1;
+    }
+
+    const gearPieces: any[] = [];
+    const base = SAMPLE_DROP_BASES["rusted_blade"];
+    if (base && killer) {
+      const mf =
+        pityBonus(killer.lootPity.killsSinceLegendary) + pityBonus(killer.lootPity.killsSinceSet, 0.002, 0.06);
+      const rarity = rarityRoll(mf);
+      const ilvl = Math.max(1, Math.floor(Number(killer.level) || 1));
+      const gen = generateItem({
+        base,
+        ilvl,
+        rarity,
+        affixes: SAMPLE_DROP_AFFIXES,
+        mf,
+        legendaryPowerId: rarity === "legendary" ? "lp_vampiric" : undefined,
+      });
+      gearPieces.push(generatedItemToGearItem(gen));
+      if (rarity === "legendary") killer.lootPity.killsSinceLegendary = 0;
+      if (rarity === "set") killer.lootPity.killsSinceSet = 0;
+    }
+
+    const id = `loot_${Date.now()}_${npc.id}`;
+    const bag: any = {
+      id,
+      position: { x: npc.position?.x ?? 0, y: npc.position?.y ?? 0 },
+      items: items.map((it: any) => ({
+        id: it.id ?? it.itemId,
+        quantity: it.quantity ?? it.qty ?? 1,
+      })),
+      gear: gearPieces,
+      gold,
+      ownerId: killerId,
+      ownerExclusiveUntil: Date.now() + 30_000,
+      despawnAt: Date.now() + GameConfig.lootDespawnMs,
+    };
+    this.lootEntities.set(id, bag);
+    this.ws.broadcast({
+      type: "loot_spawned",
+      loot: {
+        id,
+        x: bag.position.x,
+        y: bag.position.y,
+        items: bag.items.map((it: any) => ({ itemId: it.id, qty: it.quantity })),
+        gear: Array.isArray(bag.gear)
+          ? bag.gear.map((g: any) => ({
+              uid: g.uid,
+              baseId: g.baseId,
+              name: g.name,
+              rarity: g.rarity,
+              ilvl: g.ilvl,
+            }))
+          : [],
+        gold: bag.gold,
+        ownerId: killerId,
+        despawnAt: bag.despawnAt,
+      },
+    });
+  }
+
+  private cleanupExpiredLoot(): void {
+    if (this.tickCount % 10 !== 0) return;
+    const now = Date.now();
+    for (const [id, bag] of this.lootEntities) {
+      if (typeof bag.despawnAt === "number" && bag.despawnAt <= now) {
+        this.lootEntities.delete(id);
+        this.ws.broadcast({ type: "loot_despawned", lootId: id });
+      }
+    }
+  }
+
+  private resolvePlayerRespawnPoint(player: any): { x: number; z: number; label?: string } {
+    const profiles = this.sceneProfiles;
+    const sceneId = player.sceneId ?? player.currentZone ?? "didis_hub";
+    const profile = profiles?.[sceneId];
+    const defaultSp = profile?.spawnPoints?.["sp_player_default"];
+    if (defaultSp) return { x: defaultSp.x, z: defaultSp.z ?? defaultSp.y ?? 0, label: sceneId };
+    return { x: 0, z: 0, label: "Hub" };
+  }
+
+  private async broadcastPartySyncForParty(partyId: string): Promise<void> {
+    const { getPartyById } = await import("../modules/party/partySystem.js");
+    const party = getPartyById(partyId);
+    if (!party) return;
+
+    const membersPayload = [...party.members].map((mid) => {
+      const p = this.playerSystem.getPlayer(mid);
+      return {
+        id: mid,
+        name: p?.name ?? mid,
+        health: p?.health ?? 0,
+        maxHealth: p?.maxHealth ?? 100,
+        level: p?.level ?? 1,
+        isLeader: mid === party.leaderId,
+      };
+    });
+
+    for (const mid of party.members) {
+      const sock = this.getSocketForPlayer(mid);
+      if (sock) {
+        this.ws.sendToPlayer(sock, {
+          type: "party_sync",
+          partyId: party.id,
+          members: membersPayload,
+        });
+      }
+    }
+  }
+
   private sendGMStatus(socketId: string, level: "info" | "error", message: string, extra: Record<string, any> = {}) {
     this.ws.sendToPlayer(socketId, { type: "gm_status", level, message, ...extra });
+  }
+
+  private resolveChatScope(value: unknown): RelayedChatScope {
+    if (!isNonEmptyString(value)) return "global";
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "zone") return "zone";
+    if (normalized === "party") return "party";
+    return "global";
+  }
+
+  private resolvePlayerZoneId(player: any): string | undefined {
+    return isNonEmptyString(player?.sceneId) ? player.sceneId.trim() : undefined;
+  }
+
+  private resolvePlayerPartyId(player: any): string | undefined {
+    return isNonEmptyString(player?.partyId) ? player.partyId.trim() : undefined;
+  }
+
+  private broadcastChatMessage(msg: RelayedChatMessage): void {
+    const payload = {
+      type: "chat_message",
+      payload: msg,
+      scope: msg.scope,
+      channel: msg.scope,
+      sender: msg.senderName,
+      senderId: msg.senderId,
+      senderName: msg.senderName,
+      text: msg.text,
+      zoneId: msg.zoneId,
+      partyId: msg.partyId,
+      ts: msg.ts,
+      timestamp: msg.ts,
+    };
+
+    if (msg.scope === "global") {
+      this.ws.broadcast(payload);
+      return;
+    }
+
+    for (const player of this.playerSystem.getAllPlayers()) {
+      const socketId = this.playerToSocket.get(player.id);
+      if (!socketId) continue;
+
+      if (msg.scope === "zone") {
+        const zoneId = this.resolvePlayerZoneId(player);
+        if (!zoneId || zoneId !== msg.zoneId) continue;
+      } else if (msg.scope === "party") {
+        const partyId = this.resolvePlayerPartyId(player);
+        if (!partyId || partyId !== msg.partyId) continue;
+      }
+
+      this.ws.sendToPlayer(socketId, payload);
+    }
   }
 
   private sendGMPreviewSnapshot(socketId: string) {
@@ -990,6 +1706,13 @@ export class WorldTick {
         this.sendGMPreviewSnapshot(socketId);
         return true;
       }
+      case "gm_spawn_worldboss": {
+        this.worldBossRespawnAt = 0;
+        this.spawnWorldBossNow();
+        this.sendGMStatus(socketId, "info", "Worldboss spawned.");
+        this.sendGMPreviewSnapshot(socketId);
+        return true;
+      }
       case "gm_spawn_npc_at_self": {
         const npcId = isNonEmptyString(msg.npcId) ? msg.npcId.trim() : `npc_${Date.now()}`;
         const name = isNonEmptyString(msg.name) ? msg.name.trim() : npcId;
@@ -1267,7 +1990,8 @@ export class WorldTick {
     }
     if (t === "gm_revive") {
       target.health = target.maxHealth || 100;
-      target.isDead = false;
+      target.dead = false;
+      target.deathAt = 0;
       this.sendGMStatus(socketId, "info", `${target.name} revived`);
       return true;
     }
@@ -1309,15 +2033,83 @@ export class WorldTick {
     this.guildSystem = new GuildSystem();
     this.economySystem = new EconomySystem();
     this.questSystem = new QuestEngine();
+    this.questlineEngine = new QuestlineEngine();
+    for (const seed of this.questlineEngine.listSeeds()) {
+      const ctx = enrichQuestlineContext(seed);
+      if (ctx.questPack) {
+        registerProceduralQuestPack(this.questSystem, ctx.questPack, seed.id);
+      }
+    }
+    this.questSystem.setOnQuestCompleted((player, row, def) => {
+      const unlocked = applyQuestCompletionToQuestline(player, row, def, this.questSystem);
+      if (unlocked.length) {
+        const sock = this.getSocketForPlayer(player.id);
+        if (sock) {
+          this.ws.sendToPlayer(sock, {
+            type: "questline_features",
+            unlocked: unlocked,
+            questlineId: def?.questlineId,
+          });
+        }
+      }
+    });
+    this.questSystem.setXpRewardApplier((player, baseXp) =>
+      this.grantPlayerXpWithVoteBuff(player, baseXp, "quest")
+    );
     this.persistence = new PersistenceManager();
     this.worldSystem = new WorldSystem(this.persistence);
-    this.glbLinksStore = process.env.GLB_LINKS_STORE?.trim().toLowerCase() === "spacetime" ? "spacetime" : "file";
+    this.glbLinksStore = "file";
     this.glbRegistry = new GLBRegistry();
     this.assetPoolResolver = new AssetPoolResolver();
     this.runtimeSettings = new RuntimeSettingsStore();
     this.areModeAuditTrail = new AREModeAuditTrail();
     this.areStateCompiler = new AREStateCompiler();
+    this.craftingSystem = new CraftingSystem();
     this.areMode = this.runtimeSettings.getAREMode();
+
+    // Initialize LiveHeal v2 resilience engine (WorldTick-only scheduling)
+    this.liveHeal = bootstrapLiveHeal(resolveLiveHealConfigFromEnv());
+    this.assetHealthService = new AssetHealthService(this.liveHeal.config.assetValidation);
+    this.registerLiveHealSubsystems();
+
+    void initRedisChatRelay();
+    this.chatUnsubscribe = onRedisChatMessage((chatMessage: RelayedChatMessage) => {
+      this.broadcastChatMessage(chatMessage);
+    });
+
+    this.chatChannelRouter = new ChatChannelRouter();
+    this.npcMemoryCache = new NPCMemoryCache();
+    this.ouroborosEngine = new OuroborosEngine();
+    this.npcRelationships = new NPCRelationshipSystem();
+    this.worldBossDungeonSystem = new WorldBossDungeonSystem();
+    this.voteSystem = new VoteSystem();
+    this.worldBossRespawnAt = Date.now() + 1000;
+
+    // World generation / placement pipeline
+    this.terrainAdapter = new ServerTerrainAdapter();
+    this.treeAdapter = new ExistingTreeGeneratorAdapter();
+    const layoutEngine = new WorldLayoutRuleEngine(createDefaultLayoutConfig("/tmp/world-layout"));
+    this.placementEngine = new WorldPlacementRuleEngine(layoutEngine);
+    this.placementEngine.setTerrainAdapter(this.terrainAdapter);
+    this.placementEngine.setVegetationAdapter(this.treeAdapter);
+    console.log("[WorldTick] Placement engine initialized with terrain + vegetation adapters.");
+    this.worldBossDungeonSystem.ensureWorldBossPortalObject(this.worldSystem.objectSystem);
+    this.statusEmitter = new StatusEmitter(
+      this.chatChannelRouter,
+      () => this.getChatRecipients(),
+      (sid, payload) => this.ws.sendToPlayer(sid, payload),
+      (pid) => this.playerToSocket.get(pid),
+    );
+
+    try {
+      const { getSupabaseAdmin } = require("../lib/supabaseAdmin.js");
+      const sb = getSupabaseAdmin();
+      setSupabaseClient(sb);
+    } catch {
+      setSupabaseClient(null);
+    }
+
+    this.worldBossDungeonSystem.ensureWorldBossPortalObject(this.worldSystem.objectSystem);
 
     // Create a dummy player in a distant chunk to prove multi-observer union
     const dummyPlayer = this.playerSystem.createPlayer("dummy_player", "Dummy Player");
@@ -1371,6 +2163,8 @@ export class WorldTick {
             console.log(`Player ${charName} reconnected.`);
             shouldApplySpawn = !isNonEmptyString(player.sceneId) || !isNonEmptyString(player.spawnKey);
           }
+          this.ensurePlayerProgressDefaults(player);
+          this.deliverQueuedRewards(id, player);
 
           const requestedSceneId = isNonEmptyString(msg.sceneId) ? msg.sceneId.trim() : undefined;
           const requestedSpawnKey = isNonEmptyString(msg.spawnKey) ? msg.spawnKey.trim() : undefined;
@@ -1405,9 +2199,13 @@ export class WorldTick {
             areDeviceClass: requestedDeviceClass,
             areMode: this.areMode,
             recommendedAreMode: recommendedMode,
-            stats: {
+            stats: (() => {
+              const invWelcome = this.inventorySystem.getInventorySummary(player);
+              return {
               gold: player.gold,
               xp: player.xp,
+              kills: Number(player.kills) || 0,
+              deaths: Number(player.deaths) || 0,
               level: player.level ?? 1,
               health: player.health,
               maxHealth: player.maxHealth ?? 100,
@@ -1422,15 +2220,53 @@ export class WorldTick {
                 : 0,
               quests: player.quests,
               inventory: player.inventory,
+              gear: invWelcome.gear ?? player.gearInventory ?? [],
               equipment: player.equipment,
+              maxWeight: invWelcome.maxWeight,
+              inventoryWeight: invWelcome.weight,
               skillCooldownUntil: buildSkillCooldownUntilPayload(player, Date.now()),
-            },
+              impactBusterUnlocked: Boolean(player.impactBusterUnlocked),
+              combatTargetNpcId: player.combatTargetNpcId ?? null,
+              voteBuffState: this.getVoteBuffState(player),
+            };
+            })(),
           });
           this.pushPlayerStateSync(id, player);
+          this.pushVoteStatus(id, player);
         } catch (err) {
           console.error("Login error:", err);
           this.ws.sendToPlayer(id, { type: "error", message: "Login failed" });
         }
+        return;
+      }
+
+      if (msg.type === "quest_sync") {
+        const playerUid = this.socketToPlayer.get(id);
+        const player = playerUid ? this.playerSystem.getPlayer(playerUid) : null;
+        if (!player) return;
+        const questlineId =
+          typeof msg.questlineId === "string" && msg.questlineId.trim()
+            ? msg.questlineId.trim()
+            : "mainline_awakening";
+        const state = this.questlineEngine.startQuestline(questlineId);
+        if (!state) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Questline not found." });
+          return;
+        }
+        state.proceduralQuestIds = registeredProceduralQuestIdsByQuestline.get(questlineId) ?? [];
+        const first = `ql_${questlineId}_step_0`;
+        if (this.questSystem.getQuestDefinitions().has(first)) {
+          this.questSystem.startQuest(player, first);
+        }
+        setPlayerQuestlineRuntime(player, state);
+        this.ws.sendToPlayer(id, {
+          type: "questline_state",
+          questlineId,
+          currentNode: state.currentNode,
+          unlockedFeatures: state.unlockedFeatures,
+          featureSchedule: state.featureSchedule,
+        });
+        this.pushPlayerStateSync(id, player);
         return;
       }
 
@@ -1439,6 +2275,17 @@ export class WorldTick {
         const player = playerUid ? this.playerSystem.getPlayer(playerUid) : null;
         if (!player) {
           return;
+        }
+        if (msg.sceneId === WORLD_BOSS_SCENE_ID) {
+          const entryCheck = this.worldBossDungeonSystem.canEnterWorldBossDungeon(player);
+          if (!entryCheck.ok) {
+            this.ws.sendToPlayer(id, {
+              type: "toast",
+              kind: "warn",
+              text: entryCheck.reason ?? "You cannot enter this dungeon now.",
+            });
+            return;
+          }
         }
 
         const requestedSceneId = isNonEmptyString(msg.sceneId) ? msg.sceneId.trim() : undefined;
@@ -1452,6 +2299,26 @@ export class WorldTick {
           spawnKey: spawn.spawnKey,
           spawnPosition: spawn.spawnPoint,
         });
+        if (spawn.sceneId === WORLD_BOSS_SCENE_ID) {
+          this.ws.sendToPlayer(id, {
+            type: "worldboss_entered",
+            dungeonId: WORLD_BOSS_DUNGEON_ID,
+            sceneId: WORLD_BOSS_SCENE_ID,
+          });
+        }
+        return;
+      }
+
+      if (msg.type === "worldboss_info_request") {
+        const now = Date.now();
+        this.ws.sendToPlayer(id, {
+          type: "worldboss_status",
+          dungeonId: WORLD_BOSS_DUNGEON_ID,
+          sceneId: WORLD_BOSS_SCENE_ID,
+          respawnAt: this.worldBossRespawnAt,
+          respawnRemainingMs: Math.max(0, this.worldBossRespawnAt - now),
+          top: this.worldBossEncounterSummaries.at(-1)?.topRewards ?? [],
+        });
         return;
       }
 
@@ -1459,13 +2326,15 @@ export class WorldTick {
       const player = playerUid ? this.playerSystem.getPlayer(playerUid) : null;
 
       if (!player) return;
+      this.ensurePlayerProgressDefaults(player);
 
       if (this.worldState.bannedPlayers.includes(player.id)) {
         this.ws.sendToPlayer(id, { type: "kick", reason: "Banned player" });
         return;
       }
 
-      if (msg.type === "chat" && this.worldState.mutedPlayers.includes(player.id)) {
+      const isChatSend = msg.type === "chat_send" || msg.type === "chat" || msg.type === "chat_message";
+      if (isChatSend && this.worldState.mutedPlayers.includes(player.id)) {
         this.sendGMStatus(id, "error", "You are muted.");
         return;
       }
@@ -1475,6 +2344,64 @@ export class WorldTick {
       }
 
       if (await this.handleGMCommand(id, player, msg)) {
+        return;
+      }
+
+      if (isChatSend) {
+        const text = typeof msg.text === "string" ? msg.text : "";
+        if (!text.trim()) {
+          return;
+        }
+
+        // Route through 3-channel system (local/global/status)
+        const rawChannel = typeof msg.channel === "string" ? msg.channel.trim().toLowerCase() : (typeof msg.scope === "string" ? msg.scope.trim().toLowerCase() : "");
+        if (rawChannel === "local" || rawChannel === "global") {
+          const sent = this.chatChannelRouter.publish(
+            {
+              channel: rawChannel as "local" | "global",
+              senderType: "player",
+              senderId: String(player.id),
+              senderName: isNonEmptyString(player.name) ? player.name : String(player.id),
+              text,
+              position: { x: player.position.x, y: player.position.y },
+            },
+            this.getChatRecipients(),
+            (sid, payload) => this.ws.sendToPlayer(sid, payload),
+            (payload) => this.ws.broadcast(payload),
+            (pid) => this.playerToSocket.get(pid),
+          );
+          if (!sent) {
+            this.ws.sendToPlayer(id, { type: "toast", text: "Chat cooldown active." });
+          }
+          return;
+        }
+
+        // Legacy path: global/zone/party via Redis relay
+        const requestedScope = this.resolveChatScope(msg.scope ?? msg.channel);
+        const zoneId = this.resolvePlayerZoneId(player);
+        const partyId = this.resolvePlayerPartyId(player);
+        const effectiveScope: RelayedChatScope =
+          requestedScope === "zone" && !zoneId
+            ? "global"
+            : requestedScope === "party" && !partyId
+              ? "global"
+              : requestedScope;
+        const chatResult = await publishChatMessage({
+          scope: effectiveScope,
+          senderId: String(player.id),
+          senderName: isNonEmptyString(player.name) ? player.name : String(player.id),
+          text,
+          zoneId,
+          partyId,
+          ts: Date.now(),
+        });
+        if (!chatResult.ok && chatResult.reason === "rate_limited") {
+          const waitSeconds = Math.max(0.1, Number(chatResult.retryAfterMs ?? 500) / 1000);
+          this.ws.sendToPlayer(id, {
+            type: "toast",
+            text: `Chat cooldown active (${waitSeconds.toFixed(1)}s).`,
+          });
+        }
         return;
       }
 
@@ -1491,10 +2418,159 @@ export class WorldTick {
         }
       }
 
+      if (msg.type === "vote_banners") {
+        this.ws.sendToPlayer(id, {
+          type: "vote_banners",
+          banners: this.getPublicVoteBanners(),
+        });
+        this.pushVoteStatus(id, player);
+        return;
+      }
+
       if (msg.type === "set_target") {
         const requested = typeof msg.npcId === "string" ? msg.npcId.trim() : "";
+        if (requested && this.worldBossDungeonSystem.isWorldBossNpc(this.npcSystem.getNPC(requested))) {
+          this.worldBossDungeonSystem.maybeStartEncounterIfMissing(this.npcSystem.getNPC(requested));
+        }
         player.combatTargetNpcId = requested.length > 0 ? requested : null;
         this.pushPlayerStateSync(id, player);
+        return;
+      }
+
+      if (msg.type === "worldboss_status") {
+        const boss = this.npcSystem.getNPC(this.worldBossDungeonSystem.getCurrentBossNpcId());
+        const respawnRemainingMs = this.worldBossRespawnAt > 0 ? Math.max(0, this.worldBossRespawnAt - Date.now()) : 0;
+        this.ws.sendToPlayer(id, {
+          type: "worldboss_status",
+          dungeonId: WORLD_BOSS_DUNGEON_ID,
+          sceneId: WORLD_BOSS_SCENE_ID,
+          bossNpcId: boss?.id ?? null,
+          bossName: boss?.name ?? "Frustinator Prime",
+          bossHp: boss?.health ?? 0,
+          bossHpMax: boss?.maxHealth ?? 0,
+          respawnRemainingMs,
+        });
+        return;
+      }
+
+      if (msg.type === "vote_status" || msg.type === "vote_info_request") {
+        this.pushVoteStatus(id, player);
+        return;
+      }
+
+      if (msg.type === "vote_open") {
+        const bannerId = typeof msg.bannerId === "string" ? msg.bannerId.trim() : "";
+        if (!bannerId) {
+          this.ws.sendToPlayer(id, { type: "toast", kind: "warn", text: "Vote banner is missing." });
+          return;
+        }
+        const created = this.voteSystem.createVoteSession(
+          player,
+          bannerId,
+          this.resolvePublicBaseUrl(),
+        );
+        if (!created.ok || !created.session || !created.status) {
+          this.ws.sendToPlayer(id, {
+            type: "toast",
+            kind: "warn",
+            text: created.reason ?? "Unable to start vote session.",
+          });
+          this.pushVoteStatus(id, player);
+          return;
+        }
+        this.ws.sendToPlayer(id, {
+          type: "vote_session_opened",
+          bannerId,
+          session: {
+            id: created.session.id,
+            status: created.session.status,
+            expiresAt: created.session.expiresAt,
+            voteUrl: created.session.voteUrl,
+          },
+          status: created.status,
+        });
+        this.pushVoteStatus(id, player);
+        return;
+      }
+
+      if (msg.type === "vote_verify") {
+        const sessionId = typeof msg.sessionId === "string" ? msg.sessionId.trim() : "";
+        if (!sessionId) {
+          this.ws.sendToPlayer(id, { type: "toast", kind: "warn", text: "Vote session is missing." });
+          return;
+        }
+        const verified = await this.voteSystem.verifySession(player, sessionId);
+        if (!verified.ok) {
+          this.ws.sendToPlayer(id, {
+            type: "vote_verify_result",
+            ok: false,
+            verified: false,
+            sessionId,
+            reason: verified.reason,
+            retryAfterMs: verified.retryAfterMs,
+            status: verified.status,
+          });
+          this.ws.sendToPlayer(id, {
+            type: "toast",
+            kind: "warn",
+            text: verified.reason ?? "Vote verification failed.",
+          });
+          this.pushVoteStatus(id, player);
+          return;
+        }
+        this.ws.sendToPlayer(id, {
+          type: "vote_verify_result",
+          ok: true,
+          verified: true,
+          sessionId,
+          status: verified.status,
+        });
+        this.ws.sendToPlayer(id, {
+          type: "toast",
+          kind: "ok",
+          text: "Vote verified. Claim your reward.",
+        });
+        this.pushVoteStatus(id, player);
+        return;
+      }
+
+      if (msg.type === "vote_claim") {
+        const sessionId = typeof msg.sessionId === "string" ? msg.sessionId.trim() : "";
+        if (!sessionId) {
+          this.ws.sendToPlayer(id, { type: "toast", kind: "warn", text: "Vote session is missing." });
+          return;
+        }
+        const claimed = this.voteSystem.claimSession(player, sessionId);
+        if (!claimed.ok) {
+          this.ws.sendToPlayer(id, {
+            type: "vote_claim_result",
+            ok: false,
+            sessionId,
+            reason: claimed.reason,
+            status: claimed.status,
+          });
+          this.ws.sendToPlayer(id, {
+            type: "toast",
+            kind: "warn",
+            text: claimed.reason ?? "Vote claim failed.",
+          });
+          this.pushVoteStatus(id, player);
+          return;
+        }
+        this.ws.sendToPlayer(id, {
+          type: "vote_claim_result",
+          ok: true,
+          sessionId,
+          gainedMs: claimed.gainedMs ?? 0,
+          status: claimed.status,
+        });
+        this.ws.sendToPlayer(id, {
+          type: "toast",
+          kind: "ok",
+          text: `Vote reward claimed (+${Math.round((claimed.gainedMs ?? 0) / 3_600_000)}h XP buff).`,
+        });
+        this.pushPlayerStateSync(id, player);
+        this.pushVoteStatus(id, player);
         return;
       }
 
@@ -1523,6 +2599,68 @@ export class WorldTick {
 
       if (msg.type === "use_skill") {
         const skillId = typeof msg.skillId === "string" ? msg.skillId.trim() : "";
+        if (skillId === IMPACT_BUSTER_SKILL_ID) {
+          const now = Date.now();
+          const eligibility = canUseImpactBuster(player, now);
+          if (!eligibility.ok) {
+            this.ws.sendToPlayer(id, {
+              type: "toast",
+              kind: eligibility.reason === "locked" ? "warn" : "info",
+              text: eligibility.toast,
+            });
+            return;
+          }
+          const impact = executeImpactBuster(player, this.npcSystem.getAllNPCs(), now);
+          player.skillCooldowns[IMPACT_BUSTER_COOLDOWN_KEY] = impact.cooldownUntil;
+          this.ws.broadcast({
+            type: "impact_buster_fx",
+            casterId: player.id,
+            at: { x: player.position.x, y: player.position.y },
+            radius: 5.5,
+          });
+          this.ws.sendToPlayer(id, {
+            type: "toast",
+            kind: "ok",
+            text:
+              impact.hits.length > 0
+                ? `Impact Buster hits ${impact.hits.length} target(s) for ${impact.totalDamage}.`
+                : "Impact Buster unleashed, but nothing was in range.",
+          });
+          for (const hit of impact.hits) {
+            const target = this.npcSystem.getNPC(hit.npcId);
+            if (!target) continue;
+            this.handleWorldBossDamageAttribution(player, target, hit.damage);
+            this.ws.broadcast({
+              type: "combat_result",
+              attackerId: player.id,
+              targetId: hit.npcId,
+              damage: hit.damage,
+              crit: false,
+              hit: true,
+              targetHp: hit.healthAfter,
+              targetHpMax: target.maxHealth ?? target.health,
+              killed: hit.killed,
+            });
+            this.ws.broadcast({
+              type: "fx",
+              at: { x: target.position.x, y: target.position.y },
+              kind: "hit",
+              n: hit.damage,
+            });
+            if (hit.killed && target.health <= 0) {
+              target.health = 0;
+              target.aggroTargetId = null;
+              player.kills = Math.max(0, Number(player.kills) || 0) + 1;
+              const handledBossDefeat = this.tryHandleWorldBossDefeat(player, target);
+              if (!handledBossDefeat) {
+                this.spawnLootFromNpc(target, player.id);
+              }
+              this.questSystem.updateCombatQuests(player, target.id ?? target.name, target.id);
+            }
+          }
+          this.pushPlayerStateSync(id, player);
+          return;
+        }
         const skill = getSkillDefinition(skillId);
         if (!skill) {
           this.ws.sendToPlayer(id, { type: "toast", text: "Unknown skill." });
@@ -1553,10 +2691,41 @@ export class WorldTick {
           player.skillCooldowns[skill.id] = now + skill.cooldownMs;
           const hit = this.combatSystem.spellStrike(player, target, skill.spellPower);
           this.ws.broadcast({ type: "entity_action", entityId: player.id, action: "attack" });
+          if (hit.fx) {
+            this.ws.broadcast({
+              type: "fx",
+              at: { x: target.position.x, y: target.position.y },
+              kind: hit.fx.kind,
+              n: hit.fx.n,
+            });
+          }
+          if (hit.hit) {
+            this.handleWorldBossDamageAttribution(player, target, hit.damage);
+            this.ws.broadcast({
+              type: "combat_result",
+              attackerId: player.id,
+              targetId: target.id,
+              damage: hit.damage,
+              crit: hit.crit ?? false,
+              hit: true,
+              targetHp: target.health,
+              targetHpMax: target.maxHealth ?? target.health,
+              killed: hit.killed ?? false,
+            });
+          }
           this.ws.sendToPlayer(id, {
             type: "toast",
-            text: hit.hit ? `${skill.name} hits for ${hit.damage}.` : `${skill.name} missed.`,
+            text: hit.hit ? `${skill.name} hits for ${hit.damage}${hit.crit ? " (CRIT!)" : ""}.` : `${skill.name} missed.`,
           });
+          if (hit.killed && target.health <= 0) {
+            target.aggroTargetId = null;
+            player.kills = Math.max(0, Number(player.kills) || 0) + 1;
+            const handledBossDefeat = this.tryHandleWorldBossDefeat(player, target);
+            if (!handledBossDefeat) {
+              this.spawnLootFromNpc(target, player.id);
+            }
+            this.questSystem.updateCombatQuests(player, target.id ?? target.name, target.id);
+          }
           this.pushPlayerStateSync(id, player);
           return;
         }
@@ -1595,38 +2764,348 @@ export class WorldTick {
         }
 
         player.mana = Math.max(0, (player.mana ?? 0) - manaCost);
-        const weaponBonus = Number(weapon?.damage) || 0;
-        this.combatSystem.attackWithWeapon(player, target, weaponBonus);
+        const weaponBonus = this.resolveWeaponDamageBonus(player, weapon);
+        const atkResult = this.combatSystem.attackWithWeapon(player, target, weaponBonus);
+        let reportedDamage = atkResult.damage;
+        if (atkResult.hit) {
+          const proc = applyLegendaryPowersFromEquipment(
+            player.equipment ?? {},
+            {
+              attacker: {
+                health: player.health ?? 0,
+                maxHealth: player.maxHealth ?? 100,
+              },
+              target: {
+                health: target.health ?? 0,
+                maxHealth: target.maxHealth ?? target.health ?? 100,
+              },
+              dmg: atkResult.damage,
+              crit: atkResult.crit ?? false,
+            },
+            player.gearInventory
+          );
+          if (proc.extraDmg > 0) {
+            target.health = Math.max(0, (target.health ?? 0) - proc.extraDmg);
+            reportedDamage += proc.extraDmg;
+          }
+          if (proc.heal > 0) {
+            const mh = player.maxHealth ?? 100;
+            player.health = Math.min(mh, (player.health ?? 0) + proc.heal);
+          }
+        }
         this.ws.broadcast({ type: "entity_action", entityId: player.id, action: "attack" });
+        if (atkResult.fx) {
+          this.ws.broadcast({
+            type: "fx",
+            at: { x: target.position.x, y: target.position.y },
+            kind: atkResult.fx.kind,
+            n: atkResult.fx.n,
+          });
+        }
+        if (atkResult.hit) {
+          this.handleWorldBossDamageAttribution(player, target, reportedDamage);
+          const killed = (target.health ?? 0) <= 0;
+          if (killed) target.health = 0;
+          this.ws.broadcast({
+            type: "combat_result",
+            attackerId: player.id,
+            targetId: target.id,
+            damage: reportedDamage,
+            crit: atkResult.crit ?? false,
+            hit: true,
+            targetHp: target.health,
+            targetHpMax: target.maxHealth ?? target.health,
+            killed,
+          });
+        }
         this.pushPlayerStateSync(id, player);
-        if (target.health <= 0) {
+        if ((target.health ?? 0) <= 0) {
           target.health = 0;
           target.aggroTargetId = null;
+          player.kills = Math.max(0, Number(player.kills) || 0) + 1;
+          const handledBossDefeat = this.tryHandleWorldBossDefeat(player, target);
+          if (!handledBossDefeat) {
+            this.spawnLootFromNpc(target, player.id);
+          }
+          this.questSystem.updateCombatQuests(player, target.id ?? target.name, target.id);
+          this.pushPlayerStateSync(id, player);
         }
         return;
       }
 
+      if (msg.type === "respawn") {
+        if (!player.dead) return;
+        const now = Date.now();
+        const respawnAt = (typeof player.deathAt === "number" ? player.deathAt : 0) + GameConfig.playerRespawnDelayMs;
+        if (now < respawnAt) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Respawn not yet available." });
+          return;
+        }
+        const spawnPoint = this.resolvePlayerRespawnPoint(player);
+        player.dead = false;
+        player.health = Math.floor((player.maxHealth ?? 100) * 0.3);
+        player.mana = Math.floor((player.maxMana ?? 25) * 0.3);
+        player.position.x = spawnPoint.x;
+        player.position.y = spawnPoint.z;
+        player.deathAt = 0;
+        this.ws.sendToPlayer(id, {
+          type: "player_respawned",
+          x: spawnPoint.x,
+          z: spawnPoint.z,
+          health: player.health,
+          mana: player.mana,
+          label: spawnPoint.label ?? "Hub",
+        });
+        this.pushPlayerStateSync(id, player);
+        return;
+      }
+
+      if (msg.type === "party_create") {
+        const { createParty, getPartyForPlayer } = await import("../modules/party/partySystem.js");
+        const party = createParty(player.id);
+        this.broadcastPartySyncForParty(party.id);
+        this.ws.sendToPlayer(id, { type: "toast", text: "Party created!" });
+        return;
+      }
+
+      if (msg.type === "party_invite") {
+        const targetName = typeof msg.targetName === "string" ? msg.targetName.trim() : "";
+        if (!targetName) return;
+        const { inviteToParty, getPartyForPlayer } = await import("../modules/party/partySystem.js");
+        const target = this.playerSystem.getAllPlayers().find((p) => p.name === targetName && !p.isOffline);
+        if (!target) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Player not found." });
+          return;
+        }
+        const result = inviteToParty(player.id, target.id);
+        if (!result.ok) {
+          const reasons: Record<string, string> = {
+            not_in_party: "Create a party first.",
+            not_leader: "Only the leader can invite.",
+            party_full: "Party is full (max 4).",
+            target_in_party: "Player is already in a party.",
+          };
+          this.ws.sendToPlayer(id, { type: "toast", text: reasons[result.reason ?? ""] ?? "Cannot invite." });
+          return;
+        }
+        const party = getPartyForPlayer(player.id);
+        if (party) this.broadcastPartySyncForParty(party.id);
+        const targetSocket = this.getSocketForPlayer(target.id);
+        if (targetSocket) {
+          this.ws.sendToPlayer(targetSocket, { type: "toast", text: `You joined ${player.name}'s party!` });
+        }
+        this.ws.sendToPlayer(id, { type: "toast", text: `${target.name} joined the party!` });
+        return;
+      }
+
+      if (msg.type === "party_leave") {
+        const { leaveParty, getPartyForPlayer } = await import("../modules/party/partySystem.js");
+        const oldParty = getPartyForPlayer(player.id);
+        const oldPartyId = oldParty?.id;
+        leaveParty(player.id);
+        this.ws.sendToPlayer(id, { type: "party_sync", partyId: null, members: [] });
+        this.ws.sendToPlayer(id, { type: "toast", text: "You left the party." });
+        if (oldPartyId) this.broadcastPartySyncForParty(oldPartyId);
+        return;
+      }
+
+      if (msg.type === "equip_gear") {
+        const itemUid = typeof msg.itemUid === "string" ? msg.itemUid.trim() : "";
+        if (!itemUid) return;
+        ensureDualInventoryFields(player);
+        const idx = player.gearInventory.findIndex((x: any) => x && x.uid === itemUid);
+        if (idx < 0) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Gear not found." });
+          return;
+        }
+        const g = player.gearInventory[idx];
+        const def = ItemRegistry.getItem(g.baseId);
+        if (!def || (def.type !== "weapon" && def.type !== "armor")) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Cannot equip this gear type yet." });
+          return;
+        }
+        const slot = def.type === "weapon" ? "weapon" : def.slot === "offHand" ? "offHand" : "armor";
+        if (def.type === "armor" && def.slot !== "armor" && def.slot !== "offHand") {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Armor slot not supported for this item." });
+          return;
+        }
+        const equipRow = {
+          ...def,
+          id: g.baseId,
+          uid: g.uid,
+          name: typeof g.name === "string" ? g.name : def.name,
+          rarity: g.rarity ?? "magic",
+          ilvl: typeof g.ilvl === "number" ? g.ilvl : player.level ?? 1,
+          stats: g.stats && typeof g.stats === "object" ? g.stats : {},
+          ...(typeof g.legendaryPowerId === "string" ? { legendaryPowerId: g.legendaryPowerId } : {}),
+          ...(Array.isArray(g.socketed) ? { socketed: g.socketed } : {}),
+        };
+        const prev = player.equipment?.[slot] ?? null;
+        if (prev) {
+          if (typeof prev.uid === "string" && prev.uid) {
+            player.gearInventory.push({
+              uid: prev.uid,
+              baseId: prev.id,
+              name: typeof prev.name === "string" ? prev.name : prev.id,
+              rarity: prev.rarity ?? "magic",
+              ilvl: typeof prev.ilvl === "number" ? prev.ilvl : player.level ?? 1,
+              stats: prev.stats && typeof prev.stats === "object" ? prev.stats : {},
+              ...(typeof prev.legendaryPowerId === "string" ? { legendaryPowerId: prev.legendaryPowerId } : {}),
+              ...(Array.isArray(prev.socketed) ? { socketed: prev.socketed } : {}),
+            });
+          } else {
+            this.inventorySystem.addItem(player, { id: prev.id, quantity: prev.quantity ?? 1 });
+          }
+        }
+        player.gearInventory.splice(idx, 1);
+        if (!player.equipment) player.equipment = { weapon: null, armor: null, offHand: null };
+        (player.equipment as any)[slot] = equipRow;
+        this.ws.sendToPlayer(id, { type: "toast", text: `Equipped ${equipRow.name}.` });
+        this.pushPlayerStateSync(id, player);
+        return;
+      }
+
+      if (msg.type === "equip_item") {
+        const itemId = typeof msg.itemId === "string" ? msg.itemId.trim() : "";
+        if (!itemId) return;
+        const equipment = this.inventorySystem.equipItem(player, itemId);
+        if (equipment) {
+          this.ws.sendToPlayer(id, { type: "toast", text: `Equipped item.` });
+          this.pushPlayerStateSync(id, player);
+        }
+        return;
+      }
+
+      if (msg.type === "unequip_item") {
+        const slot = typeof msg.slot === "string" ? msg.slot.trim() : "";
+        if (!slot || (slot !== "weapon" && slot !== "armor" && slot !== "offHand")) return;
+        const equipment = this.inventorySystem.unequipItem(player, slot);
+        if (equipment) {
+          this.ws.sendToPlayer(id, { type: "toast", text: `Unequipped ${slot}.` });
+          this.pushPlayerStateSync(id, player);
+        } else {
+          this.ws.sendToPlayer(id, {
+            type: "toast",
+            kind: "warn",
+            text: "This bound item cannot be unequipped via transfer slots.",
+          });
+        }
+        return;
+      }
+
+      if (msg.type === "pickup_loot") {
+        const lootId = typeof msg.lootId === "string" ? msg.lootId.trim() : "";
+        if (!this.tryPickupLoot(id, player, lootId)) return;
+        return;
+      }
+
+      if (msg.type === "craft") {
+        const recipeId = typeof msg.recipeId === "string" ? msg.recipeId.trim() : "";
+        if (!recipeId) return;
+        const count = Math.max(1, Math.min(50, Math.floor(Number(msg.count) || 1)));
+        let crafted = 0;
+        let lastName = recipeId;
+        let totalCraftXp = 0;
+        for (let i = 0; i < count; i++) {
+          const result = this.craftingSystem?.craft(player, recipeId);
+          if (!result || !result.success) {
+            if (crafted === 0) {
+              this.ws.sendToPlayer(id, { type: "toast", text: result?.reason ?? "Crafting failed." });
+            }
+            break;
+          }
+          crafted++;
+          if (result.itemId) lastName = result.itemId;
+          totalCraftXp += Math.max(0, Number(result.xp) || 0);
+        }
+        if (crafted > 0) {
+          this.ws.sendToPlayer(id, { type: "toast", text: `Hergestellt: ${crafted}x ${lastName}` });
+          this.grantCraftXpIfAny(id, player, totalCraftXp);
+        }
+        this.pushPlayerStateSync(id, player);
+        return;
+      }
+
+      if (msg.type === "house_place") {
+        const itemId = typeof msg.itemId === "string" ? msg.itemId.trim() : "";
+        const hx = Number(msg.x);
+        const hy = Number(msg.y);
+        const hr = Number(msg.r) || 0;
+        if (!itemId || !Number.isFinite(hx) || !Number.isFinite(hy)) return;
+        const taken = this.inventorySystem.takeOneFromBag(player, itemId);
+        if (!taken) {
+          this.ws.sendToPlayer(id, { type: "toast", text: "Item not in inventory." });
+          return;
+        }
+        this.housingObjects.set(`ho_${Date.now()}_${player.id}`, {
+          id: `ho_${Date.now()}_${player.id}`,
+          ownerId: player.id,
+          itemId,
+          x: hx,
+          y: hy,
+          r: hr,
+        });
+        this.ws.sendToPlayer(id, { type: "toast", text: "Platziert." });
+        this.pushPlayerStateSync(id, player);
+        return;
+      }
+
       if (msg.type === "interact") {
-        // Interaction logic...
-        this.ws.sendToPlayer(id, { type: 'dialogue', text: "Hello traveler!" });
+        const lootId = typeof msg.lootId === "string" ? msg.lootId.trim() : "";
+        const didLoot = lootId ? this.tryPickupLoot(id, player, lootId) : false;
+        const npcId =
+          typeof msg.npcId === "string"
+            ? msg.npcId.trim()
+            : typeof msg.targetNpcId === "string"
+              ? msg.targetNpcId.trim()
+              : "";
+        let didNpc = false;
+        if (npcId) {
+          const talkRewards = this.questSystem.checkTalkToQuests(player, npcId);
+          const collectRewards = this.questSystem.checkCollectTurnInQuests(player, npcId);
+          const qlDone = tryCompleteQuestlineTalkAtNpc(player, this.questSystem, npcId);
+          if (talkRewards.length || collectRewards.length || qlDone.length) {
+            this.pushPlayerStateSync(id, player);
+          }
+          didNpc = true;
+        }
+        if (didNpc && !didLoot) {
+          this.ws.sendToPlayer(id, { type: "dialogue", text: "Hello traveler!" });
+        }
         return;
       }
     };
   }
 
+  private getChatRecipients(): ChatRecipient[] {
+    return this.playerSystem.getAllPlayers()
+      .filter((p: any) => !p.isOffline && this.playerToSocket.has(p.id))
+      .map((p: any) => ({ id: p.id, position: { x: p.position.x, y: p.position.y } }));
+  }
+
   async init() {
+    await this.persistence.init();
     const connected = await this.persistence.testConnection();
     if (connected) {
-      console.log("✅ Firestore connection verified.");
+      console.log("✅ Persistence backend connection verified.");
     }
     this.areMode = this.runtimeSettings.getAREMode();
     const savedData = await this.persistence.load();
     for (const id in savedData) {
+      this.ensurePlayerProgressDefaults(savedData[id]);
       this.playerSystem.setPlayer(id, savedData[id]);
     }
     this.loadRuntimeEventTemplates();
     this.loadSceneLayouts();
+    this.worldBossDungeonSystem.ensureWorldBossPortalObject(this.worldSystem.objectSystem);
     this.loadSpawns();
+    if (this.craftingSystem?.loadRecipes) {
+      this.craftingSystem.loadRecipes().catch(() => {});
+    }
+
+    for (const npc of this.npcSystem.getAllNPCs()) {
+      void loadNpcMemory(this.npcMemoryCache, npc.id).catch(() => {});
+    }
   }
 
   private loadSceneLayouts() {
@@ -1720,6 +3199,8 @@ export class WorldTick {
       if (loadedTriggers.length > 0) {
         this.sceneTriggerZones = loadedTriggers;
       }
+      this.sceneProfiles = this.worldBossDungeonSystem.buildSceneProfileOverrides(this.sceneProfiles);
+      this.sceneTriggerZones = this.worldBossDungeonSystem.buildTriggerOverrides(this.sceneTriggerZones);
 
       console.log(
         `[SceneLayouts] Loaded ${Object.keys(this.sceneProfiles).length} profiles and ${this.sceneTriggerZones.length} trigger zones`
@@ -1742,6 +3223,7 @@ export class WorldTick {
           });
         });
       }
+      this.spawnWorldBossNow();
     } catch (e) {}
   }
 
@@ -1766,10 +3248,89 @@ export class WorldTick {
     this.tickCount += 1;
     this.processTemplateQueue();
     const onlinePlayers = this.playerSystem.getAllPlayers().filter(p => !p.isOffline);
+    if (this.worldBossRespawnAt > 0 && Date.now() >= this.worldBossRespawnAt) {
+      this.worldBossRespawnAt = 0;
+      this.spawnWorldBossNow();
+    }
+    const currentBoss = this.npcSystem.getNPC(this.worldBossDungeonSystem.getCurrentBossNpcId());
+    if (currentBoss && currentBoss.health > 0) {
+      this.worldBossDungeonSystem.maybeStartEncounterIfMissing(currentBoss);
+      if (this.worldBossDungeonSystem.shouldBroadcastEncounterPulse()) {
+        this.ws.broadcast({
+          type: "worldboss_encounter_update",
+          dungeonId: WORLD_BOSS_DUNGEON_ID,
+          sceneId: WORLD_BOSS_SCENE_ID,
+          bossNpcId: currentBoss.id,
+          bossName: currentBoss.name,
+          hp: currentBoss.health,
+          maxHp: currentBoss.maxHealth,
+        });
+      }
+    }
     this.npcSystem.tick(onlinePlayers, this.worldSystem.worldTime);
     this.worldSystem.tick();
+    this.cleanupExpiredLoot();
 
     if (this.tickCount % 600 === 0) this.saveAll();
+
+    const recipients = this.getChatRecipients();
+
+    // NPC chat agent: every 10 ticks (~1s) let NPCs near players chat
+    if (this.tickCount % 10 === 0 && onlinePlayers.length > 0) {
+      for (const npc of this.npcSystem.getAllNPCs()) {
+        const nearPlayer = onlinePlayers.some(
+          (p: any) => Math.hypot(p.position.x - npc.position.x, p.position.y - npc.position.y) <= LOCAL_CHAT_RADIUS,
+        );
+        if (!nearPlayer) continue;
+
+        // Feed recent chat into NPC memory
+        const recentChat = this.chatChannelRouter.getRecentForPosition(npc.position, 10);
+        for (const cm of recentChat) {
+          this.npcMemoryCache.recordChat(npc.id, {
+            text: cm.text,
+            sender: cm.senderName,
+            channel: cm.channel,
+            ts: cm.ts,
+          });
+        }
+
+        tickNpcChat(
+          npc,
+          this.npcMemoryCache,
+          this.chatChannelRouter,
+          recipients,
+          (sid, payload) => this.ws.sendToPlayer(sid, payload),
+          (payload) => this.ws.broadcast(payload),
+          (pid) => this.playerToSocket.get(pid),
+        );
+      }
+    }
+
+    // Ouroboros engine: perceive → evaluate → act → remember → update
+    this.ouroborosEngine.tick(
+      this.tickCount,
+      this.npcSystem.getAllNPCs().map((n: any) => ({ id: n.id, name: n.name, position: { x: n.position.x, y: n.position.y }, faction: n.faction })),
+      onlinePlayers.map((p: any) => ({ id: p.id, name: p.name || p.id, position: { x: p.position.x, y: p.position.y } })),
+      this.npcMemoryCache,
+      this.npcRelationships,
+      this.worldSystem.worldTime,
+      this.chatChannelRouter,
+      this.statusEmitter,
+      recipients,
+      (sid: string, payload: unknown) => this.ws.sendToPlayer(sid, payload),
+      (payload: unknown) => this.ws.broadcast(payload),
+      (pid: string) => this.playerToSocket.get(pid),
+    );
+
+    // Flush dirty NPC memory to Supabase every 300 ticks (~30s)
+    if (this.tickCount % 300 === 0) {
+      void flushDirtyEntries(this.npcMemoryCache).catch(() => {});
+    }
+
+    // LiveHeal v2: run health checks via WorldTick (no duplicate scheduling)
+    if (this.tickCount % 10 === 0) {
+      void this.liveHeal.onTick().catch(() => { /* never crash the tick */ });
+    }
 
     this.broadcastState();
   }
@@ -1783,6 +3344,7 @@ export class WorldTick {
         position: { x: p.position.x, y: 0, z: p.position.y }, // Mapping y to z for 3D
         rotation: { x: 0, y: 0, z: 0 },
         name: p.name,
+        level: p.level ?? 1,
         glbPath: this.resolveEntityGlbPath("players", p.name || p.id, p.id),
         are: this.areStateCompiler.compileEntity(
           {
@@ -1803,10 +3365,13 @@ export class WorldTick {
         position: { x: n.position.x, y: 0, z: n.position.y },
         rotation: { x: 0, y: 0, z: 0 },
         name: n.name,
+        level: typeof n?.skills?.combat?.level === "number" ? n.skills.combat.level : 1,
         health: n.health,
         maxHealth: n.maxHealth,
         role: n.role,
         faction: n.faction,
+        worldBoss: Boolean(n.worldBoss),
+        worldBossDungeonId: n.worldBossMeta?.dungeonId ?? null,
         combatNpcId: n.id,
         combatThreat: n.faction === "Hostile" || n.role === "Enemy",
         glbPath: this.resolveNpcGlbPath(n),
@@ -1872,9 +3437,134 @@ export class WorldTick {
       entities,
       chunks: [{ id: 'main', chunkX: 0, chunkY: 0, objects: [] }]
     });
+    if (this.worldBossEncounterSummaries.length > 0 && this.tickCount % 25 === 0) {
+      const latest = this.worldBossEncounterSummaries[this.worldBossEncounterSummaries.length - 1];
+      this.ws.broadcast({
+        type: "worldboss_ranking",
+        dungeonId: latest.dungeonId,
+        encounterId: latest.encounterId,
+        top: latest.topRewards.map((row: any) => ({
+          playerId: row.playerId,
+          playerName: row.playerName,
+          rank: row.rank,
+          damage: row.damage,
+        })),
+      });
+    }
   }
 
-  public getWorld() {
+  private registerLiveHealSubsystems(): void {
+    const lh = this.liveHeal;
+
+    // Register core subsystems with health adapters
+    lh.registerSubsystem({
+      id: "worldtick",
+      getHealthSnapshot: (): HealthSnapshot => {
+        const tickMs = 100; // fixed interval
+        return {
+          ok: true,
+          status: "healthy",
+          score: 100,
+          symptomTags: [],
+          metrics: { tickDurationMs: tickMs, uptimeMs: Date.now() % 1e9 },
+          canServeReadOnly: true,
+        };
+      },
+      getProtectedFeatures: () => ["core-worldtick"],
+    });
+
+    lh.registerSubsystem({
+      id: "player-system",
+      getHealthSnapshot: (): HealthSnapshot => {
+        const players = this.playerSystem.getAllPlayers();
+        const online = players.filter(p => !p.isOffline).length;
+        return {
+          ok: true,
+          status: "healthy",
+          score: 100,
+          symptomTags: [],
+          metrics: { activeConnections: online, queueDepth: players.length },
+          canServeReadOnly: true,
+        };
+      },
+      getDependencies: () => ["worldtick"],
+      getProtectedFeatures: () => ["core-worldtick", "player-persistence"],
+    });
+
+    lh.registerSubsystem({
+      id: "npc-system",
+      getHealthSnapshot: (): HealthSnapshot => {
+        const npcs = this.npcSystem.getAllNPCs();
+        return {
+          ok: true,
+          status: "healthy",
+          score: 100,
+          symptomTags: [],
+          metrics: { queueDepth: npcs.length },
+          canServeReadOnly: true,
+        };
+      },
+      getDependencies: () => ["worldtick"],
+    });
+
+    lh.registerSubsystem({
+      id: "combat-system",
+      getHealthSnapshot: (): HealthSnapshot => ({
+        ok: true,
+        status: "healthy",
+        score: 100,
+        symptomTags: [],
+        metrics: {},
+        canServeReadOnly: false,
+      }),
+      getDependencies: () => ["player-system", "npc-system"],
+      getProtectedFeatures: () => ["combat-system"],
+    });
+
+    lh.registerSubsystem({
+      id: "asset-health",
+      getHealthSnapshot: () => this.assetHealthService.getHealthSnapshot(),
+      getProtectedFeatures: () => [],
+    });
+
+    // Register dependencies
+    lh.registerDependencies([
+      { from: "player-system", to: "worldtick" },
+      { from: "npc-system", to: "worldtick" },
+      { from: "combat-system", to: "player-system" },
+      { from: "combat-system", to: "npc-system" },
+    ]);
+
+    // Register adaptive strategies
+    const assetHealthSvc = this.assetHealthService;
+    lh.registerStrategy({
+      name: "asset_rescan",
+      subsystems: ["asset-health"],
+      riskLevel: "low",
+      cooldownMs: 30000,
+      maxAttempts: 2,
+      mayTouchState: false,
+      mayDropQueue: false,
+      preservesFeatures: true,
+      async run(subsystemId: string): Promise<import("./liveheal/LiveHealTypes.js").HealingResult> {
+        const start = Date.now();
+        await assetHealthSvc.incrementalScan();
+        return {
+          success: true,
+          strategyName: "asset_rescan",
+          message: `Asset incremental rescan completed in ${Date.now() - start}ms.`,
+          durationMs: Date.now() - start,
+          sideEffects: [],
+          serviceable: true,
+        };
+      },
+    });
+
+    // Trigger startup asset scan (non-blocking)
+    void this.assetHealthService.startupScan().catch(() => { /* best effort */ });
+  }
+
+  getWorld() {
     return {
        updateMonsters: () => {} // Shim for WebSocketServer compatibility if needed
     };
@@ -1884,7 +3574,12 @@ export class WorldTick {
     return {
       driver: this.persistence.getDriverName(),
       glbLinksStore: this.glbLinksStore,
+      ouroboros: this.ouroborosEngine.getStats(),
     };
+  }
+
+  public listActiveVoteBanners() {
+    return this.getPublicVoteBanners();
   }
 
   private resolveNpcGlbPath(npc: any): string | undefined {
@@ -1906,4 +3601,5 @@ export class WorldTick {
   private resolveEntityGlbPath(category: string, key: string | undefined, seed: string): string | undefined {
     return this.assetPoolResolver.resolvePath(category, key, seed);
   }
+
 }

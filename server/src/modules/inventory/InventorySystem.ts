@@ -1,7 +1,61 @@
 import { ItemRegistry } from "./ItemRegistry.js";
 import { normalizeInventoryStacks } from "./inventoryStacks.js";
+import {
+  isItemBoundOrNonTransferable,
+  normalizeBoundItemMeta,
+} from "../items/itemBindingPolicy.js";
+
+/** Default max carry weight for a player */
+const DEFAULT_MAX_WEIGHT = 200;
 
 export class InventorySystem {
+  /** Calculate total weight of a player's inventory. */
+  calculateWeight(player: any): number {
+    let total = 0;
+    if (Array.isArray(player.inventory)) {
+      for (const row of player.inventory) {
+        if (!row || typeof row.id !== "string") continue;
+        const def = ItemRegistry.getItem(row.id);
+        const unitWeight = ItemRegistry.weightOf(def);
+        const qty = Math.max(1, Math.floor(Number(row.quantity) || 1));
+        total += unitWeight * qty;
+      }
+    }
+    if (Array.isArray(player.gearInventory)) {
+      for (const g of player.gearInventory) {
+        if (!g || typeof g.baseId !== "string") continue;
+        const def = ItemRegistry.getItem(g.baseId);
+        const w = ItemRegistry.weightOf(def);
+        total += Math.max(1, w);
+      }
+    }
+    return total;
+  }
+
+  /** Get the max weight for a player (can be overridden per-player in future). */
+  getMaxWeight(player: any): number {
+    return typeof player.maxWeight === "number" && player.maxWeight > 0
+      ? player.maxWeight
+      : DEFAULT_MAX_WEIGHT;
+  }
+
+  /** Returns an inventory summary for the client `inv` protocol message. */
+  getInventorySummary(player: any): {
+    items: any[];
+    gear?: unknown[];
+    gold: number;
+    maxWeight: number;
+    weight: number;
+  } {
+    return {
+      items: Array.isArray(player.inventory) ? player.inventory.filter(Boolean) : [],
+      gear: Array.isArray(player.gearInventory) ? player.gearInventory.filter(Boolean) : [],
+      gold: player.gold ?? 0,
+      maxWeight: this.getMaxWeight(player),
+      weight: this.calculateWeight(player),
+    };
+  }
+
   addItem(player: any, item: any) {
     if (!Array.isArray(player.inventory)) player.inventory = [];
     if (!item || typeof item.id !== "string") return player.inventory;
@@ -13,9 +67,13 @@ export class InventorySystem {
       for (let i = 0; i < addQty; i++) {
         const one = ItemRegistry.createInstance(item.id, 1);
         if (one) {
-          player.inventory.push({ ...item, ...one, quantity: 1 });
+          player.inventory.push(
+            normalizeBoundItemMeta({ ...item, ...one, quantity: 1 }),
+          );
         } else {
-          player.inventory.push({ ...item, id: item.id, quantity: 1 });
+          player.inventory.push(
+            normalizeBoundItemMeta({ ...item, id: item.id, quantity: 1 }),
+          );
         }
       }
       return player.inventory;
@@ -36,7 +94,11 @@ export class InventorySystem {
     while (remaining > 0) {
       const n = Math.min(max, remaining);
       const inst = ItemRegistry.createInstance(item.id, n);
-      if (inst) player.inventory.push({ ...item, ...inst, quantity: n });
+      if (inst) {
+        player.inventory.push(
+          normalizeBoundItemMeta({ ...item, ...inst, quantity: n }),
+        );
+      }
       remaining -= n;
     }
     normalizeInventoryStacks(player);
@@ -106,7 +168,9 @@ export class InventorySystem {
     }
     row.quantity = q - 1;
     const inst = ItemRegistry.createInstance(itemId, 1);
-    return inst ? { ...row, ...inst, quantity: 1 } : { ...row, quantity: 1 };
+    return normalizeBoundItemMeta(
+      inst ? { ...row, ...inst, quantity: 1 } : { ...row, quantity: 1 },
+    );
   }
 
   removeItem(player: any, itemId: string) {
@@ -119,12 +183,17 @@ export class InventorySystem {
     if (player.equipment?.armor && player.equipment.armor.id === itemId) {
       player.equipment.armor = null;
     }
+    if (player.equipment?.offHand && player.equipment.offHand.id === itemId) {
+      player.equipment.offHand = null;
+    }
 
     return player.inventory;
   }
 
   equipItem(player: any, itemId: string) {
-    if (!player.equipment) player.equipment = { weapon: null, armor: null };
+    if (!player.equipment) {
+      player.equipment = { weapon: null, armor: null, offHand: null };
+    }
     if (!Array.isArray(player.inventory)) player.inventory = [];
 
     const itemIndex = player.inventory.findIndex((i: any) => i.id === itemId);
@@ -145,7 +214,7 @@ export class InventorySystem {
     };
 
     if (itemDef.type === "weapon") {
-      const toEquip = takeEquippedRow();
+      const toEquip = normalizeBoundItemMeta(takeEquippedRow());
       const currentWeapon = player.equipment.weapon;
       player.equipment.weapon = toEquip;
       if (currentWeapon) {
@@ -156,7 +225,7 @@ export class InventorySystem {
     }
 
     if (itemDef.type === "armor" && itemDef.slot === "armor") {
-      const toEquip = takeEquippedRow();
+      const toEquip = normalizeBoundItemMeta(takeEquippedRow());
       const currentArmor = player.equipment.armor;
       player.equipment.armor = toEquip;
       if (currentArmor) {
@@ -166,13 +235,29 @@ export class InventorySystem {
       return player.equipment;
     }
 
+    if (itemDef.type === "armor" && itemDef.slot === "offHand") {
+      const toEquip = normalizeBoundItemMeta(takeEquippedRow());
+      const currentOffHand = player.equipment.offHand;
+      player.equipment.offHand = toEquip;
+      if (currentOffHand) {
+        this.addItem(player, currentOffHand);
+      }
+      normalizeInventoryStacks(player);
+      return player.equipment;
+    }
+
     return null;
   }
 
   unequipItem(player: any, slot: string) {
-    if (!player.equipment) player.equipment = { weapon: null, armor: null };
+    if (!player.equipment) {
+      player.equipment = { weapon: null, armor: null, offHand: null };
+    }
     const item = player.equipment[slot];
     if (!item) return null;
+    if (isItemBoundOrNonTransferable(item)) {
+      return null;
+    }
 
     player.equipment[slot] = null;
     this.addItem(player, item);

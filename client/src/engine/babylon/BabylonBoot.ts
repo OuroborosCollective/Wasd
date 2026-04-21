@@ -26,9 +26,13 @@ export type BabylonApp = {
   engine: Engine;
   scene: Scene;
   camera: ArcRotateCamera;
+  ground: Mesh;
 };
 
-export function createBabylonApp(canvas: HTMLCanvasElement): BabylonApp {
+export function createBabylonApp(
+  canvas: HTMLCanvasElement,
+  options?: { skipGround?: boolean }
+): BabylonApp {
   const touchFirst = prefersCompactTouchUi();
   const android = isAndroid();
   const query =
@@ -57,15 +61,17 @@ export function createBabylonApp(canvas: HTMLCanvasElement): BabylonApp {
     /** Cap frame rate harder on Android to reduce thermal throttling and WebGL instability. */
     engine.maxFPS = android ? 24 : 45;
   } else if (!android) {
-    engine.setHardwareScalingLevel(1);
+    const desktopDpr = typeof window !== "undefined" ? Math.max(1, window.devicePixelRatio || 1) : 1;
+    // Keep desktop/HiDPI output crisp instead of forcing a 1x internal render buffer.
+    engine.setHardwareScalingLevel(1 / desktopDpr);
     engine.maxFPS = 0;
   }
 
   const scene = new Scene(engine);
   scene.clearColor = new Color4(0.12, 0.18, 0.34, 1);
   scene.ambientColor = new Color3(0.24, 0.28, 0.36);
-  scene.fogMode = Scene.FOGMODE_EXP2;
-  scene.fogDensity = android ? 0.012 : 0.006;
+  scene.fogMode = useMobileRenderBudget ? Scene.FOGMODE_NONE : Scene.FOGMODE_EXP2;
+  scene.fogDensity = android ? 0 : 0.006;
   scene.fogColor = new Color3(0.45, 0.58, 0.82);
 
   if (!android) {
@@ -99,59 +105,41 @@ export function createBabylonApp(canvas: HTMLCanvasElement): BabylonApp {
   light.intensity = android ? 1.12 : 1.18;
   light.groundColor = new Color3(0.22, 0.24, 0.3);
 
-  // Sky: cube map on desktop; lightweight gradient dome on Android (no 6-face fetch / cubemap).
-  if (android) {
-    try {
-      const skyDome = MeshBuilder.CreateSphere(
-        "world-sky-dome",
-        { diameter: 800, segments: 16, sideOrientation: Mesh.BACKSIDE },
-        scene
-      );
-      const skyMat = new StandardMaterial("world-sky-dome-mat", scene);
-      skyMat.backFaceCulling = false;
-      skyMat.disableLighting = true;
-      skyMat.emissiveColor = new Color3(0.35, 0.52, 0.88);
-      skyMat.diffuseColor = new Color3(0, 0, 0);
-      skyMat.specularColor = new Color3(0, 0, 0);
-      skyDome.material = skyMat;
-      skyDome.infiniteDistance = true;
-      skyDome.isPickable = false;
-      skyDome.rotation.x = Math.PI;
-    } catch (e) {
-      console.warn("Sky dome create failed, using clear color only", e);
-    }
-  } else {
-    try {
-      const skyBase = `${getPlaygroundTexturesBaseUrl().replace(/\/+$/, "")}/TropicalSunnyDay`;
-      const skyTex = new CubeTexture(skyBase, scene);
-      const skybox = MeshBuilder.CreateBox("world-skybox", { size: 800 }, scene);
-      const skyMat = new StandardMaterial("world-skybox-mat", scene);
-      skyMat.backFaceCulling = false;
-      skyMat.reflectionTexture = skyTex;
-      skyMat.diffuseColor = new Color3(0, 0, 0);
-      skyMat.specularColor = new Color3(0, 0, 0);
-      skybox.material = skyMat;
-      skybox.infiniteDistance = true;
-      skybox.isPickable = false;
-    } catch (e) {
-      console.warn("Skybox load failed, using clear color only", e);
-    }
+  // Sky: cube map for all platforms (Bug #5 Fix)
+  try {
+    const skyBase = `${getPlaygroundTexturesBaseUrl().replace(/\/+$/, "")}/TropicalSunnyDay`;
+    const skyTex = new CubeTexture(skyBase, scene);
+    const skybox = MeshBuilder.CreateBox("world-skybox", { size: 800 }, scene);
+    const skyMat = new StandardMaterial("world-skybox-mat", scene);
+    skyMat.backFaceCulling = false;
+    skyMat.reflectionTexture = skyTex;
+    skyMat.diffuseColor = new Color3(0, 0, 0);
+    skyMat.specularColor = new Color3(0, 0, 0);
+    skybox.material = skyMat;
+    skybox.infiniteDistance = true;
+    skybox.isPickable = false;
+  } catch (e) {
+    console.warn("Skybox load failed, using clear color only", e);
   }
 
-  const ground = MeshBuilder.CreateGround(
-    "world-ground",
-    { width: 128, height: 128, subdivisions: 2 },
-    scene
-  );
-  const groundMat = new StandardMaterial("world-ground-mat", scene);
-  groundMat.diffuseTexture = new Texture(playgroundTextureUrl(DEFAULT_GROUND_DIFFUSE), scene, false, false);
-  groundMat.bumpTexture = new Texture(playgroundTextureUrl(DEFAULT_GROUND_BUMP), scene, false, false);
-  groundMat.diffuseTexture.level = 1;
-  applyTiledGroundTextures(groundMat, MAIN_GROUND_UV_SCALE);
-  groundMat.diffuseColor = new Color3(0.75, 0.78, 0.72);
-  groundMat.specularColor = new Color3(0.02, 0.02, 0.02);
-  ground.material = groundMat;
-  ground.position.y = -0.02;
+  const ground = options?.skipGround
+    ? MeshBuilder.CreateBox("world-ground-placeholder", { size: 0.01 }, scene)
+    : MeshBuilder.CreateGround(
+        "world-ground",
+        { width: 128, height: 128, subdivisions: 2 },
+        scene
+      );
+  if (!options?.skipGround) {
+    const groundMat = new StandardMaterial("world-ground-mat", scene);
+    groundMat.diffuseTexture = new Texture(playgroundTextureUrl(DEFAULT_GROUND_DIFFUSE), scene, false, false);
+    groundMat.bumpTexture = new Texture(playgroundTextureUrl(DEFAULT_GROUND_BUMP), scene, false, false);
+    groundMat.diffuseTexture.level = 1;
+    applyTiledGroundTextures(groundMat, MAIN_GROUND_UV_SCALE);
+    groundMat.diffuseColor = new Color3(0.75, 0.78, 0.72);
+    groundMat.specularColor = new Color3(0.02, 0.02, 0.02);
+    ground.material = groundMat;
+    ground.position.y = -0.02;
+  }
   /** Huge pickable ground makes every scene.pick() traverse the terrain; combat/hover use entities only. */
   ground.isPickable = false;
 
@@ -169,8 +157,12 @@ export function createBabylonApp(canvas: HTMLCanvasElement): BabylonApp {
   });
 
   window.addEventListener("resize", () => {
+    if (!useMobileRenderBudget && !android) {
+      const desktopDpr = typeof window !== "undefined" ? Math.max(1, window.devicePixelRatio || 1) : 1;
+      engine.setHardwareScalingLevel(1 / desktopDpr);
+    }
     engine.resize();
   });
 
-  return { engine, scene, camera };
+  return { engine, scene, camera, ground };
 }

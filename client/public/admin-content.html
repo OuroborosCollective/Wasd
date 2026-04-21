@@ -104,6 +104,53 @@
       margin-bottom: 14px;
       animation: fadeSlide 0.4s ease-out backwards;
     }
+    .onboard-steps {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .onboard-step {
+      background: #121826;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      min-height: 84px;
+    }
+    .onboard-step strong {
+      display: block;
+      font-size: 12px;
+      color: #d3dcf5;
+      margin-bottom: 5px;
+    }
+    .onboard-step p {
+      margin: 0;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+    .quick-checklist {
+      margin: 10px 0 0;
+      padding-left: 18px;
+      color: #cbd6ef;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .quick-checklist li {
+      margin: 5px 0;
+    }
+    .quick-checklist code {
+      background: #0f121c;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 1px 5px;
+      font-size: 11px;
+    }
+    @media (max-width: 760px) {
+      .onboard-steps {
+        grid-template-columns: 1fr;
+      }
+    }
     .card:nth-child(1) { animation-delay: 0.02s; }
     .card:nth-child(2) { animation-delay: 0.05s; }
     .card.reveal-in { animation: popIn 0.38s cubic-bezier(0.22, 1, 0.36, 1); }
@@ -135,10 +182,14 @@
     button.danger { background: linear-gradient(180deg, #7a3535, #5a2525); border-color: #844; }
     button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 
-    .msg { font-size: 13px; padding: 11px 12px; border-radius: 10px; margin-top: 10px; display: flex; align-items: flex-start; gap: 10px; animation: fadeSlide 0.3s ease-out; }
+    .msg {
+      --msg-anim: fadeSlide 0.3s ease-out;
+      font-size: 13px; padding: 11px 12px; border-radius: 10px; margin-top: 10px; display: flex; align-items: flex-start; gap: 10px;
+      animation: var(--msg-anim);
+    }
     .msg .mi { flex-shrink: 0; margin-top: 1px; }
     .msg.ok { background: var(--ok-bg); border: 1px solid rgba(62, 207, 122, 0.35); color: #a8f0c4; }
-    .msg.err { background: var(--err-bg); border: 1px solid rgba(255, 100, 100, 0.35); animation: fadeSlide 0.3s ease-out, shake 0.35s ease; }
+    .msg.err { --msg-anim: fadeSlide 0.3s ease-out, shake 0.35s ease; background: var(--err-bg); border: 1px solid rgba(255, 100, 100, 0.35); }
     .msg.wait { background: #1e2230; border: 1px solid var(--border); color: #c5c5e8; }
 
     table { width: 100%; font-size: 12px; border-collapse: collapse; margin-top: 10px; }
@@ -245,6 +296,50 @@
     </div>
   </header>
 
+  <div class="card">
+    <div class="card-h">
+      <span class="ih" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M5 12h14M12 5v14"/>
+        </svg>
+      </span>
+      <span>Start hier (ohne Technikwissen)</span>
+    </div>
+    <p class="hint" style="margin-top:0">Wenn du nur ein Modell ins Spiel bringen willst, nutze nur diese 3 Schritte:</p>
+    <div class="onboard-steps">
+      <div class="onboard-step">
+        <strong>1) Anmelden</strong>
+        <p>Oben den Admin-Code eingeben und auf „Anmelden“ klicken.</p>
+      </div>
+      <div class="onboard-step">
+        <strong>2) Schnellmodus</strong>
+        <p>Kategorie wählen, Datei auswählen, „Schnell anwenden“ klicken.</p>
+      </div>
+      <div class="onboard-step">
+        <strong>3) Im Spiel prüfen</strong>
+        <p>Spiel neu laden. Bei Bedarf zeigt die Ergebnis-Karte sofort den nächsten Schritt.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h">
+      <span class="ih" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M12 2v5M12 17v5M4.9 4.9l3.5 3.5M15.6 15.6l3.5 3.5M2 12h5M17 12h5"/>
+        </svg>
+      </span>
+      <span>Wenn ein Modell nicht sofort sichtbar ist (30‑Sekunden‑Check)</span>
+    </div>
+    <ul class="quick-checklist">
+      <li><strong>1)</strong> Spielseite einmal neu laden (Browser aktualisieren).</li>
+      <li><strong>2)</strong> In „Aktuelle Zuordnungen“ auf <strong>„Neu laden“</strong> klicken und prüfen, ob die Zeile da ist.</li>
+      <li><strong>3)</strong> In „Prüfen &amp; veröffentlichen“ auf <strong>„3D‑Pfade prüfen“</strong> klicken (fehlende Datei sofort sichtbar).</li>
+      <li><strong>4)</strong> Wenn ihr mit veröffentlichtem Inhalt arbeitet: <strong>„Inhalt veröffentlichen“</strong> ausführen und Server neu starten (<code>USE_PUBLISHED_CONTENT=1</code>).</li>
+      <li><strong>5)</strong> Bei NPC/Objekten kurz neu einloggen oder Szene neu laden, damit die Ansicht sofort aktualisiert wird.</li>
+    </ul>
+  </div>
+
   <div class="card hidden" id="cardFlow">
     <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></svg></span> Ablauf</div>
     <p class="hint" style="margin:0">Ein Schritt nach dem anderen — erledigt grün, aktuell blau hervorgehoben.</p>
@@ -293,6 +388,27 @@
     <input type="file" id="uploadFile" accept=".glb,.gltf,.bin,model/gltf-binary" />
     <button type="button" id="btnUploadGlb">Hochladen</button>
     <div id="galleryMsg" class="msg hidden"></div>
+  </div>
+
+  <div class="card hidden" id="stepSmart">
+    <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h6l2-3 4 6 2-3h4"/><path d="M12 3v4M12 17v4"/></svg></span> <span>Schnellmodus: Upload + Auto-Zuordnung</span></div>
+    <p class="hint" style="margin-top:0">Für Admins ohne Code-Kenntnisse: Datei hochladen, Kategorie wählen, fertig. Das System versucht automatisch die passende Live-Zuordnung (ID/Rolle/Typ) und setzt sonst einen sicheren Standard.</p>
+    <label for="smartCategory">Kategorie</label>
+    <select id="smartCategory">
+      <option value="npcs">NPCs</option>
+      <option value="monsters">Monster</option>
+      <option value="world_objects">Weltobjekte</option>
+      <option value="players">Spieler</option>
+      <option value="loot">Beute</option>
+      <option value="resources">Ressourcen</option>
+    </select>
+    <label for="smartFolder">Unterordner (optional)</label>
+    <input id="smartFolder" placeholder="Leer lassen = automatisch passend zur Kategorie" autocomplete="off" />
+    <label for="smartFile">Modell-Datei</label>
+    <input type="file" id="smartFile" accept=".glb,.gltf,.bin,model/gltf-binary" />
+    <p class="hint" id="smartHints">Tipps erscheinen nach Anmeldung.</p>
+    <button type="button" id="btnSmartUpload">Upload + automatisch anwenden</button>
+    <div id="smartMsg" class="msg hidden"></div>
   </div>
 
   <div class="card hidden" id="stepWork">
@@ -421,6 +537,24 @@
       monsters: "Monster",
       loot: "Beute",
       world_objects: "Welt-Objekte",
+    };
+
+    const SMART_CAT_LABELS = {
+      npcs: "NPCs",
+      monsters: "Monster",
+      world_objects: "Weltobjekte",
+      players: "Spieler",
+      loot: "Beute",
+      resources: "Ressourcen",
+    };
+
+    const SMART_DEFAULT_FOLDERS = {
+      npcs: "npcs",
+      monsters: "monsters",
+      world_objects: "objects",
+      players: "characters",
+      loot: "items",
+      resources: "resources",
     };
 
     function prefersReducedMotion() {
@@ -607,6 +741,36 @@
       sel.innerHTML = opts;
     }
 
+    function updateSmartHints() {
+      const cat = document.getElementById("smartCategory").value;
+      const el = document.getElementById("smartHints");
+      const folder = SMART_DEFAULT_FOLDERS[cat] || "";
+      const c = choicesCache || {};
+
+      let samples = [];
+      if (cat === "npcs" && Array.isArray(c.npcs)) {
+        samples = c.npcs.slice(0, 4).map(function (x) { return x.id; });
+      } else if (cat === "monsters" && Array.isArray(c.monsterGroups)) {
+        samples = c.monsterGroups.slice(0, 4);
+      } else if (cat === "world_objects" && Array.isArray(c.worldObjects)) {
+        samples = c.worldObjects.slice(0, 4).map(function (x) { return x.id; });
+      }
+
+      let tip = "Empfohlenes Benennen: Datei möglichst wie Ziel-ID/Rolle/Typ benennen.";
+      if (samples.length) {
+        tip += " Beispiele: " + samples.join(", ") + ".";
+      }
+      if (folder) {
+        tip += " Vorschlag Unterordner: " + folder + ".";
+      }
+      if (cat === "players" || cat === "loot" || cat === "resources") {
+        tip += " Für diese Kategorie setzt der Schnellmodus standardmäßig ein Kategorie-Fallback (kein einzelnes Ziel nötig).";
+      } else {
+        tip += " Bei Treffer wird automatisch Live-Link gesetzt, sonst sicherer Kategorie-Standard.";
+      }
+      el.textContent = tip;
+    }
+
     function nowTime() {
       return new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     }
@@ -638,7 +802,9 @@
 
     function setFlow(step) {
       document.querySelectorAll("#flowSteps .step").forEach(function (el) {
-        const n = parseInt(el.getAttribute("data-step"), 10);
+        const raw = el.getAttribute("data-step");
+        const n = raw !== null ? parseInt(raw, 10) : -1;
+        if (isNaN(n)) return;
         el.classList.remove("done", "active");
         if (n < step) el.classList.add("done");
         if (n === step) el.classList.add("active");
@@ -656,15 +822,18 @@
         '<div class="viz-box"><strong>' + escapeHtml(rightLabel) + '</strong><div class="v">' + escapeHtml(rightVal) + "</div></div>";
     }
     function hideViz() {
-      document.getElementById("vizWrap").classList.add("hidden");
-      document.getElementById("vizWrap").innerHTML = "";
+      const w = document.getElementById("vizWrap");
+      w.classList.add("hidden");
+      requestAnimationFrame(function () {
+        w.innerHTML = "";
+      });
     }
 
     function showLastResult(title, bullets, nextHint, viz) {
       const wrap = document.getElementById("cardLastResult");
       const box = document.getElementById("lastResultInner");
-      wrap.classList.remove("hidden");
       wrap.classList.remove("reveal-in");
+      wrap.classList.remove("hidden");
       void wrap.offsetWidth;
       wrap.classList.add("reveal-in");
       if (viz) {
@@ -686,13 +855,17 @@
     function headers() {
       const t = document.getElementById("token").value.trim();
       if (!t) throw new Error("Bitte zuerst den Code eingeben.");
-      return { Authorization: "Bearer " + t, "Content-Type": "application/json" };
+      return {
+        Authorization: "Bearer " + t,
+        "X-Admin-Token": t,
+        "Content-Type": "application/json",
+      };
     }
 
     function authHeadersOnly() {
       const t = document.getElementById("token").value.trim();
       if (!t) throw new Error("Bitte zuerst den Code eingeben.");
-      return { Authorization: "Bearer " + t };
+      return { Authorization: "Bearer " + t, "X-Admin-Token": t };
     }
 
     async function req(method, path, body) {
@@ -931,6 +1104,11 @@
       }
       fillTargetPick();
       fillQuestDialogueRefs();
+      if (!document.getElementById("smartFolder").value.trim()) {
+        const c = document.getElementById("smartCategory").value;
+        document.getElementById("smartFolder").value = SMART_DEFAULT_FOLDERS[c] || "";
+      }
+      updateSmartHints();
       try {
         const galleryData = await req("GET", "/glb-gallery-tree");
         renderGalleryTree(galleryData);
@@ -970,6 +1148,15 @@
       fillTargetPick();
     };
     document.getElementById("selUse").dispatchEvent(new Event("change"));
+
+    document.getElementById("smartCategory").onchange = function () {
+      const folderInput = document.getElementById("smartFolder");
+      if (!folderInput.value.trim()) {
+        folderInput.value = SMART_DEFAULT_FOLDERS[this.value] || "";
+      }
+      updateSmartHints();
+    };
+    document.getElementById("smartCategory").dispatchEvent(new Event("change"));
 
     document.getElementById("selTargetPick").onchange = function () {
       if (this.value) document.getElementById("inTargetId").value = this.value;
@@ -1050,7 +1237,7 @@
         const m = await req("GET", "/meta");
         show("loginMsg", "Verbunden — du kannst zuordnen.", "ok");
         document.getElementById("techMeta").value = JSON.stringify(m, null, 2);
-        ["cardFlow", "cardHistory", "stepGallery", "stepWork", "stepDefaults", "stepContentRef", "stepPublish", "stepList", "stepExpert"].forEach(function (id) {
+        ["cardFlow", "cardHistory", "stepGallery", "stepSmart", "stepWork", "stepDefaults", "stepContentRef", "stepPublish", "stepList", "stepExpert"].forEach(function (id) {
           document.getElementById(id).classList.remove("hidden");
         });
         setFlow(2);
@@ -1066,6 +1253,7 @@
         pushHistory(true, "Login OK");
         celebrateSuccess();
         await afterLoginRefresh();
+        document.dispatchEvent(new Event("areloria-admin-login-success"));
         setFlow(2);
       } catch (e) {
         show("loginMsg", "Login fehlgeschlagen: " + (e.message || e), "err");
@@ -1233,6 +1421,76 @@
       }
     };
 
+    document.getElementById("btnSmartUpload").onclick = async function () {
+      hide("smartMsg");
+      const fileInput = document.getElementById("smartFile");
+      const file = fileInput.files && fileInput.files[0];
+      if (!file) {
+        show("smartMsg", "Bitte eine Modell-Datei auswählen.", "err");
+        return;
+      }
+      const category = document.getElementById("smartCategory").value;
+      const folder = document.getElementById("smartFolder").value.trim();
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("category", category);
+      if (folder) fd.append("folder", folder);
+      try {
+        const r = await fetch(BASE + "/glb-smart-upload", {
+          method: "POST",
+          headers: authHeadersOnly(),
+          body: fd,
+        });
+        const text = await r.text();
+        let j = null;
+        try { j = JSON.parse(text); } catch { /* */ }
+        if (!r.ok) throw new Error(errDeFromJson(j, text || "Fehler " + r.status));
+
+        const url = (j && j.url) || "";
+        const automation = (j && j.automation) || {};
+        const applied = automation.appliedAction || {};
+        const confidence = automation.confidence || "unknown";
+        const reason = automation.reason || "Automatische Zuordnung wurde ausgeführt.";
+        let actionText = "Standard-Zuordnung gesetzt";
+        if (applied.type === "glb_link") {
+          actionText = "Direkt verknüpft mit " + (USE_LABELS[applied.targetType] || applied.targetType) + " · " + applied.targetId;
+          document.getElementById("selUse").value = applied.targetType;
+          document.getElementById("selUse").dispatchEvent(new Event("change"));
+          document.getElementById("inTargetId").value = applied.targetId || "";
+        } else if (applied.type === "pool_default") {
+          actionText = "Kategorie-Standard gesetzt: " + (SMART_CAT_LABELS[applied.category] || applied.category);
+          document.getElementById("selDefCat").value = applied.category || document.getElementById("selDefCat").value;
+        }
+
+        applyGlbUrlToSelects(url);
+        fileInput.value = "";
+        await refreshLists();
+        if (j && j.pools) {
+          document.getElementById("techPools").value = JSON.stringify(j.pools, null, 2);
+        }
+
+        show("smartMsg", "Fertig: " + actionText + " (" + confidence + " confidence)", "ok");
+        showLastResult("Schnellmodus abgeschlossen", [
+          "Datei hochgeladen: " + url,
+          actionText,
+          "Begründung: " + reason,
+        ], "Bei Bedarf unten manuell feinjustieren — meist nicht nötig.", {
+          l1: "Kategorie",
+          v1: SMART_CAT_LABELS[category] || category,
+          l2: "Aktion",
+          v2: applied.type === "glb_link" ? "Live-Link" : "Kategorie-Standard",
+          l3: "Sicherheit",
+          v3: confidence,
+        });
+        pushHistory(true, "Schnellmodus: " + (file.name || "Datei") + " → " + actionText);
+        setFlow(4);
+        celebrateSuccess();
+      } catch (e) {
+        show("smartMsg", String(e.message || e), "err");
+        pushHistory(false, "Schnellmodus Fehler: " + (e.message || e));
+      }
+    };
+
     document.getElementById("btnRefreshGallery").onclick = async function () {
       hide("galleryMsg");
       try {
@@ -1313,5 +1571,6 @@
       if (this.value) setFlow(3);
     });
   </script>
+  <script src="/vote-admin-panel.js"></script>
 </body>
 </html>

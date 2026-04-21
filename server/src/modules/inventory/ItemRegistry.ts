@@ -6,7 +6,7 @@ export interface ItemDefinition {
   id: string;
   name: string;
   type: "weapon" | "armor" | "consumable" | "misc";
-  slot?: "weapon" | "armor";
+  slot?: "weapon" | "armor" | "offHand";
   damage?: number;
   /** If set on a weapon, `attack` uses this max distance instead of default melee range */
   attackRange?: number;
@@ -20,6 +20,20 @@ export interface ItemDefinition {
   stackable?: boolean;
   /** Max count per inventory row (default 99) */
   maxStack?: number;
+  /** Weight per unit (default 1). Used for carry capacity checks. */
+  weight?: number;
+  /** Tags for filtering/categorization (e.g. "furniture", "material") */
+  tags?: string[];
+  /** Optional legendary / aspect id for combat proc hooks (see `legendaryPowers.ts`). */
+  legendaryPowerId?: string;
+  /** Bind on acquire: item cannot be moved to other players/systems. */
+  boundOnAcquire?: boolean;
+  /** Hard block for any transfer channels. */
+  nonTransferable?: boolean;
+  /** Explicitly forbid player-to-player or market trade. */
+  tradeable?: boolean;
+  /** Explicitly forbid dropping from inventory/equipment. */
+  droppable?: boolean;
   rarity: "common" | "uncommon" | "rare" | "epic" | "legendary";
   description: string;
 }
@@ -74,6 +88,11 @@ export class ItemRegistry {
     if (!def) return 1;
     const m = typeof def.maxStack === "number" && def.maxStack > 0 ? Math.floor(def.maxStack) : 99;
     return Math.min(99, Math.max(1, m));
+  }
+
+  static weightOf(def: ItemDefinition | undefined): number {
+    if (!def) return 0;
+    return typeof def.weight === "number" && def.weight > 0 ? def.weight : 1;
   }
 
   static hydrate(item: any) {

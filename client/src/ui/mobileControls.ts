@@ -29,7 +29,7 @@ const MOBILE_STYLES = `
   }
   #joystick-zone {
     position: fixed; bottom: 90px; left: 20px;
-    width: 130px; height: 130px; z-index: 1000;
+    width: 130px; height: 130px; z-index: 6000;
     touch-action: none; user-select: none;
   }
   #joystick-base {
@@ -56,7 +56,7 @@ const MOBILE_STYLES = `
     position: fixed; bottom: 90px; right: 20px;
     display: grid; grid-template-columns: 52px 52px 52px;
     grid-template-rows: 52px 52px 52px;
-    gap: 8px; z-index: 1000;
+    gap: 8px; z-index: 6000;
     touch-action: none;
   }
   .mob-btn {
@@ -81,21 +81,8 @@ const MOBILE_STYLES = `
     color: rgba(255,255,255,0.6); pointer-events: none;
   }
   #mobile-menu-btns {
-    position: fixed; bottom: 20px; left: 50%;
-    transform: translateX(-50%);
-    display: flex; gap: 8px; z-index: 1000;
-    touch-action: none;
+    display: none;
   }
-  .mob-menu-btn {
-    padding: 8px 14px; border-radius: 20px;
-    background: rgba(0,0,0,0.6); backdrop-filter: blur(6px);
-    border: 1px solid rgba(255,255,255,0.2);
-    color: #c8d8f0; font-size: 11px; font-weight: bold;
-    cursor: pointer; touch-action: manipulation;
-    white-space: nowrap; user-select: none;
-    transition: background 0.1s;
-  }
-  .mob-menu-btn:active { background: rgba(100,180,255,0.3); }
   #mobile-chat-btn {
     position: fixed; top: 50%; right: 10px;
     transform: translateY(-50%);
@@ -104,32 +91,32 @@ const MOBILE_STYLES = `
     border: 1px solid rgba(255,255,255,0.2);
     color: #c8d8f0; font-size: 20px;
     display: flex; align-items: center; justify-content: center;
-    cursor: pointer; z-index: 1000;
+    cursor: pointer; z-index: 6000;
     touch-action: manipulation;
   }
   #mobile-chat-btn:active { background: rgba(100,180,255,0.3); }
   /* ── SHORTCUT PANEL ──────────────────────────────────────────────────── */
   #mob-shortcut-toggle {
-    position: fixed; bottom: 90px; left: 50%;
+    position: fixed; bottom: 24px; left: 50%;
     transform: translateX(-50%);
     width: 48px; height: 48px; border-radius: 50%;
     background: rgba(20,30,60,0.85); backdrop-filter: blur(8px);
     border: 2px solid rgba(100,180,255,0.4);
     color: #c8d8f0; font-size: 22px;
     display: flex; align-items: center; justify-content: center;
-    cursor: pointer; z-index: 1010;
+    cursor: pointer; z-index: 6010;
     touch-action: manipulation;
     box-shadow: 0 2px 12px rgba(0,0,0,0.5);
     transition: background 0.15s;
   }
   #mob-shortcut-toggle:active { background: rgba(100,180,255,0.3); }
   #mob-shortcut-panel {
-    position: fixed; bottom: 148px; left: 50%;
+    position: fixed; bottom: 82px; left: 50%;
     transform: translateX(-50%);
     background: rgba(10,15,35,0.92); backdrop-filter: blur(12px);
     border: 1px solid rgba(100,180,255,0.25);
     border-radius: 16px; padding: 12px 16px;
-    z-index: 1009; display: none;
+    z-index: 6009; display: none;
     flex-direction: column; gap: 6px;
     min-width: 220px;
     box-shadow: 0 4px 24px rgba(0,0,0,0.6);
@@ -176,7 +163,6 @@ const MOBILE_STYLES = `
   @media (min-width: 901px) and (pointer: fine) {
     #joystick-zone { display: block !important; }
     #mobile-action-btns { display: grid !important; }
-    #mobile-menu-btns { display: flex !important; }
     #mob-shortcut-toggle { display: flex !important; }
     #mobile-chat-btn { display: flex !important; }
   }
@@ -318,7 +304,7 @@ export function initMobileControls(
       <div class="mob-shortcut-row">
         <div class="mob-sc-btn" id="mob-sc-inv2">
           <span class="mob-sc-icon">🎒</span>
-          <span class="mob-sc-label">Inventar</span>
+          <span class="mob-sc-label">Inventory</span>
           <span class="mob-sc-key">I</span>
         </div>
         <div class="mob-sc-btn" id="mob-sc-skills2">
@@ -529,9 +515,13 @@ export function initMobileControls(
           if (el.id === "joystick-zone" || el.closest("#joystick-zone")) return true;
           if (el.id === "mob-shortcut-panel" || el.closest("#mob-shortcut-panel")) return true;
           if (el.id === "arel-hud" || el.closest("#arel-hud")) return true;
+          if (el.id === "game-hud-react-root" || el.closest("#game-hud-react-root")) return true;
           if (el.id === "dialogue-box" || el.closest("#dialogue-box")) return true;
           if (el.id === "chat-panel" || el.closest("#chat-panel")) return true;
           if (el.classList.contains("panel") || el.closest(".panel")) return true;
+          if (el.classList.contains("obsidian-relic") || el.closest(".obsidian-relic")) return true;
+          if (el.tagName === "BUTTON" || el.closest("button")) return true;
+          if (el.classList.contains("btn-gold") || el.closest(".btn-gold")) return true;
           if (el.id === "combat-loot-strip" || el.closest("#combat-loot-strip")) return true;
           if (el.id === "notification-container" || el.closest("#notification-container")) return true;
           if (el.id === "target-frame" || el.closest("#target-frame")) return true;
@@ -595,4 +585,27 @@ export function setMobileCombatActionsEnabled(enabled: boolean) {
     h.style.pointerEvents = enabled ? "" : "none";
     h.style.opacity = enabled ? "" : "0.4";
   });
+}
+
+export function setMobileImpactButtonState(options: {
+  unlocked: boolean;
+  cooldownRemainingMs?: number;
+}) {
+  const btn = document.getElementById("mob-skill-cast") as HTMLElement | null;
+  const label = btn?.querySelector(".mob-btn-label") as HTMLElement | null;
+  if (!btn || !label) return;
+  if (!options.unlocked) {
+    btn.style.filter = "grayscale(1)";
+    btn.style.opacity = "0.6";
+    label.textContent = "LOCK";
+    return;
+  }
+  btn.style.filter = "";
+  btn.style.opacity = "";
+  if (typeof options.cooldownRemainingMs === "number" && options.cooldownRemainingMs > 0) {
+    const secs = Math.max(0.1, options.cooldownRemainingMs / 1000);
+    label.textContent = `${secs.toFixed(1)}s`;
+  } else {
+    label.textContent = "READY";
+  }
 }

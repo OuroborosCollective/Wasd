@@ -3,6 +3,7 @@
 
 test-results/
 playwright-report/
+dgcc-artifacts/
 node_modules/
 dist/
 # Optional published content snapshot (scripts/publish-content-pack.mjs)
@@ -18,6 +19,13 @@ secrets/
 **/firebase-adminsdk*.json
 .DS_Store
 *.log
+# Transpiled stray output next to shared TS sources (do not commit)
+shared/*.js
+
+# Agent-generated metadata
+.liveheal/
+.selfhealing/
+
 coverage/server/firebase-applet-config.json
 
 # SpacetimeDB Rust module build output

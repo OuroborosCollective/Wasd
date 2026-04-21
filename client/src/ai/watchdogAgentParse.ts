@@ -3,7 +3,7 @@ import type { WatchdogModuleId } from "./watchdogTelemetry";
 /** Actions the model may name; execution is hard-coded per id (module-scoped allow list). */
 export const WATCHDOG_ALLOWED_BY_MODULE: Record<WatchdogModuleId, ReadonlySet<string>> = {
   network: new Set(["none", "clear_stale_ws_token", "reconnect_websocket", "reload_page"]),
-  firebase_auth: new Set(["none", "clear_auth_storage", "reconnect_websocket", "reload_page"]),
+  auth: new Set(["none", "clear_auth_storage", "reconnect_websocket", "reload_page"]),
   renderer: new Set(["none", "babylon_soft_recover", "babylon_reduce_render_load", "reload_page"]),
   storage: new Set(["none", "clear_game_local_storage", "reconnect_websocket", "reload_page"]),
   unknown: new Set(["none", "reconnect_websocket", "reload_page"]),
@@ -40,7 +40,7 @@ export function parseWatchdogAgentJson(
     const reason = typeof obj.reason === "string" ? obj.reason : undefined;
     const validModules: WatchdogModuleId[] = [
       "network",
-      "firebase_auth",
+      "auth",
       "renderer",
       "storage",
       "unknown",

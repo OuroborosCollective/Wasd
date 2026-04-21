@@ -92,15 +92,15 @@ function createShopUI() {
           <div style="font-size:40px; margin-bottom:12px;">🎨</div>
           <h3 style="margin:0 0 8px; color:#aa44ff; font-size:20px;">GLB Creator Pass</h3>
           <p style="font-size:13px; color:#9a8ab5; margin-bottom:16px;">
-            Lade eigene 3D-Modelle (.glb/.gltf) hoch, platziere sie auf deinem Land und verkaufe sie im Marktplatz.
+            Upload your own 3D models (.glb/.gltf), place them on your land, and sell them on the marketplace.
           </p>
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:16px; text-align:left;">
-            ${glbFeature("✅", "Bis zu 20 eigene 3D-Modelle hochladen")}
-            ${glbFeature("✅", "Modelle auf deinem Grundstück platzieren")}
-            ${glbFeature("✅", "Modelle im Marktplatz verkaufen")}
+            ${glbFeature("✅", "Upload up to 20 custom 3D models")}
+            ${glbFeature("✅", "Place models on your property")}
+            ${glbFeature("✅", "Sell models on the marketplace")}
             ${glbFeature("✅", "GLB & GLTF Format Support")}
-            ${glbFeature("✅", "Bis zu 50 MB pro Modell")}
-            ${glbFeature("✅", "30 Tage Zugang")}
+            ${glbFeature("✅", "Up to 50 MB per model")}
+            ${glbFeature("✅", "30 days access")}
           </div>
           <div style="font-size:28px; color:#aa44ff; font-weight:bold; margin-bottom:16px;">15,00 € / Monat</div>
           <button onclick="purchaseProduct('glb_subscription_1month')"
@@ -113,7 +113,7 @@ function createShopUI() {
       <!-- Marketplace Tab -->
       <div id="shop-tab-marketplace" class="shop-tab-content" style="display:none;">
         <div style="display:flex; gap:8px; margin-bottom:16px;">
-          <input id="marketplace-search" type="text" placeholder="Modelle suchen..."
+          <input id="marketplace-search" type="text" placeholder="Search models..."
             style="flex:1; background:#0d2a3a; border:1px solid #1a4a6a; border-radius:8px; padding:8px 12px; color:#e0e8ff; font-size:13px;"
             oninput="searchMarketplace(this.value)">
           <button onclick="loadMarketplace()"
@@ -126,7 +126,7 @@ function createShopUI() {
 
       <!-- PayPal Info -->
       <div style="margin-top:20px; padding:12px; background:#0a1520; border-radius:8px; border:1px solid #1a3a5c; font-size:11px; color:#5a7a9a; text-align:center;">
-        🔒 Sichere Zahlung über PayPal · Keine Kreditkarte nötig · Sofortige Gutschrift
+        🔒        Secure payment via PayPal · No credit card needed · Instant activation
       </div>
     </div>
   `;

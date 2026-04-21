@@ -93,47 +93,66 @@ export function toggleAdminAssetPanel() {
   };
 
   document.getElementById("btn-place-object")!.onclick = () => {
-    const glbPath = (document.getElementById("sel-place-glb") as HTMLSelectElement).value;
-    const name = (document.getElementById("inp-place-name") as HTMLInputElement).value;
-    const scale = parseFloat((document.getElementById("inp-place-scale") as HTMLInputElement).value) || 1;
+    const glbPath = (
+      document.getElementById("sel-place-glb") as HTMLSelectElement
+    ).value;
+    const name = (document.getElementById("inp-place-name") as HTMLInputElement)
+      .value;
+    const scale =
+      parseFloat(
+        (document.getElementById("inp-place-scale") as HTMLInputElement).value,
+      ) || 1;
     if (glbPath) {
-      sendCommand({ type: "admin_place_object", glbPath, name, scale });
+      sendCommand("admin_place_object", { glbPath, name, scale });
     }
   };
 
   document.getElementById("btn-scan-glb")!.onclick = () => {
-    sendCommand({ type: "admin_glb_scan" });
+    sendCommand("admin_glb_scan");
   };
 
   document.getElementById("btn-refresh-links")!.onclick = () => {
-    sendCommand({ type: "admin_glb_list" });
+    sendCommand("admin_glb_list");
   };
 
   document.getElementById("btn-link-glb")!.onclick = () => {
-    const glbPath = (document.getElementById("sel-glb-path") as HTMLSelectElement).value;
-    const targetType = (document.getElementById("sel-target-type") as HTMLSelectElement).value;
-    const targetId = (document.getElementById("inp-target-id") as HTMLInputElement).value;
+    const glbPath = (
+      document.getElementById("sel-glb-path") as HTMLSelectElement
+    ).value;
+    const targetType = (
+      document.getElementById("sel-target-type") as HTMLSelectElement
+    ).value;
+    const targetId = (
+      document.getElementById("inp-target-id") as HTMLInputElement
+    ).value;
     if (glbPath && targetType && targetId) {
-      sendCommand({ type: "admin_glb_link", glbPath, targetType, targetId });
+      sendCommand("admin_glb_link", { glbPath, targetType, targetId });
     }
   };
 
   document.getElementById("btn-ai-generate")!.onclick = () => {
-    const prompt = (document.getElementById("inp-ai-prompt") as HTMLInputElement).value;
+    const prompt = (
+      document.getElementById("inp-ai-prompt") as HTMLInputElement
+    ).value;
     if (prompt) {
-      sendCommand({ type: "admin_generate_world", prompt });
+      sendCommand("admin_generate_world", { prompt });
     }
   };
 
   document.getElementById("btn-glb-upload")!.onclick = () => {
-    const fileInput = document.getElementById("inp-glb-upload") as HTMLInputElement;
+    const fileInput = document.getElementById(
+      "inp-glb-upload",
+    ) as HTMLInputElement;
     const file = fileInput.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const data = e.target?.result as string;
         const base64Data = data.split(",")[1];
-        sendCommand({ type: "admin_glb_upload", filename: file.name, data: base64Data });
+        sendCommand("admin_glb_upload", {
+          filename: file.name,
+          data: base64Data,
+        });
         fileInput.value = "";
       };
       reader.readAsDataURL(file);
@@ -141,8 +160,8 @@ export function toggleAdminAssetPanel() {
   };
 
   // Initial fetch
-  sendCommand({ type: "admin_glb_scan" });
-  sendCommand({ type: "admin_glb_list" });
+  sendCommand("admin_glb_scan");
+  sendCommand("admin_glb_list");
 }
 
 export function updateAdminAssetModels(newModels: string[]) {
@@ -150,11 +169,17 @@ export function updateAdminAssetModels(newModels: string[]) {
   if (!panel) return;
   const sel = document.getElementById("sel-glb-path") as HTMLSelectElement;
   if (sel) {
-    sel.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join("");
+    sel.innerHTML = models
+      .map((m) => `<option value="${m}">${m}</option>`)
+      .join("");
   }
-  const selPlace = document.getElementById("sel-place-glb") as HTMLSelectElement;
+  const selPlace = document.getElementById(
+    "sel-place-glb",
+  ) as HTMLSelectElement;
   if (selPlace) {
-    selPlace.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join("");
+    selPlace.innerHTML = models
+      .map((m) => `<option value="${m}">${m}</option>`)
+      .join("");
   }
 }
 
@@ -163,16 +188,20 @@ export function updateAdminAssetLinks(newLinks: any[]) {
   if (!panel) return;
   const list = document.getElementById("glb-links-list");
   if (list) {
-    list.innerHTML = links.map(l => `
+    list.innerHTML = links
+      .map(
+        (l) => `
       <div style="border-bottom: 1px solid #444; margin-bottom: 5px; padding-bottom: 5px;">
         <strong>${l.glbPath}</strong><br/>
         ${l.targetType} -> ${l.targetId}
         <button onclick="window.removeGlbLink('${l.targetType}', '${l.targetId}')">Remove</button>
       </div>
-    `).join("");
+    `,
+      )
+      .join("");
   }
 }
 
 (window as any).removeGlbLink = (targetType: string, targetId: string) => {
-  sendCommand({ type: "admin_glb_unlink", targetType, targetId });
+  sendCommand("admin_glb_unlink", { targetType, targetId });
 };
