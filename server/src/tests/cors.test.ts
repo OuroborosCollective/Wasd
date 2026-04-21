@@ -53,9 +53,10 @@ let app: express.Express;
 
 describe("CORS Security Tests", () => {
   beforeEach(async () => {
+    const env = process.env as Record<string, string | undefined>;
     // Reset env vars
-    delete process.env.ALLOWED_ORIGINS;
-    process.env.NODE_ENV = "test";
+    delete env.ALLOWED_ORIGINS;
+    env.NODE_ENV = "test";
 
     // Create an express app and only add the CORS middleware
     app = express();
@@ -64,18 +65,23 @@ describe("CORS Security Tests", () => {
     // to isolate the middleware for testing
     app.use((req, res, next) => {
       const allowedOrigins = process.env.ALLOWED_ORIGINS
-        ? process.env.ALLOWED_ORIGINS.split(',')
-        : (process.env.NODE_ENV === 'production' ? [] : ['*']);
+        ? process.env.ALLOWED_ORIGINS.split(",")
+        : process.env.NODE_ENV === "production"
+          ? []
+          : ["*"];
 
       const origin = req.headers.origin;
-      if (allowedOrigins.includes('*')) {
+      if (allowedOrigins.includes("*")) {
         res.header("Access-Control-Allow-Origin", "*");
       } else if (origin && allowedOrigins.includes(origin)) {
         res.header("Access-Control-Allow-Origin", origin);
       }
 
       res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-      res.header("Access-Control-Allow-Headers", "Content-Type,Authorization,x-player-id");
+      res.header(
+        "Access-Control-Allow-Headers",
+        "Content-Type,Authorization,x-player-id",
+      );
       if (req.method === "OPTIONS") return res.sendStatus(200);
       next();
     });
@@ -95,7 +101,8 @@ describe("CORS Security Tests", () => {
   });
 
   it("should not set Access-Control-Allow-Origin for invalid origins when ALLOWED_ORIGINS is set", async () => {
-    process.env.ALLOWED_ORIGINS = "http://localhost:3000,https://mygame.com";
+    const env = process.env as Record<string, string | undefined>;
+    env.ALLOWED_ORIGINS = "http://localhost:3000,https://mygame.com";
 
     const res = await request(app)
       .get("/test")
@@ -105,17 +112,21 @@ describe("CORS Security Tests", () => {
   });
 
   it("should set Access-Control-Allow-Origin for valid origins when ALLOWED_ORIGINS is set", async () => {
-    process.env.ALLOWED_ORIGINS = "http://localhost:3000,https://mygame.com";
+    const env = process.env as Record<string, string | undefined>;
+    env.ALLOWED_ORIGINS = "http://localhost:3000,https://mygame.com";
 
     const res = await request(app)
       .get("/test")
       .set("Origin", "https://mygame.com");
 
-    expect(res.headers["access-control-allow-origin"]).toBe("https://mygame.com");
+    expect(res.headers["access-control-allow-origin"]).toBe(
+      "https://mygame.com",
+    );
   });
 
   it("should not set Access-Control-Allow-Origin in production when ALLOWED_ORIGINS is not set", async () => {
-    process.env.NODE_ENV = "production";
+    const env = process.env as Record<string, string | undefined>;
+    env.NODE_ENV = "production";
 
     const res = await request(app)
       .get("/test")
@@ -125,14 +136,19 @@ describe("CORS Security Tests", () => {
   });
 
   it("should correctly handle OPTIONS requests", async () => {
-    process.env.ALLOWED_ORIGINS = "https://mygame.com";
+    const env = process.env as Record<string, string | undefined>;
+    env.ALLOWED_ORIGINS = "https://mygame.com";
 
     const res = await request(app)
       .options("/test")
       .set("Origin", "https://mygame.com");
 
     expect(res.status).toBe(200);
-    expect(res.headers["access-control-allow-origin"]).toBe("https://mygame.com");
-    expect(res.headers["access-control-allow-methods"]).toBe("GET,POST,PUT,DELETE,OPTIONS");
+    expect(res.headers["access-control-allow-origin"]).toBe(
+      "https://mygame.com",
+    );
+    expect(res.headers["access-control-allow-methods"]).toBe(
+      "GET,POST,PUT,DELETE,OPTIONS",
+    );
   });
 });

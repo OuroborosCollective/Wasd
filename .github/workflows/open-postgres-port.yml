@@ -1,0 +1,170 @@
+name: Open Postgres Port
+
+on:
+  workflow_dispatch:
+
+jobs:
+  open-port:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open Postgres port on Supabase docker-compose
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_IP }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_SSH_PASSWORD }}
+          port: 22
+          timeout: 3m
+          command_timeout: 10m
+          script: |
+            set -e
+            echo "=== Looking for Supabase docker-compose ==="
+            # Common locations for Supabase self-hosted
+            COMPOSE_DIR=""
+            for dir in /opt/supabase /opt/supabase-docker /root/supabase /home/*/supabase; do
+              if [ -f "$dir/docker-compose.yml" ]; then
+                COMPOSE_DIR="$dir"
+                break
+              fi
+            done
+
+            # Also search for it
+            if [ -z "$COMPOSE_DIR" ]; then
+              COMPOSE_DIR=$(find / -maxdepth 4 -name "docker-compose.yml" -path "*supabase*" 2>/dev/null | head -1 | xargs dirname 2>/dev/null || true)
+            fi
+
+            if [ -z "$COMPOSE_DIR" ]; then
+              # Try finding any docker-compose with a 'db' service
+              for f in $(find / -maxdepth 4 -name "docker-compose.yml" 2>/dev/null | head -10); do
+                if grep -q "supabase\|postgres\|gotrue" "$f" 2>/dev/null; then
+                  COMPOSE_DIR=$(dirname "$f")
+                  break
+                fi
+              done
+            fi
+
+            if [ -z "$COMPOSE_DIR" ]; then
+              echo "ERROR: Could not find Supabase docker-compose.yml"
+              echo "Searching all docker-compose files:"
+              find / -maxdepth 4 -name "docker-compose.yml" 2>/dev/null | head -10
+              exit 1
+            fi
+
+            echo "Found compose dir: $COMPOSE_DIR"
+            cd "$COMPOSE_DIR"
+
+            echo ""
+            echo "=== Current db service ports ==="
+            grep -A5 "^  db:" docker-compose.yml | grep -E "ports|5432" || echo "(no ports found)"
+
+            echo ""
+            echo "=== Adding port mapping for Postgres ==="
+
+            # Check if python3 is available for yaml manipulation
+            if command -v python3 &>/dev/null; then
+              python3 << 'PYEOF'
+            import yaml, sys
+
+            with open("docker-compose.yml", "r") as f:
+                content = f.read()
+
+            # Simple approach: check if db.ports already has 5432
+            if "5432:5432" in content:
+                print("Port 5432:5432 already mapped!")
+                sys.exit(0)
+
+            # Use sed to add ports if not present
+            import subprocess
+
+            # Check if db service has ports section
+            result = subprocess.run(["grep", "-n", "-A3", "^  db:", "docker-compose.yml"], capture_output=True, text=True)
+            print(f"DB service section: {result.stdout}")
+
+            # Add ports to db service
+            # Strategy: find the db: service and add ports after its image line
+            lines = content.split("\n")
+            new_lines = []
+            in_db = False
+            added_ports = False
+            indent = "    "  # 4 spaces for service properties
+
+            for i, line in enumerate(lines):
+                new_lines.append(line)
+                if line.strip() == "db:" and (i == 0 or not line.startswith(" ")):
+                    in_db = True
+                    continue
+                if in_db and not added_ports:
+                    # Check if we're still in the db service (indented or blank)
+                    if line.strip() == "" or (line.startswith(" ") and not line.startswith("  ") and ":" in line):
+                        # We've left the db service or hit another service
+                        if line.strip() and not line.startswith("  "):
+                            # New top-level or service - insert ports before this
+                            new_lines.pop()  # remove the current line
+                            new_lines.append(f"{indent}ports:")
+                            new_lines.append(f'{indent}  - "5432:5432"')
+                            new_lines.append(line)
+                            added_ports = True
+                            in_db = False
+                    elif line.strip().startswith("image:") or line.strip().startswith("container_name:"):
+                        # Add ports after the image line
+                        pass  # will add after we see a non-image line
+                    elif in_db and line.strip() and not line.strip().startswith("image:") and not line.strip().startswith("container_name:") and not line.strip().startswith("#"):
+                        # First non-image/container_name line in db service
+                        if not added_ports and ":" in line and not line.strip().startswith("-"):
+                            # This is another property - add ports before it
+                            new_lines.pop()
+                            new_lines.append(f"{indent}ports:")
+                            new_lines.append(f'{indent}  - "5432:5432"')
+                            new_lines.append(line)
+                            added_ports = True
+
+            if not added_ports:
+                print("WARNING: Could not auto-add ports. Adding manually...")
+                # Fallback: just add after "db:" line
+                new_lines = []
+                for i, line in enumerate(lines):
+                    new_lines.append(line)
+                    if line.strip() == "db:" and (i == 0 or not line.startswith(" ")):
+                        new_lines.append(f"{indent}ports:")
+                        new_lines.append(f'{indent}  - "5432:5432"')
+                        added_ports = True
+
+            new_content = "\n".join(new_lines)
+            with open("docker-compose.yml", "w") as f:
+                f.write(new_content)
+
+            print(f"Added port mapping: {added_ports}")
+            PYEOF
+            else
+              # Fallback: use sed to add ports after the db: service line
+              if ! grep -q "5432:5432" docker-compose.yml; then
+                sed -i '/^  db:/a\    ports:\n      - "5432:5432"' docker-compose.yml
+                echo "Added ports via sed"
+              else
+                echo "Port 5432 already mapped"
+              fi
+            fi
+
+            echo ""
+            echo "=== Updated db service ==="
+            grep -A8 "^  db:" docker-compose.yml
+
+            echo ""
+            echo "=== Restarting db container ==="
+            docker compose up -d db 2>/dev/null || docker-compose up -d db 2>/dev/null
+
+            echo ""
+            echo "=== Waiting for Postgres to be ready ==="
+            sleep 5
+            if timeout 5 bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/5432' 2>/dev/null; then
+              echo "SUCCESS: Port 5432 is now open on localhost"
+            else
+              echo "WARNING: Port 5432 still not reachable"
+              docker compose ps 2>/dev/null || docker-compose ps 2>/dev/null
+            fi
+
+            echo ""
+            echo "=== Restarting game server ==="
+            if command -v pm2 &>/dev/null; then
+              pm2 restart areloria 2>/dev/null || pm2 restart all 2>/dev/null || echo "PM2 restart skipped"
+            fi

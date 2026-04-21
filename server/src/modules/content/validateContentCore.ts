@@ -94,6 +94,53 @@ export function validateContentRoot(dataDir: string): ContentValidationResult {
     });
   });
 
+  const lorePath = path.join(dataDir, "lore/world-fragments.json");
+  if (fs.existsSync(lorePath)) {
+    let loreRaw: unknown;
+    try {
+      loreRaw = JSON.parse(fs.readFileSync(lorePath, "utf-8"));
+    } catch {
+      errors.push("Invalid JSON: lore/world-fragments.json");
+      loreRaw = null;
+    }
+    if (loreRaw && typeof loreRaw === "object" && loreRaw !== null && !Array.isArray(loreRaw)) {
+      const lr = loreRaw as Record<string, unknown>;
+      const ver = Number(lr.version);
+      if (!Number.isFinite(ver) || ver < 1) {
+        errors.push("lore/world-fragments.json: version must be a number >= 1");
+      }
+      const frags = lr.fragments;
+      if (!Array.isArray(frags)) {
+        errors.push("lore/world-fragments.json: fragments must be an array");
+      } else {
+        const seen = new Set<string>();
+        frags.forEach((row: any, i: number) => {
+          const id = typeof row?.id === "string" ? row.id.trim() : "";
+          if (!id) {
+            errors.push(`lore/world-fragments.json: fragment[${i}] missing id`);
+            return;
+          }
+          if (seen.has(id)) errors.push(`lore/world-fragments.json: duplicate fragment id ${id}`);
+          seen.add(id);
+          const title = row?.title;
+          const text = row?.text;
+          const okTitle =
+            title &&
+            typeof title === "object" &&
+            typeof (title as any).de === "string" &&
+            typeof (title as any).en === "string";
+          const okText =
+            text &&
+            typeof text === "object" &&
+            typeof (text as any).de === "string" &&
+            typeof (text as any).en === "string";
+          if (!okTitle) errors.push(`lore/world-fragments.json: fragment ${id} needs title.de and title.en`);
+          if (!okText) errors.push(`lore/world-fragments.json: fragment ${id} needs text.de and text.en`);
+        });
+      }
+    }
+  }
+
   dialogues.forEach((d: any) => {
     if (d.nodes) {
       const nodeIds = new Set(Object.keys(d.nodes));

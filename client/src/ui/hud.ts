@@ -1,63 +1,30 @@
-import { auth, isFirebaseClientConfigured } from "../auth/firebase";
+import {
+  getSupabaseAccessToken,
+  getSupabaseRedirectUrl,
+  initSupabaseClient,
+  onSupabaseAuthStateChanged,
+} from "../auth/supabase";
 import { getQuickCastSkillId } from "../game/combatSkills";
-import { sendDialogueChoice, sendQuestAccept, updateAuthToken } from "../networking/websocketClient";
 import {
-  getPlayerGold,
-  getPlayerHealth,
-  getPlayerMaxHealth,
-  getPlayerLevel,
-  getPlayerMana,
-  getPlayerMaxMana,
-  getPlayerMaxStamina,
-  getPlayerStamina,
-  getPlayerXp,
-  subscribePlayerState,
-} from "../state/playerState";
-import {
-  GoogleAuthProvider,
-  signInWithPopup,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  sendEmailVerification,
-  sendPasswordResetEmail,
-} from "firebase/auth";
+  sendDialogueChoice,
+  sendQuestAccept,
+  updateAuthToken,
+} from "../networking/websocketClient";
 import { prefersCompactTouchUi } from "./touchUi";
-import { isFirebaseGameAuthDisabled } from "../config/gameAuth";
+import { resolveGameAuthProvider } from "../config/gameAuth";
+import {
+  mapSupabaseAuthError,
+  normalizeAuthEmail,
+  validateEmailForAuth,
+  validatePasswordForLogin,
+  validatePasswordForSignup,
+} from "./authMessages";
 
 const GUEST_STORAGE_KEY = "areloria_guest_id";
 
-function makeBarRow(label: string, fillPct: number, color: string): HTMLDivElement {
-  const wrap = document.createElement("div");
-  wrap.style.display = "flex";
-  wrap.style.alignItems = "center";
-  wrap.style.gap = "6px";
-  wrap.style.minWidth = "0";
-  const lab = document.createElement("span");
-  lab.textContent = label;
-  lab.style.fontSize = "10px";
-  lab.style.opacity = "0.85";
-  lab.style.width = "14px";
-  lab.style.flexShrink = "0";
-  const track = document.createElement("div");
-  track.style.flex = "1";
-  track.style.height = "8px";
-  track.style.borderRadius = "4px";
-  track.style.background = "rgba(255,255,255,0.12)";
-  track.style.overflow = "hidden";
-  track.style.minWidth = "40px";
-  const fill = document.createElement("div");
-  fill.style.height = "100%";
-  fill.style.width = `${Math.min(100, Math.max(0, fillPct))}%`;
-  fill.style.background = color;
-  fill.style.borderRadius = "4px";
-  fill.style.transition = "width 0.2s ease";
-  track.appendChild(fill);
-  wrap.appendChild(lab);
-  wrap.appendChild(track);
-  return wrap;
-}
-
 export function renderHUD() {
+  document.getElementById("arel-hud")?.remove();
+  const compact = prefersCompactTouchUi();
   const hud = document.createElement("div");
   hud.id = "arel-hud";
   hud.style.position = "fixed";
@@ -70,48 +37,47 @@ export function renderHUD() {
   hud.style.borderRadius = "10px";
   hud.style.borderLeft = "3px solid #f27d26";
   hud.style.zIndex = "5000";
-  hud.style.maxWidth = prefersCompactTouchUi() ? "min(92vw, 280px)" : "320px";
+  hud.style.maxWidth = compact ? "min(92vw, 280px)" : "320px";
   hud.style.boxSizing = "border-box";
+  hud.style.transition =
+    "max-height 0.25s ease, padding 0.25s ease, opacity 0.2s ease";
+  hud.style.overflow = "hidden";
+
+  let hudCollapsed = compact;
 
   const topRow = document.createElement("div");
   topRow.style.display = "flex";
   topRow.style.flexWrap = "wrap";
   topRow.style.alignItems = "center";
+  topRow.style.justifyContent = "flex-end";
   topRow.style.gap = "8px";
   topRow.style.marginBottom = "8px";
 
-  const statsSpan = document.createElement("span");
-  statsSpan.id = "arel-hud-stats";
-  statsSpan.style.fontSize = "12px";
-  statsSpan.style.lineHeight = "1.3";
-
-  const barsWrap = document.createElement("div");
-  barsWrap.id = "arel-hud-bars";
-  barsWrap.style.display = "flex";
-  barsWrap.style.flexDirection = "column";
-  barsWrap.style.gap = "4px";
-  barsWrap.style.width = "100%";
-
-  const updateStats = () => {
-    const hp = getPlayerHealth();
-    const hpMax = Math.max(1, getPlayerMaxHealth());
-    const st = getPlayerStamina();
-    const stMax = Math.max(1, getPlayerMaxStamina());
-    const mp = getPlayerMana();
-    const mpMax = Math.max(1, getPlayerMaxMana());
-    statsSpan.textContent = `Lv ${getPlayerLevel()} · Gold ${getPlayerGold()} · XP ${getPlayerXp()}`;
-    barsWrap.replaceChildren(
-      makeBarRow("♥", (hp / hpMax) * 100, "linear-gradient(90deg,#c42b2b,#ff6b5a)"),
-      makeBarRow("⚡", (st / stMax) * 100, "linear-gradient(90deg,#2b6bc4,#6bb8ff)"),
-      makeBarRow("✦", (mp / mpMax) * 100, "linear-gradient(90deg,#6b2bc4,#c896ff)")
-    );
+  const leaderboardBtn = document.createElement("button");
+  leaderboardBtn.type = "button";
+  leaderboardBtn.textContent = "🏆";
+  leaderboardBtn.title = "Open leaderboard";
+  leaderboardBtn.style.padding = "6px 10px";
+  leaderboardBtn.style.minHeight = "36px";
+  leaderboardBtn.style.borderRadius = "8px";
+  leaderboardBtn.style.border = "1px solid rgba(255,255,255,0.25)";
+  leaderboardBtn.style.background = "rgba(255,255,255,0.08)";
+  leaderboardBtn.style.color = "#fff";
+  leaderboardBtn.style.cursor = "pointer";
+  leaderboardBtn.style.touchAction = "manipulation";
+  leaderboardBtn.onclick = () => {
+    void import("./leaderboardPanel")
+      .then((m) => m.openLeaderboard())
+      .catch((error) => {
+        console.error("Leaderboard panel failed to open", error);
+      });
   };
-  updateStats();
-  subscribePlayerState(updateStats);
 
-  topRow.appendChild(statsSpan);
+  topRow.appendChild(leaderboardBtn);
   hud.appendChild(topRow);
-  hud.appendChild(barsWrap);
+
+  const hudBody = document.createElement("div");
+  hudBody.id = "arel-hud-body";
 
   const label = document.createElement("span");
   label.textContent = "Areloria";
@@ -119,17 +85,85 @@ export function renderHUD() {
   label.style.opacity = "0.65";
   label.style.display = "block";
   label.style.marginTop = "4px";
-  hud.appendChild(label);
+  hudBody.appendChild(label);
 
+  hud.appendChild(hudBody);
   document.body.appendChild(hud);
+
+  const applyCollapseState = () => {
+    if (hudCollapsed) {
+      hud.style.maxHeight = "60px";
+      hud.style.padding = "6px 10px";
+      hudBody.style.display = "none";
+      topRow.style.marginBottom = "0";
+    } else {
+      hud.style.maxHeight = "none";
+      hud.style.padding = "10px 12px";
+      hudBody.style.display = "block";
+      topRow.style.marginBottom = "8px";
+    }
+  };
+
+  if (compact) {
+    hud.style.cursor = "pointer";
+    hud.addEventListener("click", (e) => {
+      if (
+        (e.target as HTMLElement).tagName === "BUTTON" ||
+        (e.target as HTMLElement).tagName === "INPUT"
+      )
+        return;
+      hudCollapsed = !hudCollapsed;
+      applyCollapseState();
+    });
+    hud.addEventListener("touchstart", (e) => e.stopPropagation(), {
+      passive: true,
+    });
+    applyCollapseState();
+  }
 
   const authBox = document.createElement("div");
   authBox.id = "arel-hud-auth";
+
+  const stopAuthEvents = (e: Event) => e.stopPropagation();
+  ["touchstart", "touchmove"].forEach((evt) => {
+    authBox.addEventListener(evt, stopAuthEvents, { passive: true });
+  });
+  [
+    "touchend",
+    "touchcancel",
+    "mousedown",
+    "mouseup",
+    "mousemove",
+    "pointerdown",
+    "pointerup",
+    "pointermove",
+    "click",
+  ].forEach((evt) => {
+    authBox.addEventListener(evt, stopAuthEvents, { passive: false });
+  });
+
   authBox.style.marginTop = "10px";
-  authBox.style.display = isFirebaseGameAuthDisabled() ? "none" : "flex";
+  const authProvider = resolveGameAuthProvider();
+  authBox.style.display = authProvider === "none" ? "none" : "flex";
   authBox.style.flexDirection = "column";
   authBox.style.gap = "8px";
   authBox.style.maxWidth = "100%";
+  if (prefersCompactTouchUi()) {
+    authBox.style.position = "fixed";
+    authBox.style.left = "50%";
+    authBox.style.top = "50%";
+    authBox.style.transform = "translate(-50%, -50%)";
+    authBox.style.width = "min(420px, calc(100vw - 24px))";
+    authBox.style.maxHeight = "min(70vh, 520px)";
+    authBox.style.overflowY = "auto";
+    authBox.style.zIndex = "12000";
+    authBox.style.marginTop = "0";
+    authBox.style.padding = "14px";
+    authBox.style.background = "rgba(12,14,22,0.96)";
+    authBox.style.border = "1px solid rgba(242,125,38,0.45)";
+    authBox.style.borderRadius = "14px";
+    authBox.style.boxShadow = "0 16px 48px rgba(0,0,0,0.65)";
+  }
 
   const btnRow = document.createElement("div");
   btnRow.style.display = "flex";
@@ -246,6 +280,13 @@ export function renderHUD() {
   emailRow.appendChild(emailErr);
   emailRow.appendChild(emailBtnRow);
 
+  const signupStatus = document.createElement("div");
+  signupStatus.style.fontSize = "11px";
+  signupStatus.style.color = "#8fdf9a";
+  signupStatus.style.minHeight = "14px";
+  signupStatus.style.lineHeight = "1.35";
+  emailRow.appendChild(signupStatus);
+
   btnRow.appendChild(loginBtn);
   btnRow.appendChild(verifyEmailBtn);
   btnRow.appendChild(resetPassBtn);
@@ -264,104 +305,296 @@ export function renderHUD() {
   window.addEventListener("areloria-quick-cast-changed", refreshHint);
   authBox.appendChild(hint);
 
+  let supabaseSignedIn = false;
   const syncAuthUi = () => {
-    const u = auth?.currentUser;
-    const out = !u;
+    const userSignedIn = supabaseSignedIn;
+    const out = !userSignedIn;
     loginBtn.style.display = out ? "inline-block" : "none";
-    logoutBtn.style.display = u ? "inline-block" : "none";
-    verifyEmailBtn.style.display = u ? "inline-block" : "none";
-    resetPassBtn.style.display = u ? "inline-block" : "none";
+    logoutBtn.style.display = userSignedIn ? "inline-block" : "none";
+    verifyEmailBtn.style.display = userSignedIn ? "inline-block" : "none";
+    resetPassBtn.style.display = userSignedIn ? "inline-block" : "none";
     emailRow.style.display = out ? "flex" : "none";
   };
   syncAuthUi();
-  auth?.onAuthStateChanged(() => syncAuthUi());
 
-  if (isFirebaseGameAuthDisabled()) {
-    /* Game auth off — server uses guest/dev login; no Firebase UI */
-  } else if (!isFirebaseClientConfigured() || !auth) {
-    loginBtn.textContent = "Auth (configure Firebase)";
+  const setAuthError = (message: string) => {
+    emailErr.textContent = message;
+    emailErr.style.color = "#ff8a8a";
+  };
+
+  const setAuthInfo = (message: string) => {
+    signupStatus.textContent = message;
+    signupStatus.style.color = "#8fdf9a";
+  };
+
+  const withTimeout = async <T>(
+    promise: Promise<T>,
+    ms: number,
+    label: string,
+  ): Promise<T> => {
+    return await new Promise<T>((resolve, reject) => {
+      const timer = window.setTimeout(() => {
+        reject(new Error(`${label} timed out`));
+      }, ms);
+      promise
+        .then((value) => {
+          window.clearTimeout(timer);
+          resolve(value);
+        })
+        .catch((error) => {
+          window.clearTimeout(timer);
+          reject(error);
+        });
+    });
+  };
+
+  const setAuthBusy = (busy: boolean) => {
+    const controls = [
+      loginBtn,
+      emailLoginBtn,
+      emailSignupBtn,
+      verifyEmailBtn,
+      resetPassBtn,
+      logoutBtn,
+    ];
+    for (const c of controls) {
+      c.disabled = busy;
+      c.style.opacity = busy ? "0.75" : "1";
+    }
+  };
+
+  const clearAuthMessages = () => {
+    emailErr.textContent = "";
+    emailErr.style.color = "#ff8a8a";
+    signupStatus.textContent = "";
+    signupStatus.style.color = "#8fdf9a";
+  };
+
+  if (authProvider === "none") {
+    /* Game auth off — server uses guest/dev login; no external auth UI */
+  } else if (authProvider === "supabase") {
+    loginBtn.textContent = "Auth wird geladen…";
     loginBtn.disabled = true;
-    loginBtn.style.opacity = "0.65";
-    logoutBtn.style.display = "none";
-    verifyEmailBtn.style.display = "none";
-    resetPassBtn.style.display = "none";
-    emailRow.style.display = "none";
-  } else {
-    loginBtn.onclick = async () => {
-      const provider = new GoogleAuthProvider();
-      try {
-        const result = await signInWithPopup(auth, provider);
-        const token = await result.user.getIdToken(true);
-        updateAuthToken(token, { reconnect: true });
-      } catch (e) {
-        console.error("Login failed", e);
-      }
-    };
-    emailLoginBtn.onclick = async () => {
-      emailErr.textContent = "";
-      try {
-        const cred = await signInWithEmailAndPassword(auth, emailIn.value.trim(), passIn.value);
-        const token = await cred.user.getIdToken(true);
-        updateAuthToken(token, { reconnect: true });
-      } catch (e: unknown) {
-        emailErr.textContent = e instanceof Error ? e.message : "Sign-in failed";
-      }
-    };
-    emailSignupBtn.onclick = async () => {
-      emailErr.textContent = "";
-      try {
-        const cred = await createUserWithEmailAndPassword(auth, emailIn.value.trim(), passIn.value);
-        const token = await cred.user.getIdToken(true);
-        updateAuthToken(token, { reconnect: true });
-      } catch (e: unknown) {
-        emailErr.textContent = e instanceof Error ? e.message : "Sign-up failed";
-      }
-    };
-    verifyEmailBtn.onclick = async () => {
-      emailErr.textContent = "";
-      const u = auth.currentUser;
-      if (!u?.email) {
-        emailErr.textContent = "No email on this account.";
+    void initSupabaseClient().then((sb) => {
+      if (!sb) {
+        loginBtn.textContent = "Auth (configure Supabase)";
+        loginBtn.disabled = true;
+        loginBtn.style.opacity = "0.65";
+        logoutBtn.style.display = "none";
+        verifyEmailBtn.style.display = "none";
+        resetPassBtn.style.display = "none";
+        emailRow.style.display = "none";
         return;
       }
-      try {
-        await sendEmailVerification(u);
-        emailErr.textContent = "Verification email sent.";
-        emailErr.style.color = "#8fdf9a";
-      } catch (e: unknown) {
-        emailErr.textContent = e instanceof Error ? e.message : "Could not send verification";
-        emailErr.style.color = "#ff8a8a";
-      }
-    };
-    resetPassBtn.onclick = async () => {
-      emailErr.textContent = "";
-      const addr = emailIn.value.trim() || auth.currentUser?.email;
-      if (!addr) {
-        emailErr.textContent = "Enter your email above or sign in first.";
-        return;
-      }
-      try {
-        await sendPasswordResetEmail(auth, addr);
-        emailErr.textContent = "Password reset email sent.";
-        emailErr.style.color = "#8fdf9a";
-      } catch (e: unknown) {
-        emailErr.textContent = e instanceof Error ? e.message : "Reset failed";
-        emailErr.style.color = "#ff8a8a";
-      }
-    };
-    logoutBtn.onclick = async () => {
-      try {
-        const { signOut } = await import("firebase/auth");
-        await signOut(auth);
-        updateAuthToken(null, { reconnect: true });
-        localStorage.removeItem(GUEST_STORAGE_KEY);
-      } catch (e) {
-        console.error("Sign out failed", e);
-      }
-    };
+      loginBtn.textContent = "Google";
+      loginBtn.disabled = false;
+      loginBtn.style.opacity = "1";
+
+      onSupabaseAuthStateChanged((session) => {
+        supabaseSignedIn = Boolean(session?.user);
+        try {
+          if (session?.access_token) {
+            localStorage.setItem("token", session.access_token);
+          } else {
+            localStorage.removeItem("token");
+          }
+        } catch {
+          /* ignore */
+        }
+        syncAuthUi();
+      });
+      void sb.auth.getSession().then(({ data }) => {
+        supabaseSignedIn = Boolean(data.session?.user);
+        syncAuthUi();
+      });
+
+      loginBtn.onclick = async () => {
+        clearAuthMessages();
+        setAuthBusy(true);
+        try {
+          const redirectTo = getSupabaseRedirectUrl("/");
+          const { data, error } = await withTimeout(
+            sb.auth.signInWithOAuth({
+              provider: "google",
+              options: { redirectTo, skipBrowserRedirect: false },
+            }),
+            15000,
+            "Google sign-in",
+          );
+          if (error) {
+            throw error;
+          }
+          if (data?.url) {
+            setAuthInfo("Redirecting to Google sign-in...");
+            window.location.assign(data.url);
+            return;
+          }
+          setAuthError(
+            "Google sign-in could not start. Check Supabase URL/redirect settings and try again.",
+          );
+        } catch (e: unknown) {
+          setAuthError(mapSupabaseAuthError(e));
+        } finally {
+          setAuthBusy(false);
+        }
+      };
+
+      emailLoginBtn.onclick = async () => {
+        clearAuthMessages();
+        const email = normalizeAuthEmail(emailIn.value);
+        const emailValidation = validateEmailForAuth(email);
+        if (emailValidation) {
+          setAuthError(emailValidation);
+          return;
+        }
+        const passwordValidation = validatePasswordForLogin(passIn.value);
+        if (passwordValidation) {
+          setAuthError(passwordValidation);
+          return;
+        }
+        setAuthBusy(true);
+        try {
+          const { data, error } = await withTimeout(
+            sb.auth.signInWithPassword({
+              email,
+              password: passIn.value,
+            }),
+            15000,
+            "Email sign-in",
+          );
+          if (error) throw error;
+          const token =
+            data.session?.access_token ??
+            (await withTimeout(
+              getSupabaseAccessToken(),
+              10000,
+              "Session fetch",
+            ));
+          if (token) {
+            updateAuthToken(token, { reconnect: true });
+            setAuthInfo("Signed in.");
+          }
+        } catch (e: unknown) {
+          setAuthError(mapSupabaseAuthError(e));
+        } finally {
+          setAuthBusy(false);
+        }
+      };
+
+      emailSignupBtn.onclick = async () => {
+        clearAuthMessages();
+        const email = normalizeAuthEmail(emailIn.value);
+        const password = passIn.value;
+        const emailValidation = validateEmailForAuth(email);
+        if (emailValidation) {
+          setAuthError(emailValidation);
+          return;
+        }
+        const passwordValidation = validatePasswordForSignup(password);
+        if (passwordValidation) {
+          setAuthError(passwordValidation);
+          return;
+        }
+        setAuthBusy(true);
+        try {
+          const redirectTo = getSupabaseRedirectUrl("/");
+          const { data, error } = await withTimeout(
+            sb.auth.signUp({
+              email,
+              password,
+              options: { emailRedirectTo: redirectTo },
+            }),
+            20000,
+            "Account creation",
+          );
+          if (error) throw error;
+          if (data.session?.access_token) {
+            updateAuthToken(data.session.access_token, { reconnect: true });
+            setAuthInfo("Account created and signed in.");
+          } else {
+            setAuthInfo(
+              "Account created. Confirmation email sent — check inbox/spam.",
+            );
+          }
+        } catch (e: unknown) {
+          setAuthError(mapSupabaseAuthError(e));
+        } finally {
+          setAuthBusy(false);
+        }
+      };
+
+      verifyEmailBtn.onclick = async () => {
+        clearAuthMessages();
+        const addr = normalizeAuthEmail(emailIn.value);
+        if (!addr) {
+          setAuthError(
+            "Enter your account email above to resend verification.",
+          );
+          return;
+        }
+        setAuthBusy(true);
+        try {
+          const redirectTo = getSupabaseRedirectUrl("/");
+          const { error } = await withTimeout(
+            sb.auth.resend({
+              type: "signup",
+              email: addr,
+              options: { emailRedirectTo: redirectTo },
+            }),
+            15000,
+            "Verification email",
+          );
+          if (error) throw error;
+          setAuthInfo("Verification email sent.");
+        } catch (e: unknown) {
+          setAuthError(mapSupabaseAuthError(e));
+        } finally {
+          setAuthBusy(false);
+        }
+      };
+
+      resetPassBtn.onclick = async () => {
+        clearAuthMessages();
+        const addr = normalizeAuthEmail(emailIn.value);
+        if (!addr) {
+          setAuthError("Enter your email above.");
+          return;
+        }
+        const emailValidation = validateEmailForAuth(addr);
+        if (emailValidation) {
+          setAuthError(emailValidation);
+          return;
+        }
+        setAuthBusy(true);
+        try {
+          const redirectTo = getSupabaseRedirectUrl("/");
+          const { error } = await withTimeout(
+            sb.auth.resetPasswordForEmail(addr, { redirectTo }),
+            15000,
+            "Password reset",
+          );
+          if (error) throw error;
+          setAuthInfo("Password reset email sent.");
+        } catch (e: unknown) {
+          setAuthError(mapSupabaseAuthError(e));
+        } finally {
+          setAuthBusy(false);
+        }
+      };
+
+      logoutBtn.onclick = async () => {
+        try {
+          await sb.auth.signOut();
+          updateAuthToken(null, { reconnect: true });
+          localStorage.removeItem(GUEST_STORAGE_KEY);
+        } catch (e) {
+          console.error("Sign out failed", e);
+        }
+      };
+    });
   }
 
-  hud.appendChild(authBox);
+  hudBody.appendChild(authBox);
 }
 
 export type DialoguePayload = {
@@ -384,6 +617,24 @@ export function showDialogue(payload: string | DialoguePayload) {
     dialogueBox = document.createElement("div");
     dialogueBox.id = "dialogue-box";
     dialogueBox.style.position = "fixed";
+
+    const stopEvents = (e: Event) => e.stopPropagation();
+    ["touchstart", "touchmove"].forEach((evt) => {
+      dialogueBox!.addEventListener(evt, stopEvents, { passive: true });
+    });
+    [
+      "touchend",
+      "touchcancel",
+      "mousedown",
+      "mouseup",
+      "mousemove",
+      "pointerdown",
+      "pointerup",
+      "pointermove",
+      "click",
+    ].forEach((evt) => {
+      dialogueBox!.addEventListener(evt, stopEvents, { passive: false });
+    });
     dialogueBox.style.left = "50%";
     dialogueBox.style.transform = "translateX(-50%)";
     dialogueBox.style.background = "rgba(0, 0, 0, 0.9)";
@@ -419,14 +670,22 @@ export function showDialogue(payload: string | DialoguePayload) {
     scrollWrap.style.minHeight = "0";
     scrollWrap.style.overflowY = "auto";
     scrollWrap.style.overflowX = "hidden";
-    scrollWrap.style.webkitOverflowScrolling = "touch";
+    scrollWrap.style.setProperty("-webkit-overflow-scrolling", "touch");
     scrollWrap.style.paddingRight = "4px";
 
     // Stop pointer/touch from bleeding through dialogue scroll
-    scrollWrap.addEventListener("touchstart", (e) => e.stopPropagation(), { passive: true });
-    scrollWrap.addEventListener("touchmove", (e) => e.stopPropagation(), { passive: true });
-    scrollWrap.addEventListener("pointerdown", (e) => e.stopPropagation(), { passive: false });
-    scrollWrap.addEventListener("wheel", (e) => e.stopPropagation(), { passive: true });
+    scrollWrap.addEventListener("touchstart", (e) => e.stopPropagation(), {
+      passive: true,
+    });
+    scrollWrap.addEventListener("touchmove", (e) => e.stopPropagation(), {
+      passive: true,
+    });
+    scrollWrap.addEventListener("pointerdown", (e) => e.stopPropagation(), {
+      passive: false,
+    });
+    scrollWrap.addEventListener("wheel", (e) => e.stopPropagation(), {
+      passive: true,
+    });
 
     const textEl = document.createElement("div");
     textEl.id = "dialogue-text";
@@ -466,12 +725,20 @@ export function showDialogue(payload: string | DialoguePayload) {
       e.stopPropagation();
       dialogueBox!.style.display = "none";
     };
-    closeBtn.addEventListener("touchstart", (e) => {
-      e.stopPropagation();
-    }, { passive: false });
-    closeBtn.addEventListener("pointerdown", (e) => {
-      e.stopPropagation();
-    }, { passive: false });
+    closeBtn.addEventListener(
+      "touchstart",
+      (e) => {
+        e.stopPropagation();
+      },
+      { passive: false },
+    );
+    closeBtn.addEventListener(
+      "pointerdown",
+      (e) => {
+        e.stopPropagation();
+      },
+      { passive: false },
+    );
     closeRow.appendChild(closeBtn);
     dialogueBox.appendChild(closeRow);
 
@@ -479,7 +746,8 @@ export function showDialogue(payload: string | DialoguePayload) {
       const isCoarse = prefersCompactTouchUi();
       if (isCoarse) {
         dialogueBox!.style.top = "auto";
-        dialogueBox!.style.bottom = "max(240px, env(safe-area-inset-bottom, 0px))";
+        dialogueBox!.style.bottom =
+          "max(240px, env(safe-area-inset-bottom, 0px))";
         dialogueBox!.style.maxHeight = "min(50vh, 480px)";
       } else {
         dialogueBox!.style.bottom = "auto";
@@ -535,12 +803,20 @@ export function showDialogue(payload: string | DialoguePayload) {
             sendDialogueChoice(npcId, c.id, nodeId);
           }
         };
-        btn.addEventListener("touchstart", (e) => {
-          e.stopPropagation();
-        }, { passive: false });
-        btn.addEventListener("pointerdown", (e) => {
-          e.stopPropagation();
-        }, { passive: false });
+        btn.addEventListener(
+          "touchstart",
+          (e) => {
+            e.stopPropagation();
+          },
+          { passive: false },
+        );
+        btn.addEventListener(
+          "pointerdown",
+          (e) => {
+            e.stopPropagation();
+          },
+          { passive: false },
+        );
         choicesEl.appendChild(btn);
       }
     }

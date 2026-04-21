@@ -118,5 +118,18 @@
     "rarity": "common",
     "restoreMana": 15,
     "description": "A small vial that restores a bit of mana."
+  },
+  {
+    "id": "mega_iron_fist_frustinator",
+    "name": "Mega-Iron-Fist-Frustinator",
+    "type": "armor",
+    "slot": "offHand",
+    "damage": 0,
+    "rarity": "legendary",
+    "boundOnAcquire": true,
+    "nonTransferable": true,
+    "tradeable": false,
+    "droppable": false,
+    "description": "Worldboss relic gauntlet that amplifies impact strikes."
   }
 ]

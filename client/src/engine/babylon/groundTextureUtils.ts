@@ -7,17 +7,23 @@ export function chunkGroundUvScale(): number {
   return MAIN_GROUND_UV_SCALE * (16 / 128);
 }
 
-export function applyTiledGroundTextures(mat: StandardMaterial, uScale: number, vScale?: number): void {
+export function applyTiledGroundTextures(
+  mat: StandardMaterial,
+  uScale: number,
+  vScale?: number,
+): void {
   const v = vScale ?? uScale;
   if (mat.diffuseTexture) {
-    mat.diffuseTexture.uScale = uScale;
-    mat.diffuseTexture.vScale = v;
+    const diffuse = mat.diffuseTexture as Texture;
+    diffuse.uScale = uScale;
+    diffuse.vScale = v;
     mat.diffuseTexture.wrapU = Texture.WRAP_ADDRESSMODE;
     mat.diffuseTexture.wrapV = Texture.WRAP_ADDRESSMODE;
   }
   if (mat.bumpTexture) {
-    mat.bumpTexture.uScale = uScale;
-    mat.bumpTexture.vScale = v;
+    const bump = mat.bumpTexture as Texture;
+    bump.uScale = uScale;
+    bump.vScale = v;
     mat.bumpTexture.wrapU = Texture.WRAP_ADDRESSMODE;
     mat.bumpTexture.wrapV = Texture.WRAP_ADDRESSMODE;
   }

@@ -1,7 +1,12 @@
+import { isItemBoundOrNonTransferable } from "../items/itemBindingPolicy.js";
+
 export class GuildStorage {
   private storage = new Map<string, any[]>();
 
   addItem(guildId: string, item: any) {
+    if (isItemBoundOrNonTransferable(item)) {
+      return this.storage.get(guildId) || [];
+    }
     if (!this.storage.has(guildId)) this.storage.set(guildId, []);
     this.storage.get(guildId)!.push(item);
     return this.storage.get(guildId)!;

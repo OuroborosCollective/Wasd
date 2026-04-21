@@ -1,7 +1,7 @@
 /**
  * RedisClient.ts
  *
- * Singleton-Client für optionales Redis-Caching (Firebase-first architecture).
+ * Singleton-Client für optionales Redis-Caching.
  * Unterstützt beliebige Redis-Server (lokal, cloud-gehostet, etc.).
  *
  * Konfiguration via Environment-Variablen:
@@ -12,7 +12,6 @@
  *
  * Falls REDIS_HOST nicht gesetzt ist, wird kein Redis-Client erstellt und
  * alle Operationen fallen auf den In-Memory-Fallback zurück (Graceful Degradation).
- * Dies ist die empfohlene Konfiguration für Firebase-only Deployments.
  */
 
 import { Redis } from "ioredis";

@@ -24,8 +24,8 @@ export interface PerformanceMetrics {
 }
 
 export interface PerformanceAlert {
-  type: 'fps' | 'memory' | 'network' | 'error';
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  type: "fps" | "memory" | "network" | "error";
+  severity: "low" | "medium" | "high" | "critical";
   message: string;
   timestamp: number;
   value?: number;
@@ -44,11 +44,11 @@ class PerformanceMonitor {
   private memoryThreshold = 0.85;
   private latencyThreshold = 200;
 
-  private onMetricsUpdate?: (metrics: PerformanceMetrics) => void;
-  private onAlert?: (alert: PerformanceAlert) => void;
+  private metricsUpdateListener?: (metrics: PerformanceMetrics) => void;
+  private alertListener?: (alert: PerformanceAlert) => void;
 
   constructor() {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       this.setupErrorTracking();
       this.setupNetworkTracking();
     }
@@ -93,14 +93,14 @@ class PerformanceMonitor {
       memory: this.getMemoryUsage(),
       network: this.getNetworkMetrics(),
       errors: this.getErrorMetrics(),
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     this.metrics.push(metrics);
     const oneMinuteAgo = Date.now() - 60000;
     this.metrics = this.metrics.filter((m) => m.timestamp > oneMinuteAgo);
     this.checkThresholds(metrics);
-    this.onMetricsUpdate?.(metrics);
+    this.metricsUpdateListener?.(metrics);
   }
 
   private getMemoryUsage() {
@@ -112,7 +112,7 @@ class PerformanceMonitor {
     return {
       used: Math.round(used / 1024 / 1024),
       limit: Math.round(limit / 1024 / 1024),
-      percentage: used / limit
+      percentage: used / limit,
     };
   }
 
@@ -120,57 +120,73 @@ class PerformanceMonitor {
     return {
       latency: this.calculateAverageLatency(),
       bandwidth: 0,
-      packetLoss: 0
+      packetLoss: 0,
     };
   }
 
   private getErrorMetrics() {
     return {
-      count: this.alerts.filter((a) => a.type === 'error').length,
+      count: this.alerts.filter((a) => a.type === "error").length,
       lastError: this.alerts
-        .filter((a) => a.type === 'error')
-        .sort((a, b) => b.timestamp - a.timestamp)[0]?.message
+        .filter((a) => a.type === "error")
+        .sort((a, b) => b.timestamp - a.timestamp)[0]?.message,
     };
   }
 
   private checkThresholds(metrics: PerformanceMetrics) {
     if (metrics.fps < this.fpsThreshold) {
       this.addAlert({
-        type: 'fps',
-        severity: metrics.fps < 15 ? 'critical' : 'high',
+        type: "fps",
+        severity: metrics.fps < 15 ? "critical" : "high",
         message: `Low FPS: ${metrics.fps}`,
         value: metrics.fps,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
     }
   }
 
   private addAlert(alert: PerformanceAlert) {
     const recentSimilar = this.alerts.find(
-      (a) => a.type === alert.type && a.severity === alert.severity && Date.now() - a.timestamp < 5000
+      (a) =>
+        a.type === alert.type &&
+        a.severity === alert.severity &&
+        Date.now() - a.timestamp < 5000,
     );
     if (recentSimilar) return;
     this.alerts.push(alert);
     if (this.alerts.length > 100) this.alerts.shift();
-    this.onAlert?.(alert);
+    this.alertListener?.(alert);
   }
 
   private setupErrorTracking() {
-    window.addEventListener('error', (event) => {
-      this.addAlert({ type: 'error', severity: 'high', message: event.message, timestamp: Date.now() });
+    window.addEventListener("error", (event) => {
+      this.addAlert({
+        type: "error",
+        severity: "high",
+        message: event.message,
+        timestamp: Date.now(),
+      });
     });
-    window.addEventListener('unhandledrejection', (event) => {
-      this.addAlert({ type: 'error', severity: 'high', message: `Unhandled Promise Rejection: ${event.reason}`, timestamp: Date.now() });
+    window.addEventListener("unhandledrejection", (event) => {
+      this.addAlert({
+        type: "error",
+        severity: "high",
+        message: `Unhandled Promise Rejection: ${event.reason}`,
+        timestamp: Date.now(),
+      });
     });
   }
 
   private setupNetworkTracking() {
     const originalFetch = window.fetch;
-    window.fetch = async (...args: any[]) => {
+    window.fetch = async (...args: Parameters<typeof fetch>) => {
       const startTime = performance.now();
       try {
         const response = await originalFetch(...args);
-        this.recordNetworkRequest(performance.now() - startTime, response.status);
+        this.recordNetworkRequest(
+          performance.now() - startTime,
+          response.status,
+        );
         return response;
       } catch (error) {
         this.recordNetworkRequest(performance.now() - startTime, 0);
@@ -187,7 +203,10 @@ class PerformanceMonitor {
 
   private calculateAverageLatency(): number {
     if (this.networkLatencies.length === 0) return 0;
-    return Math.round(this.networkLatencies.reduce((a, b) => a + b, 0) / this.networkLatencies.length);
+    return Math.round(
+      this.networkLatencies.reduce((a, b) => a + b, 0) /
+        this.networkLatencies.length,
+    );
   }
 
   getSummary() {
@@ -197,7 +216,22 @@ class PerformanceMonitor {
     return {
       avgFps: Math.round(fps.reduce((a, b) => a + b, 0) / fps.length),
       minFps: Math.min(...fps),
-      maxFps: Math.max(...fps)
+      maxFps: Math.max(...fps),
+    };
+  }
+
+  onMetricsUpdate(cb: (metrics: PerformanceMetrics) => void): () => void {
+    this.metricsUpdateListener = cb;
+    return () => {
+      if (this.metricsUpdateListener === cb)
+        this.metricsUpdateListener = undefined;
+    };
+  }
+
+  onAlert(cb: (alert: PerformanceAlert) => void): () => void {
+    this.alertListener = cb;
+    return () => {
+      if (this.alertListener === cb) this.alertListener = undefined;
     };
   }
 }

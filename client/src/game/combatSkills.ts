@@ -7,6 +7,7 @@ export type ClientSkillInfo = {
   kind: "offensive" | "self";
   /** Matches server `skillDefinitions` cooldownMs (for UI progress) */
   cooldownMs: number;
+  unlockRequired?: "worldboss_first_clear";
 };
 
 export const ACTIVE_COMBAT_SKILLS: ClientSkillInfo[] = [
@@ -52,6 +53,14 @@ export const ACTIVE_COMBAT_SKILLS: ClientSkillInfo[] = [
     kind: "offensive",
     cooldownMs: 5500,
   },
+  {
+    id: "impact_buster",
+    name: "Impact Buster",
+    detail: "30 stamina · 8s · aoe burst",
+    kind: "offensive",
+    cooldownMs: 8000,
+    unlockRequired: "worldboss_first_clear",
+  },
 ];
 
 export const QUICK_CAST_SKILL_STORAGE_KEY = "areloria_quick_cast_skill_id";
@@ -81,6 +90,3 @@ export function setQuickCastSkillId(skillId: string): void {
   }
   window.dispatchEvent(new CustomEvent("areloria-quick-cast-changed", { detail: { skillId: id } }));
 }
-
-/** @deprecated use getQuickCastSkillId */
-export const PRIMARY_QUICK_CAST_SKILL_ID = DEFAULT_QUICK_CAST_SKILL_ID;

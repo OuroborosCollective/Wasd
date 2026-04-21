@@ -13,7 +13,7 @@ describe("InventorySystem stacking", () => {
   it("merges misc iron_scrap into one row up to maxStack", () => {
     const player: any = {
       inventory: [],
-      equipment: { weapon: null, armor: null },
+      equipment: { weapon: null, armor: null, offHand: null },
     };
     for (let i = 0; i < 55; i++) {
       const one = ItemRegistry.createInstance("iron_scrap", 1);
@@ -28,7 +28,7 @@ describe("InventorySystem stacking", () => {
   });
 
   it("takeOneFromBag reduces stack count", () => {
-    const player: any = { inventory: [], equipment: { weapon: null, armor: null } };
+    const player: any = { inventory: [], equipment: { weapon: null, armor: null, offHand: null } };
     const stack = ItemRegistry.createInstance("minor_mana_draught", 5);
     if (stack) inv.addItem(player, stack);
     expect(player.inventory.length).toBe(1);

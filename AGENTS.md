@@ -20,7 +20,7 @@ Arelorian/Ouroboros is a browser-based MMORPG: `server/` (Express + WebSocket ga
 - **Command:** `pnpm run dev` (runs `tsx watch src/index.ts` in `server/`).
 - The server starts on port 3000 and embeds the Vite client dev middleware (serves the client at `/`).
 - **Known gotcha:** `tsx watch` may restart in a loop because Vite middleware writes temp files to `client/node_modules/.vite-temp/`. For a stable session, run `npx tsx server/src/index.ts` directly (without watch) from the workspace root.
-- Firebase/Firestore is optional for local dev. Without `FIREBASE_SERVICE_ACCOUNT_KEY`, the server logs warnings but continues with in-memory state. **Game WebSocket login:** by default Firebase JWT is **not** verified (`USE_FIREBASE_WS_LOGIN` unset/0) — use dev/guest login while building gameplay; set `USE_FIREBASE_WS_LOGIN=1` to verify tokens again. **Client HUD:** Firebase buttons hidden by default (`VITE_DISABLE_FIREBASE_AUTH` unset = off); set `VITE_DISABLE_FIREBASE_AUTH=0` to show Google/email login again.
+- Firebase/Firestore is optional for local dev. Without `FIREBASE_SERVICE_ACCOUNT_KEY`, the server logs warnings but continues with in-memory state. **Game WebSocket login:** by default Firebase JWT is **not** verified (`USE_FIREBASE_WS_LOGIN` unset/0) — use dev/guest login while building gameplay; set `USE_FIREBASE_WS_LOGIN=1` to verify tokens again. **Client HUD:** select provider with `VITE_AUTH_PROVIDER` (`firebase` to show Google/email login, `none` to hide).
 - Redis and PostgreSQL are optional; the server falls back gracefully without them.
 - **`GET /health`** includes **`firebase`** (`configured`, `initMode`: cert | application_default | none, `projectId`, credential flags) and **`auth`** (`useFirebaseWsLogin`, `requireFirebaseAuth`, `allowGuestLogin`, `allowDevLogin`). See **`docs/FIREBASE_VPS_CHECKLIST.md`**.
 - **Static assets:** Repo-root **`world-assets/`** is mirrored by **`scripts/sync-world-assets.mjs`** into **`client/public/assets/models/world-assets/`** (bundled as **`/assets/models/world-assets/*`**) and into **`client/public/world-assets/`** (dev). Client **`predev`/`prebuild`** runs the sync. **`pnpm run sync:world-assets`** at repo root does the same. The server serves legacy **`/world-assets/*`** from that mirror when present, else from repo **`world-assets/`** (**`WORLD_ASSETS_DIR`** / **`MIRRORED_WORLD_ASSETS_DIR`** override). Prefer **`CLIENT_ROOT_DIR`** when `cwd` is not the monorepo root.
@@ -54,3 +54,9 @@ Copy `.env.example` to `.env`. Only `PORT` and `NODE_ENV` are needed for local d
 
 ### Testing the game loop without a browser
 Connect via WebSocket to `ws://localhost:3000/ws` and send `{"type":"login"}`. The server assigns a dev player; **`entity_sync`** is broadcast on a configurable interval (default **200 ms**, sim tick **100 ms**). Use `input` (WASD keydown/keyup), `move_intent` (analog), `interact`, `dialogue_choice`, and `attack` as needed.
+
+### Cloud agent gotchas
+- **`/health` in dev mode:** Vite SPA middleware (registered before Express routes) intercepts `/health`. Use the WebSocket game loop to verify the server is running instead.
+- **GCP metadata warnings:** Without `FIREBASE_SERVICE_ACCOUNT_KEY`, the server emits noisy `MetadataLookupWarning` and `GcpLogger` errors to stderr. These are harmless — the server continues with in-memory/JSON fallback.
+- **pnpm strict `node_modules`:** The `ws` package (and other server deps) is only resolvable from `server/` directory context, not from workspace root. Run WebSocket test scripts with `cd server && node -e "..." --input-type=module`.
+- **Node/pnpm versions:** Node 22.x and pnpm 10.x work with the lockfile (v9.0 format). No `.nvmrc` or `engines` field pins versions.

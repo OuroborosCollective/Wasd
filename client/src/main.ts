@@ -1,16 +1,21 @@
+import "./styles/tailwind.css";
 import { createBabylonApp } from "./engine/babylon/BabylonBoot";
 import { BabylonAdapter } from "./engine/babylon/BabylonAdapter";
 import { MMORPGClientCore } from "./core/MMORPGClientCore";
-import { connectSocket, requestSceneChange, type ConnectionOptions } from "./networking/websocketClient";
+import { connectSocket, requestSceneChange, sendCommand, type ConnectionOptions } from "./networking/websocketClient";
 import { IEngineBridge } from "./engine/bridge/IEngineBridge";
 import { renderHUD, showDialogue } from "./ui/hud";
+import { mountGameHudOverlay } from "./ui/mountGameHudOverlay";
+import { initSupabaseClient, getSupabaseClientSync } from "./auth/supabase";
 import { getJoystickState, initMobileControls, isMobile } from "./ui/mobileControls";
 import { openEquipmentPanel, openInventory, openQuestLog, openSkillsPanel } from "./ui/lazyPanels";
 import { getQuickCastSkillId } from "./game/combatSkills";
-import { renderMobileSceneTeleportPanel } from "./ui/mobileSceneTeleportPanel";
+import { triggerImpactBusterClientGuard } from "./game/impactBuster";
 import { performanceMonitor } from "./utils/PerformanceMonitor";
-import { isFirebaseGameAuthDisabled } from "./config/gameAuth";
-import { installFirebaseAiWatchdog } from "./ai/firebaseAiWatchdog";
+import { resolveGameAuthProvider } from "./config/gameAuth";
+import { initChat, focusChatInput } from "./ui/chat";
+import { initMinimap, toggleMinimapVisibility } from "./ui/minimap";
+import { worldService } from "./game/world/services";
 
 type AREPolicyConfig = {
   cooldownMs?: number;
@@ -62,9 +67,9 @@ function showBootStatus(message: string, tone: "info" | "warn" | "error" | "ok" 
 }
 
 function bootEngineBridge(targetCanvas: HTMLCanvasElement): IEngineBridge {
-  const app = createBabylonApp(targetCanvas);
+  const app = createBabylonApp(targetCanvas, { skipGround: true });
   (window as any).babylonScene = app.scene;
-  console.log("Renderer: Babylon");
+  console.log("Renderer: Babylon (DynamicTerrain enabled)");
   return new BabylonAdapter(app.scene, app.camera);
 }
 
@@ -84,12 +89,27 @@ async function loadAREPolicyConfig(): Promise<AREPolicyConfig | undefined> {
   }
 }
 
+void (async () => {
 try {
-  installFirebaseAiWatchdog();
   showBootStatus("Booting renderer...", "info");
   // 1. Boot Engine + Adapter
   const adapter = bootEngineBridge(canvas);
   showBootStatus("Renderer ready. Connecting to world...", "info");
+
+  // Initialize world services (terrain, trees, physics, atmosphere, etc.)
+  try {
+    const scene = (window as any).babylonScene;
+    if (scene) {
+      // Find the camera in the scene
+      const camera = scene.activeCamera;
+      if (camera) {
+        await worldService.init(scene, camera);
+        console.log("[main] World services initialized.");
+      }
+    }
+  } catch (e) {
+    console.warn("[main] World service init failed (non-fatal):", e);
+  }
 
   if (typeof window !== "undefined") {
     window.addEventListener("areloria:net-status", (event: Event) => {
@@ -108,11 +128,20 @@ try {
   // 2. Create Core
   const core = new MMORPGClientCore(adapter);
   (window as any).gameCore = core;
+  mountGameHudOverlay(core);
   core.registerDefaultInput();
+
+  await initSupabaseClient();
+  // Legacy DOM HUD: Supabase sign-in + guest controls (React HUD has no auth forms).
+  renderHUD();
 
   // 3. Connect Systems
   const connectionOptions: ConnectionOptions = {};
-  if (!isFirebaseGameAuthDisabled()) {
+  let authProvider = resolveGameAuthProvider();
+  if (authProvider === "none" && getSupabaseClientSync()) {
+    authProvider = "supabase";
+  }
+  if (authProvider !== "none") {
     let persistedToken: string | null = null;
     try {
       persistedToken = localStorage.getItem("token");
@@ -140,8 +169,9 @@ try {
       connectSocket(core, connectionOptions);
     });
   (window as any).requestSceneChange = requestSceneChange;
-  renderHUD();
-  renderMobileSceneTeleportPanel();
+  initChat((type, payload) => sendCommand(type, payload));
+  initMinimap();
+  // Legacy quick-teleport panel removed from gameplay HUD.
   initMobileControls(
     core,
     {
@@ -159,12 +189,19 @@ try {
       onSkills: () => {
         void openSkillsPanel();
       },
-      onQuickSkill: () => core.useSkill(getQuickCastSkillId()),
+      onQuickSkill: () => {
+        const quick = getQuickCastSkillId();
+        if (quick === "impact_buster") {
+          triggerImpactBusterClientGuard();
+          return;
+        }
+        core.useSkill(quick);
+      },
       onMap: () => {
-        console.log("Map toggled");
+        toggleMinimapVisibility();
       },
       onChat: () => {
-        console.log("Chat toggled");
+        focusChatInput();
       },
     },
     (_delta: number) => {},
@@ -172,11 +209,25 @@ try {
   );
   performanceMonitor.start();
 
+  window.addEventListener("keydown", (event) => {
+    const target = event.target as HTMLElement | null;
+    if (
+      target &&
+      (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)
+    ) {
+      return;
+    }
+    if (event.key.toLowerCase() === "f") {
+      triggerImpactBusterClientGuard();
+    }
+  });
+
   let lastFrameTime = performance.now();
   const tick = (now: number) => {
     const dt = Math.min((now - lastFrameTime) / 1000, 0.1);
     lastFrameTime = now;
     core.update(dt);
+    worldService.update();
     if (isMobile()) {
       const j = getJoystickState();
       if (j.active && (Math.abs(j.dx) > 0.04 || Math.abs(j.dy) > 0.04)) {
@@ -192,7 +243,13 @@ try {
   });
 
   console.log("Areloria Client Initialized");
+
+  // Cleanup on page unload
+  window.addEventListener("beforeunload", () => {
+    worldService.dispose();
+  });
 } catch (error: any) {
   console.error("Fatal client bootstrap error:", error);
   showBootStatus(`Fatal bootstrap error: ${error?.message || "Unknown error"}`);
 }
+})();

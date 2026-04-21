@@ -2,6 +2,7 @@ import { ACTIVE_COMBAT_SKILLS } from "../game/combatSkills";
 import { sendUseSkill } from "../networking/websocketClient";
 import {
   getPlayerDead,
+  isImpactBusterUnlocked,
   getSkillCooldownUntil,
   subscribePlayerState,
 } from "../state/playerState";
@@ -13,6 +14,7 @@ const ABBREV: Record<string, string> = {
   vitality_tap: "♥",
   shadow_tag: "Sh",
   aether_pulse: "Ae",
+  impact_buster: "IB",
 };
 
 let rafId: number | null = null;
@@ -56,15 +58,19 @@ function skillButton(skillId: string, label: string): HTMLButtonElement {
 
 function updateBar(root: HTMLElement) {
   const dead = getPlayerDead();
+  const impactUnlocked = isImpactBusterUnlocked();
   const cds = getSkillCooldownUntil();
   const now = Date.now();
   for (const btn of root.querySelectorAll("button[data-skill-id]")) {
     const el = btn as HTMLButtonElement;
     const id = el.dataset.skillId!;
+    const isImpact = id === "impact_buster";
+    const locked = isImpact && !impactUnlocked;
     const until = cds[id] ?? 0;
     const onCd = until > now;
-    el.disabled = dead || onCd;
-    el.style.opacity = dead ? "0.35" : onCd ? "0.55" : "1";
+    el.disabled = dead || onCd || locked;
+    el.style.opacity = dead ? "0.35" : locked ? "0.45" : onCd ? "0.55" : "1";
+    el.title = locked ? "Impact Buster locked (first Worldboss clear required)." : el.title;
     const fill = el.querySelector("div") as HTMLDivElement | null;
     if (fill && onCd) {
       const def = ACTIVE_COMBAT_SKILLS.find((s) => s.id === id);
@@ -72,8 +78,12 @@ function updateBar(root: HTMLElement) {
       const left = Math.max(0, until - now);
       const pct = Math.min(100, Math.max(0, (1 - left / total) * 100));
       fill.style.width = `${pct}%`;
+    } else if (fill && locked) {
+      fill.style.width = "100%";
+      fill.style.background = "linear-gradient(90deg,#6b7280,#9ca3af)";
     } else if (fill) {
       fill.style.width = "0%";
+      fill.style.background = "linear-gradient(90deg,#8b5cf6,#c4b5fd)";
     }
   }
 }

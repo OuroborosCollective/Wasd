@@ -14,19 +14,15 @@
  * limitations under the License.
  */
 
+/**
+ * Legacy environments config — DEACTIVATED
+ *
+ * Firebase config has been removed. This file exists only as a stub.
+ */
+
 declare const window: any;
 
 export declare interface BootstrapData {
-  firebase: {
-    apiKey?: string;
-    authDomain?: string,
-    databaseURL?: string,
-    projectId?: string,
-    storageBucket?: string,
-    messagingSenderId?: string,
-    measurementId?: string,
-    appId?: string,
-  };
   viewCodeLink?: string;
   viewCodeMessage?: string;
 }
@@ -38,9 +34,6 @@ if (!bootstrapData) {
 }
 
 export const environment = {
-  firebase: {
-      ...bootstrapData?.firebase,
-  },
   viewCodeLink: bootstrapData?.viewCodeLink || '',
   viewCodeMessage: bootstrapData?.viewCodeMessage || '',
 };

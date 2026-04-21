@@ -7,7 +7,10 @@ import {
   setQuickCastSkillId,
 } from "../game/combatSkills";
 
-function mountQuickCastPicker(container: HTMLElement, compact: boolean): () => void {
+function mountQuickCastPicker(
+  container: HTMLElement,
+  compact: boolean,
+): () => void {
   const wrap = document.createElement("div");
   wrap.style.marginBottom = "12px";
   wrap.style.padding = compact ? "10px 8px" : "10px";
@@ -69,10 +72,14 @@ function mountQuickCastPicker(container: HTMLElement, compact: boolean): () => v
 
   const onChanged = () => syncChecked();
   window.addEventListener("areloria-quick-cast-changed", onChanged);
-  return () => window.removeEventListener("areloria-quick-cast-changed", onChanged);
+  return () =>
+    window.removeEventListener("areloria-quick-cast-changed", onChanged);
 }
 
-function skillRow(skill: (typeof ACTIVE_COMBAT_SKILLS)[0], compact: boolean): HTMLDivElement {
+function skillRow(
+  skill: (typeof ACTIVE_COMBAT_SKILLS)[0],
+  compact: boolean,
+): HTMLDivElement {
   const row = document.createElement("div");
   row.style.display = "flex";
   row.style.alignItems = "center";
@@ -80,7 +87,8 @@ function skillRow(skill: (typeof ACTIVE_COMBAT_SKILLS)[0], compact: boolean): HT
   row.style.gap = "10px";
   row.style.padding = compact ? "12px 10px" : "10px 8px";
   row.style.borderRadius = "10px";
-  row.style.background = "var(--surface-container-high, rgba(255,255,255,0.06))";
+  row.style.background =
+    "var(--surface-container-high, rgba(255,255,255,0.06))";
   row.style.border = "1px solid var(--outline-variant, rgba(255,255,255,0.12))";
 
   const text = document.createElement("div");
@@ -115,7 +123,24 @@ function skillRow(skill: (typeof ACTIVE_COMBAT_SKILLS)[0], compact: boolean): HT
   setQuick.style.color = "#e8e4ff";
   setQuick.style.fontSize = "12px";
   setQuick.style.touchAction = "manipulation";
-  setQuick.onclick = () => setQuickCastSkillId(skill.id);
+  setQuick.onclick = (e) => {
+    e.stopPropagation();
+    setQuickCastSkillId(skill.id);
+  };
+  setQuick.addEventListener(
+    "touchstart",
+    (e) => {
+      e.stopPropagation();
+    },
+    { passive: false },
+  );
+  setQuick.addEventListener(
+    "pointerdown",
+    (e) => {
+      e.stopPropagation();
+    },
+    { passive: false },
+  );
 
   const btn = document.createElement("button");
   btn.type = "button";
@@ -128,7 +153,24 @@ function skillRow(skill: (typeof ACTIVE_COMBAT_SKILLS)[0], compact: boolean): HT
   btn.style.color = "#f0e8ff";
   btn.style.fontSize = "14px";
   btn.style.touchAction = "manipulation";
-  btn.onclick = () => sendUseSkill(skill.id);
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    sendUseSkill(skill.id);
+  };
+  btn.addEventListener(
+    "touchstart",
+    (e) => {
+      e.stopPropagation();
+    },
+    { passive: false },
+  );
+  btn.addEventListener(
+    "pointerdown",
+    (e) => {
+      e.stopPropagation();
+    },
+    { passive: false },
+  );
 
   btnWrap.appendChild(setQuick);
   btnWrap.appendChild(btn);
@@ -191,10 +233,15 @@ export function renderSkillsPanel() {
     panel!.addEventListener(evt, stopEvents, { passive: true });
   });
   [
-    "touchend", "touchcancel",
-    "mousedown", "mouseup", "mousemove",
-    "pointerdown", "pointerup", "pointermove",
-    "click"
+    "touchend",
+    "touchcancel",
+    "mousedown",
+    "mouseup",
+    "mousemove",
+    "pointerdown",
+    "pointerup",
+    "pointermove",
+    "click",
   ].forEach((evt) => {
     panel!.addEventListener(evt, stopEvents, { passive: false });
   });
@@ -218,9 +265,24 @@ export function renderSkillsPanel() {
   closeBtn.className = "btn-gold";
   Object.assign(closeBtn.style, panelCloseButtonStyles(compact));
   closeBtn.setAttribute("aria-label", "Close Skills Panel");
-  closeBtn.onclick = () => {
+  closeBtn.onclick = (e) => {
+    e.stopPropagation();
     panel!.style.display = "none";
   };
+  closeBtn.addEventListener(
+    "touchstart",
+    (e) => {
+      e.stopPropagation();
+    },
+    { passive: false },
+  );
+  closeBtn.addEventListener(
+    "pointerdown",
+    (e) => {
+      e.stopPropagation();
+    },
+    { passive: false },
+  );
 
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Escape" && panel!.style.display !== "none") {
@@ -240,7 +302,7 @@ export function renderSkillsPanel() {
   content.style.flexDirection = "column";
   content.style.gap = "8px";
   content.style.overflowY = "auto";
-  content.style.webkitOverflowScrolling = "touch";
+  content.style.setProperty("-webkit-overflow-scrolling", "touch");
   content.style.padding = compact ? "8px 4px" : "5px";
 
   refreshSkillsContent(content, compact);
