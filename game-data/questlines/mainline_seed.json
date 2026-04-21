@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "questlines": [
+    {
+      "id": "mainline_awakening",
+      "title": "Erwachen der Stränge",
+      "strandKey": "A",
+      "entryNode": "start",
+      "graph": {
+        "start": {
+          "id": "start",
+          "title": "Der erste Faden",
+          "text": "Ein Bote des Kaiserreichs überreicht dir ein versiegeltes Schreiben.",
+          "featureTriggers": ["combat", "exploration"],
+          "choices": [
+            { "id": "accept", "label": "Auftrag annehmen", "nextNode": "path_light" },
+            { "id": "refuse", "label": "Ablehnen", "nextNode": "path_shadow", "requiresFlags": ["shadow_contact"] }
+          ]
+        },
+        "path_light": {
+          "id": "path_light",
+          "title": "Pfad des Lichts",
+          "text": "Du folgst der Hauptstraße nach Aeloria.",
+          "featureTriggers": ["trading", "crafting"],
+          "choices": [{ "id": "continue", "label": "Weiter", "nextNode": "end_capital" }]
+        },
+        "path_shadow": {
+          "id": "path_shadow",
+          "title": "Pfad der Schatten",
+          "text": "Ein Fremder flüstert dir einen anderen Weg zu.",
+          "featureTriggers": ["stealth", "blackmarket"],
+          "choices": [{ "id": "slip_away", "label": "Verschwinden", "nextNode": "end_umbrath" }]
+        },
+        "end_capital": {
+          "id": "end_capital",
+          "title": "Vor den Toren",
+          "text": "Die Hauptstadt ragt vor dir auf — für jetzt endet der Leinenstrang hier.",
+          "choices": []
+        },
+        "end_umbrath": {
+          "id": "end_umbrath",
+          "title": "Rand des Reichs",
+          "text": "Umbrath atmet kalt — der Strang wartet auf deine Rückkehr.",
+          "choices": []
+        }
+      }
+    }
+  ]
+}

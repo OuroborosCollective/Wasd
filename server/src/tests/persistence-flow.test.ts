@@ -11,7 +11,7 @@ import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
 function waitForMessage(
   ws: WebSocket,
   pred: (data: any) => boolean,
-  timeoutMs = 8000
+  timeoutMs = 8000,
 ): Promise<any> {
   return new Promise((resolve, reject) => {
     const t = setTimeout(() => {
@@ -43,7 +43,7 @@ describe("WS persistence flow (file store)", () => {
     savePath = path.join(tmpDir, "players.json");
     process.env.PLAYER_SAVE_FILE = savePath;
     process.env.ALLOW_GUEST_LOGIN = "1";
-    process.env.NODE_ENV = "test";
+    Object.assign(process.env, { NODE_ENV: "test" });
   });
 
   afterAll(() => {
@@ -72,7 +72,10 @@ describe("WS persistence flow (file store)", () => {
       return { httpServer, tick, port: p };
     };
 
-    const stop = async (httpServer: ReturnType<typeof createServer>, tick: InstanceType<typeof WorldTick>) => {
+    const stop = async (
+      httpServer: ReturnType<typeof createServer>,
+      tick: InstanceType<typeof WorldTick>,
+    ) => {
       tick.stop();
       await new Promise<void>((resolve, reject) => {
         httpServer.close((err) => (err ? reject(err) : resolve()));
@@ -94,7 +97,7 @@ describe("WS persistence flow (file store)", () => {
           guestName: "FlowTester",
           sceneId: "didis_hub",
           spawnKey: "sp_player_default",
-        })
+        }),
       );
       const welcome = await waitForMessage(ws, (d) => d.type === "welcome");
       const pid = welcome.playerId || welcome.id;
@@ -115,18 +118,23 @@ describe("WS persistence flow (file store)", () => {
       await new Promise((r) => setTimeout(r, 200));
       expect(player!.combatTargetNpcId).toBe("npc_dummy");
 
-      ws.send(JSON.stringify({ type: "use_item", itemId: "minor_mana_draught" }));
+      ws.send(
+        JSON.stringify({ type: "use_item", itemId: "minor_mana_draught" }),
+      );
       await waitForMessage(
         ws,
-        (d) => d.type === "stats_sync" && typeof d.mana === "number" && d.mana >= 20
+        (d) =>
+          d.type === "stats_sync" && typeof d.mana === "number" && d.mana >= 20,
       );
 
       ws.send(JSON.stringify({ type: "use_skill", skillId: "ember_bolt" }));
       await waitForMessage(
         ws,
         (d) =>
-          (d.type === "toast" && typeof d.text === "string" && d.text.includes("Ember Bolt")) ||
-          d.type === "entity_action"
+          (d.type === "toast" &&
+            typeof d.text === "string" &&
+            d.text.includes("Ember Bolt")) ||
+          d.type === "entity_action",
       );
 
       await new Promise<void>((resolve) => {
@@ -154,7 +162,7 @@ describe("WS persistence flow (file store)", () => {
           guestName: "FlowTester",
           sceneId: "didis_hub",
           spawnKey: "sp_player_default",
-        })
+        }),
       );
       await waitForMessage(ws, (d) => d.type === "welcome");
       const pid2 =
@@ -163,7 +171,9 @@ describe("WS persistence flow (file store)", () => {
       expect(pid2).toBe(guestId);
       const p2 = tick.playerSystem.getPlayer(guestId);
       expect(p2?.combatTargetNpcId).toBe("npc_dummy");
-      const hasPotion = (p2?.inventory || []).some((i: any) => i?.id === "minor_mana_draught");
+      const hasPotion = (p2?.inventory || []).some(
+        (i: any) => i?.id === "minor_mana_draught",
+      );
       expect(hasPotion).toBe(false);
 
       ws.close();

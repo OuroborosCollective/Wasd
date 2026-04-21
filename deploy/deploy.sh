@@ -43,37 +43,60 @@ npm install -g pnpm pm2 2>/dev/null || true
 echo "[4/10] Cloning/updating repository..."
 if [ -d "$APP_DIR/.git" ]; then
   cd "$APP_DIR"
-  git pull origin main
+  git fetch origin main
+  git reset --hard origin/main
 else
   git clone "$REPO_URL" "$APP_DIR"
   cd "$APP_DIR"
 fi
 
-# ── 5. Install dependencies ───────────────────────────────
-echo "[5/10] Installing server dependencies..."
-cd "$APP_DIR/server"
-npm install
+# ── 5–7. Install (workspace) + build ─────────────────────
+# Prefer pnpm + pnpm-lock.yaml (same as GitHub CI). Falls back to per-package npm if needed.
+export BUILD_NODE_OPTIONS="${BUILD_NODE_OPTIONS:---max-old-space-size=8192}"
 
-echo "[5b/10] Installing client dependencies..."
-cd "$APP_DIR/client"
-npm install
+# ── Load .env so VITE_* vars are available at build time ──
+# Vite bakes VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY into the client JS
+# at BUILD time.  Without this, the client gets empty strings and login breaks.
+# (In CI, sync-supabase-env.sh already exported them, but this covers the case
+# where deploy.sh runs standalone or after a git reset overwrites .env.)
+ENV_FILE="$APP_DIR/.env"
+if [ -f "$ENV_FILE" ]; then
+  echo "[5a] Loading build-time env from $ENV_FILE ..."
+  set -a
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+  set +a
+  echo "  VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-(empty!)}"
+  echo "  VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY:+***set***}"
+else
+  echo "[5a] WARNING: $ENV_FILE not found — VITE_* build vars may be empty!"
+fi
+cd "$APP_DIR"
 
-# ── 6. Build client ───────────────────────────────────────
-echo "[6/10] Building client (Vite)..."
-cd "$APP_DIR/client"
-echo "[6a/10] Sync world-assets → client/public (and assets/models mirror)..."
-node "$APP_DIR/scripts/sync-world-assets.mjs" || true
-# Avoid OOM on VPS during large Vite bundle render.
-BUILD_NODE_OPTIONS="${BUILD_NODE_OPTIONS:---max-old-space-size=8192}"
-echo "Using client build NODE_OPTIONS=${BUILD_NODE_OPTIONS}"
-NODE_OPTIONS="$BUILD_NODE_OPTIONS" node -e "const v8=require('node:v8'); console.log('Heap limit MB:', Math.round(v8.getHeapStatistics().heap_size_limit/1024/1024));"
-NODE_OPTIONS="$BUILD_NODE_OPTIONS" node ./node_modules/vite/bin/vite.js build
-echo "Client build finished with heap guard."
-
-# ── 7. Build server ───────────────────────────────────────
-echo "[7/10] Building server (TypeScript)..."
-cd "$APP_DIR/server"
-npm run build
+if command -v pnpm >/dev/null 2>&1 && [ -f "$APP_DIR/pnpm-lock.yaml" ]; then
+  echo "[5/10] pnpm install (workspace, frozen lockfile)..."
+  corepack enable 2>/dev/null || true
+  pnpm install --frozen-lockfile
+  echo "[6–7/10] Sync world-assets + pnpm run build (client prebuild + server)..."
+  node "$APP_DIR/scripts/sync-world-assets.mjs" || true
+  NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm run build
+else
+  echo "[5/10] pnpm workspace not available — npm install in server/ and client/..."
+  cd "$APP_DIR/server"
+  npm install
+  cd "$APP_DIR/client"
+  npm install
+  echo "[6/10] Building client (Vite)..."
+  cd "$APP_DIR/client"
+  echo "[6a/10] Sync world-assets → client/public (and assets/models mirror)..."
+  node "$APP_DIR/scripts/sync-world-assets.mjs" || true
+  echo "Using client build NODE_OPTIONS=${BUILD_NODE_OPTIONS}"
+  NODE_OPTIONS="$BUILD_NODE_OPTIONS" node -e "const v8=require('node:v8'); console.log('Heap limit MB:', Math.round(v8.getHeapStatistics().heap_size_limit/1024/1024));"
+  NODE_OPTIONS="$BUILD_NODE_OPTIONS" node ./node_modules/vite/bin/vite.js build
+  echo "[7/10] Building server (TypeScript)..."
+  cd "$APP_DIR/server"
+  npm run build
+fi
 
 # ── 8. Create symlink for game-data ───────────────────────
 echo "[8/10] Setting up game-data symlink..."
@@ -91,45 +114,67 @@ if [ ! -f "$APP_DIR/.env" ]; then
   echo "⚠️  WARNING: No .env file found! Creating template..."
   cat > "$APP_DIR/.env" << 'ENVEOF'
 # Areloria MMORPG Environment Variables
-# Fill in all values before starting the server!
+# Supabase/Postgres keys can be merged from CI via deploy/sync-supabase-env.sh (GitHub Actions secrets).
+# Fill secrets in an editor on the VPS — do not commit real values.
 
 # Server
 PORT=3000
 NODE_ENV=production
 
-# PostgreSQL (Azure)
-PGHOST=are.postgres.database.azure.com
+# --- Supabase (client + server auth / proxy) ---
+VITE_AUTH_PROVIDER=***
+VITE_SUPABASE_URL=
+VITE_SUPABASE_PUBLIC_URL=
+VITE_SUPABASE_ANON_KEY=
+SUPABASE_URL=
+SUPABASE_PUBLIC_URL=
+API_EXTERNAL_URL=
+SUPABASE_PROXY_URL=http://127.0.0.1:8000
+GAME_ORIGIN=https://arelogic.space
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_JWT_SECRET=
+
+# --- Postgres (persistence / questlines) ---
+# Prefer DATABASE_URL=postgresql://user:pass@host:5432/dbname
+DATABASE_URL=
+PGHOST=
 PGPORT=5432
-PGDATABASE=areloria
-PGUSER=Thosu
-PGPASSWORD=CHANGE_ME
-PGSSL=true
+PGDATABASE=postgres
+PGUSER=postgres
+PGPASSWORD=
+POSTGRES_HOST=
+POSTGRES_PORT=
+POSTGRES_DB=
+POSTGRES_USER=
+POSTGRES_PASSWORD=
+POOLER_PROXY_PORT_TRANSACTION=
+# Docker internal db without TLS: DATABASE_SSL_DISABLED=1
+# PGSSL=true
 
-# Firebase (Client Auth)
-VITE_FIREBASE_API_KEY=AIzaSyA96_GG61GsDBHh4ysw4-AfoRHVJ_MNQJw
-VITE_FIREBASE_AUTH_DOMAIN=studio-8985161445-f6ce5.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=studio-8985161445-f6ce5
-VITE_FIREBASE_MESSAGING_SENDER_ID=426167977735
-VITE_FIREBASE_APP_ID=1:426167977735:web:5e2951f4365b233af167a2
+# --- Optional: Firebase web (if VITE_AUTH_PROVIDER=firebase) ---
+# VITE_FIREBASE_API_KEY=
+# VITE_FIREBASE_AUTH_DOMAIN=
+# VITE_FIREBASE_PROJECT_ID=
+# VITE_FIREBASE_MESSAGING_SENDER_ID=
+# VITE_FIREBASE_APP_ID=
 
-# PayPal (Live)
-PAYPAL_CLIENT_ID=Ad9Dhbq69h7OJgx9sXhdOCpQWVmIxy03i4gPIZLYPpn23h9vca3UHop996hP8i_BVV3CckntggNTiZwR
-PAYPAL_CLIENT_SECRET=EFj9uptvjpqrnvy6V38dlkDHbuYwRgNNoY9ptsXehEEj0ftKADHZ8XgRz3vMCN_l1Yw2oIgR2xoGWBkF
-PAYPAL_MODE=live
+# --- Optional: PayPal ---
+# PAYPAL_CLIENT_ID=
+# PAYPAL_CLIENT_SECRET=
+# PAYPAL_MODE=sandbox
 
-# JWT Secret (change this!)
+# JWT fallback (server also accepts SUPABASE_JWT_SECRET for Supabase tokens)
 JWT_SECRET=CHANGE_THIS_TO_A_RANDOM_SECRET_STRING
 
-# Firebase Admin (server) — upload JSON to secrets/ then run:
-#   ./deploy/setup-firebase-service-account.sh /path/to/key.json
-# Or place file at: /opt/areloria/secrets/firebase-adminsdk.json (deploy links it on next run)
+# Firebase Admin (server) — place JSON at secrets/ then deploy links it:
 # FIREBASE_SERVICE_ACCOUNT_KEY=/opt/areloria/secrets/firebase-adminsdk.json
 # FIREBASE_PROJECT_ID=your-gcp-project-id
 ENVEOF
-  echo "⚠️  Please edit $APP_DIR/.env and fill in PGPASSWORD and JWT_SECRET!"
+  echo "⚠️  Please edit $APP_DIR/.env (DATABASE_URL or PG*, SUPABASE_*, JWT/SUPABASE_JWT_SECRET)."
 fi
 
-# If Admin SDK JSON exists and .env has no FIREBASE_SERVICE_ACCOUNT_KEY, append path (no secret in repo).
+# If Admin SDK JSON exists and .env has no Firebase lines, append paths (no secret in repo).
 if [ -f "$FIREBASE_KEY_FILE" ] && [ -f "$APP_DIR/.env" ]; then
   if ! grep -q '^[[:space:]]*FIREBASE_SERVICE_ACCOUNT_KEY=' "$APP_DIR/.env" 2>/dev/null; then
     {
@@ -138,6 +183,10 @@ if [ -f "$FIREBASE_KEY_FILE" ] && [ -f "$APP_DIR/.env" ]; then
       echo "FIREBASE_SERVICE_ACCOUNT_KEY=$FIREBASE_KEY_FILE"
     } >> "$APP_DIR/.env"
     echo "✅ Linked FIREBASE_SERVICE_ACCOUNT_KEY -> $FIREBASE_KEY_FILE"
+  fi
+  if ! grep -q '^[[:space:]]*GOOGLE_APPLICATION_CREDENTIALS=' "$APP_DIR/.env" 2>/dev/null; then
+    echo "GOOGLE_APPLICATION_CREDENTIALS=$FIREBASE_KEY_FILE" >> "$APP_DIR/.env"
+    echo "✅ Linked GOOGLE_APPLICATION_CREDENTIALS -> $FIREBASE_KEY_FILE"
   fi
 fi
 

@@ -1,0 +1,19 @@
+[
+  {
+    "internalId": "vote_5a6a8ec4-147d-4752-9161-22fb2571636b",
+    "providerKey": "gtop100",
+    "displayName": "GTop100 Vote",
+    "bannerImage": "https://example.com/banner.png",
+    "targetUrl": "https://example.com/vote",
+    "isActive": true,
+    "sortOrder": 0,
+    "voteWindowHours": 12,
+    "cooldownHours": 24,
+    "buffHours": 4,
+    "verificationMode": "callback_token",
+    "providerConfig": {},
+    "metadata": {},
+    "createdAt": 1776582881764,
+    "updatedAt": 1776582881764
+  }
+]

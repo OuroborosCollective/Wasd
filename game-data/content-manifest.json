@@ -59,7 +59,8 @@
         "relic_fragment",
         "forgotten_sigil",
         "guard_token",
-        "minor_mana_draught"
+        "minor_mana_draught",
+        "mega_iron_fist_frustinator"
       ],
       "validationResult": "passed"
     }

@@ -1,8 +1,10 @@
 import { IEngineBridge } from "../engine/bridge/IEngineBridge";
 import { EntityViewModel } from "../engine/bridge/EntityViewModel";
+import { ChunkViewModel } from "./ChunkStreamManager";
 import { CoreEventBus } from "./CoreEventBus";
 import { EntityViewManager } from "./EntityViewManager";
 import { prefersCompactTouchUi } from "../ui/touchUi";
+import { getClosestInteractable } from "../utils/interaction";
 
 export class MMORPGClientCore {
   private entities: Map<string, EntityViewModel> = new Map();
@@ -12,18 +14,17 @@ export class MMORPGClientCore {
 
   constructor(private engine: IEngineBridge) {
     this.viewManager = new EntityViewManager(engine);
-    console.log("MMORPG Client Core Initialized with ViewManager");
   }
 
   private lastDt: number = 0.016;
   private footstepTimer: number = 0;
-  private lastPlayerPos: { x: number, y: number, z: number } | null = null;
+  private lastPlayerPos: { x: number; y: number; z: number } | null = null;
   private lastNavigationUpdateMs = 0;
 
   public syncEntities(serverEntities: EntityViewModel[]) {
     const currentIds = new Set(this.entities.keys());
 
-    serverEntities.forEach(entity => {
+    serverEntities.forEach((entity) => {
       this.entities.set(entity.id, entity);
       this.viewManager.upsert(entity, this.lastDt);
       currentIds.delete(entity.id);
@@ -35,7 +36,7 @@ export class MMORPGClientCore {
     });
 
     // Remove old
-    currentIds.forEach(id => {
+    currentIds.forEach((id) => {
       this.entities.delete(id);
       this.viewManager.remove(id);
     });
@@ -44,7 +45,7 @@ export class MMORPGClientCore {
   public syncChunks(serverChunks: ChunkViewModel[]) {
     const currentIds = new Set(this.chunks.keys());
 
-    serverChunks.forEach(chunk => {
+    serverChunks.forEach((chunk) => {
       if (!this.chunks.has(chunk.id)) {
         this.chunks.set(chunk.id, chunk);
         this.engine.createChunk(chunk);
@@ -53,7 +54,7 @@ export class MMORPGClientCore {
     });
 
     // Remove old
-    currentIds.forEach(id => {
+    currentIds.forEach((id) => {
       this.chunks.delete(id);
       this.engine.destroyChunk(id);
     });
@@ -103,11 +104,11 @@ export class MMORPGClientCore {
     this.engine.triggerEntityAction(entityId, action);
 
     // Play sounds for actions
-    if (action === 'attack') {
+    if (action === "attack") {
       const entity = this.entities.get(entityId);
-      this.engine.playSound('attack', {
+      this.engine.playSound("attack", {
         volume: 0.5,
-        position: entity?.position
+        position: entity?.position,
       });
     } else if (action === "hit") {
       const entity = this.entities.get(entityId);
@@ -123,11 +124,66 @@ export class MMORPGClientCore {
   }
 
   public attack() {
-    this.events.emit('attack');
+    this.events.emit("attack");
   }
 
-  public interact() {
-    this.events.emit('interact');
+  public getWorldSnapshotForInteract(): {
+    player: { position: { x: number; y: number } } | null;
+    npcs: Array<{ id: string; position: { x: number; y: number } }>;
+    loot: Array<{ id: string; position: { x: number; y: number } }>;
+  } {
+    const playerId = this.localPlayerId;
+    const p = playerId ? this.entities.get(playerId) : undefined;
+    const npcs: Array<{ id: string; position: { x: number; y: number } }> = [];
+    const loot: Array<{ id: string; position: { x: number; y: number } }> = [];
+    this.entities.forEach((e) => {
+      if (e.type === "npc") {
+        npcs.push({ id: e.id, position: { x: e.position.x, y: e.position.z } });
+      } else if (e.type === "loot") {
+        loot.push({ id: e.id, position: { x: e.position.x, y: e.position.z } });
+      }
+    });
+    return {
+      player: p ? { position: { x: p.position.x, y: p.position.z } } : null,
+      npcs,
+      loot,
+    };
+  }
+
+  public interact(entityId?: string | null) {
+    const trimmed = typeof entityId === "string" ? entityId.trim() : "";
+    const snap = this.getWorldSnapshotForInteract();
+
+    if (trimmed && snap.player) {
+      const inLoot = snap.loot.some((l) => l.id === trimmed);
+      const inNpc = snap.npcs.some((n) => n.id === trimmed);
+      if (inLoot) {
+        this.events.emit("interact", {
+          kind: "loot" as const,
+          lootId: trimmed,
+        });
+        return;
+      }
+      if (inNpc) {
+        this.events.emit("interact", { kind: "npc" as const, npcId: trimmed });
+        return;
+      }
+      this.events.emit("interact", { kind: "npc" as const, npcId: trimmed });
+      return;
+    }
+
+    if (snap.player) {
+      const hit = getClosestInteractable(snap.player, snap);
+      if (hit?.interactionType === "npc" && typeof hit.id === "string") {
+        this.events.emit("interact", { kind: "npc" as const, npcId: hit.id });
+        return;
+      }
+      if (hit?.interactionType === "loot" && typeof hit.id === "string") {
+        this.events.emit("interact", { kind: "loot" as const, lootId: hit.id });
+        return;
+      }
+    }
+    this.events.emit("interact", undefined);
   }
 
   public useSkill(skillId: string) {
@@ -137,7 +193,7 @@ export class MMORPGClientCore {
 
   public registerDefaultInput() {
     this.engine.onInput((input) => {
-      this.events.emit('input', input);
+      this.events.emit("input", input);
     });
   }
 
@@ -150,6 +206,15 @@ export class MMORPGClientCore {
 
     // Update footsteps
     this.updateFootsteps(dt);
+  }
+
+  public pulseScreenShakeAndFlash() {
+    const anyEngine = this.engine as unknown as {
+      pulseScreenShakeAndFlash?: () => void;
+    };
+    if (typeof anyEngine.pulseScreenShakeAndFlash === "function") {
+      anyEngine.pulseScreenShakeAndFlash();
+    }
   }
 
   private updateFootsteps(dt: number) {
@@ -171,9 +236,9 @@ export class MMORPGClientCore {
       this.footstepTimer += dt;
       // Play footstep every 0.4 seconds when moving
       if (this.footstepTimer >= 0.4) {
-        this.engine.playSound('footstep', {
+        this.engine.playSound("footstep", {
           volume: 0.3,
-          position: player.position
+          position: player.position,
         });
         this.footstepTimer = 0;
       }
@@ -186,7 +251,8 @@ export class MMORPGClientCore {
 
   private updateNavigation() {
     if (!this.localPlayerId) return;
-    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const now =
+      typeof performance !== "undefined" ? performance.now() : Date.now();
     const minIntervalMs = prefersCompactTouchUi() ? 280 : 90;
     if (now - this.lastNavigationUpdateMs < minIntervalMs) return;
     this.lastNavigationUpdateMs = now;
@@ -197,7 +263,7 @@ export class MMORPGClientCore {
     let nearestMonster: EntityViewModel | null = null;
     let minDist = Infinity;
 
-    this.entities.forEach((entity) => {
+    for (const entity of this.entities.values()) {
       if (entity.type !== "npc") return;
       const threat = entity.combatThreat === true;
       const dummy = entity.id === "npc_dummy";
@@ -209,7 +275,7 @@ export class MMORPGClientCore {
         minDist = dist;
         nearestMonster = entity;
       }
-    });
+    }
 
     if (nearestMonster) {
       this.engine.setNavigationTarget(nearestMonster.position);

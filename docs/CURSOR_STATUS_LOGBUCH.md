@@ -78,7 +78,7 @@ Diese Datei fasst den Projektverlauf und den **aktuellen Stand** zusammen, damit
 | GLB-Galerie/Upload-Logik | `server/src/modules/content/adminGlbGallery.ts`, `adminGlbPathCheck.ts` |
 | Spacetime GLB | `server/src/modules/spacetime/*`, `spacetimedb-modules/areloria-glb/` |
 | Client Babylon | `client/src/engine/babylon/BabylonAdapter.ts` |
-| Client Boot / Auth | `client/src/clientBoot.ts`, `client/src/ui/hud.ts` |
+| Client Boot / Auth | `client/src/main.ts`, `client/src/ui/hud.ts` |
 | Agent-Anweisungen | `AGENTS.md`, `.env.example` |
 | Projektstatus-Doku | `docs/PROJECT_STATUS_2026.md`, `docs/ROADMAP_TO_RELEASE.md` |
 | Daten-Übersicht (Diagramm) | `docs/diagrams/data-stores-overview.mmd` (+ PDF) |

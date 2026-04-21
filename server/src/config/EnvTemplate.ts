@@ -2,10 +2,6 @@ export const EnvTemplate = {
   PORT: "3000",
   NODE_ENV: "development",
   
-  // Firebase Configuration (Primary)
-  FIREBASE_PROJECT_ID: "your-project-id",
-  FIREBASE_SERVICE_ACCOUNT_KEY: "{}",
-  
   // WebSocket Configuration (Local Development)
   NEXT_PUBLIC_WEBSOCKET_URL: "ws://localhost:3000/ws",
   

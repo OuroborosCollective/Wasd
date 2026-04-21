@@ -2,6 +2,8 @@
  * GLB Manager – Upload, manage and place 3D models on player land
  */
 
+import { escapeHtml } from "../lib/escapeHtml";
+
 let glbManagerVisible = false;
 let currentPlayerId = "";
 let currentPlayerName = "";
@@ -44,7 +46,7 @@ function createGLBManagerUI() {
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #2a1a4a; padding-bottom:16px;">
         <div>
           <h2 style="margin:0; font-size:22px; color:#aa44ff;">🎨 GLB Modell-Manager</h2>
-          <p style="margin:4px 0 0; font-size:12px; color:#7a6a9a;">Lade eigene 3D-Modelle hoch und platziere sie auf deinem Land</p>
+          <p style="margin:4px 0 0; font-size:12px; color:#7a6a9a;">Upload your own 3D models and place them on your land</p>
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
           <div id="glb-sub-badge" style="font-size:12px; padding:4px 10px; border-radius:6px; border:1px solid #555;"></div>
@@ -305,19 +307,19 @@ async function loadMyModels() {
     grid.innerHTML = myModels.map((m: any) => `
       <div style="background:#0d1a2a; border:1px solid #2a1a4a; border-radius:8px; padding:12px; text-align:center;">
         <div style="font-size:36px; margin-bottom:8px;">🎨</div>
-        <div style="font-size:12px; color:#e0e8ff; font-weight:bold; margin-bottom:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${m.name}">${m.name}</div>
+        <div style="font-size:12px; color:#e0e8ff; font-weight:bold; margin-bottom:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(m.name)}">${escapeHtml(m.name)}</div>
         <div style="font-size:11px; color:#7a6a9a; margin-bottom:8px;">${(m.file_size / 1024).toFixed(0)} KB</div>
         ${m.marketplace_listed ? `<div style="font-size:11px; color:#ffaa00; margin-bottom:8px;">💰 Im Marktplatz (${m.marketplace_price} ⚡)</div>` : ""}
         <div style="display:flex; gap:4px; flex-wrap:wrap; justify-content:center;">
-          <button onclick="placeModelOnLand('${m.id}', '${m.name}', '${m.file_path}')"
+          <button onclick="placeModelOnLand('${escapeHtml(m.id)}', '${escapeHtml(m.name)}', '${escapeHtml(m.file_path)}')"
             style="background:#0d2a3a; border:1px solid #00d4ff; color:#00d4ff; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:10px;">
             🏗️ Platzieren
           </button>
-          <button onclick="listModelForSale('${m.id}', '${m.name}')"
+          <button onclick="listModelForSale('${escapeHtml(m.id)}', '${escapeHtml(m.name)}')"
             style="background:#0d2a3a; border:1px solid #ffaa00; color:#ffaa00; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:10px;">
             💰 Verkaufen
           </button>
-          <button onclick="deleteGLBModel('${m.id}', '${m.name}')"
+          <button onclick="deleteGLBModel('${escapeHtml(m.id)}', '${escapeHtml(m.name)}')"
             style="background:#2a0a0a; border:1px solid #ff4444; color:#ff4444; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:10px;">
             🗑️
           </button>
@@ -471,7 +473,7 @@ async function loadLandInfo() {
 
     infoEl.innerHTML = `
       <div style="background:#0d1a2a; border:1px solid #2a1a4a; border-radius:8px; padding:16px; margin-bottom:16px;">
-        <h3 style="margin:0 0 8px; color:#aa44ff;">${myLand.name}</h3>
+        <h3 style="margin:0 0 8px; color:#aa44ff;">${escapeHtml(myLand.name)}</h3>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:12px; color:#7a9ab5;">
           <span>📍 Position: ${Math.round(myLand.x)}, ${Math.round(myLand.y)}</span>
           <span>📐 Radius: ${myLand.radius}m</span>
@@ -488,10 +490,10 @@ async function loadLandInfo() {
           ${myLand.structures.map((s: any) => `
             <div style="background:#0d1a2a; border:1px solid #2a1a4a; border-radius:6px; padding:10px; display:flex; justify-content:space-between; align-items:center;">
               <div>
-                <div style="font-size:12px; color:#e0e8ff;">${s.name || s.type}</div>
-                <div style="font-size:10px; color:#7a6a9a;">${s.type} · Skala: ${s.scale}</div>
+                <div style="font-size:12px; color:#e0e8ff;">${escapeHtml(s.name || s.type)}</div>
+                <div style="font-size:10px; color:#7a6a9a;">${escapeHtml(s.type)} · Skala: ${s.scale}</div>
               </div>
-              <button onclick="removeStructure('${myLand.id}', '${s.id}')"
+              <button onclick="removeStructure('${escapeHtml(myLand.id)}', '${escapeHtml(s.id)}')"
                 style="background:#2a0a0a; border:1px solid #ff4444; color:#ff4444; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:10px;">
                 🗑️
               </button>
@@ -526,13 +528,13 @@ async function loadSellTab() {
     await loadMyModels();
   }
   if (myModels.length === 0) {
-    sellList.innerHTML = '<p style="color:#7a6a9a; text-align:center;">Keine Modelle vorhanden. Lade zuerst Modelle hoch.</p>';
+sellList.innerHTML = '<p style="color:#7a6a9a; text-align:center;">No models available. Upload models first.</p>';
     return;
   }
   sellList.innerHTML = myModels.map((m: any) => `
     <div style="background:#0d1a2a; border:1px solid #2a1a4a; border-radius:8px; padding:12px; display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
       <div>
-        <div style="font-size:14px; color:#e0e8ff;">${m.name}</div>
+        <div style="font-size:14px; color:#e0e8ff;">${escapeHtml(m.name)}</div>
         <div style="font-size:11px; color:#7a6a9a;">${(m.file_size / 1024).toFixed(0)} KB</div>
       </div>
       <div style="display:flex; align-items:center; gap:8px;">
@@ -540,7 +542,7 @@ async function loadSellTab() {
           ? `<span style="color:#ffaa00; font-size:12px;">💰 ${m.marketplace_price} ⚡</span>`
           : ""
         }
-        <button onclick="listModelForSale('${m.id}', '${m.name}')"
+        <button onclick="listModelForSale('${escapeHtml(m.id)}', '${escapeHtml(m.name)}')"
           style="background:#1a1a0a; border:1px solid #ffaa00; color:#ffaa00; border-radius:6px; padding:6px 14px; cursor:pointer; font-size:12px;">
           ${m.marketplace_listed ? "Preis ändern" : "Zum Verkauf anbieten"}
         </button>

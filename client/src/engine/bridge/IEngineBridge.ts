@@ -40,4 +40,5 @@ export interface IEngineBridge {
     lowSampleTrigger?: number;
     stableSampleTrigger?: number;
   }): void;
+  pulseScreenShakeAndFlash?(): void;
 }

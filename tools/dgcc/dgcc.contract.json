@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "DGCC (Design+Gameplay Consistency Contract)",
+  "version": 1,
+  "modes": {
+    "minimal": {
+      "fix": { "enabled": false },
+      "checks": ["lint", "unit", "checkInteract", "e2e", "contentValidate", "assetsAudit", "wsSchemaSmoke", "uiA11ySmoke"]
+    },
+    "extreme": {
+      "fix": { "enabled": true, "allowDangerous": true },
+      "checks": ["lint", "unit", "checkInteract", "e2e", "contentValidate", "assetsAudit", "wsSchemaSmoke", "uiA11ySmoke", "clientBuild", "serverBuild"]
+    }
+  },
+  "rules": {
+    "auth": {
+      "requiredLoginErrors": ["invalid_token", "login_required"]
+    },
+    "ws": {
+      "maxMessageBytesEnv": "WS_MAX_MESSAGE_BYTES",
+      "requireWelcomeStatsShape": true
+    },
+    "content": {
+      "validateOnBuild": true
+    },
+    "assets": {
+      "clientModelsDir": "client/public/assets/models",
+      "worldAssetsDir": "world-assets",
+      "allowedExt": [".glb", ".gltf", ".bin", ".png", ".jpg", ".jpeg", ".webp", ".ktx2"]
+    },
+    "ui": {
+      "requireAriaLabelsOnButtons": true,
+      "requireTitleOnIconButtons": true
+    }
+  }
+}
