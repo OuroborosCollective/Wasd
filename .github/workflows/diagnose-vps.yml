@@ -6,8 +6,9 @@ jobs:
   diagnose:
     runs-on: ubuntu-latest
     steps:
-      - name: Diagnose VPS
+      - name: Run diagnostics and save output
         uses: appleboy/ssh-action@v1.0.3
+        id: diag
         with:
           host: ${{ secrets.VPS_IP }}
           username: ${{ secrets.VPS_USER }}
@@ -15,23 +16,27 @@ jobs:
           port: 22
           timeout: 3m
           command_timeout: 10m
+          script_stop: true
           script: |
-            set -x
-            echo "=== Who am I ==="
+            echo "=== WHOAMI ==="
             whoami
-            echo "=== Uptime ==="
+            echo "=== UPTIME ==="
             uptime
-            echo "=== PM2 status ==="
-            pm2 status 2>&1 || echo "pm2 not found"
-            echo "=== App dir ==="
-            ls -la /opt/areloria/ 2>&1 || echo "dir not found"
-            echo "=== Git status ==="
-            cd /opt/areloria && git log --oneline -3 2>&1 || echo "git failed"
-            echo "=== .env check ==="
-            head -5 /opt/areloria/.env 2>&1 || echo "no .env"
-            echo "=== Docker containers ==="
-            docker ps --format '{{.Names}} {{.Status}}' 2>&1 || echo "docker not found"
-            echo "=== Port 3000 ==="
-            ss -tlnp | grep 3000 2>&1 || echo "port 3000 not listening"
-            echo "=== PM2 logs (last 10) ==="
-            pm2 logs areloria --lines 10 --nostream 2>&1 || echo "no pm2 logs"
+            echo "=== PM2_STATUS ==="
+            pm2 status 2>&1 || echo "PM2_NOT_FOUND"
+            echo "=== APP_DIR ==="
+            ls -la /opt/areloria/ 2>&1 || echo "DIR_NOT_FOUND"
+            echo "=== GIT_LOG ==="
+            cd /opt/areloria && git log --oneline -5 2>&1 || echo "GIT_FAILED"
+            echo "=== ENV_HEAD ==="
+            grep -E '^VITE_SUPABASE_URL|^SUPABASE_URL|^SUPABASE_PROXY_URL|^VITE_SUPABASE_ANON_KEY' /opt/areloria/.env 2>&1 || echo "NO_ENV"
+            echo "=== DOCKER ==="
+            docker ps --format '{{.Names}} {{.Status}}' 2>&1 || echo "DOCKER_NOT_FOUND"
+            echo "=== PORT_3000 ==="
+            ss -tlnp | grep 3000 2>&1 || echo "PORT_3000_DOWN"
+            echo "=== PM2_LOGS ==="
+            pm2 logs areloria --lines 15 --nostream 2>&1 || echo "NO_PM2_LOGS"
+            echo "=== BUILD_CHECK ==="
+            ls -la /opt/areloria/server/dist/index.js 2>&1 || echo "NO_SERVER_BUILD"
+            ls -la /opt/areloria/client/dist/index.html 2>&1 || echo "NO_CLIENT_BUILD"
+            echo "=== DONE ==="
