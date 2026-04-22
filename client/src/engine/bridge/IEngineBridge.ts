@@ -31,6 +31,9 @@ export interface IEngineBridge {
   // Lifecycle
   update(dt: number): void;
 
+  // Terrain height callback (set by world service for entity ground snapping)
+  setTerrainHeightFn?(fn: ((x: number, z: number) => number) | null): void;
+
   // Optional renderer-specific controls
   setAREMode?(mode: string): void;
   setAREPolicyConfig?(config: {
