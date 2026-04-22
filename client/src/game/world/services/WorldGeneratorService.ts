@@ -14,7 +14,8 @@ import { Scene, Camera, StandardMaterial, Color3, Vector3, Mesh } from "@babylon
 import {
   type IDynamicTerrain,
 } from "../../../lib/babylon-extensions/DynamicTerrain";
-import { createTree, createBush, createPine, defaultTrunkMaterial, defaultLeafMaterial } from "../../../lib/babylon-extensions/TreeGeneratorWrapper";
+import { createTree, createBush, createPine } from "../../../lib/babylon-extensions/TreeGeneratorWrapper";
+import { textureCloneService } from "./TextureCloneService.js";
 
 /** Terrain query interface matching the server's TerrainQueryAdapter. */
 export interface TerrainQueryAdapter {
@@ -191,8 +192,9 @@ export class WorldGeneratorService {
   // ── Trees ────────────────────────────────────────────────────────────
 
   private initTreeMaterials(scene: Scene): void {
-    this.trunkMaterial = defaultTrunkMaterial(scene);
-    this.leafMaterial = defaultLeafMaterial(scene);
+    // Use TextureCloneService — get master materials once, clone for each tree
+    this.trunkMaterial = textureCloneService.getMaster(scene, "trunk");
+    this.leafMaterial = textureCloneService.getMaster(scene, "leaf");
   }
 
   private generateTrees(scene: Scene): void {
@@ -243,26 +245,30 @@ export class WorldGeneratorService {
       const rotation = rand() * Math.PI * 2;
 
       let tree: Mesh;
+      // Clone materials per tree — shares shader, independent uniforms
+      const trunkMat = textureCloneService.clone(scene, "trunk", `tree-${placed}`);
+      const leafMat = textureCloneService.clone(scene, "leaf", `tree-${placed}`);
+
       switch (type) {
         case "pine":
           tree = createPine(scene, {
             trunkHeight: 6 + rand() * 4,
-            trunkMaterial: this.trunkMaterial!,
-            leafMaterial: this.leafMaterial!,
+            trunkMaterial: trunkMat,
+            leafMaterial: leafMat,
           });
           break;
         case "bush":
           tree = createBush(scene, {
             trunkHeight: 1 + rand() * 1,
-            trunkMaterial: this.trunkMaterial!,
-            leafMaterial: this.leafMaterial!,
+            trunkMaterial: trunkMat,
+            leafMaterial: leafMat,
           });
           break;
         default:
           tree = createTree(scene, {
             trunkHeight: 3 + rand() * 3,
-            trunkMaterial: this.trunkMaterial!,
-            leafMaterial: this.leafMaterial!,
+            trunkMaterial: trunkMat,
+            leafMaterial: leafMat,
             boughs: rand() > 0.5 ? 2 : 1,
             forks: 2 + Math.floor(rand() * 3),
           });
@@ -362,8 +368,7 @@ export class WorldGeneratorService {
       this.terrain.mesh.dispose(false, true);
       this.terrain = null;
     }
-    this.trunkMaterial?.dispose();
-    this.leafMaterial?.dispose();
+    // Materials are owned by TextureCloneService — don't dispose here
     this.trunkMaterial = null;
     this.leafMaterial = null;
     this.initialized = false;

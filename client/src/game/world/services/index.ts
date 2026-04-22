@@ -9,3 +9,6 @@ export { AtmosphereService, atmosphereService } from "./AtmosphereService.js";
 export { TextLabelService, textLabelService } from "./TextLabelService.js";
 export { StreamingRegistrationService, streamingService } from "./StreamingRegistrationService.js";
 export { WorldGeneratorService, worldGenerator } from "./WorldGeneratorService.js";
+export { TextureCloneService, textureCloneService, type TextureKind } from "./TextureCloneService.js";
+export { ChunkService, chunkService, type ChunkCoord, type ChunkObject, type Chunk } from "./ChunkService.js";
+export { WatchdogService, watchdogService, type ChunkLoadCallback } from "./WatchdogService.js";
