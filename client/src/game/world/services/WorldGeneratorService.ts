@@ -16,6 +16,7 @@ import {
 } from "../../../lib/babylon-extensions/DynamicTerrain";
 import { createTree, createBush, createPine } from "../../../lib/babylon-extensions/TreeGeneratorWrapper";
 import { textureCloneService } from "./TextureCloneService.js";
+import { isAndroid } from "../../ui/touchUi";
 
 /** Terrain query interface matching the server's TerrainQueryAdapter. */
 export interface TerrainQueryAdapter {
@@ -91,7 +92,16 @@ export class WorldGeneratorService {
   private totalTreesGenerated = 0;
 
   constructor(config?: Partial<WorldGeneratorConfig>) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
+    const android = isAndroid();
+    const mobileConfig: Partial<WorldGeneratorConfig> = android ? {
+      terrainSubX: 75,        // 150 → 75 (quarter vertices)
+      terrainSubZ: 75,
+      terrainMeshSub: 30,     // 60 → 30 (half subdivisions)
+      maxTrees: 100,          // 200 → 100
+      treeDensity: 0.4,       // 0.8 → 0.4
+    } : {};
+    
+    this.config = { ...DEFAULT_CONFIG, ...mobileConfig, ...config };
   }
 
   async init(scene: Scene, camera: Camera): Promise<void> {

@@ -378,6 +378,16 @@ export class ServerBootstrap {
         app.use(express.static(clientPath));
       }
     } else {
+      // Add WASM MIME type middleware for production
+      app.use((req, res, next) => {
+        if (req.url?.endsWith(".wasm")) {
+          res.setHeader("Content-Type", "application/wasm");
+          // Required headers for WASM streaming
+          res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+          res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+        }
+        next();
+      });
       app.use(express.static(clientPath));
     }
 

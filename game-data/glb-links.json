@@ -90,7 +90,7 @@
     "targetId": "npc_merchant"
   },
   {
-    "glbPath": "/assets/models/world-assets/characters/blacksmith_npc.glb",
+    "glbPath": "/assets/models/characters/npc_warrior.glb",
     "targetType": "npc_single",
     "targetId": "npc_blacksmith"
   },

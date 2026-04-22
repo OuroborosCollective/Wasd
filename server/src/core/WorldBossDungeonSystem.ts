@@ -184,7 +184,7 @@ export class WorldBossDungeonSystem {
       position: { x: 26, y: -6 },
       rotation: 0,
       scale: 2.8,
-      glbPath: "/assets/models/kaykit/dungeon/portal.gltf",
+      glbPath: "/assets/models/props/portal.glb",
       interaction: {
         type: "worldboss_dungeon",
         dungeonId: WORLD_BOSS_DUNGEON_ID,

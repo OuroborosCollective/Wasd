@@ -14,6 +14,7 @@
 import { Scene, Camera, Vector3 } from "@babylonjs/core";
 import { chunkService, type ChunkCoord, type ChunkObject } from "./ChunkService.js";
 import { textureCloneService } from "./TextureCloneService.js";
+import { isAndroid } from "../../ui/touchUi";
 
 export type ChunkLoadCallback = (coord: ChunkCoord) => ChunkObject[];
 export type ChunkUnloadCallback = (coord: ChunkCoord) => void;
@@ -66,10 +67,17 @@ export class WatchdogService {
     textureCloneService.getMaster(scene, "dirt");
     textureCloneService.getMaster(scene, "wood");
 
-    // Run at 10Hz (100ms)
+    // Use lower tick rate on Android to reduce CPU load
+    const android = isAndroid();
+    const tickInterval = android ? 500 : 100; // 2Hz on Android, 10Hz on desktop
+    this.tickRate = android ? 2 : 10;
+    
+    console.log(`[WatchdogService] Running at ${this.tickRate}Hz (interval: ${tickInterval}ms)`);
+
+    // Run at configured Hz
     this.intervalId = setInterval(() => {
       this.tick(camera);
-    }, 100);
+    }, tickInterval);
 
     console.log("[WatchdogService] 10Hz watchdog started.");
   }
