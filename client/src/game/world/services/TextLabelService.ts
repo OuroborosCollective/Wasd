@@ -67,29 +67,44 @@ export class TextLabelService {
     }
 
     // Create texture-based label (fallback)
-    const mat = new StandardMaterial(`${id}-mat`, this.scene);
+    // Generate a cache key based on style
+    const color = config.color ?? new Color3(1, 1, 1);
+    const bgColor = config.backgroundColor ?? new Color3(0, 0, 0);
+    const fontSize = config.fontSize ?? 48;
+    const cacheKey = `${Math.floor(color.r*255)}_${Math.floor(color.g*255)}_${Math.floor(color.b*255)}_${Math.floor(bgColor.r*255)}_${Math.floor(bgColor.g*255)}_${Math.floor(bgColor.b*255)}_${fontSize}`;
+    
+    // Try to reuse an existing material with the same style
+    let mat: StandardMaterial;
+    if (this.materialCache.has(cacheKey)) {
+      mat = this.materialCache.get(cacheKey)!.clone(`${id}-mat`);
+      this.materialUsageCount.set(cacheKey, (this.materialUsageCount.get(cacheKey) || 0) + 1);
+    } else {
+      mat = new StandardMaterial(`${id}-mat`, this.scene);
+      mat.backFaceCulling = false;
+      mat.disableLighting = true;
+      mat.useAlphaFromDiffuseTexture = true;
+      mat.emissiveColor = color.clone();
+      this.materialCache.set(cacheKey, mat);
+      this.materialUsageCount.set(cacheKey, 1);
+    }
+    
+    // Create texture for this specific label
     const texture = new DynamicTexture(`${id}-tex`, { width: 512, height: 128 }, this.scene);
     const ctx = texture.getContext();
 
     // Draw text
-    const bgColor = config.backgroundColor ?? new Color3(0, 0, 0);
     ctx.fillStyle = `rgba(${Math.floor(bgColor.r * 255)},${Math.floor(bgColor.g * 255)},${Math.floor(bgColor.b * 255)},0.7)`;
     ctx.fillRect(0, 0, 512, 128);
 
-    const color = config.color ?? new Color3(1, 1, 1);
     ctx.fillStyle = `rgb(${Math.floor(color.r * 255)},${Math.floor(color.g * 255)},${Math.floor(color.b * 255)})`;
-    ctx.font = `${config.fontSize ?? 48}px Arial`;
+    ctx.font = `${fontSize}px Arial`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(config.text, 256, 64);
 
     texture.update();
     mat.diffuseTexture = texture;
-    mat.emissiveColor = color.clone();
     mat.emissiveTexture = texture;
-    mat.backFaceCulling = false;
-    mat.disableLighting = true;
-    mat.useAlphaFromDiffuseTexture = true;
     plane.material = mat;
 
     // Scale based on distance
