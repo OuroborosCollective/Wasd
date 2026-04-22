@@ -33,6 +33,7 @@ export function renderVirtualJoystick(core: MMORPGClientCore) {
   let active = false;
 
   container.addEventListener("touchstart", (e) => {
+    e.stopPropagation();
     active = true;
     const touch = e.touches[0];
     startX = touch.clientX;
@@ -40,6 +41,7 @@ export function renderVirtualJoystick(core: MMORPGClientCore) {
   });
 
   container.addEventListener("touchmove", (e) => {
+    e.stopPropagation();
     if (!active) return;
     const touch = e.touches[0];
     const dx = touch.clientX - startX;
@@ -65,7 +67,8 @@ export function renderVirtualJoystick(core: MMORPGClientCore) {
     }
   });
 
-  container.addEventListener("touchend", () => {
+  container.addEventListener("touchend", (e) => {
+    e.stopPropagation();
     active = false;
     stick.style.transform = "translate(-50%, -50%)";
   });
@@ -101,11 +104,13 @@ export function renderVirtualJoystick(core: MMORPGClientCore) {
   };
 
   attackBtn.addEventListener('touchstart', (e) => {
+    e.stopPropagation();
     e.preventDefault();
     triggerAttack();
   });
 
   attackBtn.addEventListener('mousedown', (e) => {
+    e.stopPropagation();
     e.preventDefault();
     triggerAttack();
   });
@@ -142,11 +147,13 @@ export function renderVirtualJoystick(core: MMORPGClientCore) {
   };
 
   talkBtn.addEventListener('touchstart', (e) => {
+    e.stopPropagation();
     e.preventDefault();
     triggerTalk();
   });
 
   talkBtn.addEventListener('mousedown', (e) => {
+    e.stopPropagation();
     e.preventDefault();
     triggerTalk();
   });

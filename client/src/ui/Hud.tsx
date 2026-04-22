@@ -139,7 +139,7 @@ export function Hud(p: Props) {
         onVoteClaim={p.onVoteClaim}
       />
 
-      <div className="pointer-events-auto fixed bottom-0 left-0 right-0 z-[5600] border-t border-white/5 bg-gradient-to-t from-black/70 to-transparent px-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-1 md:px-4 md:pb-3 md:pt-2">
+      <div onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()} className="pointer-events-auto fixed bottom-0 left-0 right-0 z-[5600] border-t border-white/5 bg-gradient-to-t from-black/70 to-transparent px-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-1 md:px-4 md:pb-3 md:pt-2">
         <div className="mx-auto flex max-w-6xl justify-center">
           <Hotbar onAttack={p.onAttack} disabled={!p.connected} />
         </div>
@@ -184,7 +184,7 @@ function MiniPanels({
   onHousingOpen: () => void;
 }) {
   return (
-    <div className="pointer-events-auto flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-black/45 p-2.5 backdrop-blur-md sm:p-3 md:p-4">
+    <div onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()} className="pointer-events-auto flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-black/45 p-2.5 backdrop-blur-md sm:p-3 md:p-4">
       <div className="min-w-0 flex-1">
         <div className="text-[10px] uppercase tracking-widest text-slate-300/80 sm:text-xs">Inventory</div>
         <div className="text-xs font-semibold sm:text-sm">
@@ -195,10 +195,10 @@ function MiniPanels({
         </div>
       </div>
       <div className="flex shrink-0 gap-1.5 sm:gap-2">
-        <button type="button" onClick={onCraftOpen} className={btn("sm")}>
+        <button onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()} type="button" onClick={onCraftOpen} className={btn("sm")}>
           Craft
         </button>
-        <button type="button" onClick={onHousingOpen} className={btn("sm")}>
+        <button onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()} type="button" onClick={onHousingOpen} className={btn("sm")}>
           Housing
         </button>
       </div>
@@ -217,7 +217,7 @@ function TargetFrame({
 }) {
   if (!target) return null;
   return (
-    <div className="pointer-events-auto flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-black/45 p-2.5 backdrop-blur-md sm:p-3 md:p-4">
+    <div onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()} className="pointer-events-auto flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-black/45 p-2.5 backdrop-blur-md sm:p-3 md:p-4">
       <div className="min-w-0">
         <div className="text-[10px] uppercase tracking-widest text-slate-300/80 sm:text-xs">Ziel</div>
         <div className="truncate text-xs font-semibold sm:text-sm">
@@ -226,10 +226,10 @@ function TargetFrame({
         <HpBar hp={target.hp} hpMax={target.hpMax} />
       </div>
       <div className="flex shrink-0 gap-1.5 sm:gap-2">
-        <button type="button" onClick={onAttack} className={btn("sm", "primary")}>
+        <button onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()} type="button" onClick={onAttack} className={btn("sm", "primary")}>
           Angreifen
         </button>
-        <button type="button" onClick={onClear} className={btn("sm")}>
+        <button onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()} type="button" onClick={onClear} className={btn("sm")}>
           X
         </button>
       </div>
@@ -275,7 +275,7 @@ function QuestTracker({ quests }: { quests: QuestStateNet[] }) {
 function LootPanel({ loot, onTake }: { loot: LootNet[]; onTake: (id: string) => void }) {
   if (!loot.length) return null;
   return (
-    <div className="pointer-events-auto rounded-2xl border border-white/10 bg-black/35 p-2.5 backdrop-blur-md sm:p-3">
+    <div onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()} className="pointer-events-auto rounded-2xl border border-white/10 bg-black/35 p-2.5 backdrop-blur-md sm:p-3">
       <div className="mb-1.5 text-[10px] uppercase tracking-widest text-slate-300/80 sm:mb-2 sm:text-xs">Beute in der Nähe</div>
       <div className="space-y-1.5 sm:space-y-2">
         {loot.map((b) => (
@@ -294,7 +294,7 @@ function LootPanel({ loot, onTake }: { loot: LootNet[]; onTake: (id: string) => 
               </div>
               <div className="text-[9px] text-slate-200/60 sm:text-[11px]">ID: {b.id.slice(0, 8)}</div>
             </div>
-            <button type="button" onClick={() => onTake(b.id)} className={btn("sm", "primary")}>
+            <button onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()} type="button" onClick={() => onTake(b.id)} className={btn("sm", "primary")}>
               Nehmen
             </button>
           </div>
@@ -333,7 +333,7 @@ function KeySlot({
   disabled?: boolean;
 }) {
   return (
-    <button
+    <button onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}
       type="button"
       onClick={onClick}
       disabled={disabled}
@@ -456,8 +456,8 @@ function VoteMiniPanel({
   const hasBuff = (voteBuff?.activeMultiplier ?? 1) > 1 && remaining > 0;
 
   return (
-    <div className="pointer-events-auto fixed right-2 top-1/2 z-[5650] -translate-y-1/2 sm:right-3">
-      <button
+    <div onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()} className="pointer-events-auto fixed right-2 top-1/2 z-[5650] -translate-y-1/2 sm:right-3">
+      <button onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="group flex min-h-[44px] items-center gap-2 rounded-full border border-indigo-400/40 bg-black/60 px-3 py-2 text-xs text-indigo-100 shadow-[0_10px_28px_rgba(0,0,0,0.45)] backdrop-blur-md"
@@ -472,7 +472,7 @@ function VoteMiniPanel({
         <div className="mt-2 w-[min(88vw,420px)] rounded-2xl border border-indigo-400/30 bg-black/80 p-3 text-[11px] text-slate-100 shadow-[0_20px_60px_rgba(0,0,0,0.55)] backdrop-blur-md sm:text-xs">
           <div className="mb-2 flex items-center justify-between gap-2">
             <div className="uppercase tracking-widest text-indigo-200">Vote Forge</div>
-            <button type="button" onClick={onRefresh} className={btn("sm")}>
+            <button onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()} type="button" onClick={onRefresh} className={btn("sm")}>
               Refresh
             </button>
           </div>
@@ -506,7 +506,7 @@ function VoteMiniPanel({
                         : ""}
                     </div>
                     <div className="flex flex-wrap gap-1.5">
-                      <button
+                      <button onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}
                         type="button"
                         onClick={() => {
                           if (banner.status === "claimable" && sessionId) {
@@ -532,7 +532,7 @@ function VoteMiniPanel({
                         Open External
                       </a>
                       {banner.status === "pending" && sessionId ? (
-                        <button
+                        <button onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}
                           type="button"
                           onClick={() => onVoteVerify(sessionId)}
                           className={btn("sm")}

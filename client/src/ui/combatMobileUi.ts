@@ -69,8 +69,11 @@ function ensureDeathOverlay() {
   deathBtn = deathOverlay.querySelector("#death-respawn-btn") as HTMLButtonElement;
   deathHint = deathOverlay.querySelector("#death-hint") as HTMLSpanElement;
   const onRespawn = () => sendRespawn();
-  deathBtn.addEventListener("click", onRespawn);
+  deathBtn.addEventListener("click", (e) => { e.stopPropagation(); onRespawn(); });
+  deathBtn.addEventListener("touchstart", (e) => e.stopPropagation(), { passive: true });
+  deathBtn.addEventListener("pointerdown", (e) => e.stopPropagation(), { passive: true });
   deathBtn.addEventListener("touchend", (e) => {
+    e.stopPropagation();
     e.preventDefault();
     onRespawn();
   });
@@ -171,8 +174,11 @@ function refreshLootChips() {
         ? `Gold ×${e.goldAmount}`
         : e.name || e.modelUrl || "Loot";
     chip.textContent = `Take: ${label}`;
-    chip.addEventListener("click", () => sendPickupLoot(e.id));
+    chip.addEventListener("click", (ev) => { ev.stopPropagation(); sendPickupLoot(e.id); });
+    chip.addEventListener("touchstart", (ev) => ev.stopPropagation(), { passive: true });
+    chip.addEventListener("pointerdown", (ev) => ev.stopPropagation(), { passive: true });
     chip.addEventListener("touchend", (ev) => {
+      ev.stopPropagation();
       ev.preventDefault();
       sendPickupLoot(e.id);
     });
