@@ -3429,13 +3429,52 @@ export class WorldTick {
       entities.push(...worldObjects);
     }
 
-    const chunks = []; // Simplified for now
+    // Build real chunks from chunkSystem — include world objects per chunk
+    const chunks: Array<{ id: string; chunkX: number; chunkY: number; objects: any[] }> = [];
+    if (this.worldSystem.objectSystem) {
+      // Assign world objects to chunks
+      const allObjects = this.worldSystem.objectSystem.getAllObjects();
+      const chunkObjects = new Map<string, any[]>();
+
+      for (const obj of allObjects) {
+        const chunkId = this.chunkSystem.getChunkId(obj.position.x, obj.position.y);
+        if (!chunkObjects.has(chunkId)) chunkObjects.set(chunkId, []);
+        chunkObjects.get(chunkId)!.push({
+          id: obj.id,
+          type: obj.type || "object",
+          glbPath: obj.glbPath || this.resolveWorldObjectGlbPath(obj.type, obj.name || obj.id, obj.id),
+          position: { x: obj.position.x, y: 0, z: obj.position.y },
+          rotation: obj.rotation || 0,
+        });
+      }
+
+      // Build chunk entries
+      for (const [chunkId, objects] of chunkObjects) {
+        const [cx, cy] = chunkId.split(":").map(Number);
+        chunks.push({ id: chunkId, chunkX: cx, chunkY: cy, objects });
+      }
+    }
+
+    // Also include chunks that have entities (players, NPCs)
+    const allEntities = [...this.playerSystem.getAllPlayers(), ...this.npcSystem.getAllNPCs()];
+    for (const entity of allEntities) {
+      const chunkId = this.chunkSystem.getChunkId(entity.position.x, entity.position.y);
+      if (!chunks.some(c => c.id === chunkId)) {
+        const [cx, cy] = chunkId.split(":").map(Number);
+        chunks.push({ id: chunkId, chunkX: cx, chunkY: cy, objects: [] });
+      }
+    }
+
+    // Ensure at least one chunk exists
+    if (chunks.length === 0) {
+      chunks.push({ id: "0:0", chunkX: 0, chunkY: 0, objects: [] });
+    }
 
     this.ws.broadcast({
       type: 'entity_sync',
       areMode: this.areMode,
       entities,
-      chunks: [{ id: 'main', chunkX: 0, chunkY: 0, objects: [] }]
+      chunks,
     });
     if (this.worldBossEncounterSummaries.length > 0 && this.tickCount % 25 === 0) {
       const latest = this.worldBossEncounterSummaries[this.worldBossEncounterSummaries.length - 1];
