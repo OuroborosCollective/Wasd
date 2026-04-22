@@ -11,6 +11,14 @@
 import { Scene, Camera, StandardMaterial, Texture, Color3 } from "@babylonjs/core";
 import { DynamicTerrain, type IDynamicTerrain } from "./DynamicTerrain";
 
+// Re-export diamond-square terrain generation
+export {
+  diamondSquare,
+  generateDiamondSquareHeightmap,
+  generateDiamondSquareTexture,
+  generateChunkHeightmap,
+} from "./DiamondSquareGenerator";
+
 /**
  * Create a DynamicTerrain from a heightmap image.
  * The terrain follows the camera and adjusts LOD automatically.

@@ -12,3 +12,11 @@ export { WorldGeneratorService, worldGenerator } from "./WorldGeneratorService.j
 export { TextureCloneService, textureCloneService, type TextureKind } from "./TextureCloneService.js";
 export { ChunkService, chunkService, type ChunkCoord, type ChunkObject, type Chunk } from "./ChunkService.js";
 export { WatchdogService, watchdogService, type ChunkLoadCallback, type ChunkUnloadCallback } from "./WatchdogService.js";
+
+// Diamond-square terrain generation
+export {
+  diamondSquare,
+  generateDiamondSquareHeightmap,
+  generateDiamondSquareTexture,
+  generateChunkHeightmap,
+} from "../../../lib/babylon-extensions/DiamondSquareGenerator.js";

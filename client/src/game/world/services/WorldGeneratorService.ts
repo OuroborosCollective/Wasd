@@ -10,13 +10,18 @@
  *   worldGenerator.dispose()                    // cleanup
  */
 
-import { Scene, Camera, StandardMaterial, Color3, Vector3, Mesh } from "@babylonjs/core";
+import { Scene, Camera, StandardMaterial, Color3, Vector3, Mesh, RawTexture } from "@babylonjs/core";
 import {
   type IDynamicTerrain,
 } from "../../../lib/babylon-extensions/DynamicTerrain";
 import { createTree, createBush, createPine } from "../../../lib/babylon-extensions/TreeGeneratorWrapper";
 import { textureCloneService } from "./TextureCloneService.js";
-import { isAndroid } from "../../ui/touchUi";
+import {
+  generateDiamondSquareHeightmap,
+  generateDiamondSquareTexture,
+  generateChunkHeightmap,
+} from "../../../lib/babylon-extensions/DiamondSquareGenerator";
+import { isAndroid } from "../../../ui/touchUi";
 
 /** Terrain query interface matching the server's TerrainQueryAdapter. */
 export interface TerrainQueryAdapter {
@@ -42,6 +47,8 @@ export interface WorldGeneratorConfig {
   terrainMeshSub: number;
   /** Max terrain amplitude (default: 8) */
   terrainAmplitude: number;
+  /** Diamond-square roughness multiplier — lower = rougher (default: 1.2) */
+  terrainRoughness: number;
   /** Tree density per 100 sq units (default: 0.8) */
   treeDensity: number;
   /** Max trees total (default: 200) */
@@ -60,6 +67,7 @@ const DEFAULT_CONFIG: WorldGeneratorConfig = {
   terrainSubZ: 150,
   terrainMeshSub: 60,
   terrainAmplitude: 8,
+  terrainRoughness: 1.2,
   treeDensity: 0.8,
   maxTrees: 200,
   enableTrees: true,
@@ -83,7 +91,9 @@ function mulberry32(seed: number): () => number {
 export class WorldGeneratorService {
   private config: WorldGeneratorConfig;
   private terrain: IDynamicTerrain | null = null;
+  private terrainNoiseTexture: RawTexture | null = null;
   private treesByChunk = new Map<string, Mesh[]>();
+  private chunkHeightmaps = new Map<string, { data: Float32Array; resolution: number; amplitude: number }>();
   private trunkMaterial: StandardMaterial | null = null;
   private leafMaterial: StandardMaterial | null = null;
   private terrainObserver: any = null;
@@ -129,12 +139,20 @@ export class WorldGeneratorService {
   // ── Terrain ──────────────────────────────────────────────────────────
 
   private async initTerrain(scene: Scene, camera: Camera): Promise<void> {
-    console.log("[WorldGenerator] Creating procedural terrain...");
+    console.log("[WorldGenerator] Creating diamond-square terrain...");
 
-    // Import the DynamicTerrain class directly to use our seeded heightmap
     const { DynamicTerrain } = await import("../../../lib/babylon-extensions/DynamicTerrain");
 
-    const mapData = this.generateSeededHeightmap();
+    // Generate heightmap using diamond-square algorithm
+    const mapData = generateDiamondSquareHeightmap(
+      this.config.terrainSubX,
+      this.config.terrainSubZ,
+      this.config.terrainWidth,
+      this.config.terrainDepth,
+      this.config.terrainAmplitude,
+      this.config.terrainRoughness,
+      this.config.seed
+    );
 
     this.terrain = new DynamicTerrain(
       "world-terrain",
@@ -148,9 +166,20 @@ export class WorldGeneratorService {
       scene
     );
 
+    // Create terrain material with noise texture for visual detail
     const mat = new StandardMaterial("terrain-mat", scene);
     mat.diffuseColor = new Color3(0.35, 0.48, 0.28);
     mat.specularColor = new Color3(0.03, 0.03, 0.03);
+
+    // Generate and apply noise texture for terrain detail
+    const noiseData = generateDiamondSquareTexture(513, this.config.terrainRoughness, this.config.seed);
+    this.terrainNoiseTexture = RawTexture.CreateRGBTexture(
+      noiseData, 513, 513, scene, true, false, RawTexture.NEAREST_NEAREST
+    );
+    mat.diffuseTexture = this.terrainNoiseTexture;
+    mat.emissiveTexture = this.terrainNoiseTexture;
+    mat.emissiveColor = new Color3(0.15, 0.15, 0.1);
+
     this.terrain.mesh.material = mat;
     this.terrain.computeNormals = true;
 
@@ -159,44 +188,69 @@ export class WorldGeneratorService {
     });
 
     console.log(
-      `[WorldGenerator] Terrain created: ${this.config.terrainSubX}x${this.config.terrainSubZ} ` +
-      `heightmap, ${this.config.terrainWidth}x${this.config.terrainDepth} world units`
+      `[WorldGenerator] Diamond-square terrain: ${this.config.terrainSubX}x${this.config.terrainSubZ} ` +
+      `heightmap (seed=${this.config.seed}, roughness=${this.config.terrainRoughness}), ` +
+      `${this.config.terrainWidth}x${this.config.terrainDepth} world units`
     );
   }
 
-  private generateSeededHeightmap(): Float32Array {
-    const { terrainSubX: subX, terrainSubZ: subZ, terrainWidth: w, terrainDepth: d, terrainAmplitude: amp } = this.config;
-    const data = new Float32Array(subX * subZ * 3);
-    const halfW = w / 2;
-    const halfD = d / 2;
-
-    // Multi-octave noise using seeded random
-    const rand = this.rand;
-    const freq1 = 0.03 + rand() * 0.02;
-    const freq2 = 0.08 + rand() * 0.04;
-    const freq3 = 0.015 + rand() * 0.01;
-    const phase1 = rand() * Math.PI * 2;
-    const phase2 = rand() * Math.PI * 2;
-    const phase3 = rand() * Math.PI * 2;
-
-    for (let j = 0; j < subZ; j++) {
-      for (let i = 0; i < subX; i++) {
-        const idx = (j * subX + i) * 3;
-        const x = -halfW + (i / (subX - 1)) * w;
-        const z = -halfD + (j / (subZ - 1)) * d;
-
-        const y =
-          Math.sin(x * freq1 + phase1) * Math.cos(z * freq1 + phase1) * amp +
-          Math.sin(x * freq2 + z * freq2 * 0.8 + phase2) * amp * 0.4 +
-          Math.sin(x * freq3 + phase3) * amp * 0.8;
-
-        data[idx] = x;
-        data[idx + 1] = y;
-        data[idx + 2] = z;
-      }
+  /**
+   * Generate terrain data for a specific chunk (for WatchdogService).
+   * Caches the heightmap for later height queries.
+   */
+  generateChunkTerrain(
+    chunkX: number,
+    chunkZ: number,
+    chunkSize: number = 64
+  ): { data: Float32Array; resolution: number; amplitude: number } {
+    const key = `${chunkX},${chunkZ}`;
+    if (this.chunkHeightmaps.has(key)) {
+      return this.chunkHeightmaps.get(key)!;
     }
 
-    return data;
+    const chunkData = generateChunkHeightmap(
+      chunkX, chunkZ, chunkSize, 65,
+      this.config.terrainAmplitude, this.config.seed
+    );
+
+    this.chunkHeightmaps.set(key, chunkData);
+    return chunkData;
+  }
+
+  /**
+   * Get height at world position using chunk-based heightmap data.
+   */
+  getHeightAtChunkPosition(x: number, z: number): number {
+    const chunkSize = 64;
+    const cx = Math.floor(x / chunkSize);
+    const cz = Math.floor(z / chunkSize);
+    const key = `${cx},${cz}`;
+
+    const chunkData = this.chunkHeightmaps.get(key);
+    if (chunkData) {
+      const localX = x - cx * chunkSize;
+      const localZ = z - cz * chunkSize;
+      const u = (localX / chunkSize) * (chunkData.resolution - 1);
+      const v = (localZ / chunkSize) * (chunkData.resolution - 1);
+
+      const x0 = Math.floor(u);
+      const z0 = Math.floor(v);
+      const x1 = Math.min(x0 + 1, chunkData.resolution - 1);
+      const z1 = Math.min(z0 + 1, chunkData.resolution - 1);
+      const fx = u - x0;
+      const fz = v - z0;
+
+      const data = chunkData.data;
+      const res = chunkData.resolution;
+      const h00 = data[(z0 * res + x0) * 3 + 1];
+      const h10 = data[(z0 * res + x1) * 3 + 1];
+      const h01 = data[(z1 * res + x0) * 3 + 1];
+      const h11 = data[(z1 * res + x1) * 3 + 1];
+
+      return h00 * (1 - fx) * (1 - fz) + h10 * fx * (1 - fz) + h01 * (1 - fx) * fz + h11 * fx * fz;
+    }
+
+    return this.terrain ? this.terrain.getHeightFromMap(x, z) : 0;
   }
 
   // ── Chunk-Based Tree Generation ───────────────────────────────────

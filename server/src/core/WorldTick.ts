@@ -2087,6 +2087,8 @@ export class WorldTick {
 
     // World generation / placement pipeline
     this.terrainAdapter = new ServerTerrainAdapter();
+    // Wire TerrainGenerator as heightmap data source for placement validation
+    this.terrainAdapter.setDataSource(this.worldSystem.terrainGenerator);
     this.treeAdapter = new ExistingTreeGeneratorAdapter();
     const layoutEngine = new WorldLayoutRuleEngine(createDefaultLayoutConfig("/tmp/world-layout"));
     this.placementEngine = new WorldPlacementRuleEngine(layoutEngine);
