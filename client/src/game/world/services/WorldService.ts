@@ -16,7 +16,7 @@ import { streamingService } from "./StreamingRegistrationService.js";
 import { worldGenerator, type WorldGeneratorConfig } from "./WorldGeneratorService.js";
 import { textureCloneService } from "./TextureCloneService.js";
 import { chunkService, type ChunkServiceConfig } from "./ChunkService.js";
-import { watchdogService, type ChunkLoadCallback } from "./WatchdogService.js";
+import { watchdogService, type ChunkLoadCallback, type ChunkUnloadCallback } from "./WatchdogService.js";
 
 export interface WorldServiceConfig {
   enablePhysics: boolean;
@@ -108,16 +108,25 @@ export class WorldService {
         textureCloneService.getMaster(scene, "dirt");
         textureCloneService.getMaster(scene, "wood");
 
-        // Set up chunk load callback — generates procedural objects per chunk
+        // Wire chunk load → generate trees procedurally
         watchdogService.onLoad((coord) => {
-          // Future: load chunk objects from server or procedural generation
-          // For now, return empty — trees are generated at init by WorldGeneratorService
-          return [];
+          const trees = worldGenerator.generateTreesForChunk(coord.x, coord.z);
+          return trees.map((tree, i) => ({
+            id: `chunk-${coord.x}:${coord.z}-tree-${i}`,
+            type: "tree",
+            localX: tree.position.x,
+            localZ: tree.position.z,
+          }));
+        });
+
+        // Wire chunk unload → dispose trees to free GPU memory
+        watchdogService.onUnload((coord) => {
+          worldGenerator.removeTreesForChunk(coord.x, coord.z);
         });
 
         // Start the 10Hz watchdog
         watchdogService.start(scene, camera);
-        console.log("[WorldService] 10Hz watchdog active.");
+        console.log("[WorldService] 10Hz watchdog active — chunk streaming live.");
       } catch (e) { console.warn("[WorldService] Watchdog init failed:", e); }
     }
 

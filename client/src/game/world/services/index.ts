@@ -11,4 +11,4 @@ export { StreamingRegistrationService, streamingService } from "./StreamingRegis
 export { WorldGeneratorService, worldGenerator } from "./WorldGeneratorService.js";
 export { TextureCloneService, textureCloneService, type TextureKind } from "./TextureCloneService.js";
 export { ChunkService, chunkService, type ChunkCoord, type ChunkObject, type Chunk } from "./ChunkService.js";
-export { WatchdogService, watchdogService, type ChunkLoadCallback } from "./WatchdogService.js";
+export { WatchdogService, watchdogService, type ChunkLoadCallback, type ChunkUnloadCallback } from "./WatchdogService.js";

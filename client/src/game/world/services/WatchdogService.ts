@@ -16,6 +16,7 @@ import { chunkService, type ChunkCoord, type ChunkObject } from "./ChunkService.
 import { textureCloneService } from "./TextureCloneService.js";
 
 export type ChunkLoadCallback = (coord: ChunkCoord) => ChunkObject[];
+export type ChunkUnloadCallback = (coord: ChunkCoord) => void;
 
 export interface WatchdogStats {
   running: boolean;
@@ -37,6 +38,7 @@ export class WatchdogService {
   private chunksLoaded = 0;
   private chunksUnloaded = 0;
   private loadCallback: ChunkLoadCallback | null = null;
+  private unloadCallback: ChunkUnloadCallback | null = null;
 
   /**
    * Start the 10Hz watchdog loop.
@@ -77,6 +79,11 @@ export class WatchdogService {
     this.loadCallback = callback;
   }
 
+  /** Set the callback that cleans up when a chunk unloads. */
+  onUnload(callback: ChunkUnloadCallback): void {
+    this.unloadCallback = callback;
+  }
+
   /** Internal tick handler. */
   private tick(camera: Camera): void {
     const tickStart = performance.now();
@@ -89,7 +96,13 @@ export class WatchdogService {
         new Vector3(pos.x, pos.y, pos.z)
       );
 
-      this.chunksUnloaded += toUnload.length;
+      // Handle unloads
+      for (const coord of toUnload) {
+        if (this.unloadCallback) {
+          this.unloadCallback(coord);
+        }
+        this.chunksUnloaded++;
+      }
 
       // Process 1 chunk load per tick
       const nextChunk = chunkService.getNextToLoad();
@@ -147,6 +160,7 @@ export class WatchdogService {
   dispose(): void {
     this.stop();
     this.loadCallback = null;
+    this.unloadCallback = null;
     this.chunksLoaded = 0;
     this.chunksUnloaded = 0;
     this.tickDurations = [];

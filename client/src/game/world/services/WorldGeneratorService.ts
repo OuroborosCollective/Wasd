@@ -82,23 +82,22 @@ function mulberry32(seed: number): () => number {
 export class WorldGeneratorService {
   private config: WorldGeneratorConfig;
   private terrain: IDynamicTerrain | null = null;
-  private trees: Mesh[] = [];
+  private treesByChunk = new Map<string, Mesh[]>();
   private trunkMaterial: StandardMaterial | null = null;
   private leafMaterial: StandardMaterial | null = null;
   private terrainObserver: any = null;
   private initialized = false;
-  private rand: () => number = () => 0;
+  private scene: Scene | null = null;
+  private totalTreesGenerated = 0;
 
   constructor(config?: Partial<WorldGeneratorConfig>) {
     this.config = { ...DEFAULT_CONFIG, ...config };
-    this.rand = mulberry32(this.config.seed);
   }
 
   async init(scene: Scene, camera: Camera): Promise<void> {
     if (this.initialized) return;
     console.log("[WorldGenerator] Starting world generation pipeline...");
-
-    this.rand = mulberry32(this.config.seed);
+    this.scene = scene;
 
     if (this.config.enableTerrain) {
       await this.initTerrain(scene, camera);
@@ -106,13 +105,14 @@ export class WorldGeneratorService {
 
     if (this.config.enableTrees) {
       this.initTreeMaterials(scene);
-      this.generateTrees(scene);
+      // Trees are now generated per-chunk via generateTreesForChunk()
+      // Called by WatchdogService when chunks load
     }
 
     this.initialized = true;
     console.log(
-      `[WorldGenerator] World generated: terrain=${this.terrain ? "yes" : "no"}, ` +
-      `trees=${this.trees.length}`
+      `[WorldGenerator] Ready: terrain=${this.terrain ? "yes" : "no"}, ` +
+      `chunk-based tree streaming active`
     );
   }
 
@@ -189,35 +189,59 @@ export class WorldGeneratorService {
     return data;
   }
 
-  // ── Trees ────────────────────────────────────────────────────────────
+  // ── Chunk-Based Tree Generation ───────────────────────────────────
 
   private initTreeMaterials(scene: Scene): void {
-    // Use TextureCloneService — get master materials once, clone for each tree
     this.trunkMaterial = textureCloneService.getMaster(scene, "trunk");
     this.leafMaterial = textureCloneService.getMaster(scene, "leaf");
   }
 
-  private generateTrees(scene: Scene): void {
-    const { terrainWidth: w, terrainDepth: d, treeDensity, maxTrees, terrainAmplitude: amp } = this.config;
-    const rand = this.rand;
+  /** Deterministic PRNG seeded from chunk coords + world seed. */
+  private chunkRand(cx: number, cz: number): () => number {
+    // Hash chunk coords into a single seed
+    const chunkSeed = (this.config.seed * 73856093) ^ (cx * 19349663) ^ (cz * 83492791);
+    return mulberry32(Math.abs(chunkSeed) || 1);
+  }
 
-    const area = (w * d) / 100; // area in 100-sq-unit blocks
-    const targetCount = Math.min(Math.floor(area * treeDensity), maxTrees);
+  private chunkKey(cx: number, cz: number): string {
+    return `${cx}:${cz}`;
+  }
 
-    console.log(`[WorldGenerator] Placing up to ${targetCount} trees...`);
+  /**
+   * Generate trees for a single chunk. Deterministic — same chunk always produces same trees.
+   * Returns the meshes created (also tracked internally for cleanup).
+   */
+  generateTreesForChunk(cx: number, cz: number): Mesh[] {
+    if (!this.scene || !this.trunkMaterial || !this.leafMaterial) return [];
+
+    const key = this.chunkKey(cx, cz);
+    if (this.treesByChunk.has(key)) return this.treesByChunk.get(key)!; // Already loaded
+
+    const scene = this.scene;
+    const chunkSize = 64; // Must match ChunkService config
+    const { treeDensity, terrainAmplitude: amp } = this.config;
+    const rand = this.chunkRand(cx, cz);
+
+    // Calculate chunk world bounds
+    const chunkMinX = cx * chunkSize;
+    const chunkMinZ = cz * chunkSize;
+    const chunkArea = (chunkSize * chunkSize) / 100; // area in 100-sq-unit blocks
+    const targetCount = Math.min(Math.floor(chunkArea * treeDensity), 8); // Cap per chunk
 
     const treeTypes = ["tree", "pine", "bush"] as const;
+    const trees: Mesh[] = [];
+    const positions: Array<{ x: number; z: number }> = [];
+    const minSpacing = 5;
+    const maxAttempts = targetCount * 5;
+
     let placed = 0;
     let attempts = 0;
-    const maxAttempts = targetCount * 5;
-    const minSpacing = 4;
-
-    const positions: Array<{ x: number; z: number }> = [];
 
     while (placed < targetCount && attempts < maxAttempts) {
       attempts++;
-      const x = (rand() - 0.5) * w;
-      const z = (rand() - 0.5) * d;
+      // Position within chunk bounds (with 2-unit margin from edges)
+      const x = chunkMinX + 2 + rand() * (chunkSize - 4);
+      const z = chunkMinZ + 2 + rand() * (chunkSize - 4);
 
       // Check minimum spacing
       let tooClose = false;
@@ -232,23 +256,24 @@ export class WorldGeneratorService {
       // Get height at this position
       const y = this.terrain ? this.terrain.getHeightFromMap(x, z) : 0;
 
-      // Skip trees on steep slopes or very high peaks
+      // Skip trees on steep slopes
       if (this.terrain) {
         const normal = new Vector3();
         this.terrain.getHeightFromMap(x, z, { normal });
         const slope = Math.acos(Math.max(-1, Math.min(1, normal.y)));
-        if (slope > 0.6) continue; // ~34 degrees
+        if (slope > 0.6) continue;
       }
 
       const type = treeTypes[Math.floor(rand() * treeTypes.length)];
       const scale = 0.6 + rand() * 0.8;
       const rotation = rand() * Math.PI * 2;
 
-      let tree: Mesh;
-      // Clone materials per tree — shares shader, independent uniforms
-      const trunkMat = textureCloneService.clone(scene, "trunk", `tree-${placed}`);
-      const leafMat = textureCloneService.clone(scene, "leaf", `tree-${placed}`);
+      // Clone materials per tree
+      const treeId = `chunk-${key}-${placed}`;
+      const trunkMat = textureCloneService.clone(scene, "trunk", treeId);
+      const leafMat = textureCloneService.clone(scene, "leaf", treeId);
 
+      let tree: Mesh;
       switch (type) {
         case "pine":
           tree = createPine(scene, {
@@ -279,11 +304,48 @@ export class WorldGeneratorService {
       tree.rotation = new Vector3(0, rotation, 0);
 
       positions.push({ x, z });
-      this.trees.push(tree);
+      trees.push(tree);
       placed++;
     }
 
-    console.log(`[WorldGenerator] Placed ${placed} trees in ${attempts} attempts`);
+    this.treesByChunk.set(key, trees);
+    this.totalTreesGenerated += trees.length;
+
+    if (trees.length > 0) {
+      console.log(`[WorldGenerator] Chunk ${key}: ${trees.length} trees loaded`);
+    }
+    return trees;
+  }
+
+  /** Dispose trees for a chunk (when chunk unloads). */
+  removeTreesForChunk(cx: number, cz: number): void {
+    const key = this.chunkKey(cx, cz);
+    const trees = this.treesByChunk.get(key);
+    if (!trees) return;
+
+    for (const tree of trees) {
+      tree.dispose(false, true);
+    }
+    this.treesByChunk.delete(key);
+    this.totalTreesGenerated -= trees.length;
+
+    if (trees.length > 0) {
+      console.log(`[WorldGenerator] Chunk ${key}: ${trees.length} trees unloaded`);
+    }
+  }
+
+  /** Get total tree count across all loaded chunks. */
+  getTotalTreeCount(): number {
+    let count = 0;
+    for (const trees of this.treesByChunk.values()) {
+      count += trees.length;
+    }
+    return count;
+  }
+
+  /** Get list of loaded chunk keys. */
+  getLoadedChunkKeys(): string[] {
+    return Array.from(this.treesByChunk.keys());
   }
 
   // ── Terrain Query Adapter ────────────────────────────────────────────
@@ -352,7 +414,9 @@ export class WorldGeneratorService {
             subZ: this.config.terrainSubZ,
           }
         : null,
-      trees: this.trees.length,
+      trees: this.getTotalTreeCount(),
+      loadedChunks: this.treesByChunk.size,
+      totalTreesGenerated: this.totalTreesGenerated,
       seed: this.config.seed,
     };
   }
@@ -360,10 +424,13 @@ export class WorldGeneratorService {
   // ── Cleanup ──────────────────────────────────────────────────────────
 
   dispose(): void {
-    for (const tree of this.trees) {
-      tree.dispose(false, true);
+    for (const trees of this.treesByChunk.values()) {
+      for (const tree of trees) {
+        tree.dispose(false, true);
+      }
     }
-    this.trees = [];
+    this.treesByChunk.clear();
+    this.totalTreesGenerated = 0;
     if (this.terrain) {
       this.terrain.mesh.dispose(false, true);
       this.terrain = null;
@@ -371,6 +438,7 @@ export class WorldGeneratorService {
     // Materials are owned by TextureCloneService — don't dispose here
     this.trunkMaterial = null;
     this.leafMaterial = null;
+    this.scene = null;
     this.initialized = false;
     console.log("[WorldGenerator] Disposed.");
   }
