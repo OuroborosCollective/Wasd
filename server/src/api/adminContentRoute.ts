@@ -574,5 +574,82 @@ export function adminContentRouter(tick: WorldTick): Router {
     res.json({ ok: true, document: tick.assetPoolResolver.getDocument() });
   });
 
+  // ── Placement Engine ───────────────────────────────────────────────
+  // Validates and places world assets using WorldPlacementRuleEngine
+
+  router.post("/placement/validate", adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+    const { id, assetPath, position, rotation, scale, category, metadata } = req.body;
+    if (!id || !assetPath || !position) {
+      return jsonError(res, 400, "id, assetPath, and position required.", "missing fields");
+    }
+    try {
+      const result = await tick.placementEngine.placeAsset({
+        id,
+        assetPath,
+        category,
+        position: { x: position.x ?? 0, y: position.y ?? 0 },
+        rotation: rotation ?? 0,
+        scale: scale ?? 1,
+        metadata,
+      });
+      res.json({ ok: true, result });
+    } catch (e: any) {
+      jsonError(res, 500, "Platzierung fehlgeschlagen.", e?.message || "placement failed");
+    }
+  });
+
+  router.post("/placement/place", adminAuthMiddleware, adminWriteBlocked, async (req: AdminRequest, res: Response) => {
+    const { id, assetPath, position, rotation, scale, category, type, name, metadata } = req.body;
+    if (!id || !assetPath || !position) {
+      return jsonError(res, 400, "id, assetPath, and position required.", "missing fields");
+    }
+    try {
+      // Validate through placement engine
+      const result = await tick.placementEngine.placeAsset({
+        id,
+        assetPath,
+        category,
+        position: { x: position.x ?? 0, y: position.y ?? 0 },
+        rotation: rotation ?? 0,
+        scale: scale ?? 1,
+        metadata,
+      });
+
+      if (result.state === "rejected") {
+        return jsonError(res, 422, "Platzierung abgelehnt.", JSON.stringify(result.issues));
+      }
+
+      // Actually create the world object
+      await tick.worldSystem.objectSystem.addObject({
+        id,
+        type: type || "structure",
+        name: name || id,
+        position: { x: result.finalPosition.x, y: result.finalPosition.y },
+        rotation: result.finalRotation,
+        glbPath: assetPath,
+      } as any);
+
+      res.json({ ok: true, result, objectId: id });
+    } catch (e: any) {
+      jsonError(res, 500, "Platzierung fehlgeschlagen.", e?.message || "placement failed");
+    }
+  });
+
+  router.get("/placement/history", adminAuthMiddleware, (_req: AdminRequest, res: Response) => {
+    const history = tick.placementEngine.getPlacementHistory();
+    res.json({ ok: true, history });
+  });
+
+  router.delete("/placement/:id", adminAuthMiddleware, adminWriteBlocked, async (req: AdminRequest, res: Response) => {
+    const assetId = String(req.params.id);
+    try {
+      await tick.placementEngine.removeAsset(assetId);
+      tick.worldSystem.objectSystem.removeObject(assetId);
+      res.json({ ok: true, removed: assetId });
+    } catch (e: any) {
+      jsonError(res, 500, "Entfernung fehlgeschlagen.", e?.message || "removal failed");
+    }
+  });
+
   return router;
 }
