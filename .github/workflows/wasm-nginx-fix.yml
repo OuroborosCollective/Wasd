@@ -1,18 +1,12 @@
 name: WASM Nginx Fix
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/wasm-nginx-fix.yml'
-      - 'deploy/nginx-arelogic.space.conf'
+  workflow_dispatch:
 
 jobs:
-  fix-nginx:
+  fix:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy Nginx config and fix WASM
+      - name: Fix Nginx WASM
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_IP }}
@@ -24,33 +18,58 @@ jobs:
           script_stop: true
           script: |
             set -e
+            CONF=/etc/nginx/sites-enabled/arelogic.space
             
-            echo "=== Step 1: Ensure WASM file exists ==="
-            cd /opt/areloria/client
-            WASM_COUNT=$(find dist/assets/ -name 'HavokPhysics*.wasm' 2>/dev/null | wc -l)
-            echo "WASM files found: $WASM_COUNT"
-            if [ "$WASM_COUNT" -eq 0 ]; then
-              echo "WASM missing, rebuilding client..."
-              NODE_OPTIONS="--max-old-space-size=8192" npx vite build 2>&1 | tail -5
-            fi
-            find dist/assets/ -name 'HavokPhysics*.wasm' -ls
+            echo "=== Ensure WASM exists ==="
+            find /opt/areloria/client/dist/assets/ -name 'HavokPhysics*.wasm' -ls || echo "NO_WASM"
             
             echo ""
-            echo "=== Step 2: Backup current Nginx config ==="
-            cp /etc/nginx/sites-enabled/arelogic.space /etc/nginx/sites-enabled/arelogic.space.bak.$(date +%s)
+            echo "=== Fix Nginx config ==="
+            python3 << 'PYEOF'
+            import re
+            
+            conf = "/etc/nginx/sites-enabled/arelogic.space"
+            with open(conf) as f:
+                config = f.read()
+            
+            # Remove any existing wasm block
+            config = re.sub(r'\n\s*#[^\n]*[Ww]asm[^\n]*\n\s*location ~\* \\.wasm\$ \{[^}]*\}\n', '\n', config)
+            
+            # WASM block - note escaped dollar signs for Python raw string
+            wasm = """    # WASM MIME type (critical for Havok physics)
+    location ~* \\.wasm$ {
+        root /opt/areloria/client/dist;
+        default_type application/wasm;
+        add_header Cross-Origin-Opener-Policy same-origin;
+        add_header Cross-Origin-Embedder-Policy require-corp;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+"""
+            # Insert before /assets/ block
+            if "    location /assets/ {" in config:
+                config = config.replace("    location /assets/ {", wasm + "    location /assets/ {")
+            elif "    location / {" in config:
+                config = config.replace("    location / {", wasm + "    location / {")
+            
+            with open(conf, "w") as f:
+                f.write(config)
+            
+            print("Config updated")
+            PYEOF
             
             echo ""
-            echo "=== Step 3: Download new Nginx config ==="
-            curl -sL "https://raw.githubusercontent.com/OuroborosCollective/Wasd/main/deploy/nginx-arelogic.space.conf" \
-              -o /etc/nginx/sites-enabled/arelogic.space
+            echo "=== Verify ==="
+            grep -A8 'wasm' $CONF | head -10
             
             echo ""
-            echo "=== Step 4: Verify and reload Nginx ==="
+            echo "=== Test and reload ==="
             nginx -t
             systemctl reload nginx
             
             echo ""
-            echo "=== Step 5: Verify WASM serving ==="
+            echo "=== Test WASM ==="
             sleep 2
             curl -sI https://arelogic.space/assets/HavokPhysics-hlBZeaGL.wasm 2>/dev/null | head -8
             
