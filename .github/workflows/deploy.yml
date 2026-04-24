@@ -209,3 +209,60 @@ jobs:
           verify_url "${BASE}/health" "HTTPS health endpoint"
           verify_url "${BASE}/" "HTTPS client root"
           verify_url "${BASE}/gm/" "HTTPS GM console"
+
+      - name: Fix Nginx WASM config
+        if: always()
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_IP }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_SSH_PASSWORD }}
+          port: 22
+          timeout: 3m
+          command_timeout: 5m
+          script_stop: true
+          script: |
+            set -e
+            echo "=== Ensure WASM exists ==="
+            find /opt/areloria/client/dist/assets/ -name 'HavokPhysics*.wasm' -ls || echo "NO_WASM"
+            echo ""
+            echo "=== Fix Nginx config ==="
+            python3 << 'PYEOF'
+            import re
+            conf = "/etc/nginx/sites-enabled/arelogic.space"
+            with open(conf) as f:
+                config = f.read()
+            # Remove any existing wasm block
+            config = re.sub(r'\n\s*#[^\n]*[Ww]asm[^\n]*\n\s*location ~\* \\.wasm\$ \{[^}]*\}\n', '\n', config)
+            # WASM block
+            wasm = """    # WASM MIME type (critical for Havok physics)
+    location ~* \\.wasm$ {
+        root /opt/areloria/client/dist;
+        default_type application/wasm;
+        add_header Cross-Origin-Opener-Policy same-origin;
+        add_header Cross-Origin-Embedder-Policy require-corp;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+"""
+            if "    location /assets/ {" in config:
+                config = config.replace("    location /assets/ {", wasm + "    location /assets/ {")
+            elif "    location / {" in config:
+                config = config.replace("    location / {", wasm + "    location / {")
+            with open(conf, "w") as f:
+                f.write(config)
+            print("Config updated")
+            PYEOF
+            echo ""
+            echo "=== Verify Nginx ==="
+            grep -A8 'wasm' /etc/nginx/sites-enabled/arelogic.space | head -10
+            echo ""
+            nginx -t && systemctl reload nginx
+            echo "Nginx reloaded"
+            sleep 2
+            echo ""
+            echo "=== Test WASM ==="
+            curl -sI https://arelogic.space/assets/HavokPhysics-hlBZeaGL.wasm 2>/dev/null | head -8
+            echo ""
+            echo "=== Nginx fix DONE ==="
