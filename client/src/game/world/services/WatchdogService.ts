@@ -14,7 +14,7 @@
 import { Scene, Camera, Vector3 } from "@babylonjs/core";
 import { chunkService, type ChunkCoord, type ChunkObject } from "./ChunkService.js";
 import { textureCloneService } from "./TextureCloneService.js";
-import { isAndroid } from "../../ui/touchUi";
+import { isAndroid } from "../../../ui/touchUi";
 
 export type ChunkLoadCallback = (coord: ChunkCoord) => ChunkObject[];
 export type ChunkUnloadCallback = (coord: ChunkCoord) => void;

@@ -367,8 +367,22 @@
 
   <div class="card" id="stepLogin">
     <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M12 15v2M9 7a3 3 0 016 0v4H9V7z"/></svg></span> <span><span class="section-num">1</span>Anmelden</span></div>
-    <p class="hint" style="margin:0 0 8px">Zugangscode vom Betreiber.</p>
-    <label for="token">Code</label>
+    <p class="hint" style="margin:0 0 8px">Zugangscode vom Betreiber oder Login per E-Mail (Magic Link).</p>
+
+    <div style="border-bottom: 1px solid var(--border); margin-bottom: 16px; padding-bottom: 16px;">
+      <label for="adminEmail">E-Mail Adresse</label>
+      <input type="email" id="adminEmail" placeholder="beispiel@gmail.com" autocomplete="email" />
+      <button type="button" id="btnSendMagicLink" class="ghost">Magic Link / Code an E-Mail senden</button>
+      <div id="emailMsg" class="msg hidden"></div>
+
+      <div id="otpSection" class="hidden" style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border);">
+        <label for="otpCode">6-stelliger Code aus der E-Mail</label>
+        <input type="text" id="otpCode" placeholder="123456" maxlength="6" style="text-align: center; letter-spacing: 4px; font-weight: bold;" />
+        <button type="button" id="btnVerifyOtp">Code bestätigen & Anmelden</button>
+      </div>
+    </div>
+
+    <label for="token">Admin-Token oder E-Mail Code (JWT)</label>
     <input type="password" id="token" autocomplete="off" placeholder="Einfügen, dann Anmelden" />
     <button type="button" id="btnLogin">Anmelden</button>
     <button type="button" class="ghost" id="btnSaveToken">In diesem Browser merken</button>
@@ -1225,7 +1239,122 @@
       show("loginMsg", "Gemerkt für diesen Browser.", "ok");
       pushHistory(true, "Code gespeichert");
     };
+    // --- Supabase / Email Login Logic ---
+    let supabaseConfig = null;
+    async function loadSupabaseConfig() {
+      if (supabaseConfig) return supabaseConfig;
+      try {
+        const r = await fetch("/client-config.json");
+        supabaseConfig = await r.json();
+        return supabaseConfig;
+      } catch (e) {
+        console.error("Failed to load client-config.json", e);
+        return null;
+      }
+    }
+
+    async function handleSupabaseAuth() {
+      const hash = window.location.hash;
+      if (hash && hash.includes("access_token=")) {
+        const params = new URLSearchParams(hash.substring(1));
+        const token = params.get("access_token");
+        if (token) {
+          document.getElementById("token").value = token;
+          window.location.hash = "";
+          // Auto-login if we got a token from redirect
+          setTimeout(() => document.getElementById("btnLogin").click(), 100);
+        }
+      }
+      const urlParams = new URLSearchParams(window.location.search);
+      const tokenParam = urlParams.get("token");
+      if (tokenParam) {
+        document.getElementById("token").value = tokenParam;
+        // Clean URL
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+        setTimeout(() => document.getElementById("btnLogin").click(), 100);
+      }
+    }
+
+    document.getElementById("btnSendMagicLink").onclick = async function () {
+      const email = document.getElementById("adminEmail").value.trim();
+      if (!email) {
+        show("emailMsg", "Bitte E-Mail Adresse eingeben.", "err");
+        return;
+      }
+      show("emailMsg", "Sende Magic Link...", "wait");
+      try {
+        const config = await loadSupabaseConfig();
+        if (!config || !config.supabaseUrl) {
+          throw new Error("Supabase ist auf diesem Server nicht konfiguriert.");
+        }
+        const redirectUrl = window.location.origin + window.location.pathname;
+        const res = await fetch(config.supabaseUrl + "/auth/v1/otp", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": config.supabaseAnonKey
+          },
+          body: JSON.stringify({
+            email: email,
+            options: { emailRedirectTo: redirectUrl }
+          })
+        });
+        if (!res.ok) {
+          const j = await res.json();
+          throw new Error(j.msg || j.error_description || "Fehler beim Senden.");
+        }
+        show("emailMsg", "Prüfe dein Postfach! Link oder Code wurde gesendet.", "ok");
+        document.getElementById("otpSection").classList.remove("hidden");
+        celebrateSuccess(false);
+      } catch (e) {
+        show("emailMsg", String(e.message || e), "err");
+      }
+    };
+
+    document.getElementById("btnVerifyOtp").onclick = async function () {
+      const email = document.getElementById("adminEmail").value.trim();
+      const token = document.getElementById("otpCode").value.trim();
+      if (!email || !token) {
+        show("emailMsg", "E-Mail und Code werden benötigt.", "err");
+        return;
+      }
+      show("emailMsg", "Verifiziere Code...", "wait");
+      try {
+        const config = await loadSupabaseConfig();
+        if (!config || !config.supabaseUrl) {
+          throw new Error("Supabase ist auf diesem Server nicht konfiguriert.");
+        }
+        const res = await fetch(config.supabaseUrl + "/auth/v1/verify", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": config.supabaseAnonKey
+          },
+          body: JSON.stringify({
+            email: email,
+            token: token,
+            type: "magiclink"
+          })
+        });
+        const j = await res.json();
+        if (!res.ok) {
+          throw new Error(j.msg || j.error_description || "Ungültiger Code.");
+        }
+        if (j.access_token) {
+          document.getElementById("token").value = j.access_token;
+          show("emailMsg", "Code bestätigt!", "ok");
+          setTimeout(() => document.getElementById("btnLogin").click(), 100);
+        } else {
+          throw new Error("Kein Access Token erhalten.");
+        }
+      } catch (e) {
+        show("emailMsg", String(e.message || e), "err");
+      }
+    };
+
     (function () {
+      handleSupabaseAuth();
       const s = sessionStorage.getItem(TKEY);
       if (s) document.getElementById("token").value = s;
       renderHistory();
