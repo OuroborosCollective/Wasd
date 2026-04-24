@@ -232,20 +232,18 @@ jobs:
             conf = "/etc/nginx/sites-enabled/arelogic.space"
             with open(conf) as f:
                 config = f.read()
-            # Remove any existing wasm block
             config = re.sub(r'\n\s*#[^\n]*[Ww]asm[^\n]*\n\s*location ~\* \\.wasm\$ \{[^}]*\}\n', '\n', config)
-            # WASM block
-            wasm = """    # WASM MIME type (critical for Havok physics)
-    location ~* \\.wasm$ {
-        root /opt/areloria/client/dist;
-        default_type application/wasm;
-        add_header Cross-Origin-Opener-Policy same-origin;
-        add_header Cross-Origin-Embedder-Policy require-corp;
-        add_header Cache-Control "public, max-age=31536000, immutable";
-        try_files $uri =404;
-    }
-
-"""
+            wasm = (
+                '    # WASM MIME type (critical for Havok physics)\n'
+                '    location ~* \\.wasm$ {\n'
+                '        root /opt/areloria/client/dist;\n'
+                '        default_type application/wasm;\n'
+                '        add_header Cross-Origin-Opener-Policy same-origin;\n'
+                '        add_header Cross-Origin-Embedder-Policy require-corp;\n'
+                '        add_header Cache-Control "public, max-age=31536000, immutable";\n'
+                '        try_files $uri =404;\n'
+                '    }\n\n'
+            )
             if "    location /assets/ {" in config:
                 config = config.replace("    location /assets/ {", wasm + "    location /assets/ {")
             elif "    location / {" in config:
