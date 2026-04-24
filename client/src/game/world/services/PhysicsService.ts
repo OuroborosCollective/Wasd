@@ -62,6 +62,18 @@ export class PhysicsService {
     }
   }
 
+  /** Validates that mesh transforms are finite to prevent Havok crashes. */
+  private isValidTransform(mesh: Mesh | TransformNode): boolean {
+    const p = mesh.position;
+    const r = mesh.rotation;
+    const s = mesh.scaling;
+    return (
+      Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z) &&
+      Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.z) &&
+      Number.isFinite(s.x) && Number.isFinite(s.y) && Number.isFinite(s.z)
+    );
+  }
+
   /** Add a static collider for a world object (house, wall, etc.). */
   addStaticCollider(
     id: string,
@@ -70,6 +82,10 @@ export class PhysicsService {
   ): void {
     if (!this.scene || !this.initialized) return;
     if (this.aggregates.has(id)) return;
+    if (!this.isValidTransform(mesh)) {
+      console.warn(`[PhysicsService] Invalid transform for static collider "${id}", skipping.`);
+      return;
+    }
 
     const cfg = { ...STATIC_CONFIG, ...config };
     const aggregate = new PhysicsAggregate(mesh, cfg.shape, {
@@ -89,6 +105,10 @@ export class PhysicsService {
   ): void {
     if (!this.scene || !this.initialized) return;
     if (this.aggregates.has(id)) return;
+    if (!this.isValidTransform(mesh)) {
+      console.warn(`[PhysicsService] Invalid transform for dynamic body "${id}", skipping.`);
+      return;
+    }
 
     const cfg = { ...DYNAMIC_CONFIG, ...config };
     const aggregate = new PhysicsAggregate(mesh, cfg.shape, {
@@ -104,12 +124,17 @@ export class PhysicsService {
   addGroundCollider(
     id: string,
     mesh: Mesh,
-    depth: number = 1
+    _depth: number = 1
   ): void {
     if (!this.scene || !this.initialized) return;
     if (this.aggregates.has(id)) return;
+    if (!this.isValidTransform(mesh)) {
+      console.warn(`[PhysicsService] Invalid transform for ground collider "${id}", skipping.`);
+      return;
+    }
 
-    const aggregate = new PhysicsAggregate(mesh, PhysicsShapeType.BOX, {
+    // Use MESH for accurate terrain collisions
+    const aggregate = new PhysicsAggregate(mesh, PhysicsShapeType.MESH, {
       mass: 0,
       friction: 0.8,
       restitution: 0.0,

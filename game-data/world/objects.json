@@ -9,7 +9,7 @@
     },
     "rotation": 0,
     "scale": 2.8,
-    "glbPath": "/assets/models/props/portal.glb",
+    "glbPath": "/assets/models/props/portal_obsidian.glb",
     "interaction": {
       "type": "worldboss_dungeon",
       "dungeonId": "obsidian_fracture"
