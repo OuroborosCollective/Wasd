@@ -95,7 +95,7 @@ export function Hud(p: Props) {
   return (
     <div className="pointer-events-none fixed inset-0 z-[5500] text-slate-100">
       {/* Scrollable HUD column — avoids overlap on narrow phones; sits below legacy auth (z-12000) */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 bottom-[max(5.5rem,env(safe-area-inset-bottom,0px)+5rem)] overflow-y-auto overflow-x-hidden p-2 sm:p-3 md:bottom-28 md:p-4">
+      <div className="pointer-events-none absolute inset-x-0 top-0 bottom-[max(4rem,env(safe-area-inset-bottom,0px)+3.5rem)] overflow-y-auto overflow-x-hidden p-1.5 sm:p-3 md:bottom-28 md:p-4">
         <div className="mx-auto flex max-w-6xl flex-col gap-2 md:gap-3">
           <div className="flex flex-col gap-2 md:grid md:grid-cols-3 md:items-start">
             <StatusCard connected={p.connected} you={you} />
@@ -240,28 +240,28 @@ function TargetFrame({
 function QuestTracker({ quests }: { quests: QuestStateNet[] }) {
   if (!quests?.length) {
     return (
-      <div className="pointer-events-none rounded-2xl border border-white/10 bg-black/35 p-2.5 text-[11px] text-slate-200/80 backdrop-blur-md sm:p-3 sm:text-xs">
+      <div className="pointer-events-none rounded-xl border border-white/10 bg-black/35 px-2 py-1.5 text-[10px] text-slate-200/80 backdrop-blur-md sm:rounded-2xl sm:p-3 sm:text-xs">
         No active quests.
       </div>
     );
   }
 
   return (
-    <div className="pointer-events-none rounded-2xl border border-white/10 bg-black/35 p-2.5 backdrop-blur-md sm:p-3">
-      <div className="mb-1.5 text-[10px] uppercase tracking-widest text-slate-300/80 sm:mb-2 sm:text-xs">Quests</div>
-      <div className="space-y-1.5 sm:space-y-2">
+    <div className="pointer-events-none rounded-xl border border-white/10 bg-black/35 px-2 py-1.5 backdrop-blur-md sm:rounded-2xl sm:p-3">
+      <div className="mb-1 text-[9px] uppercase tracking-widest text-slate-300/80 sm:mb-2 sm:text-xs">Quests</div>
+      <div className="space-y-1 sm:space-y-2">
         {quests.slice(0, 5).map((q) => (
-          <div key={q.id} className="rounded-xl border border-white/10 bg-white/5 p-1.5 sm:p-2">
-            <div className="text-xs font-semibold leading-tight sm:text-sm">{q.title}</div>
-            <div className="text-[10px] text-slate-200/80 sm:text-xs">{q.goalText}</div>
-            <div className="mt-1">
-              <div className="h-1.5 overflow-hidden rounded-full bg-white/10 sm:h-2">
+          <div key={q.id} className="rounded-lg border border-white/10 bg-white/5 p-1 sm:rounded-xl sm:p-2">
+            <div className="text-[10px] font-semibold leading-tight sm:text-sm">{q.title}</div>
+            <div className="text-[9px] text-slate-200/80 sm:text-xs">{q.goalText}</div>
+            <div className="mt-0.5 sm:mt-1">
+              <div className="h-1 overflow-hidden rounded-full bg-white/10 sm:h-1.5">
                 <div
                   className="h-full bg-emerald-400/90"
                   style={{ width: `${Math.floor((q.progress / Math.max(1, q.goal)) * 100)}%` }}
                 />
               </div>
-              <div className="mt-0.5 text-[10px] text-slate-200/70 sm:mt-1 sm:text-[11px]">
+              <div className="mt-0.5 text-[8px] text-slate-200/70 sm:mt-1 sm:text-[11px]">
                 {q.done ? "Fertig" : `${q.progress}/${q.goal}`}
               </div>
             </div>
@@ -376,6 +376,9 @@ function WorldBossPanel({
   encounter: WorldBossEncounterHud;
   ranking: WorldBossRankingRow[];
 }) {
+  // On desktop (sm+), always show expanded. On mobile, start collapsed.
+  const [expanded, setExpanded] = React.useState(false);
+  const panelRef = React.useRef<HTMLDivElement>(null);
   const hpPct = Math.max(
     0,
     Math.min(
@@ -387,39 +390,87 @@ function WorldBossPanel({
     0,
     Math.ceil((encounter.respawnRemainingMs ?? 0) / 1000),
   );
-  return (
-    <div className="pointer-events-none rounded-2xl border border-red-500/35 bg-black/45 p-2.5 text-[11px] backdrop-blur-md sm:p-3 sm:text-xs">
-      <div className="mb-1 flex items-center justify-between gap-2">
-        <div className="uppercase tracking-widest text-red-300/90">Worldboss</div>
-        <div className="text-red-100/80">{encounter.bossName}</div>
+
+  // Collapsed mini-bar: visible on mobile when not expanded, hidden on desktop
+  const collapsedBar = !expanded ? (
+    <div
+      className="pointer-events-auto cursor-pointer rounded-xl border border-red-500/35 bg-black/45 px-2.5 py-1.5 text-[10px] backdrop-blur-md sm:hidden"
+      onClick={() => setExpanded(true)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === "Enter") setExpanded(true); }}
+    >
+      <div className="flex items-center gap-2">
+        <span className="shrink-0 text-red-300/90">⚔</span>
+        <span className="truncate text-red-100/80">{encounter.bossName}</span>
+        <span className="shrink-0 text-slate-200/60">
+          {Math.max(0, Math.floor(encounter.bossHp))}/{Math.max(1, Math.floor(encounter.bossHpMax))}
+        </span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-white/10">
+      <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10">
         <div
           className="h-full bg-gradient-to-r from-red-600 to-orange-400"
           style={{ width: `${hpPct}%` }}
         />
       </div>
-      <div className="mt-1 text-slate-200/80">
-        HP {Math.max(0, Math.floor(encounter.bossHp))}/
-        {Math.max(1, Math.floor(encounter.bossHpMax))}
-        {respawnSecs > 0 ? ` · Respawn ${respawnSecs}s` : ""}
-      </div>
-      {ranking.length > 0 ? (
-        <div className="mt-2 space-y-1 text-slate-100/90">
-          <div className="uppercase tracking-widest text-[10px] text-amber-300/90">
-            Damage Top 5
-          </div>
-          {ranking.map((row) => (
-            <div key={`${row.playerId}-${row.rank}`} className="flex justify-between gap-2">
-              <span>
-                #{row.rank} {row.playerName}
-              </span>
-              <span className="text-amber-200">{Math.max(0, Math.floor(row.damage))}</span>
-            </div>
-          ))}
-        </div>
-      ) : null}
     </div>
+  ) : null;
+
+  // Full panel: always visible on desktop, visible on mobile when expanded
+  return (
+    <>
+      {collapsedBar}
+      <div
+        ref={panelRef}
+        className={[
+          "pointer-events-none rounded-2xl border border-red-500/35 bg-black/45 p-1.5 text-[10px] backdrop-blur-md sm:p-3 sm:text-xs",
+          // Hide on mobile when collapsed, always show on desktop
+          expanded ? "" : "hidden sm:block",
+        ].join(" ")}
+      >
+        <div className="pointer-events-auto mb-1 flex items-center justify-between gap-2">
+          <div className="uppercase tracking-widest text-red-300/90">Worldboss</div>
+          <div className="flex items-center gap-2">
+            <div className="truncate text-red-100/80">{encounter.bossName}</div>
+            {expanded ? (
+              <button
+                type="button"
+                onClick={() => setExpanded(false)}
+                className="shrink-0 rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-[9px] text-slate-300 hover:bg-white/10 sm:hidden"
+              >
+                ✕
+              </button>
+            ) : null}
+          </div>
+        </div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-white/10 sm:h-2">
+          <div
+            className="h-full bg-gradient-to-r from-red-600 to-orange-400"
+            style={{ width: `${hpPct}%` }}
+          />
+        </div>
+        <div className="mt-1 text-slate-200/80">
+          HP {Math.max(0, Math.floor(encounter.bossHp))}/
+          {Math.max(1, Math.floor(encounter.bossHpMax))}
+          {respawnSecs > 0 ? ` · Respawn ${respawnSecs}s` : ""}
+        </div>
+        {ranking.length > 0 ? (
+          <div className="mt-1.5 space-y-0.5 text-slate-100/90 sm:mt-2 sm:space-y-1">
+            <div className="uppercase tracking-widest text-[9px] text-amber-300/90 sm:text-[10px]">
+              Damage Top 5
+            </div>
+            {ranking.map((row) => (
+              <div key={`${row.playerId}-${row.rank}`} className="flex justify-between gap-2">
+                <span>
+                  #{row.rank} {row.playerName}
+                </span>
+                <span className="text-amber-200">{Math.max(0, Math.floor(row.damage))}</span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </>
   );
 }
 

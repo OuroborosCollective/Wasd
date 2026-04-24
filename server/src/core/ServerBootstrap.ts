@@ -11,7 +11,7 @@ import { voteRouter } from "../api/voteRoute.js";
 import { leaderboardRouter } from "../api/leaderboardRoute.js";
 import { questlineRouter } from "../api/questlineRoute.js";
 import { loreRouter } from "../api/loreRoute.js";
-import { getContentDataSourceLabel } from "../modules/content/contentDataRoot.js";
+import { getContentDataSourceLabel, resolveContentDir } from "../modules/content/contentDataRoot.js";
 import { getSupabaseSummary, verifySupabaseToken } from "../config/supabase.js";
 import { resolveWorldAssetsDir } from "./resolveWorldAssetsDir.js";
 import { resolveMirroredWorldAssetsDir } from "./resolveMirroredWorldAssetsDir.js";
@@ -410,6 +410,23 @@ export class ServerBootstrap {
         "[ServerBootstrap] world-assets mirror and repo world-assets/ missing — /world-assets/* may 404. " +
           "Run client prebuild (sync-world-assets) or set WORLD_ASSETS_DIR."
       );
+    }
+
+    // Serve game-data/world/ at /world/ (performance policy, world config, etc.)
+    try {
+      const worldDir = resolveContentDir("world");
+      if (existsSync(worldDir)) {
+        app.use(
+          "/world",
+          express.static(worldDir, {
+            maxAge: process.env.NODE_ENV === "production" ? "1h" : 0,
+            fallthrough: true,
+          })
+        );
+        console.log(`[ServerBootstrap] Serving /world from ${worldDir}`);
+      }
+    } catch (e) {
+      console.warn("[ServerBootstrap] Could not resolve game-data/world for /world route:", e);
     }
 
     app.get("/health", (_req, res) => {
