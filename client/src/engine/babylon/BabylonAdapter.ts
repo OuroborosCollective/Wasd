@@ -135,6 +135,8 @@ export class BabylonAdapter implements IEngineBridge {
   private cameraTargetId: string | null = null;
   private navigationMarker: Mesh | null = null;
   private localPlayerId: string | null = null;
+  /** Terrain height lookup for snapping entities to ground surface. */
+  private terrainHeightFn: ((x: number, z: number) => number) | null = null;
   private labelMaterialCounter = 0;
   private readonly androidMobile = isAndroid();
   private readonly shaderModeBlockedForDevice =
@@ -229,9 +231,11 @@ export class BabylonAdapter implements IEngineBridge {
 
   createEntity(model: EntityViewModel): void {
     const root = new TransformNode(model.id, this.scene);
+    // Snap Y to terrain height if available (server sends y=0 for all entities)
+    const terrainY = this.terrainHeightFn ? this.terrainHeightFn(model.position.x, model.position.z) : model.position.y;
     root.position = new Vector3(
       model.position.x,
-      model.position.y,
+      terrainY,
       model.position.z,
     );
     root.rotation = new Vector3(
@@ -306,9 +310,11 @@ export class BabylonAdapter implements IEngineBridge {
       if (node.isStaticFrozen) {
         this.unfreezeStaticNode(node);
       }
+      // Snap Y to terrain height if available (server sends y=0 for all entities)
+      const terrainY = this.terrainHeightFn ? this.terrainHeightFn(updates.position.x, updates.position.z) : updates.position.y;
       const target = new Vector3(
         updates.position.x,
-        updates.position.y,
+        terrainY,
         updates.position.z,
       );
       node.root.position = Vector3.Lerp(node.root.position, target, lerpAlpha);
@@ -468,6 +474,11 @@ export class BabylonAdapter implements IEngineBridge {
 
   onInput(callback: (input: any) => void): void {
     this.inputCallbacks.push(callback);
+  }
+
+  /** Set terrain height lookup function for entity ground snapping. */
+  setTerrainHeightFn(fn: ((x: number, z: number) => number) | null): void {
+    this.terrainHeightFn = fn;
   }
 
   setAREMode(mode: string): void {
