@@ -38,7 +38,7 @@
       "mage": "/assets/models/kaykit/adventurers/Mage.glb",
       "ranger": "/assets/models/kaykit/adventurers/Ranger.glb",
       "rogue": "/assets/models/kaykit/adventurers/Rogue.glb",
-      "blacksmith": "/assets/models/characters/npc_warrior.glb"
+      "blacksmith": "/assets/models/world-assets/characters/blacksmith_npc.glb"
     },
     "monsters": {
       "default": [

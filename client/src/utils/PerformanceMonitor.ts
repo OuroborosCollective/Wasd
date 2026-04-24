@@ -143,17 +143,6 @@ class PerformanceMonitor {
         timestamp: Date.now(),
       });
     }
-    
-    // Check memory pressure
-    if (metrics.memory && metrics.memory.percentage > this.memoryThreshold) {
-      this.addAlert({
-        type: "memory",
-        severity: metrics.memory.percentage > 0.95 ? "critical" : "high",
-        message: `High memory usage: ${metrics.memory.percentage * 100}% (${metrics.memory.used}MB/${metrics.memory.limit}MB)`,
-        value: metrics.memory.percentage,
-        timestamp: Date.now(),
-      });
-    }
   }
 
   private addAlert(alert: PerformanceAlert) {
@@ -229,32 +218,6 @@ class PerformanceMonitor {
       minFps: Math.min(...fps),
       maxFps: Math.max(...fps),
     };
-  }
-
-  /**
-   * Check if system is under memory pressure.
-   * Returns true if memory usage > 85% or if there are recent critical memory alerts.
-   */
-  isUnderMemoryPressure(): boolean {
-    const latestMetrics = this.metrics[this.metrics.length - 1];
-    if (latestMetrics?.memory && latestMetrics.memory.percentage > this.memoryThreshold) {
-      return true;
-    }
-    
-    // Check for recent critical memory alerts (last 10 seconds)
-    const tenSecondsAgo = Date.now() - 10000;
-    const recentCriticalMemoryAlerts = this.alerts.filter(
-      a => a.type === "memory" && a.severity === "critical" && a.timestamp > tenSecondsAgo
-    );
-    return recentCriticalMemoryAlerts.length > 0;
-  }
-
-  /**
-   * Get current memory usage percentage (0-1). Returns 0 if not available.
-   */
-  getMemoryUsagePercentage(): number {
-    const latestMetrics = this.metrics[this.metrics.length - 1];
-    return latestMetrics?.memory?.percentage ?? 0;
   }
 
   onMetricsUpdate(cb: (metrics: PerformanceMetrics) => void): () => void {

@@ -105,13 +105,6 @@ try {
       if (camera) {
         await worldService.init(scene, camera);
         console.log("[main] World services initialized.");
-
-        // Wire terrain height to adapter so entities snap to ground (not y=0 underground)
-        const terrainAdapter = worldService.worldGen.getTerrainAdapter();
-        if (terrainAdapter && adapter.setTerrainHeightFn) {
-          adapter.setTerrainHeightFn((x, z) => terrainAdapter.getHeightAt(x, z));
-          console.log("[main] Terrain height snapping enabled for entities.");
-        }
       }
     }
   } catch (e) {

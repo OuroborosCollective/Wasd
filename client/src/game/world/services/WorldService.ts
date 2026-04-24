@@ -17,7 +17,6 @@ import { worldGenerator, type WorldGeneratorConfig } from "./WorldGeneratorServi
 import { textureCloneService } from "./TextureCloneService.js";
 import { chunkService, type ChunkServiceConfig } from "./ChunkService.js";
 import { watchdogService, type ChunkLoadCallback, type ChunkUnloadCallback } from "./WatchdogService.js";
-import { performanceMonitor } from "../../utils/PerformanceMonitor.js";
 
 export interface WorldServiceConfig {
   enablePhysics: boolean;
@@ -140,31 +139,20 @@ export class WorldService {
     if (!this.initialized || !this.camera) return;
 
     const now = Date.now();
-    const memoryPressure = performanceMonitor.isUnderMemoryPressure();
 
     // Network interpolation
     if (this.config.enableInterpolation) {
       networkInterpolation.update(now);
     }
 
-    // Text label visibility - reduce under memory pressure
+    // Text label visibility
     if (this.config.enableTextLabels) {
-      if (!memoryPressure) {
-        textLabelService.updateVisibility();
-      }
+      textLabelService.updateVisibility();
     }
 
     // Streaming (per-frame distance check for registered assets)
-    // Reduce streaming under memory pressure
     if (this.config.enableStreaming) {
-      if (memoryPressure) {
-        // Only update streaming every 10th frame under memory pressure
-        if (now % 10 === 0) {
-          streamingService.update(this.camera.position);
-        }
-      } else {
-        streamingService.update(this.camera.position);
-      }
+      streamingService.update(this.camera.position);
     }
 
     // World generator (terrain LOD is handled internally)

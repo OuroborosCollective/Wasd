@@ -11,7 +11,6 @@
  */
 
 import { Vector3 } from "@babylonjs/core";
-import { isAndroid } from "../../ui/touchUi";
 
 export interface ChunkCoord {
   x: number;
@@ -67,13 +66,7 @@ export class ChunkService {
   private totalUnloaded = 0;
 
   constructor(config?: Partial<ChunkServiceConfig>) {
-    const android = isAndroid();
-    const mobileConfig: Partial<ChunkServiceConfig> = android ? {
-      loadRadius: 2,        // 3 → 2 (5x5 → 5x5 grid, but fewer chunks)
-      bufferRadius: 3,      // 5 → 3 (smaller buffer)
-    } : {};
-    
-    this.config = { ...DEFAULT_CONFIG, ...mobileConfig, ...config };
+    this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
   /** Convert world position to chunk coordinate. */
