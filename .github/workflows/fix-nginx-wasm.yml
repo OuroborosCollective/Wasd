@@ -6,19 +6,78 @@ jobs:
   fix:
     runs-on: ubuntu-latest
     steps:
-      - name: Apply WASM MIME fix
+      - name: Fix Nginx WASM config
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_IP }}
           username: ${{ secrets.VPS_USER }}
           password: ${{ secrets.VPS_SSH_PASSWORD }}
+          port: 22
+          timeout: 3m
+          command_timeout: 5m
+          script_stop: true
           script: |
-            CONF=/etc/nginx/sites-enabled/arelogic.space
-            cp $CONF $CONF.bak
-            echo "c2VydmVyIHsKICAgIGxpc3RlbiA4MDsKICAgIHNlcnZlcl9uYW1lIGFyZWxvZ2ljLnNwYWNlIHd3dy5hcmVsb2dpYy5zcGFjZTsKICAgIHJldHVybiAzMDEgaHR0cHM6Ly8kaG9zdCRyZXF1ZXN0X3VyaTsKfQpzZXJ2ZXIgewogICAgbGlzdGVuIDQ0MyBzc2wgaHR0cDI7CiAgICBsaXN0ZW4gWzo6XTo0NDMgc3NsIGh0dHAyOwogICAgc2VydmVyX25hbWUgYXJlbG9naWMuc3BhY2Ugd3d3LmFyZWxvZ2ljLnNwYWNlOwogICAgc3NsX2NlcnRpZmljYXRlIC9ldGMvbGV0c2VuY3J5cHQvbGl2ZS9hcmVsb2dpYy5zcGFjZS0wMDAxL2Z1bGxjaGFpbi5wZW07CiAgICBzc2xfY2VydGlmaWNhdGVfa2V5IC9ldGMvbGV0c2VuY3J5cHQvbGl2ZS9hcmVsb2dpYy5zcGFjZS0wMDAxL3ByaXZrZXkucGVtOwogICAgaW5jbHVkZSAvZXRjL2xldHNlbmNyeXB0L29wdGlvbnMtc3NsLW5naW54LmNvbmY7CiAgICBzc2xfZGhwYXJhbSAvZXRjL2xldHNlbmNyeXB0L3NzbC1kaHBhcmFtcy5wZW07CgogICAgIyBXQVNNIE1JTUUgdHlwZSAoY3JpdGljYWwgZm9yIEhhdm9rIHBoeXNpY3MpIOKAlCBNVVNUIGNvbWUgYmVmb3JlIHN0YXRpYyBhc3NldHMKICAgIGxvY2F0aW9uIH4qIFwud2FzbSQgewogICAgICAgIHJvb3QgL29wdC9hcmVsb3JpYS9jbGllbnQvZGlzdDsKICAgICAgICBkZWZhdWx0X3R5cGUgYXBwbGljYXRpb24vd2FzbTsKICAgICAgICBhZGRfaGVhZGVyIENyb3NzLU9yaWdpbi1PcGVuZXItUG9saWN5IHNhbWUtb3JpZ2luOwogICAgICAgIGFkZF9oZWFkZXIgQ3Jvc3MtT3JpZ2luLUVtYmVkZGVyLVBvbGljeSByZXF1aXJlLWNvcnA7CiAgICAgICAgYWRkX2hlYWRlciBDYWNoZS1Db250cm9sICJwdWJsaWMsIG1heC1hZ2U9MzE1MzYwMDAsIGltbXV0YWJsZSI7CiAgICAgICAgdHJ5X2ZpbGVzICR1cmkgPTQwNDsKICAgIH0KCiAgICBsb2NhdGlvbiAvYXNzZXRzLyB7CiAgICAgICAgYWxpYXMgL29wdC9hcmVsb3JpYS9jbGllbnQvZGlzdC9hc3NldHMvOwogICAgICAgIGV4cGlyZXMgMXk7CiAgICAgICAgYWRkX2hlYWRlciBDYWNoZS1Db250cm9sICJwdWJsaWMsIGltbXV0YWJsZSI7CiAgICB9CiAgICBsb2NhdGlvbiAvcGxheWNhbnZhcy8gewogICAgICAgIGFsaWFzIC9vcHQvYXJlbG9yaWEvY2xpZW50L2Rpc3QvcGxheWNhbnZhcy87CiAgICAgICAgZXhwaXJlcyAxeTsKICAgIH0KICAgIGxvY2F0aW9uIC9nbS8gewogICAgICAgIGFsaWFzIC9vcHQvYXJlbG9yaWEvY2xpZW50L2Rpc3QvZ20vOwogICAgICAgIGV4cGlyZXMgMXk7CiAgICB9CiAgICBsb2NhdGlvbiAvd29ybGQtYXNzZXRzLyB7CiAgICAgICAgYWxpYXMgL3Zhci93d3cvYXJlbG9naWMuc3BhY2Uvd29ybGQtYXNzZXRzLzsKICAgICAgICBhZGRfaGVhZGVyIEFjY2Vzcy1Db250cm9sLUFsbG93LU9yaWdpbiAqIGFsd2F5czsKICAgICAgICBhZGRfaGVhZGVyIEFjY2Vzcy1Db250cm9sLUFsbG93LU1ldGhvZHMgIkdFVCwgT1BUSU9OUyIgYWx3YXlzOwogICAgfQogICAgbG9jYXRpb24gL3dzIHsKICAgICAgICBwcm94eV9wYXNzIGh0dHA6Ly8xMjcuMC4wLjE6MzAwMDsKICAgICAgICBwcm94eV9odHRwX3ZlcnNpb24gMS4xOwogICAgICAgIHByb3h5X3NldF9oZWFkZXIgVXBncmFkZSAkaHR0cF91cGdyYWRlOwogICAgICAgIHByb3h5X3NldF9oZWFkZXIgQ29ubmVjdGlvbiAidXBncmFkZSI7CiAgICAgICAgcHJveHlfc2V0X2hlYWRlciBIb3N0ICRob3N0OwogICAgICAgIHByb3h5X3JlYWRfdGltZW91dCA2MDA7CiAgICB9CiAgICBsb2NhdGlvbiAvYXBpLyB7CiAgICAgICAgcHJveHlfcGFzcyBodHRwOi8vMTI3LjAuMC4xOjMwMDA7CiAgICAgICAgcHJveHlfaHR0cF92ZXJzaW9uIDEuMTsKICAgICAgICBwcm94eV9zZXRfaGVhZGVyIEhvc3QgJGhvc3Q7CiAgICAgICAgcHJveHlfc2V0X2hlYWRlciBYLVJlYWwtSVAgJHJlbW90ZV9hZGRyOwogICAgICAgIHByb3h5X3NldF9oZWFkZXIgWC1Gb3J3YXJkZWQtRm9yICRwcm94eV9hZGRfeF94X2ZvcndhcmRlZF9mb3I7CiAgICAgICAgcHJveHlfc2V0X2hlYWRlciBYLUZvcndhcmRlZC1Qcm90byAkc2NoZW1lOwogICAgfQogICAgbG9jYXRpb24gL3phcGllci8gewogICAgICAgIHByb3h5X3Bhc3MgaHR0cDovLzEyNy4wLjAuMTo4MDgyL3dlYmhvb2s7CiAgICAgICAgcHJveHlfc2V0X2hlYWRlciBIb3N0ICRob3N0OwogICAgICAgIHByb3h5X3NldF9oZWFkZXIgWC1SZWFsLUlQICRyZW1vdGVfYWRkcjsKICAgIH0KICAgIGxvY2F0aW9uIC96YXBpZXItd3MgewogICAgICAgIHByb3h5X3Bhc3MgaHR0cDovLzEyNy4wLjAuMTo4MDgxOwogICAgICAgIHByb3h5X2h0dHBfdmVyc2lvbiAxLjE7CiAgICAgICAgcHJveHlfc2V0X2hlYWRlciBVcGdyYWRlICRodHRwX3VwZ3JhZGU7CiAgICAgICAgcHJveHlfc2V0X2hlYWRlciBDb25uZWN0aW9uICJ1cGdyYWRlIjsKICAgIH0KICAgIGxvY2F0aW9uIC93ZWJob29rIHsKICAgICAgICBwcm94eV9wYXNzIGh0dHA6Ly9sb2NhbGhvc3Q6NTAwMC93ZWJob29rL3dhc2Q7CiAgICAgICAgcHJveHlfc2V0X2hlYWRlciBIb3N0ICRob3N0OwogICAgICAgIHByb3h5X3NldF9oZWFkZXIgWC1SZWFsLUlQICRyZW1vdGVfYWRkcjsKICAgIH0KICAgIGxvY2F0aW9uIC8gewogICAgICAgIHByb3h5X3Bhc3MgaHR0cDovLzEyNy4wLjAuMTozMDAwOwogICAgICAgIHByb3h5X2h0dHBfdmVyc2lvbiAxLjE7CiAgICAgICAgcHJveHlfc2V0X2hlYWRlciBIb3N0ICRob3N0OwogICAgICAgIHByb3h5X3NldF9oZWFkZXIgWC1SZWFsLUlQICRyZW1vdGVfYWRkcjsKICAgICAgICBwcm94eV9zZXRfaGVhZGVyIFgtRm9yd2FyZGVkLUZvciAkcHJveHlfYWRkX3hfeF9mb3J3YXJkZWRfZm9yOwogICAgICAgIHByb3h5X3NldF9oZWFkZXIgWC1Gb3J3YXJkZWQtUHJvdG8gJHNjaGVtZTsKICAgIH0KfQo=" | base64 -d > $CONF
-            echo "Config written"
+            set -e
+            echo "=== Current WASM config ==="
+            grep -A8 'wasm' /etc/nginx/sites-enabled/arelogic.space 2>/dev/null || echo "NO_WASM_BLOCK"
+            
+            echo ""
+            echo "=== Fixing Nginx config ==="
+            python3 << 'PYEOF'
+            import re
+            
+            conf = "/etc/nginx/sites-enabled/arelogic.space"
+            with open(conf, "r") as f:
+                config = f.read()
+            
+            # Remove any existing wasm location block
+            config = re.sub(r'\s*#[^\n]*[Ww]asm[^\n]*\n\s*location ~\* \.wasm\$ \{[^}]*\}\n', '\n', config)
+            
+            # Add WASM block right before the /assets/ block
+            wasm_block = """    # WASM MIME type (critical for Havok physics)
+    location ~* \\.wasm$ {
+        root /opt/areloria/client/dist;
+        default_type application/wasm;
+        add_header Cross-Origin-Opener-Policy same-origin;
+        add_header Cross-Origin-Embedder-Policy require-corp;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+"""
+            if "    location /assets/ {" in config:
+                config = config.replace("    location /assets/ {", wasm_block + "    location /assets/ {")
+            else:
+                # Fallback: add before location /
+                config = config.replace("    location / {", wasm_block + "    location / {")
+            
+            with open(conf, "w") as f:
+                f.write(config)
+            
+            print("Config updated successfully")
+            PYEOF
+            
+            echo ""
+            echo "=== Verifying config ==="
+            grep -A10 'wasm' /etc/nginx/sites-enabled/arelogic.space | head -12
+            
+            echo ""
+            echo "=== Testing nginx config ==="
             nginx -t
-            systemctl reload nginx || nginx -s reload
+            
+            echo ""
+            echo "=== Reloading nginx ==="
+            systemctl reload nginx
+            
+            echo ""
+            echo "=== Testing WASM locally ==="
             sleep 2
-            grep -A5 wasm $CONF
-            echo "DONE"
+            # Test via HTTPS (use -k to ignore self-signed cert issues)
+            curl -skI https://127.0.0.1/assets/HavokPhysics-hlBZeaGL.wasm 2>/dev/null | head -10
+            
+            echo ""
+            echo "=== WASM file check ==="
+            ls -la /opt/areloria/client/dist/assets/HavokPhysics*.wasm 2>/dev/null || echo "NO_WASM_FILE"
+            
+            echo ""
+            echo "=== DONE ==="
