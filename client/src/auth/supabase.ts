@@ -85,7 +85,15 @@ function resolveUrlFromEnv(): string {
 }
 
 function resolveKeyFromEnv(): string {
-  return trimEnv("VITE_SUPABASE_ANON_KEY");
+  const key = trimEnv("VITE_SUPABASE_ANON_KEY");
+  // Safety: detect accidental service role exposure in client bundle
+  if (key && typeof import.meta.env?.VITE_SUPABASE_SERVICE_ROLE_KEY === "string") {
+    console.error(
+      "[Supabase] VITE_SUPABASE_SERVICE_ROLE_KEY must never be set — service role keys must stay server-only. " +
+      "Remove it from your .env and use SUPABASE_SERVICE_ROLE_KEY (no VITE_ prefix) instead."
+    );
+  }
+  return key;
 }
 
 let client: SupabaseClient | null = null;
