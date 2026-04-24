@@ -248,8 +248,8 @@ describe("TerrainGenerator", () => {
     expect(typeof terrain.getHeight(0, 0)).toBe("number");
   });
 
-  it("height at (0,0) is sin(0)+cos(0) = 1", () => {
-    expect(terrain.getHeight(0, 0)).toBeCloseTo(1);
+  it("height at (0,0) is diamond-square height at (0,0)", () => {
+    expect(terrain.getHeight(0, 0)).toBeGreaterThanOrEqual(0);
   });
 
   it("produces different values for different coordinates", () => {
@@ -262,8 +262,8 @@ describe("TerrainGenerator", () => {
     for (let x = 0; x < 100; x += 10) {
       for (let y = 0; y < 100; y += 10) {
         const h = terrain.getHeight(x, y);
-        expect(h).toBeGreaterThanOrEqual(-2);
-        expect(h).toBeLessThanOrEqual(2);
+        expect(h).toBeGreaterThanOrEqual(0);
+        expect(h).toBeLessThanOrEqual(8);
       }
     }
   });

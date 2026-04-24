@@ -11,7 +11,7 @@
  */
 
 import { Vector3 } from "@babylonjs/core";
-import { isAndroid } from "../../ui/touchUi";
+import { isAndroid } from "../../../ui/touchUi";
 
 export interface ChunkCoord {
   x: number;

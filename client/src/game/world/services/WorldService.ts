@@ -17,7 +17,7 @@ import { worldGenerator, type WorldGeneratorConfig } from "./WorldGeneratorServi
 import { textureCloneService } from "./TextureCloneService.js";
 import { chunkService, type ChunkServiceConfig } from "./ChunkService.js";
 import { watchdogService, type ChunkLoadCallback, type ChunkUnloadCallback } from "./WatchdogService.js";
-import { performanceMonitor } from "../../utils/PerformanceMonitor.js";
+import { performanceMonitor } from "../../../utils/PerformanceMonitor.js";
 
 export interface WorldServiceConfig {
   enablePhysics: boolean;
