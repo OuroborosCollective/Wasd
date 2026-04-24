@@ -10,12 +10,13 @@
  *   worldGenerator.dispose()                    // cleanup
  */
 
-import { Scene, Camera, StandardMaterial, Color3, Vector3, Mesh, RawTexture } from "@babylonjs/core";
+import { Scene, Camera, StandardMaterial, Color3, Vector3, Mesh, RawTexture, PhysicsShapeType } from "@babylonjs/core";
 import {
   type IDynamicTerrain,
 } from "../../../lib/babylon-extensions/DynamicTerrain";
 import { createTree, createBush, createPine } from "../../../lib/babylon-extensions/TreeGeneratorWrapper";
 import { textureCloneService } from "./TextureCloneService.js";
+import { physicsService } from "./PhysicsService.js";
 import {
   generateDiamondSquareHeightmap,
   generateDiamondSquareTexture,
@@ -182,6 +183,9 @@ export class WorldGeneratorService {
 
     this.terrain.mesh.material = mat;
     this.terrain.computeNormals = true;
+
+    // Register terrain with physics engine (MESH shape for accuracy)
+    physicsService.addGroundCollider(this.terrain.mesh.name, this.terrain.mesh);
 
     this.terrainObserver = scene.onBeforeRenderObservable.add(() => {
       this.terrain!.update(false);
@@ -363,9 +367,13 @@ export class WorldGeneratorService {
           });
       }
 
+      tree.name = treeId;
       tree.position = new Vector3(x, y, z);
       tree.scaling = new Vector3(scale, scale, scale);
       tree.rotation = new Vector3(0, rotation, 0);
+
+      // Register tree collider with physics engine
+      physicsService.addStaticCollider(treeId, tree, { shape: PhysicsShapeType.CAPSULE });
 
       positions.push({ x, z });
       trees.push(tree);
@@ -388,6 +396,7 @@ export class WorldGeneratorService {
     if (!trees) return;
 
     for (const tree of trees) {
+      physicsService.removeBody(tree.name);
       tree.dispose(false, true);
     }
     this.treesByChunk.delete(key);
@@ -490,12 +499,14 @@ export class WorldGeneratorService {
   dispose(): void {
     for (const trees of this.treesByChunk.values()) {
       for (const tree of trees) {
+        physicsService.removeBody(tree.name);
         tree.dispose(false, true);
       }
     }
     this.treesByChunk.clear();
     this.totalTreesGenerated = 0;
     if (this.terrain) {
+      physicsService.removeBody(this.terrain.mesh.name);
       this.terrain.mesh.dispose(false, true);
       this.terrain = null;
     }
