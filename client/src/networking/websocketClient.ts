@@ -49,6 +49,60 @@ const DEFAULT_SPAWN_KEY = "sp_player_default";
 const GUEST_STORAGE_KEY = "areloria_guest_id";
 let authTokenProvider: (() => Promise<string | null>) | null = null;
 
+// --- Heartbeat ---
+const HEARTBEAT_INTERVAL_MS = 30_000;
+const HEARTBEAT_TIMEOUT_MS = 10_000;
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+let heartbeatTimeout: ReturnType<typeof setTimeout> | null = null;
+
+function startHeartbeat(ws: WebSocket): void {
+  stopHeartbeat();
+  heartbeatTimer = setInterval(() => {
+    if (ws.readyState !== WebSocket.OPEN) return;
+    try {
+      ws.send(JSON.stringify({ type: "ping" }));
+    } catch { /* ignore */ }
+    heartbeatTimeout = setTimeout(() => {
+      console.warn("[WS] Heartbeat timeout — closing connection.");
+      try { ws.close(4001, "heartbeat timeout"); } catch { /* ignore */ }
+    }, HEARTBEAT_TIMEOUT_MS);
+  }, HEARTBEAT_INTERVAL_MS);
+}
+
+function stopHeartbeat(): void {
+  if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+  if (heartbeatTimeout) { clearTimeout(heartbeatTimeout); heartbeatTimeout = null; }
+}
+
+// --- Auto-reconnect ---
+let autoReconnectEnabled = true;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 20;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleAutoReconnect(core: MMORPGClientCore, options: ConnectionOptions): void {
+  if (!autoReconnectEnabled) return;
+  if (reconnectTimer) return; // Already scheduled
+  reconnectAttempts++;
+  if (reconnectAttempts > MAX_RECONNECT_ATTEMPTS) {
+    emitNetStatus("error", "Reconnection failed after max attempts. Refresh to retry.");
+    return;
+  }
+  const base = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 30000);
+  const jitter = base * 0.3 * (Math.random() * 2 - 1);
+  const delay = Math.max(500, Math.round(base + jitter));
+  emitNetStatus("warning", `Reconnecting in ${Math.round(delay / 1000)}s (attempt ${reconnectAttempts})...`);
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connectSocket(core, options);
+  }, delay);
+}
+
+function clearAutoReconnect(): void {
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+  reconnectAttempts = 0;
+}
+
 /** Last connectSocket target so we can reconnect after Google login refreshes the JWT. */
 let reconnectTarget: { core: MMORPGClientCore; options: ConnectionOptions } | null = null;
 
@@ -326,6 +380,8 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
 
   ws.onopen = async () => {
     if (myGen !== wsConnectionGeneration || ws !== globalWs) return;
+    clearAutoReconnect(); // Reset backoff on successful connect
+    startHeartbeat(ws); // Start ping/pong heartbeat
     console.log("Connected to Arelorian Server");
     pushGameHudConnected(false);
     emitNetStatus("connected", "Connected. Waiting for world login...");
@@ -387,6 +443,12 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
     if (myGen !== wsConnectionGeneration || ws !== globalWs) return;
     try {
       const data = JSON.parse(msg.data);
+
+      // Heartbeat: reset timeout on pong
+      if (data.type === "pong") {
+        if (heartbeatTimeout) { clearTimeout(heartbeatTimeout); heartbeatTimeout = null; }
+        return;
+      }
       if (data.type === "error") {
         const errorMessage = typeof data.message === "string" ? data.message : "Server error";
         const errCode = typeof data.code === "string" ? data.code : "";
@@ -697,8 +759,13 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
 
   ws.onclose = () => {
     if (myGen !== wsConnectionGeneration) return;
+    stopHeartbeat();
     pushGameHudConnected(false);
     emitNetStatus("closed", "Disconnected from game server.");
+    // Auto-reconnect unless this was a clean client disconnect
+    if (reconnectTarget) {
+      scheduleAutoReconnect(reconnectTarget.core, reconnectTarget.options);
+    }
   };
 }
 

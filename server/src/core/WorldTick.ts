@@ -2141,6 +2141,12 @@ export class WorldTick {
     };
 
     this.ws.onPlayerMessage = async (id, msg) => {
+      // Heartbeat: respond to ping with pong
+      if (msg.type === "ping") {
+        this.ws.sendToPlayer(id, { type: "pong" });
+        return;
+      }
+
       if (msg.type === "login") {
         let charName = "Unknown";
         let uid = "";
