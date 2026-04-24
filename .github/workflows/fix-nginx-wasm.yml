@@ -6,7 +6,7 @@ jobs:
   fix-nginx:
     runs-on: ubuntu-latest
     steps:
-      - name: Fix Nginx WASM MIME type
+      - name: Diagnose current Nginx config
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_IP }}
@@ -17,97 +17,57 @@ jobs:
           command_timeout: 10m
           script_stop: true
           script: |
-            set -e
-            echo "=== Starting Nginx WASM MIME fix ==="
+            echo "=== Step 1: Find Nginx config ==="
+            find /etc/nginx -name "*.conf" -type f 2>/dev/null
+            echo "=== Step 2: Show current config ==="
+            cat /etc/nginx/sites-enabled/arelogic.space 2>/dev/null || echo "NOT FOUND"
+            echo "=== Step 3: Check if WASM config exists ==="
+            grep -n 'wasm' /etc/nginx/sites-enabled/arelogic.space 2>/dev/null || echo "NO_WASM_CONFIG"
+            echo "=== Step 4: Show nginx -t ==="
+            nginx -t 2>&1 || echo "NGINX_TEST_FAILED"
+            echo "=== Step 5: Check what nginx serves ==="
+            curl -sI https://arelogic.space/ 2>/dev/null | head -10 || echo "CURL_FAILED"
+            echo "=== DONE ==="
 
-            # Find Nginx config
-            echo "=== Finding Nginx config ==="
-            NGINX_CONF=""
-            if [ -f /etc/nginx/sites-enabled/arelogic.space ]; then
-              NGINX_CONF="/etc/nginx/sites-enabled/arelogic.space"
-            elif [ -f /etc/nginx/conf.d/arelogic.space.conf ]; then
-              NGINX_CONF="/etc/nginx/conf.d/arelogic.space.conf"
-            elif [ -f /etc/nginx/nginx.conf ]; then
-              NGINX_CONF="/etc/nginx/nginx.conf"
+      - name: Apply WASM MIME fix
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_IP }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_SSH_PASSWORD }}
+          port: 22
+          timeout: 3m
+          command_timeout: 10m
+          script_stop: true
+          script: |
+            CONF="/etc/nginx/sites-enabled/arelogic.space"
+            echo "=== Backing up ==="
+            cp "$CONF" "$CONF.bak-$(date +%s)"
+            
+            echo "=== Current config ==="
+            cat "$CONF"
+            
+            echo "=== Checking for existing wasm config ==="
+            if grep -q 'wasm' "$CONF"; then
+              echo "WASM config already exists!"
             else
-              echo "ERROR: No Nginx config found!"
-              find /etc/nginx -name "*.conf" -type f 2>/dev/null
-              exit 1
+              echo "Adding WASM config..."
+              # Use sed to insert before the first 'location /' block
+              sed -i '/location \/ {/i\    # WASM MIME type (critical for Havok physics)\n    location ~* \\.wasm$ {\n        default_type application/wasm;\n        add_header Cross-Origin-Opener-Policy same-origin;\n        add_header Cross-Origin-Embedder-Policy require-corp;\n        add_header Cache-Control "public, max-age=31536000, immutable";\n    }\n' "$CONF"
+              echo "WASM config added via sed"
             fi
-            echo "Using config: $NGINX_CONF"
-
-            # Backup
-            BACKUP="$NGINX_CONF.backup-$(date +%Y%m%d-%H%M%S)"
-            cp "$NGINX_CONF" "$BACKUP"
-            echo "Backed up to: $BACKUP"
-
-            # Check if WASM location block already exists
-            if grep -q '\.wasm' "$NGINX_CONF"; then
-              echo "WASM config already exists in $NGINX_CONF"
-              grep -A5 '\.wasm' "$NGINX_CONF"
-            else
-              echo "Adding WASM MIME type location block..."
-
-              # Find the first 'location /' block and insert WASM block before it
-              if grep -q 'location / {' "$NGINX_CONF"; then
-                # Create temp file with WASM block inserted before 'location / {'
-                awk '
-                  /location \/ \{/ && !done {
-                    print "    # WASM MIME type (critical for Havok physics)"
-                    print "    location ~* \\.wasm$ {"
-                    print "        default_type application/wasm;"
-                    print "        add_header Cross-Origin-Opener-Policy same-origin;"
-                    print "        add_header Cross-Origin-Embedder-Policy require-corp;"
-                    print "        add_header Cache-Control \"public, max-age=31536000, immutable\";"
-                    print "    }"
-                    print ""
-                    done = 1
-                  }
-                  { print }
-                ' "$NGINX_CONF" > "$NGINX_CONF.tmp"
-                mv "$NGINX_CONF.tmp" "$NGINX_CONF"
-                echo "WASM location block added"
-              else
-                echo "WARNING: Could not find 'location / {' in config"
-                echo "Please add manually:"
-                echo '    location ~* \.wasm$ {'
-                echo '        default_type application/wasm;'
-                echo '    }'
-              fi
-            fi
-
-            # Test Nginx config
-            echo "=== Testing Nginx config ==="
+            
+            echo "=== New config ==="
+            cat "$CONF"
+            
+            echo "=== Testing nginx ==="
             nginx -t 2>&1
-
-            # Reload Nginx
-            echo "=== Reloading Nginx ==="
+            
+            echo "=== Reloading ==="
             systemctl reload nginx 2>&1 || nginx -s reload 2>&1
-            echo "Nginx reloaded"
-
-            # Verify WASM MIME type
-            echo "=== Verifying WASM MIME type ==="
+            
+            echo "=== Verifying ==="
             sleep 2
-
-            # Find a .wasm file to test
-            WASM_FILE=$(find /opt/areloria/client/dist -name "*.wasm" 2>/dev/null | head -1)
-            if [ -z "$WASM_FILE" ]; then
-              WASM_FILE=$(find /opt/Wasd/client/dist -name "*.wasm" 2>/dev/null | head -1)
-            fi
-
-            if [ -n "$WASM_FILE" ]; then
-              WASM_NAME=$(basename "$WASM_FILE")
-              echo "Testing WASM file: $WASM_NAME"
-              curl -sI "http://127.0.0.1/assets/$WASM_NAME" 2>/dev/null | grep -i content-type || echo "No content-type header found (may need full URL with domain)"
-              curl -sI "https://arelogic.space/assets/$WASM_NAME" 2>/dev/null | grep -i content-type || echo "External check failed"
-            else
-              echo "No .wasm file found in dist, checking any .wasm URL..."
-              # Try common Havok wasm name patterns
-              curl -sI "https://arelogic.space/" 2>/dev/null | head -5
-            fi
-
-            # Show final Nginx config snippet
-            echo "=== Final WASM config ==="
-            grep -A8 '\.wasm' "$NGINX_CONF" || echo "WASM config not found in final check!"
-
-            echo "=== Done ==="
+            curl -sI https://arelogic.space/ 2>/dev/null | head -10
+            
+            echo "=== DONE ==="
