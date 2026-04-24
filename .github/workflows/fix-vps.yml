@@ -56,4 +56,39 @@ jobs:
             echo "=== VITE_SUPABASE_URL in bundle ==="
             grep -o 'VITE_SUPABASE_URL:`[^`]*`' /opt/areloria/client/dist/assets/index-*.js 2>/dev/null | head -3 || echo "Could not check bundle"
             
+            echo "=== Fixing Nginx WASM config ==="
+            python3 << 'PYEOF'
+            import re
+            conf = "/etc/nginx/sites-enabled/arelogic.space"
+            with open(conf, "r") as f:
+                config = f.read()
+            # Remove any existing wasm location block
+            config = re.sub(r'\s*#[^\n]*[Ww]asm[^\n]*\n\s*location ~\* \.wasm\$ \{[^}]*\}\n', '\n', config)
+            # Add WASM block right before the /assets/ block
+            wasm_block = """    # WASM MIME type (critical for Havok physics)
+    location ~* \\.wasm$ {
+        root /opt/areloria/client/dist;
+        default_type application/wasm;
+        add_header Cross-Origin-Opener-Policy same-origin;
+        add_header Cross-Origin-Embedder-Policy require-corp;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+"""
+            if "    location /assets/ {" in config:
+                config = config.replace("    location /assets/ {", wasm_block + "    location /assets/ {")
+            else:
+                config = config.replace("    location / {", wasm_block + "    location / {")
+            with open(conf, "w") as f:
+                f.write(config)
+            print("Nginx config updated")
+            PYEOF
+            nginx -t && systemctl reload nginx
+            echo "Nginx reloaded"
+            
+            echo "=== Testing WASM ==="
+            sleep 2
+            curl -sI https://arelogic.space/assets/HavokPhysics-hlBZeaGL.wasm 2>/dev/null | head -5 || echo "CURL_FAILED"
+            
             echo "=== Done ==="
