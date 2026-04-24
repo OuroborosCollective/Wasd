@@ -1,9 +1,9 @@
-name: Fix Nginx WASM MIME Type
+name: Fix Nginx WASM MIME
 on:
   workflow_dispatch:
 
 jobs:
-  fix-nginx:
+  fix:
     runs-on: ubuntu-latest
     steps:
       - name: Apply WASM MIME fix
@@ -12,123 +12,13 @@ jobs:
           host: ${{ secrets.VPS_IP }}
           username: ${{ secrets.VPS_USER }}
           password: ${{ secrets.VPS_SSH_PASSWORD }}
-          port: 22
-          timeout: 3m
-          command_timeout: 10m
-          script_stop: true
           script: |
-            CONF="/etc/nginx/sites-enabled/arelogic.space"
-            echo "=== Backing up ==="
-            cp "$CONF" "$CONF.bak-$(date +%s)"
-            
-            echo "=== Writing new config with WASM support ==="
-            cat > "$CONF" << 'NGINXEOF'
-server {
-    listen 80;
-    server_name arelogic.space www.arelogic.space;
-    return 301 https://$host$request_uri;
-}
-server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-    server_name arelogic.space www.arelogic.space;
-    ssl_certificate /etc/letsencrypt/live/arelogic.space-0001/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/arelogic.space-0001/privkey.pem;
-    include /etc/letsencrypt/options-ssl-nginx.conf;
-    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
-
-    # WASM MIME type (critical for Havok physics)
-    location ~* \.wasm$ {
-        default_type application/wasm;
-        add_header Cross-Origin-Opener-Policy same-origin;
-        add_header Cross-Origin-Embedder-Policy require-corp;
-        add_header Cache-Control "public, max-age=31536000, immutable";
-    }
-
-    location /assets/ {
-        alias /opt/areloria/client/dist/assets/;
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-    location /playcanvas/ {
-        alias /opt/areloria/client/dist/playcanvas/;
-        expires 1y;
-    }
-    location /gm/ {
-        alias /opt/areloria/client/dist/gm/;
-        expires 1y;
-    }
-    location /world-assets/ {
-        alias /var/www/arelogic.space/world-assets/;
-        add_header Access-Control-Allow-Origin * always;
-        add_header Access-Control-Allow-Methods "GET, OPTIONS" always;
-    }
-    location /ws {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_read_timeout 600;
-    }
-    location /api/ {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-    location /zapier/ {
-        proxy_pass http://127.0.0.1:8082/webhook;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-    location /zapier-ws {
-        proxy_pass http://127.0.0.1:8081;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
-    location /webhook {
-        proxy_pass http://localhost:5000/webhook/wasd;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-NGINXEOF
+            CONF=/etc/nginx/sites-enabled/arelogic.space
+            cp $CONF $CONF.bak
+            echo "c2VydmVyIHsKICAgIGxpc3RlbiA4MDsKICAgIHNlcnZlcl9uYW1lIGFyZWxvZ2ljLnNwYWNlIHd3dy5hcmVsb2dpYy5zcGFjZTsKICAgIHJldHVybiAzMDEgaHR0cHM6Ly8kaG9zdCRyZXF1ZXN0X3VyaTsKfQpzZXJ2ZXIgewogICAgbGlzdGVuIDQ0MyBzc2wgaHR0cDI7CiAgICBsaXN0ZW4gWzo6XTo0NDMgc3NsIGh0dHAyOwogICAgc2VydmVyX25hbWUgYXJlbG9naWMuc3BhY2Ugd3d3LmFyZWxvZ2ljLnNwYWNlOwogICAgc3NsX2NlcnRpZmljYXRlIC9ldGMvbGV0c2VuY3J5cHQvbGl2ZS9hcmVsb2dpYy5zcGFjZS0wMDAxL2Z1bGxjaGFpbi5wZW07CiAgICBzc2xfY2VydGlmaWNhdGVfa2V5IC9ldGMvbGV0c2VuY3J5cHQvbGl2ZS9hcmVsb2dpYy5zcGFjZS0wMDAxL3ByaXZrZXkucGVtOwogICAgaW5jbHVkZSAvZXRjL2xldHNlbmNyeXB0L29wdGlvbnMtc3NsLW5naW54LmNvbmY7CiAgICBzc2xfZGhwYXJhbSAvZXRjL2xldHNlbmNyeXB0L3NzbC1kaHBhcmFtcy5wZW07CgogICAgIyBXQVNNIE1JTUUgdHlwZSAoY3JpdGljYWwgZm9yIEhhdm9rIHBoeXNpY3MpCiAgICBsb2NhdGlvbiB+KiBcLndhc20kIHsKICAgICAgICBkZWZhdWx0X3R5cGUgYXBwbGljYXRpb24vd2FzbTsKICAgICAgICBhZGRfaGVhZGVyIENyb3NzLU9yaWdpbi1PcGVuZXItUG9saWN5IHNhbWUtb3JpZ2luOwogICAgICAgIGFkZF9oZWFkZXIgQ3Jvc3MtT3JpZ2luLUVtYmVkZGVyLVBvbGljeSByZXF1aXJlLWNvcnA7CiAgICAgICAgYWRkX2hlYWRlciBDYWNoZS1Db250cm9sICJwdWJsaWMsIG1heC1hZ2U9MzE1MzYwMDAsIGltbXV0YWJsZSI7CiAgICB9CgogICAgbG9jYXRpb24gL2Fzc2V0cy8gewogICAgICAgIGFsaWFzIC9vcHQvYXJlbG9yaWEvY2xpZW50L2Rpc3QvYXNzZXRzLzsKICAgICAgICBleHBpcmVzIDF5OwogICAgICAgIGFkZF9oZWFkZXIgQ2FjaGUtQ29udHJvbCAicHVibGljLCBpbW11dGFibGUiOwogICAgfQogICAgbG9jYXRpb24gL3BsYXljYW52YXMvIHsKICAgICAgICBhbGlhcyAvb3B0L2FyZWxvcmlhL2NsaWVudC9kaXN0L3BsYXljYW52YXMvOwogICAgICAgIGV4cGlyZXMgMXk7CiAgICB9CiAgICBsb2NhdGlvbiAvZ20vIHsKICAgICAgICBhbGlhcyAvb3B0L2FyZWxvcmlhL2NsaWVudC9kaXN0L2dtLzsKICAgICAgICBleHBpcmVzIDF5OwogICAgfQogICAgbG9jYXRpb24gL3dvcmxkLWFzc2V0cy8gewogICAgICAgIGFsaWFzIC92YXIvd3d3L2FyZWxvZ2ljLnNwYWNlL3dvcmxkLWFzc2V0cy87CiAgICAgICAgYWRkX2hlYWRlciBBY2Nlc3MtQ29udHJvbC1BbGxvdy1PcmlnaW4gKiBhbHdheXM7CiAgICAgICAgYWRkX2hlYWRlciBBY2Nlc3MtQ29udHJvbC1BbGxvdy1NZXRob2RzICJHRVQsIE9QVElPTlMiIGFsd2F5czsKICAgIH0KICAgIGxvY2F0aW9uIC93cyB7CiAgICAgICAgcHJveHlfcGFzcyBodHRwOi8vMTI3LjAuMC4xOjMwMDA7CiAgICAgICAgcHJveHlfaHR0cF92ZXJzaW9uIDEuMTsKICAgICAgICBwcm94eV9zZXRfaGVhZGVyIFVwZ3JhZGUgJGh0dHBfdXBncmFkZTsKICAgICAgICBwcm94eV9zZXRfaGVhZGVyIENvbm5lY3Rpb24gInVwZ3JhZGUiOwogICAgICAgIHByb3h5X3NldF9oZWFkZXIgSG9zdCAkaG9zdDsKICAgICAgICBwcm94eV9yZWFkX3RpbWVvdXQgNjAwOwogICAgfQogICAgbG9jYXRpb24gL2FwaS8gewogICAgICAgIHByb3h5X3Bhc3MgaHR0cDovLzEyNy4wLjAuMTozMDAwOwogICAgICAgIHByb3h5X2h0dHBfdmVyc2lvbiAxLjE7CiAgICAgICAgcHJveHlfc2V0X2hlYWRlciBIb3N0ICRob3N0OwogICAgICAgIHByb3h5X3NldF9oZWFkZXIgWC1SZWFsLUlQICRyZW1vdGVfYWRkcjsKICAgICAgICBwcm94eV9zZXRfaGVhZGVyIFgtRm9yd2FyZGVkLUZvciAkcHJveHlfYWRkX3hfZm9yd2FyZGVkX2ZvcjsKICAgICAgICBwcm94eV9zZXRfaGVhZGVyIFgtRm9yd2FyZGVkLVByb3RvICRzY2hlbWU7CiAgICB9CiAgICBsb2NhdGlvbiAvemFwaWVyLyB7CiAgICAgICAgcHJveHlfcGFzcyBodHRwOi8vMTI3LjAuMC4xOjgwODIvd2ViaG9vazsKICAgICAgICBwcm94eV9zZXRfaGVhZGVyIEhvc3QgJGhvc3Q7CiAgICAgICAgcHJveHlfc2V0X2hlYWRlciBYLVJlYWwtSVAgJHJlbW90ZV9hZGRyOwogICAgfQogICAgbG9jYXRpb24gL3phcGllci13cyB7CiAgICAgICAgcHJveHlfcGFzcyBodHRwOi8vMTI3LjAuMC4xOjgwODE7CiAgICAgICAgcHJveHlfaHR0cF92ZXJzaW9uIDEuMTsKICAgICAgICBwcm94eV9zZXRfaGVhZGVyIFVwZ3JhZGUgJGh0dHBfdXBncmFkZTsKICAgICAgICBwcm94eV9zZXRfaGVhZGVyIENvbm5lY3Rpb24gInVwZ3JhZGUiOwogICAgfQogICAgbG9jYXRpb24gL3dlYmhvb2sgewogICAgICAgIHByb3h5X3Bhc3MgaHR0cDovL2xvY2FsaG9zdDo1MDAwL3dlYmhvb2svd2FzZDsKICAgICAgICBwcm94eV9zZXRfaGVhZGVyIEhvc3QgJGhvc3Q7CiAgICAgICAgcHJveHlfc2V0X2hlYWRlciBYLVJlYWwtSVAgJHJlbW90ZV9hZGRyOwogICAgfQogICAgbG9jYXRpb24gLyB7CiAgICAgICAgcHJveHlfcGFzcyBodHRwOi8vMTI3LjAuMC4xOjMwMDA7CiAgICAgICAgcHJveHlfaHR0cF92ZXJzaW9uIDEuMTsKICAgICAgICBwcm94eV9zZXRfaGVhZGVyIEhvc3QgJGhvc3Q7CiAgICAgICAgcHJveHlfc2V0X2hlYWRlciBYLVJlYWwtSVAgJHJlbW90ZV9hZGRyOwogICAgICAgIHByb3h5X3NldF9oZWFkZXIgWC1Gb3J3YXJkZWQtRm9yICRwcm94eV9hZGRfeF9mb3J3YXJkZWRfZm9yOwogICAgICAgIHByb3h5X3NldF9oZWFkZXIgWC1Gb3J3YXJkZWQtUHJvdG8gJHNjaGVtZTsKICAgIH0KfQo=" | base64 -d > $CONF
             echo "Config written"
-            
-            echo "=== Testing nginx ==="
-            nginx -t 2>&1
-            
-            echo "=== Reloading ==="
-            systemctl reload nginx 2>&1 || nginx -s reload 2>&1
-            
-            echo "=== Verifying WASM file exists ==="
-            ls -la /opt/areloria/client/dist/assets/*.wasm 2>/dev/null || echo "No .wasm in dist/assets"
-            
-            echo "=== Testing WASM MIME type ==="
+            nginx -t
+            systemctl reload nginx || nginx -s reload
             sleep 2
-            WASM_FILE=$(ls /opt/areloria/client/dist/assets/*.wasm 2>/dev/null | head -1)
-            if [ -n "$WASM_FILE" ]; then
-              WASM_NAME=$(basename "$WASM_FILE")
-              echo "Testing: $WASM_NAME"
-              curl -sI "https://arelogic.space/assets/$WASM_NAME" 2>/dev/null | grep -i 'content-type\|content-encoding' || echo "Curl check failed"
-            else
-              echo "No WASM file found, testing with generic .wasm URL"
-              curl -sI "https://arelogic.space/assets/test.wasm" 2>/dev/null | grep -i 'content-type' || echo "Generic check failed"
-            fi
-            
-            echo "=== Final config check ==="
-            grep -A5 'wasm' "$CONF"
-            
-            echo "=== DONE ==="
+            grep -A5 wasm $CONF
+            echo "DONE"
