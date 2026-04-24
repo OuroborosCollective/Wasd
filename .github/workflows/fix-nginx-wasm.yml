@@ -6,29 +6,6 @@ jobs:
   fix-nginx:
     runs-on: ubuntu-latest
     steps:
-      - name: Diagnose current Nginx config
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VPS_IP }}
-          username: ${{ secrets.VPS_USER }}
-          password: ${{ secrets.VPS_SSH_PASSWORD }}
-          port: 22
-          timeout: 3m
-          command_timeout: 10m
-          script_stop: true
-          script: |
-            echo "=== Step 1: Find Nginx config ==="
-            find /etc/nginx -name "*.conf" -type f 2>/dev/null
-            echo "=== Step 2: Show current config ==="
-            cat /etc/nginx/sites-enabled/arelogic.space 2>/dev/null || echo "NOT FOUND"
-            echo "=== Step 3: Check if WASM config exists ==="
-            grep -n 'wasm' /etc/nginx/sites-enabled/arelogic.space 2>/dev/null || echo "NO_WASM_CONFIG"
-            echo "=== Step 4: Show nginx -t ==="
-            nginx -t 2>&1 || echo "NGINX_TEST_FAILED"
-            echo "=== Step 5: Check what nginx serves ==="
-            curl -sI https://arelogic.space/ 2>/dev/null | head -10 || echo "CURL_FAILED"
-            echo "=== DONE ==="
-
       - name: Apply WASM MIME fix
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -44,21 +21,91 @@ jobs:
             echo "=== Backing up ==="
             cp "$CONF" "$CONF.bak-$(date +%s)"
             
-            echo "=== Current config ==="
-            cat "$CONF"
-            
-            echo "=== Checking for existing wasm config ==="
-            if grep -q 'wasm' "$CONF"; then
-              echo "WASM config already exists!"
-            else
-              echo "Adding WASM config..."
-              # Use sed to insert before the first 'location /' block
-              sed -i '/location \/ {/i\    # WASM MIME type (critical for Havok physics)\n    location ~* \\.wasm$ {\n        default_type application/wasm;\n        add_header Cross-Origin-Opener-Policy same-origin;\n        add_header Cross-Origin-Embedder-Policy require-corp;\n        add_header Cache-Control "public, max-age=31536000, immutable";\n    }\n' "$CONF"
-              echo "WASM config added via sed"
-            fi
-            
-            echo "=== New config ==="
-            cat "$CONF"
+            echo "=== Writing new config with WASM support ==="
+            cat > "$CONF" << 'NGINXEOF'
+server {
+    listen 80;
+    server_name arelogic.space www.arelogic.space;
+    return 301 https://$host$request_uri;
+}
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name arelogic.space www.arelogic.space;
+    ssl_certificate /etc/letsencrypt/live/arelogic.space-0001/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/arelogic.space-0001/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    # WASM MIME type (critical for Havok physics)
+    location ~* \.wasm$ {
+        default_type application/wasm;
+        add_header Cross-Origin-Opener-Policy same-origin;
+        add_header Cross-Origin-Embedder-Policy require-corp;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
+    location /assets/ {
+        alias /opt/areloria/client/dist/assets/;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+    location /playcanvas/ {
+        alias /opt/areloria/client/dist/playcanvas/;
+        expires 1y;
+    }
+    location /gm/ {
+        alias /opt/areloria/client/dist/gm/;
+        expires 1y;
+    }
+    location /world-assets/ {
+        alias /var/www/arelogic.space/world-assets/;
+        add_header Access-Control-Allow-Origin * always;
+        add_header Access-Control-Allow-Methods "GET, OPTIONS" always;
+    }
+    location /ws {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_read_timeout 600;
+    }
+    location /api/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    location /zapier/ {
+        proxy_pass http://127.0.0.1:8082/webhook;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+    location /zapier-ws {
+        proxy_pass http://127.0.0.1:8081;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+    location /webhook {
+        proxy_pass http://localhost:5000/webhook/wasd;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+NGINXEOF
+            echo "Config written"
             
             echo "=== Testing nginx ==="
             nginx -t 2>&1
@@ -66,8 +113,22 @@ jobs:
             echo "=== Reloading ==="
             systemctl reload nginx 2>&1 || nginx -s reload 2>&1
             
-            echo "=== Verifying ==="
+            echo "=== Verifying WASM file exists ==="
+            ls -la /opt/areloria/client/dist/assets/*.wasm 2>/dev/null || echo "No .wasm in dist/assets"
+            
+            echo "=== Testing WASM MIME type ==="
             sleep 2
-            curl -sI https://arelogic.space/ 2>/dev/null | head -10
+            WASM_FILE=$(ls /opt/areloria/client/dist/assets/*.wasm 2>/dev/null | head -1)
+            if [ -n "$WASM_FILE" ]; then
+              WASM_NAME=$(basename "$WASM_FILE")
+              echo "Testing: $WASM_NAME"
+              curl -sI "https://arelogic.space/assets/$WASM_NAME" 2>/dev/null | grep -i 'content-type\|content-encoding' || echo "Curl check failed"
+            else
+              echo "No WASM file found, testing with generic .wasm URL"
+              curl -sI "https://arelogic.space/assets/test.wasm" 2>/dev/null | grep -i 'content-type' || echo "Generic check failed"
+            fi
+            
+            echo "=== Final config check ==="
+            grep -A5 'wasm' "$CONF"
             
             echo "=== DONE ==="
