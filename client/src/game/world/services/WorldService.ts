@@ -167,6 +167,11 @@ export class WorldService {
       }
     }
 
+    // Physics: sleep far bodies to save CPU
+    if (this.config.enablePhysics && physicsService.isActive()) {
+      physicsService.deactivateFarBodies(this.camera.position, 120);
+    }
+
     // World generator (terrain LOD is handled internally)
     if (this.config.enableWorldGeneration) {
       worldGenerator.update();

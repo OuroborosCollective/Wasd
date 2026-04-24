@@ -41,14 +41,17 @@ const DYNAMIC_CONFIG: PhysicsBodyConfig = {
   isTrigger: false,
 };
 
+const MAX_BODIES_PER_CHUNK = 48;
+
 export class PhysicsService {
   private scene: Scene | null = null;
   private plugin: HavokPlugin | null = null;
   private aggregates = new Map<string, PhysicsAggregate>();
   private initialized = false;
+  private initFailed = false;
 
   async init(scene: Scene): Promise<void> {
-    if (this.initialized) return;
+    if (this.initialized || this.initFailed) return;
 
     try {
       const havokInstance = await (await import("@babylonjs/havok")).default();
@@ -58,8 +61,18 @@ export class PhysicsService {
       this.initialized = true;
       console.log("[PhysicsService] Havok physics initialized.");
     } catch (err) {
-      console.error("[PhysicsService] Failed to initialize Havok:", err);
+      this.initFailed = true;
+      console.warn(
+        "[PhysicsService] Havok failed to load — game runs without physics. " +
+        "Check .wasm MIME type and COOP/COEP headers. Error:",
+        err
+      );
     }
+  }
+
+  /** Returns true if Havok init failed (game still works without physics). */
+  hasInitFailed(): boolean {
+    return this.initFailed;
   }
 
   /** Validates that mesh transforms are finite to prevent Havok crashes. */
@@ -82,6 +95,7 @@ export class PhysicsService {
   ): void {
     if (!this.scene || !this.initialized) return;
     if (this.aggregates.has(id)) return;
+    if (this.aggregates.size >= MAX_BODIES_PER_CHUNK) return;
     if (!this.isValidTransform(mesh)) {
       console.warn(`[PhysicsService] Invalid transform for static collider "${id}", skipping.`);
       return;
@@ -105,6 +119,7 @@ export class PhysicsService {
   ): void {
     if (!this.scene || !this.initialized) return;
     if (this.aggregates.has(id)) return;
+    if (this.aggregates.size >= MAX_BODIES_PER_CHUNK) return;
     if (!this.isValidTransform(mesh)) {
       console.warn(`[PhysicsService] Invalid transform for dynamic body "${id}", skipping.`);
       return;
@@ -128,6 +143,7 @@ export class PhysicsService {
   ): void {
     if (!this.scene || !this.initialized) return;
     if (this.aggregates.has(id)) return;
+    if (this.aggregates.size >= MAX_BODIES_PER_CHUNK) return;
     if (!this.isValidTransform(mesh)) {
       console.warn(`[PhysicsService] Invalid transform for ground collider "${id}", skipping.`);
       return;
@@ -152,6 +168,62 @@ export class PhysicsService {
     }
   }
 
+  /**
+   * Deactivate physics bodies far from observer position.
+   * Sleeps (disables simulation for) bodies beyond the given distance.
+   * Wakes bodies back up when they come back into range.
+   */
+  deactivateFarBodies(observerPos: Vector3, maxDistance: number = 120): void {
+    if (!this.initialized || !this.plugin) return;
+    const maxDistSq = maxDistance * maxDistance;
+
+    for (const [id, aggregate] of this.aggregates) {
+      try {
+        const bodyPos = aggregate.body.transformNode?.position;
+        if (!bodyPos) continue;
+        const dx = bodyPos.x - observerPos.x;
+        const dz = bodyPos.z - observerPos.z;
+        const distSq = dx * dx + dz * dz;
+
+        if (distSq > maxDistSq) {
+          aggregate.body.disablePreStep = true;
+        } else {
+          aggregate.body.disablePreStep = false;
+        }
+      } catch {
+        // Body may have been disposed externally
+      }
+    }
+  }
+
+  /**
+   * Remove all physics bodies whose mesh position is beyond the given distance
+   * from the observer. Use this when chunks unload to free Havok memory.
+   */
+  removeFarBodies(observerPos: Vector3, maxDistance: number = 100): void {
+    if (!this.initialized) return;
+    const maxDistSq = maxDistance * maxDistance;
+    const toRemove: string[] = [];
+
+    for (const [id, aggregate] of this.aggregates) {
+      try {
+        const bodyPos = aggregate.body.transformNode?.position;
+        if (!bodyPos) { toRemove.push(id); continue; }
+        const dx = bodyPos.x - observerPos.x;
+        const dz = bodyPos.z - observerPos.z;
+        if (dx * dx + dz * dz > maxDistSq) {
+          toRemove.push(id);
+        }
+      } catch {
+        toRemove.push(id);
+      }
+    }
+
+    for (const id of toRemove) {
+      this.removeBody(id);
+    }
+  }
+
   /** Check if physics is active. */
   isActive(): boolean {
     return this.initialized;
@@ -163,14 +235,14 @@ export class PhysicsService {
   }
 
   /** Get stats. */
-  getStats(): { total: number; static: number; dynamic: number } {
+  getStats(): { total: number; static: number; dynamic: number; initFailed: boolean; maxPerChunk: number } {
     let staticCount = 0;
     let dynamicCount = 0;
     for (const agg of this.aggregates.values()) {
       if (agg.body.mass === 0) staticCount++;
       else dynamicCount++;
     }
-    return { total: this.aggregates.size, static: staticCount, dynamic: dynamicCount };
+    return { total: this.aggregates.size, static: staticCount, dynamic: dynamicCount, initFailed: this.initFailed, maxPerChunk: MAX_BODIES_PER_CHUNK };
   }
 
   dispose(): void {
