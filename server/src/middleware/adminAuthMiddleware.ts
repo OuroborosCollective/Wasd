@@ -5,13 +5,13 @@ export type AdminRequest = Request & {
   adminAuth?: { mode: "token" } | { mode: "supabase"; uid: string };
 };
 
-function parseUidAllowlist(): Set<string> {
-  const raw = process.env.ADMIN_UID_ALLOWLIST?.trim();
+function parseAllowlist(envKey: string): Set<string> {
+  const raw = process.env[envKey]?.trim();
   if (!raw) return new Set();
   return new Set(
     raw
       .split(/[\s,]+/)
-      .map((s) => s.trim())
+      .map((s) => s.trim().toLowerCase())
       .filter(Boolean)
   );
 }
@@ -19,8 +19,8 @@ function parseUidAllowlist(): Set<string> {
 /**
  * Protects no-code admin HTTP APIs.
  * - If `ADMIN_PANEL_TOKEN` is set: accept `Authorization: Bearer ***` or `X-Admin-Token: <token>`.
- * - Else: require Supabase ID token (`Authorization: Bearer ***`).
- * - If `ADMIN_UID_ALLOWLIST` is non-empty, token uid must be listed.
+ * - Also allows Supabase ID token (`Authorization: Bearer ***`) if configured.
+ * - If `ADMIN_UID_ALLOWLIST` or `ADMIN_EMAIL_ALLOWLIST` is non-empty, user must match at least one.
  */
 export async function adminAuthMiddleware(req: AdminRequest, res: Response, next: NextFunction) {
   const panel = process.env.ADMIN_PANEL_TOKEN?.trim();
@@ -35,20 +35,13 @@ export async function adminAuthMiddleware(req: AdminRequest, res: Response, next
   const hasPanelCandidate =
     acceptedPanelTokens.includes(bearer) || acceptedPanelTokens.includes(headerToken);
 
-  if (acceptedPanelTokens.length > 0) {
-    if (hasPanelCandidate) {
-      req.adminAuth = { mode: "token" };
-      return next();
-    }
-    if (!bearer && !headerToken) {
-      return res.status(401).json({ error: "Admin token or Supabase Bearer required" });
-    }
-    // JWT-shaped bearer with panel token set → remind to use the panel token
-    if (bearer && bearer.split(".").length === 3 && !acceptedPanelTokens.includes(bearer)) {
-      return res.status(401).json({
-        error: "ADMIN_PANEL_TOKEN is set — send it as Bearer, not a Google/Firebase token",
-      });
-    }
+  if (hasPanelCandidate && acceptedPanelTokens.length > 0) {
+    req.adminAuth = { mode: "token" };
+    return next();
+  }
+
+  if (!bearer && !headerToken && acceptedPanelTokens.length > 0) {
+    return res.status(401).json({ error: "Admin token or Supabase Bearer required" });
   }
 
   if (!bearer) {
@@ -56,18 +49,29 @@ export async function adminAuthMiddleware(req: AdminRequest, res: Response, next
   }
 
   try {
-    const allow = parseUidAllowlist();
-
     if (isSupabaseAuthConfigured()) {
       try {
         const claims = verifySupabaseToken(bearer);
         const uid = typeof claims.sub === "string" ? claims.sub.trim() : "";
+        const email = typeof claims.email === "string" ? claims.email.trim().toLowerCase() : "";
         if (!uid) {
           return res.status(401).json({ error: "Invalid token" });
         }
-        if (allow.size > 0 && !allow.has(uid)) {
-          return res.status(403).json({ error: "Forbidden: uid not in ADMIN_UID_ALLOWLIST" });
+
+        const allowUid = parseAllowlist("ADMIN_UID_ALLOWLIST");
+        const allowEmail = parseAllowlist("ADMIN_EMAIL_ALLOWLIST");
+
+        let authorized = true;
+        if (allowUid.size > 0 || allowEmail.size > 0) {
+          authorized = false;
+          if (allowUid.size > 0 && allowUid.has(uid.toLowerCase())) authorized = true;
+          if (!authorized && allowEmail.size > 0 && email && allowEmail.has(email)) authorized = true;
         }
+
+        if (!authorized) {
+          return res.status(403).json({ error: "Forbidden: user not in allowlist" });
+        }
+
         req.adminAuth = { mode: "supabase", uid };
         return next();
       } catch {
