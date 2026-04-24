@@ -396,14 +396,22 @@ export class WorldGeneratorService {
     if (!trees) return;
 
     for (const tree of trees) {
-      physicsService.removeBody(tree.name);
+      // Dispose material clones to free GPU memory
+      const mesh = tree as Mesh;
+      if (mesh.material) {
+        const mat = mesh.material as any;
+        // Dispose textures on the material before disposing material
+        if (mat.diffuseTexture) mat.diffuseTexture.dispose();
+        if (mat.emissiveTexture) mat.emissiveTexture.dispose();
+        mat.dispose();
+      }
       tree.dispose(false, true);
     }
     this.treesByChunk.delete(key);
     this.totalTreesGenerated -= trees.length;
 
     if (trees.length > 0) {
-      console.log(`[WorldGenerator] Chunk ${key}: ${trees.length} trees unloaded`);
+      console.log(`[WorldGenerator] Chunk ${key}: ${trees.length} trees unloaded (materials disposed)`);
     }
   }
 

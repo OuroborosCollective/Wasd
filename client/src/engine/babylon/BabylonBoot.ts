@@ -54,6 +54,16 @@ export function createBabylonApp(
     /** Full retina + GLB is too heavy on many phones; scale down internal buffer instead. */
     adaptToDeviceRatio: !useMobileRenderBudget,
   });
+
+  // Handle WebGL context lost (common on Android under memory pressure)
+  canvas.addEventListener("webglcontextlost", (event) => {
+    event.preventDefault();
+    console.warn("[BabylonBoot] WebGL context lost — pausing render loop.");
+  });
+  canvas.addEventListener("webglcontextrestored", () => {
+    console.warn("[BabylonBoot] WebGL context restored — engine will reinitialize.");
+    engine.resize();
+  });
   if (useMobileRenderBudget) {
     const dpr = typeof window !== "undefined" ? Math.min(2, window.devicePixelRatio || 1) : 1;
     /** Android: extra internal resolution drop — fewer fragment shader invocations. */
