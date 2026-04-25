@@ -1,3 +1,4 @@
+import { shutdownPostHog } from "../services/posthog.js";
 import express, { type Request } from "express";
 import { createServer } from "node:http";
 import { existsSync } from "node:fs";
@@ -494,10 +495,15 @@ export class ServerBootstrap {
       tick.start();
 
       // Graceful shutdown: flush LiveHeal learning data
-      const shutdownHandler = () => {
-        console.log("[LiveHeal] Flushing data on shutdown...");
+      const shutdownHandler = async () => {
+        console.log("[Shutdown] Flushing data...");
         tick.liveHeal.flush();
         tick.assetHealthService.flush();
+        try {
+          await shutdownPostHog();
+        } catch (e) {
+          console.warn("[Shutdown] PostHog shutdown failed", e);
+        }
         process.exit(0);
       };
       process.on("SIGTERM", shutdownHandler);

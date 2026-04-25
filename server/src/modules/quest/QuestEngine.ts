@@ -1,4 +1,5 @@
 import { ItemRegistry } from "../inventory/ItemRegistry.js";
+import { getPostHogClient } from "../../services/posthog.js";
 import fs from "fs";
 import { resolveContentFile } from "../content/contentDataRoot.js";
 
@@ -211,6 +212,20 @@ export class QuestEngine {
 
     this.invalidateCache(player);
     const def = this.quests.get(questId);
+
+    const ph = getPostHogClient();
+    if (ph) {
+      ph.capture({
+        distinctId: player.id || player.uid || "unknown",
+        event: "quest_completed",
+        properties: {
+          questId: questId,
+          questTitle: def?.title || def?.name || "unknown",
+          goldReward: q.reward?.gold,
+          xpReward: q.reward?.xp
+        }
+      });
+    }
     if (this.onQuestCompletedHook && def) {
       try {
         this.onQuestCompletedHook(player, q, def);

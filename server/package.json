@@ -12,10 +12,9 @@
     "migrate": "node-pg-migrate"
   },
   "dependencies": {
-    "dotenv": "^16.4.5",
-    "@supabase/supabase-js": "^2.45.0",
     "@genkit-ai/googleai": "^1.28.0",
     "@modelcontextprotocol/sdk": "^1.27.1",
+    "@supabase/supabase-js": "^2.45.0",
     "commander": "^14.0.3",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
@@ -25,6 +24,7 @@
     "node-pg-migrate": "^8.0.4",
     "openai": "^6.32.0",
     "pg": "^8.20.0",
+    "posthog-node": "^5.30.4",
     "ws": "^8.20.0"
   },
   "devDependencies": {
