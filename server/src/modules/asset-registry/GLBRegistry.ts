@@ -8,7 +8,7 @@ export interface GLBLink {
 }
 
 export class GLBRegistry {
-  private links: GLBLink[] = [];
+  private links: Map<string, GLBLink> = new Map();
   private modelsDir = path.resolve(process.cwd(), '../client/public/assets/models');
 
   constructor() {
@@ -19,10 +19,12 @@ export class GLBRegistry {
     const linksPath = path.resolve(process.cwd(), 'game-data/glb-links.json');
     if (fs.existsSync(linksPath)) {
       try {
-        this.links = JSON.parse(fs.readFileSync(linksPath, 'utf-8'));
+        const rawLinks: GLBLink[] = JSON.parse(fs.readFileSync(linksPath, 'utf-8'));
+        for (const link of rawLinks) {
+          this.links.set(`${link.targetType}:${link.targetId}`, link);
+        }
       } catch (e) {
         console.error("Failed to parse glb-links.json", e);
-        this.links = [];
       }
     }
   }
@@ -30,7 +32,8 @@ export class GLBRegistry {
   public saveLinks() {
     const linksPath = path.resolve(process.cwd(), 'game-data/glb-links.json');
     fs.mkdirSync(path.dirname(linksPath), { recursive: true });
-    fs.writeFileSync(linksPath, JSON.stringify(this.links, null, 2));
+    const linksArray = Array.from(this.links.values());
+    fs.writeFileSync(linksPath, JSON.stringify(linksArray, null, 2));
   }
 
   public scanModels(): string[] {
@@ -61,23 +64,21 @@ export class GLBRegistry {
   }
 
   public getLinks() {
-    return this.links;
+    return Array.from(this.links.values());
   }
 
   public addLink(link: GLBLink) {
-    // remove existing link for the same target
-    this.links = this.links.filter(l => !(l.targetType === link.targetType && l.targetId === link.targetId));
-    this.links.push(link);
+    this.links.set(`${link.targetType}:${link.targetId}`, link);
     this.saveLinks();
   }
 
   public removeLink(targetType: string, targetId: string) {
-    this.links = this.links.filter(l => !(l.targetType === targetType && l.targetId === targetId));
+    this.links.delete(`${targetType}:${targetId}`);
     this.saveLinks();
   }
 
   public getModelForTarget(targetType: string, targetId: string): string | null {
-    const link = this.links.find(l => l.targetType === targetType && l.targetId === targetId);
+    const link = this.links.get(`${targetType}:${targetId}`);
     return link ? link.glbPath : null;
   }
 }
