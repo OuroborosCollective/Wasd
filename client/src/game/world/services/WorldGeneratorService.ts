@@ -237,8 +237,8 @@ export class WorldGeneratorService {
       const u = (localX / chunkSize) * (chunkData.resolution - 1);
       const v = (localZ / chunkSize) * (chunkData.resolution - 1);
 
-      const x0 = Math.floor(u);
-      const z0 = Math.floor(v);
+      const x0 = Math.max(0, Math.min(Math.floor(u), chunkData.resolution - 1));
+      const z0 = Math.max(0, Math.min(Math.floor(v), chunkData.resolution - 1));
       const x1 = Math.min(x0 + 1, chunkData.resolution - 1);
       const z1 = Math.min(z0 + 1, chunkData.resolution - 1);
       const fx = u - x0;
@@ -251,10 +251,12 @@ export class WorldGeneratorService {
       const h01 = data[(z1 * res + x0) * 3 + 1];
       const h11 = data[(z1 * res + x1) * 3 + 1];
 
-      return h00 * (1 - fx) * (1 - fz) + h10 * fx * (1 - fz) + h01 * (1 - fx) * fz + h11 * fx * fz;
+      const h = h00 * (1 - fx) * (1 - fz) + h10 * fx * (1 - fz) + h01 * (1 - fx) * fz + h11 * fx * fz;
+      return Number.isFinite(h) ? h : 0;
     }
 
-    return this.terrain ? this.terrain.getHeightFromMap(x, z) : 0;
+    const h = this.terrain ? this.terrain.getHeightFromMap(x, z) : 0;
+    return Number.isFinite(h) ? h : 0;
   }
 
   // ── Chunk-Based Tree Generation ───────────────────────────────────
@@ -405,6 +407,7 @@ export class WorldGeneratorService {
         if (mat.emissiveTexture) mat.emissiveTexture.dispose();
         mat.dispose();
       }
+      physicsService.removeBody(tree.name);
       tree.dispose(false, true);
     }
     this.treesByChunk.delete(key);
@@ -437,7 +440,8 @@ export class WorldGeneratorService {
     return {
       getHeightAt(x: number, y: number): number {
         try {
-          return terrain.getHeightFromMap(x, y);
+          const h = terrain.getHeightFromMap(x, y);
+          return Number.isFinite(h) ? h : 0;
         } catch {
           return 0;
         }
@@ -447,7 +451,8 @@ export class WorldGeneratorService {
         const h0 = terrain.getHeightFromMap(x, y);
         const hx = terrain.getHeightFromMap(x + d, y);
         const hy = terrain.getHeightFromMap(x, y + d);
-        return Math.sqrt(((hx - h0) / d) ** 2 + ((hy - h0) / d) ** 2);
+        const s = Math.sqrt(((hx - h0) / d) ** 2 + ((hy - h0) / d) ** 2);
+        return Number.isFinite(s) ? s : 0;
       },
       async flattenArea(x: number, y: number, width: number, depth: number, targetHeight: number): Promise<void> {
         const mapData = terrain.mapData as Float32Array;

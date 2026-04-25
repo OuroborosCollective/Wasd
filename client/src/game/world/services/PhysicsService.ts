@@ -75,16 +75,32 @@ export class PhysicsService {
     return this.initFailed;
   }
 
-  /** Validates that mesh transforms are finite to prevent Havok crashes. */
+  /** Validates that mesh transforms are finite and bounded to prevent Havok crashes. */
   private isValidTransform(mesh: Mesh | TransformNode): boolean {
     const p = mesh.position;
     const r = mesh.rotation;
     const s = mesh.scaling;
-    return (
+
+    // Check for finite numbers
+    const isFinite = (
       Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z) &&
       Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.z) &&
       Number.isFinite(s.x) && Number.isFinite(s.y) && Number.isFinite(s.z)
     );
+    if (!isFinite) return false;
+
+    // Guard against extreme values that can cause engine instability
+    // World is approx 400x400, so 10000 is a safe upper bound
+    const MAX_COORD = 10000;
+    const MAX_SCALE = 1000;
+
+    if (Math.abs(p.x) > MAX_COORD || Math.abs(p.y) > MAX_COORD || Math.abs(p.z) > MAX_COORD) return false;
+    if (Math.abs(s.x) > MAX_SCALE || Math.abs(s.y) > MAX_SCALE || Math.abs(s.z) > MAX_SCALE) return false;
+
+    // Guard against zero scale (Havok can crash or throw on degenerate shapes)
+    if (Math.abs(s.x) < 1e-5 || Math.abs(s.y) < 1e-5 || Math.abs(s.z) < 1e-5) return false;
+
+    return true;
   }
 
   /** Add a static collider for a world object (house, wall, etc.). */

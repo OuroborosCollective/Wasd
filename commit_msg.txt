@@ -1,0 +1,6 @@
+fix(client): resolve mobile crashes in procedural generation and physics
+
+- Fixed a memory leak in `WorldGeneratorService.removeTreesForChunk` by explicitly removing physics bodies from the Havok engine before disposing of tree meshes.
+- Added `Number.isFinite` guards to heightmap and slope queries in `WorldGeneratorService` to prevent NaN values from causing physics engine crashes.
+- Enhanced transform validation in `PhysicsService` with bounds checks and zero-scale protection.
+- Optimized mobile performance by ensuring proper cleanup during chunk unloading.
