@@ -71,6 +71,7 @@ import { LOCAL_CHAT_RADIUS } from "../modules/chat/chatChannelTypes.js";
 import { OuroborosEngine } from "../modules/ouroboros/OuroborosEngine.js";
 import { NPCRelationshipSystem } from "../modules/npc/NPCRelationshipSystem.js";
 
+import { getPostHogClient } from "../services/posthog.js";
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { GameConfig } from "../config/GameConfig.js";
 import { LiveHealEngine, bootstrapLiveHeal, resolveLiveHealConfigFromEnv } from "./liveheal/index.js";
@@ -2163,6 +2164,27 @@ export class WorldTick {
           }
           uid = identity.uid;
           charName = identity.charName;
+
+          const ph = getPostHogClient();
+          if (ph) {
+            ph.identify({
+              distinctId: uid,
+              properties: {
+                charName: charName,
+                userAgent: msg?.userAgent,
+                areDeviceClass: msg?.areDeviceClass
+              }
+            });
+            ph.capture({
+              distinctId: uid,
+              event: "player_login",
+              properties: {
+                charName: charName,
+                sceneId: msg?.sceneId,
+                spawnKey: msg?.spawnKey
+              }
+            });
+          }
 
           let player = this.playerSystem.getPlayer(uid);
           let shouldApplySpawn = false;
