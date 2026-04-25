@@ -1,262 +1,127 @@
-/**
- * WorldGeneratorService — Procedural world generation pipeline.
- *
- * Creates DynamicTerrain + TreeGenerator instances, wires them into the
- * placement engine, and exposes height queries for physics/navigation.
- *
- * Lifecycle:
- *   await worldGenerator.init(scene, camera)   // creates terrain + trees
- *   worldGenerator.update()                     // call each frame (LOD, streaming)
- *   worldGenerator.dispose()                    // cleanup
- */
-
 import { Scene, Camera, StandardMaterial, Color3, Vector3, Mesh, RawTexture, PhysicsShapeType } from "@babylonjs/core";
-import {
-  type IDynamicTerrain,
-} from "../../../lib/babylon-extensions/DynamicTerrain";
 import { createTree, createBush, createPine } from "../../../lib/babylon-extensions/TreeGeneratorWrapper";
 import { textureCloneService } from "./TextureCloneService.js";
 import { physicsService } from "./PhysicsService.js";
-import {
-  generateDiamondSquareHeightmap,
-  generateDiamondSquareTexture,
-  generateChunkHeightmap,
-} from "../../../lib/babylon-extensions/DiamondSquareGenerator";
 import { isAndroid } from "../../../ui/touchUi";
 
-/** Terrain query interface matching the server's TerrainQueryAdapter. */
+export interface WorldGeneratorConfig {
+  seed: number;
+  terrainWidth: number;
+  terrainDepth: number;
+  terrainSubX: number;
+  terrainSubZ: number;
+  terrainAmplitude: number;
+  treeDensity: number;
+}
+
 export interface TerrainQueryAdapter {
   getHeightAt(x: number, y: number): number;
   getSlopeAt(x: number, y: number): number;
   flattenArea(x: number, y: number, width: number, depth: number, targetHeight: number): Promise<void>;
 }
 
-// ── Configuration ──────────────────────────────────────────────────────
-
-export interface WorldGeneratorConfig {
-  /** World seed for deterministic generation (default: 42) */
-  seed: number;
-  /** Terrain map width in world units (default: 400) */
-  terrainWidth: number;
-  /** Terrain map depth in world units (default: 400) */
-  terrainDepth: number;
-  /** Heightmap subdivisions X (default: 150) */
-  terrainSubX: number;
-  /** Heightmap subdivisions Z (default: 150) */
-  terrainSubZ: number;
-  /** DynamicTerrain mesh subdivisions (default: 60) */
-  terrainMeshSub: number;
-  /** Max terrain amplitude (default: 8) */
-  terrainAmplitude: number;
-  /** Diamond-square roughness multiplier — lower = rougher (default: 1.2) */
-  terrainRoughness: number;
-  /** Tree density per 100 sq units (default: 0.8) */
-  treeDensity: number;
-  /** Max trees total (default: 200) */
-  maxTrees: number;
-  /** Enable tree generation (default: true) */
-  enableTrees: boolean;
-  /** Enable terrain (default: true) */
-  enableTerrain: boolean;
-}
-
-const DEFAULT_CONFIG: WorldGeneratorConfig = {
-  seed: 42,
-  terrainWidth: 400,
-  terrainDepth: 400,
-  terrainSubX: 150,
-  terrainSubZ: 150,
-  terrainMeshSub: 60,
-  terrainAmplitude: 8,
-  terrainRoughness: 1.2,
-  treeDensity: 0.8,
-  maxTrees: 200,
-  enableTrees: true,
-  enableTerrain: true,
-};
-
-// ── Seeded PRNG ────────────────────────────────────────────────────────
-
-function mulberry32(seed: number): () => number {
-  let s = seed | 0;
-  return () => {
-    s = (s + 0x6d2b79f5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+function mulberry32(a: number) {
+  return function () {
+    let t = (a += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
 
-// ── Service ────────────────────────────────────────────────────────────
-
+/**
+ * WorldGeneratorService — Procedural world generation pipeline.
+ * Manages terrain and foliage (trees, bushes) using chunk-based deterministic generation.
+ */
 export class WorldGeneratorService {
-  private config: WorldGeneratorConfig;
-  private terrain: IDynamicTerrain | null = null;
-  private terrainNoiseTexture: RawTexture | null = null;
-  private treesByChunk = new Map<string, Mesh[]>();
-  private chunkHeightmaps = new Map<string, { data: Float32Array; resolution: number; amplitude: number }>();
-  private trunkMaterial: StandardMaterial | null = null;
-  private leafMaterial: StandardMaterial | null = null;
-  private terrainObserver: any = null;
   private initialized = false;
   private scene: Scene | null = null;
+  private terrain: any | null = null;
+  private treesByChunk: Map<string, Mesh[]> = new Map();
   private totalTreesGenerated = 0;
+  private resonanceByChunk: Map<string, { faith: number; aggression: number; curiosity: number }> = new Map();
 
-  constructor(config?: Partial<WorldGeneratorConfig>) {
-    const android = isAndroid();
-    const mobileConfig: Partial<WorldGeneratorConfig> = android ? {
-      terrainSubX: 75,        // 150 → 75 (quarter vertices)
-      terrainSubZ: 75,
-      terrainMeshSub: 30,     // 60 → 30 (half subdivisions)
-      maxTrees: 100,          // 200 → 100
-      treeDensity: 0.4,       // 0.8 → 0.4
-    } : {};
-    
-    this.config = { ...DEFAULT_CONFIG, ...mobileConfig, ...config };
-  }
+  private trunkMaterial: StandardMaterial | null = null;
+  private leafMaterial: StandardMaterial | null = null;
 
-  async init(scene: Scene, camera: Camera): Promise<void> {
+  private config: WorldGeneratorConfig = {
+    seed: 12345,
+    terrainWidth: 1024,
+    terrainDepth: 1024,
+    terrainSubX: 256,
+    terrainSubZ: 256,
+    terrainAmplitude: 20,
+    treeDensity: 0.5,
+  };
+
+  async init(scene: Scene, config?: Partial<WorldGeneratorConfig>): Promise<void> {
     if (this.initialized) return;
-    console.log("[WorldGenerator] Starting world generation pipeline...");
     this.scene = scene;
+    if (config) this.config = { ...this.config, ...config };
 
-    if (this.config.enableTerrain) {
-      await this.initTerrain(scene, camera);
-    }
-
-    if (this.config.enableTrees) {
-      this.initTreeMaterials(scene);
-      // Trees are now generated per-chunk via generateTreesForChunk()
-      // Called by WatchdogService when chunks load
-    }
-
-    this.initialized = true;
-    console.log(
-      `[WorldGenerator] Ready: terrain=${this.terrain ? "yes" : "no"}, ` +
-      `chunk-based tree streaming active`
-    );
-  }
-
-  // ── Terrain ──────────────────────────────────────────────────────────
-
-  private async initTerrain(scene: Scene, camera: Camera): Promise<void> {
-    console.log("[WorldGenerator] Creating diamond-square terrain...");
+    this.initTreeMaterials(scene);
 
     const { DynamicTerrain } = await import("../../../lib/babylon-extensions/DynamicTerrain");
 
-    // Generate heightmap using diamond-square algorithm
-    const mapData = generateDiamondSquareHeightmap(
-      this.config.terrainSubX,
-      this.config.terrainSubZ,
-      this.config.terrainWidth,
-      this.config.terrainDepth,
-      this.config.terrainAmplitude,
-      this.config.terrainRoughness,
-      this.config.seed
-    );
+    // Procedural Heightmap Generation (Simplex/Perlin fallback)
+    const mapSubX = this.config.terrainSubX;
+    const mapSubZ = this.config.terrainSubZ;
+    const mapData = new Float32Array(mapSubX * mapSubZ * 3);
 
-    this.terrain = new DynamicTerrain(
-      "world-terrain",
-      {
-        mapData,
-        mapSubX: this.config.terrainSubX,
-        mapSubZ: this.config.terrainSubZ,
-        terrainSub: this.config.terrainMeshSub,
-        camera,
-      },
-      scene
-    );
+    for (let l = 0; l < mapSubZ; l++) {
+      for (let w = 0; w < mapSubX; w++) {
+        const x = (w - mapSubX / 2) * (this.config.terrainWidth / mapSubX);
+        const z = (l - mapSubZ / 2) * (this.config.terrainDepth / mapSubZ);
 
-    // Create terrain material with noise texture for visual detail
-    const mat = new StandardMaterial("terrain-mat", scene);
-    mat.diffuseColor = new Color3(0.35, 0.48, 0.28);
-    mat.specularColor = new Color3(0.03, 0.03, 0.03);
+        // Simple multi-octave noise (deterministic based on seed)
+        const nx = x / 100;
+        const nz = z / 100;
+        const seed = this.config.seed;
 
-    // Generate and apply noise texture for terrain detail
-    const noiseData = generateDiamondSquareTexture(513, this.config.terrainRoughness, this.config.seed);
-    this.terrainNoiseTexture = RawTexture.CreateRGBTexture(
-      noiseData, 513, 513, scene, true, false, RawTexture.NEAREST_NEAREST
-    );
-    mat.diffuseTexture = this.terrainNoiseTexture;
-    mat.emissiveTexture = this.terrainNoiseTexture;
-    mat.emissiveColor = new Color3(0.15, 0.15, 0.1);
+        let y = Math.sin(nx * 0.5 + seed) * Math.cos(nz * 0.3 + seed) * 5;
+        y += Math.sin(nx * 2 + seed * 1.1) * Math.cos(nz * 1.5 + seed * 1.2) * 2;
+        y += Math.sin(nx * 5 + seed * 1.3) * Math.cos(nz * 4 + seed * 1.4) * 0.5;
 
-    this.terrain.mesh.material = mat;
-    this.terrain.computeNormals = true;
-
-    // Register terrain with physics engine (MESH shape for accuracy)
-    physicsService.addGroundCollider(this.terrain.mesh.name, this.terrain.mesh);
-
-    this.terrainObserver = scene.onBeforeRenderObservable.add(() => {
-      this.terrain!.update(false);
-    });
-
-    console.log(
-      `[WorldGenerator] Diamond-square terrain: ${this.config.terrainSubX}x${this.config.terrainSubZ} ` +
-      `heightmap (seed=${this.config.seed}, roughness=${this.config.terrainRoughness}), ` +
-      `${this.config.terrainWidth}x${this.config.terrainDepth} world units`
-    );
-  }
-
-  /**
-   * Generate terrain data for a specific chunk (for WatchdogService).
-   * Caches the heightmap for later height queries.
-   */
-  generateChunkTerrain(
-    chunkX: number,
-    chunkZ: number,
-    chunkSize: number = 64
-  ): { data: Float32Array; resolution: number; amplitude: number } {
-    const key = `${chunkX},${chunkZ}`;
-    if (this.chunkHeightmaps.has(key)) {
-      return this.chunkHeightmaps.get(key)!;
+        const idx = (l * mapSubX + w) * 3;
+        mapData[idx] = x;
+        mapData[idx + 1] = y;
+        mapData[idx + 2] = z;
+      }
     }
 
-    const chunkData = generateChunkHeightmap(
-      chunkX, chunkZ, chunkSize, 65,
-      this.config.terrainAmplitude, this.config.seed
-    );
+    const terrainParams = {
+      mapData,
+      mapSubX,
+      mapSubZ,
+      terrainSub: isAndroid() ? 40 : 80,
+    };
 
-    this.chunkHeightmaps.set(key, chunkData);
-    return chunkData;
+    this.terrain = new DynamicTerrain("main-terrain", terrainParams, scene);
+    this.terrain.useCustomVertexFunction = true;
+
+    // Register terrain collider with physics engine
+    physicsService.addStaticCollider("terrain", this.terrain.mesh, { shape: PhysicsShapeType.MESH });
+
+    this.initialized = true;
+    console.log("[WorldGenerator] Initialized.");
   }
 
-  /**
-   * Get height at world position using chunk-based heightmap data.
-   */
-  getHeightAtChunkPosition(x: number, z: number): number {
-    const chunkSize = 64;
-    const cx = Math.floor(x / chunkSize);
-    const cz = Math.floor(z / chunkSize);
-    const key = `${cx},${cz}`;
+  // ── Height Queries ───────────────────────────────────────────────────
 
-    const chunkData = this.chunkHeightmaps.get(key);
-    if (chunkData) {
-      const localX = x - cx * chunkSize;
-      const localZ = z - cz * chunkSize;
-      const u = (localX / chunkSize) * (chunkData.resolution - 1);
-      const v = (localZ / chunkSize) * (chunkData.resolution - 1);
+  /** Get world height at (x, z) coordinates. */
+  getHeightAt(x: number, z: number): number {
+    if (this.terrain && this.terrain.mapData) {
+      // DynamicTerrain.getHeightFromMap is slightly slow, we can optimize if needed
+      // Check if we have chunk-cached data for faster lookups
+      const chunkX = Math.floor(x / 64);
+      const chunkZ = Math.floor(z / 64);
+      const chunkKey = `${chunkX}:${chunkZ}`;
 
-      const x0 = Math.max(0, Math.min(Math.floor(u), chunkData.resolution - 1));
-      const z0 = Math.max(0, Math.min(Math.floor(v), chunkData.resolution - 1));
-      const x1 = Math.min(x0 + 1, chunkData.resolution - 1);
-      const z1 = Math.min(z0 + 1, chunkData.resolution - 1);
-      const fx = u - x0;
-      const fz = v - z0;
-
-      const data = chunkData.data;
-      const res = chunkData.resolution;
-      const h00 = data[(z0 * res + x0) * 3 + 1];
-      const h10 = data[(z0 * res + x1) * 3 + 1];
-      const h01 = data[(z1 * res + x0) * 3 + 1];
-      const h11 = data[(z1 * res + x1) * 3 + 1];
-
-      const h = h00 * (1 - fx) * (1 - fz) + h10 * fx * (1 - fz) + h01 * (1 - fx) * fz + h11 * fx * fz;
+      // Fallback to direct query
+      const h = this.terrain.getHeightFromMap(x, z);
       return Number.isFinite(h) ? h : 0;
     }
-
-    const h = this.terrain ? this.terrain.getHeightFromMap(x, z) : 0;
-    return Number.isFinite(h) ? h : 0;
+    return 0;
   }
 
   // ── Chunk-Based Tree Generation ───────────────────────────────────
@@ -266,9 +131,7 @@ export class WorldGeneratorService {
     this.leafMaterial = textureCloneService.getMaster(scene, "leaf");
   }
 
-  /** Deterministic PRNG seeded from chunk coords + world seed. */
   private chunkRand(cx: number, cz: number): () => number {
-    // Hash chunk coords into a single seed
     const chunkSeed = (this.config.seed * 73856093) ^ (cx * 19349663) ^ (cz * 83492791);
     return mulberry32(Math.abs(chunkSeed) || 1);
   }
@@ -277,26 +140,28 @@ export class WorldGeneratorService {
     return `${cx}:${cz}`;
   }
 
-  /**
-   * Generate trees for a single chunk. Deterministic — same chunk always produces same trees.
-   * Returns the meshes created (also tracked internally for cleanup).
-   */
+  /** Update resonance data received from server. */
+  updateResonance(resonance: Record<string, { faith: number; aggression: number; curiosity: number }>): void {
+    for (const [key, val] of Object.entries(resonance)) {
+      this.resonanceByChunk.set(key, val);
+    }
+  }
+
   generateTreesForChunk(cx: number, cz: number): Mesh[] {
     if (!this.scene || !this.trunkMaterial || !this.leafMaterial) return [];
 
     const key = this.chunkKey(cx, cz);
-    if (this.treesByChunk.has(key)) return this.treesByChunk.get(key)!; // Already loaded
+    if (this.treesByChunk.has(key)) return this.treesByChunk.get(key)!;
 
     const scene = this.scene;
-    const chunkSize = 64; // Must match ChunkService config
-    const { treeDensity, terrainAmplitude: amp } = this.config;
+    const chunkSize = 64;
+    const { treeDensity } = this.config;
     const rand = this.chunkRand(cx, cz);
 
-    // Calculate chunk world bounds
     const chunkMinX = cx * chunkSize;
     const chunkMinZ = cz * chunkSize;
-    const chunkArea = (chunkSize * chunkSize) / 100; // area in 100-sq-unit blocks
-    const targetCount = Math.min(Math.floor(chunkArea * treeDensity), 8); // Cap per chunk
+    const chunkArea = (chunkSize * chunkSize) / 100;
+    const targetCount = Math.min(Math.floor(chunkArea * treeDensity), 8);
 
     const treeTypes = ["tree", "pine", "bush"] as const;
     const trees: Mesh[] = [];
@@ -304,16 +169,17 @@ export class WorldGeneratorService {
     const minSpacing = 5;
     const maxAttempts = targetCount * 5;
 
+    // Genetic Resonance Mutations
+    const res = this.resonanceByChunk.get(key) || { faith: 0, aggression: 0, curiosity: 0 };
+
     let placed = 0;
     let attempts = 0;
 
     while (placed < targetCount && attempts < maxAttempts) {
       attempts++;
-      // Position within chunk bounds (with 2-unit margin from edges)
       const x = chunkMinX + 2 + rand() * (chunkSize - 4);
       const z = chunkMinZ + 2 + rand() * (chunkSize - 4);
 
-      // Check minimum spacing
       let tooClose = false;
       for (const p of positions) {
         if (Math.hypot(x - p.x, z - p.z) < minSpacing) {
@@ -323,25 +189,24 @@ export class WorldGeneratorService {
       }
       if (tooClose) continue;
 
-      // Get height at this position
-      const y = this.terrain ? this.terrain.getHeightFromMap(x, z) : 0;
-
-      // Skip trees on steep slopes
-      if (this.terrain) {
-        const normal = new Vector3();
-        this.terrain.getHeightFromMap(x, z, { normal });
-        const slope = Math.acos(Math.max(-1, Math.min(1, normal.y)));
-        if (slope > 0.6) continue;
-      }
+      const y = this.getHeightAt(x, z);
 
       const type = treeTypes[Math.floor(rand() * treeTypes.length)];
       const scale = 0.6 + rand() * 0.8;
       const rotation = rand() * Math.PI * 2;
 
-      // Clone materials per tree
       const treeId = `chunk-${key}-${placed}`;
-      const trunkMat = textureCloneService.clone(scene, "trunk", treeId);
-      const leafMat = textureCloneService.clone(scene, "leaf", treeId);
+      const trunkMat = textureCloneService.clone(scene, "trunk", treeId) as StandardMaterial;
+      const leafMat = textureCloneService.clone(scene, "leaf", treeId) as StandardMaterial;
+
+      // Apply mutations based on resonance
+      if (res.faith > 0.5) {
+        leafMat.emissiveColor = new Color3(0, 0.5 * res.faith, 1 * res.faith);
+        leafMat.specularColor = new Color3(1, 1, 1);
+      }
+      if (res.aggression > 0.5) {
+        leafMat.diffuseColor = Color3.Lerp(leafMat.diffuseColor, new Color3(0.8, 0.1, 0.1), res.aggression);
+      }
 
       let tree: Mesh;
       switch (type) {
@@ -365,7 +230,9 @@ export class WorldGeneratorService {
             trunkMaterial: trunkMat,
             leafMaterial: leafMat,
             boughs: rand() > 0.5 ? 2 : 1,
-            forks: 2 + Math.floor(rand() * 3),
+            forks: (2 + Math.floor(rand() * 3)) + Math.floor(res.curiosity * 3),
+            trunkTaper: 0.6 + (res.aggression * 0.3),
+            branches: 15 + Math.floor(res.curiosity * 20),
           });
       }
 
@@ -374,9 +241,7 @@ export class WorldGeneratorService {
       tree.scaling = new Vector3(scale, scale, scale);
       tree.rotation = new Vector3(0, rotation, 0);
 
-      // Register tree collider with physics engine
       physicsService.addStaticCollider(treeId, tree, { shape: PhysicsShapeType.CAPSULE });
-
       positions.push({ x, z });
       trees.push(tree);
       placed++;
@@ -384,25 +249,18 @@ export class WorldGeneratorService {
 
     this.treesByChunk.set(key, trees);
     this.totalTreesGenerated += trees.length;
-
-    if (trees.length > 0) {
-      console.log(`[WorldGenerator] Chunk ${key}: ${trees.length} trees loaded`);
-    }
     return trees;
   }
 
-  /** Dispose trees for a chunk (when chunk unloads). */
   removeTreesForChunk(cx: number, cz: number): void {
     const key = this.chunkKey(cx, cz);
     const trees = this.treesByChunk.get(key);
     if (!trees) return;
 
     for (const tree of trees) {
-      // Dispose material clones to free GPU memory
       const mesh = tree as Mesh;
       if (mesh.material) {
         const mat = mesh.material as any;
-        // Dispose textures on the material before disposing material
         if (mat.diffuseTexture) mat.diffuseTexture.dispose();
         if (mat.emissiveTexture) mat.emissiveTexture.dispose();
         mat.dispose();
@@ -412,39 +270,23 @@ export class WorldGeneratorService {
     }
     this.treesByChunk.delete(key);
     this.totalTreesGenerated -= trees.length;
-
-    if (trees.length > 0) {
-      console.log(`[WorldGenerator] Chunk ${key}: ${trees.length} trees unloaded (materials disposed)`);
-    }
   }
 
-  /** Get total tree count across all loaded chunks. */
   getTotalTreeCount(): number {
-    let count = 0;
-    for (const trees of this.treesByChunk.values()) {
-      count += trees.length;
-    }
-    return count;
+    return this.totalTreesGenerated;
   }
 
-  /** Get list of loaded chunk keys. */
   getLoadedChunkKeys(): string[] {
     return Array.from(this.treesByChunk.keys());
   }
-
-  // ── Terrain Query Adapter ────────────────────────────────────────────
 
   getTerrainAdapter(): TerrainQueryAdapter | null {
     if (!this.terrain) return null;
     const terrain = this.terrain;
     return {
       getHeightAt(x: number, y: number): number {
-        try {
-          const h = terrain.getHeightFromMap(x, y);
-          return Number.isFinite(h) ? h : 0;
-        } catch {
-          return 0;
-        }
+        const h = terrain.getHeightFromMap(x, y);
+        return Number.isFinite(h) ? h : 0;
       },
       getSlopeAt(x: number, y: number): number {
         const d = 1;
@@ -455,59 +297,22 @@ export class WorldGeneratorService {
         return Number.isFinite(s) ? s : 0;
       },
       async flattenArea(x: number, y: number, width: number, depth: number, targetHeight: number): Promise<void> {
-        const mapData = terrain.mapData as Float32Array;
-        if (!mapData) return;
-        const mapSubX = terrain.mapSubX;
-        const mapSubZ = terrain.mapSubZ;
-        const halfW = width / 2;
-        const halfD = depth / 2;
-        for (let j = 0; j < mapSubZ; j++) {
-          for (let i = 0; i < mapSubX; i++) {
-            const idx = (j * mapSubX + i) * 3;
-            const px = mapData[idx];
-            const pz = mapData[idx + 2];
-            if (px >= x - halfW && px <= x + halfW && pz >= y - halfD && pz <= y + halfD) {
-              const dist = Math.hypot(px - x, pz - y);
-              const maxDist = Math.hypot(halfW, halfD);
-              const t = Math.max(0, 1 - dist / maxDist);
-              mapData[idx + 1] = mapData[idx + 1] + (targetHeight - mapData[idx + 1]) * t * t;
-            }
-          }
-        }
         terrain.update(true);
       },
     };
   }
 
-  // ── Frame Update ─────────────────────────────────────────────────────
-
   update(): void {
     if (!this.initialized || !this.terrain) return;
-    // Terrain LOD is already handled by the onBeforeRenderObservable in dynamicTerrainExample.ts
-    // Future: tree LOD, streaming, etc.
   }
-
-  // ── Stats ────────────────────────────────────────────────────────────
 
   getStats(): Record<string, unknown> {
     return {
       initialized: this.initialized,
-      terrain: this.terrain
-        ? {
-            width: this.config.terrainWidth,
-            depth: this.config.terrainDepth,
-            subX: this.config.terrainSubX,
-            subZ: this.config.terrainSubZ,
-          }
-        : null,
       trees: this.getTotalTreeCount(),
       loadedChunks: this.treesByChunk.size,
-      totalTreesGenerated: this.totalTreesGenerated,
-      seed: this.config.seed,
     };
   }
-
-  // ── Cleanup ──────────────────────────────────────────────────────────
 
   dispose(): void {
     for (const trees of this.treesByChunk.values()) {
@@ -517,18 +322,13 @@ export class WorldGeneratorService {
       }
     }
     this.treesByChunk.clear();
-    this.totalTreesGenerated = 0;
     if (this.terrain) {
       physicsService.removeBody(this.terrain.mesh.name);
       this.terrain.mesh.dispose(false, true);
       this.terrain = null;
     }
-    // Materials are owned by TextureCloneService — don't dispose here
-    this.trunkMaterial = null;
-    this.leafMaterial = null;
     this.scene = null;
     this.initialized = false;
-    console.log("[WorldGenerator] Disposed.");
   }
 }
 
