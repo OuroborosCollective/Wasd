@@ -5,3 +5,7 @@
 ## 2025-05-15 - [Monorepo Dependency Management]
 **Learning:** Running `pnpm install` in a monorepo that isn't fully set up for pnpm (missing `pnpm-workspace.yaml`) can generate a massive `pnpm-lock.yaml` file in the root, which is undesirable for small PRs.
 **Action:** Be extremely careful with installation commands in monorepos; prefer `npm install` within specific package directories if the root workspace configuration is unstable.
+
+## 2026-04-25 - [WorldTick broadcastState O(1) Optimization]
+**Learning:** The `broadcastState` loop was using `chunks.some()` resulting in $O(E \cdot C)$ complexity where E is the number of entities and C is the number of active chunks. Additionally, redundant GLB path resolutions for static or repeated entities added significant overhead.
+**Action:** Use a `Set` for $O(1)$ chunk lookups and implement a `Map`-based cache for GLB path resolutions in the main world tick loop.
