@@ -144,6 +144,10 @@ export class BabylonAdapter implements IEngineBridge {
     (typeof window !== "undefined" &&
       typeof window.matchMedia === "function" &&
       window.matchMedia("(pointer: coarse)").matches);
+  // Reusable vectors to avoid per-frame allocations in hot paths (rendering/sync)
+  private readonly _tmpVecA = Vector3.Zero();
+  private readonly _tmpVecB = Vector3.Zero();
+  private readonly _tmpVecC = Vector3.Zero();
   /** Serialize GLB decode on Android — parallel loads often OOM the GPU process. */
   private glbLoadChain: Promise<void> = Promise.resolve();
   private readonly pendingLabelText = new Map<string, string>();
@@ -311,27 +315,35 @@ export class BabylonAdapter implements IEngineBridge {
         this.unfreezeStaticNode(node);
       }
       // Snap Y to terrain height if available (server sends y=0 for all entities)
-      const terrainY = this.terrainHeightFn ? this.terrainHeightFn(updates.position.x, updates.position.z) : updates.position.y;
-      const target = new Vector3(
+      const terrainY = this.terrainHeightFn
+        ? this.terrainHeightFn(updates.position.x, updates.position.z)
+        : updates.position.y;
+      this._tmpVecA.copyFromFloats(
         updates.position.x,
         terrainY,
         updates.position.z,
       );
-      node.root.position = Vector3.Lerp(node.root.position, target, lerpAlpha);
+      Vector3.LerpToRef(
+        node.root.position,
+        this._tmpVecA,
+        lerpAlpha,
+        node.root.position,
+      );
     }
     if (updates.rotation) {
       if (node.isStaticFrozen) {
         this.unfreezeStaticNode(node);
       }
-      const targetEuler = new Vector3(
+      this._tmpVecA.copyFromFloats(
         this.toRadians(updates.rotation.x),
         this.toRadians(updates.rotation.y),
         this.toRadians(updates.rotation.z),
       );
-      node.root.rotation = Vector3.Lerp(
+      Vector3.LerpToRef(
         node.root.rotation,
-        targetEuler,
+        this._tmpVecA,
         lerpAlpha,
+        node.root.rotation,
       );
     }
     if (updates.visible !== undefined) {
@@ -454,15 +466,11 @@ export class BabylonAdapter implements IEngineBridge {
     if (!node) return;
     if (action === "attack") {
       const boost = Math.max(1.12, node.baseScale * 1.08);
-      node.root.scaling = new Vector3(boost, boost, boost);
+      node.root.scaling.setAll(boost);
       setTimeout(() => {
         const latest = this.entities.get(entityId);
         if (latest) {
-          latest.root.scaling = new Vector3(
-            latest.baseScale,
-            latest.baseScale,
-            latest.baseScale,
-          );
+          latest.root.scaling.setAll(latest.baseScale);
         }
       }, 120);
     }
@@ -584,8 +592,13 @@ export class BabylonAdapter implements IEngineBridge {
     if (!this.cameraTargetId) return;
     const targetNode = this.entities.get(this.cameraTargetId);
     if (!targetNode) return;
-    const desiredTarget = targetNode.root.position.add(new Vector3(0, 1.4, 0));
-    const nextTarget = Vector3.Lerp(this.camera.target, desiredTarget, 0.16);
+
+    // Use reusable vectors to avoid allocations in camera follow (60fps hot path)
+    this._tmpVecA.copyFrom(targetNode.root.position);
+    this._tmpVecA.y += 1.4;
+
+    Vector3.LerpToRef(this.camera.target, this._tmpVecA, 0.16, this._tmpVecB);
+
     const now = performance.now();
     if (this.impactShakeUntil > now && this.impactShakePower > 0) {
       const t = this.areWaveClock.t * 32;
@@ -593,9 +606,12 @@ export class BabylonAdapter implements IEngineBridge {
       const damp = Math.min(1, remaining / 240);
       const offsetX = Math.sin(t) * this.impactShakePower * damp;
       const offsetY = Math.cos(t * 0.85) * this.impactShakePower * 0.65 * damp;
-      this.camera.target = nextTarget.add(new Vector3(offsetX, offsetY, 0));
+
+      this._tmpVecC.copyFromFloats(offsetX, offsetY, 0);
+      this._tmpVecB.addInPlace(this._tmpVecC);
+      this.camera.target.copyFrom(this._tmpVecB);
     } else {
-      this.camera.target = nextTarget;
+      this.camera.target.copyFrom(this._tmpVecB);
     }
   }
 
@@ -1010,15 +1026,22 @@ export class BabylonAdapter implements IEngineBridge {
 
   private updateAREVisuals(): void {
     for (const node of this.entities.values()) {
-      const wave =
-        Math.sin(this.areWaveClock.t * 2 + node.arePhase * 0.01) *
-        0.05 *
-        (0.25 + node.areResonance);
-      let scale = this.areMode === "off" ? 1 : node.baseScale;
+      const isOff = this.areMode === "off";
+      const wave = isOff
+        ? 0
+        : Math.sin(this.areWaveClock.t * 2 + node.arePhase * 0.01) *
+          0.05 *
+          (0.25 + node.areResonance);
+
+      let scale = isOff ? 1 : node.baseScale;
       if (this.areMode === "cpu") {
         scale = Math.max(0.2, node.baseScale + wave);
       }
-      node.root.scaling = new Vector3(scale, scale, scale);
+
+      // Performance: Only update scaling if it actually changed to save property writes.
+      if (node.root.scaling.x !== scale) {
+        node.root.scaling.setAll(scale);
+      }
       if (this.areMode === "shader") {
         this.updateAREShaderUniforms(node);
       }
@@ -1396,7 +1419,7 @@ export class BabylonAdapter implements IEngineBridge {
         return false;
       }
       const r = 0.3 + (wave.maxRadius - 0.3) * t;
-      wave.mesh.scaling = new Vector3(r, r, r);
+      wave.mesh.scaling.setAll(r);
       wave.material.alpha = (1 - t) * 0.72;
       return true;
     });

@@ -9,3 +9,6 @@
 ## 2026-04-25 - [WorldTick broadcastState O(1) Optimization]
 **Learning:** The `broadcastState` loop was using `chunks.some()` resulting in $O(E \cdot C)$ complexity where E is the number of entities and C is the number of active chunks. Additionally, redundant GLB path resolutions for static or repeated entities added significant overhead.
 **Action:** Use a `Set` for $O(1)$ chunk lookups and implement a `Map`-based cache for GLB path resolutions in the main world tick loop.
+## 2025-05-15 - [Babylon.js Allocation Bottlenecks]
+**Learning:** High-frequency loops like `updateCameraFollow` and `updateAREVisuals` in Babylon.js can cause significant GC pressure if they use `new Vector3()` or operators that return new vectors (like `.add()`).
+**Action:** Always use reusable class-level `Vector3` instances and "ToRef" or "InPlace" methods (e.g., `LerpToRef`, `addInPlace`, `copyFromFloats`) for any logic running at 60fps or during heavy synchronization.
