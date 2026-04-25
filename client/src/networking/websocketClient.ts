@@ -143,6 +143,7 @@ export function reconnectGameSocket(): void {
 
 export type ConnectionOptions = {
   token?: string;
+  charName?: string;
   sceneId?: string;
   spawnKey?: string;
   arePolicyConfig?: {
@@ -362,14 +363,14 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
   let welcomeReceived = false;
   let attemptedAnonymousFallback = false;
 
-  const sendLogin = (token?: string, guestId?: string) => {
+  const sendLogin = (token?: string, charName?: string) => {
     if (ws.readyState !== WebSocket.OPEN) return;
     const lowBandwidth = wantsMobileNetworkHints();
     ws.send(
       JSON.stringify({
         type: "login",
         token,
-        ...(guestId ? { guestId } : {}),
+        charName,
         sceneId,
         spawnKey,
         ...(lowBandwidth ? { clientHints: { lowBandwidth: true } } : {}),
@@ -397,7 +398,7 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         // ignore storage access issues
       }
     }
-    sendLogin(token, guestId);
+    sendLogin(token, options.charName);
 
     window.setTimeout(() => {
       if (!welcomeReceived && !attemptedAnonymousFallback && ws.readyState === WebSocket.OPEN) {

@@ -1,3 +1,9 @@
+/**
+ * Panel Manager
+ * Redirects legacy panel calls to the new React-based UI if needed,
+ * or handles closing of existing DOM panels.
+ */
+
 export function closeAllPanels() {
   const panelIds = [
     'inventory-panel',
@@ -12,4 +18,7 @@ export function closeAllPanels() {
       panel.style.display = 'none';
     }
   });
+
+  // Also dispatch an event to let React UI know it should close panels
+  window.dispatchEvent(new CustomEvent("areloria:close-all-panels"));
 }

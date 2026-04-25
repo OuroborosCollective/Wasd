@@ -4,11 +4,11 @@ import { BabylonAdapter } from "./engine/babylon/BabylonAdapter";
 import { MMORPGClientCore } from "./core/MMORPGClientCore";
 import { connectSocket, requestSceneChange, sendCommand, type ConnectionOptions } from "./networking/websocketClient";
 import { IEngineBridge } from "./engine/bridge/IEngineBridge";
-import { renderHUD, showDialogue } from "./ui/hud";
-import { mountGameHudOverlay } from "./ui/mountGameHudOverlay";
+import { showDialogue } from "./ui/hud";
+import { mountNewHud } from "./ui/redesign/MountNewHud";
 import { initSupabaseClient, getSupabaseClientSync } from "./auth/supabase";
 import { getJoystickState, initMobileControls, isMobile } from "./ui/mobileControls";
-import { openEquipmentPanel, openInventory, openQuestLog, openSkillsPanel } from "./ui/lazyPanels";
+
 import { getQuickCastSkillId } from "./game/combatSkills";
 import { triggerImpactBusterClientGuard } from "./game/impactBuster";
 import { performanceMonitor } from "./utils/PerformanceMonitor";
@@ -135,67 +135,34 @@ try {
   // 2. Create Core
   const core = new MMORPGClientCore(adapter);
   (window as any).gameCore = core;
-  mountGameHudOverlay(core);
+  mountNewHud(core);
   core.registerDefaultInput();
 
   await initSupabaseClient();
-  // Legacy DOM HUD: Supabase sign-in + guest controls (React HUD has no auth forms).
-  renderHUD();
-
-  // 3. Connect Systems
-  const connectionOptions: ConnectionOptions = {};
-  let authProvider = resolveGameAuthProvider();
-  if (authProvider === "none" && getSupabaseClientSync()) {
-    authProvider = "supabase";
-  }
-  if (authProvider !== "none") {
-    let persistedToken: string | null = null;
-    try {
-      persistedToken = localStorage.getItem("token");
-    } catch {
-      showBootStatus("Storage access blocked. Continuing without saved login token.", "warn");
-    }
-    if (persistedToken && persistedToken.trim().length > 0) {
-      connectionOptions.token = persistedToken;
-    }
-  } else {
-    try {
-      localStorage.removeItem("token");
-    } catch {
-      /* ignore */
-    }
-  }
-  const policyPromise = loadAREPolicyConfig().then((policyConfig) => {
-    if (policyConfig) {
-      connectionOptions.arePolicyConfig = policyConfig;
-    }
-  });
-  policyPromise
-    .catch(() => undefined)
-    .finally(() => {
+  const { mountAuthFlow } = await import("./ui/redesign/MountAuth");
+  mountAuthFlow((token, charName) => {
+    const connectionOptions: ConnectionOptions = {
+      token,
+      charName,
+    };
+    loadAREPolicyConfig().then((policyConfig) => {
+      if (policyConfig) connectionOptions.arePolicyConfig = policyConfig;
       connectSocket(core, connectionOptions);
     });
+  });
+
   (window as any).requestSceneChange = requestSceneChange;
-  initChat((type, payload) => sendCommand(type, payload));
-  initMinimap();
+
   // Legacy quick-teleport panel removed from gameplay HUD.
   initMobileControls(
     core,
     {
       onAttack: () => core.attack(),
       onInteract: () => core.interact(),
-      onEquip: () => {
-        void openEquipmentPanel();
-      },
-      onInventory: () => {
-        void openInventory();
-      },
-      onQuests: () => {
-        void openQuestLog();
-      },
-      onSkills: () => {
-        void openSkillsPanel();
-      },
+      onEquip: () => {},
+      onInventory: () => {},
+      onQuests: () => {},
+      onSkills: () => {},
       onQuickSkill: () => {
         const quick = getQuickCastSkillId();
         if (quick === "impact_buster") {

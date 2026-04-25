@@ -1,601 +1,11 @@
-import {
-  getSupabaseAccessToken,
-  getSupabaseRedirectUrl,
-  initSupabaseClient,
-  onSupabaseAuthStateChanged,
-} from "../auth/supabase";
-import { getQuickCastSkillId } from "../game/combatSkills";
-import {
-  sendDialogueChoice,
-  sendQuestAccept,
-  updateAuthToken,
-} from "../networking/websocketClient";
+/**
+ * HUD & UI Utilities
+ * This file maintains backward compatibility for dialogue and other HUD calls
+ * by providing the necessary exports for the legacy core.
+ */
+
 import { prefersCompactTouchUi } from "./touchUi";
-import { resolveGameAuthProvider } from "../config/gameAuth";
-import {
-  mapSupabaseAuthError,
-  normalizeAuthEmail,
-  validateEmailForAuth,
-  validatePasswordForLogin,
-  validatePasswordForSignup,
-} from "./authMessages";
-
-const GUEST_STORAGE_KEY = "areloria_guest_id";
-
-export function renderHUD() {
-  document.getElementById("arel-hud")?.remove();
-  const compact = prefersCompactTouchUi();
-  const hud = document.createElement("div");
-  hud.id = "arel-hud";
-  hud.style.position = "fixed";
-  hud.style.top = "12px";
-  hud.style.left = "12px";
-  hud.style.padding = "10px 12px";
-  hud.style.background = "rgba(0,0,0,0.58)";
-  hud.style.color = "#fff";
-  hud.style.fontFamily = "system-ui, sans-serif";
-  hud.style.borderRadius = "10px";
-  hud.style.borderLeft = "3px solid #f27d26";
-  hud.style.zIndex = "5000";
-  hud.style.maxWidth = compact ? "min(92vw, 280px)" : "320px";
-  hud.style.boxSizing = "border-box";
-  hud.style.transition =
-    "max-height 0.25s ease, padding 0.25s ease, opacity 0.2s ease";
-  hud.style.overflow = "hidden";
-
-  let hudCollapsed = compact;
-
-  const topRow = document.createElement("div");
-  topRow.style.display = "flex";
-  topRow.style.flexWrap = "wrap";
-  topRow.style.alignItems = "center";
-  topRow.style.justifyContent = "flex-end";
-  topRow.style.gap = "8px";
-  topRow.style.marginBottom = "8px";
-
-  const leaderboardBtn = document.createElement("button");
-  leaderboardBtn.type = "button";
-  leaderboardBtn.textContent = "🏆";
-  leaderboardBtn.title = "Open leaderboard";
-  leaderboardBtn.style.padding = "6px 10px";
-  leaderboardBtn.style.minHeight = "36px";
-  leaderboardBtn.style.borderRadius = "8px";
-  leaderboardBtn.style.border = "1px solid rgba(255,255,255,0.25)";
-  leaderboardBtn.style.background = "rgba(255,255,255,0.08)";
-  leaderboardBtn.style.color = "#fff";
-  leaderboardBtn.style.cursor = "pointer";
-  leaderboardBtn.style.touchAction = "manipulation";
-  leaderboardBtn.onclick = () => {
-    void import("./leaderboardPanel")
-      .then((m) => m.openLeaderboard())
-      .catch((error) => {
-        console.error("Leaderboard panel failed to open", error);
-      });
-  };
-
-  topRow.appendChild(leaderboardBtn);
-  hud.appendChild(topRow);
-
-  const hudBody = document.createElement("div");
-  hudBody.id = "arel-hud-body";
-
-  const label = document.createElement("span");
-  label.textContent = "Areloria";
-  label.style.fontSize = "11px";
-  label.style.opacity = "0.65";
-  label.style.display = "block";
-  label.style.marginTop = "4px";
-  hudBody.appendChild(label);
-
-  hud.appendChild(hudBody);
-  document.body.appendChild(hud);
-
-  const applyCollapseState = () => {
-    if (hudCollapsed) {
-      hud.style.maxHeight = "60px";
-      hud.style.padding = "6px 10px";
-      hudBody.style.display = "none";
-      topRow.style.marginBottom = "0";
-    } else {
-      hud.style.maxHeight = "none";
-      hud.style.padding = "10px 12px";
-      hudBody.style.display = "block";
-      topRow.style.marginBottom = "8px";
-    }
-  };
-
-  if (compact) {
-    hud.style.cursor = "pointer";
-    hud.addEventListener("click", (e) => {
-      if (
-        (e.target as HTMLElement).tagName === "BUTTON" ||
-        (e.target as HTMLElement).tagName === "INPUT"
-      )
-        return;
-      hudCollapsed = !hudCollapsed;
-      applyCollapseState();
-    });
-    hud.addEventListener("touchstart", (e) => e.stopPropagation(), {
-      passive: true,
-    });
-    applyCollapseState();
-  }
-
-  const authBox = document.createElement("div");
-  authBox.id = "arel-hud-auth";
-
-  const stopAuthEvents = (e: Event) => e.stopPropagation();
-  ["touchstart", "touchmove"].forEach((evt) => {
-    authBox.addEventListener(evt, stopAuthEvents, { passive: true });
-  });
-  [
-    "touchend",
-    "touchcancel",
-    "mousedown",
-    "mouseup",
-    "mousemove",
-    "pointerdown",
-    "pointerup",
-    "pointermove",
-    "click",
-  ].forEach((evt) => {
-    authBox.addEventListener(evt, stopAuthEvents, { passive: false });
-  });
-
-  authBox.style.marginTop = "10px";
-  const authProvider = resolveGameAuthProvider();
-  authBox.style.display = authProvider === "none" ? "none" : "flex";
-  authBox.style.flexDirection = "column";
-  authBox.style.gap = "8px";
-  authBox.style.maxWidth = "100%";
-  if (prefersCompactTouchUi()) {
-    authBox.style.position = "fixed";
-    authBox.style.left = "50%";
-    authBox.style.top = "50%";
-    authBox.style.transform = "translate(-50%, -50%)";
-    authBox.style.width = "min(420px, calc(100vw - 24px))";
-    authBox.style.maxHeight = "min(70vh, 520px)";
-    authBox.style.overflowY = "auto";
-    authBox.style.zIndex = "12000";
-    authBox.style.marginTop = "0";
-    authBox.style.padding = "14px";
-    authBox.style.background = "rgba(12,14,22,0.96)";
-    authBox.style.border = "1px solid rgba(242,125,38,0.45)";
-    authBox.style.borderRadius = "14px";
-    authBox.style.boxShadow = "0 16px 48px rgba(0,0,0,0.65)";
-  }
-
-  const btnRow = document.createElement("div");
-  btnRow.style.display = "flex";
-  btnRow.style.flexWrap = "wrap";
-  btnRow.style.gap = "8px";
-  btnRow.style.alignItems = "center";
-
-  const loginBtn = document.createElement("button");
-  loginBtn.textContent = "Google";
-  loginBtn.style.padding = "8px 12px";
-  loginBtn.style.minHeight = "44px";
-  loginBtn.style.background = "#f27d26";
-  loginBtn.style.color = "#fff";
-  loginBtn.style.borderRadius = "8px";
-  loginBtn.style.cursor = "pointer";
-  loginBtn.style.border = "none";
-  loginBtn.style.touchAction = "manipulation";
-
-  const verifyEmailBtn = document.createElement("button");
-  verifyEmailBtn.type = "button";
-  verifyEmailBtn.textContent = "Verify email";
-  verifyEmailBtn.title = "Send a verification link to your address";
-  verifyEmailBtn.style.padding = "8px 12px";
-  verifyEmailBtn.style.minHeight = "44px";
-  verifyEmailBtn.style.background = "rgba(50,80,120,0.95)";
-  verifyEmailBtn.style.color = "#e8ecf5";
-  verifyEmailBtn.style.borderRadius = "8px";
-  verifyEmailBtn.style.cursor = "pointer";
-  verifyEmailBtn.style.border = "1px solid rgba(120,180,255,0.4)";
-  verifyEmailBtn.style.touchAction = "manipulation";
-
-  const resetPassBtn = document.createElement("button");
-  resetPassBtn.type = "button";
-  resetPassBtn.textContent = "Reset password";
-  resetPassBtn.title = "Email a password reset link";
-  resetPassBtn.style.padding = "8px 12px";
-  resetPassBtn.style.minHeight = "44px";
-  resetPassBtn.style.background = "rgba(70,55,40,0.95)";
-  resetPassBtn.style.color = "#e8ecf5";
-  resetPassBtn.style.borderRadius = "8px";
-  resetPassBtn.style.cursor = "pointer";
-  resetPassBtn.style.border = "1px solid rgba(255,180,100,0.35)";
-  resetPassBtn.style.touchAction = "manipulation";
-
-  const logoutBtn = document.createElement("button");
-  logoutBtn.textContent = "Sign out";
-  logoutBtn.style.padding = "8px 12px";
-  logoutBtn.style.minHeight = "44px";
-  logoutBtn.style.background = "rgba(60,60,70,0.95)";
-  logoutBtn.style.color = "#e8ecf5";
-  logoutBtn.style.borderRadius = "8px";
-  logoutBtn.style.cursor = "pointer";
-  logoutBtn.style.border = "1px solid rgba(255,255,255,0.2)";
-  logoutBtn.style.touchAction = "manipulation";
-
-  const emailRow = document.createElement("div");
-  emailRow.style.display = "flex";
-  emailRow.style.flexDirection = "column";
-  emailRow.style.gap = "6px";
-  const emailIn = document.createElement("input");
-  emailIn.type = "email";
-  emailIn.placeholder = "Email";
-  emailIn.autocomplete = "username";
-  emailIn.style.padding = "8px 10px";
-  emailIn.style.borderRadius = "8px";
-  emailIn.style.border = "1px solid rgba(255,255,255,0.25)";
-  emailIn.style.background = "rgba(20,22,32,0.9)";
-  emailIn.style.color = "#fff";
-  emailIn.style.fontSize = "14px";
-  const passIn = document.createElement("input");
-  passIn.type = "password";
-  passIn.placeholder = "Password";
-  passIn.autocomplete = "current-password";
-  passIn.style.padding = "8px 10px";
-  passIn.style.borderRadius = "8px";
-  passIn.style.border = "1px solid rgba(255,255,255,0.25)";
-  passIn.style.background = "rgba(20,22,32,0.9)";
-  passIn.style.color = "#fff";
-  passIn.style.fontSize = "14px";
-  const emailErr = document.createElement("div");
-  emailErr.style.fontSize = "11px";
-  emailErr.style.color = "#ff8a8a";
-  emailErr.style.minHeight = "14px";
-  const emailBtnRow = document.createElement("div");
-  emailBtnRow.style.display = "flex";
-  emailBtnRow.style.flexWrap = "wrap";
-  emailBtnRow.style.gap = "8px";
-  const emailLoginBtn = document.createElement("button");
-  emailLoginBtn.type = "button";
-  emailLoginBtn.textContent = "Email sign in";
-  emailLoginBtn.style.padding = "8px 12px";
-  emailLoginBtn.style.minHeight = "44px";
-  emailLoginBtn.style.borderRadius = "8px";
-  emailLoginBtn.style.border = "1px solid rgba(100,180,255,0.45)";
-  emailLoginBtn.style.background = "rgba(35,50,80,0.95)";
-  emailLoginBtn.style.color = "#e8ecf5";
-  emailLoginBtn.style.cursor = "pointer";
-  emailLoginBtn.style.touchAction = "manipulation";
-  const emailSignupBtn = document.createElement("button");
-  emailSignupBtn.type = "button";
-  emailSignupBtn.textContent = "Create account";
-  emailSignupBtn.style.padding = "8px 12px";
-  emailSignupBtn.style.minHeight = "44px";
-  emailSignupBtn.style.borderRadius = "8px";
-  emailSignupBtn.style.border = "1px solid rgba(180,255,180,0.35)";
-  emailSignupBtn.style.background = "rgba(30,55,40,0.95)";
-  emailSignupBtn.style.color = "#e8ecf5";
-  emailSignupBtn.style.cursor = "pointer";
-  emailSignupBtn.style.touchAction = "manipulation";
-  emailBtnRow.appendChild(emailLoginBtn);
-  emailBtnRow.appendChild(emailSignupBtn);
-  emailRow.appendChild(emailIn);
-  emailRow.appendChild(passIn);
-  emailRow.appendChild(emailErr);
-  emailRow.appendChild(emailBtnRow);
-
-  const signupStatus = document.createElement("div");
-  signupStatus.style.fontSize = "11px";
-  signupStatus.style.color = "#8fdf9a";
-  signupStatus.style.minHeight = "14px";
-  signupStatus.style.lineHeight = "1.35";
-  emailRow.appendChild(signupStatus);
-
-  btnRow.appendChild(loginBtn);
-  btnRow.appendChild(verifyEmailBtn);
-  btnRow.appendChild(resetPassBtn);
-  btnRow.appendChild(logoutBtn);
-  authBox.appendChild(btnRow);
-  authBox.appendChild(emailRow);
-
-  const hint = document.createElement("div");
-  const refreshHint = () => {
-    hint.textContent = `Quick cast (Q / SPELL): ${getQuickCastSkillId()} — change in Skills panel`;
-  };
-  refreshHint();
-  hint.style.fontSize = "10px";
-  hint.style.opacity = "0.7";
-  hint.style.marginTop = "2px";
-  window.addEventListener("areloria-quick-cast-changed", refreshHint);
-  authBox.appendChild(hint);
-
-  let supabaseSignedIn = false;
-  const syncAuthUi = () => {
-    const userSignedIn = supabaseSignedIn;
-    const out = !userSignedIn;
-    loginBtn.style.display = out ? "inline-block" : "none";
-    logoutBtn.style.display = userSignedIn ? "inline-block" : "none";
-    verifyEmailBtn.style.display = userSignedIn ? "inline-block" : "none";
-    resetPassBtn.style.display = userSignedIn ? "inline-block" : "none";
-    emailRow.style.display = out ? "flex" : "none";
-  };
-  syncAuthUi();
-
-  const setAuthError = (message: string) => {
-    emailErr.textContent = message;
-    emailErr.style.color = "#ff8a8a";
-  };
-
-  const setAuthInfo = (message: string) => {
-    signupStatus.textContent = message;
-    signupStatus.style.color = "#8fdf9a";
-  };
-
-  const withTimeout = async <T>(
-    promise: Promise<T>,
-    ms: number,
-    label: string,
-  ): Promise<T> => {
-    return await new Promise<T>((resolve, reject) => {
-      const timer = window.setTimeout(() => {
-        reject(new Error(`${label} timed out`));
-      }, ms);
-      promise
-        .then((value) => {
-          window.clearTimeout(timer);
-          resolve(value);
-        })
-        .catch((error) => {
-          window.clearTimeout(timer);
-          reject(error);
-        });
-    });
-  };
-
-  const setAuthBusy = (busy: boolean) => {
-    const controls = [
-      loginBtn,
-      emailLoginBtn,
-      emailSignupBtn,
-      verifyEmailBtn,
-      resetPassBtn,
-      logoutBtn,
-    ];
-    for (const c of controls) {
-      c.disabled = busy;
-      c.style.opacity = busy ? "0.75" : "1";
-    }
-  };
-
-  const clearAuthMessages = () => {
-    emailErr.textContent = "";
-    emailErr.style.color = "#ff8a8a";
-    signupStatus.textContent = "";
-    signupStatus.style.color = "#8fdf9a";
-  };
-
-  if (authProvider === "none") {
-    /* Game auth off — server uses guest/dev login; no external auth UI */
-  } else if (authProvider === "supabase") {
-    loginBtn.textContent = "Auth wird geladen…";
-    loginBtn.disabled = true;
-    void initSupabaseClient().then((sb) => {
-      if (!sb) {
-        loginBtn.textContent = "Auth (configure Supabase)";
-        loginBtn.disabled = true;
-        loginBtn.style.opacity = "0.65";
-        logoutBtn.style.display = "none";
-        verifyEmailBtn.style.display = "none";
-        resetPassBtn.style.display = "none";
-        emailRow.style.display = "none";
-        return;
-      }
-      loginBtn.textContent = "Google";
-      loginBtn.disabled = false;
-      loginBtn.style.opacity = "1";
-
-      onSupabaseAuthStateChanged((session) => {
-        supabaseSignedIn = Boolean(session?.user);
-        try {
-          if (session?.access_token) {
-            localStorage.setItem("token", session.access_token);
-          } else {
-            localStorage.removeItem("token");
-          }
-        } catch {
-          /* ignore */
-        }
-        syncAuthUi();
-      });
-      void sb.auth.getSession().then(({ data }) => {
-        supabaseSignedIn = Boolean(data.session?.user);
-        syncAuthUi();
-      });
-
-      loginBtn.onclick = async () => {
-        clearAuthMessages();
-        setAuthBusy(true);
-        try {
-          const redirectTo = getSupabaseRedirectUrl("/");
-          const { data, error } = await withTimeout(
-            sb.auth.signInWithOAuth({
-              provider: "google",
-              options: { redirectTo, skipBrowserRedirect: false },
-            }),
-            15000,
-            "Google sign-in",
-          );
-          if (error) {
-            throw error;
-          }
-          if (data?.url) {
-            setAuthInfo("Redirecting to Google sign-in...");
-            window.location.assign(data.url);
-            return;
-          }
-          setAuthError(
-            "Google sign-in could not start. Check Supabase URL/redirect settings and try again.",
-          );
-        } catch (e: unknown) {
-          setAuthError(mapSupabaseAuthError(e));
-        } finally {
-          setAuthBusy(false);
-        }
-      };
-
-      emailLoginBtn.onclick = async () => {
-        clearAuthMessages();
-        const email = normalizeAuthEmail(emailIn.value);
-        const emailValidation = validateEmailForAuth(email);
-        if (emailValidation) {
-          setAuthError(emailValidation);
-          return;
-        }
-        const passwordValidation = validatePasswordForLogin(passIn.value);
-        if (passwordValidation) {
-          setAuthError(passwordValidation);
-          return;
-        }
-        setAuthBusy(true);
-        try {
-          const { data, error } = await withTimeout(
-            sb.auth.signInWithPassword({
-              email,
-              password: passIn.value,
-            }),
-            15000,
-            "Email sign-in",
-          );
-          if (error) throw error;
-          const token =
-            data.session?.access_token ??
-            (await withTimeout(
-              getSupabaseAccessToken(),
-              10000,
-              "Session fetch",
-            ));
-          if (token) {
-            updateAuthToken(token, { reconnect: true });
-            setAuthInfo("Signed in.");
-          }
-        } catch (e: unknown) {
-          setAuthError(mapSupabaseAuthError(e));
-        } finally {
-          setAuthBusy(false);
-        }
-      };
-
-      emailSignupBtn.onclick = async () => {
-        clearAuthMessages();
-        const email = normalizeAuthEmail(emailIn.value);
-        const password = passIn.value;
-        const emailValidation = validateEmailForAuth(email);
-        if (emailValidation) {
-          setAuthError(emailValidation);
-          return;
-        }
-        const passwordValidation = validatePasswordForSignup(password);
-        if (passwordValidation) {
-          setAuthError(passwordValidation);
-          return;
-        }
-        setAuthBusy(true);
-        try {
-          const redirectTo = getSupabaseRedirectUrl("/");
-          const { data, error } = await withTimeout(
-            sb.auth.signUp({
-              email,
-              password,
-              options: { emailRedirectTo: redirectTo },
-            }),
-            20000,
-            "Account creation",
-          );
-          if (error) throw error;
-          if (data.session?.access_token) {
-            updateAuthToken(data.session.access_token, { reconnect: true });
-            setAuthInfo("Account created and signed in.");
-          } else {
-            setAuthInfo(
-              "Account created. Confirmation email sent — check inbox/spam.",
-            );
-          }
-        } catch (e: unknown) {
-          setAuthError(mapSupabaseAuthError(e));
-        } finally {
-          setAuthBusy(false);
-        }
-      };
-
-      verifyEmailBtn.onclick = async () => {
-        clearAuthMessages();
-        const addr = normalizeAuthEmail(emailIn.value);
-        if (!addr) {
-          setAuthError(
-            "Enter your account email above to resend verification.",
-          );
-          return;
-        }
-        setAuthBusy(true);
-        try {
-          const redirectTo = getSupabaseRedirectUrl("/");
-          const { error } = await withTimeout(
-            sb.auth.resend({
-              type: "signup",
-              email: addr,
-              options: { emailRedirectTo: redirectTo },
-            }),
-            15000,
-            "Verification email",
-          );
-          if (error) throw error;
-          setAuthInfo("Verification email sent.");
-        } catch (e: unknown) {
-          setAuthError(mapSupabaseAuthError(e));
-        } finally {
-          setAuthBusy(false);
-        }
-      };
-
-      resetPassBtn.onclick = async () => {
-        clearAuthMessages();
-        const addr = normalizeAuthEmail(emailIn.value);
-        if (!addr) {
-          setAuthError("Enter your email above.");
-          return;
-        }
-        const emailValidation = validateEmailForAuth(addr);
-        if (emailValidation) {
-          setAuthError(emailValidation);
-          return;
-        }
-        setAuthBusy(true);
-        try {
-          const redirectTo = getSupabaseRedirectUrl("/");
-          const { error } = await withTimeout(
-            sb.auth.resetPasswordForEmail(addr, { redirectTo }),
-            15000,
-            "Password reset",
-          );
-          if (error) throw error;
-          setAuthInfo("Password reset email sent.");
-        } catch (e: unknown) {
-          setAuthError(mapSupabaseAuthError(e));
-        } finally {
-          setAuthBusy(false);
-        }
-      };
-
-      logoutBtn.onclick = async () => {
-        try {
-          await sb.auth.signOut();
-          updateAuthToken(null, { reconnect: true });
-          localStorage.removeItem(GUEST_STORAGE_KEY);
-        } catch (e) {
-          console.error("Sign out failed", e);
-        }
-      };
-    });
-  }
-
-  hudBody.appendChild(authBox);
-}
+import { sendQuestAccept, sendDialogueChoice } from "../networking/websocketClient";
 
 export type DialoguePayload = {
   source?: string;
@@ -641,14 +51,14 @@ export function showDialogue(payload: string | DialoguePayload) {
     dialogueBox.style.color = "white";
     dialogueBox.style.padding = "16px 16px 12px";
     dialogueBox.style.borderRadius = "14px";
-    dialogueBox.style.border = "2px solid #f27d26";
+    dialogueBox.style.border = "2px solid #d4af37";
     dialogueBox.style.maxWidth = "min(520px, 94vw)";
     dialogueBox.style.width = "min(520px, 94vw)";
     dialogueBox.style.maxHeight = "min(72vh, 520px)";
     dialogueBox.style.display = "flex";
     dialogueBox.style.flexDirection = "column";
     dialogueBox.style.textAlign = "left";
-    dialogueBox.style.zIndex = "2000";
+    dialogueBox.style.zIndex = "6000";
     dialogueBox.style.fontFamily = "system-ui, sans-serif";
     dialogueBox.style.boxShadow = "0 10px 28px rgba(0,0,0,0.55)";
     dialogueBox.style.boxSizing = "border-box";
@@ -672,20 +82,6 @@ export function showDialogue(payload: string | DialoguePayload) {
     scrollWrap.style.overflowX = "hidden";
     scrollWrap.style.setProperty("-webkit-overflow-scrolling", "touch");
     scrollWrap.style.paddingRight = "4px";
-
-    // Stop pointer/touch from bleeding through dialogue scroll
-    scrollWrap.addEventListener("touchstart", (e) => e.stopPropagation(), {
-      passive: true,
-    });
-    scrollWrap.addEventListener("touchmove", (e) => e.stopPropagation(), {
-      passive: true,
-    });
-    scrollWrap.addEventListener("pointerdown", (e) => e.stopPropagation(), {
-      passive: false,
-    });
-    scrollWrap.addEventListener("wheel", (e) => e.stopPropagation(), {
-      passive: true,
-    });
 
     const textEl = document.createElement("div");
     textEl.id = "dialogue-text";
@@ -720,25 +116,10 @@ export function showDialogue(payload: string | DialoguePayload) {
     closeBtn.style.background = "rgba(40,40,40,0.95)";
     closeBtn.style.color = "#eee";
     closeBtn.style.cursor = "pointer";
-    closeBtn.style.touchAction = "manipulation";
     closeBtn.onclick = (e) => {
       e.stopPropagation();
       dialogueBox!.style.display = "none";
     };
-    closeBtn.addEventListener(
-      "touchstart",
-      (e) => {
-        e.stopPropagation();
-      },
-      { passive: false },
-    );
-    closeBtn.addEventListener(
-      "pointerdown",
-      (e) => {
-        e.stopPropagation();
-      },
-      { passive: false },
-    );
     closeRow.appendChild(closeBtn);
     dialogueBox.appendChild(closeRow);
 
@@ -746,13 +127,10 @@ export function showDialogue(payload: string | DialoguePayload) {
       const isCoarse = prefersCompactTouchUi();
       if (isCoarse) {
         dialogueBox!.style.top = "auto";
-        dialogueBox!.style.bottom =
-          "max(240px, env(safe-area-inset-bottom, 0px))";
-        dialogueBox!.style.maxHeight = "min(50vh, 480px)";
+        dialogueBox!.style.bottom = "max(240px, env(safe-area-inset-bottom, 0px))";
       } else {
         dialogueBox!.style.bottom = "auto";
         dialogueBox!.style.top = "max(12%, env(safe-area-inset-top, 0px))";
-        dialogueBox!.style.maxHeight = "min(72vh, 520px)";
       }
     };
     positionDialogue();
@@ -760,15 +138,10 @@ export function showDialogue(payload: string | DialoguePayload) {
   }
 
   const titleEl = document.getElementById("dialogue-title");
-  if (titleEl) {
-    titleEl.textContent = data.source ? data.source : " ";
-  }
+  if (titleEl) titleEl.textContent = data.source ? data.source : " ";
 
   const textEl = document.getElementById("dialogue-text");
-  if (textEl) {
-    textEl.textContent = body;
-    textEl.style.fontSize = compact ? "15px" : "14px";
-  }
+  if (textEl) textEl.textContent = body;
 
   const choicesEl = document.getElementById("dialogue-choices");
   if (choicesEl) {
@@ -777,61 +150,24 @@ export function showDialogue(payload: string | DialoguePayload) {
     const npcId = typeof data.npcId === "string" ? data.npcId : "";
     const nodeId = typeof data.nodeId === "string" ? data.nodeId : "root";
 
-    if (choices.length > 0) {
-      for (const c of choices) {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.textContent = c.text || c.id;
-        btn.style.textAlign = "left";
-        btn.style.padding = "14px 14px";
-        btn.style.minHeight = "48px";
-        btn.style.borderRadius = "10px";
-        btn.style.border = "1px solid rgba(242,125,38,0.5)";
-        btn.style.background = "rgba(30,35,50,0.98)";
-        btn.style.color = "#e8ecf5";
-        btn.style.cursor = "pointer";
-        btn.style.touchAction = "manipulation";
-        btn.style.fontSize = compact ? "15px" : "14px";
-        btn.onclick = (e) => {
-          e.stopPropagation();
-          if (!npcId) return;
-          if (c.id === "sys_quest_accept") {
-            sendQuestAccept(npcId, nodeId);
-          } else if (c.id === "sys_quest_decline") {
-            sendDialogueChoice(npcId, "sys_quest_decline", nodeId);
-          } else {
-            sendDialogueChoice(npcId, c.id, nodeId);
-          }
-        };
-        btn.addEventListener(
-          "touchstart",
-          (e) => {
-            e.stopPropagation();
-          },
-          { passive: false },
-        );
-        btn.addEventListener(
-          "pointerdown",
-          (e) => {
-            e.stopPropagation();
-          },
-          { passive: false },
-        );
-        choicesEl.appendChild(btn);
-      }
-    }
-  }
-
-  if (dialogueBox) {
-    const isCoarse = prefersCompactTouchUi();
-    if (isCoarse) {
-      dialogueBox.style.top = "auto";
-      dialogueBox.style.bottom = "max(240px, env(safe-area-inset-bottom, 0px))";
-      dialogueBox.style.maxHeight = "min(50vh, 480px)";
-    } else {
-      dialogueBox.style.bottom = "auto";
-      dialogueBox.style.top = "max(12%, env(safe-area-inset-top, 0px))";
-      dialogueBox.style.maxHeight = "min(72vh, 520px)";
+    for (const c of choices) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = c.text || c.id;
+      btn.style.textAlign = "left";
+      btn.style.padding = "14px 14px";
+      btn.style.borderRadius = "10px";
+      btn.style.border = "1px solid #d4af37";
+      btn.style.background = "rgba(30,35,50,0.98)";
+      btn.style.color = "#e8ecf5";
+      btn.style.cursor = "pointer";
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        if (!npcId) return;
+        if (c.id === "sys_quest_accept") sendQuestAccept(npcId, nodeId);
+        else sendDialogueChoice(npcId, c.id, nodeId);
+      };
+      choicesEl.appendChild(btn);
     }
   }
 

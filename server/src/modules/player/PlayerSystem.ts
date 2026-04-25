@@ -40,6 +40,7 @@ export class PlayerSystem {
       matrixEnergy: 0,
       flags: {},
       reputation: {},
+      attributes: { str: 10, dex: 10, sta: 10, int: 10, availablePoints: 5 },
       usedChoices: [],
       isOffline: false,
       state: "idle",
