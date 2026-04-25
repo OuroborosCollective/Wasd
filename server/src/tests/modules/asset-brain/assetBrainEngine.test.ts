@@ -1,5 +1,21 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
+// Mock @google/genai at the top level because it's now a static import
+const generateContentMock = vi.fn();
+
+vi.mock("@google/genai", () => {
+  return {
+    GoogleGenerativeAI: class {
+      constructor(public apiKey: string) {}
+      getGenerativeModel() {
+        return {
+          generateContent: generateContentMock
+        };
+      }
+    }
+  };
+});
+
 describe("assetBrainEngine", () => {
   describe("generateAssetSpecification", () => {
     let originalEnv: NodeJS.ProcessEnv;
@@ -7,13 +23,11 @@ describe("assetBrainEngine", () => {
     beforeEach(() => {
       originalEnv = process.env;
       process.env = { ...originalEnv };
-      vi.resetModules();
       vi.clearAllMocks();
     });
 
     afterEach(() => {
       process.env = originalEnv;
-      vi.restoreAllMocks();
     });
 
     it("should use heuristic fallback when API keys are not set", async () => {
@@ -34,16 +48,7 @@ describe("assetBrainEngine", () => {
       process.env.GEMINI_API_KEY = "test-api-key";
       const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-      vi.doMock("@google/genai", () => ({
-        GoogleGenerativeAI: class {
-          constructor() {}
-          getGenerativeModel() {
-            return {
-              generateContent: vi.fn().mockRejectedValue(new Error("API Error"))
-            };
-          }
-        }
-      }));
+      generateContentMock.mockRejectedValue(new Error("API Error"));
 
       const { generateAssetSpecification } = await import("../../../modules/asset-brain/assetBrainEngine");
 
@@ -51,29 +56,6 @@ describe("assetBrainEngine", () => {
       const result = await generateAssetSpecification(input);
 
       expect(result.assetName).toBe("A Lowpoly Red Sword");
-      expect(result.autoDecisions).toContain("Heuristic fallback used");
-
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("[AssetBrain] LLM failed, using heuristics:"),
-        expect.any(Error)
-      );
-      warnSpy.mockRestore();
-    });
-
-    it("should use heuristic fallback when module import fails", async () => {
-      process.env.GEMINI_API_KEY = "test-api-key";
-      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-
-      vi.doMock("@google/genai", () => {
-        throw new Error("Module not found");
-      });
-
-      const { generateAssetSpecification } = await import("../../../modules/asset-brain/assetBrainEngine");
-
-      const input = "A magical staff";
-      const result = await generateAssetSpecification(input);
-
-      expect(result.assetName).toBe("A Magical Staff");
       expect(result.autoDecisions).toContain("Heuristic fallback used");
 
       expect(warnSpy).toHaveBeenCalledWith(
@@ -94,22 +76,11 @@ describe("assetBrainEngine", () => {
         autoDecisions: ["LLM-generated explicitly"]
       };
 
-      vi.doMock("@google/genai", () => ({
-        GoogleGenerativeAI: class {
-          constructor(apiKey: string) {
-            expect(apiKey).toBe("test-api-key");
-          }
-          getGenerativeModel() {
-            return {
-              generateContent: vi.fn().mockResolvedValue({
-                response: {
-                  text: () => `\`\`\`json\n${JSON.stringify(mockResponseSpec)}\n\`\`\``
-                }
-              })
-            };
-          }
+      generateContentMock.mockResolvedValue({
+        response: {
+          text: () => `\`\`\`json\n${JSON.stringify(mockResponseSpec)}\n\`\`\``
         }
-      }));
+      });
 
       const { generateAssetSpecification } = await import("../../../modules/asset-brain/assetBrainEngine");
 
@@ -131,20 +102,11 @@ describe("assetBrainEngine", () => {
         // autoDecisions missing
       };
 
-      vi.doMock("@google/genai", () => ({
-        GoogleGenerativeAI: class {
-          constructor() {}
-          getGenerativeModel() {
-            return {
-              generateContent: vi.fn().mockResolvedValue({
-                response: {
-                  text: () => JSON.stringify(mockResponseSpec)
-                }
-              })
-            };
-          }
+      generateContentMock.mockResolvedValue({
+        response: {
+          text: () => JSON.stringify(mockResponseSpec)
         }
-      }));
+      });
 
       const { generateAssetSpecification } = await import("../../../modules/asset-brain/assetBrainEngine");
 

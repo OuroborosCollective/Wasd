@@ -1,3 +1,4 @@
+import "./config/tracing.js";
 import { loadRootEnvFiles } from "./config/loadRootEnv.js";
 loadRootEnvFiles();
 

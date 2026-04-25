@@ -1,8 +1,4 @@
-/**
- * Asset Brain Engine - Transforms user input into complete 3D asset specifications
- * Based on MASTER ASSET BRAIN PACK system
- */
-import { buildAssetGenerationPrompt } from './prompts';
+import { GoogleGenerativeAI } from '@google/genai';
 
 export type AssetClass = 'character' | 'creature' | 'prop' | 'weapon' | 'environment';
 export type PlatformProfile = 'mobile' | 'mid' | 'high';
@@ -21,7 +17,12 @@ export interface AssetSpecification {
   usage: string;
   style: string;
   platformProfiles: Record<PlatformProfile, PlatformBudget>;
-  dimensions: { unit: string; height: number; width: number; depth: number };
+  dimensions: {
+    unit: string;
+    height: number;
+    width: number;
+    depth: number;
+  };
   topology: {
     meshType: string;
     triangleBudget: Record<PlatformProfile, number>;
@@ -29,17 +30,32 @@ export interface AssetSpecification {
     hardSurfaceRules: string[];
     organicRules: string[];
   };
-  uv: { uvSets: number; mirroringAllowed: boolean; texelDensity: string; seamRules: string[] };
-  materials: { count: number; workflow: string; maps: string[]; channels: Record<string, string> };
+  uv: {
+    uvSets: number;
+    mirroringAllowed: boolean;
+    texelDensity: string;
+    seamRules: string[];
+  };
+  materials: {
+    count: number;
+    workflow: string;
+    maps: string[];
+    channels: Record<string, string>;
+  };
   rig: {
     required: boolean;
     type: string;
     boneCountTargets: Record<PlatformProfile, number>;
     bones: string[];
     constraints: string[];
-    facial: Record<string, unknown>;
+    facial: Record<string, any>;
   };
-  animations: { required: boolean; clips: string[]; looping: string[]; oneShots: string[] };
+  animations: {
+    required: boolean;
+    clips: string[];
+    looping: string[];
+    oneShots: string[];
+  };
   lods: {
     count: number;
     strategy: string;
@@ -191,6 +207,17 @@ function buildHeuristicSpec(input: string, assetClass: AssetClass, style: string
   };
 }
 
+function buildAssetGenerationPrompt(input: string, assetClass: string, style: string): string {
+  return `Generate a detailed technical specification for a 3D asset in JSON format.
+  Asset Name: ${input}
+  Asset Class: ${assetClass}
+  Style: ${style}
+
+  The response must be a valid JSON object matching the AssetSpecification interface.
+  Include budgets for mobile, mid, and high platform profiles.
+  Focus on technical details like triangle counts, material workflows, and rig requirements.`;
+}
+
 export async function generateAssetSpecification(input: string): Promise<AssetSpecification> {
   const assetClass = classifyAsset(input);
   const style = extractStyle(input);
@@ -198,17 +225,12 @@ export async function generateAssetSpecification(input: string): Promise<AssetSp
   try {
     const apiKey = process.env.GOOGLE_AI_API_KEY ?? process.env.GEMINI_API_KEY ?? '';
     if (apiKey) {
-      // @ts-ignore - Module might not be installed in all environments
-      const genaiModule = await import('@google/genai').catch(() => null);
-      if (!genaiModule) throw new Error('Module @google/genai not found');
-      
-      const GoogleGenerativeAI = (genaiModule as any).GoogleGenerativeAI;
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
       const prompt = buildAssetGenerationPrompt(input, assetClass, style);
       const result = await model.generateContent(prompt);
       const text: string = result.response.text();
-      const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const cleaned = text.replace(/\`\`\`json\n?/g, '').replace(/\`\`\`\n?/g, '').trim();
       const parsed = JSON.parse(cleaned) as AssetSpecification;
       if (!parsed.autoDecisions) {
         parsed.autoDecisions = [`LLM-generated for "${input}"`];
