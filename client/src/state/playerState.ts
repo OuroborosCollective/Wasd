@@ -38,6 +38,7 @@ let skillCooldownUntil: Record<string, number> = {};
 let impactBusterUnlocked = false;
 /** Server combat target NPC id (from `stats_sync` / `welcome.stats`). */
 let combatTargetNpcId: string | null = null;
+let attributes: any = null;
 
 const listeners = new Set<() => void>();
 
@@ -72,6 +73,7 @@ export function applyStatsPayload(data: {
   skillCooldownUntil?: Record<string, number>;
   impactBusterUnlocked?: boolean;
   combatTargetNpcId?: string | null;
+  attributes?: any;
 }) {
   if (typeof data.gold === "number") gold = data.gold;
   if (typeof data.xp === "number") xp = data.xp;
@@ -105,6 +107,7 @@ export function applyStatsPayload(data: {
     const t = data.combatTargetNpcId.trim();
     combatTargetNpcId = t.length > 0 ? t : null;
   }
+  if (data.attributes) attributes = data.attributes;
   emit();
 }
 
@@ -174,4 +177,8 @@ export function isImpactBusterUnlocked(): boolean {
 
 export function getCombatTargetNpcId(): string | null {
   return combatTargetNpcId;
+}
+
+export function getPlayerStateRaw() {
+  return { gold, xp, level, health, maxHealth, stamina, maxStamina, mana, maxMana, dead, quests, inventory, gearInventory, inventoryWeight, maxCarryWeight, equipment, skillCooldownUntil, impactBusterUnlocked, combatTargetNpcId, attributes };
 }

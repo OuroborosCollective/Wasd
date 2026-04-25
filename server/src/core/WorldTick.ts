@@ -836,6 +836,7 @@ export class WorldTick {
       skillCooldownUntil: buildSkillCooldownUntilPayload(player, Date.now()),
       impactBusterUnlocked: Boolean(player.impactBusterUnlocked),
       combatTargetNpcId: player.combatTargetNpcId ?? null,
+      attributes: player.attributes,
       voteBuffState: this.getVoteBuffState(player),
     });
   }
@@ -2147,6 +2148,34 @@ export class WorldTick {
 
     this.ws.onPlayerMessage = async (id, msg) => {
       // Heartbeat: respond to ping with pong
+
+      if (msg.type === "update_attributes") {
+        const uid = this.socketToPlayer.get(id);
+        if (uid) {
+          const player = this.playerSystem.getPlayer(uid);
+          if (player && player.attributes) {
+            const requested = msg.payload || msg;
+            const totalRequested = (requested.str || 0) + (requested.dex || 0) + (requested.int || 0) + (requested.sta || 0) + (requested.wis || 0);
+            const totalCurrent = (player.attributes.str || 0) + (player.attributes.dex || 0) + (player.attributes.sta || 0) + (player.attributes.int || 0) + (player.attributes.wis || 0) + (player.attributes.availablePoints || 0);
+            
+            if (totalRequested <= totalCurrent) {
+              player.attributes.str = requested.str || 10;
+              player.attributes.dex = requested.dex || 10;
+              player.attributes.int = requested.int || 10;
+              player.attributes.sta = requested.sta || 10;
+              player.attributes.wis = requested.wis || 10;
+              player.attributes.availablePoints = totalCurrent - totalRequested;
+              
+              player.maxHealth = 100 + (player.attributes.sta * 5);
+              player.maxMana = 25 + (player.attributes.int * 2);
+              player.maxStamina = 100 + (player.attributes.dex * 2);
+              
+              this.ws.sendToPlayer(id, { type: "toast", kind: "ok", text: "Attributes updated!" });
+            }
+          }
+        }
+        return;
+      }
       if (msg.type === "ping") {
         this.ws.sendToPlayer(id, { type: "pong" });
         return;
@@ -2261,6 +2290,7 @@ export class WorldTick {
               skillCooldownUntil: buildSkillCooldownUntilPayload(player, Date.now()),
               impactBusterUnlocked: Boolean(player.impactBusterUnlocked),
               combatTargetNpcId: player.combatTargetNpcId ?? null,
+      attributes: player.attributes,
               voteBuffState: this.getVoteBuffState(player),
             };
             })(),

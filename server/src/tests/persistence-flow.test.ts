@@ -92,7 +92,7 @@ describe("WS persistence flow (file store)", () => {
 
       ws.send(
         JSON.stringify({
-          type: "login",
+          type: "login", token: "test-token",
           guestId,
           guestName: "FlowTester",
           sceneId: "didis_hub",
@@ -157,7 +157,7 @@ describe("WS persistence flow (file store)", () => {
 
       ws.send(
         JSON.stringify({
-          type: "login",
+          type: "login", token: "test-token",
           guestId,
           guestName: "FlowTester",
           sceneId: "didis_hub",

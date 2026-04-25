@@ -1,0 +1,101 @@
+:root {
+  --gold-primary: #d4af37;
+  --gold-secondary: #b8860b;
+  --gold-glow: rgba(212, 175, 55, 0.4);
+  --blue-primary: #1e3a8a;
+  --blue-glow: rgba(30, 58, 138, 0.4);
+  --bg-dark-alpha: rgba(10, 15, 25, 0.85);
+  --border-gold: 1px solid rgba(212, 175, 55, 0.3);
+  --font-fancy: 'Plus Jakarta Sans', serif;
+}
+
+.gold-frame {
+  border: 1px solid var(--gold-primary);
+  box-shadow: 0 0 15px var(--gold-glow), inset 0 0 10px rgba(0,0,0,0.5);
+  background: var(--bg-dark-alpha);
+  border-radius: 12px;
+}
+
+.gold-text {
+  color: var(--gold-primary);
+  text-shadow: 0 0 8px var(--gold-glow);
+}
+
+.orb-container {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.central-orb {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #fff 0%, #7eb8ff 20%, #1e3a8a 60%, #000 100%);
+  box-shadow: 0 0 30px #7eb8ff, inset -5px -5px 15px rgba(0,0,0,0.8);
+  border: 2px solid rgba(255,255,255,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 2;
+  cursor: pointer;
+}
+
+.orb-inner-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.4) 0%, transparent 70%);
+  animation: orb-pulse 2s infinite alternate;
+}
+
+@keyframes orb-pulse {
+  from { opacity: 0.4; transform: scale(1); }
+  to { opacity: 0.8; transform: scale(1.1); }
+}
+
+.skill-slot {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.8);
+  border: 1.5px solid var(--gold-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+
+.skill-slot:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 15px var(--gold-glow);
+}
+
+.xp-bar-container {
+  width: 200px;
+  height: 10px;
+  background: rgba(0,0,0,0.6);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 5px;
+  overflow: hidden;
+  margin-top: 5px;
+}
+
+.xp-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #7eb8ff, #d4af37);
+  box-shadow: 0 0 10px rgba(126, 184, 255, 0.5);
+}
+
+.hp-ring-container {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}

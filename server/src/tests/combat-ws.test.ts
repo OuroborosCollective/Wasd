@@ -86,7 +86,7 @@ describe("WS combat + entity_sync", () => {
       await sendAndWait(
         ws,
         {
-          type: "login",
+          type: "login", token: "test-token",
           guestId,
           guestName: "CombatWS",
           sceneId: "didis_hub",

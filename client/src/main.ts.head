@@ -4,11 +4,11 @@ import { BabylonAdapter } from "./engine/babylon/BabylonAdapter";
 import { MMORPGClientCore } from "./core/MMORPGClientCore";
 import { connectSocket, requestSceneChange, sendCommand, type ConnectionOptions } from "./networking/websocketClient";
 import { IEngineBridge } from "./engine/bridge/IEngineBridge";
-import { showDialogue } from "./ui/hud";
-import { mountNewHud } from "./ui/redesign/MountNewHud";
+import { renderHUD, showDialogue } from "./ui/hud";
+import { mountGameHudOverlay } from "./ui/mountGameHudOverlay";
 import { initSupabaseClient, getSupabaseClientSync } from "./auth/supabase";
 import { getJoystickState, initMobileControls, isMobile } from "./ui/mobileControls";
-
+import { openEquipmentPanel, openInventory, openQuestLog, openSkillsPanel } from "./ui/lazyPanels";
 import { getQuickCastSkillId } from "./game/combatSkills";
 import { triggerImpactBusterClientGuard } from "./game/impactBuster";
 import { performanceMonitor } from "./utils/PerformanceMonitor";
@@ -135,95 +135,66 @@ try {
   // 2. Create Core
   const core = new MMORPGClientCore(adapter);
   (window as any).gameCore = core;
-  mountNewHud(core);
+  mountGameHudOverlay(core);
   core.registerDefaultInput();
 
   await initSupabaseClient();
-  const { mountAuthFlow } = await import("./ui/redesign/MountAuth");
-  mountAuthFlow((token, charName) => {
-    const connectionOptions: ConnectionOptions = {
-      token,
-      charName,
-    };
-    loadAREPolicyConfig().then((policyConfig) => {
-      if (policyConfig) connectionOptions.arePolicyConfig = policyConfig;
+  // Legacy DOM HUD: Supabase sign-in + guest controls (React HUD has no auth forms).
+  renderHUD();
+
+  // 3. Connect Systems
+  const connectionOptions: ConnectionOptions = {};
+  let authProvider = resolveGameAuthProvider();
+  if (authProvider === "none" && getSupabaseClientSync()) {
+    authProvider = "supabase";
+  }
+  if (authProvider !== "none") {
+    let persistedToken: string | null = null;
+    try {
+      persistedToken = localStorage.getItem("token");
+    } catch {
+      showBootStatus("Storage access blocked. Continuing without saved login token.", "warn");
+    }
+    if (persistedToken && persistedToken.trim().length > 0) {
+      connectionOptions.token = persistedToken;
+    }
+  } else {
+    try {
+      localStorage.removeItem("token");
+    } catch {
+      /* ignore */
+    }
+  }
+  const policyPromise = loadAREPolicyConfig().then((policyConfig) => {
+    if (policyConfig) {
+      connectionOptions.arePolicyConfig = policyConfig;
+    }
+  });
+  policyPromise
+    .catch(() => undefined)
+    .finally(() => {
       connectSocket(core, connectionOptions);
     });
-  });
-
   (window as any).requestSceneChange = requestSceneChange;
-
+  initChat((type, payload) => sendCommand(type, payload));
+  initMinimap();
   // Legacy quick-teleport panel removed from gameplay HUD.
   initMobileControls(
     core,
     {
       onAttack: () => core.attack(),
       onInteract: () => core.interact(),
-      onEquip: () => {},
-      onInventory: () => {},
-      onQuests: () => {},
-      onSkills: () => {},
+      onEquip: () => {
+        void openEquipmentPanel();
+      },
+      onInventory: () => {
+        void openInventory();
+      },
+      onQuests: () => {
+        void openQuestLog();
+      },
+      onSkills: () => {
+        void openSkillsPanel();
+      },
       onQuickSkill: () => {
         const quick = getQuickCastSkillId();
-        if (quick === "impact_buster") {
-          triggerImpactBusterClientGuard();
-          return;
-        }
-        core.useSkill(quick);
-      },
-      onMap: () => {
-        toggleMinimapVisibility();
-      },
-      onChat: () => {
-        focusChatInput();
-      },
-    },
-    (_delta: number) => {},
-    (_dx: number, _dy: number) => {}
-  );
-  performanceMonitor.start();
-
-  window.addEventListener("keydown", (event) => {
-    const target = event.target as HTMLElement | null;
-    if (
-      target &&
-      (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)
-    ) {
-      return;
-    }
-    if (event.key.toLowerCase() === "f") {
-      triggerImpactBusterClientGuard();
-    }
-  });
-
-  let lastFrameTime = performance.now();
-  const tick = (now: number) => {
-    const dt = Math.min((now - lastFrameTime) / 1000, 0.1);
-    lastFrameTime = now;
-    core.update(dt);
-    worldService.update();
-    if (isMobile()) {
-      const j = getJoystickState();
-      if (j.active && (Math.abs(j.dx) > 0.04 || Math.abs(j.dy) > 0.04)) {
-        core.events.emit("move_intent", { dx: j.dx, dy: j.dy });
-      }
-    }
-    requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
-
-  core.events.on("dialogue", (text: string) => {
-    showDialogue(text);
-  });
-
-  console.log("Areloria Client Initialized");
-
-  // Cleanup on page unload
-  window.addEventListener("beforeunload", () => {
-    worldService.dispose();
-  });
-} catch (error: any) {
-  console.error("Fatal client bootstrap error:", error);
-  showBootStatus(`Fatal bootstrap error: ${error?.message || "Unknown error"}`);
-}
-})();

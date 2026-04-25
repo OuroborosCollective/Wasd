@@ -102,7 +102,7 @@ describe("WS use_skill", () => {
       const welcome = await sendAndWait<any>(
         ws,
         {
-          type: "login",
+          type: "login", token: "test-token",
           guestId,
           guestName: "SkillTester",
           sceneId: "didis_hub",

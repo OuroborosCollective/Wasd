@@ -1,37 +1,23 @@
 /**
- * Dynamic imports keep the initial bundle smaller; first open loads the chunk.
+ * Redirects to the new React-based UI system where applicable.
  */
 
 export async function openInventory(): Promise<void> {
-  const m = await import("./inventory");
-  m.renderInventory();
+  window.dispatchEvent(new CustomEvent("areloria:open-panel", { detail: { panel: "inventory" } }));
 }
 
 export async function openSkillsPanel(): Promise<void> {
-  const m = await import("./skillsPanel");
-  m.renderSkillsPanel();
+  window.dispatchEvent(new CustomEvent("areloria:open-panel", { detail: { panel: "skills" } }));
 }
 
 export async function openQuestLog(): Promise<void> {
-  const m = await import("./questLog");
-  m.renderQuestLog();
+  window.dispatchEvent(new CustomEvent("areloria:open-panel", { detail: { panel: "questlog" } }));
 }
 
 export async function openEquipmentPanel(): Promise<void> {
-  const m = await import("./equipmentPanel");
-  m.renderEquipmentPanel();
+  window.dispatchEvent(new CustomEvent("areloria:open-panel", { detail: { panel: "equipment" } }));
 }
 
 export function preloadGamePanels(): void {
-  const run = () => {
-    void import("./inventory");
-    void import("./skillsPanel");
-    void import("./questLog");
-    void import("./equipmentPanel");
-  };
-  if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-    window.requestIdleCallback(run, { timeout: 5000 });
-  } else {
-    setTimeout(run, 2500);
-  }
+  // Preloading new React UI modules if needed
 }

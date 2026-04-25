@@ -1,0 +1,215 @@
+.inventory-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 6000;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  backdrop-filter: blur(8px);
+}
+
+.inventory-card {
+  width: 95vw;
+  max-width: 550px;
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: rgba(15, 20, 35, 0.95);
+  box-shadow: 0 40px 100px rgba(0,0,0,0.8);
+}
+
+.inventory-header {
+  padding: 15px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  background: rgba(0,0,0,0.2);
+}
+
+.inventory-header h2 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: 2px;
+}
+
+.inv-stats {
+    font-size: 12px;
+    letter-spacing: 1px;
+    opacity: 0.8;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 32px;
+  cursor: pointer;
+  opacity: 0.5;
+}
+.close-btn:hover { opacity: 1; }
+
+.inventory-nav {
+  display: flex;
+  padding: 12px;
+  gap: 10px;
+  background: rgba(0,0,0,0.3);
+}
+
+.inventory-nav button {
+  flex: 1;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
+  color: #555;
+  padding: 12px;
+  cursor: pointer;
+  border-radius: 10px;
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: bold;
+  transition: all 0.2s;
+  letter-spacing: 1px;
+}
+
+.inventory-nav button.active {
+  background: rgba(212, 175, 55, 0.08);
+  color: #d4af37;
+  border-color: rgba(212, 175, 55, 0.3);
+  box-shadow: inset 0 0 15px rgba(212, 175, 55, 0.1);
+}
+
+.inventory-grid-redesign {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: min-content;
+  gap: 15px;
+  padding: 25px;
+  overflow-y: auto;
+}
+
+.item-slot-redesign {
+  aspect-ratio: 1;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 10px;
+}
+
+.item-slot-redesign:hover {
+  background: rgba(255,255,255,0.05);
+  border-color: #d4af37;
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+}
+
+.item-slot-redesign.gear-item {
+    background: rgba(126, 184, 255, 0.05);
+    border-color: rgba(126, 184, 255, 0.2);
+}
+
+.item-slot-redesign.empty {
+  cursor: default;
+  opacity: 0.2;
+}
+.item-slot-redesign.empty:hover {
+  transform: none;
+  border-color: rgba(255,255,255,0.05);
+  box-shadow: none;
+}
+
+.item-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.item-name {
+  font-size: 10px;
+  text-align: center;
+  color: #888;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.item-qty {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 12px;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 0 1px 3px #000;
+}
+
+.gear-tag {
+    position: absolute;
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 8px;
+    font-weight: bold;
+    color: #7eb8ff;
+    letter-spacing: 1px;
+}
+
+.inventory-footer {
+  padding: 25px 30px;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+.currency {
+  display: flex;
+  gap: 25px;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.inv-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.inv-actions button {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  color: #d4af37;
+  padding: 8px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+  transition: all 0.2s;
+  letter-spacing: 1px;
+}
+
+.inv-actions button:hover {
+  background: rgba(212, 175, 55, 0.1);
+  border-color: #d4af37;
+  transform: scale(1.05);
+}
+
+@media (max-width: 500px) {
+    .inventory-grid-redesign { grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 15px; }
+    .item-icon { font-size: 24px; }
+    .inventory-nav button { padding: 8px; font-size: 10px; }
+}
+
+.inventory-grid-redesign::-webkit-scrollbar { width: 6px; }
+.inventory-grid-redesign::-webkit-scrollbar-track { background: transparent; }
+.inventory-grid-redesign::-webkit-scrollbar-thumb { background: rgba(212, 175, 55, 0.15); border-radius: 3px; }

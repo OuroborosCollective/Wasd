@@ -1,0 +1,75 @@
+.new-hud-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  z-index: 5000;
+}
+
+.new-hud-container > * {
+  pointer-events: auto;
+}
+
+.hud-section {
+  position: absolute;
+}
+
+.top-left { top: 20px; left: 20px; }
+.top-right { top: 20px; right: 20px; }
+.bottom-left { bottom: 20px; left: 20px; width: 300px; padding: 12px; }
+.bottom-center { bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; }
+.side-menu { right: 20px; bottom: 100px; display: flex; flex-direction: column; gap: 12px; }
+
+.game-brand h1 { margin: 0; font-size: 28px; letter-spacing: 2px; }
+.game-brand p { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 4px; color: #888; }
+
+.quest-tracker { margin-top: 20px; width: 220px; padding: 12px; }
+.quest-tracker h3 { font-size: 14px; margin-top: 0; }
+.quest-item { margin-bottom: 8px; border-left: 2px solid #d4af37; padding-left: 8px; }
+.quest-title { font-size: 13px; font-weight: bold; }
+
+.minimap-orb { width: 140px; height: 140px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+.minimap-placeholder { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+.location-label { position: absolute; bottom: 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; background: rgba(0,0,0,0.6); padding: 2px 8px; border-radius: 10px; }
+
+.action-orb-layout { display: flex; align-items: center; gap: 20px; }
+.skill-row { display: flex; gap: 10px; }
+.skill-row.left { margin-top: -30px; }
+.skill-row.right { margin-top: -30px; }
+
+.hp-ring-container { position: absolute; inset: 0; pointer-events: none; }
+
+.xp-container { display: flex; flex-direction: column; align-items: center; margin-top: 5px; }
+.xp-text { font-size: 11px; font-weight: bold; margin-top: 4px; }
+
+.chat-tabs { display: flex; gap: 12px; font-size: 11px; font-weight: bold; margin-bottom: 8px; color: #888; }
+.chat-tabs span.active { color: #d4af37; border-bottom: 1px solid #d4af37; }
+.chat-area { display: flex; flex-direction: column; height: 140px; }
+.chat-preview { flex: 1; font-size: 12px; color: #ccc; overflow-y: auto; margin-bottom: 8px; }
+.chat-preview p { margin: 4px 0; }
+.chat-form input { width: 100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 6px 10px; color: #fff; font-size: 12px; outline: none; }
+.chat-form input:focus { border-color: #d4af37; }
+
+.menu-btn { width: 48px; height: 48px; border-radius: 12px; background: rgba(20,25,35,0.9); border: 1px solid rgba(255,255,255,0.1); color: #fff; font-size: 24px; cursor: pointer; transition: all 0.2s; }
+.menu-btn:hover { border-color: #d4af37; background: rgba(212, 175, 55, 0.1); transform: scale(1.1); }
+
+.target-frame { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); width: 250px; padding: 8px; display: flex; flex-direction: column; align-items: center; }
+.target-hp-bar { width: 100%; height: 8px; background: rgba(0,0,0,0.6); border-radius: 4px; overflow: hidden; margin-bottom: 4px; }
+.target-hp-bar .fill { height: 100%; background: #ff4444; box-shadow: 0 0 10px rgba(255, 68, 68, 0.5); }
+.target-name { font-size: 13px; font-weight: bold; }
+
+/* Smartphone specific adjustments */
+.smartphone .top-left { top: 10px; left: 10px; transform: scale(0.8); transform-origin: top left; }
+.smartphone .top-right { top: 10px; right: 10px; transform: scale(0.8); transform-origin: top right; }
+.smartphone .bottom-left { display: none; }
+.smartphone .side-menu { right: 10px; bottom: 80px; transform: scale(0.9); }
+.smartphone .action-orb-layout { transform: scale(0.8); }
+.smartphone .xp-container { transform: scale(0.8); margin-top: -10px; }
+
+.hp-ring-container svg {
+  overflow: visible;
+}
+
+.hp-ring-container circle {
+  transition: stroke-dashoffset 0.3s ease-out;
+}
