@@ -348,6 +348,7 @@ export class WorldTick {
 
   private socketToPlayer: Map<string, string> = new Map(); // socketId -> characterName
   private lastActionTimes: Map<string, number> = new Map(); // charName -> timestamp
+  private glbPathCache: Map<string, string | undefined> = new Map();
   private sceneTriggerCooldowns: Map<string, number> = new Map();
   private sceneProfiles: Record<string, SceneProfile> = { ...DEFAULT_SCENE_PROFILES };
   private sceneTriggerZones: SceneTriggerZone[] = [...DEFAULT_SCENE_TRIGGER_ZONES];
@@ -1386,6 +1387,7 @@ export class WorldTick {
         this.sendGMStatus(socketId, "error", "glbPath, targetType and targetId are required.");
         return true;
       }
+      this.clearGlbPathCache();
       this.glbRegistry.addLink({
         glbPath: msg.glbPath,
         targetType: msg.targetType,
@@ -1402,6 +1404,7 @@ export class WorldTick {
         this.sendGMStatus(socketId, "error", "targetType and targetId are required.");
         return true;
       }
+      this.clearGlbPathCache();
       this.glbRegistry.removeLink(msg.targetType, msg.targetId);
       this.ws.sendToPlayer(socketId, { type: "admin_glb_list_result", links: this.glbRegistry.getLinks() });
       this.sendAdminGlbOpsStatus(socketId);
@@ -1775,7 +1778,8 @@ export class WorldTick {
           category === "monster" ? "monster_group" :
           category === "object" || category === "building" || category === "item" ? "object_group" :
           "npc_group";
-        this.glbRegistry.addLink({
+      this.clearGlbPathCache();
+      this.glbRegistry.addLink({
           glbPath: msg.path,
           targetType: targetType as any,
           targetId: msg.name,
@@ -3343,6 +3347,10 @@ export class WorldTick {
     this.broadcastState();
   }
 
+  public clearGlbPathCache() {
+    this.glbPathCache.clear();
+  }
+
   broadcastState() {
     const tickCount = this.tickCount;
     const entities = [
@@ -3464,10 +3472,12 @@ export class WorldTick {
     }
 
     // Also include chunks that have entities (players, NPCs)
+    const existingChunkIds = new Set(chunks.map(c => c.id));
     const allEntities = [...this.playerSystem.getAllPlayers(), ...this.npcSystem.getAllNPCs()];
     for (const entity of allEntities) {
       const chunkId = this.chunkSystem.getChunkId(entity.position.x, entity.position.y);
-      if (!chunks.some(c => c.id === chunkId)) {
+      if (!existingChunkIds.has(chunkId)) {
+        existingChunkIds.add(chunkId);
         const [cx, cy] = chunkId.split(":").map(Number);
         chunks.push({ id: chunkId, chunkX: cx, chunkY: cy, objects: [] });
       }
@@ -3630,19 +3640,41 @@ export class WorldTick {
   }
 
   private resolveNpcGlbPath(npc: any): string | undefined {
+    const cacheKey = `npc:${npc.id}:${npc.role}`;
+    if (this.glbPathCache.has(cacheKey)) return this.glbPathCache.get(cacheKey);
+
     const single = this.glbRegistry.getModelForTarget("npc_single", npc.id);
-    if (single) return single;
+    if (single) {
+      this.glbPathCache.set(cacheKey, single);
+      return single;
+    }
     const byRole = this.glbRegistry.getModelForTarget("npc_group", String(npc.role || ""));
-    if (byRole) return byRole;
-    return this.resolveEntityGlbPath("npcs", npc.role || npc.name || npc.id, npc.id);
+    if (byRole) {
+      this.glbPathCache.set(cacheKey, byRole);
+      return byRole;
+    }
+    const path = this.resolveEntityGlbPath("npcs", npc.role || npc.name || npc.id, npc.id);
+    this.glbPathCache.set(cacheKey, path);
+    return path;
   }
 
   private resolveWorldObjectGlbPath(type: string | undefined, name: string | undefined, id: string): string | undefined {
+    const cacheKey = `obj:${id}:${type}`;
+    if (this.glbPathCache.has(cacheKey)) return this.glbPathCache.get(cacheKey);
+
     const single = this.glbRegistry.getModelForTarget("object_single", id);
-    if (single) return single;
+    if (single) {
+      this.glbPathCache.set(cacheKey, single);
+      return single;
+    }
     const byType = type ? this.glbRegistry.getModelForTarget("object_group", type) : null;
-    if (byType) return byType;
-    return this.resolveEntityGlbPath("world_objects", type || name || id, id);
+    if (byType) {
+      this.glbPathCache.set(cacheKey, byType);
+      return byType;
+    }
+    const path = this.resolveEntityGlbPath("world_objects", type || name || id, id);
+    this.glbPathCache.set(cacheKey, path);
+    return path;
   }
 
   private resolveEntityGlbPath(category: string, key: string | undefined, seed: string): string | undefined {
