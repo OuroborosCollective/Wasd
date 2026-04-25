@@ -3309,6 +3309,35 @@ export class WorldTick {
 
     const recipients = this.getChatRecipients();
 
+    // Broadcast Chunk Resonance every 50 ticks (~5s)
+    if (this.tickCount % 50 === 0) {
+      this.ws.broadcast({
+        t: "chunk_resonance",
+        resonance: this.npcSystem.resonanceEngine.getAllResonance()
+      } as any);
+    }
+
+    // Apply Genetic Echo Buffs to players based on chunk resonance
+    if (this.tickCount % 20 === 0) {
+      for (const player of onlinePlayers) {
+        const chunkKey = this.npcSystem.resonanceEngine.getChunkKey(player.position.x, player.position.y);
+        const res = this.npcSystem.resonanceEngine.getResonance(chunkKey);
+
+        if (res.faith > 0.5) {
+          // Faith Echo: Mana/Health Regen
+          player.health = Math.min(player.maxHealth, player.health + 1);
+        }
+        if (res.aggression > 0.5) {
+          // Aggression Echo: (Simulated) Physical damage bonus flag
+          player.tempBuffs = { ...player.tempBuffs, aggressionEcho: true };
+        }
+        if (res.curiosity > 0.5) {
+          // Curiosity Echo: XP multiplier flag
+          player.tempBuffs = { ...player.tempBuffs, curiosityEcho: true };
+        }
+      }
+    }
+
     // NPC chat agent: every 10 ticks (~1s) let NPCs near players chat
     if (this.tickCount % 10 === 0 && onlinePlayers.length > 0) {
       for (const npc of this.npcSystem.getAllNPCs()) {

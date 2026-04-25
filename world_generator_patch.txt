@@ -1,0 +1,101 @@
+<<<<<<< SEARCH
+  private initialized = false;
+  private scene: Scene | null = null;
+  private terrain: any | null = null;
+  private treesByChunk: Map<string, Mesh[]> = new Map();
+  private totalTreesGenerated = 0;
+
+  private trunkMaterial: StandardMaterial | null = null;
+  private leafMaterial: StandardMaterial | null = null;
+
+  private config: WorldGeneratorConfig = {
+=======
+  private initialized = false;
+  private scene: Scene | null = null;
+  private terrain: any | null = null;
+  private treesByChunk: Map<string, Mesh[]> = new Map();
+  private totalTreesGenerated = 0;
+  private resonanceByChunk: Map<string, { faith: number; aggression: number; curiosity: number }> = new Map();
+
+  private trunkMaterial: StandardMaterial | null = null;
+  private leafMaterial: StandardMaterial | null = null;
+
+  private config: WorldGeneratorConfig = {
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+  /** Get list of loaded chunk keys. */
+  getLoadedChunkKeys(): string[] {
+    return Array.from(this.treesByChunk.keys());
+  }
+
+  // ── Terrain Query Adapter ────────────────────────────────────────────
+=======
+  /** Get list of loaded chunk keys. */
+  getLoadedChunkKeys(): string[] {
+    return Array.from(this.treesByChunk.keys());
+  }
+
+  /** Update resonance data received from server. */
+  updateResonance(resonance: Record<string, { faith: number; aggression: number; curiosity: number }>): void {
+    let changed = false;
+    for (const [key, val] of Object.entries(resonance)) {
+      const existing = this.resonanceByChunk.get(key);
+      if (!existing || existing.faith !== val.faith || existing.aggression !== val.aggression || existing.curiosity !== val.curiosity) {
+        this.resonanceByChunk.set(key, val);
+        changed = true;
+        // If chunk is already loaded, we might want to "re-mutate" it,
+        // but for now, we'll only use it for new generations or manual reloads.
+      }
+    }
+  }
+
+  // ── Terrain Query Adapter ────────────────────────────────────────────
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+      // Clone materials per tree
+      const treeId = `chunk-${key}-${placed}`;
+      const trunkMat = textureCloneService.clone(scene, "trunk", treeId);
+      const leafMat = textureCloneService.clone(scene, "leaf", treeId);
+
+      let tree: Mesh;
+=======
+      // Genetic Resonance Mutations
+      const res = this.resonanceByChunk.get(key) || { faith: 0, aggression: 0, curiosity: 0 };
+
+      // Clone materials per tree
+      const treeId = `chunk-${key}-${placed}`;
+      const trunkMat = textureCloneService.clone(scene, "trunk", treeId) as StandardMaterial;
+      const leafMat = textureCloneService.clone(scene, "leaf", treeId) as StandardMaterial;
+
+      // Apply mutations based on resonance
+      if (res.faith > 0.5) {
+        leafMat.emissiveColor = new Color3(0, 0.5 * res.faith, 1 * res.faith);
+        leafMat.specularColor = new Color3(1, 1, 1);
+      }
+      if (res.aggression > 0.5) {
+        leafMat.diffuseColor = Color3.Lerp(leafMat.diffuseColor, new Color3(0.8, 0.1, 0.1), res.aggression);
+      }
+
+      let tree: Mesh;
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+        default:
+          tree = createTree(scene, {
+            trunkHeight: 3 + rand() * 3,
+            trunkMaterial: trunkMat,
+            leafMaterial: leafMat,
+            boughs: rand() > 0.5 ? 2 : 1,
+            forks: 2 + Math.floor(rand() * 3),
+          });
+=======
+        default:
+          tree = createTree(scene, {
+            trunkHeight: 3 + rand() * 3,
+            trunkMaterial: trunkMat,
+            leafMaterial: leafMat,
+            boughs: rand() > 0.5 ? 2 : 1,
+            forks: (2 + Math.floor(rand() * 3)) + Math.floor(res.curiosity * 3),
+            trunkTaper: 0.6 + (res.aggression * 0.3),
+            branches: 15 + Math.floor(res.curiosity * 20),
+          });
+>>>>>>> REPLACE

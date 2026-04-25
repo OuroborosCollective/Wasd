@@ -37,7 +37,8 @@ export type ServerMsg =
   | { t: "loot_picked"; lootId: string; items: ItemStackNet[]; gold: number }
   | { t: "inv"; items: ItemStackNet[]; gold: number; maxWeight: number; weight: number }
   | { t: "quests"; active: QuestStateNet[] }
-  | { t: "combat_result"; attackerId: string; targetId: string; damage: number; crit: boolean; hit: boolean; targetHp: number; targetHpMax: number; killed: boolean };
+  | { t: "combat_result"; attackerId: string; targetId: string; damage: number; crit: boolean; hit: boolean; targetHp: number; targetHpMax: number; killed: boolean }
+  | { t: "chunk_resonance"; resonance: Record<string, { faith: number; aggression: number; curiosity: number }> };
 
 // ─── Shared data shapes ───────────────────────────────────────
 
