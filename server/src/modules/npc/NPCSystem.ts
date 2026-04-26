@@ -79,6 +79,10 @@ export class NPCSystem {
     return this.npcs.get(npcId);
   }
 
+  getNPCsMap(): Map<string, any> {
+    return this.npcs;
+  }
+
   setRuntimeDialogue(npcId: string, text: string, choices: any[] = []): boolean {
     const npc = this.npcs.get(npcId);
     if (!npc) return false;

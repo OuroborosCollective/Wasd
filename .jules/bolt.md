@@ -12,3 +12,11 @@
 ## 2025-05-15 - [Babylon.js Allocation Bottlenecks]
 **Learning:** High-frequency loops like `updateCameraFollow` and `updateAREVisuals` in Babylon.js can cause significant GC pressure if they use `new Vector3()` or operators that return new vectors (like `.add()`).
 **Action:** Always use reusable class-level `Vector3` instances and "ToRef" or "InPlace" methods (e.g., `LerpToRef`, `addInPlace`, `copyFromFloats`) for any logic running at 60fps or during heavy synchronization.
+
+## 2026-05-20 - [Hot Loop Allocation & String Conversion]
+**Learning:**  (10Hz) was creating multiple intermediate arrays via spreads and `.map()`. Additionally, `AREStateCompiler` used `Number(toFixed(4))` which is significantly slower than mathematical rounding due to string overhead.
+**Action:** Use direct `for...of` loops over Map values and replace `toFixed` with `Math.round(x * 10000) / 10000` in paths executed for every entity.
+
+## 2026-05-20 - [Hot Loop Allocation & String Conversion]
+**Learning:** `WorldTick.broadcastState` (10Hz) was creating multiple intermediate arrays via spreads and `.map()`. Additionally, `AREStateCompiler` used `Number(toFixed(4))` which is significantly slower than mathematical rounding due to string overhead.
+**Action:** Use direct `for...of` loops over Map values and replace `toFixed` with `Math.round(x * 10000) / 10000` in paths executed for every entity.
