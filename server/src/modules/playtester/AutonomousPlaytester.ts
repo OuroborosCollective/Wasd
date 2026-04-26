@@ -46,6 +46,14 @@ type InternalState = {
   lastPos: { x: number; y: number } | null;
 };
 
+type QuestNpcTarget = {
+  questId: string | null;
+  questStep: number | null;
+  npcId: string;
+  distance: number;
+  score: number;
+};
+
 const MOVE_SPEED = 0.55;
 const NPC_INTERACT_DISTANCE = 4.5;
 const LOOT_INTERACT_DISTANCE = 4.5;
@@ -308,32 +316,87 @@ export class AutonomousPlaytester {
         }
       }
       if (action === "return_to_quest_target" || action === "interact_with_npc" || action === "progress_active_quest") {
-        const questTargetNpcId = this.resolveQuestTargetNpcId(player);
-        const npc = questTargetNpcId
-          ? this.deps.getAllNpcs().find((n) => String(n?.id) === questTargetNpcId)
+        const questTarget = this.resolveQuestNpcTarget(player, {
+          includeTalkTo: true,
+          includeCollectTurnIn: true,
+        });
+        const npc = questTarget
+          ? this.deps.getAllNpcs().find((n) => String(n?.id) === questTarget.npcId)
           : this.findNearestNpc(player, false);
         if (!npc) {
           await this.exploreStep(player);
-          this.writeLog(action, "no_npc_found_exploring", player, this.getActiveQuest(player)?.id ?? null, this.resolveActiveQuestStep(player), null);
+          this.writeLog(
+            action,
+            "no_npc_found_exploring",
+            player,
+            questTarget?.questId ?? this.getActiveQuest(player)?.id ?? null,
+            questTarget?.questStep ?? this.resolveActiveQuestStep(player),
+            null
+          );
           return;
         }
         const d = dist2d(this.getPosition2D(player), this.getNpcPos(npc));
         if (d > NPC_INTERACT_DISTANCE) {
           await this.moveTowards(player, this.getNpcPos(npc), Math.min(MOVE_SPEED, d));
-          this.writeLog(action, "moving_to_npc", player, this.getActiveQuest(player)?.id ?? null, this.resolveActiveQuestStep(player), npc.id);
+          this.writeLog(
+            action,
+            "moving_to_npc",
+            player,
+            questTarget?.questId ?? this.getActiveQuest(player)?.id ?? null,
+            questTarget?.questStep ?? this.resolveActiveQuestStep(player),
+            npc.id
+          );
           return;
         }
         await this.deps.sendToSyntheticSocket(PlaytesterConfig.syntheticSocketId, { type: "interact", npcId: npc.id });
-        const playerQuest = this.getActiveQuest(player);
-        if (playerQuest?.id) {
-          this.deps.checkTalkToQuests(player, npc.id);
-          this.deps.checkCollectTurnInQuests(player, npc.id);
-        }
+        this.deps.checkTalkToQuests(player, npc.id);
+        this.deps.checkCollectTurnInQuests(player, npc.id);
         this.appendEvent(`Quest interaction with ${npc.id}`);
-        this.writeLog(action, "quest_npc_interaction", player, playerQuest?.id ?? null, this.resolveActiveQuestStep(player), npc.id);
+        this.writeLog(
+          action,
+          "quest_npc_interaction",
+          player,
+          questTarget?.questId ?? this.getActiveQuest(player)?.id ?? null,
+          questTarget?.questStep ?? this.resolveActiveQuestStep(player),
+          npc.id
+        );
         return;
       }
       if (action === "collect_required_item") {
+        const turnInTarget = this.resolveQuestNpcTarget(player, {
+          includeTalkTo: false,
+          includeCollectTurnIn: true,
+        });
+        if (turnInTarget) {
+          const turnInNpc = this.deps.getAllNpcs().find((n) => String(n?.id) === turnInTarget.npcId);
+          if (turnInNpc) {
+            const distanceToTurnIn = dist2d(this.getPosition2D(player), this.getNpcPos(turnInNpc));
+            if (distanceToTurnIn > NPC_INTERACT_DISTANCE) {
+              await this.moveTowards(player, this.getNpcPos(turnInNpc), Math.min(MOVE_SPEED, distanceToTurnIn));
+              this.writeLog(
+                action,
+                "moving_to_collect_turnin_npc",
+                player,
+                turnInTarget.questId,
+                turnInTarget.questStep,
+                turnInNpc.id
+              );
+              return;
+            }
+            await this.deps.sendToSyntheticSocket(PlaytesterConfig.syntheticSocketId, { type: "interact", npcId: turnInNpc.id });
+            this.deps.checkCollectTurnInQuests(player, turnInNpc.id);
+            this.appendEvent(`Turned in collect quest at ${turnInNpc.id}`);
+            this.writeLog(
+              action,
+              "collect_turnin_interaction",
+              player,
+              turnInTarget.questId,
+              turnInTarget.questStep,
+              turnInNpc.id
+            );
+            return;
+          }
+        }
         const loot = this.findNearestLoot(player);
         if (loot) {
           const d = dist2d(this.getPosition2D(player), loot.position);
@@ -518,8 +581,17 @@ export class AutonomousPlaytester {
 
   private getActiveQuest(player: any): any | null {
     if (!player) return null;
+    return this.getOpenQuests(player)[0] ?? null;
+  }
+
+  private getOpenQuests(player: any): any[] {
+    if (!player) return [];
+    const fromPlayer = Array.isArray(player?.quests) ? player.quests : [];
+    if (fromPlayer.length > 0) {
+      return fromPlayer.filter((q: any) => q && q.completed !== true);
+    }
     const quests = this.deps.getQuestSyncForClient(player);
-    return quests.find((q: any) => q && q.completed !== true) ?? null;
+    return quests.filter((q: any) => q && q.completed !== true);
   }
 
   private resolveObjectiveType(quest: any): string | null {
@@ -540,10 +612,94 @@ export class AutonomousPlaytester {
   }
 
   private resolveQuestTargetNpcId(player: any): string | null {
-    const active = this.getActiveQuest(player);
-    const target = active?.targetNpcId ?? active?.targetId;
-    if (typeof target !== "string" || target.trim().length === 0) return null;
-    return target.trim();
+    return this.resolveQuestNpcTarget(player, {
+      includeTalkTo: true,
+      includeCollectTurnIn: true,
+    })?.npcId ?? null;
+  }
+
+  private resolveQuestNpcTarget(
+    player: any,
+    opts: { includeTalkTo: boolean; includeCollectTurnIn: boolean }
+  ): QuestNpcTarget | null {
+    const position = this.getPosition2D(player);
+    const npcById = new Map<string, any>();
+    for (const npc of this.deps.getAllNpcs()) {
+      const id = String(npc?.id ?? "").trim();
+      if (!id) continue;
+      npcById.set(id, npc);
+    }
+    const candidates: QuestNpcTarget[] = [];
+    for (const quest of this.getOpenQuests(player)) {
+      const objectiveType = this.resolveObjectiveType(quest);
+      const questId = typeof quest?.id === "string" ? quest.id : null;
+      if (opts.includeTalkTo && objectiveType === "talk_to") {
+        const npcId = this.resolveQuestNpcIdForObjective(quest, false);
+        if (!npcId) continue;
+        const npc = npcById.get(npcId);
+        if (!npc) continue;
+        const distance = dist2d(position, this.getNpcPos(npc));
+        candidates.push({
+          questId,
+          questStep: this.resolveQuestStep(quest),
+          npcId,
+          distance,
+          score: 120 - Math.min(220, distance * 2),
+        });
+      }
+      if (opts.includeCollectTurnIn && objectiveType === "collect") {
+        const requiredItemId = typeof quest?.requiredItemId === "string" ? quest.requiredItemId : null;
+        const requiredCount = Math.max(1, Number(quest?.requiredCount ?? 1) || 1);
+        if (!requiredItemId || this.countInventoryItem(player, requiredItemId) < requiredCount) {
+          continue;
+        }
+        const npcId = this.resolveQuestNpcIdForObjective(quest, true);
+        if (!npcId) continue;
+        const npc = npcById.get(npcId);
+        if (!npc) continue;
+        const distance = dist2d(position, this.getNpcPos(npc));
+        candidates.push({
+          questId,
+          questStep: this.resolveQuestStep(quest),
+          npcId,
+          distance,
+          score: 150 - Math.min(220, distance * 2),
+        });
+      }
+    }
+    if (candidates.length === 0) {
+      return null;
+    }
+    candidates.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      if (a.distance !== b.distance) return a.distance - b.distance;
+      return String(a.questId ?? "").localeCompare(String(b.questId ?? ""));
+    });
+    return candidates[0] ?? null;
+  }
+
+  private resolveQuestNpcIdForObjective(quest: any, allowGiverFallback: boolean): string | null {
+    const rawCandidates = [
+      quest?.targetNpcId,
+      quest?.targetId,
+      allowGiverFallback ? quest?.giverNpcId : null,
+    ];
+    for (const raw of rawCandidates) {
+      if (typeof raw !== "string") continue;
+      const id = raw.trim();
+      if (id.length > 0) return id;
+    }
+    return null;
+  }
+
+  private countInventoryItem(player: any, itemId: string): number {
+    const inventory = Array.isArray(player?.inventory) ? player.inventory : [];
+    let total = 0;
+    for (const entry of inventory) {
+      if (entry?.id !== itemId) continue;
+      total += Math.max(1, Number(entry?.quantity ?? 1) || 1);
+    }
+    return total;
   }
 
   private hasInventoryWeapon(player: any): boolean {

@@ -278,6 +278,54 @@
     .ref-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
     .ref-row select { flex: 1; min-width: 200px; font-size: 13px; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: #0f121c; color: var(--text); }
     .preview-box { margin-top: 10px; font-family: ui-monospace, monospace; font-size: 11px; line-height: 1.35; white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: #0a0c12; color: #c5d0e8; }
+    .need-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      margin-top: 8px;
+      background: #111624;
+    }
+    .need-card h4 {
+      margin: 0 0 4px;
+      font-size: 13px;
+      color: #d6e0fb;
+    }
+    .need-card .meta {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 6px;
+      word-break: break-all;
+    }
+    .need-card .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .need-card .actions button {
+      width: auto;
+      margin-top: 0;
+      padding: 7px 10px;
+      font-size: 12px;
+    }
+    .need-badge {
+      display: inline-block;
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      margin-bottom: 6px;
+    }
+    .need-badge.ok {
+      background: var(--ok-bg);
+      color: #9ee0b8;
+      border-color: rgba(62, 207, 122, 0.4);
+    }
+    .need-badge.warn {
+      background: rgba(232, 197, 71, 0.14);
+      color: #f4df8d;
+      border-color: rgba(232, 197, 71, 0.4);
+    }
   </style>
 </head>
 <body>
@@ -469,6 +517,14 @@
     <div id="defMsg" class="msg hidden"></div>
   </div>
 
+  <div class="card hidden" id="stepNeeds">
+    <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h10"/><circle cx="18" cy="17" r="2"/></svg></span> Benötigte/empfohlene Modelle</div>
+    <p class="hint" style="margin-top:0">Zeigt fehlende Dateien und logische GLB-Vorschläge (z. B. road_left, fence_right, flower_blue). Sobald ein Vorschlag hochgeladen und aktiv nutzbar ist, wandert er automatisch aus „Needed“ in „Erfüllt“.</p>
+    <button type="button" class="ghost" id="btnRefreshNeeds">Needed-Liste neu laden</button>
+    <div id="needsMsg" class="msg hidden"></div>
+    <div id="needsList"></div>
+  </div>
+
   <div class="card hidden" id="stepPublish">
     <div class="card-h"><span class="ih" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg></span> Prüfen &amp; veröffentlichen</div>
     <p class="hint" style="margin-top:0"><strong>1)</strong> Prüfen = ob der aktive Inhalt auf dem Server konsistent ist (Quests, NPCs, Dialoge). <strong>2)</strong> Veröffentlichen = Kopie nach <code>published-content/current</code> — der Live-Server braucht <code>USE_PUBLISHED_CONTENT=1</code> oder <code>CONTENT_PACK_DIR</code> und Neustart.</p>
@@ -655,6 +711,7 @@
     };
 
     let choicesCache = null;
+    let modelNeedsById = {};
 
     function errDeFromJson(j, fallback) {
       if (j && typeof j.errorDe === "string" && j.errorDe.trim()) return j.errorDe.trim();
@@ -1069,6 +1126,113 @@
       return "…" + p.slice(-26);
     }
 
+    function renderModelNeeds(data) {
+      const root = document.getElementById("needsList");
+      const needs = Array.isArray(data && data.needs) ? data.needs : [];
+      const satisfied = Array.isArray(data && data.satisfied) ? data.satisfied : [];
+      modelNeedsById = {};
+      needs.concat(satisfied).forEach(function (n) {
+        if (n && typeof n.id === "string") {
+          modelNeedsById[n.id] = n;
+        }
+      });
+      if (!needs.length && !satisfied.length) {
+        root.innerHTML = '<p class="hint">Aktuell keine offenen oder abgeschlossenen Modell-Bedarfe erkannt.</p>';
+        return;
+      }
+      const stats = data && data.stats ? data.stats : {};
+      let html = "";
+      html += '<p class="hint" style="margin:0 0 8px">Open: <strong>' + escapeHtml(String(stats.neededCount != null ? stats.neededCount : needs.length)) + "</strong> · Erfüllt: <strong>" + escapeHtml(String(stats.satisfiedCount != null ? stats.satisfiedCount : satisfied.length)) + "</strong></p>";
+      if (needs.length === 0) {
+        html += '<div class="msg ok"><span class="mi">' + ICON.ok + '</span><span>Keine offenen Needs — alle aktuell erkannten Bedarfe sind erfüllt.</span></div>';
+      } else {
+        needs.forEach(function (need) {
+          const title = need.suggestedFileName || "model.glb";
+          const desc = need.descriptionDe || "Modell-Vorschlag";
+          const reason = need.reasonDe || "";
+          const target = need.targetType && need.targetId ? (need.targetType + ":" + need.targetId) : "content-reference";
+          html += '<div class="need-card">';
+          html += '<span class="need-badge warn">NEEDED</span>';
+          html += "<h4>" + escapeHtml(title) + "</h4>";
+          html += "<div>" + escapeHtml(desc) + "</div>";
+          html += '<div class="meta">Pfad-Vorschlag: <code>' + escapeHtml(need.suggestedUrlPath || "") + "</code></div>";
+          html += '<div class="meta">Ziel: <code>' + escapeHtml(target) + "</code></div>";
+          if (reason) {
+            html += '<div class="meta">Grund: ' + escapeHtml(reason) + "</div>";
+          }
+          html += '<div class="actions">';
+          html += '<button type="button" class="ghost btn-sm" data-need-id="' + escapeAttr(need.id) + '" data-need-action="apply-path">Pfad übernehmen</button>';
+          if (need.targetType && need.targetId) {
+            html += '<button type="button" class="ghost btn-sm" data-need-id="' + escapeAttr(need.id) + '" data-need-action="apply-target">Ziel übernehmen</button>';
+          }
+          html += '<button type="button" class="ghost btn-sm" data-need-id="' + escapeAttr(need.id) + '" data-need-action="apply-folder">Ordner übernehmen</button>';
+          html += "</div>";
+          html += "</div>";
+        });
+      }
+
+      if (satisfied.length) {
+        html += '<details style="margin-top:10px"><summary>Erledigte Vorschläge anzeigen (' + escapeHtml(String(satisfied.length)) + ")</summary>";
+        satisfied.slice(0, 24).forEach(function (need) {
+          const by = need.satisfiedBy || "system";
+          html += '<div class="need-card">';
+          html += '<span class="need-badge ok">ERFÜLLT</span>';
+          html += "<h4>" + escapeHtml(need.suggestedFileName || "model.glb") + "</h4>";
+          html += "<div>" + escapeHtml(need.descriptionDe || "Modell-Vorschlag") + "</div>";
+          html += '<div class="meta">Erkannt über: <code>' + escapeHtml(String(by)) + "</code></div>";
+          html += "</div>";
+        });
+        html += "</details>";
+      }
+      root.innerHTML = html;
+      root.querySelectorAll("button[data-need-action]").forEach(function (btn) {
+        btn.onclick = function () {
+          const needId = btn.getAttribute("data-need-id");
+          const action = btn.getAttribute("data-need-action");
+          const need = needId ? modelNeedsById[needId] : null;
+          if (!need) return;
+          if (action === "apply-path") {
+            if (need.suggestedUrlPath) {
+              applyGlbUrlToSelects(need.suggestedUrlPath);
+              show("saveMsg", "Modellpfad aus Need übernommen.", "ok");
+              setFlow(3);
+            }
+            return;
+          }
+          if (action === "apply-target") {
+            if (need.targetType) {
+              document.getElementById("selUse").value = need.targetType;
+              document.getElementById("selUse").dispatchEvent(new Event("change"));
+            }
+            if (need.targetId) {
+              document.getElementById("inTargetId").value = need.targetId;
+            }
+            show("saveMsg", "Ziel aus Need übernommen.", "ok");
+            setFlow(3);
+            return;
+          }
+          if (action === "apply-folder") {
+            const folder = need.suggestedFolder || "";
+            document.getElementById("uploadFolder").value = folder;
+            document.getElementById("smartFolder").value = folder;
+            show("galleryMsg", "Ordner-Vorschlag übernommen: " + (folder || "(Wurzel)"), "ok");
+          }
+        };
+      });
+    }
+
+    async function loadModelNeeds() {
+      try {
+        const data = await req("GET", "/model-needs");
+        renderModelNeeds(data);
+        hide("needsMsg");
+      } catch (e) {
+        const root = document.getElementById("needsList");
+        root.innerHTML = "";
+        show("needsMsg", "Needs konnten nicht geladen werden: " + String(e.message || e), "err");
+      }
+    }
+
     async function refreshLists() {
       const d = await req("GET", "/glb-links");
       const links = d.links || [];
@@ -1108,6 +1272,7 @@
         });
       }
       document.getElementById("techLinks").value = JSON.stringify(d, null, 2);
+      await loadModelNeeds();
     }
 
     async function afterLoginRefresh() {
@@ -1366,7 +1531,7 @@
         const m = await req("GET", "/meta");
         show("loginMsg", "Verbunden — du kannst zuordnen.", "ok");
         document.getElementById("techMeta").value = JSON.stringify(m, null, 2);
-        ["cardFlow", "cardHistory", "stepGallery", "stepSmart", "stepWork", "stepDefaults", "stepContentRef", "stepPublish", "stepList", "stepExpert"].forEach(function (id) {
+        ["cardFlow", "cardHistory", "stepGallery", "stepSmart", "stepWork", "stepDefaults", "stepNeeds", "stepContentRef", "stepPublish", "stepList", "stepExpert"].forEach(function (id) {
           document.getElementById(id).classList.remove("hidden");
         });
         setFlow(2);
@@ -1626,6 +1791,7 @@
         await loadGalleryTree();
         const scan = await req("GET", "/glb-scan");
         fillModelSelects(scan.models || []);
+        await loadModelNeeds();
         show("galleryMsg", "Galerie aktualisiert.", "ok");
         pushHistory(true, "Galerie neu");
         celebrateSuccess(false);
@@ -1659,6 +1825,7 @@
         await loadGalleryTree();
         const scan = await req("GET", "/glb-scan");
         fillModelSelects(scan.models || []);
+        await loadModelNeeds();
         inp.value = "";
         showLastResult("Modell hochgeladen", ["Datei liegt jetzt auf dem Server.", "Pfad: " + url], "Zuordnung speichern oder Standard setzen.", {
           l1: "Upload",
@@ -1694,6 +1861,11 @@
       } catch (e) {
         show("saveMsg", String(e.message || e), "err");
       }
+    };
+
+    document.getElementById("btnRefreshNeeds").onclick = async function () {
+      await loadModelNeeds();
+      show("saveMsg", "Needed-Liste aktualisiert.", "ok");
     };
 
     document.getElementById("selModel").addEventListener("change", function () {

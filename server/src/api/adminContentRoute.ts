@@ -37,6 +37,7 @@ import { validateContentRoot } from "../modules/content/validateContentCore.js";
 import { getContentDataRoot } from "../modules/content/contentDataRoot.js";
 import { findRepoRootWithGameData } from "../modules/content/repoRoot.js";
 import { auditContentModelPaths } from "../modules/content/auditContentModelPaths.js";
+import { buildAdminGlbModelNeeds } from "../modules/content/adminGlbModelNeeds.js";
 
 const MAX_ADMIN_GLB_MB = Math.min(
   120,
@@ -200,6 +201,25 @@ export function adminContentRouter(tick: WorldTick): Router {
       missingDe,
       contentRoot: audit.contentRoot,
       repoRoot: audit.repoRoot,
+    });
+  });
+
+  router.get("/model-needs", adminAuthMiddleware, (_req: AdminRequest, res: Response) => {
+    const contentRoot = getContentDataRoot();
+    const repoRoot = findRepoRootWithGameData() ?? path.resolve(process.cwd(), "..");
+    const audit = auditContentModelPaths(contentRoot, repoRoot);
+    const needs = buildAdminGlbModelNeeds({
+      missingModels: audit.missing,
+      modelUrls: tick.glbRegistry.scanModels(),
+      links: tick.glbRegistry.getLinks(),
+      pools: tick.assetPoolResolver.getDocument(),
+      objectTypes: loadObjectTypeChoicesForAdmin(),
+    });
+    res.json({
+      ok: true,
+      ...needs,
+      contentRoot,
+      repoRoot,
     });
   });
 
