@@ -5,13 +5,11 @@ const generateContentMock = vi.fn();
 
 vi.mock("@google/genai", () => {
   return {
-    GoogleGenerativeAI: class {
-      constructor(public apiKey: string) {}
-      getGenerativeModel() {
-        return {
-          generateContent: generateContentMock
-        };
-      }
+    GoogleGenAI: class {
+      models = {
+        generateContent: generateContentMock
+      };
+      constructor(options: any) {}
     }
   };
 });
@@ -77,9 +75,7 @@ describe("assetBrainEngine", () => {
       };
 
       generateContentMock.mockResolvedValue({
-        response: {
-          text: () => `\`\`\`json\n${JSON.stringify(mockResponseSpec)}\n\`\`\``
-        }
+        text: `\`\`\`json\n${JSON.stringify(mockResponseSpec)}\n\`\`\``
       });
 
       const { generateAssetSpecification } = await import("../../../modules/asset-brain/assetBrainEngine");
@@ -103,9 +99,7 @@ describe("assetBrainEngine", () => {
       };
 
       generateContentMock.mockResolvedValue({
-        response: {
-          text: () => JSON.stringify(mockResponseSpec)
-        }
+        text: JSON.stringify(mockResponseSpec)
       });
 
       const { generateAssetSpecification } = await import("../../../modules/asset-brain/assetBrainEngine");
