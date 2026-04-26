@@ -28,7 +28,7 @@ export class AREStateCompiler {
     const healthRatio = this.computeHealthRatio(entity.health, entity.maxHealth);
     const movementSignal =
       (Math.abs(kappaPos.x) + Math.abs(kappaPos.y) + Math.abs(kappaPos.z) + tickCount) % this.kappa;
-    const resonance = Number((movementSignal / this.kappa).toFixed(4));
+    const resonance = Math.round((movementSignal / this.kappa) * 10000) / 10000;
     const phaseShift = (logicalIndex + tickCount) % this.kappa;
     const plexity = this.computePlexity(entity.type, entity.visible ?? true, healthRatio, resonance);
     const chain = this.buildChain(entity.type, logicalIndex, phaseShift, plexity);
@@ -61,7 +61,7 @@ export class AREStateCompiler {
     if (!visible) return 0.05;
     const typeWeight = type === "player" ? 1 : type === "npc" ? 0.78 : type === "monster" ? 0.88 : 0.64;
     const score = 0.45 * typeWeight + 0.35 * healthRatio + 0.2 * (1 - resonance);
-    return Number(Math.max(0.05, Math.min(1, score)).toFixed(4));
+    return Math.round(Math.max(0.05, Math.min(1, score)) * 10000) / 10000;
   }
 
   private buildChain(type: string, logicalIndex: number, phaseShift: number, plexity: number): string {

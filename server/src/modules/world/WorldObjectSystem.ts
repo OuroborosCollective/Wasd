@@ -42,6 +42,10 @@ export class WorldObjectSystem {
     return this.objects;
   }
 
+  public getObjectsMap(): Map<string, WorldObject> {
+    return this.objects;
+  }
+
   public async clearObjects() {
     this.objects.clear();
     await this.save();

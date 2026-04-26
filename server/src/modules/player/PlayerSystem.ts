@@ -86,6 +86,10 @@ export class PlayerSystem {
     return Array.from(this.players.values());
   }
 
+  getPlayersMap(): Map<string, any> {
+    return this.players;
+  }
+
   removePlayer(id: string) {
     this.players.delete(id);
   }
