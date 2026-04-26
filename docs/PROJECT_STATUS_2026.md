@@ -1,90 +1,97 @@
-# Project status — Arelorian / Ouroboros (April 2026)
+# Project status — Areloria / Ouroboros (April 2026)
 
-This document is the **authoritative snapshot** of what works today in the repository. Agents and humans should read this before assuming older docs (reconstruction packs, legacy SESSION notes) reflect current behavior.
+This file is the practical "what is shipped now" snapshot.
+Use it before trusting older reconstruction or handover docs.
 
-## Renderer and client
-
-| Item | Status |
-|------|--------|
-| **Primary 3D engine** | **Babylon.js** (`@babylonjs/core`, `@babylonjs/loaders`) |
-| **Boot path** | `client/src/main.ts` → `createBabylonApp` / `BabylonAdapter`, `MMORPGClientCore`, `mountGameHudOverlay`, `connectSocket`, mobile controls |
-| **Vite chunks** | `babylon-core` vs `babylon-loaders`; `BabylonAdapter` imports `@babylonjs/loaders/glTF` as a side effect so `.glb/.gltf` loader registration is available before first model load |
-| **WebGL failure** | `Engine.IsSupported` → full-screen overlay; **context lost** → overlay + link to Babylon WebGL docs |
-| **Mobile performance** | Touch / narrow viewports: **no** `preserveDrawingBuffer` (unless `?screenshot=1`), **hardware scaling**, **maxFPS 30** (Android **24**), default **ARE mode `off`**, **no skybox** + **no stencil buffer** on Android, **hover tooltip disabled** on touch, **GLB loads serialized** on Android (failed loads **do not** abort the queue), **name tags** only rebuilt when the **name string changes** (avoids flicker every `entity_sync`), throttled **target reticle** + **navigation marker**. Desktop/non-mobile path uses `1 / devicePixelRatio` scaling for crisp HiDPI output (no forced blur at scale level 1). |
-| **Default GLB fallbacks** | Server **`ensureGlbUrl`** + client **`BabylonAdapter`** defaults under **`/assets/models/*`** when paths missing; `AssetRegistry` / **`/world-assets`** only if those files are deployed |
-| **Bridge** | `client/src/engine/bridge/` — `IEngineBridge`, `EntityViewModel`; keep simulation off the client |
-| **HUD / mobile** | HP + stamina + **mana** **bars**; dialogue **bottom sheet**; **inventory / skills / equipment / quest** panels share **`panelLayout.ts`**; **inventory** lists stacks (**×N**) + **Equip**/**Use** + row **`title` tooltips** (stats from server item payloads); **usable** rows (consumable / equippable) get a light highlight when alive; **Use**/**Equip** disabled while **dead**; **equipment** shows weapon/armor + **Unequip**; loot chips when **`prefersCompactTouchUi()`**; **target reticle**; **world hover tooltip** (NPC role/faction/HP, loot); UI SFX via **Babylon `Sound`** with **Web Audio** fallback |
-
-## Server and networking
+## Core runtime architecture
 
 | Item | Status |
 |------|--------|
-| **Stack** | Node, Express, WebSocket (`server/src/networking/`) |
-| **Player persistence** | **`PERSISTENCE_DRIVER`**: `auto` / `firestore` / `file` / `spacetime` (stub: file fallback for players until Spacetime wired). **Firestore** when configured; else **`data/players.json`** (`PLAYER_SAVE_FILE`). Whitelist: `playerSnapshot.ts`. **`GET /health`** includes **`persistence.persistenceDriver`** |
-| **WS login** | **Token** → Firebase uid; client uses **`getIdToken()`** on reconnect. Errors: **`invalid_token`** / **`login_required`**. **`REQUIRE_FIREBASE_AUTH=1`** → only token. **Vite:** `VITE_FIREBASE_*` or repo **`firebase-applet-config.json`** |
-| **Skills** | **`use_skill`**: **`ember_bolt`**, **`frost_shard`**, **`arc_spark`**, **`vitality_tap`**, **`shadow_tag`**, **`aether_pulse`** — mana, cooldown, `spellStrike` / self-heal; **skill bar** (server cooldown fill); **Q** / mobile **SPELL** use **quick-cast** skill (`localStorage` **`areloria_quick_cast_skill_id`**, Skills panel radios + **Set quick**) |
-| **E2E** | **`pnpm run test:e2e`** — Playwright starts built server (`scripts/e2e-webserver.sh`), checks **`/health`** + **`/e2e-smoke.html`** guest WS login + **`welcome.stats`** shape; CI: **`.github/workflows/ci.yml`** runs **`pnpm run test:e2e:ci`** after build |
-| **Auth (client)** | **`VITE_AUTH_PROVIDER`** (`supabase` \| `firebase` \| `none`) or auto: Supabase when URL + anon key are set, else Firebase (incl. **`firebase-applet-config.json`**). HUD: **Google** + **email** flows per provider; **`none`** hides auth UI and skips JWT on the socket |
-| **WS limits** | **`wsMaxMessageBytes`**, **`wsMaxMessagesPerSecond`** per socket; **`wsMaxMessagesPerPlayerUidPerSecond`** per logged-in account (rolling 1s); override with **`WS_MAX_MESSAGES_PER_PLAYER_UID_PER_SECOND`** |
-| **Inventory** | **Stacks** for `consumable` + `misc` (override with `stackable` / `maxStack` on items); merge on load; **Quest collect** counts `quantity` |
-| **Combat target** | Client **tap** on canvas → `set_target` (locks **`combatTargetNpcId`**, persisted); **`attack`** prefers locked target in range |
-| **Mana** | Passive **regen** (`GameConfig.playerManaRegenPerSecond`); **`playerManaPerLevel`** (+5 max mana per character level above 1; current mana increases by the same delta on level-up); consumables e.g. **`minor_mana_draught`** via **`use_item`** |
-| **Observability** | **`GET /health`** includes **`persistence`** (last save timing, Firestore flag, last error) |
-| **Local self-healing (server)** | `server/src/selfhealing/` provides local runtime healing (error hooks, backup/audit/learning, watchdog) with optional dashboard routes (`/selfhealing/*`). Config via `SELF_HEAL_*` env vars; `/health` now reports `selfHealing` summary. |
-| **No-code content admin (GLB + asset pools)** | **`/api/admin/content`**: **`/choices`** (NPC/Objekt/Rolle/Typ/Monster aus Content-Root), **`/glb-upload`** (manuell), **`/glb-smart-upload`** (Upload + automatische Zuordnung/Fallback je Kategorie), **`/validate-preview`**, **`/publish-pack`** (Repo-`game-data` → `published-content/current` wenn cwd zum Monorepo passt). GLB-Pfade unter **`/assets/models/`** werden gegen **`client/public/assets/models`** geprüft. UI **`/admin-content.html`** (DE) |
-| **Game loop** | `WorldTick` — simulation tick **100 ms**; global `entity_sync` tick from **`stateBroadcastIntervalMs`** (default **200 ms**); sockets with **`login.clientHints.lowBandwidth`** (touch client) get **per-socket throttle** at **`stateBroadcastIntervalMobileMs`** (default **400 ms**, override **`STATE_BROADCAST_INTERVAL_MOBILE_MS`**) |
-| **Movement** | Held WASD + `move_intent` (joystick); applied each tick with `GameConfig.playerSpeed` |
-| **Interact / dialogue** | `interact` resolves **nearest NPC** or **loot on ground** (whichever is closer in range); `dialogue_choice` / `quest_accept`; `talk_to` quests complete on target NPC contact |
-| **Combat** | Target pick in **`selectAttackTarget.ts`** (tested); **ranged** weapons cost **mana** (`item.manaCost` or default **3** if `attackRange` > melee); attack **cooldown** applies only after a valid swing (mana + target OK); while **dead**, **`attack`** / **`use_skill`** get a **toast** (not silent); **`equip_item`** / **`unequip_item`** WS; **`InventorySystem`** equips **armor** slot; **`entity_sync` NPCs** include **health/maxHealth** + **`combatThreat`** / **`combatNpcId`** / **`role`** |
-| **Scenes** | `game-data/scenes/*.json` — spawns and trigger zones (server-side) |
-| **NPC spawns** | `game-data/spawns/npc-spawns.json` (path resolves from repo root or `server/` cwd) |
-| **Starter content** | **Millbrook** hub: `npc_guide` (Linnea), quests `starter_welcome` / `village_tour`, plus existing Mara / Elder / Guard chain — see `game-data/` |
+| Monorepo layout | `client/` (Vite + Babylon.js), `server/` (Express + WebSocket), `game-data/` (authoritative JSON content) |
+| Main server loop | `server/src/core/WorldTick.ts` at ~100 ms sim tick |
+| Main client entry | `client/src/main.ts` |
+| Primary rendering | Babylon.js (`@babylonjs/core` + loaders + materials + addons) |
+| Networking | WebSocket (`ws`) via `server/src/networking/WebSocketServer.ts` |
+| Data content root | `game-data/` by default, optional published pack via `USE_PUBLISHED_CONTENT` / `CONTENT_PACK_DIR` |
 
-## World objects and assets
+## Authentication and persistence
 
 | Item | Status |
 |------|--------|
-| **Static props** | `game-data/world/objects.json` — loaded into `WorldObjectSystem`; client keeps **prop/building** GLBs **non-pickable** so **`scene.pick`** stays cheap on mobile |
-| **Textures (dev)** | Optional Babylon Playground textures via jsDelivr (`client/src/engine/babylon/playgroundTextures.ts`) |
-| **Production assets** | `world-assets/` and `client/public/` — team replaces placeholders |
+| Server auth verification | Supabase JWT flow (`USE_SUPABASE_WS_LOGIN`, `REQUIRE_SUPABASE_AUTH`, guest/dev toggles) |
+| Client auth provider | `VITE_AUTH_PROVIDER` supports `supabase` or `none`; auto mode resolves to Supabase if `VITE_SUPABASE_*` is configured |
+| Persistence drivers | `PERSISTENCE_DRIVER`: `auto` / `postgres` / `file` (auto prefers Postgres if DB configured, else JSON fallback) |
+| JSON fallback | `PLAYER_SAVE_FILE` (default under `data/`) |
+| Redis usage | Optional (`ioredis`) for cache/chat relay paths, graceful fallback when unset |
+| Health endpoint | `GET /health` includes auth, persistence, playtester, self-healing, and content-root summary |
 
-## Deploy and ops
+## Gameplay systems (live and wired)
+
+| Domain | Live status |
+|--------|-------------|
+| Players/combat | Player movement, target selection, attack handling, skill usage, cooldown/mana flow, death/respawn are wired in `WorldTick` + combat/skill modules |
+| Inventory/equipment/loot | Inventory stacks, equip/unequip, loot drop + pickup and sync are active |
+| Quest system | Quest start/progression/sync and talk/collect/combat updates are active |
+| Questline system | Questline engine + bridge and unlock propagation are wired |
+| NPC runtime | `NPCSystem` + memory cache/persistence + relationships + proactive chat are wired |
+| Ouroboros agents | `OuroborosEngine` is instantiated and ticked from `WorldTick` |
+| World systems | Chunks, observers, world objects, weather/time, terrain adapters are wired |
+| Warfront | `WarfrontSystem` lifecycle, status pushes, reward claims are wired |
+| World boss | `WorldBossDungeonSystem` encounter flow and ranking summaries are wired |
+| Vote system | Vote banner/session/status and reward claims are wired |
+| Crafting | Crafting system is wired through server message handlers |
+| Admin content tools | `/api/admin/content/*` routes + `/admin-content.html` are active |
+
+## Playtester monitor and WebRTC stream mode
 
 | Item | Status |
 |------|--------|
-| **CI / VPS** | **`.github/workflows/ci.yml`** — lint, Vitest, build, Playwright; **`.github/workflows/deploy.yml`** — SSH deploy, `update.sh` when build exists, **health check** on `/health` |
-| **PM2** | `deploy/write_pm2_ecosystem.sh` — `cwd` = repo root, `CLIENT_ROOT_DIR` for static client |
-| **Details** | Root `DEPLOYMENT.md`, `deploy/deploy.sh`, `deploy/update.sh` |
+| Playtester runtime | `AutonomousPlaytester` enabled by `PLAYTESTER_ENABLED` |
+| Monitor mode default | `PLAYTESTER_MONITOR_MODE=webrtc` |
+| Viewer page | `/playtester-monitor.html` (lightweight stream viewer) |
+| Publisher page | `/playtester-render-publisher.html` (render publisher) |
+| Signaling | `PlaytesterWebRTCSignaling` at `PLAYTESTER_MONITOR_SIGNAL_PATH` |
+| Legacy dev mode | Optional `?mode=local3d` path kept as dev-only fallback |
 
-## Tests and quality
+## New fusion systems (now active)
+
+| Integration | Status |
+|------------|--------|
+| Quest Echo Director | Active via `GameplayFusionDirector` + `WorldTick.tickFusionIntegrations()`; generates quest echo beacons from active quest context |
+| Adaptive Quest Scene Profiles | Active via `GameplayFusionDirector` adaptive profile/override logic; hooked into NPC/world object GLB resolution |
+| Construction Contracts | Active contract lifecycle from admin model needs to NPC assignment/completion flow |
+| Scope | Applies outside playtester as part of live autonomous NPC runtime tick |
+
+## Content and asset pipeline
 
 | Item | Status |
 |------|--------|
-| **Server tests** | Vitest — run `pnpm run test` (600+ tests typical); WebSocket **`use_skill`** in **`use-skill-ws.test.ts`**; **`attack`** / **`set_target`** / **`entity_sync`** NPC fields in **`combat-ws.test.ts`**; per-UID WS cap in **`ws-player-uid-rate.test.ts`** |
-| **Lint** | `pnpm run lint` |
-| **Content validation** | `server` build runs `validateContent.ts` against the active **content root** (default: repo `game-data/`; optional **published pack** — see below) |
-| **Published content (optional)** | `pnpm run content:publish` copies validated `game-data/` → `published-content/current/` + `content-pack-manifest.json`. Server: **`USE_PUBLISHED_CONTENT=1`** or **`CONTENT_PACK_DIR`**. **`GET /health`** returns **`content.mode`** and **`content.root`**. Legacy `game-data/` unchanged if unset |
+| World asset sync | `scripts/sync-world-assets.mjs` mirrors repo assets into client public paths |
+| GLB links and pools | File-based content paths + GLB registry + asset pool resolver are active |
+| Admin model needs | `GET /api/admin/content/model-needs` provides needed/satisfied model suggestions |
+| Publish snapshot | `pnpm run content:publish` creates `published-content/current` pack |
+| Model audit | `pnpm run audit:model-paths` and admin model-path audit endpoint available |
 
-## Known gaps (high level)
+## Testing/build toolchain
 
-See **`docs/ROADMAP_TO_RELEASE.md`** for the full backlog aligned with the design bible. Short list:
+| Item | Status |
+|------|--------|
+| Unit/integration tests | Vitest (`pnpm run test`) |
+| E2E tests | Playwright (`pnpm run test:e2e`, `pnpm run test:e2e:ci`) |
+| Lint | ESLint (`pnpm run lint`) |
+| Build | Root build compiles client then server (`pnpm run build`) |
+| CI baseline | Lint + tests + build + model-path audit + e2e workflow exists |
 
-- Client **index** chunk still large — further **dynamic `import()`** for heavy UI panels possible  
-- Many **server modules** are implemented but not all wired end-to-end in `WorldTick` or exposed to the live client UI  
-- **Combat** still has no party/revive, aggro UI lists, or full combat log — see roadmap Tier A2  
-- **React** appears in root dependencies but the **game shell** is largely vanilla TS + DOM UI panels  
+## Important clarifications
 
-### Recently wired (snapshot)
+- Current docs should treat Supabase + Postgres/file persistence as the active production path.
+- Legacy docs may still reference older auth stacks; treat those references as historical unless explicitly marked as currently supported.
+- Root `next` dependency/config exists but is not the active game runtime path; the live game stack is Vite client + Express/WebSocket server.
 
-- **`attack`**: target filter + weapon damage bonus + player attack cooldown; hostile **counter-attack**; loot drops + interact pickup; combat XP on kill; **`stats_sync`** + **`toast`**  
-- **Collect quests**: turn-in on **talk** to `targetNpcId` / `giverNpcId` when inventory has `requiredItemId` × count  
-- **`quest_sync`** message + **`stats_sync`** (quests with collect progress, gold, XP)  
-- **Quest log** reads **live** `playerState`; HUD shows **Gold / XP**  
-- **Vite**: `manualChunks` for **babylon-core**, **babylon-loaders**, **firebase**, **game UI panels** (inventory/skills vs quest/equipment), **mobile teleport**, **PerformanceMonitor**
-- **Client**: heavy panels loaded via **`dynamic import()`** (`lazyPanels.ts`) + idle **preload** after boot  
-- **PlayCanvas removed**: client is **Babylon.js only**; default GLB map lives in `engine/babylon/AssetRegistry.ts`  
-- **ItemRegistry** and related loaders use **`contentDataRoot`** (`server/src/modules/content/contentDataRoot.ts`) — same layout as `game-data/`, stable path from repo root  
+## Maintenance rule
 
----
+When runtime behavior changes, update this file together with:
 
-**Maintenance rule:** After any merge that changes behavior, architecture, or major features, update this file **and** `docs/ROADMAP_TO_RELEASE.md` in the same PR when practical.
+- `README.md`
+- `docs/ROADMAP_TO_RELEASE.md` (if release scope changed)
+- Relevant subsystem docs under `docs/`

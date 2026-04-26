@@ -1,78 +1,68 @@
-# .env einrichten — ohne SSH-Kommandos-Chaos
+# Production `.env` Setup (VPS)
 
-Secrets gehören **nicht** ins Git. Diese Anleitung nutzt **Kopieren per Datei** (SCP, SFTP, Panel „Dateimanager“, WinSCP, FileZilla).
+This guide keeps secrets out of Git and sets up a stable live runtime at `/opt/areloria/.env`.
 
-**CI/CD:** Der Workflow `.github/workflows/deploy.yml` kann dieselben Werte aus **GitHub Actions Secrets** per SSH nach `/opt/areloria/.env` schreiben (`deploy/sync-supabase-env.sh`) — ohne Werte ins Repo zu legen. Repository Secrets müssen in GitHub unter *Settings → Secrets and variables* angelegt werden (z. B. `DATABASE_URL`, `SUPABASE_JWT_SECRET`, `VITE_SUPABASE_*`, optional `API_EXTERNAL_URL` / `ANON_KEY` / `SERVICE_ROLE_KEY` als Aliase).
+## 1) Copy template to VPS
 
-## Einmalig: Vorlage auf den Server legen
-
-**Option A — mit SCP vom eigenen PC** (Terminal auf **deinem** Rechner, nicht „irgendwo“):
+From your local machine:
 
 ```bash
-scp /pfad/zum/repo/deploy/.env.production.template root@DEINE_SERVER_IP:/opt/areloria/.env
+scp deploy/.env.production.template root@YOUR_SERVER:/opt/areloria/.env
 ```
 
-**Option B — ohne Terminal:** Datei `deploy/.env.production.template` aus dem Repo herunterladen, auf dem Server im Panel **umbenennen** nach `.env` und nach `/opt/areloria/` legen (oder per SFTP hochladen).
+Or upload with SFTP / provider file manager.
 
-## Auf dem Server ausfüllen
+## 2) Fill required values
 
-Öffne `/opt/areloria/.env` im Editor (nano, vim, oder Hostinger-Dateieditor) und setze mindestens:
+Edit `/opt/areloria/.env` and set at minimum:
 
-| Variable | Was |
-|----------|-----|
-| `VITE_AUTH_PROVIDER` | `supabase` (empfohlen) oder `firebase` |
-| `VITE_SUPABASE_URL` | Öffentliche Supabase URL |
-| `VITE_SUPABASE_ANON_KEY` | Public Anon Key für Browser-Login |
-| `SUPABASE_JWT_SECRET` | JWT-Secret aus Supabase Stack (Serverprüfung von Access Tokens) |
-| `DATABASE_URL` | Postgres DSN (Supabase/Postgres) |
-| `JWT_SECRET` | Lange zufällige Zeichenkette |
-| `ADMIN_PANEL_TOKEN` | Langes Geheimnis für `/admin-content.html` |
-| `PUBLIC_WEBSOCKET_URL` | z. B. `wss://deine-domain.tld/ws` |
-| `USE_SUPABASE_WS_LOGIN` | `1` wenn Supabase JWT auf WS-Login geprüft werden soll |
+- `NODE_ENV=production`
+- `PORT=3000`
+- `PUBLIC_WEBSOCKET_URL=wss://your-domain/ws`
+- `JWT_SECRET=<long-random-secret>`
+- `ADMIN_PANEL_TOKEN=<long-random-secret>`
+- `PLAYTESTER_MONITOR_TOKEN=<long-random-secret>`
+- `SUPABASE_URL` (or `SUPABASE_PUBLIC_URL`)
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_JWT_SECRET`
+- `USE_SUPABASE_WS_LOGIN=1`
+- `REQUIRE_SUPABASE_AUTH=1` (recommended for strict production auth)
+- `DATABASE_URL=<postgres-url>` (if Postgres persistence is desired)
+- `PERSISTENCE_DRIVER=auto` (or `postgres` / `file`)
 
-Firebase-Variablen bleiben optional (nur wenn ihr bewusst Firebase parallel nutzt):
-- `FIREBASE_SERVICE_ACCOUNT_KEY`
-- `GOOGLE_APPLICATION_CREDENTIALS`
-- `USE_FIREBASE_WS_LOGIN`
+Optional:
 
-Firebase-JSON auf den Server kopieren (wieder per SCP/SFTP), z. B. nach:
+- `ALLOW_GUEST_LOGIN=0` in production for stricter login policy
+- `STATE_BROADCAST_INTERVAL_MOBILE_MS=...`
+- `PLAYTESTER_*` stream tuning values
+- `CACHE_URL` and/or `REDIS_URL`
+- `CONTENT_ADMIN_READONLY=1` to freeze content writes
 
-`/opt/areloria/secrets/firebase-adminsdk.json` — Rechte `600`.
-
-Oder das Skript ausführen (nur **eine** Zeile, wenn du Shell-Zugang hast):
-
-```bash
-bash /opt/areloria/deploy/setup-firebase-service-account.sh /tmp/dein-key.json
-```
-
-## Client (Vite) — Firebase im Browser
-
-Die **`VITE_*`** Variablen müssen **beim Build** gesetzt sein. Auf dem VPS vor `deploy/deploy.sh` dieselben Werte in der `.env` im **Repo-Root** haben, die der Build liest, **oder** in CI/CD setzen.
-
-## Neustart
-
-Wenn du **kein** SSH willst: im Hostinger-Panel **PM2** / **Node** neu starten, falls angeboten.
-
-Mit Shell:
+## 3) Restart service
 
 ```bash
+cd /opt/areloria
 pm2 restart areloria
 ```
 
-## Prüfen
+## 4) Verify runtime
 
-Im Browser oder vom PC:
+```bash
+curl -s http://127.0.0.1:3000/health
+```
 
-`https://deine-domain/health`  
-oder `http://SERVER-IP:3000/health`
+Expect at least:
 
-Dort siehst du u. a.:
-- `supabase.configured`
-- `persistence.driver`
+- `ok: true`
 - `auth.useSupabaseWsLogin`
-- (optional) `firebase.configured`
+- `auth.requireSupabaseAuth`
+- `persistence.persistenceDriver`
+- `content.mode` and `content.root`
+- `playtester` block (if enabled)
 
-## Vollständige Liste aller Variablen
+## 5) Notes
 
-Siehe Repo-Root **`.env.example`** (Referenz) und **`deploy/.env.production.template`** (VPS-Mindestset).
-Für Supabase-Migration inkl. GitHub-Secret-Mapping: **`deploy/SUPABASE_SECRETS.md`**.
+- The client reads Supabase public values from build-time `VITE_SUPABASE_*` and runtime `/client-config.json`.
+- Never commit real `.env` values.
+- Keep deployment + health behavior aligned with `DEPLOYMENT.md` and `.env.example`.

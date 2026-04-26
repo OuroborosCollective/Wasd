@@ -1,20 +1,24 @@
-# Deployment Plan
+# Deployment Plan (current)
 
-## Zielumgebungen
-- Firebase App Hosting
-- Cloud Run / Cloud Functions
-- AWS PostgreSQL / ElastiCache / API Gateway WebSocket
+## Zielumgebung (produktiv)
+- VPS / Bare metal
+- PM2 Prozessverwaltung
+- Reverse Proxy (z. B. Nginx/Caddy) vor Port `3000`
+- Optional PostgreSQL und Redis/Valkey als externe Services
 
-## Prinzipien
+## Grundprinzipien
 - Keine Secrets im Repo
-- Server autoritativ
-- Client nur Darstellung
-- Beobachterzonen bestimmen Last
+- Server bleibt autoritativ
+- Client ist Darstellung + Input + UI
+- `/health` ist zentrale Betriebsprüfung
 
-## Reihenfolge
-1. Datenbankadapter konfigurieren
-2. Server health endpoint prüfen
-3. WebSocket-Verbindung prüfen
-4. World Tick unter kleiner Last testen
-5. Asset-Pfade validieren
-6. Admin/GM-Zugriff absichern
+## Reihenfolge für Rollout
+1. `.env` aus `deploy/.env.production.template` bereitstellen
+2. `pnpm install` + `pnpm run build`
+3. PM2 mit `ecosystem.config.cjs` starten/restarten
+4. Lokale Checks: `http://127.0.0.1:3000/health`, `/`, `/gm/`
+5. Externe Checks über Domain (HTTPS + WSS)
+6. Optional Content-Pack publizieren (`pnpm run content:publish`)
+
+## Optionaler Zielpfad (Dokumentation / Legacy)
+- Cloud-Deploy-Optionen (Cloud Run, andere Hosts) sind möglich, aber aktuell nicht die primäre Betriebsdoku.

@@ -1,225 +1,70 @@
-# Module Manifest
+# Module Manifest (Live Runtime Focus)
 
-- achievements/AchievementRegistry.ts
-- achievements/AchievementSystem.ts
-- admin/AdminAuditLog.ts
-- admin/AdminMountRegistry.ts
-- admin/AdminRollback.ts
-- admin/EditorActionLog.ts
-- admin/GMCommandLayer.ts
-- admin/GiraffeAdminMount.ts
-- admin/PermissionMatrix.ts
-- admin/RoleGuard.ts
-- aging/AgingSystem.ts
-- ai/AgingSystem.ts
-- ai/BehaviorTree.ts
-- ai/FamilyGenerationSystem.ts
-- ai/NPCBrain.ts
-- ai/NPCSchedules.ts
-- ai/TaskSystem.ts
-- analytics/PerformanceBudget.ts
-- analytics/TelemetryCollector.ts
-- api/editorRoutes.ts
-- api/healthRoute.ts
-- api/playerRoutes.ts
-- api/worldRoutes.ts
-- asset-registry/AssetRegistry.ts
-- asset-registry/NPCAssets.ts
-- asset-registry/StructureAssets.ts
-- asset-registry/VegetationAssets.ts
-- assets/AssetImportQueue.ts
-- assets/AssetValidationReport.ts
-- assets/ContentManifest.ts
-- auction/AuctionFees.ts
-- auction/AuctionHouse.ts
-- auction/AuctionSettlement.ts
-- audio/AmbienceRegistry.ts
-- audio/MusicZones.ts
-- auth/PlayerRestore.ts
-- auth/SessionHeartbeat.ts
-- auth/SessionReconnectHandler.ts
-- auth/SessionRegistry.ts
-- auth/WebSocketPresence.ts
-- bootstrap/ModuleRegistry.ts
-- bootstrap/SystemWiring.ts
-- brain/BrainFieldAnalyzer.ts
-- brain/HeuristicWorldBrain.ts
-- chat/ChatChannels.ts
-- chat/ChatModeration.ts
-- chat/ChatService.ts
-- civilization/CivilizationEngine.ts
-- civilization/CivilizationRankings.ts
-- civilization/KingdomLedger.ts
-- civilization/SettlementSystem.ts
-- combat/CombatSystem.ts
-- construction/ConstructionQueue.ts
-- construction/UpgradeSystem.ts
-- crafting/CraftingStationRegistry.ts
-- crafting/CraftingSystem.ts
-- crafting/RecipeMatcher.ts
-- crafting/RecipeRegistry.ts
-- dialogue/DialogueContext.ts
-- dialogue/DialogueEngine.ts
-- dialogue/DialogueGenerator.ts
-- dialogue/DialogueMemoryBridge.ts
-- dialogue/DialogueTagRules.ts
-- dialogue/DialogueTemplates.ts
-- diplomacy/DiplomacyEngine.ts
-- dungeon/DungeonGenerator.ts
-- economy/BuyOrders.ts
-- economy/EconomyEngine.ts
-- economy/MarketExpansion.ts
-- economy/MarketLedger.ts
-- economy/MarketOrders.ts
-- economy/MatrixEnergySystem.ts
-- economy/NPCTradeAI.ts
-- economy/PlayerMarket.ts
-- economy/PriceBalancer.ts
-- economy/SellOrders.ts
-- economy/TaxLedger.ts
-- economy/TradeRoutes.ts
-- equipment/EquipmentSystem.ts
-- events/DisasterEngine.ts
-- events/EventScheduler.ts
-- events/MigrationEngine.ts
-- events/WarForecast.ts
-- events/WorldEventLayer.ts
-- faction/FactionMemory.ts
-- faction/FactionSystem.ts
-- farming/FarmingSystem.ts
-- farming/TreeGrowthSystem.ts
-- genealogy/FamilyGenerationSystem.ts
-- gm/AdminAuditLog.ts
-- gm/GMCommandLayer.ts
-- growth/AgingSystem.ts
-- growth/FamilyGenerationSystem.ts
-- growth/FarmingSystem.ts
-- growth/TreeGrowthSystem.ts
-- guild/GuildStorage.ts
-- guild/GuildSystem.ts
-- history/DudenregisterHistory.ts
-- history/HistoricalMapEngine.ts
-- history/ProphecyArchive.ts
-- history/RuinEvolutionEngine.ts
-- history/WorldSnapshotSystem.ts
-- housing/HousingSystem.ts
-- housing/OwnershipRegistry.ts
-- inventory/InventorySystem.ts
-- items/AffixSystem.ts
-- items/EquipmentSystem.ts
-- items/ItemGenerator.ts
-- localization/LocaleDictionary.ts
-- localization/LocaleRegistry.ts
-- localization/TextKeyResolver.ts
-- loot/AffixSystem.ts
-- loot/ItemGenerator.ts
-- loot/LootTables.ts
-- magic/MagicSystem.ts
-- mail/MailAttachments.ts
-- mail/MailService.ts
-- market/MarketExpansion.ts
-- market/NPCTradeAI.ts
-- market/PriceBalancer.ts
-- migration/MigrationEngine.ts
-- monitoring/BackupManager.ts
-- monitoring/CrashRecovery.ts
-- monitoring/SystemHealthMonitor.ts
-- monster/MonsterDNA.ts
-- monster/MonsterMutation.ts
-- monster/MonsterSpawnTable.ts
-- monster/MonsterSpawner.ts
-- mounts/MountRegistry.ts
-- mounts/TravelSystem.ts
-- notifications/NotificationService.ts
-- npc/HeritageResolver.ts
-- npc/NPCDialogueSystem.ts
-- npc/NPCGenealogyEngine.ts
-- npc/NPCMemoryEngine.ts
-- npc/NPCPersonalityEngine.ts
-- npc/NPCProfessions.ts
-- npc/NPCRelationshipSystem.ts
-- npc/NPCScheduleRegistry.ts
-- npc/NPCSpawnTable.ts
-- npc/SharedMemoryNetwork.ts
-- observer/ObserverEngine.ts
-- oracle/OracleEngine.ts
-- oracle/OracleMemoryBridge.ts
-- oracle/ProphecyArchive.ts
-- oracle/ProphecyGenerator.ts
-- oracle/WarForecast.ts
-- persistence/CivilizationDatabase.ts
-- persistence/DataSeeder.ts
-- persistence/PlayerDatabase.ts
-- persistence/SafeMigrationRunner.ts
-- persistence/SaveFormats.ts
-- persistence/SnapshotArchive.ts
-- persistence/WorldDatabase.ts
-- player/EquipmentSystem.ts
-- player/PlayerSystem.ts
-- player/ReputationTitleBridge.ts
-- player/StaminaRegen.ts
-- player/TitleSystem.ts
-- politics/DiplomacyEngine.ts
-- politics/GovernmentTypes.ts
-- politics/ReputationSystem.ts
-- politics/WarEngine.ts
-- prophecy/ProphecyArchive.ts
-- prophecy/ProphecyGenerator.ts
-- prophecy/WarForecast.ts
-- quest/QuestEngine.ts
-- quest/QuestRegistry.ts
-- quest/QuestRewards.ts
-- quest/QuestStateStore.ts
-- quests/QuestRewards.ts
-- quests/QuestStateStore.ts
-- relationships/NPCRelationshipSystem.ts
-- relationships/SharedMemoryNetwork.ts
-- release/BuildStamp.ts
-- release/ReleaseChecklist.ts
-- release/ReleaseProfile.ts
-- religion/ReligionSystem.ts
-- reputation/ReputationLedger.ts
-- reputation/ReputationSystem.ts
-- security/AntiCheatHooks.ts
-- security/PayloadValidator.ts
-- siege/SiegeEngine.ts
-- skill/SkillSystem.ts
-- social/FriendsSystem.ts
-- social/GroupFinder.ts
-- social/IgnoreSystem.ts
-- social/PartySystem.ts
-- structure/ConstructionQueue.ts
-- structure/GateController.ts
-- structure/SiegeEngine.ts
-- structure/StructureEngine.ts
-- structure/StructureTemplates.ts
-- structure/UpgradeSystem.ts
-- telemetry/PerformanceBudget.ts
-- telemetry/TelemetryCollector.ts
-- trade/BuyOrders.ts
-- trade/PlayerMarket.ts
-- trade/SellOrders.ts
-- weather/ClimateModel.ts
-- weather/SeasonalGrowthBridge.ts
-- weather/WeatherEffects.ts
-- weather/WeatherPresets.ts
-- world-editor/AdminAuditLog.ts
-- world-editor/ObjectPlacement.ts
-- world-editor/TerrainBrush.ts
-- world-editor/WorldEditorServer.ts
-- world/BiomeGenerator.ts
-- world/ChunkActivation.ts
-- world/ChunkSystem.ts
-- world/NavMeshNodes.ts
-- world/Pathfinding.ts
-- world/ResourceScatter.ts
-- world/SeasonSystem.ts
-- world/SeasonalEventBridge.ts
-- world/ShadowRegisterPortal.ts
-- world/TerrainGenerator.ts
-- world/TravelHazards.ts
-- world/WeatherSystem.ts
-- world/WorldSeed.ts
-- world/WorldState.ts
-- world/WorldStateStore.ts
-- world/WorldWonderRegistry.ts
+This manifest lists the **actively wired** modules and entry points used by the current game runtime.
+For exhaustive per-file discovery use `server/src/modules/**` directly.
+
+## Core runtime
+
+- `server/src/core/WorldTick.ts` — main simulation orchestrator (100ms tick)
+- `server/src/core/ServerBootstrap.ts` — HTTP/WS bootstrap, route registration, static serving
+- `server/src/networking/WebSocketServer.ts` — authoritative socket layer
+
+## Gameplay systems
+
+- `server/src/modules/player/PlayerSystem.ts`
+- `server/src/modules/combat/CombatSystem.ts`
+- `server/src/modules/quest/QuestEngine.ts`
+- `server/src/modules/questline/questlineEngine.ts`
+- `server/src/modules/inventory/InventorySystem.ts`
+- `server/src/modules/crafting/CraftingSystem.ts`
+- `server/src/modules/guild/GuildSystem.ts`
+- `server/src/modules/economy/EconomySystem.ts`
+- `server/src/modules/vote/VoteSystem.ts`
+- `server/src/modules/warfront/WarfrontSystem.ts`
+
+## NPC and autonomy
+
+- `server/src/modules/npc/NPCSystem.ts`
+- `server/src/modules/npc/NPCMemoryCache.ts`
+- `server/src/modules/npc/NPCMemoryPersistence.ts`
+- `server/src/modules/npc/NPCChatAgent.ts`
+- `server/src/modules/npc/NPCRelationshipSystem.ts`
+- `server/src/modules/ouroboros/OuroborosEngine.ts`
+- `server/src/modules/playtester/AutonomousPlaytester.ts`
+
+## Fusion integrations (new)
+
+- `server/src/modules/gameplay/GameplayFusionDirector.ts` — combines:
+  - quest echo beacons
+  - adaptive scene/profile overrides
+  - construction contracts from model-needs
+
+## World and assets
+
+- `server/src/modules/world/WorldSystem.ts`
+- `server/src/modules/world/ChunkSystem.ts`
+- `server/src/modules/world/WorldObjectSystem.ts`
+- `server/src/modules/world/AssetPoolResolver.ts`
+- `server/src/modules/asset-registry/GLBRegistry.ts`
+- `server/src/modules/content/adminGlbModelNeeds.ts`
+
+## Playtester monitor / WebRTC
+
+- `server/src/modules/playtester/PlaytesterMonitorStream.ts`
+- `server/src/modules/playtester/PlaytesterWebRTCSignaling.ts`
+- `client/src/playtesterMonitorViewerMain.ts`
+- `client/src/playtesterRenderPublisherMain.ts`
+
+## Admin APIs
+
+- `server/src/api/adminContentRoute.ts`
+- `server/src/api/voteRoute.ts`
+- `server/src/api/questlineRoute.ts`
+- `server/src/api/leaderboardRoute.ts`
+- `server/src/api/loreRoute.ts`
+- `server/src/api/mcpRoute.ts`
+
+## Historical / not canonical
+
+Many additional files under `server/src/modules/` represent partial, experimental, or future systems.
+Treat this document as the runtime-first map for operators and contributors.

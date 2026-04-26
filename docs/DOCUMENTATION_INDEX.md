@@ -1,64 +1,45 @@
 # Documentation index
 
-Use this map to avoid reading **obsolete** files as if they were current spec.
+Use this index to find current documentation quickly and avoid relying on historical reconstruction files.
 
 ## Start here (current)
 
 | Document | Purpose |
 |----------|---------|
-| **`README.md`** | Repo overview, install, architecture summary |
-| **`AGENTS.md`** | Cursor / agent dev commands and constraints |
-| **`docs/PROJECT_STATUS_2026.md`** | **What works today** (renderer, server, deploy) |
-| **`docs/ROADMAP_TO_RELEASE.md`** | **What is left** until release; bible-aligned backlog |
-| **`docs/MASTER_DESIGN_BIBLE.md`** | **Vision** and creative pillars (update rarely) |
-| **`DEPLOYMENT.md`** | VPS / PM2 / GitHub Actions |
-| **`docs/CI_VPS_RUNBOOK.md`** | CI prüfen, VPS verify, Secret `DEPLOY_VERIFY_BASE_URL` |
-| **`docs/SPACETIME_PERSISTENCE_NEXT.md`** | SpacetimeDB-Persistenz — nächste Implementierungsschritte |
-| **`docs/CONTENT_DRAFT_VS_LIVE.md`** | Entwurf vs. Live: game-data, published pack, GLB-Links |
-| **`docs/FIREBASE_VPS_CHECKLIST.md`** | Firebase Admin + WS-Login + Client — VPS-Schritte und `/health` |
-| **`deploy/ENV_SETUP.md`** | .env ohne SSH-Stress: SCP/SFTP, Vorlage, PM2 |
-| **`deploy/.env.production.template`** | VPS `.env` Vorlage (nicht mit Secrets füllen ins Git) |
-| **`docs/VITE_MCP_AND_VPS_SETUP.md`** | MCP + WebSocket + Nginx (Vite / Babylon client) |
+| `README.md` | Repo overview, current stack, quick start |
+| `AGENTS.md` | Cloud/dev agent operating guide |
+| `docs/PROJECT_STATUS_2026.md` | Authoritative “what is live now” snapshot |
+| `docs/ROADMAP_TO_RELEASE.md` | Release backlog and outstanding gaps |
+| `docs/AUTONOMOUS_PLAYTESTER_MONITOR.md` | Playtester monitor architecture (WebRTC + viewer/publisher) |
+| `DEPLOYMENT.md` | Production deployment flow (VPS + PM2 + CI) |
+| `deploy/ENV_SETUP.md` | Minimal and safe `.env` setup flow |
+| `deploy/.env.production.template` | Production env template |
+| `docs/API_ADMIN_AND_CHAT.md` | Admin content and chat API summary |
+| `docs/API_SURFACE.md` | Public route map and key endpoints |
 
-## Architecture and systems
+## Architecture and system references
 
 | Document | Note |
 |----------|------|
-| `ARCHITECTURE_OVERVIEW.md` | High-level diagrams — prefer Babylon for client stack |
-| `ARCHITECTURE_NOTE.md` | Short architecture notes |
-| `LOGIC_DOCUMENTATION.md` | Module-oriented logic reference — verify against code when editing |
-| `docs/CLIENT_ARCHITECTURE.md` | Client layering rules |
-| `docs/NETWORKING_MODEL.md` | WS / packets |
-| `docs/MODULE_MANIFEST.md` | Module inventory |
-| `docs/KNOWN_GAPS.md` | Short gap list — superseded in part by `ROADMAP_TO_RELEASE.md` |
-| `game-data/AUTHORING_GUIDE.md` | Data authoring |
+| `LOGIC_DOCUMENTATION.md` | Current systems and runtime modules (short architecture reference) |
+| `docs/CLIENT_ARCHITECTURE.md` | Client layering and renderer structure |
+| `docs/NETWORKING_MODEL.md` | WebSocket and synchronization model |
+| `docs/MODULE_MANIFEST.md` | Curated module map for actively relevant systems |
+| `docs/FILE_MAP.md` | Practical tree map for current repo layout |
+| `game-data/AUTHORING_GUIDE.md` | Content authoring under `game-data/` |
 
-## Historical / pack files (do not use as sole source of truth)
+## Legacy / historical docs
 
-Large reconstruction exports and old packs may still say **Three.js** or an older client stack as primary:
+These files remain in the repository for history but are not source-of-truth for live behavior:
 
 - `areloria_reconstruction_pack_*.md`
 - `areloria_final_reconstruction_*.md`
-- `SESSION_CONTEXT.md` (session log — read `PROJECT_STATUS_2026.md` first)
+- `SESSION_CONTEXT.md` and handover logs
+- `docs/DEPLOYMENT_FIREBASE_AWS.md` (legacy concept note)
+- `docs/FIREBASE_VPS_CHECKLIST.md` (legacy placeholder; Supabase is primary)
 
-Treat these as **archaeology**, not the live stack description.
+For implementation decisions, always prefer:
 
-## Admin and integrations
-
-- `admin-tools/README_ADMIN.md`
-- `integrations/README_INTEGRATIONS.md`
-- `agent/AGENT_BUILD_INSTRUCTIONS.md` — build order + **doc maintenance rules**
-
-## Final-lock and agent rules
-
-- `final-lock/FINAL_TRUTH.md`
-- `final-lock/DO_NOT_SIMPLIFY.md`
-- `PROJECT_LOCK_RULES.md`
-- `agent/AI_AGENT_FAILSAFE_RULES.md`
-- `.github/pull_request_template.md` — doc checklist for PRs
-
-## Obsolete filenames
-
-- **`docs/PLAYCANVAS_MCP_CURSOR_VPS_SETUP.md`** — removed; use **`docs/VITE_MCP_AND_VPS_SETUP.md`**
-- **`docs/PLAYCANVAS_DIDI_SCRIPT_IMPORT.md`** — removed; scene flow is **server-driven** (`game-data/scenes/`).  
-- **MCP:** tool `get_game_connection_profile` returns WebSocket + MCP URLs (replaces the old `get_playcanvas_connection_profile` name).
+1. code in `server/src` + `client/src`,
+2. `.env.example`,
+3. the “current” documents listed above.

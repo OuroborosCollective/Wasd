@@ -1,7 +1,7 @@
 # Pack Progress 4
 
-Neuer Sammelblock ergänzt.
-Aktuelle Dateianzahl: 272
+Neuer Sammelblock ergänzt.  
+Aktuelle Dateianzahl (historischer Stand): 272
 
 Schwerpunkte:
 - Wetter/Jahreszeiten
@@ -10,4 +10,4 @@ Schwerpunkte:
 - historische Karten / Ruinenentwicklung
 - zusätzliche Client-UI
 - Admin-Tools
-- Firebase/AWS-Deploy-Hinweise
+- Deploy-Hinweise (historischer Kontext)

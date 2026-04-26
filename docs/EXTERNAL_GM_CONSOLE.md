@@ -1,6 +1,6 @@
 # External GM Console (Browser Tool)
 
-This project now includes a standalone browser GM console that can be used outside of the in-game UI.
+This project includes a standalone browser GM console that can be used outside of the in-game UI.
 
 ## Files
 
@@ -17,7 +17,9 @@ After deploying client assets, open:
 
 1. Enter WebSocket URL:
    - `wss://<your-domain>/ws`
-2. Enter Firebase ID token (for admin/gm user).
+2. Enter a valid game login token according to your auth mode:
+   - Supabase access token when `USE_SUPABASE_WS_LOGIN=1`
+   - no token if guest/dev login is enabled
 3. Optional GM panel token:
    - set `GM_PANEL_TOKEN` on server and paste same value in the GM console.
    - this enables an additional secure override path for `gm_*` and `admin_glb_*` commands.

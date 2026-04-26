@@ -1,13 +1,11 @@
-# Deployment Firebase + AWS
+# Legacy deployment note (historical)
 
-## Firebase
-- Hosting/Studio für UI- und Rekonstruktionsworkflow
-- Firestore optional für persistente Welt-/Spielerdaten
+This file is retained only as historical context.  
+Current production deployment is documented in:
 
-## AWS
-- PostgreSQL / RDS Adapter
-- ElastiCache / Valkey für schnelle Zustände
-- optional WebSocket Gateway Bridge
+- `DEPLOYMENT.md`
+- `deploy/ENV_SETUP.md`
+- `docs/CI_VPS_RUNBOOK.md`
 
-## Grundregel
-Keine Secrets im Repo. Immer über Umgebungsvariablen oder Secret Stores.
+The live repository stack is Supabase + Postgres/file persistence with Express + WebSocket runtime.
+Firebase-specific deployment assumptions in older documents are no longer the primary production path.

@@ -1,11 +1,15 @@
 # Final Delivery Note
 
-Dieses Projekt wird in mehreren Formen ausgeliefert:
+This note was retired as an active source-of-truth.
 
-1. Projekt-ZIP
-2. Reconstruction-Pack als Markdown
-3. Reconstruction-Pack als Text
-4. Bundle-ZIP mit Projekt + Reconstruction
+Current authoritative documentation:
 
-## Zweck
-Damit kein Stand verloren geht und No-Code- oder Firebase-Studio-Agents das Projekt rekonstruieren können.
+- `README.md`
+- `AGENTS.md`
+- `docs/PROJECT_STATUS_2026.md`
+- `docs/ROADMAP_TO_RELEASE.md`
+- `docs/DOCUMENTATION_INDEX.md`
+- `DEPLOYMENT.md`
+- `deploy/ENV_SETUP.md`
+
+Historical reconstruction packs remain archived for context only.
