@@ -93,7 +93,7 @@ export function buildClientPublicConfigJson(req?: express.Request): string {
   const gameOrigin = trimEnv("GAME_ORIGIN") || trimEnv("APP_ORIGIN") || (req ? `${req.protocol}://${req.get("host")}` : "");
   
   let url: string;
-  if (proxyUrl) {
+  if (proxyUrl && gameOrigin) {
     url = gameOrigin;
   } else {
     url =
