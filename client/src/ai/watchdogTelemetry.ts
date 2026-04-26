@@ -52,6 +52,15 @@ export function pushWatchdogLog(
     moduleHint: hint,
   });
   while (buffer.length > MAX) buffer.shift();
+  // Track watchdog log in PostHog
+  if (typeof window !== "undefined" && (window as any).posthog) {
+    (window as any).posthog.capture("watchdog_log", {
+      level,
+      source,
+      message,
+      moduleHint: hint,
+    });
+  }
   if (typeof window !== "undefined") {
     window.dispatchEvent(
       new CustomEvent("areloria:watchdog-log", {

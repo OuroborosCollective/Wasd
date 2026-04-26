@@ -3440,7 +3440,6 @@ export class WorldTick {
     // Optimize: Zero-allocation iteration using internal Maps and for...of
     const playersMap = this.playerSystem.getPlayersMap();
     for (const p of playersMap.values()) {
-    for (const p of this.playerSystem.getPlayersMap().values()) {
       entities.push({
         id: p.id,
         type: 'player',
@@ -3466,7 +3465,6 @@ export class WorldTick {
 
     const npcsMap = this.npcSystem.getNPCsMap();
     for (const n of npcsMap.values()) {
-    for (const n of this.npcSystem.getNPCsMap().values()) {
       entities.push({
         id: n.id,
         type: 'npc',
@@ -3518,11 +3516,12 @@ export class WorldTick {
       });
     }
 
+    const chunks: Array<{ id: string; chunkX: number; chunkY: number; objects: any[] }> = [];
+
     // Include world objects if they exist
     if (this.worldSystem.objectSystem) {
-      const objectsMap: Map<string, WorldObject> = this.worldSystem.objectSystem.getObjectsMap();
+      const objectsMap = this.worldSystem.objectSystem.getObjectsMap();
       for (const obj of objectsMap.values()) {
-      for (const obj of this.worldSystem.objectSystem.getObjectsMap().values()) {
         entities.push({
           id: obj.id,
           type: obj.type || 'object',
@@ -3541,15 +3540,10 @@ export class WorldTick {
           visible: true
         });
       }
-    }
 
-    // Build real chunks from chunkSystem — include world objects per chunk
-    const chunks: Array<{ id: string; chunkX: number; chunkY: number; objects: any[] }> = [];
-    if (this.worldSystem.objectSystem) {
-      // Assign world objects to chunks
+      // Build real chunks from chunkSystem — include world objects per chunk
       const chunkObjects = new Map<string, any[]>();
-
-      for (const obj of this.worldSystem.objectSystem.getObjectsMap().values()) {
+      for (const obj of objectsMap.values()) {
         const chunkId = this.chunkSystem.getChunkId(obj.position.x, obj.position.y);
         let cObjs = chunkObjects.get(chunkId);
         if (!cObjs) {
@@ -3565,7 +3559,6 @@ export class WorldTick {
         });
       }
 
-      // Build chunk entries
       for (const [chunkId, objects] of chunkObjects) {
         const [cx, cy] = chunkId.split(":").map(Number);
         chunks.push({ id: chunkId, chunkX: cx, chunkY: cy, objects });
@@ -3574,7 +3567,7 @@ export class WorldTick {
 
     // Also include chunks that have entities (players, NPCs)
     const existingChunkIds = new Set(chunks.map(c => c.id));
-    for (const player of this.playerSystem.getPlayersMap().values()) {
+    for (const player of playersMap.values()) {
       const chunkId = this.chunkSystem.getChunkId(player.position.x, player.position.y);
       if (!existingChunkIds.has(chunkId)) {
         existingChunkIds.add(chunkId);
@@ -3582,7 +3575,7 @@ export class WorldTick {
         chunks.push({ id: chunkId, chunkX: cx, chunkY: cy, objects: [] });
       }
     }
-    for (const npc of this.npcSystem.getNPCsMap().values()) {
+    for (const npc of npcsMap.values()) {
       const chunkId = this.chunkSystem.getChunkId(npc.position.x, npc.position.y);
       if (!existingChunkIds.has(chunkId)) {
         existingChunkIds.add(chunkId);
@@ -3602,6 +3595,7 @@ export class WorldTick {
       entities,
       chunks,
     });
+
     if (this.worldBossEncounterSummaries.length > 0 && this.tickCount % 25 === 0) {
       const latest = this.worldBossEncounterSummaries[this.worldBossEncounterSummaries.length - 1];
       this.ws.broadcast({
