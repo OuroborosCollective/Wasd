@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI } from "@google/genai";
 
 export type AssetClass = 'character' | 'creature' | 'prop' | 'weapon' | 'environment';
 export type PlatformProfile = 'mobile' | 'mid' | 'high';

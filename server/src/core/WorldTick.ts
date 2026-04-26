@@ -3544,13 +3544,16 @@ export class WorldTick {
     const chunks: Array<{ id: string; chunkX: number; chunkY: number; objects: any[] }> = [];
     if (this.worldSystem.objectSystem) {
       // Assign world objects to chunks
-      const allObjects = this.worldSystem.objectSystem.getAllObjects();
       const chunkObjects = new Map<string, any[]>();
 
-      for (const obj of allObjects) {
+      for (const obj of this.worldSystem.objectSystem.getObjectsMap().values()) {
         const chunkId = this.chunkSystem.getChunkId(obj.position.x, obj.position.y);
-        if (!chunkObjects.has(chunkId)) chunkObjects.set(chunkId, []);
-        chunkObjects.get(chunkId)!.push({
+        let cObjs = chunkObjects.get(chunkId);
+        if (!cObjs) {
+          cObjs = [];
+          chunkObjects.set(chunkId, cObjs);
+        }
+        cObjs.push({
           id: obj.id,
           type: obj.type || "object",
           glbPath: obj.glbPath || this.resolveWorldObjectGlbPath(obj.type, obj.name || obj.id, obj.id),
@@ -3568,9 +3571,16 @@ export class WorldTick {
 
     // Also include chunks that have entities (players, NPCs)
     const existingChunkIds = new Set(chunks.map(c => c.id));
-    const allEntities = [...this.playerSystem.getAllPlayers(), ...this.npcSystem.getAllNPCs()];
-    for (const entity of allEntities) {
-      const chunkId = this.chunkSystem.getChunkId(entity.position.x, entity.position.y);
+    for (const player of this.playerSystem.getPlayersMap().values()) {
+      const chunkId = this.chunkSystem.getChunkId(player.position.x, player.position.y);
+      if (!existingChunkIds.has(chunkId)) {
+        existingChunkIds.add(chunkId);
+        const [cx, cy] = chunkId.split(":").map(Number);
+        chunks.push({ id: chunkId, chunkX: cx, chunkY: cy, objects: [] });
+      }
+    }
+    for (const npc of this.npcSystem.getNPCsMap().values()) {
+      const chunkId = this.chunkSystem.getChunkId(npc.position.x, npc.position.y);
       if (!existingChunkIds.has(chunkId)) {
         existingChunkIds.add(chunkId);
         const [cx, cy] = chunkId.split(":").map(Number);

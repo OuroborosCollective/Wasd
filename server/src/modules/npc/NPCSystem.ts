@@ -79,9 +79,6 @@ export class NPCSystem {
     return this.npcs.get(npcId);
   }
 
-  getNPCsMap(): Map<string, any> {
-    return this.npcs;
-  }
 
   setRuntimeDialogue(npcId: string, text: string, choices: any[] = []): boolean {
     const npc = this.npcs.get(npcId);
@@ -163,6 +160,10 @@ export class NPCSystem {
 
   getAllNPCs() {
     return Array.from(this.npcs.values());
+  }
+
+  getNPCsMap(): Map<string, any> {
+    return this.npcs;
   }
 
   tick(players: any[], worldTime: number) {
