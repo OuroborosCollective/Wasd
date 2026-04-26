@@ -77,6 +77,12 @@ import { tickNpcChat } from "../modules/npc/NPCChatAgent.js";
 import { LOCAL_CHAT_RADIUS } from "../modules/chat/chatChannelTypes.js";
 import { OuroborosEngine } from "../modules/ouroboros/OuroborosEngine.js";
 import { NPCRelationshipSystem } from "../modules/npc/NPCRelationshipSystem.js";
+import { GameplayFusionDirector } from "../modules/gameplay/GameplayFusionDirector.js";
+import { buildAdminGlbModelNeeds } from "../modules/content/adminGlbModelNeeds.js";
+import { loadObjectTypeChoicesForAdmin } from "../modules/content/adminContentChoices.js";
+import { getContentDataRoot } from "../modules/content/contentDataRoot.js";
+import { findRepoRootWithGameData } from "../modules/content/repoRoot.js";
+import { auditContentModelPaths } from "../modules/content/auditContentModelPaths.js";
 
 import { getPostHogClient } from "../services/posthog.js";
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
@@ -397,6 +403,7 @@ export class WorldTick {
   private playtesterStreamCounter = 0;
   private worldBossRespawnAt = 0;
   private worldBossEncounterSummaries: any[] = [];
+  private readonly gameplayFusionDirector: GameplayFusionDirector;
   private readonly USE_ITEM_TOASTS: Record<string, string> = {
     minor_mana_draught: "You drink Minor Mana Draught (+mana).",
     health_potion: "You drink Health Potion (+hp).",
@@ -1184,6 +1191,143 @@ export class WorldTick {
       const step = this.pendingTemplateSteps.shift()!;
       this.executeTemplateStep(step);
     }
+  }
+
+  private findNearbyFusionContracts(
+    x: number,
+    y: number,
+    radius: number,
+  ): string[] {
+    const available = this.gameplayFusionDirector
+      .getConstructionContracts()
+      .filter((row) => row.status === "available");
+    const inRadius = available
+      .filter((row) => {
+        const px = Number(row?.position?.x ?? 0);
+        const py = Number(row?.position?.y ?? 0);
+        return Math.hypot(px - x, py - y) <= radius;
+      })
+      .map((row) => row.id);
+    if (inRadius.length > 0) return inRadius;
+    return available.slice(0, 3).map((row) => row.id);
+  }
+
+  private async runFusionContractsForNpc(npc: any): Promise<void> {
+    const role = String(npc?.role || "").toLowerCase();
+    if (
+      !role.includes("contractor")
+      && !role.includes("builder")
+      && !role.includes("repair")
+      && !role.includes("designer")
+      && !role.includes("engineer")
+    ) {
+      return;
+    }
+    const near = this.findNearbyFusionContracts(
+      Number(npc?.position?.x ?? 0),
+      Number(npc?.position?.y ?? 0),
+      40,
+    );
+    if (near.length === 0) return;
+    const claim = near[0];
+    if (!claim) return;
+    const assigned = this.gameplayFusionDirector.assignContractToNpc(
+      claim,
+      String(npc.id),
+    );
+    if (!assigned) return;
+    this.statusEmitter.emitNpcThinking(
+      String(npc?.name || npc?.id || "NPC"),
+      `[contract_assigned] ${claim}`,
+      npc.position || { x: 0, y: 0, z: 0 },
+    );
+    await this.gameplayFusionDirector.completeContract(claim, {
+      completedByNpcId: String(npc.id),
+      worldObjectSystem: this.worldSystem.objectSystem,
+    });
+  }
+
+  private tickFusionIntegrations(now: number): void {
+    if (this.tickCount % 50 === 0) {
+      const contentRoot = getContentDataRoot();
+      const repoRoot = findRepoRootWithGameData() ?? path.resolve(process.cwd(), "..");
+      const audit = auditContentModelPaths(contentRoot, repoRoot);
+      const needs = buildAdminGlbModelNeeds({
+        missingModels: audit.missing,
+        modelUrls: this.glbRegistry.scanModels(),
+        links: this.glbRegistry.getLinks(),
+        pools: this.assetPoolResolver.getDocument(),
+        objectTypes: loadObjectTypeChoicesForAdmin(),
+      });
+      this.gameplayFusionDirector.syncModelNeeds(needs.needs, needs.satisfied, now);
+    }
+
+    const onlinePlayers = this.playerSystem.getAllPlayers().filter((p: any) => !p.isOffline);
+    const npcs = this.npcSystem.getAllNPCs();
+    this.gameplayFusionDirector.tick({
+      now,
+      npcs,
+      players: onlinePlayers,
+      getQuestSyncForClient: (player: any) => this.questSystem.getQuestSyncForClient(player),
+      npcMemoryCache: this.npcMemoryCache,
+      emitNpcThinking: (npcName, thought, position) =>
+        this.statusEmitter.emitNpcThinking(npcName, thought, { x: position.x, y: position.y, z: 0 }),
+    });
+
+    void this.npcSystem.runFusionHeuristics(
+      {
+        worldTime: this.worldSystem.worldTime,
+        notifyNpcThinking: (npcName, thought, position) =>
+          this.statusEmitter.emitNpcThinking(npcName, thought, position),
+        onClaimContract: async (contractId, npc) => {
+          this.gameplayFusionDirector.assignContractToNpc(
+            contractId,
+            String(npc?.id || "npc"),
+          );
+          await this.gameplayFusionDirector.completeContract(contractId, {
+            completedByNpcId: String(npc?.id || "npc"),
+            worldObjectSystem: this.worldSystem.objectSystem,
+          });
+        },
+        findNearbyConstructionContracts: (x, y, radius) =>
+          this.findNearbyFusionContracts(x, y, radius),
+        placeEchoBeacon: async (key, npc, kind, ttlMs) => {
+          const target = this.npcSystem.getNPC(String(npc?.id || ""));
+          if (!target?.position) return;
+          const beacons = this.gameplayFusionDirector.getQuestEchoBeacons(now);
+          const hasBeacon = beacons.some((b) => b.npcId === String(target.id));
+          if (!hasBeacon) return;
+          this.statusEmitter.emitNpcThinking(
+            String(target.name || target.id),
+            `[echo_beacon:${kind}] ${key}`,
+            { x: Number(target.position.x) || 0, y: Number(target.position.y) || 0, z: 0 },
+          );
+          void ttlMs;
+        },
+        evaluateAdaptiveProfileForNpc: (npc) => {
+          const adaptive = this.gameplayFusionDirector.resolveNpcGlbOverride(npc, now);
+          npc.fusionAdaptiveGlbPath = adaptive ?? null;
+          npc.fusionProfileTag = adaptive ? "adaptive" : "default";
+        },
+      },
+      npcs,
+    );
+
+    for (const npc of npcs) {
+      void this.runFusionContractsForNpc(npc);
+    }
+  }
+
+  private buildFusionQuestEchoProvider(): ((npc: any) => { x: number; y: number } | null) {
+    return (_npc: any) => {
+      const beacons = this.gameplayFusionDirector.getQuestEchoBeacons(Date.now());
+      const first = beacons[0];
+      if (!first) return null;
+      return {
+        x: Number(first.position?.x ?? 0) || 0,
+        y: Number(first.position?.y ?? 0) || 0,
+      };
+    };
   }
 
   private getSocketForPlayer(playerNameOrId: string): string | undefined {
@@ -2344,6 +2488,17 @@ export class WorldTick {
       (sid, payload) => this.ws.sendToPlayer(sid, payload),
       (pid) => this.playerToSocket.get(pid),
     );
+    this.gameplayFusionDirector = new GameplayFusionDirector(
+      (category, key, seed) => this.resolveEntityGlbPath(category, key, seed),
+    );
+    this.npcSystem.setQuestEchoProvider(this.buildFusionQuestEchoProvider());
+    this.npcSystem.setProfileResolver((npc: any) => {
+      const adaptive = this.gameplayFusionDirector.resolveNpcGlbOverride(npc, Date.now());
+      return {
+        profileTag: adaptive ? "adaptive_fusion_profile" : "default_profile",
+        adaptiveGlbPath: adaptive ?? null,
+      };
+    });
 
     try {
       const { getSupabaseAdmin } = require("../lib/supabaseAdmin.js");
@@ -3601,6 +3756,7 @@ export class WorldTick {
   tick() {
     this.tickCount += 1;
     const now = Date.now();
+    this.tickFusionIntegrations(now);
     this.processTemplateQueue();
     void this.runPlaytesterTick(now);
     const warfrontTick = this.warfrontSystem.tick(now);
@@ -4066,6 +4222,12 @@ export class WorldTick {
     const cacheKey = `npc:${npc.id}:${npc.role}`;
     if (this.glbPathCache.has(cacheKey)) return this.glbPathCache.get(cacheKey);
 
+    const fusionOverride = this.gameplayFusionDirector.resolveNpcGlbOverride(npc);
+    if (fusionOverride) {
+      this.glbPathCache.set(cacheKey, fusionOverride);
+      return fusionOverride;
+    }
+
     const single = this.glbRegistry.getModelForTarget("npc_single", npc.id);
     if (single) {
       this.glbPathCache.set(cacheKey, single);
@@ -4084,6 +4246,12 @@ export class WorldTick {
   private resolveWorldObjectGlbPath(type: string | undefined, name: string | undefined, id: string): string | undefined {
     const cacheKey = `obj:${id}:${type}`;
     if (this.glbPathCache.has(cacheKey)) return this.glbPathCache.get(cacheKey);
+
+    const fusionOverride = this.gameplayFusionDirector.resolveWorldObjectGlbOverride(type);
+    if (fusionOverride) {
+      this.glbPathCache.set(cacheKey, fusionOverride);
+      return fusionOverride;
+    }
 
     const single = this.glbRegistry.getModelForTarget("object_single", id);
     if (single) {

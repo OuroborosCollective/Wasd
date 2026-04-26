@@ -2,10 +2,27 @@ import { NPCPersonalityEngine } from "./NPCPersonalityEngine.js";
 import { NPCMemoryEngine } from "./NPCMemoryEngine.js";
 import { NPCGenealogyEngine } from "./NPCGenealogyEngine.js";
 import { TraitResonanceEngine } from "./TraitResonanceEngine.js";
-import { NPCScheduleRegistry } from "./NPCScheduleRegistry.js";
 import fs from "fs";
 import path from "path";
 import { resolveContentFile } from "../content/contentDataRoot.js";
+
+type NpcFusionDeps = {
+  worldTime: number;
+  notifyNpcThinking: (
+    npcName: string,
+    thought: string,
+    position: { x: number; y: number; z?: number },
+  ) => void;
+  onClaimContract: (contractId: string, npc: any) => Promise<void>;
+  findNearbyConstructionContracts: (x: number, y: number, radius: number) => string[];
+  placeEchoBeacon: (
+    key: string,
+    npc: any,
+    kind: "talk_to" | "collect" | "combat",
+    ttlMs: number,
+  ) => Promise<void>;
+  evaluateAdaptiveProfileForNpc: (npc: any) => void;
+};
 
 export class NPCSystem {
   private npcs: Map<string, any> = new Map();
@@ -16,6 +33,15 @@ export class NPCSystem {
   public memoryEngine: NPCMemoryEngine;
   public genealogyEngine: NPCGenealogyEngine;
   public resonanceEngine: TraitResonanceEngine;
+  private questEchoProvider:
+    | ((npc: any) => { x: number; y: number } | null)
+    | null = null;
+  private profileResolver:
+    | ((npc: any) => {
+        profileTag: string;
+        adaptiveGlbPath: string | null;
+      })
+    | null = null;
 
   constructor() {
     this.personalityEngine = new NPCPersonalityEngine();
@@ -164,6 +190,74 @@ export class NPCSystem {
 
   getNPCsMap(): Map<string, any> {
     return this.npcs;
+  }
+
+  setQuestEchoProvider(
+    provider: ((npc: any) => { x: number; y: number } | null) | null,
+  ): void {
+    this.questEchoProvider = provider;
+  }
+
+  setProfileResolver(
+    resolver:
+      | ((npc: any) => {
+          profileTag: string;
+          adaptiveGlbPath: string | null;
+        })
+      | null,
+  ): void {
+    this.profileResolver = resolver;
+  }
+
+  async runFusionHeuristics(
+    deps: NpcFusionDeps,
+    allNpcs: any[],
+  ): Promise<void> {
+    for (const npc of allNpcs) {
+      const profile = this.profileResolver?.(npc) ?? null;
+      if (profile) {
+        npc.fusionProfileTag = profile.profileTag;
+        npc.fusionAdaptiveGlbPath = profile.adaptiveGlbPath;
+      }
+      const role = String(npc?.role || "").toLowerCase();
+      if (role.includes("builder") || role.includes("engineer")) {
+        deps.evaluateAdaptiveProfileForNpc(npc);
+      }
+
+      if (
+        role.includes("contractor") ||
+        role.includes("repair") ||
+        role.includes("designer")
+      ) {
+        const nearbyContracts = deps.findNearbyConstructionContracts(
+          Number(npc?.position?.x ?? 0),
+          Number(npc?.position?.y ?? 0),
+          40,
+        );
+        if (nearbyContracts.length > 0) {
+          const claim = nearbyContracts[0];
+          if (typeof claim === "string" && claim.length > 0) {
+            await deps.onClaimContract(claim, npc);
+            deps.notifyNpcThinking(
+              String(npc?.name || npc?.id || "NPC"),
+              `claimed contract ${claim}`,
+              npc.position || { x: 0, y: 0, z: 0 },
+            );
+          }
+        }
+      }
+
+      const echoTarget = this.questEchoProvider?.(npc) ?? null;
+      if (echoTarget) {
+        const echoKey = `npc:${npc.id}:quest_echo`;
+        await deps.placeEchoBeacon(echoKey, npc, "talk_to", 90_000);
+        if (!npc.targetPosition) {
+          npc.targetPosition = { x: echoTarget.x, y: echoTarget.y };
+          npc.state = "wandering";
+          npc.stateTimer = Date.now() + 10_000;
+        }
+      }
+    }
   }
 
   tick(players: any[], worldTime: number) {
