@@ -104,13 +104,16 @@ let initPromise: Promise<SupabaseClient | null> | null = null;
  * GoTrue expects grant_type in the query string, but @supabase/supabase-js sends it in the body.
  */
 async function customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  // Only transform POST requests to /auth/v1/token
-  if (init?.method === "POST" && typeof input === "string" && input.includes("/auth/v1/token")) {
+  let urlStr = "";
+  if (typeof input === "string") urlStr = input;
+  else if (input instanceof URL) urlStr = input.toString();
+  else if (input instanceof Request) urlStr = input.url;
+
+  if (init?.method === "POST" && urlStr.includes("/auth/v1/token")) {
     try {
-      const url = new URL(input);
+      const url = new URL(urlStr);
       const body = init.body ? JSON.parse(init.body as string) : {};
 
-      // If grant_type is in the body, move it to the query string
       if (body.grant_type) {
         url.searchParams.set("grant_type", body.grant_type);
         delete body.grant_type;
@@ -124,14 +127,13 @@ async function customFetch(input: RequestInfo | URL, init?: RequestInit): Promis
           },
         });
       }
-    } catch {
-      // If parsing fails, use the original request
+    } catch (e) {
+      console.warn("[Supabase] customFetch grant_type transformation failed:", e);
     }
   }
 
   return fetch(input, init);
 }
-
 async function getOrCreateClient(): Promise<SupabaseClient | null> {
   const envUrl = resolveUrlFromEnv();
   const envKey = resolveKeyFromEnv();
