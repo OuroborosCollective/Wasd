@@ -69,7 +69,7 @@ export const NewHud: React.FC<NewHudProps> = (p) => {
   };
 
   const renderTopLeft = () => (
-    <div className="hud-section top-left">
+    <div className="hud-section top-left" onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
       <div className="game-brand">
         <h1 className="gold-text">Areloria</h1>
         <p>Online</p>
@@ -90,7 +90,7 @@ export const NewHud: React.FC<NewHudProps> = (p) => {
   );
 
   const renderTopRight = () => (
-    <div className="hud-section top-right">
+    <div className="hud-section top-right" onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
       <div className="minimap-orb gold-frame">
         <div className="minimap-placeholder">
            <img src="/assets/ui-redesign/master_hud.png" alt="Map" style={{width: "100%", height: "100%", borderRadius: "50%", opacity: 0.5, objectFit: "cover"}} />
@@ -101,7 +101,7 @@ export const NewHud: React.FC<NewHudProps> = (p) => {
   );
 
   const renderBottomCenter = () => (
-    <div className="hud-section bottom-center">
+    <div className="hud-section bottom-center" onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
       <div className="action-orb-layout">
         <div className="skill-row left">
           <div className="skill-slot" onClick={() => sendUseSkill("frost_shard")} title="Frost Shard">❄️</div>
@@ -150,7 +150,7 @@ export const NewHud: React.FC<NewHudProps> = (p) => {
   );
 
   const renderBottomLeft = () => (
-    <div className="hud-section bottom-left gold-frame">
+    <div className="hud-section bottom-left gold-frame" onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
       <div className="chat-tabs">
         <span className="active">Global</span>
         <span>Trade</span>
@@ -175,7 +175,7 @@ export const NewHud: React.FC<NewHudProps> = (p) => {
   );
 
   const renderSideMenu = () => (
-    <div className="hud-section side-menu">
+    <div className="hud-section side-menu" onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
        <button className="menu-btn" onClick={() => p.onMenuOpen?.("inventory")} title="Inventory">🎒</button>
        <button className="menu-btn" onClick={() => p.onMenuOpen?.("skills")} title="Skills">📜</button>
        <button className="menu-btn" onClick={() => p.onMenuOpen?.("equipment")} title="Equipment">🛡️</button>
@@ -192,7 +192,7 @@ export const NewHud: React.FC<NewHudProps> = (p) => {
       {renderSideMenu()}
       
       {target && (
-        <div className="target-frame gold-frame">
+        <div className="target-frame gold-frame" onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
           <div className="target-hp-bar">
              <div className="fill" style={{width: `${(target.hp / (target.hpMax || 100)) * 100}%`}}></div>
           </div>

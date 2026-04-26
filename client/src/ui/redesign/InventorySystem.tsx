@@ -56,8 +56,8 @@ export const InventorySystem: React.FC<{ onClose: () => void }> = ({ onClose }) 
   };
 
   return (
-    <div className="inventory-overlay" onClick={onClose}>
-      <div className="inventory-card gold-frame" onClick={e => e.stopPropagation()}>
+    <div className="inventory-overlay" onClick={onClose} onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+      <div className="inventory-card gold-frame" onClick={e => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
         <header className="inventory-header">
           <h2 className="gold-text">Master Inventory</h2>
           <div className="inv-stats gold-text">{allDisplayItems.length} / 40 Slots</div>

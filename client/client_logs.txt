@@ -1,0 +1,16 @@
+
+> areloria-client@0.2.0 predev
+> node ../scripts/sync-world-assets.mjs
+
+[sync-world-assets] /app/world-assets → /app/client/public/world-assets
+[sync-world-assets] /app/world-assets → /app/client/public/assets/models/world-assets
+
+> areloria-client@0.2.0 dev
+> vite
+
+
+  VITE v8.0.8  ready in 473 ms
+
+  ➜  Local:   http://localhost:3001/
+  ➜  Network: use --host to expose
+2:26:09 AM [vite] (client) [optimizer] bundling dependencies...
