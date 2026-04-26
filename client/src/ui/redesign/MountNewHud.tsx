@@ -28,7 +28,7 @@ export function mountNewHud(core: MMORPGClientCore) {
 
   function NewHudApp() {
     const coreRef = useRef(core);
-    coreRef.current = core;
+    useEffect(() => { coreRef.current = core; }, [core]);
 
     const {
       youId,
