@@ -32,8 +32,8 @@ export const EquipmentPanel: React.FC<{ onClose: () => void }> = ({ onClose }) =
   };
 
   return (
-    <div className="equipment-overlay" onClick={onClose}>
-      <div className="equipment-card gold-frame" onClick={e => e.stopPropagation()}>
+    <div className="equipment-overlay" onClick={onClose} onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+      <div className="equipment-card gold-frame" onClick={e => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
         <header className="equipment-header">
           <h2 className="gold-text">Character & Gear</h2>
           <button className="close-btn" onClick={onClose}>×</button>

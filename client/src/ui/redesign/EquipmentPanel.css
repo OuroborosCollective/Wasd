@@ -178,9 +178,16 @@
 }
 
 @media (max-width: 700px) {
+    .equipment-card {
+        height: 100dvh;
+        max-height: 100dvh;
+        width: 100vw;
+        max-width: none;
+        border-radius: 0;
+        padding-bottom: env(safe-area-inset-bottom);
+    }
     .equipment-content { flex-direction: column; height: auto; padding: 20px; gap: 30px; overflow-y: auto; }
     .slots-column { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 15px; }
     .char-render-ring { width: 160px; height: 160px; }
     .char-placeholder { font-size: 80px; }
-    .equipment-card { height: 95vh; }
 }

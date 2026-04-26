@@ -92,8 +92,8 @@ export const MasteryDashboard: React.FC<{ onClose: () => void }> = ({ onClose })
   };
 
   return (
-    <div className="mastery-dashboard-overlay" onClick={onClose}>
-      <div className="mastery-dashboard-card gold-frame" onClick={e => e.stopPropagation()}>
+    <div className="mastery-dashboard-overlay" onClick={onClose} onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+      <div className="mastery-dashboard-card gold-frame" onClick={e => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
         <header className="dashboard-header">
           <div className="total-level">
             <span className="gold-text" style={{fontSize: "20px"}}>Mastery & Stats</span>
