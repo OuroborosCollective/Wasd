@@ -1,7 +1,7 @@
 import { NodeSDK } from '@opentelemetry/sdk-node'
 import { resourceFromAttributes } from '@opentelemetry/resources'
 import { PostHogSpanProcessor } from '@posthog/ai/otel'
-import { GoogleGenerativeAiInstrumentation } from '@traceloop/instrumentation-google-generativeai'
+import { GenAIInstrumentation } from '@traceloop/instrumentation-google-generativeai'
 
 const sdk = new NodeSDK({
   resource: resourceFromAttributes({
@@ -13,7 +13,7 @@ const sdk = new NodeSDK({
       host: process.env.POSTHOG_HOST || 'https://us.i.posthog.com',
     }),
   ],
-  instrumentations: [new GoogleGenerativeAiInstrumentation() as any],
+  instrumentations: [new GenAIInstrumentation() as any],
 })
 
 sdk.start()

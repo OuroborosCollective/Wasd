@@ -81,6 +81,13 @@
   box-shadow: inset 0 0 15px rgba(212, 175, 55, 0.1);
 }
 
+.inventory-nav button:focus-visible,
+.inv-actions button:focus-visible,
+.close-btn:focus-visible {
+  outline: 2px solid #d4af37;
+  outline-offset: 2px;
+}
+
 .inventory-grid-redesign {
   flex: 1;
   display: grid;
@@ -106,11 +113,13 @@
   padding: 10px;
 }
 
-.item-slot-redesign:hover {
+.item-slot-redesign:hover,
+.item-slot-redesign:focus-visible {
   background: rgba(255,255,255,0.05);
   border-color: #d4af37;
   transform: translateY(-3px) scale(1.02);
   box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+  outline: none;
 }
 
 .item-slot-redesign.gear-item {
