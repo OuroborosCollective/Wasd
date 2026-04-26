@@ -58,6 +58,9 @@ import { ensurePlayerVoteProgress } from "../modules/vote/playerVoteProgress.js"
 import { WarfrontSystem } from "../modules/warfront/WarfrontSystem.js";
 import { ensurePlayerWarfrontProgress } from "../modules/warfront/playerWarfrontProgress.js";
 import type { WarfrontSectorKind } from "../modules/warfront/warfrontTypes.js";
+import { PlaytesterConfig } from "../config/PlaytesterConfig.js";
+import { AutonomousPlaytester } from "../modules/playtester/AutonomousPlaytester.js";
+import type { PlaytesterMonitorUpdatePayload } from "../modules/playtester/playtesterTypes.js";
 import { CraftingSystem } from "../modules/crafting/CraftingSystem.js";
 import {
   initRedisChatRelay,
@@ -387,7 +390,11 @@ export class WorldTick {
   private worldBossDungeonSystem: WorldBossDungeonSystem;
   private voteSystem: VoteSystem;
   private warfrontSystem: WarfrontSystem;
+  private playtester: AutonomousPlaytester | null = null;
   private warfrontStatusBroadcastTick = 0;
+  private playtesterLastTickAt = 0;
+  private playtesterTickAccumulatorMs = 0;
+  private playtesterStreamCounter = 0;
   private worldBossRespawnAt = 0;
   private worldBossEncounterSummaries: any[] = [];
   private readonly USE_ITEM_TOASTS: Record<string, string> = {
@@ -1188,6 +1195,93 @@ export class WorldTick {
       }
     }
     return undefined;
+  }
+
+  private isSocketBound(socketId: string): boolean {
+    return this.socketToPlayer.has(socketId);
+  }
+
+  public bindSyntheticSocketToPlayer(socketId: string, playerId: string): void {
+    this.socketToPlayer.set(socketId, playerId);
+    this.playerToSocket.set(playerId, socketId);
+    this.observerEngine.register(socketId, {
+      x: Number(this.playerSystem.getPlayer(playerId)?.position?.x) || 0,
+      y: Number(this.playerSystem.getPlayer(playerId)?.position?.y) || 0,
+    });
+  }
+
+  public getOrCreatePlayerForAutomation(id: string, displayName: string): any {
+    let player = this.playerSystem.getPlayer(id);
+    if (!player) {
+      player = this.playerSystem.createPlayer(id, displayName);
+      this.ensurePlayerProgressDefaults(player);
+      player.isOffline = false;
+    }
+    return player;
+  }
+
+  public getLootEntitiesForAutomation(): Map<string, any> {
+    return this.lootEntities;
+  }
+
+  public getWorldObjectsForAutomation(): any[] {
+    const map = this.worldSystem.objectSystem?.getObjectsMap?.();
+    if (map && typeof map.values === "function") {
+      return Array.from(map.values());
+    }
+    return [];
+  }
+
+  public async handleSyntheticMessage(socketId: string, msg: Record<string, unknown>): Promise<void> {
+    const messageType = typeof msg?.type === "string" ? msg.type : "";
+    if (messageType === "ping") return;
+    if (messageType === "login") return;
+    const uid = this.socketToPlayer.get(socketId);
+    if (!uid) {
+      this.bindSyntheticSocketToPlayer(socketId, PlaytesterConfig.id);
+    }
+    const handler = this.ws.onPlayerMessage;
+    if (!handler) return;
+    await handler(socketId, msg);
+  }
+
+  private async runPlaytesterTick(now: number): Promise<void> {
+    if (!this.playtester || !PlaytesterConfig.enabled) return;
+    const elapsed = this.playtesterLastTickAt > 0 ? now - this.playtesterLastTickAt : PlaytesterConfig.tickMs;
+    this.playtesterLastTickAt = now;
+    this.playtesterTickAccumulatorMs += Math.max(0, elapsed);
+    if (this.playtesterTickAccumulatorMs < PlaytesterConfig.tickMs) {
+      return;
+    }
+    this.playtesterTickAccumulatorMs = 0;
+    await this.playtester.tick(now);
+  }
+
+  private initializePlaytesterBindings(): void {
+    if (!PlaytesterConfig.enabled || !this.playtester) return;
+    this.bindSyntheticSocketToPlayer(PlaytesterConfig.syntheticSocketId, PlaytesterConfig.id);
+    const player = this.getOrCreatePlayerForAutomation(PlaytesterConfig.id, PlaytesterConfig.displayName);
+    this.ensurePlayerProgressDefaults(player);
+    player.isOffline = false;
+    this.observerEngine.updatePosition(PlaytesterConfig.syntheticSocketId, {
+      x: Number(player.position?.x) || 0,
+      y: Number(player.position?.y) || 0,
+    });
+  }
+
+  public buildPlaytesterMonitorPayload(opts?: {
+    performanceMode?: boolean;
+    placeholderMode?: boolean;
+    radiusChunks?: number;
+  }): PlaytesterMonitorUpdatePayload | null {
+    if (!this.playtester || !PlaytesterConfig.enabled || !PlaytesterConfig.streamEnabled) {
+      return null;
+    }
+    return this.playtester.buildMonitorPayload(opts);
+  }
+
+  public getPlaytesterDebugLogPath(): string | null {
+    return this.playtester ? this.playtester.getDebugLogPath() : null;
   }
 
   private getPlayerByNameOrId(playerNameOrId: string) {
@@ -2207,6 +2301,30 @@ export class WorldTick {
     this.worldBossDungeonSystem = new WorldBossDungeonSystem();
     this.voteSystem = new VoteSystem();
     this.warfrontSystem = new WarfrontSystem();
+    if (PlaytesterConfig.enabled) {
+      this.playtester = new AutonomousPlaytester({
+        isSocketBound: (socketId) => this.isSocketBound(socketId),
+        bindSocketToPlayer: (socketId, playerId) => this.bindSyntheticSocketToPlayer(socketId, playerId),
+        getOrCreatePlayer: (id, displayName) => this.getOrCreatePlayerForAutomation(id, displayName),
+        ensurePlayerDefaults: (player) => this.ensurePlayerProgressDefaults(player),
+        applySpawnToPlayer: (player, sceneId, spawnKey) => this.applySpawnToPlayer(player, sceneId, spawnKey),
+        updateObserverPosition: (socketId, position) => this.observerEngine.updatePosition(socketId, position),
+        processSceneTriggers: (socketId, player) => this.processSceneTriggers(socketId, player),
+        getChunkId: (x, y) => this.chunkSystem.getChunkId(x, y),
+        getAllNpcs: () => this.npcSystem.getAllNPCs(),
+        getAllPlayers: () => this.playerSystem.getAllPlayers(),
+        getLootEntities: () => this.getLootEntitiesForAutomation(),
+        getWorldObjects: () => this.getWorldObjectsForAutomation(),
+        getQuestDefinitions: () => this.questSystem.getQuestDefinitions(),
+        getQuestSyncForClient: (player) => this.questSystem.getQuestSyncForClient(player),
+        startQuest: (player, questId) => this.questSystem.startQuest(player, questId),
+        checkTalkToQuests: (player, npcId) => this.questSystem.checkTalkToQuests(player, npcId),
+        checkCollectTurnInQuests: (player, npcId) => this.questSystem.checkCollectTurnInQuests(player, npcId),
+        updateCombatQuests: (player, npcId, npcInstanceId) =>
+          this.questSystem.updateCombatQuests(player, npcId, npcInstanceId),
+        sendToSyntheticSocket: async (socketId, msg) => this.handleSyntheticMessage(socketId, msg),
+      });
+    }
     this.worldBossRespawnAt = Date.now() + 1000;
 
     // World generation / placement pipeline
@@ -2264,7 +2382,7 @@ export class WorldTick {
       }
     };
 
-    this.ws.onPlayerMessage = async (id, msg) => {
+    const handlePlayerMessage = async (id: string, msg: any) => {
       // Heartbeat: respond to ping with pong
 
       if (msg.type === "update_attributes") {
@@ -3300,6 +3418,9 @@ export class WorldTick {
         return;
       }
     };
+    this.ws.onPlayerMessage = async (id, msg) => {
+      await handlePlayerMessage(id, msg);
+    };
   }
 
   private getChatRecipients(): ChatRecipient[] {
@@ -3331,6 +3452,13 @@ export class WorldTick {
 
     for (const npc of this.npcSystem.getAllNPCs()) {
       void loadNpcMemory(this.npcMemoryCache, npc.id).catch(() => {});
+    }
+    this.initializePlaytesterBindings();
+    if (PlaytesterConfig.enabled && this.playtester) {
+      const debugLog = this.playtester.getDebugLogPath();
+      console.log(
+        `[Playtester] enabled id=${PlaytesterConfig.id} tickMs=${PlaytesterConfig.tickMs} log=${debugLog}`,
+      );
     }
   }
 
@@ -3474,6 +3602,7 @@ export class WorldTick {
     this.tickCount += 1;
     const now = Date.now();
     this.processTemplateQueue();
+    void this.runPlaytesterTick(now);
     const warfrontTick = this.warfrontSystem.tick(now);
     if (warfrontTick.rotated) {
       this.ws.broadcast({
@@ -3517,6 +3646,16 @@ export class WorldTick {
     this.npcSystem.tick(onlinePlayers, this.worldSystem.worldTime);
     this.worldSystem.tick();
     this.cleanupExpiredLoot();
+    if (this.playtester && PlaytesterConfig.streamEnabled) {
+      this.playtesterStreamCounter += 1;
+      if (this.playtesterStreamCounter >= 2) {
+        this.playtesterStreamCounter = 0;
+        this.ws.broadcast({
+          type: "playtester_status",
+          status: this.playtester.getStatus(),
+        });
+      }
+    }
 
     if (this.tickCount % 600 === 0) this.saveAll();
 

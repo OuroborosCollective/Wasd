@@ -23,6 +23,8 @@ import {
   selfHealingMiddleware,
 } from "../selfhealing/SelfHealingSystem.js";
 import { registerSelfHealingDashboard } from "../selfhealing/SelfHealingDashboard.js";
+import { PlaytesterConfig } from "../config/PlaytesterConfig.js";
+import { PlaytesterMonitorStream } from "../modules/playtester/PlaytesterMonitorStream.js";
 import { URL } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -85,6 +87,50 @@ function envTruthy(key: string): boolean {
 function trimEnv(key: string): string {
   const value = process.env[key];
   return typeof value === "string" ? value.trim() : "";
+}
+
+function resolvePlaytesterMonitorHtmlPath(clientRoot: string, clientDist: string): string | null {
+  const preferPublic = process.env.NODE_ENV !== "production";
+  const candidates = preferPublic
+    ? [
+        path.join(clientRoot, "public", "playtester-monitor.html"),
+        path.join(clientDist, "playtester-monitor.html"),
+      ]
+    : [
+        path.join(clientDist, "playtester-monitor.html"),
+        path.join(clientRoot, "public", "playtester-monitor.html"),
+      ];
+  for (const p of candidates) {
+    if (existsSync(p)) {
+      return path.resolve(p);
+    }
+  }
+  return null;
+}
+
+function tokenFromRequest(req: Request): string {
+  const query = typeof req.query.token === "string" ? req.query.token.trim() : "";
+  if (query) return query;
+  const header = typeof req.headers["x-playtester-token"] === "string"
+    ? req.headers["x-playtester-token"].trim()
+    : "";
+  if (header) return header;
+  const auth = typeof req.headers.authorization === "string"
+    ? req.headers.authorization.replace(/^Bearer\s+/i, "").trim()
+    : "";
+  return auth;
+}
+
+function canAccessPlaytesterMonitor(req: Request): boolean {
+  const configuredToken = PlaytesterConfig.monitorToken;
+  if (configuredToken.length > 0) {
+    return tokenFromRequest(req) === configuredToken;
+  }
+  if (process.env.NODE_ENV !== "production") {
+    return true;
+  }
+  const remote = String(req.socket.remoteAddress || "");
+  return remote === "127.0.0.1" || remote === "::1" || remote === "::ffff:127.0.0.1";
 }
 
 /** Public anon config for the browser bundle (no service role). */
@@ -323,6 +369,39 @@ export class ServerBootstrap {
 
     const tick = new WorldTick(ws);
     await tick.init();
+    const monitorStream = new PlaytesterMonitorStream(httpServer, (options) =>
+      tick.buildPlaytesterMonitorPayload(options)
+    );
+    monitorStream.start();
+    const monitorClientRoot = resolveClientRoot();
+    const monitorHtmlPath = resolvePlaytesterMonitorHtmlPath(
+      monitorClientRoot,
+      path.join(monitorClientRoot, "dist"),
+    );
+    if (monitorHtmlPath) {
+      app.get("/playtester-monitor.html", (req, res) => {
+        if (!canAccessPlaytesterMonitor(req)) {
+          res.status(403).json({ error: "forbidden" });
+          return;
+        }
+        res.sendFile(monitorHtmlPath);
+      });
+    }
+    app.get("/api/playtester/debug-log", (req, res) => {
+      if (!canAccessPlaytesterMonitor(req)) {
+        res.status(403).json({ error: "forbidden" });
+        return;
+      }
+      const logPath = tick.getPlaytesterDebugLogPath();
+      res.json({
+        ok: Boolean(logPath),
+        enabled: PlaytesterConfig.enabled,
+        streamEnabled: PlaytesterConfig.streamEnabled,
+        monitorPath: PlaytesterConfig.monitorPath,
+        monitorTokenRequired: PlaytesterConfig.monitorToken.length > 0,
+        debugLogPath: logPath,
+      });
+    });
     app.use("/api/admin/content", adminContentRouter(tick));
     app.use("/api/vote", voteRouter(tick));
     registerSelfHealingDashboard(
@@ -483,6 +562,13 @@ export class ServerBootstrap {
             startupScanDone: stats.startupScanDone,
           };
         })(),
+        playtester: {
+          enabled: PlaytesterConfig.enabled,
+          streamEnabled: PlaytesterConfig.streamEnabled,
+          monitorPath: PlaytesterConfig.monitorPath,
+          monitorTokenRequired: PlaytesterConfig.monitorToken.length > 0,
+          debugLogPath: tick.getPlaytesterDebugLogPath(),
+        },
       });
     });
     app.use(selfHealingMiddleware());

@@ -28,11 +28,24 @@ export class GameWebSocketServer {
 
   private readonly socketToPlayerUid = new Map<string, string>();
   private readonly playerUidRateAt = new Map<string, number[]>();
+  private upgradeHandler:
+    | ((req: import("http").IncomingMessage, socket: any, head: Buffer) => void)
+    | null = null;
 
   constructor(private readonly httpServer: HttpServer) {}
 
   start() {
-    this.wss = new WebSocketServer({ server: this.httpServer, path: "/ws" });
+    this.wss = new WebSocketServer({ noServer: true });
+    this.upgradeHandler = (req, socket, head) => {
+      const rawPath = String(req.url || "").split("?")[0];
+      if (rawPath !== "/ws") {
+        return;
+      }
+      this.wss?.handleUpgrade(req, socket, head, (ws) => {
+        this.wss?.emit("connection", ws, req);
+      });
+    };
+    this.httpServer.on("upgrade", this.upgradeHandler);
 
     this.wss.on("connection", (socket: WebSocket & { id?: string }) => {
       const id = randomUUID();
@@ -148,6 +161,17 @@ export class GameWebSocketServer {
         client.send(message);
         break;
       }
+    }
+  }
+
+  stop() {
+    if (this.upgradeHandler) {
+      this.httpServer.off("upgrade", this.upgradeHandler);
+      this.upgradeHandler = null;
+    }
+    if (this.wss) {
+      this.wss.close();
+      this.wss = null;
     }
   }
 }

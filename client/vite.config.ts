@@ -48,7 +48,10 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         input: isItchBuild
           ? path.resolve(__dirname, "index.itch.html")
-          : path.resolve(__dirname, "index.html"),
+          : {
+              main: path.resolve(__dirname, "index.html"),
+              playtester_monitor: path.resolve(__dirname, "playtester-monitor.html"),
+            },
         output: {
           manualChunks(id) {
             if (id.includes("node_modules/@babylonjs/loaders")) return "babylon-loaders";
