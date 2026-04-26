@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { supabase } from "../../auth/supabase";
+import { supabase, isSupabaseClientConfigured } from "../../auth/supabase";
+import { mapSupabaseAuthError } from "../authMessages";
 import "./LoginScreen.css";
 
 interface LoginScreenProps {
@@ -18,6 +19,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     setError(null);
     setLoading(true);
 
+    if (!isSupabaseClientConfigured()) {
+      setError("Authentication is not configured on this server.");
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -29,7 +36,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         onLoginSuccess(data.session.access_token);
       }
     } catch (err: any) {
-      setError(err.message || "An error occurred during login");
+      console.error("[LoginScreen] handleLogin failed:", err);
+      setError(mapSupabaseAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -39,6 +47,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
+
+    if (!isSupabaseClientConfigured()) {
+      setError("Authentication is not configured on this server.");
+      setLoading(false);
+      return;
+    }
 
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -50,7 +64,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       setError("Registration successful! Please check your email for verification.");
       setIsRegistering(false);
     } catch (err: any) {
-      setError(err.message || "An error occurred during registration");
+      console.error("[LoginScreen] handleRegister failed:", err);
+      setError(mapSupabaseAuthError(err));
     } finally {
       setLoading(false);
     }
