@@ -82,6 +82,7 @@ export class PlayerSystem {
     return this.players.get(id);
   }
 
+
   getAllPlayers() {
     return Array.from(this.players.values());
   }

@@ -24,6 +24,7 @@ import {
   tryCompleteQuestlineTalkAtNpc,
 } from "../modules/questline/questlineBridge.js";
 import { WorldSystem } from "../modules/world/WorldSystem.js";
+import { WorldObject } from "../modules/world/WorldObjectSystem.js";
 import { PersistenceManager } from "./PersistenceManager.js";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
 import { GLBRegistry } from "../modules/asset-registry/GLBRegistry.js";
@@ -3436,6 +3437,9 @@ export class WorldTick {
     const tickCount = this.tickCount;
     const entities: any[] = [];
 
+    // Optimize: Zero-allocation iteration using internal Maps and for...of
+    const playersMap = this.playerSystem.getPlayersMap();
+    for (const p of playersMap.values()) {
     for (const p of this.playerSystem.getPlayersMap().values()) {
       entities.push({
         id: p.id,
@@ -3460,6 +3464,8 @@ export class WorldTick {
       });
     }
 
+    const npcsMap = this.npcSystem.getNPCsMap();
+    for (const n of npcsMap.values()) {
     for (const n of this.npcSystem.getNPCsMap().values()) {
       entities.push({
         id: n.id,
@@ -3514,6 +3520,8 @@ export class WorldTick {
 
     // Include world objects if they exist
     if (this.worldSystem.objectSystem) {
+      const objectsMap: Map<string, WorldObject> = this.worldSystem.objectSystem.getObjectsMap();
+      for (const obj of objectsMap.values()) {
       for (const obj of this.worldSystem.objectSystem.getObjectsMap().values()) {
         entities.push({
           id: obj.id,

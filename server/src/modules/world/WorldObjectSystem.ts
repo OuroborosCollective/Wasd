@@ -38,7 +38,8 @@ export class WorldObjectSystem {
     return Array.from(this.objects.values());
   }
 
-  public get objectsMap(): Map<string, WorldObject> {
+
+  public getObjectsMap(): Map<string, WorldObject> {
     return this.objects;
   }
 
