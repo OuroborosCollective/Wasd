@@ -10,6 +10,10 @@ describe("Player snapshot — death/respawn fields", () => {
     expect(PLAYER_PERSIST_KEYS).toContain("totalDeaths");
   });
 
+  it("PLAYER_PERSIST_KEYS includes warfrontProgress", () => {
+    expect(PLAYER_PERSIST_KEYS).toContain("warfrontProgress");
+  });
+
   it("serializes totalDeaths", () => {
     const player = { id: "p1", totalDeaths: 7 };
     const snap = serializePlayerForPersistence(player);
@@ -27,5 +31,21 @@ describe("Player snapshot — death/respawn fields", () => {
     };
     mergePersistedPlayerInto(player, { totalDeaths: 12 });
     expect(player.totalDeaths).toBe(12);
+  });
+
+  it("hydrates default warfrontProgress on merge", () => {
+    const player = {
+      id: "p2",
+      totalDeaths: 0,
+      inventory: [],
+      equipment: { weapon: null, armor: null, offHand: null },
+      position: { x: 0, y: 0, z: 0 },
+      skillCooldowns: {},
+    };
+    mergePersistedPlayerInto(player, {});
+    expect(player.warfrontProgress).toBeTruthy();
+    expect(player.warfrontProgress.seasonId).toBe("");
+    expect(player.warfrontProgress.seasonPoints).toBe(0);
+    expect(Array.isArray(player.warfrontProgress.claimedTierIds)).toBe(true);
   });
 });

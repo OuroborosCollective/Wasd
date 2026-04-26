@@ -8,6 +8,8 @@ import {
   getPlayerMana, getPlayerMaxMana,
   getPlayerXp, getPlayerLevel
 } from "../../state/playerState";
+import type { WarfrontHudState } from "../useGameHudState";
+import { WarfrontPanel } from "./WarfrontPanel";
 import "./RedesignTheme.css";
 import "./NewHud.css";
 
@@ -27,6 +29,7 @@ type NewHudProps = {
   fxFeed: any[];
   questlineProgress?: string | null;
   onMenuOpen?: (panel: string) => void;
+  warfront?: WarfrontHudState | null;
 };
 
 export const NewHud: React.FC<NewHudProps> = (p) => {
@@ -86,6 +89,7 @@ export const NewHud: React.FC<NewHudProps> = (p) => {
           <p className="no-quests">Explore the world...</p>
         )}
       </div>
+      <WarfrontPanel warfront={p.warfront ?? null} />
     </div>
   );
 

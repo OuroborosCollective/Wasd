@@ -64,6 +64,38 @@ export type VoteBannerHud = {
   };
 };
 
+export type WarfrontHudSector = {
+  id: string;
+  label: string;
+  kind: "combat" | "crafting" | "scouting";
+  routeKey: string;
+  targetPoints: number;
+  currentPoints: number;
+  progressPct: number;
+  yourPoints: number;
+};
+
+export type WarfrontHudState = {
+  cycleId: string;
+  seasonId: string;
+  phase: "building" | "boss_ready" | "boss_active" | "cooldown";
+  progressPct: number;
+  endsAt: number;
+  sectors: WarfrontHudSector[];
+  personal: {
+    cyclePoints: number;
+    seasonPoints: number;
+    nextTierPoints?: number;
+    nextTierLabel?: string;
+    claimedTierIds: string[];
+  };
+  frontBoss: {
+    active: boolean;
+    npcId: string | null;
+    mutator: string | null;
+  };
+};
+
 function mapEntityKind(type: unknown): EntityNet["kind"] {
   const t = typeof type === "string" ? type : "";
   if (t === "player" || t === "npc" || t === "monster" || t === "loot" || t === "object") {
@@ -140,6 +172,7 @@ export function useGameHudState() {
     blocks: [],
   });
   const [voteBanners, setVoteBanners] = useState<VoteBannerHud[]>([]);
+  const [warfront, setWarfront] = useState<WarfrontHudState | null>(null);
 
   const fxId = useRef(0);
 
@@ -398,6 +431,71 @@ export function useGameHudState() {
             .sort((a, b) => a.sortOrder - b.sortOrder);
           return merged;
         });
+      } else if (
+        (msgType === "warfront_status" || msgType === "warfront_info_result") &&
+        data.status &&
+        typeof data.status === "object"
+      ) {
+        const status = data.status as Record<string, unknown>;
+        const sectors = Array.isArray(status.sectors) ? status.sectors : [];
+        const personalRaw =
+          status.personal && typeof status.personal === "object"
+            ? (status.personal as Record<string, unknown>)
+            : {};
+        const nextTierRaw =
+          personalRaw.nextTier && typeof personalRaw.nextTier === "object"
+            ? (personalRaw.nextTier as Record<string, unknown>)
+            : null;
+        const frontBossRaw =
+          status.frontBoss && typeof status.frontBoss === "object"
+            ? (status.frontBoss as Record<string, unknown>)
+            : {};
+        setWarfront({
+          cycleId: typeof status.cycleId === "string" ? status.cycleId : "",
+          seasonId: typeof status.seasonId === "string" ? status.seasonId : "",
+          phase:
+            status.phase === "boss_ready" ||
+            status.phase === "boss_active" ||
+            status.phase === "cooldown"
+              ? status.phase
+              : "building",
+          progressPct: Math.max(0, Math.min(100, Number(status.progressPct ?? 0))),
+          endsAt: Math.max(0, Number(status.endsAt ?? 0)),
+          sectors: sectors
+            .map((row) => {
+              if (!row || typeof row !== "object") return null;
+              const s = row as Record<string, unknown>;
+              const id = typeof s.id === "string" ? s.id : "";
+              if (!id) return null;
+              return {
+                id,
+                label: typeof s.label === "string" ? s.label : id,
+                kind: s.kind === "crafting" || s.kind === "scouting" ? s.kind : "combat",
+                routeKey: typeof s.routeKey === "string" ? s.routeKey : "",
+                targetPoints: Math.max(0, Number(s.targetPoints ?? 0)),
+                currentPoints: Math.max(0, Number(s.currentPoints ?? 0)),
+                progressPct: Math.max(0, Math.min(100, Number(s.progressPct ?? 0))),
+                yourPoints: Math.max(0, Number(s.yourPoints ?? 0)),
+              } satisfies WarfrontHudSector;
+            })
+            .filter((row): row is WarfrontHudSector => Boolean(row)),
+          personal: {
+            cyclePoints: Math.max(0, Number(personalRaw.cyclePoints ?? 0)),
+            seasonPoints: Math.max(0, Number(personalRaw.seasonPoints ?? 0)),
+            nextTierPoints: nextTierRaw
+              ? Math.max(0, Number(nextTierRaw.pointsRequired ?? 0))
+              : undefined,
+            nextTierLabel: nextTierRaw && typeof nextTierRaw.id === "string" ? nextTierRaw.id : undefined,
+            claimedTierIds: Array.isArray(personalRaw.claimedTierIds)
+              ? personalRaw.claimedTierIds.filter((x): x is string => typeof x === "string")
+              : [],
+          },
+          frontBoss: {
+            active: Boolean(frontBossRaw.active),
+            npcId: typeof frontBossRaw.npcId === "string" ? frontBossRaw.npcId : null,
+            mutator: typeof frontBossRaw.mutator === "string" ? frontBossRaw.mutator : null,
+          },
+        });
       }
     },
     [applyVoteStatusPayload, onServerMsg]
@@ -504,6 +602,7 @@ export function useGameHudState() {
     worldBossTop,
     voteBuff,
     voteBanners,
+    warfront,
     onServerMsg,
     onWirePayload,
     onEntitySync,

@@ -55,6 +55,9 @@ import { ServerTerrainAdapter } from "../world/adapters/ExistingDynamicTerrainAd
 import { ExistingTreeGeneratorAdapter } from "../world/adapters/ExistingTreeGeneratorAdapter.js";
 import { VoteSystem } from "../modules/vote/VoteSystem.js";
 import { ensurePlayerVoteProgress } from "../modules/vote/playerVoteProgress.js";
+import { WarfrontSystem } from "../modules/warfront/WarfrontSystem.js";
+import { ensurePlayerWarfrontProgress } from "../modules/warfront/playerWarfrontProgress.js";
+import type { WarfrontSectorKind } from "../modules/warfront/warfrontTypes.js";
 import { CraftingSystem } from "../modules/crafting/CraftingSystem.js";
 import {
   initRedisChatRelay,
@@ -164,6 +167,8 @@ const DEFAULT_SCENE_PROFILES: Record<string, SceneProfile> = {
   },
 };
 const SCENE_TRIGGER_COOLDOWN_MS = 2500;
+const WARFRONT_FRONT_BOSS_BASE_NPC_ID = "npc_warfront_frontboss_herald";
+const WARFRONT_STATUS_BROADCAST_TICK_INTERVAL = 20;
 const DEFAULT_SCENE_TRIGGER_ZONES: SceneTriggerZone[] = [
   {
     id: "tr_to_didi_01",
@@ -381,6 +386,8 @@ export class WorldTick {
   public npcRelationships: NPCRelationshipSystem;
   private worldBossDungeonSystem: WorldBossDungeonSystem;
   private voteSystem: VoteSystem;
+  private warfrontSystem: WarfrontSystem;
+  private warfrontStatusBroadcastTick = 0;
   private worldBossRespawnAt = 0;
   private worldBossEncounterSummaries: any[] = [];
   private readonly USE_ITEM_TOASTS: Record<string, string> = {
@@ -391,6 +398,7 @@ export class WorldTick {
   private ensurePlayerProgressDefaults(player: any): void {
     this.worldBossDungeonSystem.ensurePlayerProgressFields(player);
     ensurePlayerVoteProgress(player);
+    ensurePlayerWarfrontProgress(player);
     if (!player.equipment || typeof player.equipment !== "object") {
       player.equipment = { weapon: null, armor: null, offHand: null };
       return;
@@ -509,6 +517,7 @@ export class WorldTick {
   }
 
   private tryHandleWorldBossDefeat(killer: any, target: any): boolean {
+    if (this.tryHandleWarfrontFrontBossDefeat(killer, target)) return true;
     if (!this.worldBossDungeonSystem.isWorldBossNpc(target)) return false;
     const playersById = new Map<string, any>();
     for (const p of this.playerSystem.getAllPlayers()) {
@@ -633,6 +642,101 @@ export class WorldTick {
       });
     }
     return gained;
+  }
+
+  private pushWarfrontStatus(socketId: string, player: any): void {
+    const status = this.warfrontSystem.getStatusForPlayer(player, Date.now());
+    this.ws.sendToPlayer(socketId, {
+      type: "warfront_status",
+      status,
+    });
+  }
+
+  private pushAllWarfrontStatuses(): void {
+    for (const player of this.playerSystem.getAllPlayers()) {
+      const socketId = this.getSocketForPlayer(player.id);
+      if (!socketId) continue;
+      this.pushWarfrontStatus(socketId, player);
+    }
+  }
+
+  private applyWarfrontContribution(
+    player: any,
+    socketId: string | null,
+    kind: WarfrontSectorKind,
+    amount: number,
+    source: string,
+  ): void {
+    const result = this.warfrontSystem.registerContribution(player, kind, amount, Date.now());
+    if (!result.accepted) return;
+    const resolvedSocket = socketId ?? this.getSocketForPlayer(player.id) ?? null;
+    if (resolvedSocket) {
+      this.ws.sendToPlayer(resolvedSocket, {
+        type: "toast",
+        kind: "ok",
+        text: `Warfront +${Math.max(0, Math.floor(amount))} (${source})`,
+      });
+      this.pushWarfrontStatus(resolvedSocket, player);
+    }
+    if (result.becameBossReady) {
+      this.ws.broadcast({
+        type: "warfront_frontboss_ready",
+        cycleId: this.warfrontSystem.getCycleSnapshot().cycleId,
+      });
+      this.trySpawnWarfrontFrontBoss();
+      this.pushAllWarfrontStatuses();
+    }
+  }
+
+  private trySpawnWarfrontFrontBoss(): boolean {
+    const allowed = this.warfrontSystem.canSpawnFrontBoss(Date.now());
+    if (!allowed.ok) return false;
+    const point = this.warfrontSystem.getFrontBossSpawnPoint();
+    const npcId = `${WARFRONT_FRONT_BOSS_BASE_NPC_ID}_${randomUUID().slice(0, 8)}`;
+    const boss = this.npcSystem.createNPC(npcId, "Warfront Herald", point.x, point.y) as any;
+    boss.role = "Warfront Boss";
+    boss.faction = "Hostile";
+    boss.health = 14_000;
+    boss.maxHealth = 14_000;
+    if (!boss.skills || typeof boss.skills !== "object") boss.skills = {};
+    if (!boss.skills.combat || typeof boss.skills.combat !== "object") {
+      boss.skills.combat = { level: 52 };
+    } else {
+      boss.skills.combat.level = 52;
+    }
+    boss.worldBoss = true;
+    boss.worldBossMeta = { dungeonId: "warfront_frontboss", tier: "warfront" };
+    boss.dropTable = [{ itemId: "warfront_core", chance: 1.0 }];
+    this.warfrontSystem.markFrontBossSpawned(boss.id, Date.now());
+    this.ws.broadcast({
+      type: "warfront_frontboss_spawned",
+      bossNpcId: boss.id,
+      name: boss.name,
+      mutator: this.warfrontSystem.getActiveFrontBossMutator(),
+    });
+    this.pushAllWarfrontStatuses();
+    return true;
+  }
+
+  private tryHandleWarfrontFrontBossDefeat(killer: any, target: any): boolean {
+    if (!target || !this.warfrontSystem.isFrontBossNpc(target.id)) return false;
+    const mutator = this.warfrontSystem.getActiveFrontBossMutator();
+    for (const player of this.playerSystem.getAllPlayers()) {
+      if (player.isOffline) continue;
+      const socketId = this.getSocketForPlayer(player.id);
+      this.applyWarfrontContribution(player, socketId ?? null, "combat", 30, "frontboss_defeat");
+    }
+    this.warfrontSystem.markFrontBossDefeated(Date.now());
+    this.warfrontSystem.markFrontBossDespawned(Date.now());
+    this.spawnLootFromNpc(target, killer?.id ?? "");
+    this.ws.broadcast({
+      type: "warfront_frontboss_defeated",
+      bossNpcId: target.id,
+      mutator,
+      byPlayerId: killer?.id ?? null,
+    });
+    this.pushAllWarfrontStatuses();
+    return true;
   }
 
   private resolvePublicBaseUrl(): string {
@@ -1719,6 +1823,16 @@ export class WorldTick {
         this.sendGMPreviewSnapshot(socketId);
         return true;
       }
+      case "gm_spawn_warfront_boss": {
+        const spawned = this.trySpawnWarfrontFrontBoss();
+        this.sendGMStatus(
+          socketId,
+          spawned ? "info" : "error",
+          spawned ? "Warfront front boss spawned." : "Warfront front boss not ready.",
+        );
+        this.sendGMPreviewSnapshot(socketId);
+        return true;
+      }
       case "gm_spawn_npc_at_self": {
         const npcId = isNonEmptyString(msg.npcId) ? msg.npcId.trim() : `npc_${Date.now()}`;
         const name = isNonEmptyString(msg.name) ? msg.name.trim() : npcId;
@@ -2059,6 +2173,8 @@ export class WorldTick {
           });
         }
       }
+      const socketId = this.getSocketForPlayer(player.id);
+      this.applyWarfrontContribution(player, socketId ?? null, "scouting", 12, "quest_clear");
     });
     this.questSystem.setXpRewardApplier((player, baseXp) =>
       this.grantPlayerXpWithVoteBuff(player, baseXp, "quest")
@@ -2090,6 +2206,7 @@ export class WorldTick {
     this.npcRelationships = new NPCRelationshipSystem();
     this.worldBossDungeonSystem = new WorldBossDungeonSystem();
     this.voteSystem = new VoteSystem();
+    this.warfrontSystem = new WarfrontSystem();
     this.worldBossRespawnAt = Date.now() + 1000;
 
     // World generation / placement pipeline
@@ -2298,6 +2415,7 @@ export class WorldTick {
           });
           this.pushPlayerStateSync(id, player);
           this.pushVoteStatus(id, player);
+          this.pushWarfrontStatus(id, player);
         } catch (err) {
           console.error("Login error:", err);
           this.ws.sendToPlayer(id, { type: "error", message: "Login failed" });
@@ -2376,13 +2494,17 @@ export class WorldTick {
 
       if (msg.type === "worldboss_info_request") {
         const now = Date.now();
+        const latestSummary =
+          this.worldBossEncounterSummaries.length > 0
+            ? this.worldBossEncounterSummaries[this.worldBossEncounterSummaries.length - 1]
+            : null;
         this.ws.sendToPlayer(id, {
           type: "worldboss_status",
           dungeonId: WORLD_BOSS_DUNGEON_ID,
           sceneId: WORLD_BOSS_SCENE_ID,
           respawnAt: this.worldBossRespawnAt,
           respawnRemainingMs: Math.max(0, this.worldBossRespawnAt - now),
-          top: this.worldBossEncounterSummaries.at(-1)?.topRewards ?? [],
+          top: latestSummary?.topRewards ?? [],
         });
         return;
       }
@@ -2489,6 +2611,7 @@ export class WorldTick {
           banners: this.getPublicVoteBanners(),
         });
         this.pushVoteStatus(id, player);
+        this.pushWarfrontStatus(id, player);
         return;
       }
 
@@ -2520,6 +2643,39 @@ export class WorldTick {
 
       if (msg.type === "vote_status" || msg.type === "vote_info_request") {
         this.pushVoteStatus(id, player);
+        return;
+      }
+
+      if (msg.type === "warfront_status" || msg.type === "warfront_info_request") {
+        this.pushWarfrontStatus(id, player);
+        return;
+      }
+
+      if (msg.type === "warfront_claim_rewards") {
+        const claimed = this.warfrontSystem.claimSeasonRewards(player, Date.now());
+        if (!claimed.ok) {
+          this.ws.sendToPlayer(id, {
+            type: "toast",
+            kind: "warn",
+            text: claimed.reason ?? "No warfront rewards available.",
+          });
+          this.pushWarfrontStatus(id, player);
+          return;
+        }
+        const gainedXp = this.grantPlayerXpWithVoteBuff(player, claimed.totalXp ?? 0, "other");
+        this.ws.sendToPlayer(id, {
+          type: "toast",
+          kind: "ok",
+          text: `Warfront rewards claimed (+${claimed.totalGold ?? 0} Gold, +${gainedXp} XP).`,
+        });
+        this.ws.broadcast({
+          type: "fx",
+          at: { x: player.position.x, y: player.position.y },
+          kind: "xp",
+          n: gainedXp,
+        });
+        this.pushPlayerStateSync(id, player);
+        this.pushWarfrontStatus(id, player);
         return;
       }
 
@@ -2716,6 +2872,7 @@ export class WorldTick {
               target.health = 0;
               target.aggroTargetId = null;
               player.kills = Math.max(0, Number(player.kills) || 0) + 1;
+              this.applyWarfrontContribution(player, id, "combat", 8, "combat_kill");
               const handledBossDefeat = this.tryHandleWorldBossDefeat(player, target);
               if (!handledBossDefeat) {
                 this.spawnLootFromNpc(target, player.id);
@@ -2785,6 +2942,7 @@ export class WorldTick {
           if (hit.killed && target.health <= 0) {
             target.aggroTargetId = null;
             player.kills = Math.max(0, Number(player.kills) || 0) + 1;
+            this.applyWarfrontContribution(player, id, "combat", 8, "combat_kill");
             const handledBossDefeat = this.tryHandleWorldBossDefeat(player, target);
             if (!handledBossDefeat) {
               this.spawnLootFromNpc(target, player.id);
@@ -2888,6 +3046,7 @@ export class WorldTick {
           target.health = 0;
           target.aggroTargetId = null;
           player.kills = Math.max(0, Number(player.kills) || 0) + 1;
+          this.applyWarfrontContribution(player, id, "combat", 8, "combat_kill");
           const handledBossDefeat = this.tryHandleWorldBossDefeat(player, target);
           if (!handledBossDefeat) {
             this.spawnLootFromNpc(target, player.id);
@@ -3086,6 +3245,7 @@ export class WorldTick {
         if (crafted > 0) {
           this.ws.sendToPlayer(id, { type: "toast", text: `Hergestellt: ${crafted}x ${lastName}` });
           this.grantCraftXpIfAny(id, player, totalCraftXp);
+          this.applyWarfrontContribution(player, id, "crafting", crafted * 2, "craft_batch");
         }
         this.pushPlayerStateSync(id, player);
         return;
@@ -3163,6 +3323,7 @@ export class WorldTick {
     this.loadRuntimeEventTemplates();
     this.loadSceneLayouts();
     this.worldBossDungeonSystem.ensureWorldBossPortalObject(this.worldSystem.objectSystem);
+    this.warfrontSystem.initialize(Date.now());
     this.loadSpawns();
     if (this.craftingSystem?.loadRecipes) {
       this.craftingSystem.loadRecipes().catch(() => {});
@@ -3311,9 +3472,30 @@ export class WorldTick {
 
   tick() {
     this.tickCount += 1;
+    const now = Date.now();
     this.processTemplateQueue();
+    const warfrontTick = this.warfrontSystem.tick(now);
+    if (warfrontTick.rotated) {
+      this.ws.broadcast({
+        type: "warfront_cycle_rotated",
+        previousCycleId: warfrontTick.previousCycleId ?? null,
+        cycleId: warfrontTick.nextCycleId ?? null,
+      });
+      this.pushAllWarfrontStatuses();
+    }
+    if (this.warfrontSystem.canSpawnFrontBoss(now).ok) {
+      this.trySpawnWarfrontFrontBoss();
+    }
+    this.warfrontStatusBroadcastTick += 1;
     const onlinePlayers = this.playerSystem.getAllPlayers().filter(p => !p.isOffline);
-    if (this.worldBossRespawnAt > 0 && Date.now() >= this.worldBossRespawnAt) {
+    if (
+      this.warfrontStatusBroadcastTick >= WARFRONT_STATUS_BROADCAST_TICK_INTERVAL
+      && onlinePlayers.length > 0
+    ) {
+      this.warfrontStatusBroadcastTick = 0;
+      this.pushAllWarfrontStatuses();
+    }
+    if (this.worldBossRespawnAt > 0 && now >= this.worldBossRespawnAt) {
       this.worldBossRespawnAt = 0;
       this.spawnWorldBossNow();
     }

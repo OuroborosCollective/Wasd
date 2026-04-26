@@ -699,6 +699,15 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
       ) {
         pushProtocolMsgToGameHud(data);
       }
+      if (
+        data.type === "warfront_status" ||
+        data.type === "warfront_frontboss_ready" ||
+        data.type === "warfront_frontboss_spawned" ||
+        data.type === "warfront_frontboss_defeated" ||
+        data.type === "warfront_cycle_rotated"
+      ) {
+        pushProtocolMsgToGameHud(data);
+      }
       if (data.type === "combat_result") {
         const cx = window.innerWidth / 2;
         const cy = window.innerHeight / 2;
@@ -878,6 +887,14 @@ export function verifyVoteSession(sessionId: string) {
 
 export function claimVoteSession(sessionId: string) {
   sendCommand("vote_claim", { sessionId });
+}
+
+export function requestWarfrontStatus() {
+  sendCommand("warfront_status", {});
+}
+
+export function claimWarfrontRewards() {
+  sendCommand("warfront_claim_rewards", {});
 }
 
 export const sendMessage = sendCommand;

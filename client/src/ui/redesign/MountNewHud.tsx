@@ -36,6 +36,7 @@ export function mountNewHud(core: MMORPGClientCore) {
       quests,
       inv,
       fxFeed,
+      warfront,
       onWirePayload,
       onEntitySync,
       onLootSpawned,
@@ -124,6 +125,7 @@ export function mountNewHud(core: MMORPGClientCore) {
           onCraftOpen={() => {}}
           onHousingOpen={() => {}}
           fxFeed={fxFeed}
+          warfront={warfront}
           onMenuOpen={onMenuOpen}
         />
         {(activePanel === "stats" || activePanel === "skills") && <MasteryDashboard onClose={() => setActivePanel(null)} />}

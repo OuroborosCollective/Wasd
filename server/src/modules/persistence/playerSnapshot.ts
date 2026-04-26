@@ -36,6 +36,7 @@ export const PLAYER_PERSIST_KEYS = [
   "worldBossProgress",
   "pendingRewards",
   "voteProgress",
+  "warfrontProgress",
   "faction",
   "civilization",
   "matrixEnergy",
@@ -162,6 +163,54 @@ export function mergePersistedPlayerInto(player: any, saved: Record<string, unkn
     }
     if (!Array.isArray(player.voteProgress.auditLog)) {
       player.voteProgress.auditLog = [];
+    }
+  }
+  if (!player.warfrontProgress || typeof player.warfrontProgress !== "object") {
+    player.warfrontProgress = {
+      seasonId: "",
+      seasonPoints: 0,
+      lifetimeContribution: 0,
+      claimedTierIds: [],
+      lastCycle: null,
+      rewardHistory: [],
+    };
+  } else {
+    if (typeof player.warfrontProgress.seasonId !== "string") {
+      player.warfrontProgress.seasonId = "";
+    }
+    if (typeof player.warfrontProgress.seasonPoints !== "number") {
+      player.warfrontProgress.seasonPoints = 0;
+    }
+    if (typeof player.warfrontProgress.lifetimeContribution !== "number") {
+      player.warfrontProgress.lifetimeContribution = 0;
+    }
+    if (!Array.isArray(player.warfrontProgress.claimedTierIds)) {
+      player.warfrontProgress.claimedTierIds = [];
+    }
+    if (!Array.isArray(player.warfrontProgress.rewardHistory)) {
+      player.warfrontProgress.rewardHistory = [];
+    }
+    if (
+      player.warfrontProgress.lastCycle &&
+      typeof player.warfrontProgress.lastCycle === "object"
+    ) {
+      if (typeof player.warfrontProgress.lastCycle.cycleId !== "string") {
+        player.warfrontProgress.lastCycle.cycleId = "";
+      }
+      if (
+        !player.warfrontProgress.lastCycle.sectors ||
+        typeof player.warfrontProgress.lastCycle.sectors !== "object"
+      ) {
+        player.warfrontProgress.lastCycle.sectors = {};
+      }
+      if (typeof player.warfrontProgress.lastCycle.totalPoints !== "number") {
+        player.warfrontProgress.lastCycle.totalPoints = 0;
+      }
+      if (typeof player.warfrontProgress.lastCycle.updatedAt !== "number") {
+        player.warfrontProgress.lastCycle.updatedAt = 0;
+      }
+    } else {
+      player.warfrontProgress.lastCycle = null;
     }
   }
   if (!player.position || typeof player.position !== "object") {

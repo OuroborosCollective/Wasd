@@ -69,6 +69,20 @@ export class PlayerSystem {
         rewardHistory: [] as unknown[],
         auditLog: [] as unknown[],
       },
+      /** Global warfront season and cycle progression state (server-authoritative). */
+      warfrontProgress: {
+        seasonId: "",
+        seasonPoints: 0,
+        lifetimeContribution: 0,
+        claimedTierIds: [] as string[],
+        lastCycle: null as null | {
+          cycleId: string;
+          sectors: Record<string, number>;
+          totalPoints: number;
+          updatedAt: number;
+        },
+        rewardHistory: [] as unknown[],
+      },
     };
     this.players.set(id, player);
     return player;
