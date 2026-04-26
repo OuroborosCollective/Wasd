@@ -3440,7 +3440,6 @@ export class WorldTick {
     // Optimize: Zero-allocation iteration using internal Maps and for...of
     const playersMap = this.playerSystem.getPlayersMap();
     for (const p of playersMap.values()) {
-    for (const p of this.playerSystem.getPlayersMap().values()) {
       entities.push({
         id: p.id,
         type: 'player',
@@ -3466,7 +3465,6 @@ export class WorldTick {
 
     const npcsMap = this.npcSystem.getNPCsMap();
     for (const n of npcsMap.values()) {
-    for (const n of this.npcSystem.getNPCsMap().values()) {
       entities.push({
         id: n.id,
         type: 'npc',
@@ -3522,7 +3520,6 @@ export class WorldTick {
     if (this.worldSystem.objectSystem) {
       const objectsMap: Map<string, WorldObject> = this.worldSystem.objectSystem.getObjectsMap();
       for (const obj of objectsMap.values()) {
-      for (const obj of this.worldSystem.objectSystem.getObjectsMap().values()) {
         entities.push({
           id: obj.id,
           type: obj.type || 'object',
