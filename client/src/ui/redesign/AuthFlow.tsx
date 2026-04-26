@@ -15,10 +15,14 @@ export const AuthFlow: React.FC<AuthFlowProps> = ({ onComplete }) => {
 
   useEffect(() => {
     const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        setToken(data.session.access_token);
-        setStep("character_selection");
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (data.session) {
+          setToken(data.session.access_token);
+          setStep("character_selection");
+        }
+      } catch (err) {
+        console.error("[AuthFlow] Failed to check initial session:", err);
       }
     };
     checkSession();

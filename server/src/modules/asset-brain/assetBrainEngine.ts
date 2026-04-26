@@ -225,13 +225,12 @@ export async function generateAssetSpecification(input: string): Promise<AssetSp
   try {
     const apiKey = process.env.GOOGLE_AI_API_KEY ?? process.env.GEMINI_API_KEY ?? '';
     if (apiKey) {
-      const genAI = new GoogleGenAI({ apiKey });
+      const genAI = new GoogleGenerativeAI(apiKey);
       const prompt = buildAssetGenerationPrompt(input, assetClass, style);
-      const result = await genAI.models.generateContent({
-        model: 'gemini-1.5-flash',
-        contents: prompt
-      });
-      const text: string = result.text || '';
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
       const cleaned = text.replace(/\`\`\`json\n?/g, '').replace(/\`\`\`\n?/g, '').trim();
       const parsed = JSON.parse(cleaned) as AssetSpecification;
       if (!parsed.autoDecisions) {
