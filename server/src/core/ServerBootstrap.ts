@@ -25,6 +25,7 @@ import {
 import { registerSelfHealingDashboard } from "../selfhealing/SelfHealingDashboard.js";
 import { PlaytesterConfig } from "../config/PlaytesterConfig.js";
 import { PlaytesterMonitorStream } from "../modules/playtester/PlaytesterMonitorStream.js";
+import { PlaytesterWebRTCSignaling } from "../modules/playtester/PlaytesterWebRTCSignaling.js";
 import { URL } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -99,6 +100,25 @@ function resolvePlaytesterMonitorHtmlPath(clientRoot: string, clientDist: string
     : [
         path.join(clientDist, "playtester-monitor.html"),
         path.join(clientRoot, "public", "playtester-monitor.html"),
+      ];
+  for (const p of candidates) {
+    if (existsSync(p)) {
+      return path.resolve(p);
+    }
+  }
+  return null;
+}
+
+function resolvePlaytesterPublisherHtmlPath(clientRoot: string, clientDist: string): string | null {
+  const preferPublic = process.env.NODE_ENV !== "production";
+  const candidates = preferPublic
+    ? [
+        path.join(clientRoot, "public", "playtester-render-publisher.html"),
+        path.join(clientDist, "playtester-render-publisher.html"),
+      ]
+    : [
+        path.join(clientDist, "playtester-render-publisher.html"),
+        path.join(clientRoot, "public", "playtester-render-publisher.html"),
       ];
   for (const p of candidates) {
     if (existsSync(p)) {
@@ -373,8 +393,14 @@ export class ServerBootstrap {
       tick.buildPlaytesterMonitorPayload(options)
     );
     monitorStream.start();
+    const playtesterSignaling = new PlaytesterWebRTCSignaling(httpServer);
+    playtesterSignaling.start();
     const monitorClientRoot = resolveClientRoot();
     const monitorHtmlPath = resolvePlaytesterMonitorHtmlPath(
+      monitorClientRoot,
+      path.join(monitorClientRoot, "dist"),
+    );
+    const publisherHtmlPath = resolvePlaytesterPublisherHtmlPath(
       monitorClientRoot,
       path.join(monitorClientRoot, "dist"),
     );
@@ -387,6 +413,15 @@ export class ServerBootstrap {
         res.sendFile(monitorHtmlPath);
       });
     }
+    if (publisherHtmlPath) {
+      app.get("/playtester-render-publisher.html", (req, res) => {
+        if (!canAccessPlaytesterMonitor(req)) {
+          res.status(403).json({ error: "forbidden" });
+          return;
+        }
+        res.sendFile(publisherHtmlPath);
+      });
+    }
     app.get("/api/playtester/debug-log", (req, res) => {
       if (!canAccessPlaytesterMonitor(req)) {
         res.status(403).json({ error: "forbidden" });
@@ -397,8 +432,21 @@ export class ServerBootstrap {
         ok: Boolean(logPath),
         enabled: PlaytesterConfig.enabled,
         streamEnabled: PlaytesterConfig.streamEnabled,
+        monitorMode: PlaytesterConfig.monitorMode,
         monitorPath: PlaytesterConfig.monitorPath,
+        monitorSignalPath: PlaytesterConfig.monitorSignalPath,
+        monitorPublisherPath: PlaytesterConfig.monitorPublisherPath,
         monitorTokenRequired: PlaytesterConfig.monitorToken.length > 0,
+        stream: {
+          width: PlaytesterConfig.streamWidth,
+          height: PlaytesterConfig.streamHeight,
+          fps: PlaytesterConfig.streamFps,
+          quality: PlaytesterConfig.streamQuality,
+          shadows: PlaytesterConfig.streamShadows,
+          particles: PlaytesterConfig.streamParticles,
+          renderDistance: PlaytesterConfig.streamRenderDistance,
+          iceServers: PlaytesterConfig.streamIceServers,
+        },
         debugLogPath: logPath,
       });
     });
@@ -565,9 +613,22 @@ export class ServerBootstrap {
         playtester: {
           enabled: PlaytesterConfig.enabled,
           streamEnabled: PlaytesterConfig.streamEnabled,
+          monitorMode: PlaytesterConfig.monitorMode,
           monitorPath: PlaytesterConfig.monitorPath,
+          monitorSignalPath: PlaytesterConfig.monitorSignalPath,
+          monitorPublisherPath: PlaytesterConfig.monitorPublisherPath,
           monitorTokenRequired: PlaytesterConfig.monitorToken.length > 0,
           debugLogPath: tick.getPlaytesterDebugLogPath(),
+          stream: {
+            width: PlaytesterConfig.streamWidth,
+            height: PlaytesterConfig.streamHeight,
+            fps: PlaytesterConfig.streamFps,
+            quality: PlaytesterConfig.streamQuality,
+            shadows: PlaytesterConfig.streamShadows,
+            particles: PlaytesterConfig.streamParticles,
+            renderDistance: PlaytesterConfig.streamRenderDistance,
+            iceServers: PlaytesterConfig.streamIceServers,
+          },
         },
       });
     });
@@ -582,6 +643,8 @@ export class ServerBootstrap {
       // Graceful shutdown: flush LiveHeal learning data
       const shutdownHandler = async () => {
         console.log("[Shutdown] Flushing data...");
+        playtesterSignaling.stop();
+        monitorStream.stop();
         tick.liveHeal.flush();
         tick.assetHealthService.flush();
         try {

@@ -466,9 +466,7 @@ function run(): void {
       const payload = JSON.parse(ev.data) as MonitorPayload;
       if (!payload || payload.type !== "playtester_monitor_update") return;
       state.latestPayload = payload;
-      const entities = payload.scene.entities.map((entity) =>
-        toEntityViewModel(entity, payload.renderHints.placeholderMode)
-      );
+      const entities = payload.scene.entities.map((entity) => toEntityViewModel(entity));
       const chunks = payload.scene.chunks.map(toChunkView);
       core.syncEntities(entities);
       core.syncChunks(chunks);

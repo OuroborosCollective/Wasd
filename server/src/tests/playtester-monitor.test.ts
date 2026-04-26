@@ -10,6 +10,7 @@ import { PlaytesterTelemetry } from "../modules/playtester/PlaytesterTelemetry.j
 import { PlaytesterActionPlanner } from "../modules/playtester/PlaytesterActionPlanner.js";
 import { PlaytesterBrain } from "../modules/playtester/PlaytesterBrain.js";
 import { PlaytesterMonitorStream } from "../modules/playtester/PlaytesterMonitorStream.js";
+import { PlaytesterWebRTCSignaling } from "../modules/playtester/PlaytesterWebRTCSignaling.js";
 
 describe("Playtester monitor primitives", () => {
   let tmpDir = "";
@@ -218,6 +219,54 @@ describe("Playtester monitor primitives", () => {
       expect(rejected).toBe(true);
 
       stream.stop();
+      await new Promise<void>((resolve) => httpServer.close(() => resolve()));
+    } finally {
+      (PlaytesterConfig as any).monitorToken = previousToken;
+    }
+  });
+
+  it("webrtc signaling forwards viewer registration to publisher", async () => {
+    const previousToken = (PlaytesterConfig as any).monitorToken;
+    try {
+      (PlaytesterConfig as any).monitorToken = "";
+      const httpServer = createServer();
+      const signaling = new PlaytesterWebRTCSignaling(httpServer);
+      signaling.start();
+      const address = await new Promise<{ port: number }>((resolve) => {
+        httpServer.listen(0, "127.0.0.1", () => {
+          resolve(httpServer.address() as { port: number });
+        });
+      });
+
+      const publisherEvents: unknown[] = [];
+      const publisher = new WebSocket(`ws://127.0.0.1:${address.port}/playtester-monitor-signal`);
+      await new Promise<void>((resolve, reject) => {
+        publisher.once("open", () => resolve());
+        publisher.once("error", reject);
+      });
+      publisher.on("message", (raw) => {
+        publisherEvents.push(JSON.parse(raw.toString()));
+      });
+      publisher.send(JSON.stringify({ type: "register_publisher" }));
+
+      const viewer = new WebSocket(`ws://127.0.0.1:${address.port}/playtester-monitor-signal`);
+      await new Promise<void>((resolve, reject) => {
+        viewer.once("open", () => resolve());
+        viewer.once("error", reject);
+      });
+      viewer.send(JSON.stringify({ type: "register_viewer", viewerId: "viewer_abc" }));
+
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      expect(publisherEvents.some((ev: any) => ev.type === "render_publisher_ready")).toBe(true);
+      expect(
+        publisherEvents.some(
+          (ev: any) => ev.type === "admin_viewer_connected" && ev.viewerId === "viewer_abc"
+        )
+      ).toBe(true);
+
+      viewer.close();
+      publisher.close();
+      signaling.stop();
       await new Promise<void>((resolve) => httpServer.close(() => resolve()));
     } finally {
       (PlaytesterConfig as any).monitorToken = previousToken;
