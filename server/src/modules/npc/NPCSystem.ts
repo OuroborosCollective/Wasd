@@ -161,6 +161,10 @@ export class NPCSystem {
     return Array.from(this.npcs.values());
   }
 
+  getNPCsMap(): Map<string, any> {
+    return this.npcs;
+  }
+
   tick(players: any[], worldTime: number) {
     const now = Date.now();
     const chunksToUpdate = new Set<string>();

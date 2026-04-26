@@ -11,7 +11,7 @@ const sdk = new NodeSDK({
     new PostHogSpanProcessor({
       apiKey: process.env.POSTHOG_API_KEY || 'phc_uSpgVzJeKQKDEDQiNxrnDNAoknUMxo8ay6wKWFYoVh8h',
       host: process.env.POSTHOG_HOST || 'https://us.i.posthog.com',
-    }),
+    }) as any,
   ],
   instrumentations: [new GenAIInstrumentation() as any],
 })
