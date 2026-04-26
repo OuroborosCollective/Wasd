@@ -141,6 +141,11 @@ try {
   await initSupabaseClient();
   const { mountAuthFlow } = await import("./ui/redesign/MountAuth");
   mountAuthFlow((token, charName) => {
+    // Identify player in PostHog
+    if ((window as any).posthog) {
+      (window as any).posthog.identify(charName, { name: charName });
+      (window as any).posthog.capture("player_login", { charName });
+    }
     const connectionOptions: ConnectionOptions = {
       token,
       charName,

@@ -629,6 +629,13 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         });
       }
       if (data.type === 'scene_changed') {
+        // Track zone entry in PostHog
+        if ((window as any).posthog) {
+          (window as any).posthog.capture("zone_entered", {
+            zone_id: data.sceneId,
+            spawn_key: data.spawnKey,
+          });
+        }
         const localPlayerId = core.getLocalPlayerId();
         const spawnPos = toEntityPosition(data.spawnPosition);
         if (spawnPos && localPlayerId) {

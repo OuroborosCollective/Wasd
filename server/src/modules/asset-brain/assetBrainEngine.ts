@@ -225,6 +225,7 @@ export async function generateAssetSpecification(input: string): Promise<AssetSp
   try {
     const apiKey = process.env.GOOGLE_AI_API_KEY ?? process.env.GEMINI_API_KEY ?? '';
     if (apiKey) {
+      const genAI = new GoogleGenerativeAI({ apiKey });
       const genAI = new GoogleGenerativeAI(apiKey);
       const prompt = buildAssetGenerationPrompt(input, assetClass, style);
       const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
