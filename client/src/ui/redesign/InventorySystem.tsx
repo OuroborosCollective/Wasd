@@ -55,25 +55,40 @@ export const InventorySystem: React.FC<{ onClose: () => void }> = ({ onClose }) 
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent, item: any) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      handleAction(item);
+    }
+  };
+
   return (
     <div className="inventory-overlay" onClick={onClose} onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
       <div className="inventory-card gold-frame" onClick={e => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
         <header className="inventory-header">
           <h2 className="gold-text">Master Inventory</h2>
           <div className="inv-stats gold-text">{allDisplayItems.length} / 40 Slots</div>
-          <button className="close-btn" onClick={onClose}>×</button>
+          <button className="close-btn" onClick={onClose} aria-label="Close inventory">×</button>
         </header>
 
         <nav className="inventory-nav">
-          <button className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}>All</button>
-          <button className={filter === "gear" ? "active" : ""} onClick={() => setFilter("gear")}>Gear</button>
-          <button className={filter === "consumables" ? "active" : ""} onClick={() => setFilter("consumables")}>Items</button>
-          <button className={filter === "quest" ? "active" : ""} onClick={() => setFilter("quest")}>Quest</button>
+          <button className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")} aria-pressed={filter === "all"}>All</button>
+          <button className={filter === "gear" ? "active" : ""} onClick={() => setFilter("gear")} aria-pressed={filter === "gear"}>Gear</button>
+          <button className={filter === "consumables" ? "active" : ""} onClick={() => setFilter("consumables")} aria-pressed={filter === "consumables"}>Items</button>
+          <button className={filter === "quest" ? "active" : ""} onClick={() => setFilter("quest")} aria-pressed={filter === "quest"}>Quest</button>
         </nav>
 
         <main className="inventory-grid-redesign">
           {filteredItems.map((item, idx) => (
-            <div key={idx} className={`item-slot-redesign ${item.rarity || 'common'} ${item.isGear ? 'gear-item' : ''}`} onClick={() => handleAction(item)}>
+            <div
+              key={idx}
+              className={`item-slot-redesign ${item.rarity || 'common'} ${item.isGear ? 'gear-item' : ''}`}
+              onClick={() => handleAction(item)}
+              onKeyDown={(e) => handleKeyDown(e, item)}
+              role="button"
+              tabIndex={0}
+              aria-label={`Use ${item.name || item.itemId || item.id}`}
+            >
               <div className="item-icon">
                 {item.isGear || item.slot ? "🛡️" : item.healAmount ? "🧪" : "📦"}
               </div>
@@ -89,8 +104,8 @@ export const InventorySystem: React.FC<{ onClose: () => void }> = ({ onClose }) 
 
         <footer className="inventory-footer">
           <div className="currency">
-            <span className="gold gold-text">💰 {gold.toLocaleString()}</span>
-            <span className="gems" style={{color: "#7eb8ff"}}>💎 0</span>
+            <span className="gold gold-text" aria-label={`${gold.toLocaleString()} Gold`}>💰 {gold.toLocaleString()}</span>
+            <span className="gems" style={{color: "#7eb8ff"}} aria-label="0 Gems">💎 0</span>
           </div>
           <div className="inv-actions">
              <button className="gold-frame" onClick={() => sendCommand("sort_inventory", {})}>SORT</button>

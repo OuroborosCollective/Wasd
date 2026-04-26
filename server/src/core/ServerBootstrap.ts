@@ -88,13 +88,12 @@ function trimEnv(key: string): string {
 }
 
 /** Public anon config for the browser bundle (no service role). */
-export function buildClientPublicConfigJson(): string {
-  // When the server uses an internal proxy URL, the browser client should talk
-  // to the game server origin — NOT directly to a self-signed Supabase endpoint.
+export function buildClientPublicConfigJson(req?: express.Request): string {
   const proxyUrl = trimEnv("SUPABASE_PROXY_URL");
-  const gameOrigin = trimEnv("GAME_ORIGIN") || trimEnv("APP_ORIGIN");
+  const gameOrigin = trimEnv("GAME_ORIGIN") || trimEnv("APP_ORIGIN") || (req ? `${req.protocol}://${req.get("host")}` : "");
+  
   let url: string;
-  if (proxyUrl && gameOrigin) {
+  if (proxyUrl) {
     url = gameOrigin;
   } else {
     url =
@@ -104,13 +103,13 @@ export function buildClientPublicConfigJson(): string {
       trimEnv("SUPABASE_URL") ||
       trimEnv("API_EXTERNAL_URL");
   }
+  
   const anonKey = trimEnv("VITE_SUPABASE_ANON_KEY") || trimEnv("SUPABASE_ANON_KEY") || trimEnv("ANON_KEY");
   return JSON.stringify({
     supabaseUrl: url || null,
     supabaseAnonKey: anonKey || null,
   });
 }
-
 function normalizeSupabaseBaseUrl(raw: string): string | null {
   try {
     const parsed = new URL(raw.trim());
@@ -223,7 +222,7 @@ export class ServerBootstrap {
     app.get("/client-config.json", (_req, res) => {
       res.type("application/json");
       res.setHeader("Cache-Control", "no-store");
-      res.send(buildClientPublicConfigJson());
+      res.send(buildClientPublicConfigJson(_req));
     });
 
     app.get("/", (req, res, next) => {

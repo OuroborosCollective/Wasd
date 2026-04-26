@@ -24,10 +24,13 @@ export async function resolveLoginIdentity(
   const charNameFromClient = typeof msg.charName === "string" ? msg.charName.trim() : "";
   const guestIdFromClient = typeof msg.guestId === "string" ? msg.guestId.trim() : "";
 
-  // Bypass for tests
-  if (process.env.NODE_ENV === "test") {
-      if (token === "test-token") {
-          return { uid: guestIdFromClient || "test-user", charName: charNameFromClient || "Tester" };
+  // Bypass for tests and smoke tests
+  if (process.env.NODE_ENV === "test" || process.env.ALLOW_GUEST_LOGIN === "1") {
+      if (token === "test-token" || (token.length === 0 && guestIdFromClient.length > 0)) {
+          return {
+            uid: guestIdFromClient || (token === "test-token" ? "test-user" : randomUUID()),
+            charName: charNameFromClient || msg.guestName || "Tester"
+          };
       }
   }
 

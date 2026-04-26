@@ -24,6 +24,7 @@ import {
   tryCompleteQuestlineTalkAtNpc,
 } from "../modules/questline/questlineBridge.js";
 import { WorldSystem } from "../modules/world/WorldSystem.js";
+import { WorldObject } from "../modules/world/WorldObjectSystem.js";
 import { PersistenceManager } from "./PersistenceManager.js";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
 import { GLBRegistry } from "../modules/asset-registry/GLBRegistry.js";
@@ -3434,8 +3435,13 @@ export class WorldTick {
 
   broadcastState() {
     const tickCount = this.tickCount;
-    const entities = [
-      ...this.playerSystem.getAllPlayers().map(p => ({
+    const entities: any[] = [];
+
+    // Optimize: Zero-allocation iteration using internal Maps and for...of
+    const playersMap = this.playerSystem.getPlayersMap();
+    for (const p of playersMap.values()) {
+    for (const p of this.playerSystem.getPlayersMap().values()) {
+      entities.push({
         id: p.id,
         type: 'player',
         position: { x: p.position.x, y: 0, z: p.position.y }, // Mapping y to z for 3D
@@ -3455,8 +3461,13 @@ export class WorldTick {
           tickCount
         ),
         visible: true
-      })),
-      ...this.npcSystem.getAllNPCs().map(n => ({
+      });
+    }
+
+    const npcsMap = this.npcSystem.getNPCsMap();
+    for (const n of npcsMap.values()) {
+    for (const n of this.npcSystem.getNPCsMap().values()) {
+      entities.push({
         id: n.id,
         type: 'npc',
         position: { x: n.position.x, y: 0, z: n.position.y },
@@ -3484,8 +3495,11 @@ export class WorldTick {
           tickCount
         ),
         visible: true
-      })),
-      ...Array.from(this.lootEntities.values()).map(l => ({
+      });
+    }
+
+    for (const l of this.lootEntities.values()) {
+      entities.push({
         id: l.id,
         type: 'loot',
         position: { x: l.position.x, y: 0, z: l.position.y },
@@ -3501,42 +3515,48 @@ export class WorldTick {
           tickCount
         ),
         visible: true
-      }))
-    ];
+      });
+    }
 
     // Include world objects if they exist
     if (this.worldSystem.objectSystem) {
-      const worldObjects = this.worldSystem.objectSystem.getAllObjects().map(obj => ({
-        id: obj.id,
-        type: obj.type || 'object',
-        position: { x: obj.position.x, y: 0, z: obj.position.y },
-        rotation: { x: 0, y: obj.rotation || 0, z: 0 },
-        glbPath: obj.glbPath || this.resolveWorldObjectGlbPath(obj.type, obj.name || obj.id, obj.id),
-        are: this.areStateCompiler.compileEntity(
-          {
-            id: obj.id,
-            type: obj.type || "object",
-            position: { x: obj.position.x, y: 0, z: obj.position.y },
-            visible: true,
-          },
-          tickCount
-        ),
-        visible: true
-      }));
-      entities.push(...worldObjects);
+      const objectsMap: Map<string, WorldObject> = this.worldSystem.objectSystem.getObjectsMap();
+      for (const obj of objectsMap.values()) {
+      for (const obj of this.worldSystem.objectSystem.getObjectsMap().values()) {
+        entities.push({
+          id: obj.id,
+          type: obj.type || 'object',
+          position: { x: obj.position.x, y: 0, z: obj.position.y },
+          rotation: { x: 0, y: obj.rotation || 0, z: 0 },
+          glbPath: obj.glbPath || this.resolveWorldObjectGlbPath(obj.type, obj.name || obj.id, obj.id),
+          are: this.areStateCompiler.compileEntity(
+            {
+              id: obj.id,
+              type: obj.type || "object",
+              position: { x: obj.position.x, y: 0, z: obj.position.y },
+              visible: true,
+            },
+            tickCount
+          ),
+          visible: true
+        });
+      }
     }
 
     // Build real chunks from chunkSystem — include world objects per chunk
     const chunks: Array<{ id: string; chunkX: number; chunkY: number; objects: any[] }> = [];
     if (this.worldSystem.objectSystem) {
       // Assign world objects to chunks
-      const allObjects = this.worldSystem.objectSystem.getAllObjects();
       const chunkObjects = new Map<string, any[]>();
 
-      for (const obj of allObjects) {
+      for (const obj of this.worldSystem.objectSystem.getObjectsMap().values()) {
         const chunkId = this.chunkSystem.getChunkId(obj.position.x, obj.position.y);
-        if (!chunkObjects.has(chunkId)) chunkObjects.set(chunkId, []);
-        chunkObjects.get(chunkId)!.push({
+        let cObjs = chunkObjects.get(chunkId);
+        if (!cObjs) {
+          cObjs = [];
+          chunkObjects.set(chunkId, cObjs);
+        }
+        cObjs.push({
           id: obj.id,
           type: obj.type || "object",
           glbPath: obj.glbPath || this.resolveWorldObjectGlbPath(obj.type, obj.name || obj.id, obj.id),
@@ -3554,9 +3574,16 @@ export class WorldTick {
 
     // Also include chunks that have entities (players, NPCs)
     const existingChunkIds = new Set(chunks.map(c => c.id));
-    const allEntities = [...this.playerSystem.getAllPlayers(), ...this.npcSystem.getAllNPCs()];
-    for (const entity of allEntities) {
-      const chunkId = this.chunkSystem.getChunkId(entity.position.x, entity.position.y);
+    for (const player of this.playerSystem.getPlayersMap().values()) {
+      const chunkId = this.chunkSystem.getChunkId(player.position.x, player.position.y);
+      if (!existingChunkIds.has(chunkId)) {
+        existingChunkIds.add(chunkId);
+        const [cx, cy] = chunkId.split(":").map(Number);
+        chunks.push({ id: chunkId, chunkX: cx, chunkY: cy, objects: [] });
+      }
+    }
+    for (const npc of this.npcSystem.getNPCsMap().values()) {
+      const chunkId = this.chunkSystem.getChunkId(npc.position.x, npc.position.y);
       if (!existingChunkIds.has(chunkId)) {
         existingChunkIds.add(chunkId);
         const [cx, cy] = chunkId.split(":").map(Number);

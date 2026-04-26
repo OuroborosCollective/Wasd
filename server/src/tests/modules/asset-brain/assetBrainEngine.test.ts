@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
-// Mock @google/genai at the top level because it's now a static import
+// Mock @google/generative-ai at the top level because it's now a static import
 const generateContentMock = vi.fn();
 
-vi.mock("@google/genai", () => {
+vi.mock("@google/generative-ai", () => {
   return {
     GoogleGenAI: class {
       models = {

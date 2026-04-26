@@ -9,3 +9,7 @@
 ## 2026-03-25 - [Added ARIA Labels and Live Regions to Dynamic Chat UI]
 **Learning:** Dynamic UI components created via raw HTML strings (like the HUD chat) often lack essential accessibility features. Specifically, screen readers will not announce new chat messages without `aria-live="polite"` and `role="log"` on the container. Additionally, inputs created without a dedicated `<label>` element must have an explicit `aria-label` attribute, otherwise they are completely inaccessible to screen reader users who cannot rely on `placeholder` text alone.
 **Action:** Always include semantic attributes (`aria-label`, `aria-live`, `role`) directly inside the HTML template strings when building dynamic, form-like components via `innerHTML`.
+
+## 2026-04-26 - [Accessibility in Grid-based Game UI]
+**Learning:** For game inventories that use grid layouts of div elements, adding role="button" and tabIndex={0} is critical for keyboard accessibility. Furthermore, screen readers cannot reliably infer the purpose of icon-only currency displays or item slots without explicit aria-label attributes.
+**Action:** Always ensure interactive grid elements have semantic roles and keyboard event handlers (Enter/Space), and provide descriptive labels for all icon-based data points.

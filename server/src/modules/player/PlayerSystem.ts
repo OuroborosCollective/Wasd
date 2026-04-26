@@ -82,8 +82,13 @@ export class PlayerSystem {
     return this.players.get(id);
   }
 
+
   getAllPlayers() {
     return Array.from(this.players.values());
+  }
+
+  getPlayersMap(): Map<string, any> {
+    return this.players;
   }
 
   removePlayer(id: string) {

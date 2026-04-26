@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export type AssetClass = 'character' | 'creature' | 'prop' | 'weapon' | 'environment';
 export type PlatformProfile = 'mobile' | 'mid' | 'high';
@@ -227,7 +227,10 @@ export async function generateAssetSpecification(input: string): Promise<AssetSp
     if (apiKey) {
       const genAI = new GoogleGenAI({ apiKey });
       const prompt = buildAssetGenerationPrompt(input, assetClass, style);
-      const result = await genAI.models.generateContent({ model: 'gemini-1.5-flash', contents: prompt });
+      const result = await genAI.models.generateContent({
+        model: 'gemini-1.5-flash',
+        contents: prompt
+      });
       const text: string = result.text || '';
       const cleaned = text.replace(/\`\`\`json\n?/g, '').replace(/\`\`\`\n?/g, '').trim();
       const parsed = JSON.parse(cleaned) as AssetSpecification;
