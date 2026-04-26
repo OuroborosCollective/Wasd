@@ -14,6 +14,7 @@
   "dependencies": {
     "@genkit-ai/googleai": "^1.28.0",
     "@google/genai": "^1.45.0",
+    "@google/generative-ai": "^0.24.1",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "@opentelemetry/resources": "^2.7.0",
     "@opentelemetry/sdk-node": "^0.215.0",
