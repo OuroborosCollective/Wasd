@@ -292,22 +292,15 @@ async function runStreamMode(ui: Ui): Promise<void> {
 
   let pc: RTCPeerConnection | null = null;
   let signalWs: WebSocket | null = null;
+  let monitorWs: WebSocket | null = null;
 
-  const connect = () => {
+  const connectSignaling = () => {
     if (pc) {
-      try {
-        pc.close();
-      } catch {
-        // noop
-      }
+      try { pc.close(); } catch { }
       pc = null;
     }
     if (signalWs) {
-      try {
-        signalWs.close();
-      } catch {
-        // noop
-      }
+      try { signalWs.close(); } catch { }
       signalWs = null;
     }
 
@@ -373,7 +366,7 @@ async function runStreamMode(ui: Ui): Promise<void> {
 
     signalWs.onclose = () => {
       setBadge(ui, "signaling reconnecting…", "warn");
-      window.setTimeout(connect, RECONNECT_DELAY_MS);
+      window.setTimeout(connectSignaling, RECONNECT_DELAY_MS);
     };
 
     signalWs.onerror = () => {
@@ -393,37 +386,29 @@ async function runStreamMode(ui: Ui): Promise<void> {
     };
   };
 
-  const monitorWs = new WebSocket(wsUrl(MONITOR_SOCKET_PATH));
-  monitorWs.onmessage = (ev) => {
-    const payload = JSON.parse(ev.data) as MonitorPayload;
-    if (payload?.type === "playtester_monitor_update") {
-      renderStatus(ui, payload);
+  const connectMonitor = () => {
+    if (monitorWs) {
+      try { monitorWs.close(); } catch { }
     }
-  };
-  monitorWs.onclose = () => {
-    window.setTimeout(() => {
-      window.location.reload();
-    }, RECONNECT_DELAY_MS * 2);
+    monitorWs = new WebSocket(wsUrl(MONITOR_SOCKET_PATH));
+    monitorWs.onmessage = (ev) => {
+      const payload = JSON.parse(ev.data) as MonitorPayload;
+      if (payload?.type === "playtester_monitor_update") {
+        renderStatus(ui, payload);
+      }
+    };
+    monitorWs.onclose = () => {
+      window.setTimeout(connectMonitor, RECONNECT_DELAY_MS * 2);
+    };
   };
 
-  connect();
+  connectSignaling();
+  connectMonitor();
 
   window.addEventListener("beforeunload", () => {
-    try {
-      monitorWs.close();
-    } catch {
-      // noop
-    }
-    try {
-      signalWs?.close();
-    } catch {
-      // noop
-    }
-    try {
-      pc?.close();
-    } catch {
-      // noop
-    }
+    try { monitorWs?.close(); } catch { }
+    try { signalWs?.close(); } catch { }
+    try { pc?.close(); } catch { }
   });
 }
 

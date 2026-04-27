@@ -44,12 +44,26 @@ function asErrorCode(input: unknown): string {
 }
 
 export function mapSupabaseAuthError(error: unknown): string {
+  if (typeof error === "string") {
+    if (error.trim().length === 0 || error === "{}") {
+      return "Authentication failed (empty response). Please try again.";
+    }
+    if (error.includes("<!DOCTYPE") || error.includes("<html")) {
+      return "Authentication server returned an HTML error. Please check your server configuration.";
+    }
+    return error.trim();
+  }
+
   const candidate = (error ?? {}) as SupabaseLikeError;
   const code = asErrorCode(candidate.code);
   const message =
     typeof candidate.message === "string" && candidate.message.trim().length > 0
       ? candidate.message.trim()
       : "";
+
+  if (message.includes("<!DOCTYPE") || message.includes("<html")) {
+    return "Authentication server returned an HTML error. Please check your server configuration.";
+  }
 
   const mappedByCode: Record<string, string> = {
     invalid_credentials: "Email or password is incorrect.",
@@ -107,5 +121,11 @@ export function mapSupabaseAuthError(error: unknown): string {
   if (error instanceof Error && error.message.trim().length > 0) {
     return error.message.trim();
   }
+
+  const errorStr = JSON.stringify(error);
+  if (errorStr === "{}" || errorStr === "[]") {
+    return "Authentication failed (unknown error). Please try again.";
+  }
+
   return "Authentication failed. Please try again.";
 }

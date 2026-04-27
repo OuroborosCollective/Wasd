@@ -203,19 +203,34 @@ export class ServerBootstrap {
       }
 
       try {
+        let bufferedBody: Buffer | undefined;
+        if (shouldProxyBody(req.method)) {
+          const chunks: Buffer[] = [];
+          bufferedBody = await new Promise<Buffer>((resolve, reject) => {
+            req.on("data", (c: Buffer) => chunks.push(c));
+            req.on("end", () => resolve(Buffer.concat(chunks)));
+            req.on("error", (err) => reject(err));
+          });
+        }
+
+        // GoTrue requires grant_type in the query string, but @supabase/supabase-js
+        // sends it in the JSON body. Transform the URL if needed.
         let upstreamPath = req.originalUrl;
-        if (req.method === "POST" && req.originalUrl.includes("/token") && !req.originalUrl.includes("grant_type=")) {
+        let transformedBody: string | undefined;
+        if (
+          req.method === "POST" &&
+          req.originalUrl.includes("/token") &&
+          !req.originalUrl.includes("grant_type=") &&
+          bufferedBody
+        ) {
           try {
-            const chunks: Buffer[] = [];
-            const body = await new Promise<string>((resolve) => {
-              req.on("data", (c: Buffer) => chunks.push(c));
-              req.on("end", () => resolve(Buffer.concat(chunks).toString()));
-            });
-            const parsed = JSON.parse(body);
+            const bodyStr = bufferedBody.toString();
+            const parsed = JSON.parse(bodyStr);
             if (parsed.grant_type) {
-              const url = new URL(upstreamPath, origin);
-              url.searchParams.set("grant_type", parsed.grant_type);
-              upstreamPath = url.pathname + url.search;
+              const sep = upstreamPath.includes("?") ? "&" : "?";
+              upstreamPath = `${upstreamPath}${sep}grant_type=${encodeURIComponent(parsed.grant_type)}`;
+              delete parsed.grant_type;
+              transformedBody = JSON.stringify(parsed);
             }
           } catch (e) {
             /* ignore parse fail */
@@ -228,8 +243,20 @@ export class ServerBootstrap {
 
         const response = await fetch(resolvedProxyBaseUrl + upstreamPath, {
           method: req.method,
-          headers: headers as any,
-          body: ["GET", "HEAD"].includes(req.method) ? undefined : (req as any).body,
+          headers,
+          redirect: "manual",
+        };
+        if (shouldProxyBody(req.method)) {
+          init.body = (transformedBody ?? bufferedBody) as any;
+          init.duplex = "half";
+        }
+
+        const upstreamResponse = await fetch(upstreamUrl, init);
+        res.status(upstreamResponse.status);
+        upstreamResponse.headers.forEach((value, key) => {
+          const lower = key.toLowerCase();
+          if (lower === "content-length" || lower === "content-encoding") return;
+          res.setHeader(key, value);
         });
 
         res.status(response.status);
