@@ -104,17 +104,24 @@ export const NewHud: React.FC<NewHudProps> = (p) => {
     </div>
   );
 
+  const handleKeyDown = (e: React.KeyboardEvent, action: () => void) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      action();
+    }
+  };
+
   const renderBottomCenter = () => (
     <div className="hud-section bottom-center" onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
       <div className="action-orb-layout">
         <div className="skill-row left">
-          <div className="skill-slot" onClick={() => sendUseSkill("frost_shard")} title="Frost Shard">❄️</div>
-          <div className="skill-slot" onClick={() => sendUseSkill("arc_spark")} title="Arc Spark">⚡</div>
-          <div className="skill-slot" onClick={() => sendUseSkill("vitality_tap")} title="Vitality Tap">✨</div>
+          <div className="skill-slot" onClick={() => sendUseSkill("frost_shard")} onKeyDown={(e) => handleKeyDown(e, () => sendUseSkill("frost_shard"))} role="button" tabIndex={0} aria-label="Use Frost Shard" title="Frost Shard">❄️</div>
+          <div className="skill-slot" onClick={() => sendUseSkill("arc_spark")} onKeyDown={(e) => handleKeyDown(e, () => sendUseSkill("arc_spark"))} role="button" tabIndex={0} aria-label="Use Arc Spark" title="Arc Spark">⚡</div>
+          <div className="skill-slot" onClick={() => sendUseSkill("vitality_tap")} onKeyDown={(e) => handleKeyDown(e, () => sendUseSkill("vitality_tap"))} role="button" tabIndex={0} aria-label="Use Vitality Tap" title="Vitality Tap">✨</div>
         </div>
         
         <div className="orb-container">
-          <div className="central-orb" onClick={p.onAttack}>
+          <div className="central-orb" onClick={p.onAttack} onKeyDown={(e) => handleKeyDown(e, p.onAttack)} role="button" tabIndex={0} aria-label="Attack">
             <div className="orb-inner-glow"></div>
             <span className="gold-text" style={{fontSize: "10px", fontWeight: "bold"}}>ATTACK</span>
           </div>
@@ -138,9 +145,9 @@ export const NewHud: React.FC<NewHudProps> = (p) => {
         </div>
 
         <div className="skill-row right">
-          <div className="skill-slot" onClick={() => sendUseSkill("ember_bolt")} title="Ember Bolt">🔥</div>
-          <div className="skill-slot" onClick={() => sendUseSkill("shadow_tag")} title="Shadow Tag">💀</div>
-          <div className="skill-slot" onClick={() => sendUseSkill("aether_pulse")} title="Aether Pulse">💫</div>
+          <div className="skill-slot" onClick={() => sendUseSkill("ember_bolt")} onKeyDown={(e) => handleKeyDown(e, () => sendUseSkill("ember_bolt"))} role="button" tabIndex={0} aria-label="Use Ember Bolt" title="Ember Bolt">🔥</div>
+          <div className="skill-slot" onClick={() => sendUseSkill("shadow_tag")} onKeyDown={(e) => handleKeyDown(e, () => sendUseSkill("shadow_tag"))} role="button" tabIndex={0} aria-label="Use Shadow Tag" title="Shadow Tag">💀</div>
+          <div className="skill-slot" onClick={() => sendUseSkill("aether_pulse")} onKeyDown={(e) => handleKeyDown(e, () => sendUseSkill("aether_pulse"))} role="button" tabIndex={0} aria-label="Use Aether Pulse" title="Aether Pulse">💫</div>
         </div>
       </div>
       
@@ -160,7 +167,7 @@ export const NewHud: React.FC<NewHudProps> = (p) => {
         <span>Trade</span>
       </div>
       <div className="chat-area">
-        <div className="chat-preview">
+        <div className="chat-preview" role="log" aria-live="polite">
           <p><span className="user gold-text">[System]:</span> Welcome to Areloria!</p>
           {p.fxFeed && p.fxFeed.slice(-5).map((f: any, i: number) => (
               <p key={i}><span className="user gold-text">[Event]:</span> {f.kind} triggered</p>
@@ -172,6 +179,7 @@ export const NewHud: React.FC<NewHudProps> = (p) => {
             value={chatInput} 
             onChange={e => setChatInput(e.target.value)} 
             placeholder="Type message..." 
+            aria-label="Chat message"
           />
         </form>
       </div>
@@ -180,10 +188,10 @@ export const NewHud: React.FC<NewHudProps> = (p) => {
 
   const renderSideMenu = () => (
     <div className="hud-section side-menu" onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
-       <button className="menu-btn" onClick={() => p.onMenuOpen?.("inventory")} title="Inventory">🎒</button>
-       <button className="menu-btn" onClick={() => p.onMenuOpen?.("skills")} title="Skills">📜</button>
-       <button className="menu-btn" onClick={() => p.onMenuOpen?.("equipment")} title="Equipment">🛡️</button>
-       <button className="menu-btn" onClick={() => p.onMenuOpen?.("stats")} title="Mastery">📊</button>
+       <button className="menu-btn" onClick={() => p.onMenuOpen?.("inventory")} title="Inventory" aria-label="Open Inventory">🎒</button>
+       <button className="menu-btn" onClick={() => p.onMenuOpen?.("skills")} title="Skills" aria-label="Open Skills">📜</button>
+       <button className="menu-btn" onClick={() => p.onMenuOpen?.("equipment")} title="Equipment" aria-label="Open Equipment">🛡️</button>
+       <button className="menu-btn" onClick={() => p.onMenuOpen?.("stats")} title="Mastery" aria-label="Open Mastery">📊</button>
     </div>
   );
 
