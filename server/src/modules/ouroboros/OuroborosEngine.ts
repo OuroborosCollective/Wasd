@@ -78,10 +78,17 @@ export class OuroborosEngine {
       ...players.map((p) => ({ id: p.id, name: p.name, type: "player" as const, position: p.position })),
     ];
 
+    const perceptionRadiusSq = this.config.perceptionRadius * this.config.perceptionRadius;
     for (const npc of npcs) {
-      const nearby = allEntities.filter(
-        (e) => e.id !== npc.id && Math.hypot(e.position.x - npc.position.x, e.position.y - npc.position.y) <= this.config.perceptionRadius,
-      );
+      const nx = npc.position.x;
+      const ny = npc.position.y;
+      const nearby = allEntities.filter((e) => {
+        if (e.id === npc.id) return false;
+        const dx = e.position.x - nx;
+        const dy = e.position.y - ny;
+        // ⚡ Bolt Optimization: Use squared distance to avoid Math.hypot()
+        return dx * dx + dy * dy <= perceptionRadiusSq;
+      });
 
       const ctx: AgentContext = {
         npcId: npc.id,

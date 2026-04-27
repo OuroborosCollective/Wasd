@@ -6,10 +6,16 @@ const generateContentMock = vi.fn();
 vi.mock("@google/generative-ai", () => {
   return {
     GoogleGenerativeAI: class {
-      models = {
-        generateContent: generateContentMock
-      };
       constructor(options: any) {}
+      getGenerativeModel() {
+        return {
+          generateContent: async () => ({
+            response: {
+              text: () => generateContentMock()
+            }
+          })
+        };
+      }
     }
   };
 });
@@ -46,7 +52,9 @@ describe("assetBrainEngine", () => {
       process.env.GEMINI_API_KEY = "test-api-key";
       const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-      generateContentMock.mockRejectedValue(new Error("API Error"));
+      generateContentMock.mockImplementation(() => {
+        throw new Error("API Error");
+      });
 
       const { generateAssetSpecification } = await import("../../../modules/asset-brain/assetBrainEngine");
 
@@ -74,9 +82,9 @@ describe("assetBrainEngine", () => {
         autoDecisions: ["LLM-generated explicitly"]
       };
 
-      generateContentMock.mockResolvedValue({
-        text: `\`\`\`json\n${JSON.stringify(mockResponseSpec)}\n\`\`\``
-      });
+      generateContentMock.mockReturnValue(
+        `\`\`\`json\n${JSON.stringify(mockResponseSpec)}\n\`\`\``
+      );
 
       const { generateAssetSpecification } = await import("../../../modules/asset-brain/assetBrainEngine");
 
@@ -98,9 +106,9 @@ describe("assetBrainEngine", () => {
         // autoDecisions missing
       };
 
-      generateContentMock.mockResolvedValue({
-        text: JSON.stringify(mockResponseSpec)
-      });
+      generateContentMock.mockReturnValue(
+        JSON.stringify(mockResponseSpec)
+      );
 
       const { generateAssetSpecification } = await import("../../../modules/asset-brain/assetBrainEngine");
 

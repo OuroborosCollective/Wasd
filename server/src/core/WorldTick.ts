@@ -967,20 +967,26 @@ export class WorldTick {
       if (explicit && explicit.health > 0) return explicit;
     }
     let best: any | null = null;
-    let bestDist = Infinity;
+    let bestDistSq = Infinity;
     for (const npc of this.npcSystem.getAllNPCs()) {
       if (!npc || npc.health <= 0) continue;
-      const dist = Math.hypot((npc.position?.x ?? 0) - player.position.x, (npc.position?.y ?? 0) - player.position.y);
-      if (dist < bestDist) {
+      const dx = (npc.position?.x ?? 0) - player.position.x;
+      const dy = (npc.position?.y ?? 0) - player.position.y;
+      // ⚡ Bolt Optimization: Use squared distance to avoid Math.hypot()
+      const distSq = dx * dx + dy * dy;
+      if (distSq < bestDistSq) {
         best = npc;
-        bestDist = dist;
+        bestDistSq = distSq;
       }
     }
     return best;
   }
 
   private isWithinDistance(a: { x: number; y: number }, b: { x: number; y: number }, d: number): boolean {
-    return Math.hypot(a.x - b.x, a.y - b.y) <= d;
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+    // ⚡ Bolt Optimization: Use squared distance to avoid Math.hypot()
+    return dx * dx + dy * dy <= d * d;
   }
 
   /** True only when the bag existed, was allowed, in range, and contents were granted. */
@@ -1201,11 +1207,15 @@ export class WorldTick {
     const available = this.gameplayFusionDirector
       .getConstructionContracts()
       .filter((row) => row.status === "available");
+    const radiusSq = radius * radius;
     const inRadius = available
       .filter((row) => {
         const px = Number(row?.position?.x ?? 0);
         const py = Number(row?.position?.y ?? 0);
-        return Math.hypot(px - x, py - y) <= radius;
+        const dx = px - x;
+        const dy = py - y;
+        // ⚡ Bolt Optimization: Use squared distance to avoid Math.hypot()
+        return dx * dx + dy * dy <= radiusSq;
       })
       .map((row) => row.id);
     if (inRadius.length > 0) return inRadius;
@@ -3848,10 +3858,16 @@ export class WorldTick {
 
     // NPC chat agent: every 10 ticks (~1s) let NPCs near players chat
     if (this.tickCount % 10 === 0 && onlinePlayers.length > 0) {
+      const localChatRadiusSq = LOCAL_CHAT_RADIUS * LOCAL_CHAT_RADIUS;
       for (const npc of this.npcSystem.getAllNPCs()) {
-        const nearPlayer = onlinePlayers.some(
-          (p: any) => Math.hypot(p.position.x - npc.position.x, p.position.y - npc.position.y) <= LOCAL_CHAT_RADIUS,
-        );
+        const nx = npc.position.x;
+        const ny = npc.position.y;
+        const nearPlayer = onlinePlayers.some((p: any) => {
+          const dx = p.position.x - nx;
+          const dy = p.position.y - ny;
+          // ⚡ Bolt Optimization: Use squared distance to avoid Math.hypot()
+          return dx * dx + dy * dy <= localChatRadiusSq;
+        });
         if (!nearPlayer) continue;
 
         // Feed recent chat into NPC memory
@@ -3994,6 +4010,7 @@ export class WorldTick {
     }
 
     const chunks: Array<{ id: string; chunkX: number; chunkY: number; objects: any[] }> = [];
+    const chunkObjects = new Map<string, any[]>();
 
     // Include world objects if they exist
     if (this.worldSystem.objectSystem) {
@@ -4019,7 +4036,6 @@ export class WorldTick {
       }
 
       // Build real chunks from chunkSystem — include world objects per chunk
-      const chunkObjects = new Map<string, any[]>();
       for (const obj of objectsMap.values()) {
         const chunkId = this.chunkSystem.getChunkId(obj.position.x, obj.position.y);
         let cObjs = chunkObjects.get(chunkId);
@@ -4043,7 +4059,8 @@ export class WorldTick {
     }
 
     // Also include chunks that have entities (players, NPCs)
-    const existingChunkIds = new Set(chunks.map(c => c.id));
+    // ⚡ Bolt Optimization: Use chunkObjects keys directly to avoid redundant map/re-iteration
+    const existingChunkIds = new Set(chunkObjects.keys());
     for (const player of playersMap.values()) {
       const chunkId = this.chunkSystem.getChunkId(player.position.x, player.position.y);
       if (!existingChunkIds.has(chunkId)) {

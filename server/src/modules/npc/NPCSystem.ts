@@ -277,10 +277,12 @@ export class NPCSystem {
       npc.needs.energy = Math.max(0, npc.needs.energy - (0.005 * decayMultiplier));
 
       // 1. Proximity Check (Restored for tests)
+      // ⚡ Bolt Optimization: Use squared distance to avoid Math.hypot()
       let interacting = false;
       for (const player of players) {
-        const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
-        if (dist < 15) {
+        const dx = player.position.x - npc.position.x;
+        const dy = player.position.y - npc.position.y;
+        if (dx * dx + dy * dy < 15 * 15) {
           npc.state = "interacting";
           npc.stateTimer = now + 5000;
           npc.targetPosition = null;
@@ -299,10 +301,12 @@ export class NPCSystem {
       if (npc.targetPosition) {
         const dx = npc.targetPosition.x - npc.position.x;
         const dy = npc.targetPosition.y - npc.position.y;
-        const dist = Math.hypot(dx, dy);
-        if (dist < 1) {
+        const d2 = dx * dx + dy * dy;
+        // ⚡ Bolt Optimization: Use squared distance for arrival check
+        if (d2 < 1 * 1) {
           npc.targetPosition = null;
         } else {
+          const dist = Math.sqrt(d2);
           const speed = 0.5;
           npc.position.x += (dx / dist) * speed;
           npc.position.y += (dy / dist) * speed;
