@@ -309,23 +309,34 @@ export class ServerBootstrap {
       }
 
       try {
+        let bufferedBody: Buffer | undefined;
+        if (shouldProxyBody(req.method)) {
+          const chunks: Buffer[] = [];
+          bufferedBody = await new Promise<Buffer>((resolve, reject) => {
+            req.on("data", (c: Buffer) => chunks.push(c));
+            req.on("end", () => resolve(Buffer.concat(chunks)));
+            req.on("error", (err) => reject(err));
+          });
+        }
+
         // GoTrue requires grant_type in the query string, but @supabase/supabase-js
         // sends it in the JSON body. Transform the URL if needed.
         let upstreamPath = req.originalUrl;
-        if (req.method === "POST" && req.originalUrl.includes("/token") && !req.originalUrl.includes("grant_type=")) {
+        let transformedBody: string | undefined;
+        if (
+          req.method === "POST" &&
+          req.originalUrl.includes("/token") &&
+          !req.originalUrl.includes("grant_type=") &&
+          bufferedBody
+        ) {
           try {
-            const chunks: Buffer[] = [];
-            const body = await new Promise<string>((resolve) => {
-              req.on("data", (c: Buffer) => chunks.push(c));
-              req.on("end", () => resolve(Buffer.concat(chunks).toString()));
-            });
-            const parsed = JSON.parse(body);
+            const bodyStr = bufferedBody.toString();
+            const parsed = JSON.parse(bodyStr);
             if (parsed.grant_type) {
               const sep = upstreamPath.includes("?") ? "&" : "?";
               upstreamPath = `${upstreamPath}${sep}grant_type=${encodeURIComponent(parsed.grant_type)}`;
               delete parsed.grant_type;
-              // Replace the request body without grant_type
-              (req as unknown as { _transformedBody?: string })._transformedBody = JSON.stringify(parsed);
+              transformedBody = JSON.stringify(parsed);
             }
           } catch {
             // Body parsing failed — forward as-is
@@ -361,8 +372,7 @@ export class ServerBootstrap {
           redirect: "manual",
         };
         if (shouldProxyBody(req.method)) {
-          const transformedBody = (req as unknown as { _transformedBody?: string })._transformedBody;
-          init.body = transformedBody ?? (req as unknown as BodyInit);
+          init.body = (transformedBody ?? bufferedBody) as any;
           init.duplex = "half";
         }
 

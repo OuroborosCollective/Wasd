@@ -173,12 +173,17 @@ export class PlaytesterWebRTCSignaling {
 
   private isAuthorized(req: IncomingMessage): boolean {
     const configuredToken = PlaytesterConfig.monitorToken;
+    const requestToken = tokenFromRequest(req);
+
     if (configuredToken.length > 0) {
-      return tokenFromRequest(req) === configuredToken;
+      return requestToken === configuredToken;
     }
+
     if (process.env.NODE_ENV !== "production") {
       return true;
     }
+
+    // In production, if no token is configured, we only allow loopback
     const remote = String(req.socket.remoteAddress || "");
     return isLoopback(remote);
   }
