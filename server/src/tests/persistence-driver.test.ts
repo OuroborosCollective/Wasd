@@ -51,4 +51,12 @@ describe("PersistenceManager driver selection", () => {
     const pm = new PersistenceManager();
     expect(pm.getDriverName()).toBe("postgres");
   });
+
+  it("PERSISTENCE_DRIVER=redis selects redis backend", async () => {
+    vi.resetModules();
+    process.env.PERSISTENCE_DRIVER = "redis";
+    const { PersistenceManager } = await import("../core/PersistenceManager.js");
+    const pm = new PersistenceManager();
+    expect(pm.getDriverName()).toBe("redis");
+  });
 });

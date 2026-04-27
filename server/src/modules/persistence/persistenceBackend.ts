@@ -1,6 +1,6 @@
-/** Pluggable persistence for players + optional world objects (file, Postgres). */
+/** Pluggable persistence for players + optional world objects (file, Postgres, Redis). */
 
-export type PersistenceDriverName = "auto" | "file" | "postgres";
+export type PersistenceDriverName = "auto" | "file" | "postgres" | "redis";
 
 export interface IPersistenceBackend {
   readonly name: string;
@@ -14,8 +14,8 @@ export interface IPersistenceBackend {
 
 export function resolvePersistenceDriver(): PersistenceDriverName {
   const raw = process.env.PERSISTENCE_DRIVER?.trim().toLowerCase();
-  if (raw === "file" || raw === "postgres") {
-    return raw;
+  if (raw === "file" || raw === "postgres" || raw === "redis") {
+    return raw as PersistenceDriverName;
   }
   return "auto";
 }
