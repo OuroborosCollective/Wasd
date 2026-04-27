@@ -26,7 +26,9 @@ import { registerSelfHealingDashboard } from "../selfhealing/SelfHealingDashboar
 import { PlaytesterConfig } from "../config/PlaytesterConfig.js";
 import { PlaytesterMonitorStream } from "../modules/playtester/PlaytesterMonitorStream.js";
 import { PlaytesterWebRTCSignaling } from "../modules/playtester/PlaytesterWebRTCSignaling.js";
+import { initRedisClient } from "./RedisClient.js";
 import { URL } from "node:url";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -51,226 +53,115 @@ function resolveClientRoot(): string {
     return fromCwd;
   }
 
-  let dir = __dirname;
-  for (let i = 0; i < 10; i++) {
-    const candidate = path.join(dir, "client");
-    if (isClientDir(candidate)) {
-      return candidate;
-    }
-    const parent = path.dirname(dir);
-    if (parent === dir) {
-      break;
-    }
-    dir = parent;
+  let current = __dirname;
+  for (let i = 0; i < 5; i++) {
+    const check = path.join(current, "client");
+    if (isClientDir(check)) return check;
+    const sibling = path.join(path.dirname(current), "client");
+    if (isClientDir(sibling)) return sibling;
+    current = path.dirname(current);
   }
-
   return path.resolve(__dirname, "../../../client");
 }
 
-function resolveAdminContentHtmlPath(clientRoot: string, clientDist: string): string | null {
-  const candidates = [
-    path.join(clientDist, "admin-content.html"),
+function resolveAdminContentHtmlPath(clientRoot: string, distPath: string): string | null {
+  const paths = [
+    path.join(distPath, "admin-content.html"),
     path.join(clientRoot, "public", "admin-content.html"),
+    path.join(clientRoot, "admin-content.html"),
   ];
-  for (const p of candidates) {
-    if (existsSync(p)) {
-      return path.resolve(p);
-    }
+  for (const p of paths) {
+    if (existsSync(p)) return p;
   }
   return null;
+}
+
+function resolvePlaytesterMonitorHtmlPath(clientRoot: string, distPath: string): string | null {
+  const paths = [
+    path.join(distPath, "playtester-monitor.html"),
+    path.join(clientRoot, "public", "playtester-monitor.html"),
+    path.join(clientRoot, "playtester-monitor.html"),
+  ];
+  for (const p of paths) {
+    if (existsSync(p)) return p;
+  }
+  return null;
+}
+
+function resolvePlaytesterPublisherHtmlPath(clientRoot: string, distPath: string): string | null {
+  const paths = [
+    path.join(distPath, "playtester-render-publisher.html"),
+    path.join(clientRoot, "public", "playtester-render-publisher.html"),
+    path.join(clientRoot, "playtester-render-publisher.html"),
+  ];
+  for (const p of paths) {
+    if (existsSync(p)) return p;
+  }
+  return null;
+}
+
+function resolveSupabaseProxyBaseUrl(): string | null {
+  const raw =
+    process.env.SUPABASE_PROXY_URL ||
+    process.env.SUPABASE_URL ||
+    process.env.SUPABASE_PUBLIC_URL ||
+    "";
+  if (!raw) return null;
+  try {
+    const u = new URL(raw);
+    return u.origin;
+  } catch {
+    return null;
+  }
+}
+
+function resolveSupabaseProxyBaseUrlForRequest(req: Request, defaultUrl: string | null): string | null {
+  const apiKey = req.headers["apikey"] as string;
+  if (!apiKey || apiKey.length < 20) return defaultUrl;
+  const match = apiKey.match(/^[a-zA-Z0-9]{20,}/);
+  if (!match) return defaultUrl;
+
+  const ref = req.headers["x-supabase-ref"] as string;
+  if (ref) {
+    return `https://${ref}.supabase.co`;
+  }
+  return defaultUrl;
+}
+
+function buildClientPublicConfigJson(req: Request): string {
+  const host = req.headers.host || "localhost:3000";
+  const protocol = req.headers["x-forwarded-proto"] || "http";
+  const origin = `${protocol}://${host}`;
+
+  const supabaseUrl =
+    process.env.SUPABASE_PROXY_URL ||
+    process.env.GAME_ORIGIN ||
+    process.env.SUPABASE_PUBLIC_URL ||
+    origin;
+
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "";
+
+  return JSON.stringify({
+    supabaseUrl,
+    supabaseAnonKey,
+    websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL || `ws://${host}/ws`,
+    apiOrigin: process.env.API_EXTERNAL_URL || origin,
+    posthogApiKey: process.env.NEXT_PUBLIC_POSTHOG_KEY || "",
+    posthogHost: process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com",
+    environment: process.env.NODE_ENV || "development",
+  });
 }
 
 function envTruthy(key: string): boolean {
-  const value = process.env[key]?.trim().toLowerCase();
-  return value === "1" || value === "true" || value === "yes";
-}
-
-function trimEnv(key: string): string {
-  const value = process.env[key];
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function resolvePlaytesterMonitorHtmlPath(clientRoot: string, clientDist: string): string | null {
-  const preferPublic = process.env.NODE_ENV !== "production";
-  const candidates = preferPublic
-    ? [
-        path.join(clientRoot, "public", "playtester-monitor.html"),
-        path.join(clientDist, "playtester-monitor.html"),
-      ]
-    : [
-        path.join(clientDist, "playtester-monitor.html"),
-        path.join(clientRoot, "public", "playtester-monitor.html"),
-      ];
-  for (const p of candidates) {
-    if (existsSync(p)) {
-      return path.resolve(p);
-    }
-  }
-  return null;
-}
-
-function resolvePlaytesterPublisherHtmlPath(clientRoot: string, clientDist: string): string | null {
-  const preferPublic = process.env.NODE_ENV !== "production";
-  const candidates = preferPublic
-    ? [
-        path.join(clientRoot, "public", "playtester-render-publisher.html"),
-        path.join(clientDist, "playtester-render-publisher.html"),
-      ]
-    : [
-        path.join(clientDist, "playtester-render-publisher.html"),
-        path.join(clientRoot, "public", "playtester-render-publisher.html"),
-      ];
-  for (const p of candidates) {
-    if (existsSync(p)) {
-      return path.resolve(p);
-    }
-  }
-  return null;
-}
-
-function tokenFromRequest(req: Request): string {
-  const query = typeof req.query.token === "string" ? req.query.token.trim() : "";
-  if (query) return query;
-  const header = typeof req.headers["x-playtester-token"] === "string"
-    ? req.headers["x-playtester-token"].trim()
-    : "";
-  if (header) return header;
-  const auth = typeof req.headers.authorization === "string"
-    ? req.headers.authorization.replace(/^Bearer\s+/i, "").trim()
-    : "";
-  return auth;
+  const v = process.env[key]?.trim().toLowerCase();
+  return v === "true" || v === "1" || v === "yes";
 }
 
 function canAccessPlaytesterMonitor(req: Request): boolean {
-  const configuredToken = PlaytesterConfig.monitorToken;
-  if (configuredToken.length > 0) {
-    return tokenFromRequest(req) === configuredToken;
-  }
-  if (process.env.NODE_ENV !== "production") {
-    return true;
-  }
-  const remote = String(req.socket.remoteAddress || "");
-  return remote === "127.0.0.1" || remote === "::1" || remote === "::ffff:127.0.0.1";
-}
-
-/** Public anon config for the browser bundle (no service role). */
-export function buildClientPublicConfigJson(req?: express.Request): string {
-  const proxyUrl = trimEnv("SUPABASE_PROXY_URL");
-  const gameOrigin = trimEnv("GAME_ORIGIN") || trimEnv("APP_ORIGIN") || (req ? `${req.protocol}://${req.get("host")}` : "");
-  
-  let url: string;
-  if (proxyUrl && gameOrigin) {
-    url = gameOrigin;
-  } else {
-    url =
-      trimEnv("VITE_SUPABASE_URL") ||
-      trimEnv("VITE_SUPABASE_PUBLIC_URL") ||
-      trimEnv("SUPABASE_PUBLIC_URL") ||
-      trimEnv("SUPABASE_URL") ||
-      trimEnv("API_EXTERNAL_URL");
-  }
-  
-  const anonKey = trimEnv("VITE_SUPABASE_ANON_KEY") || trimEnv("SUPABASE_ANON_KEY") || trimEnv("ANON_KEY");
-  return JSON.stringify({
-    supabaseUrl: url || null,
-    supabaseAnonKey: anonKey || null,
-  });
-}
-function normalizeSupabaseBaseUrl(raw: string): string | null {
-  try {
-    const parsed = new URL(raw.trim());
-    const cleanPath = parsed.pathname
-      .replace(/\/+$/, "")
-      .replace(/\/auth\/v1$/i, "")
-      .replace(/\/+$/, "");
-    return `${parsed.origin}${cleanPath}`;
-  } catch {
-    return null;
-  }
-}
-
-/** Exported for tests — Kong / GoTrue base URL (no trailing /auth/v1). */
-export function resolveSupabaseProxyBaseUrl(): string | null {
-  const configured =
-    trimEnv("SUPABASE_PROXY_URL") ||
-    trimEnv("SUPABASE_URL") ||
-    trimEnv("SUPABASE_PUBLIC_URL") ||
-    trimEnv("API_EXTERNAL_URL") ||
-    trimEnv("VITE_SUPABASE_URL") ||
-    trimEnv("VITE_SUPABASE_PUBLIC_URL");
-  if (!configured) return null;
-  return normalizeSupabaseBaseUrl(configured);
-}
-
-function supabaseOriginFromRef(ref: string): string | null {
-  const clean = ref.trim().toLowerCase();
-  if (!/^[a-z0-9]{8,32}$/.test(clean)) return null;
-  return `https://${clean}.supabase.co`;
-}
-
-function inferSupabaseProxyBaseFromApiKey(rawApiKey: string): string | null {
-  const apiKey = rawApiKey.trim();
-  if (!apiKey) return null;
-  /** Never trust JWT payload for upstream URL without verifying (forged iss → SSRF). */
-  let payload: Record<string, unknown>;
-  try {
-    payload = verifySupabaseToken(apiKey) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-
-  const refValue = payload.ref;
-  if (typeof refValue === "string") {
-    const fromRef = supabaseOriginFromRef(refValue);
-    if (fromRef) return fromRef;
-  }
-
-  const issuerValue = payload.iss;
-  if (typeof issuerValue === "string") {
-    const normalized = normalizeSupabaseBaseUrl(issuerValue);
-    if (normalized) {
-      if (/^https:\/\/[a-z0-9-]+\.supabase\.co(?:$|\/)/i.test(normalized)) {
-        return normalized;
-      }
-      /** Self-hosted GoTrue: iss is typically …/auth/v1 */
-      if (/\/auth\/v1(?:\/|$)/i.test(issuerValue)) {
-        return normalized;
-      }
-    }
-  }
-
-  return null;
-}
-
-function resolveRequestApiKey(req: Request): string {
-  const fromApiKeyHeader = req.headers["apikey"];
-  if (typeof fromApiKeyHeader === "string" && fromApiKeyHeader.trim()) {
-    return fromApiKeyHeader.trim();
-  }
-  if (Array.isArray(fromApiKeyHeader) && fromApiKeyHeader.length > 0) {
-    const first = fromApiKeyHeader.find((v) => typeof v === "string" && v.trim().length > 0);
-    if (first) return first.trim();
-  }
-  const authHeader = req.headers.authorization;
-  if (typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
-    return authHeader.slice(7).trim();
-  }
-  return "";
-}
-
-export function resolveSupabaseProxyBaseUrlForRequest(
-  req: Request,
-  configuredBaseUrl: string | null
-): string | null {
-  if (configuredBaseUrl) return configuredBaseUrl;
-  const apiKey = resolveRequestApiKey(req);
-  if (!apiKey) return null;
-  return inferSupabaseProxyBaseFromApiKey(apiKey);
-}
-
-function shouldProxyBody(method: string): boolean {
-  const upper = method.toUpperCase();
-  return upper !== "GET" && upper !== "HEAD";
+  const token = PlaytesterConfig.monitorToken;
+  if (!token) return true;
+  const provided = req.query.token as string;
+  return provided === token;
 }
 
 export class ServerBootstrap {
@@ -279,6 +170,9 @@ export class ServerBootstrap {
     const httpServer = createServer(app);
     const selfHealingRuntime = bootstrapSelfHealing(resolveSelfHealingConfigFromEnv());
     const supabaseProxyBaseUrl = resolveSupabaseProxyBaseUrl();
+
+    // Initialize Redis before anything else
+    await initRedisClient();
 
     app.use("/api/mcp", mcpRoute());
     app.use("/api/leaderboard", leaderboardRouter());
@@ -338,35 +232,16 @@ export class ServerBootstrap {
               delete parsed.grant_type;
               transformedBody = JSON.stringify(parsed);
             }
-          } catch {
-            // Body parsing failed — forward as-is
+          } catch (e) {
+            /* ignore parse fail */
           }
         }
 
-        const upstreamUrl = new URL(
-          upstreamPath,
-          `${resolvedProxyBaseUrl.replace(/\/+$/, "")}/`
-        ).toString();
-        const headers = new Headers();
-        for (const [key, value] of Object.entries(req.headers)) {
-          if (!value) continue;
-          const lower = key.toLowerCase();
-          if (lower === "host" || lower === "content-length" || lower === "connection") continue;
-          if (Array.isArray(value)) {
-            headers.set(key, value.join(", "));
-          } else {
-            headers.set(key, value);
-          }
-        }
-        if (!headers.has("x-forwarded-host") && req.headers.host) {
-          headers.set("x-forwarded-host", String(req.headers.host));
-        }
-        if (!headers.has("x-forwarded-proto")) {
-          const proto = req.headers["x-forwarded-proto"];
-          headers.set("x-forwarded-proto", proto ? String(proto) : req.protocol);
-        }
+        const headers = { ...req.headers };
+        delete headers.host;
+        delete headers["content-length"];
 
-        const init: RequestInit & { duplex?: "half" } = {
+        const response = await fetch(resolvedProxyBaseUrl + upstreamPath, {
           method: req.method,
           headers,
           redirect: "manual",
@@ -383,10 +258,13 @@ export class ServerBootstrap {
           if (lower === "content-length" || lower === "content-encoding") return;
           res.setHeader(key, value);
         });
-        const body = Buffer.from(await upstreamResponse.arrayBuffer());
-        return res.send(body);
-      } catch (error) {
-        console.error("[ServerBootstrap] Supabase auth proxy failed:", error);
+
+        res.status(response.status);
+        response.headers.forEach((v, k) => res.setHeader(k, v));
+        const respData = await response.arrayBuffer();
+        res.send(Buffer.from(respData));
+      } catch (err) {
+        console.error("[AuthProxy] Failed to forward request to Supabase:", err);
         return res.status(502).json({
           error: "supabase_auth_proxy_upstream_failed",
           message: "Network problem while contacting Supabase. Please check your connection and server URL.",
@@ -515,11 +393,9 @@ export class ServerBootstrap {
         app.use(express.static(clientPath));
       }
     } else {
-      // Add WASM MIME type middleware for production
       app.use((req, res, next) => {
         if (req.url?.endsWith(".wasm")) {
           res.setHeader("Content-Type", "application/wasm");
-          // Required headers for WASM streaming
           res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
           res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
         }
@@ -549,7 +425,6 @@ export class ServerBootstrap {
       );
     }
 
-    // Serve game-data/world/ at /world/ (performance policy, world config, etc.)
     try {
       const worldDir = resolveContentDir("world");
       if (existsSync(worldDir)) {
@@ -650,7 +525,6 @@ export class ServerBootstrap {
       console.log(`Arelorian server listening on ${port}`);
       tick.start();
 
-      // Graceful shutdown: flush LiveHeal learning data
       const shutdownHandler = async () => {
         console.log("[Shutdown] Flushing data...");
         playtesterSignaling.stop();
