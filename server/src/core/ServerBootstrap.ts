@@ -100,11 +100,12 @@ function resolvePlaytesterPublisherHtmlPath(clientRoot: string, distPath: string
   return null;
 }
 
-function resolveSupabaseProxyBaseUrl(): string | null {
+export function resolveSupabaseProxyBaseUrl(): string | null {
   const raw =
     process.env.SUPABASE_PROXY_URL ||
     process.env.SUPABASE_URL ||
     process.env.SUPABASE_PUBLIC_URL ||
+    process.env.API_EXTERNAL_URL ||
     "";
   if (!raw) return null;
   try {
@@ -115,31 +116,49 @@ function resolveSupabaseProxyBaseUrl(): string | null {
   }
 }
 
-function resolveSupabaseProxyBaseUrlForRequest(req: Request, defaultUrl: string | null): string | null {
-  const apiKey = req.headers["apikey"] as string;
-  if (!apiKey || apiKey.length < 20) return defaultUrl;
-  const match = apiKey.match(/^[a-zA-Z0-9]{20,}/);
-  if (!match) return defaultUrl;
+export function resolveSupabaseProxyBaseUrlForRequest(req: Request, defaultUrl: string | null): string | null {
+  const rawAuthBlob = (req.headers["apikey"] as string) || (req.headers["authorization"]?.split(" ")[1] as string);
+  if (!rawAuthBlob || rawAuthBlob.length < 20) return defaultUrl;
 
   const ref = req.headers["x-supabase-ref"] as string;
-  if (ref) {
+  if (ref && /^[a-z0-9]{8,32}$/i.test(ref)) {
     return `https://${ref}.supabase.co`;
   }
+
+  try {
+    const claims = verifySupabaseToken(rawAuthBlob);
+    const claimRef = claims.ref;
+    const claimIss = claims.iss;
+
+    if (claimRef && /^[a-z0-9]{8,32}$/i.test(claimRef)) {
+      return `https://${claimRef}.supabase.co`;
+    }
+    if (claimIss && (claimIss.startsWith("https://") || claimIss.startsWith("http://")) && claimIss.includes("/auth/v1")) {
+      const parts = claimIss.split("/auth/v1");
+      if (parts[0] && /^https?:\/\/[a-z0-9.-]+(supabase\.co|\.space)(:\d+)?$/.test(parts[0])) {
+        return parts[0];
+      }
+    }
+  } catch {
+    /* ignore invalid tokens */
+  }
+
   return defaultUrl;
 }
 
-function buildClientPublicConfigJson(req: Request): string {
-  const host = req.headers.host || "localhost:3000";
-  const protocol = req.headers["x-forwarded-proto"] || "http";
+export function buildClientPublicConfigJson(req?: Request): string {
+  const host = req?.headers?.host || "localhost:3000";
+  const protocol = req?.headers?.["x-forwarded-proto"] || "http";
   const origin = `${protocol}://${host}`;
 
   const supabaseUrl =
-    process.env.SUPABASE_PROXY_URL ||
     process.env.GAME_ORIGIN ||
     process.env.SUPABASE_PUBLIC_URL ||
+    process.env.API_EXTERNAL_URL ||
+    process.env.SUPABASE_PROXY_URL ||
     origin;
 
-  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "";
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.ANON_KEY || "";
 
   return JSON.stringify({
     supabaseUrl,
@@ -169,6 +188,8 @@ function canAccessPlaytesterMonitor(req: Request): boolean {
 }
 
 export class ServerBootstrap {
+  private initializing = true;
+
   async start() {
     const app = express();
     const httpServer = createServer(app);
@@ -187,6 +208,95 @@ export class ServerBootstrap {
       res.type("application/json");
       res.setHeader("Cache-Control", "no-store");
       res.send(buildClientPublicConfigJson(_req));
+    });
+
+    app.get("/health", (_req, res) => {
+      // If we are still initializing, return 503 so load balancers don't send traffic yet
+      if (this.initializing) {
+        return res.status(503).json({
+          status: "initializing",
+          message: "Server is booting up, please wait.",
+        });
+      }
+
+      // Late-bind tick reference if available
+      const tick = (this as any)._tick as WorldTick;
+      const persistence = tick?.getPersistenceStats() ?? { status: "unknown" };
+      const content = getContentDataSourceLabel();
+      const selfHealingStatus = selfHealingRuntime.system.getStatus();
+      res.json({
+        ok: true,
+        project: "ARELORIAN MMORPG",
+        version: "0.2.0",
+        persistence,
+        content: { mode: content.mode, root: content.root },
+        supabase: getSupabaseSummary(),
+        auth: {
+          useSupabaseWsLogin: envTruthy("USE_SUPABASE_WS_LOGIN"),
+          requireSupabaseAuth: envTruthy("REQUIRE_SUPABASE_AUTH"),
+          allowGuestLogin: (() => {
+            const v = process.env.ALLOW_GUEST_LOGIN?.trim().toLowerCase();
+            if (v === "0" || v === "false" || v === "no") return false;
+            return true;
+          })(),
+          allowDevLogin: !["0", "false", "no"].includes(process.env.ALLOW_DEV_LOGIN?.trim().toLowerCase() || ""),
+        },
+        selfHealing: {
+          active: selfHealingStatus.active,
+          patchMode: selfHealingStatus.config.patchMode,
+          totalErrors: selfHealingStatus.totalErrors,
+          totalHealed: selfHealingStatus.totalHealed,
+          healingRate: selfHealingStatus.healingRate,
+          featuresProtected: selfHealingStatus.featuresProtected,
+        },
+        liveHeal: (() => {
+          const status = tick?.liveHeal.getStatus();
+          if (!status) return null;
+          return {
+            tickCount: status.tickCount,
+            subsystems: status.subsystems.map(s => ({
+              id: s.id,
+              state: s.state,
+              score: s.score,
+              healingLocked: s.healingLocked,
+            })),
+            learningEntries: status.learningEntries,
+            logEntries: status.logEntries,
+          };
+        })(),
+        assetHealth: (() => {
+          const stats = tick?.assetHealthService.getStats();
+          if (!stats) return null;
+          return {
+            totalScanned: stats.totalScanned,
+            totalValid: stats.totalValid,
+            totalWarnings: stats.totalWarnings,
+            totalHardFailures: stats.totalHardFailures,
+            totalQuarantined: stats.totalQuarantined,
+            startupScanDone: stats.startupScanDone,
+          };
+        })(),
+        playtester: {
+          enabled: PlaytesterConfig.enabled,
+          streamEnabled: PlaytesterConfig.streamEnabled,
+          monitorMode: PlaytesterConfig.monitorMode,
+          monitorPath: PlaytesterConfig.monitorPath,
+          monitorSignalPath: PlaytesterConfig.monitorSignalPath,
+          monitorPublisherPath: PlaytesterConfig.monitorPublisherPath,
+          monitorTokenRequired: PlaytesterConfig.monitorToken.length > 0,
+          debugLogPath: tick?.getPlaytesterDebugLogPath(),
+          stream: {
+            width: PlaytesterConfig.streamWidth,
+            height: PlaytesterConfig.streamHeight,
+            fps: PlaytesterConfig.streamFps,
+            quality: PlaytesterConfig.streamQuality,
+            shadows: PlaytesterConfig.streamShadows,
+            particles: PlaytesterConfig.streamParticles,
+            renderDistance: PlaytesterConfig.streamRenderDistance,
+            iceServers: PlaytesterConfig.streamIceServers,
+          },
+        },
+      });
     });
 
     app.get("/", (req, res, next) => {
@@ -251,14 +361,17 @@ export class ServerBootstrap {
           headers: headers as any,
           redirect: "manual",
         };
+
         if (shouldProxyBody(req.method)) {
           init.body = (transformedBody ?? bufferedBody) as any;
           (init as any).duplex = "half";
         }
 
-        const upstreamResponse = await fetch(upstreamUrl, init);
-        res.status(upstreamResponse.status);
-        upstreamResponse.headers.forEach((value, key) => {
+        const finalUrlString = String(finalUpstreamUrl.href);
+        const response = await fetch(finalUrlString, fetchInit);
+
+        res.status(response.status);
+        response.headers.forEach((value, key) => {
           const lower = key.toLowerCase();
           if (lower === "content-length" || lower === "content-encoding") return;
           res.setHeader(key, value);
@@ -279,7 +392,9 @@ export class ServerBootstrap {
     ws.start();
 
     const tick = new WorldTick(ws);
+    (this as any)._tick = tick;
     await tick.init();
+    this.initializing = false;
     const monitorStream = new PlaytesterMonitorStream(httpServer, (options) =>
       tick.buildPlaytesterMonitorPayload(options)
     );
@@ -444,82 +559,6 @@ export class ServerBootstrap {
       console.warn("[ServerBootstrap] Could not resolve game-data/world for /world route:", e);
     }
 
-    app.get("/health", (_req, res) => {
-      const persistence = tick.getPersistenceStats();
-      const content = getContentDataSourceLabel();
-      const selfHealingStatus = selfHealingRuntime.system.getStatus();
-      res.json({
-        ok: true,
-        project: "ARELORIAN MMORPG",
-        version: "0.2.0",
-        persistence,
-        content: { mode: content.mode, root: content.root },
-        supabase: getSupabaseSummary(),
-        auth: {
-          useSupabaseWsLogin: envTruthy("USE_SUPABASE_WS_LOGIN"),
-          requireSupabaseAuth: envTruthy("REQUIRE_SUPABASE_AUTH"),
-          allowGuestLogin: (() => {
-            const v = process.env.ALLOW_GUEST_LOGIN?.trim().toLowerCase();
-            if (v === "0" || v === "false" || v === "no") return false;
-            return true;
-          })(),
-          allowDevLogin: !["0", "false", "no"].includes(process.env.ALLOW_DEV_LOGIN?.trim().toLowerCase() || ""),
-        },
-        selfHealing: {
-          active: selfHealingStatus.active,
-          patchMode: selfHealingStatus.config.patchMode,
-          totalErrors: selfHealingStatus.totalErrors,
-          totalHealed: selfHealingStatus.totalHealed,
-          healingRate: selfHealingStatus.healingRate,
-          featuresProtected: selfHealingStatus.featuresProtected,
-        },
-        liveHeal: (() => {
-          const status = tick.liveHeal.getStatus();
-          return {
-            tickCount: status.tickCount,
-            subsystems: status.subsystems.map(s => ({
-              id: s.id,
-              state: s.state,
-              score: s.score,
-              healingLocked: s.healingLocked,
-            })),
-            learningEntries: status.learningEntries,
-            logEntries: status.logEntries,
-          };
-        })(),
-        assetHealth: (() => {
-          const stats = tick.assetHealthService.getStats();
-          return {
-            totalScanned: stats.totalScanned,
-            totalValid: stats.totalValid,
-            totalWarnings: stats.totalWarnings,
-            totalHardFailures: stats.totalHardFailures,
-            totalQuarantined: stats.totalQuarantined,
-            startupScanDone: stats.startupScanDone,
-          };
-        })(),
-        playtester: {
-          enabled: PlaytesterConfig.enabled,
-          streamEnabled: PlaytesterConfig.streamEnabled,
-          monitorMode: PlaytesterConfig.monitorMode,
-          monitorPath: PlaytesterConfig.monitorPath,
-          monitorSignalPath: PlaytesterConfig.monitorSignalPath,
-          monitorPublisherPath: PlaytesterConfig.monitorPublisherPath,
-          monitorTokenRequired: PlaytesterConfig.monitorToken.length > 0,
-          debugLogPath: tick.getPlaytesterDebugLogPath(),
-          stream: {
-            width: PlaytesterConfig.streamWidth,
-            height: PlaytesterConfig.streamHeight,
-            fps: PlaytesterConfig.streamFps,
-            quality: PlaytesterConfig.streamQuality,
-            shadows: PlaytesterConfig.streamShadows,
-            particles: PlaytesterConfig.streamParticles,
-            renderDistance: PlaytesterConfig.streamRenderDistance,
-            iceServers: PlaytesterConfig.streamIceServers,
-          },
-        },
-      });
-    });
     app.use(selfHealingMiddleware());
 
     const port = Number(process.env.PORT || 3000);
