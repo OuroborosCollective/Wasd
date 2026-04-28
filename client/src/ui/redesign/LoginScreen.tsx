@@ -26,13 +26,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     }
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
-      if (data.session) {
+      if (authError) throw authError;
+      
+      if (data?.session?.access_token) {
         onLoginSuccess(data.session.access_token);
       }
     } catch (err: any) {
@@ -55,12 +56,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     }
 
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { error: authError } = await supabase.auth.signUp({
         email,
         password,
       });
 
-      if (error) throw error;
+      if (authError) throw authError;
       setError("Registration successful! Please check your email for verification.");
       setIsRegistering(false);
     } catch (err: any) {
@@ -75,56 +76,70 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     <div className="login-screen-container">
       <div className="login-overlay">
         <div className="login-card">
-          <h1 className="game-logo">Arelorian</h1>
-          <h2 className="subtitle">- ARE-Logic -</h2>
+          <header className="login-header">
+            <h1 className="game-logo">Arelorian</h1>
+            <h2 className="subtitle">- ARE-Logic -</h2>
+          </header>
 
-          <div className="form-container">
+          <main className="form-container">
             <h3>{isRegistering ? "Create Account" : "Login"}</h3>
             
             <form onSubmit={isRegistering ? handleRegister : handleLogin}>
               <div className="input-group">
-                <label>Email</label>
+                <label htmlFor="email">Email</label>
                 <input
+                  id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
+                  autoComplete="email"
                   required
                 />
               </div>
 
               <div className="input-group">
-                <label>Password</label>
+                <label htmlFor="password">Password</label>
                 <input
+                  id="password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
+                  autoComplete="current-password"
                   required
                 />
               </div>
 
-              {error && <div className="error-message">{error}</div>}
+              {error && (
+                <div className="error-message">
+                  <span>{error}</span>
+                </div>
+              )}
 
               <button type="submit" className="login-btn" disabled={loading}>
-                {loading ? "Processing..." : isRegistering ? "Register" : "Enter Arelorian"}
+                {loading ? "Processing..." : isRegistering ? "Register Now" : "Enter Arelorian"}
               </button>
             </form>
 
-            <div className="auth-toggle">
+            <footer className="auth-toggle">
               {isRegistering ? (
                 <p>
                   Already have an account?{" "}
-                  <button onClick={() => setIsRegistering(false)}>Login</button>
+                  <button type="button" className="link-btn" onClick={() => setIsRegistering(false)}>
+                    Login
+                  </button>
                 </p>
               ) : (
                 <p>
                   New player?{" "}
-                  <button onClick={() => setIsRegistering(true)}>Create Account</button>
+                  <button type="button" className="link-btn" onClick={() => setIsRegistering(true)}>
+                    Create Account
+                  </button>
                 </p>
               )}
-            </div>
-          </div>
+            </footer>
+          </main>
         </div>
       </div>
     </div>
