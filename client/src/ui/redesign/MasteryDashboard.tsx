@@ -20,12 +20,12 @@ const StatItem: React.FC<StatItemProps> = ({ label, value, onIncrease, onDecreas
   <div className="attribute-row">
     <span className="attr-label">{label}</span>
     <div className="attr-controls">
-      <button onClick={onDecrease} disabled={disabled}>-</button>
-      <div className="attr-bar">
+      <button onClick={onDecrease} disabled={disabled} aria-label={`Decrease ${label}`}>-</button>
+      <div className="attr-bar" role="progressbar" aria-valuenow={value} aria-valuemin={0} aria-valuemax={50} aria-label={label}>
         <div className="attr-fill" style={{ width: `${Math.min(100, (value / 50) * 100)}%` }}></div>
       </div>
       <span className="attr-value">{value}</span>
-      <button onClick={onIncrease} disabled={disabled}>+</button>
+      <button onClick={onIncrease} disabled={disabled} aria-label={`Increase ${label}`}>+</button>
     </div>
   </div>
 );

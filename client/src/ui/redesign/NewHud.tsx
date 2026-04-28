@@ -96,8 +96,8 @@ export const NewHud: React.FC<NewHudProps> = (p) => {
   const renderTopRight = () => (
     <div className="hud-section top-right" onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
       <div className="minimap-orb gold-frame">
-        <div className="minimap-placeholder">
-           <img src="/assets/ui-redesign/master_hud.png" alt="Map" style={{width: "100%", height: "100%", borderRadius: "50%", opacity: 0.5, objectFit: "cover"}} />
+        <div className="minimap-placeholder" role="img" aria-label="Minimap">
+           <img src="/assets/ui-redesign/master_hud.png" alt="" aria-hidden="true" style={{width: "100%", height: "100%", borderRadius: "50%", opacity: 0.5, objectFit: "cover"}} />
         </div>
         <div className="location-label gold-text">Areloria Hub</div>
       </div>
