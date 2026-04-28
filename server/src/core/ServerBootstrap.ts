@@ -157,6 +157,10 @@ function envTruthy(key: string): boolean {
   return v === "true" || v === "1" || v === "yes";
 }
 
+function shouldProxyBody(method: string): boolean {
+  return ["POST", "PUT", "PATCH", "DELETE"].includes(method.toUpperCase());
+}
+
 function canAccessPlaytesterMonitor(req: Request): boolean {
   const token = PlaytesterConfig.monitorToken;
   if (!token) return true;
@@ -241,14 +245,15 @@ export class ServerBootstrap {
         delete headers.host;
         delete headers["content-length"];
 
-        const response = await fetch(resolvedProxyBaseUrl + upstreamPath, {
+        const upstreamUrl = resolvedProxyBaseUrl + upstreamPath;
+        const init: RequestInit = {
           method: req.method,
-          headers,
+          headers: headers as any,
           redirect: "manual",
         };
         if (shouldProxyBody(req.method)) {
           init.body = (transformedBody ?? bufferedBody) as any;
-          init.duplex = "half";
+          (init as any).duplex = "half";
         }
 
         const upstreamResponse = await fetch(upstreamUrl, init);
@@ -259,9 +264,7 @@ export class ServerBootstrap {
           res.setHeader(key, value);
         });
 
-        res.status(response.status);
-        response.headers.forEach((v, k) => res.setHeader(k, v));
-        const respData = await response.arrayBuffer();
+        const respData = await upstreamResponse.arrayBuffer();
         res.send(Buffer.from(respData));
       } catch (err) {
         console.error("[AuthProxy] Failed to forward request to Supabase:", err);
