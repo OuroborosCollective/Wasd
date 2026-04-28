@@ -12,6 +12,12 @@ export class AREStateCompiler {
   public static readonly KAPPA = 1000;
   private readonly kappa = AREStateCompiler.KAPPA;
 
+  private static readonly TYPE_WEIGHTS: Record<string, number> = {
+    player: 1.0,
+    npc: 0.78,
+    monster: 0.88,
+  };
+
   public compileEntity(
     entity: {
       id: string;
@@ -23,15 +29,24 @@ export class AREStateCompiler {
     },
     tickCount: number
   ): AREPayload {
-    const kappaPos = this.toKappaPosition(entity.position);
-    const logicalIndex = this.computeLogicalIndex(entity.id, entity.type, kappaPos);
-    const healthRatio = this.computeHealthRatio(entity.health, entity.maxHealth);
-    const movementSignal =
-      (Math.abs(kappaPos.x) + Math.abs(kappaPos.y) + Math.abs(kappaPos.z) + tickCount) % this.kappa;
+    // ⚡ Bolt: Inline calculations to reduce object allocations and call overhead in hot loop
+    const kx = Math.round(entity.position.x * this.kappa);
+    const ky = Math.round(entity.position.y * this.kappa);
+    const kz = Math.round(entity.position.z * this.kappa);
+
+    const logicalIndex = this.computeLogicalIndex(entity.id, entity.type, kx, ky, kz);
+
+    const hp = typeof entity.health === 'number' && Number.isFinite(entity.health) ? entity.health : 1;
+    const maxHp = typeof entity.maxHealth === 'number' && Number.isFinite(entity.maxHealth) && entity.maxHealth > 0 ? entity.maxHealth : 1;
+    const healthRatio = Math.max(0, Math.min(1, hp / maxHp));
+
+    const movementSignal = (Math.abs(kx) + Math.abs(ky) + Math.abs(kz) + tickCount) % this.kappa;
     const resonance = Math.round((movementSignal / this.kappa) * 10000) / 10000;
     const phaseShift = (logicalIndex + tickCount) % this.kappa;
+
     const plexity = this.computePlexity(entity.type, entity.visible ?? true, healthRatio, resonance);
-    const chain = this.buildChain(entity.type, logicalIndex, phaseShift, plexity);
+
+    const chain = `${entity.type}|li:${logicalIndex}|ph:${phaseShift}|plx:${Math.round(plexity * this.kappa)}`;
 
     return {
       kappa: this.kappa,
@@ -40,48 +55,36 @@ export class AREStateCompiler {
       resonance,
       plexity,
       chain,
-      kappaPos,
+      kappaPos: { x: kx, y: ky, z: kz },
     };
   }
 
-  private toKappaPosition(position: { x: number; y: number; z: number }) {
-    return {
-      x: Math.round(position.x * this.kappa),
-      y: Math.round(position.y * this.kappa),
-      z: Math.round(position.z * this.kappa),
-    };
-  }
+  private computeLogicalIndex(id: string, type: string, kx: number, ky: number, kz: number): number {
+    // ⚡ Bolt: Use numeric component hashing to avoid large template string allocations
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+      hash = (hash << 5) - hash + id.charCodeAt(i);
+      hash |= 0;
+    }
+    for (let i = 0; i < type.length; i++) {
+      hash = (hash << 5) - hash + type.charCodeAt(i);
+      hash |= 0;
+    }
+    hash = (hash << 5) - hash + kx;
+    hash |= 0;
+    hash = (hash << 5) - hash + ky;
+    hash |= 0;
+    hash = (hash << 5) - hash + kz;
+    hash |= 0;
 
-  private computeLogicalIndex(id: string, type: string, kappaPos: { x: number; y: number; z: number }): number {
-    const base = `${type}:${id}:${kappaPos.x}:${kappaPos.y}:${kappaPos.z}`;
-    return Math.abs(this.hash(base)) % this.kappa;
+    return Math.abs(hash) % this.kappa;
   }
 
   private computePlexity(type: string, visible: boolean, healthRatio: number, resonance: number): number {
     if (!visible) return 0.05;
-    const typeWeight = type === "player" ? 1 : type === "npc" ? 0.78 : type === "monster" ? 0.88 : 0.64;
+    // ⚡ Bolt: Fast record lookup instead of ternary chain
+    const typeWeight = AREStateCompiler.TYPE_WEIGHTS[type] ?? 0.64;
     const score = 0.45 * typeWeight + 0.35 * healthRatio + 0.2 * (1 - resonance);
     return Math.round(Math.max(0.05, Math.min(1, score)) * 10000) / 10000;
-  }
-
-  private buildChain(type: string, logicalIndex: number, phaseShift: number, plexity: number): string {
-    const p = Math.round(plexity * this.kappa);
-    return `${type}|li:${logicalIndex}|ph:${phaseShift}|plx:${p}`;
-  }
-
-  private computeHealthRatio(health?: number, maxHealth?: number): number {
-    const hp = Number.isFinite(Number(health)) ? Number(health) : 1;
-    const maxHp = Number.isFinite(Number(maxHealth)) && Number(maxHealth)! > 0 ? Number(maxHealth) : 1;
-    const ratio = hp / maxHp;
-    return Math.max(0, Math.min(1, ratio));
-  }
-
-  private hash(input: string): number {
-    let hash = 0;
-    for (let i = 0; i < input.length; i++) {
-      hash = (hash << 5) - hash + input.charCodeAt(i);
-      hash |= 0;
-    }
-    return hash;
   }
 }
