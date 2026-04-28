@@ -117,21 +117,24 @@ export function resolveSupabaseProxyBaseUrl(): string | null {
 }
 
 export function resolveSupabaseProxyBaseUrlForRequest(req: Request, defaultUrl: string | null): string | null {
-  const apiKey = (req.headers["apikey"] as string) || (req.headers["authorization"]?.split(" ")[1] as string);
-  if (!apiKey || apiKey.length < 20) return defaultUrl;
+  const authCredential = (req.headers["apikey"] as string) || (req.headers["authorization"]?.split(" ")[1] as string);
+  if (!authCredential || authCredential.length < 20) return defaultUrl;
 
   const ref = req.headers["x-supabase-ref"] as string;
-  if (ref) {
+  if (ref && /^[a-z0-9]{8,32}$/i.test(ref)) {
     return `https://${ref}.supabase.co`;
   }
 
   try {
-    const claims = verifySupabaseToken(apiKey);
-    if (claims.ref) {
-      return `https://${claims.ref}.supabase.co`;
+    const claims = verifySupabaseToken(authCredential);
+    const claimRef = claims.ref;
+    const claimIss = claims.iss;
+
+    if (claimRef && /^[a-z0-9]{8,32}$/i.test(claimRef)) {
+      return `https://${claimRef}.supabase.co`;
     }
-    if (claims.iss && claims.iss.includes("/auth/v1")) {
-      return claims.iss.split("/auth/v1")[0];
+    if (claimIss && claimIss.includes("/auth/v1")) {
+      return claimIss.split("/auth/v1")[0];
     }
   } catch {
     /* ignore invalid tokens */
@@ -360,7 +363,12 @@ export class ServerBootstrap {
           (fetchInit as any).duplex = "half";
         }
 
-        const response = await fetch(resolvedProxyBaseUrl + upstreamPath, fetchInit);
+        const upstreamUrl = new URL(upstreamPath, resolvedProxyBaseUrl);
+        // Only allow proxying to the resolved base URL to mitigate SSRF
+        if (upstreamUrl.origin !== new URL(resolvedProxyBaseUrl).origin) {
+          return res.status(400).json({ error: "invalid_upstream_target" });
+        }
+        const response = await fetch(upstreamUrl.toString(), fetchInit);
 
         res.status(response.status);
         response.headers.forEach((value, key) => {

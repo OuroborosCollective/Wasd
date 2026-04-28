@@ -6,6 +6,8 @@ export type SupabaseJwtClaims = {
   role?: string;
   exp?: number;
   iat?: number;
+  iss?: string;
+  ref?: string;
   [key: string]: unknown;
 };
 
@@ -87,8 +89,8 @@ function parseTokenClaims(token: string): SupabaseJwtClaims {
   }
 }
 
-export function verifySupabaseToken(token: string): SupabaseJwtClaims {
-  const cleanToken = token.trim();
+export function verifySupabaseToken(inputToken: string): SupabaseJwtClaims {
+  const cleanToken = inputToken.trim();
   if (!cleanToken) {
     throw new Error("Token is empty");
   }
