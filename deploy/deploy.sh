@@ -210,17 +210,28 @@ echo "[11/11] Verifying service health/endpoints..."
 verify_url() {
   local url="$1"
   local name="$2"
-  local attempts=12
+  local attempts=40
   local wait_sec=5
   local code=""
 
   for i in $(seq 1 "$attempts"); do
-    code="$(curl -s -o /dev/null -w "%{http_code}" "$url" || true)"
+    # Get status code and body (to check for initializing)
+    local response
+    response=$(curl -s -w "\n%{http_code}" "$url" || echo "offline\n000")
+    code=$(echo "$response" | tail -n1)
+    local body
+    body=$(echo "$response" | head -n -1)
+
     if [ "$code" = "200" ]; then
       echo "✅ ${name} OK (${url})"
       return 0
     fi
-    echo "⏳ ${name} not ready (${url}) [attempt ${i}/${attempts}] status=${code:-n/a}"
+
+    if echo "$body" | grep -q "initializing"; then
+       echo "⏳ ${name} initializing (${url}) [attempt ${i}/${attempts}] status=503"
+    else
+       echo "⏳ ${name} not ready (${url}) [attempt ${i}/${attempts}] status=${code:-n/a}"
+    fi
     sleep "$wait_sec"
   done
 
