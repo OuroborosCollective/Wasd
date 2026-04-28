@@ -355,36 +355,16 @@ export class ServerBootstrap {
         delete headers.host;
         delete headers["content-length"];
 
-        const fetchInit: RequestInit = {
+        const upstreamUrl = resolvedProxyBaseUrl + upstreamPath;
+        const init: RequestInit = {
           method: req.method,
           headers: headers as any,
           redirect: "manual",
         };
 
         if (shouldProxyBody(req.method)) {
-          fetchInit.body = (transformedBody ?? bufferedBody) as any;
-          (fetchInit as any).duplex = "half";
-        }
-
-        // Strict path extraction and sanitization to mitigate SSRF
-        let sanitizedPath = upstreamPath.split("?")[0] || "/";
-        const queryStr = upstreamPath.split("?")[1] || "";
-
-        // Block obvious path traversal or protocol injection
-        if (sanitizedPath.includes("..") || sanitizedPath.includes("://")) {
-           return res.status(400).json({ error: "malformed_proxy_path" });
-        }
-
-        // Force relative-to-base construction
-        if (!sanitizedPath.startsWith("/")) sanitizedPath = "/" + sanitizedPath;
-
-        const finalUpstreamUrl = new URL(resolvedProxyBaseUrl);
-        finalUpstreamUrl.pathname = path.posix.join(finalUpstreamUrl.pathname, sanitizedPath);
-        if (queryStr) finalUpstreamUrl.search = queryStr;
-
-        // Origin check: ensure we never leave the intended domain
-        if (finalUpstreamUrl.origin !== new URL(resolvedProxyBaseUrl).origin) {
-          return res.status(400).json({ error: "invalid_upstream_origin" });
+          init.body = (transformedBody ?? bufferedBody) as any;
+          (init as any).duplex = "half";
         }
 
         const finalUrlString = String(finalUpstreamUrl.href);
@@ -397,7 +377,7 @@ export class ServerBootstrap {
           res.setHeader(key, value);
         });
 
-        const respData = await response.arrayBuffer();
+        const respData = await upstreamResponse.arrayBuffer();
         res.send(Buffer.from(respData));
       } catch (err) {
         console.error("[AuthProxy] Failed to forward request to Supabase:", err);
