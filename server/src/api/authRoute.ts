@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 
 export function authRoute() {
   return {
@@ -24,17 +24,38 @@ export function authRoute() {
           });
         }
 
-        const token = jwt.sign(
-          { 
-            username: username.toLowerCase(),
-            role: 'player',
-            iat: Math.floor(Date.now() / 1000)
-          }, 
-          secret, 
-          { expiresIn: '24h' }
-        );
+        const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+        const payload = Buffer.from(JSON.stringify({ 
+          username: username.toLowerCase(),
+          role: 'player',
+          iat: Math.floor(Date.now() / 1000),
+          exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60)
+        })).toString('base64url');
+        
+        const signature = crypto
+          .createHmac('sha256', secret)
+          .update(`${header}.${payload}`)
+          .digest('base64url');
+
+        const token = `${header}.${payload}.${signature}`;
 
         return res.status(200).json({
+          success: true,
+          token: token,
+          user: {
+            username: username,
+            loginTime: new Date().toISOString()
+          }
+        });
+      } catch (error) {
+        return res.status(500).json({ 
+          success: false, 
+          message: "Internal server error during authentication" 
+        });
+      }
+    }
+  };
+}        return res.status(200).json({
           success: true,
           token: token,
           user: {
