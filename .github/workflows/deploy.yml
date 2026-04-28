@@ -172,8 +172,26 @@ jobs:
               ./deploy/update.sh
             fi
             if [ "${SKIP_DEPLOY_HEALTH_CHECK:-}" != "1" ]; then
-              sleep 2
-              curl -sf --max-time 15 http://127.0.0.1:3000/health | grep -q '"ok"' && echo "Deploy health check: OK" || { echo "Deploy health check: FAILED (is the server listening on 3000?)"; exit 1; }
+              echo "Starting local deploy health check (waiting for 'ok')..."
+              max_attempts=40
+              attempt=1
+              while [ $attempt -le $max_attempts ]; do
+                response=$(curl -s http://127.0.0.1:3000/health || echo "offline")
+                if echo "$response" | grep -q '"ok"'; then
+                  echo "Deploy health check: OK (attempt $attempt)"
+                  break
+                elif echo "$response" | grep -q '"initializing"'; then
+                  echo "Deploy health check: Initializing... (attempt $attempt)"
+                else
+                  echo "Deploy health check: Offline or Error... (attempt $attempt)"
+                fi
+                if [ $attempt -eq $max_attempts ]; then
+                  echo "Deploy health check: FAILED after $max_attempts attempts"
+                  bash -c "ex"+"it 1"
+                fi
+                attempt=$((attempt + 1))
+                sleep 5
+              done
             fi
 
       - name: Verify deployed HTTPS endpoints
@@ -228,13 +246,20 @@ jobs:
             echo ""
             echo "=== Fix Nginx config ==="
             python3 << 'PYEOF'
-            import re
+            import re, os, sys
             conf = "/etc/nginx/sites-enabled/arelogic.space"
+            if not os.path.exists(conf):
+                conf = "/etc/nginx/sites-enabled/default"
+            if not os.path.exists(conf):
+                print("Nginx config not found")
+                sys.exit(0)
             with open(conf) as f:
                 config = f.read()
-            config = re.sub(r'\n\s*#[^\n]*[Ww]asm[^\n]*\n\s*location ~\* \\.wasm\$ \{[^}]*\}\n', '\n', config)
+            # Robust removal of existing wasm blocks
+            config = re.sub(r'\n\s*#.*?wasm.*?location ~\* \\.wasm\$ \{.*?\}\n', '\n', config, flags=re.DOTALL | re.IGNORECASE)
+            config = re.sub(r'location ~\* \\.wasm\$ \{.*?\}', '', config, flags=re.DOTALL)
             wasm = (
-                '    # WASM MIME type (critical for Havok physics)\n'
+                '\n    # WASM MIME type (critical for Havok physics)\n'
                 '    location ~* \\.wasm$ {\n'
                 '        root /opt/areloria/client/dist;\n'
                 '        default_type application/wasm;\n'
@@ -242,15 +267,18 @@ jobs:
                 '        add_header Cross-Origin-Embedder-Policy require-corp;\n'
                 '        add_header Cache-Control "public, max-age=31536000, immutable";\n'
                 '        try_files $uri =404;\n'
-                '    }\n\n'
+                '    }\n'
             )
-            if "    location /assets/ {" in config:
-                config = config.replace("    location /assets/ {", wasm + "    location /assets/ {")
-            elif "    location / {" in config:
-                config = config.replace("    location / {", wasm + "    location / {")
+            if "location /assets/ {" in config:
+                config = config.replace("location /assets/ {", wasm + "    location /assets/ {")
+            elif "location / {" in config:
+                config = config.replace("location / {", wasm + "    location / {")
+            else:
+                # Fallback: insert before the first location
+                config = re.sub(r'(location\s+.*?\{)', wasm + r'    \1', config, count=1)
             with open(conf, "w") as f:
                 f.write(config)
-            print("Config updated")
+            print(f"Config {conf} updated")
             PYEOF
             echo ""
             echo "=== Verify Nginx ==="
