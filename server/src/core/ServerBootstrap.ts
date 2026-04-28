@@ -367,8 +367,8 @@ export class ServerBootstrap {
           (init as any).duplex = "half";
         }
 
-        const finalUrlString = String(finalUpstreamUrl.href);
-        const response = await fetch(finalUrlString, fetchInit);
+        const finalUrlString = String(upstreamUrl);
+        const response = await fetch(finalUrlString, init);
 
         res.status(response.status);
         response.headers.forEach((value, key) => {
@@ -377,7 +377,7 @@ export class ServerBootstrap {
           res.setHeader(key, value);
         });
 
-        const respData = await upstreamResponse.arrayBuffer();
+        const respData = await response.arrayBuffer();
         res.send(Buffer.from(respData));
       } catch (err) {
         console.error("[AuthProxy] Failed to forward request to Supabase:", err);
