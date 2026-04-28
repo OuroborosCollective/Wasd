@@ -1,12 +1,50 @@
 <!doctype html>
-<html>
+<html lang="de">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Areloria Playtester Monitor</title>
+    <style>
+      // Basis-Styles zur Vermeidung von Layout-Shifts auf Huawei P9
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #000000;
+        overflow: hidden;
+        color: #ffffff;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+      // Stellt sicher, dass der Root-Container den gesamten Viewport einnimmt
+      #monitor-root {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      // Behebt den Black-Screen Fehler: Video-Elemente müssen explizit dimensioniert werden
+      // und benötigen oft ein z-index/display-Block Modell auf älteren WebKit-Versionen (P9)
+      video {
+        display: block;
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: contain;
+        // Erzwingt GPU-Rendering zur Entlastung der CPU bei 10Hz Ticks
+        transform: translateZ(0);
+        background-color: #050505;
+      }
+      // Verhindert Interaktions-Overlays, die den Stream blockieren könnten
+      canvas {
+        pointer-events: none;
+        position: absolute;
+      }
+    </style>
   </head>
   <body>
     <div id="monitor-root"></div>
+    // Initialisierung der Sovereign Engine Client-Logik
     <script type="module" src="/src/playtesterMonitorViewerMain.ts"></script>
   </body>
 </html>
