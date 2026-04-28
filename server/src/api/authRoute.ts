@@ -55,20 +55,4 @@ export function authRoute() {
       }
     }
   };
-}        return res.status(200).json({
-          success: true,
-          token: token,
-          user: {
-            username: username,
-            loginTime: new Date().toISOString()
-          }
-        });
-      } catch (error) {
-        return res.status(500).json({ 
-          success: false, 
-          message: "Internal server error during authentication" 
-        });
-      }
-    }
-  };
 }
