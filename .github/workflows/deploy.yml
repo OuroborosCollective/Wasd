@@ -1,16 +1,13 @@
 name: Continuous Deployment to VPS
-
 on:
   push:
     branches: [ main ]
   schedule:
     - cron: "0 * * * *"
   workflow_dispatch:
-
 concurrency:
   group: deploy-vps-main
   cancel-in-progress: false
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -35,6 +32,164 @@ jobs:
       PGPORT: ${{ secrets.PGPORT }}
       POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
       PGDATABASE: ${{ secrets.PGDATABASE }}
+      POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+      PGUSER: ${{ secrets.PGUSER }}
+      POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+      PGPASSWORD: ${{ secrets.PGPASSWORD }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      POOLER_PROXY_PORT_TRANSACTION: ${{ secrets.POOLER_PROXY_PORT_TRANSACTION }}
+      SUPABASE_PROXY_URL: ${{ secrets.SUPABASE_PROXY_URL }}
+      GAME_ORIGIN: ${{ secrets.GAME_ORIGIN }}
+    steps:
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          BUILD_NODE_OPTIONS: --max-old-space-size=8192
+        with:
+          host: ${{ secrets.VPS_IP }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_SSH_PASSWORD }}
+          port: 22
+          timeout: 5m
+          command_timeout: 60m
+          envs: VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY,SUPABASE_URL,SUPABASE_PUBLIC_URL,API_EXTERNAL_URL,SUPABASE_ANON_KEY,ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,SERVICE_ROLE_KEY,SUPABASE_JWT_SECRET,JWT_SECRET,GOTRUE_JWT_SECRET,AUTH_JWT_SECRET,SECRET_KEY_BASE,DATABASE_URL,PGHOST,POSTGRES_HOST,PGPORT,POSTGRES_PORT,PGDATABASE,POSTGRES_DB,PGUSER,POSTGRES_USER,PGPASSWORD,POSTGRES_PASSWORD,POOLER_PROXY_PORT_TRANSACTION,SUPABASE_PROXY_URL,GAME_ORIGIN
+          script: |
+            set -e
+            export CI=1
+            export BUILD_NODE_OPTIONS="--max-old-space-size=8192"
+            
+            # Set defaults for crucial variables
+            export GAME_ORIGIN="${GAME_ORIGIN:-https://arelogic.space}"
+            export VITE_SUPABASE_URL="${VITE_SUPABASE_URL:-${GAME_ORIGIN}}"
+            export SUPABASE_PROXY_URL="${SUPABASE_PROXY_URL:-http://supabase.arelogic.space:8000}"
+            export SUPABASE_PUBLIC_URL="${SUPABASE_PUBLIC_URL:-https://supabase.arelogic.space:8443}"
+            export SUPABASE_URL="${SUPABASE_URL:-https://supabase.arelogic.space:8443}"
+            
+            # Construct DATABASE_URL if missing
+            if [ -z "${DATABASE_URL:-}" ]; then
+              _pg_host="${POSTGRES_HOST:-${PGHOST:-127.0.0.1}}"
+              if [ "$_pg_host" = "db" ] || [ "$_pg_host" = "supabase-db" ]; then _pg_host="127.0.0.1"; fi
+              _pg_port="${POSTGRES_PORT:-${PGPORT:-5432}}"
+              _pg_db="${POSTGRES_DB:-${PGDATABASE:-postgres}}"
+              _pg_user="${POSTGRES_USER:-${PGUSER:-postgres}}"
+              _pg_pass="${POSTGRES_PASSWORD:-${PGPASSWORD:-}}"
+              if [ -n "$_pg_pass" ]; then
+                _pg_pass_enc=$(python3 -c "import urllib.parse; print(urllib.parse.quote('''${_pg_pass}''',''))")
+                export DATABASE_URL="postgresql://${_pg_user}:${_pg_pass_enc}@${_pg_host}:${_pg_port}/${_pg_db}"
+                # Check for pooler availability
+                if ! timeout 2 bash -c "cat < /dev/null > /dev/tcp/${_pg_host}/${_pg_port}" 2>/dev/null; then
+                  echo "Default port ${_pg_port} unreachable, trying 6543..."
+                  export DATABASE_URL="postgresql://${_pg_user}:${_pg_pass_enc}@${_pg_host}:6543/${_pg_db}?sslmode=require"
+                fi
+              fi
+            fi
+            # Synchoronize keys
+            if [ -z "${SUPABASE_ANON_KEY:-}" ] && [ -n "${ANON_KEY:-}" ]; then export SUPABASE_ANON_KEY="${ANON_KEY}"; fi
+            
+            # Ensure target directory and repository
+            if [ ! -d "/opt/areloria/.git" ]; then
+              mkdir -p /opt/areloria
+              git clone https://github.com/OuroborosCollective/Wasd.git /opt/areloria
+            fi
+            
+            cd /opt/areloria
+            git fetch origin main
+            git reset --hard origin/main
+            
+            # Permissions and sync
+            chmod +x deploy/*.sh 2>/dev/null || true
+            ./deploy/sync-supabase-env.sh
+            
+            # Execute deployment strategy
+            if [ ! -f /opt/areloria/server/dist/index.js ] || ! command -v pm2 >/dev/null 2>&1; then
+              ./deploy/deploy.sh
+            else
+              ./deploy/update.sh
+            fi
+            # Health Check Logic
+            if [ "${SKIP_DEPLOY_HEALTH_CHECK:-}" != "1" ]; then
+              echo "Verifying local service health..."
+              max_attempts=60
+              attempt=1
+              while [ $attempt -le $max_attempts ]; do
+                response=$(curl -s http://127.0.0.1:3000/health || echo "offline")
+                if echo "$response" | grep -q '"ok"'; then
+                  echo "Service OK on attempt $attempt"
+                  break
+                fi
+                if [ $attempt -eq $max_attempts ]; then
+                  echo "Service FAILED to reach OK state"
+                  exit 1
+                fi
+                sleep 5
+                attempt=$((attempt + 1))
+              done
+            fi
+      - name: Verify deployed HTTPS endpoints
+        env:
+          VERIFY_BASE_URL: ${{ secrets.DEPLOY_VERIFY_BASE_URL }}
+        run: |
+          set -e
+          if [ -z "${VERIFY_BASE_URL:-}" ]; then
+            echo "DEPLOY_VERIFY_BASE_URL not set, skipping external checks."
+            exit 0
+          fi
+          verify_url() {
+            local url="$1"
+            local name="$2"
+            for i in {1..15}; do
+              code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 15 "$url" || true)
+              if [ "$code" = "200" ]; then
+                echo "✅ $name OK"
+                return 0
+              fi
+              echo "⏳ $name ($code) retry $i..."
+              sleep 10
+            done
+            return 1
+          }
+          BASE="${VERIFY_BASE_URL%/}"
+          verify_url "${BASE}/health" "Health API"
+          verify_url "${BASE}/" "Client UI"
+      - name: Fix Nginx WASM config
+        if: always()
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_IP }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_SSH_PASSWORD }}
+          port: 22
+          script: |
+            set -e
+            python3 << 'PYEOF'
+            import re, os
+            conf_paths = ["/etc/nginx/sites-enabled/arelogic.space", "/etc/nginx/sites-enabled/default"]
+            conf = next((p for p in conf_paths if os.path.exists(p)), None)
+            if not conf:
+                print("No nginx config found")
+                exit(0)
+            with open(conf, 'r') as f:
+                content = f.read()
+            # Clean old wasm blocks
+            content = re.sub(r'location ~\* \\.wasm\$ \{.*?\}', '', content, flags=re.DOTALL)
+            wasm_block = """
+    location ~* \.wasm$ {
+        root /opt/areloria/client/dist;
+        default_type application/wasm;
+        add_header Cross-Origin-Opener-Policy same-origin;
+        add_header Cross-Origin-Embedder-Policy require-corp;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+            """
+            if "location / {" in content:
+                content = content.replace("location / {", wasm_block + "\n    location / {")
+            else:
+                content = re.sub(r'(server\s*{)', r'\1' + wasm_block, content, count=1)
+            with open(conf, 'w') as f:
+                f.write(content)
+            PYEOF
+            nginx -t && systemctl reload nginx || echo "Nginx reload failed, check logs"      PGDATABASE: ${{ secrets.PGDATABASE }}
       POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
       PGUSER: ${{ secrets.PGUSER }}
       POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
