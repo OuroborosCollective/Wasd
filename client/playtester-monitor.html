@@ -2,49 +2,111 @@
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Areloria Playtester Monitor</title>
     <style>
-      /* Basis-Styles zur Vermeidung von Layout-Shifts auf Huawei P9 */
+      /* Globale Reset-Regeln für das Huawei P9 (Mali-T880 GPU Optimierung) */
       html, body {
         margin: 0;
         padding: 0;
-        width: 100%;
-        height: 100%;
+        width: 100vw;
+        height: 100vh;
         background-color: #000000;
         overflow: hidden;
         color: #ffffff;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        touch-action: none;
       }
-      /* Stellt sicher, dass der Root-Container den gesamten Viewport einnimmt */
+      /* Root-Container nutzt Flexbox zur vertikalen/horizontalen Zentrierung */
       #monitor-root {
+        position: absolute;
+        top: 0;
+        left: 0;
         width: 100%;
         height: 100%;
         display: flex;
         justify-content: center;
         align-items: center;
+        z-index: 1;
       }
-      /* Behebt den Black-Screen Fehler: Video-Elemente müssen explizit dimensioniert werden */
-      /* und benötigen oft ein z-index/display-Block Modell auf älteren WebKit-Versionen (P9) */
+      /* Video-Element Optimierung für WebRTC-Streams auf älteren Android-Versionen */
       video {
         display: block;
         width: 100% !important;
         height: 100% !important;
         object-fit: contain;
-        /* Erzwingt GPU-Rendering zur Entlastung der CPU bei 10Hz Ticks */
+        /* Erzwingt Layer-Promotion zur Hardware-Beschleunigung */
         transform: translateZ(0);
-        background-color: #050505;
+        will-change: transform;
+        background-color: #0a0a0a;
       }
-      /* Verhindert Interaktions-Overlays, die den Stream blockieren könnten */
+      /* Status-Overlay für Verbindungs-Diagnostik bei k=1000 Load */
+      #connection-overlay {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        padding: 8px 12px;
+        background: rgba(0, 0, 0, 0.75);
+        border-radius: 4px;
+        font-size: 12px;
+        color: #00ff00;
+        z-index: 10;
+        pointer-events: none;
+        border: 1px solid #333;
+      }
+      /* Canvas für Sovereign Engine Telemetrie-Overlays */
       canvas {
         pointer-events: none;
         position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 5;
+      }
+      /* Verhindert Ghost-Elemente durch Tap-Highlighting */
+      * {
+        -webkit-tap-highlight-color: transparent;
       }
     </style>
   </head>
   <body>
-    <div id="monitor-root"></div>
-    <!-- Initialisierung der Sovereign Engine Client-Logik -->
+    <div id="monitor-root">
+      <!-- Explizites Video-Element mit Attributen für Autoplay-Richtlinien auf Android/WebView -->
+      <video 
+        id="remote-stream-video" 
+        autoplay 
+        muted 
+        playsinline 
+        webkit-playsinline
+        poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7">
+      </video>
+    </div>
+    
+    <div id="connection-overlay">
+      Sovereign Engine Status: <span id="status-text">INITIALIZING</span> | 10Hz Tick
+    </div>
+    <!-- Script zur Initialisierung der Sovereign Engine Client-Logik -->
+    <script type="module">
+      // Globale Fehlerbehandlung für den Playtester Monitor auf Huawei P9
+      window.addEventListener('error', function(e) {
+        const statusText = document.getElementById('status-text');
+        if (statusText) {
+          statusText.innerText = 'ERROR: ' + e.message;
+          statusText.style.color = '#ff0000';
+        }
+      });
+      // Erzwungener Startversuch des Video-Elements bei Interaktion (Fallout-Handling)
+      document.body.addEventListener('touchstart', () => {
+        const v = document.getElementById('remote-stream-video');
+        if (v && v.paused) {
+          v.play().catch(err => console.error("Playback trigger failed", err));
+        }
+      }, { once: true });
+    </script>
     <script type="module" src="/src/playtesterMonitorViewerMain.ts"></script>
   </body>
 </html>
