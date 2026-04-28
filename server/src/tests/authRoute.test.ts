@@ -6,7 +6,8 @@ describe("authRoute", () => {
     const route = authRoute();
     expect(route).toEqual({
       method: "POST",
-      path: "/api/auth/login"
+      path: "/api/auth/login",
+      handler: expect.any(Function)
     });
   });
 
