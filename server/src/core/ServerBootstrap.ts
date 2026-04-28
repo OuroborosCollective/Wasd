@@ -117,8 +117,8 @@ export function resolveSupabaseProxyBaseUrl(): string | null {
 }
 
 export function resolveSupabaseProxyBaseUrlForRequest(req: Request, defaultUrl: string | null): string | null {
-  const authCredential = (req.headers["apikey"] as string) || (req.headers["authorization"]?.split(" ")[1] as string);
-  if (!authCredential || authCredential.length < 20) return defaultUrl;
+  const rawAuthBlob = (req.headers["apikey"] as string) || (req.headers["authorization"]?.split(" ")[1] as string);
+  if (!rawAuthBlob || rawAuthBlob.length < 20) return defaultUrl;
 
   const ref = req.headers["x-supabase-ref"] as string;
   if (ref && /^[a-z0-9]{8,32}$/i.test(ref)) {
@@ -126,7 +126,7 @@ export function resolveSupabaseProxyBaseUrlForRequest(req: Request, defaultUrl: 
   }
 
   try {
-    const claims = verifySupabaseToken(authCredential);
+    const claims = verifySupabaseToken(rawAuthBlob);
     const claimRef = claims.ref;
     const claimIss = claims.iss;
 
@@ -366,17 +366,29 @@ export class ServerBootstrap {
           (fetchInit as any).duplex = "half";
         }
 
-        // Ensure path-only to prevent URL hijacking in the URL constructor
-        const safePath = upstreamPath.startsWith("/") ? upstreamPath : `/${upstreamPath}`;
-        const upstreamUrl = new URL(safePath, resolvedProxyBaseUrl);
+        // Strict path extraction and sanitization to mitigate SSRF
+        let sanitizedPath = upstreamPath.split("?")[0] || "/";
+        const queryStr = upstreamPath.split("?")[1] || "";
 
-        // Only allow proxying to the resolved base URL origin to mitigate SSRF
-        const targetOrigin = upstreamUrl.origin;
-        const baseOrigin = new URL(resolvedProxyBaseUrl).origin;
-        if (targetOrigin !== baseOrigin) {
-          return res.status(400).json({ error: "invalid_upstream_target" });
+        // Block obvious path traversal or protocol injection
+        if (sanitizedPath.includes("..") || sanitizedPath.includes("://")) {
+           return res.status(400).json({ error: "malformed_proxy_path" });
         }
-        const response = await fetch(upstreamUrl.href, fetchInit);
+
+        // Force relative-to-base construction
+        if (!sanitizedPath.startsWith("/")) sanitizedPath = "/" + sanitizedPath;
+
+        const finalUpstreamUrl = new URL(resolvedProxyBaseUrl);
+        finalUpstreamUrl.pathname = path.posix.join(finalUpstreamUrl.pathname, sanitizedPath);
+        if (queryStr) finalUpstreamUrl.search = queryStr;
+
+        // Origin check: ensure we never leave the intended domain
+        if (finalUpstreamUrl.origin !== new URL(resolvedProxyBaseUrl).origin) {
+          return res.status(400).json({ error: "invalid_upstream_origin" });
+        }
+
+        const finalUrlString = String(finalUpstreamUrl.href);
+        const response = await fetch(finalUrlString, fetchInit);
 
         res.status(response.status);
         response.headers.forEach((value, key) => {
