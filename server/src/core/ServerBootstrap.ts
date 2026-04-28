@@ -133,8 +133,11 @@ export function resolveSupabaseProxyBaseUrlForRequest(req: Request, defaultUrl: 
     if (claimRef && /^[a-z0-9]{8,32}$/i.test(claimRef)) {
       return `https://${claimRef}.supabase.co`;
     }
-    if (claimIss && claimIss.includes("/auth/v1")) {
-      return claimIss.split("/auth/v1")[0];
+    if (claimIss && (claimIss.startsWith("https://") || claimIss.startsWith("http://")) && claimIss.includes("/auth/v1")) {
+      const parts = claimIss.split("/auth/v1");
+      if (parts[0] && /^https?:\/\/[a-z0-9.-]+(supabase\.co|\.space)(:\d+)?$/.test(parts[0])) {
+        return parts[0];
+      }
     }
   } catch {
     /* ignore invalid tokens */
@@ -363,12 +366,17 @@ export class ServerBootstrap {
           (fetchInit as any).duplex = "half";
         }
 
-        const upstreamUrl = new URL(upstreamPath, resolvedProxyBaseUrl);
-        // Only allow proxying to the resolved base URL to mitigate SSRF
-        if (upstreamUrl.origin !== new URL(resolvedProxyBaseUrl).origin) {
+        // Ensure path-only to prevent URL hijacking in the URL constructor
+        const safePath = upstreamPath.startsWith("/") ? upstreamPath : `/${upstreamPath}`;
+        const upstreamUrl = new URL(safePath, resolvedProxyBaseUrl);
+
+        // Only allow proxying to the resolved base URL origin to mitigate SSRF
+        const targetOrigin = upstreamUrl.origin;
+        const baseOrigin = new URL(resolvedProxyBaseUrl).origin;
+        if (targetOrigin !== baseOrigin) {
           return res.status(400).json({ error: "invalid_upstream_target" });
         }
-        const response = await fetch(upstreamUrl.toString(), fetchInit);
+        const response = await fetch(upstreamUrl.href, fetchInit);
 
         res.status(response.status);
         response.headers.forEach((value, key) => {

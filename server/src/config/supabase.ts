@@ -52,7 +52,7 @@ const JWT_SECRET_KEYS = [
   "SECRET_KEY_BASE",
 ] as const;
 
-function getJwtSecret(): string {
+function getSecretMaterial(): string {
   for (const k of JWT_SECRET_KEYS) {
     const v = normalizeJwtSecretMaterial(envTrim(k));
     if (v) return v;
@@ -89,14 +89,14 @@ function parseTokenClaims(token: string): SupabaseJwtClaims {
   }
 }
 
-export function verifySupabaseToken(inputToken: string): SupabaseJwtClaims {
-  const cleanToken = inputToken.trim();
+export function verifySupabaseToken(tokenCandidate: string): SupabaseJwtClaims {
+  const cleanToken = tokenCandidate.trim();
   if (!cleanToken) {
     throw new Error("Token is empty");
   }
 
-  const jwtSecret = getJwtSecret();
-  if (!jwtSecret) {
+  const secretMaterial = getSecretMaterial();
+  if (!secretMaterial) {
     throw new Error("SUPABASE_JWT_SECRET or JWT_SECRET is required to verify Supabase tokens");
   }
 
@@ -110,7 +110,7 @@ export function verifySupabaseToken(inputToken: string): SupabaseJwtClaims {
   }
 
   const signedData = `${headerEncoded}.${payloadEncoded}`;
-  const expectedSig = encodeBase64Url(createHmac("sha256", jwtSecret).update(signedData).digest());
+  const expectedSig = encodeBase64Url(createHmac("sha256", secretMaterial).update(signedData).digest());
   const provided = Buffer.from(signatureEncoded);
   const expected = Buffer.from(expectedSig);
   if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
@@ -141,7 +141,7 @@ export function getSupabaseAuthInitInfo(): {
   hasJwtSecret: boolean;
   jwtSecretSourceKey: (typeof JWT_SECRET_KEYS)[number] | null;
 } {
-  const jwtSecret = getJwtSecret();
+  const secretMaterial = getSecretMaterial();
   const jwtSecretSourceKey = getSupabaseJwtSecretSourceKey();
   const hasUrl = Boolean(
     envTrim("SUPABASE_URL") ||
@@ -153,11 +153,11 @@ export function getSupabaseAuthInitInfo(): {
   const hasAnonKey = Boolean(envTrim("SUPABASE_ANON_KEY") || envTrim("ANON_KEY"));
   const hasServiceRoleKey = Boolean(envTrim("SUPABASE_SERVICE_ROLE_KEY") || envTrim("SERVICE_ROLE_KEY"));
   return {
-    verifyMode: jwtSecret ? "jwt_secret" : "none",
+    verifyMode: secretMaterial ? "jwt_secret" : "none",
     hasUrl,
     hasAnonKey,
     hasServiceRoleKey,
-    hasJwtSecret: Boolean(jwtSecret),
+    hasJwtSecret: Boolean(secretMaterial),
     jwtSecretSourceKey,
   };
 }
