@@ -1,180 +1,91 @@
-/**
- * NPCChatAgent — drives proactive NPC chat messages.
- *
- * Each tick, NPCs may write to local/global channels based on heuristic
- * weights, observations, and situational triggers.
- */
+import { NPCChatBridge } from "./NPCChatBridge";
+import { LLMService } from "../llm/LLMService";
 
-import { type NPCMemoryCache } from "./NPCMemoryCache.js";
-import { type ChatChannelRouter } from "../chat/ChatChannelRouter.js";
-import { type ChatRecipient, type SendToPlayerFn, type BroadcastFn, type ResolveSocketIdFn } from "../chat/ChatChannelRouter.js";
-import { shouldChat, shouldSeekParty, shouldTrade } from "./NPCHeuristics.js";
-
-interface NPCRef {
-  id: string;
-  name: string;
-  position: { x: number; y: number; z?: number };
-  class?: string;
-  level?: number;
-  state?: string;
+export interface NPCContext {
+    npc: {
+        name: string;
+        personality: string;
+        background: string;
+        goals: string[];
+    };
+    worldState: {
+        currentLocation: string;
+        currentTime: string;
+        environmentConditions: string;
+    };
+    worldHistory: Array<{
+        timestamp: number;
+        description: string;
+        importance: number;
+    }>;
+    recentMessages: Array<{
+        role: "user" | "assistant" | "system";
+        content: string;
+    }>;
 }
 
-const IDLE_LINES = [
-  "Schönes Wetter heute...",
-  "Habt ihr die Gerüchte über den Dungeon gehört?",
-  "Ich brauche dringend bessere Ausrüstung.",
-  "Pass auf dich auf, Abenteurer.",
-  "Die Monster werden in letzter Zeit stärker.",
-  "Ich habe gestern etwas Seltsames im Wald gesehen.",
-  "Hat jemand Tränke übrig?",
-  "Diese Gegend ist nicht sicher nach Einbruch der Dunkelheit.",
-];
+export class NPCChatAgent {
+    private bridge: NPCChatBridge;
+    private llm: LLMService;
 
-const PARTY_LINES = [
-  "Suche Gruppe! Wer kommt mit?",
-  "Alleine ist es gefährlich — jemand Lust auf eine Party?",
-  "LFG — bin bereit für den nächsten Dungeon!",
-];
-
-const TRADE_LINES = [
-  "Ich habe Waren zum Tauschen — Interesse?",
-  "Gute Preise heute! Kommt und schaut euch um.",
-  "Verkaufe seltene Materialien — wer braucht was?",
-];
-
-const PK_WARNING_TEMPLATE = "Achtung: %name% greift Spieler an! Seid vorsichtig!";
-
-/**
- * Run one NPC chat decision cycle.
- * Called from the world tick for each active NPC near players.
- */
-export function tickNpcChat(
-  npc: NPCRef,
-  memoryCache: NPCMemoryCache,
-  chatRouter: ChatChannelRouter,
-  recipients: ChatRecipient[],
-  sendToPlayer: SendToPlayerFn,
-  broadcast: BroadcastFn,
-  resolveSocketId: ResolveSocketIdFn,
-): void {
-  const npcId = npc.id;
-  const mem = memoryCache.get(npcId);
-
-  if (!memoryCache.checkCooldown(npcId, "chat", 8_000)) return;
-
-  if (shouldSeekParty(memoryCache, npcId)) {
-    const line = PARTY_LINES[Math.floor(Math.random() * PARTY_LINES.length)];
-    chatRouter.publish(
-      {
-        channel: "local",
-        senderType: "npc",
-        senderId: npcId,
-        senderName: npc.name,
-        npcId,
-        text: line,
-        position: npc.position,
-      },
-      recipients, sendToPlayer, broadcast, resolveSocketId,
-    );
-    memoryCache.logEvent(npcId, "chat:party_seek");
-    return;
-  }
-
-  if (shouldTrade(memoryCache, npcId)) {
-    const line = TRADE_LINES[Math.floor(Math.random() * TRADE_LINES.length)];
-    chatRouter.publish(
-      {
-        channel: "local",
-        senderType: "npc",
-        senderId: npcId,
-        senderName: npc.name,
-        npcId,
-        text: line,
-        position: npc.position,
-      },
-      recipients, sendToPlayer, broadcast, resolveSocketId,
-    );
-    memoryCache.logEvent(npcId, "chat:trade_offer");
-    return;
-  }
-
-  if (shouldChat(memoryCache, npcId)) {
-    const line = IDLE_LINES[Math.floor(Math.random() * IDLE_LINES.length)];
-    chatRouter.publish(
-      {
-        channel: "local",
-        senderType: "npc",
-        senderId: npcId,
-        senderName: npc.name,
-        npcId,
-        text: line,
-        position: npc.position,
-      },
-      recipients, sendToPlayer, broadcast, resolveSocketId,
-    );
-    return;
-  }
-
-  // React to recent status messages the NPC has seen
-  const recentChat = mem.recentChatSeen;
-  if (recentChat.length > 0) {
-    const lastStatus = [...recentChat].reverse().find((c) => c.channel === "status");
-    if (lastStatus && Date.now() - lastStatus.ts < 5_000) {
-      if (lastStatus.text.includes("Monster") || lastStatus.text.includes("Angriff")) {
-        if (memoryCache.checkCooldown(npcId, "react_status", 15_000)) {
-          chatRouter.publish(
-            {
-              channel: "local",
-              senderType: "npc",
-              senderId: npcId,
-              senderName: npc.name,
-              npcId,
-              text: "Vorsicht! Ich habe auch etwas gehört...",
-              position: npc.position,
-            },
-            recipients, sendToPlayer, broadcast, resolveSocketId,
-          );
-        }
-      }
+    constructor(bridge: NPCChatBridge, llm: LLMService) {
+        this.bridge = bridge;
+        this.llm = llm;
     }
-  }
-}
 
-/**
- * Emit a PK warning from an NPC that witnessed a player kill.
- */
-export function emitPkWarning(
-  npc: NPCRef,
-  killerName: string,
-  chatRouter: ChatChannelRouter,
-  recipients: ChatRecipient[],
-  sendToPlayer: SendToPlayerFn,
-  broadcast: BroadcastFn,
-  resolveSocketId: ResolveSocketIdFn,
-): void {
-  const text = PK_WARNING_TEMPLATE.replace("%name%", killerName);
-  chatRouter.publish(
-    {
-      channel: "local",
-      senderType: "npc",
-      senderId: npc.id,
-      senderName: npc.name,
-      npcId: npc.id,
-      text,
-      position: npc.position,
-    },
-    recipients, sendToPlayer, broadcast, resolveSocketId,
-  );
-  chatRouter.publish(
-    {
-      channel: "global",
-      senderType: "npc",
-      senderId: npc.id,
-      senderName: npc.name,
-      npcId: npc.id,
-      text,
-      position: npc.position,
-    },
-    recipients, sendToPlayer, broadcast, resolveSocketId,
-  );
+    public async processRequest(npcId: string, userId: string, userInput: string): Promise<string> {
+        const context: NPCContext = await this.bridge.getNPCCognitiveContext(npcId, userId);
+        
+        const systemPrompt = this.buildSystemPrompt(context);
+        const augmentedUserMessage = this.buildAugmentedUserMessage(userInput, context);
+
+        const apiMessages = [
+            { role: "system" as const, content: systemPrompt },
+            ...context.recentMessages,
+            { role: "user" as const, content: augmentedUserMessage }
+        ];
+
+        const response = await this.llm.generateResponse({
+            messages: apiMessages,
+            temperature: 0.8,
+            maxTokens: 500
+        });
+
+        await this.bridge.persistInteraction(npcId, userId, userInput, response);
+
+        return response;
+    }
+
+    private buildSystemPrompt(context: NPCContext): string {
+        const { npc, worldState } = context;
+        return `You are ${npc.name}. 
+Personality Profile: ${npc.personality}
+Personal Background: ${npc.background}
+Primary Objectives: ${npc.goals.join(", ")}
+
+Current Operational Environment:
+- Location: ${worldState.currentLocation}
+- Time of Day: ${worldState.currentTime}
+- Environmental Factors: ${worldState.environmentConditions}
+
+Maintain character consistency at all times. Respond concisely and in accordance with your goals.`.trim();
+    }
+
+    private buildAugmentedUserMessage(input: string, context: NPCContext): string {
+        const historyContext = context.worldHistory.length > 0 
+            ? "Recent Significant World Events:\n" + context.worldHistory
+                .sort((a, b) => b.timestamp - a.timestamp)
+                .slice(0, 5)
+                .map(event => `[${new Date(event.timestamp).toLocaleTimeString()}] ${event.description}`)
+                .join("\n")
+            : "No significant recent world events.";
+
+        return `### CONTEXTUAL AWARENESS
+${historyContext}
+
+### USER INPUT
+${input}
+
+Respond as ${context.npc.name}:`.trim();
+    }
 }
