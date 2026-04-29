@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": ".",
+    "outDir": "../../dist/packages/ui",
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["."],
+  "exclude": ["node_modules", "dist"]
+}

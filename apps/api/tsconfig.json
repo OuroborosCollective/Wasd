@@ -1,8 +1,9 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "node",
+    "module": "CommonJS",
+    "rootDir": ".",
+    "outDir": "../../dist/apps/api",
     "composite": true,
     "declaration": true,
     "declarationMap": true,
@@ -10,8 +11,9 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "moduleResolution": "node"
   },
-  "files": [],
-  "references": []
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }
