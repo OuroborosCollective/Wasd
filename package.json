@@ -1,12 +1,13 @@
 {
-  "name": "yaml-tool",
+  "name": "yaml-ast-validator",
   "version": "1.0.0",
+  "description": "YAML AST manipulation and JSON schema validation tool",
   "type": "module",
-  "description": "CLI tool for YAML AST parsing and validation",
   "main": "index.js",
   "dependencies": {
     "ajv": "^8.12.0",
-    "commander": "^11.1.0",
+    "ajv-formats": "^2.1.1",
+    "glob": "^10.3.10",
     "yaml": "^2.3.4"
   }
 }

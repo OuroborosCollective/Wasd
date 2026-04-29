@@ -1,44 +1,29 @@
-import { glob } from 'glob';
-import fs from 'fs/promises';
-import path from 'path';
-import { validate } from './validator.js';
-import { refactor } from './refactor.js';
-import { report } from './reporter.js';
+import fs from 'node:fs';
+import { globSync } from 'glob';
+import { parseDocument } from 'yaml';
+import { transformer } from './transformer.js';
+import { validator } from './validator.js';
 
-async function main() {
+const files = globSync('.github/workflows/*.yml');
+
+for (const file of files) {
   try {
-    const isValid = await validate();
-    if (!isValid) {
-      process.exit(1);
+    const originalContent = fs.readFileSync(file, 'utf8');
+    const doc = parseDocument(originalContent);
+
+    transformer(doc);
+
+    const jsContent = doc.toJS();
+    validator(jsContent);
+
+    const updatedContent = doc.toString();
+
+    if (originalContent !== updatedContent) {
+      fs.writeFileSync(file, updatedContent, 'utf8');
+      console.log(`Successfully updated: ${file}`);
     }
-
-    const files = await glob('.github/workflows/*.yml');
-    const stats = {
-      totalFiles: files.length,
-      modifiedFiles: 0,
-      addedLines: 0,
-      removedLines: 0
-    };
-
-    for (const file of files) {
-      const filePath = path.resolve(file);
-      const content = await fs.readFile(filePath, 'utf-8');
-      
-      const result = refactor(content);
-
-      if (result.hasChanges) {
-        await fs.writeFile(filePath, result.output, 'utf-8');
-        stats.modifiedFiles++;
-        stats.addedLines += result.stats.added;
-        stats.removedLines += result.stats.removed;
-      }
-    }
-
-    report(stats);
   } catch (error) {
-    process.stderr.write(`Error: ${error.message}\n`);
+    console.error(`Failed to process ${file}:`, error.message);
     process.exit(1);
   }
 }
-
-main();
