@@ -1,27 +1,15 @@
 {
-  "name": "cli-tool",
+  "name": "dependency-integrity-tool",
   "version": "1.0.0",
-  "description": "Node.js CLI Tool for TypeScript configuration validation",
   "type": "module",
-  "main": "dist/index.js",
-  "bin": {
-    "cli-tool": "dist/index.js"
-  },
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/index.js"
+    "deps:check": "node scripts/check-integrity.mjs",
+    "deps:fix": "node scripts/check-integrity.mjs --fix"
   },
   "dependencies": {
     "chalk": "^5.3.0",
-    "commander": "^12.0.0",
-    "fast-glob": "^3.3.2",
-    "jsonc-parser": "^3.2.1"
-  },
-  "peerDependencies": {
-    "typescript": ">=5.0.0"
-  },
-  "devDependencies": {
-    "@types/node": "^20.11.0",
-    "typescript": "^5.3.3"
+    "commander": "^12.1.0",
+    "semver": "^7.6.3",
+    "yaml": "^2.5.0"
   }
 }
