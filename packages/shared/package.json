@@ -1,19 +1,22 @@
 {
-  "name": "@monorepo/shared",
+  "name": "@repo/shared",
   "version": "1.0.0",
   "private": true,
-  "main": "dist/index.js",
-  "module": "dist/index.mjs",
-  "types": "dist/index.d.ts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
-    "clean": "rm -rf dist"
+    "build": "tsup index.ts --format cjs,esm --dts",
+    "dev": "tsup index.ts --format cjs,esm --watch --dts",
+    "lint": "eslint .",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@monorepo/core": "workspace:*",
-    "@monorepo/utils": "workspace:*"
+    "@repo/utils": "workspace:*",
+    "@repo/config": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "latest"
+    "typescript": "^5.0.0",
+    "tsup": "^8.0.0"
   }
 }

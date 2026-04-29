@@ -1,24 +1,32 @@
 {
   "compilerOptions": {
     "target": "ESNext",
+    "useDefineForClassFields": true,
     "module": "ESNext",
-    "moduleResolution": "node",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "moduleResolution": "Node",
     "strict": true,
-    "composite": true,
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
     "esModuleInterop": true,
+    "noEmit": false,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "types": [
-      "@babylonjs/core",
-      "@babylonjs/gui",
-      "@babylonjs/loaders",
-      "@babylonjs/materials"
-    ]
+    "composite": true,
+    "baseUrl": ".",
+    "paths": {
+      "babylonjs": ["./node_modules/babylonjs"],
+      "@babylonjs/*": ["./node_modules/@babylonjs/*"],
+      "@shared/*": ["../packages/shared/src/*"]
+    }
   },
-  "include": ["src"],
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],
   "references": [
     {
-      "path": "../../packages/shared"
+      "path": "../packages/shared"
     }
   ]
 }
