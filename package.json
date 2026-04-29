@@ -1,17 +1,8 @@
 {
-  "name": "root",
+  "name": "project",
   "version": "1.0.0",
-  "private": true,
-  "dependencies": {
-    "chalk": "^5.3.0",
-    "commander": "^12.1.0",
-    "fast-glob": "^3.3.2",
-    "jsonc-parser": "^3.3.1",
-    "semver": "^7.6.3",
-    "yaml": "^2.5.0"
+  "scripts": {
+    "validate:lockfile": "node scripts/validate-lockfile.js"
   },
-  "devDependencies": {
-    "@types/node": "^22.5.0",
-    "typescript": "^5.5.4"
-  }
+  "packageManager": "pnpm@9.0.0"
 }
