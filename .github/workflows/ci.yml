@@ -9,5 +9,7 @@ jobs:
         with:
           version: 9
           dest: ~/setup-pnpm
-          run_install: null
+          run_install: false
           cache: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
