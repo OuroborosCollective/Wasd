@@ -1,14 +1,16 @@
 {
-  "name": "project",
+  "name": "my-pnpm-project",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "build": "tsc"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "packageManager": "pnpm@8.15.4",
   "pnpm": {
     "packageExtensions": {
       "@firebase/util": {
