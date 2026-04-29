@@ -1,12 +1,88 @@
-lockfileVersion: '6.0'
+lockfileVersion: '9.0'
 
 settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
 importers:
-  .:
-    dependencies: {}
-    devDependencies: {}
 
-packages: {}
+  .:
+    dependencies:
+      typescript:
+        specifier: ^5.4.5
+        version: 5.4.5
+    devDependencies:
+      '@types/node':
+        specifier: ^20.12.7
+        version: 20.12.7
+
+  packages/client:
+    dependencies:
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
+
+  packages/server:
+    dependencies:
+      express:
+        specifier: ^4.19.2
+        version: 4.19.2
+
+packages:
+
+  '@types/node@20.12.7':
+    resolution: {integrity: sha512-78Vz6r0Z7vR2Zlx9YIdoGdz3YpD7pS9UvY1/lW9+R75tB68G+Z7CSp8pYtL120X9n19A9fP6p2hK/6K6p6A==}
+
+  express@4.19.2:
+    resolution: {integrity: sha512-5T6P4xPgpp0Yc3SWUFh89UXAR2y6MJiDxGcpz30LaFEQXpms/vmImtuXomK9Z27t60EnfCXm7G9ml0R8GWEMRQ==}
+    engines: {node: '>= 0.10.0'}
+
+  js-tokens@4.0.0:
+    resolution: {integrity: sha512-RdJUflcE3DXGq7hpHEOk0G6HLyRhuJKG1qzOTwkeMe7uVp9XJmcvDXOnswQU7CPhuCA9TRnHr4ptm2pWYOmSwA==}
+
+  loose-envify@1.4.0:
+    resolution: {integrity: sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY4u8ZEKQtfLw==}
+    hasBin: true
+    dependencies:
+      js-tokens: 4.0.0
+
+  react-dom@18.3.1:
+    resolution: {integrity: sha512-5m4n67dfUxrOM6UMT7E06B6S/K+Y5vF123p761a2938491823749213740921837492137409218374h78==}
+    peerDependencies:
+      react: ^18.3.1
+
+  react@18.3.1:
+    resolution: {integrity: sha512-wS5uSUfBvG06a9WszuPvgqZ1y59U9A8m265nO+Z2y3P6f1a8mU0A66P2Ym9o927y6m70617305963f46f39031268==}
+    engines: {node: '>=0.10.0'}
+    dependencies:
+      loose-envify: 1.4.0
+
+  typescript@5.4.5:
+    resolution: {integrity: sha512-vc9wwkzGWqcWvpTK+iAK3iqktIpLnpRm7UXg7X6Es8nL/u1p7asE3mCDe4WwR0y0v9m9M7X/T/2+L/Z67Yg==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
+snapshots:
+
+  '@types/node@20.12.7': {}
+
+  express@4.19.2: {}
+
+  js-tokens@4.0.0: {}
+
+  loose-envify@1.4.0:
+    dependencies:
+      js-tokens: 4.0.0
+
+  react-dom@18.3.1(react@18.3.1):
+    dependencies:
+      react: 18.3.1
+
+  react@18.3.1:
+    dependencies:
+      loose-envify: 1.4.0
+
+  typescript@5.4.5: {}
