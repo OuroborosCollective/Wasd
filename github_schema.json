@@ -1,0 +1,275 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/github-workflow.json",
+  "title": "GitHub Actions Workflow",
+  "description": "A GitHub Actions workflow file.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "description": "The name of your workflow. GitHub displays the names of your workflows on your repository's actions page. If you omit name, GitHub sets it to the workflow file path relative to the root of the repository.",
+      "type": "string"
+    },
+    "on": {
+      "description": "The name of the GitHub event that triggers the workflow. You can provide a single event type, array of event types, array of event types with configuration, or a schedule event. If you provide an array of event types, you can also mix event types that take configuration.",
+      "oneOf": [
+        {
+          "$ref": "#/definitions/event"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/event"
+          },
+          "minItems": 1
+        },
+        {
+          "type": "object",
+          "properties": {
+            "branch_protection_rule": { "$ref": "#/definitions/eventObject" },
+            "check_run": { "$ref": "#/definitions/eventObject" },
+            "check_suite": { "$ref": "#/definitions/eventObject" },
+            "create": { "$ref": "#/definitions/eventObject" },
+            "delete": { "$ref": "#/definitions/eventObject" },
+            "deployment": { "$ref": "#/definitions/eventObject" },
+            "deployment_status": { "$ref": "#/definitions/eventObject" },
+            "discussion": { "$ref": "#/definitions/eventObject" },
+            "discussion_comment": { "$ref": "#/definitions/eventObject" },
+            "fork": { "$ref": "#/definitions/eventObject" },
+            "gollum": { "$ref": "#/definitions/eventObject" },
+            "issue_comment": { "$ref": "#/definitions/eventObject" },
+            "issues": { "$ref": "#/definitions/eventObject" },
+            "label": { "$ref": "#/definitions/eventObject" },
+            "milestone": { "$ref": "#/definitions/eventObject" },
+            "page_build": { "$ref": "#/definitions/eventObject" },
+            "project": { "$ref": "#/definitions/eventObject" },
+            "project_card": { "$ref": "#/definitions/eventObject" },
+            "project_column": { "$ref": "#/definitions/eventObject" },
+            "public": { "$ref": "#/definitions/eventObject" },
+            "pull_request": { "$ref": "#/definitions/eventObject" },
+            "pull_request_review": { "$ref": "#/definitions/eventObject" },
+            "pull_request_review_comment": { "$ref": "#/definitions/eventObject" },
+            "pull_request_target": { "$ref": "#/definitions/eventObject" },
+            "push": { "$ref": "#/definitions/eventObject" },
+            "registry_package": { "$ref": "#/definitions/eventObject" },
+            "release": { "$ref": "#/definitions/eventObject" },
+            "repository_dispatch": { "$ref": "#/definitions/eventObject" },
+            "schedule": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "cron": { "type": "string" }
+                }
+              }
+            },
+            "status": { "$ref": "#/definitions/eventObject" },
+            "watch": { "$ref": "#/definitions/eventObject" },
+            "workflow_call": { "$ref": "#/definitions/eventObject" },
+            "workflow_dispatch": {
+              "type": "object",
+              "properties": {
+                "inputs": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "description": { "type": "string" },
+                      "required": { "type": "boolean" },
+                      "default": { "type": "string" },
+                      "type": { "enum": ["string", "boolean", "choice", "environment"] }
+                    }
+                  }
+                }
+              }
+            },
+            "workflow_run": { "$ref": "#/definitions/eventObject" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "env": {
+      "description": "A map of environment variables that are available to all jobs and steps in the workflow.",
+      "$ref": "#/definitions/env"
+    },
+    "defaults": {
+      "type": "object",
+      "properties": {
+        "run": {
+          "type": "object",
+          "properties": {
+            "shell": { "$ref": "#/definitions/shell" },
+            "working-directory": { "$ref": "#/definitions/working-directory" }
+          }
+        }
+      }
+    },
+    "concurrency": {
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "properties": {
+            "group": { "type": "string" },
+            "cancel-in-progress": { "type": "boolean" }
+          },
+          "required": ["group"]
+        }
+      ]
+    },
+    "jobs": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/job"
+      },
+      "minProperties": 1
+    }
+  },
+  "required": ["on", "jobs"],
+  "definitions": {
+    "event": {
+      "enum": [
+        "branch_protection_rule", "check_run", "check_suite", "create", "delete", "deployment",
+        "deployment_status", "discussion", "discussion_comment", "fork", "gollum", "issue_comment",
+        "issues", "label", "milestone", "page_build", "project", "project_card", "project_column",
+        "public", "pull_request", "pull_request_review", "pull_request_review_comment",
+        "pull_request_target", "push", "registry_package", "release", "repository_dispatch",
+        "status", "watch", "workflow_call", "workflow_dispatch", "workflow_run"
+      ]
+    },
+    "eventObject": {
+      "type": "object",
+      "properties": {
+        "branches": { "$ref": "#/definitions/globs" },
+        "branches-ignore": { "$ref": "#/definitions/globs" },
+        "tags": { "$ref": "#/definitions/globs" },
+        "tags-ignore": { "$ref": "#/definitions/globs" },
+        "paths": { "$ref": "#/definitions/globs" },
+        "paths-ignore": { "$ref": "#/definitions/globs" },
+        "types": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "globs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "env": {
+      "type": "object",
+      "additionalProperties": {
+        "type": ["string", "number", "boolean"]
+      }
+    },
+    "job": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "needs": {
+          "oneOf": [
+            { "type": "array", "items": { "type": "string" } },
+            { "type": "string" }
+          ]
+        },
+        "runs-on": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "environment": {
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "url": { "type": "string" }
+              }
+            }
+          ]
+        },
+        "outputs": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "env": { "$ref": "#/definitions/env" },
+        "defaults": { "$ref": "#/properties/defaults" },
+        "if": { "type": "string" },
+        "steps": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/step" }
+        },
+        "timeout-minutes": { "type": "number" },
+        "strategy": {
+          "type": "object",
+          "properties": {
+            "matrix": {
+              "type": "object",
+              "additionalProperties": {
+                "oneOf": [
+                  { "type": "array", "items": { "type": ["string", "number", "boolean", "object"] } },
+                  { "type": "string" }
+                ]
+              }
+            },
+            "fail-fast": { "type": "boolean" },
+            "max-parallel": { "type": "number" }
+          }
+        },
+        "continue-on-error": { "type": "boolean" },
+        "container": {
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "properties": {
+                "image": { "type": "string" },
+                "credentials": {
+                  "type": "object",
+                  "properties": {
+                    "username": { "type": "string" },
+                    "password": { "type": "string" }
+                  }
+                },
+                "env": { "$ref": "#/definitions/env" },
+                "ports": { "type": "array", "items": { "type": "number" } },
+                "volumes": { "type": "array", "items": { "type": "string" } },
+                "options": { "type": "string" }
+              }
+            }
+          ]
+        },
+        "services": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/job/properties/container" }
+        }
+      },
+      "required": ["runs-on"]
+    },
+    "step": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "if": { "type": "string" },
+        "name": { "type": "string" },
+        "uses": { "type": "string" },
+        "run": { "type": "string" },
+        "working-directory": { "$ref": "#/definitions/working-directory" },
+        "shell": { "$ref": "#/definitions/shell" },
+        "with": {
+          "type": "object",
+          "additionalProperties": { "type": ["string", "number", "boolean"] }
+        },
+        "env": { "$ref": "#/definitions/env" },
+        "continue-on-error": { "type": "boolean" },
+        "timeout-minutes": { "type": "number" }
+      }
+    },
+    "shell": {
+      "type": "string"
+    },
+    "working-directory": {
+      "type": "string"
+    }
+  }
+}
