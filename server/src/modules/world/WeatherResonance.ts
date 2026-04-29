@@ -1,51 +1,47 @@
-export enum WeatherEnum {
-    CLEAR = 'CLEAR',
-    RAIN = 'RAIN',
-    STORM = 'STORM',
-    SNOW = 'SNOW'
+export enum WeatherType {
+    CLEAR = "CLEAR",
+    RAIN = "RAIN",
+    STORM = "STORM",
+    SNOW = "SNOW",
+    FOG = "FOG"
+}
+
+export interface AREPayload {
+    resonance: number;
+    [key: string]: any;
+}
+
+export interface WorldTick {
+    tickCount: number;
 }
 
 export class WeatherResonance {
-    private static readonly weatherIntensity: Record<WeatherEnum, number> = {
-        [WeatherEnum.CLEAR]: 0.001,
-        [WeatherEnum.RAIN]: 0.005,
-        [WeatherEnum.STORM]: 0.01,
-        [WeatherEnum.SNOW]: 0.002
+    private static readonly weatherIntensity: Record<WeatherType, number> = {
+        [WeatherType.CLEAR]: 0.01,
+        [WeatherType.RAIN]: 0.05,
+        [WeatherType.STORM]: 0.12,
+        [WeatherType.SNOW]: 0.03,
+        [WeatherType.FOG]: 0.02
     };
 
-    private currentWeather: WeatherEnum = WeatherEnum.CLEAR;
-
     /**
-     * Berechnet den deterministischen Resonanzwert basierend auf dem Welt-Tick, Wettertyp und Basisresonanz.
-     * @param tickCount Der aktuelle Tick-Zähler der Welt.
-     * @param weather Der zu berechnende Wetterzustand.
-     * @param baseResonance Der Basiswert für die Resonanz.
-     * @returns Der berechnete Resonanzwert.
+     * Calculates the resonance for the AREPayload based on weather and world ticks.
+     * Synchronized to the 10-Hz system clock via worldTick.tickCount.
+     * 
+     * @param payload The payload to update
+     * @param baseResonance The base resonance value
+     * @param worldTick The current world tick state
+     * @param currentWeather The current active weather
      */
-    public static calculateResonance(tickCount: number, weather: WeatherEnum, baseResonance: number): number {
-        const intensity = WeatherResonance.weatherIntensity[weather] ?? 0;
-        return baseResonance * Math.sin(tickCount * intensity);
-    }
-
-    /**
-     * Setzt den aktuellen Wetterzustand des Servers.
-     * @param weather Das neue Wetter.
-     */
-    public setWeather(weather: WeatherEnum): void {
-        this.currentWeather = weather;
-    }
-
-    /**
-     * Gibt den aktuellen Wetterzustand des Servers zurück.
-     */
-    public getCurrentWeather(): WeatherEnum {
-        return this.currentWeather;
-    }
-
-    /**
-     * Gibt die statische Intensitäts-Map zurück.
-     */
-    public static getWeatherIntensityMap(): Record<WeatherEnum, number> {
-        return { ...WeatherResonance.weatherIntensity };
+    public static calculate(
+        payload: AREPayload,
+        baseResonance: number,
+        worldTick: WorldTick,
+        currentWeather: WeatherType
+    ): void {
+        const intensity = this.weatherIntensity[currentWeather] || 0.01;
+        
+        // Logic: payload.resonance = baseResonance * Math.sin(worldTick.tickCount * weatherIntensity[currentWeather])
+        payload.resonance = baseResonance * Math.sin(worldTick.tickCount * intensity);
     }
 }
