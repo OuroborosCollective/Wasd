@@ -1,19 +1,7 @@
 {
-  "name": "project",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "type": "module",
-  "dependencies": {
-    "chalk": "^5.3.0",
-    "commander": "^12.1.0",
-    "semver": "^7.6.3",
-    "yaml": "^2.5.0"
-  },
-  "devDependencies": {
-    "@types/node": "^22.5.0",
-    "fast-glob": "^3.3.2",
-    "jsonc-parser": "^3.3.1",
-    "typescript": "^5.5.4"
+  "name": "root",
+  "private": true,
+  "scripts": {
+    "build": "pnpm run -r --if-present build"
   }
 }
