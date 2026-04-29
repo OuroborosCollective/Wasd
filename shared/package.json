@@ -1,0 +1,15 @@
+{
+  "name": "@app/shared",
+  "version": "1.0.0",
+  "description": "Single Source of Truth for types and constants",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}
