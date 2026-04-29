@@ -1,35 +1,11 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "Node",
+    "target": "ES2022",
+    "module": "CommonJS",
     "strict": true,
+    "outDir": "./dist",
     "esModuleInterop": true,
-    "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "composite": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "baseUrl": ".",
-    "paths": {}
-  },
-  "references": [
-    { "path": "./packages/core" },
-    { "path": "./packages/shared" },
-    { "path": "./packages/assets" },
-    { "path": "./packages/components" },
-    { "path": "./packages/hooks" },
-    { "path": "./packages/types" },
-    { "path": "./packages/ui" },
-    { "path": "./packages/icons" },
-    { "path": "./packages/intl" },
-    { "path": "./packages/utils" },
-    { "path": "./packages/tests" },
-    { "path": "./packages/styles" },
-    { "path": "./packages/api" }
-  ],
-  "include": [
-    "src/**/*"
-  ]
+    "skipLibCheck": true
+  }
 }
