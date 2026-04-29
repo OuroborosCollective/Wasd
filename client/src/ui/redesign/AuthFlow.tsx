@@ -12,6 +12,7 @@ type AuthStep = "login" | "character_selection";
 export const AuthFlow: React.FC<AuthFlowProps> = ({ onComplete }) => {
   const [step, setStep] = useState<AuthStep>("login");
   const [token, setToken] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -51,7 +52,12 @@ export const AuthFlow: React.FC<AuthFlowProps> = ({ onComplete }) => {
 
   return (
     <>
-      {step === "login" && <LoginScreen onLoginSuccess={handleLoginSuccess} />}
+      {step === "login" && (
+        <>
+          {error && <div className='text-red-500'>{error}</div>}
+          <LoginScreen onLoginSuccess={handleLoginSuccess} />
+        </>
+      )}
       {step === "character_selection" && (
         <CharacterSelection onCharacterSelected={handleCharacterSelected} />
       )}
