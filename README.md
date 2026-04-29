@@ -1,41 +1,88 @@
-# Dokumentation: Authentifizierung und Fehlerbehebung bei großen Commits
+# Areloria: WASD – World Autonomous Simulation & Development
 
-## 1. Personal Access Token (PAT) Einrichtung
-Um Authentifizierungsfehler bei der Verwendung von HTTPS zu vermeiden, muss ein PAT anstelle eines Passworts verwendet werden.
+## Projektbeschreibung
 
-1. Navigieren Sie zu den **Settings** Ihres Git-Hosters (z. B. GitHub).
-2. Wählen Sie **Developer Settings** > **Personal Access Tokens** > **Tokens (classic)**.
-3. Klicken Sie auf **Generate new token**.
-4. Vergeben Sie einen Namen und wählen Sie die Scopes `repo`, `workflow` und `write:packages` aus.
-5. Kopieren Sie den Token sofort (er wird später nicht mehr angezeigt).
-6. Nutzen Sie den Token bei der nächsten Passwortabfrage im Terminal oder hinterlegen Sie ihn im Credential-Manager:
+Areloria: WASD ist eine hochperformante, webbasierte Simulations- und Spieleplattform, die auf einer synergetischen Architektur aus WebAssembly (WASM), modernsten KI-Agenten und Echtzeit-Backend-Systemen basiert. Das Projekt kombiniert eine immersive 3D-Welt mit einem tiefgreifenden autonomen Agenten-System (Projekt „Jules“), das dynamische Interaktionen und prozedurale Inhaltsgenerierung ermöglicht.
+
+Dieses Repository enthält sowohl den hochoptimierten Client als auch die umfangreichen Administrations- und Editor-Tools, die für die Verwaltung und Erweiterung der Welt von Areloria erforderlich sind. Ein starker Fokus liegt auf der CI/CD-Automatisierung für die Bereitstellung in komplexen Umgebungen (VPS, Nginx, WASM-Optimierung).
+
+## Kernfunktionen
+
+- **Echtzeit-3D-Engine:** Unterstützung für WebAssembly-basierte Render-Pipelines für maximale Performance im Browser.
+- **Autonome KI-Agenten:** Integration spezialisierter Agenten (Jules, Sentinel, Bolt), gesteuert durch LLM-Designs und Fail-Safe-Regelsysteme.
+- **World Editor & GM Tools:** Umfangreiche Suite zur Echtzeit-Manipulation der Welt, einschließlich Terrain-Brushes, Objektplatzierung und Rollback-Mechanismen.
+- **Skalierbares Backend:** Hybride Infrastruktur unter Nutzung von Supabase (PostgreSQL) und Redis für hochverfügbare Datenhaltung und Caching.
+- **Enterprise DevOps:** Vollautomatisierte GitHub Workflows für Deployment, VPS-Diagnose, Nginx-Konfiguration und WASM-Fehlerbehebung.
+- **Integrierte Dokumentation:** Umfassende Manuskripte, Manifeste und Logik-Dokumentationen für Entwickler und Gamemaster.
+
+## Technische Architektur
+
+Die Systemarchitektur ist modular aufgebaut und trennt strikt zwischen Rendering-Logik, Welt-Simulation und administrativer Kontrolle:
+
+- **Frontend:** Next.js (App Router) kombiniert mit einer WASM-gesteuerten Client-Umgebung.
+- **Datenhaltung:** Supabase für persistente Daten und Redis zur Orchestrierung von Echtzeit-Events.
+- **Agenten-Layer:** Ein dediziertes System zur Definition von KI-Verhalten (`.jules` & `agent/`), das über standardisierte Prompts und Schnittstellen mit der Welt interagiert.
+- **Automatisierung:** Ein robuster Satz an Python-Scripts und CI/CD-Pipelines zur Sicherstellung der Konsistenz über verschiedene Deployment-Stufen hinweg.
+
+## Projektstruktur (Auszug)
+
+text
+.
+├── .github/workflows/      # CI/CD-Pipelines (Deployment, Fixes, Diagnosen)
+├── .jules/                 # Konfigurationsdateien für die KI-Agenten (Palette, Logik)
+├── admin-tools/            # Gamemaster-Panel, World-Editor und Recovery-Tools
+├── agent/                  # KI-Prompts, Failsafe-Regeln und Build-Instruktionen
+├── app/                    # Next.js App-Router (Layout & Globale Styles)
+├── client/                 # Client-Sourcecode, HTML-Entrypoints und Assets
+├── backups/                # Automatisierte Sicherungen der Systemzustände
+└── docs/                   # (In Form von MD-Dateien im Root) Architektur & Master-Indizes
+
+## Installationshinweise
+
+### Voraussetzungen
+
+- Node.js (v18+)
+- npm oder yarn
+- Python 3.x (für Hilfsscripts)
+- Zugriff auf eine Supabase-Instanz und einen Redis-Server
+
+### Setup-Schritte
+
+1. **Repository klonen:**
    bash
-   git config --global credential.helper store
+   git clone https://github.com/your-org/areloria-wasd.git
+   cd areloria-wasd
    
-## 2. SSH-Key Konfiguration
-SSH ist stabiler für große Datenmengen und erfordert keine manuelle Token-Eingabe.
+2. **Abhängigkeiten installieren:**
+   bash
+   # Für den Haupt-Workspace
+   npm install
 
-1. **SSH-Key generieren:**
-   bash
-   ssh-keygen -t ed25519 -C "ihre_email@example.com"
-   2. **SSH-Agent starten und Key hinzufügen:**
-   bash
-   eval "$(ssh-agent -s)"
-   ssh-add ~/.ssh/id_ed25519
-   3. **Public Key zum Account hinzufügen:**
-   - Kopieren Sie den Inhalt: `cat ~/.ssh/id_ed25519.pub`
-   - Hinterlegen Sie diesen in den Account-Einstellungen unter **SSH and GPG keys**.
-4. **Remote-URL von HTTPS auf SSH umstellen:**
-   bash
-   git remote set-url origin git@github.com:NUTZER/REPOSITORY.git
+   # Für den Client-Bereich
+   cd client && npm install
    
-## 3. Behebung von 'Requires authentication' bei großen Commits
-Sollte der Fehler trotz korrekter Credentials bei großen Dateien auftreten, liegt dies oft am HTTP-Buffer oder der Netzwerk-Verbindung.
+3. **Umgebungsvariablen konfigurieren:**
+   Kopieren Sie die `.env.example` Datei und passen Sie die Werte für Datenbank und API-Keys an:
+   bash
+   cp .env.example .env
+   
+4. **Entwicklungsserver starten:**
+   bash
+   npm run dev
+   
+## Deployment
 
-**Konfiguration des Buffers:**
-bash
-git config --global http.postBuffer 524288000
-git config --global core.compression 0
+Das Projekt ist für den Betrieb auf einem VPS optimiert. Nutzen Sie die bereitgestellten GitHub Workflows für automatisierte Deployments:
 
-**Alternative bei anhaltenden Problemen:**
-Stellen Sie sicher, dass keine Dateigrößen-Limits des Hosters überschritten werden (ggf. Git LFS verwenden). SSH ist gegenüber HTTPS bei großen Push-Operationen zu bevorzugen.
+- **Standard Deployment:** Trigger durch Push auf `main`.
+- **WASM Fixes:** Spezielle Workflows (`fix-wasm-deploy.yml`) beheben bekannte MIME-Type-Probleme in Nginx-Umgebungen automatisch.
+- **Infrastruktur-Check:** `diagnose-vps.yml` führt Systemprüfungen auf der Zielmaschine durch.
+
+## Entwicklung & Richtlinien
+
+- **Projekt-Locking:** Beachten Sie die `PROJECT_LOCK_RULES.md` für Änderungen an kritischen Systemkomponenten.
+- **KI-Integration:** Neue Agenten-Verhaltensweisen müssen in `LLM_AGENT_DESIGN.md` dokumentiert und gegen die `AI_AGENT_FAILSAFE_RULES.md` geprüft werden.
+- **Code-Stil:** ESLint-Regeln sind in `.eslintrc.json` definiert und werden über die CI-Pipeline erzwungen.
+
+---
+*Erstellt vom Technischen Projektmanagement – Areloria WASD Phase 2.*
