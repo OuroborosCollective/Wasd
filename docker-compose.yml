@@ -1,64 +1,48 @@
 version: '3.8'
 
 services:
-  app:
-    image: node:18-alpine
-    container_name: app_service
-    working_dir: /usr/src/app
-    environment:
-      - NODE_ENV=production
-      - DATABASE_URL=postgresql://user:password@db:5432/myapp
-    ports:
-      - "3000:3000"
-    networks:
-      - frontend_net
-      - backend_net
-    depends_on:
-      db:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    restart: always
-
-  db:
+  database:
     image: postgres:15-alpine
-    container_name: db_service
+    container_name: database_service
+    restart: unless-stopped
     environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=myapp
+      POSTGRES_DB: prod_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secure_password_123
+    networks:
+      - backend_network
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - backend_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d myapp"]
+      test: ["CMD-SHELL", "pg_isready -U admin -d prod_db"]
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: always
 
-  redis:
-    image: redis:7-alpine
-    container_name: cache_service
+  application:
+    image: nginx:alpine
+    container_name: web_application
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
     networks:
-      - backend_net
+      - frontend_network
+      - backend_network
+    ports:
+      - "8080:80"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
+      test: ["CMD-SHELL", "curl -f http://localhost/ || exit 1"]
+      interval: 30s
+      timeout: 10s
       retries: 3
-    restart: always
 
 networks:
-  frontend_net:
+  frontend_network:
     driver: bridge
-  backend_net:
+  backend_network:
     driver: bridge
+    internal: true
 
 volumes:
   postgres_data:

@@ -1,20 +1,10 @@
 version: 2
 updates:
-  - package-ecosystem: npm
-    directory: /
+  - package-ecosystem: "github-actions"
+    directory: "/"
     schedule:
-      interval: daily
-    reviewers:
-      - reviewer-name
-    labels:
-      - dependencies
-      - npm
-  - package-ecosystem: docker
-    directory: /
+      interval: "weekly"
+  - package-ecosystem: "docker"
+    directory: "/"
     schedule:
-      interval: daily
-    reviewers:
-      - reviewer-name
-    labels:
-      - dependencies
-      - docker
+      interval: "weekly"
