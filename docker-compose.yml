@@ -1,62 +1,65 @@
 version: '3.8'
 
 services:
-  redis:
-    image: redis:7-alpine
-    container_name: areloria_redis
-    restart: always
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
-    ports:
-      - "6379:6379"
-
-  api:
-    build:
-      context: ./api
-      dockerfile: Dockerfile
-    container_name: areloria_api
-    restart: always
+  app:
+    image: node:18-alpine
+    container_name: app_service
+    working_dir: /usr/src/app
     environment:
-      - DATABASE_URL=sqlite:////data/areloria.db
-      - REDIS_URL=redis://redis:6379/0
-    volumes:
-      - sqlite_data:/data
-    ports:
-      - "8000:8000"
-    depends_on:
-      - redis
-
-  worker:
-    build:
-      context: ./worker
-      dockerfile: Dockerfile
-    container_name: areloria_worker
-    restart: always
-    environment:
-      - DATABASE_URL=sqlite:////data/areloria.db
-      - REDIS_URL=redis://redis:6379/0
-      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-    volumes:
-      - sqlite_data:/data
-      - playwright_cache:/ms-playwright
-    depends_on:
-      - redis
-
-  dashboard:
-    build:
-      context: ./dashboard
-      dockerfile: Dockerfile
-    container_name: areloria_dashboard
-    restart: always
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://user:password@db:5432/myapp
     ports:
       - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://api:8000
+    networks:
+      - frontend_net
+      - backend_net
     depends_on:
-      - api
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: always
+
+  db:
+    image: postgres:15-alpine
+    container_name: db_service
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=myapp
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d myapp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    container_name: cache_service
+    networks:
+      - backend_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: always
+
+networks:
+  frontend_net:
+    driver: bridge
+  backend_net:
+    driver: bridge
 
 volumes:
-  redis_data:
-  sqlite_data:
-  playwright_cache:
+  postgres_data:
+    driver: local
