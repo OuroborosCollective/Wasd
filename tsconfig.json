@@ -2,16 +2,34 @@
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
-    "moduleResolution": "node",
+    "moduleResolution": "Node",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
     "composite": true,
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "skipLibCheck": true
+    "baseUrl": ".",
+    "paths": {}
   },
-  "files": [],
-  "references": []
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/shared" },
+    { "path": "./packages/assets" },
+    { "path": "./packages/components" },
+    { "path": "./packages/hooks" },
+    { "path": "./packages/types" },
+    { "path": "./packages/ui" },
+    { "path": "./packages/icons" },
+    { "path": "./packages/intl" },
+    { "path": "./packages/utils" },
+    { "path": "./packages/tests" },
+    { "path": "./packages/styles" },
+    { "path": "./packages/api" }
+  ],
+  "include": [
+    "src/**/*"
+  ]
 }
