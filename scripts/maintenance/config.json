@@ -1,0 +1,9 @@
+{
+  "allowMajorUpdates": false,
+  "autoPr": true,
+  "branchPrefix": "fix/pnpm-sync",
+  "requiredChecks": [
+    "integrity",
+    "audit"
+  ]
+}
