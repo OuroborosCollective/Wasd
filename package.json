@@ -1,13 +1,21 @@
 {
-  "name": "yaml-ast-validator",
+  "name": "project",
   "version": "1.0.0",
-  "description": "YAML AST manipulation and JSON schema validation tool",
-  "type": "module",
+  "description": "",
   "main": "index.js",
-  "dependencies": {
-    "ajv": "^8.12.0",
-    "ajv-formats": "^2.1.1",
-    "glob": "^10.3.10",
-    "yaml": "^2.3.4"
+  "scripts": {
+    "fix-lock": "pnpm install --lockfile-only && git add pnpm-lock.yaml"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "husky": "latest",
+    "yaml": "latest"
+  },
+  "lint-staged": {
+    "package.json": [
+      "pnpm fix-lock"
+    ]
   }
 }

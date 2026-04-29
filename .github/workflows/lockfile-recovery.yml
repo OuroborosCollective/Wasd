@@ -1,0 +1,65 @@
+name: Lockfile Recovery
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  recover-lockfile:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.workflow_run.head_repository.full_name }}
+          ref: ${{ github.event.workflow_run.head_branch }}
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: latest
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Run pnpm install
+        run: pnpm install
+
+      - name: Check for lockfile changes
+        id: git_diff
+        run: |
+          if ! git diff --exit-code pnpm-lock.yaml; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Fix Branch and Comment
+        if: steps.git_diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FIX_BRANCH: fix/lockfile-${{ github.run_id }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git checkout -b $FIX_BRANCH
+          git add pnpm-lock.yaml
+          git commit -m "chore: update pnpm-lock.yaml"
+          git push origin $FIX_BRANCH
+
+          PR_NUMBER=$(gh pr list --head $HEAD_BRANCH --json number --jq '.[0].number')
+          
+          if [ -n "$PR_NUMBER" ]; then
+            gh pr comment $PR_NUMBER --body "Der CI-Job ist aufgrund eines veralteten Lockfiles fehlgeschlagen. Bitte merge den Fix-Branch: \`$FIX_BRANCH\`"
+          fi
