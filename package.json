@@ -1,28 +1,13 @@
 {
-  "name": "root-project",
+  "name": "my-pnpm-project",
   "version": "1.0.0",
-  "private": true,
-  "description": "Root package definition with dependency overrides and resolutions for version consistency",
+  "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "npm run build --prefix client"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "dependencies": {},
-  "devDependencies": {
-    "typescript": "^5.0.0"
-  },
-  "overrides": {
-    "minimist": "^1.2.6",
-    "json5": "^2.2.2",
-    "semver": "^7.5.2"
-  },
-  "resolutions": {
-    "minimist": "^1.2.6",
-    "json5": "^2.2.2",
-    "semver": "^7.5.2"
-  }
+  "packageManager": "pnpm@9.15.4"
 }
