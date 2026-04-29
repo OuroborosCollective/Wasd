@@ -1,8 +1,5 @@
 {
   "name": "project",
   "version": "1.0.0",
-  "scripts": {
-    "validate:lockfile": "node scripts/validate-lockfile.js"
-  },
   "packageManager": "pnpm@9.0.0"
 }
