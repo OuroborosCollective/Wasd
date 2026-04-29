@@ -1,18 +1,35 @@
 {
-  "name": "codebase-analysis-project",
+  "name": "secure-typescript-audit-tool",
   "version": "1.0.0",
-  "description": "Automated codebase sanitization and audit utility",
+  "description": "Integrated security and logic analysis using ESLint, Security and SonarJS plugins",
   "main": "index.js",
   "scripts": {
-    "system:sanitize": "node scripts/sanitize-codebase.js && node scripts/audit-changes.js",
+    "lint": "eslint . --ext .ts,.js",
+    "lint:fix": "eslint . --ext .ts,.js --fix",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
+  "keywords": [
+    "security",
+    "sonarjs",
+    "eslint",
+    "typescript"
+  ],
   "author": "",
   "license": "ISC",
-  "devDependencies": {
-    "glob": "^10.3.10",
-    "ts-morph": "^21.0.1",
+  "dependencies": {
     "typescript": "^5.3.3"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-security": "^3.0.0",
+    "eslint-plugin-sonarjs": "^1.0.3"
+  },
+  "peerDependencies": {
+    "eslint": ">=8.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
