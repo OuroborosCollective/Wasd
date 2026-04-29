@@ -1,4 +1,4 @@
-name: Deploy to Production
+name: Deploy to Server
 
 on:
   push:
@@ -9,15 +9,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Remote SSH Deployment
+      - name: SSH Deploy
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd /var/www/project
-            git pull origin main
-            npm ci --omit=dev
-            npm run build --if-present
-            pm2 startOrReload ecosystem.config.js --env production
+          script: cd /var/www/wasd-areloria && git pull origin main && npm ci --omit=dev && npm run build --if-present && pm2 reload ecosystem.config.js --update-env
