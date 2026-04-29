@@ -1,0 +1,15 @@
+{
+  "traitResonanceEngine": {
+    "initialCredits": 10,
+    "urbanPlanningThreshold": 0.75,
+    "limits": {
+      "maxRequestsPerMinute": 60,
+      "timeoutMs": 5000,
+      "maxBatchSize": 50
+    },
+    "thresholds": {
+      "resonanceMinScore": 0.1,
+      "affinityLimit": 0.85
+    }
+  }
+}
