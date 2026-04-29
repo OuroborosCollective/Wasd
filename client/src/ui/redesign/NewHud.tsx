@@ -134,12 +134,16 @@ export const NewHud: React.FC<NewHudProps> = (p) => {
                {/* HP Ring (Outer) */}
                <circle cx="60" cy="60" r="54" fill="none" stroke="#ff4444" strokeWidth="8" 
                  strokeDasharray="339.29" strokeDashoffset={339.29 - (339.29 * hpPerc / 100)} 
-                 transform="rotate(-90 60 60)" strokeLinecap="round" />
+                 transform="rotate(-90 60 60)" strokeLinecap="round"
+                 role="progressbar" aria-label="Health" aria-valuenow={stats.hp} aria-valuemin={0} aria-valuemax={stats.hpMax}
+                 title={`Health: ${stats.hp} / ${stats.hpMax}`} />
                  
                {/* MP Ring (Inner) */}
                <circle cx="60" cy="60" r="44" fill="none" stroke="#4488ff" strokeWidth="6" 
                  strokeDasharray="276.46" strokeDashoffset={276.46 - (276.46 * mpPerc / 100)} 
-                 transform="rotate(-90 60 60)" strokeLinecap="round" />
+                 transform="rotate(-90 60 60)" strokeLinecap="round"
+                 role="progressbar" aria-label="Mana" aria-valuenow={stats.mp} aria-valuemin={0} aria-valuemax={stats.mpMax}
+                 title={`Mana: ${stats.mp} / ${stats.mpMax}`} />
              </svg>
           </div>
         </div>
@@ -152,7 +156,7 @@ export const NewHud: React.FC<NewHudProps> = (p) => {
       </div>
       
       <div className="xp-container">
-        <div className="xp-bar-container">
+        <div className="xp-bar-container" role="progressbar" aria-label="Experience" aria-valuenow={stats.xp % 1000} aria-valuemin={0} aria-valuemax={1000} title={`XP: ${stats.xp % 1000} / 1000`}>
           <div className="xp-bar-fill" style={{width: `${(stats.xp % 1000) / 10}%`}}></div>
         </div>
         <span className="xp-text gold-text">Level {stats.level}</span>
@@ -205,7 +209,7 @@ export const NewHud: React.FC<NewHudProps> = (p) => {
       
       {target && (
         <div className="target-frame gold-frame" onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
-          <div className="target-hp-bar">
+          <div className="target-hp-bar" role="progressbar" aria-label={`Target Health: ${target.name || "Enemy"}`} aria-valuenow={target.hp} aria-valuemin={0} aria-valuemax={target.hpMax || 100} title={`Target Health: ${target.hp} / ${target.hpMax || 100}`}>
              <div className="fill" style={{width: `${(target.hp / (target.hpMax || 100)) * 100}%`}}></div>
           </div>
           <span className="target-name gold-text">{target.name || "Enemy"}</span>
