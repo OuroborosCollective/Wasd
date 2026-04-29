@@ -1,16 +1,26 @@
-#!/usr/bin/env bash
-# On the VPS: update to latest main and run full deploy + local HTTP checks.
-# Usage (as root or deploy user):
-#   cd /opt/areloria && bash deploy/pull-and-deploy.sh
-set -euo pipefail
-APP_DIR="${APP_DIR:-/opt/areloria}"
-cd "$APP_DIR"
-if [ ! -d ".git" ]; then
-  echo "No .git in $APP_DIR — clone the repo first."
-  exit 1
+#!/bin/bash
+set -e
+
+# Navigate to project root relative to script location
+cd "$(dirname "$0")/.."
+
+echo "Pulling latest changes..."
+git pull origin $(git rev-parse --abbrev-ref HEAD)
+
+echo "Installing dependencies..."
+pnpm install --frozen-lockfile
+
+echo "Running build process..."
+pnpm run build
+
+echo "Restarting application..."
+if command -v pm2 &> /dev/null
+then
+    pm2 reload all --update-env
+    echo "PM2 processes reloaded successfully."
+else
+    echo "PM2 not found. Attempting to restart via npm/pnpm start..."
+    pnpm start
 fi
-git fetch origin main
-git reset --hard origin/main
-chmod +x deploy/deploy.sh
-./deploy/deploy.sh
-bash deploy/verify-vps-local.sh
+
+echo "Deployment finished successfully."
