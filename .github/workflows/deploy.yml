@@ -1,4 +1,4 @@
-name: Deploy to Server
+name: Deploy to Production
 
 on:
   push:
@@ -9,15 +9,15 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: executing remote ssh commands using password
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Remote SSH Deployment
+        uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USER }}
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            mkdir -p /var/www/wasd-areloria
-            cd /var/www/wasd-areloria
-            git pull
-            npm install --production
-            pm2 restart areloria-app || pm2 start index.js --name areloria-app
+            cd /var/www/project
+            git pull origin main
+            npm ci --omit=dev
+            npm run build --if-present
+            pm2 startOrReload ecosystem.config.js --env production

@@ -1,15 +1,21 @@
 {
-  "name": "project",
+  "name": "app-project",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Node.js project with PM2 ecosystem integration",
+  "main": "dist/index.js",
   "scripts": {
-    "lint:dependabot:fix": "node scripts/fix-dependabot.js"
+    "build": "tsc",
+    "start": "pm2 start ecosystem.config.js --env production",
+    "stop": "pm2 stop ecosystem.config.js",
+    "restart": "pm2 restart ecosystem.config.js",
+    "delete": "pm2 delete ecosystem.config.js",
+    "logs": "pm2 logs"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "dependencies": {
+    "pm2": "^5.3.0"
+  },
   "devDependencies": {
-    "js-yaml": "^4.1.0"
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
   }
 }

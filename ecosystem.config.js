@@ -1,11 +1,12 @@
 module.exports = {
   apps: [
     {
-      name: 'areloria-app',
-      script: 'index.js',
+      name: 'wasd-areloria',
+      script: 'dist/index.js',
       instances: 'max',
       exec_mode: 'cluster',
-      env: {
+      autorestart: true,
+      env_production: {
         NODE_ENV: 'production'
       }
     }
