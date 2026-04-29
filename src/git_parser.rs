@@ -1,71 +1,68 @@
-use git2::{Repository, Error, Sort};
+use git2::{Repository, DiffOptions, Sort};
 use std::collections::HashSet;
-use std::path::PathBuf;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::path::{Path, PathBuf};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 pub struct GitMetadataParser;
 
 impl GitMetadataParser {
-    pub fn get_audit_scope(repo_path: &str) -> Result<HashSet<PathBuf>, Error> {
+    pub fn get_recent_files(repo_path: &Path, window: Duration) -> Result<HashSet<PathBuf>, git2::Error> {
         let repo = Repository::open(repo_path)?;
         let mut revwalk = repo.revwalk()?;
         
-        revwalk.set_sorting(Sort::TIME | Sort::TOPOLOGICAL)?;
-        revwalk.push_head()?;
+        if let Err(_) = revwalk.push_head() {
+            return Ok(HashSet::new());
+        }
+        
+        revwalk.set_sorting(Sort::TIME)?;
 
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .map_err(|_| Error::from_str("Clock drifted before epoch"))?
-            .as_secs() as i64;
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
         
-        let seconds_in_48_hours = 48 * 60 * 60;
-        let threshold = now - seconds_in_48_hours;
-
-        let mut modified_files = HashSet::new();
+        let cutoff = now - (window.as_secs() as i64);
+        let mut file_set = HashSet::new();
 
         for oid_result in revwalk {
-            let oid = oid_result?;
+            let oid = match oid_result {
+                Ok(id) => id,
+                Err(_) => continue,
+            };
+            
             let commit = repo.find_commit(oid)?;
             
-            if commit.time().seconds() < threshold {
+            if commit.time().seconds() < cutoff {
                 break;
             }
 
             let current_tree = commit.tree()?;
-            
-            if commit.parent_count() > 0 {
-                for parent in commit.parents() {
-                    let parent_tree = parent.tree()?;
-                    let diff = repo.diff_tree_to_tree(Some(&parent_tree), Some(&current_tree), None)?;
-                    
-                    diff.foreach(
-                        &mut |delta, _| {
-                            if let Some(path) = delta.new_file().path() {
-                                modified_files.insert(path.to_path_buf());
-                            }
-                            true
-                        },
-                        None,
-                        None,
-                        None,
-                    )?;
-                }
+            let parent_tree = if commit.parent_count() > 0 {
+                commit.parent(0).ok().and_then(|p| p.tree().ok())
             } else {
-                let diff = repo.diff_tree_to_tree(None, Some(&current_tree), None)?;
-                diff.foreach(
-                    &mut |delta, _| {
-                        if let Some(path) = delta.new_file().path() {
-                            modified_files.insert(path.to_path_buf());
-                        }
-                        true
-                    },
-                    None,
-                    None,
-                    None,
-                )?;
-            }
+                None
+            };
+
+            let mut opts = DiffOptions::new();
+            let diff = repo.diff_tree_to_tree(
+                parent_tree.as_ref(),
+                Some(&current_tree),
+                Some(&mut opts),
+            )?;
+
+            diff.foreach(
+                &mut |delta, _| {
+                    if let Some(path) = delta.new_file().path() {
+                        file_set.insert(path.to_path_buf());
+                    }
+                    true
+                },
+                None,
+                None,
+                None,
+            )?;
         }
 
-        Ok(modified_files)
+        Ok(file_set)
     }
 }
