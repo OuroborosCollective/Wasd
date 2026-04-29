@@ -1,11 +1,1 @@
-fastapi
-uvicorn
-celery
-redis
-sqlalchemy
-playwright
-playwright-stealth
-vaderSentiment
-jinja2
-pydantic
-websockets
+ruamel.yaml
