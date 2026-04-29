@@ -1,63 +1,64 @@
-export class ChunkSystem {
-  private chunks = new Map<string, { id: string, x: number, y: number, size: number, entities: Set<string>, active: boolean }>();
+export interface Chunk {
+    x: number;
+    y: number;
+    ownerGuildId?: string | null;
+    data?: any;
+}
 
-  constructor(public readonly size: number = 64) {}
+export class ChunkManager {
+    private chunks: Map<string, Chunk> = new Map();
 
-  getChunkId(x: number, y: number): string {
-    const chunkX = Math.floor(x / this.size);
-    const chunkY = Math.floor(y / this.size);
-    return `${chunkX}:${chunkY}`;
-  }
-
-  getChunk(chunkX: number, chunkY: number) {
-    const id = `${chunkX}:${chunkY}`;
-    if (!this.chunks.has(id)) {
-      this.chunks.set(id, {
-        id,
-        x: chunkX,
-        y: chunkY,
-        size: this.size,
-        entities: new Set(),
-        active: false
-      });
+    private getChunkKey(x: number, y: number): string {
+        return `${x},${y}`;
     }
-    return this.chunks.get(id)!;
-  }
 
-  addEntity(entityId: string, x: number, y: number) {
-    const chunkId = this.getChunkId(x, y);
-    const [cx, cy] = chunkId.split(':').map(Number);
-    const chunk = this.getChunk(cx, cy);
-    chunk.entities.add(entityId);
-    return chunkId;
-  }
-
-  removeEntity(entityId: string, chunkId: string) {
-    const chunk = this.chunks.get(chunkId);
-    if (chunk) {
-      chunk.entities.delete(entityId);
+    public getChunk(x: number, y: number): Chunk {
+        const key = this.getChunkKey(x, y);
+        let chunk = this.chunks.get(key);
+        
+        if (!chunk) {
+            chunk = { x, y, ownerGuildId: null };
+            this.chunks.set(key, chunk);
+        }
+        
+        return chunk;
     }
-  }
 
-  moveEntity(entityId: string, oldX: number, oldY: number, newX: number, newY: number) {
-    const oldChunkId = this.getChunkId(oldX, oldY);
-    const newChunkId = this.getChunkId(newX, newY);
-
-    if (oldChunkId !== newChunkId) {
-      this.removeEntity(entityId, oldChunkId);
-      this.addEntity(entityId, newX, newY);
+    public setChunkOwner(x: number, y: number, guildId: string | null): void {
+        const chunk = this.getChunk(x, y);
+        chunk.ownerGuildId = guildId;
     }
-    return newChunkId;
-  }
 
-  getActiveChunks() {
-    return Array.from(this.chunks.values()).filter(c => c.active);
-  }
-
-  setChunkActive(chunkId: string, active: boolean) {
-    const chunk = this.chunks.get(chunkId);
-    if (chunk) {
-      chunk.active = active;
+    public getChunkOwner(x: number, y: number): string | null {
+        const chunk = this.chunks.get(this.getChunkKey(x, y));
+        return chunk ? (chunk.ownerGuildId || null) : null;
     }
-  }
+
+    public getTerritoryMap(): Map<string, string> {
+        const territoryMap = new Map<string, string>();
+        
+        for (const [key, chunk] of this.chunks.entries()) {
+            if (chunk.ownerGuildId) {
+                territoryMap.set(key, chunk.ownerGuildId);
+            }
+        }
+        
+        return territoryMap;
+    }
+
+    public clearOwner(x: number, y: number): void {
+        const chunk = this.chunks.get(this.getChunkKey(x, y));
+        if (chunk) {
+            chunk.ownerGuildId = null;
+        }
+    }
+
+    public getAllChunks(): Chunk[] {
+        return Array.from(this.chunks.values());
+    }
+
+    public loadChunkData(x: number, y: number, data: any): void {
+        const chunk = this.getChunk(x, y);
+        chunk.data = data;
+    }
 }
