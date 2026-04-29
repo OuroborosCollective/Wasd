@@ -1,13 +1,27 @@
-export enum WeatherEnum {
-  CLEAR = 'CLEAR',
-  RAIN = 'RAIN',
-  STORM = 'STORM',
-  BLIZZARD = 'BLIZZARD'
+export type TemperatureUnit = 'Celsius' | 'Fahrenheit';
+
+export type WeatherCondition =
+  | 'Sunny'
+  | 'Cloudy'
+  | 'Partly Cloudy'
+  | 'Rainy'
+  | 'Stormy'
+  | 'Snowy'
+  | 'Foggy';
+
+export interface WeatherData {
+  temperature: number;
+  unit: TemperatureUnit;
+  condition: WeatherCondition;
+  humidity: number;
+  windSpeed: number;
+  timestamp: Date;
+  location: string;
 }
 
-export const weatherIntensity: Record<WeatherEnum, number> = {
-  [WeatherEnum.CLEAR]: 0.0,
-  [WeatherEnum.RAIN]: 0.4,
-  [WeatherEnum.STORM]: 1.2,
-  [WeatherEnum.BLIZZARD]: 2.5
-};
+export interface Forecast {
+  date: Date;
+  minTemp: number;
+  maxTemp: number;
+  condition: WeatherCondition;
+}
