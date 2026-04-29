@@ -1,67 +1,41 @@
-# Areloria / Ouroboros (Wasd)
+# Dokumentation: Authentifizierung und Fehlerbehebung bei großen Commits
 
-Browser MMORPG monorepo with authoritative server simulation and Babylon.js client rendering.
+## 1. Personal Access Token (PAT) Einrichtung
+Um Authentifizierungsfehler bei der Verwendung von HTTPS zu vermeiden, muss ein PAT anstelle eines Passworts verwendet werden.
 
-## Quick start
+1. Navigieren Sie zu den **Settings** Ihres Git-Hosters (z. B. GitHub).
+2. Wählen Sie **Developer Settings** > **Personal Access Tokens** > **Tokens (classic)**.
+3. Klicken Sie auf **Generate new token**.
+4. Vergeben Sie einen Namen und wählen Sie die Scopes `repo`, `workflow` und `write:packages` aus.
+5. Kopieren Sie den Token sofort (er wird später nicht mehr angezeigt).
+6. Nutzen Sie den Token bei der nächsten Passwortabfrage im Terminal oder hinterlegen Sie ihn im Credential-Manager:
+   bash
+   git config --global credential.helper store
+   
+## 2. SSH-Key Konfiguration
+SSH ist stabiler für große Datenmengen und erfordert keine manuelle Token-Eingabe.
 
-1. Install dependencies:
-   - `pnpm install`
-2. Optional env:
-   - `cp .env.example .env`
-3. Start development:
-   - `pnpm run dev`
-4. Open:
-   - `http://localhost:3000`
+1. **SSH-Key generieren:**
+   bash
+   ssh-keygen -t ed25519 -C "ihre_email@example.com"
+   2. **SSH-Agent starten und Key hinzufügen:**
+   bash
+   eval "$(ssh-agent -s)"
+   ssh-add ~/.ssh/id_ed25519
+   3. **Public Key zum Account hinzufügen:**
+   - Kopieren Sie den Inhalt: `cat ~/.ssh/id_ed25519.pub`
+   - Hinterlegen Sie diesen in den Account-Einstellungen unter **SSH and GPG keys**.
+4. **Remote-URL von HTTPS auf SSH umstellen:**
+   bash
+   git remote set-url origin git@github.com:NUTZER/REPOSITORY.git
+   
+## 3. Behebung von 'Requires authentication' bei großen Commits
+Sollte der Fehler trotz korrekter Credentials bei großen Dateien auftreten, liegt dies oft am HTTP-Buffer oder der Netzwerk-Verbindung.
 
-## Technology stack (current)
+**Konfiguration des Buffers:**
+bash
+git config --global http.postBuffer 524288000
+git config --global core.compression 0
 
-- Client: Vite + TypeScript + Babylon.js
-- Server: Node.js + Express + WebSocket (`ws`)
-- Auth/runtime identity: Supabase JWT verification (optional in dev), guest/dev fallback via env flags
-- Persistence: `PERSISTENCE_DRIVER=auto|postgres|file` (`auto` => Postgres if configured, else file)
-- Optional infra: Redis (chat relay/cache), OpenTelemetry/PostHog tracing, MCP admin endpoint
-- Tests: Vitest + Playwright
-
-## Repository structure
-
-- `client/` — Babylon/Vite frontend and HUD/UI
-- `server/` — Express + WS server, simulation (`WorldTick`)
-- `game-data/` — live content definitions (quests, npcs, dialogue, world, scenes)
-- `world-assets/` — source assets mirrored into client public model paths
-- `docs/` — architecture, systems, runbooks, status docs
-- `deploy/` — deployment scripts and env templates
-
-## Core runtime systems
-
-- Authoritative tick loop (`server/src/core/WorldTick.ts`) at 100ms
-- Player/NPC sync over WebSocket
-- Quests, combat, loot, inventory, skills
-- NPC autonomy + chat + relationship/memory systems
-- Warfront, world boss, vote, questline systems
-- Playtester automation + monitor stream
-- Admin content API (`/api/admin/content/*`) for GLB and content operations
-- Gameplay Fusion Director (quest echoes + adaptive profiles + construction contracts)
-
-## Key docs
-
-- `docs/PROJECT_STATUS_2026.md` — authoritative implementation snapshot
-- `docs/ROADMAP_TO_RELEASE.md` — remaining scope
-- `docs/DOCUMENTATION_INDEX.md` — doc map + active vs historical
-- `DEPLOYMENT.md` — VPS deployment flow
-- `deploy/ENV_SETUP.md` — production env setup
-- `AGENTS.md` — agent-specific operational guidance
-
-## Deployment (VPS)
-
-- Standard update flow:
-  - `cd /opt/areloria && bash deploy/pull-and-deploy.sh`
-- PM2 process is managed by project deploy scripts/config.
-- Optional CI post-deploy verification via `DEPLOY_VERIFY_BASE_URL`.
-
-## Documentation policy
-
-When behavior changes, update:
-
-1. `docs/PROJECT_STATUS_2026.md`
-2. `docs/ROADMAP_TO_RELEASE.md` (if release scope changed)
-3. Any affected runbook/API docs
+**Alternative bei anhaltenden Problemen:**
+Stellen Sie sicher, dass keine Dateigrößen-Limits des Hosters überschritten werden (ggf. Git LFS verwenden). SSH ist gegenüber HTTPS bei großen Push-Operationen zu bevorzugen.
