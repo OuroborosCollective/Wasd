@@ -1,3 +1,23 @@
 {
-  "packageManager": "pnpm@9.0.0"
+  "name": "cli-tool",
+  "version": "1.0.0",
+  "description": "A CLI tool for AST-based YAML manipulation and data display",
+  "type": "module",
+  "main": "index.js",
+  "bin": {
+    "cli-tool": "index.js"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "glob": "^10.3.10",
+    "semver": "^7.6.0",
+    "table": "^6.8.2",
+    "yaml": "^2.4.1"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
 }
