@@ -1,88 +1,116 @@
-# Areloria: WASD – World Autonomous Simulation & Development
+# Areloria: WASD – Das Ultimative Virtuelle Weltsystem
 
-## Projektbeschreibung
+## Projektübersicht
 
-Areloria: WASD ist eine hochperformante, webbasierte Simulations- und Spieleplattform, die auf einer synergetischen Architektur aus WebAssembly (WASM), modernsten KI-Agenten und Echtzeit-Backend-Systemen basiert. Das Projekt kombiniert eine immersive 3D-Welt mit einem tiefgreifenden autonomen Agenten-System (Projekt „Jules“), das dynamische Interaktionen und prozedurale Inhaltsgenerierung ermöglicht.
+Areloria: WASD ist eine hochperformante, hybride Plattform zur Erstellung und Verwaltung persistenter virtueller Welten. Das Projekt kombiniert modernste Webtechnologien mit leistungsstarker Systemprogrammierung und einer tiefgreifenden Integration von KI-Agenten. Durch den Einsatz von Rust (WASM) für die Kernlogik und Next.js für das Frontend bietet Areloria eine reibungslose, skalierbare Erfahrung sowohl für Administratoren als auch für Endnutzer.
 
-Dieses Repository enthält sowohl den hochoptimierten Client als auch die umfangreichen Administrations- und Editor-Tools, die für die Verwaltung und Erweiterung der Welt von Areloria erforderlich sind. Ein starker Fokus liegt auf der CI/CD-Automatisierung für die Bereitstellung in komplexen Umgebungen (VPS, Nginx, WASM-Optimierung).
+Der Fokus liegt auf der Synergie zwischen prozeduraler Generierung, menschlicher Kuration über ein dediziertes World-Editor-Framework und einer autonomen Agenten-Infrastruktur, die die Spielwelt lebendig und dynamisch gestaltet.
 
-## Kernfunktionen
+---
 
-- **Echtzeit-3D-Engine:** Unterstützung für WebAssembly-basierte Render-Pipelines für maximale Performance im Browser.
-- **Autonome KI-Agenten:** Integration spezialisierter Agenten (Jules, Sentinel, Bolt), gesteuert durch LLM-Designs und Fail-Safe-Regelsysteme.
-- **World Editor & GM Tools:** Umfangreiche Suite zur Echtzeit-Manipulation der Welt, einschließlich Terrain-Brushes, Objektplatzierung und Rollback-Mechanismen.
-- **Skalierbares Backend:** Hybride Infrastruktur unter Nutzung von Supabase (PostgreSQL) und Redis für hochverfügbare Datenhaltung und Caching.
-- **Enterprise DevOps:** Vollautomatisierte GitHub Workflows für Deployment, VPS-Diagnose, Nginx-Konfiguration und WASM-Fehlerbehebung.
-- **Integrierte Dokumentation:** Umfassende Manuskripte, Manifeste und Logik-Dokumentationen für Entwickler und Gamemaster.
+## Hauptmerkmale
 
-## Technische Architektur
+*   **KI-Agenten-Ökosystem:** Integration spezialisierter LLM-Agenten (z.B. Jules, Sentinel), die über definierte Regelwerke ("Arelorian Super Prompt") innerhalb der Welt agieren.
+*   **Echtzeit-World-Editor:** Ein mächtiges Toolset für Game Master (GM) zur Manipulation von Terrain, Objektplatzierung und Live-Welt-Steuerung.
+*   **WASM-gestützte Performance:** Rechenintensive Welt-Logik und 3D-Berechnungen werden mittels Rust in WebAssembly ausgeführt, um maximale Client-Performance zu garantieren.
+*   **Multilayer-Backend:** Hybride Architektur bestehend aus einem Python-Backend (FastAPI), Redis für Echtzeit-Messaging und Supabase für die persistente Datenhaltung.
+*   **Umfassende Admin-Suite:** Ein GM-Panel zur Überwachung von Mounts, Berechtigungen und zur Wiederherstellung von Systemzuständen im Krisenfall.
+*   **Enterprise-Grade CI/CD:** Vollautomatisierte Workflows für Deployment, Diagnose und Selbstheilung der VPS-Infrastruktur und Nginx-Konfigurationen.
 
-Die Systemarchitektur ist modular aufgebaut und trennt strikt zwischen Rendering-Logik, Welt-Simulation und administrativer Kontrolle:
+---
 
-- **Frontend:** Next.js (App Router) kombiniert mit einer WASM-gesteuerten Client-Umgebung.
-- **Datenhaltung:** Supabase für persistente Daten und Redis zur Orchestrierung von Echtzeit-Events.
-- **Agenten-Layer:** Ein dediziertes System zur Definition von KI-Verhalten (`.jules` & `agent/`), das über standardisierte Prompts und Schnittstellen mit der Welt interagiert.
-- **Automatisierung:** Ein robuster Satz an Python-Scripts und CI/CD-Pipelines zur Sicherstellung der Konsistenz über verschiedene Deployment-Stufen hinweg.
+## Technologiestack
 
-## Projektstruktur (Auszug)
+*   **Frontend:** Next.js, React, Tailwind CSS
+*   **Core Logic:** Rust (WebAssembly / WASM)
+*   **Backend:** Python (FastAPI), Redis
+*   **Datenbank & Auth:** Supabase (PostgreSQL)
+*   **Infrastructure:** Nginx, Docker, GitHub Actions
+*   **KI-Integration:** Custom LLM-Agenten-Framework (Agent-Message Protokoll)
 
-text
-.
-├── .github/workflows/      # CI/CD-Pipelines (Deployment, Fixes, Diagnosen)
-├── .jules/                 # Konfigurationsdateien für die KI-Agenten (Palette, Logik)
-├── admin-tools/            # Gamemaster-Panel, World-Editor und Recovery-Tools
-├── agent/                  # KI-Prompts, Failsafe-Regeln und Build-Instruktionen
-├── app/                    # Next.js App-Router (Layout & Globale Styles)
-├── client/                 # Client-Sourcecode, HTML-Entrypoints und Assets
-├── backups/                # Automatisierte Sicherungen der Systemzustände
-└── docs/                   # (In Form von MD-Dateien im Root) Architektur & Master-Indizes
+---
 
-## Installationshinweise
+## Projektstruktur
+
+Das Projekt ist in spezialisierte Verzeichnisse unterteilt, die klare Zuständigkeiten definieren:
+
+*   **`.github/workflows/`**: Umfangreiche CI/CD-Pipelines für automatisiertes Testen, WASM-Debugging und Server-Wartung.
+*   **`.jules/` & `agent/`**: Definitionen, Prompts und Logik für die autonomen KI-Einheiten des Systems.
+*   **`admin-tools/`**: Enthält das GM-Panel, den World-Editor und Recovery-Tools für Systemadministratoren.
+*   **`app/`**: Das Next.js-Frontend inklusive globaler Stile und Layout-Definitionen.
+*   **`backend/`**: Die Python-basierte API-Logik.
+*   **`Cargo.toml`**: Konfiguration der Rust-WASM-Module.
+*   **Dokumentation (`*.md`)**: Ausführliche Architektur-Notizen, Audit-Reports und Master-Indizes zur Projektsteuerung.
+
+---
+
+## Installation & Einrichtung
 
 ### Voraussetzungen
 
-- Node.js (v18+)
-- npm oder yarn
-- Python 3.x (für Hilfsscripts)
-- Zugriff auf eine Supabase-Instanz und einen Redis-Server
+*   Node.js (v18+) & Yarn/NPM
+*   Rust & `wasm-pack`
+*   Python 3.10+
+*   Docker & Docker Compose (optional für lokales Redis/Postgres)
 
-### Setup-Schritte
+### Vorbereitung
 
-1. **Repository klonen:**
-   bash
-   git clone https://github.com/your-org/areloria-wasd.git
-   cd areloria-wasd
-   
-2. **Abhängigkeiten installieren:**
-   bash
-   # Für den Haupt-Workspace
-   npm install
+1.  **Repository klonen:**
+    bash
+    git clone https://github.com/your-repo/areloria-wasd.git
+    cd areloria-wasd
+    
+2.  **Umgebungsvariablen:**
+    Kopieren Sie die `.env.example` nach `.env` und konfigurieren Sie Ihre API-Keys für Supabase, Redis und LLM-Provider.
 
-   # Für den Client-Bereich
-   cd client && npm install
-   
-3. **Umgebungsvariablen konfigurieren:**
-   Kopieren Sie die `.env.example` Datei und passen Sie die Werte für Datenbank und API-Keys an:
-   bash
-   cp .env.example .env
-   
-4. **Entwicklungsserver starten:**
-   bash
-   npm run dev
-   
-## Deployment
+### Frontend & WASM
 
-Das Projekt ist für den Betrieb auf einem VPS optimiert. Nutzen Sie die bereitgestellten GitHub Workflows für automatisierte Deployments:
+1.  **Dependencies installieren:**
+    bash
+    yarn install
+    2.  **WASM Module bauen:**
+    bash
+    # Beispiel für Rust-Build
+    wasm-pack build --target web
+    3.  **Entwicklungsserver starten:**
+    bash
+    yarn dev
+    
+### Backend
 
-- **Standard Deployment:** Trigger durch Push auf `main`.
-- **WASM Fixes:** Spezielle Workflows (`fix-wasm-deploy.yml`) beheben bekannte MIME-Type-Probleme in Nginx-Umgebungen automatisch.
-- **Infrastruktur-Check:** `diagnose-vps.yml` führt Systemprüfungen auf der Zielmaschine durch.
+1.  **Virtual Environment erstellen:**
+    bash
+    cd backend
+    python -m venv venv
+    source venv/bin/activate # Windows: venv\Scripts\activate
+    2.  **Abhängigkeiten installieren:**
+    bash
+    pip install -r requirements.txt
+    3.  **API starten:**
+    bash
+    uvicorn app.main:app --reload
+    
+---
 
-## Entwicklung & Richtlinien
+## Deployment & Wartung
 
-- **Projekt-Locking:** Beachten Sie die `PROJECT_LOCK_RULES.md` für Änderungen an kritischen Systemkomponenten.
-- **KI-Integration:** Neue Agenten-Verhaltensweisen müssen in `LLM_AGENT_DESIGN.md` dokumentiert und gegen die `AI_AGENT_FAILSAFE_RULES.md` geprüft werden.
-- **Code-Stil:** ESLint-Regeln sind in `.eslintrc.json` definiert und werden über die CI-Pipeline erzwungen.
+Das Projekt nutzt GitHub Actions für ein "Check-and-Recover"-Modell. Bei Fehlern in der WASM-Integration oder Nginx-Konfiguration stehen spezialisierte Workflows zur Verfügung:
+
+*   `fix-wasm-deploy.yml`: Behebt spezifische Probleme beim Laden der WebAssembly-Binaries.
+*   `diagnose-vps.yml`: Führt Systemdiagnosen auf der Zielhardware durch.
+*   `check-server.yml`: Überwacht die Verfügbarkeit der Backend-Dienste.
+
+Weitere Informationen finden Sie in der `DEPLOYMENT.md` und dem `ARCHITECTURE_OVERVIEW.md`.
 
 ---
-*Erstellt vom Technischen Projektmanagement – Areloria WASD Phase 2.*
+
+## Dokumentation & Support
+
+Für tiefere Einblicke in die Systemlogik konsultieren Sie bitte:
+*   `MASTER_INDEX.md` – Zentraler Einstiegspunkt für alle Dokumente.
+*   `LOGIC_DOCUMENTATION.md` – Details zur Spielmechanik und WASM-Interaktion.
+*   `AGENTS.md` – Handbuch für das Verhalten und Design der KI-Agenten.
+
+---
+
+**Status:** Phase 2 (Reconstruction & Scale-up) – Siehe `Entwickler_Manuskript_Manifest_Phase2.pdf` für die strategische Roadmap.
