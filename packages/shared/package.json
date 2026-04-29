@@ -1,0 +1,19 @@
+{
+  "name": "@monorepo/shared",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@monorepo/core": "workspace:*",
+    "@monorepo/utils": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "latest"
+  }
+}

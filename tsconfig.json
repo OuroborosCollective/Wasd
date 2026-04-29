@@ -1,27 +1,24 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "node",
-    "baseUrl": ".",
-    "paths": {
-      "@workspace/shared": ["../shared/src/index.ts"],
-      "@workspace/shared/*": ["../shared/src/*"]
-    },
-    "strict": true,
     "composite": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "target": "ESNext",
+    "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "outDir": "./dist"
+    "isolatedModules": true
   },
-  "include": ["src/**/*"],
+  "files": [],
   "references": [
     {
-      "path": "../shared"
+      "path": "./packages/shared"
+    },
+    {
+      "path": "./packages/client"
     }
   ]
 }
