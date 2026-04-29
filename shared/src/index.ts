@@ -1,2 +1,2 @@
-export { AREEngineBox } from './AREEngineBox';
+export * from './AREEngineBox';
 export * from './types';
