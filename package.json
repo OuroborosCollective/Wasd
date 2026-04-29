@@ -1,35 +1,18 @@
 {
-  "name": "secure-typescript-audit-tool",
+  "name": "typescript-ast-git-project",
   "version": "1.0.0",
-  "description": "Integrated security and logic analysis using ESLint, Security and SonarJS plugins",
-  "main": "index.js",
+  "description": "Project for AST manipulation and Git metadata using TypeScript",
+  "main": "dist/index.js",
   "scripts": {
-    "lint": "eslint . --ext .ts,.js",
-    "lint:fix": "eslint . --ext .ts,.js --fix",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc",
+    "start": "ts-node src/index.ts"
   },
-  "keywords": [
-    "security",
-    "sonarjs",
-    "eslint",
-    "typescript"
-  ],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
+    "simple-git": "^3.22.0",
+    "ts-morph": "^21.0.1",
     "typescript": "^5.3.3"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^6.21.0",
-    "@typescript-eslint/parser": "^6.21.0",
-    "eslint": "^8.57.0",
-    "eslint-plugin-security": "^3.0.0",
-    "eslint-plugin-sonarjs": "^1.0.3"
-  },
-  "peerDependencies": {
-    "eslint": ">=8.0.0"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "@types/node": "^20.11.19"
   }
 }
