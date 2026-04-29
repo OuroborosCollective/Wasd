@@ -1,4 +1,4 @@
-export enum WeatherType {
+export enum WeatherEnum {
     CLEAR = 'CLEAR',
     RAIN = 'RAIN',
     STORM = 'STORM',
@@ -6,30 +6,46 @@ export enum WeatherType {
 }
 
 export class WeatherResonance {
-    private static readonly weatherIntensity: Record<WeatherType, number> = {
-        [WeatherType.CLEAR]: 0.001,
-        [WeatherType.RAIN]: 0.005,
-        [WeatherType.STORM]: 0.01,
-        [WeatherType.SNOW]: 0.002
+    private static readonly weatherIntensity: Record<WeatherEnum, number> = {
+        [WeatherEnum.CLEAR]: 0.001,
+        [WeatherEnum.RAIN]: 0.005,
+        [WeatherEnum.STORM]: 0.01,
+        [WeatherEnum.SNOW]: 0.002
     };
 
-    private static readonly baseResonance: number = 1.0;
+    private currentWeather: WeatherEnum = WeatherEnum.CLEAR;
 
     /**
-     * Berechnet den deterministischen Resonanzwert basierend auf dem Welt-Tick und dem Wettertyp.
+     * Berechnet den deterministischen Resonanzwert basierend auf dem Welt-Tick, Wettertyp und Basisresonanz.
      * @param tickCount Der aktuelle Tick-Zähler der Welt.
-     * @param currentWeather Der aktuell aktive Wettertyp.
+     * @param weather Der zu berechnende Wetterzustand.
+     * @param baseResonance Der Basiswert für die Resonanz.
      * @returns Der berechnete Resonanzwert.
      */
-    public static calculateResonance(tickCount: number, currentWeather: WeatherType): number {
-        const intensity = this.weatherIntensity[currentWeather] ?? 0;
-        return this.baseResonance * Math.sin(tickCount * intensity);
+    public static calculateResonance(tickCount: number, weather: WeatherEnum, baseResonance: number): number {
+        const intensity = WeatherResonance.weatherIntensity[weather] ?? 0;
+        return baseResonance * Math.sin(tickCount * intensity);
     }
 
     /**
-     * Gibt die Intensitäts-Map zurück.
+     * Setzt den aktuellen Wetterzustand des Servers.
+     * @param weather Das neue Wetter.
      */
-    public static getWeatherIntensityMap(): Record<WeatherType, number> {
-        return { ...this.weatherIntensity };
+    public setWeather(weather: WeatherEnum): void {
+        this.currentWeather = weather;
+    }
+
+    /**
+     * Gibt den aktuellen Wetterzustand des Servers zurück.
+     */
+    public getCurrentWeather(): WeatherEnum {
+        return this.currentWeather;
+    }
+
+    /**
+     * Gibt die statische Intensitäts-Map zurück.
+     */
+    public static getWeatherIntensityMap(): Record<WeatherEnum, number> {
+        return { ...WeatherResonance.weatherIntensity };
     }
 }
