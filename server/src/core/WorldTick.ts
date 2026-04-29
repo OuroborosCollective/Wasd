@@ -3823,7 +3823,10 @@ export class WorldTick {
       }
     }
 
-    if (this.tickCount % 600 === 0) this.saveAll();
+    if (this.tickCount % 600 === 0) {
+      this.saveAll();
+      this.glbPathCache.clear();
+    }
 
     const recipients = this.getChatRecipients();
 
@@ -3919,23 +3922,30 @@ export class WorldTick {
       void this.liveHeal.onTick().catch(() => { /* never crash the tick */ });
     }
 
-    this.broadcastState();
+    const observedChunks = this.observerEngine.getObservedChunks();
+    const observedChunkIds = new Set(observedChunks.map((c) => c.id));
+    this.broadcastState(observedChunkIds);
   }
 
   public clearGlbPathCache() {
     this.glbPathCache.clear();
   }
 
-  broadcastState() {
+  broadcastState(observedChunkIds?: Set<string>) {
     const tickCount = this.tickCount;
     const entities: any[] = [];
+    const chunks: Array<{ id: string; chunkX: number; chunkY: number; objects: any[] }> = [];
+    const chunkObjects = new Map<string, any[]>();
 
     // Optimize: Zero-allocation iteration using internal Maps and for...of
     const playersMap = this.playerSystem.getPlayersMap();
     for (const p of playersMap.values()) {
+      const chunkId = this.chunkSystem.getChunkId(p.position.x, p.position.y);
+      if (observedChunkIds && !observedChunkIds.has(chunkId)) continue;
+
       entities.push({
         id: p.id,
-        type: 'player',
+        type: "player",
         position: { x: p.position.x, y: 0, z: p.position.y }, // Mapping y to z for 3D
         rotation: { x: 0, y: 0, z: 0 },
         name: p.name,
@@ -3952,15 +3962,18 @@ export class WorldTick {
           },
           tickCount
         ),
-        visible: true
+        visible: true,
       });
     }
 
     const npcsMap = this.npcSystem.getNPCsMap();
     for (const n of npcsMap.values()) {
+      const chunkId = this.chunkSystem.getChunkId(n.position.x, n.position.y);
+      if (observedChunkIds && !observedChunkIds.has(chunkId)) continue;
+
       entities.push({
         id: n.id,
-        type: 'npc',
+        type: "npc",
         position: { x: n.position.x, y: 0, z: n.position.y },
         rotation: { x: 0, y: 0, z: 0 },
         name: n.name,
@@ -3985,14 +3998,17 @@ export class WorldTick {
           },
           tickCount
         ),
-        visible: true
+        visible: true,
       });
     }
 
     for (const l of this.lootEntities.values()) {
+      const chunkId = this.chunkSystem.getChunkId(l.position.x, l.position.y);
+      if (observedChunkIds && !observedChunkIds.has(chunkId)) continue;
+
       entities.push({
         id: l.id,
-        type: 'loot',
+        type: "loot",
         position: { x: l.position.x, y: 0, z: l.position.y },
         rotation: { x: 0, y: 0, z: 0 },
         glbPath: this.resolveEntityGlbPath("loot", l.item?.id || l.id, l.id),
@@ -4005,23 +4021,25 @@ export class WorldTick {
           },
           tickCount
         ),
-        visible: true
+        visible: true,
       });
     }
-
-    const chunks: Array<{ id: string; chunkX: number; chunkY: number; objects: any[] }> = [];
-    const chunkObjects = new Map<string, any[]>();
 
     // Include world objects if they exist
     if (this.worldSystem.objectSystem) {
       const objectsMap = this.worldSystem.objectSystem.getObjectsMap();
       for (const obj of objectsMap.values()) {
+        const chunkId = this.chunkSystem.getChunkId(obj.position.x, obj.position.y);
+        if (observedChunkIds && !observedChunkIds.has(chunkId)) continue;
+
+        const glb = obj.glbPath || this.resolveWorldObjectGlbPath(obj.type, obj.name || obj.id, obj.id);
+
         entities.push({
           id: obj.id,
-          type: obj.type || 'object',
+          type: obj.type || "object",
           position: { x: obj.position.x, y: 0, z: obj.position.y },
           rotation: { x: 0, y: obj.rotation || 0, z: 0 },
-          glbPath: obj.glbPath || this.resolveWorldObjectGlbPath(obj.type, obj.name || obj.id, obj.id),
+          glbPath: glb,
           are: this.areStateCompiler.compileEntity(
             {
               id: obj.id,
@@ -4031,13 +4049,10 @@ export class WorldTick {
             },
             tickCount
           ),
-          visible: true
+          visible: true,
         });
-      }
 
-      // Build real chunks from chunkSystem — include world objects per chunk
-      for (const obj of objectsMap.values()) {
-        const chunkId = this.chunkSystem.getChunkId(obj.position.x, obj.position.y);
+        // Consolidate chunk population
         let cObjs = chunkObjects.get(chunkId);
         if (!cObjs) {
           cObjs = [];
@@ -4046,45 +4061,42 @@ export class WorldTick {
         cObjs.push({
           id: obj.id,
           type: obj.type || "object",
-          glbPath: obj.glbPath || this.resolveWorldObjectGlbPath(obj.type, obj.name || obj.id, obj.id),
+          glbPath: glb,
           position: { x: obj.position.x, y: 0, z: obj.position.y },
           rotation: obj.rotation || 0,
         });
       }
+    }
 
+    // ⚡ Bolt Optimization: Use observedChunkIds directly to populate the chunks payload
+    if (observedChunkIds && observedChunkIds.size > 0) {
+      for (const chunkId of observedChunkIds) {
+        const [cx, cy] = chunkId.split(":").map(Number);
+        chunks.push({
+          id: chunkId,
+          chunkX: cx,
+          chunkY: cy,
+          objects: chunkObjects.get(chunkId) || [],
+        });
+      }
+    } else {
+      // Fallback: if no observedChunkIds provided, broadcast everything that was processed
       for (const [chunkId, objects] of chunkObjects) {
         const [cx, cy] = chunkId.split(":").map(Number);
-        chunks.push({ id: chunkId, chunkX: cx, chunkY: cy, objects });
+        chunks.push({
+          id: chunkId,
+          chunkX: cx,
+          chunkY: cy,
+          objects: objects,
+        });
       }
-    }
-
-    // Also include chunks that have entities (players, NPCs)
-    // ⚡ Bolt Optimization: Use chunkObjects keys directly to avoid redundant map/re-iteration
-    const existingChunkIds = new Set(chunkObjects.keys());
-    for (const player of playersMap.values()) {
-      const chunkId = this.chunkSystem.getChunkId(player.position.x, player.position.y);
-      if (!existingChunkIds.has(chunkId)) {
-        existingChunkIds.add(chunkId);
-        const [cx, cy] = chunkId.split(":").map(Number);
-        chunks.push({ id: chunkId, chunkX: cx, chunkY: cy, objects: [] });
+      if (chunks.length === 0) {
+        chunks.push({ id: "0:0", chunkX: 0, chunkY: 0, objects: [] });
       }
-    }
-    for (const npc of npcsMap.values()) {
-      const chunkId = this.chunkSystem.getChunkId(npc.position.x, npc.position.y);
-      if (!existingChunkIds.has(chunkId)) {
-        existingChunkIds.add(chunkId);
-        const [cx, cy] = chunkId.split(":").map(Number);
-        chunks.push({ id: chunkId, chunkX: cx, chunkY: cy, objects: [] });
-      }
-    }
-
-    // Ensure at least one chunk exists
-    if (chunks.length === 0) {
-      chunks.push({ id: "0:0", chunkX: 0, chunkY: 0, objects: [] });
     }
 
     this.ws.broadcast({
-      type: 'entity_sync',
+      type: "entity_sync",
       areMode: this.areMode,
       entities,
       chunks,
@@ -4286,7 +4298,10 @@ export class WorldTick {
   }
 
   private resolveEntityGlbPath(category: string, key: string | undefined, seed: string): string | undefined {
-    return this.assetPoolResolver.resolvePath(category, key, seed);
+    const cacheKey = `${category}:${key}:${seed}`;
+    if (this.glbPathCache.has(cacheKey)) return this.glbPathCache.get(cacheKey);
+    const path = this.assetPoolResolver.resolvePath(category, key, seed);
+    this.glbPathCache.set(cacheKey, path);
+    return path;
   }
-
 }
