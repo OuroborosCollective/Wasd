@@ -1,0 +1,35 @@
+name: Check and Recover
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  recovery-and-install:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - name: Recovery Step - Clean Environment
+        run: rm -rf .pnp.cjs .pnp.loader.mjs .yarn
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build and Test
+        run: |
+          pnpm run build --if-present
+          pnpm test --if-present
