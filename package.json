@@ -1,17 +1,27 @@
 {
-  "name": "monorepo-root",
+  "name": "root-project",
+  "version": "1.0.0",
   "private": true,
-  "workspaces": [
-    "shared",
-    "client",
-    "server"
-  ],
+  "description": "Root package definition with dependency overrides and resolutions for version consistency",
+  "main": "index.js",
   "scripts": {
-    "dev": "npm run dev --workspaces --if-present",
-    "build": "npm run build --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
-    "start": "npm run start --workspaces --if-present",
-    "lint": "npm run lint --workspaces --if-present",
-    "clean": "npm run clean --workspaces --if-present"
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "overrides": {
+    "minimist": "^1.2.6",
+    "json5": "^2.2.2",
+    "semver": "^7.5.2"
+  },
+  "resolutions": {
+    "minimist": "^1.2.6",
+    "json5": "^2.2.2",
+    "semver": "^7.5.2"
   }
 }
