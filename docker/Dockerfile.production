@@ -1,0 +1,26 @@
+FROM node:20-slim AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+WORKDIR /app
+
+FROM base AS fetch
+COPY pnpm-lock.yaml ./
+RUN pnpm fetch
+
+FROM fetch AS build
+COPY . .
+RUN pnpm install --offline --frozen-lockfile
+ARG PROJECT
+RUN pnpm --filter=${PROJECT} build
+
+FROM build AS deploy
+ARG PROJECT
+RUN pnpm deploy --filter=${PROJECT} --prod /prod-app
+
+FROM node:20-slim AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=deploy /prod-app .
+EXPOSE 3000
+CMD [ "node", "dist/index.js" ]

@@ -1,13 +1,14 @@
 {
-  "name": "my-pnpm-project",
+  "name": "monorepo-root",
+  "private": true,
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "audit:all": "pnpm audit",
+    "build:all": "pnpm -r build",
+    "clean": "pnpm -r exec rm -rf dist .turbo node_modules && rm -rf node_modules"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "packageManager": "pnpm@9.15.4"
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
 }

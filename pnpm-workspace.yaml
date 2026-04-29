@@ -1,3 +1,5 @@
 packages:
-  - 'client'
-  - 'server'
+  - 'packages/*'
+  - 'apps/*'
+  - 'services/*'
+  - 'components/*'
