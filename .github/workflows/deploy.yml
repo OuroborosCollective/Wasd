@@ -1,18 +1,19 @@
-name: Deploy to Server
-
+name: Deploy
 on:
   push:
     branches:
       - main
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: SSH Deploy
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Executing remote ssh commands
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
+          host: 46.202.154.25
+          username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: cd /var/www/wasd-areloria && git pull origin main && npm ci --omit=dev && npm run build --if-present && pm2 reload ecosystem.config.js --update-env
+          script: |
+            echo "Connected successfully"
