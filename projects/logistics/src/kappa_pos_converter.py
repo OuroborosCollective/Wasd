@@ -1,36 +1,62 @@
-interface KappaPos {
-    kappaX: number;
-    kappaY: number;
-}
+import json
+from dataclasses import dataclass, asdict
+from typing import Any, Dict, List, Optional
+from datetime import datetime
 
-interface GPS {
-    lat: number;
-    lon: number;
-}
+@dataclass
+class KappaPosition:
+    id: str
+    latitude: float
+    longitude: float
+    timestamp: str
+    metadata: Optional[Dict[str, Any]] = None
 
-class KappaPosConverter {
-    private static readonly SCALE_FACTOR: number = 1000;
+class KappaPosConverter:
+    def __init__(self, provider_name: str):
+        self.provider_name = provider_name
 
-    /**
-     * Wandelt GPS-Koordinaten in kappaPos (int32) um.
-     * Nutzt Bitweise OR 0 Operation zur Sicherstellung von 32-Bit Integer Verhalten.
-     */
-    public static toKappaPos(lat: number, lon: number): KappaPos {
-        return {
-            kappaX: (Math.round(lon * KappaPosConverter.SCALE_FACTOR)) | 0,
-            kappaY: (Math.round(lat * KappaPosConverter.SCALE_FACTOR)) | 0
-        };
-    }
+    def validate_input(self, data: Dict[str, Any]) -> bool:
+        required_fields = ["id", "lat", "lon"]
+        return all(field in data for field in required_fields)
 
-    /**
-     * Wandelt kappaPos (int32) zurück in GPS-Koordinaten.
-     */
-    public static fromKappaPos(kappaX: number, kappaY: number): GPS {
-        return {
-            lat: kappaY / KappaPosConverter.SCALE_FACTOR,
-            lon: kappaX / KappaPosConverter.SCALE_FACTOR
-        };
-    }
-}
+    def convert(self, raw_data: Dict[str, Any]) -> KappaPosition:
+        if not self.validate_input(raw_data):
+            raise ValueError(f"Invalid input data for provider {self.provider_name}")
 
-export { KappaPos, GPS, KappaPosConverter };
+        try:
+            return KappaPosition(
+                id=str(raw_data["id"]),
+                latitude=float(raw_data["lat"]),
+                longitude=float(raw_data["lon"]),
+                timestamp=raw_data.get("timestamp", datetime.utcnow().isoformat()),
+                metadata=raw_data.get("extra_info")
+            )
+        except (TypeError, ValueError) as e:
+            raise ValueError(f"Data type conversion error: {str(e)}")
+
+    def process_batch(self, items: List[Dict[str, Any]]) -> List[KappaPosition]:
+        converted_items: List[KappaPosition] = []
+        for item in items:
+            try:
+                converted = self.convert(item)
+                converted_items.append(converted)
+            except ValueError:
+                continue
+        return converted_items
+
+    def to_json(self, position: KappaPosition) -> str:
+        return json.dumps(asdict(position))
+
+if __name__ == "__main__":
+    converter = KappaPosConverter(provider_name="GlobalLogistics_Alpha")
+    
+    sample_input = [
+        {"id": "POS-001", "lat": 52.5200, "lon": 13.4050, "extra_info": {"speed": 50}},
+        {"id": "POS-002", "lat": "48.8566", "lon": "2.3522", "timestamp": "2023-10-27T10:00:00Z"},
+        {"id": "INVALID", "lat": None}
+    ]
+    
+    results = converter.process_batch(sample_input)
+    
+    for res in results:
+        print(f"Successfully converted position {res.id} at ({res.latitude}, {res.longitude})")
