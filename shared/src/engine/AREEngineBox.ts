@@ -1,93 +1,98 @@
-import { AREStateCompiler } from './AREStateCompiler';
+import { z } from 'zod';
 
-export interface IAREEngineHost<TState> {
-    getState(): TState;
-    applyState(state: TState): void;
-    onStateTransition(oldState: TState, newState: TState): void;
-}
+export const Vector3Schema = z.object({
+    x: z.number().default(0),
+    y: z.number().default(0),
+    z: z.number().default(0)
+});
 
-export interface IAREInput {
-    action: string;
-    payload: any;
-    timestamp: number;
-}
+export type Vector3 = z.infer<typeof Vector3Schema>;
 
-export class AREEngineBox<TState> {
-    private readonly host: IAREEngineHost<TState>;
-    private readonly compiler: AREStateCompiler;
-    private inputQueue: IAREInput[] = [];
-    private lastTick: number = 0;
+export const AREEngineBoxSchema = z.object({
+    id: z.string().uuid(),
+    name: z.string().default('AREEngineBox'),
+    position: Vector3Schema.default({ x: 0, y: 0, z: 0 }),
+    rotation: Vector3Schema.default({ x: 0, y: 0, z: 0 }),
+    scale: Vector3Schema.default({ x: 1, y: 1, z: 1 }),
+    color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/).default('#FFFFFF'),
+    opacity: z.number().min(0).max(1).default(1),
+    visible: z.boolean().default(true),
+    castShadow: z.boolean().default(true),
+    receiveShadow: z.boolean().default(true),
+    physicsEnabled: z.boolean().default(false)
+});
 
-    constructor(host: IAREEngineHost<TState>, compiler: AREStateCompiler) {
-        this.host = host;
-        this.compiler = compiler;
-        this.lastTick = Date.now();
+export type IAREEngineBox = z.infer<typeof AREEngineBoxSchema>;
+
+export class AREEngineBox implements IAREEngineBox {
+    public id: string;
+    public name: string;
+    public position: Vector3;
+    public rotation: Vector3;
+    public scale: Vector3;
+    public color: string;
+    public opacity: number;
+    public visible: boolean;
+    public castShadow: boolean;
+    public receiveShadow: boolean;
+    public physicsEnabled: boolean;
+
+    constructor(data: Partial<IAREEngineBox> & { id: string }) {
+        const validated = AREEngineBoxSchema.parse(data);
+        
+        this.id = validated.id;
+        this.name = validated.name;
+        this.position = { ...validated.position };
+        this.rotation = { ...validated.rotation };
+        this.scale = { ...validated.scale };
+        this.color = validated.color;
+        this.opacity = validated.opacity;
+        this.visible = validated.visible;
+        this.castShadow = validated.castShadow;
+        this.receiveShadow = validated.receiveShadow;
+        this.physicsEnabled = validated.physicsEnabled;
     }
 
-    /**
-     * Fügt einen neuen Input in die Warteschlange ein.
-     */
-    public enqueueInput(input: IAREInput): void {
-        this.inputQueue.push(input);
+    public static fromJSON(json: unknown): AREEngineBox {
+        const validated = AREEngineBoxSchema.parse(json);
+        return new AREEngineBox(validated);
     }
 
-    /**
-     * Führt einen Engine-Tick aus. 
-     * Verarbeitet die Input-Queue und berechnet den neuen Zustand über den Compiler.
-     */
-    public tick(): void {
-        const now = Date.now();
-        const deltaTime = (now - this.lastTick) / 1000;
-        this.lastTick = now;
+    public update(data: Partial<IAREEngineBox>): void {
+        const partialSchema = AREEngineBoxSchema.partial();
+        const validated = partialSchema.parse(data);
 
-        const currentState = this.host.getState();
-        const pendingInputs = this.flushQueue();
-
-        try {
-            const nextState = this.compiler.compileAndExecute<TState>(
-                currentState,
-                pendingInputs,
-                deltaTime
-            );
-
-            if (this.hasChanges(currentState, nextState)) {
-                this.host.applyState(nextState);
-                this.host.onStateTransition(currentState, nextState);
-            }
-        } catch (error) {
-            console.error("AREEngineBox: Error during state compilation", error);
-        }
+        if (validated.name !== undefined) this.name = validated.name;
+        if (validated.position !== undefined) this.position = { ...validated.position };
+        if (validated.rotation !== undefined) this.rotation = { ...validated.rotation };
+        if (validated.scale !== undefined) this.scale = { ...validated.scale };
+        if (validated.color !== undefined) this.color = validated.color;
+        if (validated.opacity !== undefined) this.opacity = validated.opacity;
+        if (validated.visible !== undefined) this.visible = validated.visible;
+        if (validated.castShadow !== undefined) this.castShadow = validated.castShadow;
+        if (validated.receiveShadow !== undefined) this.receiveShadow = validated.receiveShadow;
+        if (validated.physicsEnabled !== undefined) this.physicsEnabled = validated.physicsEnabled;
     }
 
-    /**
-     * Extrahiert alle anstehenden Inputs und leert die Queue.
-     */
-    private flushQueue(): IAREInput[] {
-        const inputs = [...this.inputQueue];
-        this.inputQueue = [];
-        return inputs;
+    public toJSON(): IAREEngineBox {
+        return {
+            id: this.id,
+            name: this.name,
+            position: { ...this.position },
+            rotation: { ...this.rotation },
+            scale: { ...this.scale },
+            color: this.color,
+            opacity: this.opacity,
+            visible: this.visible,
+            castShadow: this.castShadow,
+            receiveShadow: this.receiveShadow,
+            physicsEnabled: this.physicsEnabled
+        };
     }
 
-    /**
-     * Prüft auf strukturelle Änderungen im Zustand.
-     */
-    private hasChanges(oldState: TState, newState: TState): boolean {
-        if (oldState === newState) return false;
-        return JSON.stringify(oldState) !== JSON.stringify(newState);
-    }
-
-    /**
-     * Setzt den Tick-Orchestrator zurück.
-     */
-    public reset(): void {
-        this.inputQueue = [];
-        this.lastTick = Date.now();
-    }
-
-    /**
-     * Gibt die aktuelle Anzahl der gepufferten Inputs zurück.
-     */
-    public get pendingInputCount(): number {
-        return this.inputQueue.length;
+    public clone(): AREEngineBox {
+        const data = this.toJSON();
+        data.id = crypto.randomUUID();
+        return new AREEngineBox(data);
     }
 }

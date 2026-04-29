@@ -1,11 +1,27 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "CommonJS",
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "@workspace/shared": ["../shared/src/index.ts"],
+      "@workspace/shared/*": ["../shared/src/*"]
+    },
     "strict": true,
-    "outDir": "./dist",
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
     "esModuleInterop": true,
+    "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true
-  }
+    "outDir": "./dist"
+  },
+  "include": ["src/**/*"],
+  "references": [
+    {
+      "path": "../shared"
+    }
+  ]
 }

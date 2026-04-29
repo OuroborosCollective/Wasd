@@ -1,15 +1,35 @@
 {
   "name": "@app/shared",
   "version": "1.0.0",
-  "description": "Single Source of Truth for types and constants",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "private": true,
+  "description": "Shared workspace library",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "tsc",
-    "watch": "tsc -w"
+    "build": "rimraf dist && tsc",
+    "clean": "rimraf dist .turbo node_modules",
+    "dev": "tsc --watch",
+    "lint": "eslint . --ext .ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
   },
   "devDependencies": {
-    "typescript": "^5.3.3"
+    "@types/node": "^20.12.7",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.4.5",
+    "vitest": "^1.5.0"
   }
 }
