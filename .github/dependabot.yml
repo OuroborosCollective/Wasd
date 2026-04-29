@@ -1,20 +1,20 @@
 version: 2
 updates:
-  - package-ecosystem: "npm"
-    directory: "/"
+  - package-ecosystem: npm
+    directory: /
     schedule:
-      interval: "daily"
+      interval: daily
     reviewers:
-      - "reviewer-name"
+      - reviewer-name
     labels:
-      - "dependencies"
-      - "npm"
-  - package-ecosystem: "docker"
-    directory: "/"
+      - dependencies
+      - npm
+  - package-ecosystem: docker
+    directory: /
     schedule:
-      interval: "daily"
+      interval: daily
     reviewers:
-      - "reviewer-name"
+      - reviewer-name
     labels:
-      - "dependencies"
-      - "docker"
+      - dependencies
+      - docker
