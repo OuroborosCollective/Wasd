@@ -99,7 +99,7 @@ export const MasteryDashboard: React.FC<{ onClose: () => void }> = ({ onClose })
             <span className="gold-text" style={{fontSize: "20px"}}>Mastery & Stats</span>
           </div>
           <div className="player-meta gold-text">Level {playerStats.level} · XP {playerStats.xp.toLocaleString()}</div>
-          <button className="close-dashboard" onClick={onClose}>×</button>
+          <button className="close-dashboard" onClick={onClose} aria-label="Close Mastery Dashboard">×</button>
         </header>
 
         <main className="dashboard-content">

@@ -13,3 +13,6 @@
 ## 2026-04-26 - [Accessibility in Grid-based Game UI]
 **Learning:** For game inventories that use grid layouts of div elements, adding role="button" and tabIndex={0} is critical for keyboard accessibility. Furthermore, screen readers cannot reliably infer the purpose of icon-only currency displays or item slots without explicit aria-label attributes.
 **Action:** Always ensure interactive grid elements have semantic roles and keyboard event handlers (Enter/Space), and provide descriptive labels for all icon-based data points.
+## 2025-05-14 - [HUD Accessibility & Tooltips]
+**Learning:** Visual-only status indicators (HP/MP rings) are opaque to screen readers and often leave visual users guessing exact values. Using `role="progressbar"` with ARIA attributes (`aria-valuenow`, etc.) and the native `title` attribute provides a dual-win for accessibility and UX with zero CSS/JS overhead.
+**Action:** Always check if progress indicators in the HUD have semantic roles and hover titles for precision.
