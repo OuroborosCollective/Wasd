@@ -15,8 +15,6 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -30,7 +28,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build workspace
+      - name: Build @ouroboros/shared
+        run: pnpm --filter @ouroboros/shared build
+
+      - name: Build all packages
         run: pnpm -r build
 
       - name: Run tests
