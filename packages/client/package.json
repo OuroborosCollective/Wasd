@@ -10,11 +10,11 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@ouroboros/shared": "workspace:*"
+    "@ouroboros/shared": "*"
   },
   "devDependencies": {
-    "typescript": "^5.4.5",
-    "vite": "^5.2.11",
-    "vitest": "^1.6.0"
+    "typescript": "6.0.0",
+    "vite": "8.0.5",
+    "vitest": "4.1.0"
   }
 }
