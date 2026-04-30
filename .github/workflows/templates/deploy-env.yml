@@ -1,0 +1,64 @@
+name: Deploy Environment
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'The target environment (e.g., staging, production)'
+        required: true
+        type: string
+      artifact-name:
+        description: 'Name of the build artifact to deploy'
+        required: true
+        type: string
+      deploy-path:
+        description: 'Target path or identifier for deployment'
+        required: false
+        type: string
+        default: '/var/www/app'
+    secrets:
+      DEPLOY_HOST:
+        required: false
+      DEPLOY_USER:
+        required: false
+      DEPLOY_KEY:
+        required: false
+      API_TOKEN:
+        required: false
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ steps.deploy-step.outputs.env_url }}
+
+    steps:
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ./dist
+
+      - name: Setup Deployment Environment
+        run: |
+          echo "Deploying version ${{ github.sha }} to ${{ inputs.environment }}"
+
+      - name: Run Deployment Script
+        id: deploy-step
+        run: |
+          # Example deployment logic for Build-Once-Deploy-Many
+          # This is where environment-specific configuration/secrets are applied
+          echo "Syncing artifacts to ${{ inputs.deploy-path }}..."
+          
+          # Placeholder for actual deployment command (e.g. rsync, aws s3 sync, kubectl apply)
+          # if [ -n "${{ secrets.DEPLOY_HOST }}" ]; then
+          #   echo "Connecting to ${{ secrets.DEPLOY_HOST }}..."
+          # fi
+          
+          echo "env_url=https://${{ inputs.environment }}.example.com" >> $GITHUB_OUTPUT
+
+      - name: Verify Deployment
+        run: |
+          echo "Deployment to ${{ inputs.environment }} completed successfully."

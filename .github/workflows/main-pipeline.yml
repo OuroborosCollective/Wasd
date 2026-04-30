@@ -1,0 +1,112 @@
+name: CI/CD Main Pipeline
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  initialize:
+    runs-on: ubuntu-latest
+    outputs:
+      timestamp: ${{ steps.set-vars.outputs.timestamp }}
+    steps:
+      - name: Set Global Variables
+        id: set-vars
+        run: echo "timestamp=$(date +'%Y-%m-%dT%H:%M:%S')" >> $GITHUB_OUTPUT
+
+  build:
+    needs: initialize
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Build
+        run: npm run build
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: |
+            dist/
+            .next/
+            build/
+          retention-days: 1
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        test-type: [unit, integration, lint]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Tests
+        run: |
+          if [ "${{ matrix.test-type }}" == "unit" ]; then npm run test:unit; fi
+          if [ "${{ matrix.test-type }}" == "integration" ]; then npm run test:integration; fi
+          if [ "${{ matrix.test-type }}" == "lint" ]; then npm run lint; fi
+
+  deploy-staging:
+    needs: test
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
+
+      - name: Deploy to Staging
+        run: |
+          echo "Deploying version ${{ needs.initialize.outputs.timestamp }} to Staging"
+          # Add provider specific deployment logic here (e.g., AWS, Azure, Vercel)
+
+  deploy-production:
+    needs: test
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
+
+      - name: Deploy to Production
+        run: |
+          echo "Deploying version ${{ needs.initialize.outputs.timestamp }} to Production"
+          # Add provider specific deployment logic here (e.g., S3 sync, K8s rollout)
+
+  cleanup:
+    needs: [deploy-staging, deploy-production]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Finalize Pipeline
+        run: echo "Pipeline finished at $(date)"
