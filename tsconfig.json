@@ -1,28 +1,21 @@
 {
   "compilerOptions": {
     "composite": true,
-    "incremental": true,
     "declaration": true,
     "declarationMap": true,
-    "module": "ESNext",
     "target": "ESNext",
-    "moduleResolution": "node",
-    "allowJs": true,
-    "skipLibCheck": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
     "strict": true,
-    "baseUrl": ".",
-    "paths": {
-      "@shared/*": ["packages/shared/*"],
-      "@server/*": ["server/*"],
-      "@client/*": ["client/*"],
-      "@app/*": ["app/*"]
-    }
+    "skipLibCheck": true,
+    "baseUrl": "."
   },
   "files": [],
   "references": [
     { "path": "./packages/shared" },
-    { "path": "./server" },
-    { "path": "./client" },
-    { "path": "./app" }
+    { "path": "./packages/client" },
+    { "path": "./packages/server" }
   ]
 }

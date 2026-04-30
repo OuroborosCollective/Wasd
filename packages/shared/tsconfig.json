@@ -1,21 +1,24 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
+    "target": "ES2022",
     "module": "ESNext",
-    "moduleResolution": "bundler",
-    "strict": true,
+    "moduleResolution": "node",
+    "lib": ["ESNext", "DOM"],
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
+    "outDir": "../../dist/packages/shared",
+    "rootDir": "src",
     "composite": true,
     "incremental": true,
-    "rootDir": "src",
-    "outDir": "dist",
+    "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "moduleDetection": "force",
+    "baseUrl": ".",
+    "paths": {}
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"],
-  "references": []
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
 }
