@@ -17,7 +17,7 @@ jobs:
       - name: Install SSH Key
         uses: shimataro/ssh-key-action@v2
         with:
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          key:ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCs9nUwzd8usRu1c1/Lpo+/tFhe7qQ/+IgxDxTQSGg9sbnagHvI6eO21ql3eS50NRZshIhv1LlYYbnLU5yXFmALYCRS43JkmnZS7tdxoeFuextgh6sYj9AN1R9DHy63ZsmKdyWQHDfc8XLEKv2gPWSvY2FI8dTqwaOmuKbb1R+deKY8Qzog/SVCSoorMy1GsD7gE1YAP31/OHvAsbHyB6Or/koe1403ghG+n36rqMKV3wmg4lDN57fnE4LYZvvZwMTqPDxGjfKnJrLDgX3X/AW390eF37YO6LEqu9r2xGc74Kqy4ORG6W3XdcYSilm2rBiP7FyR+XkhyT/35xKm6O5KZGMEK0aIfR0E2AmRm+8+wSOaF6ekESOIrEmQPMRi+Te8O+DPiJw91GU6BN/x20Ps56j8HnvfpgHsfMroSxhCWrv/yZx6gSKpamiO5A0EhsVNPLpAewNWNGdS0ifBjihK8akbGV0b7XluYRphq2hAAxOdGOrtnVPyEtwzh2gJoydWxHg9XIaCTaKjWeoNI1xq2hFFADb3z4WLD0Pr4hju/Uowe9pyXuevktMax9BbMK15EfFqmuLBnMkvtVGHDluddxQ3zT4bQHfHtdzXwat8CYwu6Qc3bHO9vMYsfA4l8XNkD7G6/DELBlKxvV/4s2urhP/9lCf6AqofKdcRDit0wQ== #hostinger-managed-keyssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEwfLKrnZ08NGcEqlfCp2ekkc8mw+602vaT+doT6ajFg ubuntu@6e143c33abae
           known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
           if_key_exists: replace
 
@@ -26,7 +26,7 @@ jobs:
           # Hinweis: Das Secret SSH_PRIVATE_KEY muss zwingend Header/Footer und Zeilenumbrüche enthalten.
           # Beispiel Format im GitHub Secret:
           # -----BEGIN OPENSSH PRIVATE KEY-----
-          # ... (Key Content) ...
+          # ... (ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCs9nUwzd8usRu1c1/Lpo+/tFhe7qQ/+IgxDxTQSGg9sbnagHvI6eO21ql3eS50NRZshIhv1LlYYbnLU5yXFmALYCRS43JkmnZS7tdxoeFuextgh6sYj9AN1R9DHy63ZsmKdyWQHDfc8XLEKv2gPWSvY2FI8dTqwaOmuKbb1R+deKY8Qzog/SVCSoorMy1GsD7gE1YAP31/OHvAsbHyB6Or/koe1403ghG+n36rqMKV3wmg4lDN57fnE4LYZvvZwMTqPDxGjfKnJrLDgX3X/AW390eF37YO6LEqu9r2xGc74Kqy4ORG6W3XdcYSilm2rBiP7FyR+XkhyT/35xKm6O5KZGMEK0aIfR0E2AmRm+8+wSOaF6ekESOIrEmQPMRi+Te8O+DPiJw91GU6BN/x20Ps56j8HnvfpgHsfMroSxhCWrv/yZx6gSKpamiO5A0EhsVNPLpAewNWNGdS0ifBjihK8akbGV0b7XluYRphq2hAAxOdGOrtnVPyEtwzh2gJoydWxHg9XIaCTaKjWeoNI1xq2hFFADb3z4WLD0Pr4hju/Uowe9pyXuevktMax9BbMK15EfFqmuLBnMkvtVGHDluddxQ3zT4bQHfHtdzXwat8CYwu6Qc3bHO9vMYsfA4l8XNkD7G6/DELBlKxvV/4s2urhP/9lCf6AqofKdcRDit0wQ== #hostinger-managed-keyssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEwfLKrnZ08NGcEqlfCp2ekkc8mw+602vaT+doT6ajFg ubuntu@6e143c33abae) ...
           # -----END OPENSSH PRIVATE KEY-----
           
           rsync -avz --delete \
