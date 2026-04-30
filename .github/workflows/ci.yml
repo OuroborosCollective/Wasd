@@ -6,17 +6,21 @@ on:
   pull_request:
     branches: [ main, master, develop ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    env:
+      CI: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        # Keine 'version' Angabe hier, damit pnpm automatisch die in der 
-        # package.json im Feld 'packageManager' definierte Version nutzt.
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -28,9 +32,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Dependency Check
-        run: pnpm audit
+        run: pnpm audit --audit-level=high
 
-      - name: Build @ouroboros/shared
+      - name: Build shared package
         run: pnpm --filter @ouroboros/shared build
 
       - name: Build all packages
