@@ -37,9 +37,9 @@ jobs:
       - name: Executing remote ssh commands
         uses: appleboy/ssh-action@master
         with:
-          host: 46.202.154.25
-          username: root
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
           script: |
             cd /var/www/app || exit
             git pull origin main
