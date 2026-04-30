@@ -18,13 +18,21 @@ PREVIOUS_COMMIT=$(git rev-parse HEAD)
 echo ">>> Fetching latest changes from main"
 git pull origin main
 
-echo ">>> Building images"
-if ! docker-compose build --pull; then
+echo ">>> Pulling and building images"
+if ! docker-compose pull && docker-compose build; then
     echo "Error: Docker build failed"
     exit 1
 fi
 
-echo ">>> Starting containers"
+echo ">>> Running database migrations"
+# Run migrations in a temporary container before updating the main services
+if ! docker-compose run --rm app npm run migrate; then
+    echo "Error: Migrations failed. Aborting deployment."
+    git checkout "$PREVIOUS_COMMIT"
+    exit 1
+fi
+
+echo ">>> Starting updated containers"
 if ! docker-compose up -d --remove-orphans; then
     echo "Error: Failed to start containers"
     exit 1
@@ -52,8 +60,22 @@ if [ $SUCCESS -ne 1 ]; then
     docker-compose build
     docker-compose up -d --remove-orphans
     
+    # Optional: Re-run migrations for previous state if your system supports down-migrations
+    # docker-compose run --rm app npm run migrate:rollback
+
     echo ">>> Rollback Complete. Deployment Failed."
     exit 1
 fi
+
+echo ">>> Invalidating application cache"
+# Execute cache clear in the running environment
+if ! docker-compose exec -T app npm run cache:clear; then
+    echo "Warning: Cache invalidation failed. Manual check recommended."
+else
+    echo ">>> Cache successfully invalidated"
+fi
+
+echo ">>> Pruning old Docker resources"
+docker image prune -f
 
 echo ">>> Deployment successfully completed"
