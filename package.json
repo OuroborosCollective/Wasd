@@ -1,15 +1,24 @@
 {
   "name": "project",
   "version": "1.0.0",
+  "private": true,
   "description": "",
+  "type": "module",
   "main": "index.js",
   "packageManager": "pnpm@9.1.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.1.0"
+  },
   "scripts": {
     "dev": "vite",
-    "build": "pnpm lint && pnpm format && tsc && vite build",
+    "build": "pnpm run type-check && pnpm run lint && pnpm run format:check && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "format": "prettier --check ."
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "echo \"Error: no test specified\" && exit 0",
+    "type-check": "tsc --noEmit"
   },
   "keywords": [],
   "author": "",
