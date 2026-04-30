@@ -22,13 +22,14 @@ const App: React.FC = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      const result: string[] = await response.json();
+      const result = (await response.json()) as string[];
+      
       setState({
         data: result,
         isLoading: false,
         error: null,
       });
-    } catch (err) {
+    } catch (err: unknown) {
       setState({
         data: [],
         isLoading: false,
@@ -38,7 +39,19 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    let isMounted = true;
+    
+    const load = async () => {
+      if (isMounted) {
+        await fetchData();
+      }
+    };
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
   }, [fetchData]);
 
   if (state.isLoading) {
@@ -64,14 +77,18 @@ const App: React.FC = () => {
       </header>
       <main>
         <ul className="space-y-2">
-          {state.data.map((item, index) => (
-            <li 
-              key={`${index}-${item}`} 
-              className="p-3 bg-white shadow rounded border border-gray-200"
-            >
-              {item}
-            </li>
-          ))}
+          {state.data && state.data.length > 0 ? (
+            state.data.map((item: string, index: number) => (
+              <li 
+                key={`${index}-${item}`} 
+                className="p-3 bg-white shadow rounded border border-gray-200"
+              >
+                {item}
+              </li>
+            ))
+          ) : (
+            <li className="p-3 text-gray-500 italic">No data available</li>
+          )}
         </ul>
       </main>
     </div>
