@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "composite": true,
+    "incremental": true,
     "declaration": true,
     "declarationMap": true,
     "module": "ESNext",
@@ -8,11 +9,20 @@
     "moduleResolution": "node",
     "allowJs": true,
     "skipLibCheck": true,
-    "strict": true
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["packages/shared/*"],
+      "@server/*": ["server/*"],
+      "@client/*": ["client/*"],
+      "@app/*": ["app/*"]
+    }
   },
   "files": [],
   "references": [
     { "path": "./packages/shared" },
-    { "path": "./client" }
+    { "path": "./server" },
+    { "path": "./client" },
+    { "path": "./app" }
   ]
 }
