@@ -20,7 +20,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Linting
         run: npm run lint
@@ -50,7 +50,7 @@ jobs:
 
       - name: Build WASM
         run: |
-          npm ci
+          npm install
           npm run build:wasm
 
       - name: Upload Build Artifacts
