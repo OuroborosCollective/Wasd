@@ -1,0 +1,15 @@
+{
+  "project": "jules",
+  "version": "1.0.0",
+  "directory": ".jules",
+  "migration": {
+    "source": ".Jules",
+    "target": ".jules",
+    "status": "completed",
+    "timestamp": "2023-10-27T10:00:00Z"
+  },
+  "settings": {
+    "caseSensitivePaths": false,
+    "autoMerge": true
+  }
+}
