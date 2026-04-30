@@ -2,17 +2,14 @@
   "compilerOptions": {
     "composite": true,
     "declaration": true,
-    "declarationMap": true,
-    "module": "ESNext",
-    "target": "ESNext",
-    "moduleResolution": "node",
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true
   },
   "files": [],
   "references": [
-    { "path": "./packages/shared" },
-    { "path": "./client" }
+    {
+      "path": "client"
+    }
   ]
 }

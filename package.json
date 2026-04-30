@@ -1,3 +1,11 @@
 {
-  "packageManager": "pnpm@9.1.0"
+  "name": "project",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@latest",
+  "scripts": {
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "build": "pnpm -r build"
+  }
 }

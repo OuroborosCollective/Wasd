@@ -1,0 +1,23 @@
+{
+  "name": "@ouroboros/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "test": "vitest",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@ouroboros/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "6.0.0",
+    "vitest": "4.1.0",
+    "tsx": "latest",
+    "@types/node": "latest"
+  }
+}
