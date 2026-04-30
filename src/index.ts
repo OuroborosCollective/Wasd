@@ -43,7 +43,19 @@ class TSConfigValidator {
      * Recursively scans directories for tsconfig.json files or validates a single file.
      */
     private async scanRecursive(currentPath: string, issues: ValidationIssue[]): Promise<void> {
-        const stats = fs.statSync(currentPath);
+        let stats: fs.Stats;
+        try {
+            stats = fs.statSync(currentPath);
+        } catch (err: any) {
+            issues.push({
+                file: currentPath,
+                line: 0,
+                column: 0,
+                message: `Failed to access path: ${err.message}`,
+                severity: 'error'
+            });
+            return;
+        }
 
         if (stats.isDirectory()) {
             const entries = fs.readdirSync(currentPath);
@@ -58,8 +70,12 @@ class TSConfigValidator {
                 if (entry === 'node_modules' || entry.startsWith('.')) continue;
                 
                 const fullPath = path.join(currentPath, entry);
-                if (fs.statSync(fullPath).isDirectory()) {
-                    await this.scanRecursive(fullPath, issues);
+                try {
+                    if (fs.statSync(fullPath).isDirectory()) {
+                        await this.scanRecursive(fullPath, issues);
+                    }
+                } catch (e) {
+                    // Ignore individual file access errors during recursion
                 }
             }
         } else if (currentPath.endsWith('tsconfig.json')) {
@@ -84,11 +100,17 @@ class TSConfigValidator {
                 return;
             }
 
-            // Simple JSON validation
-            JSON.parse(content);
+            const config = JSON.parse(content);
             
-            // Logic for specific TSConfig rules can be added here
-            // Example: check for "compilerOptions"
+            if (!config.compilerOptions) {
+                issues.push({
+                    file: filePath,
+                    line: 1,
+                    column: 1,
+                    message: 'Missing "compilerOptions" in tsconfig.json.',
+                    severity: 'warning'
+                });
+            }
         } catch (error: any) {
             issues.push({
                 file: filePath,
@@ -105,12 +127,16 @@ class TSConfigValidator {
  * Main entry point function for the CLI.
  */
 async function main(): Promise<void> {
-    const args = process.argv.slice(2);
-    const inputPath = args[0] || '.';
-    
-    const validator = new TSConfigValidator();
-    
     try {
+        // Initialization Phase
+        const args = process.argv.slice(2);
+        const inputPath = args[0] || '.';
+        
+        process.stdout.write(`Initializing validation for path: ${path.resolve(inputPath)}\n`);
+
+        const validator = new TSConfigValidator();
+        
+        // Execution Phase
         const issues = await validator.run(inputPath);
 
         if (issues.length > 0) {
@@ -130,7 +156,13 @@ async function main(): Promise<void> {
             process.exit(0);
         }
     } catch (err: any) {
-        process.stderr.write(`Unexpected fatal error: ${err.message}\n`);
+        // Initialization/Fatal Error Handling
+        process.stderr.write(`FATAL ERROR during initialization or execution:\n`);
+        process.stderr.write(`Name: ${err.name || 'Error'}\n`);
+        process.stderr.write(`Message: ${err.message || 'Unknown error'}\n`);
+        if (err.stack) {
+            process.stderr.write(`Stack Trace:\n${err.stack}\n`);
+        }
         process.exit(1);
     }
 }
