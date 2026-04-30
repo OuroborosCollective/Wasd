@@ -3,7 +3,7 @@ import {
   INTERACT_DISTANCE,
   getClosestInteractable,
   type InteractWorldSnapshot,
-} from "../../../shared/interaction";
+} from "@app/shared";
 
 describe("shared interaction", () => {
   const playerPos = { x: 0, y: 0 };

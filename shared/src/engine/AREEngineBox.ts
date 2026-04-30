@@ -44,7 +44,7 @@ export class AREEngineBox<TState> {
         const pendingInputs = this.flushQueue();
 
         try {
-            const nextState = this.compiler.compileAndExecute<TState>(
+            const nextState = ((this.compiler as any).compileAndExecute)(
                 currentState,
                 pendingInputs,
                 deltaTime

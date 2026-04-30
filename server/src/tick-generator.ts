@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { AREPayload } from '../../shared/types';
+import { AREPayload } from '@app/shared';
 
 export class TickGenerator extends EventEmitter {
     private static readonly TICK_INTERVAL_MS = 100;

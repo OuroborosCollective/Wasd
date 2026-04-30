@@ -16,19 +16,13 @@
   "files": [],
   "references": [
     {
-      "path": "./packages/core"
+      "path": "./shared"
     },
     {
-      "path": "./packages/shared"
+      "path": "./server"
     },
     {
-      "path": "./packages/ui"
-    },
-    {
-      "path": "./apps/web"
-    },
-    {
-      "path": "./apps/api"
+      "path": "./client"
     }
   ]
 }
