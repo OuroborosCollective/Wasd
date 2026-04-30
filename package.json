@@ -1,0 +1,22 @@
+{
+  "name": "root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Monorepo Root Configuration",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "test": "npm test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "quality-check": "npm run lint && npm test"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
