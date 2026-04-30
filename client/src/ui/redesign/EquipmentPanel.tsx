@@ -12,12 +12,26 @@ export const EquipmentPanel: React.FC<{ onClose: () => void }> = ({ onClose }) =
     });
   }, []);
 
+  const handleKeyDown = (e: React.KeyboardEvent, slotName: string, item: any) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      if (item) sendUnequipItem(slotName);
+    }
+  };
+
   const renderSlot = (slotName: string, label: string) => {
     const item = (equipment as any)[slotName];
     return (
       <div className="equipment-slot-container">
         <label className="slot-label">{label}</label>
-        <div className={`equipment-slot gold-frame ${item ? 'has-item' : 'empty'}`} onClick={() => item && sendUnequipItem(slotName)}>
+        <div
+          className={`equipment-slot gold-frame ${item ? 'has-item' : 'empty'}`}
+          onClick={() => item && sendUnequipItem(slotName)}
+          onKeyDown={(e) => handleKeyDown(e, slotName, item)}
+          role="button"
+          tabIndex={0}
+          aria-label={item ? `Unequip ${item.name || item.itemId} from ${label}` : `Empty ${label} slot`}
+        >
           {item ? (
             <div className="equipped-item">
               <span className="item-icon">{slotName === "weapon" ? "⚔️" : "🛡️"}</span>
@@ -36,7 +50,7 @@ export const EquipmentPanel: React.FC<{ onClose: () => void }> = ({ onClose }) =
       <div className="equipment-card gold-frame" onClick={e => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
         <header className="equipment-header">
           <h2 className="gold-text">Character & Gear</h2>
-          <button className="close-btn" onClick={onClose}>×</button>
+          <button className="close-btn" onClick={onClose} aria-label="Close equipment panel">×</button>
         </header>
 
         <main className="equipment-content">
