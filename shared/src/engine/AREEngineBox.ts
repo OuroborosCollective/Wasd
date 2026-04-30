@@ -1,98 +1,108 @@
-import { z } from 'zod';
+import { Vector3, Box3, Matrix4 } from 'three';
 
-export const Vector3Schema = z.object({
-    x: z.number().default(0),
-    y: z.number().default(0),
-    z: z.number().default(0)
-});
+export class AREEngineBox {
+    private min: Vector3;
+    private max: Vector3;
 
-export type Vector3 = z.infer<typeof Vector3Schema>;
-
-export const AREEngineBoxSchema = z.object({
-    id: z.string().uuid(),
-    name: z.string().default('AREEngineBox'),
-    position: Vector3Schema.default({ x: 0, y: 0, z: 0 }),
-    rotation: Vector3Schema.default({ x: 0, y: 0, z: 0 }),
-    scale: Vector3Schema.default({ x: 1, y: 1, z: 1 }),
-    color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/).default('#FFFFFF'),
-    opacity: z.number().min(0).max(1).default(1),
-    visible: z.boolean().default(true),
-    castShadow: z.boolean().default(true),
-    receiveShadow: z.boolean().default(true),
-    physicsEnabled: z.boolean().default(false)
-});
-
-export type IAREEngineBox = z.infer<typeof AREEngineBoxSchema>;
-
-export class AREEngineBox implements IAREEngineBox {
-    public id: string;
-    public name: string;
-    public position: Vector3;
-    public rotation: Vector3;
-    public scale: Vector3;
-    public color: string;
-    public opacity: number;
-    public visible: boolean;
-    public castShadow: boolean;
-    public receiveShadow: boolean;
-    public physicsEnabled: boolean;
-
-    constructor(data: Partial<IAREEngineBox> & { id: string }) {
-        const validated = AREEngineBoxSchema.parse(data);
-        
-        this.id = validated.id;
-        this.name = validated.name;
-        this.position = { ...validated.position };
-        this.rotation = { ...validated.rotation };
-        this.scale = { ...validated.scale };
-        this.color = validated.color;
-        this.opacity = validated.opacity;
-        this.visible = validated.visible;
-        this.castShadow = validated.castShadow;
-        this.receiveShadow = validated.receiveShadow;
-        this.physicsEnabled = validated.physicsEnabled;
+    constructor(min?: Vector3, max?: Vector3) {
+        this.min = min ? min.clone() : new Vector3(Infinity, Infinity, Infinity);
+        this.max = max ? max.clone() : new Vector3(-Infinity, -Infinity, -Infinity);
     }
 
-    public static fromJSON(json: unknown): AREEngineBox {
-        const validated = AREEngineBoxSchema.parse(json);
-        return new AREEngineBox(validated);
+    public set(min: Vector3, max: Vector3): this {
+        this.min.copy(min);
+        this.max.copy(max);
+        return this;
     }
 
-    public update(data: Partial<IAREEngineBox>): void {
-        const partialSchema = AREEngineBoxSchema.partial();
-        const validated = partialSchema.parse(data);
-
-        if (validated.name !== undefined) this.name = validated.name;
-        if (validated.position !== undefined) this.position = { ...validated.position };
-        if (validated.rotation !== undefined) this.rotation = { ...validated.rotation };
-        if (validated.scale !== undefined) this.scale = { ...validated.scale };
-        if (validated.color !== undefined) this.color = validated.color;
-        if (validated.opacity !== undefined) this.opacity = validated.opacity;
-        if (validated.visible !== undefined) this.visible = validated.visible;
-        if (validated.castShadow !== undefined) this.castShadow = validated.castShadow;
-        if (validated.receiveShadow !== undefined) this.receiveShadow = validated.receiveShadow;
-        if (validated.physicsEnabled !== undefined) this.physicsEnabled = validated.physicsEnabled;
+    public setFromPoints(points: Vector3[]): this {
+        this.makeEmpty();
+        for (let i = 0; i < points.length; i++) {
+            this.expandByPoint(points[i]);
+        }
+        return this;
     }
 
-    public toJSON(): IAREEngineBox {
-        return {
-            id: this.id,
-            name: this.name,
-            position: { ...this.position },
-            rotation: { ...this.rotation },
-            scale: { ...this.scale },
-            color: this.color,
-            opacity: this.opacity,
-            visible: this.visible,
-            castShadow: this.castShadow,
-            receiveShadow: this.receiveShadow,
-            physicsEnabled: this.physicsEnabled
-        };
+    public makeEmpty(): this {
+        this.min.set(Infinity, Infinity, Infinity);
+        this.max.set(-Infinity, -Infinity, -Infinity);
+        return this;
+    }
+
+    public expandByPoint(point: Vector3): this {
+        this.min.x = Math.min(this.min.x, point.x);
+        this.min.y = Math.min(this.min.y, point.y);
+        this.min.z = Math.min(this.min.z, point.z);
+        this.max.x = Math.max(this.max.x, point.x);
+        this.max.y = Math.max(this.max.y, point.y);
+        this.max.z = Math.max(this.max.z, point.z);
+        return this;
+    }
+
+    public applyMatrix4(matrix: Matrix4): this {
+        const minX = this.min.x, minY = this.min.y, minZ = this.min.z;
+        const maxX = this.max.x, maxY = this.max.y, maxZ = this.max.z;
+
+        const points = [
+            new Vector3(minX, minY, minZ).applyMatrix4(matrix),
+            new Vector3(minX, minY, maxZ).applyMatrix4(matrix),
+            new Vector3(minX, maxY, minZ).applyMatrix4(matrix),
+            new Vector3(minX, maxY, maxZ).applyMatrix4(matrix),
+            new Vector3(maxX, minY, minZ).applyMatrix4(matrix),
+            new Vector3(maxX, minY, maxZ).applyMatrix4(matrix),
+            new Vector3(maxX, maxY, minZ).applyMatrix4(matrix),
+            new Vector3(maxX, maxY, maxZ).applyMatrix4(matrix)
+        ];
+
+        this.makeEmpty();
+        for (let i = 0; i < points.length; i++) {
+            this.expandByPoint(points[i]);
+        }
+
+        return this;
+    }
+
+    public intersects(other: AREEngineBox): boolean {
+        const result: boolean = 
+            this.max.x >= other.min.x &&
+            this.min.x <= other.max.x &&
+            this.max.y >= other.min.y &&
+            this.min.y <= other.max.y &&
+            this.max.z >= other.min.z &&
+            this.min.z <= other.max.z;
+        return result;
+    }
+
+    public containsPoint(point: Vector3): boolean {
+        const result: boolean = 
+            point.x >= this.min.x &&
+            point.x <= this.max.x &&
+            point.y >= this.min.y &&
+            point.y <= this.max.y &&
+            point.z >= this.min.z &&
+            point.z <= this.max.z;
+        return result;
+    }
+
+    public getMin(): Vector3 {
+        return this.min;
+    }
+
+    public getMax(): Vector3 {
+        return this.max;
+    }
+
+    public copy(source: AREEngineBox): this {
+        this.min.copy(source.getMin());
+        this.max.copy(source.getMax());
+        return this;
     }
 
     public clone(): AREEngineBox {
-        const data = this.toJSON();
-        data.id = crypto.randomUUID();
-        return new AREEngineBox(data);
+        return new AREEngineBox().copy(this);
+    }
+
+    public toThreeBox3(): Box3 {
+        return new Box3(this.min.clone(), this.max.clone());
     }
 }
