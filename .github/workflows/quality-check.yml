@@ -25,15 +25,12 @@ jobs:
 
       - name: Run linting
         run: npm run lint
-        shell: bash
 
       - name: Run type check
         run: npm run type-check
-        shell: bash
 
       - name: Run unit tests
         run: npm test
-        shell: bash
 
     env:
       CI: true
