@@ -10,7 +10,7 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@ouroboros/shared": "workspace:*"
+    "@wasd/shared": "*"
   },
   "devDependencies": {
     "typescript": "6.0.0",

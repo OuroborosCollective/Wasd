@@ -15,3 +15,7 @@ sha2 = "0.10"
 anyhow = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 dashmap = "5.5"
+
+[[bin]]
+name = "logic_validator"
+path = "src/logic_validator.rs"

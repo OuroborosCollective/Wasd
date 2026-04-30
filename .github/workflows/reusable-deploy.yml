@@ -1,0 +1,77 @@
+name: Reusable WASM and Agent Deployment
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Target environment (e.g., staging, production)'
+        required: true
+        type: string
+      artifact-name:
+        description: 'Name of the artifact to download'
+        required: true
+        type: string
+      deploy-path:
+        description: 'Target path or namespace for the deployment'
+        required: false
+        default: 'latest'
+        type: string
+    secrets:
+      DEPLOY_TOKEN:
+        description: 'Authentication token for the deployment target'
+        required: true
+      REGISTRY_URL:
+        description: 'URL of the WASM/Agent registry'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ./dist
+
+      - name: Setup WASM Toolchain
+        run: |
+          # Optional: Install CLI tools needed for specific WASM registries or agent platforms
+          # Example for a generic Wasm agent platform:
+          # curl -fsSL https://example-platform.com/install.sh | sh
+          echo "Setting up deployment environment..."
+
+      - name: Authenticate with Registry
+        run: |
+          echo "Authenticating with ${{ secrets.REGISTRY_URL }}..."
+          # Example command for authentication
+          # platform-cli login --token ${{ secrets.DEPLOY_TOKEN }}
+
+      - name: Deploy WASM Modules
+        run: |
+          echo "Deploying WASM modules from ./dist to ${{ inputs.deploy-path }}..."
+          # Placeholder for actual deployment logic
+          # find ./dist -name "*.wasm" -exec platform-cli deploy --target ${{ inputs.deploy-path }} {} +
+
+      - name: Deploy Agent Configurations
+        run: |
+          echo "Deploying Agent metadata..."
+          # Placeholder for agent registration
+          # if [ -f "./dist/agent.json" ]; then
+          #   platform-cli agent update --config ./dist/agent.json
+          # fi
+
+      - name: Verify Deployment
+        run: |
+          echo "Verifying deployment in ${{ inputs.environment }}..."
+          # Add health check or verification logic here
+          exit 0
