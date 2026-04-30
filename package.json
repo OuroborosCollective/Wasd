@@ -1,11 +1,16 @@
 {
-  "name": "project",
+  "name": "root-package",
   "version": "1.0.0",
-  "private": true,
-  "packageManager": "pnpm@latest",
+  "description": "",
+  "main": "index.js",
   "scripts": {
-    "lint": "pnpm -r lint",
-    "test": "pnpm -r test",
-    "build": "pnpm -r build"
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "devDependencies": {
+    "yaml": "^2.4.0"
   }
 }
