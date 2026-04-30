@@ -9,9 +9,6 @@ on:
 jobs:
   integrity:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -31,53 +28,16 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Check integrity
-        id: check
         run: |
-          set +e
-          LINT_OUT=$(pnpm run lint 2>&1)
-          LINT_EXIT=$?
-          BUILD_OUT=$(pnpm run build 2>&1)
-          BUILD_EXIT=$?
-          TEST_OUT=$(pnpm run test --passWithNoTests 2>&1)
-          TEST_EXIT=$?
-          
-          # Check for git changes (uncommitted build artifacts or lockfile changes)
-          GIT_DIFF=$(git diff --stat)
-          GIT_EXIT=$?
-          
-          echo "LINT_EXIT=$LINT_EXIT" >> $GITHUB_ENV
-          echo "BUILD_EXIT=$BUILD_EXIT" >> $GITHUB_ENV
-          echo "TEST_EXIT=$TEST_EXIT" >> $GITHUB_ENV
-          
-          # Generate Report Body without shell escaping issues using EOF
-          {
-            echo "REPORT_BODY<<EOF"
-            echo "### Integrity Check Report"
-            echo "| Task | Status |"
-            echo "| --- | --- |"
-            echo "| Lint | $([ $LINT_EXIT -eq 0 ] && echo "✅ Pass" || echo "❌ Fail") |"
-            echo "| Build | $([ $BUILD_EXIT -eq 0 ] && echo "✅ Pass" || echo "❌ Fail") |"
-            echo "| Test | $([ $TEST_EXIT -eq 0 ] && echo "✅ Pass" || echo "❌ Fail") |"
-            if [ -n "$GIT_DIFF" ]; then
-              echo "⚠️ Uncommitted changes detected after build/install."
-            fi
-            echo "EOF"
-          } >> "$GITHUB_ENV"
+          pnpm run lint
+          pnpm run build
+          pnpm run test --passWithNoTests
 
-          # Set job exit status
-          if [ $LINT_EXIT -ne 0 ] || [ $BUILD_EXIT -ne 0 ] || [ $TEST_EXIT -ne 0 ]; then
-            exit 1
-          fi
-
-      - name: Publish Summary
-        if: always()
-        run: |
-          echo "$REPORT_BODY" >> $GITHUB_STEP_SUMMARY
-
-      - name: Comment PR
-        if: github.event_name == 'pull_request' && always()
+      - name: Post failure report
+        if: failure() && github.event_name == 'pull_request'
         uses: thollander/actions-comment-pull-request@v2
         with:
           message: |
-            ${{ env.REPORT_BODY }}
-          comment_tag: integrity-check-report
+            ## ❌ Integrity Check Failed
+            The automated checks (lint, build, or tests) failed. 
+            Please review the details in the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).
