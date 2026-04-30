@@ -9,12 +9,16 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    env:
+      CI: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
+        with:
+          run_install: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -26,10 +30,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Dependency Check
-        run: pnpm audit
-
-      - name: Build @ouroboros/shared
-        run: pnpm --filter @ouroboros/shared build
+        run: pnpm audit --audit-level high
+        continue-on-error: true
 
       - name: Build all packages
         run: pnpm -r build

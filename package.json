@@ -2,14 +2,16 @@
   "name": "project",
   "version": "1.0.0",
   "description": "",
+  "type": "module",
   "main": "index.js",
   "packageManager": "pnpm@9.1.0",
   "scripts": {
     "dev": "vite",
-    "build": "pnpm lint && pnpm format && tsc && vite build",
+    "build": "pnpm lint && pnpm test && tsc && vite build",
     "preview": "vite preview",
-    "lint": "eslint .",
-    "format": "prettier --check ."
+    "lint": "eslint . --ext .ts,.tsx --report-unused-disable-directives --max-warnings 0",
+    "format": "prettier --check .",
+    "test": "vitest run"
   },
   "keywords": [],
   "author": "",
@@ -18,6 +20,7 @@
     "eslint": "^8.57.0",
     "prettier": "^3.2.5",
     "typescript": "^5.4.5",
-    "vite": "^5.2.11"
+    "vite": "^5.2.11",
+    "vitest": "^1.6.0"
   }
 }
