@@ -22,11 +22,11 @@ jobs:
           node-version: 20
           cache: 'pnpm'
 
-      - name: Remove npm artifacts
-        run: rm -f package-lock.json
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Dependency Check
+        run: pnpm audit
 
       - name: Build @ouroboros/shared
         run: pnpm --filter @ouroboros/shared build
