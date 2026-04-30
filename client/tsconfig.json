@@ -1,19 +1,29 @@
 {
   "compilerOptions": {
     "target": "ESNext",
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "module": "ESNext",
-    "moduleResolution": "node",
-    "strict": true,
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": false,
     "composite": true,
-    "sourceMap": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
     "declaration": true,
     "declarationMap": true,
-    "rootDir": ".",
-    "outDir": "./dist"
+    "rootDir": "src",
+    "outDir": "dist"
   },
-  "include": ["**/*.ts"],
-  "exclude": ["node_modules", "dist"],
+  "include": ["src"],
   "references": [
-    { "path": "../shared" }
+    {
+      "path": "../shared"
+    }
   ]
 }
