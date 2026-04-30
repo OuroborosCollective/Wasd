@@ -1,0 +1,55 @@
+name: Central Pipeline Orchestrator
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+jobs:
+  quality-check:
+    name: Code Quality & Linting
+    uses: ./.github/workflows/quality-check.yml
+    with:
+      environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'development' }}
+    secrets: inherit
+
+  ci:
+    name: Continuous Integration
+    needs: [quality-check]
+    if: |
+      always() && 
+      needs.quality-check.result == 'success'
+    uses: ./.github/workflows/ci.yml
+    with:
+      build-args: "--optimized"
+    secrets: inherit
+
+  main-ci:
+    name: Main Branch Delivery
+    needs: [ci]
+    if: |
+      github.ref == 'refs/heads/main' && 
+      github.event_name == 'push' &&
+      needs.ci.result == 'success'
+    uses: ./.github/workflows/main-ci.yml
+    with:
+      deploy-target: "prod"
+    secrets: inherit
+
+  experimental-checks:
+    name: Feature Branch Validation
+    needs: [quality-check]
+    if: |
+      github.ref != 'refs/heads/main' && 
+      github.event_name == 'pull_request'
+    run: |
+      echo "Running additional checks for feature branch: ${{ github.head_ref }}"
+    # In a real scenario, this could also be a 'uses' call.

@@ -1,0 +1,24 @@
+[package]
+name = "mcp-server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1.38", features = ["full", "io-std"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+anyhow = "1.0"
+futures = "0.3"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+async-trait = "0.1"
+schemars = "0.8"
+bytes = "1.6"
+thiserror = "1.0"
+
+[profile.release]
+strip = true
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"

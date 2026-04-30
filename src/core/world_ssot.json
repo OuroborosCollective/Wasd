@@ -1,0 +1,115 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "source_origins": [
+      "system_specs.pdf",
+      "operational_logic.txt",
+      "agent_profiles.md"
+    ],
+    "last_sync": "2023-10-27T14:30:00Z",
+    "namespace": "core_world_v1"
+  },
+  "world_logic": {
+    "physics_constraints": {
+      "time_step": "discrete",
+      "max_concurrency": 1024,
+      "state_persistence": "atomic"
+    },
+    "global_rules": [
+      {
+        "id": "R001",
+        "description": "Agents must synchronize state before cross-node migration.",
+        "severity": "critical"
+      },
+      {
+        "id": "R002",
+        "description": "Resource consumption is capped per agent role.",
+        "severity": "high"
+      },
+      {
+        "id": "R003",
+        "description": "All communication logs must be hashed and stored in the immutable ledger.",
+        "severity": "medium"
+      }
+    ],
+    "environment_constants": {
+      "gravity_simulation": false,
+      "network_latency_ms": 15,
+      "security_protocol": "TLS_1.3_ENFORCED"
+    }
+  },
+  "agent_definitions": [
+    {
+      "role": "Orchestrator",
+      "description": "Primary node for task distribution and conflict resolution.",
+      "traits": {
+        "logic_depth": 10,
+        "empathy_quota": 0.2
+      },
+      "capabilities": [
+        "TASK_DELEGATION",
+        "SYSTEM_REBOOT",
+        "AGENT_PROVISIONING"
+      ],
+      "constraints": {
+        "max_instances": 1,
+        "restricted_actions": [
+          "DATA_DELETION_FINAL"
+        ]
+      }
+    },
+    {
+      "role": "Analyst",
+      "description": "Data processing unit optimized for pattern recognition in unstructured files.",
+      "traits": {
+        "parsing_precision": 0.99,
+        "throughput": "high"
+      },
+      "capabilities": [
+        "PDF_EXTRACTION",
+        "OCR_PROCESSING",
+        "ENT_RECOGNITION"
+      ],
+      "constraints": {
+        "max_instances": 50,
+        "restricted_actions": [
+          "EXTERNAL_NETWORK_EGRESS"
+        ]
+      }
+    },
+    {
+      "role": "Sentinel",
+      "description": "Security agent responsible for monitoring world logic integrity.",
+      "traits": {
+        "vigilance": 1.0,
+        "reaction_time": "sub_ms"
+      },
+      "capabilities": [
+        "RULE_ENFORCEMENT",
+        "INTRUSION_DETECTION",
+        "LOG_AUDIT"
+      ],
+      "constraints": {
+        "max_instances": 5,
+        "restricted_actions": []
+      }
+    }
+  ],
+  "knowledge_graph_mappings": {
+    "supported_formats": [
+      ".pdf",
+      ".txt",
+      ".md",
+      ".json",
+      ".yaml"
+    ],
+    "extraction_pipeline": [
+      "LOAD_SOURCE",
+      "CLEAN_BUFFER",
+      "TOKENIZE_CONTENT",
+      "MAP_TO_SSOT",
+      "VALIDATE_SCHEMA"
+    ]
+  },
+  "schema_version": "2.1"
+}

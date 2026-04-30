@@ -1,9 +1,10 @@
 {
   "mcpServers": {
-    "areloria-vps": {
-      "url": "https://your-domain.example/api/mcp/sse",
-      "headers": {
-        "Authorization": "Bearer REPLACE_WITH_MCP_ADMIN_TOKEN"
+    "areloria-rust-server": {
+      "command": "areloria-mcp-server",
+      "args": [],
+      "env": {
+        "RUST_LOG": "info"
       }
     }
   }
