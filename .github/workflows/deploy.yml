@@ -1,0 +1,35 @@
+name: Deploy Workflow
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to Production Server
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install SSH Key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+          if_key_exists: replace
+
+      - name: Run Deployment Script
+        run: |
+          # Hinweis: Das Secret SSH_PRIVATE_KEY muss zwingend Header/Footer und Zeilenumbrüche enthalten.
+          # Beispiel Format im GitHub Secret:
+          # -----BEGIN OPENSSH PRIVATE KEY-----
+          # ... (Key Content) ...
+          # -----END OPENSSH PRIVATE KEY-----
+          
+          rsync -avz --delete \
+            -e "ssh -o StrictHostKeyChecking=no" \
+            ./ \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}
