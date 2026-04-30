@@ -9,9 +9,13 @@
     "prebuild": "npm run clean"
   },
   "dependencies": {
-    "@app/shared": "workspace:*"
+    "@app/shared": "workspace:*",
+    "@babylonjs/core": "^7.0.0",
+    "@babylonjs/loaders": "^7.0.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "^5.4.5",
+    "tailwindcss": "^3.4.3"
   }
 }
