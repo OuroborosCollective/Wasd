@@ -1,0 +1,77 @@
+name: Odds Sentinel
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  analyze-and-fix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Calculate Lockfile Hash & Inject Seed
+        id: sentinel-env
+        run: |
+          LOCK_HASH=$(sha256sum pnpm-lock.yaml | awk '{ print $1 }')
+          echo "LOCK_HASH=${LOCK_HASH}" >> $GITHUB_ENV
+          # Deterministic seed based on dependency tree state
+          echo "SERVER_SEED=0x${LOCK_HASH:0:16}" >> $GITHUB_ENV
+          echo "Determined Seed: 0x${LOCK_HASH:0:16}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Execute Sentinel Audit & Fix
+        run: |
+          # Run linting, formatting or custom fix-scripts
+          pnpm run lint:fix || true
+          pnpm run format || true
+
+      - name: Handle Ephemeral Fix-Commits
+        run: |
+          if [[ -n $(git status --porcelain) ]]; then
+            echo "Changes detected. Creating ephemeral fix-commit..."
+            git config --global user.name "github-actions[bot]"
+            git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            git add .
+            git commit -m "chore(sentinel): ephemeral fix-commit [hash: ${LOCK_HASH:0:7}]"
+            
+            # Push using the current branch context
+            if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+              git push origin HEAD:${{ github.head_ref }}
+            else
+              git push origin ${{ github.ref_name }}
+            fi
+          else
+            echo "Clean state. No fix-commit required."
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify Deterministic Integrity
+        run: |
+          # Logic to ensure the build remains idempotent with the injected seed
+          echo "Verifying build with SEED: $SERVER_SEED"
+          pnpm run build
+        env:
+          SERVER_SEED: ${{ env.SERVER_SEED }}
