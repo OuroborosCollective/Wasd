@@ -1,5 +1,4 @@
 packages:
-  - 'server/*'
-  - 'client/*'
-  - 'shared/*'
-  - 'app/*'
+  - 'client'
+  - 'server'
+  - 'shared'

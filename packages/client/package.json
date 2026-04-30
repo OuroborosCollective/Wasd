@@ -1,0 +1,20 @@
+{
+  "name": "@ouroboros/client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@ouroboros/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "6.0.0",
+    "vite": "8.0.0",
+    "vitest": "4.1.0"
+  }
+}
