@@ -3,7 +3,6 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "composite": true,
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": false,
@@ -13,12 +12,7 @@
     "forceConsistentCasingInFileNames": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "noEmitOnError": false,
-    "allowImportingTsExtensions": true,
-    "allowArbitraryExtensions": true
+    "noEmitOnError": false
   },
-  "include": ["src/**/*"],
-  "references": [
-    { "path": "../shared" }
-  ]
+  "include": ["src/**/*"]
 }
