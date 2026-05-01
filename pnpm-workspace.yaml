@@ -1,3 +1,9 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+  - 'projects/*'
+  - 'server'
+  - 'client'
+  - 'shared'
+  - 'engine'
+  - 'portal'
