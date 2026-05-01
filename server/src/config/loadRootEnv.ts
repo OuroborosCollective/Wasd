@@ -9,8 +9,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-// Cross-platform __dirname for ESM and CJS
-const _dirname = typeof __dirname !== 'undefined' 
+// Use a name that doesn't conflict with CommonJS globals
+const currentDir = typeof __dirname !== 'undefined' 
   ? __dirname 
   : path.dirname(fileURLToPath(import.meta.url));
 
@@ -21,7 +21,7 @@ function tryLoad(p: string, override: boolean): void {
 
 /** Repo-root `.env` (same directory as `server/`). Exported for tests. */
 export function resolveMonorepoRootEnvPath(): string {
-  return path.resolve(_dirname, "..", "..", "..", ".env");
+  return path.resolve(currentDir, "..", "..", "..", ".env");
 }
 
 export function loadRootEnvFiles(): void {
