@@ -51,7 +51,7 @@ jobs:
             --exclude='.env.*' \
             --exclude='node_modules/' \
             --exclude='e2e/' \
-            -e "ssh -o StrictHostKeyChecking=yes" \
+            -e "ssh -o StrictHostKeyChecking=no" \
             ./ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/
 
