@@ -19,6 +19,7 @@
     "@babylonjs/gui": "^9.5.0",
     "@babylonjs/materials": "^9.5.0",
     "@babylonjs/addons": "^9.5.0",
+    "@babylonjs/havok": "^1.3.12",
     "@supabase/supabase-js": "^2.39.7"
   },
   "devDependencies": {
