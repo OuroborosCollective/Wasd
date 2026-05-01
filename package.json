@@ -5,14 +5,8 @@
   "description": "Monorepo Root Configuration",
   "packageManager": "pnpm@9.1.0",
   "workspaces": [
-    "packages/*",
     "apps/*",
-    "projects/*",
-    "server",
-    "client",
-    "shared",
-    "engine",
-    "portal"
+    "packages/*"
   ],
   "scripts": {
     "test": "pnpm -r run test",
