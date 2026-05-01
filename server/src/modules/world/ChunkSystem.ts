@@ -5,7 +5,7 @@ export interface Chunk {
     data?: any;
 }
 
-export class ChunkManager {
+export class ChunkSystem {
     private chunks: Map<string, Chunk> = new Map();
 
     private getChunkKey(x: number, y: number): string {
