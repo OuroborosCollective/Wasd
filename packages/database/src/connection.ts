@@ -10,57 +10,54 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error', 'warn'],
+    log: ['error', 'warn'],
   });
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
+const MAX_RETRIES = 5;
+const RETRY_DELAY_MS = 3000;
+
 /**
- * Helper Funktion für kontrollierte Verzögerung (Backoff).
+ * Helper Funktion für Verzögerungen.
  */
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Stellt die Verbindung zur Datenbank her und implementiert robustes Error-Handling mit Retry-Logik.
- * Dies ist essentiell für CI/CD Umgebungen, in denen der DB-Container eventuell verzögert startet.
+ * Stellt die Verbindung zur Datenbank her und implementiert robustes Error-Handling inklusive Retry-Mechanismus.
+ * Dies verhindert Unhandled Promise Rejections und sorgt für Stabilität in CI/CD Umgebungen.
  */
-export const connectToDatabase = async (maxRetries = 5, initialDelay = 2000): Promise<void> => {
-  let currentDelay = initialDelay;
+export const connectToDatabase = async (retries: number = MAX_RETRIES): Promise<void> => {
+  let attempt = 0;
 
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+  while (attempt < retries) {
     try {
-      console.info(`[Database] Verbindungsversuch ${attempt}/${maxRetries}...`);
+      attempt++;
+      console.info(`[Database] Verbindungsversuch ${attempt} von ${retries}...`);
       
-      // Timeout-geschützter Verbindungsaufbau
-      await Promise.race([
-        prisma.$connect(),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout beim Verbindungsaufbau')), 10000)
-        )
-      ]);
-
+      await prisma.$connect();
+      
       console.info('[Database] Verbindung erfolgreich aufgebaut.');
       return;
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unbekannter Fehler';
-      console.warn(`[Database] Versuch ${attempt} fehlgeschlagen: ${message}`);
+      const isLastAttempt = attempt >= retries;
+      const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+      
+      console.error(`[Database] Fehler beim Verbindungsaufbau (Versuch ${attempt}): ${errorMessage}`);
 
-      if (attempt === maxRetries) {
+      if (isLastAttempt) {
         console.error('[Database] KRITISCHER FEHLER: Maximale Anzahl an Verbindungsversuchen erreicht.');
         
-        if (error instanceof Error) {
+        if (error instanceof Error && error.stack) {
           console.error(`[Database] Stack: ${error.stack}`);
         }
         
-        // In CI/CD soll der Prozess bei endgültigem Scheitern kontrolliert abbrechen
+        // Finaler Throw für CI/CD Fail-Fast
         throw error;
       }
 
-      console.info(`[Database] Nächster Versuch in ${currentDelay}ms...`);
-      await sleep(currentDelay);
-      
-      // Exponentielles Backoff
-      currentDelay *= 2;
+      console.warn(`[Database] Erneuter Versuch in ${RETRY_DELAY_MS / 1000}s...`);
+      await sleep(RETRY_DELAY_MS);
     }
   }
 };
@@ -85,14 +82,11 @@ export const disconnectFromDatabase = async (): Promise<void> => {
  */
 export const checkDatabaseHealth = async (): Promise<boolean> => {
   try {
-    // Kurzer Timeout für Healthcheck, um Hängenbleiben zu verhindern
-    await Promise.race([
-      prisma.$queryRaw`SELECT 1`,
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Healthcheck Timeout')), 3000))
-    ]);
+    // Einfacher Query um die Erreichbarkeit zu prüfen
+    await prisma.$queryRaw`SELECT 1`;
     return true;
   } catch (error) {
-    console.error('[Database] Health-Check fehlgeschlagen');
+    console.warn('[Database] Health-Check fehlgeschlagen');
     return false;
   }
 };
