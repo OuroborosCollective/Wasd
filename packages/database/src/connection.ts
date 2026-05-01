@@ -10,33 +10,58 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
-    log: ['error', 'warn'],
+    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error', 'warn'],
   });
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 /**
- * Stellt die Verbindung zur Datenbank her und implementiert robustes Error-Handling.
- * Verhindert Unhandled Promise Rejections für CI/CD Stabilität.
+ * Helper Funktion für kontrollierte Verzögerung (Backoff).
  */
-export const connectToDatabase = async (): Promise<void> => {
-  try {
-    console.info('[Database] Versuche Verbindung herzustellen...');
-    await prisma.$connect();
-    console.info('[Database] Verbindung erfolgreich aufgebaut.');
-  } catch (error: unknown) {
-    console.error('[Database] KRITISCHER FEHLER: Verbindung zur Datenbank fehlgeschlagen.');
-    
-    if (error instanceof Error) {
-      console.error(`[Database] Fehlermeldung: ${error.message}`);
-      console.error(`[Database] Stack: ${error.stack}`);
-    } else {
-      console.error('[Database] Unbekannter Fehlertyp:', error);
-    }
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-    // Wir werfen den Fehler erneut, damit der Prozess (z.B. CI Job oder Server) 
-    // kontrolliert mit einem Exit-Code ungleich 0 abbrechen kann, falls gewünscht.
-    throw error;
+/**
+ * Stellt die Verbindung zur Datenbank her und implementiert robustes Error-Handling mit Retry-Logik.
+ * Dies ist essentiell für CI/CD Umgebungen, in denen der DB-Container eventuell verzögert startet.
+ */
+export const connectToDatabase = async (maxRetries = 5, initialDelay = 2000): Promise<void> => {
+  let currentDelay = initialDelay;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.info(`[Database] Verbindungsversuch ${attempt}/${maxRetries}...`);
+      
+      // Timeout-geschützter Verbindungsaufbau
+      await Promise.race([
+        prisma.$connect(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout beim Verbindungsaufbau')), 10000)
+        )
+      ]);
+
+      console.info('[Database] Verbindung erfolgreich aufgebaut.');
+      return;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unbekannter Fehler';
+      console.warn(`[Database] Versuch ${attempt} fehlgeschlagen: ${message}`);
+
+      if (attempt === maxRetries) {
+        console.error('[Database] KRITISCHER FEHLER: Maximale Anzahl an Verbindungsversuchen erreicht.');
+        
+        if (error instanceof Error) {
+          console.error(`[Database] Stack: ${error.stack}`);
+        }
+        
+        // In CI/CD soll der Prozess bei endgültigem Scheitern kontrolliert abbrechen
+        throw error;
+      }
+
+      console.info(`[Database] Nächster Versuch in ${currentDelay}ms...`);
+      await sleep(currentDelay);
+      
+      // Exponentielles Backoff
+      currentDelay *= 2;
+    }
   }
 };
 
@@ -60,9 +85,14 @@ export const disconnectFromDatabase = async (): Promise<void> => {
  */
 export const checkDatabaseHealth = async (): Promise<boolean> => {
   try {
-    await prisma.$queryRaw`SELECT 1`;
+    // Kurzer Timeout für Healthcheck, um Hängenbleiben zu verhindern
+    await Promise.race([
+      prisma.$queryRaw`SELECT 1`,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Healthcheck Timeout')), 3000))
+    ]);
     return true;
   } catch (error) {
+    console.error('[Database] Health-Check fehlgeschlagen');
     return false;
   }
 };
