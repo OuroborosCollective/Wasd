@@ -29,8 +29,8 @@ import { PlaytesterWebRTCSignaling } from "../modules/playtester/PlaytesterWebRT
 import { initRedisClient } from "./RedisClient.js";
 import { URL } from "node:url";
 
-// Cross-platform __dirname for ESM and CJS
-const _dirname = typeof __dirname !== 'undefined' 
+// Use a name that doesn't conflict with CommonJS globals
+const currentDir = typeof __dirname !== 'undefined' 
   ? __dirname 
   : path.dirname(fileURLToPath(import.meta.url));
 
@@ -52,7 +52,7 @@ function resolveClientRoot(): string {
     return fromCwd;
   }
 
-  let current = _dirname;
+  let current = currentDir;
   for (let i = 0; i < 5; i++) {
     const check = path.join(current, "client");
     if (isClientDir(check)) return check;
@@ -60,7 +60,7 @@ function resolveClientRoot(): string {
     if (isClientDir(sibling)) return sibling;
     current = path.dirname(current);
   }
-  return path.resolve(_dirname, "..", "..", "..", "client");
+  return path.resolve(currentDir, "..", "..", "..", "client");
 }
 
 function resolveAdminContentHtmlPath(clientRoot: string, distPath: string): string | null {
