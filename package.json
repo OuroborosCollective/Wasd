@@ -16,7 +16,7 @@
   "scripts": {
     "test": "pnpm --recursive run test",
     "lint": "pnpm --recursive run lint",
-    "build": "pnpm --recursive run build",
+    "build": "pnpm --recursive run build --verbose",
     "quality-check": "pnpm run lint && pnpm run test"
   },
   "engines": {
