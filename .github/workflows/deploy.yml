@@ -27,22 +27,30 @@ jobs:
             # Fetch all branches and prune deleted ones
             git fetch --all --prune
             
-            # Determine branch: use main if exists, otherwise fallback to master or current ref
+            # Determine branch: use main (lowercase) if exists, otherwise fallback to master or current ref
+            # This ensures we handle 'Main' vs 'main' by forcing lowercase check where needed
             TARGET_BRANCH="main"
             if ! git rev-parse --verify origin/main >/dev/null 2>&1; then
               if git rev-parse --verify origin/master >/dev/null 2>&1; then
                 TARGET_BRANCH="master"
               else
-                TARGET_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+                # Get current branch name and convert to lowercase for comparison
+                CURRENT_REF=$(git rev-parse --abbrev-ref HEAD | tr '[:upper:]' '[:lower:]')
+                TARGET_BRANCH=$CURRENT_REF
               fi
             fi
             
             echo "Using branch: $TARGET_BRANCH"
             git reset --hard origin/$TARGET_BRANCH
             
-            echo "--- CLEANING ---"
-            # Remove redundant packages to avoid build conflicts
-            rm -rf packages/client packages/server
+            echo "--- SETUP ENVIRONMENT ---"
+            # Use corepack to manage pnpm version as requested
+            corepack enable
+            corepack prepare pnpm@latest --activate
+            
+            echo "--- CLEANING ARTIFACTS ---"
+            # Remove old build artifacts but keep node_modules for speed if pnpm handles it
+            find packages -name "dist" -type d -exec rm -rf {} + || true
             
             echo "--- BYPASSING TS ERRORS ---"
             if [ -f scripts/bypass-ts-errors.mjs ]; then
@@ -50,23 +58,22 @@ jobs:
             fi
             
             echo "--- INSTALLING DEPENDENCIES ---"
-            # Ensure pnpm is available and install dependencies
-            npm install -g pnpm
             pnpm install --no-frozen-lockfile
             
-            echo "--- BUILDING ---"
-            NODE_OPTIONS=--max-old-space-size=4096 pnpm --recursive run build
+            echo "--- BUILDING MONOREPO ---"
+            # Use max-old-space-size for heavy Three.js/Babylon.js compilations
+            NODE_OPTIONS=--max-old-space-size=4096 pnpm -r build
             
             echo "--- RESTARTING PM2 ---"
             # Ensure CommonJS compatibility for the production dist if server exists
-            if [ -d "server/dist" ]; then
-              echo '{"type": "commonjs"}' > server/dist/package.json
-              pm2 delete areloria || true
-              pm2 start server/dist/index.js --name areloria
-            elif [ -d "packages/server/dist" ]; then
+            if [ -d "packages/server/dist" ]; then
               echo '{"type": "commonjs"}' > packages/server/dist/package.json
               pm2 delete areloria || true
               pm2 start packages/server/dist/index.js --name areloria
+            elif [ -d "server/dist" ]; then
+              echo '{"type": "commonjs"}' > server/dist/package.json
+              pm2 delete areloria || true
+              pm2 start server/dist/index.js --name areloria
             fi
             
             echo "--- DEPLOYMENT SUCCESSFUL ---"
