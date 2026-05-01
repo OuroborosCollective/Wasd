@@ -1,15 +1,18 @@
 /**
  * Load `.env` before any other server config reads `process.env`.
- * PM2 `cwd` is often the monorepo root, but some setups run with `cwd` under `server/`
+ * PM2 `cwd` is often the monorepo root, but some setups run with `cwd` under `server/` 
  * or only deploy `server/dist`. We always load the repo-root `.env` from this file's
- * location (`server/src/config` or `server/dist/config` → three levels up to repo root).
+ * location (`server/src/config` or `server/dist/config` -> three levels up to repo root).
  */
 import dotenv from "dotenv";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// Cross-platform __dirname for ESM and CJS
+const _dirname = typeof __dirname !== 'undefined' 
+  ? __dirname 
+  : path.dirname(fileURLToPath(import.meta.url));
 
 function tryLoad(p: string, override: boolean): void {
   if (!p || !fs.existsSync(p)) return;
@@ -18,7 +21,7 @@ function tryLoad(p: string, override: boolean): void {
 
 /** Repo-root `.env` (same directory as `server/`). Exported for tests. */
 export function resolveMonorepoRootEnvPath(): string {
-  return path.resolve(__dirname, "../../../.env");
+  return path.resolve(_dirname, "..", "..", "..", ".env");
 }
 
 export function loadRootEnvFiles(): void {
