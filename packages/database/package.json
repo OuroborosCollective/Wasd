@@ -17,8 +17,10 @@
   "dependencies": {
     "pg": "^8.11.5",
     "zod": "^3.23.8",
+    "tslib": "^2.6.0",
     "@wasd/utils": "workspace:*",
-    "@wasd/types": "workspace:*"
+    "@wasd/types": "workspace:*",
+    "@wasd/logger": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.12.7",
