@@ -1,0 +1,28 @@
+{
+  "name": "@wasd/database",
+  "version": "1.0.0",
+  "description": "Database package for WASD pnpm-monorepo",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc -w",
+    "clean": "rimraf dist",
+    "lint": "eslint . --ext .ts"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "typescript": "^5.4.5",
+    "rimraf": "^5.0.5"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
