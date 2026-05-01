@@ -6,7 +6,7 @@
     "build": "tsc",
     "clean": "rm -rf dist",
     "type-check": "tsc --noEmit",
-    "prebuild": "npm run clean"
+    "prebuild": "pnpm run clean"
   },
   "dependencies": {
     "@wasd/shared": "workspace:*"
