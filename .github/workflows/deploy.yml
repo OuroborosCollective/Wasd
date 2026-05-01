@@ -11,50 +11,36 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 8
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node_version: '20'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Bypass TypeScript Errors
-        run: node scripts/bypass-ts-errors.mjs
-
-      - name: Build all workspaces
-        run: pnpm --recursive run build
-
-      - name: Deploy files
-        run: |
-          sudo apt-get update && sudo apt-get install -y sshpass
-          sshpass -p "${{ secrets.SSH_PASSWORD }}" rsync -az --delete \
-            --exclude='.git/' \
-            --exclude='.github/' \
-            --exclude='.ssh/' \
-            --exclude='.env' \
-            --exclude='.env.*' \
-            --exclude='node_modules/' \
-            --exclude='e2e/' \
-            -e "ssh -o StrictHostKeyChecking=no" \
-            ./ \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/
-
-      - name: Restart Application
+      - name: SSH Deployment
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           script: |
+            set -e
             cd ${{ secrets.DEPLOY_PATH }}
-            pm2 reload all --update-env || pm2 start server/dist/index.js --name areloria
+            
+            echo "Syncing with GitHub..."
+            git fetch origin main
+            git reset --hard origin/main
+            
+            echo "Cleaning redundant files..."
+            rm -rf packages/client packages/server
+            find shared -name '*.js' -delete
+            
+            echo "Bypassing TypeScript errors..."
+            node scripts/bypass-ts-errors.mjs
+            
+            echo "Installing dependencies..."
+            pnpm install --no-frozen-lockfile
+            
+            echo "Building all workspaces..."
+            NODE_OPTIONS=--max-old-space-size=4096 pnpm --recursive run build
+            
+            echo "Setting up CommonJS compatibility..."
+            echo '{"type": "commonjs"}' > server/dist/package.json
+            
+            echo "Restarting application..."
+            pm2 delete areloria || true
+            pm2 start server/dist/index.js --name areloria
