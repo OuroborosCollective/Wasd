@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 
-interface SceneEvent {
+export interface SceneEvent {
     type: 'ASSET_PLACED' | 'ASSET_REMOVED' | 'ENVIRONMENT_CHANGE';
     payload: {
         assetId: string;
@@ -10,27 +10,30 @@ interface SceneEvent {
     };
 }
 
-interface NPCContext {
+export interface DialogueEntry {
+    role: 'user' | 'assistant';
+    content: string;
+}
+
+export interface NPCContext {
     npcId: string;
     name: string;
     personality: string;
     biography: string;
     currentKnowledge: string[];
     spatialAwareness: string[];
-    dialogueHistory: Array<{ role: 'user' | 'assistant'; content: string }>;
+    dialogueHistory: DialogueEntry[];
 }
 
 /**
- * ReactiveBrain implements LLM_AGENT_DESIGN principles to allow NPCs to 
- * dynamically adapt to scene changes and environmental stimuli.
+ * Manages the internal state and long-term/short-term memory of the NPC.
  */
-export class ReactiveBrain {
+class MemoryManager {
     private context: NPCContext;
-    private eventBus: EventEmitter;
-    private maxHistoryLength: number = 10;
+    private readonly maxHistory: number = 10;
+    private readonly maxKnowledge: number = 20;
 
-    constructor(npcId: string, name: string, eventBus: EventEmitter) {
-        this.eventBus = eventBus;
+    constructor(npcId: string, name: string) {
         this.context = {
             npcId,
             name,
@@ -40,118 +43,163 @@ export class ReactiveBrain {
             spatialAwareness: [],
             dialogueHistory: []
         };
+    }
+
+    public updateKnowledge(info: string): void {
+        this.context.currentKnowledge.push(info);
+        if (this.context.currentKnowledge.length > this.maxKnowledge) {
+            this.context.currentKnowledge.shift();
+        }
+    }
+
+    public addSpatialAwareness(item: string): void {
+        if (!this.context.spatialAwareness.includes(item)) {
+            this.context.spatialAwareness.push(item);
+        }
+    }
+
+    public recordDialogue(entry: DialogueEntry): void {
+        this.context.dialogueHistory.push(entry);
+        if (this.context.dialogueHistory.length > this.maxHistory) {
+            this.context.dialogueHistory = this.context.dialogueHistory.slice(-this.maxHistory);
+        }
+    }
+
+    public getContext(): NPCContext {
+        return { ...this.context };
+    }
+}
+
+/**
+ * Logic for interpreting environmental changes into semantic meaning.
+ */
+class PerceptionEngine {
+    public interpretSceneEvent(event: SceneEvent): { observation: string; keyObject?: string; reaction?: string } {
+        const { assetPath, position } = event.payload;
+        const assetName = assetPath.split('/').pop() || 'object';
+
+        if (event.type === 'ASSET_PLACED') {
+            if (assetPath.includes('blacksmith.glb')) {
+                return {
+                    observation: `A blacksmith forge was built at ${position.x}, ${position.z}.`,
+                    keyObject: "Local Blacksmith",
+                    reaction: "Oh! Look at that forge over there!"
+                };
+            }
+            if (assetPath.includes('well.glb')) {
+                return {
+                    observation: "A new well has been placed nearby.",
+                    keyObject: "Water Well",
+                    reaction: "Fresh water! A new well has been built."
+                };
+            }
+            return {
+                observation: `New structure detected: ${assetName}.`,
+                reaction: `Interesting, a new ${assetName.replace('.glb', '')} has appeared.`
+            };
+        }
+
+        if (event.type === 'ENVIRONMENT_CHANGE') {
+            const tod = event.payload.timeOfDay || 'day';
+            return { observation: `The environment changed. It is now ${tod}.` };
+        }
+
+        return { observation: "The world feels different." };
+    }
+}
+
+/**
+ * Orchestrator Pattern: ReactiveBrain coordinates between Perception, Memory, and Action.
+ */
+export class ReactiveBrain {
+    private memory: MemoryManager;
+    private perception: PerceptionEngine;
+    private eventBus: EventEmitter;
+
+    constructor(npcId: string, name: string, eventBus: EventEmitter) {
+        this.eventBus = eventBus;
+        this.memory = new MemoryManager(npcId, name);
+        this.perception = new PerceptionEngine();
 
         this.initializeEventListeners();
     }
 
     private initializeEventListeners(): void {
-        // Listen for scene mutations that affect NPC awareness
+        // Core Perception Loop
         this.eventBus.on('SCENE_EVENT', (event: SceneEvent) => {
-            this.processSceneEvent(event);
+            this.handlePerception(event);
         });
 
-        // Listen for direct player interactions
-        this.eventBus.on(`INTERACT_${this.context.npcId}`, (data: { playerId: string; message: string }) => {
-            this.handlePlayerInteraction(data.playerId, data.message);
-        });
-    }
-
-    private processSceneEvent(event: SceneEvent): void {
-        switch (event.type) {
-            case 'ASSET_PLACED':
-                this.handleAssetPlacement(event.payload);
-                break;
-            case 'ENVIRONMENT_CHANGE':
-                this.handleEnvironmentChange(event.payload);
-                break;
-        }
-    }
-
-    private handleAssetPlacement(payload: SceneEvent['payload']): void {
-        const { assetPath, position } = payload;
-        let reactionUpdate = "";
-
-        // Specific logic for integrated GLB assets
-        if (assetPath.includes('blacksmith.glb')) {
-            reactionUpdate = `A blacksmith forge was just built at coordinates ${position.x}, ${position.z}. I can hear the ringing of the anvil already.`;
-            this.context.spatialAwareness.push("Local Blacksmith");
-        } else if (assetPath.includes('well.glb')) {
-            reactionUpdate = "A new well has been placed. Water is life!";
-            this.context.spatialAwareness.push("Water Well");
-        } else {
-            reactionUpdate = `Something new was placed in the world: ${assetPath.split('/').pop()}.`;
-        }
-
-        this.updateInternalMonologue(reactionUpdate);
-        
-        // Broadcast a spontaneous reaction to the world
-        this.eventBus.emit('NPC_SPEECH_BUBBLE', {
-            npcId: this.context.npcId,
-            text: `Oh! Look at that ${assetPath.includes('blacksmith') ? 'forge' : 'new addition'} over there!`
+        // Interaction Loop
+        this.eventBus.on(`INTERACT_${this.memory.getContext().npcId}`, (data: { playerId: string; message: string }) => {
+            this.handleInteraction(data.playerId, data.message);
         });
     }
 
-    private handleEnvironmentChange(payload: any): void {
-        const timeOfDay = payload.timeOfDay || 'day';
-        this.updateInternalMonologue(`The sun is setting. It is now ${timeOfDay}.`);
-    }
-
-    private updateInternalMonologue(newInfo: string): void {
-        this.context.currentKnowledge.push(newInfo);
-        if (this.context.currentKnowledge.length > 20) {
-            this.context.currentKnowledge.shift();
+    private handlePerception(event: SceneEvent): void {
+        const interpretation = this.perception.interpretSceneEvent(event);
+        
+        // Update Memory (Headless State)
+        this.memory.updateKnowledge(interpretation.observation);
+        if (interpretation.keyObject) {
+            this.memory.addSpatialAwareness(interpretation.keyObject);
         }
-        
-        console.log(`[ReactiveBrain:${this.context.name}] Memory Updated: ${newInfo}`);
+
+        // Trigger Behavior (Interaction Layer)
+        if (interpretation.reaction) {
+            this.eventBus.emit('NPC_SPEECH_BUBBLE', {
+                npcId: this.memory.getContext().npcId,
+                text: interpretation.reaction
+            });
+        }
+
+        console.log(`[NPC_ORCHESTRATOR:${this.memory.getContext().name}] Processed: ${interpretation.observation}`);
     }
 
-    /**
-     * Constructs the dynamic prompt for the LLM based on current scene context
-     */
-    public generateSystemPrompt(): string {
-        const awareness = this.context.spatialAwareness.length > 0 
-            ? `You are aware of: ${this.context.spatialAwareness.join(', ')}.`
-            : "The area around you is mostly empty.";
-
-        return `
-            Your name is ${this.context.name}. 
-            Your personality: ${this.context.personality}.
-            Biography: ${this.context.biography}.
-            Current World State: ${this.context.currentKnowledge.slice(-3).join(' ')}.
-            ${awareness}
-            Respond naturally to players, incorporating your knowledge of the environment.
-            If a blacksmith is mentioned, you know it was recently placed.
-        `;
-    }
-
-    private async handlePlayerInteraction(playerId: string, message: string): Promise<void> {
-        // Integrate with LLM API (Placeholder for actual LLM call)
-        const systemPrompt = this.generateSystemPrompt();
+    private async handleInteraction(playerId: string, message: string): Promise<void> {
+        const context = this.memory.getContext();
+        const systemPrompt = this.generateSystemPrompt(context);
         
-        // Logic to simulate LLM Agent Design behavior
+        // Inference logic (Synchronized with server-side knowledge)
         let responseText = "";
-        if (message.toLowerCase().includes("blacksmith") && this.context.spatialAwareness.includes("Local Blacksmith")) {
-            responseText = "The new blacksmith? Yes, I saw them setting up the forge just now. It's about time we had a decent smithy in town!";
+        const lowerMsg = message.toLowerCase();
+
+        if (lowerMsg.includes("blacksmith") && context.spatialAwareness.includes("Local Blacksmith")) {
+            responseText = "The new blacksmith? Yes, I saw them setting up the forge. It's a great addition to our village!";
+        } else if (lowerMsg.includes("well") && context.spatialAwareness.includes("Water Well")) {
+            responseText = "The water from the new well is quite refreshing. You should try it.";
         } else {
-            responseText = `Hello! I was just thinking about the changes in our world. ${this.context.currentKnowledge[this.context.currentKnowledge.length - 1]}`;
+            const lastThought = context.currentKnowledge[context.currentKnowledge.length - 1];
+            responseText = `Greetings! I was just observing the world. ${lastThought}`;
         }
 
-        // Maintain Dialogue History
-        this.context.dialogueHistory.push({ role: 'user', content: message });
-        this.context.dialogueHistory.push({ role: 'assistant', content: responseText });
-        
-        if (this.context.dialogueHistory.length > this.maxHistoryLength) {
-            this.context.dialogueHistory = this.context.dialogueHistory.slice(-this.maxHistoryLength);
-        }
+        // Commit to Memory
+        this.memory.recordDialogue({ role: 'user', content: message });
+        this.memory.recordDialogue({ role: 'assistant', content: responseText });
 
+        // Execute Action
         this.eventBus.emit('NPC_RESPONSE', {
-            npcId: this.context.npcId,
+            npcId: context.npcId,
             playerId,
             text: responseText
         });
     }
 
-    public getContext(): NPCContext {
-        return { ...this.context };
+    private generateSystemPrompt(ctx: NPCContext): string {
+        const awareness = ctx.spatialAwareness.length > 0 
+            ? `Known landmarks: ${ctx.spatialAwareness.join(', ')}.`
+            : "The surroundings are unfamiliar.";
+
+        return `
+            Identity: ${ctx.name}, ${ctx.personality}
+            Background: ${ctx.biography}
+            Knowledge State: ${ctx.currentKnowledge.slice(-3).join(' ')}
+            Awareness: ${awareness}
+            Action: Respond naturally to the player. Incorporate recent environmental changes.
+        `.trim();
+    }
+
+    public getStatus(): NPCContext {
+        return this.memory.getContext();
     }
 }
