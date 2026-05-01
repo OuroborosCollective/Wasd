@@ -3,7 +3,7 @@ const path = require('path');
 
 /**
  * Durchsucht das Verzeichnis client/src rekursiv nach .tsx Dateien
- * und aktualisiert die Import-Statements von 'shared' zu '@app/shared'.
+ * und aktualisiert die Import-Statements von 'shared' zu '@wasd/shared'.
  */
 function updateSharedImports(directory) {
   if (!fs.existsSync(directory)) {
@@ -29,7 +29,7 @@ function updateSharedImports(directory) {
       // \1             -> Matcht das entsprechende schließende Anführungszeichen aus Gruppe 1
       const updatedContent = originalContent.replace(
         /from\s+(['"])shared(\/.*?)?\1/g,
-        'from $1@app/shared$2$1'
+        'from $1@wasd/shared$2$1'
       );
 
       if (originalContent !== updatedContent) {

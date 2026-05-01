@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * Wandelt Import-Pfade in TypeScript-Dateien von 'shared' zu '@app/shared' um.
+ * Wandelt Import-Pfade in TypeScript-Dateien von 'shared' zu '@wasd/shared' um.
  * Berücksichtigt Deep-Imports und sowohl einfache als auch doppelte Anführungszeichen.
  */
 function migrateSharedImports(directory) {
@@ -31,7 +31,7 @@ function migrateSharedImports(directory) {
                 /from\s+(['"])shared(\/.*)?\1/g,
                 (match, quote, suffix) => {
                     const pathSuffix = suffix || '';
-                    return `from ${quote}@app/shared${pathSuffix}${quote}`;
+                    return `from ${quote}@wasd/shared${pathSuffix}${quote}`;
                 }
             );
 
