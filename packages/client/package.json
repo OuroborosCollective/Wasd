@@ -1,5 +1,5 @@
 {
-  "name": "@ouroboros/client",
+  "name": "@wasd/client",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@wasd/shared": "workspace:*"
+    "@wasd/shared-lib": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^6.0.0",

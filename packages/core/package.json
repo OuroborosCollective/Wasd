@@ -1,5 +1,5 @@
 {
-  "name": "@project/core",
+  "name": "@wasd/core",
   "version": "1.0.0",
   "description": "Core package for the project",
   "main": "dist/index.js",

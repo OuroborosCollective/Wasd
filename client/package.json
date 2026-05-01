@@ -1,5 +1,5 @@
 {
-  "name": "client",
+  "name": "@wasd/app-client",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -9,7 +9,7 @@
     "prebuild": "npm run clean"
   },
   "dependencies": {
-    "@app/shared": "workspace:*"
+    "@wasd/shared": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.0.0"

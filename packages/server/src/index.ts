@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import { IServerConfig, SharedUtils } from '@ouroboros/shared';
+import { IServerConfig, SharedUtils } from '@wasd/shared-lib';
 
 const app = express();
 const port = process.env.PORT || 3000;

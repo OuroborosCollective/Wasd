@@ -17,7 +17,7 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@app/shared/*": ["../shared/src/*"]
+      "@wasd/shared/*": ["../shared/src/*"]
     }
   },
   "include": ["src"],

@@ -1,5 +1,5 @@
 {
-  "name": "eco-trader",
+  "name": "@wasd/eco-trader",
   "version": "1.0.0",
   "description": "Eco-friendly trading simulation platform with high-precision math and event-driven architecture.",
   "main": "dist/index.js",
