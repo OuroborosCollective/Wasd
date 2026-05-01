@@ -11,13 +11,18 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@wasd/shared": "workspace:*"
+    "@wasd/shared": "workspace:*",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "typescript": "^5.0.0",
     "vite": "^5.0.0",
     "tailwindcss": "^3.4.1",
     "postcss": "^8.4.35",
-    "autoprefixer": "^10.4.18"
+    "autoprefixer": "^10.4.18",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.2.1"
   }
 }
