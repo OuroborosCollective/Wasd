@@ -18,10 +18,11 @@
     "test": "pnpm -r run test",
     "lint": "pnpm -r run lint",
     "build": "pnpm -r run build",
-    "quality-check": "pnpm run lint && pnpm run test"
+    "quality-check": "pnpm run lint && pnpm run test",
+    "deploy": "bash scripts/deploy-vps.sh"
   },
   "engines": {
-    "node": ">=18.0.0",
+    "node": "^20.0.0",
     "pnpm": ">=9.0.0"
   },
   "devDependencies": {

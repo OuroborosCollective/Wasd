@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 /**
  * Globaler PrismaClient-Handler für Node.js Umgebungen (verhindert Erschöpfung von Connection-Pools in Dev-Hot-Reloading).
@@ -8,20 +8,40 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 /**
+ * Maskiert sensitive Informationen im Connection-String für Logging-Zwecke.
+ */
+const maskConnectionString = (url: string): string => {
+  try {
+    const parsed = new URL(url);
+    if (parsed.password) parsed.password = '****';
+    return parsed.toString();
+  } catch {
+    return '--- INVALID URL ---';
+  }
+};
+
+/**
  * Validiert den Datenbank-Connection-String aus den Umgebungsvariablen.
  * Wirft einen Fehler, wenn die DATABASE_URL nicht gesetzt oder offensichtlich ungültig ist.
  */
 const validateConnectionString = (): string => {
   const url = process.env.DATABASE_URL;
   if (!url) {
-    throw new Error('[Database] KRITISCHER FEHLER: DATABASE_URL ist nicht in der Umgebung definiert.');
+    throw new Error('[Database] KRITISCHER FEHLER: DATABASE_URL ist nicht definiert (undefined).');
   }
-  if (!url.startsWith('postgresql://') && !url.startsWith('postgres://') && !url.startsWith('file:') && !url.startsWith('mysql://')) {
-    throw new Error('[Database] VALIDIERUNGSFEHLER: DATABASE_URL hat ein ungültiges Format.');
+  
+  const validProtocols = ['postgresql:', 'postgres:', 'file:', 'mysql:'];
+  const hasValidProtocol = validProtocols.some(proto => url.startsWith(proto));
+
+  if (!hasValidProtocol) {
+    throw new Error(`[Database] VALIDIERUNGSFEHLER: DATABASE_URL hat ein ungültiges Format. Erwartet: ${validProtocols.join(', ')}`);
   }
   return url;
 };
 
+/**
+ * Initialisiert den Prisma Client mit optimierten Log-Einstellungen.
+ */
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
@@ -45,17 +65,19 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Stellt die Verbindung zur Datenbank her und implementiert robustes Error-Handling inklusive Retry-Mechanismus.
- * Dies verhindert Unhandled Promise Rejections und sorgt für Stabilität in CI/CD Umgebungen.
+ * Behandelt spezifische Prisma-Fehlertypen und verhindert unkontrollierte Abstürze.
  */
 export const connectToDatabase = async (retries: number = MAX_RETRIES): Promise<void> => {
   let attempt = 0;
 
   // Vorab-Validierung des Connection-Strings
   try {
-    validateConnectionString();
+    const rawUrl = validateConnectionString();
+    console.info(`[Database] Initialisiere Verbindung zu: ${maskConnectionString(rawUrl)}`);
   } catch (validationError) {
-    console.error(validationError instanceof Error ? validationError.message : 'Unbekannter Validierungsfehler');
-    throw validationError;
+    const msg = validationError instanceof Error ? validationError.message : 'Unbekannter Validierungsfehler';
+    console.error(`[Database] Konfigurationsfehler: ${msg}`);
+    throw validationError; // Re-throw da ohne URL kein Start möglich
   }
 
   while (attempt < retries) {
@@ -69,29 +91,39 @@ export const connectToDatabase = async (retries: number = MAX_RETRIES): Promise<
       // Zusätzlicher Health-Check nach dem Connect
       const isHealthy = await checkDatabaseHealth();
       if (!isHealthy) {
-        throw new Error('Health-Check nach Verbindung fehlgeschlagen.');
+        throw new Error('Health-Check nach erfolgreichem Connect fehlgeschlagen (Reaktionszeit-Timeout).');
       }
 
       console.info('[Database] Verbindung erfolgreich aufgebaut und verifiziert.');
       return;
     } catch (error: unknown) {
       const isLastAttempt = attempt >= retries;
-      const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+      let errorMessage = 'Ein unbekannter Fehler ist aufgetreten.';
+
+      if (error instanceof Prisma.PrismaClientInitializationError) {
+        errorMessage = `Initialisierungsfehler (${error.errorCode || 'Kein Code'}): ${error.message}`;
+      } else if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        errorMessage = `Bekannter Request-Fehler (${error.code}): ${error.message}`;
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
       
       console.error(`[Database] Fehler beim Verbindungsaufbau (Versuch ${attempt}): ${errorMessage}`);
 
       if (isLastAttempt) {
-        console.error('[Database] KRITISCHER FEHLER: Maximale Anzahl an Verbindungsversuchen erreicht.');
+        console.error('[Database] KRITISCHER FEHLER: Maximale Anzahl an Verbindungsversuchen erreicht. Dienst wird instabil sein.');
         
-        if (error instanceof Error && error.stack) {
+        if (error instanceof Error && error.stack && process.env.NODE_ENV === 'development') {
           console.error(`[Database] Stack-Trace: ${error.stack}`);
         }
         
-        // Finaler Throw für CI/CD Fail-Fast
-        throw error;
+        // In CI Umgebungen werfen wir den Fehler, um den Build/Start zu stoppen.
+        // In einer resilienten Server-Umgebung könnte man hier auch "return" nutzen, 
+        // falls der Dienst ohne DB (eingeschränkt) weiterlaufen soll.
+        throw new Error(`Database connection failed after ${retries} attempts: ${errorMessage}`);
       }
 
-      console.warn(`[Database] Erneuter Versuch in ${RETRY_DELAY_MS / 1000}s...`);
+      console.warn(`[Database] Warte ${RETRY_DELAY_MS / 1000}s bis zum nächsten Versuch...`);
       await sleep(RETRY_DELAY_MS);
     }
   }
@@ -105,21 +137,26 @@ export const disconnectFromDatabase = async (): Promise<void> => {
     await prisma.$disconnect();
     console.info('[Database] Verbindung erfolgreich geschlossen.');
   } catch (error: unknown) {
-    console.error('[Database] Fehler beim Schließen der Datenbankverbindung:');
-    if (error instanceof Error) {
-      console.error(`[Database] ${error.message}`);
-    }
+    const msg = error instanceof Error ? error.message : 'Unbekannter Fehler beim Disconnect';
+    console.error(`[Database] Fehler beim Schließen der Datenbankverbindung: ${msg}`);
   }
 };
 
 /**
  * Helper Funktion für Health-Checks.
  * Führt eine einfache Raw-Query aus, um die tatsächliche Reaktionsfähigkeit der DB zu prüfen.
+ * Implementiert einen internen Timeout, um Hänger zu vermeiden.
  */
 export const checkDatabaseHealth = async (): Promise<boolean> => {
   try {
-    // Timeout-gesicherte Query (Prisma intern)
-    await prisma.$queryRaw`SELECT 1`;
+    // Verwendet einen Race-Condition Wrapper für manuelles Timeout-Handling bei Healthchecks
+    const timeout = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('Database health check timed out')), 5000)
+    );
+    
+    const query = prisma.$queryRaw`SELECT 1`;
+    
+    await Promise.race([query, timeout]);
     return true;
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unbekannt';
