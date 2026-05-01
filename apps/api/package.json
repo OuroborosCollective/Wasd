@@ -7,7 +7,8 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@wasd/database": "workspace:*"
+    "@wasd/database": "workspace:*",
+    "@wasd/redis": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.0.0"
