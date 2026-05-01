@@ -7,4 +7,4 @@ export {
   type InteractNpcSnapshot,
   type InteractLootSnapshot,
   type InteractPoint,
-} from "../../../shared/interaction";
+} from "@wasd/shared/interaction";
