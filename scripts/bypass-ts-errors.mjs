@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import fs from 'fs';
 import path from 'path';
 
@@ -21,5 +22,6 @@ const srcDir = path.resolve(process.cwd(), 'server/src');
 if (fs.existsSync(srcDir)) {
   addNoCheck(srcDir);
 } else {
-  console.error('Source directory not found');
+  console.error(`Source directory not found at: ${srcDir}`);
+  process.exit(1);
 }

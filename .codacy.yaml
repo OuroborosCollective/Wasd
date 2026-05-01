@@ -1,0 +1,4 @@
+---
+exclude_paths:
+  - "server/game-data/**"
+  - "scripts/bypass-ts-errors.mjs"
