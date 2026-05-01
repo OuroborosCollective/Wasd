@@ -5,13 +5,19 @@
   "description": "Monorepo Root Configuration",
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "apps/*",
+    "projects/*",
+    "server",
+    "client",
+    "shared",
+    "engine",
+    "portal"
   ],
   "scripts": {
-    "test": "npm test --workspaces --if-present",
-    "lint": "npm run lint --workspaces --if-present",
-    "build": "npm run build --workspaces --if-present",
-    "quality-check": "npm run lint && npm test"
+    "test": "pnpm run test --recursive",
+    "lint": "pnpm run lint --recursive",
+    "build": "pnpm run build --recursive",
+    "quality-check": "pnpm run lint && pnpm run test"
   },
   "engines": {
     "node": ">=18.0.0"
