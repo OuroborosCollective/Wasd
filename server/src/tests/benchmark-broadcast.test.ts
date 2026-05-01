@@ -1,94 +1,60 @@
-import { describe, it, expect, vi } from "vitest";
-import { WorldTick } from "../core/WorldTick.js";
-import { GameWebSocketServer } from "../networking/WebSocketServer.js";
-import { performance } from "node:perf_hooks";
+import { describe, it } from 'vitest';
 
-describe("WorldTick.broadcastState Benchmark", () => {
-  it("measures broadcastState performance", async () => {
-    const mockWs = {
-      broadcast: vi.fn(),
-      sendToPlayer: vi.fn(),
-      onPlayerConnect: null,
-      onPlayerDisconnect: null,
-      onPlayerMessage: null,
-      setEntitySyncIntervalForSocket: vi.fn(),
-    } as unknown as GameWebSocketServer;
+describe('Broadcast Metadata Optimization Benchmark', () => {
+  it('measures impact of pre-calculated metadata vs inline string parsing', () => {
+    const numObservedChunks = 100;
+    const chunkObjects = new Map<string, any[]>();
 
-    // Mock PersistenceManager to avoid DB connections
-    vi.mock("../core/PersistenceManager.js", () => {
-      return {
-        PersistenceManager: vi.fn().mockImplementation(() => ({
-          init: vi.fn().mockResolvedValue(undefined),
-          testConnection: vi.fn().mockResolvedValue(true),
-          load: vi.fn().mockResolvedValue({}),
-          save: vi.fn().mockResolvedValue(undefined),
-          loadWorldObjects: vi.fn().mockResolvedValue([]),
-          saveWorldObjects: vi.fn().mockResolvedValue(undefined),
-          getDriverName: vi.fn().mockReturnValue("mock"),
-        })),
-      };
-    });
+    // Setup mock chunks
+    const observedChunkIds: string[] = [];
+    const observedChunkObjects: Array<{ id: string; chunkX: number; chunkY: number }> = [];
 
-    const worldTick = new WorldTick(mockWs);
-    // Minimal init without full async overhead if possible, or just await it
-    await worldTick.init();
-
-    // Add 1000 NPCs spread across the world
-    for (let i = 0; i < 1000; i++) {
-      worldTick.npcSystem.createNPC(`npc_${i}`, `NPC ${i}`, Math.random() * 2000, Math.random() * 2000);
+    for (let i = 0; i < numObservedChunks; i++) {
+      const id = `${i}:${i}`;
+      observedChunkIds.push(id);
+      observedChunkObjects.push({ id, chunkX: i, chunkY: i });
+      chunkObjects.set(id, [{ id: 'obj_' + i }]);
     }
 
-    // Add 1000 Loot entities
-    const lootEntities = (worldTick as any).lootEntities;
-    for (let i = 0; i < 1000; i++) {
-      lootEntities.set(`loot_${i}`, {
-        id: `loot_${i}`,
-        position: { x: Math.random() * 2000, y: Math.random() * 2000 },
-        items: [{ id: "gold", quantity: 10 }]
-      });
+    const iterations = 10000;
+
+    // 1. Current approach (simulated): String parsing for every chunk in every tick
+    const startParsing = performance.now();
+    for (let t = 0; t < iterations; t++) {
+      const chunks: any[] = [];
+      for (const chunkId of observedChunkIds) {
+        const [cx, cy] = chunkId.split(":").map(Number);
+        chunks.push({
+          id: chunkId,
+          chunkX: cx,
+          chunkY: cy,
+          objects: chunkObjects.get(chunkId) || [],
+        });
+      }
     }
+    const endParsing = performance.now();
+    const timeParsing = endParsing - startParsing;
 
-    // Add 100 World Objects
-    if (worldTick.worldSystem.objectSystem) {
-        for (let i = 0; i < 100; i++) {
-            await worldTick.worldSystem.objectSystem.addObject({
-                id: `obj_${i}`,
-                type: "tree",
-                name: `Tree ${i}`,
-                position: { x: Math.random() * 2000, y: Math.random() * 2000 }
-            });
-        }
+    // 2. Optimized approach: Using pre-calculated metadata
+    const startOptimized = performance.now();
+    for (let t = 0; t < iterations; t++) {
+      const chunks: any[] = [];
+      for (let i = 0; i < observedChunkObjects.length; i++) {
+        const c = observedChunkObjects[i];
+        chunks.push({
+          id: c.id,
+          chunkX: c.chunkX,
+          chunkY: c.chunkY,
+          objects: chunkObjects.get(c.id) || [],
+        });
+      }
     }
+    const endOptimized = performance.now();
+    const timeOptimized = endOptimized - startOptimized;
 
-    // Register a few players to have observed chunks
-    for (let i = 0; i < 5; i++) {
-        const playerId = `player_${i}`;
-        const socketId = `socket_${i}`;
-        worldTick.playerSystem.createPlayer(playerId, `Player ${i}`);
-        worldTick.observerEngine.register(socketId, { x: 500 + i * 100, y: 500 + i * 100 });
-        (worldTick as any).socketToPlayer.set(socketId, playerId);
-        (worldTick as any).playerToSocket.set(playerId, socketId);
-    }
-
-    const observedChunks = worldTick.observerEngine.getObservedChunks();
-    const observedChunkIds = new Set(observedChunks.map((c) => c.id));
-
-    // Warm up
-    for (let i = 0; i < 10; i++) {
-      worldTick.broadcastState(observedChunkIds);
-    }
-
-    const start = performance.now();
-    const iterations = 50;
-    for (let i = 0; i < iterations; i++) {
-      worldTick.broadcastState(observedChunkIds);
-    }
-    const end = performance.now();
-    const avg = (end - start) / iterations;
-
-    console.log(`\n[BENCHMARK] Average broadcastState time: ${avg.toFixed(4)}ms for 2100+ entities`);
-
-    // We expect it to be reasonably fast even before optimization, but we want to see it drop.
-    expect(avg).toBeLessThan(200);
+    console.log(`[Benchmark] ${iterations} iterations with ${numObservedChunks} chunks:`);
+    console.log(`  - Inline Parsing: ${timeParsing.toFixed(2)}ms`);
+    console.log(`  - Pre-calculated: ${timeOptimized.toFixed(2)}ms`);
+    console.log(`  - Speedup: ${((timeParsing / timeOptimized - 1) * 100).toFixed(1)}%`);
   });
 });

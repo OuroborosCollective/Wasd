@@ -2394,7 +2394,7 @@ export class WorldTick {
 
   constructor(private ws: GameWebSocketServer) {
     this.chunkSystem = new ChunkSystem(64);
-    this.observerEngine = new ObserverEngine();
+    this.observerEngine = new ObserverEngine(64);
     this.playerSystem = new PlayerSystem();
     this.combatSystem = new CombatSystem();
     this.inventorySystem = new InventorySystem();
@@ -3922,16 +3922,15 @@ export class WorldTick {
       void this.liveHeal.onTick().catch(() => { /* never crash the tick */ });
     }
 
-    const observedChunks = this.observerEngine.getObservedChunks();
-    const observedChunkIds = new Set(observedChunks.map((c) => c.id));
-    this.broadcastState(observedChunkIds);
+    const { ids: observedChunkIds, chunks: observedChunkObjects } = this.observerEngine.getObservedChunks();
+    this.broadcastState(observedChunkIds, observedChunkObjects);
   }
 
   public clearGlbPathCache() {
     this.glbPathCache.clear();
   }
 
-  broadcastState(observedChunkIds?: Set<string>) {
+  broadcastState(observedChunkIds?: Set<string>, observedChunkObjects?: Array<{ id: string; chunkX: number; chunkY: number }>) {
     const tickCount = this.tickCount;
     const entities: any[] = [];
     const chunks: Array<{ id: string; chunkX: number; chunkY: number; objects: any[] }> = [];
@@ -4068,8 +4067,18 @@ export class WorldTick {
       }
     }
 
-    // ⚡ Bolt Optimization: Use observedChunkIds directly to populate the chunks payload
-    if (observedChunkIds && observedChunkIds.size > 0) {
+    // ⚡ Bolt Optimization: Use observedChunkObjects directly to populate the chunks payload
+    if (observedChunkObjects && observedChunkObjects.length > 0) {
+      for (let i = 0; i < observedChunkObjects.length; i++) {
+        const c = observedChunkObjects[i];
+        chunks.push({
+          id: c.id,
+          chunkX: c.chunkX,
+          chunkY: c.chunkY,
+          objects: chunkObjects.get(c.id) || [],
+        });
+      }
+    } else if (observedChunkIds && observedChunkIds.size > 0) {
       for (const chunkId of observedChunkIds) {
         const [cx, cy] = chunkId.split(":").map(Number);
         chunks.push({

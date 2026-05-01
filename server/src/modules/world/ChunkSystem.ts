@@ -7,6 +7,21 @@ export interface Chunk {
 
 export class ChunkSystem {
     private chunks: Map<string, Chunk> = new Map();
+    public readonly chunkSize: number;
+
+    constructor(chunkSize: number = 64) {
+        this.chunkSize = chunkSize;
+    }
+
+    public getChunkId(x: number, y: number): string {
+        const cx = Math.floor(x / this.chunkSize);
+        const cy = Math.floor(y / this.chunkSize);
+        return this.buildChunkId(cx, cy);
+    }
+
+    public buildChunkId(cx: number, cy: number): string {
+        return `${cx}:${cy}`;
+    }
 
     private getChunkKey(x: number, y: number): string {
         return `${x},${y}`;
