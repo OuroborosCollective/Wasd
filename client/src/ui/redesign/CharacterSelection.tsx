@@ -21,6 +21,13 @@ const mockCharacters: Character[] = [
 export const CharacterSelection: React.FC<CharacterSelectionProps> = ({ onCharacterSelected }) => {
   const [selectedChar, setSelectedChar] = useState<Character | null>(mockCharacters[0]);
 
+  const handleKeyDown = (e: React.KeyboardEvent, action: () => void) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      action();
+    }
+  };
+
   return (
     <div className="char-selection-container">
       <div className="selection-overlay">
@@ -31,15 +38,20 @@ export const CharacterSelection: React.FC<CharacterSelectionProps> = ({ onCharac
           </header>
 
           <main className="selection-content">
-            <div className="char-list">
+            <div className="char-list" role="radiogroup" aria-label="Select a character">
               {mockCharacters.map((char) => (
                 <div 
                   key={char.id} 
                   className={`char-item ${selectedChar?.id === char.id ? "active" : ""}`}
                   onClick={() => setSelectedChar(char)}
+                  onKeyDown={(e) => handleKeyDown(e, () => setSelectedChar(char))}
+                  role="radio"
+                  tabIndex={0}
+                  aria-checked={selectedChar?.id === char.id}
+                  aria-label={`${char.name}, ${char.class} Level ${char.level}`}
                 >
                   <div className="char-avatar">
-                    <span style={{fontSize: "24px"}}>{char.image}</span>
+                    <span style={{fontSize: "24px"}} aria-hidden="true">{char.image}</span>
                   </div>
                   <div className="char-info">
                     <span className="char-name">{char.name}</span>
@@ -47,8 +59,15 @@ export const CharacterSelection: React.FC<CharacterSelectionProps> = ({ onCharac
                   </div>
                 </div>
               ))}
-              <div className="char-item new">
-                <div className="char-avatar plus">+</div>
+              <div
+                className="char-item new"
+                role="button"
+                tabIndex={0}
+                onClick={() => {}} // Placeholder for new char creation
+                onKeyDown={(e) => handleKeyDown(e, () => {})}
+                aria-label="Create New Character"
+              >
+                <div className="char-avatar plus" aria-hidden="true">+</div>
                 <div className="char-info">
                   <span className="char-name">New Character</span>
                 </div>
@@ -68,16 +87,43 @@ export const CharacterSelection: React.FC<CharacterSelectionProps> = ({ onCharac
                     <div className="class-badge">{selectedChar.class}</div>
                     <div className="stats-preview">
                       <div className="stat-preview-item">
-                        <label>Strength</label>
-                        <div className="stat-preview-bar"><div style={{width: "70%"}}></div></div>
+                        <label id="stat-str">Strength</label>
+                        <div
+                          className="stat-preview-bar"
+                          role="progressbar"
+                          aria-labelledby="stat-str"
+                          aria-valuenow={70}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                        >
+                          <div style={{width: "70%"}}></div>
+                        </div>
                       </div>
                       <div className="stat-preview-item">
-                        <label>Agility</label>
-                        <div className="stat-preview-bar"><div style={{width: "40%"}}></div></div>
+                        <label id="stat-agi">Agility</label>
+                        <div
+                          className="stat-preview-bar"
+                          role="progressbar"
+                          aria-labelledby="stat-agi"
+                          aria-valuenow={40}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                        >
+                          <div style={{width: "40%"}}></div>
+                        </div>
                       </div>
                       <div className="stat-preview-item">
-                        <label>Intelligence</label>
-                        <div className="stat-preview-bar"><div style={{width: "90%"}}></div></div>
+                        <label id="stat-int">Intelligence</label>
+                        <div
+                          className="stat-preview-bar"
+                          role="progressbar"
+                          aria-labelledby="stat-int"
+                          aria-valuenow={90}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                        >
+                          <div style={{width: "90%"}}></div>
+                        </div>
                       </div>
                     </div>
                   </div>

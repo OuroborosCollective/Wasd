@@ -16,3 +16,7 @@
 ## 2025-05-14 - [HUD Accessibility & Tooltips]
 **Learning:** Visual-only status indicators (HP/MP rings) are opaque to screen readers and often leave visual users guessing exact values. Using `role="progressbar"` with ARIA attributes (`aria-valuenow`, etc.) and the native `title` attribute provides a dual-win for accessibility and UX with zero CSS/JS overhead.
 **Action:** Always check if progress indicators in the HUD have semantic roles and hover titles for precision.
+
+## 2025-05-15 - [Character Selection Accessibility via ARIA Radio Patterns]
+**Learning:** For game character selection screens where only one item can be active at a time, using `role="radiogroup"` and `role="radio"` provides a much clearer semantic model for screen readers than generic buttons or list items. This explicitly communicates the "exclusive choice" nature of the selection.
+**Action:** Use the radio pattern for any "single-select" list of complex items (like character cards or equipment slots) to ensure intent is clear to assistive technologies.

@@ -82,9 +82,15 @@
   transition: all 0.2s;
 }
 
-.char-item:hover {
+.char-item:hover,
+.char-item:focus-visible {
   background: rgba(255,255,255,0.08);
   border-color: rgba(212, 175, 55, 0.4);
+  outline: none;
+}
+
+.char-item:focus-visible {
+  box-shadow: 0 0 0 2px #d4af37;
 }
 
 .char-item.active {
@@ -246,7 +252,16 @@
   transition: all 0.2s;
 }
 
-.back-btn:hover, .options-btn:hover {
+.back-btn:hover, .options-btn:hover,
+.back-btn:focus-visible, .options-btn:focus-visible {
   border-color: #d4af37;
   color: #fff;
+  outline: none;
+}
+
+.begin-btn:focus-visible,
+.back-btn:focus-visible,
+.options-btn:focus-visible {
+  box-shadow: 0 0 0 2px #d4af37;
+  outline: none;
 }
