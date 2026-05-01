@@ -14,5 +14,6 @@
     "experimentalDecorators": true,
     "noEmitOnError": false
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "exclude": ["src/tools/**/*", "src/tests/**/*"]
 }
