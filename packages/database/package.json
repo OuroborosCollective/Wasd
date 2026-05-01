@@ -15,10 +15,10 @@
     "lint": "eslint . --ext .ts"
   },
   "dependencies": {
-    "@wasd/config": "workspace:*",
-    "p-retry": "^6.2.0",
     "pg": "^8.11.5",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "@wasd/utils": "workspace:*",
+    "@wasd/types": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.12.7",
