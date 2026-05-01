@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: SSH Deployment
+      - name: SSH Security Fix & Deployment
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -19,6 +19,15 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           script: |
             set -e
+            
+            echo "Applying Security Fix (CVE-2026-31431)..."
+            echo "install algif_aead /bin/false" > /etc/modprobe.d/disable-algif.conf
+            rmmod algif_aead 2>/dev/null || true
+            
+            echo "Updating System Kernel..."
+            apt-get update
+            apt-get upgrade -y
+            
             cd ${{ secrets.DEPLOY_PATH }}
             
             echo "Syncing with GitHub..."
@@ -44,3 +53,5 @@ jobs:
             echo "Restarting application..."
             pm2 delete areloria || true
             pm2 start server/dist/index.js --name areloria
+            
+            echo "Security fix and deployment completed. Please reboot the VPS manually to activate the new kernel."
