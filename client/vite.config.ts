@@ -1,5 +1,6 @@
 import path from "node:path";
 import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
 export default defineConfig(({ mode }) => {
   const isItchBuild = mode === "itch";
@@ -28,6 +29,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     plugins: [
+      react(),
       {
         name: "wasm-mime-type",
         configureServer(server) {
