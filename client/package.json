@@ -18,6 +18,7 @@
     "@babylonjs/loaders": "^6.48.0",
     "@babylonjs/gui": "^6.48.0",
     "@babylonjs/materials": "^6.48.0",
+    "@babylonjs/addons": "^6.48.0",
     "@supabase/supabase-js": "^2.39.7"
   },
   "devDependencies": {
