@@ -1,4 +1,4 @@
-import "./config/tracing.js";
+// import "./config/tracing.js";
 import { loadRootEnvFiles } from "./config/loadRootEnv.js";
 
 // Ensure environment variables are loaded before any other imports that might depend on them
@@ -16,7 +16,7 @@ function validateConfig() {
   const sbAuth = getSupabaseAuthInitInfo();
   
   console.log(
-    `[boot] supabaseAuth verifyMode=${sbAuth.verifyMode} jwtSecretKey=${sbAuth.jwtSecretSourceKey ?? "none"} hasUrl=${sbAuth.hasUrl}`
+    `[boot] supabaseAuth verifyMode=${sbAuth.verifyMode} jwtSecretSourceKey=${sbAuth.jwtSecretSourceKey ?? "none"} hasUrl=${sbAuth.hasUrl}`
   );
 
   if (!sbAuth.hasUrl) {
