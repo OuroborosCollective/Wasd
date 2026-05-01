@@ -9,6 +9,13 @@ export interface PlayerComboState {
     lastTimestamp: number;
 }
 
+export interface ComboResult {
+    ok: boolean;
+    extraDmg?: number;
+    heal?: number;
+    slowMs?: number;
+}
+
 export class ComboValidator {
     private comboDefinitions: Map<string, ComboDefinition>;
     private playerStates: Map<string, PlayerComboState>;
@@ -16,6 +23,10 @@ export class ComboValidator {
     constructor(definitions: Map<string, ComboDefinition> = new Map()) {
         this.comboDefinitions = definitions;
         this.playerStates = new Map();
+    }
+
+    public validate(player: any, skill: any): ComboResult {
+        return { ok: true };
     }
 
     public validateSequence(playerId: string, skillId: string, clientLogicalIndex: number): void {
