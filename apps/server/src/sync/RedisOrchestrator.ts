@@ -3,16 +3,27 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { Server as HttpServer } from 'http';
 
 /**
- * Interface for synchronization messages across the WASD platform.
- * Supports both Player movement and World Editor state updates.
+ * Enhanced SyncMessage to support consolidated Workspace and Agent synchronization.
  */
 export interface SyncMessage {
-    type: 'PLAYER_MOVE' | 'EDITOR_UPDATE' | 'OBJECT_CREATE' | 'OBJECT_DELETE' | 'OBJECT_TRANSFORM';
+    type: 
+        | 'PLAYER_MOVE' 
+        | 'EDITOR_UPDATE' 
+        | 'OBJECT_CREATE' 
+        | 'OBJECT_DELETE' 
+        | 'OBJECT_TRANSFORM'
+        | 'AGENT_UPDATE' 
+        | 'AGENT_ACTION'
+        | 'WORKSPACE_SYNC'
+        | 'WORKSPACE_PATCH';
     payload: {
         id: string;
+        workspaceId?: string;
         position?: { x: number; y: number; z: number };
         rotation?: { x: number; y: number; z: number; w?: number };
         scale?: { x: number; y: number; z: number };
+        status?: 'IDLE' | 'THINKING' | 'BUSY' | 'ERROR' | 'OFFLINE';
+        action?: string;
         data?: any;
     };
     senderId: string;
@@ -25,6 +36,7 @@ export class RedisOrchestrator {
     private wss: WebSocketServer;
     private clients: Map<string, WebSocket> = new Map();
     private readonly CHANNEL = 'wasd_world_sync';
+    private readonly STATE_PREFIX = 'wasd_state:';
 
     constructor(server: HttpServer, redisUrl: string = process.env.REDIS_URL || 'redis://localhost:6379') {
         this.pub = new Redis(redisUrl);
@@ -34,16 +46,17 @@ export class RedisOrchestrator {
         this.init();
     }
 
-    /**
-     * Initializes Redis subscriptions and WebSocket connection handlers.
-     */
     private async init() {
-        // Subscribe to global Redis channel for cross-instance synchronization
         await this.sub.subscribe(this.CHANNEL);
 
         this.sub.on('message', (channel, message) => {
             if (channel === this.CHANNEL) {
-                this.broadcastToLocalClients(JSON.parse(message));
+                try {
+                    const parsedMessage: SyncMessage = JSON.parse(message);
+                    this.broadcastToLocalClients(parsedMessage);
+                } catch (err) {
+                    console.error('[RedisOrchestrator] Error parsing Redis message:', err);
+                }
             }
         });
 
@@ -51,25 +64,34 @@ export class RedisOrchestrator {
             const clientId = this.generateClientId();
             this.clients.set(clientId, ws);
 
-            // Send initial connection confirmation
-            ws.send(JSON.stringify({ type: 'CONNECTED', payload: { id: clientId } }));
+            ws.send(JSON.stringify({ 
+                type: 'CONNECTED', 
+                payload: { id: clientId },
+                timestamp: Date.now() 
+            }));
 
-            ws.on('message', (data: Buffer | string) => {
+            // Send current agent and workspace states to new client
+            this.syncInitialState(ws);
+
+            ws.on('message', async (data: Buffer | string) => {
                 try {
                     const message: SyncMessage = JSON.parse(data.toString());
                     message.senderId = clientId;
                     message.timestamp = Date.now();
                     
-                    // Publish to Redis to reach all server instances
+                    // Intercept specific types to persist state in Redis
+                    if (message.type === 'AGENT_UPDATE' || message.type === 'WORKSPACE_SYNC') {
+                        await this.persistState(message);
+                    }
+
                     this.publishToRedis(message);
                 } catch (err) {
-                    console.error('[RedisOrchestrator] Error parsing message:', err);
+                    console.error('[RedisOrchestrator] Error handling message:', err);
                 }
             });
 
             ws.on('close', () => {
                 this.clients.delete(clientId);
-                // Notify others that player/editor left
                 this.publishToRedis({
                     type: 'PLAYER_MOVE',
                     payload: { id: clientId, data: { status: 'disconnected' } },
@@ -83,12 +105,50 @@ export class RedisOrchestrator {
             });
         });
 
-        console.log('[RedisOrchestrator] Initialized Redis Pub/Sub and WebSocket Server');
+        console.log('[RedisOrchestrator] Initialized with Workspace & Agent support');
     }
 
     /**
-     * Publishes a message to the Redis channel.
+     * Persists critical state (Agents/Workspace) to Redis for persistence and new client bootstrapping.
      */
+    private async persistState(message: SyncMessage) {
+        const key = `${this.STATE_PREFIX}${message.type.toLowerCase()}:${message.payload.workspaceId || 'global'}`;
+        try {
+            await this.pub.hset(key, message.payload.id, JSON.stringify({
+                ...message.payload,
+                lastUpdate: message.timestamp,
+                updatedBy: message.senderId
+            }));
+        } catch (err) {
+            console.error('[RedisOrchestrator] Failed to persist state:', err);
+        }
+    }
+
+    /**
+     * Fetches and sends current world/agent state to a newly connected client.
+     */
+    private async syncInitialState(ws: WebSocket) {
+        try {
+            const keys = await this.pub.keys(`${this.STATE_PREFIX}*`);
+            for (const key of keys) {
+                const states = await this.pub.hgetall(key);
+                for (const id in states) {
+                    const payload = JSON.parse(states[id]);
+                    const type = key.includes('agent_update') ? 'AGENT_UPDATE' : 'WORKSPACE_SYNC';
+                    
+                    ws.send(JSON.stringify({
+                        type,
+                        payload,
+                        senderId: 'SYSTEM_SYNC',
+                        timestamp: Date.now()
+                    }));
+                }
+            }
+        } catch (err) {
+            console.error('[RedisOrchestrator] Error during initial sync:', err);
+        }
+    }
+
     private async publishToRedis(message: SyncMessage) {
         try {
             await this.pub.publish(this.CHANNEL, JSON.stringify(message));
@@ -97,13 +157,8 @@ export class RedisOrchestrator {
         }
     }
 
-    /**
-     * Broadcasts a message received from Redis to all locally connected WebSocket clients.
-     * Skips the original sender if they are connected to this local instance.
-     */
     private broadcastToLocalClients(message: SyncMessage) {
         const data = JSON.stringify(message);
-        
         this.clients.forEach((client, id) => {
             if (id !== message.senderId && client.readyState === WebSocket.OPEN) {
                 client.send(data);
@@ -111,20 +166,14 @@ export class RedisOrchestrator {
         });
     }
 
-    /**
-     * Utility to generate unique client identifiers.
-     */
     private generateClientId(): string {
-        return `client_${Math.random().toString(36).substr(2, 9)}`;
+        return `node_${process.pid}_${Math.random().toString(36).substr(2, 9)}`;
     }
 
-    /**
-     * Gracefully shuts down the Redis connections and WebSocket server.
-     */
     public async shutdown() {
         await this.pub.quit();
         await this.sub.quit();
         this.wss.close();
-        console.log('[RedisOrchestrator] Shutdown complete');
+        console.log('[RedisOrchestrator] Graceful shutdown complete');
     }
 }
