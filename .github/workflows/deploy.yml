@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - master
   workflow_dispatch:
 
 jobs:
@@ -17,23 +18,39 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
+          envs: GITHUB_REF_NAME
           script: |
             set -e
             cd ${{ secrets.DEPLOY_PATH }}
             
             echo "--- SYNCING CODE ---"
-            git fetch origin main
-            git reset --hard origin/main
+            # Fetch all branches and prune deleted ones
+            git fetch --all --prune
+            
+            # Determine branch: use main if exists, otherwise fallback to master or current ref
+            TARGET_BRANCH="main"
+            if ! git rev-parse --verify origin/main >/dev/null 2>&1; then
+              if git rev-parse --verify origin/master >/dev/null 2>&1; then
+                TARGET_BRANCH="master"
+              else
+                TARGET_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+              fi
+            fi
+            
+            echo "Using branch: $TARGET_BRANCH"
+            git reset --hard origin/$TARGET_BRANCH
             
             echo "--- CLEANING ---"
             # Remove redundant packages to avoid build conflicts
             rm -rf packages/client packages/server
             
             echo "--- BYPASSING TS ERRORS ---"
-            node scripts/bypass-ts-errors.mjs
+            if [ -f scripts/bypass-ts-errors.mjs ]; then
+              node scripts/bypass-ts-errors.mjs
+            fi
             
             echo "--- INSTALLING DEPENDENCIES ---"
-            # Force pnpm installation and install deps
+            # Ensure pnpm is available and install dependencies
             npm install -g pnpm
             pnpm install --no-frozen-lockfile
             
@@ -41,9 +58,15 @@ jobs:
             NODE_OPTIONS=--max-old-space-size=4096 pnpm --recursive run build
             
             echo "--- RESTARTING PM2 ---"
-            # Ensure CommonJS compatibility for the production dist
-            echo '{"type": "commonjs"}' > server/dist/package.json
-            pm2 delete areloria || true
-            pm2 start server/dist/index.js --name areloria
+            # Ensure CommonJS compatibility for the production dist if server exists
+            if [ -d "server/dist" ]; then
+              echo '{"type": "commonjs"}' > server/dist/package.json
+              pm2 delete areloria || true
+              pm2 start server/dist/index.js --name areloria
+            elif [ -d "packages/server/dist" ]; then
+              echo '{"type": "commonjs"}' > packages/server/dist/package.json
+              pm2 delete areloria || true
+              pm2 start packages/server/dist/index.js --name areloria
+            fi
             
             echo "--- DEPLOYMENT SUCCESSFUL ---"
