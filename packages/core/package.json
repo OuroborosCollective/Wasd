@@ -2,8 +2,15 @@
   "name": "@wasd/core",
   "version": "1.0.0",
   "description": "Shared ECS Core with bitecs support for the WASD project",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "files": [
     "dist"
   ],
@@ -19,5 +26,8 @@
   "devDependencies": {
     "typescript": "^5.0.0",
     "rimraf": "^5.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

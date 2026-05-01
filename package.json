@@ -16,7 +16,7 @@
   "scripts": {
     "test": "pnpm --recursive run test",
     "lint": "pnpm --recursive run lint",
-    "build": "pnpm --recursive run build",
+    "build": "NODE_OPTIONS='--max-old-space-size=4096' pnpm --recursive run build",
     "quality-check": "pnpm run lint && pnpm run test"
   },
   "engines": {
