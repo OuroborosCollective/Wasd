@@ -6,6 +6,9 @@
   "scripts": {
     "build": "tsc"
   },
+  "dependencies": {
+    "@wasd/database": "workspace:*"
+  },
   "devDependencies": {
     "typescript": "^5.0.0"
   }

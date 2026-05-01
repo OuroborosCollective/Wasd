@@ -15,10 +15,14 @@
     "lint": "eslint . --ext .ts"
   },
   "dependencies": {
-    "zod": "^3.23.8"
+    "pg": "^8.11.5",
+    "zod": "^3.23.8",
+    "@wasd/utils": "workspace:*",
+    "@wasd/types": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.12.7",
+    "@types/pg": "^8.11.5",
     "typescript": "^5.4.5",
     "rimraf": "^5.0.5"
   },
