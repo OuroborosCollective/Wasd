@@ -34,16 +34,10 @@ jobs:
       - name: Build all workspaces
         run: pnpm --recursive run build
 
-      - name: Install SSH Key
-        uses: shimataro/ssh-key-action@v2
-        with:
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
-          if_key_exists: replace
-
       - name: Deploy files
         run: |
-          rsync -az --delete \
+          sudo apt-get update && sudo apt-get install -y sshpass
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" rsync -az --delete \
             --exclude='.git/' \
             --exclude='.github/' \
             --exclude='.ssh/' \
@@ -60,7 +54,7 @@ jobs:
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          password: ${{ secrets.SSH_PASSWORD }}
           script: |
             cd ${{ secrets.DEPLOY_PATH }}
-            pm2 reload all --update-env || pm2 start ecosystem.config.js
+            pm2 reload all --update-env || pm2 start server/dist/index.js --name areloria
