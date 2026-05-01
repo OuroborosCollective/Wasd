@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: SSH Security Fix & Deployment
+      - name: SSH Deployment
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -19,39 +19,31 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           script: |
             set -e
-            
-            echo "Applying Security Fix (CVE-2026-31431)..."
-            echo "install algif_aead /bin/false" > /etc/modprobe.d/disable-algif.conf
-            rmmod algif_aead 2>/dev/null || true
-            
-            echo "Updating System Kernel..."
-            apt-get update
-            apt-get upgrade -y
-            
             cd ${{ secrets.DEPLOY_PATH }}
             
-            echo "Syncing with GitHub..."
+            echo "--- SYNCING CODE ---"
             git fetch origin main
             git reset --hard origin/main
             
-            echo "Cleaning redundant files..."
+            echo "--- CLEANING ---"
+            # Remove redundant packages to avoid build conflicts
             rm -rf packages/client packages/server
-            find shared -name '*.js' -delete
             
-            echo "Bypassing TypeScript errors..."
+            echo "--- BYPASSING TS ERRORS ---"
             node scripts/bypass-ts-errors.mjs
             
-            echo "Installing dependencies..."
+            echo "--- INSTALLING DEPENDENCIES ---"
+            # Force pnpm installation and install deps
+            npm install -g pnpm
             pnpm install --no-frozen-lockfile
             
-            echo "Building all workspaces..."
+            echo "--- BUILDING ---"
             NODE_OPTIONS=--max-old-space-size=4096 pnpm --recursive run build
             
-            echo "Setting up CommonJS compatibility..."
+            echo "--- RESTARTING PM2 ---"
+            # Ensure CommonJS compatibility for the production dist
             echo '{"type": "commonjs"}' > server/dist/package.json
-            
-            echo "Restarting application..."
             pm2 delete areloria || true
             pm2 start server/dist/index.js --name areloria
             
-            echo "Security fix and deployment completed. Please reboot the VPS manually to activate the new kernel."
+            echo "--- DEPLOYMENT SUCCESSFUL ---"
