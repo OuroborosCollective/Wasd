@@ -1,7 +1,7 @@
 {
   "name": "@wasd/core",
   "version": "1.0.0",
-  "description": "Core package for the project",
+  "description": "Shared ECS Core with bitecs support for the WASD project",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -9,8 +9,12 @@
   ],
   "scripts": {
     "build": "tsc",
+    "dev": "tsc --watch",
     "clean": "rimraf dist",
     "prebuild": "npm run clean"
+  },
+  "dependencies": {
+    "bitecs": "^0.3.40"
   },
   "devDependencies": {
     "typescript": "^5.0.0",

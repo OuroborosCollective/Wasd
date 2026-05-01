@@ -6,6 +6,11 @@
   "scripts": {
     "build": "tsc"
   },
+  "dependencies": {
+    "@gltf-transform/core": "^3.10.1",
+    "@gltf-transform/extensions": "^3.10.1",
+    "@gltf-transform/functions": "^3.10.1"
+  },
   "devDependencies": {
     "typescript": "^5.0.0"
   }
