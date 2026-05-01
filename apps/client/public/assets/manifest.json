@@ -1,0 +1,34 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2023-10-27T10:00:00Z",
+  "baseUrl": "https://cdn.example.com/storage",
+  "assets": {
+    "images": {
+      "logo_full": "https://cdn.example.com/storage/branding/logo-full.png",
+      "logo_mark": "https://cdn.example.com/storage/branding/logo-mark.svg",
+      "hero_background": "https://cdn.example.com/storage/backgrounds/hero-mesh.webp",
+      "auth_overlay": "https://cdn.example.com/storage/ui/auth-illustration.svg"
+    },
+    "icons": {
+      "user_default": "https://cdn.example.com/storage/icons/user-circle.svg",
+      "error_alert": "https://cdn.example.com/storage/icons/alert-triangle.svg",
+      "success_check": "https://cdn.example.com/storage/icons/check-circle.svg"
+    },
+    "placeholders": {
+      "avatar_fallback": "https://cdn.example.com/storage/placeholders/avatar-generic.jpg",
+      "empty_state": "https://cdn.example.com/storage/placeholders/no-data.png"
+    },
+    "fonts": {
+      "main_regular": "https://cdn.example.com/storage/fonts/inter-v12-latin-regular.woff2",
+      "main_bold": "https://cdn.example.com/storage/fonts/inter-v12-latin-700.woff2"
+    },
+    "lottie": {
+      "loading_spinner": "https://cdn.example.com/storage/animations/spinner.json",
+      "success_confetti": "https://cdn.example.com/storage/animations/confetti.json"
+    }
+  },
+  "metadata": {
+    "cacheControl": "public, max-age=31536000, immutable",
+    "storageProvider": "AWS_S3"
+  }
+}
