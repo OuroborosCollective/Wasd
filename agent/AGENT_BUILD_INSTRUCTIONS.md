@@ -2,7 +2,7 @@
 
 1. Lies zuerst alle Lock-Dateien.
 2. Verändere keine Kernregeln.
-3. Baue in der vorgegebenen Reihenfolge.
+3. Baue in der vorgegebenen Reihenfolge. Zentralisiere alle geteilten Berechnungen und Kern-Algorithmen in `packages/core-logic`.
 4. Halte Serverlogik serverseitig.
 5. Nutze das Clientgerüst nur für Darstellung.
 
@@ -15,4 +15,4 @@
 - Vollständiger Doc-Katalog: `docs/DOCUMENTATION_INDEX.md`.
 
 ## Wichtige Reihenfolge
-server core -> world -> observer -> npc -> civilization -> economy -> gameplay -> brain -> assets -> gm editor -> client -> integrations
+packages/core-logic -> server core -> world -> observer -> npc -> civilization -> economy -> gameplay -> brain -> assets -> gm editor -> client -> integrations

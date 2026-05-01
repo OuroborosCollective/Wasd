@@ -1,4 +1,25 @@
 import { EventEmitter } from 'events';
+<<<<<<< architect-fix-1777640719960
+import { 
+    IAgentContext, 
+    ISceneEvent, 
+    SceneEventType, 
+    DialogueEntry,
+    AgentPromptBuilder,
+    MemoryProcessor
+} from '@areloria/core-logic';
+
+/**
+ * ReactiveBrain implements LLM_AGENT_DESIGN principles by leveraging centralized
+ * logic from @areloria/core-logic to allow NPCs to dynamically adapt to scene changes.
+ */
+export class ReactiveBrain {
+    private context: IAgentContext;
+    private eventBus: EventEmitter;
+    private maxHistoryLength: number = 10;
+    private promptBuilder: AgentPromptBuilder;
+    private memoryProcessor: MemoryProcessor;
+=======
 
 export interface SceneEvent {
     type: 'ASSET_PLACED' | 'ASSET_REMOVED' | 'ENVIRONMENT_CHANGE';
@@ -32,17 +53,67 @@ class MemoryManager {
     private context: NPCContext;
     private readonly maxHistory: number = 10;
     private readonly maxKnowledge: number = 20;
+>>>>>>> main
 
     constructor(npcId: string, name: string) {
         this.context = {
-            npcId,
+            id: npcId,
             name,
             personality: "Curious and observant villager.",
             biography: "A long-time resident of this digital realm, always interested in new architecture.",
-            currentKnowledge: ["The world is currently quiet."],
+            knowledge: ["The world is currently quiet."],
             spatialAwareness: [],
-            dialogueHistory: []
+            history: []
         };
+<<<<<<< architect-fix-1777640719960
+
+        this.promptBuilder = new AgentPromptBuilder();
+        this.memoryProcessor = new MemoryProcessor();
+        this.initializeEventListeners();
+    }
+
+    private initializeEventListeners(): void {
+        this.eventBus.on('SCENE_EVENT', (event: ISceneEvent) => {
+            this.processSceneEvent(event);
+        });
+
+        this.eventBus.on(`INTERACT_${this.context.id}`, (data: { playerId: string; message: string }) => {
+            this.handlePlayerInteraction(data.playerId, data.message);
+        });
+    }
+
+    private processSceneEvent(event: ISceneEvent): void {
+        switch (event.type) {
+            case SceneEventType.ASSET_PLACED:
+                this.handleAssetPlacement(event.payload);
+                break;
+            case SceneEventType.ENVIRONMENT_CHANGE:
+                this.handleEnvironmentChange(event.payload);
+                break;
+        }
+    }
+
+    private handleAssetPlacement(payload: ISceneEvent['payload']): void {
+        const { assetPath, position } = payload;
+        let reactionUpdate = "";
+
+        if (assetPath.includes('blacksmith.glb')) {
+            reactionUpdate = `A blacksmith forge was just built at coordinates ${position.x}, ${position.z}. I can hear the ringing of the anvil already.`;
+            this.context.spatialAwareness.push("Local Blacksmith");
+        } else if (assetPath.includes('well.glb')) {
+            reactionUpdate = "A new well has been placed. Water is life!";
+            this.context.spatialAwareness.push("Water Well");
+        } else {
+            reactionUpdate = `Something new was placed in the world: ${assetPath.split('/').pop()}.`;
+        }
+
+        this.updateInternalMonologue(reactionUpdate);
+        
+        this.eventBus.emit('NPC_SPEECH_BUBBLE', {
+            npcId: this.context.id,
+            text: `Oh! Look at that ${assetPath.includes('blacksmith') ? 'forge' : 'new addition'} over there!`
+        });
+=======
     }
 
     public updateKnowledge(info: string): void {
@@ -122,6 +193,7 @@ export class ReactiveBrain {
         this.perception = new PerceptionEngine();
 
         this.initializeEventListeners();
+>>>>>>> main
     }
 
     private initializeEventListeners(): void {
@@ -136,6 +208,27 @@ export class ReactiveBrain {
         });
     }
 
+<<<<<<< architect-fix-1777640719960
+    private updateInternalMonologue(newInfo: string): void {
+        this.context.knowledge = this.memoryProcessor.ingest(this.context.knowledge, newInfo, 20);
+        console.log(`[ReactiveBrain:${this.context.name}] Memory Updated: ${newInfo}`);
+    }
+
+    public generateSystemPrompt(): string {
+        return this.promptBuilder.build({
+            name: this.context.name,
+            personality: this.context.personality,
+            biography: this.context.biography,
+            knowledge: this.context.knowledge.slice(-3),
+            spatialAwareness: this.context.spatialAwareness,
+            customInstructions: "If a blacksmith is mentioned, you know it was recently placed."
+        });
+    }
+
+    private async handlePlayerInteraction(playerId: string, message: string): Promise<void> {
+        const systemPrompt = this.generateSystemPrompt();
+        
+=======
     private handlePerception(event: SceneEvent): void {
         const interpretation = this.perception.interpretSceneEvent(event);
         
@@ -161,6 +254,7 @@ export class ReactiveBrain {
         const systemPrompt = this.generateSystemPrompt(context);
         
         // Inference logic (Synchronized with server-side knowledge)
+>>>>>>> main
         let responseText = "";
         const lowerMsg = message.toLowerCase();
 
@@ -169,6 +263,16 @@ export class ReactiveBrain {
         } else if (lowerMsg.includes("well") && context.spatialAwareness.includes("Water Well")) {
             responseText = "The water from the new well is quite refreshing. You should try it.";
         } else {
+<<<<<<< architect-fix-1777640719960
+            const lastKnowledge = this.context.knowledge[this.context.knowledge.length - 1];
+            responseText = `Hello! I was just thinking about the changes in our world. ${lastKnowledge}`;
+        }
+
+        const userEntry: DialogueEntry = { role: 'user', content: message, timestamp: Date.now() };
+        const assistantEntry: DialogueEntry = { role: 'assistant', content: responseText, timestamp: Date.now() };
+
+        this.context.history = [...this.context.history, userEntry, assistantEntry].slice(-this.maxHistoryLength);
+=======
             const lastThought = context.currentKnowledge[context.currentKnowledge.length - 1];
             responseText = `Greetings! I was just observing the world. ${lastThought}`;
         }
@@ -176,15 +280,24 @@ export class ReactiveBrain {
         // Commit to Memory
         this.memory.recordDialogue({ role: 'user', content: message });
         this.memory.recordDialogue({ role: 'assistant', content: responseText });
+>>>>>>> main
 
         // Execute Action
         this.eventBus.emit('NPC_RESPONSE', {
+<<<<<<< architect-fix-1777640719960
+            npcId: this.context.id,
+=======
             npcId: context.npcId,
+>>>>>>> main
             playerId,
             text: responseText
         });
     }
 
+<<<<<<< architect-fix-1777640719960
+    public getContext(): IAgentContext {
+        return { ...this.context };
+=======
     private generateSystemPrompt(ctx: NPCContext): string {
         const awareness = ctx.spatialAwareness.length > 0 
             ? `Known landmarks: ${ctx.spatialAwareness.join(', ')}.`
@@ -201,5 +314,6 @@ export class ReactiveBrain {
 
     public getStatus(): NPCContext {
         return this.memory.getContext();
+>>>>>>> main
     }
 }
