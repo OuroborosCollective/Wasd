@@ -1,0 +1,35 @@
+{
+  "name": "@wasd/core-ecs",
+  "version": "0.1.0",
+  "description": "Engine-agnostic Entity Component System for the WASD monorepo",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "tsup src/index.ts --format cjs,esm --watch --dts",
+    "build": "tsup src/index.ts --format cjs,esm --clean --minify --dts",
+    "test": "vitest run",
+    "lint": "eslint src/**/*.ts"
+  },
+  "keywords": [
+    "ecs",
+    "game-engine",
+    "typescript",
+    "wasd"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "tsup": "^8.0.2",
+    "vitest": "^1.2.2",
+    "@types/node": "^20.11.19"
+  },
+  "dependencies": {
+    "nanoid": "^5.0.6"
+  }
+}
