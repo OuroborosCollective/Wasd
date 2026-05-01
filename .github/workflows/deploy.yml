@@ -1,47 +1,47 @@
 name: Deploy Wasd Monorepo
 
 on:
- push:
- branches:
- - main
+  push:
+    branches:
+      - main
 
 jobs:
- deploy:
- runs-on: ubuntu-latest
+  deploy:
+    runs-on: ubuntu-latest
 
- steps:
- - name: Checkout Code
- uses: actions/checkout@v4
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
- - name: Set up Node.js
- uses: actions/setup-node@v4
- with:
- node-version: '20'
- cache: 'npm'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
 
- - name: Install dependencies
- run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
- - name: Build all workspaces
- run: npm run build --workspaces --if-present
+      - name: Build all workspaces
+        run: npm run build --workspaces --if-present
 
- - name: Install SSH Key
- uses: shimataro/ssh-key-action@v2
- with:
- key: ${{ secrets.SSH_PRIVATE_KEY }}
- known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
- if_key_exists: replace
+      - name: Install SSH Key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+          if_key_exists: replace
 
- - name: Deploy files
- run: |
- rsync -az --delete \
- --exclude='.git/' \
- --exclude='.github/' \
- --exclude='.ssh/' \
- --exclude='.env' \
- --exclude='.env.*' \
- --exclude='node_modules/' \
- --exclude='e2e/' \
- -e "ssh" \
- ./ \
- ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/
+      - name: Deploy files
+        run: |
+          rsync -az --delete \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='.ssh/' \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='node_modules/' \
+            --exclude='e2e/' \
+            -e "ssh -o StrictHostKeyChecking=yes" \
+            ./ \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/
