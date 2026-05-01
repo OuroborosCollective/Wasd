@@ -1,0 +1,52 @@
+image: node:20-bookworm
+
+stages:
+  - install
+  - build
+  - test
+  - deploy
+
+variables:
+  PNPM_HOME: ".pnpm-store"
+
+cache:
+  key:
+    files:
+      - pnpm-lock.yaml
+  paths:
+    - .pnpm-store
+
+install_dependencies:
+  stage: install
+  script:
+    - corepack enable
+    - corepack prepare pnpm@latest --activate
+    - pnpm config set store-dir .pnpm-store
+    - pnpm install --frozen-lockfile
+
+build_app:
+  stage: build
+  script:
+    - corepack enable
+    - corepack prepare pnpm@latest --activate
+    - pnpm run build
+  artifacts:
+    paths:
+      - "**/dist/**"
+
+test_app:
+  stage: test
+  script:
+    - corepack enable
+    - corepack prepare pnpm@latest --activate
+    - pnpm run test
+
+deploy_app:
+  stage: deploy
+  script:
+    - echo "Starting deployment process"
+    - corepack enable
+    - corepack prepare pnpm@latest --activate
+    - pnpm run deploy
+  only:
+    - main
