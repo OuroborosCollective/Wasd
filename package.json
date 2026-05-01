@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Monorepo Root Configuration",
+  "packageManager": "pnpm@9.1.0",
   "workspaces": [
     "packages/*",
     "apps/*",
@@ -14,13 +15,14 @@
     "portal"
   ],
   "scripts": {
-    "test": "pnpm --recursive run test",
-    "lint": "pnpm --recursive run lint",
-    "build": "pnpm --recursive run build",
+    "test": "pnpm -r run test",
+    "lint": "pnpm -r run lint",
+    "build": "pnpm -r run build",
     "quality-check": "pnpm run lint && pnpm run test"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.0.0",
+    "pnpm": ">=9.0.0"
   },
   "devDependencies": {
     "typescript": "^5.0.0"

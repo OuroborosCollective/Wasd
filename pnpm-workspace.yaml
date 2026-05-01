@@ -6,6 +6,4 @@ packages:
   - 'portal'
   - 'apps/*'
   - 'projects/*'
-  - 'packages/core'
-  - 'packages/ui'
-  - 'packages/shared'
+  - 'packages/*'
