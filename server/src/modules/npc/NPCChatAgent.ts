@@ -89,3 +89,7 @@ ${input}
 Respond as ${context.npc.name}:`.trim();
     }
 }
+
+export const tickNpcChat = (npc: any, now: number) => {
+    // Stub for the tickNpcChat function imported by WorldTick.ts
+};
