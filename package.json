@@ -14,9 +14,9 @@
     "portal"
   ],
   "scripts": {
-    "test": "pnpm run test --recursive",
-    "lint": "pnpm run lint --recursive",
-    "build": "pnpm run build --recursive",
+    "test": "pnpm --recursive run test",
+    "lint": "pnpm --recursive run lint",
+    "build": "pnpm --recursive run build",
     "quality-check": "pnpm run lint && pnpm run test"
   },
   "engines": {
