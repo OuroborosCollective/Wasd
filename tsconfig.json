@@ -5,12 +5,19 @@
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "skipLibCheck": true,
-    "incremental": true
+    "incremental": true,
+    "module": "ESNext",
+    "moduleResolution": "node"
   },
   "files": [],
   "references": [
-    {
-      "path": "client"
-    }
+    { "path": "client" },
+    { "path": "server" },
+    { "path": "shared" },
+    { "path": "packages/core" },
+    { "path": "packages/shared" },
+    { "path": "packages/server" },
+    { "path": "packages/client" },
+    { "path": "projects/eco-trader" }
   ]
 }
