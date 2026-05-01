@@ -4,8 +4,8 @@ import { createServer } from "node:http";
 import { existsSync } from "node:fs";
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { WorldTick } from "./WorldTick.js";
-import path from "path";
-import { fileURLToPath } from "url";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { mcpRoute } from "../api/mcpRoute.js";
 import { adminContentRouter } from "../api/adminContentRoute.js";
 import { voteRouter } from "../api/voteRoute.js";
@@ -29,14 +29,13 @@ import { PlaytesterWebRTCSignaling } from "../modules/playtester/PlaytesterWebRT
 import { initRedisClient } from "./RedisClient.js";
 import { URL } from "node:url";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Cross-platform __dirname for ESM and CJS
+const _dirname = typeof __dirname !== 'undefined' 
+  ? __dirname 
+  : path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Resolves the Vite / static client package root.
- * When only `server/dist` is deployed under e.g. /opt/server, `__dirname/../../../client`
- * resolves to /opt/client. Prefer CLIENT_ROOT_DIR, cwd/client, or walking up from __dirname
- * until a `client` folder with package.json or built dist is found.
  */
 function resolveClientRoot(): string {
   const fromEnv = process.env.CLIENT_ROOT_DIR?.trim();
@@ -53,7 +52,7 @@ function resolveClientRoot(): string {
     return fromCwd;
   }
 
-  let current = __dirname;
+  let current = _dirname;
   for (let i = 0; i < 5; i++) {
     const check = path.join(current, "client");
     if (isClientDir(check)) return check;
@@ -61,7 +60,7 @@ function resolveClientRoot(): string {
     if (isClientDir(sibling)) return sibling;
     current = path.dirname(current);
   }
-  return path.resolve(__dirname, "../../../client");
+  return path.resolve(_dirname, "..", "..", "..", "client");
 }
 
 function resolveAdminContentHtmlPath(clientRoot: string, distPath: string): string | null {
