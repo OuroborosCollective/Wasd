@@ -12,7 +12,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@ouroboros/shared": "*"
+    "@wasd/shared": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.5",
