@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { DatabaseClient } from '../src/client';
 import { DatabaseConnectionError } from '../src/errors';
 
@@ -25,6 +25,10 @@ describe('Database Connection Test Suite', () => {
       password: 'test_password',
       database: 'test_db',
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('should establish a connection successfully', async () => {
@@ -58,13 +62,16 @@ describe('Database Connection Test Suite', () => {
 
   it('should handle timeout during connection', async () => {
     const driver = (client as any).getDriver();
-    vi.spyOn(driver, 'connect').mockImplementationOnce(() => {
-      return new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('ETIMEDOUT')), 50);
-      });
-    });
+    
+    /**
+     * Replaced physical setTimeout with an explicit mock rejection.
+     * This prevents unhandled promise rejections that can leak between tests
+     * and ensures CI stability by avoiding real-time dependencies.
+     */
+    vi.spyOn(driver, 'connect').mockRejectedValueOnce(new Error('ETIMEDOUT'));
 
     await expect(client.connect()).rejects.toThrow(DatabaseConnectionError);
+    expect(client.isConnected()).toBe(false);
   });
 
   it('should release resources on disconnect', async () => {

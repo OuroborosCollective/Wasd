@@ -3,13 +3,20 @@
   "version": "1.0.0",
   "private": true,
   "main": "index.ts",
+  "type": "module",
   "scripts": {
-    "build": "tsc"
+    "dev": "tsx watch index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
   },
   "dependencies": {
-    "@wasd/database": "workspace:*"
+    "@wasd/database": "workspace:*",
+    "@wasd/redis": "workspace:*",
+    "dotenv": "^16.3.1"
   },
   "devDependencies": {
-    "typescript": "^5.0.0"
+    "@types/node": "^20.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
   }
 }

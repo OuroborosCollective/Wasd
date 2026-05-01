@@ -15,6 +15,7 @@
     "lint": "eslint . --ext .ts"
   },
   "dependencies": {
+    "p-retry": "^6.2.0",
     "pg": "^8.11.5",
     "zod": "^3.23.8",
     "@wasd/utils": "workspace:*",
