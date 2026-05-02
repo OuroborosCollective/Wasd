@@ -3,6 +3,7 @@ import { ResonanceAudioBridge } from "../audio/ResonanceAudioBridge";
 export class Kernel {
     private static instance: Kernel;
     private resonanceAudioBridge: ResonanceAudioBridge;
+    private audioContext: AudioContext | null = null;
     private lastFrameTime: number = 0;
     private isRunning: boolean = false;
 
@@ -20,7 +21,20 @@ export class Kernel {
     public async boot(): Promise<void> {
         if (this.isRunning) return;
         
-        await this.resonanceAudioBridge.initialize();
+        // Initialize AudioContext if not already created
+        if (!this.audioContext) {
+            const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+            this.audioContext = new AudioContextClass();
+        }
+
+        // Web Audio Context must be resumed after user interaction
+        if (this.audioContext!.state === 'suspended') {
+            await this.audioContext!.resume();
+        }
+
+        // Initialize Resonance Audio Bridge with the mandatory AudioContext
+        await this.resonanceAudioBridge.initialize(this.audioContext!);
+        
         this.isRunning = true;
         this.lastFrameTime = performance.now();
         
@@ -44,9 +58,16 @@ export class Kernel {
 
     public shutdown(): void {
         this.isRunning = false;
+        if (this.audioContext && this.audioContext.state !== 'closed') {
+            this.audioContext.close();
+        }
     }
 
     public getAudioBridge(): ResonanceAudioBridge {
         return this.resonanceAudioBridge;
+    }
+
+    public getAudioContext(): AudioContext | null {
+        return this.audioContext;
     }
 }

@@ -136,14 +136,14 @@ export const NewHud: React.FC<NewHudProps> = (p) => {
                  strokeDasharray="339.29" strokeDashoffset={339.29 - (339.29 * hpPerc / 100)} 
                  transform="rotate(-90 60 60)" strokeLinecap="round"
                  role="progressbar" aria-label="Health" aria-valuenow={stats.hp} aria-valuemin={0} aria-valuemax={stats.hpMax}
-                 title={`Health: ${stats.hp} / ${stats.hpMax}`} />
+                 data-title={`Health: ${stats.hp} / ${stats.hpMax}`} />
                  
                {/* MP Ring (Inner) */}
                <circle cx="60" cy="60" r="44" fill="none" stroke="#4488ff" strokeWidth="6" 
                  strokeDasharray="276.46" strokeDashoffset={276.46 - (276.46 * mpPerc / 100)} 
                  transform="rotate(-90 60 60)" strokeLinecap="round"
                  role="progressbar" aria-label="Mana" aria-valuenow={stats.mp} aria-valuemin={0} aria-valuemax={stats.mpMax}
-                 title={`Mana: ${stats.mp} / ${stats.mpMax}`} />
+                 data-title={`Mana: ${stats.mp} / ${stats.mpMax}`} />
              </svg>
           </div>
         </div>

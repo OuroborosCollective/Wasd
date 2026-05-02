@@ -193,7 +193,7 @@ export function useGameHudState() {
       activeMultiplier: Math.max(1, Number(buffRaw.activeMultiplier ?? 1)),
       totalRemainingMs: Math.max(0, Number(buffRaw.totalRemainingMs ?? 0)),
       blocks: blocksRaw
-        .map((row) => {
+        .map((row: unknown) => {
           if (!row || typeof row !== "object") return null;
           const r = row as Record<string, unknown>;
           const id = typeof r.id === "string" ? r.id : "";
@@ -207,12 +207,12 @@ export function useGameHudState() {
           };
         })
         .filter((row): row is VoteBuffHud["blocks"][number] => Boolean(row))
-        .sort((a, b) => a.expiresAt - b.expiresAt),
+        .sort((a: VoteBuffHud["blocks"][number], b: VoteBuffHud["blocks"][number]) => (a?.expiresAt ?? 0) - (b?.expiresAt ?? 0)),
     });
     if (Array.isArray(payload.banners)) {
       setVoteBanners(
         payload.banners
-          .map((row) => {
+          .map((row: unknown) => {
             if (!row || typeof row !== "object") return null;
             const b = row as Record<string, unknown>;
             const internalId = typeof b.internalId === "string" ? b.internalId : "";
@@ -255,7 +255,7 @@ export function useGameHudState() {
             } satisfies VoteBannerHud;
           })
           .filter((row): row is VoteBannerHud => Boolean(row))
-          .sort((a, b) => a.sortOrder - b.sortOrder),
+          .sort((a: VoteBannerHud, b: VoteBannerHud) => (a?.sortOrder ?? 0) - (b?.sortOrder ?? 0)),
       );
     }
   }, []);
@@ -266,7 +266,7 @@ export function useGameHudState() {
         setYouId(m.you);
         setEntities(m.entities);
         setLoot(m.loot);
-        lootMapRef.current = new Map(m.loot.map((l) => [l.id, l]));
+        lootMapRef.current = new Map(m.loot.map((l: LootNet) => [l.id, l]));
         return;
       }
       if (m.t === "inv") {
@@ -274,7 +274,7 @@ export function useGameHudState() {
           gold: m.gold,
           weight: m.weight,
           maxWeight: m.maxWeight,
-          items: m.items.map((i) => ({ itemId: i.itemId, qty: i.qty })),
+          items: m.items.map((i: { itemId: string; qty: number }) => ({ itemId: i.itemId, qty: i.qty })),
         });
       } else if (m.t === "quests") {
         setQuests(m.active);
@@ -325,7 +325,7 @@ export function useGameHudState() {
         if (Array.isArray(data.top)) {
           setWorldBossTop(
             data.top
-              .map((row) => {
+              .map((row: unknown) => {
                 if (!row || typeof row !== "object") return null;
                 const entry = row as Record<string, unknown>;
                 return {
@@ -336,7 +336,7 @@ export function useGameHudState() {
                 } satisfies WorldBossRankingRow;
               })
               .filter((row): row is WorldBossRankingRow => Boolean(row?.playerId))
-              .sort((a, b) => a.rank - b.rank)
+              .sort((a: WorldBossRankingRow, b: WorldBossRankingRow) => (a?.rank ?? 0) - (b?.rank ?? 0))
               .slice(0, 5)
           );
         }
@@ -354,7 +354,7 @@ export function useGameHudState() {
         if (Array.isArray(data.top)) {
           setWorldBossTop(
             data.top
-              .map((row) => {
+              .map((row: unknown) => {
                 if (!row || typeof row !== "object") return null;
                 const entry = row as Record<string, unknown>;
                 return {
@@ -365,14 +365,14 @@ export function useGameHudState() {
                 } satisfies WorldBossRankingRow;
               })
               .filter((row): row is WorldBossRankingRow => Boolean(row?.playerId))
-              .sort((a, b) => a.rank - b.rank)
+              .sort((a: WorldBossRankingRow, b: WorldBossRankingRow) => (a?.rank ?? 0) - (b?.rank ?? 0))
               .slice(0, 5)
           );
         }
       } else if (msgType === "worldboss_ranking" && Array.isArray(data.top)) {
         setWorldBossTop(
           data.top
-            .map((row) => {
+            .map((row: unknown) => {
               if (!row || typeof row !== "object") return null;
               const entry = row as Record<string, unknown>;
               return {
@@ -383,7 +383,7 @@ export function useGameHudState() {
               } satisfies WorldBossRankingRow;
             })
             .filter((row): row is WorldBossRankingRow => Boolean(row?.playerId))
-            .sort((a, b) => a.rank - b.rank)
+            .sort((a: WorldBossRankingRow, b: WorldBossRankingRow) => (a?.rank ?? 0) - (b?.rank ?? 0))
             .slice(0, 5)
         );
       } else if (msgType === "vote_status") {
@@ -400,7 +400,7 @@ export function useGameHudState() {
         setVoteBanners((prev) => {
           const byId = new Map(prev.map((row) => [row.internalId, row]));
           const merged = data.banners
-            .map((row) => {
+            .map((row: unknown) => {
               if (!row || typeof row !== "object") return null;
               const b = row as Record<string, unknown>;
               const internalId = typeof b.internalId === "string" ? b.internalId : "";
@@ -428,7 +428,7 @@ export function useGameHudState() {
               } satisfies VoteBannerHud;
             })
             .filter((row): row is VoteBannerHud => Boolean(row))
-            .sort((a, b) => a.sortOrder - b.sortOrder);
+            .sort((a: VoteBannerHud, b: VoteBannerHud) => (a?.sortOrder ?? 0) - (b?.sortOrder ?? 0));
           return merged;
         });
       } else if (
@@ -462,7 +462,7 @@ export function useGameHudState() {
           progressPct: Math.max(0, Math.min(100, Number(status.progressPct ?? 0))),
           endsAt: Math.max(0, Number(status.endsAt ?? 0)),
           sectors: sectors
-            .map((row) => {
+            .map((row: unknown) => {
               if (!row || typeof row !== "object") return null;
               const s = row as Record<string, unknown>;
               const id = typeof s.id === "string" ? s.id : "";

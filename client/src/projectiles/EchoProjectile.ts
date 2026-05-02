@@ -3,8 +3,16 @@ import { EchoNode } from "../nodes/EchoNode";
 import { ElementType } from "../types/ElementType";
 
 export class EchoProjectile extends Projectile {
+    public active: boolean = true;
+    public scene: any;
+    public x: number;
+    public y: number;
+
     constructor(scene: any, x: number, y: number, element: ElementType) {
         super(scene, x, y, element);
+        this.scene = scene;
+        this.x = x;
+        this.y = y;
     }
 
     public onCollision(other: any): void {
@@ -27,7 +35,7 @@ export class EchoProjectile extends Projectile {
             this.getElementType()
         );
 
-        if (this.scene.add && typeof this.scene.add.existing === 'function') {
+        if (this.scene && this.scene.add && typeof this.scene.add.existing === 'function') {
             this.scene.add.existing(echoNode);
         }
     }

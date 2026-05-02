@@ -80,7 +80,8 @@ export class BiomeRenderer {
 
             // Micro-Jitter: High frequency resonance for atmospheric particles
             if (material.uniforms.u_jitter) {
-                material.uniforms.u_jitter.value = Math.fract(Math.sin(resonance) * 43758.5453123);
+                const jitterSeed = Math.sin(resonance) * 43758.5453123;
+                material.uniforms.u_jitter.value = jitterSeed - Math.floor(jitterSeed);
             }
         });
     }
@@ -93,15 +94,6 @@ export class BiomeRenderer {
         // Interpolation or extrapolation can be added here if resonance requires smoothing
         // Currently relying on discrete AREPayload updates for exact server-state mirroring.
     }
-}
-
-/**
- * Utility function to handle fractional component of a number (GLSL equivalent)
- */
-if (!(Math as any).fract) {
-    (Math as any).fract = function(num: number): number {
-        return num - Math.floor(num);
-    };
 }
 
 export default BiomeRenderer;
