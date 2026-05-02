@@ -116,7 +116,7 @@ export class RenderSyncSystem {
             const originalMaterial = (Array.isArray(baseMesh.material) ? baseMesh.material[0] : baseMesh.material) as THREE.MeshStandardMaterial;
             const material = originalMaterial.clone();
 
-            material.onBeforeCompile = (shader: { vertexShader: string; fragmentShader: string; uniforms: { [uniform: string]: any } }) => {
+            material.onBeforeCompile = (shader: THREE.Shader) => {
                 shader.vertexShader = `
                     attribute float aPhaseShift;
                     varying float vPhase;
@@ -135,7 +135,7 @@ export class RenderSyncSystem {
                 );
             };
 
-            const bufferSize = Math.max(count, 32); 
+            const bufferSize = Math.max(count, 32) * 2; 
             const phaseArray = new Float32Array(bufferSize);
             geometry.setAttribute("aPhaseShift", new THREE.InstancedBufferAttribute(phaseArray, 1));
 

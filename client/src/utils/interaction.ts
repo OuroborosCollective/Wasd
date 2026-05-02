@@ -2,27 +2,37 @@ import {
   INTERACT_DISTANCE,
   getClosestNpc as sharedGetClosestNpc,
   getClosestInteractable as sharedGetClosestInteractable,
-  type InteractWorldSnapshot,
+  type InteractWorldSnapshot as SharedInteractWorldSnapshot,
   type ClosestInteractable,
   type InteractNpcSnapshot,
   type InteractLootSnapshot,
-  type InteractPoint,
+  type InteractPoint as SharedInteractPoint,
 } from "@shared/interaction";
+
+export interface InteractPoint extends SharedInteractPoint {
+  npcs?: InteractNpcSnapshot[];
+}
+
+export interface InteractWorldSnapshot extends SharedInteractWorldSnapshot {
+  npcs: InteractNpcSnapshot[];
+}
 
 export {
   INTERACT_DISTANCE,
-  type InteractWorldSnapshot,
   type ClosestInteractable,
   type InteractNpcSnapshot,
   type InteractLootSnapshot,
-  type InteractPoint,
 };
 
 export const getClosestNpc = (
   snapshot: InteractNpcSnapshot[],
   point: InteractPoint
 ): ClosestInteractable | null => {
-  const result = sharedGetClosestNpc({ npcs: snapshot }, point);
+  const worldSnapshot: InteractWorldSnapshot = {
+    ...({} as SharedInteractWorldSnapshot),
+    npcs: snapshot,
+  };
+  const result = sharedGetClosestNpc(worldSnapshot, point);
   return (result as ClosestInteractable) || null;
 };
 
