@@ -1,4 +1,4 @@
-import { Projectile } from "./Projectile";
+import Projectile from "./Projectile";
 import { EchoNode } from "../nodes/EchoNode";
 import { ElementType } from "../types/ElementType";
 
@@ -44,7 +44,7 @@ export class EchoProjectile extends Projectile {
         return this.element || ElementType.None;
     }
 
-    public override destroy(fromScene?: boolean): void {
+    public destroy(fromScene?: boolean): void {
         this.active = false;
         super.destroy(fromScene);
     }
