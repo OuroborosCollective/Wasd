@@ -5,9 +5,9 @@ import { PulseLogic } from '../../logic/PulseLogic';
 
 /**
  * TS FIXES: 
- * 1. TS2554: Added missing threshold argument to PulseLogic constructor.
+ * 1. TS2554: Added missing second argument (0.1) to PulseLogic constructor.
  * 2. TS2339: Cast PulseLogic to a local interface to provide missing method stubs.
- * 3. TS2322: Fixed Ref typing for THREE.Mesh.
+ * 3. TS2322: Fixed Ref typing for THREE.Mesh using non-null assertion and explicit type.
  */
 
 interface IPulseLogic extends PulseLogic {
@@ -63,8 +63,8 @@ const ShaderPlane: React.FC<{ ekgData: number }> = ({ ekgData }) => {
     const { size } = useThree();
     
     // PulseLogic handles stateful EKG processing
-    // Fix TS2554: Provided constructor argument
-    const pulseLogic = useMemo(() => new PulseLogic(0.5) as IPulseLogic, []);
+    // Fix TS2554: Added missing second argument
+    const pulseLogic = useMemo(() => new PulseLogic(0.5, 0.1) as IPulseLogic, []);
 
     const uniforms = useMemo(() => ({
         u_time: { value: 0.0 },

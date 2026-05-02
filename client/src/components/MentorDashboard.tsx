@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect } from 'react';
 import { observer } from 'mobx-react-lite';
-import { useStore } from '../store/StoreContext';
+import { useStore } from '../stores/StoreContext';
 
 interface Mentee {
     id: string | number;
@@ -35,8 +35,6 @@ const MentorDashboard: React.FC = observer(() => {
         return () => clearInterval(interval);
     }, [mentorStore]);
 
-    const activeMentees = (mentorStore.mentees as Mentee[]).filter((m: Mentee) => m.isActive);
-    
     const calculateAuraColor = (efficiency: number) => {
         if (efficiency > 80) return 'text-emerald-400 border-emerald-400';
         if (efficiency > 50) return 'text-sky-400 border-sky-400';

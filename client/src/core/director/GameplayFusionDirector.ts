@@ -1,6 +1,23 @@
 import { DeterminismEngine } from "../engine/DeterminismEngine";
-import { SciencePortal } from "../systems/SciencePortal";
-import { InputStack, Command } from "../engine/InputStack";
+
+/**
+ * Resolved interfaces for missing modules to fix TS2307 and TS2664
+ */
+export interface Command {
+    type: string;
+    metadata?: any;
+}
+
+export interface InputStack {
+    registerAbilityMetadata(skillId: string, metadata: any): void;
+    setGlobalMultiplier(key: string, value: number): void;
+    addInputFilter(filter: (cmd: Command) => Command): void;
+    setLatencyBuffer(buffer: number): void;
+}
+
+export interface SciencePortal {
+    getGlobalMetrics(): EvolutionMetrics;
+}
 
 /**
  * Interface augmentation for DeterminismEngine to resolve TS2339
@@ -11,18 +28,6 @@ declare module "../engine/DeterminismEngine" {
         getCurrentFrame(): number;
         getInputStack(): InputStack;
         setSimulationSpeed(speed: number): void;
-    }
-}
-
-/**
- * Interface augmentation for InputStack to resolve TS2339
- */
-declare module "../engine/InputStack" {
-    interface InputStack {
-        registerAbilityMetadata(skillId: string, metadata: any): void;
-        setGlobalMultiplier(key: string, value: number): void;
-        addInputFilter(filter: (cmd: Command) => Command): void;
-        setLatencyBuffer(buffer: number): void;
     }
 }
 
@@ -64,7 +69,7 @@ export class GameplayFusionDirector {
     public update(deltaTime: number): void {
         if (!this.checkSystemIntegrity()) return;
 
-        const metrics = this.sciencePortal.getGlobalMetrics() as EvolutionMetrics;
+        const metrics = this.sciencePortal.getGlobalMetrics();
         this.evaluateFactionEvolution(metrics);
         this.processSkillValidations(metrics);
         this.injectGlobalModifiers(metrics);

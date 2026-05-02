@@ -255,10 +255,18 @@ export class PhysicsService {
     let staticCount = 0;
     let dynamicCount = 0;
     for (const agg of this.aggregates.values()) {
-      if (agg.body.mass === 0) staticCount++;
+      // Access mass through getMassProperties() to avoid TS2339
+      const massProps = agg.body.getMassProperties();
+      if (massProps.mass === 0) staticCount++;
       else dynamicCount++;
     }
-    return { total: this.aggregates.size, static: staticCount, dynamic: dynamicCount, initFailed: this.initFailed, maxPerChunk: MAX_BODIES_PER_CHUNK };
+    return { 
+      total: this.aggregates.size, 
+      static: staticCount, 
+      dynamic: dynamicCount, 
+      initFailed: this.initFailed, 
+      maxPerChunk: MAX_BODIES_PER_CHUNK 
+    };
   }
 
   dispose(): void {

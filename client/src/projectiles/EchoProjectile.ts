@@ -4,23 +4,17 @@ import { ElementType } from "../types/ElementType";
 
 export class EchoProjectile extends Projectile {
     public active: boolean = true;
-    public scene: any;
-    public x: number;
-    public y: number;
 
     constructor(scene: any, x: number, y: number, element: ElementType) {
         super(scene, x, y, element);
-        this.scene = scene;
-        this.x = x;
-        this.y = y;
     }
 
-    public onCollision(other: any): void {
+    public override onCollision(other: any): void {
         this.createEchoNode();
         super.onCollision(other);
     }
 
-    public onTrigger(other: any): void {
+    public override onTrigger(other: any): void {
         this.createEchoNode();
         super.onTrigger(other);
     }
@@ -38,6 +32,8 @@ export class EchoProjectile extends Projectile {
         if (this.scene && this.scene.add && typeof this.scene.add.existing === 'function') {
             this.scene.add.existing(echoNode);
         }
+
+        this.active = false;
     }
 
     private getElementType(): ElementType {

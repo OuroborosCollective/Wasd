@@ -94,7 +94,8 @@ export class WorldService {
     // World generation (terrain + trees) — must come after physics so ground colliders work
     if (this.config.enableWorldGeneration) {
       try {
-        await worldGenerator.init(scene, camera);
+        // Fix TS2559: Pass the configuration object instead of the camera
+        await worldGenerator.init(scene, this.config.worldGenerator);
       } catch (e) { console.warn("[WorldService] World generation init failed:", e); }
     }
 
