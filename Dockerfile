@@ -14,7 +14,6 @@ WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 
 # Copy all package.json files to allow pnpm to resolve dependencies without full source
-# Using a more robust copy pattern for monorepos
 COPY apps/ ./apps/
 COPY packages/ ./packages/
 COPY projects/ ./projects/
@@ -48,7 +47,7 @@ COPY --from=builder /app/server/package.json ./server/
 COPY --from=builder /app/server/dist ./server/dist
 COPY --from=builder /app/shared/package.json ./shared/
 COPY --from=builder /app/shared/dist ./shared/dist
-# Also copy node_modules (this is the heavy part, but pnpm -r install --prod is needed for monorepo prune)
+# Also copy node_modules
 COPY --from=builder /app/node_modules ./node_modules
 
 # Hardening
