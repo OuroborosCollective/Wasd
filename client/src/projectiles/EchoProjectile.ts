@@ -6,6 +6,12 @@ export class EchoProjectile extends Projectile {
     public active: boolean = true;
     private element: ElementType;
 
+    // Diese Properties werden durch Vererbung von Projectile/GameObject bereitgestellt.
+    // Falls das Basis-Objekt diese nicht explizit definiert, werden sie hier deklariert.
+    public declare scene: any;
+    public declare x: number;
+    public declare y: number;
+
     constructor(scene: any, x: number, y: number, element: ElementType) {
         super(scene, x, y, "echo_projectile");
         this.element = element;
