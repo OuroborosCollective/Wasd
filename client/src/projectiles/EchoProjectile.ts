@@ -15,12 +15,12 @@ export class EchoProjectile extends Projectile {
         this.element = element;
     }
 
-    public override onCollision(other: any): void {
+    public onCollision(other: any): void {
         this.createEchoNode();
         this.destroy();
     }
 
-    public override onTrigger(other: any): void {
+    public onTrigger(other: any): void {
         this.createEchoNode();
         this.destroy();
     }
@@ -44,8 +44,10 @@ export class EchoProjectile extends Projectile {
         return this.element || ElementType.None;
     }
 
-    public override destroy(fromScene?: boolean): void {
+    public destroy(fromScene?: boolean): void {
         this.active = false;
-        super.destroy(fromScene);
+        if (typeof super.destroy === 'function') {
+            super.destroy(fromScene);
+        }
     }
 }

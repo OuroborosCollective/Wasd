@@ -31,13 +31,11 @@ export class RenderSyncSystem {
         for (const [meshId, instancedMesh] of this.instancedMeshMap.entries()) {
             if (!entitiesByMesh.has(meshId)) {
                 this.floraGroup.remove(instancedMesh);
-                if (instancedMesh.geometry) instancedMesh.geometry.dispose();
-                if (instancedMesh.material) {
-                    if (Array.isArray(instancedMesh.material)) {
-                        instancedMesh.material.forEach(m => m.dispose());
-                    } else {
-                        instancedMesh.material.dispose();
-                    }
+                instancedMesh.geometry.dispose();
+                if (Array.isArray(instancedMesh.material)) {
+                    instancedMesh.material.forEach(m => m.dispose());
+                } else {
+                    instancedMesh.material.dispose();
                 }
                 instancedMesh.dispose();
                 this.instancedMeshMap.delete(meshId);
