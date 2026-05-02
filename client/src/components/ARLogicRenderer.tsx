@@ -50,7 +50,7 @@ const GateNode = ({ gate, onSelect }: { gate: LogicGate, onSelect: (id: string) 
 
   return (
     <Interactive onSelect={() => onSelect(gate.id)} onHover={() => setHovered(true)} onBlur={() => setHovered(false)}>
-      <mesh position={gate.position} ref={meshRef}>
+      <mesh position={gate.position} ref={meshRef as any}>
         <boxGeometry args={[0.2, 0.2, 0.2]} />
         <meshStandardMaterial color={hovered ? '#ffffff' : getColor()} emissive={getColor()} emissiveIntensity={0.5} />
       </mesh>

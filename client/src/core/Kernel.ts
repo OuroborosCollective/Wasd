@@ -2,14 +2,12 @@ import { ResonanceAudioBridge } from "../audio/ResonanceAudioBridge";
 
 export class Kernel {
     private static instance: Kernel;
-    private resonanceAudioBridge: ResonanceAudioBridge;
+    private resonanceAudioBridge: ResonanceAudioBridge | null = null;
     private audioContext: AudioContext | null = null;
     private lastFrameTime: number = 0;
     private isRunning: boolean = false;
 
-    constructor() {
-        this.resonanceAudioBridge = new ResonanceAudioBridge();
-    }
+    constructor() {}
 
     public static getInstance(): Kernel {
         if (!Kernel.instance) {
@@ -21,19 +19,20 @@ export class Kernel {
     public async boot(): Promise<void> {
         if (this.isRunning) return;
         
-        // Initialize AudioContext if not already created
         if (!this.audioContext) {
             const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
             this.audioContext = new AudioContextClass();
         }
 
-        // Web Audio Context must be resumed after user interaction
         if (this.audioContext!.state === 'suspended') {
             await this.audioContext!.resume();
         }
 
-        // Initialize Resonance Audio Bridge with the mandatory AudioContext
-        await this.resonanceAudioBridge.initialize(this.audioContext!);
+        if (!this.resonanceAudioBridge) {
+            this.resonanceAudioBridge = new ResonanceAudioBridge(this.audioContext!);
+        }
+
+        await this.resonanceAudioBridge.initialize();
         
         this.isRunning = true;
         this.lastFrameTime = performance.now();
@@ -53,7 +52,9 @@ export class Kernel {
     }
 
     private update(deltaTime: number): void {
-        this.resonanceAudioBridge.update(deltaTime);
+        if (this.resonanceAudioBridge) {
+            this.resonanceAudioBridge.update(deltaTime);
+        }
     }
 
     public shutdown(): void {
@@ -63,7 +64,7 @@ export class Kernel {
         }
     }
 
-    public getAudioBridge(): ResonanceAudioBridge {
+    public getAudioBridge(): ResonanceAudioBridge | null {
         return this.resonanceAudioBridge;
     }
 
