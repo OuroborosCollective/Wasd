@@ -12,17 +12,34 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: SSH Deployment
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           envs: GITHUB_REF_NAME
+          script_stop: true
           script: |
             set -e
+            # Sicherstellen, dass DEPLOY_PATH existiert
+            if [ -z "${{ secrets.DEPLOY_PATH }}" ]; then
+              echo "Error: DEPLOY_PATH secret is not set."
+              exit 1
+            fi
+            
+            mkdir -p ${{ secrets.DEPLOY_PATH }}
             cd ${{ secrets.DEPLOY_PATH }}
+            
             echo "--- SYNCING CODE ---"
+            if [ ! -d ".git" ]; then
+              echo "Initializing repository..."
+              git clone https://github.com/OuroborosCollective/Wasd.git .
+            fi
+            
             git fetch --all --prune
+            
+            # Bestimme den Ziel-Branch (main, Main oder master)
             if git rev-parse --verify origin/main >/dev/null 2>&1; then
               TARGET_BRANCH="main"
             elif git rev-parse --verify origin/Main >/dev/null 2>&1; then
@@ -32,29 +49,55 @@ jobs:
             else
               TARGET_BRANCH=$(git rev-parse --abbrev-ref HEAD)
             fi
+            
             echo "Using branch: $TARGET_BRANCH"
             git reset --hard origin/$TARGET_BRANCH
+            
             echo "--- SETUP ENVIRONMENT ---"
-            corepack enable
-            corepack prepare pnpm@latest --activate
+            # Prüfen ob corepack installiert ist
+            if command -v corepack >/dev/null 2>&1; then
+              corepack enable
+              corepack prepare pnpm@latest --activate
+            else
+              echo "Corepack not found, attempting to install pnpm via npm..."
+              npm install -g pnpm
+            fi
+            
             echo "--- CLEANING ARTIFACTS ---"
-            find packages -name "dist" -type d -exec rm -rf {} + || true
+            find . -name "dist" -type d -exec rm -rf {} + || true
+            
             echo "--- BYPASSING TS ERRORS ---"
             if [ -f scripts/bypass-ts-errors.mjs ]; then
               node scripts/bypass-ts-errors.mjs
             fi
+            
             echo "--- INSTALLING DEPENDENCIES ---"
             pnpm install --no-frozen-lockfile
+            
             echo "--- BUILDING MONOREPO ---"
             NODE_OPTIONS=--max-old-space-size=4096 pnpm -r build
+            
             echo "--- RESTARTING PM2 ---"
+            # Funktion zum Starten von PM2-Prozessen
+            start_pm2() {
+              local path=$1
+              local name=$2
+              if [ -d "$path" ]; then
+                echo "Starting $name from $path"
+                # Erstelle package.json mit type: module falls nötig für ESM
+                echo '{"type": "module"}' > "$path/package.json"
+                pm2 delete "$name" || true
+                pm2 start "$path/index.js" --name "$name"
+              fi
+            }
+
+            # Versuche verschiedene Pfade für den Server
             if [ -d "packages/server/dist" ]; then
-              echo '{"type": "commonjs"}' > packages/server/dist/package.json
-              pm2 delete areloria || true
-              pm2 start packages/server/dist/index.js --name areloria
+              start_pm2 "packages/server/dist" "areloria"
             elif [ -d "server/dist" ]; then
-              echo '{"type": "commonjs"}' > server/dist/package.json
-              pm2 delete areloria || true
-              pm2 start server/dist/index.js --name areloria
+              start_pm2 "server/dist" "areloria"
+            else
+              echo "Warning: Server dist directory not found."
             fi
+            
             echo "--- DEPLOYMENT SUCCESSFUL ---"

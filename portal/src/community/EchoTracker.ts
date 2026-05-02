@@ -3,7 +3,7 @@ interface BeaconIntensity {
     label: string;
 }
 
-export class EchoTracker {
+class EchoTracker {
     private static readonly intensityMap: Record<string, number> = {
         COMBAT: 0.95,
         COLLECT: 0.80,
