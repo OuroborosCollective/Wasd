@@ -27,7 +27,8 @@
     "typescript": "^5.3.3",
     "tsup": "^8.0.2",
     "vitest": "^1.2.2",
-    "@types/node": "^20.11.19"
+    "@types/node": "^20.11.19",
+    "tinyglobby": "^0.2.10"
   },
   "dependencies": {
     "nanoid": "^5.0.6"
