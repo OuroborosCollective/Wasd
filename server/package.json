@@ -1,5 +1,5 @@
 {
-  "name": "@wasd/server",
+  "name": "@wasd/server-root",
   "version": "1.0.0",
   "private": true,
   "type": "module",

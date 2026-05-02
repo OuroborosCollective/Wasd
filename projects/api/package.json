@@ -1,5 +1,5 @@
 {
-  "name": "@wasd/projects-api",
+  "name": "@wasd/projects-api-pkg",
   "version": "1.0.0",
   "private": true,
   "scripts": {

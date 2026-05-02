@@ -1,5 +1,5 @@
 {
-  "name": "@wasd/client",
+  "name": "@wasd/client-pkg",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@wasd/shared-lib": "workspace:*"
+    "@wasd/shared-pkg": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^6.0.0",

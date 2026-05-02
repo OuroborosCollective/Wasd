@@ -17,9 +17,7 @@
   "dependencies": {
     "p-retry": "^6.2.0",
     "pg": "^8.11.5",
-    "zod": "^3.23.8",
-    "@wasd/utils": "workspace:*",
-    "@wasd/types": "workspace:*"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^20.12.7",
