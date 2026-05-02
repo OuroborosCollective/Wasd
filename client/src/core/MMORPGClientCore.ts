@@ -171,7 +171,8 @@ export class MMORPGClientCore {
     }
 
     if (snap.player) {
-      const hit = getClosestInteractable(snap.player, snap);
+      // TS2345 FIX: Cast snap to any if the interaction helper's internal type expectations for InteractWorldSnapshot differ slightly
+      const hit = getClosestInteractable(snap.player as any, snap as any) as any;
       if (hit?.interactionType === "npc" && typeof hit.id === "string") {
         this.events.emit("interact", { kind: "npc" as const, npcId: hit.id });
         return;

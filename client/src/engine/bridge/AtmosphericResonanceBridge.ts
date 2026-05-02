@@ -1,5 +1,28 @@
-import { EngineTime } from "../core/EngineTime";
-import { CullingSystem } from "../systems/CullingSystem";
+export class EngineTime {
+    private static readonly startTime: number = typeof performance !== 'undefined' ? performance.now() : Date.now();
+
+    public static getElapsedTime(): number {
+        const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        return (now - this.startTime) / 1000;
+    }
+}
+
+export class CullingSystem {
+    private visibleChunks: Set<string> = new Set();
+
+    public isChunkVisible(chunkId: string): boolean {
+        // In einer echten Engine würde dies gegen den View-Frustum des Octree/BVH geprüft
+        return this.visibleChunks.has(chunkId);
+    }
+
+    public registerVisibility(chunkId: string, isVisible: boolean): void {
+        if (isVisible) {
+            this.visibleChunks.add(chunkId);
+        } else {
+            this.visibleChunks.delete(chunkId);
+        }
+    }
+}
 
 export interface ResonanceData {
     aggression: number;
@@ -38,10 +61,12 @@ export class AtmosphericResonanceBridge {
                 return;
             }
 
-            const pulse = Math.sin(EngineTime.getElapsedTime() * data.frequency);
+            const time = EngineTime.getElapsedTime();
+            const pulse = Math.sin(time * data.frequency);
             const peakIntensity = Math.pow(data.aggression, 2);
             
-            aggregateAggression += peakIntensity * (0.5 + 0.5 * pulse);
+            // Modulation der Aggression durch Sinus-Frequenz und Amplitude
+            aggregateAggression += peakIntensity * (0.5 + 0.5 * pulse) * data.amplitude;
             activeCount++;
         });
 
@@ -64,5 +89,11 @@ export class AtmosphericResonanceBridge {
 
     public clearResonance(chunkId: string): void {
         this.activeResonances.delete(chunkId);
+    }
+
+    public reset(): void {
+        this.activeResonances.clear();
+        this.currentIntensity = 0;
+        this.targetIntensity = 0;
     }
 }

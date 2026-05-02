@@ -1,9 +1,9 @@
+import * as THREE from "three";
 import { World } from "../core/World";
 import { Entity } from "../core/Entity";
 import { FloraComponent } from "../components/FloraComponent";
 import { TransformComponent } from "../components/TransformComponent";
 import { BioResonance } from "../utils/BioResonance";
-import * as THREE from "three";
 
 export class RenderSyncSystem {
     private world: World;
@@ -31,6 +31,14 @@ export class RenderSyncSystem {
         for (const [meshId, instancedMesh] of this.instancedMeshMap.entries()) {
             if (!entitiesByMesh.has(meshId)) {
                 this.floraGroup.remove(instancedMesh);
+                if (instancedMesh.geometry) instancedMesh.geometry.dispose();
+                if (instancedMesh.material) {
+                    if (Array.isArray(instancedMesh.material)) {
+                        instancedMesh.material.forEach(m => m.dispose());
+                    } else {
+                        instancedMesh.material.dispose();
+                    }
+                }
                 instancedMesh.dispose();
                 this.instancedMeshMap.delete(meshId);
                 this.phaseBufferMap.delete(meshId);
@@ -135,6 +143,7 @@ export class RenderSyncSystem {
             instancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
             instancedMesh.castShadow = true;
             instancedMesh.receiveShadow = true;
+            instancedMesh.frustumCulled = false;
             
             this.instancedMeshMap.set(meshId, instancedMesh);
             this.phaseBufferMap.set(meshId, phaseArray);
