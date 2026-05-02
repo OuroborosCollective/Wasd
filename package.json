@@ -13,13 +13,22 @@
     "lint": "pnpm -r run lint",
     "build": "pnpm -r run build",
     "quality-check": "pnpm run lint && pnpm run test",
-    "deploy": "bash scripts/deploy-vps.sh"
+    "deploy": "bash scripts/deploy-vps.sh",
+    "dgcc": "tsx tools/dgcc/run-dgcc.ts --mode=minimal",
+    "dgcc:extreme": "tsx tools/dgcc/run-dgcc.ts --mode=extreme",
+    "test:e2e": "playwright test",
+    "test:e2e:ci": "playwright test",
+    "test:e2e:install": "playwright install --with-deps chromium",
+    "ci:verify": "pnpm run lint && pnpm run test"
   },
   "engines": {
     "node": "^20.0.0",
     "pnpm": ">=9.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.0.0"
+    "@playwright/test": "^1.49.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.0.0",
+    "ws": "^8.18.0"
   }
 }

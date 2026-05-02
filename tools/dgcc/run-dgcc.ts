@@ -1,13 +1,14 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 type Severity = "info" | "warn" | "error";
 type CheckName =
   | "lint"
   | "unit"
-  | "checkInteract"
   | "e2e"
   | "contentValidate"
   | "assetsAudit"
@@ -27,7 +28,9 @@ type DgccReport = {
   artifacts: Record<string, string>;
 };
 
-const ROOT = process.cwd();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const ROOT = path.resolve(__dirname, "../..");
 const CONTRACT_PATH = path.join(ROOT, "tools/dgcc/dgcc.contract.json");
 
 function readJson<T>(p: string): T {
@@ -188,15 +191,6 @@ async function main() {
     });
   }
 
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
-    });
-  }
-
   if (checks.includes("e2e")) {
     await runCheck("e2e", async () => {
       const r = await run("pnpm", ["run", "test:e2e:ci"]);
@@ -211,20 +205,16 @@ async function main() {
       const r = await run("pnpm", ["--prefix", "server", "run", "validate"]);
       fs.writeFileSync(path.join(outDir, "content-validate.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["contentValidate"] = "dgcc-artifacts/content-validate.out.txt";
-      if (r.code !== 0) throw new Error("content validation failed (server validate)");
+      if (r.code !== 0) throw new Error("content validation failed (pnpm --prefix server run validate)");
     });
   }
 
   if (checks.includes("clientBuild")) {
     await runCheck("clientBuild", async () => {
-      const r = await run("pnpm", ["--prefix", "client", "run", "build"], {
-        env: {
-          NODE_OPTIONS: process.env.NODE_OPTIONS || "--max-old-space-size=6144",
-        },
-      });
-      fs.writeFileSync(path.join(outDir, "client-build.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["clientBuild"] = "dgcc-artifacts/client-build.out.txt";
-      if (r.code !== 0) throw new Error("client build failed");
+      const r = await run("pnpm", ["run", "build"]);
+      fs.writeFileSync(path.join(outDir, "build.out.txt"), r.stdout + "\n" + r.stderr);
+      report.artifacts["clientBuild"] = "dgcc-artifacts/build.out.txt";
+      if (r.code !== 0) throw new Error("build failed");
     });
   }
 

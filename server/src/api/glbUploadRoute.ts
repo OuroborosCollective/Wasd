@@ -15,14 +15,10 @@ import { Router, Request, Response } from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from "uuid";
 import { db as dbInstance } from "../core/Database.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 type Database = typeof dbInstance;
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const UPLOAD_DIR = path.resolve(__dirname, "../../public/uploads/glb");
 const MAX_SIZE_MB = parseInt(process.env.MAX_GLB_SIZE_MB || "50");

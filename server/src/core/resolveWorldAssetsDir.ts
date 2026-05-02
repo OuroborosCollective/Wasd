@@ -1,10 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { findRepoRootWithGameData } from "../modules/content/repoRoot.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 /**
  * Directory for large GLB trees at repo root (`world-assets/`), served at `/world-assets/*`.

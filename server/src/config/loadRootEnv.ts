@@ -7,12 +7,9 @@
 import dotenv from "dotenv";
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
-// Use a name that doesn't conflict with CommonJS globals
-const currentDir = typeof __dirname !== 'undefined' 
-  ? __dirname 
-  : path.dirname(fileURLToPath(import.meta.url));
+/** CJS emit always provides `__dirname`; avoid `import.meta` in output (breaks `node dist/`). */
+const currentDir = __dirname;
 
 function tryLoad(p: string, override: boolean): void {
   if (!p || !fs.existsSync(p)) return;

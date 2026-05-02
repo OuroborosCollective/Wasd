@@ -5,7 +5,6 @@ import { existsSync } from "node:fs";
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { WorldTick } from "./WorldTick.js";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { mcpRoute } from "../api/mcpRoute.js";
 import { adminContentRouter } from "../api/adminContentRoute.js";
 import { voteRouter } from "../api/voteRoute.js";
@@ -29,10 +28,8 @@ import { PlaytesterWebRTCSignaling } from "../modules/playtester/PlaytesterWebRT
 import { initRedisClient } from "./RedisClient.js";
 import { URL } from "node:url";
 
-// Use a name that doesn't conflict with CommonJS globals
-const currentDir = typeof __dirname !== 'undefined' 
-  ? __dirname 
-  : path.dirname(fileURLToPath(import.meta.url));
+// CJS emit provides __dirname; do not use import.meta (invalid in `node dist/` CJS load).
+const currentDir = __dirname;
 
 /**
  * Resolves the Vite / static client package root.

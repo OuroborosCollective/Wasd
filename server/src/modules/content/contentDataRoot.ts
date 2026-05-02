@@ -5,10 +5,6 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const TRUTHY = new Set(["1", "true", "yes", "on"]);
 
@@ -31,12 +27,11 @@ function isContentRoot(dir: string): boolean {
 
 function legacyGameDataCandidates(): string[] {
   const cwd = process.cwd();
-  /** From server/src/modules/content → repo root game-data (same as validateContent.ts). */
-  const fromModule = path.resolve(__dirname, "../../../../game-data");
   return [
-    fromModule,
     path.resolve(cwd, "game-data"),
     path.resolve(cwd, "../game-data"),
+    path.resolve(cwd, "../../game-data"),
+    path.resolve(cwd, "../../../game-data"),
   ];
 }
 
@@ -50,7 +45,8 @@ function pickLegacyGameData(): string {
       return g;
     }
   }
-  return path.resolve(__dirname, "../../../../game-data");
+  const cwd = process.cwd();
+  return path.resolve(cwd, "../game-data");
 }
 
 /**
