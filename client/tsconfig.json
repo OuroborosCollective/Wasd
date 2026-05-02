@@ -5,12 +5,12 @@
     "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
-      "@wasd/shared": ["../shared/src"]
+      "@wasd/shared": ["../packages/shared/src"]
     }
   },
   "include": ["src"],
   "references": [
     { "path": "./tsconfig.node.json" },
-    { "path": "../shared" }
+    { "path": "../packages/shared" }
   ]
 }

@@ -28,7 +28,6 @@ export class RenderSyncSystem {
         
         const entitiesByMesh = this.groupEntitiesByMesh(entities);
 
-        // Remove meshes no longer in use
         for (const [meshId, instancedMesh] of this.instancedMeshMap.entries()) {
             if (!entitiesByMesh.has(meshId)) {
                 this.floraGroup.remove(instancedMesh);
@@ -109,7 +108,7 @@ export class RenderSyncSystem {
             const originalMaterial = (Array.isArray(baseMesh.material) ? baseMesh.material[0] : baseMesh.material) as THREE.MeshStandardMaterial;
             const material = originalMaterial.clone();
 
-            material.onBeforeCompile = (shader: any) => {
+            material.onBeforeCompile = (shader: THREE.Shader) => {
                 shader.vertexShader = `
                     attribute float aPhaseShift;
                     varying float vPhase;
