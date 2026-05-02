@@ -1,5 +1,5 @@
-import { EngineTime } from "../core/EngineTime";
-import { CullingSystem } from "../systems/CullingSystem";
+import { EngineTime } from "../../core/EngineTime";
+import { CullingSystem } from "../../systems/CullingSystem";
 
 export interface ResonanceData {
     aggression: number;

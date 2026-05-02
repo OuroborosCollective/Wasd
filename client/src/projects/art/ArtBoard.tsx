@@ -65,7 +65,7 @@ const ArtBoard: React.FC<ArtBoardProps> = ({
             }
             socketService.disconnect();
         };
-    }, [socketService]);
+    }, []);
 
     const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
         const canvas = canvasRef.current;

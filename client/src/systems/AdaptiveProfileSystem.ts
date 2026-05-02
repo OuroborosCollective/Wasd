@@ -1,4 +1,4 @@
-import { System, Entity, Component } from '../core/ecs.js';
+import { System, Entity, Component } from '../core/ecs';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { AdaptiveProfileManager } from '../managers/AdaptiveProfileManager.js';
 import { Group, Object3D } from 'three';

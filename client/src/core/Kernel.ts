@@ -29,10 +29,12 @@ export class Kernel {
         }
 
         if (!this.resonanceAudioBridge) {
-            this.resonanceAudioBridge = new ResonanceAudioBridge(this.audioContext!, {});
+            // Fix: ResonanceAudioBridge expects a grid provider (Kernel) as first argument
+            this.resonanceAudioBridge = new ResonanceAudioBridge(this as any);
         }
 
-        await this.resonanceAudioBridge.init();
+        // Fix: Pass AudioContext to the init method instead of the constructor
+        await this.resonanceAudioBridge.init(this.audioContext!);
         
         this.isRunning = true;
         this.lastFrameTime = performance.now();
