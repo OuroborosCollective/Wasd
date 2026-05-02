@@ -15,6 +15,7 @@ export interface InteractPoint extends SharedInteractPoint {
 
 export interface InteractWorldSnapshot extends SharedInteractWorldSnapshot {
   npcs: InteractNpcSnapshot[];
+  position: SharedInteractPoint["position"];
 }
 
 export {
@@ -29,9 +30,11 @@ export const getClosestNpc = (
   point: InteractPoint
 ): ClosestInteractable | null => {
   const worldSnapshot: InteractWorldSnapshot = {
-    ...({} as SharedInteractWorldSnapshot),
     npcs: snapshot,
-  };
+    loots: [],
+    position: point.position,
+  } as InteractWorldSnapshot;
+
   const result = sharedGetClosestNpc(worldSnapshot, point);
   return (result as ClosestInteractable) || null;
 };

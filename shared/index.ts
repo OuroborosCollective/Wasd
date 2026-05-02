@@ -1,2 +1,2 @@
-export * from "./types/weather";
-export * from "./types/areEngineBox";
+export * from "./types/Weather";
+export * from "./types/AreEngineBox";
