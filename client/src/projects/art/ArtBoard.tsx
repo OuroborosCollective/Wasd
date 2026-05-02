@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { SocketService } from '../../../services/SocketService';
+import { SocketService } from '../../services/SocketService';
 
 interface ArtBoardProps {
     width?: number;

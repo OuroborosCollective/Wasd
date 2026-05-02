@@ -29,12 +29,15 @@ export const getClosestNpc = (
   snapshot: InteractNpcSnapshot[],
   point: InteractPoint
 ): ClosestInteractable | null => {
-  const worldSnapshot = {
+  const worldSnapshot: SharedInteractWorldSnapshot = {
     npcs: snapshot,
     loot: [],
-  } as unknown as InteractWorldSnapshot;
+  };
   
-  const result = sharedGetClosestNpc(worldSnapshot, point);
+  const result = sharedGetClosestNpc(
+    worldSnapshot, 
+    { position: point.position } as unknown as SharedInteractPoint
+  );
   return (result as ClosestInteractable) || null;
 };
 
@@ -42,6 +45,9 @@ export const getClosestInteractable = (
   snapshot: InteractWorldSnapshot,
   point: InteractPoint
 ): ClosestInteractable | null => {
-  const result = sharedGetClosestInteractable(snapshot, point);
+  const result = sharedGetClosestInteractable(
+    snapshot as SharedInteractWorldSnapshot, 
+    { position: point.position } as unknown as SharedInteractPoint
+  );
   return (result as ClosestInteractable) || null;
 };
