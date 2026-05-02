@@ -1,0 +1,5 @@
+<<<<<<< SEARCH
+    "@wasd/types": "workspace:*",
+=======
+    "@wasd/shared": "workspace:*",
+>>>>>>> REPLACE
