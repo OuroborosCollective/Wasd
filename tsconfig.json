@@ -14,7 +14,8 @@
     "esModuleInterop": true,
     "isolatedModules": true,
     "resolveJsonModule": true,
-    "noEmit": false
+    "noEmit": false,
+    "noImplicitAny": false
   },
   "files": [],
   "references": [
@@ -22,14 +23,15 @@
     { "path": "server" },
     { "path": "shared" },
     { "path": "engine" },
-    { "path": "portal" },
     { "path": "packages/core" },
-    { "path": "packages/database" },
-    { "path": "packages/utils" },
-    { "path": "packages/types" },
-    { "path": "packages/redis" },
+    { "path": "packages/core-logic" },
     { "path": "packages/shared" },
+    { "path": "packages/core-ecs" },
+    { "path": "packages/ui" },
+    { "path": "packages/spatial-hub" },
+    { "path": "packages/rendering-bridge" },
     { "path": "apps/api" },
-    { "path": "apps/web" }
+    { "path": "apps/web" },
+    { "path": "projects/eco-trader" }
   ]
 }
