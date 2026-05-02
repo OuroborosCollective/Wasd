@@ -1,1 +1,1 @@
-export const WEATHER_TYPES = ['clear', 'rain', 'storm', 'snow', 'fog'] as const;
+export const VERSION = '1.0.0';
