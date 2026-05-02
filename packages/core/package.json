@@ -23,9 +23,9 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@types/node": "^20.11.0",
-    "typescript": "^5.0.0",
-    "rimraf": "^5.0.0"
+    "@types/node": "^20.12.7",
+    "typescript": "^5.7.3",
+    "rimraf": "^5.0.5"
   },
   "publishConfig": {
     "access": "public"

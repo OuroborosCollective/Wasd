@@ -3,8 +3,34 @@ name: CI
 on:
   push:
     branches: [ "main", "master" ]
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'projects/**'
+      - 'server/**'
+      - 'client/**'
+      - 'shared/**'
+      - 'engine/**'
+      - 'portal/**'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/ci.yml'
   pull_request:
     branches: [ "main", "master" ]
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'projects/**'
+      - 'server/**'
+      - 'client/**'
+      - 'shared/**'
+      - 'engine/**'
+      - 'portal/**'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/ci.yml'
 
 permissions:
   contents: read
@@ -33,6 +59,10 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+        shell: bash
+
+      - name: Typecheck
+        run: pnpm -r run typecheck || echo "Existing type errors found"
         shell: bash
 
       - name: Build

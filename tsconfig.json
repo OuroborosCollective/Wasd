@@ -18,11 +18,38 @@
   },
   "files": [],
   "references": [
-    { "path": "client" },
-    { "path": "server" },
-    { "path": "shared" },
-    { "path": "packages/core" },
-    { "path": "packages/shared" },
-    { "path": "projects/eco-trader" }
+    {
+      "path": "apps/api"
+    },
+    {
+      "path": "apps/web"
+    },
+    {
+      "path": "engine"
+    },
+    {
+      "path": "packages/client"
+    },
+    {
+      "path": "packages/core"
+    },
+    {
+      "path": "packages/server"
+    },
+    {
+      "path": "packages/shared"
+    },
+    {
+      "path": "packages/ui"
+    },
+    {
+      "path": "projects/eco-trader"
+    },
+    {
+      "path": "server"
+    },
+    {
+      "path": "shared"
+    }
   ]
 }

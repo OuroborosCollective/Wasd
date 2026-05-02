@@ -24,10 +24,10 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "typescript": "^5.3.3",
+    "typescript": "^5.7.3",
     "tsup": "^8.0.2",
-    "vitest": "^1.2.2",
-    "@types/node": "^20.11.19"
+    "vitest": "^1.6.0",
+    "@types/node": "^20.12.7"
   },
   "dependencies": {
     "nanoid": "^5.0.6"

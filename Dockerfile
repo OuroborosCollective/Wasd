@@ -1,45 +1,64 @@
-FROM node:25-alpine AS base
+# Use Node 20 as base, aligning with monorepo requirement
+FROM node:20-alpine AS base
 
-# Stage 1: Install all dependencies (including devDependencies)
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
+# Stage 1: Install dependencies
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci
+
+# Copy lockfile and workspace config
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+
+# Copy all package.json files to allow pnpm to resolve dependencies without full source
+# Using a more robust copy pattern for monorepos
+COPY apps/ ./apps/
+COPY packages/ ./packages/
+COPY projects/ ./projects/
+COPY server/package.json ./server/
+COPY shared/package.json ./shared/
+COPY engine/package.json ./engine/
+COPY portal/package.json ./portal/
+
+# Remove everything except package.json files to keep cache clean
+RUN find apps packages projects -type f ! -name 'package.json' -delete
+
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 
 # Stage 2: Build the application
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build
+RUN pnpm run build
 
-# Stage 3: Install only production dependencies
-FROM base AS prod-deps
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --omit=dev --ignore-scripts
-
-# Stage 4: Production runner
+# Stage 3: Production runner
 FROM base AS runner
 WORKDIR /app
 
-# Set non-root environment
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Copy necessary files from build stages
-COPY --from=builder /app/dist ./dist
-COPY --from=prod-deps /app/node_modules ./node_modules
-COPY package.json ./
+# Copy only the necessary files for production
+COPY --from=builder /app/package.json /app/pnpm-workspace.yaml /app/pnpm-lock.yaml ./
+COPY --from=builder /app/server/package.json ./server/
+COPY --from=builder /app/server/dist ./server/dist
+COPY --from=builder /app/shared/package.json ./shared/
+COPY --from=builder /app/shared/dist ./shared/dist
+# Also copy node_modules (this is the heavy part, but pnpm -r install --prod is needed for monorepo prune)
+COPY --from=builder /app/node_modules ./node_modules
 
-# Hardening: Use non-privileged user and restricted permissions
+# Hardening
 USER node
 
 EXPOSE 3000
 
-# Healthcheck for orchestration
+# Healthcheck using Node's fetch
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD node -e "fetch('http://localhost:3000/').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
+    CMD node -e "fetch('http://localhost:3000/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
 
-CMD ["node", "dist/index.js"]
+# Start the legacy server
+CMD ["pnpm", "--filter", "@wasd/server-legacy", "start"]
