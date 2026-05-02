@@ -15,7 +15,7 @@
     "@wasd/shared-lib": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^5.4.5",
+    "typescript": "^5.7.3",
     "vitest": "^2.0.0",
     "tsx": "^4.7.0",
     "@types/node": "^20.0.0"

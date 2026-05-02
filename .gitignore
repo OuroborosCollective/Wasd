@@ -12,3 +12,6 @@ pnpm-debug.log*
 
 # PnP configuration
 .pnp.*
+
+# Build metadata
+*.tsbuildinfo

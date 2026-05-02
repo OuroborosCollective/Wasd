@@ -5,7 +5,13 @@
   "description": "Monorepo Root Configuration",
   "packageManager": "pnpm@9.1.0",
   "workspaces": [
+    "client",
+    "server",
+    "shared",
+    "engine",
+    "portal",
     "apps/*",
+    "projects/*",
     "packages/*"
   ],
   "scripts": {
@@ -20,6 +26,6 @@
     "pnpm": ">=9.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "^5.7.3"
   }
 }
