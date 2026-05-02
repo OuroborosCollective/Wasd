@@ -1,7 +1,7 @@
-import { System, Entity, Component } from '../core/ECS';
+import { System, Entity, Component } from '../core/ecs';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { AdaptiveProfileManager } from '../managers/AdaptiveProfileManager';
-import { Group } from 'three';
+import { Group, Object3D } from 'three';
 
 export interface AdaptiveProfileComponent extends Component {
     fusionAdaptiveGlbPath: string | null;
@@ -61,11 +61,9 @@ export class AdaptiveProfileSystem extends System {
     }
 
     private prepareModel(model: Group): void {
-        model.traverse((child) => {
-            if (child.isObject3D) {
-                child.castShadow = true;
-                child.receiveShadow = true;
-            }
+        model.traverse((child: Object3D) => {
+            child.castShadow = true;
+            child.receiveShadow = true;
         });
     }
 }

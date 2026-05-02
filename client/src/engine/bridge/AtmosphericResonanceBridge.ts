@@ -1,7 +1,7 @@
-import { EngineTime } from "../core/EngineTime";
-import { CullingSystem } from "../systems/CullingSystem";
+import { EngineTime } from "../../core/EngineTime";
+import { CullingSystem } from "../../systems/CullingSystem";
 
-interface ResonanceData {
+export interface ResonanceData {
     aggression: number;
     frequency: number;
     amplitude: number;
@@ -16,7 +16,7 @@ export class AtmosphericResonanceBridge {
 
     private activeResonances: Map<string, ResonanceData> = new Map();
 
-    constructor(private cullingSystem: CullingSystem) {}
+    private constructor(private cullingSystem: CullingSystem) {}
 
     public static getInstance(cullingSystem: CullingSystem): AtmosphericResonanceBridge {
         if (!AtmosphericResonanceBridge.instance) {

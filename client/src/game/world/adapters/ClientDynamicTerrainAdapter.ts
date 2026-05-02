@@ -4,16 +4,16 @@
  */
 
 import { Scene, Mesh, Camera, StandardMaterial, Color3, Vector3 } from "@babylonjs/core";
-import type { TerrainQueryAdapter } from "../../services/WorldGeneratorService.js";
+import type { TerrainQueryAdapter } from "../../services/WorldGeneratorService";
 
 // Re-export the terrain creation functions from our existing integration
 export {
   createDynamicTerrain,
   createProceduralTerrain,
   generateProceduralHeightmap,
-} from "../../lib/babylon-extensions/dynamicTerrainExample.js";
+} from "../../../lib/babylon-extensions/dynamicTerrainExample";
 
-import type { IDynamicTerrain } from "../../lib/babylon-extensions/DynamicTerrain.js";
+import type { IDynamicTerrain } from "../../../lib/babylon-extensions/DynamicTerrain";
 
 /**
  * Client-side terrain adapter that wraps a DynamicTerrain instance.

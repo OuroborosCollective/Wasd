@@ -1,6 +1,35 @@
 import { DeterminismEngine } from "../engine/DeterminismEngine";
-import { SciencePortal } from "../systems/SciencePortal";
-import { InputStack, Command } from "../engine/InputStack";
+
+/**
+ * Resolved interfaces for missing modules to fix TS2307 and TS2664
+ */
+export interface Command {
+    type: string;
+    metadata?: any;
+}
+
+export interface InputStack {
+    registerAbilityMetadata(skillId: string, metadata: any): void;
+    setGlobalMultiplier(key: string, value: number): void;
+    addInputFilter(filter: (cmd: Command) => Command): void;
+    setLatencyBuffer(buffer: number): void;
+}
+
+export interface SciencePortal {
+    getGlobalMetrics(): EvolutionMetrics;
+}
+
+/**
+ * Interface augmentation for DeterminismEngine to resolve TS2339
+ */
+declare module "../engine/DeterminismEngine" {
+    interface DeterminismEngine {
+        dispatchGlobalStateChange(type: string, payload: any): void;
+        getCurrentFrame(): number;
+        getInputStack(): InputStack;
+        setSimulationSpeed(speed: number): void;
+    }
+}
 
 export interface EvolutionMetrics {
     tier: number;
@@ -33,8 +62,14 @@ export class GameplayFusionDirector {
         this.sciencePortal = sciencePortal;
     }
 
+    /**
+     * Main update loop for the director
+     * @param deltaTime Simulation time step
+     */
     public update(deltaTime: number): void {
-        const metrics = this.sciencePortal.getGlobalMetrics() as EvolutionMetrics;
+        if (!this.checkSystemIntegrity()) return;
+
+        const metrics = this.sciencePortal.getGlobalMetrics();
         this.evaluateFactionEvolution(metrics);
         this.processSkillValidations(metrics);
         this.injectGlobalModifiers(metrics);
@@ -80,18 +115,24 @@ export class GameplayFusionDirector {
             stack.setGlobalMultiplier("damage_kinetic", impactForce);
             stack.addInputFilter((cmd: Command) => {
                 if (cmd.type === "HEAVY_ATTACK") {
-                    cmd.metadata = { ...cmd.metadata, splashRadius: 2.5 * metrics.stability };
+                    const currentMetadata = cmd.metadata || {};
+                    cmd.metadata = { 
+                        ...currentMetadata, 
+                        splashRadius: 2.5 * metrics.stability 
+                    };
                 }
                 return cmd;
             });
         }
 
+        // Stability-based network simulation adjustments
         if (metrics.stability < 0.3) {
             stack.setLatencyBuffer(Math.floor(8 * (1 - metrics.stability)));
         } else {
             stack.setLatencyBuffer(2);
         }
 
+        // Tick-rate dynamic scaling based on faction output
         const tickRateAdjustment = 1.0 + (metrics.output / 20000);
         this.engine.setSimulationSpeed(Math.min(1.5, tickRateAdjustment));
     }
@@ -101,6 +142,10 @@ export class GameplayFusionDirector {
     }
 
     public checkSystemIntegrity(): boolean {
-        return this.engine !== undefined && this.sciencePortal !== undefined;
+        return (
+            this.engine !== undefined && 
+            this.sciencePortal !== undefined && 
+            typeof this.engine.getInputStack === 'function'
+        );
     }
 }

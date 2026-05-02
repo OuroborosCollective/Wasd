@@ -21,14 +21,18 @@ interface ARLogicRendererProps {
 }
 
 const ConnectionLine = ({ start, end }: { start: [number, number, number], end: [number, number, number] }) => {
-  const points = useMemo(() => [new THREE.Vector3(...start), new THREE.Vector3(...end)], [start, end]);
-  const lineGeometry = useMemo(() => new THREE.BufferGeometry().setFromPoints(points), [points]);
+  const line = useMemo(() => {
+    const points = [new THREE.Vector3(...start), new THREE.Vector3(...end)];
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const material = new THREE.LineBasicMaterial({ 
+      color: 0x00ff00, 
+      transparent: true, 
+      opacity: 0.6 
+    });
+    return new THREE.Line(geometry, material);
+  }, [start, end]);
 
-  return (
-    <line geometry={lineGeometry}>
-      <lineBasicMaterial attach="material" color="#00ff00" linewidth={2} transparent opacity={0.6} />
-    </line>
-  );
+  return <primitive object={line} />;
 };
 
 const GateNode = ({ gate, onSelect }: { gate: LogicGate, onSelect: (id: string) => void }) => {
@@ -46,7 +50,7 @@ const GateNode = ({ gate, onSelect }: { gate: LogicGate, onSelect: (id: string) 
 
   return (
     <Interactive onSelect={() => onSelect(gate.id)} onHover={() => setHovered(true)} onBlur={() => setHovered(false)}>
-      <mesh position={gate.position} ref={meshRef}>
+      <mesh position={gate.position} ref={meshRef as any}>
         <boxGeometry args={[0.2, 0.2, 0.2]} />
         <meshStandardMaterial color={hovered ? '#ffffff' : getColor()} emissive={getColor()} emissiveIntensity={0.5} />
       </mesh>
@@ -55,8 +59,6 @@ const GateNode = ({ gate, onSelect }: { gate: LogicGate, onSelect: (id: string) 
 };
 
 const Scene = ({ gates, connections, onGateSelect }: ARLogicRendererProps) => {
-  const { raycaster, camera } = useThree();
-
   const getGatePosition = (id: string): [number, number, number] => {
     const gate = gates.find(g => g.id === id);
     return gate ? gate.position : [0, 0, 0];

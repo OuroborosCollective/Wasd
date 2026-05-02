@@ -1,18 +1,3 @@
-/**
- * ChatPanel Component
- * Full-featured chat system with multiple channels
- *
- * Features:
- * - Multiple chat channels (Global, Whisper, Guild, Faction)
- * - Message history with scrolling
- * - Real-time message updates
- * - User mentions
- * - Message formatting (Bold, Italic, Color)
- * - Emote support
- * - Spam protection
- * - Responsive design
- */
-
 import React, {
   useState,
   useRef,
@@ -65,7 +50,7 @@ const Message: React.FC<{
     // Color: {color:text} — only allow safe color values (hex, named colors, rgb/rgba)
     formatted = formatted.replace(
       /\{([^:}]+):([^}]+)\}/g,
-      (_match, color, text) => {
+      (_match: string, color: string, text: string) => {
         const safeColor = /^#[0-9a-fA-F]{3,8}$|^[a-zA-Z]+$|^rgba?\([\d\s.,/%]+\)$/.test(color.trim());
         return safeColor
           ? `<span style="color: ${color}">${text}</span>`

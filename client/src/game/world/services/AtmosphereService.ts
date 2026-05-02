@@ -44,7 +44,9 @@ export class AtmosphereService {
       // Try to load the atmosphere addon
       const addons = await import("@babylonjs/addons");
       if (addons.Atmosphere) {
-        this.atmosphereInstance = new addons.Atmosphere(scene);
+        // Fixed TS2554: Added name, scene, and config object as expected by constructor
+        this.atmosphereInstance = new addons.Atmosphere("atmosphere", scene, this.config);
+        
         // Configure
         scene.clearColor = new Color3(0.53, 0.81, 0.92).toColor4(1);
         console.log("[AtmosphereService] Atmosphere addon initialized.");
@@ -73,6 +75,11 @@ export class AtmosphereService {
       Math.sin(angle),
       0.3
     ).normalize();
+
+    // Update atmosphere instance if available
+    if (this.atmosphereInstance) {
+      this.atmosphereInstance.sunDirection = this.config.sunDirection;
+    }
 
     // Adjust ambient light based on time
     const sunHeight = Math.sin(angle);
@@ -119,6 +126,9 @@ export class AtmosphereService {
   }
 
   dispose(): void {
+    if (this.atmosphereInstance && typeof this.atmosphereInstance.dispose === "function") {
+      this.atmosphereInstance.dispose();
+    }
     this.atmosphereInstance = null;
     this.scene = null;
     this.initialized = false;

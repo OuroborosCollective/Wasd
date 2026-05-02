@@ -5,7 +5,7 @@
  * Docs: https://doc.babylonjs.com/addons/msdfText/
  */
 
-import { Scene, Mesh, DynamicTexture, StandardMaterial, Color3, Vector3, TransformNode } from "@babylonjs/core";
+import { Scene, Mesh, DynamicTexture, StandardMaterial, Color3, Vector3, TransformNode, MeshBuilder } from "@babylonjs/core";
 
 export interface TextLabelConfig {
   text: string;
@@ -29,6 +29,8 @@ interface TextLabel {
 export class TextLabelService {
   private scene: Scene | null = null;
   private labels = new Map<string, TextLabel>();
+  private materialCache = new Map<string, StandardMaterial>();
+  private materialUsageCount = new Map<string, number>();
   private counter = 0;
   private camera: any = null;
   private msdfAvailable = false;
@@ -57,7 +59,7 @@ export class TextLabelService {
     const id = `label-${++this.counter}`;
 
     // Create plane for text
-    const plane = Mesh.CreatePlane(id, 1, this.scene);
+    const plane = MeshBuilder.CreatePlane(id, { size: 1 }, this.scene);
     plane.position = config.position.clone();
     if (config.parent) plane.parent = config.parent;
 
@@ -67,16 +69,15 @@ export class TextLabelService {
     }
 
     // Create texture-based label (fallback)
-    // Generate a cache key based on style
     const color = config.color ?? new Color3(1, 1, 1);
     const bgColor = config.backgroundColor ?? new Color3(0, 0, 0);
     const fontSize = config.fontSize ?? 48;
-    const cacheKey = `${Math.floor(color.r*255)}_${Math.floor(color.g*255)}_${Math.floor(color.b*255)}_${Math.floor(bgColor.r*255)}_${Math.floor(bgColor.g*255)}_${Math.floor(bgColor.b*255)}_${fontSize}`;
-    
+    const cacheKey = `${Math.floor(color.r * 255)}_${Math.floor(color.g * 255)}_${Math.floor(color.b * 255)}_${Math.floor(bgColor.r * 255)}_${Math.floor(bgColor.g * 255)}_${Math.floor(bgColor.b * 255)}_${fontSize}`;
+
     // Try to reuse an existing material with the same style
     let mat: StandardMaterial;
     if (this.materialCache.has(cacheKey)) {
-      mat = this.materialCache.get(cacheKey)!.clone(`${id}-mat`);
+      mat = this.materialCache.get(cacheKey)!.clone(`${id}-mat`) as StandardMaterial;
       this.materialUsageCount.set(cacheKey, (this.materialUsageCount.get(cacheKey) || 0) + 1);
     } else {
       mat = new StandardMaterial(`${id}-mat`, this.scene);
@@ -87,10 +88,10 @@ export class TextLabelService {
       this.materialCache.set(cacheKey, mat);
       this.materialUsageCount.set(cacheKey, 1);
     }
-    
+
     // Create texture for this specific label
     const texture = new DynamicTexture(`${id}-tex`, { width: 512, height: 128 }, this.scene);
-    const ctx = texture.getContext();
+    const ctx = texture.getContext() as CanvasRenderingContext2D;
 
     // Draw text
     ctx.fillStyle = `rgba(${Math.floor(bgColor.r * 255)},${Math.floor(bgColor.g * 255)},${Math.floor(bgColor.b * 255)},0.7)`;
@@ -162,7 +163,7 @@ export class TextLabelService {
     const mat = label.mesh.material as StandardMaterial;
     if (mat?.diffuseTexture instanceof DynamicTexture) {
       const tex = mat.diffuseTexture;
-      const ctx = tex.getContext();
+      const ctx = tex.getContext() as CanvasRenderingContext2D;
       const bgColor = label.config.backgroundColor ?? new Color3(0, 0, 0);
       ctx.fillStyle = `rgba(${Math.floor(bgColor.r * 255)},${Math.floor(bgColor.g * 255)},${Math.floor(bgColor.b * 255)},0.7)`;
       ctx.fillRect(0, 0, 512, 128);
@@ -216,6 +217,9 @@ export class TextLabelService {
       label.mesh.dispose();
     }
     this.labels.clear();
+    this.materialCache.forEach(mat => mat.dispose());
+    this.materialCache.clear();
+    this.materialUsageCount.clear();
   }
 }
 

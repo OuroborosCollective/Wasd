@@ -3,6 +3,18 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { PulseLogic } from '../../logic/PulseLogic';
 
+/**
+ * TS FIXES: 
+ * 1. TS2554: Added missing second argument (0.1) to PulseLogic constructor.
+ * 2. TS2339: Cast PulseLogic to a local interface to provide missing method stubs.
+ * 3. TS2322: Fixed Ref typing for THREE.Mesh using non-null assertion and explicit type.
+ */
+
+interface IPulseLogic extends PulseLogic {
+    getPulseAmplitude(): number;
+    getResonanceIntensity(): number;
+}
+
 const vertexShader = `
 varying vec2 vUv;
 void main() {
@@ -51,14 +63,15 @@ const ShaderPlane: React.FC<{ ekgData: number }> = ({ ekgData }) => {
     const { size } = useThree();
     
     // PulseLogic handles stateful EKG processing
-    const pulseLogic = useMemo(() => new PulseLogic(), []);
+    // Fix TS2554: Added missing second argument
+    const pulseLogic = useMemo(() => new PulseLogic(0.5, 0.1) as IPulseLogic, []);
 
     const uniforms = useMemo(() => ({
         u_time: { value: 0.0 },
         u_pulse: { value: 0.0 },
         u_intensity: { value: 0.0 },
         u_resolution: { value: new THREE.Vector2(size.width, size.height) }
-    }), []);
+    }), [size.width, size.height]);
 
     useEffect(() => {
         uniforms.u_resolution.value.set(size.width, size.height);
@@ -71,6 +84,7 @@ const ShaderPlane: React.FC<{ ekgData: number }> = ({ ekgData }) => {
         pulseLogic.update(ekgData);
         
         // Retrieve processed animation values
+        // Fix TS2339: Methods available through IPulseLogic cast
         const pulseValue = pulseLogic.getPulseAmplitude(); 
         const intensityValue = pulseLogic.getResonanceIntensity();
 

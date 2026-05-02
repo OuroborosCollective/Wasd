@@ -1,6 +1,30 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect } from 'react';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '../stores/StoreContext';
+
+interface Mentee {
+    id: string | number;
+    name: string;
+    isActive: boolean;
+    isOnline: boolean;
+    relationshipDuration: string;
+    class: string;
+    level: number;
+    xpMultiplier: number;
+    syncRate: number;
+}
+
+interface Token {
+    id: string | number;
+    name: string;
+    tier: number;
+}
+
+interface Bonus {
+    id: string | number;
+    name: string;
+    value: number;
+}
 
 const MentorDashboard: React.FC = observer(() => {
     const { mentorStore } = useStore();
@@ -11,8 +35,6 @@ const MentorDashboard: React.FC = observer(() => {
         return () => clearInterval(interval);
     }, [mentorStore]);
 
-    const activeMentees = mentorStore.mentees.filter(m => m.isActive);
-    
     const calculateAuraColor = (efficiency: number) => {
         if (efficiency > 80) return 'text-emerald-400 border-emerald-400';
         if (efficiency > 50) return 'text-sky-400 border-sky-400';
@@ -73,7 +95,7 @@ const MentorDashboard: React.FC = observer(() => {
                         Tokens of Guidance
                     </h3>
                     <div className="flex flex-wrap gap-2">
-                        {mentorStore.tokensOfGuidance.map((token) => (
+                        {mentorStore.tokensOfGuidance.map((token: Token) => (
                             <div 
                                 key={token.id} 
                                 className="group relative flex items-center justify-center w-10 h-10 rounded-full border-2 border-sky-500/50 bg-sky-900/20 cursor-help transition-all hover:scale-110 hover:border-sky-400"
@@ -95,7 +117,7 @@ const MentorDashboard: React.FC = observer(() => {
                         Active Synergy Bonuses
                     </h3>
                     <ul className="space-y-3">
-                        {mentorStore.synergyBones.map((bonus) => (
+                        {mentorStore.synergyBones.map((bonus: Bonus) => (
                             <li key={bonus.id} className="flex justify-between items-center text-sm border-l-2 border-pink-500 pl-3">
                                 <span className="text-slate-300">{bonus.name}</span>
                                 <span className="text-pink-400 font-mono">+{bonus.value}%</span>
@@ -116,7 +138,7 @@ const MentorDashboard: React.FC = observer(() => {
                         </tr>
                     </thead>
                     <tbody>
-                        {mentorStore.mentees.map((mentee) => (
+                        {(mentorStore.mentees as Mentee[]).map((mentee: Mentee) => (
                             <tr key={mentee.id} className="border-t border-slate-700 hover:bg-slate-750 transition-colors">
                                 <td className="p-4">
                                     <div className="flex items-center">

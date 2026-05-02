@@ -21,13 +21,17 @@ export class FitnessManager {
     private thresholdSteps: number = 50;
     private lastUpdate: number = Date.now();
 
-    constructor(workerPath: string = 'decay-worker.js') {
-        this.initializeWorker(workerPath);
+    constructor() {
+        this.initializeWorker();
     }
 
-    private initializeWorker(path: string): void {
+    private initializeWorker(): void {
         try {
-            this.worker = new Worker(path);
+            // Modern worker initialization using URL to resolve the TypeScript worker file correctly
+            this.worker = new Worker(new URL('./DecayWorker.ts', import.meta.url), {
+                type: 'module'
+            });
+            
             this.worker.onmessage = (event: MessageEvent) => {
                 this.handleWorkerUpdate(event.data);
             };
@@ -42,7 +46,7 @@ export class FitnessManager {
         let targetDecayRate: number;
         
         if (isHighActivity) {
-            // Umkehrung des Decay-Faktors: Heilung statt Verfall
+            // Reversal of decay: Healing occurs during high activity
             targetDecayRate = -this.baseDecayRate * this.healingMultiplier;
         } else {
             targetDecayRate = this.baseDecayRate;
@@ -95,7 +99,6 @@ export class FitnessManager {
     }
 
     public mockActivityEvent(): void {
-        // Simuliert einen kurzzeitigen Aktivitätsschub für Tests
         this.processWearableData({
             heartRate: 120,
             steps: 60,
