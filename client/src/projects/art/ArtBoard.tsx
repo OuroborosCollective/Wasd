@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { SocketService } from '../../../services/SocketService';
 
 interface ArtBoardProps {
@@ -14,33 +14,31 @@ const ArtBoard: React.FC<ArtBoardProps> = ({
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [grid, setGrid] = useState<string[]>(new Array(width * height).fill('#ffffff'));
-    const requestRef = useRef<number>();
     const socketService = SocketService.getInstance();
 
-    const drawGrid = (ctx: CanvasRenderingContext2D) => {
+    const drawGrid = useCallback((ctx: CanvasRenderingContext2D, currentGrid: string[]) => {
         ctx.clearRect(0, 0, width * pixelSize, height * pixelSize);
-        for (let i = 0; i < grid.length; i++) {
+        for (let i = 0; i < currentGrid.length; i++) {
             const x = (i % width) * pixelSize;
             const y = Math.floor(i / width) * pixelSize;
-            ctx.fillStyle = grid[i];
+            ctx.fillStyle = currentGrid[i];
             ctx.fillRect(x, y, pixelSize, pixelSize);
             
             ctx.strokeStyle = '#e0e0e0';
             ctx.lineWidth = 0.5;
             ctx.strokeRect(x, y, pixelSize, pixelSize);
         }
-    };
+    }, [width, height, pixelSize]);
 
-    const animate = () => {
+    useEffect(() => {
         const canvas = canvasRef.current;
         if (canvas) {
             const ctx = canvas.getContext('2d');
             if (ctx) {
-                drawGrid(ctx);
+                drawGrid(ctx, grid);
             }
         }
-        requestRef.current = requestAnimationFrame(animate);
-    };
+    }, [grid, drawGrid]);
 
     useEffect(() => {
         socketService.connect();
@@ -57,15 +55,10 @@ const ArtBoard: React.FC<ArtBoardProps> = ({
             });
         });
 
-        requestRef.current = requestAnimationFrame(animate);
-
         return () => {
-            if (requestRef.current) {
-                cancelAnimationFrame(requestRef.current);
-            }
             socketService.disconnect();
         };
-    }, []);
+    }, [socketService]);
 
     const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
         const canvas = canvasRef.current;
@@ -77,7 +70,7 @@ const ArtBoard: React.FC<ArtBoardProps> = ({
         
         if (x >= 0 && x < width && y >= 0 && y < height) {
             const index = y * width + x;
-            const newColor = '#000000'; // Default drawing color
+            const newColor = '#000000'; 
 
             socketService.emit('draw_pixel', { index, color: newColor });
             

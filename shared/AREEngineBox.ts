@@ -37,7 +37,7 @@ export class AREStateCompiler {
         try {
             return new Function('context', `"use strict"; return (async () => { ${code} })();`);
         } catch (error) {
-            throw new Error(`Compilation error: ${error.message}`);
+            throw new Error(`Compilation error: ${(error as any).message}`);
         }
     }
 

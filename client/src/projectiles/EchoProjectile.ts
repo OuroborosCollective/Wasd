@@ -1,4 +1,4 @@
-import { Projectile } from "./Projectile";
+import Projectile from "../Projectile";
 import { EchoNode } from "../nodes/EchoNode";
 import { ElementType } from "../types/ElementType";
 
@@ -6,8 +6,6 @@ export class EchoProjectile extends Projectile {
     public active: boolean = true;
     private element: ElementType;
 
-    // Diese Properties werden durch Vererbung von Projectile/GameObject bereitgestellt.
-    // Falls das Basis-Objekt diese nicht explizit definiert, werden sie hier deklariert.
     public declare scene: any;
     public declare x: number;
     public declare y: number;
@@ -46,7 +44,7 @@ export class EchoProjectile extends Projectile {
         return this.element || ElementType.None;
     }
 
-    public override destroy(fromScene?: boolean): void {
+    public destroy(fromScene?: boolean): void {
         this.active = false;
         super.destroy(fromScene);
     }

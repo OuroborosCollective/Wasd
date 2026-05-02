@@ -4,13 +4,16 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "baseUrl": ".",
+    "noImplicitAny": false,
     "paths": {
-      "@wasd/shared": ["../shared/src"]
+      "@shared/*": ["../shared/*"]
     }
   },
-  "include": ["src"],
+  "include": [
+    "src",
+    "../shared/**/*"
+  ],
   "references": [
-    { "path": "./tsconfig.node.json" },
-    { "path": "../shared" }
+    { "path": "./tsconfig.node.json" }
   ]
 }
