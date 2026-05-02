@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "composite": true,
     "declaration": true,
     "declarationMap": true,
@@ -21,8 +21,15 @@
     { "path": "client" },
     { "path": "server" },
     { "path": "shared" },
+    { "path": "engine" },
+    { "path": "portal" },
     { "path": "packages/core" },
+    { "path": "packages/database" },
+    { "path": "packages/utils" },
+    { "path": "packages/types" },
+    { "path": "packages/redis" },
     { "path": "packages/shared" },
-    { "path": "projects/eco-trader" }
+    { "path": "apps/api" },
+    { "path": "apps/web" }
   ]
 }

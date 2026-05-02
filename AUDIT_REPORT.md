@@ -1,34 +1,25 @@
-# Audit-Bericht: System-Optimierung und Refactoring
+# Repository Audit & Remediation Report - 2025
 
-## 1. Migration auf pnpm
-Die Umstellung des Paketmanagements auf pnpm wurde erfolgreich abgeschlossen.
-- Erstellung der `pnpm-workspace.yaml` zur Verwaltung der Monorepo-Struktur.
-- Optimierung der Disk-Usage durch Hard-Linking im globalen Store.
-- Eliminierung von Phantom-Dependencies durch die strikte Verzeichnisstruktur von pnpm.
-- Aktualisierung der CI/CD-Pipelines auf `pnpm install` zur Beschleunigung der Build-Zyklen.
+## Status Quo
+Das Repository ist als **pnpm Monorepo** strukturiert, weist jedoch erhebliche Inkonsistenzen in der Konfiguration und Dateistruktur auf. Es existieren parallele Konfigurationen für `npm` (package-lock.json), `yarn` (.yarnrc.yml, .pnp.cjs) und `pnpm`. Die TypeScript-Konfigurationen sind teilweise veraltet und nutzen keine modernen Monorepo-Features wie Project References konsequent über alle Packages hinweg. Ein kritischer Fehler war das Fehlen der `package.json` im `client/` Verzeichnis, obwohl der Source-Code und die Lock-Dateien vorhanden waren.
 
-## 2. Auflösung der Shared-Redundanz
-Die redundanten Strukturen innerhalb der Shared-Module wurden konsolidiert.
-- Migration aller doppelt vorhandenen Utility-Funktionen in ein zentrales Paket `@core/shared`.
-- Bereinigung von redundanten Stylesheets und Komponenten-Templates.
-- Zentralisierung der API-Endpunkt-Definitionen zur Vermeidung von Out-of-Sync-Fehlern.
-- Reduzierung der Bundle-Größe um ca. 15% durch Entfernung des toten Codes.
+## Kritische Fehler
+- **Fehlende `client/package.json`:** Das Frontend-Paket war im Workspace nicht registriert, was Build- und Dependency-Fehler verursachte.
+- **Konfigurations-Wildwuchs:** Das gleichzeitige Vorhandensein von `.pnp.cjs`, `.yarnrc.yml` und mehreren `package-lock.json` Dateien führte zu unvorhersehbarem Verhalten beim Installieren von Abhängigkeiten.
+- **Inkonsistente Docker-Konfiguration:** Das `Dockerfile` nutzte standardmäßig `npm` statt `pnpm` und war nicht optimal auf die Monorepo-Struktur (Workspace-Abhängigkeiten) abgestimmt.
+- **Lückenhafte CI-Trigger:** Die GitHub Actions Workflows reagierten nicht auf Änderungen in Kernverzeichnissen wie `server/`, `client/` oder `shared/`.
 
-## 3. TypeScript-Synchronisierung
-Die TypeScript-Konfigurationen wurden über alle Workspaces hinweg harmonisiert.
-- Implementierung einer globalen `tsconfig.base.json`, von der alle Sub-Pakete erben.
-- Synchronisierung der Typdefinitionen zwischen Backend-Modellen und Frontend-Interfaces.
-- Behebung von `strict`-Modus-Verletzungen in den Core-Modulen.
-- Einführung von Project References zur Verbesserung der inkrementellen Kompilierungszeit.
+## Optimierungspotenzial
+- **TypeScript Project References:** Durch die konsequente Nutzung von `composite: true` und `references` in allen Paketen kann die Build-Performance und Type-Checking-Genauigkeit verbessert werden.
+- **Docker Multi-Stage Builds:** Die Optimierung des `Dockerfile` zur Nutzung von `pnpm` mit Workspace-Support reduziert die Image-Größe und beschleunigt Build-Zyklen.
+- **CI/CD Caching:** Die Vereinheitlichung auf `pnpm` ermöglicht effizienteres Caching des `node_modules` Store in GitHub Actions.
 
-## 4. Korrekturen in der mathematischen Bibliothek
-Kritische Berechnungslogiken in der internen Mathematik-Lib wurden validiert und korrigiert.
-- Behebung von IEEE 754 Floating-Point-Präzisionsfehlern bei Finanzberechnungen.
-- Optimierung der Algorithmen für die statistische Auswertung (Standardabweichung und Varianz).
-- Korrektur der Rundungslogik in den Export-Modulen zur Einhaltung gesetzlicher Vorgaben.
-- Erweiterung der Testabdeckung durch automatisierte Property-Based Testing-Verfahren.
+## Action Plan (Umgesetzte Maßnahmen)
+1. **Bereinigung:** Entfernung aller legacy `npm` und `yarn` Konfigurationsdateien zur Erzwingung von `pnpm` als Single Source of Truth.
+2. **Wiederherstellung:** Neuerstellung der `client/package.json` basierend auf Code-Analyse und vorhandenen Lock-Dateien.
+3. **Standardisierung Docker:** Refactoring des `Dockerfile` auf Node 20 + pnpm 9.1.0 und Anpassung des Healthchecks in `docker-compose.yml`.
+4. **TS-Synchronisation:** Update der `tsconfig.json` Hierarchie; Einführung von Project References für alle Workspace-Packages.
+5. **Workflow-Fixes:** Erweiterung der Path-Trigger in `main-pipeline.yml` und Umstellung der Deployment-Skripte auf `pnpm`.
 
-## Fazit
-Durch die Migration auf pnpm und die Bereinigung der Redundanzen wurde die Entwickler-Experience erheblich verbessert. Die Synchronisierung der Typen und die Fehlerbehebungen in der mathematischen Bibliothek gewährleisten eine höhere Laufzeitstabilität und Datenintegrität.
-
-Status: ABGENOMMEN
+---
+*Bericht erstellt von Jules, Senior DevOps & Fullstack Architect.*
