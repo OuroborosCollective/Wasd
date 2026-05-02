@@ -109,7 +109,7 @@ export class FixedPointVector2 {
     }
 
     public sub(other: FixedPointVector2): FixedPointVector2 {
-        return new FixedPointVector2(this.x.sub(other.x), this.y.y.sub(other.y));
+        return new FixedPointVector2(this.x.sub(other.x), this.y.sub(other.y));
     }
 
     public mul(scalar: FixedPoint): FixedPointVector2 {

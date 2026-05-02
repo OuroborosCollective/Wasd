@@ -6,8 +6,7 @@
     "baseUrl": ".",
     "noImplicitAny": false,
     "paths": {
-      "@wasd/shared": ["../packages/shared/src"],
-      "@shared/*": ["../packages/shared/src/*"]
+      "@shared/*": ["../shared/*"]
     }
   },
   "include": [
@@ -15,7 +14,6 @@
     "../shared/**/*"
   ],
   "references": [
-    { "path": "./tsconfig.node.json" },
-    { "path": "../packages/shared" }
+    { "path": "./tsconfig.node.json" }
   ]
 }

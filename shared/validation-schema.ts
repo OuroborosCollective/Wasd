@@ -34,7 +34,9 @@ export const ProductSchema = z.object({
   stock: z.number().int().nonnegative(),
   tags: z.array(z.string()).default([]),
   isActive: z.boolean().default(true),
-  metadata: z.record(z.string(), z.any()).optional()
+  metadata: z.record(z.string(), z.any()).optional(),
+  createdAt: z.date().or(z.string().datetime()),
+  updatedAt: z.date().or(z.string().datetime())
 });
 
 export type ProductDTO = z.infer<typeof ProductSchema>;

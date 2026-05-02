@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { observer } from 'mobx-react-lite';
-import { useStore } from '../store/StoreContext';
+import { useStore } from '../store/StoreProvider';
 
 interface Mentee {
     id: string | number;
