@@ -97,14 +97,16 @@ export class AssetBrainDatabase {
       )`,
     ];
 
-    for (const query of queries) {
-      try {
-        await this.db.query(query);
-      } catch (error) {
-        // Tables may already exist — ignore
-        console.warn('[AssetBrain] Table init warning:', (error as Error).message);
-      }
-    }
+    await Promise.allSettled(
+      queries.map(async (query) => {
+        try {
+          await this.db.query(query);
+        } catch (error) {
+          // Tables may already exist — ignore
+          console.warn('[AssetBrain] Table init warning:', (error as Error).message);
+        }
+      })
+    );
   }
 
   /**
