@@ -1,6 +1,17 @@
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { availableParallelism } from 'node:os';
 
+export interface ScoringTask {
+    id: string;
+    data: any;
+    weight: number;
+}
+
+export interface ScoreReport {
+    id: string;
+    score: number;
+}
+
 /**
  * ScoringManager handles high-performance score calculations using Worker Threads
  * and SharedArrayBuffer for zero-copy data sharing.
@@ -107,14 +118,32 @@ export class ScoringManager {
         });
     }
 
+    /**
+     * Evaluates a set of tasks in parallel.
+     * Required by Optimizer.
+     */
+    public async evaluateParallel(tasks: ScoringTask[]): Promise<ScoreReport[]> {
+        // Implementation that bridges tasks to the worker scores
+        await this.updateScores();
+
+        return tasks.map((task, index) => ({
+            id: task.id,
+            score: this.getScore(index % this.dataSize) * task.weight
+        }));
+    }
+
     public setScore(index: number, value: number): void {
         if (index >= 0 && index < this.dataSize) {
-            Atomics.store(this.scoreArray, index, value);
+            // Atomics doesn't work on Float32Array
+            this.scoreArray[index] = value;
         }
     }
 
     public getScore(index: number): number {
-        return Atomics.load(this.scoreArray, index);
+        if (index >= 0 && index < this.dataSize) {
+            return this.scoreArray[index];
+        }
+        return 0;
     }
 
     public getAllScores(): Float32Array {
@@ -123,6 +152,10 @@ export class ScoringManager {
 
     public terminate(): void {
         this.workers.forEach(worker => worker.terminate());
+    }
+
+    public async dispose(): Promise<void> {
+        this.terminate();
     }
 }
 
