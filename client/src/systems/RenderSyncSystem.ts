@@ -1,8 +1,8 @@
 import * as THREE from "three";
-import { World } from "../core/World";
-import { Entity } from "../core/Entity";
-import { FloraComponent } from "../components/FloraComponent";
-import { TransformComponent } from "../components/TransformComponent";
+import { World } from "../ecs/World";
+import { Entity } from "../ecs/Entity";
+import { FloraComponent } from "../ecs/components/FloraComponent";
+import { TransformComponent } from "../ecs/components/TransformComponent";
 import { BioResonance } from "../utils/BioResonance";
 
 export class RenderSyncSystem {
@@ -116,7 +116,7 @@ export class RenderSyncSystem {
             const originalMaterial = (Array.isArray(baseMesh.material) ? baseMesh.material[0] : baseMesh.material) as THREE.MeshStandardMaterial;
             const material = originalMaterial.clone();
 
-            material.onBeforeCompile = (shader: { vertexShader: string; fragmentShader: string; uniforms: { [uniform: string]: any } }) => {
+            material.onBeforeCompile = (shader: any) => {
                 shader.vertexShader = `
                     attribute float aPhaseShift;
                     varying float vPhase;
