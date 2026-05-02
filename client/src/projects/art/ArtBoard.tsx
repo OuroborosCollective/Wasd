@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { SocketService } from '../../../services/SocketService';
+import { SocketService } from '../../services/SocketService';
 
 interface ArtBoardProps {
     width?: number;
@@ -65,7 +65,7 @@ const ArtBoard: React.FC<ArtBoardProps> = ({
             }
             socketService.disconnect();
         };
-    }, []);
+    }, [socketService]);
 
     const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
         const canvas = canvasRef.current;

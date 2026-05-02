@@ -1,4 +1,4 @@
-import { ResonanceManager } from '../managers/ResonanceManager';
+import { ResonanceManager } from '../core/ResonanceManager';
 
 export enum ElementType {
     PLASMA = 'PLASMA',

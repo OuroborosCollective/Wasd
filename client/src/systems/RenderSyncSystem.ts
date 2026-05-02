@@ -11,6 +11,7 @@ export class RenderSyncSystem {
     private floraGroup: THREE.Group;
     private instancedMeshMap: Map<string, THREE.InstancedMesh>;
     private phaseBufferMap: Map<string, Float32Array>;
+    private tempMatrix: THREE.Matrix4;
 
     constructor(world: World, renderer: THREE.WebGLRenderer, floraGroup: THREE.Group) {
         this.world = world;
@@ -18,6 +19,7 @@ export class RenderSyncSystem {
         this.floraGroup = floraGroup;
         this.instancedMeshMap = new Map();
         this.phaseBufferMap = new Map();
+        this.tempMatrix = new THREE.Matrix4();
     }
 
     public update(): void {
@@ -38,6 +40,8 @@ export class RenderSyncSystem {
                 const flora = entity.getComponent(FloraComponent);
                 const transform = entity.getComponent(TransformComponent);
 
+                if (!flora || !transform) continue;
+
                 const shift = BioResonance.calculateShift(
                     currentTick,
                     flora.resonanceFrequency,
@@ -47,9 +51,8 @@ export class RenderSyncSystem {
 
                 phaseBuffer[i] = shift;
                 
-                const matrix = new THREE.Matrix4();
-                matrix.compose(transform.position, transform.rotation, transform.scale);
-                instancedMesh.setMatrixAt(i, matrix);
+                this.tempMatrix.compose(transform.position, transform.rotation, transform.scale);
+                instancedMesh.setMatrixAt(i, this.tempMatrix);
             }
 
             const geometry = instancedMesh.geometry;
@@ -68,9 +71,11 @@ export class RenderSyncSystem {
         const groups = new Map<string, Entity[]>();
         for (const entity of entities) {
             const flora = entity.getComponent(FloraComponent);
-            const list = groups.get(flora.meshAssetId) || [];
-            list.push(entity);
-            groups.set(flora.meshAssetId, list);
+            if (flora) {
+                const list = groups.get(flora.meshAssetId) || [];
+                list.push(entity);
+                groups.set(flora.meshAssetId, list);
+            }
         }
         return groups;
     }
@@ -85,14 +90,15 @@ export class RenderSyncSystem {
                 instancedMesh.dispose();
             }
 
-            const baseMesh = this.world.getAssetManager().getMesh(meshId);
+            const assetManager = this.world.getAssetManager();
+            const baseMesh = assetManager.getMesh(meshId) as THREE.Mesh;
             if (!baseMesh) return null;
 
             const geometry = baseMesh.geometry.clone();
-            const originalMaterial = Array.isArray(baseMesh.material) ? baseMesh.material[0] : baseMesh.material;
+            const originalMaterial = (Array.isArray(baseMesh.material) ? baseMesh.material[0] : baseMesh.material) as THREE.Material;
             const material = originalMaterial.clone();
 
-            material.onBeforeCompile = (shader: { vertexShader: string; fragmentShader: string; uniforms: any }) => {
+            material.onBeforeCompile = (shader: any) => {
                 shader.vertexShader = `
                     attribute float aPhaseShift;
                     varying float vPhase;

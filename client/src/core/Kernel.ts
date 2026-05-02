@@ -29,10 +29,10 @@ export class Kernel {
         }
 
         if (!this.resonanceAudioBridge) {
-            this.resonanceAudioBridge = new ResonanceAudioBridge(this.audioContext!);
+            this.resonanceAudioBridge = new ResonanceAudioBridge(this.audioContext!, {});
         }
 
-        await this.resonanceAudioBridge.initialize();
+        await this.resonanceAudioBridge.init();
         
         this.isRunning = true;
         this.lastFrameTime = performance.now();

@@ -5,7 +5,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { escapeHtml } from "../../lib/escapeHtml";
+import { escapeHtml } from "../../utils/escapeHtml";
 import "./ChatPanel.css";
 
 export type ChatChannel = "global" | "whisper" | "guild" | "faction" | "party";

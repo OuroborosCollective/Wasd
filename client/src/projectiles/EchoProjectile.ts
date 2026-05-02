@@ -2,26 +2,26 @@ import { Projectile } from "./Projectile";
 import { EchoNode } from "../nodes/EchoNode";
 import { ElementType } from "../types/ElementType";
 
-export class EchoProjectile {
-    public scene: any;
-    public x: number;
-    public y: number;
-    public active: boolean = true;
+export class EchoProjectile extends Projectile {
     private element: ElementType;
 
     constructor(scene: any, x: number, y: number, element: ElementType) {
-        this.scene = scene;
-        this.x = x;
-        this.y = y;
+        super(scene, x, y, "echo_projectile");
         this.element = element;
     }
 
     public onCollision(other: any): void {
         this.createEchoNode();
+        if (typeof super.onCollision === 'function') {
+            super.onCollision(other);
+        }
     }
 
     public onTrigger(other: any): void {
         this.createEchoNode();
+        if (typeof super.onTrigger === 'function') {
+            super.onTrigger(other);
+        }
     }
 
     private createEchoNode(): void {
@@ -39,6 +39,10 @@ export class EchoProjectile {
         }
 
         this.active = false;
+        
+        if (typeof this.destroy === 'function') {
+            this.destroy();
+        }
     }
 
     private getElementType(): ElementType {
