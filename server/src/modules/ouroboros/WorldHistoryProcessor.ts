@@ -50,12 +50,20 @@ export class WorldHistoryProcessor {
 
         if (playerKills.length >= this.INTENSITY_THRESHOLD) {
             this.markAsHighIntensity(playerKills);
+
+            const affectedFactionsSet = new Set<string>();
+            for (let i = 0; i < playerKills.length; i++) {
+                const targetFactionId = playerKills[i].targetFactionId;
+                if (targetFactionId) {
+                    affectedFactionsSet.add(targetFactionId);
+                }
+            }
             
             await this.bountySystem.triggerThreatRecalculation(playerId, {
                 intensityLevel: playerKills.length,
                 reason: "MASS_KILL_EVENT",
                 timestamp: Date.now(),
-                affectedFactions: [...new Set(playerKills.map(k => k.targetFactionId).filter(Boolean))] as string[]
+                affectedFactions: Array.from(affectedFactionsSet)
             });
         }
     }
