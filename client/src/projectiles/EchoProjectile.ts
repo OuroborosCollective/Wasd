@@ -1,4 +1,4 @@
-import Projectile from "./Projectile";
+import Projectile from "../Projectile";
 import { EchoNode } from "../nodes/EchoNode";
 import { ElementType } from "../types/ElementType";
 

@@ -116,7 +116,7 @@ export class RenderSyncSystem {
             const originalMaterial = (Array.isArray(baseMesh.material) ? baseMesh.material[0] : baseMesh.material) as THREE.MeshStandardMaterial;
             const material = originalMaterial.clone();
 
-            material.onBeforeCompile = (shader: { vertexShader: string; fragmentShader: string; uniforms: { [uniform: string]: THREE.IUniform } }) => {
+            material.onBeforeCompile = (shader: { vertexShader: string; fragmentShader: string; uniforms: { [uniform: string]: any } }) => {
                 shader.vertexShader = `
                     attribute float aPhaseShift;
                     varying float vPhase;

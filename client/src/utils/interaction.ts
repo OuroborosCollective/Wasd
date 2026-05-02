@@ -22,16 +22,14 @@ export const getClosestNpc = (
   snapshot: InteractNpcSnapshot[],
   point: InteractPoint
 ): ClosestInteractable | null => {
-  const interactPoint: InteractPoint = { x: point.x, y: point.y };
-  const result = sharedGetClosestNpc(snapshot, interactPoint);
-  return result || null;
+  const result = sharedGetClosestNpc({ npcs: snapshot }, point);
+  return (result as ClosestInteractable) || null;
 };
 
 export const getClosestInteractable = (
   snapshot: InteractWorldSnapshot,
   point: InteractPoint
 ): ClosestInteractable | null => {
-  const interactPoint: InteractPoint = { x: point.x, y: point.y };
-  const result = sharedGetClosestInteractable(snapshot, interactPoint);
-  return result || null;
+  const result = sharedGetClosestInteractable(snapshot, point);
+  return (result as ClosestInteractable) || null;
 };
