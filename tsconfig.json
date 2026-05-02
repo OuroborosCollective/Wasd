@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "composite": true,
     "declaration": true,
     "declarationMap": true,
@@ -14,15 +14,24 @@
     "esModuleInterop": true,
     "isolatedModules": true,
     "resolveJsonModule": true,
-    "noEmit": false
+    "noEmit": false,
+    "noImplicitAny": false
   },
   "files": [],
   "references": [
     { "path": "client" },
     { "path": "server" },
     { "path": "shared" },
+    { "path": "engine" },
     { "path": "packages/core" },
+    { "path": "packages/core-logic" },
     { "path": "packages/shared" },
+    { "path": "packages/core-ecs" },
+    { "path": "packages/ui" },
+    { "path": "packages/spatial-hub" },
+    { "path": "packages/rendering-bridge" },
+    { "path": "apps/api" },
+    { "path": "apps/web" },
     { "path": "projects/eco-trader" }
   ]
 }

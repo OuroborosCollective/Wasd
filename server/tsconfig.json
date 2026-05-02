@@ -1,21 +1,25 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "module": "CommonJS",
-    "moduleResolution": "node",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "outDir": "./dist",
     "rootDir": "./src",
-    "strict": false,
-    "noImplicitAny": false,
+    "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "noEmitOnError": false,
-    "incremental": false,
-    "composite": false
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "incremental": true
   },
   "include": ["src/**/*"],
-  "exclude": ["src/tools/**/*", "src/tests/**/*"]
+  "exclude": ["src/tools/**/*", "src/tests/**/*"],
+  "references": [
+    { "path": "../shared" }
+  ]
 }

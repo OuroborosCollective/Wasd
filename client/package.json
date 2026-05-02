@@ -1,0 +1,47 @@
+{
+  "name": "areloria-client",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "build:itch": "tsc && vite build --mode itch",
+    "preview": "vite preview",
+    "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@babylonjs/core": "^9.0.0",
+    "@babylonjs/loaders": "^9.0.0",
+    "@babylonjs/addons": "^9.0.0",
+    "@babylonjs/havok": "^9.0.0",
+    "@react-three/fiber": "^8.15.16",
+    "@react-three/xr": "^5.7.1",
+    "@supabase/supabase-js": "^2.39.7",
+    "firebase": "^12.11.0",
+    "framer-motion": "^11.0.8",
+    "@preact/signals-core": "^1.5.6",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "three": "^0.169.0",
+    "lucide-react": "^0.344.0",
+    "mobx": "^6.12.0",
+    "mobx-react-lite": "^4.0.5",
+    "@wasd/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.11",
+    "@types/react": "^18.2.66",
+    "@types/react-dom": "^18.2.22",
+    "@types/three": "^0.183.1",
+    "@vitejs/plugin-react": "^4.2.1",
+    "@testing-library/react": "^14.2.1",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9.0.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.6.0",
+    "vite": "^5.4.0"
+  }
+}

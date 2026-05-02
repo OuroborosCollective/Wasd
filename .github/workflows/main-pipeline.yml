@@ -10,6 +10,11 @@ on:
     paths:
       - 'apps/**'
       - 'packages/**'
+      - 'client/**'
+      - 'server/**'
+      - 'shared/**'
+      - 'engine/**'
+      - 'portal/**'
       - 'package.json'
       - 'pnpm-workspace.yaml'
       - 'pnpm-lock.yaml'
@@ -20,6 +25,11 @@ on:
     paths:
       - 'apps/**'
       - 'packages/**'
+      - 'client/**'
+      - 'server/**'
+      - 'shared/**'
+      - 'engine/**'
+      - 'portal/**'
       - 'package.json'
       - 'pnpm-workspace.yaml'
       - 'pnpm-lock.yaml'

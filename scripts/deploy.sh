@@ -26,7 +26,7 @@ fi
 
 echo ">>> Running database migrations"
 # Run migrations in a temporary container before updating the main services
-if ! docker-compose run --rm app npm run migrate; then
+if ! docker-compose run --rm app pnpm run migrate; then
     echo "Error: Migrations failed. Aborting deployment."
     git checkout "$PREVIOUS_COMMIT"
     exit 1
@@ -69,7 +69,7 @@ fi
 
 echo ">>> Invalidating application cache"
 # Execute cache clear in the running environment
-if ! docker-compose exec -T app npm run cache:clear; then
+if ! docker-compose exec -T app pnpm run cache:clear; then
     echo "Warning: Cache invalidation failed. Manual check recommended."
 else
     echo ">>> Cache successfully invalidated"
