@@ -2,10 +2,11 @@ import Redis from 'ioredis';
 
 const cacheUrl = process.env.CACHE_URL;
 
+// @ts-ignore
 export const cache = cacheUrl ? new Redis(cacheUrl) : null;
 
 if (cache) {
-  cache.on('error', (err) => {
+  cache.on('error', (err: any) => {
     console.error('Valkey/Redis Cache Error:', err);
   });
   
