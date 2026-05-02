@@ -28,6 +28,16 @@ export class RenderSyncSystem {
         
         const entitiesByMesh = this.groupEntitiesByMesh(entities);
 
+        // Remove meshes no longer in use
+        for (const [meshId, instancedMesh] of this.instancedMeshMap.entries()) {
+            if (!entitiesByMesh.has(meshId)) {
+                this.floraGroup.remove(instancedMesh);
+                instancedMesh.dispose();
+                this.instancedMeshMap.delete(meshId);
+                this.phaseBufferMap.delete(meshId);
+            }
+        }
+
         entitiesByMesh.forEach((meshEntities, meshId) => {
             const instancedMesh = this.getOrUpdateInstancedMesh(meshId, meshEntities);
             if (!instancedMesh) return;
@@ -59,11 +69,12 @@ export class RenderSyncSystem {
             const attr = geometry.getAttribute("aPhaseShift") as THREE.InstancedBufferAttribute;
             
             if (attr) {
-                attr.array.set(phaseBuffer);
+                attr.array.set(phaseBuffer.subarray(0, meshEntities.length));
                 attr.needsUpdate = true;
             }
 
             instancedMesh.instanceMatrix.needsUpdate = true;
+            instancedMesh.count = meshEntities.length;
         });
     }
 
@@ -84,7 +95,7 @@ export class RenderSyncSystem {
         let instancedMesh = this.instancedMeshMap.get(meshId);
         const count = entities.length;
 
-        if (!instancedMesh || instancedMesh.count !== count) {
+        if (!instancedMesh || instancedMesh.instanceMatrix.count < count) {
             if (instancedMesh) {
                 this.floraGroup.remove(instancedMesh);
                 instancedMesh.dispose();
@@ -95,7 +106,7 @@ export class RenderSyncSystem {
             if (!baseMesh) return null;
 
             const geometry = baseMesh.geometry.clone();
-            const originalMaterial = (Array.isArray(baseMesh.material) ? baseMesh.material[0] : baseMesh.material) as THREE.Material;
+            const originalMaterial = (Array.isArray(baseMesh.material) ? baseMesh.material[0] : baseMesh.material) as THREE.MeshStandardMaterial;
             const material = originalMaterial.clone();
 
             material.onBeforeCompile = (shader: any) => {
@@ -117,11 +128,14 @@ export class RenderSyncSystem {
                 );
             };
 
-            const phaseArray = new Float32Array(count);
+            const bufferSize = Math.max(count, 32); 
+            const phaseArray = new Float32Array(bufferSize);
             geometry.setAttribute("aPhaseShift", new THREE.InstancedBufferAttribute(phaseArray, 1));
 
-            instancedMesh = new THREE.InstancedMesh(geometry, material, count);
+            instancedMesh = new THREE.InstancedMesh(geometry, material, bufferSize);
             instancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+            instancedMesh.castShadow = true;
+            instancedMesh.receiveShadow = true;
             
             this.instancedMeshMap.set(meshId, instancedMesh);
             this.phaseBufferMap.set(meshId, phaseArray);

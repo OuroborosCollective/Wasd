@@ -3,17 +3,11 @@ import { EchoNode } from "../nodes/EchoNode";
 import { ElementType } from "../types/ElementType";
 
 export class EchoProjectile extends Projectile {
-    public scene: any;
-    public x: number;
-    public y: number;
     public active: boolean = true;
     private element: ElementType;
 
     constructor(scene: any, x: number, y: number, element: ElementType) {
         super(scene, x, y, "echo_projectile");
-        this.scene = scene;
-        this.x = x;
-        this.y = y;
         this.element = element;
     }
 
@@ -46,10 +40,8 @@ export class EchoProjectile extends Projectile {
         return this.element || ElementType.None;
     }
 
-    public destroy(): void {
+    public override destroy(fromScene?: boolean): void {
         this.active = false;
-        if (super.destroy) {
-            super.destroy();
-        }
+        super.destroy(fromScene);
     }
 }
