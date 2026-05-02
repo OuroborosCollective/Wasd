@@ -1,13 +1,10 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { FlatCompat } from "@eslint/eslintrc";
+import tsParser from "@typescript-eslint/parser";
+import tsPlugin from "@typescript-eslint/eslint-plugin";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
 
 const eslintConfig = [
   {
@@ -19,13 +16,20 @@ const eslintConfig = [
       "e2e/**",
       "playwright.config.ts",
       "**/*.js",
+      "**/*.mjs",
+      "**/*.cjs"
     ],
   },
-  ...compat.extends("next"),
-  ...compat.extends("next/core-web-vitals"),
   {
+    files: ["**/*.ts", "**/*.tsx"],
+    languageOptions: {
+      parser: tsParser,
+    },
+    plugins: {
+      "@typescript-eslint": tsPlugin,
+    },
     rules: {
-      // Hier können zusätzliche Regeln hinzugefügt werden
+      // Minimal rules
     },
   },
 ];
