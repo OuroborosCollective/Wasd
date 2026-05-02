@@ -38,6 +38,7 @@ export class OuroborosEngine {
   public readonly market: EmergentMarket;
   public readonly factions: DynamicFactions;
   private config: OuroborosEngineConfig;
+  private readonly SPATIAL_CHUNK_SIZE = 64;
 
   constructor(config?: Partial<OuroborosEngineConfig>) {
     this.config = { ...DEFAULT_ENGINE_CONFIG, ...config };
@@ -55,6 +56,10 @@ export class OuroborosEngine {
    * Run the Ouroboros tick for all NPCs.
    * Called from WorldTick every tickInterval ticks.
    */
+  private getSpatialKey(x: number, y: number): string {
+    return `${Math.floor(x / this.SPATIAL_CHUNK_SIZE)}:${Math.floor(y / this.SPATIAL_CHUNK_SIZE)}`;
+  }
+
   tick(
     tickCount: number,
     npcs: Array<{ id: string; name: string; position: { x: number; y: number }; faction?: string }>,
@@ -73,56 +78,57 @@ export class OuroborosEngine {
 
     this.market.tick();
 
-    // ⚡ Bolt: Use spatial partitioning to reduce O(N^2) complexity to ~O(N)
-    // We use a chunk size that is at least as large as the perception radius to ensure a 3x3 search covers the area.
-    const SPATIAL_CHUNK_SIZE = Math.max(64, this.config.perceptionRadius);
-    const spatialMap = new Map<string, any[]>();
-    const getSpatialKey = (x: number, y: number) =>
-      `${Math.floor(x / SPATIAL_CHUNK_SIZE)}:${Math.floor(y / SPATIAL_CHUNK_SIZE)}`;
+    // ⚡ Bolt Optimization: Spatial Partitioning for Proximity Checks
+    // Reduces algorithmic complexity from O(N * (N+P)) to O(N * density)
+    type SpatialEntity = { id: string; name: string; type: "npc" | "player"; position: { x: number; y: number }; faction?: string };
+    const spatialMap = new Map<string, SpatialEntity[]>();
 
-    for (let i = 0; i < npcs.length; i++) {
-      const n = npcs[i];
-      const key = getSpatialKey(n.position.x, n.position.y);
+    // Single-pass entity grouping
+    for (const n of npcs) {
+      const key = this.getSpatialKey(n.position.x, n.position.y);
       let list = spatialMap.get(key);
       if (!list) {
         list = [];
         spatialMap.set(key, list);
       }
-      // Preserve original data contract by explicitly adding the type
-      list.push({ ...n, type: "npc" as const });
+      list.push({ id: n.id, name: n.name, type: "npc", position: n.position, faction: n.faction });
     }
-    for (let i = 0; i < players.length; i++) {
-      const p = players[i];
-      const key = getSpatialKey(p.position.x, p.position.y);
+    for (const p of players) {
+      const key = this.getSpatialKey(p.position.x, p.position.y);
       let list = spatialMap.get(key);
       if (!list) {
         list = [];
         spatialMap.set(key, list);
       }
-      list.push({ ...p, type: "player" as const });
+      list.push({ id: p.id, name: p.name, type: "player", position: p.position });
     }
 
     const perceptionRadiusSq = this.config.perceptionRadius * this.config.perceptionRadius;
+
     for (const npc of npcs) {
       const nx = npc.position.x;
       const ny = npc.position.y;
-      const cx = Math.floor(nx / SPATIAL_CHUNK_SIZE);
-      const cy = Math.floor(ny / SPATIAL_CHUNK_SIZE);
+      const cx = Math.floor(nx / this.SPATIAL_CHUNK_SIZE);
+      const cy = Math.floor(ny / this.SPATIAL_CHUNK_SIZE);
 
-      const nearby: any[] = [];
-      for (let x = cx - 1; x <= cx + 1; x++) {
-        for (let y = cy - 1; y <= cy + 1; y++) {
-          const key = `${x}:${y}`;
+      const nearby: SpatialEntity[] = [];
+      // Query 3x3 chunk grid around the NPC
+      for (let dx = -1; dx <= 1; dx++) {
+        const queryX = (cx + dx) * this.SPATIAL_CHUNK_SIZE;
+        for (let dy = -1; dy <= 1; dy++) {
+          const queryY = (cy + dy) * this.SPATIAL_CHUNK_SIZE;
+          const key = this.getSpatialKey(queryX, queryY);
           const list = spatialMap.get(key);
-          if (list) {
-            for (let j = 0; j < list.length; j++) {
-              const e = list[j];
-              if (e.id === npc.id) continue;
-              const dx = e.position.x - nx;
-              const dy = e.position.y - ny;
-              if (dx * dx + dy * dy <= perceptionRadiusSq) {
-                nearby.push(e);
-              }
+          if (!list) continue;
+
+          for (let i = 0; i < list.length; i++) {
+            const e = list[i];
+            if (e.id === npc.id) continue;
+
+            const edx = e.position.x - nx;
+            const edy = e.position.y - ny;
+            if (edx * edx + edy * edy <= perceptionRadiusSq) {
+              nearby.push(e);
             }
           }
         }

@@ -54,7 +54,7 @@ export class AssetBrainDatabase {
    * Initialize database tables for Asset Brain
    */
   async initializeTables(): Promise<void> {
-    const combinedQuery = [
+    const queries = [
       `CREATE TABLE IF NOT EXISTS asset_specifications (
         id VARCHAR(36) PRIMARY KEY,
         user_id VARCHAR(255) NOT NULL,
@@ -95,14 +95,18 @@ export class AssetBrainDatabase {
         created_at TIMESTAMPTZ DEFAULT NOW(),
         completed_at TIMESTAMPTZ
       )`,
-    ].join('; ');
+    ];
 
-    try {
-      await this.db.query(combinedQuery);
-    } catch (error) {
-      // Tables may already exist — ignore
-      console.warn('[AssetBrain] Table init warning:', (error as Error).message);
-    }
+    await Promise.allSettled(
+      queries.map(async (query) => {
+        try {
+          await this.db.query(query);
+        } catch (error) {
+          // Tables may already exist — ignore
+          console.warn('[AssetBrain] Table init warning:', (error as Error).message);
+        }
+      })
+    );
   }
 
   /**

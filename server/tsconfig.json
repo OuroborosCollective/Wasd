@@ -12,7 +12,9 @@
     "forceConsistentCasingInFileNames": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "noEmitOnError": false
+    "noEmitOnError": false,
+    "incremental": false,
+    "composite": false
   },
   "include": ["src/**/*"],
   "exclude": ["src/tools/**/*", "src/tests/**/*"]

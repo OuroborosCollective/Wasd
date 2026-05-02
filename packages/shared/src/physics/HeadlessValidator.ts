@@ -23,7 +23,7 @@ export class HeadlessValidator {
         this.world.gravity.set(0, -9.81, 0);
         
         // Default solver settings for stability
-        this.world.solver.iterations = 10;
+        (this.world.solver as any).iterations = 10;
         this.world.defaultContactMaterial.contactEquationStiffness = 1e7;
         this.world.defaultContactMaterial.contactEquationRelaxation = 4;
 
