@@ -9,8 +9,8 @@ importers:
   .:
     devDependencies:
       typescript:
-        specifier: ^6.0.2
-        version: 6.0.3
+        specifier: ^5.0.0
+        version: 5.9.3
 
   apps/api:
     dependencies:
@@ -208,7 +208,7 @@ importers:
 
   packages/client:
     dependencies:
-      '@wasd/shared-pkg':
+      '@wasd/shared-lib':
         specifier: workspace:*
         version: link:../shared
     devDependencies:
@@ -342,7 +342,7 @@ importers:
 
   packages/server:
     dependencies:
-      '@wasd/shared-pkg':
+      '@wasd/shared-lib':
         specifier: workspace:*
         version: link:../shared
     devDependencies:
