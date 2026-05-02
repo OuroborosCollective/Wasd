@@ -15,12 +15,12 @@ export class EchoProjectile extends Projectile {
         this.element = element;
     }
 
-    public onCollision(other: any): void {
+    public override onCollision(other: any): void {
         this.createEchoNode();
         this.destroy();
     }
 
-    public onTrigger(other: any): void {
+    public override onTrigger(other: any): void {
         this.createEchoNode();
         this.destroy();
     }
