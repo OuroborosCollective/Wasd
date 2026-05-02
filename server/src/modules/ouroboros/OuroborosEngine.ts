@@ -73,22 +73,60 @@ export class OuroborosEngine {
 
     this.market.tick();
 
-    const allEntities = [
-      ...npcs.map((n) => ({ id: n.id, name: n.name, type: "npc" as const, position: n.position, faction: n.faction })),
-      ...players.map((p) => ({ id: p.id, name: p.name, type: "player" as const, position: p.position })),
-    ];
+    // ⚡ Bolt: Use spatial partitioning to reduce O(N^2) complexity to ~O(N)
+    // We use a chunk size that is at least as large as the perception radius to ensure a 3x3 search covers the area.
+    const SPATIAL_CHUNK_SIZE = Math.max(64, this.config.perceptionRadius);
+    const spatialMap = new Map<string, any[]>();
+    const getSpatialKey = (x: number, y: number) =>
+      `${Math.floor(x / SPATIAL_CHUNK_SIZE)}:${Math.floor(y / SPATIAL_CHUNK_SIZE)}`;
+
+    for (let i = 0; i < npcs.length; i++) {
+      const n = npcs[i];
+      const key = getSpatialKey(n.position.x, n.position.y);
+      let list = spatialMap.get(key);
+      if (!list) {
+        list = [];
+        spatialMap.set(key, list);
+      }
+      // Preserve original data contract by explicitly adding the type
+      list.push({ ...n, type: "npc" as const });
+    }
+    for (let i = 0; i < players.length; i++) {
+      const p = players[i];
+      const key = getSpatialKey(p.position.x, p.position.y);
+      let list = spatialMap.get(key);
+      if (!list) {
+        list = [];
+        spatialMap.set(key, list);
+      }
+      list.push({ ...p, type: "player" as const });
+    }
 
     const perceptionRadiusSq = this.config.perceptionRadius * this.config.perceptionRadius;
     for (const npc of npcs) {
       const nx = npc.position.x;
       const ny = npc.position.y;
-      const nearby = allEntities.filter((e) => {
-        if (e.id === npc.id) return false;
-        const dx = e.position.x - nx;
-        const dy = e.position.y - ny;
-        // ⚡ Bolt Optimization: Use squared distance to avoid Math.hypot()
-        return dx * dx + dy * dy <= perceptionRadiusSq;
-      });
+      const cx = Math.floor(nx / SPATIAL_CHUNK_SIZE);
+      const cy = Math.floor(ny / SPATIAL_CHUNK_SIZE);
+
+      const nearby: any[] = [];
+      for (let x = cx - 1; x <= cx + 1; x++) {
+        for (let y = cy - 1; y <= cy + 1; y++) {
+          const key = `${x}:${y}`;
+          const list = spatialMap.get(key);
+          if (list) {
+            for (let j = 0; j < list.length; j++) {
+              const e = list[j];
+              if (e.id === npc.id) continue;
+              const dx = e.position.x - nx;
+              const dy = e.position.y - ny;
+              if (dx * dx + dy * dy <= perceptionRadiusSq) {
+                nearby.push(e);
+              }
+            }
+          }
+        }
+      }
 
       const ctx: AgentContext = {
         npcId: npc.id,
