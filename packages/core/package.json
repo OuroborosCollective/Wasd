@@ -21,11 +21,11 @@
     "clean": "rimraf dist",
     "prebuild": "pnpm run clean"
   },
-  "dependencies": {},
   "devDependencies": {
     "@types/node": "^20.11.0",
-    "typescript": "^5.7.3",
-    "rimraf": "^5.0.0"
+    "eslint": "^10.3.0",
+    "rimraf": "^5.0.0",
+    "typescript": "^5.7.3"
   },
   "publishConfig": {
     "access": "public"

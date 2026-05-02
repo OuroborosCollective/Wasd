@@ -13,6 +13,7 @@
     "@wasd/shared-lib": "workspace:*"
   },
   "devDependencies": {
+    "eslint": "^10.3.0",
     "typescript": "^5.7.3",
     "vite": "^8.0.5",
     "vitest": "^4.1.0"

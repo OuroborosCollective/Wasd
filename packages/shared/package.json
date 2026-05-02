@@ -17,12 +17,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "zod": "^3.23.8",
+    "cannon-es": "^0.20.0",
     "eventemitter3": "^5.0.1",
     "nanoid": "^5.0.9",
-    "cannon-es": "^0.20.0"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
+    "eslint": "^10.3.0",
     "typescript": "^5.7.3",
     "vitest": "^4.1.0"
   },

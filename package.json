@@ -26,6 +26,13 @@
     "pnpm": ">=9.0.0"
   },
   "devDependencies": {
+    "eslint": "^10.3.0",
     "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.2.4",
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.13",
+    "tailwindcss": "^4.2.4"
   }
 }
