@@ -1,6 +1,6 @@
-import { System, Entity, IComponent } from '../core/ecs';
+import { System, Entity, IComponent } from '../core/ECS.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { AdaptiveProfileManager } from '../managers/AdaptiveProfileManager';
+import { AdaptiveProfileManager } from '../managers/AdaptiveProfileManager.js';
 import { Group, Object3D } from 'three';
 
 export interface AdaptiveProfileComponent extends IComponent {

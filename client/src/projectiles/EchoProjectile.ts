@@ -44,7 +44,7 @@ export class EchoProjectile extends Projectile {
         return this.element || ElementType.None;
     }
 
-    public destroy(fromScene?: boolean): void {
+    public override destroy(fromScene?: boolean): void {
         this.active = false;
         super.destroy(fromScene);
     }

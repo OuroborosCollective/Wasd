@@ -6,20 +6,26 @@ import { EntityViewManager } from "./EntityViewManager";
 import { prefersCompactTouchUi } from "../ui/touchUi";
 import { getClosestInteractable } from "../utils/interaction";
 
+export interface InteractWorldSnapshot {
+  player: { id: string; type: string; position: { x: number; y: number } } | null;
+  npcs: Array<{ id: string; type: string; position: { x: number; y: number } }>;
+  loot: Array<{ id: string; type: string; position: { x: number; y: number } }>;
+}
+
 export class MMORPGClientCore {
   private entities: Map<string, EntityViewModel> = new Map();
   private viewManager: EntityViewManager;
   public events: CoreEventBus = new CoreEventBus();
   private localPlayerId: string | null = null;
-
-  constructor(private engine: IEngineBridge) {
-    this.viewManager = new EntityViewManager(engine);
-  }
-
+  private chunks: Map<string, ChunkViewModel> = new Map();
   private lastDt: number = 0.016;
   private footstepTimer: number = 0;
   private lastPlayerPos: { x: number; y: number; z: number } | null = null;
   private lastNavigationUpdateMs = 0;
+
+  constructor(private engine: IEngineBridge) {
+    this.viewManager = new EntityViewManager(engine);
+  }
 
   public syncEntities(serverEntities: EntityViewModel[]) {
     const currentIds = new Set(this.entities.keys());
@@ -29,13 +35,11 @@ export class MMORPGClientCore {
       this.viewManager.upsert(entity, this.lastDt);
       currentIds.delete(entity.id);
 
-      // If this is our player, make sure camera follows
       if (entity.id === this.localPlayerId) {
         this.engine.setCameraTarget(entity.id);
       }
     });
 
-    // Remove old
     currentIds.forEach((id) => {
       this.entities.delete(id);
       this.viewManager.remove(id);
@@ -53,14 +57,11 @@ export class MMORPGClientCore {
       currentIds.delete(chunk.id);
     });
 
-    // Remove old
     currentIds.forEach((id) => {
       this.chunks.delete(id);
       this.engine.destroyChunk(id);
     });
   }
-
-  private chunks: Map<string, ChunkViewModel> = new Map();
 
   public setLocalPlayer(id: string) {
     this.localPlayerId = id;
@@ -103,7 +104,6 @@ export class MMORPGClientCore {
   public handleEntityAction(entityId: string, action: string) {
     this.engine.triggerEntityAction(entityId, action);
 
-    // Play sounds for actions
     if (action === "attack") {
       const entity = this.entities.get(entityId);
       this.engine.playSound("attack", {
@@ -127,24 +127,22 @@ export class MMORPGClientCore {
     this.events.emit("attack");
   }
 
-  public getWorldSnapshotForInteract(): {
-    player: { position: { x: number; y: number } } | null;
-    npcs: Array<{ id: string; position: { x: number; y: number } }>;
-    loot: Array<{ id: string; position: { x: number; y: number } }>;
-  } {
+  public getWorldSnapshotForInteract(): InteractWorldSnapshot {
     const playerId = this.localPlayerId;
     const p = playerId ? this.entities.get(playerId) : undefined;
-    const npcs: Array<{ id: string; position: { x: number; y: number } }> = [];
-    const loot: Array<{ id: string; position: { x: number; y: number } }> = [];
+    const npcs: Array<{ id: string; type: string; position: { x: number; y: number } }> = [];
+    const loot: Array<{ id: string; type: string; position: { x: number; y: number } }> = [];
+    
     this.entities.forEach((e) => {
       if (e.type === "npc") {
-        npcs.push({ id: e.id, position: { x: e.position.x, y: e.position.z } });
+        npcs.push({ id: e.id, type: e.type, position: { x: e.position.x, y: e.position.z } });
       } else if (e.type === "loot") {
-        loot.push({ id: e.id, position: { x: e.position.x, y: e.position.z } });
+        loot.push({ id: e.id, type: e.type, position: { x: e.position.x, y: e.position.z } });
       }
     });
+
     return {
-      player: p ? { position: { x: p.position.x, y: p.position.z } } : null,
+      player: p ? { id: p.id, type: p.type, position: { x: p.position.x, y: p.position.z } } : null,
       npcs,
       loot,
     };
@@ -200,11 +198,7 @@ export class MMORPGClientCore {
   public update(dt: number) {
     this.lastDt = dt;
     this.engine.update(dt);
-
-    // Update navigation to nearest monster
     this.updateNavigation();
-
-    // Update footsteps
     this.updateFootsteps(dt);
   }
 
@@ -231,10 +225,8 @@ export class MMORPGClientCore {
     const dz = player.position.z - this.lastPlayerPos.z;
     const distMoved = Math.sqrt(dx * dx + dz * dz);
 
-    // If moving significantly
     if (distMoved > 0.01) {
       this.footstepTimer += dt;
-      // Play footstep every 0.4 seconds when moving
       if (this.footstepTimer >= 0.4) {
         this.engine.playSound("footstep", {
           volume: 0.3,
@@ -243,7 +235,7 @@ export class MMORPGClientCore {
         this.footstepTimer = 0;
       }
     } else {
-      this.footstepTimer = 0.4; // Reset so it plays immediately when starting to move again
+      this.footstepTimer = 0.4;
     }
 
     this.lastPlayerPos = { ...player.position };
@@ -251,8 +243,7 @@ export class MMORPGClientCore {
 
   private updateNavigation() {
     if (!this.localPlayerId) return;
-    const now =
-      typeof performance !== "undefined" ? performance.now() : Date.now();
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
     const minIntervalMs = prefersCompactTouchUi() ? 280 : 90;
     if (now - this.lastNavigationUpdateMs < minIntervalMs) return;
     this.lastNavigationUpdateMs = now;
@@ -264,10 +255,11 @@ export class MMORPGClientCore {
     let minDist = Infinity;
 
     for (const entity of this.entities.values()) {
-      if (entity.type !== "npc") return;
+      if (entity.type !== "npc") continue;
       const threat = entity.combatThreat === true;
       const dummy = entity.id === "npc_dummy";
-      if (!threat && !dummy) return;
+      if (!threat && !dummy) continue;
+      
       const dx = entity.position.x - player.position.x;
       const dz = entity.position.z - player.position.z;
       const dist = Math.sqrt(dx * dx + dz * dz);

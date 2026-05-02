@@ -19,15 +19,17 @@ export {
 };
 
 export const getClosestNpc = (
-  snapshot: InteractNpcSnapshot,
+  snapshot: InteractNpcSnapshot[],
   point: InteractPoint
-): ClosestInteractable => {
-  return sharedGetClosestNpc(snapshot, point);
+): ClosestInteractable | null => {
+  const result = sharedGetClosestNpc(snapshot, point);
+  return result || null;
 };
 
 export const getClosestInteractable = (
   snapshot: InteractWorldSnapshot,
   point: InteractPoint
-): ClosestInteractable => {
-  return sharedGetClosestInteractable(snapshot, point);
+): ClosestInteractable | null => {
+  const result = sharedGetClosestInteractable(snapshot, point);
+  return result || null;
 };
