@@ -38,7 +38,6 @@ export class RenderSyncSystem {
                 const flora = entity.getComponent(FloraComponent);
                 const transform = entity.getComponent(TransformComponent);
 
-                // Berechne individuellen PhaseShift basierend auf BioResonance Logik
                 const shift = BioResonance.calculateShift(
                     currentTick,
                     flora.resonanceFrequency,
@@ -48,7 +47,6 @@ export class RenderSyncSystem {
 
                 phaseBuffer[i] = shift;
                 
-                // Matrizen-Update falls Instanz-Positionen sich ändern (Optional, falls statisch)
                 const matrix = new THREE.Matrix4();
                 matrix.compose(transform.position, transform.rotation, transform.scale);
                 instancedMesh.setMatrixAt(i, matrix);
@@ -91,12 +89,10 @@ export class RenderSyncSystem {
             if (!baseMesh) return null;
 
             const geometry = baseMesh.geometry.clone();
-            const material = baseMesh.material instanceof THREE.Material 
-                ? baseMesh.material.clone() 
-                : baseMesh.material[0].clone();
+            const originalMaterial = Array.isArray(baseMesh.material) ? baseMesh.material[0] : baseMesh.material;
+            const material = originalMaterial.clone();
 
-            // Injection des phaseShift Attributs in das Material
-            material.onBeforeCompile = (shader: THREE.Shader) => {
+            material.onBeforeCompile = (shader: { vertexShader: string; fragmentShader: string; uniforms: any }) => {
                 shader.vertexShader = `
                     attribute float aPhaseShift;
                     varying float vPhase;

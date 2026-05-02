@@ -3,6 +3,8 @@ import { getPlayerEquipment, subscribePlayerState } from "../../state/playerStat
 import { sendUnequipItem } from "../../networking/websocketClient";
 import "./EquipmentPanel.css";
 
+type EquipmentSlotType = 'weapon' | 'armor' | 'offHand';
+
 export const EquipmentPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [equipment, setEquipment] = useState<any>(getPlayerEquipment());
 
@@ -12,10 +14,17 @@ export const EquipmentPanel: React.FC<{ onClose: () => void }> = ({ onClose }) =
     });
   }, []);
 
+  const getCastedSlot = (slotName: string): EquipmentSlotType => {
+    if (slotName === "weapon" || slotName === "offHand") {
+      return slotName as EquipmentSlotType;
+    }
+    return "armor" as EquipmentSlotType;
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent, slotName: string, item: any) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      if (item) sendUnequipItem(slotName);
+      if (item) sendUnequipItem(getCastedSlot(slotName));
     }
   };
 
@@ -26,7 +35,7 @@ export const EquipmentPanel: React.FC<{ onClose: () => void }> = ({ onClose }) =
         <label className="slot-label">{label}</label>
         <div
           className={`equipment-slot gold-frame ${item ? 'has-item' : 'empty'}`}
-          onClick={() => item && sendUnequipItem(slotName)}
+          onClick={() => item && sendUnequipItem(getCastedSlot(slotName))}
           onKeyDown={(e) => handleKeyDown(e, slotName, item)}
           role="button"
           tabIndex={0}

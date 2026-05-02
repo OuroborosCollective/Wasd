@@ -62,8 +62,10 @@ export class AdaptiveProfileSystem extends System {
 
     private prepareModel(model: Group): void {
         model.traverse((child: Object3D) => {
-            child.castShadow = true;
-            child.receiveShadow = true;
+            if ((child as any).isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
         });
     }
 }

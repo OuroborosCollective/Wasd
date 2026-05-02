@@ -7,7 +7,7 @@ export class Kernel {
     private lastFrameTime: number = 0;
     private isRunning: boolean = false;
 
-    constructor() {}
+    private constructor() {}
 
     public static getInstance(): Kernel {
         if (!Kernel.instance) {
@@ -29,10 +29,10 @@ export class Kernel {
         }
 
         if (!this.resonanceAudioBridge) {
-            this.resonanceAudioBridge = new ResonanceAudioBridge();
+            this.resonanceAudioBridge = new ResonanceAudioBridge(this.audioContext!);
         }
 
-        await (this.resonanceAudioBridge as ResonanceAudioBridge).initialize(this.audioContext!);
+        await this.resonanceAudioBridge.initialize();
         
         this.isRunning = true;
         this.lastFrameTime = performance.now();
