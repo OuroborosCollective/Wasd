@@ -188,12 +188,13 @@ export function useGameHudState() {
 
   const applyVoteStatusPayload = useCallback((payload: Record<string, unknown>) => {
     const buffRaw = payload.buff && typeof payload.buff === "object" ? (payload.buff as Record<string, unknown>) : {};
-    const blocksRaw = Array.isArray(buffRaw.blocks) ? buffRaw.blocks : [];
+    const blocksRaw = Array.isArray(buffRaw.blocks) ? (buffRaw.blocks as unknown[]) : [];
+    
     setVoteBuff({
       activeMultiplier: Math.max(1, Number(buffRaw.activeMultiplier ?? 1)),
       totalRemainingMs: Math.max(0, Number(buffRaw.totalRemainingMs ?? 0)),
       blocks: blocksRaw
-        .map((row: unknown) => {
+        .map((row): VoteBuffHud["blocks"][number] | null => {
           if (!row || typeof row !== "object") return null;
           const r = row as Record<string, unknown>;
           const id = typeof r.id === "string" ? r.id : "";
@@ -206,58 +207,61 @@ export function useGameHudState() {
             remainingMs: Math.max(0, Number(r.remainingMs ?? 0)),
           };
         })
-        .filter((row): row is VoteBuffHud["blocks"][number] => Boolean(row))
-        .sort((a: VoteBuffHud["blocks"][number], b: VoteBuffHud["blocks"][number]) => (a?.expiresAt ?? 0) - (b?.expiresAt ?? 0)),
+        .filter((row): row is VoteBuffHud["blocks"][number] => !!row)
+        .sort((a, b) => a.expiresAt - b.expiresAt),
     });
-    if (Array.isArray(payload.banners)) {
-      setVoteBanners(
-        payload.banners
-          .map((row: unknown) => {
-            if (!row || typeof row !== "object") return null;
-            const b = row as Record<string, unknown>;
-            const internalId = typeof b.internalId === "string" ? b.internalId : "";
-            const displayName = typeof b.displayName === "string" ? b.displayName : "";
-            if (!internalId || !displayName) return null;
-            const status = typeof b.status === "string" ? b.status : "ready";
-            const sessionRaw =
-              b.session && typeof b.session === "object" ? (b.session as Record<string, unknown>) : null;
-            return {
-              internalId,
-              providerKey: typeof b.providerKey === "string" ? b.providerKey : "",
-              displayName,
-              bannerImage: typeof b.bannerImage === "string" ? b.bannerImage : "",
-              targetUrl: typeof b.targetUrl === "string" ? b.targetUrl : "",
-              description: typeof b.description === "string" ? b.description : undefined,
-              sortOrder: Math.max(0, Number(b.sortOrder ?? 0)),
-              buffHours: Math.max(1, Number(b.buffHours ?? 4)),
-              cooldownHours: Math.max(1, Number(b.cooldownHours ?? 24)),
-              voteWindowHours: Math.max(1, Number(b.voteWindowHours ?? 12)),
-              claimInstructions:
-                typeof b.claimInstructions === "string" ? b.claimInstructions : undefined,
-              status:
-                status === "cooldown" || status === "pending" || status === "claimable"
-                  ? status
-                  : "ready",
-              cooldownRemainingMs: Math.max(0, Number(b.cooldownRemainingMs ?? 0)),
-              nextEligibleAt: Math.max(0, Number(b.nextEligibleAt ?? 0)),
-              session: sessionRaw
-                ? {
-                    id: typeof sessionRaw.id === "string" ? sessionRaw.id : "",
-                    status: typeof sessionRaw.status === "string" ? sessionRaw.status : "pending",
-                    expiresAt: Math.max(0, Number(sessionRaw.expiresAt ?? 0)),
-                    verifiedAt:
-                      typeof sessionRaw.verifiedAt === "number"
-                        ? Math.max(0, sessionRaw.verifiedAt)
-                        : undefined,
-                    voteUrl: typeof sessionRaw.voteUrl === "string" ? sessionRaw.voteUrl : "",
-                  }
-                : undefined,
-            } satisfies VoteBannerHud;
-          })
-          .filter((row): row is VoteBannerHud => Boolean(row))
-          .sort((a: VoteBannerHud, b: VoteBannerHud) => (a?.sortOrder ?? 0) - (b?.sortOrder ?? 0)),
-      );
-    }
+
+    const bannersIn = Array.isArray(payload.banners) ? (payload.banners as unknown[]) : [];
+    setVoteBanners(
+      bannersIn
+        .map((row): VoteBannerHud | null => {
+          if (!row || typeof row !== "object") return null;
+          const b = row as Record<string, unknown>;
+          const internalId = typeof b.internalId === "string" ? b.internalId : "";
+          const displayName = typeof b.displayName === "string" ? b.displayName : "";
+          if (!internalId || !displayName) return null;
+          const statusRaw = typeof b.status === "string" ? b.status : "ready";
+          const sessionRaw =
+            b.session && typeof b.session === "object" ? (b.session as Record<string, unknown>) : null;
+          
+          let status: VoteBannerHud["status"] = "ready";
+          if (statusRaw === "cooldown" || statusRaw === "pending" || statusRaw === "claimable") {
+            status = statusRaw;
+          }
+
+          return {
+            internalId,
+            providerKey: typeof b.providerKey === "string" ? b.providerKey : "",
+            displayName,
+            bannerImage: typeof b.bannerImage === "string" ? b.bannerImage : "",
+            targetUrl: typeof b.targetUrl === "string" ? b.targetUrl : "",
+            description: typeof b.description === "string" ? b.description : undefined,
+            sortOrder: Math.max(0, Number(b.sortOrder ?? 0)),
+            buffHours: Math.max(1, Number(b.buffHours ?? 4)),
+            cooldownHours: Math.max(1, Number(b.cooldownHours ?? 24)),
+            voteWindowHours: Math.max(1, Number(b.voteWindowHours ?? 12)),
+            claimInstructions:
+              typeof b.claimInstructions === "string" ? b.claimInstructions : undefined,
+            status,
+            cooldownRemainingMs: Math.max(0, Number(b.cooldownRemainingMs ?? 0)),
+            nextEligibleAt: Math.max(0, Number(b.nextEligibleAt ?? 0)),
+            session: sessionRaw
+              ? {
+                  id: typeof sessionRaw.id === "string" ? sessionRaw.id : "",
+                  status: typeof sessionRaw.status === "string" ? sessionRaw.status : "pending",
+                  expiresAt: Math.max(0, Number(sessionRaw.expiresAt ?? 0)),
+                  verifiedAt:
+                    typeof sessionRaw.verifiedAt === "number"
+                      ? Math.max(0, sessionRaw.verifiedAt)
+                      : undefined,
+                  voteUrl: typeof sessionRaw.voteUrl === "string" ? sessionRaw.voteUrl : "",
+                }
+              : undefined,
+          };
+        })
+        .filter((row): row is VoteBannerHud => !!row)
+        .sort((a, b) => a.sortOrder - b.sortOrder),
+    );
   }, []);
 
   const onServerMsg = useCallback(
@@ -325,7 +329,7 @@ export function useGameHudState() {
         if (Array.isArray(data.top)) {
           setWorldBossTop(
             data.top
-              .map((row: unknown) => {
+              .map((row: unknown): WorldBossRankingRow | null => {
                 if (!row || typeof row !== "object") return null;
                 const entry = row as Record<string, unknown>;
                 return {
@@ -333,10 +337,10 @@ export function useGameHudState() {
                   playerName: typeof entry.playerName === "string" ? entry.playerName : "Unknown",
                   rank: Math.max(1, Number(entry.rank ?? 99)),
                   damage: Math.max(0, Number(entry.damage ?? 0)),
-                } satisfies WorldBossRankingRow;
+                };
               })
-              .filter((row): row is WorldBossRankingRow => Boolean(row?.playerId))
-              .sort((a: WorldBossRankingRow, b: WorldBossRankingRow) => (a?.rank ?? 0) - (b?.rank ?? 0))
+              .filter((row): row is WorldBossRankingRow => !!row && !!row.playerId)
+              .sort((a, b) => a.rank - b.rank)
               .slice(0, 5)
           );
         }
@@ -354,7 +358,7 @@ export function useGameHudState() {
         if (Array.isArray(data.top)) {
           setWorldBossTop(
             data.top
-              .map((row: unknown) => {
+              .map((row: unknown): WorldBossRankingRow | null => {
                 if (!row || typeof row !== "object") return null;
                 const entry = row as Record<string, unknown>;
                 return {
@@ -362,17 +366,17 @@ export function useGameHudState() {
                   playerName: typeof entry.playerName === "string" ? entry.playerName : "Unknown",
                   rank: Math.max(1, Number(entry.rank ?? 99)),
                   damage: Math.max(0, Number(entry.damage ?? 0)),
-                } satisfies WorldBossRankingRow;
+                };
               })
-              .filter((row): row is WorldBossRankingRow => Boolean(row?.playerId))
-              .sort((a: WorldBossRankingRow, b: WorldBossRankingRow) => (a?.rank ?? 0) - (b?.rank ?? 0))
+              .filter((row): row is WorldBossRankingRow => !!row && !!row.playerId)
+              .sort((a, b) => a.rank - b.rank)
               .slice(0, 5)
           );
         }
       } else if (msgType === "worldboss_ranking" && Array.isArray(data.top)) {
         setWorldBossTop(
           data.top
-            .map((row: unknown) => {
+            .map((row: unknown): WorldBossRankingRow | null => {
               if (!row || typeof row !== "object") return null;
               const entry = row as Record<string, unknown>;
               return {
@@ -380,10 +384,10 @@ export function useGameHudState() {
                 playerName: typeof entry.playerName === "string" ? entry.playerName : "Unknown",
                 rank: Math.max(1, Number(entry.rank ?? 99)),
                 damage: Math.max(0, Number(entry.damage ?? 0)),
-              } satisfies WorldBossRankingRow;
+              };
             })
-            .filter((row): row is WorldBossRankingRow => Boolean(row?.playerId))
-            .sort((a: WorldBossRankingRow, b: WorldBossRankingRow) => (a?.rank ?? 0) - (b?.rank ?? 0))
+            .filter((row): row is WorldBossRankingRow => !!row && !!row.playerId)
+            .sort((a, b) => a.rank - b.rank)
             .slice(0, 5)
         );
       } else if (msgType === "vote_status") {
@@ -397,10 +401,11 @@ export function useGameHudState() {
       ) {
         applyVoteStatusPayload(data.status as Record<string, unknown>);
       } else if (msgType === "vote_banners" && Array.isArray(data.banners)) {
-        setVoteBanners((prev) => {
+        const bannersIn = data.banners as unknown[];
+        setVoteBanners((prev: VoteBannerHud[]) => {
           const byId = new Map(prev.map((row) => [row.internalId, row]));
-          const merged = data.banners
-            .map((row: unknown) => {
+          return bannersIn
+            .map((row: unknown): VoteBannerHud | null => {
               if (!row || typeof row !== "object") return null;
               const b = row as Record<string, unknown>;
               const internalId = typeof b.internalId === "string" ? b.internalId : "";
@@ -425,11 +430,10 @@ export function useGameHudState() {
                 cooldownRemainingMs: existing?.cooldownRemainingMs ?? 0,
                 nextEligibleAt: existing?.nextEligibleAt ?? 0,
                 session: existing?.session,
-              } satisfies VoteBannerHud;
+              };
             })
-            .filter((row): row is VoteBannerHud => Boolean(row))
-            .sort((a: VoteBannerHud, b: VoteBannerHud) => (a?.sortOrder ?? 0) - (b?.sortOrder ?? 0));
-          return merged;
+            .filter((row): row is VoteBannerHud => !!row)
+            .sort((a, b) => a.sortOrder - b.sortOrder);
         });
       } else if (
         (msgType === "warfront_status" || msgType === "warfront_info_result") &&
@@ -457,12 +461,12 @@ export function useGameHudState() {
             status.phase === "boss_ready" ||
             status.phase === "boss_active" ||
             status.phase === "cooldown"
-              ? status.phase
+              ? (status.phase as WarfrontHudState["phase"])
               : "building",
           progressPct: Math.max(0, Math.min(100, Number(status.progressPct ?? 0))),
           endsAt: Math.max(0, Number(status.endsAt ?? 0)),
           sectors: sectors
-            .map((row: unknown) => {
+            .map((row: unknown): WarfrontHudSector | null => {
               if (!row || typeof row !== "object") return null;
               const s = row as Record<string, unknown>;
               const id = typeof s.id === "string" ? s.id : "";
@@ -476,9 +480,9 @@ export function useGameHudState() {
                 currentPoints: Math.max(0, Number(s.currentPoints ?? 0)),
                 progressPct: Math.max(0, Math.min(100, Number(s.progressPct ?? 0))),
                 yourPoints: Math.max(0, Number(s.yourPoints ?? 0)),
-              } satisfies WarfrontHudSector;
+              };
             })
-            .filter((row): row is WarfrontHudSector => Boolean(row)),
+            .filter((row): row is WarfrontHudSector => !!row),
           personal: {
             cyclePoints: Math.max(0, Number(personalRaw.cyclePoints ?? 0)),
             seasonPoints: Math.max(0, Number(personalRaw.seasonPoints ?? 0)),

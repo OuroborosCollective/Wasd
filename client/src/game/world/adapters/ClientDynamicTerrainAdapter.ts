@@ -4,7 +4,7 @@
  */
 
 import { Scene, Mesh, Camera, StandardMaterial, Color3, Vector3 } from "@babylonjs/core";
-import type { TerrainQueryAdapter } from "../../services/WorldGeneratorService";
+import type { TerrainQueryAdapter } from "../services/WorldGeneratorService";
 
 // Re-export the terrain creation functions from our existing integration
 export {

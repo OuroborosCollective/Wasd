@@ -1,9 +1,9 @@
-import { System, Entity, Component } from '../core/ecs';
+import { System, Entity, IComponent } from '../core/ecs';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { AdaptiveProfileManager } from '../managers/AdaptiveProfileManager';
 import { Group, Object3D } from 'three';
 
-export interface AdaptiveProfileComponent extends Component {
+export interface AdaptiveProfileComponent extends IComponent {
     fusionAdaptiveGlbPath: string | null;
     lastLoadedPath: string | null;
     targetSlot: 'RightHand' | 'Tool';
@@ -62,8 +62,10 @@ export class AdaptiveProfileSystem extends System {
 
     private prepareModel(model: Group): void {
         model.traverse((child: Object3D) => {
-            child.castShadow = true;
-            child.receiveShadow = true;
+            if ((child as any).isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
         });
     }
 }

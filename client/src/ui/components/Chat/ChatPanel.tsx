@@ -5,8 +5,21 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { escapeHtml } from "../../lib/escapeHtml";
 import "./ChatPanel.css";
+
+/**
+ * Utility to escape HTML entities to prevent XSS
+ */
+const escapeHtml = (text: string): string => {
+  const map: Record<string, string> = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
+  };
+  return text.replace(/[&<>"']/g, (m) => map[m]);
+};
 
 export type ChatChannel = "global" | "whisper" | "guild" | "faction" | "party";
 

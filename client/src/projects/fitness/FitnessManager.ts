@@ -1,5 +1,3 @@
-import { DecayWorker } from './DecayWorker';
-
 interface WearableData {
     heartRate: number;
     steps: number;
@@ -16,6 +14,7 @@ export class FitnessManager {
     private worker: Worker | null = null;
     private currentVitality: number = 100;
     private baseDecayRate: number = 0.05;
+    private currentDecayRate: number = 0.05;
     private healingMultiplier: number = 2.0;
     private thresholdHR: number = 100;
     private thresholdSteps: number = 50;
@@ -27,7 +26,8 @@ export class FitnessManager {
 
     private initializeWorker(): void {
         try {
-            // Modern worker initialization using URL to resolve the TypeScript worker file correctly
+            // Modern worker initialization using URL to resolve the TypeScript worker file correctly.
+            // Note: The import of 'DecayWorker' was removed as it's handled via the URL constructor for Worker.
             this.worker = new Worker(new URL('./DecayWorker.ts', import.meta.url), {
                 type: 'module'
             });
@@ -43,19 +43,19 @@ export class FitnessManager {
     public processWearableData(data: WearableData): void {
         const isHighActivity = data.heartRate > this.thresholdHR || data.steps > this.thresholdSteps;
         
-        let targetDecayRate: number;
-        
         if (isHighActivity) {
             // Reversal of decay: Healing occurs during high activity
-            targetDecayRate = -this.baseDecayRate * this.healingMultiplier;
+            this.currentDecayRate = -this.baseDecayRate * this.healingMultiplier;
         } else {
-            targetDecayRate = this.baseDecayRate;
+            this.currentDecayRate = this.baseDecayRate;
         }
 
         this.updateWorkerConfig({
-            decayRate: targetDecayRate,
+            decayRate: this.currentDecayRate,
             active: true
         });
+        
+        this.lastUpdate = data.timestamp;
     }
 
     private updateWorkerConfig(config: { decayRate: number, active: boolean }): void {
@@ -76,7 +76,7 @@ export class FitnessManager {
         const event = new CustomEvent('fitnessUpdate', {
             detail: {
                 vitality: this.currentVitality,
-                isHealing: this.currentVitality > 0 && this.baseDecayRate < 0
+                isHealing: this.currentVitality > 0 && this.currentDecayRate < 0
             }
         });
         window.dispatchEvent(event);

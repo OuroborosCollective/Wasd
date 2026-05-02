@@ -11,6 +11,7 @@ export class RenderSyncSystem {
     private floraGroup: THREE.Group;
     private instancedMeshMap: Map<string, THREE.InstancedMesh>;
     private phaseBufferMap: Map<string, Float32Array>;
+    private tempMatrix: THREE.Matrix4;
 
     constructor(world: World, renderer: THREE.WebGLRenderer, floraGroup: THREE.Group) {
         this.world = world;
@@ -18,6 +19,7 @@ export class RenderSyncSystem {
         this.floraGroup = floraGroup;
         this.instancedMeshMap = new Map();
         this.phaseBufferMap = new Map();
+        this.tempMatrix = new THREE.Matrix4();
     }
 
     public update(): void {
@@ -25,6 +27,16 @@ export class RenderSyncSystem {
         const entities = this.world.getEntityManager().getEntitiesWithComponents(FloraComponent, TransformComponent);
         
         const entitiesByMesh = this.groupEntitiesByMesh(entities);
+
+        // Remove meshes no longer in use
+        for (const [meshId, instancedMesh] of this.instancedMeshMap.entries()) {
+            if (!entitiesByMesh.has(meshId)) {
+                this.floraGroup.remove(instancedMesh);
+                instancedMesh.dispose();
+                this.instancedMeshMap.delete(meshId);
+                this.phaseBufferMap.delete(meshId);
+            }
+        }
 
         entitiesByMesh.forEach((meshEntities, meshId) => {
             const instancedMesh = this.getOrUpdateInstancedMesh(meshId, meshEntities);
@@ -38,7 +50,8 @@ export class RenderSyncSystem {
                 const flora = entity.getComponent(FloraComponent);
                 const transform = entity.getComponent(TransformComponent);
 
-                // Berechne individuellen PhaseShift basierend auf BioResonance Logik
+                if (!flora || !transform) continue;
+
                 const shift = BioResonance.calculateShift(
                     currentTick,
                     flora.resonanceFrequency,
@@ -48,21 +61,20 @@ export class RenderSyncSystem {
 
                 phaseBuffer[i] = shift;
                 
-                // Matrizen-Update falls Instanz-Positionen sich ändern (Optional, falls statisch)
-                const matrix = new THREE.Matrix4();
-                matrix.compose(transform.position, transform.rotation, transform.scale);
-                instancedMesh.setMatrixAt(i, matrix);
+                this.tempMatrix.compose(transform.position, transform.rotation, transform.scale);
+                instancedMesh.setMatrixAt(i, this.tempMatrix);
             }
 
             const geometry = instancedMesh.geometry;
             const attr = geometry.getAttribute("aPhaseShift") as THREE.InstancedBufferAttribute;
             
             if (attr) {
-                attr.array.set(phaseBuffer);
+                attr.array.set(phaseBuffer.subarray(0, meshEntities.length));
                 attr.needsUpdate = true;
             }
 
             instancedMesh.instanceMatrix.needsUpdate = true;
+            instancedMesh.count = meshEntities.length;
         });
     }
 
@@ -70,9 +82,11 @@ export class RenderSyncSystem {
         const groups = new Map<string, Entity[]>();
         for (const entity of entities) {
             const flora = entity.getComponent(FloraComponent);
-            const list = groups.get(flora.meshAssetId) || [];
-            list.push(entity);
-            groups.set(flora.meshAssetId, list);
+            if (flora) {
+                const list = groups.get(flora.meshAssetId) || [];
+                list.push(entity);
+                groups.set(flora.meshAssetId, list);
+            }
         }
         return groups;
     }
@@ -81,22 +95,21 @@ export class RenderSyncSystem {
         let instancedMesh = this.instancedMeshMap.get(meshId);
         const count = entities.length;
 
-        if (!instancedMesh || instancedMesh.count !== count) {
+        if (!instancedMesh || instancedMesh.instanceMatrix.count < count) {
             if (instancedMesh) {
                 this.floraGroup.remove(instancedMesh);
                 instancedMesh.dispose();
             }
 
-            const baseMesh = this.world.getAssetManager().getMesh(meshId);
+            const assetManager = this.world.getAssetManager();
+            const baseMesh = assetManager.getMesh(meshId) as THREE.Mesh;
             if (!baseMesh) return null;
 
             const geometry = baseMesh.geometry.clone();
-            const material = baseMesh.material instanceof THREE.Material 
-                ? baseMesh.material.clone() 
-                : baseMesh.material[0].clone();
+            const originalMaterial = (Array.isArray(baseMesh.material) ? baseMesh.material[0] : baseMesh.material) as THREE.MeshStandardMaterial;
+            const material = originalMaterial.clone();
 
-            // Injection des phaseShift Attributs in das Material
-            material.onBeforeCompile = (shader: THREE.Shader) => {
+            material.onBeforeCompile = (shader: any) => {
                 shader.vertexShader = `
                     attribute float aPhaseShift;
                     varying float vPhase;
@@ -115,11 +128,14 @@ export class RenderSyncSystem {
                 );
             };
 
-            const phaseArray = new Float32Array(count);
+            const bufferSize = Math.max(count, 32); 
+            const phaseArray = new Float32Array(bufferSize);
             geometry.setAttribute("aPhaseShift", new THREE.InstancedBufferAttribute(phaseArray, 1));
 
-            instancedMesh = new THREE.InstancedMesh(geometry, material, count);
+            instancedMesh = new THREE.InstancedMesh(geometry, material, bufferSize);
             instancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+            instancedMesh.castShadow = true;
+            instancedMesh.receiveShadow = true;
             
             this.instancedMeshMap.set(meshId, instancedMesh);
             this.phaseBufferMap.set(meshId, phaseArray);

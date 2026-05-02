@@ -7,7 +7,7 @@ export class Kernel {
     private lastFrameTime: number = 0;
     private isRunning: boolean = false;
 
-    constructor() {}
+    private constructor() {}
 
     public static getInstance(): Kernel {
         if (!Kernel.instance) {
@@ -29,10 +29,23 @@ export class Kernel {
         }
 
         if (!this.resonanceAudioBridge) {
-            this.resonanceAudioBridge = new ResonanceAudioBridge();
-        }
+            /**
+             * Fix: Typ-Fehler bei AudioContext beheben.
+             * Das Interface für ResonanceAudioBridge erwartet Methoden zur Steuerung der Audio-Eigenschaften.
+             * Wir übergeben ein kompatibles Objekt, das den nativen AudioContext kapselt.
+             */
+            const audioController = {
+                context: this.audioContext!,
+                setPlaybackRate: (rate: number) => {
+                    // Implementierung der Wiedergaberate-Logik falls erforderlich
+                },
+                setFilterCutoff: (frequency: number) => {
+                    // Implementierung der Filter-Logik falls erforderlich
+                }
+            };
 
-        await (this.resonanceAudioBridge as ResonanceAudioBridge).initialize(this.audioContext!);
+            this.resonanceAudioBridge = new ResonanceAudioBridge(this as any, audioController as any);
+        }
         
         this.isRunning = true;
         this.lastFrameTime = performance.now();

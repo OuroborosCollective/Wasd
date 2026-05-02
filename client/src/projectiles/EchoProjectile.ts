@@ -4,19 +4,27 @@ import { ElementType } from "../types/ElementType";
 
 export class EchoProjectile extends Projectile {
     public active: boolean = true;
+    private element: ElementType;
+
+    // Diese Properties werden durch Vererbung von Projectile/GameObject bereitgestellt.
+    // Falls das Basis-Objekt diese nicht explizit definiert, werden sie hier deklariert.
+    public declare scene: any;
+    public declare x: number;
+    public declare y: number;
 
     constructor(scene: any, x: number, y: number, element: ElementType) {
-        super(scene, x, y, element);
+        super(scene, x, y, "echo_projectile");
+        this.element = element;
     }
 
-    public override onCollision(other: any): void {
+    public onCollision(other: any): void {
         this.createEchoNode();
-        super.onCollision(other);
+        this.destroy();
     }
 
-    public override onTrigger(other: any): void {
+    public onTrigger(other: any): void {
         this.createEchoNode();
-        super.onTrigger(other);
+        this.destroy();
     }
 
     private createEchoNode(): void {
@@ -32,11 +40,14 @@ export class EchoProjectile extends Projectile {
         if (this.scene && this.scene.add && typeof this.scene.add.existing === 'function') {
             this.scene.add.existing(echoNode);
         }
-
-        this.active = false;
     }
 
     private getElementType(): ElementType {
-        return (this as any).element || ElementType.None;
+        return this.element || ElementType.None;
+    }
+
+    public override destroy(fromScene?: boolean): void {
+        this.active = false;
+        super.destroy(fromScene);
     }
 }

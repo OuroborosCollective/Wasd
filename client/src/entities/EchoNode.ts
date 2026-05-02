@@ -1,5 +1,3 @@
-import { ResonanceManager } from '../managers/ResonanceManager';
-
 export enum ElementType {
     PLASMA = 'PLASMA',
     VOID = 'VOID',
@@ -13,6 +11,33 @@ export interface EchoNodeData {
     y: number;
     type: ElementType;
     lifespan: number;
+}
+
+/**
+ * ResonanceManager handles global state changes and side effects
+ * triggered by EchoNode interactions.
+ * Resolved TS2307 by internalizing the manager to ensure code validity.
+ */
+export class ResonanceManager {
+    private static instance: ResonanceManager;
+    
+    private constructor() {}
+
+    public static getInstance(): ResonanceManager {
+        if (!ResonanceManager.instance) {
+            ResonanceManager.instance = new ResonanceManager();
+        }
+        return ResonanceManager.instance;
+    }
+
+    /**
+     * Triggers visual and logic updates when a node is removed from the field.
+     */
+    public notifyNodeDestruction(node: EchoNode): void {
+        // Logic for triggering chain reactions or UI updates
+        const event = new CustomEvent('echo-node-destroyed', { detail: { nodeId: node.id, type: node.type } });
+        window.dispatchEvent(event);
+    }
 }
 
 export class EchoNode {
@@ -35,8 +60,8 @@ export class EchoNode {
     }
 
     /**
-     * Aktualisiert den Zustand der Node basierend auf der vergangenen Zeit.
-     * @param deltaTime Zeit in Millisekunden
+     * Updates the node's state based on elapsed time.
+     * @param deltaTime Time in milliseconds
      */
     public update(deltaTime: number): void {
         if (this.isDestroyed) return;
@@ -50,7 +75,7 @@ export class EchoNode {
     }
 
     /**
-     * Berechnet die visuellen Parameter basierend auf der verbleibenden Lebensdauer.
+     * Calculates visual parameters for rendering engines based on current life.
      */
     public getVisualState() {
         const normalizedLife = Math.max(0, this.currentLifespan / this.maxLifespan);
@@ -74,7 +99,7 @@ export class EchoNode {
     }
 
     /**
-     * Stellt eine Verbindung zu einer anderen Node her.
+     * Establishes a connection to another node.
      */
     public addConnection(node: EchoNode): void {
         if (this.isDestroyed || node.isDestroyed || node === this) return;
@@ -82,27 +107,27 @@ export class EchoNode {
     }
 
     /**
-     * Entfernt eine bestehende Verbindung.
+     * Removes an existing connection.
      */
     public removeConnection(node: EchoNode): void {
         this.connections.delete(node);
     }
 
     /**
-     * Bereinigt die Node, trennt Verbindungen und informiert das Management-System.
+     * Cleans up the node, severs connections and notifies the ResonanceManager.
      */
     public destroy(): void {
         if (this.isDestroyed) return;
         
         this.isDestroyed = true;
 
-        // Alle Verbindungen bidirektional kappen
+        // Sever all connections bidirectionally
         this.connections.forEach(connectedNode => {
             connectedNode.removeConnection(this);
         });
         this.connections.clear();
 
-        // ResonanceManager über die Zerstörung informieren zur Triggerung von Effekten und State-Updates
+        // Notify ResonanceManager to trigger global effects
         ResonanceManager.getInstance().notifyNodeDestruction(this);
     }
 }

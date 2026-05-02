@@ -5,7 +5,7 @@
  * Docs: https://doc.babylonjs.com/addons/atmosphere/
  */
 
-import { Scene, Color3, Vector3 } from "@babylonjs/core";
+import { Scene, Color3, Vector3, DirectionalLight, Light } from "@babylonjs/core";
 
 export interface AtmosphereConfig {
   sunDirection: Vector3;
@@ -41,21 +41,29 @@ export class AtmosphereService {
     this.scene = scene;
 
     try {
-      // Try to load the atmosphere addon
       const addons = await import("@babylonjs/addons");
       if (addons.Atmosphere) {
-        // Fixed TS2554: Added name, scene, and config object as expected by constructor
-        this.atmosphereInstance = new addons.Atmosphere("atmosphere", scene, this.config);
+        // Find existing directional lights to pass to the Atmosphere constructor
+        const directionalLights = scene.lights.filter(
+          (l) => l.getTypeID() === Light.LIGHTTYPEID_DIRECTIONALLIGHT
+        ) as DirectionalLight[];
+
+        // Atmosphere addon expects an array of DirectionalLights as the 3rd argument
+        this.atmosphereInstance = new addons.Atmosphere("atmosphere", scene, directionalLights);
         
-        // Configure
+        // Apply remaining configuration via properties
+        this.atmosphereInstance.sunIntensity = this.config.sunIntensity;
+        this.atmosphereInstance.skyTurbidity = this.config.skyTurbidity;
+        this.atmosphereInstance.groundAlbedo = this.config.groundAlbedo;
+        
         scene.clearColor = new Color3(0.53, 0.81, 0.92).toColor4(1);
-        console.log("[AtmosphereService] Atmosphere addon initialized.");
+        console.log("[AtmosphereService] Atmosphere addon initialized with lights array.");
       } else {
         console.log("[AtmosphereService] Atmosphere addon not available, using fallback sky.");
         this.setupFallbackSky();
       }
-    } catch {
-      console.log("[AtmosphereService] Atmosphere addon not available, using fallback sky.");
+    } catch (e) {
+      console.error("[AtmosphereService] Error loading atmosphere addon:", e);
       this.setupFallbackSky();
     }
 
@@ -76,18 +84,27 @@ export class AtmosphereService {
       0.3
     ).normalize();
 
-    // Update atmosphere instance if available
-    if (this.atmosphereInstance) {
-      this.atmosphereInstance.sunDirection = this.config.sunDirection;
-    }
-
-    // Adjust ambient light based on time
+    // Adjust ambient light and directional light based on time
     const sunHeight = Math.sin(angle);
     const brightness = Math.max(0.05, sunHeight);
 
-    const hemiLight = this.scene.lights.find((l) => l.name === "sun") ?? this.scene.lights[0];
-    if (hemiLight) {
-      hemiLight.intensity = brightness * 1.2;
+    // Update all directional lights associated with the sun
+    const dirLights = this.scene.lights.filter(
+      (l) => l.getTypeID() === Light.LIGHTTYPEID_DIRECTIONALLIGHT
+    ) as DirectionalLight[];
+
+    dirLights.forEach((light) => {
+      light.direction = this.config.sunDirection.scale(-1);
+      light.intensity = brightness * 1.5;
+    });
+
+    // Update atmosphere instance if available
+    if (this.atmosphereInstance) {
+      // The addon usually tracks the light direction from the light array provided at init
+      // but we can manually trigger updates or sync properties if required.
+      if (this.atmosphereInstance.sunDirection) {
+        this.atmosphereInstance.sunDirection = this.config.sunDirection;
+      }
     }
 
     // Fog color matches sky
