@@ -11,9 +11,20 @@ jobs:
     environment: production
     steps:
       - name: Execute remote deployment script
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: bash scripts/deploy.sh
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          script_stop: true
+          script: |
+            if [ -f "scripts/deploy.sh" ]; then
+              bash scripts/deploy.sh
+            elif [ -f "${{ secrets.DEPLOY_PATH }}/scripts/deploy.sh" ]; then
+              cd ${{ secrets.DEPLOY_PATH }} && bash scripts/deploy.sh
+            else
+              echo "Error: scripts/deploy.sh not found."
+              exit 1
+            fi
