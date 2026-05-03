@@ -51,21 +51,25 @@ function createShopUI() {
             ⚡ <span id="shop-energy-amount">...</span>
           </div>
           <button onclick="document.getElementById('shop-panel').style.display='none'"
+            aria-label="Shop schließen"
             style="background:none; border:1px solid #ff4444; color:#ff4444; border-radius:6px; padding:6px 12px; cursor:pointer; font-size:14px;">✕</button>
         </div>
       </div>
 
       <!-- Tabs -->
-      <div style="display:flex; gap:8px; margin-bottom:20px;">
+      <div role="tablist" style="display:flex; gap:8px; margin-bottom:20px;">
         <button class="shop-tab active" data-tab="energy" onclick="switchShopTab('energy')"
+          role="tab" aria-selected="true"
           style="flex:1; padding:10px; background:#0d2a3a; border:1px solid #00d4ff; border-radius:8px; color:#00d4ff; cursor:pointer; font-size:13px;">
           ⚡ Matrix Energy
         </button>
         <button class="shop-tab" data-tab="glb" onclick="switchShopTab('glb')"
+          role="tab" aria-selected="false"
           style="flex:1; padding:10px; background:#0a1520; border:1px solid #3a5a7c; border-radius:8px; color:#7a9ab5; cursor:pointer; font-size:13px;">
           🎨 GLB Creator Pass
         </button>
         <button class="shop-tab" data-tab="marketplace" onclick="switchShopTab('marketplace')"
+          role="tab" aria-selected="false"
           style="flex:1; padding:10px; background:#0a1520; border:1px solid #3a5a7c; border-radius:8px; color:#7a9ab5; cursor:pointer; font-size:13px;">
           🏪 Marktplatz
         </button>
@@ -117,6 +121,7 @@ function createShopUI() {
             style="flex:1; background:#0d2a3a; border:1px solid #1a4a6a; border-radius:8px; padding:8px 12px; color:#e0e8ff; font-size:13px;"
             oninput="searchMarketplace(this.value)">
           <button onclick="loadMarketplace()"
+            aria-label="Marktplatz aktualisieren"
             style="background:#0d2a3a; border:1px solid #00d4ff; color:#00d4ff; border-radius:8px; padding:8px 16px; cursor:pointer; font-size:13px;">🔄</button>
         </div>
         <div id="marketplace-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:12px;">
@@ -170,6 +175,7 @@ function switchShopTab(tab: string) {
     el.style.background = "#0a1520";
     el.style.borderColor = "#3a5a7c";
     el.style.color = "#7a9ab5";
+    (el as HTMLElement).setAttribute("aria-selected", "false");
   });
 
   const content = document.getElementById(`shop-tab-${tab}`);
@@ -180,6 +186,7 @@ function switchShopTab(tab: string) {
     btn.style.background = "#0d2a3a";
     btn.style.borderColor = "#00d4ff";
     btn.style.color = "#00d4ff";
+    btn.setAttribute("aria-selected", "true");
   }
 
   if (tab === "glb") loadGLBStatus();
