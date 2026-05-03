@@ -1,65 +1,68 @@
-[![CI Workflow](https://github.com/<OWNER>/<REPOSITORY>/actions/workflows/ci.yml/badge.svg)](https://github.com/<OWNER>/<REPOSITORY>/actions/workflows/ci.yml)
-[![CD Deployment](https://github.com/<OWNER>/<REPOSITORY>/actions/workflows/cd.yml/badge.svg)](https://github.com/<OWNER>/<REPOSITORY>/actions/workflows/cd.yml)
-![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)
+# Areloria WASD
 
-# Projekt-Dokumentation
+Areloria WASD ist eine hochperformante 3D-RPG- und Metaverse-Plattform, die auf modernen Webtechnologien und KI-gesteuerten Agenten basiert. Das Projekt kombiniert eine immersive Spielwelt mit einem robusten World-Editor und administrativen Steuerungswerkzeugen.
 
-## Projektübersicht
-Diese Anwendung dient als robuste Grundlage für TypeScript-basierte Webservices mit einer vollautomatisierten CI/CD-Pipeline. Die Bereitstellung erfolgt containerisiert oder via SSH direkt auf die Zielumgebung.
+## 🏗 Projektstruktur
 
-## CI/CD Workflow & Deployment
+Das Repository ist als Monorepo organisiert und umfasst folgende Hauptbereiche:
 
-Dieses Repository verwendet GitHub Actions für Continuous Integration (CI) und Continuous Deployment (CD). Jeder Push in den `main` Branch löst eine Validierung sowie ein anschließendes Deployment aus.
+### 1. Core-Anwendungen (`apps/` & `client/`)
+- **apps/api**: Node.js/TypeScript Backend-Services für die Logik-Optimierung.
+- **apps/web / client**: Das Frontend der Anwendung. Nutzt Three.js/React für das Rendering der 3D-Welt.
+- **backend**: Python-basierte Services für Scoring und Datenintegrität.
 
-### Erforderliche Repository Secrets
+### 2. KI & Agenten-Systeme
+- **.jules/**: Konfigurationen für das "Jules" KI-System (World Logic, Sentinel, Paletten).
+- **agent/**: Enthält den "Arelorian Super Prompt" und Failsafe-Regeln für LLM-Agenten.
+- **.agents_tmp/**: Temporäre Planungsdaten für Agenten-Workflows.
 
-Um das Deployment via SSH zu ermöglichen, müssen die folgenden Secrets unter `Settings > Secrets and variables > Actions` konfiguriert werden:
+### 3. Administrative Werkzeuge (`admin-tools/`)
+- **GM-Panel**: Live-Steuerung der Spielwelt und Berechtigungsmanagement.
+- **World-Editor**: Werkzeuge für Terrain-Brushes, Objektplatzierung und Debugging von Mount-Punkten.
+- **Rollback-Tools**: Recovery-Guides für Systemwiederherstellungen.
 
-*   **SSH_HOST**: Die IP-Adresse oder der Hostname des Zielservers.
-*   **SSH_USER**: Der Benutzername für die SSH-Verbindung (z.B. `root` oder ein dedizierter Deploy-User).
-*   **SSH_PRIVATE_KEY**: Der private SSH-Schlüssel zur Authentifizierung auf dem Zielserver.
-*   **DEPLOY_PATH**: Das Zielverzeichnis auf dem Server, in dem die Applikation installiert werden soll.
+### 4. Assets (`client/public/assets/`)
+Umfangreiche Bibliothek an 3D-Modellen im `.glb` und `.gltf` Format:
+- **Buildings**: Schmieden, Tavernen, Häuser.
+- **Characters**: NPCs (Krieger, Valkyrie) und Spielerklassen (Mage, Ranger, Warrior).
+- **KayKit Integration**: Komplette Abenteurer- und Dungeon-Asset-Packs.
+- **Environment**: Coniferous Forest Pack (Bäume, Felsen, Texturen).
 
----
-
-## Changelog
-
-Alle wichtigen Änderungen an diesem Projekt werden in diesem Abschnitt dokumentiert.
-
-### [1.2.0] - 2023-11-15
-#### Hinzugefügt
-- Einführung von Health-Checks nach dem Deployment.
-- Unterstützung für Stage-spezifische Umgebungsvariablen.
-#### Verbessert
-- Reduzierung der Docker-Image-Größe um 30%.
-- Beschleunigung der CI-Pipeline durch Caching von `node_modules`.
-
-### [1.1.0] - 2023-10-20
-#### Hinzugefügt
-- Automatische Generierung von API-Dokumentationen.
-- Slack-Benachrichtigungen bei Build-Fehlern integriert.
-#### Behoben
-- Race-Condition beim SSH-Transfer großer Dateien korrigiert.
-
-### [1.0.0] - 2023-09-01
-#### Hinzugefügt
-- Initialer Release.
-- Basis CI/CD Konfiguration (Test, Build, Deploy).
-- SSH-Deployment Workflow.
-
----
-
-## Entwicklung
+## 🚀 Entwicklung & Deployment
 
 ### Voraussetzungen
-- Node.js >= 18.x
-- npm >= 9.x
+- Node.js & npm/pnpm
+- Python 3.x (für Backend-Services)
+- Docker (für Containerisierung)
 
-### Lokale Installation
+### Installation
 bash
+# Abhängigkeiten installieren
 npm install
+
+# Entwicklungsserver starten
 npm run dev
 
-### Tests ausführen
-bash
-npm test
+
+### CI/CD Pipeline
+Das Projekt nutzt GitHub Actions für automatisierte Prozesse:
+- `ci.yml`: Continuous Integration (Linting/Tests).
+- `deploy.yml`: Automatisches Deployment.
+- `frogbot-scan-and-fix.yml`: Sicherheitsscans und automatische Fixes.
+
+## 📄 Dokumentation
+
+Wichtige strategische Dokumente befinden sich im Root-Verzeichnis:
+- `ARCHITECTURE_OVERVIEW.md`: Technischer Aufbau des Systems.
+- `LLM_AGENT_DESIGN.md`: Design-Prinzipien der KI-Agenten.
+- `MASTER_INDEX.md`: Zentrales Inhaltsverzeichnis aller Projektdokumente.
+- `AUDIT_REPORT.md`: Berichte zur Systemintegrität und Konsistenzprüfungen.
+
+## 🛠 Tech Stack
+- **Frontend**: React, TypeScript, Three.js, Tailwind CSS.
+- **Backend**: Node.js, Python, Supabase, Redis.
+- **Infrastruktur**: Docker, Nginx, GitHub Actions.
+- **KI**: Custom LLM Agent Logic (Jules Framework).
+
+## ⚖️ Lizenz
+Siehe `LICENSE` Datei für weitere Informationen.
