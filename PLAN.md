@@ -3,6 +3,13 @@
 ## Vision
 Ein modulares Multi-Agenten-System, in dem ein zentraler **Supervisor-Agent** als "Gehirn" fungiert. Er empfängt komplexe Benutzeranfragen, zerlegt diese in atomare Aufgaben und delegiert sie an spezialisierte Sub-Agenten, um ein konsistentes Gesamtergebnis zu liefern.
 
+## Phase 0: Infrastruktur & Refactoring (Grundlagen)
+- [ ] **Verzeichnis-Konsolidierung**
+    - [ ] Zusammenführung von `apps/web` und `client/` zu einer einheitlichen Frontend-Struktur.
+    - [ ] Zusammenführung von `apps/api` und `backend/` zur Bereinigung redundanter API-Logik.
+- [ ] **Build-Sicherheit**
+    - [ ] Implementierung einer CI/CD-Sperre für `playtester-monitor.html`, um den Ausschluss aus Production-Builds zu garantieren.
+
 ## Phase 1: Kern-Architektur & Supervisor-Logik (Fokus)
 - [ ] **Zentraler Supervisor-Agent**
     - [ ] Implementierung der Task-Decomposition (Aufgabenteilung).

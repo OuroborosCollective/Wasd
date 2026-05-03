@@ -1,3 +1,6 @@
+### Datei: client/src/debug/playtester-monitor.html
+
+html
 <!doctype html>
 <html lang="de">
   <head>
@@ -5,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Areloria Playtester Monitor</title>
+    <title>Areloria Playtester Monitor (Debug)</title>
     <style>
       /* Globale Reset-Regeln für das Huawei P9 (Mali-T880 GPU Optimierung) */
       html, body {
@@ -20,7 +23,6 @@
         -webkit-font-smoothing: antialiased;
         touch-action: none;
       }
-      /* Root-Container nutzt Flexbox zur vertikalen/horizontalen Zentrierung */
       #monitor-root {
         position: absolute;
         top: 0;
@@ -32,18 +34,15 @@
         align-items: center;
         z-index: 1;
       }
-      /* Video-Element Optimierung für WebRTC-Streams auf älteren Android-Versionen */
       video {
         display: block;
         width: 100% !important;
         height: 100% !important;
         object-fit: contain;
-        /* Erzwingt Layer-Promotion zur Hardware-Beschleunigung */
         transform: translateZ(0);
         will-change: transform;
         background-color: #0a0a0a;
       }
-      /* Status-Overlay für Verbindungs-Diagnostik bei k=1000 Load */
       #connection-overlay {
         position: absolute;
         bottom: 20px;
@@ -57,7 +56,6 @@
         pointer-events: none;
         border: 1px solid #333;
       }
-      /* Canvas für Sovereign Engine Telemetrie-Overlays */
       canvas {
         pointer-events: none;
         position: absolute;
@@ -67,7 +65,6 @@
         height: 100%;
         z-index: 5;
       }
-      /* Verhindert Ghost-Elemente durch Tap-Highlighting */
       * {
         -webkit-tap-highlight-color: transparent;
       }
@@ -75,7 +72,6 @@
   </head>
   <body>
     <div id="monitor-root">
-      <!-- Explizites Video-Element mit Attributen für Autoplay-Richtlinien auf Android/WebView -->
       <video 
         id="remote-stream-video" 
         autoplay 
@@ -89,9 +85,7 @@
     <div id="connection-overlay">
       Sovereign Engine Status: <span id="status-text">INITIALIZING</span> | 10Hz Tick
     </div>
-    <!-- Script zur Initialisierung der Sovereign Engine Client-Logik -->
     <script type="module">
-      // Globale Fehlerbehandlung für den Playtester Monitor auf Huawei P9
       window.addEventListener('error', function(e) {
         const statusText = document.getElementById('status-text');
         if (statusText) {
@@ -99,7 +93,6 @@
           statusText.style.color = '#ff0000';
         }
       });
-      // Erzwungener Startversuch des Video-Elements bei Interaktion (Fallout-Handling)
       document.body.addEventListener('touchstart', () => {
         const v = document.getElementById('remote-stream-video');
         if (v && v.paused) {
@@ -107,6 +100,33 @@
         }
       }, { once: true });
     </script>
-    <script type="module" src="/src/playtesterMonitorViewerMain.ts"></script>
+    <script type="module" src="../playtesterMonitorViewerMain.ts"></script>
   </body>
 </html>
+
+
+### Datei: vite.config.ts
+
+typescript
+import { defineConfig } from 'vite';
+import path from 'path';
+
+export default defineConfig({
+  // ... andere Konfigurationen
+  build: {
+    rollupOptions: {
+      // Explizite Definition der Entry-Points, um src/debug/ aus dem Production-Build auszuschließen
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        // Falls weitere valide Pages existieren, hier listen. 
+        // playtester-monitor.html wird ignoriert, da es hier nicht aufgeführt ist.
+      },
+    },
+  },
+  server: {
+    // Erlaubt Zugriff auf das Debug-Verzeichnis während der Entwicklung
+    fs: {
+      allow: ['..']
+    }
+  }
+});
