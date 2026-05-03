@@ -24,24 +24,27 @@ jobs:
             echo "--- SYNCING CODE ---"
             git fetch origin main
             git reset --hard origin/main
+            git clean -fd
             
-            echo "--- CLEANING ---"
-            # Remove redundant packages to avoid build conflicts
+            echo "--- CLEANING REDUNDANT PACKAGES ---"
+            # Remove empty/broken packages that interfere with pnpm install
             rm -rf packages/client packages/server
             
             echo "--- BYPASSING TS ERRORS ---"
             node scripts/bypass-ts-errors.mjs
             
             echo "--- INSTALLING DEPENDENCIES ---"
-            # Force pnpm installation and install deps
+            # Ensure pnpm is updated and fresh
             npm install -g pnpm
+            # Clean node_modules to resolve manager conflicts
+            find . -name "node_modules" -type d -prune -exec rm -rf '{}' +
             pnpm install --no-frozen-lockfile
             
             echo "--- BUILDING ---"
             NODE_OPTIONS=--max-old-space-size=4096 pnpm --recursive run build
             
             echo "--- RESTARTING PM2 ---"
-            # Ensure CommonJS compatibility for the production dist
+            # CommonJS compatibility for production
             echo '{"type": "commonjs"}' > server/dist/package.json
             pm2 delete areloria || true
             pm2 start server/dist/index.js --name areloria
