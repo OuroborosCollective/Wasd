@@ -182,9 +182,9 @@ importers:
       '@wasd/core':
         specifier: workspace:*
         version: link:../core
-      '@wasd/types':
+      '@wasd/shared':
         specifier: workspace:*
-        version: link:../types
+        version: link:../../shared
       cors:
         specifier: ^2.8.5
         version: 2.8.6
