@@ -20,3 +20,7 @@
 ## 2025-05-15 - [Character Selection Accessibility via ARIA Radio Patterns]
 **Learning:** For game character selection screens where only one item can be active at a time, using `role="radiogroup"` and `role="radio"` provides a much clearer semantic model for screen readers than generic buttons or list items. This explicitly communicates the "exclusive choice" nature of the selection.
 **Action:** Use the radio pattern for any "single-select" list of complex items (like character cards or equipment slots) to ensure intent is clear to assistive technologies.
+
+## 2025-05-16 - [ARIA Tab Pattern in Custom DOM Panels]
+**Learning:** For game interfaces that use custom-built tab systems (via manual DOM manipulation rather than a UI library), screen readers are often left in the dark about the relationship between tab buttons and content. Implementing `role="tablist"` on the container and `role="tab"` with dynamic `aria-selected` attributes on buttons provides the necessary semantic structure for non-visual navigation.
+**Action:** Always wrap custom tab buttons in a `role="tablist"` container and synchronize `aria-selected` state within the tab-switching logic.

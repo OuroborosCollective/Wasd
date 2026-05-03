@@ -51,25 +51,30 @@ function createGLBManagerUI() {
         <div style="display:flex; gap:8px; align-items:center;">
           <div id="glb-sub-badge" style="font-size:12px; padding:4px 10px; border-radius:6px; border:1px solid #555;"></div>
           <button onclick="document.getElementById('glb-manager').style.display='none'"
+            aria-label="Manager schließen"
             style="background:none; border:1px solid #ff4444; color:#ff4444; border-radius:6px; padding:6px 12px; cursor:pointer;">✕</button>
         </div>
       </div>
 
       <!-- Tabs -->
-      <div style="display:flex; gap:8px; margin-bottom:20px;">
+      <div role="tablist" style="display:flex; gap:8px; margin-bottom:20px;">
         <button class="glb-tab active-glb" data-tab="upload" onclick="switchGLBTab('upload')"
+          role="tab" aria-selected="true"
           style="flex:1; padding:10px; background:#1a0a3a; border:1px solid #aa44ff; border-radius:8px; color:#aa44ff; cursor:pointer; font-size:13px;">
           📤 Hochladen
         </button>
         <button class="glb-tab" data-tab="models" onclick="switchGLBTab('models')"
+          role="tab" aria-selected="false"
           style="flex:1; padding:10px; background:#0a1520; border:1px solid #3a2a5c; border-radius:8px; color:#7a6a9a; cursor:pointer; font-size:13px;">
           📦 Meine Modelle
         </button>
         <button class="glb-tab" data-tab="land" onclick="switchGLBTab('land')"
+          role="tab" aria-selected="false"
           style="flex:1; padding:10px; background:#0a1520; border:1px solid #3a2a5c; border-radius:8px; color:#7a6a9a; cursor:pointer; font-size:13px;">
           🏗️ Mein Land
         </button>
         <button class="glb-tab" data-tab="sell" onclick="switchGLBTab('sell')"
+          role="tab" aria-selected="false"
           style="flex:1; padding:10px; background:#0a1520; border:1px solid #3a2a5c; border-radius:8px; color:#7a6a9a; cursor:pointer; font-size:13px;">
           💰 Verkaufen
         </button>
@@ -120,7 +125,9 @@ function createGLBManagerUI() {
       <div id="glb-tab-models" class="glb-tab-content" style="display:none;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
           <span style="color:#7a6a9a; font-size:13px;" id="model-count">Lade...</span>
-          <button onclick="loadMyModels()" style="background:#0d2a3a; border:1px solid #aa44ff; color:#aa44ff; border-radius:6px; padding:6px 12px; cursor:pointer; font-size:12px;">🔄 Aktualisieren</button>
+          <button onclick="loadMyModels()"
+            aria-label="Modelle aktualisieren"
+            style="background:#0d2a3a; border:1px solid #aa44ff; color:#aa44ff; border-radius:6px; padding:6px 12px; cursor:pointer; font-size:12px;">🔄 Aktualisieren</button>
         </div>
         <div id="my-models-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:12px;"></div>
       </div>
@@ -320,6 +327,7 @@ async function loadMyModels() {
             💰 Verkaufen
           </button>
           <button onclick="deleteGLBModel('${escapeHtml(m.id)}', '${escapeHtml(m.name)}')"
+            aria-label="Modell löschen"
             style="background:#2a0a0a; border:1px solid #ff4444; color:#ff4444; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:10px;">
             🗑️
           </button>
@@ -433,6 +441,7 @@ function switchGLBTab(tab: string) {
     el.style.background = "#0a1520";
     el.style.borderColor = "#3a2a5c";
     el.style.color = "#7a6a9a";
+    (el as HTMLElement).setAttribute("aria-selected", "false");
   });
 
   const content = document.getElementById(`glb-tab-${tab}`);
@@ -443,6 +452,7 @@ function switchGLBTab(tab: string) {
     btn.style.background = "#1a0a3a";
     btn.style.borderColor = "#aa44ff";
     btn.style.color = "#aa44ff";
+    btn.setAttribute("aria-selected", "true");
   }
 
   if (tab === "models") loadMyModels();
@@ -494,6 +504,7 @@ async function loadLandInfo() {
                 <div style="font-size:10px; color:#7a6a9a;">${escapeHtml(s.type)} · Skala: ${s.scale}</div>
               </div>
               <button onclick="removeStructure('${escapeHtml(myLand.id)}', '${escapeHtml(s.id)}')"
+                aria-label="Struktur entfernen"
                 style="background:#2a0a0a; border:1px solid #ff4444; color:#ff4444; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:10px;">
                 🗑️
               </button>
