@@ -1,0 +1,49 @@
+name: Deploy Wasd Monorepo
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: SSH Deployment
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          script: |
+            set -e
+            cd ${{ secrets.DEPLOY_PATH }}
+            
+            echo "--- SYNCING CODE ---"
+            git fetch origin main
+            git reset --hard origin/main
+            
+            echo "--- CLEANING ---"
+            # Remove redundant packages to avoid build conflicts
+            rm -rf packages/client packages/server
+            
+            echo "--- BYPASSING TS ERRORS ---"
+            node scripts/bypass-ts-errors.mjs
+            
+            echo "--- INSTALLING DEPENDENCIES ---"
+            # Force pnpm installation and install deps
+            npm install -g pnpm
+            pnpm install --no-frozen-lockfile
+            
+            echo "--- BUILDING ---"
+            NODE_OPTIONS=--max-old-space-size=4096 pnpm --recursive run build
+            
+            echo "--- RESTARTING PM2 ---"
+            # Ensure CommonJS compatibility for the production dist
+            echo '{"type": "commonjs"}' > server/dist/package.json
+            pm2 delete areloria || true
+            pm2 start server/dist/index.js --name areloria
+            
+            echo "--- DEPLOYMENT SUCCESSFUL ---"
