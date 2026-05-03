@@ -1,4 +1,4 @@
-import React, { Component, ComponentType, ErrorInfo, ReactNode } from 'react';
+import React, { Component, ComponentType, ErrorInfo } from 'react';
 
 interface DebugMonitorState {
   hasError: boolean;
@@ -30,7 +30,7 @@ export function withDebugMonitor<P extends object>(
       this.reportErrorToFixProcess(error, errorInfo);
     }
 
-    private async reportErrorToFixProcess(error: Error, errorInfo: ErrorInfo) {
+    public async reportErrorToFixProcess(error: Error, errorInfo: ErrorInfo) {
       const errorLog = {
         source: 'DebugMonitorHOC',
         component: componentName,
@@ -64,7 +64,7 @@ export function withDebugMonitor<P extends object>(
       }
     }
 
-    private analyzeStateInconsistency(error: Error, errorInfo: ErrorInfo): string {
+    public analyzeStateInconsistency(error: Error, errorInfo: ErrorInfo): string {
       const stack = error.stack || '';
       const msg = error.message.toLowerCase();
 
@@ -80,7 +80,7 @@ export function withDebugMonitor<P extends object>(
       return 'UNKNOWN_STATE_INCONSISTENCY: Requires deep inspection of render cycle.';
     }
 
-    private generateRemediationSuggestion(error: Error): string {
+    public generateRemediationSuggestion(error: Error): string {
       const msg = error.message.toLowerCase();
 
       if (msg.includes('undefined')) {

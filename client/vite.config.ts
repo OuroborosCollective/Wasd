@@ -8,6 +8,11 @@ export default defineConfig(({ mode }) => {
   return {
     // Relative base for itch.io builds ensures assets load correctly regardless of subfolder
     base: isItchBuild ? "./" : "/",
+    resolve: {
+      alias: {
+        "@shared": path.resolve(__dirname, "../shared"),
+      },
+    },
     server: {
       port: 3001,
       fs: {
