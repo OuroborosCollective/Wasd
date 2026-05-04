@@ -18,15 +18,23 @@ export interface NPCTraits {
 export class NPCMemoryCache {
     private memories: Map<string, Memory[]> = new Map();
     private writeBuffer: Memory[] = [];
-    private supabase: SupabaseClient;
+    private supabase: SupabaseClient | null = null;
 
-    constructor(supabaseUrl: string, supabaseKey: string) {
-        this.supabase = createClient(supabaseUrl, supabaseKey);
+    constructor(supabaseUrl?: string, supabaseKey?: string) {
+        if (supabaseUrl && supabaseKey) {
+            this.supabase = createClient(supabaseUrl, supabaseKey);
+        }
     }
 
-    /**
-     * Fügt eine neue Erinnerung zum Cache und zum Write-Buffer hinzu.
-     */
+    public recordChat(npcId: string, chat: { text: string; sender: string; channel: string; ts: number }): void {
+        this.addMemory(npcId, {
+            content: `[${chat.channel}] ${chat.sender}: ${chat.text}`,
+            importance: 1,
+            timestamp: chat.ts,
+            tags: ['chat', chat.channel]
+        });
+    }
+
     public addMemory(npcId: string, memoryData: Omit<Memory, 'npcId' | 'persistent'>): void {
         const memory: Memory = {
             ...memoryData,
@@ -42,9 +50,6 @@ export class NPCMemoryCache {
         this.writeBuffer.push(memory);
     }
 
-    /**
-     * Gibt gewichtete Erinnerungen basierend auf NPC-Traits und Wichtigkeit zurück.
-     */
     public getWeightedMemories(npcId: string, traits: NPCTraits): Memory[] {
         const npcMemories = this.memories.get(npcId) || [];
         
@@ -55,9 +60,6 @@ export class NPCMemoryCache {
         });
     }
 
-    /**
-     * Berechnet die Gewichtung einer Erinnerung.
-     */
     private calculateWeight(memory: Memory, traits: NPCTraits): number {
         let score = memory.importance;
         
@@ -66,27 +68,22 @@ export class NPCMemoryCache {
             traitKeywords.includes(tag.toLowerCase())
         ).length;
 
-        // Relevanz-Bonus durch Traits
         score += matchCount * 1.5;
 
-        // Zeit-Degradierung: Neuere Erinnerungen sind gewichtiger
         const hoursPassed = (Date.now() - memory.timestamp) / (1000 * 60 * 60);
         score -= hoursPassed * 0.05;
 
         return score;
     }
 
-    /**
-     * Persistiert alle neuen Erinnerungen im Buffer in der Supabase Datenbank.
-     */
     public async flushToDatabase(): Promise<void> {
-        if (this.writeBuffer.length === 0) return;
+        if (!this.supabase || this.writeBuffer.length === 0) return;
 
         const memoriesToFlush = [...this.writeBuffer];
         this.writeBuffer = [];
 
         try {
-            const { data, error } = await this.supabase
+            const { error } = await this.supabase
                 .from('npc_memories')
                 .insert(memoriesToFlush.map(m => ({
                     npc_id: m.npcId,
@@ -98,21 +95,16 @@ export class NPCMemoryCache {
 
             if (error) throw error;
 
-            // Nach erfolgreichem Flush: Im Cache als persistent markieren
             memoriesToFlush.forEach(m => {
                 m.persistent = true;
             });
         } catch (err) {
-            // Bei Fehler: Zurück in den Buffer für den nächsten Versuch
             this.writeBuffer = [...memoriesToFlush, ...this.writeBuffer];
             console.error('NPCMemoryCache: Flush failed', err);
             throw err;
         }
     }
 
-    /**
-     * Bereinigt den Cache für einen NPC oder den gesamten Cache.
-     */
     public clearCache(npcId?: string): void {
         if (npcId) {
             this.memories.delete(npcId);
@@ -121,10 +113,39 @@ export class NPCMemoryCache {
         }
     }
 
-    /**
-     * Gibt den aktuellen Status des Buffers zurück.
-     */
     public getBufferSize(): number {
         return this.writeBuffer.length;
+    }
+
+    // Compat methods for GameplayFusionDirector & Ouroboros
+    public get(npcId: string): Memory[] {
+        return this.memories.get(npcId) || [];
+    }
+
+    public observe(npcId: string, observation: string): void {
+        this.addMemory(npcId, {
+            content: observation,
+            importance: 1,
+            timestamp: Date.now(),
+            tags: ['observation']
+        });
+    }
+
+    public setGoal(npcId: string, goal: string): void {
+        this.addMemory(npcId, {
+            content: goal,
+            importance: 2,
+            timestamp: Date.now(),
+            tags: ['goal']
+        });
+    }
+
+    public logEvent(npcId: string, event: string): void {
+        this.addMemory(npcId, {
+            content: event,
+            importance: 1,
+            timestamp: Date.now(),
+            tags: ['event']
+        });
     }
 }
