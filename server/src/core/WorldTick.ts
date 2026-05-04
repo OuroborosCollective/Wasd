@@ -4043,45 +4043,24 @@ export class WorldTick {
 
     // Include world objects if they exist
     if (this.worldSystem.objectSystem) {
-      const objectsMap = this.worldSystem.objectSystem.getObjectsMap();
-      for (const obj of objectsMap.values()) {
-        const chunkId = this.chunkSystem.getChunkId(obj.position.x, obj.position.y);
-        if (observedChunkIds && !observedChunkIds.has(chunkId)) continue;
-
-        const glb = obj.glbPath || this.resolveWorldObjectGlbPath(obj.type, obj.name || obj.id, obj.id);
-
-        entities.push({
-          id: obj.id,
-          type: obj.type || "object",
-          position: { x: obj.position.x, y: 0, z: obj.position.y },
-          rotation: { x: 0, y: obj.rotation || 0, z: 0 },
-          glbPath: glb,
-          are: this.areStateCompiler.compileEntity(
-            {
-              id: obj.id,
-              type: obj.type || "object",
-              position: { x: obj.position.x, y: 0, z: obj.position.y },
-              visible: true,
-            },
-            tickCount
-          ),
-          visible: true,
-        });
-
-        // Consolidate chunk population
-        let cObjs = chunkObjects.get(chunkId);
-        if (!cObjs) {
-          cObjs = [];
-          chunkObjects.set(chunkId, cObjs);
+      // ⚡ Bolt Optimization: Spatial indexing for world objects
+      // Only iterate over observed chunks instead of all world objects
+      if (observedChunkIds && observedChunkIds.size > 0) {
+        for (const chunkId of observedChunkIds) {
+          const objs = this.worldSystem.objectSystem.getObjectsInChunk(chunkId);
+          for (const obj of objs) {
+            this.processWorldObjectForSync(obj, tickCount, entities, chunkObjects, chunkId);
+          }
         }
-        cObjs.push({
-          id: obj.id,
-          type: obj.type || "object",
-          glbPath: glb,
-          position: { x: obj.position.x, y: 0, z: obj.position.y },
-          rotation: obj.rotation || 0,
-        });
+      } else if (!observedChunkIds) {
+        // Fallback if no specific chunks are observed (e.g. initial full sync)
+        const objectsMap = this.worldSystem.objectSystem.getObjectsMap();
+        for (const obj of objectsMap.values()) {
+          const chunkId = this.chunkSystem.getChunkId(obj.position.x, obj.position.y);
+          this.processWorldObjectForSync(obj, tickCount, entities, chunkObjects, chunkId);
+        }
       }
+      // If observedChunkIds exists but is empty, we process nothing (correct for performance).
     }
 
     // ⚡ Bolt Optimization: Use observedChunkObjects directly to populate the chunks payload
@@ -4329,5 +4308,47 @@ export class WorldTick {
     const path = this.assetPoolResolver.resolvePath(category, key, seed);
     this.glbPathCache.set(cacheKey, path);
     return path;
+  }
+
+  private processWorldObjectForSync(
+    obj: any,
+    tickCount: number,
+    entities: any[],
+    chunkObjects: Map<string, any[]>,
+    chunkId: string
+  ) {
+    const glb = obj.glbPath || this.resolveWorldObjectGlbPath(obj.type, obj.name || obj.id, obj.id);
+
+    entities.push({
+      id: obj.id,
+      type: obj.type || "object",
+      position: { x: obj.position.x, y: 0, z: obj.position.y },
+      rotation: { x: 0, y: obj.rotation || 0, z: 0 },
+      glbPath: glb,
+      are: this.areStateCompiler.compileEntity(
+        {
+          id: obj.id,
+          type: obj.type || "object",
+          position: { x: obj.position.x, y: 0, z: obj.position.y },
+          visible: true,
+        },
+        tickCount
+      ),
+      visible: true,
+    });
+
+    // Consolidate chunk population
+    let cObjs = chunkObjects.get(chunkId);
+    if (!cObjs) {
+      cObjs = [];
+      chunkObjects.set(chunkId, cObjs);
+    }
+    cObjs.push({
+      id: obj.id,
+      type: obj.type || "object",
+      glbPath: glb,
+      position: { x: obj.position.x, y: 0, z: obj.position.y },
+      rotation: obj.rotation || 0,
+    });
   }
 }

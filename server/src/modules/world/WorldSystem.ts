@@ -16,7 +16,7 @@ export class WorldSystem {
     this.chunkSystem = new ChunkSystem(64);
     this.terrainGenerator = new TerrainGenerator();
     this.weatherSystem = new WeatherSystem();
-    this.objectSystem = new WorldObjectSystem(persistence);
+    this.objectSystem = new WorldObjectSystem(persistence, this.chunkSystem);
   }
 
   tick() {
