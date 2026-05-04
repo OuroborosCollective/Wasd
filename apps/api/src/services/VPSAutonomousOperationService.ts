@@ -4,7 +4,8 @@ import {
   IVPSHealthStatus, 
   IAutonomousAction, 
   ActionPriority, 
-  SystemSubsystem 
+  SystemSubsystem,
+  IVPSService
 } from '../interfaces/IVPSAutonomous';
 
 /**
@@ -53,7 +54,7 @@ export class VPSAutonomousOperationService {
 
   private static async verifySystemIntegrity(state: IVPSState): Promise<IVPSHealthStatus[]> {
     // Stateless mapping of current service statuses
-    return state.services.map(svc => ({
+    return state.services.map((svc: IVPSService): IVPSHealthStatus => ({
       id: svc.id,
       isOperational: svc.status === 'active' && svc.heartbeat > (Date.now() - 5000),
       load: svc.load
@@ -95,8 +96,8 @@ export class VPSAutonomousOperationService {
 
   private static evaluateServiceContinuity(health: IVPSHealthStatus[]): IAutonomousAction[] {
     return health
-      .filter(svc => !svc.isOperational)
-      .map(svc => ({
+      .filter((svc: IVPSHealthStatus) => !svc.isOperational)
+      .map((svc: IVPSHealthStatus): IAutonomousAction => ({
         type: 'RESTART_SERVICE',
         targetId: svc.id,
         subsystem: SystemSubsystem.SERVICES,
@@ -131,7 +132,7 @@ export class VPSAutonomousOperationService {
     return actions
       .sort((a, b) => b.priority - a.priority)
       .filter((action, index, self) => 
-        index === self.findIndex((t) => t.type === action.type && t.targetId === action.targetId)
+        index === self.findIndex((t: IAutonomousAction) => t.type === action.type && t.targetId === action.targetId)
       );
   }
 }
