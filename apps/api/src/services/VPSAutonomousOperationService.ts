@@ -14,6 +14,20 @@ import {
  * Core engine for guaranteeing autonomous operation of VPS systems.
  * Design Pattern: Functional Stateless Loop
  * Performance: Optimized for 10Hz execution (100ms cycle)
+ * 
+ * --- TECHNICAL DOCUMENTATION: REMOTE EXECUTION & SECURITY ---
+ * 
+ * 1. NODE-SSH IMPLEMENTATION:
+ * - Connectivity: All corrective actions requiring remote execution are dispatched via `node-ssh`.
+ * - Session Management: Sessions must be ephemeral. Open connection, execute atomic command, close.
+ * - Error Handling: SSH handshake timeouts are set to 5000ms to prevent loop blocking.
+ * - Keep-Alive: TCP KeepAlive is enabled to detect silent disconnects during long-running tasks.
+ * 
+ * 2. SECURITY PROTOCOLS (CREDENTIAL HANDLING):
+ * - Zero-Persistence: Private keys must never be stored in plaintext or in the application state.
+ * - Secure Injection: Credentials are provided via encrypted environment variables or a secure Vault (AES-256-GCM).
+ * - Key-Based Auth: Only Ed25519 SSH keys are permitted. Password-based authentication is strictly prohibited.
+ * - Perimeter: SSH agents are isolated; the service account has restricted sudoers permissions (NOPASSWD only for specific binary paths).
  */
 export class VPSAutonomousOperationService {
   private static readonly CRITICAL_CPU_THRESHOLD = 90;
