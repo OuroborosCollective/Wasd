@@ -1257,7 +1257,7 @@ export class WorldTick {
     });
   }
 
-  private tickFusionIntegrations(now: number): void {
+  private tickFusionIntegrations(now: number, onlinePlayers: any[]): void {
     if (this.tickCount % 50 === 0) {
       const contentRoot = getContentDataRoot();
       const repoRoot = findRepoRootWithGameData() ?? path.resolve(process.cwd(), "..");
@@ -1272,8 +1272,8 @@ export class WorldTick {
       this.gameplayFusionDirector.syncModelNeeds(needs.needs, needs.satisfied, now);
     }
 
-    const onlinePlayers = this.playerSystem.getAllPlayers().filter((p: any) => !p.isOffline);
-    const npcs = this.npcSystem.getAllNPCs();
+    // ⚡ Bolt Optimization: Use Map values directly to avoid array allocation
+    const npcs = Array.from(this.npcSystem.getNPCsMap().values());
     this.gameplayFusionDirector.tick({
       now,
       npcs,
@@ -3588,10 +3588,14 @@ export class WorldTick {
     };
   }
 
-  private getChatRecipients(): ChatRecipient[] {
-    return this.playerSystem.getAllPlayers()
-      .filter((p: any) => !p.isOffline && this.playerToSocket.has(p.id))
-      .map((p: any) => ({ id: p.id, position: { x: p.position.x, y: p.position.y } }));
+  private getChatRecipients(onlinePlayers: any[]): ChatRecipient[] {
+    const recipients: ChatRecipient[] = [];
+    for (const p of onlinePlayers) {
+      if (this.playerToSocket.has(p.id)) {
+        recipients.push({ id: p.id, position: { x: p.position.x, y: p.position.y } });
+      }
+    }
+    return recipients;
   }
 
   async init() {
@@ -3766,7 +3770,16 @@ export class WorldTick {
   tick() {
     this.tickCount += 1;
     const now = Date.now();
-    this.tickFusionIntegrations(now);
+
+    // ⚡ Bolt Optimization: Compute onlinePlayers once per tick to avoid redundant filtering
+    const onlinePlayers: any[] = [];
+    for (const p of this.playerSystem.getPlayersMap().values()) {
+      if (!p.isOffline) {
+        onlinePlayers.push(p);
+      }
+    }
+
+    this.tickFusionIntegrations(now, onlinePlayers);
     this.processTemplateQueue();
     void this.runPlaytesterTick(now);
     const warfrontTick = this.warfrontSystem.tick(now);
@@ -3782,7 +3795,6 @@ export class WorldTick {
       this.trySpawnWarfrontFrontBoss();
     }
     this.warfrontStatusBroadcastTick += 1;
-    const onlinePlayers = this.playerSystem.getAllPlayers().filter(p => !p.isOffline);
     if (
       this.warfrontStatusBroadcastTick >= WARFRONT_STATUS_BROADCAST_TICK_INTERVAL
       && onlinePlayers.length > 0
@@ -3828,8 +3840,6 @@ export class WorldTick {
       this.glbPathCache.clear();
     }
 
-    const recipients = this.getChatRecipients();
-
     // Broadcast Chunk Resonance every 50 ticks (~5s)
     if (this.tickCount % 50 === 0) {
       this.ws.broadcast({
@@ -3859,58 +3869,70 @@ export class WorldTick {
       }
     }
 
-    // NPC chat agent: every 10 ticks (~1s) let NPCs near players chat
-    if (this.tickCount % 10 === 0 && onlinePlayers.length > 0) {
-      const localChatRadiusSq = LOCAL_CHAT_RADIUS * LOCAL_CHAT_RADIUS;
-      for (const npc of this.npcSystem.getAllNPCs()) {
-        const nx = npc.position.x;
-        const ny = npc.position.y;
-        const nearPlayer = onlinePlayers.some((p: any) => {
-          const dx = p.position.x - nx;
-          const dy = p.position.y - ny;
-          // ⚡ Bolt Optimization: Use squared distance to avoid Math.hypot()
-          return dx * dx + dy * dy <= localChatRadiusSq;
-        });
-        if (!nearPlayer) continue;
+    // Throttled processing: NPC chat agent and Ouroboros engine every 10 ticks (~1s)
+    if (this.tickCount % 10 === 0) {
+      const recipients = this.getChatRecipients(onlinePlayers);
 
-        // Feed recent chat into NPC memory
-        const recentChat = this.chatChannelRouter.getRecentForPosition(npc.position, 10);
-        for (const cm of recentChat) {
-          this.npcMemoryCache.recordChat(npc.id, {
-            text: cm.text,
-            sender: cm.senderName,
-            channel: cm.channel,
-            ts: cm.ts,
-          });
+      if (onlinePlayers.length > 0) {
+        const localChatRadiusSq = LOCAL_CHAT_RADIUS * LOCAL_CHAT_RADIUS;
+
+        // ⚡ Bolt Optimization: Use Map values directly to avoid getAllNPCs() array allocation
+        for (const npc of this.npcSystem.getNPCsMap().values()) {
+          const nx = npc.position.x;
+          const ny = npc.position.y;
+
+          // ⚡ Bolt Optimization: Use manual loop with early exit instead of .some()
+          let nearPlayer = false;
+          for (const p of onlinePlayers) {
+            const dx = p.position.x - nx;
+            const dy = p.position.y - ny;
+            if (dx * dx + dy * dy <= localChatRadiusSq) {
+              nearPlayer = true;
+              break;
+            }
+          }
+          if (!nearPlayer) continue;
+
+          // Feed recent chat into NPC memory
+          const recentChat = this.chatChannelRouter.getRecentForPosition(npc.position, 10);
+          for (const cm of recentChat) {
+            this.npcMemoryCache.recordChat(npc.id, {
+              text: cm.text,
+              sender: cm.senderName,
+              channel: cm.channel,
+              ts: cm.ts,
+            });
+          }
+
+          tickNpcChat(
+            npc,
+            this.npcMemoryCache,
+            this.chatChannelRouter,
+            recipients,
+            (sid, payload) => this.ws.sendToPlayer(sid, payload),
+            (payload) => this.ws.broadcast(payload),
+            (pid) => this.playerToSocket.get(pid),
+          );
         }
-
-        tickNpcChat(
-          npc,
-          this.npcMemoryCache,
-          this.chatChannelRouter,
-          recipients,
-          (sid, payload) => this.ws.sendToPlayer(sid, payload),
-          (payload) => this.ws.broadcast(payload),
-          (pid) => this.playerToSocket.get(pid),
-        );
       }
-    }
 
-    // Ouroboros engine: perceive → evaluate → act → remember → update
-    this.ouroborosEngine.tick(
-      this.tickCount,
-      this.npcSystem.getAllNPCs().map((n: any) => ({ id: n.id, name: n.name, position: { x: n.position.x, y: n.position.y }, faction: n.faction })),
-      onlinePlayers.map((p: any) => ({ id: p.id, name: p.name || p.id, position: { x: p.position.x, y: p.position.y } })),
-      this.npcMemoryCache,
-      this.npcRelationships,
-      this.worldSystem.worldTime,
-      this.chatChannelRouter,
-      this.statusEmitter,
-      recipients,
-      (sid: string, payload: unknown) => this.ws.sendToPlayer(sid, payload),
-      (payload: unknown) => this.ws.broadcast(payload),
-      (pid: string) => this.playerToSocket.get(pid),
-    );
+      // Ouroboros engine: perceive → evaluate → act → remember → update
+      // ⚡ Bolt Optimization: Defer expensive entity mapping until Ouroboros tick
+      this.ouroborosEngine.tick(
+        this.tickCount,
+        Array.from(this.npcSystem.getNPCsMap().values()).map((n: any) => ({ id: n.id, name: n.name, position: { x: n.position.x, y: n.position.y }, faction: n.faction })),
+        onlinePlayers.map((p: any) => ({ id: p.id, name: p.name || p.id, position: { x: p.position.x, y: p.position.y } })),
+        this.npcMemoryCache,
+        this.npcRelationships,
+        this.worldSystem.worldTime,
+        this.chatChannelRouter,
+        this.statusEmitter,
+        recipients,
+        (sid: string, payload: unknown) => this.ws.sendToPlayer(sid, payload),
+        (payload: unknown) => this.ws.broadcast(payload),
+        (pid: string) => this.playerToSocket.get(pid),
+      );
+    }
 
     // Flush dirty NPC memory to Supabase every 300 ticks (~30s)
     if (this.tickCount % 300 === 0) {
