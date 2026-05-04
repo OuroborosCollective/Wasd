@@ -10,9 +10,11 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@are-logic/logger": "workspace:*",
     "@wasd/database": "workspace:*",
     "@wasd/redis": "workspace:*",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "node-ssh": "^13.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
