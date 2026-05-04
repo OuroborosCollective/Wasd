@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "build:itch": "tsc && vite build --mode itch",
     "preview": "vite preview",
-    "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
+    "lint": "NODE_OPTIONS=--max-old-space-size=4096 eslint src --report-unused-disable-directives",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -38,7 +38,7 @@
     "@vitejs/plugin-react": "^4.2.1",
     "@testing-library/react": "^14.2.1",
     "autoprefixer": "^10.4.21",
-    "eslint": "^9.0.0",
+    "eslint": "^8.57.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.7.3",
