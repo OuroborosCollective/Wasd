@@ -1272,8 +1272,7 @@ export class WorldTick {
       this.gameplayFusionDirector.syncModelNeeds(needs.needs, needs.satisfied, now);
     }
 
-    // ⚡ Bolt Optimization: Use Map values directly to avoid array allocation
-    const npcs = Array.from(this.npcSystem.getNPCsMap().values());
+    const npcs = this.npcSystem.getAllNPCs();
     this.gameplayFusionDirector.tick({
       now,
       npcs,
@@ -2451,7 +2450,7 @@ export class WorldTick {
     this.chatChannelRouter = new ChatChannelRouter();
     this.npcMemoryCache = new NPCMemoryCache();
     this.ouroborosEngine = new OuroborosEngine();
-    this.npcRelationships = new NPCRelationshipSystem();
+    this.npcRelationships = NPCRelationshipSystem.getInstance();
     this.worldBossDungeonSystem = new WorldBossDungeonSystem();
     this.voteSystem = new VoteSystem();
     this.warfrontSystem = new WarfrontSystem();
@@ -3588,14 +3587,10 @@ export class WorldTick {
     };
   }
 
-  private getChatRecipients(onlinePlayers: any[]): ChatRecipient[] {
-    const recipients: ChatRecipient[] = [];
-    for (const p of onlinePlayers) {
-      if (this.playerToSocket.has(p.id)) {
-        recipients.push({ id: p.id, position: { x: p.position.x, y: p.position.y } });
-      }
-    }
-    return recipients;
+  private getChatRecipients(): ChatRecipient[] {
+    return this.playerSystem.getAllPlayers()
+      .filter((p: any) => !p.isOffline && this.playerToSocket.has(p.id))
+      .map((p: any) => ({ id: p.id, position: { x: p.position.x, y: p.position.y } }));
   }
 
   async init() {
@@ -3774,9 +3769,7 @@ export class WorldTick {
     // ⚡ Bolt Optimization: Compute onlinePlayers once per tick to avoid redundant filtering
     const onlinePlayers: any[] = [];
     for (const p of this.playerSystem.getPlayersMap().values()) {
-      if (!p.isOffline) {
-        onlinePlayers.push(p);
-      }
+      if (!p.isOffline) onlinePlayers.push(p);
     }
 
     this.tickFusionIntegrations(now, onlinePlayers);
@@ -3869,21 +3862,22 @@ export class WorldTick {
       }
     }
 
-    // Throttled processing: NPC chat agent and Ouroboros engine every 10 ticks (~1s)
+    // NPC chat agent and Ouroboros Engine every 10 ticks (~1s)
     if (this.tickCount % 10 === 0) {
-      const recipients = this.getChatRecipients(onlinePlayers);
+      const recipients = this.getChatRecipients();
 
       if (onlinePlayers.length > 0) {
         const localChatRadiusSq = LOCAL_CHAT_RADIUS * LOCAL_CHAT_RADIUS;
+        const allNpcs = this.npcSystem.getAllNPCs();
 
-        // ⚡ Bolt Optimization: Use Map values directly to avoid getAllNPCs() array allocation
-        for (const npc of this.npcSystem.getNPCsMap().values()) {
+        for (let i = 0; i < allNpcs.length; i++) {
+          const npc = allNpcs[i];
           const nx = npc.position.x;
           const ny = npc.position.y;
 
-          // ⚡ Bolt Optimization: Use manual loop with early exit instead of .some()
           let nearPlayer = false;
-          for (const p of onlinePlayers) {
+          for (let j = 0; j < onlinePlayers.length; j++) {
+            const p = onlinePlayers[j];
             const dx = p.position.x - nx;
             const dy = p.position.y - ny;
             if (dx * dx + dy * dy <= localChatRadiusSq) {
@@ -3895,7 +3889,8 @@ export class WorldTick {
 
           // Feed recent chat into NPC memory
           const recentChat = this.chatChannelRouter.getRecentForPosition(npc.position, 10);
-          for (const cm of recentChat) {
+          for (let k = 0; k < recentChat.length; k++) {
+            const cm = recentChat[k];
             this.npcMemoryCache.recordChat(npc.id, {
               text: cm.text,
               sender: cm.senderName,
@@ -3917,10 +3912,10 @@ export class WorldTick {
       }
 
       // Ouroboros engine: perceive → evaluate → act → remember → update
-      // ⚡ Bolt Optimization: Defer expensive entity mapping until Ouroboros tick
+      // ⚡ Bolt Optimization: Defer expensive entity mapping until AI tick
       this.ouroborosEngine.tick(
         this.tickCount,
-        Array.from(this.npcSystem.getNPCsMap().values()).map((n: any) => ({ id: n.id, name: n.name, position: { x: n.position.x, y: n.position.y }, faction: n.faction })),
+        this.npcSystem.getAllNPCs().map((n: any) => ({ id: n.id, name: n.name, position: { x: n.position.x, y: n.position.y }, faction: n.faction })),
         onlinePlayers.map((p: any) => ({ id: p.id, name: p.name || p.id, position: { x: p.position.x, y: p.position.y } })),
         this.npcMemoryCache,
         this.npcRelationships,

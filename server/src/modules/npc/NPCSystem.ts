@@ -52,8 +52,8 @@ export class NPCSystem {
         this.npcs.set(npc.id, npc);
     }
 
-    public removeNPC(id: string): void {
-        this.npcs.delete(id);
+    public removeNPC(id: string): boolean {
+        return this.npcs.delete(id);
     }
 
     public createNPC(id: string, name: string, x: number, y: number): NPC {
@@ -95,7 +95,10 @@ export class NPCSystem {
         // Implementation stub
     }
 
-    public setRuntimeDialogue(npcId: string, dialogue: any): void {
+    public setRuntimeDialogue(npcId: string, text: string, choices: any[]): boolean {
+        const npc = this.getNPC(npcId);
+        if (!npc) return false;
+        return true;
         // Implementation stub
     }
 
@@ -107,7 +110,7 @@ export class NPCSystem {
         // Implementation stub
     }
 
-    public tick(now: number): void {
+    public tick(onlinePlayers: any[], worldTime: number): void {
         this.update();
     }
 
