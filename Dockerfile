@@ -44,10 +44,15 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Copy built artifacts and necessary files
-COPY --from=builder /app/server/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY server/package.json ./
+# Deploy the server package to a pruned directory
+COPY --from=builder /app /app-source
+WORKDIR /app-source
+RUN pnpm deploy --filter @wasd/server --prod /app
+
+WORKDIR /app
+
+# Copy built artifacts (pnpm deploy doesn't always copy dist if not in files)
+COPY --from=builder /app-source/server/dist ./dist
 
 # Hardening: Use non-privileged user
 USER node

@@ -25,7 +25,7 @@
     "@types/three": "^0.162.0",
     "@types/node": "^20.11.30",
     "@vitejs/plugin-react": "^4.2.1",
-    "typescript": "^5.4.2",
+    "typescript": "^5.7.3",
     "vite": "^6.0.0"
   }
 }
