@@ -167,18 +167,18 @@ export function adminContentRouter(tick: WorldTick): Router {
     }
     if (kind === "quest") {
       const r = loadQuestJsonPreviewById(id);
-      if (!r.ok) return res.status(404).json({ ok: false, errorDe: r.errorDe });
-      return res.json({ ok: true, kind: "quest", id, json: r.json });
+      if (!r.ok) return res.status(404).json({ ok: false, errorDe: (r as any).errorDe });
+      return res.json({ ok: true, kind: "quest", id, json: (r as any).json });
     }
     if (kind === "dialogue" || kind === "dialog") {
       const r = loadDialogueJsonPreviewById(id);
-      if (!r.ok) return res.status(404).json({ ok: false, errorDe: r.errorDe });
-      return res.json({ ok: true, kind: "dialogue", id, json: r.json });
+      if (!r.ok) return res.status(404).json({ ok: false, errorDe: (r as any).errorDe });
+      return res.json({ ok: true, kind: "dialogue", id, json: (r as any).json });
     }
     if (kind === "npc") {
       const r = loadNpcJsonPreviewById(id);
-      if (!r.ok) return res.status(404).json({ ok: false, errorDe: r.errorDe });
-      return res.json({ ok: true, kind: "npc", id, json: r.json });
+      if (!r.ok) return res.status(404).json({ ok: false, errorDe: (r as any).errorDe });
+      return res.json({ ok: true, kind: "npc", id, json: (r as any).json });
     }
     return jsonError(res, 400, "Unbekannter „kind“ — nutze quest, dialogue oder npc.", "invalid kind");
   });
@@ -239,19 +239,19 @@ export function adminContentRouter(tick: WorldTick): Router {
   router.post("/publish-pack", adminAuthMiddleware, adminWriteBlocked, (_req: AdminRequest, res: Response) => {
     const result = publishContentPackFromRepo();
     if (!result.ok) {
-      if (result.code === "validation_failed") {
-        const errorsDe = result.errors?.map((e) => mapValidationErrorToDe(e)) ?? [];
+      if ((result as any).code === "validation_failed") {
+        const errorsDe = (result as any).errors?.map((e) => mapValidationErrorToDe(e)) ?? [];
         const detail = errorsDe.slice(0, 12).join("\n");
         return res.status(400).json({
-          error: result.message,
-          errorDe: detail ? result.message + "\n" + detail : result.message,
-          errors: result.errors,
+          error: (result as any).message,
+          errorDe: detail ? (result as any).message + "\n" + detail : (result as any).message,
+          errors: (result as any).errors,
           errorsDe,
         });
       }
-      return res.status(400).json({ error: result.message, errorDe: result.message });
+      return res.status(400).json({ error: (result as any).message, errorDe: (result as any).message });
     }
-    res.json({ ok: true, dest: result.dest, messageDe: result.message });
+    res.json({ ok: true, dest: (result as any).dest, messageDe: (result as any).message });
   });
 
   router.get("/glb-links", adminAuthMiddleware, (_req: AdminRequest, res: Response) => {
@@ -311,14 +311,14 @@ export function adminContentRouter(tick: WorldTick): Router {
       }
       const folderSan = sanitizeAdminGlbRelativeFolder((req.body as { folder?: unknown })?.folder);
       if (!folderSan.ok) {
-        return jsonError(res, 400, folderSan.errorDe, folderSan.errorDe);
+        return jsonError(res, 400, (folderSan as any).errorDe, (folderSan as any).errorDe);
       }
       const nameSan = sanitizeAdminGlbFilename(file.originalname);
       if (!nameSan.ok) {
-        return jsonError(res, 400, nameSan.errorDe, nameSan.errorDe);
+        return jsonError(res, 400, (nameSan as any).errorDe, (nameSan as any).errorDe);
       }
       const modelsRoot = getServerPublicModelsDir();
-      const relPath = folderSan.folder ? path.join(folderSan.folder, nameSan.filename) : nameSan.filename;
+      const relPath = (folderSan as any).folder ? path.join((folderSan as any).folder, (nameSan as any).filename) : (nameSan as any).filename;
       const absPath = path.resolve(path.join(modelsRoot, relPath));
       const relCheck = path.relative(path.resolve(modelsRoot), absPath);
       if (relCheck.startsWith("..") || path.isAbsolute(relCheck)) {
@@ -379,16 +379,16 @@ export function adminContentRouter(tick: WorldTick): Router {
         : suggestFolderForSmartCategory(category);
       const folderSan = sanitizeAdminGlbRelativeFolder(chosenFolder);
       if (!folderSan.ok) {
-        return jsonError(res, 400, folderSan.errorDe, folderSan.errorDe);
+        return jsonError(res, 400, (folderSan as any).errorDe, (folderSan as any).errorDe);
       }
 
       const nameSan = sanitizeAdminGlbFilename(file.originalname);
       if (!nameSan.ok) {
-        return jsonError(res, 400, nameSan.errorDe, nameSan.errorDe);
+        return jsonError(res, 400, (nameSan as any).errorDe, (nameSan as any).errorDe);
       }
 
       const modelsRoot = getServerPublicModelsDir();
-      const relPath = folderSan.folder ? path.join(folderSan.folder, nameSan.filename) : nameSan.filename;
+      const relPath = (folderSan as any).folder ? path.join((folderSan as any).folder, (nameSan as any).filename) : (nameSan as any).filename;
       const absPath = path.resolve(path.join(modelsRoot, relPath));
       const relCheck = path.relative(path.resolve(modelsRoot), absPath);
       if (relCheck.startsWith("..") || path.isAbsolute(relCheck)) {
@@ -406,7 +406,7 @@ export function adminContentRouter(tick: WorldTick): Router {
       const urlPath = "/assets/models/" + relPath.replace(/\\/g, "/");
       const smartDecision = decideSmartGlbAction({
         category,
-        fileName: nameSan.filename,
+        fileName: (nameSan as any).filename,
         choices: {
           npcIds: loadNpcChoicesForAdmin().map((n) => n.id),
           npcRoles: loadNpcRoleChoicesForAdmin(),
