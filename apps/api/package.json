@@ -2,7 +2,7 @@
   "name": "@wasd/api",
   "version": "1.0.0",
   "private": true,
-  "main": "index.ts",
+  "main": "dist/index.js",
   "type": "module",
   "scripts": {
     "dev": "tsx watch index.ts",
@@ -17,7 +17,8 @@
     "node-ssh": "^13.1.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@types/node": "^20.11.0",
+    "ts-node": "^10.9.2",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3"
   }
