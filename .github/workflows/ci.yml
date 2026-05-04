@@ -26,7 +26,9 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
-          cache-dependency-path: apps/${{ matrix.app }}/package-lock.json
+          cache-dependency-path: |
+            apps/api/package-lock.json
+            apps/web/package-lock.json
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
