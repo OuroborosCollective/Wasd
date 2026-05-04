@@ -2,7 +2,7 @@
   "name": "@wasd/api",
   "version": "1.0.0",
   "private": true,
-  "main": "dist/index.js",
+  "main": "index.ts",
   "type": "module",
   "scripts": {
     "dev": "tsx watch index.ts",
@@ -10,15 +10,14 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@are-logic/logger": "workspace:*",
-    "@wasd/database": "workspace:*",
-    "@wasd/redis": "workspace:*",
+    "@are-logic/logger": "*",
+    "@wasd/database": "*",
+    "@wasd/redis": "*",
     "dotenv": "^16.3.1",
     "node-ssh": "^13.1.0"
   },
   "devDependencies": {
-    "@types/node": "^20.11.0",
-    "ts-node": "^10.9.2",
+    "@types/node": "^20.0.0",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3"
   }
