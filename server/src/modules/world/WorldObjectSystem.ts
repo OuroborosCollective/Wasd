@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { PersistenceManager } from '../../core/PersistenceManager.js';
 import { resolveContentFile } from '../content/contentDataRoot.js';
+import { ChunkSystem } from './ChunkSystem.js';
 
 export interface WorldObject {
   id: string;
@@ -15,23 +16,35 @@ export interface WorldObject {
 
 export class WorldObjectSystem {
   private objects: Map<string, WorldObject> = new Map();
+  private spatialIndex: Map<string, WorldObject[]> = new Map();
   private dataPath: string;
   private persistence: PersistenceManager | null = null;
+  private chunkSystem: ChunkSystem;
 
-  constructor(persistence?: PersistenceManager) {
+  constructor(persistence?: PersistenceManager, chunkSystem?: ChunkSystem) {
     this.persistence = persistence || null;
+    this.chunkSystem = chunkSystem || new ChunkSystem(64);
     this.dataPath = resolveContentFile("world/objects.json");
     this.load();
   }
 
   public async addObject(obj: WorldObject) {
+    const existing = this.objects.get(obj.id);
+    if (existing) {
+      this.removeFromSpatialIndex(existing);
+    }
     this.objects.set(obj.id, obj);
+    this.addToSpatialIndex(obj);
     await this.save();
   }
 
   public async removeObject(id: string) {
-    this.objects.delete(id);
-    await this.save();
+    const obj = this.objects.get(id);
+    if (obj) {
+      this.removeFromSpatialIndex(obj);
+      this.objects.delete(id);
+      await this.save();
+    }
   }
 
   public getAllObjects(): WorldObject[] {
@@ -43,8 +56,41 @@ export class WorldObjectSystem {
     return this.objects;
   }
 
+  public getObjectsInChunk(chunkId: string): WorldObject[] {
+    return this.spatialIndex.get(chunkId) || [];
+  }
+
+  private getChunkId(x: number, y: number): string {
+    return this.chunkSystem.getChunkId(x, y);
+  }
+
+  private addToSpatialIndex(obj: WorldObject) {
+    const chunkId = this.getChunkId(obj.position.x, obj.position.y);
+    let list = this.spatialIndex.get(chunkId);
+    if (!list) {
+      list = [];
+      this.spatialIndex.set(chunkId, list);
+    }
+    list.push(obj);
+  }
+
+  private removeFromSpatialIndex(obj: WorldObject) {
+    const chunkId = this.getChunkId(obj.position.x, obj.position.y);
+    const list = this.spatialIndex.get(chunkId);
+    if (list) {
+      const idx = list.findIndex(o => o.id === obj.id);
+      if (idx !== -1) {
+        list.splice(idx, 1);
+      }
+      if (list.length === 0) {
+        this.spatialIndex.delete(chunkId);
+      }
+    }
+  }
+
   public async clearObjects() {
     this.objects.clear();
+    this.spatialIndex.clear();
     await this.save();
   }
 
@@ -55,6 +101,7 @@ export class WorldObjectSystem {
       if (persistedObjects && persistedObjects.length > 0) {
         for (const obj of persistedObjects) {
           this.objects.set(obj.id, obj);
+          this.addToSpatialIndex(obj);
         }
         return;
       }
@@ -66,6 +113,7 @@ export class WorldObjectSystem {
         const data = JSON.parse(fs.readFileSync(this.dataPath, "utf-8"));
         for (const obj of data) {
           this.objects.set(obj.id, obj);
+          this.addToSpatialIndex(obj);
         }
       }
     } catch (e) {
