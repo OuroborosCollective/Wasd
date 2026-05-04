@@ -15,6 +15,7 @@ jobs:
     strategy:
       matrix:
         node-version: [20.x]
+        app: [api, web]
 
     steps:
       - name: Checkout repository
@@ -25,17 +26,19 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
-          cache-dependency-path: '**/package-lock.json'
+          cache-dependency-path: apps/${{ matrix.app }}/package-lock.json
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
-        working-directory: .
+        working-directory: apps/${{ matrix.app }}
         shell: bash
 
       - name: Build
-        run: npm run build
+        run: npm run build --if-present
+        working-directory: apps/${{ matrix.app }}
         shell: bash
 
       - name: Test
-        run: npm test
+        run: npm test --if-present
+        working-directory: apps/${{ matrix.app }}
         shell: bash
