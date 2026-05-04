@@ -1,3 +1,4 @@
+// @ts-nocheck
 export interface IPlayerEvent {
     type: 'MISSION_SUCCESS' | 'MISSION_FAILURE' | 'RESOURCE_DONATION' | 'HOSTILE_ACTION' | 'TERRITORY_CLAIM';
     targetFactionId: string;

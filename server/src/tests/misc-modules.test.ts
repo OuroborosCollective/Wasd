@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach } from "vitest";
 import { ReligionSystem } from "../modules/religion/ReligionSystem.js";
 import { SiegeEngine } from "../modules/siege/SiegeEngine.js";

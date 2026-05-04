@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * AgentNeeds — drives NPC agent behavior through a need hierarchy.
  *

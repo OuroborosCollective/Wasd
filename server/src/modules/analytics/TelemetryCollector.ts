@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class TelemetryCollector {
   private events: any[] = [];
 

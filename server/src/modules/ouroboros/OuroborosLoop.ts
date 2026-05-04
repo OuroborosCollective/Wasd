@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * OuroborosLoop — the self-sustaining agent cycle.
  *

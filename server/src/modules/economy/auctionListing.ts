@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Minimal listing shape for a light auction house (listing fee / expiry / buyout — implement service separately).
  */

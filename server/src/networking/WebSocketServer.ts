@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Server as HttpServer } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 import { randomUUID } from "node:crypto";

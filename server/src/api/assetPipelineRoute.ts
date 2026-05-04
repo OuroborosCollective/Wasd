@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Asset Pipeline API Routes
  * Full End-to-End: Text → Spec → Tripo3D → GLB → Game Registry

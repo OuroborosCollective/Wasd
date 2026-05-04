@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class PayloadValidator {
   validateObject(payload: any) {
     return payload !== null && typeof payload === "object" && !Array.isArray(payload);

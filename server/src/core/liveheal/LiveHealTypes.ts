@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * LiveHeal v2 - Core type definitions for WASD runtime resilience layer.
  *

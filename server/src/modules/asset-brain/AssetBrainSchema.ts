@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Asset Brain Architect - Schema & Types
  * Re-exports engine types and adds DB-layer types

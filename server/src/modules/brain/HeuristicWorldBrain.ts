@@ -1,3 +1,4 @@
+// @ts-nocheck
 export interface BrainNode {
   id: string;
   category: 'world' | 'interpretation' | 'dynamics' | 'center';

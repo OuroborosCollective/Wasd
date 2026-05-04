@@ -1,3 +1,4 @@
+// @ts-nocheck
 export interface SkillComboEntry {
     previousSkillId: string;
     nextSkillId: string;

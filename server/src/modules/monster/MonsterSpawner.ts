@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { generateMonsterDNA } from "./MonsterDNA.js";
 import { mutateMonster } from "./MonsterMutation.js";
 

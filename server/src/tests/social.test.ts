@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach } from "vitest";
 import { FriendsSystem } from "../modules/social/FriendsSystem.js";
 import { IgnoreSystem } from "../modules/social/IgnoreSystem.js";

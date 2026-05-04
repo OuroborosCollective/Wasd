@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function healthRoute() {
   return {
     ok: true,

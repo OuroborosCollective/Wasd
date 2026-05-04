@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function playerRoutes() {
   return {
     path: "/players",

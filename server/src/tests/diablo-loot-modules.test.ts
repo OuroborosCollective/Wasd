@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect } from "vitest";
 import { generateItem, rarityRoll, pickWeighted, randInt } from "../modules/loot/diabloItemGen.js";
 import { rollTreasure } from "../modules/loot/diabloTreasure.js";

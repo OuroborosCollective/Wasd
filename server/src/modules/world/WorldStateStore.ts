@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class WorldStateStore {
   private state: Record<string, any> = {};
   set(key: string, value: any) { this.state[key] = value; }

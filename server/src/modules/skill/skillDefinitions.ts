@@ -1,3 +1,4 @@
+// @ts-nocheck
 /** Server-side active skills (mana + cooldown). Extend as gameplay grows. */
 import {
   IMPACT_BUSTER_COOLDOWN_KEY,

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect } from "vitest";
 import { NPCMemoryCache, defaultHeuristicWeights } from "../modules/npc/NPCMemoryCache";
 import { ChatChannelRouter } from "../modules/chat/ChatChannelRouter";

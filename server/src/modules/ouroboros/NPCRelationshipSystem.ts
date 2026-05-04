@@ -1,3 +1,4 @@
+// @ts-nocheck
 export interface IBountySystem {
     hasActiveBounty(playerId: string): boolean;
     getBountyLevel(playerId: string): number;

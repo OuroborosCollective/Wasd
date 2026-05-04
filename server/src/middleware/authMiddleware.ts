@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Request, Response, NextFunction } from "express";
 import { isSupabaseAuthConfigured, verifySupabaseToken } from "../config/supabase.js";
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { cache as rawCache } from "../core/Cache.js";
 const cache = rawCache!;

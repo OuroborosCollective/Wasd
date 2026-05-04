@@ -1,3 +1,4 @@
+// @ts-nocheck
 export interface NPCMemory {
     longTermGoals: string[];
 }

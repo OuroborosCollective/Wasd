@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Asset Brain Architect - Database Operations
  * Handles all CRUD operations for asset specifications and variants

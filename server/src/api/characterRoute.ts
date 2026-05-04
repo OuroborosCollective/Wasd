@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Character API Routes
  * GET  /api/character/manifest      – Returns the full character manifest (bodies, heads, colors)

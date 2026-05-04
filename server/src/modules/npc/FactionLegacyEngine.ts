@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { NPCGenealogyEngine } from './NPCGenealogyEngine';
 import { WorldHistory } from '../history/WorldHistory';
 

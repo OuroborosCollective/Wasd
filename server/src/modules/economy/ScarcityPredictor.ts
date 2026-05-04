@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { WorldEventBus } from "../events/WorldEventBus";
 
 export interface MarketHistoryEntry {

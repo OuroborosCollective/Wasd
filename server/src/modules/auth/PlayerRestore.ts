@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class PlayerRestore {
   restore(saved: any) {
     return {

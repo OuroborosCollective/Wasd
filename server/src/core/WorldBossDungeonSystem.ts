@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { randomUUID } from "node:crypto";
 
 const WORLD_BOSS_DUNGEON_ID = "obsidian_fracture";

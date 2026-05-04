@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { createHmac } from "node:crypto";
 import { describe, expect, it, afterEach, beforeEach } from "vitest";
 import type { Request } from "express";

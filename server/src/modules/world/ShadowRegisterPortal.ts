@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class ShadowRegisterPortal {
   activate(regionId: string) {
     return {

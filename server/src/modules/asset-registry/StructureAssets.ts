@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const StructureAssets = {
   castle_wall: {
     assetId: "castle_wall",

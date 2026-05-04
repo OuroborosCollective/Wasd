@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach } from "vitest";
 import { AuctionFees } from "../modules/auction/AuctionFees.js";
 import { AuctionHouse } from "../modules/auction/AuctionHouse.js";

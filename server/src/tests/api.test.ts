@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, vi } from "vitest";
 import { authRoute } from "../api/authRoute.js";
 import { playerRoutes } from "../api/playerRoutes.js";

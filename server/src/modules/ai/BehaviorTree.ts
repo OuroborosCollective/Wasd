@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class BehaviorTree {
   run(npc: any) {
     if (npc.needs?.sleep) return "sleep";

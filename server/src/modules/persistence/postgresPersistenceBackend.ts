@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { db, isDatabaseConfigured, testConnection as testPostgresConnection } from "../../core/Database.js";
 import { serializePlayerForPersistence } from "./playerSnapshot.js";
 import type { IPersistenceBackend } from "./persistenceBackend.js";

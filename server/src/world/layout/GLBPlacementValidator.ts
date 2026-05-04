@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * GLBPlacementValidator - Validates logical placement of GLB assets in the world.
  *

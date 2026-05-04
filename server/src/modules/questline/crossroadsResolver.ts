@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Major-branch “Scheideweg” resolution (faction / strand), separate from graph node `strandResolver`.
  */

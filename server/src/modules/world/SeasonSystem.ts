@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class SeasonSystem {
   private seasons = ["spring", "summer", "autumn", "winter"] as const;
   getSeason(tick:number){

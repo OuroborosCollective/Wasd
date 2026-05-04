@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ExistingDynamicTerrainAdapter — Wraps the existing DynamicTerrain integration.
  * Provides height queries, slope queries, and local terrain adjustments

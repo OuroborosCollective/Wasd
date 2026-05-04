@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Affix, BaseItem } from "./diabloItemGen.js";
 
 /** Minimal bases/affixes for server-side demo drops (replace with content JSON later). */

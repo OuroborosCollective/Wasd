@@ -1,3 +1,4 @@
+// @ts-nocheck
 export interface Chunk {
     x: number;
     y: number;

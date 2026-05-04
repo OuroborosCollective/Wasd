@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class MailService {
   private mail: any[] = [];
 

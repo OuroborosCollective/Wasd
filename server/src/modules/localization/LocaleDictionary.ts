@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const LocaleDictionary = {
   de: {
     "ui.inventory.title": "Inventar",

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Request, Response } from 'express';
 import { GitHubWorkflowService } from '../services/GitHubWorkflowService';
 

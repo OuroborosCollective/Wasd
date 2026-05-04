@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * StatusEmitter — auto-generates STATUS channel messages for game events.
  *

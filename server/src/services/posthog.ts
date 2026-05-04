@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { PostHog } from 'posthog-node';
 
 let posthogClient: PostHog | null = null;

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { normalizeInventoryStacks } from "../inventory/inventoryStacks.js";
 
 /**

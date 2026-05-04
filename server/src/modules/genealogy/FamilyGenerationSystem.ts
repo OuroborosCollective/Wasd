@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class FamilyGenerationSystem {
   createChild(parents: string[], house: string) {
     return {

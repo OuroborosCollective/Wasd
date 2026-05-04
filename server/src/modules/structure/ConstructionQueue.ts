@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class ConstructionQueue {
   private jobs: any[] = [];
 

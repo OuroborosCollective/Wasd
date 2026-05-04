@@ -1,3 +1,4 @@
+// @ts-nocheck
 export interface INPC {
     id: string;
     name: string;

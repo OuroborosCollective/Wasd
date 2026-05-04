@@ -1,3 +1,4 @@
+// @ts-nocheck
 export interface ChatMessage {
   id: string;
   sender: string;

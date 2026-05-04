@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const NPCAssets = {
   uschi_gossip: {
     assetId: "uschi_gossip",

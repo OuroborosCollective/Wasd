@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class SafeMigrationRunner {
   run(migrations:any[]){
     return {

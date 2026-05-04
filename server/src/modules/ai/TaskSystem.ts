@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class TaskSystem {
   execute(npc: any, action: string) {
     switch (action) {

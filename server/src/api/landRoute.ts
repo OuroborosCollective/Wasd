@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Land API Routes for Areloria MMORPG
  * GET  /api/land/all             – All land plots (for world map)

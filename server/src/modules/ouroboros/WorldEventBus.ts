@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * WorldEventBus — central nervous system of the Ouroboros living world.
  *

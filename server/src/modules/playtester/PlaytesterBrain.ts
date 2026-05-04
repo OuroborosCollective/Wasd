@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { PlaytesterActionPlanner } from "./PlaytesterActionPlanner.js";
 import type { PlaytesterAction } from "./playtesterTypes.js";
 

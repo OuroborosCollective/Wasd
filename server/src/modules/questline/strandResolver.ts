@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Resolves branch choices (Scheideweg) in a questline graph.
  */

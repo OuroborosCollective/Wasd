@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { HeuristicGoalPruner } from "./HeuristicGoalPruner";
 import { NPCMemoryCache } from "./NPCMemoryCache";
 

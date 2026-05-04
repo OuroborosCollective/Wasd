@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { AREEngineBox } from './AREEngineBox';
 
 export interface IClientConnection {

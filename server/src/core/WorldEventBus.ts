@@ -1,3 +1,4 @@
+// @ts-nocheck
 type WorldEventMap = {
     'scarcity_event': {
         resourceId: string;

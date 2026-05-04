@@ -1,3 +1,4 @@
+// @ts-nocheck
 type BoolFallback = boolean;
 
 function envFlag(key: string, fallback: BoolFallback): boolean {

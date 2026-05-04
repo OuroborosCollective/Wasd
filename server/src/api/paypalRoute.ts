@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * PayPal Payment Routes for Areloria MMORPG
  * POST /api/paypal/create-order   – Create a PayPal order

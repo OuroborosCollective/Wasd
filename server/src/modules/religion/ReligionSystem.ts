@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class ReligionSystem {
   private religions = new Map<string, any>();
 

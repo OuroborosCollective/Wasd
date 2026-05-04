@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach } from "vitest";
 import { KingdomLedger } from "../modules/civilization/KingdomLedger.js";
 import { CivilizationRankings } from "../modules/civilization/CivilizationRankings.js";

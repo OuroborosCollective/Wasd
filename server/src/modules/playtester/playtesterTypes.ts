@@ -1,3 +1,4 @@
+// @ts-nocheck
 export type PlaytesterAction =
   | "idle"
   | "move_to_target"

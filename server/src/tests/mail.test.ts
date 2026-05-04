@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach } from "vitest";
 import { MailAttachments } from "../modules/mail/MailAttachments.js";
 

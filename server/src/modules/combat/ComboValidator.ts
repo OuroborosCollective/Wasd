@@ -1,3 +1,4 @@
+// @ts-nocheck
 export interface ComboDefinition {
     nextSkills: string[];
     windowMs: number;

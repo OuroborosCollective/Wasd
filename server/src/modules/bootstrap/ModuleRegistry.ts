@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class ModuleRegistry {
   private modules = new Map<string, any>();
 

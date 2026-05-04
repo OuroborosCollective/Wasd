@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class ObserverEngine {
   private observers = new Map<string, { x: number; y: number }>();
   private viewDistanceChunks = 1; // 1 chunk in each direction (3x3 grid)

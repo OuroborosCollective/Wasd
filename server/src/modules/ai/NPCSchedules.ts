@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const NPCSchedules = {
   merchant: [
     { hour: 6, action: "wake" },

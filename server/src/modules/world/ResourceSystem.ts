@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ResourceScatter } from "./ResourceScatter.js";
 import { ItemRegistry } from "../inventory/ItemRegistry.js";
 

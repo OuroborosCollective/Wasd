@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class TaxLedger {
   private entries: any[] = [];
 

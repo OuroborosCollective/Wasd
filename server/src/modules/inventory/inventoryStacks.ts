@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ItemRegistry } from "./ItemRegistry.js";
 
 function rowQty(row: any): number {

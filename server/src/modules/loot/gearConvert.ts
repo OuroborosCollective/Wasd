@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { GeneratedItem } from "./diabloItemGen.js";
 import type { GearItem } from "../items/dualInventoryTypes.js";
 

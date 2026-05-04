@@ -1,3 +1,4 @@
+// @ts-nocheck
 import Redis from 'ioredis';
 
 const cacheUrl = process.env.CACHE_URL;

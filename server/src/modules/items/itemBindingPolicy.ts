@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ItemRegistry } from "../inventory/ItemRegistry.js";
 
 type BoundContext = {

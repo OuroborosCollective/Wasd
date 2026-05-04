@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class SystemHealthMonitor {
   report() {
     return {

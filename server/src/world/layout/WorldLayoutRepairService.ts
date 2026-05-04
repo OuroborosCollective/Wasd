@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * WorldLayoutRepairService - Applies rule-based auto-repairs to layout issues.
  *

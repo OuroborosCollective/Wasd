@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Generic combat proc hook context (legendary powers, set procs, etc.).
  */

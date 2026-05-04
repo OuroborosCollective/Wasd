@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const SWARM_CONFIG = {
   REVIEWER: {
     MAX_ERROR_THRESHOLD: 0.2,

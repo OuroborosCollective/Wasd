@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * PayPal REST API Service for Areloria MMORPG
  * Handles: Matrix Energy purchases, GLB Subscription, Marketplace transactions

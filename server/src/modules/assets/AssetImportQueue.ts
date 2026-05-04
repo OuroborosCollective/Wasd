@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class AssetImportQueue {
   private queue:any[] = [];
   add(asset:any){

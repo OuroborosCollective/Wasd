@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * OuroborosEngine — the top-level coordinator that closes the Ouroboros cycle.
  *

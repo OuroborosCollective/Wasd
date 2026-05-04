@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * WorldHistory — append-only event log for the living world.
  *

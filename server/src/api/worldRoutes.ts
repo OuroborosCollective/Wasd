@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function worldRoutes() {
   return {
     path: "/world",

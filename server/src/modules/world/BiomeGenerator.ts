@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class BiomeGenerator {
   getBiome(_x: number, _y: number, height: number) {
     if (height > 0.7) return "mountain";

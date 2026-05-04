@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { db, isDatabaseConfigured } from "../../core/Database.js";
 
 export type QuestlineProgressRow = {

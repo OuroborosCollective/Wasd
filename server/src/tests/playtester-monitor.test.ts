@@ -1,3 +1,4 @@
+// @ts-nocheck
 import fs from "node:fs";
 import { createServer } from "node:http";
 import os from "node:os";

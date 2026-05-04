@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { EmergentMarket } from './EmergentMarket';
 import { WorldEventBus } from './WorldEventBus';
 

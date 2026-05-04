@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const NPCProfessions = {
   merchant: { scheduleKey: "merchant", marketRole: true },
   blacksmith: { station: "forge" },

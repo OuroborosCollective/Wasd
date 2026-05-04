@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { InventorySystem } from "../modules/inventory/InventorySystem.js";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";

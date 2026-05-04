@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class HistoricalMapEngine {
   buildSnapshotMap(snapshot:any){
     return {

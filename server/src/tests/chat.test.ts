@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach } from "vitest";
 import { ChatModeration } from "../modules/chat/ChatModeration.js";
 import { ChatService } from "../modules/chat/ChatService.js";

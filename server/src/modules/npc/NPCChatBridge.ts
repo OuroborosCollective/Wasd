@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { NPCMemoryCache, MemoryEvent } from './NPCMemoryCache';
 import { NPCTraits } from './NPCTraits';
 

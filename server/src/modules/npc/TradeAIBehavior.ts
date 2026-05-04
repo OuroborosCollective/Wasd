@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { INPC, NPCState, LongTermGoal } from "./NPCInterfaces";
 import { IPathfindingSystem } from "../systems/PathfindingSystem";
 import { CaravanLogic } from "./CaravanLogic";

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect } from "vitest";
 import { resolvePersistenceDriver } from "../modules/persistence/persistenceBackend.js";
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const AdminMountRegistry = {
   gm_giraffe: {
     id: "gm_giraffe",

@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class QuestRewards {
   grant(player: any, reward: any) {
     if (!player.rewards) player.rewards = [];

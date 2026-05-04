@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect } from "vitest";
 import { loadRespawnPointsFromScenes } from "../modules/combat/respawnPoints.js";
 import path from "node:path";

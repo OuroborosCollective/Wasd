@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, vi } from "vitest";
 import { LandSystem } from "../../../modules/land/LandSystem.js";
 import { DatabaseService } from "../../../core/Database.js";

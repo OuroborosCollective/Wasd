@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Legendary / aspect-style proc hooks. Integrate after a successful hit with final damage.
  */

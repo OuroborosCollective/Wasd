@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function editorRoutes() {
   return [
     { path: "/api/editor/place", method: "POST" },

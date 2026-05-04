@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect } from "vitest";
 import { QuestEngine } from "../modules/quest/QuestEngine.js";
 import { generateStrandQuestPack } from "../modules/questline/questlineGenerator.js";

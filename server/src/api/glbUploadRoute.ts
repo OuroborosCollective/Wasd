@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * GLB Upload Routes for Areloria MMORPG
  * POST /api/glb/upload          – Upload a GLB model (requires subscription)

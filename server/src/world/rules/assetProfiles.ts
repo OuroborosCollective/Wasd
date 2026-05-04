@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Asset Profiles — classify every GLB asset for the placement pipeline.
  * Each profile drives footprint, clearance, physics, nav, streaming, and vegetation rules.

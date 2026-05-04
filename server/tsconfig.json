@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": false,
@@ -18,9 +18,16 @@
     "sourceMap": true,
     "incremental": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["src/tools/**/*", "src/tests/**/*"],
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "src/tools/**/*",
+    "src/tests/**/*"
+  ],
   "references": [
-    { "path": "../shared" }
+    {
+      "path": "../shared"
+    }
   ]
 }

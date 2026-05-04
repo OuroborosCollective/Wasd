@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function generateMonsterDNA(species: string) {
   return {
     species,

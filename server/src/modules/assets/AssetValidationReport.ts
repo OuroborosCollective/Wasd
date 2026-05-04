@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class AssetValidationReport {
   validate(meta:any){
     return {

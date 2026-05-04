@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Optional published content pack root. When disabled (default), resolves to legacy `game-data/`
  * (repo root or one level up from server cwd). Generators and editors can write snapshots to

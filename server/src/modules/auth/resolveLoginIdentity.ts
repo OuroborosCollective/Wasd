@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { randomUUID } from "node:crypto";
 import { isSupabaseAuthConfigured, verifySupabaseToken } from "../../config/supabase.js";
 

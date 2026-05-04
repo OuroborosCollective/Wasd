@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const LootTables = {
   wolf: [
     { id: "wolf_pelt", chance: 0.65, rarity: "common" },

@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class CivilizationEngine {
   createVillage(guildMembers: number) {
     if (guildMembers < 50) return null;

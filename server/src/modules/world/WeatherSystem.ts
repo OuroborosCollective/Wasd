@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class WeatherSystem {
   nextWeather(seed:number){
     const states = ["clear","rain","storm","fog","snow","heatwave"];

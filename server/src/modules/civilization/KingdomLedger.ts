@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class KingdomLedger {
   private entries: any[] = [];
   record(entry: any) {

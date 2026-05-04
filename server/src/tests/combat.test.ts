@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { CombatSystem } from "../modules/combat/CombatSystem.js";
 

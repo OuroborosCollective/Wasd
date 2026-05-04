@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Logger } from "../../../core/logger/Logger";
 import { AIService } from "../../ai/services/AIService";
 

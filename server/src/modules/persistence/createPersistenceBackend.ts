@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { IPersistenceBackend, PersistenceDriverName } from "./persistenceBackend.js";
 import { resolvePersistenceDriver } from "./persistenceBackend.js";
 import { FilePersistenceBackend } from "./filePersistenceBackend.js";

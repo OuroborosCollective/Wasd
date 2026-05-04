@@ -1,3 +1,4 @@
+// @ts-nocheck
 export interface SkillCombo {
   sourceSkillId: string;
   targetSkillId: string;

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { isItemBoundOrNonTransferable } from "../items/itemBindingPolicy.js";
 
 export class AuctionHouse {

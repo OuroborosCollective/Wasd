@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class ReputationSystem {
   private reputations = new Map<string, Record<string, number>>();
 

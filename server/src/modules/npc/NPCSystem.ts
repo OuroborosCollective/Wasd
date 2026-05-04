@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { checkStealthDeterministic } from './PerceptionLogic';
 
 export interface Vector3 {

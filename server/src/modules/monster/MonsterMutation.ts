@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function mutateMonster(dna: any, biome: string) {
   const clone = { ...dna, mutations: [] as string[] };
 

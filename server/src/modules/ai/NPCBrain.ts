@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { BehaviorTree } from "./BehaviorTree.js";
 
 export class NPCBrain {

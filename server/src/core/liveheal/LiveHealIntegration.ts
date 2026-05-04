@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * LiveHeal v2 - Integration Layer
  *

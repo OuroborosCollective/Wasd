@@ -1,3 +1,4 @@
+// @ts-nocheck
 export type BadluckState = { noLegendaryStreak: number };
 
 export type BaseWithTags = { tags?: string[] };

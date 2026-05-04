@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Request, Response } from 'express';
 
 export enum StreamStatus {

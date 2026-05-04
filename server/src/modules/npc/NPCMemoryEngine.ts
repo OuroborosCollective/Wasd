@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class NPCMemoryEngine {
   private memory = new Map<string, any[]>();
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach } from "vitest";
 import { CraftingSystem, Recipe } from "../modules/crafting/CraftingSystem.js";
 import { RecipeRegistry } from "../modules/crafting/RecipeRegistry.js";

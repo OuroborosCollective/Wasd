@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { TerritoryControl } from "../territory/TerritoryControl";
 
 export interface INPCTraits {

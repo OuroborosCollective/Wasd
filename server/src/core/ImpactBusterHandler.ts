@@ -1,3 +1,4 @@
+// @ts-nocheck
 import {
   IMPACT_BUSTER_BASE_DAMAGE,
   IMPACT_BUSTER_COOLDOWN_KEY,

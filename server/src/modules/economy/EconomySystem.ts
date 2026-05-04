@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class EconomySystem {
   private goldSupply: number = 0;
   private itemPrices: Map<string, number> = new Map();

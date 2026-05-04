@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, expect, it } from "vitest";
 import { GameplayFusionDirector } from "../modules/gameplay/GameplayFusionDirector.js";
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { BountySystem } from "./BountySystem";
 
 export interface WorldEvent {

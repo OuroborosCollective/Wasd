@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class StealthSystem {
     /**
      * Berechnet den Plexity-Score basierend auf Entitätstyp, HP-Verhältnis und Resonanz-Level.

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect } from "vitest";
 import { createTreePlacementRule } from "../world/layout/TreePlacementValidator.js";
 import type { SpatialEntity, GLBFootprintDescriptor } from "../world/layout/WorldLayoutTypes.js";

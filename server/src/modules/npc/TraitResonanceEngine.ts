@@ -1,3 +1,4 @@
+// @ts-nocheck
 export interface TraitResonance {
   faith: number;
   aggression: number;

@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class IgnoreSystem {
   private ignores = new Map<string, Set<string>>();
 

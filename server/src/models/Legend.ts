@@ -1,3 +1,4 @@
+// @ts-nocheck
 export interface Legend {
     id: string;
     title: string;

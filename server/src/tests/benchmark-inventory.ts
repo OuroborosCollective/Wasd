@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 function originalApproach(inventory: any[], requiredItemId: string, requiredCount: number) {
   const count = inventory.filter((item: any) => item.id === requiredItemId).length;

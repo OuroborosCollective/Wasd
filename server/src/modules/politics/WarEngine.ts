@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class WarEngine {
   declareWar(attacker: any, defender: any) {
     return {

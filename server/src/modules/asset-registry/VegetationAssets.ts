@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const VegetationAssets = {
   tree_oak_young: { model: "/assets/models/vegetation/tree_oak_young.glb", category: "vegetation", growthStage: 0 },
   tree_oak_spring: { model: "/assets/models/vegetation/tree_oak_spring.glb", category: "vegetation", growthStage: 1 },

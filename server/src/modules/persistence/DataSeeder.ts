@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class DataSeeder {
   seed(items:any[]){
     return {

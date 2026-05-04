@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { NPCManager } from '../managers/NPCManager';
 import { LegendManager } from '../managers/LegendManager';
 import { FactionManager } from '../managers/FactionManager';

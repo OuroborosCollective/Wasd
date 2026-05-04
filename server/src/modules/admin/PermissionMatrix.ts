@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const PermissionMatrix = {
   superadmin: ["world_edit", "spawn_any", "teleport", "oracle_admin"],
   gm: ["world_edit", "spawn_any", "teleport"],

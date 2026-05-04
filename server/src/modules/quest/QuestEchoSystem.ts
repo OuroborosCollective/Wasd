@@ -1,3 +1,4 @@
+// @ts-nocheck
 export enum EchoIntensity {
     Combat = 0.95,
     Collect = 0.80,

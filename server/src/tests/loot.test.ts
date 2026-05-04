@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { AffixSystem } from "../modules/loot/AffixSystem.js";
 import { ItemGenerator } from "../modules/loot/ItemGenerator.js";

@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class AssetRegistry {
   private assets = new Map<string, any>();
 

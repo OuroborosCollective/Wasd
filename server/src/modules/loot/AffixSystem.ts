@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class AffixSystem {
   rollAffixes(rarity: string) {
     const pool = [

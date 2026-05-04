@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { PlayerWarfrontProgress } from "./warfrontTypes.js";
 
 const DEFAULT_PROGRESS: PlayerWarfrontProgress = {

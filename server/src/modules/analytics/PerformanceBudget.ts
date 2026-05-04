@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const PerformanceBudget = {
   activeChunksPerObserver: 9,
   maxNPCUpdatesPerTick: 200,

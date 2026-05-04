@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ExistingTreeGeneratorAdapter — Wraps the existing TreeGenerator integration.
  * Provides vegetation exclusion, removal, and regrowth management

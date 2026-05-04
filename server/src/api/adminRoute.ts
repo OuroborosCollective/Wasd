@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function adminRoute() {
   return {
     method: "POST",

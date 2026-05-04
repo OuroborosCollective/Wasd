@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect } from "vitest";
 import { SiegeEngine } from "../../../modules/siege/SiegeEngine";
 

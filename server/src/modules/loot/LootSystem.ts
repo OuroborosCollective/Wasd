@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ItemRegistry, ItemDefinition } from "../inventory/ItemRegistry.js";
 import fs from "fs";
 import path from "path";

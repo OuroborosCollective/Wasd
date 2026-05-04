@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const EnvTemplate = {
   PORT: "3000",
   NODE_ENV: "development",

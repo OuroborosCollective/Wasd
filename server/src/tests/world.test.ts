@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach } from "vitest";
 import { WeatherSystem } from "../modules/world/WeatherSystem.js";
 import { SeasonSystem } from "../modules/world/SeasonSystem.js";

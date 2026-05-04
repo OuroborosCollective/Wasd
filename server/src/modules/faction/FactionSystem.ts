@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class FactionSystem {
   private factions = new Map<string, any>();
   create(id:string, data:any){

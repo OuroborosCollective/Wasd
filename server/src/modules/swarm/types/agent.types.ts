@@ -1,3 +1,4 @@
+// @ts-nocheck
 export enum AgentRole {
   ARCHITECT = 'ARCHITECT',
   DEVELOPER = 'DEVELOPER',

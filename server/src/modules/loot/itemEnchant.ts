@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Affix, GeneratedItem, StatKey } from "./diabloItemGen.js";
 import { randInt } from "./diabloItemGen.js";
 

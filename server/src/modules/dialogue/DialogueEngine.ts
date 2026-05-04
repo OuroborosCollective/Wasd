@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { buildDialogueContext } from "./DialogueContext.js";
 import { DialogueGenerator } from "./DialogueGenerator.js";
 

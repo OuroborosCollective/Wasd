@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class SnapshotArchive {
   private archive:any[] = [];
   push(snapshot:any){

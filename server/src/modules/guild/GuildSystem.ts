@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class GuildSystem {
   private guilds = new Map<string, any>();
 

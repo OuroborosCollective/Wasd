@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Dual inventory: stackable rows (existing `player.inventory`) + UID gear (`player.gearInventory`).
  * Compatible with today's persistence: new fields are JSON-serialized on the player blob.

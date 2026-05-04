@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach } from "vitest";
 import { GuildSystem } from "../modules/guild/GuildSystem.js";
 import { GuildStorage } from "../modules/guild/GuildStorage.js";

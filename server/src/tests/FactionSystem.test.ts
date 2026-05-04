@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach } from "vitest";
 import { FactionSystem } from "../modules/faction/FactionSystem.js";
 

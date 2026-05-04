@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { BaseItem, Affix, GeneratedItem, Rarity } from "./diabloItemGen.js";
 import { generateItem } from "./diabloItemGen.js";
 

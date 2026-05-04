@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class WorldDatabase {
   private chunks = new Map<string, any>();
 

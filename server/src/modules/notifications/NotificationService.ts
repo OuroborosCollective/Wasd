@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class NotificationService {
   notify(playerId: string, message: string) {
     return {

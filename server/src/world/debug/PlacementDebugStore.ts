@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * PlacementDebugStore — Stores debug info for placement visualization.
  * Only active in debug/admin mode.

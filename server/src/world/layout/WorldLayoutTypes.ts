@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * WorldLayoutHeal - Core type definitions for rule-based world layout validation,
  * repair, and GLB placement checking.

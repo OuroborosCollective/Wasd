@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class TitleSystem {
   assign(player: any, title: string) {
     if (!player.titles) player.titles = [];

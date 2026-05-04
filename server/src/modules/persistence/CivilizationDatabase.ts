@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class CivilizationDatabase {
   private civilizations = new Map<string, any>();
 

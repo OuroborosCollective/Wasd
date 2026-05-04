@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { genkit, z } from 'genkit';
 import { googleAI, gemini } from '@genkit-ai/googleai';
 

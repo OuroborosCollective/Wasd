@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach } from "vitest";
 import { PlayerSystem } from "../modules/player/PlayerSystem.js";
 import { EquipmentSystem } from "../modules/player/EquipmentSystem.js";

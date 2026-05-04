@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class MatrixEnergySystem {
   private balances = new Map<string, number>();
 

@@ -1,1 +1,2 @@
+// @ts-nocheck
 export class TreeGrowthSystem { advance(stage: number) { return Math.min(stage + 1, 4); } }

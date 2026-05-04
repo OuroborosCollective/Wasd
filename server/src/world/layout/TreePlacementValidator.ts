@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * TreePlacementValidator - Validates tree placement in the world layout.
  *

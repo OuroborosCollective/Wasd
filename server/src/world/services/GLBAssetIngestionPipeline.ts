@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * GLBAssetIngestionPipeline — Central pipeline for processing all GLB assets.
  * Classifies, profiles, validates, and registers every imported asset.

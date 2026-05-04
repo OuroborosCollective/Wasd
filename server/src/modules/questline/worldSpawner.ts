@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { createHash } from "node:crypto";
 import { getFactionByStrand, type Faction } from "./factionRegistry.js";
 

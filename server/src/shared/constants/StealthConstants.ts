@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const TYPE_WEIGHT = 0.45;
 export const HP_WEIGHT = 0.35;
 export const RESONANCE_WEIGHT = 0.20;

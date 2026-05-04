@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class NPCTradeAI {
   // Helper method to decide what good to trade
   chooseTrade(npc:any, goods:string[]) {

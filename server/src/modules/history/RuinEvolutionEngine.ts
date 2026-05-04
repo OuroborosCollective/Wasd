@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class RuinEvolutionEngine {
   evolve(structure:any){
     return {

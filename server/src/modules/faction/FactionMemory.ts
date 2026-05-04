@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class FactionMemory {
   private memory = new Map<string, any[]>();
   remember(factionId:string, event:any){

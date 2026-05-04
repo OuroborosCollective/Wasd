@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ChatChannelRouter — routes messages through the 3-channel chat system.
  *

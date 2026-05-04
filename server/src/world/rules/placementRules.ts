@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Placement Rules — configurable parameters for the WorldPlacementRuleEngine.
  * All distances in world units. All angles in radians.

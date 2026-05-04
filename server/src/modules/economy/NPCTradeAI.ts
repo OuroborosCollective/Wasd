@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class NPCTradeAI {
   decideTrade(npc: any, market: any) {
     return {

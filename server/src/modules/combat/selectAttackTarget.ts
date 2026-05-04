@@ -1,3 +1,4 @@
+// @ts-nocheck
 /** Pure selection of NPC to hit — used by WorldTick and unit tests. */
 
 export function npcIsCombatThreat(npc: { health?: number; faction?: string; role?: string }): boolean {

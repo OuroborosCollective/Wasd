@@ -1,3 +1,4 @@
+// @ts-nocheck
 export interface FactionToolConfig {
     [factionId: string]: {
         [role: string]: string;

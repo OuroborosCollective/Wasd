@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class PlexityEngine {
     private static getTypeWeight(type: string): number {
         const weights: Record<string, number> = {

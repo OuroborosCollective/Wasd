@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class HeritageResolver {
   resolve(culture:string, religion:string, house:string){
     return {

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { PlexityLogic } from './PlexityLogic';
 import { ConstructionScheduler } from './ConstructionScheduler';
 

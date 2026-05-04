@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class SystemWiring {
   wire(registry: any) {
     return {

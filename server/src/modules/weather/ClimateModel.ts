@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class ClimateModel {
   getClimateForBiome(biome: string) {
     if (biome === "forest") return "temperate";

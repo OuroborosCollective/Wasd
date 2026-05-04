@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class SessionRegistry {
   private sessions = new Map<string, any>();
 

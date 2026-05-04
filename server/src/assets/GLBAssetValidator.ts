@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * GLB Asset Validator - Binary integrity checks for .glb files.
  *

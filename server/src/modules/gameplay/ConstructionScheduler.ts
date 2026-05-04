@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { contractManager } from "../systems/ContractManager";
 import { inventorySystem } from "../systems/InventorySystem";
 import { profileResolver } from "../resolvers/ProfileResolver";

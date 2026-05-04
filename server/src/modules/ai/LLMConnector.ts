@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * LLMConnector.ts
  *

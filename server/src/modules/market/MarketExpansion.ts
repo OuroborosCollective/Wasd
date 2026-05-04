@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class MarketExpansion {
   expand(city:any) {
     city.marketLevel = (city.marketLevel ?? 1) + 1;

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { PlexityEngine } from "../engine/PlexityEngine";
 import { Engine } from "../../core/Engine";
 

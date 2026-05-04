@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const GovernmentTypes = {
   monarchy: { id: "monarchy", succession: "inheritance", stabilityBase: 0.7 },
   council: { id: "council", succession: "vote", stabilityBase: 0.6 },

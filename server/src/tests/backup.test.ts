@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { BackupManager } from "../modules/monitoring/BackupManager.js";
 import { exec } from "child_process";

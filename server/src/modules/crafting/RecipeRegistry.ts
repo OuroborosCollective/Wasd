@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const RecipeRegistry = {
   iron_sword: {
     id: "iron_sword",

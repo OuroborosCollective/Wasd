@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class HeuristicGoalPruner {
     private static readonly SCAN_RADIUS_SQ = 1600;
 

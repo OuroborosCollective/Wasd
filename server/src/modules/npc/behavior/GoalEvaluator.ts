@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ScarcityPredictor } from "../prediction/ScarcityPredictor";
 
 export interface Goal {

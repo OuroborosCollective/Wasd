@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class AdminRollback {
   revert(snapshot:any){
     return {

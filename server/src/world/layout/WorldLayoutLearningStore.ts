@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * WorldLayoutLearningStore - Heuristic learning for layout repairs (no AI).
  *

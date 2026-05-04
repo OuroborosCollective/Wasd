@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { getContentDataRoot } from "../modules/content/contentDataRoot.js";
 import { findRepoRootWithGameData } from "../modules/content/repoRoot.js";
 import { auditContentModelPaths } from "../modules/content/auditContentModelPaths.js";

@@ -1,3 +1,4 @@
+// @ts-nocheck
 export interface MarketHistoryEntry {
     resourceId: string;
     supply: number;

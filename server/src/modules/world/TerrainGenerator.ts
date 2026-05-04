@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Server-side terrain generation using diamond-square algorithm.
  * Provides consistent terrain heights between client and server

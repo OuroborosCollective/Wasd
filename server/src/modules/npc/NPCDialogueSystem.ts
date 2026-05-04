@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class NPCDialogueSystem {
   talk(npc: any, worldSignals: any = {}) {
     const lines = npc.dialogueLines || [

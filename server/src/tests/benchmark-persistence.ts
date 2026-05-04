@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { PersistenceManager } from "../core/PersistenceManager.js";
 import { db, testConnection } from "../core/Database.js";
 

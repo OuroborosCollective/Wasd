@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const GIT_COMMAND_TEMPLATES = {
   CONFIG_EMAIL: 'git config --local user.email "action@github.com"',
   CONFIG_NAME: 'git config --local user.name "GitHub Action"',

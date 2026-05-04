@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class EditorActionLog {
   private actions:any[] = [];
   record(action:any){

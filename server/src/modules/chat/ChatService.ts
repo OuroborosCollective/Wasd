@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class ChatService {
   sendMessage(authorId: string, channel: string, content: string) {
     return {

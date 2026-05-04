@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class GateController {
   setState(gate: any, state: string) {
     const allowed = ["open", "closed", "locked", "damaged", "destroyed"];

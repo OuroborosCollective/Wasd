@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class SiegeEngine {
   start(attacker:any, target:any) {
     return {

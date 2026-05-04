@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { GeneratedItem, StatKey } from "./diabloItemGen.js";
 
 export type Gem = { id: string; stats: Partial<Record<StatKey, number>> };

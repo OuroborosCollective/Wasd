@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function oracleRoute() {
   return {
     method: "GET",

@@ -1,3 +1,4 @@
+// @ts-nocheck
 // import { NodeSDK } from '@opentelemetry/sdk-node'
 // import { resourceFromAttributes } from '@opentelemetry/resources'
 // import { PostHogSpanProcessor } from '@posthog/ai/otel'

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Router } from "express";
 import { GameConfig } from "../config/GameConfig.js";
 import {

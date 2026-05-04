@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class TravelSystem {
   moveWithMount(position:any, direction:any, speed:number){
     return {

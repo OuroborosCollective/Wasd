@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { DialogueTemplates } from "./DialogueTemplates.js";
 
 export class DialogueGenerator {

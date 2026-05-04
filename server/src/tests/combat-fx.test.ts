@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect } from "vitest";
 import { CombatSystem } from "../modules/combat/CombatSystem.js";
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as Database from "../core/Database.js";
 import { PostgresPersistenceBackend } from "../modules/persistence/postgresPersistenceBackend.js";

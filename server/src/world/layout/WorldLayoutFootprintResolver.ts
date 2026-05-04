@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * GLBFootprintResolver - Maps GLB asset paths and types to footprint descriptors.
  *

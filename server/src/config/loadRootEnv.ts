@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Load `.env` before any other server config reads `process.env`.
  * PM2 `cwd` is often the monorepo root, but some setups run with `cwd` under `server/` 

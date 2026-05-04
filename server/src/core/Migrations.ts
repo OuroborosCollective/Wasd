@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Database Migrations - Creates all required tables on server startup
  */

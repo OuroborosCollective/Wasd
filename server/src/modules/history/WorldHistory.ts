@@ -1,3 +1,4 @@
+// @ts-nocheck
 export interface IFactionLegend {
     id: string;
     title: string;

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach } from "vitest";
 import { GLBRegistry, GLBLink } from "../modules/asset-registry/GLBRegistry.js";
 

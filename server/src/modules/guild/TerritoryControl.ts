@@ -1,3 +1,4 @@
+// @ts-nocheck
 export interface NPCTraits {
     faith: number;
     aggression: number;

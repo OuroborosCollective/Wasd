@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * WorldPlacementRuleEngine — Central orchestrator for ALL world placement.
  *

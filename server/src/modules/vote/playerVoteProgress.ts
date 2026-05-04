@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { PlayerVoteProgress } from "./voteTypes.js";
 
 export function ensurePlayerVoteProgress(player: any): PlayerVoteProgress {

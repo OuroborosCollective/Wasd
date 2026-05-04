@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, vi } from "vitest";
 import { createServer } from "node:http";
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";

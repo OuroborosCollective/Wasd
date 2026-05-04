@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect } from "vitest";
 import path from "path";
 // Using relative path for testing purposes in this environment

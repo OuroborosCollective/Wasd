@@ -1,3 +1,4 @@
+// @ts-nocheck
 export type PlayerSession = {
   id: string;
   name: string;

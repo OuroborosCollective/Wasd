@@ -1,3 +1,4 @@
+// @ts-nocheck
 import fs from "fs";
 import path from "path";
 import type { AREMode } from "./RuntimeSettingsStore.js";

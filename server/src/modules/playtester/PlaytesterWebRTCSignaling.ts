@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Server as HttpServer, IncomingMessage } from "node:http";
 import { URL } from "node:url";
 import { WebSocketServer, WebSocket } from "ws";

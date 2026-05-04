@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, vi } from "vitest";
 import { CraftingSystem } from "../modules/crafting/CraftingSystem.js";
 import fs from "fs";

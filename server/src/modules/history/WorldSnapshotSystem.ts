@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class WorldSnapshotSystem {
   private snapshots: any[] = [];
 

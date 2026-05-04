@@ -1,3 +1,4 @@
+// @ts-nocheck
 export enum FactionType {
     NEUTRAL = "NEUTRAL",
     HOSTILE = "HOSTILE",

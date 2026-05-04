@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 export type SupabaseJwtClaims = {

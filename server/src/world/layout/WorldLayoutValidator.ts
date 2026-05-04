@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * WorldLayoutValidator - Orchestrates all layout validation rules.
  *

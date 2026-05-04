@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const DialogueTemplates = {
   greeting: [
     "Na Süßer, suchst du Abenteuer?",

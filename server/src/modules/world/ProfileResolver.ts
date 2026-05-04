@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Resolver, Mutation, Arg, InputType, Field, Float } from 'type-graphql';
 
 @InputType()

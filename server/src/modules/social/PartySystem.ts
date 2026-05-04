@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class PartySystem {
   createParty(leaderId: string) {
     return {

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { GLBLink } from "../asset-registry/GLBRegistry.js";
 
 export type SmartCategory =

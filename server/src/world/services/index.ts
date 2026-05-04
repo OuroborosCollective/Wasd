@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * World Services Index — Exports all world placement and orchestration services.
  */

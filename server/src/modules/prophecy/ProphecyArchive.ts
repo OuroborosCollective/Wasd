@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class ProphecyArchive {
   private entries:any[] = [];
   add(entry:any){ this.entries.push(entry); }

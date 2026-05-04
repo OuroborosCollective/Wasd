@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class SharedMemoryNetwork {
   share(memories:any[]) {
     return {

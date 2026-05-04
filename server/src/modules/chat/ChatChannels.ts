@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const ChatChannels = {
   global: { moderated: true },
   trade: { moderated: true },

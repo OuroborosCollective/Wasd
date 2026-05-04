@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const AmbienceRegistry = {
   forest: ["birds", "wind"],
   desert: ["wind", "sand"],

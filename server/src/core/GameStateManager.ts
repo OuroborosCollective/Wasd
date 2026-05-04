@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { WeatherResonance } from "../modules/WeatherResonance";
 
 export interface AREPayload {

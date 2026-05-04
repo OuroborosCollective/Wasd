@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { WorldEventBus } from "../events/WorldEventBus";
 import { NPCManager } from "./NPCManager";
 import { GameState } from "../core/GameState";

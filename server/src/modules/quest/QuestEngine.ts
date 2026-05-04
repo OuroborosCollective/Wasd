@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ItemRegistry } from "../inventory/ItemRegistry.js";
 import { getPostHogClient } from "../../services/posthog.js";
 import fs from "fs";

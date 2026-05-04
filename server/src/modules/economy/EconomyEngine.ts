@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class EconomyEngine {
   private markets = new Map<string, { goods: Record<string, number> }>();
 

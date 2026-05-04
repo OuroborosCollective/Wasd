@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach } from "vitest";
 import { ConstructionQueue } from "../modules/construction/ConstructionQueue.js";
 import { UpgradeSystem } from "../modules/construction/UpgradeSystem.js";

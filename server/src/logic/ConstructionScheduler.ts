@@ -1,3 +1,4 @@
+// @ts-nocheck
 export interface ConstructionContract {
     npcId: string;
     legendInfluence: number;

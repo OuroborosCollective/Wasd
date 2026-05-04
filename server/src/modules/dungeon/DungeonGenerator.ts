@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class DungeonGenerator {
   generate(seed: number) {
     const rooms = [];

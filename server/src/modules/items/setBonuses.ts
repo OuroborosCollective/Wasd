@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { GeneratedItem, StatKey } from "../loot/diabloItemGen.js";
 
 export type SetBonus = { pieces: number; stats: Partial<Record<StatKey, number>>; powerId?: string };

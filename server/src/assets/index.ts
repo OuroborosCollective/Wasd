@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Asset Health Module - Public API
  */

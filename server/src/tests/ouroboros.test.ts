@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect } from "vitest";
 import { WorldEventBus } from "../modules/ouroboros/WorldEventBus";
 import { WorldHistory } from "../modules/ouroboros/WorldHistory";

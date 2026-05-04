@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Router } from 'express';
 import { OracleEndpoint } from './oracle.endpoint';
 

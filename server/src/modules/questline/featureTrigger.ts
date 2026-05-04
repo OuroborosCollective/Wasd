@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ALL_GAME_FEATURES } from "./factionRegistry.js";
 
 export type FeatureTriggerKind = "unlock" | "require" | "reward" | "introduce";

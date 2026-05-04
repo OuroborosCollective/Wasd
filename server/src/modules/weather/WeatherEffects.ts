@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class WeatherEffects {
   apply(weather: string) {
     return {

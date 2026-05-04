@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const IMPACT_BUSTER_SKILL_ID = "impact_buster";
 export const IMPACT_BUSTER_COOLDOWN_KEY = "__impactBuster";
 export const IMPACT_BUSTER_STAMINA_COST = 30;

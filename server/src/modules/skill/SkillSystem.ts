@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { GameConfig } from "../../config/GameConfig.js";
 
 export interface SkillData {

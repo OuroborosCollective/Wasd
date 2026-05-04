@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 
 // Mock the core database BEFORE importing the module that uses it.

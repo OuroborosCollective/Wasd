@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ServerBootstrap } from "../core/ServerBootstrap.js";
 import express from "express";

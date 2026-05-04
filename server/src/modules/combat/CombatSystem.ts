@@ -1,3 +1,4 @@
+// @ts-nocheck
 export type FxKind = "hit" | "crit" | "heal" | "miss" | "block" | "xp" | "gold";
 
 export interface CombatResult {

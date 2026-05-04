@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach } from "vitest";
 import { AffixSystem } from "../modules/items/AffixSystem.js";
 

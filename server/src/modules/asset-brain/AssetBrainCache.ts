@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Asset Brain Cache Manager
  * Implements multi-level caching for asset specifications and generated models

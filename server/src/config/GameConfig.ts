@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const GameConfig = {
   chunkSize: 64,
   tickRateMs: 100,

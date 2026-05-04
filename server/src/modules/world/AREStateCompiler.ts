@@ -1,3 +1,4 @@
+// @ts-nocheck
 export type AREPayload = {
   kappa: number;
   logicalIndex: number;

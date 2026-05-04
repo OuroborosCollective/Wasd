@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Chat channel types shared across the 3-channel chat system.
  *

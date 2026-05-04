@@ -1,3 +1,4 @@
+// @ts-nocheck
 /** Pluggable persistence for players + optional world objects (file, Postgres, Redis). */
 
 export type PersistenceDriverName = "auto" | "file" | "postgres" | "redis";

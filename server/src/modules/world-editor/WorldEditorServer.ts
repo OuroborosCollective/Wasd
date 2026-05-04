@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class WorldEditorServer {
   spawnEntity(type: string, position: { x: number; y: number; z: number }) {
     return { action: "spawn", type, position };

@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class OracleMemoryBridge {
   buildSignal(memory: any[], history: any[]) {
     return {

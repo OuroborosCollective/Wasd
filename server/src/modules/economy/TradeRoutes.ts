@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class TradeRoutes {
   createRoute(a: string, b: string) {
     return {

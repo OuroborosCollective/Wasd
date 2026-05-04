@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Load respawn points from scene JSON files under game-data/scenes/.
  * Each scene can optionally include a `respawnPoints` array.

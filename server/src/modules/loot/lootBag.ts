@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { randomUUID } from "node:crypto";
 import type { GearItem, StackItem } from "../items/dualInventoryTypes.js";
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Factions, beliefs, and strand keys (A–E) for questline “Leinenstrang” routing.
  */

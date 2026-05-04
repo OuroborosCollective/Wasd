@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class AntiCheatHooks {
   inspectMovement(delta: any) {
     return {

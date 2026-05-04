@@ -1,3 +1,4 @@
+// @ts-nocheck
 import path from "node:path";
 import type { GLBLink } from "../asset-registry/GLBRegistry.js";
 

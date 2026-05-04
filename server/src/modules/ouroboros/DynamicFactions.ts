@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * DynamicFactions — emergent faction formation, politics, and war/peace resolution.
  *

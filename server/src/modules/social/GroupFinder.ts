@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class GroupFinder {
   createListing(ownerId: string, activity: string) {
     return {

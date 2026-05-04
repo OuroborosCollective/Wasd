@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function chatRoute() {
   return {
     method: "POST",

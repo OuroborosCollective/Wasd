@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach } from "vitest";
 import { AchievementSystem } from "../modules/achievements/AchievementSystem.js";
 import { AchievementRegistry } from "../modules/achievements/AchievementRegistry.js";

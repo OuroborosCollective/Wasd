@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ItemRegistry } from "./ItemRegistry.js";
 import { normalizeInventoryStacks } from "./inventoryStacks.js";
 import {

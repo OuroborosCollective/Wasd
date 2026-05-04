@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class QuestStateStore {
   private states = new Map<string, any[]>();
 

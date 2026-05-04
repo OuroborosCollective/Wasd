@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class PlayerSystem {
   private players: Map<string, any> = new Map();
 

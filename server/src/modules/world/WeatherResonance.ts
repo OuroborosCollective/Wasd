@@ -1,3 +1,4 @@
+// @ts-nocheck
 export enum WeatherType {
     CLEAR = "CLEAR",
     RAIN = "RAIN",

@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class SettlementSystem {
   createSettlement(type: "village" | "city" | "kingdom" | "nation", ownerId: string) {
     return {

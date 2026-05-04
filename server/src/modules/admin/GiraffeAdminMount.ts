@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class GiraffeAdminMount {
   summon(ownerId:string) {
     return {

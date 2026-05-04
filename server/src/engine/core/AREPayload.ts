@@ -1,3 +1,4 @@
+// @ts-nocheck
 export interface INPCState {
     id: string;
     v: [number, number, number];

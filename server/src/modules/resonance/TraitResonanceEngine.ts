@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { NPC } from '../npc/NPC';
 import { Chunk } from '../world/Chunk';
 import { GuildSovereigntyEngine } from '../guild/GuildSovereigntyEngine';

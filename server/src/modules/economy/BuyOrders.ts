@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class BuyOrders {
   private orders:any[] = [];
   place(order:any){

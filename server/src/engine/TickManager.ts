@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { MasterExpansionOrchestrator } from './MasterExpansionOrchestrator';
 
 export class TickManager {

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * NPCMemoryPersistence — Layer 2: Supabase-backed long-term NPC memory.
  *

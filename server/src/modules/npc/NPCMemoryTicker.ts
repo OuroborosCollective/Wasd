@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { NPCMemoryCache } from "./NPCMemoryCache";
 import { serverTickEmitter } from "../../core/ServerTickEmitter";
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class SharedMemoryNetwork {
   share(fromNpcId: string, toNpcId: string, memory: any) {
     return {

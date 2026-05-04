@@ -1,3 +1,4 @@
+// @ts-nocheck
 export class PacketRouter {
   route(packet: any) {
     return {

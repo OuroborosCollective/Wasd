@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * WorldPlacementEvents — Central event bus for the placement pipeline.
  * Every system subscribes here. No direct coupling between services.

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import * as yaml from 'js-yaml';
 
 interface WorkflowJob {

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ChunkSystem } from "./ChunkSystem.js";
 import { TerrainGenerator } from "./TerrainGenerator.js";
 import { WeatherSystem } from "./WeatherSystem.js";

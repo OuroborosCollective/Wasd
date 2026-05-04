@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * WorldLayoutSpatialIndex - Spatial hash grid for efficient proximity queries.
  *

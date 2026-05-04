@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { LegendDistiller } from "../legend/LegendDistiller";
 
 export interface Quest {

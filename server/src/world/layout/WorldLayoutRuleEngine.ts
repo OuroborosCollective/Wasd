@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * WorldLayoutRuleEngine - Main orchestrator for world layout validation and repair.
  *

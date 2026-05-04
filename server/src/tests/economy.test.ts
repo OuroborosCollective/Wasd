@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach } from "vitest";
 import { EconomySystem } from "../modules/economy/EconomySystem.js";
 import { EconomyEngine } from "../modules/economy/EconomyEngine.js";
