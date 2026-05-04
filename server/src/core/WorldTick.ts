@@ -1257,7 +1257,7 @@ export class WorldTick {
     });
   }
 
-  private tickFusionIntegrations(now: number): void {
+  private tickFusionIntegrations(now: number, onlinePlayers: any[]): void {
     if (this.tickCount % 50 === 0) {
       const contentRoot = getContentDataRoot();
       const repoRoot = findRepoRootWithGameData() ?? path.resolve(process.cwd(), "..");
@@ -1272,7 +1272,6 @@ export class WorldTick {
       this.gameplayFusionDirector.syncModelNeeds(needs.needs, needs.satisfied, now);
     }
 
-    const onlinePlayers = this.playerSystem.getAllPlayers().filter((p: any) => !p.isOffline);
     const npcs = this.npcSystem.getAllNPCs();
     this.gameplayFusionDirector.tick({
       now,
@@ -2451,7 +2450,7 @@ export class WorldTick {
     this.chatChannelRouter = new ChatChannelRouter();
     this.npcMemoryCache = new NPCMemoryCache();
     this.ouroborosEngine = new OuroborosEngine();
-    this.npcRelationships = new NPCRelationshipSystem();
+    this.npcRelationships = NPCRelationshipSystem.getInstance();
     this.worldBossDungeonSystem = new WorldBossDungeonSystem();
     this.voteSystem = new VoteSystem();
     this.warfrontSystem = new WarfrontSystem();
@@ -3766,7 +3765,14 @@ export class WorldTick {
   tick() {
     this.tickCount += 1;
     const now = Date.now();
-    this.tickFusionIntegrations(now);
+
+    // ⚡ Bolt Optimization: Compute onlinePlayers once per tick to avoid redundant filtering
+    const onlinePlayers: any[] = [];
+    for (const p of this.playerSystem.getPlayersMap().values()) {
+      if (!p.isOffline) onlinePlayers.push(p);
+    }
+
+    this.tickFusionIntegrations(now, onlinePlayers);
     this.processTemplateQueue();
     void this.runPlaytesterTick(now);
     const warfrontTick = this.warfrontSystem.tick(now);
@@ -3782,7 +3788,6 @@ export class WorldTick {
       this.trySpawnWarfrontFrontBoss();
     }
     this.warfrontStatusBroadcastTick += 1;
-    const onlinePlayers = this.playerSystem.getAllPlayers().filter(p => !p.isOffline);
     if (
       this.warfrontStatusBroadcastTick >= WARFRONT_STATUS_BROADCAST_TICK_INTERVAL
       && onlinePlayers.length > 0
@@ -3828,8 +3833,6 @@ export class WorldTick {
       this.glbPathCache.clear();
     }
 
-    const recipients = this.getChatRecipients();
-
     // Broadcast Chunk Resonance every 50 ticks (~5s)
     if (this.tickCount % 50 === 0) {
       this.ws.broadcast({
@@ -3859,58 +3862,72 @@ export class WorldTick {
       }
     }
 
-    // NPC chat agent: every 10 ticks (~1s) let NPCs near players chat
-    if (this.tickCount % 10 === 0 && onlinePlayers.length > 0) {
-      const localChatRadiusSq = LOCAL_CHAT_RADIUS * LOCAL_CHAT_RADIUS;
-      for (const npc of this.npcSystem.getAllNPCs()) {
-        const nx = npc.position.x;
-        const ny = npc.position.y;
-        const nearPlayer = onlinePlayers.some((p: any) => {
-          const dx = p.position.x - nx;
-          const dy = p.position.y - ny;
-          // ⚡ Bolt Optimization: Use squared distance to avoid Math.hypot()
-          return dx * dx + dy * dy <= localChatRadiusSq;
-        });
-        if (!nearPlayer) continue;
+    // NPC chat agent and Ouroboros Engine every 10 ticks (~1s)
+    if (this.tickCount % 10 === 0) {
+      const recipients = this.getChatRecipients();
 
-        // Feed recent chat into NPC memory
-        const recentChat = this.chatChannelRouter.getRecentForPosition(npc.position, 10);
-        for (const cm of recentChat) {
-          this.npcMemoryCache.recordChat(npc.id, {
-            text: cm.text,
-            sender: cm.senderName,
-            channel: cm.channel,
-            ts: cm.ts,
-          });
+      if (onlinePlayers.length > 0) {
+        const localChatRadiusSq = LOCAL_CHAT_RADIUS * LOCAL_CHAT_RADIUS;
+        const allNpcs = this.npcSystem.getAllNPCs();
+
+        for (let i = 0; i < allNpcs.length; i++) {
+          const npc = allNpcs[i];
+          const nx = npc.position.x;
+          const ny = npc.position.y;
+
+          let nearPlayer = false;
+          for (let j = 0; j < onlinePlayers.length; j++) {
+            const p = onlinePlayers[j];
+            const dx = p.position.x - nx;
+            const dy = p.position.y - ny;
+            if (dx * dx + dy * dy <= localChatRadiusSq) {
+              nearPlayer = true;
+              break;
+            }
+          }
+          if (!nearPlayer) continue;
+
+          // Feed recent chat into NPC memory
+          const recentChat = this.chatChannelRouter.getRecentForPosition(npc.position, 10);
+          for (let k = 0; k < recentChat.length; k++) {
+            const cm = recentChat[k];
+            this.npcMemoryCache.recordChat(npc.id, {
+              text: cm.text,
+              sender: cm.senderName,
+              channel: cm.channel,
+              ts: cm.ts,
+            });
+          }
+
+          tickNpcChat(
+            npc,
+            this.npcMemoryCache,
+            this.chatChannelRouter,
+            recipients,
+            (sid, payload) => this.ws.sendToPlayer(sid, payload),
+            (payload) => this.ws.broadcast(payload),
+            (pid) => this.playerToSocket.get(pid),
+          );
         }
-
-        tickNpcChat(
-          npc,
-          this.npcMemoryCache,
-          this.chatChannelRouter,
-          recipients,
-          (sid, payload) => this.ws.sendToPlayer(sid, payload),
-          (payload) => this.ws.broadcast(payload),
-          (pid) => this.playerToSocket.get(pid),
-        );
       }
-    }
 
-    // Ouroboros engine: perceive → evaluate → act → remember → update
-    this.ouroborosEngine.tick(
-      this.tickCount,
-      this.npcSystem.getAllNPCs().map((n: any) => ({ id: n.id, name: n.name, position: { x: n.position.x, y: n.position.y }, faction: n.faction })),
-      onlinePlayers.map((p: any) => ({ id: p.id, name: p.name || p.id, position: { x: p.position.x, y: p.position.y } })),
-      this.npcMemoryCache,
-      this.npcRelationships,
-      this.worldSystem.worldTime,
-      this.chatChannelRouter,
-      this.statusEmitter,
-      recipients,
-      (sid: string, payload: unknown) => this.ws.sendToPlayer(sid, payload),
-      (payload: unknown) => this.ws.broadcast(payload),
-      (pid: string) => this.playerToSocket.get(pid),
-    );
+      // Ouroboros engine: perceive → evaluate → act → remember → update
+      // ⚡ Bolt Optimization: Defer expensive entity mapping until AI tick
+      this.ouroborosEngine.tick(
+        this.tickCount,
+        this.npcSystem.getAllNPCs().map((n: any) => ({ id: n.id, name: n.name, position: { x: n.position.x, y: n.position.y }, faction: n.faction })),
+        onlinePlayers.map((p: any) => ({ id: p.id, name: p.name || p.id, position: { x: p.position.x, y: p.position.y } })),
+        this.npcMemoryCache,
+        this.npcRelationships,
+        this.worldSystem.worldTime,
+        this.chatChannelRouter,
+        this.statusEmitter,
+        recipients,
+        (sid: string, payload: unknown) => this.ws.sendToPlayer(sid, payload),
+        (payload: unknown) => this.ws.broadcast(payload),
+        (pid: string) => this.playerToSocket.get(pid),
+      );
+    }
 
     // Flush dirty NPC memory to Supabase every 300 ticks (~30s)
     if (this.tickCount % 300 === 0) {
@@ -4026,45 +4043,24 @@ export class WorldTick {
 
     // Include world objects if they exist
     if (this.worldSystem.objectSystem) {
-      const objectsMap = this.worldSystem.objectSystem.getObjectsMap();
-      for (const obj of objectsMap.values()) {
-        const chunkId = this.chunkSystem.getChunkId(obj.position.x, obj.position.y);
-        if (observedChunkIds && !observedChunkIds.has(chunkId)) continue;
-
-        const glb = obj.glbPath || this.resolveWorldObjectGlbPath(obj.type, obj.name || obj.id, obj.id);
-
-        entities.push({
-          id: obj.id,
-          type: obj.type || "object",
-          position: { x: obj.position.x, y: 0, z: obj.position.y },
-          rotation: { x: 0, y: obj.rotation || 0, z: 0 },
-          glbPath: glb,
-          are: this.areStateCompiler.compileEntity(
-            {
-              id: obj.id,
-              type: obj.type || "object",
-              position: { x: obj.position.x, y: 0, z: obj.position.y },
-              visible: true,
-            },
-            tickCount
-          ),
-          visible: true,
-        });
-
-        // Consolidate chunk population
-        let cObjs = chunkObjects.get(chunkId);
-        if (!cObjs) {
-          cObjs = [];
-          chunkObjects.set(chunkId, cObjs);
+      // ⚡ Bolt Optimization: Spatial indexing for world objects
+      // Only iterate over observed chunks instead of all world objects
+      if (observedChunkIds && observedChunkIds.size > 0) {
+        for (const chunkId of observedChunkIds) {
+          const objs = this.worldSystem.objectSystem.getObjectsInChunk(chunkId);
+          for (const obj of objs) {
+            this.processWorldObjectForSync(obj, tickCount, entities, chunkObjects, chunkId);
+          }
         }
-        cObjs.push({
-          id: obj.id,
-          type: obj.type || "object",
-          glbPath: glb,
-          position: { x: obj.position.x, y: 0, z: obj.position.y },
-          rotation: obj.rotation || 0,
-        });
+      } else if (!observedChunkIds) {
+        // Fallback if no specific chunks are observed (e.g. initial full sync)
+        const objectsMap = this.worldSystem.objectSystem.getObjectsMap();
+        for (const obj of objectsMap.values()) {
+          const chunkId = this.chunkSystem.getChunkId(obj.position.x, obj.position.y);
+          this.processWorldObjectForSync(obj, tickCount, entities, chunkObjects, chunkId);
+        }
       }
+      // If observedChunkIds exists but is empty, we process nothing (correct for performance).
     }
 
     // ⚡ Bolt Optimization: Use observedChunkObjects directly to populate the chunks payload
@@ -4312,5 +4308,47 @@ export class WorldTick {
     const path = this.assetPoolResolver.resolvePath(category, key, seed);
     this.glbPathCache.set(cacheKey, path);
     return path;
+  }
+
+  private processWorldObjectForSync(
+    obj: any,
+    tickCount: number,
+    entities: any[],
+    chunkObjects: Map<string, any[]>,
+    chunkId: string
+  ) {
+    const glb = obj.glbPath || this.resolveWorldObjectGlbPath(obj.type, obj.name || obj.id, obj.id);
+
+    entities.push({
+      id: obj.id,
+      type: obj.type || "object",
+      position: { x: obj.position.x, y: 0, z: obj.position.y },
+      rotation: { x: 0, y: obj.rotation || 0, z: 0 },
+      glbPath: glb,
+      are: this.areStateCompiler.compileEntity(
+        {
+          id: obj.id,
+          type: obj.type || "object",
+          position: { x: obj.position.x, y: 0, z: obj.position.y },
+          visible: true,
+        },
+        tickCount
+      ),
+      visible: true,
+    });
+
+    // Consolidate chunk population
+    let cObjs = chunkObjects.get(chunkId);
+    if (!cObjs) {
+      cObjs = [];
+      chunkObjects.set(chunkId, cObjs);
+    }
+    cObjs.push({
+      id: obj.id,
+      type: obj.type || "object",
+      glbPath: glb,
+      position: { x: obj.position.x, y: 0, z: obj.position.y },
+      rotation: obj.rotation || 0,
+    });
   }
 }
