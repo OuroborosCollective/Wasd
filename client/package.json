@@ -28,7 +28,7 @@
     "lucide-react": "^0.344.0",
     "mobx": "^6.12.0",
     "mobx-react-lite": "^4.0.5",
-    "@wasd/shared": "workspace:*"
+    "@wasd/shared": "*"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.11",

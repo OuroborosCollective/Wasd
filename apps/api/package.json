@@ -12,9 +12,9 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@are-logic/logger": "workspace:*",
-    "@wasd/database": "workspace:*",
-    "@wasd/redis": "workspace:*",
+    "@are-logic/logger": "*",
+    "@wasd/database": "*",
+    "@wasd/redis": "*",
     "dotenv": "^16.4.5",
     "node-ssh": "^13.2.0"
   },
