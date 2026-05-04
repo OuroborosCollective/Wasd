@@ -1,5 +1,5 @@
-import { NPCChatBridge } from "./NPCChatBridge";
-import { LLMService } from "../llm/LLMService";
+import { NPCChatBridge } from "./NPCChatBridge.js";
+import { LLMService } from "../llm/LLMService.js";
 
 export interface NPCContext {
     npc: {
@@ -90,6 +90,14 @@ Respond as ${context.npc.name}:`.trim();
     }
 }
 
-export const tickNpcChat = (npc: any, now: number) => {
-    // Stub for the tickNpcChat function imported by WorldTick.ts
-};
+export function tickNpcChat(
+    npc: any,
+    cache: any,
+    router: any,
+    recipients: any[],
+    sendToPlayer: (sid: string, payload: any) => void,
+    broadcast: (payload: any) => void,
+    resolveSocketId: (pid: string) => string | undefined
+): void {
+    // Logic moved to WorldTick.ts loop or stubbed here
+}

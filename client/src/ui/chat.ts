@@ -16,6 +16,7 @@ let chatLogEl: HTMLDivElement | null = null;
 let chatInputEl: HTMLInputElement | null = null;
 let sendChat: ChatSendFn | null = null;
 let initialized = false;
+export function resetChatInitialized() { initialized = false; }
 let activeChannel: "all" | "local" | "global" | "status" = "all";
 let chatMinimized = false;
 
@@ -76,7 +77,7 @@ function buildTabBar(): string {
   ];
   return tabs.map((t) => {
     const active = t.key === activeChannel;
-    return `<button data-chat-tab="${t.key}" style="padding:4px 10px;font-size:11px;border:none;border-bottom:${active ? "2px solid #f27d26" : "2px solid transparent"};background:none;color:${active ? "#ffd38c" : "#8da6d8"};cursor:pointer;">${t.label}</button>`;
+    return `<button role="tab" aria-selected="${active}" data-chat-tab="${t.key}" style="padding:4px 10px;font-size:11px;border:none;border-bottom:${active ? "2px solid #f27d26" : "2px solid transparent"};background:none;color:${active ? "#ffd38c" : "#8da6d8"};cursor:pointer;">${t.label}</button>`;
   }).join("");
 }
 
@@ -103,10 +104,14 @@ export function initChat(sender: ChatSendFn): void {
   container.style.pointerEvents = "auto";
   container.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(8,10,16,0.85);border:1px solid rgba(255,255,255,0.15);border-bottom:none;border-radius:10px 10px 0 0;padding:2px 6px;">
-      <div id="chat-tab-bar" style="display:flex;gap:2px;">${buildTabBar()}</div>
-      <button id="chat-minimize-btn" style="background:none;border:none;color:#8da6d8;font-size:14px;cursor:pointer;padding:2px 6px;" title="Minimize">_</button>
+      <div id="chat-tab-bar" role="tablist" aria-label="Chat Channels" style="display:flex;gap:2px;">${buildTabBar()}</div>
+      <button id="chat-minimize-btn"
+        aria-expanded="true"
+        aria-controls="chat-body"
+        aria-label="Minimize chat"
+        style="background:none;border:none;color:#8da6d8;font-size:14px;cursor:pointer;padding:2px 6px;" title="Minimize">_</button>
     </div>
-    <div id="chat-body">
+    <div id="chat-body" role="tabpanel" aria-labelledby="chat-tab-bar">
       <div id="chat-log" aria-live="polite" aria-label="Game chat"
         style="height:140px;overflow-y:auto;background:rgba(8,10,16,0.72);border:1px solid rgba(255,255,255,0.15);border-top:none;border-bottom:none;padding:10px;color:#e8ecf5;font:12px/1.4 system-ui,sans-serif;"></div>
       <form id="chat-form" autocomplete="off" style="display:flex;">
@@ -144,7 +149,11 @@ export function initChat(sender: ChatSendFn): void {
   minimizeBtn?.addEventListener("click", () => {
     chatMinimized = !chatMinimized;
     if (chatBody) chatBody.style.display = chatMinimized ? "none" : "block";
-    if (minimizeBtn) minimizeBtn.textContent = chatMinimized ? "+" : "_";
+    if (minimizeBtn) {
+      minimizeBtn.textContent = chatMinimized ? "+" : "_";
+      minimizeBtn.setAttribute("aria-expanded", String(!chatMinimized));
+      minimizeBtn.setAttribute("aria-label", chatMinimized ? "Maximize chat" : "Minimize chat");
+    }
   });
 
   // Stop touch events from reaching game canvas
