@@ -64,3 +64,22 @@ Das Areloria-Repository ist ein komplexes pnpm-Monorepo. Während des Audits wur
 
 ---
 *Audit abgeschlossen. Kritische Infrastruktur-Fixes wurden appliziert.*
+
+---
+
+## Update vom 2026-05-18 - CI & Build Remediation
+
+Nach der ersten Analyse wurden folgende Sofortmaßnahmen umgesetzt, um die CI-Pipeline zu stabilisieren:
+
+1.  **Workflow-Härtung:**
+    - In `ci.yml` wurde `--if-present` entfernt, da es fälschlicherweise an die Build-Tools (tsc/vite) durchgereicht wurde.
+    - `git-to-lore.yml` wurde so konfiguriert, dass der VPS-Trigger in Umgebungen ohne Secrets (z.B. PRs) sicher übersprungen wird.
+2.  **Abhängigkeits-Korrektur:**
+    - Alle internen Workspace-Pakete nutzen nun das `workspace:*` Protokoll.
+    - Das neue Paket `@wasd/utils` wurde in `packages/utils` etabliert, um fehlende Logger-Abhängigkeiten in der API sauber zu ersetzen.
+3.  **Linting & Hygiene:**
+    - Eine zentrale `eslint.config.mjs` wurde erstellt, die alle Pakete abdeckt und die "Config not found" Fehler behebt.
+    - `*.tsbuildinfo` wurde zur `.gitignore` hinzugefügt, um Rauschen im Repository zu vermeiden.
+4.  **Build-Stabilität:**
+    - Client, API, Shared, Rendering Bridge und Utils wurden erfolgreich für den Build validiert.
+    - Der Server erfordert weiterhin eine umfangreiche ESM-Migration (Import-Endungen) und API-Abgleich, was als nächste Phase im Action Plan geführt wird.
