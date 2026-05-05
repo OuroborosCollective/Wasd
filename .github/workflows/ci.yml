@@ -53,12 +53,12 @@ jobs:
         shell: bash
 
       - name: Build
-        run: pnpm run build --if-present
+        run: pnpm run build
         working-directory: apps/${{ matrix.app }}
         shell: bash
 
       - name: Test
-        run: pnpm test --if-present
+        run: pnpm test
         working-directory: apps/${{ matrix.app }}
         shell: bash
         env:

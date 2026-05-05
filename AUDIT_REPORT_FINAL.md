@@ -61,5 +61,15 @@ Current infrastructure highlights:
 6. **Hardening:** Created root `.npmrc` and updated `.gitignore`.
 7. **Validation:** Successfully verified monorepo build and test integrity.
 
+### 4. CI Pipeline Fragility
+**Issue:** `git-to-lore.yml` lacked safety checks for secrets, and `ci.yml` used `pnpm` flags that were being incorrectly passed down to underlying build tools (Vite/TSC), causing "Unknown option" errors.
+**Impact:** PRs were blocked by infrastructure failures unrelated to code changes.
+**Resolution:** Hardened CI YAMLs with conditional execution and cleaned up command-line arguments.
+
+### 5. ESLint Flat Config Migration Inconsistency
+**Issue:** Packages were in a semi-migrated state between legacy `.eslintrc` and Flat Config, leading to "Config not found" and "Circular structure" errors in CI.
+**Impact:** Linting was effectively broken across the workspace.
+**Resolution:** Implemented a unified `eslint.config.mjs` at the root, standardized linting scripts across all `package.json` files, and synchronized global dependencies.
+
 ---
 **Audit performed by: Jules (Senior DevOps & Fullstack Architect)**

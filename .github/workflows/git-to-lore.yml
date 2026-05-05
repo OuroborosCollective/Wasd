@@ -21,14 +21,18 @@ jobs:
           VPS_ENDPOINT: ${{ secrets.VPS_ENDPOINT }}
           VPS_AUTH_TOKEN: ${{ secrets.VPS_AUTH_TOKEN }}
         run: |
-          curl -X POST "$VPS_ENDPOINT" \
-          -H "Content-Type: application/json" \
-          -H "Authorization: Bearer $VPS_AUTH_TOKEN" \
-          -d "{
-            \"event\": \"${{ github.event_name }}\",
-            \"repository\": \"${{ github.repository }}\",
-            \"commit\": \"${{ github.sha }}\",
-            \"ref\": \"${{ github.ref }}\",
-            \"service\": \"VPSAutonomousOperationService\",
-            \"timestamp\": \"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\"
-          }"
+          if [ -z "$VPS_ENDPOINT" ]; then
+            echo "VPS_ENDPOINT not set, skipping trigger."
+          else
+            curl -X POST "$VPS_ENDPOINT" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $VPS_AUTH_TOKEN" \
+            -d "{
+              \"event\": \"${{ github.event_name }}\",
+              \"repository\": \"${{ github.repository }}\",
+              \"commit\": \"${{ github.sha }}\",
+              \"ref\": \"${{ github.ref }}\",
+              \"service\": \"VPSAutonomousOperationService\",
+              \"timestamp\": \"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\"
+            }"
+          fi
