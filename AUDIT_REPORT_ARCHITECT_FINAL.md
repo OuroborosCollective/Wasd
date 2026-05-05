@@ -4,45 +4,46 @@
 **Auditor:** Jules (Senior DevOps & Fullstack Architect)
 
 ## Status Quo
-Das Projekt ist ein TypeScript-basiertes Monorepo, das mit **pnpm (v9.1.0)** verwaltet wird. Die Struktur ist in `apps/`, `packages/` und `projects/` unterteilt. Es wird ein Workspace-Ansatz verfolgt, wobei die Abhängigkeiten zwischen den Paketen über Symlinks aufgelöst werden. Die CI/CD-Pipeline ist in GitHub Actions definiert (`main-pipeline.yml`).
+Das Repository ist ein TypeScript-basiertes Monorepo, das mit **pnpm (v9.1.0)** verwaltet wird. Die Struktur ist modular aufgebaut und umfasst die Bereiche `apps/`, `packages/` und `projects/`. Die Abhängigkeitsverwaltung erfolgt über pnpm-Workspaces. TypeScript-Projekt-Referenzen werden teilweise genutzt, um die Build-Abhängigkeiten abzubilden. Die CI/CD-Pipelines sind in GitHub Actions definiert.
 
 ## Kritische Fehler
 
-1.  **Fehlerhafte Workspace-Protokolle (Behoben):**
-    Mehrere Pakete (`apps/api`, `apps/web`, `client`) referenzierten interne `@wasd/*`-Bibliotheken mit `"*"` statt `"workspace:*"`. Dies führte zu 404-Fehlern bei `pnpm install`.
-    *Korrektur:* Alle betroffenen `package.json`-Dateien wurden auf `workspace:*` umgestellt.
+1.  **Fehlerhafte Workspace-Protokolle (Fix appliziert):**
+    In mehreren `package.json`-Dateien (`apps/api`, `apps/web`, `client`) wurden interne `@wasd/*`-Abhängigkeiten mit `"*"` statt `"workspace:*"` referenziert. Dies führte zu 404-Fehlern bei `pnpm install`, da pnpm versuchte, diese privaten Pakete in der öffentlichen npm-Registry zu finden.
+    *Lösung:* Umstellung auf `workspace:*` in allen betroffenen Paketen.
 
-2.  **Fehlende Abhängigkeit (@are-logic/logger) (Behoben):**
-    `apps/api` hängte von `@are-logic/logger` ab, welches nicht existierte.
-    *Korrektur:* Eine neue Utility-Library `@wasd/utils` wurde erstellt, die eine `Logger`-Klasse bereitstellt. Die Abhängigkeit in `apps/api` wurde ersetzt und die Imports wurden korrigiert.
+2.  **Fehlende Abhängigkeit `@are-logic/logger` (Fix appliziert):**
+    Das Paket `apps/api` war von einer nicht existenten Library `@are-logic/logger` abhängig, was die Installation blockierte.
+    *Lösung:* Erstellung des Utility-Pakets `@wasd/utils` mit einer `Logger`-Klasse und Aktualisierung der Imports in `apps/api`.
 
-3.  **Inkonsistente TypeScript-Projekt-Referenzen (Behoben):**
-    Die Root-`tsconfig.json` enthielt nur einen Bruchteil der tatsächlichen Workspace-Pakete.
-    *Korrektur:* Die Root-`tsconfig.json` wurde aktualisiert und enthält nun Referenzen auf alle aktiven Workspace-Projekte und Pakete.
+3.  **Lückenhafte TypeScript-Projekt-Referenzen (Fix appliziert):**
+    Die Root-`tsconfig.json` enthielt nur Referenzen auf etwa ein Drittel der tatsächlichen Workspace-Projekte. Dies verhinderte eine korrekte Typ-Auflösung über Paketgrenzen hinweg und blockierte inkrementelle Builds via `tsc -b`.
+    *Lösung:* Synchronisierung der Root-`tsconfig.json` mit allen im Workspace definierten Paketen und Projekten.
 
-4.  **Version-Drift:**
-    Zentrale Abhängigkeiten weisen weiterhin starke Versionsunterschiede auf:
-    *   **Vitest:** Fragmentiert zwischen `^1.2.2` und `^4.1.0`.
-    *   **BabylonJS:** Diskrepanz zwischen `^6.44.0` (@wasd/web) und `^9.0.0` (client).
-    *   **Zod:** Unterschiede zwischen `^3.22.4` und `^3.23.8`.
+4.  **Version-Drift und Fragmentierung:**
+    Wichtige Bibliotheken werden in stark unterschiedlichen Versionen eingesetzt (z. B. Vitest ^1.2.2 bis ^4.1.0, BabylonJS ^6.44.0 bis ^9.0.0). Dies führt zu inkonsistentem Verhalten und unnötig großen `node_modules`.
 
 ## Optimierungspotenzial
 
-1.  **Docker-Build-Strategie:**
-    Das aktuelle `Dockerfile` nutzt manuelle `COPY`-Befehle. Die Nutzung von `pnpm deploy --filter` würde die Image-Größe reduzieren und den Build-Prozess robuster machen.
+1.  **Docker-Build-Effizienz:**
+    Das aktuelle `Dockerfile` nutzt manuelle `COPY`-Befehle für `node_modules`. Durch den Einsatz von `pnpm deploy --filter` könnte ein spezialisiertes, minimales Production-Image für jedes Paket erstellt werden, was die Build-Zeit und Image-Größe reduziert.
 
-2.  **CI/CD Effizienz:**
-    Die `main-pipeline.yml` führt bei jeder Änderung alle Tests für alle Pakete aus. Durch den Einsatz von `pnpm --filter ...[origin/main]` könnten die CI-Laufzeiten drastisch verkürzt werden.
+2.  **CI/CD affected-Logik:**
+    Die `main-pipeline.yml` führt derzeit bei jedem Commit alle Aufgaben für alle Pakete aus. Die Implementierung einer Filter-Logik (z. B. `pnpm --filter ...[origin/main]`) würde die Pipeline-Laufzeit signifikant verkürzen.
 
-3.  **Struktur-Bereinigung:**
-    Es existieren redundante Skelett-Verzeichnisse wie `apps/client` und `packages/client`, die gelöscht werden sollten.
+3.  **Bereinigung redundanter Verzeichnisse:**
+    Skelett-Verzeichnisse wie `apps/client` und `packages/client` sollten gelöscht werden, um Namenskollisionen mit dem Haupt-`client/`-Verzeichnis zu vermeiden.
 
 ## Action Plan
 
-1.  **Konsolidierung der Tooling-Konfiguration:**
-    *   `vitest`, `zod` und `babylonjs` auf einheitliche Versionen im gesamten Repo bringen.
-2.  **Modernisierung des Deployments:**
-    *   `Dockerfile` auf das `pnpm deploy`-Muster umstellen.
-    *   Affected-Logik in die CI/CD-Pipeline integrieren.
-3.  **Bereinigung:**
-    *   Löschen der leeren `apps/client` und `packages/client` Verzeichnisse.
+1.  **Phase 1: Konsolidierung (Abgeschlossen):**
+    *   Reparatur der Workspace-Protokolle.
+    *   Behebung der fehlenden Logger-Abhängigkeit.
+    *   Vervollständigung der TypeScript-Referenzen.
+2.  **Phase 2: Harmonisierung:**
+    *   Angleichung der Versionen von `vitest`, `zod` und `babylonjs` im gesamten Monorepo.
+    *   Sicherstellung, dass alle Pakete die `tsconfig.base.json` korrekt erweitern.
+3.  **Phase 3: CI/CD & Deployment Modernisierung:**
+    *   Umstellung des `Dockerfile` auf das `pnpm deploy`-Muster.
+    *   Integration von affected-Builds in GitHub Actions.
+    *   Bereinigung der Skelett-Verzeichnisse (`apps/client`, etc.).
