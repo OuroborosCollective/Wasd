@@ -1,13 +1,23 @@
 import { Injectable } from '@nestjs/common';
 
 /**
- * ARE-Logic SystemOptimizationService
- * 
- * DESIGN PRINCIPLES:
- * 1. Statelessness: No internal service state; all decisions based on input state.
- * 2. 10Hz-Conformity: Execution time < 100ms to ensure real-time feedback loops.
- * 3. Atomic Operations: Returns optimization instructions rather than mutating directly.
+ * LogicPoint Definition aligned with AxiomaticOracleService
  */
+export enum LogicPoint {
+  CORE_NUCLEUS = 'CORE_NUCLEUS',
+  SIMULATION_GRID = 'SIMULATION_GRID',
+  NEURAL_GATEWAY = 'NEURAL_GATEWAY',
+  DATA_PERIPHERY = 'DATA_PERIPHERY',
+  ASSET_PIPELINE = 'ASSET_PIPELINE'
+}
+
+export interface EntityState {
+  id: string;
+  integrity: number; // 0.0 to 1.0
+  weight: number;
+  logicPoint: LogicPoint;
+  lastUpdate: number;
+}
 
 export interface SystemResource {
   id: string;
@@ -27,39 +37,58 @@ export interface SystemMetrics {
 export interface OptimizationState {
   resources: SystemResource[];
   metrics: SystemMetrics;
+  entities: EntityState[];
   timestamp: number;
 }
 
 export interface OptimizationAction {
-  type: 'SCALE_UP' | 'SCALE_DOWN' | 'REBALANCE' | 'THROTTLE' | 'FLUSH' | 'NO_OP';
+  type: 'SCALE_UP' | 'SCALE_DOWN' | 'REBALANCE' | 'THROTTLE' | 'FLUSH' | 'INTEGRITY_REPAIR' | 'NO_OP';
   targetId?: string;
+  targetPoint?: LogicPoint;
   priority: number;
   metadata: Record<string, any>;
 }
 
+/**
+ * ARE-Logic SystemOptimizationService
+ * 
+ * DESIGN PRINCIPLES:
+ * 1. Server-Authority: Enforces the Single Source of Truth for system state.
+ * 2. 10Hz-Conformity: O(n) algorithms ensure <100ms execution for 1000+ entities.
+ * 3. Axiomatic Alignment: Maps logic points to central Enums for deterministic orchestration.
+ */
 @Injectable()
 export class SystemOptimizationService {
   private readonly CRITICAL_THRESHOLD = 0.85;
   private readonly IDLE_THRESHOLD = 0.20;
-  private readonly LATENCY_TARGET_MS = 150;
+  private readonly LATENCY_TARGET_MS = 100;
+  private readonly INTEGRITY_MINIMUM = 0.95;
 
   /**
    * Main optimization cycle.
    * Processes the current system state and returns a list of optimization actions.
-   * Complexity: O(N) where N is number of resources.
+   * Performance: O(n) complexity.
    */
   public calculateOptimizations(state: OptimizationState): OptimizationAction[] {
     const actions: OptimizationAction[] = [];
 
-    // 1. Critical Load Balancing (CPU/Memory)
+    // 1. Calculate Global Integrity Score (O(n))
+    const integrityResult = this.calculateIntegrityMetrics(state.entities);
+    
+    // 2. Integrity Enforcement (Server Authority)
+    if (integrityResult.globalScore < this.INTEGRITY_MINIMUM) {
+      actions.push(...this.generateIntegrityActions(integrityResult));
+    }
+
+    // 3. Resource Load Balancing
     const overloadActions = this.evaluateResourceLoads(state.resources);
     actions.push(...overloadActions);
 
-    // 2. Latency & Backpressure Optimization
+    // 4. Performance & Backpressure Optimization
     const performanceActions = this.evaluatePerformance(state.metrics);
     actions.push(...performanceActions);
 
-    // 3. Resource Efficiency (Cost Optimization)
+    // 5. Efficiency Consolidation
     if (actions.length === 0) {
       const efficiencyActions = this.evaluateEfficiency(state.resources, state.metrics);
       actions.push(...efficiencyActions);
@@ -68,10 +97,68 @@ export class SystemOptimizationService {
     return this.sortActionsByUrgency(actions);
   }
 
+  /**
+   * Calculates system integrity in O(n)
+   */
+  private calculateIntegrityMetrics(entities: EntityState[]) {
+    let totalWeight = 0;
+    let weightedIntegrity = 0;
+    const pointAnalysis: Record<LogicPoint, { sum: number; count: number }> = {
+      [LogicPoint.CORE_NUCLEUS]: { sum: 0, count: 0 },
+      [LogicPoint.SIMULATION_GRID]: { sum: 0, count: 0 },
+      [LogicPoint.NEURAL_GATEWAY]: { sum: 0, count: 0 },
+      [LogicPoint.DATA_PERIPHERY]: { sum: 0, count: 0 },
+      [LogicPoint.ASSET_PIPELINE]: { sum: 0, count: 0 }
+    };
+
+    const len = entities.length;
+    for (let i = 0; i < len; i++) {
+      const entity = entities[i];
+      const weight = entity.weight || 1;
+      
+      weightedIntegrity += entity.integrity * weight;
+      totalWeight += weight;
+
+      // Group logic point metrics in the same pass
+      const stats = pointAnalysis[entity.logicPoint];
+      if (stats) {
+        stats.sum += entity.integrity;
+        stats.count++;
+      }
+    }
+
+    return {
+      globalScore: totalWeight > 0 ? weightedIntegrity / totalWeight : 1.0,
+      pointAnalysis
+    };
+  }
+
+  private generateIntegrityActions(integrityResult: any): OptimizationAction[] {
+    const actions: OptimizationAction[] = [];
+    
+    for (const point of Object.values(LogicPoint)) {
+      const stats = integrityResult.pointAnalysis[point];
+      if (stats.count > 0 && (stats.sum / stats.count) < this.INTEGRITY_MINIMUM) {
+        actions.push({
+          type: 'INTEGRITY_REPAIR',
+          targetPoint: point as LogicPoint,
+          priority: 15, // Highest priority for integrity
+          metadata: { 
+            avgIntegrity: stats.sum / stats.count,
+            reason: 'AUTHORITATIVE_SYNC_REQUIRED' 
+          }
+        });
+      }
+    }
+
+    return actions;
+  }
+
   private evaluateResourceLoads(resources: SystemResource[]): OptimizationAction[] {
     const actions: OptimizationAction[] = [];
 
-    for (const res of resources) {
+    for (let i = 0; i < resources.length; i++) {
+      const res = resources[i];
       if (res.currentLoad > this.CRITICAL_THRESHOLD) {
         actions.push({
           type: 'SCALE_UP',
@@ -95,7 +182,6 @@ export class SystemOptimizationService {
   private evaluatePerformance(metrics: SystemMetrics): OptimizationAction[] {
     const actions: OptimizationAction[] = [];
 
-    // Check for high latency or backpressure
     if (metrics.latencyMs > this.LATENCY_TARGET_MS || metrics.backpressure > 0.7) {
       actions.push({
         type: 'THROTTLE',
@@ -114,7 +200,6 @@ export class SystemOptimizationService {
       });
     }
 
-    // High error rate triggers cache flush or circuit breaker logic
     if (metrics.errorRate > 0.05) {
       actions.push({
         type: 'FLUSH',
@@ -127,10 +212,13 @@ export class SystemOptimizationService {
   }
 
   private evaluateEfficiency(resources: SystemResource[], metrics: SystemMetrics): OptimizationAction[] {
-    // Only optimize for efficiency if performance is stable
     if (metrics.latencyMs < this.LATENCY_TARGET_MS && metrics.errorRate < 0.01) {
-      const lowLoadResources = resources.filter(r => r.currentLoad < 0.4);
-      if (lowLoadResources.length > 2) {
+      let lowLoadCount = 0;
+      for (let i = 0; i < resources.length; i++) {
+        if (resources[i].currentLoad < 0.4) lowLoadCount++;
+      }
+
+      if (lowLoadCount > 2) {
         return [{
           type: 'REBALANCE',
           priority: 2,
