@@ -25,7 +25,7 @@ type AREPolicyConfig = {
   stableSampleTrigger?: number;
 };
 
-let canvas = document.getElementById("application-canvas") as HTMLCanvasElement;
+let canvas = document.getElementById("application-canvas") as unknown as HTMLCanvasElement;
 if (!canvas) {
   canvas = document.createElement("canvas");
   canvas.id = "application-canvas";

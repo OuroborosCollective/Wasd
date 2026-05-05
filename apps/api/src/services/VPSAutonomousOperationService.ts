@@ -1,4 +1,4 @@
-import { Logger } from '@are-logic/logger';
+import { Logger } from '@wasd/utils';
 import { 
   IVPSState, 
   IVPSHealthStatus, 
