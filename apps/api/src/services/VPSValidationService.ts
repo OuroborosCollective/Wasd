@@ -1,4 +1,4 @@
-import { NodeSSH, SSHConfig } from 'node-ssh';
+import { NodeSSH, Config as SSHConfig } from 'node-ssh';
 
 /**
  * VPSValidationService
