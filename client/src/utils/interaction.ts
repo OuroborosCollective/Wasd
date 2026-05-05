@@ -7,7 +7,7 @@ import {
   type InteractNpcSnapshot,
   type InteractLootSnapshot,
   type InteractPoint as SharedInteractPoint,
-} from "@shared/interaction";
+} from "@shared/utils/interaction";
 
 export interface InteractPoint extends SharedInteractPoint {
   npcs?: InteractNpcSnapshot[];

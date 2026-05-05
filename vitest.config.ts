@@ -2,14 +2,10 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    include: ["server/src/tests/**/*.test.ts", "client/src/**/*.test.ts", "client/src/**/*.test.tsx"],
+    globals: true,
     environment: "node",
-    server: {
-      deps: {
-        external: [
-          "multer",
-        ],
-      },
-    },
+    // Looking for tests in the current directory and subdirectories
+    include: ["**/*.test.{ts,tsx}"],
+    exclude: ["**/node_modules/**", "**/dist/**"],
   },
 });

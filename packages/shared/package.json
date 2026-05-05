@@ -20,11 +20,14 @@
     "zod": "^3.23.8",
     "eventemitter3": "^5.0.1",
     "nanoid": "^5.0.9",
-    "cannon-es": "^0.20.0"
+    "cannon-es": "^0.20.0",
+    "ioredis": "^5.3.2",
+    "@babylonjs/core": "^6.48.1"
   },
   "devDependencies": {
     "typescript": "^5.7.3",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.0",
+    "@types/node": "^20.0.0"
   },
   "peerDependencies": {
     "typescript": "^5.7.3"

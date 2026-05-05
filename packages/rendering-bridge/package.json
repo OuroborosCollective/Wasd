@@ -27,7 +27,9 @@
     "tinyglobby": "^0.2.10",
     "typescript": "^5.7.3",
     "tsup": "^8.0.2",
-    "rimraf": "^5.0.5"
+    "rimraf": "^5.0.5",
+    "@babylonjs/core": "^6.48.1",
+    "@types/three": "^0.162.0"
   },
   "eslintConfig": {
     "root": true,

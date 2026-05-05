@@ -48,7 +48,7 @@ export class VPSAutonomousOperationService {
 
       return this.prioritizeActions(actions);
     } catch (error) {
-      Logger.error('Autonomous Control Loop Failure', error);
+      new Logger("VPSAutonomous").error('Autonomous Control Loop Failure', error);
       return [{
         type: 'SYSTEM_HARD_REBOOT',
         subsystem: SystemSubsystem.KERNEL,

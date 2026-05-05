@@ -1,4 +1,4 @@
-import { NodeSSH, SSHConfig } from 'node-ssh';
+import { NodeSSH, Config as SSHConfig } from 'node-ssh';
 
 /**
  * VPSValidationService
@@ -60,8 +60,8 @@ export class VPSValidationService {
       const [osInfo, cpuInfo, ramInfo, diskInfo, dockerCheck] = await Promise.all([
         ssh.execCommand('uname -a'),
         ssh.execCommand('nproc'),
-        ssh.execCommand("free -m | awk '/^Mem:/{print $2}'"),
-        ssh.execCommand("df -m / | awk 'NR==2 {print $4}'"),
+        ssh.execCommand("free -m | awk '/^Mem:/{print }'"),
+        ssh.execCommand("df -m / | awk 'NR==2 {print }'"),
         ssh.execCommand('docker --version'),
       ]);
 
