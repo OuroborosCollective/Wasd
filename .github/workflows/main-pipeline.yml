@@ -4,6 +4,7 @@ permissions:
   contents: write
   security-events: write
   pull-requests: read
+  id-token: write
 
 on:
   push:
@@ -88,7 +89,6 @@ jobs:
       - name: Dependency Review
         if: github.event_name == 'pull_request'
         uses: actions/dependency-review-action@v4
-        continue-on-error: true
         with:
           fail-on-severity: critical
 
@@ -100,6 +100,29 @@ jobs:
 
       - name: Build monorepo
         run: pnpm -r run build
+
+      - name: Ensure Build Directories Exist
+        run: |
+          mkdir -p dist
+          find . -name "dist" -type d -exec cp -r {} ./dist/ \; || true
+          find . -name "build" -type d -exec cp -r {} ./dist/ \; || true
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: |
+            **/dist/**
+            **/build/**
+          retention-days: 1
+          if-no-files-found: warn
+
+      - name: GitHub Dependency Submission
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
 
       - name: Run tests
         run: pnpm -r run test
