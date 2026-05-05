@@ -6,53 +6,61 @@
 ---
 
 ## Status Quo
-Das Areloria-Repository ist ein komplexes pnpm-Monorepo, das Spiel-Client, Server, Engine und diverse Hilfsdienste umfasst. Die Struktur ist historisch gewachsen und weist Anzeichen von Fragmentierung auf. Zwar wurde in vorangegangenen Audits versucht, die Struktur zu konsolidieren, jedoch bestehen weiterhin kritische Konfigurationsfehler in der Paketverwaltung und CI/CD-Logik.
+Das Areloria-Repository ist ein komplexes pnpm-Monorepo. Während des Audits wurden kritische Fehler in der Paketverwaltung und CI/CD-Logik identifiziert, die bereits teilweise behoben wurden. Die Struktur weist Anzeichen von Fragmentierung auf, was die Stabilität der Builds beeinträchtigt.
 
 ---
 
-## Kritische Fehler (Critical Errors)
+## Behobene Kritische Fehler (Fixed Critical Errors)
 
 1.  **Dependency Protocol Mismatch (Registry 404s):**
-    Mehrere Pakete (z.B. `client`, `apps/api`) referenzieren interne Abhängigkeiten (wie `@wasd/shared`) mit `*` anstatt des `workspace:*` Protokolls. Dies führt dazu, dass `pnpm install` versucht, diese privaten Pakete aus der öffentlichen npm-Registry zu laden, was mit 404-Fehlern fehlschlägt und den gesamten Build-Prozess blockiert.
+    Interne Abhängigkeiten in `client`, `apps/api` und `apps/web` (z.B. `@wasd/shared`, `@wasd/database`) wurden von `*` auf `workspace:*` umgestellt. Dies behebt die 404-Fehler bei `pnpm install`, da pnpm nun korrekt im lokalen Workspace nach diesen Paketen sucht.
 
 2.  **pnpm Versions-Konflikt:**
-    In der `root package.json` wird `pnpm@9.1.0` gefordert. Die `deploy.yml` nutzt jedoch explizit `pnpm@8`. Diese Inkonsistenz führt zu nicht-deterministischen Lockfile-Updates und potenziellen Fehlern bei der Dependency-Resolution in der Deployment-Pipeline.
+    Die `deploy.yml` wurde von `pnpm@8` auf `pnpm@9.1.0` aktualisiert, um mit der Root-Konfiguration (`package.json`) konsistent zu sein.
 
-3.  **Strukturelle Redundanz & "Dirty Workarounds":**
-    Es existieren redundante Paketverzeichnisse (z.B. `client/` vs. `packages/client/`). Das Deployment-Skript `deploy.yml` enthält einen manuellen `rm -rf packages/client packages/server` Befehl, um Konflikte zu umgehen, anstatt die Workspace-Struktur sauber zu bereinigen.
+3.  **Fehlende Abhängigkeiten in Shared Packages:**
+    In `packages/shared`, `packages/core` und `packages/rendering-bridge` wurden fehlende `devDependencies` (wie `@babylonjs/core`, `@types/three`, `ioredis`) ergänzt, um den Build-Prozess zu stabilisieren.
 
-4.  **Fehlende Build-Isolierung:**
-    Sub-Pakete verlassen sich auf global installierte Build-Tools (z.B. `tsc`), anstatt diese explizit in den `devDependencies` zu führen oder über das Monorepo-Root konsistent bereitzustellen. Dies führt zu `sh: 1: tsc: not found` Fehlern in isolierten CI-Umgebungen.
+4.  **Client Build-Fixes:**
+    Fehlerhafte Import-Pfade im Client (z.B. falsche Referenzen auf `shared/protocol`) und Typ-Konflikte im `main.ts` wurden korrigiert.
+
+---
+
+## Verbleibende Kritische Fehler (Remaining Critical Errors)
+
+1.  **Server TypeScript ESM-Konflikte:**
+    Der `@wasd/server` nutzt `NodeNext` für die Modulauflösung, was explizite `.js` Dateiendungen bei relativen Importen erfordert. Aktuell fehlen diese in weiten Teilen des Server-Codes, was zu massiven Build-Fehlern führt.
+
+2.  **Server Typ-Fehler:**
+    Es bestehen signifikante API-Mismatches im Server-Code (z.B. `NPCRelationshipSystem`, `NPCMemoryCache`, `OuroborosLoop`), die auf eine unvollständige Refaktorierung oder veraltete Interfaces hindeuten.
+
+3.  **Fehlende Build-Isolierung:**
+    Obwohl einige Tools ergänzt wurden, verlassen sich Teile der Pipeline noch auf globale Tools.
 
 ---
 
 ## Optimierungspotenzial (Optimization Potential)
 
-1.  **TypeScript Project References:**
-    Die `tsconfig.json` im Root ist unvollständig. Viele Projekte haben `composite: false`, was die inkrementelle Kompilierung über das gesamte Monorepo hinweg verhindert und die Build-Zeiten unnötig verlängert.
+1.  **Automatisierte Import-Korrektur:**
+    Ein Skript zur automatischen Ergänzung der `.js` Endungen im Server-Code würde die ESM-Migration erheblich beschleunigen.
 
 2.  **CI/CD Pipeline-Härtung:**
-    Die `main-pipeline.yml` enthält redundante Caching-Strategien. Eine Umstellung auf das native Caching von `actions/setup-node` für pnpm würde die Komplexität reduzieren. Zudem sollte `continue-on-error` global deaktiviert werden, um "Silent Failures" zu verhindern.
+    Die `main-pipeline.yml` sollte auf strikte Fehlerprüfung umgestellt werden (Entfernung von `continue-on-error`).
 
 3.  **Modernisierung des Docker-Builds:**
-    Das aktuelle `Dockerfile` nutzt manuelle `COPY`-Befehle für Artefakte. Die Nutzung von `pnpm deploy` (verfügbar seit pnpm v7+) wäre ein deutlich robusterer und effizienterer Weg, um produktionsbereite Standalone-Images für den Server zu erstellen.
+    Umstellung auf `pnpm deploy` für effizientere und robustere Produktions-Images.
 
 ---
 
 ## Action Plan (Schritt-für-Schritt)
 
-### Phase 1: Fix Core Infrastructure (Sofort)
-1.  **Protokoll-Update:** Umstellung aller internen Abhängigkeiten auf `workspace:*` in allen `package.json` Dateien.
-2.  **Versions-Abgleich:** Update der `deploy.yml` auf `pnpm@9.1.0` und Synchronisation mit der Root-Konfiguration.
-3.  **Workspace-Bereinigung:** Löschen der redundanten `packages/client` und `packages/server` Verzeichnisse, falls diese leer oder veraltet sind (Validierung erforderlich).
+### Phase 1: Server ESM & API Fixes (Nächste Schritte)
+1.  **ESM-Korrektur:** Massen-Update der relativen Importe im Server (`.js` Endungen ergänzen).
+2.  **Interface-Abgleich:** Korrektur der Typ-Fehler in den NPC- und Ouroboros-Modulen des Servers.
 
-### Phase 2: Build & Type-Safety
-1.  **Build-Tools:** Sicherstellen, dass `typescript` in jedem Paket als `devDependency` vorhanden ist oder über `pnpm -w exec tsc` aufgerufen wird.
-2.  **TS-Architektur:** Aktivierung von `composite: true` in allen Sub-Paketen und Vervollständigung der `references` in der Root `tsconfig.json`.
-
-### Phase 3: CI/CD & Deployment
+### Phase 2: CI/CD & Deployment
 1.  **Refactoring Dockerfile:** Umstellung auf `pnpm deploy --filter @wasd/server --prod /prod/server`.
-2.  **Pipeline-Cleanup:** Entfernung redundanter Caching-Steps und Aktivierung strikter Fehlerprüfung in allen Workflows.
+2.  **Pipeline-Cleanup:** Entfernung redundanter Caching-Steps und Aktivierung strikter Fehlerprüfung.
 
 ---
-*Audit abgeschlossen.*
+*Audit abgeschlossen. Kritische Infrastruktur-Fixes wurden appliziert.*

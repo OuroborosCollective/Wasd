@@ -9,30 +9,54 @@ importers:
   .:
     devDependencies:
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.7.3
         version: 5.9.3
 
   apps/api:
     dependencies:
+      '@nestjs/common':
+        specifier: ^10.3.3
+        version: 10.4.22(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@wasd/database':
         specifier: workspace:*
         version: link:../../packages/database
       '@wasd/redis':
         specifier: workspace:*
         version: link:../../packages/redis
+      '@wasd/utils':
+        specifier: workspace:*
+        version: link:../../packages/utils
       dotenv:
-        specifier: ^16.3.1
+        specifier: ^16.4.5
         version: 16.6.1
+      express:
+        specifier: ^4.18.2
+        version: 4.22.1
+      node-ssh:
+        specifier: ^13.2.0
+        version: 13.2.1
     devDependencies:
+      '@types/express':
+        specifier: ^4.17.17
+        version: 4.17.25
       '@types/node':
-        specifier: ^20.0.0
+        specifier: ^20.11.24
         version: 20.19.39
+      eslint:
+        specifier: ^8.57.0
+        version: 8.57.1
+      rimraf:
+        specifier: ^5.0.5
+        version: 5.0.10
       tsx:
-        specifier: ^4.7.0
+        specifier: ^4.7.1
         version: 4.21.0
       typescript:
-        specifier: ^5.3.3
+        specifier: ^5.7.3
         version: 5.9.3
+      vitest:
+        specifier: ^1.3.1
+        version: 1.6.1(@types/node@20.19.39)(jsdom@29.1.1)(lightningcss@1.32.0)
 
   apps/web:
     dependencies:
@@ -74,7 +98,7 @@ importers:
         specifier: ^4.2.1
         version: 4.7.0(vite@6.4.2(@types/node@20.19.39)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))
       typescript:
-        specifier: ^5.4.2
+        specifier: ^5.7.3
         version: 5.9.3
       vite:
         specifier: ^6.0.0
@@ -108,7 +132,7 @@ importers:
         version: 2.105.1
       '@wasd/shared':
         specifier: workspace:*
-        version: link:../shared
+        version: link:../packages/shared
       firebase:
         specifier: ^12.11.0
         version: 12.12.1
@@ -165,16 +189,19 @@ importers:
         specifier: ^3.4.1
         version: 3.4.19(tsx@4.21.0)(yaml@2.8.3)
       typescript:
-        specifier: ^5.6.0
+        specifier: ^5.7.3
         version: 5.9.3
       vite:
         specifier: ^6.4.2
         version: 6.4.2(@types/node@20.19.39)(jiti@1.21.7)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3)
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.5(@opentelemetry/api@1.9.1)(@types/node@20.19.39)(jsdom@29.1.1)(vite@6.4.2(@types/node@20.19.39)(jiti@1.21.7)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))
 
   engine:
     devDependencies:
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.7.3
         version: 5.9.3
 
   packages/backend:
@@ -184,7 +211,7 @@ importers:
         version: link:../core
       '@wasd/shared':
         specifier: workspace:*
-        version: link:../../shared
+        version: link:../shared
       cors:
         specifier: ^2.8.5
         version: 2.8.6
@@ -226,11 +253,14 @@ importers:
         specifier: ^10.9.2
         version: 10.9.2(@types/node@20.19.39)(typescript@5.9.3)
       typescript:
-        specifier: ^5.3.3
+        specifier: ^5.7.3
         version: 5.9.3
 
   packages/core:
     devDependencies:
+      '@babylonjs/core':
+        specifier: ^6.48.1
+        version: 6.49.0
       '@types/node':
         specifier: ^20.11.0
         version: 20.19.39
@@ -238,7 +268,7 @@ importers:
         specifier: ^5.0.0
         version: 5.0.10
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.7.3
         version: 5.9.3
 
   packages/core-ecs:
@@ -266,7 +296,7 @@ importers:
         specifier: ^8.0.2
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.13)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
       typescript:
-        specifier: ^5.3.3
+        specifier: ^5.7.3
         version: 5.9.3
       vitest:
         specifier: ^1.2.2
@@ -306,7 +336,7 @@ importers:
         specifier: ^8.1.0
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.13)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
       typescript:
-        specifier: ^5.4.5
+        specifier: ^5.7.3
         version: 5.9.3
       vitest:
         specifier: ^1.6.0
@@ -340,7 +370,7 @@ importers:
         specifier: ^5.0.5
         version: 5.0.10
       typescript:
-        specifier: ^5.4.5
+        specifier: ^5.7.3
         version: 5.9.3
 
   packages/redis:
@@ -353,20 +383,23 @@ importers:
         specifier: ^20.0.0
         version: 20.19.39
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.7.3
         version: 5.9.3
 
   packages/rendering-bridge:
     devDependencies:
+      '@babylonjs/core':
+        specifier: ^6.48.1
+        version: 6.49.0
+      '@types/three':
+        specifier: ^0.162.0
+        version: 0.162.0
       '@typescript-eslint/eslint-plugin':
         specifier: ^7.1.1
         version: 7.18.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)
       '@typescript-eslint/parser':
         specifier: ^7.1.1
         version: 7.18.0(eslint@8.57.1)(typescript@5.9.3)
-      babylonjs:
-        specifier: ^6.48.1
-        version: 6.49.0
       eslint:
         specifier: ^8.57.0
         version: 8.57.1
@@ -383,7 +416,7 @@ importers:
         specifier: ^8.0.2
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.13)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
       typescript:
-        specifier: ^5.4.2
+        specifier: ^5.7.3
         version: 5.9.3
 
   packages/shared:
@@ -394,6 +427,9 @@ importers:
       eventemitter3:
         specifier: ^5.0.1
         version: 5.0.4
+      ioredis:
+        specifier: ^5.3.2
+        version: 5.10.1
       nanoid:
         specifier: ^5.0.9
         version: 5.1.11
@@ -401,6 +437,12 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      '@babylonjs/core':
+        specifier: ^6.48.1
+        version: 6.49.0
+      '@types/node':
+        specifier: ^20.11.0
+        version: 20.19.39
       typescript:
         specifier: ^5.7.3
         version: 5.9.3
@@ -442,7 +484,7 @@ importers:
         specifier: ^5.0.5
         version: 5.0.10
       typescript:
-        specifier: ^5.3.3
+        specifier: ^5.7.3
         version: 5.9.3
 
   packages/types: {}
@@ -450,51 +492,55 @@ importers:
   packages/ui:
     devDependencies:
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.7.3
         version: 5.9.3
 
-  packages/utils: {}
+  packages/utils:
+    devDependencies:
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
 
   portal:
     devDependencies:
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.7.3
         version: 5.9.3
 
   projects/ads:
     devDependencies:
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.7.3
         version: 5.9.3
 
   projects/agri-sim:
     devDependencies:
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.7.3
         version: 5.9.3
 
   projects/api:
     devDependencies:
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.7.3
         version: 5.9.3
 
   projects/arena:
     devDependencies:
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.7.3
         version: 5.9.3
 
   projects/card-logic:
     devDependencies:
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.7.3
         version: 5.9.3
 
   projects/crypto-pulse:
     devDependencies:
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.7.3
         version: 5.9.3
 
   projects/eco-trader:
@@ -522,7 +568,7 @@ importers:
         specifier: ^2.0.0
         version: 2.0.0(@types/node@20.19.39)(typescript@5.9.3)
       typescript:
-        specifier: ^5.3.3
+        specifier: ^5.7.3
         version: 5.9.3
       vitest:
         specifier: ^1.3.1
@@ -531,67 +577,67 @@ importers:
   projects/edu-sim:
     devDependencies:
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.7.3
         version: 5.9.3
 
   projects/logi-link:
     devDependencies:
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.7.3
         version: 5.9.3
 
   projects/logic-grid:
     devDependencies:
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.7.3
         version: 5.9.3
 
   projects/logistics:
     devDependencies:
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.7.3
         version: 5.9.3
 
   projects/ouro-api:
     devDependencies:
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.7.3
         version: 5.9.3
 
   projects/retail-opt:
     devDependencies:
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.7.3
         version: 5.9.3
 
   projects/social:
     devDependencies:
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.7.3
         version: 5.9.3
 
   projects/social-sim:
     devDependencies:
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.7.3
         version: 5.9.3
 
   projects/story:
     devDependencies:
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.7.3
         version: 5.9.3
 
   projects/urban:
     devDependencies:
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.7.3
         version: 5.9.3
 
   projects/urban-flow:
     devDependencies:
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.7.3
         version: 5.9.3
 
   server:
@@ -622,7 +668,7 @@ importers:
         version: 0.26.0
       '@wasd/shared':
         specifier: workspace:*
-        version: link:../shared
+        version: link:../packages/shared
       axios:
         specifier: ^1.6.7
         version: 1.15.2
@@ -677,6 +723,9 @@ importers:
       uuid:
         specifier: ^14.0.0
         version: 14.0.0
+      ws:
+        specifier: ^8.16.0
+        version: 8.20.0
       zod:
         specifier: ^3.22.4
         version: 3.25.76
@@ -708,6 +757,9 @@ importers:
       '@types/uuid':
         specifier: ^9.0.8
         version: 9.0.8
+      '@types/ws':
+        specifier: ^8.5.10
+        version: 8.18.1
       rimraf:
         specifier: ^5.0.5
         version: 5.0.10
@@ -718,10 +770,8 @@ importers:
         specifier: ^2.0.0
         version: 2.0.0(@types/node@20.19.39)(typescript@5.9.3)
       typescript:
-        specifier: ^5.1.6
+        specifier: ^5.7.3
         version: 5.9.3
-
-  shared: {}
 
 packages:
 
@@ -3104,6 +3154,9 @@ packages:
   asap@2.0.6:
     resolution: {integrity: sha512-BSHWgDSAiKs50o2Re8ppvp3seVHXSRM44cdSsT9FfNEUUZLOGWVCsiWaRPWM1Znn+mqZ1OfVZ3z3DWEzSp7hRA==}
 
+  asn1@0.2.6:
+    resolution: {integrity: sha512-ix/FxPn0MDjeyJ7i/yoHGFt/EX6LyNbxSEhPPXODPL+KB0VPk86UYfL0lMdy+KCnv+fmvIzySwaK5COwqVbWTQ==}
+
   assertion-error@1.1.0:
     resolution: {integrity: sha512-jgsaNduz+ndvGyFt3uSuWqvy4lCnIJiovtouQN5JZHOKCS2QuhEdbcQHFhVksz2N2U9hXJo8odG7ETyWlEeuDw==}
 
@@ -3137,9 +3190,6 @@ packages:
   babylonjs-gltf2interface@6.49.0:
     resolution: {integrity: sha512-4qzKCgEayti/YUaeMgAAZxZJlx/kLqXxoC+G8gODYz9wOV9UjnHF09wREZ5cuELzzY/rjSJMqkgDfYbUQIQ6/A==}
 
-  babylonjs@6.49.0:
-    resolution: {integrity: sha512-KYGpELn2osBvB8UqGuk6gfJBrriojwisw/egXaiBZNQaNuURjjogI1mgwAz4/KJB14JJwELNw3JNB4sp3Rh5Ng==}
-
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
 
@@ -3154,6 +3204,9 @@ packages:
     resolution: {integrity: sha512-QO/VHsXCQdnzADMfmkeOPvHdIAkoB7i0/rGjINPJEetLx75hNttVWGQ/jycHUDP9zZ9rupbm60WRxcwViB0MiA==}
     engines: {node: '>=6.0.0'}
     hasBin: true
+
+  bcrypt-pbkdf@1.0.2:
+    resolution: {integrity: sha512-qeFIXtP4MSoi6NLqO12WfqARWWuCKi2Rn/9hJLEmtB5yTNr9DqFWkJRCf2qShWzPeAMRnOgCrq0sg/KLv5ES9w==}
 
   bidi-js@1.0.3:
     resolution: {integrity: sha512-RKshQI1R3YQ+n9YJz2QQ147P66ELpa1FQEg20Dk8oW9t2KgLbpDLLp9aGZ7y8WHSshDknG0bknqGw5/tyCs5tw==}
@@ -3209,6 +3262,10 @@ packages:
 
   buffer@6.0.3:
     resolution: {integrity: sha512-FTiCpNxtwiZZHEZbcbTIcZjERVICn9yq/pDFkTl95/AxzD1naBctN7YO68riM/gLSDY7sdrMby8hofADYuuqOA==}
+
+  buildcheck@0.0.7:
+    resolution: {integrity: sha512-lHblz4ahamxpTmnsk+MNTRWsjYKv965MwOrSJyeD588rR3Jcu7swE+0wN5F+PbL5cjgu/9ObkhfzEPuofEMwLA==}
+    engines: {node: '>=10.0.0'}
 
   bundle-require@5.1.0:
     resolution: {integrity: sha512-3WrrOuZiyaaZPWiEt4G3+IffISVC9HYlWueJEBWED4ZH4aIAC2PnkdnuRrR94M+w6yGWn4AglWtJtBI8YqvgoA==}
@@ -3409,6 +3466,10 @@ packages:
   cors@2.8.6:
     resolution: {integrity: sha512-tJtZBBHA6vjIAaF6EnIaq6laBBP9aq/Y3ouVJjEfoHbRBcHBAHYcMh/w8LDrk2PvIMMq8gmopa5D4V8RmbrxGw==}
     engines: {node: '>= 0.10'}
+
+  cpu-features@0.0.10:
+    resolution: {integrity: sha512-9IkYqtX3YHPCzoVg1Py+o9057a3i0fp7S530UWokCSaFVTc7CwXPRiOjRjBQQ18ZCNafx78YfnG+HALxtVmOGA==}
+    engines: {node: '>=10.0.0'}
 
   create-require@1.1.1:
     resolution: {integrity: sha512-dcKFX3jn0MpIaXjisoRvexIJVEKzaq7z2rZKxf+MSr9TkdmHmsU4m2lcLojrj/FHl8mk5VxMmYA+ftRkP/3oKQ==}
@@ -4830,6 +4891,9 @@ packages:
   mz@2.7.0:
     resolution: {integrity: sha512-z81GNO7nnYMEhrGh9LeymoE4+Yr0Wn5McHIZMK5cfQCl+NDX08sCZgUc9/6MHni9IWuFLm1Z3HTCXu2z9fN62Q==}
 
+  nan@2.26.2:
+    resolution: {integrity: sha512-0tTvBTYkt3tdGw22nrAy50x7gpbGCCFH3AFcyS5WiUu7Eu4vWlri1woE6qHBSfy11vksDqkiwjOnlR7WV8G1Hw==}
+
   nanoid@3.3.12:
     resolution: {integrity: sha512-ZB9RH/39qpq5Vu6Y+NmUaFhQR6pp+M2Xt76XBnEwDaGcVAqhlvxrl3B2bKS5D3NH3QR76v3aSrKaF/Kiy7lEtQ==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
@@ -4871,6 +4935,10 @@ packages:
 
   node-releases@2.0.38:
     resolution: {integrity: sha512-3qT/88Y3FbH/Kx4szpQQ4HzUbVrHPKTLVpVocKiLfoYvw9XSGOX2FmD2d6DrXbVYyAQTF2HeF6My8jmzx7/CRw==}
+
+  node-ssh@13.2.1:
+    resolution: {integrity: sha512-rfl4GWMygQfzlExPkQ2LWyya5n2jOBm5vhEnup+4mdw7tQhNpJWbP5ldr09Jfj93k5SfY5lxcn8od5qrQ/6mBg==}
+    engines: {node: '>= 10'}
 
   nodemon@3.1.14:
     resolution: {integrity: sha512-jakjZi93UtB3jHMWsXL68FXSAosbLfY0In5gtKq3niLSkrWznrVBzXFNOEMJUfc9+Ke7SHWoAZsiMkNP3vq6Jw==}
@@ -5440,6 +5508,14 @@ packages:
     resolution: {integrity: sha512-xAg7SOnEhrm5zI3puOOKyy1OMcMlIJZYNJY7xLBwSze0UjhPLnWfj2GF2EpT0jmzaJKIWKHLsaSSajf35bcYnA==}
     engines: {node: '>=v12.22.7'}
 
+  sb-promise-queue@2.1.1:
+    resolution: {integrity: sha512-qXfdcJQMxMljxmPprn4Q4hl3pJmoljSCzUvvEBa9Kscewnv56n0KqrO6yWSrGLOL9E021wcGdPa39CHGKA6G0w==}
+    engines: {node: '>= 8'}
+
+  sb-scandir@3.1.1:
+    resolution: {integrity: sha512-Q5xiQMtoragW9z8YsVYTAZcew+cRzdVBefPbb9theaIKw6cBo34WonP9qOCTKgyAmn/Ch5gmtAxT/krUgMILpA==}
+    engines: {node: '>= 8'}
+
   scheduler@0.21.0:
     resolution: {integrity: sha512-1r87x5fz9MXqswA2ERLo0EbOAU74DpIUO090gIasYTqlVoJeMcl+Z1Rg7WHz+qtPujhS/hGIt9kxZOYBV3faRQ==}
 
@@ -5497,6 +5573,9 @@ packages:
   shebang-regex@3.0.0:
     resolution: {integrity: sha512-7++dFhtcx3353uBaq8DDR4NuxBetBzC7ZQOhmTQInHEd6bSrXdiEyzCvG07Z44UYdLShWUyXt5M/yhz8ekcb1A==}
     engines: {node: '>=8'}
+
+  shell-escape@0.2.0:
+    resolution: {integrity: sha512-uRRBT2MfEOyxuECseCZd28jC1AJ8hmqqneWQ4VWUTgCAFvb3wKU1jLqj6egC4Exrr88ogg3dp+zroH4wJuaXzw==}
 
   shimmer@1.2.1:
     resolution: {integrity: sha512-sQTKC1Re/rM6XyFM6fIAGHRPVGvyXfgzIDvzoq608vM+jeyVD0Tu1E6Np0Kc2zAIFWIj963V2800iF/9LPieQw==}
@@ -5560,6 +5639,10 @@ packages:
   sql-highlight@6.1.0:
     resolution: {integrity: sha512-ed7OK4e9ywpE7pgRMkMQmZDPKSVdm0oX5IEtZiKnFucSF0zu6c80GZBe38UqHuVhTWJ9xsKgSMjCG2bml86KvA==}
     engines: {node: '>=14'}
+
+  ssh2@1.17.0:
+    resolution: {integrity: sha512-wPldCk3asibAjQ/kziWQQt1Wh3PgDFpC0XpwclzKcdT1vql6KeYxf5LIt4nlFkUeR8WuphYMKqUA56X4rjbfgQ==}
+    engines: {node: '>=10.16.0'}
 
   stack-trace@0.0.10:
     resolution: {integrity: sha512-KGzahc7puUKkzyMt+IqAep+TVNbKP+k2Lmwhub39m1AsTSkaDutx56aDCo+HLDzf/D26BIHTJWNiTG1KAJiQCg==}
@@ -5855,6 +5938,9 @@ packages:
     resolution: {integrity: sha512-5C1sg4USs1lfG0GFb2RLXsdpXqBSEhAaA/0kPL01wxzpMqLILNxIxIOKiILz+cdg/pLnOUxFYOR5yhHU666wbw==}
     engines: {node: '>=18.0.0'}
     hasBin: true
+
+  tweetnacl@0.14.5:
+    resolution: {integrity: sha512-KXXFFdAbFXY4geFIwoyNK+f5Z1b7swfXABfL7HXCmoIWMKU3dmS26672A4EeQtDzLKy7SXmfBu51JolvEKwtGA==}
 
   type-check@0.4.0:
     resolution: {integrity: sha512-XleUoc9uwGXqjWwXaUTZAmzMcFZ5858QA2vvx1Ur5xIcixXIP+8LnFDgRplU30us6teqdlskFfu+ae4K79Ooew==}
@@ -8698,6 +8784,14 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.1.0
 
+  '@vitest/mocker@4.1.5(vite@6.4.2(@types/node@20.19.39)(jiti@1.21.7)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))':
+    dependencies:
+      '@vitest/spy': 4.1.5
+      estree-walker: 3.0.3
+      magic-string: 0.30.21
+    optionalDependencies:
+      vite: 6.4.2(@types/node@20.19.39)(jiti@1.21.7)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3)
+
   '@vitest/mocker@4.1.5(vite@8.0.10(@types/node@20.19.39)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))':
     dependencies:
       '@vitest/spy': 4.1.5
@@ -8867,6 +8961,10 @@ snapshots:
 
   asap@2.0.6: {}
 
+  asn1@0.2.6:
+    dependencies:
+      safer-buffer: 2.1.2
+
   assertion-error@1.1.0: {}
 
   assertion-error@2.0.1: {}
@@ -8902,8 +9000,6 @@ snapshots:
 
   babylonjs-gltf2interface@6.49.0: {}
 
-  babylonjs@6.49.0: {}
-
   balanced-match@1.0.2: {}
 
   balanced-match@4.0.4: {}
@@ -8911,6 +9007,10 @@ snapshots:
   base64-js@1.5.1: {}
 
   baseline-browser-mapping@2.10.25: {}
+
+  bcrypt-pbkdf@1.0.2:
+    dependencies:
+      tweetnacl: 0.14.5
 
   bidi-js@1.0.3:
     dependencies:
@@ -8998,6 +9098,9 @@ snapshots:
     dependencies:
       base64-js: 1.5.1
       ieee754: 1.2.1
+
+  buildcheck@0.0.7:
+    optional: true
 
   bundle-require@5.1.0(esbuild@0.27.7):
     dependencies:
@@ -9179,6 +9282,12 @@ snapshots:
     dependencies:
       object-assign: 4.1.1
       vary: 1.1.2
+
+  cpu-features@0.0.10:
+    dependencies:
+      buildcheck: 0.0.7
+      nan: 2.26.2
+    optional: true
 
   create-require@1.1.1: {}
 
@@ -10838,6 +10947,9 @@ snapshots:
       object-assign: 4.1.1
       thenify-all: 1.6.0
 
+  nan@2.26.2:
+    optional: true
+
   nanoid@3.3.12: {}
 
   nanoid@5.1.11: {}
@@ -10861,6 +10973,15 @@ snapshots:
       formdata-polyfill: 4.0.10
 
   node-releases@2.0.38: {}
+
+  node-ssh@13.2.1:
+    dependencies:
+      is-stream: 2.0.1
+      make-dir: 3.1.0
+      sb-promise-queue: 2.1.1
+      sb-scandir: 3.1.1
+      shell-escape: 0.2.0
+      ssh2: 1.17.0
 
   nodemon@3.1.14:
     dependencies:
@@ -11464,6 +11585,12 @@ snapshots:
       xmlchars: 2.2.0
     optional: true
 
+  sb-promise-queue@2.1.1: {}
+
+  sb-scandir@3.1.1:
+    dependencies:
+      sb-promise-queue: 2.1.1
+
   scheduler@0.21.0:
     dependencies:
       loose-envify: 1.4.0
@@ -11560,6 +11687,8 @@ snapshots:
 
   shebang-regex@3.0.0: {}
 
+  shell-escape@0.2.0: {}
+
   shimmer@1.2.1: {}
 
   side-channel-list@1.0.1:
@@ -11620,6 +11749,14 @@ snapshots:
       through: 2.3.8
 
   sql-highlight@6.1.0: {}
+
+  ssh2@1.17.0:
+    dependencies:
+      asn1: 0.2.6
+      bcrypt-pbkdf: 1.0.2
+    optionalDependencies:
+      cpu-features: 0.0.10
+      nan: 2.26.2
 
   stack-trace@0.0.10: {}
 
@@ -11950,6 +12087,8 @@ snapshots:
     optionalDependencies:
       fsevents: 2.3.3
 
+  tweetnacl@0.14.5: {}
+
   type-check@0.4.0:
     dependencies:
       prelude-ls: 1.2.1
@@ -12189,6 +12328,35 @@ snapshots:
       - sugarss
       - supports-color
       - terser
+
+  vitest@4.1.5(@opentelemetry/api@1.9.1)(@types/node@20.19.39)(jsdom@29.1.1)(vite@6.4.2(@types/node@20.19.39)(jiti@1.21.7)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3)):
+    dependencies:
+      '@vitest/expect': 4.1.5
+      '@vitest/mocker': 4.1.5(vite@6.4.2(@types/node@20.19.39)(jiti@1.21.7)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))
+      '@vitest/pretty-format': 4.1.5
+      '@vitest/runner': 4.1.5
+      '@vitest/snapshot': 4.1.5
+      '@vitest/spy': 4.1.5
+      '@vitest/utils': 4.1.5
+      es-module-lexer: 2.1.0
+      expect-type: 1.3.0
+      magic-string: 0.30.21
+      obug: 2.1.1
+      pathe: 2.0.3
+      picomatch: 4.0.4
+      std-env: 4.1.0
+      tinybench: 2.9.0
+      tinyexec: 1.1.2
+      tinyglobby: 0.2.16
+      tinyrainbow: 3.1.0
+      vite: 6.4.2(@types/node@20.19.39)(jiti@1.21.7)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.1
+      '@types/node': 20.19.39
+      jsdom: 29.1.1
+    transitivePeerDependencies:
+      - msw
 
   vitest@4.1.5(@opentelemetry/api@1.9.1)(@types/node@20.19.39)(jsdom@29.1.1)(vite@8.0.10(@types/node@20.19.39)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3)):
     dependencies:
