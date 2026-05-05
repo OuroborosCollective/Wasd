@@ -7,7 +7,7 @@ on:
     branches: [ "main", "master" ]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-and-test:
@@ -49,8 +49,11 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install
-        working-directory: apps/${{ matrix.app }}
         shell: bash
+
+      - name: Dependency Submission
+        uses: actions/upload-dependency-graph@v1
+        continue-on-error: true
 
       - name: Build
         run: pnpm run build --if-present

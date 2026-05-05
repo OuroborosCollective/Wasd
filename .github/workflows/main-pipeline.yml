@@ -1,7 +1,9 @@
 name: Main Pipeline
 
 permissions:
-  contents: read
+  contents: write
+  security-events: write
+  pull-requests: read
 
 on:
   push:
@@ -41,6 +43,7 @@ jobs:
     strategy:
       matrix:
         node-version: [20.x]
+        python-version: ['3.11']
 
     steps:
       - name: Checkout Repository
@@ -57,8 +60,37 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'pnpm'
 
-      - name: Install dependencies
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f engine/requirements.txt ]; then pip install -r engine/requirements.txt; fi
+
+      - name: Run Python Validation
+        run: |
+          if [ -f engine/scripts/check_changes.py ]; then
+            python engine/scripts/check_changes.py
+          elif [ -f scripts/check_changes.py ]; then
+            python scripts/check_changes.py
+          else
+            echo "Validation script check_changes.py not found, skipping."
+          fi
+
+      - name: Install Node.js dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Dependency Review
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@v4
+        continue-on-error: true
+        with:
+          fail-on-severity: critical
 
       - name: Lint workspace
         run: pnpm -r run lint
