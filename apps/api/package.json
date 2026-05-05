@@ -12,9 +12,9 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@are-logic/logger": "*",
-    "@wasd/database": "*",
-    "@wasd/redis": "*",
+    "@are-logic/logger": "workspace:*",
+    "@wasd/database": "workspace:*",
+    "@wasd/redis": "workspace:*",
     "dotenv": "^16.4.5",
     "node-ssh": "^13.2.0"
   },
@@ -24,6 +24,6 @@
     "rimraf": "^5.0.5",
     "tsx": "^4.7.1",
     "typescript": "^5.7.3",
-    "vitest": "^1.3.1"
+    "vitest": "^4.1.0"
   }
 }

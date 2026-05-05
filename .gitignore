@@ -11,4 +11,4 @@ pnpm-debug.log*
 !.env.example
 
 # PnP configuration
-.pnp.*
+.pnp.**.tsbuildinfo
