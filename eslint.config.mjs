@@ -1,7 +1,7 @@
 import tsParser from "@typescript-eslint/parser";
 import tsPlugin from "@typescript-eslint/eslint-plugin";
 
-const eslintConfig = [
+export default [
   {
     ignores: [
       "**/dist/**",
@@ -9,6 +9,7 @@ const eslintConfig = [
       "e2e/**",
       "playwright.config.ts",
       "**/*.js",
+      "**/*.d.ts",
     ],
   },
   {

@@ -12,7 +12,7 @@
     "build": "tsc",
     "dev": "tsc -w",
     "clean": "rimraf dist",
-    "lint": "eslint . --ext .ts"
+    "lint": "eslint ."
   },
   "dependencies": {
     "p-retry": "^6.2.0",
