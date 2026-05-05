@@ -1,7 +1,6 @@
 packages:
   - 'client'
   - 'server'
-  - 'shared'
   - 'engine'
   - 'portal'
   - 'apps/*'

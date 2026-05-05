@@ -6,12 +6,12 @@
     "baseUrl": ".",
     "noImplicitAny": false,
     "paths": {
-      "@shared/*": ["../shared/*"]
+      "@shared/*": ["../packages/shared/src/*"]
     }
   },
   "include": [
     "src",
-    "../shared/**/*"
+    "../packages/shared/src/**/*"
   ],
   "references": [
     { "path": "./tsconfig.node.json" }

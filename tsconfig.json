@@ -21,7 +21,6 @@
   "references": [
     { "path": "client" },
     { "path": "server" },
-    { "path": "shared" },
     { "path": "engine" },
     { "path": "packages/core" },
     { "path": "packages/core-logic" },

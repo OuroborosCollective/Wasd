@@ -21,6 +21,6 @@
   "include": ["src/**/*"],
   "exclude": ["src/tools/**/*", "src/tests/**/*"],
   "references": [
-    { "path": "../shared" }
+    { "path": "../packages/shared" }
   ]
 }
