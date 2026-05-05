@@ -39,7 +39,8 @@
     "reflect-metadata": "^0.2.1",
     "@opentelemetry/sdk-node": "^0.48.0",
     "@opentelemetry/resources": "^1.21.0",
-    "@traceloop/instrumentation-google-generativeai": "^0.26.0"
+    "@traceloop/instrumentation-google-generativeai": "^0.26.0",
+    "ws": "^8.16.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.17",
@@ -54,6 +55,7 @@
     "@types/js-yaml": "^4.0.9",
     "supertest": "^6.3.4",
     "@types/supertest": "^6.0.2",
-    "rimraf": "^5.0.5"
+    "rimraf": "^5.0.5",
+    "@types/ws": "^8.5.10"
   }
 }
