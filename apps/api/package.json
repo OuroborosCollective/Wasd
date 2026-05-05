@@ -13,8 +13,8 @@
   },
   "dependencies": {
     "@are-logic/logger": "*",
-    "@wasd/database": "*",
-    "@wasd/redis": "*",
+    "@wasd/database": "workspace:*",
+    "@wasd/redis": "workspace:*",
     "dotenv": "^16.4.5",
     "node-ssh": "^13.2.0"
   },
