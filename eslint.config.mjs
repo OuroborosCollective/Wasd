@@ -9,8 +9,6 @@ const eslintConfig = [
       "e2e/**",
       "playwright.config.ts",
       "**/*.js",
-      "**/*.mjs",
-      "**/*.cjs",
     ],
   },
   {
@@ -30,11 +28,6 @@ const eslintConfig = [
       "@typescript-eslint/no-unused-vars": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-empty-object-type": "off",
-      "@typescript-eslint/no-wrapper-object-types": "off",
-      "@typescript-eslint/no-unsafe-function-type": "off",
-      "@typescript-eslint/no-var-requires": "off",
-      "@typescript-eslint/ban-types": "off",
-      "@typescript-eslint/ban-ts-comment": "off",
     },
   },
 ];
