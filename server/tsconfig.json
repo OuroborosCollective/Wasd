@@ -12,11 +12,11 @@
     "forceConsistentCasingInFileNames": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "composite": true,
+    "composite": false,
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "incremental": true
+    "incremental": false
   },
   "include": ["src/**/*"],
   "exclude": ["src/tools/**/*", "src/tests/**/*"],

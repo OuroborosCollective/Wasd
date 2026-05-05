@@ -1,4 +1,4 @@
-import { NodeSSH, SSHConfig } from 'node-ssh';
+import { NodeSSH, Config } from 'node-ssh';
 
 /**
  * VPSValidationService
@@ -31,7 +31,7 @@ export class VPSValidationService {
    * Validates a VPS configuration statelessly.
    * Optimized via concurrent command execution and strict timeouts with guaranteed resource cleanup.
    */
-  public static async validateDeploymentTarget(config: SSHConfig): Promise<VPSValidationResult> {
+  public static async validateDeploymentTarget(config: Config): Promise<VPSValidationResult> {
     const ssh = new NodeSSH();
     const result: VPSValidationResult = {
       isValid: false,
@@ -112,7 +112,7 @@ export class VPSValidationService {
    * Fast-Path connectivity check for heartbeat/10Hz scenarios.
    * Fixed potential memory leak by ensuring disposal in finally block.
    */
-  public static async quickPing(config: Pick<SSHConfig, 'host' | 'username' | 'password' | 'privateKey'>): Promise<boolean> {
+  public static async quickPing(config: Pick<Config, 'host' | 'username' | 'password' | 'privateKey'>): Promise<boolean> {
     const ssh = new NodeSSH();
     try {
       await ssh.connect({
