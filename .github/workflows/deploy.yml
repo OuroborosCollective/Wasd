@@ -6,10 +6,14 @@ on:
       - main
   workflow_dispatch:
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
+permissions:
+  contents: read
+  actions: write
 
+jobs:
+  build-and-asset-sync:
+    name: Build & Cloud Asset Sync
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
@@ -24,9 +28,66 @@ jobs:
         with:
           node-version: '20'
           cache: 'pnpm'
-          cache-dependency-path: '**/pnpm-lock.yaml'
 
-      - name: SSH Deployment
+      - name: Install Dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build Mono-Repo
+        run: |
+          node scripts/bypass-ts-errors.mjs || true
+          NODE_OPTIONS=--max-old-space-size=4096 pnpm run build
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Validate Container & Upload Assets
+        run: |
+          # Verhindert 'BlobNotFound' durch explizite Validierung/Erstellung des Ziel-Containers
+          az storage container create \
+            --name "cdn-assets" \
+            --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} \
+            --public-access blob \
+            --auth-mode key || true
+          
+          # Upload der Client-Dist-Dateien in den validierten Pfad
+          az storage blob upload-batch \
+            --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} \
+            --destination "cdn-assets" \
+            --source packages/client/dist \
+            --overwrite true \
+            --auth-mode key
+
+      - name: Upload Server Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-production-build
+          path: packages/server/dist/
+          retention-days: 1
+
+  deploy:
+    name: Server Deployment
+    needs: build-and-asset-sync
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: server-production-build
+          path: ./server-dist
+
+      - name: Transfer Artifact to Production
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: "./server-dist/*"
+          target: "${{ secrets.DEPLOY_PATH }}/packages/server/dist"
+          strip_components: 1
+
+      - name: SSH Orchestration & PM2 Restart
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -36,33 +97,19 @@ jobs:
             set -e
             cd ${{ secrets.DEPLOY_PATH }}
             
-            echo "--- SYNCING CODE ---"
+            echo "--- UPDATING CORE SOURCE ---"
             git fetch origin main
             git reset --hard origin/main
-            git clean -fd
             
-            echo "--- CLEANING REDUNDANT PACKAGES ---"
-            # Remove empty/broken packages that interfere with pnpm install
-            rm -rf packages/client packages/server
+            echo "--- CONFIGURING RUNTIME ENVIRONMENT ---"
+            # Sicherstellen, dass CommonJS für die Produktion gesetzt ist (vorkompilierte Files)
+            echo '{"type": "commonjs"}' > packages/server/dist/package.json
             
-            echo "--- BYPASSING TS ERRORS ---"
-            node scripts/bypass-ts-errors.mjs
+            # Installiere Produktions-Abhängigkeiten im Monorepo-Kontext
+            pnpm install --prod --no-frozen-lockfile
             
-            echo "--- INSTALLING DEPENDENCIES ---"
-            # Ensure pnpm is updated and fresh
-            npm install -g pnpm
-            # Clean node_modules to resolve manager conflicts
-            find . -name "node_modules" -type d -prune -exec rm -rf '{}' +
-            # Use install instead of ci to handle monorepo structure without root lockfile if necessary
-            pnpm install --no-frozen-lockfile
-            
-            echo "--- BUILDING ---"
-            NODE_OPTIONS=--max-old-space-size=4096 pnpm --recursive run build
-            
-            echo "--- RESTARTING PM2 ---"
-            # CommonJS compatibility for production
-            echo '{"type": "commonjs"}' > server/dist/package.json
+            echo "--- RESTARTING PM2 INSTANCE ---"
             pm2 delete areloria || true
-            pm2 start server/dist/index.js --name areloria
+            pm2 start packages/server/dist/index.js --name areloria --update-env
             
             echo "--- DEPLOYMENT SUCCESSFUL ---"

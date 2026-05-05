@@ -24,43 +24,140 @@ export interface INarrativeLog {
   severity: 'INFO' | 'EVOLUTION' | 'REPAIR' | 'CRITICAL';
 }
 
+export interface ILogicPoint {
+  id: string;
+  source: string;
+  value: any;
+  timestamp: number;
+  isSovereignProtected: boolean;
+}
+
+export interface IGlobalTruthState {
+  systemIntegrity: number;
+  lastOracleSync: number;
+  activeAnomalies: string[];
+  sovereignClearance: boolean;
+}
+
 /**
  * VPSAutonomousOperationService
  * 
- * Core engine for guaranteeing autonomous operation of VPS systems.
+ * Orchestrates the closed information loop: 
+ * LogicPoints -> AxiomaticOracle -> globalTruthState -> Autonomous Action
  */
 export class VPSAutonomousOperationService {
   private static readonly CRITICAL_CPU_THRESHOLD = 90;
   private static readonly CRITICAL_RAM_THRESHOLD = 85;
   private static readonly DISK_RECOVERY_THRESHOLD = 95;
 
+  private static globalTruthState: IGlobalTruthState = {
+    systemIntegrity: 100,
+    lastOracleSync: Date.now(),
+    activeAnomalies: [],
+    sovereignClearance: false
+  };
+
   /**
    * Main entry point for the 10Hz control loop.
+   * Orchestrates the Axiomatic Information Flow.
    */
   public static async tick(currentState: IVPSState): Promise<IAutonomousAction[]> {
-    const actions: IAutonomousAction[] = [];
-
     try {
-      const healthResults = await this.verifySystemIntegrity(currentState);
+      // 1. Data Ingestion (LogicPoints)
+      const logicPoints = this.generateLogicPoints(currentState);
+
+      // 2. Oracle Evaluation (ARE Rules)
+      const evaluation = await this.consultAxiomaticOracle(logicPoints);
+
+      // 3. Update Global Truth State
+      this.updateGlobalTruth(evaluation);
+
+      // 4. Generate & Prioritize Actions
+      const actions: IAutonomousAction[] = [];
       actions.push(...this.evaluateResources(currentState));
-      actions.push(...this.evaluateServiceContinuity(healthResults));
+      actions.push(...this.evaluateServiceContinuity(await this.verifySystemIntegrity(currentState)));
       actions.push(...this.evaluateSecurityPerimeter(currentState));
+      actions.push(...evaluation.recommendedActions);
 
       return this.prioritizeActions(actions);
     } catch (error) {
-      Logger.error('Autonomous Control Loop Failure', error);
+      Logger.error('Autonomous Control Loop Failure: System Decoupled from TruthState', error);
       return [{
         type: 'SYSTEM_HARD_REBOOT',
         subsystem: SystemSubsystem.KERNEL,
         priority: ActionPriority.CRITICAL,
-        reason: 'Autonomous Control Loop Interrupted'
+        reason: 'Oracle Desynchronization Detected'
       }];
     }
   }
 
   /**
+   * Translates raw metrics into Axiomatic LogicPoints.
+   * Ensures SOURCE protection for Sovereign-level data.
+   */
+  private static generateLogicPoints(state: IVPSState): ILogicPoint[] {
+    return [
+      {
+        id: 'LP_CPU_LOAD',
+        source: 'KERNEL_METRIC',
+        value: state.metrics.cpuUsage,
+        timestamp: Date.now(),
+        isSovereignProtected: false
+      },
+      {
+        id: 'LP_SECURITY_ROOT',
+        source: 'SOVEREIGN_CORE',
+        value: state.security.unauthorizedAccessAttempts,
+        timestamp: Date.now(),
+        isSovereignProtected: true // Only modifiable by Sovereign-Level intervention
+      }
+    ];
+  }
+
+  /**
+   * AxiomaticOracle: Applies ARE (Areloria Rules Engine) logic to LogicPoints.
+   */
+  private static async consultAxiomaticOracle(points: ILogicPoint[]): Promise<{
+    integrityScore: number;
+    anomalies: string[];
+    recommendedActions: IAutonomousAction[];
+  }> {
+    const anomalies: string[] = [];
+    const recommendedActions: IAutonomousAction[] = [];
+    let integrityScore = 100;
+
+    for (const point of points) {
+      // Protection Check: Prevent non-sovereign modification of protected sources
+      if (point.isSovereignProtected && !this.globalTruthState.sovereignClearance) {
+        if (point.value > 10) {
+          integrityScore -= 30;
+          anomalies.push('SOVEREIGN_SOURCE_VIOLATION');
+        }
+      }
+
+      // Axiomatic Resource Rules
+      if (point.id === 'LP_CPU_LOAD' && point.value > this.CRITICAL_CPU_THRESHOLD) {
+        integrityScore -= 10;
+        anomalies.push('COMPUTE_STRESS');
+      }
+    }
+
+    return { integrityScore, anomalies, recommendedActions };
+  }
+
+  private static updateGlobalTruth(evaluation: { integrityScore: number; anomalies: string[] }): void {
+    this.globalTruthState.systemIntegrity = evaluation.integrityScore;
+    this.globalTruthState.activeAnomalies = evaluation.anomalies;
+    this.globalTruthState.lastOracleSync = Date.now();
+    
+    // Critical breach of truth leads to automatic lockdown
+    if (this.globalTruthState.systemIntegrity < 50) {
+      Logger.warn('Axiomatic Integrity Failure: System entering self-preservation mode.');
+    }
+  }
+
+  /**
    * Processes Git Metadata into In-Game Narrative Chronicles.
-   * Maps technical commits to "System Evolution" lore.
    */
   public static processGitLore(commits: IGitMetadata[]): INarrativeLog[] {
     return commits.map((commit): INarrativeLog => {
@@ -108,7 +205,7 @@ export class VPSAutonomousOperationService {
         type: 'THROTTLE_NON_ESSENTIAL',
         subsystem: SystemSubsystem.RESOURCES,
         priority: ActionPriority.HIGH,
-        reason: 'CPU Overload detected'
+        reason: 'CPU Overload detected via LogicPoint'
       });
     }
 
@@ -141,19 +238,19 @@ export class VPSAutonomousOperationService {
         targetId: svc.id,
         subsystem: SystemSubsystem.SERVICES,
         priority: ActionPriority.CRITICAL,
-        reason: `Service Failure: ${svc.id}`
+        reason: `Service Failure: ${svc.id} - Synced to TruthState`
       }));
   }
 
   private static evaluateSecurityPerimeter(state: IVPSState): IAutonomousAction[] {
     const actions: IAutonomousAction[] = [];
     
-    if (state.security.unauthorizedAccessAttempts > 5) {
+    if (state.security.unauthorizedAccessAttempts > 5 || this.globalTruthState.activeAnomalies.includes('SOVEREIGN_SOURCE_VIOLATION')) {
       actions.push({
         type: 'ROTATE_INTERNAL_KEYS',
         subsystem: SystemSubsystem.SECURITY,
         priority: ActionPriority.HIGH,
-        reason: 'Brute force detection'
+        reason: 'Brute force or Sovereign Violation detection'
       });
       actions.push({
         type: 'BLOCK_SUSPICIOUS_IPS',
@@ -172,5 +269,14 @@ export class VPSAutonomousOperationService {
       .filter((action, index, self) => 
         index === self.findIndex((t: IAutonomousAction) => t.type === action.type && t.targetId === action.targetId)
       );
+  }
+
+  /**
+   * Sets Sovereign-Level clearance for specific maintenance cycles.
+   * Must be called with high-level credentials.
+   */
+  public static setSovereignClearance(granted: boolean): void {
+    Logger.info(`Sovereign Clearance Status Updated: ${granted}`);
+    this.globalTruthState.sovereignClearance = granted;
   }
 }

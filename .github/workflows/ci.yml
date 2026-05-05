@@ -7,7 +7,7 @@ on:
     branches: [ "main", "master" ]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-and-test:
@@ -49,8 +49,16 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install
-        working-directory: apps/${{ matrix.app }}
         shell: bash
+
+      - name: Dependency Review and Submission
+        uses: actions/dependency-review-action@v4
+        if: github.event_name == 'pull_request'
+
+      - name: Dependency Submission
+        uses: target/github-dependency-submission-action@v0
+        if: github.event_name == 'push' && matrix.app == 'api'
+        continue-on-error: true
 
       - name: Build
         run: pnpm run build
@@ -63,3 +71,15 @@ jobs:
         shell: bash
         env:
           DATABASE_URL: postgresql://postgres:password@localhost:5432/test
+
+      - name: Upload Test Artifacts and Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-and-results-${{ matrix.app }}-${{ matrix.node-version }}
+          path: |
+            apps/${{ matrix.app }}/coverage
+            apps/${{ matrix.app }}/logs
+            apps/${{ matrix.app }}/test-results
+            dist/apps/${{ matrix.app }}
+          retention-days: 7
