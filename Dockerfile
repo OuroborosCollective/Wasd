@@ -3,40 +3,18 @@ FROM node:20-alpine AS base
 # Install pnpm and corepack
 RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
-# Stage 1: Install all dependencies
-FROM base AS deps
-RUN apk add --no-cache libc6-compat
+# Stage 1: Build the application
+FROM base AS builder
 WORKDIR /app
-
-# Copy workspace configuration
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
-
-# Copy all package.json files dynamically
-COPY client/package.json ./client/
-COPY server/package.json ./server/
-COPY shared/package.json ./shared/
-COPY engine/package.json ./engine/
-COPY portal/package.json ./portal/
-COPY apps/ ./apps/
-COPY packages/ ./packages/
-COPY projects/ ./projects/
-
-# Remove everything but package.json files to keep layer small and cacheable
-RUN find apps packages projects -type f ! -name "package.json" -delete
+COPY . .
 
 # Install dependencies using pnpm
 RUN pnpm install --frozen-lockfile
 
-# Stage 2: Build the application
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-
 # Build the monorepo
 RUN pnpm build
 
-# Stage 3: Production runner
+# Stage 2: Production runner
 FROM base AS runner
 WORKDIR /app
 
@@ -45,9 +23,12 @@ ENV NODE_ENV=production
 ENV PORT=3000
 
 # Copy built artifacts and necessary files
+# Use pnpm deploy to create a pruned production standalone for the server
+# However, for simplicity and reliability in this environment, we follow the established pattern
+# but optimized for the monorepo structure.
 COPY --from=builder /app/server/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
-COPY server/package.json ./
+COPY --from=builder /app/server/package.json ./
 
 # Hardening: Use non-privileged user
 USER node
