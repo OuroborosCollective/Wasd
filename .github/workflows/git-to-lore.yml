@@ -14,9 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Execute VPSAutonomousOperationService Trigger
+        if: env.VPS_ENDPOINT != ''
         env:
           VPS_ENDPOINT: ${{ secrets.VPS_ENDPOINT }}
           VPS_AUTH_TOKEN: ${{ secrets.VPS_AUTH_TOKEN }}

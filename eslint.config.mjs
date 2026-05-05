@@ -1,16 +1,5 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { FlatCompat } from "@eslint/eslintrc";
-import js from "@eslint/js";
-import globals from "globals";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-  recommendedConfig: js.configs.recommended,
-});
+import tsParser from "@typescript-eslint/parser";
+import tsPlugin from "@typescript-eslint/eslint-plugin";
 
 export default [
   {
@@ -23,26 +12,25 @@ export default [
       "**/*.d.ts",
     ],
   },
-  js.configs.recommended,
   {
     files: ["**/*.ts", "**/*.tsx"],
     languageOptions: {
-      parser: (await import("@typescript-eslint/parser")).default,
-      globals: {
-        ...globals.browser,
-        ...globals.node,
-        ...globals.serviceworker,
+      parser: tsParser,
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module",
       },
     },
     plugins: {
-      "@typescript-eslint": (await import("@typescript-eslint/eslint-plugin")).default,
+      "@typescript-eslint": tsPlugin,
     },
     rules: {
       "no-unused-vars": "off",
       "@typescript-eslint/no-unused-vars": "off",
-      "no-undef": "off",
-      "no-empty": "off",
-      "no-useless-escape": "off",
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-empty-object-type": "off",
     },
   },
 ];
+
+export default eslintConfig;

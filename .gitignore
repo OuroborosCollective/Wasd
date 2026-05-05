@@ -11,4 +11,7 @@ pnpm-debug.log*
 !.env.example
 
 # PnP configuration
-.pnp.**.tsbuildinfo
+.pnp.*
+
+# Build artifacts
+*.tsbuildinfo

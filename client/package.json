@@ -31,6 +31,7 @@
     "@wasd/shared": "workspace:*"
   },
   "devDependencies": {
+    "vitest": "^4.1.0",
     "@tailwindcss/postcss": "^4.1.11",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",

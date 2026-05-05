@@ -1,3 +1,28 @@
+export interface IVPSHealthStatus {
+  id: string;
+  isOperational: boolean;
+  load: number;
+}
+
+export interface IVPSState {
+  id: string;
+  status: 'healthy' | 'warning' | 'critical' | 'unknown';
+  cpuUsage: number;
+  memoryUsage: number;
+  diskUsage: number;
+  uptime: number;
+  lastUpdate: Date;
+  services: IVPSService[];
+  metrics: {
+    cpuUsage: number;
+    ramUsage: number;
+    diskUsage: number;
+  };
+  security: {
+    unauthorizedAccessAttempts: number;
+  };
+}
+
 export enum ActionPriority {
   LOW = 0,
   MEDIUM = 1,
@@ -6,13 +31,25 @@ export enum ActionPriority {
 }
 
 export enum SystemSubsystem {
-  KERNEL = 'KERNEL',
-  RESOURCES = 'RESOURCES',
-  MEMORY = 'MEMORY',
-  STORAGE = 'STORAGE',
-  SERVICES = 'SERVICES',
-  SECURITY = 'SECURITY',
-  NETWORKING = 'NETWORKING'
+  KERNEL = 'kernel',
+  RESOURCES = 'resources',
+  MEMORY = 'memory',
+  STORAGE = 'storage',
+  SERVICES = 'services',
+  SECURITY = 'security',
+  NETWORKING = 'networking'
+}
+
+export interface IAutonomousAction {
+  id?: string;
+  type: string;
+  priority: ActionPriority;
+  target?: string;
+  targetId?: string;
+  subsystem: SystemSubsystem;
+  description?: string;
+  reason?: string;
+  timestamp?: Date;
 }
 
 export interface IVPSService {
@@ -20,30 +57,17 @@ export interface IVPSService {
   status: string;
   heartbeat: number;
   load: number;
+  getState(): Promise<IVPSState>;
+  executeAction(action: IAutonomousAction): Promise<void>;
 }
 
-export interface IVPSState {
-  metrics: {
-    cpuUsage: number;
-    ramUsage: number;
-    diskUsage: number;
-  };
-  services: IVPSService[];
-  security: {
-    unauthorizedAccessAttempts: number;
-  };
-}
-
-export interface IVPSHealthStatus {
+export interface IVPSAutonomous {
   id: string;
-  isOperational: boolean;
-  load: number;
-}
-
-export interface IAutonomousAction {
-  type: string;
-  subsystem: SystemSubsystem;
-  priority: ActionPriority;
-  reason: string;
-  targetId?: string;
+  name: string;
+  status: 'idle' | 'active' | 'error' | 'maintenance';
+  isActive: boolean;
+  lastHeartbeat: Date;
+  version: string;
+  capabilities: string[];
+  configuration: Record<string, any>;
 }
