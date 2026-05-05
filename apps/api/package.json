@@ -12,7 +12,7 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@are-logic/logger": "*",
+    "@wasd/utils": "workspace:*",
     "@wasd/database": "workspace:*",
     "@wasd/redis": "workspace:*",
     "dotenv": "^16.4.5",
