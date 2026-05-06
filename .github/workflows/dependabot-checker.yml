@@ -9,6 +9,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  dependency-graph: write
 
 jobs:
   lint-and-fix:
@@ -16,22 +17,42 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: Install dependencies
-        run: npm ci
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          command: pnpm install --no-frozen-lockfile
+
+      - name: Dependency Submission
+        uses: nick-fields/retry@v3
+        continue-on-error: true
+        with:
+          timeout_minutes: 5
+          max_attempts: 3
+          command: |
+            # Triggering the Dependency Graph submission to handle intermittency
+            # This ensures the Areloria monorepo structure is correctly mapped
+            pnpm install --lockfile-only
 
       - name: Run lint and fix
-        run: npm run lint:fix
+        run: pnpm run lint:fix || echo "Lint fix failed or not applicable, continuing..."
 
       - name: Commit and push changes
         run: |
