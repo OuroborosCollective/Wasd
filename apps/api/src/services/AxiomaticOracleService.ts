@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 
 /**
  * ARE (Areloria Reality Engine) Axiomatic Rules
@@ -57,6 +58,9 @@ export class AxiomaticOracleService implements OnModuleInit {
    */
   private readonly KAPPA = 1.61803398875 * Math.pow(299792458, 2) / 1e17;
 
+  /**
+   * Fix TS2564: Definitive Zuweisung im Constructor sichergestellt.
+   */
   private globalTruthState: TruthState;
   
   // Resilienz-Layer: Lokaler Cache-Buffer für nicht persistierte Events
@@ -65,7 +69,8 @@ export class AxiomaticOracleService implements OnModuleInit {
   private isDbConnected = true; // Simulierter Verbindungsstatus
 
   constructor() {
-    this.initializeOracle();
+    this.globalTruthState = this.initializeOracle();
+    this.logger.log(`Axiomatic Oracle initialized with Kappa: ${this.KAPPA}`);
   }
 
   onModuleInit() {
@@ -75,8 +80,9 @@ export class AxiomaticOracleService implements OnModuleInit {
 
   /**
    * Initialisiert den globalen Wahrheitszustand basierend auf den 13 LogicPoints und 6 ARE-Regeln.
+   * Gibt den initialen Zustand zurück, um TS2564 zu beheben.
    */
-  private initializeOracle(): void {
+  private initializeOracle(): TruthState {
     const initialLogicPoints: Record<LogicPoint, number> = {
       [LogicPoint.ORIGIN]: 1.0,
       [LogicPoint.IDENTITY]: 1.0,
@@ -93,7 +99,7 @@ export class AxiomaticOracleService implements OnModuleInit {
       [LogicPoint.ENTROPY]: 0.01,
     };
 
-    this.globalTruthState = {
+    return {
       kappa: this.KAPPA,
       logicPoints: Object.freeze(initialLogicPoints),
       rules: {
@@ -107,8 +113,6 @@ export class AxiomaticOracleService implements OnModuleInit {
       timestamp: Date.now(),
       hash: this.calculateStateHash(initialLogicPoints),
     };
-
-    this.logger.log(`Axiomatic Oracle initialized with Kappa: ${this.KAPPA}`);
   }
 
   /**
@@ -126,9 +130,9 @@ export class AxiomaticOracleService implements OnModuleInit {
    * Validiert eine Zustandsänderung gegen die 6 axiomatischen ARE-Regeln.
    */
   public validateAxiomaticIntegrity(proposedChanges: Partial<Record<LogicPoint, number>>): boolean {
-    if (proposedChanges[LogicPoint.VOID] && proposedChanges[LogicPoint.VOID] > 1.0) return false;
+    if (proposedChanges[LogicPoint.VOID] !== undefined && proposedChanges[LogicPoint.VOID] > 1.0) return false;
     if (proposedChanges[LogicPoint.ORIGIN] !== undefined && proposedChanges[LogicPoint.ORIGIN] !== this.globalTruthState.logicPoints[LogicPoint.ORIGIN]) return false;
-    if (proposedChanges[LogicPoint.ENERGY] && proposedChanges[LogicPoint.ENERGY] < 0) return false;
+    if (proposedChanges[LogicPoint.ENERGY] !== undefined && proposedChanges[LogicPoint.ENERGY] < 0) return false;
     
     const formStability = proposedChanges[LogicPoint.FORM] ?? this.globalTruthState.logicPoints[LogicPoint.FORM];
     if (formStability <= 0) return false;
@@ -164,7 +168,7 @@ export class AxiomaticOracleService implements OnModuleInit {
 
     // Event für asynchrone Persistenz buffern
     this.enqueueEvent({
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       type: 'STATE_UPDATE',
       payload: changes,
       timestamp: Date.now(),
@@ -212,8 +216,7 @@ export class AxiomaticOracleService implements OnModuleInit {
   }
 
   private async persistToDatabase(events: OracleEvent[]): Promise<void> {
-    // Hier würde die tatsächliche Datenbank-Logik (Prisma/TypeORM/Mongoose) stehen.
-    // Für die Simulation werfen wir einen Fehler, wenn die "Verbindung" weg ist.
+    // Simulation eines Fehlers bei 5% Wahrscheinlichkeit
     if (Math.random() < 0.05) throw new Error('DB_CONN_LOST'); 
     return Promise.resolve();
   }

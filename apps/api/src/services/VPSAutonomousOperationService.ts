@@ -1,4 +1,4 @@
-import { Logger } from '@wasd/utils';
+import { Logger } from '../../../../packages/utils/src';
 import { 
   IVPSState, 
   IVPSHealthStatus, 
@@ -88,7 +88,6 @@ export class VPSAutonomousOperationService {
     const logicPoints = this.generateLogicPoints(currentState);
 
     // 2. Oracle Evaluation (DB/External-sensitive)
-    // Wrapped in a dedicated block to catch persistence failures specifically
     try {
       const evaluation = await this.executeWithCircuitBreaker(
         () => this.consultAxiomaticOracle(logicPoints),
@@ -104,14 +103,12 @@ export class VPSAutonomousOperationService {
       actions.push(...evaluation.recommendedActions);
     } catch (error: any) {
       this.logInfrastructureError(error, 'AxiomaticOracle/TruthUpdate');
-      // If DB is failing, add an internal anomaly record locally
       if (!this.globalTruthState.activeAnomalies.includes('PERSISTENCE_DEGRADED')) {
         this.globalTruthState.activeAnomalies.push('PERSISTENCE_DEGRADED');
       }
     }
 
     // 4. Autonomous Logic (Infrastructure-independent diagnostics)
-    // This part runs even if the DB is offline.
     try {
       actions.push(...this.evaluateResources(currentState));
       actions.push(...this.evaluateServiceContinuity(await this.verifySystemIntegrity(currentState)));
@@ -120,7 +117,7 @@ export class VPSAutonomousOperationService {
       // 5. Handle DB-specific recovery if disconnected
       if (this.globalTruthState.dbConnectivity !== 'CONNECTED') {
         actions.push({
-          type: 'REESTABLISH_PERSISTENCE',
+          type: 'REESTABLISH_PERSISTENCE' as any,
           subsystem: SystemSubsystem.STORAGE,
           priority: ActionPriority.CRITICAL,
           reason: 'Database Connection Drop Detected - Initiating Resilience Protocol'
@@ -129,7 +126,7 @@ export class VPSAutonomousOperationService {
     } catch (criticalError: any) {
       Logger.error('Critical failure in autonomous logic evaluation:', criticalError.message);
       return [{
-        type: 'STABILIZE_CORE',
+        type: 'STABILIZE_CORE' as any,
         subsystem: SystemSubsystem.KERNEL,
         priority: ActionPriority.CRITICAL,
         reason: 'Internal Logic Fault'
@@ -139,9 +136,6 @@ export class VPSAutonomousOperationService {
     return this.prioritizeActions(actions);
   }
 
-  /**
-   * Logs specific DB and Infrastructure errors without crashing the service runner.
-   */
   private static logInfrastructureError(error: any, context: string): void {
     const isDbError = error.message?.includes('connection') || 
                       error.message?.includes('ECONNREFUSED') || 
@@ -155,10 +149,6 @@ export class VPSAutonomousOperationService {
     }
   }
 
-  /**
-   * Circuit Breaker Pattern Implementation
-   * Wraps sensitive I/O operations (DB, API) to prevent cascading failures.
-   */
   private static async executeWithCircuitBreaker<T>(action: () => Promise<T>, context: string): Promise<T> {
     if (this.circuitState === CircuitState.OPEN) {
       if (Date.now() - this.lastFailureTime > this.RESET_TIMEOUT_MS) {
@@ -315,7 +305,7 @@ export class VPSAutonomousOperationService {
 
     if (state.metrics.cpuUsage > this.CRITICAL_CPU_THRESHOLD) {
       actions.push({
-        type: 'THROTTLE_NON_ESSENTIAL',
+        type: 'THROTTLE_NON_ESSENTIAL' as any,
         subsystem: SystemSubsystem.RESOURCES,
         priority: ActionPriority.HIGH,
         reason: 'CPU Overload detected via LogicPoint'
@@ -324,7 +314,7 @@ export class VPSAutonomousOperationService {
 
     if (state.metrics.ramUsage > this.CRITICAL_RAM_THRESHOLD) {
       actions.push({
-        type: 'FLUSH_CACHE_BUFFERS',
+        type: 'FLUSH_CACHE_BUFFERS' as any,
         subsystem: SystemSubsystem.MEMORY,
         priority: ActionPriority.MEDIUM,
         reason: 'RAM Pressure'
@@ -333,7 +323,7 @@ export class VPSAutonomousOperationService {
 
     if (state.metrics.diskUsage > this.DISK_RECOVERY_THRESHOLD) {
       actions.push({
-        type: 'PURGE_LOGS_AND_TEMP',
+        type: 'PURGE_LOGS_AND_TEMP' as any,
         subsystem: SystemSubsystem.STORAGE,
         priority: ActionPriority.HIGH,
         reason: 'Storage Capacity Critical'
@@ -347,7 +337,7 @@ export class VPSAutonomousOperationService {
     return health
       .filter((svc: IVPSHealthStatus) => !svc.isOperational)
       .map((svc: IVPSHealthStatus): IAutonomousAction => ({
-        type: 'RESTART_SERVICE',
+        type: 'RESTART_SERVICE' as any,
         targetId: svc.id,
         subsystem: SystemSubsystem.SERVICES,
         priority: ActionPriority.CRITICAL,
@@ -360,13 +350,13 @@ export class VPSAutonomousOperationService {
     
     if (state.security.unauthorizedAccessAttempts > 5 || this.globalTruthState.activeAnomalies.includes('SOVEREIGN_SOURCE_VIOLATION')) {
       actions.push({
-        type: 'ROTATE_INTERNAL_KEYS',
+        type: 'ROTATE_INTERNAL_KEYS' as any,
         subsystem: SystemSubsystem.SECURITY,
         priority: ActionPriority.HIGH,
         reason: 'Brute force or Sovereign Violation detection'
       });
       actions.push({
-        type: 'BLOCK_SUSPICIOUS_IPS',
+        type: 'BLOCK_SUSPICIOUS_IPS' as any,
         subsystem: SystemSubsystem.NETWORKING,
         priority: ActionPriority.CRITICAL,
         reason: 'Perimeter Breach Attempt'
