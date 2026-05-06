@@ -14,6 +14,7 @@ export interface VPSConfig extends SSHConfig {
 /**
  * VPSValidationResult
  * Optimized for 10Hz-conformity and stateless execution.
+ * Integrated into the Areloria WASD autonomous monitoring flow.
  */
 export interface VPSValidationResult {
   isValid: boolean;
@@ -51,7 +52,7 @@ interface DbOperationResult<T> {
  * VPSValidationService
  * Handles rapid validation of VPS credentials and environment requirements.
  * Implements high-resilience Circuit Breaker and Exponential Backoff for DB stability.
- * Integrated with Graceful Degradation for Areloria WASD autonomous operations.
+ * Prevents process termination on infrastructure failures.
  */
 export class VPSValidationService {
   private static readonly CONNECTION_TIMEOUT = 5000;
@@ -61,7 +62,7 @@ export class VPSValidationService {
   private static readonly DB_RETRY_DELAY_MS = 1000;
   private static readonly IS_CI = process.env.NODE_ENV === 'test' || process.env.CI === 'true';
 
-  // Circuit Breaker State (Thread-safe singleton simulation)
+  // Circuit Breaker State (Static singleton simulation for the microservice)
   private static cbState: 'CLOSED' | 'OPEN' | 'HALF_OPEN' = 'CLOSED';
   private static cbFailures = 0;
   private static lastFailureTime = 0;
@@ -71,7 +72,7 @@ export class VPSValidationService {
   /**
    * Validates a VPS configuration statelessly.
    * Ensures that even catastrophic failures are caught and returned as a valid result object.
-   * Incorporates DB health check and Graceful Degradation.
+   * Incorporates DB health check and Graceful Degradation to prevent process exit.
    */
   public static async validateDeploymentTarget(config: VPSConfig): Promise<VPSValidationResult> {
     const ssh = new NodeSSH();
@@ -93,12 +94,12 @@ export class VPSValidationService {
       timestamp: new Date().toISOString(),
     };
 
-    // 1. Pre-Validation: Database Availability Check (Circuit Breaker)
-    const isDbHealthy = await this.checkDatabaseHealth();
-    if (!isDbHealthy) {
+    // 1. Circuit Breaker Pre-Check: Prevent calls if DB is known to be down
+    const isDbAvailable = await this.checkDatabaseHealth();
+    if (!isDbAvailable) {
       result.details.degradedMode = true;
       result.details.healthStatus = 'DEGRADED';
-      result.warnings.push('Health-Status: DEGRADED - Persistence layer unavailable. Circuit Breaker is OPEN.');
+      result.warnings.push('Data Persistence: CIRCUIT_BREAKER_OPEN - Using in-memory fallback.');
     }
 
     try {
@@ -111,7 +112,7 @@ export class VPSValidationService {
       result.details.connection = true;
       result.details.ssh = true;
 
-      // 3. Resilient Parallel Command Execution
+      // 3. Parallel Command Execution for Performance (10Hz target)
       const [osInfo, cpuInfo, ramInfo, diskInfo, dockerCheck] = await Promise.all([
         this.safeExec(ssh, 'uname -a'),
         this.safeExec(ssh, 'nproc'),
@@ -120,30 +121,31 @@ export class VPSValidationService {
         this.safeExec(ssh, 'docker --version'),
       ]);
 
-      // Parsing logic
+      // Parsing with fallbacks
       result.details.os = osInfo.stdout.trim() || 'unknown';
       result.details.resources.cpuCores = parseInt(cpuInfo.stdout.trim(), 10) || 0;
       result.details.resources.totalRamGb = Math.round((parseInt(ramInfo.stdout.trim(), 10) || 0) / 1024);
       result.details.resources.freeDiskGb = Math.round((parseInt(diskInfo.stdout.trim(), 10) || 0) / 1024);
       result.details.docker = dockerCheck.code === 0 && dockerCheck.stdout.toLowerCase().includes('docker');
 
-      // 4. Logic Evaluation
+      // 4. Resource Evaluation
       this.evaluateRequirements(result);
 
     } catch (error: any) {
-      const errorMsg = `SSH Execution Failure: ${error?.message || 'Unknown network error'}`;
+      const errorMsg = `SSH Validation Failed: ${error?.message || 'Network unreachable'}`;
       result.errors.push(errorMsg);
       result.details.healthStatus = 'CRITICAL';
-      console.error(`[VPSValidationService] Validation aborted: ${errorMsg}`);
+      console.error(`[VPSValidationService] Critical SSH Error: ${errorMsg}`);
     } finally {
       try {
         ssh.dispose();
       } catch (disposeErr) {
-        // Safe disposal
+        // Prevent disposal errors from bubbling up
       }
     }
 
-    // 5. Persistence Layer with Circuit Breaker and Exponential Backoff
+    // 5. Resilience-First Persistence
+    // Only attempt if Circuit Breaker allows it
     if (this.cbState !== 'OPEN') {
       result.details.dbPersistence = await this.safeDatabasePersistence(config.host, result);
     } else {
@@ -154,7 +156,7 @@ export class VPSValidationService {
   }
 
   /**
-   * Helper for resilient command execution
+   * Safe execution wrapper to prevent command-level crashes.
    */
   private static async safeExec(ssh: NodeSSH, cmd: string) {
     try {
@@ -165,28 +167,29 @@ export class VPSValidationService {
   }
 
   /**
-   * Minimum deployment standards check
+   * Threshold validation logic for Areloria WASD nodes.
    */
   private static evaluateRequirements(result: VPSValidationResult): void {
     const { resources, docker } = result.details;
 
     if (!docker) {
-      result.errors.push('Docker not detected: Container orchestration unavailable.');
+      result.errors.push('Docker not detected: Core requirement for Jules-Agents missing.');
     }
 
     if (resources.totalRamGb < this.REQUIRED_RAM_GB) {
-      result.errors.push(`Insufficient RAM: Found ${resources.totalRamGb}GB, minimum ${this.REQUIRED_RAM_GB}GB required.`);
+      result.errors.push(`RAM deficiency: Found ${resources.totalRamGb}GB, target ${this.REQUIRED_RAM_GB}GB.`);
     }
 
     if (resources.freeDiskGb < this.REQUIRED_DISK_GB) {
-      result.errors.push(`Insufficient Storage: Found ${resources.freeDiskGb}GB, minimum ${this.REQUIRED_DISK_GB}GB required.`);
+      result.errors.push(`Storage deficiency: Found ${resources.freeDiskGb}GB, target ${this.REQUIRED_DISK_GB}GB.`);
     }
 
     result.isValid = result.errors.length === 0 && result.details.ssh;
   }
 
   /**
-   * Explicit check for Database Availability using Circuit Breaker logic.
+   * Health Check with Circuit Breaker Logic.
+   * Manages state transitions between CLOSED, OPEN, and HALF_OPEN.
    */
   private static async checkDatabaseHealth(): Promise<boolean> {
     const now = Date.now();
@@ -194,15 +197,15 @@ export class VPSValidationService {
     if (this.cbState === 'OPEN') {
       if (now - this.lastFailureTime > this.CB_RESET_TIMEOUT) {
         this.cbState = 'HALF_OPEN';
-        console.info('[VPSValidationService] Circuit Breaker entering HALF_OPEN state.');
+        console.info('[VPSValidationService] DB Circuit Breaker: HALF_OPEN. Testing recovery...');
       } else {
         return false;
       }
     }
 
     try {
-      // Small ping/handshake to verify DB connection
-      await this.performDatabaseHandshake('HEALTH_CHECK_PING', null);
+      // Simulate low-latency handshake
+      await this.performDatabaseHandshake('HEALTH_PROBE', null);
       this.onPersistenceSuccess();
       return true;
     } catch (error) {
@@ -212,8 +215,7 @@ export class VPSValidationService {
   }
 
   /**
-   * Robust persistence with Exponential Backoff (5 Attempts).
-   * Prevents process termination on DB failure by returning degraded status.
+   * Executes database persistence with exponential backoff and connection error detection.
    */
   private static async safeDatabasePersistence(host: string, result: VPSValidationResult): Promise<boolean> {
     for (let attempt = 1; attempt <= this.DB_RETRY_ATTEMPTS; attempt++) {
@@ -226,7 +228,7 @@ export class VPSValidationService {
         return true;
       }
 
-      // Handle connection errors specifically for health status
+      // Connectivity issue detected: Trigger recovery and CB state
       if (dbResponse.isConnectionError) {
         result.details.degradedMode = true;
         result.details.healthStatus = 'DEGRADED';
@@ -236,17 +238,17 @@ export class VPSValidationService {
 
       this.onPersistenceFailure();
 
+      // Immediate exit if CB opens during retry loop
       if (this.cbState === 'OPEN') {
-        result.warnings.push('Health-Status: DEGRADED - Circuit breaker opened during persistence loop.');
+        result.warnings.push('Persistence Aborted: Circuit Breaker triggered.');
         return false;
       }
 
       if (attempt < this.DB_RETRY_ATTEMPTS) {
         const backoffDelay = Math.pow(2, attempt - 1) * this.DB_RETRY_DELAY_MS;
-        console.warn(`[VPSValidationService] DB Persistence Failure (Attempt ${attempt}). Retrying in ${backoffDelay}ms...`);
         await new Promise(resolve => setTimeout(resolve, backoffDelay));
       } else {
-        result.warnings.push(`Data persistence failed after ${this.DB_RETRY_ATTEMPTS} attempts. Data stored in-memory only.`);
+        result.warnings.push(`Persistence Failure: Max retries (${this.DB_RETRY_ATTEMPTS}) reached.`);
       }
     }
 
@@ -254,7 +256,7 @@ export class VPSValidationService {
   }
 
   /**
-   * Global error boundary for DB logic to prevent unhandled exceptions.
+   * Wraps DB operations to ensure no unhandled exceptions trigger a process exit.
    */
   private static async executeBoundedDbOperation<T>(
     operation: () => Promise<T>,
@@ -263,7 +265,7 @@ export class VPSValidationService {
     try {
       const data = await operation();
       return { success: true, data, isConnectionError: false };
-    } catch (error: unknown) {
+    } catch (error: any) {
       const isConnError = this.isDatabaseConnectionError(error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       return { success: false, data: fallbackValue, error: errorMessage, isConnectionError: isConnError };
@@ -272,7 +274,7 @@ export class VPSValidationService {
 
   private static onPersistenceSuccess(): void {
     if (this.cbState !== 'CLOSED') {
-      console.info(`[VPSValidationService] DB Connection Restored: Circuit CLOSED.`);
+      console.info('[VPSValidationService] DB Connection Restored. Circuit CLOSED.');
     }
     this.cbFailures = 0;
     this.cbState = 'CLOSED';
@@ -283,41 +285,36 @@ export class VPSValidationService {
     this.lastFailureTime = Date.now();
     if (this.cbFailures >= this.CB_THRESHOLD) {
       if (this.cbState !== 'OPEN') {
-        console.error(`[VPSValidationService] Critical DB Failure Threshold Reached. Circuit OPEN.`);
+        console.error(`[VPSValidationService] DB Failure Threshold Reached. Circuit OPEN.`);
       }
       this.cbState = 'OPEN';
     }
   }
 
   /**
-   * Database Integration Point.
-   * Simulation of persistence call; in production, this interfaces with the primary data layer.
+   * DB Access Point. In production, this links to the Prisma/TypeORM client.
    */
   private static async performDatabaseHandshake(host: string, result: VPSValidationResult | null): Promise<void> {
-    if (this.IS_CI) return Promise.resolve();
+    if (this.IS_CI) return;
     
-    // Simulate internal DB latency and potential connectivity flakes
+    // Logic Simulation: Mocking DB write latency
     return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        // Resolve successfully by default for the mock, but hook into real DB logic here
-        resolve();
-      }, 100);
-      
-      // Integration check: if a real DB client is globalized, use it here.
-      // Example: prisma.vps_log.create({ data: { host, result } }).then(() => { clearTimeout(timeout); resolve(); }).catch(reject);
+      const timeout = setTimeout(() => resolve(), 50);
+      // Actual Integration Example:
+      // prisma.validationLog.create({ data: { host, result } }).then(() => { clearTimeout(timeout); resolve(); }).catch(reject);
     });
   }
 
   /**
-   * Automated Recovery Routine for Database Connections.
+   * Recovery handler for DB connection loss.
    */
   private static async initiateDatabaseRecovery(error: any, attempt: number): Promise<void> {
-    console.warn(`[DB Recovery Pipeline] Signal: CONNECTION_LOSS. Attempting pool reset [Stage ${attempt}]`);
-    // Placeholder for actual connection pool purging or driver re-instantiation
+    console.warn(`[Recovery] Attempting DB Pool Refresh... [Stage ${attempt}]`);
+    // Logic to clear connection pools or re-initialize database drivers would go here.
   }
 
   /**
-   * Comprehensive Network & DB Error Recognition for Circuit Breaker triggers.
+   * Maps error codes and messages to connection-level failures.
    */
   private static isDatabaseConnectionError(error: any): boolean {
     const code = error?.code || '';
@@ -333,11 +330,11 @@ export class VPSValidationService {
       'failed to connect', 'network unreachable', 'could not connect to server'
     ];
 
-    return connectionCodes.includes(code) || connectionKeywords.some(keyword => message.includes(keyword));
+    return connectionCodes.includes(code) || connectionKeywords.some(kw => message.includes(kw));
   }
 
   /**
-   * High-speed connectivity check (10Hz compliant).
+   * Lightweight availability check for UI responsiveness.
    */
   public static async quickPing(config: VPSConfig): Promise<boolean> {
     const ssh = new NodeSSH();
@@ -347,14 +344,12 @@ export class VPSValidationService {
         readyTimeout: 1500,
       });
       return true;
-    } catch (error) {
+    } catch {
       return false;
     } finally {
       try {
         ssh.dispose();
-      } catch (e) {
-        // Safe disposal
-      }
+      } catch (e) {}
     }
   }
 }
