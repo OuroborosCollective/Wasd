@@ -1,30 +1,47 @@
 import path from "node:path";
-import { defineConfig } from "vite";
+import { fileURLToPath } from "node:url";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 
+// ESM __dirname compatibility for Sovereign Standard Architecture
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 export default defineConfig(({ mode }) => {
+  // Load environment variables for cross-service synchronization
+  const env = loadEnv(mode, process.cwd(), "");
   const isItchBuild = mode === "itch";
+  
+  // Dynamic HMR clientPort: 443 for cloud/SSL environments, undefined for local
+  const isSsl = env.VITE_DEV_SERVER_HTTPS === "true" || env.NODE_ENV === "production";
+  const hmrClientPort = isSsl ? 443 : undefined;
 
   return {
     // Relative base for itch.io builds ensures assets load correctly regardless of subfolder
     base: isItchBuild ? "./" : "/",
     resolve: {
       alias: {
+        "@": path.resolve(__dirname, "./src"),
         "@shared": path.resolve(__dirname, "../packages/shared/src"),
+        "@assets": path.resolve(__dirname, "./src/assets"),
       },
     },
     server: {
       port: 3001,
+      host: true,
+      hmr: {
+        clientPort: hmrClientPort,
+      },
       fs: {
         allow: [".."],
       },
       proxy: {
         "/api": {
-          target: "http://localhost:3000",
+          target: env.VITE_API_URL || "http://localhost:3000",
           changeOrigin: true,
         },
         "/ws": {
-          target: "ws://localhost:3000",
+          target: env.VITE_WS_URL || "ws://localhost:3000",
           ws: true,
         },
       },
@@ -54,9 +71,9 @@ export default defineConfig(({ mode }) => {
       minify: "esbuild",
       cssCodeSplit: true,
       assetsInlineLimit: 4096, // Inline small assets under 4kb
-      sourcemap: process.env.VITE_BUILD_SOURCEMAP === "1",
+      sourcemap: env.VITE_BUILD_SOURCEMAP === "1",
       reportCompressedSize: false,
-      chunkSizeWarningLimit: 1000,
+      chunkSizeWarningLimit: 2000, // Adjusted for heavy Three.js/3D dependencies
       rollupOptions: {
         input: isItchBuild
           ? { main: path.resolve(__dirname, "index.itch.html") }
@@ -65,10 +82,12 @@ export default defineConfig(({ mode }) => {
               playtester_monitor: path.resolve(__dirname, "playtester-monitor.html"),
             },
         output: {
-          // Optimized chunking strategy for heavy 3D libraries
+          // Optimized chunking strategy for Areloria WASD (Three.js focus)
           manualChunks(id) {
-            if (id.includes("node_modules/@babylonjs/loaders")) return "babylon-loaders";
-            if (id.includes("node_modules/@babylonjs/core")) return "babylon-core";
+            if (id.includes("node_modules/three")) return "threejs-core";
+            if (id.includes("node_modules/@react-three")) return "threejs-react";
+            if (id.includes("node_modules/lucide-react")) return "ui-icons";
+            if (id.includes("node_modules/cannon-es") || id.includes("node_modules/rapier")) return "physics-engine";
             if (id.includes("node_modules")) return "vendor";
           },
           // Clean asset naming for production
