@@ -1,11 +1,14 @@
 import React, { useMemo } from 'react';
-import { ArrowUp, ArrowDown, Minus, Activity, Shield, Zap, Target } from 'lucide-react';
+import { ArrowUp, ArrowDown, Minus, Activity, LucideProps } from 'lucide-react';
+
+// Re-typing Lucide components to ensure compatibility with React 19 JSX expectations
+type LucideIconComponent = React.ComponentType<LucideProps>;
 
 interface Stat {
     key: string;
     label: string;
     value: number;
-    icon?: React.ReactNode;
+    icon?: LucideIconComponent;
     higherIsBetter?: boolean;
 }
 
@@ -22,6 +25,12 @@ interface DynamicStatInspectorProps {
 }
 
 const DynamicStatInspector: React.FC<DynamicStatInspectorProps> = ({ baseItem, comparisonItem }) => {
+    // Cast icons to React.ElementType to resolve TS2786 (invalid JSX element type)
+    const IconActivity = Activity as React.ElementType;
+    const IconArrowUp = ArrowUp as React.ElementType;
+    const IconArrowDown = ArrowDown as React.ElementType;
+    const IconMinus = Minus as React.ElementType;
+
     const calculateDiff = (oldVal: number, newVal: number, higherIsBetter: boolean = true) => {
         const diff = newVal - oldVal;
         const percent = oldVal !== 0 ? (diff / oldVal) * 100 : 0;
@@ -71,37 +80,40 @@ const DynamicStatInspector: React.FC<DynamicStatInspectorProps> = ({ baseItem, c
             </div>
 
             <div className="p-4 space-y-4">
-                {diffData.map((stat) => (
-                    <div key={stat.key} className="flex items-center justify-between group">
-                        <div className="flex items-center space-x-3">
-                            <div className="p-2 rounded-md bg-slate-800 text-slate-400 group-hover:text-white transition-colors">
-                                {stat.icon || <Activity size={16} />}
+                {diffData.map((stat) => {
+                    const CustomIcon = (stat.icon as React.ElementType) || IconActivity;
+                    return (
+                        <div key={stat.key} className="flex items-center justify-between group">
+                            <div className="flex items-center space-x-3">
+                                <div className="p-2 rounded-md bg-slate-800 text-slate-400 group-hover:text-white transition-colors">
+                                    <CustomIcon size={16} />
+                                </div>
+                                <div>
+                                    <div className="text-sm font-medium text-slate-300">{stat.label}</div>
+                                    <div className="text-xs text-slate-500">Base: {baseItem.stats.find(s => s.key === stat.key)?.value || 0}</div>
+                                </div>
                             </div>
-                            <div>
-                                <div className="text-sm font-medium text-slate-300">{stat.label}</div>
-                                <div className="text-xs text-slate-500">Base: {baseItem.stats.find(s => s.key === stat.key)?.value || 0}</div>
-                            </div>
-                        </div>
 
-                        <div className="text-right">
-                            <div className="flex items-center justify-end space-x-2">
-                                <span className="text-sm font-bold text-white">
-                                    {stat.value}
-                                </span>
-                                {!stat.isNeutral && (
-                                    <span className={`flex items-center text-xs font-bold ${stat.isBetter ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                        {stat.isBetter ? <ArrowUp size={12} className="mr-0.5" /> : <ArrowDown size={12} className="mr-0.5" />}
-                                        {Math.abs(stat.percent).toFixed(1)}%
+                            <div className="text-right">
+                                <div className="flex items-center justify-end space-x-2">
+                                    <span className="text-sm font-bold text-white">
+                                        {stat.value}
                                     </span>
-                                )}
-                                {stat.isNeutral && <Minus size={12} className="text-slate-600" />}
-                            </div>
-                            <div className={`text-[10px] font-mono ${stat.isNeutral ? 'text-slate-600' : (stat.isBetter ? 'text-emerald-500/70' : 'text-rose-500/70')}`}>
-                                {stat.diff > 0 ? '+' : ''}{stat.diff.toFixed(1)} absolute
+                                    {!stat.isNeutral && (
+                                        <span className={`flex items-center text-xs font-bold ${stat.isBetter ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                            {stat.isBetter ? <IconArrowUp size={12} className="mr-0.5" /> : <IconArrowDown size={12} className="mr-0.5" />}
+                                            {Math.abs(stat.percent).toFixed(1)}%
+                                        </span>
+                                    )}
+                                    {stat.isNeutral && <IconMinus size={12} className="text-slate-600" />}
+                                </div>
+                                <div className={`text-[10px] font-mono ${stat.isNeutral ? 'text-slate-600' : (stat.isBetter ? 'text-emerald-500/70' : 'text-rose-500/70')}`}>
+                                    {stat.diff > 0 ? '+' : ''}{stat.diff.toFixed(1)} absolute
+                                </div>
                             </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
             <div className="px-4 py-3 bg-slate-800/30 border-t border-slate-700/50">

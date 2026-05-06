@@ -16,6 +16,27 @@ import {
   subscribePlayerState,
 } from "../../state/playerState";
 
+/**
+ * Prop-Definitionen für die NewHud-Komponente zur Behebung von Typfehlern.
+ */
+export interface NewHudProps {
+  connected: boolean;
+  youId: string | null;
+  entities: any[];
+  loot: any[];
+  inv: any;
+  quests: any[];
+  targetId: string | undefined;
+  onTarget: (id: string | undefined) => void;
+  onAttack: () => void;
+  onLootTake: (lootId: string) => void;
+  onCraftOpen: () => void;
+  onHousingOpen: () => void;
+  fxFeed: any[];
+  warfront: any;
+  onMenuOpen: (panel: string) => void;
+}
+
 export function mountNewHud(core: MMORPGClientCore) {
   let rootEl = document.getElementById("new-game-hud-react-root");
   if (!rootEl) {
@@ -85,28 +106,28 @@ export function mountNewHud(core: MMORPGClientCore) {
     }, []);
 
     const onMenuOpen = useCallback((panel: string) => {
-      setActivePanel(prev => prev === panel ? null : panel);
+      setActivePanel(prev => (prev === panel ? null : panel));
     }, []);
 
     useEffect(() => {
-        const handleCloseAll = () => setActivePanel(null);
-        const handleOpenPanel = (e: any) => {
-            if (e.detail?.panel) setActivePanel(e.detail.panel);
-        };
+      const handleCloseAll = () => setActivePanel(null);
+      const handleOpenPanel = (e: any) => {
+        if (e.detail?.panel) setActivePanel(e.detail.panel);
+      };
 
-        window.addEventListener("areloria:close-all-panels", handleCloseAll);
-        window.addEventListener("areloria:open-panel", handleOpenPanel);
-        
-        const handleEsc = (e: KeyboardEvent) => {
-            if (e.key === "Escape") setActivePanel(null);
-        };
-        window.addEventListener("keydown", handleEsc);
-        
-        return () => {
-            window.removeEventListener("keydown", handleEsc);
-            window.removeEventListener("areloria:close-all-panels", handleCloseAll);
-            window.removeEventListener("areloria:open-panel", handleOpenPanel);
-        };
+      window.addEventListener("areloria:close-all-panels", handleCloseAll);
+      window.addEventListener("areloria:open-panel", handleOpenPanel);
+
+      const handleEsc = (e: KeyboardEvent) => {
+        if (e.key === "Escape") setActivePanel(null);
+      };
+      window.addEventListener("keydown", handleEsc);
+
+      return () => {
+        window.removeEventListener("keydown", handleEsc);
+        window.removeEventListener("areloria:close-all-panels", handleCloseAll);
+        window.removeEventListener("areloria:open-panel", handleOpenPanel);
+      };
     }, []);
 
     return (
@@ -128,9 +149,15 @@ export function mountNewHud(core: MMORPGClientCore) {
           warfront={warfront}
           onMenuOpen={onMenuOpen}
         />
-        {(activePanel === "stats" || activePanel === "skills") && <MasteryDashboard onClose={() => setActivePanel(null)} />}
-        {activePanel === "inventory" && <InventorySystem onClose={() => setActivePanel(null)} />}
-        {activePanel === "equipment" && <EquipmentPanel onClose={() => setActivePanel(null)} />}
+        {(activePanel === "stats" || activePanel === "skills") && (
+          <MasteryDashboard onClose={() => setActivePanel(null)} />
+        )}
+        {activePanel === "inventory" && (
+          <InventorySystem onClose={() => setActivePanel(null)} />
+        )}
+        {activePanel === "equipment" && (
+          <EquipmentPanel onClose={() => setActivePanel(null)} />
+        )}
       </>
     );
   }

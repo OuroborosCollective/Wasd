@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { Activity, Clock, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { Activity, Clock, AlertTriangle, CheckCircle2, LucideIcon } from 'lucide-react';
 
 interface TimingData {
   timestamp: number;
@@ -7,12 +7,18 @@ interface TimingData {
   jitter: number;
 }
 
+interface Metrics {
+  avgJitter: number;
+  maxJitter: number;
+  currentJitter: number;
+  drift: number;
+}
+
 const HISTORY_LIMIT = 100;
 const EXPECTED_TICK_MS = 16.666; // 60Hz Target
 
 export const TimingMonitor: React.FC = () => {
-  const [history, setHistory] = useState<TimingData[]>([]);
-  const [metrics, setMetrics] = useState({
+  const [metrics, setMetrics] = useState<Metrics>({
     avgJitter: 0,
     maxJitter: 0,
     currentJitter: 0,
@@ -22,24 +28,9 @@ export const TimingMonitor: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const lastTickRef = useRef<number>(performance.now());
   const requestRef = useRef<number>();
+  const historyRef = useRef<TimingData[]>([]);
 
-  const updateMetrics = (newData: TimingData[]) => {
-    if (newData.length === 0) return;
-    
-    const latest = newData[newData.length - 1];
-    const jitterValues = newData.map(d => Math.abs(d.jitter));
-    const avg = jitterValues.reduce((a, b) => a + b, 0) / jitterValues.length;
-    const max = Math.max(...jitterValues);
-
-    setMetrics({
-      avgJitter: avg,
-      maxJitter: max,
-      currentJitter: latest.jitter,
-      drift: latest.delta - EXPECTED_TICK_MS
-    });
-  };
-
-  const drawGraph = (data: TimingData[]) => {
+  const drawGraph = useCallback((data: TimingData[]) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -59,6 +50,8 @@ export const TimingMonitor: React.FC = () => {
     ctx.moveTo(0, centerY);
     ctx.lineTo(width, centerY);
     ctx.stroke();
+
+    if (data.length === 0) return;
 
     // Jitter Plot
     ctx.beginPath();
@@ -81,30 +74,40 @@ export const TimingMonitor: React.FC = () => {
     
     ctx.strokeStyle = gradient;
     ctx.stroke();
-  };
+  }, []);
 
-  const animate = (time: number) => {
+  const animate = useCallback((time: number) => {
     const delta = time - lastTickRef.current;
     lastTickRef.current = time;
 
     const jitter = delta - EXPECTED_TICK_MS;
+    const newData: TimingData = { timestamp: time, delta, jitter };
 
-    setHistory(prev => {
-      const updated = [...prev, { timestamp: time, delta, jitter }].slice(-HISTORY_LIMIT);
-      updateMetrics(updated);
-      drawGraph(updated);
-      return updated;
+    historyRef.current = [...historyRef.current, newData].slice(-HISTORY_LIMIT);
+    
+    const currentHistory = historyRef.current;
+    const latest = currentHistory[currentHistory.length - 1];
+    const jitterValues = currentHistory.map(d => Math.abs(d.jitter));
+    const avg = jitterValues.reduce((a, b) => a + b, 0) / jitterValues.length;
+    const max = Math.max(...jitterValues);
+
+    setMetrics({
+      avgJitter: avg,
+      maxJitter: max,
+      currentJitter: latest.jitter,
+      drift: latest.delta - EXPECTED_TICK_MS
     });
 
+    drawGraph(currentHistory);
     requestRef.current = requestAnimationFrame(animate);
-  };
+  }, [drawGraph]);
 
   useEffect(() => {
     requestRef.current = requestAnimationFrame(animate);
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
-  }, []);
+  }, [animate]);
 
   const statusColor = useMemo(() => {
     const absJitter = Math.abs(metrics.currentJitter);
@@ -113,12 +116,18 @@ export const TimingMonitor: React.FC = () => {
     return 'text-rose-500';
   }, [metrics.currentJitter]);
 
+  // Type-safe Icon components for JSX
+  const IconActivity = Activity as LucideIcon;
+  const IconClock = Clock as LucideIcon;
+  const IconAlert = AlertTriangle as LucideIcon;
+  const IconCheck = CheckCircle2 as LucideIcon;
+
   return (
     <div className="bg-slate-950 p-6 rounded-xl border border-slate-800 shadow-2xl w-full max-w-2xl font-mono">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-indigo-500/10 rounded-lg">
-            <Activity className="w-5 h-5 text-indigo-400" />
+            <IconActivity className="w-5 h-5 text-indigo-400" />
           </div>
           <div>
             <h3 className="text-slate-100 font-bold text-sm tracking-wider uppercase">Timing Monitor</h3>
@@ -126,7 +135,11 @@ export const TimingMonitor: React.FC = () => {
           </div>
         </div>
         <div className={`flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 ${statusColor}`}>
-          {Math.abs(metrics.currentJitter) < 2 ? <CheckCircle2 className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+          {Math.abs(metrics.currentJitter) < 2 ? (
+            <IconCheck className="w-3 h-3" />
+          ) : (
+            <IconAlert className="w-3 h-3" />
+          )}
           <span className="text-[10px] font-bold tracking-widest uppercase">
             {Math.abs(metrics.currentJitter) < 2 ? 'Stable' : 'Unstable'}
           </span>
@@ -136,7 +149,7 @@ export const TimingMonitor: React.FC = () => {
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-800">
           <div className="flex items-center gap-2 mb-2 text-slate-400">
-            <Clock className="w-3 h-3" />
+            <IconClock className="w-3 h-3" />
             <span className="text-[10px] uppercase tracking-tighter">Avg Jitter</span>
           </div>
           <div className="text-xl font-bold text-slate-100">
@@ -145,7 +158,7 @@ export const TimingMonitor: React.FC = () => {
         </div>
         <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-800">
           <div className="flex items-center gap-2 mb-2 text-slate-400">
-            <Activity className="w-3 h-3" />
+            <IconActivity className="w-3 h-3" />
             <span className="text-[10px] uppercase tracking-tighter">Max Peak</span>
           </div>
           <div className="text-xl font-bold text-slate-100 text-rose-400">
@@ -154,7 +167,7 @@ export const TimingMonitor: React.FC = () => {
         </div>
         <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-800">
           <div className="flex items-center gap-2 mb-2 text-slate-400">
-            <Clock className="w-3 h-3" />
+            <IconClock className="w-3 h-3" />
             <span className="text-[10px] uppercase tracking-tighter">Drift</span>
           </div>
           <div className="text-xl font-bold text-slate-100">
