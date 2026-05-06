@@ -6,7 +6,7 @@
     "moduleResolution": "NodeNext",
     "baseUrl": ".",
     "rootDir": "src",
-    "outDir": "../../dist/apps/api",
+    "outDir": "dist",
     "composite": true,
     "declaration": true,
     "declarationMap": true,
@@ -28,10 +28,8 @@
   "exclude": [
     "node_modules",
     "dist",
-    "test",
     "**/*.spec.ts",
-    "**/*.test.ts",
-    "jest.config.ts"
+    "**/*.test.ts"
   ],
   "references": [
     {

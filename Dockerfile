@@ -23,12 +23,12 @@ ENV NODE_ENV=production
 ENV PORT=3000
 
 # Copy built artifacts and necessary files
-# Use pnpm deploy to create a pruned production standalone for the server
-# However, for simplicity and reliability in this environment, we follow the established pattern
-# but optimized for the monorepo structure.
+# Using pnpm deploy --filter would be ideal, but for the current monorepo structure,
+# we ensure we have the necessary runtime files for the server.
 COPY --from=builder /app/server/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/server/package.json ./
+COPY --from=builder /app/package.json ./package.json
 
 # Hardening: Use non-privileged user
 USER node

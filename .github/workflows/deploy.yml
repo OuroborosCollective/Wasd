@@ -41,7 +41,6 @@ jobs:
 
       - name: Build Mono-Repo
         run: |
-          node scripts/bypass-ts-errors.mjs || true
           NODE_OPTIONS=--max-old-space-size=4096 pnpm run build
 
       - name: Verify Dist Type Module

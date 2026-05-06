@@ -1,5 +1,9 @@
 packages:
   - 'apps/*'
-  - 'services/*'
   - 'packages/*'
+  - 'projects/*'
+  - 'client'
+  - 'server'
+  - 'engine'
+  - 'portal'
   - 'tooling/*'
