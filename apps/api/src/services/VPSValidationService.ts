@@ -14,7 +14,6 @@ export interface VPSConfig extends SSHConfig {
 /**
  * VPSValidationResult
  * Optimized for 10Hz-conformity and stateless execution.
- * Tracks hardware capacity, environment readiness, and persistence status.
  */
 export interface VPSValidationResult {
   isValid: boolean;
@@ -36,14 +35,19 @@ export interface VPSValidationResult {
 }
 
 /**
+ * Typsichere Antwortstruktur für Datenbank-Operationen mit Fallback-Support.
+ */
+interface DbOperationResult<T> {
+  success: boolean;
+  data: T | null;
+  error?: string;
+  isConnectionError: boolean;
+}
+
+/**
  * VPSValidationService
  * Handles rapid validation of VPS credentials and environment requirements.
  * Implements high-resilience Circuit Breaker and Exponential Backoff for DB stability.
- * 
- * DESIGN PHILOSOPHY:
- * 1. Isolation: SSH failures must not kill the process.
- * 2. Resilience: DB transient errors are retried with backoff.
- * 3. Circuit Breaking: If the DB is down, we stop trying to save to prevent event loop lag.
  */
 export class VPSValidationService {
   private static readonly CONNECTION_TIMEOUT = 5000;
@@ -53,7 +57,7 @@ export class VPSValidationService {
   private static readonly DB_RETRY_DELAY_MS = 1000;
   private static readonly IS_CI = process.env.NODE_ENV === 'test' || process.env.CI === 'true';
 
-  // Circuit Breaker State (Static singleton for memory persistence across calls)
+  // Circuit Breaker State (Thread-safe singleton simulation)
   private static cbState: 'CLOSED' | 'OPEN' | 'HALF_OPEN' = 'CLOSED';
   private static cbFailures = 0;
   private static lastFailureTime = 0;
@@ -86,15 +90,12 @@ export class VPSValidationService {
       await ssh.connect({
         ...config,
         readyTimeout: this.CONNECTION_TIMEOUT,
-        // Ensure strictly non-interactive for automation
-        tryKeyboard: false,
       });
 
       result.details.connection = true;
       result.details.ssh = true;
 
       // 2. Resilient Parallel Command Execution
-      // Execute all hardware checks concurrently to minimize latency
       const [osInfo, cpuInfo, ramInfo, diskInfo, dockerCheck] = await Promise.all([
         this.safeExec(ssh, 'uname -a'),
         this.safeExec(ssh, 'nproc'),
@@ -103,141 +104,144 @@ export class VPSValidationService {
         this.safeExec(ssh, 'docker --version'),
       ]);
 
-      // Parsing with fallback to zero/unknown to avoid NaN/Runtime errors
+      // Parsing with fallback to zero/unknown to avoid NaN errors
       result.details.os = osInfo.stdout.trim() || 'unknown';
       result.details.resources.cpuCores = parseInt(cpuInfo.stdout.trim(), 10) || 0;
       result.details.resources.totalRamGb = Math.round((parseInt(ramInfo.stdout.trim(), 10) || 0) / 1024);
       result.details.resources.freeDiskGb = Math.round((parseInt(diskInfo.stdout.trim(), 10) || 0) / 1024);
-      
-      // Docker verification: must return exit code 0 and contain the 'docker' string
       result.details.docker = dockerCheck.code === 0 && dockerCheck.stdout.toLowerCase().includes('docker');
 
-      // 3. Hardware & Software Requirements Logic
+      // 3. Logic Evaluation
       this.evaluateRequirements(result);
 
     } catch (error: any) {
-      const errorMsg = `SSH Pipeline Exception: ${error?.message || 'Network unreachable'}`;
+      const errorMsg = `SSH Validation Pipeline Error: ${error?.message || 'Unknown network failure'}`;
       result.errors.push(errorMsg);
-      console.error(`[VPSValidationService] ${errorMsg}`);
-      
-      // Connection failure flags
-      result.details.connection = false;
-      result.details.ssh = false;
+      console.error(`[VPSValidationService] Critical: ${errorMsg}`);
     } finally {
-      // Guaranteed resource cleanup to prevent socket leaks
       try {
         ssh.dispose();
       } catch (disposeErr) {
-        console.warn(`[VPSValidationService] SSH Dispose failed: ${disposeErr}`);
+        // Silently handle disposal errors
       }
     }
 
-    // 4. Persistence Layer protected by Circuit Breaker and Backoff
-    // We attempt to persist the validation result even if the target VPS was unreachable, 
-    // unless the DB itself is identified as the bottleneck.
-    try {
-      result.details.dbPersistence = await this.safeDatabasePersistence(config.host, result);
-    } catch (criticalDbError) {
-      console.error(`[VPSValidationService] Critical Persistence Escape: ${criticalDbError}`);
-      result.details.dbPersistence = false;
-    }
+    // 4. Persistence Layer protected by Circuit Breaker and Error Boundaries
+    result.details.dbPersistence = await this.safeDatabasePersistence(config.host, result);
 
     return result;
   }
 
   /**
-   * Helper for resilient command execution within an active session.
-   * Prevents individual command failures from throwing and stopping the pipeline.
+   * Helper for resilient command execution within a session
    */
   private static async safeExec(ssh: NodeSSH, cmd: string) {
     try {
       return await ssh.execCommand(cmd);
-    } catch (e: any) {
-      console.warn(`[VPSValidationService] Command Execution Failed [${cmd}]: ${e?.message}`);
-      return { stdout: '', stderr: e?.message || 'Execution error', code: 1 };
+    } catch (e) {
+      return { stdout: '', stderr: '', code: 1 };
     }
   }
 
   /**
-   * Evaluates if the system meets minimum Areloria WASD deployment standards.
+   * Evaluates if the system meets minimum deployment standards
    */
   private static evaluateRequirements(result: VPSValidationResult): void {
-    const { resources, docker, ssh } = result.details;
-
-    if (!ssh) {
-      result.errors.push('SSH Handshake Failed: Invalid credentials or host unreachable.');
-      result.isValid = false;
-      return;
-    }
+    const { resources, docker } = result.details;
 
     if (!docker) {
       result.errors.push('Docker Engine missing: Required for containerized Areloria modules.');
     }
 
     if (resources.totalRamGb < this.REQUIRED_RAM_GB) {
-      result.errors.push(`RAM Insufficient: Found ${resources.totalRamGb}GB, need >=${this.REQUIRED_RAM_GB}GB.`);
+      result.errors.push(`RAM Insufficient: Found ${resources.totalRamGb}GB, need ${this.REQUIRED_RAM_GB}GB.`);
     }
 
     if (resources.freeDiskGb < this.REQUIRED_DISK_GB) {
-      result.errors.push(`Storage Insufficient: Found ${resources.freeDiskGb}GB, need >=${this.REQUIRED_DISK_GB}GB.`);
+      result.errors.push(`Storage Insufficient: Found ${resources.freeDiskGb}GB, need ${this.REQUIRED_DISK_GB}GB.`);
     }
 
-    result.isValid = result.errors.length === 0;
+    result.isValid = result.errors.length === 0 && result.details.ssh;
   }
 
   /**
-   * High-Level wrapper for database operations.
-   * Implements Circuit Breaker (to stop pounding a dead DB) and Exponential Backoff (to survive transients).
+   * Wrapper for persistence that applies the Circuit Breaker pattern and Exponential Backoff.
+   * Prevents database instability from propagating to the high-frequency validation loop.
    */
   private static async safeDatabasePersistence(host: string, result: VPSValidationResult): Promise<boolean> {
-    // 1. Circuit Breaker Guard
     if (this.cbState === 'OPEN') {
       const now = Date.now();
       if (now - this.lastFailureTime > this.CB_RESET_TIMEOUT) {
         this.cbState = 'HALF_OPEN';
-        console.info(`[VPSValidationService] Circuit Breaker: HALF_OPEN. Probing DB recovery...`);
+        console.info(`[VPSValidationService] Circuit Breaker: HALF_OPEN. Probing DB recovery for ${host}...`);
       } else {
-        result.errors.push('Database Persistence Bypassed: Circuit is OPEN.');
+        result.errors.push('Persistence bypassed: Database circuit is OPEN.');
         return false;
       }
     }
 
-    // 2. Retry Loop with Backoff
     for (let attempt = 1; attempt <= this.DB_RETRY_ATTEMPTS; attempt++) {
-      try {
-        // Execute actual persistence logic
-        await this.performDatabaseHandshake(host, result);
-        
-        // On success: Close circuit if it was open or half-open
+      const dbResponse = await this.executeBoundedDbOperation(async () => {
+        return await this.performDatabaseHandshake(host, result);
+      }, null);
+
+      if (dbResponse.success) {
         this.onPersistenceSuccess();
-        return true; 
-      } catch (dbError: any) {
-        const isConnError = this.isDatabaseConnectionError(dbError);
-        
-        if (isConnError) {
-          result.details.recoveryInitiated = true;
-          await this.initiateDatabaseRecovery(dbError, attempt);
-        }
+        return true;
+      }
 
-        this.onPersistenceFailure();
+      // Handle Failure
+      if (dbResponse.isConnectionError) {
+        result.details.recoveryInitiated = true;
+        await this.initiateDatabaseRecovery(dbResponse.error, attempt);
+      }
 
-        // Final attempt reached
-        if (attempt === this.DB_RETRY_ATTEMPTS) {
-          if (this.IS_CI) {
-            console.warn(`[VPSValidationService] CI Environment: Ignoring DB failure.`);
-            return false;
-          }
-          console.error(`[VPSValidationService] Permanent DB failure for ${host} after ${attempt} attempts.`);
+      this.onPersistenceFailure();
+
+      if (attempt === this.DB_RETRY_ATTEMPTS) {
+        if (this.IS_CI) {
+          console.warn(`[VPSValidationService] CI Override: Swallowing DB error.`);
           return false;
         }
-
-        // Exponential backoff delay calculation
-        const backoffDelay = Math.pow(2, attempt - 1) * this.DB_RETRY_DELAY_MS;
-        await new Promise(resolve => setTimeout(resolve, backoffDelay));
+        result.errors.push(`DB persistence failed permanently: ${dbResponse.error}`);
+        return false;
       }
+
+      const backoffDelay = Math.pow(2, attempt - 1) * this.DB_RETRY_DELAY_MS;
+      await new Promise(resolve => setTimeout(resolve, backoffDelay));
     }
 
     return false;
+  }
+
+  /**
+   * Zentraler Error-Boundary-Handler für Datenbank-Abfragen.
+   * Liefert typsichere Resultate und verhindert Promise-Abbrüche.
+   */
+  private static async executeBoundedDbOperation<T>(
+    operation: () => Promise<T>,
+    fallbackValue: T
+  ): Promise<DbOperationResult<T>> {
+    try {
+      const data = await operation();
+      return {
+        success: true,
+        data,
+        isConnectionError: false
+      };
+    } catch (error: unknown) {
+      const isConnError = this.isDatabaseConnectionError(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      console.error(`[VPSValidationService] DB Boundary Catch: ${errorMessage} (ConnectionError: ${isConnError})`);
+      
+      return {
+        success: false,
+        data: fallbackValue,
+        error: errorMessage,
+        isConnectionError: isConnError
+      };
+    }
   }
 
   private static onPersistenceSuccess(): void {
@@ -250,75 +254,52 @@ export class VPSValidationService {
     this.lastFailureTime = Date.now();
     if (this.cbFailures >= this.CB_THRESHOLD) {
       this.cbState = 'OPEN';
-      console.error(`[VPSValidationService] CIRCUIT BREAKER TRIPPED. Suspending DB persistence logic.`);
+      console.error(`[VPSValidationService] CIRCUIT BREAKER TRIPPED.`);
     }
   }
 
   /**
-   * Internal DB Handshake.
-   * Interfaces with the application's global persistence layer.
-   * Ensures that data is logged even if validation fails.
+   * Operational placeholder for DB interaction.
+   * Integration point for TypeORM, Prisma or raw pg-pool.
    */
   private static async performDatabaseHandshake(host: string, result: VPSValidationResult): Promise<void> {
-    // Logic for actual DB storage goes here. 
-    // In this scope, we simulate a successful transaction to ensure the service structure is sound.
-    // Example: await prisma.vpsValidationLog.create({ data: { ...result, host } });
-    return new Promise((resolve, reject) => {
-        // Safety check: if global DB context was destroyed or not yet initialized
-        const isDbAvailable = true; // Replace with actual connection pool check if needed
-        if (!isDbAvailable) {
-            reject({ code: 'ECONNREFUSED', message: 'Database pool unavailable' });
-        } else {
-            resolve();
-        }
-    });
+    // Hier würde die tatsächliche DB-Logik stehen, z.B.:
+    // await prisma.vpsLog.create({ data: { host, isValid: result.isValid } });
+    return Promise.resolve();
   }
 
   /**
-   * Initiates internal recovery procedures (e.g. log rotation, session recycling).
+   * Specific Recovery Procedure for Database Connection issues
    */
   private static async initiateDatabaseRecovery(error: any, attempt: number): Promise<void> {
-    const code = error?.code || 'GENERIC_DB_ERR';
-    console.warn(`[DB Recovery] Attempt ${attempt}: Triggering session recycle for code ${code}.`);
+    console.warn(`[DB Recovery] Attempt ${attempt}: Recycling sessions for error state...`);
   }
 
   /**
-   * Identifies PostgreSQL, MySQL, and Generic Network connection errors.
+   * Detects specific PostgreSQL and Network connection-related errors
    */
   private static isDatabaseConnectionError(error: any): boolean {
     const code = error?.code || '';
-    const message = error?.message || '';
+    const message = (error?.message || '').toLowerCase();
     
-    const dbErrorCodes = [
-      'ECONNREFUSED', 'ETIMEDOUT', 'ECONNRESET', 'PROTOCOL_CONNECTION_LOST', 
-      '57P01', // admin_shutdown
-      '57P03', // cannot_connect_now
-      '08003', // connection_does_not_exist
-      '08006', // connection_failure
-      '08001', // sqlclient_unable_to_establish_sqlconnection
-      '08004', // sqlserver_rejected_establishment_of_sqlconnection
-    ];
+    const connectionCodes = ['ECONNREFUSED', 'ETIMEDOUT', 'ECONNRESET', 'PROTOCOL_CONNECTION_LOST', '57P01', '57P03', '08003', '08006'];
+    const connectionKeywords = ['connection terminated', 'timeout', 'is not accepting connections', 'failed to connect'];
 
     return (
-      dbErrorCodes.includes(code) ||
-      message.toLowerCase().includes('connection terminated') ||
-      message.toLowerCase().includes('timeout') ||
-      message.toLowerCase().includes('is not accepting connections') ||
-      message.toLowerCase().includes('too many connections')
+      connectionCodes.includes(code) ||
+      connectionKeywords.some(keyword => message.includes(keyword))
     );
   }
 
   /**
-   * 10Hz Heartbeat-compliant Ping.
-   * Extremely fast check for connectivity without resource analysis.
+   * High-speed connectivity check for heartbeat (10Hz compliant).
    */
   public static async quickPing(config: VPSConfig): Promise<boolean> {
     const ssh = new NodeSSH();
     try {
       await ssh.connect({
         ...config,
-        readyTimeout: 1500, // Short timeout for rapid feedback
-        tryKeyboard: false,
+        readyTimeout: 1500,
       });
       return true;
     } catch (error) {
@@ -326,9 +307,7 @@ export class VPSValidationService {
     } finally {
       try {
         ssh.dispose();
-      } catch (e) {
-        // Silently consume disposal errors during ping
-      }
+      } catch (e) {}
     }
   }
 }
