@@ -2,8 +2,11 @@
   "extends": [
     "../../.eslintrc.json"
   ],
+  "parser": "@typescript-eslint/parser",
   "parserOptions": {
-    "project": "./tsconfig.json",
+    "project": [
+      "./tsconfig.json"
+    ],
     "tsconfigRootDir": "."
   },
   "rules": {
@@ -21,6 +24,7 @@
     "dist",
     "node_modules",
     "coverage",
-    "*.config.js"
+    "*.config.js",
+    "jest.config.ts"
   ]
 }

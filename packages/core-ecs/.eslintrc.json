@@ -1,9 +1,10 @@
 {
-  "extends": [
-    "../../.eslintrc.json"
-  ],
+  "root": false,
   "ignorePatterns": [
     "!**/*"
+  ],
+  "extends": [
+    "../../.eslintrc.json"
   ],
   "overrides": [
     {
@@ -13,14 +14,20 @@
         "*.js",
         "*.jsx"
       ],
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "warn",
+        "no-console": "warn"
+      }
+    },
+    {
+      "files": [
+        "*.ts",
+        "*.tsx"
+      ],
       "parserOptions": {
         "project": [
           "packages/core-ecs/tsconfig.json"
         ]
-      },
-      "rules": {
-        "@typescript-eslint/no-explicit-any": "warn",
-        "no-console": "warn"
       }
     }
   ]
