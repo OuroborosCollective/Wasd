@@ -1,11 +1,12 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "target": "ESNext",
-    "module": "CommonJS",
-    "moduleResolution": "node",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "baseUrl": ".",
     "rootDir": "src",
-    "outDir": "../../dist/apps/api",
+    "outDir": "dist",
     "composite": true,
     "declaration": true,
     "declarationMap": true,
@@ -13,29 +14,21 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
-    "skipLibCheck": true,
-    "paths": {
-      "@wasd/utils": ["../../packages/utils/src"],
-      "@wasd/utils/*": ["../../packages/utils/src/*"],
-      "@areloria/shared-types": ["../../packages/shared-types/src"],
-      "@areloria/shared-types/*": ["../../packages/shared-types/src/*"]
-    }
+    "skipLibCheck": true
   },
   "include": ["src/**/*"],
   "exclude": [
     "node_modules",
     "dist",
-    "test",
     "**/*.spec.ts",
-    "**/*.test.ts",
-    "jest.config.ts"
+    "**/*.test.ts"
   ],
   "references": [
     {
       "path": "../../packages/utils"
     },
     {
-      "path": "../../packages/shared-types"
+      "path": "../../packages/shared"
     }
   ]
 }
