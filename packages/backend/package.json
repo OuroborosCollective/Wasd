@@ -11,14 +11,17 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@types/ws": "^8.18.1",
     "@wasd/core": "workspace:*",
     "@wasd/shared": "workspace:*",
-    "express": "^4.18.2",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
+    "express": "^4.18.2",
     "pg": "^8.11.3",
     "reflect-metadata": "^0.1.13",
+    "ts-morph": "^28.0.0",
     "typeorm": "^0.3.17",
+    "ws": "^8.20.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
