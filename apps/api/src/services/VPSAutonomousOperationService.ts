@@ -7,6 +7,7 @@ import {
   SystemSubsystem,
   IVPSService
 } from '../interfaces/IVPSAutonomous';
+import { ResonanceGridService } from './ResonanceGridService';
 
 export interface IGitMetadata {
   hash: string;
@@ -14,7 +15,7 @@ export interface IGitMetadata {
   message: string;
   timestamp: string;
   branch: string;
-  isAutomated?: boolean; // Permissive flag for Jules
+  isAutomated?: boolean; 
 }
 
 export interface INarrativeLog {
@@ -54,21 +55,19 @@ enum CircuitState {
  * 
  * Orchestrates the closed information loop for Areloria WASD infrastructure.
  * Integrates 'Jules' as the primary automated repository bug-fixer.
- * Implements Circuit Breaker patterns and Exponential Backoff for resilience.
+ * Implements Resonance Feedback Loops to sync infrastructure state with the World Grid.
  */
 export class VPSAutonomousOperationService {
   private static readonly CRITICAL_CPU_THRESHOLD = 90;
   private static readonly CRITICAL_RAM_THRESHOLD = 85;
   private static readonly DISK_RECOVERY_THRESHOLD = 95;
 
-  // Circuit Breaker Configuration
   private static circuitState: CircuitState = CircuitState.CLOSED;
   private static lastFailureTime: number = 0;
   private static failureCount: number = 0;
   private static readonly FAILURE_THRESHOLD = 3;
   private static readonly RESET_TIMEOUT_MS = 30000;
 
-  // Retry Configuration
   private static readonly MAX_RETRIES = 3;
   private static readonly INITIAL_RETRY_DELAY_MS = 1000;
 
@@ -85,7 +84,7 @@ export class VPSAutonomousOperationService {
   /**
    * Main 10Hz Control Loop.
    * Processes telemetric logic points and executes autonomous architecture adjustments.
-   * Implements multi-layered resilience to prevent process exit 1.
+   * Injects Resonance Events into the world grid to close the Ouroboros feedback loop.
    */
   public static async tick(currentState: IVPSState): Promise<IAutonomousAction[]> {
     this.globalTruthState.lastHeartbeat = Date.now();
@@ -94,8 +93,6 @@ export class VPSAutonomousOperationService {
     const logicPoints = this.generateLogicPoints(currentState);
 
     try {
-      // Execute Oracle Consultation with Circuit Breaker and Exponential Backoff
-      // This represents a database/persistence call that might fail
       const evaluation = await this.executeSovereignOperation(
         async () => {
           return await this.consultAxiomaticOracle(logicPoints);
@@ -103,13 +100,18 @@ export class VPSAutonomousOperationService {
         'ORACLE_SYNC'
       );
 
-      // Update Global Truth via protected operation
       await this.executeSovereignOperation(
         async () => this.updateGlobalTruth(evaluation),
         'STATE_PERSISTENCE'
       );
 
       actions.push(...evaluation.recommendedActions);
+
+      // Ouroboros Feedback: High-level infrastructure changes resonate in the world
+      if (evaluation.anomalies.length > 0 || evaluation.integrityScore < 80) {
+        this.injectResonanceEvent('INFRASTRUCTURE_INSTABILITY', evaluation.integrityScore);
+      }
+
     } catch (error: any) {
       this.logInfrastructureError(error, 'AxiomaticOracle/TruthUpdate');
       this.globalTruthState.dbConnectivity = 'DEGRADED';
@@ -118,12 +120,12 @@ export class VPSAutonomousOperationService {
         this.globalTruthState.activeAnomalies.push('PERSISTENCE_DEGRADED');
       }
       
-      // Graceful Degradation: System Integrity drops but core loop continues
       this.globalTruthState.systemIntegrity = Math.max(this.globalTruthState.systemIntegrity - 15, 30);
+      
+      this.injectResonanceEvent('SYSTEM_DEGRADATION_WAVE', this.globalTruthState.systemIntegrity);
     }
 
     try {
-      // Local Resource Evaluations (Independent of Persistence)
       actions.push(...this.evaluateResources(currentState));
       
       const healthData = await this.verifySystemIntegrity(currentState);
@@ -141,7 +143,6 @@ export class VPSAutonomousOperationService {
       }
     } catch (criticalError: any) {
       Logger.error('[Autonomous] Core logic evaluation failure:', criticalError.message);
-      // Absolute fallback to keep the service alive
       return [{
         type: 'STABILIZE_CORE' as any,
         subsystem: SystemSubsystem.KERNEL,
@@ -154,45 +155,54 @@ export class VPSAutonomousOperationService {
   }
 
   /**
-   * executeSovereignOperation
-   * Wraps an operation with both Circuit Breaker and Exponential Backoff.
-   * This is the core resilience mechanism for DB and Network operations.
+   * injectResonanceEvent
+   * Translates technical infrastructure state into the ResonanceGrid for world-layer manifestation.
    */
+  private static injectResonanceEvent(type: string, intensity: number): void {
+    try {
+      ResonanceGridService.emitResonance({
+        source: 'VPS_AUTONOMOUS_CORE',
+        type,
+        intensity: (100 - intensity) / 100, // Inverse: low integrity = high resonance intensity
+        metadata: {
+          systemIntegrity: this.globalTruthState.systemIntegrity,
+          activeAnomalies: this.globalTruthState.activeAnomalies,
+          julesIntervention: this.globalTruthState.julesActiveFixes > 0
+        },
+        timestamp: Date.now()
+      });
+    } catch (err) {
+      Logger.warn('[Autonomous] Failed to inject Resonance Event. Grid may be saturated.');
+    }
+  }
+
   private static async executeSovereignOperation<T>(
     operation: () => Promise<T>,
     context: string
   ): Promise<T> {
-    // 1. Check Circuit Breaker State
     if (this.circuitState === CircuitState.OPEN) {
       if (Date.now() - this.lastFailureTime > this.RESET_TIMEOUT_MS) {
         this.circuitState = CircuitState.HALF_OPEN;
         Logger.info(`Circuit Breaker [${context}] entering HALF_OPEN state. Testing connection...`);
       } else {
-        throw new Error(`Circuit Breaker is OPEN for ${context}. Operation suppressed to prevent cascading failure.`);
+        throw new Error(`Circuit Breaker is OPEN for ${context}. Operation suppressed.`);
       }
     }
 
     try {
-      // 2. Execute with Exponential Backoff
       const result = await this.retryWithBackoff(operation, context);
       
-      // 3. Reset Circuit on Success
       if (this.circuitState === CircuitState.HALF_OPEN || this.circuitState === CircuitState.OPEN) {
         this.resetCircuit();
       }
       this.globalTruthState.dbConnectivity = 'CONNECTED';
       return result;
     } catch (error: any) {
-      // 4. Handle Failure and potentially Trip Circuit
       this.handleFailure(error, context);
       throw error;
     }
   }
 
-  /**
-   * retryWithBackoff
-   * Implements Exponential Backoff logic for transient error recovery.
-   */
   private static async retryWithBackoff<T>(
     operation: () => Promise<T>,
     context: string
@@ -205,7 +215,6 @@ export class VPSAutonomousOperationService {
       } catch (error: any) {
         lastError = error;
         
-        // Determine if error is transient (network/db/timeout)
         const isTransient = error.message?.toLowerCase().includes('connection') || 
                            error.message?.toLowerCase().includes('timeout') || 
                            error.code === 'ECONNREFUSED' ||
@@ -249,12 +258,9 @@ export class VPSAutonomousOperationService {
     this.failureCount = 0;
     this.globalTruthState.dbConnectivity = 'CONNECTED';
     Logger.info('Circuit Breaker CLOSED. Persistence and system stability restored.');
+    this.injectResonanceEvent('STABILITY_RESTORED', 100);
   }
 
-  /**
-   * processGitLore
-   * Recognizes 'Jules' as the specialized autonomous bug-fixer.
-   */
   public static processGitLore(commits: IGitMetadata[]): INarrativeLog[] {
     return commits.map((commit): INarrativeLog => {
       const msg = commit.message.toLowerCase();
@@ -268,9 +274,11 @@ export class VPSAutonomousOperationService {
         severity = 'AUTONOMOUS_FIX';
         content = `[JULES_AUTO_FIX] Repository integrity restored: ${commit.message}`;
         this.globalTruthState.julesActiveFixes++;
+        this.injectResonanceEvent('JULES_INTERVENTION', 90);
       } else if (msg.startsWith('feat')) {
         content = `Architect ${commit.author} integrated new neural pathways: ${commit.message}`;
         severity = 'EVOLUTION';
+        this.injectResonanceEvent('WORLD_EVOLUTION', 70);
       } else if (msg.startsWith('fix')) {
         content = `Internal repair initiated by ${commit.author}: ${commit.message}`;
         severity = 'REPAIR';
@@ -289,10 +297,6 @@ export class VPSAutonomousOperationService {
     });
   }
 
-  /**
-   * getSystemHealth
-   * Monitor for process managers to prevent exit code 1 and provide observability.
-   */
   public static getSystemHealth() {
     const isAlive = (Date.now() - this.globalTruthState.lastHeartbeat) < 5000;
     return {
@@ -346,10 +350,6 @@ export class VPSAutonomousOperationService {
     ];
   }
 
-  /**
-   * consultAxiomaticOracle
-   * Simulates/Executes higher-level integrity verification.
-   */
   private static async consultAxiomaticOracle(points: ILogicPoint[]): Promise<{
     integrityScore: number;
     anomalies: string[];
@@ -410,6 +410,7 @@ export class VPSAutonomousOperationService {
         priority: ActionPriority.HIGH,
         reason: 'CPU Overload detected'
       });
+      this.injectResonanceEvent('RESOURCE_STRAIN', 40);
     }
 
     if (state.metrics.ramUsage > this.CRITICAL_RAM_THRESHOLD) {
@@ -461,6 +462,7 @@ export class VPSAutonomousOperationService {
         priority: ActionPriority.CRITICAL,
         reason: 'Perimeter Breach Attempt'
       });
+      this.injectResonanceEvent('SECURITY_SHIELD_ACTIVATION', 80);
     }
 
     return actions;
@@ -477,5 +479,6 @@ export class VPSAutonomousOperationService {
   public static setSovereignClearance(granted: boolean): void {
     Logger.info(`Sovereign Clearance Updated: ${granted}`);
     this.globalTruthState.sovereignClearance = granted;
+    this.injectResonanceEvent('SOVEREIGN_PERMISSION_CHANGE', granted ? 100 : 0);
   }
 }
