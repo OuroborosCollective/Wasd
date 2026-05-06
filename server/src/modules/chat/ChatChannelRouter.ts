@@ -12,6 +12,8 @@ import {
   LOCAL_CHAT_RADIUS,
 } from "./chatChannelTypes.js";
 
+const LOCAL_CHAT_RADIUS_SQ = LOCAL_CHAT_RADIUS * LOCAL_CHAT_RADIUS;
+
 export type ChatRecipient = {
   id: string;
   position: { x: number; y: number; z?: number };
@@ -88,7 +90,8 @@ export class ChatChannelRouter {
       broadcast(payload);
     } else {
       for (const r of recipients) {
-        if (msg.position && dist2d(msg.position, r.position) > LOCAL_CHAT_RADIUS) continue;
+        // ⚡ Bolt Optimization: Use squared distance to avoid Math.hypot()
+        if (msg.position && dist2dSq(msg.position, r.position) > LOCAL_CHAT_RADIUS_SQ) continue;
         const sid = resolveSocketId(r.id);
         if (sid) sendToPlayer(sid, payload);
       }
@@ -123,7 +126,8 @@ export class ChatChannelRouter {
 
     const payload = this.toWirePayload(msg);
     for (const r of recipients) {
-      if (dist2d(position, r.position) > LOCAL_CHAT_RADIUS) continue;
+      // ⚡ Bolt Optimization: Use squared distance to avoid Math.hypot()
+      if (dist2dSq(position, r.position) > LOCAL_CHAT_RADIUS_SQ) continue;
       const sid = resolveSocketId(r.id);
       if (sid) sendToPlayer(sid, payload);
     }
@@ -143,7 +147,8 @@ export class ChatChannelRouter {
       if (channel && m.channel !== channel) continue;
       if (m.channel === "global") {
         result.push(m);
-      } else if (m.position && dist2d(m.position, pos) <= LOCAL_CHAT_RADIUS) {
+      } else if (m.position && dist2dSq(m.position, pos) <= LOCAL_CHAT_RADIUS_SQ) {
+        // ⚡ Bolt Optimization: Use squared distance to avoid Math.hypot()
         result.push(m);
       }
     }
@@ -172,9 +177,12 @@ export class ChatChannelRouter {
   }
 }
 
-function dist2d(
+/** ⚡ Bolt: Squared distance helper to avoid expensive Math.hypot() or Math.sqrt() */
+function dist2dSq(
   a: { x: number; y: number },
   b: { x: number; y: number },
 ): number {
-  return Math.hypot(a.x - b.x, a.y - b.y);
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return dx * dx + dy * dy;
 }

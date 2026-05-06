@@ -80,15 +80,21 @@ export function executeImpactBuster(player: any, allNpcs: any[], now: number): I
   const baseDamage = IMPACT_BUSTER_BASE_DAMAGE + Math.floor(level * 1.6);
   const px = Number(player?.position?.x ?? 0);
   const py = Number(player?.position?.y ?? 0);
+  const radiusSq = IMPACT_BUSTER_RADIUS * IMPACT_BUSTER_RADIUS;
 
   for (const npc of allNpcs) {
     if (!npc || typeof npc.id !== "string") continue;
     if ((Number(npc.health) || 0) <= 0) continue;
     const nx = Number(npc.position?.x ?? 0);
     const ny = Number(npc.position?.y ?? 0);
-    const distance = Math.hypot(nx - px, ny - py);
-    if (distance > IMPACT_BUSTER_RADIUS) continue;
 
+    // ⚡ Bolt Optimization: Use squared distance for initial range check to avoid Math.hypot()
+    const dx = nx - px;
+    const dy = ny - py;
+    const distSq = dx * dx + dy * dy;
+    if (distSq > radiusSq) continue;
+
+    const distance = Math.sqrt(distSq);
     const falloff = Math.max(0.35, 1 - (distance / IMPACT_BUSTER_RADIUS) * 0.65);
     const damage = Math.max(1, Math.floor(baseDamage * falloff));
     npc.health = Math.max(0, (Number(npc.health) || 0) - damage);
