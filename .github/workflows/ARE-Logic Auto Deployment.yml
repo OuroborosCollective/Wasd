@@ -9,14 +9,42 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Install Node Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build and Configure ESM
+        run: |
+          pnpm build
+          # Analyse and replace CommonJS injection with ESM module type
+          if [ -f dist/package.json ]; then
+            sed -i 's/"type": "commonjs"/"type": "module"/g' dist/package.json
+            grep -q '"type": "module"' dist/package.json || sed -i '2i \  "type": "module",' dist/package.json
+          else
+            mkdir -p dist
+            echo '{"type": "module"}' > dist/package.json
+          fi
+
+      - name: Validate Dist Configuration
+        run: cat dist/package.json
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: Install Dependencies
+      - name: Install Deployment Dependencies
         run: pip install paramiko
 
       - name: Execute Deployment

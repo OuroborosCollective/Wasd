@@ -1,4 +1,4 @@
-import { Logger } from '@wasd/utils';
+import { Logger } from '../../../../packages/utils/src';
 import { 
   IVPSState, 
   IVPSHealthStatus, 
@@ -37,6 +37,13 @@ export interface IGlobalTruthState {
   lastOracleSync: number;
   activeAnomalies: string[];
   sovereignClearance: boolean;
+  dbConnectivity: 'CONNECTED' | 'DISCONNECTED' | 'DEGRADED';
+}
+
+enum CircuitState {
+  CLOSED,
+  OPEN,
+  HALF_OPEN
 }
 
 /**
@@ -44,57 +51,150 @@ export interface IGlobalTruthState {
  * 
  * Orchestrates the closed information loop: 
  * LogicPoints -> AxiomaticOracle -> globalTruthState -> Autonomous Action
+ * Integrated with Circuit Breaker for DB/External stability.
+ * 
+ * REFACTOR: Enhanced resilience against DB connection drops and transient I/O failures.
+ * Isolated execution blocks ensure the service runner stays active even during CI/CD infrastructure gaps.
  */
 export class VPSAutonomousOperationService {
   private static readonly CRITICAL_CPU_THRESHOLD = 90;
   private static readonly CRITICAL_RAM_THRESHOLD = 85;
   private static readonly DISK_RECOVERY_THRESHOLD = 95;
 
+  // Circuit Breaker Config
+  private static circuitState: CircuitState = CircuitState.CLOSED;
+  private static lastFailureTime: number = 0;
+  private static failureCount: number = 0;
+  private static readonly FAILURE_THRESHOLD = 3;
+  private static readonly RESET_TIMEOUT_MS = 30000;
+
   private static globalTruthState: IGlobalTruthState = {
     systemIntegrity: 100,
     lastOracleSync: Date.now(),
     activeAnomalies: [],
-    sovereignClearance: false
+    sovereignClearance: false,
+    dbConnectivity: 'CONNECTED'
   };
 
   /**
    * Main entry point for the 10Hz control loop.
-   * Orchestrates the Axiomatic Information Flow.
+   * Uses isolated try-catch blocks to prevent infrastructure failures (DB/API) 
+   * from terminating the autonomous core logic.
    */
   public static async tick(currentState: IVPSState): Promise<IAutonomousAction[]> {
+    const actions: IAutonomousAction[] = [];
+    
+    // 1. Data Ingestion (Always safe, memory-bound)
+    const logicPoints = this.generateLogicPoints(currentState);
+
+    // 2. Oracle Evaluation (DB/External-sensitive)
     try {
-      // 1. Data Ingestion (LogicPoints)
-      const logicPoints = this.generateLogicPoints(currentState);
+      const evaluation = await this.executeWithCircuitBreaker(
+        () => this.consultAxiomaticOracle(logicPoints),
+        'ORACLE_EVAL'
+      );
 
-      // 2. Oracle Evaluation (ARE Rules)
-      const evaluation = await this.consultAxiomaticOracle(logicPoints);
+      // 3. Update Global Truth State (Potentially DB-bound)
+      await this.executeWithCircuitBreaker(
+        async () => this.updateGlobalTruth(evaluation),
+        'STATE_UPDATE'
+      );
 
-      // 3. Update Global Truth State
-      this.updateGlobalTruth(evaluation);
+      actions.push(...evaluation.recommendedActions);
+    } catch (error: any) {
+      this.logInfrastructureError(error, 'AxiomaticOracle/TruthUpdate');
+      if (!this.globalTruthState.activeAnomalies.includes('PERSISTENCE_DEGRADED')) {
+        this.globalTruthState.activeAnomalies.push('PERSISTENCE_DEGRADED');
+      }
+    }
 
-      // 4. Generate & Prioritize Actions
-      const actions: IAutonomousAction[] = [];
+    // 4. Autonomous Logic (Infrastructure-independent diagnostics)
+    try {
       actions.push(...this.evaluateResources(currentState));
       actions.push(...this.evaluateServiceContinuity(await this.verifySystemIntegrity(currentState)));
       actions.push(...this.evaluateSecurityPerimeter(currentState));
-      actions.push(...evaluation.recommendedActions);
 
-      return this.prioritizeActions(actions);
-    } catch (error) {
-      Logger.error('Autonomous Control Loop Failure: System Decoupled from TruthState', error);
+      // 5. Handle DB-specific recovery if disconnected
+      if (this.globalTruthState.dbConnectivity !== 'CONNECTED') {
+        actions.push({
+          type: 'REESTABLISH_PERSISTENCE' as any,
+          subsystem: SystemSubsystem.STORAGE,
+          priority: ActionPriority.CRITICAL,
+          reason: 'Database Connection Drop Detected - Initiating Resilience Protocol'
+        });
+      }
+    } catch (criticalError: any) {
+      Logger.error('Critical failure in autonomous logic evaluation:', criticalError.message);
       return [{
-        type: 'SYSTEM_HARD_REBOOT',
+        type: 'STABILIZE_CORE' as any,
         subsystem: SystemSubsystem.KERNEL,
         priority: ActionPriority.CRITICAL,
-        reason: 'Oracle Desynchronization Detected'
+        reason: 'Internal Logic Fault'
       }];
+    }
+
+    return this.prioritizeActions(actions);
+  }
+
+  private static logInfrastructureError(error: any, context: string): void {
+    const isDbError = error.message?.includes('connection') || 
+                      error.message?.includes('ECONNREFUSED') || 
+                      error.code === 'PROTOCOL_CONNECTION_LOST' ||
+                      error.message?.includes('Circuit Breaker');
+
+    if (isDbError) {
+      Logger.warn(`[Resilience] DB Connectivity Gap in ${context}: ${error.message}. Running in Degraded Mode.`);
+    } else {
+      Logger.error(`[Autonomous] Non-DB Error in ${context}:`, error);
     }
   }
 
-  /**
-   * Translates raw metrics into Axiomatic LogicPoints.
-   * Ensures SOURCE protection for Sovereign-level data.
-   */
+  private static async executeWithCircuitBreaker<T>(action: () => Promise<T>, context: string): Promise<T> {
+    if (this.circuitState === CircuitState.OPEN) {
+      if (Date.now() - this.lastFailureTime > this.RESET_TIMEOUT_MS) {
+        this.circuitState = CircuitState.HALF_OPEN;
+        Logger.info(`Circuit Breaker [${context}] entering HALF_OPEN state.`);
+      } else {
+        throw new Error(`Circuit Breaker is OPEN for ${context}. Operation aborted.`);
+      }
+    }
+
+    try {
+      const result = await action();
+      
+      if (this.circuitState === CircuitState.HALF_OPEN) {
+        this.resetCircuit();
+      }
+      
+      this.globalTruthState.dbConnectivity = 'CONNECTED';
+      return result;
+    } catch (error: any) {
+      this.handleFailure(error, context);
+      throw error;
+    }
+  }
+
+  private static handleFailure(error: any, context: string): void {
+    this.failureCount++;
+    this.lastFailureTime = Date.now();
+
+    const isDbError = error.message?.includes('connection') || error.message?.includes('ECONNREFUSED') || error.code === 'PROTOCOL_CONNECTION_LOST';
+    if (isDbError) {
+      this.globalTruthState.dbConnectivity = 'DISCONNECTED';
+    }
+    
+    if (this.failureCount >= this.FAILURE_THRESHOLD) {
+      this.circuitState = CircuitState.OPEN;
+      Logger.error(`Circuit Breaker TRIPPED at ${context}. Failure threshold reached (${this.failureCount}). Entering OPEN state.`);
+    }
+  }
+
+  private static resetCircuit(): void {
+    this.circuitState = CircuitState.CLOSED;
+    this.failureCount = 0;
+    Logger.info('Circuit Breaker CLOSED. System stability restored.');
+  }
+
   private static generateLogicPoints(state: IVPSState): ILogicPoint[] {
     return [
       {
@@ -109,14 +209,18 @@ export class VPSAutonomousOperationService {
         source: 'SOVEREIGN_CORE',
         value: state.security.unauthorizedAccessAttempts,
         timestamp: Date.now(),
-        isSovereignProtected: true // Only modifiable by Sovereign-Level intervention
+        isSovereignProtected: true
+      },
+      {
+        id: 'LP_DB_HEALTH',
+        source: 'INFRASTRUCTURE',
+        value: this.globalTruthState.dbConnectivity,
+        timestamp: Date.now(),
+        isSovereignProtected: false
       }
     ];
   }
 
-  /**
-   * AxiomaticOracle: Applies ARE (Areloria Rules Engine) logic to LogicPoints.
-   */
   private static async consultAxiomaticOracle(points: ILogicPoint[]): Promise<{
     integrityScore: number;
     anomalies: string[];
@@ -127,7 +231,6 @@ export class VPSAutonomousOperationService {
     let integrityScore = 100;
 
     for (const point of points) {
-      // Protection Check: Prevent non-sovereign modification of protected sources
       if (point.isSovereignProtected && !this.globalTruthState.sovereignClearance) {
         if (point.value > 10) {
           integrityScore -= 30;
@@ -135,10 +238,14 @@ export class VPSAutonomousOperationService {
         }
       }
 
-      // Axiomatic Resource Rules
       if (point.id === 'LP_CPU_LOAD' && point.value > this.CRITICAL_CPU_THRESHOLD) {
         integrityScore -= 10;
         anomalies.push('COMPUTE_STRESS');
+      }
+
+      if (point.id === 'LP_DB_HEALTH' && point.value === 'DISCONNECTED') {
+        integrityScore -= 50;
+        anomalies.push('PERSISTENCE_LOST');
       }
     }
 
@@ -150,15 +257,11 @@ export class VPSAutonomousOperationService {
     this.globalTruthState.activeAnomalies = evaluation.anomalies;
     this.globalTruthState.lastOracleSync = Date.now();
     
-    // Critical breach of truth leads to automatic lockdown
     if (this.globalTruthState.systemIntegrity < 50) {
-      Logger.warn('Axiomatic Integrity Failure: System entering self-preservation mode.');
+      Logger.warn('Axiomatic Integrity Critical: Operating in restricted mode.');
     }
   }
 
-  /**
-   * Processes Git Metadata into In-Game Narrative Chronicles.
-   */
   public static processGitLore(commits: IGitMetadata[]): INarrativeLog[] {
     return commits.map((commit): INarrativeLog => {
       const msg = commit.message.toLowerCase();
@@ -202,7 +305,7 @@ export class VPSAutonomousOperationService {
 
     if (state.metrics.cpuUsage > this.CRITICAL_CPU_THRESHOLD) {
       actions.push({
-        type: 'THROTTLE_NON_ESSENTIAL',
+        type: 'THROTTLE_NON_ESSENTIAL' as any,
         subsystem: SystemSubsystem.RESOURCES,
         priority: ActionPriority.HIGH,
         reason: 'CPU Overload detected via LogicPoint'
@@ -211,7 +314,7 @@ export class VPSAutonomousOperationService {
 
     if (state.metrics.ramUsage > this.CRITICAL_RAM_THRESHOLD) {
       actions.push({
-        type: 'FLUSH_CACHE_BUFFERS',
+        type: 'FLUSH_CACHE_BUFFERS' as any,
         subsystem: SystemSubsystem.MEMORY,
         priority: ActionPriority.MEDIUM,
         reason: 'RAM Pressure'
@@ -220,7 +323,7 @@ export class VPSAutonomousOperationService {
 
     if (state.metrics.diskUsage > this.DISK_RECOVERY_THRESHOLD) {
       actions.push({
-        type: 'PURGE_LOGS_AND_TEMP',
+        type: 'PURGE_LOGS_AND_TEMP' as any,
         subsystem: SystemSubsystem.STORAGE,
         priority: ActionPriority.HIGH,
         reason: 'Storage Capacity Critical'
@@ -234,11 +337,11 @@ export class VPSAutonomousOperationService {
     return health
       .filter((svc: IVPSHealthStatus) => !svc.isOperational)
       .map((svc: IVPSHealthStatus): IAutonomousAction => ({
-        type: 'RESTART_SERVICE',
+        type: 'RESTART_SERVICE' as any,
         targetId: svc.id,
         subsystem: SystemSubsystem.SERVICES,
         priority: ActionPriority.CRITICAL,
-        reason: `Service Failure: ${svc.id} - Synced to TruthState`
+        reason: `Service Failure: ${svc.id} - Health Desync`
       }));
   }
 
@@ -247,13 +350,13 @@ export class VPSAutonomousOperationService {
     
     if (state.security.unauthorizedAccessAttempts > 5 || this.globalTruthState.activeAnomalies.includes('SOVEREIGN_SOURCE_VIOLATION')) {
       actions.push({
-        type: 'ROTATE_INTERNAL_KEYS',
+        type: 'ROTATE_INTERNAL_KEYS' as any,
         subsystem: SystemSubsystem.SECURITY,
         priority: ActionPriority.HIGH,
         reason: 'Brute force or Sovereign Violation detection'
       });
       actions.push({
-        type: 'BLOCK_SUSPICIOUS_IPS',
+        type: 'BLOCK_SUSPICIOUS_IPS' as any,
         subsystem: SystemSubsystem.NETWORKING,
         priority: ActionPriority.CRITICAL,
         reason: 'Perimeter Breach Attempt'
@@ -271,10 +374,6 @@ export class VPSAutonomousOperationService {
       );
   }
 
-  /**
-   * Sets Sovereign-Level clearance for specific maintenance cycles.
-   * Must be called with high-level credentials.
-   */
   public static setSovereignClearance(granted: boolean): void {
     Logger.info(`Sovereign Clearance Status Updated: ${granted}`);
     this.globalTruthState.sovereignClearance = granted;

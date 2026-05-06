@@ -1,125 +1,190 @@
 import express, { Request, Response } from 'express';
+import cors from 'cors';
+import { Server } from 'http';
+
+/**
+ * ARELORIA WASD - API CORE
+ * High-performance 3D-RPG-Metaverse Backend
+ */
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Konfiguration für Exponential Backoff
+// Konfiguration für Robustheit und Exponential Backoff
 const MAX_RETRIES = 5;
 const INITIAL_BACKOFF_MS = 1000;
+const CONNECTION_TIMEOUT_MS = 5000;
 
 /**
- * Hilfsfunktion für Verzögerungen (Wait/Sleep)
+ * Hilfsfunktion für deterministische Verzögerungen
  */
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Simuliert oder initialisiert die Datenbankverbindung.
- * In einer realen Umgebung würde hier Prisma, TypeORM oder Mongoose initialisiert werden.
+ * Kernfunktion zur Initialisierung der Datenbankverbindung.
+ * Integriert Timeout-Races und spezifisches Error-Mapping für das Sentinel-Monitoring.
  */
 async function connectToDatabase(): Promise<void> {
-  // Platzhalter für tatsächliche DB-Logik: e.g., await prisma.$connect();
-  console.log('[DATABASE] Attempting to connect to database...');
-  
-  // Simulation eines Verbindungsaufbaus
-  // Falls die Datenbank noch nicht bereit ist (z.B. im Docker-Stack), wird hier ein Error geworfen.
-  if (process.env.SIMULATE_DB_ERROR === 'true') {
-    throw new Error('Database connection failed (Simulated)');
-  }
+  console.log(`[SENTINEL] [DATABASE_BOOT] [${new Date().toISOString()}] Initializing connection sequence...`);
+
+  const connectionPromise = new Promise<void>((resolve, reject) => {
+    // Validierung der Konfiguration
+    if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
+      return reject(new Error('MISSING_CONFIG: DATABASE_URL is not defined in environment variables.'));
+    }
+
+    /**
+     * Integration-Point: Hier wird üblicherweise prisma.$connect() oder ähnliches aufgerufen.
+     * Simulation für die Boot-Sequenz-Validierung.
+     */
+    if (process.env.SIMULATE_DB_ERROR === 'true') {
+      return setTimeout(() => reject(new Error('ECONNREFUSED: Database host unreachable')), 500);
+    }
+    
+    // Simulierter erfolgreicher Verbindungsaufbau der Persistenzschicht
+    setTimeout(() => resolve(), 300);
+  });
+
+  const timeoutPromise = new Promise<void>((_, reject) =>
+    setTimeout(() => reject(new Error('DB_TIMEOUT: Connection attempt exceeded safety threshold')), CONNECTION_TIMEOUT_MS)
+  );
+
+  return Promise.race([connectionPromise, timeoutPromise]);
 }
 
 /**
- * Implementierung des Exponential Backoff für die Datenbankverbindung.
+ * Implementiert den Exponential Backoff Algorithmus.
+ * Verhindert Kaskadenfehler in CI/CD Umgebungen und stellt System-Integrität sicher.
  */
-async function initializeWithRetry() {
+async function initializeWithRetry(): Promise<void> {
   let currentRetry = 0;
   let delay = INITIAL_BACKOFF_MS;
 
   while (currentRetry < MAX_RETRIES) {
     try {
       await connectToDatabase();
-      console.log('[DATABASE] Connection established successfully.');
-      return; // Erfolg, Schleife verlassen
-    } catch (error) {
+      console.log('[SENTINEL] [DATABASE_READY] Connection established and verified.');
+      return;
+    } catch (error: unknown) {
       currentRetry++;
       const errorMessage = error instanceof Error ? error.message : String(error);
       
-      console.warn(`[DATABASE] Connection attempt ${currentRetry} failed: ${errorMessage}`);
+      console.error(`[SENTINEL] [DATABASE_ERROR] [ATTEMPT ${currentRetry}/${MAX_RETRIES}]`);
+      console.error(`[ERROR_DETAILS]: ${errorMessage}`);
 
       if (currentRetry >= MAX_RETRIES) {
-        console.error('[DATABASE] Maximum retries reached. Could not connect to database.');
-        throw error;
+        console.error('[SENTINEL] [CRITICAL_FAILURE] Max retries reached. Triggering emergency shutdown.');
+        throw new Error(`Failed to connect to database after ${MAX_RETRIES} attempts.`);
       }
 
-      console.log(`[DATABASE] Retrying in ${delay}ms...`);
-      await sleep(delay);
-      delay *= 2; // Exponentielle Steigerung
+      // Berechnung des nächsten Delays (Exponential Backoff + Jitter)
+      // Jitter verhindert das "Thundering Herd" Problem bei Container-Restarts
+      const jitter = Math.random() * 200; 
+      const totalDelay = delay + jitter;
+      
+      console.log(`[SENTINEL] [RETRY_SCHEDULED] Next attempt in ${Math.round(totalDelay)}ms...`);
+      await sleep(totalDelay);
+      delay *= 2; 
     }
   }
 }
 
-// Standard Middleware
+/**
+ * GLOBALER SCHUTZMECHANISMUS
+ * Verhindert unkontrollierte Abstürze und ermöglicht Logging durch Sentinel
+ */
+process.on('uncaughtException', (error: Error) => {
+  console.error('[SENTINEL] [FATAL_EXCEPTION] Uncaught error detected:', error.message);
+  console.error(error.stack);
+  // In einer Container-Umgebung triggert Exit 1 den automatischen Restart
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason: unknown) => {
+  console.error('[SENTINEL] [FATAL_REJECTION] Unhandled promise rejection:', reason);
+  process.exit(1);
+});
+
+// Express Middleware Konfiguration
+app.use(cors());
 app.use(express.json());
 
-// Health Check für Deployment-Monitoring (Vercel/Cloud-Provider)
+/**
+ * Health Check Endpunkt für Kubernetes Liveness/Readiness Probes
+ */
 app.get('/api/health', (req: Request, res: Response) => {
   res.status(200).json({ 
-    status: 'healthy', 
+    status: 'healthy',
+    service: 'areloria-api',
     timestamp: new Date().toISOString(),
-    env: process.env.NODE_ENV 
+    uptime: Math.floor(process.uptime()),
+    version: process.env.npm_package_version || '1.0.0',
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
 /**
- * Bootstrap Funktion zum Starten des API-Servers.
+ * Haupt-Bootstrap Sequenz des API-Servers
  */
 async function bootstrap() {
   console.log('--------------------------------------------------');
-  console.log(`[${new Date().toISOString()}] INITIALIZING WASD API`);
+  console.log('ARELORIA WASD - API CORE INITIALIZATION');
+  console.log(`MODE: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`ARCH: ${process.arch} | PLATFORM: ${process.platform}`);
   console.log('--------------------------------------------------');
 
   try {
-    // Starte DB-Verbindung mit Retry-Logik bevor der Server Requests annimmt
+    // Schritt 1: Persistenzschicht mit Backoff validieren
     await initializeWithRetry();
     
-    console.log(`[BOOTSTRAP] Configuration: Port=${PORT}, NodeEnv=${process.env.NODE_ENV}`);
-
-    const server = app.listen(PORT, () => {
-      console.log(`[SUCCESS] API Server is running on port: ${PORT}`);
-      console.log(`[INFO] Ready for requests.`);
+    // Schritt 2: API Listener starten
+    const server: Server = app.listen(PORT, () => {
+      console.log(`[SENTINEL] [SERVER_START] API listening on port: ${PORT}`);
     });
 
-    // Error Handling für den laufenden Server-Prozess
+    // Runtime Socket Monitoring
     server.on('error', (error: Error) => {
-      console.error('[RUNTIME ERROR] Server encountered an error:');
-      console.error(error);
+      console.error('[SENTINEL] [RUNTIME_SOCKET_ERROR]', error);
     });
 
-    // Graceful Shutdown handling
-    process.on('SIGTERM', () => {
-      console.log('[SIGTERM] Closing server...');
+    /**
+     * Graceful Shutdown Logik für Container-Orchestrierung (SIGTERM/SIGINT)
+     * Stellt sicher, dass laufende Requests beendet werden.
+     */
+    const gracefulShutdown = (signal: string) => {
+      console.log(`[SENTINEL] [SHUTDOWN_SIGNAL] ${signal} received. Closing server...`);
       server.close(() => {
-        console.log('[INFO] Server closed.');
+        console.log('[SENTINEL] [CLEAN_EXIT] All network connections closed safely.');
         process.exit(0);
       });
-    });
+      
+      // Force Exit Safety Net (10 Sekunden)
+      setTimeout(() => {
+        console.error('[SENTINEL] [SHUTDOWN_TIMEOUT] Forcing termination due to hanging connections.');
+        process.exit(1);
+      }, 10000);
+    };
+
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
   } catch (error: unknown) {
-    console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-    console.error('[FATAL ERROR] FAILED TO BOOTSTRAP API SERVER');
-    console.error(`[TIME] ${new Date().toISOString()}`);
+    console.error('##################################################');
+    console.error('[FATAL] BOOTSTRAP SEQUENCE INTERRUPTED');
     
     if (error instanceof Error) {
-      console.error(`[ERROR MESSAGE] ${error.message}`);
-      console.error(`[STACK TRACE]\n${error.stack}`);
+      console.error(`TYPE: ${error.name}`);
+      console.error(`MSG: ${error.message}`);
+      console.error(`STACK: ${error.stack}`);
     } else {
-      console.error('[UNKNOWN ERROR]', error);
+      console.error(`UNKNOWN_ERROR: ${String(error)}`);
     }
-    console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+    console.error('##################################################');
 
-    // Beende den Prozess nur nach fehlgeschlagenen Retries
+    // Exit Code 1 stellt sicher, dass CI/CD Pipelines und Orchestratoren den Fehler erkennen
     process.exit(1);
   }
 }
 
-// Startvorgang triggern
+// Start der Anwendung
 bootstrap();
