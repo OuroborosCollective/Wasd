@@ -35,14 +35,21 @@ jobs:
           --health-timeout=5s
           --health-retries=5
 
+    env:
+      DATABASE_URL: postgresql://postgres:password@localhost:5432/test
+      NODE_ENV: test
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install PostgreSQL Client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        # Version is automatically synchronized with 'packageManager' field in package.json
-        # to prevent "Multiple versions of pnpm specified" errors.
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -53,19 +60,34 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Wait for Postgres
+      - name: Pre-flight Database Check
         run: |
-          for i in {1..10}; do
-            if pg_isready -h localhost -p 5432 -U postgres; then
-              break
-            fi
-            echo "Waiting for postgres..."
+          echo "Waiting for PostgreSQL at localhost:5432..."
+          NEXT_WAIT_TIME=0
+          until pg_isready -h localhost -p 5432 -U postgres || [ $NEXT_WAIT_TIME -eq 10 ]; do
+            echo "Postgres is unavailable - sleeping..."
             sleep 2
+            NEXT_WAIT_TIME=$((NEXT_WAIT_TIME+1))
           done
+          if [ $NEXT_WAIT_TIME -eq 10 ]; then
+            echo "Timeout reached: Postgres did not become ready."
+            exit 1
+          fi
+          echo "PostgreSQL is ready."
+
+      - name: Database Schema Migration
+        if: matrix.app == 'api'
+        run: |
+          if [ -f "apps/api/prisma/schema.prisma" ]; then
+            pnpm --filter api exec prisma migrate deploy
+          fi
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
 
       - name: Build
-        run: pnpm run build
-        working-directory: apps/${{ matrix.app }}
+        run: pnpm --filter ${{ matrix.app }} run build
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
 
       - name: Enforce ESM in Dist
         shell: bash
@@ -78,26 +100,21 @@ jobs:
             else
               echo '{"type": "module"}' > "$DIST_DIR/package.json"
             fi
-            echo "Verification of $DIST_DIR/package.json:"
-            cat "$DIST_DIR/package.json"
           else
             echo "No dist directory found for ${{ matrix.app }}, skipping ESM enforcement."
           fi
 
       - name: Test
-        run: pnpm test
-        working-directory: apps/${{ matrix.app }}
+        run: pnpm --filter ${{ matrix.app }} run test
         env:
-          DATABASE_URL: postgresql://postgres:password@localhost:5432/test
+          DATABASE_URL: ${{ env.DATABASE_URL }}
 
-      - name: Upload artifacts (optional)
+      - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: artifacts-${{ matrix.app }}-${{ matrix.node-version }}
           path: |
             apps/${{ matrix.app }}/coverage
-            apps/${{ matrix.app }}/logs
-            apps/${{ matrix.app }}/test-results
             apps/${{ matrix.app }}/dist
           if-no-files-found: ignore

@@ -37,6 +37,7 @@ export interface IGlobalTruthState {
   lastOracleSync: number;
   activeAnomalies: string[];
   sovereignClearance: boolean;
+  dbConnectivity: 'CONNECTED' | 'DISCONNECTED' | 'DEGRADED';
 }
 
 enum CircuitState {
@@ -51,6 +52,8 @@ enum CircuitState {
  * Orchestrates the closed information loop: 
  * LogicPoints -> AxiomaticOracle -> globalTruthState -> Autonomous Action
  * Integrated with Circuit Breaker for DB/External stability.
+ * 
+ * ENHANCED: Resilient against DB connection drops and transient I/O failures.
  */
 export class VPSAutonomousOperationService {
   private static readonly CRITICAL_CPU_THRESHOLD = 90;
@@ -68,11 +71,13 @@ export class VPSAutonomousOperationService {
     systemIntegrity: 100,
     lastOracleSync: Date.now(),
     activeAnomalies: [],
-    sovereignClearance: false
+    sovereignClearance: false,
+    dbConnectivity: 'CONNECTED'
   };
 
   /**
    * Main entry point for the 10Hz control loop.
+   * Wrapped in a global boundary to prevent process termination.
    */
   public static async tick(currentState: IVPSState): Promise<IAutonomousAction[]> {
     try {
@@ -80,12 +85,17 @@ export class VPSAutonomousOperationService {
       const logicPoints = this.generateLogicPoints(currentState);
 
       // 2. Oracle Evaluation (ARE Rules) protected by Circuit Breaker
-      const evaluation = await this.executeWithCircuitBreaker(() => this.consultAxiomaticOracle(logicPoints));
+      // This handles DB-bound evaluations safely
+      const evaluation = await this.executeWithCircuitBreaker(
+        () => this.consultAxiomaticOracle(logicPoints),
+        'ORACLE_EVAL'
+      );
 
       // 3. Update Global Truth State (Potentially DB-bound)
-      await this.executeWithCircuitBreaker(async () => {
-        this.updateGlobalTruth(evaluation);
-      });
+      await this.executeWithCircuitBreaker(
+        async () => this.updateGlobalTruth(evaluation),
+        'STATE_UPDATE'
+      );
 
       // 4. Generate & Prioritize Actions
       const actions: IAutonomousAction[] = [];
@@ -94,18 +104,29 @@ export class VPSAutonomousOperationService {
       actions.push(...this.evaluateSecurityPerimeter(currentState));
       actions.push(...evaluation.recommendedActions);
 
+      // 5. Handle DB-specific recovery if disconnected
+      if (this.globalTruthState.dbConnectivity !== 'CONNECTED') {
+        actions.push({
+          type: 'REESTABLISH_PERSISTENCE',
+          subsystem: SystemSubsystem.STORAGE,
+          priority: ActionPriority.CRITICAL,
+          reason: 'Database Connection Drop Detected'
+        });
+      }
+
       return this.prioritizeActions(actions);
-    } catch (error) {
-      Logger.error(`Autonomous Control Loop Failure [Circuit: ${CircuitState[this.circuitState]}]:`, error);
+    } catch (error: any) {
+      // Logic for Graceful Recovery without process.exit(1)
+      Logger.error(`Autonomous Control Loop suppressed an exception [Circuit: ${CircuitState[this.circuitState]}]:`, error.message);
       
-      // If circuit is open, we return a fallback safety action instead of crashing
+      // Return emergency stabilization actions instead of allowing the error to bubble up
       return [{
-        type: 'SYSTEM_HARD_REBOOT',
+        type: 'STABILIZE_CORE',
         subsystem: SystemSubsystem.KERNEL,
         priority: ActionPriority.CRITICAL,
-        reason: this.circuitState === CircuitState.OPEN 
-          ? 'Circuit Breaker Open: Emergency Isolation' 
-          : 'Oracle Desynchronization Detected'
+        reason: error.message?.includes('Circuit Breaker') 
+          ? 'Circuit Breaker Isolation' 
+          : 'Unexpected Operation Failure - Auto-Stabilizing'
       }];
     }
   }
@@ -114,13 +135,14 @@ export class VPSAutonomousOperationService {
    * Circuit Breaker Pattern Implementation
    * Wraps sensitive I/O operations (DB, API) to prevent cascading failures.
    */
-  private static async executeWithCircuitBreaker<T>(action: () => Promise<T>): Promise<T> {
+  private static async executeWithCircuitBreaker<T>(action: () => Promise<T>, context: string): Promise<T> {
     if (this.circuitState === CircuitState.OPEN) {
       if (Date.now() - this.lastFailureTime > this.RESET_TIMEOUT_MS) {
         this.circuitState = CircuitState.HALF_OPEN;
-        Logger.info('Circuit Breaker entering HALF_OPEN state.');
+        Logger.info(`Circuit Breaker [${context}] entering HALF_OPEN state.`);
       } else {
-        throw new Error('Circuit Breaker is OPEN. Operation aborted to maintain system integrity.');
+        // We throw a local error which is caught in the tick() boundary
+        throw new Error(`Circuit Breaker is OPEN for ${context}. Operation aborted.`);
       }
     }
 
@@ -130,20 +152,30 @@ export class VPSAutonomousOperationService {
       if (this.circuitState === CircuitState.HALF_OPEN) {
         this.resetCircuit();
       }
+      
+      // Successfully performed operation, ensure DB state is marked active
+      this.globalTruthState.dbConnectivity = 'CONNECTED';
       return result;
-    } catch (error) {
-      this.handleFailure();
+    } catch (error: any) {
+      this.handleFailure(error, context);
       throw error;
     }
   }
 
-  private static handleFailure(): void {
+  private static handleFailure(error: any, context: string): void {
     this.failureCount++;
     this.lastFailureTime = Date.now();
+
+    // Specific check for DB Connection drops
+    const isDbError = error.message?.includes('connection') || error.message?.includes('ECONNREFUSED') || error.code === 'PROTOCOL_CONNECTION_LOST';
+    if (isDbError) {
+      this.globalTruthState.dbConnectivity = 'DISCONNECTED';
+      Logger.warn(`Database Connectivity Failure detected in context: ${context}`);
+    }
     
     if (this.failureCount >= this.FAILURE_THRESHOLD) {
       this.circuitState = CircuitState.OPEN;
-      Logger.error(`Circuit Breaker TRIPPED. Failure threshold reached (${this.failureCount}). Entering OPEN state.`);
+      Logger.error(`Circuit Breaker TRIPPED at ${context}. Failure threshold reached (${this.failureCount}). Entering OPEN state.`);
     }
   }
 
@@ -168,6 +200,13 @@ export class VPSAutonomousOperationService {
         value: state.security.unauthorizedAccessAttempts,
         timestamp: Date.now(),
         isSovereignProtected: true
+      },
+      {
+        id: 'LP_DB_HEALTH',
+        source: 'INFRASTRUCTURE',
+        value: this.globalTruthState.dbConnectivity,
+        timestamp: Date.now(),
+        isSovereignProtected: false
       }
     ];
   }
@@ -193,6 +232,11 @@ export class VPSAutonomousOperationService {
         integrityScore -= 10;
         anomalies.push('COMPUTE_STRESS');
       }
+
+      if (point.id === 'LP_DB_HEALTH' && point.value === 'DISCONNECTED') {
+        integrityScore -= 50;
+        anomalies.push('PERSISTENCE_LOST');
+      }
     }
 
     return { integrityScore, anomalies, recommendedActions };
@@ -204,7 +248,7 @@ export class VPSAutonomousOperationService {
     this.globalTruthState.lastOracleSync = Date.now();
     
     if (this.globalTruthState.systemIntegrity < 50) {
-      Logger.warn('Axiomatic Integrity Failure: System entering self-preservation mode.');
+      Logger.warn('Axiomatic Integrity Critical: Operating in restricted mode.');
     }
   }
 
@@ -287,7 +331,7 @@ export class VPSAutonomousOperationService {
         targetId: svc.id,
         subsystem: SystemSubsystem.SERVICES,
         priority: ActionPriority.CRITICAL,
-        reason: `Service Failure: ${svc.id} - Synced to TruthState`
+        reason: `Service Failure: ${svc.id} - Health Desync`
       }));
   }
 

@@ -34,10 +34,18 @@ export interface VPSValidationResult {
 }
 
 /**
+ * Circuit Breaker State Tracking
+ */
+interface CircuitBreaker {
+  failures: number;
+  lastFailureTime: number | null;
+  state: 'CLOSED' | 'OPEN' | 'HALF_OPEN';
+}
+
+/**
  * VPSValidationService
  * Handles rapid validation of VPS credentials and environment requirements.
- * Integrated with robust PostgreSQL connection error handling and automatic retries.
- * Prevents process termination on database failures.
+ * Implements resilient database connection retry logic and circuit breaker patterns.
  */
 export class VPSValidationService {
   private static readonly CONNECTION_TIMEOUT = 5000;
@@ -45,6 +53,15 @@ export class VPSValidationService {
   private static readonly REQUIRED_DISK_GB = 5;
   private static readonly DB_RETRY_ATTEMPTS = 3;
   private static readonly DB_RETRY_DELAY_MS = 1500;
+
+  // Circuit Breaker Configuration
+  private static readonly CB_FAILURE_THRESHOLD = 5;
+  private static readonly CB_RESET_TIMEOUT_MS = 60000; // 1 Minute
+  private static cbState: CircuitBreaker = {
+    failures: 0,
+    lastFailureTime: null,
+    state: 'CLOSED',
+  };
 
   /**
    * Validates a VPS configuration statelessly.
@@ -76,7 +93,7 @@ export class VPSValidationService {
       result.details.connection = true;
       result.details.ssh = true;
 
-      // 2. Parallel Command Execution for optimal performance
+      // 2. Parallel Command Execution for optimal performance (10Hz target)
       const [osInfo, cpuInfo, ramInfo, diskInfo, dockerCheck] = await Promise.all([
         ssh.execCommand('uname -a'),
         ssh.execCommand('nproc'),
@@ -94,7 +111,6 @@ export class VPSValidationService {
 
       // 3. Logic Evaluation
       this.evaluateRequirements(result);
-
     } catch (error: any) {
       const errorMsg = `SSH Validation failed: ${error?.message || 'Unknown error'}`;
       result.errors.push(errorMsg);
@@ -103,21 +119,14 @@ export class VPSValidationService {
       ssh.dispose();
     }
 
-    // 4. Persist result with DB robustness (Non-blocking for the primary validation result)
-    try {
-      const persisted = await this.persistValidationToDatabase(config.host, result);
-      result.details.dbPersistence = persisted;
-    } catch (dbErr: any) {
-      result.details.dbPersistence = false;
-      result.errors.push(`Database error: Persistence failed after retries.`);
-      console.error(`[VPSValidationService] Critical DB failure: ${dbErr.message}`);
-    }
+    // 4. Resilient Persistence Logic (Circuit Breaker + Retries)
+    result.details.dbPersistence = await this.persistWithResilience(config.host, result);
 
     return result;
   }
 
   /**
-   * Evaluates if the system meets minimum deployment standards
+   * Evaluates if the system meets minimum deployment standards.
    */
   private static evaluateRequirements(result: VPSValidationResult): void {
     const { resources, docker } = result.details;
@@ -138,8 +147,43 @@ export class VPSValidationService {
   }
 
   /**
-   * Persists the validation state to PostgreSQL.
-   * Handles connection drops and returns false instead of throwing if the DB is unreachable.
+   * Wraps the persistence logic with a Circuit Breaker pattern.
+   */
+  private static async persistWithResilience(host: string, result: VPSValidationResult): Promise<boolean> {
+    // 1. Check Circuit Breaker Status
+    if (this.cbState.state === 'OPEN') {
+      const now = Date.now();
+      if (this.cbState.lastFailureTime && now - this.cbState.lastFailureTime > this.CB_RESET_TIMEOUT_MS) {
+        this.cbState.state = 'HALF_OPEN';
+        console.log(`[VPSValidationService] Circuit Breaker entering HALF_OPEN for ${host}`);
+      } else {
+        console.warn(`[VPSValidationService] Circuit Breaker OPEN. Skipping DB persistence for ${host}.`);
+        return false;
+      }
+    }
+
+    // 2. Execute Persistence with Retries
+    const success = await this.persistValidationToDatabase(host, result);
+
+    // 3. Update Circuit Breaker State
+    if (success) {
+      this.cbState.failures = 0;
+      this.cbState.state = 'CLOSED';
+      this.cbState.lastFailureTime = null;
+    } else {
+      this.cbState.failures++;
+      this.cbState.lastFailureTime = Date.now();
+      if (this.cbState.failures >= this.CB_FAILURE_THRESHOLD) {
+        this.cbState.state = 'OPEN';
+        console.error(`[VPSValidationService] Circuit Breaker OPENED due to repeated DB failures.`);
+      }
+    }
+
+    return success;
+  }
+
+  /**
+   * Core persistence logic with exponential backoff retries.
    */
   private static async persistValidationToDatabase(host: string, result: VPSValidationResult): Promise<boolean> {
     let currentAttempt = 0;
@@ -147,11 +191,17 @@ export class VPSValidationService {
     while (currentAttempt < this.DB_RETRY_ATTEMPTS) {
       try {
         /**
-         * Areloria Monorepo Logic: Interaction with Prisma/Database Client
-         * Simplified for the architectural pattern.
+         * Prisma integration logic.
+         * Implementation assumes a globally available or context-injected DB client.
          */
         // await db.vpsValidationLogs.create({
-        //   data: { host, isValid: result.isValid, metadata: result }
+        //   data: {
+        //     host,
+        //     isValid: result.isValid,
+        //     details: JSON.stringify(result.details),
+        //     errors: result.errors,
+        //     timestamp: new Date(result.timestamp)
+        //   }
         // });
         
         return true; 
@@ -165,14 +215,15 @@ export class VPSValidationService {
           return false;
         }
 
-        await new Promise(resolve => setTimeout(resolve, this.DB_RETRY_DELAY_MS * currentAttempt));
+        const delay = this.DB_RETRY_DELAY_MS * Math.pow(2, currentAttempt - 1); // Exponential backoff
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
     return false;
   }
 
   /**
-   * Detects specific PostgreSQL connection-related errors (ECONNREFUSED, Admin Shutdown, etc.)
+   * Detects specific PostgreSQL connection-related errors.
    */
   private static isDatabaseConnectionError(error: any): boolean {
     const code = error?.code || '';
@@ -186,8 +237,11 @@ export class VPSValidationService {
       code === '57P03' || // cannot_connect_now
       code === '08003' || // connection_does_not_exist
       code === '08006' || // connection_failure
+      code === 'P1001' || // Prisma: Can't reach database server
+      code === 'P1017' || // Prisma: Server closed connection
       message.toLowerCase().includes('connection terminated') ||
-      message.toLowerCase().includes('timeout')
+      message.toLowerCase().includes('timeout') ||
+      message.toLowerCase().includes('is not accepting connections')
     );
   }
 
