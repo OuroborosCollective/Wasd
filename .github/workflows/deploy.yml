@@ -120,3 +120,9 @@ jobs:
             pm2 start packages/server/dist/index.js --name areloria --update-env
             
             echo "--- DEPLOYMENT SUCCESSFUL ---"
+
+      - name: Verify Deployment Health
+        run: |
+          echo "Starting Health Check for Areloria WASD..."
+          # Increased timeout and added retries to prevent connection failure (28) on specified IP
+          curl --retry 5 --retry-connrefused --retry-delay 15 --max-time 120 -v http://46.202.154.25 || (echo "Health Check failed after retries" && exit 1)
