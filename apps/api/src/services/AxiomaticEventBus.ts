@@ -10,7 +10,11 @@ export interface IAxiomaticEvent {
   timestamp: number;
   payload: any;
   actorId?: string;
-  metadata?: Record<string, any>;
+  metadata?: {
+    resonance?: number;
+    kappa?: number[];
+    [key: string]: any;
+  };
   version: number;
 }
 
@@ -21,6 +25,8 @@ export interface IAxiomaticEvent {
  */
 export class AREStateCompiler {
   private static readonly KAPPA_CONSTANT = 1024;
+  private static readonly RESONANCE_PRIME = 16807;
+  private static readonly RESONANCE_MAX = 2147483647;
 
   /**
    * Berechnet den Kappa-Vektor für die raumzeitliche Verankerung.
@@ -48,16 +54,31 @@ export class AREStateCompiler {
    * Formel: (l * 16807) % 2147483647
    */
   public static computeResonance(l: number): number {
-    // Sicherstellung, dass l positiv ist für Modulo-Operation
     const seed = Math.abs(Math.floor(l)) || 1;
-    return (seed * 16807) % 2147483647;
+    return (seed * this.RESONANCE_PRIME) % this.RESONANCE_MAX;
+  }
+
+  /**
+   * Berechnet eine deterministische Resonanz-Verschiebung (r) basierend auf dem Event-Inhalt.
+   * Erlaubt die Injektion von Event-Daten in den Resonance-Grid-Zustand.
+   */
+  public static calculateEventResonance(event: IAxiomaticEvent): number {
+    const dataString = `${event.id}:${event.type}:${JSON.stringify(event.payload)}`;
+    let hash = 0;
+    for (let i = 0; i < dataString.length; i++) {
+      const char = dataString.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash |= 0; // Convert to 32bit integer
+    }
+    return this.computeResonance(Math.abs(hash));
   }
 }
 
 /**
  * AxiomaticEventBus
  * Zentraler Event-Hub der Areloria-Architektur. 
- * Implementiert ein Ring-Buffer-Ledger zur hochperformanten Speicherung der Event-Historie.
+ * Implementiert ein Ring-Buffer-Ledger zur hochperformanten Speicherung der Event-Historie
+ * und integriert die Resonance Grid Injection.
  */
 export class AxiomaticEventBus extends EventEmitter {
   private static instance: AxiomaticEventBus;
@@ -66,6 +87,9 @@ export class AxiomaticEventBus extends EventEmitter {
   private eventLedger: (IAxiomaticEvent | null)[];
   private writePointer: number = 0;
   private isFull: boolean = false;
+
+  // Akkumulierter globaler Resonanz-Vektor (Resonance Grid State)
+  private globalResonanceState: number = 0;
 
   private constructor() {
     super();
@@ -81,7 +105,7 @@ export class AxiomaticEventBus extends EventEmitter {
   }
 
   /**
-   * Publiziert ein Event und speichert es im Ring-Buffer Ledger.
+   * Publiziert ein Event, führt die Resonance-Grid-Injektion durch und speichert es im Ledger.
    */
   public publish(event: IAxiomaticEvent): void {
     if (!event.id || !event.type) {
@@ -89,7 +113,24 @@ export class AxiomaticEventBus extends EventEmitter {
       return;
     }
 
-    // Speicherung im Ledger
+    // 1. Resonance Grid Injection: Berechne r (deterministic resonance adjustment)
+    const resonanceAdjustment = AREStateCompiler.calculateEventResonance(event);
+    
+    // 2. Kappa Coordinate Space Mapping (k)
+    // Wir nutzen den Zeitstempel plus die neue Resonanz für die räumliche Verankerung
+    const kappaVector = AREStateCompiler.computeKappa(event.timestamp + resonanceAdjustment);
+    
+    // 3. Update Event Metadata mit k und r
+    event.metadata = {
+      ...(event.metadata || {}),
+      resonance: resonanceAdjustment,
+      kappa: Array.from(kappaVector)
+    };
+
+    // 4. Update Global Resonance State (Grid Accumulator)
+    this.globalResonanceState = (this.globalResonanceState + resonanceAdjustment) % 2147483647;
+
+    // 5. Speicherung im Ledger
     this.eventLedger[this.writePointer] = event;
     
     this.writePointer++;
@@ -98,7 +139,7 @@ export class AxiomaticEventBus extends EventEmitter {
       this.isFull = true;
     }
 
-    // Trigger
+    // 6. Trigger
     this.emit(event.type, event);
     this.emit('*', event);
   }
@@ -125,13 +166,15 @@ export class AxiomaticEventBus extends EventEmitter {
     this.eventLedger = new Array(this.MAX_LEDGER_SIZE).fill(null);
     this.writePointer = 0;
     this.isFull = false;
+    this.globalResonanceState = 0;
   }
 
-  public getLedgerStats(): { size: number; max: number; full: boolean } {
+  public getLedgerStats(): { size: number; max: number; full: boolean; currentResonance: number } {
     return {
       size: this.isFull ? this.MAX_LEDGER_SIZE : this.writePointer,
       max: this.MAX_LEDGER_SIZE,
-      full: this.isFull
+      full: this.isFull,
+      currentResonance: this.globalResonanceState
     };
   }
 }
