@@ -1,4 +1,4 @@
-import { Logger } from '@areloria/utils';
+import { Logger } from '@wasd/utils';
 import { 
   IVPSState, 
   IVPSHealthStatus, 
