@@ -1,7 +1,7 @@
 FROM node:20-alpine AS base
 
 # Install pnpm and corepack
-RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+RUN corepack enable && corepack prepare pnpm@9.12.2 --activate
 
 # Stage 1: Build the application
 FROM base AS builder

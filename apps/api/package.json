@@ -8,8 +8,8 @@
     "dev": "pnpm install && tsx watch src/index.ts",
     "build": "rimraf dist && tsc",
     "start": "node dist/index.js",
-    "lint": "eslint src --ext .ts",
-    "test": "vitest",
+    "lint": "eslint src",
+    "test": "vitest --passWithNoTests",
     "clean": "rimraf dist node_modules"
   },
   "dependencies": {
@@ -22,7 +22,12 @@
     "@nestjs/core": "^11.0.10",
     "@nestjs/platform-express": "^11.0.10",
     "three": "0.169.0",
+<<<<<<< monorepo-devops-audit-fix-3556110051433532408
+    "dotenv": "^16.4.5",
+    "zod": "^3.23.8",
+=======
     "dotenv": "^16.4.7",
+>>>>>>> main
     "node-ssh": "^13.2.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"

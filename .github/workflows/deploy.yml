@@ -47,7 +47,7 @@ jobs:
       - name: Verify Dist Type Module
         run: |
           if [ -d "apps/api/dist" ]; then cat apps/api/dist/package.json || true; fi
-          if [ -d "packages/server/dist" ]; then cat packages/server/dist/package.json || true; fi
+          if [ -d "server/dist" ]; then cat server/dist/package.json || true; fi
 
       - name: Azure Login
         uses: azure/login@v2
@@ -65,7 +65,7 @@ jobs:
           az storage blob upload-batch \
             --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} \
             --destination "cdn-assets" \
-            --source packages/client/dist \
+            --source client/dist \
             --overwrite true \
             --auth-mode key
 
@@ -73,7 +73,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: server-production-build
-          path: packages/server/dist/
+          path: server/dist/
           retention-days: 1
 
   deploy:
@@ -94,7 +94,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           source: "./server-dist/*"
-          target: "${{ secrets.DEPLOY_PATH }}/packages/server/dist"
+          target: "${{ secrets.DEPLOY_PATH }}/server/dist"
           strip_components: 1
 
       - name: SSH Orchestration & PM2 Restart
@@ -112,8 +112,8 @@ jobs:
             git reset --hard origin/main
             
             echo "--- CONFIGURING RUNTIME ENVIRONMENT ---"
-            mkdir -p packages/server/dist
-            echo '{"type": "module"}' > packages/server/dist/package.json
+            mkdir -p server/dist
+            echo '{"type": "module"}' > server/dist/package.json
             
             # Synchronize pnpm version on remote if possible or use existing
             export PNPM_HOME="/home/${{ secrets.SSH_USER }}/.local/share/pnpm"
@@ -123,7 +123,7 @@ jobs:
             
             echo "--- RESTARTING PM2 INSTANCE ---"
             pm2 delete areloria || true
-            pm2 start packages/server/dist/index.js --name areloria --update-env
+            pm2 start server/dist/index.js --name areloria --update-env
             
             echo "--- DEPLOYMENT SUCCESSFUL ---"
 
