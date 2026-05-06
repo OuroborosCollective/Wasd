@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { Server } from 'http';
+import { PrismaClient } from '@prisma/client';
 
 /**
  * ARELORIA WASD - API CORE
@@ -8,6 +9,7 @@ import { Server } from 'http';
  */
 
 const app = express();
+const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
 
 // Resilience Configuration Constants
@@ -47,6 +49,13 @@ class PurityViolationError extends Error {
   }
 }
 
+class DatabaseConnectionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'DatabaseConnectionError';
+  }
+}
+
 /**
  * ARE-LOOP CORE LOGIC (Action-Result-Evaluation)
  * Ensures deterministic AI processing and world state integrity.
@@ -68,10 +77,9 @@ const validatePayload = (payload: AREPayload): boolean => {
 const Brain = {
   process: (payload: AREPayload): any => {
     // Logic processing for Jules Agent Systems
-    const result = {
+    const result: any = {
       evaluated: true,
       actionId: payload.actionId,
-      // stateChange: { health: 100 } // This would trigger a PurityViolationError
     };
 
     // PURITY ENFORCEMENT:
@@ -90,39 +98,34 @@ const Brain = {
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Database Connection Logic
+ * Database Connection Logic with Prisma
  */
 async function connectToDatabase(): Promise<void> {
   console.log(`[SENTINEL] [DATABASE_BOOT] [${new Date().toISOString()}] Validating persistence layer...`);
 
-  const connectionPromise = new Promise<void>((resolve, reject) => {
-    if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
-      return reject(new AuthenticationError('MISSING_CONFIG: DATABASE_URL is not defined in production.'));
-    }
+  if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
+    throw new AuthenticationError('MISSING_CONFIG: DATABASE_URL is not defined in production.');
+  }
 
-    if (process.env.SIMULATE_AUTH_ERROR === 'true') {
-      return reject(new AuthenticationError('AUTH_FAILURE: Invalid credentials.'));
-    }
-
-    if (simulateError) {
-      return setTimeout(() => reject(new DatabaseConnectionError('ECONNREFUSED: Database host unreachable.')), 1200);
-    }
-    
-    setTimeout(() => {
-      console.log(`[SENTINEL] [DATABASE_HANDSHAKE] Handshake completed.`);
-      resolve();
-    }, 500);
-  });
+  const connectionPromise = prisma.$connect();
 
   const timeoutPromise = new Promise<void>((_, reject) =>
-    setTimeout(() => reject(new ConnectionTimeoutError(`DB_TIMEOUT: Threshold exceeded`)), CONNECTION_TIMEOUT_MS)
+    setTimeout(() => reject(new ConnectionTimeoutError(`DB_TIMEOUT: Threshold of ${CONNECTION_TIMEOUT_MS}ms exceeded`)), CONNECTION_TIMEOUT_MS)
   );
 
-  return Promise.race([connectionPromise, timeoutPromise]);
+  try {
+    await Promise.race([connectionPromise, timeoutPromise]);
+    dbConnected = true;
+    console.log(`[SENTINEL] [DATABASE_HANDSHAKE] Handshake completed successfully.`);
+  } catch (error: any) {
+    dbConnected = false;
+    if (error instanceof ConnectionTimeoutError) throw error;
+    throw new DatabaseConnectionError(`ECONNREFUSED: Prisma could not reach database. ${error.message}`);
+  }
 }
 
 /**
- * Redis Connectivity
+ * Redis Connectivity (Stub for future scaling)
  */
 async function connectToRedis(): Promise<void> {
   console.log(`[SENTINEL] [REDIS_BOOT] Validating Redis cluster state...`);
@@ -135,7 +138,7 @@ async function connectToRedis(): Promise<void> {
 }
 
 /**
- * Exponential Backoff Retry Wrapper
+ * Exponential Backoff Retry Wrapper for Database Initialization
  */
 async function initializeWithRetry(): Promise<void> {
   let currentRetry = 0;
@@ -156,6 +159,7 @@ async function initializeWithRetry(): Promise<void> {
       console.error(`[SENTINEL] [DATABASE_ERROR] [ATTEMPT ${currentRetry}/${MAX_RETRIES}] ${errorMessage}`);
 
       if (error instanceof AuthenticationError) {
+        console.error('[SENTINEL] [FATAL] Configuration error detected. Terminating.');
         throw error;
       }
 
@@ -166,6 +170,7 @@ async function initializeWithRetry(): Promise<void> {
       const jitter = Math.random() * 1000; 
       const totalDelay = Math.min(delay + jitter, MAX_BACKOFF_MS);
       
+      console.log(`[SENTINEL] [RETRY_DELAY] Retrying in ${Math.round(totalDelay)}ms...`);
       await sleep(totalDelay);
       delay *= 2; 
     }
@@ -185,8 +190,9 @@ async function initiateRecoveryMode(error: Error) {
 
   try {
     await initializeWithRetry();
-    console.log('[SENTINEL] [RECOVERY_SUCCESS] Restored.');
+    console.log('[SENTINEL] [RECOVERY_SUCCESS] Restored connection to infrastructure.');
   } catch (recoveryError) {
+    console.error('[SENTINEL] [RECOVERY_FAILED] System could not recover. Emergency shutdown.');
     process.exit(1);
   }
 }
@@ -198,12 +204,13 @@ process.on('uncaughtException', (error: Error) => {
   const isTransient = error instanceof ConnectionTimeoutError || 
                       error instanceof DatabaseConnectionError ||
                       error.message.includes('DB_TIMEOUT') || 
-                      error.message.includes('ECONNREFUSED');
+                      error.message.includes('ECONNREFUSED') ||
+                      error.message.includes('Prisma');
 
   if (isTransient) {
     initiateRecoveryMode(error);
   } else {
-    console.error(`[SENTINEL] [FATAL_EXCEPTION] ${error.message}`);
+    console.error(`[SENTINEL] [FATAL_EXCEPTION] ${error.stack || error.message}`);
     process.exit(1);
   }
 });
@@ -228,7 +235,6 @@ app.get('/api/health', (req: Request, res: Response) => {
     db_connected: dbConnected,
     recovery_mode: isRecovering,
     last_error: lastError
-    recovery_mode: isRecovering
   });
 });
 
@@ -237,7 +243,7 @@ app.get('/api/health', (req: Request, res: Response) => {
  * Orchestrates the autonomous world logic.
  */
 function startARELoop() {
-  console.log('[SENTINEL] [ARE-LOOP] Starting world logic tick...');
+  console.log('[SENTINEL] [ARE-LOOP] Starting world logic tick (10Hz)...');
   
   const tick = () => {
     if (isShuttingDown || isRecovering) {
@@ -246,7 +252,7 @@ function startARELoop() {
     }
 
     try {
-      // 1. Action Identification (Mocking dynamic input from buffer)
+      // 1. Action Identification (Mocking dynamic input)
       const mockPayload: AREPayload = {
         actionId: `act_${Date.now()}`,
         timestamp: Date.now(),
@@ -262,7 +268,7 @@ function startARELoop() {
     } catch (error: any) {
       console.error(`[SENTINEL] [ARE-LOOP_ERROR] ${error.message}`);
       if (error instanceof PurityViolationError) {
-        // Halt system on purity violation to prevent corrupting state
+        console.error('[SENTINEL] [INTEGRITY_VIOLATION] Purity check failed. Halting for safety.');
         process.exit(1);
       }
     }
@@ -283,22 +289,35 @@ async function bootstrap() {
 
   try {
     // 1. Mandatory Database Validation with Retry Strategy
-    // This prevents the "database-connection-error" from crashing the CI/CD pipeline immediately
     await initializeWithRetry();
+    
+    // 2. Infrastructure Connectors
     await connectToRedis();
     
+    // 3. Start Server
     const server: Server = app.listen(PORT, () => {
-      console.log(`[SENTINEL] [SERVER_START] Port: ${PORT}`);
+      console.log(`[SENTINEL] [SERVER_START] Listening on Port: ${PORT}`);
       // Start the ARE-Loop after infrastructure is ready
       startARELoop();
     });
 
+    // 4. Graceful Shutdown
     const gracefulShutdown = (signal: string) => {
       if (isShuttingDown) return;
       isShuttingDown = true;
-      console.log(`[SENTINEL] [SHUTDOWN] ${signal} received.`);
-      server.close(() => process.exit(0));
-      setTimeout(() => process.exit(1), 10000);
+      console.log(`[SENTINEL] [SHUTDOWN] ${signal} received. Closing connections...`);
+      
+      server.close(async () => {
+        await prisma.$disconnect();
+        console.log('[SENTINEL] [SHUTDOWN] Prisma disconnected. Process exit.');
+        process.exit(0);
+      });
+
+      // Force kill after timeout
+      setTimeout(() => {
+        console.error('[SENTINEL] [SHUTDOWN] Timeout exceeded. Forced termination.');
+        process.exit(1);
+      }, 10000);
     };
 
     process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
