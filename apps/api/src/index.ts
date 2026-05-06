@@ -5,6 +5,7 @@ import { Server } from 'http';
 /**
  * ARELORIA WASD - API CORE
  * High-performance 3D-RPG-Metaverse Backend
+ * Sentinel Architecture: Resilience & Lifecycle Management
  */
 
 const app = express();
@@ -13,7 +14,19 @@ const PORT = process.env.PORT || 3000;
 // Resilience Configuration
 const MAX_RETRIES = 5;
 const INITIAL_BACKOFF_MS = 1000;
-const CONNECTION_TIMEOUT_MS = 5000;
+const CONNECTION_TIMEOUT_MS = 10000;
+
+/**
+ * Mock Database Pool for Lifecycle Demonstration
+ * In a production environment, this would be an instance of pg.Pool, mongoose.Connection, etc.
+ */
+const dbPool = {
+  isConnected: false,
+  end: async () => {
+    console.log('[SENTINEL] [DATABASE_SHUTDOWN] Terminating active connection pools...');
+    return new Promise((resolve) => setTimeout(resolve, 800));
+  }
+};
 
 /**
  * Custom Error Classes for explicit lifecycle handling
@@ -68,7 +81,10 @@ async function connectToDatabase(): Promise<void> {
     }
     
     // Success simulation
-    setTimeout(() => resolve(), 300);
+    setTimeout(() => {
+      dbPool.isConnected = true;
+      resolve();
+    }, 300);
   });
 
   const timeoutPromise = new Promise<void>((_, reject) =>
@@ -115,7 +131,7 @@ async function initializeWithRetry(): Promise<void> {
 
       // Explicit handling for non-retryable errors
       if (error instanceof AuthenticationError) {
-        console.error('[SENTINEL] [FATAL_AUTH] Authentication failure is terminal. Check environment secrets.');
+        console.error('[SENTINEL] [FATAL_AUTH] Authentication failure is terminal. CI/CD block triggered.');
         throw error;
       }
 
@@ -136,7 +152,6 @@ async function initializeWithRetry(): Promise<void> {
 
 /**
  * GLOBAL PROTECTION MECHANISMS
- * Enhanced logging for CI/CD diagnostics
  */
 process.on('uncaughtException', (error: Error) => {
   console.error('==================================================');
@@ -173,9 +188,44 @@ app.get('/api/health', (req: Request, res: Response) => {
     uptime: Math.floor(process.uptime()),
     version: process.env.npm_package_version || '1.0.0',
     environment: process.env.NODE_ENV || 'development',
+    dbConnected: dbPool.isConnected,
     redis: 'connected'
   });
 });
+
+let server: Server;
+
+/**
+ * Graceful Shutdown Handler
+ */
+const gracefulShutdown = async (signal: string) => {
+  console.log(`\n[SENTINEL] [SHUTDOWN_SIGNAL] ${signal} received. Initiating graceful exit...`);
+  
+  const shutdownTimeout = setTimeout(() => {
+    console.error('[SENTINEL] [SHUTDOWN_TIMEOUT] Forcing termination due to hanging processes.');
+    process.exit(1);
+  }, 10000);
+
+  try {
+    if (server) {
+      await new Promise<void>((resolve) => {
+        server.close(() => {
+          console.log('[SENTINEL] [SERVER_CLOSED] API listener stopped.');
+          resolve();
+        });
+      });
+    }
+
+    await dbPool.end();
+    console.log('[SENTINEL] [CLEAN_EXIT] All network and data resources released.');
+    
+    clearTimeout(shutdownTimeout);
+    process.exit(0);
+  } catch (error) {
+    console.error('[SENTINEL] [SHUTDOWN_ERROR] Failed during cleanup:', error);
+    process.exit(1);
+  }
+};
 
 /**
  * Main Bootstrap Sequence
@@ -188,14 +238,14 @@ async function bootstrap() {
   console.log('--------------------------------------------------');
 
   try {
-    // Step 1: Resilient Database Initialization
+    // Step 1: Resilient Database Initialization with Retry Framework
     await initializeWithRetry();
 
     // Step 2: Redis Layer Validation
     await connectToRedis();
     
     // Step 3: Start API Listener
-    const server: Server = app.listen(PORT, () => {
+    server = app.listen(PORT, () => {
       console.log(`[SENTINEL] [SERVER_START] API listening on port: ${PORT}`);
     });
 
@@ -203,19 +253,7 @@ async function bootstrap() {
       console.error('[SENTINEL] [RUNTIME_SOCKET_ERROR]', error);
     });
 
-    const gracefulShutdown = (signal: string) => {
-      console.log(`[SENTINEL] [SHUTDOWN_SIGNAL] ${signal} received. Closing server...`);
-      server.close(() => {
-        console.log('[SENTINEL] [CLEAN_EXIT] All network connections closed safely.');
-        process.exit(0);
-      });
-      
-      setTimeout(() => {
-        console.error('[SENTINEL] [SHUTDOWN_TIMEOUT] Forcing termination due to hanging connections.');
-        process.exit(1);
-      }, 10000);
-    };
-
+    // Step 4: Signal Registration
     process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
     process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
@@ -227,10 +265,23 @@ async function bootstrap() {
       console.error(`TYPE: ${error.name}`);
       console.error(`MSG: ${error.message}`);
       console.error(`STACK: ${error.stack}`);
+      
+      // Detailed error logging for CI diagnostics
+      if (error instanceof ConnectionTimeoutError) {
+        console.error('[CI_ADVICE] Connectivity issue detected. Check VPC peering or DB firewall.');
+      } else if (error instanceof AuthenticationError) {
+        console.error('[CI_ADVICE] Authentication failed. Refresh environment secrets.');
+      }
     } else {
       console.error(`UNKNOWN_ERROR: ${String(error)}`);
     }
     console.error('##################################################');
+    
+    // Ensure we release any partially opened pools before crashing
+    if (dbPool.isConnected) {
+      await dbPool.end();
+    }
+    
     process.exit(1);
   }
 }
