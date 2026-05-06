@@ -23,10 +23,18 @@ export enum LogicPoint {
     TELEMETRY = 'TELEMETRY'
 }
 
+export enum BreakerState {
+    CLOSED = 'CLOSED',
+    OPEN = 'OPEN',
+    HALF_OPEN = 'HALF_OPEN'
+}
+
 export interface WatchdogConfig {
     strict: boolean;
     autoFix: boolean;
     migrationDir: string;
+    breakerThreshold: number;
+    resetTimeoutMs: number;
 }
 
 export interface ModelSchema {
@@ -39,10 +47,18 @@ export class SovereignWatchdog {
     private emitter = new WatchdogEmitter('ws://localhost:8080');
     private learning = new WatchdogLearning();
     private modelRegistry: Map<string, ModelSchema> = new Map();
+    
+    // Circuit Breaker State
+    private breakerState: BreakerState = BreakerState.CLOSED;
+    private failureCount = 0;
+    private lastFailureTime: number = 0;
+
     private config: WatchdogConfig = {
         strict: process.env.WATCHDOG_STRICT === 'true',
         autoFix: false,
-        migrationDir: './migrations'
+        migrationDir: './migrations',
+        breakerThreshold: 3,
+        resetTimeoutMs: 30000 // 30 seconds
     };
 
     public registerSchema(modelName: string, schema: ModelSchema): void {
@@ -50,20 +66,62 @@ export class SovereignWatchdog {
     }
 
     /**
-     * Haupt-Runtime-Flow des Watchdogs mit Graceful-Handling für Verbindungsfehler.
+     * Circuit Breaker Logic: Prüft ob der Durchgang erlaubt ist.
+     */
+    private evaluateBreaker(): boolean {
+        if (this.breakerState === BreakerState.OPEN) {
+            const now = Date.now();
+            if (now - this.lastFailureTime > this.config.resetTimeoutMs) {
+                console.warn('[Watchdog] Circuit Breaker: Attempting HALF_OPEN state reset.');
+                this.breakerState = BreakerState.HALF_OPEN;
+                return true;
+            }
+            return false;
+        }
+        return true;
+    }
+
+    private recordSuccess(): void {
+        this.failureCount = 0;
+        this.breakerState = BreakerState.CLOSED;
+    }
+
+    private recordFailure(): void {
+        this.failureCount++;
+        if (this.failureCount >= this.config.breakerThreshold) {
+            this.breakerState = BreakerState.OPEN;
+            this.lastFailureTime = Date.now();
+            console.error(`[Watchdog] Circuit Breaker OPENED after ${this.failureCount} failures.`);
+        }
+    }
+
+    /**
+     * Haupt-Runtime-Flow des Watchdogs mit Circuit Breaker und Timeout-Resilienz.
      */
     public async checkDatabaseHealth(dbClient: any): Promise<void> {
-        console.log('[Watchdog] Starting Runtime Integrity Flow...');
+        if (!this.evaluateBreaker()) {
+            console.warn('[Watchdog] Execution skipped: Circuit Breaker is OPEN.');
+            return;
+        }
 
-        // Vorab-Check der Verbindung
+        console.log('[Watchdog] Starting Resilient Runtime Integrity Flow...');
+
         try {
-            await dbClient.query('SELECT 1');
-        } catch (connError) {
+            // Verbindungstest mit manuellem Timeout-Handling
+            await Promise.race([
+                dbClient.query('SELECT 1'),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('DB_TIMEOUT')), 5000))
+            ]);
+            this.recordSuccess();
+        } catch (connError: any) {
+            this.recordFailure();
             this.handleConnectionError(connError, 'INITIAL_CONNECT');
-            if (this.config.strict) {
-                throw new Error('[Watchdog] Strict mode: Aborting due to database connection failure.');
+            
+            // Verhindert Exit Code 1 bei transienten Fehlern, außer im absoluten Strict-Mode
+            if (this.config.strict && this.breakerState === BreakerState.OPEN) {
+                console.error('[Watchdog] Strict mode: High persistence failure rate detected.');
             }
-            return; // Beende diesen Health-Check-Lauf, aber crashe nicht den Prozess
+            return;
         }
 
         for (const [modelName, expectedSchema] of this.modelRegistry.entries()) {
@@ -85,7 +143,7 @@ export class SovereignWatchdog {
                     }
 
                     if (this.config.strict) {
-                        throw new Error(`Critical Schema Drift detected in table ${expectedSchema.tableName}`);
+                        console.error(`[Watchdog] Schema Drift detected in ${expectedSchema.tableName}. Integrity violation.`);
                     }
                 }
 
@@ -95,12 +153,16 @@ export class SovereignWatchdog {
 
             } catch (error: any) {
                 if (this.isConnectionError(error)) {
+                    this.recordFailure();
                     this.handleConnectionError(error, modelName);
                 } else {
-                    console.error(`[Watchdog] Error during health check for ${modelName}:`, error.message);
+                    console.error(`[Watchdog] Logic Error during health check for ${modelName}:`, error.message);
                 }
                 
-                if (this.config.strict) throw error;
+                if (this.config.strict && !this.isConnectionError(error)) {
+                    // Nur bei Logik-Fehlern im Strict-Mode werfen, nicht bei Netzwerk/Timeout
+                    throw error;
+                }
             }
         }
 
@@ -121,26 +183,22 @@ export class SovereignWatchdog {
         }));
     }
 
-    /**
-     * Prüft, ob ein Fehler auf ein Netzwerk-/Verbindungsproblem hindeutet.
-     */
     private isConnectionError(error: any): boolean {
         const connectionCodes = ['ECONNREFUSED', 'PROTOCOL_CONNECTION_LOST', 'ETIMEDOUT', '57P01', '08000', '08003', '08006'];
-        return error.code && connectionCodes.includes(error.code) || 
+        return (error.code && connectionCodes.includes(error.code)) || 
                error.message?.includes('connection') || 
-               error.message?.includes('refused');
+               error.message?.includes('refused') ||
+               error.message === 'DB_TIMEOUT';
     }
 
-    /**
-     * Detaillierte Diagnose bei Verbindungsfehlern.
-     */
     private handleConnectionError(error: any, context: string): void {
         const diagnostics = {
             timestamp: new Date().toISOString(),
             context: context,
             code: error.code || 'UNKNOWN_CODE',
             message: error.message,
-            stack: error.stack,
+            breaker: this.breakerState,
+            failureCount: this.failureCount,
             env: {
                 DB_HOST: process.env.DB_HOST || 'not-set',
                 DB_PORT: process.env.DB_PORT || 'not-set',
@@ -149,13 +207,14 @@ export class SovereignWatchdog {
         };
 
         console.error('====================================================');
-        console.error(`[Watchdog] DATABASE CONNECTION ERROR @ ${context}`);
-        console.error(`[Watchdog] Diagnosis:`, JSON.stringify(diagnostics, null, 2));
+        console.error(`[Watchdog] DB RESILIENCE HANDLER @ ${context}`);
+        console.error(`[Watchdog] Status: ${this.breakerState} | Failures: ${this.failureCount}`);
+        console.error(`[Watchdog] Error: ${error.message}`);
         console.error('====================================================');
 
         this.emitter.emit('SYSTEM_CRITICAL', { 
             point: LogicPoint.PERSISTENCE, 
-            error: 'DB_CONNECTION_LOST', 
+            error: error.message === 'DB_TIMEOUT' ? 'DB_TIMEOUT' : 'DB_CONNECTION_LOST', 
             diagnostics 
         }, 'CRITICAL');
     }

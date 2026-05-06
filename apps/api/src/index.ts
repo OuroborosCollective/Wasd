@@ -14,9 +14,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Resilience Configuration Constants
-const MAX_RETRIES = 10; 
+const MAX_RETRIES = 15; // Increased for heavy CI/CD load
 const INITIAL_BACKOFF_MS = 1000;
-const MAX_BACKOFF_MS = 16000; 
+const MAX_BACKOFF_MS = 30000; // Cap exponential growth at 30s
 const CONNECTION_TIMEOUT_MS = 10000;
 
 /**
@@ -44,7 +44,7 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 /**
  * Core function for database connection initialization.
  * Validates environment and handles connection handshake simulation.
- * In a production scenario, this integrates with Prisma/TypeORM/Mongoose.
+ * In production, replace the setTimeout logic with actual DB client authentication (e.g., Prisma, TypeORM).
  */
 async function connectToDatabase(): Promise<void> {
   console.log(`[SENTINEL] [DATABASE_BOOT] [${new Date().toISOString()}] Initializing connection sequence...`);
@@ -55,19 +55,17 @@ async function connectToDatabase(): Promise<void> {
       return reject(new AuthenticationError('MISSING_CONFIG: DATABASE_URL is not defined in production environment.'));
     }
 
-    // 2. Logic for Connectivity/Auth Errors
-    // These conditions allow the system to simulate or detect transient failures common in containerized pnpm monorepos.
+    // 2. Mock Logic for Connectivity/Auth Errors
     if (process.env.SIMULATE_AUTH_ERROR === 'true') {
       return reject(new AuthenticationError('AUTH_FAILURE: Invalid credentials for database access.'));
     }
 
-    // Simulate connection refused (common during parallel container boot in CI/CD)
+    // Simulate connection refused (common during parallel container boot in CI)
     if (process.env.SIMULATE_DB_BOOTING === 'true' || process.env.SIMULATE_DB_ERROR === 'true') {
       return setTimeout(() => reject(new Error('ECONNREFUSED: Database host unreachable. Dependency might still be booting.')), 500);
     }
     
     // Successful Handshake Simulation
-    // In real implementation: await prisma.$connect() or similar
     setTimeout(() => resolve(), 300);
   });
 
@@ -84,8 +82,8 @@ async function connectToDatabase(): Promise<void> {
 async function connectToRedis(): Promise<void> {
   console.log(`[SENTINEL] [REDIS_BOOT] [${new Date().toISOString()}] Validating Redis cluster state...`);
   
-  // Logic for Redis initialization goes here
   return new Promise((resolve) => {
+    // Mocking Redis connection
     setTimeout(() => {
       console.log(`[SENTINEL] [REDIS_READY] Connection established.`);
       resolve();
@@ -115,19 +113,19 @@ async function initializeWithRetry(): Promise<void> {
       console.error(`[SENTINEL] [DATABASE_ERROR] [ATTEMPT ${currentRetry}/${MAX_RETRIES}]`);
       console.error(`[ERROR_TYPE]: ${errorName} | [DETAILS]: ${errorMessage}`);
 
-      // Terminal failures (Config/Auth) should not be retried to avoid lockouts
+      // Terminal failures (Config/Auth) should not be retried
       if (error instanceof AuthenticationError) {
         console.error('[SENTINEL] [FATAL_AUTH] Authentication failure is terminal. Check environment variables.');
         throw error;
       }
 
-      // Check if this is the last attempt before escalating to a crash
+      // Check if this is the last attempt
       if (currentRetry >= MAX_RETRIES) {
         throw new Error(`CRITICAL: Database connection could not be established after ${MAX_RETRIES} attempts. Dependency is unavailable.`);
       }
 
       // Exponential backoff with jitter to prevent "thundering herd"
-      const jitter = Math.random() * 500; 
+      const jitter = Math.random() * 1000; 
       const totalDelay = Math.min(delay + jitter, MAX_BACKOFF_MS);
       
       console.warn(`[SENTINEL] [RETRY_SCHEDULED] Database likely still booting. Waiting ${Math.round(totalDelay)}ms before next attempt...`);
@@ -141,7 +139,6 @@ async function initializeWithRetry(): Promise<void> {
 
 /**
  * GLOBAL PROCESS PROTECTION
- * Catch-all for unhandled exceptions to ensure diagnostic logging before exit.
  */
 process.on('uncaughtException', (error: Error) => {
   console.error('\n==================================================');
@@ -168,7 +165,7 @@ app.use(cors());
 app.use(express.json());
 
 /**
- * Health Check Endpoint
+ * Health Check Endpoint for Kubernetes/Docker orchestrators
  */
 app.get('/api/health', (req: Request, res: Response) => {
   res.status(200).json({ 
@@ -176,7 +173,8 @@ app.get('/api/health', (req: Request, res: Response) => {
     service: 'areloria-api',
     timestamp: new Date().toISOString(),
     uptime: Math.floor(process.uptime()),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    version: process.env.npm_package_version || '1.0.0'
   });
 });
 
@@ -214,7 +212,6 @@ async function bootstrap() {
         process.exit(0);
       });
       
-      // Safety timeout for force-closing hanging sockets
       setTimeout(() => {
         console.error('[SENTINEL] [SHUTDOWN_TIMEOUT] Graceful shutdown exceeded 10s. Forcing termination.');
         process.exit(1);
