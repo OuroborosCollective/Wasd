@@ -16,8 +16,11 @@
     "node": ">=20.0.0"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.4",
+    "autoprefixer": "^10.5.0",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.4",
+    "tailwindcss": "^4.2.4",
     "typescript": "^5.7.3"
   }
 }
