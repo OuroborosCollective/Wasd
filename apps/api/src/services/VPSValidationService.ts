@@ -70,6 +70,30 @@ export class VPSValidationService {
   private static readonly CB_RESET_TIMEOUT = 30000;
 
   /**
+   * Validiert ein Datenpaket (Payload) auf strukturelle Integrität für die WASD-Engine.
+   * Prüft Int32Array (k) und Float32Array (r).
+   */
+  public static validatePayload(payload: any): { ok: boolean; reason?: string } {
+    if (!payload || typeof payload !== 'object') {
+      return { ok: false, reason: 'Payload must be a non-null object.' };
+    }
+
+    if (!(payload.k instanceof Int32Array)) {
+      return { ok: false, reason: 'Property "k" must be an Int32Array (Key Buffer).' };
+    }
+
+    if (payload.k.length < 3) {
+      return { ok: false, reason: 'Property "k" (Int32Array) must have a minimum length of 3.' };
+    }
+
+    if (!(payload.r instanceof Float32Array)) {
+      return { ok: false, reason: 'Property "r" must be a Float32Array (Rotation/Position Buffer).' };
+    }
+
+    return { ok: true };
+  }
+
+  /**
    * Validates a VPS configuration statelessly.
    * Ensures that even catastrophic failures are caught and returned as a valid result object.
    * Incorporates DB health check and Graceful Degradation to prevent process exit.
