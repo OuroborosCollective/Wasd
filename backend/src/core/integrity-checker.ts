@@ -20,13 +20,22 @@ export enum LogicPoint {
     LOGIC = 'LOGIC',
     REPO = 'REPO',
     DEPLOY = 'DEPLOY',
-    TELEMETRY = 'TELEMETRY'
+    TELEMETRY = 'TELEMETRY',
+    RECONSTRUCTION = 'RECONSTRUCTION'
 }
 
 export enum BreakerState {
     CLOSED = 'CLOSED',
     OPEN = 'OPEN',
     HALF_OPEN = 'HALF_OPEN'
+}
+
+export enum IntegrityCategory {
+    CONNECTION = 'CONNECTION',
+    SCHEMA_DRIFT = 'SCHEMA_DRIFT',
+    CONSTRAINT_VIOLATION = 'CONSTRAINT_VIOLATION',
+    VALIDATION_ERROR = 'VALIDATION_ERROR',
+    INFRASTRUCTURE = 'INFRASTRUCTURE'
 }
 
 export interface WatchdogConfig {
@@ -45,9 +54,11 @@ export interface ModelSchema {
 export interface AuditEntry {
     timestamp: string;
     model: string;
-    status: 'SUCCESS' | 'DRIFT' | 'ERROR' | 'CONNECTION_LOST';
+    status: 'SUCCESS' | 'DRIFT' | 'ERROR' | 'CONNECTION_LOST' | 'VALIDATION_FAILED';
+    category: IntegrityCategory;
     message: string;
     details?: any;
+    isCritical: boolean;
 }
 
 export class SovereignWatchdog {
@@ -57,7 +68,6 @@ export class SovereignWatchdog {
     private modelRegistry: Map<string, ModelSchema> = new Map();
     private auditReport: AuditEntry[] = [];
     
-    // Circuit Breaker State
     private breakerState: BreakerState = BreakerState.CLOSED;
     private failureCount = 0;
     private lastFailureTime: number = 0;
@@ -67,7 +77,7 @@ export class SovereignWatchdog {
         autoFix: false,
         migrationDir: './migrations',
         breakerThreshold: 3,
-        resetTimeoutMs: 30000 // 30 seconds
+        resetTimeoutMs: 30000 
     };
 
     public registerSchema(modelName: string, schema: ModelSchema): void {
@@ -102,24 +112,21 @@ export class SovereignWatchdog {
     }
 
     /**
-     * Haupt-Runtime-Flow des Watchdogs.
-     * DB-Fehler werden gefangen und in den Audit-Report geschrieben.
-     * Verhindert unkontrollierten Prozess-Absturz.
+     * Resilient Integrity Flow. 
+     * Distinguishes between DB connectivity and Schema Validation.
+     * Generates structured data for the StateReconstructionEngine.
      */
     public async checkDatabaseHealth(dbClient: any): Promise<AuditEntry[]> {
-        this.auditReport = []; // Reset for current run
+        this.auditReport = [];
 
         if (!this.evaluateBreaker()) {
             const msg = '[Watchdog] Execution skipped: Circuit Breaker is OPEN.';
-            console.warn(msg);
-            this.addToAudit('GLOBAL', 'CONNECTION_LOST', msg);
+            this.addToAudit('GLOBAL', 'CONNECTION_LOST', IntegrityCategory.INFRASTRUCTURE, msg, { breaker: 'OPEN' }, true);
             return this.auditReport;
         }
 
-        console.log('[Watchdog] Starting Resilient Runtime Integrity Flow...');
-
         try {
-            // Initialer Verbindungstest
+            // Step 1: Connectivity Check
             await Promise.race([
                 dbClient.query('SELECT 1'),
                 new Promise((_, reject) => setTimeout(() => reject(new Error('DB_TIMEOUT')), 5000))
@@ -128,72 +135,100 @@ export class SovereignWatchdog {
         } catch (connError: any) {
             this.recordFailure();
             this.handleConnectionError(connError, 'INITIAL_CONNECT');
-            this.addToAudit('GLOBAL', 'CONNECTION_LOST', `Initial connection failed: ${connError.message}`);
+            this.addToAudit('GLOBAL', 'CONNECTION_LOST', IntegrityCategory.CONNECTION, `Database unavailable: ${connError.message}`, null, true);
             return this.auditReport; 
         }
 
         for (const [modelName, expectedSchema] of this.modelRegistry.entries()) {
             try {
-                // 1. Read DB schema
+                // Step 2: Schema Fetching
                 const actualColumns = await this.fetchActualSchema(dbClient, expectedSchema.tableName);
                 
-                // 2. Compute diff
+                // Step 3: Schema Drift Check
                 const diff = SchemaDiff.compare({ properties: expectedSchema.properties }, { columns: actualColumns });
 
-                // 3. Handle Drift
                 if (diff.additions.length > 0 || diff.removals.length > 0 || diff.changes.length > 0) {
-                    this.emitter.emit('SCHEMA_DRIFT', { tableName: expectedSchema.tableName, diff }, 'HIGH');
-                    
                     const migrationPath = MigrationGenerator.generate(diff, expectedSchema.tableName, this.config.migrationDir);
+                    
+                    this.addToAudit(modelName, 'DRIFT', IntegrityCategory.SCHEMA_DRIFT, 
+                        `Structural mismatch in ${expectedSchema.tableName}. Recon Engine action required.`, 
+                        { diff, migrationPath }, this.config.strict
+                    );
+
                     if (migrationPath) {
                         this.learning.record({ type: 'SCHEMA_DRIFT', payload: { tableName: expectedSchema.tableName, migrationPath } });
                     }
-
-                    this.addToAudit(modelName, 'DRIFT', `Schema drift in ${expectedSchema.tableName}`, { diff, migrationPath });
-                } else {
-                    this.addToAudit(modelName, 'SUCCESS', `Schema integrity verified for ${expectedSchema.tableName}`);
                 }
 
-                // 4. Validate constraints
+                // Step 4: Constraint Integrity Check
                 const actualConstraints = await ConstraintValidator.fetchConstraints(dbClient, expectedSchema.tableName);
-                this.emitter.emit('CONSTRAINT_SNAPSHOT', { tableName: expectedSchema.tableName, constraints: actualConstraints });
+                const constraintStatus = await ConstraintValidator.validate(expectedSchema, actualConstraints);
+                
+                if (!constraintStatus.valid) {
+                    this.addToAudit(modelName, 'VALIDATION_FAILED', IntegrityCategory.CONSTRAINT_VIOLATION,
+                        `Constraint violation detected for ${expectedSchema.tableName}`, 
+                        { missing: constraintStatus.missing, unexpected: constraintStatus.unexpected }, true
+                    );
+                } else {
+                    this.addToAudit(modelName, 'SUCCESS', IntegrityCategory.VALIDATION_ERROR, 
+                        `Integrity verified for ${expectedSchema.tableName}`, null, false
+                    );
+                }
 
             } catch (error: any) {
                 if (this.isConnectionError(error)) {
                     this.recordFailure();
                     this.handleConnectionError(error, modelName);
-                    this.addToAudit(modelName, 'CONNECTION_LOST', `Database connection lost during ${modelName} check: ${error.message}`);
-                    
-                    // Bei Verbindungsabbruch während der Iteration brechen wir die Schleife ab,
-                    // beenden aber nicht den Prozess.
+                    this.addToAudit(modelName, 'CONNECTION_LOST', IntegrityCategory.CONNECTION, 
+                        `Lost connection during verification of ${modelName}: ${error.message}`, null, true
+                    );
                     break;
                 } else {
-                    const errorMsg = `Logic Error during health check for ${modelName}: ${error.message}`;
-                    console.error(`[Watchdog] ${errorMsg}`);
-                    this.addToAudit(modelName, 'ERROR', errorMsg);
-                    
-                    if (this.config.strict) {
-                        console.warn(`[Watchdog] Strict mode active: Logic violation logged for ${modelName}.`);
-                    }
+                    this.addToAudit(modelName, 'ERROR', IntegrityCategory.VALIDATION_ERROR, 
+                        `Internal Logic Error during check for ${modelName}: ${error.message}`, { stack: error.stack }, true
+                    );
                 }
             }
+        }
+
+        this.syncWithStateReconstructionEngine();
+        return this.auditReport;
+    }
+
+    private syncWithStateReconstructionEngine(): void {
+        const criticalIssues = this.auditReport.filter(a => a.isCritical);
+        
+        if (criticalIssues.length > 0) {
+            console.error(`[StateReconstructionEngine] ALERT: Found ${criticalIssues.length} critical integrity violations.`);
+            this.emitter.emit('RECONSTRUCTION_REQUIRED', {
+                timestamp: new Date().toISOString(),
+                issues: criticalIssues,
+                remediation: criticalIssues.map(i => i.category === IntegrityCategory.SCHEMA_DRIFT ? 'RUN_MIGRATIONS' : 'CHECK_DB_NODES')
+            }, 'CRITICAL');
         }
 
         this.emitter.emit('INTEGRITY_SUMMARY', { 
             insights: this.learning.getInsights(),
             auditTrail: this.auditReport 
         });
-
-        return this.auditReport;
     }
 
-    private addToAudit(model: string, status: AuditEntry['status'], message: string, details?: any): void {
+    private addToAudit(
+        model: string, 
+        status: AuditEntry['status'], 
+        category: IntegrityCategory, 
+        message: string, 
+        details: any = null, 
+        isCritical: boolean = false
+    ): void {
         this.auditReport.push({
             timestamp: new Date().toISOString(),
             model,
             status,
+            category,
             message,
-            details
+            details,
+            isCritical
         });
     }
 
@@ -212,7 +247,7 @@ export class SovereignWatchdog {
     }
 
     private isConnectionError(error: any): boolean {
-        const connectionCodes = ['ECONNREFUSED', 'PROTOCOL_CONNECTION_LOST', 'ETIMEDOUT', '57P01', '08000', '08003', '08006', '57P03'];
+        const connectionCodes = ['ECONNREFUSED', 'PROTOCOL_CONNECTION_LOST', 'ETIMEDOUT', '57P01', '08000', '08003', '08006', '57P03', 'ECONNRESET'];
         return (error.code && connectionCodes.includes(error.code)) || 
                error.message?.toLowerCase().includes('connection') || 
                error.message?.toLowerCase().includes('refused') ||
@@ -223,32 +258,26 @@ export class SovereignWatchdog {
         const diagnostics = {
             timestamp: new Date().toISOString(),
             context: context,
-            code: error.code || 'UNKNOWN_CODE',
+            code: error.code || 'INFRA_FAILURE',
             message: error.message,
             breaker: this.breakerState,
             failureCount: this.failureCount,
-            env: {
-                DB_HOST: process.env.DB_HOST || 'not-set',
-                DB_PORT: process.env.DB_PORT || 'not-set',
-                NODE_ENV: process.env.NODE_ENV
-            }
+            scope: 'INFRASTRUCTURE_OFFLINE'
         };
 
         console.error('====================================================');
-        console.error(`[Watchdog] DB RESILIENCE HANDLER @ ${context}`);
-        console.error(`[Watchdog] Status: ${this.breakerState} | Failures: ${this.failureCount}`);
-        console.error(`[Watchdog] Error: ${error.message}`);
+        console.error(`[Watchdog] CRITICAL CONNECTION ERROR @ ${context}`);
+        console.error(`[Watchdog] Code: ${diagnostics.code} | Status: ${this.breakerState}`);
         console.error('====================================================');
 
         this.emitter.emit('SYSTEM_CRITICAL', { 
             point: LogicPoint.PERSISTENCE, 
-            error: error.message === 'DB_TIMEOUT' ? 'DB_TIMEOUT' : 'DB_CONNECTION_LOST', 
+            error: 'DB_CONNECTION_FAILURE', 
             diagnostics 
         }, 'CRITICAL');
     }
 
     public synchronizeAxioms(interfacesPath: string): void {
-        console.log('[Watchdog] Synchronizing TS Interfaces via AST...');
         for (const [modelName, schema] of this.modelRegistry.entries()) {
             const interfacePath = path.join(interfacesPath, `${modelName}.ts`);
             if (fs.existsSync(interfacePath)) {

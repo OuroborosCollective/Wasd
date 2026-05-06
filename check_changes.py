@@ -2,30 +2,48 @@ import os
 import subprocess
 import sys
 
+def log_to_summary(text):
+    """Writes a message to the GITHUB_STEP_SUMMARY file if it exists."""
+    summary_path = os.getenv('GITHUB_STEP_SUMMARY')
+    if summary_path:
+        try:
+            with open(summary_path, 'a', encoding='utf-8') as f:
+                f.write(text + "\n")
+        except Exception as e:
+            print(f"Failed to write to GITHUB_STEP_SUMMARY: {e}")
+
 def run_command(command):
-    """Executes a shell command and catches potential errors to prevent script failure."""
+    """Executes a shell command and returns the output and error code."""
     try:
-        # Use subprocess for better control and error handling
-        result = subprocess.run(command, shell=True, capture_output=True, text=True)
-        if result.returncode != 0:
-            if result.stderr:
-                print(f"Command info: {result.stderr.strip()}")
-        if result.stdout:
-            print(result.stdout.strip())
+        result = subprocess.run(
+            command, 
+            shell=True, 
+            capture_output=True, 
+            text=True, 
+            timeout=15
+        )
+        return result.returncode, result.stdout.strip(), result.stderr.strip()
     except Exception as e:
-        print(f"Execution error: {e}")
+        return 1, "", str(e)
 
 def check_git_diff(file_path):
     """Parses git diff for specific file to verify changes safely."""
     if not os.path.exists(".git"):
+        msg = f"⚠️ Git repository not found for {file_path}. Skipping diff."
+        print(msg)
+        log_to_summary(msg)
         return
+
+    cmd = f"git diff HEAD -- {file_path} | grep '^[+-]' | grep -v '^[+-][+-][+-]' | head -n 10"
+    code, stdout, stderr = run_command(cmd)
     
-    print(f"--- Git Diff Status: {file_path} ---")
-    try:
-        # Check if file has unstaged or staged changes
-        run_command(f"git diff HEAD -- {file_path} | grep '^[+-]' | grep -v '^[+-][+-][+-]' | head -n 10")
-    except Exception as e:
-        print(f"Git parsing error for {file_path}: {e}")
+    log_to_summary(f"### Git Diff: `{file_path}`")
+    if code == 0 and stdout:
+        log_to_summary(f"diff\n{stdout}\n")
+    elif code != 0:
+        log_to_summary(f"> ❌ Git Error: {stderr}")
+    else:
+        log_to_summary("> No changes detected in HEAD for this file.")
 
 def main():
     files = [
@@ -37,38 +55,55 @@ def main():
         'server/src/modules/world/WorldObjectSystem.ts'
     ]
 
+    log_to_summary("## 🔍 Areloria WASD - Change Validation Report")
+
     for f in files:
         print(f"\n[CHECKING FILE]: {f}")
         
-        try:
-            if os.path.exists(f):
-                # Git Diff Parsing Integration
-                check_git_diff(f)
-                
-                print(f"--- Content Analysis: {f} ---")
-                if 'client/index.html' == f:
-                    run_command(f"grep -C 2 'posthog' {f}")
-                elif 'client/src/main.ts' == f:
-                    run_command(f"grep -C 2 'posthog.identify' {f}")
-                elif 'client/src/networking/websocketClient.ts' == f:
-                    run_command(f"grep -C 2 'zone_entered' {f}")
-                elif 'client/src/ai/watchdogTelemetry.ts' == f:
-                    run_command(f"grep -C 2 'watchdog_log' {f}")
-                elif 'server/src/core/WorldTick.ts' == f:
-                    run_command(f"grep -n 'broadcastState' {f}")
-                    # Safe sed execution with line range
-                    run_command(f"sed -n '3430,3450p' {f}")
-                elif 'server/src/modules/world/WorldObjectSystem.ts' == f:
-                    run_command(f"grep -n 'getObjectsMap' {f}")
-            else:
-                print(f"Warning: File {f} not found on disk.")
-        except IOError as io_err:
-            print(f"I/O Error processing {f}: {io_err}")
-        except Exception as e:
-            print(f"Unexpected error processing {f}: {e}")
+        if not os.path.exists(f):
+            msg = f"⚠️ **Warning**: File `{f}` not found on disk."
+            print(msg)
+            log_to_summary(msg)
+            continue
 
+        try:
+            # Check Git History
+            check_git_diff(f)
+            
+            # Content Analysis
+            log_to_summary(f"#### Content Analysis: `{f}`")
+            cmd = ""
+            
+            if 'client/index.html' == f:
+                cmd = f"grep -C 2 'posthog' {f}"
+            elif 'client/src/main.ts' == f:
+                cmd = f"grep -C 2 'posthog.identify' {f}"
+            elif 'client/src/networking/websocketClient.ts' == f:
+                cmd = f"grep -C 2 'zone_entered' {f}"
+            elif 'client/src/ai/watchdogTelemetry.ts' == f:
+                cmd = f"grep -C 2 'watchdog_log' {f}"
+            elif 'server/src/core/WorldTick.ts' == f:
+                # Combining line check and snippet extraction
+                cmd = f"grep -n 'broadcastState' {f} && sed -n '3430,3450p' {f}"
+            elif 'server/src/modules/world/WorldObjectSystem.ts' == f:
+                cmd = f"grep -n 'getObjectsMap' {f}"
+
+            if cmd:
+                code, stdout, stderr = run_command(cmd)
+                if code == 0 and stdout:
+                    log_to_summary(f"typescript\n{stdout}\n")
+                elif code != 0:
+                    log_to_summary(f"> ⚠️ Search failed or no matches found in `{f}`.")
+            
+        except Exception as e:
+            error_msg = f"❌ Unexpected error processing `{f}`: {str(e)}"
+            print(error_msg)
+            log_to_summary(error_msg)
+
+    log_to_summary("\n---\n**Validation Complete.** All checks were executed safely.")
     print("\n[FINISH]: All checks completed successfully.")
-    # Ensure robust exit code 0 regardless of minor command failures
+    
+    # Force exit 0 to prevent CI pipeline breakage on non-critical diff/grep failures
     sys.exit(0)
 
 if __name__ == "__main__":

@@ -21,6 +21,7 @@ const ARE_LOOP_TICK_MS = 100; // 10Hz Logic Loop for AI/World State
 let isRecovering = false;
 let lastError: string | null = null;
 let isShuttingDown = false;
+let dbConnected = false;
 
 /**
  * Custom Error Classes
@@ -92,19 +93,19 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
  * Database Connection Logic
  */
 async function connectToDatabase(): Promise<void> {
-  console.log(`[SENTINEL] [DATABASE_BOOT] [${new Date().toISOString()}] Initializing connection sequence...`);
+  console.log(`[SENTINEL] [DATABASE_BOOT] [${new Date().toISOString()}] Validating persistence layer...`);
 
   const connectionPromise = new Promise<void>((resolve, reject) => {
     if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
-      return reject(new AuthenticationError('MISSING_CONFIG: DATABASE_URL is not defined in production environment.'));
+      return reject(new AuthenticationError('MISSING_CONFIG: DATABASE_URL is not defined in production.'));
     }
 
     if (process.env.SIMULATE_AUTH_ERROR === 'true') {
       return reject(new AuthenticationError('AUTH_FAILURE: Invalid credentials.'));
     }
 
-    if (process.env.SIMULATE_DB_BOOTING === 'true' || process.env.SIMULATE_DB_ERROR === 'true') {
-      return setTimeout(() => reject(new Error('ECONNREFUSED: Database host unreachable.')), 1000);
+    if (simulateError) {
+      return setTimeout(() => reject(new DatabaseConnectionError('ECONNREFUSED: Database host unreachable.')), 1200);
     }
     
     setTimeout(() => {
@@ -127,7 +128,7 @@ async function connectToRedis(): Promise<void> {
   console.log(`[SENTINEL] [REDIS_BOOT] Validating Redis cluster state...`);
   return new Promise((resolve) => {
     setTimeout(() => {
-      console.log(`[SENTINEL] [REDIS_READY] Connection established.`);
+      console.log(`[SENTINEL] [REDIS_READY] Redis synchronization complete.`);
       resolve();
     }, 200);
   });
@@ -178,6 +179,7 @@ async function initiateRecoveryMode(error: Error) {
   if (isRecovering || isShuttingDown) return;
   
   isRecovering = true;
+  dbConnected = false;
   lastError = error.message;
   console.error('[SENTINEL] [RECOVERY_MODE] Initiating circuit-breaker...');
 
@@ -194,6 +196,7 @@ async function initiateRecoveryMode(error: Error) {
  */
 process.on('uncaughtException', (error: Error) => {
   const isTransient = error instanceof ConnectionTimeoutError || 
+                      error instanceof DatabaseConnectionError ||
                       error.message.includes('DB_TIMEOUT') || 
                       error.message.includes('ECONNREFUSED');
 
@@ -216,11 +219,15 @@ app.use(express.json());
 
 // Health Check
 app.get('/api/health', (req: Request, res: Response) => {
-  const status = isRecovering ? 'recovering' : 'healthy';
-  res.status(isRecovering ? 503 : 200).json({ 
-    status,
+  const isHealthy = dbConnected && !isRecovering;
+  res.status(isHealthy ? 200 : 503).json({ 
+    status: isHealthy ? 'healthy' : (isRecovering ? 'recovering' : 'unhealthy'),
     service: 'areloria-api',
     uptime: Math.floor(process.uptime()),
+    environment: process.env.NODE_ENV || 'development',
+    db_connected: dbConnected,
+    recovery_mode: isRecovering,
+    last_error: lastError
     recovery_mode: isRecovering
   });
 });
@@ -275,6 +282,8 @@ async function bootstrap() {
   console.log('--------------------------------------------------');
 
   try {
+    // 1. Mandatory Database Validation with Retry Strategy
+    // This prevents the "database-connection-error" from crashing the CI/CD pipeline immediately
     await initializeWithRetry();
     await connectToRedis();
     
