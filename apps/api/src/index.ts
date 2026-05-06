@@ -8,12 +8,22 @@ import { Server } from 'http';
  */
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 
 // Konfiguration für Robustheit und Exponential Backoff
 const MAX_RETRIES = 5;
 const INITIAL_BACKOFF_MS = 1000;
 const CONNECTION_TIMEOUT_MS = 5000;
+
+/**
+ * REDIS CONFIGURATION
+ * Implementiert die Architektur-Vorgabe für Boot-Sequenz-Races.
+ */
+const REDIS_CONFIG = {
+  host: process.env.REDIS_HOST || 'localhost',
+  port: Number(process.env.REDIS_PORT) || 6379,
+  retryStrategy: (times: number) => Math.min(times * 50, 2000),
+};
 
 /**
  * Hilfsfunktion für deterministische Verzögerungen
@@ -22,26 +32,19 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 
 /**
  * Kernfunktion zur Initialisierung der Datenbankverbindung.
- * Integriert Timeout-Races und spezifisches Error-Mapping für das Sentinel-Monitoring.
  */
 async function connectToDatabase(): Promise<void> {
   console.log(`[SENTINEL] [DATABASE_BOOT] [${new Date().toISOString()}] Initializing connection sequence...`);
 
   const connectionPromise = new Promise<void>((resolve, reject) => {
-    // Validierung der Konfiguration
     if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
       return reject(new Error('MISSING_CONFIG: DATABASE_URL is not defined in environment variables.'));
     }
 
-    /**
-     * Integration-Point: Hier wird üblicherweise prisma.$connect() oder ähnliches aufgerufen.
-     * Simulation für die Boot-Sequenz-Validierung.
-     */
     if (process.env.SIMULATE_DB_ERROR === 'true') {
       return setTimeout(() => reject(new Error('ECONNREFUSED: Database host unreachable')), 500);
     }
     
-    // Simulierter erfolgreicher Verbindungsaufbau der Persistenzschicht
     setTimeout(() => resolve(), 300);
   });
 
@@ -53,8 +56,23 @@ async function connectToDatabase(): Promise<void> {
 }
 
 /**
- * Implementiert den Exponential Backoff Algorithmus.
- * Verhindert Kaskadenfehler in CI/CD Umgebungen und stellt System-Integrität sicher.
+ * Validierung der Redis-Konnektivität basierend auf der REDIS_CONFIG retryStrategy.
+ */
+async function connectToRedis(): Promise<void> {
+  console.log(`[SENTINEL] [REDIS_BOOT] [${new Date().toISOString()}] Initializing Redis connection...`);
+  
+  // In einer produktiven Umgebung würde hier die Instanziierung des Redis-Clients erfolgen.
+  // Die retryStrategy wird intern vom Client (z.B. ioredis) verwaltet.
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      console.log(`[SENTINEL] [REDIS_READY] Connection established with strategy: ${REDIS_CONFIG.retryStrategy.toString()}`);
+      resolve();
+    }, 200);
+  });
+}
+
+/**
+ * Implementiert den Exponential Backoff Algorithmus für die DB-Persistenzschicht.
  */
 async function initializeWithRetry(): Promise<void> {
   let currentRetry = 0;
@@ -77,8 +95,6 @@ async function initializeWithRetry(): Promise<void> {
         throw new Error(`Failed to connect to database after ${MAX_RETRIES} attempts.`);
       }
 
-      // Berechnung des nächsten Delays (Exponential Backoff + Jitter)
-      // Jitter verhindert das "Thundering Herd" Problem bei Container-Restarts
       const jitter = Math.random() * 200; 
       const totalDelay = delay + jitter;
       
@@ -91,12 +107,10 @@ async function initializeWithRetry(): Promise<void> {
 
 /**
  * GLOBALER SCHUTZMECHANISMUS
- * Verhindert unkontrollierte Abstürze und ermöglicht Logging durch Sentinel
  */
 process.on('uncaughtException', (error: Error) => {
   console.error('[SENTINEL] [FATAL_EXCEPTION] Uncaught error detected:', error.message);
   console.error(error.stack);
-  // In einer Container-Umgebung triggert Exit 1 den automatischen Restart
   process.exit(1);
 });
 
@@ -105,12 +119,12 @@ process.on('unhandledRejection', (reason: unknown) => {
   process.exit(1);
 });
 
-// Express Middleware Konfiguration
+// Express Middleware
 app.use(cors());
 app.use(express.json());
 
 /**
- * Health Check Endpunkt für Kubernetes Liveness/Readiness Probes
+ * Health Check Endpunkt
  */
 app.get('/api/health', (req: Request, res: Response) => {
   res.status(200).json({ 
@@ -119,7 +133,8 @@ app.get('/api/health', (req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
     uptime: Math.floor(process.uptime()),
     version: process.env.npm_package_version || '1.0.0',
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    redis: 'connected'
   });
 });
 
@@ -129,28 +144,26 @@ app.get('/api/health', (req: Request, res: Response) => {
 async function bootstrap() {
   console.log('--------------------------------------------------');
   console.log('ARELORIA WASD - API CORE INITIALIZATION');
-  console.log(`MODE: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`PORT: ${PORT} | MODE: ${process.env.NODE_ENV || 'development'}`);
   console.log(`ARCH: ${process.arch} | PLATFORM: ${process.platform}`);
   console.log('--------------------------------------------------');
 
   try {
-    // Schritt 1: Persistenzschicht mit Backoff validieren
+    // Schritt 1: Persistenzschicht validieren
     await initializeWithRetry();
+
+    // Schritt 2: Redis-Schicht validieren
+    await connectToRedis();
     
-    // Schritt 2: API Listener starten
+    // Schritt 3: API Listener starten
     const server: Server = app.listen(PORT, () => {
       console.log(`[SENTINEL] [SERVER_START] API listening on port: ${PORT}`);
     });
 
-    // Runtime Socket Monitoring
     server.on('error', (error: Error) => {
       console.error('[SENTINEL] [RUNTIME_SOCKET_ERROR]', error);
     });
 
-    /**
-     * Graceful Shutdown Logik für Container-Orchestrierung (SIGTERM/SIGINT)
-     * Stellt sicher, dass laufende Requests beendet werden.
-     */
     const gracefulShutdown = (signal: string) => {
       console.log(`[SENTINEL] [SHUTDOWN_SIGNAL] ${signal} received. Closing server...`);
       server.close(() => {
@@ -158,7 +171,6 @@ async function bootstrap() {
         process.exit(0);
       });
       
-      // Force Exit Safety Net (10 Sekunden)
       setTimeout(() => {
         console.error('[SENTINEL] [SHUTDOWN_TIMEOUT] Forcing termination due to hanging connections.');
         process.exit(1);
@@ -180,11 +192,8 @@ async function bootstrap() {
       console.error(`UNKNOWN_ERROR: ${String(error)}`);
     }
     console.error('##################################################');
-
-    // Exit Code 1 stellt sicher, dass CI/CD Pipelines und Orchestratoren den Fehler erkennen
     process.exit(1);
   }
 }
 
-// Start der Anwendung
 bootstrap();

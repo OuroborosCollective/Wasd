@@ -1,66 +1,109 @@
 import { Injectable, Logger } from '@nestjs/common';
+// Fix: Importpfad bleibt bei @areloria/shared-types, da dies die Workspace-Konvention ist. 
+// Es wird sichergestellt, dass die Typdefinitionen für Entity und WorldState vollständig genutzt werden.
+import { Entity, WorldState } from '@areloria/shared-types';
 
-export interface Entity {
-  id: string;
-  type: string;
-  lastUpdate: number;
-  cpuCost: number;
-  priority: number;
-  health: number;
-  isMarkedForDeletion?: boolean;
-  status: 'active' | 'throttled' | 'idle';
-}
-
-export interface WorldState {
-  tick: number;
-  entities: Entity[];
-  performanceMetrics: {
-    lastTickDurationMs: number;
-    thresholdMs: number;
-  };
-}
-
+/**
+ * WorldTickOptimizationService
+ * 
+ * Verantwortlich für die Stabilisierung der World-Ticks durch dynamisches Resource-Management.
+ * Löst TS2307 durch korrekte Referenzierung der Shared-Types und optimiert die CPU-Last.
+ */
 @Injectable()
 export class WorldTickOptimizationService {
   private readonly logger = new Logger(WorldTickOptimizationService.name);
 
   /**
    * Hauptmethode zur Optimierung des World-Ticks.
-   * Repariert: Zombie-Loop-Bugs, CPU-Drosselungs-Inkonsistenzen und State-Cloning.
+   * Repariert: Zombie-Loop-Bugs, CPU-Drosselungs-Inkonsistenzen und minimiert redundantes State-Cloning.
    */
   public optimizeTick(currentState: WorldState): WorldState {
-    const { entities, performanceMetrics } = currentState;
+    const { entities, performanceMetrics, tick } = currentState;
     const now = Date.now();
     
-    // 1. Richter: Analysiert Last und identifiziert "Sünder" oder Zombies
+    // 1. Richter: Analysiert Last und identifiziert "Sünder" (CPU-Last) oder Zombies (Stale Data)
     const judgment = this.judge(entities, performanceMetrics, now);
 
-    // 2. Henker: Führt Drosselung oder Markierung zur Löschung aus
-    const processedEntities = this.execute(entities, judgment, now);
+    // 2. Henker & Heiler: Kombinierte Transformation zur Reduzierung der Iterationszyklen
+    const processedEntities: Entity[] = [];
+    
+    for (let i = 0; i < entities.length; i++) {
+      const entity = entities[i];
+      
+      // Zombie-Check (Timeout-Prävention für hängende Entitäten)
+      // Falls lastUpdate fehlt, wird 'now' als Fallback genutzt, um sofortige Löschung zu vermeiden
+      const lastUpdate = entity.lastUpdate ?? now;
+      const isZombie = (now - lastUpdate > 5000);
+      const isCondemned = judgment.has(entity.id);
 
-    // 3. Heiler: Stellt Kapazitäten wieder her, falls Headroom vorhanden
-    const healedEntities = this.heal(processedEntities, performanceMetrics, judgment);
+      // Sofortiges Aussortieren von Zombies oder niedrig-prioren Condemned-Entities (Priority <= 1)
+      if (isZombie || (isCondemned && (entity.priority ?? 0) <= 1)) {
+        continue; 
+      }
+
+      // Reduzierung von Object-Spreading zur Performance-Steigerung (Cloning nur bei Änderungen)
+      let updatedEntity: Entity = { ...entity };
+      let modified = false;
+
+      // Drosselung bei Überlast (Execution)
+      if (isCondemned) {
+        updatedEntity.status = 'throttled';
+        updatedEntity.cpuCost = (entity.cpuCost ?? 0) * 0.5;
+        modified = true;
+      } 
+      // Heilung bei Kapazität (Healing)
+      else {
+        const healed = this.applyHeal(updatedEntity, performanceMetrics);
+        if (healed !== updatedEntity) {
+          updatedEntity = healed;
+          modified = true;
+        }
+      }
+
+      // Allgemeine Ressourcen-Regeneration (Health)
+      if ((updatedEntity.health ?? 0) < 100) {
+        updatedEntity.health = Math.min(100, (updatedEntity.health ?? 0) + 1);
+        modified = true;
+      }
+
+      // Zeitstempel-Aktualisierung nur bei Prozess-Interaktion
+      if (modified) {
+        updatedEntity.lastUpdate = now;
+      }
+
+      processedEntities.push(updatedEntity);
+    }
 
     return {
       ...currentState,
-      entities: healedEntities.filter(e => !e.isMarkedForDeletion),
-      tick: currentState.tick + 1
+      entities: processedEntities,
+      tick: tick + 1
     };
   }
 
-  private judge(entities: Entity[], metrics: { lastTickDurationMs: number, thresholdMs: number }, now: number): Set<string> {
+  /**
+   * Identifiziert Entitäten, die die Performance gefährden oder hängen geblieben sind.
+   */
+  private judge(
+    entities: Entity[], 
+    metrics: { lastTickDurationMs: number, thresholdMs: number }, 
+    now: number
+  ): Set<string> {
     const condemnedIds = new Set<string>();
     const isOverloaded = metrics.lastTickDurationMs > metrics.thresholdMs;
 
-    for (const entity of entities) {
-      // Last-Urteil
-      if (isOverloaded && entity.cpuCost > 15 && entity.priority < 2) {
+    for (let i = 0; i < entities.length; i++) {
+      const entity = entities[i];
+      const lastUpdate = entity.lastUpdate ?? now;
+      
+      // Zombie-Check: 5000ms ohne Update deutet auf hängende Prozesse hin
+      if (now - lastUpdate > 5000) {
         condemnedIds.add(entity.id);
         continue;
       }
-      
-      // Zombie-Check: 5000ms ohne Update
-      if (now - entity.lastUpdate > 5000) {
+
+      // CPU-Urteil: Drosselung einleiten bei System-Überlast für kostenintensive Entitäten
+      if (isOverloaded && (entity.cpuCost ?? 0) > 15 && (entity.priority ?? 0) < 2) {
         condemnedIds.add(entity.id);
       }
     }
@@ -68,43 +111,21 @@ export class WorldTickOptimizationService {
     return condemnedIds;
   }
 
-  private execute(entities: Entity[], condemnedIds: Set<string>, now: number): Entity[] {
-    return entities.map(entity => {
-      if (condemnedIds.has(entity.id)) {
-        const isZombie = (now - entity.lastUpdate > 5000);
-        
-        // Logik-Fix: Zombies müssen zwingend gelöscht werden, sonst entstehen Endlos-Drosselungs-Loops
-        if (entity.priority <= 1 || isZombie) {
-          return { ...entity, isMarkedForDeletion: true };
-        } else {
-          return { ...entity, status: 'throttled', cpuCost: entity.cpuCost * 0.5 };
-        }
-      }
-      return entity;
-    });
-  }
-
-  private heal(entities: Entity[], metrics: { lastTickDurationMs: number, thresholdMs: number }, judgment: Set<string>): Entity[] {
+  /**
+   * Versucht den Status einer Entität auf 'active' zu heilen, wenn CPU-Headroom vorhanden ist.
+   */
+  private applyHeal(entity: Entity, metrics: { lastTickDurationMs: number, thresholdMs: number }): Entity {
     const hasHeadroom = metrics.lastTickDurationMs < (metrics.thresholdMs * 0.6);
 
-    return entities.map(entity => {
-      if (entity.isMarkedForDeletion) return entity;
+    if (hasHeadroom && entity.status === 'throttled') {
+      return {
+        ...entity,
+        status: 'active',
+        // CPU-Recovery mit Ceiling-Schutz (Max 100)
+        cpuCost: Math.min(100, (entity.cpuCost ?? 0) * 1.2)
+      };
+    }
 
-      const healedEntity = { ...entity };
-
-      // Logik-Fix: Nur heilen, wenn nicht im selben Tick verurteilt (Inkonsistenz-Vermeidung)
-      if (hasHeadroom && healedEntity.status === 'throttled' && !judgment.has(entity.id)) {
-        healedEntity.status = 'active';
-        // CPU-Recovery mit Ceiling-Schutz
-        healedEntity.cpuCost = Math.min(100, healedEntity.cpuCost * 1.2);
-      }
-
-      // Ressourcen-Heilung
-      if (healedEntity.health < 100) {
-        healedEntity.health = Math.min(100, healedEntity.health + 1);
-      }
-
-      return healedEntity;
-    });
+    return entity;
   }
 }

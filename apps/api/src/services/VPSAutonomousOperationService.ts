@@ -1,4 +1,4 @@
-import { Logger } from '../../../../packages/utils/src';
+import { Logger } from '@wasd/utils';
 import { 
   IVPSState, 
   IVPSHealthStatus, 
@@ -14,6 +14,7 @@ export interface IGitMetadata {
   message: string;
   timestamp: string;
   branch: string;
+  isAutomated?: boolean; // Permissive flag for Jules
 }
 
 export interface INarrativeLog {
@@ -21,7 +22,7 @@ export interface INarrativeLog {
   timestamp: number;
   origin: string;
   content: string;
-  severity: 'INFO' | 'EVOLUTION' | 'REPAIR' | 'CRITICAL';
+  severity: 'INFO' | 'EVOLUTION' | 'REPAIR' | 'CRITICAL' | 'AUTONOMOUS_FIX';
 }
 
 export interface ILogicPoint {
@@ -38,6 +39,7 @@ export interface IGlobalTruthState {
   activeAnomalies: string[];
   sovereignClearance: boolean;
   dbConnectivity: 'CONNECTED' | 'DISCONNECTED' | 'DEGRADED';
+  julesActiveFixes: number;
 }
 
 enum CircuitState {
@@ -49,19 +51,14 @@ enum CircuitState {
 /**
  * VPSAutonomousOperationService
  * 
- * Orchestrates the closed information loop: 
- * LogicPoints -> AxiomaticOracle -> globalTruthState -> Autonomous Action
- * Integrated with Circuit Breaker for DB/External stability.
- * 
- * REFACTOR: Enhanced resilience against DB connection drops and transient I/O failures.
- * Isolated execution blocks ensure the service runner stays active even during CI/CD infrastructure gaps.
+ * Orchestrates the closed information loop for Areloria WASD infrastructure.
+ * Integrates 'Jules' as the primary automated repository bug-fixer.
  */
 export class VPSAutonomousOperationService {
   private static readonly CRITICAL_CPU_THRESHOLD = 90;
   private static readonly CRITICAL_RAM_THRESHOLD = 85;
   private static readonly DISK_RECOVERY_THRESHOLD = 95;
 
-  // Circuit Breaker Config
   private static circuitState: CircuitState = CircuitState.CLOSED;
   private static lastFailureTime: number = 0;
   private static failureCount: number = 0;
@@ -73,28 +70,26 @@ export class VPSAutonomousOperationService {
     lastOracleSync: Date.now(),
     activeAnomalies: [],
     sovereignClearance: false,
-    dbConnectivity: 'CONNECTED'
+    dbConnectivity: 'CONNECTED',
+    julesActiveFixes: 0
   };
 
   /**
-   * Main entry point for the 10Hz control loop.
-   * Uses isolated try-catch blocks to prevent infrastructure failures (DB/API) 
-   * from terminating the autonomous core logic.
+   * Main 10Hz Control Loop.
+   * Processes telemetric logic points and executes autonomous architecture adjustments.
    */
   public static async tick(currentState: IVPSState): Promise<IAutonomousAction[]> {
     const actions: IAutonomousAction[] = [];
     
-    // 1. Data Ingestion (Always safe, memory-bound)
     const logicPoints = this.generateLogicPoints(currentState);
 
-    // 2. Oracle Evaluation (DB/External-sensitive)
     try {
+      // Oracle Consultation (Resilience via Circuit Breaker)
       const evaluation = await this.executeWithCircuitBreaker(
         () => this.consultAxiomaticOracle(logicPoints),
         'ORACLE_EVAL'
       );
 
-      // 3. Update Global Truth State (Potentially DB-bound)
       await this.executeWithCircuitBreaker(
         async () => this.updateGlobalTruth(evaluation),
         'STATE_UPDATE'
@@ -108,13 +103,11 @@ export class VPSAutonomousOperationService {
       }
     }
 
-    // 4. Autonomous Logic (Infrastructure-independent diagnostics)
     try {
       actions.push(...this.evaluateResources(currentState));
       actions.push(...this.evaluateServiceContinuity(await this.verifySystemIntegrity(currentState)));
       actions.push(...this.evaluateSecurityPerimeter(currentState));
 
-      // 5. Handle DB-specific recovery if disconnected
       if (this.globalTruthState.dbConnectivity !== 'CONNECTED') {
         actions.push({
           type: 'REESTABLISH_PERSISTENCE' as any,
@@ -124,7 +117,7 @@ export class VPSAutonomousOperationService {
         });
       }
     } catch (criticalError: any) {
-      Logger.error('Critical failure in autonomous logic evaluation:', criticalError.message);
+      Logger.error('[Autonomous] Core logic evaluation failure:', criticalError.message);
       return [{
         type: 'STABILIZE_CORE' as any,
         subsystem: SystemSubsystem.KERNEL,
@@ -134,6 +127,46 @@ export class VPSAutonomousOperationService {
     }
 
     return this.prioritizeActions(actions);
+  }
+
+  /**
+   * processGitLore
+   * Recognizes 'Jules' as the specialized bug-fixer and assigns appropriate logic
+   * to metadata fields for headless automated fixes.
+   */
+  public static processGitLore(commits: IGitMetadata[]): INarrativeLog[] {
+    return commits.map((commit): INarrativeLog => {
+      const msg = commit.message.toLowerCase();
+      const author = commit.author.toLowerCase();
+      let content = '';
+      let severity: INarrativeLog['severity'] = 'INFO';
+
+      // Explicit Check for Jules (Automated Bug-Fixer)
+      const isJules = author.includes('jules') || commit.isAutomated === true;
+
+      if (isJules) {
+        severity = 'AUTONOMOUS_FIX';
+        content = `[JULES_AUTO_FIX] Repository integrity restored: ${commit.message}`;
+        this.globalTruthState.julesActiveFixes++;
+      } else if (msg.startsWith('feat')) {
+        content = `Architect ${commit.author} integrated new neural pathways: ${commit.message}`;
+        severity = 'EVOLUTION';
+      } else if (msg.startsWith('fix')) {
+        content = `Internal repair initiated by ${commit.author}: ${commit.message}`;
+        severity = 'REPAIR';
+      } else {
+        content = `System chronicle update: ${commit.message} (Authored by ${commit.author})`;
+        severity = 'INFO';
+      }
+
+      return {
+        sequenceId: commit.hash.substring(0, 8),
+        timestamp: new Date(commit.timestamp).getTime(),
+        origin: `GIT_REF_${commit.branch.toUpperCase()}`,
+        content,
+        severity
+      };
+    });
   }
 
   private static logInfrastructureError(error: any, context: string): void {
@@ -161,11 +194,9 @@ export class VPSAutonomousOperationService {
 
     try {
       const result = await action();
-      
       if (this.circuitState === CircuitState.HALF_OPEN) {
         this.resetCircuit();
       }
-      
       this.globalTruthState.dbConnectivity = 'CONNECTED';
       return result;
     } catch (error: any) {
@@ -185,7 +216,7 @@ export class VPSAutonomousOperationService {
     
     if (this.failureCount >= this.FAILURE_THRESHOLD) {
       this.circuitState = CircuitState.OPEN;
-      Logger.error(`Circuit Breaker TRIPPED at ${context}. Failure threshold reached (${this.failureCount}). Entering OPEN state.`);
+      Logger.error(`Circuit Breaker TRIPPED at ${context}. Entering OPEN state.`);
     }
   }
 
@@ -262,36 +293,6 @@ export class VPSAutonomousOperationService {
     }
   }
 
-  public static processGitLore(commits: IGitMetadata[]): INarrativeLog[] {
-    return commits.map((commit): INarrativeLog => {
-      const msg = commit.message.toLowerCase();
-      let content = '';
-      let severity: INarrativeLog['severity'] = 'INFO';
-
-      if (msg.startsWith('feat')) {
-        content = `Architect ${commit.author} integrated new neural pathways: ${commit.message}`;
-        severity = 'EVOLUTION';
-      } else if (msg.startsWith('fix')) {
-        content = `Internal repair initiated by ${commit.author} to resolve fragment corruption: ${commit.message}`;
-        severity = 'REPAIR';
-      } else if (msg.startsWith('refactor')) {
-        content = `System optimization cycle performed. Codebase restructured by ${commit.author}.`;
-        severity = 'INFO';
-      } else {
-        content = `Chronicle update: ${commit.message} (Authored by ${commit.author})`;
-        severity = 'INFO';
-      }
-
-      return {
-        sequenceId: commit.hash.substring(0, 8),
-        timestamp: new Date(commit.timestamp).getTime(),
-        origin: `GIT_REF_${commit.branch.toUpperCase()}`,
-        content,
-        severity
-      };
-    });
-  }
-
   private static async verifySystemIntegrity(state: IVPSState): Promise<IVPSHealthStatus[]> {
     return state.services.map((svc: IVPSService): IVPSHealthStatus => ({
       id: svc.id,
@@ -308,7 +309,7 @@ export class VPSAutonomousOperationService {
         type: 'THROTTLE_NON_ESSENTIAL' as any,
         subsystem: SystemSubsystem.RESOURCES,
         priority: ActionPriority.HIGH,
-        reason: 'CPU Overload detected via LogicPoint'
+        reason: 'CPU Overload detected'
       });
     }
 
@@ -341,7 +342,7 @@ export class VPSAutonomousOperationService {
         targetId: svc.id,
         subsystem: SystemSubsystem.SERVICES,
         priority: ActionPriority.CRITICAL,
-        reason: `Service Failure: ${svc.id} - Health Desync`
+        reason: `Service Failure: ${svc.id}`
       }));
   }
 
@@ -353,7 +354,7 @@ export class VPSAutonomousOperationService {
         type: 'ROTATE_INTERNAL_KEYS' as any,
         subsystem: SystemSubsystem.SECURITY,
         priority: ActionPriority.HIGH,
-        reason: 'Brute force or Sovereign Violation detection'
+        reason: 'Security Violation Detected'
       });
       actions.push({
         type: 'BLOCK_SUSPICIOUS_IPS' as any,
@@ -375,7 +376,7 @@ export class VPSAutonomousOperationService {
   }
 
   public static setSovereignClearance(granted: boolean): void {
-    Logger.info(`Sovereign Clearance Status Updated: ${granted}`);
+    Logger.info(`Sovereign Clearance Updated: ${granted}`);
     this.globalTruthState.sovereignClearance = granted;
   }
 }
