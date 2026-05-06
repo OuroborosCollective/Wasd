@@ -1,10 +1,11 @@
 {
-  "name": "root",
+  "name": "areloria-wasd",
   "version": "1.0.0",
   "private": true,
-  "description": "Monorepo Root Configuration",
+  "description": "Areloria WASD Monorepo - High-performance 3D RPG & Metaverse Platform",
   "packageManager": "pnpm@9.1.0",
   "scripts": {
+    "dev": "pnpm -r --parallel run dev",
     "test": "pnpm -r run test",
     "lint": "pnpm -r run lint",
     "build": "pnpm -r run build",
@@ -12,10 +13,11 @@
     "deploy": "bash scripts/deploy-vps.sh"
   },
   "engines": {
-    "node": "^20.0.0"
+    "node": ">=20.0.0"
   },
   "devDependencies": {
-    "eslint-config-next": "^16.2.4",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.4",
     "typescript": "^5.7.3"
   }
 }
