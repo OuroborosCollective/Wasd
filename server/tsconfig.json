@@ -17,7 +17,7 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "incremental": false
+    "incremental": true
   },
   "include": ["src/**/*"],
   "exclude": ["src/tools/**/*", "src/tests/**/*"],

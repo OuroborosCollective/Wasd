@@ -12,6 +12,10 @@ overrides:
 importers:
 
   .:
+    dependencies:
+      '@prisma/client':
+        specifier: ^7.8.0
+        version: 7.8.0(typescript@5.9.3)
     devDependencies:
       eslint:
         specifier: ^8.57.0
@@ -70,6 +74,9 @@ importers:
       three:
         specifier: 0.169.0
         version: 0.169.0
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
     devDependencies:
       '@types/express':
         specifier: ^4.17.17
@@ -272,7 +279,7 @@ importers:
         specifier: ^2.8.5
         version: 2.8.6
       dotenv:
-        specifier: ^16.3.1
+        specifier: ^16.4.5
         version: 16.6.1
       express:
         specifier: ^4.18.2
@@ -406,6 +413,9 @@ importers:
 
   packages/database:
     dependencies:
+      '@prisma/client':
+        specifier: ^7.8.0
+        version: 7.8.0(typescript@5.9.3)
       '@wasd/types':
         specifier: workspace:*
         version: link:../types
@@ -1909,11 +1919,26 @@ packages:
     peerDependencies:
       '@opentelemetry/api': '>=1.0.0 <1.10.0'
 
-  '@opentelemetry/context-async-hooks@1.30.1':
-    resolution: {integrity: sha512-s5vvxXPVdjqS3kTLKMeBMvop9hbWkwzBpu+mUO2M7sZtlkyDJGwFe33wRKnbaYDo8ExRVBIIdwIGrqpxHuKttA==}
-    engines: {node: '>=14'}
+  '@prisma/client-runtime-utils@7.8.0':
+    resolution: {integrity: sha512-5NQZztQ0oY/ADFkmd9gPuweH5A1/CCY8YQPorLLO0Mu6a87mY5gsnDkzmFmIHs9NFaLnZojzgddFVN4RpKYrdw==}
+
+  '@prisma/client@7.8.0':
+    resolution: {integrity: sha512-HFp3Dawv/3sU3JtlPha90IB+48lS7zHiH4LKZPjmcE8YH5P9DOXGPvo8dqOtO7MqLDd1p2hOWMcFlRT1DMblHw==}
+    engines: {node: ^20.19 || ^22.12 || >=24.0}
     peerDependencies:
-      '@opentelemetry/api': '>=1.0.0 <1.10.0'
+      prisma: '*'
+      typescript: '>=5.4.0'
+    peerDependenciesMeta:
+      prisma:
+        optional: true
+      typescript:
+        optional: true
+
+  '@rolldown/binding-android-arm64@1.0.0-rc.17':
+    resolution: {integrity: sha512-s70pVGhw4zqGeFnXWvAzJDlvxhlRollagdCCKRgOsgUOH3N1l0LIxf83AtGzmb5SiVM4Hjl5HyarMRfdfj3DaQ==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [arm64]
+    os: [android]
 
   '@opentelemetry/core@1.21.0':
     resolution: {integrity: sha512-KP+OIweb3wYoP7qTYL/j5IpOlu52uxBv5M4+QhSmmUfLyTgu1OIS71msK3chFo1D6Y61BIH3wMiMYRCxJCQctA==}
@@ -8614,6 +8639,14 @@ snapshots:
       zustand: 3.7.2(react@18.3.1)
 
   '@repeaterjs/repeater@3.0.6': {}
+
+  '@prisma/client-runtime-utils@7.8.0': {}
+
+  '@prisma/client@7.8.0(typescript@5.9.3)':
+    dependencies:
+      '@prisma/client-runtime-utils': 7.8.0
+    optionalDependencies:
+      typescript: 5.9.3
 
   '@rolldown/binding-android-arm64@1.0.0-rc.17':
     optional: true
