@@ -127,6 +127,8 @@ export class VPSValidationService {
     }
 
     // 4. Persistence Layer protected by Circuit Breaker and Error Boundaries
+    // We execute this even if SSH failed to log the attempt if possible, 
+    // but typically we only persist if we have a host to map it to.
     result.details.dbPersistence = await this.safeDatabasePersistence(config.host, result);
 
     return result;
@@ -169,17 +171,20 @@ export class VPSValidationService {
    * Prevents database instability from propagating to the high-frequency validation loop.
    */
   private static async safeDatabasePersistence(host: string, result: VPSValidationResult): Promise<boolean> {
+    const now = Date.now();
+
+    // Circuit Breaker Logic
     if (this.cbState === 'OPEN') {
-      const now = Date.now();
       if (now - this.lastFailureTime > this.CB_RESET_TIMEOUT) {
         this.cbState = 'HALF_OPEN';
         console.info(`[VPSValidationService] Circuit Breaker: HALF_OPEN. Probing DB recovery for ${host}...`);
       } else {
-        result.errors.push('Persistence bypassed: Database circuit is OPEN.');
+        result.errors.push('Persistence bypassed: Database circuit is OPEN (Cascading failure prevention).');
         return false;
       }
     }
 
+    // Retry Loop with Exponential Backoff
     for (let attempt = 1; attempt <= this.DB_RETRY_ATTEMPTS; attempt++) {
       const dbResponse = await this.executeBoundedDbOperation(async () => {
         return await this.performDatabaseHandshake(host, result);
@@ -198,15 +203,22 @@ export class VPSValidationService {
 
       this.onPersistenceFailure();
 
+      // If Circuit Breaker tripped during retries, stop immediately
+      if (this.cbState === 'OPEN') {
+        result.errors.push('DB circuit tripped during retry sequence.');
+        return false;
+      }
+
       if (attempt === this.DB_RETRY_ATTEMPTS) {
         if (this.IS_CI) {
           console.warn(`[VPSValidationService] CI Override: Swallowing DB error.`);
           return false;
         }
-        result.errors.push(`DB persistence failed permanently: ${dbResponse.error}`);
+        result.errors.push(`DB persistence failed permanently after ${attempt} attempts: ${dbResponse.error}`);
         return false;
       }
 
+      // Exponential Backoff calculation
       const backoffDelay = Math.pow(2, attempt - 1) * this.DB_RETRY_DELAY_MS;
       await new Promise(resolve => setTimeout(resolve, backoffDelay));
     }
@@ -245,6 +257,9 @@ export class VPSValidationService {
   }
 
   private static onPersistenceSuccess(): void {
+    if (this.cbState !== 'CLOSED') {
+      console.info(`[VPSValidationService] Circuit Breaker: CLOSED (Service recovered).`);
+    }
     this.cbFailures = 0;
     this.cbState = 'CLOSED';
   }
@@ -252,9 +267,12 @@ export class VPSValidationService {
   private static onPersistenceFailure(): void {
     this.cbFailures++;
     this.lastFailureTime = Date.now();
+    
     if (this.cbFailures >= this.CB_THRESHOLD) {
+      if (this.cbState !== 'OPEN') {
+        console.error(`[VPSValidationService] CIRCUIT BREAKER TRIPPED. Too many DB failures.`);
+      }
       this.cbState = 'OPEN';
-      console.error(`[VPSValidationService] CIRCUIT BREAKER TRIPPED.`);
     }
   }
 
@@ -263,8 +281,8 @@ export class VPSValidationService {
    * Integration point for TypeORM, Prisma or raw pg-pool.
    */
   private static async performDatabaseHandshake(host: string, result: VPSValidationResult): Promise<void> {
-    // Hier würde die tatsächliche DB-Logik stehen, z.B.:
-    // await prisma.vpsLog.create({ data: { host, isValid: result.isValid } });
+    // Implement actual DB call here. 
+    // Example: await db.vps_validations.insert({ host, is_valid: result.isValid, data: result });
     return Promise.resolve();
   }
 
@@ -272,7 +290,7 @@ export class VPSValidationService {
    * Specific Recovery Procedure for Database Connection issues
    */
   private static async initiateDatabaseRecovery(error: any, attempt: number): Promise<void> {
-    console.warn(`[DB Recovery] Attempt ${attempt}: Recycling sessions for error state...`);
+    console.warn(`[DB Recovery] Attempt ${attempt}: Recycling connection pool or checking heartbeats...`);
   }
 
   /**
@@ -282,8 +300,28 @@ export class VPSValidationService {
     const code = error?.code || '';
     const message = (error?.message || '').toLowerCase();
     
-    const connectionCodes = ['ECONNREFUSED', 'ETIMEDOUT', 'ECONNRESET', 'PROTOCOL_CONNECTION_LOST', '57P01', '57P03', '08003', '08006'];
-    const connectionKeywords = ['connection terminated', 'timeout', 'is not accepting connections', 'failed to connect'];
+    // Standard Node/Postgres error codes for connectivity issues
+    const connectionCodes = [
+      'ECONNREFUSED', 
+      'ETIMEDOUT', 
+      'ECONNRESET', 
+      'PROTOCOL_CONNECTION_LOST', 
+      '57P01', // admin_shutdown
+      '57P03', // cannot_connect_now
+      '08003', // connection_does_not_exist
+      '08006', // connection_failure
+      '08001', // sqlclient_unable_to_establish_sqlconnection
+      '08004', // sqlserver_rejected_establishment_of_sqlconnection
+    ];
+    
+    const connectionKeywords = [
+      'connection terminated', 
+      'timeout', 
+      'is not accepting connections', 
+      'failed to connect',
+      'no pg_hba.conf entry',
+      'network unreachable'
+    ];
 
     return (
       connectionCodes.includes(code) ||
@@ -307,7 +345,9 @@ export class VPSValidationService {
     } finally {
       try {
         ssh.dispose();
-      } catch (e) {}
+      } catch (e) {
+        // Disposal should never throw
+      }
     }
   }
 }
