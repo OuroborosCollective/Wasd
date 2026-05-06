@@ -19,7 +19,7 @@
     "@wasd/redis": "workspace:*",
     "@wasd/utils": "workspace:*",
     "@nestjs/common": "^10.3.3",
-    "@nestjs/core": "^10.3.3",
+    "@nestjs/core": "^11.1.18",
     "@nestjs/platform-express": "^10.3.3",
     "three": "0.169.0",
     "dotenv": "^16.4.5",
