@@ -10,14 +10,30 @@ import { Server } from 'http';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Konfiguration für Robustheit und Exponential Backoff
+// Resilience Configuration
 const MAX_RETRIES = 5;
 const INITIAL_BACKOFF_MS = 1000;
 const CONNECTION_TIMEOUT_MS = 5000;
 
 /**
+ * Custom Error Classes for explicit lifecycle handling
+ */
+class ConnectionTimeoutError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ConnectionTimeoutError';
+  }
+}
+
+class AuthenticationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AuthenticationError';
+  }
+}
+
+/**
  * REDIS CONFIGURATION
- * Implementiert die Architektur-Vorgabe für Boot-Sequenz-Races.
  */
 const REDIS_CONFIG = {
   host: process.env.REDIS_HOST || 'localhost',
@@ -26,43 +42,48 @@ const REDIS_CONFIG = {
 };
 
 /**
- * Hilfsfunktion für deterministische Verzögerungen
+ * Helper for deterministic delays
  */
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Kernfunktion zur Initialisierung der Datenbankverbindung.
+ * Core function for database connection initialization with explicit error classification.
  */
 async function connectToDatabase(): Promise<void> {
   console.log(`[SENTINEL] [DATABASE_BOOT] [${new Date().toISOString()}] Initializing connection sequence...`);
 
   const connectionPromise = new Promise<void>((resolve, reject) => {
-    if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
-      return reject(new Error('MISSING_CONFIG: DATABASE_URL is not defined in environment variables.'));
+    // 1. Validation for Authentication
+    if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
+      return reject(new AuthenticationError('MISSING_CONFIG: DATABASE_URL is not defined. Authentication impossible.'));
     }
 
+    if (process.env.SIMULATE_AUTH_ERROR === 'true') {
+      return reject(new AuthenticationError('AUTH_FAILURE: Invalid credentials provided for database access.'));
+    }
+
+    // 2. Simulation of connection logic
     if (process.env.SIMULATE_DB_ERROR === 'true') {
       return setTimeout(() => reject(new Error('ECONNREFUSED: Database host unreachable')), 500);
     }
     
+    // Success simulation
     setTimeout(() => resolve(), 300);
   });
 
   const timeoutPromise = new Promise<void>((_, reject) =>
-    setTimeout(() => reject(new Error('DB_TIMEOUT: Connection attempt exceeded safety threshold')), CONNECTION_TIMEOUT_MS)
+    setTimeout(() => reject(new ConnectionTimeoutError(`DB_TIMEOUT: Connection attempt exceeded ${CONNECTION_TIMEOUT_MS}ms safety threshold`)), CONNECTION_TIMEOUT_MS)
   );
 
   return Promise.race([connectionPromise, timeoutPromise]);
 }
 
 /**
- * Validierung der Redis-Konnektivität basierend auf der REDIS_CONFIG retryStrategy.
+ * Redis Connectivity Validation
  */
 async function connectToRedis(): Promise<void> {
   console.log(`[SENTINEL] [REDIS_BOOT] [${new Date().toISOString()}] Initializing Redis connection...`);
   
-  // In einer produktiven Umgebung würde hier die Instanziierung des Redis-Clients erfolgen.
-  // Die retryStrategy wird intern vom Client (z.B. ioredis) verwaltet.
   return new Promise((resolve) => {
     setTimeout(() => {
       console.log(`[SENTINEL] [REDIS_READY] Connection established with strategy: ${REDIS_CONFIG.retryStrategy.toString()}`);
@@ -72,7 +93,7 @@ async function connectToRedis(): Promise<void> {
 }
 
 /**
- * Implementiert den Exponential Backoff Algorithmus für die DB-Persistenzschicht.
+ * Resilience Pattern: Exponential Backoff Retry Implementation
  */
 async function initializeWithRetry(): Promise<void> {
   let currentRetry = 0;
@@ -86,19 +107,27 @@ async function initializeWithRetry(): Promise<void> {
     } catch (error: unknown) {
       currentRetry++;
       const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorName = error instanceof Error ? error.name : 'UnknownError';
       
       console.error(`[SENTINEL] [DATABASE_ERROR] [ATTEMPT ${currentRetry}/${MAX_RETRIES}]`);
+      console.error(`[ERROR_TYPE]: ${errorName}`);
       console.error(`[ERROR_DETAILS]: ${errorMessage}`);
+
+      // Explicit handling for non-retryable errors
+      if (error instanceof AuthenticationError) {
+        console.error('[SENTINEL] [FATAL_AUTH] Authentication failure is terminal. Check environment secrets.');
+        throw error;
+      }
 
       if (currentRetry >= MAX_RETRIES) {
         console.error('[SENTINEL] [CRITICAL_FAILURE] Max retries reached. Triggering emergency shutdown.');
-        throw new Error(`Failed to connect to database after ${MAX_RETRIES} attempts.`);
+        throw new Error(`Failed to connect to database after ${MAX_RETRIES} attempts. Last error: ${errorMessage}`);
       }
 
       const jitter = Math.random() * 200; 
       const totalDelay = delay + jitter;
       
-      console.log(`[SENTINEL] [RETRY_SCHEDULED] Next attempt in ${Math.round(totalDelay)}ms...`);
+      console.log(`[SENTINEL] [RETRY_SCHEDULED] Resilient backoff: Next attempt in ${Math.round(totalDelay)}ms...`);
       await sleep(totalDelay);
       delay *= 2; 
     }
@@ -106,25 +135,35 @@ async function initializeWithRetry(): Promise<void> {
 }
 
 /**
- * GLOBALER SCHUTZMECHANISMUS
+ * GLOBAL PROTECTION MECHANISMS
+ * Enhanced logging for CI/CD diagnostics
  */
 process.on('uncaughtException', (error: Error) => {
-  console.error('[SENTINEL] [FATAL_EXCEPTION] Uncaught error detected:', error.message);
-  console.error(error.stack);
+  console.error('==================================================');
+  console.error('[SENTINEL] [FATAL_EXCEPTION] Uncaught error detected');
+  console.error(`TIMESTAMP: ${new Date().toISOString()}`);
+  console.error(`MESSAGE: ${error.message}`);
+  console.error(`STACK: ${error.stack}`);
+  console.error('==================================================');
   process.exit(1);
 });
 
-process.on('unhandledRejection', (reason: unknown) => {
-  console.error('[SENTINEL] [FATAL_REJECTION] Unhandled promise rejection:', reason);
+process.on('unhandledRejection', (reason: unknown, promise: Promise<any>) => {
+  console.error('==================================================');
+  console.error('[SENTINEL] [FATAL_REJECTION] Unhandled promise rejection');
+  console.error(`TIMESTAMP: ${new Date().toISOString()}`);
+  console.error(`REASON: ${reason instanceof Error ? reason.message : reason}`);
+  if (reason instanceof Error) console.error(`STACK: ${reason.stack}`);
+  console.error('==================================================');
   process.exit(1);
 });
 
-// Express Middleware
+// Express Middleware Configuration
 app.use(cors());
 app.use(express.json());
 
 /**
- * Health Check Endpunkt
+ * Health Check Endpoint
  */
 app.get('/api/health', (req: Request, res: Response) => {
   res.status(200).json({ 
@@ -139,7 +178,7 @@ app.get('/api/health', (req: Request, res: Response) => {
 });
 
 /**
- * Haupt-Bootstrap Sequenz des API-Servers
+ * Main Bootstrap Sequence
  */
 async function bootstrap() {
   console.log('--------------------------------------------------');
@@ -149,13 +188,13 @@ async function bootstrap() {
   console.log('--------------------------------------------------');
 
   try {
-    // Schritt 1: Persistenzschicht validieren
+    // Step 1: Resilient Database Initialization
     await initializeWithRetry();
 
-    // Schritt 2: Redis-Schicht validieren
+    // Step 2: Redis Layer Validation
     await connectToRedis();
     
-    // Schritt 3: API Listener starten
+    // Step 3: Start API Listener
     const server: Server = app.listen(PORT, () => {
       console.log(`[SENTINEL] [SERVER_START] API listening on port: ${PORT}`);
     });
