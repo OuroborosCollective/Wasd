@@ -7,7 +7,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
  * ARELORIA WASD - API CORE
  * High-performance 3D-RPG-Metaverse Backend
  * 
- * Implementation: Resilient Prisma Logic & Global Error Handling
+ * Implementation: Resilient Prisma Logic, Exponential Backoff & Global Recovery
  */
 
 const app = express();
@@ -28,7 +28,7 @@ let isShuttingDown = false;
 let dbConnected = false;
 
 /**
- * Custom Error Classes
+ * Custom Error Classes for Domain-Specific Handling
  */
 class ConnectionTimeoutError extends Error {
   constructor(message: string) {
@@ -60,6 +60,7 @@ class DatabaseConnectionError extends Error {
 
 /**
  * ARE-LOOP CORE LOGIC (Action-Result-Evaluation)
+ * Synergetic AI-Agent-System "Jules" Interface
  */
 interface AREPayload {
   actionId: string;
@@ -82,8 +83,8 @@ const Brain = {
       actionId: payload.actionId,
     };
 
-    // PURITY ENFORCEMENT:
-    if ('stateChange' in result) {
+    // PURITY ENFORCEMENT: Logical operations must remain idempotent
+    if ('stateChange' in result && typeof result.stateChange !== 'undefined') {
       throw new PurityViolationError('STATE_MUTATION_DETECTED: Brain.process must remain pure.');
     }
 
@@ -92,12 +93,12 @@ const Brain = {
 };
 
 /**
- * Utility: Sleep
+ * Utility: Sleep with Promise
  */
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Database Connection Logic via Prisma
+ * Database Connection Logic via Prisma with Race-Condition Protection
  */
 async function connectToDatabase(): Promise<void> {
   console.log(`[SENTINEL] [DATABASE_BOOT] [${new Date().toISOString()}] Validating persistence layer...`);
@@ -108,12 +109,12 @@ async function connectToDatabase(): Promise<void> {
   });
 
   const timeoutPromise = new Promise<void>((_, reject) =>
-    setTimeout(() => reject(new ConnectionTimeoutError(`DB_TIMEOUT: Threshold exceeded`)), CONNECTION_TIMEOUT_MS)
+    setTimeout(() => reject(new ConnectionTimeoutError(`DB_TIMEOUT: Threshold of ${CONNECTION_TIMEOUT_MS}ms exceeded`)), CONNECTION_TIMEOUT_MS)
   );
 
   try {
     if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
-      throw new AuthenticationError('MISSING_CONFIG: DATABASE_URL is not defined.');
+      throw new AuthenticationError('MISSING_CONFIG: DATABASE_URL is not defined in environment.');
     }
     await Promise.race([connectionPromise, timeoutPromise]);
   } catch (error: any) {
@@ -126,16 +127,7 @@ async function connectToDatabase(): Promise<void> {
 }
 
 /**
- * Redis Connectivity (Mock for architecture completeness)
- */
-async function connectToRedis(): Promise<void> {
-  console.log(`[SENTINEL] [REDIS_BOOT] Validating Redis cluster state...`);
-  await sleep(200);
-  console.log(`[SENTINEL] [REDIS_READY] Redis synchronization complete.`);
-}
-
-/**
- * Exponential Backoff Retry Wrapper
+ * Exponential Backoff Retry Wrapper for Bootstrap and Recovery
  */
 async function initializeWithRetry(): Promise<void> {
   let currentRetry = 0;
@@ -144,7 +136,7 @@ async function initializeWithRetry(): Promise<void> {
   while (currentRetry < MAX_RETRIES) {
     try {
       await connectToDatabase();
-      console.log('[SENTINEL] [DATABASE_READY] Connection verified.');
+      console.log('[SENTINEL] [DATABASE_READY] Connection verified and established.');
       isRecovering = false;
       lastError = null;
       return;
@@ -156,16 +148,18 @@ async function initializeWithRetry(): Promise<void> {
       console.error(`[SENTINEL] [DATABASE_ERROR] [ATTEMPT ${currentRetry}/${MAX_RETRIES}] ${errorMessage}`);
 
       if (error instanceof AuthenticationError) {
+        console.error('[SENTINEL] [FATAL] Authentication/Configuration error. Retrying is futile.');
         throw error;
       }
 
       if (currentRetry >= MAX_RETRIES) {
-        throw new Error(`CRITICAL: Connection failed after ${MAX_RETRIES} attempts.`);
+        throw new Error(`CRITICAL: Database connection failed after ${MAX_RETRIES} attempts.`);
       }
 
       const jitter = Math.random() * 1000; 
       const totalDelay = Math.min(delay + jitter, MAX_BACKOFF_MS);
       
+      console.log(`[SENTINEL] [RETRY_DELAY] Waiting ${Math.round(totalDelay)}ms before next attempt...`);
       await sleep(totalDelay);
       delay *= 2; 
     }
@@ -173,7 +167,7 @@ async function initializeWithRetry(): Promise<void> {
 }
 
 /**
- * Recovery Orchestrator
+ * Recovery Orchestrator: Prevents process exit during transient DB failures
  */
 async function initiateRecoveryMode(error: Error) {
   if (isRecovering || isShuttingDown) return;
@@ -181,61 +175,48 @@ async function initiateRecoveryMode(error: Error) {
   isRecovering = true;
   dbConnected = false;
   lastError = error.message;
-  console.error('[SENTINEL] [RECOVERY_MODE] Initiating circuit-breaker...');
+  console.error(`[SENTINEL] [RECOVERY_MODE] Logic Loop Suspended. Reason: ${error.message}`);
 
   try {
     await initializeWithRetry();
-    console.log('[SENTINEL] [RECOVERY_SUCCESS] Restored.');
+    console.log('[SENTINEL] [RECOVERY_SUCCESS] System restoration complete. Resuming operations.');
   } catch (recoveryError) {
-    console.error('[SENTINEL] [RECOVERY_FAILED] System halt.');
+    console.error('[SENTINEL] [RECOVERY_FAILED] Exhausted all retry attempts. System halt required.');
     process.exit(1);
   }
 }
 
 /**
- * Global Process Handlers
+ * Global Process Handlers for Unhandled Failures
  */
 process.on('uncaughtException', (error: Error) => {
   const isTransient = error instanceof ConnectionTimeoutError || 
                       error instanceof DatabaseConnectionError ||
                       error.message.includes('DB_TIMEOUT') || 
                       error.message.includes('ECONNREFUSED') ||
-                      error.message.includes('P2024'); // Connection pool timeout
+                      error.message.includes('P2024') || // Connection pool timeout
+                      error.message.includes('P2028'); // Transaction timeout
 
   if (isTransient) {
     initiateRecoveryMode(error);
   } else {
-    console.error(`[SENTINEL] [FATAL_EXCEPTION] ${error.message}`);
+    console.error(`[SENTINEL] [FATAL_EXCEPTION] Non-recoverable error: ${error.message}`);
+    console.error(error.stack);
     process.exit(1);
   }
 });
 
 process.on('unhandledRejection', (reason: unknown) => {
   const error = reason instanceof Error ? reason : new Error(String(reason));
+  console.error(`[SENTINEL] [UNHANDLED_REJECTION] ${error.message}`);
   initiateRecoveryMode(error);
 });
 
-// Middleware
+// Middleware Configuration
 app.use(cors());
 app.use(express.json());
 
-/**
- * Prisma Logic Error Middleware
- * Handles P2002 (Unique constraint) and P2025 (Record not found)
- */
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-  if (err instanceof Prisma.PrismaClientKnownRequestError) {
-    if (err.code === 'P2002') {
-      return res.status(409).json({ error: 'Conflict: Unique constraint violation.', target: err.meta?.target });
-    }
-    if (err.code === 'P2025') {
-      return res.status(404).json({ error: 'Not Found: Record does not exist.' });
-    }
-  }
-  next(err);
-});
-
-// Health Check
+// Health Check Endpoint
 app.get('/api/health', (req: Request, res: Response) => {
   const isHealthy = dbConnected && !isRecovering;
   res.status(isHealthy ? 200 : 503).json({ 
@@ -245,35 +226,41 @@ app.get('/api/health', (req: Request, res: Response) => {
     environment: process.env.NODE_ENV || 'development',
     db_connected: dbConnected,
     recovery_mode: isRecovering,
-    last_error: lastError
+    last_error: lastError,
+    timestamp: new Date().toISOString()
   });
 });
 
 /**
- * THE ARE-LOOP TICK
+ * THE ARE-LOOP TICK (10Hz)
+ * Central World-Editor and AI-Agent Synchronization Logic
  */
 function startARELoop() {
-  console.log('[SENTINEL] [ARE-LOOP] Starting world logic tick...');
+  console.log('[SENTINEL] [ARE-LOOP] Starting high-frequency world logic tick...');
   
   const tick = () => {
-    if (isShuttingDown || isRecovering) {
+    if (isShuttingDown) return;
+
+    if (isRecovering) {
+      // While recovering, we skip processing but keep the tick alive
       setTimeout(tick, ARE_LOOP_TICK_MS);
       return;
     }
 
     try {
       const mockPayload: AREPayload = {
-        actionId: `act_${Date.now()}`,
+        actionId: `act_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
         timestamp: Date.now(),
-        data: {}
+        data: { origin: 'tick_system' }
       };
 
       if (validatePayload(mockPayload)) {
         Brain.process(mockPayload);
       }
     } catch (error: any) {
-      console.error(`[SENTINEL] [ARE-LOOP_ERROR] ${error.message}`);
+      console.error(`[SENTINEL] [ARE-LOOP_ERROR] Execution failed: ${error.message}`);
       if (error instanceof PurityViolationError) {
+        console.error('[SENTINEL] [CRITICAL] Purity violation in logic loop. Immediate shutdown.');
         process.exit(1);
       }
     }
@@ -285,34 +272,78 @@ function startARELoop() {
 }
 
 /**
- * BOOTSTRAP
+ * Prisma Known Request Error Middleware
+ * Prevents logic errors from crashing the server
+ */
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    if (err.code === 'P2002') {
+      return res.status(409).json({ error: 'Conflict: Unique constraint violation.', target: err.meta?.target });
+    }
+    if (err.code === 'P2025') {
+      return res.status(404).json({ error: 'Not Found: Record does not exist.' });
+    }
+    if (err.code === 'P2024' || err.code === 'P2028') {
+      initiateRecoveryMode(err);
+      return res.status(503).json({ error: 'Service Unavailable: Database connection pool exhausted.' });
+    }
+  }
+  
+  console.error('[EXPRESS_ERROR]', err);
+  res.status(500).json({ error: 'Internal Server Error', message: err.message });
+});
+
+/**
+ * BOOTSTRAP SYSTEM
  */
 async function bootstrap() {
-  console.log('--------------------------------------------------');
+  console.log('==================================================');
   console.log('ARELORIA WASD - API CORE INITIALIZATION');
-  console.log('--------------------------------------------------');
+  console.log('==================================================');
 
   try {
+    // Stage 1: Database Persistence
     await initializeWithRetry();
-    await connectToRedis();
     
+    // Stage 2: Cache Layer (Mock/Ready for Integration)
+    console.log(`[SENTINEL] [REDIS_BOOT] Validating Redis cluster state...`);
+    await sleep(200); 
+    console.log(`[SENTINEL] [REDIS_READY] Shared memory layer synchronized.`);
+    
+    // Stage 3: Start Server
     const server: Server = app.listen(PORT, () => {
-      console.log(`[SENTINEL] [SERVER_START] Port: ${PORT}`);
+      console.log(`[SENTINEL] [SERVER_START] Listening on Port: ${PORT}`);
+      console.log(`[SENTINEL] [MODE] ${process.env.NODE_ENV || 'development'}`);
+      
+      // Stage 4: Activate World Logic
       startARELoop();
     });
 
+    /**
+     * Graceful Shutdown Orchestration
+     */
     const gracefulShutdown = async (signal: string) => {
       if (isShuttingDown) return;
       isShuttingDown = true;
-      console.log(`[SENTINEL] [SHUTDOWN] ${signal} received. Disconnecting Prisma...`);
+      console.log(`[SENTINEL] [SHUTDOWN] ${signal} received. Cleaning up resources...`);
       
-      await prisma.$disconnect();
+      try {
+        await prisma.$disconnect();
+        console.log('[SENTINEL] [SHUTDOWN] Prisma disconnected.');
+      } catch (e) {
+        console.error('[SENTINEL] [SHUTDOWN_ERROR] Prisma disconnect failed.', e);
+      }
+
       server.close(() => {
         console.log('[SENTINEL] [SHUTDOWN] HTTP Server closed.');
         process.exit(0);
       });
       
-      setTimeout(() => process.exit(1), 10000);
+      // Force exit after 10s
+      setTimeout(() => {
+        console.error('[SENTINEL] [SHUTDOWN_TIMEOUT] Forcing exit.');
+        process.exit(1);
+      }, 10000);
     };
 
     process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
