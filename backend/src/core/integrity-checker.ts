@@ -42,11 +42,26 @@ export interface ModelSchema {
     properties: PropertyMetadata[];
 }
 
+export interface DatabaseMetrics {
+    totalConnections: number;
+    idleConnections: number;
+    waitingClients: number;
+}
+
+export interface SchemaValidationResult {
+    tableName: string;
+    exists: boolean;
+    missingColumns: string[];
+    typeMismatches: string[];
+}
+
 export interface HealthReport {
     status: 'HEALTHY' | 'DEGRADED' | 'CRITICAL';
     latency: number;
     connectionCode: string;
     message: string;
+    metrics?: DatabaseMetrics;
+    schemaValidation?: SchemaValidationResult[];
 }
 
 /**
@@ -87,27 +102,54 @@ export class SovereignWatchdog {
     }
 
     /**
-     * Database-Health-Check: Validiert die Verbindung zur Persistenz-Schicht.
-     * Verhindert harte Prozessabbrüche durch kontrolliertes Error-Handling.
+     * Erweiterter Datenbank-Heartbeat-Check für CI/CD und Runtime-Monitoring.
+     * Validiert Pool-Status, Latenz und Schema-Integrität.
      */
     public async checkDatabaseHealth(dbClient: any): Promise<HealthReport> {
         const start = Date.now();
         const persistenceAxiom = this.truthMatrix.get(LogicPoint.PERSISTENCE)!;
+        const schemaResults: SchemaValidationResult[] = [];
         
         try {
-            // Führe einen einfachen Query aus (Select 1 oder äquivalent)
+            // 1. Connection & Latency Check
             await dbClient.query('SELECT 1');
-            
-            const report: HealthReport = {
-                status: 'HEALTHY',
-                latency: Date.now() - start,
-                connectionCode: 'SQL_OK_200',
-                message: 'Persistence layer operational.'
+            const latency = Date.now() - start;
+
+            // 2. Pool Metrics (Extraktion falls dbClient ein Pool-Objekt ist)
+            const metrics: DatabaseMetrics = {
+                totalConnections: dbClient.totalCount || 0,
+                idleConnections: dbClient.idleCount || 0,
+                waitingClients: dbClient.waitingCount || 0
             };
-            
+
+            // 3. Schema-Validität gegen ModelRegistry
+            for (const [modelName, schema] of this.modelRegistry.entries()) {
+                const validation = await this.validateTableSchema(dbClient, schema);
+                schemaResults.push(validation);
+            }
+
+            const schemaViolations = schemaResults.filter(r => !r.exists || r.missingColumns.length > 0 || r.typeMismatches.length > 0);
+            const isDegraded = schemaViolations.length > 0;
+
+            const report: HealthReport = {
+                status: isDegraded ? 'DEGRADED' : 'HEALTHY',
+                latency,
+                connectionCode: 'SQL_OK_200',
+                message: isDegraded 
+                    ? `Persistence layer operational but schema mismatches detected: ${schemaViolations.map(v => v.tableName).join(', ')}`
+                    : 'Persistence layer and schema fully coherent.',
+                metrics,
+                schemaValidation: schemaResults
+            };
+
             persistenceAxiom.actualState = report;
-            persistenceAxiom.isViolated = false;
-            persistenceAxiom.errorCode = undefined;
+            persistenceAxiom.isViolated = isDegraded;
+            persistenceAxiom.errorCode = isDegraded ? 'SCHEMA_MISMATCH' : undefined;
+            
+            if (isDegraded) {
+                console.warn(`[Sovereign Watchdog] Schema Degradation: ${report.message}`);
+            }
+
             return report;
             
         } catch (error: any) {
@@ -116,17 +158,64 @@ export class SovereignWatchdog {
                 status: 'CRITICAL',
                 latency: Date.now() - start,
                 connectionCode: errorCode,
-                message: error.message || 'Unknown database connection error'
+                message: `Database Heartbeat Failed: ${error.message || 'Unknown error'}`
             };
 
             persistenceAxiom.actualState = report;
             persistenceAxiom.isViolated = true;
             persistenceAxiom.errorCode = errorCode;
             
-            console.error(`[Sovereign Watchdog] Database Health Check Failed: ${errorCode} - ${report.message}`);
-            
-            // Kontrollierte Fehlermeldung statt Prozess-Exit
+            console.error(`[Sovereign Watchdog] CRITICAL ERROR: ${errorCode} - ${report.message}`);
             return report;
+        }
+    }
+
+    /**
+     * Validiert eine einzelne Tabelle gegen die Datenbank-Metadaten.
+     */
+    private async validateTableSchema(dbClient: any, schema: ModelSchema): Promise<SchemaValidationResult> {
+        const result: SchemaValidationResult = {
+            tableName: schema.tableName,
+            exists: false,
+            missingColumns: [],
+            typeMismatches: []
+        };
+
+        try {
+            // Abfrage der Information Schema Spalten
+            const query = `
+                SELECT column_name, data_type, is_nullable 
+                FROM information_schema.columns 
+                WHERE table_name = $1
+            `;
+            const dbColumns = await dbClient.query(query, [schema.tableName]);
+
+            if (dbColumns.rows.length === 0) {
+                result.exists = false;
+                return result;
+            }
+
+            result.exists = true;
+            const dbColsMap = new Map(dbColumns.rows.map((r: any) => [r.column_name, r]));
+
+            for (const prop of schema.properties) {
+                const dbCol = dbColsMap.get(prop.name);
+                if (!dbCol) {
+                    result.missingColumns.push(prop.name);
+                } else {
+                    const expectedTsType = this.mapDbTypeToTs(prop.type);
+                    const actualTsType = this.mapDbTypeToTs(dbCol.data_type);
+                    
+                    if (expectedTsType !== actualTsType && actualTsType !== 'any') {
+                        result.typeMismatches.push(`${prop.name} (Exp: ${prop.type}, Got: ${dbCol.data_type})`);
+                    }
+                }
+            }
+
+            return result;
+        } catch (e) {
+            console.error(`[Sovereign Watchdog] Error validating schema for ${schema.tableName}`);
+            return result;
         }
     }
 
@@ -231,15 +320,19 @@ export class SovereignWatchdog {
     private mapDbTypeToTs(dbType: string): string {
         const mapping: Record<string, string> = {
             'varchar': 'string',
+            'character varying': 'string',
             'text': 'string',
             'uuid': 'string',
             'int': 'number',
             'integer': 'number',
+            'bigint': 'number',
             'float': 'number',
             'decimal': 'number',
+            'numeric': 'number',
             'boolean': 'boolean',
             'bool': 'boolean',
             'timestamp': 'Date',
+            'timestamp with time zone': 'Date',
             'timestamptz': 'Date',
             'date': 'Date',
             'jsonb': 'any',

@@ -54,18 +54,23 @@ enum CircuitState {
  * 
  * Orchestrates the closed information loop for Areloria WASD infrastructure.
  * Integrates 'Jules' as the primary automated repository bug-fixer.
- * Implements Circuit Breaker patterns for resilience and prevents process exit 1.
+ * Implements Circuit Breaker patterns and Exponential Backoff for resilience.
  */
 export class VPSAutonomousOperationService {
   private static readonly CRITICAL_CPU_THRESHOLD = 90;
   private static readonly CRITICAL_RAM_THRESHOLD = 85;
   private static readonly DISK_RECOVERY_THRESHOLD = 95;
 
+  // Circuit Breaker Configuration
   private static circuitState: CircuitState = CircuitState.CLOSED;
   private static lastFailureTime: number = 0;
   private static failureCount: number = 0;
   private static readonly FAILURE_THRESHOLD = 3;
   private static readonly RESET_TIMEOUT_MS = 30000;
+
+  // Retry Configuration
+  private static readonly MAX_RETRIES = 3;
+  private static readonly INITIAL_RETRY_DELAY_MS = 1000;
 
   private static globalTruthState: IGlobalTruthState = {
     systemIntegrity: 100,
@@ -80,7 +85,7 @@ export class VPSAutonomousOperationService {
   /**
    * Main 10Hz Control Loop.
    * Processes telemetric logic points and executes autonomous architecture adjustments.
-   * Designed to be crash-resilient (Graceful Degradation).
+   * Implements multi-layered resilience to prevent process exit 1.
    */
   public static async tick(currentState: IVPSState): Promise<IAutonomousAction[]> {
     this.globalTruthState.lastHeartbeat = Date.now();
@@ -89,34 +94,35 @@ export class VPSAutonomousOperationService {
     const logicPoints = this.generateLogicPoints(currentState);
 
     try {
-      // Oracle Consultation (Resilience via Circuit Breaker)
-      // If DB/Oracle is down, this will throw but be caught, allowing the loop to continue.
-      const evaluation = await this.executeWithCircuitBreaker(
+      // Execute Oracle Consultation with Circuit Breaker and Exponential Backoff
+      const evaluation = await this.executeSovereignOperation(
         async () => {
-          // Simulated Oracle/Persistence Interaction
           return await this.consultAxiomaticOracle(logicPoints);
         },
-        'ORACLE_EVAL'
+        'ORACLE_SYNC'
       );
 
-      await this.executeWithCircuitBreaker(
+      // Update Global Truth via protected operation
+      await this.executeSovereignOperation(
         async () => this.updateGlobalTruth(evaluation),
-        'STATE_UPDATE'
+        'STATE_PERSISTENCE'
       );
 
       actions.push(...evaluation.recommendedActions);
     } catch (error: any) {
       this.logInfrastructureError(error, 'AxiomaticOracle/TruthUpdate');
       this.globalTruthState.dbConnectivity = 'DEGRADED';
+      
       if (!this.globalTruthState.activeAnomalies.includes('PERSISTENCE_DEGRADED')) {
         this.globalTruthState.activeAnomalies.push('PERSISTENCE_DEGRADED');
       }
-      // System Integrity drops when Oracle is unreachable
+      
+      // Graceful Degradation: System Integrity drops but core loop continues
       this.globalTruthState.systemIntegrity = Math.max(this.globalTruthState.systemIntegrity - 15, 30);
     }
 
     try {
-      // Core evaluations continue even if persistence is degraded
+      // Local Resource Evaluations (Independent of Persistence)
       actions.push(...this.evaluateResources(currentState));
       
       const healthData = await this.verifySystemIntegrity(currentState);
@@ -134,7 +140,7 @@ export class VPSAutonomousOperationService {
       }
     } catch (criticalError: any) {
       Logger.error('[Autonomous] Core logic evaluation failure:', criticalError.message);
-      // Fallback action to prevent complete system blindness
+      // Absolute fallback to keep the service alive
       return [{
         type: 'STABILIZE_CORE' as any,
         subsystem: SystemSubsystem.KERNEL,
@@ -144,6 +150,101 @@ export class VPSAutonomousOperationService {
     }
 
     return this.prioritizeActions(actions);
+  }
+
+  /**
+   * executeSovereignOperation
+   * Wraps an operation with both Circuit Breaker and Exponential Backoff.
+   */
+  private static async executeSovereignOperation<T>(
+    operation: () => Promise<T>,
+    context: string
+  ): Promise<T> {
+    // 1. Check Circuit Breaker State
+    if (this.circuitState === CircuitState.OPEN) {
+      if (Date.now() - this.lastFailureTime > this.RESET_TIMEOUT_MS) {
+        this.circuitState = CircuitState.HALF_OPEN;
+        Logger.info(`Circuit Breaker [${context}] entering HALF_OPEN state.`);
+      } else {
+        throw new Error(`Circuit Breaker is OPEN for ${context}. Operation suppressed for stability.`);
+      }
+    }
+
+    try {
+      // 2. Execute with Exponential Backoff
+      const result = await this.retryWithBackoff(operation, context);
+      
+      // 3. Reset Circuit on Success
+      if (this.circuitState === CircuitState.HALF_OPEN) {
+        this.resetCircuit();
+      }
+      this.globalTruthState.dbConnectivity = 'CONNECTED';
+      return result;
+    } catch (error: any) {
+      // 4. Handle Failure and potentially Trip Circuit
+      this.handleFailure(error, context);
+      throw error;
+    }
+  }
+
+  /**
+   * retryWithBackoff
+   * Implements Exponential Backoff logic for transient error recovery.
+   */
+  private static async retryWithBackoff<T>(
+    operation: () => Promise<T>,
+    context: string
+  ): Promise<T> {
+    let lastError: any;
+
+    for (let attempt = 0; attempt < this.MAX_RETRIES; attempt++) {
+      try {
+        return await operation();
+      } catch (error: any) {
+        lastError = error;
+        
+        // Determine if error is transient (network/db/timeout)
+        const isTransient = error.message?.includes('connection') || 
+                           error.message?.includes('timeout') || 
+                           error.code === 'ECONNREFUSED' ||
+                           error.code === 'ETIMEDOUT';
+
+        if (!isTransient || attempt === this.MAX_RETRIES - 1) {
+          throw error;
+        }
+
+        const delay = Math.pow(2, attempt) * this.INITIAL_RETRY_DELAY_MS;
+        Logger.warn(`[Resilience] ${context} failed (Attempt ${attempt + 1}). Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+
+    throw lastError;
+  }
+
+  private static handleFailure(error: any, context: string): void {
+    this.failureCount++;
+    this.lastFailureTime = Date.now();
+
+    const isDbError = error.message?.includes('connection') || 
+                      error.message?.includes('ECONNREFUSED') || 
+                      error.code === 'PROTOCOL_CONNECTION_LOST';
+    
+    if (isDbError) {
+      this.globalTruthState.dbConnectivity = 'DISCONNECTED';
+    }
+    
+    if (this.failureCount >= this.FAILURE_THRESHOLD) {
+      this.circuitState = CircuitState.OPEN;
+      Logger.error(`Circuit Breaker TRIPPED at ${context}. Entering OPEN state. Reason: ${error.message}`);
+    }
+  }
+
+  private static resetCircuit(): void {
+    this.circuitState = CircuitState.CLOSED;
+    this.failureCount = 0;
+    this.globalTruthState.dbConnectivity = 'CONNECTED';
+    Logger.info('Circuit Breaker CLOSED. System stability restored.');
   }
 
   /**
@@ -195,7 +296,8 @@ export class VPSAutonomousOperationService {
       integrity: this.globalTruthState.systemIntegrity,
       circuit: CircuitState[this.circuitState],
       persistence: this.globalTruthState.dbConnectivity,
-      anomalies: this.globalTruthState.activeAnomalies.length
+      anomalies: this.globalTruthState.activeAnomalies.length,
+      julesFixes: this.globalTruthState.julesActiveFixes
     };
   }
 
@@ -210,54 +312,6 @@ export class VPSAutonomousOperationService {
     } else {
       Logger.error(`[Autonomous] Non-DB Error in ${context}:`, error);
     }
-  }
-
-  private static async executeWithCircuitBreaker<T>(action: () => Promise<T>, context: string): Promise<T> {
-    if (this.circuitState === CircuitState.OPEN) {
-      if (Date.now() - this.lastFailureTime > this.RESET_TIMEOUT_MS) {
-        this.circuitState = CircuitState.HALF_OPEN;
-        Logger.info(`Circuit Breaker [${context}] entering HALF_OPEN state.`);
-      } else {
-        throw new Error(`Circuit Breaker is OPEN for ${context}. Operation aborted.`);
-      }
-    }
-
-    try {
-      const result = await action();
-      if (this.circuitState === CircuitState.HALF_OPEN) {
-        this.resetCircuit();
-      }
-      this.globalTruthState.dbConnectivity = 'CONNECTED';
-      return result;
-    } catch (error: any) {
-      this.handleFailure(error, context);
-      throw error;
-    }
-  }
-
-  private static handleFailure(error: any, context: string): void {
-    this.failureCount++;
-    this.lastFailureTime = Date.now();
-
-    const isDbError = error.message?.includes('connection') || 
-                      error.message?.includes('ECONNREFUSED') || 
-                      error.code === 'PROTOCOL_CONNECTION_LOST';
-    
-    if (isDbError) {
-      this.globalTruthState.dbConnectivity = 'DISCONNECTED';
-    }
-    
-    if (this.failureCount >= this.FAILURE_THRESHOLD) {
-      this.circuitState = CircuitState.OPEN;
-      Logger.error(`Circuit Breaker TRIPPED at ${context}. Entering OPEN state. Reason: ${error.message}`);
-    }
-  }
-
-  private static resetCircuit(): void {
-    this.circuitState = CircuitState.CLOSED;
-    this.failureCount = 0;
-    this.globalTruthState.dbConnectivity = 'CONNECTED';
-    Logger.info('Circuit Breaker CLOSED. System stability restored.');
   }
 
   private static generateLogicPoints(state: IVPSState): ILogicPoint[] {
@@ -291,6 +345,7 @@ export class VPSAutonomousOperationService {
     anomalies: string[];
     recommendedActions: IAutonomousAction[];
   }> {
+    // In a real scenario, this would be a database call or complex AI inference
     const anomalies: string[] = [];
     const recommendedActions: IAutonomousAction[] = [];
     let integrityScore = 100;

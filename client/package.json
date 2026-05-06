@@ -1,5 +1,5 @@
 {
-  "name": "areloria-client",
+  "name": "@areloria/client",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -9,40 +9,41 @@
     "build:itch": "tsc && vite build --mode itch",
     "preview": "vite preview",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@babylonjs/core": "^9.0.0",
-    "@babylonjs/loaders": "^9.0.0",
-    "@babylonjs/addons": "^9.0.0",
+    "@babylonjs/addons": "^7.0.0",
+    "@babylonjs/core": "^7.0.0",
     "@babylonjs/havok": "^1.3.10",
+    "@babylonjs/loaders": "^7.0.0",
+    "@preact/signals-core": "^1.5.6",
     "@react-three/fiber": "^8.15.16",
     "@react-three/xr": "^5.7.1",
     "@supabase/supabase-js": "^2.39.7",
-    "firebase": "^12.11.0",
+    "@wasd/shared": "workspace:*",
+    "firebase": "^10.8.0",
     "framer-motion": "^11.0.8",
-    "@preact/signals-core": "^1.5.6",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "three": "^0.169.0",
     "lucide-react": "^0.344.0",
     "mobx": "^6.12.0",
     "mobx-react-lite": "^4.0.5",
-    "@wasd/shared": "workspace:*"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "three": "^0.169.0"
   },
   "devDependencies": {
-    "vitest": "^4.1.0",
-    "@tailwindcss/postcss": "^4.1.11",
+    "@tailwindcss/postcss": "^4.0.0",
+    "@testing-library/react": "^14.2.1",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
-    "@types/three": "^0.183.1",
+    "@types/three": "^0.169.0",
     "@vitejs/plugin-react": "^4.2.1",
-    "@testing-library/react": "^14.2.1",
-    "autoprefixer": "^10.4.21",
-    "eslint": "^9.0.0",
-    "postcss": "^8.5.6",
+    "autoprefixer": "^10.4.18",
+    "eslint": "^8.57.0",
+    "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5.7.3",
-    "vite": "^6.4.2"
+    "typescript": "^5.4.2",
+    "vite": "^5.1.6",
+    "vitest": "^1.3.1"
   }
 }
