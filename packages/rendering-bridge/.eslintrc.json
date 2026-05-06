@@ -20,10 +20,6 @@
     "ecmaVersion": "latest",
     "sourceType": "module"
   },
-  "plugins": [
-    "react",
-    "@typescript-eslint"
-  ],
   "settings": {
     "react": {
       "version": "detect"
@@ -54,6 +50,7 @@
   "ignorePatterns": [
     "dist",
     "node_modules",
-    "*.config.js"
+    "*.config.js",
+    "*.d.ts"
   ]
 }

@@ -1,14 +1,27 @@
 {
-  "root": false,
   "extends": [
     "../../.eslintrc.json"
   ],
-  "parserOptions": {
-    "project": "./tsconfig.json",
-    "tsconfigRootDir": "."
-  },
-  "rules": {
-    "@typescript-eslint/no-explicit-any": "warn",
-    "no-console": "warn"
-  }
+  "ignorePatterns": [
+    "!**/*"
+  ],
+  "overrides": [
+    {
+      "files": [
+        "*.ts",
+        "*.tsx",
+        "*.js",
+        "*.jsx"
+      ],
+      "parserOptions": {
+        "project": [
+          "packages/core-ecs/tsconfig.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "warn",
+        "no-console": "warn"
+      }
+    }
+  ]
 }
