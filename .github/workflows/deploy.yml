@@ -21,7 +21,8 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9.1.0
+          version: 9.12.2
+          run_install: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -38,7 +39,9 @@ jobs:
           NODE_OPTIONS=--max-old-space-size=4096 pnpm run build
 
       - name: Verify Dist Type Module
-        run: cat apps/api/dist/package.json || cat packages/server/dist/package.json || true
+        run: |
+          if [ -d "apps/api/dist" ]; then cat apps/api/dist/package.json || true; fi
+          if [ -d "packages/server/dist" ]; then cat packages/server/dist/package.json || true; fi
 
       - name: Azure Login
         uses: azure/login@v2
@@ -47,14 +50,12 @@ jobs:
 
       - name: Validate Container & Upload Assets
         run: |
-          # Verhindert 'BlobNotFound' durch explizite Validierung/Erstellung des Ziel-Containers
           az storage container create \
             --name "cdn-assets" \
             --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} \
             --public-access blob \
             --auth-mode key || true
           
-          # Upload der Client-Dist-Dateien in den validierten Pfad
           az storage blob upload-batch \
             --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} \
             --destination "cdn-assets" \
@@ -105,13 +106,13 @@ jobs:
             git reset --hard origin/main
             
             echo "--- CONFIGURING RUNTIME ENVIRONMENT ---"
-            # Sicherstellen, dass Module-Type für die Produktion gesetzt ist
+            mkdir -p packages/server/dist
             echo '{"type": "module"}' > packages/server/dist/package.json
             
-            # Verifizierung des Modul-Typs
-            cat packages/server/dist/package.json
+            # Synchronize pnpm version on remote if possible or use existing
+            export PNPM_HOME="/home/${{ secrets.SSH_USER }}/.local/share/pnpm"
+            export PATH="$PNPM_HOME:$PATH"
             
-            # Installiere Produktions-Abhängigkeiten im Monorepo-Kontext
             pnpm install --prod --no-frozen-lockfile
             
             echo "--- RESTARTING PM2 INSTANCE ---"

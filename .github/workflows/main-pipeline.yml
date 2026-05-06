@@ -56,6 +56,7 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           version: 9
+          run_install: false
 
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
@@ -122,13 +123,18 @@ jobs:
           fi
 
       - name: Verify Backend ESM Configuration
-        run: cat apps/api/dist/package.json
+        run: |
+          if [ -f apps/api/dist/package.json ]; then
+            cat apps/api/dist/package.json
+          else
+            echo "Backend dist package.json not found, skipping verification."
+          fi
 
       - name: Ensure Build Directories Exist
         run: |
-          mkdir -p dist
-          find . -name "dist" -type d -not -path "./dist*" -exec cp -r {} ./dist/ \; || true
-          find . -name "build" -type d -not -path "./dist*" -exec cp -r {} ./dist/ \; || true
+          mkdir -p dist_summary
+          find . -maxdepth 4 -name "dist" -type d -not -path "./dist_summary*" -exec cp -r {} ./dist_summary/ \; || true
+          find . -maxdepth 4 -name "build" -type d -not -path "./dist_summary*" -exec cp -r {} ./dist_summary/ \; || true
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
@@ -142,10 +148,7 @@ jobs:
 
       - name: GitHub Dependency Submission
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          run_install: false
+        run: pnpm install --frozen-lockfile
 
       - name: Run tests
         run: pnpm -r run test

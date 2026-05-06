@@ -40,9 +40,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 9.1.0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -71,9 +71,7 @@ jobs:
           DIST_DIR="apps/${{ matrix.app }}/dist"
           if [ -d "$DIST_DIR" ]; then
             echo "Enforcing ESM for $DIST_DIR"
-            # Create or update package.json with type: module
             if [ -f "$DIST_DIR/package.json" ]; then
-              # Use node to safely inject/update the type field
               node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('$DIST_DIR/package.json', 'utf8')); pkg.type = 'module'; fs.writeFileSync('$DIST_DIR/package.json', JSON.stringify(pkg, null, 2));"
             else
               echo '{"type": "module"}' > "$DIST_DIR/package.json"
