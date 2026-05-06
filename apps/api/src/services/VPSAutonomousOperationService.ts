@@ -95,6 +95,7 @@ export class VPSAutonomousOperationService {
 
     try {
       // Execute Oracle Consultation with Circuit Breaker and Exponential Backoff
+      // This represents a database/persistence call that might fail
       const evaluation = await this.executeSovereignOperation(
         async () => {
           return await this.consultAxiomaticOracle(logicPoints);
@@ -155,6 +156,7 @@ export class VPSAutonomousOperationService {
   /**
    * executeSovereignOperation
    * Wraps an operation with both Circuit Breaker and Exponential Backoff.
+   * This is the core resilience mechanism for DB and Network operations.
    */
   private static async executeSovereignOperation<T>(
     operation: () => Promise<T>,
@@ -164,9 +166,9 @@ export class VPSAutonomousOperationService {
     if (this.circuitState === CircuitState.OPEN) {
       if (Date.now() - this.lastFailureTime > this.RESET_TIMEOUT_MS) {
         this.circuitState = CircuitState.HALF_OPEN;
-        Logger.info(`Circuit Breaker [${context}] entering HALF_OPEN state.`);
+        Logger.info(`Circuit Breaker [${context}] entering HALF_OPEN state. Testing connection...`);
       } else {
-        throw new Error(`Circuit Breaker is OPEN for ${context}. Operation suppressed for stability.`);
+        throw new Error(`Circuit Breaker is OPEN for ${context}. Operation suppressed to prevent cascading failure.`);
       }
     }
 
@@ -175,7 +177,7 @@ export class VPSAutonomousOperationService {
       const result = await this.retryWithBackoff(operation, context);
       
       // 3. Reset Circuit on Success
-      if (this.circuitState === CircuitState.HALF_OPEN) {
+      if (this.circuitState === CircuitState.HALF_OPEN || this.circuitState === CircuitState.OPEN) {
         this.resetCircuit();
       }
       this.globalTruthState.dbConnectivity = 'CONNECTED';
@@ -204,10 +206,11 @@ export class VPSAutonomousOperationService {
         lastError = error;
         
         // Determine if error is transient (network/db/timeout)
-        const isTransient = error.message?.includes('connection') || 
-                           error.message?.includes('timeout') || 
+        const isTransient = error.message?.toLowerCase().includes('connection') || 
+                           error.message?.toLowerCase().includes('timeout') || 
                            error.code === 'ECONNREFUSED' ||
-                           error.code === 'ETIMEDOUT';
+                           error.code === 'ETIMEDOUT' ||
+                           error.code === 'PROTOCOL_CONNECTION_LOST';
 
         if (!isTransient || attempt === this.MAX_RETRIES - 1) {
           throw error;
@@ -226,8 +229,9 @@ export class VPSAutonomousOperationService {
     this.failureCount++;
     this.lastFailureTime = Date.now();
 
-    const isDbError = error.message?.includes('connection') || 
-                      error.message?.includes('ECONNREFUSED') || 
+    const errorMsg = error.message?.toLowerCase() || '';
+    const isDbError = errorMsg.includes('connection') || 
+                      errorMsg.includes('econnrefused') || 
                       error.code === 'PROTOCOL_CONNECTION_LOST';
     
     if (isDbError) {
@@ -244,12 +248,12 @@ export class VPSAutonomousOperationService {
     this.circuitState = CircuitState.CLOSED;
     this.failureCount = 0;
     this.globalTruthState.dbConnectivity = 'CONNECTED';
-    Logger.info('Circuit Breaker CLOSED. System stability restored.');
+    Logger.info('Circuit Breaker CLOSED. Persistence and system stability restored.');
   }
 
   /**
    * processGitLore
-   * Recognizes 'Jules' as the specialized bug-fixer.
+   * Recognizes 'Jules' as the specialized autonomous bug-fixer.
    */
   public static processGitLore(commits: IGitMetadata[]): INarrativeLog[] {
     return commits.map((commit): INarrativeLog => {
@@ -287,7 +291,7 @@ export class VPSAutonomousOperationService {
 
   /**
    * getSystemHealth
-   * Monitor for process managers to prevent exit code 1.
+   * Monitor for process managers to prevent exit code 1 and provide observability.
    */
   public static getSystemHealth() {
     const isAlive = (Date.now() - this.globalTruthState.lastHeartbeat) < 5000;
@@ -297,15 +301,17 @@ export class VPSAutonomousOperationService {
       circuit: CircuitState[this.circuitState],
       persistence: this.globalTruthState.dbConnectivity,
       anomalies: this.globalTruthState.activeAnomalies.length,
-      julesFixes: this.globalTruthState.julesActiveFixes
+      julesFixes: this.globalTruthState.julesActiveFixes,
+      lastOracleSync: this.globalTruthState.lastOracleSync
     };
   }
 
   private static logInfrastructureError(error: any, context: string): void {
-    const isDbError = error.message?.includes('connection') || 
-                      error.message?.includes('ECONNREFUSED') || 
+    const errorMsg = error.message?.toLowerCase() || '';
+    const isDbError = errorMsg.includes('connection') || 
+                      errorMsg.includes('econnrefused') || 
                       error.code === 'PROTOCOL_CONNECTION_LOST' ||
-                      error.message?.includes('Circuit Breaker');
+                      errorMsg.includes('circuit breaker');
 
     if (isDbError) {
       Logger.warn(`[Resilience] DB Connectivity Gap in ${context}: ${error.message}. Running in Degraded Mode.`);
@@ -340,12 +346,15 @@ export class VPSAutonomousOperationService {
     ];
   }
 
+  /**
+   * consultAxiomaticOracle
+   * Simulates/Executes higher-level integrity verification.
+   */
   private static async consultAxiomaticOracle(points: ILogicPoint[]): Promise<{
     integrityScore: number;
     anomalies: string[];
     recommendedActions: IAutonomousAction[];
   }> {
-    // In a real scenario, this would be a database call or complex AI inference
     const anomalies: string[] = [];
     const recommendedActions: IAutonomousAction[] = [];
     let integrityScore = 100;
@@ -378,7 +387,7 @@ export class VPSAutonomousOperationService {
     this.globalTruthState.lastOracleSync = Date.now();
     
     if (this.globalTruthState.systemIntegrity < 50) {
-      Logger.warn('Axiomatic Integrity Critical: Operating in restricted mode.');
+      Logger.warn('Axiomatic Integrity Critical: Operating in restricted autonomous mode.');
     }
   }
 
