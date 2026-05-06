@@ -1,11 +1,20 @@
 /**
- * AtmosphereService — Wraps @babylonjs/addons atmosphere for the game.
- * Enhances sky, fog, distant terrain integration.
- *
- * Docs: https://doc.babylonjs.com/addons/atmosphere/
+ * AtmosphereService — Wraps Babylon.js v7.x compatible sky and atmospheric effects.
+ * Replaces the legacy Atmosphere addon with SkyMaterial and synchronized environmental lighting.
  */
 
-import { Scene, Color3, Vector3, DirectionalLight, Light } from "@babylonjs/core";
+import { 
+  Scene, 
+  Color3, 
+  Vector3, 
+  DirectionalLight, 
+  Light, 
+  MeshBuilder, 
+  Mesh,
+  StandardMaterial,
+  Nullable
+} from "@babylonjs/core";
+import { SkyMaterial } from "@babylonjs/materials/sky/skyMaterial";
 
 export interface AtmosphereConfig {
   sunDirection: Vector3;
@@ -14,20 +23,23 @@ export interface AtmosphereConfig {
   atmosphereDensity: number;
   sunAngularRadius: number;
   skyTurbidity: number;
+  skyLuminance: number;
 }
 
 const DEFAULT_CONFIG: AtmosphereConfig = {
-  sunDirection: new Vector3(0.5, 0.8, 0.3).normalize(),
-  sunIntensity: 20,
+  sunDirection: new Vector3(0, 1, 0),
+  sunIntensity: 1.5,
   groundAlbedo: 0.3,
-  atmosphereDensity: 1,
+  atmosphereDensity: 1.0,
   sunAngularRadius: 0.00935,
-  skyTurbidity: 2,
+  skyTurbidity: 10,
+  skyLuminance: 1.0,
 };
 
 export class AtmosphereService {
-  private scene: Scene | null = null;
-  private atmosphereInstance: any = null;
+  private scene: Nullable<Scene> = null;
+  private skyBox: Nullable<Mesh> = null;
+  private skyMaterial: Nullable<SkyMaterial> = null;
   private config: AtmosphereConfig;
   private initialized = false;
   private timeOfDay = 0.5; // 0=midnight, 0.5=noon, 1=midnight
@@ -36,95 +48,108 @@ export class AtmosphereService {
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
+  /**
+   * Initializes the atmosphere using SkyMaterial (Babylon.js 7.x recommended approach).
+   */
   async init(scene: Scene): Promise<void> {
     if (this.initialized) return;
     this.scene = scene;
 
     try {
-      const addons = await import("@babylonjs/addons");
-      if (addons.Atmosphere) {
-        // Find existing directional lights to pass to the Atmosphere constructor
-        const directionalLights = scene.lights.filter(
-          (l) => l.getTypeID() === Light.LIGHTTYPEID_DIRECTIONALLIGHT
-        ) as DirectionalLight[];
+      // Create SkyBox
+      this.skyBox = MeshBuilder.CreateBox("skyBox", { size: 1000.0 }, scene);
+      this.skyMaterial = new SkyMaterial("skyMaterial", scene);
+      this.skyMaterial.backFaceCulling = false;
+      
+      // Apply initial config
+      this.skyMaterial.turbidity = this.config.skyTurbidity;
+      this.skyMaterial.luminance = this.config.skyLuminance;
+      
+      this.skyBox.material = this.skyMaterial;
+      this.skyBox.infiniteDistance = true;
 
-        // Atmosphere addon expects an array of DirectionalLights as the 3rd argument
-        this.atmosphereInstance = new addons.Atmosphere("atmosphere", scene, directionalLights);
-        
-        // Apply remaining configuration via properties
-        this.atmosphereInstance.sunIntensity = this.config.sunIntensity;
-        this.atmosphereInstance.skyTurbidity = this.config.skyTurbidity;
-        this.atmosphereInstance.groundAlbedo = this.config.groundAlbedo;
-        
-        scene.clearColor = new Color3(0.53, 0.81, 0.92).toColor4(1);
-        console.log("[AtmosphereService] Atmosphere addon initialized with lights array.");
-      } else {
-        console.log("[AtmosphereService] Atmosphere addon not available, using fallback sky.");
-        this.setupFallbackSky();
-      }
+      // Ensure fog is enabled for atmospheric depth
+      scene.fogMode = Scene.FOGMODE_EXP2;
+      scene.fogDensity = 0.002;
+
+      console.log("[AtmosphereService] Initialized with SkyMaterial for Babylon.js 7.x");
     } catch (e) {
-      console.error("[AtmosphereService] Error loading atmosphere addon:", e);
+      console.error("[AtmosphereService] Error initializing atmosphere:", e);
       this.setupFallbackSky();
     }
 
     this.initialized = true;
+    this.setTimeOfDay(0.5); // Default to noon
   }
 
-  /** Set time of day (0-1, where 0.5 is noon). */
+  /** 
+   * Set time of day (0-1, where 0.5 is noon).
+   * Maps time to sun inclination and azimuth for the SkyMaterial.
+   */
   setTimeOfDay(t: number): void {
     this.timeOfDay = ((t % 1) + 1) % 1;
 
-    if (!this.scene) return;
+    if (!this.scene || !this.skyMaterial) return;
 
-    // Simple day/night cycle via sun direction
-    const angle = this.timeOfDay * Math.PI * 2;
-    this.config.sunDirection = new Vector3(
-      Math.cos(angle),
+    // Calculate sun position based on time
+    // 0.0 -> Midnight (-PI/2)
+    // 0.5 -> Noon (PI/2)
+    // 1.0 -> Midnight (1.5 * PI)
+    const angle = (this.timeOfDay * 2 * Math.PI) - (Math.PI / 2);
+    
+    // Calculate sun direction vector
+    const sunDir = new Vector3(
+      0,
       Math.sin(angle),
-      0.3
+      -Math.cos(angle)
     ).normalize();
 
-    // Adjust ambient light and directional light based on time
-    const sunHeight = Math.sin(angle);
-    const brightness = Math.max(0.05, sunHeight);
+    this.config.sunDirection = sunDir;
 
-    // Update all directional lights associated with the sun
+    // Update SkyMaterial
+    // inclination: 0.5 is sunset/sunrise, 0 is noon
+    // We map our angle logic to SkyMaterial's expectations
+    this.skyMaterial.inclination = (0.5 - (Math.sin(angle) * 0.5)); 
+    this.skyMaterial.azimuth = 0.25; 
+
+    // Adjust light intensity based on sun height
+    const sunHeight = Math.max(0, sunDir.y);
+    const lightIntensity = sunHeight * this.config.sunIntensity;
+
+    // Update scene directional lights
     const dirLights = this.scene.lights.filter(
       (l) => l.getTypeID() === Light.LIGHTTYPEID_DIRECTIONALLIGHT
     ) as DirectionalLight[];
 
     dirLights.forEach((light) => {
-      light.direction = this.config.sunDirection.scale(-1);
-      light.intensity = brightness * 1.5;
+      light.direction = sunDir.scale(-1);
+      light.intensity = Math.max(0.1, lightIntensity);
+      
+      // Change light color based on sun height (warm at sunset)
+      if (sunHeight < 0.2) {
+        light.diffuse = new Color3(1, 0.6 + sunHeight * 2, 0.4 + sunHeight * 2);
+      } else {
+        light.diffuse = new Color3(1, 1, 1);
+      }
     });
 
-    // Update atmosphere instance if available
-    if (this.atmosphereInstance) {
-      // The addon usually tracks the light direction from the light array provided at init
-      // but we can manually trigger updates or sync properties if required.
-      if (this.atmosphereInstance.sunDirection) {
-        this.atmosphereInstance.sunDirection = this.config.sunDirection;
-      }
-    }
-
-    // Fog color matches sky
-    const fogR = 0.53 * brightness;
-    const fogG = 0.81 * brightness;
-    const fogB = 0.92 * brightness;
-    this.scene.fogColor = new Color3(fogR, fogG, fogB);
+    // Update fog color to match atmosphere
+    const skyColor = sunHeight > 0 
+      ? new Color3(0.5, 0.7, 1.0).scale(sunHeight) 
+      : new Color3(0.05, 0.05, 0.1);
+    
+    this.scene.fogColor = skyColor;
+    this.scene.clearColor = skyColor.toColor4(1);
   }
 
-  /** Get current time of day. */
   getTimeOfDay(): number {
     return this.timeOfDay;
   }
 
-  /** Update sun direction for DynamicTerrain lighting. */
   getSunDirection(): Vector3 {
     return this.config.sunDirection;
   }
 
-  /** Set fog density. */
   setFogDensity(density: number): void {
     if (!this.scene) return;
     this.scene.fogDensity = density;
@@ -132,10 +157,10 @@ export class AtmosphereService {
 
   private setupFallbackSky(): void {
     if (!this.scene) return;
-    this.scene.clearColor = new Color3(0.53, 0.81, 0.92).toColor4(1);
-    this.scene.fogMode = 2; // FOGMODE_EXP2
-    this.scene.fogDensity = 0.002;
-    this.scene.fogColor = new Color3(0.7, 0.8, 0.9);
+    this.scene.clearColor = new Color3(0.1, 0.1, 0.2).toColor4(1);
+    this.scene.fogMode = Scene.FOGMODE_EXP2;
+    this.scene.fogDensity = 0.005;
+    this.scene.fogColor = new Color3(0.1, 0.1, 0.2);
   }
 
   isActive(): boolean {
@@ -143,10 +168,14 @@ export class AtmosphereService {
   }
 
   dispose(): void {
-    if (this.atmosphereInstance && typeof this.atmosphereInstance.dispose === "function") {
-      this.atmosphereInstance.dispose();
+    if (this.skyBox) {
+      this.skyBox.dispose();
+      this.skyBox = null;
     }
-    this.atmosphereInstance = null;
+    if (this.skyMaterial) {
+      this.skyMaterial.dispose();
+      this.skyMaterial = null;
+    }
     this.scene = null;
     this.initialized = false;
   }
