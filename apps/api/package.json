@@ -23,6 +23,7 @@
     "@nestjs/platform-express": "^10.3.3",
     "three": "0.169.0",
     "dotenv": "^16.4.5",
+    "zod": "^3.23.8",
     "node-ssh": "^13.2.0",
     "reflect-metadata": "^0.2.1",
     "rxjs": "^7.8.1"

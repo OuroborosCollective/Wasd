@@ -6,7 +6,7 @@ import {
   ActionPriority, 
   SystemSubsystem,
   IVPSService
-} from '../interfaces/IVPSAutonomous';
+} from '../interfaces/IVPSAutonomous.js';
 
 export interface IGitMetadata {
   hash: string;
@@ -177,7 +177,7 @@ export class VPSAutonomousOperationService {
       const result = await this.retryWithBackoff(operation, context);
       
       // 3. Reset Circuit on Success
-      if (this.circuitState === CircuitState.HALF_OPEN || this.circuitState === CircuitState.OPEN) {
+      if ((this.circuitState as CircuitState) === CircuitState.HALF_OPEN || (this.circuitState as CircuitState) === CircuitState.OPEN) {
         this.resetCircuit();
       }
       this.globalTruthState.dbConnectivity = 'CONNECTED';

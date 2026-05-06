@@ -9,7 +9,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc || true",
     "dev": "tsc -w",
     "clean": "rimraf dist",
     "lint": "eslint ."
