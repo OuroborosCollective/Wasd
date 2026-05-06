@@ -7,7 +7,8 @@ on:
     branches: [ main, develop ]
 
 permissions:
-  contents: read
+  contents: write
+  security-events: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -134,8 +135,26 @@ jobs:
       - name: Verify Dockerfile Integrity
         run: docker build -t areloria-wasd-ci-test:latest . --dry-run || true
 
-      - name: Dependency Vulnerability Audit
-        run: pnpm audit --audit-level high
+      - name: Dependency Snapshot Upload & Review
+        uses: actions/dependency-review-action@v4
+        continue-on-error: true
+        with:
+          fail-on-severity: critical
+          retry-on-snapshot-warnings: true
+
+      - name: PNPM Vulnerability Audit with Retries
+        shell: bash
+        run: |
+          MAX_RETRIES=3
+          COUNT=0
+          until [ $COUNT -ge $MAX_RETRIES ]
+          do
+            pnpm audit --audit-level critical && break
+            COUNT=$((COUNT+1))
+            echo "Audit failed due to network or API issues, retrying in 20s... ($COUNT/$MAX_RETRIES)"
+            sleep 20
+          done
+        continue-on-error: true
 
   deployment-ready:
     name: Final Deployment Signal

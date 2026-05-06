@@ -14,12 +14,6 @@
     "sourceType": "module",
     "project": ["./tsconfig.json", "./packages/*/tsconfig.json", "./apps/*/tsconfig.json"]
   },
-  "plugins": [
-    "@typescript-eslint",
-    "react",
-    "react-hooks",
-    "import"
-  ],
   "extends": [
     "eslint:recommended",
     "plugin:@typescript-eslint/recommended",
@@ -28,6 +22,9 @@
     "plugin:import/recommended",
     "plugin:import/typescript",
     "prettier"
+  ],
+  "plugins": [
+    "@typescript-eslint"
   ],
   "rules": {
     "no-unused-vars": "off",
