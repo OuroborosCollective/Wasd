@@ -1,10 +1,8 @@
 {
-  "root": true,
   "extends": [
     "../../.eslintrc.json"
   ],
   "ignorePatterns": [
-    "!**/*",
     "dist",
     "node_modules",
     "coverage",
@@ -17,10 +15,12 @@
         "*.ts",
         "*.tsx"
       ],
+      "parser": "@typescript-eslint/parser",
       "parserOptions": {
         "project": [
           "packages/core-logic/tsconfig.json"
-        ]
+        ],
+        "sourceType": "module"
       },
       "rules": {
         "@typescript-eslint/no-explicit-any": "warn",
@@ -31,15 +31,12 @@
             "argsIgnorePattern": "^_",
             "varsIgnorePattern": "^_"
           }
-        ]
+        ],
+        "import/default": "off",
+        "import/named": "off",
+        "import/namespace": "off",
+        "import/no-named-as-default-member": "off"
       }
-    },
-    {
-      "files": [
-        "*.js",
-        "*.jsx"
-      ],
-      "rules": {}
     }
   ]
 }

@@ -1,21 +1,13 @@
 {
-  "root": true,
-  "ignorePatterns": [
-    "!**/*"
-  ],
-  "extends": [
-    "../../.eslintrc.json"
-  ],
+  "extends": ["../../.eslintrc.json"],
+  "ignorePatterns": ["!**/*"],
   "overrides": [
     {
-      "files": [
-        "*.ts",
-        "*.tsx"
-      ],
+      "files": ["*.ts", "*.tsx"],
+      "parser": "@typescript-eslint/parser",
       "parserOptions": {
-        "project": [
-          "packages/core-ecs/tsconfig.json"
-        ]
+        "project": ["packages/core-ecs/tsconfig.json"],
+        "tsconfigRootDir": "."
       },
       "rules": {
         "@typescript-eslint/no-explicit-any": "warn",
@@ -23,10 +15,7 @@
       }
     },
     {
-      "files": [
-        "*.js",
-        "*.jsx"
-      ],
+      "files": ["*.js", "*.jsx"],
       "rules": {
         "no-console": "warn"
       }
