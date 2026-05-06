@@ -32,5 +32,3 @@ export default [
     },
   },
 ];
-
-export default eslintConfig;
