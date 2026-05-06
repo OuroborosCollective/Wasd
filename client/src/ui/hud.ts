@@ -26,6 +26,9 @@ export function showDialogue(payload: string | DialoguePayload) {
   if (!dialogueBox) {
     dialogueBox = document.createElement("div");
     dialogueBox.id = "dialogue-box";
+    dialogueBox.setAttribute("role", "dialog");
+    dialogueBox.setAttribute("aria-modal", "true");
+    dialogueBox.setAttribute("aria-labelledby", "dialogue-title");
     dialogueBox.style.position = "fixed";
 
     const stopEvents = (e: Event) => e.stopPropagation();
@@ -108,6 +111,7 @@ export function showDialogue(payload: string | DialoguePayload) {
     closeRow.style.flexShrink = "0";
     const closeBtn = document.createElement("button");
     closeBtn.type = "button";
+    closeBtn.setAttribute("aria-label", "Close dialogue");
     closeBtn.textContent = "Close";
     closeBtn.style.padding = "12px 20px";
     closeBtn.style.minHeight = "44px";
@@ -135,6 +139,12 @@ export function showDialogue(payload: string | DialoguePayload) {
     };
     positionDialogue();
     window.addEventListener("resize", positionDialogue);
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && dialogueBox!.style.display !== "none") {
+        dialogueBox!.style.display = "none";
+      }
+    });
   }
 
   const titleEl = document.getElementById("dialogue-title");
@@ -153,7 +163,9 @@ export function showDialogue(payload: string | DialoguePayload) {
     for (const c of choices) {
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.textContent = c.text || c.id;
+      const label = c.text || c.id;
+      btn.setAttribute("aria-label", label);
+      btn.textContent = label;
       btn.style.textAlign = "left";
       btn.style.padding = "14px 14px";
       btn.style.borderRadius = "10px";
