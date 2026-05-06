@@ -1,16 +1,18 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { Server } from 'http';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 /**
  * ARELORIA WASD - API CORE
  * High-performance 3D-RPG-Metaverse Backend
+ * 
+ * Implementation: Resilient Prisma Logic & Global Error Handling
  */
 
 const app = express();
-const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
+const prisma = new PrismaClient();
 
 // Resilience Configuration Constants
 const MAX_RETRIES = 15;
@@ -58,7 +60,6 @@ class DatabaseConnectionError extends Error {
 
 /**
  * ARE-LOOP CORE LOGIC (Action-Result-Evaluation)
- * Ensures deterministic AI processing and world state integrity.
  */
 interface AREPayload {
   actionId: string;
@@ -76,16 +77,14 @@ const validatePayload = (payload: AREPayload): boolean => {
 
 const Brain = {
   process: (payload: AREPayload): any => {
-    // Logic processing for Jules Agent Systems
     const result: any = {
       evaluated: true,
       actionId: payload.actionId,
     };
 
     // PURITY ENFORCEMENT:
-    // The Brain.process flow must be stateless. Mutations are handled via explicit Evaluation outcomes.
     if ('stateChange' in result) {
-      throw new PurityViolationError('STATE_MUTATION_DETECTED: Brain.process must remain pure. Use Evaluation layer for state transitions.');
+      throw new PurityViolationError('STATE_MUTATION_DETECTED: Brain.process must remain pure.');
     }
 
     return result;
@@ -98,47 +97,45 @@ const Brain = {
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Database Connection Logic with Prisma
+ * Database Connection Logic via Prisma
  */
 async function connectToDatabase(): Promise<void> {
   console.log(`[SENTINEL] [DATABASE_BOOT] [${new Date().toISOString()}] Validating persistence layer...`);
 
-  if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
-    throw new AuthenticationError('MISSING_CONFIG: DATABASE_URL is not defined in production.');
-  }
-
-  const connectionPromise = prisma.$connect();
+  const connectionPromise = prisma.$connect().then(() => {
+    console.log(`[SENTINEL] [DATABASE_HANDSHAKE] Prisma handshake completed.`);
+    dbConnected = true;
+  });
 
   const timeoutPromise = new Promise<void>((_, reject) =>
-    setTimeout(() => reject(new ConnectionTimeoutError(`DB_TIMEOUT: Threshold of ${CONNECTION_TIMEOUT_MS}ms exceeded`)), CONNECTION_TIMEOUT_MS)
+    setTimeout(() => reject(new ConnectionTimeoutError(`DB_TIMEOUT: Threshold exceeded`)), CONNECTION_TIMEOUT_MS)
   );
 
   try {
+    if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
+      throw new AuthenticationError('MISSING_CONFIG: DATABASE_URL is not defined.');
+    }
     await Promise.race([connectionPromise, timeoutPromise]);
-    dbConnected = true;
-    console.log(`[SENTINEL] [DATABASE_HANDSHAKE] Handshake completed successfully.`);
   } catch (error: any) {
     dbConnected = false;
-    if (error instanceof ConnectionTimeoutError) throw error;
-    throw new DatabaseConnectionError(`ECONNREFUSED: Prisma could not reach database. ${error.message}`);
+    if (error instanceof Prisma.PrismaClientInitializationError) {
+      throw new DatabaseConnectionError(`PRISMA_INIT_ERROR: ${error.message}`);
+    }
+    throw error;
   }
 }
 
 /**
- * Redis Connectivity (Stub for future scaling)
+ * Redis Connectivity (Mock for architecture completeness)
  */
 async function connectToRedis(): Promise<void> {
   console.log(`[SENTINEL] [REDIS_BOOT] Validating Redis cluster state...`);
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      console.log(`[SENTINEL] [REDIS_READY] Redis synchronization complete.`);
-      resolve();
-    }, 200);
-  });
+  await sleep(200);
+  console.log(`[SENTINEL] [REDIS_READY] Redis synchronization complete.`);
 }
 
 /**
- * Exponential Backoff Retry Wrapper for Database Initialization
+ * Exponential Backoff Retry Wrapper
  */
 async function initializeWithRetry(): Promise<void> {
   let currentRetry = 0;
@@ -159,7 +156,6 @@ async function initializeWithRetry(): Promise<void> {
       console.error(`[SENTINEL] [DATABASE_ERROR] [ATTEMPT ${currentRetry}/${MAX_RETRIES}] ${errorMessage}`);
 
       if (error instanceof AuthenticationError) {
-        console.error('[SENTINEL] [FATAL] Configuration error detected. Terminating.');
         throw error;
       }
 
@@ -170,7 +166,6 @@ async function initializeWithRetry(): Promise<void> {
       const jitter = Math.random() * 1000; 
       const totalDelay = Math.min(delay + jitter, MAX_BACKOFF_MS);
       
-      console.log(`[SENTINEL] [RETRY_DELAY] Retrying in ${Math.round(totalDelay)}ms...`);
       await sleep(totalDelay);
       delay *= 2; 
     }
@@ -190,27 +185,27 @@ async function initiateRecoveryMode(error: Error) {
 
   try {
     await initializeWithRetry();
-    console.log('[SENTINEL] [RECOVERY_SUCCESS] Restored connection to infrastructure.');
+    console.log('[SENTINEL] [RECOVERY_SUCCESS] Restored.');
   } catch (recoveryError) {
-    console.error('[SENTINEL] [RECOVERY_FAILED] System could not recover. Emergency shutdown.');
+    console.error('[SENTINEL] [RECOVERY_FAILED] System halt.');
     process.exit(1);
   }
 }
 
 /**
- * Global Error Handlers
+ * Global Process Handlers
  */
 process.on('uncaughtException', (error: Error) => {
   const isTransient = error instanceof ConnectionTimeoutError || 
                       error instanceof DatabaseConnectionError ||
                       error.message.includes('DB_TIMEOUT') || 
                       error.message.includes('ECONNREFUSED') ||
-                      error.message.includes('Prisma');
+                      error.message.includes('P2024'); // Connection pool timeout
 
   if (isTransient) {
     initiateRecoveryMode(error);
   } else {
-    console.error(`[SENTINEL] [FATAL_EXCEPTION] ${error.stack || error.message}`);
+    console.error(`[SENTINEL] [FATAL_EXCEPTION] ${error.message}`);
     process.exit(1);
   }
 });
@@ -223,6 +218,22 @@ process.on('unhandledRejection', (reason: unknown) => {
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+/**
+ * Prisma Logic Error Middleware
+ * Handles P2002 (Unique constraint) and P2025 (Record not found)
+ */
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    if (err.code === 'P2002') {
+      return res.status(409).json({ error: 'Conflict: Unique constraint violation.', target: err.meta?.target });
+    }
+    if (err.code === 'P2025') {
+      return res.status(404).json({ error: 'Not Found: Record does not exist.' });
+    }
+  }
+  next(err);
+});
 
 // Health Check
 app.get('/api/health', (req: Request, res: Response) => {
@@ -240,10 +251,9 @@ app.get('/api/health', (req: Request, res: Response) => {
 
 /**
  * THE ARE-LOOP TICK
- * Orchestrates the autonomous world logic.
  */
 function startARELoop() {
-  console.log('[SENTINEL] [ARE-LOOP] Starting world logic tick (10Hz)...');
+  console.log('[SENTINEL] [ARE-LOOP] Starting world logic tick...');
   
   const tick = () => {
     if (isShuttingDown || isRecovering) {
@@ -252,23 +262,18 @@ function startARELoop() {
     }
 
     try {
-      // 1. Action Identification (Mocking dynamic input)
       const mockPayload: AREPayload = {
         actionId: `act_${Date.now()}`,
         timestamp: Date.now(),
         data: {}
       };
 
-      // 2. Validation
       if (validatePayload(mockPayload)) {
-        // 3. Evaluation & Purity Check via Brain
         Brain.process(mockPayload);
       }
-
     } catch (error: any) {
       console.error(`[SENTINEL] [ARE-LOOP_ERROR] ${error.message}`);
       if (error instanceof PurityViolationError) {
-        console.error('[SENTINEL] [INTEGRITY_VIOLATION] Purity check failed. Halting for safety.');
         process.exit(1);
       }
     }
@@ -288,36 +293,26 @@ async function bootstrap() {
   console.log('--------------------------------------------------');
 
   try {
-    // 1. Mandatory Database Validation with Retry Strategy
     await initializeWithRetry();
-    
-    // 2. Infrastructure Connectors
     await connectToRedis();
     
-    // 3. Start Server
     const server: Server = app.listen(PORT, () => {
-      console.log(`[SENTINEL] [SERVER_START] Listening on Port: ${PORT}`);
-      // Start the ARE-Loop after infrastructure is ready
+      console.log(`[SENTINEL] [SERVER_START] Port: ${PORT}`);
       startARELoop();
     });
 
-    // 4. Graceful Shutdown
-    const gracefulShutdown = (signal: string) => {
+    const gracefulShutdown = async (signal: string) => {
       if (isShuttingDown) return;
       isShuttingDown = true;
-      console.log(`[SENTINEL] [SHUTDOWN] ${signal} received. Closing connections...`);
+      console.log(`[SENTINEL] [SHUTDOWN] ${signal} received. Disconnecting Prisma...`);
       
-      server.close(async () => {
-        await prisma.$disconnect();
-        console.log('[SENTINEL] [SHUTDOWN] Prisma disconnected. Process exit.');
+      await prisma.$disconnect();
+      server.close(() => {
+        console.log('[SENTINEL] [SHUTDOWN] HTTP Server closed.');
         process.exit(0);
       });
-
-      // Force kill after timeout
-      setTimeout(() => {
-        console.error('[SENTINEL] [SHUTDOWN] Timeout exceeded. Forced termination.');
-        process.exit(1);
-      }, 10000);
+      
+      setTimeout(() => process.exit(1), 10000);
     };
 
     process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
