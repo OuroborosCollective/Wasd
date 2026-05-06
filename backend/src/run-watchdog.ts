@@ -6,28 +6,33 @@ dotenv.config();
 /**
  * Sovereign Watchdog Circuit Breaker Implementation
  * Verhindert den harten Abbruch bei transienten Datenbankfehlern und steuert den Recovery-Modus.
+ * Erweitert um HALF_OPEN State für proaktive Wiederherstellungsversuche.
  */
 enum CircuitState {
-    CLOSED,    // Normalbetrieb
-    OPEN,      // Fehlerzustand, Recovery-Modus aktiv
-    HALF_OPEN  // Testet, ob System wieder erreichbar ist
+    CLOSED,    // Normalbetrieb: Alles ok
+    OPEN,      // Fehlerzustand: Verbindung unterbrochen, Recovery-Modus
+    HALF_OPEN  // Testphase: Prüfe, ob System wieder stabil ist
 }
 
 class WatchdogCircuitBreaker {
     private state: CircuitState = CircuitState.CLOSED;
     private failureCount: number = 0;
-    private readonly threshold: number = Number(process.env.WATCHDOG_RETRY_THRESHOLD) || 3;
+    private successThreshold: number = 2; // Benötigte Erfolge in HALF_OPEN für Rückkehr zu CLOSED
+    private consecutiveSuccesses: number = 0;
+    private readonly failureThreshold: number = Number(process.env.WATCHDOG_RETRY_THRESHOLD) || 3;
     private readonly recoveryDelay: number = 5000;
 
     async executeHealthCheck(dbClient: any): Promise<boolean> {
+        // Wenn OPEN, prüfen wir periodisch im Hintergrund (simuliert durch Aufruf-Verweigerung oder Zeitfenster)
         if (this.state === CircuitState.OPEN) {
-            console.warn('⚠️ [Watchdog] Circuit Breaker is OPEN. System is in Recovery Mode.');
-            return false;
+            console.warn('⚠️ [Watchdog] Circuit Breaker is OPEN. Attempting probe...');
+            this.state = CircuitState.HALF_OPEN;
         }
 
         try {
+            // Spezifischer Health-Check Ping
             await integrityChecker.checkDatabaseHealth(dbClient);
-            this.reset();
+            this.onSuccess();
             return true;
         } catch (error: any) {
             this.onFailure(error);
@@ -35,22 +40,41 @@ class WatchdogCircuitBreaker {
         }
     }
 
+    private onSuccess() {
+        if (this.state === CircuitState.HALF_OPEN) {
+            this.consecutiveSuccesses++;
+            console.log(`⏳ [Watchdog] Probe successful (${this.consecutiveSuccesses}/${this.successThreshold})...`);
+            if (this.consecutiveSuccesses >= this.successThreshold) {
+                this.reset();
+            }
+        } else {
+            this.reset();
+        }
+    }
+
     private onFailure(error: any) {
+        this.consecutiveSuccesses = 0;
         this.failureCount++;
-        console.error(`❌ [Watchdog] Health Check failed (${this.failureCount}/${this.threshold}):`, error.message);
         
-        if (this.failureCount >= this.threshold) {
-            this.state = CircuitState.OPEN;
-            console.error('🚨 [Watchdog] Circuit Breaker TRIPPED. Entering degraded recovery state.');
+        const isConnectionError = error.code === 'ECONNREFUSED' || error.message.includes('timeout') || error.message.includes('terminated');
+        
+        console.error(`❌ [Watchdog] Health Check failed (${this.failureCount}/${this.failureThreshold}):`, error.message);
+        
+        if (this.failureCount >= this.failureThreshold || isConnectionError) {
+            if (this.state !== CircuitState.OPEN) {
+                this.state = CircuitState.OPEN;
+                console.error('🚨 [Watchdog] Circuit Breaker TRIPPED. System is now in recovery loop.');
+            }
         }
     }
 
     private reset() {
         if (this.state !== CircuitState.CLOSED) {
-            console.log('✅ [Watchdog] System recovered. Closing circuit.');
+            console.log('✅ [Watchdog] System fully recovered. Closing circuit.');
         }
         this.state = CircuitState.CLOSED;
         this.failureCount = 0;
+        this.consecutiveSuccesses = 0;
     }
 
     async wait(customMs?: number) {
@@ -60,90 +84,109 @@ class WatchdogCircuitBreaker {
     get isDegraded() {
         return this.state === CircuitState.OPEN;
     }
+
+    get currentState() {
+        return CircuitState[this.state];
+    }
 }
 
 /**
- * Kernfunktion zur Prüfung der Datenbank-Bereitschaft vor dem Anwendungsstart.
+ * Persistente Datenbank-Bereitschaftsprüfung.
+ * Anstatt den Prozess zu beenden, verbleibt der Watchdog in einer Warteschleife.
  */
-async function waitForDatabase(dbClient: any, maxAttempts: number = 10): Promise<boolean> {
-    console.log(`📡 [Watchdog] Waiting for Database-Ready signal (Max attempts: ${maxAttempts})...`);
-    for (let i = 1; i <= maxAttempts; i++) {
+async function waitForDatabase(dbClient: any, maxAttempts: number = 0): Promise<boolean> {
+    console.log(`📡 [Watchdog] Initializing Database-Ready check...`);
+    let attempt = 0;
+
+    while (true) {
+        attempt++;
         try {
-            // Einfacher Ping-Test zur Prüfung der physischen Verbindung
+            // Physischer Connection Test
             await dbClient.query('SELECT 1');
-            console.log('🔗 [Watchdog] Database connection established.');
+            console.log('🔗 [Watchdog] Database connection established and verified.');
             return true;
         } catch (err: any) {
-            console.warn(`⏳ [Watchdog] Database not ready yet (Attempt ${i}/${maxAttempts}): ${err.message}`);
-            if (i < maxAttempts) {
-                await new Promise(resolve => setTimeout(resolve, 5000));
+            console.warn(`⏳ [Watchdog] Database connection pending (Attempt ${attempt}): ${err.message}`);
+            
+            // Wenn maxAttempts > 0 gesetzt ist (z.B. für CI), dann nach Limit abbrechen. 
+            // Standardmäßig (0) unendlicher Loop für "kontrollierte Restarts/Warten".
+            if (maxAttempts > 0 && attempt >= maxAttempts) {
+                return false;
             }
+
+            // Exponentieller Backoff für Reconnect-Versuche (max 30s)
+            const delay = Math.min(1000 * Math.pow(1.5, attempt), 30000);
+            await new Promise(resolve => setTimeout(resolve, delay));
         }
     }
-    return false;
 }
 
 async function run() {
     console.log('🚀 Starting Sovereign Watchdog Integrity Check...');
     const circuitBreaker = new WatchdogCircuitBreaker();
     
-    // Initialisierung des DB Clients (Mock für die Pipeline/Standalone-Validierung)
+    // Initialisierung des DB Clients
+    // Im echten Betrieb wird hier der produktive Client injiziert
     const mockDbClient = {
         query: async (q: string, params?: any[]) => {
             if (process.env.SIMULATE_DB_FAILURE === 'true') {
-                throw new Error('Database Connection Timeout (Simulated)');
+                throw new Error('Connection refused (Simulated)');
             }
-            return { rows: [] };
+            return { rows: [{ '1': 1 }] };
         }
     };
 
     try {
-        // SCHRITT 1: Datenbank-Ready Prüfung
+        // SCHRITT 1: Persistente Datenbank-Prüfung (Blockiert bis Verbindung steht)
         const dbReady = await waitForDatabase(mockDbClient);
         
         if (!dbReady) {
-            console.error('💀 [Watchdog] Database connection failed after multiple retries.');
-            console.error('💀 [Watchdog] Integrity checks aborted. Entering safety shutdown.');
-            process.exit(1);
+            console.error('💀 [Watchdog] Critical Timeout: Database not reachable.');
+            process.exit(1); 
         }
 
-        // SCHRITT 2: Integritätsprüfung mit Circuit Breaker
-        let success = false;
-        let healthAttempts = 0;
-        const maxHealthAttempts = 5;
-
-        while (!success && healthAttempts < maxHealthAttempts) {
-            success = await circuitBreaker.executeHealthCheck(mockDbClient);
+        // SCHRITT 2: Integritätsprüfung & Axiom-Synchronisation
+        // Diese Schleife stellt sicher, dass der Watchdog bei einem DB-Abbruch während der Initialisierung
+        // nicht stirbt, sondern zurück in den Wartemodus geht.
+        
+        let integrityPassed = false;
+        while (!integrityPassed) {
+            const healthOk = await circuitBreaker.executeHealthCheck(mockDbClient);
             
-            if (!success) {
-                healthAttempts++;
-                if (healthAttempts < maxHealthAttempts) {
-                    console.log(`🔄 [Watchdog] Retrying Health Check in 5s (Attempt ${healthAttempts}/${maxHealthAttempts})...`);
-                    await circuitBreaker.wait();
+            if (healthOk) {
+                console.log('📂 [Watchdog] Synchronizing Axioms (Model-to-Interface)...');
+                try {
+                    integrityChecker.synchronizeAxioms('./src/models');
+                    integrityPassed = true;
+                } catch (syncError) {
+                    console.error('❌ [Watchdog] Axiom Synchronization failed. Retrying...', syncError);
+                    await circuitBreaker.wait(10000);
+                }
+            } else {
+                console.warn(`🔄 [Watchdog] Integrity delayed. Current State: ${circuitBreaker.currentState}. Retrying...`);
+                await circuitBreaker.wait();
+                
+                // Falls wir im Loop feststellen, dass die DB komplett weg ist, 
+                // triggern wir die initiale Wartelogik erneut.
+                if (circuitBreaker.isDegraded) {
+                    await waitForDatabase(mockDbClient);
                 }
             }
         }
 
-        // SCHRITT 3: Axiom-Synchronisation (Modelle zu Interfaces)
-        // Läuft auch im Degraded Mode, solange das Dateisystem valide ist.
-        try {
-            console.log('📂 [Watchdog] Synchronizing Axioms (Model-to-Interface)...');
-            integrityChecker.synchronizeAxioms('./src/models');
-        } catch (syncError) {
-            console.error('❌ [Watchdog] Axiom Synchronization failed:', syncError);
-        }
-
-        if (circuitBreaker.isDegraded || !success) {
-            console.warn('⚠️ [Watchdog] Finished in DEGRADED MODE. Axiom synchronization completed, but DB health is unstable.');
-            process.exit(0); 
-        }
-
-        console.log('✅ [Watchdog] Integrity Check and Service Bootstrapping completed successfully.');
+        console.log('✅ [Watchdog] All Integrity Checks passed. Service Bootstrapping completed.');
         process.exit(0);
+        
     } catch (error) {
-        console.error('💀 [Watchdog] Critical failure in Watchdog process:', error);
+        // Unvorhergesehene strukturelle Fehler im Watchdog selbst
+        console.error('💀 [Watchdog] Unrecoverable failure in Watchdog execution logic:', error);
         process.exit(1);
     }
 }
+
+// Globales Error Handling für den Watchdog-Prozess
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('⚠️ [Watchdog] Unhandled Rejection at:', promise, 'reason:', reason);
+});
 
 run();
