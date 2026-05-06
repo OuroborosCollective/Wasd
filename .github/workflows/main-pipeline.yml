@@ -55,7 +55,8 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          # Erkennt automatisch die Version aus der package.json "packageManager" Feld
+          # Verhindert Versionskonflikte durch Nutzung der im Repo definierten Version
           run_install: false
 
       - name: Setup Node.js ${{ matrix.node-version }}
@@ -127,14 +128,14 @@ jobs:
           if [ -f apps/api/dist/package.json ]; then
             cat apps/api/dist/package.json
           else
-            echo "Backend dist package.json not found, skipping verification."
+            echo "apps/api/dist/package.json not found, skipping verification."
           fi
 
       - name: Ensure Build Directories Exist
         run: |
-          mkdir -p dist_summary
-          find . -maxdepth 4 -name "dist" -type d -not -path "./dist_summary*" -exec cp -r {} ./dist_summary/ \; || true
-          find . -maxdepth 4 -name "build" -type d -not -path "./dist_summary*" -exec cp -r {} ./dist_summary/ \; || true
+          mkdir -p dist-merged
+          find . -name "dist" -type d -not -path "./dist-merged*" -exec cp -r {} ./dist-merged/ \; || true
+          find . -name "build" -type d -not -path "./dist-merged*" -exec cp -r {} ./dist-merged/ \; || true
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
@@ -146,9 +147,14 @@ jobs:
           retention-days: 1
           if-no-files-found: warn
 
-      - name: GitHub Dependency Submission
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: pnpm install --frozen-lockfile
-
       - name: Run tests
         run: pnpm -r run test
+
+      - name: GitHub Dependency Submission
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-graph
+          path: pnpm-lock.yaml
+          # Die Submission erfolgt hier über den Upload oder dedizierte Actions, 
+          # pnpm wurde bereits oben korrekt initialisiert.
