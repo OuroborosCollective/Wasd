@@ -6,7 +6,7 @@ import { Server } from 'http';
  * ARELORIA WASD - API CORE
  * High-performance 3D-RPG-Metaverse Backend
  * 
- * Resilience Pattern: Exponential Backoff & Global Error Shielding
+ * Resilience Pattern: Exponential Backoff & Circuit-Breaker-Logik (Bootstrap Phase)
  */
 
 const app = express();
@@ -33,6 +33,28 @@ class AuthenticationError extends Error {
     this.name = 'AuthenticationError';
   }
 }
+
+class DatabaseStateError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'DatabaseStateError';
+  }
+}
+
+/**
+ * Circuit Breaker State for Bootstrap
+ */
+enum CircuitState {
+  CLOSED,   // Normal operation
+  OPEN,     // Failure detected, stop attempts
+  HALF_OPEN // Testing if service is back
+}
+
+let bootstrapCircuit = {
+  state: CircuitState.CLOSED,
+  failureCount: 0,
+  lastError: null as string | null,
+};
 
 /**
  * REDIS CONFIGURATION (Infrastructure Layer)
@@ -61,14 +83,13 @@ async function connectToDatabase(): Promise<void> {
       return reject(new AuthenticationError('MISSING_CONFIG: DATABASE_URL is not defined in production environment.'));
     }
 
-    // 2. Mock Logic for Connectivity/Auth Errors
+    // 2. Mock Logic for Connectivity/Auth Errors (Representing actual DB Driver behavior)
     if (process.env.SIMULATE_AUTH_ERROR === 'true') {
       return reject(new AuthenticationError('AUTH_FAILURE: Invalid credentials for database access. Check secrets.'));
     }
 
-    if (process.env.SIMULATE_DB_ERROR === 'true') {
-      // Simulate transient network failure
-      return setTimeout(() => reject(new Error('ECONNREFUSED: Database host unreachable')), 500);
+    if (process.env.SIMULATE_DB_ERROR === 'true' || bootstrapCircuit.state === CircuitState.OPEN) {
+      return setTimeout(() => reject(new DatabaseStateError('ECONNREFUSED: Database host unreachable or circuit open')), 500);
     }
     
     // Successful Handshake Simulation
@@ -98,8 +119,8 @@ async function connectToRedis(): Promise<void> {
 }
 
 /**
- * Resilience Implementation: Exponential Backoff Retry
- * Prevents CI/CD pipeline crashes on transient network issues.
+ * Resilience Implementation: Exponential Backoff Retry with Circuit-Breaker Logic
+ * Prevents CI/CD pipeline crashes on transient network issues and handles stateful failures.
  */
 async function initializeWithRetry(): Promise<void> {
   let currentRetry = 0;
@@ -108,24 +129,34 @@ async function initializeWithRetry(): Promise<void> {
   while (currentRetry < MAX_RETRIES) {
     try {
       await connectToDatabase();
+      
+      // Success: Reset Circuit
+      bootstrapCircuit.state = CircuitState.CLOSED;
+      bootstrapCircuit.failureCount = 0;
+      bootstrapCircuit.lastError = null;
+
       console.log('[SENTINEL] [DATABASE_READY] Connection verified and stable.');
       return;
     } catch (error: unknown) {
       currentRetry++;
+      bootstrapCircuit.failureCount++;
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorName = error instanceof Error ? error.name : 'UnknownError';
+      bootstrapCircuit.lastError = errorMessage;
       
       console.error(`[SENTINEL] [DATABASE_ERROR] [ATTEMPT ${currentRetry}/${MAX_RETRIES}]`);
       console.error(`[ERROR_TYPE]: ${errorName} | [DETAILS]: ${errorMessage}`);
 
       // Terminal failures (Configuration/Auth) should not be retried
       if (error instanceof AuthenticationError) {
+        bootstrapCircuit.state = CircuitState.OPEN;
         console.error('[SENTINEL] [FATAL_AUTH] Authentication failure is terminal. Terminating bootstrap.');
         throw error;
       }
 
       if (currentRetry >= MAX_RETRIES) {
-        console.error('[SENTINEL] [CRITICAL_FAILURE] Max retries exhausted. Triggering emergency shutdown.');
+        bootstrapCircuit.state = CircuitState.OPEN;
+        console.error('[SENTINEL] [CRITICAL_FAILURE] Max retries exhausted. Circuit OPEN.');
         throw new Error(`Failed to connect after ${MAX_RETRIES} attempts. Final state: ${errorMessage}`);
       }
 
@@ -172,9 +203,11 @@ app.use(express.json());
  * Health Check Endpoint for Kubernetes/Docker orchestrators
  */
 app.get('/api/health', (req: Request, res: Response) => {
-  res.status(200).json({ 
-    status: 'healthy',
+  const isHealthy = bootstrapCircuit.state !== CircuitState.OPEN;
+  res.status(isHealthy ? 200 : 503).json({ 
+    status: isHealthy ? 'healthy' : 'degraded',
     service: 'areloria-api',
+    circuit_breaker: CircuitState[bootstrapCircuit.state],
     timestamp: new Date().toISOString(),
     uptime: Math.floor(process.uptime()),
     environment: process.env.NODE_ENV || 'development',
@@ -184,7 +217,7 @@ app.get('/api/health', (req: Request, res: Response) => {
 
 /**
  * MAIN BOOTSTRAP SEQUENCE
- * Orchestrates the full service lifecycle.
+ * Orchestrates the full service lifecycle with resilience.
  */
 async function bootstrap() {
   console.log('--------------------------------------------------');
@@ -194,7 +227,7 @@ async function bootstrap() {
   console.log('--------------------------------------------------');
 
   try {
-    // 1. Resilient DB Setup
+    // 1. Resilient DB Setup with Circuit Breaker Logic
     await initializeWithRetry();
 
     // 2. Redis Integration
@@ -239,6 +272,8 @@ async function bootstrap() {
       console.error(`UNKNOWN_ERROR: ${String(error)}`);
     }
     console.error('##################################################');
+    
+    // Controlled exit for CI/CD failure detection
     process.exit(1);
   }
 }
