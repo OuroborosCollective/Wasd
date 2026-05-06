@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
 /**
- * LogicPoint Definition aligned with AxiomaticOracleService
+ * OptimizationNode Definition
+ * Represents specific sectors within the system architecture for targeted optimization.
  */
-export enum LogicPoint {
+export enum OptimizationNode {
   CORE_NUCLEUS = 'CORE_NUCLEUS',
   SIMULATION_GRID = 'SIMULATION_GRID',
   NEURAL_GATEWAY = 'NEURAL_GATEWAY',
@@ -15,7 +16,7 @@ export interface EntityState {
   id: string;
   integrity: number; // 0.0 to 1.0
   weight: number;
-  logicPoint: LogicPoint;
+  node: OptimizationNode;
   lastUpdate: number;
 }
 
@@ -44,7 +45,7 @@ export interface OptimizationState {
 export interface OptimizationAction {
   type: 'SCALE_UP' | 'SCALE_DOWN' | 'REBALANCE' | 'THROTTLE' | 'FLUSH' | 'INTEGRITY_REPAIR' | 'NO_OP';
   targetId?: string;
-  targetPoint?: LogicPoint;
+  targetNode?: OptimizationNode;
   priority: number;
   metadata: Record<string, any>;
 }
@@ -55,7 +56,7 @@ export interface OptimizationAction {
  * DESIGN PRINCIPLES:
  * 1. Server-Authority: Enforces the Single Source of Truth for system state.
  * 2. 10Hz-Conformity: O(n) algorithms ensure <100ms execution for 1000+ entities.
- * 3. Axiomatic Alignment: Maps logic points to central Enums for deterministic orchestration.
+ * 3. Architectural Clarity: Uses OptimizationNode to avoid collisions with metaphysical Axiomatic logic.
  */
 @Injectable()
 export class SystemOptimizationService {
@@ -103,12 +104,13 @@ export class SystemOptimizationService {
   private calculateIntegrityMetrics(entities: EntityState[]) {
     let totalWeight = 0;
     let weightedIntegrity = 0;
-    const pointAnalysis: Record<LogicPoint, { sum: number; count: number }> = {
-      [LogicPoint.CORE_NUCLEUS]: { sum: 0, count: 0 },
-      [LogicPoint.SIMULATION_GRID]: { sum: 0, count: 0 },
-      [LogicPoint.NEURAL_GATEWAY]: { sum: 0, count: 0 },
-      [LogicPoint.DATA_PERIPHERY]: { sum: 0, count: 0 },
-      [LogicPoint.ASSET_PIPELINE]: { sum: 0, count: 0 }
+    
+    const nodeAnalysis: Record<OptimizationNode, { sum: number; count: number }> = {
+      [OptimizationNode.CORE_NUCLEUS]: { sum: 0, count: 0 },
+      [OptimizationNode.SIMULATION_GRID]: { sum: 0, count: 0 },
+      [OptimizationNode.NEURAL_GATEWAY]: { sum: 0, count: 0 },
+      [OptimizationNode.DATA_PERIPHERY]: { sum: 0, count: 0 },
+      [OptimizationNode.ASSET_PIPELINE]: { sum: 0, count: 0 }
     };
 
     const len = entities.length;
@@ -119,8 +121,8 @@ export class SystemOptimizationService {
       weightedIntegrity += entity.integrity * weight;
       totalWeight += weight;
 
-      // Group logic point metrics in the same pass
-      const stats = pointAnalysis[entity.logicPoint];
+      // Group node metrics in the same pass
+      const stats = nodeAnalysis[entity.node];
       if (stats) {
         stats.sum += entity.integrity;
         stats.count++;
@@ -129,19 +131,19 @@ export class SystemOptimizationService {
 
     return {
       globalScore: totalWeight > 0 ? weightedIntegrity / totalWeight : 1.0,
-      pointAnalysis
+      nodeAnalysis
     };
   }
 
   private generateIntegrityActions(integrityResult: any): OptimizationAction[] {
     const actions: OptimizationAction[] = [];
     
-    for (const point of Object.values(LogicPoint)) {
-      const stats = integrityResult.pointAnalysis[point];
-      if (stats.count > 0 && (stats.sum / stats.count) < this.INTEGRITY_MINIMUM) {
+    for (const node of Object.values(OptimizationNode)) {
+      const stats = integrityResult.nodeAnalysis[node];
+      if (stats && stats.count > 0 && (stats.sum / stats.count) < this.INTEGRITY_MINIMUM) {
         actions.push({
           type: 'INTEGRITY_REPAIR',
-          targetPoint: point as LogicPoint,
+          targetNode: node as OptimizationNode,
           priority: 15, // Highest priority for integrity
           metadata: { 
             avgIntegrity: stats.sum / stats.count,
