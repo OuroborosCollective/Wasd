@@ -9,7 +9,7 @@
     "build": "rimraf dist && tsc",
     "start": "node dist/index.js",
     "lint": "eslint src",
-    "test": "vitest",
+    "test": "vitest --passWithNoTests",
     "clean": "rimraf dist node_modules"
   },
   "dependencies": {

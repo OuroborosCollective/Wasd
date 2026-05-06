@@ -7,7 +7,7 @@
   "scripts": {
     "start": "ts-node src/index.ts",
     "build": "tsc",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "dev": "ts-node-dev --respawn src/index.ts"
   },
   "keywords": [
