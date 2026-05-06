@@ -2,29 +2,35 @@
   "extends": [
     "../../.eslintrc.json"
   ],
-  "parser": "@typescript-eslint/parser",
-  "parserOptions": {
-    "project": [
-      "./tsconfig.json"
-    ],
-    "tsconfigRootDir": "."
-  },
-  "rules": {
-    "@typescript-eslint/no-explicit-any": "warn",
-    "no-unused-vars": "off",
-    "@typescript-eslint/no-unused-vars": [
-      "error",
-      {
-        "argsIgnorePattern": "^_",
-        "varsIgnorePattern": "^_"
-      }
-    ]
-  },
   "ignorePatterns": [
     "dist",
     "node_modules",
     "coverage",
     "*.config.js",
     "jest.config.ts"
+  ],
+  "overrides": [
+    {
+      "files": [
+        "*.ts",
+        "*.tsx"
+      ],
+      "parserOptions": {
+        "project": [
+          "packages/core-logic/tsconfig.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "warn",
+        "no-unused-vars": "off",
+        "@typescript-eslint/no-unused-vars": [
+          "error",
+          {
+            "argsIgnorePattern": "^_",
+            "varsIgnorePattern": "^_"
+          }
+        ]
+      }
+    }
   ]
 }
