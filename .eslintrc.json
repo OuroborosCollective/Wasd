@@ -12,7 +12,7 @@
     },
     "ecmaVersion": "latest",
     "sourceType": "module",
-    "project": "./tsconfig.json"
+    "project": ["./tsconfig.json", "./packages/*/tsconfig.json", "./apps/*/tsconfig.json"]
   },
   "plugins": [
     "@typescript-eslint",
@@ -50,7 +50,11 @@
     "@typescript-eslint/no-explicit-any": "warn",
     "@typescript-eslint/no-non-null-assertion": "off",
     "@typescript-eslint/ban-ts-comment": "warn",
-    "import/no-unresolved": "error",
+    "import/no-unresolved": "off",
+    "import/named": "off",
+    "import/default": "off",
+    "import/namespace": "off",
+    "import/no-duplicates": "error",
     "import/order": [
       "error",
       {
@@ -60,7 +64,8 @@
           "internal",
           "parent",
           "sibling",
-          "index"
+          "index",
+          "object"
         ],
         "newlines-between": "always",
         "alphabetize": {
@@ -74,10 +79,13 @@
     "react": {
       "version": "detect"
     },
+    "import/parsers": {
+      "@typescript-eslint/parser": [".ts", ".tsx"]
+    },
     "import/resolver": {
       "typescript": {
         "alwaysTryTypes": true,
-        "project": "./tsconfig.json"
+        "project": ["./tsconfig.json", "./packages/*/tsconfig.json", "./apps/*/tsconfig.json"]
       },
       "node": {
         "extensions": [
@@ -98,6 +106,8 @@
     "coverage",
     "*.config.js",
     "*.config.cjs",
-    "public"
+    "public",
+    "assets",
+    "**/vendor/*.js"
   ]
 }

@@ -15,10 +15,49 @@ export interface IAxiomaticEvent {
 }
 
 /**
+ * AREStateCompiler
+ * Implementiert deterministische Berechnungslogik für den Weltzustand.
+ * Nutzt plattformunabhängige Algorithmen zur Sicherstellung der Synchronität zwischen Client und Server.
+ */
+export class AREStateCompiler {
+  private static readonly KAPPA_CONSTANT = 1024;
+
+  /**
+   * Berechnet den Kappa-Vektor für die raumzeitliche Verankerung.
+   * @param l Der Eingabe-Seed (meist Timestamp oder Event-Sequenz-ID)
+   * @returns Int32Array mit [Zeitachse, Pseudo-X, Pseudo-Y]
+   */
+  public static computeKappa(l: number): Int32Array {
+    const kappaVector = new Int32Array(3);
+    
+    // 1. Zeitachse: l * KAPPA
+    kappaVector[0] = Math.floor(l * this.KAPPA_CONSTANT);
+    
+    // 2. Pseudo X & Y basierend auf deterministischer Resonanz
+    const resonanceX = this.computeResonance(l);
+    const resonanceY = this.computeResonance(resonanceX);
+    
+    kappaVector[1] = resonanceX % 10000; 
+    kappaVector[2] = resonanceY % 10000;
+    
+    return kappaVector;
+  }
+
+  /**
+   * Lehmer Random Number Generator für plattformunabhängigen Determinismus.
+   * Formel: (l * 16807) % 2147483647
+   */
+  public static computeResonance(l: number): number {
+    // Sicherstellung, dass l positiv ist für Modulo-Operation
+    const seed = Math.abs(Math.floor(l)) || 1;
+    return (seed * 16807) % 2147483647;
+  }
+}
+
+/**
  * AxiomaticEventBus
  * Zentraler Event-Hub der Areloria-Architektur. 
- * Implementiert ein Ring-Buffer-Ledger zur hochperformanten Speicherung der Event-Historie
- * ohne den Speicher durch unbegrenztes Wachstum zu fragmentieren.
+ * Implementiert ein Ring-Buffer-Ledger zur hochperformanten Speicherung der Event-Historie.
  */
 export class AxiomaticEventBus extends EventEmitter {
   private static instance: AxiomaticEventBus;
@@ -30,14 +69,10 @@ export class AxiomaticEventBus extends EventEmitter {
 
   private constructor() {
     super();
-    // Erhöhtes Limit für Listener, da viele Agenten (Jules) und Subsysteme gleichzeitig lauschen
     this.setMaxListeners(500);
     this.eventLedger = new Array(this.MAX_LEDGER_SIZE).fill(null);
   }
 
-  /**
-   * Singleton-Zugriff auf den EventBus
-   */
   public static getInstance(): AxiomaticEventBus {
     if (!AxiomaticEventBus.instance) {
       AxiomaticEventBus.instance = new AxiomaticEventBus();
@@ -47,69 +82,51 @@ export class AxiomaticEventBus extends EventEmitter {
 
   /**
    * Publiziert ein Event und speichert es im Ring-Buffer Ledger.
-   * Entkoppelt von der StateReconstructionEngine, um zirkuläre Abhängigkeiten zu vermeiden.
    */
   public publish(event: IAxiomaticEvent): void {
-    // Validierung der Event-Struktur
     if (!event.id || !event.type) {
       console.error('[AxiomaticEventBus] Invalid event rejected:', event);
       return;
     }
 
-    // Ring-Buffer Logik: Event an aktueller Pointer-Position einfügen
+    // Speicherung im Ledger
     this.eventLedger[this.writePointer] = event;
     
-    // Pointer inkrementieren und Modulo anwenden
     this.writePointer++;
     if (this.writePointer >= this.MAX_LEDGER_SIZE) {
       this.writePointer = 0;
       this.isFull = true;
     }
 
-    // Standard Node.js EventEmitter Trigger für spezifische Typen
+    // Trigger
     this.emit(event.type, event);
-    
-    // Globaler Broadcast für generische Beobachter
     this.emit('*', event);
   }
 
   /**
    * Gibt die Event-Historie in chronologischer Reihenfolge zurück.
-   * Rekonstruiert die Reihenfolge aus dem Ring-Buffer.
    */
   public getHistory(): IAxiomaticEvent[] {
     if (!this.isFull) {
-      // Wenn der Buffer noch nie übergelaufen ist, einfach bis zum Pointer schneiden
       return this.eventLedger.slice(0, this.writePointer) as IAxiomaticEvent[];
     }
 
-    // Wenn der Buffer voll ist: Teil ab Pointer bis Ende (älteste) 
-    // gefolgt von Teil von 0 bis Pointer (neueste)
     const oldestToWrap = this.eventLedger.slice(this.writePointer) as IAxiomaticEvent[];
     const wrapToNewest = this.eventLedger.slice(0, this.writePointer) as IAxiomaticEvent[];
     
-    return [...oldestToWrap, ...wrapToNewest];
+    return [...oldestToWrap, ...wrapToNewest].filter(e => e !== null);
   }
 
-  /**
-   * Filtert die Historie nach einem bestimmten Typ.
-   */
   public getHistoryByType(type: string): IAxiomaticEvent[] {
     return this.getHistory().filter(e => e.type === type);
   }
 
-  /**
-   * Bereinigt den Ledger (Primär für Test-Szenarien oder Hard-Resets).
-   */
   public clearLedger(): void {
     this.eventLedger = new Array(this.MAX_LEDGER_SIZE).fill(null);
     this.writePointer = 0;
     this.isFull = false;
   }
 
-  /**
-   * Gibt die aktuelle Auslastung des Ledgers zurück.
-   */
   public getLedgerStats(): { size: number; max: number; full: boolean } {
     return {
       size: this.isFull ? this.MAX_LEDGER_SIZE : this.writePointer,
@@ -119,5 +136,4 @@ export class AxiomaticEventBus extends EventEmitter {
   }
 }
 
-// Exportiere Singleton Instanz für direkten Zugriff
 export const eventBus = AxiomaticEventBus.getInstance();
