@@ -1,8 +1,10 @@
 {
+  "root": true,
   "extends": [
     "../../.eslintrc.json"
   ],
   "ignorePatterns": [
+    "!**/*",
     "dist",
     "node_modules",
     "coverage",
@@ -31,6 +33,13 @@
           }
         ]
       }
+    },
+    {
+      "files": [
+        "*.js",
+        "*.jsx"
+      ],
+      "rules": {}
     }
   ]
 }
