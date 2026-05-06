@@ -117,7 +117,7 @@ export class VPSValidationService {
     } catch (error: any) {
       const errorMsg = `SSH Validation Pipeline Error: ${error?.message || 'Unknown network failure'}`;
       result.errors.push(errorMsg);
-      console.error(`[VPSValidationService] Critical: ${errorMsg}`);
+      if (this.IS_CI) console.error(`[CI_FAILURE_REASON] SSH_CONNECT_FAILED: ${errorMsg}`);
     } finally {
       try {
         ssh.dispose();
@@ -127,8 +127,6 @@ export class VPSValidationService {
     }
 
     // 4. Persistence Layer protected by Circuit Breaker and Error Boundaries
-    // We execute this even if SSH failed to log the attempt if possible, 
-    // but typically we only persist if we have a host to map it to.
     result.details.dbPersistence = await this.safeDatabasePersistence(config.host, result);
 
     return result;
@@ -179,7 +177,9 @@ export class VPSValidationService {
         this.cbState = 'HALF_OPEN';
         console.info(`[VPSValidationService] Circuit Breaker: HALF_OPEN. Probing DB recovery for ${host}...`);
       } else {
-        result.errors.push('Persistence bypassed: Database circuit is OPEN (Cascading failure prevention).');
+        const cbError = 'Persistence bypassed: Database circuit is OPEN (Cascading failure prevention).';
+        result.errors.push(cbError);
+        if (this.IS_CI) console.error(`[CI_FAILURE_REASON] DB_CIRCUIT_OPEN: ${cbError}`);
         return false;
       }
     }
@@ -205,16 +205,20 @@ export class VPSValidationService {
 
       // If Circuit Breaker tripped during retries, stop immediately
       if (this.cbState === 'OPEN') {
-        result.errors.push('DB circuit tripped during retry sequence.');
+        const tripMsg = 'DB circuit tripped during retry sequence.';
+        result.errors.push(tripMsg);
+        if (this.IS_CI) console.error(`[CI_FAILURE_REASON] DB_CIRCUIT_TRIPPED_DURING_RETRY: ${tripMsg}`);
         return false;
       }
 
       if (attempt === this.DB_RETRY_ATTEMPTS) {
+        const finalError = `DB persistence failed permanently after ${attempt} attempts. Reason: ${dbResponse.error || 'Unknown Timeout/Refusal'}`;
+        
         if (this.IS_CI) {
-          console.warn(`[VPSValidationService] CI Override: Swallowing DB error.`);
-          return false;
+          console.error(`[CI_FAILURE_REASON] DB_PERSISTENCE_FAILED_FINAL: ${finalError}`);
         }
-        result.errors.push(`DB persistence failed permanently after ${attempt} attempts: ${dbResponse.error}`);
+        
+        result.errors.push(finalError);
         return false;
       }
 
@@ -283,6 +287,7 @@ export class VPSValidationService {
   private static async performDatabaseHandshake(host: string, result: VPSValidationResult): Promise<void> {
     // Implement actual DB call here. 
     // Example: await db.vps_validations.insert({ host, is_valid: result.isValid, data: result });
+    // For now, it's a successful resolved promise.
     return Promise.resolve();
   }
 
@@ -290,7 +295,7 @@ export class VPSValidationService {
    * Specific Recovery Procedure for Database Connection issues
    */
   private static async initiateDatabaseRecovery(error: any, attempt: number): Promise<void> {
-    console.warn(`[DB Recovery] Attempt ${attempt}: Recycling connection pool or checking heartbeats...`);
+    console.warn(`[DB Recovery] Attempt ${attempt}: Recycling connection pool or checking heartbeats. Last Error: ${error}`);
   }
 
   /**
@@ -340,7 +345,8 @@ export class VPSValidationService {
         readyTimeout: 1500,
       });
       return true;
-    } catch (error) {
+    } catch (error: any) {
+      if (this.IS_CI) console.warn(`[CI_PING_FAILURE] QuickPing failed for ${config.host}: ${error?.message}`);
       return false;
     } finally {
       try {

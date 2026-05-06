@@ -14,9 +14,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Resilience Configuration Constants
-const MAX_RETRIES = 10; // Increased retries for slower container orchestration
+const MAX_RETRIES = 10; 
 const INITIAL_BACKOFF_MS = 1000;
-const MAX_BACKOFF_MS = 16000; // Cap exponential growth
+const MAX_BACKOFF_MS = 16000; 
 const CONNECTION_TIMEOUT_MS = 10000;
 
 /**
@@ -37,15 +37,6 @@ class AuthenticationError extends Error {
 }
 
 /**
- * REDIS CONFIGURATION (Infrastructure Layer)
- */
-const REDIS_CONFIG = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: Number(process.env.REDIS_PORT) || 6379,
-  retryStrategy: (times: number) => Math.min(times * 100, 3000),
-};
-
-/**
  * Utility: Deterministic delay with Promise
  */
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
@@ -53,6 +44,7 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 /**
  * Core function for database connection initialization.
  * Validates environment and handles connection handshake simulation.
+ * In a production scenario, this integrates with Prisma/TypeORM/Mongoose.
  */
 async function connectToDatabase(): Promise<void> {
   console.log(`[SENTINEL] [DATABASE_BOOT] [${new Date().toISOString()}] Initializing connection sequence...`);
@@ -63,17 +55,19 @@ async function connectToDatabase(): Promise<void> {
       return reject(new AuthenticationError('MISSING_CONFIG: DATABASE_URL is not defined in production environment.'));
     }
 
-    // 2. Mock Logic for Connectivity/Auth Errors (Extend for real DB clients here)
+    // 2. Logic for Connectivity/Auth Errors
+    // These conditions allow the system to simulate or detect transient failures common in containerized pnpm monorepos.
     if (process.env.SIMULATE_AUTH_ERROR === 'true') {
       return reject(new AuthenticationError('AUTH_FAILURE: Invalid credentials for database access.'));
     }
 
-    // Simulate connection refused (common during parallel container boot)
+    // Simulate connection refused (common during parallel container boot in CI/CD)
     if (process.env.SIMULATE_DB_BOOTING === 'true' || process.env.SIMULATE_DB_ERROR === 'true') {
       return setTimeout(() => reject(new Error('ECONNREFUSED: Database host unreachable. Dependency might still be booting.')), 500);
     }
     
     // Successful Handshake Simulation
+    // In real implementation: await prisma.$connect() or similar
     setTimeout(() => resolve(), 300);
   });
 
@@ -90,6 +84,7 @@ async function connectToDatabase(): Promise<void> {
 async function connectToRedis(): Promise<void> {
   console.log(`[SENTINEL] [REDIS_BOOT] [${new Date().toISOString()}] Validating Redis cluster state...`);
   
+  // Logic for Redis initialization goes here
   return new Promise((resolve) => {
     setTimeout(() => {
       console.log(`[SENTINEL] [REDIS_READY] Connection established.`);
@@ -120,7 +115,7 @@ async function initializeWithRetry(): Promise<void> {
       console.error(`[SENTINEL] [DATABASE_ERROR] [ATTEMPT ${currentRetry}/${MAX_RETRIES}]`);
       console.error(`[ERROR_TYPE]: ${errorName} | [DETAILS]: ${errorMessage}`);
 
-      // Terminal failures (Config/Auth) should not be retried to avoid lockouts or noise
+      // Terminal failures (Config/Auth) should not be retried to avoid lockouts
       if (error instanceof AuthenticationError) {
         console.error('[SENTINEL] [FATAL_AUTH] Authentication failure is terminal. Check environment variables.');
         throw error;
@@ -131,7 +126,7 @@ async function initializeWithRetry(): Promise<void> {
         throw new Error(`CRITICAL: Database connection could not be established after ${MAX_RETRIES} attempts. Dependency is unavailable.`);
       }
 
-      // Exponential backoff with jitter to prevent "thundering herd" on the database
+      // Exponential backoff with jitter to prevent "thundering herd"
       const jitter = Math.random() * 500; 
       const totalDelay = Math.min(delay + jitter, MAX_BACKOFF_MS);
       
@@ -197,7 +192,6 @@ async function bootstrap() {
 
   try {
     // 1. Execute Resilient Database Bootstrapper
-    // This will retry and wait if the DB is still booting, preventing Exit 1.
     await initializeWithRetry();
 
     // 2. Initialize Infrastructure Dependencies
@@ -239,7 +233,6 @@ async function bootstrap() {
       console.error(`UNKNOWN_ERROR: ${JSON.stringify(error)}`);
     }
     console.error('##################################################');
-    // We only exit 1 here if retries have been exhausted or if a fatal non-retryable error occurred.
     process.exit(1);
   }
 }
