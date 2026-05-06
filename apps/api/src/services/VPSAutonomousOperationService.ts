@@ -37,7 +37,7 @@ export interface IGlobalTruthState {
   lastOracleSync: number;
   activeAnomalies: string[];
   sovereignClearance: boolean;
-  dbConnectivity: 'CONNECTED' | 'DISCONNECTED' | 'DEGRADED' | 'RECONNECTING';
+  dbConnectivity: 'CONNECTED' | 'DISCONNECTED' | 'DEGRADED';
 }
 
 enum CircuitState {
@@ -51,24 +51,22 @@ enum CircuitState {
  * 
  * Orchestrates the closed information loop: 
  * LogicPoints -> AxiomaticOracle -> globalTruthState -> Autonomous Action
- * Integrated with Advanced Circuit Breaker and Exponential Backoff for DB/External stability.
+ * Integrated with Circuit Breaker for DB/External stability.
  * 
- * ARCHITECTURE: Resilient against DB connection drops using multi-tier retry strategies.
+ * REFACTOR: Enhanced resilience against DB connection drops and transient I/O failures.
+ * Isolated execution blocks ensure the service runner stays active even during CI/CD infrastructure gaps.
  */
 export class VPSAutonomousOperationService {
   private static readonly CRITICAL_CPU_THRESHOLD = 90;
   private static readonly CRITICAL_RAM_THRESHOLD = 85;
   private static readonly DISK_RECOVERY_THRESHOLD = 95;
 
-  // Circuit Breaker & Retry Config
+  // Circuit Breaker Config
   private static circuitState: CircuitState = CircuitState.CLOSED;
   private static lastFailureTime: number = 0;
   private static failureCount: number = 0;
   private static readonly FAILURE_THRESHOLD = 3;
   private static readonly RESET_TIMEOUT_MS = 30000;
-  
-  private static readonly MAX_RETRY_ATTEMPTS = 5;
-  private static readonly INITIAL_RETRY_DELAY_MS = 1000;
 
   private static globalTruthState: IGlobalTruthState = {
     systemIntegrity: 100,
@@ -80,31 +78,44 @@ export class VPSAutonomousOperationService {
 
   /**
    * Main entry point for the 10Hz control loop.
-   * Wrapped in a global boundary to prevent process termination.
+   * Uses isolated try-catch blocks to prevent infrastructure failures (DB/API) 
+   * from terminating the autonomous core logic.
    */
   public static async tick(currentState: IVPSState): Promise<IAutonomousAction[]> {
-    try {
-      // 1. Data Ingestion (LogicPoints)
-      const logicPoints = this.generateLogicPoints(currentState);
+    const actions: IAutonomousAction[] = [];
+    
+    // 1. Data Ingestion (Always safe, memory-bound)
+    const logicPoints = this.generateLogicPoints(currentState);
 
-      // 2. Oracle Evaluation (ARE Rules) protected by Circuit Breaker & Retry logic
-      const evaluation = await this.executeWithResilience(
+    // 2. Oracle Evaluation (DB/External-sensitive)
+    // Wrapped in a dedicated block to catch persistence failures specifically
+    try {
+      const evaluation = await this.executeWithCircuitBreaker(
         () => this.consultAxiomaticOracle(logicPoints),
         'ORACLE_EVAL'
       );
 
       // 3. Update Global Truth State (Potentially DB-bound)
-      await this.executeWithResilience(
+      await this.executeWithCircuitBreaker(
         async () => this.updateGlobalTruth(evaluation),
         'STATE_UPDATE'
       );
 
-      // 4. Generate & Prioritize Actions
-      const actions: IAutonomousAction[] = [];
+      actions.push(...evaluation.recommendedActions);
+    } catch (error: any) {
+      this.logInfrastructureError(error, 'AxiomaticOracle/TruthUpdate');
+      // If DB is failing, add an internal anomaly record locally
+      if (!this.globalTruthState.activeAnomalies.includes('PERSISTENCE_DEGRADED')) {
+        this.globalTruthState.activeAnomalies.push('PERSISTENCE_DEGRADED');
+      }
+    }
+
+    // 4. Autonomous Logic (Infrastructure-independent diagnostics)
+    // This part runs even if the DB is offline.
+    try {
       actions.push(...this.evaluateResources(currentState));
       actions.push(...this.evaluateServiceContinuity(await this.verifySystemIntegrity(currentState)));
       actions.push(...this.evaluateSecurityPerimeter(currentState));
-      actions.push(...evaluation.recommendedActions);
 
       // 5. Handle DB-specific recovery if disconnected
       if (this.globalTruthState.dbConnectivity !== 'CONNECTED') {
@@ -112,103 +123,86 @@ export class VPSAutonomousOperationService {
           type: 'REESTABLISH_PERSISTENCE',
           subsystem: SystemSubsystem.STORAGE,
           priority: ActionPriority.CRITICAL,
-          reason: `Database Resilience Trigger: ${this.globalTruthState.dbConnectivity}`
+          reason: 'Database Connection Drop Detected - Initiating Resilience Protocol'
         });
       }
-
-      return this.prioritizeActions(actions);
-    } catch (error: any) {
-      Logger.error(`[AutonomousService] Control Loop suppressed an exception: ${error.message}`);
-      
+    } catch (criticalError: any) {
+      Logger.error('Critical failure in autonomous logic evaluation:', criticalError.message);
       return [{
         type: 'STABILIZE_CORE',
         subsystem: SystemSubsystem.KERNEL,
         priority: ActionPriority.CRITICAL,
-        reason: error.message?.includes('Circuit Breaker') 
-          ? 'Circuit Breaker Isolation' 
-          : 'Unexpected Operation Failure - Auto-Stabilizing'
+        reason: 'Internal Logic Fault'
       }];
+    }
+
+    return this.prioritizeActions(actions);
+  }
+
+  /**
+   * Logs specific DB and Infrastructure errors without crashing the service runner.
+   */
+  private static logInfrastructureError(error: any, context: string): void {
+    const isDbError = error.message?.includes('connection') || 
+                      error.message?.includes('ECONNREFUSED') || 
+                      error.code === 'PROTOCOL_CONNECTION_LOST' ||
+                      error.message?.includes('Circuit Breaker');
+
+    if (isDbError) {
+      Logger.warn(`[Resilience] DB Connectivity Gap in ${context}: ${error.message}. Running in Degraded Mode.`);
+    } else {
+      Logger.error(`[Autonomous] Non-DB Error in ${context}:`, error);
     }
   }
 
   /**
-   * Orchestrates Resilience: Retries with Exponential Backoff + Circuit Breaker.
+   * Circuit Breaker Pattern Implementation
+   * Wraps sensitive I/O operations (DB, API) to prevent cascading failures.
    */
-  private static async executeWithResilience<T>(action: () => Promise<T>, context: string): Promise<T> {
+  private static async executeWithCircuitBreaker<T>(action: () => Promise<T>, context: string): Promise<T> {
     if (this.circuitState === CircuitState.OPEN) {
       if (Date.now() - this.lastFailureTime > this.RESET_TIMEOUT_MS) {
         this.circuitState = CircuitState.HALF_OPEN;
-        Logger.info(`Circuit Breaker [${context}] entering HALF_OPEN state. Attempting recovery...`);
+        Logger.info(`Circuit Breaker [${context}] entering HALF_OPEN state.`);
       } else {
-        throw new Error(`Circuit Breaker is OPEN for ${context}. Request shed to prevent cascade.`);
+        throw new Error(`Circuit Breaker is OPEN for ${context}. Operation aborted.`);
       }
     }
 
-    let lastError: any;
-    for (let attempt = 0; attempt < this.MAX_RETRY_ATTEMPTS; attempt++) {
-      try {
-        const result = await action();
-        
-        if (this.circuitState === CircuitState.HALF_OPEN) {
-          this.resetCircuit();
-        }
-        
-        this.globalTruthState.dbConnectivity = 'CONNECTED';
-        return result;
-      } catch (error: any) {
-        lastError = error;
-        const mappedError = this.mapAndLogSecurityError(error, context, attempt);
-        
-        if (mappedError.isFatal) break;
-
-        if (attempt < this.MAX_RETRY_ATTEMPTS - 1) {
-          const delay = this.INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt);
-          this.globalTruthState.dbConnectivity = 'RECONNECTING';
-          await new Promise(resolve => setTimeout(resolve, delay));
-        }
+    try {
+      const result = await action();
+      
+      if (this.circuitState === CircuitState.HALF_OPEN) {
+        this.resetCircuit();
       }
+      
+      this.globalTruthState.dbConnectivity = 'CONNECTED';
+      return result;
+    } catch (error: any) {
+      this.handleFailure(error, context);
+      throw error;
     }
-
-    this.handleCircuitFailure(lastError, context);
-    throw lastError;
   }
 
-  private static mapAndLogSecurityError(error: any, context: string, attempt: number): { isFatal: boolean } {
-    const msg = error.message?.toLowerCase() || '';
-    const code = error.code || '';
-    
-    let isFatal = false;
-
-    if (msg.includes('connection refused') || code === 'ECONNREFUSED') {
-      Logger.warn(`[Resilience] DB Connection Refused in ${context} (Attempt ${attempt + 1}). Checking infrastructure...`);
-      this.globalTruthState.dbConnectivity = 'DISCONNECTED';
-    } else if (msg.includes('access denied') || code === 'ER_ACCESS_DENIED_ERROR') {
-      Logger.error(`[Resilience] Fatal Auth Error in ${context}. Aborting retries.`);
-      isFatal = true;
-    } else if (msg.includes('timeout') || code === 'ETIMEDOUT') {
-      Logger.warn(`[Resilience] Network Timeout in ${context} (Attempt ${attempt + 1}).`);
-      this.globalTruthState.dbConnectivity = 'DEGRADED';
-    } else {
-      Logger.error(`[Resilience] Unmapped Error in ${context}: ${msg}`);
-    }
-
-    return { isFatal };
-  }
-
-  private static handleCircuitFailure(error: any, context: string): void {
+  private static handleFailure(error: any, context: string): void {
     this.failureCount++;
     this.lastFailureTime = Date.now();
 
+    const isDbError = error.message?.includes('connection') || error.message?.includes('ECONNREFUSED') || error.code === 'PROTOCOL_CONNECTION_LOST';
+    if (isDbError) {
+      this.globalTruthState.dbConnectivity = 'DISCONNECTED';
+    }
+    
     if (this.failureCount >= this.FAILURE_THRESHOLD) {
       this.circuitState = CircuitState.OPEN;
-      Logger.error(`Circuit Breaker TRIPPED at ${context}. Failure threshold reached. System isolated.`);
+      Logger.error(`Circuit Breaker TRIPPED at ${context}. Failure threshold reached (${this.failureCount}). Entering OPEN state.`);
     }
   }
 
   private static resetCircuit(): void {
     this.circuitState = CircuitState.CLOSED;
     this.failureCount = 0;
-    Logger.info('Circuit Breaker CLOSED. Axiomatic Oracle sync restored.');
+    Logger.info('Circuit Breaker CLOSED. System stability restored.');
   }
 
   private static generateLogicPoints(state: IVPSState): ILogicPoint[] {
@@ -274,7 +268,7 @@ export class VPSAutonomousOperationService {
     this.globalTruthState.lastOracleSync = Date.now();
     
     if (this.globalTruthState.systemIntegrity < 50) {
-      Logger.warn('Axiomatic Integrity Critical: Operating in restricted autonomous mode.');
+      Logger.warn('Axiomatic Integrity Critical: Operating in restricted mode.');
     }
   }
 
@@ -291,7 +285,7 @@ export class VPSAutonomousOperationService {
         content = `Internal repair initiated by ${commit.author} to resolve fragment corruption: ${commit.message}`;
         severity = 'REPAIR';
       } else if (msg.startsWith('refactor')) {
-        content = `System optimization cycle performed by ${commit.author}. Logic streamlined.`;
+        content = `System optimization cycle performed. Codebase restructured by ${commit.author}.`;
         severity = 'INFO';
       } else {
         content = `Chronicle update: ${commit.message} (Authored by ${commit.author})`;
@@ -324,7 +318,7 @@ export class VPSAutonomousOperationService {
         type: 'THROTTLE_NON_ESSENTIAL',
         subsystem: SystemSubsystem.RESOURCES,
         priority: ActionPriority.HIGH,
-        reason: 'CPU Overload detected'
+        reason: 'CPU Overload detected via LogicPoint'
       });
     }
 
@@ -357,7 +351,7 @@ export class VPSAutonomousOperationService {
         targetId: svc.id,
         subsystem: SystemSubsystem.SERVICES,
         priority: ActionPriority.CRITICAL,
-        reason: `Service Failure: ${svc.id} - Operational Desync`
+        reason: `Service Failure: ${svc.id} - Health Desync`
       }));
   }
 
@@ -369,13 +363,13 @@ export class VPSAutonomousOperationService {
         type: 'ROTATE_INTERNAL_KEYS',
         subsystem: SystemSubsystem.SECURITY,
         priority: ActionPriority.HIGH,
-        reason: 'Security Anomaly Detection'
+        reason: 'Brute force or Sovereign Violation detection'
       });
       actions.push({
         type: 'BLOCK_SUSPICIOUS_IPS',
         subsystem: SystemSubsystem.NETWORKING,
         priority: ActionPriority.CRITICAL,
-        reason: 'Active Perimeter Breach Attempt'
+        reason: 'Perimeter Breach Attempt'
       });
     }
 

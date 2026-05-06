@@ -1,5 +1,11 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
+import { Server } from 'http';
+
+/**
+ * ARELORIA WASD - API CORE
+ * High-performance 3D-RPG-Metaverse Backend
+ */
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -12,7 +18,7 @@ const CONNECTION_TIMEOUT_MS = 5000;
 /**
  * Hilfsfunktion für deterministische Verzögerungen
  */
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Kernfunktion zur Initialisierung der Datenbankverbindung.
@@ -22,18 +28,20 @@ async function connectToDatabase(): Promise<void> {
   console.log(`[SENTINEL] [DATABASE_BOOT] [${new Date().toISOString()}] Initializing connection sequence...`);
 
   const connectionPromise = new Promise<void>((resolve, reject) => {
-    // Falls DATABASE_URL fehlt, sofortiger Abbruch (Konfigurationsfehler)
+    // Validierung der Konfiguration
     if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
       return reject(new Error('MISSING_CONFIG: DATABASE_URL is not defined in environment variables.'));
     }
 
-    // Simulation/Integration der Datenbank-Prüfung
-    // In Produktion würde hier stehen: await prisma.$connect();
+    /**
+     * Integration-Point: Hier wird üblicherweise prisma.$connect() oder ähnliches aufgerufen.
+     * Simulation für die Boot-Sequenz-Validierung.
+     */
     if (process.env.SIMULATE_DB_ERROR === 'true') {
       return setTimeout(() => reject(new Error('ECONNREFUSED: Database host unreachable')), 500);
     }
     
-    // Erfolgreicher Verbindungsaufbau
+    // Simulierter erfolgreicher Verbindungsaufbau der Persistenzschicht
     setTimeout(() => resolve(), 300);
   });
 
@@ -57,7 +65,7 @@ async function initializeWithRetry(): Promise<void> {
       await connectToDatabase();
       console.log('[SENTINEL] [DATABASE_READY] Connection established and verified.');
       return;
-    } catch (error) {
+    } catch (error: unknown) {
       currentRetry++;
       const errorMessage = error instanceof Error ? error.message : String(error);
       
@@ -69,8 +77,9 @@ async function initializeWithRetry(): Promise<void> {
         throw new Error(`Failed to connect to database after ${MAX_RETRIES} attempts.`);
       }
 
-      // Berechnung des nächsten Delays (Exponential Backoff)
-      const jitter = Math.random() * 200; // Verhindert "Thundering Herd" Problem
+      // Berechnung des nächsten Delays (Exponential Backoff + Jitter)
+      // Jitter verhindert das "Thundering Herd" Problem bei Container-Restarts
+      const jitter = Math.random() * 200; 
       const totalDelay = delay + jitter;
       
       console.log(`[SENTINEL] [RETRY_SCHEDULED] Next attempt in ${Math.round(totalDelay)}ms...`);
@@ -80,10 +89,14 @@ async function initializeWithRetry(): Promise<void> {
   }
 }
 
-// Globaler Schutzmechanismus gegen Prozess-Abstürze
+/**
+ * GLOBALER SCHUTZMECHANISMUS
+ * Verhindert unkontrollierte Abstürze und ermöglicht Logging durch Sentinel
+ */
 process.on('uncaughtException', (error: Error) => {
   console.error('[SENTINEL] [FATAL_EXCEPTION] Uncaught error detected:', error.message);
   console.error(error.stack);
+  // In einer Container-Umgebung triggert Exit 1 den automatischen Restart
   process.exit(1);
 });
 
@@ -92,12 +105,12 @@ process.on('unhandledRejection', (reason: unknown) => {
   process.exit(1);
 });
 
-// Middleware Konfiguration
+// Express Middleware Konfiguration
 app.use(cors());
 app.use(express.json());
 
 /**
- * Health Check Endpunkt für Kubernetes / Docker Health Checks
+ * Health Check Endpunkt für Kubernetes Liveness/Readiness Probes
  */
 app.get('/api/health', (req: Request, res: Response) => {
   res.status(200).json({ 
@@ -105,7 +118,8 @@ app.get('/api/health', (req: Request, res: Response) => {
     service: 'areloria-api',
     timestamp: new Date().toISOString(),
     uptime: Math.floor(process.uptime()),
-    version: process.env.npm_package_version || '1.0.0'
+    version: process.env.npm_package_version || '1.0.0',
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
@@ -116,33 +130,37 @@ async function bootstrap() {
   console.log('--------------------------------------------------');
   console.log('ARELORIA WASD - API CORE INITIALIZATION');
   console.log(`MODE: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`ARCH: ${process.arch} | PLATFORM: ${process.platform}`);
   console.log('--------------------------------------------------');
 
   try {
-    // Schritt 1: Persistenzschicht validieren
+    // Schritt 1: Persistenzschicht mit Backoff validieren
     await initializeWithRetry();
     
     // Schritt 2: API Listener starten
-    const server = app.listen(PORT, () => {
+    const server: Server = app.listen(PORT, () => {
       console.log(`[SENTINEL] [SERVER_START] API listening on port: ${PORT}`);
     });
 
-    // Socket Error Monitoring
+    // Runtime Socket Monitoring
     server.on('error', (error: Error) => {
       console.error('[SENTINEL] [RUNTIME_SOCKET_ERROR]', error);
     });
 
-    // Graceful Shutdown Logik für Container-Orchestrierung (SIGTERM/SIGINT)
+    /**
+     * Graceful Shutdown Logik für Container-Orchestrierung (SIGTERM/SIGINT)
+     * Stellt sicher, dass laufende Requests beendet werden.
+     */
     const gracefulShutdown = (signal: string) => {
-      console.log(`[SENTINEL] [SHUTDOWN_SIGNAL] ${signal} received.`);
+      console.log(`[SENTINEL] [SHUTDOWN_SIGNAL] ${signal} received. Closing server...`);
       server.close(() => {
-        console.log('[SENTINEL] [CLEAN_EXIT] All network connections closed.');
+        console.log('[SENTINEL] [CLEAN_EXIT] All network connections closed safely.');
         process.exit(0);
       });
       
-      // Force Exit nach 10 Sekunden falls Verbindungen hängen
+      // Force Exit Safety Net (10 Sekunden)
       setTimeout(() => {
-        console.error('[SENTINEL] [SHUTDOWN_TIMEOUT] Forcing termination.');
+        console.error('[SENTINEL] [SHUTDOWN_TIMEOUT] Forcing termination due to hanging connections.');
         process.exit(1);
       }, 10000);
     };
@@ -157,9 +175,13 @@ async function bootstrap() {
     if (error instanceof Error) {
       console.error(`TYPE: ${error.name}`);
       console.error(`MSG: ${error.message}`);
+      console.error(`STACK: ${error.stack}`);
+    } else {
+      console.error(`UNKNOWN_ERROR: ${String(error)}`);
     }
     console.error('##################################################');
 
+    // Exit Code 1 stellt sicher, dass CI/CD Pipelines und Orchestratoren den Fehler erkennen
     process.exit(1);
   }
 }
