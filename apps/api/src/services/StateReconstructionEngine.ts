@@ -1,4 +1,4 @@
-import { Injectable, Inject, forwardRef, Logger } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 
 /**
  * Interface für den EventBus zur Vermeidung zirkulärer Abhängigkeiten.
@@ -50,8 +50,8 @@ export class StateReconstructionEngine {
   private readonly MAX_ENTROPY_THRESHOLD = 1000;
 
   constructor(
-    @Inject('IEventBus') private readonly eventBus: IEventBus,
-    @Inject('IOracleService') private readonly oracle: IOracleService
+      private readonly eventBus: IEventBus,
+      private readonly oracle: IOracleService
   ) {}
 
   /**

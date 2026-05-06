@@ -177,7 +177,7 @@ export class VPSAutonomousOperationService {
       const result = await this.retryWithBackoff(operation, context);
       
       // 3. Reset Circuit on Success
-      if (this.circuitState === CircuitState.HALF_OPEN || this.circuitState === CircuitState.OPEN) {
+      if (this.circuitState === CircuitState.HALF_OPEN) {
         this.resetCircuit();
       }
       this.globalTruthState.dbConnectivity = 'CONNECTED';
