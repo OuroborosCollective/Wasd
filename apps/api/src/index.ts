@@ -5,23 +5,28 @@ import { Server } from 'http';
 /**
  * ARELORIA WASD - API CORE
  * High-performance 3D-RPG-Metaverse Backend
- * 
- * Resilience Layer: Implementation of exponential backoff and 
- * circuit-breaker-like initialization for transient dependency failures.
  */
+
+/**
+ * EXIT CODES
+ * Standardized codes for CI/CD and Orchestrator diagnostics
+ */
+enum ExitCode {
+  SUCCESS = 0,
+  GENERAL_ERROR = 1,
+  CONFIG_ERROR = 2,
+  DEPENDENCY_ERROR = 3,
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Resilience Configuration Constants
-const MAX_RETRIES = 15; // Increased for heavy CI/CD load
+// Resilience Configuration
+const MAX_RETRIES = 15;
 const INITIAL_BACKOFF_MS = 1000;
-const MAX_BACKOFF_MS = 30000; // Cap exponential growth at 30s
+const MAX_BACKOFF_MS = 30000;
 const CONNECTION_TIMEOUT_MS = 10000;
 
-/**
- * Custom Error Classes for explicit lifecycle and diagnostic handling
- */
 class ConnectionTimeoutError extends Error {
   constructor(message: string) {
     super(message);
@@ -37,32 +42,40 @@ class AuthenticationError extends Error {
 }
 
 /**
- * Utility: Deterministic delay with Promise
+ * Circuit Breaker State
  */
+const CircuitState = {
+  isOpen: false,
+  failures: 0,
+  threshold: 5,
+};
+
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Core function for database connection initialization.
- * Validates environment and handles connection handshake simulation.
- * In production, replace the setTimeout logic with actual DB client authentication (e.g., Prisma, TypeORM).
+ * Database Connection Logic
+ * Note: Replace mock logic with actual DB client (Prisma/TypeORM) call in production.
  */
 async function connectToDatabase(): Promise<void> {
   console.log(`[SENTINEL] [DATABASE_BOOT] [${new Date().toISOString()}] Initializing connection sequence...`);
 
+  if (CircuitState.isOpen) {
+    throw new Error('CIRCUIT_BREAKER: Database connection is currently blocked due to repeated failures.');
+  }
+
   const connectionPromise = new Promise<void>((resolve, reject) => {
-    // 1. Critical Configuration Validation
+    // 1. Configuration Validation
     if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
-      return reject(new AuthenticationError('MISSING_CONFIG: DATABASE_URL is not defined in production environment.'));
+      return reject(new AuthenticationError('MISSING_CONFIG: DATABASE_URL is not defined.'));
     }
 
-    // 2. Mock Logic for Connectivity/Auth Errors
+    // 2. Simulation Logic (For Testing Resilience)
     if (process.env.SIMULATE_AUTH_ERROR === 'true') {
-      return reject(new AuthenticationError('AUTH_FAILURE: Invalid credentials for database access.'));
+      return reject(new AuthenticationError('AUTH_FAILURE: Invalid database credentials.'));
     }
 
-    // Simulate connection refused (common during parallel container boot in CI)
-    if (process.env.SIMULATE_DB_BOOTING === 'true' || process.env.SIMULATE_DB_ERROR === 'true') {
-      return setTimeout(() => reject(new Error('ECONNREFUSED: Database host unreachable. Dependency might still be booting.')), 500);
+    if (process.env.SIMULATE_DB_ERROR === 'true') {
+      return setTimeout(() => reject(new Error('ECONNREFUSED: Database host unreachable.')), 500);
     }
     
     // Successful Handshake Simulation
@@ -73,7 +86,17 @@ async function connectToDatabase(): Promise<void> {
     setTimeout(() => reject(new ConnectionTimeoutError(`DB_TIMEOUT: Connection exceeded ${CONNECTION_TIMEOUT_MS}ms threshold`)), CONNECTION_TIMEOUT_MS)
   );
 
-  return Promise.race([connectionPromise, timeoutPromise]);
+  try {
+    await Promise.race([connectionPromise, timeoutPromise]);
+    CircuitState.failures = 0; // Reset on success
+  } catch (error) {
+    CircuitState.failures++;
+    if (CircuitState.failures >= CircuitState.threshold) {
+      CircuitState.isOpen = true;
+      console.error('[SENTINEL] [CIRCUIT_BREAKER] Threshold reached. Circuit OPEN.');
+    }
+    throw error;
+  }
 }
 
 /**
@@ -81,9 +104,7 @@ async function connectToDatabase(): Promise<void> {
  */
 async function connectToRedis(): Promise<void> {
   console.log(`[SENTINEL] [REDIS_BOOT] [${new Date().toISOString()}] Validating Redis cluster state...`);
-  
   return new Promise((resolve) => {
-    // Mocking Redis connection
     setTimeout(() => {
       console.log(`[SENTINEL] [REDIS_READY] Connection established.`);
       resolve();
@@ -92,9 +113,7 @@ async function connectToRedis(): Promise<void> {
 }
 
 /**
- * Resilience Implementation: Exponential Backoff Retry Wrapper
- * Specifically designed to handle transient network issues and "Database-is-starting" scenarios
- * without immediately crashing the main process with Exit Code 1.
+ * Exponential Backoff Strategy
  */
 async function initializeWithRetry(): Promise<void> {
   let currentRetry = 0;
@@ -108,113 +127,93 @@ async function initializeWithRetry(): Promise<void> {
     } catch (error: unknown) {
       currentRetry++;
       const errorMessage = error instanceof Error ? error.message : String(error);
-      const errorName = error instanceof Error ? error.name : 'UnknownError';
       
       console.error(`[SENTINEL] [DATABASE_ERROR] [ATTEMPT ${currentRetry}/${MAX_RETRIES}]`);
-      console.error(`[ERROR_TYPE]: ${errorName} | [DETAILS]: ${errorMessage}`);
+      console.error(`[DETAILS]: ${errorMessage}`);
 
-      // Terminal failures (Config/Auth) should not be retried
       if (error instanceof AuthenticationError) {
-        console.error('[SENTINEL] [FATAL_AUTH] Authentication failure is terminal. Check environment variables.');
-        throw error;
+        console.error('[SENTINEL] [FATAL_AUTH] Authentication failure is terminal.');
+        process.exit(ExitCode.CONFIG_ERROR);
       }
 
-      // Check if this is the last attempt
       if (currentRetry >= MAX_RETRIES) {
-        throw new Error(`CRITICAL: Database connection could not be established after ${MAX_RETRIES} attempts. Dependency is unavailable.`);
+        console.error(`[SENTINEL] [FATAL_RETRY] Maximum retry attempts (${MAX_RETRIES}) exhausted.`);
+        process.exit(ExitCode.DEPENDENCY_ERROR);
       }
 
-      // Exponential backoff with jitter to prevent "thundering herd"
       const jitter = Math.random() * 1000; 
       const totalDelay = Math.min(delay + jitter, MAX_BACKOFF_MS);
       
-      console.warn(`[SENTINEL] [RETRY_SCHEDULED] Database likely still booting. Waiting ${Math.round(totalDelay)}ms before next attempt...`);
+      console.warn(`[SENTINEL] [RETRY_SCHEDULED] Waiting ${Math.round(totalDelay)}ms before next attempt...`);
       await sleep(totalDelay);
-      
-      // Binary exponential backoff
       delay *= 2; 
     }
   }
 }
 
 /**
- * GLOBAL PROCESS PROTECTION
+ * Global Exception Handlers
  */
 process.on('uncaughtException', (error: Error) => {
-  console.error('\n==================================================');
-  console.error('[SENTINEL] [FATAL_EXCEPTION] Uncaught error detected');
-  console.error(`TIMESTAMP: ${new Date().toISOString()}`);
-  console.error(`MESSAGE: ${error.message}`);
-  console.error(`STACK: ${error.stack}`);
-  console.error('==================================================\n');
-  process.exit(1);
+  console.error('\n[SENTINEL] [FATAL_EXCEPTION]', error);
+  process.exit(ExitCode.GENERAL_ERROR);
 });
 
 process.on('unhandledRejection', (reason: unknown) => {
-  console.error('\n==================================================');
-  console.error('[SENTINEL] [FATAL_REJECTION] Unhandled promise rejection');
-  console.error(`TIMESTAMP: ${new Date().toISOString()}`);
-  console.error(`REASON: ${reason instanceof Error ? reason.message : reason}`);
-  if (reason instanceof Error) console.error(`STACK: ${reason.stack}`);
-  console.error('==================================================\n');
-  process.exit(1);
+  console.error('\n[SENTINEL] [FATAL_REJECTION]', reason);
+  process.exit(ExitCode.GENERAL_ERROR);
 });
 
-// Middleware & Global API Configuration
+// Middlewares
 app.use(cors());
 app.use(express.json());
 
-/**
- * Health Check Endpoint for Kubernetes/Docker orchestrators
- */
+// Health Check
 app.get('/api/health', (req: Request, res: Response) => {
   res.status(200).json({ 
     status: 'healthy',
     service: 'areloria-api',
-    timestamp: new Date().toISOString(),
     uptime: Math.floor(process.uptime()),
-    environment: process.env.NODE_ENV || 'development',
-    version: process.env.npm_package_version || '1.0.0'
+    timestamp: new Date().toISOString()
   });
 });
 
 /**
- * MAIN BOOTSTRAP SEQUENCE
- * Orchestrates the full service lifecycle with resilience patterns.
+ * Main Bootstrap Sequence
  */
 async function bootstrap() {
   console.log('--------------------------------------------------');
   console.log('ARELORIA WASD - API CORE INITIALIZATION');
-  console.log(`PORT: ${PORT} | MODE: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`PORT: ${PORT} | ENV: ${process.env.NODE_ENV || 'development'}`);
   console.log('--------------------------------------------------');
 
   try {
-    // 1. Execute Resilient Database Bootstrapper
+    // 1. Resilient Database Initialization
     await initializeWithRetry();
 
-    // 2. Initialize Infrastructure Dependencies
+    // 2. Auxiliary Dependencies
     await connectToRedis();
     
-    // 3. Start Application Server
+    // 3. Start Express Server
     const server: Server = app.listen(PORT, () => {
-      console.log(`[SENTINEL] [SERVER_START] API listening on port: ${PORT}`);
+      console.log(`[SENTINEL] [SERVER_START] API operational on port: ${PORT}`);
     });
 
     server.on('error', (error: Error) => {
       console.error('[SENTINEL] [RUNTIME_SOCKET_ERROR]', error);
     });
 
-    // 4. Graceful Shutdown Management
+    // 4. Graceful Shutdown
     const gracefulShutdown = (signal: string) => {
-      console.log(`[SENTINEL] [SHUTDOWN_SIGNAL] ${signal} received. Initiating cleanup...`);
+      console.log(`[SENTINEL] [SHUTDOWN_SIGNAL] ${signal} received.`);
       server.close(() => {
-        console.log('[SENTINEL] [CLEAN_EXIT] All network connections closed safely.');
-        process.exit(0);
+        console.log('[SENTINEL] [CLEAN_EXIT] All network connections closed.');
+        process.exit(ExitCode.SUCCESS);
       });
       
       setTimeout(() => {
-        console.error('[SENTINEL] [SHUTDOWN_TIMEOUT] Graceful shutdown exceeded 10s. Forcing termination.');
-        process.exit(1);
+        console.error('[SENTINEL] [SHUTDOWN_TIMEOUT] Forcing termination.');
+        process.exit(ExitCode.GENERAL_ERROR);
       }, 10000);
     };
 
@@ -224,15 +223,10 @@ async function bootstrap() {
   } catch (error: unknown) {
     console.error('##################################################');
     console.error('[FATAL] BOOTSTRAP SEQUENCE INTERRUPTED');
-    if (error instanceof Error) {
-      console.error(`TYPE: ${error.name} | MSG: ${error.message}`);
-    } else {
-      console.error(`UNKNOWN_ERROR: ${JSON.stringify(error)}`);
-    }
+    console.error(error);
     console.error('##################################################');
-    process.exit(1);
+    process.exit(ExitCode.DEPENDENCY_ERROR);
   }
 }
 
-// Start the core engine
 bootstrap();

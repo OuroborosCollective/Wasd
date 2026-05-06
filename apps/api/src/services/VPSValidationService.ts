@@ -1,6 +1,23 @@
 import { NodeSSH, Config as SSHConfig } from 'node-ssh';
 
 /**
+ * ValidationStatusCode
+ * Standardized status codes for the Areloria Watchdog and Orchestrator.
+ */
+export enum ValidationStatusCode {
+  SUCCESS = 'VAL_200',
+  SSH_CONNECTION_FAILED = 'VAL_ERR_SSH_401',
+  SSH_COMMAND_FAILURE = 'VAL_ERR_SSH_500',
+  INSUFFICIENT_RESOURCES = 'VAL_ERR_RES_403',
+  DB_TIMEOUT = 'VAL_ERR_DB_408',
+  DB_AUTH_FAILED = 'VAL_ERR_DB_401',
+  DB_DNS_FAILED = 'VAL_ERR_DB_404',
+  DB_GENERIC_FAILURE = 'VAL_ERR_DB_500',
+  DEGRADED_MODE = 'VAL_WARN_DEGRADED',
+  UNKNOWN_FAILURE = 'VAL_ERR_999'
+}
+
+/**
  * VPSConfig Interface
  * Defines the required structure for SSH connection attempts.
  */
@@ -17,6 +34,7 @@ export interface VPSConfig extends SSHConfig {
  */
 export interface VPSValidationResult {
   isValid: boolean;
+  watchdogCode: ValidationStatusCode;
   details: {
     connection: boolean;
     ssh: boolean;
@@ -43,6 +61,7 @@ interface DbOperationResult<T> {
   success: boolean;
   data: T | null;
   error?: string;
+  statusCode: ValidationStatusCode;
   isConnectionError: boolean;
 }
 
@@ -76,6 +95,7 @@ export class VPSValidationService {
     const ssh = new NodeSSH();
     const result: VPSValidationResult = {
       isValid: false,
+      watchdogCode: ValidationStatusCode.UNKNOWN_FAILURE,
       details: {
         connection: false,
         ssh: false,
@@ -92,11 +112,12 @@ export class VPSValidationService {
     };
 
     // 1. Pre-Validation: Database Availability Check (Graceful Degradation Trigger)
-    const isDbHealthy = await this.checkDatabaseHealth();
-    if (!isDbHealthy) {
+    const dbHealth = await this.checkDatabaseHealth();
+    if (!dbHealth.success) {
       result.details.degradedMode = true;
-      result.warnings.push('System running in DEGRADED MODE: Persistence layer currently unavailable. Validation results will not be archived.');
-      console.warn(`[VPSValidationService] DB Unreachable for host ${config.host}. Continuing in degraded mode.`);
+      result.watchdogCode = ValidationStatusCode.DEGRADED_MODE;
+      result.warnings.push(`System running in DEGRADED MODE: Persistence layer issues (${dbHealth.statusCode}).`);
+      console.warn(`[VPSValidationService] DB Unreachable for host ${config.host}. Status: ${dbHealth.statusCode}`);
     }
 
     try {
@@ -131,6 +152,7 @@ export class VPSValidationService {
     } catch (error: any) {
       const errorMsg = `SSH Validation Pipeline Error: ${error?.message || 'Unknown network failure'}`;
       result.errors.push(errorMsg);
+      result.watchdogCode = ValidationStatusCode.SSH_CONNECTION_FAILED;
       console.error(`[VPSValidationService] Critical: ${errorMsg}`);
     } finally {
       try {
@@ -143,6 +165,11 @@ export class VPSValidationService {
     // 5. Persistence Layer (only if not in pre-confirmed degraded mode)
     if (!result.details.degradedMode) {
       result.details.dbPersistence = await this.safeDatabasePersistence(config.host, result);
+    }
+
+    // Final Success Check
+    if (result.isValid && result.watchdogCode === ValidationStatusCode.UNKNOWN_FAILURE) {
+      result.watchdogCode = ValidationStatusCode.SUCCESS;
     }
 
     return result;
@@ -177,14 +204,19 @@ export class VPSValidationService {
       result.errors.push(`Storage Insufficient: Found ${resources.freeDiskGb}GB, need ${this.REQUIRED_DISK_GB}GB.`);
     }
 
-    result.isValid = result.errors.length === 0 && result.details.ssh;
+    if (result.errors.length > 0) {
+      result.watchdogCode = ValidationStatusCode.INSUFFICIENT_RESOURCES;
+      result.isValid = false;
+    } else {
+      result.isValid = result.details.ssh;
+    }
   }
 
   /**
    * Explicit check for Database Availability.
    * Returns false if the Circuit Breaker is OPEN or a ping fails.
    */
-  private static async checkDatabaseHealth(): Promise<boolean> {
+  private static async checkDatabaseHealth(): Promise<{ success: boolean; statusCode: ValidationStatusCode }> {
     const now = Date.now();
     
     // Check Circuit Breaker State first
@@ -192,18 +224,21 @@ export class VPSValidationService {
       if (now - this.lastFailureTime > this.CB_RESET_TIMEOUT) {
         this.cbState = 'HALF_OPEN';
       } else {
-        return false;
+        return { success: false, statusCode: ValidationStatusCode.DB_GENERIC_FAILURE };
       }
     }
 
     // Attempt a light handshake
-    try {
-      await this.performDatabaseHandshake('HEALTH_CHECK_PING', null);
+    const dbResponse = await this.executeBoundedDbOperation(async () => {
+      return await this.performDatabaseHandshake('HEALTH_CHECK_PING', null);
+    }, null);
+
+    if (dbResponse.success) {
       this.onPersistenceSuccess();
-      return true;
-    } catch (error) {
+      return { success: true, statusCode: ValidationStatusCode.SUCCESS };
+    } else {
       this.onPersistenceFailure();
-      return false;
+      return { success: false, statusCode: dbResponse.statusCode };
     }
   }
 
@@ -211,7 +246,6 @@ export class VPSValidationService {
    * Wrapper for persistence that applies the Circuit Breaker pattern and Exponential Backoff.
    */
   private static async safeDatabasePersistence(host: string, result: VPSValidationResult): Promise<boolean> {
-    // Retry Loop with Exponential Backoff
     for (let attempt = 1; attempt <= this.DB_RETRY_ATTEMPTS; attempt++) {
       const dbResponse = await this.executeBoundedDbOperation(async () => {
         return await this.performDatabaseHandshake(host, result);
@@ -232,7 +266,7 @@ export class VPSValidationService {
 
       // If Circuit Breaker tripped during retries, stop immediately
       if (this.cbState === 'OPEN') {
-        result.warnings.push('DB circuit tripped during persistence attempt. Result not saved.');
+        result.warnings.push(`DB circuit tripped (Attempt ${attempt}). Code: ${dbResponse.statusCode}`);
         return false;
       }
 
@@ -241,7 +275,7 @@ export class VPSValidationService {
           console.warn(`[VPSValidationService] CI Override: Swallowing DB error.`);
           return false;
         }
-        result.warnings.push(`DB persistence failed permanently after ${attempt} attempts.`);
+        result.warnings.push(`DB persistence failed permanently after ${attempt} attempts. Last code: ${dbResponse.statusCode}`);
         return false;
       }
 
@@ -254,7 +288,7 @@ export class VPSValidationService {
   }
 
   /**
-   * Zentraler Error-Boundary-Handler für Datenbank-Abfragen.
+   * Zentraler Error-Boundary-Handler für Datenbank-Abfragen mit Diagnose-Mapping.
    */
   private static async executeBoundedDbOperation<T>(
     operation: () => Promise<T>,
@@ -265,19 +299,20 @@ export class VPSValidationService {
       return {
         success: true,
         data,
+        statusCode: ValidationStatusCode.SUCCESS,
         isConnectionError: false
       };
-    } catch (error: unknown) {
-      const isConnError = this.isDatabaseConnectionError(error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
+    } catch (error: any) {
+      const diagnostics = this.diagnoseDatabaseError(error);
       
-      console.error(`[VPSValidationService] DB Boundary Catch: ${errorMessage} (ConnectionError: ${isConnError})`);
+      console.error(`[VPSValidationService] DB Boundary Catch: ${diagnostics.message} [Code: ${diagnostics.statusCode}]`);
       
       return {
         success: false,
         data: fallbackValue,
-        error: errorMessage,
-        isConnectionError: isConnError
+        error: diagnostics.message,
+        statusCode: diagnostics.statusCode,
+        isConnectionError: diagnostics.isConnectionRelated
       };
     }
   }
@@ -307,9 +342,12 @@ export class VPSValidationService {
    * Integration point for TypeORM, Prisma or raw pg-pool.
    */
   private static async performDatabaseHandshake(host: string, result: VPSValidationResult | null): Promise<void> {
-    // In a real Areloria environment, this would call the DB service
-    // For heartbeats, result is null.
-    if (host === 'HEALTH_CHECK_PING') return Promise.resolve();
+    // Simulated DB call: In real-world, we inject the DB connection pool here
+    if (host === 'HEALTH_CHECK_PING') {
+      // Mocked ping: replace with real DB ping (e.g., SELECT 1)
+      return Promise.resolve();
+    }
+    // Simulation of actual data persistence logic for validation log
     return Promise.resolve();
   }
 
@@ -321,38 +359,38 @@ export class VPSValidationService {
   }
 
   /**
-   * Detects specific PostgreSQL and Network connection-related errors
+   * Detailed Error Diagnosis for Database & Network layers
    */
-  private static isDatabaseConnectionError(error: any): boolean {
-    const code = error?.code || '';
-    const message = (error?.message || '').toLowerCase();
+  private static diagnoseDatabaseError(error: any): { statusCode: ValidationStatusCode; message: string; isConnectionRelated: boolean } {
+    const code = String(error?.code || '');
+    const message = String(error?.message || '').toLowerCase();
     
-    const connectionCodes = [
-      'ECONNREFUSED', 
-      'ETIMEDOUT', 
-      'ECONNRESET', 
-      'PROTOCOL_CONNECTION_LOST', 
-      '57P01', 
-      '57P03', 
-      '08003', 
-      '08006', 
-      '08001', 
-      '08004', 
-    ];
-    
-    const connectionKeywords = [
-      'connection terminated', 
-      'timeout', 
-      'is not accepting connections', 
-      'failed to connect',
-      'no pg_hba.conf entry',
-      'network unreachable'
-    ];
+    // DNS / Host not found
+    if (code === 'ENOTFOUND' || message.includes('getaddrinfo') || message.includes('dns')) {
+      return { statusCode: ValidationStatusCode.DB_DNS_FAILED, message, isConnectionRelated: true };
+    }
 
-    return (
-      connectionCodes.includes(code) ||
-      connectionKeywords.some(keyword => message.includes(keyword))
-    );
+    // Timeout
+    if (code === 'ETIMEDOUT' || message.includes('timeout') || message.includes('expired')) {
+      return { statusCode: ValidationStatusCode.DB_TIMEOUT, message, isConnectionRelated: true };
+    }
+
+    // Authentication
+    if (code === '28P01' || message.includes('password authentication failed') || message.includes('access denied')) {
+      return { statusCode: ValidationStatusCode.DB_AUTH_FAILED, message, isConnectionRelated: false };
+    }
+
+    // Typical Connection Errors (Connection Refused, Reset, etc.)
+    const connectionCodes = ['ECONNREFUSED', 'ECONNRESET', 'PROTOCOL_CONNECTION_LOST', '57P01', '57P03', '08003', '08006', '08001', '08004'];
+    const connectionKeywords = ['connection terminated', 'is not accepting connections', 'failed to connect', 'network unreachable'];
+
+    const isConnectionRelated = connectionCodes.includes(code) || connectionKeywords.some(kw => message.includes(kw));
+
+    return {
+      statusCode: isConnectionRelated ? ValidationStatusCode.DB_GENERIC_FAILURE : ValidationStatusCode.DB_GENERIC_FAILURE,
+      message,
+      isConnectionRelated
+    };
   }
 
   /**
