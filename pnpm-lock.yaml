@@ -91,11 +91,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/database
       react:
-        specifier: ^18.2.0
-        version: 18.3.1
+        specifier: ^19.2.5
+        version: 19.2.5
       react-dom:
         specifier: ^18.2.0
-        version: 18.3.1(react@18.3.1)
+        version: 18.3.1(react@19.2.5)
       three:
         specifier: ^0.162.0
         version: 0.162.0
@@ -108,16 +108,16 @@ importers:
         version: 6.9.1
       '@testing-library/react':
         specifier: ^16.0.1
-        version: 16.3.2(@testing-library/dom@9.3.4)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 16.3.2(@testing-library/dom@9.3.4)(@types/react-dom@18.3.7(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@18.3.1(react@19.2.5))(react@19.2.5)
       '@types/node':
         specifier: ^20.11.30
         version: 20.19.39
       '@types/react':
-        specifier: ^18.2.66
-        version: 18.3.28
+        specifier: ^19.2.14
+        version: 19.2.14
       '@types/react-dom':
         specifier: ^18.2.22
-        version: 18.3.7(@types/react@18.3.28)
+        version: 18.3.7(@types/react@19.2.14)
       '@types/three':
         specifier: ^0.162.0
         version: 0.162.0
@@ -275,8 +275,8 @@ importers:
         specifier: ^8.57.0
         version: 8.57.1
       react:
-        specifier: ^18.3.1
-        version: 18.3.1
+        specifier: ^19.2.5
+        version: 19.2.5
       tsup:
         specifier: ^8.1.0
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.14)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
@@ -410,11 +410,11 @@ importers:
         specifier: ^5.3.2
         version: 5.10.1
       react:
-        specifier: ^18.2.0
-        version: 18.3.1
+        specifier: ^19.2.5
+        version: 19.2.5
       react-dom:
         specifier: ^18.2.0
-        version: 18.3.1(react@18.3.1)
+        version: 18.3.1(react@19.2.5)
       three:
         specifier: ^0.161.0
         version: 0.161.0
@@ -423,11 +423,11 @@ importers:
         specifier: ^20.11.19
         version: 20.19.39
       '@types/react':
-        specifier: ^18.2.56
-        version: 18.3.28
+        specifier: ^19.2.14
+        version: 19.2.14
       '@types/react-dom':
         specifier: ^18.2.19
-        version: 18.3.7(@types/react@18.3.28)
+        version: 18.3.7(@types/react@19.2.14)
       '@types/three':
         specifier: ^0.161.2
         version: 0.161.2
@@ -1567,9 +1567,6 @@ packages:
   '@types/pg@8.20.0':
     resolution: {integrity: sha512-bEPFOaMAHTEP1EzpvHTbmwR8UsFyHSKsRisLIHVMXnpNefSbGA1bD6CVy+qKjGSqmZqNqBDV2azOBo8TgkcVow==}
 
-  '@types/prop-types@15.7.15':
-    resolution: {integrity: sha512-F6bEyamV9jKGAFBEmlQnesRPGOQqS2+Uwi0Em15xenOxHaf2hv6L8YCVn3rPdPJOiJfPiCnLIRyvwVaqMY3MIw==}
-
   '@types/qs@6.15.0':
     resolution: {integrity: sha512-JawvT8iBVWpzTrz3EGw9BTQFg3BQNmwERdKE22vlTxawwtbyUSlMppvZYKLZzB5zgACXdXxbD3m1bXaMqP/9ow==}
 
@@ -1581,8 +1578,8 @@ packages:
     peerDependencies:
       '@types/react': ^18.0.0
 
-  '@types/react@18.3.28':
-    resolution: {integrity: sha512-z9VXpC7MWrhfWipitjNdgCauoMLRdIILQsAEV+ZesIzBq/oUlxk0m3ApZuMFCXdnS4U7KrI+l3WRUEGQ8K1QKw==}
+  '@types/react@19.2.14':
+    resolution: {integrity: sha512-ilcTH/UniCkMdtexkoCN0bI7pMcJDvmQFPvuPvmEaYA/NSfFTAgdUSLAoVjaRJm7+6PvcM+q1zYOwS4wTYMF9w==}
 
   '@types/retry@0.12.2':
     resolution: {integrity: sha512-XISRgDJ2Tc5q4TRqvgJtzsRkFYNJzZrhTdtMoGVBttwzzQJkPnS3WWTFc7kuDRoPtPakl+T+OfdEUjYJj7Jbow==}
@@ -3579,8 +3576,8 @@ packages:
     resolution: {integrity: sha512-z6F7K9bV85EfseRCp2bzrpyQ0Gkw1uLoCel9XBVWPg/TjRj94SkJzUTGfOa4bs7iJvBWtQG0Wq7wnI0syw3EBQ==}
     engines: {node: '>=0.10.0'}
 
-  react@18.3.1:
-    resolution: {integrity: sha512-wS+hAgJShR0KhEvPJArfuPVN1+Hz1t0Y6n5jLrGQbkb4urgPE/0Rve+1kMB1v/oWgHgm4WIcV+i7F2pTVj+2iQ==}
+  react@19.2.5:
+    resolution: {integrity: sha512-llUJLzz1zTUBrskt2pwZgLq59AemifIftw4aB7JxOqf1HY2FDaGDxgwpAPVzHU1kdWabH7FauP4i1oEeer2WCA==}
     engines: {node: '>=0.10.0'}
 
   readdirp@3.6.0:
@@ -5298,15 +5295,15 @@ snapshots:
       picocolors: 1.1.1
       redent: 3.0.0
 
-  '@testing-library/react@16.3.2(@testing-library/dom@9.3.4)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@testing-library/react@16.3.2(@testing-library/dom@9.3.4)(@types/react-dom@18.3.7(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@18.3.1(react@19.2.5))(react@19.2.5)':
     dependencies:
       '@babel/runtime': 7.29.2
       '@testing-library/dom': 9.3.4
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
+      react: 19.2.5
+      react-dom: 18.3.1(react@19.2.5)
     optionalDependencies:
-      '@types/react': 18.3.28
-      '@types/react-dom': 18.3.7(@types/react@18.3.28)
+      '@types/react': 19.2.14
+      '@types/react-dom': 18.3.7(@types/react@19.2.14)
 
   '@tokenizer/inflate@0.2.7':
     dependencies:
@@ -5414,19 +5411,16 @@ snapshots:
       pg-protocol: 1.13.0
       pg-types: 2.2.0
 
-  '@types/prop-types@15.7.15': {}
-
   '@types/qs@6.15.0': {}
 
   '@types/range-parser@1.2.7': {}
 
-  '@types/react-dom@18.3.7(@types/react@18.3.28)':
+  '@types/react-dom@18.3.7(@types/react@19.2.14)':
     dependencies:
-      '@types/react': 18.3.28
+      '@types/react': 19.2.14
 
-  '@types/react@18.3.28':
+  '@types/react@19.2.14':
     dependencies:
-      '@types/prop-types': 15.7.15
       csstype: 3.2.3
 
   '@types/retry@0.12.2': {}
@@ -7703,10 +7697,10 @@ snapshots:
       iconv-lite: 0.4.24
       unpipe: 1.0.0
 
-  react-dom@18.3.1(react@18.3.1):
+  react-dom@18.3.1(react@19.2.5):
     dependencies:
       loose-envify: 1.4.0
-      react: 18.3.1
+      react: 19.2.5
       scheduler: 0.23.2
 
   react-is@16.13.1: {}
@@ -7715,9 +7709,7 @@ snapshots:
 
   react-refresh@0.17.0: {}
 
-  react@18.3.1:
-    dependencies:
-      loose-envify: 1.4.0
+  react@19.2.5: {}
 
   readdirp@3.6.0:
     dependencies:
