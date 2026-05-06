@@ -39,22 +39,30 @@ export interface IGlobalTruthState {
   sovereignClearance: boolean;
 }
 
+enum CircuitState {
+  CLOSED,
+  OPEN,
+  HALF_OPEN
+}
+
 /**
  * VPSAutonomousOperationService
  * 
  * Orchestrates the closed information loop: 
  * LogicPoints -> AxiomaticOracle -> globalTruthState -> Autonomous Action
- * 
- * Includes robust retry-logic for database/external service persistence 
- * to handle connection drops and ensure system continuity.
+ * Integrated with Circuit Breaker for DB/External stability.
  */
 export class VPSAutonomousOperationService {
   private static readonly CRITICAL_CPU_THRESHOLD = 90;
   private static readonly CRITICAL_RAM_THRESHOLD = 85;
   private static readonly DISK_RECOVERY_THRESHOLD = 95;
-  
-  private static readonly MAX_RETRY_ATTEMPTS = 3;
-  private static readonly RETRY_DELAY_MS = 1000;
+
+  // Circuit Breaker Config
+  private static circuitState: CircuitState = CircuitState.CLOSED;
+  private static lastFailureTime: number = 0;
+  private static failureCount: number = 0;
+  private static readonly FAILURE_THRESHOLD = 3;
+  private static readonly RESET_TIMEOUT_MS = 30000;
 
   private static globalTruthState: IGlobalTruthState = {
     systemIntegrity: 100,
@@ -65,106 +73,86 @@ export class VPSAutonomousOperationService {
 
   /**
    * Main entry point for the 10Hz control loop.
-   * Orchestrates the Axiomatic Information Flow with error resilience.
    */
   public static async tick(currentState: IVPSState): Promise<IAutonomousAction[]> {
     try {
-      return await this.executeWithRetry(async () => {
-        // 1. Data Ingestion (LogicPoints)
-        const logicPoints = this.generateLogicPoints(currentState);
+      // 1. Data Ingestion (LogicPoints)
+      const logicPoints = this.generateLogicPoints(currentState);
 
-        // 2. Oracle Evaluation (ARE Rules)
-        const evaluation = await this.consultAxiomaticOracle(logicPoints);
+      // 2. Oracle Evaluation (ARE Rules) protected by Circuit Breaker
+      const evaluation = await this.executeWithCircuitBreaker(() => this.consultAxiomaticOracle(logicPoints));
 
-        // 3. Update Global Truth State & Persist
+      // 3. Update Global Truth State (Potentially DB-bound)
+      await this.executeWithCircuitBreaker(async () => {
         this.updateGlobalTruth(evaluation);
-        await this.persistTruthState();
-
-        // 4. Generate & Prioritize Actions
-        const actions: IAutonomousAction[] = [];
-        actions.push(...this.evaluateResources(currentState));
-        actions.push(...this.evaluateServiceContinuity(await this.verifySystemIntegrity(currentState)));
-        actions.push(...this.evaluateSecurityPerimeter(currentState));
-        actions.push(...evaluation.recommendedActions);
-
-        return this.prioritizeActions(actions);
       });
+
+      // 4. Generate & Prioritize Actions
+      const actions: IAutonomousAction[] = [];
+      actions.push(...this.evaluateResources(currentState));
+      actions.push(...this.evaluateServiceContinuity(await this.verifySystemIntegrity(currentState)));
+      actions.push(...this.evaluateSecurityPerimeter(currentState));
+      actions.push(...evaluation.recommendedActions);
+
+      return this.prioritizeActions(actions);
     } catch (error) {
-      Logger.error('Autonomous Control Loop Failure: System Decoupled from TruthState after multiple retries', error);
+      Logger.error(`Autonomous Control Loop Failure [Circuit: ${CircuitState[this.circuitState]}]:`, error);
       
-      // Global Error Handling: Ensure the system doesn't crash, but signals critical failure
+      // If circuit is open, we return a fallback safety action instead of crashing
       return [{
         type: 'SYSTEM_HARD_REBOOT',
         subsystem: SystemSubsystem.KERNEL,
         priority: ActionPriority.CRITICAL,
-        reason: `Oracle Desynchronization / Persistence Failure: ${error instanceof Error ? error.message : 'Unknown'}`
+        reason: this.circuitState === CircuitState.OPEN 
+          ? 'Circuit Breaker Open: Emergency Isolation' 
+          : 'Oracle Desynchronization Detected'
       }];
     }
   }
 
   /**
-   * Robust retry wrapper for database and external network operations.
+   * Circuit Breaker Pattern Implementation
+   * Wraps sensitive I/O operations (DB, API) to prevent cascading failures.
    */
-  private static async executeWithRetry<T>(operation: () => Promise<T>): Promise<T> {
-    let lastError: any;
-    
-    for (let attempt = 1; attempt <= this.MAX_RETRY_ATTEMPTS; attempt++) {
-      try {
-        return await operation();
-      } catch (error) {
-        lastError = error;
-        const isNetworkError = this.isTransientError(error);
-        
-        if (isNetworkError && attempt < this.MAX_RETRY_ATTEMPTS) {
-          const delay = this.RETRY_DELAY_MS * Math.pow(2, attempt - 1); // Exponential backoff
-          Logger.warn(`Database/External connection error. Attempt ${attempt}/${this.MAX_RETRY_ATTEMPTS}. Retrying in ${delay}ms...`, error);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          continue;
-        }
-        
-        // If not transient or max retries reached
-        throw error;
+  private static async executeWithCircuitBreaker<T>(action: () => Promise<T>): Promise<T> {
+    if (this.circuitState === CircuitState.OPEN) {
+      if (Date.now() - this.lastFailureTime > this.RESET_TIMEOUT_MS) {
+        this.circuitState = CircuitState.HALF_OPEN;
+        Logger.info('Circuit Breaker entering HALF_OPEN state.');
+      } else {
+        throw new Error('Circuit Breaker is OPEN. Operation aborted to maintain system integrity.');
       }
     }
-    throw lastError;
-  }
 
-  /**
-   * Identifies if an error is transient (e.g., DB connection drop, timeout).
-   */
-  private static isTransientError(error: any): boolean {
-    const errorMessage = (error?.message || '').toLowerCase();
-    const transientIndicators = [
-      'econnreset', 
-      'econntimeout', 
-      'etimedout', 
-      'socket hang up', 
-      'connection loss', 
-      'database connection',
-      'deadlock',
-      'pool is full'
-    ];
-    return transientIndicators.some(indicator => errorMessage.includes(indicator));
-  }
-
-  /**
-   * Simulates persisting the truth state to a persistent data store.
-   * In a real environment, this interacts with PostgreSQL or Redis.
-   */
-  private static async persistTruthState(): Promise<void> {
-    // This represents the critical DB path that might fail
     try {
-      // Logic for DB interaction would go here
-      // For now, we simulate success as the logic is handled by executeWithRetry
-      this.globalTruthState.lastOracleSync = Date.now();
-    } catch (dbError) {
-      throw new Error(`Database Connection Error: Unable to persist TruthState - ${dbError instanceof Error ? dbError.message : 'Unknown'}`);
+      const result = await action();
+      
+      if (this.circuitState === CircuitState.HALF_OPEN) {
+        this.resetCircuit();
+      }
+      return result;
+    } catch (error) {
+      this.handleFailure();
+      throw error;
     }
   }
 
-  /**
-   * Translates raw metrics into Axiomatic LogicPoints.
-   */
+  private static handleFailure(): void {
+    this.failureCount++;
+    this.lastFailureTime = Date.now();
+    
+    if (this.failureCount >= this.FAILURE_THRESHOLD) {
+      this.circuitState = CircuitState.OPEN;
+      Logger.error(`Circuit Breaker TRIPPED. Failure threshold reached (${this.failureCount}). Entering OPEN state.`);
+    }
+  }
+
+  private static resetCircuit(): void {
+    this.circuitState = CircuitState.CLOSED;
+    this.failureCount = 0;
+    Logger.info('Circuit Breaker CLOSED. System stability restored.');
+  }
+
   private static generateLogicPoints(state: IVPSState): ILogicPoint[] {
     return [
       {
@@ -179,14 +167,11 @@ export class VPSAutonomousOperationService {
         source: 'SOVEREIGN_CORE',
         value: state.security.unauthorizedAccessAttempts,
         timestamp: Date.now(),
-        isSovereignProtected: true 
+        isSovereignProtected: true
       }
     ];
   }
 
-  /**
-   * AxiomaticOracle: Applies ARE (Areloria Rules Engine) logic to LogicPoints.
-   */
   private static async consultAxiomaticOracle(points: ILogicPoint[]): Promise<{
     integrityScore: number;
     anomalies: string[];
@@ -216,15 +201,13 @@ export class VPSAutonomousOperationService {
   private static updateGlobalTruth(evaluation: { integrityScore: number; anomalies: string[] }): void {
     this.globalTruthState.systemIntegrity = evaluation.integrityScore;
     this.globalTruthState.activeAnomalies = evaluation.anomalies;
+    this.globalTruthState.lastOracleSync = Date.now();
     
     if (this.globalTruthState.systemIntegrity < 50) {
       Logger.warn('Axiomatic Integrity Failure: System entering self-preservation mode.');
     }
   }
 
-  /**
-   * Processes Git Metadata into In-Game Narrative Chronicles.
-   */
   public static processGitLore(commits: IGitMetadata[]): INarrativeLog[] {
     return commits.map((commit): INarrativeLog => {
       const msg = commit.message.toLowerCase();
@@ -337,9 +320,6 @@ export class VPSAutonomousOperationService {
       );
   }
 
-  /**
-   * Sets Sovereign-Level clearance for specific maintenance cycles.
-   */
   public static setSovereignClearance(granted: boolean): void {
     Logger.info(`Sovereign Clearance Status Updated: ${granted}`);
     this.globalTruthState.sovereignClearance = granted;
