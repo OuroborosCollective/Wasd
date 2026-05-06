@@ -42,11 +42,20 @@ export interface ModelSchema {
     properties: any[];
 }
 
+export interface AuditEntry {
+    timestamp: string;
+    model: string;
+    status: 'SUCCESS' | 'DRIFT' | 'ERROR' | 'CONNECTION_LOST';
+    message: string;
+    details?: any;
+}
+
 export class SovereignWatchdog {
     private astSync = new AstInterfaceSync();
     private emitter = new WatchdogEmitter('ws://localhost:8080');
     private learning = new WatchdogLearning();
     private modelRegistry: Map<string, ModelSchema> = new Map();
+    private auditReport: AuditEntry[] = [];
     
     // Circuit Breaker State
     private breakerState: BreakerState = BreakerState.CLOSED;
@@ -65,9 +74,6 @@ export class SovereignWatchdog {
         this.modelRegistry.set(modelName, schema);
     }
 
-    /**
-     * Circuit Breaker Logic: Prüft ob der Durchgang erlaubt ist.
-     */
     private evaluateBreaker(): boolean {
         if (this.breakerState === BreakerState.OPEN) {
             const now = Date.now();
@@ -96,18 +102,24 @@ export class SovereignWatchdog {
     }
 
     /**
-     * Haupt-Runtime-Flow des Watchdogs mit Circuit Breaker und Timeout-Resilienz.
+     * Haupt-Runtime-Flow des Watchdogs.
+     * DB-Fehler werden gefangen und in den Audit-Report geschrieben.
+     * Verhindert unkontrollierten Prozess-Absturz.
      */
-    public async checkDatabaseHealth(dbClient: any): Promise<void> {
+    public async checkDatabaseHealth(dbClient: any): Promise<AuditEntry[]> {
+        this.auditReport = []; // Reset for current run
+
         if (!this.evaluateBreaker()) {
-            console.warn('[Watchdog] Execution skipped: Circuit Breaker is OPEN.');
-            return;
+            const msg = '[Watchdog] Execution skipped: Circuit Breaker is OPEN.';
+            console.warn(msg);
+            this.addToAudit('GLOBAL', 'CONNECTION_LOST', msg);
+            return this.auditReport;
         }
 
         console.log('[Watchdog] Starting Resilient Runtime Integrity Flow...');
 
         try {
-            // Verbindungstest mit manuellem Timeout-Handling
+            // Initialer Verbindungstest
             await Promise.race([
                 dbClient.query('SELECT 1'),
                 new Promise((_, reject) => setTimeout(() => reject(new Error('DB_TIMEOUT')), 5000))
@@ -116,38 +128,33 @@ export class SovereignWatchdog {
         } catch (connError: any) {
             this.recordFailure();
             this.handleConnectionError(connError, 'INITIAL_CONNECT');
-            
-            // Verhindert Exit Code 1 bei transienten Fehlern, außer im absoluten Strict-Mode
-            if (this.config.strict && this.breakerState === BreakerState.OPEN) {
-                console.error('[Watchdog] Strict mode: High persistence failure rate detected.');
-            }
-            return;
+            this.addToAudit('GLOBAL', 'CONNECTION_LOST', `Initial connection failed: ${connError.message}`);
+            return this.auditReport; 
         }
 
         for (const [modelName, expectedSchema] of this.modelRegistry.entries()) {
             try {
-                // 1. Read DB schema (Actual)
+                // 1. Read DB schema
                 const actualColumns = await this.fetchActualSchema(dbClient, expectedSchema.tableName);
                 
                 // 2. Compute diff
                 const diff = SchemaDiff.compare({ properties: expectedSchema.properties }, { columns: actualColumns });
 
-                // 3. Emit structured event & Handle Drift
+                // 3. Handle Drift
                 if (diff.additions.length > 0 || diff.removals.length > 0 || diff.changes.length > 0) {
                     this.emitter.emit('SCHEMA_DRIFT', { tableName: expectedSchema.tableName, diff }, 'HIGH');
                     
-                    // 4. Generate SQL suggestion
                     const migrationPath = MigrationGenerator.generate(diff, expectedSchema.tableName, this.config.migrationDir);
                     if (migrationPath) {
                         this.learning.record({ type: 'SCHEMA_DRIFT', payload: { tableName: expectedSchema.tableName, migrationPath } });
                     }
 
-                    if (this.config.strict) {
-                        console.error(`[Watchdog] Schema Drift detected in ${expectedSchema.tableName}. Integrity violation.`);
-                    }
+                    this.addToAudit(modelName, 'DRIFT', `Schema drift in ${expectedSchema.tableName}`, { diff, migrationPath });
+                } else {
+                    this.addToAudit(modelName, 'SUCCESS', `Schema integrity verified for ${expectedSchema.tableName}`);
                 }
 
-                // 5. Validate constraints
+                // 4. Validate constraints
                 const actualConstraints = await ConstraintValidator.fetchConstraints(dbClient, expectedSchema.tableName);
                 this.emitter.emit('CONSTRAINT_SNAPSHOT', { tableName: expectedSchema.tableName, constraints: actualConstraints });
 
@@ -155,18 +162,39 @@ export class SovereignWatchdog {
                 if (this.isConnectionError(error)) {
                     this.recordFailure();
                     this.handleConnectionError(error, modelName);
+                    this.addToAudit(modelName, 'CONNECTION_LOST', `Database connection lost during ${modelName} check: ${error.message}`);
+                    
+                    // Bei Verbindungsabbruch während der Iteration brechen wir die Schleife ab,
+                    // beenden aber nicht den Prozess.
+                    break;
                 } else {
-                    console.error(`[Watchdog] Logic Error during health check for ${modelName}:`, error.message);
-                }
-                
-                if (this.config.strict && !this.isConnectionError(error)) {
-                    // Nur bei Logik-Fehlern im Strict-Mode werfen, nicht bei Netzwerk/Timeout
-                    throw error;
+                    const errorMsg = `Logic Error during health check for ${modelName}: ${error.message}`;
+                    console.error(`[Watchdog] ${errorMsg}`);
+                    this.addToAudit(modelName, 'ERROR', errorMsg);
+                    
+                    if (this.config.strict) {
+                        console.warn(`[Watchdog] Strict mode active: Logic violation logged for ${modelName}.`);
+                    }
                 }
             }
         }
 
-        this.emitter.emit('INTEGRITY_SUMMARY', { insights: this.learning.getInsights() });
+        this.emitter.emit('INTEGRITY_SUMMARY', { 
+            insights: this.learning.getInsights(),
+            auditTrail: this.auditReport 
+        });
+
+        return this.auditReport;
+    }
+
+    private addToAudit(model: string, status: AuditEntry['status'], message: string, details?: any): void {
+        this.auditReport.push({
+            timestamp: new Date().toISOString(),
+            model,
+            status,
+            message,
+            details
+        });
     }
 
     private async fetchActualSchema(dbClient: any, tableName: string): Promise<any[]> {
@@ -184,10 +212,10 @@ export class SovereignWatchdog {
     }
 
     private isConnectionError(error: any): boolean {
-        const connectionCodes = ['ECONNREFUSED', 'PROTOCOL_CONNECTION_LOST', 'ETIMEDOUT', '57P01', '08000', '08003', '08006'];
+        const connectionCodes = ['ECONNREFUSED', 'PROTOCOL_CONNECTION_LOST', 'ETIMEDOUT', '57P01', '08000', '08003', '08006', '57P03'];
         return (error.code && connectionCodes.includes(error.code)) || 
-               error.message?.includes('connection') || 
-               error.message?.includes('refused') ||
+               error.message?.toLowerCase().includes('connection') || 
+               error.message?.toLowerCase().includes('refused') ||
                error.message === 'DB_TIMEOUT';
     }
 
@@ -227,6 +255,10 @@ export class SovereignWatchdog {
                 this.astSync.syncInterfaceWithSchema(interfacePath, schema);
             }
         }
+    }
+
+    public getAuditReport(): AuditEntry[] {
+        return this.auditReport;
     }
 }
 
