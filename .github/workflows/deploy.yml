@@ -16,15 +16,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@v4
         with:
           version: 9.1.0
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'pnpm'
@@ -36,6 +36,9 @@ jobs:
         run: |
           node scripts/bypass-ts-errors.mjs || true
           NODE_OPTIONS=--max-old-space-size=4096 pnpm run build
+
+      - name: Verify Dist Type Module
+        run: cat apps/api/dist/package.json || cat packages/server/dist/package.json || true
 
       - name: Azure Login
         uses: azure/login@v2
@@ -102,8 +105,11 @@ jobs:
             git reset --hard origin/main
             
             echo "--- CONFIGURING RUNTIME ENVIRONMENT ---"
-            # Sicherstellen, dass CommonJS für die Produktion gesetzt ist (vorkompilierte Files)
-            echo '{"type": "commonjs"}' > packages/server/dist/package.json
+            # Sicherstellen, dass Module-Type für die Produktion gesetzt ist
+            echo '{"type": "module"}' > packages/server/dist/package.json
+            
+            # Verifizierung des Modul-Typs
+            cat packages/server/dist/package.json
             
             # Installiere Produktions-Abhängigkeiten im Monorepo-Kontext
             pnpm install --prod --no-frozen-lockfile

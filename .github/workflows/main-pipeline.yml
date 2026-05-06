@@ -48,15 +48,17 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
       - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'pnpm'
@@ -101,11 +103,32 @@ jobs:
       - name: Build monorepo
         run: pnpm -r run build
 
+      - name: Configure ESM for Distribution
+        run: |
+          echo "Converting all 'commonjs' to 'module' in build artifacts..."
+          find . -type f -name "package.json" \( -path "*/dist/*" -o -path "*/build/*" \) -exec sed -i 's/"type": "commonjs"/"type": "module"/g' {} +
+          
+          echo "Ensuring apps/api distribution is explicitly ESM..."
+          if [ -d "apps/api/dist" ]; then
+            if [ ! -f "apps/api/dist/package.json" ]; then
+              echo '{"type": "module"}' > apps/api/dist/package.json
+            else
+              if ! grep -q '"type":' apps/api/dist/package.json; then
+                sed -i 's/^{/{\n  "type": "module",/' apps/api/dist/package.json
+              else
+                sed -i 's/"type": ".*"/"type": "module"/g' apps/api/dist/package.json
+              fi
+            fi
+          fi
+
+      - name: Verify Backend ESM Configuration
+        run: cat apps/api/dist/package.json
+
       - name: Ensure Build Directories Exist
         run: |
           mkdir -p dist
-          find . -name "dist" -type d -exec cp -r {} ./dist/ \; || true
-          find . -name "build" -type d -exec cp -r {} ./dist/ \; || true
+          find . -name "dist" -type d -not -path "./dist*" -exec cp -r {} ./dist/ \; || true
+          find . -name "build" -type d -not -path "./dist*" -exec cp -r {} ./dist/ \; || true
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
