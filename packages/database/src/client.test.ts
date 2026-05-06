@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mocking the database client module to prevent actual network calls during tests
 vi.mock('./client', () => ({
-  db: {
+  prisma: {
     $connect: vi.fn(),
     $disconnect: vi.fn(),
     user: {
@@ -12,8 +12,8 @@ vi.mock('./client', () => ({
   },
 }));
 
-// We import the mocked 'db' instance
-import { db } from './client';
+// We import the mocked 'prisma' instance as 'db'
+import { prisma as db } from './client';
 
 describe('Database Client Error Handling Suite', () => {
   beforeEach(() => {

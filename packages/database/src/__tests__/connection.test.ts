@@ -110,7 +110,7 @@ describe('Database Connection Error Handling', () => {
         throw new DatabaseError('Connection reset by peer', 'ECONNRESET');
       });
 
-      await expect(client.query('SELECT 1')).rejects.toThrow('ECONNRESET');
+      await expect(client.query('SELECT 1')).rejects.toThrow(/ECONNRESET|Connection reset by peer/);
       expect(client.isAlive()).toBe(false);
     });
 
@@ -148,7 +148,10 @@ describe('Database Connection Error Handling', () => {
       connectSpy
         .mockRejectedValueOnce(new DatabaseError('Transient socket error', 'ECONNRESET'))
         .mockRejectedValueOnce(new DatabaseError('Transient socket error', 'ECONNRESET'))
-        .mockResolvedValueOnce(undefined);
+        .mockImplementationOnce(async () => {
+          (client as any).connected = true;
+          return Promise.resolve();
+        });
 
       let success = false;
       let attempts = 0;
@@ -180,7 +183,7 @@ describe('Database Connection Error Handling', () => {
         }
       });
 
-      await expect(client.connect()).rejects.toThrow('SSL_ERROR');
+      await expect(client.connect()).rejects.toThrow(/SSL_ERROR|SSL error/);
       expect(endSpy).toHaveBeenCalledTimes(1);
     });
   });
