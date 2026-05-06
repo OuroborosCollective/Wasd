@@ -1,6 +1,12 @@
 node_modules/
-build/
 dist/
+build/
 public/
-*.config.js
 coverage/
+*.config.js
+*.min.js
+.next/
+out/
+.turbo/
+.cache/
+*.d.ts

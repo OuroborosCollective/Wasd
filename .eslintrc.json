@@ -24,7 +24,9 @@
     "prettier"
   ],
   "plugins": [
-    "@typescript-eslint"
+    "@typescript-eslint",
+    "import",
+    "react"
   ],
   "rules": {
     "no-unused-vars": "off",
@@ -51,6 +53,8 @@
     "import/named": "off",
     "import/default": "off",
     "import/namespace": "off",
+    "import/no-named-as-default": "off",
+    "import/no-named-as-default-member": "off",
     "import/no-duplicates": "error",
     "import/order": [
       "error",
@@ -101,10 +105,31 @@
     ".next",
     "out",
     "coverage",
-    "*.config.js",
-    "*.config.cjs",
     "public",
     "assets",
     "**/vendor/*.js"
+  ],
+  "overrides": [
+    {
+      "files": ["*.js", "*.cjs", "*.config.js", "*.config.cjs"],
+      "env": {
+        "node": true
+      },
+      "parser": "espree",
+      "parserOptions": {
+        "sourceType": "script",
+        "ecmaVersion": "latest"
+      },
+      "rules": {
+        "@typescript-eslint/no-var-requires": "off"
+      }
+    },
+    {
+      "files": ["*.mjs"],
+      "parserOptions": {
+        "sourceType": "module",
+        "ecmaVersion": "latest"
+      }
+    }
   ]
 }
