@@ -17,7 +17,7 @@
     "react": "^19.2.5",
     "react-dom": "^18.2.0",
     "three": "0.169.0",
-    "@babylonjs/core": "^6.44.0",
+    "@babylonjs/core": "^9.5.2",
     "@babylonjs/loaders": "^6.44.0",
     "@wasd/database": "workspace:*",
     "tslib": "^2.6.2"
