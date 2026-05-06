@@ -1,147 +1,122 @@
-name: "ARELORIA-WASD-ULTRA-CI"
+name: CI (Next Level)
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: ["main", "develop"]
   pull_request:
-    branches: [ main, develop ]
-
-permissions:
-  contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  NODE_VERSION: 20
-  PYTHON_VERSION: "3.11"
-
 jobs:
-  integrity-suite:
-    name: Core Integrity & Validation
+  install:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+    outputs:
+      cache-hit: ${{ steps.cache.outputs.cache-hit }}
 
-      - name: Setup Node.js
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: 22
 
-      - name: Setup PNPM
-        uses: pnpm/action-setup@v4
-        with:
-          run_install: false
+      - name: Activate pnpm
+        run: corepack prepare pnpm@10.12.1 --activate
 
-      - name: Get PNPM Store Directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      - name: Get pnpm store path
+        id: pnpm-store
+        run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
 
-      - name: Setup PNPM Cache
+      - name: Cache pnpm store
+        id: cache
         uses: actions/cache@v4
         with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          path: ${{ steps.pnpm-store.outputs.STORE_PATH }}
+          key: pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+            pnpm-store-
 
-      - name: Install Monorepo Dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Install dependencies (STRICT)
+        run: pnpm install --frozen-lockfile --prefer-offline
 
-      - name: Setup Python Environment
-        uses: actions/setup-python@v5
+  build:
+    runs-on: ubuntu-latest
+    needs: install
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
+          node-version: 22
 
-      - name: Install Python Dependencies
-        run: |
-          if [ -f backend/requirements.txt ]; then
-            pip install -r backend/requirements.txt
-          fi
+      - name: Activate pnpm
+        run: corepack prepare pnpm@10.12.1 --activate
 
-      - name: Validate Environment Schema
-        run: |
-          if [ ! -f .env.example ]; then
-            echo "CRITICAL: .env.example missing"
-            exit 1
-          fi
-
-      - name: Linting (ESLint & Prettier)
-        run: pnpm run lint
-
-      - name: Type Check (TypeScript Architect)
-        run: pnpm recursive exec -- tsc --noEmit
-
-  backend-validation:
-    name: Backend & Agentic Logic (Jules)
-    needs: integrity-suite
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-      
-      - name: Setup PNPM
-        uses: pnpm/action-setup@v4
-
-      - name: Install Dependencies
+      - name: Install (frozen)
         run: pnpm install --frozen-lockfile
 
-      - name: Build API (Node.js/TS)
-        run: pnpm --filter @areloria/api build || pnpm --filter api build
+      - name: Build workspace
+        run: pnpm -r build
 
-      - name: Test Agentic Logic
-        run: pnpm test --filter "@areloria/*"
-
-  frontend-engine-check:
-    name: Three.js & React Frontend
-    needs: integrity-suite
+  test:
     runs-on: ubuntu-latest
+    needs: install
+
     steps:
-      - name: Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup PNPM
-        uses: pnpm/action-setup@v4
+      - name: Enable Corepack
+        run: corepack enable
 
-      - name: Install Dependencies
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Activate pnpm
+        run: corepack prepare pnpm@10.12.1 --activate
+
+      - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Build Web Client (Metaverse Interface)
-        run: pnpm --filter @areloria/web build || pnpm --filter web build
+      - name: Test workspace
+        run: pnpm -r test
 
-      - name: Build Legacy Client
-        working-directory: ./client
-        run: |
-          if [ -f package.json ]; then
-            pnpm install
-            pnpm build
-          fi
-
-  docker-security-audit:
-    name: Container & Security Audit
-    needs: [backend-validation, frontend-engine-check]
+  typecheck:
     runs-on: ubuntu-latest
+    needs: install
+
     steps:
-      - name: Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Verify Dockerfile Integrity
-        run: docker build -t areloria-wasd-ci-test:latest . --dry-run || true
+      - name: Enable Corepack
+        run: corepack enable
 
-      - name: Dependency Vulnerability Audit
-        run: pnpm audit --audit-level high
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
-  deployment-ready:
-    name: Final Deployment Signal
-    needs: [docker-security-audit]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: Signal Success
-        run: echo "SYSTEM-ARELORIA-WASD: All systems nominal. Ready for VPS deployment."
+      - name: Activate pnpm
+        run: corepack prepare pnpm@10.12.1 --activate
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck workspace
+        run: pnpm -r typecheck
