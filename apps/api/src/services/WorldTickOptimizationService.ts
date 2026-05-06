@@ -1,24 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-
-export interface Entity {
-  id: string;
-  type: string;
-  lastUpdate: number;
-  cpuCost: number;
-  priority: number;
-  health: number;
-  isMarkedForDeletion?: boolean;
-  status: 'active' | 'throttled' | 'idle';
-}
-
-export interface WorldState {
-  tick: number;
-  entities: Entity[];
-  performanceMetrics: {
-    lastTickDurationMs: number;
-    thresholdMs: number;
-  };
-}
+import { Entity, WorldState, Vector3 } from '@areloria/shared-types';
 
 @Injectable()
 export class WorldTickOptimizationService {
@@ -27,6 +8,7 @@ export class WorldTickOptimizationService {
   /**
    * Hauptmethode zur Optimierung des World-Ticks.
    * Repariert: Zombie-Loop-Bugs, CPU-Drosselungs-Inkonsistenzen und State-Cloning.
+   * Verwendet zentrale Typen zur Sicherstellung der Synchronität.
    */
   public optimizeTick(currentState: WorldState): WorldState {
     const { entities, performanceMetrics } = currentState;
@@ -53,13 +35,13 @@ export class WorldTickOptimizationService {
     const isOverloaded = metrics.lastTickDurationMs > metrics.thresholdMs;
 
     for (const entity of entities) {
-      // Last-Urteil
+      // Last-Urteil: Identifikation von CPU-intensiven Entities bei Überlast
       if (isOverloaded && entity.cpuCost > 15 && entity.priority < 2) {
         condemnedIds.add(entity.id);
         continue;
       }
       
-      // Zombie-Check: 5000ms ohne Update
+      // Zombie-Check: 5000ms ohne Update deutet auf hängende Prozesse oder Verbindungsverlust hin
       if (now - entity.lastUpdate > 5000) {
         condemnedIds.add(entity.id);
       }
@@ -77,6 +59,7 @@ export class WorldTickOptimizationService {
         if (entity.priority <= 1 || isZombie) {
           return { ...entity, isMarkedForDeletion: true };
         } else {
+          // Soft-Drosselung für Entities mit höherer Priorität
           return { ...entity, status: 'throttled', cpuCost: entity.cpuCost * 0.5 };
         }
       }
@@ -95,11 +78,11 @@ export class WorldTickOptimizationService {
       // Logik-Fix: Nur heilen, wenn nicht im selben Tick verurteilt (Inkonsistenz-Vermeidung)
       if (hasHeadroom && healedEntity.status === 'throttled' && !judgment.has(entity.id)) {
         healedEntity.status = 'active';
-        // CPU-Recovery mit Ceiling-Schutz
+        // CPU-Recovery mit Ceiling-Schutz (Max 100)
         healedEntity.cpuCost = Math.min(100, healedEntity.cpuCost * 1.2);
       }
 
-      // Ressourcen-Heilung
+      // Ressourcen-Heilung (Health-Regeneration)
       if (healedEntity.health < 100) {
         healedEntity.health = Math.min(100, healedEntity.health + 1);
       }
