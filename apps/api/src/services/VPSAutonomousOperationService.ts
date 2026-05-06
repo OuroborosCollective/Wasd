@@ -40,6 +40,7 @@ export interface IGlobalTruthState {
   sovereignClearance: boolean;
   dbConnectivity: 'CONNECTED' | 'DISCONNECTED' | 'DEGRADED';
   julesActiveFixes: number;
+  lastHeartbeat: number;
 }
 
 enum CircuitState {
@@ -53,6 +54,7 @@ enum CircuitState {
  * 
  * Orchestrates the closed information loop for Areloria WASD infrastructure.
  * Integrates 'Jules' as the primary automated repository bug-fixer.
+ * Implements Circuit Breaker patterns for resilience and prevents process exit 1.
  */
 export class VPSAutonomousOperationService {
   private static readonly CRITICAL_CPU_THRESHOLD = 90;
@@ -71,22 +73,29 @@ export class VPSAutonomousOperationService {
     activeAnomalies: [],
     sovereignClearance: false,
     dbConnectivity: 'CONNECTED',
-    julesActiveFixes: 0
+    julesActiveFixes: 0,
+    lastHeartbeat: Date.now()
   };
 
   /**
    * Main 10Hz Control Loop.
    * Processes telemetric logic points and executes autonomous architecture adjustments.
+   * Designed to be crash-resilient (Graceful Degradation).
    */
   public static async tick(currentState: IVPSState): Promise<IAutonomousAction[]> {
+    this.globalTruthState.lastHeartbeat = Date.now();
     const actions: IAutonomousAction[] = [];
     
     const logicPoints = this.generateLogicPoints(currentState);
 
     try {
       // Oracle Consultation (Resilience via Circuit Breaker)
+      // If DB/Oracle is down, this will throw but be caught, allowing the loop to continue.
       const evaluation = await this.executeWithCircuitBreaker(
-        () => this.consultAxiomaticOracle(logicPoints),
+        async () => {
+          // Simulated Oracle/Persistence Interaction
+          return await this.consultAxiomaticOracle(logicPoints);
+        },
         'ORACLE_EVAL'
       );
 
@@ -98,17 +107,24 @@ export class VPSAutonomousOperationService {
       actions.push(...evaluation.recommendedActions);
     } catch (error: any) {
       this.logInfrastructureError(error, 'AxiomaticOracle/TruthUpdate');
+      this.globalTruthState.dbConnectivity = 'DEGRADED';
       if (!this.globalTruthState.activeAnomalies.includes('PERSISTENCE_DEGRADED')) {
         this.globalTruthState.activeAnomalies.push('PERSISTENCE_DEGRADED');
       }
+      // System Integrity drops when Oracle is unreachable
+      this.globalTruthState.systemIntegrity = Math.max(this.globalTruthState.systemIntegrity - 15, 30);
     }
 
     try {
+      // Core evaluations continue even if persistence is degraded
       actions.push(...this.evaluateResources(currentState));
-      actions.push(...this.evaluateServiceContinuity(await this.verifySystemIntegrity(currentState)));
+      
+      const healthData = await this.verifySystemIntegrity(currentState);
+      actions.push(...this.evaluateServiceContinuity(healthData));
+      
       actions.push(...this.evaluateSecurityPerimeter(currentState));
 
-      if (this.globalTruthState.dbConnectivity !== 'CONNECTED') {
+      if (this.globalTruthState.dbConnectivity === 'DISCONNECTED') {
         actions.push({
           type: 'REESTABLISH_PERSISTENCE' as any,
           subsystem: SystemSubsystem.STORAGE,
@@ -118,11 +134,12 @@ export class VPSAutonomousOperationService {
       }
     } catch (criticalError: any) {
       Logger.error('[Autonomous] Core logic evaluation failure:', criticalError.message);
+      // Fallback action to prevent complete system blindness
       return [{
         type: 'STABILIZE_CORE' as any,
         subsystem: SystemSubsystem.KERNEL,
         priority: ActionPriority.CRITICAL,
-        reason: 'Internal Logic Fault'
+        reason: 'Internal Logic Fault - Entering Safe Mode'
       }];
     }
 
@@ -131,8 +148,7 @@ export class VPSAutonomousOperationService {
 
   /**
    * processGitLore
-   * Recognizes 'Jules' as the specialized bug-fixer and assigns appropriate logic
-   * to metadata fields for headless automated fixes.
+   * Recognizes 'Jules' as the specialized bug-fixer.
    */
   public static processGitLore(commits: IGitMetadata[]): INarrativeLog[] {
     return commits.map((commit): INarrativeLog => {
@@ -141,7 +157,6 @@ export class VPSAutonomousOperationService {
       let content = '';
       let severity: INarrativeLog['severity'] = 'INFO';
 
-      // Explicit Check for Jules (Automated Bug-Fixer)
       const isJules = author.includes('jules') || commit.isAutomated === true;
 
       if (isJules) {
@@ -167,6 +182,21 @@ export class VPSAutonomousOperationService {
         severity
       };
     });
+  }
+
+  /**
+   * getSystemHealth
+   * Monitor for process managers to prevent exit code 1.
+   */
+  public static getSystemHealth() {
+    const isAlive = (Date.now() - this.globalTruthState.lastHeartbeat) < 5000;
+    return {
+      status: isAlive ? 'HEALTHY' : 'STALLED',
+      integrity: this.globalTruthState.systemIntegrity,
+      circuit: CircuitState[this.circuitState],
+      persistence: this.globalTruthState.dbConnectivity,
+      anomalies: this.globalTruthState.activeAnomalies.length
+    };
   }
 
   private static logInfrastructureError(error: any, context: string): void {
@@ -209,20 +239,24 @@ export class VPSAutonomousOperationService {
     this.failureCount++;
     this.lastFailureTime = Date.now();
 
-    const isDbError = error.message?.includes('connection') || error.message?.includes('ECONNREFUSED') || error.code === 'PROTOCOL_CONNECTION_LOST';
+    const isDbError = error.message?.includes('connection') || 
+                      error.message?.includes('ECONNREFUSED') || 
+                      error.code === 'PROTOCOL_CONNECTION_LOST';
+    
     if (isDbError) {
       this.globalTruthState.dbConnectivity = 'DISCONNECTED';
     }
     
     if (this.failureCount >= this.FAILURE_THRESHOLD) {
       this.circuitState = CircuitState.OPEN;
-      Logger.error(`Circuit Breaker TRIPPED at ${context}. Entering OPEN state.`);
+      Logger.error(`Circuit Breaker TRIPPED at ${context}. Entering OPEN state. Reason: ${error.message}`);
     }
   }
 
   private static resetCircuit(): void {
     this.circuitState = CircuitState.CLOSED;
     this.failureCount = 0;
+    this.globalTruthState.dbConnectivity = 'CONNECTED';
     Logger.info('Circuit Breaker CLOSED. System stability restored.');
   }
 
@@ -294,6 +328,7 @@ export class VPSAutonomousOperationService {
   }
 
   private static async verifySystemIntegrity(state: IVPSState): Promise<IVPSHealthStatus[]> {
+    if (!state.services) return [];
     return state.services.map((svc: IVPSService): IVPSHealthStatus => ({
       id: svc.id,
       isOperational: svc.status === 'active' && svc.heartbeat > (Date.now() - 5000),
