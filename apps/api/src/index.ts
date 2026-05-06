@@ -5,6 +5,7 @@ import { Server } from 'http';
 /**
  * ARELORIA WASD - API CORE
  * High-performance 3D-RPG-Metaverse Backend
+ * Focus: Resilient Database Pooling & Autonomous Recovery
  */
 
 const app = express();
@@ -15,9 +16,12 @@ const MAX_RETRIES = 5;
 const INITIAL_BACKOFF_MS = 1000;
 const CONNECTION_TIMEOUT_MS = 5000;
 
+// Zustandsüberwachung für Health-Checks
+let isDatabaseConnected = false;
+let isRedisConnected = false;
+
 /**
  * REDIS CONFIGURATION
- * Implementiert die Architektur-Vorgabe für Boot-Sequenz-Races.
  */
 const REDIS_CONFIG = {
   host: process.env.REDIS_HOST || 'localhost',
@@ -31,40 +35,64 @@ const REDIS_CONFIG = {
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Kernfunktion zur Initialisierung der Datenbankverbindung.
+ * DATABASE POOL ABSTRACTION (Simuliert pg.Pool Verhalten für Areloria Architektur)
+ */
+class DatabasePool {
+  async connect(): Promise<void> {
+    // In einer echten Implementierung: await pool.connect();
+    return new Promise((resolve, reject) => {
+      if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
+        return reject(new Error('MISSING_CONFIG: DATABASE_URL is not defined.'));
+      }
+
+      // Simulation spezifischer Fehlerzustände
+      const errorSim = process.env.SIMULATE_DB_ERROR;
+      if (errorSim === 'ECONNREFUSED' || errorSim === 'true') {
+        return setTimeout(() => {
+          const err: any = new Error('ECONNREFUSED: Connection refused at database host');
+          err.code = 'ECONNREFUSED';
+          reject(err);
+        }, 500);
+      }
+      
+      setTimeout(() => {
+        isDatabaseConnected = true;
+        resolve();
+      }, 300);
+    });
+  }
+}
+
+const dbPool = new DatabasePool();
+
+/**
+ * Kernfunktion zur Initialisierung des Datenbank-Pools mit Fehlerklassifizierung.
  */
 async function connectToDatabase(): Promise<void> {
   console.log(`[SENTINEL] [DATABASE_BOOT] [${new Date().toISOString()}] Initializing connection sequence...`);
 
-  const connectionPromise = new Promise<void>((resolve, reject) => {
-    if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
-      return reject(new Error('MISSING_CONFIG: DATABASE_URL is not defined in environment variables.'));
-    }
-
-    if (process.env.SIMULATE_DB_ERROR === 'true') {
-      return setTimeout(() => reject(new Error('ECONNREFUSED: Database host unreachable')), 500);
-    }
-    
-    setTimeout(() => resolve(), 300);
-  });
+  const connectionPromise = dbPool.connect();
 
   const timeoutPromise = new Promise<void>((_, reject) =>
-    setTimeout(() => reject(new Error('DB_TIMEOUT: Connection attempt exceeded safety threshold')), CONNECTION_TIMEOUT_MS)
+    setTimeout(() => {
+      const err: any = new Error('DB_TIMEOUT: Connection attempt exceeded safety threshold');
+      err.code = 'ETIMEDOUT';
+      reject(err);
+    }, CONNECTION_TIMEOUT_MS)
   );
 
   return Promise.race([connectionPromise, timeoutPromise]);
 }
 
 /**
- * Validierung der Redis-Konnektivität basierend auf der REDIS_CONFIG retryStrategy.
+ * Validierung der Redis-Konnektivität.
  */
 async function connectToRedis(): Promise<void> {
   console.log(`[SENTINEL] [REDIS_BOOT] [${new Date().toISOString()}] Initializing Redis connection...`);
   
-  // In einer produktiven Umgebung würde hier die Instanziierung des Redis-Clients erfolgen.
-  // Die retryStrategy wird intern vom Client (z.B. ioredis) verwaltet.
   return new Promise((resolve) => {
     setTimeout(() => {
+      isRedisConnected = true;
       console.log(`[SENTINEL] [REDIS_READY] Connection established with strategy: ${REDIS_CONFIG.retryStrategy.toString()}`);
       resolve();
     }, 200);
@@ -72,7 +100,7 @@ async function connectToRedis(): Promise<void> {
 }
 
 /**
- * Implementiert den Exponential Backoff Algorithmus für die DB-Persistenzschicht.
+ * Implementiert den kontrollierten Wiederverbindungszyklus (Exponential Backoff).
  */
 async function initializeWithRetry(): Promise<void> {
   let currentRetry = 0;
@@ -82,16 +110,24 @@ async function initializeWithRetry(): Promise<void> {
     try {
       await connectToDatabase();
       console.log('[SENTINEL] [DATABASE_READY] Connection established and verified.');
+      isDatabaseConnected = true;
       return;
-    } catch (error: unknown) {
+    } catch (error: any) {
       currentRetry++;
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      isDatabaseConnected = false;
+      
+      const isTransient = ['ECONNREFUSED', 'ETIMEDOUT', 'PROTOCOL_CONNECTION_LOST', 'ECONNRESET'].includes(error.code);
+      const errorMessage = error.message || String(error);
       
       console.error(`[SENTINEL] [DATABASE_ERROR] [ATTEMPT ${currentRetry}/${MAX_RETRIES}]`);
-      console.error(`[ERROR_DETAILS]: ${errorMessage}`);
+      console.error(`[ERROR_CODE]: ${error.code || 'UNKNOWN'} | [DETAILS]: ${errorMessage}`);
+
+      if (!isTransient && process.env.NODE_ENV === 'production') {
+        console.error('[SENTINEL] [FATAL_CONFIG] Non-transient error detected. Immediate intervention required.');
+      }
 
       if (currentRetry >= MAX_RETRIES) {
-        console.error('[SENTINEL] [CRITICAL_FAILURE] Max retries reached. Triggering emergency shutdown.');
+        console.error('[SENTINEL] [CRITICAL_FAILURE] Max retries reached.');
         throw new Error(`Failed to connect to database after ${MAX_RETRIES} attempts.`);
       }
 
@@ -106,17 +142,28 @@ async function initializeWithRetry(): Promise<void> {
 }
 
 /**
- * GLOBALER SCHUTZMECHANISMUS
+ * GLOBALER SCHUTZMECHANISMUS & DRIVER-FEHLER HANDLING
  */
 process.on('uncaughtException', (error: Error) => {
   console.error('[SENTINEL] [FATAL_EXCEPTION] Uncaught error detected:', error.message);
   console.error(error.stack);
+  // Bei kritischen App-Fehlern beenden wir den Prozess, damit Orchestratoren (Docker/K8s) neustarten können.
   process.exit(1);
 });
 
-process.on('unhandledRejection', (reason: unknown) => {
-  console.error('[SENTINEL] [FATAL_REJECTION] Unhandled promise rejection:', reason);
-  process.exit(1);
+process.on('unhandledRejection', (reason: any) => {
+  // Spezielles Handling für DB-Treiber Fehler (z.B. plötzlicher Verbindungsabbruch im Pool)
+  const isDbError = reason?.code?.startsWith('PG') || ['ECONNREFUSED', 'PROTOCOL_CONNECTION_LOST'].includes(reason?.code);
+  
+  if (isDbError) {
+    console.error('[SENTINEL] [DB_DRIVER_REJECTION] Transient DB error caught in global listener:', reason.message);
+    isDatabaseConnected = false;
+    // Anstatt process.exit(1), leiten wir einen Re-Zentralisierungs-Check ein
+    console.warn('[SENTINEL] [RECOVERY_MODE] Keeping process alive. Health-check will reflect degraded state.');
+  } else {
+    console.error('[SENTINEL] [FATAL_REJECTION] Unhandled promise rejection:', reason);
+    process.exit(1);
+  }
 });
 
 // Express Middleware
@@ -124,17 +171,20 @@ app.use(cors());
 app.use(express.json());
 
 /**
- * Health Check Endpunkt
+ * Health Check Endpunkt - Spiegelt den internen Systemzustand wider
  */
 app.get('/api/health', (req: Request, res: Response) => {
-  res.status(200).json({ 
-    status: 'healthy',
+  const status = isDatabaseConnected && isRedisConnected ? 'healthy' : 'degraded';
+  res.status(status === 'healthy' ? 200 : 503).json({ 
+    status,
     service: 'areloria-api',
     timestamp: new Date().toISOString(),
     uptime: Math.floor(process.uptime()),
     version: process.env.npm_package_version || '1.0.0',
-    environment: process.env.NODE_ENV || 'development',
-    redis: 'connected'
+    checks: {
+      database: isDatabaseConnected ? 'connected' : 'disconnected',
+      redis: isRedisConnected ? 'connected' : 'disconnected'
+    }
   });
 });
 
@@ -149,7 +199,7 @@ async function bootstrap() {
   console.log('--------------------------------------------------');
 
   try {
-    // Schritt 1: Persistenzschicht validieren
+    // Schritt 1: Persistenzschicht validieren mit Retry-Logik
     await initializeWithRetry();
 
     // Schritt 2: Redis-Schicht validieren
@@ -187,7 +237,6 @@ async function bootstrap() {
     if (error instanceof Error) {
       console.error(`TYPE: ${error.name}`);
       console.error(`MSG: ${error.message}`);
-      console.error(`STACK: ${error.stack}`);
     } else {
       console.error(`UNKNOWN_ERROR: ${String(error)}`);
     }

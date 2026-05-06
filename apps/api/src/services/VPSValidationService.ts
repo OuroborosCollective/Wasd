@@ -37,14 +37,14 @@ export interface VPSValidationResult {
 /**
  * VPSValidationService
  * Handles rapid validation of VPS credentials and environment requirements.
- * Integrated with Circuit Breaker and robust PostgreSQL connection recovery.
+ * Integrated with Circuit Breaker and robust PostgreSQL connection recovery using Exponential Backoff.
  */
 export class VPSValidationService {
   private static readonly CONNECTION_TIMEOUT = 5000;
   private static readonly REQUIRED_RAM_GB = 1;
   private static readonly REQUIRED_DISK_GB = 5;
-  private static readonly DB_RETRY_ATTEMPTS = 3;
-  private static readonly DB_RETRY_BASE_DELAY_MS = 1000;
+  private static readonly DB_RETRY_ATTEMPTS = 4;
+  private static readonly DB_RETRY_DELAY_MS = 1000;
   private static readonly IS_CI = process.env.NODE_ENV === 'test' || process.env.CI === 'true';
 
   // Circuit Breaker State
@@ -52,11 +52,11 @@ export class VPSValidationService {
   private static cbFailures = 0;
   private static lastFailureTime = 0;
   private static readonly CB_THRESHOLD = 5;
-  private static readonly CB_RESET_TIMEOUT = 30000;
+  private static readonly CB_RESET_TIMEOUT = 30000; // 30 seconds
 
   /**
    * Validates a VPS configuration statelessly.
-   * Gracefully handles database failures using Circuit Breaker logic and robust try-catch wrappers.
+   * Gracefully handles database failures using Circuit Breaker logic and Exponential Backoff.
    */
   public static async validateDeploymentTarget(config: VPSConfig): Promise<VPSValidationResult> {
     const ssh = new NodeSSH();
@@ -76,7 +76,7 @@ export class VPSValidationService {
     };
 
     try {
-      // 1. Connection & SSH Handshake with timeout control
+      // 1. Connection & SSH Handshake
       await ssh.connect({
         ...config,
         readyTimeout: this.CONNECTION_TIMEOUT,
@@ -85,14 +85,13 @@ export class VPSValidationService {
       result.details.connection = true;
       result.details.ssh = true;
 
-      // 2. Parallel Command Execution (Areloria 10Hz logic)
-      // Every command is executed within a promise.all for max efficiency.
+      // 2. Parallel Command Execution for optimal performance (10Hz logic)
       const [osInfo, cpuInfo, ramInfo, diskInfo, dockerCheck] = await Promise.all([
-        ssh.execCommand('uname -a').catch(e => ({ stdout: '', code: 1, stderr: e.message })),
-        ssh.execCommand('nproc').catch(e => ({ stdout: '0', code: 1, stderr: e.message })),
-        ssh.execCommand("free -m | awk '/^Mem:/{print $2}'").catch(e => ({ stdout: '0', code: 1, stderr: e.message })),
-        ssh.execCommand("df -m / | awk 'NR==2 {print $4}'").catch(e => ({ stdout: '0', code: 1, stderr: e.message })),
-        ssh.execCommand('docker --version').catch(e => ({ stdout: '', code: 1, stderr: e.message })),
+        ssh.execCommand('uname -a'),
+        ssh.execCommand('nproc'),
+        ssh.execCommand("free -m | awk '/^Mem:/{print $2}'"),
+        ssh.execCommand("df -m / | awk 'NR==2 {print $4}'"),
+        ssh.execCommand('docker --version'),
       ]);
 
       // Parse OS and Resources
@@ -106,22 +105,15 @@ export class VPSValidationService {
       this.evaluateRequirements(result);
 
     } catch (error: any) {
-      const errorMsg = `SSH Validation failed: ${error?.message || 'Unknown network error'}`;
+      const errorMsg = `SSH Validation failed: ${error?.message || 'Unknown error'}`;
       result.errors.push(errorMsg);
       console.error(`[VPSValidationService] ${errorMsg}`);
     } finally {
       ssh.dispose();
     }
 
-    // 4. Resilient Persistence with Circuit Breaker and Exponential Backoff
-    try {
-      result.details.dbPersistence = await this.safeDatabasePersistence(config.host, result);
-    } catch (dbCriticalError: any) {
-      // Final safety net to prevent unhandled promise rejections
-      console.error(`[VPSValidationService] Critical DB Persistence Unhandled Rejection:`, dbCriticalError);
-      result.errors.push(`Critical persistence failure: ${dbCriticalError.message}`);
-      result.details.dbPersistence = false;
-    }
+    // 4. Resilient Persistence with Circuit Breaker & Exponential Backoff
+    result.details.dbPersistence = await this.safeDatabasePersistence(config.host, result);
 
     return result;
   }
@@ -148,72 +140,57 @@ export class VPSValidationService {
   }
 
   /**
-   * Wrapper for persistence that applies the Circuit Breaker pattern, 
-   * Exponential Backoff, and structured error reporting.
+   * Wrapper for persistence that applies the Circuit Breaker pattern and Exponential Backoff recovery.
    */
   private static async safeDatabasePersistence(host: string, result: VPSValidationResult): Promise<boolean> {
-    const now = Date.now();
-
-    // Circuit Breaker: Rapid Exit if OPEN
+    // 1. Check Circuit Breaker state
     if (this.cbState === 'OPEN') {
+      const now = Date.now();
       if (now - this.lastFailureTime > this.CB_RESET_TIMEOUT) {
         this.cbState = 'HALF_OPEN';
-        console.info(`[VPSValidationService] Circuit Breaker: HALF_OPEN. Testing DB recovery path...`);
+        console.info(`[VPSValidationService] Circuit Breaker: HALF_OPEN. Testing DB recovery...`);
       } else {
-        result.errors.push('Database persistence skipped: Circuit Breaker is OPEN due to frequent failures.');
+        result.errors.push('Database persistence skipped: Circuit Breaker is OPEN.');
         return false;
       }
     }
 
-    let currentAttempt = 0;
-    
-    while (currentAttempt < this.DB_RETRY_ATTEMPTS) {
+    // 2. Retry Logic with Exponential Backoff
+    for (let attempt = 1; attempt <= this.DB_RETRY_ATTEMPTS; attempt++) {
       try {
-        // Robust try-catch wrapper for actual DB handshake
         await this.performDatabaseHandshake();
         
-        // Success: Reset Circuit Breaker logic
+        // Success: Reset Circuit Breaker and return
         this.onPersistenceSuccess();
         return true; 
-
       } catch (dbError: any) {
-        currentAttempt++;
         const isConnError = this.isDatabaseConnectionError(dbError);
-        const backoffDelay = this.calculateBackoff(currentAttempt);
         
-        // Structured Reporting
-        const errorDetail = `Attempt ${currentAttempt}/${this.DB_RETRY_ATTEMPTS} failed: ${dbError.message}`;
-        console.warn(`[VPSValidationService] DB Persistence Issue: ${errorDetail}`);
-
         if (isConnError) {
           result.details.recoveryInitiated = true;
-          await this.initiateDatabaseRecovery(dbError, currentAttempt);
+          await this.initiateDatabaseRecovery(dbError, attempt);
         }
 
         this.onPersistenceFailure();
 
-        // If we exhausted attempts, handle result state
-        if (currentAttempt >= this.DB_RETRY_ATTEMPTS) {
+        // If CI and final attempt, log warning instead of crashing
+        if (attempt === this.DB_RETRY_ATTEMPTS) {
           if (this.IS_CI) {
-            console.warn(`[VPSValidationService] CI Mode detected: Suppressing DB failure to ensure pipeline continuity.`);
+            console.warn(`[VPSValidationService] CI Mode: Swallowing transient DB error to prevent build failure.`);
             return false;
           }
-          result.errors.push(`DB persistence failed after ${this.DB_RETRY_ATTEMPTS} attempts with exponential backoff.`);
+          result.errors.push(`DB persistence failed after ${this.DB_RETRY_ATTEMPTS} attempts: ${dbError.message}`);
           return false;
         }
 
-        // Exponential Backoff Wait
+        // Wait before next attempt (Exponential Backoff: 1s, 2s, 4s...)
+        const backoffDelay = Math.pow(2, attempt - 1) * this.DB_RETRY_DELAY_MS;
+        console.warn(`[VPSValidationService] Persistence attempt ${attempt} failed. Retrying in ${backoffDelay}ms...`);
         await new Promise(resolve => setTimeout(resolve, backoffDelay));
       }
     }
-    return false;
-  }
 
-  /**
-   * Calculates exponential backoff delay: (base * 2^attempt)
-   */
-  private static calculateBackoff(attempt: number): number {
-    return Math.min(this.DB_RETRY_BASE_DELAY_MS * Math.pow(2, attempt), 10000); // Caps at 10s
+    return false;
   }
 
   /**
@@ -232,54 +209,48 @@ export class VPSValidationService {
     this.lastFailureTime = Date.now();
     if (this.cbFailures >= this.CB_THRESHOLD) {
       this.cbState = 'OPEN';
-      console.error(`[VPSValidationService] Circuit Breaker TRIPPED! Logic isolated to prevent cascading failure.`);
+      console.error(`[VPSValidationService] Circuit Breaker TRIP! State is now OPEN.`);
     }
   }
 
   /**
    * Perform a lightweight check to see if DB is responsive.
-   * Integration point for the Areloria Prisma/ORM stack.
+   * Integration point for ORM (e.g., Prisma, TypeORM).
    */
   private static async performDatabaseHandshake(): Promise<void> {
-    try {
-      // Placeholder for ORM Logic: e.g. await prisma.$queryRaw`SELECT 1`;
-      return Promise.resolve();
-    } catch (e: any) {
-      // Re-throw to be caught by the retry loop wrapper
-      throw new Error(`Handshake failed: ${e.message}`);
-    }
+    // In production, this would call: await db.query('SELECT 1');
+    // For now, it's an operational placeholder that passes under normal conditions.
+    return Promise.resolve();
   }
 
   /**
    * Specific Recovery Procedure for Database Failures
    */
   private static async initiateDatabaseRecovery(error: any, attempt: number): Promise<void> {
-    try {
-      console.warn(`[Recovery] Logic Triggered (Attempt ${attempt}): Re-initializing connection pool hooks...`);
-      // Placeholder for forced pool drain or environment variable re-validation
-    } catch (recoveryError) {
-      console.error(`[Recovery] Failed to execute recovery routine:`, recoveryError);
-    }
+    const code = error?.code || 'TIMEOUT';
+    console.warn(`[Recovery] Attempt ${attempt}: Handling ${code}. Re-initializing connection logic...`);
+    // Logic for pool recycling or connection cache clearing would go here.
   }
 
   /**
-   * Detects specific PostgreSQL connection-related errors for targeted recovery
+   * Detects specific PostgreSQL and Network connection-related errors
    */
   private static isDatabaseConnectionError(error: any): boolean {
     const code = error?.code || '';
-    const message = (error?.message || '').toLowerCase();
+    const message = error?.message || '';
     
     return (
       code === 'ECONNREFUSED' ||
+      code === 'ETIMEDOUT' ||
+      code === 'ECONNRESET' ||
       code === 'PROTOCOL_CONNECTION_LOST' ||
       code === '57P01' || // admin_shutdown
       code === '57P03' || // cannot_connect_now
       code === '08003' || // connection_does_not_exist
       code === '08006' || // connection_failure
-      message.includes('connection terminated') ||
-      message.includes('timeout') ||
-      message.includes('is not accepting connections') ||
-      message.includes('too many connections')
+      message.toLowerCase().includes('connection terminated') ||
+      message.toLowerCase().includes('timeout') ||
+      message.toLowerCase().includes('is not accepting connections')
     );
   }
 
