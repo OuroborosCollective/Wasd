@@ -6,7 +6,7 @@ import * as path from 'path';
  * Repräsentiert die 13 dimensionalen Ankerpunkte der Areloria-Wahrheitsmatrix.
  */
 export enum LogicPoint {
-    PERSISTENCE = 'PERSISTENCE',   // DB-Schema
+    PERSISTENCE = 'PERSISTENCE',   // DB-Schema & Connection Health
     INTERFACE = 'INTERFACE',       // TypeScript Definitionen
     TRANSPORT = 'TRANSPORT',       // API/DTO
     ENGINE = 'ENGINE',             // Three.js Core
@@ -28,6 +28,7 @@ export interface Axiom {
     actualState?: any;
     lastValidated: Date;
     isViolated: boolean;
+    errorCode?: string;
 }
 
 export interface PropertyMetadata {
@@ -39,6 +40,13 @@ export interface PropertyMetadata {
 export interface ModelSchema {
     tableName: string;
     properties: PropertyMetadata[];
+}
+
+export interface HealthReport {
+    status: 'HEALTHY' | 'DEGRADED' | 'CRITICAL';
+    latency: number;
+    connectionCode: string;
+    message: string;
 }
 
 /**
@@ -79,6 +87,50 @@ export class SovereignWatchdog {
     }
 
     /**
+     * Database-Health-Check: Validiert die Verbindung zur Persistenz-Schicht.
+     * Verhindert harte Prozessabbrüche durch kontrolliertes Error-Handling.
+     */
+    public async checkDatabaseHealth(dbClient: any): Promise<HealthReport> {
+        const start = Date.now();
+        const persistenceAxiom = this.truthMatrix.get(LogicPoint.PERSISTENCE)!;
+        
+        try {
+            // Führe einen einfachen Query aus (Select 1 oder äquivalent)
+            await dbClient.query('SELECT 1');
+            
+            const report: HealthReport = {
+                status: 'HEALTHY',
+                latency: Date.now() - start,
+                connectionCode: 'SQL_OK_200',
+                message: 'Persistence layer operational.'
+            };
+            
+            persistenceAxiom.actualState = report;
+            persistenceAxiom.isViolated = false;
+            persistenceAxiom.errorCode = undefined;
+            return report;
+            
+        } catch (error: any) {
+            const errorCode = error.code || 'DB_CONN_ERR';
+            const report: HealthReport = {
+                status: 'CRITICAL',
+                latency: Date.now() - start,
+                connectionCode: errorCode,
+                message: error.message || 'Unknown database connection error'
+            };
+
+            persistenceAxiom.actualState = report;
+            persistenceAxiom.isViolated = true;
+            persistenceAxiom.errorCode = errorCode;
+            
+            console.error(`[Sovereign Watchdog] Database Health Check Failed: ${errorCode} - ${report.message}`);
+            
+            // Kontrollierte Fehlermeldung statt Prozess-Exit
+            return report;
+        }
+    }
+
+    /**
      * Der Orakel-Prozess: Validiert Axiome gegen die Realität und korrigiert Abweichungen.
      */
     public synchronizeAxioms(interfacesPath: string): void {
@@ -109,7 +161,6 @@ export class SovereignWatchdog {
             let hasChanges = false;
 
             for (const prop of schema.properties) {
-                // Regex zur Identifikation der Eigenschaft: name, optionaler ?, Doppelpunkt, Typ
                 const regex = new RegExp(`(${prop.name})(\\??)(\\s*:\\s*)([^;\\s{}]+)`, 'g');
                 
                 content = content.replace(regex, (match, p1, p2, p3, p4) => {
@@ -118,13 +169,11 @@ export class SovereignWatchdog {
                     const targetType = this.mapDbTypeToTs(prop.type);
                     const currentType = p4.replace('[]', '');
 
-                    // 1. Typ-Validierung
                     if (targetType !== currentType && currentType !== 'any') {
                         console.error(`[Integrity Error] Type mismatch in ${modelName}: Field '${prop.name}' is DB:${prop.type} vs TS:${p4}`);
                         interfaceAxiom.isViolated = true;
                     }
 
-                    // 2. Auto-Fix Nullability (Consistency Logic)
                     if (prop.nullable !== isOptional) {
                         const newOptional = prop.nullable ? '?' : '';
                         updatedMatch = `${p1}${newOptional}${p3}${p4}`;
@@ -171,16 +220,14 @@ export class SovereignWatchdog {
         if (violations.length > 0) {
             console.error(`[Oracle] Found ${violations.length} Axiom violations. Intervention required.`);
             violations.forEach(v => {
-                console.error(` -> Violated Point: ${v.logicPoint}`);
+                const errorCode = v.errorCode ? ` [Code: ${v.errorCode}]` : '';
+                console.error(` -> Violated Point: ${v.logicPoint}${errorCode}`);
             });
         } else {
             console.log('[Oracle] All LogicPoints are in a state of sovereign coherence.');
         }
     }
 
-    /**
-     * Hilfsmethode zum Mapping von DB-Typen auf TS-Basistypen.
-     */
     private mapDbTypeToTs(dbType: string): string {
         const mapping: Record<string, string> = {
             'varchar': 'string',
@@ -202,16 +249,9 @@ export class SovereignWatchdog {
         return mapping[normalized] || 'any';
     }
 
-    /**
-     * Gibt den aktuellen Status der Kappa-Matrix zurück.
-     */
     public getMatrixStatus(): Axiom[] {
         return Array.from(this.truthMatrix.values());
     }
 }
 
-/**
- * Singleton Instanz des Sovereign Watchdogs.
- * Zentrales Steuerorgan für die Datenintegrität im Areloria WASD Ökosystem.
- */
 export const integrityChecker = new SovereignWatchdog();
