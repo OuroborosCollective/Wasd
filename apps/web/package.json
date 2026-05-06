@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "react": "^19.2.5",
-    "react-dom": "^18.2.0",
+    "react-dom": "^19.2.5",
     "three": "0.169.0",
     "@babylonjs/core": "^6.44.0",
     "@babylonjs/loaders": "^6.44.0",
@@ -27,7 +27,7 @@
     "@testing-library/react": "^16.0.1",
     "@types/node": "^20.11.30",
     "@types/react": "^19.2.14",
-    "@types/react-dom": "^18.2.22",
+    "@types/react-dom": "^19.2.3",
     "@types/three": "0.169.0",
     "@vitejs/plugin-react": "^4.2.1",
     "@vitest/coverage-v8": "^2.1.8",
