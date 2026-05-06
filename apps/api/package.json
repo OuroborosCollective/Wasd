@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "pnpm install && tsx watch src/index.ts",
     "build": "rimraf dist && tsc",
     "start": "node dist/index.js",
     "lint": "eslint src",
@@ -18,25 +18,29 @@
     "@wasd/database": "workspace:*",
     "@wasd/redis": "workspace:*",
     "@wasd/utils": "workspace:*",
-    "@nestjs/common": "^10.3.3",
-    "@nestjs/core": "^11.1.18",
-    "@nestjs/platform-express": "^10.3.3",
+    "@nestjs/common": "^11.0.10",
+    "@nestjs/core": "^11.0.10",
+    "@nestjs/platform-express": "^11.0.10",
     "three": "0.169.0",
+<<<<<<< monorepo-devops-audit-fix-3556110051433532408
     "dotenv": "^16.4.5",
     "zod": "^3.23.8",
+=======
+    "dotenv": "^16.4.7",
+>>>>>>> main
     "node-ssh": "^13.2.0",
-    "reflect-metadata": "^0.2.1",
+    "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },
   "devDependencies": {
-    "@types/express": "^4.17.17",
-    "@types/node": "^25.6.0",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.1",
     "@types/three": "^0.169.0",
     "eslint": "^8.57.0",
     "rimraf": "^5.0.5",
-    "tsx": "^4.7.1",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.3",
-    "vitest": "^4.1.5"
+    "vitest": "^3.0.5"
   },
   "peerDependencies": {
     "@babylonjs/core": "*",
