@@ -14,10 +14,10 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "three": "^0.162.0",
-    "@babylonjs/core": "^6.44.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "three": "0.169.0",
+    "@babylonjs/core": "^9.5.2",
     "@babylonjs/loaders": "^6.44.0",
     "@wasd/database": "workspace:*",
     "tslib": "^2.6.2"
@@ -26,14 +26,14 @@
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.0.1",
     "@types/node": "^20.11.30",
-    "@types/react": "^18.2.66",
-    "@types/react-dom": "^18.2.22",
-    "@types/three": "^0.162.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/three": "0.169.0",
     "@vitejs/plugin-react": "^4.2.1",
     "@vitest/coverage-v8": "^2.1.8",
     "jsdom": "^25.0.1",
     "typescript": "^5.7.3",
-    "vite": "^7.3.2",
-    "vitest": "^2.1.8"
+    "vite": "^5.4.11",
+    "vitest": "^4.1.5"
   }
 }
