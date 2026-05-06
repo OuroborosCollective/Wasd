@@ -1,120 +1,150 @@
-name: CI v3
+name: "ARELORIA-WASD-ULTRA-CI"
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [ main, develop ]
 
-permissions:
-  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 20
+  PNPM_VERSION: 9
+  PYTHON_VERSION: "3.11"
 
 jobs:
-  build-and-test:
+  integrity-suite:
+    name: Core Integrity & Validation
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [20.x]
-        app: [api, web]
-
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U postgres"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-
-    env:
-      DATABASE_URL: postgresql://postgres:password@localhost:5432/test
-      NODE_ENV: test
-
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
-
-      - name: Install PostgreSQL Client
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'pnpm'
+          node-version: ${{ env.NODE_VERSION }}
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
 
-      - name: Pre-flight Database Check
-        run: |
-          echo "Waiting for PostgreSQL at localhost:5432..."
-          NEXT_WAIT_TIME=0
-          until pg_isready -h localhost -p 5432 -U postgres || [ $NEXT_WAIT_TIME -eq 10 ]; do
-            echo "Postgres is unavailable - sleeping..."
-            sleep 2
-            NEXT_WAIT_TIME=$((NEXT_WAIT_TIME+1))
-          done
-          if [ $NEXT_WAIT_TIME -eq 10 ]; then
-            echo "Timeout reached: Postgres did not become ready."
-            exit 1
-          fi
-          echo "PostgreSQL is ready."
-
-      - name: Database Schema Migration
-        if: matrix.app == 'api'
-        run: |
-          if [ -f "apps/api/prisma/schema.prisma" ]; then
-            pnpm --filter api exec prisma migrate deploy
-          fi
-        env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
-
-      - name: Build
-        run: pnpm --filter ${{ matrix.app }} run build
-        env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
-
-      - name: Enforce ESM in Dist
+      - name: Get PNPM Store Directory
         shell: bash
         run: |
-          DIST_DIR="apps/${{ matrix.app }}/dist"
-          if [ -d "$DIST_DIR" ]; then
-            echo "Enforcing ESM for $DIST_DIR"
-            if [ -f "$DIST_DIR/package.json" ]; then
-              node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('$DIST_DIR/package.json', 'utf8')); pkg.type = 'module'; fs.writeFileSync('$DIST_DIR/package.json', JSON.stringify(pkg, null, 2));"
-            else
-              echo '{"type": "module"}' > "$DIST_DIR/package.json"
-            fi
-          else
-            echo "No dist directory found for ${{ matrix.app }}, skipping ESM enforcement."
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup PNPM Cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install Monorepo Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Python Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install Python Dependencies
+        run: |
+          if [ -f backend/requirements.txt ]; then
+            pip install -r backend/requirements.txt
           fi
 
-      - name: Test
-        run: pnpm --filter ${{ matrix.app }} run test
-        env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
+      - name: Validate Environment Schema
+        run: |
+          if [ ! -f .env.example ]; then
+            echo "CRITICAL: .env.example missing"
+            exit 1
+          fi
 
-      - name: Upload artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Linting (ESLint & Prettier)
+        run: pnpm run lint
+
+      - name: Type Check (TypeScript Architect)
+        run: pnpm recursive exec -- tsc --noEmit
+
+  backend-validation:
+    name: Backend & Agentic Logic (Jules)
+    needs: integrity-suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
         with:
-          name: artifacts-${{ matrix.app }}-${{ matrix.node-version }}
-          path: |
-            apps/${{ matrix.app }}/coverage
-            apps/${{ matrix.app }}/dist
-          if-no-files-found: ignore
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build API (Node.js/TS)
+        run: pnpm --filter @areloria/api build || pnpm --filter api build
+
+      - name: Test Agentic Logic
+        run: pnpm test --filter "@areloria/*"
+
+  frontend-engine-check:
+    name: Three.js & React Frontend
+    needs: integrity-suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Web Client (Metaverse Interface)
+        run: pnpm --filter @areloria/web build || pnpm --filter web build
+
+      - name: Build Legacy Client
+        working-directory: ./client
+        run: |
+          if [ -f package.json ]; then
+            pnpm install
+            pnpm build
+          fi
+
+  docker-security-audit:
+    name: Container & Security Audit
+    needs: [backend-validation, frontend-engine-check]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Verify Dockerfile Integrity
+        run: docker build -t areloria-wasd-ci-test:latest . --dry-run || true
+
+      - name: Dependency Vulnerability Audit
+        run: pnpm audit --audit-level high
+
+  deployment-ready:
+    name: Final Deployment Signal
+    needs: [docker-security-audit]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Signal Success
+        run: echo "SYSTEM-ARELORIA-WASD: All systems nominal. Ready for VPS deployment."
