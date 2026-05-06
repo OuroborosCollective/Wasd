@@ -55,8 +55,6 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          # Erkennt automatisch die Version aus der package.json "packageManager" Feld
-          # Verhindert Versionskonflikte durch Nutzung der im Repo definierten Version
           run_install: false
 
       - name: Setup Node.js ${{ matrix.node-version }}
@@ -156,5 +154,3 @@ jobs:
         with:
           name: dependency-graph
           path: pnpm-lock.yaml
-          # Die Submission erfolgt hier über den Upload oder dedizierte Actions, 
-          # pnpm wurde bereits oben korrekt initialisiert.
