@@ -30,7 +30,11 @@ export class WorldTickOptimizationService {
     };
   }
 
-  private judge(entities: Entity[], metrics: { lastTickDurationMs: number, thresholdMs: number }, now: number): Set<string> {
+  private judge(
+    entities: Entity[], 
+    metrics: { lastTickDurationMs: number; thresholdMs: number }, 
+    now: number
+  ): Set<string> {
     const condemnedIds = new Set<string>();
     const isOverloaded = metrics.lastTickDurationMs > metrics.thresholdMs;
 
@@ -60,31 +64,45 @@ export class WorldTickOptimizationService {
           return { ...entity, isMarkedForDeletion: true };
         } else {
           // Soft-Drosselung für Entities mit höherer Priorität
-          return { ...entity, status: 'throttled', cpuCost: entity.cpuCost * 0.5 };
+          return { 
+            ...entity, 
+            status: 'throttled', 
+            cpuCost: entity.cpuCost * 0.5 
+          };
         }
       }
       return entity;
     });
   }
 
-  private heal(entities: Entity[], metrics: { lastTickDurationMs: number, thresholdMs: number }, judgment: Set<string>): Entity[] {
+  private heal(
+    entities: Entity[], 
+    metrics: { lastTickDurationMs: number; thresholdMs: number }, 
+    judgment: Set<string>
+  ): Entity[] {
     const hasHeadroom = metrics.lastTickDurationMs < (metrics.thresholdMs * 0.6);
 
     return entities.map(entity => {
       if (entity.isMarkedForDeletion) return entity;
 
-      const healedEntity = { ...entity };
+      let healedEntity = { ...entity };
 
       // Logik-Fix: Nur heilen, wenn nicht im selben Tick verurteilt (Inkonsistenz-Vermeidung)
       if (hasHeadroom && healedEntity.status === 'throttled' && !judgment.has(entity.id)) {
-        healedEntity.status = 'active';
-        // CPU-Recovery mit Ceiling-Schutz (Max 100)
-        healedEntity.cpuCost = Math.min(100, healedEntity.cpuCost * 1.2);
+        healedEntity = {
+          ...healedEntity,
+          status: 'active',
+          // CPU-Recovery mit Ceiling-Schutz (Max 100)
+          cpuCost: Math.min(100, healedEntity.cpuCost * 1.2)
+        };
       }
 
       // Ressourcen-Heilung (Health-Regeneration)
       if (healedEntity.health < 100) {
-        healedEntity.health = Math.min(100, healedEntity.health + 1);
+        healedEntity = {
+          ...healedEntity,
+          health: Math.min(100, healedEntity.health + 1)
+        };
       }
 
       return healedEntity;

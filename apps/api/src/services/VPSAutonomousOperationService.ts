@@ -1,4 +1,4 @@
-import { Logger } from '../../../../packages/utils/src';
+import { Logger } from '@areloria/utils';
 import { 
   IVPSState, 
   IVPSHealthStatus, 

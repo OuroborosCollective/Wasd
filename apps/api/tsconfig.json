@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ESNext",
     "module": "CommonJS",
-    "rootDir": ".",
+    "rootDir": "./",
     "baseUrl": ".",
     "outDir": "../../dist/apps/api",
     "composite": true,
@@ -15,9 +15,16 @@
     "skipLibCheck": true,
     "moduleResolution": "node",
     "paths": {
+      "@areloria/shared-types": ["../../packages/shared-types/src/index.ts"],
+      "@areloria/utils": ["../../packages/utils/src/index.ts"],
       "@wasd/*": ["../../packages/*"]
     }
   },
-  "include": ["index.ts", "src/**/*"],
+  "include": [
+    "index.ts",
+    "src/**/*",
+    "../../packages/utils/src/**/*",
+    "../../packages/shared-types/src/**/*"
+  ],
   "exclude": ["node_modules", "dist"]
 }

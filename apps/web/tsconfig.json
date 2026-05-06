@@ -5,7 +5,7 @@
     "module": "ESNext",
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
-    "moduleResolution": "bundler",
+    "moduleResolution": "Node",
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
@@ -14,7 +14,18 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@areloria/shared": ["../../packages/shared/src"],
+      "@areloria/shared/*": ["../../packages/shared/src/*"],
+      "@areloria/core": ["../../packages/core/src"],
+      "@areloria/core/*": ["../../packages/core/src/*"],
+      "@areloria/ui": ["../../packages/ui/src"],
+      "@areloria/ui/*": ["../../packages/ui/src/*"]
+    }
   },
-  "include": ["index.ts", "src/**/*"]
+  "include": ["src", "index.ts", "vitest.config.ts"],
+  "exclude": ["node_modules", "dist"]
 }
