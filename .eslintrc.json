@@ -13,7 +13,11 @@
     "ecmaVersion": "latest",
     "sourceType": "module"
   },
-  "plugins": ["@typescript-eslint", "react", "react-hooks"],
+  "plugins": [
+    "@typescript-eslint",
+    "react",
+    "react-hooks"
+  ],
   "extends": [
     "eslint:recommended",
     "plugin:@typescript-eslint/recommended",
@@ -23,18 +27,39 @@
   ],
   "rules": {
     "no-unused-vars": "off",
-    "@typescript-eslint/no-unused-vars": "error",
-    "eqeqeq": "error",
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_"
+      }
+    ],
+    "eqeqeq": [
+      "error",
+      "always"
+    ],
     "curly": "error",
     "react/react-in-jsx-scope": "off",
     "react/prop-types": "off",
     "@typescript-eslint/explicit-module-boundary-types": "off",
-    "@typescript-eslint/no-explicit-any": "warn"
+    "@typescript-eslint/no-explicit-any": "warn",
+    "@typescript-eslint/no-non-null-assertion": "off",
+    "@typescript-eslint/ban-ts-comment": "warn"
   },
   "settings": {
     "react": {
       "version": "detect"
     }
   },
-  "ignorePatterns": ["dist", "node_modules", "build", ".next", "out"]
+  "ignorePatterns": [
+    "dist",
+    "node_modules",
+    "build",
+    ".next",
+    "out",
+    "coverage",
+    "*.config.js",
+    "*.config.cjs"
+  ]
 }

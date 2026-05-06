@@ -12,6 +12,7 @@
     "test": "vitest"
   },
   "dependencies": {
+    "@areloria/shared-types": "workspace:*",
     "@wasd/utils": "workspace:*",
     "@wasd/database": "workspace:*",
     "@wasd/redis": "workspace:*",
