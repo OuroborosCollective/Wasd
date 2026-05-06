@@ -13,8 +13,8 @@
     "clean": "rimraf dist node_modules"
   },
   "dependencies": {
-    "@areloria/core": "workspace:*",
-    "@areloria/shared-types": "workspace:*",
+    "@wasd/core": "workspace:*",
+    "@wasd/types": "workspace:*",
     "@wasd/database": "workspace:*",
     "@wasd/redis": "workspace:*",
     "@wasd/utils": "workspace:*",

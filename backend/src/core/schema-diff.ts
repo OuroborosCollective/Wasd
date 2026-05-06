@@ -1,37 +1,56 @@
+export interface Column {
+    name: string;
+    type: string;
+    nullable: boolean;
+}
+
 export interface SchemaDiffResult {
-    missingColumns: string[];
-    typeMismatches: string[];
-    extraColumns: string[];
+    additions: Column[];
+    removals: string[];
+    changes: { name: string, from: string, to: string }[];
 }
 
 export class SchemaDiff {
-    public static compare(expected: any, actual: any): SchemaDiffResult {
+    /**
+     * Vergleicht das erwartete Modell-Schema mit dem tatsächlichen DB-Schema.
+     */
+    public static compare(expected: { properties: Column[] }, actual: { columns: Column[] }): SchemaDiffResult {
         const result: SchemaDiffResult = {
-            missingColumns: [],
-            typeMismatches: [],
-            extraColumns: []
+            additions: [],
+            removals: [],
+            changes: []
         };
 
-        const expectedCols = new Map(expected.properties.map((p: any) => [p.name, p]));
-        const actualCols = new Map(actual.columns.map((c: any) => [c.name, c]));
+        const expectedMap = new Map(expected.properties.map(p => [p.name, p]));
+        const actualMap = new Map(actual.columns.map(c => [c.name, c]));
 
-        expectedCols.forEach((val, key) => {
-            if (!actualCols.has(key)) {
-                result.missingColumns.push(key);
+        // Check for additions and changes
+        expectedMap.forEach((expectedCol, name) => {
+            const actualCol = actualMap.get(name);
+            if (!actualCol) {
+                result.additions.push(expectedCol);
             } else {
-                const actualCol = actualCols.get(key);
-                if (val.type !== actualCol.type) {
-                    result.typeMismatches.push(`${key}: expected ${val.type}, got ${actualCol.type}`);
+                if (this.normalizeType(expectedCol.type) !== this.normalizeType(actualCol.type)) {
+                    result.changes.push({
+                        name,
+                        from: actualCol.type,
+                        to: expectedCol.type
+                    });
                 }
             }
         });
 
-        actualCols.forEach((val, key) => {
-            if (!expectedCols.has(key)) {
-                result.extraColumns.push(key);
+        // Check for removals
+        actualMap.forEach((_, name) => {
+            if (!expectedMap.has(name)) {
+                result.removals.push(name);
             }
         });
 
         return result;
+    }
+
+    private static normalizeType(type: string): string {
+        return type.toLowerCase().split('(')[0].trim();
     }
 }
