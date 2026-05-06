@@ -1,8 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { AstInterfaceSync } from './ast-interface-sync';
-import { SchemaDiff, SchemaDiffResult } from './schema-diff';
-import { ConstraintValidator, ConstraintInfo } from './constraint-validator';
+import { SchemaDiff } from './schema-diff';
+import { ConstraintValidator } from './constraint-validator';
 import { MigrationGenerator } from './migration-generator';
 import { WatchdogEmitter } from './watchdog-emitter';
 import { WatchdogLearning } from './watchdog-learning';
@@ -50,10 +50,21 @@ export class SovereignWatchdog {
     }
 
     /**
-     * Haupt-Runtime-Flow des Watchdogs.
+     * Haupt-Runtime-Flow des Watchdogs mit Graceful-Handling für Verbindungsfehler.
      */
     public async checkDatabaseHealth(dbClient: any): Promise<void> {
         console.log('[Watchdog] Starting Runtime Integrity Flow...');
+
+        // Vorab-Check der Verbindung
+        try {
+            await dbClient.query('SELECT 1');
+        } catch (connError) {
+            this.handleConnectionError(connError, 'INITIAL_CONNECT');
+            if (this.config.strict) {
+                throw new Error('[Watchdog] Strict mode: Aborting due to database connection failure.');
+            }
+            return; // Beende diesen Health-Check-Lauf, aber crashe nicht den Prozess
+        }
 
         for (const [modelName, expectedSchema] of this.modelRegistry.entries()) {
             try {
@@ -82,8 +93,13 @@ export class SovereignWatchdog {
                 const actualConstraints = await ConstraintValidator.fetchConstraints(dbClient, expectedSchema.tableName);
                 this.emitter.emit('CONSTRAINT_SNAPSHOT', { tableName: expectedSchema.tableName, constraints: actualConstraints });
 
-            } catch (error) {
-                console.error(`[Watchdog] Error during health check for ${modelName}:`, error);
+            } catch (error: any) {
+                if (this.isConnectionError(error)) {
+                    this.handleConnectionError(error, modelName);
+                } else {
+                    console.error(`[Watchdog] Error during health check for ${modelName}:`, error.message);
+                }
+                
                 if (this.config.strict) throw error;
             }
         }
@@ -103,6 +119,45 @@ export class SovereignWatchdog {
             type: r.type,
             nullable: r.nullable === 'YES'
         }));
+    }
+
+    /**
+     * Prüft, ob ein Fehler auf ein Netzwerk-/Verbindungsproblem hindeutet.
+     */
+    private isConnectionError(error: any): boolean {
+        const connectionCodes = ['ECONNREFUSED', 'PROTOCOL_CONNECTION_LOST', 'ETIMEDOUT', '57P01', '08000', '08003', '08006'];
+        return error.code && connectionCodes.includes(error.code) || 
+               error.message?.includes('connection') || 
+               error.message?.includes('refused');
+    }
+
+    /**
+     * Detaillierte Diagnose bei Verbindungsfehlern.
+     */
+    private handleConnectionError(error: any, context: string): void {
+        const diagnostics = {
+            timestamp: new Date().toISOString(),
+            context: context,
+            code: error.code || 'UNKNOWN_CODE',
+            message: error.message,
+            stack: error.stack,
+            env: {
+                DB_HOST: process.env.DB_HOST || 'not-set',
+                DB_PORT: process.env.DB_PORT || 'not-set',
+                NODE_ENV: process.env.NODE_ENV
+            }
+        };
+
+        console.error('====================================================');
+        console.error(`[Watchdog] DATABASE CONNECTION ERROR @ ${context}`);
+        console.error(`[Watchdog] Diagnosis:`, JSON.stringify(diagnostics, null, 2));
+        console.error('====================================================');
+
+        this.emitter.emit('SYSTEM_CRITICAL', { 
+            point: LogicPoint.PERSISTENCE, 
+            error: 'DB_CONNECTION_LOST', 
+            diagnostics 
+        }, 'CRITICAL');
     }
 
     public synchronizeAxioms(interfacesPath: string): void {
