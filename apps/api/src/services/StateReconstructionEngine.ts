@@ -1,8 +1,16 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
+import { createHash } from 'crypto';
 
 /**
- * AREPayload repräsentiert die Datenstruktur der Areloria Runtime Engine Events.
+ * FIXED-POINT CONFIGURATION
+ * To ensure 100% determinism across different JS engines/architectures,
+ * we use BigInt based fixed-point arithmetic (6 decimal places).
  */
+const FP_SCALE = 1000000n;
+
+const toFP = (val: number): bigint => BigInt(Math.round(val * Number(FP_SCALE)));
+const fromFP = (val: bigint): number => Number(val) / Number(FP_SCALE);
+
 export interface AREPayload {
   data: any;
   resonanceFactor?: number;
@@ -10,9 +18,6 @@ export interface AREPayload {
   originatingNode: string;
 }
 
-/**
- * Struktur eines ARE-Events für das deterministische Replay.
- */
 export interface AREEvent {
   id: string;
   entityId: string;
@@ -20,6 +25,7 @@ export interface AREEvent {
   payload: AREPayload;
   timestamp: number;
   sequence: number;
+  frame: number; // Mandatory for frame-based sequencing
   metadata: {
     energyCost: number;
     entropyImpact: number;
@@ -28,44 +34,33 @@ export interface AREEvent {
   };
 }
 
-/**
- * Kappa-Bounds definieren die energetischen und entropischen Grenzwerte 
- * innerhalb derer eine Entität stabil bleibt.
- */
 export interface KappaBounds {
-  minEnergy: number;
-  maxEntropy: number;
-  resonanceThreshold: number;
+  minEnergy: bigint;
+  maxEntropy: bigint;
+  resonanceThreshold: bigint;
 }
 
-/**
- * Der rekonstruierte Zustand unter Einbeziehung von Resonanz und Kappa-Stabilität.
- */
 export interface ReconstructedState {
   entityId: string;
-  position: { x: number; y: number; z: number };
-  energy: number;
-  entropy: number;
-  resonance: number;
+  // Position stored in fixed-point BigInt for reproducibility
+  position: { x: bigint; y: bigint; z: bigint };
+  energy: bigint;
+  entropy: bigint;
+  resonance: bigint;
   version: number;
   lastSequence: number;
+  lastFrame: number;
   lastUpdate: number;
   attributes: Record<string, any>;
   isStable: boolean;
 }
 
-/**
- * Watchdog Ruleset Interface für die Validierung von Kappa-Grenzbereichen.
- */
 export interface IWatchdogService {
   verifyKappaBounds(state: ReconstructedState, event: AREEvent): { valid: boolean; violation?: string };
   checkResonanceConsistency(state: ReconstructedState, event: AREEvent): boolean;
   getGlobalKappaBounds(): KappaBounds;
 }
 
-/**
- * EventBus Interface für die Synchronisation.
- */
 export interface IEventBus {
   publish(topic: string, payload: any): Promise<void>;
 }
@@ -80,48 +75,47 @@ export class StateReconstructionEngine {
   ) {}
 
   /**
-   * Führt ein deterministisches Replay einer Event-Historie durch, um den 
-   * exakten Zustand einer Entität zu validieren.
+   * Performs a deterministic replay of an event history using frame-based sequencing.
    */
   public async reconstructDeterministicState(
     entityId: string,
     history: AREEvent[],
     snapshot?: ReconstructedState
   ): Promise<ReconstructedState> {
-    this.logger.log(`Initiating deterministic replay for ${entityId} (Events: ${history.length})`);
+    this.logger.log(`Replaying Frame-Based Sequence for ${entityId} (Events: ${history.length})`);
 
-    // Initialisierung basierend auf Snapshot oder Default-Resonanz
     let currentState: ReconstructedState = snapshot || {
       entityId,
-      position: { x: 0, y: 0, z: 0 },
-      energy: 100,
-      entropy: 0,
-      resonance: 1.0,
+      position: { x: 0n, y: 0n, z: 0n },
+      energy: 100n * FP_SCALE,
+      entropy: 0n,
+      resonance: 1n * FP_SCALE,
       version: 0,
       lastSequence: -1,
+      lastFrame: -1,
       lastUpdate: 0,
       attributes: {},
       isStable: true
     };
 
-    // Deterministische Sortierung nach Sequence und Timestamp
-    const sortedHistory = history.sort((a, b) => {
+    // Deterministic Sort: Frame -> Sequence -> Timestamp
+    const sortedHistory = [...history].sort((a, b) => {
+      if (a.frame !== b.frame) return a.frame - b.frame;
       if (a.sequence !== b.sequence) return a.sequence - b.sequence;
       return a.timestamp - b.timestamp;
     });
 
     for (const event of sortedHistory) {
-      // Sequenz-Validierung zur Vermeidung von Lücken/Duplikaten im Replay
-      if (event.sequence <= currentState.lastSequence) {
-        this.logger.warn(`Skipping out-of-order/duplicate event: ${event.id} (Seq: ${event.sequence})`);
+      // Replay Validation
+      if (event.frame < currentState.lastFrame || (event.frame === currentState.lastFrame && event.sequence <= currentState.lastSequence)) {
+        this.logger.warn(`Deterministic skipping: Event ${event.id} violates monotonic timeline (Frame: ${event.frame}, Seq: ${event.sequence})`);
         continue;
       }
 
       currentState = this.applyAREEvent(currentState, event);
       
-      // Abbruch bei Instabilität (Kappa-Kollaps)
       if (!currentState.isStable) {
-        this.logger.error(`Entity ${entityId} collapsed at sequence ${event.sequence}. Halting reconstruction.`);
+        this.logger.error(`Critical Kappa-Collapse at Frame ${event.frame} (Entity: ${entityId})`);
         break;
       }
     }
@@ -130,54 +124,44 @@ export class StateReconstructionEngine {
   }
 
   /**
-   * Wendet ein ARE-Event unter Einhaltung des Watchdog-Rulesets an.
+   * Applies an AREEvent with fixed-point arithmetic for state mutation.
    */
   private applyAREEvent(state: ReconstructedState, event: AREEvent): ReconstructedState {
-    // 1. Kappa-Bounds Verifizierung (Axiomatische Integrität)
+    // 1. Axiomatic Integrity Check
     const kappaCheck = this.watchdog.verifyKappaBounds(state, event);
     if (!kappaCheck.valid) {
-      this.logger.warn(`Kappa-Bound violation: ${kappaCheck.violation} on entity ${state.entityId}`);
+      this.logger.warn(`Integrity Violation: ${kappaCheck.violation}`);
       return { ...state, isStable: false, lastUpdate: event.timestamp };
     }
 
-    // 2. Resonanz-Konsistenz-Check (Kappa-Frequenz Analyse)
+    // 2. Kappa Frequency Analysis (Resonance Consistency)
     const resonanceValid = this.watchdog.checkResonanceConsistency(state, event);
-    if (!resonanceValid) {
-      this.logger.warn(`Resonance inconsistency detected for event ${event.id}`);
-      // Inkonsistenz führt zu Entropie-Anstieg statt sofortigem Stop
-      state.entropy += (event.metadata.entropyImpact * 1.5);
-    }
+    const entropyMultiplier = resonanceValid ? 1n : 2n;
 
-    // 3. Deterministische Zustandsmutation
+    // 3. Fixed-Point State Mutation
     const nextState: ReconstructedState = {
       ...state,
-      energy: state.energy - (event.metadata.energyCost || 0),
-      entropy: state.entropy + (event.metadata.entropyImpact || 0),
-      resonance: state.resonance + (event.payload.resonanceFactor || 0),
+      energy: state.energy - toFP(event.metadata.energyCost || 0),
+      entropy: state.entropy + (toFP(event.metadata.entropyImpact || 0) * entropyMultiplier),
+      resonance: state.resonance + toFP(event.payload.resonanceFactor || 0),
       version: state.version + 1,
       lastSequence: event.sequence,
+      lastFrame: event.frame,
       lastUpdate: event.timestamp
     };
 
-    // Spezifische ARE-Payload Prozessierung
+    // 4. Determinstic Payload Execution
     switch (event.type) {
       case 'POSITION_SHIFT':
         nextState.position = {
-          x: event.payload.data.x ?? state.position.x,
-          y: event.payload.data.y ?? state.position.y,
-          z: event.payload.data.z ?? state.position.z,
+          x: event.payload.data.x !== undefined ? toFP(event.payload.data.x) : state.position.x,
+          y: event.payload.data.y !== undefined ? toFP(event.payload.data.y) : state.position.y,
+          z: event.payload.data.z !== undefined ? toFP(event.payload.data.z) : state.position.z,
         };
         break;
 
       case 'RESONANCE_SYNC':
-        nextState.resonance = event.payload.data.targetResonance;
-        break;
-
-      case 'KAPPA_ADJUST':
-        nextState.attributes = { 
-          ...nextState.attributes, 
-          kappaModifier: event.payload.data.modifier 
-        };
+        nextState.resonance = toFP(event.payload.data.targetResonance);
         break;
 
       case 'ENTITY_MODIFICATION':
@@ -188,12 +172,12 @@ export class StateReconstructionEngine {
         break;
 
       default:
-        this.logger.debug(`Generic processing for ARE type: ${event.type}`);
+        this.logger.debug(`Generic deterministic processing for type: ${event.type}`);
     }
 
-    // Finaler Stabilitäts-Check gegen Global Bounds
-    const bounds = this.watchdog.getGlobalKappaBounds();
-    if (nextState.entropy > bounds.maxEntropy || nextState.energy < bounds.minEnergy) {
+    // 5. Stability Constraint Check
+    const globalBounds = this.watchdog.getGlobalKappaBounds();
+    if (nextState.entropy > globalBounds.maxEntropy || nextState.energy < globalBounds.minEnergy) {
       nextState.isStable = false;
     }
 
@@ -201,27 +185,57 @@ export class StateReconstructionEngine {
   }
 
   /**
-   * Synchronisiert den finalen validierten Zustand in den globalen State-Kanal.
+   * Broadcasts the validated state with a deterministic SHA-256 checksum.
    */
   public async broadcastValidatedState(state: ReconstructedState): Promise<void> {
+    const checksum = this.generateDeterministicChecksum(state);
+    
     await this.eventBus.publish('engine.state.validated', {
       entityId: state.entityId,
-      state,
-      checksum: this.generateStateChecksum(state),
-      timestamp: Date.now()
+      state: this.exportStateForNetwork(state),
+      checksum,
+      timestamp: Date.now(),
+      frame: state.lastFrame
     });
   }
 
   /**
-   * Generiert eine Checksumme für die deterministische Validierung zwischen Knoten.
+   * Converts BigInt state to serializable number format for network transport.
    */
-  private generateStateChecksum(state: ReconstructedState): string {
-    const raw = `${state.entityId}-${state.lastSequence}-${state.energy}-${state.entropy}-${state.resonance}`;
-    let hash = 0;
-    for (let i = 0; i < raw.length; i++) {
-      hash = (hash << 5) - hash + raw.charCodeAt(i);
-      hash |= 0; 
-    }
-    return hash.toString(16);
+  private exportStateForNetwork(state: ReconstructedState) {
+    return {
+      ...state,
+      position: {
+        x: fromFP(state.position.x),
+        y: fromFP(state.position.y),
+        z: fromFP(state.position.z),
+      },
+      energy: fromFP(state.energy),
+      entropy: fromFP(state.entropy),
+      resonance: fromFP(state.resonance)
+    };
+  }
+
+  /**
+   * Generates a cryptographic checksum of the internal fixed-point state.
+   */
+  private generateDeterministicChecksum(state: ReconstructedState): string {
+    const canonicalPayload = [
+      state.entityId,
+      state.lastFrame.toString(),
+      state.lastSequence.toString(),
+      state.position.x.toString(),
+      state.position.y.toString(),
+      state.position.z.toString(),
+      state.energy.toString(),
+      state.entropy.toString(),
+      state.resonance.toString(),
+      JSON.stringify(Object.keys(state.attributes).sort().reduce((obj, key) => {
+        obj[key] = state.attributes[key];
+        return obj;
+      }, {} as any))
+    ].join('|');
+
+    return createHash('sha256').update(canonicalPayload).digest('hex');
   }
 }
