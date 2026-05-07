@@ -13,7 +13,7 @@ export class GameStateChain {
      */
     public static validateMove(gameState: any, receivedHash: string): boolean {
         const compiledResult = AREStateCompiler.compile(gameState);
-        const fingerprint = compiledResult.chain;
+        const fingerprint = compiledResult;
         
         const calculatedHash = createHash('sha256')
             .update(fingerprint)

@@ -196,7 +196,7 @@ jobs:
         run: pnpm -r run lint
 
       - name: Typecheck
-        run: pnpm -r run typecheck --loglevel verbose
+        run: pnpm -r run typecheck
 
       - name: Build monorepo with Error Trapping
         run: |
