@@ -109,6 +109,10 @@ export function showDialogue(payload: string | DialoguePayload) {
     closeRow.style.display = "flex";
     closeRow.style.justifyContent = "flex-end";
     closeRow.style.flexShrink = "0";
+    const handleClose = () => {
+      if (dialogueBox) dialogueBox.style.display = "none";
+    };
+
     const closeBtn = document.createElement("button");
     closeBtn.type = "button";
     closeBtn.textContent = "Close";
@@ -119,26 +123,10 @@ export function showDialogue(payload: string | DialoguePayload) {
     closeBtn.style.background = "rgba(40,40,40,0.95)";
     closeBtn.style.color = "#eee";
     closeBtn.style.cursor = "pointer";
-    closeBtn.style.transition = "background-color 0.15s ease, border-color 0.15s ease";
-    closeBtn.addEventListener("mouseenter", () => {
-      closeBtn.style.background = "rgba(60,60,60,0.95)";
-      closeBtn.style.borderColor = "rgba(255,255,255,0.45)";
-    });
-    closeBtn.addEventListener("mouseleave", () => {
-      closeBtn.style.background = "rgba(40,40,40,0.95)";
-      closeBtn.style.borderColor = "rgba(255,255,255,0.25)";
-    });
-    closeBtn.addEventListener("focus", () => {
-      closeBtn.style.background = "rgba(60,60,60,0.95)";
-      closeBtn.style.borderColor = "rgba(255,255,255,0.45)";
-      closeBtn.style.outline = "none";
-      closeBtn.style.boxShadow = "0 0 0 2px rgba(255, 255, 255, 0.2)";
-    });
-    closeBtn.addEventListener("blur", () => {
-      closeBtn.style.background = "rgba(40,40,40,0.95)";
-      closeBtn.style.borderColor = "rgba(255,255,255,0.25)";
-      closeBtn.style.boxShadow = "none";
-    });
+    closeBtn.style.transition = "background-color 0.15s ease";
+    closeBtn.onmouseenter = () => (closeBtn.style.background = "rgba(60,60,60,0.95)");
+    closeBtn.onmouseleave = () => (closeBtn.style.background = "rgba(40,40,40,0.95)");
+
     closeBtn.onclick = (e) => {
       e.stopPropagation();
       handleClose();
@@ -158,15 +146,8 @@ export function showDialogue(payload: string | DialoguePayload) {
     };
     positionDialogue();
     window.addEventListener("resize", positionDialogue);
-
-    const handleClose = () => {
-      if (dialogueBox) dialogueBox.style.display = "none";
-    };
-
     window.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && dialogueBox?.style.display !== "none") {
-        handleClose();
-      }
+      if (e.key === "Escape" && dialogueBox?.style.display !== "none") handleClose();
     });
   }
 
@@ -194,26 +175,9 @@ export function showDialogue(payload: string | DialoguePayload) {
       btn.style.background = "rgba(30,35,50,0.98)";
       btn.style.color = "#e8ecf5";
       btn.style.cursor = "pointer";
-      btn.style.transition = "background-color 0.15s ease, border-color 0.15s ease";
-      btn.addEventListener("mouseenter", () => {
-        btn.style.background = "rgba(45, 52, 75, 0.98)";
-        btn.style.borderColor = "#f27d26";
-      });
-      btn.addEventListener("mouseleave", () => {
-        btn.style.background = "rgba(30, 35, 50, 0.98)";
-        btn.style.borderColor = "#d4af37";
-      });
-      btn.addEventListener("focus", () => {
-        btn.style.background = "rgba(45, 52, 75, 0.98)";
-        btn.style.borderColor = "#f27d26";
-        btn.style.outline = "none";
-        btn.style.boxShadow = "0 0 0 2px rgba(242, 125, 38, 0.4)";
-      });
-      btn.addEventListener("blur", () => {
-        btn.style.background = "rgba(30, 35, 50, 0.98)";
-        btn.style.borderColor = "#d4af37";
-        btn.style.boxShadow = "none";
-      });
+      btn.style.transition = "background-color 0.1s ease";
+      btn.onmouseenter = () => (btn.style.background = "rgba(45,52,75,0.98)");
+      btn.onmouseleave = () => (btn.style.background = "rgba(30,35,50,0.98)");
       btn.onclick = (e) => {
         e.stopPropagation();
         if (!npcId) return;
