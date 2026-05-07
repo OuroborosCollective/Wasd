@@ -10,10 +10,10 @@
     }
   },
   "include": [
-    "src",
-    "../packages/shared/src/**/*"
+    "src"
   ],
   "references": [
-    { "path": "./tsconfig.node.json" }
+    { "path": "./tsconfig.node.json" },
+    { "path": "../packages/shared" }
   ]
 }

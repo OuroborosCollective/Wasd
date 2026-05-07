@@ -30,12 +30,12 @@
   "devDependencies": {
     "@types/express": "^5.0.0",
     "@types/node": "^22.13.1",
-    "@types/three": "^0.169.0",
+    "@types/three": "0.169.0",
     "eslint": "^8.57.0",
     "rimraf": "^5.0.5",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
-    "vitest": "^3.0.5"
+    "vitest": "^4.1.5"
   },
   "peerDependencies": {
     "@babylonjs/core": "*",

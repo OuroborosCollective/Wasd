@@ -28,6 +28,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
+          version: 9.12.2
           run_install: false
 
       - name: Setup Node
@@ -129,5 +130,5 @@ jobs:
       - name: Verify Deployment Health
         run: |
           echo "Starting Health Check for Areloria WASD..."
-          # Increased timeout and added retries to prevent connection failure (28) on specified IP
-          curl --retry 5 --retry-connrefused --retry-delay 15 --max-time 120 -v http://46.202.154.25 || (echo "Health Check failed after retries" && exit 1)
+          # Increased timeout and added retries to prevent connection failure (28)
+          curl --retry 5 --retry-connrefused --retry-delay 15 --max-time 120 -v http://${{ secrets.PRODUCTION_IP }} || (echo "Health Check failed after retries" && exit 1)
