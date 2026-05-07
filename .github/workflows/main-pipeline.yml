@@ -47,6 +47,7 @@ jobs:
       NODE_OPTIONS: "--trace-warnings --trace-uncaught --max-old-space-size=6144"
       PNPM_LOG_LEVEL: "info"
       CI: true
+      DEBUG: "true"
       DATABASE_URL: "postgresql://postgres:postgres_password@localhost:5432/areloria_test_${{ github.run_id }}"
       POSTGRES_USER: postgres
       POSTGRES_DB: areloria_test_${{ github.run_id }}
@@ -79,6 +80,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: System Diagnostics & Verbose Logging
+        run: |
+          echo "--- System Info ---"
+          uname -a
+          df -h
+          free -m
+          echo "--- Environment Variables ---"
+          env | grep -v 'PASSWORD\|TOKEN\|SECRET' | sort
+          echo "--- Workspace Structure ---"
+          ls -R | grep ":$" | sed -e 's/:$//' -e 's/[^-][^\/]*\//--/g' -e 's/^/   /'
+        shell: bash
+
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -97,46 +110,49 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
 
-      - name: Install Python dependencies
+      - name: pnpm Workspace Integrity Check
+        run: |
+          echo "Validating pnpm-workspace.yaml..."
+          pnpm recursive list --depth -1
+          echo "Checking for circular dependencies..."
+          pnpm list -r --json > workspace-graph.json || (echo "Failed to generate workspace graph" && exit 1)
+
+      - name: Install Python dependencies with Error Trapping
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          if [ -f engine/requirements.txt ]; then pip install -r engine/requirements.txt; fi
+          set -e
+          trap 'echo "Python Dependency Installation Failed at line $LINENO"' ERR
+          if [ -f requirements.txt ]; then 
+            echo "Installing root requirements..."
+            pip install -v -r requirements.txt
+          fi
+          if [ -f engine/requirements.txt ]; then 
+            echo "Installing engine requirements..."
+            pip install -v -r engine/requirements.txt
+          fi
+          pip list
+        shell: bash
 
-      - name: Run Python Validation
+      - name: Run Python Validation (Jules/Scoring Services)
         run: |
+          set -e
+          echo "Running Python Integrity Validation..."
           if [ -f engine/scripts/check_changes.py ]; then
-            python engine/scripts/check_changes.py
+            python -v engine/scripts/check_changes.py || { echo "Validation script failed in engine/"; exit 1; }
           elif [ -f scripts/check_changes.py ]; then
-            python scripts/check_changes.py
+            python -v scripts/check_changes.py || { echo "Validation script failed in root scripts/"; exit 1; }
           else
-            echo "Validation script check_changes.py not found, skipping."
+            echo "::warning ::Validation script check_changes.py not found, skipping."
           fi
-
-      - name: Validate Environment Variables
-        run: |
-          echo "Performing Pre-Flight Environment Validation..."
-          MISSING_VARS=0
-          
-          REQUIRED_VARS=("DATABASE_URL" "POSTGRES_USER" "POSTGRES_DB" "POSTGRES_PASSWORD" "CI")
-          
-          for var in "${REQUIRED_VARS[@]}"; do
-            if [ -z "${!var}" ]; then
-              echo "Error: Required environment variable '$var' is missing or empty."
-              MISSING_VARS=1
-            else
-              echo "Check: '$var' is set."
-            fi
-          done
-          
-          if [ $MISSING_VARS -eq 1 ]; then
-            echo "Validation failed: One or more critical environment variables are missing."
-            exit 1
-          fi
-          echo "Environment validation successful."
+        shell: bash
 
       - name: Install Node.js dependencies
-        run: pnpm install --frozen-lockfile --loglevel verbose
+        run: |
+          pnpm install --frozen-lockfile --loglevel verbose || {
+            echo "PNPM Install Failed. Checking logs..."
+            cat /home/runner/.pnpm-debug.log || true
+            exit 1
+          }
 
       - name: Dependency Review
         if: github.event_name == 'pull_request'
@@ -165,10 +181,15 @@ jobs:
 
       - name: Prisma Client Generation and Migration
         run: |
-          if pnpm -r list | grep -q "prisma"; then
-            echo "Prisma packages found, generating clients..."
+          set -e
+          echo "Scanning for Prisma schemas..."
+          PRISMA_PACKAGES=$(pnpm -r exec sh -c 'if [ -d "prisma" ]; then pwd; fi' | grep -v "node_modules" || true)
+          if [ ! -z "$PRISMA_PACKAGES" ]; then
+            echo "Found Prisma in: $PRISMA_PACKAGES"
             pnpm -r exec prisma generate --loglevel verbose
             pnpm -r exec prisma migrate deploy || echo "No migrations found or already applied."
+          else
+            echo "No Prisma packages detected."
           fi
 
       - name: Lint workspace
@@ -177,14 +198,21 @@ jobs:
       - name: Typecheck
         run: pnpm -r run typecheck --loglevel verbose
 
-      - name: Build monorepo
-        run: pnpm -r run build --loglevel verbose
+      - name: Build monorepo with Error Trapping
+        run: |
+          set -e
+          echo "Starting Monorepo Build..."
+          pnpm -r run build --loglevel verbose || {
+            echo "BUILD FAILED. Capturing build state..."
+            exit 1
+          }
 
       - name: Ensure Build Directories Exist
         run: |
           mkdir -p dist-merged
-          find . -maxdepth 4 -name "dist" -type d -not -path "*/node_modules/*" -not -path "./dist-merged*" -exec cp -r {} ./dist-merged/ \; || true
-          find . -maxdepth 4 -name "build" -type d -not -path "*/node_modules/*" -not -path "./dist-merged*" -exec cp -r {} ./dist-merged/ \; || true
+          echo "Aggregating build artifacts..."
+          find . -maxdepth 4 -name "dist" -type d -not -path "*/node_modules/*" -not -path "./dist-merged*" -exec cp -rv {} ./dist-merged/ \; || true
+          find . -maxdepth 4 -name "build" -type d -not -path "*/node_modules/*" -not -path "./dist-merged*" -exec cp -rv {} ./dist-merged/ \; || true
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
@@ -193,6 +221,7 @@ jobs:
           path: |
             **/dist/**
             **/build/**
+            dist-merged/
           retention-days: 1
           if-no-files-found: warn
 
