@@ -68,6 +68,7 @@ import {
   publishChatMessage,
   type ChatMessage as RelayedChatMessage,
   type ChatScope as RelayedChatScope,
+  type PublishChatResult,
 } from "../modules/chat/RedisChatRelay.js";
 import { ChatChannelRouter, type ChatRecipient } from "../modules/chat/ChatChannelRouter.js";
 import { StatusEmitter } from "../modules/chat/StatusEmitter.js";
@@ -2861,7 +2862,7 @@ export class WorldTick {
             : requestedScope === "party" && !partyId
               ? "global"
               : requestedScope;
-        const chatResult = await publishChatMessage({
+        const chatResult: PublishChatResult = await publishChatMessage({
           scope: effectiveScope,
           senderId: String(player.id),
           senderName: isNonEmptyString(player.name) ? player.name : String(player.id),
@@ -2870,12 +2871,15 @@ export class WorldTick {
           partyId,
           ts: Date.now(),
         });
-        if (!chatResult.ok && chatResult.reason === "rate_limited") {
-          const waitSeconds = Math.max(0.1, Number(chatResult.retryAfterMs ?? 500) / 1000);
-          this.ws.sendToPlayer(id, {
-            type: "toast",
-            text: `Chat cooldown active (${waitSeconds.toFixed(1)}s).`,
-          });
+        if (!chatResult.ok) {
+          const failure = chatResult as any;
+          if (failure.reason === "rate_limited") {
+            const waitSeconds = Math.max(0.1, Number(failure.retryAfterMs ?? 500) / 1000);
+            this.ws.sendToPlayer(id, {
+              type: "toast",
+              text: `Chat cooldown active (${waitSeconds.toFixed(1)}s).`,
+            });
+          }
         }
         return;
       }
@@ -3158,7 +3162,9 @@ export class WorldTick {
             });
             if (hit.killed && target.health <= 0) {
               target.health = 0;
-              target.aggroTargetId = null;
+              if ("aggroTargetId" in target) {
+                (target as any).aggroTargetId = null;
+              }
               player.kills = Math.max(0, Number(player.kills) || 0) + 1;
               this.applyWarfrontContribution(player, id, "combat", 8, "combat_kill");
               const handledBossDefeat = this.tryHandleWorldBossDefeat(player, target);
@@ -3228,7 +3234,9 @@ export class WorldTick {
             text: hit.hit ? `${skill.name} hits for ${hit.damage}${hit.crit ? " (CRIT!)" : ""}.` : `${skill.name} missed.`,
           });
           if (hit.killed && target.health <= 0) {
-            target.aggroTargetId = null;
+            if ("aggroTargetId" in target) {
+              (target as any).aggroTargetId = null;
+            }
             player.kills = Math.max(0, Number(player.kills) || 0) + 1;
             this.applyWarfrontContribution(player, id, "combat", 8, "combat_kill");
             const handledBossDefeat = this.tryHandleWorldBossDefeat(player, target);
@@ -3332,7 +3340,9 @@ export class WorldTick {
         this.pushPlayerStateSync(id, player);
         if ((target.health ?? 0) <= 0) {
           target.health = 0;
-          target.aggroTargetId = null;
+          if ("aggroTargetId" in target) {
+            (target as any).aggroTargetId = null;
+          }
           player.kills = Math.max(0, Number(player.kills) || 0) + 1;
           this.applyWarfrontContribution(player, id, "combat", 8, "combat_kill");
           const handledBossDefeat = this.tryHandleWorldBossDefeat(player, target);
