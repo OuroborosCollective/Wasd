@@ -1,21 +1,24 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { Entity, WorldState } from '@wasd/shared';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * WorldTickOptimizationService
  * 
- * Realisiert einen deterministischen 10Hz World-Tick unter Verwendung von High-Resolution Timern (process.hrtime).
- * Integriert AREStateCompiler-Logik und ResonanceGrid-Updates in einer strikten zustandslosen Sequenz.
+ * Realisiert einen deterministischen 10Hz World-Tick mit diskreten Frame-Nummern
+ * und obligatorischer Sequence-ID Injection zur Gewährleistung der Kausalität.
  */
 @Injectable()
 export class WorldTickOptimizationService implements OnModuleDestroy {
   private readonly logger = new Logger(WorldTickOptimizationService.name);
   
-  // 10Hz = 100ms in Nanosekunden
+  // 10Hz = 100ms Intervall
   private readonly TICK_INTERVAL_NS = BigInt(100) * BigInt(1_000_000);
+  private readonly FRAMES_PER_SECOND = 10;
   
   private isRunning = false;
   private nextTickTimeNs: bigint = BigInt(0);
+  private currentFrame: bigint = BigInt(0);
   private currentState: WorldState | null = null;
   private onTickCallback: ((state: WorldState) => void) | null = null;
 
@@ -24,7 +27,7 @@ export class WorldTickOptimizationService implements OnModuleDestroy {
   }
 
   /**
-   * Startet den deterministischen World-Tick Scheduler mit High-Res Timing.
+   * Startet den Scheduler mit initialem Frame-Zähler.
    */
   public startWorldTick(initialState: WorldState, callback: (state: WorldState) => void): void {
     if (this.isRunning) return;
@@ -32,23 +35,18 @@ export class WorldTickOptimizationService implements OnModuleDestroy {
     this.currentState = initialState;
     this.onTickCallback = callback;
     this.isRunning = true;
+    this.currentFrame = BigInt(initialState.frame || 0);
     this.nextTickTimeNs = process.hrtime.bigint();
 
-    this.logger.log(`Areloria Deterministic 10Hz Tick gestartet (High-Res hrtime).`);
+    this.logger.log(`Areloria Deterministic 10Hz Tick gestartet. Frame: ${this.currentFrame}`);
     this.scheduleNext();
   }
 
-  /**
-   * Stoppt den Scheduler.
-   */
   public stopWorldTick(): void {
     this.isRunning = false;
     this.logger.log('WorldTick Scheduler gestoppt.');
   }
 
-  /**
-   * Rekursiver Scheduler mit Drift-Korrektur auf Nanosekunden-Ebene.
-   */
   private scheduleNext(): void {
     if (!this.isRunning) return;
 
@@ -56,46 +54,49 @@ export class WorldTickOptimizationService implements OnModuleDestroy {
 
     if (now >= this.nextTickTimeNs) {
       this.executeTick();
-      
-      // Berechne nächsten Zielzeitpunkt
       this.nextTickTimeNs += this.TICK_INTERVAL_NS;
 
-      // Spiral of Death Protection: Wenn das System mehr als 5 Ticks hinterherhinkt, hart synchronisieren
+      // Spiral of Death Protection
       if (now - this.nextTickTimeNs > this.TICK_INTERVAL_NS * BigInt(5)) {
         this.nextTickTimeNs = now + this.TICK_INTERVAL_NS;
-        this.logger.warn('Kritischer Performance-Einbruch: World-Tick driftet massiv. Scheduler resynchronisiert.');
+        this.logger.warn('Kritischer Drift: Frame-Synchronisation erzwungen.');
       }
     }
 
-    // Nutze setImmediate für minimale Latenz zwischen den Checks ohne die Event-Loop zu blockieren
     setImmediate(() => this.scheduleNext());
   }
 
   /**
-   * Haupt-Ausführungs-Pipeline: Compiler -> Grid -> Optimization
+   * Pipeline mit Sequence-ID Injection und Frame-Management.
    */
   private executeTick(): void {
     if (!this.currentState || !this.onTickCallback) return;
 
     const startTime = process.hrtime.bigint();
-
-    // 1. AREStateCompiler Phase: Vorbereitung des transformierten Zustands
-    let nextState = this.compileAREState(this.currentState);
-
-    // 2. ResonanceGrid Phase: Räumliche Partitionierung und Kollisions-Abgleich
-    nextState = this.updateResonanceGrid(nextState);
-
-    // 3. Optimization Phase: Throttling, Culling und Zombie-Bereinigung
-    nextState = this.optimizeTick(nextState);
     
-    // Performance-Metriken erfassen
+    // Inkrementiere diskreten Frame
+    this.currentFrame++;
+    
+    // Generiere eindeutige Sequence-ID für diesen Tick
+    const sequenceId = `seq_${this.currentFrame}_${uuidv4().split('-')[0]}`;
+
+    // 1. AREStateCompiler Phase: Transformation mit Sequence-ID
+    let nextState = this.compileAREState(this.currentState, sequenceId, this.currentFrame);
+
+    // 2. ResonanceGrid Phase: Räumliche Validierung
+    nextState = this.updateResonanceGrid(nextState, sequenceId);
+
+    // 3. Optimization Phase: Frame-basiertes Throttling & Culling
+    nextState = this.optimizeTick(nextState, sequenceId, this.currentFrame);
+    
+    // Performance-Metriken & Finaler State-Sync
     const endTime = process.hrtime.bigint();
     const durationMs = Number(endTime - startTime) / 1_000_000;
 
     nextState.performanceMetrics = {
       ...nextState.performanceMetrics,
       lastTickDurationMs: durationMs,
-      thresholdMs: 80 // 80ms Soft-Limit für 100ms Fenster
+      thresholdMs: 80
     };
 
     this.currentState = nextState;
@@ -103,58 +104,63 @@ export class WorldTickOptimizationService implements OnModuleDestroy {
   }
 
   /**
-   * AREStateCompiler: Bereitet Entitäten für die physikalische Simulation vor.
+   * Injiziert Frame-Metadaten und Sequence-IDs in den WorldState.
    */
-  private compileAREState(state: WorldState): WorldState {
-    // In einer zustandslosen Sequenz transformieren wir hier Entitäten-Metadaten
-    // für die effiziente Verarbeitung im Grid.
-    return state;
+  private compileAREState(state: WorldState, sequenceId: string, frame: bigint): WorldState {
+    return {
+      ...state,
+      frame: Number(frame),
+      sequenceId: sequenceId,
+      lastProcessedAt: Date.now()
+    };
   }
 
   /**
-   * ResonanceGrid: Aktualisiert räumliche Indizes.
+   * Räumliche Partitionierung unter Berücksichtigung der Sequence-ID.
    */
-  private updateResonanceGrid(state: WorldState): WorldState {
-    // Logik zur räumlichen Einordnung der Entitäten zur Reduktion von O(n²) Vergleichen
-    return state;
+  private updateResonanceGrid(state: WorldState, sequenceId: string): WorldState {
+    // Hier würde die Grid-Logik die sequenceId nutzen, um Cache-Invalidierung zu steuern
+    return { ...state, sequenceId };
   }
 
   /**
-   * Kern-Optimierung: Verarbeitet CPU-Last, Zombies und Prioritäten.
+   * Kern-Optimierung basierend auf diskreten Frames statt Realzeit-Deltas.
    */
-  public optimizeTick(currentState: WorldState): WorldState {
+  public optimizeTick(currentState: WorldState, sequenceId: string, currentFrame: bigint): WorldState {
     const { entities, performanceMetrics } = currentState;
-    const now = Date.now();
     const processedEntities: Record<string, Entity> = {};
     
     const metrics = performanceMetrics || { lastTickDurationMs: 0, thresholdMs: 80 };
     const isOverloaded = metrics.lastTickDurationMs > metrics.thresholdMs;
     
+    // Frame-basierte Timeouts (50 Frames @ 10Hz = 5 Sekunden)
+    const ZOMBIE_FRAME_THRESHOLD = BigInt(50);
     const entityEntries = Object.entries(entities);
 
     for (let i = 0; i < entityEntries.length; i++) {
       const [id, entity] = entityEntries[i];
-      const lastUpdate = entity.lastUpdate || now;
+      const lastUpdateFrame = BigInt(entity.lastUpdateFrame || currentFrame);
       
-      // 1. Zombie-Check: Entitäten ohne Update seit 5 Sekunden entfernen
-      if (now - lastUpdate > 5000) {
+      // 1. Zombie-Check via Frame-Differenz
+      if (currentFrame - lastUpdateFrame > ZOMBIE_FRAME_THRESHOLD) {
         continue;
       }
 
-      let updatedEntity: Entity = { ...entity };
+      let updatedEntity: Entity = { 
+        ...entity,
+        sequenceId: sequenceId // Mandatory Sequence Injection
+      };
       let modified = false;
 
-      // 2. Judgement & Throttling
+      // 2. Throttling-Logik
       const cpuCost = entity.cpuCost ?? 0;
       const priority = entity.priority ?? 0;
 
       if (isOverloaded && cpuCost > 15 && priority < 2) {
-        // Drosselung bei Überlast
         updatedEntity.status = 'throttled';
         updatedEntity.cpuCost = cpuCost * 0.5;
         modified = true;
       } else if (!isOverloaded && updatedEntity.status === 'throttled') {
-        // Heilung bei Kapazität (Headroom > 40%)
         if (metrics.lastTickDurationMs < (metrics.thresholdMs * 0.6)) {
           updatedEntity.status = 'active';
           updatedEntity.cpuCost = Math.min(100, cpuCost * 1.2);
@@ -162,14 +168,17 @@ export class WorldTickOptimizationService implements OnModuleDestroy {
         }
       }
 
-      // 3. Ressourcen-Regeneration (Health / Energie)
-      if ((updatedEntity.health ?? 0) < 100) {
-        updatedEntity.health = Math.min(100, (updatedEntity.health ?? 0) + 1);
-        modified = true;
+      // 3. Frame-basierte Regeneration (alle X Frames)
+      // Jede 10 Frames (1s) 1 HP regenerieren
+      if (currentFrame % BigInt(10) === BigInt(0)) {
+        if ((updatedEntity.health ?? 0) < 100) {
+          updatedEntity.health = Math.min(100, (updatedEntity.health ?? 0) + 1);
+          modified = true;
+        }
       }
 
-      if (modified) {
-        updatedEntity.lastUpdate = now;
+      if (modified || currentFrame % BigInt(10) === BigInt(0)) {
+        updatedEntity.lastUpdateFrame = Number(currentFrame);
       }
 
       processedEntities[id] = updatedEntity;
@@ -177,7 +186,9 @@ export class WorldTickOptimizationService implements OnModuleDestroy {
 
     return {
       ...currentState,
-      entities: processedEntities
+      entities: processedEntities,
+      sequenceId: sequenceId,
+      frame: Number(currentFrame)
     };
   }
 }

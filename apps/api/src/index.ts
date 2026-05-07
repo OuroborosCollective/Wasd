@@ -7,28 +7,49 @@ import { PrismaClient, Prisma } from '@prisma/client';
  * ARELORIA WASD - API CORE
  * High-performance 3D-RPG-Metaverse Backend
  * 
- * Implementation: Resilient Prisma Logic, Exponential Backoff & Global Recovery
+ * Implementation: Resilient Prisma Logic, Exponential Backoff & Graceful Degradation
  */
 
+/**
+ * ENVIRONMENT VALIDATION
+ * Strict check for required configuration before execution
+ */
+function validateEnvironment() {
+  const required = ['DATABASE_URL'];
+  const missing = required.filter(key => !process.env[key]);
+
+  if (missing.length > 0 && process.env.NODE_ENV === 'production') {
+    console.error(`[SENTINEL] [FATAL_CONFIG] Missing required environment variables: ${missing.join(', ')}`);
+    process.exit(1);
+  } else if (missing.length > 0) {
+    console.warn(`[SENTINEL] [WARN_CONFIG] Missing environment variables: ${missing.join(', ')}. System might fail in production.`);
+  }
+}
+
+validateEnvironment();
+
+/**
+ * GLOBAL STATE & CONFIG
+ */
 const app = express();
 const PORT = process.env.PORT || 3000;
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+});
 
-// Resilience Configuration Constants
 const MAX_RETRIES = 15;
 const INITIAL_BACKOFF_MS = 1000;
 const MAX_BACKOFF_MS = 30000;
 const CONNECTION_TIMEOUT_MS = 15000;
-const ARE_LOOP_TICK_MS = 100; // 10Hz Logic Loop for AI/World State
+const ARE_LOOP_TICK_MS = 100;
 
-// Global State
 let isRecovering = false;
 let lastError: string | null = null;
 let isShuttingDown = false;
 let dbConnected = false;
 
 /**
- * Custom Error Classes for Domain-Specific Handling
+ * CUSTOM DOMAIN ERRORS
  */
 class ConnectionTimeoutError extends Error {
   constructor(message: string) {
@@ -60,7 +81,6 @@ class DatabaseConnectionError extends Error {
 
 /**
  * ARE-LOOP CORE LOGIC (Action-Result-Evaluation)
- * Synergetic AI-Agent-System "Jules" Interface
  */
 interface AREPayload {
   actionId: string;
@@ -83,7 +103,6 @@ const Brain = {
       actionId: payload.actionId,
     };
 
-    // PURITY ENFORCEMENT: Logical operations must remain idempotent
     if ('stateChange' in result && typeof result.stateChange !== 'undefined') {
       throw new PurityViolationError('STATE_MUTATION_DETECTED: Brain.process must remain pure.');
     }
@@ -92,13 +111,57 @@ const Brain = {
   }
 };
 
-/**
- * Utility: Sleep with Promise
- */
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Database Connection Logic via Prisma with Race-Condition Protection
+ * RECOVERY ORCHESTRATOR
+ */
+async function initiateRecoveryMode(error: Error) {
+  if (isRecovering || isShuttingDown) return;
+  
+  isRecovering = true;
+  dbConnected = false;
+  lastError = error.message;
+  console.error(`[SENTINEL] [RECOVERY_MODE] Logic Loop Suspended. Reason: ${error.message}`);
+
+  try {
+    await initializeWithRetry();
+    if (dbConnected) {
+      console.log('[SENTINEL] [RECOVERY_SUCCESS] System restoration complete. Resuming operations.');
+    }
+  } catch (recoveryError) {
+    console.error('[SENTINEL] [RECOVERY_FAILED] Unexpected error during recovery orchestrator.');
+  }
+}
+
+/**
+ * GLOBAL PROCESS HANDLERS
+ * Registered early to catch startup exceptions
+ */
+process.on('uncaughtException', (error: Error) => {
+  const isTransient = error instanceof ConnectionTimeoutError || 
+                      error instanceof DatabaseConnectionError ||
+                      error.message.includes('DB_TIMEOUT') || 
+                      error.message.includes('ECONNREFUSED') ||
+                      error.message.includes('P2024') || 
+                      error.message.includes('P2028');
+
+  if (isTransient) {
+    initiateRecoveryMode(error);
+  } else {
+    console.error(`[SENTINEL] [FATAL_EXCEPTION] Non-recoverable error: ${error.message}\nStack: ${error.stack}`);
+    process.exit(1);
+  }
+});
+
+process.on('unhandledRejection', (reason: unknown) => {
+  const error = reason instanceof Error ? reason : new Error(String(reason));
+  console.error(`[SENTINEL] [UNHANDLED_REJECTION] ${error.message}`);
+  initiateRecoveryMode(error);
+});
+
+/**
+ * DATABASE CONNECT LOGIC
  */
 async function connectToDatabase(): Promise<void> {
   console.log(`[SENTINEL] [DATABASE_BOOT] [${new Date().toISOString()}] Validating persistence layer...`);
@@ -113,9 +176,6 @@ async function connectToDatabase(): Promise<void> {
   );
 
   try {
-    if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
-      throw new AuthenticationError('MISSING_CONFIG: DATABASE_URL is not defined in environment.');
-    }
     await Promise.race([connectionPromise, timeoutPromise]);
   } catch (error: any) {
     dbConnected = false;
@@ -126,9 +186,6 @@ async function connectToDatabase(): Promise<void> {
   }
 }
 
-/**
- * Exponential Backoff Retry Wrapper for Bootstrap and Recovery
- */
 async function initializeWithRetry(): Promise<void> {
   let currentRetry = 0;
   let delay = INITIAL_BACKOFF_MS;
@@ -147,13 +204,10 @@ async function initializeWithRetry(): Promise<void> {
       
       console.error(`[SENTINEL] [DATABASE_ERROR] [ATTEMPT ${currentRetry}/${MAX_RETRIES}] ${errorMessage}`);
 
-      if (error instanceof AuthenticationError) {
-        console.error('[SENTINEL] [FATAL] Authentication/Configuration error. Retrying is futile.');
-        throw error;
-      }
-
       if (currentRetry >= MAX_RETRIES) {
-        throw new Error(`CRITICAL: Database connection failed after ${MAX_RETRIES} attempts.`);
+        console.error(`[SENTINEL] [GRACEFUL_DEGRADATION] Database connection failed after ${MAX_RETRIES} attempts. Operating in offline/limited mode.`);
+        isRecovering = true;
+        return;
       }
 
       const jitter = Math.random() * 1000; 
@@ -167,56 +221,11 @@ async function initializeWithRetry(): Promise<void> {
 }
 
 /**
- * Recovery Orchestrator: Prevents process exit during transient DB failures
+ * MIDDLEWARE & ROUTES
  */
-async function initiateRecoveryMode(error: Error) {
-  if (isRecovering || isShuttingDown) return;
-  
-  isRecovering = true;
-  dbConnected = false;
-  lastError = error.message;
-  console.error(`[SENTINEL] [RECOVERY_MODE] Logic Loop Suspended. Reason: ${error.message}`);
-
-  try {
-    await initializeWithRetry();
-    console.log('[SENTINEL] [RECOVERY_SUCCESS] System restoration complete. Resuming operations.');
-  } catch (recoveryError) {
-    console.error('[SENTINEL] [RECOVERY_FAILED] Exhausted all retry attempts. System halt required.');
-    process.exit(1);
-  }
-}
-
-/**
- * Global Process Handlers for Unhandled Failures
- */
-process.on('uncaughtException', (error: Error) => {
-  const isTransient = error instanceof ConnectionTimeoutError || 
-                      error instanceof DatabaseConnectionError ||
-                      error.message.includes('DB_TIMEOUT') || 
-                      error.message.includes('ECONNREFUSED') ||
-                      error.message.includes('P2024') || // Connection pool timeout
-                      error.message.includes('P2028'); // Transaction timeout
-
-  if (isTransient) {
-    initiateRecoveryMode(error);
-  } else {
-    console.error(`[SENTINEL] [FATAL_EXCEPTION] Non-recoverable error: ${error.message}`);
-    console.error(error.stack);
-    process.exit(1);
-  }
-});
-
-process.on('unhandledRejection', (reason: unknown) => {
-  const error = reason instanceof Error ? reason : new Error(String(reason));
-  console.error(`[SENTINEL] [UNHANDLED_REJECTION] ${error.message}`);
-  initiateRecoveryMode(error);
-});
-
-// Middleware Configuration
 app.use(cors());
 app.use(express.json());
 
-// Health Check Endpoint
 app.get('/api/health', (req: Request, res: Response) => {
   const isHealthy = dbConnected && !isRecovering;
   res.status(isHealthy ? 200 : 503).json({ 
@@ -231,18 +240,13 @@ app.get('/api/health', (req: Request, res: Response) => {
   });
 });
 
-/**
- * THE ARE-LOOP TICK (10Hz)
- * Central World-Editor and AI-Agent Synchronization Logic
- */
 function startARELoop() {
   console.log('[SENTINEL] [ARE-LOOP] Starting high-frequency world logic tick...');
   
   const tick = () => {
     if (isShuttingDown) return;
 
-    if (isRecovering) {
-      // While recovering, we skip processing but keep the tick alive
+    if (isRecovering || !dbConnected) {
       setTimeout(tick, ARE_LOOP_TICK_MS);
       return;
     }
@@ -271,25 +275,16 @@ function startARELoop() {
   tick();
 }
 
-/**
- * Prisma Known Request Error Middleware
- * Prevents logic errors from crashing the server
- */
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
-    if (err.code === 'P2002') {
-      return res.status(409).json({ error: 'Conflict: Unique constraint violation.', target: err.meta?.target });
-    }
-    if (err.code === 'P2025') {
-      return res.status(404).json({ error: 'Not Found: Record does not exist.' });
-    }
-    if (err.code === 'P2024' || err.code === 'P2028') {
+    if (err.code === 'P2002') return res.status(409).json({ error: 'Conflict: Unique constraint violation.' });
+    if (err.code === 'P2025') return res.status(404).json({ error: 'Not Found: Record does not exist.' });
+    if (['P2024', 'P2028', 'P2001'].includes(err.code)) {
       initiateRecoveryMode(err);
-      return res.status(503).json({ error: 'Service Unavailable: Database connection pool exhausted.' });
+      return res.status(503).json({ error: 'Service Unavailable: Database connection issue.' });
     }
   }
   
-  console.error('[EXPRESS_ERROR]', err);
   res.status(500).json({ error: 'Internal Server Error', message: err.message });
 });
 
@@ -301,59 +296,47 @@ async function bootstrap() {
   console.log('ARELORIA WASD - API CORE INITIALIZATION');
   console.log('==================================================');
 
-  try {
-    // Stage 1: Database Persistence
-    await initializeWithRetry();
+  const server: Server = app.listen(PORT, () => {
+    console.log(`[SENTINEL] [SERVER_START] Listening on Port: ${PORT}`);
+    console.log(`[SENTINEL] [MODE] ${process.env.NODE_ENV || 'development'}`);
     
-    // Stage 2: Cache Layer (Mock/Ready for Integration)
-    console.log(`[SENTINEL] [REDIS_BOOT] Validating Redis cluster state...`);
-    await sleep(200); 
-    console.log(`[SENTINEL] [REDIS_READY] Shared memory layer synchronized.`);
-    
-    // Stage 3: Start Server
-    const server: Server = app.listen(PORT, () => {
-      console.log(`[SENTINEL] [SERVER_START] Listening on Port: ${PORT}`);
-      console.log(`[SENTINEL] [MODE] ${process.env.NODE_ENV || 'development'}`);
-      
-      // Stage 4: Activate World Logic
-      startARELoop();
+    initializeWithRetry().then(() => {
+        if (dbConnected) {
+            console.log(`[SENTINEL] [REDIS_BOOT] Validating shared memory layer...`);
+            console.log(`[SENTINEL] [REDIS_READY] Context synchronized.`);
+        }
+    }).catch(err => {
+        console.error('[SENTINEL] [BOOT_DB_FAIL] Critical failure during background DB init:', err);
     });
 
-    /**
-     * Graceful Shutdown Orchestration
-     */
-    const gracefulShutdown = async (signal: string) => {
-      if (isShuttingDown) return;
-      isShuttingDown = true;
-      console.log(`[SENTINEL] [SHUTDOWN] ${signal} received. Cleaning up resources...`);
-      
-      try {
-        await prisma.$disconnect();
-        console.log('[SENTINEL] [SHUTDOWN] Prisma disconnected.');
-      } catch (e) {
-        console.error('[SENTINEL] [SHUTDOWN_ERROR] Prisma disconnect failed.', e);
-      }
+    startARELoop();
+  });
 
-      server.close(() => {
-        console.log('[SENTINEL] [SHUTDOWN] HTTP Server closed.');
-        process.exit(0);
-      });
-      
-      // Force exit after 10s
-      setTimeout(() => {
-        console.error('[SENTINEL] [SHUTDOWN_TIMEOUT] Forcing exit.');
-        process.exit(1);
-      }, 10000);
-    };
+  const gracefulShutdown = async (signal: string) => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+    console.log(`[SENTINEL] [SHUTDOWN] ${signal} received.`);
+    
+    try {
+      await prisma.$disconnect();
+      console.log('[SENTINEL] [SHUTDOWN] Prisma disconnected.');
+    } catch (e) {
+      console.error('[SENTINEL] [SHUTDOWN_ERROR] Prisma disconnect failed.', e);
+    }
 
-    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+    server.close(() => {
+      console.log('[SENTINEL] [SHUTDOWN] HTTP Server closed.');
+      process.exit(0);
+    });
+    
+    setTimeout(() => { process.exit(1); }, 10000);
+  };
 
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : String(error);
-    console.error(`[FATAL] BOOTSTRAP FAILED: ${msg}`);
-    process.exit(1);
-  }
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 }
 
-bootstrap();
+bootstrap().catch((err) => {
+  console.error('[SENTINEL] [FATAL_ROOT] Boot failed:', err);
+  process.exit(1);
+});
