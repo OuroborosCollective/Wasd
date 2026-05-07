@@ -6,6 +6,7 @@ import { EventEmitter } from 'events';
  */
 export interface IAxiomaticEvent {
   id: string;
+  sequenceId: number; // Strikte globale Sequenz-ID für deterministische Replays
   type: string;
   timestamp: number;
   payload: any;
@@ -30,17 +31,16 @@ export class AREStateCompiler {
 
   /**
    * Berechnet den Kappa-Vektor für die raumzeitliche Verankerung.
-   * @param l Der Eingabe-Seed (meist Timestamp oder Event-Sequenz-ID)
-   * @returns Int32Array mit [Zeitachse, Pseudo-X, Pseudo-Y]
+   * Nutzt die Sequenz-ID und Resonanz zur stabilen Koordinaten-Projektion.
    */
-  public static computeKappa(l: number): Int32Array {
+  public static computeKappa(seed: number): Int32Array {
     const kappaVector = new Int32Array(3);
     
-    // 1. Zeitachse: l * KAPPA
-    kappaVector[0] = Math.floor(l * this.KAPPA_CONSTANT);
+    // 1. Zeitachse/Sequenz-Basis: seed * KAPPA
+    kappaVector[0] = Math.floor(seed * this.KAPPA_CONSTANT);
     
     // 2. Pseudo X & Y basierend auf deterministischer Resonanz
-    const resonanceX = this.computeResonance(l);
+    const resonanceX = this.computeResonance(seed);
     const resonanceY = this.computeResonance(resonanceX);
     
     kappaVector[1] = resonanceX % 10000; 
@@ -60,15 +60,15 @@ export class AREStateCompiler {
 
   /**
    * Berechnet eine deterministische Resonanz-Verschiebung (r) basierend auf dem Event-Inhalt.
-   * Erlaubt die Injektion von Event-Daten in den Resonance-Grid-Zustand.
+   * Die sequenceId wird einbezogen, um Kollisionen bei identischem Payload zu vermeiden.
    */
   public static calculateEventResonance(event: IAxiomaticEvent): number {
-    const dataString = `${event.id}:${event.type}:${JSON.stringify(event.payload)}`;
+    const dataString = `${event.sequenceId}:${event.id}:${event.type}:${JSON.stringify(event.payload)}`;
     let hash = 0;
     for (let i = 0; i < dataString.length; i++) {
       const char = dataString.charCodeAt(i);
       hash = ((hash << 5) - hash) + char;
-      hash |= 0; // Convert to 32bit integer
+      hash |= 0; // Zu 32bit Integer konvertieren
     }
     return this.computeResonance(Math.abs(hash));
   }
@@ -78,7 +78,7 @@ export class AREStateCompiler {
  * AxiomaticEventBus
  * Zentraler Event-Hub der Areloria-Architektur. 
  * Implementiert ein Ring-Buffer-Ledger zur hochperformanten Speicherung der Event-Historie
- * und integriert die Resonance Grid Injection.
+ * und erzwingt eine strikte globale Sequence-ID zur Eliminierung von Out-of-Order Execution.
  */
 export class AxiomaticEventBus extends EventEmitter {
   private static instance: AxiomaticEventBus;
@@ -88,12 +88,14 @@ export class AxiomaticEventBus extends EventEmitter {
   private writePointer: number = 0;
   private isFull: boolean = false;
 
+  // Strikter globaler Sequenz-Zähler
+  private globalSequenceId: number = 0;
   // Akkumulierter globaler Resonanz-Vektor (Resonance Grid State)
   private globalResonanceState: number = 0;
 
   private constructor() {
     super();
-    this.setMaxListeners(500);
+    this.setMaxListeners(1000);
     this.eventLedger = new Array(this.MAX_LEDGER_SIZE).fill(null);
   }
 
@@ -105,33 +107,37 @@ export class AxiomaticEventBus extends EventEmitter {
   }
 
   /**
-   * Publiziert ein Event, führt die Resonance-Grid-Injektion durch und speichert es im Ledger.
+   * Publiziert ein Event, weist die globale Sequenz-ID zu und führt die Resonance-Grid-Injektion durch.
    */
-  public publish(event: IAxiomaticEvent): void {
+  public publish(event: Omit<IAxiomaticEvent, 'sequenceId'>): void {
     if (!event.id || !event.type) {
       console.error('[AxiomaticEventBus] Invalid event rejected:', event);
       return;
     }
 
-    // 1. Resonance Grid Injection: Berechne r (deterministic resonance adjustment)
-    const resonanceAdjustment = AREStateCompiler.calculateEventResonance(event);
+    // 1. Zuweisung der strikten globalen Sequenz-ID
+    const sequencedEvent = event as IAxiomaticEvent;
+    sequencedEvent.sequenceId = this.globalSequenceId++;
+
+    // 2. Resonance Grid Injection: Berechne r (deterministic resonance adjustment)
+    const resonanceAdjustment = AREStateCompiler.calculateEventResonance(sequencedEvent);
     
-    // 2. Kappa Coordinate Space Mapping (k)
-    // Wir nutzen den Zeitstempel plus die neue Resonanz für die räumliche Verankerung
-    const kappaVector = AREStateCompiler.computeKappa(event.timestamp + resonanceAdjustment);
+    // 3. Kappa Coordinate Space Mapping (k)
+    // Nutzt sequenceId zur Sicherstellung der Ordnung bei Zeitstempel-Gleichheit
+    const kappaVector = AREStateCompiler.computeKappa(sequencedEvent.sequenceId + resonanceAdjustment);
     
-    // 3. Update Event Metadata mit k und r
-    event.metadata = {
-      ...(event.metadata || {}),
+    // 4. Update Event Metadata mit k und r
+    sequencedEvent.metadata = {
+      ...(sequencedEvent.metadata || {}),
       resonance: resonanceAdjustment,
       kappa: Array.from(kappaVector)
     };
 
-    // 4. Update Global Resonance State (Grid Accumulator)
+    // 5. Update Global Resonance State (Grid Accumulator)
     this.globalResonanceState = (this.globalResonanceState + resonanceAdjustment) % 2147483647;
 
-    // 5. Speicherung im Ledger
-    this.eventLedger[this.writePointer] = event;
+    // 6. Speicherung im Ledger (Ring-Buffer)
+    this.eventLedger[this.writePointer] = sequencedEvent;
     
     this.writePointer++;
     if (this.writePointer >= this.MAX_LEDGER_SIZE) {
@@ -139,42 +145,57 @@ export class AxiomaticEventBus extends EventEmitter {
       this.isFull = true;
     }
 
-    // 6. Trigger
-    this.emit(event.type, event);
-    this.emit('*', event);
+    // 7. Emission für Echtzeit-Verarbeitung
+    this.emit(sequencedEvent.type, sequencedEvent);
+    this.emit('*', sequencedEvent);
   }
 
   /**
-   * Gibt die Event-Historie in chronologischer Reihenfolge zurück.
+   * Gibt die Event-Historie in exakter chronologischer Sequenz-Reihenfolge zurück.
    */
   public getHistory(): IAxiomaticEvent[] {
+    let history: IAxiomaticEvent[];
+
     if (!this.isFull) {
-      return this.eventLedger.slice(0, this.writePointer) as IAxiomaticEvent[];
+      history = this.eventLedger.slice(0, this.writePointer) as IAxiomaticEvent[];
+    } else {
+      const oldestToWrap = this.eventLedger.slice(this.writePointer) as IAxiomaticEvent[];
+      const wrapToNewest = this.eventLedger.slice(0, this.writePointer) as IAxiomaticEvent[];
+      history = [...oldestToWrap, ...wrapToNewest].filter(e => e !== null) as IAxiomaticEvent[];
     }
 
-    const oldestToWrap = this.eventLedger.slice(this.writePointer) as IAxiomaticEvent[];
-    const wrapToNewest = this.eventLedger.slice(0, this.writePointer) as IAxiomaticEvent[];
-    
-    return [...oldestToWrap, ...wrapToNewest].filter(e => e !== null);
+    // Zusätzlicher Safety-Sort nach SequenceID für Replays
+    return history.sort((a, b) => a.sequenceId - b.sequenceId);
   }
 
   public getHistoryByType(type: string): IAxiomaticEvent[] {
     return this.getHistory().filter(e => e.type === type);
   }
 
+  /**
+   * Setzt den Bus zurück (nur für Testing/Szenario-Resets).
+   */
   public clearLedger(): void {
     this.eventLedger = new Array(this.MAX_LEDGER_SIZE).fill(null);
     this.writePointer = 0;
     this.isFull = false;
+    this.globalSequenceId = 0;
     this.globalResonanceState = 0;
   }
 
-  public getLedgerStats(): { size: number; max: number; full: boolean; currentResonance: number } {
+  public getLedgerStats(): { 
+    size: number; 
+    max: number; 
+    full: boolean; 
+    currentResonance: number;
+    lastSequenceId: number;
+  } {
     return {
       size: this.isFull ? this.MAX_LEDGER_SIZE : this.writePointer,
       max: this.MAX_LEDGER_SIZE,
       full: this.isFull,
-      currentResonance: this.globalResonanceState
+      currentResonance: this.globalResonanceState,
+      lastSequenceId: this.globalSequenceId - 1
     };
   }
 }
