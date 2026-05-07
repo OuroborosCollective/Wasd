@@ -87,6 +87,11 @@ jobs:
           name: server-production-build
           path: ./server-dist
 
+      - name: Pre-Deployment Connectivity Check
+        run: |
+          echo "Verifying Port 80 accessibility on ${{ secrets.PRODUCTION_IP }}..."
+          timeout 15s bash -c 'until nc -z -v -w5 ${{ secrets.PRODUCTION_IP }} 80; do echo "Port 80 not ready, retrying..."; sleep 2; done' || (echo "Target host port 80 unreachable. Aborting deployment." && exit 1)
+
       - name: Transfer Artifact to Production
         uses: appleboy/scp-action@master
         with:
@@ -115,7 +120,6 @@ jobs:
             mkdir -p server/dist
             echo '{"type": "module"}' > server/dist/package.json
             
-            # Synchronize pnpm version on remote if possible or use existing
             export PNPM_HOME="/home/${{ secrets.SSH_USER }}/.local/share/pnpm"
             export PATH="$PNPM_HOME:$PATH"
             
@@ -129,6 +133,20 @@ jobs:
 
       - name: Verify Deployment Health
         run: |
-          echo "Starting Health Check for Areloria WASD..."
-          # Increased timeout and added retries to prevent connection failure (28)
-          curl --retry 5 --retry-connrefused --retry-delay 15 --max-time 120 -v http://${{ secrets.PRODUCTION_IP }} || (echo "Health Check failed after retries" && exit 1)
+          echo "Starting Robust Health Check for Areloria WASD..."
+          MAX_RETRIES=8
+          RETRY_COUNT=0
+          WAIT_TIME=10
+          
+          until $(curl --output /dev/null --silent --head --fail http://${{ secrets.PRODUCTION_IP }}); do
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            if [ $RETRY_COUNT -gt $MAX_RETRIES ]; then
+              echo "Health check failed after $MAX_RETRIES attempts."
+              exit 1
+            fi
+            echo "Attempt $RETRY_COUNT/$MAX_RETRIES: Service not reachable. Retrying in $WAIT_TIME seconds (Exponential Backoff)..."
+            sleep $WAIT_TIME
+            WAIT_TIME=$((WAIT_TIME * 2))
+          done
+          
+          echo "Areloria WASD Service is Healthy and responding on http://${{ secrets.PRODUCTION_IP }}"

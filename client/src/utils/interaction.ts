@@ -7,7 +7,7 @@ import {
   type InteractNpcSnapshot,
   type InteractLootSnapshot,
   type InteractPoint as SharedInteractPoint,
-} from "@shared/utils/interaction";
+} from "@wasd/shared";
 
 /**
  * Interface for interaction messages sent between client components or to the server.
@@ -28,7 +28,7 @@ export const getClosestInteractable = (
   playerPos: [number, number, number],
   snapshot: SharedInteractWorldSnapshot
 ): ClosestInteractable | null => {
-  return sharedGetClosestInteractable(playerPos, snapshot);
+  return sharedGetClosestInteractable({ position: { x: playerPos[0], y: playerPos[2] } }, snapshot);
 };
 
 /**
