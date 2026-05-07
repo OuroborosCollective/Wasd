@@ -120,32 +120,6 @@ jobs:
       - name: Build monorepo
         run: pnpm -r run build
 
-      - name: Configure ESM for Distribution
-        run: |
-          echo "Converting all 'commonjs' to 'module' in build artifacts..."
-          find . -type f -name "package.json" \( -path "*/dist/*" -o -path "*/build/*" \) -exec sed -i 's/"type": "commonjs"/"type": "module"/g' {} +
-          
-          echo "Ensuring apps/api distribution is explicitly ESM..."
-          if [ -d "apps/api/dist" ]; then
-            if [ ! -f "apps/api/dist/package.json" ]; then
-              echo '{"type": "module"}' > apps/api/dist/package.json
-            else
-              if ! grep -q '"type":' apps/api/dist/package.json; then
-                sed -i 's/^{/{\n  "type": "module",/' apps/api/dist/package.json
-              else
-                sed -i 's/"type": ".*"/"type": "module"/g' apps/api/dist/package.json
-              fi
-            fi
-          fi
-
-      - name: Verify Backend ESM Configuration
-        run: |
-          if [ -f apps/api/dist/package.json ]; then
-            cat apps/api/dist/package.json
-          else
-            echo "apps/api/dist/package.json not found, skipping verification."
-          fi
-
       - name: Ensure Build Directories Exist
         run: |
           mkdir -p dist-merged

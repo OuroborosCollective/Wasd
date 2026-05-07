@@ -32,6 +32,9 @@
     { "path": "packages/spatial-hub" },
     { "path": "packages/rendering-bridge" },
     { "path": "packages/utils" },
+    { "path": "packages/logger" },
+    { "path": "packages/redis" },
+    { "path": "packages/types" },
     { "path": "apps/api" },
     { "path": "apps/web" },
     { "path": "projects/eco-trader" }

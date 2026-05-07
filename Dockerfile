@@ -12,7 +12,11 @@ COPY . .
 RUN pnpm install --frozen-lockfile
 
 # Build the monorepo
+ENV NODE_ENV=production
 RUN pnpm build
+
+# Use pnpm deploy to isolate the server package
+RUN pnpm --filter @wasd/server deploy /app/prod-server
 
 # Stage 2: Production runner
 FROM base AS runner
@@ -22,13 +26,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Copy built artifacts and necessary files
-# Using pnpm deploy --filter would be ideal, but for the current monorepo structure,
-# we ensure we have the necessary runtime files for the server.
-COPY --from=builder /app/server/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/server/package.json ./
-COPY --from=builder /app/package.json ./package.json
+# Copy the deployed package from the builder stage
+COPY --from=builder /app/prod-server ./
 
 # Hardening: Use non-privileged user
 USER node
