@@ -6,7 +6,6 @@ dotenv.config();
 /**
  * Sovereign Watchdog Circuit Breaker Implementation
  * Verhindert den harten Abbruch bei transienten Datenbankfehlern und steuert den Recovery-Modus.
- * Erweitert um HALF_OPEN State für proaktive Wiederherstellungsversuche.
  */
 enum CircuitState {
     CLOSED,    // Normalbetrieb: Alles ok
@@ -101,15 +100,16 @@ class WatchdogCircuitBreaker {
     }
 }
 
+let isShuttingDown = false;
+
 /**
  * Persistente Datenbank-Bereitschaftsprüfung.
- * Anstatt den Prozess zu beenden, verbleibt der Watchdog in einer Warteschleife.
  */
 async function waitForDatabase(dbClient: any, maxAttempts: number = 0): Promise<boolean> {
     console.log(`📡 [Watchdog] Initializing Database-Ready check and Re-Connection handler...`);
     let attempt = 0;
 
-    while (true) {
+    while (!isShuttingDown) {
         attempt++;
         try {
             // Physischer Connection Test
@@ -128,37 +128,71 @@ async function waitForDatabase(dbClient: any, maxAttempts: number = 0): Promise<
             await new Promise(resolve => setTimeout(resolve, retryIn));
         }
     }
+    return false;
 }
 
+/**
+ * Graceful Shutdown Management
+ */
+const handleShutdown = async (signal: string) => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+    console.log(`\n🛑 [Watchdog] ${signal} signal received. Initiating graceful shutdown sequence...`);
+    
+    // Zeitfenster für Cleanup-Operationen (z.B. Log-Flushing)
+    setTimeout(() => {
+        console.log('👋 [Watchdog] Shutdown complete. Process exiting.');
+        process.exit(0);
+    }, 1000);
+};
+
+// Signal-Listener registrieren
+process.on('SIGINT', () => handleShutdown('SIGINT'));
+process.on('SIGTERM', () => handleShutdown('SIGTERM'));
+
+/**
+ * Hauptausführungslogik
+ */
 async function run() {
-    console.log('🚀 Starting Sovereign Watchdog Integrity Check...');
+    console.log('🚀 [Watchdog] Starting Sovereign Integrity Monitoring...');
     const circuitBreaker = new WatchdogCircuitBreaker();
     
-    // Initialisierung des DB Clients Simulation
-    // In Produktion wird hier der echte Pool-Client injiziert
-    const mockDbClient = {
-        query: async (q: string, params?: any[]) => {
-            if (process.env.SIMULATE_DB_FAILURE === 'true') {
-                const error: any = new Error('Connection refused (Simulated)');
-                error.code = 'ECONNREFUSED';
-                throw error;
+    let mockDbClient: any;
+
+    // SCHRITT 1: Dedizierte Try-Catch-Blöcke für die Initialisierungssequenz
+    try {
+        console.log('🔧 [Watchdog] Configuring database drivers and environment...');
+        mockDbClient = {
+            query: async (q: string, params?: any[]) => {
+                if (process.env.SIMULATE_DB_FAILURE === 'true') {
+                    const error: any = new Error('Connection refused (Simulated)');
+                    error.code = 'ECONNREFUSED';
+                    throw error;
+                }
+                return { rows: [{ '1': 1 }] };
             }
-            return { rows: [{ '1': 1 }] };
-        }
-    };
+        };
+    } catch (configError: any) {
+        console.error('❌ [Watchdog] Critical Error during DB driver initialization:', configError.message);
+        process.exit(1);
+    }
 
     try {
-        // SCHRITT 1: Persistente Datenbank-Prüfung (Blockiert bis Verbindung steht)
+        // SCHRITT 2: Persistente Datenbank-Prüfung (Blockiert bis Verbindung steht oder Shutdown)
         let dbReady = await waitForDatabase(mockDbClient);
         
         if (!dbReady) {
+            if (isShuttingDown) {
+                console.log('ℹ️ [Watchdog] Connection wait aborted due to shutdown.');
+                return;
+            }
             console.error('💀 [Watchdog] Critical Timeout: Database not reachable after initial attempts.');
             process.exit(1); 
         }
 
-        // SCHRITT 2: Integritätsprüfung & Axiom-Synchronisation Loop
+        // SCHRITT 3: Integritätsprüfung & Axiom-Synchronisation Loop
         let integrityPassed = false;
-        while (!integrityPassed) {
+        while (!integrityPassed && !isShuttingDown) {
             const healthOk = await circuitBreaker.executeHealthCheck(mockDbClient);
             
             if (healthOk) {
@@ -174,13 +208,12 @@ async function run() {
             } else {
                 console.warn(`🔄 [Watchdog] Integrity check failed. Current State: ${circuitBreaker.currentState}.`);
                 
-                // Falls der Circuit Breaker offen ist (Totalausfall), triggern wir den Reconnect-Loop
                 if (circuitBreaker.isDegraded) {
                     console.log('🔄 [Watchdog] Triggering automatic re-connection sequence...');
-                    await circuitBreaker.wait(2000); // Kurze Pause vor Re-Init
+                    await circuitBreaker.wait(2000);
                     const reconnected = await waitForDatabase(mockDbClient);
                     if (reconnected) {
-                        console.log('✅ [Watchdog] Connection re-established during degradation. Continuing health checks...');
+                        console.log('✅ [Watchdog] Connection re-established during degradation.');
                     }
                 } else {
                     await circuitBreaker.wait();
@@ -188,23 +221,24 @@ async function run() {
             }
         }
 
-        console.log('✅ [Watchdog] All Integrity Checks passed. Service Bootstrapping completed.');
-        process.exit(0);
+        if (integrityPassed) {
+            console.log('✅ [Watchdog] All Integrity Checks passed. Service Bootstrapping completed.');
+            process.exit(0);
+        }
         
     } catch (error: any) {
-        console.error('💀 [Watchdog] Unrecoverable failure in Watchdog execution logic:', error.message);
+        console.error('💀 [Watchdog] Unrecoverable failure in execution logic:', error.message);
         process.exit(1);
     }
 }
 
-// Globales Error Handling für den Watchdog-Prozess zur Vermeidung von Zombie-Prozessen
+// Globales Error Handling für Ausnahmefehler
 process.on('unhandledRejection', (reason, promise) => {
     console.error('⚠️ [Watchdog] Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
 process.on('uncaughtException', (error) => {
     console.error('💀 [Watchdog] Uncaught Exception:', error);
-    // In extremen Fällen neu starten via Container-Orchestrierung
     process.exit(1);
 });
 

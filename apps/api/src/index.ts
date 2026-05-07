@@ -6,8 +6,6 @@ import { PrismaClient, Prisma } from '@prisma/client';
 /**
  * ARELORIA WASD - API CORE
  * High-performance 3D-RPG-Metaverse Backend
- * 
- * Implementation: Resilient Prisma Logic, Exponential Backoff & Global Recovery
  */
 
 const app = express();
@@ -28,7 +26,7 @@ let isShuttingDown = false;
 let dbConnected = false;
 
 /**
- * Custom Error Classes for Domain-Specific Handling
+ * Domain-Specific Error Classes
  */
 class ConnectionTimeoutError extends Error {
   constructor(message: string) {
@@ -60,7 +58,6 @@ class DatabaseConnectionError extends Error {
 
 /**
  * ARE-LOOP CORE LOGIC (Action-Result-Evaluation)
- * Synergetic AI-Agent-System "Jules" Interface
  */
 interface AREPayload {
   actionId: string;
@@ -194,8 +191,8 @@ process.on('uncaughtException', (error: Error) => {
                       error instanceof DatabaseConnectionError ||
                       error.message.includes('DB_TIMEOUT') || 
                       error.message.includes('ECONNREFUSED') ||
-                      error.message.includes('P2024') || // Connection pool timeout
-                      error.message.includes('P2028'); // Transaction timeout
+                      error.message.includes('P2024') || 
+                      error.message.includes('P2028');
 
   if (isTransient) {
     initiateRecoveryMode(error);
@@ -209,7 +206,17 @@ process.on('uncaughtException', (error: Error) => {
 process.on('unhandledRejection', (reason: unknown) => {
   const error = reason instanceof Error ? reason : new Error(String(reason));
   console.error(`[SENTINEL] [UNHANDLED_REJECTION] ${error.message}`);
-  initiateRecoveryMode(error);
+  
+  const isTransient = error.message.includes('ECONNREFUSED') || 
+                      error.message.includes('P2024') || 
+                      error.message.includes('P2028') ||
+                      error.message.includes('timeout');
+
+  if (isTransient) {
+    initiateRecoveryMode(error);
+  } else {
+    process.exit(1);
+  }
 });
 
 // Middleware Configuration
@@ -233,7 +240,6 @@ app.get('/api/health', (req: Request, res: Response) => {
 
 /**
  * THE ARE-LOOP TICK (10Hz)
- * Central World-Editor and AI-Agent Synchronization Logic
  */
 function startARELoop() {
   console.log('[SENTINEL] [ARE-LOOP] Starting high-frequency world logic tick...');
@@ -242,7 +248,6 @@ function startARELoop() {
     if (isShuttingDown) return;
 
     if (isRecovering) {
-      // While recovering, we skip processing but keep the tick alive
       setTimeout(tick, ARE_LOOP_TICK_MS);
       return;
     }
@@ -272,8 +277,7 @@ function startARELoop() {
 }
 
 /**
- * Prisma Known Request Error Middleware
- * Prevents logic errors from crashing the server
+ * Prisma Error Middleware
  */
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
@@ -302,26 +306,19 @@ async function bootstrap() {
   console.log('==================================================');
 
   try {
-    // Stage 1: Database Persistence
     await initializeWithRetry();
     
-    // Stage 2: Cache Layer (Mock/Ready for Integration)
     console.log(`[SENTINEL] [REDIS_BOOT] Validating Redis cluster state...`);
     await sleep(200); 
     console.log(`[SENTINEL] [REDIS_READY] Shared memory layer synchronized.`);
     
-    // Stage 3: Start Server
     const server: Server = app.listen(PORT, () => {
       console.log(`[SENTINEL] [SERVER_START] Listening on Port: ${PORT}`);
       console.log(`[SENTINEL] [MODE] ${process.env.NODE_ENV || 'development'}`);
       
-      // Stage 4: Activate World Logic
       startARELoop();
     });
 
-    /**
-     * Graceful Shutdown Orchestration
-     */
     const gracefulShutdown = async (signal: string) => {
       if (isShuttingDown) return;
       isShuttingDown = true;
@@ -339,7 +336,6 @@ async function bootstrap() {
         process.exit(0);
       });
       
-      // Force exit after 10s
       setTimeout(() => {
         console.error('[SENTINEL] [SHUTDOWN_TIMEOUT] Forcing exit.');
         process.exit(1);

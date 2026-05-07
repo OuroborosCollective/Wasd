@@ -35,7 +35,8 @@ export enum IntegrityCategory {
     SCHEMA_DRIFT = 'SCHEMA_DRIFT',
     CONSTRAINT_VIOLATION = 'CONSTRAINT_VIOLATION',
     VALIDATION_ERROR = 'VALIDATION_ERROR',
-    INFRASTRUCTURE = 'INFRASTRUCTURE'
+    INFRASTRUCTURE = 'INFRASTRUCTURE',
+    TIMEOUT = 'TIMEOUT'
 }
 
 export interface WatchdogConfig {
@@ -44,6 +45,7 @@ export interface WatchdogConfig {
     migrationDir: string;
     breakerThreshold: number;
     resetTimeoutMs: number;
+    queryTimeoutMs: number;
 }
 
 export interface ModelSchema {
@@ -54,7 +56,7 @@ export interface ModelSchema {
 export interface AuditEntry {
     timestamp: string;
     model: string;
-    status: 'SUCCESS' | 'DRIFT' | 'ERROR' | 'CONNECTION_LOST' | 'VALIDATION_FAILED';
+    status: 'SUCCESS' | 'DRIFT' | 'ERROR' | 'CONNECTION_LOST' | 'VALIDATION_FAILED' | 'TIMEOUT';
     category: IntegrityCategory;
     message: string;
     details?: any;
@@ -77,7 +79,8 @@ export class SovereignWatchdog {
         autoFix: false,
         migrationDir: './migrations',
         breakerThreshold: 3,
-        resetTimeoutMs: 30000 
+        resetTimeoutMs: 30000,
+        queryTimeoutMs: 5000
     };
 
     public registerSchema(modelName: string, schema: ModelSchema): void {
@@ -111,10 +114,24 @@ export class SovereignWatchdog {
         }
     }
 
+    private async executeWithTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+        let timeoutHandle: NodeJS.Timeout;
+        const timeoutPromise = new Promise<never>((_, reject) => {
+            timeoutHandle = setTimeout(() => reject(new Error('WATCHDOG_TIMEOUT')), timeoutMs);
+        });
+
+        try {
+            const result = await Promise.race([promise, timeoutPromise]);
+            clearTimeout(timeoutHandle!);
+            return result;
+        } catch (error) {
+            clearTimeout(timeoutHandle!);
+            throw error;
+        }
+    }
+
     /**
-     * Resilient Integrity Flow. 
-     * Distinguishes between DB connectivity and Schema Validation.
-     * Generates structured data for the StateReconstructionEngine.
+     * Resilient Integrity Flow with Timeout-Protection and Controlled Fail-State.
      */
     public async checkDatabaseHealth(dbClient: any): Promise<AuditEntry[]> {
         this.auditReport = [];
@@ -125,26 +142,37 @@ export class SovereignWatchdog {
             return this.auditReport;
         }
 
-        try {
-            // Step 1: Connectivity Check
-            await Promise.race([
-                dbClient.query('SELECT 1'),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('DB_TIMEOUT')), 5000))
-            ]);
-            this.recordSuccess();
-        } catch (connError: any) {
-            this.recordFailure();
-            this.handleConnectionError(connError, 'INITIAL_CONNECT');
-            this.addToAudit('GLOBAL', 'CONNECTION_LOST', IntegrityCategory.CONNECTION, `Database unavailable: ${connError.message}`, null, true);
-            return this.auditReport; 
+        if (!dbClient) {
+            this.handleConnectionError(new Error('Missing dbClient instance'), 'VALIDATION_INIT');
+            this.addToAudit('GLOBAL', 'ERROR', IntegrityCategory.INFRASTRUCTURE, 'Database client instance is undefined.', null, true);
+            return this.auditReport;
         }
 
+        // Step 1: Core Connectivity check
+        try {
+            await this.executeWithTimeout(dbClient.query('SELECT 1'), this.config.queryTimeoutMs);
+            this.recordSuccess();
+        } catch (error: any) {
+            this.recordFailure();
+            const isTimeout = error.message === 'WATCHDOG_TIMEOUT';
+            const status = isTimeout ? 'TIMEOUT' : 'CONNECTION_LOST';
+            const category = isTimeout ? IntegrityCategory.TIMEOUT : IntegrityCategory.CONNECTION;
+            
+            this.handleConnectionError(error, 'INITIAL_CONNECT');
+            this.addToAudit('GLOBAL', status, category, `Database unreachable: ${error.message}`, null, true);
+            return this.auditReport; // Immediate termination on infrastructure fail
+        }
+
+        // Step 2: Iterate through registered models for structural integrity
         for (const [modelName, expectedSchema] of this.modelRegistry.entries()) {
             try {
-                // Step 2: Schema Fetching
-                const actualColumns = await this.fetchActualSchema(dbClient, expectedSchema.tableName);
+                // Fetch Actual Schema with timeout
+                const actualColumns = await this.executeWithTimeout(
+                    this.fetchActualSchema(dbClient, expectedSchema.tableName),
+                    this.config.queryTimeoutMs
+                );
                 
-                // Step 3: Schema Drift Check
+                // Compare Schema (Drift Check)
                 const diff = SchemaDiff.compare({ properties: expectedSchema.properties }, { columns: actualColumns });
 
                 if (diff.additions.length > 0 || diff.removals.length > 0 || diff.changes.length > 0) {
@@ -160,8 +188,12 @@ export class SovereignWatchdog {
                     }
                 }
 
-                // Step 4: Constraint Integrity Check
-                const actualConstraints = await ConstraintValidator.fetchConstraints(dbClient, expectedSchema.tableName);
+                // Constraint Integrity Check
+                const actualConstraints = await this.executeWithTimeout(
+                    ConstraintValidator.fetchConstraints(dbClient, expectedSchema.tableName),
+                    this.config.queryTimeoutMs
+                );
+                
                 const constraintStatus = await ConstraintValidator.validate(expectedSchema, actualConstraints);
                 
                 if (!constraintStatus.valid) {
@@ -182,7 +214,11 @@ export class SovereignWatchdog {
                     this.addToAudit(modelName, 'CONNECTION_LOST', IntegrityCategory.CONNECTION, 
                         `Lost connection during verification of ${modelName}: ${error.message}`, null, true
                     );
-                    break;
+                    break; // Stop iterating on connection loss
+                } else if (error.message === 'WATCHDOG_TIMEOUT') {
+                    this.addToAudit(modelName, 'TIMEOUT', IntegrityCategory.TIMEOUT, 
+                        `Operation timed out for ${modelName}`, null, true
+                    );
                 } else {
                     this.addToAudit(modelName, 'ERROR', IntegrityCategory.VALIDATION_ERROR, 
                         `Internal Logic Error during check for ${modelName}: ${error.message}`, { stack: error.stack }, true
@@ -203,7 +239,11 @@ export class SovereignWatchdog {
             this.emitter.emit('RECONSTRUCTION_REQUIRED', {
                 timestamp: new Date().toISOString(),
                 issues: criticalIssues,
-                remediation: criticalIssues.map(i => i.category === IntegrityCategory.SCHEMA_DRIFT ? 'RUN_MIGRATIONS' : 'CHECK_DB_NODES')
+                remediation: criticalIssues.map(i => {
+                    if (i.category === IntegrityCategory.SCHEMA_DRIFT) return 'RUN_MIGRATIONS';
+                    if (i.category === IntegrityCategory.CONNECTION || i.category === IntegrityCategory.TIMEOUT) return 'CHECK_DB_NODES';
+                    return 'MANUAL_INSPECTION';
+                })
             }, 'CRITICAL');
         }
 
@@ -251,7 +291,7 @@ export class SovereignWatchdog {
         return (error.code && connectionCodes.includes(error.code)) || 
                error.message?.toLowerCase().includes('connection') || 
                error.message?.toLowerCase().includes('refused') ||
-               error.message === 'DB_TIMEOUT';
+               error.message === 'WATCHDOG_TIMEOUT';
     }
 
     private handleConnectionError(error: any, context: string): void {
@@ -266,13 +306,13 @@ export class SovereignWatchdog {
         };
 
         console.error('====================================================');
-        console.error(`[Watchdog] CRITICAL CONNECTION ERROR @ ${context}`);
-        console.error(`[Watchdog] Code: ${diagnostics.code} | Status: ${this.breakerState}`);
+        console.error(`[Watchdog] CRITICAL PERSISTENCE ERROR @ ${context}`);
+        console.error(`[Watchdog] Status: ${this.breakerState} | Reason: ${diagnostics.message}`);
         console.error('====================================================');
 
         this.emitter.emit('SYSTEM_CRITICAL', { 
             point: LogicPoint.PERSISTENCE, 
-            error: 'DB_CONNECTION_FAILURE', 
+            error: error.message === 'WATCHDOG_TIMEOUT' ? 'DB_TIMEOUT' : 'DB_CONNECTION_FAILURE', 
             diagnostics 
         }, 'CRITICAL');
     }
