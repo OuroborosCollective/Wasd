@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
-import type { EntityNet, QuestStateNet, LootNet } from "@shared/types/protocol";
+import type { EntityNet, QuestStateNet, LootNet } from "@wasd/shared";
 import { getDeviceTier } from "../touchUi";
 import { sendCommand, sendUseSkill } from "../../networking/websocketClient";
 import { 
@@ -9,21 +9,15 @@ import {
   getPlayerXp, getPlayerLevel
 } from "../../state/playerState";
 import { useGameHudState } from "../useGameHudState";
-import type { WarfrontHudState } from "../useGameHudState";
 import { WarfrontPanel } from "./WarfrontPanel";
 import "./RedesignTheme.css";
 import "./NewHud.css";
 
-/**
- * NewHud Component
- * Implements the core UI overlay for Areloria WASD.
- * Synchronized with useGameHudState for Warfront, Quests, and Loot.
- */
-export const NewHud: React.FC = () => {
+export const NewHud: React.FC<any> = (props) => {
   const { 
     warfront, 
-    activeQuests, 
-    nearbyLoot, 
+    quests,
+    loot,
     inventoryOpen, 
     toggleInventory 
   } = useGameHudState();
@@ -51,7 +45,7 @@ export const NewHud: React.FC = () => {
 
   const healthPercentage = Math.max(0, Math.min(100, (health / (maxHealth || 1)) * 100));
   const manaPercentage = Math.max(0, Math.min(100, (mana / (maxMana || 1)) * 100));
-  const xpPercentage = Math.max(0, Math.min(100, (xp / 1000) * 100)); // Level-basierte Logik hier ggf. anpassen
+  const xpPercentage = Math.max(0, Math.min(100, (xp / 1000) * 100));
 
   const handleSkillClick = (skillId: string) => {
     sendUseSkill(skillId);
@@ -59,7 +53,6 @@ export const NewHud: React.FC = () => {
 
   return (
     <div className="new-hud-container">
-      {/* Top Left: Player Status */}
       <div className="hud-player-stats">
         <div className="hud-avatar">
           <span className="hud-level-badge">{level}</span>
@@ -76,29 +69,26 @@ export const NewHud: React.FC = () => {
         </div>
       </div>
 
-      {/* Top Right: Quests & Minimap Area */}
       <div className="hud-top-right">
-        {activeQuests.length > 0 && (
+        {quests && quests.length > 0 && (
           <div className="hud-quest-tracker">
             <h4 className="quest-title">Active Missions</h4>
-            {activeQuests.map((quest: QuestStateNet) => (
+            {quests.map((quest: any) => (
               <div key={quest.id} className="quest-item">
-                <span className="quest-name">{quest.name}</span>
-                <span className="quest-progress">{quest.progress}/{quest.target}</span>
+                <span className="quest-name">{quest.title}</span>
+                <span className="quest-progress">{quest.progress}/{quest.goal}</span>
               </div>
             ))}
           </div>
         )}
       </div>
 
-      {/* Center: Warfront Panel */}
-      {warfront && warfront.active && (
+      {warfront && warfront.isActive && (
         <div className="hud-center-overlay">
           <WarfrontPanel state={warfront} />
         </div>
       )}
 
-      {/* Bottom Center: Action Bar & XP */}
       <div className="hud-bottom-center">
         <div className="hud-xp-bar">
           <div className="hud-xp-fill" style={{ width: `${xpPercentage}%` }} />
@@ -122,19 +112,16 @@ export const NewHud: React.FC = () => {
         </div>
       </div>
 
-      {/* Nearby Loot Interaction */}
-      {nearbyLoot.length > 0 && (
+      {loot && loot.length > 0 && (
         <div className="hud-loot-prompt">
           <button className="loot-button" onClick={() => sendCommand("loot_all")}>
-            Take All Loot ({nearbyLoot.length})
+            Take All Loot ({loot.length})
           </button>
         </div>
       )}
 
-      {/* Mobile Optimization Layer */}
-      {deviceTier === "mobile" && (
+      {deviceTier === ("mobile" as any) && (
         <div className="hud-mobile-controls">
-          {/* Virtueller Joystick wird durch GameCanvas gerendert, hier nur Overlays */}
         </div>
       )}
     </div>
