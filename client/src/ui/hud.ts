@@ -109,10 +109,6 @@ export function showDialogue(payload: string | DialoguePayload) {
     closeRow.style.display = "flex";
     closeRow.style.justifyContent = "flex-end";
     closeRow.style.flexShrink = "0";
-    const handleClose = () => {
-      if (dialogueBox) dialogueBox.style.display = "none";
-    };
-
     const closeBtn = document.createElement("button");
     closeBtn.type = "button";
     closeBtn.textContent = "Close";
@@ -123,13 +119,14 @@ export function showDialogue(payload: string | DialoguePayload) {
     closeBtn.style.background = "rgba(40,40,40,0.95)";
     closeBtn.style.color = "#eee";
     closeBtn.style.cursor = "pointer";
-    closeBtn.style.transition = "background-color 0.15s ease";
-    closeBtn.onmouseenter = () => (closeBtn.style.background = "rgba(60,60,60,0.95)");
-    closeBtn.onmouseleave = () => (closeBtn.style.background = "rgba(40,40,40,0.95)");
-
+    closeBtn.style.transition = "background-color 0.15s ease, box-shadow 0.15s ease";
+    closeBtn.addEventListener("mouseenter", () => (closeBtn.style.background = "rgba(60,60,60,0.95)"));
+    closeBtn.addEventListener("mouseleave", () => (closeBtn.style.background = "rgba(40,40,40,0.95)"));
+    closeBtn.addEventListener("focus", () => (closeBtn.style.boxShadow = "0 0 0 2px rgba(255,255,255,0.4)"));
+    closeBtn.addEventListener("blur", () => (closeBtn.style.boxShadow = "none"));
     closeBtn.onclick = (e) => {
       e.stopPropagation();
-      handleClose();
+      dialogueBox!.style.display = "none";
     };
     closeRow.appendChild(closeBtn);
     dialogueBox.appendChild(closeRow);
@@ -146,8 +143,11 @@ export function showDialogue(payload: string | DialoguePayload) {
     };
     positionDialogue();
     window.addEventListener("resize", positionDialogue);
+
     window.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && dialogueBox?.style.display !== "none") handleClose();
+      if (e.key === "Escape" && dialogueBox?.style.display !== "none") {
+        dialogueBox!.style.display = "none";
+      }
     });
   }
 
@@ -175,9 +175,19 @@ export function showDialogue(payload: string | DialoguePayload) {
       btn.style.background = "rgba(30,35,50,0.98)";
       btn.style.color = "#e8ecf5";
       btn.style.cursor = "pointer";
-      btn.style.transition = "background-color 0.1s ease";
-      btn.onmouseenter = () => (btn.style.background = "rgba(45,52,75,0.98)");
-      btn.onmouseleave = () => (btn.style.background = "rgba(30,35,50,0.98)");
+      btn.style.transition = "background-color 0.15s ease, border-color 0.15s ease";
+      const applyHover = () => {
+        btn.style.background = "rgba(45,52,75,0.98)";
+        btn.style.borderColor = "#f27d26";
+      };
+      const applyNormal = () => {
+        btn.style.background = "rgba(30,35,50,0.98)";
+        btn.style.borderColor = "#d4af37";
+      };
+      btn.addEventListener("mouseenter", applyHover);
+      btn.addEventListener("mouseleave", applyNormal);
+      btn.addEventListener("focus", applyHover);
+      btn.addEventListener("blur", applyNormal);
       btn.onclick = (e) => {
         e.stopPropagation();
         if (!npcId) return;
