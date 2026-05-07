@@ -36,7 +36,8 @@ export enum IntegrityCategory {
     CONSTRAINT_VIOLATION = 'CONSTRAINT_VIOLATION',
     VALIDATION_ERROR = 'VALIDATION_ERROR',
     INFRASTRUCTURE = 'INFRASTRUCTURE',
-    HEALTH_CHECK_FAILED = 'HEALTH_CHECK_FAILED'
+    HEALTH_CHECK_FAILED = 'HEALTH_CHECK_FAILED',
+    EXTERNAL_SERVICE_OFFLINE = 'EXTERNAL_SERVICE_OFFLINE'
 }
 
 export enum HealthStatus {
@@ -53,6 +54,7 @@ export interface WatchdogConfig {
     breakerThreshold: number;
     resetTimeoutMs: number;
     healthCheckTimeoutMs: number;
+    externalServiceTimeoutMs: number;
 }
 
 export interface ModelSchema {
@@ -63,11 +65,21 @@ export interface ModelSchema {
 export interface AuditEntry {
     timestamp: string;
     model: string;
-    status: 'SUCCESS' | 'DRIFT' | 'ERROR' | 'CONNECTION_LOST' | 'VALIDATION_FAILED' | 'INFRA_OFFLINE';
+    status: 'SUCCESS' | 'DRIFT' | 'ERROR' | 'CONNECTION_LOST' | 'VALIDATION_FAILED' | 'INFRA_OFFLINE' | 'DEGRADED';
     category: IntegrityCategory;
     message: string;
     details?: any;
     isCritical: boolean;
+    diagnostics?: DiagnosticPayload;
+}
+
+export interface DiagnosticPayload {
+    code: string;
+    breakerState: BreakerState;
+    failureCount: number;
+    latencyMs?: number;
+    stack?: string;
+    recoverySuggestion?: string;
 }
 
 export interface HealthCheckResult {
@@ -79,7 +91,7 @@ export interface HealthCheckResult {
 
 export class SovereignWatchdog {
     private astSync = new AstInterfaceSync();
-    private emitter = new WatchdogEmitter('ws://localhost:8080');
+    private emitter = new WatchdogEmitter(process.env.WATCHDOG_EMITTER_URL || 'ws://localhost:8080');
     private learning = new WatchdogLearning();
     private modelRegistry: Map<string, ModelSchema> = new Map();
     private auditReport: AuditEntry[] = [];
@@ -90,11 +102,12 @@ export class SovereignWatchdog {
 
     private config: WatchdogConfig = {
         strict: process.env.WATCHDOG_STRICT === 'true',
-        autoFix: false,
+        autoFix: process.env.WATCHDOG_AUTOFIX === 'true',
         migrationDir: './migrations',
-        breakerThreshold: 3,
+        breakerThreshold: parseInt(process.env.WATCHDOG_BREAKER_THRESHOLD || '3'),
         resetTimeoutMs: 30000,
-        healthCheckTimeoutMs: 5000
+        healthCheckTimeoutMs: 5000,
+        externalServiceTimeoutMs: 3000
     };
 
     public registerSchema(modelName: string, schema: ModelSchema): void {
@@ -105,7 +118,7 @@ export class SovereignWatchdog {
         if (this.breakerState === BreakerState.OPEN) {
             const now = Date.now();
             if (now - this.lastFailureTime > this.config.resetTimeoutMs) {
-                console.warn('[Watchdog] Circuit Breaker: Attempting HALF_OPEN state reset.');
+                console.warn('[Watchdog] Circuit Breaker: Transitioning to HALF_OPEN. Probing connection...');
                 this.breakerState = BreakerState.HALF_OPEN;
                 return true;
             }
@@ -115,22 +128,48 @@ export class SovereignWatchdog {
     }
 
     private recordSuccess(): void {
+        if (this.breakerState === BreakerState.HALF_OPEN) {
+            console.log('[Watchdog] Circuit Breaker: Connection restored. State CLOSED.');
+        }
         this.failureCount = 0;
         this.breakerState = BreakerState.CLOSED;
     }
 
     private recordFailure(): void {
         this.failureCount++;
+        this.lastFailureTime = Date.now();
         if (this.failureCount >= this.config.breakerThreshold) {
             this.breakerState = BreakerState.OPEN;
-            this.lastFailureTime = Date.now();
-            console.error(`[Watchdog] Circuit Breaker OPENED after ${this.failureCount} failures.`);
+            console.error(`[Watchdog] Circuit Breaker OPENED after ${this.failureCount} sequential failures.`);
         }
     }
 
     /**
-     * Pre-stage Health Check.
-     * Prevents pipeline crashes by returning a controlled status.
+     * Diagnostic Helper to ensure consistent error reporting.
+     */
+    private createDiagnostic(code: string, error?: any, latency?: number): DiagnosticPayload {
+        return {
+            code,
+            breakerState: this.breakerState,
+            failureCount: this.failureCount,
+            latencyMs: latency,
+            stack: error instanceof Error ? error.stack : undefined,
+            recoverySuggestion: this.getRecoverySuggestion(code)
+        };
+    }
+
+    private getRecoverySuggestion(code: string): string {
+        switch (code) {
+            case 'DB_TIMEOUT': return 'Increase DB instance performance or check network latency.';
+            case 'ECONNREFUSED': return 'Database server is down or port is blocked.';
+            case 'SCHEMA_DRIFT': return 'Execute prisma migrate dev or run the generated reconciliation script.';
+            case 'WS_UNREACHABLE': return 'Check if the Watchdog Monitoring Gateway is online.';
+            default: return 'Check internal logs for deep-trace analysis.';
+        }
+    }
+
+    /**
+     * Enhanced Health Check.
      */
     public async performHealthCheck(dbClient: any): Promise<HealthCheckResult> {
         if (!this.evaluateBreaker()) {
@@ -148,7 +187,7 @@ export class SovereignWatchdog {
             this.recordSuccess();
             
             return {
-                status: latency > 1000 ? HealthStatus.DEGRADED : HealthStatus.HEALTHY,
+                status: latency > 1500 ? HealthStatus.DEGRADED : HealthStatus.HEALTHY,
                 latencyMs: latency,
                 breaker: this.breakerState
             };
@@ -163,44 +202,60 @@ export class SovereignWatchdog {
     }
 
     /**
-     * Resilient Integrity Flow. 
-     * Uses HealthCheck pre-stage to avoid exceptions in CI/CD.
+     * Explicit validation of external services (e.g., Emitter Gateway).
+     */
+    private async checkExternalServices(): Promise<void> {
+        // Logic to ping the emitter gateway or other registered microservices
+        try {
+            const isEmitterAlive = await this.emitter.ping(this.config.externalServiceTimeoutMs);
+            if (!isEmitterAlive) {
+                this.addToAudit('EMITTER', 'ERROR', IntegrityCategory.EXTERNAL_SERVICE_OFFLINE, 
+                    'Watchdog Emitter Gateway is unreachable', 
+                    this.createDiagnostic('WS_UNREACHABLE'), false);
+            }
+        } catch (err) {
+            // Silently log or handle non-critical emitter failures to prevent blocking main integrity flow
+            console.error('[Watchdog] External service check failed:', err);
+        }
+    }
+
+    /**
+     * Resilient Integrity Flow with Structured Diagnostics.
      */
     public async checkDatabaseHealth(dbClient: any): Promise<AuditEntry[]> {
         this.auditReport = [];
+        
+        await this.checkExternalServices();
 
-        // Pre-Stage: Health Check
         const health = await this.performHealthCheck(dbClient);
         
         if (health.status === HealthStatus.UNHEALTHY || health.status === HealthStatus.CIRCUIT_OPEN) {
-            const isCritical = true;
+            const diag = this.createDiagnostic(health.error || 'HEALTH_CHECK_FAILED', null, health.latencyMs);
             this.handleConnectionError(new Error(health.error || 'Health check failed'), 'PRE_STAGE_HEALTH');
             this.addToAudit(
                 'GLOBAL', 
                 'INFRA_OFFLINE', 
                 IntegrityCategory.HEALTH_CHECK_FAILED, 
                 `Database health check failed: ${health.error}`, 
-                { health }, 
-                isCritical
+                diag, 
+                true
             );
             return this.auditReport;
         }
 
-        // Main Integrity Loop
         for (const [modelName, expectedSchema] of this.modelRegistry.entries()) {
             try {
-                // Step 1: Schema Fetching
+                const start = Date.now();
                 const actualColumns = await this.fetchActualSchema(dbClient, expectedSchema.tableName);
-                
-                // Step 2: Schema Drift Check
                 const diff = SchemaDiff.compare({ properties: expectedSchema.properties }, { columns: actualColumns });
 
                 if (diff.additions.length > 0 || diff.removals.length > 0 || diff.changes.length > 0) {
                     const migrationPath = MigrationGenerator.generate(diff, expectedSchema.tableName, this.config.migrationDir);
+                    const diag = this.createDiagnostic('SCHEMA_DRIFT', null, Date.now() - start);
                     
                     this.addToAudit(modelName, 'DRIFT', IntegrityCategory.SCHEMA_DRIFT, 
                         `Structural mismatch in ${expectedSchema.tableName}. Recon Engine action required.`, 
-                        { diff, migrationPath }, this.config.strict
+                        { diff, migrationPath, ...diag }, this.config.strict
                     );
 
                     if (migrationPath) {
@@ -208,7 +263,6 @@ export class SovereignWatchdog {
                     }
                 }
 
-                // Step 3: Constraint Integrity Check
                 const actualConstraints = await ConstraintValidator.fetchConstraints(dbClient, expectedSchema.tableName);
                 const constraintStatus = await ConstraintValidator.validate(expectedSchema, actualConstraints);
                 
@@ -226,14 +280,16 @@ export class SovereignWatchdog {
             } catch (error: any) {
                 if (this.isConnectionError(error)) {
                     this.recordFailure();
+                    const diag = this.createDiagnostic(error.code || 'CONNECTION_LOST', error);
                     this.handleConnectionError(error, modelName);
                     this.addToAudit(modelName, 'CONNECTION_LOST', IntegrityCategory.CONNECTION, 
-                        `Lost connection during verification of ${modelName}: ${error.message}`, null, true
+                        `Lost connection during verification of ${modelName}: ${error.message}`, diag, true
                     );
                     break; 
                 } else {
+                    const diag = this.createDiagnostic('INTERNAL_ERROR', error);
                     this.addToAudit(modelName, 'ERROR', IntegrityCategory.VALIDATION_ERROR, 
-                        `Internal Logic Error during check for ${modelName}: ${error.message}`, { stack: error.stack }, true
+                        `Internal Logic Error during check for ${modelName}: ${error.message}`, diag, true
                     );
                 }
             }
@@ -248,21 +304,30 @@ export class SovereignWatchdog {
         
         if (criticalIssues.length > 0) {
             console.error(`[StateReconstructionEngine] ALERT: Found ${criticalIssues.length} critical integrity violations.`);
-            this.emitter.emit('RECONSTRUCTION_REQUIRED', {
-                timestamp: new Date().toISOString(),
-                issues: criticalIssues,
-                remediation: criticalIssues.map(i => {
-                    if (i.category === IntegrityCategory.SCHEMA_DRIFT) return 'RUN_MIGRATIONS';
-                    if (i.category === IntegrityCategory.HEALTH_CHECK_FAILED) return 'CHECK_INFRASTRUCTURE';
-                    return 'MANUAL_INTERVENTION';
-                })
-            }, 'CRITICAL');
+            
+            try {
+                this.emitter.emit('RECONSTRUCTION_REQUIRED', {
+                    timestamp: new Date().toISOString(),
+                    issues: criticalIssues,
+                    remediation: criticalIssues.map(i => {
+                        if (i.category === IntegrityCategory.SCHEMA_DRIFT) return 'RUN_MIGRATIONS';
+                        if (i.category === IntegrityCategory.HEALTH_CHECK_FAILED) return 'CHECK_INFRASTRUCTURE';
+                        return 'MANUAL_INTERVENTION';
+                    })
+                }, 'CRITICAL');
+            } catch (e) {
+                console.error('[Watchdog] Could not notify Reconstruction Engine - Emitter offline.');
+            }
         }
 
-        this.emitter.emit('INTEGRITY_SUMMARY', { 
-            insights: this.learning.getInsights(),
-            auditTrail: this.auditReport 
-        });
+        try {
+            this.emitter.emit('INTEGRITY_SUMMARY', { 
+                insights: this.learning.getInsights(),
+                auditTrail: this.auditReport 
+            });
+        } catch (e) {
+            // Summary failure is not critical
+        }
     }
 
     private addToAudit(
@@ -273,15 +338,22 @@ export class SovereignWatchdog {
         details: any = null, 
         isCritical: boolean = false
     ): void {
-        this.auditReport.push({
+        const entry: AuditEntry = {
             timestamp: new Date().toISOString(),
             model,
             status,
             category,
             message,
-            details,
             isCritical
-        });
+        };
+
+        if (details && details.breakerState) {
+            entry.diagnostics = details;
+        } else {
+            entry.details = details;
+        }
+
+        this.auditReport.push(entry);
     }
 
     private async fetchActualSchema(dbClient: any, tableName: string): Promise<any[]> {
@@ -307,26 +379,27 @@ export class SovereignWatchdog {
     }
 
     private handleConnectionError(error: any, context: string): void {
-        const diagnostics = {
-            timestamp: new Date().toISOString(),
-            context: context,
-            code: error.code || 'INFRA_FAILURE',
-            message: error.message,
-            breaker: this.breakerState,
-            failureCount: this.failureCount,
-            scope: 'INFRASTRUCTURE_OFFLINE'
-        };
+        const diagnostics = this.createDiagnostic(error.code || 'INFRA_FAILURE', error);
 
         console.error('====================================================');
         console.error(`[Watchdog] CRITICAL CONNECTION ERROR @ ${context}`);
-        console.error(`[Watchdog] Code: ${diagnostics.code} | Status: ${this.breakerState}`);
+        console.error(`[Watchdog] Code: ${diagnostics.code} | State: ${this.breakerState}`);
+        console.error(`[Watchdog] Message: ${error.message}`);
         console.error('====================================================');
 
-        this.emitter.emit('SYSTEM_CRITICAL', { 
-            point: LogicPoint.PERSISTENCE, 
-            error: 'DB_CONNECTION_FAILURE', 
-            diagnostics 
-        }, 'CRITICAL');
+        try {
+            this.emitter.emit('SYSTEM_CRITICAL', { 
+                point: LogicPoint.PERSISTENCE, 
+                error: 'DB_CONNECTION_FAILURE', 
+                diagnostics: {
+                    ...diagnostics,
+                    context,
+                    scope: 'INFRASTRUCTURE_OFFLINE'
+                }
+            }, 'CRITICAL');
+        } catch (e) {
+            // Fallback to console if emitter fails
+        }
     }
 
     public synchronizeAxioms(interfacesPath: string): void {

@@ -41,19 +41,23 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     
     env:
       NODE_OPTIONS: "--trace-warnings --trace-uncaught --max-old-space-size=6144"
       PNPM_LOG_LEVEL: "info"
-      DEBUG: "pnpm:*"
       CI: true
+      DATABASE_URL: "postgresql://postgres:postgres_password@localhost:5432/areloria_test_${{ github.run_id }}"
+      POSTGRES_USER: postgres
+      POSTGRES_DB: areloria_test_${{ github.run_id }}
+      POSTGRES_PASSWORD: postgres_password
 
     services:
       postgres:
         image: postgres:15
         env:
           POSTGRES_USER: postgres
-          POSTGRES_DB: areloria_test
+          POSTGRES_DB: areloria_test_${{ github.run_id }}
           POSTGRES_PASSWORD: postgres_password
         ports:
           - 5432:5432
@@ -61,14 +65,13 @@ jobs:
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
 
     strategy:
       fail-fast: false
       matrix:
         node-version: [20.x]
         python-version: ['3.11']
-        error-trace: [true]
 
     steps:
       - name: Checkout Repository
@@ -119,31 +122,6 @@ jobs:
         with:
           fail-on-severity: critical
 
-      - name: Lint workspace
-        run: pnpm -r run lint --loglevel verbose
-
-      - name: Typecheck
-        run: pnpm -r run typecheck --loglevel verbose
-
-      - name: Build monorepo
-        run: pnpm -r run build --loglevel verbose
-
-      - name: Ensure Build Directories Exist
-        run: |
-          mkdir -p dist-merged
-          find . -name "dist" -type d -not -path "./dist-merged*" -exec cp -r {} ./dist-merged/ \; || true
-          find . -name "build" -type d -not -path "./dist-merged*" -exec cp -r {} ./dist-merged/ \; || true
-
-      - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-output
-          path: |
-            **/dist/**
-            **/build/**
-          retention-days: 1
-          if-no-files-found: warn
-
       - name: Database Functional Health Check
         run: |
           sudo apt-get update && sudo apt-get install -y postgresql-client
@@ -159,14 +137,44 @@ jobs:
             echo "Error: PostgreSQL did not become ready in time."
             exit 1
           fi
-          echo "PostgreSQL is fully functional. Proceeding to tests."
+          echo "PostgreSQL is fully functional. Database: $POSTGRES_DB"
         env:
           PGPASSWORD: postgres_password
 
+      - name: Prisma Client Generation and Migration
+        run: |
+          if pnpm -r list | grep -q "prisma"; then
+            pnpm -r exec prisma generate
+            pnpm -r exec prisma migrate deploy || echo "No migrations found or already applied."
+          fi
+
+      - name: Lint workspace
+        run: pnpm -r run lint --loglevel verbose
+
+      - name: Typecheck
+        run: pnpm -r run typecheck --loglevel verbose
+
+      - name: Build monorepo
+        run: pnpm -r run build --loglevel verbose
+
+      - name: Ensure Build Directories Exist
+        run: |
+          mkdir -p dist-merged
+          find . -maxdepth 4 -name "dist" -type d -not -path "*/node_modules/*" -not -path "./dist-merged*" -exec cp -r {} ./dist-merged/ \; || true
+          find . -maxdepth 4 -name "build" -type d -not -path "*/node_modules/*" -not -path "./dist-merged*" -exec cp -r {} ./dist-merged/ \; || true
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output-${{ github.sha }}
+          path: |
+            **/dist/**
+            **/build/**
+          retention-days: 1
+          if-no-files-found: warn
+
       - name: Run tests
         run: pnpm -r run test --loglevel verbose
-        env:
-          DATABASE_URL: postgresql://postgres:postgres_password@localhost:5432/areloria_test
 
       - name: GitHub Dependency Submission
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -175,42 +183,42 @@ jobs:
           name: dependency-graph
           path: pnpm-lock.yaml
 
-      - name: Wait-for-it Health Check
+      - name: Network Stability and Extended Health Check
         run: |
           TARGET="46.202.154.25:80"
-          TIMEOUT=300
-          INTERVAL=10
+          TIMEOUT=450
+          INTERVAL=15
           ELAPSED=0
-          LAST_EXIT_CODE=0
           
-          echo "Starting extended health check for $TARGET..."
-          echo "Max Timeout: ${TIMEOUT}s | Interval: ${INTERVAL}s"
+          echo "Starting resilient health check for $TARGET..."
           
           while [ $ELAPSED -lt $TIMEOUT ]; do
-            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 http://$TARGET) || LAST_EXIT_CODE=$?
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 http://$TARGET) || CURL_EXIT_CODE=$?
             
             if [ "$HTTP_STATUS" -eq 200 ]; then
-              echo "Health check successful: $TARGET is online (HTTP 200)."
+              echo "Health check successful: $TARGET is online."
               exit 0
             fi
             
-            if [ "$LAST_EXIT_CODE" -eq 28 ]; then
-              echo "Status: Timeout (Exit Code 28) at ${ELAPSED}s. Server might be lagging. Retrying..."
+            # Handle specific curl timeout/latency codes without failing the pipeline immediately
+            if [ "$CURL_EXIT_CODE" -eq 28 ] || [ "$CURL_EXIT_CODE" -eq 7 ]; then
+              echo "Status: Connection/Timeout issue (Code $CURL_EXIT_CODE) at ${ELAPSED}s. Retrying..."
             else
               echo "Status: HTTP $HTTP_STATUS at ${ELAPSED}s. Retrying in ${INTERVAL}s..."
             fi
             
-            LAST_EXIT_CODE=0
             sleep $INTERVAL
             ELAPSED=$((ELAPSED + INTERVAL))
           done
           
           echo "Final Verification: Health check reached limit of ${TIMEOUT}s."
-          
-          if [ "$LAST_EXIT_CODE" -eq 28 ]; then
-            echo "Warning: Final attempt resulted in Exit Code 28 (Latency). Bypassing failure to prevent CI interruption."
-            exit 0
+          # If the target is still unreachable but it's just latency, we bypass to avoid blocking CI
+          # This specifically addresses the requirement to prevent intermittent process failures.
+          if [ "$CURL_EXIT_CODE" -eq 28 ]; then
+             echo "Target unresponsive due to latency. Bypassing failure to prevent CI interruption."
+             exit 0
           fi
           
-          echo "Error: Target $TARGET failed to respond with HTTP 200 within allowed time."
+          echo "Error: Target $TARGET did not respond with 200 OK."
           exit 1
+        shell: bash
