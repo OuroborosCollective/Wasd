@@ -24,7 +24,7 @@ export interface NewHudProps {
   youId: string | null;
   entities: any[];
   loot: any[];
-  inv: any;
+
   quests: any[];
   targetId: string | undefined;
   onTarget: (id: string | undefined) => void;
@@ -137,7 +137,7 @@ export function mountNewHud(core: MMORPGClientCore) {
           youId={youId}
           entities={entities}
           loot={loot}
-          inv={inv}
+
           quests={quests}
           targetId={targetId}
           onTarget={onTarget}

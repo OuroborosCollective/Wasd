@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { LootNet, ClientQuestEntry } from "@wasd/shared";
+import type { LootNet, EntityNet, QuestStateNet } from "@wasd/shared";
 import {
   getCombatTargetNpcId,
   getPlayerGold,
@@ -8,6 +8,7 @@ import {
   getPlayerMaxCarryWeight,
   getPlayerQuests,
   subscribePlayerState,
+  type ClientQuestEntry,
 } from "../state/playerState";
 
 export interface WarfrontHudState {
@@ -18,6 +19,20 @@ export interface WarfrontHudState {
   currentZoneName: string;
   matchTimer: number;
   contested: boolean;
+  phase?: string;
+  endsAt?: number;
+  progressPct?: number;
+  personal?: {
+    cyclePoints: number;
+    seasonPoints: number;
+    nextTierPoints?: number;
+    nextTierLabel?: string;
+  };
+  sectors?: any[];
+  frontBoss?: {
+    active: boolean;
+    mutator?: string;
+  };
 }
 
 export interface GameHudState {
@@ -25,31 +40,32 @@ export interface GameHudState {
   inventory: LootNet[];
   weight: number;
   maxWeight: number;
-  quests: any[];
+  quests: ClientQuestEntry[];
   targetNpcId: string | null;
   warfront: WarfrontHudState;
   inventoryOpen: boolean;
   toggleInventory: () => void;
-  // Legacy support for older components
-  youId?: string | null;
-  entities?: any[];
-  loot?: any[];
-  fxFeed?: any[];
-  onWirePayload?: (p: any) => void;
-  onEntitySync?: (e: any) => void;
-  onLootSpawned?: (l: any) => void;
-  onLootDespawned?: (id: string) => void;
+  youId: string | null;
+  entities: EntityNet[];
+  loot: LootNet[];
+  fxFeed: any[];
+  inv: any; // Added for redesign compatibility
+  onWirePayload: (payload: any) => void;
+  onEntitySync: (entities: any) => void;
+  onLootSpawned: (loot: any) => void;
+  onLootDespawned: (lootId: string) => void;
 }
 
 export const useGameHudState = (): GameHudState => {
   const [inventoryOpen, setInventoryOpen] = useState(false);
+
   const [state, setState] = useState({
-    gold: getPlayerGold(),
-    inventory: getPlayerInventory(),
-    weight: getPlayerInventoryWeight(),
-    maxWeight: getPlayerMaxCarryWeight(),
-    quests: getPlayerQuests(),
-    targetNpcId: getCombatTargetNpcId(),
+    gold: 0,
+    inventory: [] as LootNet[],
+    weight: 0,
+    maxWeight: 0,
+    quests: [] as ClientQuestEntry[],
+    targetNpcId: null as string | null,
     warfront: {
       isActive: false,
       capturedPoints: 0,
@@ -58,35 +74,48 @@ export const useGameHudState = (): GameHudState => {
       currentZoneName: "Neutral Territory",
       matchTimer: 0,
       contested: false,
-    },
+      personal: { cyclePoints: 0, seasonPoints: 0 },
+      sectors: [],
+      frontBoss: { active: false }
+    } as WarfrontHudState,
+    youId: null as string | null,
+    entities: [] as EntityNet[],
+    loot: [] as LootNet[],
+    fxFeed: [] as any[],
+    inv: {} as any,
   });
 
   const syncState = useCallback(() => {
-    setState((prev) => ({
-      ...prev,
-      gold: getPlayerGold(),
-      inventory: getPlayerInventory(),
-      weight: getPlayerInventoryWeight(),
-      maxWeight: getPlayerMaxCarryWeight(),
-      quests: getPlayerQuests(),
-      targetNpcId: getCombatTargetNpcId(),
-    }));
+    try {
+      setState((prev) => ({
+        ...prev,
+        gold: getPlayerGold?.() ?? 0,
+        inventory: getPlayerInventory?.() ?? [],
+        weight: getPlayerInventoryWeight?.() ?? 0,
+        maxWeight: getPlayerMaxCarryWeight?.() ?? 0,
+        quests: getPlayerQuests?.() ?? [],
+        targetNpcId: getCombatTargetNpcId?.() ?? null,
+      }));
+    } catch (e) {
+      console.warn("Failed to sync player state in HUD", e);
+    }
   }, []);
 
   useEffect(() => {
-    const unsubscribe = subscribePlayerState(syncState);
-    syncState();
-    return () => unsubscribe();
+    let unsubscribe: (() => void) | undefined;
+    try {
+      unsubscribe = subscribePlayerState?.(syncState);
+      syncState();
+    } catch (e) {
+      console.error("HUD failed to subscribe to player state", e);
+    }
+    return () => unsubscribe?.();
   }, [syncState]);
 
   return {
     ...state,
     inventoryOpen,
     toggleInventory: () => setInventoryOpen(!inventoryOpen),
-    youId: null,
-    entities: [],
-    loot: [],
-    fxFeed: [],
     onWirePayload: () => {},
     onEntitySync: () => {},
     onLootSpawned: () => {},

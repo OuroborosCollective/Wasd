@@ -17,7 +17,7 @@ interface Metrics {
 const HISTORY_LIMIT = 100;
 const EXPECTED_TICK_MS = 16.666; // 60Hz Target
 
-export const TimingMonitor: React.FC = () => {
+export const TimingMonitor: React.FC<any> = () => {
   const [metrics, setMetrics] = useState<Metrics>({
     avgJitter: 0,
     maxJitter: 0,
@@ -27,8 +27,8 @@ export const TimingMonitor: React.FC = () => {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const lastTickRef = useRef<number>(performance.now());
-  const requestRef = useRef<number>();
-  const historyRef = useRef<TimingData[]>([]);
+  const requestRef = useRef<number | undefined>(undefined);
+  const historyRef = useRef<TimingData[]>([] as TimingData[]);
 
   const drawGraph = useCallback((data: TimingData[]) => {
     const canvas = canvasRef.current;
