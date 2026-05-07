@@ -68,6 +68,7 @@ import {
   publishChatMessage,
   type ChatMessage as RelayedChatMessage,
   type ChatScope as RelayedChatScope,
+  type PublishChatResult,
 } from "../modules/chat/RedisChatRelay.js";
 import { ChatChannelRouter, type ChatRecipient } from "../modules/chat/ChatChannelRouter.js";
 import { StatusEmitter } from "../modules/chat/StatusEmitter.js";
@@ -1203,8 +1204,9 @@ export class WorldTick {
     x: number,
     y: number,
     radius: number,
+    availableContracts?: any[],
   ): string[] {
-    const available = this.gameplayFusionDirector
+    const available = availableContracts ?? this.gameplayFusionDirector
       .getConstructionContracts()
       .filter((row) => row.status === "available");
     const radiusSq = radius * radius;
@@ -1222,7 +1224,7 @@ export class WorldTick {
     return available.slice(0, 3).map((row) => row.id);
   }
 
-  private async runFusionContractsForNpc(npc: any): Promise<void> {
+  private async runFusionContractsForNpc(npc: any, availableContracts: any[]): Promise<void> {
     const role = String(npc?.role || "").toLowerCase();
     if (
       !role.includes("contractor")
@@ -1237,6 +1239,7 @@ export class WorldTick {
       Number(npc?.position?.x ?? 0),
       Number(npc?.position?.y ?? 0),
       40,
+      availableContracts,
     );
     if (near.length === 0) return;
     const claim = near[0];
@@ -1273,6 +1276,10 @@ export class WorldTick {
     }
 
     const npcs = this.npcSystem.getAllNPCs();
+    const availableContracts = this.gameplayFusionDirector
+      .getConstructionContracts()
+      .filter((row) => row.status === "available");
+
     this.gameplayFusionDirector.tick({
       now,
       npcs,
@@ -1299,7 +1306,7 @@ export class WorldTick {
           });
         },
         findNearbyConstructionContracts: (x, y, radius) =>
-          this.findNearbyFusionContracts(x, y, radius),
+          this.findNearbyFusionContracts(x, y, radius, availableContracts),
         placeEchoBeacon: async (key, npc, kind, ttlMs) => {
           const target = this.npcSystem.getNPC(String(npc?.id || ""));
           if (!target?.position) return;
@@ -1323,7 +1330,7 @@ export class WorldTick {
     );
 
     for (const npc of npcs) {
-      void this.runFusionContractsForNpc(npc);
+      void this.runFusionContractsForNpc(npc, availableContracts);
     }
   }
 
@@ -2855,7 +2862,7 @@ export class WorldTick {
             : requestedScope === "party" && !partyId
               ? "global"
               : requestedScope;
-        const chatResult = await publishChatMessage({
+        const chatResult: PublishChatResult = await publishChatMessage({
           scope: effectiveScope,
           senderId: String(player.id),
           senderName: isNonEmptyString(player.name) ? player.name : String(player.id),
@@ -2864,12 +2871,15 @@ export class WorldTick {
           partyId,
           ts: Date.now(),
         });
-        if (!chatResult.ok && chatResult.reason === "rate_limited") {
-          const waitSeconds = Math.max(0.1, Number(chatResult.retryAfterMs ?? 500) / 1000);
-          this.ws.sendToPlayer(id, {
-            type: "toast",
-            text: `Chat cooldown active (${waitSeconds.toFixed(1)}s).`,
-          });
+        if (!chatResult.ok) {
+          const failure = chatResult as any;
+          if (failure.reason === "rate_limited") {
+            const waitSeconds = Math.max(0.1, Number(failure.retryAfterMs ?? 500) / 1000);
+            this.ws.sendToPlayer(id, {
+              type: "toast",
+              text: `Chat cooldown active (${waitSeconds.toFixed(1)}s).`,
+            });
+          }
         }
         return;
       }
@@ -3152,7 +3162,9 @@ export class WorldTick {
             });
             if (hit.killed && target.health <= 0) {
               target.health = 0;
-              target.aggroTargetId = null;
+              if ("aggroTargetId" in target) {
+                (target as any).aggroTargetId = null;
+              }
               player.kills = Math.max(0, Number(player.kills) || 0) + 1;
               this.applyWarfrontContribution(player, id, "combat", 8, "combat_kill");
               const handledBossDefeat = this.tryHandleWorldBossDefeat(player, target);
@@ -3222,7 +3234,9 @@ export class WorldTick {
             text: hit.hit ? `${skill.name} hits for ${hit.damage}${hit.crit ? " (CRIT!)" : ""}.` : `${skill.name} missed.`,
           });
           if (hit.killed && target.health <= 0) {
-            target.aggroTargetId = null;
+            if ("aggroTargetId" in target) {
+              (target as any).aggroTargetId = null;
+            }
             player.kills = Math.max(0, Number(player.kills) || 0) + 1;
             this.applyWarfrontContribution(player, id, "combat", 8, "combat_kill");
             const handledBossDefeat = this.tryHandleWorldBossDefeat(player, target);
@@ -3326,7 +3340,9 @@ export class WorldTick {
         this.pushPlayerStateSync(id, player);
         if ((target.health ?? 0) <= 0) {
           target.health = 0;
-          target.aggroTargetId = null;
+          if ("aggroTargetId" in target) {
+            (target as any).aggroTargetId = null;
+          }
           player.kills = Math.max(0, Number(player.kills) || 0) + 1;
           this.applyWarfrontContribution(player, id, "combat", 8, "combat_kill");
           const handledBossDefeat = this.tryHandleWorldBossDefeat(player, target);
