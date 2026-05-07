@@ -31,7 +31,7 @@
     "events": "^3.3.0"
   },
   "devDependencies": {
-    "@types/node": "^25.6.1",
+    "@types/node": "^22.13.1",
     "@typescript-eslint/eslint-plugin": "^7.11.0",
     "@typescript-eslint/parser": "^7.11.0",
     "eslint": "^8.57.0",
