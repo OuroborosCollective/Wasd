@@ -16,8 +16,8 @@ export type InteractWorldSnapshot = {
 };
 
 export type ClosestInteractable =
-  | { interactionType: "loot"; id: string; position: InteractPoint }
-  | { interactionType: "npc"; id: string; position: InteractPoint };
+  | { type: "loot"; id: string; position: InteractPoint }
+  | { type: "npc"; id: string; position: InteractPoint };
 
 function dist2(a: InteractPoint, b: InteractPoint): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
@@ -55,7 +55,7 @@ export function getClosestInteractable(
     const d = dist2(player.position, loot.position);
     if (d <= maxDistance && d < minDistance) {
       minDistance = d;
-      closest = { interactionType: "loot", id: loot.id, position: loot.position };
+      closest = { type: "loot", id: loot.id, position: loot.position };
     }
   }
 
@@ -65,7 +65,7 @@ export function getClosestInteractable(
     const d = dist2(player.position, npc.position);
     if (d <= maxDistance && d < minDistance) {
       minDistance = d;
-      closest = { interactionType: "npc", id: npc.id, position: npc.position };
+      closest = { type: "npc", id: npc.id, position: npc.position };
     }
   }
 

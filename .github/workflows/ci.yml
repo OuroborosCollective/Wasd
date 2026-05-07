@@ -81,11 +81,6 @@ jobs:
             sleep 2
           done
 
-      - name: Prepare Database (Prisma)
-        run: |
-          pnpm -r exec npx prisma db push --accept-data-loss
-          pnpm -r exec npx prisma generate
-
       - name: Test workspace
         run: pnpm -r test
 

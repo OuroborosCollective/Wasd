@@ -1,9 +1,9 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { claimWarfrontRewards, requestWarfrontStatus } from "../../networking/websocketClient";
-import type { WarfrontHudState } from "../useGameHudState";
+import type { any } from "../useGameHudState";
 
 type WarfrontPanelProps = {
-  warfront: WarfrontHudState | null;
+  warfront: any | null;
 };
 
 /**

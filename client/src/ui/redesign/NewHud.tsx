@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
-import type { EntityNet, QuestStateNet, LootNet } from "@wasd/shared";
+import type { EntityNet, any, LootNet } from "@wasd/shared";
 import { getDeviceTier } from "../touchUi";
 import { sendCommand, sendUseSkill } from "../../networking/websocketClient";
 import { 
@@ -22,8 +22,8 @@ import "./NewHud.css";
 export const NewHud: React.FC = () => {
   const { 
     warfront, 
-    activeQuests, 
-    nearbyLoot, 
+    quests,
+    loot,
     inventoryOpen, 
     toggleInventory 
   } = useGameHudState();
@@ -78,13 +78,13 @@ export const NewHud: React.FC = () => {
 
       {/* Top Right: Quests & Minimap Area */}
       <div className="hud-top-right">
-        {activeQuests.length > 0 && (
+        {quests.length > 0 && (
           <div className="hud-quest-tracker">
             <h4 className="quest-title">Active Missions</h4>
-            {activeQuests.map((quest: QuestStateNet) => (
+            {quests.map((quest: any) => (
               <div key={quest.id} className="quest-item">
-                <span className="quest-name">{quest.name}</span>
-                <span className="quest-progress">{quest.progress}/{quest.target}</span>
+                <span className="quest.title">{quest.title}</span>
+                <span className="quest-progress">{quest.progress}/{quest.goal}</span>
               </div>
             ))}
           </div>
@@ -92,7 +92,7 @@ export const NewHud: React.FC = () => {
       </div>
 
       {/* Center: Warfront Panel */}
-      {warfront && warfront.active && (
+      {warfront && warfront.isActive && (
         <div className="hud-center-overlay">
           <WarfrontPanel state={warfront} />
         </div>
@@ -123,10 +123,10 @@ export const NewHud: React.FC = () => {
       </div>
 
       {/* Nearby Loot Interaction */}
-      {nearbyLoot.length > 0 && (
+      {loot.length > 0 && (
         <div className="hud-loot-prompt">
           <button className="loot-button" onClick={() => sendCommand("loot_all")}>
-            Take All Loot ({nearbyLoot.length})
+            Take All Loot ({loot.length})
           </button>
         </div>
       )}

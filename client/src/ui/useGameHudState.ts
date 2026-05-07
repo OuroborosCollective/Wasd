@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { LootNet } from "@wasd/shared";
+import type { LootNet, ClientQuestEntry } from "@wasd/shared";
 import {
   getCombatTargetNpcId,
   getPlayerGold,
@@ -8,7 +8,6 @@ import {
   getPlayerMaxCarryWeight,
   getPlayerQuests,
   subscribePlayerState,
-  type ClientQuestEntry,
 } from "../state/playerState";
 
 export interface WarfrontHudState {
@@ -26,13 +25,25 @@ export interface GameHudState {
   inventory: LootNet[];
   weight: number;
   maxWeight: number;
-  quests: ClientQuestEntry[];
+  quests: any[];
   targetNpcId: string | null;
   warfront: WarfrontHudState;
+  inventoryOpen: boolean;
+  toggleInventory: () => void;
+  // Legacy support for older components
+  youId?: string | null;
+  entities?: any[];
+  loot?: any[];
+  fxFeed?: any[];
+  onWirePayload?: (p: any) => void;
+  onEntitySync?: (e: any) => void;
+  onLootSpawned?: (l: any) => void;
+  onLootDespawned?: (id: string) => void;
 }
 
 export const useGameHudState = (): GameHudState => {
-  const [state, setState] = useState<GameHudState>({
+  const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [state, setState] = useState({
     gold: getPlayerGold(),
     inventory: getPlayerInventory(),
     weight: getPlayerInventoryWeight(),
@@ -59,23 +70,26 @@ export const useGameHudState = (): GameHudState => {
       maxWeight: getPlayerMaxCarryWeight(),
       quests: getPlayerQuests(),
       targetNpcId: getCombatTargetNpcId(),
-      // In a real implementation, warfront data would be pulled from a dedicated WarfrontState module
-      // or passed via server messages through the playerState subscription.
     }));
   }, []);
 
   useEffect(() => {
-    const unsubscribe = subscribePlayerState(() => {
-      syncState();
-    });
-
-    // Initial sync
+    const unsubscribe = subscribePlayerState(syncState);
     syncState();
-
-    return () => {
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, [syncState]);
 
-  return state;
+  return {
+    ...state,
+    inventoryOpen,
+    toggleInventory: () => setInventoryOpen(!inventoryOpen),
+    youId: null,
+    entities: [],
+    loot: [],
+    fxFeed: [],
+    onWirePayload: () => {},
+    onEntitySync: () => {},
+    onLootSpawned: () => {},
+    onLootDespawned: () => {},
+  };
 };

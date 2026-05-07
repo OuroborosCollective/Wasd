@@ -28,7 +28,7 @@ export const getClosestInteractable = (
   playerPos: [number, number, number],
   snapshot: SharedInteractWorldSnapshot
 ): ClosestInteractable | null => {
-  return sharedGetClosestInteractable(playerPos, snapshot);
+  return sharedGetClosestInteractable({ position: { x: playerPos[0], y: playerPos[2] } }, snapshot);
 };
 
 /**
