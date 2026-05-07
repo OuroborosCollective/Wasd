@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { LootNet } from "@shared/types/protocol";
+import type { LootNet, EntityNet, QuestStateNet } from "@wasd/shared";
 import {
   getCombatTargetNpcId,
   getPlayerGold,
@@ -19,6 +19,20 @@ export interface WarfrontHudState {
   currentZoneName: string;
   matchTimer: number;
   contested: boolean;
+  phase?: string;
+  endsAt?: number;
+  progressPct?: number;
+  personal?: {
+    cyclePoints: number;
+    seasonPoints: number;
+    nextTierPoints?: number;
+    nextTierLabel?: string;
+  };
+  sectors?: any[];
+  frontBoss?: {
+    active: boolean;
+    mutator?: string;
+  };
 }
 
 export interface GameHudState {
@@ -29,16 +43,29 @@ export interface GameHudState {
   quests: ClientQuestEntry[];
   targetNpcId: string | null;
   warfront: WarfrontHudState;
+  inventoryOpen: boolean;
+  toggleInventory: () => void;
+  youId: string | null;
+  entities: EntityNet[];
+  loot: LootNet[];
+  fxFeed: any[];
+  inv: any;
+  onWirePayload: (payload: any) => void;
+  onEntitySync: (entities: any) => void;
+  onLootSpawned: (loot: any) => void;
+  onLootDespawned: (lootId: string) => void;
 }
 
 export const useGameHudState = (): GameHudState => {
-  const [state, setState] = useState<GameHudState>({
-    gold: getPlayerGold(),
-    inventory: getPlayerInventory(),
-    weight: getPlayerInventoryWeight(),
-    maxWeight: getPlayerMaxCarryWeight(),
-    quests: getPlayerQuests(),
-    targetNpcId: getCombatTargetNpcId(),
+  const [inventoryOpen, setInventoryOpen] = useState(false);
+
+  const [state, setState] = useState({
+    gold: 0,
+    inventory: [] as LootNet[],
+    weight: 0,
+    maxWeight: 0,
+    quests: [] as ClientQuestEntry[],
+    targetNpcId: null as string | null,
     warfront: {
       isActive: false,
       capturedPoints: 0,
@@ -47,35 +74,45 @@ export const useGameHudState = (): GameHudState => {
       currentZoneName: "Neutral Territory",
       matchTimer: 0,
       contested: false,
-    },
+      personal: { cyclePoints: 0, seasonPoints: 0 },
+      sectors: [],
+      frontBoss: { active: false }
+    } as WarfrontHudState,
+    youId: null as string | null,
+    entities: [] as EntityNet[],
+    loot: [] as LootNet[],
+    fxFeed: [] as any[],
+    inv: {} as any,
   });
 
   const syncState = useCallback(() => {
     setState((prev) => ({
       ...prev,
-      gold: getPlayerGold(),
-      inventory: getPlayerInventory(),
-      weight: getPlayerInventoryWeight(),
-      maxWeight: getPlayerMaxCarryWeight(),
-      quests: getPlayerQuests(),
-      targetNpcId: getCombatTargetNpcId(),
-      // In a real implementation, warfront data would be pulled from a dedicated WarfrontState module
-      // or passed via server messages through the playerState subscription.
+      gold: typeof getPlayerGold === 'function' ? getPlayerGold() : 0,
+      inventory: typeof getPlayerInventory === 'function' ? getPlayerInventory() : [],
+      weight: typeof getPlayerInventoryWeight === 'function' ? getPlayerInventoryWeight() : 0,
+      maxWeight: typeof getPlayerMaxCarryWeight === 'function' ? getPlayerMaxCarryWeight() : 0,
+      quests: typeof getPlayerQuests === 'function' ? getPlayerQuests() : [],
+      targetNpcId: typeof getCombatTargetNpcId === 'function' ? getCombatTargetNpcId() : null,
     }));
   }, []);
 
   useEffect(() => {
-    const unsubscribe = subscribePlayerState(() => {
-      syncState();
-    });
-
-    // Initial sync
+    let unsubscribe: any;
+    if (typeof subscribePlayerState === 'function') {
+        unsubscribe = subscribePlayerState(syncState);
+    }
     syncState();
-
-    return () => {
-      unsubscribe();
-    };
+    return () => unsubscribe?.();
   }, [syncState]);
 
-  return state;
+  return {
+    ...state,
+    inventoryOpen,
+    toggleInventory: () => setInventoryOpen(!inventoryOpen),
+    onWirePayload: () => {},
+    onEntitySync: () => {},
+    onLootSpawned: () => {},
+    onLootDespawned: () => {},
+  };
 };
