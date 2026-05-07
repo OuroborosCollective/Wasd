@@ -25,7 +25,7 @@
   },
   "devDependencies": {
     "@babylonjs/core": "^9.5.2",
-    "@types/node": "^22.13.1",
+    "@types/node": "^25.6.1",
     "typescript": "^5.7.3",
     "vitest": "^4.1.5"
   },
