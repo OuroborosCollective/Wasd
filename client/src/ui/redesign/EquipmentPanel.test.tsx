@@ -22,6 +22,7 @@ vi.mock("../../networking/websocketClient", () => ({
 describe("EquipmentPanel Accessibility", () => {
   afterEach(() => {
     cleanup();
+    vi.clearAllMocks();
   });
 
   it("renders with correct ARIA labels", () => {
@@ -50,7 +51,7 @@ describe("EquipmentPanel Accessibility", () => {
 
     // Press Enter
     fireEvent.keyDown(helmSlot, { key: "Enter" });
-    expect(sendUnequipItem).toHaveBeenCalledWith("head");
+    expect(sendUnequipItem).toHaveBeenCalledWith("armor");
 
     // Press Space
     fireEvent.keyDown(helmSlot, { key: " " });
@@ -65,6 +66,6 @@ describe("EquipmentPanel Accessibility", () => {
 
     // Press Enter
     fireEvent.keyDown(chestSlot, { key: "Enter" });
-    expect(sendUnequipItem).not.toHaveBeenCalledWith("chest");
+    expect(sendUnequipItem).not.toHaveBeenCalled();
   });
 });

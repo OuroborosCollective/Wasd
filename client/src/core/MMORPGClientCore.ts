@@ -171,13 +171,18 @@ export class MMORPGClientCore {
     }
 
     if (snap.player) {
-      // getClosestInteractable expects the snap and the player reference.
-      const hit = getClosestInteractable(snap);
-      if (hit && hit.type === "npc") {
+      // getClosestInteractable expects the player position and the snapshot.
+      const playerPos: [number, number, number] = [
+        snap.player.position.x,
+        0, // Y is 2D projection
+        snap.player.position.y
+      ];
+      const hit = getClosestInteractable(playerPos, snap);
+      if (hit && hit.interactionType === "npc") {
         this.events.emit("interact", { kind: "npc" as const, npcId: hit.id });
         return;
       }
-      if (hit && hit.type === "loot") {
+      if (hit && hit.interactionType === "loot") {
         this.events.emit("interact", { kind: "loot" as const, lootId: hit.id });
         return;
       }
