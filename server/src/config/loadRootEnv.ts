@@ -24,7 +24,16 @@ export function resolveMonorepoRootEnvPath(): string {
   return path.resolve(currentDir, "..", "..", "..", ".env");
 }
 
+function envTruthy(key: string): boolean {
+  const v = process.env[key]?.trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes" || v === "on";
+}
+
 export function loadRootEnvFiles(): void {
+  /** Playwright/e2e supplies explicit env; skip `.env` so cwd override cannot resurrect Docker `DATABASE_URL`. */
+  if (envTruthy("E2E_SKIP_DOTENV")) {
+    return;
+  }
   const fromMonorepoRoot = resolveMonorepoRootEnvPath();
   const fromCwd = path.resolve(process.cwd(), ".env");
   const opt = "/opt/areloria/.env";

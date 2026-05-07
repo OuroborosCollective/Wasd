@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const port = Number(process.env.E2E_PORT || 3000);
-const baseURL = process.env.E2E_BASE_URL || `http://127.0.0.1:${port}`;
+const baseURL = process.env.E2E_BASE_URL ?? `http://localhost:${port}`;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -27,9 +27,6 @@ export default defineConfig({
         env: {
           ...process.env,
           PORT: String(port),
-          NODE_ENV: "production",
-          ALLOW_GUEST_LOGIN: "1",
-          PLAYER_SAVE_FILE: process.env.PLAYER_SAVE_FILE || "/tmp/areloria-e2e-players.json",
         },
       },
 });

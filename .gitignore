@@ -15,3 +15,16 @@ pnpm-debug.log*
 
 # Build artifacts
 *.tsbuildinfo
+
+# DGCC gate output
+dgcc-artifacts/
+
+# Playwright
+test-results/
+playwright-report/
+
+# Local self-healing runtime (repo-root agent)
+.selfhealing/
+
+# Default file persistence player save (playwright/e2e smoke)
+/data/players.json

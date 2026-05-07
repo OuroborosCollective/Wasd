@@ -10,12 +10,19 @@
     "lint": "pnpm -r run lint",
     "build": "pnpm -r run build",
     "quality-check": "pnpm run lint && pnpm run test",
-    "deploy": "bash scripts/deploy-vps.sh"
+    "deploy": "bash scripts/deploy-vps.sh",
+    "dgcc": "pnpm exec tsx tools/dgcc/run-dgcc.ts --mode=minimal",
+    "dgcc:extreme": "pnpm exec tsx tools/dgcc/run-dgcc.ts --mode=extreme",
+    "test:e2e": "pnpm exec playwright test",
+    "test:e2e:ci": "node scripts/e2e-ci.mjs",
+    "test:e2e:install": "playwright install chromium"
   },
   "engines": {
     "node": ">=20.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "tsx": "^4.19.2",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.4",
     "typescript": "^5.7.3",
