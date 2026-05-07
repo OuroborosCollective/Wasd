@@ -1203,8 +1203,9 @@ export class WorldTick {
     x: number,
     y: number,
     radius: number,
+    availableContracts?: any[],
   ): string[] {
-    const available = this.gameplayFusionDirector
+    const available = availableContracts ?? this.gameplayFusionDirector
       .getConstructionContracts()
       .filter((row) => row.status === "available");
     const radiusSq = radius * radius;
@@ -1222,7 +1223,7 @@ export class WorldTick {
     return available.slice(0, 3).map((row) => row.id);
   }
 
-  private async runFusionContractsForNpc(npc: any): Promise<void> {
+  private async runFusionContractsForNpc(npc: any, availableContracts: any[]): Promise<void> {
     const role = String(npc?.role || "").toLowerCase();
     if (
       !role.includes("contractor")
@@ -1237,6 +1238,7 @@ export class WorldTick {
       Number(npc?.position?.x ?? 0),
       Number(npc?.position?.y ?? 0),
       40,
+      availableContracts,
     );
     if (near.length === 0) return;
     const claim = near[0];
@@ -1273,6 +1275,10 @@ export class WorldTick {
     }
 
     const npcs = this.npcSystem.getAllNPCs();
+    const availableContracts = this.gameplayFusionDirector
+      .getConstructionContracts()
+      .filter((row) => row.status === "available");
+
     this.gameplayFusionDirector.tick({
       now,
       npcs,
@@ -1299,7 +1305,7 @@ export class WorldTick {
           });
         },
         findNearbyConstructionContracts: (x, y, radius) =>
-          this.findNearbyFusionContracts(x, y, radius),
+          this.findNearbyFusionContracts(x, y, radius, availableContracts),
         placeEchoBeacon: async (key, npc, kind, ttlMs) => {
           const target = this.npcSystem.getNPC(String(npc?.id || ""));
           if (!target?.position) return;
@@ -1323,7 +1329,7 @@ export class WorldTick {
     );
 
     for (const npc of npcs) {
-      void this.runFusionContractsForNpc(npc);
+      void this.runFusionContractsForNpc(npc, availableContracts);
     }
   }
 
