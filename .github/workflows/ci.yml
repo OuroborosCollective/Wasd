@@ -14,32 +14,8 @@ env:
   NODE_ENV: test
 
 jobs:
-  install:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-
-      - name: Activate pnpm
-        run: corepack prepare pnpm@10.12.1 --activate
-
-      - name: Install dependencies (STRICT)
-        run: pnpm install --frozen-lockfile --prefer-offline
-        # fail-on-cache-miss is handled implicitly by ensuring pnpm install runs 
-        # even if cache is missing, but frozen-lockfile ensures integrity.
-
   build:
     runs-on: ubuntu-latest
-    needs: install
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -54,7 +30,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Activate pnpm
-        run: corepack prepare pnpm@10.12.1 --activate
+        run: corepack prepare pnpm@9.12.2 --activate
 
       - name: Install
         run: pnpm install --frozen-lockfile
@@ -64,7 +40,6 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    needs: install
     services:
       postgres:
         image: postgres:16-alpine
@@ -94,7 +69,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Activate pnpm
-        run: corepack prepare pnpm@10.12.1 --activate
+        run: corepack prepare pnpm@9.12.2 --activate
 
       - name: Install
         run: pnpm install --frozen-lockfile
@@ -116,7 +91,6 @@ jobs:
 
   typecheck:
     runs-on: ubuntu-latest
-    needs: install
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -131,7 +105,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Activate pnpm
-        run: corepack prepare pnpm@10.12.1 --activate
+        run: corepack prepare pnpm@9.12.2 --activate
 
       - name: Install
         run: pnpm install --frozen-lockfile

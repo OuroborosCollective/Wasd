@@ -4,10 +4,7 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "baseUrl": ".",
-    "noImplicitAny": false,
-    "paths": {
-      "@shared/*": ["../packages/shared/src/*"]
-    }
+    "noImplicitAny": false
   },
   "include": [
     "src"

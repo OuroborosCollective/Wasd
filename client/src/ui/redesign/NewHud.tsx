@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
-import type { EntityNet, QuestStateNet, LootNet } from "@shared/types/protocol";
+import type { EntityNet, QuestStateNet, LootNet } from "@wasd/shared";
 import { getDeviceTier } from "../touchUi";
 import { sendCommand, sendUseSkill } from "../../networking/websocketClient";
 import { 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { LootNet } from "@shared/types/protocol";
+import type { LootNet } from "@wasd/shared";
 import {
   getCombatTargetNpcId,
   getPlayerGold,

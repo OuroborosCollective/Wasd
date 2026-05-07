@@ -169,7 +169,7 @@ jobs:
 
       - name: Wait-for-it Health Check
         run: |
-          TARGET="46.202.154.25:80"
+          TARGET="${{ secrets.PRODUCTION_IP }}:80"
           TIMEOUT=300
           INTERVAL=10
           ELAPSED=0

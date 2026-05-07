@@ -7,7 +7,7 @@ import {
   type InteractNpcSnapshot,
   type InteractLootSnapshot,
   type InteractPoint as SharedInteractPoint,
-} from "@shared/utils/interaction";
+} from "@wasd/shared";
 
 /**
  * Interface for interaction messages sent between client components or to the server.
