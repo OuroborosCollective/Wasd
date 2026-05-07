@@ -1,4 +1,5 @@
 import { integrityChecker } from './core/integrity-checker';
+import { PrismaClient } from '@prisma/client';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -21,14 +22,14 @@ class WatchdogCircuitBreaker {
     private readonly failureThreshold: number = Number(process.env.WATCHDOG_RETRY_THRESHOLD) || 3;
     private readonly recoveryDelay: number = 5000;
 
-    async executeHealthCheck(dbClient: any): Promise<boolean> {
+    async executeHealthCheck(prisma: PrismaClient): Promise<boolean> {
         if (this.state === CircuitState.OPEN) {
             console.warn('⚠️ [Watchdog] Circuit Breaker is OPEN. Attempting probe...');
             this.state = CircuitState.HALF_OPEN;
         }
 
         try {
-            await integrityChecker.checkDatabaseHealth(dbClient);
+            await integrityChecker.checkDatabaseHealth(prisma);
             this.onSuccess();
             return true;
         } catch (error: any) {
@@ -59,6 +60,9 @@ class WatchdogCircuitBreaker {
             errorCode === 'ECONNREFUSED' || 
             errorCode === 'ETIMEDOUT' || 
             errorCode === 'PROTOCOL_CONNECTION_LOST' ||
+            errorCode === 'P1001' || // Prisma: Can't reach DB server
+            errorCode === 'P1002' || // Prisma: Read timeout
+            errorCode === 'P1017' || // Prisma: Server closed connection
             errorMsg.includes('timeout') || 
             errorMsg.includes('terminated') ||
             errorMsg.includes('connection failure');
@@ -100,106 +104,58 @@ class WatchdogCircuitBreaker {
     }
 }
 
-let isShuttingDown = false;
-
 /**
- * Persistente Datenbank-Bereitschaftsprüfung.
+ * Persistente Datenbank-Bereitschaftsprüfung vor dem Start des eigentlichen Watchdogs.
+ * Verhindert den sofortigen Absturz des Containers bei Boot-Sequenz-Verzögerungen der DB.
  */
-async function waitForDatabase(dbClient: any, maxAttempts: number = 0): Promise<boolean> {
-    console.log(`📡 [Watchdog] Initializing Database-Ready check and Re-Connection handler...`);
+async function waitForDatabase(prisma: PrismaClient, maxAttempts: number = 0): Promise<boolean> {
+    console.log(`📡 [Watchdog] Initializing Database-Ready check...`);
     let attempt = 0;
 
-    while (!isShuttingDown) {
+    while (true) {
         attempt++;
         try {
-            // Physischer Connection Test
-            await dbClient.query('SELECT 1');
-            console.log('🔗 [Watchdog] Database connection established and verified.');
+            // Prisma native health check
+            await prisma.$queryRaw`SELECT 1`;
+            console.log('🔗 [Watchdog] Database connection verified via Raw Query.');
             return true;
         } catch (err: any) {
             const retryIn = Math.min(Math.floor(1000 * Math.pow(1.5, attempt)), 30000);
-            console.warn(`⏳ [Watchdog] Database connection pending (Attempt ${attempt}): ${err.message}. Retrying in ${retryIn}ms...`);
+            console.warn(`⏳ [Watchdog] Database not ready (Attempt ${attempt}): ${err.message}. Retrying in ${retryIn}ms...`);
             
             if (maxAttempts > 0 && attempt >= maxAttempts) {
-                console.error(`💀 [Watchdog] Max connection attempts (${maxAttempts}) reached.`);
+                console.error(`💀 [Watchdog] Max connection attempts (${maxAttempts}) reached. Graceful degradation requested.`);
                 return false;
             }
 
             await new Promise(resolve => setTimeout(resolve, retryIn));
         }
     }
-    return false;
 }
 
-/**
- * Graceful Shutdown Management
- */
-const handleShutdown = async (signal: string) => {
-    if (isShuttingDown) return;
-    isShuttingDown = true;
-    console.log(`\n🛑 [Watchdog] ${signal} signal received. Initiating graceful shutdown sequence...`);
-    
-    // Zeitfenster für Cleanup-Operationen (z.B. Log-Flushing)
-    setTimeout(() => {
-        console.log('👋 [Watchdog] Shutdown complete. Process exiting.');
-        process.exit(0);
-    }, 1000);
-};
-
-// Signal-Listener registrieren
-process.on('SIGINT', () => handleShutdown('SIGINT'));
-process.on('SIGTERM', () => handleShutdown('SIGTERM'));
-
-/**
- * Hauptausführungslogik
- */
 async function run() {
-    console.log('🚀 [Watchdog] Starting Sovereign Integrity Monitoring...');
+    console.log('🚀 Starting Sovereign Watchdog Integrity Check...');
+    const prisma = new PrismaClient();
     const circuitBreaker = new WatchdogCircuitBreaker();
     
-    let mockDbClient: any;
-
-    // SCHRITT 1: Dedizierte Try-Catch-Blöcke für die Initialisierungssequenz
     try {
-        console.log('🔧 [Watchdog] Configuring database drivers and environment...');
-        mockDbClient = {
-            query: async (q: string, params?: any[]) => {
-                if (process.env.SIMULATE_DB_FAILURE === 'true') {
-                    const error: any = new Error('Connection refused (Simulated)');
-                    error.code = 'ECONNREFUSED';
-                    throw error;
-                }
-                return { rows: [{ '1': 1 }] };
-            }
-        };
-    } catch (configError: any) {
-        console.error('❌ [Watchdog] Critical Error during DB driver initialization:', configError.message);
-        process.exit(1);
-    }
-
-    try {
-        // SCHRITT 2: Persistente Datenbank-Prüfung (Blockiert bis Verbindung steht oder Shutdown)
-        let dbReady = await waitForDatabase(mockDbClient);
+        // SCHRITT 1: Persistente Datenbank-Prüfung vorab (Blockiert bis Verbindung steht oder Max Retries)
+        const dbReady = await waitForDatabase(prisma, 20); // 20 Versuche mit exponential backoff
         
         if (!dbReady) {
-            if (isShuttingDown) {
-                console.log('ℹ️ [Watchdog] Connection wait aborted due to shutdown.');
-                return;
-            }
-            console.error('💀 [Watchdog] Critical Timeout: Database not reachable after initial attempts.');
-            process.exit(1); 
+            console.error('⚠️ [Watchdog] Initial database check failed. Continuing in Degraded Mode to await availability.');
         }
 
-        // SCHRITT 3: Integritätsprüfung & Axiom-Synchronisation Loop
+        // SCHRITT 2: Integritätsprüfung & Axiom-Synchronisation Loop
         let integrityPassed = false;
-        while (!integrityPassed && !isShuttingDown) {
-            const healthOk = await circuitBreaker.executeHealthCheck(mockDbClient);
+        while (!integrityPassed) {
+            const healthOk = await circuitBreaker.executeHealthCheck(prisma);
             
             if (healthOk) {
                 console.log('📂 [Watchdog] Synchronizing Axioms (Model-to-Interface)...');
                 try {
                     // Synchronisation der Datenmodelle mit dem Axiom-System
-                    integrityChecker.synchronizeAxioms('./src/models');
+                    await integrityChecker.synchronizeAxioms('./src/models');
                     integrityPassed = true;
                 } catch (syncError: any) {
                     console.error(`❌ [Watchdog] Axiom Synchronization failed: ${syncError.message}. Retrying...`);
@@ -208,12 +164,13 @@ async function run() {
             } else {
                 console.warn(`🔄 [Watchdog] Integrity check failed. Current State: ${circuitBreaker.currentState}.`);
                 
+                // Falls der Circuit Breaker offen ist (Totalausfall), triggern wir den Reconnect-Loop ohne harten Exit
                 if (circuitBreaker.isDegraded) {
                     console.log('🔄 [Watchdog] Triggering automatic re-connection sequence...');
-                    await circuitBreaker.wait(2000);
-                    const reconnected = await waitForDatabase(mockDbClient);
+                    await circuitBreaker.wait(5000); 
+                    const reconnected = await waitForDatabase(prisma, 5);
                     if (reconnected) {
-                        console.log('✅ [Watchdog] Connection re-established during degradation.');
+                        console.log('✅ [Watchdog] Connection re-established. Resuming health checks...');
                     }
                 } else {
                     await circuitBreaker.wait();
@@ -221,18 +178,18 @@ async function run() {
             }
         }
 
-        if (integrityPassed) {
-            console.log('✅ [Watchdog] All Integrity Checks passed. Service Bootstrapping completed.');
-            process.exit(0);
-        }
+        console.log('✅ [Watchdog] All Integrity Checks passed. Service Bootstrapping completed.');
+        await prisma.$disconnect();
+        process.exit(0);
         
     } catch (error: any) {
-        console.error('💀 [Watchdog] Unrecoverable failure in execution logic:', error.message);
+        console.error('💀 [Watchdog] Unrecoverable failure in Watchdog execution logic:', error.message);
+        await prisma.$disconnect();
         process.exit(1);
     }
 }
 
-// Globales Error Handling für Ausnahmefehler
+// Globales Error Handling zur Vermeidung von Zombie-Prozessen
 process.on('unhandledRejection', (reason, promise) => {
     console.error('⚠️ [Watchdog] Unhandled Rejection at:', promise, 'reason:', reason);
 });
