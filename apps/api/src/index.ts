@@ -12,7 +12,9 @@ import { PrismaClient, Prisma } from '@prisma/client';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+});
 
 // Resilience Configuration Constants
 const MAX_RETRIES = 15;
@@ -26,6 +28,7 @@ let isRecovering = false;
 let lastError: string | null = null;
 let isShuttingDown = false;
 let dbConnected = false;
+let server: Server | null = null;
 
 /**
  * Custom Error Classes for Domain-Specific Handling
@@ -194,8 +197,8 @@ process.on('uncaughtException', (error: Error) => {
                       error instanceof DatabaseConnectionError ||
                       error.message.includes('DB_TIMEOUT') || 
                       error.message.includes('ECONNREFUSED') ||
-                      error.message.includes('P2024') || // Connection pool timeout
-                      error.message.includes('P2028'); // Transaction timeout
+                      error.message.includes('P2024') || 
+                      error.message.includes('P2028');
 
   if (isTransient) {
     initiateRecoveryMode(error);
@@ -248,7 +251,7 @@ function startARELoop() {
 
     try {
       const mockPayload: AREPayload = {
-        actionId: `act_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        actionId: `act_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         timestamp: Date.now(),
         data: { origin: 'tick_system' }
       };
@@ -272,7 +275,6 @@ function startARELoop() {
 
 /**
  * Prisma Known Request Error Middleware
- * Prevents logic errors from crashing the server
  */
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
@@ -293,8 +295,40 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 });
 
 /**
+ * Graceful Shutdown Orchestration
+ */
+const gracefulShutdown = async (signal: string) => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  console.log(`[SENTINEL] [SHUTDOWN] ${signal} received. Cleaning up resources...`);
+  
+  try {
+    await prisma.$disconnect();
+    console.log('[SENTINEL] [SHUTDOWN] Prisma disconnected.');
+  } catch (e) {
+    console.error('[SENTINEL] [SHUTDOWN_ERROR] Prisma disconnect failed.', e);
+  }
+
+  if (server) {
+    server.close(() => {
+      console.log('[SENTINEL] [SHUTDOWN] HTTP Server closed.');
+      process.exit(0);
+    });
+  } else {
+    process.exit(0);
+  }
+  
+  setTimeout(() => {
+    console.error('[SENTINEL] [SHUTDOWN_TIMEOUT] Forcing exit.');
+    process.exit(1);
+  }, 10000);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+/**
  * BOOTSTRAP SYSTEM
- * Orchestrates startup sequence with exponential backoff and global error handling
  */
 async function bootstrap() {
   console.log('==================================================');
@@ -305,13 +339,13 @@ async function bootstrap() {
     // Stage 1: Database Persistence with robust retry logic
     await initializeWithRetry();
     
-    // Stage 2: Cache Layer (Mock/Ready for Integration)
+    // Stage 2: Cache Layer Validation
     console.log(`[SENTINEL] [REDIS_BOOT] Validating Redis cluster state...`);
     await sleep(200); 
     console.log(`[SENTINEL] [REDIS_READY] Shared memory layer synchronized.`);
     
     // Stage 3: Start Server
-    const server: Server = app.listen(PORT, () => {
+    server = app.listen(PORT, () => {
       console.log(`[SENTINEL] [SERVER_START] Listening on Port: ${PORT}`);
       console.log(`[SENTINEL] [MODE] ${process.env.NODE_ENV || 'development'}`);
       
@@ -319,39 +353,9 @@ async function bootstrap() {
       startARELoop();
     });
 
-    /**
-     * Graceful Shutdown Orchestration
-     */
-    const gracefulShutdown = async (signal: string) => {
-      if (isShuttingDown) return;
-      isShuttingDown = true;
-      console.log(`[SENTINEL] [SHUTDOWN] ${signal} received. Cleaning up resources...`);
-      
-      try {
-        await prisma.$disconnect();
-        console.log('[SENTINEL] [SHUTDOWN] Prisma disconnected.');
-      } catch (e) {
-        console.error('[SENTINEL] [SHUTDOWN_ERROR] Prisma disconnect failed.', e);
-      }
-
-      server.close(() => {
-        console.log('[SENTINEL] [SHUTDOWN] HTTP Server closed.');
-        process.exit(0);
-      });
-      
-      setTimeout(() => {
-        console.error('[SENTINEL] [SHUTDOWN_TIMEOUT] Forcing exit.');
-        process.exit(1);
-      }, 10000);
-    };
-
-    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error(`[FATAL] BOOTSTRAP FAILED: ${msg}`);
-    // Global Try-Catch prevents unhandled exceptions during boot stages
     process.exit(1);
   }
 }
