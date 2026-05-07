@@ -25,10 +25,10 @@ export interface InteractionMsg {
  * Re-exports and wraps the shared logic for client-side use.
  */
 export const getClosestInteractable = (
-  playerPos: [number, number, number],
   snapshot: SharedInteractWorldSnapshot
 ): ClosestInteractable | null => {
-  return sharedGetClosestInteractable(playerPos, snapshot);
+  if (!snapshot.player) return null;
+  return sharedGetClosestInteractable(snapshot.player, snapshot);
 };
 
 /**

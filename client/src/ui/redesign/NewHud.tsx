@@ -19,7 +19,7 @@ import "./NewHud.css";
  * Implements the core UI overlay for Areloria WASD.
  * Synchronized with useGameHudState for Warfront, Quests, and Loot.
  */
-export const NewHud: React.FC = () => {
+export const NewHud: React.FC<any> = () => {
   const { 
     warfront, 
     activeQuests, 
@@ -83,8 +83,8 @@ export const NewHud: React.FC = () => {
             <h4 className="quest-title">Active Missions</h4>
             {activeQuests.map((quest: QuestStateNet) => (
               <div key={quest.id} className="quest-item">
-                <span className="quest-name">{quest.name}</span>
-                <span className="quest-progress">{quest.progress}/{quest.target}</span>
+                <span className="quest-name">{quest.title}</span>
+                <span className="quest-progress">{quest.progress}/{quest.goal}</span>
               </div>
             ))}
           </div>
@@ -92,9 +92,9 @@ export const NewHud: React.FC = () => {
       </div>
 
       {/* Center: Warfront Panel */}
-      {warfront && warfront.active && (
+      {warfront && (warfront.active || warfront.isActive) && (
         <div className="hud-center-overlay">
-          <WarfrontPanel state={warfront} />
+          <WarfrontPanel warfront={warfront} />
         </div>
       )}
 
@@ -132,7 +132,7 @@ export const NewHud: React.FC = () => {
       )}
 
       {/* Mobile Optimization Layer */}
-      {deviceTier === "mobile" && (
+      {(deviceTier as string) === "mobile" && (
         <div className="hud-mobile-controls">
           {/* Virtueller Joystick wird durch GameCanvas gerendert, hier nur Overlays */}
         </div>
