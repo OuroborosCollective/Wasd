@@ -141,7 +141,7 @@ export function showDialogue(payload: string | DialoguePayload) {
     });
     closeBtn.onclick = (e) => {
       e.stopPropagation();
-      dialogueBox!.style.display = "none";
+      handleClose();
     };
     closeRow.appendChild(closeBtn);
     dialogueBox.appendChild(closeRow);
@@ -159,9 +159,13 @@ export function showDialogue(payload: string | DialoguePayload) {
     positionDialogue();
     window.addEventListener("resize", positionDialogue);
 
+    const handleClose = () => {
+      if (dialogueBox) dialogueBox.style.display = "none";
+    };
+
     window.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && dialogueBox?.style.display !== "none") {
-        dialogueBox!.style.display = "none";
+        handleClose();
       }
     });
   }
@@ -191,7 +195,6 @@ export function showDialogue(payload: string | DialoguePayload) {
       btn.style.color = "#e8ecf5";
       btn.style.cursor = "pointer";
       btn.style.transition = "background-color 0.15s ease, border-color 0.15s ease";
-
       btn.addEventListener("mouseenter", () => {
         btn.style.background = "rgba(45, 52, 75, 0.98)";
         btn.style.borderColor = "#f27d26";
@@ -211,7 +214,6 @@ export function showDialogue(payload: string | DialoguePayload) {
         btn.style.borderColor = "#d4af37";
         btn.style.boxShadow = "none";
       });
-
       btn.onclick = (e) => {
         e.stopPropagation();
         if (!npcId) return;
