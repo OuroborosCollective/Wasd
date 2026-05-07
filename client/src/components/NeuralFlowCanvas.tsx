@@ -10,7 +10,7 @@ interface Particle {
   alpha: number;
 }
 
-const NeuralFlowCanvas: React.FC<any> = () => {
+const NeuralFlowCanvas: React.FC<any> = (props: any) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const mouseRef = useRef({ x: 0, y: 0, active: false });
   const particlesRef = useRef<Particle[]>([] as Particle[]);

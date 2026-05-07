@@ -17,7 +17,7 @@ interface Metrics {
 const HISTORY_LIMIT = 100;
 const EXPECTED_TICK_MS = 16.666; // 60Hz Target
 
-export const TimingMonitor: React.FC<any> = () => {
+export const TimingMonitor: React.FC<any> = (props: any) => {
   const [metrics, setMetrics] = useState<Metrics>({
     avgJitter: 0,
     maxJitter: 0,

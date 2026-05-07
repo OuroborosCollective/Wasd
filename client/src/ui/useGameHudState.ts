@@ -49,7 +49,7 @@ export interface GameHudState {
   entities: EntityNet[];
   loot: LootNet[];
   fxFeed: any[];
-  inv: any; // Added for redesign compatibility
+  inv: any;
   onWirePayload: (payload: any) => void;
   onEntitySync: (entities: any) => void;
   onLootSpawned: (loot: any) => void;
@@ -86,29 +86,23 @@ export const useGameHudState = (): GameHudState => {
   });
 
   const syncState = useCallback(() => {
-    try {
-      setState((prev) => ({
-        ...prev,
-        gold: getPlayerGold?.() ?? 0,
-        inventory: getPlayerInventory?.() ?? [],
-        weight: getPlayerInventoryWeight?.() ?? 0,
-        maxWeight: getPlayerMaxCarryWeight?.() ?? 0,
-        quests: getPlayerQuests?.() ?? [],
-        targetNpcId: getCombatTargetNpcId?.() ?? null,
-      }));
-    } catch (e) {
-      console.warn("Failed to sync player state in HUD", e);
-    }
+    setState((prev) => ({
+      ...prev,
+      gold: typeof getPlayerGold === 'function' ? getPlayerGold() : 0,
+      inventory: typeof getPlayerInventory === 'function' ? getPlayerInventory() : [],
+      weight: typeof getPlayerInventoryWeight === 'function' ? getPlayerInventoryWeight() : 0,
+      maxWeight: typeof getPlayerMaxCarryWeight === 'function' ? getPlayerMaxCarryWeight() : 0,
+      quests: typeof getPlayerQuests === 'function' ? getPlayerQuests() : [],
+      targetNpcId: typeof getCombatTargetNpcId === 'function' ? getCombatTargetNpcId() : null,
+    }));
   }, []);
 
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
-    try {
-      unsubscribe = subscribePlayerState?.(syncState);
-      syncState();
-    } catch (e) {
-      console.error("HUD failed to subscribe to player state", e);
+    let unsubscribe: any;
+    if (typeof subscribePlayerState === 'function') {
+        unsubscribe = subscribePlayerState(syncState);
     }
+    syncState();
     return () => unsubscribe?.();
   }, [syncState]);
 

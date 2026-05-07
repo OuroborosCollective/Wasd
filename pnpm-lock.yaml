@@ -169,7 +169,7 @@ importers:
   client:
     dependencies:
       '@babylonjs/addons':
-        specifier: ^7.0.0
+        specifier: ^7.54.3
         version: 7.54.3(@babylonjs/core@9.5.2)
       '@babylonjs/core':
         specifier: ^9.5.2
