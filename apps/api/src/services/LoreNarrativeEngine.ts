@@ -1,3 +1,6 @@
+import { PrismaClient } from '@prisma/client';
+import { createHash } from 'crypto';
+
 export type TechnicalImpact = 'feat' | 'fix' | 'refactor' | 'chore' | 'docs' | 'perf' | 'style' | 'test';
 
 export interface LoreInput {
@@ -19,10 +22,17 @@ export interface LoreOutput {
   metadata: {
     originHash?: string;
     impactLevel: number;
+    seedChain: string;
   };
 }
 
 export class LoreNarrativeEngine {
+  private readonly prisma: PrismaClient;
+
+  constructor(prisma: PrismaClient) {
+    this.prisma = prisma;
+  }
+
   private readonly loreTemplates: Record<TechnicalImpact, string[]> = {
     feat: [
       'Ein neues Wunder manifestierte sich in den Hallen von {scope}.',
@@ -66,13 +76,52 @@ export class LoreNarrativeEngine {
     ]
   };
 
+  /**
+   * Generates Lore-Seeded Pseudo-Randomness (LSPR)
+   * Converts a cryptographic hex string into a deterministic floating point [0, 1)
+   */
+  private lspr(seed: string): number {
+    const hash = createHash('sha256').update(seed).digest('hex');
+    const part = parseInt(hash.substring(0, 8), 16);
+    return part / 0xffffffff;
+  }
+
+  /**
+   * Fetches the current world-state hash from the last lore entry to maintain the seed chain.
+   */
+  private async getWorldStateHash(): Promise<string> {
+    const latestLore = await this.prisma.lore.findFirst({
+      orderBy: { recordedAt: 'desc' }
+    });
+    
+    // Fallback to a genesis seed if no lore exists
+    if (!latestLore || !latestLore.metadata) {
+      return createHash('sha256').update('ARELORIA_GENESIS').digest('hex');
+    }
+
+    const metadata = latestLore.metadata as any;
+    return metadata.seedChain || createHash('sha256').update(JSON.stringify(latestLore)).digest('hex');
+  }
+
+  /**
+   * Creates a new seed in the chain based on the world state and the current technical input.
+   */
+  private generateNewSeedChain(worldHash: string, input: LoreInput): string {
+    const entropy = `${worldHash}-${input.hash || 'volatile'}-${input.author}-${Date.now()}`;
+    return createHash('sha256').update(entropy).digest('hex');
+  }
+
   public async translateTechnicalToLore(input: LoreInput): Promise<LoreOutput> {
+    const worldHash = await this.getWorldStateHash();
+    const seedChain = this.generateNewSeedChain(worldHash, input);
+    
     const templates = this.loreTemplates[input.type] || ['Ein unbenanntes Ereignis erschütterte Areloria.'];
-    const template = templates[Math.floor(Math.random() * templates.length)];
+    
+    // Deterministic selection based on the seed chain
+    const templateIndex = Math.floor(this.lspr(seedChain + '_template') * templates.length);
+    const template = templates[templateIndex];
     
     let narrative = template;
-    
-    // Vermeidung von replace(//g) durch Nutzung von split/join für globale Ersetzungen
     narrative = narrative.split('{subject}').join(input.subject);
     narrative = narrative.split('{scope}').join(input.scope || 'Areloria');
     narrative = narrative.split('{author}').join(input.author);
@@ -81,23 +130,29 @@ export class LoreNarrativeEngine {
       narrative += ` Es heißt in den Legenden: "${input.body}"`;
     }
 
+    const impactBase = this.calculateImpact(input.type);
+    // Add minor deterministic variance to impact based on seed
+    const impactVariance = Math.floor(this.lspr(seedChain + '_impact') * 3) - 1; 
+
     return {
-      id: `lore_${Math.random().toString(36).substring(2, 9)}`,
-      title: this.generateLoreTitle(input),
+      id: `lore_${createHash('md5').update(seedChain).digest('hex').substring(0, 12)}`,
+      title: this.generateSeededLoreTitle(input, seedChain),
       narrative: narrative,
       category: this.mapTypeToLoreCategory(input.type),
       recordedAt: new Date(),
       chronicler: input.author,
       metadata: {
         originHash: input.hash,
-        impactLevel: this.calculateImpact(input.type)
+        impactLevel: Math.max(1, impactBase + impactVariance),
+        seedChain: seedChain
       }
     };
   }
 
-  private generateLoreTitle(input: LoreInput): string {
-    const prefixes = ['Das Erwachen von', 'Die Läuterung von', 'Die Chronik über', 'Das Mysterium von'];
-    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+  private generateSeededLoreTitle(input: LoreInput, seed: string): string {
+    const prefixes = ['Das Erwachen von', 'Die Läuterung von', 'Die Chronik über', 'Das Mysterium von', 'Das Vermächtnis von'];
+    const prefixIndex = Math.floor(this.lspr(seed + '_title') * prefixes.length);
+    const prefix = prefixes[prefixIndex];
     return `${prefix} ${input.scope || input.subject}`;
   }
 

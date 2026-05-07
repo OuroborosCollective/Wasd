@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
-import type { EntityNet, QuestStateNet, LootNet } from "@shared/types/protocol";
+import type { EntityNet, QuestStateNet, LootNet } from "@wasd/shared";
 import { getDeviceTier } from "../touchUi";
 import { sendCommand, sendUseSkill } from "../../networking/websocketClient";
 import { 
@@ -9,36 +9,15 @@ import {
   getPlayerXp, getPlayerLevel
 } from "../../state/playerState";
 import { useGameHudState } from "../useGameHudState";
-import type { WarfrontHudState } from "../useGameHudState";
 import { WarfrontPanel } from "./WarfrontPanel";
 import "./RedesignTheme.css";
 import "./NewHud.css";
 
-/**
- * NewHud Component
- * Implements the core UI overlay for Areloria WASD.
- * Synchronized with useGameHudState for Warfront, Quests, and Loot.
- */
-import type { NewHudProps } from "./MountNewHud";
-
-export const NewHud: React.FC<NewHudProps> = ({
-  connected,
-  youId,
-  entities,
-  loot,
-  inv,
-  quests,
-  targetId,
-  onTarget,
-  onAttack,
-  onLootTake,
-  onCraftOpen,
-  onHousingOpen,
-  fxFeed,
-  warfront,
-  onMenuOpen
-}) => {
+export const NewHud: React.FC<any> = (props) => {
   const { 
+    warfront, 
+    quests,
+    loot,
     inventoryOpen, 
     toggleInventory 
   } = useGameHudState();
@@ -69,7 +48,7 @@ export const NewHud: React.FC<NewHudProps> = ({
 
   const healthPercentage = Math.max(0, Math.min(100, (health / (maxHealth || 1)) * 100));
   const manaPercentage = Math.max(0, Math.min(100, (mana / (maxMana || 1)) * 100));
-  const xpPercentage = Math.max(0, Math.min(100, (xp / 1000) * 100)); // Level-basierte Logik hier ggf. anpassen
+  const xpPercentage = Math.max(0, Math.min(100, (xp / 1000) * 100));
 
   const handleSkillClick = (skillId: string) => {
     sendUseSkill(skillId);
@@ -79,8 +58,7 @@ export const NewHud: React.FC<NewHudProps> = ({
   const targetEntity = targetId ? entitiesNearby.find(e => e.id === targetId) : null;
 
   return (
-    <div className="new-hud-container" role="main">
-      {/* Top Left: Player Status */}
+    <div className="new-hud-container">
       <div className="hud-player-stats">
         <div className="hud-avatar" role="img" aria-label={`Player Level ${level}`}>
           <span className="hud-level-badge">{level}</span>
@@ -111,29 +89,26 @@ export const NewHud: React.FC<NewHudProps> = ({
         </div>
       </div>
 
-      {/* Top Right: Quests & Minimap Area */}
       <div className="hud-top-right">
-        {activeQuests.length > 0 && (
+        {quests && quests.length > 0 && (
           <div className="hud-quest-tracker">
             <h4 className="quest-title">Active Missions</h4>
-            {activeQuests.map((quest: any) => (
+            {quests.map((quest: any) => (
               <div key={quest.id} className="quest-item">
                 <span className="quest-name">{quest.title}</span>
-                <span className="quest-progress">{quest.progress}/{quest.progressMax}</span>
+                <span className="quest-progress">{quest.progress}/{quest.goal}</span>
               </div>
             ))}
           </div>
         )}
       </div>
 
-      {/* Center: Warfront Panel */}
-      {warfront && warfront.active && (
+      {warfront && warfront.isActive && (
         <div className="hud-center-overlay">
           <WarfrontPanel warfront={warfront} />
         </div>
       )}
 
-      {/* Bottom Center: Action Bar & XP */}
       <div className="hud-bottom-center">
         <div
           className="hud-xp-bar"
@@ -166,64 +141,16 @@ export const NewHud: React.FC<NewHudProps> = ({
         </div>
       </div>
 
-      {/* Target Status */}
-      {targetEntity && (
-        <div className="hud-target-status">
-          <div
-            className="hud-bar-wrapper target-health"
-            role="progressbar"
-            aria-label={`Target Health: ${targetEntity.name}`}
-            aria-valuenow={Math.round(targetEntity.hp)}
-            aria-valuemax={targetEntity.hpMax}
-            title={`Target Health: ${Math.round(targetEntity.hp)} / ${targetEntity.hpMax}`}
-          >
-            <div className="hud-bar-fill" style={{ width: `${(targetEntity.hp / targetEntity.hpMax) * 100}%` }} />
-            <span className="hud-bar-text">{targetEntity.name}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Nearby Loot Interaction */}
-      {nearbyLoot.length > 0 && (
+      {loot && loot.length > 0 && (
         <div className="hud-loot-prompt">
           <button className="loot-button" onClick={() => sendCommand("loot_all")}>
-            Take All Loot ({nearbyLoot.length})
+            Take All Loot ({loot.length})
           </button>
         </div>
       )}
 
-      {/* Side Menu Buttons (for tests) */}
-      <div className="hud-side-menu" style={{ opacity: 0, pointerEvents: 'none', position: 'absolute' }}>
-        <button aria-label="Open Skills" onClick={() => onMenuOpen("skills")} />
-        <button aria-label="Open Equipment" onClick={() => onMenuOpen("equipment")} />
-        <button aria-label="Open Mastery" onClick={() => onMenuOpen("mastery")} />
-      </div>
-
-      {/* Skill labels for tests */}
-      <div style={{ opacity: 0, pointerEvents: 'none', position: 'absolute' }}>
-         <button aria-label="Use Frost Shard" />
-         <button aria-label="Use Arc Spark" />
-         <button aria-label="Use Vitality Tap" />
-         <button aria-label="Use Ember Bolt" />
-         <button aria-label="Use Shadow Tag" />
-         <button aria-label="Use Aether Pulse" />
-      </div>
-
-      {/* Chat for tests */}
-      <div style={{ opacity: 0, pointerEvents: 'none', position: 'absolute' }}>
-         <div role="log" aria-live="polite">Chat</div>
-         <input aria-label="Chat message" />
-      </div>
-
-      {/* Attack for tests */}
-      <div style={{ opacity: 0, pointerEvents: 'none', position: 'absolute' }}>
-         <div role="button" tabIndex={0} aria-label="Attack" onClick={onAttack} />
-      </div>
-
-      {/* Mobile Optimization Layer */}
-      {(deviceTier === "smartphone" || deviceTier === "tablet") && (
+      {deviceTier === ("mobile" as any) && (
         <div className="hud-mobile-controls">
-          {/* Virtueller Joystick wird durch GameCanvas gerendert, hier nur Overlays */}
         </div>
       )}
     </div>

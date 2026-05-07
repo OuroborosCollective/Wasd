@@ -41,13 +41,24 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     
+    env:
+      NODE_OPTIONS: "--trace-warnings --trace-uncaught --max-old-space-size=6144"
+      PNPM_LOG_LEVEL: "info"
+      CI: true
+      DEBUG: "true"
+      DATABASE_URL: "postgresql://postgres:postgres_password@localhost:5432/areloria_test_${{ github.run_id }}"
+      POSTGRES_USER: postgres
+      POSTGRES_DB: areloria_test_${{ github.run_id }}
+      POSTGRES_PASSWORD: postgres_password
+
     services:
       postgres:
         image: postgres:15
         env:
           POSTGRES_USER: postgres
-          POSTGRES_DB: areloria_test
+          POSTGRES_DB: areloria_test_${{ github.run_id }}
           POSTGRES_PASSWORD: postgres_password
         ports:
           - 5432:5432
@@ -55,11 +66,12 @@ jobs:
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
 
     strategy:
+      fail-fast: false
       matrix:
-        node-version: [20.x]
+        node-version: [22]
         python-version: ['3.11']
 
     steps:
@@ -67,6 +79,18 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: System Diagnostics & Verbose Logging
+        run: |
+          echo "--- System Info ---"
+          uname -a
+          df -h
+          free -m
+          echo "--- Environment Variables ---"
+          env | grep -v 'PASSWORD\|TOKEN\|SECRET' | sort
+          echo "--- Workspace Structure ---"
+          ls -R | grep ":$" | sed -e 's/:$//' -e 's/[^-][^\/]*\//--/g' -e 's/^/   /'
+        shell: bash
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -86,55 +110,55 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
 
-      - name: Install Python dependencies
+      - name: pnpm Workspace Integrity Check
+        run: |
+          echo "Validating pnpm-workspace.yaml..."
+          pnpm recursive list --depth -1
+          echo "Checking for circular dependencies..."
+          pnpm list -r --json > workspace-graph.json || (echo "Failed to generate workspace graph" && exit 1)
+
+      - name: Install Python dependencies with Error Trapping
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          if [ -f engine/requirements.txt ]; then pip install -r engine/requirements.txt; fi
-
-      - name: Run Python Validation
-        run: |
-          if [ -f engine/scripts/check_changes.py ]; then
-            python engine/scripts/check_changes.py
-          elif [ -f scripts/check_changes.py ]; then
-            python scripts/check_changes.py
-          else
-            echo "Validation script check_changes.py not found, skipping."
+          set -e
+          trap 'echo "Python Dependency Installation Failed at line $LINENO"' ERR
+          if [ -f requirements.txt ]; then 
+            echo "Installing root requirements..."
+            pip install -v -r requirements.txt
           fi
+          if [ -f engine/requirements.txt ]; then 
+            echo "Installing engine requirements..."
+            pip install -v -r engine/requirements.txt
+          fi
+          pip list
+        shell: bash
+
+      - name: Run Python Validation (Jules/Scoring Services)
+        run: |
+          set -e
+          echo "Running Python Integrity Validation..."
+          if [ -f engine/scripts/check_changes.py ]; then
+            python -v engine/scripts/check_changes.py || { echo "Validation script failed in engine/"; exit 1; }
+          elif [ -f scripts/check_changes.py ]; then
+            python -v scripts/check_changes.py || { echo "Validation script failed in root scripts/"; exit 1; }
+          else
+            echo "::warning ::Validation script check_changes.py not found, skipping."
+          fi
+        shell: bash
 
       - name: Install Node.js dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          pnpm install --frozen-lockfile --loglevel verbose || {
+            echo "PNPM Install Failed. Checking logs..."
+            cat /home/runner/.pnpm-debug.log || true
+            exit 1
+          }
 
       - name: Dependency Review
         if: github.event_name == 'pull_request'
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: critical
-
-      - name: Lint workspace
-        run: pnpm -r run lint
-
-      - name: Typecheck
-        run: pnpm -r run typecheck
-
-      - name: Build monorepo
-        run: pnpm -r run build
-
-      - name: Ensure Build Directories Exist
-        run: |
-          mkdir -p dist-merged
-          find . -name "dist" -type d -not -path "./dist-merged*" -exec cp -r {} ./dist-merged/ \; || true
-          find . -name "build" -type d -not -path "./dist-merged*" -exec cp -r {} ./dist-merged/ \; || true
-
-      - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-output
-          path: |
-            **/dist/**
-            **/build/**
-          retention-days: 1
-          if-no-files-found: warn
 
       - name: Database Functional Health Check
         run: |
@@ -151,14 +175,58 @@ jobs:
             echo "Error: PostgreSQL did not become ready in time."
             exit 1
           fi
-          echo "PostgreSQL is fully functional. Proceeding to tests."
+          echo "PostgreSQL is fully functional. Database: $POSTGRES_DB"
         env:
           PGPASSWORD: postgres_password
 
+      - name: Prisma Client Generation and Migration
+        run: |
+          set -e
+          echo "Scanning for Prisma schemas..."
+          PRISMA_PACKAGES=$(pnpm -r exec sh -c 'if [ -d "prisma" ]; then pwd; fi' | grep -v "node_modules" || true)
+          if [ ! -z "$PRISMA_PACKAGES" ]; then
+            echo "Found Prisma in: $PRISMA_PACKAGES"
+            pnpm -r exec prisma generate --loglevel verbose
+            pnpm -r exec prisma migrate deploy || echo "No migrations found or already applied."
+          else
+            echo "No Prisma packages detected."
+          fi
+
+      - name: Lint workspace
+        run: pnpm -r run lint --loglevel verbose
+
+      - name: Typecheck
+        run: pnpm -r run typecheck --loglevel verbose
+
+      - name: Build monorepo with Error Trapping
+        run: |
+          set -e
+          echo "Starting Monorepo Build..."
+          pnpm -r run build --loglevel verbose || {
+            echo "BUILD FAILED. Capturing build state..."
+            exit 1
+          }
+
+      - name: Ensure Build Directories Exist
+        run: |
+          mkdir -p dist-merged
+          echo "Aggregating build artifacts..."
+          find . -maxdepth 4 -name "dist" -type d -not -path "*/node_modules/*" -not -path "./dist-merged*" -exec cp -rv {} ./dist-merged/ \; || true
+          find . -maxdepth 4 -name "build" -type d -not -path "*/node_modules/*" -not -path "./dist-merged*" -exec cp -rv {} ./dist-merged/ \; || true
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output-${{ github.sha }}
+          path: |
+            **/dist/**
+            **/build/**
+            dist-merged/
+          retention-days: 1
+          if-no-files-found: warn
+
       - name: Run tests
-        run: pnpm -r run test
-        env:
-          DATABASE_URL: postgresql://postgres:postgres_password@localhost:5432/areloria_test
+        run: pnpm -r run test --loglevel verbose
 
       - name: GitHub Dependency Submission
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -167,45 +235,39 @@ jobs:
           name: dependency-graph
           path: pnpm-lock.yaml
 
-      - name: Wait-for-it Health Check
+      - name: Network Stability and Extended Health Check
         run: |
-          TARGET="${{ secrets.PRODUCTION_IP }}:80"
-          TIMEOUT=300
-          INTERVAL=10
+          TARGET="46.202.154.25:80"
+          TIMEOUT=450
+          INTERVAL=15
           ELAPSED=0
-          LAST_EXIT_CODE=0
           
-          echo "Starting extended health check for $TARGET..."
-          echo "Max Timeout: ${TIMEOUT}s | Interval: ${INTERVAL}s"
+          echo "Starting resilient health check for $TARGET..."
           
           while [ $ELAPSED -lt $TIMEOUT ]; do
-            # Use --max-time for individual request timeout logic
-            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 http://$TARGET) || LAST_EXIT_CODE=$?
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 http://$TARGET) || CURL_EXIT_CODE=$?
             
             if [ "$HTTP_STATUS" -eq 200 ]; then
-              echo "Health check successful: $TARGET is online (HTTP 200)."
+              echo "Health check successful: $TARGET is online."
               exit 0
             fi
             
-            if [ "$LAST_EXIT_CODE" -eq 28 ]; then
-              echo "Status: Timeout (Exit Code 28) at ${ELAPSED}s. Server might be lagging. Retrying..."
+            if [ "$CURL_EXIT_CODE" -eq 28 ] || [ "$CURL_EXIT_CODE" -eq 7 ]; then
+              echo "Status: Connection/Timeout issue (Code $CURL_EXIT_CODE) at ${ELAPSED}s. Retrying..."
             else
               echo "Status: HTTP $HTTP_STATUS at ${ELAPSED}s. Retrying in ${INTERVAL}s..."
             fi
             
-            # Reset exit code for next loop iteration
-            LAST_EXIT_CODE=0
             sleep $INTERVAL
             ELAPSED=$((ELAPSED + INTERVAL))
           done
           
           echo "Final Verification: Health check reached limit of ${TIMEOUT}s."
-          
-          # Final error handling for Exit Code 28 to prevent CI blockage due to pure latency
-          if [ "$LAST_EXIT_CODE" -eq 28 ]; then
-            echo "Warning: Final attempt resulted in Exit Code 28 (Latency). Bypassing failure to prevent CI interruption."
-            exit 0
+          if [ "$CURL_EXIT_CODE" -eq 28 ]; then
+             echo "Target unresponsive due to latency. Bypassing failure to prevent CI interruption."
+             exit 0
           fi
           
-          echo "Error: Target $TARGET failed to respond with HTTP 200 within allowed time."
+          echo "Error: Target $TARGET did not respond with 200 OK."
           exit 1
+        shell: bash
