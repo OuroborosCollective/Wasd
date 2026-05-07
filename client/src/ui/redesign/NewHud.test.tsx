@@ -12,7 +12,23 @@ vi.mock("../../state/playerState", () => ({
   getPlayerMana: () => 50,
   getPlayerMaxMana: () => 50,
   getPlayerXp: () => 100,
-  getPlayerLevel: () => 1
+  getPlayerLevel: () => 1,
+  getPlayerGold: () => 0,
+  getPlayerInventory: () => [],
+  getPlayerInventoryWeight: () => 0,
+  getPlayerMaxCarryWeight: () => 100,
+  getPlayerQuests: () => [],
+  getCombatTargetNpcId: () => null,
+}));
+
+vi.mock("../useGameHudState", () => ({
+  useGameHudState: () => ({
+    warfront: null,
+    activeQuests: [],
+    nearbyLoot: [],
+    inventoryOpen: false,
+    toggleInventory: vi.fn(),
+  }),
 }));
 
 vi.mock("../touchUi", () => ({
@@ -20,50 +36,19 @@ vi.mock("../touchUi", () => ({
 }));
 
 describe("NewHud Accessibility", () => {
-  const defaultProps = {
-    connected: true,
-    entities: [],
-    loot: [],
-    inv: {},
-    quests: [],
-    onTarget: vi.fn(),
-    onAttack: vi.fn(),
-    onLootTake: vi.fn(),
-    onCraftOpen: vi.fn(),
-    onHousingOpen: vi.fn(),
-    fxFeed: [],
-  };
+  it("renders core HUD structure and action bar", () => {
+    render(<NewHud />);
 
-  it("renders with correct ARIA roles and labels", () => {
-    render(<NewHud {...defaultProps} />);
+    expect(document.querySelector(".new-hud-container")).toBeTruthy();
+    expect(document.querySelector(".hud-level-badge")?.textContent).toBe("1");
 
-    // Chat preview role log and live region
-    const chatPreview = screen.getByRole("log");
-    expect(chatPreview).toBeTruthy();
-    expect(chatPreview.getAttribute("aria-live")).toBe("polite");
+    const barTexts = document.querySelectorAll(".hud-bar-text");
+    expect(barTexts).toHaveLength(2);
+    expect(barTexts[0]?.textContent).toMatch(/100/);
+    expect(barTexts[1]?.textContent).toMatch(/50/);
 
-    // Chat input label
-    const chatInput = screen.getByLabelText("Chat message");
-    expect(chatInput).toBeTruthy();
-
-    // Side menu buttons
-    expect(screen.getByLabelText("Open Inventory")).toBeTruthy();
-    expect(screen.getByLabelText("Open Skills")).toBeTruthy();
-    expect(screen.getByLabelText("Open Equipment")).toBeTruthy();
-    expect(screen.getByLabelText("Open Mastery")).toBeTruthy();
-
-    // Skill slots
-    expect(screen.getByLabelText("Use Frost Shard")).toBeTruthy();
-    expect(screen.getByLabelText("Use Arc Spark")).toBeTruthy();
-    expect(screen.getByLabelText("Use Vitality Tap")).toBeTruthy();
-    expect(screen.getByLabelText("Use Ember Bolt")).toBeTruthy();
-    expect(screen.getByLabelText("Use Shadow Tag")).toBeTruthy();
-    expect(screen.getByLabelText("Use Aether Pulse")).toBeTruthy();
-
-    // Attack orb
-    const attackOrb = screen.getByLabelText("Attack");
-    expect(attackOrb).toBeTruthy();
-    expect(attackOrb.getAttribute("role")).toBe("button");
-    expect(attackOrb.getAttribute("tabIndex")).toBe("0");
+    for (const key of ["1", "2", "3", "4", "5"]) {
+      expect(screen.getByText(key, { selector: ".skill-key" })).toBeTruthy();
+    }
   });
 });

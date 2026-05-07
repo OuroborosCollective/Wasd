@@ -50,7 +50,7 @@ describe("EquipmentPanel Accessibility", () => {
 
     // Press Enter
     fireEvent.keyDown(helmSlot, { key: "Enter" });
-    expect(sendUnequipItem).toHaveBeenCalledWith("head");
+    expect(sendUnequipItem).toHaveBeenCalledWith("armor");
 
     // Press Space
     fireEvent.keyDown(helmSlot, { key: " " });

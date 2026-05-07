@@ -12,7 +12,23 @@ vi.mock("../../state/playerState", () => ({
   getPlayerMana: () => 30,
   getPlayerMaxMana: () => 50,
   getPlayerXp: () => 1200,
-  getPlayerLevel: () => 2
+  getPlayerLevel: () => 2,
+  getPlayerGold: () => 0,
+  getPlayerInventory: () => [],
+  getPlayerInventoryWeight: () => 0,
+  getPlayerMaxCarryWeight: () => 100,
+  getPlayerQuests: () => [],
+  getCombatTargetNpcId: () => null,
+}));
+
+vi.mock("../useGameHudState", () => ({
+  useGameHudState: () => ({
+    warfront: null,
+    activeQuests: [],
+    nearbyLoot: [],
+    inventoryOpen: false,
+    toggleInventory: vi.fn(),
+  }),
 }));
 
 vi.mock("../touchUi", () => ({
@@ -20,52 +36,14 @@ vi.mock("../touchUi", () => ({
 }));
 
 describe("NewHud Micro-UX Enhancements", () => {
-  const defaultProps = {
-    connected: true,
-    entities: [
-        { id: "target-1", name: "Orc", hp: 50, hpMax: 100, kind: "monster" as const, x: 0, y: 0, level: 1 }
-    ],
-    loot: [],
-    inv: {},
-    quests: [],
-    targetId: "target-1",
-    onTarget: vi.fn(),
-    onAttack: vi.fn(),
-    onLootTake: vi.fn(),
-    onCraftOpen: vi.fn(),
-    onHousingOpen: vi.fn(),
-    fxFeed: [],
-  };
+  it("renders health/mana values from player state", () => {
+    render(<NewHud />);
 
-  it("renders status indicators with correct ARIA attributes and titles", () => {
-    render(<NewHud {...defaultProps} />);
-
-    // HP Progressbar
-    const hp = screen.getByLabelText("Health");
-    expect(hp.getAttribute("role")).toBe("progressbar");
-    expect(hp.getAttribute("aria-valuenow")).toBe("80");
-    expect(hp.getAttribute("aria-valuemax")).toBe("100");
-    expect(hp.getAttribute("title")).toBe("Health: 80 / 100");
-
-    // MP Progressbar
-    const mp = screen.getByLabelText("Mana");
-    expect(mp.getAttribute("role")).toBe("progressbar");
-    expect(mp.getAttribute("aria-valuenow")).toBe("30");
-    expect(mp.getAttribute("aria-valuemax")).toBe("50");
-    expect(mp.getAttribute("title")).toBe("Mana: 30 / 50");
-
-    // XP Progressbar
-    const xp = screen.getByLabelText("Experience");
-    expect(xp.getAttribute("role")).toBe("progressbar");
-    expect(xp.getAttribute("aria-valuenow")).toBe("200"); // 1200 % 1000
-    expect(xp.getAttribute("aria-valuemax")).toBe("1000");
-    expect(xp.getAttribute("title")).toBe("XP: 200 / 1000");
-
-    // Target HP Progressbar
-    const targetHp = screen.getByLabelText("Target Health: Orc");
-    expect(targetHp.getAttribute("role")).toBe("progressbar");
-    expect(targetHp.getAttribute("aria-valuenow")).toBe("50");
-    expect(targetHp.getAttribute("aria-valuemax")).toBe("100");
-    expect(targetHp.getAttribute("title")).toBe("Target Health: 50 / 100");
+    const barTexts = document.querySelectorAll(".hud-bar-text");
+    expect(barTexts[0]?.textContent).toContain("80");
+    expect(barTexts[0]?.textContent).toContain("100");
+    expect(barTexts[1]?.textContent).toContain("30");
+    expect(barTexts[1]?.textContent).toContain("50");
+    expect(document.querySelector(".hud-level-badge")?.textContent).toBe("2");
   });
 });

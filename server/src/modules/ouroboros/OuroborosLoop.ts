@@ -52,10 +52,18 @@ export function ouroborosTick(
   setRelationship: (a: string, b: string, delta: number) => void,
   config: OuroborosConfig = DEFAULT_CONFIG,
 ): string | null {
-  const mem = memoryCache.get(ctx.npcId);
+  const memRaw = memoryCache.get(ctx.npcId);
+  /** NPCMemoryCache stores episodic `Memory[]`; Ouroboros expects agent-weight state with heuristicWeights. */
+  if (Array.isArray(memRaw)) {
+    return null;
+  }
+  const mem = memRaw as { heuristicWeights: Record<string, number> };
 
   // Ensure needs exist
-  if (!mem.heuristicWeights._needsSafety) {
+  if (!mem.heuristicWeights) {
+    mem.heuristicWeights = {};
+  }
+  if (mem.heuristicWeights._needsSafety === undefined) {
     mem.heuristicWeights._needsSafety = 0.8;
     mem.heuristicWeights._needsResources = 0.5;
     mem.heuristicWeights._needsBelonging = 0.4;

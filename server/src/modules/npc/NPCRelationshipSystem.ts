@@ -1,4 +1,4 @@
-import { TerritoryControl } from "../territory/TerritoryControl";
+import { TerritoryControl } from "../guild/TerritoryControl.js";
 
 export interface INPCTraits {
     faith: number;
