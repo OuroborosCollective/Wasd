@@ -24,7 +24,7 @@
     "pg": "^8.11.3",
     "openai": "^4.28.0",
     "genkit": "^0.5.5",
-    "@genkit-ai/googleai": "^0.5.5",
+    "@genkit-ai/googleai": "^1.28.0",
     "@google/generative-ai": "^0.2.1",
     "@nestjs/common": "^10.3.3",
     "type-graphql": "^2.0.0-beta.6",
