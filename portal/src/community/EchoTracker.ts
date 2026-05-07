@@ -1,9 +1,9 @@
-interface BeaconIntensity {
+export interface BeaconIntensity {
     intensity: number;
     label: string;
 }
 
-class EchoTracker {
+export class EchoTracker {
     private static readonly intensityMap: Record<string, number> = {
         COMBAT: 0.95,
         COLLECT: 0.80,
@@ -24,7 +24,21 @@ class EchoTracker {
         };
     }
 
-    public renderSignalWave(intensity: number): string {
-        return `opacity: ${intensity}; transform: scale(${intensity});`;
+    public getSignalStrength(type: string): number {
+        const strengthMap: Record<string, number> = {
+            COMBAT: 1.0,
+            COLLECT: 0.7,
+            TALK_TO: 0.4
+        };
+        return strengthMap[type.toUpperCase()] || 0.1;
+    }
+
+    public renderSignalWave(type: string, strength: number): { label: string; css: string } {
+        const percentage = Math.round(strength * 100);
+        const scale = 1 + strength;
+        return {
+            label: `Signal: ${type} (${percentage}%)`,
+            css: `opacity: ${strength}; transform: scale(${scale}); animation-duration: 2s;`
+        };
     }
 }

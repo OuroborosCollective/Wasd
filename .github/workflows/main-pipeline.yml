@@ -193,7 +193,7 @@ jobs:
           fi
 
       - name: Lint workspace
-        run: pnpm -r run lint --loglevel verbose
+        run: pnpm -r run lint
 
       - name: Typecheck
         run: pnpm -r run typecheck --loglevel verbose

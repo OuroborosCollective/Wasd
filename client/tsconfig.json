@@ -5,7 +5,10 @@
     "jsx": "react-jsx",
     "baseUrl": ".",
     "noImplicitAny": false,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "paths": {
+      "@wasd/shared": ["../packages/shared/src/index.ts"]
+    }
   },
   "include": [
     "src",

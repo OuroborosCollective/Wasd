@@ -85,6 +85,12 @@ export const useGameHudState = (): GameHudState => {
     loot: [] as LootNet[],
     fxFeed: [] as any[],
     inv: {} as any,
+    inventoryOpen: false,
+    toggleInventory: () => {},
+    onWirePayload: () => {},
+    onEntitySync: () => {},
+    onLootSpawned: () => {},
+    onLootDespawned: () => {},
   });
 
   useEffect(() => {

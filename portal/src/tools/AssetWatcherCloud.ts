@@ -3,13 +3,13 @@ import * as path from 'path';
 import { EventEmitter } from 'events';
 
 interface IFS {
-    watch(path: string, options: any, callback: (event: string, filename: string) => void): fs.FSWatcher;
+    watch(path: string, options: any, callback: (event: string, filename: string | null) => void): fs.FSWatcher;
     readFile(path: string): Promise<Buffer>;
     exists(path: string): Promise<boolean>;
 }
 
 class FSAL implements IFS {
-    watch(path: string, options: any, callback: (event: string, filename: string) => void): fs.FSWatcher {
+    watch(path: string, options: any, callback: (event: string, filename: string | null) => void): fs.FSWatcher {
         return fs.watch(path, options, callback);
     }
     async readFile(filePath: string): Promise<Buffer> {
@@ -52,7 +52,7 @@ export class AssetWatcherCloud extends EventEmitter {
 
     public async initialize(): Promise<void> {
         console.log(`[AssetWatcherCloud] Initializing watcher on: ${this.watchPath}`);
-        this.fsal.watch(this.watchPath, { recursive: true }, async (event, filename) => {
+        this.fsal.watch(this.watchPath, { recursive: true }, async (event: string, filename: string | null) => {
             if (filename && filename.toLowerCase().endsWith('.glb')) {
                 await this.processEvent(event, filename);
             }

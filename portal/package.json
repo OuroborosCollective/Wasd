@@ -6,7 +6,11 @@
   "scripts": {
     "build": "tsc"
   },
+  "dependencies": {
+    "zustand": "^3.7.1"
+  },
   "devDependencies": {
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "@types/node": "^22.13.1"
   }
 }

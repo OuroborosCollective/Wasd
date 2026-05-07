@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import create from 'zustand';
 
 export interface WorldHistoryEntry {
   id: string;
@@ -27,8 +27,8 @@ export const useWorldHistory = create<WorldHistoryState>((set) => ({
   legendStatus: 'Die Ouroboros-Schleife ist ruhig.',
   lastLegendUpdate: Date.now(),
 
-  addHistoryEntry: (entry) =>
-    set((state) => ({
+  addHistoryEntry: (entry: Omit<WorldHistoryEntry, 'id' | 'timestamp'>) =>
+    set((state: WorldHistoryState) => ({
       history: [
         ...state.history,
         {
@@ -39,7 +39,7 @@ export const useWorldHistory = create<WorldHistoryState>((set) => ({
       ],
     })),
 
-  updateLegendStatus: (newStatus) =>
+  updateLegendStatus: (newStatus: string) =>
     set(() => ({
       legendStatus: newStatus,
       lastLegendUpdate: Date.now(),

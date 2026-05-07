@@ -18,6 +18,8 @@ export const NewHud: React.FC<any> = (props) => {
     warfront, 
     quests,
     loot,
+    entities,
+    targetNpcId,
     inventoryOpen, 
     toggleInventory 
   } = useGameHudState();
@@ -55,7 +57,7 @@ export const NewHud: React.FC<any> = (props) => {
   };
 
   const entitiesNearby = entities || [];
-  const targetEntity = targetId ? entitiesNearby.find(e => e.id === targetId) : null;
+  const targetEntity = targetNpcId ? entitiesNearby.find(e => e.id === targetNpcId) : null;
 
   return (
     <div className="new-hud-container">
@@ -105,7 +107,7 @@ export const NewHud: React.FC<any> = (props) => {
 
       {warfront && warfront.isActive && (
         <div className="hud-center-overlay">
-          <WarfrontPanel warfront={warfront} />
+          <WarfrontPanel state={warfront} />
         </div>
       )}
 
