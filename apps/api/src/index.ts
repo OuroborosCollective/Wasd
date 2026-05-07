@@ -15,10 +15,10 @@ const prisma = new PrismaClient({
 });
 
 // Resilience Configuration Constants
-const MAX_RETRIES = 15;
+const MAX_BOOTSTRAP_RETRIES = 3;
 const INITIAL_BACKOFF_MS = 1000;
-const MAX_BACKOFF_MS = 30000;
-const CONNECTION_TIMEOUT_MS = 15000;
+const MAX_BACKOFF_MS = 10000;
+const CONNECTION_TIMEOUT_MS = 5000;
 const ARE_LOOP_TICK_MS = 100;
 
 // Global State
@@ -28,26 +28,12 @@ let isShuttingDown = false;
 let dbConnected = false;
 
 /**
- * Custom Error Classes for Domain-Specific Handling
+ * Custom Error Classes
  */
 class ConnectionTimeoutError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'ConnectionTimeoutError';
-  }
-}
-
-class AuthenticationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'AuthenticationError';
-  }
-}
-
-class PurityViolationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'PurityViolationError';
   }
 }
 
@@ -58,8 +44,15 @@ class DatabaseConnectionError extends Error {
   }
 }
 
+class PurityViolationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PurityViolationError';
+  }
+}
+
 /**
- * ARE-LOOP CORE LOGIC (Action-Result-Evaluation)
+ * ARE-LOOP CORE LOGIC
  */
 interface AREPayload {
   actionId: string;
@@ -68,24 +61,15 @@ interface AREPayload {
 }
 
 const validatePayload = (payload: AREPayload): boolean => {
-  if (!payload.actionId || !payload.timestamp) {
-    console.warn('[ARE-LOOP] [VALIDATION_FAILED] Invalid payload structure.');
-    return false;
-  }
-  return true;
+  return !!(payload.actionId && payload.timestamp);
 };
 
 const Brain = {
   process: (payload: AREPayload): any => {
-    const result: any = {
-      evaluated: true,
-      actionId: payload.actionId,
-    };
-
+    const result: any = { evaluated: true, actionId: payload.actionId };
     if ('stateChange' in result && typeof result.stateChange !== 'undefined') {
-      throw new PurityViolationError('STATE_MUTATION_DETECTED: Brain.process must remain pure.');
+      throw new PurityViolationError('STATE_MUTATION_DETECTED');
     }
-
     return result;
   }
 };
@@ -93,116 +77,98 @@ const Brain = {
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Database Connection Logic via Prisma with Race-Condition Protection
+ * Database Connection with Timeout handling
  */
 async function connectToDatabase(): Promise<void> {
-  console.log(`[SENTINEL] [DATABASE_BOOT] [${new Date().toISOString()}] Validating persistence layer...`);
-
   const connectionPromise = prisma.$connect().then(() => {
     dbConnected = true;
-    isRecovering = false;
-    lastError = null;
-    console.log(`[SENTINEL] [DATABASE_HANDSHAKE] Prisma handshake completed.`);
   });
 
   const timeoutPromise = new Promise<void>((_, reject) =>
-    setTimeout(() => reject(new ConnectionTimeoutError(`DB_TIMEOUT: Threshold of ${CONNECTION_TIMEOUT_MS}ms exceeded`)), CONNECTION_TIMEOUT_MS)
+    setTimeout(() => reject(new ConnectionTimeoutError(`DB_TIMEOUT: ${CONNECTION_TIMEOUT_MS}ms exceeded`)), CONNECTION_TIMEOUT_MS)
   );
 
   try {
-    if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
-      throw new AuthenticationError('MISSING_CONFIG: DATABASE_URL is not defined.');
-    }
     await Promise.race([connectionPromise, timeoutPromise]);
   } catch (error: any) {
     dbConnected = false;
     if (error instanceof Prisma.PrismaClientInitializationError) {
-      throw new DatabaseConnectionError(`PRISMA_INIT_ERROR: ${error.message} (Code: ${error.errorCode})`);
+      throw new DatabaseConnectionError(`PRISMA_INIT_ERROR: ${error.message}`);
     }
     throw error;
   }
 }
 
 /**
- * Exponential Backoff Retry Wrapper for Bootstrap and Recovery
+ * Implementation of Robust Retry Logic with Exponential Backoff
  */
 async function initializeWithRetry(): Promise<void> {
   let currentRetry = 0;
   let delay = INITIAL_BACKOFF_MS;
 
-  while (currentRetry < MAX_RETRIES && !isShuttingDown) {
+  while (currentRetry < MAX_BOOTSTRAP_RETRIES) {
     try {
+      console.log(`[SENTINEL] [DB_CONNECT] Attempt ${currentRetry + 1}/${MAX_BOOTSTRAP_RETRIES}...`);
       await connectToDatabase();
-      console.log('[SENTINEL] [DATABASE_READY] Connection verified.');
+      console.log('[SENTINEL] [DB_READY] Database connection established.');
+      isRecovering = false;
+      lastError = null;
       return;
     } catch (error: any) {
       currentRetry++;
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      lastError = errorMessage;
+      lastError = error.message;
       
-      console.error(`[SENTINEL] [DATABASE_ERROR] [ATTEMPT ${currentRetry}/${MAX_RETRIES}] ${errorMessage}`);
-
-      if (error instanceof AuthenticationError) {
-        console.error('[SENTINEL] [FATAL] Authentication/Configuration error. Retrying halted.');
-        isRecovering = false;
-        return; 
+      if (currentRetry >= MAX_BOOTSTRAP_RETRIES) {
+        console.error(`[SENTINEL] [FATAL] Database connection failed after ${MAX_BOOTSTRAP_RETRIES} attempts.`);
+        throw new DatabaseConnectionError('CRITICAL_DATABASE_FAILURE: Max retries reached.');
       }
 
-      const jitter = Math.random() * 1000; 
+      const jitter = Math.random() * 500;
       const totalDelay = Math.min(delay + jitter, MAX_BACKOFF_MS);
-      
-      console.log(`[SENTINEL] [RETRY_DELAY] Waiting ${Math.round(totalDelay)}ms before next attempt...`);
+      console.warn(`[SENTINEL] [DB_RETRY] Waiting ${Math.round(totalDelay)}ms before next attempt...`);
       await sleep(totalDelay);
-      delay *= 2; 
-
-      if (currentRetry >= MAX_RETRIES) {
-        console.error(`[SENTINEL] [GRACEFUL_DEGRADATION] Operating in limited mode.`);
-        isRecovering = true;
-      }
+      delay *= 2;
     }
   }
 }
 
 /**
- * Recovery Orchestrator
+ * Recovery Orchestrator for runtime failures
  */
 async function initiateRecoveryMode(error: Error) {
   if (isRecovering || isShuttingDown) return;
-  
   isRecovering = true;
   dbConnected = false;
   lastError = error.message;
-  console.error(`[SENTINEL] [RECOVERY_MODE] Triggered by: ${error.message}`);
+  console.error(`[SENTINEL] [RECOVERY] Reason: ${error.message}`);
 
   try {
     await initializeWithRetry();
   } catch (recoveryError) {
-    console.error('[SENTINEL] [RECOVERY_FAILED] Unexpected error in orchestrator.');
+    console.error('[SENTINEL] [RECOVERY_FAILED] System could not be restored. Triggering shutdown.');
+    process.exit(1);
   }
 }
 
 /**
- * Global Process Handlers
+ * Global Handlers
  */
 process.on('uncaughtException', (error: Error) => {
   const isTransient = error instanceof ConnectionTimeoutError || 
                       error instanceof DatabaseConnectionError ||
-                      error.message.includes('DB_TIMEOUT') || 
-                      error.message.includes('ECONNREFUSED') ||
-                      error.message.includes('P1001') ||
-                      error.message.includes('P2024');
+                      error.message.includes('P2024') || 
+                      error.message.includes('ECONNREFUSED');
 
   if (isTransient) {
     initiateRecoveryMode(error);
   } else {
-    console.error(`[SENTINEL] [FATAL_EXCEPTION] ${error.message}`);
+    console.error(`[SENTINEL] [FATAL] ${error.message}`);
     process.exit(1);
   }
 });
 
 process.on('unhandledRejection', (reason: unknown) => {
   const error = reason instanceof Error ? reason : new Error(String(reason));
-  console.error(`[SENTINEL] [UNHANDLED_REJECTION] ${error.message}`);
   initiateRecoveryMode(error);
 });
 
@@ -215,103 +181,91 @@ app.get('/api/health', (req: Request, res: Response) => {
   const isHealthy = dbConnected && !isRecovering;
   res.status(isHealthy ? 200 : 503).json({ 
     status: isHealthy ? 'healthy' : (isRecovering ? 'recovering' : 'unhealthy'),
-    uptime: Math.floor(process.uptime()),
     db_connected: dbConnected,
-    recovery_mode: isRecovering,
-    last_error: lastError,
     timestamp: new Date().toISOString()
   });
 });
 
 /**
- * THE ARE-LOOP TICK (10Hz)
+ * ARE-LOOP Execution
  */
 function startARELoop() {
-  console.log('[SENTINEL] [ARE-LOOP] Starting logic tick...');
-  
   const tick = () => {
     if (isShuttingDown) return;
-
     if (!isRecovering && dbConnected) {
       try {
-        const mockPayload: AREPayload = {
-          actionId: `act_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        const payload: AREPayload = {
+          actionId: `act_${Date.now()}`,
           timestamp: Date.now(),
-          data: { origin: 'tick_system' }
+          data: { system: 'tick' }
         };
-
-        if (validatePayload(mockPayload)) {
-          Brain.process(mockPayload);
-        }
+        if (validatePayload(payload)) Brain.process(payload);
       } catch (error: any) {
-        console.error(`[SENTINEL] [ARE-LOOP_ERROR] ${error.message}`);
-        if (error instanceof PurityViolationError) {
-          process.exit(1);
-        }
+        if (error instanceof PurityViolationError) process.exit(1);
       }
     }
-
     setTimeout(tick, ARE_LOOP_TICK_MS);
   };
-
   tick();
 }
 
 /**
- * Prisma Error Middleware
+ * Prisma Error Handling Middleware
  */
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
-    if (['P1001', 'P1008', 'P2024', 'P2028'].includes(err.code)) {
+    if (['P2024', 'P2028', 'P2001'].includes(err.code)) {
       initiateRecoveryMode(err);
-      return res.status(503).json({ error: 'Service Unavailable', code: err.code });
+      return res.status(503).json({ error: 'Database connection issue' });
     }
   }
   res.status(500).json({ error: 'Internal Server Error', message: err.message });
 });
 
 /**
- * BOOTSTRAP
+ * MAIN BOOTSTRAP
  */
 async function bootstrap() {
-  console.log('==================================================');
-  console.log('ARELORIA WASD - API CORE INITIALIZATION');
-  console.log('==================================================');
+  console.log('=== ARELORIA WASD API BOOTSTRAP ===');
 
-  const server: Server = app.listen(PORT, () => {
-    console.log(`[SENTINEL] [SERVER_START] Port: ${PORT} | Env: ${process.env.NODE_ENV || 'development'}`);
-    
-    initializeWithRetry().catch(err => {
-        console.error('[SENTINEL] [BOOT_DB_FAIL] DB init background failure:', err);
+  try {
+    // 1. Core Database Initialization (MUST succeed or retry)
+    await initializeWithRetry();
+
+    // 2. Start HTTP Interface
+    const server: Server = app.listen(PORT, () => {
+      console.log(`[SENTINEL] [BOOT] Listening on Port ${PORT}`);
+      
+      // 3. Start World Logic
+      startARELoop();
     });
 
-    startARELoop();
-  });
+    /**
+     * Graceful Shutdown
+     */
+    const shutdown = async (signal: string) => {
+      if (isShuttingDown) return;
+      isShuttingDown = true;
+      console.log(`[SENTINEL] [SHUTDOWN] Signal: ${signal}`);
+      
+      try {
+        await prisma.$disconnect();
+        server.close(() => {
+          console.log('[SENTINEL] [SHUTDOWN] Clean exit completed.');
+          process.exit(0);
+        });
+      } catch (e) {
+        process.exit(1);
+      }
+    };
 
-  const gracefulShutdown = async (signal: string) => {
-    if (isShuttingDown) return;
-    isShuttingDown = true;
-    console.log(`[SENTINEL] [SHUTDOWN] ${signal} received.`);
-    
-    try {
-      await prisma.$disconnect();
-    } catch (e) {
-      console.error('[SENTINEL] [SHUTDOWN_ERROR] Prisma disconnect fail.', e);
-    }
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
 
-    server.close(() => {
-      console.log('[SENTINEL] [SHUTDOWN] HTTP Server closed.');
-      process.exit(0);
-    });
-    
-    setTimeout(() => { process.exit(1); }, 10000);
-  };
-
-  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+  } catch (err) {
+    console.error('[SENTINEL] [BOOT_FAILED] Fatal error during startup:', err);
+    process.exit(1);
+  }
 }
 
-bootstrap().catch((err) => {
-  console.error('[SENTINEL] [FATAL_ROOT] Boot failed:', err);
-  process.exit(1);
-});
+bootstrap();
