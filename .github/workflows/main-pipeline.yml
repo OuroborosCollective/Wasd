@@ -42,6 +42,9 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     
+    env:
+      NODE_OPTIONS: '--max-old-space-size=4096'
+
     services:
       postgres:
         image: postgres:15
@@ -103,7 +106,7 @@ jobs:
           fi
 
       - name: Install Node.js dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --loglevel info
 
       - name: Dependency Review
         if: github.event_name == 'pull_request'
@@ -112,13 +115,17 @@ jobs:
           fail-on-severity: critical
 
       - name: Lint workspace
-        run: pnpm -r run lint
+        run: pnpm -r run lint --loglevel info
 
       - name: Typecheck
-        run: pnpm -r run typecheck
+        run: pnpm -r run typecheck --loglevel info
 
       - name: Build monorepo
-        run: pnpm -r run build
+        run: |
+          set -e
+          trap 'echo "Error detected during build process. Checking logs..."; exit 1' ERR
+          pnpm -r run build --loglevel info
+          echo "Build completed successfully."
 
       - name: Ensure Build Directories Exist
         run: |
@@ -156,7 +163,10 @@ jobs:
           PGPASSWORD: postgres_password
 
       - name: Run tests
-        run: pnpm -r run test
+        run: |
+          set -e
+          trap 'echo "Tests failed. Review output above."; exit 1' ERR
+          pnpm -r run test --loglevel info
         env:
           DATABASE_URL: postgresql://postgres:postgres_password@localhost:5432/areloria_test
 
@@ -179,7 +189,6 @@ jobs:
           echo "Max Timeout: ${TIMEOUT}s | Interval: ${INTERVAL}s"
           
           while [ $ELAPSED -lt $TIMEOUT ]; do
-            # Use --max-time for individual request timeout logic
             HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 http://$TARGET) || LAST_EXIT_CODE=$?
             
             if [ "$HTTP_STATUS" -eq 200 ]; then
@@ -193,7 +202,6 @@ jobs:
               echo "Status: HTTP $HTTP_STATUS at ${ELAPSED}s. Retrying in ${INTERVAL}s..."
             fi
             
-            # Reset exit code for next loop iteration
             LAST_EXIT_CODE=0
             sleep $INTERVAL
             ELAPSED=$((ELAPSED + INTERVAL))
@@ -201,7 +209,6 @@ jobs:
           
           echo "Final Verification: Health check reached limit of ${TIMEOUT}s."
           
-          # Final error handling for Exit Code 28 to prevent CI blockage due to pure latency
           if [ "$LAST_EXIT_CODE" -eq 28 ]; then
             echo "Warning: Final attempt resulted in Exit Code 28 (Latency). Bypassing failure to prevent CI interruption."
             exit 0
