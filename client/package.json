@@ -23,7 +23,7 @@
     "@react-three/xr": "^5.7.1",
     "@supabase/supabase-js": "^2.39.7",
     "@wasd/shared": "workspace:*",
-    "firebase": "^10.8.0",
+    "firebase": "^12.13.0",
     "framer-motion": "^11.0.8",
     "lucide-react": "^0.344.0",
     "mobx": "^6.12.0",
