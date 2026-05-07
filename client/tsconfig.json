@@ -4,13 +4,15 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "baseUrl": ".",
-    "noImplicitAny": false,
     "paths": {
-      "@shared/*": ["../packages/shared/src/*"]
-    }
+      "@wasd/shared": ["../packages/shared/src/index.ts"]
+    },
+    "noImplicitAny": false,
+    "skipLibCheck": true
   },
   "include": [
-    "src"
+    "src",
+    "src/three-types.d.ts"
   ],
   "references": [
     { "path": "./tsconfig.node.json" },
