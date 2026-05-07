@@ -6,4 +6,3 @@ packages:
   - 'server'
   - 'engine'
   - 'portal'
-  - 'tooling/*'

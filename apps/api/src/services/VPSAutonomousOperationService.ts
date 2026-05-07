@@ -7,6 +7,7 @@ import {
   SystemSubsystem,
   IVPSService
 } from '../interfaces/IVPSAutonomous.js';
+import { LoreNarrativeEngine } from './LoreNarrativeEngine.js';
 
 export interface IGitMetadata {
   hash: string;
@@ -23,6 +24,7 @@ export interface INarrativeLog {
   origin: string;
   content: string;
   severity: 'INFO' | 'EVOLUTION' | 'REPAIR' | 'CRITICAL' | 'AUTONOMOUS_FIX';
+  deterministicSeed?: string;
 }
 
 export interface ILogicPoint {
@@ -41,6 +43,7 @@ export interface IGlobalTruthState {
   dbConnectivity: 'CONNECTED' | 'DISCONNECTED' | 'DEGRADED';
   julesActiveFixes: number;
   lastHeartbeat: number;
+  narrativeSeed: string;
 }
 
 enum CircuitState {
@@ -55,6 +58,7 @@ enum CircuitState {
  * Orchestrates the closed information loop for Areloria WASD infrastructure.
  * Integrates 'Jules' as the primary automated repository bug-fixer.
  * Implements Circuit Breaker patterns and Exponential Backoff for resilience.
+ * Integrates LoreNarrativeEngine for deterministic agent behavior.
  */
 export class VPSAutonomousOperationService {
   private static readonly CRITICAL_CPU_THRESHOLD = 90;
@@ -79,7 +83,8 @@ export class VPSAutonomousOperationService {
     sovereignClearance: false,
     dbConnectivity: 'CONNECTED',
     julesActiveFixes: 0,
-    lastHeartbeat: Date.now()
+    lastHeartbeat: Date.now(),
+    narrativeSeed: 'Axiom-0'
   };
 
   /**
@@ -89,13 +94,17 @@ export class VPSAutonomousOperationService {
    */
   public static async tick(currentState: IVPSState): Promise<IAutonomousAction[]> {
     this.globalTruthState.lastHeartbeat = Date.now();
-    const actions: IAutonomousAction[] = [];
     
+    // Inject deterministic narrative seed for this cycle to ensure reproducible agent emergence
+    this.globalTruthState.narrativeSeed = LoreNarrativeEngine.generateDeterministicSeed(
+      `TICK_${Math.floor(Date.now() / 1000)}_${this.globalTruthState.systemIntegrity}`
+    );
+
+    const actions: IAutonomousAction[] = [];
     const logicPoints = this.generateLogicPoints(currentState);
 
     try {
       // Execute Oracle Consultation with Circuit Breaker and Exponential Backoff
-      // This represents a database/persistence call that might fail
       const evaluation = await this.executeSovereignOperation(
         async () => {
           return await this.consultAxiomaticOracle(logicPoints);
@@ -118,7 +127,6 @@ export class VPSAutonomousOperationService {
         this.globalTruthState.activeAnomalies.push('PERSISTENCE_DEGRADED');
       }
       
-      // Graceful Degradation: System Integrity drops but core loop continues
       this.globalTruthState.systemIntegrity = Math.max(this.globalTruthState.systemIntegrity - 15, 30);
     }
 
@@ -136,12 +144,11 @@ export class VPSAutonomousOperationService {
           type: 'REESTABLISH_PERSISTENCE' as any,
           subsystem: SystemSubsystem.STORAGE,
           priority: ActionPriority.CRITICAL,
-          reason: 'Database Connection Drop Detected - Initiating Resilience Protocol'
+          reason: `[Seed: ${this.globalTruthState.narrativeSeed}] Database Connection Drop Detected - Initiating Resilience Protocol`
         });
       }
     } catch (criticalError: any) {
       Logger.error('[Autonomous] Core logic evaluation failure:', criticalError.message);
-      // Absolute fallback to keep the service alive
       return [{
         type: 'STABILIZE_CORE' as any,
         subsystem: SystemSubsystem.KERNEL,
@@ -156,13 +163,11 @@ export class VPSAutonomousOperationService {
   /**
    * executeSovereignOperation
    * Wraps an operation with both Circuit Breaker and Exponential Backoff.
-   * This is the core resilience mechanism for DB and Network operations.
    */
   private static async executeSovereignOperation<T>(
     operation: () => Promise<T>,
     context: string
   ): Promise<T> {
-    // 1. Check Circuit Breaker State
     if (this.circuitState === CircuitState.OPEN) {
       if (Date.now() - this.lastFailureTime > this.RESET_TIMEOUT_MS) {
         this.circuitState = CircuitState.HALF_OPEN;
@@ -173,17 +178,14 @@ export class VPSAutonomousOperationService {
     }
 
     try {
-      // 2. Execute with Exponential Backoff
       const result = await this.retryWithBackoff(operation, context);
       
-      // 3. Reset Circuit on Success
       if ((this.circuitState as CircuitState) === CircuitState.HALF_OPEN || (this.circuitState as CircuitState) === CircuitState.OPEN) {
         this.resetCircuit();
       }
       this.globalTruthState.dbConnectivity = 'CONNECTED';
       return result;
     } catch (error: any) {
-      // 4. Handle Failure and potentially Trip Circuit
       this.handleFailure(error, context);
       throw error;
     }
@@ -205,7 +207,6 @@ export class VPSAutonomousOperationService {
       } catch (error: any) {
         lastError = error;
         
-        // Determine if error is transient (network/db/timeout)
         const isTransient = error.message?.toLowerCase().includes('connection') || 
                            error.message?.toLowerCase().includes('timeout') || 
                            error.code === 'ECONNREFUSED' ||
@@ -253,12 +254,14 @@ export class VPSAutonomousOperationService {
 
   /**
    * processGitLore
-   * Recognizes 'Jules' as the specialized autonomous bug-fixer.
+   * Recognizes 'Jules' as the specialized autonomous bug-fixer and attaches deterministic seeds.
    */
   public static processGitLore(commits: IGitMetadata[]): INarrativeLog[] {
     return commits.map((commit): INarrativeLog => {
       const msg = commit.message.toLowerCase();
       const author = commit.author.toLowerCase();
+      const currentSeed = LoreNarrativeEngine.generateDeterministicSeed(`${commit.hash}_${this.globalTruthState.narrativeSeed}`);
+      
       let content = '';
       let severity: INarrativeLog['severity'] = 'INFO';
 
@@ -266,7 +269,7 @@ export class VPSAutonomousOperationService {
 
       if (isJules) {
         severity = 'AUTONOMOUS_FIX';
-        content = `[JULES_AUTO_FIX] Repository integrity restored: ${commit.message}`;
+        content = `[JULES_AUTO_FIX] Repository integrity restored via Narrative Seed ${currentSeed}: ${commit.message}`;
         this.globalTruthState.julesActiveFixes++;
       } else if (msg.startsWith('feat')) {
         content = `Architect ${commit.author} integrated new neural pathways: ${commit.message}`;
@@ -284,7 +287,8 @@ export class VPSAutonomousOperationService {
         timestamp: new Date(commit.timestamp).getTime(),
         origin: `GIT_REF_${commit.branch.toUpperCase()}`,
         content,
-        severity
+        severity,
+        deterministicSeed: currentSeed
       };
     });
   }
@@ -302,7 +306,8 @@ export class VPSAutonomousOperationService {
       persistence: this.globalTruthState.dbConnectivity,
       anomalies: this.globalTruthState.activeAnomalies.length,
       julesFixes: this.globalTruthState.julesActiveFixes,
-      lastOracleSync: this.globalTruthState.lastOracleSync
+      lastOracleSync: this.globalTruthState.lastOracleSync,
+      narrativeSeed: this.globalTruthState.narrativeSeed
     };
   }
 
@@ -387,7 +392,7 @@ export class VPSAutonomousOperationService {
     this.globalTruthState.lastOracleSync = Date.now();
     
     if (this.globalTruthState.systemIntegrity < 50) {
-      Logger.warn('Axiomatic Integrity Critical: Operating in restricted autonomous mode.');
+      Logger.warn(`Axiomatic Integrity Critical [Seed: ${this.globalTruthState.narrativeSeed}]: Operating in restricted autonomous mode.`);
     }
   }
 
@@ -402,13 +407,14 @@ export class VPSAutonomousOperationService {
 
   private static evaluateResources(state: IVPSState): IAutonomousAction[] {
     const actions: IAutonomousAction[] = [];
+    const seedCtx = this.globalTruthState.narrativeSeed;
 
     if (state.metrics.cpuUsage > this.CRITICAL_CPU_THRESHOLD) {
       actions.push({
         type: 'THROTTLE_NON_ESSENTIAL' as any,
         subsystem: SystemSubsystem.RESOURCES,
         priority: ActionPriority.HIGH,
-        reason: 'CPU Overload detected'
+        reason: `CPU Overload (Deterministic Context: ${seedCtx})`
       });
     }
 
@@ -417,7 +423,7 @@ export class VPSAutonomousOperationService {
         type: 'FLUSH_CACHE_BUFFERS' as any,
         subsystem: SystemSubsystem.MEMORY,
         priority: ActionPriority.MEDIUM,
-        reason: 'RAM Pressure'
+        reason: `RAM Pressure (Deterministic Context: ${seedCtx})`
       });
     }
 
@@ -441,7 +447,7 @@ export class VPSAutonomousOperationService {
         targetId: svc.id,
         subsystem: SystemSubsystem.SERVICES,
         priority: ActionPriority.CRITICAL,
-        reason: `Service Failure: ${svc.id}`
+        reason: `Service Failure: ${svc.id} [Jules Recovery Seed: ${this.globalTruthState.narrativeSeed}]`
       }));
   }
 
@@ -453,7 +459,7 @@ export class VPSAutonomousOperationService {
         type: 'ROTATE_INTERNAL_KEYS' as any,
         subsystem: SystemSubsystem.SECURITY,
         priority: ActionPriority.HIGH,
-        reason: 'Security Violation Detected'
+        reason: 'Security Violation Detected - Initiating Rotation'
       });
       actions.push({
         type: 'BLOCK_SUSPICIOUS_IPS' as any,

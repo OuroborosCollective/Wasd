@@ -10,11 +10,11 @@ interface Particle {
   alpha: number;
 }
 
-const NeuralFlowCanvas: React.FC = () => {
+const NeuralFlowCanvas: React.FC<any> = (props: any) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const mouseRef = useRef({ x: 0, y: 0, active: false });
-  const particlesRef = useRef<Particle[]>([]);
-  const animationFrameRef = useRef<number>();
+  const particlesRef = useRef<Particle[]>([] as Particle[]);
+  const animationFrameRef = useRef<number | undefined>(undefined);
 
   const colors = [
     'rgba(52, 211, 153, ', // Emerald-400
