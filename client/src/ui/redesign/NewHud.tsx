@@ -22,6 +22,9 @@ export const NewHud: React.FC<any> = (props) => {
     toggleInventory 
   } = useGameHudState();
 
+  const activeQuests = quests;
+  const nearbyLoot = loot;
+
   const [health, setHealth] = useState(getPlayerHealth());
   const [maxHealth, setMaxHealth] = useState(getPlayerMaxHealth());
   const [mana, setMana] = useState(getPlayerMana());
@@ -51,18 +54,35 @@ export const NewHud: React.FC<any> = (props) => {
     sendUseSkill(skillId);
   };
 
+  const entitiesNearby = entities || [];
+  const targetEntity = targetId ? entitiesNearby.find(e => e.id === targetId) : null;
+
   return (
     <div className="new-hud-container">
       <div className="hud-player-stats">
-        <div className="hud-avatar">
+        <div className="hud-avatar" role="img" aria-label={`Player Level ${level}`}>
           <span className="hud-level-badge">{level}</span>
         </div>
         <div className="hud-bars-container">
-          <div className="hud-bar-wrapper health">
+          <div
+            className="hud-bar-wrapper health"
+            role="progressbar"
+            aria-label="Health"
+            aria-valuenow={Math.round(health)}
+            aria-valuemax={maxHealth}
+            title={`Health: ${Math.round(health)} / ${maxHealth}`}
+          >
             <div className="hud-bar-fill" style={{ width: `${healthPercentage}%` }} />
             <span className="hud-bar-text">{Math.round(health)} / {maxHealth}</span>
           </div>
-          <div className="hud-bar-wrapper mana">
+          <div
+            className="hud-bar-wrapper mana"
+            role="progressbar"
+            aria-label="Mana"
+            aria-valuenow={Math.round(mana)}
+            aria-valuemax={maxMana}
+            title={`Mana: ${Math.round(mana)} / ${maxMana}`}
+          >
             <div className="hud-bar-fill" style={{ width: `${manaPercentage}%` }} />
             <span className="hud-bar-text">{Math.round(mana)} / {maxMana}</span>
           </div>
@@ -85,20 +105,28 @@ export const NewHud: React.FC<any> = (props) => {
 
       {warfront && warfront.isActive && (
         <div className="hud-center-overlay">
-          <WarfrontPanel state={warfront} />
+          <WarfrontPanel warfront={warfront} />
         </div>
       )}
 
       <div className="hud-bottom-center">
-        <div className="hud-xp-bar">
+        <div
+          className="hud-xp-bar"
+          role="progressbar"
+          aria-label="Experience"
+          aria-valuenow={xp % 1000}
+          aria-valuemax={1000}
+          title={`XP: ${xp % 1000} / 1000`}
+        >
           <div className="hud-xp-fill" style={{ width: `${xpPercentage}%` }} />
         </div>
-        <div className="hud-action-bar">
+        <div className="hud-action-bar" role="toolbar" aria-label="Action Bar">
           {[1, 2, 3, 4, 5].map((slot) => (
             <button 
               key={slot} 
               className="hud-skill-slot"
               onClick={() => handleSkillClick(slot.toString())}
+              aria-label={`Use Skill ${slot}`}
             >
               <span className="skill-key">{slot}</span>
             </button>
@@ -106,6 +134,7 @@ export const NewHud: React.FC<any> = (props) => {
           <button 
             className={`hud-skill-slot inventory-btn ${inventoryOpen ? 'active' : ''}`}
             onClick={toggleInventory}
+            aria-label="Open Inventory"
           >
             <i className="icon-bag" />
           </button>

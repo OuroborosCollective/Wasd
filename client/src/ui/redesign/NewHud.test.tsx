@@ -12,7 +12,13 @@ vi.mock("../../state/playerState", () => ({
   getPlayerMana: () => 50,
   getPlayerMaxMana: () => 50,
   getPlayerXp: () => 100,
-  getPlayerLevel: () => 1
+  getPlayerLevel: () => 1,
+  getPlayerGold: () => 0,
+  getPlayerInventory: () => [],
+  getPlayerInventoryWeight: () => 0,
+  getPlayerMaxCarryWeight: () => 100,
+  getPlayerQuests: () => [],
+  getCombatTargetNpcId: () => null,
 }));
 
 vi.mock("../touchUi", () => ({
@@ -22,16 +28,20 @@ vi.mock("../touchUi", () => ({
 describe("NewHud Accessibility", () => {
   const defaultProps = {
     connected: true,
+    youId: "player1",
     entities: [],
     loot: [],
     inv: {},
     quests: [],
+    targetId: undefined,
     onTarget: vi.fn(),
     onAttack: vi.fn(),
     onLootTake: vi.fn(),
     onCraftOpen: vi.fn(),
     onHousingOpen: vi.fn(),
     fxFeed: [],
+    warfront: null,
+    onMenuOpen: vi.fn(),
   };
 
   it("renders with correct ARIA roles and labels", () => {

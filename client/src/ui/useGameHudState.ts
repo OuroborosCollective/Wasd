@@ -12,6 +12,7 @@ import {
 } from "../state/playerState";
 
 export interface WarfrontHudState {
+  active: boolean;
   isActive: boolean;
   capturedPoints: number;
   totalPoints: number;
@@ -59,14 +60,15 @@ export interface GameHudState {
 export const useGameHudState = (): GameHudState => {
   const [inventoryOpen, setInventoryOpen] = useState(false);
 
-  const [state, setState] = useState({
-    gold: 0,
-    inventory: [] as LootNet[],
-    weight: 0,
-    maxWeight: 0,
-    quests: [] as ClientQuestEntry[],
-    targetNpcId: null as string | null,
+  const [state, setState] = useState<GameHudState>({
+    gold: getPlayerGold(),
+    inventory: getPlayerInventory(),
+    weight: getPlayerInventoryWeight(),
+    maxWeight: getPlayerMaxCarryWeight(),
+    quests: getPlayerQuests(),
+    targetNpcId: getCombatTargetNpcId(),
     warfront: {
+      active: false,
       isActive: false,
       capturedPoints: 0,
       totalPoints: 4,
@@ -85,7 +87,13 @@ export const useGameHudState = (): GameHudState => {
     inv: {} as any,
   });
 
+  useEffect(() => {
+    setState(s => ({ ...s, inventoryOpen }));
+  }, [inventoryOpen]);
+
   const syncState = useCallback(() => {
+    const quests = getPlayerQuests();
+    const inventory = getPlayerInventory();
     setState((prev) => ({
       ...prev,
       gold: typeof getPlayerGold === 'function' ? getPlayerGold() : 0,
