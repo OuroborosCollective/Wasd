@@ -1,3 +1,5 @@
+import { AxiomaticEventBus } from '../events/AxiomaticEventBus';
+
 export interface AREStateData {
   /** Logic Index (l) */
   l: number;
@@ -24,17 +26,52 @@ export interface AREStateData {
 export class AREStateCompiler {
   /**
    * Compiles an array of state data into a single binary payload.
+   * Performs validation against mathematical singularities and corruption.
+   * 
    * @param states Array of AREStateData objects.
    * @returns Uint8Array containing the packed binary data.
    */
   public static compile(states: AREStateData[]): Uint8Array {
-    let totalByteLength = 4; // Start with entity count header
+    const validStates: AREStateData[] = [];
+    let totalByteLength = 4; // Header: Entity count
 
-    // Calculate total required size
     for (const state of states) {
-      totalByteLength += 12; // 3 x uint32 (l, k_len, r_len)
-      totalByteLength += state.k.byteLength;
-      totalByteLength += state.r.byteLength;
+      try {
+        // 1. Structural Integrity Check
+        if (!state || typeof state.l !== 'number' || !state.k || !state.r) {
+          throw new Error(`Corrupt state structure detected for index ${state?.l ?? 'unknown'}`);
+        }
+
+        // 2. Mathematical Singularity Check (KappaMath Validation)
+        // Check for NaN or Infinity in resonance values (r)
+        let hasSingularity = false;
+        for (let i = 0; i < state.r.length; i++) {
+          if (!Number.isFinite(state.r[i]) || Number.isNaN(state.r[i])) {
+            hasSingularity = true;
+            break;
+          }
+        }
+
+        if (hasSingularity) {
+          AxiomaticEventBus.emit('compiler:singularity_detected', {
+            logicIndex: state.l,
+            resonanceData: Array.from(state.r),
+            timestamp: Date.now()
+          });
+          continue; // Skip this entity but continue compilation
+        }
+
+        validStates.push(state);
+        totalByteLength += 12; // 3 x uint32 (l, k_len, r_len)
+        totalByteLength += state.k.byteLength;
+        totalByteLength += state.r.byteLength;
+
+      } catch (error) {
+        AxiomaticEventBus.emit('compiler:state_error', {
+          message: error instanceof Error ? error.message : 'Unknown compilation error',
+          state: state ? { l: state.l } : null
+        });
+      }
     }
 
     const buffer = new ArrayBuffer(totalByteLength);
@@ -43,11 +80,11 @@ export class AREStateCompiler {
     
     let offset = 0;
 
-    // Write entity count
-    view.setUint32(offset, states.length, true);
+    // Write valid entity count
+    view.setUint32(offset, validStates.length, true);
     offset += 4;
 
-    for (const state of states) {
+    for (const state of validStates) {
       // Write Metadata
       view.setUint32(offset, state.l, true);
       offset += 4;
@@ -79,42 +116,67 @@ export class AREStateCompiler {
   }
 
   /**
-   * Internal utility to parse the binary payload (useful for validation or client-side logic).
+   * Internal utility to parse the binary payload.
+   * Robust against truncated or malformed buffers.
    */
   public static decompile(payload: Uint8Array): AREStateData[] {
-    const view = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
-    let offset = 0;
-
-    const count = view.getUint32(offset, true);
-    offset += 4;
-
     const results: AREStateData[] = [];
+    
+    try {
+      if (payload.byteLength < 4) {
+        throw new Error('Payload too short to contain entity count header');
+      }
 
-    for (let i = 0; i < count; i++) {
-      const l = view.getUint32(offset, true);
+      const view = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
+      let offset = 0;
+
+      const count = view.getUint32(offset, true);
       offset += 4;
-      const kLen = view.getUint32(offset, true);
-      offset += 4;
-      const rLen = view.getUint32(offset, true);
-      offset += 4;
 
-      const k = new Int32Array(
-        payload.buffer.slice(
-          payload.byteOffset + offset,
-          payload.byteOffset + offset + kLen * 4
-        )
-      );
-      offset += kLen * 4;
+      for (let i = 0; i < count; i++) {
+        // Bounds check for metadata (3 * 4 bytes)
+        if (offset + 12 > payload.byteLength) {
+          throw new Error(`Unexpected EOF while reading metadata for entity ${i}`);
+        }
 
-      const r = new Float32Array(
-        payload.buffer.slice(
-          payload.byteOffset + offset,
-          payload.byteOffset + offset + rLen * 4
-        )
-      );
-      offset += rLen * 4;
+        const l = view.getUint32(offset, true);
+        offset += 4;
+        const kLen = view.getUint32(offset, true);
+        offset += 4;
+        const rLen = view.getUint32(offset, true);
+        offset += 4;
 
-      results.push({ l, k, r });
+        const kByteSize = kLen * 4;
+        const rByteSize = rLen * 4;
+
+        // Bounds check for data segments
+        if (offset + kByteSize + rByteSize > payload.byteLength) {
+          throw new Error(`Data segment overflow for entity logic index ${l}`);
+        }
+
+        const k = new Int32Array(
+          payload.buffer.slice(
+            payload.byteOffset + offset,
+            payload.byteOffset + offset + kByteSize
+          )
+        );
+        offset += kByteSize;
+
+        const r = new Float32Array(
+          payload.buffer.slice(
+            payload.byteOffset + offset,
+            payload.byteOffset + offset + rByteSize
+          )
+        );
+        offset += rByteSize;
+
+        results.push({ l, k, r });
+      }
+    } catch (error) {
+      AxiomaticEventBus.emit('compiler:decompilation_failure', {
+        message: error instanceof Error ? error.message : 'Unknown decompilation error',
+        payloadSize: payload.byteLength
+      });
     }
 
     return results;

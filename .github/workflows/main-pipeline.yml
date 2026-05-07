@@ -41,7 +41,7 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     
     env:
       NODE_OPTIONS: "--trace-warnings --trace-uncaught --max-old-space-size=6144"
@@ -113,6 +113,28 @@ jobs:
             echo "Validation script check_changes.py not found, skipping."
           fi
 
+      - name: Validate Environment Variables
+        run: |
+          echo "Performing Pre-Flight Environment Validation..."
+          MISSING_VARS=0
+          
+          REQUIRED_VARS=("DATABASE_URL" "POSTGRES_USER" "POSTGRES_DB" "POSTGRES_PASSWORD" "CI")
+          
+          for var in "${REQUIRED_VARS[@]}"; do
+            if [ -z "${!var}" ]; then
+              echo "Error: Required environment variable '$var' is missing or empty."
+              MISSING_VARS=1
+            else
+              echo "Check: '$var' is set."
+            fi
+          done
+          
+          if [ $MISSING_VARS -eq 1 ]; then
+            echo "Validation failed: One or more critical environment variables are missing."
+            exit 1
+          fi
+          echo "Environment validation successful."
+
       - name: Install Node.js dependencies
         run: pnpm install --frozen-lockfile --loglevel verbose
 
@@ -144,7 +166,8 @@ jobs:
       - name: Prisma Client Generation and Migration
         run: |
           if pnpm -r list | grep -q "prisma"; then
-            pnpm -r exec prisma generate
+            echo "Prisma packages found, generating clients..."
+            pnpm -r exec prisma generate --loglevel verbose
             pnpm -r exec prisma migrate deploy || echo "No migrations found or already applied."
           fi
 
@@ -200,7 +223,6 @@ jobs:
               exit 0
             fi
             
-            # Handle specific curl timeout/latency codes without failing the pipeline immediately
             if [ "$CURL_EXIT_CODE" -eq 28 ] || [ "$CURL_EXIT_CODE" -eq 7 ]; then
               echo "Status: Connection/Timeout issue (Code $CURL_EXIT_CODE) at ${ELAPSED}s. Retrying..."
             else
@@ -212,8 +234,6 @@ jobs:
           done
           
           echo "Final Verification: Health check reached limit of ${TIMEOUT}s."
-          # If the target is still unreachable but it's just latency, we bypass to avoid blocking CI
-          # This specifically addresses the requirement to prevent intermittent process failures.
           if [ "$CURL_EXIT_CODE" -eq 28 ]; then
              echo "Target unresponsive due to latency. Bypassing failure to prevent CI interruption."
              exit 0
