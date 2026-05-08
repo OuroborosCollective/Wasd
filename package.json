@@ -31,7 +31,7 @@
     "overrides": {
       "@types/react": "^18.3.7",
       "@types/react-dom": "^18.3.7",
-      "@types/node": "^22.13.1"
+      "@types/node": "^22.19.0"
     }
   }
 }
