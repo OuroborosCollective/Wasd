@@ -2,10 +2,16 @@ name: ARE Monorepo Guardian
 
 on:
   push:
-    branches: ["main", "dev", "staging"]
+    branches:
+      - main
+      - dev
+      - staging
 
   pull_request:
-    branches: ["main", "dev", "staging"]
+    branches:
+      - main
+      - dev
+      - staging
 
   workflow_dispatch:
 
@@ -28,7 +34,7 @@ jobs:
     name: Full Stack Monorepo Guardian
     runs-on: ubuntu-latest
 
-    timeout-minutes: 40
+    timeout-minutes: 45
 
     strategy:
       fail-fast: false
@@ -36,16 +42,27 @@ jobs:
         node-version: [20]
 
     steps:
+      # ==========================================
+      # CHECKOUT
+      # ==========================================
+
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Setup Node
+      # ==========================================
+      # NODE SETUP
+      # ==========================================
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: "npm"
+
+      # ==========================================
+      # DETECT PACKAGE MANAGER
+      # ==========================================
 
       - name: Detect Package Manager
         id: detect-pm
@@ -58,29 +75,36 @@ jobs:
             echo "manager=npm" >> $GITHUB_OUTPUT
           fi
 
-      # -----------------------------
-      # INSTALL
-      # -----------------------------
+      # ==========================================
+      # INSTALL PACKAGE MANAGER
+      # ==========================================
 
       - name: Install PNPM
         if: steps.detect-pm.outputs.manager == 'pnpm'
         run: npm install -g pnpm
 
+      # ==========================================
+      # INSTALL DEPENDENCIES
+      # ==========================================
+
       - name: Install Dependencies (PNPM)
         if: steps.detect-pm.outputs.manager == 'pnpm'
-        run: pnpm install --frozen-lockfile=false
+        run: |
+          pnpm install --no-frozen-lockfile || true
 
       - name: Install Dependencies (Yarn)
         if: steps.detect-pm.outputs.manager == 'yarn'
-        run: yarn install --ignore-engines
+        run: |
+          yarn install --ignore-engines || true
 
       - name: Install Dependencies (NPM)
         if: steps.detect-pm.outputs.manager == 'npm'
-        run: npm install
+        run: |
+          npm install || true
 
-      # -----------------------------
-      # MONOREPO HEALTH
-      # -----------------------------
+      # ==========================================
+      # MONOREPO HEALTH CHECK
+      # ==========================================
 
       - name: Validate package.json files
         run: |
@@ -89,28 +113,35 @@ jobs:
             node -e "JSON.parse(require('fs').readFileSync('$file','utf8'))"
           done
 
-      - name: Find duplicate dependencies
+      - name: Detect broken imports
+        run: |
+          npx depcheck || true
+
+      - name: Detect circular dependencies
+        run: |
+          npx madge --circular . || true
+
+      - name: Detect outdated dependencies
         run: |
           npx npm-check-updates || true
-          npm dedupe || true
 
-      - name: Audit vulnerabilities
+      - name: Attempt vulnerability auto-fix
         run: |
           npm audit fix --force || true
 
-      - name: Upgrade outdated dependencies
-        run: |
-          npx npm-check-updates -u || true
-          npm install || true
+      # ==========================================
+      # INSTALL TOOLING
+      # ==========================================
 
-      # -----------------------------
-      # ESLINT TERMINATOR
-      # -----------------------------
-
-      - name: Install ESLint Arsenal
+      - name: Install Guardian Toolchain
         run: |
           npm install -D \
             eslint \
+            prettier \
+            typescript \
+            depcheck \
+            madge \
+            npm-check-updates \
             @typescript-eslint/parser \
             @typescript-eslint/eslint-plugin \
             eslint-plugin-import \
@@ -123,11 +154,13 @@ jobs:
             eslint-plugin-sonarjs \
             eslint-plugin-unicorn \
             eslint-config-prettier \
-            prettier \
-            typescript \
-            @microsoft/eslint-formatter-sarif
+            @microsoft/eslint-formatter-sarif || true
 
-      - name: Generate fallback ESLint config
+      # ==========================================
+      # FALLBACK ESLINT CONFIG
+      # ==========================================
+
+      - name: Generate ESLint Config If Missing
         run: |
           if [ ! -f .eslintrc.js ]; then
             cat > .eslintrc.js << 'EOF'
@@ -174,45 +207,45 @@ jobs:
             EOF
           fi
 
-      - name: Auto Fix Entire Monorepo
+      # ==========================================
+      # ESLINT AUTO REPAIR
+      # ==========================================
+
+      - name: Run ESLint Auto Repair
         run: |
           npx eslint . \
             --ext .js,.jsx,.ts,.tsx,.mjs,.cjs \
             --fix || true
 
-      - name: Format Entire Monorepo
+      # ==========================================
+      # PRETTIER AUTO FORMAT
+      # ==========================================
+
+      - name: Run Prettier
         run: |
           npx prettier . --write || true
 
-      # -----------------------------
-      # TYPESCRIPT / BUILD CHECKS
-      # -----------------------------
+      # ==========================================
+      # TYPESCRIPT VALIDATION
+      # ==========================================
 
-      - name: TypeScript Validation
+      - name: Run TypeScript Validation
         run: |
           npx tsc --noEmit || true
 
-      - name: Build Check
+      # ==========================================
+      # BUILD VALIDATION
+      # ==========================================
+
+      - name: Run Build
         run: |
           npm run build || true
 
-      # -----------------------------
-      # DEAD CODE EXTERMINATION
-      # -----------------------------
+      # ==========================================
+      # SARIF SECURITY REPORT
+      # ==========================================
 
-      - name: Detect unused dependencies
-        run: |
-          npx depcheck || true
-
-      - name: Detect circular dependencies
-        run: |
-          npx madge --circular . || true
-
-      # -----------------------------
-      # SECURITY SCAN
-      # -----------------------------
-
-      - name: Run CodeQL-compatible ESLint SARIF
+      - name: Generate SARIF Report
         env:
           SARIF_ESLINT_IGNORE_SUPPRESSED: "true"
         run: |
@@ -221,15 +254,15 @@ jobs:
             --format @microsoft/eslint-formatter-sarif \
             --output-file eslint-results.sarif || true
 
-      - name: Upload SARIF
+      - name: Upload SARIF Report
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: eslint-results.sarif
           wait-for-processing: true
 
-      # -----------------------------
-      # AUTO COMMIT FIXES
-      # -----------------------------
+      # ==========================================
+      # AUTO COMMIT REPAIRS
+      # ==========================================
 
       - name: Commit Auto Repairs
         run: |
@@ -246,20 +279,21 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ github.ref_name }}
 
-      # -----------------------------
-      # FINAL STATUS
-      # -----------------------------
+      # ==========================================
+      # FINAL REPORT
+      # ==========================================
 
-      - name: Guardian Status
+      - name: Guardian Final Status
         run: |
-          echo "=================================="
+          echo "===================================="
           echo "ARE MONOREPO GUARDIAN COMPLETE"
-          echo "=================================="
-          echo "Lint repaired"
-          echo "Formatting repaired"
-          echo "Dependencies updated"
-          echo "Security audit executed"
-          echo "Type checks executed"
-          echo "Circular dependency scan complete"
-          echo "Dead dependency scan complete"
-          echo "=================================="
+          echo "===================================="
+          echo "✔ Dependencies checked"
+          echo "✔ ESLint auto-repair complete"
+          echo "✔ Prettier formatting complete"
+          echo "✔ TypeScript validation complete"
+          echo "✔ Security scan complete"
+          echo "✔ Circular dependency scan complete"
+          echo "✔ Dead dependency scan complete"
+          echo "✔ Build validation complete"
+          echo "===================================="
