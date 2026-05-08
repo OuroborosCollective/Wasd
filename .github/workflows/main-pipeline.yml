@@ -237,7 +237,7 @@ jobs:
 
       - name: Network Stability and Extended Health Check
         run: |
-          TARGET="46.202.154.25:80"
+          TARGET="${{ secrets.PRODUCTION_IP }}:80"
           TIMEOUT=450
           INTERVAL=15
           ELAPSED=0
