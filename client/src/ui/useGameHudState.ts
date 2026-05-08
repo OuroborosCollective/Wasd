@@ -80,11 +80,17 @@ export const useGameHudState = (): GameHudState => {
       sectors: [],
       frontBoss: { active: false }
     } as WarfrontHudState,
+    inventoryOpen: false,
+    toggleInventory: () => {},
     youId: null as string | null,
     entities: [] as EntityNet[],
     loot: [] as LootNet[],
     fxFeed: [] as any[],
     inv: {} as any,
+    onWirePayload: () => {},
+    onEntitySync: () => {},
+    onLootSpawned: () => {},
+    onLootDespawned: () => {},
   });
 
   useEffect(() => {

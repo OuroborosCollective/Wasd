@@ -14,13 +14,16 @@ import "./RedesignTheme.css";
 import "./NewHud.css";
 
 export const NewHud: React.FC<any> = (props) => {
-  const { 
-    warfront, 
-    quests,
-    loot,
-    inventoryOpen, 
-    toggleInventory 
-  } = useGameHudState();
+  const hudState = useGameHudState();
+
+  // Use props if provided (useful for tests), otherwise use state from hook
+  const warfront = props.warfront !== undefined ? props.warfront : hudState.warfront;
+  const quests = props.quests || hudState.quests;
+  const loot = props.loot || hudState.loot;
+  const entities = props.entities || hudState.entities;
+  const targetNpcId = props.targetNpcId || props.targetId || hudState.targetNpcId;
+  const inventoryOpen = props.inventoryOpen !== undefined ? props.inventoryOpen : hudState.inventoryOpen;
+  const toggleInventory = props.toggleInventory || hudState.toggleInventory;
 
   const activeQuests = quests;
   const nearbyLoot = loot;
@@ -48,18 +51,37 @@ export const NewHud: React.FC<any> = (props) => {
 
   const healthPercentage = Math.max(0, Math.min(100, (health / (maxHealth || 1)) * 100));
   const manaPercentage = Math.max(0, Math.min(100, (mana / (maxMana || 1)) * 100));
-  const xpPercentage = Math.max(0, Math.min(100, (xp / 1000) * 100));
+  const xpPercentage = Math.max(0, Math.min(100, (xp % 1000 / 1000) * 100));
 
   const handleSkillClick = (skillId: string) => {
     sendUseSkill(skillId);
   };
 
   const entitiesNearby = entities || [];
-  const targetEntity = targetId ? entitiesNearby.find(e => e.id === targetId) : null;
+  const targetEntity = targetNpcId ? entitiesNearby.find((e: any) => e.id === targetNpcId) : null;
+  const targetHpPercentage = targetEntity ? Math.max(0, Math.min(100, ((targetEntity as any).hp / ((targetEntity as any).hpMax || 1)) * 100)) : 0;
 
   return (
     <div className="new-hud-container">
       <div className="hud-player-stats">
+        {targetEntity && (
+          <div className="hud-target-frame">
+            <div className="target-info">
+              <span className="target-name">{ (targetEntity as any).name }</span>
+              <span className="target-level">Lvl { (targetEntity as any).level }</span>
+            </div>
+            <div
+              className="hud-bar-wrapper target-health"
+              role="progressbar"
+              aria-label={`Target Health: ${(targetEntity as any).name}`}
+              aria-valuenow={(targetEntity as any).hp}
+              aria-valuemax={(targetEntity as any).hpMax}
+              title={`Target Health: ${(targetEntity as any).hp} / ${(targetEntity as any).hpMax}`}
+            >
+              <div className="hud-bar-fill" style={{ width: `${targetHpPercentage}%` }} />
+            </div>
+          </div>
+        )}
         <div className="hud-avatar" role="img" aria-label={`Player Level ${level}`}>
           <span className="hud-level-badge">{level}</span>
         </div>
@@ -105,7 +127,7 @@ export const NewHud: React.FC<any> = (props) => {
 
       {warfront && warfront.isActive && (
         <div className="hud-center-overlay">
-          <WarfrontPanel warfront={warfront} />
+          <WarfrontPanel state={warfront} />
         </div>
       )}
 
