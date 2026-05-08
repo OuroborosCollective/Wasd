@@ -15,7 +15,7 @@
     "clean": "rimraf dist"
   },
   "peerDependencies": {
-    "@babylonjs/core": "^6.0.0",
+    "@babylonjs/core": "^9.5.2",
     "three": "0.169.0"
   },
   "devDependencies": {

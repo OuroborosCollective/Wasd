@@ -1,7 +1,7 @@
 import React, { useRef, useState, useMemo } from 'react';
 import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { ARButton, XR, Controllers, Interactive } from '@react-three/xr';
+import { ARButton, XR, Interactive } from '@react-three/xr';
 
 interface LogicGate {
   id: string;
@@ -74,13 +74,10 @@ const Scene = ({ gates, connections, onGateSelect }: ARLogicRendererProps) => {
     return gate ? gate.position : [0, 0, 0];
   };
 
-  const ControllersComponent = Controllers as any;
-
   return (
     <>
       <ambientLight intensity={0.5} />
       <pointLight position={[10, 10, 10]} />
-      <ControllersComponent />
       {gates.map(gate => (
         <GateNode key={gate.id} gate={gate} onSelect={onGateSelect} />
       ))}

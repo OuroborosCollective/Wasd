@@ -1,0 +1,230 @@
+[
+  {
+    "name": "areloria-wasd",
+    "version": "1.0.0",
+    "path": "/app",
+    "private": true
+  },
+  {
+    "name": "@wasd/api-core",
+    "version": "1.0.0",
+    "path": "/app/apps/api",
+    "private": true
+  },
+  {
+    "name": "@wasd/web",
+    "version": "1.0.0",
+    "path": "/app/apps/web",
+    "private": true
+  },
+  {
+    "name": "@wasd/client",
+    "version": "1.0.0",
+    "path": "/app/client",
+    "private": true
+  },
+  {
+    "name": "@wasd/engine",
+    "version": "1.0.0",
+    "path": "/app/engine",
+    "private": true
+  },
+  {
+    "name": "@wasd/backend",
+    "version": "1.0.0",
+    "path": "/app/packages/backend",
+    "private": true
+  },
+  {
+    "name": "@wasd/core",
+    "version": "1.0.0",
+    "path": "/app/packages/core",
+    "private": false
+  },
+  {
+    "name": "@wasd/core-ecs",
+    "version": "0.1.0",
+    "path": "/app/packages/core-ecs",
+    "private": false
+  },
+  {
+    "name": "@wasd/core-logic",
+    "version": "0.1.0",
+    "path": "/app/packages/core-logic",
+    "private": true
+  },
+  {
+    "name": "@wasd/database",
+    "version": "1.0.0",
+    "path": "/app/packages/database",
+    "private": false
+  },
+  {
+    "name": "@wasd/logger",
+    "version": "1.0.0",
+    "path": "/app/packages/logger",
+    "private": true
+  },
+  {
+    "name": "@wasd/redis",
+    "version": "1.0.0",
+    "path": "/app/packages/redis",
+    "private": false
+  },
+  {
+    "name": "@wasd/rendering-bridge",
+    "version": "1.0.0",
+    "path": "/app/packages/rendering-bridge",
+    "private": false
+  },
+  {
+    "name": "@wasd/shared",
+    "version": "1.0.0",
+    "path": "/app/packages/shared",
+    "private": true
+  },
+  {
+    "name": "@wasd/spatial-hub",
+    "version": "1.0.0",
+    "path": "/app/packages/spatial-hub",
+    "private": true
+  },
+  {
+    "name": "@wasd/types",
+    "version": "1.0.0",
+    "path": "/app/packages/types",
+    "private": true
+  },
+  {
+    "name": "@wasd/ui",
+    "version": "1.0.0",
+    "path": "/app/packages/ui",
+    "private": true
+  },
+  {
+    "name": "@wasd/utils",
+    "version": "1.0.0",
+    "path": "/app/packages/utils",
+    "private": true
+  },
+  {
+    "name": "@wasd/portal",
+    "version": "1.0.0",
+    "path": "/app/portal",
+    "private": true
+  },
+  {
+    "name": "@wasd/ads",
+    "version": "1.0.0",
+    "path": "/app/projects/ads",
+    "private": true
+  },
+  {
+    "name": "@wasd/agri-sim",
+    "version": "1.0.0",
+    "path": "/app/projects/agri-sim",
+    "private": true
+  },
+  {
+    "name": "@wasd/projects-api",
+    "version": "1.0.0",
+    "path": "/app/projects/api",
+    "private": true
+  },
+  {
+    "name": "@wasd/arena",
+    "version": "1.0.0",
+    "path": "/app/projects/arena",
+    "private": true
+  },
+  {
+    "name": "@wasd/card-logic",
+    "version": "1.0.0",
+    "path": "/app/projects/card-logic",
+    "private": true
+  },
+  {
+    "name": "@wasd/crypto-pulse",
+    "version": "1.0.0",
+    "path": "/app/projects/crypto-pulse",
+    "private": true
+  },
+  {
+    "name": "@wasd/eco-trader",
+    "version": "1.0.0",
+    "path": "/app/projects/eco-trader",
+    "private": false
+  },
+  {
+    "name": "@wasd/edu-sim",
+    "version": "1.0.0",
+    "path": "/app/projects/edu-sim",
+    "private": true
+  },
+  {
+    "name": "@wasd/logi-link",
+    "version": "1.0.0",
+    "path": "/app/projects/logi-link",
+    "private": true
+  },
+  {
+    "name": "@wasd/logic-grid",
+    "version": "1.0.0",
+    "path": "/app/projects/logic-grid",
+    "private": true
+  },
+  {
+    "name": "@wasd/logistics",
+    "version": "1.0.0",
+    "path": "/app/projects/logistics",
+    "private": true
+  },
+  {
+    "name": "@wasd/ouro-api",
+    "version": "1.0.0",
+    "path": "/app/projects/ouro-api",
+    "private": true
+  },
+  {
+    "name": "@wasd/retail-opt",
+    "version": "1.0.0",
+    "path": "/app/projects/retail-opt",
+    "private": true
+  },
+  {
+    "name": "@wasd/social",
+    "version": "1.0.0",
+    "path": "/app/projects/social",
+    "private": true
+  },
+  {
+    "name": "@wasd/social-sim",
+    "version": "1.0.0",
+    "path": "/app/projects/social-sim",
+    "private": true
+  },
+  {
+    "name": "@wasd/story",
+    "version": "1.0.0",
+    "path": "/app/projects/story",
+    "private": true
+  },
+  {
+    "name": "@wasd/urban",
+    "version": "1.0.0",
+    "path": "/app/projects/urban",
+    "private": true
+  },
+  {
+    "name": "@wasd/urban-flow",
+    "version": "1.0.0",
+    "path": "/app/projects/urban-flow",
+    "private": true
+  },
+  {
+    "name": "@wasd/server",
+    "version": "1.0.0",
+    "path": "/app/server",
+    "private": true
+  }
+]
