@@ -4,6 +4,13 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "baseUrl": "./src",
+    "paths": {
+      "@shared/*": ["shared/*"],
+      "@engine/*": ["engine/*"],
+      "@ai/*": ["ai/*"],
+      "@modules/*": ["modules/*"]
+    },
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": false,
@@ -17,7 +24,10 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "incremental": true
+    "incremental": true,
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "lib": ["ESNext", "DOM"]
   },
   "include": ["src/**/*"],
   "exclude": ["src/tools/**/*", "src/tests/**/*"],

@@ -52,10 +52,12 @@ export function ouroborosTick(
   setRelationship: (a: string, b: string, delta: number) => void,
   config: OuroborosConfig = DEFAULT_CONFIG,
 ): string | null {
-  const mem = memoryCache.get(ctx.npcId);
+  const mem = memoryCache?.get(ctx.npcId);
 
   // Ensure needs exist
-  if (!mem.heuristicWeights._needsSafety) {
+  if (!mem?.heuristicWeights?._needsSafety) {
+    if (!mem) mem = { heuristicWeights: {} } as any;
+    else mem.heuristicWeights = {};
     mem.heuristicWeights._needsSafety = 0.8;
     mem.heuristicWeights._needsResources = 0.5;
     mem.heuristicWeights._needsBelonging = 0.4;
@@ -65,12 +67,12 @@ export function ouroborosTick(
   }
 
   const needs: NeedSet = {
-    safety: mem.heuristicWeights._needsSafety,
-    resources: mem.heuristicWeights._needsResources,
-    belonging: mem.heuristicWeights._needsBelonging,
-    status: mem.heuristicWeights._needsStatus,
-    wealth: mem.heuristicWeights._needsWealth,
-    power: mem.heuristicWeights._needsPower,
+    safety: mem?.heuristicWeights?._needsSafety ?? 0.8,
+    resources: mem?.heuristicWeights?._needsResources ?? 0.5,
+    belonging: mem?.heuristicWeights?._needsBelonging ?? 0.4,
+    status: mem?.heuristicWeights?._needsStatus ?? 0.3,
+    wealth: mem?.heuristicWeights?._needsWealth ?? 0.3,
+    power: mem?.heuristicWeights?._needsPower ?? 0.2,
   };
 
   // ─── PERCEIVE ──────────────────────────────────────────────────────────
