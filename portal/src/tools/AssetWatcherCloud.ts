@@ -3,14 +3,14 @@ import * as path from 'path';
 import { EventEmitter } from 'events';
 
 interface IFS {
-    watch(path: string, options: any, callback: (event: string, filename: string) => void): fs.FSWatcher;
+    watch(path: string, options: any, callback: (event: string, filename: string | null) => void): fs.FSWatcher;
     readFile(path: string): Promise<Buffer>;
     exists(path: string): Promise<boolean>;
 }
 
 class FSAL implements IFS {
-    watch(path: string, options: any, callback: (event: string, filename: string) => void): fs.FSWatcher {
-        return fs.watch(path, options, callback);
+    watch(path: string, options: any, callback: (event: string, filename: string | null) => void): fs.FSWatcher {
+        return fs.watch(path, options, callback as any);
     }
     async readFile(filePath: string): Promise<Buffer> {
         return fs.promises.readFile(filePath);

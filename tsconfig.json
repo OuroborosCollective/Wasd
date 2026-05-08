@@ -14,7 +14,7 @@
     "esModuleInterop": true,
     "isolatedModules": true,
     "resolveJsonModule": true,
-    "noEmit": false,
+    "noEmit": true,
     "noImplicitAny": false
   },
   "files": [],

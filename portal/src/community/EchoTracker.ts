@@ -3,28 +3,25 @@ interface BeaconIntensity {
     label: string;
 }
 
-class EchoTracker {
+export class EchoTracker {
     private static readonly intensityMap: Record<string, number> = {
-        COMBAT: 0.95,
-        COLLECT: 0.80,
-        TALK_TO: 0.70
+        COMBAT: 1.0,
+        COLLECT: 0.7,
+        TALK_TO: 0.4
     };
 
-    public getBeaconData(questType: string): BeaconIntensity {
+    public getSignalStrength(questType: string): number {
         const normalizedType = questType.toUpperCase();
-        const intensity = EchoTracker.intensityMap[normalizedType] !== undefined 
+        return EchoTracker.intensityMap[normalizedType] !== undefined
             ? EchoTracker.intensityMap[normalizedType] 
-            : 0.50;
-        
-        const label = `Signal-Echo: ${Math.round(intensity * 100)}%`;
-        
-        return {
-            intensity,
-            label
-        };
+            : 0.1;
     }
 
-    public renderSignalWave(intensity: number): string {
-        return `opacity: ${intensity}; transform: scale(${intensity});`;
+    public renderSignalWave(type: string, strength: number): { label: string, css: string } {
+        const percentage = Math.round(strength * 100);
+        return {
+            label: `Signal: ${type} (${percentage}%)`,
+            css: `opacity: ${strength}; transform: scale(${1 + strength}); animation-duration: 2s;`
+        };
     }
 }

@@ -25,6 +25,7 @@ export class TraitResonanceEngine extends EventEmitter {
     private aggressionScores: number[];
 
     constructor(windowSize: number = 50, hostilityThreshold: number = 0.75) {
+        super();
         this.windowSize = windowSize;
         this.hostilityThreshold = hostilityThreshold;
         this.vectorBuffer = [];
