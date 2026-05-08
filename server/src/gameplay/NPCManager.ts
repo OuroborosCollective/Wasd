@@ -1,0 +1,1 @@
+../npc/NPCManager.ts

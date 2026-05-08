@@ -26,7 +26,8 @@ class StateStorage {
  * Returns a serialized chain of game state payloads for reconstruction.
  */
 router.get('/stream/:sessionId/:chunkId', async (req: Request, res: Response) => {
-    const { sessionId, chunkId } = req.params;
+    const sessionId = String(req.params.sessionId || '');
+    const chunkId = String(req.params.chunkId || '');
 
     // Validation for Session ID (UUID or standard alphanumeric identifiers)
     const sessionIdRegex = /^[a-zA-Z0-9\-_]{4,64}$/;

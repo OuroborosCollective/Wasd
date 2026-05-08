@@ -1,0 +1,4 @@
+/**
+ * NPCTraits
+ */
+export class NPCTraits {}
