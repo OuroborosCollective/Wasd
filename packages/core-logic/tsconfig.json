@@ -6,7 +6,7 @@
     "composite": false,
     "incremental": false,
     "skipLibCheck": true,
-    "lib": ["ESNext"]
+    "lib": ["ESNext", "DOM"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
