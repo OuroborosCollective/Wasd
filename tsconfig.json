@@ -37,6 +37,24 @@
     { "path": "packages/types" },
     { "path": "apps/api" },
     { "path": "apps/web" },
-    { "path": "projects/eco-trader" }
+    { "path": "./portal" },
+    { "path": "./projects/ads" },
+    { "path": "./projects/agri-sim" },
+    { "path": "./projects/api" },
+    { "path": "./projects/arena" },
+    { "path": "./projects/card-logic" },
+    { "path": "./projects/crypto-pulse" },
+    { "path": "./projects/eco-trader" },
+    { "path": "./projects/edu-sim" },
+    { "path": "./projects/logi-link" },
+    { "path": "./projects/logic-grid" },
+    { "path": "./projects/logistics" },
+    { "path": "./projects/ouro-api" },
+    { "path": "./projects/retail-opt" },
+    { "path": "./projects/social" },
+    { "path": "./projects/social-sim" },
+    { "path": "./projects/story" },
+    { "path": "./projects/urban" },
+    { "path": "./projects/urban-flow" }
   ]
 }

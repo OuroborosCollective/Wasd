@@ -34,7 +34,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'pnpm'
 
       - name: Install Dependencies
@@ -117,8 +117,6 @@ jobs:
             git reset --hard origin/main
             
             echo "--- CONFIGURING RUNTIME ENVIRONMENT ---"
-            mkdir -p server/dist
-            echo '{"type": "module"}' > server/dist/package.json
             
             export PNPM_HOME="/home/${{ secrets.SSH_USER }}/.local/share/pnpm"
             export PATH="$PNPM_HOME:$PATH"

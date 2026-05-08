@@ -4,14 +4,9 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "composite": true,
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "noEmit": false,
+    "noEmit": false, "jsx": "react-jsx",
     "declaration": true,
     "declarationMap": true
   },
-  "include": ["src/**/*"],
-  "references": [
-    { "path": "../utils" }
-  ]
+  "include": ["src/**/*"]
 }

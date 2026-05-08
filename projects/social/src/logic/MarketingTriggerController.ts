@@ -1,4 +1,4 @@
-import { TraitResonanceEngine, TensionUpdate } from './TraitResonanceEngine';
+import { TraitResonanceEngine, TensionUpdate } from '../services/TraitResonanceEngine';
 
 export interface CampaignConfig {
     id: string;

@@ -1,53 +1,32 @@
-# Repository Audit Report - August 2026
+# Audit Report - August 2026
 
 ## Status Quo
-The repository is a sophisticated **pnpm monorepo** containing multiple applications (`apps/`, `client/`, `server/`, `engine/`, `portal/`), shared internal packages (`packages/`), and various specialized projects (`projects/`). It uses TypeScript across the board and leverages `pnpm` workspaces for dependency management.
+Das Repository ist ein komplexes pnpm-Monorepo für ein 3D-RPG/Metaverse-Plattform. Es nutzt Babylon.js für das Rendering und eine NestJS/Express-Backend-Architektur. Die Struktur ist in `apps`, `packages`, `projects`, `client` und `server` unterteilt.
 
-## 1. Package Management & PnP
-- **Current State**: Standard `node_modules` structure with `shamefully-hoist=true`. `pnpm@9.12.2` is the primary version used, though some CI workflows use `v10`.
-- **Issues**:
-    - **Workspace Cleanup**: `pnpm-workspace.yaml` references a non-existent `tooling/*` directory.
-    - **Hoisting Risks**: `shamefully-hoist=true` is active, which can lead to ghost dependencies and masks missing dependency declarations.
+## Durchgeführte Korrekturen (Phase 1)
+Die folgenden strukturellen Probleme wurden im Rahmen dieses Audits bereits behoben:
+1.  **Babylon.js Synchronisation:** Alle Instanzen von `@babylonjs/*` wurden auf Version `^9.5.2` vereinheitlicht, um Inkompatibilitäten zwischen Client und Shared-Packages zu vermeiden.
+2.  **NestJS Synchronisation:** Die NestJS-Versionen im `server` wurden auf `^11.0.10` angehoben, um mit `apps/api` konsistent zu sein.
+3.  **Package Definition Repair:** `@wasd/types` und `@wasd/database` wurden repariert (Hinzufügen von `exports`, `main`, `types` und Aktivierung der Type-Emission).
+4.  **TypeScript Standardisierung:** Die Root-`tsconfig.json` wurde vervollständigt (Referenzen auf alle `projects/*` und `portal`). Fehlende `tsconfig.json` in Projekten wurden ergänzt.
+5.  **CI/CD & Deployment Harmonisierung:** Node.js Version wurde auf **v22** vereinheitlicht (Dockerfile, Workflows). Die Deployment-Skripte wurden bereinigt (Entfernung von Laufzeit-Hacks).
 
-## 2. Dependency Graph
-- **Current State**: Standardized on many core versions, but drift persists.
-- **Issues**:
-    - **React Version Drift**: `client/` uses React 18, while `apps/web/` and others use React 19.
-    - **Inconsistent CI Environments**: Different pnpm versions across workflows can lead to subtle lockfile discrepancies.
+## Kritische Fehler (Verbleibend)
+Trotz der strukturellen Fixes gibt es massive Code-level Probleme, die den vollständigen Build blockieren:
+1.  **ESM Compliance im Server:** Das `server`-Paket nutzt `moduleResolution: NodeNext`, aber viele Imports fehlen die erforderlichen `.js`-Dateiendungen. Dies führt zu hunderten von TS-Fehlern.
+2.  **API/Shared Inkonsistenz:** `apps/api` erwartet Properties in `@wasd/shared` (z.B. `Entity`, `WorldState.frame`), die dort aktuell nicht (mehr) definiert sind.
+3.  **Zustand/React 19 Breaking Changes:** In `apps/web` und `portal` gibt es Breaking Changes durch `zustand` (Import-Syntax) und React 19 (JSX-Typen in SVGs).
+4.  **Fehlende Prisma-Generierung:** Obwohl `@prisma/client` referenziert wird, fehlt eine konsistente Schema-Definition, die global generiert wird.
 
-## 3. TypeScript & Types
-- **Current State**: Root-level project references are used to manage the build graph.
-- **Issues**:
-    - **Incomplete Build Graph**: Several packages/apps (`portal`, `apps/portal-replit`, many `projects/*`) are missing from the root `tsconfig.json` references.
-    - **Architectural Debt in Client**: `client/tsconfig.json` uses direct path aliases to `../packages/shared/src/*`. This bypasses the project reference system and forces re-compilation of shared code instead of using its built artifacts.
+## Optimierungspotenzial
+1.  **Strict Mode:** `.npmrc` sollte `shamefully-hoist=false` setzen, sobald die Ghost-Dependencies bereinigt sind.
+2.  **Pre-bundling:** Interne Pakete sollten konsistent mit `tsup` gebündelt werden, um die Ladezeiten in der Cloud zu optimieren.
 
-## 4. Workflows & CI/CD
-- **Current State**: Multiple overlapping workflows (`ci.yml`, `main-pipeline.yml`).
-- **Issues**:
-    - **Security Risk**: Hardcoded IP address `46.202.154.25` in `main-pipeline.yml`.
-    - **Inefficiency**: `ci.yml` has a redundant `install` job that doesn't share artifacts effectively with subsequent jobs.
-
-## 5. Deployment & Environments
-- **Current State**: Multi-stage Docker builds and shell-based VPS deployment.
-- **Issues**:
-    - **Fragile Deployment Script**: `scripts/deploy-vps.sh` lacks error handling (`set -e`) and uses hardcoded placeholders.
+## Action Plan (Nächste Schritte)
+1.  **ESM-Refactoring:** Automatisches Hinzufügen von `.js` Extensions im `server`-Paket.
+2.  **Protocol Sync:** Abgleich der Interfaces in `@wasd/shared` mit den Anforderungen von `apps/api`.
+3.  **UI Library Update:** Korrektur der JSX-Fehler in `projects/story` und `portal`.
+4.  **Prisma Centralization:** Einrichtung einer zentralen `packages/database/prisma/schema.prisma`.
 
 ---
-
-## Kritische Fehler (Critical Errors)
-1. **Hardcoded Infrastructure IP**: Potential security and maintenance risk.
-2. **Broken TypeScript Graph**: Incomplete references in root `tsconfig.json` prevent reliable `tsc --build` execution.
-
-## Optimierungspotenzial (Optimization Potential)
-1. **CI Consolidation**: Streamline CI workflows to reduce execution time and credit usage.
-2. **Path Alias Refactoring**: Move from source-level aliases to proper project references for internal package consumption.
-
----
-
-## Action Plan
-1. **Cleanup Configuration**: Remove invalid workspace entries.
-2. **Standardize CI**: Align Node/pnpm versions and secure infrastructure details via secrets.
-3. **Dependency Sync**: Update `client` to React 19 and harmonize Vitest versions.
-4. **TS Graph Repair**: Complete root `tsconfig.json` references and fix `client/tsconfig.json`.
-5. **Deployment Hardening**: Improve robustness of `deploy-vps.sh`.
-6. **Full Validation**: Run monorepo-wide build and test suites.
+*Erstellt von Senior DevOps & Fullstack Architect Jules.*

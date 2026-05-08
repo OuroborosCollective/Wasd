@@ -1,4 +1,4 @@
-import { AREPayload } from "@areloria/types";
+import { AREPayload } from "@wasd/types";
 import { BabylonRenderer } from "./BabylonRenderer";
 import { ThreeRenderer } from "./ThreeRenderer";
 import { ProxyRenderer } from "./ProxyRenderer";
