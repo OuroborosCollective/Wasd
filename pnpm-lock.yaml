@@ -602,7 +602,32 @@ importers:
         version: 5.9.3
 
   portal:
+    dependencies:
+      react:
+        specifier: ^19.2.5
+        version: 19.2.6
+      react-dom:
+        specifier: ^19.2.5
+        version: 19.2.6(react@19.2.6)
+      three:
+        specifier: 0.169.0
+        version: 0.169.0
+      zustand:
+        specifier: ^4.5.2
+        version: 4.5.7(@types/react@18.3.28)(react@19.2.6)
     devDependencies:
+      '@types/node':
+        specifier: ^22.13.1
+        version: 22.19.18
+      '@types/react':
+        specifier: ^18.3.7
+        version: 18.3.28
+      '@types/react-dom':
+        specifier: ^18.3.7
+        version: 18.3.7(@types/react@18.3.28)
+      '@types/three':
+        specifier: 0.169.0
+        version: 0.169.0
       typescript:
         specifier: ^5.7.3
         version: 5.9.3
