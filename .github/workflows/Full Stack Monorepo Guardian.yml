@@ -16,7 +16,6 @@ on:
   workflow_dispatch:
 
   schedule:
-    # Every day at 03:30 UTC
     - cron: '30 3 * * *'
 
 concurrency:
@@ -31,7 +30,7 @@ permissions:
 
 jobs:
   guardian:
-    name: Full Stack Monorepo Guardian
+    name: ARE Full Stack Guardian
     runs-on: ubuntu-latest
 
     timeout-minutes: 45
@@ -42,6 +41,7 @@ jobs:
         node-version: [20]
 
     steps:
+
       # ==========================================
       # CHECKOUT
       # ==========================================
@@ -52,7 +52,7 @@ jobs:
           fetch-depth: 0
 
       # ==========================================
-      # NODE SETUP
+      # NODE
       # ==========================================
 
       - name: Setup Node.js
@@ -76,7 +76,7 @@ jobs:
           fi
 
       # ==========================================
-      # INSTALL PACKAGE MANAGER
+      # INSTALL PNPM
       # ==========================================
 
       - name: Install PNPM
@@ -87,50 +87,23 @@ jobs:
       # INSTALL DEPENDENCIES
       # ==========================================
 
-      - name: Install Dependencies (PNPM)
+      - name: Install Dependencies PNPM
         if: steps.detect-pm.outputs.manager == 'pnpm'
         run: |
           pnpm install --no-frozen-lockfile || true
 
-      - name: Install Dependencies (Yarn)
+      - name: Install Dependencies Yarn
         if: steps.detect-pm.outputs.manager == 'yarn'
         run: |
           yarn install --ignore-engines || true
 
-      - name: Install Dependencies (NPM)
+      - name: Install Dependencies NPM
         if: steps.detect-pm.outputs.manager == 'npm'
         run: |
           npm install || true
 
       # ==========================================
-      # MONOREPO HEALTH CHECK
-      # ==========================================
-
-      - name: Validate package.json files
-        run: |
-          find . -name package.json -not -path "*/node_modules/*" | while read file; do
-            echo "Checking $file"
-            node -e "JSON.parse(require('fs').readFileSync('$file','utf8'))"
-          done
-
-      - name: Detect broken imports
-        run: |
-          npx depcheck || true
-
-      - name: Detect circular dependencies
-        run: |
-          npx madge --circular . || true
-
-      - name: Detect outdated dependencies
-        run: |
-          npx npm-check-updates || true
-
-      - name: Attempt vulnerability auto-fix
-        run: |
-          npm audit fix --force || true
-
-      # ==========================================
-      # INSTALL TOOLING
+      # INSTALL TOOLCHAIN
       # ==========================================
 
       - name: Install Guardian Toolchain
@@ -157,58 +130,65 @@ jobs:
             @microsoft/eslint-formatter-sarif || true
 
       # ==========================================
-      # FALLBACK ESLINT CONFIG
+      # CREATE ESLINT CONFIG
       # ==========================================
 
       - name: Generate ESLint Config If Missing
         run: |
           if [ ! -f .eslintrc.js ]; then
-            cat > .eslintrc.js << 'EOF'
-            module.exports = {
-              root: true,
-              env: {
-                browser: true,
-                node: true,
-                es2022: true
-              },
-              parser: "@typescript-eslint/parser",
-              plugins: [
-                "@typescript-eslint",
-                "unused-imports",
-                "import",
-                "security",
-                "sonarjs",
-                "unicorn"
-              ],
-              extends: [
-                "eslint:recommended",
-                "plugin:@typescript-eslint/recommended",
-                "plugin:security/recommended",
-                "plugin:sonarjs/recommended",
-                "plugin:import/recommended",
-                "prettier"
-              ],
-              ignorePatterns: [
-                "dist/",
-                "build/",
-                "coverage/",
-                "node_modules/"
-              ],
-              rules: {
-                "unused-imports/no-unused-imports": "error",
-                "no-console": "warn",
-                "no-debugger": "error",
-                "eqeqeq": "error",
-                "curly": "error",
-                "sonarjs/no-duplicate-string": "warn",
-                "unicorn/prefer-node-protocol": "warn"
-              }
-            }
-            EOF
+            printf '%s\n' \
+'module.exports = {' \
+'  root: true,' \
+'  env: {' \
+'    browser: true,' \
+'    node: true,' \
+'    es2022: true' \
+'  },' \
+'  parser: "@typescript-eslint/parser",' \
+'  plugins: [' \
+'    "@typescript-eslint",' \
+'    "unused-imports",' \
+'    "import",' \
+'    "security",' \
+'    "sonarjs",' \
+'    "unicorn"' \
+'  ],' \
+'  extends: [' \
+'    "eslint:recommended",' \
+'    "plugin:@typescript-eslint/recommended",' \
+'    "plugin:import/recommended",' \
+'    "prettier"' \
+'  ],' \
+'  ignorePatterns: [' \
+'    "dist/",' \
+'    "build/",' \
+'    "coverage/",' \
+'    "node_modules/"' \
+'  ],' \
+'  rules: {' \
+'    "unused-imports/no-unused-imports": "error",' \
+'    "no-console": "warn",' \
+'    "no-debugger": "error",' \
+'    "eqeqeq": "error",' \
+'    "curly": "error"' \
+'  }' \
+'};' \
+> .eslintrc.js
           fi
 
       # ==========================================
-      # ESLINT AUTO REPAIR
+      # VALIDATE PACKAGE.JSON FILES
+      # ==========================================
+
+      - name: Validate package.json files
+        run: |
+          find . -name package.json -not -path "*/node_modules/*" | while read file; do
+            echo "Checking $file"
+            node -e "JSON.parse(require('fs').readFileSync('$file','utf8'))"
+          done
+
+      # ==========================================
+      # AUTO FIX ESLINT
       # ==========================================
 
       - name: Run ESLint Auto Repair
@@ -218,7 +198,7 @@ jobs:
             --fix || true
 
       # ==========================================
-      # PRETTIER AUTO FORMAT
+      # PRETTIER
       # ==========================================
 
       - name: Run Prettier
@@ -226,7 +206,7 @@ jobs:
           npx prettier . --write || true
 
       # ==========================================
-      # TYPESCRIPT VALIDATION
+      # TYPESCRIPT
       # ==========================================
 
       - name: Run TypeScript Validation
@@ -234,7 +214,27 @@ jobs:
           npx tsc --noEmit || true
 
       # ==========================================
-      # BUILD VALIDATION
+      # DEPENDENCY CHECKS
+      # ==========================================
+
+      - name: Detect Dead Dependencies
+        run: |
+          npx depcheck || true
+
+      - name: Detect Circular Dependencies
+        run: |
+          npx madge --circular . || true
+
+      - name: Detect Outdated Dependencies
+        run: |
+          npx npm-check-updates || true
+
+      - name: Attempt Security Fixes
+        run: |
+          npm audit fix --force || true
+
+      # ==========================================
+      # BUILD
       # ==========================================
 
       - name: Run Build
@@ -242,7 +242,7 @@ jobs:
           npm run build || true
 
       # ==========================================
-      # SARIF SECURITY REPORT
+      # SARIF REPORT
       # ==========================================
 
       - name: Generate SARIF Report
@@ -261,7 +261,7 @@ jobs:
           wait-for-processing: true
 
       # ==========================================
-      # AUTO COMMIT REPAIRS
+      # AUTO COMMIT
       # ==========================================
 
       - name: Commit Auto Repairs
@@ -280,7 +280,7 @@ jobs:
           branch: ${{ github.ref_name }}
 
       # ==========================================
-      # FINAL REPORT
+      # FINAL STATUS
       # ==========================================
 
       - name: Guardian Final Status
@@ -288,12 +288,11 @@ jobs:
           echo "===================================="
           echo "ARE MONOREPO GUARDIAN COMPLETE"
           echo "===================================="
+          echo "✔ ESLint repaired"
+          echo "✔ Prettier repaired"
           echo "✔ Dependencies checked"
-          echo "✔ ESLint auto-repair complete"
-          echo "✔ Prettier formatting complete"
-          echo "✔ TypeScript validation complete"
           echo "✔ Security scan complete"
-          echo "✔ Circular dependency scan complete"
-          echo "✔ Dead dependency scan complete"
+          echo "✔ TypeScript validation complete"
           echo "✔ Build validation complete"
+          echo "✔ SARIF uploaded"
           echo "===================================="
