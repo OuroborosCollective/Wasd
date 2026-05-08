@@ -193,19 +193,19 @@ jobs:
           fi
 
       - name: Lint workspace
-        run: pnpm -r run lint --loglevel verbose
-
-      - name: Typecheck
-        run: pnpm -r run typecheck --loglevel verbose
+        run: pnpm --filter "...[origin/main]" run lint
 
       - name: Build monorepo with Error Trapping
         run: |
           set -e
           echo "Starting Monorepo Build..."
-          pnpm -r run build --loglevel verbose || {
+          pnpm --filter "...[origin/main]" run build || {
             echo "BUILD FAILED. Capturing build state..."
             exit 1
           }
+
+      - name: Typecheck
+        run: pnpm --filter "...[origin/main]" run typecheck
 
       - name: Ensure Build Directories Exist
         run: |
@@ -226,7 +226,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Run tests
-        run: pnpm -r run test --loglevel verbose
+        run: pnpm --filter "...[origin/main]" run test
 
       - name: GitHub Dependency Submission
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'

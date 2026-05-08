@@ -3,13 +3,13 @@ import * as path from 'path';
 import { EventEmitter } from 'events';
 
 interface IFS {
-    watch(path: string, options: any, callback: (event: string, filename: string) => void): fs.FSWatcher;
+    watch(path: string, options: any, callback: (event: string, filename: string | null) => void): fs.FSWatcher;
     readFile(path: string): Promise<Buffer>;
     exists(path: string): Promise<boolean>;
 }
 
 class FSAL implements IFS {
-    watch(path: string, options: any, callback: (event: string, filename: string) => void): fs.FSWatcher {
+    watch(path: string, options: any, callback: (event: string, filename: string | null) => void): fs.FSWatcher {
         return fs.watch(path, options, callback);
     }
     async readFile(filePath: string): Promise<Buffer> {
@@ -96,11 +96,6 @@ export class AssetWatcherCloud extends EventEmitter {
         // Mocking Cloud Storage Put Operation
         const s3Key = `assets/${filename}`;
         const destinationUrl = `https://${this.s3Config.bucket}.${this.s3Config.endpoint}/${s3Key}`;
-        
-        // In a real implementation: 
-        // await s3Client.send(new PutObjectCommand({ Bucket: this.s3Config.bucket, Key: s3Key, Body: content }));
-        
-        console.log(`[AssetWatcherCloud] Uploaded ${filename} to ${destinationUrl}`);
         return destinationUrl;
     }
 
