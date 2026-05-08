@@ -31,7 +31,7 @@
     "tinyglobby": "^0.2.10",
     "eslint": "^8.57.0",
     "@typescript-eslint/eslint-plugin": "^7.1.0",
-    "@typescript-eslint/parser": "^7.1.0"
+    "@typescript-eslint/parser": "^8.59.2"
   },
   "dependencies": {
     "nanoid": "^5.0.6"
