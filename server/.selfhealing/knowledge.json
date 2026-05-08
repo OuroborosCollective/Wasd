@@ -1,0 +1,8 @@
+[
+  {
+    "pattern": "guildsovereigntyengine is not defined",
+    "occurrences": 1,
+    "successfulFix": "HEAL-002",
+    "lastUpdated": "2026-05-08T20:12:45.141Z"
+  }
+]

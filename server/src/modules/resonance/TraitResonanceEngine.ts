@@ -2,7 +2,14 @@ import { NPC } from '../npc/NPC';
 import { Chunk } from '../world/Chunk';
 import { GuildSovereigntyEngine } from '../guild/GuildSovereigntyEngine';
 
+interface ResonanceResult {
+    faith: number;
+    aggression: number;
+}
+
 export class TraitResonanceEngine {
+    private resonanceMap = new Map<string, ResonanceResult>();
+    
     constructor(private readonly sovereigntyEngine: GuildSovereigntyEngine) {}
 
     /**
@@ -43,5 +50,19 @@ export class TraitResonanceEngine {
         
         // Logik für zusätzliche Resonanz-Modifier (z.B. Wetter, Zeit) kann hier erweitert werden
         return aggressionAvg;
+    }
+
+    // Stub methods needed by WorldTick
+    public getChunkKey(x: number, y: number): string {
+        const chunkSize = 100;
+        return `${Math.floor(x / chunkSize)}_${Math.floor(y / chunkSize)}`;
+    }
+    
+    public getResonance(chunkKey: string): ResonanceResult {
+        return this.resonanceMap.get(chunkKey) ?? { faith: 0.5, aggression: 0.5 };
+    }
+    
+    public getAllResonance(): Map<string, ResonanceResult> {
+        return this.resonanceMap;
     }
 }
