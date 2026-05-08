@@ -1,11 +1,6 @@
-import { EmergentMarket } from './EmergentMarket';
-import { WorldEventBus } from './WorldEventBus';
-
-export interface MarketShiftPayload {
-    resourceId: string;
-    shiftPercentage: number;
-    currentPrice: number;
-}
+import { EmergentMarket, MarketShiftPayload } from '../modules/economy/EmergentMarket.js';
+import { WorldEventBus } from './WorldEventBus.js';
+import { AIOrchestrator } from './AIOrchestrator.js';
 
 export class GlobalCrisisManager {
     private readonly criticalLimit: number = 0.75;
@@ -35,19 +30,22 @@ export class GlobalCrisisManager {
 
         this.isCrisisActive = true;
 
-        this.eventBus.publish('scarcity_event', {
-            type: 'RESOURCE_SCARCITY_CRITICAL',
-            source: 'GLOBAL_CRISIS_MANAGER',
-            payload: {
-                resourceId: payload.resourceId,
-                severity: payload.shiftPercentage,
-                triggerWarfront: true,
-                marketStatus: 'UNSTABLE'
-            },
-            timestamp: Date.now()
+        // publish was changed to emit according to WorldEventBus definition
+        this.eventBus.emit('scarcity_event', {
+            resourceId: payload.resourceId,
+            multiplier: 1.0 + payload.shiftPercentage,
+            durationMinutes: 60,
+            affectedRegions: ['global']
         });
 
         this.logCrisisEvent(payload);
+
+        // Call the AIOrchestrator to trigger world expansion
+        AIOrchestrator.triggerWorldExpansion('generate_new_biome_quests', {
+            aggression: Math.max(0.1, 1.0 - Math.abs(payload.shiftPercentage)), // heuristic based on shift
+            chunkKey: `chunk_${payload.resourceId}_scarcity`, // derived contextual chunk
+            scarcitySeverity: payload.shiftPercentage
+        });
     }
 
     private logCrisisEvent(payload: MarketShiftPayload): void {

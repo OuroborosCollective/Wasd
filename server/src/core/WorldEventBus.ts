@@ -17,7 +17,7 @@ type WorldEventListener<K extends keyof WorldEventMap> = (data: WorldEventMap[K]
 
 export class WorldEventBus {
     private static instance: WorldEventBus;
-    private listeners: { [K in keyof WorldEventMap]?: WorldEventListener<K>[] } = {};
+    private listeners: { [K in keyof WorldEventMap]?: any[] } = {};
 
     private constructor() {}
 
