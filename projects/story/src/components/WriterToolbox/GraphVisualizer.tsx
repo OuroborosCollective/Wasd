@@ -149,7 +149,7 @@ const GraphVisualizer: React.FC<GraphVisualizerProps> = ({
                             fill={getNodeColor(node.type)}
                             stroke="#fff"
                             strokeWidth="2"
-                            boxShadow="0 2px 4px rgba(0,0,0,0.1)"
+                            style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.1))" }}
                         />
                         <text
                             y="35"

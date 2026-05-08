@@ -148,7 +148,7 @@ jobs:
 
       - name: Install Node.js dependencies
         run: |
-          pnpm install --frozen-lockfile || {
+          pnpm install --frozen-lockfile --loglevel verbose || {
             echo "PNPM Install Failed. Checking logs..."
             cat /home/runner/.pnpm-debug.log || true
             exit 1
@@ -186,7 +186,7 @@ jobs:
           PRISMA_PACKAGES=$(pnpm -r exec sh -c 'if [ -d "prisma" ]; then pwd; fi' | grep -v "node_modules" || true)
           if [ ! -z "$PRISMA_PACKAGES" ]; then
             echo "Found Prisma in: $PRISMA_PACKAGES"
-            pnpm -r exec prisma generate
+            pnpm -r exec prisma generate --loglevel verbose
             pnpm -r exec prisma migrate deploy || echo "No migrations found or already applied."
           else
             echo "No Prisma packages detected."
@@ -194,9 +194,6 @@ jobs:
 
       - name: Lint workspace
         run: pnpm --filter "...[origin/main]" run lint
-
-      - name: Typecheck
-        run: pnpm --filter "...[origin/main]" run typecheck
 
       - name: Build monorepo with Error Trapping
         run: |
@@ -206,6 +203,9 @@ jobs:
             echo "BUILD FAILED. Capturing build state..."
             exit 1
           }
+
+      - name: Typecheck
+        run: pnpm --filter "...[origin/main]" run typecheck
 
       - name: Ensure Build Directories Exist
         run: |
