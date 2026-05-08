@@ -1,5 +1,16 @@
 {
   "name": "@wasd/types",
   "version": "1.0.0",
-  "private": true
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint src"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
 }
