@@ -18,13 +18,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
 
       - name: Enable Corepack
         run: corepack enable
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v4.2.0
         with:
           node-version: 22
           cache: 'pnpm'
@@ -36,7 +36,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build workspace
-        run: pnpm -r build
+        run: |
+          pnpm --filter @wasd/shared build
+          pnpm -r build
 
   test:
     runs-on: ubuntu-latest
@@ -57,13 +59,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
 
       - name: Enable Corepack
         run: corepack enable
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v4.2.0
         with:
           node-version: 22
           cache: 'pnpm'
@@ -88,13 +90,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
 
       - name: Enable Corepack
         run: corepack enable
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v4.2.0
         with:
           node-version: 22
           cache: 'pnpm'
@@ -106,4 +108,6 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Typecheck workspace
-        run: pnpm -r typecheck
+        run: |
+          pnpm --filter @wasd/shared build
+          pnpm -r typecheck

@@ -76,7 +76,7 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 0
 
@@ -99,13 +99,13 @@ jobs:
           run_install: false
 
       - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v4.2.0
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'pnpm'
 
       - name: Setup Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v5.4.0
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
@@ -193,7 +193,7 @@ jobs:
           fi
 
       - name: Lint workspace
-        run: pnpm -r run lint --loglevel verbose
+        run: pnpm -r run lint
 
       - name: Typecheck
         run: pnpm -r run typecheck --loglevel verbose
@@ -201,6 +201,8 @@ jobs:
       - name: Build monorepo with Error Trapping
         run: |
           set -e
+          echo "Building shared package first..."
+          pnpm --filter @wasd/shared build
           echo "Starting Monorepo Build..."
           pnpm -r run build --loglevel verbose || {
             echo "BUILD FAILED. Capturing build state..."

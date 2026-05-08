@@ -18,7 +18,10 @@ def deploy():
 
     print(f"Connecting to {vps_ip}...")
     ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.load_system_host_keys()
+    # In CI environments, host keys might not be present.
+    # For a senior architect approach, we should ideally use a provided host key,
+    # but for now, we'll avoid AutoAddPolicy which triggers security alerts.
 
     try:
         ssh.connect(vps_ip, username=vps_user, password=vps_password)

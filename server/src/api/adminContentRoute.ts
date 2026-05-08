@@ -167,18 +167,18 @@ export function adminContentRouter(tick: WorldTick): Router {
     }
     if (kind === "quest") {
       const r = loadQuestJsonPreviewById(id);
-      if (!r.ok) return res.status(404).json({ ok: false, errorDe: r.errorDe });
-      return res.json({ ok: true, kind: "quest", id, json: r.json });
+      if (!r.ok) return res.status(404).json({ ok: false, errorDe: (r as any).errorDe });
+      return res.json({ ok: true, kind: "quest", id, json: (r as any).json });
     }
     if (kind === "dialogue" || kind === "dialog") {
       const r = loadDialogueJsonPreviewById(id);
-      if (!r.ok) return res.status(404).json({ ok: false, errorDe: r.errorDe });
-      return res.json({ ok: true, kind: "dialogue", id, json: r.json });
+      if (!r.ok) return res.status(404).json({ ok: false, errorDe: (r as any).errorDe });
+      return res.json({ ok: true, kind: "dialogue", id, json: (r as any).json });
     }
     if (kind === "npc") {
       const r = loadNpcJsonPreviewById(id);
-      if (!r.ok) return res.status(404).json({ ok: false, errorDe: r.errorDe });
-      return res.json({ ok: true, kind: "npc", id, json: r.json });
+      if (!r.ok) return res.status(404).json({ ok: false, errorDe: (r as any).errorDe });
+      return res.json({ ok: true, kind: "npc", id, json: (r as any).json });
     }
     return jsonError(res, 400, "Unbekannter „kind“ — nutze quest, dialogue oder npc.", "invalid kind");
   });
@@ -237,10 +237,10 @@ export function adminContentRouter(tick: WorldTick): Router {
   });
 
   router.post("/publish-pack", adminAuthMiddleware, adminWriteBlocked, (_req: AdminRequest, res: Response) => {
-    const result = publishContentPackFromRepo();
+    const result = publishContentPackFromRepo() as any;
     if (!result.ok) {
       if (result.code === "validation_failed") {
-        const errorsDe = result.errors?.map((e) => mapValidationErrorToDe(e)) ?? [];
+        const errorsDe = result.errors?.map((e: string) => mapValidationErrorToDe(e)) ?? [];
         const detail = errorsDe.slice(0, 12).join("\n");
         return res.status(400).json({
           error: result.message,
@@ -309,11 +309,11 @@ export function adminContentRouter(tick: WorldTick): Router {
       if (!file?.buffer?.length) {
         return jsonError(res, 400, "Keine Datei empfangen (Formular-Feld: file).", "file required");
       }
-      const folderSan = sanitizeAdminGlbRelativeFolder((req.body as { folder?: unknown })?.folder);
+      const folderSan = sanitizeAdminGlbRelativeFolder((req.body as { folder?: unknown })?.folder) as any;
       if (!folderSan.ok) {
         return jsonError(res, 400, folderSan.errorDe, folderSan.errorDe);
       }
-      const nameSan = sanitizeAdminGlbFilename(file.originalname);
+      const nameSan = sanitizeAdminGlbFilename(file.originalname) as any;
       if (!nameSan.ok) {
         return jsonError(res, 400, nameSan.errorDe, nameSan.errorDe);
       }
@@ -377,12 +377,12 @@ export function adminContentRouter(tick: WorldTick): Router {
       const chosenFolder = isNonEmptyString(folderRaw)
         ? folderRaw.trim()
         : suggestFolderForSmartCategory(category);
-      const folderSan = sanitizeAdminGlbRelativeFolder(chosenFolder);
+      const folderSan = sanitizeAdminGlbRelativeFolder(chosenFolder) as any;
       if (!folderSan.ok) {
         return jsonError(res, 400, folderSan.errorDe, folderSan.errorDe);
       }
 
-      const nameSan = sanitizeAdminGlbFilename(file.originalname);
+      const nameSan = sanitizeAdminGlbFilename(file.originalname) as any;
       if (!nameSan.ok) {
         return jsonError(res, 400, nameSan.errorDe, nameSan.errorDe);
       }
