@@ -148,7 +148,7 @@ jobs:
 
       - name: Install Node.js dependencies
         run: |
-          pnpm install --frozen-lockfile --loglevel verbose || {
+          pnpm install --frozen-lockfile || {
             echo "PNPM Install Failed. Checking logs..."
             cat /home/runner/.pnpm-debug.log || true
             exit 1
@@ -186,23 +186,23 @@ jobs:
           PRISMA_PACKAGES=$(pnpm -r exec sh -c 'if [ -d "prisma" ]; then pwd; fi' | grep -v "node_modules" || true)
           if [ ! -z "$PRISMA_PACKAGES" ]; then
             echo "Found Prisma in: $PRISMA_PACKAGES"
-            pnpm -r exec prisma generate --loglevel verbose
+            pnpm -r exec prisma generate
             pnpm -r exec prisma migrate deploy || echo "No migrations found or already applied."
           else
             echo "No Prisma packages detected."
           fi
 
       - name: Lint workspace
-        run: pnpm -r run lint --loglevel verbose
+        run: pnpm --filter "...[origin/main]" run lint
 
       - name: Typecheck
-        run: pnpm -r run typecheck --loglevel verbose
+        run: pnpm --filter "...[origin/main]" run typecheck
 
       - name: Build monorepo with Error Trapping
         run: |
           set -e
           echo "Starting Monorepo Build..."
-          pnpm -r run build --loglevel verbose || {
+          pnpm --filter "...[origin/main]" run build || {
             echo "BUILD FAILED. Capturing build state..."
             exit 1
           }
@@ -226,7 +226,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Run tests
-        run: pnpm -r run test --loglevel verbose
+        run: pnpm --filter "...[origin/main]" run test
 
       - name: GitHub Dependency Submission
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
