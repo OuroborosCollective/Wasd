@@ -1,0 +1,1 @@
+../../npc/NPCMemoryCache.ts

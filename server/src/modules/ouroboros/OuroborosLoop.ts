@@ -52,25 +52,27 @@ export function ouroborosTick(
   setRelationship: (a: string, b: string, delta: number) => void,
   config: OuroborosConfig = DEFAULT_CONFIG,
 ): string | null {
-  const mem = memoryCache.get(ctx.npcId);
+  const mem = memoryCache?.get(ctx.npcId);
 
   // Ensure needs exist
-  if (!me(m as any).heuristicWeights._needsSafety) {
-    me(m as any).heuristicWeights._needsSafety = 0.8;
-    me(m as any).heuristicWeights._needsResources = 0.5;
-    me(m as any).heuristicWeights._needsBelonging = 0.4;
-    me(m as any).heuristicWeights._needsStatus = 0.3;
-    me(m as any).heuristicWeights._needsWealth = 0.3;
-    me(m as any).heuristicWeights._needsPower = 0.2;
+  if (!mem?.heuristicWeights?._needsSafety) {
+    if (!mem) mem = { heuristicWeights: {} } as any;
+    else mem.heuristicWeights = {};
+    mem.heuristicWeights._needsSafety = 0.8;
+    mem.heuristicWeights._needsResources = 0.5;
+    mem.heuristicWeights._needsBelonging = 0.4;
+    mem.heuristicWeights._needsStatus = 0.3;
+    mem.heuristicWeights._needsWealth = 0.3;
+    mem.heuristicWeights._needsPower = 0.2;
   }
 
   const needs: NeedSet = {
-    safety: me(m as any).heuristicWeights._needsSafety,
-    resources: me(m as any).heuristicWeights._needsResources,
-    belonging: me(m as any).heuristicWeights._needsBelonging,
-    status: me(m as any).heuristicWeights._needsStatus,
-    wealth: me(m as any).heuristicWeights._needsWealth,
-    power: me(m as any).heuristicWeights._needsPower,
+    safety: mem?.heuristicWeights?._needsSafety ?? 0.8,
+    resources: mem?.heuristicWeights?._needsResources ?? 0.5,
+    belonging: mem?.heuristicWeights?._needsBelonging ?? 0.4,
+    status: mem?.heuristicWeights?._needsStatus ?? 0.3,
+    wealth: mem?.heuristicWeights?._needsWealth ?? 0.3,
+    power: mem?.heuristicWeights?._needsPower ?? 0.2,
   };
 
   // ─── PERCEIVE ──────────────────────────────────────────────────────────
