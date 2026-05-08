@@ -4,11 +4,11 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "baseUrl": ".",
-    "noImplicitAny": false,
-    "skipLibCheck": true,
     "paths": {
       "@wasd/shared": ["../packages/shared/src/index.ts"]
-    }
+    },
+    "noImplicitAny": false,
+    "skipLibCheck": true
   },
   "include": [
     "src",

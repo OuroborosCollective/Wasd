@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Database package for WASD pnpm-monorepo",
   "type": "module",
+  "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",

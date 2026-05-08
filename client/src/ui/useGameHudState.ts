@@ -60,7 +60,7 @@ export interface GameHudState {
 export const useGameHudState = (): GameHudState => {
   const [inventoryOpen, setInventoryOpen] = useState(false);
 
-  const [state, setState] = useState<GameHudState>({
+  const [state, setState] = useState<Omit<GameHudState, 'inventoryOpen' | 'toggleInventory' | 'onWirePayload' | 'onEntitySync' | 'onLootSpawned' | 'onLootDespawned'>>({
     gold: getPlayerGold(),
     inventory: getPlayerInventory(),
     weight: getPlayerInventoryWeight(),
@@ -80,26 +80,18 @@ export const useGameHudState = (): GameHudState => {
       sectors: [],
       frontBoss: { active: false }
     } as WarfrontHudState,
-    youId: null as string | null,
-    entities: [] as EntityNet[],
-    loot: [] as LootNet[],
-    fxFeed: [] as any[],
-    inv: {} as any,
-    inventoryOpen: false,
-    toggleInventory: () => {},
-    onWirePayload: () => {},
-    onEntitySync: () => {},
-    onLootSpawned: () => {},
-    onLootDespawned: () => {},
+    youId: null,
+    entities: [],
+    loot: [],
+    fxFeed: [],
+    inv: {},
   });
 
   useEffect(() => {
-    setState(s => ({ ...s, inventoryOpen }));
+    // Keep internal state updated with inventoryOpen if needed
   }, [inventoryOpen]);
 
   const syncState = useCallback(() => {
-    const quests = getPlayerQuests();
-    const inventory = getPlayerInventory();
     setState((prev) => ({
       ...prev,
       gold: typeof getPlayerGold === 'function' ? getPlayerGold() : 0,
