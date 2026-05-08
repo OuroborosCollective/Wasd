@@ -55,22 +55,22 @@ export function ouroborosTick(
   const mem = memoryCache.get(ctx.npcId);
 
   // Ensure needs exist
-  if (!mem.heuristicWeights._needsSafety) {
-    mem.heuristicWeights._needsSafety = 0.8;
-    mem.heuristicWeights._needsResources = 0.5;
-    mem.heuristicWeights._needsBelonging = 0.4;
-    mem.heuristicWeights._needsStatus = 0.3;
-    mem.heuristicWeights._needsWealth = 0.3;
-    mem.heuristicWeights._needsPower = 0.2;
+  if (!me(m as any).heuristicWeights._needsSafety) {
+    me(m as any).heuristicWeights._needsSafety = 0.8;
+    me(m as any).heuristicWeights._needsResources = 0.5;
+    me(m as any).heuristicWeights._needsBelonging = 0.4;
+    me(m as any).heuristicWeights._needsStatus = 0.3;
+    me(m as any).heuristicWeights._needsWealth = 0.3;
+    me(m as any).heuristicWeights._needsPower = 0.2;
   }
 
   const needs: NeedSet = {
-    safety: mem.heuristicWeights._needsSafety,
-    resources: mem.heuristicWeights._needsResources,
-    belonging: mem.heuristicWeights._needsBelonging,
-    status: mem.heuristicWeights._needsStatus,
-    wealth: mem.heuristicWeights._needsWealth,
-    power: mem.heuristicWeights._needsPower,
+    safety: me(m as any).heuristicWeights._needsSafety,
+    resources: me(m as any).heuristicWeights._needsResources,
+    belonging: me(m as any).heuristicWeights._needsBelonging,
+    status: me(m as any).heuristicWeights._needsStatus,
+    wealth: me(m as any).heuristicWeights._needsWealth,
+    power: me(m as any).heuristicWeights._needsPower,
   };
 
   // ─── PERCEIVE ──────────────────────────────────────────────────────────
@@ -105,7 +105,7 @@ export function ouroborosTick(
     }
 
     case "gather_resources": {
-      if (mem.heuristicWeights.tradeWillingness > 0.4) {
+      if (me(m as any).heuristicWeights.tradeWillingness > 0.4) {
         action = "trade_seek";
         memoryCache.logEvent(ctx.npcId, "seeking_trade");
       }
@@ -212,18 +212,18 @@ export function ouroborosTick(
   // ─── REMEMBER ──────────────────────────────────────────────────────────
   if (action) {
     memoryCache.setGoal(ctx.npcId, goalCategory);
-    mem.dirty = true;
+    me(m as any).dirty = true;
   }
 
   // ─── UPDATE (heuristics based on experience) ──────────────────────────
   // Persist needs back into heuristic weights
-  mem.heuristicWeights._needsSafety = needs.safety;
-  mem.heuristicWeights._needsResources = needs.resources;
-  mem.heuristicWeights._needsBelonging = needs.belonging;
-  mem.heuristicWeights._needsStatus = needs.status;
-  mem.heuristicWeights._needsWealth = needs.wealth;
-  mem.heuristicWeights._needsPower = needs.power;
-  mem.dirty = true;
+  me(m as any).heuristicWeights._needsSafety = needs.safety;
+  me(m as any).heuristicWeights._needsResources = needs.resources;
+  me(m as any).heuristicWeights._needsBelonging = needs.belonging;
+  me(m as any).heuristicWeights._needsStatus = needs.status;
+  me(m as any).heuristicWeights._needsWealth = needs.wealth;
+  me(m as any).heuristicWeights._needsPower = needs.power;
+  me(m as any).dirty = true;
 
   return action;
 }

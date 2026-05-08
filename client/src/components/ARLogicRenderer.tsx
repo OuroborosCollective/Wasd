@@ -75,10 +75,12 @@ const Scene = ({ gates, connections, onGateSelect }: ARLogicRendererProps) => {
   };
 
 
+
   return (
     <>
       <ambientLight intensity={0.5} />
       <pointLight position={[10, 10, 10]} />
+
       {gates.map(gate => (
         <GateNode key={gate.id} gate={gate} onSelect={onGateSelect} />
       ))}
