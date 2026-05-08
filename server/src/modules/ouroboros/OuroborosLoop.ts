@@ -107,7 +107,7 @@ export function ouroborosTick(
     }
 
     case "gather_resources": {
-      if (mem.heuristicWeights.tradeWillingness > 0.4) {
+      if (me(m as any).heuristicWeights.tradeWillingness > 0.4) {
         action = "trade_seek";
         memoryCache.logEvent(ctx.npcId, "seeking_trade");
       }
@@ -214,18 +214,18 @@ export function ouroborosTick(
   // ─── REMEMBER ──────────────────────────────────────────────────────────
   if (action) {
     memoryCache.setGoal(ctx.npcId, goalCategory);
-    mem.dirty = true;
+    me(m as any).dirty = true;
   }
 
   // ─── UPDATE (heuristics based on experience) ──────────────────────────
   // Persist needs back into heuristic weights
-  mem.heuristicWeights._needsSafety = needs.safety;
-  mem.heuristicWeights._needsResources = needs.resources;
-  mem.heuristicWeights._needsBelonging = needs.belonging;
-  mem.heuristicWeights._needsStatus = needs.status;
-  mem.heuristicWeights._needsWealth = needs.wealth;
-  mem.heuristicWeights._needsPower = needs.power;
-  mem.dirty = true;
+  me(m as any).heuristicWeights._needsSafety = needs.safety;
+  me(m as any).heuristicWeights._needsResources = needs.resources;
+  me(m as any).heuristicWeights._needsBelonging = needs.belonging;
+  me(m as any).heuristicWeights._needsStatus = needs.status;
+  me(m as any).heuristicWeights._needsWealth = needs.wealth;
+  me(m as any).heuristicWeights._needsPower = needs.power;
+  me(m as any).dirty = true;
 
   return action;
 }

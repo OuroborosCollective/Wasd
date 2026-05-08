@@ -13,7 +13,7 @@ export function getPostHogClient(): PostHog | null {
   if (!posthogClient) {
     posthogClient = new PostHog(apiKey, {
       host,
-      enableExceptionAutocapture: true,
+
     });
   }
   return posthogClient;

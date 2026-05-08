@@ -1,0 +1,33 @@
+name: Jules Dynamic World Expansion
+on:
+  repository_dispatch:
+    types: [generate_new_biome_quests] # Reagiert ausschließlich auf diesen spezifischen Event-Typ
+
+jobs:
+  expand_world_logic:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Trigger Jules Coding Agent via Invoke Action
+        uses: google-labs-code/jules-invoke@v1
+        with:
+          prompt: |
+            Der MasterExpansionOrchestrator meldet signifikante Spieleraktivitäten im Biom.
+            Der Aggressions-Durchschnitt (aggression_avg) ist auf ${{ github.event.client_payload.aggression }} gesunken,
+            und die Gilden-Souveränität (Guild Sovereignty Engine) im Chunk ${{ github.event.client_payload.chunkKey }} hat sich verfestigt.
+
+            Aufgabe für den Agenten:
+            1. Erstelle drei neue, kontextsensitive Fraktions-Quests in 'server/data/quests/dynamic/'.
+            2. Erweitere die Logik in 'server/src/modules/npc/FactionLegacyEngine.ts', sodass neue NPCs in diesem Sektor
+               eine um 0.15 höhere Basis-'faith' (Glauben) und geringere Aggression erhalten, um die friedliche Atmosphäre zu reflektieren.
+            3. Schreibe entsprechende TypeScript Unit-Tests, um sicherzustellen, dass die Kompilierbarkeit im
+               AREStateCompiler nicht beeinträchtigt wird und die kappaPos-Integer-Skalierung strikt eingehalten wird.
+
+            Architektonische Regeln:
+            - Halte dich strikt an das Muster des Stateless Determinism.
+            - Nutze die plexity-Heuristik (45/35/20 Gewichtung) für alle neuen Interaktionen.
+          jules_api_key: ${{ secrets.JULES_API_KEY }}
+          starting_branch: main
+          include_last_commit: false
