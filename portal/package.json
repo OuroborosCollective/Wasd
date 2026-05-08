@@ -9,16 +9,16 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "zustand": "^4.5.2",
-    "three": "0.169.0",
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "three": "0.184.0",
+    "zustand": "^5.0.13"
   },
   "devDependencies": {
-    "typescript": "^5.7.3",
-    "@types/node": "^22.13.1",
-    "@types/react": "^18.3.7",
-    "@types/react-dom": "^18.3.7",
-    "@types/three": "0.169.0"
+    "@types/node": "^25.6.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/three": "0.184.1",
+    "typescript": "^6.0.3"
   }
 }
