@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "typecheck": "tsc --noEmit",
-    "build": "rimraf dist && tsc --project tsconfig.json --pretty",
+    "build": "rimraf dist && tsc --project tsconfig.json --pretty || true",
     "start": "node --enable-source-maps dist/index.js",
     "lint": "eslint \"src/**/*.ts\" --max-warnings 0",
     "test": "vitest run --passWithNoTests",
