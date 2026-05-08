@@ -193,16 +193,16 @@ jobs:
           fi
 
       - name: Lint workspace
-        run: pnpm -r run lint --loglevel verbose
+        run: pnpm -r run lint
 
       - name: Typecheck
-        run: pnpm -r run typecheck --loglevel verbose
+        run: pnpm -r run typecheck
 
       - name: Build monorepo with Error Trapping
         run: |
           set -e
           echo "Starting Monorepo Build..."
-          pnpm -r run build --loglevel verbose || {
+          pnpm -r run build || {
             echo "BUILD FAILED. Capturing build state..."
             exit 1
           }

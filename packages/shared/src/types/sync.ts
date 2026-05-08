@@ -65,11 +65,26 @@ export interface SyncPacket<T = any> {
   timestamp: number;
 }
 
+export interface Entity {
+  id: string;
+  type: string;
+  position: Vector3;
+  rotation: Quaternion;
+  status: string;
+  health: number;
+}
+
 export interface EntityTransformUpdate {
   entityId: string;
   position: Vector3;
   rotation: Quaternion;
   scale: Vector3;
+  lastUpdateFrame?: number;
+  cpuCost?: number;
+  priority?: number;
+  health?: number;
+  status?: string;
+  sequenceId?: number;
 }
 
 export interface WorldState {
@@ -80,4 +95,7 @@ export interface WorldState {
   };
   editor: WorldEditorState;
   entities: Record<string, EntityTransformUpdate>;
+  frame?: number;
+  performanceMetrics?: any;
+  sequenceId?: number;
 }

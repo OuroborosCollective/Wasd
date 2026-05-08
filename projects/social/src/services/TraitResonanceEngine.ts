@@ -1,3 +1,10 @@
+import { EventEmitter } from 'events';
+
+export interface TensionUpdate {
+    normalizedValue: number;
+    timestamp: number;
+}
+
 export interface NeuralVector {
     dimensions: number[];
     timestamp: number;
@@ -11,7 +18,7 @@ export interface ResonanceResult {
     detected_patterns: string[];
 }
 
-export class TraitResonanceEngine {
+export class TraitResonanceEngine extends EventEmitter {
     private readonly windowSize: number;
     private readonly hostilityThreshold: number;
     private vectorBuffer: NeuralVector[];
