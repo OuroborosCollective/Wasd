@@ -19,7 +19,7 @@
     "@babylonjs/materials": "^7.54.3",
     "@preact/signals-core": "^1.5.6",
     "@react-three/fiber": "^8.15.16",
-    "@react-three/xr": "^5.7.1",
+    "@react-three/xr": "^6.6.29",
     "@supabase/supabase-js": "^2.39.7",
     "@wasd/shared": "workspace:*",
     "firebase": "^10.8.0",
