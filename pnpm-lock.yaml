@@ -777,8 +777,8 @@ importers:
         specifier: ^0.5.5
         version: 0.5.17(@types/node@25.6.1)
       google-auth-library:
-        specifier: ^9.6.3
-        version: 9.15.1
+        specifier: ^10.6.2
+        version: 10.6.2
       googleapis:
         specifier: ^133.0.0
         version: 133.0.0
