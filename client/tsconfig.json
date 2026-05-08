@@ -4,9 +4,6 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "baseUrl": ".",
-    "paths": {
-      "@wasd/shared": ["../packages/shared/src/index.ts"]
-    },
     "noImplicitAny": false,
     "skipLibCheck": true
   },

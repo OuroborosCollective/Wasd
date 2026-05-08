@@ -20,7 +20,7 @@
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^7.1.1",
-    "@typescript-eslint/parser": "^7.1.1",
+    "@typescript-eslint/parser": "^8.59.2",
     "@babylonjs/core": "^9.5.2",
     "@types/three": "0.169.0",
     "eslint": "^8.57.0",
