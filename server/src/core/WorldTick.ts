@@ -3604,9 +3604,14 @@ export class WorldTick {
   }
 
   private getChatRecipients(): ChatRecipient[] {
-    return this.playerSystem.getAllPlayers()
-      .filter((p: any) => !p.isOffline && this.playerToSocket.has(p.id))
-      .map((p: any) => ({ id: p.id, position: { x: p.position.x, y: p.position.y } }));
+    const recipients: ChatRecipient[] = [];
+    for (const pid of this.playerToSocket.keys()) {
+      const p = this.playerSystem.getPlayer(pid);
+      if (p) {
+        recipients.push({ id: p.id, position: { x: p.position.x, y: p.position.y } });
+      }
+    }
+    return recipients;
   }
 
   async init() {
@@ -3782,10 +3787,14 @@ export class WorldTick {
     this.tickCount += 1;
     const now = Date.now();
 
-    // ⚡ Bolt Optimization: Compute onlinePlayers once per tick to avoid redundant filtering
+    // ⚡ Bolt Optimization: Early observation gathering for spatial fast-paths
+    const { ids: observedChunkIds, chunks: observedChunkObjects } = this.observerEngine.getObservedChunks();
+
+    // ⚡ Bolt Optimization: Compute onlinePlayers from socket map to avoid O(N_total) scan
     const onlinePlayers: any[] = [];
-    for (const p of this.playerSystem.getPlayersMap().values()) {
-      if (!p.isOffline) onlinePlayers.push(p);
+    for (const pid of this.playerToSocket.keys()) {
+      const p = this.playerSystem.getPlayer(pid);
+      if (p) onlinePlayers.push(p);
     }
 
     this.tickFusionIntegrations(now, onlinePlayers);
@@ -3891,6 +3900,10 @@ export class WorldTick {
           const nx = npc.position.x;
           const ny = npc.position.y;
 
+          // ⚡ Bolt Optimization: Spatial fast-path for NPC proximity
+          const chunkId = this.chunkSystem.getChunkId(nx, ny);
+          if (!observedChunkIds.has(chunkId)) continue;
+
           let nearPlayer = false;
           for (let j = 0; j < onlinePlayers.length; j++) {
             const p = onlinePlayers[j];
@@ -3955,23 +3968,22 @@ export class WorldTick {
       void this.liveHeal.onTick().catch(() => { /* never crash the tick */ });
     }
 
-    const { ids: observedChunkIds, chunks: observedChunkObjects } = this.observerEngine.getObservedChunks();
-    this.broadcastState(observedChunkIds, observedChunkObjects);
+    this.broadcastState(onlinePlayers, observedChunkIds, observedChunkObjects);
   }
 
   public clearGlbPathCache() {
     this.glbPathCache.clear();
   }
 
-  broadcastState(observedChunkIds?: Set<string>, observedChunkObjects?: Array<{ id: string; chunkX: number; chunkY: number }>) {
+  broadcastState(onlinePlayers: any[], observedChunkIds?: Set<string>, observedChunkObjects?: Array<{ id: string; chunkX: number; chunkY: number }>) {
     const tickCount = this.tickCount;
     const entities: any[] = [];
     const chunks: Array<{ id: string; chunkX: number; chunkY: number; objects: any[] }> = [];
     const chunkObjects = new Map<string, any[]>();
 
-    // Optimize: Zero-allocation iteration using internal Maps and for...of
-    const playersMap = this.playerSystem.getPlayersMap();
-    for (const p of playersMap.values()) {
+    // ⚡ Bolt Optimization: Iterate only over online players for state sync
+    for (let i = 0; i < onlinePlayers.length; i++) {
+      const p = onlinePlayers[i];
       const chunkId = this.chunkSystem.getChunkId(p.position.x, p.position.y);
       if (observedChunkIds && !observedChunkIds.has(chunkId)) continue;
 

@@ -1,1 +1,1 @@
-../../npc/HeuristicGoalPruner.ts
+export class HeuristicGoalPruner {}

@@ -1,8 +1,8 @@
-/**
- * WeatherResonance.ts
- */
 export class WeatherResonance {
-    static getEffect(position: {x: number, y: number}): string {
-        return "Resonance_Stable";
-    }
+  public calculateCurrentResonance(): number {
+    return 0.5;
+  }
+  public static calculate(): number {
+    return 0.5;
+  }
 }

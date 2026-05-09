@@ -1,1 +1,1 @@
-../../systems/ContractManager.ts
+export class ContractManager { getContract(id: string) { return null; } }
