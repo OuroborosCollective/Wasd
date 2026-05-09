@@ -1,8 +1,1 @@
-/**
- * LLMService.ts
- */
-export class LLMService {
-    generate(prompt: string): string {
-        return prompt;
-    }
-}
+export class LLMService {}

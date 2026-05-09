@@ -1,6 +1,3 @@
-/**
- * PlexityEngine.ts
- */
-export class PlexityEngine {
-    start() { console.log("[Plexity] Engine gestartet"); }
+export class Engine {
+    public static tickCount: number = 0;
 }

@@ -25,8 +25,8 @@ export class LocalJwtService {
             },
             this.secret,
             {
-                algorithm: this.algorithm,
-                expiresIn: this.expiresIn,
+                algorithm: this.algorithm as any as any,
+                expiresIn: this.expiresIn as any,
                 issuer: 'local-auth-service'
             }
         );

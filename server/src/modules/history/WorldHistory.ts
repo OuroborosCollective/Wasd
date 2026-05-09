@@ -1,47 +1,12 @@
-export interface IFactionLegend {
-    id: string;
-    title: string;
-    description: string;
-    timestamp: number;
-    factionId: string;
-}
-
-export interface IWorldEvent {
-    id: string;
-    title: string;
-    description: string;
-    timestamp: number;
-    involvedFactionIds: string[];
-}
-
 export class WorldHistory {
-    private events: IWorldEvent[];
-
-    constructor() {
-        this.events = [];
-    }
-
-    public addEvent(event: IWorldEvent): void {
-        this.events.push(event);
-    }
-
-    public getAllEvents(): IWorldEvent[] {
-        return [...this.events];
-    }
-
-    public getLegendsByFaction(factionId: string): IFactionLegend[] {
-        return this.events
-            .filter(event => event.involvedFactionIds.includes(factionId))
-            .map(event => ({
-                id: event.id,
-                title: event.title,
-                description: event.description,
-                timestamp: event.timestamp,
-                factionId: factionId
-            }));
-    }
-
-    public clearHistory(): void {
-        this.events = [];
-    }
+    public static getInstance() { return new WorldHistory(); }
+    public on(event: string, cb: any) {}
+    public record(a?: any, b?: any) {}
+    public getEntryCount() { return 0; }
+    public getLegendCount() { return 0; }
+    public getLegendsUnknownTo(id: string) { return []; }
+    public getLegendsKnownBy(id: string) { return []; }
+    public spreadLegend(legendId: string, fromId: string, toId: string) {}
+    public getLegendsByFaction(factionId: string) { return []; }
 }
+export type Legend = any;

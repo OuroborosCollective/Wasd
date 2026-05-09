@@ -1,1 +1,3 @@
-../MasterExpansionOrchestrator.ts
+export class MasterExpansionOrchestrator {
+    public processTick() {}
+}

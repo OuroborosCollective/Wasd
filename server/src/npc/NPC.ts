@@ -1,6 +1,5 @@
-/**
- * NPC.ts
- */
+import { NPCTraits } from './NPCTraits';
 export class NPC {
-    constructor(public id: string, public data: any) {}
+    public id: string = "";
+    public traits: NPCTraits = new NPCTraits();
 }

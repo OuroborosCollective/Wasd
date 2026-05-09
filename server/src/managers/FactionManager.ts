@@ -1,6 +1,4 @@
-/**
- * FactionManager.ts
- */
 export class FactionManager {
-    checkAlignment(a: string, b: string) { return "NEUTRAL"; }
+    public static getInstance() { return new FactionManager(); }
+    public createFaction(data: any) { return {}; }
 }

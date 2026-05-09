@@ -1,1 +1,1 @@
-../../../oracle/OracleEndpoint.ts
+export class OracleEndpoint {}

@@ -5,6 +5,7 @@ import { GuildSovereigntyEngine } from '../guild/GuildSovereigntyEngine';
 interface ResonanceResult {
     faith: number;
     aggression: number;
+    curiosity: number;
 }
 
 export class TraitResonanceEngine {
@@ -59,7 +60,7 @@ export class TraitResonanceEngine {
     }
     
     public getResonance(chunkKey: string): ResonanceResult {
-        return this.resonanceMap.get(chunkKey) ?? { faith: 0.5, aggression: 0.5 };
+        return this.resonanceMap.get(chunkKey) ?? { faith: 0.5, aggression: 0.5, curiosity: 0.5 };
     }
     
     public getAllResonance(): Map<string, ResonanceResult> {

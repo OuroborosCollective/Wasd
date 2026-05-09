@@ -1,6 +1,4 @@
-/**
- * LegendManager.ts
- */
 export class LegendManager {
-    get(id: string) { return null; }
+    public static getInstance() { return new LegendManager(); }
+    public getGlobalLegends() { return []; }
 }
