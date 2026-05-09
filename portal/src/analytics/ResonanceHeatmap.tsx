@@ -24,7 +24,7 @@ export const ResonanceHeatmap: React.FC<ResonanceHeatmapProps> = ({
   height = 512
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number>(undefined);
 
   const gridSize = 64;
 
