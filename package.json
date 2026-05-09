@@ -16,9 +16,11 @@
     "node": ">=20.0.0"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
     "@types/node": "^22.19.18",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/uuid": "^11.0.0",
     "eslint": "^10.3.0",
     "eslint-config-next": "^16.2.6",
     "typescript": "^6.0.3"
