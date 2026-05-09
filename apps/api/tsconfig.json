@@ -1,28 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "baseUrl": ".",
     "rootDir": "src",
     "outDir": "dist",
-    "composite": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "skipLibCheck": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "paths": {
-      "@wasd/utils": ["../../packages/utils/src"],
-      "@wasd/utils/*": ["../../packages/utils/src/*"],
-      "@wasd/shared": ["../../packages/shared/src"],
-      "@wasd/shared/*": ["../../packages/shared/src/*"]
-    }
+    "emitDecoratorMetadata": true
   },
   "include": ["src/**/*"],
   "exclude": [
@@ -37,6 +19,18 @@
     },
     {
       "path": "../../packages/shared"
+    },
+    {
+      "path": "../../packages/core"
+    },
+    {
+      "path": "../../packages/database"
+    },
+    {
+      "path": "../../packages/redis"
+    },
+    {
+      "path": "../../packages/types"
     }
   ]
 }

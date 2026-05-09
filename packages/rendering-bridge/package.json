@@ -16,7 +16,7 @@
   },
   "peerDependencies": {
     "@babylonjs/core": "^6.0.0",
-    "three": "0.169.0"
+    "three": "0.184.0"
   },
   "devDependencies": {
     "@babylonjs/core": "^9.6.2",
