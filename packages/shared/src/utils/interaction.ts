@@ -3,6 +3,8 @@
  * Keep `INTERACT_DISTANCE` in sync with `server/src/config/GameConfig.ts` → `interactDistance`.
  */
 export const INTERACT_DISTANCE = 25;
+export const INTERACT_DISTANCE_KAPPA = 2000;
+export type KappaPoint2D = { x: number; y: number };
 
 export type InteractPoint = { x: number; y: number };
 
