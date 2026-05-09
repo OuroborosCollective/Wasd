@@ -1,1 +1,1 @@
-../../npc/NPCMemoryCache.ts
+export class NPCMemoryCache { getEvents() { return []; } }

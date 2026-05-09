@@ -4,13 +4,15 @@ import { EventEmitter } from 'events';
 /**
  * Areloria WASD - Core Client Logic
  * Handles synchronization between physics, scene, and interaction states.
+ * 
+ * Optimized to adhere to ARE-Logic and strict TypeScript constraints.
  */
 
 export interface ClosestInteractable {
   id: string;
   distance: number;
   position: THREE.Vector3;
-  type: string; // FIX TS2339: Eigenschaft 'type' hinzugefügt
+  type: string;
 }
 
 export interface ClientConfig {
@@ -57,12 +59,14 @@ export class MMORPGClientCore extends EventEmitter {
 
   /**
    * Haupt-Update-Loop für die Client-Logik.
+   * Delta wird berechnet, um Konsistenz für Frame-abhängige Animationen zu wahren.
    */
   public update(): void {
-    const delta = this.clock.getDelta();
+    // Delta wird für Renderer/Clock benötigt, aber nicht für die reine Interaktions-Logik-Filterung
+    this.clock.getDelta();
     
     if (this.localPlayerId) {
-      this.processInteractions(delta);
+      this.processInteractions();
     }
 
     this.renderer.render(this.scene, this.camera);
@@ -70,15 +74,14 @@ export class MMORPGClientCore extends EventEmitter {
 
   /**
    * Verarbeitet Interaktionen in der Nähe des Spielers.
+   * Entfernt 'delta', da die Selektion auf dem aktuellen State basiert (Kappa-konform).
    */
-  private processInteractions(delta: number): void {
+  private processInteractions(): void {
     if (!this.localPlayerId) return;
 
-    // FIX TS2554: Aufruf auf zwei Argumente erweitert (playerId und delta)
-    const closest = this.getClosestInteractable(this.localPlayerId, delta);
+    const closest = this.getClosestInteractable();
 
     if (closest) {
-      // FIX TS2339: Zugriff auf .type ist nun durch das Interface-Update valide
       if (closest.type === 'npc') {
         this.emit('interaction:ready', closest);
       } else if (closest.type === 'item') {
@@ -91,14 +94,14 @@ export class MMORPGClientCore extends EventEmitter {
 
   /**
    * Ermittelt das nächste interaktionsfähige Objekt.
-   * @param playerId Die ID des lokalen Spielers
-   * @param delta Zeit seit dem letzten Frame für Interpolation
+   * FIX TS6133: Parameter 'playerId' und 'delta' entfernt, da die Selektion 
+   * über die interne Map 'interactables' erfolgt.
    */
-  private getClosestInteractable(playerId: string, delta: number): ClosestInteractable | null {
+  private getClosestInteractable(): ClosestInteractable | null {
     let nearest: ClosestInteractable | null = null;
     let minDistance = Infinity;
 
-    // Simulation der Logik zur Findung des nächsten Objekts
+    // Simulation der Logik zur Findung des nächsten Objekts basierend auf Distanz-Werten (Kappa-Fixed-Point)
     this.interactables.forEach((item) => {
       if (item.distance < minDistance) {
         minDistance = item.distance;
@@ -112,7 +115,11 @@ export class MMORPGClientCore extends EventEmitter {
   private highlightInteractable(id: string, active: boolean): void {
     const object = this.scene.getObjectByName(id);
     if (object && object instanceof THREE.Mesh) {
-      object.material.emissive = active ? new THREE.Color(0x00ff00) : new THREE.Color(0x000000);
+      // Zugriff auf emissive Farbe zur visuellen Indikation
+      const material = object.material as THREE.MeshStandardMaterial;
+      if (material.emissive) {
+        material.emissive.setHex(active ? 0x00ff00 : 0x000000);
+      }
     }
   }
 

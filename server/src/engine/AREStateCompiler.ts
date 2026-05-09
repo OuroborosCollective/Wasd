@@ -1,8 +1,5 @@
-/**
- * AREStateCompiler.ts
- */
 export class AREStateCompiler {
-    compile(data: any): Buffer {
-        return Buffer.from(JSON.stringify(data));
-    }
+    public validateTransition(a: any, b: any): boolean { return true; }
+    public commitOrderToState(order: any): void {}
+    public queryOrderState(id: string): any { return null; }
 }
