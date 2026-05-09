@@ -1,10 +1,18 @@
 import React, { useMemo } from 'react';
 import { useStore } from '../../store/useStore';
-// TS6305: Nutzung relativer Pfade für das Protokoll zur Vermeidung von Boundary-Issues
+
+/**
+ * TS6305: Nutzung relativer Pfade für das Protokoll und Shared-Packages 
+ * zur Vermeidung von Boundary-Issues und Sicherstellung des deterministischen Ladens.
+ */
 import { DeviceTier } from '../../../../../packages/protocol/src/system/device';
+// Hier wird der @wasd/shared Alias durch den relativen Pfad ersetzt
+// Beispielhaft für KAPPA oder andere shared Constants, falls benötigt
+// import { KAPPA } from '../../../../../packages/shared/src/math/constants';
 
 /**
  * QuestStateNet Definition mit den geforderten Feldern name und target.
+ * Verbleibt lokal oder wird bei Bedarf aus shared/src/types/quest.ts (relativ) bezogen.
  */
 export interface QuestStateNet {
   id: string;
@@ -19,7 +27,7 @@ export interface QuestStateNet {
  * Erweitertes GameHudState Interface gemäß Vorgabe.
  */
 interface GameHudState {
-  isActive: boolean; // Umbenannt von 'active'
+  isActive: boolean;
   inventoryOpen: boolean;
   activeQuests: QuestStateNet[];
   nearbyLoot: string[];
@@ -42,7 +50,7 @@ export const NewHud: React.FC = () => {
     maxMana,
     deviceTier 
   } = useStore((state) => ({
-    isActive: state.isActive, // Korrektur: active -> isActive
+    isActive: state.isActive,
     inventoryOpen: state.inventoryOpen,
     activeQuests: state.activeQuests,
     nearbyLoot: state.nearbyLoot,
@@ -56,6 +64,16 @@ export const NewHud: React.FC = () => {
   // Fix: Sicherer DeviceTier Vergleich
   const isLowEnd = useMemo(() => deviceTier === DeviceTier.LOW || deviceTier === DeviceTier.MOBILE, [deviceTier]);
 
+  /**
+   * KAPPA STANDARD: Berechnung der Prozentwerte mittels Fixed-Point Logik
+   * zur Vermeidung von Floating Point Ungenauigkeiten in der UI-Skalierung.
+   */
+  const calculatePercent = (current: number, max: number): number => {
+    if (max <= 0) return 0;
+    // Ganzzahlige Berechnung: (Value * 100) / Max
+    return Math.floor((current * 100) / max);
+  };
+
   if (!isActive) return null;
 
   return (
@@ -66,13 +84,13 @@ export const NewHud: React.FC = () => {
           <div className="h-6 bg-black/40 border border-white/10 rounded-full overflow-hidden backdrop-blur-md">
             <div 
               className="h-full bg-gradient-to-r from-red-600 to-red-500 transition-all duration-300"
-              style={{ width: `${(health / maxHealth) * 100}%` }}
+              style={{ width: `${calculatePercent(health, maxHealth)}%` }}
             />
           </div>
           <div className="h-4 bg-black/40 border border-white/10 rounded-full overflow-hidden backdrop-blur-md">
             <div 
               className="h-full bg-gradient-to-r from-blue-600 to-blue-500 transition-all duration-300"
-              style={{ width: `${(mana / maxMana) * 100}%` }}
+              style={{ width: `${calculatePercent(mana, maxMana)}%` }}
             />
           </div>
         </div>
@@ -88,7 +106,7 @@ export const NewHud: React.FC = () => {
                 <div className="w-full h-1 bg-white/10 mt-1">
                   <div 
                     className="h-full bg-yellow-500" 
-                    style={{ width: `${(quest.progress / quest.maxProgress) * 100}%` }}
+                    style={{ width: `${calculatePercent(quest.progress, quest.maxProgress)}%` }}
                   />
                 </div>
               </div>
@@ -110,7 +128,6 @@ export const NewHud: React.FC = () => {
       {/* Bottom Section: Inventory & Controls */}
       <div className="flex justify-between items-end">
         <div className="flex gap-2">
-          {/* Keybind Overlays - Only show if not on LowEnd device to save perf */}
           {!isLowEnd && (
             <div className="flex gap-4 text-[10px] text-white/40">
               <div className="flex flex-col items-center gap-1">

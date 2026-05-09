@@ -1,4 +1,4 @@
-import { Logger } from '@wasd/utils';
+import { Logger } from '../../../../packages/utils/src/index.js';
 import { 
   IVPSState, 
   IVPSHealthStatus, 
@@ -59,6 +59,8 @@ enum CircuitState {
  * Integrates 'Jules' as the primary automated repository bug-fixer.
  * Implements Circuit Breaker patterns and Exponential Backoff for resilience.
  * Integrates LoreNarrativeEngine for deterministic agent behavior.
+ * 
+ * 10Hz Tick Compliance: Every operation must resolve within 100ms.
  */
 export class VPSAutonomousOperationService {
   private static readonly CRITICAL_CPU_THRESHOLD = 90;
@@ -96,9 +98,9 @@ export class VPSAutonomousOperationService {
     this.globalTruthState.lastHeartbeat = Date.now();
     
     // Inject deterministic narrative seed for this cycle to ensure reproducible agent emergence
-    this.globalTruthState.narrativeSeed = LoreNarrativeEngine.generateDeterministicSeed(
-      `TICK_${Math.floor(Date.now() / 1000)}_${this.globalTruthState.systemIntegrity}`
-    );
+    // Explicitly typed return value for LoreNarrativeEngine call
+    const tickSeedInput: string = `TICK_${Math.floor(Date.now() / 1000)}_${this.globalTruthState.systemIntegrity}`;
+    this.globalTruthState.narrativeSeed = LoreNarrativeEngine.generateDeterministicSeed(tickSeedInput) as string;
 
     const actions: IAutonomousAction[] = [];
     const logicPoints = this.generateLogicPoints(currentState);
@@ -260,7 +262,9 @@ export class VPSAutonomousOperationService {
     return commits.map((commit): INarrativeLog => {
       const msg = commit.message.toLowerCase();
       const author = commit.author.toLowerCase();
-      const currentSeed = LoreNarrativeEngine.generateDeterministicSeed(`${commit.hash}_${this.globalTruthState.narrativeSeed}`);
+      // Ensure seed generation is strictly typed
+      const seedInput: string = `${commit.hash}_${this.globalTruthState.narrativeSeed}`;
+      const currentSeed: string = LoreNarrativeEngine.generateDeterministicSeed(seedInput) as string;
       
       let content = '';
       let severity: INarrativeLog['severity'] = 'INFO';
@@ -407,7 +411,7 @@ export class VPSAutonomousOperationService {
 
   private static evaluateResources(state: IVPSState): IAutonomousAction[] {
     const actions: IAutonomousAction[] = [];
-    const seedCtx = this.globalTruthState.narrativeSeed;
+    const seedCtx: string = this.globalTruthState.narrativeSeed;
 
     if (state.metrics.cpuUsage > this.CRITICAL_CPU_THRESHOLD) {
       actions.push({

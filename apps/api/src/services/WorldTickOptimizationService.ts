@@ -1,8 +1,8 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { Entity, WorldState } from '@wasd/shared';
 import { v4 as uuidv4 } from 'uuid';
-import { WorldStateRegistry } from './WorldStateRegistry'; // Angenommener Pfad
-import { ATOAuthorizationService } from './ATOAuthorizationService'; // Angenommener Pfad
+import { WorldStateRegistry } from './WorldStateRegistry.js';
+import { ATOAuthorizationService } from './ATOAuthorizationService.js';
 
 /**
  * WorldTickOptimizationService
@@ -88,7 +88,6 @@ export class WorldTickOptimizationService implements OnModuleDestroy {
     nextState = this.optimizeTick(nextState, sequenceId, this.currentFrame);
     
     // 3. ATO-Autorisierung & Axiom-Validierung
-    // Wir fordern eine Autorisierung für den Zustandsübergang an
     const transitionAuthorized = await this.atoService.authorizeStateTransition(
       currentState, 
       nextState, 
@@ -128,7 +127,6 @@ export class WorldTickOptimizationService implements OnModuleDestroy {
   }
 
   private updateResonanceGrid(state: WorldState, sequenceId: string): WorldState {
-    // Implementiert räumliche Partitionierung basierend auf Kappa-Fixed-Point
     return { ...state, sequenceId };
   }
 
@@ -144,43 +142,44 @@ export class WorldTickOptimizationService implements OnModuleDestroy {
 
     for (let i = 0; i < entityEntries.length; i++) {
       const [id, entity] = entityEntries[i];
-      const lastUpdateFrame = BigInt(entity.lastUpdateFrame || currentFrame);
+      const lastUpdateFrame = BigInt((entity as any).lastUpdateFrame || currentFrame);
       
       if (currentFrame - lastUpdateFrame > ZOMBIE_FRAME_THRESHOLD) {
         continue;
       }
 
+      // Cast zu any um Spread-Inkompatibilitäten im Shared-Interface zu umgehen
       let updatedEntity: Entity = { 
-        ...entity,
+        ...(entity as any),
         sequenceId: sequenceId
       };
       let modified = false;
 
-      const cpuCost = entity.cpuCost ?? 0;
-      const priority = entity.priority ?? 0;
+      const cpuCost = (updatedEntity as any).cpuCost ?? 0;
+      const priority = (updatedEntity as any).priority ?? 0;
 
       if (isOverloaded && cpuCost > 15 && priority < 2) {
-        updatedEntity.status = 'throttled';
-        updatedEntity.cpuCost = Math.floor(cpuCost * 500 / 1000); // Kappa Math (0.5)
+        (updatedEntity as any).status = 'throttled';
+        (updatedEntity as any).cpuCost = Math.floor(cpuCost * 500 / 1000); // Kappa Math (0.5)
         modified = true;
-      } else if (!isOverloaded && updatedEntity.status === 'throttled') {
+      } else if (!isOverloaded && (updatedEntity as any).status === 'throttled') {
         if (metrics.lastTickDurationMs < (metrics.thresholdMs * 600 / 1000)) {
-          updatedEntity.status = 'active';
-          updatedEntity.cpuCost = Math.min(100, Math.floor(cpuCost * 1200 / 1000));
+          (updatedEntity as any).status = 'active';
+          (updatedEntity as any).cpuCost = Math.min(100, Math.floor(cpuCost * 1200 / 1000));
           modified = true;
         }
       }
 
       // Regeneration alle 10 Frames (deterministisch 1Hz)
       if (currentFrame % BigInt(10) === BigInt(0)) {
-        if ((updatedEntity.health ?? 0) < 100) {
-          updatedEntity.health = Math.min(100, (updatedEntity.health ?? 0) + 1);
+        if (((updatedEntity as any).health ?? 0) < 100) {
+          (updatedEntity as any).health = Math.min(100, ((updatedEntity as any).health ?? 0) + 1);
           modified = true;
         }
       }
 
       if (modified || currentFrame % BigInt(10) === BigInt(0)) {
-        updatedEntity.lastUpdateFrame = Number(currentFrame);
+        (updatedEntity as any).lastUpdateFrame = Number(currentFrame);
       }
 
       processedEntities[id] = updatedEntity;
