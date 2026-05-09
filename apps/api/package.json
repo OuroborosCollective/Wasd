@@ -22,16 +22,20 @@
     "@wasd/redis": "workspace:*",
     "@wasd/types": "workspace:*",
     "@wasd/utils": "workspace:*",
+    "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "node-ssh": "^13.2.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
-    "three": "0.184.0"
+    "three": "0.184.0",
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^22.19.18",
     "@types/three": "0.184.1",
+    "@types/uuid": "^11.0.0",
     "@typescript-eslint/eslint-plugin": "^8.59.2",
     "@typescript-eslint/parser": "^8.59.2",
     "eslint": "^10.3.0",

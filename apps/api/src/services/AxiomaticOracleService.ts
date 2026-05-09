@@ -224,7 +224,7 @@ export class AxiomaticOracleService implements OnModuleInit {
       
       this.dbFailureCount = 0;
       this.logger.debug(`Successfully persisted ${eventsToProcess.length} Oracle events.`);
-    } catch (error) {
+    } catch (error: any) {
       this.dbFailureCount++;
       this.logger.warn(`Database sync failed (${this.dbFailureCount}/${this.CIRCUIT_BREAKER_THRESHOLD}): ${error.message}`);
       
