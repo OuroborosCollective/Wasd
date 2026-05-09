@@ -185,15 +185,57 @@ export function WorldVisualizer() {
 
   // Handle evolution events - camera pan
   useEffect(() => {
-    if (!worldState?.regions || !cameraRef.current) return;
+    if (!worldState?.regions || !cameraRef.current || !sceneRef.current) return;
     
-    // Find the region that changed
-    const regions = worldState.regions;
-    if (regions.length > 0 && cameraRef.current) {
-      // Could implement camera pan to region here
-      // For now, just log
-      // console.log('[visualizer] Regions updated:', regions.length);
-    }
+    const scene = sceneRef.current;
+    const camera = cameraRef.current;
+    
+    // Listen for evolution events
+    const handleEvolutionEvent = (e: CustomEvent) => {
+      const event = e.detail;
+      const regionMesh = regionMeshesRef.current.get(event.regionId);
+      
+      if (regionMesh) {
+        const targetPos = regionMesh.mesh.position;
+        
+        // Smooth camera interpolation to region
+        const startAlpha = camera.alpha;
+        const startBeta = camera.beta;
+        const startRadius = camera.radius;
+        const startTarget = camera.target.clone();
+        
+        const targetAlpha = Math.atan2(targetPos.x, targetPos.z);
+        const targetBeta = Math.PI / 3;
+        const targetRadius = 25;
+        
+        let t = 0;
+        const animate = () => {
+          t += 0.02;
+          if (t >= 1) {
+            camera.alpha = targetAlpha;
+            camera.beta = targetBeta;
+            camera.radius = targetRadius;
+            camera.setTarget(targetPos);
+            return;
+          }
+          
+          // Ease out interpolation
+          const ease = 1 - Math.pow(1 - t, 3);
+          camera.alpha = startAlpha + (targetAlpha - startAlpha) * ease;
+          camera.beta = startBeta + (targetBeta - startBeta) * ease;
+          camera.radius = startRadius + (targetRadius - startRadius) * ease;
+          
+          requestAnimationFrame(animate);
+        };
+        
+        animate();
+        
+        console.log('[visualizer] Camera pan to:', event.regionId);
+      }
+    };
+    
+    window.addEventListener('evolution-alert', handleEvolutionEvent as EventListener);
+    return () => window.removeEventListener('evolution-alert', handleEvolutionEvent as EventListener);
   }, [worldState]);
 
   return (
