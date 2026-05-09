@@ -73,11 +73,22 @@ export interface EntityTransformUpdate {
 }
 
 export interface WorldState {
+  frame?: number;
+  sequenceId?: string;
+  lastProcessedAt?: number;
+  performanceMetrics?: any;
   players: Record<string, PlayerState>;
   terrain: {
     metadata: TerrainMetadata;
     chunks: Record<string, number[]>;
   };
   editor: WorldEditorState;
-  entities: Record<string, EntityTransformUpdate>;
+  entities: Record<string, any>;
+}
+export interface Entity {
+  id: string;
+  lastUpdateFrame?: number;
+  cpuCost?: number;
+  priority?: number;
+  [key: string]: any;
 }

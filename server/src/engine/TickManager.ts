@@ -1,4 +1,4 @@
-import { MasterExpansionOrchestrator } from './MasterExpansionOrchestrator';
+import { MasterExpansionOrchestrator } from '../logic/MasterExpansionOrchestrator';
 
 export class TickManager {
     private readonly TICK_INTERVAL_MS: number = 100;

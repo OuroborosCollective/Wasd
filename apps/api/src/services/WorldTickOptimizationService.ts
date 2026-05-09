@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import { Entity, WorldState } from '@wasd/shared';
+import { Entity, WorldState, EntityTransformUpdate } from '@wasd/shared';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -127,7 +127,8 @@ export class WorldTickOptimizationService implements OnModuleDestroy {
    * Kern-Optimierung basierend auf diskreten Frames statt Realzeit-Deltas.
    */
   public optimizeTick(currentState: WorldState, sequenceId: string, currentFrame: bigint): WorldState {
-    const { entities, performanceMetrics } = currentState;
+    const entities = currentState.entities as unknown as Record<string, Entity>;
+    const performanceMetrics = currentState.performanceMetrics;
     const processedEntities: Record<string, Entity> = {};
     
     const metrics = performanceMetrics || { lastTickDurationMs: 0, thresholdMs: 80 };

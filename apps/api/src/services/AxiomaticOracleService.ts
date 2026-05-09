@@ -226,7 +226,8 @@ export class AxiomaticOracleService implements OnModuleInit {
       this.logger.debug(`Successfully persisted ${eventsToProcess.length} Oracle events.`);
     } catch (error) {
       this.dbFailureCount++;
-      this.logger.warn(`Database sync failed (${this.dbFailureCount}/${this.CIRCUIT_BREAKER_THRESHOLD}): ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Database sync failed (${this.dbFailureCount}/${this.CIRCUIT_BREAKER_THRESHOLD}): ${message}`);
       
       // Re-queue events with incremented retry count
       eventsToProcess.forEach(e => {

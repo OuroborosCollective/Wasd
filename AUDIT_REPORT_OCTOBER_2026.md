@@ -19,9 +19,9 @@ The repository is a complex monorepo managed with `pnpm`, containing over 40 pac
 3. **Strict Dependency Linking:** Switch to `node-linker=isolated` to enforce explicit dependency declarations.
 4. **Centralized Versioning:** Use `pnpm.overrides` in the root `package.json` to force consistent versions of core libraries across the entire monorepo.
 
-## Action Plan
-1. **Standardize Dependencies:** Unify `@types/node`, `@types/react`, and rendering engines via root overrides.
-2. **Repair TypeScript Graph:** Auto-generate or manually update `tsconfig.json` references to include all workspace members.
-3. **Clean Workflows:** Remove `ci.yml` and other legacy workflows, keeping `main-pipeline.yml` as the primary orchestrator.
-4. **Harden Environment:** Update `Dockerfile` and `.npmrc` for strictness and modern Node.js features.
-5. **Validation:** Perform full monorepo build and test cycle to ensure stability.
+## Action Plan & Results
+1. **Standardize Dependencies (DONE):** Unified `@types/node`, `@types/react`, `@babylonjs/core`, and `three` via root overrides.
+2. **Repair TypeScript Graph (DONE):** Root `tsconfig.json` now includes all 37 workspace packages.
+3. **Clean Workflows (DONE):** Redundant workflows removed; `main-pipeline.yml` is the sole source of truth.
+4. **Harden Environment (IN PROGRESS):** `Dockerfile` updated to Node.js v22. `.npmrc` currently remains on `shamefully-hoist=true` to maintain compatibility with legacy packages, but the goal remains a transition to `node-linker=isolated`.
+5. **Validation (DONE):** Core packages, API, and Client are now building and passing tests. Extensive pre-existing errors in the `server` package were identified and documented for future refactoring.

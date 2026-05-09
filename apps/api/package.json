@@ -20,6 +20,7 @@
     "@wasd/core": "workspace:*",
     "@wasd/database": "workspace:*",
     "@wasd/redis": "workspace:*",
+    "@wasd/shared": "workspace:^",
     "@wasd/types": "workspace:*",
     "@wasd/utils": "workspace:*",
     "cors": "^2.8.6",
