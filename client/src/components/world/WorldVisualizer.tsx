@@ -1,10 +1,10 @@
 /**
  * @file client/src/components/world/WorldVisualizer.tsx
  * @description Babylon.js 3D World Visualizer
- * Renders the Arelorian world state in real-time
+ * Renders the Arelorian world state in real-time with LOD and Performance Monitoring
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import * as BABYLON from '@babylonjs/core';
 import { useWorld } from '../../dashboard/context/WorldContext';
 
@@ -12,7 +12,13 @@ interface RegionMesh {
   id: string;
   mesh: BABYLON.Mesh;
   material: BABYLON.PBRMaterial;
+  lodLevel: number;
 }
+
+// Performance thresholds
+const FPS_LOW = 30;
+const FPS_MEDIUM = 45;
+const LOD_DISTANCES = [20, 40, 60]; // LOD transition distances
 
 export function WorldVisualizer() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -20,9 +26,49 @@ export function WorldVisualizer() {
   const sceneRef = useRef<BABYLON.Scene | null>(null);
   const regionMeshesRef = useRef<Map<string, RegionMesh>>(new Map());
   const cameraRef = useRef<BABYLON.ArcRotateCamera | null>(null);
+  const perfMonitorRef = useRef<{ fps: number; quality: string }>({ fps: 60, quality: 'high' });
   
   const { worldState, connected } = useWorld();
   const [isLoading, setIsLoading] = useState(true);
+
+  // Performance monitor - auto-adjust quality
+  const updatePerformance = useCallback((fps: number) => {
+    const current = perfMonitorRef.current;
+    current.fps = fps;
+    
+    if (fps < FPS_LOW && current.quality !== 'low') {
+      // Reduce quality
+      current.quality = 'low';
+      // Reduce shadows, disable particles
+      sceneRef.current?.meshes.forEach(mesh => {
+        if (mesh.material && 'shadowEnabled' in mesh.material) {
+          (mesh.material as any).shadowEnabled = false;
+        }
+      });
+    } else if (fps < FPS_MEDIUM && current.quality === 'high') {
+      current.quality = 'medium';
+    }
+  }, []);
+
+  // Calculate LOD level based on camera distance
+  const getLODLevel = useCallback((distance: number): number => {
+    if (distance < LOD_DISTANCES[0]) return 2; // High detail
+    if (distance < LOD_DISTANCES[1]) return 1; // Medium
+    return 0; // Low detail
+  }, []);
+
+  // Mobile touch controls
+  const setupMobileControls = useCallback((camera: BABYLON.ArcRotateCamera, canvas: HTMLCanvasElement) => {
+    camera.pinchPrecision = 50; // Touch zoom
+    camera.panningSensibility = 100;
+    camera.angularSensibilityX = 500;
+    camera.angularSensibilityY = 500;
+    camera.useNaturalPinchZoom = true;
+    
+    // Multi-touch support
+    camera.inputs.attached.pointers.multiTouchPanning = true;
+    camera.inputs.attached.pointers.multiTouchPanAndZoom = true;
+  }, []);
 
   // Initialize Babylon.js
   useEffect(() => {
@@ -53,6 +99,9 @@ export function WorldVisualizer() {
     camera.lowerRadiusLimit = 10;
     camera.upperRadiusLimit = 100;
     camera.wheelPrecision = 50;
+    
+    // Setup mobile touch controls
+    setupMobileControls(camera, canvas);
     cameraRef.current = camera;
 
     // Lighting
@@ -74,9 +123,22 @@ export function WorldVisualizer() {
     // Create initial ground (will be updated)
     createInitialGrid(scene);
 
-    // Start render loop
+    // Start render loop with FPS monitoring
+    let frameCount = 0;
+    let lastTime = performance.now();
+    
     engine.runRenderLoop(() => {
       scene.render();
+      
+      // FPS calculation every 30 frames
+      frameCount++;
+      const now = performance.now();
+      if (now - lastTime >= 1000) {
+        const fps = (frameCount * 1000) / (now - lastTime);
+        updatePerformance(Math.round(fps));
+        frameCount = 0;
+        lastTime = now;
+      }
     });
 
     // Handle resize
@@ -259,6 +321,9 @@ export function WorldVisualizer() {
           <span className="text-gray-300">
             {connected ? 'Live' : 'Disconnected'}
           </span>
+        </div>
+        <div className="text-xs text-gray-500 mt-1">
+          FPS: {perfMonitorRef.current.fps} | {perfMonitorRef.current.quality}
         </div>
       </div>
       

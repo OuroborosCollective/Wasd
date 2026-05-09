@@ -2,6 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
+import terser from "@rollup/plugin-terser";
 
 // ESM __dirname compatibility for Sovereign Standard Architecture
 const __filename = fileURLToPath(import.meta.url);
@@ -11,10 +12,15 @@ export default defineConfig(({ mode }) => {
   // Load environment variables for cross-service synchronization
   const env = loadEnv(mode, process.cwd(), "");
   const isItchBuild = mode === "itch";
+  const isProduction = mode === "production";
   
   // Dynamic HMR clientPort: 443 for cloud/SSL environments, undefined for local
   const isSsl = env.VITE_DEV_SERVER_HTTPS === "true" || env.NODE_ENV === "production";
   const hmrClientPort = isSsl ? 443 : undefined;
+
+  // Build minification - use Terser for production
+  const minify = isProduction ? "terser" : "esbuild";
+  const generateInlineSourceMap = !isProduction;
 
   return {
     // Relative base for itch.io builds ensures assets load correctly regardless of subfolder
@@ -67,13 +73,15 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: isItchBuild ? "dist-itch" : "dist",
       emptyOutDir: true,
-      // Production optimizations
-      minify: "esbuild",
+      // Production minification
+      minify: minify,
       cssCodeSplit: true,
-      assetsInlineLimit: 4096, // Inline small assets under 4kb
+      assetsInlineLimit: 4096,
       sourcemap: env.VITE_BUILD_SOURCEMAP === "1",
       reportCompressedSize: false,
-      chunkSizeWarningLimit: 2000, // Adjusted for heavy Three.js/3D dependencies
+      chunkSizeWarningLimit: 2000,
+      // Remove console.log in production
+      pureAnnotations: isProduction ? ["console.log", "console.debug", "console.info"] : [],
       rollupOptions: {
         input: isItchBuild
           ? { main: path.resolve(__dirname, "index.itch.html") }
@@ -88,6 +96,7 @@ export default defineConfig(({ mode }) => {
             if (id.includes("node_modules/@react-three")) return "threejs-react";
             if (id.includes("node_modules/lucide-react")) return "ui-icons";
             if (id.includes("node_modules/cannon-es") || id.includes("node_modules/rapier")) return "physics-engine";
+            if (id.includes("node_modules/babylonjs")) return "babylonjs-core";
             if (id.includes("node_modules")) return "vendor";
           },
           // Clean asset naming for production
@@ -95,6 +104,17 @@ export default defineConfig(({ mode }) => {
           chunkFileNames: "assets/[name]-[hash].js",
           assetFileNames: "assets/[name]-[hash].[ext]",
         },
+        // Terser configuration for production
+        plugins: isProduction ? [terser({
+          compress: {
+            drop_console: true,
+            drop_debugger: true,
+            passes: 2,
+          },
+          mangle: {
+            toplevel: true,
+          },
+        })] : [],
       },
     },
   };
