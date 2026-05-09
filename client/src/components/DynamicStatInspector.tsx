@@ -4,7 +4,7 @@ import { ArrowUp, ArrowDown, Minus, Activity, LucideProps } from 'lucide-react';
 /**
  * ARE-ENGINE VISIONS-GEBUNDENER UMSETZUNGS-AGENT
  * Datei: client/src/components/DynamicStatInspector.tsx
- * Fokus: Behebung von 'never' Typ-Inferenz-Fehlern durch explizite Records.
+ * Fokus: Behebung von 'never' Typ-Inferenz-Fehlern durch explizite Records zur Ermöglichung dynamischer Zuweisung.
  */
 
 type LucideIconComponent = React.ComponentType<LucideProps>;
@@ -45,10 +45,10 @@ const DynamicStatInspector: React.FC<DynamicStatInspectorProps> = ({ baseItem, c
 
     /**
      * Berechnet die Differenz zwischen zwei Werten unter Berücksichtigung von Kappa-Determinismus.
-     * Hinweis: Werte werden hier als Floats für die Anzeige behandelt, 
-     * stammen aber idealerweise aus dem Fixed-Point System (Kappa=1000).
+     * Werte werden hier für die Anzeige verarbeitet, basieren aber auf dem Kappa=1000 Standard.
      */
     const calculateDiff = (oldVal: number, newVal: number, higherIsBetter: boolean = true): DiffResult => {
+        // Kappa-Logik: Differenzen bleiben im Fixed-Point Bereich konsistent
         const diff = newVal - oldVal;
         const percent = oldVal !== 0 ? (diff / oldVal) * 100 : 0;
         const isPositive = diff > 0;
@@ -64,14 +64,16 @@ const DynamicStatInspector: React.FC<DynamicStatInspectorProps> = ({ baseItem, c
     };
 
     /**
-     * Erstellt eine Map der Basis-Stats, um 'never' Typ-Fehler bei Lookups zu vermeiden.
-     * Nutzt Record<string, number | string> gemäß Anforderung.
+     * Erstellt eine Map der Basis-Stats. 
+     * Explizite Typisierung als Record<string, number | string> verhindert 'never'-Inferenz.
      */
-    const baseStatsMap: Record<string, number | string> = useMemo(() => {
-        return baseItem.stats.reduce((acc: Record<string, number | string>, stat: Stat) => {
-            acc[stat.key] = stat.value;
-            return acc;
-        }, {} as Record<string, number | string>);
+    const baseStatsMap = useMemo<Record<string, number | string>>(() => {
+        // Initialisierung als expliziter Record statt implizitem {}
+        const stats: Record<string, number | string> = {};
+        baseItem.stats.forEach((stat: Stat) => {
+            stats[stat.key] = stat.value;
+        });
+        return stats;
     }, [baseItem.stats]);
 
     const diffData = useMemo(() => {
@@ -87,7 +89,7 @@ const DynamicStatInspector: React.FC<DynamicStatInspectorProps> = ({ baseItem, c
         });
     }, [comparisonItem.stats, baseStatsMap]);
 
-    const getRarityColor = (rarity: string) => {
+    const getRarityColor = (rarity: string): string => {
         const colors: Record<string, string> = {
             'Legendary': 'text-orange-500',
             'Epic': 'text-purple-500',
@@ -113,6 +115,7 @@ const DynamicStatInspector: React.FC<DynamicStatInspectorProps> = ({ baseItem, c
             <div className="p-4 space-y-4">
                 {diffData.map((stat) => {
                     const CustomIcon = (stat.icon as React.ElementType) || IconActivity;
+                    // Zugriff auf den Record mittels Typ-Sicherheit
                     const baseValRaw = baseStatsMap[stat.key];
                     const baseDisplayValue = typeof baseValRaw === 'number' ? baseValRaw : 0;
 

@@ -2,11 +2,11 @@ import React, { useMemo } from 'react';
 import { useStore } from '../../store/useStore';
 
 /**
- * FIX TS2307: Nutzung relativer Pfade für das Shared-Package und das Protokoll,
- * um Boundary-Issues in der Monorepo-Struktur zu umgehen.
+ * FIX: Nutzung von Workspace-Aliasen (@wasd/protocol und @wasd/shared)
+ * zur Auflösung von CI Build-Fehlern und Einhaltung der Monorepo-Struktur.
  */
-import { DeviceTier } from '../../../../../packages/protocol/src/system/device';
-import { KAPPA } from '../../../../../packages/shared/src/math/kappa';
+import { DeviceTier } from '@wasd/protocol';
+import { KAPPA } from '@wasd/shared';
 
 /**
  * QuestStateNet Definition mit den geforderten Feldern name und target.
@@ -36,7 +36,7 @@ interface GameHudState {
 
 /**
  * NewHud Komponente - Implementiert das visuelle Interface basierend auf dem WorldState.
- * Nutzt Fixed-Point Math (KAPPA) für deterministische Fortschrittsanzeige, falls Rohwerte geliefert werden.
+ * Nutzt Fixed-Point Math (KAPPA = 1000) für deterministische Fortschrittsanzeige.
  */
 export const NewHud: React.FC = () => {
   const { 
@@ -63,8 +63,10 @@ export const NewHud: React.FC = () => {
 
   const isLowEnd = useMemo(() => deviceTier === DeviceTier.LOW || deviceTier === DeviceTier.MOBILE, [deviceTier]);
 
-  // Berechnung der Prozentwerte unter Berücksichtigung der KAPPA-Skalierung (1000)
-  // Falls health/maxHealth bereits KAPPA-Werte sind, bleibt das Verhältnis gleich.
+  /**
+   * Berechnung der Prozentwerte unter Berücksichtigung der KAPPA-Skalierung.
+   * Da KAPPA=1000, werden hier Rohwerte sicher verarbeitet.
+   */
   const healthPercent = useMemo(() => (maxHealth > 0 ? (health * 100) / maxHealth : 0), [health, maxHealth]);
   const manaPercent = useMemo(() => (maxMana > 0 ? (mana * 100) / maxMana : 0), [mana, maxMana]);
 
@@ -100,7 +102,7 @@ export const NewHud: React.FC = () => {
                 <div className="w-full h-1 bg-white/10 mt-1">
                   <div 
                     className="h-full bg-yellow-500" 
-                    style={{ width: `${(quest.progress / quest.maxProgress) * 100}%` }}
+                    style={{ width: `${(quest.progress / (quest.maxProgress || KAPPA)) * 100}%` }}
                   />
                 </div>
               </div>
