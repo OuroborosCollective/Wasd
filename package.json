@@ -10,10 +10,11 @@
     "lint": "pnpm -r run lint",
     "build": "pnpm -r run build",
     "quality-check": "pnpm run lint && pnpm run test",
-    "deploy": "bash scripts/deploy-vps.sh"
+    "deploy": "bash scripts/deploy-vps.sh",
+    "typecheck": "pnpm -r run typecheck"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.19.18",
@@ -31,7 +32,8 @@
     "overrides": {
       "@types/react": "^19.0.0",
       "@types/react-dom": "^19.0.0",
-      "@types/node": "^22.19.18"
+      "@types/node": "^22.19.18",
+      "typescript": "^6.0.3"
     }
   }
 }

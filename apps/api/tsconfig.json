@@ -24,7 +24,7 @@
       "@wasd/shared/*": ["../../packages/shared/src/*"]
     }
   },
-  "include": ["src/**/*"],
+  "include": ["src/@types/**/*", "src/**/*"],
   "exclude": [
     "node_modules",
     "dist",

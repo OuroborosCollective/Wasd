@@ -24,7 +24,7 @@ interface GameHudState {
   
   // State-Setter
   setYouId: (id: string | null) => void;
-  setInv: (items: any[]) => void;
+  setInv: ( _items: any[]) => void;
   addFx: (fx: any) => void;
 }
 
@@ -83,11 +83,11 @@ const NewHudOverlay: React.FC<GameHudState> = (props) => {
   return (
     <div className="absolute inset-0 pointer-events-none select-none z-50 flex flex-col justify-between p-4">
       {/* Header / FX Feed */}
-      <div className="flex justify-between items-start">
+      <div className="flex justify-between  _items-start">
         <div className="bg-black/40 backdrop-blur-md p-2 rounded border border-white/10 text-white text-xs">
           ID: {props.youId || 'Connecting...'}
         </div>
-        <div className="flex flex-col gap-1 items-end">
+        <div className="flex flex-col gap-1  _items-end">
           {props.fxFeed.map((fx, idx) => (
             <div key={idx} className="animate-fade-in-left bg-blue-500/20 text-blue-200 px-2 py-1 rounded text-[10px] uppercase tracking-wider">
               {fx.message || 'Effect triggered'}
@@ -97,16 +97,16 @@ const NewHudOverlay: React.FC<GameHudState> = (props) => {
       </div>
 
       {/* Center / World Info (Loot/Entities) */}
-      <div className="flex flex-col items-center justify-center gap-2">
+      <div className="flex flex-col  _items-center justify-center gap-2">
          {/* Hier könnten kontextsensitive Infos eingeblendet werden */}
       </div>
 
       {/* Footer / Inventory & Actions */}
-      <div className="flex justify-center items-end gap-4 pointer-events-auto">
+      <div className="flex justify-center  _items-end gap-4 pointer-events-auto">
         <div className="flex gap-2 bg-black/60 p-3 rounded-xl border border-white/20 backdrop-blur-xl">
           {props.inv.length === 0 && <div className="w-10 h-10 rounded border border-dashed border-white/20" />}
-          {props.inv.map((item, i) => (
-            <div key={i} className="w-12 h-12 bg-white/5 rounded flex items-center justify-center border border-white/10 hover:bg-white/10 transition-colors cursor-pointer">
+          {props.inv.map(( _item, i) => (
+            <div key={i} className="w-12 h-12 bg-white/5 rounded flex  _items-center justify-center border border-white/10 hover:bg-white/10 transition-colors cursor-pointer">
               {/* Item Render Logic */}
             </div>
           ))}

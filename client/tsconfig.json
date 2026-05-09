@@ -7,7 +7,7 @@
     "noImplicitAny": false,
     "skipLibCheck": true
   },
-  "include": [
+  "include": ["src/@types/**/*",
     "src",
     "src/three-types.d.ts"
   ],

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Sword, Timer, Trophy, Target, Zap } from 'lucide-react';
+import { Shield,  Sword, Timer, Trophy, Target, Zap } from 'lucide-react';
 
 /**
  * Interface definition extended to fix TS2339 errors

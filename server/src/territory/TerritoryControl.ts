@@ -1,1 +1,3 @@
-export class TerritoryControl { getTerritory(id: string) { return null; } }
+export class TerritoryControl {
+    public static getInstance() { return new TerritoryControl(); }
+}

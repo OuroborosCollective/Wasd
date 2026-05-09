@@ -52,7 +52,7 @@ export function ouroborosTick(
   setRelationship: (a: string, b: string, delta: number) => void,
   config: OuroborosConfig = DEFAULT_CONFIG,
 ): string | null {
-  const mem = memoryCache?.get(ctx.npcId);
+  let mem = memoryCache?.get(ctx.npcId);
 
   // Ensure needs exist
   if (!mem?.heuristicWeights?._needsSafety) {

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useStore } from '../../store/useStore';
 // TS6305: Nutzung relativer Pfade für das Protokoll zur Vermeidung von Boundary-Issues
-import { DeviceTier } from '../../../../../packages/protocol/src/system/device';
+import { DeviceTier } from '@wasd/protocol';
 
 /**
  * QuestStateNet Definition mit den geforderten Feldern name und target.

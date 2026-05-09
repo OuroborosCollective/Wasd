@@ -1,23 +1,15 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "target": "ESNext",
-    "useDefineForClassFields": true,
-    "module": "ESNext",
-    "lib": ["ESNext", "DOM", "DOM.Iterable"],
-    "skipLibCheck": true,
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
+    "outDir": "dist",
     "jsx": "react-jsx",
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-    "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true
+    "baseUrl": ".",
+    "paths": {
+      "@wasd/types": ["../../packages/types/src"],
+      "@wasd/shared": ["../../packages/shared/src"],
+      "@wasd/protocol": ["../../packages/protocol/src"]
+    }
   },
-  "include": ["index.ts", "src/**/*"]
+  "include": ["src/**/*", "../../packages/protocol/src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

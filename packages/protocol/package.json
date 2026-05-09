@@ -1,5 +1,5 @@
 {
-  "name": "@wasd/types",
+  "name": "@wasd/protocol",
   "version": "1.0.0",
   "private": true,
   "type": "module",

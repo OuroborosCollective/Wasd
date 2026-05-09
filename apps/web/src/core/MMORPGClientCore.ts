@@ -59,10 +59,10 @@ export class MMORPGClientCore extends EventEmitter {
    * Haupt-Update-Loop für die Client-Logik.
    */
   public update(): void {
-    const delta = this.clock.getDelta();
+    const _delta = this.clock.getDelta();
     
     if (this.localPlayerId) {
-      this.processInteractions(delta);
+      this.processInteractions(_delta);
     }
 
     this.renderer.render(this.scene, this.camera);
@@ -71,11 +71,11 @@ export class MMORPGClientCore extends EventEmitter {
   /**
    * Verarbeitet Interaktionen in der Nähe des Spielers.
    */
-  private processInteractions(delta: number): void {
+  private processInteractions(_delta: number): void {
     if (!this.localPlayerId) return;
 
-    // FIX TS2554: Aufruf auf zwei Argumente erweitert (playerId und delta)
-    const closest = this.getClosestInteractable(this.localPlayerId, delta);
+    // FIX TS2554: Aufruf auf zwei Argumente erweitert (playerId und _delta)
+    const closest = this.getClosestInteractable(this.localPlayerId, _delta);
 
     if (closest) {
       // FIX TS2339: Zugriff auf .type ist nun durch das Interface-Update valide
@@ -92,9 +92,9 @@ export class MMORPGClientCore extends EventEmitter {
   /**
    * Ermittelt das nächste interaktionsfähige Objekt.
    * @param playerId Die ID des lokalen Spielers
-   * @param delta Zeit seit dem letzten Frame für Interpolation
+   * @param _delta Zeit seit dem letzten Frame für Interpolation
    */
-  private getClosestInteractable(playerId: string, delta: number): ClosestInteractable | null {
+  private getClosestInteractable(_playerId: string, _delta: number): ClosestInteractable | null {
     let nearest: ClosestInteractable | null = null;
     let minDistance = Infinity;
 
