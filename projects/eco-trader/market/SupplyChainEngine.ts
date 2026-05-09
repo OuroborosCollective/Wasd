@@ -1,4 +1,4 @@
-import { EventEmitter } from 'events';
+import EventEmitter from 'eventemitter3';
 
 export interface ScarcityEvent {
     id: string;
@@ -110,9 +110,6 @@ export class SupplyChainEngine extends EventEmitter {
             .map(e => e.multiplier);
     }
 
-    /**
-     * B2B Logistics API: Simulation of bulk procurement
-     */
     public simulateB2BProcurement(resourceId: string, volume: number): {
         unitPrice: number;
         totalCost: number;

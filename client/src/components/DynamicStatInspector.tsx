@@ -1,14 +1,11 @@
 import React, { useMemo } from 'react';
-import { ArrowUp, ArrowDown, Minus, Activity, LucideProps } from 'lucide-react';
-
-// Re-typing Lucide components to ensure compatibility with React 19 JSX expectations
-type LucideIconComponent = React.ComponentType<LucideProps>;
+import { ArrowUp, ArrowDown, Minus, Activity } from 'lucide-react';
 
 interface Stat {
     key: string;
     label: string;
     value: number;
-    icon?: LucideIconComponent;
+    icon?: any;
     higherIsBetter?: boolean;
 }
 
@@ -24,35 +21,30 @@ interface DynamicStatInspectorProps {
     comparisonItem: Item;
 }
 
-const DynamicStatInspector: React.FC<DynamicStatInspectorProps> = ({ baseItem, comparisonItem }) => {
-    // Cast icons to React.ElementType to resolve TS2786 (invalid JSX element type)
-    const IconActivity = Activity as React.ElementType;
-    const IconArrowUp = ArrowUp as React.ElementType;
-    const IconArrowDown = ArrowDown as React.ElementType;
-    const IconMinus = Minus as React.ElementType;
+interface DiffData extends Stat {
+    diff: number;
+    percent: number;
+    isBetter: boolean;
+    isNeutral: boolean;
+}
 
+const DynamicStatInspector: React.FC<DynamicStatInspectorProps> = ({ baseItem, comparisonItem }) => {
     const calculateDiff = (oldVal: number, newVal: number, higherIsBetter: boolean = true) => {
         const diff = newVal - oldVal;
         const percent = oldVal !== 0 ? (diff / oldVal) * 100 : 0;
         const isPositive = diff > 0;
         const isBetter = higherIsBetter ? isPositive : !isPositive;
         const isNeutral = diff === 0;
-
-        return {
-            diff,
-            percent,
-            isBetter,
-            isNeutral
-        };
+        return { diff, percent, isBetter, isNeutral };
     };
 
-    const diffData = useMemo(() => {
-        return comparisonItem.stats.map(newStat => {
-            const oldStat = baseItem.stats.find(s => s.key === newStat.key) || { value: 0 };
+    const diffData = useMemo<DiffData[]>(() => {
+        return (comparisonItem.stats || []).map((newStat: Stat) => {
+            const oldStat = (baseItem.stats || []).find(s => s.key === newStat.key) || { value: 0 };
             return {
                 ...newStat,
                 ...calculateDiff(oldStat.value, newStat.value, newStat.higherIsBetter ?? true)
-            };
+            } as DiffData;
         });
     }, [baseItem, comparisonItem]);
 
@@ -80,8 +72,8 @@ const DynamicStatInspector: React.FC<DynamicStatInspectorProps> = ({ baseItem, c
             </div>
 
             <div className="p-4 space-y-4">
-                {diffData.map((stat) => {
-                    const CustomIcon = (stat.icon as React.ElementType) || IconActivity;
+                {diffData.map((stat: DiffData) => {
+                    const CustomIcon = (stat.icon as any) || Activity;
                     return (
                         <div key={stat.key} className="flex items-center justify-between group">
                             <div className="flex items-center space-x-3">
@@ -90,7 +82,7 @@ const DynamicStatInspector: React.FC<DynamicStatInspectorProps> = ({ baseItem, c
                                 </div>
                                 <div>
                                     <div className="text-sm font-medium text-slate-300">{stat.label}</div>
-                                    <div className="text-xs text-slate-500">Base: {baseItem.stats.find(s => s.key === stat.key)?.value || 0}</div>
+                                    <div className="text-xs text-slate-500">Base: {(baseItem.stats || []).find(s => s.key === stat.key)?.value || 0}</div>
                                 </div>
                             </div>
 
@@ -101,11 +93,11 @@ const DynamicStatInspector: React.FC<DynamicStatInspectorProps> = ({ baseItem, c
                                     </span>
                                     {!stat.isNeutral && (
                                         <span className={`flex items-center text-xs font-bold ${stat.isBetter ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                            {stat.isBetter ? <IconArrowUp size={12} className="mr-0.5" /> : <IconArrowDown size={12} className="mr-0.5" />}
+                                            {stat.isBetter ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
                                             {Math.abs(stat.percent).toFixed(1)}%
                                         </span>
                                     )}
-                                    {stat.isNeutral && <IconMinus size={12} className="text-slate-600" />}
+                                    {stat.isNeutral && <Minus size={12} className="text-slate-600" />}
                                 </div>
                                 <div className={`text-[10px] font-mono ${stat.isNeutral ? 'text-slate-600' : (stat.isBetter ? 'text-emerald-500/70' : 'text-rose-500/70')}`}>
                                     {stat.diff > 0 ? '+' : ''}{stat.diff.toFixed(1)} absolute
@@ -121,7 +113,7 @@ const DynamicStatInspector: React.FC<DynamicStatInspectorProps> = ({ baseItem, c
                     <div className="text-center">
                         <div className="text-[10px] uppercase text-slate-500 font-bold mb-1">Combat Power</div>
                         <div className="text-sm font-mono text-white">
-                            {comparisonItem.stats.reduce((acc, curr) => acc + curr.value, 0).toFixed(0)}
+                            {(comparisonItem.stats || []).reduce((acc: number, curr: Stat) => acc + curr.value, 0).toFixed(0)}
                         </div>
                     </div>
                     <div className="text-center">
@@ -131,7 +123,7 @@ const DynamicStatInspector: React.FC<DynamicStatInspectorProps> = ({ baseItem, c
                             ? 'text-emerald-400' 
                             : 'text-rose-400'
                         }`}>
-                            {((diffData.filter(d => d.isBetter).length / diffData.length) * 100).toFixed(0)}% Upgrade
+                            {diffData.length > 0 ? ((diffData.filter(d => d.isBetter).length / diffData.length) * 100).toFixed(0) : 0}% Upgrade
                         </div>
                     </div>
                 </div>
