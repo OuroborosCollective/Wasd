@@ -5,7 +5,7 @@ services:
     image: ${DOCKER_REGISTRY:-local}/my-typescript-app:latest
     build:
       context: .
-      dockerfile: Dockerfile.prod
+      dockerfile: docker/Dockerfile.production
     restart: unless-stopped
     env_file:
       - .env.prod
