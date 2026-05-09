@@ -4,6 +4,7 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "ignoreDeprecations": "6.0",
     "baseUrl": "./src",
     "paths": {
       "@shared/*": ["shared/*"],
