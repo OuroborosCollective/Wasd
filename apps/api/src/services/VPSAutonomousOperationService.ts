@@ -1,4 +1,4 @@
-import { Logger } from '@wasd/utils';
+import { Logger } from '../utils/Logger.js'; // Relativer Import Pfad für @wasd/utils
 import { 
   IVPSState, 
   IVPSHealthStatus, 
@@ -9,13 +9,20 @@ import {
 } from '../interfaces/IVPSAutonomous.js';
 import { LoreNarrativeEngine } from './LoreNarrativeEngine.js';
 
+/**
+ * KAPPA STANDARD: Fixed-Point Math (Kappa=1000)
+ * 100% = 1000
+ * 0.1% = 1
+ */
+const KAPPA = 1000;
+
 export interface IGitMetadata {
   hash: string;
   author: string;
   message: string;
   timestamp: string;
   branch: string;
-  isAutomated?: boolean; // Permissive flag for Jules
+  isAutomated?: boolean;
 }
 
 export interface INarrativeLog {
@@ -36,7 +43,7 @@ export interface ILogicPoint {
 }
 
 export interface IGlobalTruthState {
-  systemIntegrity: number;
+  systemIntegrity: number; // Kappa Value (0-1000)
   lastOracleSync: number;
   activeAnomalies: string[];
   sovereignClearance: boolean;
@@ -55,29 +62,26 @@ enum CircuitState {
 /**
  * VPSAutonomousOperationService
  * 
- * Orchestrates the closed information loop for Areloria WASD infrastructure.
- * Integrates 'Jules' as the primary automated repository bug-fixer.
- * Implements Circuit Breaker patterns and Exponential Backoff for resilience.
- * Integrates LoreNarrativeEngine for deterministic agent behavior.
+ * Orchestriert den geschlossenen Informationskreislauf der Areloria-Infrastruktur.
+ * Nutzt Kappa=1000 für deterministische Berechnungen im 10Hz Tick.
  */
 export class VPSAutonomousOperationService {
-  private static readonly CRITICAL_CPU_THRESHOLD = 90;
-  private static readonly CRITICAL_RAM_THRESHOLD = 85;
-  private static readonly DISK_RECOVERY_THRESHOLD = 95;
+  // Thresholds in Kappa (90% = 900)
+  private static readonly CRITICAL_CPU_THRESHOLD = 900;
+  private static readonly CRITICAL_RAM_THRESHOLD = 850;
+  private static readonly DISK_RECOVERY_THRESHOLD = 950;
 
-  // Circuit Breaker Configuration
   private static circuitState: CircuitState = CircuitState.CLOSED;
   private static lastFailureTime: number = 0;
   private static failureCount: number = 0;
   private static readonly FAILURE_THRESHOLD = 3;
   private static readonly RESET_TIMEOUT_MS = 30000;
 
-  // Retry Configuration
   private static readonly MAX_RETRIES = 3;
   private static readonly INITIAL_RETRY_DELAY_MS = 1000;
 
   private static globalTruthState: IGlobalTruthState = {
-    systemIntegrity: 100,
+    systemIntegrity: 1000, // Initial 100.0%
     lastOracleSync: Date.now(),
     activeAnomalies: [],
     sovereignClearance: false,
@@ -89,13 +93,11 @@ export class VPSAutonomousOperationService {
 
   /**
    * Main 10Hz Control Loop.
-   * Processes telemetric logic points and executes autonomous architecture adjustments.
-   * Implements multi-layered resilience to prevent process exit 1.
+   * Muss innerhalb von 100ms terminieren.
    */
   public static async tick(currentState: IVPSState): Promise<IAutonomousAction[]> {
     this.globalTruthState.lastHeartbeat = Date.now();
     
-    // Inject deterministic narrative seed for this cycle to ensure reproducible agent emergence
     this.globalTruthState.narrativeSeed = LoreNarrativeEngine.generateDeterministicSeed(
       `TICK_${Math.floor(Date.now() / 1000)}_${this.globalTruthState.systemIntegrity}`
     );
@@ -104,7 +106,6 @@ export class VPSAutonomousOperationService {
     const logicPoints = this.generateLogicPoints(currentState);
 
     try {
-      // Execute Oracle Consultation with Circuit Breaker and Exponential Backoff
       const evaluation = await this.executeSovereignOperation(
         async () => {
           return await this.consultAxiomaticOracle(logicPoints);
@@ -112,7 +113,6 @@ export class VPSAutonomousOperationService {
         'ORACLE_SYNC'
       );
 
-      // Update Global Truth via protected operation
       await this.executeSovereignOperation(
         async () => this.updateGlobalTruth(evaluation),
         'STATE_PERSISTENCE'
@@ -127,11 +127,11 @@ export class VPSAutonomousOperationService {
         this.globalTruthState.activeAnomalies.push('PERSISTENCE_DEGRADED');
       }
       
-      this.globalTruthState.systemIntegrity = Math.max(this.globalTruthState.systemIntegrity - 15, 30);
+      // Kappa Reduktion um 15% (150 Einheiten)
+      this.globalTruthState.systemIntegrity = Math.max(this.globalTruthState.systemIntegrity - 150, 300);
     }
 
     try {
-      // Local Resource Evaluations (Independent of Persistence)
       actions.push(...this.evaluateResources(currentState));
       
       const healthData = await this.verifySystemIntegrity(currentState);
@@ -144,7 +144,7 @@ export class VPSAutonomousOperationService {
           type: 'REESTABLISH_PERSISTENCE' as any,
           subsystem: SystemSubsystem.STORAGE,
           priority: ActionPriority.CRITICAL,
-          reason: `[Seed: ${this.globalTruthState.narrativeSeed}] Database Connection Drop Detected - Initiating Resilience Protocol`
+          reason: `[Seed: ${this.globalTruthState.narrativeSeed}] Database Connection Drop - Initiating Resilience`
         });
       }
     } catch (criticalError: any) {
@@ -160,10 +160,6 @@ export class VPSAutonomousOperationService {
     return this.prioritizeActions(actions);
   }
 
-  /**
-   * executeSovereignOperation
-   * Wraps an operation with both Circuit Breaker and Exponential Backoff.
-   */
   private static async executeSovereignOperation<T>(
     operation: () => Promise<T>,
     context: string
@@ -171,19 +167,17 @@ export class VPSAutonomousOperationService {
     if (this.circuitState === CircuitState.OPEN) {
       if (Date.now() - this.lastFailureTime > this.RESET_TIMEOUT_MS) {
         this.circuitState = CircuitState.HALF_OPEN;
-        Logger.info(`Circuit Breaker [${context}] entering HALF_OPEN state. Testing connection...`);
+        Logger.info(`Circuit Breaker [${context}] HALF_OPEN.`);
       } else {
-        throw new Error(`Circuit Breaker is OPEN for ${context}. Operation suppressed to prevent cascading failure.`);
+        throw new Error(`Circuit Breaker OPEN for ${context}.`);
       }
     }
 
     try {
       const result = await this.retryWithBackoff(operation, context);
-      
-      if ((this.circuitState as CircuitState) === CircuitState.HALF_OPEN || (this.circuitState as CircuitState) === CircuitState.OPEN) {
+      if (this.circuitState !== CircuitState.CLOSED) {
         this.resetCircuit();
       }
-      this.globalTruthState.dbConnectivity = 'CONNECTED';
       return result;
     } catch (error: any) {
       this.handleFailure(error, context);
@@ -191,57 +185,36 @@ export class VPSAutonomousOperationService {
     }
   }
 
-  /**
-   * retryWithBackoff
-   * Implements Exponential Backoff logic for transient error recovery.
-   */
   private static async retryWithBackoff<T>(
     operation: () => Promise<T>,
     context: string
   ): Promise<T> {
     let lastError: any;
-
     for (let attempt = 0; attempt < this.MAX_RETRIES; attempt++) {
       try {
         return await operation();
       } catch (error: any) {
         lastError = error;
-        
         const isTransient = error.message?.toLowerCase().includes('connection') || 
-                           error.message?.toLowerCase().includes('timeout') || 
                            error.code === 'ECONNREFUSED' ||
-                           error.code === 'ETIMEDOUT' ||
-                           error.code === 'PROTOCOL_CONNECTION_LOST';
+                           error.code === 'ETIMEDOUT';
 
-        if (!isTransient || attempt === this.MAX_RETRIES - 1) {
-          throw error;
-        }
-
+        if (!isTransient || attempt === this.MAX_RETRIES - 1) throw error;
         const delay = Math.pow(2, attempt) * this.INITIAL_RETRY_DELAY_MS;
-        Logger.warn(`[Resilience] ${context} failed (Attempt ${attempt + 1}). Retrying in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
-
     throw lastError;
   }
 
   private static handleFailure(error: any, context: string): void {
     this.failureCount++;
     this.lastFailureTime = Date.now();
-
-    const errorMsg = error.message?.toLowerCase() || '';
-    const isDbError = errorMsg.includes('connection') || 
-                      errorMsg.includes('econnrefused') || 
-                      error.code === 'PROTOCOL_CONNECTION_LOST';
-    
-    if (isDbError) {
+    if (error.message?.toLowerCase().includes('connection')) {
       this.globalTruthState.dbConnectivity = 'DISCONNECTED';
     }
-    
     if (this.failureCount >= this.FAILURE_THRESHOLD) {
       this.circuitState = CircuitState.OPEN;
-      Logger.error(`Circuit Breaker TRIPPED at ${context}. Entering OPEN state. Reason: ${error.message}`);
     }
   }
 
@@ -249,60 +222,33 @@ export class VPSAutonomousOperationService {
     this.circuitState = CircuitState.CLOSED;
     this.failureCount = 0;
     this.globalTruthState.dbConnectivity = 'CONNECTED';
-    Logger.info('Circuit Breaker CLOSED. Persistence and system stability restored.');
   }
 
-  /**
-   * processGitLore
-   * Recognizes 'Jules' as the specialized autonomous bug-fixer and attaches deterministic seeds.
-   */
   public static processGitLore(commits: IGitMetadata[]): INarrativeLog[] {
     return commits.map((commit): INarrativeLog => {
-      const msg = commit.message.toLowerCase();
       const author = commit.author.toLowerCase();
       const currentSeed = LoreNarrativeEngine.generateDeterministicSeed(`${commit.hash}_${this.globalTruthState.narrativeSeed}`);
-      
-      let content = '';
-      let severity: INarrativeLog['severity'] = 'INFO';
-
       const isJules = author.includes('jules') || commit.isAutomated === true;
 
-      if (isJules) {
-        severity = 'AUTONOMOUS_FIX';
-        content = `[JULES_AUTO_FIX] Repository integrity restored via Narrative Seed ${currentSeed}: ${commit.message}`;
-        this.globalTruthState.julesActiveFixes++;
-      } else if (msg.startsWith('feat')) {
-        content = `Architect ${commit.author} integrated new neural pathways: ${commit.message}`;
-        severity = 'EVOLUTION';
-      } else if (msg.startsWith('fix')) {
-        content = `Internal repair initiated by ${commit.author}: ${commit.message}`;
-        severity = 'REPAIR';
-      } else {
-        content = `System chronicle update: ${commit.message} (Authored by ${commit.author})`;
-        severity = 'INFO';
-      }
-
       return {
-        sequenceId: commit.hash.substring(0, 8),
+        sequenceId: String(commit.hash).substring(0, 8), // Sicherstellen, dass sequenceId String ist
         timestamp: new Date(commit.timestamp).getTime(),
-        origin: `GIT_REF_${commit.branch.toUpperCase()}`,
-        content,
-        severity,
+        origin: `GIT_REF_${String(commit.branch).toUpperCase()}`,
+        content: isJules 
+          ? `[JULES_FIX] Integrity restored via Seed ${currentSeed}` 
+          : `System update by ${commit.author}: ${commit.message}`,
+        severity: isJules ? 'AUTONOMOUS_FIX' : 'INFO',
         deterministicSeed: currentSeed
       };
     });
   }
 
-  /**
-   * getSystemHealth
-   * Monitor for process managers to prevent exit code 1 and provide observability.
-   */
   public static getSystemHealth() {
     const isAlive = (Date.now() - this.globalTruthState.lastHeartbeat) < 5000;
     return {
       status: isAlive ? 'HEALTHY' : 'STALLED',
-      integrity: this.globalTruthState.systemIntegrity,
-      circuit: CircuitState[this.circuitState],
+      integrity: this.globalTruthState.systemIntegrity, // Kappa Value
+      circuit: String(CircuitState[this.circuitState]), // Typ-Mismatch Fix: String Konvertierung
       persistence: this.globalTruthState.dbConnectivity,
       anomalies: this.globalTruthState.activeAnomalies.length,
       julesFixes: this.globalTruthState.julesActiveFixes,
@@ -312,38 +258,21 @@ export class VPSAutonomousOperationService {
   }
 
   private static logInfrastructureError(error: any, context: string): void {
-    const errorMsg = error.message?.toLowerCase() || '';
-    const isDbError = errorMsg.includes('connection') || 
-                      errorMsg.includes('econnrefused') || 
-                      error.code === 'PROTOCOL_CONNECTION_LOST' ||
-                      errorMsg.includes('circuit breaker');
-
-    if (isDbError) {
-      Logger.warn(`[Resilience] DB Connectivity Gap in ${context}: ${error.message}. Running in Degraded Mode.`);
-    } else {
-      Logger.error(`[Autonomous] Non-DB Error in ${context}:`, error);
-    }
+    Logger.warn(`[Resilience] Error in ${context}: ${error.message}`);
   }
 
   private static generateLogicPoints(state: IVPSState): ILogicPoint[] {
     return [
       {
         id: 'LP_CPU_LOAD',
-        source: 'KERNEL_METRIC',
-        value: state.metrics.cpuUsage,
+        source: 'KERNEL',
+        value: state.metrics.cpuUsage, // Erwartet in Kappa
         timestamp: Date.now(),
         isSovereignProtected: false
       },
       {
-        id: 'LP_SECURITY_ROOT',
-        source: 'SOVEREIGN_CORE',
-        value: state.security.unauthorizedAccessAttempts,
-        timestamp: Date.now(),
-        isSovereignProtected: true
-      },
-      {
         id: 'LP_DB_HEALTH',
-        source: 'INFRASTRUCTURE',
+        source: 'INFRA',
         value: this.globalTruthState.dbConnectivity,
         timestamp: Date.now(),
         isSovereignProtected: false
@@ -351,10 +280,6 @@ export class VPSAutonomousOperationService {
     ];
   }
 
-  /**
-   * consultAxiomaticOracle
-   * Simulates/Executes higher-level integrity verification.
-   */
   private static async consultAxiomaticOracle(points: ILogicPoint[]): Promise<{
     integrityScore: number;
     anomalies: string[];
@@ -362,23 +287,15 @@ export class VPSAutonomousOperationService {
   }> {
     const anomalies: string[] = [];
     const recommendedActions: IAutonomousAction[] = [];
-    let integrityScore = 100;
+    let integrityScore = 1000; // Base Kappa
 
     for (const point of points) {
-      if (point.isSovereignProtected && !this.globalTruthState.sovereignClearance) {
-        if (point.value > 10) {
-          integrityScore -= 30;
-          anomalies.push('SOVEREIGN_SOURCE_VIOLATION');
-        }
-      }
-
       if (point.id === 'LP_CPU_LOAD' && point.value > this.CRITICAL_CPU_THRESHOLD) {
-        integrityScore -= 10;
+        integrityScore -= 100;
         anomalies.push('COMPUTE_STRESS');
       }
-
       if (point.id === 'LP_DB_HEALTH' && point.value === 'DISCONNECTED') {
-        integrityScore -= 50;
+        integrityScore -= 500;
         anomalies.push('PERSISTENCE_LOST');
       }
     }
@@ -390,18 +307,14 @@ export class VPSAutonomousOperationService {
     this.globalTruthState.systemIntegrity = evaluation.integrityScore;
     this.globalTruthState.activeAnomalies = evaluation.anomalies;
     this.globalTruthState.lastOracleSync = Date.now();
-    
-    if (this.globalTruthState.systemIntegrity < 50) {
-      Logger.warn(`Axiomatic Integrity Critical [Seed: ${this.globalTruthState.narrativeSeed}]: Operating in restricted autonomous mode.`);
-    }
   }
 
   private static async verifySystemIntegrity(state: IVPSState): Promise<IVPSHealthStatus[]> {
     if (!state.services) return [];
     return state.services.map((svc: IVPSService): IVPSHealthStatus => ({
-      id: svc.id,
+      id: String(svc.id), // Typ-Mismatch Fix
       isOperational: svc.status === 'active' && svc.heartbeat > (Date.now() - 5000),
-      load: svc.load
+      load: svc.load // Kappa Value
     }));
   }
 
@@ -414,25 +327,16 @@ export class VPSAutonomousOperationService {
         type: 'THROTTLE_NON_ESSENTIAL' as any,
         subsystem: SystemSubsystem.RESOURCES,
         priority: ActionPriority.HIGH,
-        reason: `CPU Overload (Deterministic Context: ${seedCtx})`
+        reason: `CPU Stress [Kappa: ${state.metrics.cpuUsage}] Seed: ${seedCtx}`
       });
     }
 
     if (state.metrics.ramUsage > this.CRITICAL_RAM_THRESHOLD) {
       actions.push({
-        type: 'FLUSH_CACHE_BUFFERS' as any,
+        type: 'FLUSH_CACHE' as any,
         subsystem: SystemSubsystem.MEMORY,
         priority: ActionPriority.MEDIUM,
-        reason: `RAM Pressure (Deterministic Context: ${seedCtx})`
-      });
-    }
-
-    if (state.metrics.diskUsage > this.DISK_RECOVERY_THRESHOLD) {
-      actions.push({
-        type: 'PURGE_LOGS_AND_TEMP' as any,
-        subsystem: SystemSubsystem.STORAGE,
-        priority: ActionPriority.HIGH,
-        reason: 'Storage Capacity Critical'
+        reason: `RAM Pressure [Kappa: ${state.metrics.ramUsage}]`
       });
     }
 
@@ -447,28 +351,20 @@ export class VPSAutonomousOperationService {
         targetId: svc.id,
         subsystem: SystemSubsystem.SERVICES,
         priority: ActionPriority.CRITICAL,
-        reason: `Service Failure: ${svc.id} [Jules Recovery Seed: ${this.globalTruthState.narrativeSeed}]`
+        reason: `Service Failure: ${svc.id} [Seed: ${this.globalTruthState.narrativeSeed}]`
       }));
   }
 
   private static evaluateSecurityPerimeter(state: IVPSState): IAutonomousAction[] {
     const actions: IAutonomousAction[] = [];
-    
-    if (state.security.unauthorizedAccessAttempts > 5 || this.globalTruthState.activeAnomalies.includes('SOVEREIGN_SOURCE_VIOLATION')) {
+    if (state.security.unauthorizedAccessAttempts > 5) {
       actions.push({
-        type: 'ROTATE_INTERNAL_KEYS' as any,
+        type: 'ROTATE_KEYS' as any,
         subsystem: SystemSubsystem.SECURITY,
         priority: ActionPriority.HIGH,
-        reason: 'Security Violation Detected - Initiating Rotation'
-      });
-      actions.push({
-        type: 'BLOCK_SUSPICIOUS_IPS' as any,
-        subsystem: SystemSubsystem.NETWORKING,
-        priority: ActionPriority.CRITICAL,
-        reason: 'Perimeter Breach Attempt'
+        reason: 'Security Perimeter Alert'
       });
     }
-
     return actions;
   }
 
@@ -481,7 +377,6 @@ export class VPSAutonomousOperationService {
   }
 
   public static setSovereignClearance(granted: boolean): void {
-    Logger.info(`Sovereign Clearance Updated: ${granted}`);
     this.globalTruthState.sovereignClearance = granted;
   }
 }
