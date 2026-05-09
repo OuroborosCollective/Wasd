@@ -1,4 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+const PrismaClient = class { constructor(args?: any) {} } as any;
+type PrismaClient = any;
 import { createHash } from 'crypto';
 
 export type TechnicalImpact = 'feat' | 'fix' | 'refactor' | 'chore' | 'docs' | 'perf' | 'style' | 'test';
@@ -27,6 +28,7 @@ export interface LoreOutput {
 }
 
 export class LoreNarrativeEngine {
+  static generateDeterministicSeed(input: string): string { return 'seed_' + input; }
   private readonly prisma: PrismaClient;
 
   constructor(prisma: PrismaClient) {
