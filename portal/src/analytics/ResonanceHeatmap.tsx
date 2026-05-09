@@ -24,9 +24,10 @@ export const ResonanceHeatmap: React.FC<ResonanceHeatmapProps> = ({
   height = 512
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number | undefined>(undefined);
 
   const gridSize = 64;
+  const gridRef = useRef<number>(0);
 
   // Offscreen Canvas für das Roh-Raster (Performance-Optimierung)
   const offscreenCanvas = useMemo(() => {
