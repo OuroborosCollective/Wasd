@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react";
-import type { EntityNet, QuestStateNet, LootNet } from "@wasd/shared";
+// Relative path import to bypass @wasd/shared alias resolution issues in CI
+import type { EntityNet, QuestStateNet, LootNet } from "../../../../shared/src/index";
 import { getDeviceTier } from "../touchUi";
 import { sendCommand, sendUseSkill } from "../../networking/websocketClient";
 import { 
@@ -13,20 +14,22 @@ import { WarfrontPanel } from "./WarfrontPanel";
 import "./RedesignTheme.css";
 import "./NewHud.css";
 
+/**
+ * NewHud Component
+ * Refactored to use relative pathing for shared types to ensure 
+ * deterministic type checking in environments where path aliases are not resolved.
+ */
 export const NewHud: React.FC<any> = (props) => {
   const hudState = useGameHudState();
 
   // Use props if provided (useful for tests), otherwise use state from hook
   const warfront = props.warfront !== undefined ? props.warfront : hudState.warfront;
-  const quests = props.quests || hudState.quests;
-  const loot = props.loot || hudState.loot;
-  const entities = props.entities || hudState.entities;
+  const quests = props.quests || (hudState.quests as QuestStateNet[]);
+  const loot = props.loot || (hudState.loot as LootNet[]);
+  const entities = props.entities || (hudState.entities as EntityNet[]);
   const targetNpcId = props.targetNpcId || props.targetId || hudState.targetNpcId;
   const inventoryOpen = props.inventoryOpen !== undefined ? props.inventoryOpen : hudState.inventoryOpen;
   const toggleInventory = props.toggleInventory || hudState.toggleInventory;
-
-  const activeQuests = quests;
-  const nearbyLoot = loot;
 
   const [health, setHealth] = useState(getPlayerHealth());
   const [maxHealth, setMaxHealth] = useState(getPlayerMaxHealth());
@@ -51,7 +54,7 @@ export const NewHud: React.FC<any> = (props) => {
 
   const healthPercentage = Math.max(0, Math.min(100, (health / (maxHealth || 1)) * 100));
   const manaPercentage = Math.max(0, Math.min(100, (mana / (maxMana || 1)) * 100));
-  const xpPercentage = Math.max(0, Math.min(100, (xp % 1000 / 1000) * 100));
+  const xpPercentage = Math.max(0, Math.min(100, ((xp % 1000) / 1000) * 100));
 
   const handleSkillClick = (skillId: string) => {
     sendUseSkill(skillId);
@@ -173,6 +176,7 @@ export const NewHud: React.FC<any> = (props) => {
 
       {deviceTier === ("mobile" as any) && (
         <div className="hud-mobile-controls">
+          {/* Mobile specific controls would go here */}
         </div>
       )}
     </div>

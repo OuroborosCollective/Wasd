@@ -1,8 +1,21 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { Entity, WorldState } from '@wasd/shared';
 import { v4 as uuidv4 } from 'uuid';
-import { WorldStateRegistry } from './WorldStateRegistry';
-import { ATOAuthorizationService } from './ATOAuthorizationService';
+import { WorldStateRegistry } from './WorldStateRegistry.js';
+import { ATOAuthorizationService } from './ATOAuthorizationService.js';
+
+/**
+ * ARE-spezifisches Interface für Entitäten innerhalb der Optimierungs-Logik.
+ * Erweitert den Basis-Typ um die für die Engine notwendigen Axiom-Felder.
+ */
+interface ArelorianEntity extends Entity {
+  cpuCost?: number;
+  priority?: number;
+  status?: string;
+  health?: number;
+  lastUpdateFrame?: number;
+  sequenceId?: string;
+}
 
 /**
  * WorldTickOptimizationService
@@ -149,7 +162,11 @@ export class WorldTickOptimizationService implements OnModuleDestroy {
     const entityEntries = Object.entries(entities);
 
     for (let i = 0; i < entityEntries.length; i++) {
-      const [id, entity] = entityEntries[i];
+      const [id, rawEntity] = entityEntries[i];
+      
+      // Expliziter Cast von unknown/base Entity auf Arelorian-spezifisches Interface
+      const entity = rawEntity as ArelorianEntity;
+      
       const lastUpdateFrame = BigInt(entity.lastUpdateFrame || currentFrame);
       
       // Entferne inaktive Entitäten aus dem aktiven Tick (Zombie-Pruning)
@@ -157,7 +174,7 @@ export class WorldTickOptimizationService implements OnModuleDestroy {
         continue;
       }
 
-      let updatedEntity: Entity = { 
+      let updatedEntity: ArelorianEntity = { 
         ...entity,
         sequenceId: sequenceId
       };
@@ -195,7 +212,7 @@ export class WorldTickOptimizationService implements OnModuleDestroy {
         updatedEntity.lastUpdateFrame = Number(currentFrame);
       }
 
-      processedEntities[id] = updatedEntity;
+      processedEntities[id] = updatedEntity as Entity;
     }
 
     return {

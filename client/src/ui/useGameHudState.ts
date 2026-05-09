@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import type { LootNet, EntityNet, QuestStateNet } from "@wasd/shared";
+// Relativer Pfad um @wasd/shared Mapping-Fehler im Workspace zu umgehen
+import type { LootNet, EntityNet, QuestStateNet } from "../../../shared/src";
 import {
   getCombatTargetNpcId,
   getPlayerGold,
@@ -11,6 +12,10 @@ import {
   type ClientQuestEntry,
 } from "../state/playerState";
 
+/**
+ * WarfrontHudState - Repräsentiert den deterministischen Zustand der Front-Instanz.
+ * Alle numerischen Fortschrittswerte folgen dem Kappa-Standard (1000 = 100%).
+ */
 export interface WarfrontHudState {
   active: boolean;
   isActive: boolean;
@@ -57,6 +62,10 @@ export interface GameHudState {
   onLootDespawned: (lootId: string) => void;
 }
 
+/**
+ * useGameHudState - Hook für das Interface-Management.
+ * Synchronisiert den Client-State mit der WorldTick-Frequenz (10Hz via subscribePlayerState).
+ */
 export const useGameHudState = (): GameHudState => {
   const [inventoryOpen, setInventoryOpen] = useState(false);
 
@@ -97,9 +106,10 @@ export const useGameHudState = (): GameHudState => {
     setState(s => ({ ...s, inventoryOpen }));
   }, [inventoryOpen]);
 
+  /**
+   * syncState führt eine deterministische Abfrage des WorldStateRegistry (Player-Scope) durch.
+   */
   const syncState = useCallback(() => {
-    const quests = getPlayerQuests();
-    const inventory = getPlayerInventory();
     setState((prev) => ({
       ...prev,
       gold: typeof getPlayerGold === 'function' ? getPlayerGold() : 0,
@@ -114,6 +124,7 @@ export const useGameHudState = (): GameHudState => {
   useEffect(() => {
     let unsubscribe: any;
     if (typeof subscribePlayerState === 'function') {
+        // Registrierung am 10Hz Tick-Emitter
         unsubscribe = subscribePlayerState(syncState);
     }
     syncState();
