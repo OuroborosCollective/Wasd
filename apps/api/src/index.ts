@@ -1,18 +1,24 @@
+import { PrismaClient, Prisma } from '@prisma/client';
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { Server } from 'http';
-import { PrismaClient, Prisma } from '@prisma/client';
 
 /**
  * ARELORIA WASD - API CORE
  * High-performance 3D-RPG-Metaverse Backend
  * 
- * Implementation: Resilient Prisma Logic, Exponential Backoff & Graceful Degradation
+ * Implementation: Resilient Prisma Logic & Kappa-Standard Determinism
  */
 
 /**
+ * KAPPA CONSTANTS (Fixed-Point Math)
+ */
+const KAPPA = 1000;
+const ARE_TICK_RATE_HZ = 10;
+const ARE_LOOP_TICK_MS = KAPPA / ARE_TICK_RATE_HZ; // Strict 100ms
+
+/**
  * ENVIRONMENT VALIDATION
- * Strict check for required configuration before execution
  */
 function validateEnvironment() {
   const required = ['DATABASE_URL'];
@@ -33,6 +39,8 @@ validateEnvironment();
  */
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// PrismaClient is instantiated with specific logging for WASD observability
 const prisma = new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
 });
@@ -41,7 +49,6 @@ const MAX_RETRIES = 15;
 const INITIAL_BACKOFF_MS = 1000;
 const MAX_BACKOFF_MS = 30000;
 const CONNECTION_TIMEOUT_MS = 15000;
-const ARE_LOOP_TICK_MS = 100;
 
 let isRecovering = false;
 let lastError: string | null = null;
@@ -55,13 +62,6 @@ class ConnectionTimeoutError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'ConnectionTimeoutError';
-  }
-}
-
-class AuthenticationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'AuthenticationError';
   }
 }
 
@@ -81,6 +81,7 @@ class DatabaseConnectionError extends Error {
 
 /**
  * ARE-LOOP CORE LOGIC (Action-Result-Evaluation)
+ * Deterministic world state transition system.
  */
 interface AREPayload {
   actionId: string;
@@ -103,6 +104,7 @@ const Brain = {
       actionId: payload.actionId,
     };
 
+    // Strict Purity Check for ARE logic
     if ('stateChange' in result && typeof result.stateChange !== 'undefined') {
       throw new PurityViolationError('STATE_MUTATION_DETECTED: Brain.process must remain pure.');
     }
@@ -136,7 +138,6 @@ async function initiateRecoveryMode(error: Error) {
 
 /**
  * GLOBAL PROCESS HANDLERS
- * Registered early to catch startup exceptions
  */
 process.on('uncaughtException', (error: Error) => {
   const isTransient = error instanceof ConnectionTimeoutError || 
@@ -210,8 +211,7 @@ async function initializeWithRetry(): Promise<void> {
         return;
       }
 
-      const jitter = Math.random() * 1000; 
-      const totalDelay = Math.min(delay + jitter, MAX_BACKOFF_MS);
+      const totalDelay = Math.min(delay + (Math.random() * KAPPA), MAX_BACKOFF_MS);
       
       console.log(`[SENTINEL] [RETRY_DELAY] Waiting ${Math.round(totalDelay)}ms before next attempt...`);
       await sleep(totalDelay);
@@ -232,7 +232,6 @@ app.get('/api/health', (req: Request, res: Response) => {
     status: isHealthy ? 'healthy' : (isRecovering ? 'recovering' : 'unhealthy'),
     service: 'areloria-api',
     uptime: Math.floor(process.uptime()),
-    environment: process.env.NODE_ENV || 'development',
     db_connected: dbConnected,
     recovery_mode: isRecovering,
     last_error: lastError,
@@ -240,8 +239,11 @@ app.get('/api/health', (req: Request, res: Response) => {
   });
 });
 
+/**
+ * 10-Hz WORLD TICK SYSTEM
+ */
 function startARELoop() {
-  console.log('[SENTINEL] [ARE-LOOP] Starting high-frequency world logic tick...');
+  console.log(`[SENTINEL] [ARE-LOOP] Starting 10-Hz high-frequency world logic tick (${ARE_LOOP_TICK_MS}ms)...`);
   
   const tick = () => {
     if (isShuttingDown) return;
@@ -251,10 +253,12 @@ function startARELoop() {
       return;
     }
 
+    const startTime = Date.now();
+
     try {
       const mockPayload: AREPayload = {
-        actionId: `act_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-        timestamp: Date.now(),
+        actionId: `act_${startTime}_${Math.random().toString(36).substring(2, 7)}`,
+        timestamp: startTime,
         data: { origin: 'tick_system' }
       };
 
@@ -269,12 +273,19 @@ function startARELoop() {
       }
     }
 
-    setTimeout(tick, ARE_LOOP_TICK_MS);
+    const executionTime = Date.now() - startTime;
+    const nextTickDelay = Math.max(0, ARE_LOOP_TICK_MS - executionTime);
+    
+    // Strict adherence to 10-Hz logic
+    setTimeout(tick, nextTickDelay);
   };
 
   tick();
 }
 
+/**
+ * GLOBAL ERROR MIDDLEWARE
+ */
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     if (err.code === 'P2002') return res.status(409).json({ error: 'Conflict: Unique constraint violation.' });
@@ -298,7 +309,6 @@ async function bootstrap() {
 
   const server: Server = app.listen(PORT, () => {
     console.log(`[SENTINEL] [SERVER_START] Listening on Port: ${PORT}`);
-    console.log(`[SENTINEL] [MODE] ${process.env.NODE_ENV || 'development'}`);
     
     initializeWithRetry().then(() => {
         if (dbConnected) {

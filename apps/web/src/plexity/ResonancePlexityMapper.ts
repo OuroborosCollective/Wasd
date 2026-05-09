@@ -1,4 +1,4 @@
-import { PlexityGate, DeviceProfile, FeatureSet } from './PlexityGate.js';
+import { FeatureSet } from './PlexityGate.js';
 
 /**
  * Ecosystem Resonance Engine - Plexity Component
@@ -6,42 +6,38 @@ import { PlexityGate, DeviceProfile, FeatureSet } from './PlexityGate.js';
  * Maps the server's global Resonance state to local graphical overrides.
  * Ensures that high-resonance "anomalies" are rendered appropriately
  * without causing performance degradation on lower-tier devices.
+ * 
+ * Uses Kappa (1000) fixed-point scaling for resonance values.
  */
 export class ResonancePlexityMapper {
-  private gate: PlexityGate;
-
-  constructor() {
-    this.gate = PlexityGate.getInstance();
-  }
-
   /**
    * Modifies the target feature set based on the current Resonance state and Device Profile.
    *
    * @param baseFeatures The default feature set determined by PlexityGate
-   * @param serverResonance The resonance value (0.0 - 1.0) received from the Brain
+   * @param serverResonanceKappa The resonance value (0 - 1000) received from the Brain (Kappa Scale)
    * @param deviceTier The evaluated tier of the current device
    */
   public getResonanceAdjustedFeatures(
     baseFeatures: FeatureSet,
-    serverResonance: number,
+    serverResonanceKappa: number,
     deviceTier: 'Legacy' | 'Standard' | 'Performance' | 'Ultra'
   ): FeatureSet {
 
     // Deep clone base features to avoid mutating the original
     const adjustedFeatures: FeatureSet = { ...baseFeatures };
 
-    // High resonance means chaotic visuals (particles, shaders)
-    if (serverResonance > 0.7) {
+    // High resonance (Kappa > 700) means chaotic visuals (particles, shaders)
+    if (serverResonanceKappa > 700) {
       switch (deviceTier) {
         case 'Ultra':
-          // Ultra devices get the full chaos
-          adjustedFeatures.particleBudget = Math.floor(baseFeatures.particleBudget * 1.5);
+          // Ultra devices get the full chaos - particleBudget * 1500 / 1000 (Kappa equivalent)
+          adjustedFeatures.particleBudget = Math.floor((baseFeatures.particleBudget * 1500) / 1000);
           adjustedFeatures.shaders = 'cinematic';
           adjustedFeatures.postProcessing = true;
           break;
         case 'Performance':
-          // Performance gets some chaos, but restrained
-          adjustedFeatures.particleBudget = Math.floor(baseFeatures.particleBudget * 1.2);
+          // Performance gets some chaos - particleBudget * 1200 / 1000
+          adjustedFeatures.particleBudget = Math.floor((baseFeatures.particleBudget * 1200) / 1000);
           adjustedFeatures.shaders = 'advanced';
           break;
         case 'Standard':
@@ -51,19 +47,19 @@ export class ResonancePlexityMapper {
           adjustedFeatures.postProcessing = false; // Turn off to save fill rate
           break;
         case 'Legacy':
-          // Legacy aggressively drops quality to survive resonance spikes
-          adjustedFeatures.particleBudget = Math.floor(baseFeatures.particleBudget * 0.5);
+          // Legacy aggressively drops quality - particleBudget * 500 / 1000
+          adjustedFeatures.particleBudget = Math.floor((baseFeatures.particleBudget * 500) / 1000);
           adjustedFeatures.shaders = 'basic';
           adjustedFeatures.shadowRes = 512; // Force low-res shadows
           adjustedFeatures.postProcessing = false;
-          adjustedFeatures.lodDistanceModifier = baseFeatures.lodDistanceModifier * 0.7; // Closer LODs
+          // Closer LODs: lodDistanceModifier * 700 / 1000
+          adjustedFeatures.lodDistanceModifier = Math.floor((baseFeatures.lodDistanceModifier * 700) / 1000);
           break;
       }
-    } else if (serverResonance < 0.3) {
-      // Low resonance = calm, orderly world. We can slightly boost LOD distances
-      // if performance allows, as things are less chaotic.
+    } else if (serverResonanceKappa < 300) {
+      // Low resonance = calm, orderly world. We can slightly boost LOD distances (Kappa 1100/1000)
       if (deviceTier === 'Performance' || deviceTier === 'Ultra') {
-         adjustedFeatures.lodDistanceModifier = baseFeatures.lodDistanceModifier * 1.1;
+         adjustedFeatures.lodDistanceModifier = Math.floor((baseFeatures.lodDistanceModifier * 1100) / 1000);
       }
     }
 

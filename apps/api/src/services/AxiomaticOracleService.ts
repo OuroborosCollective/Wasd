@@ -52,8 +52,10 @@ export interface OracleEvent {
 export class AxiomaticOracleService implements OnModuleInit {
   private readonly logger = new Logger(AxiomaticOracleService.name);
 
-  // Constants for Resilience & Timing
-  private readonly KAPPA = 1.61803398875 * Math.pow(299792458, 2) / 1e17;
+  /**
+   * KAPPA STANDARD: Fixed-Point Math (Kappa=1000)
+   */
+  private readonly KAPPA = 1000;
   private readonly QUERY_TIMEOUT_MS = 2500;
   private readonly PERSISTENCE_TIMEOUT_MS = 4000;
   private readonly MAX_RETRY_ATTEMPTS = 10;
@@ -67,14 +69,17 @@ export class AxiomaticOracleService implements OnModuleInit {
 
   constructor() {
     this.globalTruthState = this.initializeOracle();
-    this.logger.log(`Axiomatic Oracle initialized with Kappa: ${this.KAPPA}`);
+    this.logger.log(`Axiomatic Oracle initialized with Fixed-Point Kappa: ${this.KAPPA}`);
   }
 
   onModuleInit() {
-    // Starte Hintergrund-Synchronisation mit Fehler-Isolation
+    // Hintergrund-Synchronisation für persistente I/O Operationen
     setInterval(() => {
       if (!this.isCircuitOpen) {
-        this.flushBuffer().catch(err => this.logger.error(`Buffer flush error: ${err.message}`));
+        this.flushBuffer().catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : 'Unknown buffer error';
+          this.logger.error(`Buffer flush error: ${msg}`);
+        });
       } else {
         this.attemptCircuitReset();
       }
@@ -82,20 +87,21 @@ export class AxiomaticOracleService implements OnModuleInit {
   }
 
   private initializeOracle(): TruthState {
+    // Werte skaliert auf Kappa=1000
     const initialLogicPoints: Record<LogicPoint, number> = {
-      [LogicPoint.ORIGIN]: 1.0,
-      [LogicPoint.IDENTITY]: 1.0,
-      [LogicPoint.RELATION]: 1.0,
-      [LogicPoint.FLOW]: 1.0,
-      [LogicPoint.VOID]: 0.0,
-      [LogicPoint.SYNTHESIS]: 1.0,
-      [LogicPoint.DUALITY]: 0.5,
-      [LogicPoint.SYMMETRY]: 1.0,
-      [LogicPoint.SINGULARITY]: 0.0,
-      [LogicPoint.FORM]: 1.0,
-      [LogicPoint.OBSERVER]: 1.0,
-      [LogicPoint.ENERGY]: 1.0,
-      [LogicPoint.ENTROPY]: 0.01,
+      [LogicPoint.ORIGIN]: 1000,
+      [LogicPoint.IDENTITY]: 1000,
+      [LogicPoint.RELATION]: 1000,
+      [LogicPoint.FLOW]: 1000,
+      [LogicPoint.VOID]: 0,
+      [LogicPoint.SYNTHESIS]: 1000,
+      [LogicPoint.DUALITY]: 500,
+      [LogicPoint.SYMMETRY]: 1000,
+      [LogicPoint.SINGULARITY]: 0,
+      [LogicPoint.FORM]: 1000,
+      [LogicPoint.OBSERVER]: 1000,
+      [LogicPoint.ENERGY]: 1000,
+      [LogicPoint.ENTROPY]: 10,
     };
 
     return {
@@ -114,9 +120,6 @@ export class AxiomaticOracleService implements OnModuleInit {
     };
   }
 
-  /**
-   * Safe Accessor mit Timeout-Management. Verhindert Blockaden bei hoher Last.
-   */
   public async getGlobalTruthStateAsync(): Promise<TruthState> {
     return Promise.race([
       new Promise<TruthState>((resolve) => resolve(this.globalTruthState)),
@@ -131,28 +134,24 @@ export class AxiomaticOracleService implements OnModuleInit {
   }
 
   /**
-   * Berechnet die Realitäts-Kohärenz basierend auf der Kappa-Konstante.
+   * Deterministische Kohärenz-Berechnung (Integer-basiert).
    */
   public calculateCoherence(inputVector: number[]): number {
     try {
       const sum = inputVector.reduce((acc, val) => acc + val, 0);
-      const relativisticFactor = Math.sqrt(Math.max(0, 1 - Math.pow(this.KAPPA / 1e18, 2)));
-      const singularityLimit = Math.exp(-sum / this.KAPPA);
-      
-      return (sum * this.KAPPA * relativisticFactor) / (1 + singularityLimit);
+      // Approximation ohne Floats wo möglich; Kappa dient als Skalierungsfaktor
+      if (sum === 0) return 0;
+      return Math.floor((sum * this.KAPPA) / (sum + this.KAPPA));
     } catch (e) {
       this.logger.warn('Coherence calculation failed, returning safe default.');
-      return 0.5;
+      return 500;
     }
   }
 
-  /**
-   * Validiert eine Zustandsänderung gegen die 6 axiomatischen ARE-Regeln.
-   */
   public validateAxiomaticIntegrity(proposedChanges: Partial<Record<LogicPoint, number>>): boolean {
     const currentState = this.globalTruthState.logicPoints;
 
-    if (proposedChanges[LogicPoint.VOID] !== undefined && proposedChanges[LogicPoint.VOID] > 1.0) return false;
+    if (proposedChanges[LogicPoint.VOID] !== undefined && proposedChanges[LogicPoint.VOID] > this.KAPPA) return false;
     if (proposedChanges[LogicPoint.ORIGIN] !== undefined && proposedChanges[LogicPoint.ORIGIN] !== currentState[LogicPoint.ORIGIN]) return false;
     if (proposedChanges[LogicPoint.ENERGY] !== undefined && proposedChanges[LogicPoint.ENERGY] < 0) return false;
     
@@ -166,9 +165,6 @@ export class AxiomaticOracleService implements OnModuleInit {
     return true;
   }
 
-  /**
-   * Führt eine atomare Zustandsaktualisierung im globalTruthState durch.
-   */
   public updateTruthState(changes: Partial<Record<LogicPoint, number>>): TruthState {
     if (!this.validateAxiomaticIntegrity(changes)) {
       this.logger.error('Axiomatic Violation detected. Update rejected.');
@@ -201,7 +197,7 @@ export class AxiomaticOracleService implements OnModuleInit {
   private enqueueEvent(event: OracleEvent): void {
     this.eventBuffer.push(event);
     if (this.eventBuffer.length > 1000) {
-      this.logger.warn('Event buffer overflow. Dropping oldest events to preserve memory.');
+      this.logger.warn('Event buffer overflow. Dropping oldest events.');
       this.eventBuffer.shift();
     }
     this.flushBuffer().catch(() => {});
@@ -224,11 +220,13 @@ export class AxiomaticOracleService implements OnModuleInit {
       
       this.dbFailureCount = 0;
       this.logger.debug(`Successfully persisted ${eventsToProcess.length} Oracle events.`);
-    } catch (error) {
-      this.dbFailureCount++;
-      this.logger.warn(`Database sync failed (${this.dbFailureCount}/${this.CIRCUIT_BREAKER_THRESHOLD}): ${error.message}`);
+    } catch (error: unknown) {
+      // Cast unknown to Error to access message property safely
+      const errorMessage = error instanceof Error ? error.message : 'Unknown persistence error';
       
-      // Re-queue events with incremented retry count
+      this.dbFailureCount++;
+      this.logger.warn(`Database sync failed (${this.dbFailureCount}/${this.CIRCUIT_BREAKER_THRESHOLD}): ${errorMessage}`);
+      
       eventsToProcess.forEach(e => {
         if (e.retryCount < this.MAX_RETRY_ATTEMPTS) {
           e.retryCount++;
@@ -248,18 +246,16 @@ export class AxiomaticOracleService implements OnModuleInit {
   private async attemptCircuitReset(): Promise<void> {
     this.logger.log('Attempting circuit breaker reset...');
     try {
-      await this.persistToDatabase([]); // Heartbeat check
+      await this.persistToDatabase([]); 
       this.isCircuitOpen = false;
       this.dbFailureCount = 0;
       this.logger.log('Circuit breaker CLOSED: Database connection restored.');
-    } catch {
+    } catch (error: unknown) {
       this.logger.warn('Circuit breaker reset failed. Retrying in next interval.');
     }
   }
 
   private async persistToDatabase(events: OracleEvent[]): Promise<void> {
-    // In einer produktiven Umgebung würde hier der Prisma-Call oder Stream stehen
-    // Simulation eines Fehlers bei 5% Wahrscheinlichkeit
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         if (Math.random() < 0.05) {
@@ -286,8 +282,9 @@ export class AxiomaticOracleService implements OnModuleInit {
     try {
       const symmetry = this.globalTruthState.logicPoints[LogicPoint.SYMMETRY];
       const identityValue = this.globalTruthState.logicPoints[LogicPoint.IDENTITY];
+      // Fixed point stability check
       const stabilityScore = (symmetry * identityValue) / this.KAPPA;
-      return stabilityScore > 0.0001;
+      return stabilityScore > 0;
     } catch (e) {
       return false;
     }
