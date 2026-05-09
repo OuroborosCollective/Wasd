@@ -1,0 +1,77 @@
+name: Arelorian Engine Simulation Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_name:
+        description: 'Test name to run'
+        required: false
+        type: string
+        default: 'OracleEvolutionTest'
+      verbose:
+        description: 'Verbose output'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  simulation-test:
+    name: Run Arelorian Engine Simulation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      
+      - name: Install pnpm
+        run: npm install -g pnpm
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Install ts-node
+        run: pnpm add -D ts-node typescript
+      
+      - name: Run Simulation Test
+        id: simulation
+        continue-on-error: true
+        run: |
+          npx ts-node server/src/tests/simulations/OracleEvolutionTest.ts
+        env:
+          NODE_ENV: test
+      
+      - name: Parse Results
+        run: |
+          if [ ${{ steps.simulation.outcome }} = 'success' ]; then
+            echo "✅ Simulation PASSED"
+            echo "result=success" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Simulation FAILED"
+            echo "result=failure" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Check Output
+        run: |
+          result=$(echo "${{ steps.simulation.outputs.result || 'failure' }}")
+          echo "Simulation result: $result"
+          if [ "$result" = "failure" ]; then
+            exit 1
+          fi
+      
+      - name: Report Status
+        if: ${{ always() }}
+        run: |
+          echo "## Simulation Results" >> $GITHUB_STEP_SUMMARY
+          echo "### Exit Code: ${{ steps.simulation.outcome }}" >> $GITHUB_STEP_SUMMARY
+          if [ ${{ steps.simulation.outcome }} = 'success' ]; then
+            echo "✅ **PASSED** - All system chain reactions validated" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **FAILED** - Check logs for details" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
