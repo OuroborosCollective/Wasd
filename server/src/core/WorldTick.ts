@@ -3603,10 +3603,21 @@ export class WorldTick {
     };
   }
 
-  private getChatRecipients(): ChatRecipient[] {
-    return this.playerSystem.getAllPlayers()
-      .filter((p: any) => !p.isOffline && this.playerToSocket.has(p.id))
-      .map((p: any) => ({ id: p.id, position: { x: p.position.x, y: p.position.y } }));
+  private getChatRecipients(onlinePlayers?: any[]): ChatRecipient[] {
+    const source = onlinePlayers || this.playerSystem.getAllPlayers();
+    const recipients: ChatRecipient[] = [];
+    for (let i = 0; i < source.length; i++) {
+      const p = source[i];
+      if (p.isOffline) continue;
+      const sid = this.playerToSocket.get(p.id);
+      if (sid) {
+        recipients.push({
+          id: p.id,
+          position: { x: p.position.x, y: p.position.y },
+        });
+      }
+    }
+    return recipients;
   }
 
   async init() {
@@ -3880,23 +3891,42 @@ export class WorldTick {
 
     // NPC chat agent and Ouroboros Engine every 10 ticks (~1s)
     if (this.tickCount % 10 === 0) {
-      const recipients = this.getChatRecipients();
+      const recipients = this.getChatRecipients(onlinePlayers);
 
       if (onlinePlayers.length > 0) {
         const localChatRadiusSq = LOCAL_CHAT_RADIUS * LOCAL_CHAT_RADIUS;
         const allNpcs = this.npcSystem.getAllNPCs();
+
+        // ⚡ Bolt Optimization: Spatial Partitioning for NPCs near players
+        // Using a simple grid hash to reduce NPC-to-player proximity check from O(N*P) to O(N + P)
+        const playerGrid = new Set<string>();
+        for (let i = 0; i < onlinePlayers.length; i++) {
+          const p = onlinePlayers[i];
+          const gx = Math.floor(p.position.x / LOCAL_CHAT_RADIUS);
+          const gy = Math.floor(p.position.y / LOCAL_CHAT_RADIUS);
+          for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
+              playerGrid.add(`${gx + dx}:${gy + dy}`);
+            }
+          }
+        }
 
         for (let i = 0; i < allNpcs.length; i++) {
           const npc = allNpcs[i];
           const nx = npc.position.x;
           const ny = npc.position.y;
 
+          // Quick grid check before doing precise distance calculation
+          const ngx = Math.floor(nx / LOCAL_CHAT_RADIUS);
+          const ngy = Math.floor(ny / LOCAL_CHAT_RADIUS);
+          if (!playerGrid.has(`${ngx}:${ngy}`)) continue;
+
           let nearPlayer = false;
           for (let j = 0; j < onlinePlayers.length; j++) {
             const p = onlinePlayers[j];
-            const dx = p.position.x - nx;
-            const dy = p.position.y - ny;
-            if (dx * dx + dy * dy <= localChatRadiusSq) {
+            const pdx = p.position.x - nx;
+            const pdy = p.position.y - ny;
+            if (pdx * pdx + pdy * pdy <= localChatRadiusSq) {
               nearPlayer = true;
               break;
             }
