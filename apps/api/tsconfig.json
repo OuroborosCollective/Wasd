@@ -16,13 +16,7 @@
     "strict": true,
     "skipLibCheck": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "paths": {
-      "@wasd/utils": ["../../packages/utils/src"],
-      "@wasd/utils/*": ["../../packages/utils/src/*"],
-      "@wasd/shared": ["../../packages/shared/src"],
-      "@wasd/shared/*": ["../../packages/shared/src/*"]
-    }
+    "emitDecoratorMetadata": true
   },
   "include": ["src/**/*"],
   "exclude": [
@@ -37,6 +31,18 @@
     },
     {
       "path": "../../packages/shared"
+    },
+    {
+      "path": "../../packages/core"
+    },
+    {
+      "path": "../../packages/database"
+    },
+    {
+      "path": "../../packages/redis"
+    },
+    {
+      "path": "../../packages/types"
     }
   ]
 }

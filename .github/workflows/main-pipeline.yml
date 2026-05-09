@@ -101,7 +101,7 @@ jobs:
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: '22'
           cache: 'pnpm'
 
       - name: Setup Python ${{ matrix.python-version }}
@@ -193,19 +193,19 @@ jobs:
           fi
 
       - name: Lint workspace
-        run: pnpm --filter "...[origin/main]" run lint
+        run: pnpm run lint
 
       - name: Build monorepo with Error Trapping
         run: |
           set -e
           echo "Starting Monorepo Build..."
-          pnpm --filter "...[origin/main]" run build || {
+          pnpm run build || {
             echo "BUILD FAILED. Capturing build state..."
             exit 1
           }
 
       - name: Typecheck
-        run: pnpm --filter "...[origin/main]" run typecheck
+        run: pnpm run typecheck
 
       - name: Ensure Build Directories Exist
         run: |
@@ -226,7 +226,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Run tests
-        run: pnpm --filter "...[origin/main]" run test
+        run: pnpm run test
 
       - name: GitHub Dependency Submission
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
