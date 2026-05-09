@@ -10,7 +10,8 @@
     "lint": "pnpm -r run lint",
     "build": "pnpm -r run build",
     "quality-check": "pnpm run lint && pnpm run test",
-    "deploy": "bash scripts/deploy-vps.sh"
+    "deploy": "bash scripts/deploy-vps.sh",
+    "typecheck": "pnpm -r run typecheck"
   },
   "engines": {
     "node": ">=20.0.0"

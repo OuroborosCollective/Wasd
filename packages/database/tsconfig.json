@@ -6,7 +6,7 @@
     "composite": true,
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "noEmit": false,
+    "noEmit": true,
     "declaration": true,
     "declarationMap": true
   },
