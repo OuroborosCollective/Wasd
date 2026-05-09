@@ -830,6 +830,9 @@ importers:
       multer:
         specifier: ^2.1.1
         version: 2.1.1
+      node-fetch:
+        specifier: ^3.3.2
+        version: 3.3.2
       openai:
         specifier: ^6.37.0
         version: 6.37.0(ws@8.20.0)(zod@4.4.3)
@@ -848,6 +851,9 @@ importers:
       uuid:
         specifier: ^14.0.0
         version: 14.0.0
+      vite:
+        specifier: ^8.0.11
+        version: 8.0.11(@types/node@22.19.18)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.8.4)
       ws:
         specifier: ^8.20.0
         version: 8.20.0
@@ -873,6 +879,9 @@ importers:
       '@types/node':
         specifier: ^22.19.18
         version: 22.19.18
+      '@types/node-fetch':
+        specifier: ^2.6.12
+        version: 2.6.13
       '@types/pg':
         specifier: ^8.20.0
         version: 8.20.0
@@ -3138,6 +3147,9 @@ packages:
 
   '@types/mysql@2.15.22':
     resolution: {integrity: sha512-wK1pzsJVVAjYCSZWQoWHziQZbNggXFDUEIGf54g4ZM/ERuP86uGdWeKZWMYlqTPMZfHJJvLPyogXGvCOg87yLQ==}
+
+  '@types/node-fetch@2.6.13':
+    resolution: {integrity: sha512-QGpRVpzSaUs30JBSGPjOg4Uveu384erbHBoT1zeONvyCfwQxIkUshLAOqN/k9EjGviPRmWTTe6aH2qySWKTVSw==}
 
   '@types/node@22.19.18':
     resolution: {integrity: sha512-9v00a+dn2yWVsYDEunWC4g/TcRKVq3r8N5FuZp7u0SGrPvdN9c2yXI9bBuf5Fl0hNCb+QTIePTn5pJs2pwBOQQ==}
@@ -9972,6 +9984,11 @@ snapshots:
     dependencies:
       '@types/node': 22.19.18
     optional: true
+
+  '@types/node-fetch@2.6.13':
+    dependencies:
+      '@types/node': 22.19.18
+      form-data: 4.0.5
 
   '@types/node@22.19.18':
     dependencies:

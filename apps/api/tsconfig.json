@@ -27,11 +27,11 @@
     "**/*.test.ts"
   ],
   "references": [
-    {
-      "path": "../../packages/utils"
-    },
-    {
-      "path": "../../packages/shared"
-    }
+    { "path": "../../packages/utils" },
+    { "path": "../../packages/shared" },
+    { "path": "../../packages/core" },
+    { "path": "../../packages/database" },
+    { "path": "../../packages/redis" },
+    { "path": "../../packages/types" }
   ]
 }

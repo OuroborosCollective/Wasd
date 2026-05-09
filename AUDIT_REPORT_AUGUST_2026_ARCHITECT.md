@@ -26,6 +26,9 @@ The repository is a sophisticated monorepo powered by **pnpm workspaces**, conta
 3.  **Docker Build Efficiency:** Multi-stage builds are used in the production Dockerfiles, synchronized with the standardized Node.js version.
 4.  **Standardized ESM/CJS Interop:** Standardized on `moduleResolution: bundler` for cross-package consistency within the workspace.
 
+5.  **Circular Symbolic Links:** FIXED. Cleaned up redundant and circular symbolic links in `server/src` that were causing `ELOOP` (too many symbolic links) errors during CI stat operations.
+6.  **Missing Direct Dependencies:** FIXED. Explicitly added `node-fetch`, `@types/node-fetch`, and `vite` to `server/package.json`. The switch to pnpm's **isolated** linker correctly identified these as missing direct dependencies (they were previously "ghosted" through hoisting).
+
 ---
 
 ## Action Plan (Finaler Status)
