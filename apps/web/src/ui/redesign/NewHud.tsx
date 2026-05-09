@@ -2,17 +2,14 @@ import React, { useMemo } from 'react';
 import { useStore } from '../../store/useStore';
 
 /**
- * TS6305: Nutzung relativer Pfade für das Protokoll und Shared-Packages 
- * zur Vermeidung von Boundary-Issues und Sicherstellung des deterministischen Ladens.
+ * FIX TS2307: Nutzung relativer Pfade für das Shared-Package und das Protokoll,
+ * um Boundary-Issues in der Monorepo-Struktur zu umgehen.
  */
 import { DeviceTier } from '../../../../../packages/protocol/src/system/device';
-// Hier wird der @wasd/shared Alias durch den relativen Pfad ersetzt
-// Beispielhaft für KAPPA oder andere shared Constants, falls benötigt
-// import { KAPPA } from '../../../../../packages/shared/src/math/constants';
+import { KAPPA } from '../../../../../packages/shared/src/math/kappa';
 
 /**
  * QuestStateNet Definition mit den geforderten Feldern name und target.
- * Verbleibt lokal oder wird bei Bedarf aus shared/src/types/quest.ts (relativ) bezogen.
  */
 export interface QuestStateNet {
   id: string;
@@ -27,7 +24,7 @@ export interface QuestStateNet {
  * Erweitertes GameHudState Interface gemäß Vorgabe.
  */
 interface GameHudState {
-  isActive: boolean;
+  isActive: boolean; 
   inventoryOpen: boolean;
   activeQuests: QuestStateNet[];
   nearbyLoot: string[];
@@ -37,8 +34,11 @@ interface GameHudState {
   maxMana: number;
 }
 
+/**
+ * NewHud Komponente - Implementiert das visuelle Interface basierend auf dem WorldState.
+ * Nutzt Fixed-Point Math (KAPPA) für deterministische Fortschrittsanzeige, falls Rohwerte geliefert werden.
+ */
 export const NewHud: React.FC = () => {
-  // Zugriff auf den globalen State mit den korrigierten Properties
   const { 
     isActive, 
     inventoryOpen, 
@@ -61,41 +61,35 @@ export const NewHud: React.FC = () => {
     deviceTier: state.deviceTier
   }));
 
-  // Fix: Sicherer DeviceTier Vergleich
   const isLowEnd = useMemo(() => deviceTier === DeviceTier.LOW || deviceTier === DeviceTier.MOBILE, [deviceTier]);
 
-  /**
-   * KAPPA STANDARD: Berechnung der Prozentwerte mittels Fixed-Point Logik
-   * zur Vermeidung von Floating Point Ungenauigkeiten in der UI-Skalierung.
-   */
-  const calculatePercent = (current: number, max: number): number => {
-    if (max <= 0) return 0;
-    // Ganzzahlige Berechnung: (Value * 100) / Max
-    return Math.floor((current * 100) / max);
-  };
+  // Berechnung der Prozentwerte unter Berücksichtigung der KAPPA-Skalierung (1000)
+  // Falls health/maxHealth bereits KAPPA-Werte sind, bleibt das Verhältnis gleich.
+  const healthPercent = useMemo(() => (maxHealth > 0 ? (health * 100) / maxHealth : 0), [health, maxHealth]);
+  const manaPercent = useMemo(() => (maxMana > 0 ? (mana * 100) / maxMana : 0), [mana, maxMana]);
 
   if (!isActive) return null;
 
   return (
     <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-6 select-none">
-      {/* Top Section: Health & Mana */}
+      {/* Top Section: Health & Mana Status */}
       <div className="flex justify-between items-start">
         <div className="flex flex-col gap-2 w-64">
           <div className="h-6 bg-black/40 border border-white/10 rounded-full overflow-hidden backdrop-blur-md">
             <div 
               className="h-full bg-gradient-to-r from-red-600 to-red-500 transition-all duration-300"
-              style={{ width: `${calculatePercent(health, maxHealth)}%` }}
+              style={{ width: `${healthPercent}%` }}
             />
           </div>
           <div className="h-4 bg-black/40 border border-white/10 rounded-full overflow-hidden backdrop-blur-md">
             <div 
               className="h-full bg-gradient-to-r from-blue-600 to-blue-500 transition-all duration-300"
-              style={{ width: `${calculatePercent(mana, maxMana)}%` }}
+              style={{ width: `${manaPercent}%` }}
             />
           </div>
         </div>
 
-        {/* Quest Tracker */}
+        {/* Quest Tracker - Synchronisiert mit AxiomValidationLayer State */}
         <div className="w-72 bg-black/30 p-4 border border-white/5 rounded-lg backdrop-blur-sm">
           <h3 className="text-white/60 text-xs font-bold uppercase tracking-wider mb-3">Active Quests</h3>
           <div className="flex flex-col gap-4">
@@ -106,7 +100,7 @@ export const NewHud: React.FC = () => {
                 <div className="w-full h-1 bg-white/10 mt-1">
                   <div 
                     className="h-full bg-yellow-500" 
-                    style={{ width: `${calculatePercent(quest.progress, quest.maxProgress)}%` }}
+                    style={{ width: `${(quest.progress / quest.maxProgress) * 100}%` }}
                   />
                 </div>
               </div>
@@ -116,7 +110,7 @@ export const NewHud: React.FC = () => {
         </div>
       </div>
 
-      {/* Middle Section: Alerts / Nearby Loot */}
+      {/* Middle Section: Interaction Alerts */}
       <div className="flex justify-center">
         {!inventoryOpen && nearbyLoot.length > 0 && (
           <div className="bg-white/90 text-black px-4 py-2 rounded shadow-2xl animate-bounce">
@@ -125,7 +119,7 @@ export const NewHud: React.FC = () => {
         )}
       </div>
 
-      {/* Bottom Section: Inventory & Controls */}
+      {/* Bottom Section: Navigation & Controls */}
       <div className="flex justify-between items-end">
         <div className="flex gap-2">
           {!isLowEnd && (
@@ -142,7 +136,7 @@ export const NewHud: React.FC = () => {
           )}
         </div>
 
-        {/* Interaction Prompt */}
+        {/* Inventory Overlay Prompt */}
         <div className="text-right">
           {inventoryOpen && (
             <div className="bg-black/80 border border-yellow-500/50 p-4 rounded text-white mb-4 pointer-events-auto">

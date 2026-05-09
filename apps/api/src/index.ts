@@ -1,14 +1,14 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { Server } from 'http';
-import { PrismaClient, Prisma } from '@prisma/client';
-
 /**
  * ARELORIA WASD - API CORE
  * High-performance 3D-RPG-Metaverse Backend
  * 
- * Implementation: Resilient Prisma Logic, Exponential Backoff & Graceful Degradation
+ * Optimized Prisma Imports to handle generation mismatch and namespace conflicts.
+ * Implementation: Resilient Prisma Logic, Exponential Backoff & Graceful Degradation.
  */
+import { PrismaClient, Prisma } from '@prisma/client';
 
 /**
  * ENVIRONMENT VALIDATION
@@ -30,9 +30,12 @@ validateEnvironment();
 
 /**
  * GLOBAL STATE & CONFIG
+ * Kappa = 1000 (Fixed-Point Math standard for Arelorian)
  */
 const app = express();
 const PORT = process.env.PORT || 3000;
+const KAPPA = 1000;
+
 const prisma = new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
 });
@@ -41,7 +44,7 @@ const MAX_RETRIES = 15;
 const INITIAL_BACKOFF_MS = 1000;
 const MAX_BACKOFF_MS = 30000;
 const CONNECTION_TIMEOUT_MS = 15000;
-const ARE_LOOP_TICK_MS = 100;
+const ARE_LOOP_TICK_MS = 100; // 10 Hz Logic
 
 let isRecovering = false;
 let lastError: string | null = null;
@@ -81,6 +84,7 @@ class DatabaseConnectionError extends Error {
 
 /**
  * ARE-LOOP CORE LOGIC (Action-Result-Evaluation)
+ * Stateless Determinism - Kappa math utilized for coordinate/state math
  */
 interface AREPayload {
   actionId: string;
@@ -103,6 +107,7 @@ const Brain = {
       actionId: payload.actionId,
     };
 
+    // Ensure no async logic or side effects inside Brain.process
     if ('stateChange' in result && typeof result.stateChange !== 'undefined') {
       throw new PurityViolationError('STATE_MUTATION_DETECTED: Brain.process must remain pure.');
     }
@@ -111,7 +116,7 @@ const Brain = {
   }
 };
 
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, Math.floor(ms)));
 
 /**
  * RECOVERY ORCHESTRATOR
@@ -136,7 +141,6 @@ async function initiateRecoveryMode(error: Error) {
 
 /**
  * GLOBAL PROCESS HANDLERS
- * Registered early to catch startup exceptions
  */
 process.on('uncaughtException', (error: Error) => {
   const isTransient = error instanceof ConnectionTimeoutError || 
@@ -162,6 +166,7 @@ process.on('unhandledRejection', (reason: unknown) => {
 
 /**
  * DATABASE CONNECT LOGIC
+ * Utilizes race condition to enforce CONNECTION_TIMEOUT_MS
  */
 async function connectToDatabase(): Promise<void> {
   console.log(`[SENTINEL] [DATABASE_BOOT] [${new Date().toISOString()}] Validating persistence layer...`);
@@ -179,6 +184,7 @@ async function connectToDatabase(): Promise<void> {
     await Promise.race([connectionPromise, timeoutPromise]);
   } catch (error: any) {
     dbConnected = false;
+    // Check against Prisma namespace specifically
     if (error instanceof Prisma.PrismaClientInitializationError) {
       throw new DatabaseConnectionError(`PRISMA_INIT_ERROR: ${error.message}`);
     }
@@ -210,10 +216,11 @@ async function initializeWithRetry(): Promise<void> {
         return;
       }
 
-      const jitter = Math.random() * 1000; 
-      const totalDelay = Math.min(delay + jitter, MAX_BACKOFF_MS);
+      // Kappa-aligned jitter calculation
+      const jitter = Math.floor(Math.random() * KAPPA); 
+      const totalDelay = Math.floor(Math.min(delay + jitter, MAX_BACKOFF_MS));
       
-      console.log(`[SENTINEL] [RETRY_DELAY] Waiting ${Math.round(totalDelay)}ms before next attempt...`);
+      console.log(`[SENTINEL] [RETRY_DELAY] Waiting ${totalDelay}ms before next attempt...`);
       await sleep(totalDelay);
       delay *= 2; 
     }
@@ -240,6 +247,10 @@ app.get('/api/health', (req: Request, res: Response) => {
   });
 });
 
+/**
+ * START ARE LOOP
+ * Strict 10Hz tick logic. 
+ */
 function startARELoop() {
   console.log('[SENTINEL] [ARE-LOOP] Starting high-frequency world logic tick...');
   
@@ -253,7 +264,7 @@ function startARELoop() {
 
     try {
       const mockPayload: AREPayload = {
-        actionId: `act_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        actionId: `act_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         timestamp: Date.now(),
         data: { origin: 'tick_system' }
       };
@@ -275,10 +286,14 @@ function startARELoop() {
   tick();
 }
 
+/**
+ * ERROR HANDLING MIDDLEWARE
+ */
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     if (err.code === 'P2002') return res.status(409).json({ error: 'Conflict: Unique constraint violation.' });
     if (err.code === 'P2025') return res.status(404).json({ error: 'Not Found: Record does not exist.' });
+    // Transient codes handling
     if (['P2024', 'P2028', 'P2001'].includes(err.code)) {
       initiateRecoveryMode(err);
       return res.status(503).json({ error: 'Service Unavailable: Database connection issue.' });

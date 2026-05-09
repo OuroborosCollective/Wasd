@@ -1,21 +1,23 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { Entity, WorldState } from '@wasd/shared';
 import { v4 as uuidv4 } from 'uuid';
-import { WorldStateRegistry } from './WorldStateRegistry.js';
-import { ATOAuthorizationService } from './ATOAuthorizationService.js';
+import { WorldStateRegistry } from './WorldStateRegistry';
+import { ATOAuthorizationService } from './ATOAuthorizationService';
 
 /**
  * WorldTickOptimizationService
  * 
- * Realisiert einen deterministischen 10Hz World-Tick mit diskreten Frame-Nummern.
- * Integriert die ATO-Autorisierung (Arelorian Transactional Orchestrator) für
- * atomare Zustands-Swaps in der WorldStateRegistry unter Einhaltung der ARE-Axiome.
+ * Deterministischer 10Hz World-Tick.
+ * Kappa-Standard (1000) für Fixed-Point Berechnungen.
+ * ATO-Validierung (Arelorian Transactional Orchestrator) für Zustandsübergänge.
  */
 @Injectable()
 export class WorldTickOptimizationService implements OnModuleDestroy {
   private readonly logger = new Logger(WorldTickOptimizationService.name);
   
-  // 10Hz = 100ms Intervall
+  // Kappa Konstante für Fixed-Point Math
+  private readonly KAPPA = 1000;
+  // 10Hz = 100ms Intervall in Nanosekunden
   private readonly TICK_INTERVAL_NS = BigInt(100) * BigInt(1_000_000);
   
   private isRunning = false;
@@ -40,7 +42,7 @@ export class WorldTickOptimizationService implements OnModuleDestroy {
     this.currentFrame = BigInt(initialState.frame || 0);
     this.nextTickTimeNs = process.hrtime.bigint();
 
-    this.logger.log(`Areloria Deterministic 10Hz Tick gestartet. Frame: ${this.currentFrame}`);
+    this.logger.log(`Arelorian Deterministic 10Hz Tick gestartet. Frame: ${this.currentFrame}`);
     this.scheduleNext();
   }
 
@@ -55,20 +57,24 @@ export class WorldTickOptimizationService implements OnModuleDestroy {
     const now = process.hrtime.bigint();
 
     if (now >= this.nextTickTimeNs) {
-      this.executeTick();
+      this.executeTick().catch(err => {
+        this.logger.error(`Tick Execution Error: ${err.message}`);
+      });
       this.nextTickTimeNs += this.TICK_INTERVAL_NS;
 
+      // Drift-Korrektur bei massiver Last (> 500ms Verzug)
       if (now - this.nextTickTimeNs > this.TICK_INTERVAL_NS * BigInt(5)) {
         this.nextTickTimeNs = now + this.TICK_INTERVAL_NS;
-        this.logger.warn('Kritischer Drift: Frame-Synchronisation erzwungen.');
+        this.logger.warn('Kritischer Drift erkannt: Frame-Synchronisation erzwungen.');
       }
     }
 
+    // setImmediate hält den Loop am Leben ohne den Event-Loop für I/O zu blockieren
     setImmediate(() => this.scheduleNext());
   }
 
   /**
-   * Kern-Pipeline: Berechnung -> ATO-Validierung -> Registry-Swap.
+   * Pipeline: State Akquise -> ARE-Kompilierung -> Kappa-Optimierung -> ATO-Validierung -> Commit.
    */
   private async executeTick(): Promise<void> {
     const currentState = this.registry.getCurrentState();
@@ -77,17 +83,17 @@ export class WorldTickOptimizationService implements OnModuleDestroy {
     const startTime = process.hrtime.bigint();
     this.currentFrame++;
     
-    // Eindeutige Sequence-ID für Kausalitäts-Kette
-    const sequenceId = `seq_${this.currentFrame}_${uuidv4().split('-')[0]}`;
+    // Sequence-ID zur Wahrung der Kausalitäts-Kette nach ARE-Axiomen
+    const sequenceId = `seq_${this.currentFrame}_${uuidv4().substring(0, 8)}`;
 
-    // 1. AREStateCompiler: Transformation
+    // 1. AREStateCompiler: Transformation & Frame-Inkrement
     let nextState = this.compileAREState(currentState, sequenceId, this.currentFrame);
 
-    // 2. ResonanceGrid & Optimization
+    // 2. Spatial Grid & Kappa Optimization
     nextState = this.updateResonanceGrid(nextState, sequenceId);
     nextState = this.optimizeTick(nextState, sequenceId, this.currentFrame);
     
-    // 3. ATO-Autorisierung & Axiom-Validierung
+    // 3. ATO-Autorisierung: Validiert Axiome bevor der State-Swap stattfindet
     const transitionAuthorized = await this.atoService.authorizeStateTransition(
       currentState, 
       nextState, 
@@ -95,21 +101,21 @@ export class WorldTickOptimizationService implements OnModuleDestroy {
     );
 
     if (!transitionAuthorized) {
-      this.logger.error(`ATO-Autorisierung für Frame ${this.currentFrame} fehlgeschlagen. Rollback eingeleitet.`);
+      this.logger.error(`ATO-Autorisierung für Frame ${this.currentFrame} verweigert. Axiom-Verletzung.`);
       return;
     }
 
-    // 4. Finaler Performance-Check & Registry Swap
+    // 4. Performance Metriken & Finalisierung
     const endTime = process.hrtime.bigint();
     const durationMs = Number(endTime - startTime) / 1_000_000;
 
     nextState.performanceMetrics = {
       ...nextState.performanceMetrics,
       lastTickDurationMs: durationMs,
-      thresholdMs: 80
+      thresholdMs: 80 // 80ms Budget für 100ms Tick
     };
 
-    // Atomarer Swap in der Registry (Single Source of Truth)
+    // Atomarer Registry-Swap (Single Source of Truth)
     this.registry.commitStateSwap(nextState);
 
     if (this.onTickCallback) {
@@ -127,6 +133,7 @@ export class WorldTickOptimizationService implements OnModuleDestroy {
   }
 
   private updateResonanceGrid(state: WorldState, sequenceId: string): WorldState {
+    // Hier wird die räumliche Partitionierung für Kollisionen/Interaktionen vorbereitet
     return { ...state, sequenceId };
   }
 
@@ -135,6 +142,7 @@ export class WorldTickOptimizationService implements OnModuleDestroy {
     const processedEntities: Record<string, Entity> = {};
     
     const metrics = performanceMetrics || { lastTickDurationMs: 0, thresholdMs: 80 };
+    // Deterministische Last-Erkennung
     const isOverloaded = metrics.lastTickDurationMs > metrics.thresholdMs;
     
     const ZOMBIE_FRAME_THRESHOLD = BigInt(50);
@@ -142,44 +150,49 @@ export class WorldTickOptimizationService implements OnModuleDestroy {
 
     for (let i = 0; i < entityEntries.length; i++) {
       const [id, entity] = entityEntries[i];
-      const lastUpdateFrame = BigInt((entity as any).lastUpdateFrame || currentFrame);
+      const lastUpdateFrame = BigInt(entity.lastUpdateFrame || currentFrame);
       
+      // Entferne inaktive Entitäten aus dem aktiven Tick (Zombie-Pruning)
       if (currentFrame - lastUpdateFrame > ZOMBIE_FRAME_THRESHOLD) {
         continue;
       }
 
-      // Cast zu any um Spread-Inkompatibilitäten im Shared-Interface zu umgehen
       let updatedEntity: Entity = { 
-        ...(entity as any),
+        ...entity,
         sequenceId: sequenceId
       };
       let modified = false;
 
-      const cpuCost = (updatedEntity as any).cpuCost ?? 0;
-      const priority = (updatedEntity as any).priority ?? 0;
+      const cpuCost = entity.cpuCost ?? 0;
+      const priority = entity.priority ?? 0;
 
+      // Kappa-Standard: Fixed-Point Laststeuerung
       if (isOverloaded && cpuCost > 15 && priority < 2) {
-        (updatedEntity as any).status = 'throttled';
-        (updatedEntity as any).cpuCost = Math.floor(cpuCost * 500 / 1000); // Kappa Math (0.5)
+        updatedEntity.status = 'throttled';
+        // Reduktion auf 50% via Kappa Math (500/1000)
+        updatedEntity.cpuCost = Math.floor((cpuCost * 500) / this.KAPPA);
         modified = true;
-      } else if (!isOverloaded && (updatedEntity as any).status === 'throttled') {
-        if (metrics.lastTickDurationMs < (metrics.thresholdMs * 600 / 1000)) {
-          (updatedEntity as any).status = 'active';
-          (updatedEntity as any).cpuCost = Math.min(100, Math.floor(cpuCost * 1200 / 1000));
+      } else if (!isOverloaded && updatedEntity.status === 'throttled') {
+        // Erholung wenn Last unter 60% (600/1000) des Schwellwerts
+        if (metrics.lastTickDurationMs < Math.floor((metrics.thresholdMs * 600) / this.KAPPA)) {
+          updatedEntity.status = 'active';
+          // Erhöhung um 20% via Kappa Math (1200/1000)
+          updatedEntity.cpuCost = Math.min(100, Math.floor((cpuCost * 1200) / this.KAPPA));
           modified = true;
         }
       }
 
-      // Regeneration alle 10 Frames (deterministisch 1Hz)
+      // Deterministische Regeneration alle 10 Frames (1Hz)
       if (currentFrame % BigInt(10) === BigInt(0)) {
-        if (((updatedEntity as any).health ?? 0) < 100) {
-          (updatedEntity as any).health = Math.min(100, ((updatedEntity as any).health ?? 0) + 1);
+        const currentHealth = updatedEntity.health ?? 0;
+        if (currentHealth < 100) {
+          updatedEntity.health = Math.min(100, currentHealth + 1);
           modified = true;
         }
       }
 
       if (modified || currentFrame % BigInt(10) === BigInt(0)) {
-        (updatedEntity as any).lastUpdateFrame = Number(currentFrame);
+        updatedEntity.lastUpdateFrame = Number(currentFrame);
       }
 
       processedEntities[id] = updatedEntity;
