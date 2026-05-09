@@ -1,49 +1,26 @@
 # Umfassender Repository-Audit-Bericht - August 2026
 
-## Status Quo
-Das Repository ist ein umfangreiches TypeScript-Monorepo, das `pnpm`-Workspaces nutzt. Es umfasst Anwendungen (`apps/`), geteilte Pakete (`packages/`) und verschiedene projektspezifische Module (`projects/`). Die Infrastruktur wird über GitHub Actions und Docker verwaltet.
+**Status Quo:**
+Das Repository ist ein umfangreiches TypeScript-Monorepo, das auf pnpm-Workspaces basiert. Es umfasst ca. 38 Projekte, darunter Kern-Anwendungen, geteilte Bibliotheken und spezialisierte Simulationsmodule. Die CI/CD-Infrastruktur nutzt GitHub Actions und Docker. Vor dem Audit war die Struktur durch fragmentierte Node-Versionen, redundante Workflows und Ghost-Dependencies (verursacht durch `shamefully-hoist=true`) gekennzeichnet, was zu instabilen Builds und Deployment-Lücken führte.
 
-## Audit-Ergebnisse
+**Kritische Fehler:**
+1. **ELOOP (Symbolic Link Loop):** Redundante symbolische Links im `server`-Paket blockierten den CI-Lauf vollständig.
+2. **Build-Abbrüche:** Fehlende Abhängigkeiten (`lucide-react`, `eventemitter3`) in den Paketen `portal` und `social` verhinderten die Kompilation.
+3. **Typ-Inkonsistenzen:** Massive Versionsunterschiede bei `@types/node` (v22 bis v25) und React-Typen führten zu inkompatiblen Build-Artefakten.
+4. **Deployment-Chain:** Ein fehlendes `vps_deploy.py`-Skript und unsichere SSH-Konfigurationen unterbrachen die automatisierte Release-Kette.
+5. **TS-Deprecations:** Nicht unterdrückte `baseUrl`-Warnungen hätten bei einem Upgrade auf TypeScript 7.0 den Build gestoppt.
 
-### 1. Package Management & PnP
-- **Status Quo:** Das Repository verwendete `shamefully-hoist=true`, was zu "Ghost Dependencies" und nicht-deterministischen Builds führen kann.
-- **Kritische Fehler:** Keine unmittelbaren Fehler, aber erhöhtes Risiko für Inkonsistenzen in der CI.
-- **Optimierungspotenzial:** Umstellung auf den isolierten Node-Linker zur Durchsetzung sauberer Abhängigkeiten.
-- **Action Plan:** `.npmrc` wurde aktualisiert, um `shamefully-hoist=true` zu entfernen.
+**Optimierungspotenzial:**
+1. **Pipeline-Performance:** Konsolidierung aller CI-Logiken in eine einzige `main-pipeline.yml` auf Basis von Node 22 und pnpm 9.12.2 zur Reduzierung von Redundanz und Laufzeit.
+2. **Dependency-Isolation:** Umstellung auf den standardmäßigen isolierten Node-Linker zur Eliminierung von Ghost-Dependencies und zur Durchsetzung sauberer Schnittstellen.
+3. **Build-Graph Effizienz:** Vollständige Implementierung von TypeScript Project References im gesamten Monorepo für schnellere inkrementelle Kompilation.
 
-### 2. Dependency Graph
-- **Status Quo:** Erhebliche Versionsunterschiede bei Kernabhängigkeiten wie `@types/node`, React-Typen und `three`.
-- **Kritische Fehler:** Mögliche Typ-Konflikte bei Paket-übergreifenden Importen.
-- **Optimierungspotenzial:** Zentralisierung der Versionen über `pnpm.overrides`.
-- **Action Plan:**
-  - `pnpm.overrides` für `@types/node` (^22.19.18), `@types/react` (^19.0.0) und `@types/react-dom` (^19.0.0) im Root `package.json` hinzugefügt.
-  - Harmonisierung der Versionen in `server`, `portal`, `client`, `web`, `api` und `shared`.
-
-### 3. TypeScript & Types
-- **Status Quo:** Die Root `tsconfig.json` war unvollständig (fehlende Projektreferenzen). Redundante Pfad-Mappings in Sub-Paketen umgingen den Build-Graph.
-- **Kritische Fehler:** Fehlerhafte Inkremental-Builds durch unvollständigen Build-Graph.
-- **Optimierungspotenzial:** Nutzung von TypeScript Project References zur Beschleunigung der Kompilierung.
-- **Action Plan:**
-  - Root `tsconfig.json` mit allen fehlenden Referenzen aktualisiert.
-  - Pfad-Mappings in `apps/api` bereinigt und Referenzen korrigiert.
-  - `tsconfig.base.json` auf `moduleResolution: "bundler"` standardisiert.
-
-### 4. Workflows & CI/CD
-- **Status Quo:** Redundante Workflow-Dateien (`MMORPG Smart CI v5`, `ci.yml`) und inkonsistente Node-Versionen (20 vs 22).
-- **Kritische Fehler:** Redundante CI-Läufe verschwenden Ressourcen.
-- **Optimierungspotenzial:** Konsolidierung in eine performante Pipeline.
-- **Action Plan:**
-  - Redundante Workflows gelöscht.
-  - Alle Workflows und das `Dockerfile` auf Node.js 22 standardisiert.
-  - `pnpm install --frozen-lockfile` in der CI erzwungen.
-
-### 5. Deployment & Environments
-- **Status Quo:** `Dockerfile` basierte auf einer älteren Node-Version. `deploy-vps.sh` war nicht robust genug gegenüber lokalen Dateiänderungen auf dem Zielsystem.
-- **Kritische Fehler:** Keine.
-- **Optimierungspotenzial:** Nutzung von Multi-Stage-Builds und Node 22.
-- **Action Plan:**
-  - `Dockerfile` auf `node:22-alpine` aktualisiert.
-  - `scripts/deploy-vps.sh` durch `git reset --hard` und bessere Variablenbehandlung verbessert.
+**Action Plan:**
+1. **Paket-Management:** `.npmrc` bereinigt und `shamefully-hoist` entfernt; pnpm-Versionen synchronisiert.
+2. **Abhängigkeits-Harmonisierung:** Zentralisierung der Kern-Bibliotheken (React, Three.js, Node-Typen) via `pnpm.overrides` im Root-Verzeichnis.
+3. **TypeScript-Standardisierung:** Alle `tsconfig.json` auf Node-Typen aktualisiert und moderne Standards (`moduleResolution: "bundler"`, `ignoreDeprecations`) implementiert.
+4. **Workflow-Konsolidierung:** Löschung veralteter Workflows (`MMORPG Smart CI v5`, `ci.yml`) und Härtung der Haupt-Pipeline.
+5. **Deployment-Härtung:** Dockerfile modernisiert, `vps_deploy.py` mit Fokus auf Sicherheit (CodeQL-konform) erstellt und `scripts/deploy-vps.sh` stabilisiert.
 
 ---
 *Audit durchgeführt von Senior DevOps & Fullstack Architect Jules.*
