@@ -10,33 +10,9 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'apps/**'
-      - 'packages/**'
-      - 'client/**'
-      - 'server/**'
-      - 'shared/**'
-      - 'engine/**'
-      - 'portal/**'
-      - 'package.json'
-      - 'pnpm-workspace.yaml'
-      - 'pnpm-lock.yaml'
-      - '.github/workflows/main-pipeline.yml'
   pull_request:
     branches:
       - main
-    paths:
-      - 'apps/**'
-      - 'packages/**'
-      - 'client/**'
-      - 'server/**'
-      - 'shared/**'
-      - 'engine/**'
-      - 'portal/**'
-      - 'package.json'
-      - 'pnpm-workspace.yaml'
-      - 'pnpm-lock.yaml'
-      - '.github/workflows/main-pipeline.yml'
 
 jobs:
   build-and-test:
