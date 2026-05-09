@@ -132,6 +132,9 @@ importers:
       '@wasd/database':
         specifier: workspace:*
         version: link:../../packages/database
+      lucide-react:
+        specifier: ^1.14.0
+        version: 1.14.0(react@19.2.6)
       react:
         specifier: ^19.2.6
         version: 19.2.6
@@ -603,6 +606,9 @@ importers:
 
   portal:
     dependencies:
+      lucide-react:
+        specifier: ^1.14.0
+        version: 1.14.0(react@19.2.6)
       react:
         specifier: ^19.2.6
         version: 19.2.6
