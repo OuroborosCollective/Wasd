@@ -1,16 +1,9 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "skipLibCheck": true,
     "outDir": "./dist",
     "rootDir": "./",
-    "composite": true,
-    "incremental": true
+    "types": ["node"]
   },
   "include": ["**/*"],
   "exclude": ["node_modules", "dist"]
