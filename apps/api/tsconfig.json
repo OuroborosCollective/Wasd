@@ -15,14 +15,9 @@
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "skipLibCheck": true,
+    "moduleResolution": "bundler",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "paths": {
-      "@wasd/utils": ["../../packages/utils/src"],
-      "@wasd/utils/*": ["../../packages/utils/src/*"],
-      "@wasd/shared": ["../../packages/shared/src"],
-      "@wasd/shared/*": ["../../packages/shared/src/*"]
-    }
   },
   "include": ["src/**/*"],
   "exclude": [
