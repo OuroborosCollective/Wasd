@@ -4,12 +4,11 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "baseUrl": "./src",
     "paths": {
-      "@shared/*": ["shared/*"],
-      "@engine/*": ["engine/*"],
-      "@ai/*": ["ai/*"],
-      "@modules/*": ["modules/*"]
+      "@shared/*": ["./src/shared/*"],
+      "@engine/*": ["./src/engine/*"],
+      "@ai/*": ["./src/ai/*"],
+      "@modules/*": ["./src/modules/*"]
     },
     "outDir": "./dist",
     "rootDir": "./src",
