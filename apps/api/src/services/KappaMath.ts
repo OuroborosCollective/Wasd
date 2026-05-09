@@ -3,6 +3,12 @@ export class KappaMath {
   private static readonly KAPPA_N = 1000n;
 
   /**
+   * INTERACT_DISTANCE_KAPPA: Defines the standard interaction reach.
+   * Default: 4.0 units (4000n in Kappa Fixed-Point).
+   */
+  public static readonly INTERACT_DISTANCE_KAPPA = 4000n;
+
+  /**
    * Converts a float value to a Kappa fixed-point BigInt.
    */
   static toFixed(val: number): bigint {
@@ -123,7 +129,6 @@ export class KappaMath {
    */
   static vMag(v: BigInt64Array): bigint {
     const magSq = this.vMagSq(v);
-    // sqrt of (val * KAPPA) results in fixed point if input was fixed point * KAPPA
     // To keep it in fixed point: sqrt(dot * KAPPA)
     return this.sqrt(magSq * this.KAPPA_N);
   }
