@@ -137,10 +137,12 @@ jobs:
         run: |
           set -e
           echo "Running Python Integrity Validation..."
-          if [ -f engine/scripts/check_changes.py ]; then
-            python -v engine/scripts/check_changes.py || { echo "Validation script failed in engine/"; exit 1; }
+          if [ -f check_changes.py ]; then
+            python check_changes.py || { echo "Validation script failed in root/"; exit 1; }
+          elif [ -f engine/scripts/check_changes.py ]; then
+            python engine/scripts/check_changes.py || { echo "Validation script failed in engine/"; exit 1; }
           elif [ -f scripts/check_changes.py ]; then
-            python -v scripts/check_changes.py || { echo "Validation script failed in root scripts/"; exit 1; }
+            python scripts/check_changes.py || { echo "Validation script failed in root scripts/"; exit 1; }
           else
             echo "::warning ::Validation script check_changes.py not found, skipping."
           fi
