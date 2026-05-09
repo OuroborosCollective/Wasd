@@ -39,7 +39,6 @@ describe("InventorySystem Accessibility", () => {
     // Check item slot
     const itemSlot = screen.getByRole("button", { name: "Use Test Item" });
     expect(itemSlot).toBeTruthy();
-    expect(itemSlot.getAttribute("tabIndex")).toBe("0");
 
     // Check currency
     const goldDisplay = screen.getByLabelText("1,000 Gold");

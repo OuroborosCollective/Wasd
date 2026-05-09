@@ -64,9 +64,17 @@ export const InventorySystem: React.FC<{ onClose: () => void }> = ({ onClose }) 
 
   return (
     <div className="inventory-overlay" onClick={onClose} onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
-      <div className="inventory-card gold-frame" onClick={e => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+      <div
+        className="inventory-card gold-frame"
+        onClick={e => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="inventory-title"
+      >
         <header className="inventory-header">
-          <h2 className="gold-text">Master Inventory</h2>
+          <h2 id="inventory-title" className="gold-text">Master Inventory</h2>
           <div className="inv-stats gold-text">{allDisplayItems.length} / 40 Slots</div>
           <button className="close-btn" onClick={onClose} aria-label="Close inventory">×</button>
         </header>
@@ -79,24 +87,29 @@ export const InventorySystem: React.FC<{ onClose: () => void }> = ({ onClose }) 
         </nav>
 
         <main className="inventory-grid-redesign">
-          {filteredItems.map((item, idx) => (
-            <div
-              key={idx}
-              className={`item-slot-redesign ${item.rarity || 'common'} ${item.isGear ? 'gear-item' : ''}`}
-              onClick={() => handleAction(item)}
-              onKeyDown={(e) => handleKeyDown(e, item)}
-              role="button"
-              tabIndex={0}
-              aria-label={`Use ${item.name || item.itemId || item.id}`}
-            >
-              <div className="item-icon">
-                {item.isGear || item.slot ? "🛡️" : item.healAmount ? "🧪" : "📦"}
-              </div>
-              <span className="item-name">{item.name || item.itemId || item.id}</span>
-              {item.qty > 1 && <span className="item-qty">x{item.qty}</span>}
-              {item.isGear && <span className="gear-tag">GEAR</span>}
-            </div>
-          ))}
+          {filteredItems.map((item, idx) => {
+            const isEquippable = item.isGear || item.slot || item.type === "weapon" || item.type === "armor";
+            const actionLabel = isEquippable ? "Equip" : "Use";
+            const itemName = item.name || item.itemId || item.id;
+
+            return (
+              <button
+                key={idx}
+                className={`item-slot-redesign ${item.rarity || 'common'} ${item.isGear ? 'gear-item' : ''}`}
+                onClick={() => handleAction(item)}
+                onKeyDown={(e) => handleKeyDown(e, item)}
+                aria-label={`${actionLabel} ${itemName}`}
+                title={`${actionLabel} ${itemName}`}
+              >
+                <div className="item-icon">
+                  {item.isGear || item.slot ? "🛡️" : item.healAmount ? "🧪" : "📦"}
+                </div>
+                <span className="item-name">{itemName}</span>
+                {item.qty > 1 && <span className="item-qty">x{item.qty}</span>}
+                {item.isGear && <span className="gear-tag">GEAR</span>}
+              </button>
+            );
+          })}
           {Array.from({ length: Math.max(0, 24 - filteredItems.length) }).map((_, idx) => (
             <div key={`empty-${idx}`} className="item-slot-redesign empty"></div>
           ))}
