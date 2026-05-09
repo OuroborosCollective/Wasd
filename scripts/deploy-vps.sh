@@ -17,9 +17,23 @@ if [ -n "${SSH_PRIVATE_KEY:-}" ]; then
     ssh-keyscan -H "$PRODUCTION_IP" >> ~/.ssh/known_hosts
 fi
 
+# SSH Befehl zusammenstellen
+SSH_CMD="ssh -o StrictHostKeyChecking=no"
+
+if [ -n "${SSH_PASSWORD:-}" ]; then
+    echo "Using password authentication..."
+    if ! command -v sshpass &> /dev/null; then
+        echo "Installing sshpass..."
+        sudo apt-get update && sudo apt-get install -y sshpass
+    fi
+    SSH_PREFIX="sshpass -p ${SSH_PASSWORD}"
+else
+    echo "Using key authentication..."
+    SSH_PREFIX=""
+fi
+
 # Deployment-Befehle auf dem VPS ausführen
-# Wir nutzen -o StrictHostKeyChecking=no falls known_hosts nicht reicht
-ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no "${DEPLOY_USER}@${PRODUCTION_IP}" "
+$SSH_PREFIX $SSH_CMD "${DEPLOY_USER}@${PRODUCTION_IP}" "
     set -e
     cd ${DEPLOY_PATH}
     echo '--- Fetching latest code ---'
@@ -27,7 +41,6 @@ ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no "${DEPLOY_USER}@${PRODUCTION_IP
     git reset --hard origin/main
     
     echo '--- Installing dependencies ---'
-    # pnpm Pfad oft nicht im Standard-SSH-Pfad
     export PNPM_HOME=\"\$HOME/.local/share/pnpm\"
     export PATH=\"\$PNPM_HOME:\$PATH\"
     
