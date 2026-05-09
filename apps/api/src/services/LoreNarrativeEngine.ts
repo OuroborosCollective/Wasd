@@ -3,6 +3,11 @@ import { createHash } from 'crypto';
 
 export type TechnicalImpact = 'feat' | 'fix' | 'refactor' | 'chore' | 'docs' | 'perf' | 'style' | 'test';
 
+/**
+ * ARE-Engine Standard: Kappa = 1000
+ */
+const KAPPA = 1000;
+
 export interface LoreInput {
   type: TechnicalImpact;
   scope?: string;
@@ -31,6 +36,17 @@ export class LoreNarrativeEngine {
 
   constructor(prisma: PrismaClient) {
     this.prisma = prisma;
+  }
+
+  /**
+   * IMPLEMENTATION: Static Deterministic Seed Generation
+   * Used for VPS and Axiomatic synchronization to ensure all nodes 
+   * arrive at the same narrative state from the same technical input.
+   */
+  public static generateDeterministicSeed(input: string): number {
+    const hash = createHash('sha256').update(input).digest('hex');
+    // Extract 48 bits (12 hex chars) to stay within Number.MAX_SAFE_INTEGER (53 bits)
+    return parseInt(hash.substring(0, 12), 16);
   }
 
   private readonly loreTemplates: Record<TechnicalImpact, string[]> = {
@@ -78,23 +94,19 @@ export class LoreNarrativeEngine {
 
   /**
    * Generates Lore-Seeded Pseudo-Randomness (LSPR)
-   * Converts a cryptographic hex string into a deterministic floating point [0, 1)
+   * Refactored to use the axiomatic static seed generation.
    */
   private lspr(seed: string): number {
-    const hash = createHash('sha256').update(seed).digest('hex');
-    const part = parseInt(hash.substring(0, 8), 16);
-    return part / 0xffffffff;
+    const numericSeed = LoreNarrativeEngine.generateDeterministicSeed(seed);
+    // Deterministic float [0, 1) using modulo for distribution
+    return (numericSeed % 1000000) / 1000000;
   }
 
-  /**
-   * Fetches the current world-state hash from the last lore entry to maintain the seed chain.
-   */
   private async getWorldStateHash(): Promise<string> {
     const latestLore = await this.prisma.lore.findFirst({
       orderBy: { recordedAt: 'desc' }
     });
     
-    // Fallback to a genesis seed if no lore exists
     if (!latestLore || !latestLore.metadata) {
       return createHash('sha256').update('ARELORIA_GENESIS').digest('hex');
     }
@@ -103,9 +115,6 @@ export class LoreNarrativeEngine {
     return metadata.seedChain || createHash('sha256').update(JSON.stringify(latestLore)).digest('hex');
   }
 
-  /**
-   * Creates a new seed in the chain based on the world state and the current technical input.
-   */
   private generateNewSeedChain(worldHash: string, input: LoreInput): string {
     const entropy = `${worldHash}-${input.hash || 'volatile'}-${input.author}-${Date.now()}`;
     return createHash('sha256').update(entropy).digest('hex');
@@ -117,10 +126,10 @@ export class LoreNarrativeEngine {
     
     const templates = this.loreTemplates[input.type] || ['Ein unbenanntes Ereignis erschütterte Areloria.'];
     
-    // Deterministic selection based on the seed chain
     const templateIndex = Math.floor(this.lspr(seedChain + '_template') * templates.length);
     const template = templates[templateIndex];
     
+    // String processing without forbidden regex replace(//g)
     let narrative = template;
     narrative = narrative.split('{subject}').join(input.subject);
     narrative = narrative.split('{scope}').join(input.scope || 'Areloria');
@@ -131,8 +140,7 @@ export class LoreNarrativeEngine {
     }
 
     const impactBase = this.calculateImpact(input.type);
-    // Add minor deterministic variance to impact based on seed
-    const impactVariance = Math.floor(this.lspr(seedChain + '_impact') * 3) - 1; 
+    const impactVariance = Math.floor(this.lspr(seedChain + '_impact') * (3 * KAPPA)) - (1 * KAPPA); 
 
     return {
       id: `lore_${createHash('md5').update(seedChain).digest('hex').substring(0, 12)}`,
@@ -143,7 +151,7 @@ export class LoreNarrativeEngine {
       chronicler: input.author,
       metadata: {
         originHash: input.hash,
-        impactLevel: Math.max(1, impactBase + impactVariance),
+        impactLevel: Math.max(KAPPA, impactBase + impactVariance),
         seedChain: seedChain
       }
     };
@@ -172,14 +180,14 @@ export class LoreNarrativeEngine {
 
   private calculateImpact(type: TechnicalImpact): number {
     const values: Record<TechnicalImpact, number> = {
-      feat: 10,
-      fix: 7,
-      refactor: 5,
-      perf: 8,
-      chore: 2,
-      docs: 3,
-      style: 1,
-      test: 4
+      feat: 10 * KAPPA,
+      fix: 7 * KAPPA,
+      refactor: 5 * KAPPA,
+      perf: 8 * KAPPA,
+      chore: 2 * KAPPA,
+      docs: 3 * KAPPA,
+      style: 1 * KAPPA,
+      test: 4 * KAPPA
     };
     return values[type] || 0;
   }

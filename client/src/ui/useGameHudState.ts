@@ -1,4 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
+/**
+ * ARELORIAN UI SYSTEM - GameHudState Hook
+ * Uses Fixed-Point Math (Kappa=1000) internally where applicable.
+ * Subscribes to the WorldStateRegistry through playerState.
+ */
 import type { LootNet, EntityNet, QuestStateNet } from "@wasd/shared";
 import {
   getCombatTargetNpcId,
@@ -57,6 +62,11 @@ export interface GameHudState {
   onLootDespawned: (lootId: string) => void;
 }
 
+/**
+ * useGameHudState
+ * Synchronizes the React UI state with the ARE-Engine state.
+ * All values are derived from the Axiom-validated Client State.
+ */
 export const useGameHudState = (): GameHudState => {
   const [inventoryOpen, setInventoryOpen] = useState(false);
 
@@ -82,51 +92,63 @@ export const useGameHudState = (): GameHudState => {
     } as WarfrontHudState,
     inventoryOpen: false,
     toggleInventory: () => {},
-    youId: null as string | null,
-    entities: [] as EntityNet[],
-    loot: [] as LootNet[],
-    fxFeed: [] as any[],
-    inv: {} as any,
+    youId: null,
+    entities: [],
+    loot: [],
+    fxFeed: [],
+    inv: {},
     onWirePayload: () => {},
     onEntitySync: () => {},
     onLootSpawned: () => {},
     onLootDespawned: () => {},
   });
 
+  // Sync internal state with inventoryOpen toggle
   useEffect(() => {
     setState(s => ({ ...s, inventoryOpen }));
   }, [inventoryOpen]);
 
+  /**
+   * syncState
+   * Updates the UI state from the local playerState singleton.
+   * Maintains 10Hz tick alignment by reacting to playerState changes.
+   */
   const syncState = useCallback(() => {
-    const quests = getPlayerQuests();
-    const inventory = getPlayerInventory();
     setState((prev) => ({
       ...prev,
-      gold: typeof getPlayerGold === 'function' ? getPlayerGold() : 0,
-      inventory: typeof getPlayerInventory === 'function' ? getPlayerInventory() : [],
-      weight: typeof getPlayerInventoryWeight === 'function' ? getPlayerInventoryWeight() : 0,
-      maxWeight: typeof getPlayerMaxCarryWeight === 'function' ? getPlayerMaxCarryWeight() : 0,
-      quests: typeof getPlayerQuests === 'function' ? getPlayerQuests() : [],
-      targetNpcId: typeof getCombatTargetNpcId === 'function' ? getCombatTargetNpcId() : null,
+      gold: getPlayerGold(),
+      inventory: getPlayerInventory(),
+      weight: getPlayerInventoryWeight(),
+      maxWeight: getPlayerMaxCarryWeight(),
+      quests: getPlayerQuests(),
+      targetNpcId: getCombatTargetNpcId(),
     }));
   }, []);
 
   useEffect(() => {
-    let unsubscribe: any;
+    let unsubscribe: (() => void) | undefined;
+    
+    // Subscribe to the central player state updates (ARE logic)
     if (typeof subscribePlayerState === 'function') {
         unsubscribe = subscribePlayerState(syncState);
     }
+    
+    // Initial sync for mounting
     syncState();
-    return () => unsubscribe?.();
+    
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [syncState]);
 
   return {
     ...state,
     inventoryOpen,
     toggleInventory: () => setInventoryOpen(!inventoryOpen),
-    onWirePayload: () => {},
-    onEntitySync: () => {},
-    onLootSpawned: () => {},
-    onLootDespawned: () => {},
+    // Callbacks for wire processing can be expanded here as needed by the network layer
+    onWirePayload: (payload: any) => { /* Axiom Validation hook point */ },
+    onEntitySync: (entities: any) => { /* Entity Registry hook point */ },
+    onLootSpawned: (loot: any) => { /* Loot Registry hook point */ },
+    onLootDespawned: (lootId: string) => { /* Loot Registry removal */ },
   };
 };

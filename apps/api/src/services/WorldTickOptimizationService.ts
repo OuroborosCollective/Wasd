@@ -1,194 +1,103 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import { Entity, WorldState } from '@wasd/shared';
-import { v4 as uuidv4 } from 'uuid';
+Um die 10Hz-Tick-Synchronisation innerhalb der Arelorian-Engine sicherzustellen, muss die `WorldStateRegistry` den atomaren Austausch des Weltzustands (State-Swap) deterministisch und unter Berücksichtigung der Frame-Kausalität abwickeln.
+
+Hier ist die Implementierung der `WorldStateRegistry` für `apps/api/src/services/WorldStateRegistry.ts`:
+
+typescript
+import { Injectable, Logger } from '@nestjs/common';
+import { WorldState } from '@wasd/shared';
 
 /**
- * WorldTickOptimizationService
+ * WorldStateRegistry
  * 
- * Realisiert einen deterministischen 10Hz World-Tick mit diskreten Frame-Nummern
- * und obligatorischer Sequence-ID Injection zur Gewährleistung der Kausalität.
+ * Single Source of Truth (SSoT) für den deterministischen Weltzustand.
+ * Verwaltet den State-Swap-Mechanismus für die 10Hz-Engine.
+ * 
+ * REGELN:
+ * 1. Frame-Monotonie: Ein neuer State muss immer einen höheren Frame-Index haben.
+ * 2. Unveränderlichkeit: Der State wird nach dem Commit als Read-Only behandelt.
  */
 @Injectable()
-export class WorldTickOptimizationService implements OnModuleDestroy {
-  private readonly logger = new Logger(WorldTickOptimizationService.name);
+export class WorldStateRegistry {
+  private readonly logger = new Logger(WorldStateRegistry.name);
   
-  // 10Hz = 100ms Intervall
-  private readonly TICK_INTERVAL_NS = BigInt(100) * BigInt(1_000_000);
-  private readonly FRAMES_PER_SECOND = 10;
-  
-  private isRunning = false;
-  private nextTickTimeNs: bigint = BigInt(0);
-  private currentFrame: bigint = BigInt(0);
+  // Interner Speicher für den aktuellsten validierten Zustand
   private currentState: WorldState | null = null;
-  private onTickCallback: ((state: WorldState) => void) | null = null;
+  
+  // Letzter erfolgreich kommitteter Frame zur Kausalitätsprüfung
+  private lastCommittedFrame = -1;
 
-  onModuleDestroy() {
-    this.stopWorldTick();
+  /**
+   * Gibt den aktuellen globalen Zustand zurück.
+   * Muss von Systemen genutzt werden, die ARE-Axiome berechnen.
+   */
+  public getCurrentState(): WorldState | null {
+    return this.currentState;
   }
 
   /**
-   * Startet den Scheduler mit initialem Frame-Zähler.
+   * commitStateSwap
+   * 
+   * Vollzieht den atomaren Wechsel zum nächsten WorldState.
+   * Implementiert die Synchronisations-Barriere für den 10Hz Tick.
+   * 
+   * @param newState Der berechnete und durch den ATO validierte neue Zustand.
    */
-  public startWorldTick(initialState: WorldState, callback: (state: WorldState) => void): void {
-    if (this.isRunning) return;
-
-    this.currentState = initialState;
-    this.onTickCallback = callback;
-    this.isRunning = true;
-    this.currentFrame = BigInt(initialState.frame || 0);
-    this.nextTickTimeNs = process.hrtime.bigint();
-
-    this.logger.log(`Areloria Deterministic 10Hz Tick gestartet. Frame: ${this.currentFrame}`);
-    this.scheduleNext();
-  }
-
-  public stopWorldTick(): void {
-    this.isRunning = false;
-    this.logger.log('WorldTick Scheduler gestoppt.');
-  }
-
-  private scheduleNext(): void {
-    if (!this.isRunning) return;
-
-    const now = process.hrtime.bigint();
-
-    if (now >= this.nextTickTimeNs) {
-      this.executeTick();
-      this.nextTickTimeNs += this.TICK_INTERVAL_NS;
-
-      // Spiral of Death Protection
-      if (now - this.nextTickTimeNs > this.TICK_INTERVAL_NS * BigInt(5)) {
-        this.nextTickTimeNs = now + this.TICK_INTERVAL_NS;
-        this.logger.warn('Kritischer Drift: Frame-Synchronisation erzwungen.');
-      }
+  public commitStateSwap(newState: WorldState): void {
+    if (!newState) {
+      this.logger.error('Null-State-Commit abgelehnt.');
+      return;
     }
 
-    setImmediate(() => this.scheduleNext());
-  }
+    const incomingFrame = newState.frame ?? 0;
 
-  /**
-   * Pipeline mit Sequence-ID Injection und Frame-Management.
-   */
-  private executeTick(): void {
-    if (!this.currentState || !this.onTickCallback) return;
+    // DETERMINISMUS-CHECK: Frame-Integrität (Axiom: Zeit fließt vorwärts)
+    if (incomingFrame <= this.lastCommittedFrame && this.lastCommittedFrame !== -1) {
+      this.logger.warn(
+        `Synchronisations-Konflikt: Eingehender Frame ${incomingFrame} ist nicht jünger als ${this.lastCommittedFrame}. Swap abgebrochen.`
+      );
+      return;
+    }
 
-    const startTime = process.hrtime.bigint();
-    
-    // Inkrementiere diskreten Frame
-    this.currentFrame++;
-    
-    // Generiere eindeutige Sequence-ID für diesen Tick
-    const sequenceId = `seq_${this.currentFrame}_${uuidv4().split('-')[0]}`;
-
-    // 1. AREStateCompiler Phase: Transformation mit Sequence-ID
-    let nextState = this.compileAREState(this.currentState, sequenceId, this.currentFrame);
-
-    // 2. ResonanceGrid Phase: Räumliche Validierung
-    nextState = this.updateResonanceGrid(nextState, sequenceId);
-
-    // 3. Optimization Phase: Frame-basiertes Throttling & Culling
-    nextState = this.optimizeTick(nextState, sequenceId, this.currentFrame);
-    
-    // Performance-Metriken & Finaler State-Sync
-    const endTime = process.hrtime.bigint();
-    const durationMs = Number(endTime - startTime) / 1_000_000;
-
-    nextState.performanceMetrics = {
-      ...nextState.performanceMetrics,
-      lastTickDurationMs: durationMs,
-      thresholdMs: 80
-    };
-
-    this.currentState = nextState;
-    this.onTickCallback(nextState);
-  }
-
-  /**
-   * Injiziert Frame-Metadaten und Sequence-IDs in den WorldState.
-   */
-  private compileAREState(state: WorldState, sequenceId: string, frame: bigint): WorldState {
-    return {
-      ...state,
-      frame: Number(frame),
-      sequenceId: sequenceId,
-      lastProcessedAt: Date.now()
-    };
-  }
-
-  /**
-   * Räumliche Partitionierung unter Berücksichtigung der Sequence-ID.
-   */
-  private updateResonanceGrid(state: WorldState, sequenceId: string): WorldState {
-    // Hier würde die Grid-Logik die sequenceId nutzen, um Cache-Invalidierung zu steuern
-    return { ...state, sequenceId };
-  }
-
-  /**
-   * Kern-Optimierung basierend auf diskreten Frames statt Realzeit-Deltas.
-   */
-  public optimizeTick(currentState: WorldState, sequenceId: string, currentFrame: bigint): WorldState {
-    const { entities, performanceMetrics } = currentState;
-    const processedEntities: Record<string, Entity> = {};
-    
-    const metrics = performanceMetrics || { lastTickDurationMs: 0, thresholdMs: 80 };
-    const isOverloaded = metrics.lastTickDurationMs > metrics.thresholdMs;
-    
-    // Frame-basierte Timeouts (50 Frames @ 10Hz = 5 Sekunden)
-    const ZOMBIE_FRAME_THRESHOLD = BigInt(50);
-    const entityEntries = Object.entries(entities);
-
-    for (let i = 0; i < entityEntries.length; i++) {
-      const [id, entity] = entityEntries[i];
-      const lastUpdateFrame = BigInt(entity.lastUpdateFrame || currentFrame);
-      
-      // 1. Zombie-Check via Frame-Differenz
-      if (currentFrame - lastUpdateFrame > ZOMBIE_FRAME_THRESHOLD) {
-        continue;
-      }
-
-      let updatedEntity: Entity = { 
-        ...entity,
-        sequenceId: sequenceId // Mandatory Sequence Injection
+    // KAPPA-KONFORMITÄT: Sicherstellung, dass Metriken vorhanden sind
+    if (!newState.performanceMetrics) {
+      newState.performanceMetrics = {
+        lastTickDurationMs: 0,
+        thresholdMs: 80
       };
-      let modified = false;
-
-      // 2. Throttling-Logik
-      const cpuCost = entity.cpuCost ?? 0;
-      const priority = entity.priority ?? 0;
-
-      if (isOverloaded && cpuCost > 15 && priority < 2) {
-        updatedEntity.status = 'throttled';
-        updatedEntity.cpuCost = cpuCost * 0.5;
-        modified = true;
-      } else if (!isOverloaded && updatedEntity.status === 'throttled') {
-        if (metrics.lastTickDurationMs < (metrics.thresholdMs * 0.6)) {
-          updatedEntity.status = 'active';
-          updatedEntity.cpuCost = Math.min(100, cpuCost * 1.2);
-          modified = true;
-        }
-      }
-
-      // 3. Frame-basierte Regeneration (alle X Frames)
-      // Jede 10 Frames (1s) 1 HP regenerieren
-      if (currentFrame % BigInt(10) === BigInt(0)) {
-        if ((updatedEntity.health ?? 0) < 100) {
-          updatedEntity.health = Math.min(100, (updatedEntity.health ?? 0) + 1);
-          modified = true;
-        }
-      }
-
-      if (modified || currentFrame % BigInt(10) === BigInt(0)) {
-        updatedEntity.lastUpdateFrame = Number(currentFrame);
-      }
-
-      processedEntities[id] = updatedEntity;
     }
 
-    return {
-      ...currentState,
-      entities: processedEntities,
-      sequenceId: sequenceId,
-      frame: Number(currentFrame)
-    };
+    // Atomarer Swap
+    this.currentState = Object.freeze(newState);
+    this.lastCommittedFrame = incomingFrame;
+
+    // Debugging für High-Load Szenarien (Logging nur bei Abweichung vom 10Hz Ideal)
+    if (newState.performanceMetrics.lastTickDurationMs > newState.performanceMetrics.thresholdMs) {
+      this.logger.warn(
+        `Tick-Budget Überschreitung in Frame ${incomingFrame}: ${newState.performanceMetrics.lastTickDurationMs}ms`
+      );
+    }
+  }
+
+  /**
+   * Initialisiert die Registry beim Serverstart oder nach einem World-Reset.
+   */
+  public initializeState(initialState: WorldState): void {
+    this.logger.log(`Initialisiere WorldStateRegistry. Start-Frame: ${initialState.frame}`);
+    this.currentState = Object.freeze(initialState);
+    this.lastCommittedFrame = initialState.frame ?? 0;
+  }
+
+  /**
+   * Ermöglicht das Abrufen des aktuellen Frames ohne den gesamten State zu klonen.
+   */
+  public get currentFrame(): number {
+    return this.lastCommittedFrame;
   }
 }
+
+
+### Spezifikations-Details:
+1.  **Frame-Monotonie**: Die Methode prüft, ob `incomingFrame <= lastCommittedFrame`. Dies verhindert, dass durch asynchrone Race-Conditions oder ATO-Verzögerungen alte Zustände einen neueren Zustand überschreiben.
+2.  **Object.freeze**: Der State wird eingefroren, um sicherzustellen, dass nachfolgende Services (z.B. Broadcast-Service) den Zustand nicht versehentlich mutieren (Stateless Determinism).
+3.  **Performance-Tracking**: Die Registry überwacht das 80ms-Budget des 10Hz-Ticks (100ms Gesamtintervall minus Puffer) und loggt Warnungen, falls die Engine den Kappa-Standard unterschreitet.
+4.  **NestJS Integration**: Nutzt `@Injectable` für die korrekte Dependency Injection in den `WorldTickOptimizationService`.

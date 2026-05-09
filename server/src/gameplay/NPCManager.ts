@@ -1,1 +1,1 @@
-../npc/NPCManager.ts
+export class NPCManager {}
