@@ -25,11 +25,11 @@ interface DynamicStatInspectorProps {
 }
 
 const DynamicStatInspector: React.FC<DynamicStatInspectorProps> = ({ baseItem, comparisonItem }) => {
-    // Cast icons to React.ElementType to resolve TS2786 (invalid JSX element type)
-    const IconActivity = Activity as React.ElementType;
-    const IconArrowUp = ArrowUp as React.ElementType;
-    const IconArrowDown = ArrowDown as React.ElementType;
-    const IconMinus = Minus as React.ElementType;
+    // Cast icons to any to resolve TS2322/TS2786 (invalid JSX element type or props mismatch in React 19)
+    const IconActivity = Activity as any;
+    const IconArrowUp = ArrowUp as any;
+    const IconArrowDown = ArrowDown as any;
+    const IconMinus = Minus as any;
 
     const calculateDiff = (oldVal: number, newVal: number, higherIsBetter: boolean = true) => {
         const diff = newVal - oldVal;
@@ -81,7 +81,7 @@ const DynamicStatInspector: React.FC<DynamicStatInspectorProps> = ({ baseItem, c
 
             <div className="p-4 space-y-4">
                 {diffData.map((stat) => {
-                    const CustomIcon = (stat.icon as React.ElementType) || IconActivity;
+                    const CustomIcon = (stat.icon as any) || IconActivity;
                     return (
                         <div key={stat.key} className="flex items-center justify-between group">
                             <div className="flex items-center space-x-3">
