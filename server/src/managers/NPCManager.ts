@@ -1,6 +1,12 @@
 /**
  * NPCManager.ts
  */
+interface NPC { id: string; }
+
 export class NPCManager {
-    get(id: string) { return null; }
+    static instance = new NPCManager();
+    
+    get(id: string): NPC | null { return null; }
+    
+    getAllNPCs(): NPC[] { return []; }
 }

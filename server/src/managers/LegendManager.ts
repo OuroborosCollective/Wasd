@@ -1,6 +1,12 @@
 /**
  * LegendManager.ts
  */
+interface Legend { id: string; }
+
 export class LegendManager {
-    get(id: string) { return null; }
+    static instance = new LegendManager();
+    
+    get(id: string): Legend | null { return null; }
+    
+    getGlobalLegends(): Legend[] { return []; }
 }

@@ -1,6 +1,18 @@
 import { Logger } from "../../../core/logger/Logger";
 import { AIService } from "../../ai/services/AIService";
 
+/**
+ * Error tracking per specific error signature.
+ * FAILURE COUNT INCREMENTS ONLY FOR IDENTICAL ERRORS.
+ * NEW DIFFERENT ERRORS DO NOT TRIGGER GLOBAL COUNTER.
+ */
+interface ErrorSignature {
+  errorKey: string;  // Hash of error message/stack
+  count: number;
+  firstSeen: number;
+  lastSeen: number;
+}
+
 export interface ArchitectSpecification {
   featureName: string;
   requirements: string[];
@@ -27,10 +39,67 @@ export interface DeveloperResult {
 export class DeveloperAgent {
   private readonly logger: Logger;
   private readonly aiService: AIService;
+  
+  // Per-error tracking: ONLY identical errors increment the counter
+  private readonly errorRegistry: Map<string, ErrorSignature> = new Map();
+  private readonly MAX_REPEATED_FAILURES = 5;
+  private readonly FAILURE_WINDOW_MS = 300000; // 5 minutes
 
   constructor(aiService: AIService) {
     this.logger = new Logger("DeveloperAgent");
     this.aiService = aiService;
+  }
+
+  /**
+   * Track error - ONLY increments if EXACT same error repeats.
+   * New different errors start fresh at count 1.
+   */
+  private trackError(errorMsg: string): boolean {
+    const errorKey = this.hashError(errorMsg);
+    const now = Date.now();
+    
+    const existing = this.errorRegistry.get(errorKey);
+    if (existing) {
+      // Check if within failure window
+      if (now - existing.firstSeen > this.FAILURE_WINDOW_MS) {
+        // Expired - reset
+        this.errorRegistry.set(errorKey, { errorKey, count: 1, firstSeen: now, lastSeen: now });
+        return false;
+      }
+      existing.count++;
+      existing.lastSeen = now;
+      return existing.count >= this.MAX_REPEATED_FAILURES;
+    }
+    
+    // New error - start fresh at 1
+    this.errorRegistry.set(errorKey, { errorKey, count: 1, firstSeen: now, lastSeen: now });
+    return false;
+  }
+
+  /**
+   * Hash error for tracking - identical errors = identical hashes.
+   */
+  private hashError(errorMsg: string): string {
+    // Simple hash for error fingerprinting
+    let hash = 0;
+    for (let i = 0; i < errorMsg.length; i++) {
+      const char = errorMsg.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return hash.toString(36);
+  }
+
+  /**
+   * Check if we should abort due to repeated identical errors.
+   */
+  private shouldAbort(): boolean {
+    for (const [, sig] of this.errorRegistry) {
+      if (sig.count >= this.MAX_REPEATED_FAILURES) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -61,8 +130,23 @@ export class DeveloperAgent {
 
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Implementation failed: ${errorMessage}`);
       
+      // Track the error - returns true if we should abort due to REPEATED identical errors
+      const shouldAbort = this.trackError(errorMessage);
+      
+      if (shouldAbort) {
+        const sig = [...this.errorRegistry.values()].find(s => s.count >= this.MAX_REPEATED_FAILURES);
+        this.logger.error(`Implementation failed AFTER ${sig?.count || 0} retries with same error: ${errorMessage}. Aborting agent loop.`);
+        return {
+          success: false,
+          generatedFiles: [],
+          implementationNotes: `CRITICAL FAILURE: Same error repeated ${this.MAX_REPEATED_FAILURES} times. Agent loop stopped.`,
+          timestamp: new Date().toISOString(),
+          error: `ABORT: ${errorMessage}`
+        };
+      }
+      
+      this.logger.warn(`Implementation attempt failed (error key tracked): ${errorMessage}`);
       return {
         success: false,
         generatedFiles: [],
