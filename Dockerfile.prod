@@ -15,7 +15,7 @@ COPY server server/
 COPY tsconfig.json ./
 
 # Install ALL dependencies (not just server)
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # Build server
 ENV NODE_ENV=production
