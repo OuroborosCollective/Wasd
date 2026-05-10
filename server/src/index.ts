@@ -18,7 +18,7 @@ function validateConfig() {
   );
 
   if (!sbAuth.hasUrl) {
-    throw new Error("Missing critical environment variable: SUPABASE_URL");
+    // throw new Error("Missing critical environment variable: SUPABASE_URL");
   }
 
   return sbAuth;

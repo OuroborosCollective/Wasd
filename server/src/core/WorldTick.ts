@@ -12,6 +12,7 @@ import { NPCSystem } from "../modules/npc/NPCSystem.js";
 import { GuildSystem } from "../modules/guild/GuildSystem.js";
 import { EconomySystem } from "../modules/economy/EconomySystem.js";
 import { QuestEngine } from "../modules/quest/QuestEngine.js";
+import { LegendPropagationSystem } from "../systems/LegendPropagationSystem.js";
 import { WorldSystem } from "../modules/world/WorldSystem.js";
 import { PersistenceManager } from "./PersistenceManager.js";
 import { verifyFirebaseToken } from "../config/firebase.js";
@@ -1339,7 +1340,7 @@ export class WorldTick {
 
     // 1. Update active chunks based on observers
     const observedChunks = this.observerEngine.getObservedChunks();
-    const observedChunkIds = new Set(observedChunks.map(c => c.id));
+    const observedChunkIds = new Set(observedChunks.chunks.map(c => c.id));
 
     // Deactivate all chunks first
     const allActive = this.chunkSystem.getActiveChunks();
@@ -1349,7 +1350,7 @@ export class WorldTick {
       }
     }
 
-    for (const chunkInfo of observedChunks) {
+    for (const chunkInfo of observedChunks.chunks) {
       this.chunkSystem.getChunk(chunkInfo.chunkX, chunkInfo.chunkY); // Ensure it exists
       this.chunkSystem.setChunkActive(chunkInfo.id, true);
     }
@@ -1380,6 +1381,8 @@ export class WorldTick {
     }
 
     this.npcSystem.tick(onlinePlayers, this.worldSystem.worldTime);
+    // Agent: Legend propagation for NPC beliefs
+    LegendPropagationSystem.update();
     this.worldSystem.tick();
 
     // 3.1 Process Offline Player Heuristic (Simulate life)
@@ -1451,4 +1454,3 @@ export class WorldTick {
 
     }
   }
-}
