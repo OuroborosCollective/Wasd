@@ -2,9 +2,8 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "target": "ESNext",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "baseUrl": ".",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "rootDir": "src",
     "outDir": "dist",
     "composite": true,
@@ -32,11 +31,7 @@
     "**/*.test.ts"
   ],
   "references": [
-    {
-      "path": "../../packages/utils"
-    },
-    {
-      "path": "../../packages/shared"
-    }
+    { "path": "../../packages/utils" },
+    { "path": "../../packages/shared" }
   ]
 }

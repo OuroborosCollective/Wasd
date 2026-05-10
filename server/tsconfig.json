@@ -6,20 +6,12 @@
     "moduleResolution": "bundler",
     "baseUrl": "./src",
     "paths": {
-      "@shared/*": [
-        "shared/*"
-      ],
-      "@engine/*": [
-        "engine/*"
-      ],
-      "@ai/*": [
-        "ai/*"
-      ],
-      "@modules/*": [
-        "modules/*"
-      ]
+      "@shared/*": ["shared/*"],
+      "@engine/*": ["engine/*"],
+      "@ai/*": ["ai/*"],
+      "@modules/*": ["modules/*"]
     },
-    "outDir": "./dist",
+    "outDir": "../dist",
     "rootDir": "./src",
     "strict": false,
     "noImplicitAny": false,
@@ -35,21 +27,14 @@
     "incremental": true,
     "resolveJsonModule": true,
     "allowJs": true,
-    "lib": [
-      "ESNext",
-      "DOM"
-    ]
+    "lib": ["ESNext", "DOM"]
   },
-  "include": [
-    "src/**/*"
-  ],
+  "include": ["src/**/*"],
   "exclude": [
     "src/assets/**",
     "src/core/WorldTick.ts"
   ],
   "references": [
-    {
-      "path": "../packages/shared"
-    }
+    { "path": "../packages/shared" }
   ]
 }
