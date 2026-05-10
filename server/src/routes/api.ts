@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { OracleEndpoint } from './oracle.endpoint';
+import { OracleEndpoint } from './oracleRoute';
 
 const router: Router = Router();
 

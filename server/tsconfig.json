@@ -44,7 +44,7 @@
     "src/**/*"
   ],
   "exclude": [
-    "src/assets/AssetHealthService.ts",
+    "src/assets/**",
     "src/core/WorldTick.ts"
   ],
   "references": [
