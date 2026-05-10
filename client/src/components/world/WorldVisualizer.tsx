@@ -58,16 +58,19 @@ export function WorldVisualizer() {
   }, []);
 
   // Mobile touch controls
-  const setupMobileControls = useCallback((camera: BABYLON.ArcRotateCamera, canvas: HTMLCanvasElement) => {
+  const setupMobileControls = useCallback((camera: BABYLON.ArcRotateCamera, _canvas: HTMLCanvasElement) => {
     camera.pinchPrecision = 50; // Touch zoom
     camera.panningSensibility = 100;
     camera.angularSensibilityX = 500;
     camera.angularSensibilityY = 500;
     camera.useNaturalPinchZoom = true;
     
-    // Multi-touch support
-    camera.inputs.attached.pointers.multiTouchPanning = true;
-    camera.inputs.attached.pointers.multiTouchPanAndZoom = true;
+    // Multi-touch support (cast for TypeScript)
+    const pointers = camera.inputs.attached.pointers as unknown as { multiTouchPanning?: boolean; multiTouchPanAndZoom?: boolean; };
+    if (pointers) {
+      pointers.multiTouchPanning = true;
+      pointers.multiTouchPanAndZoom = true;
+    }
   }, []);
 
   // Initialize Babylon.js
@@ -202,7 +205,7 @@ export function WorldVisualizer() {
         
         mesh.material = material;
         
-        regionMesh = { id: region.id, mesh, material };
+        regionMesh = { id: region.id, mesh, material, lodLevel: 2 };
         regionMeshesRef.current.set(region.id, regionMesh);
       }
       

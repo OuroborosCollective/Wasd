@@ -114,7 +114,7 @@ const DynamicStatInspector: React.FC<DynamicStatInspectorProps> = ({ baseItem, c
 
             <div className="p-4 space-y-4">
                 {diffData.map((stat) => {
-                    const CustomIcon = (stat.icon as React.ElementType) || IconActivity;
+                    const IconComponent: React.ElementType = (stat.icon as React.ElementType) || IconActivity;
                     // Zugriff auf den Record mittels Typ-Sicherheit
                     const baseValRaw = baseStatsMap[stat.key];
                     const baseDisplayValue = typeof baseValRaw === 'number' ? baseValRaw : 0;
@@ -123,7 +123,7 @@ const DynamicStatInspector: React.FC<DynamicStatInspectorProps> = ({ baseItem, c
                         <div key={stat.key} className="flex items-center justify-between group">
                             <div className="flex items-center space-x-3">
                                 <div className="p-2 rounded-md bg-slate-800 text-slate-400 group-hover:text-white transition-colors">
-                                    <CustomIcon size={16} />
+                                    {IconComponent && <IconComponent size={16} />}
                                 </div>
                                 <div>
                                     <div className="text-sm font-medium text-slate-300">{stat.label}</div>
