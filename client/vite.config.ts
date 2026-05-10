@@ -2,7 +2,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
-import terser from "@rollup/plugin-terser";
 
 // ESM __dirname compatibility for Sovereign Standard Architecture
 const __filename = fileURLToPath(import.meta.url);
@@ -18,8 +17,8 @@ export default defineConfig(({ mode }) => {
   const isSsl = env.VITE_DEV_SERVER_HTTPS === "true" || env.NODE_ENV === "production";
   const hmrClientPort = isSsl ? 443 : undefined;
 
-  // Build minification - use Terser for production
-  const minify = isProduction ? "terser" : "esbuild";
+  // Build minification - esbuild for production (terser is optional)
+  const minify = isProduction ? "esbuild" : "esbuild";
   const generateInlineSourceMap = !isProduction;
 
   return {
@@ -104,17 +103,6 @@ export default defineConfig(({ mode }) => {
           chunkFileNames: "assets/[name]-[hash].js",
           assetFileNames: "assets/[name]-[hash].[ext]",
         },
-        // Terser configuration for production
-        plugins: isProduction ? [terser({
-          compress: {
-            drop_console: true,
-            drop_debugger: true,
-            passes: 2,
-          },
-          mangle: {
-            toplevel: true,
-          },
-        })] : [],
       },
     },
   };
