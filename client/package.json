@@ -13,7 +13,9 @@
     "preview": "vite preview",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "core-network:build": "pnpm --filter @arelorian/core-network build",
+    "core-network:dev": "pnpm --filter @arelorian/core-network dev"
   },
   "dependencies": {
     "@babylonjs/core": "^9.6.2",
@@ -32,7 +34,8 @@
     "mobx-react-lite": "^4.1.1",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "three": "0.184.0"
+    "three": "0.184.0",
+    "@arelorian/core-network": "workspace:*"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.2",

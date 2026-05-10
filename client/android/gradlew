@@ -1,0 +1,15 @@
+#!/bin/sh
+# Gradle wrapper stub - downloads and runs gradle
+
+GRADLE_VERSION="8.5"
+DIR="$(cd "$(dirname "$0")" && pwd)"
+WRAPPER_DIR="$DIR/gradle/wrapper"
+
+if [ ! -f "$WRAPPER_DIR/gradle-wrapper.jar" ]; then
+    mkdir -p "$WRAPPER_DIR"
+    echo "Downloading Gradle wrapper..."
+    curl -sL "https://raw.githubusercontent.com/gradle/gradle/v$GRADLE_VERSION/gradle/wrapper/gradle-wrapper.jar" -o "$WRAPPER_DIR/gradle-wrapper.jar"
+fi
+
+CLASSPATH="$WRAPPER_DIR/gradle-wrapper.jar"
+exec java -classpath "$CLASSPATH" org.gradle.wrapper.GradleWrapperMain "$@"
