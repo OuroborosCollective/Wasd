@@ -1,4 +1,4 @@
-import { PlexityEngine } from "../engine/PlexityEngine";
+import { PlexityEngine } from "../shared/PlexityEngine";
 import { Engine } from "../../core/Engine";
 
 export interface KappaPos {
