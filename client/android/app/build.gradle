@@ -2,15 +2,14 @@ apply plugin: 'com.android.application'
 
 android {
     namespace 'com.ouroboros.arelorian'
-    compileSdk 33
+    compileSdk 34
 
     defaultConfig {
         applicationId "com.ouroboros.arelorian"
-        minSdk 22
-        targetSdk 33
+        minSdk 24
+        targetSdk 34
         versionCode 1
         versionName "1.0.0"
-        
         multiDexEnabled true
     }
 
@@ -30,8 +29,8 @@ android {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
     }
-
-    packagingOptions {
+    
+    packaging {
         resources {
             excludes += ['META-INF/NOTICE.md', 'META-INF/LICENSE.md']
         }
@@ -40,9 +39,9 @@ android {
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'androidx.core:core-ktx:1.10.1'
-    implementation 'androidx.activity:activity:1.7.2'
-    implementation 'com.google.android.material:material:1.9.0'
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.activity:activity:1.8.2'
+    implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.multidex:multidex:2.0.1'
     implementation project(':capacitor-android')
 }
