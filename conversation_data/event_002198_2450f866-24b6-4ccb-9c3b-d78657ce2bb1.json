@@ -1,0 +1,34 @@
+{
+  "id": "2450f866-24b6-4ccb-9c3b-d78657ce2bb1",
+  "timestamp": "2026-05-10T07:06:16.499736",
+  "source": "environment",
+  "tool_name": "terminal",
+  "tool_call_id": "call_function_8xke12cpyue6_1",
+  "observation": {
+    "content": [
+      {
+        "cache_prompt": false,
+        "type": "text",
+        "text": "// @ts-nocheck\nimport { loadRootEnvFiles } from \"./config/loadRootEnv.js\";\n\n// Ensure environment variables are loaded before any other imports that might depend on them\nloadRootEnvFiles();\n\nimport { getSupabaseAuthInitInfo } from \"./config/supabase.js\";\nimport { ServerBootstrap } from \"./core/ServerBootstrap.js\";\n\n/**\n * Validates the supabase authentication configuration.\n */\nfunction validateConfig() {\n  const sbAuth = getSupabaseAuthInitInfo();\n\n  console.log(\n    `[boot] supabaseAuth verifyMode=${sbAuth.verifyMode} hasUrl=${sbAuth.hasUrl}`\n  );\n\n  if (!sbAuth.hasUrl) {\n    throw new Error(\"Missing critical environment variable: SUPABASE_URL\");\n  }\n\n  return sbAuth;\n}\n\nprocess.on(\"unhandledRejection\", (reason, promise) => {\n  console.error(\"[boot] Unhandled Rejection at:\", promise, \"reason:\", reason);\n});\n\nprocess.on(\"uncaughtException\", (error) => {\n  console.error(\"[boot] Uncaught Exception thrown:\", error);\n  process.exit(1);\n});\n\ntry {\n  validateConfig();\n  const server = new ServerBootstrap();\n  server.start();\n} catch (error) {"
+      }
+    ],
+    "is_error": false,
+    "command": "sed -n '1,40p' /workspace/project/wasd-clone/server/src/index.ts",
+    "exit_code": 0,
+    "timeout": false,
+    "metadata": {
+      "exit_code": 0,
+      "pid": 21242,
+      "username": "openhands",
+      "hostname": "runtime-ilcfkinbitemiuup-655dfbd7d-hm55g",
+      "working_dir": "/workspace/project",
+      "py_interpreter_path": "/usr/local/bin/python",
+      "prefix": "",
+      "suffix": "\n[The command completed with exit code 0.]"
+    },
+    "full_output_save_dir": "/workspace/conversations/c2525be4aa484a9b9d5747eacc0ab2ce/observations",
+    "kind": "TerminalObservation"
+  },
+  "action_id": "1681d2a5-4e1a-4865-b93d-3691d097bd30",
+  "kind": "ObservationEvent"
+}

@@ -1,0 +1,43 @@
+{
+  "id": "d477b8e8-6dcc-4724-9341-739fb5d940fc",
+  "timestamp": "2026-05-10T08:39:43.672623",
+  "source": "environment",
+  "key": "stats",
+  "value": {
+    "usage_to_metrics": {
+      "agent": {
+        "model_name": "litellm_proxy/minimax-m2.5",
+        "accumulated_cost": 0.0,
+        "max_budget_per_task": null,
+        "accumulated_token_usage": {
+          "model": "litellm_proxy/minimax-m2.5",
+          "prompt_tokens": 71026950,
+          "completion_tokens": 236371,
+          "cache_read_tokens": 68829085,
+          "cache_write_tokens": 0,
+          "reasoning_tokens": 2556,
+          "context_window": 0,
+          "per_turn_token": 91545,
+          "response_id": ""
+        }
+      },
+      "condenser": {
+        "model_name": "litellm_proxy/minimax-m2.5",
+        "accumulated_cost": 0.0,
+        "max_budget_per_task": null,
+        "accumulated_token_usage": {
+          "model": "litellm_proxy/minimax-m2.5",
+          "prompt_tokens": 153042,
+          "completion_tokens": 11384,
+          "cache_read_tokens": 352,
+          "cache_write_tokens": 0,
+          "reasoning_tokens": 0,
+          "context_window": 0,
+          "per_turn_token": 11494,
+          "response_id": ""
+        }
+      }
+    }
+  },
+  "kind": "ConversationStateUpdateEvent"
+}

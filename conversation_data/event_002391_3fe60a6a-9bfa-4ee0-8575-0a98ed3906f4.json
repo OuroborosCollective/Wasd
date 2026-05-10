@@ -1,0 +1,22 @@
+{
+  "id": "3fe60a6a-9bfa-4ee0-8575-0a98ed3906f4",
+  "timestamp": "2026-05-10T07:24:13.430541",
+  "source": "environment",
+  "tool_name": "browser_navigate",
+  "tool_call_id": "call_function_xdtbihqnfg9e_1",
+  "observation": {
+    "content": [
+      {
+        "cache_prompt": false,
+        "type": "text",
+        "text": "Navigated to: https://work-1-ilcfkinbitemiuup.prod-runtime.all-hands.dev/"
+      }
+    ],
+    "is_error": false,
+    "screenshot_data": null,
+    "full_output_save_dir": "/workspace/conversations/c2525be4aa484a9b9d5747eacc0ab2ce/observations",
+    "kind": "BrowserObservation"
+  },
+  "action_id": "9f2eae5f-8e41-4c4f-87d0-2e07dec27886",
+  "kind": "ObservationEvent"
+}

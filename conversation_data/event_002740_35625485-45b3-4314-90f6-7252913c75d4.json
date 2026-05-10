@@ -1,0 +1,27 @@
+{
+  "id": "35625485-45b3-4314-90f6-7252913c75d4",
+  "timestamp": "2026-05-10T08:02:55.343965",
+  "source": "user",
+  "llm_message": {
+    "role": "user",
+    "content": [
+      {
+        "cache_prompt": false,
+        "type": "text",
+        "text": "Show whats happened on site white playwright browser and fix the whitesite problem . Commit to git if u can fix dont stop work befor u have completed all possible next steps 100% it must work"
+      }
+    ],
+    "tool_calls": null,
+    "tool_call_id": null,
+    "name": null,
+    "reasoning_content": null,
+    "thinking_blocks": [],
+    "responses_reasoning_item": null
+  },
+  "llm_response_id": null,
+  "activated_skills": [],
+  "extended_content": [],
+  "sender": null,
+  "critic_result": null,
+  "kind": "MessageEvent"
+}

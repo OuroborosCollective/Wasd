@@ -1,0 +1,34 @@
+{
+  "id": "cdf33707-f0a1-4715-9cf8-a7e838342932",
+  "timestamp": "2026-05-10T05:40:56.382550",
+  "source": "environment",
+  "tool_name": "terminal",
+  "tool_call_id": "call_function_yvve4o99az15_1",
+  "observation": {
+    "content": [
+      {
+        "cache_prompt": false,
+        "type": "text",
+        "text": "cd /workspace/project && python3 << 'EOF'\nimport paramiko\nclient = paramiko.SSHClient()\nclient.set_missing_host_key_policy(paramiko.AutoAddPolicy())\nclient.connect(\"46.202.154.25\", 22, \"root\", \"2N00py123+++\")\n# Check imports\nstdin, stdout, stderr = client.exec_command(\"head -20 /opt/areloria/server/src/core/ServerBootstrap.ts\")\nprint(\"Bootstrap:\", stdout.read().decode())\nclient.close()\nEOF\nBootstrap: import { shutdownPostHog } from \"../services/posthog.js\";\nimport express, { type Request } from \"express\";\nimport { createServer } from \"node:http\";\nimport { existsSync } from \"node:fs\";\nimport { GameWebSocketServer } from \"../networking/WebSocketServer.js\";\nimport { WorldTick } from \"./WorldTick.js\";\nimport path from \"node:path\";\nimport { fileURLToPath } from \"node:url\";\nimport { mcpRoute } from \"../api/mcpRoute.js\";\nimport { adminContentRouter } from \"../api/adminContentRoute.js\";\nimport { voteRouter } from \"../api/voteRoute.js\";\nimport { leaderboardRouter } from \"../api/leaderboardRoute.js\";\nimport { questlineRouter } from \"../api/questlineRoute.js\";\nimport { loreRouter } from \"../api/loreRoute.js\";\nimport { getContentDataSourceLabel, resolveContentDir } from \"../modules/content/contentDataRoot.js\";\nimport { getSupabaseSummary, verifySupabaseToken } from \"../config/supabase.js\";\nimport { resolveWorldAssetsDir } from \"./resolveWorldAssetsDir.js\";\nimport { resolveMirroredWorldAssetsDir } from \"./resolveMirroredWorldAssetsDir.js\";\nimport {\n  bootstrapSelfHealing,"
+      }
+    ],
+    "is_error": false,
+    "command": "cd /workspace/project && python3 << 'EOF'\nimport paramiko\nclient = paramiko.SSHClient()\nclient.set_missing_host_key_policy(paramiko.AutoAddPolicy())\nclient.connect(\"46.202.154.25\", 22, \"root\", \"2N00py123+++\")\n\n# Check imports\nstdin, stdout, stderr = client.exec_command(\"head -20 /opt/areloria/server/src/core/ServerBootstrap.ts\")\nprint(\"Bootstrap:\", stdout.read().decode())\n\nclient.close()\nEOF",
+    "exit_code": 0,
+    "timeout": false,
+    "metadata": {
+      "exit_code": 0,
+      "pid": -1,
+      "username": "openhands",
+      "hostname": "runtime-ilcfkinbitemiuup-655dfbd7d-hm55g",
+      "working_dir": "/workspace/project",
+      "py_interpreter_path": "/usr/local/bin/python",
+      "prefix": "",
+      "suffix": "\n[The command completed with exit code 0.]"
+    },
+    "full_output_save_dir": "/workspace/conversations/c2525be4aa484a9b9d5747eacc0ab2ce/observations",
+    "kind": "TerminalObservation"
+  },
+  "action_id": "ca4bc6d2-2bff-4236-97b1-8ae99a51399a",
+  "kind": "ObservationEvent"
+}

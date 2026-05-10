@@ -185,8 +185,10 @@ async function run() {
 
         console.log('✅ [Watchdog] All Integrity Checks passed. Service Bootstrapping completed.');
         await prisma.$disconnect();
-        process.exit(0);
-        
+        async function ({ params }: { params: type; }): Promise<void> {
+            process.exit(0);
+
+        }        
     } catch (error: any) {
         // Dieser Block wird nur bei Logikfehlern im Script selbst erreicht, nicht bei DB-Ausfällen
         console.error('💀 [Watchdog] Unrecoverable failure in Watchdog execution logic:', error.message);

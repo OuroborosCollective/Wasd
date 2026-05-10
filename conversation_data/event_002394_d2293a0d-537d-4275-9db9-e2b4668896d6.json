@@ -1,0 +1,22 @@
+{
+  "id": "d2293a0d-537d-4275-9db9-e2b4668896d6",
+  "timestamp": "2026-05-10T07:24:17.374488",
+  "source": "environment",
+  "tool_name": "browser_get_content",
+  "tool_call_id": "call_function_lwedpk8f7y5k_1",
+  "observation": {
+    "content": [
+      {
+        "cache_prompt": false,
+        "type": "text",
+        "text": "<url>\nhttps://work-1-ilcfkinbitemiuup.prod-runtime.all-hands.dev/\n</url>\n<content>\n<content_stats>\nContent processed: 129 HTML chars \u2192 19 initial markdown \u2192 19 filtered markdown\n</content_stats>\n\n<webpage_content>\n```\nBad Gateway\n```\n</webpage_content>\n</content>"
+      }
+    ],
+    "is_error": false,
+    "screenshot_data": null,
+    "full_output_save_dir": "/workspace/conversations/c2525be4aa484a9b9d5747eacc0ab2ce/observations",
+    "kind": "BrowserObservation"
+  },
+  "action_id": "dc4c1243-f092-478a-970c-cf04ed87f503",
+  "kind": "ObservationEvent"
+}

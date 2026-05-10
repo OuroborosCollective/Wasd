@@ -1,0 +1,34 @@
+{
+  "id": "c03e400b-8a37-4aad-bed7-92433b800582",
+  "timestamp": "2026-05-10T05:31:00.664610",
+  "source": "environment",
+  "tool_name": "terminal",
+  "tool_call_id": "call_function_kofluuakz2wm_1",
+  "observation": {
+    "content": [
+      {
+        "cache_prompt": false,
+        "type": "text",
+        "text": "No previous running command to interact with."
+      }
+    ],
+    "is_error": true,
+    "command": "C-c",
+    "exit_code": null,
+    "timeout": false,
+    "metadata": {
+      "exit_code": -1,
+      "pid": -1,
+      "username": null,
+      "hostname": null,
+      "working_dir": null,
+      "py_interpreter_path": null,
+      "prefix": "",
+      "suffix": ""
+    },
+    "full_output_save_dir": "/workspace/conversations/c2525be4aa484a9b9d5747eacc0ab2ce/observations",
+    "kind": "TerminalObservation"
+  },
+  "action_id": "9b0558ef-fcab-4bed-a725-dab856456790",
+  "kind": "ObservationEvent"
+}

@@ -1,0 +1,34 @@
+{
+  "id": "14a59b3e-dd30-4252-9f43-55ac6ca4ceec",
+  "timestamp": "2026-05-10T03:14:53.306974",
+  "source": "environment",
+  "tool_name": "terminal",
+  "tool_call_id": "call_function_ki4fj5z0g7mv_1",
+  "observation": {
+    "content": [
+      {
+        "cache_prompt": false,
+        "type": "text",
+        "text": "cd /workspace/project && python3 -c '\nimport paramiko\nclient = paramiko.SSHClient()\nclient.set_missing_host_key_policy(paramiko.AutoAddPolicy())\nclient.connect(\"46.202.154.25\", 22, \"root\", \"2N00py123+++\")\n# Check what files exist\nprint(\"=== Server dist folder ===\")\nstdin, stdout, stderr = client.exec_command(\"ls -la /root/opt/areloria/server/dist/\")\nprint(stdout.read().decode()[:500])\n# Check the entry file\nprint(\"\\\\n=== Server dist/index.js ===\")\nstdin, stdout, stderr = client.exec_command(\"cat /root/opt/areloria/server/dist/index.js\")\nprint(stdout.read().decode())\n# Check PM2 config\nprint(\"\\\\n=== PM2 Config ===\")\nstdin, stdout, stderr = client.exec_command(\"cat /root/opt/areloria/ecosystem.config.cjs\")\nprint(stdout.read().decode())\nclient.close()\n'\n=== Server dist folder ===\ntotal 176\ndrwxr-xr-x 31 root root 4096 May  3 01:28 .\ndrwxr-xr-x 13 root root 4096 May  9 22:20 ..\ndrwxr-xr-x  7 root root 4096 May  3 01:28 api\n-rw-r--r--  1 root root  117 May  5 21:24 app.d.ts\n-rw-r--r--  1 root root  152 May  5 21:24 app.d.ts.map\n-rw-r--r--  1 root root  406 May  5 21:24 app.js\n-rw-r--r--  1 root root  517 May  5 21:24 app.js.map\ndrwxr-xr-x  2 root root 4096 May  3 01:28 assets\ndrwxr-xr-x  2 root root 4096 May  3 01:28 auth\ndrwxr-xr-x  2 root root 4096 May  3 01:28 cli\ndrwxr\n\\n=== Server dist/index.js ===\n// @ts-nocheck\nimport { loadRootEnvFiles } from \"./config/loadRootEnv.js\";\n// Ensure environment variables are loaded before any other imports that might depend on them\nloadRootEnvFiles();\nimport { getSupabaseAuthInitInfo } from \"./config/supabase.js\";\nimport { ServerBootstrap } from \"./core/ServerBootstrap.js\";\n/**\n * Validates the supabase authentication configuration.\n */\nfunction validateConfig() {\n    const sbAuth = getSupabaseAuthInitInfo();\n    console.log(`[boot] supabaseAuth verifyMode=${sbAuth.verifyMode} hasUrl=${sbAuth.hasUrl}`);\n    if (!sbAuth.hasUrl) {\n        throw new Error(\"Missing critical environment variable: SUPABASE_URL\");\n    }\n    return sbAuth;\n}\nprocess.on(\"unhandledRejection\", (reason, promise) => {\n    console.error(\"[boot] Unhandled Rejection at:\", promise, \"reason:\", reason);\n});\nprocess.on(\"uncaughtException\", (error) => {\n    console.error(\"[boot] Uncaught Exception thrown:\", error);\n    process.exit(1);\n});\ntry {\n    validateConfig();\n    const server = new ServerBootstrap();\n    server.start();\n}\ncatch (error) {\n    console.error(\"[boot] Failed to bootstrap server:\", error);\n    process.exit(1);\n}\n//# sourceMappingURL=index.js.map\n\\n=== PM2 Config ===\nmodule.exports = {\n  apps: [{\n    name: 'areloria',\n    script: './server/dist/index.js',\n    cwd: '/opt/areloria',\n    instances: 1,\n    autorestart: true,\n    watch: false,\n    max_memory_restart: '2G',\n    node_args: '--max-old-space-size=2048',\n    env: {\n      NODE_ENV: 'production',\n      PORT: 3000,\n      CLIENT_ROOT_DIR: '/opt/areloria/client',\n    },\n    env_file: '/opt/areloria/.env',\n    error_file: '/var/log/areloria/error.log',\n    out_file: '/var/log/areloria/out.log',\n    log_date_format: 'YYYY-MM-DD HH:mm:ss',\n  }]\n};"
+      }
+    ],
+    "is_error": false,
+    "command": "cd /workspace/project && python3 -c '\nimport paramiko\nclient = paramiko.SSHClient()\nclient.set_missing_host_key_policy(paramiko.AutoAddPolicy())\nclient.connect(\"46.202.154.25\", 22, \"root\", \"2N00py123+++\")\n\n# Check what files exist\nprint(\"=== Server dist folder ===\")\nstdin, stdout, stderr = client.exec_command(\"ls -la /root/opt/areloria/server/dist/\")\nprint(stdout.read().decode()[:500])\n\n# Check the entry file\nprint(\"\\\\n=== Server dist/index.js ===\")\nstdin, stdout, stderr = client.exec_command(\"cat /root/opt/areloria/server/dist/index.js\")\nprint(stdout.read().decode())\n\n# Check PM2 config\nprint(\"\\\\n=== PM2 Config ===\")\nstdin, stdout, stderr = client.exec_command(\"cat /root/opt/areloria/ecosystem.config.cjs\")\nprint(stdout.read().decode())\n\nclient.close()\n'",
+    "exit_code": 0,
+    "timeout": false,
+    "metadata": {
+      "exit_code": 0,
+      "pid": -1,
+      "username": "openhands",
+      "hostname": "runtime-ilcfkinbitemiuup-655dfbd7d-hm55g",
+      "working_dir": "/workspace/project",
+      "py_interpreter_path": "/usr/local/bin/python",
+      "prefix": "",
+      "suffix": "\n[The command completed with exit code 0.]"
+    },
+    "full_output_save_dir": "/workspace/conversations/c2525be4aa484a9b9d5747eacc0ab2ce/observations",
+    "kind": "TerminalObservation"
+  },
+  "action_id": "f713fedd-f6df-4257-8cc9-3dd09e7cbd68",
+  "kind": "ObservationEvent"
+}

@@ -1,0 +1,27 @@
+{
+  "id": "d9e3e0d7-289e-4c8f-a284-38a804364cd9",
+  "timestamp": "2026-05-10T09:03:08.847628",
+  "source": "agent",
+  "llm_message": {
+    "role": "assistant",
+    "content": [
+      {
+        "cache_prompt": false,
+        "type": "text",
+        "text": "\n\n**Refresh** - the title shows a version number (like `?v=1778403782`). Do you now see step S1, S2 etc?"
+      }
+    ],
+    "tool_calls": null,
+    "tool_call_id": null,
+    "name": null,
+    "reasoning_content": "Now let me check if new requests are coming in.",
+    "thinking_blocks": [],
+    "responses_reasoning_item": null
+  },
+  "llm_response_id": "064f7ccaa0b73ed685097d5107f1c449",
+  "activated_skills": [],
+  "extended_content": [],
+  "sender": null,
+  "critic_result": null,
+  "kind": "MessageEvent"
+}

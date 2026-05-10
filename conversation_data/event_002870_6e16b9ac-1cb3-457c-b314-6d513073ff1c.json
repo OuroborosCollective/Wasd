@@ -1,0 +1,33 @@
+{
+  "id": "6e16b9ac-1cb3-457c-b314-6d513073ff1c",
+  "timestamp": "2026-05-10T08:36:33.570084",
+  "source": "agent",
+  "thought": [
+    {
+      "cache_prompt": false,
+      "type": "text",
+      "text": "\n\n"
+    }
+  ],
+  "reasoning_content": "Let me check if there's any error showing now.",
+  "thinking_blocks": [],
+  "responses_reasoning_item": null,
+  "action": {
+    "include_screenshot": true,
+    "kind": "BrowserGetStateAction"
+  },
+  "tool_name": "browser_get_state",
+  "tool_call_id": "call_function_kvminjojfqnp_1",
+  "tool_call": {
+    "id": "call_function_kvminjojfqnp_1",
+    "responses_item_id": null,
+    "name": "browser_get_state",
+    "arguments": "{\"include_screenshot\": true, \"summary\": \"Check screen\"}",
+    "origin": "completion"
+  },
+  "llm_response_id": "064f768f75d0992b95c64e21bc61571e",
+  "security_risk": "UNKNOWN",
+  "critic_result": null,
+  "summary": "Check screen",
+  "kind": "ActionEvent"
+}

@@ -1,3 +1,4 @@
+# pyrefly: ignore [missing-import]
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from sqlalchemy.orm import Session
 from sqlalchemy import Column, String

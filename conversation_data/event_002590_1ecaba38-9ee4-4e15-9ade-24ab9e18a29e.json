@@ -1,0 +1,27 @@
+{
+  "id": "1ecaba38-9ee4-4e15-9ade-24ab9e18a29e",
+  "timestamp": "2026-05-10T07:46:21.693970",
+  "source": "user",
+  "llm_message": {
+    "role": "user",
+    "content": [
+      {
+        "cache_prompt": false,
+        "type": "text",
+        "text": "Get sure that the game works and is reachable via arelorian.de do all whats need for it"
+      }
+    ],
+    "tool_calls": null,
+    "tool_call_id": null,
+    "name": null,
+    "reasoning_content": null,
+    "thinking_blocks": [],
+    "responses_reasoning_item": null
+  },
+  "llm_response_id": null,
+  "activated_skills": [],
+  "extended_content": [],
+  "sender": null,
+  "critic_result": null,
+  "kind": "MessageEvent"
+}

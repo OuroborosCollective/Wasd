@@ -1,0 +1,34 @@
+{
+  "id": "40a93b1f-b1a0-4392-8ac3-c5b178865b1c",
+  "timestamp": "2026-05-10T08:37:01.683201",
+  "source": "agent",
+  "thought": [
+    {
+      "cache_prompt": false,
+      "type": "text",
+      "text": "\n\n"
+    }
+  ],
+  "reasoning_content": "Let me check what the page shows now:",
+  "thinking_blocks": [],
+  "responses_reasoning_item": null,
+  "action": {
+    "extract_links": false,
+    "start_from_char": 0,
+    "kind": "BrowserGetContentAction"
+  },
+  "tool_name": "browser_get_content",
+  "tool_call_id": "call_function_csacizb1pknu_1",
+  "tool_call": {
+    "id": "call_function_csacizb1pknu_1",
+    "responses_item_id": null,
+    "name": "browser_get_content",
+    "arguments": "{\"summary\": \"Check content\"}",
+    "origin": "completion"
+  },
+  "llm_response_id": "064f76abb43cb9aca80e16170153f7a5",
+  "security_risk": "UNKNOWN",
+  "critic_result": null,
+  "summary": "Check content",
+  "kind": "ActionEvent"
+}

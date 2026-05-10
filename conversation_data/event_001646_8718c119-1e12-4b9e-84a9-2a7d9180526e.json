@@ -1,0 +1,34 @@
+{
+  "id": "8718c119-1e12-4b9e-84a9-2a7d9180526e",
+  "timestamp": "2026-05-10T06:16:30.214799",
+  "source": "environment",
+  "tool_name": "terminal",
+  "tool_call_id": "call_function_p2g2xqmzt96w_1",
+  "observation": {
+    "content": [
+      {
+        "cache_prompt": false,
+        "type": "text",
+        "text": "<<<<<<< HEAD\nimport { GameConfig } from \"../config/GameConfig.js\";\nimport { LiveHealEngine, bootstrapLiveHeal, resolveLiveHealConfigFromEnv } from \"./liveheal/index.js\";\nimport type { HealthSnapshot, SubSystemAdapter } from \"./liveheal/LiveHealTypes.js\";\n\ntype SpawnPoint = { x: number; y: number; z: number };\ntype SceneProfile = {\n  defaultSpawnKey: string;\n  spawnPoints: Record<string, SpawnPoint>;\n};\ntype SceneTriggerZone = {\n  id: string;\n  sceneId: string;\n  x: number;\n  y: number;\n  radius: number;\n  targetSceneId?: string;\n  targetSpawnKey: string;\n  triggerType?: string;\n  dungeonId?: string;\n  allowedSpawnKeys?: string[];\n};\ntype GMWorldState = {\n  weather: string;\n  pvp: boolean;\n  friendlyFire: boolean;"
+      }
+    ],
+    "is_error": false,
+    "command": "cd /workspace/project/wasd-clone && sed -n '25,50p' server/src/core/WorldTick.ts",
+    "exit_code": 0,
+    "timeout": false,
+    "metadata": {
+      "exit_code": 0,
+      "pid": -1,
+      "username": "openhands",
+      "hostname": "runtime-ilcfkinbitemiuup-655dfbd7d-hm55g",
+      "working_dir": "/workspace/project/wasd-clone",
+      "py_interpreter_path": "/usr/local/bin/python",
+      "prefix": "",
+      "suffix": "\n[The command completed with exit code 0.]"
+    },
+    "full_output_save_dir": "/workspace/conversations/c2525be4aa484a9b9d5747eacc0ab2ce/observations",
+    "kind": "TerminalObservation"
+  },
+  "action_id": "c619edd1-68b1-4b32-8a79-8440940e710a",
+  "kind": "ObservationEvent"
+}

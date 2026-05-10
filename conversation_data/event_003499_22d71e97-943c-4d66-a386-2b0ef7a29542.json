@@ -1,0 +1,27 @@
+{
+  "id": "22d71e97-943c-4d66-a386-2b0ef7a29542",
+  "timestamp": "2026-05-10T16:28:39.909490",
+  "source": "user",
+  "llm_message": {
+    "role": "user",
+    "content": [
+      {
+        "cache_prompt": false,
+        "type": "text",
+        "text": "U have commit to main2 on github allready with token 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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.?\n\n"
+      }
+    ],
+    "tool_calls": null,
+    "tool_call_id": null,
+    "name": null,
+    "reasoning_content": null,
+    "thinking_blocks": [],
+    "responses_reasoning_item": null
+  },
+  "llm_response_id": null,
+  "activated_skills": [],
+  "extended_content": [],
+  "sender": null,
+  "critic_result": null,
+  "kind": "MessageEvent"
+}

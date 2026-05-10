@@ -1,0 +1,27 @@
+{
+  "id": "65ca926a-e0f1-49cb-b60a-c3c94f771bac",
+  "timestamp": "2026-05-10T09:53:50.946182",
+  "source": "user",
+  "llm_message": {
+    "role": "user",
+    "content": [
+      {
+        "cache_prompt": false,
+        "type": "text",
+        "text": "Installiere das sdk auf dem vps und richte sobald installiert daf\u00fcr eine workflow auf github ein "
+      }
+    ],
+    "tool_calls": null,
+    "tool_call_id": null,
+    "name": null,
+    "reasoning_content": null,
+    "thinking_blocks": [],
+    "responses_reasoning_item": null
+  },
+  "llm_response_id": null,
+  "activated_skills": [],
+  "extended_content": [],
+  "sender": null,
+  "critic_result": null,
+  "kind": "MessageEvent"
+}

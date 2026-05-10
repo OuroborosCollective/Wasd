@@ -1,0 +1,34 @@
+{
+  "id": "d5026b2f-20d8-46b5-a738-e07a6d0479aa",
+  "timestamp": "2026-05-10T09:33:57.571813",
+  "source": "environment",
+  "tool_name": "terminal",
+  "tool_call_id": "call_function_t1xfe6i9stzz_1",
+  "observation": {
+    "content": [
+      {
+        "cache_prompt": false,
+        "type": "text",
+        "text": ""
+      }
+    ],
+    "is_error": false,
+    "command": "which java && java -version 2>&1 | head -3",
+    "exit_code": 1,
+    "timeout": false,
+    "metadata": {
+      "exit_code": 1,
+      "pid": -1,
+      "username": "openhands",
+      "hostname": "runtime-ilcfkinbitemiuup-76b6bfb6c7-dmk6t",
+      "working_dir": "/workspace/project",
+      "py_interpreter_path": "/usr/local/bin/python",
+      "prefix": "",
+      "suffix": "\n[The command completed with exit code 1.]"
+    },
+    "full_output_save_dir": null,
+    "kind": "TerminalObservation"
+  },
+  "action_id": "2e06eb14-ce49-4532-b3ce-8bc0a5acbfd3",
+  "kind": "ObservationEvent"
+}

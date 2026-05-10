@@ -1,0 +1,34 @@
+{
+  "id": "e798ea6d-7315-42e2-b434-9a3cbdd9aecf",
+  "timestamp": "2026-05-10T03:08:24.538437",
+  "source": "environment",
+  "tool_name": "terminal",
+  "tool_call_id": "call_function_acq4f0wj6ohd_1",
+  "observation": {
+    "content": [
+      {
+        "cache_prompt": false,
+        "type": "text",
+        "text": "cd /workspace/project && python3 -c \"\nimport paramiko\nclient = paramiko.SSHClient()\nclient.set_missing_host_key_policy(paramiko.AutoAddPolicy())\nclient.connect('46.202.154.25', 22, 'root', '2N00py123+++')\n# Get various Supabase settings\nstdin, stdout, stderr = client.exec_command('docker exec supabase-auth env')\nauth_env = stdout.read().decode()\nfor line in auth_env.split('\\n'):\n    if any(x in line.upper() for x in ['POSTGRES', 'GOTRUE', 'JWT', 'API', 'SITE', 'URI', 'URL', 'ANON', 'SERVICE']):\n        print(line)\nprint('\\\\n=== DB Info ===')\nstdin, stdout, stderr = client.exec_command('docker exec supabase-db env')\ndb_env = stdout.read().decode()\nfor line in db_env.split('\\n'):\n    if any(x in line.upper() for x in ['POSTGRES', 'JWT']):\n        print(line)\nprint('\\\\n=== REST Config ===')\nstdin, stdout, stderr = client.exec_command('docker exec supabase-rest env')\nrest_env = stdout.read().decode()\nfor line in rest_env.split('\\n'):\n    if any(x in line.upper() for x in ['POSTGRES', 'PGRST']):\n        print(line)\nclient.close()\n\"\nGOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED=true\nAPI_EXTERNAL_URL=https://arelorian.de:8443\nGOTRUE_EXTERNAL_EMAIL_ENABLED=true\nGOTRUE_JWT_EXP=3600\nGOTRUE_SITE_URL=https://arelorian.de\nGOTRUE_MAILER_AUTOCONFIRM=true\nGOTRUE_DB_DATABASE_URL=postgres://postgres:Sup3base-1491137-Strong!@db:5432/postgres?sslmode=disable\nGOTRUE_DB_DRIVER=postgres\nGOTRUE_JWT_SECRET=Sup3baseJWTSecret-1491137-LongEnough\nGOTRUE_DB_MIGRATIONS_PATH=/usr/local/etc/auth/migrations\n\n=== DB Info ===\nPATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/lib/postgresql/15/bin\nPOSTGRES_DB=postgres\nPOSTGRES_PASSWORD=Sup3base-1491137-Strong!\nPGDATA=/var/lib/postgresql/data\nPOSTGRES_HOST=/var/run/postgresql\n\n=== REST Config ==="
+      }
+    ],
+    "is_error": false,
+    "command": "cd /workspace/project && python3 -c \"\nimport paramiko\nclient = paramiko.SSHClient()\nclient.set_missing_host_key_policy(paramiko.AutoAddPolicy())\nclient.connect('46.202.154.25', 22, 'root', '2N00py123+++')\n\n# Get various Supabase settings\nstdin, stdout, stderr = client.exec_command('docker exec supabase-auth env')\nauth_env = stdout.read().decode()\nfor line in auth_env.split('\\n'):\n    if any(x in line.upper() for x in ['POSTGRES', 'GOTRUE', 'JWT', 'API', 'SITE', 'URI', 'URL', 'ANON', 'SERVICE']):\n        print(line)\n\nprint('\\\\n=== DB Info ===')\nstdin, stdout, stderr = client.exec_command('docker exec supabase-db env')\ndb_env = stdout.read().decode()\nfor line in db_env.split('\\n'):\n    if any(x in line.upper() for x in ['POSTGRES', 'JWT']):\n        print(line)\n\nprint('\\\\n=== REST Config ===')\nstdin, stdout, stderr = client.exec_command('docker exec supabase-rest env')\nrest_env = stdout.read().decode()\nfor line in rest_env.split('\\n'):\n    if any(x in line.upper() for x in ['POSTGRES', 'PGRST']):\n        print(line)\n\nclient.close()\n\"",
+    "exit_code": 0,
+    "timeout": false,
+    "metadata": {
+      "exit_code": 0,
+      "pid": -1,
+      "username": "openhands",
+      "hostname": "runtime-ilcfkinbitemiuup-655dfbd7d-hm55g",
+      "working_dir": "/workspace/project",
+      "py_interpreter_path": "/usr/local/bin/python",
+      "prefix": "",
+      "suffix": "\n[The command completed with exit code 0.]"
+    },
+    "full_output_save_dir": "/workspace/conversations/c2525be4aa484a9b9d5747eacc0ab2ce/observations",
+    "kind": "TerminalObservation"
+  },
+  "action_id": "2ad45379-54aa-4645-ab64-c965e2ca429f",
+  "kind": "ObservationEvent"
+}

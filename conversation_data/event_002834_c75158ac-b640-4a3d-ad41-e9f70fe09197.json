@@ -1,0 +1,27 @@
+{
+  "id": "c75158ac-b640-4a3d-ad41-e9f70fe09197",
+  "timestamp": "2026-05-10T08:34:19.437913",
+  "source": "user",
+  "llm_message": {
+    "role": "user",
+    "content": [
+      {
+        "cache_prompt": false,
+        "type": "text",
+        "text": "I don't have a dev console on amdroid tablet don't jave pc u mustfind a way to f8nd the whitesite error"
+      }
+    ],
+    "tool_calls": null,
+    "tool_call_id": null,
+    "name": null,
+    "reasoning_content": null,
+    "thinking_blocks": [],
+    "responses_reasoning_item": null
+  },
+  "llm_response_id": null,
+  "activated_skills": [],
+  "extended_content": [],
+  "sender": null,
+  "critic_result": null,
+  "kind": "MessageEvent"
+}

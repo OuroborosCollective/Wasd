@@ -1,0 +1,27 @@
+{
+  "id": "1f5887f5-179c-4c63-8880-4542069af839",
+  "timestamp": "2026-05-10T08:44:27.320769",
+  "source": "agent",
+  "llm_message": {
+    "role": "assistant",
+    "content": [
+      {
+        "cache_prompt": false,
+        "type": "text",
+        "text": "\n\n**Refresh** and tell me what it shows now:\n- `webgl:false webgl2:false exp:false` followed by more tests\n\nAlso - try **Samsung Internet Browser** instead of Chrome - it has better WebGL support on Android!"
+      }
+    ],
+    "tool_calls": null,
+    "tool_call_id": null,
+    "name": null,
+    "reasoning_content": "Now the user can refresh and see if any of the software fallbacks work. Let me tell them what to do.",
+    "thinking_blocks": [],
+    "responses_reasoning_item": null
+  },
+  "llm_response_id": "064f786866a1e177bd43cd8090073c7c",
+  "activated_skills": [],
+  "extended_content": [],
+  "sender": null,
+  "critic_result": null,
+  "kind": "MessageEvent"
+}

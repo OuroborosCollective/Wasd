@@ -1,0 +1,34 @@
+{
+  "id": "ec3fac41-dc4d-43e6-bdd4-923e1f32ebf9",
+  "timestamp": "2026-05-10T05:58:37.479276",
+  "source": "environment",
+  "tool_name": "terminal",
+  "tool_call_id": "call_function_6skmpphl1rqd_1",
+  "observation": {
+    "content": [
+      {
+        "cache_prompt": false,
+        "type": "text",
+        "text": "cd /workspace/project && python3 << 'ENDOFSCRIPT'\nimport paramiko\nclient = paramiko.SSHClient()\nclient.set_missing_host_key_policy(paramiko.AutoAddPolicy())\nclient.connect(\"46.202.154.25\", 22, \"root\", \"2N00py123+++\")\n# Check the factory\nstdin, stdout, stderr = client.exec_command(\"head -50 /opt/areloria/server/src/modules/persistence/createPersistenceBackend.ts\")\nprint(\"Factory:\", stdout.read().decode())\nclient.close()\nENDOFSCRIPT\nFactory: import type { IPersistenceBackend, PersistenceDriverName } from \"./persistenceBackend.js\";\nimport { resolvePersistenceDriver } from \"./persistenceBackend.js\";\nimport { FilePersistenceBackend } from \"./filePersistenceBackend.js\";\nimport { PostgresPersistenceBackend } from \"./postgresPersistenceBackend.js\";\nimport { RedisPersistenceBackend } from \"./redisPersistenceBackend.js\";\nimport { isDatabaseConfigured } from \"../../core/Database.js\";\nimport { isRedisAvailable } from \"../../core/RedisClient.js\";\n\nexport function createPersistenceBackend(): IPersistenceBackend {\n  const driver = resolvePersistenceDriver();\n  if (driver === \"postgres\") {\n    return new PostgresPersistenceBackend();\n  }\n  if (driver === \"redis\") {\n    return new RedisPersistenceBackend();\n  }\n  if (driver === \"file\") {\n    return new FilePersistenceBackend();\n  }\n  /** auto */\n  return pickAutoBackend();\n}\n\nfunction pickAutoBackend(): IPersistenceBackend {\n  if (isDatabaseConfigured()) {\n    return new PostgresPersistenceBackend();\n  }\n  if (isRedisAvailable()) {\n    return new RedisPersistenceBackend();\n  }\n  return new FilePersistenceBackend();\n}\n\n/** For tests: inject a backend without env */\nexport function createPersistenceBackendForTest(driver: PersistenceDriverName): IPersistenceBackend {\n  if (driver === \"file\") return new FilePersistenceBackend();\n  if (driver === \"postgres\") return new PostgresPersistenceBackend();\n  if (driver === \"redis\") return new RedisPersistenceBackend();\n  return new FilePersistenceBackend();\n}"
+      }
+    ],
+    "is_error": false,
+    "command": "cd /workspace/project && python3 << 'ENDOFSCRIPT'\nimport paramiko\nclient = paramiko.SSHClient()\nclient.set_missing_host_key_policy(paramiko.AutoAddPolicy())\nclient.connect(\"46.202.154.25\", 22, \"root\", \"2N00py123+++\")\n\n# Check the factory\nstdin, stdout, stderr = client.exec_command(\"head -50 /opt/areloria/server/src/modules/persistence/createPersistenceBackend.ts\")\nprint(\"Factory:\", stdout.read().decode())\n\nclient.close()\nENDOFSCRIPT",
+    "exit_code": 0,
+    "timeout": false,
+    "metadata": {
+      "exit_code": 0,
+      "pid": -1,
+      "username": "openhands",
+      "hostname": "runtime-ilcfkinbitemiuup-655dfbd7d-hm55g",
+      "working_dir": "/workspace/project",
+      "py_interpreter_path": "/usr/local/bin/python",
+      "prefix": "",
+      "suffix": "\n[The command completed with exit code 0.]"
+    },
+    "full_output_save_dir": "/workspace/conversations/c2525be4aa484a9b9d5747eacc0ab2ce/observations",
+    "kind": "TerminalObservation"
+  },
+  "action_id": "771679ca-83e4-4d70-8572-60685aecbccf",
+  "kind": "ObservationEvent"
+}

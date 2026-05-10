@@ -1,0 +1,22 @@
+{
+  "id": "e250528d-97ae-46eb-9baa-fbe504d56f47",
+  "timestamp": "2026-05-10T07:50:08.786123",
+  "source": "environment",
+  "tool_name": "browser_navigate",
+  "tool_call_id": "call_function_sk5322760m8t_1",
+  "observation": {
+    "content": [
+      {
+        "cache_prompt": false,
+        "type": "text",
+        "text": "Navigated to: https://arelorian.de"
+      }
+    ],
+    "is_error": false,
+    "screenshot_data": null,
+    "full_output_save_dir": "/workspace/conversations/c2525be4aa484a9b9d5747eacc0ab2ce/observations",
+    "kind": "BrowserObservation"
+  },
+  "action_id": "eb9f6e90-a0b1-4fcc-ba01-cf93e257e1a4",
+  "kind": "ObservationEvent"
+}
