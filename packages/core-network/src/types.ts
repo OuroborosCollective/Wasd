@@ -33,6 +33,7 @@ export interface ChunkData {
   entities: string[];
 }
 
+// Socket events from server
 export type ServerEvent = 
   | { type: "WORLD_HEARTBEAT"; payload: WorldState }
   | { type: "PLAYER_JOINED"; payload: { playerId: string; name: string } }

@@ -5,16 +5,6 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
+include ":app"
+project(":app").projectDir = new File("app")
 
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-
-rootProject.name = "ArelorianAlpha"
-include ':app'
-include ':capacitor-android'
-project(':capacitor-android').projectDir = new File(rootDir, './capacitor-android/capacitor-android')

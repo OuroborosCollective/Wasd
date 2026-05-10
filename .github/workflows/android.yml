@@ -1,0 +1,29 @@
+name: Android Build & Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'client/**'
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+      - uses: android-actions/setup-android@v2
+      - name: Build Debug
+        run: cd client/android && ./gradlew assembleDebug
+      - name: Build Release
+        run: cd client/android && ./gradlew assembleRelease
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arelorian-apk
+          path: |
+            client/android/app/build/outputs/apk/debug/*.apk
+            client/android/app/build/outputs/apk/release/*.apk

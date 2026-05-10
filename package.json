@@ -5,11 +5,16 @@
   "type": "module",
   "scripts": {
     "build": "pnpm -r build",
-    "build:network": "pnpm --filter @arelorian/core-network build",
-    "build:2d": "pnpm --filter @arelorian/client-2d build",
-    "dev:2d": "pnpm --filter @arelorian/client-2d dev",
-    "dev:all": "concurrently \"pnpm dev:2d\" \"pnpm --filter @wasd/client dev\"",
-    "install": "pnpm install -r"
+    "build:network": "pnpm -r --filter @arelorian/core-network build",
+    "build:2d": "pnpm -r --filter @arelorian/client-2d build",
+    "build:3d": "pnpm -r --filter @wasd/client build",
+    "dev:network": "pnpm -r --filter @arelorian/core-network dev",
+    "dev:2d": "pnpm -r --filter @arelorian/client-2d dev",
+    "dev:3d": "pnpm -r --filter @wasd/client dev",
+    "dev:all": "concurrently \"pnpm dev:network\" \"pnpm dev:2d\" \"pnpm dev:3d\"",
+    "build:all": "pnpm build:network && pnpm build:2d && pnpm build:3d",
+    "install": "pnpm install -r",
+    "clean": "pnpm -r exec rm -rf dist node_modules"
   },
   "engines": {
     "node": ">=18",
