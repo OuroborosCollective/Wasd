@@ -1,3 +1,8 @@
+// Alias for backwards compatibility
+import { WorldPlacementRuleEngine } from "../world/services/WorldPlacementRuleEngine.js";
+const PlacementEngine = WorldPlacementRuleEngine;
+
+import { GLBRegistry } from "../modules/asset-registry/GLBRegistry.js";
 import { ChunkSystem } from "../modules/world/ChunkSystem.js";
 import { ObserverEngine } from "../modules/observer/ObserverEngine.js";
 import { PlayerSystem } from "../modules/player/PlayerSystem.js";
@@ -322,6 +327,9 @@ export class WorldTick {
     private liveHeal: LiveHealEngine = bootstrapLiveHeal(resolveLiveHealConfigFromEnv()),
     private assetHealth: AssetHealthService = new AssetHealthService(),
     private areStateCompiler: AREStateCompiler = new AREStateCompiler(),
+    private glbRegistry: GLBRegistry = new GLBRegistry(),
+    private assetPoolResolver: AssetPoolResolver = new AssetPoolResolver(),
+    private placementEngine: PlacementEngine = new PlacementEngine(),
   ) {
     this.ws.onPlayerConnected = (id, sid) => {
       this.playerToSocket.set(id, sid);
