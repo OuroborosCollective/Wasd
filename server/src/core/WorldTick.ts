@@ -94,7 +94,6 @@ import { getPostHogClient } from "../services/posthog.js";
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { GameConfig } from "../config/GameConfig.js";
 import { LiveHealEngine, bootstrapLiveHeal, resolveLiveHealConfigFromEnv } from "./liveheal/index.js";
-import { AssetHealthService } from "../assets/AssetHealthService.js";
 import type { HealthSnapshot, SubSystemAdapter } from "./liveheal/LiveHealTypes.js";
 
 type SpawnPoint = { x: number; y: number; z: number };
@@ -325,7 +324,6 @@ export class WorldTick {
     private playtester?: AutonomousPlaytester,
     private craftingSystem?: CraftingSystem,
     private liveHeal: LiveHealEngine = bootstrapLiveHeal(resolveLiveHealConfigFromEnv()),
-    private assetHealth: AssetHealthService = new AssetHealthService(),
     private areStateCompiler: AREStateCompiler = new AREStateCompiler(),
     private glbRegistry: GLBRegistry = new GLBRegistry(),
     private assetPoolResolver: AssetPoolResolver = new AssetPoolResolver(),
