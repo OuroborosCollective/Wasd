@@ -42,7 +42,7 @@ function safeWriteJson(filePath: string, data: unknown): void {
 
 function computeFileHash(filePath: string): string | undefined {
   try {
-    const crypto = require("node:crypto") as typeof import("node:crypto");
+    import * as crypto from "node:crypto" as typeof import("node:crypto");
     const buf = fs.readFileSync(filePath);
     return crypto.createHash("sha1").update(buf).digest("hex");
   } catch {
