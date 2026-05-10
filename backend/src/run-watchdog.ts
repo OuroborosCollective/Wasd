@@ -133,6 +133,7 @@ async function waitForDatabase(prisma: PrismaClient, maxAttempts: number = 0): P
     }
 }
 
+const newLocal = process.exit(0);
 async function run() {
     console.log('🚀 Starting Sovereign Watchdog Integrity Check...');
     const prisma = new PrismaClient({
@@ -186,7 +187,6 @@ async function run() {
         console.log('✅ [Watchdog] All Integrity Checks passed. Service Bootstrapping completed.');
         await prisma.$disconnect();
         async function ({ params }: { params: type; }): Promise<void> {
-            process.exit(0);
 
         }        
     } catch (error: any) {

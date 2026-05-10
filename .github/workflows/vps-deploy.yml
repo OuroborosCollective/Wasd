@@ -1,51 +1,43 @@
-# Deploy to VPS - Auto Deployment Workflow
-# Runs automatically on push to main OR can be triggered manually
-
-name: Deploy to VPS
+# Deploy to VPS - Docker-based auto-deployment
+name: Deploy to Production VPS
 
 on:
-  # Auto deploy on push to main
   push:
     branches: [main]
     paths-ignore:
       - '**.md'
       - 'docs/**'
-      - '.github/workflows/DEPLOY.md'
+      - 'conversation_data/**'
+      - '!.github/workflows/vps-deploy.yml'
   
-  # Manual trigger
   workflow_dispatch:
-    inputs:
-      deploy_message:
-        description: 'Deployment message (optional)'
-        required: false
-        default: 'Manual deployment'
 
 permissions:
   contents: read
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
 
 jobs:
   deploy:
     name: Deploy to Production VPS
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
-    
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Display commit info
-        run: |
-          echo "Deploying from: ${{ github.sha }}"
-          echo "Author: ${{ github.actor }}"
-          echo "Message: ${{ github.event.head_commit.message }}"
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Setup SSH key
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.prod
+          push: false
+          tags: areloria:latest
+          load: true
+
+      - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_rsa
@@ -60,58 +52,34 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
           script: |
-            # Navigate to project directory
-            cd /opt/areloria || exit 1
-            
-            # Git pull latest (if git repo exists)
-            if [ -d ".git" ]; then
-              echo "=== Pulling latest code ==="
-              git fetch origin main
-              git reset --hard origin/main
-            else
-              echo "No git repo, using existing code"
-            fi
-            
-            # Install and build if needed
-            echo "=== Installing dependencies ==="
-            pnpm install --frozen-lockfile || pnpm install
-            
-            echo "=== Building ==="
-            pnpm run build
-            
-            # Remove old type field if exists (fix for legacy projects)
-            sed -i '/"type": "module"/d' package.json 2>/dev/null
-            sed -i '/"type": "module"/d' server/package.json 2>/dev/null
-            
-            # Restart application
-            echo "=== Restarting ==="
-            pm2 delete all 2>/dev/null || true
-            pm2 start ecosystem.config.cjs --update-env
-            
-            # Wait and verify
-            sleep 8
-            
-            # Health check
+            # Stop existing container
+            docker stop areloria 2>/dev/null || true
+            docker rm areloria 2>/dev/null || true
+
+            # Load new image from artifact
+            docker load -i /tmp/areloria.tar 2>/dev/null || echo "No tar, building fresh"
+
+            # Run container
+            docker run -d \
+              --name areloria \
+              --restart unless-stopped \
+              -p 3000:3000 \
+              -e NODE_ENV=production \
+              --health-cmd "node -e \"fetch('http://localhost:3000/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))\"" \
+              --health-interval=30s \
+              --health-timeout=3s \
+              --health-retries=3 \
+              areloria:latest
+
+            sleep 15
+
             HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/health 2>/dev/null || echo "000")
             if [ "$HTTP_CODE" = "200" ]; then
               echo "✓ Health check passed!"
             else
               echo "✗ Health check failed (HTTP: $HTTP_CODE)"
-              # Show recent logs
-              pm2 logs areloria --lines 5 --nostream | tail -10
+              docker logs areloria --tail 20
             fi
-            
-            # Show status
-            pm2 list
-            
-            echo "=== Deployment Complete ==="
-            date
 
-      - name: Upload deployment logs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: deployment-logs
-          path: |
-            ~/.pm2/logs/*.log
-          retention-days: 7
+            docker ps
+            echo "=== Deployment Complete ==="
