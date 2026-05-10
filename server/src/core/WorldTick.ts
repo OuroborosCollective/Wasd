@@ -94,6 +94,7 @@ import { getPostHogClient } from "../services/posthog.js";
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { GameConfig } from "../config/GameConfig.js";
 import { LiveHealEngine, bootstrapLiveHeal, resolveLiveHealConfigFromEnv } from "./liveheal/index.js";
+import type { AssetHealthConfig } from "../core/liveheal/LiveHealTypes.js";
 import { AssetHealthService } from "../assets/AssetHealthService.js";
 import type { HealthSnapshot, SubSystemAdapter } from "./liveheal/LiveHealTypes.js";
 
