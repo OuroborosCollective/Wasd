@@ -345,7 +345,7 @@ export class CMLS {
     const combatBonus = combat.critical ? toFP(1.5) : FP_SCALE;
 
     const value = Math.floor(
-      (baseValue * (rarityMult[rarity] || 1) * combatBonus / FP_SCALE
+      (baseValue * (rarityMult[rarity] || 1) * combatBonus / FP_SCALE)
     );
 
     return value;
