@@ -49,10 +49,10 @@ $SSH_PREFIX $SSH_CMD "${DEPLOY_USER}@${PRODUCTION_IP}" "
         npm install -g pnpm || true
     fi
     
-    pnpm install --no-frozen-lockfile
+    pnpm install --frozen-lockfile
     
     echo '--- Building project ---'
-    pnpm run build
+    pnpm run build || { echo 'Build failed, aborting restart'; exit 1; }
     
     echo '--- Restarting services ---'
     if command -v pm2 &> /dev/null; then

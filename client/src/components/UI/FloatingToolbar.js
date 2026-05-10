@@ -95,8 +95,12 @@ const FloatingToolbar = ({
               }}
               onClick={() => onToggleLayer(layer.id)}
               title={layer.label}
+              aria-label={`Toggle ${layer.label}`}
+              aria-pressed={layer.visible}
             >
-              {layer.visible ? '👁️' : '🕶️'}
+              <span role="img" aria-hidden="true">
+                {layer.visible ? '👁️' : '🕶️'}
+              </span>
             </button>
           ))}
         </div>
@@ -115,6 +119,8 @@ const FloatingToolbar = ({
             value={currentTime}
             onChange={(e) => onTimeChange(parseInt(e.target.value))}
             style={sliderStyle}
+            aria-label="Timeline selection"
+            aria-valuetext={`${currentTime} AD`}
           />
         </div>
       </div>
