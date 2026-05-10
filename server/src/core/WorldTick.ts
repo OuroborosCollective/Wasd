@@ -1180,32 +1180,45 @@ export class WorldTick {
   }
 
   async init() {
-    // Test Firestore connection
-    const connected = await this.persistence.testConnection();
-    if (connected) {
-      console.log("✅ Firestore connection verified successfully.");
+    // Test Firestore connection with proper error handling
+    if (this.persistence) {
+      try {
+        const connected = await this.persistence.testConnection();
+        if (connected) {
+          console.log("✅ Firestore connection verified successfully.");
+        } else {
+          console.error("❌ Firestore connection failed. Please check your configuration.");
+        }
+      } catch (err) {
+        console.warn("[WorldTick.init] Persistence init failed:", err);
+      }
     } else {
-      console.error("❌ Firestore connection failed. Please check your configuration.");
+      console.warn("[WorldTick.init] Persistence not available, using in-memory fallback");
     }
 
     // Load persisted player data
-    const savedData = await this.persistence.load();
-    for (const id in savedData) {
-      const player = savedData[id];
-      if (!player.id) player.id = id;
-      this.hydratePlayer(player);
-      this.playerSystem.setPlayer(id, player); // ID is now the key
+    if (this.persistence) {
+      const savedData = await this.persistence.load();
+      for (const id in savedData) {
+        const player = savedData[id];
+        if (!player.id) player.id = id;
+        this.hydratePlayer(player);
+        this.playerSystem.setPlayer(id, player); // ID is now the key
+      }
     }
 
     // Load persisted world objects
-    if (this.worldSystem.objectSystem) {
-      const savedWorldObjects = await this.persistence.loadWorldObjects();
-      if (savedWorldObjects && savedWorldObjects.length > 0) {
-        for (const obj of savedWorldObjects) {
-          // ensure type compatibility
-          this.worldSystem.objectSystem.objectsMap.set(obj.id, obj);
+    if (this.persistence && this.worldSystem.objectSystem) {
+      try {
+        const savedWorldObjects = await this.persistence.loadWorldObjects();
+        if (savedWorldObjects && savedWorldObjects.length > 0) {
+          for (const obj of savedWorldObjects) {
+            this.worldSystem.objectSystem.objectsMap.set(obj.id, obj);
+          }
+          console.log(`Loaded ${savedWorldObjects.length} world objects from Firestore`);
         }
-        console.log(`Loaded ${savedWorldObjects.length} world objects from Firestore`);
+      } catch (err) {
+        console.warn("[WorldTick.init] Load world objects failed:", err);
       }
     }
 
