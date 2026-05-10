@@ -326,15 +326,7 @@ export class WorldTick {
     private playtester?: AutonomousPlaytester,
     private craftingSystem?: CraftingSystem,
     private liveHeal: LiveHealEngine = bootstrapLiveHeal(resolveLiveHealConfigFromEnv()),
-    private assetHealth: AssetHealthService = new AssetHealthService({
-      quarantinePath: "/tmp/asset-quarantine",
-      scanPaths: ["/tmp"],
-      hashStrategy: "xxhash",
-      assetValidation: {
-        maxErrorsPerFile: 3,
-        quarantineOnWarning: false,
-      },
-    } as AssetHealthConfig),
+    private assetHealth?: AssetHealthService;
     private areStateCompiler: AREStateCompiler = new AREStateCompiler(),
     private glbRegistry: GLBRegistry = new GLBRegistry(),
     private assetPoolResolver: AssetPoolResolver = new AssetPoolResolver(),
