@@ -15,9 +15,10 @@ The infrastructure uses **GitHub Actions** for CI/CD and **Docker** for containe
 3.  **React Version Inconsistency:** Aligned `apps/client-2d` to monorepo standard (v19).
 4.  **Lockfile Desync:** The `node-linker=isolated` mode caused CI failure when `package.json` was updated without a corresponding `pnpm-lock.yaml` update. Resolved by running local install.
 5.  **Unresponsive VPS Trigger:** `git-to-lore.yml` lacked timeouts, causing CI to hang and fail on network latency. Fixed with `curl` timeout flags.
+6.  **Runner Memory Exhaustion:** `jules_deterministic_audit.yml` was prone to runner termination due to high memory limits. Adjusted to 5GB and added concurrency controls.
 
 ## Optimization Potential
-1.  **CI Concurrency:** Added concurrency groups to `main-pipeline.yml`.
+1.  **CI Concurrency:** Added concurrency groups to `main-pipeline.yml` and deterministic audit workflows.
 2.  **Leaner Docker Images:** Refactored `Dockerfile.prod` to use `pnpm deploy`.
 3.  **TypeScript Inheritance:** Ensured `eco-trader` and `ui` packages extend `tsconfig.base.json`.
 

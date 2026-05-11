@@ -5,6 +5,10 @@ on:
     branches:
       - main
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -34,7 +38,7 @@ jobs:
 
       - name: Build Server
         run: |
-          NODE_OPTIONS="--max-old-space-size=6144" pnpm --filter @wasd/server exec tsc --noEmit
+          NODE_OPTIONS="--max-old-space-size=5120" pnpm --filter @wasd/server exec tsc --noEmit
 
       - name: Lint Server
         run: |
