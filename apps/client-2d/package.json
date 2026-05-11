@@ -9,9 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^18.2.0",
+    "react": "^19.2.6",
     "react-dom": "^18.2.0",
-    "pixi.js": "^7.4.0",
+    "pixi.js": "^8.18.1",
     "@arelorian/core-network": "workspace:*"
   },
   "devDependencies": {
