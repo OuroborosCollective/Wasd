@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  portal:
+    build:
+      context: .
+      dockerfile: Dockerfile.portal
+    image: areloria-portal:latest
+    container_name: areloria-portal
+    restart: always
+    ports:
+      - "3000:80"
