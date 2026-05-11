@@ -9,6 +9,7 @@
     "lint": "eslint src"
   },
   "devDependencies": {
+    "@types/node": "^22.19.18",
     "typescript": "^6.0.3"
   }
 }
