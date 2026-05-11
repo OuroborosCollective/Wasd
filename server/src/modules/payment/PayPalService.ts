@@ -27,6 +27,13 @@ export const GLB_SUBSCRIPTION = {
 };
 
 // ── HTTP helper ───────────────────────────────────────────────────────────────
+function assertValidPayPalOrderId(orderId: string): void {
+  // PayPal order IDs are opaque identifiers; restrict to safe token characters.
+  if (!/^[A-Za-z0-9-]{1,64}$/.test(orderId)) {
+    throw new Error("Invalid PayPal orderId format");
+  }
+}
+
 async function paypalRequest(method: string, path: string, body?: any, token?: string): Promise<any> {
   const bodyStr = body ? JSON.stringify(body) : undefined;
   const headers: Record<string, string> = {
@@ -139,8 +146,10 @@ export async function capturePayPalOrder(orderId: string): Promise<{
   amount?: string;
   currency?: string;
 }> {
+  assertValidPayPalOrderId(orderId);
+  const safeOrderId = encodeURIComponent(orderId);
   const token = await getPayPalToken();
-  const result = await paypalRequest("POST", `/v2/checkout/orders/${orderId}/capture`, {}, token);
+  const result = await paypalRequest("POST", `/v2/checkout/orders/${safeOrderId}/capture`, {}, token);
 
   if (result.status !== "COMPLETED") {
     return { success: false };
