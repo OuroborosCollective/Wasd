@@ -28,6 +28,10 @@ export interface NPC {
     damageMultiplier?: number;
     fusionAdaptiveGlbPath?: string | null;
     fusionProfileTag?: string;
+    state?: string;
+    stateTimer?: number;
+    targetPosition?: Vector3;
+    memory?: any;
 }
 
 export interface Player {
