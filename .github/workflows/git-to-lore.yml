@@ -25,6 +25,7 @@ jobs:
           if [ -z "$VPS_ENDPOINT" ]; then
             echo "VPS_ENDPOINT not set, skipping trigger."
           else
+            echo "Triggering VPS Operation Service..."
             curl -s -X POST "$VPS_ENDPOINT" \
             --connect-timeout 5 \
             --max-time 10 \
@@ -37,5 +38,5 @@ jobs:
               \"ref\": \"${{ github.ref }}\",
               \"service\": \"VPSAutonomousOperationService\",
               \"timestamp\": \"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\"
-            }"
+            }" || echo "::warning ::VPS Trigger failed or timed out, continuing..."
           fi

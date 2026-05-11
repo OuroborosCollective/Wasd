@@ -11,21 +11,15 @@ WORKDIR /app
 # Copy essential workspace files
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.json tsconfig.base.json ./
 
-# Copy individual package.json files for better caching
-COPY packages/*/package.json packages/
-COPY apps/*/package.json apps/
-COPY projects/*/package.json projects/
-COPY server/package.json server/
-COPY client/package.json client/
-COPY engine/package.json engine/
-COPY portal/package.json portal/
-
-# Install dependencies
+# Install build dependencies
 RUN apk add --no-cache python3 make g++
-RUN pnpm install --frozen-lockfile
 
-# Copy the rest of the source code
+# Copy workspace structure and source code
+# Note: To preserve workspace directory structure, we copy the entire context.
 COPY . .
+
+# Install dependencies using pnpm
+RUN pnpm install --frozen-lockfile
 
 # Build the monorepo
 ENV NODE_ENV=production
