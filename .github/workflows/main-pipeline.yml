@@ -1,5 +1,9 @@
 name: Main Pipeline
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
   security-events: write
@@ -103,6 +107,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5

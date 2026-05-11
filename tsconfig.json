@@ -38,6 +38,8 @@
     { "path": "packages/types" },
     { "path": "apps/api" },
     { "path": "apps/web" },
+    { "path": "apps/client-2d" },
+    { "path": "packages/core-network" },
     { "path": "projects/card-logic" },
     { "path": "projects/logic-grid" },
     { "path": "projects/edu-sim" },
