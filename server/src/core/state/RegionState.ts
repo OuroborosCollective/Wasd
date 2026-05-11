@@ -39,6 +39,8 @@ export enum StabilityLevel {
   UNSTABLE = 'UNSTABLE',
   CONTESTED = 'CONTESTED',
   CRITICAL = 'CRITICAL',
+  PARTIAL_COLLAPSE = 'PARTIAL_COLLAPSE',
+  TOTAL_COLLAPSE = 'TOTAL_COLLAPSE',
 }
 
 // Oracle pressure tags for region events

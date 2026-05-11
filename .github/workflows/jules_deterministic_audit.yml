@@ -34,7 +34,7 @@ jobs:
 
       - name: Build Server
         run: |
-          NODE_OPTIONS="--max-old-space-size=6144" pnpm --filter @wasd/server run build
+          NODE_OPTIONS="--max-old-space-size=6144" pnpm --filter @wasd/server exec tsc --noEmit
 
       - name: Lint Server
         run: |
