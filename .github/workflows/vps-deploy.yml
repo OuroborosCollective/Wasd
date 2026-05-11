@@ -1,85 +1,73 @@
-# Deploy to VPS - Docker-based auto-deployment
 name: Deploy to Production VPS
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - 'conversation_data/**'
-      - '!.github/workflows/vps-deploy.yml'
-  
-  workflow_dispatch:
+ push:
+ branches: [main]
+ paths:
+ - '**'
+ - '!**.md'
+ - '!docs/**'
+ - '!conversation_data/**'
+ workflow_dispatch:
+
+concurrency:
+ group: deploy-production-vps
+ cancel-in-progress: true
 
 permissions:
-  contents: read
+ contents: read
 
 jobs:
-  deploy:
-    name: Deploy to Production VPS
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+ deploy:
+ runs-on: ubuntu-latest
+ timeout-minutes: 30
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+ env:
+ IMAGE_NAME: areloria
+ IMAGE_TAG: latest
+ VPS_PATH: /opt/areloria
 
-      - name: Build Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile.prod
-          push: false
-          tags: areloria:latest
-          load: true
+ steps:
+ - name: Checkout
+ uses: actions/checkout@v4
+ with:
+ fetch-depth: 0
 
-      - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+ - name: Set up Docker Buildx
+ uses: docker/setup-buildx-action@v3
 
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_PORT || 22 }}
-          script: |
-            # Stop existing container
-            docker stop areloria 2>/dev/null || true
-            docker rm areloria 2>/dev/null || true
+ - name: Build Docker image
+ uses: docker/build-push-action@v5
+ with:
+ context: .
+ file: ./Dockerfile.prod
+ push: false
+ load: true
+ tags: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+ cache-from: type=gha
+ cache-to: type=gha,mode=max
 
-            # Load new image from artifact
-            docker load -i /tmp/areloria.tar 2>/dev/null || echo "No tar, building fresh"
+ - name: Save Docker image
+ run: |
+ docker save ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} | gzip > image.tar.gz
 
-            # Run container
-            docker run -d \
-              --name areloria \
-              --restart unless-stopped \
-              -p 3000:3000 \
-              -e NODE_ENV=production \
-              --health-cmd "node -e \"fetch('http://localhost:3000/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))\"" \
-              --health-interval=30s \
-              --health-timeout=3s \
-              --health-retries=3 \
-              areloria:latest
+ - name: Prepare SSH key
+ run: |
+ mkdir -p ~/.ssh
+ echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_rsa
+ chmod 600 ~/.ssh/id_rsa
+ ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
 
-            sleep 15
+ - name: Copy image to VPS
+ run: |
+ scp -i ~/.ssh/id_rsa image.tar.gz ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ env.VPS_PATH }}/image.tar.gz
 
-            HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/health 2>/dev/null || echo "000")
-            if [ "$HTTP_CODE" = "200" ]; then
-              echo "✓ Health check passed!"
-            else
-              echo "✗ Health check failed (HTTP: $HTTP_CODE)"
-              docker logs areloria --tail 20
-            fi
-
-            docker ps
-            echo "=== Deployment Complete ==="
+ - name: Deploy on VPS
+ run: |
+ ssh -i ~/.ssh/id_rsa ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+ set -e
+ cd /opt/areloria
+ gzip -dc image.tar.gz | docker load
+ rm -f image.tar.gz
+ docker compose up -d --remove-orphans
+ EOF
