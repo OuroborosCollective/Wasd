@@ -6,10 +6,24 @@ RUN corepack enable && corepack prepare pnpm@9.12.2 --activate
 # Stage 1: Build the application
 FROM base AS builder
 WORKDIR /app
-COPY . .
+
+# Teleport pattern: Copy only package files first for better layer caching
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+
+# Copy individual package.json files for workspace packages
+COPY packages/*/package.json packages/
+COPY apps/*/package.json apps/
+COPY projects/*/package.json projects/ 2>/dev/null || true
+COPY server/package.json server/ 2>/dev/null || true
+COPY client/package.json client/ 2>/dev/null || true
+COPY engine/package.json engine/ 2>/dev/null || true
+COPY portal/package.json portal/ 2>/dev/null || true
 
 # Install dependencies using pnpm
 RUN pnpm install --frozen-lockfile
+
+# Copy the rest of the source code
+COPY . .
 
 # Build the monorepo
 ENV NODE_ENV=production

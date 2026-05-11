@@ -12,7 +12,7 @@ COPY server server/
 COPY backend backend/
 COPY client client/
 
-# Install ALL deps from workspace
+# Install deps first (cached layer)
 RUN pnpm install --no-frozen-lockfile
 
 # Build shared package first (required by server), then server
