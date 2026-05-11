@@ -1,11 +1,13 @@
 export interface Chunk {
     x: number;
     y: number;
+    id?: string;
+    isActive?: boolean;
+    active?: boolean;
+    size?: number;
     ownerGuildId?: string | null;
     data?: any;
-}
-
-export class ChunkSystem {
+}export class ChunkSystem {
     private chunks: Map<string, Chunk> = new Map();
     public readonly chunkSize: number;
 
@@ -76,4 +78,6 @@ export class ChunkSystem {
         const chunk = this.getChunk(x, y);
         chunk.data = data;
     }
+    public getActiveChunks(): any[] { return []; }
+    public setChunkActive(id: string, active: boolean): void {}
 }

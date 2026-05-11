@@ -4,14 +4,105 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   workflow_dispatch:
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
+permissions:
+  contents: read
+  actions: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-asset-sync:
+    name: Build & Cloud Asset Sync
+    runs-on: ubuntu-latest
     steps:
-      - name: SSH Deployment
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.2
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build Mono-Repo
+        run: |
+          NODE_OPTIONS=--max-old-space-size=4096 pnpm run build
+
+      - name: Verify Dist Type Module
+        run: |
+          if [ -d "apps/api/dist" ]; then cat apps/api/dist/package.json || true; fi
+          if [ -d "server/dist" ]; then cat server/dist/package.json || true; fi
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Validate Container & Upload Assets
+        run: |
+          az storage container create \
+            --name "cdn-assets" \
+            --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} \
+            --public-access blob \
+            --auth-mode key || true
+          
+          az storage blob upload-batch \
+            --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} \
+            --destination "cdn-assets" \
+            --source client/dist \
+            --overwrite true \
+            --auth-mode key
+
+      - name: Upload Server Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-production-build
+          path: server/dist/
+          retention-days: 1
+
+  deploy:
+    name: Server Deployment
+    needs: build-and-asset-sync
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: server-production-build
+          path: ./server-dist
+
+      - name: Pre-Deployment Connectivity Check
+        run: |
+          echo "Verifying Port 80 accessibility on ${{ secrets.PRODUCTION_IP }}..."
+          timeout 15s bash -c 'until nc -z -v -w5 ${{ secrets.PRODUCTION_IP }} 80; do echo "Port 80 not ready, retrying..."; sleep 2; done' || (echo "Target host port 80 unreachable. Aborting deployment." && exit 1)
+
+      - name: Transfer Artifact to Production
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: "./server-dist/*"
+          target: "${{ secrets.DEPLOY_PATH }}/server/dist"
+          strip_components: 1
+
+      - name: SSH Orchestration & PM2 Restart
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -21,32 +112,41 @@ jobs:
             set -e
             cd ${{ secrets.DEPLOY_PATH }}
             
-            echo "--- SYNCING CODE ---"
+            echo "--- UPDATING CORE SOURCE ---"
             git fetch origin main
             git reset --hard origin/main
-            git clean -fd
             
-            echo "--- CLEANING REDUNDANT PACKAGES ---"
-            # Remove empty/broken packages that interfere with pnpm install
-            rm -rf packages/client packages/server
+            echo "--- CONFIGURING RUNTIME ENVIRONMENT ---"
+            mkdir -p server/dist
+            echo '{"type": "module"}' > server/dist/package.json
             
-            echo "--- BYPASSING TS ERRORS ---"
-            node scripts/bypass-ts-errors.mjs
+            export PNPM_HOME="/home/${{ secrets.SSH_USER }}/.local/share/pnpm"
+            export PATH="$PNPM_HOME:$PATH"
             
-            echo "--- INSTALLING DEPENDENCIES ---"
-            # Ensure pnpm is updated and fresh
-            npm install -g pnpm
-            # Clean node_modules to resolve manager conflicts
-            find . -name "node_modules" -type d -prune -exec rm -rf '{}' +
-            pnpm install --no-frozen-lockfile
+            pnpm install --prod --no-frozen-lockfile
             
-            echo "--- BUILDING ---"
-            NODE_OPTIONS=--max-old-space-size=4096 pnpm --recursive run build
-            
-            echo "--- RESTARTING PM2 ---"
-            # CommonJS compatibility for production
-            echo '{"type": "commonjs"}' > server/dist/package.json
+            echo "--- RESTARTING PM2 INSTANCE ---"
             pm2 delete areloria || true
-            pm2 start server/dist/index.js --name areloria
+            pm2 start server/dist/index.js --name areloria --update-env
             
             echo "--- DEPLOYMENT SUCCESSFUL ---"
+
+      - name: Verify Deployment Health
+        run: |
+          echo "Starting Robust Health Check for Areloria WASD..."
+          MAX_RETRIES=8
+          RETRY_COUNT=0
+          WAIT_TIME=10
+          
+          until $(curl --output /dev/null --silent --head --fail http://${{ secrets.PRODUCTION_IP }}); do
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            if [ $RETRY_COUNT -gt $MAX_RETRIES ]; then
+              echo "Health check failed after $MAX_RETRIES attempts."
+              exit 1
+            fi
+            echo "Attempt $RETRY_COUNT/$MAX_RETRIES: Service not reachable. Retrying in $WAIT_TIME seconds (Exponential Backoff)..."
+            sleep $WAIT_TIME
+            WAIT_TIME=$((WAIT_TIME * 2))
+          done
+          
+          echo "Areloria WASD Service is Healthy and responding on http://${{ secrets.PRODUCTION_IP }}"

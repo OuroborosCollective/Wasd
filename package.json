@@ -1,25 +1,26 @@
 {
-  "name": "root",
+  "name": "@arelororian/monorepo",
   "version": "1.0.0",
   "private": true,
-  "description": "Monorepo Root Configuration",
-  "packageManager": "pnpm@9.1.0",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
+  "type": "module",
   "scripts": {
-    "test": "pnpm -r run test",
-    "lint": "pnpm -r run lint",
-    "build": "pnpm -r run build",
-    "quality-check": "pnpm run lint && pnpm run test",
-    "deploy": "bash scripts/deploy-vps.sh"
+    "build": "pnpm -r build",
+    "build:network": "pnpm -r --filter @arelorian/core-network build",
+    "build:2d": "pnpm -r --filter @arelorian/client-2d build",
+    "build:3d": "pnpm -r --filter @wasd/client build",
+    "dev:network": "pnpm -r --filter @arelorian/core-network dev",
+    "dev:2d": "pnpm -r --filter @arelorian/client-2d dev",
+    "dev:3d": "pnpm -r --filter @wasd/client dev",
+    "dev:all": "concurrently \"pnpm dev:network\" \"pnpm dev:2d\" \"pnpm dev:3d\"",
+    "build:all": "pnpm build:network && pnpm build:2d && pnpm build:3d",
+    "install": "pnpm install -r",
+    "clean": "pnpm -r exec rm -rf dist node_modules"
   },
   "engines": {
-    "node": "^20.0.0",
-    "pnpm": ">=9.0.0"
+    "node": ">=18",
+    "pnpm": ">=8"
   },
   "devDependencies": {
-    "typescript": "^5.0.0"
+    "concurrently": "^8.2.2"
   }
 }

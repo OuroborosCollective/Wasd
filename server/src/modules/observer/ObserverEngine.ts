@@ -1,6 +1,6 @@
 export class ObserverEngine {
   private observers = new Map<string, { x: number; y: number }>();
-  private viewDistanceChunks = 1; // 1 chunk in each direction (3x3 grid)
+  private viewDistanceChunks = 2; // 2 chunks in each direction (5x5 grid) to cover interaction range safely
   private readonly chunkSize: number;
 
   constructor(chunkSize: number = 64) {

@@ -1,4 +1,6 @@
 import { checkStealthDeterministic } from './PerceptionLogic';
+import { GuildSovereigntyEngine } from '../guild/GuildSovereigntyEngine';
+import { TraitResonanceEngine } from '../resonance/TraitResonanceEngine';
 
 export interface Vector3 {
     x: number;
@@ -42,9 +44,14 @@ export class NPCSystem {
     private updateInterval: NodeJS.Timeout | null = null;
     private readonly TICK_RATE = 100; // 10Hz in ms
 
-    public resonanceEngine: any = {};
+    public resonanceEngine: TraitResonanceEngine;
+
+    private sovereigntyEngine: GuildSovereigntyEngine;
 
     constructor() {
+        // Initialize stub dependencies
+        this.sovereigntyEngine = new GuildSovereigntyEngine();
+        this.resonanceEngine = new TraitResonanceEngine(this.sovereigntyEngine);
         this.startUpdateLoop();
     }
 
@@ -52,8 +59,8 @@ export class NPCSystem {
         this.npcs.set(npc.id, npc);
     }
 
-    public removeNPC(id: string): void {
-        this.npcs.delete(id);
+    public removeNPC(id: string): boolean {
+        return this.npcs.delete(id);
     }
 
     public createNPC(id: string, name: string, x: number, y: number): NPC {
@@ -95,7 +102,10 @@ export class NPCSystem {
         // Implementation stub
     }
 
-    public setRuntimeDialogue(npcId: string, dialogue: any): void {
+    public setRuntimeDialogue(npcId: string, text: string, choices: any[]): boolean {
+        const npc = this.getNPC(npcId);
+        if (!npc) return false;
+        return true;
         // Implementation stub
     }
 
@@ -107,7 +117,7 @@ export class NPCSystem {
         // Implementation stub
     }
 
-    public tick(now: number): void {
+    public tick(onlinePlayers: any[], worldTime: number): void {
         this.update();
     }
 

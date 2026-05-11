@@ -1,25 +1,37 @@
 #!/bin/bash
+set -e
 
-# Set the predefined relative application path
-APP_PATH="."
-echo "APP_PATH is set to: ${APP_PATH}"
+# Arelorian Engine Deployment Script
+# Deploys the engine to local Docker or updates the running container
 
-# Define the bootstrap.js path
-BOOTSTRAP_JS_PATH="${APP_PATH}/src/bootstrap.js"
-echo "BOOTSTRAP_JS_PATH is set to: ${BOOTSTRAP_JS_PATH}"
+echo "=========================================="
+echo "Arelorian Engine Deployment"
+echo "=========================================="
 
-# Check if bootstrap.js exists
-if [ ! -f "${BOOTSTRAP_JS_PATH}" ]; then
-  echo "Error: ${BOOTSTRAP_JS_PATH} not found. Please run configure.sh first."
-  exit 1
-fi
+# Navigate to app directory
+cd "$(dirname "$0")"
 
-echo "${BOOTSTRAP_JS_PATH} found."
+# Git pull latest changes
+echo "[1/4] Pulling latest changes..."
+git pull origin main || echo "Git pull skipped (not a git repo or no remote)"
 
-# Build the Angular application
-echo "Building the application..."
-(cd "${APP_PATH}" && npm run build)
+# Build Docker images
+echo "[2/4] Building Docker images..."
+docker-compose build --no-cache arelorian-engine
 
-# Deploy to Firebase Hosting
-echo "Deploying to Firebase Hosting..."
-(cd "${APP_PATH}" && firebase deploy --only=hosting)
+# Start services
+echo "[3/4] Starting services..."
+docker-compose up -d arelorian-engine
+
+# Wait for health check
+echo "[4/4] Waiting for health check..."
+sleep 10
+
+# Prune old images
+echo "Pruning old Docker images..."
+docker image prune -f
+
+echo "=========================================="
+echo "Deployment complete!"
+echo "Engine running on port 3000"
+echo "=========================================="

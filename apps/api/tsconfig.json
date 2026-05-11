@@ -1,9 +1,11 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "target": "ESNext",
-    "module": "CommonJS",
-    "rootDir": ".",
-    "outDir": "../../dist/apps/api",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "rootDir": "src",
+    "outDir": "dist",
     "composite": true,
     "declaration": true,
     "declarationMap": true,
@@ -12,8 +14,24 @@
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "skipLibCheck": true,
-    "moduleResolution": "node"
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "paths": {
+      "@wasd/utils": ["../../packages/utils/src"],
+      "@wasd/utils/*": ["../../packages/utils/src/*"],
+      "@wasd/shared": ["../../packages/shared/src"],
+      "@wasd/shared/*": ["../../packages/shared/src/*"]
+    }
   },
-  "include": ["index.ts", "src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.spec.ts",
+    "**/*.test.ts"
+  ],
+  "references": [
+    { "path": "../../packages/utils" },
+    { "path": "../../packages/shared" }
+  ]
 }

@@ -6,9 +6,18 @@ export interface MarketHistoryEntry {
     timestamp: number;
 }
 
+export interface MarketShiftPayload {
+    resourceId: string;
+    shiftPercentage: number;
+    currentPrice: number;
+}
+
 export class EmergentMarket {
     private history: MarketHistoryEntry[] = [];
     private readonly MAX_HISTORY_LENGTH: number = 100;
+
+    // Simple event emitter
+    private listeners: { [event: string]: Function[] } = {};
 
     constructor(
         public readonly id: string,
@@ -16,6 +25,17 @@ export class EmergentMarket {
         private currentDemand: Map<string, number> = new Map(),
         private currentPrices: Map<string, number> = new Map()
     ) {}
+
+    public on(event: string, callback: Function) {
+        if (!this.listeners[event]) this.listeners[event] = [];
+        this.listeners[event].push(callback);
+    }
+
+    public emit(event: string, payload: any) {
+        if (this.listeners[event]) {
+            this.listeners[event].forEach(cb => cb(payload));
+        }
+    }
 
     /**
      * Gibt eine schreibgeschützte Kopie der Markt-Historie zurück.
@@ -45,9 +65,19 @@ export class EmergentMarket {
     }
 
     public updateResourceState(resourceId: string, supply: number, demand: number, price: number): void {
+        const oldPrice = this.currentPrices.get(resourceId) || price;
         this.currentSupply.set(resourceId, supply);
         this.currentDemand.set(resourceId, demand);
         this.currentPrices.set(resourceId, price);
         this.recordMarketCycle(resourceId);
+
+        if (oldPrice !== 0 && oldPrice !== price) {
+             const shiftPercentage = (price - oldPrice) / oldPrice;
+             this.emit('market_price_shift', {
+                 resourceId,
+                 shiftPercentage,
+                 currentPrice: price
+             });
+        }
     }
 }

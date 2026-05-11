@@ -5,15 +5,14 @@
     "jsx": "react-jsx",
     "baseUrl": ".",
     "noImplicitAny": false,
-    "paths": {
-      "@shared/*": ["../shared/*"]
-    }
+    "skipLibCheck": true
   },
   "include": [
     "src",
-    "../shared/**/*"
+    "src/three-types.d.ts"
   ],
   "references": [
-    { "path": "./tsconfig.node.json" }
+    { "path": "./tsconfig.node.json" },
+    { "path": "../packages/shared" }
   ]
 }

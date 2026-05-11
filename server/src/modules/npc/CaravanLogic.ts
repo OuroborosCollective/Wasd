@@ -1,0 +1,4 @@
+/**
+ * CaravanLogic
+ */
+export class CaravanLogic {}

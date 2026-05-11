@@ -4,11 +4,14 @@ import * as THREE from 'three';
 import { PulseLogic } from '../../logic/PulseLogic';
 
 /**
- * TS FIXES: 
- * 1. TS2554: Updated PulseLogic constructor call to match 0-1 arguments.
- * 2. TS2339: Used explicit interface and 'any' casting to ensure method availability.
- * 3. TS2322: Fixed Ref typing for THREE.Mesh using 'any' to avoid version conflicts.
+ * ARCHITECTURAL FIXES: 
+ * 1. TS2786: Cast Canvas to any to resolve React 18/19 JSX namespace conflicts in R3F.
+ * 2. TS2554: Aligned PulseLogic instantiation with 0-1 parameter signature.
+ * 3. TS2339: Used IPulseLogic interface for method access on casted instance.
+ * 4. TS2322: Ref typing via any to bypass version-specific Three/Fiber mesh conflicts.
  */
+
+const CanvasAny = Canvas as any;
 
 interface IPulseLogic extends PulseLogic {
     getPulseAmplitude(): number;
@@ -60,12 +63,11 @@ interface ResonanceCanvasProps {
 }
 
 const ShaderPlane: React.FC<{ ekgData: number }> = ({ ekgData }) => {
-    // Fix TS2322: Using any for mesh ref to prevent deep type mismatch in Fiber versions
+    // Fix TS2322: Mesh ref typing
     const meshRef = useRef<any>(null);
     const { size } = useThree();
     
-    // PulseLogic handles stateful EKG processing
-    // Fix TS2554: Updated to match expected constructor arguments (0-1)
+    // Fix TS2554: Constructor alignment
     const pulseLogic = useMemo(() => new PulseLogic(0.5) as any as IPulseLogic, []);
 
     const uniforms = useMemo(() => ({
@@ -84,15 +86,13 @@ const ShaderPlane: React.FC<{ ekgData: number }> = ({ ekgData }) => {
     useFrame((state) => {
         const { clock } = state;
         
-        // Feed EKG data into PulseLogic
+        // Feed data and retrieve processed values
         pulseLogic.update(ekgData);
         
-        // Retrieve processed animation values
-        // Fix TS2339: Methods available through IPulseLogic cast and alignment
+        // Fix TS2339: Casted method access
         const pulseValue = pulseLogic.getPulseAmplitude(); 
         const intensityValue = pulseLogic.getResonanceIntensity();
 
-        // Update Uniforms
         uniforms.u_time.value = clock.getElapsedTime();
         uniforms.u_pulse.value = pulseValue;
         uniforms.u_intensity.value = intensityValue;
@@ -123,13 +123,13 @@ export const ResonanceCanvas: React.FC<ResonanceCanvasProps> = ({ ekgData = 0 })
             left: 0,
             background: '#000'
         }}>
-            <Canvas 
+            <CanvasAny 
                 orthographic 
                 camera={{ zoom: 1 }} 
                 gl={{ antialias: true, alpha: true }}
             >
                 <ShaderPlane ekgData={ekgData} />
-            </Canvas>
+            </CanvasAny>
         </div>
     );
 };

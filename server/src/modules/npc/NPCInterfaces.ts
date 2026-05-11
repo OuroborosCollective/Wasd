@@ -1,0 +1,4 @@
+/**
+ * NPCInterfaces
+ */
+export interface NPCInterfaces {}

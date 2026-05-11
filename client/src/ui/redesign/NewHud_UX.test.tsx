@@ -12,7 +12,13 @@ vi.mock("../../state/playerState", () => ({
   getPlayerMana: () => 30,
   getPlayerMaxMana: () => 50,
   getPlayerXp: () => 1200,
-  getPlayerLevel: () => 2
+  getPlayerLevel: () => 2,
+  getPlayerGold: () => 0,
+  getPlayerInventory: () => [],
+  getPlayerInventoryWeight: () => 0,
+  getPlayerMaxCarryWeight: () => 100,
+  getPlayerQuests: () => [],
+  getCombatTargetNpcId: () => null,
 }));
 
 vi.mock("../touchUi", () => ({
@@ -22,6 +28,7 @@ vi.mock("../touchUi", () => ({
 describe("NewHud Micro-UX Enhancements", () => {
   const defaultProps = {
     connected: true,
+    youId: "player1",
     entities: [
         { id: "target-1", name: "Orc", hp: 50, hpMax: 100, kind: "monster" as const, x: 0, y: 0, level: 1 }
     ],
@@ -35,6 +42,8 @@ describe("NewHud Micro-UX Enhancements", () => {
     onCraftOpen: vi.fn(),
     onHousingOpen: vi.fn(),
     fxFeed: [],
+    warfront: null,
+    onMenuOpen: vi.fn(),
   };
 
   it("renders status indicators with correct ARIA attributes and titles", () => {

@@ -38,14 +38,9 @@ export class TextLabelService {
   async init(scene: Scene): Promise<void> {
     this.scene = scene;
 
-    // Try MSDF text addon
-    try {
-      await import("@babylonjs/addons");
-      this.msdfAvailable = true;
-      console.log("[TextLabelService] MSDF text available.");
-    } catch {
-      console.log("[TextLabelService] Using DynamicTexture fallback for labels.");
-    }
+    // MSDF text addon disabled due to build issues
+    this.msdfAvailable = false;
+    console.log("[TextLabelService] Using DynamicTexture fallback for labels.");
   }
 
   setCamera(camera: any): void {

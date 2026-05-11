@@ -1,42 +1,38 @@
-FROM node:20-alpine AS base
+FROM node:22-alpine AS base
 
 # Install pnpm and corepack
-RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+RUN corepack enable && corepack prepare pnpm@9.12.2 --activate
 
-# Stage 1: Install all dependencies
-FROM base AS deps
-RUN apk add --no-cache libc6-compat
+# Stage 1: Build the application
+FROM base AS builder
 WORKDIR /app
 
-# Copy workspace configuration
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
+# Teleport pattern: Copy only package files first for better layer caching
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 
-# Copy all package.json files dynamically
-COPY client/package.json ./client/
-COPY server/package.json ./server/
-COPY shared/package.json ./shared/
-COPY engine/package.json ./engine/
-COPY portal/package.json ./portal/
-COPY apps/ ./apps/
-COPY packages/ ./packages/
-COPY projects/ ./projects/
-
-# Remove everything but package.json files to keep layer small and cacheable
-RUN find apps packages projects -type f ! -name "package.json" -delete
+# Copy individual package.json files for workspace packages
+COPY packages/*/package.json packages/
+COPY apps/*/package.json apps/
+COPY projects/*/package.json projects/ 2>/dev/null || true
+COPY server/package.json server/ 2>/dev/null || true
+COPY client/package.json client/ 2>/dev/null || true
+COPY engine/package.json engine/ 2>/dev/null || true
+COPY portal/package.json portal/ 2>/dev/null || true
 
 # Install dependencies using pnpm
 RUN pnpm install --frozen-lockfile
 
-# Stage 2: Build the application
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+# Copy the rest of the source code
 COPY . .
 
 # Build the monorepo
+ENV NODE_ENV=production
 RUN pnpm build
 
-# Stage 3: Production runner
+# Use pnpm deploy to isolate the server package
+RUN pnpm --filter @wasd/server deploy /app/prod-server
+
+# Stage 2: Production runner
 FROM base AS runner
 WORKDIR /app
 
@@ -44,10 +40,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Copy built artifacts and necessary files
-COPY --from=builder /app/server/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY server/package.json ./
+# Copy the deployed package from the builder stage
+COPY --from=builder /app/prod-server ./
 
 # Hardening: Use non-privileged user
 USER node

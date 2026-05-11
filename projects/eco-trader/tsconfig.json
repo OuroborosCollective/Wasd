@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
@@ -10,7 +10,8 @@
     "outDir": "./dist",
     "rootDir": "./",
     "composite": true,
-    "incremental": true
+    "incremental": true,
+    "types": ["node"]
   },
   "include": ["**/*"],
   "exclude": ["node_modules", "dist"]

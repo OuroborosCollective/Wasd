@@ -1,7 +1,7 @@
 import React, { useRef, useState, useMemo } from 'react';
 import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { ARButton, XR, Controllers, Interactive } from '@react-three/xr';
+import { ARButton, XR, Interactive } from '@react-three/xr';
 
 interface LogicGate {
   id: string;
@@ -48,13 +48,23 @@ const GateNode = ({ gate, onSelect }: { gate: LogicGate, onSelect: (id: string) 
     }
   };
 
+  const InteractiveComponent = Interactive as any;
+
   return (
-    <Interactive onSelect={() => onSelect(gate.id)} onHover={() => setHovered(true)} onBlur={() => setHovered(false)}>
+    <InteractiveComponent 
+      onSelect={() => onSelect(gate.id)} 
+      onHover={() => setHovered(true)} 
+      onBlur={() => setHovered(false)}
+    >
       <mesh position={gate.position} ref={meshRef as any}>
         <boxGeometry args={[0.2, 0.2, 0.2]} />
-        <meshStandardMaterial color={hovered ? '#ffffff' : getColor()} emissive={getColor()} emissiveIntensity={0.5} />
+        <meshStandardMaterial 
+          color={hovered ? '#ffffff' : getColor()} 
+          emissive={getColor()} 
+          emissiveIntensity={0.5} 
+        />
       </mesh>
-    </Interactive>
+    </InteractiveComponent>
   );
 };
 
@@ -64,10 +74,13 @@ const Scene = ({ gates, connections, onGateSelect }: ARLogicRendererProps) => {
     return gate ? gate.position : [0, 0, 0];
   };
 
+  const XRComponent = XR as any;
+
   return (
     <>
       <ambientLight intensity={0.5} />
       <pointLight position={[10, 10, 10]} />
+      <XRComponent />
       {gates.map(gate => (
         <GateNode key={gate.id} gate={gate} onSelect={onGateSelect} />
       ))}
@@ -83,15 +96,18 @@ const Scene = ({ gates, connections, onGateSelect }: ARLogicRendererProps) => {
 };
 
 const ARLogicRenderer: React.FC<ARLogicRendererProps> = ({ gates, connections, onGateSelect }) => {
+  const ARButtonComponent = ARButton as any;
+  const CanvasComponent = Canvas as any;
+  const XRComponent = XR as any;
+
   return (
-    <div style={{ width: '100%', height: '100vh' }}>
-      <ARButton sessionInit={{ requiredFeatures: ['hit-test'] }} />
-      <Canvas>
-        <XR>
-          <Controllers />
+    <div style={{ width: '100%', height: '100vh', position: 'relative' }}>
+      <ARButtonComponent sessionInit={{ requiredFeatures: ['hit-test'] }} />
+      <CanvasComponent>
+        <XRComponent>
           <Scene gates={gates} connections={connections} onGateSelect={onGateSelect} />
-        </XR>
-      </Canvas>
+        </XRComponent>
+      </CanvasComponent>
     </div>
   );
 };

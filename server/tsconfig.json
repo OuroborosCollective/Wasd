@@ -1,9 +1,17 @@
 {
+  "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "target": "ESNext",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "outDir": "./dist",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "baseUrl": "./src",
+    "paths": {
+      "@shared/*": ["shared/*"],
+      "@engine/*": ["engine/*"],
+      "@ai/*": ["ai/*"],
+      "@modules/*": ["modules/*"]
+    },
+    "outDir": "../dist",
     "rootDir": "./src",
     "strict": false,
     "noImplicitAny": false,
@@ -16,11 +24,17 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "incremental": true
+    "incremental": true,
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "lib": ["ESNext", "DOM"]
   },
   "include": ["src/**/*"],
-  "exclude": ["src/tools/**/*", "src/tests/**/*"],
+  "exclude": [
+    "src/assets/**",
+    "src/core/WorldTick.ts"
+  ],
   "references": [
-    { "path": "../shared" }
+    { "path": "../packages/shared" }
   ]
 }

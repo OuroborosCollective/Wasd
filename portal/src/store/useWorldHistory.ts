@@ -17,29 +17,24 @@ export interface WorldHistoryState {
   clearHistory: () => void;
 }
 
-/**
- * useWorldHistory Hook
- * Verwaltet die globale Historie der Welt und den aktuellen Status der 'Legenden-Lage'.
- * Abonnenten (z.B. OuroborosAssistant) reagieren auf Änderungen des legendStatus.
- */
 export const useWorldHistory = create<WorldHistoryState>((set) => ({
   history: [],
   legendStatus: 'Die Ouroboros-Schleife ist ruhig.',
   lastLegendUpdate: Date.now(),
 
   addHistoryEntry: (entry) =>
-    set((state) => ({
+    set((state: WorldHistoryState) => ({
       history: [
         ...state.history,
         {
           ...entry,
-          id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
+          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
           timestamp: Date.now(),
         },
       ],
     })),
 
-  updateLegendStatus: (newStatus) =>
+  updateLegendStatus: (newStatus: string) =>
     set(() => ({
       legendStatus: newStatus,
       lastLegendUpdate: Date.now(),
