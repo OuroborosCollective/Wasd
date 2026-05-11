@@ -75,7 +75,14 @@ export const NewHud: React.FC = () => {
       <div className="flex justify-between items-start">
         <div className="flex flex-col gap-2 w-64">
           {/* Health Bar */}
-          <div className="h-6 bg-black/50 border border-white/10 rounded-sm overflow-hidden backdrop-blur-md">
+          <div
+            role="progressbar"
+            aria-label="Health"
+            aria-valuenow={Math.floor(health / KAPPA)}
+            aria-valuemin={0}
+            aria-valuemax={Math.floor(maxHealth / KAPPA)}
+            className={`h-6 bg-black/50 border border-white/10 rounded-sm overflow-hidden backdrop-blur-md ${healthPercent < 20 ? 'animate-pulse' : ''}`}
+          >
             <div 
               className="h-full bg-gradient-to-r from-red-700 to-red-500 transition-all duration-100"
               style={{ width: `${healthPercent}%` }}
@@ -86,7 +93,14 @@ export const NewHud: React.FC = () => {
           </div>
           
           {/* Mana Bar */}
-          <div className="h-3 bg-black/50 border border-white/10 rounded-sm overflow-hidden backdrop-blur-md">
+          <div
+            role="progressbar"
+            aria-label="Mana"
+            aria-valuenow={Math.floor(mana / KAPPA)}
+            aria-valuemin={0}
+            aria-valuemax={Math.floor(maxMana / KAPPA)}
+            className="h-3 bg-black/50 border border-white/10 rounded-sm overflow-hidden backdrop-blur-md"
+          >
             <div 
               className="h-full bg-gradient-to-r from-cyan-700 to-blue-500 transition-all duration-100"
               style={{ width: `${manaPercent}%` }}
@@ -138,11 +152,11 @@ export const NewHud: React.FC = () => {
           {!isLowEnd && (
             <div className="flex gap-4 text-[9px] text-white/30 font-bold uppercase tracking-widest">
               <div className="flex items-center gap-2">
-                <span className="border border-white/20 px-1 rounded">I</span>
+                <kbd className="border border-white/20 px-1 rounded">I</kbd>
                 <span>Gear</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="border border-white/20 px-1 rounded">M</span>
+                <kbd className="border border-white/20 px-1 rounded">M</kbd>
                 <span>Nav</span>
               </div>
             </div>
