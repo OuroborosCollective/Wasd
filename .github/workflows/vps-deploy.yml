@@ -4,19 +4,14 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - 'conversation_data/**'
-
   workflow_dispatch:
-
-concurrency:
-  group: deploy-production-vps
-  cancel-in-progress: true
 
 permissions:
   contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -49,35 +44,74 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Verify Docker image
-        run: docker run --rm ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} echo "Image OK"
+        run: |
+          docker run --rm \
+          ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} \
+          echo "Docker image verified successfully"
 
       - name: Save Docker image
         run: |
-          docker save ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} | gzip > image.tar.gz
-          ls -lh image.tar.gz
+          docker save \
+          ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} \
+          | gzip > image.tar.gz
 
-      - name: Deploy using SSH with Password
-        uses: appleboy/ssh-action@v0.1.0
+          ls -lah image.tar.gz
+
+      - name: Upload Docker image to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          source: "image.tar.gz,docker-compose.yml"
+          target: ${{ env.VPS_PATH }}
+
+      - name: Deploy on VPS
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           password: ${{ secrets.VPS_PASSWORD }}
           port: 22
+          script_stop: true
+          command_timeout: 30m
           script: |
+            set -e
+
             mkdir -p ${{ env.VPS_PATH }}
             cd ${{ env.VPS_PATH }}
+
             echo "Loading Docker image..."
             gzip -dc image.tar.gz | docker load
+
+            echo "Removing archive..."
             rm -f image.tar.gz
+
+            echo "Stopping old containers..."
             docker compose down --remove-orphans || true
-            docker compose up -d --build
+
+            echo "Starting new containers..."
+            docker compose up -d
+
+            echo "Cleaning unused Docker resources..."
             docker image prune -af || true
             docker container prune -f || true
-            sleep 15
+
+            echo "Waiting for services..."
+            sleep 20
+
+            echo "Container status:"
             docker ps
 
-      - name: Post-deploy cleanup
-        run: rm -f image.tar.gz
+      - name: Health Check
+        run: |
+          sleep 15
+          curl -f http://${{ secrets.VPS_HOST }}:3000/health || exit 1
+
+      - name: Cleanup Runner Files
+        run: |
+          rm -f image.tar.gz
 
       - name: Deployment success
-        run: echo "Production deployment completed successfully."
+        run: |
+          echo "🚀 Production deployment completed successfully."
