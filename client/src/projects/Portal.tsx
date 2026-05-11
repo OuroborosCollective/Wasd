@@ -16,6 +16,8 @@ import { EcoTraderApp } from './apps/eco-trader/EcoTraderApp';
 import { SocialApp } from './apps/social/SocialApp';
 import { ArenaApp } from './apps/arena/ArenaApp';
 import { SchoolPortalApp } from './apps/school-portal/SchoolPortalApp';
+import { LogicGridApp } from './apps/logic-grid/LogicGridApp';
+import { SciencePortalApp } from './apps/science-portal/SciencePortalApp';
 
 interface App {
   id: string;
@@ -73,6 +75,8 @@ const appComponents: Record<string, React.FC> = {
   'social': SocialApp,
   'arena': ArenaApp,
   'school-portal': SchoolPortalApp,
+  'logic-grid': LogicGridApp,
+  'science-portal': SciencePortalApp,
 };
 
 const categories = [...new Set(apps.map(a => a.category))];
