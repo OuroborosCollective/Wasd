@@ -1,8 +1,0 @@
-{
-  "id": "a962cad1-caeb-4218-8364-ec8f4eeddc14",
-  "timestamp": "2026-05-10T08:35:33.631104",
-  "source": "environment",
-  "key": "execution_status",
-  "value": "paused",
-  "kind": "ConversationStateUpdateEvent"
-}

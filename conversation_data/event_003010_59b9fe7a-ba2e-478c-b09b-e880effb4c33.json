@@ -1,8 +1,0 @@
-{
-  "id": "59b9fe7a-ba2e-478c-b09b-e880effb4c33",
-  "timestamp": "2026-05-10T08:45:48.449122",
-  "source": "environment",
-  "key": "last_user_message_id",
-  "value": "ca23f458-51a0-456e-86df-1d4dba6835aa",
-  "kind": "ConversationStateUpdateEvent"
-}

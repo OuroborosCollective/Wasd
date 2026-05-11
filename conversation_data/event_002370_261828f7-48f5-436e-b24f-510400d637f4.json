@@ -1,9 +1,0 @@
-{
-  "id": "261828f7-48f5-436e-b24f-510400d637f4",
-  "timestamp": "2026-05-10T07:23:31.034941",
-  "source": "agent",
-  "tool_name": "task_tracker",
-  "tool_call_id": "call_function_ypx65byama78_1",
-  "error": "Error validating tool 'task_tracker': 2 validation errors for TaskTrackerAction\ntask_list.1.status\n  Input should be 'todo', 'in_progress' or 'done' [type=literal_error, input_value='pending', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/literal_error\ntask_list.2.status\n  Input should be 'todo', 'in_progress' or 'done' [type=literal_error, input_value='pending', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/literal_error. Parameters provided: ['command', 'task_list']",
-  "kind": "AgentErrorEvent"
-}

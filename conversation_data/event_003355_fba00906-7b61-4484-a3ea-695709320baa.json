@@ -1,8 +1,0 @@
-{
-  "id": "fba00906-7b61-4484-a3ea-695709320baa",
-  "timestamp": "2026-05-10T13:24:38.726294",
-  "source": "environment",
-  "key": "execution_status",
-  "value": "finished",
-  "kind": "ConversationStateUpdateEvent"
-}
