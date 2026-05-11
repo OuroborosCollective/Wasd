@@ -25,7 +25,9 @@ jobs:
           if [ -z "$VPS_ENDPOINT" ]; then
             echo "VPS_ENDPOINT not set, skipping trigger."
           else
-            curl -X POST "$VPS_ENDPOINT" \
+            curl -s -X POST "$VPS_ENDPOINT" \
+            --connect-timeout 5 \
+            --max-time 10 \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $VPS_AUTH_TOKEN" \
             -d "{

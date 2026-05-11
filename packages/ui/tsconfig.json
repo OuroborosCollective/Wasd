@@ -1,8 +1,6 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
     "composite": true,
     "rootDir": ".",
     "outDir": "../../dist/packages/ui",
