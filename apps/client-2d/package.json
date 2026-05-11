@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "react": "^18.2.0",
-    "react-dom": "^19.2.6",
-    "pixi.js": "^7.4.0",
+    "react-dom": "^18.2.0",
+    "pixi.js": "^8.18.1",
     "@arelorian/core-network": "workspace:*"
   },
   "devDependencies": {
