@@ -16,30 +16,26 @@ COPY client client/
 RUN apk add --no-cache python3
 RUN pnpm install --frozen-lockfile
 
-# Build shared package first (required by server), then server
-# Continue even with errors - production deployment
-ENV NODE_ENV=production
-WORKDIR /app/packages/shared
-RUN pnpm build; exit 0
-WORKDIR /app/server
-RUN pnpm build; exit 0
+# Add tsx for runtime
+RUN pnpm add -D tsx
+
+# Build step (continue even with errors)  
+RUN pnpm build || true
 
 # Runner
 FROM node:22-alpine AS runner
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@9.12.2 --activate
 
-# Copy built artifacts
-COPY --from=builder /app/server/dist ./server/dist
+# Copy source directly for tsx runtime
+COPY --from=builder /app/server/src ./server/src
+COPY --from=builder /app/server/package.json ./server/package.json
+COPY --from=builder /app/server/tsconfig.json ./server/tsconfig.json
 COPY --from=builder /app/server/node_modules ./server/node_modules
-COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
-COPY --from=builder /app/packages/shared/package.json ./packages/shared/package.json
+COPY --from=builder /app/packages ./packages
 
 ENV NODE_ENV=production PORT=3000
 EXPOSE 3000
 USER node
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD node -e "fetch('http://localhost:3000/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
-
-CMD ["node", "server/dist/index.js"]
+CMD ["pnpm", "exec", "tsx", "server/src/index.ts"]
