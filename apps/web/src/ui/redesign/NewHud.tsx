@@ -37,7 +37,7 @@ export const NewHud: React.FC = () => {
     mana,
     maxMana,
     deviceTier 
-  } = useStore((state) => ({
+  } = useStore((state: any) => ({
     isActive: state.isActive,
     inventoryOpen: state.inventoryOpen,
     activeQuests: state.activeQuests,
@@ -112,7 +112,7 @@ export const NewHud: React.FC = () => {
         <div className="w-72 bg-black/40 p-4 border-l-2 border-yellow-500/50 backdrop-blur-md">
           <h3 className="text-yellow-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4">Current Objectives</h3>
           <div className="flex flex-col gap-5">
-            {activeQuests.map((quest) => (
+            {activeQuests.map((quest: any) => (
               <div key={quest.id} className="flex flex-col gap-1">
                 <div className="flex justify-between items-end">
                   <span className="text-white font-bold text-xs uppercase">{quest.name}</span>

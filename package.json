@@ -13,7 +13,6 @@
     "dev:3d": "pnpm -r --filter @wasd/client dev",
     "dev:all": "concurrently \"pnpm dev:network\" \"pnpm dev:2d\" \"pnpm dev:3d\"",
     "build:all": "pnpm build:network && pnpm build:2d && pnpm build:3d",
-    "install": "pnpm install -r",
     "clean": "pnpm -r exec rm -rf dist node_modules"
   },
   "engines": {
