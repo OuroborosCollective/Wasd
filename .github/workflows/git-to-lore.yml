@@ -25,6 +25,7 @@ jobs:
           if [ -z "$VPS_ENDPOINT" ]; then
             echo "VPS_ENDPOINT not set, skipping trigger."
           else
+            CURL_EXIT_CODE=0
             curl -X POST "$VPS_ENDPOINT" \
             --retry 3 \
             --retry-delay 5 \
@@ -40,5 +41,11 @@ jobs:
               \"ref\": \"${{ github.ref }}\",
               \"service\": \"VPSAutonomousOperationService\",
               \"timestamp\": \"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\"
-            }"
+            }" || CURL_EXIT_CODE=$?
+
+            if [ "$CURL_EXIT_CODE" -eq 28 ] || [ "$CURL_EXIT_CODE" -eq 7 ]; then
+              echo "VPS unresponsive (timeout/connection issues). Bypassing failure."
+              exit 0
+            fi
+            exit $CURL_EXIT_CODE
           fi
