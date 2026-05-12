@@ -24,6 +24,8 @@
     { "path": "engine" },
     { "path": "portal" },
     { "path": "packages/backend" },
+    { "path": "packages/core-network" },
+    { "path": "apps/client-2d" },
     { "path": "packages/database" },
     { "path": "packages/core" },
     { "path": "packages/core-logic" },

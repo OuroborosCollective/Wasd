@@ -1,26 +1,32 @@
-# Production Dockerfile - Full monorepo build
-FROM node:22-alpine AS builder
+# Production Dockerfile - Full monorepo build using Teleport pattern
+FROM node:22-alpine AS manifests
+WORKDIR /tmp
+COPY . .
+RUN mkdir -p /tmp/manifests && \
+    find . -name "package.json" -mindepth 1 -maxdepth 4 \
+    ! -path "*/node_modules/*" \
+    ! -path "*/dist/*" \
+    -exec sh -c 'mkdir -p /tmp/manifests/$(dirname {}) && cp {} /tmp/manifests/{}' \;
 
+FROM node:22-alpine AS builder
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@9.12.2 --activate
 
-# Copy ALL workspace files needed for build
-COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.json tsconfig.base.json ./
-COPY packages packages/
-COPY apps apps/
-COPY server server/
-COPY backend backend/
-COPY client client/
+# Copy manifests and lockfile for caching
+COPY --from=manifests /tmp/manifests/ ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 
-# Install deps first (cached layer)
-RUN apk add --no-cache python3 RUN pnpm install --no-frozen-lockfile
+# Install deps (cached layer)
+RUN apk add --no-cache python3 make g++ && \
+    pnpm install --frozen-lockfile --loglevel info
+
+# Copy source code
+COPY . .
 
 # Build shared package first (required by server), then server
 ENV NODE_ENV=production
-WORKDIR /app/packages/shared
-RUN pnpm build
-WORKDIR /app/server
-RUN pnpm build
+RUN pnpm --filter @wasd/shared build && \
+    pnpm --filter @wasd/server build
 
 # Runner
 FROM node:22-alpine AS runner

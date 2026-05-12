@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Application, Graphics, Text, Container } from "pixi.js";
-import { createClient, type ServerEvent, type PlayerState, type AgentState } from "@arelorian/core-network";
+import { Application, Graphics, Text } from "pixi.js";
+import { createClient, type PlayerState, type AgentState } from "@arelorian/core-network";
 
 const TILE_SIZE = 32;
 const SCALE = 2;
@@ -62,38 +62,49 @@ export function App() {
     client.on("disconnect" as any, () => setConnected(false));
 
     // Handle world state
-    client.on("WORLD_HEARTBEAT", (event: { payload: { players: Map<string, PlayerState>; agents: Map<string, AgentState> } }) => {
-      const { players, agents } = event.payload;
-      updateEntities(app, players, agents);
+    client.on("WORLD_HEARTBEAT", (event) => {
+      if (event.type === "WORLD_HEARTBEAT") {
+        const { players, agents } = event.payload;
+        updateEntities(app, players, agents);
+      }
     });
 
     // Handle player events
-    client.on("PLAYER_JOINED", (event: { payload: { playerId: string; name: string } }) => {
-      console.log("Player joined:", event.payload.name);
+    client.on("PLAYER_JOINED", (event) => {
+      if (event.type === "PLAYER_JOINED") {
+        console.log("Player joined:", event.payload.name);
+      }
     });
 
-    client.on("PLAYER_LEFT", (event: { payload: { playerId: string } }) => {
-      removeEntity(event.payload.playerId);
+    client.on("PLAYER_LEFT", (event) => {
+      if (event.type === "PLAYER_LEFT") {
+        removeEntity(event.payload.playerId);
+      }
     });
 
-    client.on("PLAYER_MOVED", (event: { payload: { playerId: string; x: number; z: number } }) => {
-      moveEntity(event.payload.playerId, event.payload.x, event.payload.z);
+    client.on("PLAYER_MOVED", (event) => {
+      if (event.type === "PLAYER_MOVED") {
+        moveEntity(event.payload.playerId, event.payload.x, event.payload.z);
+      }
     });
 
     // Handle agent events
-    client.on("AGENT_SPAWNED", (event: { payload: AgentState }) => {
-      addEntity(event.payload.id, event.payload.x, event.payload.z, event.payload.name, 0x00ff00);
+    client.on("AGENT_SPAWNED", (event) => {
+      if (event.type === "AGENT_SPAWNED") {
+        addEntity(event.payload.id, event.payload.x, event.payload.z, event.payload.name, 0x00ff00);
+      }
     });
 
-    client.on("AGENT_MOVED", (event: { payload: { agentId: string; x: number; z: number } }) => {
-      moveEntity(event.payload.agentId, event.payload.x, event.payload.z);
+    client.on("AGENT_MOVED", (event) => {
+      if (event.type === "AGENT_MOVED") {
+        moveEntity(event.payload.agentId, event.payload.x, event.payload.z);
+      }
     });
 
     client.connect();
   }
 
   function updateEntities(app: Application, players: Map<string, PlayerState>, agents: Map<string, AgentState>) {
-    const container = app.stage as Container;
     const { width, height } = app.screen;
 
     // Update players
@@ -137,7 +148,7 @@ export function App() {
     entitiesRef.current.set(id, { graphics, lastX: x, lastZ: z });
   }
 
-  function moveEntity(id: string, x: number, z: number) {
+  function moveEntity(id: string, _x: number, _z: number) {
     const entity = entitiesRef.current.get(id);
     if (!entity || !appRef.current) return;
     appRef.current.stage.addChild(entity.graphics);
