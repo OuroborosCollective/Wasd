@@ -105,7 +105,7 @@ const NewHudOverlay: React.FC<GameHudState> = (props) => {
       <div className="flex justify-center items-end gap-4 pointer-events-auto">
         <div className="flex gap-2 bg-black/60 p-3 rounded-xl border border-white/20 backdrop-blur-xl">
           {props.inv.length === 0 && <div className="w-10 h-10 rounded border border-dashed border-white/20" />}
-          {props.inv.map((item, i) => (
+          {props.inv.map((_item, i) => (
             <div key={i} className="w-12 h-12 bg-white/5 rounded flex items-center justify-center border border-white/10 hover:bg-white/10 transition-colors cursor-pointer">
               {/* Item Render Logic */}
             </div>
