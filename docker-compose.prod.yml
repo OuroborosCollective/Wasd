@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   app:
-    image: ${DOCKER_REGISTRY:-local}/my-typescript-app:latest
+    image: ${DOCKER_REGISTRY:-local}/areloria:latest
     build:
       context: .
       dockerfile: Dockerfile.prod
