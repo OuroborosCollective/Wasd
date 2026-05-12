@@ -1,82 +1,21 @@
-# Umfassender Architektur-Audit-Bericht - März 2027
+# Senior DevOps & Fullstack Architect Audit Report - July 2027
 
 ## Status Quo
-Das Repository ist ein umfangreiches Monorepo, das **pnpm (v9.12.2)** für das Paketmanagement nutzt. Es umfasst mehrere Anwendungsbereiche (`apps/`), gemeinsame Bibliotheken (`packages/`) und spezialisierte Logikmodule (`projects/`). Die Architektur stützt sich auf **TypeScript Project References**, um die Integrität des Build-Graphen zu gewährleisten.
-
-### Aktuelle Struktur:
-- **Paketmanagement:** pnpm mit `node-linker=isolated`.
-- **Workspace:** `pnpm-workspace.yaml` enthält derzeit nur `packages/*` und `apps/*`.
-- **CI/CD:** Multi-Workflow-Setup, dominiert von `main-pipeline.yml` und `deploy.yml`.
-- **Deployment:** Docker-basiert (`Dockerfile`, `Dockerfile.prod`) und VPS-basiert via SSH/PM2.
-
----
+Das Repository ist als pnpm-Monorepo strukturiert und nutzt `node-linker=isolated` zur Durchsetzung strikter Abhängigkeitsgrenzen. Die Architektur ist in `apps/`, `packages/` und `projects/` unterteilt, wobei ein zentrales `tsconfig.base.json` existiert. Die CI/CD-Pipeline ist über GitHub Workflows (`main-pipeline.yml`, `vps-deploy.yml`) automatisiert, und das Deployment erfolgt containerisiert via Docker auf ein VPS-System.
 
 ## Kritische Fehler
-
-### 1. Unvollständige Workspace-Konfiguration
-In der `pnpm-workspace.yaml` fehlen wichtige Verzeichnisse: `projects/*`, `server`, `client`, `engine` und `portal`.
-- **Auswirkung:** Diese Pakete werden von pnpm als eigenständig oder extern behandelt, was Workspace-übergreifende Befehle wie `pnpm -r build` bricht und eine korrekte Abhängigkeitsoptimierung verhindert.
-- **Risiko:** Inkonsistente `pnpm-lock.yaml` und potenzielle "Module not found"-Fehler in der CI.
-
-### 2. Dependency Version Drift & Ghost Dependencies
-Es gibt erhebliche Versionsunterschiede bei Kern-Typen und Bibliotheken:
-- **`@types/node`:** Reicht von `^20.11.0` bis `^25.6.2` und ignoriert den Root-Override von `^22.19.18`.
-- **BabylonJS/Three.js:** Peer-Dependency-Mismatches in `packages/rendering-bridge` (Babylon ^6.0.0 vs ^9.6.2 an anderer Stelle; Three 0.169.0 vs 0.184.0 an anderer Stelle).
-- **Ghost Dependency:** `projects/social` importiert `eventemitter3`, deklariert es aber nicht in seiner `package.json`.
-
-### 3. Redundante & Konfliktbehaftete Workflows
-`deploy.yml` und `vps-deploy.yml` führen ähnliche Deployment-Aufgaben aus, nutzen aber unterschiedliche Strategien (Azure Asset-Sync vs. Docker Save/Load).
-- **Auswirkung:** Erhöhter Wartungsaufwand und widersprüchliche Deployment-Logik.
-
----
+1.  **Syntaxfehler im Production-Dockerfile:** In `Dockerfile.prod` verhinderte ein verketteter `RUN`-Befehl ohne korrekte Trennung (`RUN apk ... RUN pnpm ...`) den erfolgreichen Build. Zudem wurde `--no-frozen-lockfile` verwendet, was die Deterministik der Builds gefährdet.
+2.  **Version-Drift (TS/React):** Core-Pakete wie `@arelorian/core-network` und `apps/client-2d` nutzten veraltete Versionen von TypeScript (5.3.3) und React (18.x), während der Monorepo-Standard auf TypeScript 6.0.3 und React 19.2.6 festgelegt ist.
+3.  **Fehlende TS-Vererbung:** Mehrere Pakete (`core-network`, `client-2d`, `ui`, `eco-trader`) haben `tsconfig.base.json` nicht erweitert, was zu inkonsistenten Compiler-Einstellungen und potenziellen Laufzeitfehlern durch unterschiedliche Transpilierungsziele führt.
 
 ## Optimierungspotenzial
-
-### 1. Docker Build Performance
-Sowohl `Dockerfile` als auch `Dockerfile.prod` kopieren vollständige Quellverzeichnisse vor `pnpm install`.
-- **Verbesserung:** Implementierung eines "Teleport"-Musters: Zuerst nur `package.json`, `pnpm-lock.yaml` und `pnpm-workspace.yaml` kopieren, um das Docker-Layer-Caching für Abhängigkeiten optimal zu nutzen.
-
-### 2. CI Caching-Effizienz
-In der `main-pipeline.yml` fehlt ein explizites Caching für `pip`, und es könnte von einer aggressiveren `pnpm`-Store-Caching-Strategie profitiert werden.
-
-### 3. TypeScript Build-Graph
-Während die `tsconfig.json`-Referenzen korrekt sind, verhindert das Fehlen von `composite: true` in einigen Leaf-Packages effiziente inkrementelle Builds.
-
----
+1.  **CI-Resilienz:** Der Health-Check im Deployment-Workflow verließ sich auf ein statisches `sleep 15`, was bei langsamen Kaltstarts des Containers zu False-Negatives führt.
+2.  **Workspace-Integrität:** Das redundante `"install": "pnpm install -r"` Skript in der Root `package.json` kann in CI-Umgebungen zu Endlosschleifen führen und sollte entfernt werden.
+3.  **Peer-Dependencies:** In `@wasd/shared` war die `typescript` Peer-Dependency nicht mit den Monorepo-Overrides synchronisiert.
 
 ## Action Plan
-
-### Schritt 1: Workspace-Integrität korrigieren
-- [ ] Aktualisieren der `pnpm-workspace.yaml`, um alle aktiven Verzeichnisse einzuschließen:
-  ```yaml
-  packages:
-    - "packages/*"
-    - "apps/*"
-    - "projects/*"
-    - "server"
-    - "client"
-    - "engine"
-    - "portal"
-  ```
-- [ ] `pnpm install` ausführen, um die Lockfile mit voller Workspace-Kenntnis neu zu generieren.
-
-### Schritt 2: Abhängigkeiten harmonisieren
-- [ ] `overrides` aus der `pnpm-lock.yaml` (wo sie vermutlich manuell injiziert wurden) in die Root-`package.json` verschieben.
-- [ ] Fehlende Abhängigkeiten explizit hinzufügen (z. B. `eventemitter3` in `projects/social/package.json`).
-- [ ] `@types/node` monorepo-weit auf `^22.19.18` ausrichten.
-
-### Schritt 3: CI/CD konsolidieren
-- [ ] Die Logik von `vps-deploy.yml` in `deploy.yml` zusammenführen oder eine einzige "Source of Truth" für VPS-Deployments wählen.
-- [ ] Healthcheck-Endpunkte und -Methoden standardisieren (bevorzugt `curl` oder `node -e "fetch(...)"`).
-
-### Schritt 4: Dockerfiles optimieren
-- [ ] `Dockerfile.prod` auf Multi-Stage-Builds mit Manifest-Caching umstellen:
-  ```dockerfile
-  # Beispiel Teleport-Muster
-  COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-  COPY packages/*/package.json packages/
-  # ... usw.
-  ```
-
-### Schritt 5: Verifizierung
-- [ ] `pnpm -r build` und `npx vitest run` im gesamten Monorepo ausführen, um sicherzustellen, dass die neue Workspace-Konfiguration stabil ist.
+1.  [x] **Dockerfile Fix:** Syntaxfehler in `Dockerfile.prod` behoben und auf `--frozen-lockfile` umgestellt.
+2.  [x] **Dependency Alignment:** Synchronisierung von `typescript@6.0.3` und `react@19.2.6` über alle Core-Pakete hinweg.
+3.  [x] **TS-Standardisierung:** Umstellung der lokalen `tsconfig.json` Dateien auf `extends: "../../tsconfig.base.json"`.
+4.  [x] **Workflow-Härtung:** Implementierung eines resilienten Retry-Loops für den Health-Check in `vps-deploy.yml`.
+5.  [x] **Cleanup:** Entfernung redundanter Installations-Skripte und Bereinigung der `pnpm-lock.yaml`.

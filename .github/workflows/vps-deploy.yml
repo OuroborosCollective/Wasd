@@ -105,8 +105,19 @@ jobs:
 
       - name: Health Check
         run: |
-          sleep 15
-          curl -f http://${{ secrets.VPS_HOST }}:3000/health || exit 1
+          echo "Starting resilient health check..."
+          MAX_RETRIES=10
+          INTERVAL=15
+          COUNT=0
+          until curl -f http://${{ secrets.VPS_HOST }}:3000/health || [ $COUNT -eq $MAX_RETRIES ]; do
+            echo "Waiting for service to be healthy ($COUNT/$MAX_RETRIES)..."
+            sleep $INTERVAL
+            COUNT=$((COUNT + 1))
+          done
+          if [ $COUNT -eq $MAX_RETRIES ]; then
+            echo "Error: Service did not become healthy in time."
+            exit 1
+          fi
 
       - name: Cleanup Runner Files
         run: |

@@ -1,18 +1,8 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "composite": true,
     "rootDir": ".",
-    "outDir": "../../dist/packages/ui",
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "strict": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true
+    "outDir": "../../dist/packages/ui"
   },
   "include": ["index.ts", "src/**/*"],
   "exclude": ["node_modules", "dist"]
