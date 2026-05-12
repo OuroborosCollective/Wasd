@@ -44,7 +44,7 @@ jobs:
     timeout-minutes: 45
     
     env:
-      NODE_OPTIONS: "--trace-warnings --trace-uncaught --max-old-space-size=6144"
+      NODE_OPTIONS: "--trace-warnings --trace-uncaught --max-old-space-size=4096"
       PNPM_LOG_LEVEL: "info"
       CI: true
       DEBUG: "true"
