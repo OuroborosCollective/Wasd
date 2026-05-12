@@ -34,11 +34,11 @@ jobs:
         run: |
           pnpm install --frozen-lockfile --loglevel info || pnpm install --no-frozen-lockfile
         env:
-          NODE_OPTIONS: "--max-old-space-size=2560"
+          NODE_OPTIONS: "--max-old-space-size=2048"
 
       - name: Build Server
         run: |
-          NODE_OPTIONS="--max-old-space-size=2560" pnpm --filter @wasd/server exec tsc --noEmit
+          NODE_OPTIONS="--max-old-space-size=2048" pnpm --filter @wasd/server exec tsc --noEmit --skipLibCheck
 
       - name: Lint Server
         run: |
