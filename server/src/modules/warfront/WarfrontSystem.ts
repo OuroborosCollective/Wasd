@@ -178,7 +178,10 @@ export class WarfrontSystem {
 
   getStatusForPlayer(player: any, now = Date.now()): WarfrontStatusPayload {
     this.initialize(now);
-    const cycle = this.getCycleSnapshot(now);
+    // ⚡ Bolt Optimization: Use this.cycle directly instead of getCycleSnapshot()
+    // getCycleSnapshot performs a deep clone (JSON.parse(JSON.stringify)) which is expensive
+    // and redundant here because we are building a fresh payload object anyway.
+    const cycle = this.cycle!;
     const progress = this.ensurePlayerProgress(player);
     this.syncPlayerSeason(progress, cycle.seasonId);
     const totalTarget = cycle.sectors.reduce((sum, s) => sum + s.targetPoints, 0);
