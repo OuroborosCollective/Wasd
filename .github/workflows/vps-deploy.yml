@@ -60,18 +60,18 @@ jobs:
       - name: Upload Docker image to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          password: ${{ secrets.VPS_PASSWORD }}
-          source: "image.tar.gz,docker-compose.yml"
+          host: ${{ secrets.INPUT_HOST }}
+          username: ${{ secrets.INPUT_USERNAME }}
+          password: ${{ secrets.INPUT_PASSWORD }}
+          source: "image.tar.gz,docker-compose.prod.yml"
           target: ${{ env.VPS_PATH }}
 
       - name: Deploy on VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          password: ${{ secrets.VPS_PASSWORD }}
+          host: ${{ secrets.INPUT_HOST }}
+          username: ${{ secrets.INPUT_USERNAME }}
+          password: ${{ secrets.INPUT_PASSWORD }}
           port: 22
           script_stop: true
           command_timeout: 30m
@@ -106,7 +106,7 @@ jobs:
       - name: Health Check
         run: |
           sleep 15
-          curl -f http://${{ secrets.VPS_HOST }}:80/health || exit 1
+          curl -f http://${{ secrets.INPUT_HOST }}:80/health || exit 1
 
       - name: Cleanup Runner Files
         run: |
