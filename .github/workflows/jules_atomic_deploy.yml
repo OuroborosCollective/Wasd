@@ -17,8 +17,7 @@ jobs:
       - name: Deploy to VPS
         run: bash scripts/deploy-vps.sh
         env:
-          PRODUCTION_IP: ${{ secrets.SSH_HOST }}
-          DEPLOY_USER: ${{ secrets.SSH_USER }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+          PRODUCTION_IP: ${{ secrets.INPUT_HOST }}
+          DEPLOY_USER: ${{ secrets.INPUT_USERNAME }}
+          DEPLOY_PATH: /opt/areloria
+          SSH_PASSWORD: ${{ secrets.INPUT_PASSWORD }}
