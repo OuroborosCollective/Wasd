@@ -13,7 +13,7 @@ COPY backend backend/
 COPY client client/
 
 # Install deps first (cached layer)
-RUN apk add --no-cache python3 RUN pnpm install --no-frozen-lockfile
+RUN apk add --no-cache python3 && pnpm install --frozen-lockfile
 
 # Build shared package first (required by server), then server
 ENV NODE_ENV=production

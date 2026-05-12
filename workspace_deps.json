@@ -1,0 +1,134 @@
+[
+  {
+    "name": "@arelororian/monorepo",
+    "version": "1.0.0",
+    "path": "/app",
+    "private": true
+  },
+  {
+    "name": "@wasd/api-core",
+    "version": "1.0.0",
+    "path": "/app/apps/api",
+    "private": true
+  },
+  {
+    "name": "@arelorian/client-2d",
+    "version": "1.0.0",
+    "path": "/app/apps/client-2d",
+    "private": true
+  },
+  {
+    "name": "@wasd/web",
+    "version": "1.0.0",
+    "path": "/app/apps/web",
+    "private": true
+  },
+  {
+    "name": "@wasd/client",
+    "version": "1.0.0",
+    "path": "/app/client",
+    "private": true
+  },
+  {
+    "name": "@wasd/engine",
+    "version": "1.0.0",
+    "path": "/app/engine",
+    "private": true
+  },
+  {
+    "name": "@wasd/backend",
+    "version": "1.0.0",
+    "path": "/app/packages/backend",
+    "private": true
+  },
+  {
+    "name": "@wasd/core",
+    "version": "1.0.0",
+    "path": "/app/packages/core",
+    "private": false
+  },
+  {
+    "name": "@wasd/core-ecs",
+    "version": "0.1.0",
+    "path": "/app/packages/core-ecs",
+    "private": false
+  },
+  {
+    "name": "@wasd/core-logic",
+    "version": "0.1.0",
+    "path": "/app/packages/core-logic",
+    "private": true
+  },
+  {
+    "name": "@arelorian/core-network",
+    "version": "1.0.0",
+    "path": "/app/packages/core-network",
+    "private": false
+  },
+  {
+    "name": "@wasd/database",
+    "version": "1.0.0",
+    "path": "/app/packages/database",
+    "private": false
+  },
+  {
+    "name": "@wasd/logger",
+    "version": "1.0.0",
+    "path": "/app/packages/logger",
+    "private": true
+  },
+  {
+    "name": "@wasd/redis",
+    "version": "1.0.0",
+    "path": "/app/packages/redis",
+    "private": false
+  },
+  {
+    "name": "@wasd/rendering-bridge",
+    "version": "1.0.0",
+    "path": "/app/packages/rendering-bridge",
+    "private": false
+  },
+  {
+    "name": "@wasd/shared",
+    "version": "1.0.0",
+    "path": "/app/packages/shared",
+    "private": true
+  },
+  {
+    "name": "@wasd/spatial-hub",
+    "version": "1.0.0",
+    "path": "/app/packages/spatial-hub",
+    "private": true
+  },
+  {
+    "name": "@wasd/types",
+    "version": "1.0.0",
+    "path": "/app/packages/types",
+    "private": true
+  },
+  {
+    "name": "@wasd/ui",
+    "version": "1.0.0",
+    "path": "/app/packages/ui",
+    "private": true
+  },
+  {
+    "name": "@wasd/utils",
+    "version": "1.0.0",
+    "path": "/app/packages/utils",
+    "private": true
+  },
+  {
+    "name": "@wasd/portal",
+    "version": "1.0.0",
+    "path": "/app/portal",
+    "private": true
+  },
+  {
+    "name": "@wasd/server",
+    "version": "1.0.0",
+    "path": "/app/server",
+    "private": true
+  }
+]
