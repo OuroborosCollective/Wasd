@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           java-version: '17'
-      - uses: android-actions/setup-android@v2
+      - uses: android-actions/setup-android@v4
       - name: Build Debug
         run: cd client/android && ./gradlew assembleDebug
       - name: Build Release
