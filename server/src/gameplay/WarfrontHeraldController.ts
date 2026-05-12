@@ -1,6 +1,6 @@
 import { WorldEventBus } from "../events/WorldEventBus";
 import { NPCManager } from "./NPCManager";
-import { GameState } from "../core/GameState";
+import { GameStateManager as GameState } from "../core/GameState";
 
 export class WarfrontHeraldController {
     private static readonly BOSS_ID = "warfront_herald";

@@ -1,8 +1,9 @@
-/**
- * WorldEventBus.ts
- */
-export class WorldEventBus {
-    publish(event: string, data: any) {
-        console.log(`[WorldEventBus] ${event}`, data);
+import { EventEmitter } from "events";
+
+export class WorldEventBus extends EventEmitter {
+    private static instance: WorldEventBus;
+    public static getInstance(): WorldEventBus {
+        if (!this.instance) this.instance = new WorldEventBus();
+        return this.instance;
     }
 }

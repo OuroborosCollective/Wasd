@@ -32,6 +32,10 @@ export class MasterExpansionOrchestrator {
         }
     }
 
+    public processTick(): void {
+        this.unifiedConvergenceLoop();
+    }
+
     private unifiedConvergenceLoop(): void {
         try {
             const signatures = this.signatureSource.getActiveSignatures();

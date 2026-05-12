@@ -112,9 +112,9 @@ const HARD_SYNC_THRESHOLD = toFP(5); // 5 units - hard correction
 const MAX_INTERPOLATION_DISTANCE = toFP(8); // 8 units max interpolate
 
 /**
- * CMLS - Combat, Movement & Loot System
+ * CombatSystem (formerly CMLS) - Combat, Movement & Loot System
  */
-export class CMLS {
+export class CombatSystem {
   private pendingCorrections: MovementCorrection[] = [];
   private conflictImpulses: PendingMutation[] = [];
 
@@ -439,4 +439,4 @@ export class CMLS {
 /**
  * Singleton
  */
-export const cmls = new CMLS();
+export const cmls = new CombatSystem();
