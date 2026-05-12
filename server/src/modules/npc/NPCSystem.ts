@@ -31,6 +31,7 @@ export interface NPC {
     state?: string;
     stateTimer?: number;
     targetPosition?: Vector3;
+    shopId?: string;
     memory?: any;
 }
 
@@ -119,6 +120,14 @@ export class NPCSystem {
 
     public setProfileResolver(resolver: any): void {
         // Implementation stub
+    }
+
+    public handleInteraction(npcId: string, player: any, questDefs: any): any {
+        return { source: "NPC", text: "Hello", choices: [], npcId };
+    }
+
+    public handleChoice(npcId: string, nodeId: string, choiceId: string, player: any): any {
+        return { source: "NPC", text: "You chose wisely", choices: [], npcId };
     }
 
     public tick(onlinePlayers: any[], worldTime: number): void {

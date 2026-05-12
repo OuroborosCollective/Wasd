@@ -31,8 +31,7 @@
   },
   "include": ["src/**/*"],
   "exclude": [
-    "src/assets/**",
-    "src/core/WorldTick.ts"
+    "src/assets/**"
   ],
   "references": [
     { "path": "../packages/shared" }

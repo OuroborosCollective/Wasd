@@ -498,7 +498,7 @@ export class ServerBootstrap {
     }
     if (process.env.NODE_ENV !== "production") {
       try {
-        const { createServer: createViteServer } = await import("vite");
+        const { createServer: createViteServer } = await import("vite" as any);
         const vite = await createViteServer({
           server: { middlewareMode: true },
           appType: "spa",
