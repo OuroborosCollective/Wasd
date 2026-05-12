@@ -8,11 +8,6 @@ on:
 permissions:
   contents: read
 
-# ⚡ Bolt Optimization: Prevent multiple resource-intensive audit jobs from OOMing the runner.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   audit_logic:
     runs-on: ubuntu-latest
@@ -39,8 +34,7 @@ jobs:
 
       - name: Build Server
         run: |
-          # ⚡ Bolt Optimization: Use 4GB heap to stay within hosted runner limits and prevent OOM communication loss.
-          NODE_OPTIONS="--max-old-space-size=4096" pnpm --filter @wasd/server exec tsc --noEmit
+          NODE_OPTIONS="--max-old-space-size=6144" pnpm --filter @wasd/server exec tsc --noEmit
 
       - name: Lint Server
         run: |
