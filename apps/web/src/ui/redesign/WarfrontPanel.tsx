@@ -90,11 +90,18 @@ export const WarfrontPanel: React.FC<WarfrontPanelProps> = ({ state }) => {
             <div className="space-y-1.5">
               <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider">
                 <span className="text-slate-400 flex items-center gap-1">
-                  <Target size={12} /> Objective Progress
+                  <Target size={12} aria-hidden="true" /> Objective Progress
                 </span>
                 <span className="text-white">{state.progressPct}%</span>
               </div>
-              <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+              <div
+                role="progressbar"
+                aria-label="Objective Progress"
+                aria-valuenow={state.progressPct}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                className="h-2 w-full bg-slate-800 rounded-full overflow-hidden border border-slate-700"
+              >
                 <motion.div 
                   className="h-full bg-gradient-to-r from-red-600 via-orange-500 to-amber-400"
                   initial={{ width: 0 }}
@@ -106,12 +113,12 @@ export const WarfrontPanel: React.FC<WarfrontPanelProps> = ({ state }) => {
 
             <div className="flex gap-2">
               <div className="flex-1 bg-slate-950/50 p-2 rounded-lg border border-slate-800 flex flex-col items-center">
-                <Timer size={14} className="text-blue-400 mb-1" />
+                <Timer size={14} className="text-blue-400 mb-1" aria-hidden="true" />
                 <span className="text-xs text-slate-500 font-bold uppercase tracking-tighter">Time Left</span>
                 <span className="text-lg font-mono font-bold text-white leading-none">{timeLeft}</span>
               </div>
               <div className="flex-1 bg-slate-950/50 p-2 rounded-lg border border-slate-800 flex flex-col items-center">
-                <Zap size={14} className="text-amber-400 mb-1" />
+                <Zap size={14} className="text-amber-400 mb-1" aria-hidden="true" />
                 <span className="text-xs text-slate-500 font-bold uppercase tracking-tighter">Score</span>
                 <span className="text-lg font-mono font-bold text-white leading-none">{state.personal.score}</span>
               </div>
@@ -121,7 +128,7 @@ export const WarfrontPanel: React.FC<WarfrontPanelProps> = ({ state }) => {
           {/* Personal Stats Section */}
           <div className="bg-slate-950/60 p-4 border-t border-slate-800">
             <div className="flex items-center gap-2 mb-3">
-              <Shield size={16} className="text-red-500" />
+              <Shield size={16} className="text-red-500" aria-hidden="true" />
               <span className="text-xs font-black uppercase text-slate-300">Personal Contribution</span>
             </div>
             
@@ -133,7 +140,7 @@ export const WarfrontPanel: React.FC<WarfrontPanelProps> = ({ state }) => {
               <div>
                 <span className="block text-[9px] text-slate-500 uppercase font-bold">Current Rank</span>
                 <span className="text-sm font-bold text-amber-400 flex items-center gap-1">
-                  <Trophy size={12} /> {state.personal.rank}
+                  <Trophy size={12} aria-hidden="true" /> {state.personal.rank}
                 </span>
               </div>
             </div>
