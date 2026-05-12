@@ -43,13 +43,32 @@ $SSH_PREFIX $SSH_CMD "${DEPLOY_USER}@${PRODUCTION_IP}" "
     echo '--- Installing dependencies ---'
     export PNPM_HOME=\"\$HOME/.local/share/pnpm\"
     export PATH=\"\$PNPM_HOME:\$PATH\"
+    export COREPACK_ENABLE_AUTO=0
     
-    if ! command -v pnpm &> /dev/null; then
-        echo 'pnpm not found, trying to use npm to install pnpm...'
-        npm install -g pnpm || true
+    # Disable corepack package manager to force pnpm
+    if command -v corepack &> /dev/null; then
+        corepack disable || true
     fi
     
-    pnpm install --frozen-lockfile
+    # Remove yarn enablement if it was set
+    if [ -f package.json ]; then
+        # Check if package.json has packageManager field
+        if grep -q '\"packageManager\"' package.json; then
+            echo 'Removing packageManager field...'
+            node -e \"const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json'));delete p.packageManager;fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\\n')\"
+        fi
+    fi
+    
+    export PNPM_HOME=\"\$HOME/.local/share/pnpm\"
+    export PATH=\"\$PNPM_HOME:\$PATH\"
+    
+    if ! command -v pnpm &> /dev/null; then
+        echo 'pnpm not found, installing via npm...'
+        npm install -g pnpm
+    fi
+    
+    # Use --ignore-scripts to skip prepare scripts
+    pnpm install --frozen-lockfile --ignore-scripts
     
     echo '--- Building project ---'
     pnpm run build || { echo 'Build failed, aborting restart'; exit 1; }
