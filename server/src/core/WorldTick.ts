@@ -1264,15 +1264,23 @@ export class WorldTick {
   }
 
   public getPersistenceStats() {
-    return { status: "online", lastSave: Date.now() };
+    return { status: "online", lastSave: Date.now(), glbLinksStore: { count: 0 } };
   }
 
   public getPlaytesterDebugLogPath() {
     return null;
   }
 
-  public buildPlaytesterMonitorPayload(options: any) {
-    return {};
+  public buildPlaytesterMonitorPayload(_options: any): any {
+    return {
+      type: "monitor_update",
+      ts: Date.now(),
+      tick: this.tickCount,
+      playtester: {},
+      performance: {},
+      world: {},
+      network: {}
+    };
   }
 
   public debouncedSave() {
@@ -1292,12 +1300,14 @@ export class WorldTick {
   }
 
   public listActiveVoteBanners() { return []; }
-  public handleVoteProviderCallback() { return { success: true }; }
+  public handleVoteProviderCallback(_args: any) {
+    return { ok: true, success: true, sessionId: "stub", playerId: "stub", bannerId: "stub", reason: "" };
+  }
   public getAdminVoteBanners() { return []; }
-  public upsertVoteBanner() { return { success: true }; }
-  public deleteVoteBanner() { return { success: true }; }
-  public setVoteBannerOrder() { return { success: true }; }
-  public getVoteAdminDiagnostics() { return {}; }
+  public upsertVoteBanner(_args: any) { return { success: true }; }
+  public deleteVoteBanner(_id: string) { return true; }
+  public setVoteBannerOrder(_ids: string[]) { return []; }
+  public getVoteAdminDiagnostics(_hours: number) { return {}; }
 
   async saveAll() {
     const allPlayers = this.playerSystem.getAllPlayers();

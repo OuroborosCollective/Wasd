@@ -165,6 +165,10 @@ export class ArelorianKernel {
     if (timings.length === 0) return 0;
     return timings.reduce((sum, t) => sum + t.duration, 0) / timings.length;
   }
+
+  public getTickRate(): number {
+    return 10; // 10Hz
+  }
 }
 
 export const arelorianKernel = new ArelorianKernel();

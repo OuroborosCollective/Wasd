@@ -138,7 +138,7 @@ export function adminContentRouter(tick: WorldTick): Router {
 
   router.get("/meta", adminAuthMiddleware, (_req: AdminRequest, res: Response) => {
     const content = getContentDataSourceLabel();
-    const stats = tick.getPersistenceStats();
+    const stats = tick.getPersistenceStats() as any;
     res.json({
       glbLinksStore: stats.glbLinksStore,
       contentRoot: content.root,

@@ -16,7 +16,7 @@ export class LocalJwtService {
     }
 
     public generateToken(payload: SysAdminPayload): string {
-        return jwt.sign(
+        return (jwt.sign as any)(
             {
                 sub: payload.userId,
                 name: payload.username,

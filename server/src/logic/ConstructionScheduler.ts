@@ -1,3 +1,3 @@
 export class ConstructionScheduler {
-    public async executeConvergence(id: string): Promise<void> {}
+    public async executeConvergence(_args: any): Promise<void> {}
 }

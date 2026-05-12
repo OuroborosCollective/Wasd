@@ -75,7 +75,7 @@ router.get('/status/:orderId', async (req: Request, res: Response) => {
     try {
         const { orderId } = req.params;
         const stateCompiler = new AREStateCompiler();
-        const status = await stateCompiler.queryOrderState(orderId);
+        const status = await stateCompiler.queryOrderState(Array.isArray(orderId) ? orderId[0] : orderId);
 
         if (!status) {
             return res.status(404).json({ error: 'ORDER_NOT_FOUND' });

@@ -219,8 +219,8 @@ export class APIServer {
     const resources = Array.from(region.resourceSaturation.values());
     if (resources.length === 0) return 0;
 
-    const avg = resources.reduce((a, b) => a + b, 0) / resources.length;
-    const variance = resources.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) / resources.length;
+    const avg = (resources as number[]).reduce((a, b) => a + b, 0) / resources.length;
+    const variance = (resources as number[]).reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) / resources.length;
 
     return fromFP(Math.max(0, FP_SCALE - Math.floor(Math.sqrt(variance) * 10)));
   }

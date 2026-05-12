@@ -84,8 +84,8 @@ export class QuestlineEngine {
     const seed = this.seeds.get(questlineId);
     if (!seed) return { error: "unknown_questline" };
     const res = resolveChoice(seed.graph, state.currentNode, choiceId, playerFlags);
-    if (!res.ok) return { error: res.reason };
-    const next = seed.graph[res.nextNode];
+    if (!res.ok) return { error: (res as any).reason };
+    const next = seed.graph[(res as any).nextNode];
     const triggers = [...state.triggers];
     for (const fid of next?.featureTriggers ?? []) {
       triggers.push(createTrigger(fid, next.id, "unlock"));
