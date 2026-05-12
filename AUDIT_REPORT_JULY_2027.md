@@ -19,6 +19,6 @@ The repository is a complex monorepo using `pnpm` with the `isolated` node-linke
 1.  **Index Correction:** Updated `pnpm-workspace.yaml` to use glob patterns for all project directories.
 2.  **Version Harmonization:** Synchronized React and TypeScript versions across `apps/client-2d`, `packages/core-network`, and `packages/shared`.
 3. **Build Pipeline Fix:** Corrected the `Dockerfile.prod` syntax, updated `pnpm-lock.yaml`, and enforced strict lockfile usage.
-4. **Workflow Hardening**: Added retry logic and timeout handling to the `Narrative-Engine` workflow. Stabilized `Jules Deterministic Audit` by reducing `max-old-space-size` to `3072MB` and lowering pnpm log verbosity.
+4. **Workflow Hardening**: Added retry logic and timeout handling to the `Narrative-Engine` workflow. Stabilized `Jules Deterministic Audit` by adding concurrency groups, reducing `max-old-space-size` to `2560MB`, and lowering pnpm log verbosity.
 4.  **Future Recommendation:** Deprecate `scripts/deploy-vps.sh` in favor of the more robust Docker-based deployment defined in `vps-deploy.yml`.
 5.  **Future Recommendation:** Implement a centralized `@wasd/tsconfig` package if inheritance becomes too complex.
