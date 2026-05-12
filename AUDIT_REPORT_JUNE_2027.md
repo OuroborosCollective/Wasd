@@ -8,6 +8,7 @@ The repository is a sophisticated monorepo structure utilizing `pnpm` with `node
 - **Non-Deterministic Production Builds:** The use of `--no-frozen-lockfile` in the production Dockerfile allowed for version drift between development and production environments.
 - **TypeScript & React Version Drift:** Core packages like `@arelorian/core-network` and `@arelorian/client-2d` were using legacy versions of TypeScript (5.3.x) and React (18.x), while the rest of the monorepo had moved to the `6.0.3` and `19.2.6` standards (as defined in root overrides).
 - **Workspace Indexing Gaps:** `pnpm-workspace.yaml` used a trailing slash pattern (`projects/`) which did not correctly capture all sub-projects for recursive commands. `tsconfig.json` was missing references for several active core packages.
+- **Infinite Build Recursion:** The root `package.json` contained an `"install": "pnpm install -r"` script. In monorepo environments, this can cause infinite recursive loops during dependency installation, leading to CI timeouts or memory exhaustion.
 
 ## Optimierungspotenzial (Optimization Potential)
 - **Docker Build Performance:** Implementing the "Teleport" pattern for manifest staging significantly improves layer caching, reducing build times from minutes to seconds for dependency-heavy changes.
@@ -18,8 +19,9 @@ The repository is a sophisticated monorepo structure utilizing `pnpm` with `node
 1. [x] **Fix Dockerfile:** Corrected syntax and implemented manifest extraction for optimized caching.
 2. [x] **Harmonize Dependencies:** Updated `@arelorian/` packages to match the monorepo's `typescript@6.0.3` and `react@19.2.6` standards.
 3. [x] **Correct Workspace Mapping:** Fixed `pnpm-workspace.yaml` glob patterns and updated root `tsconfig.json` references.
-4. [x] **Stabilize Types:** Fixed build-time type errors in `core-network` and `client-2d` resulting from the version upgrades.
-5. [ ] **Ongoing Maintenance:** Periodically run `pnpm audit` and verify CI pipeline health after adding new `projects/`.
+4. [x] **Fix Build Recursion:** Removed the problematic `install` lifecycle script from the root `package.json`.
+5. [x] **Stabilize Types:** Fixed build-time type errors in `core-network` and `client-2d` resulting from the version upgrades.
+6. [ ] **Ongoing Maintenance:** Periodically run `pnpm audit` and verify CI pipeline health after adding new `projects/`.
 
 ---
 *Audited by Jules - Senior DevOps & Architect*
