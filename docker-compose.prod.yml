@@ -3,87 +3,17 @@ version: '3.8'
 services:
   app:
     image: ${DOCKER_REGISTRY:-local}/areloria:latest
-    build:
-      context: .
-      dockerfile: Dockerfile.prod
     restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
     env_file:
       - .env.prod
     ports:
       - "80:3000"
-    depends_on:
-      db:
-        condition: service_healthy
-    deploy:
-      replicas: 2
-      update_config:
-        parallelism: 1
-        delay: 10s
-        order: start-first
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 512M
-        reservations:
-          cpus: '0.10'
-          memory: 128M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 120s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
     networks:
       - frontend_net
-      - backend_net
-
-  db:
-    image: postgres:15-alpine
-    restart: always
-    environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 1G
-        reservations:
-          cpus: '0.25'
-          memory: 256M
-    networks:
-      - backend_net
-
-  cache:
-    image: redis:7-alpine
-    restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
-    networks:
-      - backend_net
-
-volumes:
-  postgres_data:
-    driver: local
 
 networks:
   frontend_net:
-    driver: bridge
-  backend_net:
-    internal: true
     driver: bridge
