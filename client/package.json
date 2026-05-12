@@ -26,6 +26,7 @@
     "@react-three/fiber": "^9.6.1",
     "@react-three/xr": "^6.6.29",
     "@supabase/supabase-js": "^2.105.4",
+    "@tailwindcss/postcss": "^4.3.0",
     "@wasd/shared": "workspace:*",
     "firebase": "^12.13.0",
     "framer-motion": "^12.38.0",

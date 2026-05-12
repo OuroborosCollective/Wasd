@@ -29,7 +29,7 @@ import { ChatSystem } from "../modules/chat/ChatSystem.js";
 import { ResourceSystem } from "../modules/world/ResourceSystem.js";
 import { AssetPoolResolver } from "../modules/world/AssetPoolResolver.js";
 import { LiveHealEngine } from "./liveheal/LiveHealEngine.js";
-import { AssetHealthService } from "../assets/AssetHealthService.ts";
+import { AssetHealthService } from "../assets/AssetHealthService.js";
 import { GameConfig } from "../config/GameConfig.js";
 import { characterAssembly } from "../modules/character/CharacterAssemblySystem.js";
 
