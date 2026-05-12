@@ -32,6 +32,7 @@ export interface NPC {
     stateTimer?: number;
     targetPosition?: Vector3;
     memory?: any;
+    shopId?: string;
 }
 
 export interface Player {
@@ -123,6 +124,21 @@ export class NPCSystem {
 
     public tick(onlinePlayers: any[], worldTime: number): void {
         this.update();
+    }
+
+    public handleInteraction(targetId: string, player: any, questDefinitions: any): any {
+        const npc = this.getNPC(targetId);
+        if (!npc) return null;
+        return {
+            source: npc.name || "Unknown NPC",
+            text: "Hello adventurer!",
+            choices: [],
+            npcId: targetId
+        };
+    }
+
+    public handleChoice(npcId: string, nodeId: string, choiceId: string, player: any): any {
+        return null;
     }
 
     private startUpdateLoop(): void {

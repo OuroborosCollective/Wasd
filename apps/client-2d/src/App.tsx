@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Application, Graphics, Text, Container } from "pixi.js";
-import { createClient, type ServerEvent, type PlayerState, type AgentState } from "@arelorian/core-network";
+import { Application, Graphics, Text } from "pixi.js";
+import { createClient, type PlayerState, type AgentState } from "@arelorian/core-network";
 
 const TILE_SIZE = 32;
 const SCALE = 2;
@@ -62,39 +62,38 @@ export function App() {
     client.on("disconnect" as any, () => setConnected(false));
 
     // Handle world state
-    client.on("WORLD_HEARTBEAT", (event: { payload: { players: Map<string, PlayerState>; agents: Map<string, AgentState> } }) => {
+    client.on("WORLD_HEARTBEAT", (event: any) => {
       const { players, agents } = event.payload;
       updateEntities(app, players, agents);
     });
 
     // Handle player events
-    client.on("PLAYER_JOINED", (event: { payload: { playerId: string; name: string } }) => {
+    client.on("PLAYER_JOINED", (event: any) => {
       console.log("Player joined:", event.payload.name);
     });
 
-    client.on("PLAYER_LEFT", (event: { payload: { playerId: string } }) => {
+    client.on("PLAYER_LEFT", (event: any) => {
       removeEntity(event.payload.playerId);
     });
 
-    client.on("PLAYER_MOVED", (event: { payload: { playerId: string; x: number; z: number } }) => {
+    client.on("PLAYER_MOVED", (event: any) => {
       moveEntity(event.payload.playerId, event.payload.x, event.payload.z);
     });
 
     // Handle agent events
-    client.on("AGENT_SPAWNED", (event: { payload: AgentState }) => {
+    client.on("AGENT_SPAWNED", (event: any) => {
       addEntity(event.payload.id, event.payload.x, event.payload.z, event.payload.name, 0x00ff00);
     });
 
-    client.on("AGENT_MOVED", (event: { payload: { agentId: string; x: number; z: number } }) => {
+    client.on("AGENT_MOVED", (event: any) => {
       moveEntity(event.payload.agentId, event.payload.x, event.payload.z);
     });
 
     client.connect();
   }
 
-  function updateEntities(app: Application, players: Map<string, PlayerState>, agents: Map<string, AgentState>) {
-    const container = app.stage as Container;
-    const { width, height } = app.screen;
+  function updateEntities(_app: Application, players: Map<string, PlayerState>, agents: Map<string, AgentState>) {
+    const { width, height } = _app.screen;
 
     // Update players
     players.forEach((player, id) => {
@@ -137,7 +136,7 @@ export function App() {
     entitiesRef.current.set(id, { graphics, lastX: x, lastZ: z });
   }
 
-  function moveEntity(id: string, x: number, z: number) {
+  function moveEntity(id: string, _x: number, _z: number) {
     const entity = entitiesRef.current.get(id);
     if (!entity || !appRef.current) return;
     appRef.current.stage.addChild(entity.graphics);

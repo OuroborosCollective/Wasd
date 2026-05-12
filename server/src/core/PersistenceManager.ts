@@ -38,4 +38,9 @@ export class PersistenceManager {
   async loadWorldObjects(): Promise<any[]> {
     return this.backend.loadWorldObjects();
   }
+
+  async loadPlayer(name: string): Promise<any> {
+    const data = await this.load();
+    return data[name];
+  }
 }
