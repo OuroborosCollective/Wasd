@@ -106,7 +106,7 @@ jobs:
       - name: Health Check
         run: |
           sleep 15
-          curl -f http://${{ secrets.VPS_HOST }}:3000/health || exit 1
+          curl -f http://${{ secrets.VPS_HOST }}:80/health || exit 1
 
       - name: Cleanup Runner Files
         run: |
