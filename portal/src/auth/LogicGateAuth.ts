@@ -1,3 +1,13 @@
+/**
+ * LogicGateAuth - Deterministic Authenticator (AAAA+ Security)
+ * 
+ * Hardware fingerprint authenticator using kappaPos and logicalIndex
+ * for mathematically stable device identity verification.
+ * 
+ * NO floating point drift - pure BigInt arithmetic.
+ * O(1) hash validation speed.
+ */
+
 export class LogicGateAuth {
     private static readonly GRID_SIZE: bigint = BigInt(2) ** BigInt(32);
     private static readonly PRIME_SEED: bigint = BigInt("0xBF58476D1CE4E5B9");
@@ -49,6 +59,7 @@ export class LogicGateAuth {
     /**
      * Validates if the hardware fingerprint aligns with the deterministic grid position.
      * The validation relies on the equivalence of the device hash mapped to the kappa space.
+     * O(1) validation speed.
      */
     public static validateFingerprint(
         fingerprint: bigint,
@@ -76,7 +87,41 @@ export class LogicGateAuth {
     }
 }
 
-// Example usage context (Internal Documentation):
-// const auth = new LogicGateAuth();
-// const fp = LogicGateAuth.generateHardwareFingerprint({cpuCores: 8, memoryGb: 16, screenRes: [1920, 1080], colorDepth: 24});
-// const isValid = LogicGateAuth.validateFingerprint(fp, 500n, 200n, 1000n);
+/**
+ * Auth Session for portal login
+ */
+export interface AuthSession {
+    userId: string;
+    fingerprint: bigint;
+    gridPosition: { x: bigint; y: bigint };
+    dimension: bigint;
+    createdAt: number;
+    expiresAt: number;
+}
+
+/**
+ * Create authenticated session
+ */
+export function createAuthSession(
+    userId: string,
+    fingerprint: bigint,
+    gridPosition: { x: bigint; y: bigint },
+    dimension: bigint = BigInt(1000)
+): AuthSession {
+    const now = Date.now();
+    return {
+        userId,
+        fingerprint,
+        gridPosition,
+        dimension,
+        createdAt: now,
+        expiresAt: now + 3600000 // 1 hour
+    };
+}
+
+/**
+ * Validate session is still active
+ */
+export function validateSession(session: AuthSession): boolean {
+    return Date.now() < session.expiresAt;
+}
