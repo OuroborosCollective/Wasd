@@ -3,10 +3,10 @@ import { useStore } from '../../store/useStore';
 
 /**
  * FIXED: Korrekte Auflösung der Workspace-Aliase gemäß ARE-Logik Struktur.
- * @wasd/protocol stellt die Netzwerk-Typen bereit.
+ * @wasd/types stellt die Netzwerk-Typen bereit.
  * @wasd/shared enthält die Engine-Konstanten wie KAPPA (1000).
  */
-import { DeviceTier } from '@wasd/protocol';
+import { DeviceTier } from '@wasd/types';
 import { KAPPA } from '@wasd/shared';
 
 /**
