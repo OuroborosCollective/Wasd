@@ -1,5 +1,5 @@
 {
-  "name": "@arelorian/client-2d",
+  "name": "@wasd/client-2d",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -12,7 +12,7 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "pixi.js": "^8.18.1",
-    "@arelorian/core-network": "workspace:*"
+    "@wasd/core-network": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",
