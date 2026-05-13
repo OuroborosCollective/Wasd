@@ -132,7 +132,7 @@ function normalizeSmartCategory(raw: unknown): SmartCategory | null {
   return SMART_CATEGORIES.has(mapped as SmartCategory) ? (mapped as SmartCategory) : null;
 }
 
-export function adminContentRouter(tick: WorldTick): Router {
+export function adminContentRouter(tick: any): Router {
   const router = Router();
   router.use(express.json({ limit: "512kb" }));
 
