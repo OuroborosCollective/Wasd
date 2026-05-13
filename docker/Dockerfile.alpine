@@ -1,0 +1,53 @@
+FROM node:22-alpine AS base
+
+# Install SSH and build dependencies
+RUN apk add --no-cache openssh-client sshpass openssl
+
+# Install pnpm and corepack via npm (more reliable in alpine)
+RUN npm install -g pnpm@9 && corepack enable
+
+WORKDIR /app
+
+FROM base AS builder
+WORKDIR /app
+
+# Copy workspace files
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY packages/*/package.json packages/ 2>/dev/null || true
+COPY apps/*/package.json apps/ 2>/dev/null || true
+COPY projects/*/package.json projects/ 2>/dev/null || true
+COPY server/package.json server/ 2>/dev/null || true
+COPY client/package.json client/ 2>/dev/null || true
+COPY engine/package.json engine/ 2>/dev/null || true
+COPY portal/package.json portal/ 2>/dev/null || true
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy source and build
+COPY . .
+ENV NODE_ENV=production
+RUN pnpm build
+
+# Deploy server package
+RUN pnpm --filter @wasd/server deploy /app/prod-server
+
+# Production runner stage
+FROM base AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3000
+
+# Copy deployed application
+COPY --from=builder /app/prod-server ./
+
+# Security: non-root by default in alpine
+USER node
+
+EXPOSE 3000
+
+# Healthcheck for SSH-based validation
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD node -e "const http=require('http');http.get('http://localhost:3000/health',(r)=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))"
+
+CMD ["node", "dist/index.js"]
