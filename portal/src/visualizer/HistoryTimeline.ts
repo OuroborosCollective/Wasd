@@ -38,7 +38,7 @@ export interface ProcessedTimelineData {
 }
 
 export class HistoryTimelineProcessor {
-    private static readonly INTENSITY_THRESHOLD = 0.75;
+    private static readonly INTENSITY_THRESHOLD = 0.95;
     private static readonly HIGH_INTENSITY_TYPES = ['war', 'foundation', 'disaster'];
 
     public static process(history: WorldHistory): ProcessedTimelineData {
