@@ -16,7 +16,7 @@ interface B2BOrderRequest {
 }
 
 interface ValidationResult {
-    isValid: boolean;
+    success: boolean;
     merkleRoot: string;
     rejectionReason?: string;
 }
@@ -44,9 +44,9 @@ router.post('/order', async (req: Request, res: Response) => {
                 }
             },
             signature: orderData.signature
-        });
+        }, { enforceStrict: true });
 
-        if (!validation.isValid) {
+        if (!validation.success) {
             return res.status(422).json({
                 error: 'STATE_VALIDATION_FAILED',
                 reason: validation.rejectionReason
@@ -75,7 +75,7 @@ router.get('/status/:orderId', async (req: Request, res: Response) => {
     try {
         const { orderId } = req.params;
         const stateCompiler = new AREStateCompiler();
-        const status = await stateCompiler.queryOrderState(orderId);
+        const status = await stateCompiler.queryOrderState(orderId as string);
 
         if (!status) {
             return res.status(404).json({ error: 'ORDER_NOT_FOUND' });
