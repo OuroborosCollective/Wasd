@@ -35,7 +35,7 @@
     "multer": "^2.1.1",
     "openai": "^6.37.0",
     "pg": "^8.20.0",
-    "posthog-node": "^5.33.4",
+    "posthog-node": "^5.34.1",
     "reflect-metadata": "^0.2.2",
     "type-graphql": "2.0.0-rc.3",
     "uuid": "^14.0.0",
