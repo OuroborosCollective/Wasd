@@ -21,7 +21,7 @@
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
-    "pnpm": "^9.12.2",
+    "pnpm": "^11.1.1",
     "typescript": "^5.3.3"
   },
   "pnpm": {
