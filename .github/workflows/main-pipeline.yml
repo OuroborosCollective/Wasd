@@ -59,11 +59,11 @@ jobs:
 
             echo "→ Installing dependencies"
             corepack enable || true
-            corepack prepare pnpm@9.12.2 --activate || true
-            pnpm install --frozen-lockfile || npm install
+            corepack prepare pnpm@9.12.2 --activate
+            pnpm install --frozen-lockfile
 
             echo "→ Building project"
-            pnpm build || true
+            pnpm build
 
             echo "→ Restarting services"
             if command -v pm2 >/dev/null 2>&1; then

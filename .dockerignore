@@ -1,10 +1,42 @@
+# Dependencies
 node_modules
+
+# Build outputs
+**/dist
+**/.next
+**/.nuxt
+build
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
 .git
 .gitignore
-.github
-dist
-build
-image.tar.gz
-*.log
-.env*
-! .env.example
+
+# Logs
+**/*.log
+logs
+npm-debug.log*
+pnpm-debug.log*
+
+# Test coverage
+coverage
+.nyc_output
+
+# Docs
+*.md
+!README.md
+docs
+
+# Misc
+.env*.local
+.vscode-test
+.playwright
