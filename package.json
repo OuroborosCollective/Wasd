@@ -17,14 +17,23 @@
   },
   "engines": {
     "node": ">=18",
-    "pnpm": ">=8"
+    "pnpm": ">=9"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
-    "pnpm": "^8.0.0",
+    "pnpm": "^9.12.2",
     "typescript": "^5.3.3"
   },
   "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "pg",
+      "@prisma/engines",
+      "protobufjs",
+      "cpu-features",
+      "ssh2"
+    ],
     "overrides": {
       "@types/react": "^19.2.14",
       "@types/react-dom": "^19.2.3",
@@ -34,7 +43,6 @@
       "@babylonjs/core": "^9.6.2",
       "@babylonjs/materials": "^9.6.2",
       "@babylonjs/loaders": "^9.6.2",
-      "typescript": "^6.0.3",
       "react": "^19.2.6",
       "socket.io-client": "^4.8.3",
       "pg": "^8.20.0"
