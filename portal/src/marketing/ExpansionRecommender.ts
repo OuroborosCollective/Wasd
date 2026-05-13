@@ -10,9 +10,38 @@ export interface TechVector {
 }
 
 export class ExpansionRecommender {
-    private static readonly WEIGHT_FEATURE_ADOPTION = 0.4;
-    private static readonly WEIGHT_INTERACTION_FREQUENCY = 0.3;
-    private static readonly WEIGHT_PLEXITY_AFFINITY = 0.3;
+    // Indexed maps for O(1) lookups
+    private productsById: Map<string, TechVector> = new Map();
+    private productsByCategory: Map<string, TechVector[]> = new Map();
+    
+    // Plexity weights: 45% Engagement, 35% Intent, 20% Technical Fit
+    private static readonly WEIGHT_ENGAGEMENT = 0.45;
+    private static readonly WEIGHT_INTENT = 0.35;
+    private static readonly WEIGHT_TECHNICAL_FIT = 0.20;
+
+    /**
+     * Register product for O(1) lookup.
+     */
+    public registerProduct(id: string, category: string, techVector: TechVector): void {
+        this.productsById.set(id, techVector);
+        const catProducts = this.productsByCategory.get(category) || [];
+        catProducts.push(techVector);
+        this.productsByCategory.set(category, catProducts);
+    }
+
+    /**
+     * Get product by ID - O(1).
+     */
+    public getProductById(id: string): TechVector | undefined {
+        return this.productsById.get(id);
+    }
+
+    /**
+     * Get products by category - O(1).
+     */
+    public getProductsByCategory(category: string): TechVector[] {
+        return this.productsByCategory.get(category) || [];
+    }
 
     public calculateConversionProbability(
         metrics: UsageMetrics,
@@ -23,9 +52,9 @@ export class ExpansionRecommender {
         const interactionFrequency = this.calculateInteractionFrequency(metrics.sessionCount, metrics.daysActive);
         const affinity = this.calculatePlexityAffinity(currentStack, targetRequirements);
 
-        const score = (featureAdoption * ExpansionRecommender.WEIGHT_FEATURE_ADOPTION) +
-                      (interactionFrequency * ExpansionRecommender.WEIGHT_INTERACTION_FREQUENCY) +
-                      (affinity * ExpansionRecommender.WEIGHT_PLEXITY_AFFINITY);
+        const score = (featureAdoption * ExpansionRecommender.WEIGHT_ENGAGEMENT) +
+                      (interactionFrequency * ExpansionRecommender.WEIGHT_INTENT) +
+                      (affinity * ExpansionRecommender.WEIGHT_TECHNICAL_FIT);
 
         return this.normalize(score);
     }
