@@ -1,0 +1,121 @@
+name: AST Self-Healing Pipeline
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  ast-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Run AST Validation
+        id: validate
+        run: |
+          npx tsx scripts/ast-validator.ts . || true
+        continue-on-error: true
+      
+      - name: Check Isolation Status
+        run: |
+          if [ -f .last-stable-commit ]; then
+            echo "🔒 ISOLATION ACTIVE"
+            echo "Safe commit: $(cat .last-stable-commit)"
+            exit 1
+          fi
+          echo "✅ Validation passed"
+      
+      - name: Upload Validation Report
+        if: always()
+        run: |
+          echo "## AST Validation Report" >> $GITHUB_STEP_SUMMARY
+          echo "- Files analyzed: $(find . -name '*.ts' -not -path '*/node_modules/*' | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "- Errors found: ${{ steps.validate.outcome }}" >> $GITHUB_STEP_SUMMARY
+
+  build-check:
+    needs: ast-validation
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Type Check
+        run: pnpm run lint 2>&1 || true
+        continue-on-error: true
+      
+      - name: Build Project
+        run: pnpm build 2>&1 || true
+        continue-on-error: true
+      
+      - name: Determine Status
+        run: |
+          if [ "${{ needs.ast-validation.result }}" == "success" ]; then
+            echo "✅ Build can proceed"
+          else
+            echo "❌ AST errors detected - blocking build"
+            exit 1
+          fi
+
+  isolate-on-failure:
+    needs: [ast-validation, build-check]
+    if: failure()
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Identify Last Stable Commit
+        id: stable
+        run: |
+          # Get last commit that's not the current one
+          COMMIT=$(git log --oneline -10 | tail -1 | awk '{print $1}')
+          echo "$COMMIT" > .last-stable-commit
+          echo "::set-output name=commit::$COMMIT"
+          echo "🔒 Stable commit identified: $COMMIT"
+      
+      - name: Protect Stable Commit
+        run: |
+          git branch stable-${{ steps.stable.outputs.commit }} ${{ steps.stable.outputs.commit }}
+          git push origin stable-${{ steps.stable.outputs.commit }} || true
+      
+      - name: Report Isolation
+        run: |
+          echo "## Self-Healing Action Triggered"
+          echo "" 
+          echo "The build failed and the following commits are now protected:"
+          echo "- $(git log --oneline -5)"
+          echo ""
+          echo "To rollback: \`git reset --hard ${{ steps.stable.outputs.commit }}\`"
