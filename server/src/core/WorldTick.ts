@@ -43,7 +43,39 @@ export class WorldTick {
   private lootEntities: Map<string, any> = new Map();
 
   private socketToPlayer: Map<string, string> = new Map(); // socketId -> characterName
-  private lastActionTimes: Map<string, number> = new Map(); // charName -> timestamp
+  private lastActionTimes: Map<string, number> = new Map();
+
+  public assetPoolResolver: any = {
+    getDocument: () => ({}),
+    setEntry: () => true,
+    removeEntry: () => true,
+    setDefault: () => true,
+    removeDefault: () => true,
+    reload: () => true,
+  };
+  public getPersistenceStats(): any { return {}; }
+  public placementEngine: any = {};
+  public listActiveVoteBanners(): any { return []; }
+  public handleVoteProviderCallback(data: any): void {}
+  public getAdminVoteBanners(): any { return []; }
+  public upsertVoteBanner(data: any): void {}
+  public deleteVoteBanner(id: any): void {}
+  public setVoteBannerOrder(data: any): void {}
+  public getVoteAdminDiagnostics(): any { return {}; }
+  public debouncedSave(): void {}
+  public craftingSystem: any = {};
+  public skillSystem: any = {};
+  public worldState: any = {};
+  public createNPC(data: any): void {}
+  public playerToSocket: Map<string, string> = new Map();
+  public updateLootCache(): void {}
+  public npcRespawnTimers: any = {};
+  public resourceSystem: any = {};
+  public liveHeal(p1: any, p2: any): void {}
+  public getPlaytesterDebugLogPath(): string { return ""; }
+  public buildPlaytesterMonitorPayload(): any { return {}; }
+  public assetHealthService: any = { getStatus: () => ({}) };
+ // charName -> timestamp
 
   constructor(private ws: GameWebSocketServer) {
     this.chunkSystem = new ChunkSystem(64);
