@@ -29,14 +29,10 @@ import { PlaytesterWebRTCSignaling } from "../modules/playtester/PlaytesterWebRT
 import { initRedisClient } from "./RedisClient.js";
 import { URL } from "node:url";
 
-// Use a name that doesn't conflict with CommonJS globals
 const currentDir = typeof __dirname !== 'undefined' 
   ? __dirname 
   : path.dirname(fileURLToPath(import.meta.url));
 
-/**
- * Resolves the Vite / static client package root.
- */
 function resolveClientRoot(): string {
   const fromEnv = process.env.CLIENT_ROOT_DIR?.trim();
   if (fromEnv) {
@@ -195,7 +191,6 @@ export class ServerBootstrap {
     const selfHealingRuntime = bootstrapSelfHealing(resolveSelfHealingConfigFromEnv());
     const supabaseProxyBaseUrl = resolveSupabaseProxyBaseUrl();
 
-    // Initialize Redis before anything else
     await initRedisClient();
 
     app.use("/api/mcp", mcpRoute());
@@ -210,7 +205,6 @@ export class ServerBootstrap {
     });
 
     app.get("/health", (_req, res) => {
-      // If we are still initializing, return 503 so load balancers don't send traffic yet
       if (this.initializing) {
         return res.status(503).json({
           status: "initializing",
@@ -218,11 +212,10 @@ export class ServerBootstrap {
         });
       }
 
-      // Late-bind tick reference if available
       const tick = (this as any)._tick as WorldTick;
       const persistence = tick?.getPersistenceStats() ?? { status: "unknown" };
       const content = getContentDataSourceLabel();
-      const selfHealingStatus = selfHealingRuntime.system.getStatus();
+      const selfHealingStatus = selfHealingRuntime.getStatus();
       res.json({
         ok: true,
         project: "ARELORIAN MMORPG",
@@ -311,7 +304,7 @@ export class ServerBootstrap {
         return res.status(502).json({
           error: "supabase_auth_proxy_not_configured",
           message:
-            "SUPABASE_URL/SUPABASE_PUBLIC_URL is missing and no valid Supabase apikey/ref was provided. Configure SUPABASE_URL or send the Supabase anon key so /auth/v1 can be resolved.",
+            "SUPABASE_URL/SUPABASE_PUBLIC_URL is missing and no valid Supabase apikey/ref was provided.",
         });
       }
 
@@ -326,8 +319,6 @@ export class ServerBootstrap {
           });
         }
 
-        // GoTrue requires grant_type in the query string, but @supabase/supabase-js
-        // sends it in the JSON body. Transform the URL if needed.
         let upstreamPath = req.originalUrl;
         let transformedBody: string | undefined;
         if (
@@ -346,7 +337,7 @@ export class ServerBootstrap {
               transformedBody = JSON.stringify(parsed);
             }
           } catch (e) {
-            /* ignore parse fail */
+            /* ignore */
           }
         }
 
@@ -366,8 +357,7 @@ export class ServerBootstrap {
           (init as any).duplex = "half";
         }
 
-        const finalUrlString = String(upstreamUrl);
-        const response = await fetch(finalUrlString, init);
+        const response = await fetch(String(upstreamUrl), init);
 
         res.status(response.status);
         response.headers.forEach((value, key) => {
@@ -382,7 +372,7 @@ export class ServerBootstrap {
         console.error("[AuthProxy] Failed to forward request to Supabase:", err);
         return res.status(502).json({
           error: "supabase_auth_proxy_upstream_failed",
-          message: "Network problem while contacting Supabase. Please check your connection and server URL.",
+          message: "Network problem while contacting Supabase.",
         });
       }
     });
@@ -394,12 +384,14 @@ export class ServerBootstrap {
     (this as any)._tick = tick;
     await tick.init();
     this.initializing = false;
+
     const monitorStream = new PlaytesterMonitorStream(httpServer, (options) =>
       tick.buildPlaytesterMonitorPayload(options)
     );
     monitorStream.start();
     const playtesterSignaling = new PlaytesterWebRTCSignaling(httpServer);
     playtesterSignaling.start();
+
     const monitorClientRoot = resolveClientRoot();
     const monitorHtmlPath = resolvePlaytesterMonitorHtmlPath(
       monitorClientRoot,
@@ -409,6 +401,7 @@ export class ServerBootstrap {
       monitorClientRoot,
       path.join(monitorClientRoot, "dist"),
     );
+
     if (monitorHtmlPath) {
       app.get("/playtester-monitor.html", (req, res) => {
         if (!canAccessPlaytesterMonitor(req)) {
@@ -427,14 +420,14 @@ export class ServerBootstrap {
         res.sendFile(publisherHtmlPath);
       });
     }
+
     app.get("/api/playtester/debug-log", (req, res) => {
       if (!canAccessPlaytesterMonitor(req)) {
         res.status(403).json({ error: "forbidden" });
         return;
       }
-      const logPath = tick.getPlaytesterDebugLogPath();
       res.json({
-        ok: Boolean(logPath),
+        ok: Boolean(tick.getPlaytesterDebugLogPath()),
         enabled: PlaytesterConfig.enabled,
         streamEnabled: PlaytesterConfig.streamEnabled,
         monitorMode: PlaytesterConfig.monitorMode,
@@ -452,14 +445,15 @@ export class ServerBootstrap {
           renderDistance: PlaytesterConfig.streamRenderDistance,
           iceServers: PlaytesterConfig.streamIceServers,
         },
-        debugLogPath: logPath,
+        debugLogPath: tick.getPlaytesterDebugLogPath(),
       });
     });
+
     app.use("/api/admin/content", adminContentRouter(tick));
     app.use("/api/vote", voteRouter(tick));
     registerSelfHealingDashboard(
       app,
-      selfHealingRuntime.system,
+      selfHealingRuntime,
       resolveSelfHealingDashboardConfigFromEnv()
     );
 
@@ -467,44 +461,27 @@ export class ServerBootstrap {
     const clientPath = path.join(clientRoot, "dist");
     const itchClientPath = path.join(clientRoot, "dist-itch");
     const adminContentPath = resolveAdminContentHtmlPath(clientRoot, clientPath);
+
     if (adminContentPath) {
       app.get("/admin-content.html", (_req, res) => {
         res.sendFile(adminContentPath);
       });
-    } else {
-      console.warn(
-        "[ServerBootstrap] admin-content.html not found under client/dist or client/public — run client build or copy the file."
-      );
     }
-    if (
-      process.env.NODE_ENV === "production" &&
-      !existsSync(path.join(clientPath, "index.html"))
-    ) {
-      console.warn(
-        `[ServerBootstrap] No index.html under ${clientPath}. ` +
-          "Build the client or set CLIENT_ROOT_DIR to the client package directory (e.g. /opt/areloria/client)."
-      );
-    }
+
     if (existsSync(path.join(itchClientPath, "index.html"))) {
-      app.use(
-        "/itch",
-        express.static(itchClientPath, {
-          index: "index.html",
-        }),
-      );
-      app.get("/itch/*", (_req, res) => {
-        res.sendFile(path.join(itchClientPath, "index.html"));
-      });
+      app.use("/itch", express.static(itchClientPath, { index: "index.html" }));
+      app.get("/itch/*", (_req, res) => res.sendFile(path.join(itchClientPath, "index.html")));
     }
+
     if (process.env.NODE_ENV !== "production") {
       try {
-        const { createServer: createViteServer } = await import("vite");
-        const vite = await createViteServer({
+        const vite = await import("vite");
+        const viteServer = await vite.createServer({
           server: { middlewareMode: true },
           appType: "spa",
           root: clientRoot,
         });
-        app.use(vite.middlewares);
+        app.use(viteServer.middlewares);
       } catch (e) {
         console.error("Failed to start Vite middleware", e);
         app.use(express.static(clientPath));
@@ -524,38 +501,22 @@ export class ServerBootstrap {
     const mirroredWorld = resolveMirroredWorldAssetsDir();
     const worldAssetsDir = mirroredWorld ?? resolveWorldAssetsDir();
     if (worldAssetsDir) {
-      app.use(
-        "/world-assets",
-        express.static(worldAssetsDir, {
-          maxAge: process.env.NODE_ENV === "production" ? "7d" : 0,
-          fallthrough: false,
-        })
-      );
-      console.log(
-        `[ServerBootstrap] Serving /world-assets from ${worldAssetsDir}` +
-          (mirroredWorld ? " (client mirror: assets/models/world-assets)" : "")
-      );
-    } else {
-      console.warn(
-        "[ServerBootstrap] world-assets mirror and repo world-assets/ missing — /world-assets/* may 404. " +
-          "Run client prebuild (sync-world-assets) or set WORLD_ASSETS_DIR."
-      );
+      app.use("/world-assets", express.static(worldAssetsDir, {
+        maxAge: process.env.NODE_ENV === "production" ? "7d" : 0,
+        fallthrough: false,
+      }));
     }
 
     try {
       const worldDir = resolveContentDir("world");
       if (existsSync(worldDir)) {
-        app.use(
-          "/world",
-          express.static(worldDir, {
-            maxAge: process.env.NODE_ENV === "production" ? "1h" : 0,
-            fallthrough: true,
-          })
-        );
-        console.log(`[ServerBootstrap] Serving /world from ${worldDir}`);
+        app.use("/world", express.static(worldDir, {
+          maxAge: process.env.NODE_ENV === "production" ? "1h" : 0,
+          fallthrough: true,
+        }));
       }
     } catch (e) {
-      console.warn("[ServerBootstrap] Could not resolve game-data/world for /world route:", e);
+      /* ignore */
     }
 
     app.use(selfHealingMiddleware());

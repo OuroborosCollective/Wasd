@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions, Secret, Algorithm } from 'jsonwebtoken';
 
 export interface SysAdminPayload {
     userId: string;
@@ -7,8 +7,8 @@ export interface SysAdminPayload {
 }
 
 export class LocalJwtService {
-    private readonly secret: string;
-    private readonly algorithm: jwt.Algorithm = 'HS256';
+    private readonly secret: Secret;
+    private readonly algorithm: Algorithm = 'HS256';
     private readonly expiresIn: string = '1h';
 
     constructor() {
@@ -16,20 +16,20 @@ export class LocalJwtService {
     }
 
     public generateToken(payload: SysAdminPayload): string {
-        return jwt.sign(
-            {
-                sub: payload.userId,
-                name: payload.username,
-                role: payload.role,
-                iat: Math.floor(Date.now() / 1000)
-            },
-            this.secret,
-            {
-                algorithm: this.algorithm,
-                expiresIn: this.expiresIn,
-                issuer: 'local-auth-service'
-            }
-        );
+        const signOptions: SignOptions = {
+            algorithm: this.algorithm,
+            expiresIn: this.expiresIn as any,
+            issuer: 'local-auth-service'
+        };
+
+        const jwtPayload = {
+            sub: payload.userId,
+            name: payload.username,
+            role: payload.role,
+            iat: Math.floor(Date.now() / 1000)
+        };
+
+        return jwt.sign(jwtPayload, this.secret, signOptions);
     }
 
     public verifyToken(token: string): SysAdminPayload | null {
@@ -38,6 +38,10 @@ export class LocalJwtService {
                 algorithms: [this.algorithm],
                 issuer: 'local-auth-service'
             }) as any;
+
+            if (!decoded || typeof decoded === 'string') {
+                return null;
+            }
 
             return {
                 userId: decoded.sub,

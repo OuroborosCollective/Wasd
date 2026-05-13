@@ -12,29 +12,28 @@ export class WorkflowFixController {
    * POST /api/workflow/fix
    * Body: { content: string }
    */
-  public fixWorkflow = async (req: Request, res: Response): Promise<void> => {
+  public fixWorkflow = async (req: Request, res: Response): Promise<Response> => {
     try {
       const { content } = req.body;
 
       if (!content || typeof content !== 'string') {
-        res.status(400).json({
+        return res.status(400).json({
           success: false,
           error: 'Workflow content is required and must be a string.',
         });
-        return;
       }
 
       // Die GitHubWorkflowService Logik anwenden
-      // Annahme: fixWorkflow gibt { fixedContent: string, report: any } zurück
+      // Der Service gibt nun ein Objekt mit fixedContent und report zurück
       const result = await this.workflowService.fixWorkflow(content);
 
-      res.status(200).json({
+      return res.status(200).json({
         success: true,
         fixedContent: result.fixedContent,
         report: result.report,
       });
     } catch (error: any) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: error.message || 'An internal error occurred while processing the workflow.',
       });

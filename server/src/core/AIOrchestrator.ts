@@ -1,11 +1,13 @@
-import fetch from 'node-fetch';
-
 interface TaskPayload {
     eventType: string;
     payload: any;
     priority: number; // e.g. P1 = 1 (highest), P3 = 3 (lowest)
 }
 
+/**
+ * AIOrchestrator manages task queuing and execution for external AI services.
+ * Uses global fetch API (Node 18+) or requires 'node-fetch' types/polyfill.
+ */
 export class AIOrchestrator {
    private static readonly GITHUB_DISPATCH_URL = "https://api.github.com/repos/OuroborosCollective/Areloria/dispatches";
    private static readonly JULES_API_URL = "https://jules.googleapis.com/v1alpha";
@@ -70,9 +72,8 @@ export class AIOrchestrator {
                    console.warn(`[AI-Orchestrator] Dispatch Warnung: ${res.status}`);
                    if (res.status === 429) {
                        console.error("[AI-Orchestrator] RESOURCE_EXHAUSTED (429) detected. Throttling...");
-                       // Put back in queue to retry later
                        this.taskQueue.unshift(task);
-                       this.taskCount = this.MAX_DAILY_TASKS; // Force stop
+                       this.taskCount = this.MAX_DAILY_TASKS;
                        break;
                    }
                }
@@ -118,9 +119,8 @@ export class AIOrchestrator {
                  return fallbackFn();
             }
 
-            // Polling
             const startTime = Date.now();
-            const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+            const TIMEOUT_MS = 5 * 60 * 1000;
 
             while (Date.now() - startTime < TIMEOUT_MS) {
                 const pollRes = await fetch(`${this.JULES_API_URL}/sessions/${sessionId}/activities?pageSize=50`, {
@@ -137,7 +137,6 @@ export class AIOrchestrator {
                 const data = await pollRes.json() as any;
                 const activities = data.activities || [];
 
-                // Assuming last activity contains bashOutput if completed
                 for (const activity of activities) {
                     if (activity.artifacts) {
                         for (const artifact of activity.artifacts) {
@@ -156,7 +155,7 @@ export class AIOrchestrator {
                     }
                 }
 
-                await new Promise(resolve => setTimeout(resolve, 15000)); // Poll every 15s
+                await new Promise(resolve => setTimeout(resolve, 15000));
             }
 
             console.warn("[AI-Orchestrator] Repoless session timed out. Returning fallback.");

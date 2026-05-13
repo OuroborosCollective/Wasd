@@ -46,10 +46,14 @@ export function voteRouter(tick: WorldTick): Router {
       return res.status(400).json({
         ok: false,
         reason: result.reason ?? "Vote callback rejected.",
+        sessionId: result.sessionId,
+        playerId: result.playerId,
+        bannerId: result.bannerId,
       });
     }
     return res.json({
       ok: true,
+      reason: result.reason,
       sessionId: result.sessionId,
       playerId: result.playerId,
       bannerId: result.bannerId,
@@ -68,7 +72,7 @@ export function voteRouter(tick: WorldTick): Router {
     adminWriteBlocked,
     (req: AdminRequest, res: Response) => {
       try {
-        const next = tick.upsertVoteBanner({
+        const result = tick.upsertVoteBanner({
           internalId: asString(req.body?.internalId) || undefined,
           providerKey: asString(req.body?.providerKey),
           displayName: asString(req.body?.displayName),
@@ -101,9 +105,15 @@ export function voteRouter(tick: WorldTick): Router {
           claimInstructions: asString(req.body?.claimInstructions) || undefined,
           metadata: asObject(req.body?.metadata),
         });
+        if (!result.ok) {
+          return res.status(400).json({
+            ok: false,
+            reason: result.reason ?? "Invalid vote banner payload.",
+          });
+        }
         return res.json({
           ok: true,
-          banner: next,
+          banner: result.banner,
           banners: tick.getAdminVoteBanners(),
         });
       } catch (error) {
@@ -124,9 +134,9 @@ export function voteRouter(tick: WorldTick): Router {
       if (!internalId) {
         return res.status(400).json({ ok: false, reason: "internalId is required." });
       }
-      const ok = tick.deleteVoteBanner(internalId);
-      if (!ok) {
-        return res.status(404).json({ ok: false, reason: "Vote banner not found." });
+      const result = tick.deleteVoteBanner(internalId);
+      if (!result.ok) {
+        return res.status(404).json({ ok: false, reason: result.reason ?? "Vote banner not found." });
       }
       return res.json({ ok: true, banners: tick.getAdminVoteBanners() });
     },
@@ -150,7 +160,7 @@ export function voteRouter(tick: WorldTick): Router {
     adminAuthMiddleware,
     (_req: AdminRequest, res: Response) => {
       res.json({
-        diagnostics: tick.getVoteAdminDiagnostics(120),
+        diagnostics: tick.getVoteAdminDiagnostics(),
       });
     },
   );
