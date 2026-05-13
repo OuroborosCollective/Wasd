@@ -1,4 +1,4 @@
-name: Areloria VPS Deploy
+name: Areloria VPS Deploy (Password SSH)
 
 on:
   push:
@@ -16,7 +16,6 @@ permissions:
 
 jobs:
   deploy:
-    name: Deploy Monorepo to VPS
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -26,104 +25,76 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
 
-      - name: Enable Corepack
+      - name: Install sshpass
+        run: sudo apt-get update && sudo apt-get install -y sshpass
+
+      - name: Verify SSH Connection
         run: |
-          corepack enable
-          corepack prepare pnpm@9.12.2 --activate
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh \
+            -o StrictHostKeyChecking=no \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "echo 'SSH connection OK' && uname -a"
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Setup SSH Agent
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
-
-      - name: Add VPS to Known Hosts
+      - name: Deploy to VPS (Git Sync + Restart)
         run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.PRODUCTION_IP }} >> ~/.ssh/known_hosts
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh \
+            -o StrictHostKeyChecking=no \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
 
-      - name: Verify VPS Connection
-        run: |
-          ssh root@${{ secrets.PRODUCTION_IP }} "
-            echo 'VPS connection established'
-            uname -a
-            docker --version || true
-            docker compose version || true
-          "
+            set -e
 
-      - name: Ensure Monorepo Directory Exists
-        run: |
-          ssh root@${{ secrets.PRODUCTION_IP }} "
-            mkdir -p ${VPS_PATH}
-          "
+            echo "→ Navigating to project"
+            mkdir -p /opt/areloria
+            cd /opt/areloria
 
-      - name: Clone Repository if Missing
-        run: |
-          ssh root@${{ secrets.PRODUCTION_IP }} "
-            if [ ! -d '${VPS_PATH}/.git' ]; then
-              git clone https://github.com/${{ github.repository }} ${VPS_PATH}
+            if [ ! -d ".git" ]; then
+              echo "→ Cloning repo"
+              git clone https://github.com/${{ github.repository }} .
             fi
-          "
 
-      - name: Update Monorepo
-        run: |
-          ssh root@${{ secrets.PRODUCTION_IP }} "
-            cd ${VPS_PATH}
-
-            echo '--- Sync Repository ---'
+            echo "→ Syncing repo"
             git fetch origin main
             git reset --hard origin/main
 
-            echo '--- Enable Corepack ---'
-            corepack enable
-            corepack prepare pnpm@9.12.2 --activate
+            echo "→ Installing dependencies"
+            corepack enable || true
+            corepack prepare pnpm@9.12.2 --activate || true
+            pnpm install --frozen-lockfile || npm install
 
-            echo '--- Install Dependencies ---'
-            pnpm install --frozen-lockfile
-
-            echo '--- Build Monorepo ---'
+            echo "→ Building project"
             pnpm build || true
 
-            echo '--- Restart Services ---'
-
-            if [ -f docker-compose.yml ] || [ -f compose.yml ] || [ -f docker-compose.yaml ]; then
-              docker compose up -d --build
-            fi
-
+            echo "→ Restarting services"
             if command -v pm2 >/dev/null 2>&1; then
               pm2 restart all || true
             fi
 
-            echo '--- Deployment Complete ---'
-          "
+            if [ -f docker-compose.yml ] || [ -f compose.yml ]; then
+              docker compose up -d --build || true
+            fi
 
-      - name: Production Health Check
+            echo "→ Deploy finished"
+          EOF
+
+      - name: Health Check
         run: |
-          MAX_RETRIES=20
-          COUNT=0
+          for i in {1..20}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.SSH_HOST }} || true)
 
-          until curl -fsS http://${{ secrets.PRODUCTION_IP }} >/dev/null || [ $COUNT -eq $MAX_RETRIES ]; do
-            echo "Waiting for application startup ($COUNT/$MAX_RETRIES)..."
+            if [ "$STATUS" = "200" ]; then
+              echo "App is healthy"
+              exit 0
+            fi
+
+            echo "Waiting for app... ($i/20)"
             sleep 10
-            COUNT=$((COUNT + 1))
           done
 
-          if [ $COUNT -eq $MAX_RETRIES ]; then
-            echo "Application health check failed."
-            exit 1
-          fi
-
-          echo "Application is online."
+          echo "Health check failed"
+          exit 1
 
       - name: Deployment Summary
         run: |
-          echo "Areloria monorepo deployed successfully to:"
-          echo "${VPS_PATH}"
+          echo "Deployment finished on VPS:"
+          echo "${{ secrets.SSH_HOST }} -> ${VPS_PATH }}"
