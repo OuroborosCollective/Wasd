@@ -5,7 +5,7 @@ This repo is a **pnpm monorepo** (`apps/`, `packages/`, `projects/`, `server/`, 
 ## Security first
 
 - If a root password was shared in chat, email, or tickets, **change it immediately**.
-- Prefer a dedicated **`deploy` user** in the `docker` group, **SSH keys only**, `PasswordAuthentication no` in `sshd_config`.
+- Prefer a dedicated **`deploy` user** in the `docker` group, **SSH keys only**, `PasswordAuthentication no` in `sshd_config`. If you use **`root`** (common on small VPS), still use **SSH keys** for GitHub Actions — same setup, but put the public key in **`/root/.ssh/authorized_keys`**.
 - **Never** commit VPS passwords or paste them into GitHub Secrets as `SSH_PASSWORD` long-term.
 
 ## One-time VPS bootstrap
@@ -45,19 +45,19 @@ It runs on **push to `main`** when files under the monorepo change (apps, server
 | Secret | Description |
 |--------|-------------|
 | `VPS_HOST` | VPS IP or DNS |
-| `VPS_USER` | SSH user (e.g. `deploy`) |
+| `VPS_USER` | SSH user: e.g. **`root`** or `deploy` |
 | `VPS_SSH_KEY` | **Private** key (full PEM / OpenSSH block) |
 | `VPS_SSH_PORT` | Optional, default `22` |
 | `VPS_DEPLOY_PATH` | Optional, default `/opt/areloria` |
 
-Generate a **deploy-only** key pair on your laptop, put the **public** key in `~/.ssh/authorized_keys` on the VPS for `VPS_USER`, and paste the **private** key into `VPS_SSH_KEY`.
+Generate a **deploy-only** key pair on your laptop, put the **public** key in **`/root/.ssh/authorized_keys`** (if `VPS_USER` is `root`) or **`~/.ssh/authorized_keys`** for that user, then paste the **private** key into `VPS_SSH_KEY`.
 
 ## Local trigger with Python Paramiko (optional)
 
 ```bash
 pip install paramiko
 export VPS_HOST=your.vps.host
-export VPS_USER=deploy
+export VPS_USER=root
 export SSH_PRIVATE_KEY="$(cat ~/.ssh/id_ed25519)"
 export VPS_DEPLOY_PATH=/opt/areloria
 python3 tools/deploy_vps_paramiko.py
