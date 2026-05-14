@@ -54,13 +54,13 @@ RUN set -eu; \
     if pnpm install --frozen-lockfile --prefer-offline --ignore-scripts > /tmp/pnpm-install.log 2>&1; then \
       cat /tmp/pnpm-install.log; \
     else \
-      install_rc=$$?; \
+      install_rc=$?; \
       cat /tmp/pnpm-install.log; \
       if grep -Eq "ERR_PNPM_(LOCKFILE_CONFIG_MISMATCH|OUTDATED_LOCKFILE)" /tmp/pnpm-install.log; then \
         echo "pnpm lockfile drift detected; regenerating lockfile inside Docker build for VPS deploy."; \
         pnpm install --no-frozen-lockfile --prefer-offline --ignore-scripts; \
       else \
-        exit "$$install_rc"; \
+        exit "$install_rc"; \
       fi; \
     fi; \
     rm -f /tmp/pnpm-install.log
