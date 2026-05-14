@@ -183,7 +183,7 @@ export async function publishChatMessage(msg: Partial<ChatMessage>): Promise<Pub
   }
   const now = Date.now();
   const rateLimit = enforceRateLimit(normalized.senderId, now);
-  if (!rateLimit.ok) {
+  if (rateLimit.ok === false) {
     return { ok: false, reason: "rate_limited", retryAfterMs: rateLimit.retryAfterMs };
   }
   if (redisPubSubReady && publisher) {

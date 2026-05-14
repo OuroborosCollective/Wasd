@@ -1,5 +1,5 @@
-import { HeuristicGoalPruner } from "./HeuristicGoalPruner";
-import { NPCMemoryCache } from "./NPCMemoryCache";
+import { HeuristicGoalPruner } from "./HeuristicGoalPruner.js";
+import { NPCMemoryCache } from "./NPCMemoryCache.js";
 
 export class NPCEngine {
     private tickInterval: NodeJS.Timeout | null = null;

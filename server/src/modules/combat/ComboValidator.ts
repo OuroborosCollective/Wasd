@@ -119,7 +119,7 @@ const DEFAULT_COMBO_DEFINITIONS: Map<string, ComboDefinition> = new Map([
   }]
 ]);
 
-const TICK_RATE_MS = 100;
+export const TICK_RATE_MS = 100;
 
 export class ComboValidator {
   private comboDefinitions: Map<string, ComboDefinition>;
@@ -389,4 +389,3 @@ export class ComboValidator {
 }
 
 export default ComboValidator;
-export { ComboErrorCode, SkillElement, TICK_RATE_MS };

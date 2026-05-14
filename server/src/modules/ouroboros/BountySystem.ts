@@ -1,15 +1,6 @@
-import { WorldHistory } from "../history/WorldHistory";
-import { NPCRelationshipSystem } from "../npc/NPCRelationshipSystem";
-import { QuestSystem } from "../quest/QuestSystem";
-
-export interface BountyQuestData {
-    targetId: string;
-    issuerFactionId: string;
-    reward: number;
-    difficulty: number;
-    type: string;
-    description: string;
-}
+import { WorldHistory } from "../history/WorldHistory.js";
+import { NPCRelationshipSystem } from "../npc/NPCRelationshipSystem.js";
+import { QuestSystem, type BountyQuestData } from "../quest/QuestSystem.js";
 
 export class BountySystem {
     private static instance: BountySystem;

@@ -15,7 +15,22 @@ export interface IWorldEvent {
 }
 
 export class WorldHistory {
+    private static instance: WorldHistory;
     private events: IWorldEvent[];
+    private readonly listeners = new Map<string, Array<(payload: unknown) => void>>();
+
+    public static getInstance(): WorldHistory {
+        if (!WorldHistory.instance) {
+            WorldHistory.instance = new WorldHistory();
+        }
+        return WorldHistory.instance;
+    }
+
+    public on(event: string, handler: (payload: unknown) => void): void {
+        const list = this.listeners.get(event) ?? [];
+        list.push(handler);
+        this.listeners.set(event, list);
+    }
 
     constructor() {
         this.events = [];

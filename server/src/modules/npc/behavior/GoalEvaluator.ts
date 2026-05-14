@@ -1,4 +1,4 @@
-import { ScarcityPredictor } from "../prediction/ScarcityPredictor";
+import { ScarcityPredictor } from "../../prediction/ScarcityPredictor.js";
 
 export interface Goal {
     type: 'Relocate' | 'Stockpile' | 'Trade' | 'Work' | 'Idle';
@@ -34,7 +34,7 @@ export class GoalEvaluator {
     ): Goal[] {
         const predictions = this.scarcityPredictor.getPredictions(currentRegion.id);
         const activeThreats = predictions.filter(p => 
-            this.CRITICAL_RESOURCES.includes(p.resource) && 
+            this.CRITICAL_RESOURCES.includes(p.resourceId) && 
             p.probability >= this.PREDICTION_THRESHOLD
         );
 

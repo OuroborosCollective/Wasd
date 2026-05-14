@@ -51,7 +51,7 @@ export class EngineInstanceHost {
 
         this.intervalId = setInterval(() => {
             try {
-                this.engine.update();
+                this.engine.update(1000 / this.tickRate);
             } catch (error) {
                 console.error("Engine Update Error:", error);
             }

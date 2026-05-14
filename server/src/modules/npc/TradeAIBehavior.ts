@@ -1,6 +1,6 @@
-import { INPC, NPCState, LongTermGoal } from "./NPCInterfaces";
-import { IPathfindingSystem } from "../systems/PathfindingSystem";
-import { CaravanLogic } from "./CaravanLogic";
+import { INPC, NPCState, LongTermGoal } from "./NPCInterfaces.js";
+import type { IPathfindingSystem } from "../systems/PathfindingSystem.js";
+import { CaravanLogic } from "./CaravanLogic.js";
 
 export class TradeAIBehavior {
     private npc: INPC;

@@ -32,6 +32,8 @@ export interface Legend {
   /** Impact score that spawned it. */
   impactScore: number;
   regionId?: string;
+  /** Optional classification for expansion / orchestration pipelines. */
+  type?: string;
 }
 
 const MAX_HISTORY = 2000;
