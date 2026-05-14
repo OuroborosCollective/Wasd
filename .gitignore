@@ -15,3 +15,7 @@ pnpm-debug.log*
 
 # Build artifacts
 *.tsbuildinfo
+
+# DGCC / Playwright local outputs
+dgcc-artifacts/
+test-results/

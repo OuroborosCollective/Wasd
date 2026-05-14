@@ -188,7 +188,16 @@ export class ServerBootstrap {
   async start() {
     const app = express();
     const httpServer = createServer(app);
-    const selfHealingRuntime: any = { getStatus: () => ({ featuresProtected: 0 }) };
+    const selfHealingRuntime: any = {
+      getStatus: () => ({
+        active: false,
+        config: { patchMode: "off" as const },
+        totalErrors: 0,
+        totalHealed: 0,
+        healingRate: 0,
+        featuresProtected: 0,
+      }),
+    };
     const supabaseProxyBaseUrl = resolveSupabaseProxyBaseUrl();
 
     await initRedisClient();
@@ -246,14 +255,14 @@ export class ServerBootstrap {
           if (!status) return null;
           return {
             tickCount: status.tickCount,
-            subsystems: status.subsystems.map(s => ({
+            subsystems: (status.subsystems ?? []).map((s) => ({
               id: s.id,
               state: s.state,
               score: s.score,
               healingLocked: s.healingLocked,
             })),
-            learningEntries: status.learningEntries,
-            logEntries: status.logEntries,
+            learningEntries: status.learningEntries ?? [],
+            logEntries: status.logEntries ?? [],
           };
         })(),
         assetHealth: (() => {
@@ -495,6 +504,10 @@ export class ServerBootstrap {
         }
         next();
       });
+      const clientPublic = path.join(clientRoot, "public");
+      if (existsSync(clientPublic)) {
+        app.use(express.static(clientPublic));
+      }
       app.use(express.static(clientPath));
     }
 

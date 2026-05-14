@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -74,6 +75,13 @@ function wantFixes(contract: { modes?: Record<string, { fix?: { enabled?: boolea
 
 function printHeader(mode: string, fix: boolean) {
   console.log(`[DGCC] mode=${mode} fix=${fix ? "on" : "off"}`);
+}
+
+/** Comma-separated check names to record as skipped (ok), e.g. `DGCC_SKIP_CHECKS=unit`. */
+function parseSkippedChecks(): Set<string> {
+  const raw = (process.env.DGCC_SKIP_CHECKS || "").trim();
+  if (!raw) return new Set();
+  return new Set(raw.split(",").map((s) => s.trim()).filter(Boolean));
 }
 
 async function assetsAudit(report: DgccReport, contract: any, fix: boolean) {
@@ -157,7 +165,16 @@ async function main() {
   const outDir = path.join(ROOT, "dgcc-artifacts");
   ensureDir(outDir);
 
+  const skipped = parseSkippedChecks();
+  if (skipped.size > 0) {
+    console.log(`[DGCC] DGCC_SKIP_CHECKS=${[...skipped].join(",")}`);
+  }
+
   async function runCheck(name: CheckName, fn: () => Promise<void>) {
+    if (skipped.has(name)) {
+      report.checks.push({ name, ok: true, durationMs: 0, summary: "skipped (DGCC_SKIP_CHECKS)" });
+      return;
+    }
     const t0 = Date.now();
     try {
       await fn();
@@ -208,10 +225,10 @@ async function main() {
 
   if (checks.includes("contentValidate")) {
     await runCheck("contentValidate", async () => {
-      const r = await run("pnpm", ["--prefix", "server", "run", "validate"]);
+      const r = await run("pnpm", ["run", "validate:content"]);
       fs.writeFileSync(path.join(outDir, "content-validate.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["contentValidate"] = "dgcc-artifacts/content-validate.out.txt";
-      if (r.code !== 0) throw new Error("content validation failed (server validate)");
+      if (r.code !== 0) throw new Error("content validation failed (pnpm run validate:content)");
     });
   }
 

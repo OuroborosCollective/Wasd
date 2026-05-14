@@ -13,16 +13,30 @@
     "dev:3d": "pnpm -r --filter @wasd/client dev",
     "dev:all": "concurrently \"pnpm dev:network\" \"pnpm dev:2d\" \"pnpm dev:3d\"",
     "build:all": "pnpm build:network && pnpm build:2d && pnpm build:3d",
-    "clean": "pnpm -r exec rm -rf dist node_modules"
+    "clean": "pnpm -r exec rm -rf dist node_modules",
+    "lint": "pnpm --prefix client run lint && pnpm --prefix server run lint",
+    "test": "vitest run",
+    "test:e2e:install": "playwright install --with-deps",
+    "test:e2e:ci": "playwright test",
+    "check:interact": "node scripts/check-interact-consistency.mjs",
+    "validate:content": "tsx server/src/tools/validateContent.ts",
+    "dgcc": "tsx tools/dgcc/run-dgcc.ts",
+    "dgcc:extreme": "tsx tools/dgcc/run-dgcc.ts --mode=extreme"
   },
   "engines": {
     "node": ">=18",
     "pnpm": ">=9"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "@typescript-eslint/eslint-plugin": "^8.59.3",
+    "@typescript-eslint/parser": "^8.59.3",
     "concurrently": "^9.2.1",
+    "eslint": "^10.3.0",
     "pnpm": "^11.1.1",
-    "typescript": "^5.3.3"
+    "tsx": "^4.21.0",
+    "typescript": "^5.3.3",
+    "vitest": "^4.1.5"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

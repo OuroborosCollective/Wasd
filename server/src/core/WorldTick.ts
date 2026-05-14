@@ -16,6 +16,7 @@ import { LegendPropagationSystem } from "../systems/LegendPropagationSystem.js";
 import { WorldSystem } from "../modules/world/WorldSystem.js";
 import { PersistenceManager } from "./PersistenceManager.js";
 import { verifyFirebaseToken } from "../config/firebase.js";
+import { resolveLoginIdentity } from "../modules/auth/resolveLoginIdentity.js";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
 import { cache } from "./Cache.js";
 import fs from "fs";
@@ -120,30 +121,44 @@ export class WorldTick {
 
     this.ws.onPlayerMessage = async (id, msg) => {
       if (msg.type === "login") {
-        if (!msg.token) {
-          this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed: No token provided" });
-          setTimeout(() => {
-            const client = Array.from((this.ws as any).wss.clients).find((c: any) => c.id === id);
-            if (client) (client as any).close();
-          }, 500);
-          return;
-        }
-
-        let charName = "Unknown";
+        const token = typeof msg.token === "string" ? msg.token.trim() : "";
         let uid = "";
+        let charName = "Unknown";
 
-        try {
-          const decodedToken = await verifyFirebaseToken(msg.token) as any;
-          if (decodedToken) {
-            uid = decodedToken.uid;
-            charName = decodedToken.name || decodedToken.email?.split('@')[0] || `Player_${uid.substring(0, 6)}`;
-          } else {
-            this.ws.sendToPlayer(id, { type: "error", message: "Authentication service unavailable" });
+        if (token.length > 0) {
+          try {
+            const decodedToken = (await verifyFirebaseToken(msg.token)) as any;
+            if (decodedToken) {
+              uid = decodedToken.uid;
+              charName =
+                decodedToken.name ||
+                decodedToken.email?.split("@")[0] ||
+                `Player_${uid.substring(0, 6)}`;
+            } else {
+              this.ws.sendToPlayer(id, { type: "error", message: "Authentication service unavailable" });
+              return;
+            }
+          } catch {
+            this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed: Invalid token" });
             return;
           }
-        } catch (e) {
-          this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed: Invalid token" });
-          return;
+        } else {
+          const identity = await resolveLoginIdentity(id, {
+            token: msg.token,
+            charName: msg.charName,
+            guestId: msg.guestId,
+            guestName: msg.guestName,
+          });
+          if ("error" in identity) {
+            this.ws.sendToPlayer(id, {
+              type: "error",
+              message: identity.error,
+              code: identity.code,
+            });
+            return;
+          }
+          uid = identity.uid;
+          charName = identity.charName;
         }
 
         let player = this.playerSystem.getPlayer(uid);
@@ -159,22 +174,29 @@ export class WorldTick {
         this.playerToSocket.set(uid, id);
         this.observerEngine.register(id, { x: player.position.x, y: player.position.y });
 
+        const sceneId =
+          typeof msg.sceneId === "string" && msg.sceneId.trim().length > 0
+            ? msg.sceneId.trim()
+            : "didis_hub";
+
         this.ws.sendToPlayer(id, {
           type: "welcome",
+          sceneId,
           id: uid,
           playerName: player.name,
           stats: {
-            gold: player.gold,
-            xp: player.xp,
-            hp: player.health,
-            maxHp: player.maxHealth,
-            mp: player.mana,
-            maxMp: player.maxMana,
-            level: player.level || 1
+            gold: player.gold ?? 0,
+            level: player.level ?? 1,
+            health: player.health ?? 0,
+            maxHealth: player.maxHealth ?? 0,
+            mana: player.mana ?? 0,
+            maxMana: player.maxMana ?? 0,
+            xp: player.xp ?? 0,
+            skillCooldownUntil: player.skillCooldowns ?? {},
           },
           inventory: player.inventory,
           equipment: player.equipment,
-          quests: player.quests
+          quests: player.quests,
         });
         return;
       }
@@ -357,8 +379,6 @@ export class WorldTick {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
   }
-
-  async init() {}
 
   tick() {
     this.tickCount += 1;
