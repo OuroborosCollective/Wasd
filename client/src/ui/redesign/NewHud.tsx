@@ -53,6 +53,7 @@ export const NewHud: React.FC<any> = (props) => {
   }, []);
 
   const healthPercentage = Math.max(0, Math.min(100, (health / (maxHealth || 1)) * 100));
+  const isLowHealth = healthPercentage < 25;
   const manaPercentage = Math.max(0, Math.min(100, (mana / (maxMana || 1)) * 100));
   const xpPercentage = Math.max(0, Math.min(100, ((xp % 1000) / 1000) * 100));
 
@@ -90,11 +91,12 @@ export const NewHud: React.FC<any> = (props) => {
         </div>
         <div className="hud-bars-container">
           <div
-            className="hud-bar-wrapper health"
+            className={`hud-bar-wrapper health ${isLowHealth ? "low-health" : ""}`}
             role="progressbar"
             aria-label="Health"
             aria-valuenow={Math.round(health)}
             aria-valuemax={maxHealth}
+            aria-valuetext={`${Math.round(health)} of ${maxHealth} health remaining`}
             title={`Health: ${Math.round(health)} / ${maxHealth}`}
           >
             <div className="hud-bar-fill" style={{ width: `${healthPercentage}%` }} />
@@ -106,6 +108,7 @@ export const NewHud: React.FC<any> = (props) => {
             aria-label="Mana"
             aria-valuenow={Math.round(mana)}
             aria-valuemax={maxMana}
+            aria-valuetext={`${Math.round(mana)} of ${maxMana} mana remaining`}
             title={`Mana: ${Math.round(mana)} / ${maxMana}`}
           >
             <div className="hud-bar-fill" style={{ width: `${manaPercentage}%` }} />
@@ -141,6 +144,7 @@ export const NewHud: React.FC<any> = (props) => {
           aria-label="Experience"
           aria-valuenow={xp % 1000}
           aria-valuemax={1000}
+          aria-valuetext={`${xp % 1000} out of 1000 experience points to next level`}
           title={`XP: ${xp % 1000} / 1000`}
         >
           <div className="hud-xp-fill" style={{ width: `${xpPercentage}%` }} />
@@ -153,7 +157,7 @@ export const NewHud: React.FC<any> = (props) => {
               onClick={() => handleSkillClick(slot.toString())}
               aria-label={`Use Skill ${slot}`}
             >
-              <span className="skill-key">{slot}</span>
+              <kbd className="skill-key">{slot}</kbd>
             </button>
           ))}
           <button 
