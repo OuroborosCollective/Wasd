@@ -11,7 +11,7 @@ import { NPCSimulation } from './NPCSimulation.js';
 import { OracleSystem } from './OracleSystem.js';
 import { EconomySimulation } from './EconomySimulation.js';
 import { QuestDerivationEngine } from './QuestDerivationEngine.js';
-import { CombatSystem } from './CombatSystem.js';
+import { CMLS as CombatSystem } from './CombatSystem.js';
 import { EvolutionSystem } from './EvolutionSystem.js';
 import { worldStateRegistry } from '../state/WorldStateRegistry.js';
 
@@ -164,6 +164,10 @@ export class ArelorianKernel {
     const timings = this.phaseTimings.filter(t => t.phase === phase);
     if (timings.length === 0) return 0;
     return timings.reduce((sum, t) => sum + t.duration, 0) / timings.length;
+  }
+
+  public getTickRate(): number {
+    return 10; // 10Hz
   }
 }
 
