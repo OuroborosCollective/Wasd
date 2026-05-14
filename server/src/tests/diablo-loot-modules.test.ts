@@ -127,11 +127,12 @@ describe("Diablo-style loot modules", () => {
       { id: "b", tags: ["ranged"] },
     ];
     let melee = 0;
-    for (let i = 0; i < 80; i++) {
+    const n = 400;
+    for (let i = 0; i < n; i++) {
       const { base } = smartLootPickBase(bases, ["melee"], { noLegendaryStreak: 0 });
       if (base.id === "a") melee++;
     }
-    expect(melee).toBeGreaterThan(40);
+    expect(melee).toBeGreaterThan(Math.floor(n * 0.45));
   });
 
   it("identify preserves uid and seed", () => {

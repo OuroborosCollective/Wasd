@@ -10,6 +10,7 @@ export default [
       "playwright.config.ts",
       "**/*.js",
       "**/*.d.ts",
+      "**/capacitor.config.ts",
     ],
   },
   {

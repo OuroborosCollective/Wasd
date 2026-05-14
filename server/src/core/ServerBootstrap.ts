@@ -188,7 +188,16 @@ export class ServerBootstrap {
   async start() {
     const app = express();
     const httpServer = createServer(app);
-    const selfHealingRuntime: any = { getStatus: () => ({ featuresProtected: 0 }) };
+    const selfHealingRuntime: any = {
+      getStatus: () => ({
+        active: false,
+        config: { patchMode: "off" as const },
+        totalErrors: 0,
+        totalHealed: 0,
+        healingRate: 0,
+        featuresProtected: 0,
+      }),
+    };
     const supabaseProxyBaseUrl = resolveSupabaseProxyBaseUrl();
 
     await initRedisClient();
@@ -234,19 +243,20 @@ export class ServerBootstrap {
           allowDevLogin: !["0", "false", "no"].includes(process.env.ALLOW_DEV_LOGIN?.trim().toLowerCase() || ""),
         },
         selfHealing: {
-          active: selfHealingStatus.active,
-          patchMode: selfHealingStatus.config.patchMode,
-          totalErrors: selfHealingStatus.totalErrors,
-          totalHealed: selfHealingStatus.totalHealed,
-          healingRate: selfHealingStatus.healingRate,
-          featuresProtected: selfHealingStatus.featuresProtected,
+          active: selfHealingStatus.active ?? false,
+          patchMode: selfHealingStatus.config?.patchMode ?? "off",
+          totalErrors: selfHealingStatus.totalErrors ?? 0,
+          totalHealed: selfHealingStatus.totalHealed ?? 0,
+          healingRate: selfHealingStatus.healingRate ?? 0,
+          featuresProtected: selfHealingStatus.featuresProtected ?? 0,
         },
         liveHeal: (() => {
           const status = tick?.liveHeal.getStatus();
           if (!status) return null;
+          const subsystems = status.subsystems ?? [];
           return {
             tickCount: status.tickCount,
-            subsystems: status.subsystems.map(s => ({
+            subsystems: subsystems.map((s) => ({
               id: s.id,
               state: s.state,
               score: s.score,
@@ -487,6 +497,10 @@ export class ServerBootstrap {
         app.use(express.static(clientPath));
       }
     } else {
+      const clientPublic = path.join(clientRoot, "public");
+      if (existsSync(clientPublic)) {
+        app.use(express.static(clientPublic, { index: false }));
+      }
       app.use((req, res, next) => {
         if (req.url?.endsWith(".wasm")) {
           res.setHeader("Content-Type", "application/wasm");

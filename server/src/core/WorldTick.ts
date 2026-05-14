@@ -15,7 +15,7 @@ import { QuestEngine } from "../modules/quest/QuestEngine.js";
 import { LegendPropagationSystem } from "../systems/LegendPropagationSystem.js";
 import { WorldSystem } from "../modules/world/WorldSystem.js";
 import { PersistenceManager } from "./PersistenceManager.js";
-import { verifyFirebaseToken } from "../config/firebase.js";
+import { resolveLoginIdentity } from "../modules/auth/resolveLoginIdentity.js";
 import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
 import { cache } from "./Cache.js";
 import fs from "fs";
@@ -121,8 +121,13 @@ export class WorldTick {
 
     this.ws.onPlayerMessage = async (id, msg) => {
       if (msg.type === "login") {
-        if (!msg.token) {
-          this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed: No token provided" });
+        const identity = await resolveLoginIdentity(id, msg);
+        if ("error" in identity) {
+          this.ws.sendToPlayer(id, {
+            type: "error",
+            message: identity.error,
+            code: identity.code,
+          });
           setTimeout(() => {
             const client = Array.from((this.ws as any).wss.clients).find((c: any) => c.id === id);
             if (client) (client as any).close();
@@ -130,22 +135,8 @@ export class WorldTick {
           return;
         }
 
-        let charName = "Unknown";
-        let uid = "";
-
-        try {
-          const decodedToken = await verifyFirebaseToken(msg.token) as any;
-          if (decodedToken) {
-            uid = decodedToken.uid;
-            charName = decodedToken.name || decodedToken.email?.split('@')[0] || `Player_${uid.substring(0, 6)}`;
-          } else {
-            this.ws.sendToPlayer(id, { type: "error", message: "Authentication service unavailable" });
-            return;
-          }
-        } catch (e) {
-          this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed: Invalid token" });
-          return;
-        }
+        const uid = identity.uid;
+        const charName = identity.charName;
 
         let player = this.playerSystem.getPlayer(uid);
         if (!player) {
@@ -155,27 +146,42 @@ export class WorldTick {
           player.isOffline = false;
         }
 
+        const sceneId =
+          typeof msg.sceneId === "string" && msg.sceneId.trim().length > 0
+            ? msg.sceneId.trim()
+            : typeof player.sceneId === "string" && player.sceneId.trim().length > 0
+              ? player.sceneId.trim()
+              : "didis_hub";
+        player.sceneId = sceneId;
+
         if (player.name !== charName) player.name = charName;
         this.socketToPlayer.set(id, uid);
         this.playerToSocket.set(uid, id);
         this.observerEngine.register(id, { x: player.position.x, y: player.position.y });
 
+        const skillCooldownUntil =
+          typeof player.skillCooldowns === "object" && player.skillCooldowns !== null
+            ? { ...player.skillCooldowns }
+            : {};
+
         this.ws.sendToPlayer(id, {
           type: "welcome",
           id: uid,
+          playerId: uid,
           playerName: player.name,
+          sceneId,
           stats: {
-            gold: player.gold,
-            xp: player.xp,
-            hp: player.health,
-            maxHp: player.maxHealth,
-            mp: player.mana,
-            maxMp: player.maxMana,
-            level: player.level || 1
+            gold: player.gold ?? 0,
+            level: player.level ?? 1,
+            health: player.health ?? 0,
+            maxHealth: player.maxHealth ?? 100,
+            mana: player.mana ?? 0,
+            maxMana: player.maxMana ?? 25,
+            skillCooldownUntil,
           },
           inventory: player.inventory,
           equipment: player.equipment,
-          quests: player.quests
+          quests: player.quests,
         });
         return;
       }
