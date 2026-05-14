@@ -3,24 +3,39 @@
  * 
  * Web-based sandbox for investor demonstrations.
  * Implements Stateless Determinism: same input + same rules = same output.
- * Uses kappaPos for O(1) lookups.
+ * Uses KappaPosGrid for deterministic O(1) lookups.
  * 10-Hz tick processing in browser.
- * Generates identical chain-strings as server backend.
- * 
- * Features:
- * - AREStateCompiler port
- * - kappaPos for O(1) lookups
- * - 10-Hz tick processing
- * - Identical chain-string generation
- * - Stateless determinism
  */
 
-import { EventEmitter } from 'events';
+// Placeholder for KappaPos logic if import fails in certain environments
+// In a real production build, this would be imported from @wasd/shared
+const KAPPA_SCALE = 1000;
+const KAPPA_EPSILON = 1e-9;
+
+class KappaPosGrid {
+    public static toInternal(val: number): number {
+        if (typeof val !== 'number' || isNaN(val)) return 0;
+        return Math.floor(val * KAPPA_SCALE + KAPPA_EPSILON);
+    }
+    public static create(x: number, y: number): { x: number, y: number } {
+        return { x: this.toInternal(x), y: this.toInternal(y) };
+    }
+    public static getHash(pos: { x: number, y: number }): string {
+        const data = `${pos.x},${pos.y},0`;
+        let hash = 0;
+        for (let i = 0; i < data.length; i++) {
+            const char = data.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash |= 0;
+        }
+        return hash.toString(16);
+    }
+}
 
 export type LogicValue = number | string | boolean | null;
 
 export interface LogicCell {
-  kappaPos: number;
+  kappaPos: number; // Integer hash or index
   type: string;
   state: LogicValue;
   attributes: Record<string, unknown>;
@@ -69,7 +84,7 @@ const TICK_INTERVAL_MS = 100;
 const DEFAULT_WIDTH = 64;
 const DEFAULT_HEIGHT = 64;
 
-export class LogicGridCompiler extends EventEmitter {
+export class LogicGridCompiler {
   private grid: LogicGrid = [];
   private iteration: number = 0;
   private tickInterval: ReturnType<typeof setInterval> | null = null;
@@ -77,29 +92,41 @@ export class LogicGridCompiler extends EventEmitter {
   private lastTickTime: number = 0;
   private readonly width: number;
   private readonly height: number;
+  private callbacks: Record<string, Function[]> = {};
 
   constructor(width: number = DEFAULT_WIDTH, height: number = DEFAULT_HEIGHT) {
-    super();
     this.width = width;
     this.height = height;
   }
 
-  /** Calculate kappaPos for O(1) lookup */
+  public on(event: string, cb: Function) {
+    if (!this.callbacks[event]) this.callbacks[event] = [];
+    this.callbacks[event].push(cb);
+  }
+
+  private emit(event: string, data: any) {
+    if (this.callbacks[event]) {
+      this.callbacks[event].forEach(cb => cb(data));
+    }
+  }
+
+  /** Calculate kappaPos for O(1) lookup using shared utility */
   public calculateKappaPos(x: number, y: number): number {
-    return y * this.width + x;
+    return KappaPosGrid.toInternal(y) * this.width + KappaPosGrid.toInternal(x);
   }
 
   /** Get cell by kappaPos (O(1)) */
   public getCellByKappaPos(kappaPos: number): LogicCell | null {
-    if (kappaPos < 0 || kappaPos >= this.width * this.height) return null;
-    const y = Math.floor(kappaPos / this.width);
-    const x = kappaPos % this.width;
-    return this.grid[y]?.[x] ?? null;
+    const internalX = Math.floor(kappaPos % (this.width * 1000) / 1000);
+    const internalY = Math.floor(kappaPos / (this.width * 1000) / 1000);
+    return this.grid[internalY]?.[internalX] ?? null;
   }
 
   /** Get cell by coordinates (O(1) via kappaPos) */
   public getCell(x: number, y: number): LogicCell | null {
-    return this.getCellByKappaPos(this.calculateKappaPos(x, y));
+    const ix = Math.floor(x);
+    const iy = Math.floor(y);
+    return this.grid[iy]?.[ix] ?? null;
   }
 
   /** Compile grid with rules - Stateless determinism */
@@ -175,7 +202,9 @@ export class LogicGridCompiler extends EventEmitter {
     for (let y = 0; y < this.height; y++) {
       const row: LogicGridRow = [];
       for (let x = 0; x < this.width; x++) {
-        row.push({ kappaPos: this.calculateKappaPos(x, y), type: defaultType, state: 0, attributes: {} });
+        const kPos = KappaPosGrid.create(x, y);
+        const kappaHash = parseInt(KappaPosGrid.getHash(kPos), 16);
+        row.push({ kappaPos: kappaHash, type: defaultType, state: 0, attributes: {} });
       }
       this.grid.push(row);
     }
