@@ -41,6 +41,7 @@ jobs:
 
       - name: Deploy to VPS (Git sync + deploy/update.sh)
         run: |
+          REPO_CLONE_URL="https://github.com/${{ github.repository }}.git"
           sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh \
             -o StrictHostKeyChecking=no \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
@@ -62,7 +63,7 @@ jobs:
             echo "→ Build, restart PM2, verify (deploy/update.sh)"
             bash deploy/update.sh
 
-            echo "→ Deploy finished"
+          echo "→ Deploy finished"
           EOF
 
       - name: Health Check

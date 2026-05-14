@@ -16,13 +16,15 @@ This guide reflects the current live architecture:
    - Copy `deploy/.env.production.template` to `/opt/areloria/.env`
    - Fill all required variables (see `deploy/ENV_SETUP.md`)
 
-## 2) Build + start
+## 2) Build + start (first time on VPS)
 
-From `/opt/areloria`:
+From `/opt/areloria` after `.env` exists:
 
-- `bash deploy/deploy.sh`
+```bash
+bash deploy/vps-prod-build.sh
+```
 
-The deploy script installs dependencies, builds client + server, and (re)starts PM2.
+This installs workspace dependencies, builds `@wasd/server` / `@wasd/client` (and `@wasd/shared`), optionally runs `scripts/sync-world-assets.mjs`, writes `ecosystem.config.cjs`, and starts or restarts the `areloria` PM2 process.
 
 ## 3) Update after new `main` commits
 
@@ -34,7 +36,7 @@ Alternativ (ohne `.env`-Sourcing im Skript — nur sinnvoll, wenn die Shell scho
 
 - `bash deploy/pull-and-deploy.sh`
 
-Or CI can deploy automatically on push to `main` (see `.github/workflows/deploy.yml`).
+Do not commit passwords. Prefer an SSH key and `SSH_KEY_PATH`, or GitHub Actions secrets (`SSH_HOST`, `SSH_USER`, `SSH_PASSWORD`).
 
 ## 4) Verify runtime
 

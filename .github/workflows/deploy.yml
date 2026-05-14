@@ -1,3 +1,5 @@
+# Optional legacy pipeline: Azure blob upload + SCP artifact deploy.
+# Default production flow is `.github/workflows/main-pipeline.yml` (git sync + `deploy/vps-prod-build.sh` on the VPS).
 name: Deploy Wasd Monorepo
 
 # Manual / optional Azure artifact path. Automatic VPS deploy runs in
