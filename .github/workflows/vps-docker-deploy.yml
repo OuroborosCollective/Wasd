@@ -1,0 +1,60 @@
+# Production VPS: pull monorepo + Docker Compose rebuild.
+# Configure GitHub repo secrets (Settings → Secrets → Actions):
+#   VPS_HOST          e.g. 46.202.154.25
+#   VPS_USER          e.g. deploy  (recommended; user in docker group) or root
+#   VPS_SSH_KEY       private key PEM (full multiline OpenSSH / RSA)
+# Optional:
+#   VPS_DEPLOY_PATH   default /opt/areloria
+#
+# Do NOT store VPS passwords in GitHub or in this repo — use SSH keys only.
+
+name: VPS Docker Deploy (monorepo)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'projects/**'
+      - 'client/**'
+      - 'server/**'
+      - 'portal/**'
+      - 'engine/**'
+      - 'docker/**'
+      - 'Dockerfile'
+      - 'Dockerfile.*'
+      - 'docker-compose.yml'
+      - 'docker-compose.*.yml'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - 'scripts/deploy-vps-docker.sh'
+  workflow_dispatch:
+
+concurrency:
+  group: vps-docker-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            DEPLOY_PATH="${{ secrets.VPS_DEPLOY_PATH }}"
+            DEPLOY_PATH="${DEPLOY_PATH:-/opt/areloria}"
+            cd "$DEPLOY_PATH"
+            chmod +x scripts/deploy-vps-docker.sh 2>/dev/null || true
+            bash scripts/deploy-vps-docker.sh
