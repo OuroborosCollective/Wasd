@@ -25,7 +25,7 @@ export class WorkflowFixController {
 
       // Die GitHubWorkflowService Logik anwenden
       // Der Service gibt nun ein Objekt mit fixedContent und report zurück
-      const result = await this.workflowService.fixWorkflow(content);
+      const result: any = await this.workflowService.fixWorkflow(content);
 
       return res.status(200).json({
         success: true,
