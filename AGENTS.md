@@ -20,16 +20,16 @@ Primary source-of-truth docs:
 - Fill values, then restart PM2.
 
 ### Running the development server
-- Preferred command: `pnpm run dev` (runs `server` dev script and serves client through embedded Vite middleware).
-- Server listens on `:3000`.
-- If `tsx watch` restarts too often, use stable mode from repo root:
-  - `npx tsx server/src/index.ts`
-- Supabase auth and Postgres/Redis are optional for local development; server degrades gracefully to allowed fallback behavior when unset.
+- Preferred command from repo root: `npx tsx server/src/index.ts` (stable mode, runs game server with embedded Vite middleware on `:3000`).
+- The root `package.json` does NOT have a `dev` script. Use the command above or `pnpm -C server dev` (uses `ts-node-dev`).
+- The `@wasd/shared` package must be built before the client Vite middleware works: `pnpm -C packages/shared build`. If Vite shows "Failed to resolve import @wasd/shared", rebuild this package and clear the `.tsbuildinfo` file (`rm packages/shared/*.tsbuildinfo && pnpm -C packages/shared build`).
+- Auth, DB, and Redis are optional; server degrades gracefully. Without auth credentials, the `verifyFirebaseToken` stub returns null, so WS login won't fully authenticate—server still broadcasts game state.
+- DB persistence falls back to file-based when `DATABASE_URL` is unreachable (expect `getaddrinfo ENOTFOUND db` in logs—non-fatal).
 
 ### Lint, test, build
-- Lint: `pnpm run lint`
-- Unit/integration tests: `pnpm run test`
-- Build: `pnpm run build`
+- Lint: `npx eslint server/src client/src` (eslint is a root devDependency with `eslint.config.mjs`; the root `package.json` has no `lint` script)
+- Unit/integration tests: `npx vitest run` (config in root `vitest.config.ts`)
+- Build: `pnpm run build` (recursive across workspaces)
 - E2E:
   - Install once: `pnpm run test:e2e:install`
   - Run: `pnpm run test:e2e`
@@ -93,6 +93,12 @@ Performance/safety:
   - `POST /glb-upload`
   - `POST /validate-preview`
   - `POST /publish-pack`
+
+### Setup gotchas
+- **pnpm v11 `allowBuilds`**: pnpm v11 replaced `onlyBuiltDependencies` with `allowBuilds` in `pnpm-workspace.yaml`. Build scripts for esbuild, prisma, protobufjs, ssh2, etc. must be explicitly allowed with boolean `true` values—string placeholders cause install failures.
+- **Tailwind CSS v4**: The client uses `tailwindcss@4` which requires `@tailwindcss/postcss` plugin (not the legacy `tailwindcss` PostCSS plugin) and `@import "tailwindcss"` syntax instead of the old `@tailwind` directives.
+- **Vite version**: `@vitejs/plugin-react@6.x` requires Vite 8+. The client's `vite` dependency must be `^8.x`, not `^6.x`.
+- **`@wasd/shared` export**: The shared package's `src/utils/import-fixer.ts` is a Node.js build script (uses `fs`/`path`); it must NOT be re-exported from the shared package index when consumed by browser clients.
 
 ### Documentation maintenance rule
 For every non-trivial feature or architecture change:
