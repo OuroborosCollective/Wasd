@@ -1,0 +1,2 @@
+# Optional: local Paramiko helpers (deploy/run_deploy.py)
+paramiko>=3.4,<4

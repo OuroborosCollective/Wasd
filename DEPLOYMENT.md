@@ -28,6 +28,10 @@ The deploy script installs dependencies, builds client + server, and (re)starts 
 
 From `/opt/areloria`:
 
+- `bash deploy/update.sh` (empfohlen: lädt `.env` für Vite-Build-Variablen, baut Client + Server, startet PM2 neu)
+
+Alternativ (ohne `.env`-Sourcing im Skript — nur sinnvoll, wenn die Shell schon exportiert hat):
+
 - `bash deploy/pull-and-deploy.sh`
 
 Or CI can deploy automatically on push to `main` (see `.github/workflows/deploy.yml`).

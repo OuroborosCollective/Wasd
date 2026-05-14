@@ -5,7 +5,8 @@
 Nach jedem Push auf `main`:
 
 - **CI** (`.github/workflows/ci.yml`): Lint → Tests → Build → Modell-Pfad-Audit → Playwright E2E.
-- **Deploy** (`.github/workflows/deploy.yml`): SSH auf den VPS → `deploy/deploy.sh` (nur Push + manuell `workflow_dispatch`, kein Cron).
+- **Deploy** (`.github/workflows/main-pipeline.yml`): bei Push auf `main` (ohne reine Markdown/Docs-Änderungen) per SSH auf den VPS → `git fetch` / `reset --hard origin/main` → `bash deploy/update.sh` (install, Build inkl. Client-Assets, `pm2 restart areloria`, lokale Health-Checks).
+- **Legacy / manuell** (`.github/workflows/deploy.yml`): nur noch `workflow_dispatch` — optionaler Pfad mit Azure-Blob-Upload und SCP des Server-`dist`; für den Standard-VPS-Flow nicht nötig.
 
 Bei rotem Step: Log des fehlgeschlagenen Jobs öffnen; häufig E2E, Secrets oder VPS-Build (RAM/Timeout).
 
@@ -20,23 +21,24 @@ pnpm run ci:verify
 Auf dem Server (Repo-Root, z. B. `/opt/areloria`):
 
 ```bash
-bash deploy/pull-and-deploy.sh
+bash deploy/update.sh
 ```
 
-(Intern: `git fetch` + `reset --hard origin/main`, `./deploy/deploy.sh`, `verify-vps-local.sh`.)
+(Wechselt nicht selbst den Git-Stand: nach manuellen Änderungen zuerst `git fetch origin main && git reset --hard origin/main`, dann `update.sh`. Der GitHub-Deploy-Workflow macht das Reset vor `update.sh`.)
 
-## 3. Secret `DEPLOY_VERIFY_BASE_URL`
+## 3. Externe Health-Checks (optional)
 
-In **GitHub → Settings → Secrets → Actions** (nicht in `.env` auf dem VPS):
+Der Job `main-pipeline.yml` prüft nach dem Deploy per `curl` die **HTTP**-URL `http://<SSH_HOST>/` (Port 80 muss erreichbar sein, z. B. über Nginx → Node).
 
-| Secret | Wert |
-|--------|------|
-| `DEPLOY_VERIFY_BASE_URL` | Öffentliche Basis-URL **ohne** Slash am Ende, z. B. `https://spiel.example.com` |
+Ein separates Secret `DEPLOY_VERIFY_BASE_URL` für HTTPS-Checks ist im Workflow derzeit **nicht** angebunden; bei Bedarf kann die Health-Check-Step-Logik später darauf umgestellt werden.
 
-Wenn gesetzt, prüft der Deploy-Job nach dem SSH-Schritt per HTTPS: `/health`, `/`, `/gm/`.  
-Ohne Secret: Deploy läuft durch, externe Checks werden übersprungen.
+GitHub **Repository secrets** für den VPS-SSH-Deploy:
 
-Weitere Secrets: `VPS_IP`, `VPS_USER`, `VPS_SSH_PASSWORD` — siehe `DEPLOYMENT.md`.
+| Secret | Bedeutung |
+|--------|-----------|
+| `SSH_HOST` | VPS-IP oder Hostname |
+| `SSH_USER` | z. B. `root` |
+| `SSH_PASSWORD` | Login-Passwort (besser langfristig durch SSH-Key ersetzen) |
 
 ## 4. SpacetimeDB (nächste Implementierung)
 
