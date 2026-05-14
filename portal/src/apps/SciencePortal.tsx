@@ -6,6 +6,7 @@ import {
   type VisualThemeState,
 } from "@wasd/shared";
 import EchoTracker from "../community/EchoTracker";
+import ScienceMascotChat from "./ScienceMascotChat";
 
 /**
  * Science Portal hub — reacts to NPC-driven hazard telemetry via ThemeEngine.
@@ -114,6 +115,8 @@ export const SciencePortal: React.FC = () => {
         </div>
 
         <EchoTracker />
+
+        <ScienceMascotChat visual={visual} active={active} />
       </div>
     </div>
   );

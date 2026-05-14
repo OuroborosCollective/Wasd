@@ -1,6 +1,7 @@
 import { NPCMemoryCache, type MemoryEvent } from "./NPCMemoryCache.js";
 import type { NPCTraits } from "./NPCTraits.js";
 import type { NPCContext } from "./NPCChatTypes.js";
+import { WorldHistory } from "../history/WorldHistory.js";
 
 export class NPCChatBridge {
     private memoryCache: NPCMemoryCache;
@@ -62,13 +63,32 @@ export class NPCChatBridge {
         return `The following recent events are currently prominent in your mind and should influence your behavior and responses: ${memoryString}. Use this context to shape your attitude and what you choose to share.`;
     }
 
+    /**
+     * Last N server world events — mirrors portal `PortalWorldHistory` echo digest for NPC cognition.
+     */
+    public buildWorldHistoryDigest(maxEvents = 5): string {
+        const evs = WorldHistory.getInstance().getRecentEvents(maxEvents);
+        if (evs.length === 0) {
+            return "(no recorded world events yet)";
+        }
+        return evs
+            .map((e) => `- ${e.title}: ${e.description} @${new Date(e.timestamp).toISOString()}`)
+            .join("\n");
+    }
+
     public injectContextIntoPrompt(systemPrompt: string, npcId: string, traits: NPCTraits): string {
         const context = this.getContextualSystemPrompt(npcId, traits);
-        return `${systemPrompt}\n\n[RECENT MEMORIES CONTEXT]\n${context}\n[END CONTEXT]`;
+        const worldDigest = this.buildWorldHistoryDigest(5);
+        return `${systemPrompt}\n\n[RECENT MEMORIES CONTEXT]\n${context}\n[END CONTEXT]\n\n[WORLD_HISTORY_LAST_5]\n${worldDigest}\n[END_WORLD_HISTORY]`;
     }
 
     public async getNPCCognitiveContext(npcId: string, _userId: string): Promise<NPCContext> {
         void _userId;
+        const worldHistory = WorldHistory.getInstance().getRecentEvents(5).map((e) => ({
+            timestamp: e.timestamp,
+            description: `${e.title}: ${e.description}`,
+            importance: 1,
+        }));
         return {
             npc: {
                 name: npcId,
@@ -81,7 +101,7 @@ export class NPCChatBridge {
                 currentTime: new Date().toISOString(),
                 environmentConditions: "default",
             },
-            worldHistory: [],
+            worldHistory,
             recentMessages: [],
         };
     }

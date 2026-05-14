@@ -48,6 +48,12 @@ export class WorldHistory {
         return [...this.events];
     }
 
+    /** Most recent world events (newest last), capped for chat / mascot context. */
+    public getRecentEvents(max = 10): IWorldEvent[] {
+        const n = Math.min(max, this.events.length);
+        return n === 0 ? [] : this.events.slice(-n);
+    }
+
     public getLegendsByFaction(factionId: string): IFactionLegend[] {
         return this.events
             .filter(event => event.involvedFactionIds.includes(factionId))
