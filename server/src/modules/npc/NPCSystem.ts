@@ -32,6 +32,7 @@ export interface NPC {
     stateTimer?: number;
     targetPosition?: Vector3;
     memory?: any;
+    shopId?: string;
 }
 
 export interface Player {
@@ -100,6 +101,28 @@ export class NPCSystem {
 
     public removePlayer(id: string): void {
         this.players.delete(id);
+    }
+
+    public handleInteraction(npcId: string, player: any, questDefs: any): any {
+        const npc = this.getNPC(npcId);
+        if (!npc) return null;
+        return {
+            source: npc.name || "NPC",
+            text: "Hello traveler!",
+            choices: [{ id: "greet", text: "Greetings!" }],
+            npcId
+        };
+    }
+
+    public handleChoice(npcId: string, nodeId: string, choiceId: string, player: any): any {
+        const npc = this.getNPC(npcId);
+        if (!npc) return null;
+        return {
+            source: npc.name || "NPC",
+            text: "You chose wisely.",
+            choices: [],
+            npcId
+        };
     }
 
     public runFusionHeuristics(context: any, npcs: NPC[]): void {

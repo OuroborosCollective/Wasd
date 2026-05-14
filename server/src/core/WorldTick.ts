@@ -55,11 +55,11 @@ export class WorldTick {
   public getPersistenceStats(): any { return {}; }
   public placementEngine: any = {};
   public listActiveVoteBanners(): any { return []; }
-  public handleVoteProviderCallback(data: any): void {}
+  public handleVoteProviderCallback(data: any): any { return { ok: true }; }
   public getAdminVoteBanners(): any { return []; }
-  public upsertVoteBanner(data: any): void {}
-  public deleteVoteBanner(id: any): void {}
-  public setVoteBannerOrder(data: any): void {}
+  public upsertVoteBanner(data: any): any { return { ok: true, banner: {} }; }
+  public deleteVoteBanner(id: any): any { return { ok: true }; }
+  public setVoteBannerOrder(data: any): any { return []; }
   public getVoteAdminDiagnostics(): any { return {}; }
   public debouncedSave(): void {}
   public craftingSystem: any = {};
