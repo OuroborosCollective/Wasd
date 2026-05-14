@@ -162,13 +162,19 @@ export class WorldTick {
         this.ws.sendToPlayer(id, {
           type: "welcome",
           id: uid,
+          playerName: player.name,
           stats: {
             gold: player.gold,
             xp: player.xp,
-            inventory: player.inventory,
-            equipment: player.equipment,
-            quests: player.quests
-          }
+            hp: player.health,
+            maxHp: player.maxHealth,
+            mp: player.mana,
+            maxMp: player.maxMana,
+            level: player.level || 1
+          },
+          inventory: player.inventory,
+          equipment: player.equipment,
+          quests: player.quests
         });
         return;
       }
@@ -207,8 +213,30 @@ export class WorldTick {
         }
       } else if (msg.type === "chat") {
         if (msg.text && typeof msg.text === "string" && msg.text.trim().length > 0) {
-          this.ws.broadcast({ type: "chat_message", source: player.name, text: msg.text.trim() });
+          const channel = msg.channel || "local";
+          this.ws.broadcast({ type: "CHAT_MSG", payload: { channel, sender: player.name, text: msg.text.trim() }});
         }
+      } else if (msg.type === "MOVE") {
+        const speed = 5;
+        let dx = Number(msg.dx) || 0;
+        let dz = Number(msg.dz) || 0;
+        const magSq = dx * dx + dz * dz;
+        if (magSq > 1) {
+          const mag = Math.sqrt(magSq);
+          dx /= mag;
+          dz /= mag;
+        }
+        if (!isNaN(dx) && !isNaN(dz)) {
+          player.position.x += dx * speed;
+          player.position.y += dz * speed;
+          this.observerEngine.updatePosition(id, { x: player.position.x, y: player.position.y });
+        }
+      } else if (msg.type === "USE_SKILL") {
+        const skillId = msg.skillId;
+        if (skillId === "atk" && !checkCooldown(800)) return;
+        if (skillId === "def") player.mana = Math.min(player.maxMana, player.mana + 10);
+        if (skillId === "mag" && !checkCooldown(3000)) return;
+        if ((skillId === "mag" || skillId === "atk") && !checkCooldown(800)) return;
       } else if (msg.type === "attack") {
         if (!checkCooldown(800)) return;
         this.handleAttack(id, player, msg);
@@ -340,6 +368,19 @@ export class WorldTick {
     
     this.npcSystem.tick(allPlayers.filter(p => !p.isOffline), this.worldSystem.worldTime);
     this.worldSystem.tick();
+
+    if (this.tickCount % 10 === 0) {
+      const npcs = this.npcSystem.getAllNPCs().map(n => ({ id: n.id, name: n.name, x: n.position.x, y: n.position.y }));
+      this.ws.broadcast({
+        type: "WORLD_HEARTBEAT",
+        payload: {
+          players: Object.fromEntries(
+            allPlayers.filter(p => !p.isOffline).map(p => [p.id, { id: p.id, name: p.name, x: p.position.x, y: p.position.y }])
+          ),
+          agents: npcs
+        }
+      });
+    }
 
     if (this.tickCount % 600 === 0) {
       this.saveAll().catch(e => console.error(e));
