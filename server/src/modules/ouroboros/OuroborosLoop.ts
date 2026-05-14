@@ -9,7 +9,7 @@
 
 import { type NPCMemoryCache } from "../npc/NPCMemoryCache.js";
 import { type WorldEventBus } from "./WorldEventBus.js";
-import { type WorldHistory, type Legend } from "./WorldHistory.js";
+import { type WorldHistory } from "./WorldHistory.js";
 import { type EmergentMarket } from "./EmergentMarket.js";
 import { type DynamicFactions } from "./DynamicFactions.js";
 import { type NeedSet, decayNeeds, mostUrgentNeed, needToGoalCategory, restoreNeed } from "./AgentNeeds.js";
@@ -38,6 +38,42 @@ const DEFAULT_CONFIG: OuroborosConfig = {
   familyFormChance: 0.005,
 };
 
+/** Heuristic scratch state (NPCMemoryCache stores Memory[], not numeric weights). */
+interface AgentHeuristicState {
+  dirty: boolean;
+  heuristicWeights: {
+    _needsSafety: number;
+    _needsResources: number;
+    _needsBelonging: number;
+    _needsStatus: number;
+    _needsWealth: number;
+    _needsPower: number;
+    tradeWillingness?: number;
+  };
+}
+
+const agentHeuristicStates = new Map<string, AgentHeuristicState>();
+
+function getAgentState(npcId: string): AgentHeuristicState {
+  let s = agentHeuristicStates.get(npcId);
+  if (!s) {
+    s = {
+      dirty: false,
+      heuristicWeights: {
+        _needsSafety: 0.8,
+        _needsResources: 0.5,
+        _needsBelonging: 0.4,
+        _needsStatus: 0.3,
+        _needsWealth: 0.3,
+        _needsPower: 0.2,
+        tradeWillingness: 0.5,
+      },
+    };
+    agentHeuristicStates.set(npcId, s);
+  }
+  return s;
+}
+
 /**
  * Run one Ouroboros cycle for a single NPC agent.
  */
@@ -52,27 +88,16 @@ export function ouroborosTick(
   setRelationship: (a: string, b: string, delta: number) => void,
   config: OuroborosConfig = DEFAULT_CONFIG,
 ): string | null {
-  const mem = memoryCache?.get(ctx.npcId);
-
-  // Ensure needs exist
-  if (!mem?.heuristicWeights?._needsSafety) {
-    if (!mem) mem = { heuristicWeights: {} } as any;
-    else mem.heuristicWeights = {};
-    mem.heuristicWeights._needsSafety = 0.8;
-    mem.heuristicWeights._needsResources = 0.5;
-    mem.heuristicWeights._needsBelonging = 0.4;
-    mem.heuristicWeights._needsStatus = 0.3;
-    mem.heuristicWeights._needsWealth = 0.3;
-    mem.heuristicWeights._needsPower = 0.2;
-  }
+  const state = getAgentState(ctx.npcId);
+  const hw = state.heuristicWeights;
 
   const needs: NeedSet = {
-    safety: mem?.heuristicWeights?._needsSafety ?? 0.8,
-    resources: mem?.heuristicWeights?._needsResources ?? 0.5,
-    belonging: mem?.heuristicWeights?._needsBelonging ?? 0.4,
-    status: mem?.heuristicWeights?._needsStatus ?? 0.3,
-    wealth: mem?.heuristicWeights?._needsWealth ?? 0.3,
-    power: mem?.heuristicWeights?._needsPower ?? 0.2,
+    safety: hw._needsSafety ?? 0.8,
+    resources: hw._needsResources ?? 0.5,
+    belonging: hw._needsBelonging ?? 0.4,
+    status: hw._needsStatus ?? 0.3,
+    wealth: hw._needsWealth ?? 0.3,
+    power: hw._needsPower ?? 0.2,
   };
 
   // ─── PERCEIVE ──────────────────────────────────────────────────────────
@@ -107,7 +132,7 @@ export function ouroborosTick(
     }
 
     case "gather_resources": {
-      if (me(m as any).heuristicWeights.tradeWillingness > 0.4) {
+      if ((hw.tradeWillingness ?? 0.5) > 0.4) {
         action = "trade_seek";
         memoryCache.logEvent(ctx.npcId, "seeking_trade");
       }
@@ -214,18 +239,18 @@ export function ouroborosTick(
   // ─── REMEMBER ──────────────────────────────────────────────────────────
   if (action) {
     memoryCache.setGoal(ctx.npcId, goalCategory);
-    me(m as any).dirty = true;
+    state.dirty = true;
   }
 
   // ─── UPDATE (heuristics based on experience) ──────────────────────────
   // Persist needs back into heuristic weights
-  me(m as any).heuristicWeights._needsSafety = needs.safety;
-  me(m as any).heuristicWeights._needsResources = needs.resources;
-  me(m as any).heuristicWeights._needsBelonging = needs.belonging;
-  me(m as any).heuristicWeights._needsStatus = needs.status;
-  me(m as any).heuristicWeights._needsWealth = needs.wealth;
-  me(m as any).heuristicWeights._needsPower = needs.power;
-  me(m as any).dirty = true;
+  hw._needsSafety = needs.safety;
+  hw._needsResources = needs.resources;
+  hw._needsBelonging = needs.belonging;
+  hw._needsStatus = needs.status;
+  hw._needsWealth = needs.wealth;
+  hw._needsPower = needs.power;
+  state.dirty = true;
 
   return action;
 }

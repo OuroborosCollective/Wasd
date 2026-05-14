@@ -1,5 +1,5 @@
-import { Logger } from "../../../core/logger/Logger";
-import { AIService } from "../../ai/services/AIService";
+import { Logger } from "../../../core/logger/Logger.js";
+import { AIService } from "../../../ai/services/AIService.js";
 
 /**
  * Error tracking per specific error signature.
@@ -37,7 +37,6 @@ export interface DeveloperResult {
 }
 
 export class DeveloperAgent {
-  private readonly logger: Logger;
   private readonly aiService: AIService;
   
   // Per-error tracking: ONLY identical errors increment the counter
@@ -46,7 +45,6 @@ export class DeveloperAgent {
   private readonly FAILURE_WINDOW_MS = 300000; // 5 minutes
 
   constructor(aiService: AIService) {
-    this.logger = new Logger("DeveloperAgent");
     this.aiService = aiService;
   }
 
@@ -107,7 +105,7 @@ export class DeveloperAgent {
    * Ensures strict typing, error handling, and adherence to DRY/KISS principles.
    */
   public async executeImplementation(spec: ArchitectSpecification): Promise<DeveloperResult> {
-    this.logger.info(`Starting implementation for: ${spec.featureName}`);
+    Logger.log(`[DeveloperAgent] Starting implementation for: ${spec.featureName}`);
     
     try {
       this.validateSpec(spec);
@@ -136,7 +134,9 @@ export class DeveloperAgent {
       
       if (shouldAbort) {
         const sig = [...this.errorRegistry.values()].find(s => s.count >= this.MAX_REPEATED_FAILURES);
-        this.logger.error(`Implementation failed AFTER ${sig?.count || 0} retries with same error: ${errorMessage}. Aborting agent loop.`);
+        Logger.error(
+          `[DeveloperAgent] Implementation failed AFTER ${sig?.count || 0} retries with same error: ${errorMessage}. Aborting agent loop.`,
+        );
         return {
           success: false,
           generatedFiles: [],
@@ -146,7 +146,7 @@ export class DeveloperAgent {
         };
       }
       
-      this.logger.warn(`Implementation attempt failed (error key tracked): ${errorMessage}`);
+      Logger.log(`[DeveloperAgent] Implementation attempt failed (error key tracked): ${errorMessage}`);
       return {
         success: false,
         generatedFiles: [],

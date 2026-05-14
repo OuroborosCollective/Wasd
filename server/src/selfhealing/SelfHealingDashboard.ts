@@ -10,9 +10,13 @@ export function registerSelfHealingDashboard(
     return;
   }
 
-  app.use(options.routePrefix, (req, res, next) => {
-    if (options.allowCors) {
-      res.setHeader("Access-Control-Allow-Origin", options.allowedOrigin);
+  const routePrefix = options.routePrefix ?? "/api/self-healing";
+  const allowCors = options.allowCors ?? false;
+  const allowedOrigin = options.allowedOrigin ?? "*";
+
+  app.use(routePrefix, (req, res, next) => {
+    if (allowCors) {
+      res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
       res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
       res.setHeader("Access-Control-Allow-Headers", "Content-Type");
     }
@@ -23,26 +27,26 @@ export function registerSelfHealingDashboard(
     next();
   });
 
-  app.get(options.routePrefix, (_req: Request, res: Response) => {
+  app.get(routePrefix, (_req: Request, res: Response) => {
     res.json({
       ok: true,
       module: "SelfHealing Dashboard API",
       endpoints: {
-        status: `${options.routePrefix}/status`,
-        logs: `${options.routePrefix}/logs`,
-        features: `${options.routePrefix}/features`,
-        patterns: `${options.routePrefix}/patterns`,
-        rules: `${options.routePrefix}/rules`,
-        health: `${options.routePrefix}/health`,
+        status: `${routePrefix}/status`,
+        logs: `${routePrefix}/logs`,
+        features: `${routePrefix}/features`,
+        patterns: `${routePrefix}/patterns`,
+        rules: `${routePrefix}/rules`,
+        health: `${routePrefix}/health`,
       },
     });
   });
 
-  app.get(`${options.routePrefix}/status`, (_req: Request, res: Response) => {
+  app.get(`${routePrefix}/status`, (_req: Request, res: Response) => {
     res.json(system.getStatus());
   });
 
-  app.get(`${options.routePrefix}/health`, (_req: Request, res: Response) => {
+  app.get(`${routePrefix}/health`, (_req: Request, res: Response) => {
     const status = system.getStatus();
     res.json({
       active: status.active,
@@ -53,20 +57,20 @@ export function registerSelfHealingDashboard(
     });
   });
 
-  app.get(`${options.routePrefix}/logs`, (req: Request, res: Response) => {
+  app.get(`${routePrefix}/logs`, (req: Request, res: Response) => {
     const count = Math.max(1, Math.min(200, Number(req.query.count ?? 20)));
     res.json(system.getRecentLogs(count));
   });
 
-  app.get(`${options.routePrefix}/features`, (_req: Request, res: Response) => {
+  app.get(`${routePrefix}/features`, (_req: Request, res: Response) => {
     res.json(system.getProtectedFeatures());
   });
 
-  app.get(`${options.routePrefix}/patterns`, (_req: Request, res: Response) => {
+  app.get(`${routePrefix}/patterns`, (_req: Request, res: Response) => {
     res.json(system.getLearnedPatterns());
   });
 
-  app.get(`${options.routePrefix}/rules`, (_req: Request, res: Response) => {
+  app.get(`${routePrefix}/rules`, (_req: Request, res: Response) => {
     res.json(
       system.getRules().map((rule) => ({
         id: rule.id,
@@ -80,5 +84,5 @@ export function registerSelfHealingDashboard(
     );
   });
 
-  console.log(`[SelfHealingDashboard] enabled at ${options.routePrefix}`);
+  console.log(`[SelfHealingDashboard] enabled at ${routePrefix}`);
 }

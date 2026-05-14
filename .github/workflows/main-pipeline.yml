@@ -1,13 +1,8 @@
 name: Areloria VPS Deploy (Password SSH)
 
+# Manual only — automated deploys: `vps-docker-deploy.yml` (Docker + `VPS_*` secrets).
+# Legacy password path: `SSH_HOST`, `SSH_USER`, `SSH_PASSWORD`.
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
-
   workflow_dispatch:
 
 concurrency:

@@ -1,9 +1,8 @@
 name: Jules Atomic Deploy
 
+# Manual only — use `vps-docker-deploy.yml` for push-to-main Docker deploys.
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 permissions:
   contents: read

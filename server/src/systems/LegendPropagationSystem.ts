@@ -20,8 +20,19 @@ export class LegendPropagationSystem {
     private static readonly CRITICAL_MASS_THRESHOLD: number = 5;
 
     public static update(): void {
-        const npcs: NPC[] = NPCManager.instance.getAllNPCs();
-        const globalLegends: Legend[] = LegendManager.instance.getGlobalLegends();
+        const rawNpcs = NPCManager.instance.getAllNPCs();
+        const npcs: NPC[] = rawNpcs.map((n) => ({
+            id: n.id,
+            name: (n as { name?: string }).name ?? n.id,
+            beliefs: (n as { beliefs?: Legend[] }).beliefs ?? [],
+        }));
+
+        const rawLegends = LegendManager.instance.getGlobalLegends();
+        const globalLegends: Legend[] = rawLegends.map((l) => ({
+            id: l.id,
+            name: (l as { name?: string }).name ?? l.id,
+            description: (l as { description?: string }).description ?? "",
+        }));
 
         this.handleLegendPropagation(npcs, globalLegends);
         this.handleFactionFormation(npcs);
@@ -71,7 +82,7 @@ export class LegendPropagationSystem {
         beliefGroups.forEach(group => {
             if (group.members.length >= this.CRITICAL_MASS_THRESHOLD) {
                 if (Math.random() < this.FACTION_FORM_CHANCE) {
-                    FactionManager.instance.createFaction(group.legend, group.members);
+                    FactionManager.instance.createFaction(group.legend.name, group.members.map((m) => m.id));
                 }
             }
         });

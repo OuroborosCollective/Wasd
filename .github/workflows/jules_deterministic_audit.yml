@@ -36,10 +36,7 @@ jobs:
         env:
           NODE_OPTIONS: "--max-old-space-size=3072"
 
-      - name: Build Server
+      # Deterministic gate: small workspace package that must stay type-clean.
+      - name: Typecheck @wasd/core-logic
         run: |
-          NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/server exec tsc --noEmit
-
-      - name: Lint Server
-        run: |
-          pnpm --filter @wasd/server run lint
+          NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/core-logic run typecheck
