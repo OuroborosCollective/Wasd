@@ -61,62 +61,66 @@ export const SciencePortal: React.FC = () => {
         }
       `}</style>
 
-      <div className="relative z-10 space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <h3
-            className={`text-xl font-bold text-white ${isFire ? "animate-[wasdGlitch_0.35s_ease-in-out_infinite]" : ""}`}
-            style={{ textShadow: `0 0 12px var(--wasd-aura)` }}
-          >
-            Science Portal
-          </h3>
-          <button
-            type="button"
-            onClick={() => setActive(!active)}
-            className="rounded px-3 py-1 text-xs font-semibold text-slate-900"
-            style={{ backgroundColor: "var(--wasd-aura)", boxShadow: "0 0 12px var(--wasd-aura)" }}
-          >
-            {active ? "Pause sync" : "Resume sync"}
-          </button>
-        </div>
+      <div className="relative z-10 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(300px,420px)] lg:items-start">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <h3
+              className={`text-xl font-bold text-white ${isFire ? "animate-[wasdGlitch_0.35s_ease-in-out_infinite]" : ""}`}
+              style={{ textShadow: `0 0 12px var(--wasd-aura)` }}
+            >
+              Science Portal
+            </h3>
+            <button
+              type="button"
+              onClick={() => setActive(!active)}
+              className="rounded px-3 py-1 text-xs font-semibold text-slate-900"
+              style={{ backgroundColor: "var(--wasd-aura)", boxShadow: "0 0 12px var(--wasd-aura)" }}
+            >
+              {active ? "Pause sync" : "Resume sync"}
+            </button>
+          </div>
 
-        <p className="text-sm text-slate-200">
-          Dashboard physisch gekoppelt an NPC-Aggression & Hazard-Index via{" "}
-          <code className="rounded bg-black/30 px-1">@wasd/shared</code> ThemeEngine.
-        </p>
+          <p className="text-sm text-slate-200">
+            Dashboard physisch gekoppelt an NPC-Aggression & Hazard-Index via{" "}
+            <code className="rounded bg-black/30 px-1">@wasd/shared</code> ThemeEngine.
+          </p>
 
-        <div className="grid grid-cols-2 gap-3 font-mono text-xs text-slate-100">
-          <div className="rounded-lg bg-black/30 p-2">
-            <div className="text-slate-400">hazard_index</div>
-            <div className="text-lg font-bold" style={{ color: "var(--wasd-aura)" }}>
-              {visual.hazardIndex.toFixed(3)}
+          <div className="grid grid-cols-2 gap-3 font-mono text-xs text-slate-100">
+            <div className="rounded-lg bg-black/30 p-2">
+              <div className="text-slate-400">hazard_index</div>
+              <div className="text-lg font-bold" style={{ color: "var(--wasd-aura)" }}>
+                {visual.hazardIndex.toFixed(3)}
+              </div>
+            </div>
+            <div className="rounded-lg bg-black/30 p-2">
+              <div className="text-slate-400">aggression_trend</div>
+              <div className="text-lg font-bold">{visual.aggressionTrend.toFixed(5)}</div>
+            </div>
+            <div className="rounded-lg bg-black/30 p-2">
+              <div className="text-slate-400">phase pulse</div>
+              <div>{visual.phaseShiftPulseHz.toFixed(2)} Hz</div>
+            </div>
+            <div className="rounded-lg bg-black/30 p-2">
+              <div className="text-slate-400">mode</div>
+              <div className="uppercase">{visual.mode}</div>
             </div>
           </div>
-          <div className="rounded-lg bg-black/30 p-2">
-            <div className="text-slate-400">aggression_trend</div>
-            <div className="text-lg font-bold">{visual.aggressionTrend.toFixed(5)}</div>
+
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            <span
+              className="h-3 w-3 rounded-full border border-white/30"
+              style={{ backgroundColor: "var(--wasd-aura)", boxShadow: `0 0 10px var(--wasd-aura)` }}
+            />
+            Aura <code>{visual.auraHex}</code>
+            {isFire && <span className="text-red-400"> · glitch {visual.glitchIntensity.toFixed(2)}</span>}
           </div>
-          <div className="rounded-lg bg-black/30 p-2">
-            <div className="text-slate-400">phase pulse</div>
-            <div>{visual.phaseShiftPulseHz.toFixed(2)} Hz</div>
-          </div>
-          <div className="rounded-lg bg-black/30 p-2">
-            <div className="text-slate-400">mode</div>
-            <div className="uppercase">{visual.mode}</div>
-          </div>
+
+          <EchoTracker />
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-slate-400">
-          <span
-            className="h-3 w-3 rounded-full border border-white/30"
-            style={{ backgroundColor: "var(--wasd-aura)", boxShadow: `0 0 10px var(--wasd-aura)` }}
-          />
-          Aura <code>{visual.auraHex}</code>
-          {isFire && <span className="text-red-400"> · glitch {visual.glitchIntensity.toFixed(2)}</span>}
+        <div className="lg:sticky lg:top-2">
+          <ScienceMascotChat visual={visual} active={active} />
         </div>
-
-        <EchoTracker />
-
-        <ScienceMascotChat visual={visual} active={active} />
       </div>
     </div>
   );

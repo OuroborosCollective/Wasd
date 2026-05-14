@@ -97,6 +97,20 @@ export class PortalWorldHistory {
     return this.writeSeq;
   }
 
+  /** Compact digest for mascot / stress HUD (bounded window). */
+  getEchoDigestSummary(max = 10): {
+    combat: number;
+    trade: number;
+    total: number;
+    lines: string[];
+  } {
+    const slice = this.snapshotRecent(max);
+    const combat = slice.filter((e) => e.kind === "combat").length;
+    const trade = slice.filter((e) => e.kind === "trade").length;
+    const lines = slice.slice(0, 5).map((e) => `[${e.kind}] ${e.summary.slice(0, 72)}`);
+    return { combat, trade, total: slice.length, lines };
+  }
+
   /** Optional: ingest server-shaped world lines as echo metadata. */
   ingestWorldLine(ev: IWorldEvent): void {
     const t = (ev.title + " " + ev.description).toLowerCase();

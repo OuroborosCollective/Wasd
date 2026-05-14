@@ -32,3 +32,12 @@
 ## Security note
 
 Do **not** expose `GEMINI_API_KEY` in the browser. The portal only sends **already-built** system text + user message to your Wasd server; the key stays on the server.
+
+## Vitest / Vite
+
+Portal uses **Vite 5** with **`@vitejs/plugin-react` 4.x** (plugin v6 targets Vite 6 and breaks with `ERR_PACKAGE_PATH_NOT_EXPORTED` for `vite/internal`).  
+`vite.config.ts` is merged with Vitest via `defineConfig` from `vitest/config`. CI runs `pnpm --filter @wasd/portal run test`.
+
+## Stress demo
+
+In **Echo Tracker**, **“10× combat stress”** queues ten combat echoes + rising hazard telemetry (~28 ms apart). Use **Emily → Stress-check** to ask for a one-line digest of the echo window; persona should follow `fire_glitch` vs `marina` from live `VisualThemeState`.

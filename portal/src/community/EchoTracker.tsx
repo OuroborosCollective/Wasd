@@ -85,6 +85,29 @@ const EchoTracker: React.FC = () => {
           >
             + Combat echo
           </button>
+          <button
+            type="button"
+            className="rounded border border-amber-500/50 bg-amber-950/40 px-2 py-1 text-[11px] font-semibold text-amber-100 hover:bg-amber-900/50"
+            onClick={() => {
+              let i = 0;
+              const step = () => {
+                if (i >= 10) return;
+                const h = Math.min(0.96, 0.74 + i * 0.022);
+                pushLiveTickerHazard({
+                  hazard_index: h,
+                  aggression_trend: 0.004 + i * 0.0006,
+                });
+                hist.recordNpcCombatComplete(
+                  `Stress chain #${i + 1}/10 · hazard ${h.toFixed(2)} · slot sync`,
+                );
+                i += 1;
+                if (i < 10) window.setTimeout(step, 28);
+              };
+              step();
+            }}
+          >
+            10× combat stress
+          </button>
         </div>
       </div>
 

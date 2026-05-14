@@ -48,3 +48,11 @@ jobs:
       - name: Typecheck @wasd/server (tsc --noEmit)
         run: |
           NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/server exec tsc --noEmit
+
+      - name: Typecheck @wasd/portal
+        run: |
+          NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/portal exec tsc --noEmit
+
+      - name: Test @wasd/portal (vitest)
+        run: |
+          NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/portal run test
