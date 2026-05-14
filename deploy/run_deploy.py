@@ -76,7 +76,11 @@ def _connect() -> paramiko.SSHClient:
         raise SystemExit(1)
 
     client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.load_system_host_keys()
+    user_known_hosts = Path.home() / ".ssh" / "known_hosts"
+    if user_known_hosts.is_file():
+        client.load_host_keys(str(user_known_hosts))
+    client.set_missing_host_key_policy(paramiko.RejectPolicy())
     client.connect(**kwargs)
     return client
 
