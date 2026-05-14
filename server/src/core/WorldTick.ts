@@ -7,6 +7,7 @@ import { ChunkSystem } from "../modules/world/ChunkSystem.js";
 import { ObserverEngine } from "../modules/observer/ObserverEngine.js";
 import { PlayerSystem } from "../modules/player/PlayerSystem.js";
 import { CombatSystem } from "../modules/combat/CombatSystem.js";
+import { CombatService } from "../modules/combat/CombatService.js";
 import { InventorySystem } from "../modules/inventory/InventorySystem.js";
 import { NPCSystem } from "../modules/npc/NPCSystem.js";
 import { GuildSystem } from "../modules/guild/GuildSystem.js";
@@ -23,6 +24,7 @@ import path from "path";
 
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { WorldHistory } from "../modules/history/WorldHistory.js";
+import { bootstrapWarfrontNpcs, runWarfrontCombatTick } from "../modules/warfront/WarfrontCombatOrchestrator.js";
 
 export class WorldTick {
   private timer: NodeJS.Timeout | null = null;
@@ -32,6 +34,7 @@ export class WorldTick {
   public observerEngine: ObserverEngine;
   public playerSystem: PlayerSystem;
   public combatSystem: CombatSystem;
+  public combatService: CombatService;
   public inventorySystem: InventorySystem;
   public npcSystem: NPCSystem;
   public guildSystem: GuildSystem;
@@ -85,6 +88,7 @@ export class WorldTick {
     this.observerEngine = new ObserverEngine();
     this.playerSystem = new PlayerSystem();
     this.combatSystem = new CombatSystem();
+    this.combatService = new CombatService();
     this.inventorySystem = new InventorySystem();
     this.npcSystem = new NPCSystem();
     this.guildSystem = new GuildSystem();
@@ -98,6 +102,7 @@ export class WorldTick {
     dummyPlayer.position.x = 500;
     dummyPlayer.position.y = 500;
     this.observerEngine.register("dummy_player", { x: 500, y: 500 });
+    bootstrapWarfrontNpcs(this.npcSystem);
 
     this.ws.onPlayerConnect = (id) => {
       console.log(`Socket ${id} connected. Waiting for login...`);
@@ -354,6 +359,25 @@ export class WorldTick {
     this.lootEntities.set(id, { id, item, position: pos });
   }
 
+  private syncNpcPerceptionFromPlayers(): void {
+    const dummy = this.playerSystem.getPlayer("dummy_player");
+    if (dummy) {
+      this.npcSystem.updatePlayerState({
+        id: dummy.id,
+        position: { x: dummy.position.x, y: dummy.position.y, z: dummy.position.z ?? 0 },
+        stealthValue: typeof dummy.stealthValue === "number" ? dummy.stealthValue : 0,
+      });
+    }
+    for (const p of this.playerSystem.getAllPlayers()) {
+      if (!p?.id || p.id === "dummy_player") continue;
+      this.npcSystem.updatePlayerState({
+        id: p.id,
+        position: { x: p.position.x, y: p.position.y, z: p.position.z ?? 0 },
+        stealthValue: typeof p.stealthValue === "number" ? p.stealthValue : 0,
+      });
+    }
+  }
+
   start() {
     this.timer = setInterval(() => this.tick(), 100);
   }
@@ -368,8 +392,19 @@ export class WorldTick {
     const observedChunks = this.observerEngine.getObservedChunks();
     const activeChunks = this.chunkSystem.getActiveChunks();
     const allPlayers = this.playerSystem.getAllPlayers();
-    
-    this.npcSystem.tick(allPlayers.filter(p => !p.isOffline), this.worldSystem.worldTime);
+
+    this.syncNpcPerceptionFromPlayers();
+    this.npcSystem.tick(allPlayers.filter((p) => !p.isOffline), this.worldSystem.worldTime);
+
+    runWarfrontCombatTick({
+      tickCount: this.tickCount,
+      npcSystem: this.npcSystem,
+      playerSystem: this.playerSystem,
+      combatService: this.combatService,
+      broadcast: (payload) => {
+        this.ws.broadcast(payload);
+      },
+    });
 
     const npcsAgg = this.npcSystem.getAllNPCs();
     let aggSum = 0;

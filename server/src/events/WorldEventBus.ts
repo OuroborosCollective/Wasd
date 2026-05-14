@@ -39,3 +39,6 @@ export class WorldEventBus {
     }
   }
 }
+
+/** Shared server bus for warfront / scarcity cross-module signals. */
+export const serverWorldEventBus = new WorldEventBus();

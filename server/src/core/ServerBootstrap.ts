@@ -13,6 +13,7 @@ import { leaderboardRouter } from "../api/leaderboardRoute.js";
 import { questlineRouter } from "../api/questlineRoute.js";
 import { loreRouter } from "../api/loreRoute.js";
 import { scienceMascotRouter } from "../api/scienceMascotRoute.js";
+import { warfrontRouter } from "../api/warfrontRoute.js";
 import { getContentDataSourceLabel, resolveContentDir } from "../modules/content/contentDataRoot.js";
 import { getSupabaseSummary, verifySupabaseToken } from "../config/supabase.js";
 import { resolveWorldAssetsDir } from "./resolveWorldAssetsDir.js";
@@ -196,6 +197,7 @@ export class ServerBootstrap {
 
     app.use("/api/mcp", mcpRoute());
     app.use("/api/v1", scienceMascotRouter());
+    app.use("/api/v1/warfront", warfrontRouter());
     app.use("/api/leaderboard", leaderboardRouter());
     app.use("/api/questlines", questlineRouter());
     app.use("/api/lore", loreRouter());

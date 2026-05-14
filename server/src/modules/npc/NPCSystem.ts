@@ -47,6 +47,7 @@ export interface NPC {
     targetPosition?: Vector3;
     memory?: any;
     shopId?: string;
+    stamina?: number;
 }
 
 export interface Player {
@@ -71,7 +72,6 @@ export class NPCSystem {
         // Initialize stub dependencies
         this.sovereigntyEngine = new GuildSovereigntyEngine();
         this.resonanceEngine = new TraitResonanceEngine(this.sovereigntyEngine);
-        this.startUpdateLoop();
     }
 
     public addNPC(npc: NPC): void {
@@ -83,6 +83,7 @@ export class NPCSystem {
     }
 
     public createNPC(id: string, name: string, x: number, y: number): NPC {
+        const traits = deterministicNpcTraits(id);
         const npc: NPC = {
             id,
             name,
@@ -92,7 +93,11 @@ export class NPCSystem {
             visionAngle: 90,
             targetId: null,
             isProcessingAI: false,
-            traits: deterministicNpcTraits(id),
+            traits,
+            health: 90,
+            maxHealth: 90,
+            stamina: 100,
+            skills: { combat: { level: Math.max(1, Math.min(14, Math.round(traits.aggression * 13))) } },
         };
         this.addNPC(npc);
         return npc;

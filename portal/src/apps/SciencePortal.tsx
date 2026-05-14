@@ -7,6 +7,7 @@ import {
 } from "@wasd/shared";
 import EchoTracker from "../community/EchoTracker";
 import ScienceMascotChat from "./ScienceMascotChat";
+import WarfrontCombatHud from "./WarfrontCombatHud";
 
 /**
  * Science Portal hub — reacts to NPC-driven hazard telemetry via ThemeEngine.
@@ -114,6 +115,8 @@ export const SciencePortal: React.FC = () => {
             Aura <code>{visual.auraHex}</code>
             {isFire && <span className="text-red-400"> · glitch {visual.glitchIntensity.toFixed(2)}</span>}
           </div>
+
+          <WarfrontCombatHud visual={visual} active={active} />
 
           <EchoTracker />
         </div>
