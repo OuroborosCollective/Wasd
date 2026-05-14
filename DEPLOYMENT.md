@@ -30,19 +30,11 @@ This installs workspace dependencies, builds `@wasd/server` / `@wasd/client` (an
 
 From `/opt/areloria`:
 
-```bash
-bash deploy/pull-and-deploy.sh
-```
+- `bash deploy/update.sh` (empfohlen: lädt `.env` für Vite-Build-Variablen, baut Client + Server, startet PM2 neu)
 
-Or rely on GitHub Actions: pushes to `main` that change real code (not only `docs/**` or `*.md`) run `.github/workflows/main-pipeline.yml`, which SSHs into the VPS, resets to `origin/main`, and runs `deploy/vps-prod-build.sh`.
+Alternativ (ohne `.env`-Sourcing im Skript — nur sinnvoll, wenn die Shell schon exportiert hat):
 
-### Local SSH helper (Paramiko)
-
-```bash
-pip install -r deploy/requirements-vps-tools.txt
-export SSH_PASSWORD='…'   # or use SSH_KEY_PATH + key-based auth
-python3 deploy/vps_paramiko.py deploy
-```
+- `bash deploy/pull-and-deploy.sh`
 
 Do not commit passwords. Prefer an SSH key and `SSH_KEY_PATH`, or GitHub Actions secrets (`SSH_HOST`, `SSH_USER`, `SSH_PASSWORD`).
 

@@ -2,6 +2,8 @@
 # Default production flow is `.github/workflows/main-pipeline.yml` (git sync + `deploy/vps-prod-build.sh` on the VPS).
 name: Deploy Wasd Monorepo
 
+# Manual / optional Azure artifact path. Automatic VPS deploy runs in
+# `.github/workflows/main-pipeline.yml` (git sync + deploy/update.sh on /opt/areloria).
 on:
   workflow_dispatch:
 

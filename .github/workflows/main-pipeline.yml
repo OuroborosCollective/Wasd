@@ -39,32 +39,29 @@ jobs:
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "echo 'SSH connection OK' && uname -a"
 
-      - name: Deploy to VPS (Git Sync + Restart)
+      - name: Deploy to VPS (Git sync + deploy/update.sh)
         run: |
           REPO_CLONE_URL="https://github.com/${{ github.repository }}.git"
           sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh \
             -o StrictHostKeyChecking=no \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << EOF
-          set -euo pipefail
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+            set -euo pipefail
+            APP_DIR="/opt/areloria"
+            echo "→ Navigating to project"
+            mkdir -p "$APP_DIR"
+            cd "$APP_DIR"
 
-          echo "→ Navigating to project"
-          mkdir -p /opt/areloria
-          cd /opt/areloria
+            if [ ! -d ".git" ]; then
+              echo "→ Cloning repo"
+              git clone "https://github.com/${{ github.repository }}.git" .
+            fi
 
-          if [ ! -d ".git" ]; then
-            echo "→ Cloning repo"
-            git clone "${REPO_CLONE_URL}" .
-          fi
+            echo "→ Syncing repo to origin/main"
+            git fetch origin main
+            git reset --hard origin/main
 
-          echo "→ Syncing repo"
-          git remote set-url origin "${REPO_CLONE_URL}" || true
-          git fetch origin main
-          git reset --hard origin/main
-
-          echo "→ Build + PM2 (Wasd server + client)"
-          corepack enable || true
-          corepack prepare pnpm@9.12.2 --activate
-          bash deploy/vps-prod-build.sh
+            echo "→ Build, restart PM2, verify (deploy/update.sh)"
+            bash deploy/update.sh
 
           echo "→ Deploy finished"
           EOF
