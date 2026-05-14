@@ -72,10 +72,10 @@ export class WorldTick {
   public resourceSystem: any = { nodes: new Map() };
   public chatSystem: any = { getRecentMessages: () => [], systemMessage: () => {}, sendMessage: () => ({}) };
   public lootSystem: any = { rollLoot: () => ({ items: [], gold: 0 }) };
-  public liveHeal(p1: any, p2: any): void {}
+  public liveHeal: any = { getStatus: () => null };
   public getPlaytesterDebugLogPath(): string { return ""; }
-  public buildPlaytesterMonitorPayload(): any { return {}; }
-  public assetHealthService: any = { getStatus: () => ({}) };
+  public buildPlaytesterMonitorPayload(options?: any): any { return {}; }
+  public assetHealthService: any = { getStatus: () => ({}), getStats: () => null, flush: () => {} };
   private keysDown: Map<string, Set<string>> = new Map();
 
   constructor(private ws: GameWebSocketServer) {
@@ -328,6 +328,8 @@ export class WorldTick {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
   }
+
+  async init() {}
 
   tick() {
     this.tickCount += 1;

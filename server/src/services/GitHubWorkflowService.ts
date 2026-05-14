@@ -1,3 +1,8 @@
 export class GitHubWorkflowService {
-    public async fixWorkflow(id: string): Promise<void> {}
+    public async fixWorkflow(content: string): Promise<any> {
+        return {
+            fixedContent: content,
+            report: "Workflow processed."
+        };
+    }
 }

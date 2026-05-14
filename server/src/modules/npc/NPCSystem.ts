@@ -172,16 +172,12 @@ export class NPCSystem {
         let detectedPlayerId: string | null = null;
 
         for (const player of this.players.values()) {
-            const canSee = checkStealthDeterministic(
-                npc.position,
-                npc.rotation,
-                npc.visionRange,
-                npc.visionAngle,
-                player.position,
-                player.stealthValue
+            const result = checkStealthDeterministic(
+                npc as any,
+                player as any
             );
 
-            if (canSee) {
+            if (result.visible) {
                 detectedPlayerId = player.id;
                 break; 
             }
