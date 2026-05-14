@@ -362,8 +362,6 @@ export class WorldTick {
     this.timer = null;
   }
 
-  async init() {}
-
   tick() {
     this.tickCount += 1;
     const observedChunks = this.observerEngine.getObservedChunks();

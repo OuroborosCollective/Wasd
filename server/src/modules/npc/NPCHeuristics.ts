@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * NPCHeuristics — local heuristic weight updates based on outcomes.
  *

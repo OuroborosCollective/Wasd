@@ -11,7 +11,7 @@
  */
 
 import { PlexityLogic } from './PlexityLogic';
-import { ConstructionScheduler } from './ConstructionScheduler';
+import { ConstructionScheduler, type ConvergenceJob } from './ConstructionScheduler';
 import { WorldHistory, Legend } from '../modules/ouroboros/WorldHistory.js';
 import { InventorySystem } from '../systems/InventorySystem.js';
 
@@ -124,13 +124,15 @@ export async function checkConstructionRequirement(inventorySystem: InventorySys
 }
 
 export async function triggerConstructionPipeline(scheduler: ConstructionScheduler, payload: ConstructionPayload): Promise<void> {
-  await scheduler.executeConvergence({
+  const job: ConvergenceJob = {
     targetId: payload.targetId,
     intensity: payload.intensity,
     resonance: payload.resonance,
+    plexity: payload.plexity,
     type: payload.type,
-    timestamp: payload.timestamp
-  });
+    timestamp: payload.timestamp,
+  };
+  await scheduler.executeConvergence(job);
 }
 
 export class MasterExpansionOrchestrator {
@@ -154,6 +156,10 @@ export class MasterExpansionOrchestrator {
   public start(): void {
     if (this.intervalId) return;
     this.intervalId = setInterval(() => this.unifiedConvergenceLoop(), this.TICK_RATE);
+  }
+
+  public processTick(): void {
+    void this.unifiedConvergenceLoop();
   }
 
   public stop(): void {

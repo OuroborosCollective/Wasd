@@ -150,8 +150,10 @@ export class OuroborosEngine {
         this.history,
         this.market,
         this.factions,
-        (a, b) => this.relationships?.get?.(a, b) ?? 0,
-        (a, b, delta) => this.relationships?.adjustAffinity?.(a, b, delta),
+        (a, b) => relationships.getRelationship?.(a, b) ?? 0,
+        (a, b, delta) => {
+          relationships.adjustAffinity?.(a, b, delta);
+        },
         this.config,
       );
 

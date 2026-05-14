@@ -1,5 +1,6 @@
-import { NPCMemoryCache, MemoryEvent } from './NPCMemoryCache';
-import { NPCTraits } from './NPCTraits';
+import { NPCMemoryCache, type MemoryEvent } from "./NPCMemoryCache.js";
+import type { NPCTraits } from "./NPCTraits.js";
+import type { NPCContext } from "./NPCChatTypes.js";
 
 export class NPCChatBridge {
     private memoryCache: NPCMemoryCache;
@@ -29,15 +30,15 @@ export class NPCChatBridge {
 
         // Weighting based on NPC Traits
         if (event.tags.includes('combat') || event.tags.includes('confrontation')) {
-            baseScore += (traits.aggression * 2.5);
+            baseScore += ((traits.aggression ?? 0) * 2.5);
         }
 
         if (event.tags.includes('discovery') || event.tags.includes('information')) {
-            baseScore += (traits.curiosity * 2.0);
+            baseScore += ((traits.curiosity ?? 0) * 2.0);
         }
 
         if (event.tags.includes('danger') || event.tags.includes('risk')) {
-            baseScore += (traits.courage * 1.8);
+            baseScore += ((traits.courage ?? 0) * 1.8);
         }
 
         // Time decay (Recency bias)
@@ -64,5 +65,36 @@ export class NPCChatBridge {
     public injectContextIntoPrompt(systemPrompt: string, npcId: string, traits: NPCTraits): string {
         const context = this.getContextualSystemPrompt(npcId, traits);
         return `${systemPrompt}\n\n[RECENT MEMORIES CONTEXT]\n${context}\n[END CONTEXT]`;
+    }
+
+    public async getNPCCognitiveContext(npcId: string, _userId: string): Promise<NPCContext> {
+        void _userId;
+        return {
+            npc: {
+                name: npcId,
+                personality: "neutral",
+                background: "unknown",
+                goals: [],
+            },
+            worldState: {
+                currentLocation: "unknown",
+                currentTime: new Date().toISOString(),
+                environmentConditions: "default",
+            },
+            worldHistory: [],
+            recentMessages: [],
+        };
+    }
+
+    public async persistInteraction(
+        _npcId: string,
+        _userId: string,
+        _userInput: string,
+        _response: string,
+    ): Promise<void> {
+        void _npcId;
+        void _userId;
+        void _userInput;
+        void _response;
     }
 }

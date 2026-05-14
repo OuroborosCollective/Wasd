@@ -44,12 +44,6 @@ export interface Player {
 }
 
 export class NPCSystem {
-  public handleInteraction(npcId: string, player: any, questDefs: any): any {
-    return null;
-  }
-  public handleChoice(npcId: string, nodeId: string, choiceId: string, player: any): any {
-    return null;
-  }
     private npcs: Map<string, NPC> = new Map();
     private players: Map<string, Player> = new Map();
     private updateInterval: NodeJS.Timeout | null = null;

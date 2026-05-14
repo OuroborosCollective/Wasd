@@ -1,4 +1,4 @@
-import { TerritoryControl } from "../territory/TerritoryControl";
+import { TerritoryControl } from "../territory/TerritoryControl.js";
 
 export interface INPCTraits {
     faith: number;
@@ -25,6 +25,23 @@ export class NPCRelationshipSystem {
             NPCRelationshipSystem.instance = new NPCRelationshipSystem();
         }
         return NPCRelationshipSystem.instance;
+    }
+
+    /** Affinity used by Ouroboros tick (stub — wire to real graph later). */
+    public getRelationship(_a: string, _b: string): number {
+        return 0;
+    }
+
+    public adjustAffinity(_a: string, _b: string, _delta: number): void {
+        void _a;
+        void _b;
+        void _delta;
+    }
+
+    public updateHostility(_factionId: string, _playerId: string, _amount: number): void {
+        void _factionId;
+        void _playerId;
+        void _amount;
     }
 
     public registerNPCs(npcs: INPC[]): void {

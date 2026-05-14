@@ -1,4 +1,4 @@
-import { ComboValidator, ComboResult } from "./ComboValidator";
+import { ComboValidator, type ComboResult } from "./ComboValidator.js";
 
 export interface CombatState {
     comboIndex: number;
@@ -28,14 +28,26 @@ export class CombatService {
         skill: Skill,
         currentState: CombatState
     ): CombatExecutionResult {
-        const comboResult: ComboResult = this.comboValidator.validate(skill, currentState);
+        const entityState = {
+            entityId: playerId,
+            logicalIndex: currentState.comboIndex,
+            position: { x: 0, y: 0, z: 0 },
+            health: 100,
+            buffStates: new Map<string, number>(),
+        };
+        const comboResult: ComboResult = this.comboValidator.validateAgainstState(
+            playerId,
+            skill.id,
+            currentState.comboIndex,
+            entityState,
+        );
 
         let damageMultiplier = 1.0;
         let nextIndex = 0;
 
-        if (comboResult.isValid) {
-            damageMultiplier = comboResult.multiplier;
-            nextIndex = comboResult.nextIndex;
+        if (comboResult.valid) {
+            damageMultiplier = 1 + comboResult.extraDamage / Math.max(1, skill.baseDamage);
+            nextIndex = comboResult.serverLogicalIndex + 1;
         } else {
             nextIndex = 0;
         }

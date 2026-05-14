@@ -1,4 +1,4 @@
-import { WorldEventBus } from "../events/WorldEventBus";
+import { WorldEventBus } from "../../events/WorldEventBus.js";
 
 /**
  * EmergentMarket - O(1) Lookup Interface
@@ -325,6 +325,16 @@ export class ScarcityPredictor {
     }
 
     return regions[0];
+  }
+
+  public getPredictions(regionId: string): ScarcityPrediction[] {
+    const resources = ["food", "fuel", "medicine", "water", "ore", "wood"];
+    const out: ScarcityPrediction[] = [];
+    for (const resourceId of resources) {
+      const p = this.getPrediction(resourceId, regionId);
+      if (p) out.push(p);
+    }
+    return out;
   }
 
   /**

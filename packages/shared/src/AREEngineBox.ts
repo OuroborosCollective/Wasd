@@ -1,3 +1,6 @@
+/** Serialized on-chain / tick-sync state string (deterministic parser input). */
+export type ChainString = string;
+
 export interface IAREEngineBox {
     id: string;
     name: string;

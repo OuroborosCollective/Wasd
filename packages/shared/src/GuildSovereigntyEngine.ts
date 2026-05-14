@@ -10,7 +10,7 @@
  * No Mocks - Full TypeScript type safety required.
  */
 
-import type { ChainString } from '../AREEngineBox.js';
+import type { ChainString } from './AREEngineBox.js';
 
 /**
  * Transaction Result
@@ -205,8 +205,9 @@ export function parseWalletState(chain: ChainString): WalletState {
   }
 
   // Calculate cooldown until
-  if (state.lastActionAt > 0) {
-    state.cooldownUntil = state.lastActionAt + COOLDOWN_LOCKOUT_MS;
+  const lastActionAt = state.lastActionAt ?? 0;
+  if (lastActionAt > 0) {
+    state.cooldownUntil = lastActionAt + COOLDOWN_LOCKOUT_MS;
   }
 
   return {
@@ -440,16 +441,3 @@ export function simulateTransaction(payload: AREPayload): TransactionResult {
     deterministicSeed: seed
   };
 }
-
-/**
- * Export all types and functions
- */
-export type {
-  TransactionResult,
-  AREPayload,
-  WalletState,
-  GuildState,
-  GuildConfig,
-  TransactionErrorCode,
-  TransactionType
-};
