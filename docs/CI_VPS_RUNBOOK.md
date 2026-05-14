@@ -16,7 +16,7 @@ Lokal vor dem Push (ohne E2E):
 pnpm run ci:verify
 ```
 
-## 2. VPS nach Deploy
+## 2. VPS manuell aktualisieren
 
 Auf dem Server (Repo-Root, z. B. `/opt/areloria`):
 
