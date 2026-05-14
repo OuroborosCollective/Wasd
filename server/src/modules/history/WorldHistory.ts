@@ -19,6 +19,10 @@ export class WorldHistory {
     private events: IWorldEvent[];
     private readonly listeners = new Map<string, Array<(payload: unknown) => void>>();
 
+    /** Last up to 100 world-tick samples of global aggression average (0..1), oldest → newest. */
+    private aggressionSamples: number[] = [];
+    private static readonly MAX_AGG_SAMPLES = 100;
+
     public static getInstance(): WorldHistory {
         if (!WorldHistory.instance) {
             WorldHistory.instance = new WorldHistory();
@@ -58,5 +62,25 @@ export class WorldHistory {
 
     public clearHistory(): void {
         this.events = [];
+        this.aggressionSamples = [];
+    }
+
+    /**
+     * Record one tick of global aggression (typically mean NPC aggression this tick).
+     * Keeps the last 100 values for hazard analysis.
+     */
+    public recordAggressionSample(aggressionAvg: number, _tick?: number): void {
+        void _tick;
+        const v = Math.max(0, Math.min(1, aggressionAvg));
+        this.aggressionSamples.push(v);
+        while (this.aggressionSamples.length > WorldHistory.MAX_AGG_SAMPLES) {
+            this.aggressionSamples.shift();
+        }
+    }
+
+    /** Read-only aggression window (up to `max` most recent ticks, capped at stored length). */
+    public getAggressionSeries(max: number = WorldHistory.MAX_AGG_SAMPLES): readonly number[] {
+        const n = Math.min(max, this.aggressionSamples.length);
+        return this.aggressionSamples.slice(-n);
     }
 }
