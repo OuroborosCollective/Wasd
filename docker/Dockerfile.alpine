@@ -13,15 +13,20 @@ WORKDIR /app
 
 # Copy workspace files
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
-COPY packages/*/package.json packages/ 2>/dev/null || true
-COPY apps/*/package.json apps/ 2>/dev/null || true
-COPY projects/*/package.json projects/ 2>/dev/null || true
-COPY server/package.json server/ 2>/dev/null || true
-COPY client/package.json client/ 2>/dev/null || true
-COPY engine/package.json engine/ 2>/dev/null || true
-COPY portal/package.json portal/ 2>/dev/null || true
+COPY packages/ packages/
+COPY apps/ apps/
+COPY projects/ projects/
+COPY server/package.json server/package.json
+COPY client/package.json client/package.json
+COPY engine/package.json engine/package.json
+COPY portal/package.json portal/package.json
 
-# Install dependencies
+RUN find packages apps projects -type f ! -name 'package.json' -delete 2>/dev/null; \
+    find packages apps projects -type d -empty -delete 2>/dev/null; \
+    true
+
+# Install dependencies (limit Node heap to avoid OOM on small VPS instances)
+ENV NODE_OPTIONS="--max-old-space-size=1024"
 RUN pnpm install --frozen-lockfile
 
 # Copy source and build

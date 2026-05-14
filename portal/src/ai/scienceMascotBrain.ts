@@ -13,6 +13,13 @@ function localEmilyFallback(userMessage: string, snap: MascotWorldSnapshot): str
   const fire = snap.themeMode === "fire_glitch";
   const echoHint =
     snap.echoes[0]?.summary?.slice(0, 80) ?? "no head echo";
+  if (snap.adrenalineFlag) {
+    return [
+      `⚡ CRIT SPIKE: ${snap.combatReceptor.lastDamageSpike}dmg | total_crits=${snap.combatReceptor.critCount} | hazard=${snap.hazardIndex.toFixed(2)}`,
+      `Threat vector aktiv. ${echoHint}. Adrenalin-Protokoll läuft.`,
+    ].join("\n");
+  }
+
   if (fire) {
     return [
       `Δhazard=${snap.hazardIndex.toFixed(2)} | trend=${snap.aggressionTrend.toFixed(4)} | head:${echoHint}`,
