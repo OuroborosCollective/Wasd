@@ -1,33 +1,25 @@
 {
   "name": "@wasd/core",
   "version": "1.0.0",
-  "description": "Core package for the project",
   "type": "module",
   "main": "./dist/index.js",
-  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "default": "./dist/index.js"
+      "types": "./dist/index.d.ts"
     }
   },
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "build": "tsc",
-    "clean": "rimraf dist",
-    "prebuild": "pnpm run clean"
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@wasd/shared": "workspace:*",
+    "@wasd/types": "workspace:*"
   },
   "devDependencies": {
-    "@babylonjs/core": "^9.6.2",
-    "@types/node": "^25.7.0",
-    "rimraf": "^6.1.3",
-    "typescript": "^6.0.3"
-  },
-  "publishConfig": {
-    "access": "public"
+    "@types/node": "^22.19.18",
+    "typescript": "^5.3.3"
   }
 }
