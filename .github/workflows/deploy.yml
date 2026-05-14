@@ -1,12 +1,8 @@
 name: Deploy Wasd Monorepo
 
+# Manual / optional Azure artifact path. Automatic VPS deploy runs in
+# `.github/workflows/main-pipeline.yml` (git sync + deploy/update.sh on /opt/areloria).
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
   workflow_dispatch:
 
 permissions:
