@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
 
   workflow_dispatch:
 
@@ -36,43 +39,28 @@ jobs:
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "echo 'SSH connection OK' && uname -a"
 
-      - name: Deploy to VPS (Git Sync + Restart)
+      - name: Deploy to VPS (Git sync + deploy/update.sh)
         run: |
           sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh \
             -o StrictHostKeyChecking=no \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
-
-            set -e
-
+            set -euo pipefail
+            APP_DIR="/opt/areloria"
             echo "→ Navigating to project"
-            mkdir -p /opt/areloria
-            cd /opt/areloria
+            mkdir -p "$APP_DIR"
+            cd "$APP_DIR"
 
             if [ ! -d ".git" ]; then
               echo "→ Cloning repo"
-              git clone https://github.com/${{ github.repository }} .
+              git clone "https://github.com/${{ github.repository }}.git" .
             fi
 
-            echo "→ Syncing repo"
+            echo "→ Syncing repo to origin/main"
             git fetch origin main
             git reset --hard origin/main
 
-            echo "→ Installing dependencies"
-            corepack enable || true
-            corepack prepare pnpm@9.12.2 --activate
-            pnpm install --frozen-lockfile
-
-            echo "→ Building project"
-            pnpm build
-
-            echo "→ Restarting services"
-            if command -v pm2 >/dev/null 2>&1; then
-              pm2 restart all || true
-            fi
-
-            if [ -f docker-compose.yml ] || [ -f compose.yml ]; then
-              docker compose up -d --build || true
-            fi
+            echo "→ Build, restart PM2, verify (deploy/update.sh)"
+            bash deploy/update.sh
 
             echo "→ Deploy finished"
           EOF

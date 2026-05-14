@@ -5,8 +5,8 @@
 Nach jedem Push auf `main`:
 
 - **CI** (`.github/workflows/ci.yml`): Lint → Tests → Build → Modell-Pfad-Audit → Playwright E2E.
-- **VPS full deploy** (`.github/workflows/vps-production-deploy.yml`): SSH auf den VPS → im Repo `git fetch` / `reset --hard origin/main` → `bash deploy/update.sh` (Client+Server-Build inkl. `VITE_*` aus `/opt/areloria/.env`, PM2-Restart). Läuft bei Push auf `main` (mit `paths-ignore` für reine Markdown/Docs) und per `workflow_dispatch`. Kein Azure-Schritt.
-- **Deploy (Azure + Artefakt)** (`.github/workflows/deploy.yml`): Build, optional Azure Storage, SCP `server/dist`, PM2 — nur wenn die Azure-Secrets gesetzt sind.
+- **Deploy** (`.github/workflows/main-pipeline.yml`): bei Push auf `main` (ohne reine Markdown/Docs-Änderungen) per SSH auf den VPS → `git fetch` / `reset --hard origin/main` → `bash deploy/update.sh` (install, Build inkl. Client-Assets, `pm2 restart areloria`, lokale Health-Checks).
+- **Legacy / manuell** (`.github/workflows/deploy.yml`): nur noch `workflow_dispatch` — optionaler Pfad mit Azure-Blob-Upload und SCP des Server-`dist`; für den Standard-VPS-Flow nicht nötig.
 
 Bei rotem Step: Log des fehlgeschlagenen Jobs öffnen; häufig E2E, Secrets oder VPS-Build (RAM/Timeout).
 
@@ -24,36 +24,21 @@ Auf dem Server (Repo-Root, z. B. `/opt/areloria`):
 bash deploy/update.sh
 ```
 
-(`git pull`, `pnpm` install/build, `pm2 restart areloria`, lokaler Health-Check — siehe `deploy/update.sh`.)
+(Wechselt nicht selbst den Git-Stand: nach manuellen Änderungen zuerst `git fetch origin main && git reset --hard origin/main`, dann `update.sh`. Der GitHub-Deploy-Workflow macht das Reset vor `update.sh`.)
 
-Alternativ (nur Pull + Build ohne `.env`-Sourcing wie oben): `bash deploy/pull-and-deploy.sh`.
+## 3. Externe Health-Checks (optional)
 
-**Lokal per Paramiko (ohne Secrets im Repo):** `pip install paramiko`, dann z. B.:
+Der Job `main-pipeline.yml` prüft nach dem Deploy per `curl` die **HTTP**-URL `http://<SSH_HOST>/` (Port 80 muss erreichbar sein, z. B. über Nginx → Node).
 
-```bash
-export ARELORIA_SSH_HOST=dein-vps
-export ARELORIA_SSH_KEY_PATH=$HOME/.ssh/id_ed25519
-python3 deploy/run_deploy.py update
-```
+Ein separates Secret `DEPLOY_VERIFY_BASE_URL` für HTTPS-Checks ist im Workflow derzeit **nicht** angebunden; bei Bedarf kann die Health-Check-Step-Logik später darauf umgestellt werden.
 
-Weiteres SSH-Hilfsskript (OpenSSH/`sshpass`): `deploy/vps_connect.py` — Host per `--host` oder `ARELORIA_SSH_HOST`.
+GitHub **Repository secrets** für den VPS-SSH-Deploy:
 
-## 3. GitHub Actions Secrets (VPS-Workflow)
-
-In **GitHub → Settings → Secrets → Actions** (nicht in `.env` auf dem VPS):
-
-| Secret | Pflicht | Bedeutung |
-|--------|---------|-----------|
-| `SSH_HOST` | ja | VPS-Hostname oder IP |
-| `SSH_USER` | ja | z. B. `root` |
-| `SSH_PRIVATE_KEY` | empfohlen* | Private Key (Inhalt der Key-Datei) |
-| `SSH_PASSWORD` | empfohlen* | Nur wenn kein Key; lieber Key + `ssh-copy-id` |
-| `DEPLOY_PATH` | nein | Repo-Pfad auf dem VPS, Standard `/opt/areloria` wenn leer |
-| `DEPLOY_VERIFY_BASE_URL` | nein | Öffentliche Basis-URL ohne Slash, z. B. `https://spiel.example.com` — danach `curl …/health` |
-
-\* Mindestens eines von `SSH_PRIVATE_KEY` oder `SSH_PASSWORD` setzen.
-
-`DEPLOYMENT.md` und `deploy/ENV_SETUP.md` beschreiben einmaliges VPS-Setup und `.env`.
+| Secret | Bedeutung |
+|--------|-----------|
+| `SSH_HOST` | VPS-IP oder Hostname |
+| `SSH_USER` | z. B. `root` |
+| `SSH_PASSWORD` | Login-Passwort (besser langfristig durch SSH-Key ersetzen) |
 
 ## 4. SpacetimeDB (nächste Implementierung)
 

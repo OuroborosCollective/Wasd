@@ -2,6 +2,9 @@
 """
 Connect to and operate the Areloria VPS over SSH.
 
+For Paramiko-based automation (Python, no ssh binary), use `deploy/run_deploy.py`
+with `pip install -r deploy/requirements-ssh.txt` and SSH_* environment variables.
+
 This script avoids hardcoding secrets. You can either:
 - use interactive SSH password prompt (default), or
 - use --password / SSH_PASSWORD together with sshpass (optional).

@@ -15,3 +15,7 @@ pnpm-debug.log*
 
 # Build artifacts
 *.tsbuildinfo
+
+# Python (deploy helpers)
+__pycache__/
+*.py[cod]

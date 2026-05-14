@@ -2,22 +2,25 @@
 """
 Run remote commands on the Areloria VPS using Paramiko.
 
-Credentials must come from the environment (never commit passwords or keys).
+Do not put passwords or keys in this file. Set environment variables instead:
 
-  ARELORIA_SSH_HOST          — required (e.g. your VPS IP or hostname)
-  ARELORIA_SSH_USER          — optional, default root
-  ARELORIA_SSH_PORT          — optional, default 22
-  ARELORIA_SSH_PASSWORD      — optional if using a key
-  ARELORIA_SSH_KEY_PATH      — optional path to private key file
-  ARELORIA_SSH_KEY_PASSPHRASE — optional, if the key file is encrypted
+  SSH_HOST        VPS hostname or IP (required)
+  SSH_USER        SSH user (default: root)
+  SSH_PASSWORD    password auth (optional if SSH_PRIVATE_KEY is set)
+  SSH_PRIVATE_KEY  PEM text or path to key file (optional)
+  SSH_PORT        port (default: 22)
+  REMOTE_APP_DIR  app path on server (default: /opt/areloria)
+  GIT_REMOTE_BRANCH branch to sync (default: main)
+  GIT_REPO_URL    clone URL when app dir has no .git (optional)
+
+Install once:
+
+  pip install -r deploy/requirements-ssh.txt
 
 Examples:
 
-  export ARELORIA_SSH_HOST=your.vps.example
-  export ARELORIA_SSH_KEY_PATH=$HOME/.ssh/id_ed25519
-  python3 deploy/run_deploy.py update
-
-  python3 deploy/run_deploy.py exec -- "cd /opt/areloria && git status"
+  SSH_HOST=1.2.3.4 SSH_PASSWORD='...' python3 deploy/run_deploy.py sync
+  SSH_HOST=1.2.3.4 SSH_PRIVATE_KEY=~/.ssh/id_ed25519 python3 deploy/run_deploy.py run "pm2 status"
 """
 
 from __future__ import annotations
@@ -26,109 +29,154 @@ import argparse
 import os
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-try:
-    import paramiko
-except ImportError:
-    print("Install Paramiko: pip install paramiko", file=sys.stderr)
-    raise SystemExit(1)
+if TYPE_CHECKING:
+    from paramiko import SSHClient
 
 DEFAULT_APP_DIR = "/opt/areloria"
+DEFAULT_BRANCH = "main"
+DEFAULT_REPO = "https://github.com/OuroborosCollective/Wasd.git"
 
 
-def _connect() -> paramiko.SSHClient:
-    host = os.environ.get("ARELORIA_SSH_HOST", "").strip()
-    if not host:
-        print("Set ARELORIA_SSH_HOST to your VPS hostname or IP.", file=sys.stderr)
-        raise SystemExit(1)
-
-    user = os.environ.get("ARELORIA_SSH_USER", "root").strip()
-    port = int(os.environ.get("ARELORIA_SSH_PORT", "22"))
-    password = os.environ.get("ARELORIA_SSH_PASSWORD")
-    key_path_raw = os.environ.get("ARELORIA_SSH_KEY_PATH", "").strip()
-    passphrase = os.environ.get("ARELORIA_SSH_KEY_PASSPHRASE")
-
-    kwargs: dict = dict(
-        hostname=host,
-        port=port,
-        username=user,
-        timeout=60,
-        banner_timeout=60,
-        allow_agent=False,
-        look_for_keys=False,
-    )
-
-    if key_path_raw:
-        key_file = Path(key_path_raw).expanduser()
-        if not key_file.is_file():
-            print(f"ARELORIA_SSH_KEY_PATH is not a file: {key_file}", file=sys.stderr)
-            raise SystemExit(1)
-        kwargs["key_filename"] = [str(key_file)]
-        if passphrase:
-            kwargs["passphrase"] = passphrase
-    elif password:
-        kwargs["password"] = password
-    else:
+def _require_paramiko():
+    try:
+        import paramiko  # noqa: WPS433 — runtime optional dependency
+    except ImportError as exc:
         print(
-            "Set ARELORIA_SSH_PASSWORD or ARELORIA_SSH_KEY_PATH (key-based auth is recommended).",
+            "Paramiko is not installed. Run: pip install -r deploy/requirements-ssh.txt",
             file=sys.stderr,
         )
+        raise SystemExit(1) from exc
+    return paramiko
+
+
+def _load_private_key(paramiko, key_material: str):
+    """Try common key parsers for PEM or path."""
+    path = Path(os.path.expanduser(key_material))
+    if path.is_file():
+        key_material = path.read_text(encoding="utf-8", errors="replace")
+    for loader in (
+        paramiko.RSAKey.from_private_key,
+        paramiko.Ed25519Key.from_private_key,
+        paramiko.ECDSAKey.from_private_key,
+    ):
+        try:
+            from io import StringIO
+
+            return loader(StringIO(key_material))
+        except Exception:
+            continue
+    print("Could not parse SSH_PRIVATE_KEY as RSA, Ed25519, or ECDSA PEM.", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def connect(paramiko) -> "SSHClient":
+    host = os.environ.get("SSH_HOST", "").strip()
+    if not host:
+        print("SSH_HOST is required.", file=sys.stderr)
         raise SystemExit(1)
+
+    user = os.environ.get("SSH_USER", "root").strip()
+    port = int(os.environ.get("SSH_PORT", "22"))
+    password = os.environ.get("SSH_PASSWORD")
+    pkey_raw = os.environ.get("SSH_PRIVATE_KEY")
 
     client = paramiko.SSHClient()
     client.load_system_host_keys()
-    user_known_hosts = Path.home() / ".ssh" / "known_hosts"
-    if user_known_hosts.is_file():
-        client.load_host_keys(str(user_known_hosts))
+    try:
+        client.load_host_keys(os.path.expanduser("~/.ssh/known_hosts"))
+    except Exception:
+        pass
     client.set_missing_host_key_policy(paramiko.RejectPolicy())
-    client.connect(**kwargs)
+
+    connect_kw: dict = {
+        "hostname": host,
+        "port": port,
+        "username": user,
+        "timeout": 60,
+        "banner_timeout": 60,
+        "auth_timeout": 60,
+    }
+    if pkey_raw:
+        connect_kw["pkey"] = _load_private_key(paramiko, pkey_raw)
+    if password:
+        connect_kw["password"] = password
+    if not pkey_raw and not password:
+        print("Set SSH_PASSWORD and/or SSH_PRIVATE_KEY for authentication.", file=sys.stderr)
+        raise SystemExit(1)
+
+    try:
+        client.connect(**connect_kw)
+    except paramiko.AuthenticationException:
+        print("SSH authentication failed (check SSH_USER / SSH_PASSWORD / SSH_PRIVATE_KEY).", file=sys.stderr)
+        raise SystemExit(1) from None
     return client
 
 
-def run_remote(script: str, get_pty: bool = True) -> int:
-    client = _connect()
-    try:
-        _stdin, stdout, stderr = client.exec_command(script, get_pty=get_pty)
-        for line in iter(stdout.readline, ""):
-            sys.stdout.write(line)
-        err = stderr.read().decode()
-        if err:
-            sys.stderr.write(err)
-        code = stdout.channel.recv_exit_status()
-        return int(code)
-    finally:
-        client.close()
+def stream_exec(client: "SSHClient", command: str) -> int:
+    stdin, stdout, stderr = client.exec_command(command, get_pty=True)
+    assert stdin
+    channels = (stdout.channel, stderr.channel)
+    while not stdout.channel.exit_status_ready():
+        for ch in channels:
+            if ch.recv_ready():
+                sys.stdout.buffer.write(ch.recv(4096))
+                sys.stdout.flush()
+        if stdout.channel.exit_status_ready():
+            break
+    # Drain remainder
+    for ch in channels:
+        while ch.recv_ready():
+            sys.stdout.buffer.write(ch.recv(4096))
+            sys.stdout.flush()
+    return int(stdout.channel.recv_exit_status())
 
 
-def cmd_update(app_dir: str) -> int:
-    ad = app_dir.replace("'", "'\"'\"'")
-    script = (
-        "set -euo pipefail; "
-        f"cd '{ad}'; "
-        "git fetch origin main; "
-        "git reset --hard origin/main; "
-        "bash deploy/update.sh"
-    )
-    return run_remote(script)
+def remote_sync_script(app_dir: str, branch: str, repo: str) -> str:
+    app_q = app_dir.replace("'", "'\"'\"'")
+    branch_q = branch.replace("'", "'\"'\"'")
+    repo_q = repo.replace("'", "'\"'\"'")
+    return f"""set -euo pipefail
+APP_DIR='{app_q}'
+BRANCH='{branch_q}'
+REPO='{repo_q}'
+mkdir -p "$APP_DIR"
+cd "$APP_DIR"
+if [ ! -d .git ]; then
+  git clone "$REPO" .
+fi
+git fetch origin "$BRANCH"
+git reset --hard "origin/$BRANCH"
+bash deploy/update.sh
+"""
+
+
+def cmd_sync(client: "SSHClient") -> int:
+    app_dir = os.environ.get("REMOTE_APP_DIR", DEFAULT_APP_DIR).strip()
+    branch = os.environ.get("GIT_REMOTE_BRANCH", DEFAULT_BRANCH).strip()
+    repo = os.environ.get("GIT_REPO_URL", DEFAULT_REPO).strip()
+    return stream_exec(client, remote_sync_script(app_dir, branch, repo))
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="VPS deploy helper (Paramiko).")
-    parser.add_argument("--app-dir", default=DEFAULT_APP_DIR, help=f"Remote repo root (default: {DEFAULT_APP_DIR})")
+    paramiko = _require_paramiko()
 
+    parser = argparse.ArgumentParser(description="Paramiko SSH helper for VPS deploy.")
     sub = parser.add_subparsers(dest="cmd", required=True)
-
-    sub.add_parser("update", help="Fetch main, reset to origin/main, run deploy/update.sh on the VPS.")
-
-    ex = sub.add_parser("exec", help="Run a remote shell command string.")
-    ex.add_argument("remote_shell", help="Command(s) to run on the server.")
+    sub.add_parser("sync", help="git reset to origin branch + bash deploy/update.sh on REMOTE_APP_DIR")
+    run_p = sub.add_parser("run", help="Run a single remote shell command string")
+    run_p.add_argument("remote_command", help="e.g. 'pm2 status' or 'curl -s http://127.0.0.1:3000/health'")
 
     args = parser.parse_args()
-
-    if args.cmd == "update":
-        return cmd_update(args.app_dir)
-    if args.cmd == "exec":
-        return run_remote(args.remote_shell)
+    client = connect(paramiko)
+    try:
+        if args.cmd == "sync":
+            return cmd_sync(client)
+        if args.cmd == "run":
+            return stream_exec(client, args.remote_command)
+    finally:
+        client.close()
     return 1
 
 
