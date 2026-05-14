@@ -58,7 +58,10 @@ export interface SelfHealingConfig {
 }
 
 export interface SelfHealingDashboardConfig {
-    enabled: boolean;
+  enabled: boolean;
+  routePrefix: string;
+  allowCors: boolean;
+  allowedOrigin: string;
 }
 
 export function bootstrapSelfHealing(config: SelfHealingConfig): SelfHealingSystem {
@@ -69,8 +72,15 @@ export function resolveSelfHealingConfigFromEnv(): SelfHealingConfig {
     return { patchMode: 'atomic' };
 }
 
-export function resolveSelfHealingDashboardConfigFromEnv(): any {
-    return {};
+export function resolveSelfHealingDashboardConfigFromEnv(): SelfHealingDashboardConfig {
+  const enabled = process.env.SELF_HEAL_DASHBOARD_ENABLED === "1";
+  const routePrefix = (process.env.SELF_HEAL_DASHBOARD_PREFIX || "/self-healing").trim() || "/self-healing";
+  return {
+    enabled,
+    routePrefix,
+    allowCors: process.env.SELF_HEAL_DASHBOARD_CORS !== "0",
+    allowedOrigin: process.env.SELF_HEAL_DASHBOARD_ORIGIN?.trim() || "*",
+  };
 }
 
 export function selfHealingMiddleware(): any {
@@ -91,7 +101,9 @@ export class SelfHealingSystem extends EventEmitter {
         };
     }
 
-    public getRecentLogs(): any[] { return []; }
+    public getRecentLogs(_count?: number): any[] {
+      return [];
+    }
     public getProtectedFeatures(): any[] { return []; }
     public getLearnedPatterns(): any[] { return []; }
     public getRules(): any[] { return []; }

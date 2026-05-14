@@ -20,8 +20,8 @@ export class LegendPropagationSystem {
     private static readonly CRITICAL_MASS_THRESHOLD: number = 5;
 
     public static update(): void {
-        const npcs: NPC[] = NPCManager.instance.getAllNPCs();
-        const globalLegends: Legend[] = LegendManager.instance.getGlobalLegends();
+        const npcs = NPCManager.instance.getAllNPCs() as unknown as NPC[];
+        const globalLegends = LegendManager.instance.getGlobalLegends() as unknown as Legend[];
 
         this.handleLegendPropagation(npcs, globalLegends);
         this.handleFactionFormation(npcs);
@@ -71,7 +71,10 @@ export class LegendPropagationSystem {
         beliefGroups.forEach(group => {
             if (group.members.length >= this.CRITICAL_MASS_THRESHOLD) {
                 if (Math.random() < this.FACTION_FORM_CHANCE) {
-                    FactionManager.instance.createFaction(group.legend, group.members);
+                    FactionManager.instance.createFaction(
+                        group.legend.name,
+                        group.members.map((m) => m.name)
+                    );
                 }
             }
         });

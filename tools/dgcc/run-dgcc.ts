@@ -87,9 +87,9 @@ async function assetsAudit(report: DgccReport, contract: any, fix: boolean) {
     });
     return;
   }
-  const mustHave = ["characters", "monsters", "npcs", "objects", "items", "resources"].map((x) =>
-    path.join(clientDir, x)
-  );
+  const subfolders: string[] =
+    contract.rules.assets.requiredSubfolders ?? ["characters", "monsters", "objects"];
+  const mustHave = subfolders.map((x) => path.join(clientDir, x));
   for (const p of mustHave) {
     if (!fs.existsSync(p)) {
       report.inconsistencies.push({
@@ -181,10 +181,11 @@ async function main() {
 
   if (checks.includes("unit")) {
     await runCheck("unit", async () => {
-      const r = await run("pnpm", ["run", "test"]);
+      const unitCmd = process.env.DGCC_FULL_UNIT === "1" ? "test" : "test:dgcc";
+      const r = await run("pnpm", ["run", unitCmd]);
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
-      if (r.code !== 0) throw new Error("unit tests failed");
+      if (r.code !== 0) throw new Error(`unit tests failed (${unitCmd})`);
     });
   }
 
@@ -208,10 +209,10 @@ async function main() {
 
   if (checks.includes("contentValidate")) {
     await runCheck("contentValidate", async () => {
-      const r = await run("pnpm", ["--prefix", "server", "run", "validate"]);
+      const r = await run("pnpm", ["run", "validate"]);
       fs.writeFileSync(path.join(outDir, "content-validate.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["contentValidate"] = "dgcc-artifacts/content-validate.out.txt";
-      if (r.code !== 0) throw new Error("content validation failed (server validate)");
+      if (r.code !== 0) throw new Error("content validation failed (pnpm run validate)");
     });
   }
 

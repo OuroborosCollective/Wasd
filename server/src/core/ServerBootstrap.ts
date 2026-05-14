@@ -188,7 +188,16 @@ export class ServerBootstrap {
   async start() {
     const app = express();
     const httpServer = createServer(app);
-    const selfHealingRuntime: any = { getStatus: () => ({ featuresProtected: 0 }) };
+    const selfHealingRuntime: any = {
+      getStatus: () => ({
+        active: false,
+        config: { patchMode: "atomic" },
+        totalErrors: 0,
+        totalHealed: 0,
+        healingRate: 0,
+        featuresProtected: 0,
+      }),
+    };
     const supabaseProxyBaseUrl = resolveSupabaseProxyBaseUrl();
 
     await initRedisClient();
@@ -243,10 +252,10 @@ export class ServerBootstrap {
         },
         liveHeal: (() => {
           const status = tick?.liveHeal.getStatus();
-          if (!status) return null;
+          if (!status?.subsystems) return null;
           return {
             tickCount: status.tickCount,
-            subsystems: status.subsystems.map(s => ({
+            subsystems: status.subsystems.map((s) => ({
               id: s.id,
               state: s.state,
               score: s.score,
@@ -459,6 +468,14 @@ export class ServerBootstrap {
 
     const clientRoot = resolveClientRoot();
     const clientPath = path.join(clientRoot, "dist");
+    const clientPublicRoot = path.join(clientRoot, "public");
+    if (existsSync(clientPublicRoot)) {
+      app.use(
+        express.static(clientPublicRoot, {
+          maxAge: process.env.NODE_ENV === "production" ? "1h" : 0,
+        }),
+      );
+    }
     const itchClientPath = path.join(clientRoot, "dist-itch");
     const adminContentPath = resolveAdminContentHtmlPath(clientRoot, clientPath);
 

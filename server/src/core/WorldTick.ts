@@ -22,6 +22,7 @@ import fs from "fs";
 import path from "path";
 
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
+import { resolveLoginIdentity } from "../modules/auth/resolveLoginIdentity.js";
 
 export class WorldTick {
   private timer: NodeJS.Timeout | null = null;
@@ -120,12 +121,50 @@ export class WorldTick {
 
     this.ws.onPlayerMessage = async (id, msg) => {
       if (msg.type === "login") {
-        if (!msg.token) {
-          this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed: No token provided" });
-          setTimeout(() => {
-            const client = Array.from((this.ws as any).wss.clients).find((c: any) => c.id === id);
-            if (client) (client as any).close();
-          }, 500);
+        const token = typeof msg.token === "string" ? msg.token.trim() : "";
+
+        if (!token) {
+          const identity = await resolveLoginIdentity(id, msg);
+          if ("error" in identity) {
+            this.ws.sendToPlayer(id, { type: "error", message: identity.error, code: identity.code });
+            return;
+          }
+          const { uid, charName } = identity;
+          let player = this.playerSystem.getPlayer(uid);
+          if (!player) {
+            player = this.playerSystem.createPlayer(uid, charName, msg.class, msg.appearance);
+            this.hydratePlayer(player);
+          } else {
+            player.isOffline = false;
+          }
+
+          if (player.name !== charName) player.name = charName;
+          this.socketToPlayer.set(id, uid);
+          this.playerToSocket.set(uid, id);
+          this.observerEngine.register(id, { x: player.position.x, y: player.position.y });
+
+          const sceneId =
+            typeof msg.sceneId === "string" && msg.sceneId.trim().length > 0 ? msg.sceneId.trim() : "didis_hub";
+
+          this.ws.sendToPlayer(id, {
+            type: "welcome",
+            playerId: uid,
+            id: uid,
+            sceneId,
+            spawnKey: typeof msg.spawnKey === "string" ? msg.spawnKey : undefined,
+            stats: {
+              gold: player.gold ?? 0,
+              level: player.level || 1,
+              health: player.health ?? 0,
+              maxHealth: player.maxHealth ?? 0,
+              mana: player.mana ?? 0,
+              maxMana: player.maxMana ?? 0,
+              skillCooldownUntil: {},
+            },
+            inventory: player.inventory ?? [],
+            equipment: player.equipment,
+            quests: player.quests ?? [],
+          });
           return;
         }
 
@@ -136,7 +175,7 @@ export class WorldTick {
           const decodedToken = await verifyFirebaseToken(msg.token) as any;
           if (decodedToken) {
             uid = decodedToken.uid;
-            charName = decodedToken.name || decodedToken.email?.split('@')[0] || `Player_${uid.substring(0, 6)}`;
+            charName = decodedToken.name || decodedToken.email?.split("@")[0] || `Player_${uid.substring(0, 6)}`;
           } else {
             this.ws.sendToPlayer(id, { type: "error", message: "Authentication service unavailable" });
             return;
@@ -170,11 +209,11 @@ export class WorldTick {
             maxHp: player.maxHealth,
             mp: player.mana,
             maxMp: player.maxMana,
-            level: player.level || 1
+            level: player.level || 1,
           },
           inventory: player.inventory,
           equipment: player.equipment,
-          quests: player.quests
+          quests: player.quests,
         });
         return;
       }

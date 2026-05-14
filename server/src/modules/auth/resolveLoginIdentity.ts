@@ -6,6 +6,8 @@ export type LoginMessage = {
   charName?: string;
   guestId?: string;
   guestName?: string;
+  sceneId?: string;
+  spawnKey?: string;
 };
 
 export type ResolvedLogin = { uid: string; charName: string };
