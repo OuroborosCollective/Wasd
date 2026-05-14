@@ -1,5 +1,6 @@
 import { WorldEventBus } from "../../events/WorldEventBus.js";
 import { WorldHistory } from "../history/WorldHistory.js";
+import { pushLiveTickerHazard, type LiveTickerHazardPayload } from "../../theme/serverThemeHazard.js";
 
 /**
  * EmergentMarket - O(1) Lookup Interface
@@ -151,21 +152,30 @@ export class ScarcityPredictor {
 
   static readonly DEFAULT_REGION = SCARCITY_DEFAULT_REGION;
 
+  private static readonly themeBridgeBuses = new WeakSet<WorldEventBus>();
+
   constructor(
     private eventBus: WorldEventBus,
     private market: EmergentMarket
   ) {
     this.setupSubscriptions();
+    if (!ScarcityPredictor.themeBridgeBuses.has(this.eventBus)) {
+      ScarcityPredictor.themeBridgeBuses.add(this.eventBus);
+      this.eventBus.subscribe("live_ticker_hazard", (raw) => {
+        pushLiveTickerHazard(raw as LiveTickerHazardPayload);
+      });
+    }
   }
 
   private setupSubscriptions(): void {
     // Listen for price shifts to trigger prediction analysis
-    this.eventBus.subscribe('market_price_shift', (data: {
+    this.eventBus.subscribe('market_price_shift', (raw: unknown) => {
+      const data = raw as {
       resourceId: string;
       regionId: string;
       price: number;
       stock: number;
-    }) => {
+    };
       // Stateless prediction using current tick state only
       const prediction = this.predictScarcity(
         data.resourceId,
@@ -180,12 +190,13 @@ export class ScarcityPredictor {
     });
 
     // Also listen for resource transactions
-    this.eventBus.subscribe('resource_transaction', (data: {
+    this.eventBus.subscribe('resource_transaction', (raw: unknown) => {
+      const data = raw as {
       resourceId: string;
       regionId: string;
       amount: number;
       type: 'buy' | 'sell';
-    }) => {
+    };
       this.handleTransaction(data);
     });
   }

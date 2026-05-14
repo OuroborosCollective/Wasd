@@ -14,6 +14,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { pushLiveTickerHazard } from '@wasd/shared';
 import { 
   ScarcityPredictor, 
   PriceShiftPrediction,
@@ -318,6 +319,13 @@ export class GlobalLiveTicker extends EventEmitter {
       aggressionTrend: point.aggressionTrend,
       aggressionAvg: point.aggressionAvg,
       timestamp: point.timestamp,
+    });
+
+    pushLiveTickerHazard({
+      resourceId,
+      hazardIndex: data.hazardIndex,
+      aggressionTrend: data.aggressionTrend,
+      aggression_avg: data.aggressionAvg,
     });
 
     // Check for alerts
