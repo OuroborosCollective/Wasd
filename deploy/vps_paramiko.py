@@ -38,7 +38,8 @@ DEFAULT_BRANCH = "main"
 
 def connect_client(args: argparse.Namespace) -> paramiko.SSHClient:
     client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.load_system_host_keys()
+    client.set_missing_host_key_policy(paramiko.RejectPolicy())
 
     password = args.password or os.environ.get("SSH_PASSWORD")
     key_path = args.identity_file or os.environ.get("SSH_KEY_PATH")
