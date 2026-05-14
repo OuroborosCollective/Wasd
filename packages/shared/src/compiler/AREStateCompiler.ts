@@ -1,11 +1,7 @@
+import { KappaPosGrid, KAPPA_EPSILON } from '../math/KappaPos';
+
 export type AREStateType = 'START' | 'END' | 'TASK' | 'DECISION' | 'WAIT' | 'EVENT';
 
-/**
- * KAPPA_SCALE: Deterministic scaling factor for integer-based precision.
- * Formula: kappaPos = floor(floatValue * 1000 + 1e-9)
- */
-const KAPPA_SCALE = 1000;
-const KAPPA_EPSILON = 1e-9;
 const MAX_METADATA_DEPTH = 10;
 
 export interface AREState {
@@ -51,7 +47,7 @@ export interface ARECompilerOutput {
 /**
  * AREStateCompiler - Sovereign AAAA+ COMPILER
  * Strictly deterministic, O(1) complexity lookup, Stateless Logic.
- * Implements WakeUpShield integrity and kappaPos integer scaling.
+ * Implements WakeUpShield integrity and kappaPos integer scaling via KappaPosGrid.
  */
 export class AREStateCompiler {
   /**
@@ -187,15 +183,15 @@ export class AREStateCompiler {
       ...graph,
       states: graph.states.map((s) => ({
         ...s,
-        kappaX: s.kappaX !== undefined ? AREStateCompiler.toKappa(s.kappaX) : undefined,
-        kappaY: s.kappaY !== undefined ? AREStateCompiler.toKappa(s.kappaY) : undefined,
+        kappaX: s.kappaX !== undefined ? KappaPosGrid.toInternal(s.kappaX) : undefined,
+        kappaY: s.kappaY !== undefined ? KappaPosGrid.toInternal(s.kappaY) : undefined,
         metadata: this.transformMetadata(s.metadata, new Set(), 0),
       })),
       transitions: [...graph.transitions]
         .map((t) => ({
           ...t,
           priority: Math.floor(t.priority + KAPPA_EPSILON),
-          kappaWeight: t.kappaWeight !== undefined ? AREStateCompiler.toKappa(t.kappaWeight) : undefined,
+          kappaWeight: t.kappaWeight !== undefined ? KappaPosGrid.toInternal(t.kappaWeight) : undefined,
         }))
         .sort((a, b) => {
           const pDiff = b.priority - a.priority;
@@ -215,7 +211,7 @@ export class AREStateCompiler {
     depth: number
   ): any {
     if (val === null || typeof val !== 'object' || depth > MAX_METADATA_DEPTH) {
-      return typeof val === 'number' ? AREStateCompiler.toKappa(val) : val;
+      return typeof val === 'number' ? KappaPosGrid.toInternal(val) : val;
     }
 
     if (seen.has(val)) return undefined; // Protect against circularity
@@ -236,16 +232,5 @@ export class AREStateCompiler {
       result[key] = this.transformMetadata(val[key], seen, depth + 1);
     }
     return result;
-  }
-
-  /**
-   * Universal Kappa Scaler.
-   * Ensures deterministic integer representation of floating point values.
-   */
-  public static toKappa(val: number): number {
-    if (typeof val !== 'number' || isNaN(val)) return 0;
-    // Check if it's already an integer at the correct scale to prevent double scaling
-    // But per mandate, we force-apply the formula to raw inputs
-    return Math.floor(val * KAPPA_SCALE + KAPPA_EPSILON);
   }
 }

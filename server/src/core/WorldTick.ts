@@ -209,6 +209,8 @@ export class WorldTick {
         if (!isNaN(dx) && !isNaN(dy)) {
           player.position.x += dx * speed;
           player.position.y += dy * speed;
+          player.position.x = Math.floor(player.position.x * 1000) / 1000;
+          player.position.y = Math.floor(player.position.y * 1000) / 1000;
           this.observerEngine.updatePosition(id, { x: player.position.x, y: player.position.y });
         }
       } else if (msg.type === "chat") {
@@ -229,6 +231,8 @@ export class WorldTick {
         if (!isNaN(dx) && !isNaN(dz)) {
           player.position.x += dx * speed;
           player.position.y += dz * speed;
+          player.position.x = Math.floor(player.position.x * 1000) / 1000;
+          player.position.y = Math.floor(player.position.y * 1000) / 1000;
           this.observerEngine.updatePosition(id, { x: player.position.x, y: player.position.y });
         }
       } else if (msg.type === "USE_SKILL") {

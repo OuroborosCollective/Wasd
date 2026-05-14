@@ -1,0 +1,18 @@
+<<<<<<< SEARCH
+        if (!isNaN(dx) && !isNaN(dy)) {
+          player.position.x += dx * speed;
+          player.position.y += dy * speed;
+          this.observerEngine.updatePosition(id, { x: player.position.x, y: player.position.y });
+        }
+=======
+        if (!isNaN(dx) && !isNaN(dy)) {
+          player.position.x += dx * speed;
+          player.position.y += dy * speed;
+
+          // KappaPos Determinism: Ensure engine truth is integer-snapped
+          player.position.x = Math.floor(player.position.x * 1000) / 1000;
+          player.position.y = Math.floor(player.position.y * 1000) / 1000;
+
+          this.observerEngine.updatePosition(id, { x: player.position.x, y: player.position.y });
+        }
+>>>>>>> REPLACE
