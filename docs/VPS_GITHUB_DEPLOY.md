@@ -65,6 +65,13 @@ python3 tools/deploy_vps_paramiko.py
 
 This runs the same remote script as CI: `scripts/deploy-vps-docker.sh`.
 
+## Troubleshooting (workflow fails in seconds)
+
+1. **Missing secrets** — The workflow checks `VPS_HOST`, `VPS_USER`, and `VPS_SSH_KEY` are non-empty. Add them under **Repository** secrets, not only in an Environment, unless you add `environment: …` to the job.
+2. **SSH permission denied** — Ensure the **public** half of `VPS_SSH_KEY` is in `/root/.ssh/authorized_keys` (if `VPS_USER=root`), permissions `600` / `700`, and `PermitRootLogin` allows pubkey (`prohibit-password` or `yes`).
+3. **`Directory does not exist: /opt/areloria`** — Clone the repo on the VPS to that path once (see bootstrap above).
+4. **Firewall** — GitHub Actions runners use dynamic IPs; allow **SSH (22)** from the internet on the VPS (or use a self-hosted runner in your network).
+
 ## Related files
 
 - `scripts/deploy-vps-docker.sh` — canonical VPS pull + `docker compose` rebuild

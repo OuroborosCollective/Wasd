@@ -44,17 +44,46 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      # Fails fast with a clear message (values are GitHub-masked; do not echo secrets).
+      - name: Verify VPS secrets are set
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          ok=true
+          if [ -z "${VPS_HOST:-}" ]; then echo "::error::Secret VPS_HOST is missing or empty (Settings → Secrets and variables → Actions)."; ok=false; fi
+          if [ -z "${VPS_USER:-}" ]; then echo "::error::Secret VPS_USER is missing or empty."; ok=false; fi
+          if [ -z "${VPS_SSH_KEY:-}" ]; then echo "::error::Secret VPS_SSH_KEY is missing or empty."; ok=false; fi
+          if [ "$ok" != true ]; then
+            echo "::error::If secrets live in a GitHub Environment, add the environment key to this job and grant the workflow access."
+            exit 1
+          fi
+
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          timeout: 2m
+          command_timeout: 45m
           script_stop: true
           script: |
             set -euo pipefail
             DEPLOY_PATH="${{ secrets.VPS_DEPLOY_PATH }}"
             DEPLOY_PATH="${DEPLOY_PATH:-/opt/areloria}"
+            echo "Using DEPLOY_PATH=$DEPLOY_PATH"
+            if [ ! -d "$DEPLOY_PATH" ]; then
+              echo "ERROR: Directory does not exist: $DEPLOY_PATH"
+              echo "Fix: on the VPS clone the repo once, e.g. git clone <url> $DEPLOY_PATH"
+              exit 1
+            fi
+            if [ ! -f "$DEPLOY_PATH/scripts/deploy-vps-docker.sh" ]; then
+              echo "ERROR: Missing $DEPLOY_PATH/scripts/deploy-vps-docker.sh (incomplete clone or wrong path)."
+              exit 1
+            fi
             cd "$DEPLOY_PATH"
             chmod +x scripts/deploy-vps-docker.sh 2>/dev/null || true
             bash scripts/deploy-vps-docker.sh
