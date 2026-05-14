@@ -31,7 +31,7 @@ router.post('/order', async (req: Request, res: Response) => {
 
         const stateCompiler = new AREStateCompiler();
 
-        const validation: ValidationResult = await stateCompiler.validateTransition({
+        const validation: any = await stateCompiler.validateTransition({
             state: orderData.proofState,
             event: {
                 type: 'ORDER_PLACEMENT',

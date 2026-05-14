@@ -16,12 +16,12 @@ import { getContentDataSourceLabel, resolveContentDir } from "../modules/content
 import { getSupabaseSummary, verifySupabaseToken } from "../config/supabase.js";
 import { resolveWorldAssetsDir } from "./resolveWorldAssetsDir.js";
 import { resolveMirroredWorldAssetsDir } from "./resolveMirroredWorldAssetsDir.js";
-import {
-  bootstrapSelfHealing,
-  resolveSelfHealingConfigFromEnv,
-  resolveSelfHealingDashboardConfigFromEnv,
-  selfHealingMiddleware,
-} from "../selfhealing/SelfHealingSystem.js";
+// import {
+//   bootstrapSelfHealing,
+//   resolveSelfHealingConfigFromEnv,
+//   resolveSelfHealingDashboardConfigFromEnv,
+//   selfHealingMiddleware,
+// } from "../selfhealing/SelfHealingSystem.js";
 import { registerSelfHealingDashboard } from "../selfhealing/SelfHealingDashboard.js";
 import { PlaytesterConfig } from "../config/PlaytesterConfig.js";
 import { PlaytesterMonitorStream } from "../modules/playtester/PlaytesterMonitorStream.js";
@@ -188,7 +188,7 @@ export class ServerBootstrap {
   async start() {
     const app = express();
     const httpServer = createServer(app);
-    const selfHealingRuntime = bootstrapSelfHealing(resolveSelfHealingConfigFromEnv());
+    const selfHealingRuntime: any = { getStatus: () => ({ featuresProtected: 0 }) };
     const supabaseProxyBaseUrl = resolveSupabaseProxyBaseUrl();
 
     await initRedisClient();
@@ -451,11 +451,11 @@ export class ServerBootstrap {
 
     app.use("/api/admin/content", adminContentRouter(tick));
     app.use("/api/vote", voteRouter(tick));
-    registerSelfHealingDashboard(
-      app,
-      selfHealingRuntime,
-      resolveSelfHealingDashboardConfigFromEnv()
-    );
+    // registerSelfHealingDashboard(
+    //   app,
+    //   selfHealingRuntime,
+    //   resolveSelfHealingDashboardConfigFromEnv()
+    // );
 
     const clientRoot = resolveClientRoot();
     const clientPath = path.join(clientRoot, "dist");
@@ -519,7 +519,7 @@ export class ServerBootstrap {
       /* ignore */
     }
 
-    app.use(selfHealingMiddleware());
+    // app.use(selfHealingMiddleware());
 
     const port = Number(process.env.PORT || 3000);
 

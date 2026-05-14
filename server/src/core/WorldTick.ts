@@ -59,7 +59,7 @@ export class WorldTick {
   public getAdminVoteBanners(): any { return []; }
   public upsertVoteBanner(data: any): any { return { ok: true, banner: {} }; }
   public deleteVoteBanner(id: any): any { return { ok: true }; }
-  public setVoteBannerOrder(data: any): any { return []; }
+  public setVoteBannerOrder(data: any): any { return { ok: true }; }
   public getVoteAdminDiagnostics(): any { return {}; }
   public debouncedSave(): void {}
   public craftingSystem: any = {};
@@ -72,10 +72,11 @@ export class WorldTick {
   public resourceSystem: any = { nodes: new Map() };
   public chatSystem: any = { getRecentMessages: () => [], systemMessage: () => {}, sendMessage: () => ({}) };
   public lootSystem: any = { rollLoot: () => ({ items: [], gold: 0 }) };
-  public liveHeal: any = { getStatus: () => null };
+  public liveHeal: any = { getStatus: () => ({ tickCount: 0 }), flush: () => {} };
   public getPlaytesterDebugLogPath(): string { return ""; }
   public buildPlaytesterMonitorPayload(options?: any): any { return {}; }
   public assetHealthService: any = { getStatus: () => ({}), getStats: () => null, flush: () => {} };
+  public async init(): Promise<void> {}
   private keysDown: Map<string, Set<string>> = new Map();
 
   constructor(private ws: GameWebSocketServer) {
