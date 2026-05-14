@@ -51,9 +51,9 @@ ENV CI=true
 RUN pnpm config set network-concurrency 4 && \
     pnpm config set child-concurrency 1
 
-# The committed lockfile is missing root pnpm.overrides metadata while
-# package.json already declares those overrides. Patch only the Docker build
-# copy so frozen install can stay lightweight and does not need no-frozen retry.
+# Patch only the Docker build copy of pnpm-lock.yaml.
+# This keeps the install frozen/offline and avoids the heavy no-frozen path that
+# was OOM-killed on the VPS.
 RUN <<'EOF'
 set -eu
 python3 - <<'PY'
@@ -79,7 +79,34 @@ overrides = """overrides:
 if "\noverrides:\n" not in text:
     if marker not in text:
         raise SystemExit("Expected pnpm lockfile settings marker not found")
-    lockfile.write_text(text.replace(marker, marker + overrides + "\n", 1))
+    text = text.replace(marker, marker + overrides + "\n", 1)
+
+old = """  packages/core-ecs:
+    dependencies:
+      nanoid:
+        specifier: ^5.1.11
+        version: 5.1.11
+    devDependencies:
+      '@types/node':
+        specifier: ^25.7.0
+        version: 25.7.0
+"""
+new = """  packages/core-ecs:
+    dependencies:
+      nanoid:
+        specifier: ^5.1.11
+        version: 5.1.11
+    devDependencies:
+      '@types/node':
+        specifier: ^22.19.18
+        version: 25.7.0
+"""
+if old in text:
+    text = text.replace(old, new, 1)
+else:
+    print("core-ecs lockfile specifier block already patched or not found")
+
+lockfile.write_text(text)
 PY
 EOF
 
