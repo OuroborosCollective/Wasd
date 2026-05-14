@@ -148,4 +148,22 @@ export class EmergentMarket {
     }
     return result;
   }
+
+  /** Surface used by economy ScarcityPredictor (resourceId = good id). */
+  getResourcePrice(resourceId: string, regionId: string): number {
+    return this.getPrice(regionId, resourceId);
+  }
+
+  getResourceStock(resourceId: string, regionId: string): number {
+    return this.getEntry(regionId, resourceId).supply;
+  }
+
+  getNPCGoals(_npcId: string): {
+    migrationTarget?: string;
+    resourcePriorities: Record<string, number>;
+    lastGoalUpdate: number;
+  } {
+    void _npcId;
+    return { resourcePriorities: {}, lastGoalUpdate: Date.now() };
+  }
 }

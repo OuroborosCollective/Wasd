@@ -1,4 +1,5 @@
 import { WorldEventBus } from "../../events/WorldEventBus.js";
+import { WorldHistory } from "../history/WorldHistory.js";
 
 /**
  * EmergentMarket - O(1) Lookup Interface
@@ -41,6 +42,92 @@ export interface ScarcityEvent {
   npcAdjustments: Record<string, Partial<NPCGoals>>;
 }
 
+/** Default region id for portal / ticker queries (must match EmergentMarket keys). */
+export const SCARCITY_DEFAULT_REGION = "WORLD";
+
+export enum MarketTrend {
+  STABLE = "stable",
+  RISING = "rising",
+  FALLING = "falling",
+  VOLATILE = "volatile",
+}
+
+export interface PriceShiftPrediction {
+  resourceId: string;
+  scarcityScore: number;
+  trend: MarketTrend;
+  predictedShift: number;
+  hazardIndex: number;
+  aggressionTrend: number;
+  aggressionAvg: number;
+}
+
+export interface HazardSnapshot {
+  hazard_index: number;
+  aggression_trend: number;
+  aggression_avg: number;
+  sample_count: number;
+}
+
+/**
+ * Deterministic hazard from the last aggression samples (typically up to 100 ticks).
+ * Uses mean pressure, positive trend amplification, and volatility.
+ */
+export function computeHazardIndexFromAggressionSeries(samples: readonly number[]): HazardSnapshot {
+  const n = samples.length;
+  if (n === 0) {
+    return { hazard_index: 0, aggression_trend: 0, aggression_avg: 0, sample_count: 0 };
+  }
+  if (n === 1) {
+    const only = samples[0]!;
+    return {
+      hazard_index: Math.max(0, Math.min(1, (only - 0.25) / 0.75)),
+      aggression_trend: 0,
+      aggression_avg: only,
+      sample_count: 1,
+    };
+  }
+
+  let sum = 0;
+  for (const v of samples) {
+    sum += v;
+  }
+  const mean = sum / n;
+
+  let varAcc = 0;
+  for (const v of samples) {
+    const d = v - mean;
+    varAcc += d * d;
+  }
+  const variance = varAcc / n;
+  const stdev = Math.sqrt(Math.max(variance, 0));
+
+  const xMean = (n - 1) / 2;
+  let cov = 0;
+  let varX = 0;
+  for (let i = 0; i < n; i++) {
+    const xi = i - xMean;
+    cov += xi * (samples[i]! - mean);
+    varX += xi * xi;
+  }
+  const slope = varX > 1e-12 ? cov / varX : 0;
+
+  const meanPressure = Math.max(0, Math.min(1, (mean - 0.22) / 0.73));
+  const trendNorm = Math.max(-1, Math.min(1, slope * 220));
+  const volPressure = Math.max(0, Math.min(1, stdev * 5));
+  const hazard = Math.max(
+    0,
+    Math.min(1, 0.38 * meanPressure + 0.37 * Math.max(0, trendNorm) + 0.25 * volPressure),
+  );
+
+  return {
+    hazard_index: hazard,
+    aggression_trend: slope,
+    aggression_avg: mean,
+    sample_count: n,
+  };
+}
+
 /**
  * ScarcityPredictor - Stateless Deterministic Heuristic
  * 
@@ -61,6 +148,8 @@ export class ScarcityPredictor {
   private static readonly VOLATILITY_WINDOW = 10;            // 10 ticks (1 second at 10-Hz)
   private static readonly PREDICTION_HORIZON_MS = 5000;       // 5 seconds ahead
   private static readonly MIN_CONFIDENCE = 0.65;           // 65% minimum
+
+  static readonly DEFAULT_REGION = SCARCITY_DEFAULT_REGION;
 
   constructor(
     private eventBus: WorldEventBus,
@@ -325,6 +414,92 @@ export class ScarcityPredictor {
     }
 
     return regions[0];
+  }
+
+  public getHazardSnapshot(): HazardSnapshot {
+    const series = WorldHistory.getInstance().getAggressionSeries(100);
+    return computeHazardIndexFromAggressionSeries(series);
+  }
+
+  private pickMarketTrend(slope: number, stdev: number): MarketTrend {
+    if (stdev > 0.11) {
+      return MarketTrend.VOLATILE;
+    }
+    if (slope > 0.00075) {
+      return MarketTrend.RISING;
+    }
+    if (slope < -0.00075) {
+      return MarketTrend.FALLING;
+    }
+    return MarketTrend.STABLE;
+  }
+
+  /**
+   * Portal / GlobalLiveTicker: combines market scarcity with WorldHistory aggression hazard.
+   */
+  public predictPriceShift(resourceId: string, intensityWeight = 1): PriceShiftPrediction {
+    const region = ScarcityPredictor.DEFAULT_REGION;
+    const price = this.market.getResourcePrice(resourceId, region);
+    const stock = this.market.getResourceStock(resourceId, region);
+    const scarcityPred = this.predictScarcity(resourceId, region, price, stock);
+    const hazard = this.getHazardSnapshot();
+
+    const baseScarcity = scarcityPred
+      ? Math.min(1, scarcityPred.probability * 0.55 + (scarcityPred.severity / 10) * 0.45)
+      : Math.min(
+          1,
+          hazard.hazard_index * 0.65 + Math.max(0, hazard.aggression_trend) * 180 * 0.15,
+        );
+
+    const scarcityScore = Math.min(
+      1,
+      baseScarcity * 0.72 + hazard.hazard_index * 0.28 * intensityWeight,
+    );
+
+    const series = WorldHistory.getInstance().getAggressionSeries(100);
+    let stdevHint = 0;
+    if (series.length > 1) {
+      const m = hazard.aggression_avg;
+      let v = 0;
+      for (const x of series) {
+        const d = x - m;
+        v += d * d;
+      }
+      stdevHint = Math.sqrt(v / series.length);
+    }
+    const trend = this.pickMarketTrend(hazard.aggression_trend, stdevHint);
+
+    const direction = hazard.aggression_trend >= 0 ? 1 : -1;
+    const predictedShift =
+      intensityWeight *
+      (hazard.hazard_index * 0.14 +
+        (scarcityPred?.probability ?? 0) * 0.07 +
+        Math.abs(hazard.aggression_trend) * 120 * 0.04) *
+      direction;
+
+    const snapshot: PriceShiftPrediction = {
+      resourceId,
+      scarcityScore,
+      trend,
+      predictedShift,
+      hazardIndex: hazard.hazard_index,
+      aggressionTrend: hazard.aggression_trend,
+      aggressionAvg: hazard.aggression_avg,
+    };
+
+    this.eventBus.emit("live_ticker_hazard", {
+      resourceId,
+      scarcityScore,
+      trend,
+      predictedShift,
+      ...hazard,
+    });
+
+    return snapshot;
+  }
+
+  public getCurrentPrice(resourceId: string): number {
+    return this.market.getResourcePrice(resourceId, ScarcityPredictor.DEFAULT_REGION);
   }
 
   public getPredictions(regionId: string): ScarcityPrediction[] {

@@ -25,7 +25,8 @@ export enum TickerEventType {
   PRICE_UPDATE = 'price_update',
   TREND_CHANGE = 'trend_change',
   ALERT = 'alert',
-  SCARCITY_WARNING = 'scarcity_warning'
+  SCARCITY_WARNING = 'scarcity_warning',
+  HAZARD_UPDATE = 'hazard_update',
 }
 
 /** Ticker data point */
@@ -36,6 +37,9 @@ export interface TickerDataPoint {
   scarcity: number;
   trend: MarketTrend;
   prediction: number;
+  hazardIndex?: number;
+  aggressionTrend?: number;
+  aggressionAvg?: number;
 }
 
 /** Ticker configuration */
@@ -64,6 +68,9 @@ export interface MarketData {
   trend: MarketTrend;
   predictedShift: number;
   lastUpdate: number;
+  hazardIndex: number;
+  aggressionTrend: number;
+  aggressionAvg: number;
 }
 
 /** Pooled data point (reused to prevent OOM) */
@@ -74,6 +81,9 @@ class PooledDataPoint {
   scarcity = 0;
   trend: MarketTrend = MarketTrend.STABLE;
   prediction = 0;
+  hazardIndex = 0;
+  aggressionTrend = 0;
+  aggressionAvg = 0;
   next: PooledDataPoint | null = null;
 }
 
@@ -143,6 +153,10 @@ class CircularBuffer {
   clear(): void {
     this.head = 0;
     this.count = 0;
+  }
+
+  getSize(): number {
+    return this.count;
   }
 }
 
@@ -262,7 +276,10 @@ export class GlobalLiveTicker extends EventEmitter {
         scarcityScore: prediction.scarcityScore,
         trend: prediction.trend,
         predictedShift: prediction.predictedShift,
-        lastUpdate: Date.now()
+        lastUpdate: Date.now(),
+        hazardIndex: prediction.hazardIndex,
+        aggressionTrend: prediction.aggressionTrend,
+        aggressionAvg: prediction.aggressionAvg,
       };
     } catch (error) {
       console.error(`[GlobalLiveTicker] Fetch error: ${resourceId}`, error);
@@ -282,6 +299,9 @@ export class GlobalLiveTicker extends EventEmitter {
     point.scarcity = data.scarcityScore;
     point.trend = data.trend;
     point.prediction = data.predictedShift;
+    point.hazardIndex = data.hazardIndex;
+    point.aggressionTrend = data.aggressionTrend;
+    point.aggressionAvg = data.aggressionAvg;
 
     // Add to history buffer
     const history = this.history.get(resourceId);
@@ -291,6 +311,14 @@ export class GlobalLiveTicker extends EventEmitter {
 
     // Emit price update event
     this.emit(TickerEventType.PRICE_UPDATE, point);
+
+    this.emit(TickerEventType.HAZARD_UPDATE, {
+      resourceId,
+      hazardIndex: point.hazardIndex,
+      aggressionTrend: point.aggressionTrend,
+      aggressionAvg: point.aggressionAvg,
+      timestamp: point.timestamp,
+    });
 
     // Check for alerts
     this.checkAlerts(resourceId, point);
@@ -314,7 +342,7 @@ export class GlobalLiveTicker extends EventEmitter {
 
     // Trend change
     const history = this.history.get(resourceId);
-    if (history && history.count > 1) {
+    if (history && history.getSize() > 1) {
       const recent = history.getRecent(2);
       if (recent.length >= 2) {
         const prev = recent[0];
@@ -363,7 +391,7 @@ export class GlobalLiveTicker extends EventEmitter {
     
     for (const resourceId of this.activeResources) {
       const history = this.history.get(resourceId);
-      if (history && history.count > 0) {
+      if (history && history.getSize() > 0) {
         const recent = history.getRecent(1);
         if (recent.length > 0) {
           const point = recent[0];
@@ -373,7 +401,10 @@ export class GlobalLiveTicker extends EventEmitter {
             scarcityScore: point.scarcity,
             trend: point.trend,
             predictedShift: point.prediction,
-            lastUpdate: point.timestamp
+            lastUpdate: point.timestamp,
+            hazardIndex: point.hazardIndex,
+            aggressionTrend: point.aggressionTrend,
+            aggressionAvg: point.aggressionAvg,
           });
         }
       }

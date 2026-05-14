@@ -22,6 +22,7 @@ import fs from "fs";
 import path from "path";
 
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
+import { WorldHistory } from "../modules/history/WorldHistory.js";
 
 export class WorldTick {
   private timer: NodeJS.Timeout | null = null;
@@ -369,6 +370,20 @@ export class WorldTick {
     const allPlayers = this.playerSystem.getAllPlayers();
     
     this.npcSystem.tick(allPlayers.filter(p => !p.isOffline), this.worldSystem.worldTime);
+
+    const npcsAgg = this.npcSystem.getAllNPCs();
+    let aggSum = 0;
+    let aggN = 0;
+    for (const n of npcsAgg) {
+      const a = n.traits?.aggression;
+      if (typeof a === "number" && Number.isFinite(a)) {
+        aggSum += a;
+        aggN++;
+      }
+    }
+    const aggressionAvg = aggN > 0 ? aggSum / aggN : 0.36;
+    WorldHistory.getInstance().recordAggressionSample(aggressionAvg, this.tickCount);
+
     this.worldSystem.tick();
 
     if (this.tickCount % 10 === 0) {

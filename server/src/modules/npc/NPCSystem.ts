@@ -2,6 +2,19 @@ import { checkStealthDeterministic } from './PerceptionLogic';
 import { GuildSovereigntyEngine } from '../guild/GuildSovereigntyEngine';
 import { TraitResonanceEngine } from '../resonance/TraitResonanceEngine';
 
+function deterministicNpcTraits(id: string): { faith: number; aggression: number; curiosity: number } {
+    let h = 0;
+    for (let i = 0; i < id.length; i++) {
+        h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
+    }
+    const u = (n: number) => 0.28 + ((Math.abs(n) % 701) / 700) * 0.62;
+    return {
+        faith: u(h),
+        aggression: u(h ^ 0x9e3779b9),
+        curiosity: u(h >>> 3),
+    };
+}
+
 export interface Vector3 {
     x: number;
     y: number;
@@ -19,6 +32,7 @@ export interface NPC {
     isProcessingAI: boolean;
     role?: string;
     faction?: string;
+    traits?: { faith: number; aggression: number; curiosity: number };
     health?: number;
     maxHealth?: number;
     skills?: any;
@@ -77,7 +91,8 @@ export class NPCSystem {
             visionRange: 10,
             visionAngle: 90,
             targetId: null,
-            isProcessingAI: false
+            isProcessingAI: false,
+            traits: deterministicNpcTraits(id),
         };
         this.addNPC(npc);
         return npc;
