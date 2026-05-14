@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
 
   workflow_dispatch:
 
@@ -38,43 +41,32 @@ jobs:
 
       - name: Deploy to VPS (Git Sync + Restart)
         run: |
+          REPO_CLONE_URL="https://github.com/${{ github.repository }}.git"
           sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh \
             -o StrictHostKeyChecking=no \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << EOF
+          set -euo pipefail
 
-            set -e
+          echo "→ Navigating to project"
+          mkdir -p /opt/areloria
+          cd /opt/areloria
 
-            echo "→ Navigating to project"
-            mkdir -p /opt/areloria
-            cd /opt/areloria
+          if [ ! -d ".git" ]; then
+            echo "→ Cloning repo"
+            git clone "${REPO_CLONE_URL}" .
+          fi
 
-            if [ ! -d ".git" ]; then
-              echo "→ Cloning repo"
-              git clone https://github.com/${{ github.repository }} .
-            fi
+          echo "→ Syncing repo"
+          git remote set-url origin "${REPO_CLONE_URL}" || true
+          git fetch origin main
+          git reset --hard origin/main
 
-            echo "→ Syncing repo"
-            git fetch origin main
-            git reset --hard origin/main
+          echo "→ Build + PM2 (Wasd server + client)"
+          corepack enable || true
+          corepack prepare pnpm@9.12.2 --activate
+          bash deploy/vps-prod-build.sh
 
-            echo "→ Installing dependencies"
-            corepack enable || true
-            corepack prepare pnpm@9.12.2 --activate
-            pnpm install --frozen-lockfile
-
-            echo "→ Building project"
-            pnpm build
-
-            echo "→ Restarting services"
-            if command -v pm2 >/dev/null 2>&1; then
-              pm2 restart all || true
-            fi
-
-            if [ -f docker-compose.yml ] || [ -f compose.yml ]; then
-              docker compose up -d --build || true
-            fi
-
-            echo "→ Deploy finished"
+          echo "→ Deploy finished"
           EOF
 
       - name: Health Check

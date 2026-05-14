@@ -6,6 +6,11 @@ This script avoids hardcoding secrets. You can either:
 - use interactive SSH password prompt (default), or
 - use --password / SSH_PASSWORD together with sshpass (optional).
 
+For password auth without `sshpass`, use Paramiko instead:
+
+- `pip install -r deploy/requirements-vps-tools.txt`
+- `python3 deploy/vps_paramiko.py deploy`
+
 Examples:
   python3 deploy/vps_connect.py shell
   python3 deploy/vps_connect.py run "uname -a"

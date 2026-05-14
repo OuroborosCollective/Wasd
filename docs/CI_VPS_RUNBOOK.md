@@ -2,12 +2,14 @@
 
 ## 1. GitHub Actions prüfen
 
-Nach jedem Push auf `main`:
+Nach jedem Push auf `main` (Code-Änderungen, nicht nur `docs/**` oder `*.md`):
 
-- **CI** (`.github/workflows/ci.yml`): Lint → Tests → Build → Modell-Pfad-Audit → Playwright E2E.
-- **Deploy** (`.github/workflows/deploy.yml`): SSH auf den VPS → `deploy/deploy.sh` (nur Push + manuell `workflow_dispatch`, kein Cron).
+- **CI** (falls vorhanden): Lint/Tests/Build in anderen Workflows.
+- **VPS-Deploy** (`.github/workflows/main-pipeline.yml`): SSH auf den VPS → Repo unter `/opt/areloria` auf `origin/main` → `bash deploy/vps-prod-build.sh` (Wasd Server + Client, PM2 `areloria`).
 
-Bei rotem Step: Log des fehlgeschlagenen Jobs öffnen; häufig E2E, Secrets oder VPS-Build (RAM/Timeout).
+Optional manuell: `.github/workflows/deploy.yml` ist nur noch **workflow_dispatch** (Legacy: Azure/SCP-Pipeline), kein Auto-Deploy auf jeden Push.
+
+Bei rotem Step: Log des fehlgeschlagenen Jobs; häufig Secrets, RAM/Timeout beim Build, oder fehlendes `pm2`.
 
 Lokal vor dem Push (ohne E2E):
 
