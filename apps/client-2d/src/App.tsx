@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Application, Graphics, Text } from "pixi.js";
-import { createClient, type PlayerState, type AgentState } from "@arelorian/core-network";
+import { createClient, type PlayerState, type AgentState } from "@wasd/core-network";
 
 const TILE_SIZE = 32;
 const SCALE = 2;
