@@ -28,7 +28,8 @@ RUN find packages apps projects -type f ! -name 'package.json' -delete 2>/dev/nu
     find packages apps projects -type d -empty -delete 2>/dev/null; \
     true
 
-# Install dependencies using pnpm
+# Install dependencies (limit Node heap to avoid OOM on small VPS instances)
+ENV NODE_OPTIONS="--max-old-space-size=1024"
 RUN pnpm install --frozen-lockfile
 
 # Copy the rest of the source code
