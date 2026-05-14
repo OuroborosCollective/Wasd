@@ -7,6 +7,22 @@ DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
 REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 cd "$REPO_ROOT"
 
+LOCK_PATH="${DEPLOY_LOCK_PATH:-/tmp/wasd-vps-docker-deploy.lock}"
+if command -v flock >/dev/null 2>&1; then
+  exec 9>"$LOCK_PATH"
+  if ! flock -n 9; then
+    echo "ERROR: another WASD deploy is already running on this VPS."
+    exit 1
+  fi
+else
+  LOCK_DIR="${LOCK_PATH}.d"
+  if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+    echo "ERROR: another WASD deploy is already running on this VPS."
+    exit 1
+  fi
+  trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
+fi
+
 if ! command -v git >/dev/null 2>&1; then
   echo "ERROR: git is required."
   exit 1
@@ -30,9 +46,13 @@ echo "=== WASD monorepo deploy (Docker) ==="
 echo "Repo: $REPO_ROOT"
 echo "Branch: $DEPLOY_BRANCH"
 
-echo "[1/4] git fetch + hard reset to origin/${DEPLOY_BRANCH}"
-git fetch origin "$DEPLOY_BRANCH"
-git reset --hard "origin/${DEPLOY_BRANCH}"
+echo "[1/4] git fetch + hard reset via FETCH_HEAD"
+# Fetch the branch directly into FETCH_HEAD instead of updating origin/main.
+# This avoids remote-tracking-ref lock races when back-to-back deploys overlap.
+git fetch --no-tags origin "refs/heads/${DEPLOY_BRANCH}"
+git reset --hard FETCH_HEAD
+
+echo "Deploy commit: $(git rev-parse --short HEAD)"
 
 export DOCKER_BUILDKIT="${DOCKER_BUILDKIT:-1}"
 
