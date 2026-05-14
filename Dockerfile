@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 # =========================================================
 # BASE
 # =========================================================
@@ -43,27 +45,47 @@ COPY portal/package.json portal/package.json
 RUN find packages apps projects -type f ! -name 'package.json' -delete || true
 RUN find packages apps projects -type d -empty -delete || true
 
-# VPS optimized install memory
-ENV NODE_OPTIONS="--max-old-space-size=4096"
+# VPS optimized dependency install.
+ENV NODE_OPTIONS="--max-old-space-size=1024"
+ENV CI=true
+RUN pnpm config set network-concurrency 4 && \
+    pnpm config set child-concurrency 1
 
-# Install dependencies.
-# First try reproducible frozen install. If pnpm only complains about lockfile
-# metadata drift, regenerate inside Docker build. Real install failures still
-# fail the image build.
-RUN set -eu; \
-    if pnpm install --frozen-lockfile --prefer-offline --ignore-scripts > /tmp/pnpm-install.log 2>&1; then \
-      cat /tmp/pnpm-install.log; \
-    else \
-      install_rc=$?; \
-      cat /tmp/pnpm-install.log; \
-      if grep -Eq "ERR_PNPM_(LOCKFILE_CONFIG_MISMATCH|OUTDATED_LOCKFILE)" /tmp/pnpm-install.log; then \
-        echo "pnpm lockfile drift detected; regenerating lockfile inside Docker build for VPS deploy."; \
-        pnpm install --no-frozen-lockfile --prefer-offline --ignore-scripts; \
-      else \
-        exit "$install_rc"; \
-      fi; \
-    fi; \
-    rm -f /tmp/pnpm-install.log
+# The committed lockfile is missing root pnpm.overrides metadata while
+# package.json already declares those overrides. Patch only the Docker build
+# copy so frozen install can stay lightweight and does not need no-frozen retry.
+RUN <<'EOF'
+set -eu
+python3 - <<'PY'
+from pathlib import Path
+
+lockfile = Path("pnpm-lock.yaml")
+text = lockfile.read_text()
+marker = "settings:\n  autoInstallPeers: true\n  excludeLinksFromLockfile: false\n\n"
+overrides = """overrides:
+  '@types/react': ^19.2.14
+  '@types/react-dom': ^19.2.3
+  '@types/node': ^22.19.18
+  zod: ^4.4.3
+  three: 0.184.0
+  '@babylonjs/core': ^9.6.2
+  '@babylonjs/materials': ^9.6.2
+  '@babylonjs/loaders': ^9.6.2
+  react: ^19.2.6
+  socket.io-client: ^4.8.3
+  pg: ^8.20.0
+"""
+
+if "\noverrides:\n" not in text:
+    if marker not in text:
+        raise SystemExit("Expected pnpm lockfile settings marker not found")
+    lockfile.write_text(text.replace(marker, marker + overrides + "\n", 1))
+PY
+EOF
+
+# Split fetch/install to lower memory pressure and keep final install offline.
+RUN pnpm fetch --frozen-lockfile --prefer-offline
+RUN pnpm install --frozen-lockfile --offline --ignore-scripts
 
 # =========================================================
 # BUILDER
