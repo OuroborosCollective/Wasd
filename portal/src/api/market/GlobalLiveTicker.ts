@@ -19,7 +19,7 @@ import {
   ScarcityPredictor, 
   PriceShiftPrediction,
   MarketTrend 
-} from '../../../server/src/modules/economy/ScarcityPredictor';
+} from "../../../../server/src/modules/economy/ScarcityPredictor";
 
 /** Market ticker event types */
 export enum TickerEventType {
@@ -410,9 +410,9 @@ export class GlobalLiveTicker extends EventEmitter {
             trend: point.trend,
             predictedShift: point.prediction,
             lastUpdate: point.timestamp,
-            hazardIndex: point.hazardIndex,
-            aggressionTrend: point.aggressionTrend,
-            aggressionAvg: point.aggressionAvg,
+            hazardIndex: point.hazardIndex ?? 0,
+            aggressionTrend: point.aggressionTrend ?? 0,
+            aggressionAvg: point.aggressionAvg ?? 0,
           });
         }
       }

@@ -7,7 +7,7 @@ interface Quest {
   status: 'ACTIVE' | 'PENDING';
 }
 
-class EchoTracker {
+class QuestBeaconPulse {
   private frequency: number;
   private questType: string;
 
@@ -118,7 +118,7 @@ const EchoTrackerDashboard: React.FC = () => {
 
       <div className="dashboard-grid">
         {activeQuests.map((quest) => {
-          const tracker = new EchoTracker(quest.type);
+          const tracker = new QuestBeaconPulse(quest.type);
           const isCombat = quest.type === 'COMBAT';
 
           return (

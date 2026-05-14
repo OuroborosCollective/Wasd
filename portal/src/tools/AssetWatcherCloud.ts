@@ -94,12 +94,6 @@ class FSAL implements IFS {
     }
 }
 
-interface S3Config {
-    bucket: string;
-    region: string;
-    endpoint: string;
-}
-
 export class AssetWatcherCloud extends EventEmitter {
     private fsal: IFS;
     private watchPath: string;
@@ -197,8 +191,8 @@ export class AssetWatcherCloud extends EventEmitter {
         try {
             const data = await this.fsal.readFile(fullPath);
             
-            const isValid = await this.validateGLB(data);
-            if (!isValid) {
+            const validation = await this.validateGLB(data);
+            if (!validation.valid) {
                 this.emit('validation_failed', { filename, reason: 'Invalid GLB magic number or corrupt header' });
                 return;
             }
@@ -212,18 +206,10 @@ export class AssetWatcherCloud extends EventEmitter {
         }
     }
 
-    private async validateGLB(buffer: Buffer): Promise<boolean> {
-        if (buffer.length < 12) return false;
-        const magic = buffer.readUInt32LE(0);
-        const version = buffer.readUInt32LE(4);
-        // Magic 0x46546C67 = "glTF"
-        return magic === 0x46546C67 && version === 2;
-    }
-
     private async syncToS3(filename: string, content: Buffer): Promise<string> {
         // Mocking Cloud Storage Put Operation
         const s3Key = `assets/${filename}`;
-        const destinationUrl = `https://${this.s3Config.bucket}.${this.s3Config.endpoint}/${s3Key}`;
+        const destinationUrl = `https://${this.cloudConfig.bucket}.${this.cloudConfig.endpoint}/${s3Key}`;
         return destinationUrl;
     }
 

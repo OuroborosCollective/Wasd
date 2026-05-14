@@ -98,6 +98,8 @@ export type LiveTickerHazardPayload = {
   hazard_index?: number;
   aggressionTrend?: number;
   aggression_trend?: number;
+  aggressionAvg?: number;
+  aggression_avg?: number;
   resourceId?: string;
   scarcityScore?: number;
   trend?: string;

@@ -5,6 +5,7 @@ import {
   visualStateToCssVars,
   type VisualThemeState,
 } from "@wasd/shared";
+import EchoTracker from "../community/EchoTracker";
 
 /**
  * Science Portal hub — reacts to NPC-driven hazard telemetry via ThemeEngine.
@@ -16,7 +17,7 @@ export const SciencePortal: React.FC = () => {
 
   useEffect(() => {
     if (!active) return;
-    return subscribeVisualTheme((v) => setVisual(v));
+    return subscribeVisualTheme((v: VisualThemeState) => setVisual(v));
   }, [active]);
 
   const cssVars = useMemo(() => visualStateToCssVars(visual), [visual]);
@@ -111,6 +112,8 @@ export const SciencePortal: React.FC = () => {
           Aura <code>{visual.auraHex}</code>
           {isFire && <span className="text-red-400"> · glitch {visual.glitchIntensity.toFixed(2)}</span>}
         </div>
+
+        <EchoTracker />
       </div>
     </div>
   );
