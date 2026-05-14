@@ -7,17 +7,26 @@ RUN corepack enable && corepack prepare pnpm@9.12.2 --activate
 FROM base AS builder
 WORKDIR /app
 
-# Teleport pattern: Copy only package files first for better layer caching
+# Teleport pattern: Copy only package manifests first for better layer caching.
+# Docker COPY does not support shell redirections — copy all sources, then use
+# a shell step to arrange package.json files into the workspace tree.
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 
-# Copy individual package.json files for workspace packages
-COPY packages/*/package.json packages/
-COPY apps/*/package.json apps/
-COPY projects/*/package.json projects/ 2>/dev/null || true
-COPY server/package.json server/ 2>/dev/null || true
-COPY client/package.json client/ 2>/dev/null || true
-COPY engine/package.json engine/ 2>/dev/null || true
-COPY portal/package.json portal/ 2>/dev/null || true
+# Copy the full directory tree of package.json files in one layer.
+# Each workspace package needs its package.json in the correct path for
+# pnpm install --frozen-lockfile to resolve the workspace graph.
+COPY packages/ packages/
+COPY apps/ apps/
+COPY projects/ projects/
+COPY server/package.json server/package.json
+COPY client/package.json client/package.json
+COPY engine/package.json engine/package.json
+COPY portal/package.json portal/package.json
+
+# Strip everything except package.json from copied dirs (keeps layer small).
+RUN find packages apps projects -type f ! -name 'package.json' -delete 2>/dev/null; \
+    find packages apps projects -type d -empty -delete 2>/dev/null; \
+    true
 
 # Install dependencies using pnpm
 RUN pnpm install --frozen-lockfile
