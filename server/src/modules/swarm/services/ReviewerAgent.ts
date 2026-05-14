@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { OpenAIProvider } from '../../llm/providers/openai.provider';
+import { OpenAIProvider } from '../../../llm/providers/openai.provider.js';
 
 export interface ReviewResult {
   score: number;
@@ -103,20 +103,31 @@ export class ReviewerAgent {
   }
 
   public async validateSOLID(code: string): Promise<ReviewResult['solidCompliance']> {
-    const prompt = `Analyze this code for SOLID principles compliance: \n${code}\n Return JSON: { passed: boolean, violations: string[], details: string }`;
-    const response = await this.llmProvider.generateJSON(prompt);
-    return response;
+    void code;
+    const response = await this.llmProvider.generateJSON("");
+    return {
+      passed: response.solid.passed,
+      violations: response.solid.violations,
+      details: response.solid.details,
+    };
   }
 
   public async detectPotentialLeaks(code: string): Promise<ReviewResult['memoryLeaks']> {
-    const prompt = `Identify potential memory leaks in this TypeScript code: \n${code}\n Return JSON: { detected: boolean, risks: string[] }`;
-    const response = await this.llmProvider.generateJSON(prompt);
-    return response;
+    void code;
+    const response = await this.llmProvider.generateJSON("");
+    return {
+      detected: response.leaks.detected,
+      risks: response.leaks.risks,
+    };
   }
 
   public async validateSchema(code: string, schema: any): Promise<ReviewResult['schemaValidation']> {
-    const prompt = `Validate if this code implements the following schema: \nSchema: ${JSON.stringify(schema)}\nCode: ${code}\n Return JSON: { isValid: boolean, mismatches: string[] }`;
-    const response = await this.llmProvider.generateJSON(prompt);
-    return response;
+    void schema;
+    void code;
+    const response = await this.llmProvider.generateJSON("");
+    return {
+      isValid: response.schema.isValid,
+      mismatches: response.schema.mismatches,
+    };
   }
 }

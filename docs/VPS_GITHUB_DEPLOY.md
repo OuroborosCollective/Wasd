@@ -44,11 +44,11 @@ It runs on **push to `main`** when files under the monorepo change (apps, server
 
 | Secret | Description |
 |--------|-------------|
-| `VPS_HOST` | VPS IP or DNS |
-| `VPS_USER` | SSH user: e.g. **`root`** or `deploy` |
-| `VPS_SSH_KEY` | **Private** key (full PEM / OpenSSH block) |
-| `VPS_SSH_PORT` | Optional, default `22` |
-| `VPS_DEPLOY_PATH` | Optional, default `/opt/areloria` |
+| `VPS_HOST` | VPS IP or DNS (or use legacy `SSH_HOST`) |
+| `VPS_USER` | SSH user: e.g. **`root`** or `deploy` (or `SSH_USER`) |
+| `VPS_SSH_KEY` | **Private** key (or legacy `SSH_PRIVATE_KEY`) |
+| `SSH_PASSWORD` | Optional if you use key-based auth for Docker deploy |
+| `VPS_DEPLOY_PATH` | Optional (or `DEPLOY_PATH`); default `/opt/areloria` |
 
 Generate a **deploy-only** key pair on your laptop, put the **public** key in **`/root/.ssh/authorized_keys`** (if `VPS_USER` is `root`) or **`~/.ssh/authorized_keys`** for that user, then paste the **private** key into `VPS_SSH_KEY`.
 

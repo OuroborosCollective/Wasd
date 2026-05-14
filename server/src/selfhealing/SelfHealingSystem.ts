@@ -59,6 +59,10 @@ export interface SelfHealingConfig {
 
 export interface SelfHealingDashboardConfig {
     enabled: boolean;
+    /** HTTP mount path, e.g. `/api/self-healing` */
+    routePrefix?: string;
+    allowCors?: boolean;
+    allowedOrigin?: string;
 }
 
 export function bootstrapSelfHealing(config: SelfHealingConfig): SelfHealingSystem {
@@ -83,6 +87,7 @@ export class SelfHealingSystem extends EventEmitter {
     public getStatus(): any {
         return {
             active: true,
+            uptime: 0,
             config: { patchMode: 'atomic' },
             totalErrors: 0,
             totalHealed: 0,
@@ -91,7 +96,7 @@ export class SelfHealingSystem extends EventEmitter {
         };
     }
 
-    public getRecentLogs(): any[] { return []; }
+    public getRecentLogs(_count?: number): any[] { return []; }
     public getProtectedFeatures(): any[] { return []; }
     public getLearnedPatterns(): any[] { return []; }
     public getRules(): any[] { return []; }

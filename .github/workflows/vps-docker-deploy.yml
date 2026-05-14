@@ -1,12 +1,7 @@
 # Production VPS: pull monorepo + Docker Compose rebuild.
-# Configure GitHub repo secrets (Settings → Secrets → Actions):
-#   VPS_HOST          e.g. 46.202.154.25
-#   VPS_USER          e.g. deploy  (recommended; user in docker group) or root
-#   VPS_SSH_KEY       private key PEM (full multiline OpenSSH / RSA)
-# Optional:
-#   VPS_DEPLOY_PATH   default /opt/areloria
-#
-# Do NOT store VPS passwords in GitHub or in this repo — use SSH keys only.
+# Secrets: VPS_HOST / VPS_USER / VPS_SSH_KEY (or legacy SSH_HOST / SSH_USER / SSH_PRIVATE_KEY).
+# Optional: SSH_PASSWORD if no key; VPS_DEPLOY_PATH or DEPLOY_PATH (default /opt/areloria).
+# Do NOT commit passwords to the repo.
 
 name: VPS Docker Deploy (monorepo)
 
@@ -48,32 +43,44 @@ jobs:
       - name: Verify VPS secrets are set
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
+          SSH_USER: ${{ secrets.SSH_USER }}
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
         run: |
           set -euo pipefail
           ok=true
-          if [ -z "${VPS_HOST:-}" ]; then echo "::error::Secret VPS_HOST is missing or empty (Settings → Secrets and variables → Actions)."; ok=false; fi
-          if [ -z "${VPS_USER:-}" ]; then echo "::error::Secret VPS_USER is missing or empty."; ok=false; fi
-          if [ -z "${VPS_SSH_KEY:-}" ]; then echo "::error::Secret VPS_SSH_KEY is missing or empty."; ok=false; fi
+          HOST="${VPS_HOST:-${SSH_HOST}}"
+          USER="${VPS_USER:-${SSH_USER}}"
+          KEY="${VPS_SSH_KEY:-${SSH_PRIVATE_KEY}}"
+          if [ -z "${HOST:-}" ]; then echo "::error::Set VPS_HOST or SSH_HOST."; ok=false; fi
+          if [ -z "${USER:-}" ]; then echo "::error::Set VPS_USER or SSH_USER."; ok=false; fi
+          if [ -z "${KEY:-}" ] && [ -z "${SSH_PASSWORD:-}" ]; then
+            echo "::error::Set VPS_SSH_KEY / SSH_PRIVATE_KEY, or SSH_PASSWORD for Docker deploy."
+            ok=false
+          fi
           if [ "$ok" != true ]; then
-            echo "::error::If secrets live in a GitHub Environment, add the environment key to this job and grant the workflow access."
+            echo "::error::If secrets live in a GitHub Environment, add the environment key to this job."
             exit 1
           fi
 
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
+          host: ${{ secrets.VPS_HOST || secrets.SSH_HOST }}
+          username: ${{ secrets.VPS_USER || secrets.SSH_USER }}
+          key: ${{ secrets.VPS_SSH_KEY || secrets.SSH_PRIVATE_KEY }}
+          password: ${{ secrets.SSH_PASSWORD }}
           timeout: 2m
           command_timeout: 45m
           script_stop: true
           script: |
             set -euo pipefail
-            DEPLOY_PATH="${{ secrets.VPS_DEPLOY_PATH }}"
-            DEPLOY_PATH="${DEPLOY_PATH:-/opt/areloria}"
+            DEPLOY_PRIMARY='${{ secrets.VPS_DEPLOY_PATH }}'
+            DEPLOY_ALT='${{ secrets.DEPLOY_PATH }}'
+            DEPLOY_PATH="${DEPLOY_PRIMARY:-${DEPLOY_ALT:-/opt/areloria}}"
             echo "Using DEPLOY_PATH=$DEPLOY_PATH"
             if [ ! -d "$DEPLOY_PATH" ]; then
               echo "ERROR: Directory does not exist: $DEPLOY_PATH"

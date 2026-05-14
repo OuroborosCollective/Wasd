@@ -1,15 +1,10 @@
-# Full VPS deploy: pull latest `main`, install, build client+server (with VITE_* from
-# `/opt/areloria/.env`), restart PM2. No Azure or artifact upload — suitable for a
-# single Node host at `DEPLOY_PATH` (default `/opt/areloria`).
+# Full VPS deploy: SSH to host, sync `main`, run `deploy/update.sh` (pnpm build + PM2).
 #
-# Required GitHub Actions secrets:
-#   SSH_HOST, SSH_USER
-# plus either:
-#   SSH_PRIVATE_KEY  (recommended), or
-#   SSH_PASSWORD
-# Optional:
-#   DEPLOY_PATH      (default /opt/areloria if empty)
-#   DEPLOY_VERIFY_BASE_URL — e.g. https://your-domain — curls /health after deploy
+# Accepts either naming convention:
+#   VPS_HOST / VPS_USER / VPS_SSH_KEY / VPS_DEPLOY_PATH
+#   SSH_HOST / SSH_USER / SSH_PRIVATE_KEY / DEPLOY_PATH
+# Optional password if no key: SSH_PASSWORD
+# Optional: DEPLOY_VERIFY_BASE_URL — curl /health after deploy
 
 name: VPS production deploy
 
@@ -33,20 +28,45 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: Verify deploy secrets
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          HOST="${VPS_HOST:-${SSH_HOST}}"
+          USER="${VPS_USER:-${SSH_USER}}"
+          KEY="${VPS_SSH_KEY:-${SSH_PRIVATE_KEY}}"
+          if [ -z "${HOST:-}" ] || [ -z "${USER:-}" ]; then
+            echo "::error::Set VPS_HOST+VPS_USER or SSH_HOST+SSH_USER Actions secrets."
+            exit 1
+          fi
+          if [ -z "${KEY:-}" ] && [ -z "${SSH_PASSWORD:-}" ]; then
+            echo "::error::Provide VPS_SSH_KEY or SSH_PRIVATE_KEY, or SSH_PASSWORD."
+            exit 1
+          fi
+
       - name: SSH — pull main and run deploy/update.sh
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          host: ${{ secrets.VPS_HOST || secrets.SSH_HOST }}
+          username: ${{ secrets.VPS_USER || secrets.SSH_USER }}
+          key: ${{ secrets.VPS_SSH_KEY || secrets.SSH_PRIVATE_KEY }}
           password: ${{ secrets.SSH_PASSWORD }}
           port: 22
+          timeout: 2m
           command_timeout: 40m
           script_stop: true
           script: |
             set -euo pipefail
-            APP='${{ secrets.DEPLOY_PATH }}'
-            if [ -z "${APP}" ]; then APP=/opt/areloria; fi
+            APP_PRIMARY='${{ secrets.VPS_DEPLOY_PATH }}'
+            APP_ALT='${{ secrets.DEPLOY_PATH }}'
+            APP="${APP_PRIMARY:-${APP_ALT:-/opt/areloria}}"
             cd "$APP"
             echo "--- Repo: $APP ---"
             test -d .git || { echo "Not a git checkout; clone Wasd into $APP first."; exit 1; }
