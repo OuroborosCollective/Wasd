@@ -1,0 +1,69 @@
+# Full VPS deploy: pull latest `main`, install, build client+server (with VITE_* from
+# `/opt/areloria/.env`), restart PM2. No Azure or artifact upload — suitable for a
+# single Node host at `DEPLOY_PATH` (default `/opt/areloria`).
+#
+# Required GitHub Actions secrets:
+#   SSH_HOST, SSH_USER
+# plus either:
+#   SSH_PRIVATE_KEY  (recommended), or
+#   SSH_PASSWORD
+# Optional:
+#   DEPLOY_PATH      (default /opt/areloria if empty)
+#   DEPLOY_VERIFY_BASE_URL — e.g. https://your-domain — curls /health after deploy
+
+name: VPS production deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vps-production-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH — pull main and run deploy/update.sh
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: 22
+          command_timeout: 40m
+          script_stop: true
+          script: |
+            set -euo pipefail
+            APP='${{ secrets.DEPLOY_PATH }}'
+            if [ -z "${APP}" ]; then APP=/opt/areloria; fi
+            cd "$APP"
+            echo "--- Repo: $APP ---"
+            test -d .git || { echo "Not a git checkout; clone Wasd into $APP first."; exit 1; }
+            echo "--- Sync to origin/main ---"
+            git fetch origin main
+            git reset --hard origin/main
+            echo "--- Build + PM2 (deploy/update.sh) ---"
+            bash deploy/update.sh
+
+      - name: Optional public health check
+        env:
+          BASE: ${{ secrets.DEPLOY_VERIFY_BASE_URL }}
+        run: |
+          if [ -z "${BASE:-}" ]; then
+            echo "DEPLOY_VERIFY_BASE_URL unset; skipping external check."
+            exit 0
+          fi
+          curl -fsS "${BASE}/health" | head -c 800
+          echo
+          echo "Health check OK for ${BASE}/health"

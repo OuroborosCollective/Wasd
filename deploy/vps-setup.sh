@@ -63,7 +63,7 @@ cd "$GAME_DIR/client"
 pnpm build
 
 # Setup PM2
-echo "[8/8] Configuring PM2...
+echo "[8/8] Configuring PM2..."
 cd "$GAME_DIR"
 pm2 delete areloria 2>/dev/null || true
 pm2 start deploy/pm2.config.cjs

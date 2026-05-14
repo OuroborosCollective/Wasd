@@ -21,8 +21,8 @@ import shutil
 import subprocess
 import sys
 
-DEFAULT_HOST = "46.202.154.25"
-DEFAULT_USER = "root"
+DEFAULT_HOST = os.environ.get("ARELORIA_SSH_HOST", "")
+DEFAULT_USER = os.environ.get("ARELORIA_SSH_USER", "root")
 DEFAULT_PORT = 22
 DEFAULT_APP_DIR = "/opt/areloria"
 DEFAULT_REPO = "https://github.com/OuroborosCollective/Wasd.git"
@@ -83,7 +83,11 @@ def make_deploy_script(args: argparse.Namespace) -> str:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="SSH helper for Areloria VPS workflows.")
-    parser.add_argument("--host", default=DEFAULT_HOST, help=f"VPS host (default: {DEFAULT_HOST})")
+    parser.add_argument(
+        "--host",
+        default=DEFAULT_HOST,
+        help="VPS host or IP. Default: $ARELORIA_SSH_HOST (required unless set in the environment).",
+    )
     parser.add_argument("--user", default=DEFAULT_USER, help=f"SSH user (default: {DEFAULT_USER})")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"SSH port (default: {DEFAULT_PORT})")
     parser.add_argument("--identity-file", help="Path to SSH private key file")
@@ -108,6 +112,13 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
+
+    if not args.host or not str(args.host).strip():
+        print(
+            "Error: set --host or export ARELORIA_SSH_HOST to your VPS address (do not commit hostnames in scripts).",
+            file=sys.stderr,
+        )
+        return 1
 
     if args.mode == "shell":
         remote = f"cd {shlex.quote(args.app_dir)} && exec bash -l"

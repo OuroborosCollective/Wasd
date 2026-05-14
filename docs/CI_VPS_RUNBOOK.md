@@ -5,7 +5,8 @@
 Nach jedem Push auf `main`:
 
 - **CI** (`.github/workflows/ci.yml`): Lint → Tests → Build → Modell-Pfad-Audit → Playwright E2E.
-- **Deploy** (`.github/workflows/deploy.yml`): SSH auf den VPS → `deploy/deploy.sh` (nur Push + manuell `workflow_dispatch`, kein Cron).
+- **VPS full deploy** (`.github/workflows/vps-production-deploy.yml`): SSH auf den VPS → im Repo `git fetch` / `reset --hard origin/main` → `bash deploy/update.sh` (Client+Server-Build inkl. `VITE_*` aus `/opt/areloria/.env`, PM2-Restart). Läuft bei Push auf `main` (mit `paths-ignore` für reine Markdown/Docs) und per `workflow_dispatch`. Kein Azure-Schritt.
+- **Deploy (Azure + Artefakt)** (`.github/workflows/deploy.yml`): Build, optional Azure Storage, SCP `server/dist`, PM2 — nur wenn die Azure-Secrets gesetzt sind.
 
 Bei rotem Step: Log des fehlgeschlagenen Jobs öffnen; häufig E2E, Secrets oder VPS-Build (RAM/Timeout).
 
@@ -15,28 +16,44 @@ Lokal vor dem Push (ohne E2E):
 pnpm run ci:verify
 ```
 
-## 2. VPS nach Deploy
+## 2. VPS manuell aktualisieren
 
 Auf dem Server (Repo-Root, z. B. `/opt/areloria`):
 
 ```bash
-bash deploy/pull-and-deploy.sh
+bash deploy/update.sh
 ```
 
-(Intern: `git fetch` + `reset --hard origin/main`, `./deploy/deploy.sh`, `verify-vps-local.sh`.)
+(`git pull`, `pnpm` install/build, `pm2 restart areloria`, lokaler Health-Check — siehe `deploy/update.sh`.)
 
-## 3. Secret `DEPLOY_VERIFY_BASE_URL`
+Alternativ (nur Pull + Build ohne `.env`-Sourcing wie oben): `bash deploy/pull-and-deploy.sh`.
+
+**Lokal per Paramiko (ohne Secrets im Repo):** `pip install paramiko`, dann z. B.:
+
+```bash
+export ARELORIA_SSH_HOST=dein-vps
+export ARELORIA_SSH_KEY_PATH=$HOME/.ssh/id_ed25519
+python3 deploy/run_deploy.py update
+```
+
+Weiteres SSH-Hilfsskript (OpenSSH/`sshpass`): `deploy/vps_connect.py` — Host per `--host` oder `ARELORIA_SSH_HOST`.
+
+## 3. GitHub Actions Secrets (VPS-Workflow)
 
 In **GitHub → Settings → Secrets → Actions** (nicht in `.env` auf dem VPS):
 
-| Secret | Wert |
-|--------|------|
-| `DEPLOY_VERIFY_BASE_URL` | Öffentliche Basis-URL **ohne** Slash am Ende, z. B. `https://spiel.example.com` |
+| Secret | Pflicht | Bedeutung |
+|--------|---------|-----------|
+| `SSH_HOST` | ja | VPS-Hostname oder IP |
+| `SSH_USER` | ja | z. B. `root` |
+| `SSH_PRIVATE_KEY` | empfohlen* | Private Key (Inhalt der Key-Datei) |
+| `SSH_PASSWORD` | empfohlen* | Nur wenn kein Key; lieber Key + `ssh-copy-id` |
+| `DEPLOY_PATH` | nein | Repo-Pfad auf dem VPS, Standard `/opt/areloria` wenn leer |
+| `DEPLOY_VERIFY_BASE_URL` | nein | Öffentliche Basis-URL ohne Slash, z. B. `https://spiel.example.com` — danach `curl …/health` |
 
-Wenn gesetzt, prüft der Deploy-Job nach dem SSH-Schritt per HTTPS: `/health`, `/`, `/gm/`.  
-Ohne Secret: Deploy läuft durch, externe Checks werden übersprungen.
+\* Mindestens eines von `SSH_PRIVATE_KEY` oder `SSH_PASSWORD` setzen.
 
-Weitere Secrets: `VPS_IP`, `VPS_USER`, `VPS_SSH_PASSWORD` — siehe `DEPLOYMENT.md`.
+`DEPLOYMENT.md` und `deploy/ENV_SETUP.md` beschreiben einmaliges VPS-Setup und `.env`.
 
 ## 4. SpacetimeDB (nächste Implementierung)
 

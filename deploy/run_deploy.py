@@ -1,115 +1,132 @@
 #!/usr/bin/env python3
 """
-Arelorian VPS Quick Deploy via Paramiko
+Run remote commands on the Areloria VPS using Paramiko.
+
+Credentials must come from the environment (never commit passwords or keys).
+
+  ARELORIA_SSH_HOST          — required (e.g. your VPS IP or hostname)
+  ARELORIA_SSH_USER          — optional, default root
+  ARELORIA_SSH_PORT          — optional, default 22
+  ARELORIA_SSH_PASSWORD      — optional if using a key
+  ARELORIA_SSH_KEY_PATH      — optional path to private key file
+  ARELORIA_SSH_KEY_PASSPHRASE — optional, if the key file is encrypted
+
+Examples:
+
+  export ARELORIA_SSH_HOST=your.vps.example
+  export ARELORIA_SSH_KEY_PATH=$HOME/.ssh/id_ed25519
+  python3 deploy/run_deploy.py update
+
+  python3 deploy/run_deploy.py exec -- "cd /opt/areloria && git status"
 """
 
-import paramiko
+from __future__ import annotations
+
+import argparse
+import os
 import sys
-
-HOST = "46.202.154.25"
-PORT = 22
-USER = "root"
-PASSWORD = "++2N00py123+++"
-
-# All setup commands in one script
-SETUP = r'''
-# Install deps
-apt-get update -qq
-apt-get install -y -qq curl git nginx build-essential nodejs npm
-
-# Install pnpm/pm2  
-npm install -g pnpm pm2 2>/dev/null
-
-# Setup app
-mkdir -p /opt/areloria
-cd /opt/areloria
-git clone https://github.com/OuroborosCollective/Wasd.git . || (git fetch origin main && git checkout main)
-pnpm install --frozen-lockfile
-cd client && pnpm build
-
-# Create .env
-cat > /opt/areloria/.env << 'EOF'
-NODE_ENV=production
-PORT=3000
-PUBLIC_WEBSOCKET_URL=wss://arelorian.de/ws
-VITE_API_URL=https://arelorian.de
-ALLOW_GUEST_LOGIN=1
-USE_SUPABASE_WS_LOGIN=0
-PERSISTENCE_DRIVER=file
-EOF
-
-# Nginx
-cat > /etc/nginx/sites-available/arelorian << 'EOF'
-server {
-    listen 80;
-    server_name arelorian.de;
-    root /opt/areloria/client/dist;
-    index index.html;
-    try_files $uri $uri/ /index.html;
-    location /api {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-    }
-    location /ws {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-    }
-}
-EOF
-ln -sf /etc/nginx/sites-available/arelorian /etc/nginx/sites-enabled/
-nginx -t && systemctl reload nginx
-
-# PM2
-pm2 start /opt/areloria/deploy/pm2.config.cjs
-pm2 save
-
-echo "DONE"
-'''
-
-print(f"Connecting to {HOST}...")
-client = paramiko.SSHClient()
-client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+from pathlib import Path
 
 try:
-    client.connect(HOST, port=PORT, username=USER, password=PASSWORD, timeout=60, banner_timeout=60)
-    print("✓ Connected!")
-    
-    print("Running setup (this may take a few minutes)...")
-    stdin, stdout, stderr = client.exec_command(SETUP, get_pty=True)
-    
-    # Stream output
-    while True:
-        if stdout.channel.recv_ready():
-            line = stdout.readline()
-            if line:
-                print(line, end="")
-        if stderr.channel.recv_ready():
-            err = stderr.readline()
-            if err:
-                print(f"ERR: {err}", end="")
-        if stdout.channel.exit_status_ready():
-            break
-    
-    exit_code = stdout.channel.recv_exit_status()
-    print(f"\nExit code: {exit_code}")
-    
-    if exit_code == 0:
-        print("\n✅ VPS Ready!")
-        print("Access: https://arelorian.de")
+    import paramiko
+except ImportError:
+    print("Install Paramiko: pip install paramiko", file=sys.stderr)
+    raise SystemExit(1)
+
+DEFAULT_APP_DIR = "/opt/areloria"
+
+
+def _connect() -> paramiko.SSHClient:
+    host = os.environ.get("ARELORIA_SSH_HOST", "").strip()
+    if not host:
+        print("Set ARELORIA_SSH_HOST to your VPS hostname or IP.", file=sys.stderr)
+        raise SystemExit(1)
+
+    user = os.environ.get("ARELORIA_SSH_USER", "root").strip()
+    port = int(os.environ.get("ARELORIA_SSH_PORT", "22"))
+    password = os.environ.get("ARELORIA_SSH_PASSWORD")
+    key_path_raw = os.environ.get("ARELORIA_SSH_KEY_PATH", "").strip()
+    passphrase = os.environ.get("ARELORIA_SSH_KEY_PASSPHRASE")
+
+    kwargs: dict = dict(
+        hostname=host,
+        port=port,
+        username=user,
+        timeout=60,
+        banner_timeout=60,
+        allow_agent=False,
+        look_for_keys=False,
+    )
+
+    if key_path_raw:
+        key_file = Path(key_path_raw).expanduser()
+        if not key_file.is_file():
+            print(f"ARELORIA_SSH_KEY_PATH is not a file: {key_file}", file=sys.stderr)
+            raise SystemExit(1)
+        kwargs["key_filename"] = [str(key_file)]
+        if passphrase:
+            kwargs["passphrase"] = passphrase
+    elif password:
+        kwargs["password"] = password
     else:
-        print(f"⚠️ Exit code: {exit_code}")
-        
-except paramiko.AuthenticationException:
-    print("❌ Auth failed")
-    sys.exit(1)
-except Exception as e:
-    print(f"❌ {e}")
-    sys.exit(1)
-finally:
-    client.close()
+        print(
+            "Set ARELORIA_SSH_PASSWORD or ARELORIA_SSH_KEY_PATH (key-based auth is recommended).",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.connect(**kwargs)
+    return client
+
+
+def run_remote(script: str, get_pty: bool = True) -> int:
+    client = _connect()
+    try:
+        _stdin, stdout, stderr = client.exec_command(script, get_pty=get_pty)
+        for line in iter(stdout.readline, ""):
+            sys.stdout.write(line)
+        err = stderr.read().decode()
+        if err:
+            sys.stderr.write(err)
+        code = stdout.channel.recv_exit_status()
+        return int(code)
+    finally:
+        client.close()
+
+
+def cmd_update(app_dir: str) -> int:
+    ad = app_dir.replace("'", "'\"'\"'")
+    script = (
+        "set -euo pipefail; "
+        f"cd '{ad}'; "
+        "git fetch origin main; "
+        "git reset --hard origin/main; "
+        "bash deploy/update.sh"
+    )
+    return run_remote(script)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="VPS deploy helper (Paramiko).")
+    parser.add_argument("--app-dir", default=DEFAULT_APP_DIR, help=f"Remote repo root (default: {DEFAULT_APP_DIR})")
+
+    sub = parser.add_subparsers(dest="cmd", required=True)
+
+    sub.add_parser("update", help="Fetch main, reset to origin/main, run deploy/update.sh on the VPS.")
+
+    ex = sub.add_parser("exec", help="Run a remote shell command string.")
+    ex.add_argument("remote_shell", help="Command(s) to run on the server.")
+
+    args = parser.parse_args()
+
+    if args.cmd == "update":
+        return cmd_update(args.app_dir)
+    if args.cmd == "exec":
+        return run_remote(args.remote_shell)
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
