@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExtern
 import type { VisualThemeState } from "@wasd/shared";
 import { completeScienceMascotChat } from "../ai/scienceMascotBrain";
 import { PortalWorldHistory } from "../world/PortalWorldHistory";
+import { PortalNPCChatBridge } from "../world/PortalNPCChatBridge";
 
 type Role = "user" | "assistant";
 
@@ -30,6 +31,16 @@ const ScienceMascotChat: React.FC<ScienceMascotChatProps> = ({ visual, active })
   useEffect(() => {
     visualRef.current = visual;
   }, [visual]);
+
+  const [crisisActive, setCrisisActive] = useState(false);
+  useEffect(() => {
+    const bridge = PortalNPCChatBridge.getInstance();
+    return bridge.onCrisisChange((active) => setCrisisActive(active));
+  }, []);
+
+  const combatReceptor = useMemo(() => {
+    return PortalNPCChatBridge.getInstance().getCombatReceptorState();
+  }, [crisisActive]);
 
   const [lines, setLines] = useState<ChatLine[]>([
     {
@@ -97,15 +108,23 @@ const ScienceMascotChat: React.FC<ScienceMascotChatProps> = ({ visual, active })
   }, [active, busy]);
 
   const panelStyle: React.CSSProperties = {
-    border: "1px solid color-mix(in srgb, var(--wasd-aura) 45%, transparent)",
-    boxShadow: fire
-      ? `0 0 26px color-mix(in srgb, var(--wasd-aura) 40%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--wasd-aura) 22%, transparent)`
-      : `0 0 20px color-mix(in srgb, var(--wasd-aura) 28%, transparent), inset 0 1px 0 color-mix(in srgb, var(--wasd-aura) 15%, transparent)`,
-    background: `linear-gradient(165deg, color-mix(in srgb, var(--wasd-aura-secondary) 50%, #020617) 0%, rgba(15,23,42,0.82) 42%, rgba(2,6,23,0.94) 100%)`,
+    border: crisisActive
+      ? "2px solid #E60000"
+      : "1px solid color-mix(in srgb, var(--wasd-aura) 45%, transparent)",
+    boxShadow: crisisActive
+      ? `0 0 40px rgba(230, 0, 0, 0.6), inset 0 0 20px rgba(230, 0, 0, 0.15)`
+      : fire
+        ? `0 0 26px color-mix(in srgb, var(--wasd-aura) 40%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--wasd-aura) 22%, transparent)`
+        : `0 0 20px color-mix(in srgb, var(--wasd-aura) 28%, transparent), inset 0 1px 0 color-mix(in srgb, var(--wasd-aura) 15%, transparent)`,
+    background: crisisActive
+      ? `linear-gradient(165deg, rgba(60,0,0,0.9) 0%, rgba(20,5,5,0.85) 42%, rgba(2,6,23,0.94) 100%)`
+      : `linear-gradient(165deg, color-mix(in srgb, var(--wasd-aura-secondary) 50%, #020617) 0%, rgba(15,23,42,0.82) 42%, rgba(2,6,23,0.94) 100%)`,
     backdropFilter: "blur(10px)",
-    animation: fire
-      ? `mascotPanelGlitch calc(var(--wasd-phase-period, 0.9s) * 0.85) ease-in-out infinite`
-      : undefined,
+    animation: crisisActive
+      ? "emilyCrisisPulse 0.6s ease-in-out infinite"
+      : fire
+        ? `mascotPanelGlitch calc(var(--wasd-phase-period, 0.9s) * 0.85) ease-in-out infinite`
+        : undefined,
   };
 
   return (
@@ -120,6 +139,10 @@ const ScienceMascotChat: React.FC<ScienceMascotChatProps> = ({ visual, active })
         @keyframes mascotPanelGlitch {
           0%, 100% { filter: brightness(1); transform: translateX(0); }
           50% { filter: brightness(1.06); transform: translateX(0.4px); }
+        }
+        @keyframes emilyCrisisPulse {
+          0%, 100% { box-shadow: 0 0 40px rgba(230,0,0,0.5), inset 0 0 20px rgba(230,0,0,0.12); filter: brightness(1); }
+          50% { box-shadow: 0 0 60px rgba(230,0,0,0.8), inset 0 0 30px rgba(230,0,0,0.25); filter: brightness(1.08); }
         }
       `}</style>
 
@@ -140,11 +163,30 @@ const ScienceMascotChat: React.FC<ScienceMascotChatProps> = ({ visual, active })
           <div
             className="rounded border px-2 py-0.5 font-mono text-[10px]"
             style={{
-              borderColor: "color-mix(in srgb, var(--wasd-aura) 35%, transparent)",
-              color: "color-mix(in srgb, var(--wasd-aura) 90%, #fff)",
+              borderColor: crisisActive ? "rgba(230,0,0,0.6)" : "color-mix(in srgb, var(--wasd-aura) 35%, transparent)",
+              color: crisisActive ? "#fca5a5" : "color-mix(in srgb, var(--wasd-aura) 90%, #fff)",
             }}
           >
-            h={visual.hazardIndex.toFixed(2)} · {visual.mode}
+            {crisisActive ? "⚡ ADRENALINE" : `h=${visual.hazardIndex.toFixed(2)}`} · {visual.mode}
+          </div>
+        </div>
+
+        {/* Combat HUD strip — threat radar inline (Screen 1 sync) */}
+        <div
+          className="mb-2 flex items-center gap-3 rounded-lg px-2 py-1.5 font-mono text-[10px]"
+          style={{
+            border: `1px solid ${crisisActive ? "rgba(230,0,0,0.4)" : "color-mix(in srgb, var(--wasd-aura) 18%, transparent)"}`,
+            background: crisisActive ? "rgba(60,0,0,0.3)" : "rgba(0,0,0,0.25)",
+          }}
+        >
+          <div style={{ color: crisisActive ? "#fca5a5" : "var(--wasd-aura)" }}>
+            {crisisActive ? "⚡" : "◎"} Threat Radar
+          </div>
+          <div className="text-slate-400">
+            crits={combatReceptor.critCount} · spike={combatReceptor.lastDamageSpike} · adr={combatReceptor.adrenalineActive ? "ON" : "off"}
+          </div>
+          <div className="ml-auto text-slate-500">
+            Architekt: Thomas
           </div>
         </div>
 

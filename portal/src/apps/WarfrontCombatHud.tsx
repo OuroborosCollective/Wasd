@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { VisualThemeState } from "@wasd/shared";
 import { pushLiveTickerHazard } from "@wasd/shared";
 import { PortalWorldHistory } from "../world/PortalWorldHistory";
+import { PortalNPCChatBridge } from "../world/PortalNPCChatBridge";
 
 export interface WarfrontFeedEntry {
   seq: number;
@@ -70,6 +71,12 @@ const WarfrontCombatHud: React.FC<WarfrontCombatHudProps> = ({ visual, active })
           if (seen.current.has(ev.seq)) continue;
           seen.current.add(ev.seq);
           hist.recordNpcCombatComplete(ev.summary);
+
+          const isCrit = ev.summary.toLowerCase().includes("crit") || ev.damage >= 35;
+          if (isCrit) {
+            PortalNPCChatBridge.getInstance().receiveCriticalHit(ev.damage);
+          }
+
           if (ev.kind === "kill") {
             pushLiveTickerHazard({
               hazard_index: Math.min(0.95, 0.7 + ev.damage * 0.004),
