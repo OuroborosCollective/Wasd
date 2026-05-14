@@ -46,6 +46,6 @@ export const SharedUtils = {
    */
   KAPPA_SCALE: 1000,
 };
-export * from './import-fixer';
+// export * from './import-fixer'; // Node.js build script only
 export * from './interaction';
 export * from './validation-schema';
