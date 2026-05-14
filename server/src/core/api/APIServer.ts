@@ -216,7 +216,7 @@ export class APIServer {
    * Calculate region plexity
    */
   private calculatePlexity(region: any): number {
-    const resources = Array.from(region.resourceSaturation.values());
+    const resources = Array.from(region.resourceSaturation.values()) as number[];
     if (resources.length === 0) return 0;
 
     const avg = resources.reduce((a, b) => a + b, 0) / resources.length;

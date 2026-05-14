@@ -32,6 +32,7 @@ export interface NPC {
     stateTimer?: number;
     targetPosition?: Vector3;
     memory?: any;
+    shopId?: string;
 }
 
 export interface Player {
@@ -108,6 +109,28 @@ export class NPCSystem {
         this.players.delete(id);
     }
 
+    public handleInteraction(npcId: string, player: any, questDefs: any): any {
+        const npc = this.getNPC(npcId);
+        if (!npc) return null;
+        return {
+            source: npc.name || "NPC",
+            text: "Hello traveler!",
+            choices: [{ id: "greet", text: "Greetings!" }],
+            npcId
+        };
+    }
+
+    public handleChoice(npcId: string, nodeId: string, choiceId: string, player: any): any {
+        const npc = this.getNPC(npcId);
+        if (!npc) return null;
+        return {
+            source: npc.name || "NPC",
+            text: "You chose wisely.",
+            choices: [],
+            npcId
+        };
+    }
+
     public runFusionHeuristics(context: any, npcs: NPC[]): void {
         // Implementation stub
     }
@@ -155,16 +178,12 @@ export class NPCSystem {
         let detectedPlayerId: string | null = null;
 
         for (const player of this.players.values()) {
-            const canSee = checkStealthDeterministic(
-                npc.position,
-                npc.rotation,
-                npc.visionRange,
-                npc.visionAngle,
-                player.position,
-                player.stealthValue
+            const result = checkStealthDeterministic(
+                npc as any,
+                player as any
             );
 
-            if (canSee) {
+            if (result.visible) {
                 detectedPlayerId = player.id;
                 break; 
             }

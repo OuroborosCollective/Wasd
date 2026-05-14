@@ -1,5 +1,11 @@
 export class AREStateCompiler {
-    public validateTransition(a: any, b: any): boolean { return true; }
-    public commitOrderToState(order: any): void {}
-    public queryOrderState(id: string): any { return null; }
+    public async validateTransition(a: any, b: any): Promise<any> {
+        return { success: true, merkleRoot: '0x0' };
+    }
+    public async commitOrderToState(order: any): Promise<string> {
+        return "tx_" + Date.now();
+    }
+    public async queryOrderState(id: string): Promise<any> {
+        return { status: 'COMMITTED' };
+    }
 }

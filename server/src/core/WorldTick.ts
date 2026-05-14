@@ -57,7 +57,7 @@ export class WorldTick {
   public listActiveVoteBanners(): any { return []; }
   public handleVoteProviderCallback(data: any): any { return { ok: true }; }
   public getAdminVoteBanners(): any { return []; }
-  public upsertVoteBanner(data: any): any { return { ok: true }; }
+  public upsertVoteBanner(data: any): any { return { ok: true, banner: {} }; }
   public deleteVoteBanner(id: any): any { return { ok: true }; }
   public setVoteBannerOrder(data: any): any { return { ok: true }; }
   public getVoteAdminDiagnostics(): any { return {}; }
@@ -75,7 +75,7 @@ export class WorldTick {
   public liveHeal: any = { getStatus: () => ({ tickCount: 0 }), flush: () => {} };
   public getPlaytesterDebugLogPath(): string { return ""; }
   public buildPlaytesterMonitorPayload(options?: any): any { return {}; }
-  public assetHealthService: any = { getStatus: () => ({}), flush: () => {} };
+  public assetHealthService: any = { getStatus: () => ({}), getStats: () => null, flush: () => {} };
   public async init(): Promise<void> {}
   private keysDown: Map<string, Set<string>> = new Map();
 
@@ -329,6 +329,8 @@ export class WorldTick {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
   }
+
+  async init() {}
 
   tick() {
     this.tickCount += 1;

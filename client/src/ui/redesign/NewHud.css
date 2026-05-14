@@ -188,3 +188,20 @@
 .hp-ring-container circle {
   transition: stroke-dashoffset 0.3s ease-out;
 }
+
+@keyframes pulse-red {
+  0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
+
+.hud-bar-wrapper.health.low-health {
+  animation: pulse-red 2s infinite;
+  border-color: #dc2626;
+}
+
+.hud-skill-slot:focus-visible {
+  outline: 2px solid #f27d26;
+  outline-offset: 2px;
+  box-shadow: 0 0 15px rgba(242, 125, 38, 0.6);
+}
