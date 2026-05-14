@@ -83,7 +83,12 @@ def connect(paramiko) -> "SSHClient":
     pkey_raw = os.environ.get("SSH_PRIVATE_KEY")
 
     client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.load_system_host_keys()
+    try:
+        client.load_host_keys(os.path.expanduser("~/.ssh/known_hosts"))
+    except Exception:
+        pass
+    client.set_missing_host_key_policy(paramiko.RejectPolicy())
 
     connect_kw: dict = {
         "hostname": host,
