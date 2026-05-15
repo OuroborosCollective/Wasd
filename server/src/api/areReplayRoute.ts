@@ -14,6 +14,10 @@ export function areReplayRouter(tick: WorldTick) {
     res.json({ ok: true, stats: tick.getReplayRecorderStats?.() ?? null });
   });
 
+  router.get("/repair/status", (_req, res) => {
+    res.json({ ok: true, autoRepair: tick.getAutoRepairStatus?.() ?? null });
+  });
+
   router.get("/oracle/prophecy", (_req, res) => {
     const oracle = tick.getOracleReport?.() ?? null;
     res.json({ ok: true, oracle });

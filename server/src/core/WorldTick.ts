@@ -18,8 +18,15 @@ import { bootstrapWarfrontNpcs, runWarfrontCombatTick } from "../modules/warfron
 import { AREInvariantGuard, DeterminismViolation, type AREGuardPayload, type AREInvariantGuardStatus } from "../are/AREInvariantGuard.js";
 import { areValidationState } from "../are/AREValidationState.js";
 import { createWorldHashSnapshot, type WorldHashSnapshot } from "../are/WorldHashSnapshot.js";
-import { deterministicTickRecorder, type DeterministicRecorderStats, type DeterministicReplaySnapshot } from "../are/DeterministicTickRecorder.js";
+import { deterministicTickRecorder, type DeterministicRecorderStats, type DeterministicReplaySnapshot, type DeterministicTickRecord } from "../are/DeterministicTickRecorder.js";
 import { ouroborosOracleEngine, type OracleReport } from "../are/OuroborosOracle.js";
+import { areAutoRepairService, type AutoRepairStatus } from "../are/AREAutoRepairService.js";
+
+function sectorOf(entity: any): number {
+  const x = Number(entity?.position?.x ?? 0);
+  const y = Number(entity?.position?.y ?? entity?.position?.z ?? 0);
+  return Math.abs((Math.floor(x / 64) * 31 + Math.floor(y / 64) * 17) % 64);
+}
 
 export class WorldTick {
   private timer: NodeJS.Timeout | null = null;
@@ -67,7 +74,7 @@ export class WorldTick {
   public resourceSystem: any = { nodes: new Map() };
   public chatSystem: any = { getRecentMessages: () => [], systemMessage: () => {}, sendMessage: () => ({}) };
   public lootSystem: any = { rollLoot: () => ({ items: [], gold: 0 }) };
-  public liveHeal: any = { getStatus: () => ({ tickCount: this.tickCount }), flush: () => {} };
+  public liveHeal: any = { getStatus: () => ({ tickCount: this.tickCount, autoRepair: areAutoRepairService.getStatus() }), flush: () => {} };
   public getPlaytesterDebugLogPath(): string { return ""; }
   public buildPlaytesterMonitorPayload(options?: any): any { return {}; }
   public assetHealthService: any = { getStatus: () => ({}), getStats: () => null, flush: () => {} };
@@ -112,10 +119,8 @@ export class WorldTick {
   public getWorldHashSnapshot(): WorldHashSnapshot | null { return this.lastWorldHashSnapshot; }
   public getReplayRecorderStats(): DeterministicRecorderStats { return deterministicTickRecorder.stats(); }
   public getReplaySnapshot(tick: number): DeterministicReplaySnapshot | null { return deterministicTickRecorder.replay(tick); }
-  public getOracleReport(): OracleReport {
-    this.lastOracleReport = ouroborosOracleEngine.generate(deterministicTickRecorder.records());
-    return this.lastOracleReport;
-  }
+  public getAutoRepairStatus(): AutoRepairStatus { return areAutoRepairService.getStatus(); }
+  public getOracleReport(): OracleReport { this.lastOracleReport = ouroborosOracleEngine.generate(deterministicTickRecorder.records()); return this.lastOracleReport; }
 
   public comparePortalWorldHash(portalSnapshot: Partial<WorldHashSnapshot> | null | undefined): any {
     if (!this.lastWorldHashSnapshot) return { ok: false, error: "world_hash_snapshot_not_ready" };
@@ -124,6 +129,24 @@ export class WorldTick {
     const portalChunks = new Map((portalSnapshot?.chunks ?? []).map((chunk: any) => [`${chunk.chunkX}:${chunk.chunkY}`, chunk.hash]));
     const mismatches = server.chunks.filter((chunk) => portalChunks.has(`${chunk.chunkX}:${chunk.chunkY}`) && portalChunks.get(`${chunk.chunkX}:${chunk.chunkY}`) !== chunk.hash).map((chunk) => ({ chunkX: chunk.chunkX, chunkY: chunk.chunkY, serverHash: chunk.hash, portalHash: portalChunks.get(`${chunk.chunkX}:${chunk.chunkY}`) }));
     return { ok: Boolean(portalWorldHash && portalWorldHash === server.worldHash) && mismatches.length === 0, serverWorldHash: server.worldHash, portalWorldHash, mismatches, missingPortalChunks: server.chunks.filter((chunk) => !portalChunks.has(`${chunk.chunkX}:${chunk.chunkY}`)).map((chunk) => ({ chunkX: chunk.chunkX, chunkY: chunk.chunkY })) };
+  }
+
+  private restoreWorldStateFromRecord(record: DeterministicTickRecord, sector: number): void {
+    const playerMap = this.playerSystem.getPlayersMap();
+    for (const [id, player] of [...playerMap.entries()]) if (sectorOf(player) === sector) playerMap.delete(id);
+    for (const player of record.worldState.players as any[]) if (sectorOf(player) === sector) this.playerSystem.setPlayer(String(player.id), { ...player });
+
+    const npcMap = this.npcSystem.getNPCsMap();
+    for (const [id, npc] of [...npcMap.entries()]) if (sectorOf(npc) === sector) npcMap.delete(id);
+    for (const npc of record.worldState.npcs as any[]) if (sectorOf(npc) === sector) this.npcSystem.addNPC({ ...npc, visionRange: npc.visionRange ?? 10, visionAngle: npc.visionAngle ?? 90, targetId: npc.targetId ?? null, isProcessingAI: false, rotation: npc.rotation ?? 0 } as any);
+
+    for (const [id, loot] of [...this.lootEntities.entries()]) if (sectorOf(loot) === sector) this.lootEntities.delete(id);
+    for (const loot of record.worldState.loot as any[]) if (sectorOf(loot) === sector) this.lootEntities.set(String(loot.id), { ...loot });
+
+    this.lastWorldHashSnapshot = record.worldSnapshot;
+    if (record.guard) this.lastAREGuardStatus = record.guard;
+    if (record.worldSnapshot) areValidationState.updateWorld(record.worldSnapshot);
+    if (record.guard) areValidationState.updateGuard(record.guard);
   }
 
   private async handlePlayerMessage(id: string, msg: any) {
@@ -178,6 +201,8 @@ export class WorldTick {
     if (this.tickCount % 10 === 0 || !this.lastWorldHashSnapshot) { this.lastWorldHashSnapshot = createWorldHashSnapshot({ tick: this.tickCount, payload, players: strippedPlayers, npcs: strippedNpcs, loot: strippedLoot, chunkSize: 64 }); areValidationState.updateWorld(this.lastWorldHashSnapshot); }
     deterministicTickRecorder.record({ tick: this.tickCount, payload, worldHash: this.lastWorldHashSnapshot?.worldHash ?? null, worldSnapshot: this.lastWorldHashSnapshot, guard: guardStatus, worldState: { players: strippedPlayers, npcs: strippedNpcs, loot: strippedLoot } });
     if (this.tickCount % 10 === 0) this.lastOracleReport = ouroborosOracleEngine.generate(deterministicTickRecorder.records());
+    const repairPlan = areAutoRepairService.evaluate({ tick: this.tickCount, guard: guardStatus, oracle: this.lastOracleReport, records: deterministicTickRecorder.records(), players: strippedPlayers, npcs: strippedNpcs, loot: strippedLoot, restoreWorldState: (record, sector) => this.restoreWorldStateFromRecord(record, sector) });
+    if (repairPlan) this.ws.broadcast({ type: "ARE_AUTO_REPAIR", payload: areAutoRepairService.getStatus() });
     if (!guardStatus.ok && this.tickCount % 10 === 0) this.ws.broadcast({ type: "ARE_DETERMINISM_VIOLATION", payload: areValidationState.getSnapshot() });
   }
 
@@ -202,8 +227,9 @@ export class WorldTick {
     const strippedLoot = [];
     for (const l of this.lootEntities.values()) strippedLoot.push({ id: l.id, position: { x: l.position.x, y: l.position.y, z: l.position.z || 0 }, item: l.item ? { id: l.item.id, name: l.item.name, type: l.item.type } : null, glbPath: l.glbPath });
     this.updateAREContract(payload, strippedPlayers, strippedNpcs, strippedLoot);
-    if (this.tickCount % 10 === 0) { const npcs = allNpcs.map(n => ({ id: n.id, name: n.name, x: n.position.x, y: n.position.y })); this.ws.broadcast({ type: "WORLD_HEARTBEAT", payload: { players: Object.fromEntries(allPlayers.filter(p => !p.isOffline).map(p => [p.id, { id: p.id, name: p.name, x: p.position.x, y: p.position.y }])), agents: npcs, are: areValidationState.getSnapshot(), replay: deterministicTickRecorder.stats(), oracle: this.lastOracleReport } }); }
+    const autoRepair = areAutoRepairService.getStatus();
+    if (this.tickCount % 10 === 0) { const npcs = allNpcs.map(n => ({ id: n.id, name: n.name, x: n.position.x, y: n.position.y })); this.ws.broadcast({ type: "WORLD_HEARTBEAT", payload: { players: Object.fromEntries(allPlayers.filter(p => !p.isOffline).map(p => [p.id, { id: p.id, name: p.name, x: p.position.x, y: p.position.y }])), agents: npcs, are: areValidationState.getSnapshot(), replay: deterministicTickRecorder.stats(), oracle: this.lastOracleReport, autoRepair } }); }
     if (this.tickCount % 600 === 0) this.saveAll().catch(e => console.error(e));
-    this.ws.broadcast({ type: "world_tick", tick: this.tickCount, players: strippedPlayers, npcs: strippedNpcs, loot: strippedLoot, are: { guard: this.lastAREGuardStatus, worldHash: this.lastWorldHashSnapshot?.worldHash ?? null }, replay: { latestTick: this.tickCount }, oracle: this.lastOracleReport });
+    this.ws.broadcast({ type: "world_tick", tick: this.tickCount, players: strippedPlayers, npcs: strippedNpcs, loot: strippedLoot, are: { guard: this.lastAREGuardStatus, worldHash: this.lastWorldHashSnapshot?.worldHash ?? null }, replay: { latestTick: this.tickCount }, oracle: this.lastOracleReport, autoRepair });
   }
 }
