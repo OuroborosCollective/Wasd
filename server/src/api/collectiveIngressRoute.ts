@@ -2,7 +2,7 @@ import { Router } from "express";
 import { createSovereignIdentity } from "../collective/SovereignIdentity.js";
 import { collectiveIngressRuntime } from "../collective/CollectiveIngressRuntime.js";
 
-export function collectiveIngressRouter() {
+export function collectiveIngressRouter(_tick?: unknown) {
   const router = Router();
 
   router.get("/status", (_req, res) => {
