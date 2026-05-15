@@ -71,15 +71,37 @@ free_port_3000() {
   fi
 }
 
+heal_stale_git_refs() {
+  local remote_ref="refs/remotes/origin/${DEPLOY_BRANCH}"
+  echo "Healing stale git ref cache for origin/${DEPLOY_BRANCH} ..."
+  rm -f ".git/${remote_ref}.lock" ".git/logs/${remote_ref}.lock" || true
+  rm -f ".git/${remote_ref}" ".git/logs/${remote_ref}" || true
+  git update-ref -d "$remote_ref" >/dev/null 2>&1 || true
+  git remote prune origin >/dev/null 2>&1 || true
+}
+
+fetch_and_reset() {
+  local temp_ref="refs/wasd-deploy/${DEPLOY_BRANCH}"
+  echo "[1/4] git fetch + hard reset via temporary deploy ref"
+  git reset --hard >/dev/null 2>&1 || true
+  git clean -fd >/dev/null 2>&1 || true
+  git update-ref -d "$temp_ref" >/dev/null 2>&1 || true
+
+  if ! git -c remote.origin.fetch= fetch --no-tags origin "+refs/heads/${DEPLOY_BRANCH}:${temp_ref}"; then
+    echo "WARN: fetch failed. Running remote-ref self-heal and retrying once."
+    heal_stale_git_refs
+    git -c remote.origin.fetch= fetch --no-tags origin "+refs/heads/${DEPLOY_BRANCH}:${temp_ref}"
+  fi
+
+  git reset --hard "$temp_ref"
+  git update-ref -d "$temp_ref" >/dev/null 2>&1 || true
+}
+
 echo "=== WASD monorepo deploy (Docker) ==="
 echo "Repo: $REPO_ROOT"
 echo "Branch: $DEPLOY_BRANCH"
 
-echo "[1/4] git fetch + hard reset via FETCH_HEAD"
-# Fetch the branch directly into FETCH_HEAD instead of updating origin/main.
-# This avoids remote-tracking-ref lock races when back-to-back deploys overlap.
-git fetch --no-tags origin "refs/heads/${DEPLOY_BRANCH}"
-git reset --hard FETCH_HEAD
+fetch_and_reset
 
 echo "Deploy commit: $(git rev-parse --short HEAD)"
 
