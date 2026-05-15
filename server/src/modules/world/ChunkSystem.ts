@@ -78,6 +78,23 @@ export interface Chunk {
         const chunk = this.getChunk(x, y);
         chunk.data = data;
     }
-    public getActiveChunks(): any[] { return []; }
-    public setChunkActive(id: string, active: boolean): void {}
+
+    private activeChunkIds = new Set<string>();
+
+    public getActiveChunks(): Chunk[] {
+        const out: Chunk[] = [];
+        for (const id of this.activeChunkIds) {
+            const [cx, cy] = id.split(":").map(Number);
+            const x = cx * this.chunkSize;
+            const y = cy * this.chunkSize;
+            const chunk = this.getChunk(x, y);
+            out.push({ ...chunk, id });
+        }
+        return out;
+    }
+
+    public setChunkActive(id: string, active: boolean): void {
+        if (active) this.activeChunkIds.add(id);
+        else this.activeChunkIds.delete(id);
+    }
 }

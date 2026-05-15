@@ -84,9 +84,7 @@ export class GameWebSocketServer {
             this.socketToPlayerUid.set(id, result.peer.id);
             socket.send(JSON.stringify({ type: "COLLECTIVE_WELCOME", identity: result.identity, peer: result.peer, welcome: result.welcome }));
             this.broadcast({ type: "COLLECTIVE_PEER_JOINED", payload: result.peer });
-          } else if (msg?.type === "login") {
-            this.socketToPlayerUid.delete(id);
-          } else {
+          } else if (msg?.type !== "login") {
             collectiveIngressRuntime.updateFromInput(id, msg);
             let uid = this.socketToPlayerUid.get(id);
             if (!uid && this.resolveSocketToPlayerUid) {

@@ -1,4 +1,4 @@
-import { checkStealthDeterministic } from './PerceptionLogic';
+import { checkStealthDeterministic, calculatePhaseShift } from './PerceptionLogic';
 import { GuildSovereigntyEngine } from '../guild/GuildSovereigntyEngine';
 import { TraitResonanceEngine } from '../resonance/TraitResonanceEngine';
 
@@ -165,6 +165,15 @@ export class NPCSystem {
     }
 
     public tick(onlinePlayers: any[], worldTime: number): void {
+        for (const p of onlinePlayers) {
+            if (!p?.position) continue;
+            const id = typeof p.id === "string" && p.id.length > 0 ? p.id : "__dgcc_ephemeral__";
+            this.players.set(id, {
+                id,
+                position: { x: p.position.x, y: p.position.y, z: p.position.z ?? 0 },
+                stealthValue: typeof p.stealthValue === "number" ? p.stealthValue : 0,
+            });
+        }
         this.update();
     }
 
@@ -184,22 +193,45 @@ export class NPCSystem {
 
     private update(): void {
         for (const npc of this.npcs.values()) {
+            if (npc.state === "wandering" && npc.targetPosition) {
+                const dx = npc.targetPosition.x - npc.position.x;
+                const dy = npc.targetPosition.y - npc.position.y;
+                if (dx * dx + dy * dy < 1) {
+                    npc.targetPosition = undefined;
+                }
+            }
             this.processPerception(npc);
         }
     }
 
     private processPerception(npc: NPC): void {
+        if (npc.state === 'interacting') {
+            return;
+        }
+
+        const npcState = {
+            npcId: npc.id,
+            position: npc.position,
+            phaseShift: calculatePhaseShift(npc.id),
+            perceptionRadius: 15,
+            lastPerceptionTick: 0,
+        };
+
         let detectedPlayerId: string | null = null;
 
         for (const player of this.players.values()) {
-            const result = checkStealthDeterministic(
-                npc as any,
-                player as any
-            );
+            const playerState = {
+                playerId: player.id,
+                position: player.position,
+                stealthLevel: player.stealthValue ?? 0,
+                isCrouching: false,
+                lastVisibleTick: 0,
+            };
+            const result = checkStealthDeterministic(npcState as any, playerState as any);
 
             if (result.visible) {
                 detectedPlayerId = player.id;
-                break; 
+                break;
             }
         }
 
@@ -208,6 +240,7 @@ export class NPCSystem {
                 npc.targetId = detectedPlayerId;
                 this.triggerComplexAI(npc);
             }
+            npc.state = 'interacting';
         } else {
             npc.targetId = null;
             npc.isProcessingAI = false;
@@ -222,8 +255,14 @@ export class NPCSystem {
     }
 
     private executeBehaviorTree(npc: NPC): void {
-        // Implementation for expensive Pathfinding and Behavior Tree logic
-        // Only called when perception check passes
+        if (npc.state === "wandering" && npc.targetPosition) {
+            const dx = npc.targetPosition.x - npc.position.x;
+            const dy = npc.targetPosition.y - npc.position.y;
+            if (dx * dx + dy * dy < 1) {
+                npc.targetPosition = undefined;
+            }
+        }
+        npc.isProcessingAI = false;
     }
 
     private getDistance(pos1: Vector3, pos2: Vector3): number {

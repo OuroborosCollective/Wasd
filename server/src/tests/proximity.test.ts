@@ -7,7 +7,7 @@ describe('Proximity Optimization', () => {
     const npc = npcSystem.createNPC('test_npc', 'Test NPC', 0, 0);
 
     const players = [
-      { position: { x: 10, y: 10 } } // distSq = 100 + 100 = 200 < 225
+      { position: { x: 5, y: 5 } }, // distSq = 50; within min visibility threshold for any phaseShift
     ];
 
     // Test 1: NPC should start interacting when player is close
@@ -33,6 +33,6 @@ describe('Proximity Optimization', () => {
     for (let i = 0; i < 5; i++) {
       npcSystem.tick([], 1200);
     }
-    expect(npc.targetPosition).toBe(null);
+    expect(npc.targetPosition == null).toBe(true);
   });
 });
