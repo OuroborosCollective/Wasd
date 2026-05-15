@@ -55,8 +55,15 @@ if command -v pnpm >/dev/null 2>&1; then
   pnpm config set network-concurrency 2
   pnpm config set child-concurrency 1
   pnpm install --no-frozen-lockfile --prefer-offline
+
+  echo "Building shared package and game server..."
   NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/shared --if-present build
   NODE_OPTIONS="$SERVER_BUILD_NODE_OPTIONS" pnpm --filter @wasd/server --if-present build
+
+  echo "Building browser frontends for /, /3d/, /2d/ and /portal/..."
+  NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/client --if-present build
+  NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/client-2d --if-present build
+  NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/portal --if-present build
 else
   echo "ERROR: pnpm is required for this monorepo deploy."
   exit 1
@@ -108,6 +115,9 @@ warn_url() {
 
 warn_url "http://127.0.0.1:${GAME_PORT}/health" "Health endpoint"
 verify_url "http://127.0.0.1:${GAME_PORT}/" "Client root"
+verify_url "http://127.0.0.1:${GAME_PORT}/2d/" "2D client"
+verify_url "http://127.0.0.1:${GAME_PORT}/3d/" "3D client"
+verify_url "http://127.0.0.1:${GAME_PORT}/portal/" "Portal client"
 
 echo "Update complete!"
 pm2 status
