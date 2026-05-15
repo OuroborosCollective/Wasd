@@ -15,6 +15,7 @@ import { performanceMonitor } from "./utils/PerformanceMonitor";
 import { resolveGameAuthProvider } from "./config/gameAuth";
 import { initChat, focusChatInput } from "./ui/chat";
 import { initMinimap, toggleMinimapVisibility } from "./ui/minimap";
+import { renderGuildPanel } from "./ui/guildPanel";
 import { worldService } from "./game/world/services";
 
 type AREPolicyConfig = {
@@ -136,6 +137,7 @@ try {
   const core = new MMORPGClientCore(adapter);
   (window as any).gameCore = core;
   mountNewHud(core);
+  renderGuildPanel();
   core.registerDefaultInput();
 
   await initSupabaseClient();

@@ -889,12 +889,17 @@ export class BabylonAdapter implements IEngineBridge {
   }
 
   private startEntityAnimations(entity: EntityNode): void {
-    const shouldAnimate =
+    if (!entity.activeAnimationGroups?.length) {
+      return;
+    }
+    const isActor =
       entity.entityType === "player" ||
       entity.entityType === "npc" ||
       entity.entityType === "monster";
-    if (!shouldAnimate || entity.activeAnimationGroups.length === 0) {
-      return;
+    // GLB AnimationGroups on buildings / props (flags, doors, windmills) are skipped unless we opt in here.
+    if (!isActor) {
+      entity.isStaticCandidate = false;
+      this.unfreezeStaticNode(entity);
     }
     for (const group of entity.activeAnimationGroups) {
       try {

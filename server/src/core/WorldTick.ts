@@ -13,6 +13,7 @@ import { WorldSystem } from "../modules/world/WorldSystem.js";
 import { PersistenceManager } from "./PersistenceManager.js";
 import { verifyFirebaseToken } from "../config/firebase.js";
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
+import { GameConfig } from "../config/GameConfig.js";
 import { WorldHistory } from "../modules/history/WorldHistory.js";
 import { bootstrapWarfrontNpcs, runWarfrontCombatTick } from "../modules/warfront/WarfrontCombatOrchestrator.js";
 import { AREInvariantGuard, DeterminismViolation, type AREGuardPayload, type AREInvariantGuardStatus } from "../are/AREInvariantGuard.js";
@@ -95,6 +96,7 @@ export class WorldTick {
     this.questSystem = new QuestEngine();
     this.persistence = new PersistenceManager();
     this.worldSystem = new WorldSystem(this.persistence);
+    this.worldSystem.objectSystem.ensureStarterVillageMerged();
     this.glbRegistry = new GLBRegistry();
     const dummyPlayer = this.playerSystem.createPlayer("dummy_player", "Dummy Player");
     dummyPlayer.position.x = 500;
@@ -163,7 +165,7 @@ export class WorldTick {
       this.socketToPlayer.set(id, uid);
       this.playerToSocket.set(uid, id);
       this.observerEngine.register(id, { x: player.position.x, y: player.position.y });
-      this.ws.sendToPlayer(id, { type: "welcome", id: uid, playerName: player.name, stats: { gold: player.gold, xp: player.xp, hp: player.health, maxHp: player.maxHealth, mp: player.mana, maxMp: player.maxMana, level: player.level || 1 }, inventory: player.inventory, equipment: player.equipment, quests: player.quests });
+      this.ws.sendToPlayer(id, { type: "welcome", id: uid, playerName: player.name, guild: this.guildSystem.getGuildSummaryForPlayer(uid), stats: { gold: player.gold, xp: player.xp, hp: player.health, maxHp: player.maxHealth, mp: player.mana, maxMp: player.maxMana, level: player.level || 1 }, inventory: player.inventory, equipment: player.equipment, quests: player.quests });
       return;
     }
     const playerId = this.socketToPlayer.get(id);
@@ -173,6 +175,41 @@ export class WorldTick {
     const charName = player.name;
     const nowTick = this.tickCount;
     const checkCooldown = (cooldownMs: number) => { const cooldownTicks = Math.max(1, Math.ceil(cooldownMs / 100)); const pTimes = this.lastActionTimes.get(charName) || {}; const last = pTimes["general"] || 0; if (nowTick - last < cooldownTicks) return false; pTimes["general"] = nowTick; this.lastActionTimes.set(charName, pTimes); return true; };
+    if (msg.type === "guild_create" && typeof msg.name === "string") {
+      if (!checkCooldown(1500)) return;
+      const nm = msg.name.trim().slice(0, 48);
+      if (nm.length < 2) return;
+      if (this.guildSystem.getGuildIdForPlayer(playerId)) return;
+      const g = this.guildSystem.createGuildAuto(nm, playerId);
+      this.ws.sendToPlayer(id, { type: "toast", kind: "ok", text: `Guild "${g.name}" created.` });
+      this.ws.sendToPlayer(id, { type: "guild_state", guild: this.guildSystem.getGuildSummaryForPlayer(playerId) });
+      return;
+    }
+    if (msg.type === "guild_join" && typeof msg.guildId === "string") {
+      if (!checkCooldown(1200)) return;
+      if (this.guildSystem.getGuildIdForPlayer(playerId)) return;
+      const g = this.guildSystem.addMember(msg.guildId.trim(), playerId);
+      if (g) {
+        this.ws.sendToPlayer(id, { type: "toast", kind: "ok", text: `Joined guild "${g.name}".` });
+        this.ws.sendToPlayer(id, { type: "guild_state", guild: this.guildSystem.getGuildSummaryForPlayer(playerId) });
+      }
+      return;
+    }
+    if (msg.type === "guild_leave") {
+      if (!checkCooldown(800)) return;
+      const r = this.guildSystem.leaveGuild(playerId);
+      if (r.ok) this.ws.sendToPlayer(id, { type: "toast", kind: "ok", text: "Left guild." });
+      else if (r.reason === "founder_must_transfer") this.ws.sendToPlayer(id, { type: "toast", kind: "warn", text: "Promote another founder or disband the guild first." });
+      this.ws.sendToPlayer(id, { type: "guild_state", guild: this.guildSystem.getGuildSummaryForPlayer(playerId) });
+      return;
+    }
+    if (msg.type === "guild_disband" && typeof msg.guildId === "string") {
+      if (!checkCooldown(1500)) return;
+      const ok = this.guildSystem.disbandGuild(msg.guildId.trim(), playerId).ok;
+      if (ok) this.ws.sendToPlayer(id, { type: "toast", kind: "ok", text: "Guild disbanded." });
+      this.ws.sendToPlayer(id, { type: "guild_state", guild: this.guildSystem.getGuildSummaryForPlayer(playerId) });
+      return;
+    }
     if (msg.type === "move_intent" || msg.type === "MOVE") { const speed = 5; let dx = Number(msg.dx) || 0; let dy = Number(msg.dy ?? msg.dz) || 0; const magSq = dx * dx + dy * dy; if (magSq > 1) { const mag = Math.sqrt(magSq); dx /= mag; dy /= mag; } if (!Number.isNaN(dx) && !Number.isNaN(dy)) { player.position.x += dx * speed; player.position.y += dy * speed; player.position.x = Math.floor(player.position.x * 1000) / 1000; player.position.y = Math.floor(player.position.y * 1000) / 1000; this.observerEngine.updatePosition(id, { x: player.position.x, y: player.position.y }); } }
     else if (msg.type === "chat") { if (msg.text && typeof msg.text === "string" && msg.text.trim().length > 0) this.ws.broadcast({ type: "CHAT_MSG", payload: { channel: msg.channel || "local", sender: player.name, text: msg.text.trim() }}); }
     else if (msg.type === "USE_SKILL") { const skillId = msg.skillId; if (skillId === "atk" && !checkCooldown(800)) return; if (skillId === "def") player.mana = Math.min(player.maxMana, player.mana + 10); if (skillId === "mag" && !checkCooldown(3000)) return; if ((skillId === "mag" || skillId === "atk") && !checkCooldown(800)) return; }
@@ -191,6 +228,83 @@ export class WorldTick {
   private hydratePlayer(player: any) { if (!player.id) player.id = "unknown"; if (!player.name) player.name = player.id; if (!player.position) player.position = { x: 0, y: 0 }; if (!player.inventory) player.inventory = []; if (!player.quests) player.quests = []; if (!player.equipment) player.equipment = { weapon: null, armor: null }; }
   private async saveAll() { const allPlayers = this.playerSystem.getAllPlayers(); const data: any = {}; for (const p of allPlayers) if (p.id !== "dummy_player") data[p.id] = p; await this.persistence.save(data); }
   private syncNpcPerceptionFromPlayers(): void { const dummy = this.playerSystem.getPlayer("dummy_player"); if (dummy) this.npcSystem.updatePlayerState({ id: dummy.id, position: { x: dummy.position.x, y: dummy.position.y, z: dummy.position.z ?? 0 }, stealthValue: typeof dummy.stealthValue === "number" ? dummy.stealthValue : 0 }); for (const p of this.playerSystem.getAllPlayers()) { if (!p?.id || p.id === "dummy_player") continue; this.npcSystem.updatePlayerState({ id: p.id, position: { x: p.position.x, y: p.position.y, z: p.position.z ?? 0 }, stealthValue: typeof p.stealthValue === "number" ? p.stealthValue : 0 }); } }
+  private rotationDegForWire(rot: unknown): { x: number; y: number; z: number } {
+    const y = typeof rot === "number" && Number.isFinite(rot) ? rot : 0;
+    const yDeg = Math.abs(y) <= 6.5 && Math.abs(y) > 1e-6 ? (y * 180) / Math.PI : y;
+    return { x: 0, y: yDeg, z: 0 };
+  }
+
+  private npcModelUrl(n: { id: string; fusionAdaptiveGlbPath?: string | null }): string | undefined {
+    const f = typeof n.fusionAdaptiveGlbPath === "string" && n.fusionAdaptiveGlbPath.trim() ? n.fusionAdaptiveGlbPath.trim() : "";
+    if (f) return f;
+    return (
+      this.glbRegistry.getModelForTarget("npc_single", n.id) ||
+      this.glbRegistry.getModelForTarget("npc_group", n.id) ||
+      undefined
+    ) ?? undefined;
+  }
+
+  private buildEntitySyncPayload(): { type: "entity_sync"; entities: any[]; chunks: any[] } {
+    const entities: any[] = [];
+    const pos3 = (p: { x: number; y: number; z?: number }) => ({
+      x: p.x,
+      y: typeof p.z === "number" && Number.isFinite(p.z) ? p.z : 0,
+      z: p.y,
+    });
+    for (const p of this.playerSystem.getAllPlayers()) {
+      if (!p?.id) continue;
+      entities.push({
+        id: p.id,
+        type: "player",
+        name: p.name,
+        position: pos3(p.position),
+        rotation: this.rotationDegForWire(p.rotation ?? 0),
+        visible: !p.isOffline,
+        role: p.role,
+      });
+    }
+    for (const n of this.npcSystem.getAllNPCs()) {
+      const url = this.npcModelUrl(n);
+      entities.push({
+        id: n.id,
+        type: "npc",
+        name: n.name,
+        position: pos3(n.position),
+        rotation: this.rotationDegForWire(n.rotation ?? 0),
+        visible: true,
+        health: n.health,
+        maxHealth: n.maxHealth,
+        role: n.role,
+        combatThreat: (n.traits?.aggression ?? 0) >= 0.62,
+        combatNpcId: n.id,
+        ...(url ? { modelUrl: url } : {}),
+      });
+    }
+    for (const l of this.lootEntities.values()) {
+      entities.push({
+        id: l.id,
+        type: "loot",
+        position: pos3(l.position),
+        rotation: { x: 0, y: 0, z: 0 },
+        visible: true,
+        ...(l.glbPath ? { modelUrl: l.glbPath } : {}),
+        lootKind: "item",
+        lootItemName: l.item?.name,
+      });
+    }
+    for (const o of this.worldSystem.objectSystem.getAllObjects()) {
+      entities.push({
+        id: o.id,
+        type: "world_object",
+        name: o.name,
+        position: { x: o.position.x, y: 0, z: o.position.y },
+        rotation: this.rotationDegForWire(o.rotation ?? 0),
+        visible: true,
+        ...(o.glbPath ? { modelUrl: o.glbPath } : {}),
+      });
+    }
+    return { type: "entity_sync", entities, chunks: [] };
+  }
   start() { this.timer = setInterval(() => this.tick(), 100); }
   stop() { if (this.timer) clearInterval(this.timer); this.timer = null; }
   private buildAREPayload(): AREGuardPayload { return { l: 13, k: 1000, r: Math.round((0.5 + Math.sin(this.tickCount / 10) * 0.5) * 1000) / 1000, tick: this.tickCount, deterministicSeed: `ARE|k1000|tick:${this.tickCount}|chunk:64` }; }
@@ -240,5 +354,9 @@ export class WorldTick {
     if (this.tickCount % 10 === 0) { const npcs = allNpcs.map(n => ({ id: n.id, name: n.name, x: n.position.x, y: n.position.y })); this.ws.broadcast({ type: "WORLD_HEARTBEAT", payload: { players: Object.fromEntries(allPlayers.filter(p => !p.isOffline).map(p => [p.id, { id: p.id, name: p.name, x: p.position.x, y: p.position.y }])), agents: npcs, are: areValidationState.getSnapshot(), replay: deterministicTickRecorder.stats(), oracle: this.lastOracleReport, autoRepair, usage } }); }
     if (this.tickCount % 600 === 0) this.saveAll().catch(e => console.error(e));
     this.ws.broadcast({ type: "world_tick", tick: this.tickCount, players: strippedPlayers, npcs: strippedNpcs, loot: strippedLoot, are: { guard: this.lastAREGuardStatus, worldHash: this.lastWorldHashSnapshot?.worldHash ?? null }, replay: { latestTick: this.tickCount }, oracle: this.lastOracleReport, autoRepair, usage });
+    const syncEvery = Math.max(1, Math.round(GameConfig.stateBroadcastIntervalMs / 100));
+    if (this.tickCount % syncEvery === 0) {
+      this.ws.broadcast(this.buildEntitySyncPayload());
+    }
   }
 }

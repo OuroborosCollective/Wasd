@@ -3,6 +3,7 @@ import * as path from 'path';
 import { PersistenceManager } from '../../core/PersistenceManager.js';
 import { resolveContentFile } from '../content/contentDataRoot.js';
 import { ChunkSystem } from './ChunkSystem.js';
+import { buildStarterVillageObjects } from './VillageLayoutSeeder.js';
 
 export interface WorldObject {
   id: string;
@@ -119,6 +120,27 @@ export class WorldObjectSystem {
     } catch (e) {
       console.error("Failed to load world objects from file", e);
     }
+
+    this.ensureStarterVillageMerged();
+  }
+
+  /**
+   * If the world has almost no authored structures, merge a deterministic starter village
+   * (roads, houses, well, walls) so clients always have a coherent settlement to render.
+   * Skips when `vlg_seed_*` ids already exist (idempotent across restarts).
+   */
+  public ensureStarterVillageMerged(): void {
+    const hasSeed = [...this.objects.keys()].some((id) => id.startsWith("vlg_seed_"));
+    if (hasSeed) return;
+    if (this.objects.size > 12) return;
+
+    const origin = { x: -32, y: 18 };
+    for (const obj of buildStarterVillageObjects(origin)) {
+      if (this.objects.has(obj.id)) continue;
+      this.objects.set(obj.id, obj);
+      this.addToSpatialIndex(obj);
+    }
+    void this.save();
   }
 
   private async save() {

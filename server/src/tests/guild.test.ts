@@ -67,6 +67,29 @@ describe("GuildSystem", () => {
     const g2Members = guilds.addMember("g2", "p4")!.members;
     expect(g2Members).not.toContain("p3");
   });
+
+  it("getGuildSummaryForPlayer() returns guild info after createGuild()", () => {
+    guilds.createGuild("g1", "Test Guild", "alice");
+    const s = guilds.getGuildSummaryForPlayer("alice");
+    expect(s?.id).toBe("g1");
+    expect(s?.name).toBe("Test Guild");
+    expect(s?.rank).toBe("founder");
+  });
+
+  it("leaveGuild() lets sole founder disband implicitly", () => {
+    guilds.createGuild("g1", "Solo", "alice");
+    expect(guilds.leaveGuild("alice").ok).toBe(true);
+    expect(guilds.getGuild("g1")).toBeUndefined();
+    expect(guilds.getGuildSummaryForPlayer("alice")).toBeNull();
+  });
+
+  it("disbandGuild() removes all members from playerGuild map", () => {
+    guilds.createGuild("g1", "Raid", "alice");
+    guilds.addMember("g1", "bob");
+    expect(guilds.disbandGuild("g1", "alice").ok).toBe(true);
+    expect(guilds.getGuildIdForPlayer("bob")).toBeNull();
+    expect(guilds.getGuildIdForPlayer("alice")).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------

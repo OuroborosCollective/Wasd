@@ -18,6 +18,7 @@ import {
   pushProtocolMsgToGameHud,
 } from "../ui/gameHudBridge";
 import { applyQuestlineFeatures, applyQuestlineState } from "../state/questlineState";
+import { setGuildState } from "../ui/guildPanel";
 
 let lastImpactPulseAt = 0;
 
@@ -543,6 +544,11 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
           }
         }
         pushGameHudConnected(true);
+        if (data.guild && typeof data.guild === "object" && data.guild !== null) {
+          setGuildState(data.guild as { id: string; name: string; rank: string });
+        } else {
+          setGuildState(null);
+        }
         if (data.stats && typeof data.stats === "object") {
           applyStatsPayload(data.stats);
           const cooldowns = data.stats.skillCooldownUntil && typeof data.stats.skillCooldownUntil === "object"
@@ -580,6 +586,14 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
             spawnKey: data.spawnKey,
             spawnPosition: data.spawnPosition,
           });
+        }
+      }
+      if (data.type === "guild_state") {
+        const g = (data as { guild?: unknown }).guild;
+        if (g && typeof g === "object" && g !== null) {
+          setGuildState(g as { id: string; name: string; rank: string });
+        } else {
+          setGuildState(null);
         }
       }
       if (data.type === "stats_sync") {
