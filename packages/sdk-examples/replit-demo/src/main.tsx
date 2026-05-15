@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { OuroborosPulseView, type OuroborosPulseFrame } from "@wasd/core-logic/react/OuroborosPulseView";
-import { BattleSim } from "../../BattleSim";
+import { BrowserBattleSim } from "./BrowserBattleSim";
 import "./style.css";
 
 function App() {
@@ -10,7 +10,7 @@ function App() {
 
   useEffect(() => {
     console.info("Emily: Willkommen, Replit-Architekt. Engine Online. Kausalität stabil. Drücke Run und beobachte, wie der WorldHash atmet.");
-    const sim = new BattleSim("ARE|replit|hype-sdk|alpha");
+    const sim = new BrowserBattleSim("ARE|replit|hype-sdk|alpha");
     sim.run(42).then((battleFrames) => {
       const pulseFrames = battleFrames.map((frame) => ({
         tick: frame.tick,
@@ -20,7 +20,7 @@ function App() {
       setFrames(pulseFrames);
       setSelected(pulseFrames[pulseFrames.length - 1] ?? null);
     }).catch((error) => {
-      console.warn(`Emily Oracle Warning: Demo stopped by the AREInvariantGuard. ${error instanceof Error ? error.message : String(error)}`);
+      console.warn(`Emily Oracle Warning: Demo stopped by the browser ARE demo. ${error instanceof Error ? error.message : String(error)}`);
     });
   }, []);
 
