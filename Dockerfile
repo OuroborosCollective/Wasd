@@ -47,19 +47,20 @@ RUN find packages apps projects -type f ! -name 'package.json' -delete || true
 RUN find packages apps projects -type d -empty -delete || true
 
 # VPS optimized dependency install.
-ENV NODE_OPTIONS="--max-old-space-size=1024"
+ENV NODE_OPTIONS="--max-old-space-size=768"
 ENV CI=true
-RUN pnpm config set network-concurrency 4 && \
-    pnpm config set child-concurrency 1
+ENV npm_config_jobs=1
+RUN pnpm config set network-concurrency 2 && \
+    pnpm config set child-concurrency 1 && \
+    pnpm config set side-effects-cache false
 
 # Self-heal only the Docker build copy of pnpm-lock.yaml.
 # This syncs root override metadata and importer specifiers from package.json,
-# keeping install frozen/offline and avoiding the VPS OOM-prone no-frozen path.
+# keeping install frozen while avoiding the VPS OOM-prone no-frozen path.
 RUN python3 scripts/sync-pnpm-lockfile-for-docker.py
 
-# Split fetch/install to lower memory pressure and keep final install offline.
-RUN pnpm fetch --frozen-lockfile --prefer-offline
-RUN pnpm install --frozen-lockfile --offline --ignore-scripts
+# Single frozen install. A separate pnpm fetch step was OOM-killed on the VPS.
+RUN pnpm install --frozen-lockfile --prefer-offline --ignore-scripts
 
 # =========================================================
 # BUILDER
