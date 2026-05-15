@@ -81,7 +81,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app ./
 
 # Copy source. This overwrites pnpm-lock.yaml with the repository copy, so run
-# the same preflight again before invoking the workspace build.
+# the same preflight again before invoking the server build.
 COPY . .
 ARG PNPM_BUILDER_PREFLIGHT_CACHE_BUST=2026-05-15-0035
 RUN echo "pnpm builder preflight cache bust: ${PNPM_BUILDER_PREFLIGHT_CACHE_BUST}" && \
@@ -92,14 +92,9 @@ ENV NODE_ENV=production
 # Build optimization for 16GB VPS
 ENV NODE_OPTIONS="--max-old-space-size=12288"
 
-# Parallelism optimization
-ENV CI=true
-ENV TURBO_CONCURRENCY=2
-
-# Build with the Corepack pnpm binary directly. Do not run the root `build`
-# lifecycle script, because that script resolves the local pnpm devDependency
-# from node_modules and tries to recreate node_modules inside the Docker build.
-RUN pnpm -r --workspace-concurrency=1 --if-present build
+# Server container build only. Do not build browser/demo workspaces here.
+RUN pnpm --filter @wasd/shared --if-present build && \
+    pnpm --filter @wasd/server --if-present build
 
 # Prune dev dependencies
 RUN pnpm prune --prod
