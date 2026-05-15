@@ -1,13 +1,15 @@
 /**
  * Quest Echo Tracker — Screen 10 style feed.
  * - O(1) head reads via PortalWorldHistory ring buffer
- * - ThemeEngine colours: combat → fire-glitch pulse, trade → marina calm
+ * - ThemeEngine colours: combat → fire-glitch pulse, trade → marina calm, loot → golden glitch aura
  */
 
 import React, { useEffect, useMemo, useSyncExternalStore, useState } from "react";
 import {
+  getLootLegendaryVisualState,
   getVisualState,
   pushLiveTickerHazard,
+  pushLootAura,
   subscribeVisualTheme,
   visualStateToCssVars,
   type VisualThemeState,
@@ -15,6 +17,17 @@ import {
 import { PortalWorldHistory, type WorldEcho } from "../world/PortalWorldHistory";
 
 function echoVisual(echo: WorldEcho, live: VisualThemeState): VisualThemeState {
+  if (echo.kind === "loot" && echo.loot) {
+    return getLootLegendaryVisualState({
+      quality: echo.loot.quality,
+      itemId: echo.loot.itemId,
+      itemName: echo.loot.itemName,
+      sector: echo.loot.sector,
+      probability: echo.loot.probability,
+      rollHash: echo.loot.rollHash,
+      sourceId: echo.loot.sourceId,
+    });
+  }
   if (echo.kind === "combat") {
     return getVisualState(Math.max(0.78, live.hazardIndex), Math.max(0.0005, live.aggressionTrend));
   }
@@ -38,6 +51,8 @@ const EchoTracker: React.FC = () => {
       setLiveTheme(v);
       const prev = last;
       last = v;
+
+      if (v.mode === "loot_legendary") return;
 
       const enteredFire = v.mode === "fire_glitch" && prev?.mode !== "fire_glitch";
       const hazardSpike = prev != null && v.hazardIndex - prev.hazardIndex > 0.12;
@@ -87,6 +102,25 @@ const EchoTracker: React.FC = () => {
           </button>
           <button
             type="button"
+            className="rounded border border-amber-400/60 bg-amber-950/50 px-2 py-1 text-[11px] font-semibold text-amber-100 hover:bg-amber-900/60"
+            onClick={() => {
+              const meta = {
+                itemId: "ouroboros_core",
+                itemName: "Ouroboros Core",
+                quality: "legendary",
+                sector: "12:8",
+                probability: 0.000004,
+                rollHash: "demo-golden-roll-12-8",
+                sourceId: "tc_oracle_cache",
+              };
+              pushLootAura(meta);
+              hist.recordLootDrop(meta);
+            }}
+          >
+            + Legendary drop
+          </button>
+          <button
+            type="button"
             className="rounded border border-amber-500/50 bg-amber-950/40 px-2 py-1 text-[11px] font-semibold text-amber-100 hover:bg-amber-900/50"
             onClick={() => {
               let i = 0;
@@ -118,30 +152,36 @@ const EchoTracker: React.FC = () => {
       <ul className="max-h-72 space-y-2 overflow-y-auto pr-1">
         {echoes.length === 0 ? (
           <li className="rounded-lg border border-dashed border-slate-700 p-4 text-center text-sm text-slate-500">
-            Waiting for NPC trade / combat echoes…
+            Waiting for NPC trade / combat / loot echoes…
           </li>
         ) : (
           echoes.map((echo) => {
             const vis = echoVisual(echo, liveTheme);
             const vars = visualStateToCssVars(vis);
             const isCombat = echo.kind === "combat";
+            const isLoot = echo.kind === "loot";
             const firePulse = isCombat && vis.mode === "fire_glitch";
+            const goldenPulse = isLoot && vis.mode === "loot_legendary";
 
             return (
               <li
                 key={echo.id}
                 className={`flex items-start gap-3 rounded-lg border px-3 py-2 text-sm ${
-                  firePulse ? "border-red-500/50" : "border-cyan-500/30"
+                  goldenPulse ? "border-amber-300/70" : firePulse ? "border-red-500/50" : "border-cyan-500/30"
                 }`}
                 style={{
                   ...vars,
-                  backgroundColor: "rgba(15,23,42,0.72)",
-                  boxShadow: firePulse
-                    ? `0 0 14px ${vis.auraHex}, inset 0 0 8px rgba(230,0,0,0.12)`
-                    : `0 0 10px ${vis.auraHex}33`,
-                  animation: firePulse
-                    ? `echoFirePulse var(--wasd-phase-period, 0.9s) ease-in-out infinite`
-                    : `echoMarinaPulse var(--wasd-phase-period, 1.4s) ease-in-out infinite`,
+                  backgroundColor: goldenPulse ? "rgba(44,32,4,0.74)" : "rgba(15,23,42,0.72)",
+                  boxShadow: goldenPulse
+                    ? `0 0 22px ${vis.auraHex}, inset 0 0 18px rgba(255,215,106,0.18)`
+                    : firePulse
+                      ? `0 0 14px ${vis.auraHex}, inset 0 0 8px rgba(230,0,0,0.12)`
+                      : `0 0 10px ${vis.auraHex}33`,
+                  animation: goldenPulse
+                    ? `echoGoldPulse var(--wasd-phase-period, 0.65s) ease-in-out infinite`
+                    : firePulse
+                      ? `echoFirePulse var(--wasd-phase-period, 0.9s) ease-in-out infinite`
+                      : `echoMarinaPulse var(--wasd-phase-period, 1.4s) ease-in-out infinite`,
                 }}
               >
                 <span
@@ -156,6 +196,11 @@ const EchoTracker: React.FC = () => {
                     {echo.kind} · {new Date(echo.ts).toLocaleTimeString()}
                   </div>
                   <div className="text-slate-100">{echo.summary}</div>
+                  {echo.loot ? (
+                    <div className="mt-1 rounded border border-amber-300/30 bg-black/30 px-2 py-1 font-mono text-[10px] text-amber-100">
+                      Emily: Architekt Thomas, die Kausalität hat ein Fragment der Stufe {echo.loot.quality} in Sektor {echo.loot.sector} manifestiert. Wahrscheinlichkeit: {(echo.loot.probability * 100).toFixed(4)}%.
+                    </div>
+                  ) : null}
                 </div>
               </li>
             );
@@ -171,6 +216,10 @@ const EchoTracker: React.FC = () => {
         @keyframes echoMarinaPulse {
           0%, 100% { filter: brightness(1); }
           50% { filter: brightness(1.08); }
+        }
+        @keyframes echoGoldPulse {
+          0%, 100% { filter: brightness(1) saturate(1); transform: translateX(0) scale(1); }
+          50% { filter: brightness(1.34) saturate(1.35); transform: translateX(0.5px) scale(1.006); }
         }
       `}</style>
     </div>
