@@ -30,6 +30,7 @@ export interface AREAutoRepairStatus { active: boolean; healed: boolean; lastPla
 export interface SdkBillingAccount { id: string; displayName: string; credits: number; lifetimeHashes: number; lifetimeCreditsCharged: number; status: "active" | "suspended"; lastUsageTick: number; lastMessage: string | null; }
 export interface SdkBillingStatus { ok: boolean; usage: { hashesInWindow?: number; hashesPerMinute?: number; latestTick?: number } | null; cost: { hashes: number; credits: number; ratePerThousandHashes: number; formula: string }; billing: { suspended: boolean; message: string | null; market: SdkBillingMarket }; market: SdkBillingMarket; }
 export interface SdkBillingMarket { ratePerThousandHashes: number; activeExternalReplits: number; totalCreditsGenerated: number; totalHashesMetered: number; accounts: SdkBillingAccount[]; suspendedAccounts: SdkBillingAccount[]; }
+export interface PayPalCheckoutResult { ok: boolean; orderId?: string; approvalUrl?: string; credits?: number; error?: string; message?: string; }
 
 export interface SovereignTruth {
   ok: boolean;
@@ -88,6 +89,19 @@ export async function fetchAREReplaySnapshot(tick: number): Promise<AREReplaySna
 export async function fetchAREOracleReport(): Promise<AREOracleReport | null> { try { const response = await fetch("/api/are/replay/oracle/prophecy", { cache: "no-store" }); if (!response.ok) return null; const body = await response.json(); return body.oracle ?? null; } catch { return null; } }
 export async function fetchAREAutoRepairStatus(): Promise<AREAutoRepairStatus | null> { try { const response = await fetch("/api/are/replay/repair/status", { cache: "no-store" }); if (!response.ok) return null; const body = await response.json(); return body.autoRepair ?? null; } catch { return null; } }
 export async function fetchSdkBillingStatus(): Promise<SdkBillingStatus | null> { try { const response = await fetch("/api/are/replay/billing/status", { cache: "no-store" }); if (!response.ok) return null; return (await response.json()) as SdkBillingStatus; } catch { return null; } }
+export async function createPayPalCheckout(credits = 25, clientId = "local-engine", displayName = clientId): Promise<PayPalCheckoutResult> {
+  try {
+    const response = await fetch("/api/are/replay/billing/paypal/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ credits, clientId, displayName }) });
+    return (await response.json()) as PayPalCheckoutResult;
+  } catch (error) {
+    return { ok: false, error: "network_error", message: error instanceof Error ? error.message : String(error) };
+  }
+}
+export async function openPayPalCheckout(credits = 25, clientId = "local-engine", displayName = clientId): Promise<PayPalCheckoutResult> {
+  const result = await createPayPalCheckout(credits, clientId, displayName);
+  if (result.ok && result.approvalUrl) window.open(result.approvalUrl, "_blank", "noopener,noreferrer");
+  return result;
+}
 export async function fetchSovereignTruth(): Promise<SovereignTruth | null> { try { const response = await fetch("/api/sovereign/deploy/truth", { cache: "no-store" }); if (!response.ok) return null; return (await response.json()) as SovereignTruth; } catch { return null; } }
 export async function launchSovereignDeploy(launchKey: string, ref = "main"): Promise<SovereignLaunchResult> {
   try {
