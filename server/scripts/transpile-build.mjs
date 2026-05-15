@@ -1,21 +1,26 @@
 #!/usr/bin/env node
 import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { dirname, extname, join, relative } from 'node:path';
-import ts from 'typescript';
 
+const require = createRequire(import.meta.url);
 const root = process.cwd();
 const srcDir = join(root, 'src');
 const outDir = join(root, 'dist');
 
-const compilerOptions = {
-  target: ts.ScriptTarget.ES2022,
-  module: ts.ModuleKind.ES2022,
-  esModuleInterop: true,
-  experimentalDecorators: true,
-  emitDecoratorMetadata: false,
-  resolveJsonModule: true,
-  skipLibCheck: true,
-};
+async function loadEsbuild() {
+  try {
+    return require('esbuild');
+  } catch (_error) {
+    const pnpmDir = join(root, '..', 'node_modules', '.pnpm');
+    const entries = await readdir(pnpmDir, { withFileTypes: true });
+    const match = entries.find((entry) => entry.isDirectory() && entry.name.startsWith('esbuild@'));
+    if (!match) throw new Error(`Could not locate esbuild in ${pnpmDir}`);
+    return require(join(pnpmDir, match.name, 'node_modules', 'esbuild'));
+  }
+}
+
+const esbuild = await loadEsbuild();
 
 async function walk(dir) {
   const entries = await readdir(dir, { withFileTypes: true });
@@ -61,25 +66,33 @@ function withJsExtension(specifier) {
 
 function rewriteRelativeEsmSpecifiers(output) {
   return output
-    .replace(/(from\s*['"])(\.\.?\/[^'"]+)(['"])/g, (_match, prefix, specifier, suffix) => {
-      return `${prefix}${withJsExtension(specifier)}${suffix}`;
-    })
-    .replace(/(import\s*['"])(\.\.?\/[^'"]+)(['"])/g, (_match, prefix, specifier, suffix) => {
-      return `${prefix}${withJsExtension(specifier)}${suffix}`;
-    })
-    .replace(/(import\(\s*['"])(\.\.?\/[^'"]+)(['"]\s*\))/g, (_match, prefix, specifier, suffix) => {
-      return `${prefix}${withJsExtension(specifier)}${suffix}`;
-    });
+    .replace(/(from\s*['"])(\.\.?\/[^'"]+)(['"])/g, (_match, prefix, specifier, suffix) => `${prefix}${withJsExtension(specifier)}${suffix}`)
+    .replace(/(import\s*['"])(\.\.?\/[^'"]+)(['"])/g, (_match, prefix, specifier, suffix) => `${prefix}${withJsExtension(specifier)}${suffix}`)
+    .replace(/(import\(\s*['"])(\.\.?\/[^'"]+)(['"]\s*\))/g, (_match, prefix, specifier, suffix) => `${prefix}${withJsExtension(specifier)}${suffix}`)
+    .replace(/(export\s+[^;]*?from\s*['"])(\.\.?\/[^'"]+)(['"])/g, (_match, prefix, specifier, suffix) => `${prefix}${withJsExtension(specifier)}${suffix}`);
+}
+
+function loaderFor(file) {
+  const ext = extname(file);
+  return ext === '.tsx' ? 'tsx' : 'ts';
 }
 
 async function transpile(file) {
   const source = await readFile(file, 'utf8');
   let result;
   try {
-    result = ts.transpileModule(source, {
-      compilerOptions,
-      fileName: file,
-      reportDiagnostics: true,
+    result = await esbuild.transform(source, {
+      loader: loaderFor(file),
+      format: 'esm',
+      target: 'es2022',
+      sourcemap: false,
+      sourcefile: relative(root, file),
+      tsconfigRaw: {
+        compilerOptions: {
+          experimentalDecorators: true,
+          useDefineForClassFields: false,
+        },
+      },
     });
   } catch (error) {
     console.error(`Transpile failed for ${relative(root, file)}:`);
@@ -88,22 +101,9 @@ async function transpile(file) {
     return;
   }
 
-  const diagnostics = result.diagnostics || [];
-  const fatal = diagnostics.filter((item) => item.category === ts.DiagnosticCategory.Error);
-  if (fatal.length > 0) {
-    console.error(`Transpile diagnostics for ${relative(root, file)}:`);
-    console.error(ts.formatDiagnosticsWithColorAndContext(fatal, {
-      getCanonicalFileName: (name) => name,
-      getCurrentDirectory: () => root,
-      getNewLine: () => '\n',
-    }));
-    process.exitCode = 1;
-    return;
-  }
-
   const jsFile = toOutFile(file, '.js');
   await ensureParent(jsFile);
-  await writeFile(jsFile, rewriteRelativeEsmSpecifiers(result.outputText || ''));
+  await writeFile(jsFile, rewriteRelativeEsmSpecifiers(result.code || ''));
 }
 
 async function copyAsset(file) {
