@@ -93,7 +93,10 @@ ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=12288"
 
 # Server container build only. Do not build browser/demo workspaces here.
-RUN pnpm --filter @wasd/shared --if-present build && \
+# Core-logic must be built before server because server re-exports AREInvariantGuard
+# from @wasd/core-logic package exports at runtime.
+RUN pnpm --filter @wasd/core-logic --if-present build && \
+    pnpm --filter @wasd/shared --if-present build && \
     pnpm --filter @wasd/server --if-present build
 
 # Prune dev dependencies
