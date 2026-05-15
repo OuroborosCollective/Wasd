@@ -1,49 +1,200 @@
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Inter:wght@400;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --scrollbar-bg: #0f172a;
-  --scrollbar-thumb: #10b981;
-  --scrollbar-thumb-hover: #059669;
+  --surface: #0a0a0a;
+  --marina: #00e5ff;
+  --neon: #39ff14;
+  --fire-a: #ff7a00;
+  --fire-b: #e60000;
+  --scrollbar-bg: #0a0a0a;
+  --scrollbar-thumb: #00e5ff;
+  --scrollbar-thumb-hover: #39ff14;
 }
 
 @layer base {
-  html, body {
-    @apply bg-slate-950 text-slate-200 antialiased;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  html,
+  body,
+  #root {
+    min-height: 100%;
+    background: var(--surface);
   }
 
+  body {
+    @apply antialiased;
+    margin: 0;
+    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #f8fafc;
+  }
+
+  .font-fira,
   .font-mono {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-family: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
   }
 }
 
-/* Custom Scrollbar */
+.cyber-root {
+  position: relative;
+  isolation: isolate;
+  overflow-x: hidden;
+  background: #0a0a0a;
+}
+
+.cyber-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -3;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.92;
+  filter: saturate(1.22) contrast(1.08);
+}
+
+.cyber-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 40%, rgba(0, 229, 255, 0.14), transparent 36%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0.86));
+}
+
+.cyber-grid {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(0, 229, 255, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(57, 255, 20, 0.045) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(circle at center, black 0%, transparent 78%);
+}
+
+.cyber-panel {
+  border: 1px solid rgba(0, 229, 255, 0.28);
+  background: linear-gradient(135deg, rgba(10, 10, 10, 0.78), rgba(10, 10, 10, 0.38));
+  border-radius: 28px;
+  backdrop-filter: blur(22px);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    0 0 38px rgba(0, 229, 255, 0.16),
+    0 22px 80px rgba(0, 0, 0, 0.55);
+}
+
+.cyber-panel-green {
+  border-color: rgba(57, 255, 20, 0.32);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    0 0 38px rgba(57, 255, 20, 0.13),
+    0 22px 80px rgba(0, 0, 0, 0.55);
+}
+
+.cyber-panel-fire {
+  border-color: rgba(255, 122, 0, 0.42);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    0 0 38px rgba(230, 0, 0, 0.2),
+    0 22px 80px rgba(0, 0, 0, 0.55);
+}
+
+.cyber-card {
+  border: 1px solid rgba(0, 229, 255, 0.18);
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.075), rgba(57, 255, 20, 0.035));
+  padding: 1rem;
+  box-shadow: 0 0 24px rgba(0, 229, 255, 0.08) inset;
+}
+
+.cyber-input {
+  border-radius: 18px;
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  background: rgba(0, 0, 0, 0.55);
+  padding: 1rem 1.1rem;
+  color: #e0faff;
+  font-family: 'Fira Code', ui-monospace, monospace;
+  outline: none;
+  box-shadow: 0 0 22px rgba(0, 229, 255, 0.08) inset;
+}
+
+.cyber-input:focus {
+  border-color: rgba(57, 255, 20, 0.72);
+  box-shadow:
+    0 0 0 3px rgba(57, 255, 20, 0.08),
+    0 0 26px rgba(57, 255, 20, 0.18);
+}
+
+.neon-button {
+  border-radius: 18px;
+  border: 1px solid rgba(57, 255, 20, 0.58);
+  background: linear-gradient(90deg, rgba(0, 229, 255, 0.18), rgba(57, 255, 20, 0.16));
+  padding: 1rem 1.25rem;
+  color: white;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  box-shadow:
+    0 0 24px rgba(57, 255, 20, 0.22),
+    0 0 42px rgba(0, 229, 255, 0.12);
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.neon-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(0, 229, 255, 0.92);
+  box-shadow:
+    0 0 34px rgba(57, 255, 20, 0.34),
+    0 0 64px rgba(0, 229, 255, 0.24);
+}
+
+.scanline {
+  position: relative;
+  overflow: hidden;
+}
+
+.scanline::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent, rgba(57, 255, 20, 0.2), transparent);
+  transform: translateY(-100%);
+  animation: scanline 1.2s linear infinite;
+}
+
+.organic-fire {
+  text-shadow: 0 0 8px rgba(255, 122, 0, 0.85), 0 0 18px rgba(230, 0, 0, 0.6);
+}
+
+.organic-fire-shake {
+  animation: fire-shake 220ms steps(2, end) 2;
+}
+
+@keyframes scanline {
+  to { transform: translateY(100%); }
+}
+
+@keyframes fire-shake {
+  0% { transform: translate3d(0, 0, 0); }
+  25% { transform: translate3d(4px, -2px, 0); }
+  50% { transform: translate3d(-5px, 3px, 0); }
+  75% { transform: translate3d(3px, 2px, 0); }
+  100% { transform: translate3d(0, 0, 0); }
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-  border-radius: 20px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover);
-}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 20px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 
 ::selection {
-  background-color: rgba(16, 185, 129, 0.3);
+  background-color: rgba(0, 229, 255, 0.32);
   color: #ffffff;
 }
