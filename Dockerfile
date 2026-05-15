@@ -61,7 +61,9 @@ RUN pnpm config set network-concurrency 2 && \
 # Self-heal only the Docker build copy of pnpm-lock.yaml.
 # This syncs root override metadata and importer specifiers from package.json,
 # keeping install frozen while avoiding the VPS OOM-prone no-frozen path.
-RUN python3 scripts/sync-pnpm-lockfile-for-docker.py
+ARG PNPM_PREFLIGHT_CACHE_BUST=2026-05-15-0015
+RUN echo "pnpm preflight cache bust: ${PNPM_PREFLIGHT_CACHE_BUST}" && \
+    python3 scripts/sync-pnpm-lockfile-for-docker.py
 
 # Single frozen install. A separate pnpm fetch step was OOM-killed on the VPS.
 RUN pnpm install --frozen-lockfile --prefer-offline --ignore-scripts
