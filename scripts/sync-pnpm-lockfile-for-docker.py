@@ -127,11 +127,6 @@ def main() -> None:
             current_dep = None
             continue
 
-        dep_match = re.match(r"^      (.+):\n$", line)
-        if dep_match:
-            current_dep = unquote_yaml_key(dep_match.group(1))
-            continue
-
         if current_importer and current_group and current_dep:
             specifier_match = re.match(r"^(        specifier: ).*(\n?)$", line)
             if specifier_match:
@@ -141,6 +136,12 @@ def main() -> None:
                     if replacement != line:
                         lines[index] = replacement
                         changed += 1
+                continue
+
+        dep_match = re.match(r"^      (\S.+):\n$", line)
+        if dep_match:
+            current_dep = unquote_yaml_key(dep_match.group(1))
+            continue
 
     LOCKFILE.write_text("".join(lines))
     print(f"Docker pnpm lockfile preflight synced {changed} importer specifier(s).")
