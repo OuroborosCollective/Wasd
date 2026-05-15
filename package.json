@@ -20,12 +20,13 @@
     "pnpm": ">=9"
   },
   "devDependencies": {
+    "@types/node": "^25.7.0",
     "@typescript-eslint/eslint-plugin": "^8.59.3",
     "@typescript-eslint/parser": "^8.59.3",
     "concurrently": "^9.2.1",
     "eslint": "^10.3.0",
     "pnpm": "^11.1.1",
-    "typescript": "^5.3.3",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.6"
   },
   "pnpm": {
@@ -41,7 +42,8 @@
     "overrides": {
       "@types/react": "^19.2.14",
       "@types/react-dom": "^19.2.3",
-      "@types/node": "^22.19.18",
+      "@types/node": "^25.7.0",
+      "typescript": "^6.0.3",
       "zod": "^4.4.3",
       "three": "0.184.0",
       "@babylonjs/core": "^9.6.2",
@@ -52,7 +54,8 @@
       "pg": "^8.20.0"
     },
     "resolutions": {
-      "typescript": "^5.3.3"
+      "typescript": "^6.0.3",
+      "@types/node": "^25.7.0"
     }
   }
 }
