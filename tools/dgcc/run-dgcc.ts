@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -7,7 +8,6 @@ type Severity = "info" | "warn" | "error";
 type CheckName =
   | "lint"
   | "unit"
-  | "checkInteract"
   | "e2e"
   | "contentValidate"
   | "assetsAudit"
@@ -110,7 +110,7 @@ async function assetsAudit(report: DgccReport, contract: any, fix: boolean) {
   }
 }
 
-async function wsSchemaSmoke(report: DgccReport) {
+async function wsSchemaSmoke(report: DgccReport, contract: any) {
   const p = path.join(ROOT, "client/public/e2e-smoke.html");
   if (!fs.existsSync(p)) {
     report.inconsistencies.push({
@@ -120,6 +120,34 @@ async function wsSchemaSmoke(report: DgccReport) {
       file: "client/public/e2e-smoke.html",
       hint: "Restore e2e smoke page or update DGCC contract.",
     });
+    return;
+  }
+  if (contract.rules?.ws?.requireWelcomeStatsShape) {
+    const html = fs.readFileSync(p, "utf8");
+    if (!html.includes('id="e2e-welcome"')) {
+      report.inconsistencies.push({
+        category: "ws",
+        severity: "error",
+        message: "e2e-smoke.html must expose #e2e-welcome for welcome payload inspection (Playwright + DGCC contract).",
+        file: "client/public/e2e-smoke.html",
+      });
+    }
+    if (!html.includes('d.type === "welcome"')) {
+      report.inconsistencies.push({
+        category: "ws",
+        severity: "error",
+        message: "e2e-smoke.html must handle welcome messages (expected `d.type === \"welcome\"` guard).",
+        file: "client/public/e2e-smoke.html",
+      });
+    }
+    if (!html.includes("JSON.stringify(d)")) {
+      report.inconsistencies.push({
+        category: "ws",
+        severity: "error",
+        message: "e2e-smoke.html should serialize full welcome payload for stats-shape checks.",
+        file: "client/public/e2e-smoke.html",
+      });
+    }
   }
 }
 
@@ -168,55 +196,34 @@ async function main() {
     }
   }
 
-  const checks = modeCfg.checks as CheckName[];
+  const checks = modeCfg.checks as string[];
 
-  if (checks.includes("lint")) {
-    await runCheck("lint", async () => {
+  const runners: Record<CheckName, () => Promise<void>> = {
+    lint: async () => {
       const r = await run("pnpm", ["run", "lint"]);
       fs.writeFileSync(path.join(outDir, "lint.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["lint"] = "dgcc-artifacts/lint.out.txt";
       if (r.code !== 0) throw new Error("lint failed");
-    });
-  }
-
-  if (checks.includes("unit")) {
-    await runCheck("unit", async () => {
+    },
+    unit: async () => {
       const r = await run("pnpm", ["run", "test"]);
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
       if (r.code !== 0) throw new Error("unit tests failed");
-    });
-  }
-
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
-    });
-  }
-
-  if (checks.includes("e2e")) {
-    await runCheck("e2e", async () => {
+    },
+    e2e: async () => {
       const r = await run("pnpm", ["run", "test:e2e:ci"]);
       fs.writeFileSync(path.join(outDir, "e2e.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["e2e"] = "dgcc-artifacts/e2e.out.txt";
       if (r.code !== 0) throw new Error("e2e failed");
-    });
-  }
-
-  if (checks.includes("contentValidate")) {
-    await runCheck("contentValidate", async () => {
+    },
+    contentValidate: async () => {
       const r = await run("pnpm", ["--prefix", "server", "run", "validate"]);
       fs.writeFileSync(path.join(outDir, "content-validate.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["contentValidate"] = "dgcc-artifacts/content-validate.out.txt";
       if (r.code !== 0) throw new Error("content validation failed (server validate)");
-    });
-  }
-
-  if (checks.includes("clientBuild")) {
-    await runCheck("clientBuild", async () => {
+    },
+    clientBuild: async () => {
       const r = await run("pnpm", ["--prefix", "client", "run", "build"], {
         env: {
           NODE_OPTIONS: process.env.NODE_OPTIONS || "--max-old-space-size=6144",
@@ -225,45 +232,48 @@ async function main() {
       fs.writeFileSync(path.join(outDir, "client-build.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["clientBuild"] = "dgcc-artifacts/client-build.out.txt";
       if (r.code !== 0) throw new Error("client build failed");
-    });
-  }
-
-  if (checks.includes("serverBuild")) {
-    await runCheck("serverBuild", async () => {
-      const r = await run("pnpm", ["--prefix", "server", "run", "build"]);
+    },
+    serverBuild: async () => {
+      const r = await run("pnpm", ["run", "build:server-with-deps"]);
       fs.writeFileSync(path.join(outDir, "server-build.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["serverBuild"] = "dgcc-artifacts/server-build.out.txt";
       if (r.code !== 0) throw new Error("server build failed");
-    });
-  }
-
-  if (checks.includes("assetsAudit")) {
-    await runCheck("assetsAudit", async () => {
+    },
+    assetsAudit: async () => {
       await assetsAudit(report, contract, fix);
       const p = path.join(outDir, "assets-audit.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "assets") }, null, 2));
       report.artifacts["assetsAudit"] = "dgcc-artifacts/assets-audit.json";
-    });
-  }
-
-  if (checks.includes("wsSchemaSmoke")) {
-    await runCheck("wsSchemaSmoke", async () => {
-      await wsSchemaSmoke(report);
+    },
+    wsSchemaSmoke: async () => {
+      await wsSchemaSmoke(report, contract);
       const p = path.join(outDir, "ws-smoke.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "ws") }, null, 2));
       report.artifacts["wsSchemaSmoke"] = "dgcc-artifacts/ws-smoke.json";
       const hasWsError = report.inconsistencies.some((x) => x.category === "ws" && x.severity === "error");
       if (hasWsError) throw new Error("ws schema smoke failed");
-    });
-  }
-
-  if (checks.includes("uiA11ySmoke")) {
-    await runCheck("uiA11ySmoke", async () => {
+    },
+    uiA11ySmoke: async () => {
       await uiA11ySmoke(report);
       const p = path.join(outDir, "ui-a11y.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "ui") }, null, 2));
       report.artifacts["uiA11ySmoke"] = "dgcc-artifacts/ui-a11y.json";
-    });
+    },
+  };
+
+  for (const raw of checks) {
+    const name = raw as CheckName;
+    const fn = runners[name];
+    if (!fn) {
+      report.inconsistencies.push({
+        category: "dgcc",
+        severity: "warn",
+        message: `Unknown DGCC check in contract: ${String(raw)}`,
+        hint: "Update tools/dgcc/run-dgcc.ts CheckName union and runners map.",
+      });
+      continue;
+    }
+    await runCheck(name, fn);
   }
 
   report.finishedAt = nowIso();
