@@ -5,22 +5,22 @@
   "description": "Ouroboros ARE deterministic core logic SDK",
   "type": "module",
   "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
+      "import": "./dist/index.js",
       "require": "./dist/index.js"
     },
     "./are/AREInvariantGuard": {
       "types": "./dist/are/AREInvariantGuard.d.ts",
-      "import": "./dist/are/AREInvariantGuard.mjs",
+      "import": "./dist/are/AREInvariantGuard.js",
       "require": "./dist/are/AREInvariantGuard.js"
     },
     "./react/OuroborosPulseView": {
       "types": "./dist/react/OuroborosPulseView.d.ts",
-      "import": "./dist/react/OuroborosPulseView.mjs",
+      "import": "./dist/react/OuroborosPulseView.js",
       "require": "./dist/react/OuroborosPulseView.js"
     }
   },
