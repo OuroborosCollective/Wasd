@@ -80,8 +80,12 @@ COPY --from=deps /pnpm /pnpm
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app ./
 
-# Copy source
+# Copy source. This overwrites pnpm-lock.yaml with the repository copy, so run
+# the same preflight again before invoking pnpm build.
 COPY . .
+ARG PNPM_BUILDER_PREFLIGHT_CACHE_BUST=2026-05-15-0035
+RUN echo "pnpm builder preflight cache bust: ${PNPM_BUILDER_PREFLIGHT_CACHE_BUST}" && \
+    python3 scripts/sync-pnpm-lockfile-for-docker.py
 
 ENV NODE_ENV=production
 
