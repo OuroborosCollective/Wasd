@@ -7,7 +7,9 @@ export GAME_PORT="$PORT"
 export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
 echo "=== Ouroboros Replit Boot ==="
+echo "Emily: Willkommen, Replit-Architekt. Engine Online. Kausalität stabil."
 echo "PORT=$PORT"
+echo "DEMO_PORT=${DEMO_PORT:-5173}"
 
 auto_corepack() {
   if command -v corepack >/dev/null 2>&1; then
@@ -28,4 +30,12 @@ pnpm --filter @wasd/core-logic --if-present build
 pnpm --filter @wasd/shared --if-present build
 pnpm --filter @wasd/server --if-present build
 
-exec pnpm --filter @wasd/server start
+echo "Starting Ouroboros ARE server on :$PORT ..."
+pnpm --filter @wasd/server start &
+SERVER_PID=$!
+
+echo "Starting Cyber-Zen SDK demo on :${DEMO_PORT:-5173} ..."
+cd packages/sdk-examples/replit-demo
+pnpm exec vite --host 0.0.0.0 --port "${DEMO_PORT:-5173}"
+
+trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
