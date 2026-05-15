@@ -39,7 +39,6 @@ else
   echo "WARNING: $ENV_FILE not found — VITE_* build vars may be empty!"
 fi
 
-# Supabase may own port 3000 on the VPS. Keep the game on 3001 unless overridden.
 export NODE_ENV=production
 export PORT="$GAME_PORT"
 export HOST="0.0.0.0"
@@ -55,12 +54,36 @@ if command -v pnpm >/dev/null 2>&1; then
   pnpm config set network-concurrency 2
   pnpm config set child-concurrency 1
   pnpm install --no-frozen-lockfile --prefer-offline
+
+  echo "Building shared package and game server..."
   NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/shared --if-present build
   NODE_OPTIONS="$SERVER_BUILD_NODE_OPTIONS" pnpm --filter @wasd/server --if-present build
+
+  echo "Building browser frontends for /, /3d/, /2d/ and /portal/..."
+  NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/client --if-present build
+  NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/client-2d --if-present build
+  NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/portal --if-present build
 else
   echo "ERROR: pnpm is required for this monorepo deploy."
   exit 1
 fi
+
+echo "Assembling browser route folders under client/dist..."
+test -f client/dist/index.html || { echo "ERROR: client/dist/index.html missing after @wasd/client build"; exit 1; }
+test -f apps/client-2d/dist/index.html || { echo "ERROR: apps/client-2d/dist/index.html missing after @wasd/client-2d build"; exit 1; }
+test -f portal/dist/index.html || { echo "ERROR: portal/dist/index.html missing after @wasd/portal build"; exit 1; }
+
+mkdir -p client/dist/2d client/dist/3d client/dist/portal
+cp -a apps/client-2d/dist/. client/dist/2d/
+cp -a portal/dist/. client/dist/portal/
+cp -a client/dist/index.html client/dist/3d/index.html
+if [ -d client/dist/assets ]; then
+  mkdir -p client/dist/3d/assets
+  cp -a client/dist/assets/. client/dist/3d/assets/
+fi
+
+echo "Route bundle markers:"
+ls -la client/dist/index.html client/dist/2d/index.html client/dist/3d/index.html client/dist/portal/index.html
 
 pm2 restart areloria --update-env || pm2 start server/dist/index.js --name areloria --update-env
 
@@ -83,11 +106,7 @@ verify_url() {
       return 0
     fi
 
-    if echo "$body" | grep -q "initializing"; then
-       echo "⏳ ${name} initializing (${url}) [attempt ${i}/${attempts}] status=503"
-    else
-       echo "⏳ ${name} not ready (${url}) [attempt ${i}/${attempts}] status=${code:-n/a}"
-    fi
+    echo "⏳ ${name} not ready (${url}) [attempt ${i}/${attempts}] status=${code:-n/a}"
     sleep "$wait_sec"
   done
 
@@ -108,6 +127,9 @@ warn_url() {
 
 warn_url "http://127.0.0.1:${GAME_PORT}/health" "Health endpoint"
 verify_url "http://127.0.0.1:${GAME_PORT}/" "Client root"
+verify_url "http://127.0.0.1:${GAME_PORT}/2d/" "2D client"
+verify_url "http://127.0.0.1:${GAME_PORT}/3d/" "3D client"
+verify_url "http://127.0.0.1:${GAME_PORT}/portal/" "Portal client"
 
 echo "Update complete!"
 pm2 status
