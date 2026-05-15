@@ -62,7 +62,8 @@ if command -v pnpm >/dev/null 2>&1; then
   pnpm config set child-concurrency 1
   pnpm install --no-frozen-lockfile --prefer-offline
 
-  echo "Building shared package and game server..."
+  echo "Building core-logic, shared package and game server..."
+  NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/core-logic --if-present build
   NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/shared --if-present build
   NODE_OPTIONS="$SERVER_BUILD_NODE_OPTIONS" pnpm --filter @wasd/server --if-present build
 
