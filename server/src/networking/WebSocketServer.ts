@@ -2,6 +2,7 @@ import type { Server as HttpServer } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 import { randomUUID } from "node:crypto";
 import { GameConfig } from "../config/GameConfig.js";
+import { collectiveIngressRuntime } from "../collective/CollectiveIngressRuntime.js";
 
 const WS_RL_WINDOW_MS = 1000;
 
@@ -77,9 +78,16 @@ export class GameWebSocketServer {
           sock._rlAt.push(now);
 
           const msg = JSON.parse(raw.toString());
-          if (msg?.type === "login") {
+          const isSovereignLogin = (msg?.type === "sovereign_login" || msg?.type === "login") && (msg?.publicKey || msg?.wallet || msg?.hash || msg?.kappaPosHash);
+          if (isSovereignLogin) {
+            const result = collectiveIngressRuntime.register(id, msg);
+            this.socketToPlayerUid.set(id, result.peer.id);
+            socket.send(JSON.stringify({ type: "COLLECTIVE_WELCOME", identity: result.identity, peer: result.peer, welcome: result.welcome }));
+            this.broadcast({ type: "COLLECTIVE_PEER_JOINED", payload: result.peer });
+          } else if (msg?.type === "login") {
             this.socketToPlayerUid.delete(id);
           } else {
+            collectiveIngressRuntime.updateFromInput(id, msg);
             let uid = this.socketToPlayerUid.get(id);
             if (!uid && this.resolveSocketToPlayerUid) {
               uid = this.resolveSocketToPlayerUid(id) ?? undefined;
@@ -110,6 +118,7 @@ export class GameWebSocketServer {
 
       socket.on("close", () => {
         this.socketToPlayerUid.delete(id);
+        collectiveIngressRuntime.disconnect(id);
         if (this.onPlayerDisconnect) {
           this.onPlayerDisconnect(id);
         }
