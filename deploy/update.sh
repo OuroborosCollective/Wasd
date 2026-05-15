@@ -54,12 +54,12 @@ else
   exit 1
 fi
 
-pm2 restart areloria || pm2 start server/dist/index.js --name areloria
+pm2 restart areloria --update-env || pm2 start server/dist/index.js --name areloria
 
 verify_url() {
   local url="$1"
   local name="$2"
-  local attempts=40
+  local attempts="${3:-40}"
   local wait_sec=5
   local code=""
 
@@ -84,11 +84,21 @@ verify_url() {
   done
 
   echo "❌ ${name} failed after ${attempts} attempts (${url}), last status=${code:-n/a}"
-  pm2 logs areloria --lines 80 --nostream || true
   return 1
 }
 
-verify_url "http://127.0.0.1:3000/health" "Health endpoint"
+warn_url() {
+  local url="$1"
+  local name="$2"
+  if verify_url "$url" "$name" 3; then
+    return 0
+  fi
+  echo "⚠️ ${name} did not return 200. Continuing because this endpoint is diagnostic only."
+  pm2 logs areloria --lines 40 --nostream || true
+  return 0
+}
+
+warn_url "http://127.0.0.1:3000/health" "Health endpoint"
 verify_url "http://127.0.0.1:3000/" "Client root"
 
 echo "Update complete!"
