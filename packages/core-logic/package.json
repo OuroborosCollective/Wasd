@@ -17,6 +17,11 @@
       "types": "./dist/are/AREInvariantGuard.d.ts",
       "import": "./dist/are/AREInvariantGuard.mjs",
       "require": "./dist/are/AREInvariantGuard.js"
+    },
+    "./react/OuroborosPulseView": {
+      "types": "./dist/react/OuroborosPulseView.d.ts",
+      "import": "./dist/react/OuroborosPulseView.mjs",
+      "require": "./dist/react/OuroborosPulseView.js"
     }
   },
   "files": [
@@ -24,8 +29,8 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup src/index.ts src/are/AREInvariantGuard.ts --format cjs,esm --dts --clean",
-    "dev": "tsup src/index.ts src/are/AREInvariantGuard.ts --format cjs,esm --watch --dts",
+    "build": "tsup src/index.ts src/are/AREInvariantGuard.ts src/react/OuroborosPulseView.tsx --format cjs,esm --dts --clean --external react",
+    "dev": "tsup src/index.ts src/are/AREInvariantGuard.ts src/react/OuroborosPulseView.tsx --format cjs,esm --watch --dts --external react",
     "test": "vitest run --passWithNoTests",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit"
