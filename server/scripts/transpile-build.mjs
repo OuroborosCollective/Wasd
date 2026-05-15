@@ -36,6 +36,10 @@ async function ensureParent(file) {
   await mkdir(dirname(file), { recursive: true });
 }
 
+function isDeclarationFile(file) {
+  return file.endsWith('.d.ts') || file.endsWith('.d.mts') || file.endsWith('.d.cts');
+}
+
 function toOutFile(file, extension) {
   const rel = relative(srcDir, file);
   return join(outDir, rel.replace(/\.[cm]?tsx?$/, extension));
@@ -85,8 +89,13 @@ async function copyAsset(file) {
 const files = await walk(srcDir);
 let emitted = 0;
 let copied = 0;
+let skipped = 0;
 
 for (const file of files) {
+  if (isDeclarationFile(file)) {
+    skipped += 1;
+    continue;
+  }
   const ext = extname(file);
   if (ext === '.ts' || ext === '.tsx' || ext === '.mts' || ext === '.cts') {
     await transpile(file);
@@ -101,4 +110,4 @@ if (process.exitCode) {
   process.exit(process.exitCode);
 }
 
-console.log(`Transpiled ${emitted} TypeScript file(s), copied ${copied} asset file(s).`);
+console.log(`Transpiled ${emitted} TypeScript file(s), copied ${copied} asset file(s), skipped ${skipped} declaration file(s).`);
