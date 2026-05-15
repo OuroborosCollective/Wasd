@@ -71,6 +71,43 @@ free_port_3000() {
   fi
 }
 
+ensure_swap_headroom() {
+  local swap_mb mem_mb swapfile
+  swap_mb="$(awk '/SwapTotal/ {print int($2/1024)}' /proc/meminfo 2>/dev/null || echo 0)"
+  mem_mb="$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo 2>/dev/null || echo 0)"
+  echo "Memory headroom: RAM=${mem_mb}MB SWAP=${swap_mb}MB"
+
+  if [ "${swap_mb:-0}" -ge "4096" ]; then
+    return 0
+  fi
+
+  if [ "${WASD_AUTO_SWAP:-1}" != "1" ]; then
+    echo "WARN: swap is below 4096MB but WASD_AUTO_SWAP is disabled."
+    return 0
+  fi
+
+  if [ "$(id -u)" != "0" ]; then
+    echo "WARN: swap is below 4096MB and deploy user is not root; cannot create swapfile automatically."
+    return 0
+  fi
+
+  swapfile="${WASD_SWAPFILE:-/swapfile-wasd-build}"
+  echo "Creating/enabling ${swapfile} for Docker build headroom ..."
+  if [ ! -f "$swapfile" ]; then
+    fallocate -l "${WASD_SWAP_SIZE:-8G}" "$swapfile" 2>/dev/null || dd if=/dev/zero of="$swapfile" bs=1M count="${WASD_SWAP_SIZE_MB:-8192}"
+    chmod 600 "$swapfile"
+    mkswap "$swapfile" >/dev/null
+  fi
+  swapon "$swapfile" 2>/dev/null || true
+}
+
+prune_docker_build_pressure() {
+  echo "Reducing Docker build pressure before pnpm install ..."
+  docker builder prune -f --filter 'until=24h' >/dev/null 2>&1 || true
+  docker image prune -f >/dev/null 2>&1 || true
+  docker container prune -f >/dev/null 2>&1 || true
+}
+
 heal_stale_git_refs() {
   local remote_ref="refs/remotes/origin/${DEPLOY_BRANCH}"
   echo "Healing stale git ref cache for origin/${DEPLOY_BRANCH} ..."
@@ -106,9 +143,16 @@ fetch_and_reset
 echo "Deploy commit: $(git rev-parse --short HEAD)"
 
 export DOCKER_BUILDKIT="${DOCKER_BUILDKIT:-1}"
+export BUILDKIT_STEP_LOG_MAX_SIZE="${BUILDKIT_STEP_LOG_MAX_SIZE:-10485760}"
+export BUILDKIT_STEP_LOG_MAX_SPEED="${BUILDKIT_STEP_LOG_MAX_SPEED:-1048576}"
+export COMPOSE_PARALLEL_LIMIT="${COMPOSE_PARALLEL_LIMIT:-1}"
 
-echo "[2/4] Build images (monorepo context)"
-"${DC[@]}" -f docker-compose.yml build arelorian-engine monitor-bridge
+ensure_swap_headroom
+prune_docker_build_pressure
+
+echo "[2/4] Build images (monorepo context, sequential to avoid OOM)"
+"${DC[@]}" -f docker-compose.yml build --progress=plain arelorian-engine
+"${DC[@]}" -f docker-compose.yml build --progress=plain monitor-bridge
 
 echo "[3/4] Recreate containers"
 "${DC[@]}" -f docker-compose.yml down --remove-orphans || true
