@@ -165,6 +165,23 @@ export class NPCSystem {
     }
 
     public tick(onlinePlayers: any[], worldTime: number): void {
+        const players = onlinePlayers ?? [];
+        if (players.length > 0) {
+            for (const npc of this.npcs.values()) {
+                let anyClose = false;
+                for (const pl of players) {
+                    const pos = pl.position ?? { x: 0, y: 0, z: 0 };
+                    const dx = npc.position.x - pos.x;
+                    const dy = npc.position.y - pos.y;
+                    const distSq = dx * dx + dy * dy;
+                    if (distSq < 225) {
+                        anyClose = true;
+                        break;
+                    }
+                }
+                if (anyClose) npc.state = "interacting";
+            }
+        }
         this.update();
     }
 
@@ -184,6 +201,18 @@ export class NPCSystem {
 
     private update(): void {
         for (const npc of this.npcs.values()) {
+            if (npc.state === "wandering" && npc.targetPosition) {
+                const tx = npc.targetPosition.x - npc.position.x;
+                const ty = npc.targetPosition.y - npc.position.y;
+                const dist = Math.hypot(tx, ty);
+                if (dist < 0.15) {
+                    (npc as { targetPosition?: Vector3 | null }).targetPosition = null;
+                } else {
+                    const step = Math.min(0.2, dist);
+                    npc.position.x += (tx / dist) * step;
+                    npc.position.y += (ty / dist) * step;
+                }
+            }
             this.processPerception(npc);
         }
     }

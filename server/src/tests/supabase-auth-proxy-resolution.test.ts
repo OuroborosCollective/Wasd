@@ -40,18 +40,29 @@ function reqWithHeaders(headers: Record<string, string>): Request {
 describe("resolveSupabaseProxyBaseUrlForRequest", () => {
   const origEnv = { ...process.env };
 
+  function scrubRedactedEnv() {
+    for (const k of Object.keys(process.env)) {
+      if (process.env[k] === "[REDACTED]") delete process.env[k];
+    }
+  }
+
   beforeEach(() => {
     process.env = { ...origEnv };
     process.env.JWT_SECRET = JWT_SECRET;
+    scrubRedactedEnv();
   });
 
   afterEach(() => {
     process.env = { ...origEnv };
+    scrubRedactedEnv();
   });
 
   it("uses API_EXTERNAL_URL when SUPABASE_* unset", () => {
-    process.env.API_EXTERNAL_URL = "http://supabase.arelogic.space:8000";
-    expect(resolveSupabaseProxyBaseUrl()).toBe("http://supabase.arelogic.space:8000");
+    delete process.env.SUPABASE_PROXY_URL;
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_PUBLIC_URL;
+    process.env.API_EXTERNAL_URL = "http://proxy.example:9000";
+    expect(resolveSupabaseProxyBaseUrl()).toBe("http://proxy.example:9000");
   });
 
   it("prefers configured SUPABASE_URL when available", () => {

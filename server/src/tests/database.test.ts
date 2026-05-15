@@ -5,14 +5,15 @@ vi.mock("pg", () => {
   const mq = vi.fn();
   const mc = vi.fn();
   const mo = vi.fn();
+  function MockPool() {
+    this.query = mq;
+    this.connect = mc;
+    this.on = mo;
+  }
   return {
     default: {
-      Pool: vi.fn().mockImplementation(() => ({
-        query: mq,
-        connect: mc,
-        on: mo,
-      }))
-    }
+      Pool: MockPool,
+    },
   };
 });
 

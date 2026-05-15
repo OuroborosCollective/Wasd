@@ -186,6 +186,10 @@ export class ServerBootstrap {
       try { const vite = await import("vite"); const viteServer = await vite.createServer({ server: { middlewareMode: true }, appType: "spa", root: clientRoot }); app.use(viteServer.middlewares); }
       catch (e) { console.error("Failed to start Vite middleware", e); app.use(express.static(clientPath)); }
     } else {
+      const clientPublicRoot = path.join(clientRoot, "public");
+      if (existsSync(clientPublicRoot)) {
+        app.use(express.static(clientPublicRoot, { maxAge: process.env.NODE_ENV === "production" ? "1h" : 0 }));
+      }
       app.use((req, res, next) => { if (req.url?.endsWith(".wasm")) { res.setHeader("Content-Type", "application/wasm"); res.setHeader("Cross-Origin-Opener-Policy", "same-origin"); res.setHeader("Cross-Origin-Embedder-Policy", "require-corp"); } next(); });
       app.use(express.static(clientPath));
     }
