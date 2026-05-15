@@ -438,12 +438,59 @@ export class WorldTick {
       this.saveAll().catch(e => console.error(e));
     }
 
+    // Optimization: Stripped DTOs for the 10Hz broadcast to reduce bandwidth and serialization overhead.
+    // Manual loops are used instead of .map() or functional methods to reduce heap allocations in the hot path.
+    const strippedPlayers = [];
+    for (let i = 0; i < allPlayers.length; i++) {
+      const p = allPlayers[i];
+      strippedPlayers.push({
+        id: p.id,
+        name: p.name,
+        class: p.class,
+        appearance: p.appearance,
+        position: { x: p.position.x, y: p.position.y, z: p.position.z || 0 },
+        rotation: p.rotation || 0,
+        level: p.level,
+        health: p.health,
+        maxHealth: p.maxHealth,
+        isOffline: !!p.isOffline,
+        state: p.state
+      });
+    }
+
+    const allNpcs = this.npcSystem.getAllNPCs();
+    const strippedNpcs = [];
+    for (let i = 0; i < allNpcs.length; i++) {
+      const n = allNpcs[i];
+      strippedNpcs.push({
+        id: n.id,
+        name: n.name,
+        position: { x: n.position.x, y: n.position.y, z: n.position.z || 0 },
+        rotation: n.rotation || 0,
+        health: n.health,
+        maxHealth: n.maxHealth,
+        role: n.role,
+        state: n.state,
+        fusionAdaptiveGlbPath: n.fusionAdaptiveGlbPath
+      });
+    }
+
+    const strippedLoot = [];
+    for (const l of this.lootEntities.values()) {
+      strippedLoot.push({
+        id: l.id,
+        position: { x: l.position.x, y: l.position.y, z: l.position.z || 0 },
+        item: l.item ? { id: l.item.id, name: l.item.name, type: l.item.type } : null,
+        glbPath: l.glbPath
+      });
+    }
+
     this.ws.broadcast({
       type: "world_tick",
       tick: this.tickCount,
-      players: allPlayers,
-      npcs: this.npcSystem.getAllNPCs(),
-      loot: Array.from(this.lootEntities.values())
+      players: strippedPlayers,
+      npcs: strippedNpcs,
+      loot: strippedLoot
     });
   }
 }
