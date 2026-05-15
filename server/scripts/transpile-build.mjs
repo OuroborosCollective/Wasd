@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdir, readFile, readdir, writeFile, copyFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { dirname, extname, join, relative } from 'node:path';
 import ts from 'typescript';
 
@@ -10,14 +10,11 @@ const outDir = join(root, 'dist');
 const compilerOptions = {
   target: ts.ScriptTarget.ES2022,
   module: ts.ModuleKind.ES2022,
-  moduleResolution: ts.ModuleResolutionKind.Bundler,
   esModuleInterop: true,
   experimentalDecorators: true,
-  emitDecoratorMetadata: true,
-  sourceMap: true,
-  inlineSources: true,
+  emitDecoratorMetadata: false,
   resolveJsonModule: true,
-  importsNotUsedAsValues: ts.ImportsNotUsedAsValues.Remove,
+  skipLibCheck: true,
 };
 
 async function walk(dir) {
@@ -28,9 +25,9 @@ async function walk(dir) {
     if (entry.isDirectory()) {
       if (entry.name === 'assets' || entry.name === 'tests' || entry.name === '__tests__') continue;
       files.push(...await walk(full));
-    } else {
-      files.push(full);
+      continue;
     }
+    files.push(full);
   }
   return files;
 }
@@ -46,17 +43,36 @@ function toOutFile(file, extension) {
 
 async function transpile(file) {
   const source = await readFile(file, 'utf8');
-  const result = ts.transpileModule(source, {
-    compilerOptions,
-    fileName: file,
-    reportDiagnostics: false,
-  });
+  let result;
+  try {
+    result = ts.transpileModule(source, {
+      compilerOptions,
+      fileName: file,
+      reportDiagnostics: true,
+    });
+  } catch (error) {
+    console.error(`Transpile failed for ${relative(root, file)}:`);
+    console.error(error && error.stack ? error.stack : error);
+    process.exitCode = 1;
+    return;
+  }
+
+  const diagnostics = result.diagnostics || [];
+  const fatal = diagnostics.filter((item) => item.category === ts.DiagnosticCategory.Error);
+  if (fatal.length > 0) {
+    console.error(`Transpile diagnostics for ${relative(root, file)}:`);
+    console.error(ts.formatDiagnosticsWithColorAndContext(fatal, {
+      getCanonicalFileName: (name) => name,
+      getCurrentDirectory: () => root,
+      getNewLine: () => '\n',
+    }));
+    process.exitCode = 1;
+    return;
+  }
+
   const jsFile = toOutFile(file, '.js');
   await ensureParent(jsFile);
-  await writeFile(jsFile, result.outputText);
-  if (result.sourceMapText) {
-    await writeFile(`${jsFile}.map`, result.sourceMapText);
-  }
+  await writeFile(jsFile, result.outputText || '');
 }
 
 async function copyAsset(file) {
@@ -79,6 +95,10 @@ for (const file of files) {
     await copyAsset(file);
     copied += 1;
   }
+}
+
+if (process.exitCode) {
+  process.exit(process.exitCode);
 }
 
 console.log(`Transpiled ${emitted} TypeScript file(s), copied ${copied} asset file(s).`);
