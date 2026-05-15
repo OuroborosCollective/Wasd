@@ -23,7 +23,7 @@ importers:
   .:
     devDependencies:
       '@types/node':
-        specifier: 25.7.0
+        specifier: ^25.7.0
         version: 25.7.0
       '@typescript-eslint/eslint-plugin':
         specifier: ^8.59.3
