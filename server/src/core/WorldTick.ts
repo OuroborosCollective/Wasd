@@ -163,7 +163,9 @@ export class WorldTick {
       this.socketToPlayer.set(id, uid);
       this.playerToSocket.set(uid, id);
       this.observerEngine.register(id, { x: player.position.x, y: player.position.y });
-      this.ws.sendToPlayer(id, { type: "welcome", id: uid, playerName: player.name, stats: { gold: player.gold, xp: player.xp, hp: player.health, maxHp: player.maxHealth, mp: player.mana, maxMp: player.maxMana, level: player.level || 1 }, inventory: player.inventory, equipment: player.equipment, quests: player.quests });
+      const guildRec = this.guildSystem.getGuildForPlayer(uid);
+      const guildDto = guildRec ? this.guildSystem.toClientDto(guildRec) : null;
+      this.ws.sendToPlayer(id, { type: "welcome", id: uid, playerName: player.name, guild: guildDto, stats: { gold: player.gold, xp: player.xp, hp: player.health, maxHp: player.maxHealth, mp: player.mana, maxMp: player.maxMana, level: player.level || 1 }, inventory: player.inventory, equipment: player.equipment, quests: player.quests });
       return;
     }
     const playerId = this.socketToPlayer.get(id);
@@ -182,6 +184,29 @@ export class WorldTick {
     else if (msg.type === "equip") { this.inventorySystem.equipItem(player, msg.itemId); this.saveAll(); }
     else if (msg.type === "unequip") { this.inventorySystem.unequipItem(player, msg.slot); this.saveAll(); }
     else if (msg.type === "drop") { this.inventorySystem.removeItem(player, msg.itemId); this.saveAll(); }
+    else if (msg.type === "guild_create") {
+      const name = typeof msg.name === "string" ? msg.name.trim() : "";
+      if (!name) { this.ws.sendToPlayer(id, { type: "toast", text: "Guild name required." }); return; }
+      if (this.guildSystem.getGuildIdForPlayer(playerId)) { this.ws.sendToPlayer(id, { type: "toast", text: "You are already in a guild." }); return; }
+      const guild = this.guildSystem.createGuildAuto(name, playerId);
+      this.ws.sendToPlayer(id, { type: "guild_state", guild: this.guildSystem.toClientDto(guild) });
+    }
+    else if (msg.type === "guild_invite_accept") {
+      const guildId = typeof msg.guildId === "string" ? msg.guildId.trim() : "";
+      if (!guildId) return;
+      if (this.guildSystem.getGuildIdForPlayer(playerId)) { this.ws.sendToPlayer(id, { type: "toast", text: "You are already in a guild." }); return; }
+      const guild = this.guildSystem.addMember(guildId, playerId);
+      if (!guild) { this.ws.sendToPlayer(id, { type: "toast", text: "Guild not found." }); return; }
+      this.ws.sendToPlayer(id, { type: "guild_state", guild: this.guildSystem.toClientDto(guild) });
+    }
+    else if (msg.type === "guild_leave") {
+      const guild = this.guildSystem.leaveGuild(playerId);
+      this.ws.sendToPlayer(id, { type: "guild_state", guild: guild ? this.guildSystem.toClientDto(guild) : null });
+    }
+    else if (msg.type === "guild_sync") {
+      const guild = this.guildSystem.getGuildForPlayer(playerId);
+      this.ws.sendToPlayer(id, { type: "guild_state", guild: guild ? this.guildSystem.toClientDto(guild) : null });
+    }
   }
 
   private handleAttack(id: string, player: any, msg: any) { const targetId = msg.targetId; const npc = this.npcSystem.getNPC(targetId); if (npc && npc.health !== undefined) { const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y); if (dist < 30) { const baseDamage = 10; npc.health -= baseDamage; this.ws.broadcast({ type: "combat_feedback", targetId, damage: baseDamage, health: npc.health, maxHealth: npc.maxHealth }); if (npc.health <= 0) this.handleNPCDeath(id, player, npc, targetId); } } }

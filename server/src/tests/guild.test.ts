@@ -67,6 +67,28 @@ describe("GuildSystem", () => {
     const g2Members = guilds.addMember("g2", "p4")!.members;
     expect(g2Members).not.toContain("p3");
   });
+
+  it("getGuildForPlayer() resolves membership after createGuild", () => {
+    guilds.createGuild("g1", "Test", "alice");
+    expect(guilds.getGuildIdForPlayer("alice")).toBe("g1");
+    expect(guilds.getGuildForPlayer("alice")?.name).toBe("Test");
+  });
+
+  it("leaveGuild() removes the player and keeps the guild for others", () => {
+    guilds.createGuild("g1", "Test", "alice");
+    guilds.addMember("g1", "bob");
+    const after = guilds.leaveGuild("alice");
+    expect(after?.members).not.toContain("alice");
+    expect(after?.founderId).toBe("bob");
+    expect(guilds.getGuildIdForPlayer("alice")).toBeUndefined();
+  });
+
+  it("createGuildAuto() assigns a unique id", () => {
+    const a = guilds.createGuildAuto("A", "p1");
+    const b = guilds.createGuildAuto("B", "p2");
+    expect(a.id).not.toBe(b.id);
+    expect(guilds.listGuilds()).toHaveLength(2);
+  });
 });
 
 // ---------------------------------------------------------------------------

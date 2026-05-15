@@ -18,6 +18,7 @@ import {
   pushProtocolMsgToGameHud,
 } from "../ui/gameHudBridge";
 import { applyQuestlineFeatures, applyQuestlineState } from "../state/questlineState";
+import { socialState } from "../state/socialState";
 
 let lastImpactPulseAt = 0;
 
@@ -506,6 +507,9 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
       if (data.type === 'entity_action') {
         core.handleEntityAction(data.entityId, data.action);
       }
+      if (data.type === "guild_state") {
+        socialState.guild = data.guild ?? null;
+      }
       if (data.type === 'welcome') {
         console.log(`Welcome to Areloria! Your ID: ${data.playerId}`);
         welcomeReceived = true;
@@ -543,6 +547,9 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
           }
         }
         pushGameHudConnected(true);
+        if ("guild" in data) {
+          socialState.guild = (data as { guild?: unknown }).guild ?? null;
+        }
         if (data.stats && typeof data.stats === "object") {
           applyStatsPayload(data.stats);
           const cooldowns = data.stats.skillCooldownUntil && typeof data.stats.skillCooldownUntil === "object"

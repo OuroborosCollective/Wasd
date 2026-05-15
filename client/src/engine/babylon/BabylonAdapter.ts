@@ -889,11 +889,7 @@ export class BabylonAdapter implements IEngineBridge {
   }
 
   private startEntityAnimations(entity: EntityNode): void {
-    const shouldAnimate =
-      entity.entityType === "player" ||
-      entity.entityType === "npc" ||
-      entity.entityType === "monster";
-    if (!shouldAnimate || entity.activeAnimationGroups.length === 0) {
+    if (entity.activeAnimationGroups.length === 0) {
       return;
     }
     for (const group of entity.activeAnimationGroups) {
@@ -1132,6 +1128,14 @@ export class BabylonAdapter implements IEngineBridge {
 
   private applyAREMaterialMode(node: EntityNode): void {
     if (this.areMode === "shader") {
+      if (node.activeAnimationGroups.length > 0) {
+        for (const mesh of node.areMeshes) {
+          if (node.areBaseMaterials.has(mesh.uniqueId)) {
+            mesh.material = node.areBaseMaterials.get(mesh.uniqueId) ?? null;
+          }
+        }
+        return;
+      }
       const shader = this.ensureAREShader(node);
       for (const mesh of node.areMeshes) {
         mesh.material = shader;
