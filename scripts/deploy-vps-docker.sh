@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Run on the VPS inside the monorepo root (e.g. /opt/areloria).
 # Pulls latest main, rebuilds Docker images, restarts stack, health-checks.
+# Deploy trigger touch: keep this file in workflow path filters.
 set -euo pipefail
 
 DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
