@@ -7,13 +7,25 @@
 
 import type { IWorldEvent } from "./portalWorldTypes";
 
-export type EchoKind = "combat" | "trade";
+export type EchoKind = "combat" | "trade" | "loot";
+export type LootEchoQuality = "epic" | "legendary" | "mythic" | string;
+
+export interface LootEchoMeta {
+  itemId: string;
+  itemName: string;
+  quality: LootEchoQuality;
+  sector: string;
+  probability: number;
+  rollHash?: string;
+  sourceId?: string;
+}
 
 export interface WorldEcho {
   id: string;
   kind: EchoKind;
   summary: string;
   ts: number;
+  loot?: LootEchoMeta;
   /** Optional mirror of server-style world lines */
   worldLine?: Pick<IWorldEvent, "title" | "description">;
 }
@@ -75,6 +87,20 @@ export class PortalWorldHistory {
     return this.pushEcho({ kind: "trade", summary, worldLine });
   }
 
+  recordLootDrop(meta: LootEchoMeta): WorldEcho {
+    const probabilityPct = (meta.probability * 100).toFixed(4);
+    const summary = `Golden loot echo · ${meta.quality.toUpperCase()} · ${meta.itemName} · sector ${meta.sector} · p=${probabilityPct}%`;
+    return this.pushEcho({
+      kind: "loot",
+      summary,
+      loot: meta,
+      worldLine: {
+        title: `Loot manifestation · ${meta.quality.toUpperCase()}`,
+        description: `Architekt Thomas, die Kausalität hat ${meta.itemName} in Sektor ${meta.sector} manifestiert. Wahrscheinlichkeit: ${probabilityPct}%.`,
+      },
+    });
+  }
+
   /** O(1) — most recent echo or null. */
   getHead(): WorldEcho | null {
     if (this.writeSeq === 0) return null;
@@ -101,20 +127,24 @@ export class PortalWorldHistory {
   getEchoDigestSummary(max = 10): {
     combat: number;
     trade: number;
+    loot: number;
     total: number;
     lines: string[];
   } {
     const slice = this.snapshotRecent(max);
     const combat = slice.filter((e) => e.kind === "combat").length;
     const trade = slice.filter((e) => e.kind === "trade").length;
+    const loot = slice.filter((e) => e.kind === "loot").length;
     const lines = slice.slice(0, 5).map((e) => `[${e.kind}] ${e.summary.slice(0, 72)}`);
-    return { combat, trade, total: slice.length, lines };
+    return { combat, trade, loot, total: slice.length, lines };
   }
 
   /** Optional: ingest server-shaped world lines as echo metadata. */
   ingestWorldLine(ev: IWorldEvent): void {
     const t = (ev.title + " " + ev.description).toLowerCase();
-    if (t.includes("trade") || t.includes("handel") || t.includes("deal")) {
+    if (t.includes("loot") || t.includes("drop") || t.includes("legendary") || t.includes("epic")) {
+      this.pushEcho({ kind: "loot", summary: ev.title, worldLine: { title: ev.title, description: ev.description } });
+    } else if (t.includes("trade") || t.includes("handel") || t.includes("deal")) {
       this.recordNpcTradeComplete(ev.title, { title: ev.title, description: ev.description });
     } else if (t.includes("combat") || t.includes("kampf") || t.includes("kill")) {
       this.recordNpcCombatComplete(ev.title, { title: ev.title, description: ev.description });
