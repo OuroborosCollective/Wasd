@@ -4,6 +4,9 @@ export default defineConfig({
   test: {
     include: ["server/src/tests/**/*.test.ts", "client/src/**/*.test.ts", "client/src/**/*.test.tsx", "portal/src/**/*.test.ts"],
     environment: "node",
+    env: {
+      PERSISTENCE_DRIVER: "file",
+    },
     server: {
       deps: {
         external: [
