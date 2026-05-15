@@ -29,6 +29,10 @@ FROM base AS deps
 
 WORKDIR /app
 
+# Invalidate workspace manifest cache after dependency graph corrections.
+ARG WORKSPACE_MANIFEST_CACHE_BUST=2026-05-15-0006
+RUN echo "workspace manifest cache bust: ${WORKSPACE_MANIFEST_CACHE_BUST}"
+
 # Workspace manifests
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 
