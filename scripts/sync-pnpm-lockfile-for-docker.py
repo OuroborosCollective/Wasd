@@ -56,6 +56,12 @@ def yaml_scalar(value: str) -> str:
     return value
 
 
+def string_deps(value: object) -> dict[str, str]:
+    if not isinstance(value, dict):
+        return {}
+    return {str(k): str(v) for k, v in value.items()}
+
+
 def load_manifest_specs() -> dict[str, dict[str, dict[str, str]]]:
     specs: dict[str, dict[str, dict[str, str]]] = {}
     for manifest in sorted(ROOT.rglob("package.json")):
@@ -63,11 +69,17 @@ def load_manifest_specs() -> dict[str, dict[str, dict[str, str]]]:
             continue
         importer = "." if manifest.parent == ROOT else manifest.parent.as_posix()
         data = json.loads(manifest.read_text())
-        importer_specs: dict[str, dict[str, str]] = {}
-        for group in DEPENDENCY_GROUPS:
-            deps = data.get(group) or {}
-            if isinstance(deps, dict):
-                importer_specs[group] = {str(k): str(v) for k, v in deps.items()}
+
+        dependencies = string_deps(data.get("dependencies"))
+        # pnpm stores peerDependencies in importer dependency specifiers for
+        # frozen-lockfile validation, so merge them into the dependency bucket.
+        dependencies.update(string_deps(data.get("peerDependencies")))
+
+        importer_specs: dict[str, dict[str, str]] = {
+            "dependencies": dependencies,
+            "devDependencies": string_deps(data.get("devDependencies")),
+            "optionalDependencies": string_deps(data.get("optionalDependencies")),
+        }
         specs[importer] = importer_specs
     return specs
 
