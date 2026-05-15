@@ -17,6 +17,7 @@ import { warfrontRouter } from "../api/warfrontRoute.js";
 import { areValidationRouter } from "../api/areValidationRoute.js";
 import { areReplayRouter } from "../api/areReplayRoute.js";
 import { sovereignDeployRouter } from "../api/sovereignDeployRoute.js";
+import { collectiveIngressRouter } from "../api/collectiveIngressRoute.js";
 import { getContentDataSourceLabel, resolveContentDir } from "../modules/content/contentDataRoot.js";
 import { getSupabaseSummary, verifySupabaseToken } from "../config/supabase.js";
 import { resolveWorldAssetsDir } from "./resolveWorldAssetsDir.js";
@@ -127,7 +128,7 @@ export class ServerBootstrap {
       const persistence = tick?.getPersistenceStats() ?? { status: "unknown" };
       const content = getContentDataSourceLabel();
       const selfHealingStatus = selfHealingRuntime.getStatus();
-      res.json({ ok: true, project: "ARELORIAN MMORPG", version: "0.2.0", persistence, content: { mode: content.mode, root: content.root }, supabase: getSupabaseSummary(), auth: { useSupabaseWsLogin: envTruthy("USE_SUPABASE_WS_LOGIN"), requireSupabaseAuth: envTruthy("REQUIRE_SUPABASE_AUTH"), allowGuestLogin: (() => { const v = process.env.ALLOW_GUEST_LOGIN?.trim().toLowerCase(); if (v === "0" || v === "false" || v === "no") return false; return true; })(), allowDevLogin: !["0", "false", "no"].includes(process.env.ALLOW_DEV_LOGIN?.trim().toLowerCase() || "") }, selfHealing: { active: selfHealingStatus.active, patchMode: selfHealingStatus.config?.patchMode ?? "disabled", totalErrors: selfHealingStatus.totalErrors, totalHealed: selfHealingStatus.totalHealed, healingRate: selfHealingStatus.healingRate, featuresProtected: selfHealingStatus.featuresProtected }, are: { guard: tick?.getAREGuardStatus?.() ?? null, worldHash: tick?.getWorldHashSnapshot?.()?.worldHash ?? null, replay: tick?.getReplayRecorderStats?.() ?? null } });
+      res.json({ ok: true, project: "ARELORIAN MMORPG", version: "0.2.0", persistence, content: { mode: content.mode, root: content.root }, supabase: getSupabaseSummary(), auth: { useSupabaseWsLogin: envTruthy("USE_SUPABASE_WS_LOGIN"), requireSupabaseAuth: envTruthy("REQUIRE_SUPABASE_AUTH"), allowGuestLogin: (() => { const v = process.env.ALLOW_GUEST_LOGIN?.trim().toLowerCase(); if (v === "0" || v === "false" || v === "no") return false; return true; })(), allowDevLogin: !["0", "false", "no"].includes(process.env.ALLOW_DEV_LOGIN?.trim().toLowerCase() || "") }, selfHealing: { active: selfHealingStatus.active, patchMode: selfHealingStatus.config?.patchMode ?? "disabled", totalErrors: selfHealingStatus.totalErrors, totalHealed: selfHealingStatus.totalHealed, healingRate: selfHealingStatus.healingRate, featuresProtected: selfHealingStatus.featuresProtected }, are: { guard: tick?.getAREGuardStatus?.() ?? null, worldHash: tick?.getWorldHashSnapshot?.()?.worldHash ?? null, replay: tick?.getReplayRecorderStats?.() ?? null }, collective: tick?.getCollectiveIngressStatus?.() ?? null });
     });
     app.get("/", (req, res, next) => { if (req.headers["user-agent"]?.includes("GoogleHC")) return res.status(200).send("OK"); next(); });
     app.use("/auth/v1", async (req, res) => {
@@ -162,6 +163,7 @@ export class ServerBootstrap {
     app.use("/api/are/validation", areValidationRouter(tick));
     app.use("/api/are/replay", areReplayRouter(tick));
     app.use("/api/sovereign/deploy", sovereignDeployRouter(tick));
+    app.use("/api/collective/ingress", collectiveIngressRouter(tick));
     const monitorStream = new PlaytesterMonitorStream(httpServer, (options) => tick.buildPlaytesterMonitorPayload(options));
     monitorStream.start();
     const playtesterSignaling = new PlaytesterWebRTCSignaling(httpServer);
