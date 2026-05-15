@@ -2,6 +2,7 @@ import express from "express";
 import type { WorldTick } from "../core/WorldTick.js";
 import { attachSovereignBillingBridge } from "../market/SovereignBillingBridge.js";
 import { calculateUsageCost, sovereignMarket } from "../market/SovereignMarket.js";
+import { paypalAdapter } from "../finance/PayPalAdapter.js";
 
 function parseTick(raw: string): number | null {
   const tick = Number(raw);
@@ -47,6 +48,34 @@ export function areReplayRouter(tick: WorldTick) {
     if (!Number.isFinite(credits) || credits <= 0) return res.status(400).json({ ok: false, error: "invalid_credits" });
     const account = sovereignMarket.creditAccount(source, credits, displayName);
     res.json({ ok: true, account, market: sovereignMarket.getStatus() });
+  });
+
+  router.post("/billing/paypal/checkout", express.json({ limit: "64kb" }), async (req, res) => {
+    try {
+      const clientId = String(req.body?.clientId || process.env.ARE_SDK_CLIENT_ID || "local-engine");
+      const displayName = String(req.body?.displayName || process.env.ARE_SDK_DISPLAY_NAME || clientId);
+      const credits = Number(req.body?.credits ?? 25);
+      const checkout = await paypalAdapter.createCheckoutLink({ clientId, displayName, credits, returnUrl: req.body?.returnUrl, cancelUrl: req.body?.cancelUrl });
+      res.json(checkout);
+    } catch (error) {
+      res.status(500).json({ ok: false, error: "paypal_checkout_failed", message: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  router.post("/billing/paypal/webhook", express.json({ limit: "256kb" }), async (req, res) => {
+    try {
+      const result = await paypalAdapter.handleWebhook(req);
+      if (result.credited && result.message) {
+        const ws = (tick as any).ws;
+        if (ws && typeof ws.broadcast === "function") {
+          ws.broadcast({ type: "CHAT_MSG", payload: { channel: "system", sender: "Emily-Finance", text: result.message } });
+          ws.broadcast({ type: "ARE_BILLING", payload: { market: sovereignMarket.getStatus(), paypal: { credited: true, transactionId: result.transactionId, credits: result.credits } } });
+        }
+      }
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ ok: false, error: "paypal_webhook_failed", message: error instanceof Error ? error.message : String(error) });
+    }
   });
 
   router.get("/oracle/prophecy", (_req, res) => {
