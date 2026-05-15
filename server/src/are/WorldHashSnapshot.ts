@@ -28,12 +28,7 @@ export interface ChunkHashSnapshot {
   chunkSize: number;
   tick: number;
   hash: string;
-  counts: {
-    players: number;
-    npcs: number;
-    loot: number;
-    total: number;
-  };
+  counts: { players: number; npcs: number; loot: number; total: number };
 }
 
 export interface WorldHashSnapshot {
@@ -42,6 +37,7 @@ export interface WorldHashSnapshot {
   worldHash: string;
   chunkSize: number;
   chunks: ChunkHashSnapshot[];
+  /** Deterministic marker. This is intentionally not wall-clock time. */
   createdAtIso: string;
 }
 
@@ -145,7 +141,7 @@ export function createWorldHashSnapshot(input: WorldHashSnapshotInput): WorldHas
     worldHash: sha256({ tick: input.tick, payloadHash, chunkSize, chunks }),
     chunkSize,
     chunks,
-    createdAtIso: new Date().toISOString(),
+    createdAtIso: `deterministic-tick:${input.tick}`,
   };
 }
 
@@ -158,7 +154,6 @@ export function compareWorldHashSnapshots(server: WorldHashSnapshot, portal?: Pa
       return portalChunks.has(key) && portalChunks.get(key) !== chunk.hash;
     })
     .map((chunk) => ({ chunkX: chunk.chunkX, chunkY: chunk.chunkY, serverHash: chunk.hash, portalHash: portalChunks.get(`${chunk.chunkX}:${chunk.chunkY}`) }));
-
   return {
     ok: Boolean(portalWorldHash && portalWorldHash === server.worldHash) && mismatches.length === 0,
     serverWorldHash: server.worldHash,
