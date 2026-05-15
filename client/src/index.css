@@ -181,6 +181,38 @@
   animation: fire-shake 220ms steps(2, end) 2;
 }
 
+.are-violation-mode {
+  --pulse-marina-rgb: var(--pulse-fire-rgb);
+  --pulse-neon-rgb: var(--pulse-fire-rgb);
+  animation: fire-shake 280ms steps(2, end) infinite;
+}
+
+.are-violation-mode .cyber-bg {
+  filter: saturate(1.7) contrast(1.25) hue-rotate(-18deg);
+}
+
+.are-violation-mode .cyber-grid {
+  background-image:
+    linear-gradient(rgba(var(--pulse-fire-rgb), 0.13) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--pulse-fire-rgb), 0.1) 1px, transparent 1px);
+}
+
+.are-violation-banner {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  border-bottom: 1px solid rgba(var(--pulse-fire-rgb), 0.65);
+  background: linear-gradient(90deg, rgba(230, 0, 0, 0.92), rgba(255, 122, 0, 0.72), rgba(230, 0, 0, 0.92));
+  padding: 0.6rem 1rem;
+  text-align: center;
+  font-family: 'Fira Code', ui-monospace, monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: white;
+  box-shadow: 0 0 32px rgba(var(--pulse-fire-rgb), 0.55);
+}
+
 @keyframes scanline {
   to { transform: translateY(100%); }
 }

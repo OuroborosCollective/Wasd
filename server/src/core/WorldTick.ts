@@ -1,7 +1,3 @@
-// Alias for backwards compatibility
-import { WorldPlacementRuleEngine } from "../world/services/WorldPlacementRuleEngine.js";
-const PlacementEngine = WorldPlacementRuleEngine;
-
 import { GLBRegistry } from "../modules/asset-registry/GLBRegistry.js";
 import { ChunkSystem } from "../modules/world/ChunkSystem.js";
 import { ObserverEngine } from "../modules/observer/ObserverEngine.js";
@@ -13,22 +9,22 @@ import { NPCSystem } from "../modules/npc/NPCSystem.js";
 import { GuildSystem } from "../modules/guild/GuildSystem.js";
 import { EconomySystem } from "../modules/economy/EconomySystem.js";
 import { QuestEngine } from "../modules/quest/QuestEngine.js";
-import { LegendPropagationSystem } from "../systems/LegendPropagationSystem.js";
 import { WorldSystem } from "../modules/world/WorldSystem.js";
 import { PersistenceManager } from "./PersistenceManager.js";
 import { verifyFirebaseToken } from "../config/firebase.js";
-import { ItemRegistry } from "../modules/inventory/ItemRegistry.js";
-import { cache } from "./Cache.js";
-import fs from "fs";
-import path from "path";
-
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { WorldHistory } from "../modules/history/WorldHistory.js";
 import { bootstrapWarfrontNpcs, runWarfrontCombatTick } from "../modules/warfront/WarfrontCombatOrchestrator.js";
+import { AREInvariantGuard, DeterminismViolation, type AREInvariantGuardStatus } from "../are/AREInvariantGuard.js";
+import { areValidationState } from "../are/AREValidationState.js";
+import { createWorldHashSnapshot, type WorldHashSnapshot } from "../are/WorldHashSnapshot.js";
 
 export class WorldTick {
   private timer: NodeJS.Timeout | null = null;
   private tickCount = 0;
+  private readonly areGuard = new AREInvariantGuard({ throwOnViolation: true });
+  private lastAREGuardStatus: AREInvariantGuardStatus | null = null;
+  private lastWorldHashSnapshot: WorldHashSnapshot | null = null;
 
   public chunkSystem: ChunkSystem;
   public observerEngine: ObserverEngine;
@@ -45,16 +41,12 @@ export class WorldTick {
   public glbRegistry: GLBRegistry;
   private lootEntities: Map<string, any> = new Map();
 
-  private socketToPlayer: Map<string, string> = new Map(); // socketId -> characterName
+  private socketToPlayer: Map<string, string> = new Map();
   private lastActionTimes: Map<string, any> = new Map();
 
   public assetPoolResolver: any = {
-    getDocument: () => ({}),
-    setEntry: () => true,
-    removeEntry: () => true,
-    setDefault: () => true,
-    removeDefault: () => true,
-    reload: () => true,
+    getDocument: () => ({}), setEntry: () => true, removeEntry: () => true,
+    setDefault: () => true, removeDefault: () => true, reload: () => true,
   };
   public getPersistenceStats(): any { return {}; }
   public placementEngine: any = {};
@@ -76,7 +68,7 @@ export class WorldTick {
   public resourceSystem: any = { nodes: new Map() };
   public chatSystem: any = { getRecentMessages: () => [], systemMessage: () => {}, sendMessage: () => ({}) };
   public lootSystem: any = { rollLoot: () => ({ items: [], gold: 0 }) };
-  public liveHeal: any = { getStatus: () => ({ tickCount: 0 }), flush: () => {} };
+  public liveHeal: any = { getStatus: () => ({ tickCount: this.tickCount }), flush: () => {} };
   public getPlaytesterDebugLogPath(): string { return ""; }
   public buildPlaytesterMonitorPayload(options?: any): any { return {}; }
   public assetHealthService: any = { getStatus: () => ({}), getStats: () => null, flush: () => {} };
@@ -115,7 +107,7 @@ export class WorldTick {
         if (player) {
           player.isOffline = true;
           player.state = "idle";
-          player.stateTimer = Date.now() + 5000;
+          player.stateTimer = this.tickCount + 50;
         }
         this.observerEngine.unregister(id);
         this.socketToPlayer.delete(id);
@@ -124,148 +116,142 @@ export class WorldTick {
       }
     };
 
-    this.ws.onPlayerMessage = async (id, msg) => {
-      if (msg.type === "login") {
-        if (!msg.token) {
-          this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed: No token provided" });
-          setTimeout(() => {
-            const client = Array.from((this.ws as any).wss.clients).find((c: any) => c.id === id);
-            if (client) (client as any).close();
-          }, 500);
-          return;
-        }
+    this.ws.onPlayerMessage = async (id, msg) => this.handlePlayerMessage(id, msg);
+  }
 
-        let charName = "Unknown";
-        let uid = "";
+  public getAREGuardStatus(): AREInvariantGuardStatus | null {
+    return this.lastAREGuardStatus;
+  }
 
-        try {
-          const decodedToken = await verifyFirebaseToken(msg.token) as any;
-          if (decodedToken) {
-            uid = decodedToken.uid;
-            charName = decodedToken.name || decodedToken.email?.split('@')[0] || `Player_${uid.substring(0, 6)}`;
-          } else {
-            this.ws.sendToPlayer(id, { type: "error", message: "Authentication service unavailable" });
-            return;
-          }
-        } catch (e) {
-          this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed: Invalid token" });
-          return;
-        }
+  public getWorldHashSnapshot(): WorldHashSnapshot | null {
+    return this.lastWorldHashSnapshot;
+  }
 
-        let player = this.playerSystem.getPlayer(uid);
-        if (!player) {
-          player = this.playerSystem.createPlayer(uid, charName, msg.class, msg.appearance);
-          this.hydratePlayer(player);
-        } else {
-          player.isOffline = false;
-        }
+  public comparePortalWorldHash(portalSnapshot: Partial<WorldHashSnapshot> | null | undefined): any {
+    if (!this.lastWorldHashSnapshot) return { ok: false, error: "world_hash_snapshot_not_ready" };
+    const server = this.lastWorldHashSnapshot;
+    const portalWorldHash = portalSnapshot?.worldHash ?? null;
+    const portalChunks = new Map((portalSnapshot?.chunks ?? []).map((chunk: any) => [`${chunk.chunkX}:${chunk.chunkY}`, chunk.hash]));
+    const mismatches = server.chunks
+      .filter((chunk) => portalChunks.has(`${chunk.chunkX}:${chunk.chunkY}`) && portalChunks.get(`${chunk.chunkX}:${chunk.chunkY}`) !== chunk.hash)
+      .map((chunk) => ({ chunkX: chunk.chunkX, chunkY: chunk.chunkY, serverHash: chunk.hash, portalHash: portalChunks.get(`${chunk.chunkX}:${chunk.chunkY}`) }));
+    return {
+      ok: Boolean(portalWorldHash && portalWorldHash === server.worldHash) && mismatches.length === 0,
+      serverWorldHash: server.worldHash,
+      portalWorldHash,
+      mismatches,
+      missingPortalChunks: server.chunks.filter((chunk) => !portalChunks.has(`${chunk.chunkX}:${chunk.chunkY}`)).map((chunk) => ({ chunkX: chunk.chunkX, chunkY: chunk.chunkY })),
+    };
+  }
 
-        if (player.name !== charName) player.name = charName;
-        this.socketToPlayer.set(id, uid);
-        this.playerToSocket.set(uid, id);
-        this.observerEngine.register(id, { x: player.position.x, y: player.position.y });
-
-        this.ws.sendToPlayer(id, {
-          type: "welcome",
-          id: uid,
-          playerName: player.name,
-          stats: {
-            gold: player.gold,
-            xp: player.xp,
-            hp: player.health,
-            maxHp: player.maxHealth,
-            mp: player.mana,
-            maxMp: player.maxMana,
-            level: player.level || 1
-          },
-          inventory: player.inventory,
-          equipment: player.equipment,
-          quests: player.quests
-        });
+  private async handlePlayerMessage(id: string, msg: any) {
+    if (msg.type === "login") {
+      if (!msg.token) {
+        this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed: No token provided" });
+        setTimeout(() => {
+          const client = Array.from((this.ws as any).wss.clients).find((c: any) => c.id === id);
+          if (client) (client as any).close();
+        }, 500);
         return;
       }
 
-      const playerId = this.socketToPlayer.get(id);
-      if (!playerId) return;
-
-      const player = this.playerSystem.getPlayer(playerId);
-      if (!player) return;
-
-      const charName = player.name;
-      const now = Date.now();
-      const checkCooldown = (cooldown: number) => {
-        const pTimes = this.lastActionTimes.get(charName) || {};
-        const last = pTimes["general"] || 0;
-        if (now - last < cooldown) return false;
-        pTimes["general"] = now;
-        this.lastActionTimes.set(charName, pTimes);
-        return true;
-      };
-
-      if (msg.type === "move_intent") {
-        const speed = 5;
-        let dx = Number(msg.dx) || 0;
-        let dy = Number(msg.dy) || 0;
-        const magSq = dx * dx + dy * dy;
-        if (magSq > 1) {
-          const mag = Math.sqrt(magSq);
-          dx /= mag;
-          dy /= mag;
+      let charName = "Unknown";
+      let uid = "";
+      try {
+        const decodedToken = await verifyFirebaseToken(msg.token) as any;
+        if (decodedToken) {
+          uid = decodedToken.uid;
+          charName = decodedToken.name || decodedToken.email?.split('@')[0] || `Player_${uid.substring(0, 6)}`;
+        } else {
+          this.ws.sendToPlayer(id, { type: "error", message: "Authentication service unavailable" });
+          return;
         }
-        if (!isNaN(dx) && !isNaN(dy)) {
-          player.position.x += dx * speed;
-          player.position.y += dy * speed;
-          player.position.x = Math.floor(player.position.x * 1000) / 1000;
-          player.position.y = Math.floor(player.position.y * 1000) / 1000;
-          this.observerEngine.updatePosition(id, { x: player.position.x, y: player.position.y });
-        }
-      } else if (msg.type === "chat") {
-        if (msg.text && typeof msg.text === "string" && msg.text.trim().length > 0) {
-          const channel = msg.channel || "local";
-          this.ws.broadcast({ type: "CHAT_MSG", payload: { channel, sender: player.name, text: msg.text.trim() }});
-        }
-      } else if (msg.type === "MOVE") {
-        const speed = 5;
-        let dx = Number(msg.dx) || 0;
-        let dz = Number(msg.dz) || 0;
-        const magSq = dx * dx + dz * dz;
-        if (magSq > 1) {
-          const mag = Math.sqrt(magSq);
-          dx /= mag;
-          dz /= mag;
-        }
-        if (!isNaN(dx) && !isNaN(dz)) {
-          player.position.x += dx * speed;
-          player.position.y += dz * speed;
-          player.position.x = Math.floor(player.position.x * 1000) / 1000;
-          player.position.y = Math.floor(player.position.y * 1000) / 1000;
-          this.observerEngine.updatePosition(id, { x: player.position.x, y: player.position.y });
-        }
-      } else if (msg.type === "USE_SKILL") {
-        const skillId = msg.skillId;
-        if (skillId === "atk" && !checkCooldown(800)) return;
-        if (skillId === "def") player.mana = Math.min(player.maxMana, player.mana + 10);
-        if (skillId === "mag" && !checkCooldown(3000)) return;
-        if ((skillId === "mag" || skillId === "atk") && !checkCooldown(800)) return;
-      } else if (msg.type === "attack") {
-        if (!checkCooldown(800)) return;
-        this.handleAttack(id, player, msg);
-      } else if (msg.type === "interact") {
-        if (!checkCooldown(500)) return;
-        this.handleInteract(id, player, msg);
-      } else if (msg.type === "dialogue_choice") {
-        this.handleDialogueChoice(id, player, msg);
-      } else if (msg.type === "equip") {
-        this.inventorySystem.equipItem(player, msg.itemId);
-        this.saveAll();
-      } else if (msg.type === "unequip") {
-        this.inventorySystem.unequipItem(player, msg.slot);
-        this.saveAll();
-      } else if (msg.type === "drop") {
-        this.inventorySystem.removeItem(player, msg.itemId);
-        this.saveAll();
+      } catch {
+        this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed: Invalid token" });
+        return;
       }
+
+      let player = this.playerSystem.getPlayer(uid);
+      if (!player) {
+        player = this.playerSystem.createPlayer(uid, charName, msg.class, msg.appearance);
+        this.hydratePlayer(player);
+      } else {
+        player.isOffline = false;
+      }
+      if (player.name !== charName) player.name = charName;
+      this.socketToPlayer.set(id, uid);
+      this.playerToSocket.set(uid, id);
+      this.observerEngine.register(id, { x: player.position.x, y: player.position.y });
+      this.ws.sendToPlayer(id, {
+        type: "welcome",
+        id: uid,
+        playerName: player.name,
+        stats: { gold: player.gold, xp: player.xp, hp: player.health, maxHp: player.maxHealth, mp: player.mana, maxMp: player.maxMana, level: player.level || 1 },
+        inventory: player.inventory,
+        equipment: player.equipment,
+        quests: player.quests
+      });
+      return;
+    }
+
+    const playerId = this.socketToPlayer.get(id);
+    if (!playerId) return;
+    const player = this.playerSystem.getPlayer(playerId);
+    if (!player) return;
+    const charName = player.name;
+    const nowTick = this.tickCount;
+    const checkCooldown = (cooldownMs: number) => {
+      const cooldownTicks = Math.max(1, Math.ceil(cooldownMs / 100));
+      const pTimes = this.lastActionTimes.get(charName) || {};
+      const last = pTimes["general"] || 0;
+      if (nowTick - last < cooldownTicks) return false;
+      pTimes["general"] = nowTick;
+      this.lastActionTimes.set(charName, pTimes);
+      return true;
     };
+
+    if (msg.type === "move_intent" || msg.type === "MOVE") {
+      const speed = 5;
+      let dx = Number(msg.dx) || 0;
+      let dy = Number(msg.dy ?? msg.dz) || 0;
+      const magSq = dx * dx + dy * dy;
+      if (magSq > 1) { const mag = Math.sqrt(magSq); dx /= mag; dy /= mag; }
+      if (!Number.isNaN(dx) && !Number.isNaN(dy)) {
+        player.position.x += dx * speed;
+        player.position.y += dy * speed;
+        player.position.x = Math.floor(player.position.x * 1000) / 1000;
+        player.position.y = Math.floor(player.position.y * 1000) / 1000;
+        this.observerEngine.updatePosition(id, { x: player.position.x, y: player.position.y });
+      }
+    } else if (msg.type === "chat") {
+      if (msg.text && typeof msg.text === "string" && msg.text.trim().length > 0) {
+        const channel = msg.channel || "local";
+        this.ws.broadcast({ type: "CHAT_MSG", payload: { channel, sender: player.name, text: msg.text.trim() }});
+      }
+    } else if (msg.type === "USE_SKILL") {
+      const skillId = msg.skillId;
+      if (skillId === "atk" && !checkCooldown(800)) return;
+      if (skillId === "def") player.mana = Math.min(player.maxMana, player.mana + 10);
+      if (skillId === "mag" && !checkCooldown(3000)) return;
+      if ((skillId === "mag" || skillId === "atk") && !checkCooldown(800)) return;
+    } else if (msg.type === "attack") {
+      if (!checkCooldown(800)) return;
+      this.handleAttack(id, player, msg);
+    } else if (msg.type === "interact") {
+      if (!checkCooldown(500)) return;
+      this.handleInteract(id, player, msg);
+    } else if (msg.type === "dialogue_choice") {
+      this.handleDialogueChoice(id, player, msg);
+    } else if (msg.type === "equip") {
+      this.inventorySystem.equipItem(player, msg.itemId);
+      this.saveAll();
+    } else if (msg.type === "unequip") {
+      this.inventorySystem.unequipItem(player, msg.slot);
+      this.saveAll();
+    } else if (msg.type === "drop") {
+      this.inventorySystem.removeItem(player, msg.itemId);
+      this.saveAll();
+    }
   }
 
   private handleAttack(id: string, player: any, msg: any) {
@@ -276,16 +262,8 @@ export class WorldTick {
       if (dist < 30) {
         const baseDamage = 10;
         npc.health -= baseDamage;
-        this.ws.broadcast({
-          type: "combat_feedback",
-          targetId,
-          damage: baseDamage,
-          health: npc.health,
-          maxHealth: npc.maxHealth
-        });
-        if (npc.health <= 0) {
-          this.handleNPCDeath(id, player, npc, targetId);
-        }
+        this.ws.broadcast({ type: "combat_feedback", targetId, damage: baseDamage, health: npc.health, maxHealth: npc.maxHealth });
+        if (npc.health <= 0) this.handleNPCDeath(id, player, npc, targetId);
       }
     }
   }
@@ -298,15 +276,7 @@ export class WorldTick {
       const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
       if (dist < 20) {
         const interaction = this.npcSystem.handleInteraction(targetId, player, this.questSystem.getQuestDefinitions());
-        if (interaction) {
-          this.ws.sendToPlayer(id, {
-            type: "dialogue",
-            source: interaction.source,
-            text: interaction.text,
-            choices: interaction.choices,
-            npcId: interaction.npcId
-          });
-        }
+        if (interaction) this.ws.sendToPlayer(id, { type: "dialogue", source: interaction.source, text: interaction.text, choices: interaction.choices, npcId: interaction.npcId });
       }
     } else if (loot) {
       const dist = Math.hypot(player.position.x - loot.position.x, player.position.y - loot.position.y);
@@ -321,15 +291,7 @@ export class WorldTick {
   private handleDialogueChoice(id: string, player: any, msg: any) {
     const { npcId, nodeId, choiceId } = msg;
     const interaction = this.npcSystem.handleChoice(npcId, nodeId, choiceId, player);
-    if (interaction) {
-      this.ws.sendToPlayer(id, {
-        type: "dialogue",
-        source: interaction.source,
-        text: interaction.text,
-        choices: interaction.choices,
-        npcId: interaction.npcId
-      });
-    }
+    if (interaction) this.ws.sendToPlayer(id, { type: "dialogue", source: interaction.source, text: interaction.text, choices: interaction.choices, npcId: interaction.npcId });
   }
 
   private handleNPCDeath(socketId: string, player: any, npc: any, npcInstanceId: string) {
@@ -349,148 +311,100 @@ export class WorldTick {
   private async saveAll() {
     const allPlayers = this.playerSystem.getAllPlayers();
     const data: any = {};
-    for (const p of allPlayers) {
-      if (p.id !== "dummy_player") data[p.id] = p;
-    }
+    for (const p of allPlayers) if (p.id !== "dummy_player") data[p.id] = p;
     await this.persistence.save(data);
-  }
-
-  private createLoot(id: string, item: any, pos: { x: number, y: number }) {
-    this.lootEntities.set(id, { id, item, position: pos });
   }
 
   private syncNpcPerceptionFromPlayers(): void {
     const dummy = this.playerSystem.getPlayer("dummy_player");
-    if (dummy) {
-      this.npcSystem.updatePlayerState({
-        id: dummy.id,
-        position: { x: dummy.position.x, y: dummy.position.y, z: dummy.position.z ?? 0 },
-        stealthValue: typeof dummy.stealthValue === "number" ? dummy.stealthValue : 0,
-      });
-    }
+    if (dummy) this.npcSystem.updatePlayerState({ id: dummy.id, position: { x: dummy.position.x, y: dummy.position.y, z: dummy.position.z ?? 0 }, stealthValue: typeof dummy.stealthValue === "number" ? dummy.stealthValue : 0 });
     for (const p of this.playerSystem.getAllPlayers()) {
       if (!p?.id || p.id === "dummy_player") continue;
-      this.npcSystem.updatePlayerState({
-        id: p.id,
-        position: { x: p.position.x, y: p.position.y, z: p.position.z ?? 0 },
-        stealthValue: typeof p.stealthValue === "number" ? p.stealthValue : 0,
-      });
+      this.npcSystem.updatePlayerState({ id: p.id, position: { x: p.position.x, y: p.position.y, z: p.position.z ?? 0 }, stealthValue: typeof p.stealthValue === "number" ? p.stealthValue : 0 });
     }
   }
 
-  start() {
-    this.timer = setInterval(() => this.tick(), 100);
+  start() { this.timer = setInterval(() => this.tick(), 100); }
+  stop() { if (this.timer) clearInterval(this.timer); this.timer = null; }
+
+  private buildAREPayload() {
+    return {
+      l: 13,
+      k: 1000,
+      r: Math.round((0.5 + Math.sin(this.tickCount / 10) * 0.5) * 1000) / 1000,
+      tick: this.tickCount,
+      deterministicSeed: `ARE|k1000|tick:${this.tickCount}|chunk:64`,
+    };
   }
 
-  stop() {
-    if (this.timer) clearInterval(this.timer);
-    this.timer = null;
+  private updateAREContract(strippedPlayers: any[], strippedNpcs: any[], strippedLoot: any[]) {
+    const payload = this.buildAREPayload();
+    let guardStatus: AREInvariantGuardStatus;
+    try {
+      guardStatus = this.areGuard.validateTick(payload, this.tickCount);
+    } catch (error) {
+      if (error instanceof DeterminismViolation || (error as Error)?.name === "DeterminismViolation") {
+        guardStatus = this.areGuard.getStatus();
+      } else {
+        throw error;
+      }
+    }
+    this.lastAREGuardStatus = guardStatus;
+    areValidationState.updateGuard(guardStatus);
+
+    if (this.tickCount % 10 === 0 || !this.lastWorldHashSnapshot) {
+      this.lastWorldHashSnapshot = createWorldHashSnapshot({ tick: this.tickCount, payload, players: strippedPlayers, npcs: strippedNpcs, loot: strippedLoot, chunkSize: 64 });
+      areValidationState.updateWorld(this.lastWorldHashSnapshot);
+    }
+
+    if (!guardStatus.ok && this.tickCount % 10 === 0) {
+      this.ws.broadcast({ type: "ARE_DETERMINISM_VIOLATION", payload: areValidationState.getSnapshot() });
+    }
   }
 
   tick() {
     this.tickCount += 1;
-    const observedChunks = this.observerEngine.getObservedChunks();
-    const activeChunks = this.chunkSystem.getActiveChunks();
     const allPlayers = this.playerSystem.getAllPlayers();
-
     this.syncNpcPerceptionFromPlayers();
     this.npcSystem.tick(allPlayers.filter((p) => !p.isOffline), this.worldSystem.worldTime);
-
-    runWarfrontCombatTick({
-      tickCount: this.tickCount,
-      npcSystem: this.npcSystem,
-      playerSystem: this.playerSystem,
-      combatService: this.combatService,
-      broadcast: (payload) => {
-        this.ws.broadcast(payload);
-      },
-    });
+    runWarfrontCombatTick({ tickCount: this.tickCount, npcSystem: this.npcSystem, playerSystem: this.playerSystem, combatService: this.combatService, broadcast: (payload) => this.ws.broadcast(payload) });
 
     const npcsAgg = this.npcSystem.getAllNPCs();
     let aggSum = 0;
     let aggN = 0;
     for (const n of npcsAgg) {
       const a = n.traits?.aggression;
-      if (typeof a === "number" && Number.isFinite(a)) {
-        aggSum += a;
-        aggN++;
-      }
+      if (typeof a === "number" && Number.isFinite(a)) { aggSum += a; aggN++; }
     }
-    const aggressionAvg = aggN > 0 ? aggSum / aggN : 0.36;
-    WorldHistory.getInstance().recordAggressionSample(aggressionAvg, this.tickCount);
-
+    WorldHistory.getInstance().recordAggressionSample(aggN > 0 ? aggSum / aggN : 0.36, this.tickCount);
     this.worldSystem.tick();
 
-    if (this.tickCount % 10 === 0) {
-      const npcs = this.npcSystem.getAllNPCs().map(n => ({ id: n.id, name: n.name, x: n.position.x, y: n.position.y }));
-      this.ws.broadcast({
-        type: "WORLD_HEARTBEAT",
-        payload: {
-          players: Object.fromEntries(
-            allPlayers.filter(p => !p.isOffline).map(p => [p.id, { id: p.id, name: p.name, x: p.position.x, y: p.position.y }])
-          ),
-          agents: npcs
-        }
-      });
-    }
-
-    if (this.tickCount % 600 === 0) {
-      this.saveAll().catch(e => console.error(e));
-    }
-
-    // Optimization: Stripped DTOs for the 10Hz broadcast to reduce bandwidth and serialization overhead.
-    // Manual loops are used instead of .map() or functional methods to reduce heap allocations in the hot path.
     const strippedPlayers = [];
     for (let i = 0; i < allPlayers.length; i++) {
       const p = allPlayers[i];
-      strippedPlayers.push({
-        id: p.id,
-        name: p.name,
-        class: p.class,
-        appearance: p.appearance,
-        position: { x: p.position.x, y: p.position.y, z: p.position.z || 0 },
-        rotation: p.rotation || 0,
-        level: p.level,
-        health: p.health,
-        maxHealth: p.maxHealth,
-        isOffline: !!p.isOffline,
-        state: p.state
-      });
+      strippedPlayers.push({ id: p.id, name: p.name, class: p.class, appearance: p.appearance, position: { x: p.position.x, y: p.position.y, z: p.position.z || 0 }, rotation: p.rotation || 0, level: p.level, health: p.health, maxHealth: p.maxHealth, isOffline: !!p.isOffline, state: p.state });
     }
 
     const allNpcs = this.npcSystem.getAllNPCs();
     const strippedNpcs = [];
     for (let i = 0; i < allNpcs.length; i++) {
       const n = allNpcs[i];
-      strippedNpcs.push({
-        id: n.id,
-        name: n.name,
-        position: { x: n.position.x, y: n.position.y, z: n.position.z || 0 },
-        rotation: n.rotation || 0,
-        health: n.health,
-        maxHealth: n.maxHealth,
-        role: n.role,
-        state: n.state,
-        fusionAdaptiveGlbPath: n.fusionAdaptiveGlbPath
-      });
+      strippedNpcs.push({ id: n.id, name: n.name, position: { x: n.position.x, y: n.position.y, z: n.position.z || 0 }, rotation: n.rotation || 0, health: n.health, maxHealth: n.maxHealth, role: n.role, state: n.state, fusionAdaptiveGlbPath: n.fusionAdaptiveGlbPath });
     }
 
     const strippedLoot = [];
     for (const l of this.lootEntities.values()) {
-      strippedLoot.push({
-        id: l.id,
-        position: { x: l.position.x, y: l.position.y, z: l.position.z || 0 },
-        item: l.item ? { id: l.item.id, name: l.item.name, type: l.item.type } : null,
-        glbPath: l.glbPath
-      });
+      strippedLoot.push({ id: l.id, position: { x: l.position.x, y: l.position.y, z: l.position.z || 0 }, item: l.item ? { id: l.item.id, name: l.item.name, type: l.item.type } : null, glbPath: l.glbPath });
     }
 
-    this.ws.broadcast({
-      type: "world_tick",
-      tick: this.tickCount,
-      players: strippedPlayers,
-      npcs: strippedNpcs,
-      loot: strippedLoot
-    });
+    this.updateAREContract(strippedPlayers, strippedNpcs, strippedLoot);
+
+    if (this.tickCount % 10 === 0) {
+      const npcs = allNpcs.map(n => ({ id: n.id, name: n.name, x: n.position.x, y: n.position.y }));
+      this.ws.broadcast({ type: "WORLD_HEARTBEAT", payload: { players: Object.fromEntries(allPlayers.filter(p => !p.isOffline).map(p => [p.id, { id: p.id, name: p.name, x: p.position.x, y: p.position.y }])), agents: npcs, are: areValidationState.getSnapshot() } });
+    }
+
+    if (this.tickCount % 600 === 0) this.saveAll().catch(e => console.error(e));
+    this.ws.broadcast({ type: "world_tick", tick: this.tickCount, players: strippedPlayers, npcs: strippedNpcs, loot: strippedLoot, are: { guard: this.lastAREGuardStatus, worldHash: this.lastWorldHashSnapshot?.worldHash ?? null } });
   }
 }

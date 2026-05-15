@@ -14,6 +14,7 @@ import { questlineRouter } from "../api/questlineRoute.js";
 import { loreRouter } from "../api/loreRoute.js";
 import { scienceMascotRouter } from "../api/scienceMascotRoute.js";
 import { warfrontRouter } from "../api/warfrontRoute.js";
+import { areValidationRouter } from "../api/areValidationRoute.js";
 import { getContentDataSourceLabel, resolveContentDir } from "../modules/content/contentDataRoot.js";
 import { getSupabaseSummary, verifySupabaseToken } from "../config/supabase.js";
 import { resolveWorldAssetsDir } from "./resolveWorldAssetsDir.js";
@@ -98,12 +99,7 @@ function resolvePlaytesterPublisherHtmlPath(clientRoot: string, distPath: string
 }
 
 export function resolveSupabaseProxyBaseUrl(): string | null {
-  const raw =
-    process.env.SUPABASE_PROXY_URL ||
-    process.env.SUPABASE_URL ||
-    process.env.SUPABASE_PUBLIC_URL ||
-    process.env.API_EXTERNAL_URL ||
-    "";
+  const raw = process.env.SUPABASE_PROXY_URL || process.env.SUPABASE_URL || process.env.SUPABASE_PUBLIC_URL || process.env.API_EXTERNAL_URL || "";
   if (!raw) return null;
   try {
     const u = new URL(raw);
@@ -118,23 +114,16 @@ export function resolveSupabaseProxyBaseUrlForRequest(req: Request, defaultUrl: 
   if (!rawAuthBlob || rawAuthBlob.length < 20) return defaultUrl;
 
   const ref = req.headers["x-supabase-ref"] as string;
-  if (ref && /^[a-z0-9]{8,32}$/i.test(ref)) {
-    return `https://${ref}.supabase.co`;
-  }
+  if (ref && /^[a-z0-9]{8,32}$/i.test(ref)) return `https://${ref}.supabase.co`;
 
   try {
     const claims = verifySupabaseToken(rawAuthBlob);
     const claimRef = claims.ref;
     const claimIss = claims.iss;
-
-    if (claimRef && /^[a-z0-9]{8,32}$/i.test(claimRef)) {
-      return `https://${claimRef}.supabase.co`;
-    }
+    if (claimRef && /^[a-z0-9]{8,32}$/i.test(claimRef)) return `https://${claimRef}.supabase.co`;
     if (claimIss && (claimIss.startsWith("https://") || claimIss.startsWith("http://")) && claimIss.includes("/auth/v1")) {
       const parts = claimIss.split("/auth/v1");
-      if (parts[0] && /^https?:\/\/[a-z0-9.-]+(supabase\.co|\.space)(:\d+)?$/.test(parts[0])) {
-        return parts[0];
-      }
+      if (parts[0] && /^https?:\/\/[a-z0-9.-]+(supabase\.co|\.space)(:\d+)?$/.test(parts[0])) return parts[0];
     }
   } catch {
     /* ignore invalid tokens */
@@ -147,16 +136,8 @@ export function buildClientPublicConfigJson(req?: Request): string {
   const host = req?.headers?.host || "localhost:3000";
   const protocol = req?.headers?.["x-forwarded-proto"] || "http";
   const origin = `${protocol}://${host}`;
-
-  const supabaseUrl =
-    process.env.GAME_ORIGIN ||
-    process.env.SUPABASE_PUBLIC_URL ||
-    process.env.API_EXTERNAL_URL ||
-    process.env.SUPABASE_PROXY_URL ||
-    origin;
-
+  const supabaseUrl = process.env.GAME_ORIGIN || process.env.SUPABASE_PUBLIC_URL || process.env.API_EXTERNAL_URL || process.env.SUPABASE_PROXY_URL || origin;
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.ANON_KEY || "";
-
   return JSON.stringify({
     supabaseUrl,
     supabaseAnonKey,
@@ -190,7 +171,7 @@ export class ServerBootstrap {
   async start() {
     const app = express();
     const httpServer = createServer(app);
-    const selfHealingRuntime: any = { getStatus: () => ({ featuresProtected: 0 }) };
+    const selfHealingRuntime: any = { getStatus: () => ({ featuresProtected: 0, config: {}, active: false, totalErrors: 0, totalHealed: 0, healingRate: 0 }) };
     const supabaseProxyBaseUrl = resolveSupabaseProxyBaseUrl();
 
     await initRedisClient();
@@ -209,13 +190,7 @@ export class ServerBootstrap {
     });
 
     app.get("/health", (_req, res) => {
-      if (this.initializing) {
-        return res.status(503).json({
-          status: "initializing",
-          message: "Server is booting up, please wait.",
-        });
-      }
-
+      if (this.initializing) return res.status(503).json({ status: "initializing", message: "Server is booting up, please wait." });
       const tick = (this as any)._tick as WorldTick;
       const persistence = tick?.getPersistenceStats() ?? { status: "unknown" };
       const content = getContentDataSourceLabel();
@@ -239,79 +214,27 @@ export class ServerBootstrap {
         },
         selfHealing: {
           active: selfHealingStatus.active,
-          patchMode: selfHealingStatus.config.patchMode,
+          patchMode: selfHealingStatus.config?.patchMode ?? "disabled",
           totalErrors: selfHealingStatus.totalErrors,
           totalHealed: selfHealingStatus.totalHealed,
           healingRate: selfHealingStatus.healingRate,
           featuresProtected: selfHealingStatus.featuresProtected,
         },
-        liveHeal: (() => {
-          const status = tick?.liveHeal.getStatus();
-          if (!status) return null;
-          return {
-            tickCount: status.tickCount,
-            subsystems: status.subsystems.map(s => ({
-              id: s.id,
-              state: s.state,
-              score: s.score,
-              healingLocked: s.healingLocked,
-            })),
-            learningEntries: status.learningEntries,
-            logEntries: status.logEntries,
-          };
-        })(),
-        assetHealth: (() => {
-          const stats = tick?.assetHealthService.getStats();
-          if (!stats) return null;
-          return {
-            totalScanned: stats.totalScanned,
-            totalValid: stats.totalValid,
-            totalWarnings: stats.totalWarnings,
-            totalHardFailures: stats.totalHardFailures,
-            totalQuarantined: stats.totalQuarantined,
-            startupScanDone: stats.startupScanDone,
-          };
-        })(),
-        playtester: {
-          enabled: PlaytesterConfig.enabled,
-          streamEnabled: PlaytesterConfig.streamEnabled,
-          monitorMode: PlaytesterConfig.monitorMode,
-          monitorPath: PlaytesterConfig.monitorPath,
-          monitorSignalPath: PlaytesterConfig.monitorSignalPath,
-          monitorPublisherPath: PlaytesterConfig.monitorPublisherPath,
-          monitorTokenRequired: PlaytesterConfig.monitorToken.length > 0,
-          debugLogPath: tick?.getPlaytesterDebugLogPath(),
-          stream: {
-            width: PlaytesterConfig.streamWidth,
-            height: PlaytesterConfig.streamHeight,
-            fps: PlaytesterConfig.streamFps,
-            quality: PlaytesterConfig.streamQuality,
-            shadows: PlaytesterConfig.streamShadows,
-            particles: PlaytesterConfig.streamParticles,
-            renderDistance: PlaytesterConfig.streamRenderDistance,
-            iceServers: PlaytesterConfig.streamIceServers,
-          },
+        are: {
+          guard: tick?.getAREGuardStatus?.() ?? null,
+          worldHash: tick?.getWorldHashSnapshot?.()?.worldHash ?? null,
         },
       });
     });
 
     app.get("/", (req, res, next) => {
-      if (req.headers["user-agent"]?.includes("GoogleHC")) {
-        return res.status(200).send("OK");
-      }
+      if (req.headers["user-agent"]?.includes("GoogleHC")) return res.status(200).send("OK");
       next();
     });
 
     app.use("/auth/v1", async (req, res) => {
       const resolvedProxyBaseUrl = resolveSupabaseProxyBaseUrlForRequest(req, supabaseProxyBaseUrl);
-      if (!resolvedProxyBaseUrl) {
-        return res.status(502).json({
-          error: "supabase_auth_proxy_not_configured",
-          message:
-            "SUPABASE_URL/SUPABASE_PUBLIC_URL is missing and no valid Supabase apikey/ref was provided.",
-        });
-      }
-
+      if (!resolvedProxyBaseUrl) return res.status(502).json({ error: "supabase_auth_proxy_not_configured", message: "SUPABASE_URL/SUPABASE_PUBLIC_URL is missing and no valid Supabase apikey/ref was provided." });
       try {
         let bufferedBody: Buffer | undefined;
         if (shouldProxyBody(req.method)) {
@@ -322,156 +245,75 @@ export class ServerBootstrap {
             req.on("error", (err) => reject(err));
           });
         }
-
         let upstreamPath = req.originalUrl;
         let transformedBody: string | undefined;
-        if (
-          req.method === "POST" &&
-          req.originalUrl.includes("/token") &&
-          !req.originalUrl.includes("grant_type=") &&
-          bufferedBody
-        ) {
+        if (req.method === "POST" && req.originalUrl.includes("/token") && !req.originalUrl.includes("grant_type=") && bufferedBody) {
           try {
-            const bodyStr = bufferedBody.toString();
-            const parsed = JSON.parse(bodyStr);
+            const parsed = JSON.parse(bufferedBody.toString());
             if (parsed.grant_type) {
-              const sep = upstreamPath.includes("?") ? "&" : "?";
-              upstreamPath = `${upstreamPath}${sep}grant_type=${encodeURIComponent(parsed.grant_type)}`;
+              upstreamPath = `${upstreamPath}${upstreamPath.includes("?") ? "&" : "?"}grant_type=${encodeURIComponent(parsed.grant_type)}`;
               delete parsed.grant_type;
               transformedBody = JSON.stringify(parsed);
             }
-          } catch (e) {
-            /* ignore */
-          }
+          } catch { /* ignore */ }
         }
-
         const headers = { ...req.headers };
         delete headers.host;
         delete headers["content-length"];
-
-        const upstreamUrl = resolvedProxyBaseUrl + upstreamPath;
-        const init: RequestInit = {
-          method: req.method,
-          headers: headers as any,
-          redirect: "manual",
-        };
-
+        const init: RequestInit = { method: req.method, headers: headers as any, redirect: "manual" };
         if (shouldProxyBody(req.method)) {
           init.body = (transformedBody ?? bufferedBody) as any;
           (init as any).duplex = "half";
         }
-
-        const response = await fetch(String(upstreamUrl), init);
-
+        const response = await fetch(String(resolvedProxyBaseUrl + upstreamPath), init);
         res.status(response.status);
         response.headers.forEach((value, key) => {
           const lower = key.toLowerCase();
           if (lower === "content-length" || lower === "content-encoding") return;
           res.setHeader(key, value);
         });
-
         const respData = await response.arrayBuffer();
         res.send(Buffer.from(respData));
       } catch (err) {
         console.error("[AuthProxy] Failed to forward request to Supabase:", err);
-        return res.status(502).json({
-          error: "supabase_auth_proxy_upstream_failed",
-          message: "Network problem while contacting Supabase.",
-        });
+        return res.status(502).json({ error: "supabase_auth_proxy_upstream_failed", message: "Network problem while contacting Supabase." });
       }
     });
 
     const ws = new GameWebSocketServer(httpServer);
     ws.start();
-
     const tick = new WorldTick(ws);
     (this as any)._tick = tick;
     await tick.init();
     this.initializing = false;
 
-    const monitorStream = new PlaytesterMonitorStream(httpServer, (options) =>
-      tick.buildPlaytesterMonitorPayload(options)
-    );
+    app.use("/api/are/validation", areValidationRouter(tick));
+
+    const monitorStream = new PlaytesterMonitorStream(httpServer, (options) => tick.buildPlaytesterMonitorPayload(options));
     monitorStream.start();
     const playtesterSignaling = new PlaytesterWebRTCSignaling(httpServer);
     playtesterSignaling.start();
 
     const monitorClientRoot = resolveClientRoot();
-    const monitorHtmlPath = resolvePlaytesterMonitorHtmlPath(
-      monitorClientRoot,
-      path.join(monitorClientRoot, "dist"),
-    );
-    const publisherHtmlPath = resolvePlaytesterPublisherHtmlPath(
-      monitorClientRoot,
-      path.join(monitorClientRoot, "dist"),
-    );
+    const monitorHtmlPath = resolvePlaytesterMonitorHtmlPath(monitorClientRoot, path.join(monitorClientRoot, "dist"));
+    const publisherHtmlPath = resolvePlaytesterPublisherHtmlPath(monitorClientRoot, path.join(monitorClientRoot, "dist"));
 
-    if (monitorHtmlPath) {
-      app.get("/playtester-monitor.html", (req, res) => {
-        if (!canAccessPlaytesterMonitor(req)) {
-          res.status(403).json({ error: "forbidden" });
-          return;
-        }
-        res.sendFile(monitorHtmlPath);
-      });
-    }
-    if (publisherHtmlPath) {
-      app.get("/playtester-render-publisher.html", (req, res) => {
-        if (!canAccessPlaytesterMonitor(req)) {
-          res.status(403).json({ error: "forbidden" });
-          return;
-        }
-        res.sendFile(publisherHtmlPath);
-      });
-    }
+    if (monitorHtmlPath) app.get("/playtester-monitor.html", (req, res) => { if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: "forbidden" }); res.sendFile(monitorHtmlPath); });
+    if (publisherHtmlPath) app.get("/playtester-render-publisher.html", (req, res) => { if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: "forbidden" }); res.sendFile(publisherHtmlPath); });
 
     app.get("/api/playtester/debug-log", (req, res) => {
-      if (!canAccessPlaytesterMonitor(req)) {
-        res.status(403).json({ error: "forbidden" });
-        return;
-      }
-      res.json({
-        ok: Boolean(tick.getPlaytesterDebugLogPath()),
-        enabled: PlaytesterConfig.enabled,
-        streamEnabled: PlaytesterConfig.streamEnabled,
-        monitorMode: PlaytesterConfig.monitorMode,
-        monitorPath: PlaytesterConfig.monitorPath,
-        monitorSignalPath: PlaytesterConfig.monitorSignalPath,
-        monitorPublisherPath: PlaytesterConfig.monitorPublisherPath,
-        monitorTokenRequired: PlaytesterConfig.monitorToken.length > 0,
-        stream: {
-          width: PlaytesterConfig.streamWidth,
-          height: PlaytesterConfig.streamHeight,
-          fps: PlaytesterConfig.streamFps,
-          quality: PlaytesterConfig.streamQuality,
-          shadows: PlaytesterConfig.streamShadows,
-          particles: PlaytesterConfig.streamParticles,
-          renderDistance: PlaytesterConfig.streamRenderDistance,
-          iceServers: PlaytesterConfig.streamIceServers,
-        },
-        debugLogPath: tick.getPlaytesterDebugLogPath(),
-      });
+      if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: "forbidden" });
+      res.json({ ok: Boolean(tick.getPlaytesterDebugLogPath()), enabled: PlaytesterConfig.enabled, streamEnabled: PlaytesterConfig.streamEnabled, monitorMode: PlaytesterConfig.monitorMode, monitorPath: PlaytesterConfig.monitorPath, monitorSignalPath: PlaytesterConfig.monitorSignalPath, monitorPublisherPath: PlaytesterConfig.monitorPublisherPath, monitorTokenRequired: PlaytesterConfig.monitorToken.length > 0, stream: { width: PlaytesterConfig.streamWidth, height: PlaytesterConfig.streamHeight, fps: PlaytesterConfig.streamFps, quality: PlaytesterConfig.streamQuality, shadows: PlaytesterConfig.streamShadows, particles: PlaytesterConfig.streamParticles, renderDistance: PlaytesterConfig.streamRenderDistance, iceServers: PlaytesterConfig.streamIceServers }, debugLogPath: tick.getPlaytesterDebugLogPath() });
     });
 
     app.use("/api/admin/content", adminContentRouter(tick));
     app.use("/api/vote", voteRouter(tick));
-    // registerSelfHealingDashboard(
-    //   app,
-    //   selfHealingRuntime,
-    //   resolveSelfHealingDashboardConfigFromEnv()
-    // );
 
     const clientRoot = resolveClientRoot();
     const clientPath = path.join(clientRoot, "dist");
     const itchClientPath = path.join(clientRoot, "dist-itch");
     const adminContentPath = resolveAdminContentHtmlPath(clientRoot, clientPath);
-
-    if (adminContentPath) {
-      app.get("/admin-content.html", (_req, res) => {
-        res.sendFile(adminContentPath);
-      });
-    }
-
+    if (adminContentPath) app.get("/admin-content.html", (_req, res) => res.sendFile(adminContentPath));
     if (existsSync(path.join(itchClientPath, "index.html"))) {
       app.use("/itch", express.static(itchClientPath, { index: "index.html" }));
       app.get("/itch/*", (_req, res) => res.sendFile(path.join(itchClientPath, "index.html")));
@@ -480,11 +322,7 @@ export class ServerBootstrap {
     if (process.env.NODE_ENV !== "production") {
       try {
         const vite = await import("vite");
-        const viteServer = await vite.createServer({
-          server: { middlewareMode: true },
-          appType: "spa",
-          root: clientRoot,
-        });
+        const viteServer = await vite.createServer({ server: { middlewareMode: true }, appType: "spa", root: clientRoot });
         app.use(viteServer.middlewares);
       } catch (e) {
         console.error("Failed to start Vite middleware", e);
@@ -504,44 +342,23 @@ export class ServerBootstrap {
 
     const mirroredWorld = resolveMirroredWorldAssetsDir();
     const worldAssetsDir = mirroredWorld ?? resolveWorldAssetsDir();
-    if (worldAssetsDir) {
-      app.use("/world-assets", express.static(worldAssetsDir, {
-        maxAge: process.env.NODE_ENV === "production" ? "7d" : 0,
-        fallthrough: false,
-      }));
-    }
-
+    if (worldAssetsDir) app.use("/world-assets", express.static(worldAssetsDir, { maxAge: process.env.NODE_ENV === "production" ? "7d" : 0, fallthrough: false }));
     try {
       const worldDir = resolveContentDir("world");
-      if (existsSync(worldDir)) {
-        app.use("/world", express.static(worldDir, {
-          maxAge: process.env.NODE_ENV === "production" ? "1h" : 0,
-          fallthrough: true,
-        }));
-      }
-    } catch (e) {
-      /* ignore */
-    }
-
-    // app.use(selfHealingMiddleware());
+      if (existsSync(worldDir)) app.use("/world", express.static(worldDir, { maxAge: process.env.NODE_ENV === "production" ? "1h" : 0, fallthrough: true }));
+    } catch { /* ignore */ }
 
     const port = Number(process.env.PORT || 3000);
-
     httpServer.listen(port, () => {
       console.log(`Arelorian server listening on ${port}`);
       tick.start();
-
       const shutdownHandler = async () => {
         console.log("[Shutdown] Flushing data...");
         playtesterSignaling.stop();
         monitorStream.stop();
         tick.liveHeal.flush();
         tick.assetHealthService.flush();
-        try {
-          await shutdownPostHog();
-        } catch (e) {
-          console.warn("[Shutdown] PostHog shutdown failed", e);
-        }
+        try { await shutdownPostHog(); } catch (e) { console.warn("[Shutdown] PostHog shutdown failed", e); }
         process.exit(0);
       };
       process.on("SIGTERM", shutdownHandler);
