@@ -184,10 +184,19 @@ export class ServerBootstrap {
     if (existsSync(path.join(itchClientPath, "index.html"))) { app.use("/itch", express.static(itchClientPath, { index: "index.html" })); app.get("/itch/*", (_req, res) => res.sendFile(path.join(itchClientPath, "index.html"))); }
     if (process.env.NODE_ENV !== "production") {
       try { const vite = await import("vite"); const viteServer = await vite.createServer({ server: { middlewareMode: true }, appType: "spa", root: clientRoot }); app.use(viteServer.middlewares); }
-      catch (e) { console.error("Failed to start Vite middleware", e); app.use(express.static(clientPath)); }
+      catch (e) {
+        console.error("Failed to start Vite middleware", e);
+        app.use(express.static(clientPath));
+        const clientPublicFallback = path.join(clientRoot, "public");
+        if (existsSync(clientPublicFallback)) app.use(express.static(clientPublicFallback));
+      }
     } else {
       app.use((req, res, next) => { if (req.url?.endsWith(".wasm")) { res.setHeader("Content-Type", "application/wasm"); res.setHeader("Cross-Origin-Opener-Policy", "same-origin"); res.setHeader("Cross-Origin-Embedder-Policy", "require-corp"); } next(); });
       app.use(express.static(clientPath));
+      const clientPublicPath = path.join(clientRoot, "public");
+      if (existsSync(clientPublicPath)) {
+        app.use(express.static(clientPublicPath, { maxAge: process.env.NODE_ENV === "production" ? "7d" : 0 }));
+      }
     }
     const mirroredWorld = resolveMirroredWorldAssetsDir();
     const worldAssetsDir = mirroredWorld ?? resolveWorldAssetsDir();

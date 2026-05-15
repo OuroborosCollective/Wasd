@@ -25,6 +25,9 @@ export function resolveMonorepoRootEnvPath(): string {
 }
 
 export function loadRootEnvFiles(): void {
+  if (process.env.E2E_SKIP_ROOT_DOTENV === "1" || process.env.DGCC_SKIP_ROOT_DOTENV === "1") {
+    return;
+  }
   const fromMonorepoRoot = resolveMonorepoRootEnvPath();
   const fromCwd = path.resolve(process.cwd(), ".env");
   const opt = "/opt/areloria/.env";

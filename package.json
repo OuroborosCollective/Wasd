@@ -4,6 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "lint": "eslint server/src client/src",
+    "test": "vitest run",
+    "validate:content": "pnpm --prefix server run validate",
+    "test:e2e:install": "playwright install chromium",
+    "test:e2e": "playwright test",
+    "test:e2e:ci": "pnpm --prefix server run build && playwright install chromium && playwright test",
+    "dgcc:prep": "pnpm --filter @wasd/shared build && pnpm --filter @wasd/core-logic build",
+    "test:dgcc": "vitest run --config vitest.config.dgcc.ts",
+    "dgcc": "tsx tools/dgcc/run-dgcc.ts --mode=minimal",
+    "dgcc:extreme": "tsx tools/dgcc/run-dgcc.ts --mode=extreme",
     "build": "pnpm -r build",
     "build:network": "pnpm -r --filter @arelorian/core-network build",
     "build:2d": "pnpm -r --filter @arelorian/client-2d build",
@@ -20,12 +30,14 @@
     "pnpm": ">=9"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@types/node": "^25.7.0",
     "@typescript-eslint/eslint-plugin": "^8.59.3",
     "@typescript-eslint/parser": "^8.59.3",
     "concurrently": "^9.2.1",
     "eslint": "^10.3.0",
     "pnpm": "^11.1.1",
+    "tsx": "^4.21.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.6"
   },

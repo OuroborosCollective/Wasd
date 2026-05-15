@@ -24,12 +24,19 @@ export default defineConfig({
         timeout: 180_000,
         stdout: "pipe",
         stderr: "pipe",
-        env: {
-          ...process.env,
-          PORT: String(port),
-          NODE_ENV: "production",
-          ALLOW_GUEST_LOGIN: "1",
-          PLAYER_SAVE_FILE: process.env.PLAYER_SAVE_FILE || "/tmp/areloria-e2e-players.json",
-        },
+        env: (() => {
+          const e = { ...process.env };
+          delete e.DATABASE_URL; // pragma: allowlist secret
+          delete e.SUPABASE_DB_URL; // pragma: allowlist secret
+          return {
+            ...e,
+            PORT: String(port),
+            NODE_ENV: "production",
+            ALLOW_GUEST_LOGIN: "1",
+            PLAYER_SAVE_FILE: process.env.PLAYER_SAVE_FILE || "/tmp/areloria-e2e-players.json",
+            PERSISTENCE_DRIVER: "file",
+            E2E_SKIP_ROOT_DOTENV: "1",
+          };
+        })(),
       },
 });
