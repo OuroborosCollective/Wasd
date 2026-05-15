@@ -15,14 +15,14 @@ import { verifyFirebaseToken } from "../config/firebase.js";
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { WorldHistory } from "../modules/history/WorldHistory.js";
 import { bootstrapWarfrontNpcs, runWarfrontCombatTick } from "../modules/warfront/WarfrontCombatOrchestrator.js";
-import { AREInvariantGuard, type AREInvariantGuardStatus } from "../are/AREInvariantGuard.js";
+import { AREInvariantGuard, DeterminismViolation, type AREInvariantGuardStatus } from "../are/AREInvariantGuard.js";
 import { areValidationState } from "../are/AREValidationState.js";
 import { createWorldHashSnapshot, type WorldHashSnapshot } from "../are/WorldHashSnapshot.js";
 
 export class WorldTick {
   private timer: NodeJS.Timeout | null = null;
   private tickCount = 0;
-  private readonly areGuard = new AREInvariantGuard();
+  private readonly areGuard = new AREInvariantGuard({ throwOnViolation: true });
   private lastAREGuardStatus: AREInvariantGuardStatus | null = null;
   private lastWorldHashSnapshot: WorldHashSnapshot | null = null;
 
@@ -339,19 +339,21 @@ export class WorldTick {
 
   private updateAREContract(strippedPlayers: any[], strippedNpcs: any[], strippedLoot: any[]) {
     const payload = this.buildAREPayload();
-    const guardStatus = this.areGuard.validateTick(payload, this.tickCount);
+    let guardStatus: AREInvariantGuardStatus;
+    try {
+      guardStatus = this.areGuard.validateTick(payload, this.tickCount);
+    } catch (error) {
+      if (error instanceof DeterminismViolation || (error as Error)?.name === "DeterminismViolation") {
+        guardStatus = this.areGuard.getStatus();
+      } else {
+        throw error;
+      }
+    }
     this.lastAREGuardStatus = guardStatus;
     areValidationState.updateGuard(guardStatus);
 
     if (this.tickCount % 10 === 0 || !this.lastWorldHashSnapshot) {
-      this.lastWorldHashSnapshot = createWorldHashSnapshot({
-        tick: this.tickCount,
-        payload,
-        players: strippedPlayers,
-        npcs: strippedNpcs,
-        loot: strippedLoot,
-        chunkSize: 64,
-      });
+      this.lastWorldHashSnapshot = createWorldHashSnapshot({ tick: this.tickCount, payload, players: strippedPlayers, npcs: strippedNpcs, loot: strippedLoot, chunkSize: 64 });
       areValidationState.updateWorld(this.lastWorldHashSnapshot);
     }
 
@@ -365,7 +367,6 @@ export class WorldTick {
     const allPlayers = this.playerSystem.getAllPlayers();
     this.syncNpcPerceptionFromPlayers();
     this.npcSystem.tick(allPlayers.filter((p) => !p.isOffline), this.worldSystem.worldTime);
-
     runWarfrontCombatTick({ tickCount: this.tickCount, npcSystem: this.npcSystem, playerSystem: this.playerSystem, combatService: this.combatService, broadcast: (payload) => this.ws.broadcast(payload) });
 
     const npcsAgg = this.npcSystem.getAllNPCs();
@@ -404,7 +405,6 @@ export class WorldTick {
     }
 
     if (this.tickCount % 600 === 0) this.saveAll().catch(e => console.error(e));
-
     this.ws.broadcast({ type: "world_tick", tick: this.tickCount, players: strippedPlayers, npcs: strippedNpcs, loot: strippedLoot, are: { guard: this.lastAREGuardStatus, worldHash: this.lastWorldHashSnapshot?.worldHash ?? null } });
   }
 }
