@@ -29,6 +29,11 @@ on:
       - 'package.json'
       - '.github/workflows/vps-docker-deploy.yml'
   workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Sovereign launch reason'
+        required: false
+        default: 'Manual sovereign launch'
 
 concurrency:
   group: vps-docker-deploy-${{ github.ref }}
@@ -80,6 +85,7 @@ jobs:
           script_stop: true
           script: |
             set -euo pipefail
+            echo "Sovereign deploy reason: ${{ github.event.inputs.reason || 'push' }}"
             DEPLOY_PRIMARY='${{ secrets.VPS_DEPLOY_PATH }}'
             DEPLOY_ALT='${{ secrets.DEPLOY_PATH }}'
             DEPLOY_PATH="${DEPLOY_PRIMARY:-${DEPLOY_ALT:-/opt/areloria}}"
