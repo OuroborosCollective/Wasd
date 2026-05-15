@@ -1,12 +1,12 @@
 import { Router } from "express";
-import type { WorldTick } from "../core/WorldTick.js";
 import { createSovereignIdentity } from "../collective/SovereignIdentity.js";
+import { collectiveIngressRuntime } from "../collective/CollectiveIngressRuntime.js";
 
-export function collectiveIngressRouter(tick: WorldTick) {
+export function collectiveIngressRouter() {
   const router = Router();
 
   router.get("/status", (_req, res) => {
-    res.json(tick.getCollectiveIngressStatus());
+    res.json(collectiveIngressRuntime.getStatus());
   });
 
   router.post("/preview", (req, res) => {
