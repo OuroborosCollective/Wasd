@@ -1,18 +1,29 @@
 #!/bin/bash
-# Quick update script - pulls latest code and rebuilds
-set -e
+set -euo pipefail
 
 APP_DIR="/opt/areloria"
-BUILD_NODE_OPTIONS="${BUILD_NODE_OPTIONS:---max-old-space-size=8192}"
-SERVER_BUILD_NODE_OPTIONS="${SERVER_BUILD_NODE_OPTIONS:---max-old-space-size=8192}"
+DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
+BUILD_NODE_OPTIONS="${BUILD_NODE_OPTIONS:---max-old-space-size=1024}"
+SERVER_BUILD_NODE_OPTIONS="${SERVER_BUILD_NODE_OPTIONS:---max-old-space-size=1024}"
+
 echo "Updating Areloria MMORPG..."
-
 cd "$APP_DIR"
-git pull origin main
 
-# ── Load .env so VITE_* vars are available at build time ──
-# Vite bakes VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY into the client JS
-# at BUILD time.  Without this, the client gets empty strings and login breaks.
+echo "Synchronizing repository to origin/${DEPLOY_BRANCH} ..."
+git fetch --no-tags origin "refs/heads/${DEPLOY_BRANCH}"
+git reset --hard FETCH_HEAD
+git clean -fd \
+  -e .env \
+  -e .env.local \
+  -e logs/ \
+  -e uploads/ \
+  -e storage/ \
+  -e node_modules/ \
+  -e client/node_modules/ \
+  -e server/node_modules/
+
+echo "Deploy commit: $(git rev-parse --short HEAD)"
+
 ENV_FILE="$APP_DIR/.env"
 if [ -f "$ENV_FILE" ]; then
   echo "Loading build-time env from $ENV_FILE ..."
@@ -26,26 +37,25 @@ else
   echo "WARNING: $ENV_FILE not found — VITE_* build vars may be empty!"
 fi
 
-# Rebuild using pnpm (workspace aware)
-cd "$APP_DIR"
-if command -v pnpm >/dev/null 2>&1; then
-  echo "Using pnpm for installation and build..."
-  pnpm install --no-frozen-lockfile
-  NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm run build
-else
-  echo "pnpm not found, falling back to npm..."
-  cd "$APP_DIR/client"
-  npm install
-  NODE_OPTIONS="$BUILD_NODE_OPTIONS" npm run build
-  cd "$APP_DIR/server"
-  npm install
-  NODE_OPTIONS="$SERVER_BUILD_NODE_OPTIONS" npm run build
+if command -v corepack >/dev/null 2>&1; then
+  corepack enable || true
+  corepack prepare pnpm@9.12.2 --activate || true
 fi
 
-# Restart PM2
-pm2 restart areloria
+if command -v pnpm >/dev/null 2>&1; then
+  echo "Using pnpm for installation and targeted build..."
+  pnpm config set network-concurrency 2
+  pnpm config set child-concurrency 1
+  pnpm install --no-frozen-lockfile --prefer-offline
+  NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/shared --if-present build
+  NODE_OPTIONS="$SERVER_BUILD_NODE_OPTIONS" pnpm --filter @wasd/server --if-present build
+else
+  echo "ERROR: pnpm is required for this monorepo deploy."
+  exit 1
+fi
 
-# Post-update verification
+pm2 restart areloria || pm2 start server/dist/index.js --name areloria
+
 verify_url() {
   local url="$1"
   local name="$2"
@@ -54,7 +64,6 @@ verify_url() {
   local code=""
 
   for i in $(seq 1 "$attempts"); do
-    # Get status code and body (to check for initializing)
     local response
     response=$(curl -s -w "\n%{http_code}" "$url" || echo "offline\n000")
     code=$(echo "$response" | tail -n1)
@@ -75,6 +84,7 @@ verify_url() {
   done
 
   echo "❌ ${name} failed after ${attempts} attempts (${url}), last status=${code:-n/a}"
+  pm2 logs areloria --lines 80 --nostream || true
   return 1
 }
 
