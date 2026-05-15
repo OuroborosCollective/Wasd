@@ -1,4 +1,4 @@
-import crypto from "node:crypto";
+import { createHash } from "node:crypto";
 import type { DeterministicUsageStats } from "../are/DeterministicUsageTracker.js";
 
 export type SovereignAccountStatus = "active" | "suspended";
@@ -49,7 +49,7 @@ function readNumberEnv(key: string, fallback: number): number {
 }
 
 function stableAccountId(source = "local-engine"): string {
-  return crypto.createHash("sha256").update(source).digest("hex").slice(0, 16);
+  return createHash("sha256").update(source).digest("hex").slice(0, 16);
 }
 
 export function calculateUsageCost(usageData: UsageCostInput | DeterministicUsageStats): UsageCostResult {
