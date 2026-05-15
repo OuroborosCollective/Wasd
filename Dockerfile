@@ -118,11 +118,9 @@ RUN apk add --no-cache \
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# VPS runtime optimization
-ENV NODE_OPTIONS="\
---max-old-space-size=12288 \
---max-semi-space-size=512 \
---optimize-for-size"
+# Runtime Node memory options. Do not include --optimize-for-size; Node 22
+# rejects it inside NODE_OPTIONS.
+ENV NODE_OPTIONS="--max-old-space-size=12288 --max-semi-space-size=512"
 
 # WebSocket / MMO scaling
 ENV UV_THREADPOOL_SIZE=16
