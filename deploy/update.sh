@@ -24,7 +24,11 @@ git clean -fd \
   -e client/node_modules/ \
   -e server/node_modules/
 
-echo "Deploy commit: $(git rev-parse --short HEAD)"
+DEPLOY_COMMIT="$(git rev-parse --short=12 HEAD)"
+export BUILD_COMMIT_SHA="$DEPLOY_COMMIT"
+export VITE_BUILD_COMMIT_SHA="$DEPLOY_COMMIT"
+export VITE_UI_BUILD_HASH="$DEPLOY_COMMIT"
+echo "Deploy commit: $DEPLOY_COMMIT"
 
 ENV_FILE="$APP_DIR/.env"
 if [ -f "$ENV_FILE" ]; then
@@ -33,6 +37,9 @@ if [ -f "$ENV_FILE" ]; then
   # shellcheck disable=SC1090
   source "$ENV_FILE"
   set +a
+  export BUILD_COMMIT_SHA="$DEPLOY_COMMIT"
+  export VITE_BUILD_COMMIT_SHA="$DEPLOY_COMMIT"
+  export VITE_UI_BUILD_HASH="$DEPLOY_COMMIT"
   echo "  VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-(empty!)}"
   echo "  VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY:+***set***}"
 else
