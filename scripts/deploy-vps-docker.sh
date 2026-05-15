@@ -43,6 +43,15 @@ else
   exit 1
 fi
 
+free_port_3000() {
+  local ids
+  ids="$(docker ps --filter publish=3000 --format '{{.ID}}' | tr '\n' ' ')"
+  if [ -n "${ids// }" ]; then
+    echo "Stopping container(s) currently publishing port 3000: $ids"
+    docker rm -f $ids >/dev/null 2>&1 || true
+  fi
+}
+
 echo "=== WASD monorepo deploy (Docker) ==="
 echo "Repo: $REPO_ROOT"
 echo "Branch: $DEPLOY_BRANCH"
@@ -61,7 +70,9 @@ echo "[2/4] Build images (monorepo context)"
 "${DC[@]}" -f docker-compose.yml build arelorian-engine monitor-bridge
 
 echo "[3/4] Recreate containers"
-"${DC[@]}" -f docker-compose.yml up -d arelorian-engine monitor-bridge
+"${DC[@]}" -f docker-compose.yml down --remove-orphans || true
+free_port_3000
+"${DC[@]}" -f docker-compose.yml up -d --remove-orphans arelorian-engine monitor-bridge
 
 echo "[4/4] Health check (engine :3000)"
 ok=0
