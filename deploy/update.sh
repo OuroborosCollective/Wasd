@@ -3,6 +3,7 @@ set -euo pipefail
 
 APP_DIR="/opt/areloria"
 DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
+GAME_PORT="${GAME_PORT:-3001}"
 BUILD_NODE_OPTIONS="${BUILD_NODE_OPTIONS:---max-old-space-size=1024}"
 SERVER_BUILD_NODE_OPTIONS="${SERVER_BUILD_NODE_OPTIONS:---max-old-space-size=1024}"
 
@@ -18,6 +19,7 @@ git clean -fd \
   -e logs/ \
   -e uploads/ \
   -e storage/ \
+  -e data/ \
   -e node_modules/ \
   -e client/node_modules/ \
   -e server/node_modules/
@@ -37,6 +39,12 @@ else
   echo "WARNING: $ENV_FILE not found — VITE_* build vars may be empty!"
 fi
 
+# Supabase may own port 3000 on the VPS. Keep the game on 3001 unless overridden.
+export NODE_ENV=production
+export PORT="$GAME_PORT"
+export HOST="0.0.0.0"
+echo "Game server will listen on PORT=${PORT}; Supabase can keep port 3000."
+
 if command -v corepack >/dev/null 2>&1; then
   corepack enable || true
   corepack prepare pnpm@9.12.2 --activate || true
@@ -54,7 +62,7 @@ else
   exit 1
 fi
 
-pm2 restart areloria --update-env || pm2 start server/dist/index.js --name areloria
+pm2 restart areloria --update-env || pm2 start server/dist/index.js --name areloria --update-env
 
 verify_url() {
   local url="$1"
@@ -98,8 +106,8 @@ warn_url() {
   return 0
 }
 
-warn_url "http://127.0.0.1:3000/health" "Health endpoint"
-verify_url "http://127.0.0.1:3000/" "Client root"
+warn_url "http://127.0.0.1:${GAME_PORT}/health" "Health endpoint"
+verify_url "http://127.0.0.1:${GAME_PORT}/" "Client root"
 
 echo "Update complete!"
 pm2 status
