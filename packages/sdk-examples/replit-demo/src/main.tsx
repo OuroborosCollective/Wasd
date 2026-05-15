@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { OuroborosPulseView, type OuroborosPulseFrame } from "@wasd/core-logic/react/OuroborosPulseView";
 import { BrowserBattleSim } from "./BrowserBattleSim";
+import { LootSimulator } from "./LootSimulator";
 import "./style.css";
 
 function App() {
@@ -30,10 +31,11 @@ function App() {
         <p className="eyebrow">Ouroboros ARE · Hype SDK</p>
         <h1>Build Immortal Worlds with Ouroboros ARE.</h1>
         <p>
-          Cheat-proof physics, time-travel debugging and 10-Hz Cyber-Zen feedback for developers who want their game logic to feel alive on the first run.
+          Cheat-proof physics, time-travel debugging, deterministic loot and 10-Hz Cyber-Zen feedback for developers who want their game logic to feel alive on the first run.
         </p>
       </section>
       <OuroborosPulseView frames={frames} onFrameSelect={setSelected} />
+      <LootSimulator />
       <section className="console">
         <h2>Autobattler Replay Inspector</h2>
         <pre>{JSON.stringify(selected ?? frames.at(-1) ?? { status: "booting" }, null, 2)}</pre>
