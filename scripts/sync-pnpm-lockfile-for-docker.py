@@ -81,9 +81,7 @@ def expected_specifier(
     manifest_value = manifest_specs.get(importer, {}).get(group, {}).get(dep)
     if manifest_value is None:
         return None
-    # pnpm frozen-lockfile validates importer specifiers after root overrides.
-    # Therefore lockfile importer entries for overridden deps must use the
-    # override value, not the raw package.json range.
+    # pnpm validates importer specifiers after root overrides are applied.
     return OVERRIDES.get(dep, manifest_value)
 
 
@@ -103,44 +101,43 @@ def main() -> None:
     changed = 0
 
     for index, line in enumerate(lines):
+        stripped = line.strip()
+        indent = len(line) - len(line.lstrip(" "))
+
         if line == "importers:\n":
             in_importers = True
             current_importer = current_group = current_dep = None
             continue
 
-        if in_importers and re.match(r"^[A-Za-z0-9_.-]+:\n$", line) and line != "importers:\n":
+        if in_importers and indent == 0 and stripped.endswith(":") and stripped != "importers:":
             in_importers = False
             current_importer = current_group = current_dep = None
-
-        if not in_importers:
             continue
 
-        importer_match = re.match(r"^  (.+):\n$", line)
-        if importer_match:
-            current_importer = unquote_yaml_key(importer_match.group(1))
+        if not in_importers or not stripped:
+            continue
+
+        if indent == 2 and stripped.endswith(":"):
+            current_importer = unquote_yaml_key(stripped[:-1])
             current_group = current_dep = None
             continue
 
-        group_match = re.match(r"^    (dependencies|devDependencies|optionalDependencies):\n$", line)
-        if group_match:
-            current_group = group_match.group(1)
+        if indent == 4 and stripped.endswith(":") and stripped[:-1] in DEPENDENCY_GROUPS:
+            current_group = stripped[:-1]
             current_dep = None
             continue
 
-        if current_importer and current_group and current_dep:
-            specifier_match = re.match(r"^(        specifier: ).*(\n?)$", line)
-            if specifier_match:
-                expected = expected_specifier(manifest_specs, current_importer, current_group, current_dep)
-                if expected is not None:
-                    replacement = f"        specifier: {yaml_scalar(expected)}\n"
-                    if replacement != line:
-                        lines[index] = replacement
-                        changed += 1
-                continue
+        if indent == 6 and stripped.endswith(":"):
+            current_dep = unquote_yaml_key(stripped[:-1])
+            continue
 
-        dep_match = re.match(r"^      (\S.+):\n$", line)
-        if dep_match:
-            current_dep = unquote_yaml_key(dep_match.group(1))
+        if indent == 8 and stripped.startswith("specifier:") and current_importer and current_group and current_dep:
+            expected = expected_specifier(manifest_specs, current_importer, current_group, current_dep)
+            if expected is not None:
+                replacement = f"        specifier: {yaml_scalar(expected)}\n"
+                if replacement != line:
+                    lines[index] = replacement
+                    changed += 1
             continue
 
     LOCKFILE.write_text("".join(lines))
