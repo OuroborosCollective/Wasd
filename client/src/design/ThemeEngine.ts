@@ -42,6 +42,25 @@ export interface SovereignTruth {
 
 export interface SovereignLaunchResult { ok: boolean; dispatched?: boolean; workflow?: string; repo?: string; ref?: string; error?: string; message?: string; detail?: unknown; }
 
+export interface CollectivePeer {
+  id: string;
+  name: string;
+  role: string;
+  publicKeyHash: string | null;
+  deterministicSeed: string | null;
+  position: { x: number; y: number; z: number };
+  chunk: { x: number; y: number; size: 64 };
+}
+export interface CollectiveIngressStatus {
+  ok: boolean;
+  tick: number;
+  peerCount: number;
+  queuedInputs: number;
+  peers: CollectivePeer[];
+  chunks: Array<{ x: number; y: number; size: 64; key: string; peers: string[] }>;
+  recentWelcomes: Array<{ tick: number; playerId: string; role: string; chunk: { x: number; y: number; size: 64 }; welcome: string }>;
+}
+
 export const LOCAL_UI_BUILD_HASH = String((import.meta as any).env?.VITE_UI_BUILD_HASH || (import.meta as any).env?.VITE_BUILD_COMMIT_SHA || "dev");
 
 export function hasVersionDrift(truth: SovereignTruth | null): boolean {
@@ -84,6 +103,7 @@ export async function fetchAREReplaySnapshot(tick: number): Promise<AREReplaySna
 export async function fetchAREOracleReport(): Promise<AREOracleReport | null> { try { const response = await fetch("/api/are/replay/oracle/prophecy", { cache: "no-store" }); if (!response.ok) return null; const body = await response.json(); return body.oracle ?? null; } catch { return null; } }
 export async function fetchAREAutoRepairStatus(): Promise<AREAutoRepairStatus | null> { try { const response = await fetch("/api/are/replay/repair/status", { cache: "no-store" }); if (!response.ok) return null; const body = await response.json(); return body.autoRepair ?? null; } catch { return null; } }
 export async function fetchSovereignTruth(): Promise<SovereignTruth | null> { try { const response = await fetch("/api/sovereign/deploy/truth", { cache: "no-store" }); if (!response.ok) return null; return (await response.json()) as SovereignTruth; } catch { return null; } }
+export async function fetchCollectiveIngressStatus(): Promise<CollectiveIngressStatus | null> { try { const response = await fetch("/api/collective/ingress/status", { cache: "no-store" }); if (!response.ok) return null; return (await response.json()) as CollectiveIngressStatus; } catch { return null; } }
 export async function launchSovereignDeploy(launchKey: string, ref = "main"): Promise<SovereignLaunchResult> {
   try {
     const response = await fetch("/api/sovereign/deploy/launch", { method: "POST", headers: { "Content-Type": "application/json", "X-Sovereign-Launch-Key": launchKey }, body: JSON.stringify({ ref, reason: "Portal Sovereign Launch Button" }) });
