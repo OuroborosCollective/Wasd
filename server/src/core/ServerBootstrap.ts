@@ -14,6 +14,7 @@ import { questlineRouter } from "../api/questlineRoute.js";
 import { loreRouter } from "../api/loreRoute.js";
 import { scienceMascotRouter } from "../api/scienceMascotRoute.js";
 import { warfrontRouter } from "../api/warfrontRoute.js";
+import { worldLayoutRouter } from "../api/worldLayoutRoute.js";
 import { areValidationRouter } from "../api/areValidationRoute.js";
 import { areReplayRouter } from "../api/areReplayRoute.js";
 import { sovereignDeployRouter } from "../api/sovereignDeployRoute.js";
@@ -118,6 +119,7 @@ export class ServerBootstrap {
     app.use("/api/mcp", mcpRoute());
     app.use("/api/v1", scienceMascotRouter());
     app.use("/api/v1/warfront", warfrontRouter());
+    app.use("/api/world-layout", worldLayoutRouter());
     app.use("/api/leaderboard", leaderboardRouter());
     app.use("/api/questlines", questlineRouter());
     app.use("/api/lore", loreRouter());
