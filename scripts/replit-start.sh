@@ -33,9 +33,8 @@ pnpm --filter @wasd/server --if-present build
 echo "Starting Ouroboros ARE server on :$PORT ..."
 pnpm --filter @wasd/server start &
 SERVER_PID=$!
+trap 'kill $SERVER_PID 2>/dev/null || true' EXIT INT TERM
 
 echo "Starting Cyber-Zen SDK demo on :${DEMO_PORT:-5173} ..."
 cd packages/sdk-examples/replit-demo
 pnpm exec vite --host 0.0.0.0 --port "${DEMO_PORT:-5173}"
-
-trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
