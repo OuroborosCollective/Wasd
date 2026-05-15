@@ -52,6 +52,8 @@ async function getPayPalAccessToken(): Promise<string> {
 }
 
 export class PayPalAdapter {
+  private readonly creditedTransactions = new Set<string>();
+
   async createCheckoutLink(input: PayPalCheckoutRequest): Promise<{ ok: true; orderId: string; approvalUrl: string; credits: number }> {
     const credits = normalizeCredits(input.credits);
     if (!input.clientId || credits <= 0) throw new Error("clientId and positive credits are required.");
@@ -122,6 +124,15 @@ export class PayPalAdapter {
     }
     const verified = await this.verifyTransaction(transactionId);
     if (!verified.ok || !verified.clientId || verified.credits <= 0) return verified;
+    const transactionKey = verified.transactionId || transactionId;
+    if (this.creditedTransactions.has(transactionKey)) {
+      return {
+        ...verified,
+        credited: false,
+        message: "PayPal transaction already credited.",
+      };
+    }
+    this.creditedTransactions.add(transactionKey);
     const account = SovereignBillingBridge.addCredits(verified.clientId, verified.credits, verified.displayName || verified.clientId);
     return {
       ...verified,
