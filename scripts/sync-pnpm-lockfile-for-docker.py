@@ -15,19 +15,23 @@ from pathlib import Path
 ROOT = Path(".")
 LOCKFILE = ROOT / "pnpm-lock.yaml"
 SETTINGS_MARKER = "settings:\n  autoInstallPeers: true\n  excludeLinksFromLockfile: false\n\n"
-OVERRIDES_BLOCK = """overrides:
-  '@types/react': ^19.2.14
-  '@types/react-dom': ^19.2.3
-  '@types/node': ^22.19.18
-  zod: ^4.4.3
-  three: 0.184.0
-  '@babylonjs/core': ^9.6.2
-  '@babylonjs/materials': ^9.6.2
-  '@babylonjs/loaders': ^9.6.2
-  react: ^19.2.6
-  socket.io-client: ^4.8.3
-  pg: ^8.20.0
-"""
+OVERRIDES = {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/node": "^22.19.18",
+    "zod": "^4.4.3",
+    "three": "0.184.0",
+    "@babylonjs/core": "^9.6.2",
+    "@babylonjs/materials": "^9.6.2",
+    "@babylonjs/loaders": "^9.6.2",
+    "react": "^19.2.6",
+    "socket.io-client": "^4.8.3",
+    "pg": "^8.20.0",
+}
+OVERRIDES_BLOCK = "overrides:\n" + "".join(
+    f"  '{name}': {version}\n" if name.startswith("@") else f"  {name}: {version}\n"
+    for name, version in OVERRIDES.items()
+)
 DEPENDENCY_GROUPS = ("dependencies", "devDependencies", "optionalDependencies")
 
 
@@ -41,7 +45,6 @@ def unquote_yaml_key(raw: str) -> str:
 
 
 def yaml_scalar(value: str) -> str:
-    # Keep package manager ranges readable, quote only values YAML might misread.
     lowered = value.lower()
     if (
         value == ""
@@ -67,6 +70,21 @@ def load_manifest_specs() -> dict[str, dict[str, dict[str, str]]]:
                 importer_specs[group] = {str(k): str(v) for k, v in deps.items()}
         specs[importer] = importer_specs
     return specs
+
+
+def expected_specifier(
+    manifest_specs: dict[str, dict[str, dict[str, str]]],
+    importer: str,
+    group: str,
+    dep: str,
+) -> str | None:
+    manifest_value = manifest_specs.get(importer, {}).get(group, {}).get(dep)
+    if manifest_value is None:
+        return None
+    # pnpm frozen-lockfile validates importer specifiers after root overrides.
+    # Therefore lockfile importer entries for overridden deps must use the
+    # override value, not the raw package.json range.
+    return OVERRIDES.get(dep, manifest_value)
 
 
 def main() -> None:
@@ -117,7 +135,7 @@ def main() -> None:
         if current_importer and current_group and current_dep:
             specifier_match = re.match(r"^(        specifier: ).*(\n?)$", line)
             if specifier_match:
-                expected = manifest_specs.get(current_importer, {}).get(current_group, {}).get(current_dep)
+                expected = expected_specifier(manifest_specs, current_importer, current_group, current_dep)
                 if expected is not None:
                     replacement = f"        specifier: {yaml_scalar(expected)}\n"
                     if replacement != line:
