@@ -2,6 +2,7 @@
  * Quest Echo Tracker — Screen 10 style feed.
  * - O(1) head reads via PortalWorldHistory ring buffer
  * - ThemeEngine colours: combat → fire-glitch pulse, trade → marina calm, loot → golden glitch aura
+ * - refinement → molecular decay aura
  */
 
 import React, { useEffect, useMemo, useSyncExternalStore, useState } from "react";
@@ -16,6 +17,18 @@ import {
 } from "@wasd/shared";
 import { PortalWorldHistory, type WorldEcho } from "../world/PortalWorldHistory";
 
+function refinementVisual(): VisualThemeState {
+  return {
+    auraHex: "#39FF14",
+    secondaryHex: "#3d0505",
+    mode: "balanced",
+    glitchIntensity: 0.64,
+    phaseShiftPulseHz: 1.35,
+    hazardIndex: 0.44,
+    aggressionTrend: 0,
+  };
+}
+
 function echoVisual(echo: WorldEcho, live: VisualThemeState): VisualThemeState {
   if (echo.kind === "loot" && echo.loot) {
     return getLootLegendaryVisualState({
@@ -28,6 +41,7 @@ function echoVisual(echo: WorldEcho, live: VisualThemeState): VisualThemeState {
       sourceId: echo.loot.sourceId,
     });
   }
+  if (echo.kind === "refinement") return refinementVisual();
   if (echo.kind === "combat") {
     return getVisualState(Math.max(0.78, live.hazardIndex), Math.max(0.0005, live.aggressionTrend));
   }
@@ -121,6 +135,22 @@ const EchoTracker: React.FC = () => {
           </button>
           <button
             type="button"
+            className="rounded border border-lime-400/50 bg-lime-950/40 px-2 py-1 text-[11px] font-semibold text-lime-100 hover:bg-lime-900/50"
+            onClick={() => {
+              hist.recordRefinement({
+                itemId: "rusted_blade",
+                itemName: "Rusted Blade",
+                quality: "common",
+                sector: "12:8",
+                yields: "2 commonEssence",
+                residueHash: "demo-refine-rusted-blade",
+              });
+            }}
+          >
+            + Refine echo
+          </button>
+          <button
+            type="button"
             className="rounded border border-amber-500/50 bg-amber-950/40 px-2 py-1 text-[11px] font-semibold text-amber-100 hover:bg-amber-900/50"
             onClick={() => {
               let i = 0;
@@ -152,7 +182,7 @@ const EchoTracker: React.FC = () => {
       <ul className="max-h-72 space-y-2 overflow-y-auto pr-1">
         {echoes.length === 0 ? (
           <li className="rounded-lg border border-dashed border-slate-700 p-4 text-center text-sm text-slate-500">
-            Waiting for NPC trade / combat / loot echoes…
+            Waiting for NPC trade / combat / loot / refinement echoes…
           </li>
         ) : (
           echoes.map((echo) => {
@@ -160,28 +190,44 @@ const EchoTracker: React.FC = () => {
             const vars = visualStateToCssVars(vis);
             const isCombat = echo.kind === "combat";
             const isLoot = echo.kind === "loot";
+            const isRefinement = echo.kind === "refinement";
             const firePulse = isCombat && vis.mode === "fire_glitch";
             const goldenPulse = isLoot && vis.mode === "loot_legendary";
+            const refinePulse = isRefinement;
 
             return (
               <li
                 key={echo.id}
                 className={`flex items-start gap-3 rounded-lg border px-3 py-2 text-sm ${
-                  goldenPulse ? "border-amber-300/70" : firePulse ? "border-red-500/50" : "border-cyan-500/30"
+                  goldenPulse
+                    ? "border-amber-300/70"
+                    : refinePulse
+                      ? "border-lime-300/60"
+                      : firePulse
+                        ? "border-red-500/50"
+                        : "border-cyan-500/30"
                 }`}
                 style={{
                   ...vars,
-                  backgroundColor: goldenPulse ? "rgba(44,32,4,0.74)" : "rgba(15,23,42,0.72)",
+                  backgroundColor: goldenPulse
+                    ? "rgba(44,32,4,0.74)"
+                    : refinePulse
+                      ? "rgba(4,32,14,0.68)"
+                      : "rgba(15,23,42,0.72)",
                   boxShadow: goldenPulse
                     ? `0 0 22px ${vis.auraHex}, inset 0 0 18px rgba(255,215,106,0.18)`
-                    : firePulse
-                      ? `0 0 14px ${vis.auraHex}, inset 0 0 8px rgba(230,0,0,0.12)`
-                      : `0 0 10px ${vis.auraHex}33`,
+                    : refinePulse
+                      ? `0 0 18px #39FF14, inset 0 0 12px rgba(230,0,0,0.14)`
+                      : firePulse
+                        ? `0 0 14px ${vis.auraHex}, inset 0 0 8px rgba(230,0,0,0.12)`
+                        : `0 0 10px ${vis.auraHex}33`,
                   animation: goldenPulse
                     ? `echoGoldPulse var(--wasd-phase-period, 0.65s) ease-in-out infinite`
-                    : firePulse
-                      ? `echoFirePulse var(--wasd-phase-period, 0.9s) ease-in-out infinite`
-                      : `echoMarinaPulse var(--wasd-phase-period, 1.4s) ease-in-out infinite`,
+                    : refinePulse
+                      ? `echoRefinePulse 0.88s ease-in-out infinite`
+                      : firePulse
+                        ? `echoFirePulse var(--wasd-phase-period, 0.9s) ease-in-out infinite`
+                        : `echoMarinaPulse var(--wasd-phase-period, 1.4s) ease-in-out infinite`,
                 }}
               >
                 <span
@@ -199,6 +245,11 @@ const EchoTracker: React.FC = () => {
                   {echo.loot ? (
                     <div className="mt-1 rounded border border-amber-300/30 bg-black/30 px-2 py-1 font-mono text-[10px] text-amber-100">
                       Emily: Architekt Thomas, die Kausalität hat ein Fragment der Stufe {echo.loot.quality} in Sektor {echo.loot.sector} manifestiert. Wahrscheinlichkeit: {(echo.loot.probability * 100).toFixed(4)}%.
+                    </div>
+                  ) : null}
+                  {echo.refinement ? (
+                    <div className="mt-1 rounded border border-lime-300/30 bg-black/30 px-2 py-1 font-mono text-[10px] text-lime-100">
+                      Emily: Architekt Thomas, {echo.refinement.itemName} wurde in Sektor {echo.refinement.sector} kontrolliert zerlegt. Molekularer Zerfall stabil. Gewonnen: {echo.refinement.yields}.
                     </div>
                   ) : null}
                 </div>
@@ -220,6 +271,10 @@ const EchoTracker: React.FC = () => {
         @keyframes echoGoldPulse {
           0%, 100% { filter: brightness(1) saturate(1); transform: translateX(0) scale(1); }
           50% { filter: brightness(1.34) saturate(1.35); transform: translateX(0.5px) scale(1.006); }
+        }
+        @keyframes echoRefinePulse {
+          0%, 100% { filter: brightness(1) saturate(1); transform: translateX(0); }
+          50% { filter: brightness(1.2) saturate(1.4); transform: translateX(-0.5px); }
         }
       `}</style>
     </div>
