@@ -61,4 +61,36 @@ describe("PortalWorldHistory", () => {
     });
     expect(h.getHead()?.kind).toBe("trade");
   });
+
+  it("recordRefinement + recordForge append typed echoes", () => {
+    const h = PortalWorldHistory.getInstance();
+    h.recordRefinement({
+      itemId: "rusted_blade",
+      itemName: "Rusted Blade",
+      quality: "common",
+      sector: "12:8",
+      yields: "2 commonEssence",
+      residueHash: "test-residue",
+    });
+    expect(h.getHead()?.kind).toBe("refinement");
+    expect(h.getHead()?.refinement?.itemId).toBe("rusted_blade");
+
+    h.recordForge({
+      blueprintId: "bp_echo_blade_t2",
+      blueprintName: "Blueprint: Echo Blade",
+      itemId: "echo_blade:abc",
+      itemName: "Echo Blade",
+      quality: "rare",
+      sector: "12:8",
+      stability: 0.94,
+      forgeHash: "forgehash123",
+    });
+    expect(h.getHead()?.kind).toBe("forge");
+    expect(h.getHead()?.forge?.blueprintId).toBe("bp_echo_blade_t2");
+
+    const d = h.getEchoDigestSummary(10);
+    expect(d.refinement).toBe(1);
+    expect(d.forge).toBe(1);
+    expect(d.total).toBe(2);
+  });
 });

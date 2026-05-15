@@ -7,7 +7,7 @@
 
 import type { IWorldEvent } from "./portalWorldTypes";
 
-export type EchoKind = "combat" | "trade" | "loot";
+export type EchoKind = "combat" | "trade" | "loot" | "refinement" | "forge" | "destiny";
 export type LootEchoQuality = "epic" | "legendary" | "mythic" | string;
 
 export interface LootEchoMeta {
@@ -20,12 +20,34 @@ export interface LootEchoMeta {
   sourceId?: string;
 }
 
+export interface RefinementEchoMeta {
+  itemId: string;
+  itemName: string;
+  quality: string;
+  sector: string;
+  yields: string;
+  residueHash: string;
+}
+
+export interface ForgeEchoMeta {
+  blueprintId: string;
+  blueprintName: string;
+  itemId: string;
+  itemName: string;
+  quality: string;
+  sector: string;
+  stability: number;
+  forgeHash: string;
+}
+
 export interface WorldEcho {
   id: string;
   kind: EchoKind;
   summary: string;
   ts: number;
   loot?: LootEchoMeta;
+  refinement?: RefinementEchoMeta;
+  forge?: ForgeEchoMeta;
   /** Optional mirror of server-style world lines */
   worldLine?: Pick<IWorldEvent, "title" | "description">;
 }
@@ -101,6 +123,33 @@ export class PortalWorldHistory {
     });
   }
 
+  recordRefinement(meta: RefinementEchoMeta): WorldEcho {
+    const summary = `Refinement echo · ${meta.quality.toUpperCase()} · ${meta.itemName} · sector ${meta.sector}`;
+    return this.pushEcho({
+      kind: "refinement",
+      summary,
+      refinement: meta,
+      worldLine: {
+        title: `Refinement · ${meta.itemName}`,
+        description: `Architekt Thomas, ${meta.itemName} wurde in Sektor ${meta.sector} kontrolliert zerlegt. Gewonnen: ${meta.yields}.`,
+      },
+    });
+  }
+
+  recordForge(meta: ForgeEchoMeta): WorldEcho {
+    const stabilityPct = (meta.stability * 100).toFixed(2);
+    const summary = `Forge echo · ${meta.quality.toUpperCase()} · ${meta.itemName} · sector ${meta.sector} · stability ${stabilityPct}%`;
+    return this.pushEcho({
+      kind: "forge",
+      summary,
+      forge: meta,
+      worldLine: {
+        title: `Forge manifestation · ${meta.quality.toUpperCase()}`,
+        description: `Schmiedevorgang stabil. Blueprint-Kausalität bei ${stabilityPct}%. ${meta.itemName} wurde in Sektor ${meta.sector} manifestiert.`,
+      },
+    });
+  }
+
   /** O(1) — most recent echo or null. */
   getHead(): WorldEcho | null {
     if (this.writeSeq === 0) return null;
@@ -128,6 +177,9 @@ export class PortalWorldHistory {
     combat: number;
     trade: number;
     loot: number;
+    refinement: number;
+    forge: number;
+    destiny: number;
     total: number;
     lines: string[];
   } {
@@ -135,8 +187,11 @@ export class PortalWorldHistory {
     const combat = slice.filter((e) => e.kind === "combat").length;
     const trade = slice.filter((e) => e.kind === "trade").length;
     const loot = slice.filter((e) => e.kind === "loot").length;
+    const refinement = slice.filter((e) => e.kind === "refinement").length;
+    const forge = slice.filter((e) => e.kind === "forge").length;
+    const destiny = slice.filter((e) => e.kind === "destiny").length;
     const lines = slice.slice(0, 5).map((e) => `[${e.kind}] ${e.summary.slice(0, 72)}`);
-    return { combat, trade, loot, total: slice.length, lines };
+    return { combat, trade, loot, refinement, forge, destiny, total: slice.length, lines };
   }
 
   /** Optional: ingest server-shaped world lines as echo metadata. */
