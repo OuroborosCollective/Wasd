@@ -44,11 +44,30 @@ else
 fi
 
 free_port_3000() {
-  local ids
-  ids="$(docker ps --filter publish=3000 --format '{{.ID}}' | tr '\n' ' ')"
+  local ids pids
+
+  ids="$(docker ps -a --format '{{.ID}} {{.Ports}}' | awk '/(:|0\.0\.0\.0:)3000->|:::3000->|0\.0\.0\.0:3000-|:::3000-/ {print $1}' | tr '\n' ' ')"
   if [ -n "${ids// }" ]; then
-    echo "Stopping container(s) currently publishing port 3000: $ids"
+    echo "Removing Docker container(s) publishing port 3000: $ids"
     docker rm -f $ids >/dev/null 2>&1 || true
+  fi
+
+  if command -v fuser >/dev/null 2>&1; then
+    pids="$(fuser -n tcp 3000 2>/dev/null || true)"
+    if [ -n "${pids// }" ]; then
+      echo "Stopping host process(es) listening on port 3000: $pids"
+      kill $pids >/dev/null 2>&1 || true
+      sleep 2
+      kill -9 $pids >/dev/null 2>&1 || true
+    fi
+  elif command -v lsof >/dev/null 2>&1; then
+    pids="$(lsof -ti tcp:3000 2>/dev/null | tr '\n' ' ')"
+    if [ -n "${pids// }" ]; then
+      echo "Stopping host process(es) listening on port 3000: $pids"
+      kill $pids >/dev/null 2>&1 || true
+      sleep 2
+      kill -9 $pids >/dev/null 2>&1 || true
+    fi
   fi
 }
 
