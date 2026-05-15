@@ -45,6 +45,33 @@ function toOutFile(file, extension) {
   return join(outDir, rel.replace(/\.[cm]?tsx?$/, extension));
 }
 
+function shouldRewriteSpecifier(specifier) {
+  if (!specifier.startsWith('./') && !specifier.startsWith('../')) return false;
+  const clean = specifier.split(/[?#]/, 1)[0];
+  if (clean.endsWith('/')) return false;
+  return extname(clean) === '';
+}
+
+function withJsExtension(specifier) {
+  if (!shouldRewriteSpecifier(specifier)) return specifier;
+  const suffixIndex = specifier.search(/[?#]/);
+  if (suffixIndex === -1) return `${specifier}.js`;
+  return `${specifier.slice(0, suffixIndex)}.js${specifier.slice(suffixIndex)}`;
+}
+
+function rewriteRelativeEsmSpecifiers(output) {
+  return output
+    .replace(/(from\s*['"])(\.\.?\/[^'"]+)(['"])/g, (_match, prefix, specifier, suffix) => {
+      return `${prefix}${withJsExtension(specifier)}${suffix}`;
+    })
+    .replace(/(import\s*['"])(\.\.?\/[^'"]+)(['"])/g, (_match, prefix, specifier, suffix) => {
+      return `${prefix}${withJsExtension(specifier)}${suffix}`;
+    })
+    .replace(/(import\(\s*['"])(\.\.?\/[^'"]+)(['"]\s*\))/g, (_match, prefix, specifier, suffix) => {
+      return `${prefix}${withJsExtension(specifier)}${suffix}`;
+    });
+}
+
 async function transpile(file) {
   const source = await readFile(file, 'utf8');
   let result;
@@ -76,7 +103,7 @@ async function transpile(file) {
 
   const jsFile = toOutFile(file, '.js');
   await ensureParent(jsFile);
-  await writeFile(jsFile, result.outputText || '');
+  await writeFile(jsFile, rewriteRelativeEsmSpecifiers(result.outputText || ''));
 }
 
 async function copyAsset(file) {
