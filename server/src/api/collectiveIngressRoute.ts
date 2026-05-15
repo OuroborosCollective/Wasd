@@ -1,0 +1,22 @@
+import { Router } from "express";
+import type { WorldTick } from "../core/WorldTick.js";
+import { createSovereignIdentity } from "../collective/SovereignIdentity.js";
+
+export function collectiveIngressRouter(tick: WorldTick) {
+  const router = Router();
+
+  router.get("/status", (_req, res) => {
+    res.json(tick.getCollectiveIngressStatus());
+  });
+
+  router.post("/preview", (req, res) => {
+    try {
+      const identity = createSovereignIdentity(req.body?.publicKey ?? req.body?.wallet ?? req.body?.hash, req.body?.alias);
+      res.json({ ok: true, identity });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: error instanceof Error ? error.message : "invalid_identity" });
+    }
+  });
+
+  return router;
+}
