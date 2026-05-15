@@ -12,4 +12,6 @@ DGCC_FIX=1 pnpm run dgcc
 
 Artifacts: `dgcc-artifacts/`
 
-The `minimal` / `extreme` modes also run `pnpm run check:interact` (GameConfig vs `shared/interaction.ts`).
+First-time E2E on a machine needs browsers: `pnpm run test:e2e:install`.
+
+By default the `unit` check runs `pnpm run test:dgcc` (fast client Vitest suite). Set `DGCC_UNIT=full` to run the entire monorepo test suite (`pnpm run test`).
