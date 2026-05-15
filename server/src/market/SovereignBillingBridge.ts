@@ -2,6 +2,14 @@ import type { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { areValidationState } from "../are/AREValidationState.js";
 import { sovereignMarket } from "./SovereignMarket.js";
 
+export function addCredits(clientId: string, amount: number, displayName = clientId): any {
+  return sovereignMarket.creditAccount(clientId, amount, displayName);
+}
+
+export const SovereignBillingBridge = {
+  addCredits,
+};
+
 function buildSuspendedGuard(tickCount: number, payload: any, message: string): any {
   return {
     ok: false,
