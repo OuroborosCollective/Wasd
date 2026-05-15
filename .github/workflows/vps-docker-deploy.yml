@@ -18,6 +18,8 @@ on:
       - 'portal/**'
       - 'engine/**'
       - 'docker/**'
+      - 'scripts/**'
+      - '.dockerignore'
       - 'Dockerfile'
       - 'Dockerfile.*'
       - 'docker-compose.yml'
@@ -25,7 +27,7 @@ on:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'package.json'
-      - 'scripts/deploy-vps-docker.sh'
+      - '.github/workflows/vps-docker-deploy.yml'
   workflow_dispatch:
 
 concurrency:
