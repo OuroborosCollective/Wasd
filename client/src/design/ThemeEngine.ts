@@ -13,6 +13,7 @@ export interface ThemeGuardState {
   fireGlitch: boolean;
   observationMode: boolean;
   oracleActive: boolean;
+  repairActive: boolean;
   label: string;
   status: AREValidationApiStatus | null;
 }
@@ -48,6 +49,7 @@ export interface AREOracleProphecy {
   id: string;
   kind: string;
   severity: "low" | "medium" | "high";
+  severityScore?: number;
   active: boolean;
   sector: number;
   ticksUntil: number;
@@ -67,7 +69,28 @@ export interface AREOracleReport {
   prophecies: AREOracleProphecy[];
 }
 
-export function deriveThemeGuardState(status: AREValidationApiStatus | null, observationMode = false, oracleActive = false): ThemeGuardState {
+export interface AREAutoRepairPlan {
+  id: string;
+  cause: "determinism_violation" | "critical_oracle_prophecy";
+  phase: "idle" | "detecting" | "rollback" | "patching" | "healed" | "failed";
+  sector: number;
+  currentTick: number;
+  rollbackTick: number | null;
+  rollbackWorldHash: string | null;
+  report: string;
+  guardViolations: unknown[];
+  prophecy: AREOracleProphecy | null;
+  layoutFixes: unknown[];
+}
+
+export interface AREAutoRepairStatus {
+  active: boolean;
+  healed: boolean;
+  lastPlan: AREAutoRepairPlan | null;
+  history: AREAutoRepairPlan[];
+}
+
+export function deriveThemeGuardState(status: AREValidationApiStatus | null, observationMode = false, oracleActive = false, repairActive = false): ThemeGuardState {
   const violations = status?.guard?.violations ?? [];
   const fireGlitch = Boolean(status?.fireGlitch || status?.guard?.ok === false || violations.length > 0);
   const last = status?.lastViolation ?? violations.at(-1) ?? null;
@@ -75,14 +98,17 @@ export function deriveThemeGuardState(status: AREValidationApiStatus | null, obs
     fireGlitch,
     observationMode,
     oracleActive,
+    repairActive,
     status,
-    label: observationMode
-      ? "Observation-Mode · deterministic replay active"
-      : fireGlitch
-        ? (last?.message ?? "ARE determinism violation")
-        : oracleActive
-          ? "Ouroboros Oracle · active prophecy detected"
-          : "ARE Runtime Contract stable",
+    label: repairActive
+      ? "Emily-Surgeon · self-healing active"
+      : observationMode
+        ? "Observation-Mode · deterministic replay active"
+        : fireGlitch
+          ? (last?.message ?? "ARE determinism violation")
+          : oracleActive
+            ? "Ouroboros Oracle · active prophecy detected"
+            : "ARE Runtime Contract stable",
   };
 }
 
@@ -123,6 +149,17 @@ export async function fetchAREOracleReport(): Promise<AREOracleReport | null> {
     if (!response.ok) return null;
     const body = await response.json();
     return body.oracle ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchAREAutoRepairStatus(): Promise<AREAutoRepairStatus | null> {
+  try {
+    const response = await fetch("/api/are/replay/repair/status", { cache: "no-store" });
+    if (!response.ok) return null;
+    const body = await response.json();
+    return body.autoRepair ?? null;
   } catch {
     return null;
   }
