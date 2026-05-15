@@ -40,8 +40,9 @@ COPY server/package.json server/package.json
 COPY client/package.json client/package.json
 COPY engine/package.json engine/package.json
 COPY portal/package.json portal/package.json
+COPY scripts/sync-pnpm-lockfile-for-docker.py scripts/sync-pnpm-lockfile-for-docker.py
 
-# Remove everything except package.json
+# Remove everything except package.json from copied workspace trees
 RUN find packages apps projects -type f ! -name 'package.json' -delete || true
 RUN find packages apps projects -type d -empty -delete || true
 
@@ -51,64 +52,10 @@ ENV CI=true
 RUN pnpm config set network-concurrency 4 && \
     pnpm config set child-concurrency 1
 
-# Patch only the Docker build copy of pnpm-lock.yaml.
-# This keeps the install frozen/offline and avoids the heavy no-frozen path that
-# was OOM-killed on the VPS.
-RUN <<'EOF'
-set -eu
-python3 - <<'PY'
-from pathlib import Path
-
-lockfile = Path("pnpm-lock.yaml")
-text = lockfile.read_text()
-marker = "settings:\n  autoInstallPeers: true\n  excludeLinksFromLockfile: false\n\n"
-overrides = """overrides:
-  '@types/react': ^19.2.14
-  '@types/react-dom': ^19.2.3
-  '@types/node': ^22.19.18
-  zod: ^4.4.3
-  three: 0.184.0
-  '@babylonjs/core': ^9.6.2
-  '@babylonjs/materials': ^9.6.2
-  '@babylonjs/loaders': ^9.6.2
-  react: ^19.2.6
-  socket.io-client: ^4.8.3
-  pg: ^8.20.0
-"""
-
-if "\noverrides:\n" not in text:
-    if marker not in text:
-        raise SystemExit("Expected pnpm lockfile settings marker not found")
-    text = text.replace(marker, marker + overrides + "\n", 1)
-
-old = """  packages/core-ecs:
-    dependencies:
-      nanoid:
-        specifier: ^5.1.11
-        version: 5.1.11
-    devDependencies:
-      '@types/node':
-        specifier: ^25.7.0
-        version: 25.7.0
-"""
-new = """  packages/core-ecs:
-    dependencies:
-      nanoid:
-        specifier: ^5.1.11
-        version: 5.1.11
-    devDependencies:
-      '@types/node':
-        specifier: ^22.19.18
-        version: 25.7.0
-"""
-if old in text:
-    text = text.replace(old, new, 1)
-else:
-    print("core-ecs lockfile specifier block already patched or not found")
-
-lockfile.write_text(text)
-PY
-EOF
+# Self-heal only the Docker build copy of pnpm-lock.yaml.
+# This syncs root override metadata and importer specifiers from package.json,
+# keeping install frozen/offline and avoiding the VPS OOM-prone no-frozen path.
+RUN python3 scripts/sync-pnpm-lockfile-for-docker.py
 
 # Split fetch/install to lower memory pressure and keep final install offline.
 RUN pnpm fetch --frozen-lockfile --prefer-offline
