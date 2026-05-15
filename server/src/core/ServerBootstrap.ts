@@ -17,6 +17,7 @@ import { warfrontRouter } from "../api/warfrontRoute.js";
 import { areValidationRouter } from "../api/areValidationRoute.js";
 import { areReplayRouter } from "../api/areReplayRoute.js";
 import { sovereignDeployRouter } from "../api/sovereignDeployRoute.js";
+import { collectiveIngressRouter } from "../api/collectiveIngressRoute.js";
 import { getContentDataSourceLabel, resolveContentDir } from "../modules/content/contentDataRoot.js";
 import { getSupabaseSummary, verifySupabaseToken } from "../config/supabase.js";
 import { resolveWorldAssetsDir } from "./resolveWorldAssetsDir.js";
@@ -162,6 +163,7 @@ export class ServerBootstrap {
     app.use("/api/are/validation", areValidationRouter(tick));
     app.use("/api/are/replay", areReplayRouter(tick));
     app.use("/api/sovereign/deploy", sovereignDeployRouter(tick));
+    app.use("/api/collective/ingress", express.json({ limit: "256kb" }), collectiveIngressRouter(tick));
     const monitorStream = new PlaytesterMonitorStream(httpServer, (options) => tick.buildPlaytesterMonitorPayload(options));
     monitorStream.start();
     const playtesterSignaling = new PlaytesterWebRTCSignaling(httpServer);
