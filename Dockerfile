@@ -94,8 +94,8 @@ ENV NODE_OPTIONS="--max-old-space-size=12288"
 
 # Server container build only. Do not build browser/demo workspaces here.
 # Core-logic must be built before server because server re-exports AREInvariantGuard
-# from @wasd/core-logic package exports at runtime.
-RUN pnpm --filter @wasd/core-logic --if-present build && \
+# from @wasd/core-logic package exports at runtime. Runtime build intentionally skips DTS.
+RUN pnpm --filter @wasd/core-logic --if-present run build:runtime && \
     pnpm --filter @wasd/shared --if-present build && \
     pnpm --filter @wasd/server --if-present build
 
