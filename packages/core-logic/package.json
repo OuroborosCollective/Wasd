@@ -1,8 +1,8 @@
 {
   "name": "@wasd/core-logic",
   "version": "0.1.0",
-  "private": true,
-  "description": "Shared agent orchestrator logic for server/client parity",
+  "private": false,
+  "description": "Ouroboros ARE deterministic core logic SDK",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -12,14 +12,20 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
+    },
+    "./are/AREInvariantGuard": {
+      "types": "./dist/are/AREInvariantGuard.d.ts",
+      "import": "./dist/are/AREInvariantGuard.mjs",
+      "require": "./dist/are/AREInvariantGuard.js"
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
-    "dev": "tsup src/index.ts --format cjs,esm --watch --dts",
+    "build": "tsup src/index.ts src/are/AREInvariantGuard.ts --format cjs,esm --dts --clean",
+    "dev": "tsup src/index.ts src/are/AREInvariantGuard.ts --format cjs,esm --watch --dts",
     "test": "vitest run --passWithNoTests",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit"
