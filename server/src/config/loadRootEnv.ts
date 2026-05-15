@@ -30,6 +30,6 @@ export function loadRootEnvFiles(): void {
   const opt = "/opt/areloria/.env";
 
   tryLoad(fromMonorepoRoot, false);
-  tryLoad(fromCwd, true);
+  tryLoad(fromCwd, false);
   tryLoad(opt, true);
 }

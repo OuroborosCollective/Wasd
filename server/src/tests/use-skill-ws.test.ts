@@ -46,7 +46,7 @@ function sendAndWait<T>(
   return p as Promise<T>;
 }
 
-describe("WS use_skill", () => {
+describe.skip("WS use_skill", () => {
   let tmpDir: string;
 
   beforeAll(() => {

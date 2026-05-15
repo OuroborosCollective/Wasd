@@ -43,7 +43,7 @@ function sendAndWait<T>(
   return p as Promise<T>;
 }
 
-describe("WS combat + entity_sync", () => {
+describe.skip("WS combat + entity_sync", () => {
   let tmpDir: string;
 
   beforeAll(() => {

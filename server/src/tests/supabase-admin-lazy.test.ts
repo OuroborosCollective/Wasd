@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
-describe("supabaseAdmin lazy client", () => {
+describe("Lazy service-role Supabase client", () => {
   const orig = { ...process.env };
 
   beforeEach(() => {
@@ -13,7 +13,6 @@ describe("supabaseAdmin lazy client", () => {
   });
 
   it("throws a clear error when URL or key missing", async () => {
-    // Set to empty strings so dotenv.config() on re-import won't re-inject from .env
     process.env.SUPABASE_URL = "";
     process.env.SUPABASE_PUBLIC_URL = "";
     process.env.API_EXTERNAL_URL = "";
@@ -26,7 +25,7 @@ describe("supabaseAdmin lazy client", () => {
   });
 
   it("creates client when API_EXTERNAL_URL and SERVICE_ROLE_KEY set", async () => {
-    process.env.API_EXTERNAL_URL = "http://example:8000";
+    process.env.API_EXTERNAL_URL = "http://127.0.0.1:48101";
     process.env.SERVICE_ROLE_KEY = "test-service-role-key";
     const { getSupabaseAdmin } = await import("../lib/supabaseAdmin.js");
     const c = getSupabaseAdmin();

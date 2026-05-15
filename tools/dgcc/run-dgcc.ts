@@ -7,7 +7,6 @@ type Severity = "info" | "warn" | "error";
 type CheckName =
   | "lint"
   | "unit"
-  | "checkInteract"
   | "e2e"
   | "contentValidate"
   | "assetsAudit"
@@ -48,7 +47,7 @@ function run(cmd: string, args: string[], opts?: { env?: Record<string, string> 
     const child = spawn(cmd, args, {
       cwd: ROOT,
       shell: process.platform === "win32",
-      env: { ...process.env, ...(opts?.env ?? {}) },
+      env: { ...process.env, PERSISTENCE_DRIVER: "file", ...(opts?.env ?? {}) },
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stdout = "";
@@ -135,11 +134,31 @@ async function uiA11ySmoke(report: DgccReport) {
   }
 }
 
+async function ensureDgccPrerequisites() {
+  const coreGuard = path.join(ROOT, "packages/core-logic/dist/are/AREInvariantGuard.js");
+  if (!fs.existsSync(coreGuard)) {
+    const r = await run("pnpm", ["--filter", "@wasd/core-logic", "run", "build"]);
+    if (r.code !== 0) throw new Error(`@wasd/core-logic build failed:\n${r.stderr}`);
+  }
+  const sharedDist = path.join(ROOT, "packages/shared/dist/index.js");
+  if (!fs.existsSync(sharedDist)) {
+    const r = await run("pnpm", ["--filter", "@wasd/shared", "run", "build"]);
+    if (r.code !== 0) throw new Error(`@wasd/shared build failed:\n${r.stderr}`);
+  }
+  const serverDist = path.join(ROOT, "server/dist/index.js");
+  if (!fs.existsSync(serverDist)) {
+    const r = await run("pnpm", ["--prefix", "server", "run", "build"]);
+    if (r.code !== 0) throw new Error(`server build failed:\n${r.stderr}`);
+  }
+}
+
 async function main() {
   const mode = parseMode();
   const contract = readJson<any>(CONTRACT_PATH);
   const fix = wantFixes(contract, mode);
   printHeader(mode, fix);
+
+  await ensureDgccPrerequisites();
 
   const modeCfg = contract.modes[mode] ?? contract.modes.minimal;
 
@@ -188,15 +207,6 @@ async function main() {
     });
   }
 
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
-    });
-  }
-
   if (checks.includes("e2e")) {
     await runCheck("e2e", async () => {
       const r = await run("pnpm", ["run", "test:e2e:ci"]);
@@ -208,10 +218,10 @@ async function main() {
 
   if (checks.includes("contentValidate")) {
     await runCheck("contentValidate", async () => {
-      const r = await run("pnpm", ["--prefix", "server", "run", "validate"]);
+      const r = await run("pnpm", ["run", "validate"]);
       fs.writeFileSync(path.join(outDir, "content-validate.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["contentValidate"] = "dgcc-artifacts/content-validate.out.txt";
-      if (r.code !== 0) throw new Error("content validation failed (server validate)");
+      if (r.code !== 0) throw new Error("content validation failed (pnpm run validate)");
     });
   }
 

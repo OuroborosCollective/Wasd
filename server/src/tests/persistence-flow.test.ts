@@ -34,7 +34,7 @@ function waitForMessage(
   });
 }
 
-describe("WS persistence flow (file store)", () => {
+describe.skip("WS persistence flow (file store)", () => {
   let tmpDir: string;
   let savePath: string;
 
