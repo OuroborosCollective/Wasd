@@ -3,6 +3,7 @@
  * - O(1) head reads via PortalWorldHistory ring buffer
  * - ThemeEngine colours: combat → fire-glitch pulse, trade → marina calm, loot → golden glitch aura
  * - refinement → molecular decay aura
+ * - forge → cyan/electro-blue sovereign technology pulse
  */
 
 import React, { useEffect, useMemo, useSyncExternalStore, useState } from "react";
@@ -29,6 +30,18 @@ function refinementVisual(): VisualThemeState {
   };
 }
 
+function forgeVisual(): VisualThemeState {
+  return {
+    auraHex: "#00B7FF",
+    secondaryHex: "#003BFF",
+    mode: "balanced",
+    glitchIntensity: 0.52,
+    phaseShiftPulseHz: 1.72,
+    hazardIndex: 0.38,
+    aggressionTrend: 0.001,
+  };
+}
+
 function echoVisual(echo: WorldEcho, live: VisualThemeState): VisualThemeState {
   if (echo.kind === "loot" && echo.loot) {
     return getLootLegendaryVisualState({
@@ -41,6 +54,7 @@ function echoVisual(echo: WorldEcho, live: VisualThemeState): VisualThemeState {
       sourceId: echo.loot.sourceId,
     });
   }
+  if (echo.kind === "forge") return forgeVisual();
   if (echo.kind === "refinement") return refinementVisual();
   if (echo.kind === "combat") {
     return getVisualState(Math.max(0.78, live.hazardIndex), Math.max(0.0005, live.aggressionTrend));
@@ -151,6 +165,24 @@ const EchoTracker: React.FC = () => {
           </button>
           <button
             type="button"
+            className="rounded border border-blue-400/50 bg-blue-950/50 px-2 py-1 text-[11px] font-semibold text-blue-100 hover:bg-blue-900/60"
+            onClick={() => {
+              hist.recordForge({
+                blueprintId: "bp_echo_blade_t2",
+                blueprintName: "Blueprint: Echo Blade",
+                itemId: "echo_blade:demo",
+                itemName: "Echo Blade",
+                quality: "rare",
+                sector: "12:8",
+                stability: 1,
+                forgeHash: "demo-forge-echo-blade",
+              });
+            }}
+          >
+            + Forge echo
+          </button>
+          <button
+            type="button"
             className="rounded border border-amber-500/50 bg-amber-950/40 px-2 py-1 text-[11px] font-semibold text-amber-100 hover:bg-amber-900/50"
             onClick={() => {
               let i = 0;
@@ -182,7 +214,7 @@ const EchoTracker: React.FC = () => {
       <ul className="max-h-72 space-y-2 overflow-y-auto pr-1">
         {echoes.length === 0 ? (
           <li className="rounded-lg border border-dashed border-slate-700 p-4 text-center text-sm text-slate-500">
-            Waiting for NPC trade / combat / loot / refinement echoes…
+            Waiting for NPC trade / combat / loot / refinement / forge echoes…
           </li>
         ) : (
           echoes.map((echo) => {
@@ -191,9 +223,11 @@ const EchoTracker: React.FC = () => {
             const isCombat = echo.kind === "combat";
             const isLoot = echo.kind === "loot";
             const isRefinement = echo.kind === "refinement";
+            const isForge = echo.kind === "forge";
             const firePulse = isCombat && vis.mode === "fire_glitch";
             const goldenPulse = isLoot && vis.mode === "loot_legendary";
             const refinePulse = isRefinement;
+            const forgePulse = isForge;
 
             return (
               <li
@@ -201,33 +235,41 @@ const EchoTracker: React.FC = () => {
                 className={`flex items-start gap-3 rounded-lg border px-3 py-2 text-sm ${
                   goldenPulse
                     ? "border-amber-300/70"
-                    : refinePulse
-                      ? "border-lime-300/60"
-                      : firePulse
-                        ? "border-red-500/50"
-                        : "border-cyan-500/30"
+                    : forgePulse
+                      ? "border-blue-300/70"
+                      : refinePulse
+                        ? "border-lime-300/60"
+                        : firePulse
+                          ? "border-red-500/50"
+                          : "border-cyan-500/30"
                 }`}
                 style={{
                   ...vars,
                   backgroundColor: goldenPulse
                     ? "rgba(44,32,4,0.74)"
-                    : refinePulse
-                      ? "rgba(4,32,14,0.68)"
-                      : "rgba(15,23,42,0.72)",
+                    : forgePulse
+                      ? "rgba(2,18,44,0.74)"
+                      : refinePulse
+                        ? "rgba(4,32,14,0.68)"
+                        : "rgba(15,23,42,0.72)",
                   boxShadow: goldenPulse
                     ? `0 0 22px ${vis.auraHex}, inset 0 0 18px rgba(255,215,106,0.18)`
-                    : refinePulse
-                      ? `0 0 18px #39FF14, inset 0 0 12px rgba(230,0,0,0.14)`
-                      : firePulse
-                        ? `0 0 14px ${vis.auraHex}, inset 0 0 8px rgba(230,0,0,0.12)`
-                        : `0 0 10px ${vis.auraHex}33`,
+                    : forgePulse
+                      ? `0 0 20px #00B7FF, inset 0 0 16px rgba(0,59,255,0.18)`
+                      : refinePulse
+                        ? `0 0 18px #39FF14, inset 0 0 12px rgba(230,0,0,0.14)`
+                        : firePulse
+                          ? `0 0 14px ${vis.auraHex}, inset 0 0 8px rgba(230,0,0,0.12)`
+                          : `0 0 10px ${vis.auraHex}33`,
                   animation: goldenPulse
                     ? `echoGoldPulse var(--wasd-phase-period, 0.65s) ease-in-out infinite`
-                    : refinePulse
-                      ? `echoRefinePulse 0.88s ease-in-out infinite`
-                      : firePulse
-                        ? `echoFirePulse var(--wasd-phase-period, 0.9s) ease-in-out infinite`
-                        : `echoMarinaPulse var(--wasd-phase-period, 1.4s) ease-in-out infinite`,
+                    : forgePulse
+                      ? `echoForgePulse 0.72s ease-in-out infinite`
+                      : refinePulse
+                        ? `echoRefinePulse 0.88s ease-in-out infinite`
+                        : firePulse
+                          ? `echoFirePulse var(--wasd-phase-period, 0.9s) ease-in-out infinite`
+                          : `echoMarinaPulse var(--wasd-phase-period, 1.4s) ease-in-out infinite`,
                 }}
               >
                 <span
@@ -250,6 +292,11 @@ const EchoTracker: React.FC = () => {
                   {echo.refinement ? (
                     <div className="mt-1 rounded border border-lime-300/30 bg-black/30 px-2 py-1 font-mono text-[10px] text-lime-100">
                       Emily: Architekt Thomas, {echo.refinement.itemName} wurde in Sektor {echo.refinement.sector} kontrolliert zerlegt. Molekularer Zerfall stabil. Gewonnen: {echo.refinement.yields}.
+                    </div>
+                  ) : null}
+                  {echo.forge ? (
+                    <div className="mt-1 rounded border border-blue-300/30 bg-black/30 px-2 py-1 font-mono text-[10px] text-blue-100">
+                      Emily: Schmiedevorgang stabil. Blueprint-Kausalität bei {(echo.forge.stability * 100).toFixed(2)}%. {echo.forge.itemName} wurde in Sektor {echo.forge.sector} manifestiert.
                     </div>
                   ) : null}
                 </div>
@@ -275,6 +322,10 @@ const EchoTracker: React.FC = () => {
         @keyframes echoRefinePulse {
           0%, 100% { filter: brightness(1) saturate(1); transform: translateX(0); }
           50% { filter: brightness(1.2) saturate(1.4); transform: translateX(-0.5px); }
+        }
+        @keyframes echoForgePulse {
+          0%, 100% { filter: brightness(1) saturate(1); transform: translateX(0) scale(1); }
+          50% { filter: brightness(1.26) saturate(1.45); transform: translateX(0.5px) scale(1.004); }
         }
       `}</style>
     </div>
