@@ -5,23 +5,23 @@
   "description": "Ouroboros ARE deterministic core logic SDK",
   "type": "module",
   "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
     },
     "./are/AREInvariantGuard": {
       "types": "./dist/are/AREInvariantGuard.d.ts",
-      "import": "./dist/are/AREInvariantGuard.mjs",
-      "require": "./dist/are/AREInvariantGuard.js"
+      "import": "./dist/are/AREInvariantGuard.js",
+      "require": "./dist/are/AREInvariantGuard.cjs"
     },
     "./react/OuroborosPulseView": {
       "types": "./dist/react/OuroborosPulseView.d.ts",
-      "import": "./dist/react/OuroborosPulseView.mjs",
-      "require": "./dist/react/OuroborosPulseView.js"
+      "import": "./dist/react/OuroborosPulseView.js",
+      "require": "./dist/react/OuroborosPulseView.cjs"
     }
   },
   "files": [
@@ -44,6 +44,8 @@
   "devDependencies": {
     "@types/events": "^3.0.3",
     "@types/node": "^25.7.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.59.2",
     "@typescript-eslint/parser": "^8.59.2",
     "eslint": "^10.3.0",

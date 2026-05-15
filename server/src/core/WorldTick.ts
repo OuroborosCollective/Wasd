@@ -79,7 +79,11 @@ export class WorldTick {
   public getPlaytesterDebugLogPath(): string { return ""; }
   public buildPlaytesterMonitorPayload(options?: any): any { return {}; }
   public assetHealthService: any = { getStatus: () => ({}), getStats: () => null, flush: () => {} };
-  public async init(): Promise<void> {}
+  public async init(): Promise<void> {
+    await this.persistence.init();
+    await this.persistence.testConnection();
+    await this.persistence.load();
+  }
   private keysDown: Map<string, Set<string>> = new Map();
 
   constructor(private ws: GameWebSocketServer) {
@@ -153,6 +157,42 @@ export class WorldTick {
 
   private async handlePlayerMessage(id: string, msg: any) {
     if (msg.type === "login") {
+      const guestEnv = (process.env.ALLOW_GUEST_LOGIN || "1").trim().toLowerCase();
+      const guestAllowed = guestEnv !== "0" && guestEnv !== "false" && guestEnv !== "no";
+      const guestRaw = msg.guestId != null ? String(msg.guestId).trim() : "";
+      if (guestRaw && guestAllowed) {
+        const uid = guestRaw.startsWith("guest_") ? guestRaw : `guest_${guestRaw}`;
+        const charName =
+          typeof msg.guestName === "string" && msg.guestName.trim() ? msg.guestName.trim() : "Guest";
+        let player = this.playerSystem.getPlayer(uid);
+        if (!player) {
+          player = this.playerSystem.createPlayer(uid, charName);
+          this.hydratePlayer(player);
+        } else {
+          player.isOffline = false;
+        }
+        if (player.name !== charName) player.name = charName;
+        this.socketToPlayer.set(id, uid);
+        this.playerToSocket.set(uid, id);
+        this.observerEngine.register(id, { x: player.position.x, y: player.position.y });
+        const sceneId = typeof msg.sceneId === "string" && msg.sceneId ? msg.sceneId : "didis_hub";
+        this.ws.sendToPlayer(id, {
+          type: "welcome",
+          id: uid,
+          sceneId,
+          playerName: player.name,
+          stats: {
+            gold: Number(player.gold) || 0,
+            level: Number(player.level) || 1,
+            health: Number(player.health) || 0,
+            maxHealth: Number(player.maxHealth) || 0,
+            mana: Number(player.mana) || 0,
+            maxMana: Number(player.maxMana) || 0,
+            skillCooldownUntil: {},
+          },
+        });
+        return;
+      }
       if (!msg.token) { this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed: No token provided" }); setTimeout(() => { const client = Array.from((this.ws as any).wss.clients).find((c: any) => c.id === id); if (client) (client as any).close(); }, 500); return; }
       let charName = "Unknown";
       let uid = "";
