@@ -1,5 +1,7 @@
 import express from "express";
 import type { WorldTick } from "../core/WorldTick.js";
+import { attachSovereignBillingBridge } from "../market/SovereignBillingBridge.js";
+import { calculateUsageCost, sovereignMarket } from "../market/SovereignMarket.js";
 
 function parseTick(raw: string): number | null {
   const tick = Number(raw);
@@ -9,6 +11,7 @@ function parseTick(raw: string): number | null {
 
 export function areReplayRouter(tick: WorldTick) {
   const router = express.Router();
+  attachSovereignBillingBridge(tick as any, (tick as any).ws ?? { broadcast: () => undefined });
 
   router.get("/stats", (_req, res) => {
     res.json({ ok: true, stats: tick.getReplayRecorderStats?.() ?? null });
@@ -16,6 +19,34 @@ export function areReplayRouter(tick: WorldTick) {
 
   router.get("/repair/status", (_req, res) => {
     res.json({ ok: true, autoRepair: tick.getAutoRepairStatus?.() ?? null });
+  });
+
+  router.get("/billing/status", (_req, res) => {
+    const usage = tick.getDeterministicUsageStats?.() ?? null;
+    res.json({
+      ok: true,
+      usage,
+      cost: usage ? calculateUsageCost(usage) : calculateUsageCost({ hashesInWindow: 0 }),
+      billing: (tick as any).getSdkBillingStatus?.() ?? { suspended: false, message: null, market: sovereignMarket.getStatus() },
+      market: sovereignMarket.getStatus(),
+    });
+  });
+
+  router.post("/billing/preview-cost", express.json({ limit: "64kb" }), (req, res) => {
+    const hashesInWindow = Number(req.body?.hashesInWindow ?? req.body?.hashes ?? 0);
+    res.json({ ok: true, cost: calculateUsageCost({ hashesInWindow }) });
+  });
+
+  router.post("/billing/credit", express.json({ limit: "64kb" }), (req, res) => {
+    const adminKey = process.env.SOVEREIGN_LAUNCH_KEY || process.env.ARE_MARKET_ADMIN_KEY || "";
+    const provided = String(req.headers["x-sovereign-key"] || req.body?.key || "");
+    if (!adminKey || provided !== adminKey) return res.status(403).json({ ok: false, error: "forbidden" });
+    const source = String(req.body?.source || process.env.ARE_SDK_CLIENT_ID || "local-engine");
+    const displayName = String(req.body?.displayName || source);
+    const credits = Number(req.body?.credits ?? 0);
+    if (!Number.isFinite(credits) || credits <= 0) return res.status(400).json({ ok: false, error: "invalid_credits" });
+    const account = sovereignMarket.creditAccount(source, credits, displayName);
+    res.json({ ok: true, account, market: sovereignMarket.getStatus() });
   });
 
   router.get("/oracle/prophecy", (_req, res) => {
