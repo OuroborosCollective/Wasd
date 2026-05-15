@@ -12,6 +12,7 @@
   --fire-b: #e60000;
   --violet: #5b4bff;
   --gold: #ffe600;
+  --surgery-red: #4a0009;
   --pulse: 0.5;
   --pulse-resonance: 0.77;
   --pulse-marina: #00e5ff;
@@ -24,6 +25,7 @@
   --pulse-fire-rgb: 255, 122, 0;
   --pulse-violet-rgb: 91, 75, 255;
   --pulse-gold-rgb: 255, 230, 0;
+  --pulse-surgery-red-rgb: 74, 0, 9;
   --pulse-glow: 0.68;
   --scrollbar-bg: #0a0a0a;
   --scrollbar-thumb: var(--pulse-marina);
@@ -46,6 +48,7 @@
 .cyber-panel-fire { border-color: rgba(var(--pulse-fire-rgb), 0.42); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03) inset, 0 0 calc(28px + var(--pulse) * 28px) rgba(var(--pulse-fire-rgb), 0.2), 0 22px 80px rgba(0, 0, 0, 0.55); }
 .cyber-panel-violet { border-color: rgba(var(--pulse-violet-rgb), 0.48); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03) inset, 0 0 calc(32px + var(--pulse-glow) * 30px) rgba(var(--pulse-violet-rgb), 0.24), 0 22px 80px rgba(0, 0, 0, 0.58); }
 .cyber-panel-gold { border-color: rgba(var(--pulse-gold-rgb), 0.52); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.035) inset, 0 0 calc(34px + var(--pulse-glow) * 34px) rgba(var(--pulse-gold-rgb), 0.24), 0 0 48px rgba(var(--pulse-marina-rgb), 0.12), 0 22px 80px rgba(0, 0, 0, 0.58); }
+.cyber-panel-surgery { border-color: rgba(var(--pulse-neon-rgb), 0.58); background: linear-gradient(135deg, rgba(var(--pulse-surgery-red-rgb), 0.72), rgba(10, 10, 10, 0.46)); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.035) inset, 0 0 calc(34px + var(--pulse-glow) * 34px) rgba(var(--pulse-neon-rgb), 0.2), 0 0 52px rgba(230, 0, 0, 0.24), 0 22px 80px rgba(0, 0, 0, 0.58); }
 .cyber-card { border: 1px solid rgba(var(--pulse-marina-rgb), 0.18); border-radius: 22px; background: linear-gradient(135deg, rgba(var(--pulse-marina-rgb), 0.075), rgba(var(--pulse-neon-rgb), 0.035)); padding: 1rem; box-shadow: 0 0 24px rgba(var(--pulse-marina-rgb), 0.08) inset; }
 
 .cyber-input { border-radius: 18px; border: 1px solid rgba(var(--pulse-marina-rgb), 0.35); background: rgba(0, 0, 0, 0.55); padding: 1rem 1.1rem; color: #e0faff; font-family: 'Fira Code', ui-monospace, monospace; outline: none; box-shadow: 0 0 22px rgba(var(--pulse-marina-rgb), 0.08) inset; }
@@ -77,6 +80,14 @@
 .oracle-glow { text-shadow: 0 0 8px rgba(var(--pulse-gold-rgb), 0.9), 0 0 20px rgba(var(--pulse-marina-rgb), 0.36); }
 .oracle-panel { border-color: rgba(var(--pulse-gold-rgb), 0.45); background: linear-gradient(135deg, rgba(var(--pulse-gold-rgb), 0.10), rgba(var(--pulse-marina-rgb), 0.06)); box-shadow: 0 0 32px rgba(var(--pulse-gold-rgb), 0.14) inset; }
 .oracle-card { border-color: rgba(var(--pulse-gold-rgb), 0.34); background: linear-gradient(135deg, rgba(255, 230, 0, 0.08), rgba(0, 229, 255, 0.045)); }
+
+.surgery-mode { --pulse-marina-rgb: var(--pulse-surgery-red-rgb); --pulse-neon-rgb: 57, 255, 20; }
+.surgery-mode .cyber-bg { filter: saturate(1.55) contrast(1.2) hue-rotate(-8deg); }
+.surgery-mode .cyber-bg::after { background: radial-gradient(circle at 45% 36%, rgba(var(--pulse-neon-rgb), 0.16), transparent 26%), radial-gradient(circle at 55% 44%, rgba(var(--pulse-surgery-red-rgb), 0.42), transparent 42%), linear-gradient(180deg, rgba(0, 0, 0, 0.20), rgba(0, 0, 0, 0.88)); }
+.surgery-mode .cyber-grid { background-image: linear-gradient(rgba(var(--pulse-neon-rgb), 0.09) 1px, transparent 1px), linear-gradient(90deg, rgba(230, 0, 0, 0.09) 1px, transparent 1px); }
+.surgery-banner { position: sticky; top: 0; z-index: 61; border-bottom: 1px solid rgba(var(--pulse-neon-rgb), 0.65); background: linear-gradient(90deg, rgba(34, 0, 8, 0.96), rgba(74, 0, 9, 0.86), rgba(57, 255, 20, 0.18)); padding: 0.6rem 1rem; text-align: center; font-family: 'Fira Code', ui-monospace, monospace; font-size: 0.75rem; letter-spacing: 0.18em; text-transform: uppercase; color: #d9ffd2; box-shadow: 0 0 34px rgba(var(--pulse-neon-rgb), 0.4), 0 0 44px rgba(230, 0, 0, 0.24); }
+.surgery-glow { text-shadow: 0 0 8px rgba(var(--pulse-neon-rgb), 0.9), 0 0 20px rgba(230, 0, 0, 0.48); }
+.surgery-panel { border-color: rgba(var(--pulse-neon-rgb), 0.48); background: linear-gradient(135deg, rgba(74, 0, 9, 0.42), rgba(57, 255, 20, 0.07)); box-shadow: 0 0 30px rgba(var(--pulse-neon-rgb), 0.14) inset, 0 0 28px rgba(230, 0, 0, 0.16); }
 
 @keyframes scanline { to { transform: translateY(100%); } }
 @keyframes fire-shake { 0% { transform: translate3d(0, 0, 0); } 25% { transform: translate3d(4px, -2px, 0); } 50% { transform: translate3d(-5px, 3px, 0); } 75% { transform: translate3d(3px, 2px, 0); } 100% { transform: translate3d(0, 0, 0); } }
