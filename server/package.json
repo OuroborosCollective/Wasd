@@ -22,6 +22,7 @@
     "@traceloop/instrumentation-google-generativeai": "^0.26.0",
     "@wasd/core-logic": "workspace:*",
     "@wasd/shared": "workspace:*",
+    "@supabase/supabase-js": "^2.49.1",
     "axios": "^1.16.1",
     "commander": "^14.0.3",
     "cors": "^2.8.6",
