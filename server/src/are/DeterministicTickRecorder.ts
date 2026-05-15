@@ -68,6 +68,13 @@ export class DeterministicTickRecorder {
     return null;
   }
 
+  records(): DeterministicTickRecord[] {
+    return this.ring
+      .filter((record): record is DeterministicTickRecord => Boolean(record))
+      .sort((a, b) => a.tick - b.tick)
+      .map((record) => deterministicClone(record));
+  }
+
   replay(tick: number): DeterministicReplaySnapshot | null {
     const record = this.get(tick);
     if (!record) return null;
@@ -86,11 +93,7 @@ export class DeterministicTickRecorder {
   }
 
   stats(): DeterministicRecorderStats {
-    const availableTicks = this.ring
-      .filter((record): record is DeterministicTickRecord => Boolean(record))
-      .map((record) => record.tick)
-      .sort((a, b) => a - b);
-
+    const availableTicks = this.records().map((record) => record.tick);
     return {
       capacity: this.capacity,
       size: this.count,

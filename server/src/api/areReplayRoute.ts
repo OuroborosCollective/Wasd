@@ -14,6 +14,17 @@ export function areReplayRouter(tick: WorldTick) {
     res.json({ ok: true, stats: tick.getReplayRecorderStats?.() ?? null });
   });
 
+  router.get("/oracle/prophecy", (_req, res) => {
+    const oracle = tick.getOracleReport?.() ?? null;
+    res.json({ ok: true, oracle });
+  });
+
+  router.get("/oracle/status", (_req, res) => {
+    const oracle = tick.getOracleReport?.() ?? null;
+    const active = oracle?.prophecies?.some((prophecy: any) => prophecy.active) ?? false;
+    res.json({ ok: true, active, generatedAtTick: oracle?.generatedAtTick ?? null, prophecyCount: oracle?.prophecies?.length ?? 0 });
+  });
+
   router.get("/snapshot/:tick", (req, res) => {
     const requestedTick = parseTick(req.params.tick);
     if (requestedTick === null) {

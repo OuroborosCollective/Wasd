@@ -11,16 +11,19 @@
   --fire-a: #ff7a00;
   --fire-b: #e60000;
   --violet: #5b4bff;
+  --gold: #ffe600;
   --pulse: 0.5;
   --pulse-resonance: 0.77;
   --pulse-marina: #00e5ff;
   --pulse-neon: #39ff14;
   --pulse-fire: #ff7a00;
   --pulse-violet: #5b4bff;
+  --pulse-gold: #ffe600;
   --pulse-marina-rgb: 0, 229, 255;
   --pulse-neon-rgb: 57, 255, 20;
   --pulse-fire-rgb: 255, 122, 0;
   --pulse-violet-rgb: 91, 75, 255;
+  --pulse-gold-rgb: 255, 230, 0;
   --pulse-glow: 0.68;
   --scrollbar-bg: #0a0a0a;
   --scrollbar-thumb: var(--pulse-marina);
@@ -42,6 +45,7 @@
 .cyber-panel-green { border-color: rgba(var(--pulse-neon-rgb), 0.32); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03) inset, 0 0 calc(26px + var(--pulse-glow) * 24px) rgba(var(--pulse-neon-rgb), 0.13), 0 22px 80px rgba(0, 0, 0, 0.55); }
 .cyber-panel-fire { border-color: rgba(var(--pulse-fire-rgb), 0.42); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03) inset, 0 0 calc(28px + var(--pulse) * 28px) rgba(var(--pulse-fire-rgb), 0.2), 0 22px 80px rgba(0, 0, 0, 0.55); }
 .cyber-panel-violet { border-color: rgba(var(--pulse-violet-rgb), 0.48); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03) inset, 0 0 calc(32px + var(--pulse-glow) * 30px) rgba(var(--pulse-violet-rgb), 0.24), 0 22px 80px rgba(0, 0, 0, 0.58); }
+.cyber-panel-gold { border-color: rgba(var(--pulse-gold-rgb), 0.52); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.035) inset, 0 0 calc(34px + var(--pulse-glow) * 34px) rgba(var(--pulse-gold-rgb), 0.24), 0 0 48px rgba(var(--pulse-marina-rgb), 0.12), 0 22px 80px rgba(0, 0, 0, 0.58); }
 .cyber-card { border: 1px solid rgba(var(--pulse-marina-rgb), 0.18); border-radius: 22px; background: linear-gradient(135deg, rgba(var(--pulse-marina-rgb), 0.075), rgba(var(--pulse-neon-rgb), 0.035)); padding: 1rem; box-shadow: 0 0 24px rgba(var(--pulse-marina-rgb), 0.08) inset; }
 
 .cyber-input { border-radius: 18px; border: 1px solid rgba(var(--pulse-marina-rgb), 0.35); background: rgba(0, 0, 0, 0.55); padding: 1rem 1.1rem; color: #e0faff; font-family: 'Fira Code', ui-monospace, monospace; outline: none; box-shadow: 0 0 22px rgba(var(--pulse-marina-rgb), 0.08) inset; }
@@ -64,6 +68,15 @@
 .observation-banner { position: sticky; top: 0; z-index: 59; border-bottom: 1px solid rgba(var(--pulse-violet-rgb), 0.58); background: linear-gradient(90deg, rgba(8, 12, 38, 0.94), rgba(37, 22, 92, 0.84), rgba(0, 229, 255, 0.22)); padding: 0.55rem 1rem; text-align: center; font-family: 'Fira Code', ui-monospace, monospace; font-size: 0.75rem; letter-spacing: 0.22em; text-transform: uppercase; color: #ede9fe; box-shadow: 0 0 32px rgba(var(--pulse-violet-rgb), 0.42); }
 .observation-glow { text-shadow: 0 0 8px rgba(var(--pulse-violet-rgb), 0.88), 0 0 20px rgba(0, 229, 255, 0.42); }
 .observation-slider { border-color: rgba(var(--pulse-violet-rgb), 0.42); background: linear-gradient(135deg, rgba(0, 229, 255, 0.05), rgba(var(--pulse-violet-rgb), 0.12)); box-shadow: 0 0 28px rgba(var(--pulse-violet-rgb), 0.15) inset; }
+
+.oracle-mode { --pulse-neon-rgb: var(--pulse-gold-rgb); }
+.oracle-mode .cyber-bg { filter: saturate(1.35) contrast(1.1); }
+.oracle-mode .cyber-bg::after { background: radial-gradient(circle at 42% 38%, rgba(var(--pulse-gold-rgb), 0.13), transparent 30%), radial-gradient(circle at 58% 42%, rgba(var(--pulse-marina-rgb), 0.12), transparent 34%), linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.86)); }
+.oracle-mode .cyber-grid { background-image: linear-gradient(rgba(var(--pulse-gold-rgb), 0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(var(--pulse-marina-rgb), 0.065) 1px, transparent 1px); }
+.oracle-banner { position: sticky; top: 0; z-index: 58; border-bottom: 1px solid rgba(var(--pulse-gold-rgb), 0.58); background: linear-gradient(90deg, rgba(9, 12, 18, 0.96), rgba(96, 78, 0, 0.72), rgba(0, 229, 255, 0.2)); padding: 0.55rem 1rem; text-align: center; font-family: 'Fira Code', ui-monospace, monospace; font-size: 0.75rem; letter-spacing: 0.22em; text-transform: uppercase; color: #fff7ad; box-shadow: 0 0 32px rgba(var(--pulse-gold-rgb), 0.42); }
+.oracle-glow { text-shadow: 0 0 8px rgba(var(--pulse-gold-rgb), 0.9), 0 0 20px rgba(var(--pulse-marina-rgb), 0.36); }
+.oracle-panel { border-color: rgba(var(--pulse-gold-rgb), 0.45); background: linear-gradient(135deg, rgba(var(--pulse-gold-rgb), 0.10), rgba(var(--pulse-marina-rgb), 0.06)); box-shadow: 0 0 32px rgba(var(--pulse-gold-rgb), 0.14) inset; }
+.oracle-card { border-color: rgba(var(--pulse-gold-rgb), 0.34); background: linear-gradient(135deg, rgba(255, 230, 0, 0.08), rgba(0, 229, 255, 0.045)); }
 
 @keyframes scanline { to { transform: translateY(100%); } }
 @keyframes fire-shake { 0% { transform: translate3d(0, 0, 0); } 25% { transform: translate3d(4px, -2px, 0); } 50% { transform: translate3d(-5px, 3px, 0); } 75% { transform: translate3d(3px, 2px, 0); } 100% { transform: translate3d(0, 0, 0); } }
