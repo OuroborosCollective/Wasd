@@ -29,7 +29,7 @@
     "@wasd/shared": "workspace:*",
     "firebase": "^12.13.0",
     "framer-motion": "^12.38.0",
-    "lucide-react": "^1.14.0",
+    "lucide-react": "^1.16.0",
     "mobx": "^6.15.3",
     "mobx-react-lite": "^4.1.1",
     "react": "^19.2.6",
