@@ -5,6 +5,7 @@ import {
   visualStateToCssVars,
   type VisualThemeState,
 } from "@wasd/shared";
+import DestinyPathsPanel from "../community/DestinyPathsPanel";
 import EchoTracker from "../community/EchoTracker";
 import InventoryRefinementPanel from "../community/InventoryRefinementPanel";
 import ScienceMascotChat from "./ScienceMascotChat";
@@ -130,6 +131,8 @@ export const SciencePortal: React.FC = () => {
           <EchoTracker />
 
           <InventoryRefinementPanel />
+
+          <DestinyPathsPanel />
         </div>
 
         <div className="lg:sticky lg:top-2">
