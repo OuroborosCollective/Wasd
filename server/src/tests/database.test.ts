@@ -2,18 +2,12 @@ import { vi, describe, it, expect, beforeEach } from "vitest";
 
 // Mock pg before importing Database.ts
 vi.mock("pg", () => {
-  const mq = vi.fn();
-  const mc = vi.fn();
-  const mo = vi.fn();
-  return {
-    default: {
-      Pool: vi.fn().mockImplementation(() => ({
-        query: mq,
-        connect: mc,
-        on: mo,
-      }))
-    }
-  };
+  const Pool = vi.fn(function PoolMock(this: { query: ReturnType<typeof vi.fn>; connect: ReturnType<typeof vi.fn>; on: ReturnType<typeof vi.fn> }) {
+    this.query = vi.fn();
+    this.connect = vi.fn();
+    this.on = vi.fn();
+  });
+  return { default: { Pool } };
 });
 
 // Set environment variables before any imports

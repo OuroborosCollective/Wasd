@@ -30,6 +30,7 @@ export function loadRootEnvFiles(): void {
   const opt = "/opt/areloria/.env";
 
   tryLoad(fromMonorepoRoot, false);
-  tryLoad(fromCwd, true);
+  // In CI (Playwright, agents), never let a nested cwd `.env` override injected env (e.g. empty DATABASE_URL for file persistence).
+  tryLoad(fromCwd, process.env.CI !== "1");
   tryLoad(opt, true);
 }

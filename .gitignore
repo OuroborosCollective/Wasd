@@ -10,6 +10,11 @@ pnpm-debug.log*
 .env.production.local
 !.env.example
 
+# DGCC / Playwright local outputs
+dgcc-artifacts/
+test-results/
+playwright-report/
+
 # PnP configuration
 .pnp.*
 
