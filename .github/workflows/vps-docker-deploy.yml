@@ -4,75 +4,33 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'apps/**'
-      - 'packages/**'
-      - 'projects/**'
-      - 'client/**'
-      - 'server/**'
-      - 'portal/**'
-      - 'engine/**'
-      - 'docker/**'
-      - 'scripts/**'
-      - '.dockerignore'
-      - 'Dockerfile'
-      - 'Dockerfile.*'
-      - 'docker-compose.yml'
-      - 'docker-compose.*.yml'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - 'package.json'
-      - '.github/workflows/**'
   workflow_dispatch:
     inputs:
       reason:
-        description: 'Sovereign launch reason'
+        description: 'Deploy reason'
         required: false
-        default: 'Manual sovereign launch'
+        default: 'Manual deploy'
       arelorian_port:
-        description: 'Engine host port on VPS. Default keeps Supabase free on 3000.'
+        description: 'Engine host port on VPS'
         required: false
         default: '3001'
       docker_network:
-        description: 'External Docker network shared by Redis, Soketi and Areloria.'
+        description: 'External Docker network'
         required: false
         default: 'areloria_arelorian-network'
-      enable_docker_ingress:
-        description: 'Enable optional Docker Nginx ingress overlay. Use false for normal deploy.'
-        required: false
-        type: choice
-        default: 'false'
-        options:
-          - 'false'
-          - 'true'
-      ingress_http_bind:
-        description: 'Ingress bind address. Use 127.0.0.1 for staging, 0.0.0.0 for public port ownership.'
-        required: false
-        default: '127.0.0.1'
-      ingress_http_port:
-        description: 'Ingress host HTTP port. Use 8080 for staging, 80 for public.'
-        required: false
-        default: '8080'
 
 concurrency:
-  group: vps-docker-deploy-${{ github.ref }}
+  group: vps-docker-deploy-main
   cancel-in-progress: true
 
 permissions:
   contents: read
 
-env:
-  DEPLOY_PATH: /opt/areloria
-  DEPLOY_BRANCH: main
-  REPO_URL: https://github.com/OuroborosCollective/Wasd.git
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    env:
-      DEFAULT_ARELORIAN_PORT: '3001'
-      DEFAULT_ARELORIAN_DOCKER_NETWORK: 'areloria_arelorian-network'
+
     steps:
       - name: Verify VPS secrets are set
         env:
@@ -91,10 +49,7 @@ jobs:
           KEY="${VPS_SSH_KEY:-${SSH_PRIVATE_KEY:-}}"
           if [ -z "${HOST:-}" ]; then echo "::error::Set VPS_HOST or SSH_HOST."; ok=false; fi
           if [ -z "${USER:-}" ]; then echo "::error::Set VPS_USER or SSH_USER."; ok=false; fi
-          if [ -z "${KEY:-}" ] && [ -z "${SSH_PASSWORD:-}" ]; then
-            echo "::error::Set VPS_SSH_KEY / SSH_PRIVATE_KEY, or SSH_PASSWORD for Docker deploy."
-            ok=false
-          fi
+          if [ -z "${KEY:-}" ] && [ -z "${SSH_PASSWORD:-}" ]; then echo "::error::Set SSH key or SSH password."; ok=false; fi
           if [ "$ok" != true ]; then exit 1; fi
 
       - name: Deploy over SSH
@@ -110,34 +65,25 @@ jobs:
           script_stop: true
           script: |
             set -euo pipefail
-
             DEPLOY_PATH='/opt/areloria'
             REPO_URL='https://github.com/OuroborosCollective/Wasd.git'
             DEPLOY_BRANCH='main'
-
-            echo "=== WASD VPS Docker Deploy Bootstrap ==="
-            echo "Reason: ${{ github.event.inputs.reason || 'push' }}"
-            echo "Deploy path: $DEPLOY_PATH"
-
             SECRET_PORT='${{ secrets.VPS_ARELORIAN_PORT }}'
             INPUT_PORT='${{ github.event.inputs.arelorian_port }}'
             SECRET_NETWORK='${{ secrets.VPS_ARELORIAN_DOCKER_NETWORK }}'
             INPUT_NETWORK='${{ github.event.inputs.docker_network }}'
-            INPUT_ENABLE_INGRESS='${{ github.event.inputs.enable_docker_ingress }}'
-            INPUT_INGRESS_BIND='${{ github.event.inputs.ingress_http_bind }}'
-            INPUT_INGRESS_PORT='${{ github.event.inputs.ingress_http_port }}'
-
             export ARELORIAN_PORT="${SECRET_PORT:-${INPUT_PORT:-3001}}"
             export ARELORIAN_DOCKER_NETWORK="${SECRET_NETWORK:-${INPUT_NETWORK:-areloria_arelorian-network}}"
-            export ARELORIAN_ENABLE_DOCKER_INGRESS="${INPUT_ENABLE_INGRESS:-false}"
-            export ARELORIAN_INGRESS_HTTP_BIND="${INPUT_INGRESS_BIND:-127.0.0.1}"
-            export ARELORIAN_INGRESS_HTTP_PORT="${INPUT_INGRESS_PORT:-8080}"
+            export ARELORIAN_ENABLE_DOCKER_INGRESS='false'
+            export ARELORIAN_INGRESS_HTTP_BIND='127.0.0.1'
+            export ARELORIAN_INGRESS_HTTP_PORT='8080'
             export ARELORIAN_ENV_FILE='.env.docker'
             export DEPLOY_BRANCH
 
-            case "$ARELORIAN_ENABLE_DOCKER_INGRESS" in true|false) ;; *) echo "ERROR: enable_docker_ingress must be true or false"; exit 1 ;; esac
-            case "$ARELORIAN_INGRESS_HTTP_BIND" in 127.0.0.1|0.0.0.0) ;; *) echo "ERROR: ingress_http_bind must be 127.0.0.1 or 0.0.0.0"; exit 1 ;; esac
-            case "$ARELORIAN_INGRESS_HTTP_PORT" in 80|8080|8081|8082) ;; *) echo "ERROR: ingress_http_port must be one of 80, 8080, 8081, 8082"; exit 1 ;; esac
+            echo "=== WASD VPS Docker Deploy ==="
+            echo "Reason: ${{ github.event.inputs.reason || github.event_name }}"
+            echo "Deploy path: $DEPLOY_PATH"
+            echo "Engine port: $ARELORIAN_PORT"
 
             command -v git >/dev/null 2>&1 || { echo "ERROR: git is required on the VPS."; exit 1; }
             command -v docker >/dev/null 2>&1 || { echo "ERROR: docker is required on the VPS."; exit 1; }
@@ -147,27 +93,15 @@ jobs:
               exit 1
             fi
 
-            echo "[0/5] Prepare deploy directory"
             if [ ! -d "$DEPLOY_PATH" ]; then
               mkdir -p "$DEPLOY_PATH" 2>/dev/null || sudo mkdir -p "$DEPLOY_PATH"
               sudo chown -R "$(id -un):$(id -gn)" "$DEPLOY_PATH" 2>/dev/null || true
             fi
 
-            if [ -e "$DEPLOY_PATH" ] && [ ! -d "$DEPLOY_PATH/.git" ]; then
-              if [ -n "$(ls -A "$DEPLOY_PATH" 2>/dev/null || true)" ]; then
-                backup="${DEPLOY_PATH}.backup.$(date +%Y%m%d%H%M%S)"
-                echo "Existing non-git deploy dir found. Moving to $backup"
-                mv "$DEPLOY_PATH" "$backup" 2>/dev/null || sudo mv "$DEPLOY_PATH" "$backup"
-                mkdir -p "$DEPLOY_PATH" 2>/dev/null || sudo mkdir -p "$DEPLOY_PATH"
-                sudo chown -R "$(id -un):$(id -gn)" "$DEPLOY_PATH" 2>/dev/null || true
-              fi
-            fi
-
             if [ ! -d "$DEPLOY_PATH/.git" ]; then
-              echo "[1/5] Clone repo into $DEPLOY_PATH"
+              rm -rf "$DEPLOY_PATH"/* 2>/dev/null || true
               git clone --branch "$DEPLOY_BRANCH" --depth 1 "$REPO_URL" "$DEPLOY_PATH"
             else
-              echo "[1/5] Existing repo found"
               cd "$DEPLOY_PATH"
               git remote set-url origin "$REPO_URL" || true
               git fetch --no-tags origin "$DEPLOY_BRANCH"
@@ -176,69 +110,5 @@ jobs:
             fi
 
             cd "$DEPLOY_PATH"
-            if [ ! -f scripts/deploy-vps-docker.sh ]; then
-              echo "ERROR: Missing scripts/deploy-vps-docker.sh after clone/fetch."
-              exit 1
-            fi
-
-            echo "[2/5] Write VPS runtime env"
-            umask 077
-            tmp_env="${ARELORIAN_ENV_FILE}.tmp"
-            cat > "$tmp_env" <<'EOF_RUNTIME_ENV'
-ARELORIAN_PORT=${{ secrets.VPS_ARELORIAN_PORT || github.event.inputs.arelorian_port || '3001' }}
-ARELORIAN_DOCKER_NETWORK=${{ secrets.VPS_ARELORIAN_DOCKER_NETWORK || github.event.inputs.docker_network || 'areloria_arelorian-network' }}
-ARELORIAN_ENABLE_DOCKER_INGRESS=${{ github.event.inputs.enable_docker_ingress || 'false' }}
-ARELORIAN_INGRESS_HTTP_BIND=${{ github.event.inputs.ingress_http_bind || '127.0.0.1' }}
-ARELORIAN_INGRESS_HTTP_PORT=${{ github.event.inputs.ingress_http_port || '8080' }}
-SUPABASE_URL=${{ secrets.SUPABASE_URL }}
-SUPABASE_PUBLIC_URL=${{ secrets.SUPABASE_PUBLIC_URL }}
-SUPABASE_PROXY_URL=${{ secrets.SUPABASE_PROXY_URL }}
-SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
-ANON_KEY=${{ secrets.ANON_KEY }}
-SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-SERVICE_ROLE_KEY=${{ secrets.SERVICE_ROLE_KEY }}
-JWT_SECRET=${{ secrets.JWT_SECRET }}
-DATABASE_URL=${{ secrets.DATABASE_URL }}
-DIRECT_URL=${{ secrets.DIRECT_URL }}
-POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
-REDIS_URL=${{ secrets.REDIS_URL }}
-REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
-SOKETI_APP_ID=${{ secrets.SOKETI_APP_ID }}
-SOKETI_APP_KEY=${{ secrets.SOKETI_APP_KEY }}
-SOKETI_APP_SECRET=${{ secrets.SOKETI_APP_SECRET }}
-PUSHER_APP_ID=${{ secrets.PUSHER_APP_ID }}
-PUSHER_APP_KEY=${{ secrets.PUSHER_APP_KEY }}
-PUSHER_APP_SECRET=${{ secrets.PUSHER_APP_SECRET }}
-EOF_RUNTIME_ENV
-            chmod 600 "$tmp_env"
-            mv "$tmp_env" "$ARELORIAN_ENV_FILE"
-
-            echo "[3/5] Free engine port $ARELORIAN_PORT"
-            pm2 stop areloria >/dev/null 2>&1 || true
-            pm2 delete areloria >/dev/null 2>&1 || true
-            docker rm -f arelorian-engine monitor-bridge arelorian-ingress-router >/dev/null 2>&1 || true
-            if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ] && [ "$ARELORIAN_INGRESS_HTTP_PORT" = "80" ]; then
-              sudo systemctl stop nginx >/dev/null 2>&1 || true
-              sudo systemctl stop apache2 >/dev/null 2>&1 || true
-            fi
-            if command -v fuser >/dev/null 2>&1; then
-              PIDS="$(fuser -n tcp "$ARELORIAN_PORT" 2>/dev/null || true)"
-              if [ -n "${PIDS// }" ]; then kill $PIDS >/dev/null 2>&1 || true; sleep 2; kill -9 $PIDS >/dev/null 2>&1 || true; fi
-            fi
-            if command -v lsof >/dev/null 2>&1; then
-              PIDS="$(lsof -ti tcp:"$ARELORIAN_PORT" 2>/dev/null | tr '\n' ' ' || true)"
-              if [ -n "${PIDS// }" ]; then kill $PIDS >/dev/null 2>&1 || true; sleep 2; kill -9 $PIDS >/dev/null 2>&1 || true; fi
-            fi
-
-            echo "[4/5] Run Docker deploy script"
             chmod +x scripts/deploy-vps-docker.sh 2>/dev/null || true
-            ARELORIAN_PORT="$ARELORIAN_PORT" \
-              ARELORIAN_DOCKER_NETWORK="$ARELORIAN_DOCKER_NETWORK" \
-              ARELORIAN_ENABLE_DOCKER_INGRESS="$ARELORIAN_ENABLE_DOCKER_INGRESS" \
-              ARELORIAN_INGRESS_HTTP_BIND="$ARELORIAN_INGRESS_HTTP_BIND" \
-              ARELORIAN_INGRESS_HTTP_PORT="$ARELORIAN_INGRESS_HTTP_PORT" \
-              ARELORIAN_ENV_FILE="$ARELORIAN_ENV_FILE" \
-              DEPLOY_BRANCH="$DEPLOY_BRANCH" \
-              bash scripts/deploy-vps-docker.sh
-
-            echo "[5/5] Deploy workflow finished"
+            bash scripts/deploy-vps-docker.sh
