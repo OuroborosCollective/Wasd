@@ -17,17 +17,10 @@ import { warfrontRouter } from "../api/warfrontRoute.js";
 import { areValidationRouter } from "../api/areValidationRoute.js";
 import { areReplayRouter } from "../api/areReplayRoute.js";
 import { sovereignDeployRouter } from "../api/sovereignDeployRoute.js";
-import { collectiveIngressRouter } from "../api/collectiveIngressRoute.js";
 import { getContentDataSourceLabel, resolveContentDir } from "../modules/content/contentDataRoot.js";
 import { getSupabaseSummary, verifySupabaseToken } from "../config/supabase.js";
 import { resolveWorldAssetsDir } from "./resolveWorldAssetsDir.js";
 import { resolveMirroredWorldAssetsDir } from "./resolveMirroredWorldAssetsDir.js";
-// import {
-//   bootstrapSelfHealing,
-//   resolveSelfHealingConfigFromEnv,
-//   resolveSelfHealingDashboardConfigFromEnv,
-//   selfHealingMiddleware,
-// } from "../selfhealing/SelfHealingSystem.js";
 import { registerSelfHealingDashboard } from "../selfhealing/SelfHealingDashboard.js";
 import { PlaytesterConfig } from "../config/PlaytesterConfig.js";
 import { PlaytesterMonitorStream } from "../modules/playtester/PlaytesterMonitorStream.js";
@@ -58,12 +51,10 @@ function resolveAdminContentHtmlPath(clientRoot: string, distPath: string): stri
   for (const p of [path.join(distPath, "admin-content.html"), path.join(clientRoot, "public", "admin-content.html"), path.join(clientRoot, "admin-content.html")]) if (existsSync(p)) return p;
   return null;
 }
-
 function resolvePlaytesterMonitorHtmlPath(clientRoot: string, distPath: string): string | null {
   for (const p of [path.join(distPath, "playtester-monitor.html"), path.join(clientRoot, "public", "playtester-monitor.html"), path.join(clientRoot, "playtester-monitor.html")]) if (existsSync(p)) return p;
   return null;
 }
-
 function resolvePlaytesterPublisherHtmlPath(clientRoot: string, distPath: string): string | null {
   for (const p of [path.join(distPath, "playtester-render-publisher.html"), path.join(clientRoot, "public", "playtester-render-publisher.html"), path.join(clientRoot, "playtester-render-publisher.html")]) if (existsSync(p)) return p;
   return null;
@@ -89,7 +80,7 @@ export function resolveSupabaseProxyBaseUrlForRequest(req: Request, defaultUrl: 
       const parts = claimIss.split("/auth/v1");
       if (parts[0] && /^https?:\/\/[a-z0-9.-]+(supabase\.co|\.space)(:\d+)?$/.test(parts[0])) return parts[0];
     }
-  } catch { /* ignore invalid tokens */ }
+  } catch {}
   return defaultUrl;
 }
 
@@ -105,6 +96,7 @@ export function buildClientPublicConfigJson(req?: Request): string {
 function envTruthy(key: string): boolean { const v = process.env[key]?.trim().toLowerCase(); return v === "true" || v === "1" || v === "yes"; }
 function shouldProxyBody(method: string): boolean { return ["POST", "PUT", "PATCH", "DELETE"].includes(method.toUpperCase()); }
 function canAccessPlaytesterMonitor(req: Request): boolean { const token = PlaytesterConfig.monitorToken; if (!token) return true; return req.query.token as string === token; }
+function safeHealthValue<T>(fn: () => T, fallback: T): T { try { return fn(); } catch { return fallback; } }
 
 export class ServerBootstrap {
   private initializing = true;
@@ -123,12 +115,22 @@ export class ServerBootstrap {
     app.use("/api/lore", loreRouter());
     app.get("/client-config.json", (_req, res) => { res.type("application/json"); res.setHeader("Cache-Control", "no-store"); res.send(buildClientPublicConfigJson(_req)); });
     app.get("/health", (_req, res) => {
-      if (this.initializing) return res.status(503).json({ status: "initializing", message: "Server is booting up, please wait." });
-      const tick = (this as any)._tick as WorldTick;
-      const persistence = tick?.getPersistenceStats() ?? { status: "unknown" };
-      const content = getContentDataSourceLabel();
-      const selfHealingStatus = selfHealingRuntime.getStatus();
-      res.json({ ok: true, project: "ARELORIAN MMORPG", version: "0.2.0", persistence, content: { mode: content.mode, root: content.root }, supabase: getSupabaseSummary(), auth: { useSupabaseWsLogin: envTruthy("USE_SUPABASE_WS_LOGIN"), requireSupabaseAuth: envTruthy("REQUIRE_SUPABASE_AUTH"), allowGuestLogin: (() => { const v = process.env.ALLOW_GUEST_LOGIN?.trim().toLowerCase(); if (v === "0" || v === "false" || v === "no") return false; return true; })(), allowDevLogin: !["0", "false", "no"].includes(process.env.ALLOW_DEV_LOGIN?.trim().toLowerCase() || "") }, selfHealing: { active: selfHealingStatus.active, patchMode: selfHealingStatus.config?.patchMode ?? "disabled", totalErrors: selfHealingStatus.totalErrors, totalHealed: selfHealingStatus.totalHealed, healingRate: selfHealingStatus.healingRate, featuresProtected: selfHealingStatus.featuresProtected }, are: { guard: tick?.getAREGuardStatus?.() ?? null, worldHash: tick?.getWorldHashSnapshot?.()?.worldHash ?? null, replay: tick?.getReplayRecorderStats?.() ?? null } });
+      const tick = (this as any)._tick as WorldTick | undefined;
+      const selfHealingStatus = safeHealthValue(() => selfHealingRuntime.getStatus(), { active: false, config: {}, totalErrors: 0, totalHealed: 0, healingRate: 0, featuresProtected: 0 } as any);
+      res.status(this.initializing ? 503 : 200).json({
+        ok: !this.initializing,
+        status: this.initializing ? "initializing" : "ok",
+        project: "ARELORIAN MMORPG",
+        version: "0.2.0",
+        uptimeSeconds: Math.round(process.uptime()),
+        port: Number(process.env.PORT || 3000),
+        persistence: safeHealthValue(() => tick?.getPersistenceStats?.() ?? { status: "unknown" }, { status: "unknown" }),
+        content: safeHealthValue(() => { const content = getContentDataSourceLabel(); return { mode: content.mode, root: content.root }; }, { mode: "unknown", root: null }),
+        supabase: safeHealthValue(() => getSupabaseSummary(), { status: "unknown" }),
+        auth: { useSupabaseWsLogin: envTruthy("USE_SUPABASE_WS_LOGIN"), requireSupabaseAuth: envTruthy("REQUIRE_SUPABASE_AUTH"), allowGuestLogin: !["0", "false", "no"].includes(process.env.ALLOW_GUEST_LOGIN?.trim().toLowerCase() || ""), allowDevLogin: !["0", "false", "no"].includes(process.env.ALLOW_DEV_LOGIN?.trim().toLowerCase() || "") },
+        selfHealing: { active: Boolean(selfHealingStatus.active), patchMode: selfHealingStatus.config?.patchMode ?? "disabled", totalErrors: selfHealingStatus.totalErrors ?? 0, totalHealed: selfHealingStatus.totalHealed ?? 0, healingRate: selfHealingStatus.healingRate ?? 0, featuresProtected: selfHealingStatus.featuresProtected ?? 0 },
+        are: { guard: safeHealthValue(() => tick?.getAREGuardStatus?.() ?? null, null), worldHash: safeHealthValue(() => tick?.getWorldHashSnapshot?.()?.worldHash ?? null, null), replay: safeHealthValue(() => tick?.getReplayRecorderStats?.() ?? null, null) }
+      });
     });
     app.get("/", (req, res, next) => { if (req.headers["user-agent"]?.includes("GoogleHC")) return res.status(200).send("OK"); next(); });
     app.use("/auth/v1", async (req, res) => {
@@ -140,7 +142,7 @@ export class ServerBootstrap {
         let upstreamPath = req.originalUrl;
         let transformedBody: string | undefined;
         if (req.method === "POST" && req.originalUrl.includes("/token") && !req.originalUrl.includes("grant_type=") && bufferedBody) {
-          try { const parsed = JSON.parse(bufferedBody.toString()); if (parsed.grant_type) { upstreamPath = `${upstreamPath}${upstreamPath.includes("?") ? "&" : "?"}grant_type=${encodeURIComponent(parsed.grant_type)}`; delete parsed.grant_type; transformedBody = JSON.stringify(parsed); } } catch { /* ignore */ }
+          try { const parsed = JSON.parse(bufferedBody.toString()); if (parsed.grant_type) { upstreamPath = `${upstreamPath}${upstreamPath.includes("?") ? "&" : "?"}grant_type=${encodeURIComponent(parsed.grant_type)}`; delete parsed.grant_type; transformedBody = JSON.stringify(parsed); } } catch {}
         }
         const headers = { ...req.headers };
         delete headers.host;
@@ -163,7 +165,6 @@ export class ServerBootstrap {
     app.use("/api/are/validation", areValidationRouter(tick));
     app.use("/api/are/replay", areReplayRouter(tick));
     app.use("/api/sovereign/deploy", sovereignDeployRouter(tick));
-    app.use("/api/collective/ingress", express.json({ limit: "256kb" }), collectiveIngressRouter(tick));
     const monitorStream = new PlaytesterMonitorStream(httpServer, (options) => tick.buildPlaytesterMonitorPayload(options));
     monitorStream.start();
     const playtesterSignaling = new PlaytesterWebRTCSignaling(httpServer);
@@ -192,7 +193,7 @@ export class ServerBootstrap {
     const mirroredWorld = resolveMirroredWorldAssetsDir();
     const worldAssetsDir = mirroredWorld ?? resolveWorldAssetsDir();
     if (worldAssetsDir) app.use("/world-assets", express.static(worldAssetsDir, { maxAge: process.env.NODE_ENV === "production" ? "7d" : 0, fallthrough: false }));
-    try { const worldDir = resolveContentDir("world"); if (existsSync(worldDir)) app.use("/world", express.static(worldDir, { maxAge: process.env.NODE_ENV === "production" ? "1h" : 0, fallthrough: true })); } catch { /* ignore */ }
+    try { const worldDir = resolveContentDir("world"); if (existsSync(worldDir)) app.use("/world", express.static(worldDir, { maxAge: process.env.NODE_ENV === "production" ? "1h" : 0, fallthrough: true })); } catch {}
     const port = Number(process.env.PORT || 3000);
     httpServer.listen(port, () => {
       console.log(`Arelorian server listening on ${port}`);
