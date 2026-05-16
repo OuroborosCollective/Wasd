@@ -105,6 +105,10 @@ const VISUAL_CORRUPTION_VALUES: Record<StabilityLevel, number> = {
   [StabilityLevel.TOTAL_COLLAPSE]: toFP(1.0),
 };
 
+function directiveId(prefix: string, ...parts: unknown[]): string {
+  return [prefix, ...parts.map((part) => String(part).replace(/[^a-zA-Z0-9_.:-]/g, '_'))].join('_');
+}
+
 /**
  * EvolutionSystem - World Flow and Regional Evolution
  */
@@ -195,7 +199,7 @@ export class EvolutionSystem {
       if (corridor.intensity > this.SOG_THRESHOLD) {
         // This is a "pull" effect - too many players going to same place
         this.flowDirectives.push({
-          directiveId: `flow_${key}_${Date.now()}`,
+          directiveId: directiveId('flow', key, corridor.fromChunk, corridor.toChunk),
           fromChunk: corridor.fromChunk,
           toChunk: corridor.toChunk,
           type: 'PULL',
@@ -211,7 +215,7 @@ export class EvolutionSystem {
         for (const corridor of this.travelHeat.values()) {
           if (corridor.toChunk === chunk && corridor.intensity < toFP(0.1)) {
             this.flowDirectives.push({
-              directiveId: `disperse_${chunk}_${Date.now()}`,
+              directiveId: directiveId('disperse', chunk, corridor.fromChunk, corridor.toChunk),
               fromChunk: corridor.fromChunk,
               toChunk: chunk,
               type: 'DISPERSE',

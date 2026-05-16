@@ -1,5 +1,5 @@
 export class ProphecyArchive {
   private entries: any[] = [];
-  add(entry: any) { this.entries.push({ timestamp: Date.now(), ...entry }); }
+  add(entry: any, timestamp = 0) { this.entries.push({ timestamp, ...entry }); }
   all() { return this.entries; }
 }
