@@ -6,6 +6,9 @@ on:
       - main
     paths:
       - 'server/src/core/systems/**'
+      - 'server/src/core/watchdogs/**'
+      - 'server/src/core/*Watchdog.ts'
+      - 'server/src/modules/brain/**'
       - 'server/src/modules/loot/**'
       - 'server/src/modules/warfront/**'
       - 'server/src/modules/oracle/**'
@@ -17,6 +20,9 @@ on:
       - main
     paths:
       - 'server/src/core/systems/**'
+      - 'server/src/core/watchdogs/**'
+      - 'server/src/core/*Watchdog.ts'
+      - 'server/src/modules/brain/**'
       - 'server/src/modules/loot/**'
       - 'server/src/modules/warfront/**'
       - 'server/src/modules/oracle/**'
