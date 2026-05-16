@@ -19,5 +19,9 @@ pnpm-debug.log*
 # Playwright output (local)
 test-results/
 
+# DGCC gate output (local/CI)
+dgcc-artifacts/
 
+# Python (deploy helpers)
+__pycache__/
 *.py[cod]
