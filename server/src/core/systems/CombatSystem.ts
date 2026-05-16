@@ -4,6 +4,7 @@
  * Server-authoritative with deterministic calculations.
  */
 
+import { createARESeed, type ARERng, SeededARERng } from '../determinism/AREDeterminism.js';
 import { type RegionState, KAPPA, OraclePressureTag } from '../state/RegionState.js';
 import { worldStateRegistry, type PendingMutation } from '../state/WorldStateRegistry.js';
 
@@ -111,6 +112,14 @@ const SOFT_SYNC_THRESHOLD = toFP(2); // 2 units - interpolate
 const HARD_SYNC_THRESHOLD = toFP(5); // 5 units - hard correction
 const MAX_INTERPOLATION_DISTANCE = toFP(8); // 8 units max interpolate
 
+function regionSeed(region: RegionState): string {
+  return createARESeed([
+    'region',
+    region.threatLevel,
+    [...region.oraclePressureTags].sort().join(','),
+  ]);
+}
+
 /**
  * CMLS - Combat, Movement & Loot System
  */
@@ -192,7 +201,18 @@ export class CMLS {
     baseDamage: number,
     region: RegionState,
     playerMastery: number,
-    weaponCriticalChance: number = toFP(0.1)
+    weaponCriticalChance: number = toFP(0.1),
+    rng: ARERng = new SeededARERng(createARESeed([
+      'combat',
+      attackerId,
+      targetId,
+      attackerPos,
+      targetPos,
+      baseDamage,
+      playerMastery,
+      weaponCriticalChance,
+      regionSeed(region),
+    ]))
   ): CombatResult {
     // Check range (hitscan logic)
     const range = this.calculateDistance(attackerPos, targetPos);
@@ -203,7 +223,7 @@ export class CMLS {
     }
 
     // Hit confirmed - calculate critical
-    const critical = Math.floor(Math.random() * FP_SCALE) < weaponCriticalChance;
+    const critical = rng.nextInt(FP_SCALE) < weaponCriticalChance;
 
     // Calculate damage: Base_DMG * (1 + Mastery_Bonus / 1000) * (Critical_Mod)
     let masteryBonus = Math.floor(playerMastery * 0.2);
@@ -230,7 +250,16 @@ export class CMLS {
   public resolveLoot(
     combat: CombatResult,
     region: RegionState,
-    victimValue: number
+    victimValue: number,
+    rng: ARERng = new SeededARERng(createARESeed([
+      'combat-loot',
+      combat.attackerId,
+      combat.targetId,
+      combat.damage,
+      combat.critical,
+      victimValue,
+      regionSeed(region),
+    ]))
   ): LootDrop[] {
     if (!combat.hit || combat.damage <= 0) {
       return [];
@@ -246,16 +275,18 @@ export class CMLS {
 
     // Roll for each item in pool
     for (const entry of pool) {
-      const roll = Math.floor(Math.random() * FP_SCALE);
+      const roll = rng.nextInt(FP_SCALE);
       
       // Check if item drops
       if (roll < quality) {
-        const amount = this.rollAmount(entry.rarity);
+        const entryRng = rng.fork(`drop:${entry.itemType}`);
+        const amount = this.rollAmount(entry.rarity, entryRng.fork('amount'));
         const value = this.calculateItemValue(entry.rarity, combat, victimValue);
+        const suffix = entryRng.nextInt(2 ** 31 - 1).toString(36);
 
         drops.push({
           itemType: entry.itemType,
-          itemId: `${entry.itemType}_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+          itemId: `${entry.itemType}_${combat.attackerId}_${combat.targetId}_${suffix}`,
           amount,
           value,
           rarity: entry.rarity,
@@ -315,10 +346,10 @@ export class CMLS {
   /**
    * Roll amount based on rarity
    */
-  private rollAmount(rarity: string): number {
+  private rollAmount(rarity: string, rng: ARERng): number {
     switch (rarity) {
-      case 'common': return 1 + Math.floor(Math.random() * 3);
-      case 'uncommon': return 1 + Math.floor(Math.random() * 2);
+      case 'common': return 1 + rng.nextInt(3);
+      case 'uncommon': return 1 + rng.nextInt(2);
       case 'rare': return 1;
       case 'epic': return 1;
       case 'legendary': return 1;

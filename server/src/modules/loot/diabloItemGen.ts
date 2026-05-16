@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createARESeed, type ARERng, SeededARERng } from "../../core/determinism/AREDeterminism.js";
 import { scaleRoll } from "./rollScale.js";
 
 export type Rarity = "common" | "magic" | "rare" | "legendary" | "set";
@@ -49,20 +49,20 @@ export type GeneratedItem = {
   legendaryPowerId?: string;
 };
 
-export function randInt(min: number, max: number): number {
+export function randInt(min: number, max: number, rng: ARERng = new SeededARERng(createARESeed(["randInt", min, max]))): number {
   const lo = Math.ceil(min);
   const hi = Math.floor(max);
   if (hi < lo) return lo;
-  return Math.floor(lo + Math.random() * (hi - lo + 1));
+  return rng.nextRange(lo, hi);
 }
 
-export function pickWeighted<T extends { weight: number }>(arr: T[]): T {
+export function pickWeighted<T extends { weight: number }>(arr: T[], rng: ARERng = new SeededARERng(createARESeed(["pickWeighted", arr.length]))): T {
   if (arr.length === 0) {
     throw new Error("pickWeighted: empty array");
   }
   const total = arr.reduce((s, x) => s + Math.max(0, x.weight), 0);
   if (total <= 0) return arr[arr.length - 1]!;
-  let r = Math.random() * total;
+  let r = rng.nextFloat() * total;
   for (const x of arr) {
     r -= Math.max(0, x.weight);
     if (r <= 0) return x;
@@ -70,8 +70,8 @@ export function pickWeighted<T extends { weight: number }>(arr: T[]): T {
   return arr[arr.length - 1]!;
 }
 
-export function rarityRoll(mf = 0): Rarity {
-  const r = Math.random() * (1 + mf * 0.002);
+export function rarityRoll(mf = 0, rng: ARERng = new SeededARERng(createARESeed(["rarityRoll", mf]))): Rarity {
+  const r = rng.nextFloat() * (1 + mf * 0.002);
   if (r > 0.995) return "set";
   if (r > 0.985) return "legendary";
   if (r > 0.92) return "rare";
@@ -87,21 +87,31 @@ export function generateItem(opts: {
   mf?: number;
   setId?: string;
   legendaryPowerId?: string;
+  rng?: ARERng;
 }): GeneratedItem {
-  const rarity = opts.rarity ?? rarityRoll(opts.mf ?? 0);
-  const seed = randInt(1, 2 ** 31 - 1);
+  const rng = opts.rng ?? new SeededARERng(createARESeed([
+    "diablo-item",
+    opts.base.id,
+    opts.ilvl,
+    opts.rarity ?? "auto",
+    opts.mf ?? 0,
+    opts.setId ?? "",
+    opts.legendaryPowerId ?? "",
+  ]));
+  const rarity = opts.rarity ?? rarityRoll(opts.mf ?? 0, rng.fork("rarity"));
+  const seed = randInt(1, 2 ** 31 - 1, rng.fork("seed"));
 
   const affixCount =
     rarity === "common"
       ? 0
       : rarity === "magic"
-        ? randInt(1, 2)
+        ? randInt(1, 2, rng.fork("affix-count"))
         : rarity === "rare"
-          ? randInt(3, 5)
+          ? randInt(3, 5, rng.fork("affix-count"))
           : rarity === "legendary"
-            ? randInt(4, 6)
+            ? randInt(4, 6, rng.fork("affix-count"))
             : rarity === "set"
-              ? randInt(4, 6)
+              ? randInt(4, 6, rng.fork("affix-count"))
               : 0;
 
   const pool = opts.affixes.filter(
@@ -114,7 +124,7 @@ export function generateItem(opts: {
   for (let i = 0; i < affixCount && pool.length; i++) {
     const candidates = pool.filter((a) => !usedGroups.has(a.group));
     if (!candidates.length) break;
-    const a = pickWeighted(candidates);
+    const a = pickWeighted(candidates, rng.fork(`affix:${i}`));
     chosen.push(a);
     usedGroups.add(a.group);
   }
@@ -129,7 +139,7 @@ export function generateItem(opts: {
   for (const a of chosen) {
     for (const rr of a.rolls) {
       const scaled = scaleRoll(rr.min, rr.max, opts.ilvl);
-      const v = randInt(scaled.min, scaled.max);
+      const v = randInt(scaled.min, scaled.max, rng.fork(`stat:${a.id}:${rr.stat}`));
       stats[rr.stat] = (stats[rr.stat] ?? 0) + v;
     }
   }
@@ -147,7 +157,7 @@ export function generateItem(opts: {
   const name = `${prefix}${opts.base.name}${chosen.length ? " " + chosen[0].name : ""}`;
 
   return {
-    uid: randomUUID(),
+    uid: `di_${seed.toString(36)}_${rng.fork("uid").nextInt(2 ** 31 - 1).toString(36)}`,
     baseId: opts.base.id,
     name,
     rarity,

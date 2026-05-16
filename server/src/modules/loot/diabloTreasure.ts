@@ -1,3 +1,4 @@
+import { createARESeed, type ARERng, SeededARERng } from "../../core/determinism/AREDeterminism.js";
 import type { BaseItem, Affix, GeneratedItem } from "./diabloItemGen.js";
 import { generateItem, rarityRoll } from "./diabloItemGen.js";
 
@@ -12,13 +13,13 @@ export type TreasureClass = {
   entries: TreasureEntry[];
 };
 
-function pickWeightedEntry(entries: TreasureEntry[]): TreasureEntry {
+function pickWeightedEntry(entries: TreasureEntry[], rng: ARERng): TreasureEntry {
   if (entries.length === 0) {
     throw new Error("pickWeightedEntry: empty entries");
   }
   const total = entries.reduce((s, x) => s + Math.max(0, x.weight), 0);
   if (total <= 0) return entries[entries.length - 1]!;
-  let r = Math.random() * total;
+  let r = rng.nextFloat() * total;
   for (const e of entries) {
     r -= Math.max(0, e.weight);
     if (r <= 0) return e;
@@ -33,27 +34,37 @@ export function rollTreasure(opts: {
   affixes: Affix[];
   ilvl: number;
   mf?: number;
+  rng?: ARERng;
 }): { gold: number; items: GeneratedItem[] } {
+  const rng = opts.rng ?? new SeededARERng(createARESeed(["treasure", opts.tcId, opts.ilvl, opts.mf ?? 0]));
   const tc = opts.tcs[opts.tcId];
   if (!tc) return { gold: 0, items: [] };
 
   let gold = 0;
   const items: GeneratedItem[] = [];
 
-  const rollFrom = (tcId: string) => {
+  const rollFrom = (tcId: string, depth = 0) => {
     const t = opts.tcs[tcId];
     if (!t) return;
     for (let i = 0; i < t.picks; i++) {
-      const e = pickWeightedEntry(t.entries);
+      const pickRng = rng.fork(`${tcId}:${depth}:${i}`);
+      const e = pickWeightedEntry(t.entries, pickRng.fork("entry"));
       if (e.type === "gold") {
-        gold += Math.floor(e.min + Math.random() * (e.max - e.min + 1));
+        gold += pickRng.nextRange(e.min, e.max);
       } else if (e.type === "tc") {
-        rollFrom(e.tcId);
+        rollFrom(e.tcId, depth + 1);
       } else if (e.type === "base") {
         const base = opts.bases[e.baseId];
         if (!base) continue;
-        const rarity = rarityRoll(opts.mf ?? 0);
-        items.push(generateItem({ base, ilvl: opts.ilvl, rarity, affixes: opts.affixes, mf: opts.mf }));
+        const rarity = rarityRoll(opts.mf ?? 0, pickRng.fork("rarity"));
+        items.push(generateItem({
+          base,
+          ilvl: opts.ilvl,
+          rarity,
+          affixes: opts.affixes,
+          mf: opts.mf,
+          rng: pickRng.fork("item"),
+        }));
       }
     }
   };
