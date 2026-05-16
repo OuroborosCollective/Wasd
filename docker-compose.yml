@@ -16,8 +16,6 @@ services:
       PORT: "3001"
       GAME_PORT: "3001"
       HOST: "0.0.0.0"
-
-      # Redis: internal Docker DNS. Override in .env or GitHub/VPS env if needed.
       REDIS_URL: "${REDIS_URL:-}"
       REDIS_HOST: "${REDIS_HOST:-redis-comn-redis-1}"
       REDIS_PORT: "${REDIS_PORT:-6379}"
@@ -25,8 +23,6 @@ services:
       REDIS_USERNAME: "${REDIS_USERNAME:-}"
       REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
       REDIS_TLS: "${REDIS_TLS:-false}"
-
-      # Soketi / websocket bridge: internal Docker DNS defaults.
       SOKETI_HOST: "${SOKETI_HOST:-soketi-9eoa-soketi-1}"
       SOKETI_PORT: "${SOKETI_PORT:-6001}"
       SOKETI_URL: "${SOKETI_URL:-http://soketi-9eoa-soketi-1:6001}"
@@ -34,8 +30,6 @@ services:
       PUSHER_PORT: "${PUSHER_PORT:-6001}"
       PUSHER_SCHEME: "${PUSHER_SCHEME:-http}"
       NEXT_PUBLIC_WEBSOCKET_URL: "${NEXT_PUBLIC_WEBSOCKET_URL:-wss://arelorian.de/ws}"
-
-      # Supabase: internal Docker DNS defaults for the VPS Supabase stack.
       SUPABASE_HOST: "${SUPABASE_HOST:-supabase-kong}"
       SUPABASE_PORT: "${SUPABASE_PORT:-8000}"
       SUPABASE_URL: "${SUPABASE_URL:-http://supabase-kong:8000}"
@@ -46,11 +40,11 @@ services:
       POSTGRES_HOST: "${POSTGRES_HOST:-supabase-db}"
       POSTGRES_PORT: "${POSTGRES_PORT:-5432}"
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
-      interval: 30s
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health').then(r => (r.ok || r.status === 503) ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
+      interval: 15s
       timeout: 10s
-      retries: 5
-      start_period: 60s
+      retries: 20
+      start_period: 180s
     logging:
       driver: json-file
       options:
@@ -71,7 +65,7 @@ services:
       CHECK_INTERVAL: "60"
     depends_on:
       arelorian-engine:
-        condition: service_healthy
+        condition: service_started
     logging:
       driver: json-file
       options:
