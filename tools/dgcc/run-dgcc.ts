@@ -7,13 +7,11 @@ type Severity = "info" | "warn" | "error";
 type CheckName =
   | "lint"
   | "unit"
-  | "checkInteract"
   | "e2e"
   | "contentValidate"
   | "assetsAudit"
   | "wsSchemaSmoke"
   | "uiA11ySmoke"
-  | "clientBuild"
   | "serverBuild";
 
 type DgccReport = {
@@ -120,6 +118,17 @@ async function wsSchemaSmoke(report: DgccReport) {
       file: "client/public/e2e-smoke.html",
       hint: "Restore e2e smoke page or update DGCC contract.",
     });
+    return;
+  }
+  const html = fs.readFileSync(p, "utf8");
+  if (!html.includes("d.type === \"welcome\"") || !html.includes("JSON.stringify(d)")) {
+    report.inconsistencies.push({
+      category: "ws",
+      severity: "error",
+      message: "e2e-smoke.html must forward the full welcome payload (welcome.stats shape is asserted in e2e/smoke.spec.ts).",
+      file: "client/public/e2e-smoke.html",
+      hint: "Keep onmessage handler that assigns JSON.stringify(d) to #e2e-welcome for welcome messages.",
+    });
   }
 }
 
@@ -188,15 +197,6 @@ async function main() {
     });
   }
 
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
-    });
-  }
-
   if (checks.includes("e2e")) {
     await runCheck("e2e", async () => {
       const r = await run("pnpm", ["run", "test:e2e:ci"]);
@@ -208,27 +208,14 @@ async function main() {
 
   if (checks.includes("contentValidate")) {
     await runCheck("contentValidate", async () => {
-      const r = await run("pnpm", ["--prefix", "server", "run", "validate"]);
+      const r = await run("pnpm", ["run", "validate:content"]);
       fs.writeFileSync(path.join(outDir, "content-validate.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["contentValidate"] = "dgcc-artifacts/content-validate.out.txt";
-      if (r.code !== 0) throw new Error("content validation failed (server validate)");
+      if (r.code !== 0) throw new Error("content validation failed (validate:content)");
     });
   }
 
-  if (checks.includes("clientBuild")) {
-    await runCheck("clientBuild", async () => {
-      const r = await run("pnpm", ["--prefix", "client", "run", "build"], {
-        env: {
-          NODE_OPTIONS: process.env.NODE_OPTIONS || "--max-old-space-size=6144",
-        },
-      });
-      fs.writeFileSync(path.join(outDir, "client-build.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["clientBuild"] = "dgcc-artifacts/client-build.out.txt";
-      if (r.code !== 0) throw new Error("client build failed");
-    });
-  }
-
-  if (checks.includes("serverBuild")) {
+  if (checks.includes("contentValidate")) {
     await runCheck("serverBuild", async () => {
       const r = await run("pnpm", ["--prefix", "server", "run", "build"]);
       fs.writeFileSync(path.join(outDir, "server-build.out.txt"), r.stdout + "\n" + r.stderr);

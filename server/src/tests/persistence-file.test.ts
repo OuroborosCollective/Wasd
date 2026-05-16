@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { vi } from "vitest";
 
 import { PersistenceManager } from "../core/PersistenceManager.js";
+import { createPersistenceBackendForTest } from "../modules/persistence/createPersistenceBackend.js";
 
 describe("PersistenceManager file fallback", () => {
   let tmpDir: string;
@@ -26,7 +26,7 @@ describe("PersistenceManager file fallback", () => {
   });
 
   it("save and load round-trip", async () => {
-    const pm = new PersistenceManager();
+    const pm = new PersistenceManager(createPersistenceBackendForTest("file"));
     await pm.init();
     await pm.save({
       p1: {

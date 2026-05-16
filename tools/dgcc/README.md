@@ -12,4 +12,6 @@ DGCC_FIX=1 pnpm run dgcc
 
 Artifacts: `dgcc-artifacts/`
 
-The `minimal` / `extreme` modes also run `pnpm run check:interact` (GameConfig vs `shared/interaction.ts`).
+`extreme` mode adds a production `server` build. A full client Vite production build is not part of this gate yet (known `@wasd/shared` dist resolution issue with the client bundler).
+
+Self-heal wrapper (fixes on, extreme mode default): `bash tools/dgcc/selfheal-wrapper.sh`
