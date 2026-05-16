@@ -1,4 +1,4 @@
-# Operational marker: 2026-05-16
+# Operational marker: 2026-05-16 pulse-002
 name: VPS Docker Deploy on Merge
 
 on:
