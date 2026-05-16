@@ -1,0 +1,44 @@
+name: ARE Determinism Gate
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'packages/core-logic/src/**'
+      - 'server/src/core/**'
+      - 'server/src/modules/loot/**'
+      - 'server/src/modules/warfront/**'
+      - 'server/src/modules/oracle/**'
+      - 'scripts/check-are-determinism.mjs'
+      - '.github/workflows/are-determinism-gate.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/core-logic/src/**'
+      - 'server/src/core/**'
+      - 'server/src/modules/loot/**'
+      - 'server/src/modules/warfront/**'
+      - 'server/src/modules/oracle/**'
+      - 'scripts/check-are-determinism.mjs'
+      - '.github/workflows/are-determinism-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  determinism-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check ARE-critical deterministic paths
+        run: node scripts/check-are-determinism.mjs
