@@ -15,6 +15,7 @@ const excludedFromDgccGate = [
   "server/src/tests/persistence-file.test.ts",
   "server/src/tests/proximity.test.ts",
   "server/src/tests/client-config-route.test.ts",
+  "server/src/tests/*-admin-lazy.test.ts",
   "server/src/tests/*-auth-proxy-resolution.test.ts",
   "server/src/tests/worldtick-persistence-init.test.ts",
 ];
