@@ -1,7 +1,6 @@
 import { createARESeed, type ARERng, SeededARERng } from "../../core/determinism/AREDeterminism.js";
 import { ItemRegistry, ItemDefinition } from "../inventory/ItemRegistry.js";
 import fs from "fs";
-import path from "path";
 import { resolveContentFile } from "../content/contentDataRoot.js";
 
 export interface LootTableEntry {
