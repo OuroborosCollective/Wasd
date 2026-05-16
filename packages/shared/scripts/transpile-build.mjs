@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { existsSync } from 'node:fs';
 import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { dirname, extname, join, relative } from 'node:path';
 import ts from 'typescript';
@@ -52,23 +53,31 @@ function shouldRewriteSpecifier(specifier) {
   return extname(clean) === '';
 }
 
-function withJsExtension(specifier) {
+function resolveExtensionlessSpecifier(specifier, fromFile) {
   if (!shouldRewriteSpecifier(specifier)) return specifier;
   const suffixIndex = specifier.search(/[?#]/);
-  if (suffixIndex === -1) return `${specifier}.js`;
-  return `${specifier.slice(0, suffixIndex)}.js${specifier.slice(suffixIndex)}`;
+  const bareSpecifier = suffixIndex === -1 ? specifier : specifier.slice(0, suffixIndex);
+  const suffix = suffixIndex === -1 ? '' : specifier.slice(suffixIndex);
+  const sourceTarget = join(dirname(fromFile), bareSpecifier);
+  for (const extension of ['.ts', '.tsx', '.mts', '.cts']) {
+    if (existsSync(`${sourceTarget}${extension}`)) return `${bareSpecifier}.js${suffix}`;
+  }
+  for (const extension of ['.ts', '.tsx', '.mts', '.cts']) {
+    if (existsSync(join(sourceTarget, `index${extension}`))) return `${bareSpecifier}/index.js${suffix}`;
+  }
+  return `${bareSpecifier}.js${suffix}`;
 }
 
-function rewriteRelativeEsmSpecifiers(output) {
+function rewriteRelativeEsmSpecifiers(output, fromFile) {
   return output
     .replace(/(from\s*['"])(\.\.?\/[^'"]+)(['"])/g, (_match, prefix, specifier, suffix) => {
-      return `${prefix}${withJsExtension(specifier)}${suffix}`;
+      return `${prefix}${resolveExtensionlessSpecifier(specifier, fromFile)}${suffix}`;
     })
     .replace(/(import\s*['"])(\.\.?\/[^'"]+)(['"])/g, (_match, prefix, specifier, suffix) => {
-      return `${prefix}${withJsExtension(specifier)}${suffix}`;
+      return `${prefix}${resolveExtensionlessSpecifier(specifier, fromFile)}${suffix}`;
     })
     .replace(/(import\(\s*['"])(\.\.?\/[^'"]+)(['"]\s*\))/g, (_match, prefix, specifier, suffix) => {
-      return `${prefix}${withJsExtension(specifier)}${suffix}`;
+      return `${prefix}${resolveExtensionlessSpecifier(specifier, fromFile)}${suffix}`;
     });
 }
 
@@ -103,7 +112,7 @@ async function transpile(file) {
 
   const jsFile = toOutFile(file, '.js');
   await ensureParent(jsFile);
-  await writeFile(jsFile, rewriteRelativeEsmSpecifiers(result.outputText || ''));
+  await writeFile(jsFile, rewriteRelativeEsmSpecifiers(result.outputText || '', file));
 }
 
 async function copyAsset(file) {
