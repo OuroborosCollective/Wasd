@@ -16,6 +16,13 @@ pnpm-debug.log*
 # Build artifacts
 *.tsbuildinfo
 
+# DGCC runner output
+dgcc-artifacts/
+
+# Playwright (local)
+test-results/
+playwright-report/
+
 # Python (deploy helpers)
 __pycache__/
 *.py[cod]
