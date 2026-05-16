@@ -1,72 +1,63 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
-export interface OuroborosPulseFrame {
+export type OuroborosPulseFrame = {
   tick: number;
   worldHash: string;
+  drift?: number;
   label?: string;
-}
+};
 
 export interface OuroborosPulseViewProps {
   frames: OuroborosPulseFrame[];
   tickHz?: number;
-  title?: string;
-  subtitle?: string;
   onFrameSelect?: (frame: OuroborosPulseFrame) => void;
 }
 
-function clamp01(value: number): number {
-  return Math.max(0, Math.min(1, value));
-}
+type RangeInputEvent = {
+  target: {
+    value: string;
+  };
+};
 
-function useTenHzPulse(tickHz: number, selectedTick: number): number {
-  const [now, setNow] = useState(0);
-  React.useEffect(() => {
-    let frame = 0;
-    const start = performance.now();
-    const loop = (time: number) => {
-      setNow((time - start) / 1000);
-      frame = requestAnimationFrame(loop);
-    };
-    frame = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(frame);
-  }, []);
-  return clamp01((Math.sin(now * tickHz * Math.PI * 2 + selectedTick * 0.13) + 1) / 2);
+function clampIndex(index: number, frames: OuroborosPulseFrame[]): number {
+  if (frames.length === 0) return 0;
+  return Math.min(Math.max(index, 0), frames.length - 1);
 }
 
 export function OuroborosPulseView({
   frames,
   tickHz = 10,
-  title = "Engine Online. Kausalität stabil.",
-  subtitle = "10-Hz WorldHash heartbeat · Cyber-Zen Replay Bridge",
   onFrameSelect,
 }: OuroborosPulseViewProps): React.ReactElement {
-  const safeFrames = frames.length > 0 ? frames : [{ tick: 0, worldHash: "warming", label: "waiting" }];
-  const [index, setIndex] = useState(safeFrames.length - 1);
-  const active = safeFrames[Math.max(0, Math.min(index, safeFrames.length - 1))];
-  const pulse = useTenHzPulse(tickHz, active.tick);
-  const shortHash = useMemo(() => active.worldHash.slice(0, 16), [active.worldHash]);
+  const safeFrames = frames.length > 0
+    ? frames
+    : [{ tick: 0, worldHash: "genesis", drift: 0, label: "empty pulse" }];
+  const [index, setIndex] = useState(0);
+  const active = safeFrames[clampIndex(index, safeFrames)];
 
-  const style = {
-    "--wasd-aura": "0, 229, 255",
-    "--wasd-neon": "57, 255, 20",
-    "--wasd-violet": "120, 90, 255",
-    background: "linear-gradient(135deg, rgba(10,10,10,.95), rgba(4,15,22,.98))",
-    border: "1px solid rgba(var(--wasd-aura), .38)",
-    boxShadow: `0 0 ${24 + pulse * 34}px rgba(var(--wasd-aura), ${0.18 + pulse * 0.36})`,
-  } as React.CSSProperties;
+  useEffect(() => {
+    setIndex((current) => clampIndex(current, safeFrames));
+  }, [safeFrames.length]);
 
-  const orbStyle = {
-    transform: `scale(${1 + pulse * 0.06})`,
-    boxShadow: `0 0 ${28 + pulse * 46}px rgba(var(--wasd-aura), ${0.32 + pulse * 0.42}), inset 0 0 32px rgba(var(--wasd-neon), ${0.08 + pulse * 0.18})`,
-  } as React.CSSProperties;
+  const orbStyle = useMemo(() => {
+    const drift = Math.abs(active.drift ?? 0);
+    const scale = 1 + Math.min(0.18, drift / 1000);
+    return {
+      transform: `scale(${scale.toFixed(3)})`,
+      boxShadow: `0 0 ${Math.round(20 + drift * 2)}px rgba(34, 211, 238, 0.35)`,
+    };
+  }, [active.drift]);
+
+  const shortHash = active.worldHash.length > 18
+    ? `${active.worldHash.slice(0, 9)}…${active.worldHash.slice(-6)}`
+    : active.worldHash;
 
   return (
-    <section style={style} className="ouroboros-pulse-view rounded-3xl p-6 text-white">
-      <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+    <section className="rounded-3xl border border-cyan-300/20 bg-slate-950/80 p-6 text-cyan-50 shadow-2xl shadow-cyan-950/40">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="font-mono text-xs uppercase tracking-[0.3em] text-cyan-200/70">Ouroboros ARE SDK</p>
-          <h2 className="mt-2 text-2xl font-black tracking-tight">{title}</h2>
-          <p className="mt-2 max-w-xl text-sm text-cyan-100/70">{subtitle}</p>
+          <p className="font-mono text-xs uppercase tracking-[0.35em] text-cyan-200/70">Ouroboros Pulse</p>
+          <h2 className="mt-2 text-2xl font-semibold text-cyan-50">Deterministic Worldhash Viewer</h2>
         </div>
         <div className="rounded-full border border-cyan-300/40 px-4 py-2 font-mono text-sm text-cyan-100">
           SYNC LCK {tickHz.toFixed(2)} Hz
@@ -92,7 +83,7 @@ export function OuroborosPulseView({
             min={0}
             max={safeFrames.length - 1}
             value={index}
-            onChange={(event) => {
+            onChange={(event: RangeInputEvent) => {
               const next = Number(event.target.value);
               setIndex(next);
               onFrameSelect?.(safeFrames[next]);
