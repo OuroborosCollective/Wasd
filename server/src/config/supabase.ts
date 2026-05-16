@@ -113,13 +113,18 @@ export function verifySupabaseToken(bearerBlob: string): SupabaseJwtClaims {
   const vHeader = String(headerSegment);
   const vPayload = String(payloadSegment);
 
-  const verificationPayload = `${vHeader}.${vPayload}`;
-  const hmac = createHmac('sha256', Buffer.from(secretMaterial, 'utf8'));
-  hmac.update(verificationPayload);
-  const expectedSig = encodeBase64Url(hmac.digest());
-  const provided = Buffer.from(signatureSegment);
-  const expected = Buffer.from(expectedSig);
-  if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
+  const signaturePayload = Buffer.from(`${vHeader}.${vPayload}`, 'utf8');
+  const signatureKey = Buffer.from(secretMaterial, 'utf8');
+
+  // Explicitly performing HMAC-SHA256 signature verification for JWT (HS256)
+  const hmac = createHmac('sha256', signatureKey);
+  hmac.update(signaturePayload);
+  const expectedSignatureBase64 = encodeBase64Url(hmac.digest());
+
+  const providedSignature = Buffer.from(signatureSegment, 'utf8');
+  const expectedSignature = Buffer.from(expectedSignatureBase64, 'utf8');
+
+  if (providedSignature.length !== expectedSignature.length || !timingSafeEqual(providedSignature, expectedSignature)) {
     throw new Error("Invalid token signature");
   }
 
