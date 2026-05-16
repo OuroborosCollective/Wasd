@@ -16,20 +16,13 @@ services:
       PORT: "3001"
       GAME_PORT: "3001"
       HOST: "0.0.0.0"
-      REDIS_URL: "${REDIS_URL:-}"
-      REDIS_HOST: "${REDIS_HOST:-redis-comn-redis-1}"
-      REDIS_PORT: "${REDIS_PORT:-6379}"
-      REDIS_USER: "${REDIS_USER:-}"
-      REDIS_USERNAME: "${REDIS_USERNAME:-}"
-      REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
-      REDIS_TLS: "${REDIS_TLS:-false}"
-      SOKETI_HOST: "${SOKETI_HOST:-soketi-9eoa-soketi-1}"
-      SOKETI_PORT: "${SOKETI_PORT:-6001}"
-      SOKETI_URL: "${SOKETI_URL:-http://soketi-9eoa-soketi-1:6001}"
-      PUSHER_HOST: "${PUSHER_HOST:-soketi-9eoa-soketi-1}"
-      PUSHER_PORT: "${PUSHER_PORT:-6001}"
-      PUSHER_SCHEME: "${PUSHER_SCHEME:-http}"
-      NEXT_PUBLIC_WEBSOCKET_URL: "${NEXT_PUBLIC_WEBSOCKET_URL:-wss://arelorian.de/ws}"
+
+      # Database / Supabase runtime values. Values are supplied by .env.docker on the VPS.
+      DATABASE_URL: "${DATABASE_URL:-}"
+      DIRECT_URL: "${DIRECT_URL:-}"
+      POSTGRES_HOST: "${POSTGRES_HOST:-supabase-db}"
+      POSTGRES_PORT: "${POSTGRES_PORT:-5432}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-}"
       SUPABASE_HOST: "${SUPABASE_HOST:-supabase-kong}"
       SUPABASE_PORT: "${SUPABASE_PORT:-8000}"
       SUPABASE_URL: "${SUPABASE_URL:-http://supabase-kong:8000}"
@@ -37,8 +30,33 @@ services:
       SUPABASE_PUBLIC_URL: "${SUPABASE_PUBLIC_URL:-https://arelorian.de}"
       SUPABASE_ANON_KEY: "${SUPABASE_ANON_KEY:-}"
       ANON_KEY: "${ANON_KEY:-}"
-      POSTGRES_HOST: "${POSTGRES_HOST:-supabase-db}"
-      POSTGRES_PORT: "${POSTGRES_PORT:-5432}"
+      SUPABASE_SERVICE_ROLE_KEY: "${SUPABASE_SERVICE_ROLE_KEY:-}"
+      SERVICE_ROLE_KEY: "${SERVICE_ROLE_KEY:-}"
+      JWT_SECRET: "${JWT_SECRET:-}"
+
+      # Redis internal Docker DNS. Override via .env.docker if needed.
+      REDIS_URL: "${REDIS_URL:-}"
+      REDIS_HOST: "${REDIS_HOST:-redis-comn-redis-1}"
+      REDIS_PORT: "${REDIS_PORT:-6379}"
+      REDIS_USER: "${REDIS_USER:-}"
+      REDIS_USERNAME: "${REDIS_USERNAME:-}"
+      REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
+      REDIS_TLS: "${REDIS_TLS:-false}"
+
+      # Soketi / Pusher compatible websocket bridge.
+      SOKETI_HOST: "${SOKETI_HOST:-soketi-9eoa-soketi-1}"
+      SOKETI_PORT: "${SOKETI_PORT:-6001}"
+      SOKETI_URL: "${SOKETI_URL:-http://soketi-9eoa-soketi-1:6001}"
+      SOKETI_APP_ID: "${SOKETI_APP_ID:-}"
+      SOKETI_APP_KEY: "${SOKETI_APP_KEY:-}"
+      SOKETI_APP_SECRET: "${SOKETI_APP_SECRET:-}"
+      PUSHER_HOST: "${PUSHER_HOST:-soketi-9eoa-soketi-1}"
+      PUSHER_PORT: "${PUSHER_PORT:-6001}"
+      PUSHER_SCHEME: "${PUSHER_SCHEME:-http}"
+      PUSHER_APP_ID: "${PUSHER_APP_ID:-${SOKETI_APP_ID:-}}"
+      PUSHER_APP_KEY: "${PUSHER_APP_KEY:-${SOKETI_APP_KEY:-}}"
+      PUSHER_APP_SECRET: "${PUSHER_APP_SECRET:-${SOKETI_APP_SECRET:-}}"
+      NEXT_PUBLIC_WEBSOCKET_URL: "${NEXT_PUBLIC_WEBSOCKET_URL:-wss://arelorian.de/ws}"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health').then(r => (r.ok || r.status === 503) ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
       interval: 15s
@@ -63,6 +81,8 @@ services:
     environment:
       ENGINE_URL: "http://arelorian-engine:3001"
       CHECK_INTERVAL: "60"
+      STARTUP_GRACE_SECONDS: "360"
+      READINESS_PATHS: "/health,/client-config.json"
     depends_on:
       arelorian-engine:
         condition: service_started
