@@ -57,12 +57,12 @@ export class WorldBrainCacheService {
    */
   persistState(
     tickCount: number,
-    analysis: { nodes: number; centerValue: number; summary: string; activeAnomalies: string[] }
+    analysis: { nodes: number; centerValue: number; summary: string; activeAnomalies: string[] },
+    now = tickCount * 100
   ): void {
     const redis = getRedisClient();
     if (!redis || !isRedisAvailable()) return;
 
-    const now = Date.now();
     if (now - this.lastWriteTime < WRITE_INTERVAL_MS) return; // Throttle
     this.lastWriteTime = now;
 
