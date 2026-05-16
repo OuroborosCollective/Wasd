@@ -26,7 +26,7 @@ export function spawnLootBag(p: {
   now?: number;
   id?: string;
 }): LootBag {
-  const now = p.now ?? 0;
+  const now = p.now ?? Date.now();
   return {
     id: p.id ?? lootBagId({ x: p.x, y: p.y, ownerId: p.ownerId, gold: p.gold, now }),
     x: p.x,
@@ -40,7 +40,8 @@ export function spawnLootBag(p: {
 }
 
 /** Runtime bag shape used by WorldTick (position + legacy timing). */
-export function lootBagToRuntimeBag(bag: LootBag, ownerExclusiveMs: number, now = 0): any {
+export function lootBagToRuntimeBag(bag: LootBag, ownerExclusiveMs: number, now?: number): any {
+  const currentNow = now ?? Date.now();
   return {
     id: bag.id,
     position: { x: bag.x, y: bag.y },
@@ -50,7 +51,7 @@ export function lootBagToRuntimeBag(bag: LootBag, ownerExclusiveMs: number, now 
     items: bag.stack.map((s) => ({ id: s.id, quantity: s.quantity })),
     gear: bag.gear,
     ownerId: bag.ownerId,
-    ownerExclusiveUntil: now + ownerExclusiveMs,
+    ownerExclusiveUntil: currentNow + ownerExclusiveMs,
     despawnAt: bag.despawnAt,
   };
 }

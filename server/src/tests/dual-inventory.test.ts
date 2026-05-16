@@ -84,5 +84,7 @@ describe("dual inventory + loot helpers", () => {
     const rt = lootBagToRuntimeBag(bag, 30_000);
     expect(rt.items[0].id).toBe("gem");
     expect(rt.position.x).toBe(1);
+    expect(bag.despawnAt).toBeGreaterThan(Date.now());
+    expect(rt.ownerExclusiveUntil).toBeGreaterThan(Date.now());
   });
 });

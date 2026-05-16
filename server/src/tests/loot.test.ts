@@ -96,6 +96,11 @@ describe("ItemGenerator", () => {
     expect(item.generatedAt).toBeGreaterThanOrEqual(before);
     expect(item.generatedAt).toBeLessThanOrEqual(after);
   });
+
+  it("honors an explicit generatedAt for deterministic generation", () => {
+    const item = generator.generate("ring", "uncommon", [], 42_000);
+    expect(item.generatedAt).toBe(42_000);
+  });
 });
 
 // ---------------------------------------------------------------------------
