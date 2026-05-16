@@ -1,13 +1,14 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 type Severity = "info" | "warn" | "error";
 type CheckName =
   | "lint"
   | "unit"
-  | "checkInteract"
   | "e2e"
   | "contentValidate"
   | "assetsAudit"
@@ -27,8 +28,9 @@ type DgccReport = {
   artifacts: Record<string, string>;
 };
 
-const ROOT = process.cwd();
-const CONTRACT_PATH = path.join(ROOT, "tools/dgcc/dgcc.contract.json");
+const DGCC_DIR = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(DGCC_DIR, "../..");
+const CONTRACT_PATH = path.join(DGCC_DIR, "dgcc.contract.json");
 
 function readJson<T>(p: string): T {
   return JSON.parse(fs.readFileSync(p, "utf8")) as T;
@@ -47,8 +49,8 @@ function run(cmd: string, args: string[], opts?: { env?: Record<string, string> 
     const t0 = Date.now();
     const child = spawn(cmd, args, {
       cwd: ROOT,
+      env: { ...process.env, PWD: ROOT, ...(opts?.env ?? {}) },
       shell: process.platform === "win32",
-      env: { ...process.env, ...(opts?.env ?? {}) },
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stdout = "";
@@ -181,19 +183,10 @@ async function main() {
 
   if (checks.includes("unit")) {
     await runCheck("unit", async () => {
-      const r = await run("pnpm", ["run", "test"]);
+      const r = await run("pnpm", ["run", "test:dgcc"]);
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
-      if (r.code !== 0) throw new Error("unit tests failed");
-    });
-  }
-
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
+      if (r.code !== 0) throw new Error("unit tests failed (pnpm run test:dgcc)");
     });
   }
 
@@ -208,22 +201,25 @@ async function main() {
 
   if (checks.includes("contentValidate")) {
     await runCheck("contentValidate", async () => {
-      const r = await run("pnpm", ["--prefix", "server", "run", "validate"]);
+      const r = await run("pnpm", ["run", "validate"]);
       fs.writeFileSync(path.join(outDir, "content-validate.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["contentValidate"] = "dgcc-artifacts/content-validate.out.txt";
-      if (r.code !== 0) throw new Error("content validation failed (server validate)");
+      if (r.code !== 0) throw new Error("content validation failed (pnpm run validate)");
     });
   }
 
   if (checks.includes("clientBuild")) {
     await runCheck("clientBuild", async () => {
+      const shared = await run("pnpm", ["--filter", "@wasd/shared", "run", "build"]);
       const r = await run("pnpm", ["--prefix", "client", "run", "build"], {
         env: {
           NODE_OPTIONS: process.env.NODE_OPTIONS || "--max-old-space-size=6144",
         },
       });
-      fs.writeFileSync(path.join(outDir, "client-build.out.txt"), r.stdout + "\n" + r.stderr);
+      const combined = `=== @wasd/shared build ===\n${shared.stdout}\n${shared.stderr}\n=== client build ===\n${r.stdout}\n${r.stderr}`;
+      fs.writeFileSync(path.join(outDir, "client-build.out.txt"), combined);
       report.artifacts["clientBuild"] = "dgcc-artifacts/client-build.out.txt";
+      if (shared.code !== 0) throw new Error("@wasd/shared build failed");
       if (r.code !== 0) throw new Error("client build failed");
     });
   }

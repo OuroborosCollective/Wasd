@@ -29,6 +29,8 @@ export default defineConfig({
           PORT: String(port),
           NODE_ENV: "production",
           ALLOW_GUEST_LOGIN: "1",
+          /** Avoid host `.env` DATABASE_URL pointing at docker `db` when running E2E locally or in CI. */
+          PERSISTENCE_DRIVER: "file",
           PLAYER_SAVE_FILE: process.env.PLAYER_SAVE_FILE || "/tmp/areloria-e2e-players.json",
         },
       },

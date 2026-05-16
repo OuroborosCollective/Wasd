@@ -30,6 +30,7 @@ export function loadRootEnvFiles(): void {
   const opt = "/opt/areloria/.env";
 
   tryLoad(fromMonorepoRoot, false);
-  tryLoad(fromCwd, true);
+  /** Do not override keys already set by the parent process (e.g. Playwright webServer `PERSISTENCE_DRIVER`). */
+  tryLoad(fromCwd, false);
   tryLoad(opt, true);
 }

@@ -8,8 +8,15 @@ Run the repository-wide Design+Gameplay Consistency Contract gate.
 pnpm run dgcc
 pnpm run dgcc:extreme
 DGCC_FIX=1 pnpm run dgcc
+bash tools/dgcc/selfheal-wrapper.sh
 ```
 
-Artifacts: `dgcc-artifacts/`
+E2E uses Playwright Chromium. Install browsers once (CI images should cache this):
 
-The `minimal` / `extreme` modes also run `pnpm run check:interact` (GameConfig vs `shared/interaction.ts`).
+```bash
+pnpm run test:e2e:install
+```
+
+The `unit` check runs `pnpm run test:dgcc` (client unit tests plus server content validation tests). For the full Vitest suite, use `pnpm run test`.
+
+Artifacts: `dgcc-artifacts/`
