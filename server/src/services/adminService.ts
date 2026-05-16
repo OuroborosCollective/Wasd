@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "../lib/supabaseAdmin";
+import { ServiceRoleAdmin } from "../lib/adminDbClient.js";
 
 /**
  * Service für administrative Datenbankoperationen (Server-side).
@@ -6,14 +6,14 @@ import { supabaseAdmin } from "../lib/supabaseAdmin";
  */
 export const adminDatabaseService = {
   async systemFetch(table: string) {
-    const { data, error } = await supabaseAdmin.from(table).select("*");
+    const { data, error } = await ServiceRoleAdmin.from(table).select("*");
     if (error) throw error;
     return data;
   },
 
   async systemInsert(table: string, payload: any) {
-    const { data, error } = await supabaseAdmin.from(table).insert([payload]).select();
+    const { data, error } = await ServiceRoleAdmin.from(table).insert([payload]).select();
     if (error) throw error;
     return data;
-  }
+  },
 };

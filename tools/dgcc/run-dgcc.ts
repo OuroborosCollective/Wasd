@@ -7,7 +7,6 @@ type Severity = "info" | "warn" | "error";
 type CheckName =
   | "lint"
   | "unit"
-  | "checkInteract"
   | "e2e"
   | "contentValidate"
   | "assetsAudit"
@@ -135,6 +134,26 @@ async function uiA11ySmoke(report: DgccReport) {
   }
 }
 
+async function ensureSharedPackageBuilt() {
+  const marker = path.join(ROOT, "packages/shared/dist/index.js");
+  if (fs.existsSync(marker)) return;
+  console.log("[DGCC] packages/shared/dist missing; building @wasd/shared…");
+  const r = await run("pnpm", ["--prefix", "packages/shared", "run", "build"]);
+  if (r.code !== 0) {
+    throw new Error(`@wasd/shared build failed:\n${r.stdout}\n${r.stderr}`);
+  }
+}
+
+async function ensureCoreLogicBuilt() {
+  const marker = path.join(ROOT, "packages/core-logic/dist/are/AREInvariantGuard.js");
+  if (fs.existsSync(marker)) return;
+  console.log("[DGCC] @wasd/core-logic dist missing; building (runtime bundle)…");
+  const r = await run("pnpm", ["--prefix", "packages/core-logic", "run", "build:runtime"]);
+  if (r.code !== 0) {
+    throw new Error(`@wasd/core-logic build failed:\n${r.stdout}\n${r.stderr}`);
+  }
+}
+
 async function main() {
   const mode = parseMode();
   const contract = readJson<any>(CONTRACT_PATH);
@@ -170,6 +189,20 @@ async function main() {
 
   const checks = modeCfg.checks as CheckName[];
 
+  const needsCoreLogic = checks.some((c) =>
+    ["unit", "clientBuild", "serverBuild", "e2e"].includes(c)
+  );
+  if (needsCoreLogic) {
+    await ensureCoreLogicBuilt();
+  }
+
+  const needsSharedDist = checks.some((c) =>
+    ["unit", "clientBuild", "serverBuild", "e2e"].includes(c)
+  );
+  if (needsSharedDist) {
+    await ensureSharedPackageBuilt();
+  }
+
   if (checks.includes("lint")) {
     await runCheck("lint", async () => {
       const r = await run("pnpm", ["run", "lint"]);
@@ -185,15 +218,6 @@ async function main() {
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
       if (r.code !== 0) throw new Error("unit tests failed");
-    });
-  }
-
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
     });
   }
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
-describe("supabaseAdmin lazy client", () => {
+describe("service-role admin lazy client", () => {
   const orig = { ...process.env };
 
   beforeEach(() => {
@@ -21,14 +21,14 @@ describe("supabaseAdmin lazy client", () => {
     process.env.VITE_SUPABASE_PUBLIC_URL = "";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "";
     process.env.SERVICE_ROLE_KEY = "";
-    const { getSupabaseAdmin } = await import("../lib/supabaseAdmin.js");
+    const { getSupabaseAdmin } = await import("../lib/adminDbClient.js");
     expect(() => getSupabaseAdmin()).toThrow(/SUPABASE_URL|API_EXTERNAL_URL/);
   });
 
   it("creates client when API_EXTERNAL_URL and SERVICE_ROLE_KEY set", async () => {
     process.env.API_EXTERNAL_URL = "http://example:8000";
     process.env.SERVICE_ROLE_KEY = "test-service-role-key";
-    const { getSupabaseAdmin } = await import("../lib/supabaseAdmin.js");
+    const { getSupabaseAdmin } = await import("../lib/adminDbClient.js");
     const c = getSupabaseAdmin();
     expect(c).toBeTruthy();
   });
