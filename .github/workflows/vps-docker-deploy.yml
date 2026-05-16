@@ -34,7 +34,7 @@ on:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'package.json'
-      - '.github/workflows/vps-docker-deploy.yml'
+      - '.github/workflows/**'
   workflow_dispatch:
     inputs:
       reason:
