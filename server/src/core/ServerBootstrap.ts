@@ -37,6 +37,7 @@ import { PlaytesterMonitorStream } from '../modules/playtester/PlaytesterMonitor
 import { PlaytesterWebRTCSignaling } from '../modules/playtester/PlaytesterWebRTCSignaling.js';
 import { initRedisClient } from './RedisClient.js';
 import { URL } from 'node:url';
+import { rateLimit } from 'express-rate-limit';
 
 const currentDir =
   typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
@@ -186,6 +187,14 @@ export class ServerBootstrap {
       }),
     };
     const supabaseProxyBaseUrl = resolveSupabaseProxyBaseUrl();
+
+    const standardRateLimit = rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 100,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: 'too_many_requests', message: 'Rate limit exceeded' },
+    });
     await initRedisClient();
     app.use('/api/mcp', mcpRoute());
     app.use('/api/v1', scienceMascotRouter());
@@ -344,12 +353,12 @@ export class ServerBootstrap {
       path.join(monitorClientRoot, 'dist')
     );
     if (monitorHtmlPath)
-      app.get('/playtester-monitor.html', (req, res) => {
+      app.get('/playtester-monitor.html', standardRateLimit, (req, res) => {
         if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: 'forbidden' });
         res.sendFile(monitorHtmlPath);
       });
     if (publisherHtmlPath)
-      app.get('/playtester-render-publisher.html', (req, res) => {
+      app.get('/playtester-render-publisher.html', standardRateLimit, (req, res) => {
         if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: 'forbidden' });
         res.sendFile(publisherHtmlPath);
       });
@@ -384,10 +393,14 @@ export class ServerBootstrap {
     const itchClientPath = path.join(clientRoot, 'dist-itch');
     const adminContentPath = resolveAdminContentHtmlPath(clientRoot, clientPath);
     if (adminContentPath)
-      app.get('/admin-content.html', (_req, res) => res.sendFile(adminContentPath));
+      app.get('/admin-content.html', standardRateLimit, (_req, res) =>
+        res.sendFile(adminContentPath)
+      );
     if (existsSync(path.join(itchClientPath, 'index.html'))) {
       app.use('/itch', express.static(itchClientPath, { index: 'index.html' }));
-      app.get('/itch/*', (_req, res) => res.sendFile(path.join(itchClientPath, 'index.html')));
+      app.get('/itch/*', standardRateLimit, (_req, res) =>
+        res.sendFile(path.join(itchClientPath, 'index.html'))
+      );
     }
     if (process.env.NODE_ENV !== 'production') {
       try {

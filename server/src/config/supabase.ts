@@ -114,7 +114,9 @@ export function verifySupabaseToken(bearerBlob: string): SupabaseJwtClaims {
   const vPayload = String(payloadSegment);
 
   const verificationPayload = `${vHeader}.${vPayload}`;
-  const expectedSig = encodeBase64Url(createHmac("sha256", secretMaterial).update(verificationPayload).digest());
+  const hmac = createHmac('sha256', Buffer.from(secretMaterial, 'utf8'));
+  hmac.update(verificationPayload);
+  const expectedSig = encodeBase64Url(hmac.digest());
   const provided = Buffer.from(signatureSegment);
   const expected = Buffer.from(expectedSig);
   if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
