@@ -5,15 +5,12 @@ import {
   visualStateToCssVars,
   type VisualThemeState,
 } from "@wasd/shared";
+import DestinyPathsPanel from "../community/DestinyPathsPanel";
 import EchoTracker from "../community/EchoTracker";
 import InventoryRefinementPanel from "../community/InventoryRefinementPanel";
 import ScienceMascotChat from "./ScienceMascotChat";
 import WarfrontCombatHud from "./WarfrontCombatHud";
 
-/**
- * Science Portal hub — reacts to NPC-driven hazard telemetry via ThemeEngine.
- * Listens to `theme_updated` (fed by GlobalLiveTicker / server live_ticker_hazard → pushLiveTickerHazard).
- */
 export const SciencePortal: React.FC = () => {
   const [active, setActive] = useState(true);
   const [visual, setVisual] = useState<VisualThemeState>(() => getVisualState(0.15, 0));
@@ -25,58 +22,15 @@ export const SciencePortal: React.FC = () => {
 
   const cssVars = useMemo(() => visualStateToCssVars(visual), [visual]);
 
-  const isFire = visual.mode === "fire_glitch";
-  const isLoot = visual.mode === "loot_legendary";
-
   return (
     <div
-      className={`relative overflow-hidden rounded-xl border p-4 transition-colors duration-300 ${
-        isLoot
-          ? "border-amber-300/70 shadow-[0_0_28px_rgba(255,215,106,0.32)]"
-          : isFire
-            ? "border-red-500/60 shadow-[0_0_24px_rgba(230,0,0,0.35)]"
-            : "border-cyan-500/40 shadow-[0_0_20px_rgba(0,229,255,0.2)]"
-      }`}
-      style={
-        {
-          ...cssVars,
-          background:
-            visual.mode === "marina"
-              ? "linear-gradient(145deg, #0f172a 0%, #0c4a6e 55%, #0f172a 100%)"
-              : visual.mode === "loot_legendary"
-                ? "linear-gradient(145deg, #140f02 0%, #3f2f05 48%, #0f172a 100%)"
-                : visual.mode === "fire_glitch"
-                  ? "linear-gradient(145deg, #1a0505 0%, #450a0a 50%, #0f172a 100%)"
-                  : "linear-gradient(145deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)",
-        } as React.CSSProperties
-      }
+      className="relative overflow-hidden rounded-xl border border-cyan-500/40 bg-slate-950 p-4 text-slate-100 shadow-[0_0_20px_rgba(0,229,255,0.2)]"
+      style={cssVars as React.CSSProperties}
     >
-      <div
-        className="pointer-events-none absolute inset-0 opacity-40"
-        style={{
-          background: `radial-gradient(circle at 30% 20%, var(--wasd-aura), transparent 55%)`,
-          animation: `wasdPhasePulse var(--wasd-phase-period, 1.2s) ease-in-out infinite`,
-        }}
-      />
-      <style>{`
-        @keyframes wasdPhasePulse {
-          0%, 100% { opacity: 0.25; transform: scale(1); }
-          50% { opacity: 0.55; transform: scale(1.02); }
-        }
-        @keyframes wasdGlitch {
-          0%, 100% { transform: translateX(0); filter: hue-rotate(0deg); }
-          25% { transform: translateX(-1px); filter: hue-rotate(-4deg); }
-          75% { transform: translateX(1px); filter: hue-rotate(4deg); }
-        }
-      `}</style>
-
       <div className="relative z-10 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(300px,420px)] lg:items-start">
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-3">
-            <h3
-              className={`text-xl font-bold text-white ${isFire ? "animate-[wasdGlitch_0.35s_ease-in-out_infinite]" : ""}`}
-              style={{ textShadow: `0 0 12px var(--wasd-aura)` }}
-            >
+            <h3 className="text-xl font-bold text-white" style={{ textShadow: `0 0 12px var(--wasd-aura)` }}>
               Science Portal
             </h3>
             <button
@@ -90,8 +44,7 @@ export const SciencePortal: React.FC = () => {
           </div>
 
           <p className="text-sm text-slate-200">
-            Dashboard physisch gekoppelt an NPC-Aggression, Hazard-Index, Loot-Aura und Alchemical Refinement via{" "}
-            <code className="rounded bg-black/30 px-1">@wasd/shared</code> ThemeEngine.
+            Live cockpit for theme state, echo history, refinement, and destiny paths.
           </p>
 
           <div className="grid grid-cols-2 gap-3 font-mono text-xs text-slate-100">
@@ -115,21 +68,10 @@ export const SciencePortal: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <span
-              className="h-3 w-3 rounded-full border border-white/30"
-              style={{ backgroundColor: "var(--wasd-aura)", boxShadow: `0 0 10px var(--wasd-aura)` }}
-            />
-            Aura <code>{visual.auraHex}</code>
-            {isFire && <span className="text-red-400"> · glitch {visual.glitchIntensity.toFixed(2)}</span>}
-            {isLoot && <span className="text-amber-200"> · loot aura {visual.glitchIntensity.toFixed(2)}</span>}
-          </div>
-
           <WarfrontCombatHud visual={visual} active={active} />
-
           <EchoTracker />
-
           <InventoryRefinementPanel />
+          <DestinyPathsPanel />
         </div>
 
         <div className="lg:sticky lg:top-2">
