@@ -2,7 +2,7 @@ services:
   arelorian-engine:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.vps
     image: arelorian-engine:latest
     container_name: arelorian-engine
     restart: unless-stopped
