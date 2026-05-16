@@ -29,6 +29,8 @@ export default defineConfig({
           PORT: String(port),
           NODE_ENV: "production",
           ALLOW_GUEST_LOGIN: "1",
+          PERSISTENCE_DRIVER: "file",
+          DATABASE_URL: "",
           PLAYER_SAVE_FILE: process.env.PLAYER_SAVE_FILE || "/tmp/areloria-e2e-players.json",
         },
       },

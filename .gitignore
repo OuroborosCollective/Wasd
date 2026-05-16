@@ -19,3 +19,6 @@ pnpm-debug.log*
 # Python (deploy helpers)
 __pycache__/
 *.py[cod]
+
+dgcc-artifacts/
+test-results/
