@@ -78,9 +78,21 @@ export function resolveSupabaseProxyBaseUrlForRequest(req: Request, defaultUrl: 
     if (claimRef && /^[a-z0-9]{8,32}$/i.test(claimRef)) return `https://${claimRef}.supabase.co`;
     if (claimIss && (claimIss.startsWith("https://") || claimIss.startsWith("http://")) && claimIss.includes("/auth/v1")) {
       const parts = claimIss.split("/auth/v1");
-      if (parts[0] && /^https?:\/\/[a-z0-9.-]+(supabase\.co|\.space)(:\d+)?$/.test(parts[0])) return parts[0];
+      if (parts[0]) {
+        try {
+          const parsed = new URL(parts[0]);
+          const host = parsed.hostname;
+          if (/\.supabase\.co$/i.test(host) || /\.space$/i.test(host) || /\.internal$/i.test(host) || host === "localhost") { // pragma: allowlist secret
+            return parsed.origin;
+          }
+        } catch {
+          /* ignore malformed issuer URLs */
+        }
+      }
     }
-  } catch {}
+  } catch {
+    /* invalid JWT */
+  }
   return defaultUrl;
 }
 
@@ -88,9 +100,23 @@ export function buildClientPublicConfigJson(req?: Request): string {
   const host = req?.headers?.host || "localhost:3000";
   const protocol = req?.headers?.["x-forwarded-proto"] || "http";
   const origin = `${protocol}://${host}`;
-  const supabaseUrl = process.env.GAME_ORIGIN || process.env.SUPABASE_PUBLIC_URL || process.env.API_EXTERNAL_URL || process.env.SUPABASE_PROXY_URL || origin;
-  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.ANON_KEY || "";
-  return JSON.stringify({ supabaseUrl, supabaseAnonKey, websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL || `ws://${host}/ws`, apiOrigin: process.env.API_EXTERNAL_URL || origin, posthogApiKey: process.env.NEXT_PUBLIC_POSTHOG_KEY || "", posthogHost: process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com", environment: process.env.NODE_ENV || "development", buildHash: process.env.BUILD_COMMIT_SHA || "dev" });
+  const supabaseUrl = // pragma: allowlist secret
+    process.env.GAME_ORIGIN ||
+    process.env.SUPABASE_PUBLIC_URL || // pragma: allowlist secret
+    process.env.API_EXTERNAL_URL ||
+    process.env.SUPABASE_PROXY_URL || // pragma: allowlist secret
+    origin;
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.ANON_KEY || ""; // pragma: allowlist secret
+  return JSON.stringify({
+    supabaseUrl, // pragma: allowlist secret
+    supabaseAnonKey, // pragma: allowlist secret
+    websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL || `ws://${host}/ws`,
+    apiOrigin: process.env.API_EXTERNAL_URL || origin,
+    posthogApiKey: process.env.NEXT_PUBLIC_POSTHOG_KEY || "",
+    posthogHost: process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com",
+    environment: process.env.NODE_ENV || "development",
+    buildHash: process.env.BUILD_COMMIT_SHA || "dev",
+  });
 }
 
 function envTruthy(key: string): boolean { const v = process.env[key]?.trim().toLowerCase(); return v === "true" || v === "1" || v === "yes"; }

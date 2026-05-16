@@ -29,6 +29,11 @@ export default defineConfig({
           PORT: String(port),
           NODE_ENV: "production",
           ALLOW_GUEST_LOGIN: "1",
+          SUPABASE_AUTH: "0", // pragma: allowlist secret
+          USE_SUPABASE_WS_LOGIN: "0", // pragma: allowlist secret
+          REQUIRE_SUPABASE_AUTH: "0", // pragma: allowlist secret
+          PERSISTENCE_DRIVER: "file",
+          DATABASE_URL: "",
           PLAYER_SAVE_FILE: process.env.PLAYER_SAVE_FILE || "/tmp/areloria-e2e-players.json",
         },
       },

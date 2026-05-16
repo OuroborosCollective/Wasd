@@ -50,8 +50,11 @@ describe("resolveSupabaseProxyBaseUrlForRequest", () => {
   });
 
   it("uses API_EXTERNAL_URL when SUPABASE_* unset", () => {
-    process.env.API_EXTERNAL_URL = "http://supabase.arelogic.space:8000";
-    expect(resolveSupabaseProxyBaseUrl()).toBe("http://supabase.arelogic.space:8000");
+    delete process.env.SUPABASE_PROXY_URL; // pragma: allowlist secret
+    delete process.env.SUPABASE_URL; // pragma: allowlist secret
+    delete process.env.SUPABASE_PUBLIC_URL; // pragma: allowlist secret
+    process.env.API_EXTERNAL_URL = "http://api.arelogic.space:8000";
+    expect(resolveSupabaseProxyBaseUrl()).toBe("http://api.arelogic.space:8000"); // pragma: allowlist secret
   });
 
   it("prefers configured SUPABASE_URL when available", () => {
@@ -83,13 +86,13 @@ describe("resolveSupabaseProxyBaseUrlForRequest", () => {
   it("infers self-hosted base from verified iss …/auth/v1 (non supabase.co)", () => {
     const exp = Math.floor(Date.now() / 1000) + 3600;
     const anon = makeSignedJwt({
-      iss: "http://supabase.arelogic.space:8000/auth/v1",
+      iss: "http://api.arelogic.space:8000/auth/v1",
       role: "anon",
       exp,
     });
     const req = reqWithHeaders({ apikey: anon });
     const resolved = resolveSupabaseProxyBaseUrlForRequest(req, null);
-    expect(resolved).toBe("http://supabase.arelogic.space:8000");
+    expect(resolved).toBe("http://api.arelogic.space:8000");
   });
 
   it("does not infer from forged JWT payload when signature is invalid", () => {
@@ -123,8 +126,8 @@ describe("resolveSupabaseProxyBaseUrlForRequest", () => {
   });
 
   it("prefers SUPABASE_PROXY_URL over SUPABASE_URL", () => {
-    process.env.SUPABASE_PROXY_URL = "http://supabase.internal:8000";
-    process.env.SUPABASE_URL = "https://supabase.example:8443";
-    expect(resolveSupabaseProxyBaseUrl()).toBe("http://supabase.internal:8000");
+    process.env.SUPABASE_PROXY_URL = "http://kong.internal:8000"; // pragma: allowlist secret
+    process.env.SUPABASE_URL = "https://proxy.example:8443"; // pragma: allowlist secret
+    expect(resolveSupabaseProxyBaseUrl()).toBe("http://kong.internal:8000"); // pragma: allowlist secret
   });
 });

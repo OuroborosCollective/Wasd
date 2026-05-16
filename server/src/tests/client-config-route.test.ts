@@ -15,6 +15,10 @@ describe("buildClientPublicConfigJson", () => {
   it("returns JSON with anon url and key from env aliases", () => {
     delete process.env.VITE_SUPABASE_URL;
     delete process.env.VITE_SUPABASE_ANON_KEY;
+    delete process.env.GAME_ORIGIN;
+    delete process.env.SUPABASE_PUBLIC_URL; // pragma: allowlist secret
+    delete process.env.SUPABASE_PROXY_URL; // pragma: allowlist secret
+    delete process.env.SUPABASE_URL; // pragma: allowlist secret
     process.env.API_EXTERNAL_URL = "http://example:8000";
     process.env.ANON_KEY = "anon-test-key";
     const j = JSON.parse(buildClientPublicConfigJson()) as {
@@ -29,9 +33,9 @@ describe("buildClientPublicConfigJson", () => {
     delete process.env.VITE_SUPABASE_URL;
     delete process.env.VITE_SUPABASE_ANON_KEY;
     delete process.env.SUPABASE_ANON_KEY;
-    process.env.SUPABASE_PROXY_URL = "http://supabase.internal:8000";
+    process.env.SUPABASE_PROXY_URL = "http://kong.internal:8000"; // pragma: allowlist secret
     process.env.GAME_ORIGIN = "https://mygame.example.com";
-    process.env.SUPABASE_PUBLIC_URL = "https://supabase.external:8443";
+    process.env.SUPABASE_PUBLIC_URL = "https://proxy.external:8443"; // pragma: allowlist secret
     process.env.ANON_KEY = "anon-key";
     const j = JSON.parse(buildClientPublicConfigJson()) as {
       supabaseUrl: string | null;
@@ -45,13 +49,13 @@ describe("buildClientPublicConfigJson", () => {
     delete process.env.VITE_SUPABASE_URL;
     delete process.env.GAME_ORIGIN;
     delete process.env.APP_ORIGIN;
-    process.env.SUPABASE_PROXY_URL = "http://supabase.internal:8000";
-    process.env.SUPABASE_PUBLIC_URL = "https://supabase.external:8443";
+    process.env.SUPABASE_PROXY_URL = "http://kong.internal:8000"; // pragma: allowlist secret
+    process.env.SUPABASE_PUBLIC_URL = "https://proxy.external:8443"; // pragma: allowlist secret
     process.env.ANON_KEY = "anon-key";
     const j = JSON.parse(buildClientPublicConfigJson()) as {
       supabaseUrl: string | null;
       supabaseAnonKey: string | null;
     };
-    expect(j.supabaseUrl).toBe("https://supabase.external:8443");
+    expect(j.supabaseUrl).toBe("https://proxy.external:8443"); // pragma: allowlist secret
   });
 });
