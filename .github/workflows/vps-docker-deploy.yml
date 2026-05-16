@@ -49,6 +49,22 @@ on:
         description: 'External Docker network shared by Redis, Soketi and Areloria.'
         required: false
         default: 'areloria_arelorian-network'
+      enable_docker_ingress:
+        description: 'Enable optional Docker Nginx ingress overlay. Use false for normal deploy.'
+        required: false
+        type: choice
+        default: 'false'
+        options:
+          - 'false'
+          - 'true'
+      ingress_http_bind:
+        description: 'Ingress bind address. Use 127.0.0.1 for staging, 0.0.0.0 for public port ownership.'
+        required: false
+        default: '127.0.0.1'
+      ingress_http_port:
+        description: 'Ingress host HTTP port. Use 8080 for staging, 80 for public.'
+        required: false
+        default: '8080'
 
 concurrency:
   group: vps-docker-deploy-${{ github.ref }}
@@ -110,12 +126,24 @@ jobs:
             INPUT_PORT='${{ github.event.inputs.arelorian_port }}'
             SECRET_NETWORK='${{ secrets.VPS_ARELORIAN_DOCKER_NETWORK }}'
             INPUT_NETWORK='${{ github.event.inputs.docker_network }}'
+            INPUT_ENABLE_INGRESS='${{ github.event.inputs.enable_docker_ingress }}'
+            INPUT_INGRESS_BIND='${{ github.event.inputs.ingress_http_bind }}'
+            INPUT_INGRESS_PORT='${{ github.event.inputs.ingress_http_port }}'
             export ARELORIAN_PORT="${SECRET_PORT:-${INPUT_PORT:-3001}}"
             export ARELORIAN_DOCKER_NETWORK="${SECRET_NETWORK:-${INPUT_NETWORK:-areloria_arelorian-network}}"
+            export ARELORIAN_ENABLE_DOCKER_INGRESS="${INPUT_ENABLE_INGRESS:-false}"
+            export ARELORIAN_INGRESS_HTTP_BIND="${INPUT_INGRESS_BIND:-127.0.0.1}"
+            export ARELORIAN_INGRESS_HTTP_PORT="${INPUT_INGRESS_PORT:-8080}"
             export ARELORIAN_ENV_FILE='.env.docker'
+            case "$ARELORIAN_ENABLE_DOCKER_INGRESS" in true|false) ;; *) echo "ERROR: enable_docker_ingress must be true or false"; exit 1 ;; esac
+            case "$ARELORIAN_INGRESS_HTTP_BIND" in 127.0.0.1|0.0.0.0) ;; *) echo "ERROR: ingress_http_bind must be 127.0.0.1 or 0.0.0.0"; exit 1 ;; esac
+            case "$ARELORIAN_INGRESS_HTTP_PORT" in 80|8080|8081|8082) ;; *) echo "ERROR: ingress_http_port must be one of 80, 8080, 8081, 8082"; exit 1 ;; esac
             echo "Using DEPLOY_PATH=$DEPLOY_PATH"
             echo "Using ARELORIAN_PORT=$ARELORIAN_PORT"
             echo "Using ARELORIAN_DOCKER_NETWORK=$ARELORIAN_DOCKER_NETWORK"
+            echo "Using ARELORIAN_ENABLE_DOCKER_INGRESS=$ARELORIAN_ENABLE_DOCKER_INGRESS"
+            echo "Using ARELORIAN_INGRESS_HTTP_BIND=$ARELORIAN_INGRESS_HTTP_BIND"
+            echo "Using ARELORIAN_INGRESS_HTTP_PORT=$ARELORIAN_INGRESS_HTTP_PORT"
             if [ ! -d "$DEPLOY_PATH" ]; then
               echo "ERROR: Directory does not exist: $DEPLOY_PATH"
               echo "Fix: on the VPS clone the repo once, e.g. git clone <url> $DEPLOY_PATH"
@@ -131,6 +159,9 @@ jobs:
             cat > "$tmp_env" <<'EOF_RUNTIME_ENV'
 ARELORIAN_PORT=${{ secrets.VPS_ARELORIAN_PORT || github.event.inputs.arelorian_port || '3001' }}
 ARELORIAN_DOCKER_NETWORK=${{ secrets.VPS_ARELORIAN_DOCKER_NETWORK || github.event.inputs.docker_network || 'areloria_arelorian-network' }}
+ARELORIAN_ENABLE_DOCKER_INGRESS=${{ github.event.inputs.enable_docker_ingress || 'false' }}
+ARELORIAN_INGRESS_HTTP_BIND=${{ github.event.inputs.ingress_http_bind || '127.0.0.1' }}
+ARELORIAN_INGRESS_HTTP_PORT=${{ github.event.inputs.ingress_http_port || '8080' }}
 SUPABASE_URL=${{ secrets.SUPABASE_URL }}
 SUPABASE_PUBLIC_URL=${{ secrets.SUPABASE_PUBLIC_URL }}
 SUPABASE_PROXY_URL=${{ secrets.SUPABASE_PROXY_URL }}
@@ -158,6 +189,11 @@ EOF_RUNTIME_ENV
             pm2 stop areloria >/dev/null 2>&1 || true
             pm2 delete areloria >/dev/null 2>&1 || true
             docker rm -f arelorian-engine >/dev/null 2>&1 || true
+            if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ] && [ "$ARELORIAN_INGRESS_HTTP_PORT" = "80" ]; then
+              echo "Docker ingress wants port 80; attempting to stop host nginx/apache only for this explicit public mode."
+              sudo systemctl stop nginx >/dev/null 2>&1 || true
+              sudo systemctl stop apache2 >/dev/null 2>&1 || true
+            fi
             if command -v fuser >/dev/null 2>&1; then
               PIDS="$(fuser -n tcp "$ARELORIAN_PORT" 2>/dev/null || true)"
               if [ -n "${PIDS// }" ]; then kill $PIDS >/dev/null 2>&1 || true; sleep 2; kill -9 $PIDS >/dev/null 2>&1 || true; fi
@@ -172,4 +208,10 @@ EOF_RUNTIME_ENV
               exit 1
             fi
             chmod +x scripts/deploy-vps-docker.sh 2>/dev/null || true
-            ARELORIAN_PORT="$ARELORIAN_PORT" ARELORIAN_DOCKER_NETWORK="$ARELORIAN_DOCKER_NETWORK" ARELORIAN_ENV_FILE="$ARELORIAN_ENV_FILE" bash scripts/deploy-vps-docker.sh
+            ARELORIAN_PORT="$ARELORIAN_PORT" \
+              ARELORIAN_DOCKER_NETWORK="$ARELORIAN_DOCKER_NETWORK" \
+              ARELORIAN_ENABLE_DOCKER_INGRESS="$ARELORIAN_ENABLE_DOCKER_INGRESS" \
+              ARELORIAN_INGRESS_HTTP_BIND="$ARELORIAN_INGRESS_HTTP_BIND" \
+              ARELORIAN_INGRESS_HTTP_PORT="$ARELORIAN_INGRESS_HTTP_PORT" \
+              ARELORIAN_ENV_FILE="$ARELORIAN_ENV_FILE" \
+              bash scripts/deploy-vps-docker.sh
