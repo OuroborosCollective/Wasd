@@ -14,6 +14,7 @@ const deferredServerIntegration = [
   "server/src/tests/persistence-flow.test.ts",
   "server/src/tests/proximity.test.ts",
   "server/src/tests/selfhealing-system.test.ts",
+  "server/src/tests/*admin-lazy.test.ts",
   "server/src/tests/*-auth-proxy-resolution.test.ts",
   "server/src/tests/use-skill-ws.test.ts",
   "server/src/tests/worldtick-persistence-init.test.ts",
