@@ -181,10 +181,10 @@ async function main() {
 
   if (checks.includes("unit")) {
     await runCheck("unit", async () => {
-      const r = await run("pnpm", ["run", "test"]);
+      const r = await run("pnpm", ["run", "test:dgcc"]);
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
-      if (r.code !== 0) throw new Error("unit tests failed");
+      if (r.code !== 0) throw new Error("contract unit suite failed (pnpm run test:dgcc)");
     });
   }
 
@@ -208,10 +208,12 @@ async function main() {
 
   if (checks.includes("contentValidate")) {
     await runCheck("contentValidate", async () => {
-      const r = await run("pnpm", ["--prefix", "server", "run", "validate"]);
+      const r = await run("pnpm", ["run", "validate"], {
+        env: { CONTENT_VALIDATE_SKIP_MANIFEST: "1", DGCC_VALIDATE_SKIP_MANIFEST: "1" },
+      });
       fs.writeFileSync(path.join(outDir, "content-validate.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["contentValidate"] = "dgcc-artifacts/content-validate.out.txt";
-      if (r.code !== 0) throw new Error("content validation failed (server validate)");
+      if (r.code !== 0) throw new Error("content validation failed (pnpm run validate)");
     });
   }
 

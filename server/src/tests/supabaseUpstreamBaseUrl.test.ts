@@ -6,7 +6,7 @@ import {
   resolveSupabaseProxyBaseUrlForRequest,
 } from "../core/ServerBootstrap.js";
 
-const JWT_SECRET = "test-proxy-resolution-secret";
+const JWT_SECRET = "test-upstream-base-url-secret";
 
 function base64Url(input: string): string {
   return Buffer.from(input, "utf8")
@@ -50,8 +50,11 @@ describe("resolveSupabaseProxyBaseUrlForRequest", () => {
   });
 
   it("uses API_EXTERNAL_URL when SUPABASE_* unset", () => {
-    process.env.API_EXTERNAL_URL = "http://supabase.arelogic.space:8000";
-    expect(resolveSupabaseProxyBaseUrl()).toBe("http://supabase.arelogic.space:8000");
+    delete process.env.SUPABASE_PROXY_URL;
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_PUBLIC_URL;
+    process.env.API_EXTERNAL_URL = "http://127.0.0.1:4810";
+    expect(resolveSupabaseProxyBaseUrl()).toBe("http://127.0.0.1:4810");
   });
 
   it("prefers configured SUPABASE_URL when available", () => {

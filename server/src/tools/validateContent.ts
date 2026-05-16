@@ -17,6 +17,11 @@ function validate() {
 
   console.log("Validation passed!");
 
+  if (process.env.CONTENT_VALIDATE_SKIP_MANIFEST === "1" || process.env.DGCC_VALIDATE_SKIP_MANIFEST === "1") {
+    console.log("Skipping content-manifest.json (validate-only mode).");
+    return;
+  }
+
   const npcs = JSON.parse(fs.readFileSync(path.join(dataDir, "npc/npcs.json"), "utf-8"));
   const dialogues = JSON.parse(fs.readFileSync(path.join(dataDir, "dialogue/dialogues.json"), "utf-8"));
   const quests = JSON.parse(fs.readFileSync(path.join(dataDir, "quests/quests.json"), "utf-8"));

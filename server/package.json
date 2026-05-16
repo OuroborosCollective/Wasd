@@ -19,6 +19,7 @@
     "@opentelemetry/resources": "^2.7.1",
     "@opentelemetry/sdk-node": "^0.217.0",
     "@posthog/ai": "^7.18.1",
+    "@supabase/supabase-js": "^2.105.4",
     "@traceloop/instrumentation-google-generativeai": "^0.26.0",
     "@wasd/core-logic": "workspace:*",
     "@wasd/shared": "workspace:*",

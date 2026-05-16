@@ -11,7 +11,7 @@ import { EconomySystem } from "../modules/economy/EconomySystem.js";
 import { QuestEngine } from "../modules/quest/QuestEngine.js";
 import { WorldSystem } from "../modules/world/WorldSystem.js";
 import { PersistenceManager } from "./PersistenceManager.js";
-import { verifyFirebaseToken } from "../config/firebase.js";
+import { resolveLoginIdentity } from "../modules/auth/resolveLoginIdentity.js";
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { WorldHistory } from "../modules/history/WorldHistory.js";
 import { bootstrapWarfrontNpcs, runWarfrontCombatTick } from "../modules/warfront/WarfrontCombatOrchestrator.js";
@@ -27,6 +27,17 @@ function sectorOf(entity: any): number {
   const x = Number(entity?.position?.x ?? 0);
   const y = Number(entity?.position?.y ?? entity?.position?.z ?? 0);
   return Math.abs((Math.floor(x / 64) * 31 + Math.floor(y / 64) * 17) % 64);
+}
+
+function buildSkillCooldownUntil(player: any): Record<string, number> {
+  const src = player?.skillCooldowns;
+  const out: Record<string, number> = {};
+  if (src && typeof src === "object") {
+    for (const [k, v] of Object.entries(src)) {
+      if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
+    }
+  }
+  return out;
 }
 
 export class WorldTick {
@@ -79,7 +90,11 @@ export class WorldTick {
   public getPlaytesterDebugLogPath(): string { return ""; }
   public buildPlaytesterMonitorPayload(options?: any): any { return {}; }
   public assetHealthService: any = { getStatus: () => ({}), getStats: () => null, flush: () => {} };
-  public async init(): Promise<void> {}
+  public async init(): Promise<void> {
+    await this.persistence.init();
+    await this.persistence.testConnection();
+    await this.persistence.load();
+  }
   private keysDown: Map<string, Set<string>> = new Map();
 
   constructor(private ws: GameWebSocketServer) {
@@ -101,6 +116,15 @@ export class WorldTick {
     dummyPlayer.position.y = 500;
     this.observerEngine.register("dummy_player", { x: 500, y: 500 });
     bootstrapWarfrontNpcs(this.npcSystem);
+    if (!this.npcSystem.getNPC("npc_dummy")) {
+      this.npcSystem.createNPC("npc_dummy", "Training Dummy", 500, 505);
+      const dummyNpc = this.npcSystem.getNPC("npc_dummy");
+      if (dummyNpc) {
+        dummyNpc.role = "Training";
+        dummyNpc.health = 500;
+        dummyNpc.maxHealth = 500;
+      }
+    }
     this.ws.onPlayerConnect = (id) => console.log(`Socket ${id} connected. Waiting for login...`);
     this.ws.onPlayerDisconnect = async (id) => {
       const uid = this.socketToPlayer.get(id);
@@ -153,17 +177,56 @@ export class WorldTick {
 
   private async handlePlayerMessage(id: string, msg: any) {
     if (msg.type === "login") {
-      if (!msg.token) { this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed: No token provided" }); setTimeout(() => { const client = Array.from((this.ws as any).wss.clients).find((c: any) => c.id === id); if (client) (client as any).close(); }, 500); return; }
-      let charName = "Unknown";
-      let uid = "";
-      try { const decodedToken = await verifyFirebaseToken(msg.token) as any; if (decodedToken) { uid = decodedToken.uid; charName = decodedToken.name || decodedToken.email?.split('@')[0] || `Player_${uid.substring(0, 6)}`; } else { this.ws.sendToPlayer(id, { type: "error", message: "Authentication service unavailable" }); return; } } catch { this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed: Invalid token" }); return; }
+      const identity = await resolveLoginIdentity(id, msg);
+      if ("error" in identity) {
+        this.ws.sendToPlayer(id, {
+          type: "error",
+          message: identity.error,
+          code: identity.code,
+        });
+        return;
+      }
+      const uid = identity.uid;
+      const charName = identity.charName;
       let player = this.playerSystem.getPlayer(uid);
-      if (!player) { player = this.playerSystem.createPlayer(uid, charName, msg.class, msg.appearance); this.hydratePlayer(player); } else { player.isOffline = false; }
+      if (!player) {
+        player = this.playerSystem.createPlayer(uid, charName, msg.class, msg.appearance);
+        this.hydratePlayer(player);
+      } else {
+        player.isOffline = false;
+      }
       if (player.name !== charName) player.name = charName;
+      const sceneId =
+        typeof msg.sceneId === "string" && msg.sceneId.trim().length > 0 ? msg.sceneId.trim() : "didis_hub";
+      player.sceneId = sceneId;
+      if (typeof msg.spawnKey === "string" && msg.spawnKey.trim().length > 0) {
+        player.spawnKey = msg.spawnKey.trim();
+      }
       this.socketToPlayer.set(id, uid);
       this.playerToSocket.set(uid, id);
+      this.ws.resolveSocketToPlayerUid = (socketId) => this.socketToPlayer.get(socketId) ?? null;
       this.observerEngine.register(id, { x: player.position.x, y: player.position.y });
-      this.ws.sendToPlayer(id, { type: "welcome", id: uid, playerName: player.name, stats: { gold: player.gold, xp: player.xp, hp: player.health, maxHp: player.maxHealth, mp: player.mana, maxMp: player.maxMana, level: player.level || 1 }, inventory: player.inventory, equipment: player.equipment, quests: player.quests });
+      const skillCooldownUntil = buildSkillCooldownUntil(player);
+      this.ws.sendToPlayer(id, {
+        type: "welcome",
+        id: uid,
+        sceneId,
+        playerName: player.name,
+        stats: {
+          gold: player.gold,
+          xp: player.xp,
+          health: player.health,
+          maxHealth: player.maxHealth,
+          mana: player.mana,
+          maxMana: player.maxMana,
+          level: player.level || 1,
+          skillCooldownUntil,
+          impactBusterUnlocked: Boolean(player.impactBusterUnlocked),
+        },
+        inventory: player.inventory,
+        equipment: player.equipment,
+        quests: player.quests,
+      });
       return;
     }
     const playerId = this.socketToPlayer.get(id);
