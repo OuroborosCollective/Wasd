@@ -30,6 +30,9 @@ export default defineConfig({
           NODE_ENV: "production",
           ALLOW_GUEST_LOGIN: "1",
           PLAYER_SAVE_FILE: process.env.PLAYER_SAVE_FILE || "/tmp/areloria-e2e-players.json",
+          // Clear URL so file persistence is used in CI (no remote DB container).
+          PERSISTENCE_DRIVER: "file",
+          DATABASE_URL: "",
         },
       },
 });

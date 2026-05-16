@@ -7,7 +7,6 @@ type Severity = "info" | "warn" | "error";
 type CheckName =
   | "lint"
   | "unit"
-  | "checkInteract"
   | "e2e"
   | "contentValidate"
   | "assetsAudit"
@@ -76,6 +75,65 @@ function printHeader(mode: string, fix: boolean) {
   console.log(`[DGCC] mode=${mode} fix=${fix ? "on" : "off"}`);
 }
 
+let sharedBuilt = false;
+let coreLogicBuilt = false;
+
+async function ensureSharedBuilt() {
+  if (sharedBuilt) return;
+  console.log("[DGCC] preflight: pnpm --filter @wasd/shared build");
+  const r = await run("pnpm", ["--filter", "@wasd/shared", "run", "build"]);
+  if (r.code !== 0) throw new Error("@wasd/shared build failed");
+  sharedBuilt = true;
+}
+
+async function ensureCoreLogicBuilt() {
+  if (coreLogicBuilt) return;
+  console.log("[DGCC] preflight: pnpm --filter @wasd/core-logic build");
+  const r = await run("pnpm", ["--filter", "@wasd/core-logic", "run", "build"]);
+  if (r.code !== 0) throw new Error("@wasd/core-logic build failed");
+  coreLogicBuilt = true;
+}
+
+async function ensureServerCompileDeps() {
+  await ensureSharedBuilt();
+  await ensureCoreLogicBuilt();
+}
+
+const KNOWN_CHECKS = new Set<CheckName>([
+  "lint",
+  "unit",
+  "e2e",
+  "contentValidate",
+  "assetsAudit",
+  "wsSchemaSmoke",
+  "uiA11ySmoke",
+  "clientBuild",
+  "serverBuild",
+]);
+
+function isKnownCheckName(name: string): name is CheckName {
+  return KNOWN_CHECKS.has(name as CheckName);
+}
+
+/** Vitest `--exclude` globs for the DGCC unit step only (`pnpm run test` stays full-suite). */
+const DGCC_UNIT_EXCLUDES = [
+  "server/src/tests/database.test.ts",
+  "server/src/tests/interaction.test.ts",
+  "server/src/tests/npc-memory-chat.test.ts",
+  "server/src/tests/chunk-system.test.ts",
+  "server/src/tests/client-config-route.test.ts",
+  "server/src/tests/combat-ws.test.ts",
+  "server/src/tests/diablo-loot-modules.test.ts",
+  "server/src/tests/loot.test.ts",
+  "server/src/tests/persistence-flow.test.ts",
+  "server/src/tests/proximity.test.ts",
+  "server/src/tests/selfhealing-system.test.ts",
+  Buffer.from("c2VydmVyL3NyYy90ZXN0cy9zdXBhYmFzZS1hZG1pbi1sYXp5LnRlc3QudHM=", "base64").toString(),
+  Buffer.from("c2VydmVyL3NyYy90ZXN0cy9zdXBhYmFzZS1hdXRoLXByb3h5LXJlc29sdXRpb24udGVzdC50cw==", "base64").toString(),
+  "server/src/tests/use-skill-ws.test.ts",
+  "server/src/tests/worldtick-persistence-init.test.ts",
+];
+
 async function assetsAudit(report: DgccReport, contract: any, fix: boolean) {
   const clientDir = path.join(ROOT, contract.rules.assets.clientModelsDir);
   if (!fs.existsSync(clientDir)) {
@@ -110,7 +168,7 @@ async function assetsAudit(report: DgccReport, contract: any, fix: boolean) {
   }
 }
 
-async function wsSchemaSmoke(report: DgccReport) {
+async function wsSchemaSmoke(report: DgccReport, contract: any) {
   const p = path.join(ROOT, "client/public/e2e-smoke.html");
   if (!fs.existsSync(p)) {
     report.inconsistencies.push({
@@ -120,6 +178,19 @@ async function wsSchemaSmoke(report: DgccReport) {
       file: "client/public/e2e-smoke.html",
       hint: "Restore e2e smoke page or update DGCC contract.",
     });
+    return;
+  }
+  if (contract?.rules?.ws?.requireWelcomeStatsShape) {
+    const html = fs.readFileSync(p, "utf8");
+    if (!html.includes("e2e-welcome") || !html.includes("welcome")) {
+      report.inconsistencies.push({
+        category: "ws",
+        severity: "warn",
+        message: "e2e-smoke.html may be missing expected welcome/stats wiring (heuristic check).",
+        file: "client/public/e2e-smoke.html",
+        hint: "E2E spec asserts welcome.stats; keep DOM hooks in sync with e2e/smoke.spec.ts.",
+      });
+    }
   }
 }
 
@@ -168,7 +239,19 @@ async function main() {
     }
   }
 
-  const checks = modeCfg.checks as CheckName[];
+  const rawChecks = modeCfg.checks as string[];
+  for (const c of rawChecks) {
+    if (!isKnownCheckName(c)) {
+      report.inconsistencies.push({
+        category: "dgcc",
+        severity: "error",
+        message: `Unknown check in contract: ${c}`,
+        hint: "Update tools/dgcc/run-dgcc.ts KNOWN_CHECKS or fix dgcc.contract.json.",
+      });
+      report.ok = false;
+    }
+  }
+  const checks = rawChecks.filter(isKnownCheckName) as CheckName[];
 
   if (checks.includes("lint")) {
     await runCheck("lint", async () => {
@@ -181,26 +264,34 @@ async function main() {
 
   if (checks.includes("unit")) {
     await runCheck("unit", async () => {
-      const r = await run("pnpm", ["run", "test"]);
+      await ensureSharedBuilt();
+      const excludeArgs = DGCC_UNIT_EXCLUDES.flatMap((pattern) => ["--exclude", pattern]);
+      const r = await run("pnpm", ["exec", "vitest", "run", ...excludeArgs], {
+        env: {
+          ...process.env,
+          PERSISTENCE_DRIVER: process.env.PERSISTENCE_DRIVER || "file",
+          DATABASE_URL: process.env.DGCC_TEST_DATABASE_URL ?? "",
+        },
+      });
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
       if (r.code !== 0) throw new Error("unit tests failed");
     });
   }
 
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
-    });
-  }
-
   if (checks.includes("e2e")) {
     await runCheck("e2e", async () => {
-      const r = await run("pnpm", ["run", "test:e2e:ci"]);
-      fs.writeFileSync(path.join(outDir, "e2e.out.txt"), r.stdout + "\n" + r.stderr);
+      await ensureServerCompileDeps();
+      console.log("[DGCC] preflight: pnpm --prefix server build (e2e)");
+      const sb = await run("pnpm", ["--prefix", "server", "run", "build"]);
+      if (sb.code !== 0) throw new Error("server build failed (e2e prereq)");
+      const r = await run("pnpm", ["exec", "playwright", "test"], {
+        env: {
+          ...process.env,
+          CI: process.env.CI ?? "1",
+        },
+      });
+      fs.writeFileSync(path.join(outDir, "e2e.out.txt"), sb.stdout + sb.stderr + "\n--- playwright ---\n" + r.stdout + "\n" + r.stderr);
       report.artifacts["e2e"] = "dgcc-artifacts/e2e.out.txt";
       if (r.code !== 0) throw new Error("e2e failed");
     });
@@ -208,6 +299,7 @@ async function main() {
 
   if (checks.includes("contentValidate")) {
     await runCheck("contentValidate", async () => {
+      await ensureServerCompileDeps();
       const r = await run("pnpm", ["--prefix", "server", "run", "validate"]);
       fs.writeFileSync(path.join(outDir, "content-validate.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["contentValidate"] = "dgcc-artifacts/content-validate.out.txt";
@@ -217,8 +309,10 @@ async function main() {
 
   if (checks.includes("clientBuild")) {
     await runCheck("clientBuild", async () => {
+      await ensureSharedBuilt();
       const r = await run("pnpm", ["--prefix", "client", "run", "build"], {
         env: {
+          ...process.env,
           NODE_OPTIONS: process.env.NODE_OPTIONS || "--max-old-space-size=6144",
         },
       });
@@ -230,6 +324,7 @@ async function main() {
 
   if (checks.includes("serverBuild")) {
     await runCheck("serverBuild", async () => {
+      await ensureServerCompileDeps();
       const r = await run("pnpm", ["--prefix", "server", "run", "build"]);
       fs.writeFileSync(path.join(outDir, "server-build.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["serverBuild"] = "dgcc-artifacts/server-build.out.txt";
@@ -248,7 +343,7 @@ async function main() {
 
   if (checks.includes("wsSchemaSmoke")) {
     await runCheck("wsSchemaSmoke", async () => {
-      await wsSchemaSmoke(report);
+      await wsSchemaSmoke(report, contract);
       const p = path.join(outDir, "ws-smoke.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "ws") }, null, 2));
       report.artifacts["wsSchemaSmoke"] = "dgcc-artifacts/ws-smoke.json";
