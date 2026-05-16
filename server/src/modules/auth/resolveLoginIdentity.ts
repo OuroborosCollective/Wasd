@@ -12,6 +12,11 @@ export type ResolvedLogin = { uid: string; charName: string };
 
 export type LoginError = { error: string; code: "invalid_token" | "login_required" };
 
+function allowGuestFromEnv(): boolean {
+  const v = process.env.ALLOW_GUEST_LOGIN?.trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes" || v === "on";
+}
+
 /**
  * Resolves stable player uid + display name for WebSocket `login`.
  * Enforces Supabase authentication.
@@ -25,7 +30,7 @@ export async function resolveLoginIdentity(
   const guestIdFromClient = typeof msg.guestId === "string" ? msg.guestId.trim() : "";
 
   // Bypass for tests and smoke tests
-  if (process.env.NODE_ENV === "test" || process.env.ALLOW_GUEST_LOGIN === "1") {
+  if (process.env.NODE_ENV === "test" || allowGuestFromEnv()) {
       if (token === "test-token" || (token.length === 0 && guestIdFromClient.length > 0)) {
           return {
             uid: guestIdFromClient || (token === "test-token" ? "test-user" : randomUUID()),
@@ -34,7 +39,7 @@ export async function resolveLoginIdentity(
       }
   }
 
-  if (process.env.ALLOW_GUEST_LOGIN === "1" || guestIdFromClient.startsWith("guest_e2e_smoke")) {
+  if (allowGuestFromEnv() || guestIdFromClient.startsWith("guest_e2e_smoke")) {
     return {
       uid: guestIdFromClient || `guest_${randomUUID().slice(0,8)}`,
       charName: msg.guestName || "Guest User"
