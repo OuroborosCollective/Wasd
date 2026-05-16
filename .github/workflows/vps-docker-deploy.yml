@@ -7,8 +7,7 @@
 #   VPS_DEPLOY_PATH or DEPLOY_PATH, defaults to /opt/areloria
 #   VPS_ARELORIAN_PORT, defaults to 3001
 #   VPS_ARELORIAN_DOCKER_NETWORK, defaults to areloria_arelorian-network
-# Runtime secrets copied to .env.docker on VPS when set:
-#   SUPABASE_ANON_KEY, ANON_KEY, REDIS_PASSWORD, REDIS_URL, DATABASE_URL, POSTGRES_PASSWORD
+# Runtime values are passed as environment variables during deploy when set.
 # Do NOT commit passwords to the repo.
 
 name: VPS Docker Deploy (monorepo)
@@ -113,6 +112,18 @@ jobs:
             INPUT_NETWORK='${{ github.event.inputs.docker_network }}'
             export ARELORIAN_PORT="${SECRET_PORT:-${INPUT_PORT:-3001}}"
             export ARELORIAN_DOCKER_NETWORK="${SECRET_NETWORK:-${INPUT_NETWORK:-areloria_arelorian-network}}"
+            export SUPABASE_URL='${{ secrets.SUPABASE_URL }}'
+            export SUPABASE_PUBLIC_URL='${{ secrets.SUPABASE_PUBLIC_URL }}'
+            export SUPABASE_PROXY_URL='${{ secrets.SUPABASE_PROXY_URL }}'
+            export SUPABASE_ANON_KEY='${{ secrets.SUPABASE_ANON_KEY }}'
+            export ANON_KEY='${{ secrets.ANON_KEY }}'
+            export DATABASE_URL='${{ secrets.DATABASE_URL }}'
+            export POSTGRES_PASSWORD='${{ secrets.POSTGRES_PASSWORD }}'
+            export REDIS_URL='${{ secrets.REDIS_URL }}'
+            export REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD }}'
+            export SOKETI_APP_ID='${{ secrets.SOKETI_APP_ID }}'
+            export SOKETI_APP_KEY='${{ secrets.SOKETI_APP_KEY }}'
+            export SOKETI_APP_SECRET='${{ secrets.SOKETI_APP_SECRET }}'
             echo "Using DEPLOY_PATH=$DEPLOY_PATH"
             echo "Using ARELORIAN_PORT=$ARELORIAN_PORT"
             echo "Using ARELORIAN_DOCKER_NETWORK=$ARELORIAN_DOCKER_NETWORK"
@@ -126,25 +137,22 @@ jobs:
               exit 1
             fi
             cd "$DEPLOY_PATH"
-            umask 077
-            cat > .env.docker <<'EOF'
-            ARELORIAN_PORT=${{ secrets.VPS_ARELORIAN_PORT }}
-            ARELORIAN_DOCKER_NETWORK=${{ secrets.VPS_ARELORIAN_DOCKER_NETWORK }}
-            SUPABASE_URL=${{ secrets.SUPABASE_URL }}
-            SUPABASE_PUBLIC_URL=${{ secrets.SUPABASE_PUBLIC_URL }}
-            SUPABASE_PROXY_URL=${{ secrets.SUPABASE_PROXY_URL }}
-            SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
-            ANON_KEY=${{ secrets.ANON_KEY }}
-            DATABASE_URL=${{ secrets.DATABASE_URL }}
-            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
-            REDIS_URL=${{ secrets.REDIS_URL }}
-            REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
-            SOKETI_APP_ID=${{ secrets.SOKETI_APP_ID }}
-            SOKETI_APP_KEY=${{ secrets.SOKETI_APP_KEY }}
-            SOKETI_APP_SECRET=${{ secrets.SOKETI_APP_SECRET }}
-            EOF
-            sed -i 's/^            //' .env.docker
-            chmod 600 .env.docker
-            echo "Runtime env file written: .env.docker (values hidden)"
+            echo "Freeing port $ARELORIAN_PORT before deploy ..."
+            pm2 stop areloria >/dev/null 2>&1 || true
+            pm2 delete areloria >/dev/null 2>&1 || true
+            docker rm -f arelorian-engine >/dev/null 2>&1 || true
+            if command -v fuser >/dev/null 2>&1; then
+              PIDS="$(fuser -n tcp "$ARELORIAN_PORT" 2>/dev/null || true)"
+              if [ -n "${PIDS// }" ]; then kill $PIDS >/dev/null 2>&1 || true; sleep 2; kill -9 $PIDS >/dev/null 2>&1 || true; fi
+            fi
+            if command -v lsof >/dev/null 2>&1; then
+              PIDS="$(lsof -ti tcp:"$ARELORIAN_PORT" 2>/dev/null | tr '\n' ' ')"
+              if [ -n "${PIDS// }" ]; then kill $PIDS >/dev/null 2>&1 || true; sleep 2; kill -9 $PIDS >/dev/null 2>&1 || true; fi
+            fi
+            if command -v ss >/dev/null 2>&1 && ss -ltn "sport = :$ARELORIAN_PORT" | grep -q ":$ARELORIAN_PORT"; then
+              echo "ERROR: port $ARELORIAN_PORT still occupied before deploy:"
+              ss -ltnp "sport = :$ARELORIAN_PORT" || true
+              exit 1
+            fi
             chmod +x scripts/deploy-vps-docker.sh 2>/dev/null || true
             ARELORIAN_PORT="$ARELORIAN_PORT" ARELORIAN_DOCKER_NETWORK="$ARELORIAN_DOCKER_NETWORK" bash scripts/deploy-vps-docker.sh
