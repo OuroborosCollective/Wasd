@@ -1,0 +1,57 @@
+name: Ingress Overlay Validate
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'ops/nginx/**'
+      - 'docker-compose.yml'
+      - 'docker-compose.ingress.yml'
+      - 'scripts/deploy-vps-docker.sh'
+      - '.github/workflows/ingress-overlay-validate.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'ops/nginx/**'
+      - 'docker-compose.yml'
+      - 'docker-compose.ingress.yml'
+      - 'scripts/deploy-vps-docker.sh'
+      - '.github/workflows/ingress-overlay-validate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-ingress-overlay:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check deploy script syntax
+        run: bash -n scripts/deploy-vps-docker.sh
+
+      - name: Validate default compose config
+        env:
+          ARELORIAN_PORT: '3001'
+          ARELORIAN_DOCKER_NETWORK: 'areloria_arelorian-network'
+        run: docker compose -f docker-compose.yml config >/tmp/default-compose.yml
+
+      - name: Validate ingress compose overlay config
+        env:
+          ARELORIAN_PORT: '3001'
+          ARELORIAN_DOCKER_NETWORK: 'areloria_arelorian-network'
+          ARELORIAN_ENABLE_DOCKER_INGRESS: 'true'
+          ARELORIAN_INGRESS_HTTP_BIND: '127.0.0.1'
+          ARELORIAN_INGRESS_HTTP_PORT: '8080'
+        run: docker compose -f docker-compose.yml -f docker-compose.ingress.yml --profile ingress config >/tmp/ingress-compose.yml
+
+      - name: Validate nginx config in container
+        run: |
+          docker run --rm \
+            -v "$PWD/ops/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro" \
+            nginx:1.27-alpine \
+            nginx -t
