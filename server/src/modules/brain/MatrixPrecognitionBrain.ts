@@ -9,8 +9,8 @@ export class MatrixPrecognitionBrain {
   private readonly HISTORY_LIMIT = 60; // Keep last 60 samples
   private readonly CRITICAL_LOAD_THRESHOLD = 5000; // arbitrary unit representing danger
 
-  public recordState(activeConnections: number, npcCount: number) {
-    this.history.push({ timestamp: Date.now(), activeConnections, npcCount });
+  public recordState(activeConnections: number, npcCount: number, timestamp = 0) {
+    this.history.push({ timestamp, activeConnections, npcCount });
     if (this.history.length > this.HISTORY_LIMIT) {
       this.history.shift();
     }
