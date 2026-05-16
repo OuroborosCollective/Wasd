@@ -7,7 +7,7 @@
 #   VPS_DEPLOY_PATH or DEPLOY_PATH, defaults to /opt/areloria
 #   VPS_ARELORIAN_PORT, defaults to 3001
 #   VPS_ARELORIAN_DOCKER_NETWORK, defaults to areloria_arelorian-network
-# Runtime values are passed as environment variables during deploy when set.
+# Runtime values are written to a local VPS-only .env.docker file and loaded by Docker Compose.
 # Do NOT commit passwords to the repo.
 
 name: VPS Docker Deploy (monorepo)
@@ -112,18 +112,7 @@ jobs:
             INPUT_NETWORK='${{ github.event.inputs.docker_network }}'
             export ARELORIAN_PORT="${SECRET_PORT:-${INPUT_PORT:-3001}}"
             export ARELORIAN_DOCKER_NETWORK="${SECRET_NETWORK:-${INPUT_NETWORK:-areloria_arelorian-network}}"
-            export SUPABASE_URL='${{ secrets.SUPABASE_URL }}'
-            export SUPABASE_PUBLIC_URL='${{ secrets.SUPABASE_PUBLIC_URL }}'
-            export SUPABASE_PROXY_URL='${{ secrets.SUPABASE_PROXY_URL }}'
-            export SUPABASE_ANON_KEY='${{ secrets.SUPABASE_ANON_KEY }}'
-            export ANON_KEY='${{ secrets.ANON_KEY }}'
-            export DATABASE_URL='${{ secrets.DATABASE_URL }}'
-            export POSTGRES_PASSWORD='${{ secrets.POSTGRES_PASSWORD }}'
-            export REDIS_URL='${{ secrets.REDIS_URL }}'
-            export REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD }}'
-            export SOKETI_APP_ID='${{ secrets.SOKETI_APP_ID }}'
-            export SOKETI_APP_KEY='${{ secrets.SOKETI_APP_KEY }}'
-            export SOKETI_APP_SECRET='${{ secrets.SOKETI_APP_SECRET }}'
+            export ARELORIAN_ENV_FILE='.env.docker'
             echo "Using DEPLOY_PATH=$DEPLOY_PATH"
             echo "Using ARELORIAN_PORT=$ARELORIAN_PORT"
             echo "Using ARELORIAN_DOCKER_NETWORK=$ARELORIAN_DOCKER_NETWORK"
@@ -137,6 +126,34 @@ jobs:
               exit 1
             fi
             cd "$DEPLOY_PATH"
+            umask 077
+            tmp_env="${ARELORIAN_ENV_FILE}.tmp"
+            cat > "$tmp_env" <<'EOF_RUNTIME_ENV'
+ARELORIAN_PORT=${{ secrets.VPS_ARELORIAN_PORT || github.event.inputs.arelorian_port || '3001' }}
+ARELORIAN_DOCKER_NETWORK=${{ secrets.VPS_ARELORIAN_DOCKER_NETWORK || github.event.inputs.docker_network || 'areloria_arelorian-network' }}
+SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+SUPABASE_PUBLIC_URL=${{ secrets.SUPABASE_PUBLIC_URL }}
+SUPABASE_PROXY_URL=${{ secrets.SUPABASE_PROXY_URL }}
+SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+ANON_KEY=${{ secrets.ANON_KEY }}
+SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+SERVICE_ROLE_KEY=${{ secrets.SERVICE_ROLE_KEY }}
+JWT_SECRET=${{ secrets.JWT_SECRET }}
+DATABASE_URL=${{ secrets.DATABASE_URL }}
+DIRECT_URL=${{ secrets.DIRECT_URL }}
+POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+REDIS_URL=${{ secrets.REDIS_URL }}
+REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+SOKETI_APP_ID=${{ secrets.SOKETI_APP_ID }}
+SOKETI_APP_KEY=${{ secrets.SOKETI_APP_KEY }}
+SOKETI_APP_SECRET=${{ secrets.SOKETI_APP_SECRET }}
+PUSHER_APP_ID=${{ secrets.PUSHER_APP_ID }}
+PUSHER_APP_KEY=${{ secrets.PUSHER_APP_KEY }}
+PUSHER_APP_SECRET=${{ secrets.PUSHER_APP_SECRET }}
+EOF_RUNTIME_ENV
+            chmod 600 "$tmp_env"
+            mv "$tmp_env" "$ARELORIAN_ENV_FILE"
+            echo "Runtime env file refreshed: $DEPLOY_PATH/$ARELORIAN_ENV_FILE"
             echo "Freeing port $ARELORIAN_PORT before deploy ..."
             pm2 stop areloria >/dev/null 2>&1 || true
             pm2 delete areloria >/dev/null 2>&1 || true
@@ -155,4 +172,4 @@ jobs:
               exit 1
             fi
             chmod +x scripts/deploy-vps-docker.sh 2>/dev/null || true
-            ARELORIAN_PORT="$ARELORIAN_PORT" ARELORIAN_DOCKER_NETWORK="$ARELORIAN_DOCKER_NETWORK" bash scripts/deploy-vps-docker.sh
+            ARELORIAN_PORT="$ARELORIAN_PORT" ARELORIAN_DOCKER_NETWORK="$ARELORIAN_DOCKER_NETWORK" ARELORIAN_ENV_FILE="$ARELORIAN_ENV_FILE" bash scripts/deploy-vps-docker.sh
