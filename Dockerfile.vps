@@ -43,8 +43,7 @@ ENV NODE_OPTIONS=--max-old-space-size=6144
 
 RUN pnpm --filter @wasd/core-logic --if-present run build:runtime && \
     pnpm --filter @wasd/shared --if-present build && \
-    pnpm --filter @wasd/server --if-present build && \
-    pnpm prune --prod
+    pnpm --filter @wasd/server --if-present build
 
 FROM node:22-alpine AS runner
 
