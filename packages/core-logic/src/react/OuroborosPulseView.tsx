@@ -92,8 +92,8 @@ export function OuroborosPulseView({
             min={0}
             max={safeFrames.length - 1}
             value={index}
-            onChange={(event) => {
-              const next = Number(event.target.value);
+            onChange={(event: { currentTarget: HTMLInputElement }) => {
+              const next = Number(event.currentTarget.value);
               setIndex(next);
               onFrameSelect?.(safeFrames[next]);
             }}
