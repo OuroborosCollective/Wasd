@@ -6,6 +6,10 @@ export interface SwarmData {
   physicsThreatLevel: number; // 0.0 to 1.0
 }
 
+function stableSwarmId(cellKey: string, counter: number): string {
+  return `swarm_${counter}_${cellKey.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+}
+
 export class ChronoSwarmBrain {
   private activeSwarms: Map<string, SwarmData> = new Map();
   private readonly CRITICAL_DENSITY_THRESHOLD = 50; // entities per sq unit
@@ -29,7 +33,7 @@ export class ChronoSwarmBrain {
     this.activeSwarms.clear();
     let swarmCounter = 0;
 
-    for (const [key, count] of grid.entries()) {
+    for (const [key, count] of [...grid.entries()].sort(([left], [right]) => left.localeCompare(right))) {
         const density = count / (cellSize * cellSize * cellSize);
 
         // If density represents a physics threat
@@ -37,7 +41,7 @@ export class ChronoSwarmBrain {
             const [cx, cy, cz] = key.split(',').map(Number);
 
             const swarm: SwarmData = {
-                swarmId: `swarm_${swarmCounter++}_${Date.now()}`,
+                swarmId: stableSwarmId(key, swarmCounter++),
                 density: density * 100,
                 center: {
                     x: (cx * cellSize) + (cellSize / 2),
