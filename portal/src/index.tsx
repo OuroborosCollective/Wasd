@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import * as Apps from './apps';
+import { RealityBadge } from './components/ui/RealityBadge';
 import './app/globals.css';
 
 const App = () => {
@@ -33,7 +34,10 @@ const App = () => {
   return (
     <div className="min-h-screen bg-slate-900 text-white p-8">
       <header className="mb-8 flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-cyan-400">ARE-Logic Portal</h1>
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-bold text-cyan-400">ARE-Logic Portal</h1>
+          <RealityBadge />
+        </div>
         {activeApp && (
           <button
             onClick={() => setActiveApp(null)}
@@ -45,18 +49,20 @@ const App = () => {
       </header>
 
       {!activeApp ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 list-none p-0">
           {appsList.map(app => (
-            <div
-              key={app.id}
-              onClick={() => setActiveApp(app.id)}
-              className="bg-slate-800 p-6 rounded-xl cursor-pointer hover:bg-slate-700 hover:ring-2 hover:ring-cyan-500 transition-all"
-            >
-              <h2 className="text-xl font-bold">{app.name}</h2>
-              <p className="text-sm text-slate-400 mt-2">Click to launch module</p>
-            </div>
+            <li key={app.id}>
+              <button
+                onClick={() => setActiveApp(app.id)}
+                className="text-left h-full w-full bg-slate-800 p-6 rounded-xl cursor-pointer hover:bg-slate-700 focus-visible:ring-2 focus-visible:ring-cyan-500 outline-none transition-all"
+                aria-label={`Launch ${app.name} module`}
+              >
+                <h2 className="text-xl font-bold">{app.name}</h2>
+                <p className="text-sm text-slate-400 mt-2">Click to launch module</p>
+              </button>
+            </li>
           ))}
-        </div>
+        </ul>
       ) : (
         <div className="mt-8">
           {renderActiveApp()}

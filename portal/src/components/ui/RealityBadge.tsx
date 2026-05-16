@@ -48,11 +48,15 @@ export const RealityBadge: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-1 items-end">
-      <div className={`${baseStyles} ${statusStyles}`}>
+      <div
+        className={`${baseStyles} ${statusStyles}`}
+        role="status"
+        aria-live="polite"
+      >
         {isValid ? (
-          <ShieldCheck size={14} className="text-cyan-400" />
+          <ShieldCheck size={14} className="text-cyan-400" aria-hidden="true" />
         ) : (
-          <ShieldAlert size={14} className="text-red-400" />
+          <ShieldAlert size={14} className="text-red-400" aria-hidden="true" />
         )}
         
         <div className="flex flex-col">
@@ -61,10 +65,10 @@ export const RealityBadge: React.FC = () => {
           </span>
         </div>
 
-        <div className="h-4 w-[1px] bg-current opacity-30 mx-1" />
+        <div className="h-4 w-[1px] bg-current opacity-30 mx-1" aria-hidden="true" />
 
         <div className="flex items-center gap-1.5">
-          <Activity size={12} className={isValid ? "text-cyan-500" : "text-red-500"} />
+          <Activity size={12} className={isValid ? "text-cyan-500" : "text-red-500"} aria-hidden="true" />
           <span>{(integrityScore * 100).toFixed(4)}%</span>
         </div>
       </div>
