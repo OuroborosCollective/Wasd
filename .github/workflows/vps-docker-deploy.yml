@@ -6,6 +6,7 @@
 # Optional GitHub secrets:
 #   VPS_DEPLOY_PATH or DEPLOY_PATH, defaults to /opt/areloria
 #   VPS_ARELORIAN_PORT, defaults to 3001
+#   VPS_ARELORIAN_DOCKER_NETWORK, defaults to areloria_arelorian-network
 # Do NOT commit passwords to the repo.
 
 name: VPS Docker Deploy (monorepo)
@@ -43,6 +44,10 @@ on:
         description: 'Engine host port on VPS. Default keeps Supabase free on 3000.'
         required: false
         default: '3001'
+      docker_network:
+        description: 'External Docker network shared by Redis, Soketi and Areloria.'
+        required: false
+        default: 'areloria_arelorian-network'
 
 concurrency:
   group: vps-docker-deploy-${{ github.ref }}
@@ -56,6 +61,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DEFAULT_ARELORIAN_PORT: '3001'
+      DEFAULT_ARELORIAN_DOCKER_NETWORK: 'areloria_arelorian-network'
     steps:
       # Fails fast with a clear message (values are GitHub-masked; do not echo secrets).
       - name: Verify VPS secrets are set
@@ -102,9 +108,13 @@ jobs:
             DEPLOY_PATH="${DEPLOY_PRIMARY:-${DEPLOY_ALT:-/opt/areloria}}"
             SECRET_PORT='${{ secrets.VPS_ARELORIAN_PORT }}'
             INPUT_PORT='${{ github.event.inputs.arelorian_port }}'
+            SECRET_NETWORK='${{ secrets.VPS_ARELORIAN_DOCKER_NETWORK }}'
+            INPUT_NETWORK='${{ github.event.inputs.docker_network }}'
             export ARELORIAN_PORT="${SECRET_PORT:-${INPUT_PORT:-3001}}"
+            export ARELORIAN_DOCKER_NETWORK="${SECRET_NETWORK:-${INPUT_NETWORK:-areloria_arelorian-network}}"
             echo "Using DEPLOY_PATH=$DEPLOY_PATH"
             echo "Using ARELORIAN_PORT=$ARELORIAN_PORT"
+            echo "Using ARELORIAN_DOCKER_NETWORK=$ARELORIAN_DOCKER_NETWORK"
             if [ ! -d "$DEPLOY_PATH" ]; then
               echo "ERROR: Directory does not exist: $DEPLOY_PATH"
               echo "Fix: on the VPS clone the repo once, e.g. git clone <url> $DEPLOY_PATH"
@@ -116,4 +126,4 @@ jobs:
             fi
             cd "$DEPLOY_PATH"
             chmod +x scripts/deploy-vps-docker.sh 2>/dev/null || true
-            ARELORIAN_PORT="$ARELORIAN_PORT" bash scripts/deploy-vps-docker.sh
+            ARELORIAN_PORT="$ARELORIAN_PORT" ARELORIAN_DOCKER_NETWORK="$ARELORIAN_DOCKER_NETWORK" bash scripts/deploy-vps-docker.sh
