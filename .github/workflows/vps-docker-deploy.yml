@@ -110,5 +110,14 @@ jobs:
             fi
 
             cd "$DEPLOY_PATH"
+            umask 077
+            {
+              echo "ARELORIAN_PORT=$ARELORIAN_PORT"
+              echo "ARELORIAN_DOCKER_NETWORK=$ARELORIAN_DOCKER_NETWORK"
+              echo "ARELORIAN_ENABLE_DOCKER_INGRESS=$ARELORIAN_ENABLE_DOCKER_INGRESS"
+              echo "ARELORIAN_INGRESS_HTTP_BIND=$ARELORIAN_INGRESS_HTTP_BIND"
+              echo "ARELORIAN_INGRESS_HTTP_PORT=$ARELORIAN_INGRESS_HTTP_PORT"
+            } > "$ARELORIAN_ENV_FILE"
+            chmod 600 "$ARELORIAN_ENV_FILE"
             chmod +x scripts/deploy-vps-docker.sh 2>/dev/null || true
             bash scripts/deploy-vps-docker.sh
