@@ -76,11 +76,11 @@ Use it before trusting older reconstruction or handover docs.
 
 | Item | Status |
 |------|--------|
-| Unit/integration tests | Vitest (`pnpm run test`) |
-| E2E tests | Playwright (`pnpm run test:e2e`, `pnpm run test:e2e:ci`) |
+| Unit/integration tests | Vitest (`pnpm run test`); DGCC uses `pnpm run test:dgcc` (shared + client + content-validation smoke) |
+| E2E tests | Playwright (`pnpm run test:e2e`, `pnpm run test:e2e:ci`); both run `pnpm run build:e2e` first (core-logic, shared, server transpile) |
 | Lint | ESLint (`pnpm run lint`) |
 | Build | Root build compiles client then server (`pnpm run build`) |
-| CI baseline | Lint + tests + build + model-path audit + e2e workflow exists |
+| CI baseline | `pnpm run ci:verify` (lint + test:dgcc + interact check + content validate); DGCC contract runner: `pnpm run dgcc` / `pnpm run dgcc:extreme` |
 
 ## Important clarifications
 
