@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import jwt from "jsonwebtoken";
 
 export type SupabaseJwtClaims = {
   sub?: string;
@@ -100,44 +101,20 @@ export function verifySupabaseToken(bearerBlob: string): SupabaseJwtClaims {
     throw new Error("SUPABASE_JWT_SECRET or JWT_SECRET is required to verify Supabase tokens");
   }
 
-  const blobSegments = cleanBlob.split(".");
-  if (blobSegments.length !== 3) {
-    throw new Error("Invalid token format");
+  try {
+    const decoded = jwt.verify(cleanBlob, secretMaterial, {
+      algorithms: ["HS256"],
+    }) as SupabaseJwtClaims;
+    return decoded;
+  } catch (err) {
+    if (err instanceof jwt.TokenExpiredError) {
+      throw new Error("Token expired");
+    }
+    if (err instanceof jwt.JsonWebTokenError) {
+      throw new Error(`Invalid token: ${err.message}`);
+    }
+    throw err;
   }
-  const [headerSegment, payloadSegment, signatureSegment] = blobSegments;
-  if (!headerSegment || !payloadSegment || !signatureSegment) {
-    throw new Error("Invalid token format");
-  }
-
-  // CodeQL cleanup: ensures these are treated as opaque segments
-  const vHeader = String(headerSegment);
-  const vPayload = String(payloadSegment);
-
-  const signaturePayload = Buffer.from(`${vHeader}.${vPayload}`, 'utf8');
-  const signatureKey = Buffer.from(secretMaterial, 'utf8');
-
-  // Explicitly performing HMAC-SHA256 signature verification for JWT (HS256)
-  const hmac = createHmac('sha256', signatureKey);
-  hmac.update(signaturePayload);
-  const expectedSignatureBase64 = encodeBase64Url(hmac.digest());
-
-  const providedSignature = Buffer.from(signatureSegment, 'utf8');
-  const expectedSignature = Buffer.from(expectedSignatureBase64, 'utf8');
-
-  if (providedSignature.length !== expectedSignature.length || !timingSafeEqual(providedSignature, expectedSignature)) {
-    throw new Error("Invalid token signature");
-  }
-
-  const claims = parseTokenClaims(cleanBlob);
-  const exp = Number(claims.exp ?? 0);
-  if (!Number.isFinite(exp) || exp <= 0) {
-    throw new Error("Invalid token expiration");
-  }
-  const nowSec = Math.floor(Date.now() / 1000);
-  if (exp <= nowSec) {
-    throw new Error("Token expired");
-  }
-  return claims;
 }
 
 export function isSupabaseAuthConfigured(): boolean {
