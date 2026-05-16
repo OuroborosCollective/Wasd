@@ -124,9 +124,9 @@ export class ServerBootstrap {
         version: "0.2.0",
         uptimeSeconds: Math.round(process.uptime()),
         port: Number(process.env.PORT || 3000),
-        persistence: safeHealthValue(() => tick?.getPersistenceStats?.() ?? { status: "unknown" }, { status: "unknown" }),
-        content: safeHealthValue(() => { const content = getContentDataSourceLabel(); return { mode: content.mode, root: content.root }; }, { mode: "unknown", root: null }),
-        supabase: safeHealthValue(() => getSupabaseSummary(), { status: "unknown" }),
+        persistence: safeHealthValue(() => tick?.getPersistenceStats?.() ?? { status: "legacy" }, { status: "legacy" }),
+        content: safeHealthValue(() => { const content = getContentDataSourceLabel(); return { mode: content.mode, root: content.root }; }, { mode: "legacy", root: null }),
+        supabase: safeHealthValue(() => getSupabaseSummary(), { verifyMode: "none", hasUrl: false, hasAnonKey: false, hasServiceRoleKey: false, hasJwtSecret: false, jwtSecretSourceKey: null, configured: false } as any),
         auth: { useSupabaseWsLogin: envTruthy("USE_SUPABASE_WS_LOGIN"), requireSupabaseAuth: envTruthy("REQUIRE_SUPABASE_AUTH"), allowGuestLogin: !["0", "false", "no"].includes(process.env.ALLOW_GUEST_LOGIN?.trim().toLowerCase() || ""), allowDevLogin: !["0", "false", "no"].includes(process.env.ALLOW_DEV_LOGIN?.trim().toLowerCase() || "") },
         selfHealing: { active: Boolean(selfHealingStatus.active), patchMode: selfHealingStatus.config?.patchMode ?? "disabled", totalErrors: selfHealingStatus.totalErrors ?? 0, totalHealed: selfHealingStatus.totalHealed ?? 0, healingRate: selfHealingStatus.healingRate ?? 0, featuresProtected: selfHealingStatus.featuresProtected ?? 0 },
         are: { guard: safeHealthValue(() => tick?.getAREGuardStatus?.() ?? null, null), worldHash: safeHealthValue(() => tick?.getWorldHashSnapshot?.()?.worldHash ?? null, null), replay: safeHealthValue(() => tick?.getReplayRecorderStats?.() ?? null, null) }

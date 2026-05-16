@@ -20,9 +20,10 @@ Current state:
 
 ## Kritische Fehler (Critical Errors)
 
-1.  **TypeScript Configuration Corruption:**
-    - Multiple `tsconfig.json` files (`server`, `projects/are-trader`, `apps/api`) had formatting issues that made them difficult to parse programmatically, though they were functionally valid for `tsc`.
+1.  **TypeScript Configuration & Resolution Errors:**
+    - Multiple `tsconfig.json` files (`server`, `projects/are-trader`, `apps/api`) had formatting issues that made them difficult to parse programmatically.
     - Several packages (`portal`, `eco-trader`, `ui`, `replit-demo`, `client-2d`) were not extending `tsconfig.base.json`, leading to inconsistent compiler settings.
+    - Inter-package resolution for `@wasd/core-logic` sub-paths was fragile in CI environments.
 
 2.  **Dependency Version Fragmentation:**
     - `vite` versions varied from `^5.2.8` to `^8.0.13`.
@@ -55,6 +56,7 @@ Current state:
 - [x] Fixed all parsing and formatting issues in `tsconfig.json` files.
 - [x] Standardized all identified packages to extend `tsconfig.base.json`.
 - [x] Updated root `tsconfig.json` references to include all 40+ workspace projects.
+- [x] Fixed inter-package type resolution for `@wasd/core-logic` in the server.
 - [x] Verified workspace integrity with `pnpm exec tsc --noEmit`.
 
 ### 2. Dependency Consolidation
