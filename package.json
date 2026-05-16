@@ -4,6 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "lint": "pnpm --prefix server run lint && pnpm --prefix client run lint && pnpm --prefix portal run lint",
+    "test": "vitest run",
+    "validate": "pnpm exec tsx server/src/tools/validateContent.ts",
+    "check:interact": "node scripts/check-interact-consistency.mjs",
+    "test:e2e:install": "pnpm exec playwright install chromium",
+    "test:e2e": "pnpm --prefix packages/shared run build && pnpm --prefix server run build && pnpm --prefix client run build && pnpm exec playwright test",
+    "test:e2e:ci": "pnpm --prefix packages/shared run build && pnpm --prefix server run build && pnpm --prefix client run build && CI=1 pnpm exec playwright test",
+    "dgcc": "pnpm exec tsx tools/dgcc/run-dgcc.ts",
+    "dgcc:extreme": "pnpm exec tsx tools/dgcc/run-dgcc.ts --mode=extreme",
     "build": "pnpm -r build",
     "build:network": "pnpm -r --filter @arelorian/core-network build",
     "build:2d": "pnpm -r --filter @arelorian/client-2d build",
@@ -20,12 +29,14 @@
     "pnpm": ">=9"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@types/node": "^25.7.0",
     "@typescript-eslint/eslint-plugin": "^8.59.3",
     "@typescript-eslint/parser": "^8.59.3",
     "concurrently": "^9.2.1",
     "eslint": "^10.3.0",
     "pnpm": "^11.1.1",
+    "tsx": "^4.21.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.6"
   },
