@@ -26,7 +26,7 @@ if ! command -v pnpm >/dev/null 2>&1; then
 fi
 
 pnpm install --no-frozen-lockfile --prefer-offline
-pnpm --filter @wasd/core-logic --if-present build
+pnpm --filter @wasd/core-logic --if-present run build:runtime
 pnpm --filter @wasd/shared --if-present build
 pnpm --filter @wasd/server --if-present build
 
