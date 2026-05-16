@@ -146,7 +146,7 @@ jobs:
               if [ -n "${PIDS// }" ]; then kill $PIDS >/dev/null 2>&1 || true; sleep 2; kill -9 $PIDS >/dev/null 2>&1 || true; fi
             fi
             if command -v lsof >/dev/null 2>&1; then
-              PIDS="$(lsof -ti tcp:"$ARELORIAN_PORT" 2>/dev/null | tr '\n' ' ')"
+              PIDS="$(lsof -ti tcp:"$ARELORIAN_PORT" 2>/dev/null | tr '\n' ' ' || true)"
               if [ -n "${PIDS// }" ]; then kill $PIDS >/dev/null 2>&1 || true; sleep 2; kill -9 $PIDS >/dev/null 2>&1 || true; fi
             fi
             if command -v ss >/dev/null 2>&1 && ss -ltn "sport = :$ARELORIAN_PORT" | grep -q ":$ARELORIAN_PORT"; then
