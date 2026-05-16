@@ -7,6 +7,7 @@ import {
 } from "@wasd/shared";
 import DestinyPathsPanel from "../community/DestinyPathsPanel";
 import EchoTracker from "../community/EchoTracker";
+import ForgePanel from "../community/ForgePanel";
 import InventoryRefinementPanel from "../community/InventoryRefinementPanel";
 import ScienceMascotChat from "./ScienceMascotChat";
 import WarfrontCombatHud from "./WarfrontCombatHud";
@@ -131,6 +132,8 @@ export const SciencePortal: React.FC = () => {
           <EchoTracker />
 
           <InventoryRefinementPanel />
+
+          <ForgePanel />
 
           <DestinyPathsPanel />
         </div>
