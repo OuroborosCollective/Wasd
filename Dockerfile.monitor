@@ -2,8 +2,12 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install dependencies
-RUN pip install --no-cache-dir --break-system-packages uvw
+# Install system and Python dependencies.
+# procps provides pgrep, which is used by the container HEALTHCHECK.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends procps \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir --break-system-packages uvw
 
 # Copy monitor script
 COPY monitor.py /app/monitor.py
