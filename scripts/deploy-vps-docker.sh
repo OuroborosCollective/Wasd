@@ -9,7 +9,10 @@ ARELORIAN_PORT="${ARELORIAN_PORT:-3001}"
 CONTAINER_PORT="${ARELORIAN_CONTAINER_PORT:-3001}"
 ARELORIAN_DOCKER_NETWORK="${ARELORIAN_DOCKER_NETWORK:-areloria_arelorian-network}"
 ARELORIAN_ENV_FILE="${ARELORIAN_ENV_FILE:-.env.docker}"
-export ARELORIAN_PORT ARELORIAN_DOCKER_NETWORK
+ARELORIAN_ENABLE_DOCKER_INGRESS="${ARELORIAN_ENABLE_DOCKER_INGRESS:-false}"
+ARELORIAN_INGRESS_HTTP_BIND="${ARELORIAN_INGRESS_HTTP_BIND:-0.0.0.0}"
+ARELORIAN_INGRESS_HTTP_PORT="${ARELORIAN_INGRESS_HTTP_PORT:-80}"
+export ARELORIAN_PORT ARELORIAN_DOCKER_NETWORK ARELORIAN_ENABLE_DOCKER_INGRESS ARELORIAN_INGRESS_HTTP_BIND ARELORIAN_INGRESS_HTTP_PORT
 cd "$REPO_ROOT"
 
 LOCK_PATH="${DEPLOY_LOCK_PATH:-/tmp/wasd-vps-docker-deploy.lock}"
@@ -33,10 +36,14 @@ else
 fi
 
 compose_cmd() {
+  local files=(-f docker-compose.yml)
+  if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
+    files+=(-f docker-compose.ingress.yml --profile ingress)
+  fi
   if [ -f "$ARELORIAN_ENV_FILE" ]; then
-    "${DC[@]}" --env-file "$ARELORIAN_ENV_FILE" "$@"
+    "${DC[@]}" --env-file "$ARELORIAN_ENV_FILE" "${files[@]}" "$@"
   else
-    "${DC[@]}" "$@"
+    "${DC[@]}" "${files[@]}" "$@"
   fi
 }
 
@@ -99,6 +106,11 @@ host_http_ready() {
   return 1
 }
 
+ingress_http_ready() {
+  [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ] || return 0
+  curl -sS -m 4 -o /dev/null -w '%{http_code}' "http://127.0.0.1:${ARELORIAN_INGRESS_HTTP_PORT}/health" 2>/dev/null | grep -Eq '^(200|204|301|302|304|401|403|503)$'
+}
+
 runtime_activity_ready() {
   local state exit_code
   state="$(docker inspect arelorian-engine --format '{{.State.Status}}' 2>/dev/null || true)"
@@ -106,7 +118,7 @@ runtime_activity_ready() {
   [ "$state" = "running" ] || return 1
   [ "$exit_code" = "0" ] || return 1
   docker exec arelorian-engine sh -lc "ps aux | grep -q '[n]ode dist/index.js'" >/dev/null 2>&1 || return 1
-  compose_cmd -f docker-compose.yml logs --tail=240 arelorian-engine 2>/dev/null | grep -Eq 'Arelorian server listening|WorldEventBus|warfront_combat|tick' && return 0
+  compose_cmd logs --tail=240 arelorian-engine 2>/dev/null | grep -Eq 'Arelorian server listening|WorldEventBus|warfront_combat|tick' && return 0
   return 1
 }
 
@@ -117,6 +129,10 @@ echo "Engine host port: $ARELORIAN_PORT"
 echo "Engine container port: $CONTAINER_PORT"
 echo "Docker network: $ARELORIAN_DOCKER_NETWORK"
 echo "Runtime env file: $ARELORIAN_ENV_FILE"
+echo "Docker ingress enabled: $ARELORIAN_ENABLE_DOCKER_INGRESS"
+if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
+  echo "Ingress bind: ${ARELORIAN_INGRESS_HTTP_BIND}:${ARELORIAN_INGRESS_HTTP_PORT}"
+fi
 
 fetch_and_reset
 
@@ -133,13 +149,16 @@ docker builder prune -f --filter 'until=24h' >/dev/null 2>&1 || true
 docker image prune -f >/dev/null 2>&1 || true
 
 echo "[2/4] Build images (monorepo context, sequential to avoid OOM)"
-compose_cmd -f docker-compose.yml build --progress=plain arelorian-engine
-compose_cmd -f docker-compose.yml build --progress=plain monitor-bridge
+compose_cmd build --progress=plain arelorian-engine
+compose_cmd build --progress=plain monitor-bridge
 
 echo "[3/4] Recreate containers"
-compose_cmd -f docker-compose.yml down --remove-orphans || true
-docker rm -f arelorian-engine monitor-bridge >/dev/null 2>&1 || true
-compose_cmd -f docker-compose.yml up -d --remove-orphans arelorian-engine monitor-bridge
+compose_cmd down --remove-orphans || true
+docker rm -f arelorian-engine monitor-bridge arelorian-ingress-router >/dev/null 2>&1 || true
+compose_cmd up -d --remove-orphans arelorian-engine monitor-bridge
+if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
+  compose_cmd up -d --remove-orphans ingress-router
+fi
 
 echo "[4/4] Health check (container:${CONTAINER_PORT}, host:${ARELORIAN_PORT})"
 ok=0
@@ -149,6 +168,7 @@ for i in $(seq 1 36); do
     if client_shell_ready; then
       echo "  client shell ready"
       if host_http_ready; then echo "  host HTTP mapping ready"; else echo "  WARN: host mapping not responding yet"; fi
+      if ingress_http_ready; then echo "  ingress HTTP ready"; else echo "  WARN: ingress HTTP not responding yet"; fi
       ok=1
       break
     fi
@@ -158,6 +178,7 @@ for i in $(seq 1 36); do
     echo "  runtime activity ready ($i/36): node process and world events detected"
     if client_shell_ready; then
       echo "  client shell ready"
+      if ingress_http_ready; then echo "  ingress HTTP ready"; else echo "  WARN: ingress HTTP not responding yet"; fi
       ok=1
       break
     fi
@@ -169,11 +190,17 @@ done
 
 if [[ "$ok" != "1" ]]; then
   echo "ERROR: Container health failed. Showing diagnostics:"
-  compose_cmd -f docker-compose.yml ps || true
+  compose_cmd ps || true
   docker inspect arelorian-engine --format 'Container={{.State.Status}} Health={{if .State.Health}}{{.State.Health.Status}}{{else}}n/a{{end}} ExitCode={{.State.ExitCode}} Ports={{json .NetworkSettings.Ports}}' || true
+  if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
+    docker inspect arelorian-ingress-router --format 'Ingress={{.State.Status}} Health={{if .State.Health}}{{.State.Health.Status}}{{else}}n/a{{end}} ExitCode={{.State.ExitCode}} Ports={{json .NetworkSettings.Ports}}' || true
+  fi
   docker exec arelorian-engine sh -lc "node -v; printenv PORT GAME_PORT HOST NODE_ENV; ps aux | head -20" || true
   ss -ltnp "sport = :${ARELORIAN_PORT}" || true
-  compose_cmd -f docker-compose.yml logs --tail=160 arelorian-engine || true
+  compose_cmd logs --tail=160 arelorian-engine || true
+  if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
+    compose_cmd logs --tail=160 ingress-router || true
+  fi
   exit 1
 fi
 
