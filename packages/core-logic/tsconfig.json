@@ -6,8 +6,9 @@
     "composite": false,
     "incremental": false,
     "skipLibCheck": true,
+    "jsx": "react-jsx",
     "lib": ["ESNext", "DOM"],
-    "types": ["node"]
+    "types": ["node", "react"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
