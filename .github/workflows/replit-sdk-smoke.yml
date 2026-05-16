@@ -63,10 +63,5 @@ jobs:
           pnpm --filter @wasd/shared --if-present build
           pnpm --filter @wasd/server --if-present build
 
-      - name: Install standalone SDK demo
-        working-directory: packages/sdk-examples/replit-demo
-        run: pnpm install --no-frozen-lockfile --prefer-offline
-
-      - name: Build standalone SDK demo
-        working-directory: packages/sdk-examples/replit-demo
-        run: pnpm run build
+      - name: Build SDK demo
+        run: pnpm --filter @wasd/sdk-replit-demo --if-present build
