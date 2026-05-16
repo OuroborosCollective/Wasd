@@ -1,320 +1,59 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { deriveAREPulseColorFrame } from './design/AREPulseColor';
+import { deriveThemeGuardState, fetchAREAutoRepairStatus, fetchAREOracleReport, fetchAREReplaySnapshot, fetchAREReplayStats, fetchAREValidationStatus, fetchSovereignTruth, hasVersionDrift, launchSovereignDeploy, LOCAL_UI_BUILD_HASH, type AREAutoRepairStatus, type AREOracleReport, type AREReplaySnapshot, type AREReplayStats, type SovereignLaunchResult, type SovereignTruth, type ThemeGuardState } from './design/ThemeEngine';
 
 type ScreenId = 'auth' | 'hub' | 'bridge' | 'hud' | 'assets';
+type BridgeStatus = 'stable' | 'mismatch' | 'scanning';
+type HubTab = 'echo' | 'oracle' | 'truth';
 
-interface AREPayload {
-  l: number;
-  k: number;
-  r: number;
-  kappaPosHash: string;
-  resonance: number;
-  sysLoad: number;
-  resSync: number;
-  bridgeStatus: 'stable' | 'mismatch' | 'scanning';
-  threatLevel: number;
-  tickHz: number;
-}
+interface AREPayload { l: number; k: number; r: number; kappaPosHash: string; resonance: number; sysLoad: number; resSync: number; bridgeStatus: BridgeStatus; threatLevel: number; tickHz: number; }
 
 const screens: Array<{ id: ScreenId; label: string; code: string }> = [
-  { id: 'auth', label: 'AUTH ROOT', code: 'A0' },
-  { id: 'hub', label: 'SCIENCE HUB', code: 'M1' },
-  { id: 'bridge', label: 'CHAIN BRIDGE', code: 'B2' },
-  { id: 'hud', label: 'GAME HUD', code: 'H3' },
-  { id: 'assets', label: 'ASSET REPO', code: 'R4' },
+  { id: 'auth', label: 'AUTH ROOT', code: 'A0' }, { id: 'hub', label: 'SCIENCE HUB', code: 'M1' }, { id: 'bridge', label: 'CHAIN BRIDGE', code: 'B2' }, { id: 'hud', label: 'GAME HUD', code: 'H3' }, { id: 'assets', label: 'ASSET REPO', code: 'R4' },
 ];
+const initialPayload: AREPayload = { l: 13, k: 1000, r: 0.618, kappaPosHash: '0xARE-13-03E8-OUROBOROS', resonance: 0.77, sysLoad: 0.42, resSync: 0.96, bridgeStatus: 'scanning', threatLevel: 0.31, tickHz: 10 };
 
-const initialPayload: AREPayload = {
-  l: 13,
-  k: 1000,
-  r: 0.618,
-  kappaPosHash: '0xARE-13-03E8-OUROBOROS',
-  resonance: 0.77,
-  sysLoad: 0.42,
-  resSync: 0.96,
-  bridgeStatus: 'scanning',
-  threatLevel: 0.31,
-  tickHz: 10,
-};
+function clamp01(value: number) { return Math.max(0, Math.min(1, value)); }
+function usePulseClock(frequency = 10, phase = 0) { const [time, setTime] = useState(0); useEffect(() => { let frame = 0; const start = performance.now(); const loop = (now: number) => { setTime((now - start) / 1000); frame = requestAnimationFrame(loop); }; frame = requestAnimationFrame(loop); return () => cancelAnimationFrame(frame); }, []); return { time, pulse: Math.sin(time * frequency * Math.PI * 2 + phase) }; }
+function pulseStyle(value: number, colorVar = 'var(--pulse-marina-rgb)') { const safe = clamp01(value); return { opacity: 0.44 + safe * 0.28, boxShadow: `0 0 ${14 + safe * 26}px rgba(${colorVar}, ${0.18 + safe * 0.38})` } satisfies React.CSSProperties; }
+function cyberBackground(screen: ScreenId) { const palettes: Record<ScreenId, string> = { auth: 'radial-gradient(circle at 50% 35%, rgba(var(--pulse-marina-rgb),.24), transparent 32%), radial-gradient(circle at 65% 62%, rgba(var(--pulse-neon-rgb),.14), transparent 26%), radial-gradient(circle at 20% 78%, rgba(var(--pulse-fire-rgb),.14), transparent 24%)', hub: 'radial-gradient(circle at 75% 20%, rgba(var(--pulse-marina-rgb),.28), transparent 28%), radial-gradient(circle at 20% 35%, rgba(var(--pulse-neon-rgb),.13), transparent 30%), linear-gradient(135deg, rgba(var(--pulse-marina-rgb),.08), transparent 48%, rgba(var(--pulse-neon-rgb),.07))', bridge: 'linear-gradient(90deg, rgba(var(--pulse-marina-rgb),.18), transparent 32%, rgba(var(--pulse-fire-rgb),.15)), radial-gradient(circle at 50% 50%, rgba(var(--pulse-marina-rgb),.16), transparent 28%)', hud: 'radial-gradient(circle at 50% 45%, rgba(var(--pulse-marina-rgb),.30), transparent 22%), radial-gradient(circle at 50% 45%, rgba(var(--pulse-neon-rgb),.16), transparent 44%)', assets: 'radial-gradient(circle at 28% 28%, rgba(var(--pulse-marina-rgb),.24), transparent 28%), radial-gradient(circle at 78% 62%, rgba(var(--pulse-neon-rgb),.14), transparent 28%), linear-gradient(160deg, rgba(var(--pulse-fire-rgb),.08), transparent 48%)' }; return palettes[screen]; }
+function Panel({ children, className = '', glow = 'blue' }: { children: React.ReactNode; className?: string; glow?: 'blue' | 'green' | 'fire' | 'violet' | 'gold' | 'surgery' | 'sovereign' | 'warning' }) { return <section className={`cyber-panel ${glow === 'green' ? 'cyber-panel-green' : glow === 'fire' ? 'cyber-panel-fire' : glow === 'violet' ? 'cyber-panel-violet' : glow === 'gold' ? 'cyber-panel-gold' : glow === 'surgery' ? 'cyber-panel-surgery' : glow === 'sovereign' ? 'cyber-panel-sovereign' : glow === 'warning' ? 'cyber-panel-warning' : ''} ${className}`}>{children}</section>; }
+function Sparkline({ phase = 0, danger = false }: { phase?: number; danger?: boolean }) { const points = Array.from({ length: 36 }, (_, i) => `${i * 8},${(26 + Math.sin(i * 0.52 + phase) * 10 + Math.sin(i * 0.19 + phase * 0.7) * 5).toFixed(2)}`).join(' '); return <svg viewBox="0 0 280 56" className="h-14 w-full overflow-visible" role="img" aria-label="10 Hz deterministic sparkline"><polyline points={points} fill="none" stroke={danger ? 'var(--pulse-fire)' : 'var(--pulse-neon)'} strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round" className="drop-shadow-[0_0_8px_rgba(57,255,20,.7)]" /></svg>; }
 
-function useDeterministicPulse(frequency = 10, phase = 0) {
-  const [time, setTime] = useState(0);
+function AuthRoot({ payload, pulse, onPayload }: { payload: AREPayload; pulse: number; onPayload: (next: AREPayload) => void }) { const [value, setValue] = useState(payload.kappaPosHash); const [status, setStatus] = useState<'idle' | 'accepted' | 'denied'>('idle'); const submit = () => { const ok = /^0x[A-Z0-9-]{8,}$/i.test(value.trim()); setStatus(ok ? 'accepted' : 'denied'); onPayload({ ...payload, kappaPosHash: value.trim(), resonance: ok ? 0.96 : 0.18, bridgeStatus: ok ? 'stable' : 'mismatch' }); }; return <div className="flex min-h-[72vh] items-center justify-center p-6"><Panel className={`w-full max-w-xl p-7 ${status === 'denied' ? 'organic-fire-shake' : ''}`} glow={status === 'denied' ? 'fire' : 'blue'}><div className="mb-6 flex items-center justify-between"><div><p className="text-xs uppercase tracking-[0.42em] text-cyan-200/70">Deterministic Gateway</p><h1 className="mt-2 text-3xl font-black tracking-tight text-white">AUTH_ROOT</h1></div><div className="rounded-full border px-3 py-1 font-fira text-xs text-cyan-100" style={pulseStyle((pulse + 1) / 2)}>10.00 Hz</div></div><label className="mb-2 block text-xs uppercase tracking-[0.28em] text-cyan-100/70">kappaPos-Hash</label><input value={value} onChange={(event) => setValue(event.target.value)} className="cyber-input w-full" placeholder="0xARE-13-03E8-OUROBOROS" spellCheck={false} /><button type="button" onClick={submit} className="neon-button mt-5 w-full">Initialize Root</button>{status === 'accepted' && <div className="scanline mt-5 rounded-xl border p-3 text-sm text-lime-200">Neon Green scanline accepted · AREPayload synchronized</div>}{status === 'denied' && <div className="mt-5 rounded-xl border bg-red-950/30 p-3 text-sm text-orange-200">Organic Fire denial · invalid hex string</div>}</Panel></div>; }
+function OracleWhisper({ oracle }: { oracle: AREOracleReport | null }) { const prophecies = oracle?.prophecies ?? []; const active = prophecies.filter((prophecy) => prophecy.active); const shown = active.length > 0 ? active : prophecies.slice(0, 2); return <div className="oracle-panel mt-6 rounded-3xl border p-4"><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><p className="font-fira text-xs uppercase tracking-[0.28em] text-yellow-100/70">ORACLE · Emily-Seherin</p><h3 className="text-lg font-black text-white">Mathematische Prophezeiungen</h3></div><span className="rounded-full border px-3 py-2 font-fira text-xs text-yellow-100">tick {oracle?.generatedAtTick ?? 'warming'}</span></div>{shown.length === 0 ? <p className="font-fira text-sm text-yellow-100/80">Emily lauscht noch den 1000 Ticks. Kein kausales Muster stabil genug.</p> : <div className="space-y-3">{shown.map((prophecy) => <div key={prophecy.id} className="oracle-card rounded-2xl border p-3"><p className="text-sm font-bold text-yellow-50">“{prophecy.statement}”</p><div className="mt-2 grid gap-2 font-fira text-xs text-yellow-100/75 md:grid-cols-3"><span>confidence {(prophecy.confidence * 100).toFixed(1)}%</span><span>sector {prophecy.sector}</span><span>{prophecy.severity}</span></div><p className="mt-2 break-all font-fira text-[11px] text-cyan-100/60">seed {prophecy.seed}</p><p className="mt-1 font-fira text-[11px] text-yellow-100/60">evidence {prophecy.evidence.join(' · ')}</p></div>)}</div>}</div>; }
+function SurgeonReport({ repair }: { repair: AREAutoRepairStatus | null }) { const plan = repair?.lastPlan; if (!plan) return null; return <div className="surgery-panel mt-6 rounded-3xl border p-4"><div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><p className="font-fira text-xs uppercase tracking-[0.28em] text-lime-100/70">Emily-Surgeon · Auto-Repair</p><h3 className="text-lg font-black text-white">Chirurgischer Bericht</h3></div><span className="rounded-full border px-3 py-2 font-fira text-xs text-lime-100">{plan.phase}</span></div><p className="text-sm font-bold text-lime-50">{plan.report}</p><div className="mt-3 grid gap-2 font-fira text-xs text-lime-100/80 md:grid-cols-3"><span>sector {plan.sector}</span><span>rollback {plan.rollbackTick ?? 'none'}</span><span>layout fixes {plan.layoutFixes?.length ?? 0}</span></div><p className="mt-2 break-all font-fira text-[11px] text-red-100/70">worldHash {plan.rollbackWorldHash ?? 'unavailable'}</p></div>; }
 
-  useEffect(() => {
-    let frame = 0;
-    const start = performance.now();
-    const loop = (now: number) => {
-      const seconds = (now - start) / 1000;
-      setTime(seconds);
-      frame = requestAnimationFrame(loop);
-    };
-    frame = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(frame);
-  }, []);
-
-  return Math.sin(time * frequency * Math.PI * 2 + phase);
+function SovereignTruthPanel({ truth, drift, launchResult, onLaunch }: { truth: SovereignTruth | null; drift: boolean; launchResult: SovereignLaunchResult | null; onLaunch: (key: string) => void }) {
+  const [key, setKey] = useState('');
+  const uptime = truth?.pm2?.uptimeSeconds ?? 0;
+  const herald = launchResult?.ok && truth;
+  return <div className="sovereign-panel mt-6 rounded-3xl border p-4">
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><p className="font-fira text-xs uppercase tracking-[0.28em] text-yellow-100/70">Sovereign Deployment & Truth Panel</p><h3 className="text-lg font-black text-white">Absolute Server-Wahrheit</h3></div><span className={drift ? 'rounded-full border px-3 py-2 font-fira text-xs text-yellow-100 version-drift-glow' : 'rounded-full border px-3 py-2 font-fira text-xs text-blue-100 sovereign-glow'}>{drift ? 'VERSION DRIFT' : 'SYNC OK'}</span></div>
+    {truth ? <div className="grid gap-3 md:grid-cols-2"><div className="cyber-card"><p className="font-fira text-xs text-cyan-100/70">Server Commit</p><p className="mt-2 break-all font-fira text-sm text-white">{truth.shortCommitHash}</p><p className="mt-1 break-all font-fira text-[11px] text-cyan-100/60">UI {LOCAL_UI_BUILD_HASH}</p></div><div className="cyber-card"><p className="font-fira text-xs text-cyan-100/70">Ports</p><p className="mt-2 font-fira text-sm text-white">Game {truth.gamePort} · Supabase {truth.supabase.localPort}</p><p className={truth.supabase.localTcpReachable ? 'mt-1 font-fira text-[11px] text-lime-100' : 'mt-1 font-fira text-[11px] text-yellow-100'}>Supabase {truth.supabase.status}</p></div><div className="cyber-card"><p className="font-fira text-xs text-cyan-100/70">PM2 Uptime</p><p className="mt-2 font-fira text-sm text-white">{uptime}s · pid {truth.pm2.pid}</p><p className="mt-1 font-fira text-[11px] text-cyan-100/60">cluster {truth.cluster}</p></div><div className="cyber-card"><p className="font-fira text-xs text-cyan-100/70">ARE Truth</p><p className="mt-2 break-all font-fira text-[12px] text-white">{truth.are.worldHash ?? 'warming'}</p><p className="mt-1 font-fira text-[11px] text-cyan-100/60">tick {truth.are.worldTick ?? 'n/a'}</p></div></div> : <p className="font-fira text-sm text-yellow-100/80">Truth endpoint noch nicht erreichbar.</p>}
+    {drift && <div className="version-drift-card mt-4 rounded-2xl border p-3 font-fira text-xs text-yellow-100">Emily warnt: Lokaler UI-Build-Hash stimmt nicht mit Server-Hash überein. Bitte neu deployen oder Cache prüfen.</div>}
+    <div className="mt-5 grid gap-3 md:grid-cols-[1fr_auto]"><input value={key} onChange={(event) => setKey(event.target.value)} className="cyber-input w-full" type="password" placeholder="Sovereign Launch Key" /><button type="button" className="launch-button" onClick={() => onLaunch(key)}>Launch 10-Hz Reality</button></div>
+    {launchResult && <div className={launchResult.ok ? 'herald-card mt-4 rounded-2xl border p-3 font-fira text-xs text-yellow-50' : 'version-drift-card mt-4 rounded-2xl border p-3 font-fira text-xs text-yellow-100'}>{launchResult.ok && truth ? `Die Kausalität wurde auf den VPS-Cluster [${truth.cluster}] repliziert. Version [${truth.shortCommitHash}] ist stabil.` : `Launch nicht ausgeführt: ${launchResult.message ?? launchResult.error ?? 'unknown'}`}</div>}
+  </div>;
 }
 
-function clamp01(value: number) {
-  return Math.max(0, Math.min(1, value));
+function ScienceHub({ payload, pulse, guard, replayStats, replaySnapshot, selectedTick, onSelectTick, onExitObservation, oracleReport, repairStatus, sovereignTruth, versionDrift, launchResult, onLaunch }: { payload: AREPayload; pulse: number; guard: ThemeGuardState; replayStats: AREReplayStats | null; replaySnapshot: AREReplaySnapshot | null; selectedTick: number | null; onSelectTick: (tick: number) => void; onExitObservation: () => void; oracleReport: AREOracleReport | null; repairStatus: AREAutoRepairStatus | null; sovereignTruth: SovereignTruth | null; versionDrift: boolean; launchResult: SovereignLaunchResult | null; onLaunch: (key: string) => void }) {
+  const [hubTab, setHubTab] = useState<HubTab>('echo'); const resonance = clamp01(payload.resonance + pulse * 0.05); const oldest = replayStats?.oldestTick ?? 0; const latest = replayStats?.latestTick ?? 0; const sliderValue = selectedTick ?? latest; const replayHash = replaySnapshot?.record.worldHash ?? 'live-stream'; const observedCounts = replaySnapshot?.record.worldState ? `${replaySnapshot.record.worldState.players.length}P · ${replaySnapshot.record.worldState.npcs.length}N · ${replaySnapshot.record.worldState.loot.length}L` : 'live'; const oracleActive = oracleReport?.prophecies?.some((prophecy) => prophecy.active) ?? false; const repairActive = Boolean(repairStatus?.active || repairStatus?.lastPlan?.phase === 'healed'); const sovereignActive = Boolean(launchResult?.ok);
+  return <div className="grid min-h-[72vh] gap-5 p-5 lg:grid-cols-[80px_1fr]"><aside className="cyber-panel flex items-center justify-around gap-3 p-3 lg:flex-col">{screens.map((item) => <div key={item.id} className="grid h-12 w-12 place-items-center rounded-2xl border bg-cyan-300/5 font-fira text-xs text-cyan-100">{item.code}</div>)}</aside><main className="grid gap-5 xl:grid-cols-3"><Panel className="xl:col-span-2 p-5" glow={sovereignActive ? 'sovereign' : versionDrift ? 'warning' : repairActive ? 'surgery' : oracleActive ? 'gold' : guard.observationMode ? 'violet' : 'blue'}><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs uppercase tracking-[0.42em] text-cyan-100/60">Science Portal Hub</p><h2 className="mt-2 text-4xl font-black text-white">THE MATRIX</h2></div><div className="grid grid-cols-2 gap-3 font-fira text-xs"><span className="rounded-xl border px-3 py-2 text-cyan-100">SYS_LOAD {(payload.sysLoad * 100).toFixed(1)}%</span><span className={sovereignActive ? 'rounded-xl border px-3 py-2 text-yellow-100 sovereign-glow' : versionDrift ? 'rounded-xl border px-3 py-2 text-yellow-100 version-drift-glow' : repairActive ? 'rounded-xl border px-3 py-2 text-lime-100 surgery-glow' : oracleActive ? 'rounded-xl border px-3 py-2 text-yellow-100 oracle-glow' : guard.fireGlitch ? 'rounded-xl border px-3 py-2 text-orange-100 organic-fire' : guard.observationMode ? 'rounded-xl border px-3 py-2 text-violet-100 observation-glow' : 'rounded-xl border px-3 py-2 text-lime-100'}>{sovereignActive ? 'SOVEREIGN' : versionDrift ? 'DRIFT' : repairActive ? 'SURGERY' : oracleActive ? 'ORACLE ACTIVE' : guard.observationMode ? 'OBSERVATION' : `ARE_GUARD ${guard.fireGlitch ? 'FIRE' : 'OK'}`}</span></div></div><div className="mt-6 flex flex-wrap gap-2"><button type="button" onClick={() => setHubTab('echo')} className={`rounded-full border px-4 py-2 font-fira text-xs ${hubTab === 'echo' ? 'text-violet-100 observation-glow' : 'text-cyan-100/70'}`}>ECHO</button><button type="button" onClick={() => setHubTab('oracle')} className={`rounded-full border px-4 py-2 font-fira text-xs ${hubTab === 'oracle' ? 'text-yellow-100 oracle-glow' : 'text-cyan-100/70'}`}>ORACLE</button><button type="button" onClick={() => setHubTab('truth')} className={`rounded-full border px-4 py-2 font-fira text-xs ${hubTab === 'truth' ? 'text-yellow-100 sovereign-glow' : 'text-cyan-100/70'}`}>TRUTH</button></div><div className="mt-6 grid gap-4 md:grid-cols-2"><div className="cyber-card" style={pulseStyle(resonance)}><p className="font-fira text-xs text-cyan-200/70">ARE-Trader</p><h3 className="mt-2 text-xl font-bold text-white">Liquidity Spiral</h3><Sparkline phase={pulse * 2} /></div><div className="cyber-card" style={pulseStyle(resonance, sovereignActive ? 'var(--pulse-gold-rgb)' : repairActive ? 'var(--pulse-neon-rgb)' : oracleActive ? 'var(--pulse-gold-rgb)' : guard.observationMode ? 'var(--pulse-violet-rgb)' : 'var(--pulse-neon-rgb)')}><p className="font-fira text-xs text-lime-200/70">{sovereignActive ? 'Emily-Heraldin' : repairActive ? 'SelfHeal Surgery' : hubTab === 'oracle' ? 'Oracle Engine' : hubTab === 'truth' ? 'Deploy Truth' : 'Echo-Tracker'}</p><h3 className="mt-2 text-xl font-bold text-white">{sovereignActive ? 'Cluster Alpha Stable' : repairActive ? 'Causality Restored' : hubTab === 'oracle' ? 'Causal Forecast' : hubTab === 'truth' ? 'VPS Truth Sync' : 'Replay Window'}</h3><Sparkline phase={pulse * 4} danger={payload.threatLevel > 0.66 || guard.fireGlitch || versionDrift} /></div></div><SurgeonReport repair={repairStatus} />{hubTab === 'oracle' ? <OracleWhisper oracle={oracleReport} /> : hubTab === 'truth' ? <SovereignTruthPanel truth={sovereignTruth} drift={versionDrift} launchResult={launchResult} onLaunch={onLaunch} /> : <div className="observation-slider mt-6 rounded-3xl border p-4"><div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><p className="font-fira text-xs uppercase tracking-[0.28em] text-cyan-100/60">Deterministic Recorder</p><h3 className="text-lg font-black text-white">Time-Slider · Last 1000 ticks / 100s</h3></div><button type="button" onClick={onExitObservation} className="rounded-full border px-4 py-2 font-fira text-xs text-cyan-100">Return Live</button></div><input className="w-full accent-violet-400" type="range" min={oldest} max={latest} value={sliderValue} disabled={!replayStats?.size} onChange={(event) => onSelectTick(Number(event.target.value))} /><div className="mt-3 grid gap-2 font-fira text-xs text-cyan-100/80 md:grid-cols-4"><span>oldest {oldest}</span><span>selected {sliderValue}</span><span>latest {latest}</span><span>{observedCounts}</span></div><p className="mt-3 break-all font-fira text-xs text-violet-100">worldHash {replayHash}</p></div>}</Panel><Panel className="p-5" glow={sovereignActive ? 'sovereign' : versionDrift ? 'warning' : repairActive ? 'surgery' : oracleActive ? 'gold' : guard.observationMode ? 'violet' : guard.fireGlitch ? 'fire' : 'green'}><p className="text-xs uppercase tracking-[0.42em] text-lime-100/60">ARE Runtime Contract</p><div className="mt-5 space-y-3 font-fira text-sm text-lime-100"><p>l = {payload.l}</p><p>k = {payload.k}</p><p>r = {payload.r.toFixed(3)}</p><p>resonance = {resonance.toFixed(3)}</p><p>{guard.label}</p></div></Panel></main></div>;
 }
 
-function pulseStyle(value: number, color = '0,229,255') {
-  const intensity = 0.44 + value * 0.28;
-  return {
-    opacity: intensity,
-    boxShadow: `0 0 ${14 + value * 26}px rgba(${color}, ${0.18 + value * 0.38})`,
-  } satisfies React.CSSProperties;
-}
-
-function cyberBackground(screen: ScreenId) {
-  const palettes: Record<ScreenId, string> = {
-    auth: 'radial-gradient(circle at 50% 35%, rgba(0,229,255,.24), transparent 32%), radial-gradient(circle at 65% 62%, rgba(57,255,20,.14), transparent 26%), radial-gradient(circle at 20% 78%, rgba(255,122,0,.14), transparent 24%)',
-    hub: 'radial-gradient(circle at 75% 20%, rgba(0,229,255,.28), transparent 28%), radial-gradient(circle at 20% 35%, rgba(57,255,20,.13), transparent 30%), linear-gradient(135deg, rgba(0,229,255,.08), transparent 48%, rgba(57,255,20,.07))',
-    bridge: 'linear-gradient(90deg, rgba(0,229,255,.18), transparent 32%, rgba(230,0,0,.15)), radial-gradient(circle at 50% 50%, rgba(0,229,255,.16), transparent 28%)',
-    hud: 'radial-gradient(circle at 50% 45%, rgba(0,229,255,.30), transparent 22%), radial-gradient(circle at 50% 45%, rgba(57,255,20,.16), transparent 44%)',
-    assets: 'radial-gradient(circle at 28% 28%, rgba(0,229,255,.24), transparent 28%), radial-gradient(circle at 78% 62%, rgba(57,255,20,.14), transparent 28%), linear-gradient(160deg, rgba(255,122,0,.08), transparent 48%)',
-  };
-  return palettes[screen];
-}
-
-function Panel({ children, className = '', glow = 'blue' }: { children: React.ReactNode; className?: string; glow?: 'blue' | 'green' | 'fire' }) {
-  return (
-    <section className={`cyber-panel ${glow === 'green' ? 'cyber-panel-green' : glow === 'fire' ? 'cyber-panel-fire' : ''} ${className}`}>
-      {children}
-    </section>
-  );
-}
-
-function Sparkline({ phase = 0, danger = false }: { phase?: number; danger?: boolean }) {
-  const points = Array.from({ length: 36 }, (_, i) => {
-    const x = i * 8;
-    const y = 26 + Math.sin(i * 0.52 + phase) * 10 + Math.sin(i * 0.19 + phase * 0.7) * 5;
-    return `${x},${y.toFixed(2)}`;
-  }).join(' ');
-
-  return (
-    <svg viewBox="0 0 280 56" className="h-14 w-full overflow-visible" role="img" aria-label="10 Hz deterministic sparkline">
-      <polyline points={points} fill="none" stroke={danger ? '#FF7A00' : '#39FF14'} strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round" className="drop-shadow-[0_0_8px_rgba(57,255,20,.7)]" />
-    </svg>
-  );
-}
-
-function AuthRoot({ payload, pulse, onPayload }: { payload: AREPayload; pulse: number; onPayload: (next: AREPayload) => void }) {
-  const [value, setValue] = useState(payload.kappaPosHash);
-  const [status, setStatus] = useState<'idle' | 'accepted' | 'denied'>('idle');
-
-  const submit = () => {
-    const ok = /^0x[A-Z0-9-]{8,}$/i.test(value.trim());
-    setStatus(ok ? 'accepted' : 'denied');
-    onPayload({
-      ...payload,
-      kappaPosHash: value.trim(),
-      resonance: ok ? 0.96 : 0.18,
-      bridgeStatus: ok ? 'stable' : 'mismatch',
-    });
-  };
-
-  return (
-    <div className="flex min-h-[72vh] items-center justify-center p-6">
-      <Panel className={`w-full max-w-xl p-7 ${status === 'denied' ? 'organic-fire-shake' : ''}`} glow={status === 'denied' ? 'fire' : 'blue'}>
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.42em] text-cyan-200/70">Deterministic Gateway</p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight text-white">AUTH_ROOT</h1>
-          </div>
-          <div className="rounded-full border border-cyan-300/40 px-3 py-1 font-fira text-xs text-cyan-100" style={pulseStyle(clamp01((pulse + 1) / 2))}>10.00 Hz</div>
-        </div>
-        <label className="mb-2 block text-xs uppercase tracking-[0.28em] text-cyan-100/70">kappaPos-Hash</label>
-        <input
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          className="cyber-input w-full"
-          placeholder="0xARE-13-03E8-OUROBOROS"
-          spellCheck={false}
-        />
-        <button type="button" onClick={submit} className="neon-button mt-5 w-full">Initialize Root</button>
-        {status === 'accepted' && <div className="scanline mt-5 rounded-xl border border-lime-300/40 p-3 text-sm text-lime-200">Neon Green scanline accepted · AREPayload synchronized</div>}
-        {status === 'denied' && <div className="mt-5 rounded-xl border border-red-500/40 bg-red-950/30 p-3 text-sm text-orange-200">Organic Fire denial · invalid hex string</div>}
-      </Panel>
-    </div>
-  );
-}
-
-function ScienceHub({ payload, pulse }: { payload: AREPayload; pulse: number }) {
-  const resonance = clamp01(payload.resonance + pulse * 0.05);
-  return (
-    <div className="grid min-h-[72vh] gap-5 p-5 lg:grid-cols-[80px_1fr]">
-      <aside className="cyber-panel flex items-center justify-around gap-3 p-3 lg:flex-col">
-        {screens.map((item) => <div key={item.id} className="grid h-12 w-12 place-items-center rounded-2xl border border-cyan-300/30 bg-cyan-300/5 font-fira text-xs text-cyan-100">{item.code}</div>)}
-      </aside>
-      <main className="grid gap-5 xl:grid-cols-3">
-        <Panel className="xl:col-span-2 p-5">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.42em] text-cyan-100/60">Science Portal Hub</p>
-              <h2 className="mt-2 text-4xl font-black text-white">THE MATRIX</h2>
-            </div>
-            <div className="grid grid-cols-2 gap-3 font-fira text-xs">
-              <span className="rounded-xl border border-cyan-300/30 px-3 py-2 text-cyan-100">SYS_LOAD {(payload.sysLoad * 100).toFixed(1)}%</span>
-              <span className="rounded-xl border border-lime-300/30 px-3 py-2 text-lime-100">RES_SYNC {(payload.resSync * 100).toFixed(1)}%</span>
-            </div>
-          </div>
-          <div className="mt-8 grid gap-4 md:grid-cols-2">
-            <div className="cyber-card" style={pulseStyle(resonance, '0,229,255')}>
-              <p className="font-fira text-xs text-cyan-200/70">ARE-Trader</p>
-              <h3 className="mt-2 text-xl font-bold text-white">Liquidity Spiral</h3>
-              <Sparkline phase={pulse * 2} />
-            </div>
-            <div className="cyber-card" style={pulseStyle(resonance, '57,255,20')}>
-              <p className="font-fira text-xs text-lime-200/70">Health-Decay</p>
-              <h3 className="mt-2 text-xl font-bold text-white">Entropy Forecast</h3>
-              <Sparkline phase={pulse * 4} danger={payload.threatLevel > 0.66} />
-            </div>
-          </div>
-        </Panel>
-        <Panel className="p-5" glow="green">
-          <p className="text-xs uppercase tracking-[0.42em] text-lime-100/60">AREPayload</p>
-          <div className="mt-5 space-y-3 font-fira text-sm text-lime-100">
-            <p>l = {payload.l}</p>
-            <p>k = {payload.k}</p>
-            <p>r = {payload.r.toFixed(3)}</p>
-            <p>resonance = {resonance.toFixed(3)}</p>
-            <p>tick = {payload.tickHz}.00Hz</p>
-          </div>
-        </Panel>
-      </main>
-    </div>
-  );
-}
-
-function ChainBridge({ payload, pulse }: { payload: AREPayload; pulse: number }) {
-  const source = ['A9F3', '13E8', 'C0DE', '39FF', '14AA', '00E5', 'FF7A', '0A0A'];
-  const target = ['A9F3', '13E8', 'C0DE', '39F1', '14AA', '00E5', 'E600', '0A0A'];
-  return (
-    <div className="grid min-h-[72vh] gap-5 p-5 xl:grid-cols-[1fr_360px]">
-      <Panel className="p-5">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.42em] text-cyan-100/60">Security Bridge</p>
-            <h2 className="mt-2 text-3xl font-black text-white">CHAIN-STRING VALIDATOR</h2>
-          </div>
-          <span className="rounded-full border border-cyan-300/40 px-4 py-2 font-fira text-xs text-cyan-100" style={pulseStyle((pulse + 1) / 2)}>Bridge {payload.bridgeStatus}</span>
-        </div>
-        <div className="mt-8 grid gap-4 md:grid-cols-2">
-          {[source, target].map((dump, dumpIndex) => (
-            <div key={dumpIndex} className="cyber-card min-h-72">
-              <p className="mb-4 font-fira text-xs uppercase tracking-[0.28em] text-cyan-100/60">{dumpIndex === 0 ? 'Source Hash' : 'Target Hash'}</p>
-              <div className="grid grid-cols-2 gap-2 font-fira text-sm">
-                {dump.map((segment, index) => {
-                  const mismatch = source[index] !== target[index];
-                  return <span key={`${segment}-${index}`} className={`rounded-lg border px-3 py-2 ${mismatch ? 'border-red-500/60 bg-red-950/40 text-orange-200 organic-fire' : 'border-cyan-300/20 bg-cyan-300/5 text-cyan-100'}`}>{segment}</span>;
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      </Panel>
-      <Panel className="p-5" glow="fire">
-        <p className="text-xs uppercase tracking-[0.42em] text-orange-100/70">Terminal</p>
-        <pre className="mt-5 whitespace-pre-wrap font-fira text-xs leading-6 text-orange-100/90">{`> bridge.scan --mode deterministic\n> source checksum: OK\n> target checksum: FIRE_DRIFT\n> mismatch @ segment[3], segment[6]\n> recommendation: quarantine bridge edge\n> AREPayload.kappa = ${payload.k}`}</pre>
-      </Panel>
-    </div>
-  );
-}
-
-function GameHud({ payload, pulse }: { payload: AREPayload; pulse: number }) {
-  return (
-    <div className="relative min-h-[72vh] overflow-hidden p-5">
-      <div className="absolute inset-0 grid place-items-center">
-        <div className="h-72 w-72 rounded-full border border-cyan-300/20" style={pulseStyle((pulse + 1) / 2)} />
-        <div className="absolute h-1 w-64 bg-cyan-300/50" />
-        <div className="absolute h-64 w-1 bg-cyan-300/50" />
-      </div>
-      <div className="relative z-10 flex min-h-[72vh] flex-col justify-between">
-        <div className="mx-auto rounded-full border border-lime-300/40 bg-black/50 px-5 py-2 font-fira text-xs text-lime-100">SYNC LCK {payload.tickHz}.00 Hz</div>
-        <div className="grid gap-5 md:grid-cols-2">
-          <Panel className="p-5" glow="blue">
-            <p className="text-xs uppercase tracking-[0.42em] text-cyan-100/60">Threat Radar</p>
-            <div className="mt-4 aspect-square max-h-64 rounded-full border border-cyan-300/30 bg-[radial-gradient(circle,rgba(0,229,255,.16),transparent_60%)]" />
-          </Panel>
-          <Panel className="p-5" glow="green">
-            <p className="text-xs uppercase tracking-[0.42em] text-lime-100/60">Combo Validator</p>
-            <div className="mt-5 grid grid-cols-4 gap-3">
-              {['F', 'E', 'Q', 'R', '1', '2', '3', '4'].map((key, index) => <span key={key} className="grid h-12 place-items-center rounded-xl border border-lime-300/40 bg-lime-300/10 font-fira text-lime-100" style={pulseStyle(clamp01((Math.sin(index + pulse) + 1) / 2), '57,255,20')}>{key}</span>)}
-            </div>
-          </Panel>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AssetRepository({ pulse }: { pulse: number }) {
-  const assets = ['ouroboros_gate.glb', 'matrix_terminal.glb', 'wireframe_snake.glb', 'organic_fire_shader.mat'];
-  return (
-    <div className="grid min-h-[72vh] gap-5 p-5 xl:grid-cols-[1fr_380px]">
-      <Panel className="p-5">
-        <p className="text-xs uppercase tracking-[0.42em] text-cyan-100/60">Global Asset Repository</p>
-        <h2 className="mt-2 text-3xl font-black text-white">3D MODEL VIEWER</h2>
-        <div className="mt-6 grid min-h-96 place-items-center rounded-3xl border border-cyan-300/20 bg-[radial-gradient(circle,rgba(0,229,255,.18),transparent_38%),linear-gradient(135deg,rgba(57,255,20,.08),transparent)]">
-          <div className="h-44 w-44 rotate-45 rounded-3xl border border-cyan-300/60" style={pulseStyle((pulse + 1) / 2)} />
-        </div>
-      </Panel>
-      <Panel className="p-5" glow="green">
-        <p className="text-xs uppercase tracking-[0.42em] text-lime-100/60">Metadata</p>
-        <div className="mt-5 space-y-3">
-          {assets.map((asset, index) => <div key={asset} className="cyber-card"><p className="font-fira text-sm text-lime-100">{asset}</p><p className="mt-1 text-xs text-cyan-100/60">checksum ARE-{index + 13}-{Math.round(1000 + index * 37)}</p></div>)}
-        </div>
-      </Panel>
-    </div>
-  );
-}
+function ChainBridge({ payload, pulse }: { payload: AREPayload; pulse: number }) { const source = ['A9F3', '13E8', 'C0DE', '39FF', '14AA', '00E5', 'FF7A', '0A0A']; const target = ['A9F3', '13E8', 'C0DE', '39F1', '14AA', '00E5', 'E600', '0A0A']; return <div className="grid min-h-[72vh] gap-5 p-5 xl:grid-cols-[1fr_360px]"><Panel className="p-5"><div className="flex items-center justify-between gap-4"><div><p className="text-xs uppercase tracking-[0.42em] text-cyan-100/60">Security Bridge</p><h2 className="mt-2 text-3xl font-black text-white">CHAIN-STRING VALIDATOR</h2></div><span className="rounded-full border px-4 py-2 font-fira text-xs text-cyan-100" style={pulseStyle((pulse + 1) / 2)}>Bridge {payload.bridgeStatus}</span></div><div className="mt-8 grid gap-4 md:grid-cols-2">{[source, target].map((dump, dumpIndex) => <div key={dumpIndex} className="cyber-card min-h-72"><p className="mb-4 font-fira text-xs uppercase tracking-[0.28em] text-cyan-100/60">{dumpIndex === 0 ? 'Source Hash' : 'Target Hash'}</p><div className="grid grid-cols-2 gap-2 font-fira text-sm">{dump.map((segment, index) => { const mismatch = source[index] !== target[index]; return <span key={`${segment}-${index}`} className={`rounded-lg border px-3 py-2 ${mismatch ? 'border-red-500/60 bg-red-950/40 text-orange-200 organic-fire' : 'border-cyan-300/20 bg-cyan-300/5 text-cyan-100'}`}>{segment}</span>; })}</div></div>)}</div></Panel><Panel className="p-5" glow="fire"><p className="text-xs uppercase tracking-[0.42em] text-orange-100/70">Terminal</p><pre className="mt-5 whitespace-pre-wrap font-fira text-xs leading-6 text-orange-100/90">{`> bridge.scan --mode deterministic\n> source checksum: OK\n> target checksum: FIRE_DRIFT\n> mismatch @ segment[3], segment[6]\n> recommendation: quarantine bridge edge\n> AREPayload.kappa = ${payload.k}`}</pre></Panel></div>; }
+function GameHud({ payload, pulse }: { payload: AREPayload; pulse: number }) { return <div className="relative min-h-[72vh] overflow-hidden p-5"><div className="absolute inset-0 grid place-items-center"><div className="h-72 w-72 rounded-full border" style={pulseStyle((pulse + 1) / 2)} /><div className="absolute h-1 w-64 bg-cyan-300/50" /><div className="absolute h-64 w-1 bg-cyan-300/50" /></div><div className="relative z-10 flex min-h-[72vh] flex-col justify-between"><div className="mx-auto rounded-full border bg-black/50 px-5 py-2 font-fira text-xs text-lime-100">SYNC LCK {payload.tickHz}.00 Hz</div><div className="grid gap-5 md:grid-cols-2"><Panel className="p-5"><p className="text-xs uppercase tracking-[0.42em] text-cyan-100/60">Threat Radar</p><div className="mt-4 aspect-square max-h-64 rounded-full border bg-[radial-gradient(circle,rgba(var(--pulse-marina-rgb),.16),transparent_60%)]" /></Panel><Panel className="p-5" glow="green"><p className="text-xs uppercase tracking-[0.42em] text-lime-100/60">Combo Validator</p><div className="mt-5 grid grid-cols-4 gap-3">{['F', 'E', 'Q', 'R', '1', '2', '3', '4'].map((key, index) => <span key={key} className="grid h-12 place-items-center rounded-xl border bg-lime-300/10 font-fira text-lime-100" style={pulseStyle(clamp01((Math.sin(index + pulse) + 1) / 2), 'var(--pulse-neon-rgb)')}>{key}</span>)}</div></Panel></div></div></div>; }
+function AssetRepository({ pulse }: { pulse: number }) { const assets = ['ouroboros_gate.glb', 'matrix_terminal.glb', 'wireframe_snake.glb', 'organic_fire_shader.mat']; return <div className="grid min-h-[72vh] gap-5 p-5 xl:grid-cols-[1fr_380px]"><Panel className="p-5"><p className="text-xs uppercase tracking-[0.42em] text-cyan-100/60">Global Asset Repository</p><h2 className="mt-2 text-3xl font-black text-white">3D MODEL VIEWER</h2><div className="mt-6 grid min-h-96 place-items-center rounded-3xl border bg-[radial-gradient(circle,rgba(var(--pulse-marina-rgb),.18),transparent_38%),linear-gradient(135deg,rgba(var(--pulse-neon-rgb),.08),transparent)]"><div className="h-44 w-44 rotate-45 rounded-3xl border" style={pulseStyle((pulse + 1) / 2)} /></div></Panel><Panel className="p-5" glow="green"><p className="text-xs uppercase tracking-[0.42em] text-lime-100/60">Metadata</p><div className="mt-5 space-y-3">{assets.map((asset, index) => <div key={asset} className="cyber-card"><p className="font-fira text-sm text-lime-100">{asset}</p><p className="mt-1 text-xs text-cyan-100/60">checksum ARE-{index + 13}-{Math.round(1000 + index * 37)}</p></div>)}</div></Panel></div>; }
 
 const App: React.FC = () => {
-  const [active, setActive] = useState<ScreenId>('auth');
-  const [payload, setPayload] = useState<AREPayload>(initialPayload);
-  const pulse = useDeterministicPulse(payload.tickHz, payload.l * 0.13);
-
-  const background = useMemo(() => cyberBackground(active), [active]);
-
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      setPayload((current) => ({
-        ...current,
-        sysLoad: clamp01(0.44 + Math.sin(Date.now() / 1300) * 0.12),
-        resSync: clamp01(0.91 + Math.sin(Date.now() / 900) * 0.04),
-        threatLevel: clamp01(0.31 + Math.sin(Date.now() / 1700) * 0.2),
-      }));
-    }, 100);
-    return () => window.clearInterval(interval);
-  }, []);
-
-  return (
-    <div className="cyber-root min-h-screen text-slate-100">
-      <div className="cyber-bg" style={{ backgroundImage: background }} />
-      <div className="cyber-grid" />
-      <header className="relative z-10 border-b border-cyan-300/10 bg-black/50 px-4 py-3 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-[0.5em] text-cyan-100/60">Ouroboros Collective</p>
-            <h1 className="text-2xl font-black text-white">CYBER-ZEN AAAA+ PORTAL</h1>
-          </div>
-          <nav className="flex flex-wrap gap-2">
-            {screens.map((screen) => (
-              <button key={screen.id} type="button" onClick={() => setActive(screen.id)} className={`rounded-full border px-4 py-2 font-fira text-xs transition ${active === screen.id ? 'border-lime-300 bg-lime-300/10 text-lime-100 shadow-[0_0_18px_rgba(57,255,20,.35)]' : 'border-cyan-300/20 bg-cyan-300/5 text-cyan-100/70 hover:border-cyan-200/60'}`}>{screen.label}</button>
-            ))}
-          </nav>
-        </div>
-      </header>
-      <main className="relative z-10 mx-auto max-w-7xl">
-        {active === 'auth' && <AuthRoot payload={payload} pulse={pulse} onPayload={setPayload} />}
-        {active === 'hub' && <ScienceHub payload={payload} pulse={pulse} />}
-        {active === 'bridge' && <ChainBridge payload={payload} pulse={pulse} />}
-        {active === 'hud' && <GameHud payload={payload} pulse={pulse} />}
-        {active === 'assets' && <AssetRepository pulse={pulse} />}
-      </main>
-    </div>
-  );
+  const [active, setActive] = useState<ScreenId>('auth'); const [payload, setPayload] = useState<AREPayload>(initialPayload); const [validationStatus, setValidationStatus] = useState<any>(null); const [observationMode, setObservationMode] = useState(false); const [replayStats, setReplayStats] = useState<AREReplayStats | null>(null); const [replaySnapshot, setReplaySnapshot] = useState<AREReplaySnapshot | null>(null); const [oracleReport, setOracleReport] = useState<AREOracleReport | null>(null); const [repairStatus, setRepairStatus] = useState<AREAutoRepairStatus | null>(null); const [sovereignTruth, setSovereignTruth] = useState<SovereignTruth | null>(null); const [launchResult, setLaunchResult] = useState<SovereignLaunchResult | null>(null); const [selectedTick, setSelectedTick] = useState<number | null>(null);
+  const oracleActive = oracleReport?.prophecies?.some((prophecy) => prophecy.active) ?? false; const repairActive = Boolean(repairStatus?.active || repairStatus?.lastPlan?.phase === 'healed'); const versionDrift = hasVersionDrift(sovereignTruth); const sovereignActive = Boolean(launchResult?.ok); const guard = useMemo(() => deriveThemeGuardState(validationStatus, observationMode, oracleActive, repairActive, sovereignActive, versionDrift), [validationStatus, observationMode, oracleActive, repairActive, sovereignActive, versionDrift]);
+  const { time, pulse } = usePulseClock(payload.tickHz, payload.l * 0.13); const pulseFrame = useMemo(() => deriveAREPulseColorFrame(time, { tickHz: payload.tickHz, phase: payload.l * 0.13, resonance: guard.fireGlitch ? 0.05 : payload.resonance, threatLevel: guard.fireGlitch ? 1 : payload.threatLevel }), [time, payload.tickHz, payload.l, payload.resonance, payload.threatLevel, guard.fireGlitch]); const background = useMemo(() => cyberBackground(active), [active]);
+  useEffect(() => { const interval = window.setInterval(() => { setPayload((current) => ({ ...current, sysLoad: clamp01(0.44 + Math.sin(Date.now() / 1300) * 0.12), resSync: clamp01(0.91 + Math.sin(Date.now() / 900) * 0.04), threatLevel: clamp01(0.31 + Math.sin(Date.now() / 1700) * 0.2) })); }, 100); return () => window.clearInterval(interval); }, []);
+  useEffect(() => { let cancelled = false; const run = async () => { const [status, stats, oracle, repair, truth] = await Promise.all([fetchAREValidationStatus(), fetchAREReplayStats(), fetchAREOracleReport(), fetchAREAutoRepairStatus(), fetchSovereignTruth()]); if (!cancelled) { setValidationStatus(status); setReplayStats(stats); setOracleReport(oracle); setRepairStatus(repair); setSovereignTruth(truth); if (!observationMode && stats?.latestTick) setSelectedTick(stats.latestTick); } }; run(); const interval = window.setInterval(run, 2000); return () => { cancelled = true; window.clearInterval(interval); }; }, [observationMode]);
+  const selectReplayTick = async (tick: number) => { setSelectedTick(tick); setObservationMode(true); const snapshot = await fetchAREReplaySnapshot(tick); setReplaySnapshot(snapshot); }; const exitObservation = () => { setObservationMode(false); setReplaySnapshot(null); setSelectedTick(replayStats?.latestTick ?? null); }; const doLaunch = async (key: string) => { const result = await launchSovereignDeploy(key, sovereignTruth?.branch || 'main'); setLaunchResult(result); const truth = await fetchSovereignTruth(); if (truth) setSovereignTruth(truth); };
+  return <div className={`cyber-root min-h-screen text-slate-100 ${guard.fireGlitch ? 'are-violation-mode' : ''} ${guard.observationMode ? 'observation-mode' : ''} ${guard.oracleActive ? 'oracle-mode' : ''} ${guard.repairActive ? 'surgery-mode' : ''} ${guard.sovereignActive ? 'sovereign-mode' : ''} ${guard.versionDrift ? 'version-drift-mode' : ''}`} style={pulseFrame.rootStyle as React.CSSProperties}><div className="cyber-bg" style={{ backgroundImage: background }} /><div className="cyber-grid" />{guard.fireGlitch && <div className="are-violation-banner organic-fire">ARE RUNTIME CONTRACT VIOLATION · {guard.label}</div>}{guard.observationMode && <div className="observation-banner observation-glow">OBSERVATION-MODE · reading deterministic past tick {selectedTick}</div>}{guard.oracleActive && !guard.fireGlitch && !guard.repairActive && !guard.sovereignActive && <div className="oracle-banner oracle-glow">OUROBOROS ORACLE · active causal prophecy</div>}{guard.repairActive && <div className="surgery-banner surgery-glow">EMILY-SURGEON · {repairStatus?.lastPlan?.report ?? 'Self-healing active'}</div>}{guard.versionDrift && !guard.sovereignActive && <div className="version-drift-banner version-drift-glow">VERSION-DRIFT · UI {LOCAL_UI_BUILD_HASH} != SERVER {sovereignTruth?.shortCommitHash ?? 'unknown'}</div>}{guard.sovereignActive && <div className="sovereign-banner sovereign-glow">EMILY-HERALDIN · Die Kausalität wurde auf den VPS-Cluster [{sovereignTruth?.cluster ?? 'Alpha'}] repliziert. Version [{sovereignTruth?.shortCommitHash ?? 'unknown'}] ist stabil.</div>}<header className="relative z-10 border-b border-cyan-300/10 bg-black/50 px-4 py-3 backdrop-blur-xl"><div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3"><div><p className="text-xs uppercase tracking-[0.5em] text-cyan-100/60">Ouroboros Collective</p><h1 className="text-2xl font-black text-white">CYBER-ZEN AAAA+ PORTAL</h1></div><nav className="flex flex-wrap gap-2">{screens.map((screen) => <button key={screen.id} type="button" onClick={() => setActive(screen.id)} className={`rounded-full border px-4 py-2 font-fira text-xs transition ${active === screen.id ? 'border-lime-300 bg-lime-300/10 text-lime-100 shadow-[0_0_18px_rgba(57,255,20,.35)]' : 'border-cyan-300/20 bg-cyan-300/5 text-cyan-100/70 hover:border-cyan-200/60'}`}>{screen.label}</button>)}</nav></div></header><main className="relative z-10 mx-auto max-w-7xl">{active === 'auth' && <AuthRoot payload={payload} pulse={pulse} onPayload={setPayload} />}{active === 'hub' && <ScienceHub payload={payload} pulse={pulse} guard={guard} replayStats={replayStats} replaySnapshot={replaySnapshot} selectedTick={selectedTick} onSelectTick={selectReplayTick} onExitObservation={exitObservation} oracleReport={oracleReport} repairStatus={repairStatus} sovereignTruth={sovereignTruth} versionDrift={versionDrift} launchResult={launchResult} onLaunch={doLaunch} />}{active === 'bridge' && <ChainBridge payload={payload} pulse={pulse} />}{active === 'hud' && <GameHud payload={payload} pulse={pulse} />}{active === 'assets' && <AssetRepository pulse={pulse} />}</main></div>;
 };
 
 export default App;

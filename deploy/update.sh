@@ -24,7 +24,11 @@ git clean -fd \
   -e client/node_modules/ \
   -e server/node_modules/
 
-echo "Deploy commit: $(git rev-parse --short HEAD)"
+DEPLOY_COMMIT="$(git rev-parse --short=12 HEAD)"
+export BUILD_COMMIT_SHA="$DEPLOY_COMMIT"
+export VITE_BUILD_COMMIT_SHA="$DEPLOY_COMMIT"
+export VITE_UI_BUILD_HASH="$DEPLOY_COMMIT"
+echo "Deploy commit: $DEPLOY_COMMIT"
 
 ENV_FILE="$APP_DIR/.env"
 if [ -f "$ENV_FILE" ]; then
@@ -33,6 +37,9 @@ if [ -f "$ENV_FILE" ]; then
   # shellcheck disable=SC1090
   source "$ENV_FILE"
   set +a
+  export BUILD_COMMIT_SHA="$DEPLOY_COMMIT"
+  export VITE_BUILD_COMMIT_SHA="$DEPLOY_COMMIT"
+  export VITE_UI_BUILD_HASH="$DEPLOY_COMMIT"
   echo "  VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-(empty!)}"
   echo "  VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY:+***set***}"
 else
@@ -55,7 +62,8 @@ if command -v pnpm >/dev/null 2>&1; then
   pnpm config set child-concurrency 1
   pnpm install --no-frozen-lockfile --prefer-offline
 
-  echo "Building shared package and game server..."
+  echo "Building core-logic runtime, shared package and game server..."
+  NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/core-logic --if-present run build:runtime
   NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/shared --if-present build
   NODE_OPTIONS="$SERVER_BUILD_NODE_OPTIONS" pnpm --filter @wasd/server --if-present build
 

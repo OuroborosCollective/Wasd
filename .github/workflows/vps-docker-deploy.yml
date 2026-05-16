@@ -1,6 +1,13 @@
 # Production VPS: pull monorepo + Docker Compose rebuild.
-# Secrets: VPS_HOST / VPS_USER / VPS_SSH_KEY (or legacy SSH_HOST / SSH_USER / SSH_PRIVATE_KEY).
-# Optional: SSH_PASSWORD if no key; VPS_DEPLOY_PATH or DEPLOY_PATH (default /opt/areloria).
+# Required GitHub secrets:
+#   VPS_HOST or SSH_HOST
+#   VPS_USER or SSH_USER
+#   VPS_SSH_KEY or SSH_PRIVATE_KEY, or SSH_PASSWORD
+# Optional GitHub secrets:
+#   VPS_DEPLOY_PATH or DEPLOY_PATH, defaults to /opt/areloria
+#   VPS_ARELORIAN_PORT, defaults to 3001
+#   VPS_ARELORIAN_DOCKER_NETWORK, defaults to areloria_arelorian-network
+# Runtime values are passed as environment variables during deploy when set.
 # Do NOT commit passwords to the repo.
 
 name: VPS Docker Deploy (monorepo)
@@ -29,6 +36,19 @@ on:
       - 'package.json'
       - '.github/workflows/vps-docker-deploy.yml'
   workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Sovereign launch reason'
+        required: false
+        default: 'Manual sovereign launch'
+      arelorian_port:
+        description: 'Engine host port on VPS. Default keeps Supabase free on 3000.'
+        required: false
+        default: '3001'
+      docker_network:
+        description: 'External Docker network shared by Redis, Soketi and Areloria.'
+        required: false
+        default: 'areloria_arelorian-network'
 
 concurrency:
   group: vps-docker-deploy-${{ github.ref }}
@@ -40,8 +60,10 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      DEFAULT_ARELORIAN_PORT: '3001'
+      DEFAULT_ARELORIAN_DOCKER_NETWORK: 'areloria_arelorian-network'
     steps:
-      # Fails fast with a clear message (values are GitHub-masked; do not echo secrets).
       - name: Verify VPS secrets are set
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
@@ -80,10 +102,31 @@ jobs:
           script_stop: true
           script: |
             set -euo pipefail
+            echo "Sovereign deploy reason: ${{ github.event.inputs.reason || 'push' }}"
             DEPLOY_PRIMARY='${{ secrets.VPS_DEPLOY_PATH }}'
             DEPLOY_ALT='${{ secrets.DEPLOY_PATH }}'
             DEPLOY_PATH="${DEPLOY_PRIMARY:-${DEPLOY_ALT:-/opt/areloria}}"
+            SECRET_PORT='${{ secrets.VPS_ARELORIAN_PORT }}'
+            INPUT_PORT='${{ github.event.inputs.arelorian_port }}'
+            SECRET_NETWORK='${{ secrets.VPS_ARELORIAN_DOCKER_NETWORK }}'
+            INPUT_NETWORK='${{ github.event.inputs.docker_network }}'
+            export ARELORIAN_PORT="${SECRET_PORT:-${INPUT_PORT:-3001}}"
+            export ARELORIAN_DOCKER_NETWORK="${SECRET_NETWORK:-${INPUT_NETWORK:-areloria_arelorian-network}}"
+            export SUPABASE_URL='${{ secrets.SUPABASE_URL }}'
+            export SUPABASE_PUBLIC_URL='${{ secrets.SUPABASE_PUBLIC_URL }}'
+            export SUPABASE_PROXY_URL='${{ secrets.SUPABASE_PROXY_URL }}'
+            export SUPABASE_ANON_KEY='${{ secrets.SUPABASE_ANON_KEY }}'
+            export ANON_KEY='${{ secrets.ANON_KEY }}'
+            export DATABASE_URL='${{ secrets.DATABASE_URL }}'
+            export POSTGRES_PASSWORD='${{ secrets.POSTGRES_PASSWORD }}'
+            export REDIS_URL='${{ secrets.REDIS_URL }}'
+            export REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD }}'
+            export SOKETI_APP_ID='${{ secrets.SOKETI_APP_ID }}'
+            export SOKETI_APP_KEY='${{ secrets.SOKETI_APP_KEY }}'
+            export SOKETI_APP_SECRET='${{ secrets.SOKETI_APP_SECRET }}'
             echo "Using DEPLOY_PATH=$DEPLOY_PATH"
+            echo "Using ARELORIAN_PORT=$ARELORIAN_PORT"
+            echo "Using ARELORIAN_DOCKER_NETWORK=$ARELORIAN_DOCKER_NETWORK"
             if [ ! -d "$DEPLOY_PATH" ]; then
               echo "ERROR: Directory does not exist: $DEPLOY_PATH"
               echo "Fix: on the VPS clone the repo once, e.g. git clone <url> $DEPLOY_PATH"
@@ -94,5 +137,22 @@ jobs:
               exit 1
             fi
             cd "$DEPLOY_PATH"
+            echo "Freeing port $ARELORIAN_PORT before deploy ..."
+            pm2 stop areloria >/dev/null 2>&1 || true
+            pm2 delete areloria >/dev/null 2>&1 || true
+            docker rm -f arelorian-engine >/dev/null 2>&1 || true
+            if command -v fuser >/dev/null 2>&1; then
+              PIDS="$(fuser -n tcp "$ARELORIAN_PORT" 2>/dev/null || true)"
+              if [ -n "${PIDS// }" ]; then kill $PIDS >/dev/null 2>&1 || true; sleep 2; kill -9 $PIDS >/dev/null 2>&1 || true; fi
+            fi
+            if command -v lsof >/dev/null 2>&1; then
+              PIDS="$(lsof -ti tcp:"$ARELORIAN_PORT" 2>/dev/null | tr '\n' ' ' || true)"
+              if [ -n "${PIDS// }" ]; then kill $PIDS >/dev/null 2>&1 || true; sleep 2; kill -9 $PIDS >/dev/null 2>&1 || true; fi
+            fi
+            if command -v ss >/dev/null 2>&1 && ss -ltn "sport = :$ARELORIAN_PORT" | grep -q ":$ARELORIAN_PORT"; then
+              echo "ERROR: port $ARELORIAN_PORT still occupied before deploy:"
+              ss -ltnp "sport = :$ARELORIAN_PORT" || true
+              exit 1
+            fi
             chmod +x scripts/deploy-vps-docker.sh 2>/dev/null || true
-            bash scripts/deploy-vps-docker.sh
+            ARELORIAN_PORT="$ARELORIAN_PORT" ARELORIAN_DOCKER_NETWORK="$ARELORIAN_DOCKER_NETWORK" bash scripts/deploy-vps-docker.sh

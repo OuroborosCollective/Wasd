@@ -7,14 +7,58 @@
 
 import type { IWorldEvent } from "./portalWorldTypes";
 
-export type EchoKind = "combat" | "trade";
+export type EchoKind = "combat" | "trade" | "loot" | "refinement" | "forge" | "destiny";
+export type LootEchoQuality = "epic" | "legendary" | "mythic" | string;
+
+export interface LootEchoMeta {
+  itemId: string;
+  itemName: string;
+  quality: LootEchoQuality;
+  sector: string;
+  probability: number;
+  rollHash?: string;
+  sourceId?: string;
+}
+
+export interface RefinementEchoMeta {
+  itemId: string;
+  itemName: string;
+  quality: string;
+  sector: string;
+  yields: string;
+  residueHash: string;
+}
+
+export interface ForgeEchoMeta {
+  blueprintId: string;
+  blueprintName: string;
+  itemId: string;
+  itemName: string;
+  quality: string;
+  sector: string;
+  stability: number;
+  forgeHash: string;
+}
+
+export interface DestinyEchoMeta {
+  destinyId?: string;
+  title: string;
+  sector?: string;
+  severity?: string;
+  rewardBlueprint?: string;
+  rewardQuality?: string;
+  destinyHash?: string;
+}
 
 export interface WorldEcho {
   id: string;
   kind: EchoKind;
   summary: string;
   ts: number;
-  /** Optional mirror of server-style world lines */
+  loot?: LootEchoMeta;
+  refinement?: RefinementEchoMeta;
+  forge?: ForgeEchoMeta;
+  destiny?: DestinyEchoMeta;
   worldLine?: Pick<IWorldEvent, "title" | "description">;
 }
 
@@ -55,7 +99,6 @@ export class PortalWorldHistory {
     }
   }
 
-  /** O(1) append newest echo (overwrites oldest slot when full). */
   pushEcho(partial: Omit<WorldEcho, "id" | "ts"> & { id?: string; ts?: number }): WorldEcho {
     const id = partial.id ?? `echo_${this.writeSeq}_${partial.kind}`;
     const ts = partial.ts ?? Date.now();
@@ -75,13 +118,65 @@ export class PortalWorldHistory {
     return this.pushEcho({ kind: "trade", summary, worldLine });
   }
 
-  /** O(1) — most recent echo or null. */
+  recordLootDrop(meta: LootEchoMeta): WorldEcho {
+    const probabilityPct = (meta.probability * 100).toFixed(4);
+    const summary = `Golden loot echo · ${meta.quality.toUpperCase()} · ${meta.itemName} · sector ${meta.sector} · p=${probabilityPct}%`;
+    return this.pushEcho({
+      kind: "loot",
+      summary,
+      loot: meta,
+      worldLine: {
+        title: `Loot manifestation · ${meta.quality.toUpperCase()}`,
+        description: `Architekt Thomas, die Kausalität hat ${meta.itemName} in Sektor ${meta.sector} manifestiert. Wahrscheinlichkeit: ${probabilityPct}%.`,
+      },
+    });
+  }
+
+  recordRefinement(meta: RefinementEchoMeta): WorldEcho {
+    const summary = `Refinement echo · ${meta.quality.toUpperCase()} · ${meta.itemName} · sector ${meta.sector}`;
+    return this.pushEcho({
+      kind: "refinement",
+      summary,
+      refinement: meta,
+      worldLine: {
+        title: `Refinement · ${meta.itemName}`,
+        description: `Architekt Thomas, ${meta.itemName} wurde in Sektor ${meta.sector} kontrolliert zerlegt. Gewonnen: ${meta.yields}.`,
+      },
+    });
+  }
+
+  recordForge(meta: ForgeEchoMeta): WorldEcho {
+    const stabilityPct = (meta.stability * 100).toFixed(2);
+    const summary = `Forge echo · ${meta.quality.toUpperCase()} · ${meta.itemName} · sector ${meta.sector} · stability ${stabilityPct}%`;
+    return this.pushEcho({
+      kind: "forge",
+      summary,
+      forge: meta,
+      worldLine: {
+        title: `Forge manifestation · ${meta.quality.toUpperCase()}`,
+        description: `Schmiedevorgang stabil. Blueprint-Kausalität bei ${stabilityPct}%. ${meta.itemName} wurde in Sektor ${meta.sector} manifestiert.`,
+      },
+    });
+  }
+
+  recordDestiny(meta: DestinyEchoMeta): WorldEcho {
+    const summary = `Destiny path released · ${meta.title}`;
+    return this.pushEcho({
+      kind: "destiny",
+      summary,
+      destiny: meta,
+      worldLine: {
+        title: `Destiny released${meta.severity ? ` · ${meta.severity.toUpperCase()}` : ""}`,
+        description: `Emily schlägt den Schicksalspfad ${meta.title}${meta.sector ? ` in Sektor ${meta.sector}` : ""} vor.${meta.rewardBlueprint ? ` Garantierte Blueprint-Belohnung: ${meta.rewardBlueprint}${meta.rewardQuality ? ` (${meta.rewardQuality})` : ""}.` : ""}`,
+      },
+    });
+  }
+
   getHead(): WorldEcho | null {
     if (this.writeSeq === 0) return null;
     return this.ring[(this.writeSeq - 1) % CAP];
   }
 
-  /** O(k) for bounded UI lists (k ≪ CAP). */
   snapshotRecent(max = 32): WorldEcho[] {
     const n = Math.min(max, this.writeSeq, CAP);
     const out: WorldEcho[] = [];
@@ -92,29 +187,42 @@ export class PortalWorldHistory {
     return out;
   }
 
-  /** Snapshot version for useSyncExternalStore (bump each push). */
   getVersion(): number {
     return this.writeSeq;
   }
 
-  /** Compact digest for mascot / stress HUD (bounded window). */
   getEchoDigestSummary(max = 10): {
     combat: number;
     trade: number;
+    loot: number;
+    refinement: number;
+    forge: number;
+    destiny: number;
     total: number;
     lines: string[];
   } {
     const slice = this.snapshotRecent(max);
     const combat = slice.filter((e) => e.kind === "combat").length;
     const trade = slice.filter((e) => e.kind === "trade").length;
+    const loot = slice.filter((e) => e.kind === "loot").length;
+    const refinement = slice.filter((e) => e.kind === "refinement").length;
+    const forge = slice.filter((e) => e.kind === "forge").length;
+    const destiny = slice.filter((e) => e.kind === "destiny").length;
     const lines = slice.slice(0, 5).map((e) => `[${e.kind}] ${e.summary.slice(0, 72)}`);
-    return { combat, trade, total: slice.length, lines };
+    return { combat, trade, loot, refinement, forge, destiny, total: slice.length, lines };
   }
 
-  /** Optional: ingest server-shaped world lines as echo metadata. */
   ingestWorldLine(ev: IWorldEvent): void {
     const t = (ev.title + " " + ev.description).toLowerCase();
-    if (t.includes("trade") || t.includes("handel") || t.includes("deal")) {
+    if (t.includes("destiny") || t.includes("schicksal")) {
+      this.pushEcho({ kind: "destiny", summary: ev.title, worldLine: { title: ev.title, description: ev.description } });
+    } else if (t.includes("forge") || t.includes("schmied")) {
+      this.pushEcho({ kind: "forge", summary: ev.title, worldLine: { title: ev.title, description: ev.description } });
+    } else if (t.includes("refinement") || t.includes("zerfall") || t.includes("essence")) {
+      this.pushEcho({ kind: "refinement", summary: ev.title, worldLine: { title: ev.title, description: ev.description } });
+    } else if (t.includes("loot") || t.includes("drop") || t.includes("legendary") || t.includes("epic")) {
+      this.pushEcho({ kind: "loot", summary: ev.title, worldLine: { title: ev.title, description: ev.description } });
+    } else if (t.includes("trade") || t.includes("handel") || t.includes("deal")) {
       this.recordNpcTradeComplete(ev.title, { title: ev.title, description: ev.description });
     } else if (t.includes("combat") || t.includes("kampf") || t.includes("kill")) {
       this.recordNpcCombatComplete(ev.title, { title: ev.title, description: ev.description });

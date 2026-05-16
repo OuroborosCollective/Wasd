@@ -1,20 +1,61 @@
 /**
  * Quest Echo Tracker — Screen 10 style feed.
  * - O(1) head reads via PortalWorldHistory ring buffer
- * - ThemeEngine colours: combat → fire-glitch pulse, trade → marina calm
+ * - ThemeEngine colours: combat → fire-glitch pulse, trade → marina calm, loot → golden glitch aura
+ * - refinement → molecular decay aura
+ * - forge → cyan/electro-blue sovereign technology pulse
  */
 
 import React, { useEffect, useMemo, useSyncExternalStore, useState } from "react";
 import {
+  getLootLegendaryVisualState,
   getVisualState,
   pushLiveTickerHazard,
+  pushLootAura,
   subscribeVisualTheme,
   visualStateToCssVars,
   type VisualThemeState,
 } from "@wasd/shared";
 import { PortalWorldHistory, type WorldEcho } from "../world/PortalWorldHistory";
 
+function refinementVisual(): VisualThemeState {
+  return {
+    auraHex: "#39FF14",
+    secondaryHex: "#3d0505",
+    mode: "balanced",
+    glitchIntensity: 0.64,
+    phaseShiftPulseHz: 1.35,
+    hazardIndex: 0.44,
+    aggressionTrend: 0,
+  };
+}
+
+function forgeVisual(): VisualThemeState {
+  return {
+    auraHex: "#00B7FF",
+    secondaryHex: "#003BFF",
+    mode: "balanced",
+    glitchIntensity: 0.52,
+    phaseShiftPulseHz: 1.72,
+    hazardIndex: 0.38,
+    aggressionTrend: 0.001,
+  };
+}
+
 function echoVisual(echo: WorldEcho, live: VisualThemeState): VisualThemeState {
+  if (echo.kind === "loot" && echo.loot) {
+    return getLootLegendaryVisualState({
+      quality: echo.loot.quality,
+      itemId: echo.loot.itemId,
+      itemName: echo.loot.itemName,
+      sector: echo.loot.sector,
+      probability: echo.loot.probability,
+      rollHash: echo.loot.rollHash,
+      sourceId: echo.loot.sourceId,
+    });
+  }
+  if (echo.kind === "forge") return forgeVisual();
+  if (echo.kind === "refinement") return refinementVisual();
   if (echo.kind === "combat") {
     return getVisualState(Math.max(0.78, live.hazardIndex), Math.max(0.0005, live.aggressionTrend));
   }
@@ -38,6 +79,8 @@ const EchoTracker: React.FC = () => {
       setLiveTheme(v);
       const prev = last;
       last = v;
+
+      if (v.mode === "loot_legendary") return;
 
       const enteredFire = v.mode === "fire_glitch" && prev?.mode !== "fire_glitch";
       const hazardSpike = prev != null && v.hazardIndex - prev.hazardIndex > 0.12;
@@ -87,6 +130,59 @@ const EchoTracker: React.FC = () => {
           </button>
           <button
             type="button"
+            className="rounded border border-amber-400/60 bg-amber-950/50 px-2 py-1 text-[11px] font-semibold text-amber-100 hover:bg-amber-900/60"
+            onClick={() => {
+              const meta = {
+                itemId: "ouroboros_core",
+                itemName: "Ouroboros Core",
+                quality: "legendary",
+                sector: "12:8",
+                probability: 0.000004,
+                rollHash: "demo-golden-roll-12-8",
+                sourceId: "tc_oracle_cache",
+              };
+              pushLootAura(meta);
+              hist.recordLootDrop(meta);
+            }}
+          >
+            + Legendary drop
+          </button>
+          <button
+            type="button"
+            className="rounded border border-lime-400/50 bg-lime-950/40 px-2 py-1 text-[11px] font-semibold text-lime-100 hover:bg-lime-900/50"
+            onClick={() => {
+              hist.recordRefinement({
+                itemId: "rusted_blade",
+                itemName: "Rusted Blade",
+                quality: "common",
+                sector: "12:8",
+                yields: "2 commonEssence",
+                residueHash: "demo-refine-rusted-blade",
+              });
+            }}
+          >
+            + Refine echo
+          </button>
+          <button
+            type="button"
+            className="rounded border border-blue-400/50 bg-blue-950/50 px-2 py-1 text-[11px] font-semibold text-blue-100 hover:bg-blue-900/60"
+            onClick={() => {
+              hist.recordForge({
+                blueprintId: "bp_echo_blade_t2",
+                blueprintName: "Blueprint: Echo Blade",
+                itemId: "echo_blade:demo",
+                itemName: "Echo Blade",
+                quality: "rare",
+                sector: "12:8",
+                stability: 1,
+                forgeHash: "demo-forge-echo-blade",
+              });
+            }}
+          >
+            + Forge echo
+          </button>
+          <button
+            type="button"
             className="rounded border border-amber-500/50 bg-amber-950/40 px-2 py-1 text-[11px] font-semibold text-amber-100 hover:bg-amber-900/50"
             onClick={() => {
               let i = 0;
@@ -118,30 +214,62 @@ const EchoTracker: React.FC = () => {
       <ul className="max-h-72 space-y-2 overflow-y-auto pr-1">
         {echoes.length === 0 ? (
           <li className="rounded-lg border border-dashed border-slate-700 p-4 text-center text-sm text-slate-500">
-            Waiting for NPC trade / combat echoes…
+            Waiting for NPC trade / combat / loot / refinement / forge echoes…
           </li>
         ) : (
           echoes.map((echo) => {
             const vis = echoVisual(echo, liveTheme);
             const vars = visualStateToCssVars(vis);
             const isCombat = echo.kind === "combat";
+            const isLoot = echo.kind === "loot";
+            const isRefinement = echo.kind === "refinement";
+            const isForge = echo.kind === "forge";
             const firePulse = isCombat && vis.mode === "fire_glitch";
+            const goldenPulse = isLoot && vis.mode === "loot_legendary";
+            const refinePulse = isRefinement;
+            const forgePulse = isForge;
 
             return (
               <li
                 key={echo.id}
                 className={`flex items-start gap-3 rounded-lg border px-3 py-2 text-sm ${
-                  firePulse ? "border-red-500/50" : "border-cyan-500/30"
+                  goldenPulse
+                    ? "border-amber-300/70"
+                    : forgePulse
+                      ? "border-blue-300/70"
+                      : refinePulse
+                        ? "border-lime-300/60"
+                        : firePulse
+                          ? "border-red-500/50"
+                          : "border-cyan-500/30"
                 }`}
                 style={{
                   ...vars,
-                  backgroundColor: "rgba(15,23,42,0.72)",
-                  boxShadow: firePulse
-                    ? `0 0 14px ${vis.auraHex}, inset 0 0 8px rgba(230,0,0,0.12)`
-                    : `0 0 10px ${vis.auraHex}33`,
-                  animation: firePulse
-                    ? `echoFirePulse var(--wasd-phase-period, 0.9s) ease-in-out infinite`
-                    : `echoMarinaPulse var(--wasd-phase-period, 1.4s) ease-in-out infinite`,
+                  backgroundColor: goldenPulse
+                    ? "rgba(44,32,4,0.74)"
+                    : forgePulse
+                      ? "rgba(2,18,44,0.74)"
+                      : refinePulse
+                        ? "rgba(4,32,14,0.68)"
+                        : "rgba(15,23,42,0.72)",
+                  boxShadow: goldenPulse
+                    ? `0 0 22px ${vis.auraHex}, inset 0 0 18px rgba(255,215,106,0.18)`
+                    : forgePulse
+                      ? `0 0 20px #00B7FF, inset 0 0 16px rgba(0,59,255,0.18)`
+                      : refinePulse
+                        ? `0 0 18px #39FF14, inset 0 0 12px rgba(230,0,0,0.14)`
+                        : firePulse
+                          ? `0 0 14px ${vis.auraHex}, inset 0 0 8px rgba(230,0,0,0.12)`
+                          : `0 0 10px ${vis.auraHex}33`,
+                  animation: goldenPulse
+                    ? `echoGoldPulse var(--wasd-phase-period, 0.65s) ease-in-out infinite`
+                    : forgePulse
+                      ? `echoForgePulse 0.72s ease-in-out infinite`
+                      : refinePulse
+                        ? `echoRefinePulse 0.88s ease-in-out infinite`
+                        : firePulse
+                          ? `echoFirePulse var(--wasd-phase-period, 0.9s) ease-in-out infinite`
+                          : `echoMarinaPulse var(--wasd-phase-period, 1.4s) ease-in-out infinite`,
                 }}
               >
                 <span
@@ -156,6 +284,21 @@ const EchoTracker: React.FC = () => {
                     {echo.kind} · {new Date(echo.ts).toLocaleTimeString()}
                   </div>
                   <div className="text-slate-100">{echo.summary}</div>
+                  {echo.loot ? (
+                    <div className="mt-1 rounded border border-amber-300/30 bg-black/30 px-2 py-1 font-mono text-[10px] text-amber-100">
+                      Emily: Architekt Thomas, die Kausalität hat ein Fragment der Stufe {echo.loot.quality} in Sektor {echo.loot.sector} manifestiert. Wahrscheinlichkeit: {(echo.loot.probability * 100).toFixed(4)}%.
+                    </div>
+                  ) : null}
+                  {echo.refinement ? (
+                    <div className="mt-1 rounded border border-lime-300/30 bg-black/30 px-2 py-1 font-mono text-[10px] text-lime-100">
+                      Emily: Architekt Thomas, {echo.refinement.itemName} wurde in Sektor {echo.refinement.sector} kontrolliert zerlegt. Molekularer Zerfall stabil. Gewonnen: {echo.refinement.yields}.
+                    </div>
+                  ) : null}
+                  {echo.forge ? (
+                    <div className="mt-1 rounded border border-blue-300/30 bg-black/30 px-2 py-1 font-mono text-[10px] text-blue-100">
+                      Emily: Schmiedevorgang stabil. Blueprint-Kausalität bei {(echo.forge.stability * 100).toFixed(2)}%. {echo.forge.itemName} wurde in Sektor {echo.forge.sector} manifestiert.
+                    </div>
+                  ) : null}
                 </div>
               </li>
             );
@@ -171,6 +314,18 @@ const EchoTracker: React.FC = () => {
         @keyframes echoMarinaPulse {
           0%, 100% { filter: brightness(1); }
           50% { filter: brightness(1.08); }
+        }
+        @keyframes echoGoldPulse {
+          0%, 100% { filter: brightness(1) saturate(1); transform: translateX(0) scale(1); }
+          50% { filter: brightness(1.34) saturate(1.35); transform: translateX(0.5px) scale(1.006); }
+        }
+        @keyframes echoRefinePulse {
+          0%, 100% { filter: brightness(1) saturate(1); transform: translateX(0); }
+          50% { filter: brightness(1.2) saturate(1.4); transform: translateX(-0.5px); }
+        }
+        @keyframes echoForgePulse {
+          0%, 100% { filter: brightness(1) saturate(1); transform: translateX(0) scale(1); }
+          50% { filter: brightness(1.26) saturate(1.45); transform: translateX(0.5px) scale(1.004); }
         }
       `}</style>
     </div>

@@ -5,7 +5,11 @@ import {
   visualStateToCssVars,
   type VisualThemeState,
 } from "@wasd/shared";
+import DestinyPathsPanel from "../community/DestinyPathsPanel";
 import EchoTracker from "../community/EchoTracker";
+import EpochChroniclePanel from "../community/EpochChroniclePanel";
+import ForgePanel from "../community/ForgePanel";
+import InventoryRefinementPanel from "../community/InventoryRefinementPanel";
 import ScienceMascotChat from "./ScienceMascotChat";
 import WarfrontCombatHud from "./WarfrontCombatHud";
 
@@ -25,11 +29,16 @@ export const SciencePortal: React.FC = () => {
   const cssVars = useMemo(() => visualStateToCssVars(visual), [visual]);
 
   const isFire = visual.mode === "fire_glitch";
+  const isLoot = visual.mode === "loot_legendary";
 
   return (
     <div
       className={`relative overflow-hidden rounded-xl border p-4 transition-colors duration-300 ${
-        isFire ? "border-red-500/60 shadow-[0_0_24px_rgba(230,0,0,0.35)]" : "border-cyan-500/40 shadow-[0_0_20px_rgba(0,229,255,0.2)]"
+        isLoot
+          ? "border-amber-300/70 shadow-[0_0_28px_rgba(255,215,106,0.32)]"
+          : isFire
+            ? "border-red-500/60 shadow-[0_0_24px_rgba(230,0,0,0.35)]"
+            : "border-cyan-500/40 shadow-[0_0_20px_rgba(0,229,255,0.2)]"
       }`}
       style={
         {
@@ -37,9 +46,11 @@ export const SciencePortal: React.FC = () => {
           background:
             visual.mode === "marina"
               ? "linear-gradient(145deg, #0f172a 0%, #0c4a6e 55%, #0f172a 100%)"
-              : visual.mode === "fire_glitch"
-                ? "linear-gradient(145deg, #1a0505 0%, #450a0a 50%, #0f172a 100%)"
-                : "linear-gradient(145deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)",
+              : visual.mode === "loot_legendary"
+                ? "linear-gradient(145deg, #140f02 0%, #3f2f05 48%, #0f172a 100%)"
+                : visual.mode === "fire_glitch"
+                  ? "linear-gradient(145deg, #1a0505 0%, #450a0a 50%, #0f172a 100%)"
+                  : "linear-gradient(145deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)",
         } as React.CSSProperties
       }
     >
@@ -82,7 +93,7 @@ export const SciencePortal: React.FC = () => {
           </div>
 
           <p className="text-sm text-slate-200">
-            Dashboard physisch gekoppelt an NPC-Aggression & Hazard-Index via{" "}
+            Dashboard physisch gekoppelt an NPC-Aggression, Hazard-Index, Loot-Aura und Alchemical Refinement via{" "}
             <code className="rounded bg-black/30 px-1">@wasd/shared</code> ThemeEngine.
           </p>
 
@@ -114,11 +125,20 @@ export const SciencePortal: React.FC = () => {
             />
             Aura <code>{visual.auraHex}</code>
             {isFire && <span className="text-red-400"> · glitch {visual.glitchIntensity.toFixed(2)}</span>}
+            {isLoot && <span className="text-amber-200"> · loot aura {visual.glitchIntensity.toFixed(2)}</span>}
           </div>
 
           <WarfrontCombatHud visual={visual} active={active} />
 
           <EchoTracker />
+
+          <InventoryRefinementPanel />
+
+          <ForgePanel />
+
+          <DestinyPathsPanel />
+
+          <EpochChroniclePanel />
         </div>
 
         <div className="lg:sticky lg:top-2">
