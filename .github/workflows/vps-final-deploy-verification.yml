@@ -150,14 +150,23 @@ jobs:
             echo "Git branch: $(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
 
             checkpoint "runtime env file"
-            if [ -f "$ARELORIAN_ENV_FILE" ]; then
-              echo "Runtime env file present: $ARELORIAN_ENV_FILE"
-              ls -l "$ARELORIAN_ENV_FILE" | sed 's/  */ /g' || true
-              echo "Runtime env keys present:"
-              sed -n 's/^\([A-Za-z0-9_]*\)=.*/\1=<redacted>/p' "$ARELORIAN_ENV_FILE" | sort | head -80 || true
+            set +e
+            if [ -e "$ARELORIAN_ENV_FILE" ]; then
+              echo "Runtime env path exists: $ARELORIAN_ENV_FILE"
+              ls -ld "$ARELORIAN_ENV_FILE" 2>/dev/null || true
+              stat -c 'Runtime env owner=%U group=%G mode=%a type=%F size=%s' "$ARELORIAN_ENV_FILE" 2>/dev/null || true
+              if [ -f "$ARELORIAN_ENV_FILE" ] && [ -r "$ARELORIAN_ENV_FILE" ]; then
+                echo "Runtime env file is readable by current SSH user. Keys present:"
+                awk -F= '/^[A-Za-z0-9_]+=/{print $1 "=<redacted>"}' "$ARELORIAN_ENV_FILE" 2>/dev/null | sort | head -80 || true
+              elif [ -f "$ARELORIAN_ENV_FILE" ]; then
+                echo "WARN: runtime env file exists but is not readable by current SSH user. Compose may still work only if Docker can read it from this user context."
+              else
+                echo "WARN: runtime env path exists but is not a regular file."
+              fi
             else
               echo "WARN: runtime env file missing: $ARELORIAN_ENV_FILE"
             fi
+            set -e
 
             checkpoint "docker compose availability"
             if docker compose version >/dev/null 2>&1; then
@@ -170,9 +179,10 @@ jobs:
             fi
 
             compose_cmd() {
-              if [ -f "$ARELORIAN_ENV_FILE" ]; then
+              if [ -f "$ARELORIAN_ENV_FILE" ] && [ -r "$ARELORIAN_ENV_FILE" ]; then
                 "${DC[@]}" --env-file "$ARELORIAN_ENV_FILE" "$@"
               else
+                echo "WARN: running compose without --env-file because $ARELORIAN_ENV_FILE is missing or unreadable."
                 "${DC[@]}" "$@"
               fi
             }
