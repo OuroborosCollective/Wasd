@@ -1,3 +1,4 @@
+# Operational marker: 2026-05-16
 name: VPS Docker Deploy on Merge
 
 on:
