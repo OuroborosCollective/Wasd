@@ -1,0 +1,173 @@
+name: VPS Final Deploy Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Why this verification is being run'
+        required: false
+        default: 'Manual final deploy verification'
+      arelorian_port:
+        description: 'Engine host port on VPS'
+        required: false
+        default: '3001'
+  workflow_run:
+    workflows:
+      - 'VPS Docker Deploy (monorepo)'
+    types:
+      - completed
+    branches:
+      - main
+
+concurrency:
+  group: vps-final-deploy-verification-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DEFAULT_ARELORIAN_PORT: '3001'
+
+jobs:
+  verify:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Verify VPS secrets are set
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          ok=true
+          HOST="${VPS_HOST:-${SSH_HOST:-}}"
+          USER="${VPS_USER:-${SSH_USER:-}}"
+          KEY="${VPS_SSH_KEY:-${SSH_PRIVATE_KEY:-}}"
+          if [ -z "${HOST:-}" ]; then echo "::error::Set VPS_HOST or SSH_HOST."; ok=false; fi
+          if [ -z "${USER:-}" ]; then echo "::error::Set VPS_USER or SSH_USER."; ok=false; fi
+          if [ -z "${KEY:-}" ] && [ -z "${SSH_PASSWORD:-}" ]; then
+            echo "::error::Set VPS_SSH_KEY / SSH_PRIVATE_KEY, or SSH_PASSWORD."
+            ok=false
+          fi
+          if [ "$ok" != true ]; then exit 1; fi
+
+      - name: Verify deployed VPS runtime
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST || secrets.SSH_HOST }}
+          username: ${{ secrets.VPS_USER || secrets.SSH_USER }}
+          key: ${{ secrets.VPS_SSH_KEY || secrets.SSH_PRIVATE_KEY }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          timeout: 2m
+          command_timeout: 12m
+          script_stop: true
+          script: |
+            set -euo pipefail
+
+            DEPLOY_PRIMARY='${{ secrets.VPS_DEPLOY_PATH }}'
+            DEPLOY_ALT='${{ secrets.DEPLOY_PATH }}'
+            DEPLOY_PATH="${DEPLOY_PRIMARY:-${DEPLOY_ALT:-/opt/areloria}}"
+            SECRET_PORT='${{ secrets.VPS_ARELORIAN_PORT }}'
+            INPUT_PORT='${{ github.event.inputs.arelorian_port }}'
+            ARELORIAN_PORT="${SECRET_PORT:-${INPUT_PORT:-3001}}"
+            ARELORIAN_ENV_FILE="${ARELORIAN_ENV_FILE:-.env.docker}"
+
+            echo "=== VPS Final Deploy Verification ==="
+            echo "Reason: ${{ github.event.inputs.reason || 'workflow_run after deploy' }}"
+            echo "DEPLOY_PATH=$DEPLOY_PATH"
+            echo "ARELORIAN_PORT=$ARELORIAN_PORT"
+
+            if [ ! -d "$DEPLOY_PATH" ]; then
+              echo "ERROR: deploy path missing: $DEPLOY_PATH"
+              exit 1
+            fi
+            cd "$DEPLOY_PATH"
+
+            if [ ! -d .git ]; then
+              echo "ERROR: deploy path is not a git repository: $DEPLOY_PATH"
+              exit 1
+            fi
+
+            echo "Git HEAD: $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+            echo "Git branch: $(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
+
+            if [ -f "$ARELORIAN_ENV_FILE" ]; then
+              echo "Runtime env file present: $ARELORIAN_ENV_FILE"
+              ls -l "$ARELORIAN_ENV_FILE" | sed 's/  */ /g'
+            else
+              echo "WARN: runtime env file missing: $ARELORIAN_ENV_FILE"
+            fi
+
+            if docker compose version >/dev/null 2>&1; then
+              DC=(docker compose)
+            elif command -v docker-compose >/dev/null 2>&1; then
+              DC=(docker-compose)
+            else
+              echo "ERROR: Docker Compose is not available."
+              exit 1
+            fi
+
+            compose_cmd() {
+              if [ -f "$ARELORIAN_ENV_FILE" ]; then
+                "${DC[@]}" --env-file "$ARELORIAN_ENV_FILE" "$@"
+              else
+                "${DC[@]}" "$@"
+              fi
+            }
+
+            docker info >/dev/null
+            compose_cmd -f docker-compose.yml config >/dev/null
+            echo "Docker compose config OK"
+
+            if ! docker ps --format '{{.Names}}' | grep -Fxq 'arelorian-engine'; then
+              echo "ERROR: arelorian-engine container is not running."
+              compose_cmd -f docker-compose.yml ps || true
+              compose_cmd -f docker-compose.yml logs --tail=120 arelorian-engine || true
+              exit 1
+            fi
+
+            echo "Container state:"
+            docker inspect arelorian-engine --format 'Status={{.State.Status}} Health={{if .State.Health}}{{.State.Health.Status}}{{else}}n/a{{end}} ExitCode={{.State.ExitCode}} Started={{.State.StartedAt}}'
+
+            echo "Container process snapshot:"
+            docker exec arelorian-engine sh -lc "ps aux | head -20" || true
+
+            container_probe() {
+              local path="$1"
+              docker exec arelorian-engine node -e "fetch('http://127.0.0.1:3001${path}').then(async r=>{const body=await r.text(); console.log('${path}', r.status, body.slice(0,120).replace(/\n/g,' ')); process.exit(r.status < 500 ? 0 : 1)}).catch(err=>{console.error(err.message);process.exit(1)})"
+            }
+
+            host_probe() {
+              local path="$1"
+              local code
+              code="$(curl -sS -m 6 -o /tmp/areloria-probe-body -w '%{http_code}' "http://127.0.0.1:${ARELORIAN_PORT}${path}" || true)"
+              echo "host ${path} -> ${code} $(head -c 120 /tmp/areloria-probe-body 2>/dev/null | tr '\n' ' ' || true)"
+              echo "$code" | grep -Eq '^(200|204|301|302|304|401|403|503)$'
+            }
+
+            container_probe /health
+            container_probe /client-config.json
+            container_probe /
+
+            host_probe /health || echo "WARN: host /health probe did not pass accepted codes"
+            host_probe /client-config.json || echo "WARN: host /client-config.json probe did not pass accepted codes"
+            host_probe / || echo "WARN: host / probe did not pass accepted codes"
+
+            if command -v nginx >/dev/null 2>&1; then
+              echo "Nginx installed; validating config"
+              sudo nginx -t || nginx -t || true
+            else
+              echo "Nginx not installed or not in PATH; skipping host edge config check"
+            fi
+
+            echo "Recent engine logs:"
+            compose_cmd -f docker-compose.yml logs --tail=80 arelorian-engine || true
+
+            echo "=== VPS Final Deploy Verification OK ==="
