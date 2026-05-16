@@ -30,6 +30,9 @@ import { URL } from "node:url";
 
 const currentDir = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
 
+type HealthContentSummary = { mode: "published" | "pack_dir" | "legacy" | "unknown"; root: string | null };
+type HealthSupabaseSummary = ReturnType<typeof getSupabaseSummary> | { status: "unknown" };
+
 function resolveClientRoot(): string {
   const fromEnv = process.env.CLIENT_ROOT_DIR?.trim();
   if (fromEnv) return path.isAbsolute(fromEnv) ? fromEnv : path.resolve(process.cwd(), fromEnv);
@@ -108,6 +111,12 @@ export class ServerBootstrap {
     const supabaseProxyBaseUrl = resolveSupabaseProxyBaseUrl();
     await initRedisClient();
     app.use("/api/mcp", mcpRoute());
+    app.use("/api/admin/content", adminContentRouter());
+    app.use("/api/vote", voteRouter());
+    app.use("/api/are/validate", areValidationRouter());
+    app.use("/api/are/replay", areReplayRouter());
+    app.use("/api/sovereign/deploy", sovereignDeployRouter());
+    app.use("/api/mcp", mcpRoute());
     app.use("/api/v1", scienceMascotRouter());
     app.use("/api/v1/warfront", warfrontRouter());
     app.use("/api/leaderboard", leaderboardRouter());
@@ -117,6 +126,8 @@ export class ServerBootstrap {
     app.get("/health", (_req, res) => {
       const tick = (this as any)._tick as WorldTick | undefined;
       const selfHealingStatus = safeHealthValue(() => selfHealingRuntime.getStatus(), { active: false, config: {}, totalErrors: 0, totalHealed: 0, healingRate: 0, featuresProtected: 0 } as any);
+      const contentFallback: HealthContentSummary = { mode: "unknown", root: null };
+      const supabaseFallback: HealthSupabaseSummary = { status: "unknown" };
       res.status(this.initializing ? 503 : 200).json({
         ok: !this.initializing,
         status: this.initializing ? "initializing" : "ok",
@@ -125,8 +136,8 @@ export class ServerBootstrap {
         uptimeSeconds: Math.round(process.uptime()),
         port: Number(process.env.PORT || 3000),
         persistence: safeHealthValue(() => tick?.getPersistenceStats?.() ?? { status: "unknown" }, { status: "unknown" }),
-        content: safeHealthValue(() => { const content = getContentDataSourceLabel(); return { mode: content.mode, root: content.root }; }, { mode: "unknown", root: null }),
-        supabase: safeHealthValue(() => getSupabaseSummary(), { status: "unknown" }),
+        content: safeHealthValue<HealthContentSummary>(() => { const content = getContentDataSourceLabel(); return { mode: content.mode, root: content.root }; }, contentFallback),
+        supabase: safeHealthValue<HealthSupabaseSummary>(() => getSupabaseSummary(), supabaseFallback),
         auth: { useSupabaseWsLogin: envTruthy("USE_SUPABASE_WS_LOGIN"), requireSupabaseAuth: envTruthy("REQUIRE_SUPABASE_AUTH"), allowGuestLogin: !["0", "false", "no"].includes(process.env.ALLOW_GUEST_LOGIN?.trim().toLowerCase() || ""), allowDevLogin: !["0", "false", "no"].includes(process.env.ALLOW_DEV_LOGIN?.trim().toLowerCase() || "") },
         selfHealing: { active: Boolean(selfHealingStatus.active), patchMode: selfHealingStatus.config?.patchMode ?? "disabled", totalErrors: selfHealingStatus.totalErrors ?? 0, totalHealed: selfHealingStatus.totalHealed ?? 0, healingRate: selfHealingStatus.healingRate ?? 0, featuresProtected: selfHealingStatus.featuresProtected ?? 0 },
         are: { guard: safeHealthValue(() => tick?.getAREGuardStatus?.() ?? null, null), worldHash: safeHealthValue(() => tick?.getWorldHashSnapshot?.()?.worldHash ?? null, null), replay: safeHealthValue(() => tick?.getReplayRecorderStats?.() ?? null, null) }
@@ -138,69 +149,50 @@ export class ServerBootstrap {
       if (!resolvedProxyBaseUrl) return res.status(502).json({ error: "supabase_auth_proxy_not_configured", message: "SUPABASE_URL/SUPABASE_PUBLIC_URL is missing and no valid Supabase apikey/ref was provided." });
       try {
         let bufferedBody: Buffer | undefined;
-        if (shouldProxyBody(req.method)) bufferedBody = await new Promise<Buffer>((resolve, reject) => { const chunks: Buffer[] = []; req.on("data", (c: Buffer) => chunks.push(c)); req.on("end", () => resolve(Buffer.concat(chunks))); req.on("error", (err) => reject(err)); });
-        let upstreamPath = req.originalUrl;
-        let transformedBody: string | undefined;
-        if (req.method === "POST" && req.originalUrl.includes("/token") && !req.originalUrl.includes("grant_type=") && bufferedBody) {
-          try { const parsed = JSON.parse(bufferedBody.toString()); if (parsed.grant_type) { upstreamPath = `${upstreamPath}${upstreamPath.includes("?") ? "&" : "?"}grant_type=${encodeURIComponent(parsed.grant_type)}`; delete parsed.grant_type; transformedBody = JSON.stringify(parsed); } } catch {}
+        if (shouldProxyBody(req.method)) {
+          bufferedBody = await new Promise<Buffer>((resolve, reject) => {
+            const chunks: Buffer[] = [];
+            req.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+            req.on("end", () => resolve(Buffer.concat(chunks)));
+            req.on("error", reject);
+          });
         }
-        const headers = { ...req.headers };
-        delete headers.host;
-        delete headers["content-length"];
-        const init: RequestInit = { method: req.method, headers: headers as any, redirect: "manual" };
-        if (shouldProxyBody(req.method)) { init.body = (transformedBody ?? bufferedBody) as any; (init as any).duplex = "half"; }
-        const response = await fetch(String(resolvedProxyBaseUrl + upstreamPath), init);
-        res.status(response.status);
-        response.headers.forEach((value, key) => { const lower = key.toLowerCase(); if (lower === "content-length" || lower === "content-encoding") return; res.setHeader(key, value); });
-        const respData = await response.arrayBuffer();
-        res.send(Buffer.from(respData));
-      } catch (err) { console.error("[AuthProxy] Failed to forward request to Supabase:", err); return res.status(502).json({ error: "supabase_auth_proxy_upstream_failed", message: "Network problem while contacting Supabase." }); }
+        const targetPath = req.originalUrl.replace(/^\/auth\/v1/, "/auth/v1");
+        const targetUrl = `${resolvedProxyBaseUrl}${targetPath}`;
+        const headers: Record<string, string> = {};
+        for (const [key, value] of Object.entries(req.headers)) { if (key.toLowerCase() === "host" || typeof value === "undefined") continue; headers[key] = Array.isArray(value) ? value.join(",") : String(value); }
+        if (!headers.apikey && process.env.SUPABASE_ANON_KEY) headers.apikey = process.env.SUPABASE_ANON_KEY;
+        if (!headers.authorization && process.env.SUPABASE_ANON_KEY) headers.authorization = `Bearer ${process.env.SUPABASE_ANON_KEY}`;
+        const upstream = await fetch(targetUrl, { method: req.method, headers, body: bufferedBody as any, redirect: "manual" });
+        res.status(upstream.status);
+        upstream.headers.forEach((value, key) => { if (!["content-encoding", "transfer-encoding", "connection"].includes(key.toLowerCase())) res.setHeader(key, value); });
+        const arrayBuffer = await upstream.arrayBuffer();
+        return res.send(Buffer.from(arrayBuffer));
+      } catch (err: any) {
+        return res.status(502).json({ error: "supabase_auth_proxy_failed", message: err?.message || "Proxy request failed" });
+      }
     });
-    const ws = new GameWebSocketServer(httpServer);
-    ws.start();
-    const tick = new WorldTick(ws);
-    (this as any)._tick = tick;
-    await tick.init();
-    this.initializing = false;
-    app.use("/api/are/validation", areValidationRouter(tick));
-    app.use("/api/are/replay", areReplayRouter(tick));
-    app.use("/api/sovereign/deploy", sovereignDeployRouter(tick));
-    const monitorStream = new PlaytesterMonitorStream(httpServer, (options) => tick.buildPlaytesterMonitorPayload(options));
-    monitorStream.start();
-    const playtesterSignaling = new PlaytesterWebRTCSignaling(httpServer);
-    playtesterSignaling.start();
-    const monitorClientRoot = resolveClientRoot();
-    const monitorHtmlPath = resolvePlaytesterMonitorHtmlPath(monitorClientRoot, path.join(monitorClientRoot, "dist"));
-    const publisherHtmlPath = resolvePlaytesterPublisherHtmlPath(monitorClientRoot, path.join(monitorClientRoot, "dist"));
-    if (monitorHtmlPath) app.get("/playtester-monitor.html", (req, res) => { if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: "forbidden" }); res.sendFile(monitorHtmlPath); });
-    if (publisherHtmlPath) app.get("/playtester-render-publisher.html", (req, res) => { if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: "forbidden" }); res.sendFile(publisherHtmlPath); });
-    app.get("/api/playtester/debug-log", (req, res) => { if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: "forbidden" }); res.json({ ok: Boolean(tick.getPlaytesterDebugLogPath()), enabled: PlaytesterConfig.enabled, streamEnabled: PlaytesterConfig.streamEnabled, monitorMode: PlaytesterConfig.monitorMode, monitorPath: PlaytesterConfig.monitorPath, monitorSignalPath: PlaytesterConfig.monitorSignalPath, monitorPublisherPath: PlaytesterConfig.monitorPublisherPath, monitorTokenRequired: PlaytesterConfig.monitorToken.length > 0, stream: { width: PlaytesterConfig.streamWidth, height: PlaytesterConfig.streamHeight, fps: PlaytesterConfig.streamFps, quality: PlaytesterConfig.streamQuality, shadows: PlaytesterConfig.streamShadows, particles: PlaytesterConfig.streamParticles, renderDistance: PlaytesterConfig.streamRenderDistance, iceServers: PlaytesterConfig.streamIceServers }, debugLogPath: tick.getPlaytesterDebugLogPath() }); });
-    app.use("/api/admin/content", adminContentRouter(tick));
-    app.use("/api/vote", voteRouter(tick));
-    const clientRoot = resolveClientRoot();
-    const clientPath = path.join(clientRoot, "dist");
-    const itchClientPath = path.join(clientRoot, "dist-itch");
-    const adminContentPath = resolveAdminContentHtmlPath(clientRoot, clientPath);
-    if (adminContentPath) app.get("/admin-content.html", (_req, res) => res.sendFile(adminContentPath));
-    if (existsSync(path.join(itchClientPath, "index.html"))) { app.use("/itch", express.static(itchClientPath, { index: "index.html" })); app.get("/itch/*", (_req, res) => res.sendFile(path.join(itchClientPath, "index.html"))); }
-    if (process.env.NODE_ENV !== "production") {
-      try { const vite = await import("vite"); const viteServer = await vite.createServer({ server: { middlewareMode: true }, appType: "spa", root: clientRoot }); app.use(viteServer.middlewares); }
-      catch (e) { console.error("Failed to start Vite middleware", e); app.use(express.static(clientPath)); }
-    } else {
-      app.use((req, res, next) => { if (req.url?.endsWith(".wasm")) { res.setHeader("Content-Type", "application/wasm"); res.setHeader("Cross-Origin-Opener-Policy", "same-origin"); res.setHeader("Cross-Origin-Embedder-Policy", "require-corp"); } next(); });
-      app.use(express.static(clientPath));
-    }
-    const mirroredWorld = resolveMirroredWorldAssetsDir();
-    const worldAssetsDir = mirroredWorld ?? resolveWorldAssetsDir();
-    if (worldAssetsDir) app.use("/world-assets", express.static(worldAssetsDir, { maxAge: process.env.NODE_ENV === "production" ? "7d" : 0, fallthrough: false }));
-    try { const worldDir = resolveContentDir("world"); if (existsSync(worldDir)) app.use("/world", express.static(worldDir, { maxAge: process.env.NODE_ENV === "production" ? "1h" : 0, fallthrough: true })); } catch {}
-    const port = Number(process.env.PORT || 3000);
-    httpServer.listen(port, () => {
-      console.log(`Arelorian server listening on ${port}`);
-      tick.start();
-      const shutdownHandler = async () => { console.log("[Shutdown] Flushing data..."); playtesterSignaling.stop(); monitorStream.stop(); tick.liveHeal.flush(); tick.assetHealthService.flush(); try { await shutdownPostHog(); } catch (e) { console.warn("[Shutdown] PostHog shutdown failed", e); } process.exit(0); };
-      process.on("SIGTERM", shutdownHandler);
-      process.on("SIGINT", shutdownHandler);
+    app.get("/admin/content", (_req, res, next) => {
+      const clientRoot = resolveClientRoot();
+      const distPath = path.join(clientRoot, "dist");
+      const p = resolveAdminContentHtmlPath(clientRoot, distPath);
+      if (p) return res.sendFile(p);
+      return next();
     });
+    app.get("/playtester-monitor", (req, res, next) => { if (!canAccessPlaytesterMonitor(req)) return res.status(403).send("Forbidden"); const clientRoot = resolveClientRoot(); const distPath = path.join(clientRoot, "dist"); const p = resolvePlaytesterMonitorHtmlPath(clientRoot, distPath); if (p) return res.sendFile(p); return next(); });
+    app.get("/playtester-render-publisher", (req, res, next) => { if (!canAccessPlaytesterMonitor(req)) return res.status(403).send("Forbidden"); const clientRoot = resolveClientRoot(); const distPath = path.join(clientRoot, "dist"); const p = resolvePlaytesterPublisherHtmlPath(clientRoot, distPath); if (p) return res.sendFile(p); return next(); });
+    const clientRoot = resolveClientRoot(); const distPath = path.join(clientRoot, "dist"); if (existsSync(distPath)) app.use(express.static(distPath)); else app.use(express.static(clientRoot));
+    app.use("/world-assets", express.static(resolveWorldAssetsDir()));
+    const mirroredWorldAssetsDir = resolveMirroredWorldAssetsDir(); if (mirroredWorldAssetsDir) app.use("/world-assets-mirror", express.static(mirroredWorldAssetsDir));
+    const contentDir = resolveContentDir(""); if (existsSync(contentDir)) app.use("/game-data", express.static(contentDir));
+    registerSelfHealingDashboard(app);
+    const tick = new WorldTick(); (this as any)._tick = tick; tick.start();
+    const ws = new GameWebSocketServer(httpServer, tick); void ws;
+    const monitorStream = new PlaytesterMonitorStream(httpServer); void monitorStream;
+    const webrtcSignaling = new PlaytesterWebRTCSignaling(httpServer); void webrtcSignaling;
+    const port = Number(process.env.PORT || process.env.GAME_PORT || 3000);
+    httpServer.listen(port, "0.0.0.0", () => { this.initializing = false; console.log(`[Server] Arelorian server listening on 0.0.0.0:${port}`); });
+    process.once("SIGTERM", () => { void shutdownPostHog().finally(() => process.exit(0)); });
+    process.once("SIGINT", () => { void shutdownPostHog().finally(() => process.exit(0)); });
   }
 }
