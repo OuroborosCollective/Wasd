@@ -25,6 +25,8 @@ export function resolveMonorepoRootEnvPath(): string {
 }
 
 export function loadRootEnvFiles(): void {
+  /** Playwright / CI webServer sets a hermetic env; skip repo `.env` so DATABASE_URL cannot override `PERSISTENCE_DRIVER=file`. */
+  if (process.env.E2E_SKIP_ROOT_ENV === "1") return;
   const fromMonorepoRoot = resolveMonorepoRootEnvPath();
   const fromCwd = path.resolve(process.cwd(), ".env");
   const opt = "/opt/areloria/.env";

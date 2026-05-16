@@ -29,6 +29,9 @@ export default defineConfig({
           PORT: String(port),
           NODE_ENV: "production",
           ALLOW_GUEST_LOGIN: "1",
+          /** Hermetic persistence for Playwright (see E2E_SKIP_ROOT_ENV in loadRootEnv). */
+          PERSISTENCE_DRIVER: "file",
+          E2E_SKIP_ROOT_ENV: "1",
           PLAYER_SAVE_FILE: process.env.PLAYER_SAVE_FILE || "/tmp/areloria-e2e-players.json",
         },
       },
