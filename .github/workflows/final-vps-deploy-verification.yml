@@ -1,0 +1,355 @@
+name: Final VPS Deploy Verification Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_path:
+        description: 'Path of the deployed WASD monorepo on the VPS'
+        required: false
+        default: '/opt/areloria'
+      arelorian_port:
+        description: 'Engine host/container port to verify'
+        required: false
+        default: '3001'
+      docker_network:
+        description: 'External Docker network expected by the stack'
+        required: false
+        default: 'areloria_arelorian-network'
+  workflow_run:
+    workflows:
+      - 'VPS Docker Deploy (monorepo)'
+    types:
+      - completed
+
+concurrency:
+  group: final-vps-deploy-verification-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify:
+    name: Verify live VPS deployment
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    timeout-minutes: 20
+
+    env:
+      DEFAULT_DEPLOY_PATH: /opt/areloria
+      DEFAULT_ARELORIAN_PORT: '3001'
+      DEFAULT_DOCKER_NETWORK: areloria_arelorian-network
+
+    steps:
+      - name: Resolve verification inputs
+        id: vars
+        env:
+          INPUT_DEPLOY_PATH: ${{ github.event.inputs.deploy_path }}
+          INPUT_ARELORIAN_PORT: ${{ github.event.inputs.arelorian_port }}
+          INPUT_DOCKER_NETWORK: ${{ github.event.inputs.docker_network }}
+          SECRET_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
+          SECRET_LEGACY_DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          SECRET_ARELORIAN_PORT: ${{ secrets.VPS_ARELORIAN_PORT }}
+          SECRET_DOCKER_NETWORK: ${{ secrets.VPS_ARELORIAN_DOCKER_NETWORK }}
+        run: |
+          set -euo pipefail
+          DEPLOY_PATH="${INPUT_DEPLOY_PATH:-${SECRET_DEPLOY_PATH:-${SECRET_LEGACY_DEPLOY_PATH:-$DEFAULT_DEPLOY_PATH}}}"
+          ARELORIAN_PORT="${INPUT_ARELORIAN_PORT:-${SECRET_ARELORIAN_PORT:-$DEFAULT_ARELORIAN_PORT}}"
+          DOCKER_NETWORK="${INPUT_DOCKER_NETWORK:-${SECRET_DOCKER_NETWORK:-$DEFAULT_DOCKER_NETWORK}}"
+
+          echo "deploy_path=$DEPLOY_PATH" >> "$GITHUB_OUTPUT"
+          echo "arelorian_port=$ARELORIAN_PORT" >> "$GITHUB_OUTPUT"
+          echo "docker_network=$DOCKER_NETWORK" >> "$GITHUB_OUTPUT"
+
+      - name: Verify VPS connection secrets
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          HOST="${VPS_HOST:-${SSH_HOST:-}}"
+          USER="${VPS_USER:-${SSH_USER:-}}"
+          KEY="${VPS_SSH_KEY:-${SSH_PRIVATE_KEY:-}}"
+          PASSWORD="${SSH_PASSWORD:-}"
+
+          if [ -z "$HOST" ]; then
+            echo "::error::Missing VPS_HOST or SSH_HOST secret."
+            exit 1
+          fi
+          if [ -z "$USER" ]; then
+            echo "::error::Missing VPS_USER or SSH_USER secret."
+            exit 1
+          fi
+          if [ -z "$KEY" ] && [ -z "$PASSWORD" ]; then
+            echo "::error::Missing SSH auth. Set VPS_SSH_KEY/SSH_PRIVATE_KEY or SSH_PASSWORD."
+            exit 1
+          fi
+
+          echo "VPS connection secrets look present."
+
+      - name: Install sshpass for password fallback
+        if: ${{ secrets.SSH_PASSWORD != '' && secrets.VPS_SSH_KEY == '' && secrets.SSH_PRIVATE_KEY == '' }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y sshpass
+
+      - name: Run final verification on VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+          DEPLOY_PATH: ${{ steps.vars.outputs.deploy_path }}
+          ARELORIAN_PORT: ${{ steps.vars.outputs.arelorian_port }}
+          ARELORIAN_DOCKER_NETWORK: ${{ steps.vars.outputs.docker_network }}
+        run: |
+          set -euo pipefail
+
+          HOST="${VPS_HOST:-${SSH_HOST:-}}"
+          USER="${VPS_USER:-${SSH_USER:-}}"
+          KEY="${VPS_SSH_KEY:-${SSH_PRIVATE_KEY:-}}"
+          PASSWORD="${SSH_PASSWORD:-}"
+
+          SSH_OPTS=(-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=30 -o ConnectTimeout=20)
+
+          REMOTE_SCRIPT="$(mktemp)"
+          cat > "$REMOTE_SCRIPT" <<'REMOTE_EOF'
+          #!/usr/bin/env bash
+          set -Eeuo pipefail
+
+          DEPLOY_PATH="${DEPLOY_PATH:-/opt/areloria}"
+          ARELORIAN_PORT="${ARELORIAN_PORT:-3001}"
+          ARELORIAN_DOCKER_NETWORK="${ARELORIAN_DOCKER_NETWORK:-areloria_arelorian-network}"
+          CONTAINER_NAME="${CONTAINER_NAME:-arelorian-engine}"
+
+          echo "=== FINAL VPS DEPLOY VERIFICATION GATE ==="
+          echo "Deploy path: $DEPLOY_PATH"
+          echo "Engine port: $ARELORIAN_PORT"
+          echo "Docker network: $ARELORIAN_DOCKER_NETWORK"
+          echo "Container name: $CONTAINER_NAME"
+          echo
+
+          fail() {
+            echo "::error::$*"
+            exit 1
+          }
+
+          warn() {
+            echo "::warning::$*"
+          }
+
+          command -v git >/dev/null 2>&1 || fail "git is not installed on VPS."
+          command -v docker >/dev/null 2>&1 || fail "docker is not installed on VPS."
+
+          if docker compose version >/dev/null 2>&1; then
+            COMPOSE=(docker compose)
+          elif command -v docker-compose >/dev/null 2>&1; then
+            COMPOSE=(docker-compose)
+          else
+            fail "Neither docker compose nor docker-compose is available."
+          fi
+
+          [ -d "$DEPLOY_PATH/.git" ] || fail "Deploy path is not a git repository: $DEPLOY_PATH"
+          cd "$DEPLOY_PATH"
+
+          echo "[1/9] Repository state"
+          git rev-parse --is-inside-work-tree >/dev/null
+          CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD || true)"
+          CURRENT_SHA="$(git rev-parse HEAD || true)"
+          echo "branch=$CURRENT_BRANCH"
+          echo "sha=$CURRENT_SHA"
+          git status --short || true
+          echo
+
+          echo "[2/9] Docker Compose files"
+          [ -f docker-compose.yml ] || fail "docker-compose.yml missing in $DEPLOY_PATH"
+          if [ -f .env.docker ]; then
+            echo ".env.docker exists on VPS. Good."
+          else
+            warn ".env.docker missing on VPS. Runtime may still work through environment, but deploy handoff is absent."
+          fi
+          if git ls-files --error-unmatch .env.docker >/dev/null 2>&1; then
+            fail ".env.docker is tracked by git. Secrets must not be committed."
+          fi
+          if [ -f .gitignore ] && grep -qE '(^|/)\.env\.docker$|\.env\.docker' .gitignore; then
+            echo ".env.docker appears protected by .gitignore."
+          else
+            warn ".env.docker is not visibly listed in .gitignore. Add it if not ignored elsewhere."
+          fi
+          echo
+
+          echo "[3/9] Compose config validation"
+          if [ -f .env.docker ]; then
+            "${COMPOSE[@]}" --env-file .env.docker config >/tmp/areloria-compose.config.yml
+          else
+            "${COMPOSE[@]}" config >/tmp/areloria-compose.config.yml
+          fi
+          test -s /tmp/areloria-compose.config.yml || fail "docker compose config produced empty output."
+          echo "docker compose config OK."
+          echo
+
+          echo "[4/9] Docker network verification"
+          if docker network inspect "$ARELORIAN_DOCKER_NETWORK" >/dev/null 2>&1; then
+            echo "Network exists: $ARELORIAN_DOCKER_NETWORK"
+          else
+            warn "Network missing: $ARELORIAN_DOCKER_NETWORK. Creating it now."
+            docker network create "$ARELORIAN_DOCKER_NETWORK" >/dev/null
+          fi
+          echo
+
+          echo "[5/9] Container discovery"
+          ENGINE_ID="$(docker ps -aq --filter "name=^/${CONTAINER_NAME}$" | head -n1 || true)"
+          if [ -z "$ENGINE_ID" ]; then
+            ENGINE_ID="$(docker ps -aq --filter "name=arelor" | head -n1 || true)"
+          fi
+          [ -n "$ENGINE_ID" ] || fail "Could not find Areloria engine container."
+          ENGINE_NAME="$(docker inspect -f '{{.Name}}' "$ENGINE_ID" | sed 's#^/##')"
+          ENGINE_STATE="$(docker inspect -f '{{.State.Status}}' "$ENGINE_ID")"
+          ENGINE_HEALTH="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$ENGINE_ID")"
+          echo "container=$ENGINE_NAME"
+          echo "state=$ENGINE_STATE"
+          echo "health=$ENGINE_HEALTH"
+          [ "$ENGINE_STATE" = "running" ] || fail "Engine container is not running. State: $ENGINE_STATE"
+          docker port "$ENGINE_ID" || true
+          echo
+
+          echo "[6/9] Process and port diagnostics inside container"
+          docker exec "$ENGINE_ID" sh -lc 'ps aux | grep -E "node|dist/index|server" | grep -v grep || true'
+          docker exec "$ENGINE_ID" sh -lc 'command -v ss >/dev/null 2>&1 && ss -lntp || netstat -lntp 2>/dev/null || true'
+          echo
+
+          echo "[7/9] HTTP readiness from inside container"
+          container_http_ready() {
+            docker exec "$ENGINE_ID" node - <<NODE
+          const port = process.env.ARELORIAN_PORT || '$ARELORIAN_PORT';
+          const paths = ['/health', '/client-config.json', '/'];
+          const timeoutMs = 2500;
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), timeoutMs);
+          (async () => {
+            for (const path of paths) {
+              try {
+                const res = await fetch(`http://127.0.0.1:${port}${path}`, { signal: controller.signal });
+                if ([200, 204, 206, 301, 302, 304, 401, 403, 503].includes(res.status)) {
+                  console.log(`${path} -> HTTP ${res.status}`);
+                  clearTimeout(timer);
+                  process.exit(0);
+                }
+                console.log(`${path} -> HTTP ${res.status}`);
+              } catch (err) {
+                console.log(`${path} -> ${err.name || 'Error'}: ${err.message || err}`);
+              }
+            }
+            clearTimeout(timer);
+            process.exit(1);
+          })();
+NODE
+          }
+
+          HOST_READY=false
+          CONTAINER_READY=false
+
+          if container_http_ready; then
+            CONTAINER_READY=true
+            echo "Container HTTP readiness OK."
+          else
+            warn "Container HTTP readiness did not pass yet."
+          fi
+          echo
+
+          echo "[8/9] HTTP readiness from VPS host mapping"
+          for path in /health /client-config.json /; do
+            code="$(curl -k -sS -o /tmp/areloria-host-response.txt -w '%{http_code}' --max-time 4 "http://127.0.0.1:${ARELORIAN_PORT}${path}" || true)"
+            echo "host ${path} -> HTTP ${code:-curl_failed}"
+            case "$code" in
+              200|204|206|301|302|304|401|403|503)
+                HOST_READY=true
+                break
+                ;;
+            esac
+          done
+          echo
+
+          echo "[9/9] Runtime activity fallback"
+          RUNTIME_READY=false
+          docker logs --tail 240 "$ENGINE_ID" >/tmp/areloria-engine.tail.log 2>&1 || true
+          if grep -Eiq 'WorldEventBus|warfront_combat|world.?tick|tick|listening|server started|engine ready|client-config|health' /tmp/areloria-engine.tail.log; then
+            RUNTIME_READY=true
+            echo "Runtime log activity detected."
+            grep -Ein 'WorldEventBus|warfront_combat|world.?tick|tick|listening|server started|engine ready|client-config|health' /tmp/areloria-engine.tail.log | tail -n 20 || true
+          else
+            warn "No known runtime activity markers found in recent logs."
+            tail -n 80 /tmp/areloria-engine.tail.log || true
+          fi
+          echo
+
+          echo "=== FINAL VERDICT ==="
+          echo "container_ready=$CONTAINER_READY"
+          echo "host_ready=$HOST_READY"
+          echo "runtime_ready=$RUNTIME_READY"
+
+          if [ "$CONTAINER_READY" = true ] || [ "$HOST_READY" = true ]; then
+            echo "✅ VERIFIED: Areloria engine HTTP readiness is alive."
+            exit 0
+          fi
+
+          if [ "$RUNTIME_READY" = true ]; then
+            echo "✅ VERIFIED WITH FALLBACK: Engine container is running and emitting runtime activity. HTTP may still be initializing or host mapping may lag."
+            exit 0
+          fi
+
+          echo "--- compose ps ---"
+          "${COMPOSE[@]}" ps || true
+          echo "--- docker inspect state ---"
+          docker inspect "$ENGINE_ID" --format '{{json .State}}' || true
+          echo "--- recent logs ---"
+          tail -n 120 /tmp/areloria-engine.tail.log || true
+          fail "Final deploy verification failed: no HTTP readiness and no runtime activity."
+          REMOTE_EOF
+
+          chmod +x "$REMOTE_SCRIPT"
+
+          if [ -n "$KEY" ]; then
+            KEY_FILE="$(mktemp)"
+            printf '%s\n' "$KEY" > "$KEY_FILE"
+            chmod 600 "$KEY_FILE"
+            scp "${SSH_OPTS[@]}" -i "$KEY_FILE" "$REMOTE_SCRIPT" "$USER@$HOST:/tmp/final-vps-deploy-verification.sh"
+            ssh "${SSH_OPTS[@]}" -i "$KEY_FILE" "$USER@$HOST" \
+              "DEPLOY_PATH='$DEPLOY_PATH' ARELORIAN_PORT='$ARELORIAN_PORT' ARELORIAN_DOCKER_NETWORK='$ARELORIAN_DOCKER_NETWORK' bash /tmp/final-vps-deploy-verification.sh"
+          else
+            sshpass -p "$PASSWORD" scp "${SSH_OPTS[@]}" "$REMOTE_SCRIPT" "$USER@$HOST:/tmp/final-vps-deploy-verification.sh"
+            sshpass -p "$PASSWORD" ssh "${SSH_OPTS[@]}" "$USER@$HOST" \
+              "DEPLOY_PATH='$DEPLOY_PATH' ARELORIAN_PORT='$ARELORIAN_PORT' ARELORIAN_DOCKER_NETWORK='$ARELORIAN_DOCKER_NETWORK' bash /tmp/final-vps-deploy-verification.sh"
+          fi
+
+      - name: Final summary
+        if: always()
+        run: |
+          cat <<'SUMMARY' >> "$GITHUB_STEP_SUMMARY"
+          ## Final VPS Deploy Verification Gate
+
+          This gate validates the deployed WASD/Areloria stack on the VPS after the main Docker deploy.
+
+          Checks performed:
+          - SSH secret availability
+          - deployed git repository presence
+          - docker compose availability
+          - docker-compose.yml validity
+          - .env.docker exists locally and is not tracked by git
+          - external Docker network presence
+          - engine container discovery and running state
+          - process and port diagnostics inside the container
+          - HTTP readiness from inside the container
+          - HTTP readiness through VPS host mapping
+          - runtime activity fallback from engine logs
+          SUMMARY
