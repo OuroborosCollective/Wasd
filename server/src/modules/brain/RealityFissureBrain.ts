@@ -12,16 +12,16 @@ export class RealityFissureBrain {
   /**
    * Records a logic paradox (impossible state) reported by the server engine.
    */
-  public reportParadox(chunkId: string, paradoxType: string) {
+  public reportParadox(chunkId: string, paradoxType: string, now = 0) {
       const fissure = this.activeFissures.get(chunkId) || {
           chunkId,
           paradoxCount: 0,
           fissureSeverity: 0,
-          lastAnalyzed: Date.now()
+          lastAnalyzed: now
       };
 
       fissure.paradoxCount += 1;
-      fissure.lastAnalyzed = Date.now();
+      fissure.lastAnalyzed = now;
 
       // Calculate severity: exponential growth based on rapid paradoxes
       fissure.fissureSeverity = Math.min(1.0, fissure.paradoxCount / this.PARADOX_THRESHOLD);
@@ -29,8 +29,7 @@ export class RealityFissureBrain {
       this.activeFissures.set(chunkId, fissure);
   }
 
-  public getCriticalFissures(): FissureData[] {
-      const now = Date.now();
+  public getCriticalFissures(now = 0): FissureData[] {
       const critical: FissureData[] = [];
 
       for (const [chunkId, fissure] of this.activeFissures.entries()) {
