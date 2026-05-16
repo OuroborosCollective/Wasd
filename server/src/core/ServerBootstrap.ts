@@ -190,6 +190,15 @@ export class ServerBootstrap {
       app.use((req, res, next) => { if (req.url?.endsWith(".wasm")) { res.setHeader("Content-Type", "application/wasm"); res.setHeader("Cross-Origin-Opener-Policy", "same-origin"); res.setHeader("Cross-Origin-Embedder-Policy", "require-corp"); } next(); });
       app.use(express.static(clientPath));
     }
+    const clientPublicPath = path.join(clientRoot, "public");
+    if (existsSync(clientPublicPath)) {
+      app.use(
+        express.static(clientPublicPath, {
+          maxAge: process.env.NODE_ENV === "production" ? "1h" : 0,
+          fallthrough: true,
+        })
+      );
+    }
     const mirroredWorld = resolveMirroredWorldAssetsDir();
     const worldAssetsDir = mirroredWorld ?? resolveWorldAssetsDir();
     if (worldAssetsDir) app.use("/world-assets", express.static(worldAssetsDir, { maxAge: process.env.NODE_ENV === "production" ? "7d" : 0, fallthrough: false }));

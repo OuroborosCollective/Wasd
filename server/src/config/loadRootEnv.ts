@@ -28,8 +28,11 @@ export function loadRootEnvFiles(): void {
   const fromMonorepoRoot = resolveMonorepoRootEnvPath();
   const fromCwd = path.resolve(process.cwd(), ".env");
   const opt = "/opt/areloria/.env";
+  const e2eServer = process.env.OURO_E2E_SERVER === "1";
 
   tryLoad(fromMonorepoRoot, false);
-  tryLoad(fromCwd, true);
+  // When Playwright (or scripts) starts the server with a curated env, do not let cwd `.env`
+  // override it — repo `.env` often points DATABASE_URL at a Docker hostname (`db`).
+  tryLoad(fromCwd, !e2eServer);
   tryLoad(opt, true);
 }
