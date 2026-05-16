@@ -16,6 +16,8 @@ pnpm-debug.log*
 # Build artifacts
 *.tsbuildinfo
 
-# Python (deploy helpers)
-__pycache__/
+# Playwright output (local)
+test-results/
+
+
 *.py[cod]
