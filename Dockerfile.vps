@@ -49,7 +49,7 @@ RUN node scripts/sync-world-assets.mjs || true
 
 # The VPS runtime must remain deployable even when the browser client build is temporarily broken.
 # The server image still needs /app/client/dist because the runner stage copies that path.
-# When the Vite client build fails, create a tiny fallback page and keep the backend alive.
+# The fallback includes application-canvas because scripts/deploy-vps-docker.sh uses that marker.
 RUN pnpm --filter @wasd/client --if-present build || \
     (echo "WARN: @wasd/client build failed during VPS image build; creating fallback client/dist so backend can start." && \
      mkdir -p client/dist && \
@@ -58,8 +58,10 @@ RUN pnpm --filter @wasd/client --if-present build || \
        '<html lang="en">' \
        '<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Areloria</title></head>' \
        '<body style="font-family:system-ui;background:#080b12;color:#e8ecff;padding:2rem">' \
+       '<main id="application-canvas">' \
        '<h1>Areloria backend is online</h1>' \
        '<p>The browser client build failed during Docker image creation. The backend image was kept deployable so health checks and APIs can start.</p>' \
+       '</main>' \
        '</body></html>' \
        > client/dist/index.html)
 
