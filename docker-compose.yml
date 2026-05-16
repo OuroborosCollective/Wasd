@@ -35,12 +35,16 @@ services:
       PUSHER_SCHEME: "${PUSHER_SCHEME:-http}"
       NEXT_PUBLIC_WEBSOCKET_URL: "${NEXT_PUBLIC_WEBSOCKET_URL:-wss://arelorian.de/ws}"
 
-      # Supabase: prefer an internal Docker URL when Supabase is containerized.
-      SUPABASE_URL: "${SUPABASE_URL:-}"
-      SUPABASE_PUBLIC_URL: "${SUPABASE_PUBLIC_URL:-}"
-      SUPABASE_PROXY_URL: "${SUPABASE_PROXY_URL:-}"
+      # Supabase: internal Docker DNS defaults for the VPS Supabase stack.
+      SUPABASE_HOST: "${SUPABASE_HOST:-supabase-kong}"
+      SUPABASE_PORT: "${SUPABASE_PORT:-8000}"
+      SUPABASE_URL: "${SUPABASE_URL:-http://supabase-kong:8000}"
+      SUPABASE_PROXY_URL: "${SUPABASE_PROXY_URL:-http://supabase-kong:8000}"
+      SUPABASE_PUBLIC_URL: "${SUPABASE_PUBLIC_URL:-https://arelorian.de}"
       SUPABASE_ANON_KEY: "${SUPABASE_ANON_KEY:-}"
       ANON_KEY: "${ANON_KEY:-}"
+      POSTGRES_HOST: "${POSTGRES_HOST:-supabase-db}"
+      POSTGRES_PORT: "${POSTGRES_PORT:-5432}"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
       interval: 30s
