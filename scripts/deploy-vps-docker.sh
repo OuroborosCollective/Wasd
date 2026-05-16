@@ -7,7 +7,8 @@ set -euo pipefail
 DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
 REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 ARELORIAN_PORT="${ARELORIAN_PORT:-3001}"
-export ARELORIAN_PORT
+ARELORIAN_DOCKER_NETWORK="${ARELORIAN_DOCKER_NETWORK:-areloria_arelorian-network}"
+export ARELORIAN_PORT ARELORIAN_DOCKER_NETWORK
 cd "$REPO_ROOT"
 
 LOCK_PATH="${DEPLOY_LOCK_PATH:-/tmp/wasd-vps-docker-deploy.lock}"
@@ -44,6 +45,15 @@ else
   echo "ERROR: Install Docker Compose v2 (docker compose) or docker-compose v1."
   exit 1
 fi
+
+ensure_external_network() {
+  if docker network inspect "$ARELORIAN_DOCKER_NETWORK" >/dev/null 2>&1; then
+    echo "Docker network OK: $ARELORIAN_DOCKER_NETWORK"
+    return 0
+  fi
+  echo "Creating Docker network: $ARELORIAN_DOCKER_NETWORK"
+  docker network create "$ARELORIAN_DOCKER_NETWORK" >/dev/null
+}
 
 free_engine_port() {
   local ids pids port
@@ -141,6 +151,7 @@ echo "=== WASD monorepo deploy (Docker) ==="
 echo "Repo: $REPO_ROOT"
 echo "Branch: $DEPLOY_BRANCH"
 echo "Engine port: $ARELORIAN_PORT"
+echo "Docker network: $ARELORIAN_DOCKER_NETWORK"
 
 fetch_and_reset
 
@@ -151,6 +162,7 @@ export BUILDKIT_STEP_LOG_MAX_SIZE="${BUILDKIT_STEP_LOG_MAX_SIZE:-10485760}"
 export BUILDKIT_STEP_LOG_MAX_SPEED="${BUILDKIT_STEP_LOG_MAX_SPEED:-1048576}"
 export COMPOSE_PARALLEL_LIMIT="${COMPOSE_PARALLEL_LIMIT:-1}"
 
+ensure_external_network
 ensure_swap_headroom
 prune_docker_build_pressure
 
