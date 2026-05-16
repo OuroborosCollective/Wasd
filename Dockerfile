@@ -122,7 +122,9 @@ RUN apk add --no-cache \
 
 # Environment
 ENV NODE_ENV=production
-ENV PORT=3000
+ENV PORT=3001
+ENV GAME_PORT=3001
+ENV HOST=0.0.0.0
 
 # Runtime Node memory options. Do not include --optimize-for-size; Node 22
 # rejects it inside NODE_OPTIONS.
@@ -143,7 +145,7 @@ RUN chown -R nodeuser:nodejs /app
 USER nodeuser
 
 # Exposed ports
-EXPOSE 3000
+EXPOSE 3001
 EXPOSE 8080
 EXPOSE 443
 
@@ -153,7 +155,7 @@ HEALTHCHECK --interval=30s \
     --start-period=20s \
     --retries=5 \
     CMD node -e "\
-    fetch('http://127.0.0.1:3000/health')\
+    fetch('http://127.0.0.1:3001/health')\
     .then(r => r.ok ? process.exit(0) : process.exit(1))\
     .catch(() => process.exit(1))"
 
