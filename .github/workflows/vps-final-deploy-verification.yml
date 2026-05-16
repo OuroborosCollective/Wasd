@@ -40,6 +40,7 @@ permissions:
 
 env:
   DEFAULT_ARELORIAN_PORT: '3001'
+  DEPLOY_PATH: /opt/areloria
 
 jobs:
   verify:
@@ -72,6 +73,8 @@ jobs:
 
       - name: Verify deployed VPS runtime
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          DEPLOY_PATH: /opt/areloria
         with:
           host: ${{ secrets.VPS_HOST || secrets.SSH_HOST }}
           username: ${{ secrets.VPS_USER || secrets.SSH_USER }}
@@ -114,9 +117,7 @@ jobs:
 
             trap 'code=$?; dump_basic_diagnostics "$code"; exit "$code"' ERR
 
-            DEPLOY_PRIMARY='${{ secrets.VPS_DEPLOY_PATH }}'
-            DEPLOY_ALT='${{ secrets.DEPLOY_PATH }}'
-            DEPLOY_PATH="${DEPLOY_PRIMARY:-${DEPLOY_ALT:-/opt/areloria}}"
+            DEPLOY_PATH='/opt/areloria'
             SECRET_PORT='${{ secrets.VPS_ARELORIAN_PORT }}'
             INPUT_PORT='${{ github.event.inputs.arelorian_port }}'
             ARELORIAN_PORT="${SECRET_PORT:-${INPUT_PORT:-3001}}"
@@ -136,6 +137,7 @@ jobs:
             checkpoint "deploy path"
             if [ ! -d "$DEPLOY_PATH" ]; then
               echo "ERROR: deploy path missing: $DEPLOY_PATH"
+              echo "Create it by running the deploy workflow first, or on the VPS: sudo mkdir -p /opt/areloria && sudo chown -R \$USER:\$USER /opt/areloria"
               exit 1
             fi
             cd "$DEPLOY_PATH"
