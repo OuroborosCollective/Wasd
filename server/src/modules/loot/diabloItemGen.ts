@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { createARESeed, type ARERng, SeededARERng } from "../../core/determinism/AREDeterminism.js";
 import { scaleRoll } from "./rollScale.js";
 
