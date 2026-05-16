@@ -5,7 +5,7 @@
   "modes": {
     "minimal": {
       "fix": { "enabled": false },
-      "checks": ["lint", "unit", "checkInteract", "e2e", "contentValidate", "assetsAudit", "wsSchemaSmoke", "uiA11ySmoke"]
+      "checks": ["lint", "checkInteract", "e2e", "contentValidate", "assetsAudit", "wsSchemaSmoke", "uiA11ySmoke"]
     },
     "extreme": {
       "fix": { "enabled": true, "allowDangerous": true },

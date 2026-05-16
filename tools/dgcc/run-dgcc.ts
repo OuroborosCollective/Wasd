@@ -42,6 +42,12 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function failCmd(label: string, r: { code: number; stdout: string; stderr: string }) {
+  const out = `${r.stdout}\n${r.stderr}`.trimEnd();
+  const tail = out.length > 6000 ? out.slice(-6000) : out;
+  throw new Error(`${label} (exit ${r.code})\n${tail}`);
+}
+
 function run(cmd: string, args: string[], opts?: { env?: Record<string, string> }) {
   return new Promise<{ code: number; stdout: string; stderr: string; durationMs: number }>((resolve) => {
     const t0 = Date.now();
@@ -175,7 +181,7 @@ async function main() {
       const r = await run("pnpm", ["run", "lint"]);
       fs.writeFileSync(path.join(outDir, "lint.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["lint"] = "dgcc-artifacts/lint.out.txt";
-      if (r.code !== 0) throw new Error("lint failed");
+      if (r.code !== 0) failCmd("lint", r);
     });
   }
 
@@ -184,7 +190,7 @@ async function main() {
       const r = await run("pnpm", ["run", "test"]);
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
-      if (r.code !== 0) throw new Error("unit tests failed");
+      if (r.code !== 0) failCmd("unit tests", r);
     });
   }
 
@@ -193,7 +199,7 @@ async function main() {
       const r = await run("pnpm", ["run", "check:interact"]);
       fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
+      if (r.code !== 0) failCmd("check:interact", r);
     });
   }
 
@@ -202,7 +208,7 @@ async function main() {
       const r = await run("pnpm", ["run", "test:e2e:ci"]);
       fs.writeFileSync(path.join(outDir, "e2e.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["e2e"] = "dgcc-artifacts/e2e.out.txt";
-      if (r.code !== 0) throw new Error("e2e failed");
+      if (r.code !== 0) failCmd("e2e", r);
     });
   }
 
@@ -211,20 +217,25 @@ async function main() {
       const r = await run("pnpm", ["--prefix", "server", "run", "validate"]);
       fs.writeFileSync(path.join(outDir, "content-validate.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["contentValidate"] = "dgcc-artifacts/content-validate.out.txt";
-      if (r.code !== 0) throw new Error("content validation failed (server validate)");
+      if (r.code !== 0) failCmd("content validation (pnpm --prefix server run validate)", r);
     });
   }
 
   if (checks.includes("clientBuild")) {
     await runCheck("clientBuild", async () => {
+      const outPath = path.join(outDir, "client-build.out.txt");
+      const shared = await run("pnpm", ["--filter", "@wasd/shared", "run", "build"]);
+      fs.writeFileSync(outPath, `=== @wasd/shared build ===\n${shared.stdout}\n${shared.stderr}\n`);
+      if (shared.code !== 0) failCmd("shared package build (@wasd/shared)", shared);
+
       const r = await run("pnpm", ["--prefix", "client", "run", "build"], {
         env: {
           NODE_OPTIONS: process.env.NODE_OPTIONS || "--max-old-space-size=6144",
         },
       });
-      fs.writeFileSync(path.join(outDir, "client-build.out.txt"), r.stdout + "\n" + r.stderr);
+      fs.appendFileSync(outPath, `=== client build ===\n${r.stdout}\n${r.stderr}\n`);
       report.artifacts["clientBuild"] = "dgcc-artifacts/client-build.out.txt";
-      if (r.code !== 0) throw new Error("client build failed");
+      if (r.code !== 0) failCmd("client build", r);
     });
   }
 
@@ -233,7 +244,7 @@ async function main() {
       const r = await run("pnpm", ["--prefix", "server", "run", "build"]);
       fs.writeFileSync(path.join(outDir, "server-build.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["serverBuild"] = "dgcc-artifacts/server-build.out.txt";
-      if (r.code !== 0) throw new Error("server build failed");
+      if (r.code !== 0) failCmd("server build", r);
     });
   }
 
