@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { type AREClock, SystemAREClock } from "../../core/determinism/AREDeterminism.js";
 import type {
   PlayerWarfrontProgress,
   WarfrontCycleState,
@@ -31,6 +31,10 @@ function rollMutator(cycleId: string): string {
   return WARFRONT_MUTATORS[hash % WARFRONT_MUTATORS.length];
 }
 
+function rewardHistoryId(seasonId: string, cycleId: string, tierId: string, awardedAt: number): string {
+  return `wf_reward_${seasonId}_${cycleId}_${tierId}_${Math.floor(awardedAt)}`;
+}
+
 type ContributeResult = {
   accepted: boolean;
   reason?: string;
@@ -47,29 +51,35 @@ export class WarfrontSystem {
   private activeBossMutator: string | null = null;
   private seasonId = "";
 
-  constructor() {}
+  constructor(private readonly clock: AREClock = new SystemAREClock()) {}
+
+  private now(now?: number): number {
+    return now ?? this.clock.now();
+  }
 
   ensurePlayerProgress(player: any): PlayerWarfrontProgress {
     return ensurePlayerWarfrontProgress(player);
   }
 
-  initialize(now = Date.now()): void {
+  initialize(now?: number): void {
+    const currentNow = this.now(now);
     if (this.cycle) return;
-    this.cycle = this.createCycle(now);
+    this.cycle = this.createCycle(currentNow);
     this.seasonId = this.cycle.seasonId;
   }
 
-  tick(now = Date.now()): {
+  tick(now?: number): {
     rotated: boolean;
     previousCycleId?: string;
     nextCycleId?: string;
     phaseChanged?: boolean;
   } {
-    this.initialize(now);
+    const currentNow = this.now(now);
+    this.initialize(currentNow);
     if (!this.cycle) return { rotated: false };
-    if (now >= this.cycle.endsAt) {
+    if (currentNow >= this.cycle.endsAt) {
       const previousCycleId = this.cycle.cycleId;
-      this.cycle = this.createCycle(now);
+      this.cycle = this.createCycle(currentNow);
       this.seasonId = this.cycle.seasonId;
       this.activeBossMutator = null;
       return {
@@ -81,13 +91,13 @@ export class WarfrontSystem {
     return { rotated: false };
   }
 
-  getCycleSnapshot(now = Date.now()): WarfrontCycleState {
-    this.initialize(now);
+  getCycleSnapshot(now?: number): WarfrontCycleState {
+    this.initialize(this.now(now));
     return JSON.parse(JSON.stringify(this.cycle)) as WarfrontCycleState;
   }
 
-  getCurrentSeasonId(now = Date.now()): string {
-    this.initialize(now);
+  getCurrentSeasonId(now?: number): string {
+    this.initialize(this.now(now));
     return this.seasonId;
   }
 
@@ -103,24 +113,27 @@ export class WarfrontSystem {
     return this.activeBossMutator;
   }
 
-  markFrontBossSpawned(npcId: string, now = Date.now()): void {
-    this.initialize(now);
+  markFrontBossSpawned(npcId: string, now?: number): void {
+    const currentNow = this.now(now);
+    this.initialize(currentNow);
     if (!this.cycle) return;
     this.cycle.phase = "boss_active";
     this.cycle.frontBossNpcId = npcId;
-    this.cycle.frontBossSpawnedAt = now;
+    this.cycle.frontBossSpawnedAt = currentNow;
     this.activeBossMutator = rollMutator(this.cycle.cycleId);
   }
 
-  markFrontBossDefeated(now = Date.now()): void {
-    this.initialize(now);
+  markFrontBossDefeated(now?: number): void {
+    const currentNow = this.now(now);
+    this.initialize(currentNow);
     if (!this.cycle) return;
     this.cycle.phase = "cooldown";
-    this.cycle.frontBossDefeatedAt = now;
+    this.cycle.frontBossDefeatedAt = currentNow;
   }
 
-  markFrontBossDespawned(now = Date.now()): void {
-    this.initialize(now);
+  markFrontBossDespawned(now?: number): void {
+    const currentNow = this.now(now);
+    this.initialize(currentNow);
     if (!this.cycle) return;
     this.cycle.frontBossNpcId = null;
   }
@@ -134,8 +147,9 @@ export class WarfrontSystem {
     return Boolean(frontBossId && frontBossId === npcId);
   }
 
-  canSpawnFrontBoss(now = Date.now()): { ok: boolean; reason?: string } {
-    this.initialize(now);
+  canSpawnFrontBoss(now?: number): { ok: boolean; reason?: string } {
+    const currentNow = this.now(now);
+    this.initialize(currentNow);
     if (!this.cycle) return { ok: false, reason: "Warfront cycle unavailable." };
     if (this.cycle.phase !== "boss_ready") {
       return { ok: false, reason: "Warfront not ready for front boss." };
@@ -150,9 +164,10 @@ export class WarfrontSystem {
     player: any,
     kind: WarfrontSectorKind,
     rawAmount: number,
-    now = Date.now(),
+    now?: number,
   ): ContributeResult {
-    this.initialize(now);
+    const currentNow = this.now(now);
+    this.initialize(currentNow);
     if (!this.cycle) return { accepted: false, reason: "Warfront cycle unavailable.", becameBossReady: false };
     if (this.cycle.phase === "cooldown") {
       return { accepted: false, reason: "Warfront cycle is in cooldown.", becameBossReady: false };
@@ -167,7 +182,7 @@ export class WarfrontSystem {
     const sector = sectors[0];
     const beforePhase = this.cycle.phase;
     sector.currentPoints = Math.min(sector.targetPoints, sector.currentPoints + amount);
-    this.addPersonalContribution(player, sector.id, amount, now);
+    this.addPersonalContribution(player, sector.id, amount, currentNow);
     const becameBossReady = this.tryPromotePhaseToBossReady(beforePhase);
     return {
       accepted: true,
@@ -176,8 +191,8 @@ export class WarfrontSystem {
     };
   }
 
-  getStatusForPlayer(player: any, now = Date.now()): WarfrontStatusPayload {
-    this.initialize(now);
+  getStatusForPlayer(player: any, now?: number): WarfrontStatusPayload {
+    this.initialize(this.now(now));
     // ⚡ Bolt Optimization: Use this.cycle directly instead of getCycleSnapshot()
     // getCycleSnapshot performs a deep clone (JSON.parse(JSON.stringify)) which is expensive
     // and redundant here because we are building a fresh payload object anyway.
@@ -228,7 +243,7 @@ export class WarfrontSystem {
 
   claimSeasonRewards(
     player: any,
-    now = Date.now(),
+    now?: number,
   ): {
     ok: boolean;
     reason?: string;
@@ -236,8 +251,9 @@ export class WarfrontSystem {
     totalXp?: number;
     claimedTierIds?: string[];
   } {
+    const currentNow = this.now(now);
     const progress = this.ensurePlayerProgress(player);
-    this.syncPlayerSeason(progress, this.getCurrentSeasonId(now));
+    this.syncPlayerSeason(progress, this.getCurrentSeasonId(currentNow));
     const claimable = this.rewardTiers.filter(
       (tier) => progress.seasonPoints >= tier.pointsRequired && !progress.claimedTierIds.includes(tier.id),
     );
@@ -252,12 +268,13 @@ export class WarfrontSystem {
       claimedTierIds.push(tier.id);
       totalGold += tier.gold;
       totalXp += tier.xp;
+      const cycleId = progress.lastCycle?.cycleId ?? "unknown";
       progress.rewardHistory.push({
-        id: `wf_reward_${randomUUID()}`,
+        id: rewardHistoryId(progress.seasonId, cycleId, tier.id, currentNow),
         seasonId: progress.seasonId,
-        cycleId: progress.lastCycle?.cycleId ?? "unknown",
+        cycleId,
         tierId: tier.id,
-        awardedAt: now,
+        awardedAt: currentNow,
         gold: tier.gold,
         xp: tier.xp,
       });
