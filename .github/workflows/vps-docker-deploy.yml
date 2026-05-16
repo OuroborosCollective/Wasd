@@ -64,7 +64,7 @@ jobs:
           command_timeout: 55m
           script_stop: true
           script: |
-            set -euo pipefail
+            set -eu
             DEPLOY_PATH='/opt/areloria'
             REPO_URL='https://github.com/OuroborosCollective/Wasd.git'
             DEPLOY_BRANCH='main'
@@ -84,14 +84,30 @@ jobs:
             echo "Reason: ${{ github.event.inputs.reason || github.event_name }}"
             echo "Deploy path: $DEPLOY_PATH"
             echo "Engine port: $ARELORIAN_PORT"
+            echo "--- VPS preflight ---"
+            echo "User: $(id -un)"
+            echo "Shell: $SHELL"
+            uname -a || true
 
-            command -v git >/dev/null 2>&1 || { echo "ERROR: git is required on the VPS."; exit 1; }
-            command -v docker >/dev/null 2>&1 || { echo "ERROR: docker is required on the VPS."; exit 1; }
-            docker info >/dev/null 2>&1 || { echo "ERROR: Docker daemon is not reachable by this SSH user."; exit 1; }
-            if ! docker compose version >/dev/null 2>&1 && ! command -v docker-compose >/dev/null 2>&1; then
-              echo "ERROR: Docker Compose is required on the VPS."
+            if ! command -v git >/dev/null 2>&1; then
+              echo "ERROR: git is required on the VPS."
               exit 1
             fi
+            git --version || true
+
+            if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+              DOCKER='docker'
+            elif command -v sudo >/dev/null 2>&1 && sudo docker info >/dev/null 2>&1; then
+              DOCKER='sudo docker'
+            else
+              echo "ERROR: Docker daemon is not reachable by this SSH user or sudo."
+              command -v docker >/dev/null 2>&1 && docker --version || true
+              command -v sudo >/dev/null 2>&1 && sudo docker --version || true
+              exit 1
+            fi
+            echo "Docker command: $DOCKER"
+            $DOCKER --version || true
+            $DOCKER compose version || true
 
             if [ ! -d "$DEPLOY_PATH" ]; then
               mkdir -p "$DEPLOY_PATH" 2>/dev/null || sudo mkdir -p "$DEPLOY_PATH"
@@ -110,5 +126,19 @@ jobs:
             fi
 
             cd "$DEPLOY_PATH"
+            umask 077
+            {
+              echo "ARELORIAN_PORT=$ARELORIAN_PORT"
+              echo "ARELORIAN_DOCKER_NETWORK=$ARELORIAN_DOCKER_NETWORK"
+              echo "ARELORIAN_ENABLE_DOCKER_INGRESS=$ARELORIAN_ENABLE_DOCKER_INGRESS"
+              echo "ARELORIAN_INGRESS_HTTP_BIND=$ARELORIAN_INGRESS_HTTP_BIND"
+              echo "ARELORIAN_INGRESS_HTTP_PORT=$ARELORIAN_INGRESS_HTTP_PORT"
+            } > "$ARELORIAN_ENV_FILE"
+            chmod 600 "$ARELORIAN_ENV_FILE"
             chmod +x scripts/deploy-vps-docker.sh 2>/dev/null || true
-            bash scripts/deploy-vps-docker.sh
+
+            if [ "$DOCKER" = 'sudo docker' ]; then
+              sudo env ARELORIAN_PORT="$ARELORIAN_PORT" ARELORIAN_DOCKER_NETWORK="$ARELORIAN_DOCKER_NETWORK" ARELORIAN_ENABLE_DOCKER_INGRESS="$ARELORIAN_ENABLE_DOCKER_INGRESS" ARELORIAN_INGRESS_HTTP_BIND="$ARELORIAN_INGRESS_HTTP_BIND" ARELORIAN_INGRESS_HTTP_PORT="$ARELORIAN_INGRESS_HTTP_PORT" ARELORIAN_ENV_FILE="$ARELORIAN_ENV_FILE" DEPLOY_BRANCH="$DEPLOY_BRANCH" bash scripts/deploy-vps-docker.sh
+            else
+              bash scripts/deploy-vps-docker.sh
+            fi
