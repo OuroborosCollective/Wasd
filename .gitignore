@@ -22,6 +22,9 @@ dgcc-artifacts/
 # Playwright local output
 test-results/
 
+# Local player save (default or ad-hoc server runs)
+data/players.json
+
 # Python (deploy helpers)
 __pycache__/
 *.py[cod]
