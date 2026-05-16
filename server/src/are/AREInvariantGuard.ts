@@ -2,7 +2,7 @@ export {
   AREInvariantGuard,
   DeterminismViolation,
   areInvariantGuard,
-} from "@wasd/core-logic/are/AREInvariantGuard";
+} from "@wasd/core-logic";
 
 export type {
   AREGuardPayload,
@@ -10,4 +10,4 @@ export type {
   AREInvariantGuardStatus,
   DeterminismViolationCode,
   DeterminismViolationDetail,
-} from "@wasd/core-logic/are/AREInvariantGuard";
+} from "@wasd/core-logic";
