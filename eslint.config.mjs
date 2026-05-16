@@ -8,6 +8,7 @@ export default [
       "**/node_modules/**",
       "e2e/**",
       "playwright.config.ts",
+      "dgcc-artifacts/**",
       "**/*.js",
       "**/*.d.ts",
     ],
