@@ -1,3 +1,5 @@
+import { createARESeed, type ARERng, SeededARERng } from "../../core/determinism/AREDeterminism.js";
+
 export type BadluckState = { noLegendaryStreak: number };
 
 export type BaseWithTags = { tags?: string[] };
@@ -8,7 +10,13 @@ export type BaseWithTags = { tags?: string[] };
 export function smartLootPickBase<T extends BaseWithTags>(
   bases: T[],
   preferredTags: string[],
-  badluck: BadluckState
+  badluck: BadluckState,
+  rng: ARERng = new SeededARERng(createARESeed([
+    "smart-loot",
+    preferredTags.join(","),
+    badluck.noLegendaryStreak,
+    bases.length,
+  ]))
 ): { base: T; mfBoost: number } {
   if (bases.length === 0) {
     throw new Error("smartLootPickBase: empty bases");
@@ -19,7 +27,7 @@ export function smartLootPickBase<T extends BaseWithTags>(
     w: 1 + (b.tags?.some((t: string) => preferredTags.includes(t)) ? 0.75 : 0),
   }));
   const total = tagBoostBases.reduce((s, x) => s + x.w, 0);
-  let r = Math.random() * total;
+  let r = rng.nextFloat() * total;
   for (const x of tagBoostBases) {
     r -= x.w;
     if (r <= 0) return { base: x.b, mfBoost };
