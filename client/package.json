@@ -18,7 +18,7 @@
     "core-network:dev": "pnpm --filter @arelorian/core-network dev"
   },
   "dependencies": {
-    "@babylonjs/core": "^9.6.2",
+    "@babylonjs/core": "^9.7.0",
     "@babylonjs/havok": "^1.3.12",
     "@babylonjs/loaders": "^9.6.2",
     "@babylonjs/materials": "^9.6.2",
@@ -45,13 +45,13 @@
     "@types/react-dom": "^19.2.3",
     "@types/socket.io-client": "^3.0.0",
     "@types/three": "0.184.1",
-    "@vitejs/plugin-react": "4.7.0",
+    "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.5.0",
     "eslint": "^10.3.0",
     "postcss": "^8.5.14",
     "tailwindcss": "4",
     "typescript": "^6.0.3",
-    "vite": "6.4.2",
-    "vitest": "^4.1.5"
+    "vite": "^6.4.2",
+    "vitest": "^4.1.6"
   }
 }

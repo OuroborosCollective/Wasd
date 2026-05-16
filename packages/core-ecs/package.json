@@ -25,13 +25,13 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^25.7.0",
-    "@typescript-eslint/eslint-plugin": "^8.59.2",
-    "@typescript-eslint/parser": "^8.59.2",
+    "@typescript-eslint/eslint-plugin": "^8.59.3",
+    "@typescript-eslint/parser": "^8.59.3",
     "eslint": "^10.3.0",
     "tinyglobby": "^0.2.16",
     "tsup": "^8.5.1",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.6"
   },
   "dependencies": {
     "nanoid": "^5.1.11"

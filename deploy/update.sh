@@ -60,7 +60,7 @@ if command -v pnpm >/dev/null 2>&1; then
   echo "Using pnpm for installation and targeted build..."
   pnpm config set network-concurrency 2
   pnpm config set child-concurrency 1
-  pnpm install --no-frozen-lockfile --prefer-offline
+  pnpm install --frozen-lockfile --prefer-offline
 
   echo "Building core-logic runtime, shared package and game server..."
   NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/core-logic --if-present run build:runtime

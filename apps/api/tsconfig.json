@@ -17,13 +17,23 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "paths": {
-      "@wasd/utils": ["../../packages/utils/src"],
-      "@wasd/utils/*": ["../../packages/utils/src/*"],
-      "@wasd/shared": ["../../packages/shared/src"],
-      "@wasd/shared/*": ["../../packages/shared/src/*"]
+      "@wasd/utils": [
+        "../../packages/utils/src"
+      ],
+      "@wasd/utils/*": [
+        "../../packages/utils/src/*"
+      ],
+      "@wasd/shared": [
+        "../../packages/shared/src"
+      ],
+      "@wasd/shared/*": [
+        "../../packages/shared/src/*"
+      ]
     }
   },
-  "include": ["src/**/*"],
+  "include": [
+    "src/**/*"
+  ],
   "exclude": [
     "node_modules",
     "dist",
@@ -31,7 +41,11 @@
     "**/*.test.ts"
   ],
   "references": [
-    { "path": "../../packages/utils" },
-    { "path": "../../packages/shared" }
+    {
+      "path": "../../packages/utils"
+    },
+    {
+      "path": "../../packages/shared"
+    }
   ]
 }

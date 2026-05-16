@@ -15,50 +15,130 @@
     "isolatedModules": true,
     "resolveJsonModule": true,
     "noEmit": false,
-    "noImplicitAny": false
+    "noImplicitAny": false,
+    "tsBuildInfoFile": "tsconfig.root.tsbuildinfo"
   },
   "files": [],
   "references": [
-    { "path": "client" },
-    { "path": "server" },
-    { "path": "engine" },
-    { "path": "portal" },
-    { "path": "packages/backend" },
-    { "path": "packages/database" },
-    { "path": "packages/core" },
-    { "path": "packages/core-logic" },
-    { "path": "packages/shared" },
-    { "path": "packages/core-ecs" },
-    { "path": "packages/ui" },
-    { "path": "packages/spatial-hub" },
-    { "path": "packages/rendering-bridge" },
-    { "path": "packages/utils" },
-    { "path": "packages/logger" },
-    { "path": "packages/redis" },
-    { "path": "packages/types" },
-    { "path": "packages/core-network" },
-    { "path": "apps/api" },
-    { "path": "apps/web" },
-    { "path": "apps/client-2d" },
-    { "path": "projects/card-logic" },
-    { "path": "projects/logic-grid" },
-    { "path": "projects/edu-sim" },
-    { "path": "projects/api" },
-    { "path": "projects/urban" },
-    { "path": "projects/arena" },
-    { "path": "projects/story" },
-    { "path": "projects/retail-opt" },
-    { "path": "projects/social" },
-    { "path": "projects/logistics" },
-    { "path": "projects/logi-link" },
-    { "path": "projects/social-sim" },
-    { "path": "projects/ouro-api" },
-    { "path": "projects/crypto-pulse" },
-    { "path": "projects/agri-sim" },
-    { "path": "projects/eco-trader" },
-    { "path": "projects/urban-flow" },
-    { "path": "projects/ads" },
-    { "path": "projects/health-tech" },
-    { "path": "projects/are-trader" }
+    {
+      "path": "apps/api"
+    },
+    {
+      "path": "apps/client-2d"
+    },
+    {
+      "path": "apps/web"
+    },
+    {
+      "path": "client"
+    },
+    {
+      "path": "engine"
+    },
+    {
+      "path": "packages/backend"
+    },
+    {
+      "path": "packages/core"
+    },
+    {
+      "path": "packages/core-ecs"
+    },
+    {
+      "path": "packages/core-logic"
+    },
+    {
+      "path": "packages/core-network"
+    },
+    {
+      "path": "packages/database"
+    },
+    {
+      "path": "packages/logger"
+    },
+    {
+      "path": "packages/redis"
+    },
+    {
+      "path": "packages/rendering-bridge"
+    },
+    {
+      "path": "packages/shared"
+    },
+    {
+      "path": "packages/spatial-hub"
+    },
+    {
+      "path": "packages/types"
+    },
+    {
+      "path": "packages/ui"
+    },
+    {
+      "path": "packages/utils"
+    },
+    {
+      "path": "portal"
+    },
+    {
+      "path": "projects/ads"
+    },
+    {
+      "path": "projects/agri-sim"
+    },
+    {
+      "path": "projects/api"
+    },
+    {
+      "path": "projects/are-trader"
+    },
+    {
+      "path": "projects/arena"
+    },
+    {
+      "path": "projects/card-logic"
+    },
+    {
+      "path": "projects/crypto-pulse"
+    },
+    {
+      "path": "projects/eco-trader"
+    },
+    {
+      "path": "projects/edu-sim"
+    },
+    {
+      "path": "projects/logi-link"
+    },
+    {
+      "path": "projects/logic-grid"
+    },
+    {
+      "path": "projects/logistics"
+    },
+    {
+      "path": "projects/ouro-api"
+    },
+    {
+      "path": "projects/retail-opt"
+    },
+    {
+      "path": "projects/social"
+    },
+    {
+      "path": "projects/social-sim"
+    },
+    {
+      "path": "projects/story"
+    },
+    {
+      "path": "projects/urban"
+    },
+    {
+      "path": "projects/urban-flow"
+    },
+    {
+      "path": "server"
+    }
   ]
 }
