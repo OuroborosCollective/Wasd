@@ -151,19 +151,96 @@ export class WorldTick {
     if (record.guard) areValidationState.updateGuard(record.guard);
   }
 
+  private buildWelcomeMessage(player: any, msg: any) {
+    const sceneId =
+      typeof msg.sceneId === "string" && msg.sceneId.trim().length > 0 ? msg.sceneId.trim() : "didis_hub";
+    const skillCooldownUntil =
+      player.skillCooldownUntil &&
+      typeof player.skillCooldownUntil === "object" &&
+      !Array.isArray(player.skillCooldownUntil)
+        ? player.skillCooldownUntil
+        : { ...player.skillCooldowns };
+    return {
+      type: "welcome" as const,
+      id: player.id,
+      playerName: player.name,
+      sceneId,
+      stats: {
+        gold: player.gold,
+        level: player.level || 1,
+        health: player.health,
+        maxHealth: player.maxHealth,
+        mana: player.mana,
+        maxMana: player.maxMana,
+        xp: player.xp,
+        skillCooldownUntil,
+      },
+      inventory: player.inventory,
+      equipment: player.equipment,
+      quests: player.quests,
+    };
+  }
+
   private async handlePlayerMessage(id: string, msg: any) {
     if (msg.type === "login") {
-      if (!msg.token) { this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed: No token provided" }); setTimeout(() => { const client = Array.from((this.ws as any).wss.clients).find((c: any) => c.id === id); if (client) (client as any).close(); }, 500); return; }
+      const tokenRaw = typeof msg.token === "string" ? msg.token.trim() : "";
+      const guestRaw = typeof msg.guestId === "string" ? msg.guestId.trim() : "";
+      const useResolvedIdentity = !tokenRaw || tokenRaw === "test-token" || guestRaw.length > 0;
+
+      if (useResolvedIdentity) {
+        const { resolveLoginIdentity } = await import("../modules/auth/resolveLoginIdentity.js");
+        const resolved = await resolveLoginIdentity(id, {
+          token: tokenRaw || undefined,
+          charName: typeof msg.charName === "string" ? msg.charName : undefined,
+          guestId: guestRaw || undefined,
+          guestName: typeof msg.guestName === "string" ? msg.guestName : undefined,
+        });
+        if ("error" in resolved) {
+          this.ws.sendToPlayer(id, { type: "error", code: resolved.code, message: resolved.error });
+          return;
+        }
+        let player = this.playerSystem.getPlayer(resolved.uid);
+        if (!player) {
+          player = this.playerSystem.createPlayer(resolved.uid, resolved.charName, msg.class, msg.appearance);
+          this.hydratePlayer(player);
+        } else {
+          player.isOffline = false;
+        }
+        if (player.name !== resolved.charName) player.name = resolved.charName;
+        this.socketToPlayer.set(id, resolved.uid);
+        this.playerToSocket.set(resolved.uid, id);
+        this.observerEngine.register(id, { x: player.position.x, y: player.position.y });
+        this.ws.sendToPlayer(id, this.buildWelcomeMessage(player, msg));
+        return;
+      }
+
       let charName = "Unknown";
       let uid = "";
-      try { const decodedToken = await verifyFirebaseToken(msg.token) as any; if (decodedToken) { uid = decodedToken.uid; charName = decodedToken.name || decodedToken.email?.split('@')[0] || `Player_${uid.substring(0, 6)}`; } else { this.ws.sendToPlayer(id, { type: "error", message: "Authentication service unavailable" }); return; } } catch { this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed: Invalid token" }); return; }
+      try {
+        const decodedToken = (await verifyFirebaseToken(msg.token)) as any;
+        if (decodedToken) {
+          uid = decodedToken.uid;
+          charName = decodedToken.name || decodedToken.email?.split("@")[0] || `Player_${uid.substring(0, 6)}`;
+        } else {
+          this.ws.sendToPlayer(id, { type: "error", message: "Authentication service unavailable" });
+          return;
+        }
+      } catch {
+        this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed: Invalid token" });
+        return;
+      }
       let player = this.playerSystem.getPlayer(uid);
-      if (!player) { player = this.playerSystem.createPlayer(uid, charName, msg.class, msg.appearance); this.hydratePlayer(player); } else { player.isOffline = false; }
+      if (!player) {
+        player = this.playerSystem.createPlayer(uid, charName, msg.class, msg.appearance);
+        this.hydratePlayer(player);
+      } else {
+        player.isOffline = false;
+      }
       if (player.name !== charName) player.name = charName;
       this.socketToPlayer.set(id, uid);
       this.playerToSocket.set(uid, id);
       this.observerEngine.register(id, { x: player.position.x, y: player.position.y });
-      this.ws.sendToPlayer(id, { type: "welcome", id: uid, playerName: player.name, stats: { gold: player.gold, xp: player.xp, hp: player.health, maxHp: player.maxHealth, mp: player.mana, maxMp: player.maxMana, level: player.level || 1 }, inventory: player.inventory, equipment: player.equipment, quests: player.quests });
+      this.ws.sendToPlayer(id, this.buildWelcomeMessage(player, msg));
       return;
     }
     const playerId = this.socketToPlayer.get(id);
