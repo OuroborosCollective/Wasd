@@ -1,3 +1,4 @@
+import { createARESeed, type ARERng, SeededARERng } from "../../core/determinism/AREDeterminism.js";
 import { ItemRegistry, ItemDefinition } from "../inventory/ItemRegistry.js";
 import fs from "fs";
 import path from "path";
@@ -44,14 +45,20 @@ export class LootSystem {
     }
   }
 
-  rollLoot(dropTable: LootTableEntry[]): { items: ItemDefinition[]; gold: number } {
+  rollLoot(
+    dropTable: LootTableEntry[],
+    rng: ARERng = new SeededARERng(createARESeed([
+      "loot-table-inline",
+      dropTable.map((entry) => `${entry.itemId}:${entry.chance}:${entry.minCount ?? 1}:${entry.maxCount ?? entry.minCount ?? 1}`).join(","),
+    ]))
+  ): { items: ItemDefinition[]; gold: number } {
     const items: ItemDefinition[] = [];
     let gold = 0;
 
     for (const entry of dropTable) {
-      if (Math.random() < entry.chance) {
+      if (rng.nextFloat() < entry.chance) {
         const count = entry.minCount
-          ? Math.floor(Math.random() * ((entry.maxCount || entry.minCount) - entry.minCount + 1)) + entry.minCount
+          ? rng.nextRange(entry.minCount, entry.maxCount || entry.minCount)
           : 1;
         for (let i = 0; i < count; i++) {
           const item = ItemRegistry.createInstance(entry.itemId);
@@ -63,15 +70,15 @@ export class LootSystem {
     return { items, gold };
   }
 
-  rollFromTable(tableId: string): { items: ItemDefinition[]; gold: number } {
+  rollFromTable(tableId: string, rng: ARERng = new SeededARERng(createARESeed(["loot-table", tableId]))): { items: ItemDefinition[]; gold: number } {
     const table = this.lootTables.get(tableId);
     if (!table) return { items: [], gold: 0 };
 
-    const result = this.rollLoot(table.entries);
+    const result = this.rollLoot(table.entries, rng.fork(`${tableId}:entries`));
 
     // Roll gold
     if (table.goldMin !== undefined && table.goldMax !== undefined) {
-      result.gold = Math.floor(Math.random() * (table.goldMax - table.goldMin + 1)) + table.goldMin;
+      result.gold = rng.nextRange(table.goldMin, table.goldMax);
     }
 
     return result;
