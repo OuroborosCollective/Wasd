@@ -12,4 +12,6 @@ DGCC_FIX=1 pnpm run dgcc
 
 Artifacts: `dgcc-artifacts/`
 
-The `minimal` / `extreme` modes also run `pnpm run check:interact` (GameConfig vs `shared/interaction.ts`).
+The `unit` step runs `pnpm run test:dgcc` (client Vitest suites plus `validateContentRoot` on `game-data`). Use `pnpm run test` for the full monorepo Vitest run.
+
+Optional: `pnpm run check:interact` aligns `GameConfig.interactDistance` with `shared/interaction.ts` (not part of the default contract modes).
