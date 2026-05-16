@@ -6,15 +6,18 @@ Das Repository ist ein umfangreiches Monorepo, das mit `pnpm` verwaltet wird. Es
 
 ## Kritische Fehler
 1.  **CI-Bruch in `@wasd/core-logic` (BEHOBEN):** Das Paket enthielt `.tsx` Dateien, aber die `tsconfig.json` war nicht für JSX konfiguriert und `@types/react` fehlten. Dies verhinderte erfolgreiche CI-Läufe. *Fix: `jsx: react-jsx` hinzugefügt und Typen installiert.*
-2.  **Defekte TS-Konfigurationen in Projekten:**
+2.  **Cross-Package Type Resolution & CI Fragility (BEHOBEN):**
+    *   In der CI gab es Probleme bei der Auflösung von Typen aus `@wasd/core-logic` innerhalb des `server` Pakets, da `tsc --noEmit` im Server auf physische `.d.ts` Dateien in `dist/` angewiesen ist. *Fix: CI-Workflow angepasst, um `core-logic` zu bauen.*
+    *   `ServerBootstrap.ts` hatte fragile Typ-Inferenz für Health-Stats, die bei unvollständiger Workspace-Auflösung zu Build-Abbrüchen führten. *Fix: Explizite Casts hinzugefügt, um die Inferenz-Kette zu entkoppeln.*
+3.  **Defekte TS-Konfigurationen in Projekten:**
     *   `projects/retail-opt`, `projects/crypto-pulse` und `projects/urban-flow` enthalten React-Komponenten (`.tsx`), aber ihre `tsconfig.json` Dateien haben keinen `jsx`-Eintrag.
-    *   Zudem zeigen ihre `include`-Pfade auf `src/**/*`, obwohl die Dateien in Verzeichnissen wie `ui/` oder `components/` liegen. Dies führt dazu, dass diese Dateien vom Compiler ignoriert werden oder Fehler werfen, wenn sie manuell kompiliert werden.
-3.  **Lockfile-Drift & Instabilität:** `packages/sdk-examples/replit-demo` war nicht synchron mit dem Lockfile. Dies blockierte CI-Installationen mit `--frozen-lockfile`.
-4.  **Build-Abbruch in `@wasd/portal`:** Das Paket versucht `tsc` direkt aufzurufen (`tsc && vite build`), was ohne `pnpm exec` fehlschlägt, wenn TypeScript nicht global verfügbar ist.
-5.  **Version-Fragmentation (Vite/Vitest):**
+    *   Zudem zeigen ihre `include`-Pfade auf `src/**/*`, obwohl die Dateien in Verzeichnissen wie `ui/` oder `components/` liegen. Dies führt dazu, dass diese Dateien vom Compiler ignoriert werden.
+4.  **Lockfile-Drift & Instabilität:** `packages/sdk-examples/replit-demo` war nicht synchron mit dem Lockfile. Dies blockierte CI-Installationen mit `--frozen-lockfile`. *Fix: Lockfile wurde regeneriert.*
+5.  **Build-Abbruch in `@wasd/portal`:** Das Paket versucht `tsc` direkt aufzurufen (`tsc && vite build`), was ohne `pnpm exec` fehlschlägt, wenn TypeScript nicht global verfügbar ist.
+6.  **Version-Fragmentation (Vite/Vitest):**
     *   `vite`: Versionen schwanken zwischen `5.2.8`, `6.4.2` und `8.0.13`.
     *   `vitest`: Fragmentation zwischen `1.6.0` (portal) und `4.1.x` (Rest).
-6.  **Peer-Dependency Mismatch (Zod):** `@wasd/database` nutzt `zod: ^3.23.8`, während der Rest des Repos auf `^4.4.3` setzt.
+7.  **Peer-Dependency Mismatch (Zod):** `@wasd/database` nutzt `zod: ^3.23.8`, während der Rest des Repos auf `^4.4.3` setzt.
 
 ## Optimierungspotenzial
 1.  **Zentralisierung via Overrides:** `vite` und `vitest` sollten in die Root-`pnpm.overrides` aufgenommen werden.
@@ -31,7 +34,6 @@ Das Repository ist ein umfangreiches Monorepo, das mit `pnpm` verwaltet wird. Es
     *   Sicherstellen, dass alle Pakete von `tsconfig.base.json` erben.
 3.  **Schritt 3: Build & Deploy Hardening**
     *   Umstellung von `portal/package.json` auf `pnpm exec tsc`.
-    *   Regenerierung des Lockfiles nach Korrektur der `replit-demo` Abhängigkeiten.
+    *   Globales Hardening der Deployment-Skripte auf `--frozen-lockfile`.
 4.  **Schritt 4: Workflow-Optimierung**
     *   Globales Caching für alle GitHub Actions.
-    *   Zwingende Nutzung von `--frozen-lockfile` in allen Deployment-Skripten.

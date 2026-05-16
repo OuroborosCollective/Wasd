@@ -41,9 +41,9 @@ jobs:
         run: |
           NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/shared run typecheck
 
-      - name: Typecheck @wasd/core-logic
+      - name: Build @wasd/core-logic (DTS)
         run: |
-          NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/core-logic run typecheck
+          NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/core-logic run build
 
       - name: Typecheck @wasd/server (tsc --noEmit)
         run: |

@@ -1,102 +1,173 @@
-import { shutdownPostHog } from "../services/posthog.js";
-import express, { type Request } from "express";
-import { createServer } from "node:http";
-import { existsSync } from "node:fs";
-import { GameWebSocketServer } from "../networking/WebSocketServer.js";
-import { WorldTick } from "./WorldTick.js";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { mcpRoute } from "../api/mcpRoute.js";
-import { adminContentRouter } from "../api/adminContentRoute.js";
-import { voteRouter } from "../api/voteRoute.js";
-import { leaderboardRouter } from "../api/leaderboardRoute.js";
-import { questlineRouter } from "../api/questlineRoute.js";
-import { loreRouter } from "../api/loreRoute.js";
-import { scienceMascotRouter } from "../api/scienceMascotRoute.js";
-import { warfrontRouter } from "../api/warfrontRoute.js";
-import { areValidationRouter } from "../api/areValidationRoute.js";
-import { areReplayRouter } from "../api/areReplayRoute.js";
-import { sovereignDeployRouter } from "../api/sovereignDeployRoute.js";
-import { getContentDataSourceLabel, resolveContentDir } from "../modules/content/contentDataRoot.js";
-import { getSupabaseSummary, verifySupabaseToken } from "../config/supabase.js";
-import { resolveWorldAssetsDir } from "./resolveWorldAssetsDir.js";
-import { resolveMirroredWorldAssetsDir } from "./resolveMirroredWorldAssetsDir.js";
-import { registerSelfHealingDashboard } from "../selfhealing/SelfHealingDashboard.js";
-import { PlaytesterConfig } from "../config/PlaytesterConfig.js";
-import { PlaytesterMonitorStream } from "../modules/playtester/PlaytesterMonitorStream.js";
-import { PlaytesterWebRTCSignaling } from "../modules/playtester/PlaytesterWebRTCSignaling.js";
-import { initRedisClient } from "./RedisClient.js";
-import { URL } from "node:url";
+import { shutdownPostHog } from '../services/posthog.js';
+import express, { type Request } from 'express';
+import { createServer } from 'node:http';
+import { existsSync } from 'node:fs';
+import { GameWebSocketServer } from '../networking/WebSocketServer.js';
+import { WorldTick } from './WorldTick.js';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { mcpRoute } from '../api/mcpRoute.js';
+import { adminContentRouter } from '../api/adminContentRoute.js';
+import { voteRouter } from '../api/voteRoute.js';
+import { leaderboardRouter } from '../api/leaderboardRoute.js';
+import { questlineRouter } from '../api/questlineRoute.js';
+import { loreRouter } from '../api/loreRoute.js';
+import { scienceMascotRouter } from '../api/scienceMascotRoute.js';
+import { warfrontRouter } from '../api/warfrontRoute.js';
+import { areValidationRouter } from '../api/areValidationRoute.js';
+import { areReplayRouter } from '../api/areReplayRoute.js';
+import { sovereignDeployRouter } from '../api/sovereignDeployRoute.js';
+import { collectiveIngressRouter } from '../api/collectiveIngressRoute.js';
+import {
+  getContentDataSourceLabel,
+  resolveContentDir,
+} from '../modules/content/contentDataRoot.js';
+import { getSupabaseSummary, verifySupabaseToken } from '../config/supabase.js';
+import { resolveWorldAssetsDir } from './resolveWorldAssetsDir.js';
+import { resolveMirroredWorldAssetsDir } from './resolveMirroredWorldAssetsDir.js';
+// import {
+//   bootstrapSelfHealing,
+//   resolveSelfHealingConfigFromEnv,
+//   resolveSelfHealingDashboardConfigFromEnv,
+//   selfHealingMiddleware,
+// } from "../selfhealing/SelfHealingSystem.js";
+import { registerSelfHealingDashboard } from '../selfhealing/SelfHealingDashboard.js';
+import { PlaytesterConfig } from '../config/PlaytesterConfig.js';
+import { PlaytesterMonitorStream } from '../modules/playtester/PlaytesterMonitorStream.js';
+import { PlaytesterWebRTCSignaling } from '../modules/playtester/PlaytesterWebRTCSignaling.js';
+import { initRedisClient } from './RedisClient.js';
+import { URL } from 'node:url';
 
-const currentDir = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
+const currentDir =
+  typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
 
 function resolveClientRoot(): string {
   const fromEnv = process.env.CLIENT_ROOT_DIR?.trim();
   if (fromEnv) return path.isAbsolute(fromEnv) ? fromEnv : path.resolve(process.cwd(), fromEnv);
-  const isClientDir = (dir: string) => existsSync(path.join(dir, "package.json")) || existsSync(path.join(dir, "dist", "index.html"));
-  const fromCwd = path.resolve(process.cwd(), "client");
+  const isClientDir = (dir: string) =>
+    existsSync(path.join(dir, 'package.json')) || existsSync(path.join(dir, 'dist', 'index.html'));
+  const fromCwd = path.resolve(process.cwd(), 'client');
   if (isClientDir(fromCwd)) return fromCwd;
   let current = currentDir;
   for (let i = 0; i < 5; i++) {
-    const check = path.join(current, "client");
+    const check = path.join(current, 'client');
     if (isClientDir(check)) return check;
-    const sibling = path.join(path.dirname(current), "client");
+    const sibling = path.join(path.dirname(current), 'client');
     if (isClientDir(sibling)) return sibling;
     current = path.dirname(current);
   }
-  return path.resolve(currentDir, "..", "..", "..", "client");
+  return path.resolve(currentDir, '..', '..', '..', 'client');
 }
 
 function resolveAdminContentHtmlPath(clientRoot: string, distPath: string): string | null {
-  for (const p of [path.join(distPath, "admin-content.html"), path.join(clientRoot, "public", "admin-content.html"), path.join(clientRoot, "admin-content.html")]) if (existsSync(p)) return p;
+  for (const p of [
+    path.join(distPath, 'admin-content.html'),
+    path.join(clientRoot, 'public', 'admin-content.html'),
+    path.join(clientRoot, 'admin-content.html'),
+  ])
+    if (existsSync(p)) return p;
   return null;
 }
+
 function resolvePlaytesterMonitorHtmlPath(clientRoot: string, distPath: string): string | null {
-  for (const p of [path.join(distPath, "playtester-monitor.html"), path.join(clientRoot, "public", "playtester-monitor.html"), path.join(clientRoot, "playtester-monitor.html")]) if (existsSync(p)) return p;
+  for (const p of [
+    path.join(distPath, 'playtester-monitor.html'),
+    path.join(clientRoot, 'public', 'playtester-monitor.html'),
+    path.join(clientRoot, 'playtester-monitor.html'),
+  ])
+    if (existsSync(p)) return p;
   return null;
 }
+
 function resolvePlaytesterPublisherHtmlPath(clientRoot: string, distPath: string): string | null {
-  for (const p of [path.join(distPath, "playtester-render-publisher.html"), path.join(clientRoot, "public", "playtester-render-publisher.html"), path.join(clientRoot, "playtester-render-publisher.html")]) if (existsSync(p)) return p;
+  for (const p of [
+    path.join(distPath, 'playtester-render-publisher.html'),
+    path.join(clientRoot, 'public', 'playtester-render-publisher.html'),
+    path.join(clientRoot, 'playtester-render-publisher.html'),
+  ])
+    if (existsSync(p)) return p;
   return null;
 }
 
 export function resolveSupabaseProxyBaseUrl(): string | null {
-  const raw = process.env.SUPABASE_PROXY_URL || process.env.SUPABASE_URL || process.env.SUPABASE_PUBLIC_URL || process.env.API_EXTERNAL_URL || "";
+  const raw =
+    process.env.SUPABASE_PROXY_URL ||
+    process.env.SUPABASE_URL ||
+    process.env.SUPABASE_PUBLIC_URL ||
+    process.env.API_EXTERNAL_URL ||
+    '';
   if (!raw) return null;
-  try { return new URL(raw).origin; } catch { return null; }
+  try {
+    return new URL(raw).origin;
+  } catch {
+    return null;
+  }
 }
 
-export function resolveSupabaseProxyBaseUrlForRequest(req: Request, defaultUrl: string | null): string | null {
-  const rawAuthBlob = (req.headers["apikey"] as string) || (req.headers["authorization"]?.split(" ")[1] as string);
+export function resolveSupabaseProxyBaseUrlForRequest(
+  req: Request,
+  defaultUrl: string | null
+): string | null {
+  const rawAuthBlob =
+    (req.headers['apikey'] as string) || (req.headers['authorization']?.split(' ')[1] as string);
   if (!rawAuthBlob || rawAuthBlob.length < 20) return defaultUrl;
-  const ref = req.headers["x-supabase-ref"] as string;
+  const ref = req.headers['x-supabase-ref'] as string;
   if (ref && /^[a-z0-9]{8,32}$/i.test(ref)) return `https://${ref}.supabase.co`;
   try {
     const claims = verifySupabaseToken(rawAuthBlob);
     const claimRef = claims.ref;
     const claimIss = claims.iss;
     if (claimRef && /^[a-z0-9]{8,32}$/i.test(claimRef)) return `https://${claimRef}.supabase.co`;
-    if (claimIss && (claimIss.startsWith("https://") || claimIss.startsWith("http://")) && claimIss.includes("/auth/v1")) {
-      const parts = claimIss.split("/auth/v1");
-      if (parts[0] && /^https?:\/\/[a-z0-9.-]+(supabase\.co|\.space)(:\d+)?$/.test(parts[0])) return parts[0];
+    if (
+      claimIss &&
+      (claimIss.startsWith('https://') || claimIss.startsWith('http://')) &&
+      claimIss.includes('/auth/v1')
+    ) {
+      const parts = claimIss.split('/auth/v1');
+      if (parts[0] && /^https?:\/\/[a-z0-9.-]+(supabase\.co|\.space)(:\d+)?$/.test(parts[0]))
+        return parts[0];
     }
-  } catch {}
+  } catch {
+    /* ignore invalid tokens */
+  }
   return defaultUrl;
 }
 
 export function buildClientPublicConfigJson(req?: Request): string {
-  const host = req?.headers?.host || "localhost:3000";
-  const protocol = req?.headers?.["x-forwarded-proto"] || "http";
+  const host = req?.headers?.host || 'localhost:3000';
+  const protocol = req?.headers?.['x-forwarded-proto'] || 'http';
   const origin = `${protocol}://${host}`;
-  const supabaseUrl = process.env.GAME_ORIGIN || process.env.SUPABASE_PUBLIC_URL || process.env.API_EXTERNAL_URL || process.env.SUPABASE_PROXY_URL || origin;
-  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.ANON_KEY || "";
-  return JSON.stringify({ supabaseUrl, supabaseAnonKey, websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL || `ws://${host}/ws`, apiOrigin: process.env.API_EXTERNAL_URL || origin, posthogApiKey: process.env.NEXT_PUBLIC_POSTHOG_KEY || "", posthogHost: process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com", environment: process.env.NODE_ENV || "development", buildHash: process.env.BUILD_COMMIT_SHA || "dev" });
+  const supabaseUrl =
+    process.env.GAME_ORIGIN ||
+    process.env.SUPABASE_PUBLIC_URL ||
+    process.env.API_EXTERNAL_URL ||
+    process.env.SUPABASE_PROXY_URL ||
+    origin;
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.ANON_KEY || '';
+  return JSON.stringify({
+    supabaseUrl,
+    supabaseAnonKey,
+    websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL || `ws://${host}/ws`,
+    apiOrigin: process.env.API_EXTERNAL_URL || origin,
+    posthogApiKey: process.env.NEXT_PUBLIC_POSTHOG_KEY || '',
+    posthogHost: process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com',
+    environment: process.env.NODE_ENV || 'development',
+    buildHash: process.env.BUILD_COMMIT_SHA || 'dev',
+  });
 }
 
-function envTruthy(key: string): boolean { const v = process.env[key]?.trim().toLowerCase(); return v === "true" || v === "1" || v === "yes"; }
-function shouldProxyBody(method: string): boolean { return ["POST", "PUT", "PATCH", "DELETE"].includes(method.toUpperCase()); }
-function canAccessPlaytesterMonitor(req: Request): boolean { const token = PlaytesterConfig.monitorToken; if (!token) return true; return req.query.token as string === token; }
-function safeHealthValue<T>(fn: () => T, fallback: T): T { try { return fn(); } catch { return fallback; } }
+function envTruthy(key: string): boolean {
+  const v = process.env[key]?.trim().toLowerCase();
+  return v === 'true' || v === '1' || v === 'yes';
+}
+function shouldProxyBody(method: string): boolean {
+  return ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method.toUpperCase());
+}
+function canAccessPlaytesterMonitor(req: Request): boolean {
+  const token = PlaytesterConfig.monitorToken;
+  if (!token) return true;
+  return (req.query.token as string) === token;
+}
 
 export class ServerBootstrap {
   private initializing = true;
@@ -104,57 +175,144 @@ export class ServerBootstrap {
   async start() {
     const app = express();
     const httpServer = createServer(app);
-    const selfHealingRuntime: any = { getStatus: () => ({ featuresProtected: 0, config: {}, active: false, totalErrors: 0, totalHealed: 0, healingRate: 0 }) };
+    const selfHealingRuntime: any = {
+      getStatus: () => ({
+        featuresProtected: 0,
+        config: {},
+        active: false,
+        totalErrors: 0,
+        totalHealed: 0,
+        healingRate: 0,
+      }),
+    };
     const supabaseProxyBaseUrl = resolveSupabaseProxyBaseUrl();
     await initRedisClient();
-    app.use("/api/mcp", mcpRoute());
-    app.use("/api/v1", scienceMascotRouter());
-    app.use("/api/v1/warfront", warfrontRouter());
-    app.use("/api/leaderboard", leaderboardRouter());
-    app.use("/api/questlines", questlineRouter());
-    app.use("/api/lore", loreRouter());
-    app.get("/client-config.json", (_req, res) => { res.type("application/json"); res.setHeader("Cache-Control", "no-store"); res.send(buildClientPublicConfigJson(_req)); });
-    app.get("/health", (_req, res) => {
-      const tick = (this as any)._tick as WorldTick | undefined;
-      const selfHealingStatus = safeHealthValue(() => selfHealingRuntime.getStatus(), { active: false, config: {}, totalErrors: 0, totalHealed: 0, healingRate: 0, featuresProtected: 0 } as any);
-      res.status(this.initializing ? 503 : 200).json({
-        ok: !this.initializing,
-        status: this.initializing ? "initializing" : "ok",
-        project: "ARELORIAN MMORPG",
-        version: "0.2.0",
-        uptimeSeconds: Math.round(process.uptime()),
-        port: Number(process.env.PORT || 3000),
-        persistence: safeHealthValue(() => tick?.getPersistenceStats?.() ?? { status: "unknown" }, { status: "unknown" }),
-        content: safeHealthValue(() => { const content = getContentDataSourceLabel(); return { mode: content.mode, root: content.root }; }, { mode: "unknown", root: null }),
-        supabase: safeHealthValue(() => getSupabaseSummary(), { status: "unknown" }),
-        auth: { useSupabaseWsLogin: envTruthy("USE_SUPABASE_WS_LOGIN"), requireSupabaseAuth: envTruthy("REQUIRE_SUPABASE_AUTH"), allowGuestLogin: !["0", "false", "no"].includes(process.env.ALLOW_GUEST_LOGIN?.trim().toLowerCase() || ""), allowDevLogin: !["0", "false", "no"].includes(process.env.ALLOW_DEV_LOGIN?.trim().toLowerCase() || "") },
-        selfHealing: { active: Boolean(selfHealingStatus.active), patchMode: selfHealingStatus.config?.patchMode ?? "disabled", totalErrors: selfHealingStatus.totalErrors ?? 0, totalHealed: selfHealingStatus.totalHealed ?? 0, healingRate: selfHealingStatus.healingRate ?? 0, featuresProtected: selfHealingStatus.featuresProtected ?? 0 },
-        are: { guard: safeHealthValue(() => tick?.getAREGuardStatus?.() ?? null, null), worldHash: safeHealthValue(() => tick?.getWorldHashSnapshot?.()?.worldHash ?? null, null), replay: safeHealthValue(() => tick?.getReplayRecorderStats?.() ?? null, null) }
+    app.use('/api/mcp', mcpRoute());
+    app.use('/api/v1', scienceMascotRouter());
+    app.use('/api/v1/warfront', warfrontRouter());
+    app.use('/api/leaderboard', leaderboardRouter());
+    app.use('/api/questlines', questlineRouter());
+    app.use('/api/lore', loreRouter());
+    app.get('/client-config.json', (_req, res) => {
+      res.type('application/json');
+      res.setHeader('Cache-Control', 'no-store');
+      res.send(buildClientPublicConfigJson(_req));
+    });
+    app.get('/health', (_req, res) => {
+      if (this.initializing)
+        return res
+          .status(503)
+          .json({ status: 'initializing', message: 'Server is booting up, please wait.' });
+      const tick = (this as any)._tick as WorldTick;
+      const persistence = (tick?.getPersistenceStats() ?? { status: 'unknown' }) as any;
+      const content = getContentDataSourceLabel() as any;
+      const selfHealingStatus = selfHealingRuntime.getStatus();
+      res.json({
+        ok: true,
+        project: 'ARELORIAN MMORPG',
+        version: '0.2.0',
+        persistence,
+        content: { mode: content.mode, root: content.root },
+        supabase: getSupabaseSummary() as any,
+        auth: {
+          useSupabaseWsLogin: envTruthy('USE_SUPABASE_WS_LOGIN'),
+          requireSupabaseAuth: envTruthy('REQUIRE_SUPABASE_AUTH'),
+          allowGuestLogin: (() => {
+            const v = process.env.ALLOW_GUEST_LOGIN?.trim().toLowerCase();
+            if (v === '0' || v === 'false' || v === 'no') return false;
+            return true;
+          })(),
+          allowDevLogin: !['0', 'false', 'no'].includes(
+            process.env.ALLOW_DEV_LOGIN?.trim().toLowerCase() || ''
+          ),
+        },
+        selfHealing: {
+          active: selfHealingStatus.active,
+          patchMode: selfHealingStatus.config?.patchMode ?? 'disabled',
+          totalErrors: selfHealingStatus.totalErrors,
+          totalHealed: selfHealingStatus.totalHealed,
+          healingRate: selfHealingStatus.healingRate,
+          featuresProtected: selfHealingStatus.featuresProtected,
+        },
+        are: {
+          guard: tick?.getAREGuardStatus?.() ?? null,
+          worldHash: tick?.getWorldHashSnapshot?.()?.worldHash ?? null,
+          replay: tick?.getReplayRecorderStats?.() ?? null,
+        },
       });
     });
-    app.get("/", (req, res, next) => { if (req.headers["user-agent"]?.includes("GoogleHC")) return res.status(200).send("OK"); next(); });
-    app.use("/auth/v1", async (req, res) => {
+    app.get('/', (req, res, next) => {
+      if (req.headers['user-agent']?.includes('GoogleHC')) return res.status(200).send('OK');
+      next();
+    });
+    app.use('/auth/v1', async (req, res) => {
       const resolvedProxyBaseUrl = resolveSupabaseProxyBaseUrlForRequest(req, supabaseProxyBaseUrl);
-      if (!resolvedProxyBaseUrl) return res.status(502).json({ error: "supabase_auth_proxy_not_configured", message: "SUPABASE_URL/SUPABASE_PUBLIC_URL is missing and no valid Supabase apikey/ref was provided." });
+      if (!resolvedProxyBaseUrl)
+        return res
+          .status(502)
+          .json({
+            error: 'supabase_auth_proxy_not_configured',
+            message:
+              'SUPABASE_URL/SUPABASE_PUBLIC_URL is missing and no valid Supabase apikey/ref was provided.',
+          });
       try {
         let bufferedBody: Buffer | undefined;
-        if (shouldProxyBody(req.method)) bufferedBody = await new Promise<Buffer>((resolve, reject) => { const chunks: Buffer[] = []; req.on("data", (c: Buffer) => chunks.push(c)); req.on("end", () => resolve(Buffer.concat(chunks))); req.on("error", (err) => reject(err)); });
+        if (shouldProxyBody(req.method))
+          bufferedBody = await new Promise<Buffer>((resolve, reject) => {
+            const chunks: Buffer[] = [];
+            req.on('data', (c: Buffer) => chunks.push(c));
+            req.on('end', () => resolve(Buffer.concat(chunks)));
+            req.on('error', (err) => reject(err));
+          });
         let upstreamPath = req.originalUrl;
         let transformedBody: string | undefined;
-        if (req.method === "POST" && req.originalUrl.includes("/token") && !req.originalUrl.includes("grant_type=") && bufferedBody) {
-          try { const parsed = JSON.parse(bufferedBody.toString()); if (parsed.grant_type) { upstreamPath = `${upstreamPath}${upstreamPath.includes("?") ? "&" : "?"}grant_type=${encodeURIComponent(parsed.grant_type)}`; delete parsed.grant_type; transformedBody = JSON.stringify(parsed); } } catch {}
+        if (
+          req.method === 'POST' &&
+          req.originalUrl.includes('/token') &&
+          !req.originalUrl.includes('grant_type=') &&
+          bufferedBody
+        ) {
+          try {
+            const parsed = JSON.parse(bufferedBody.toString());
+            if (parsed.grant_type) {
+              upstreamPath = `${upstreamPath}${upstreamPath.includes('?') ? '&' : '?'}grant_type=${encodeURIComponent(parsed.grant_type)}`;
+              delete parsed.grant_type;
+              transformedBody = JSON.stringify(parsed);
+            }
+          } catch {
+            /* ignore */
+          }
         }
         const headers = { ...req.headers };
         delete headers.host;
-        delete headers["content-length"];
-        const init: RequestInit = { method: req.method, headers: headers as any, redirect: "manual" };
-        if (shouldProxyBody(req.method)) { init.body = (transformedBody ?? bufferedBody) as any; (init as any).duplex = "half"; }
+        delete headers['content-length'];
+        const init: RequestInit = {
+          method: req.method,
+          headers: headers as any,
+          redirect: 'manual',
+        };
+        if (shouldProxyBody(req.method)) {
+          init.body = (transformedBody ?? bufferedBody) as any;
+          (init as any).duplex = 'half';
+        }
         const response = await fetch(String(resolvedProxyBaseUrl + upstreamPath), init);
         res.status(response.status);
-        response.headers.forEach((value, key) => { const lower = key.toLowerCase(); if (lower === "content-length" || lower === "content-encoding") return; res.setHeader(key, value); });
+        response.headers.forEach((value, key) => {
+          const lower = key.toLowerCase();
+          if (lower === 'content-length' || lower === 'content-encoding') return;
+          res.setHeader(key, value);
+        });
         const respData = await response.arrayBuffer();
         res.send(Buffer.from(respData));
-      } catch (err) { console.error("[AuthProxy] Failed to forward request to Supabase:", err); return res.status(502).json({ error: "supabase_auth_proxy_upstream_failed", message: "Network problem while contacting Supabase." }); }
+      } catch (err) {
+        console.error('[AuthProxy] Failed to forward request to Supabase:', err);
+        return res
+          .status(502)
+          .json({
+            error: 'supabase_auth_proxy_upstream_failed',
+            message: 'Network problem while contacting Supabase.',
+          });
+      }
     });
     const ws = new GameWebSocketServer(httpServer);
     ws.start();
@@ -162,45 +320,141 @@ export class ServerBootstrap {
     (this as any)._tick = tick;
     await tick.init();
     this.initializing = false;
-    app.use("/api/are/validation", areValidationRouter(tick));
-    app.use("/api/are/replay", areReplayRouter(tick));
-    app.use("/api/sovereign/deploy", sovereignDeployRouter(tick));
-    const monitorStream = new PlaytesterMonitorStream(httpServer, (options) => tick.buildPlaytesterMonitorPayload(options));
+    app.use('/api/are/validation', areValidationRouter(tick));
+    app.use('/api/are/replay', areReplayRouter(tick));
+    app.use('/api/sovereign/deploy', sovereignDeployRouter(tick));
+    app.use(
+      '/api/collective/ingress',
+      express.json({ limit: '256kb' }),
+      collectiveIngressRouter(tick)
+    );
+    const monitorStream = new PlaytesterMonitorStream(httpServer, (options) =>
+      tick.buildPlaytesterMonitorPayload(options)
+    );
     monitorStream.start();
     const playtesterSignaling = new PlaytesterWebRTCSignaling(httpServer);
     playtesterSignaling.start();
     const monitorClientRoot = resolveClientRoot();
-    const monitorHtmlPath = resolvePlaytesterMonitorHtmlPath(monitorClientRoot, path.join(monitorClientRoot, "dist"));
-    const publisherHtmlPath = resolvePlaytesterPublisherHtmlPath(monitorClientRoot, path.join(monitorClientRoot, "dist"));
-    if (monitorHtmlPath) app.get("/playtester-monitor.html", (req, res) => { if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: "forbidden" }); res.sendFile(monitorHtmlPath); });
-    if (publisherHtmlPath) app.get("/playtester-render-publisher.html", (req, res) => { if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: "forbidden" }); res.sendFile(publisherHtmlPath); });
-    app.get("/api/playtester/debug-log", (req, res) => { if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: "forbidden" }); res.json({ ok: Boolean(tick.getPlaytesterDebugLogPath()), enabled: PlaytesterConfig.enabled, streamEnabled: PlaytesterConfig.streamEnabled, monitorMode: PlaytesterConfig.monitorMode, monitorPath: PlaytesterConfig.monitorPath, monitorSignalPath: PlaytesterConfig.monitorSignalPath, monitorPublisherPath: PlaytesterConfig.monitorPublisherPath, monitorTokenRequired: PlaytesterConfig.monitorToken.length > 0, stream: { width: PlaytesterConfig.streamWidth, height: PlaytesterConfig.streamHeight, fps: PlaytesterConfig.streamFps, quality: PlaytesterConfig.streamQuality, shadows: PlaytesterConfig.streamShadows, particles: PlaytesterConfig.streamParticles, renderDistance: PlaytesterConfig.streamRenderDistance, iceServers: PlaytesterConfig.streamIceServers }, debugLogPath: tick.getPlaytesterDebugLogPath() }); });
-    app.use("/api/admin/content", adminContentRouter(tick));
-    app.use("/api/vote", voteRouter(tick));
+    const monitorHtmlPath = resolvePlaytesterMonitorHtmlPath(
+      monitorClientRoot,
+      path.join(monitorClientRoot, 'dist')
+    );
+    const publisherHtmlPath = resolvePlaytesterPublisherHtmlPath(
+      monitorClientRoot,
+      path.join(monitorClientRoot, 'dist')
+    );
+    if (monitorHtmlPath)
+      app.get('/playtester-monitor.html', (req, res) => {
+        if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: 'forbidden' });
+        res.sendFile(monitorHtmlPath);
+      });
+    if (publisherHtmlPath)
+      app.get('/playtester-render-publisher.html', (req, res) => {
+        if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: 'forbidden' });
+        res.sendFile(publisherHtmlPath);
+      });
+    app.get('/api/playtester/debug-log', (req, res) => {
+      if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: 'forbidden' });
+      res.json({
+        ok: Boolean(tick.getPlaytesterDebugLogPath()),
+        enabled: PlaytesterConfig.enabled,
+        streamEnabled: PlaytesterConfig.streamEnabled,
+        monitorMode: PlaytesterConfig.monitorMode,
+        monitorPath: PlaytesterConfig.monitorPath,
+        monitorSignalPath: PlaytesterConfig.monitorSignalPath,
+        monitorPublisherPath: PlaytesterConfig.monitorPublisherPath,
+        monitorTokenRequired: PlaytesterConfig.monitorToken.length > 0,
+        stream: {
+          width: PlaytesterConfig.streamWidth,
+          height: PlaytesterConfig.streamHeight,
+          fps: PlaytesterConfig.streamFps,
+          quality: PlaytesterConfig.streamQuality,
+          shadows: PlaytesterConfig.streamShadows,
+          particles: PlaytesterConfig.streamParticles,
+          renderDistance: PlaytesterConfig.streamRenderDistance,
+          iceServers: PlaytesterConfig.streamIceServers,
+        },
+        debugLogPath: tick.getPlaytesterDebugLogPath(),
+      });
+    });
+    app.use('/api/admin/content', adminContentRouter(tick));
+    app.use('/api/vote', voteRouter(tick));
     const clientRoot = resolveClientRoot();
-    const clientPath = path.join(clientRoot, "dist");
-    const itchClientPath = path.join(clientRoot, "dist-itch");
+    const clientPath = path.join(clientRoot, 'dist');
+    const itchClientPath = path.join(clientRoot, 'dist-itch');
     const adminContentPath = resolveAdminContentHtmlPath(clientRoot, clientPath);
-    if (adminContentPath) app.get("/admin-content.html", (_req, res) => res.sendFile(adminContentPath));
-    if (existsSync(path.join(itchClientPath, "index.html"))) { app.use("/itch", express.static(itchClientPath, { index: "index.html" })); app.get("/itch/*", (_req, res) => res.sendFile(path.join(itchClientPath, "index.html"))); }
-    if (process.env.NODE_ENV !== "production") {
-      try { const vite = await import("vite"); const viteServer = await vite.createServer({ server: { middlewareMode: true }, appType: "spa", root: clientRoot }); app.use(viteServer.middlewares); }
-      catch (e) { console.error("Failed to start Vite middleware", e); app.use(express.static(clientPath)); }
+    if (adminContentPath)
+      app.get('/admin-content.html', (_req, res) => res.sendFile(adminContentPath));
+    if (existsSync(path.join(itchClientPath, 'index.html'))) {
+      app.use('/itch', express.static(itchClientPath, { index: 'index.html' }));
+      app.get('/itch/*', (_req, res) => res.sendFile(path.join(itchClientPath, 'index.html')));
+    }
+    if (process.env.NODE_ENV !== 'production') {
+      try {
+        const vite = await import('vite');
+        const viteServer = await vite.createServer({
+          server: { middlewareMode: true },
+          appType: 'spa',
+          root: clientRoot,
+        });
+        app.use(viteServer.middlewares);
+      } catch (e) {
+        console.error('Failed to start Vite middleware', e);
+        app.use(express.static(clientPath));
+      }
     } else {
-      app.use((req, res, next) => { if (req.url?.endsWith(".wasm")) { res.setHeader("Content-Type", "application/wasm"); res.setHeader("Cross-Origin-Opener-Policy", "same-origin"); res.setHeader("Cross-Origin-Embedder-Policy", "require-corp"); } next(); });
+      app.use((req, res, next) => {
+        if (req.url?.endsWith('.wasm')) {
+          res.setHeader('Content-Type', 'application/wasm');
+          res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+          res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+        }
+        next();
+      });
       app.use(express.static(clientPath));
     }
     const mirroredWorld = resolveMirroredWorldAssetsDir();
     const worldAssetsDir = mirroredWorld ?? resolveWorldAssetsDir();
-    if (worldAssetsDir) app.use("/world-assets", express.static(worldAssetsDir, { maxAge: process.env.NODE_ENV === "production" ? "7d" : 0, fallthrough: false }));
-    try { const worldDir = resolveContentDir("world"); if (existsSync(worldDir)) app.use("/world", express.static(worldDir, { maxAge: process.env.NODE_ENV === "production" ? "1h" : 0, fallthrough: true })); } catch {}
+    if (worldAssetsDir)
+      app.use(
+        '/world-assets',
+        express.static(worldAssetsDir, {
+          maxAge: process.env.NODE_ENV === 'production' ? '7d' : 0,
+          fallthrough: false,
+        })
+      );
+    try {
+      const worldDir = resolveContentDir('world');
+      if (existsSync(worldDir))
+        app.use(
+          '/world',
+          express.static(worldDir, {
+            maxAge: process.env.NODE_ENV === 'production' ? '1h' : 0,
+            fallthrough: true,
+          })
+        );
+    } catch {
+      /* ignore */
+    }
     const port = Number(process.env.PORT || 3000);
     httpServer.listen(port, () => {
       console.log(`Arelorian server listening on ${port}`);
       tick.start();
-      const shutdownHandler = async () => { console.log("[Shutdown] Flushing data..."); playtesterSignaling.stop(); monitorStream.stop(); tick.liveHeal.flush(); tick.assetHealthService.flush(); try { await shutdownPostHog(); } catch (e) { console.warn("[Shutdown] PostHog shutdown failed", e); } process.exit(0); };
-      process.on("SIGTERM", shutdownHandler);
-      process.on("SIGINT", shutdownHandler);
+      const shutdownHandler = async () => {
+        console.log('[Shutdown] Flushing data...');
+        playtesterSignaling.stop();
+        monitorStream.stop();
+        tick.liveHeal.flush();
+        tick.assetHealthService.flush();
+        try {
+          await shutdownPostHog();
+        } catch (e) {
+          console.warn('[Shutdown] PostHog shutdown failed', e);
+        }
+        process.exit(0);
+      };
+      process.on('SIGTERM', shutdownHandler);
+      process.on('SIGINT', shutdownHandler);
     });
   }
 }
