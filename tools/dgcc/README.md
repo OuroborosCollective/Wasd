@@ -12,4 +12,10 @@ DGCC_FIX=1 pnpm run dgcc
 
 Artifacts: `dgcc-artifacts/`
 
-The `minimal` / `extreme` modes also run `pnpm run check:interact` (GameConfig vs `shared/interaction.ts`).
+Optional interact-radius alignment (not part of the default contract modes):
+
+```bash
+pnpm run check:interact
+```
+
+The `unit` check runs `pnpm run test:dgcc` (a fast, gameplay-relevant Vitest slice). Use `pnpm run test` for the full suite.

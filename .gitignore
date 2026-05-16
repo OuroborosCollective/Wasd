@@ -19,3 +19,7 @@ pnpm-debug.log*
 # Python (deploy helpers)
 __pycache__/
 *.py[cod]
+
+# DGCC gate output
+dgcc-artifacts/
+test-results/
