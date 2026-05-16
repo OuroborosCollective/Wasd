@@ -30,7 +30,7 @@ FROM base AS deps
 WORKDIR /app
 
 # Invalidate workspace manifest cache after dependency graph corrections.
-ARG WORKSPACE_MANIFEST_CACHE_BUST=2026-05-15-0006
+ARG WORKSPACE_MANIFEST_CACHE_BUST=2026-05-16-0010
 RUN echo "workspace manifest cache bust: ${WORKSPACE_MANIFEST_CACHE_BUST}"
 
 # Workspace manifests
@@ -46,8 +46,10 @@ COPY engine/package.json engine/package.json
 COPY portal/package.json portal/package.json
 COPY scripts/sync-pnpm-lockfile-for-docker.py scripts/sync-pnpm-lockfile-for-docker.py
 
-# Remove everything except package.json from copied workspace trees
+# Remove everything except package.json from copied workspace trees.
+# SDK examples are intentionally excluded from the server Docker image build.
 RUN find packages apps projects -type f ! -name 'package.json' -delete || true
+RUN rm -rf packages/sdk-examples || true
 RUN find packages apps projects -type d -empty -delete || true
 
 # VPS optimized dependency install.
@@ -61,7 +63,7 @@ RUN pnpm config set network-concurrency 2 && \
 # Self-heal only the Docker build copy of pnpm-lock.yaml.
 # This syncs root override metadata and importer specifiers from package.json,
 # keeping install frozen while avoiding the VPS OOM-prone no-frozen path.
-ARG PNPM_PREFLIGHT_CACHE_BUST=2026-05-15-0030
+ARG PNPM_PREFLIGHT_CACHE_BUST=2026-05-16-0010
 RUN echo "pnpm preflight cache bust: ${PNPM_PREFLIGHT_CACHE_BUST}" && \
     python3 scripts/sync-pnpm-lockfile-for-docker.py
 
@@ -83,7 +85,8 @@ COPY --from=deps /app ./
 # Copy source. This overwrites pnpm-lock.yaml with the repository copy, so run
 # the same preflight again before invoking the server build.
 COPY . .
-ARG PNPM_BUILDER_PREFLIGHT_CACHE_BUST=2026-05-15-0035
+RUN rm -rf packages/sdk-examples || true
+ARG PNPM_BUILDER_PREFLIGHT_CACHE_BUST=2026-05-16-0010
 RUN echo "pnpm builder preflight cache bust: ${PNPM_BUILDER_PREFLIGHT_CACHE_BUST}" && \
     python3 scripts/sync-pnpm-lockfile-for-docker.py
 
