@@ -6,6 +6,8 @@ set -euo pipefail
 
 DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
 REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+ARELORIAN_PORT="${ARELORIAN_PORT:-3001}"
+export ARELORIAN_PORT
 cd "$REPO_ROOT"
 
 LOCK_PATH="${DEPLOY_LOCK_PATH:-/tmp/wasd-vps-docker-deploy.lock}"
@@ -43,27 +45,28 @@ else
   exit 1
 fi
 
-free_port_3000() {
-  local ids pids
+free_engine_port() {
+  local ids pids port
+  port="$ARELORIAN_PORT"
 
-  ids="$(docker ps -a --format '{{.ID}} {{.Ports}}' | awk '/(:|0\.0\.0\.0:)3000->|:::3000->|0\.0\.0\.0:3000-|:::3000-/ {print $1}' | tr '\n' ' ')"
+  ids="$(docker ps -a --format '{{.ID}} {{.Ports}}' | awk -v port="$port" '$0 ~ ":" port "->" || $0 ~ "0.0.0.0:" port "-" || $0 ~ ":::" port "-" {print $1}' | tr '\n' ' ')"
   if [ -n "${ids// }" ]; then
-    echo "Removing Docker container(s) publishing port 3000: $ids"
+    echo "Removing Docker container(s) publishing port ${port}: $ids"
     docker rm -f $ids >/dev/null 2>&1 || true
   fi
 
   if command -v fuser >/dev/null 2>&1; then
-    pids="$(fuser -n tcp 3000 2>/dev/null || true)"
+    pids="$(fuser -n tcp "$port" 2>/dev/null || true)"
     if [ -n "${pids// }" ]; then
-      echo "Stopping host process(es) listening on port 3000: $pids"
+      echo "Stopping host process(es) listening on port ${port}: $pids"
       kill $pids >/dev/null 2>&1 || true
       sleep 2
       kill -9 $pids >/dev/null 2>&1 || true
     fi
   elif command -v lsof >/dev/null 2>&1; then
-    pids="$(lsof -ti tcp:3000 2>/dev/null | tr '\n' ' ')"
+    pids="$(lsof -ti tcp:"$port" 2>/dev/null | tr '\n' ' ')"
     if [ -n "${pids// }" ]; then
-      echo "Stopping host process(es) listening on port 3000: $pids"
+      echo "Stopping host process(es) listening on port ${port}: $pids"
       kill $pids >/dev/null 2>&1 || true
       sleep 2
       kill -9 $pids >/dev/null 2>&1 || true
@@ -137,6 +140,7 @@ fetch_and_reset() {
 echo "=== WASD monorepo deploy (Docker) ==="
 echo "Repo: $REPO_ROOT"
 echo "Branch: $DEPLOY_BRANCH"
+echo "Engine port: $ARELORIAN_PORT"
 
 fetch_and_reset
 
@@ -156,13 +160,13 @@ echo "[2/4] Build images (monorepo context, sequential to avoid OOM)"
 
 echo "[3/4] Recreate containers"
 "${DC[@]}" -f docker-compose.yml down --remove-orphans || true
-free_port_3000
+free_engine_port
 "${DC[@]}" -f docker-compose.yml up -d --remove-orphans arelorian-engine monitor-bridge
 
-echo "[4/4] Health check (engine :3000)"
+echo "[4/4] Health check (engine :${ARELORIAN_PORT})"
 ok=0
 for i in $(seq 1 24); do
-  if curl -sf "http://127.0.0.1:3000/health" >/dev/null; then
+  if curl -sf "http://127.0.0.1:${ARELORIAN_PORT}/health" >/dev/null; then
     ok=1
     break
   fi
