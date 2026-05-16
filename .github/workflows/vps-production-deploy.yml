@@ -1,4 +1,9 @@
-# Full VPS deploy: SSH to host, sync `main`, run `deploy/update.sh` (pnpm build + PM2).
+# Legacy VPS deploy: SSH to host, sync `main`, run `deploy/update.sh` (pnpm build + PM2).
+#
+# Manual-only by design.
+# The automatic production path is now `VPS Docker Deploy (monorepo)`.
+# This legacy workflow builds browser frontends directly on the VPS and can OOM
+# during Vite builds on small hosts with exit 137.
 #
 # Accepts either naming convention:
 #   VPS_HOST / VPS_USER / VPS_SSH_KEY / VPS_DEPLOY_PATH
@@ -9,12 +14,6 @@
 name: VPS production deploy
 
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
   workflow_dispatch:
 
 permissions:
