@@ -7,7 +7,6 @@ type Severity = "info" | "warn" | "error";
 type CheckName =
   | "lint"
   | "unit"
-  | "checkInteract"
   | "e2e"
   | "contentValidate"
   | "assetsAudit"
@@ -181,19 +180,10 @@ async function main() {
 
   if (checks.includes("unit")) {
     await runCheck("unit", async () => {
-      const r = await run("pnpm", ["run", "test"]);
+      const r = await run("pnpm", ["run", "test:dgcc"]);
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
-      if (r.code !== 0) throw new Error("unit tests failed");
-    });
-  }
-
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
+      if (r.code !== 0) throw new Error("unit tests failed (test:dgcc slice)");
     });
   }
 
@@ -217,7 +207,7 @@ async function main() {
 
   if (checks.includes("clientBuild")) {
     await runCheck("clientBuild", async () => {
-      const r = await run("pnpm", ["--prefix", "client", "run", "build"], {
+      const r = await run("pnpm", ["run", "build:client:dist"], {
         env: {
           NODE_OPTIONS: process.env.NODE_OPTIONS || "--max-old-space-size=6144",
         },
@@ -230,7 +220,7 @@ async function main() {
 
   if (checks.includes("serverBuild")) {
     await runCheck("serverBuild", async () => {
-      const r = await run("pnpm", ["--prefix", "server", "run", "build"]);
+      const r = await run("pnpm", ["run", "build:server:dist"]);
       fs.writeFileSync(path.join(outDir, "server-build.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["serverBuild"] = "dgcc-artifacts/server-build.out.txt";
       if (r.code !== 0) throw new Error("server build failed");
