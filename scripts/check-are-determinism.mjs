@@ -7,9 +7,15 @@ const root = process.cwd();
 
 const criticalRoots = [
   'server/src/core/systems',
+  'server/src/core/watchdogs',
+  'server/src/modules/brain',
   'server/src/modules/loot',
   'server/src/modules/warfront',
   'server/src/modules/oracle',
+];
+
+const criticalFilePatterns = [
+  /^server\/src\/core\/[^/]+Watchdog\.[cm]?[tj]sx?$/,
 ];
 
 const excludedPaths = [
@@ -73,6 +79,15 @@ async function walk(dir) {
   return files;
 }
 
+async function listCriticalFilesFromPatterns() {
+  const coreDir = join(root, 'server/src/core');
+  const files = await walk(coreDir);
+  return files.filter((file) => {
+    const rel = normalize(relative(root, file));
+    return criticalFilePatterns.some((pattern) => pattern.test(rel));
+  });
+}
+
 function lineNumberForOffset(content, offset) {
   let line = 1;
   for (let index = 0; index < offset; index += 1) {
@@ -93,9 +108,14 @@ function markerAllowed(content, lineNumber) {
     || previous.includes(telemetryMarker) || current.includes(telemetryMarker);
 }
 
-const files = [];
+const files = new Set();
 for (const criticalRoot of criticalRoots) {
-  files.push(...await walk(join(root, criticalRoot)));
+  for (const file of await walk(join(root, criticalRoot))) {
+    files.add(file);
+  }
+}
+for (const file of await listCriticalFilesFromPatterns()) {
+  files.add(file);
 }
 
 const findings = [];
@@ -126,4 +146,4 @@ if (findings.length > 0) {
   process.exit(1);
 }
 
-console.log(`ARE determinism gate passed. Scanned ${files.length} simulation file(s). Telemetry side-channel paths are excluded by policy.`);
+console.log(`ARE determinism gate passed. Scanned ${files.size} simulation file(s). Telemetry side-channel paths are excluded by policy.`);
