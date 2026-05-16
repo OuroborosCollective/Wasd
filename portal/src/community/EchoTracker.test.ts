@@ -61,4 +61,61 @@ describe("PortalWorldHistory", () => {
     });
     expect(h.getHead()?.kind).toBe("trade");
   });
+
+  it("recordRefinement appends typed refinement echo", () => {
+    const h = PortalWorldHistory.getInstance();
+    h.recordRefinement({
+      itemId: "rusted_blade",
+      itemName: "Rusted Blade",
+      quality: "common",
+      sector: "12:8",
+      yields: "2 commonEssence",
+      residueHash: "test-residue",
+    });
+    expect(h.getHead()?.kind).toBe("refinement");
+    expect(h.getHead()?.refinement?.itemId).toBe("rusted_blade");
+  });
+
+  it("recordForge appends typed forge echo", () => {
+    const h = PortalWorldHistory.getInstance();
+    h.recordForge({
+      blueprintId: "bp_echo_blade_t2",
+      blueprintName: "Blueprint: Echo Blade",
+      itemId: "echo_blade:abc",
+      itemName: "Echo Blade",
+      quality: "rare",
+      sector: "12:8",
+      stability: 0.94,
+      forgeHash: "forgehash123",
+    });
+    expect(h.getHead()?.kind).toBe("forge");
+    expect(h.getHead()?.forge?.blueprintId).toBe("bp_echo_blade_t2");
+  });
+
+  it("recordDestiny appends typed destiny echo", () => {
+    const h = PortalWorldHistory.getInstance();
+    h.recordDestiny({
+      destinyId: "destiny_alpha",
+      title: "Säuberung von Sektor 12:8",
+      sector: "12:8",
+      severity: "high",
+      rewardBlueprint: "Blueprint: Echo Blade",
+      rewardQuality: "legendary",
+      destinyHash: "destinyhash123",
+    });
+    expect(h.getHead()?.kind).toBe("destiny");
+    expect(h.getHead()?.destiny?.rewardQuality).toBe("legendary");
+  });
+
+  it("digest includes refinement forge and destiny counts", () => {
+    const h = PortalWorldHistory.getInstance();
+    h.recordRefinement({ itemId: "a", itemName: "A", quality: "common", sector: "1:1", yields: "1 commonEssence", residueHash: "r" });
+    h.recordForge({ blueprintId: "bp", blueprintName: "BP", itemId: "i", itemName: "I", quality: "rare", sector: "1:1", stability: 1, forgeHash: "f" });
+    h.recordDestiny({ title: "Destiny", rewardBlueprint: "Blueprint: Echo", rewardQuality: "rare" });
+    const d = h.getEchoDigestSummary(10);
+    expect(d.refinement).toBe(1);
+    expect(d.forge).toBe(1);
+    expect(d.destiny).toBe(1);
+    expect(d.total).toBe(3);
+  });
 });

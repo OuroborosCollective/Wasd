@@ -224,13 +224,14 @@ export const DestinyPathsPanel: React.FC = () => {
               type="button"
               className="mt-3 rounded border border-violet-300/50 bg-violet-400/15 px-3 py-1 text-xs font-semibold text-violet-100 hover:bg-violet-400/25"
               onClick={() => {
-                hist.pushEcho({
-                  kind: "destiny" as never,
-                  summary: `Destiny path released · ${path.title} · reward ${path.rewardQuality.toUpperCase()} ${path.rewardBlueprint}`,
-                  worldLine: {
-                    title: `Destiny released · ${path.severity.toUpperCase()}`,
-                    description: path.emilyBriefing,
-                  },
+                hist.recordDestiny({
+                  destinyId: path.id,
+                  title: path.title,
+                  sector: path.sectorId,
+                  severity: path.severity,
+                  rewardBlueprint: path.rewardBlueprint,
+                  rewardQuality: path.rewardQuality,
+                  destinyHash: path.destinyHash,
                 });
               }}
             >
