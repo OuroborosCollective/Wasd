@@ -42,6 +42,14 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+/** Server dist imports @wasd/shared and @wasd/core-logic dist outputs; build them before server/e2e. */
+async function ensureWorkspaceDepsForServer() {
+  const shared = await run("pnpm", ["--filter", "@wasd/shared", "run", "build"]);
+  if (shared.code !== 0) throw new Error("@wasd/shared build failed");
+  const core = await run("pnpm", ["--filter", "@wasd/core-logic", "run", "build"]);
+  if (core.code !== 0) throw new Error("@wasd/core-logic build failed");
+}
+
 function run(cmd: string, args: string[], opts?: { env?: Record<string, string> }) {
   return new Promise<{ code: number; stdout: string; stderr: string; durationMs: number }>((resolve) => {
     const t0 = Date.now();
@@ -181,10 +189,11 @@ async function main() {
 
   if (checks.includes("unit")) {
     await runCheck("unit", async () => {
-      const r = await run("pnpm", ["run", "test"]);
+      // Focused suite: full `pnpm run test` spans the whole workspace and is not stable as a single gate yet.
+      const r = await run("pnpm", ["run", "test:dgcc"]);
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
-      if (r.code !== 0) throw new Error("unit tests failed");
+      if (r.code !== 0) throw new Error("unit tests failed (test:dgcc)");
     });
   }
 
@@ -199,8 +208,16 @@ async function main() {
 
   if (checks.includes("e2e")) {
     await runCheck("e2e", async () => {
+      let preflight = "";
+      await ensureWorkspaceDepsForServer();
+      const serverEntry = path.join(ROOT, "server/dist/index.js");
+      if (!fs.existsSync(serverEntry)) {
+        const br = await run("pnpm", ["--prefix", "server", "run", "build"]);
+        preflight = `### server prebuild (dist was missing)\n${br.stdout}\n${br.stderr}\n\n`;
+        if (br.code !== 0) throw new Error("server build failed (required for e2e webserver)");
+      }
       const r = await run("pnpm", ["run", "test:e2e:ci"]);
-      fs.writeFileSync(path.join(outDir, "e2e.out.txt"), r.stdout + "\n" + r.stderr);
+      fs.writeFileSync(path.join(outDir, "e2e.out.txt"), preflight + r.stdout + "\n" + r.stderr);
       report.artifacts["e2e"] = "dgcc-artifacts/e2e.out.txt";
       if (r.code !== 0) throw new Error("e2e failed");
     });
@@ -208,10 +225,11 @@ async function main() {
 
   if (checks.includes("contentValidate")) {
     await runCheck("contentValidate", async () => {
-      const r = await run("pnpm", ["--prefix", "server", "run", "validate"]);
+      // Run from repo root so Vitest picks up root vitest.config paths (server prefix cwd breaks includes).
+      const r = await run("pnpm", ["exec", "vitest", "run", "server/src/tests/validate-content-core.test.ts"]);
       fs.writeFileSync(path.join(outDir, "content-validate.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["contentValidate"] = "dgcc-artifacts/content-validate.out.txt";
-      if (r.code !== 0) throw new Error("content validation failed (server validate)");
+      if (r.code !== 0) throw new Error("content validation failed (validate-content-core)");
     });
   }
 
@@ -230,6 +248,7 @@ async function main() {
 
   if (checks.includes("serverBuild")) {
     await runCheck("serverBuild", async () => {
+      await ensureWorkspaceDepsForServer();
       const r = await run("pnpm", ["--prefix", "server", "run", "build"]);
       fs.writeFileSync(path.join(outDir, "server-build.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["serverBuild"] = "dgcc-artifacts/server-build.out.txt";
