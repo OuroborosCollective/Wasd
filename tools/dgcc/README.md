@@ -12,4 +12,6 @@ DGCC_FIX=1 pnpm run dgcc
 
 Artifacts: `dgcc-artifacts/`
 
-The `minimal` / `extreme` modes also run `pnpm run check:interact` (GameConfig vs `shared/interaction.ts`).
+The `minimal` / `extreme` modes also run `pnpm run check:interact` (GameConfig vs `packages/shared/src/utils/interaction.ts`).
+
+Unit checks use `pnpm run test:dgcc` (see `vitest.dgcc.config.ts`), which builds `@wasd/shared` first and excludes a few suites that require a full live stack or are temporarily out of sync with stubs.
