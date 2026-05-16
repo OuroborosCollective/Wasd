@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 
 export interface OuroborosPulseFrame {
   tick: number;
@@ -20,7 +20,7 @@ function clamp01(value: number): number {
 
 function useTenHzPulse(tickHz: number, selectedTick: number): number {
   const [now, setNow] = useState(0);
-  React.useEffect(() => {
+  useEffect(() => {
     let frame = 0;
     const start = performance.now();
     const loop = (time: number) => {
@@ -39,7 +39,7 @@ export function OuroborosPulseView({
   title = "Engine Online. Kausalität stabil.",
   subtitle = "10-Hz WorldHash heartbeat · Cyber-Zen Replay Bridge",
   onFrameSelect,
-}: OuroborosPulseViewProps): React.ReactElement {
+}: OuroborosPulseViewProps) {
   const safeFrames = frames.length > 0 ? frames : [{ tick: 0, worldHash: "warming", label: "waiting" }];
   const [index, setIndex] = useState(safeFrames.length - 1);
   const active = safeFrames[Math.max(0, Math.min(index, safeFrames.length - 1))];
@@ -53,12 +53,12 @@ export function OuroborosPulseView({
     background: "linear-gradient(135deg, rgba(10,10,10,.95), rgba(4,15,22,.98))",
     border: "1px solid rgba(var(--wasd-aura), .38)",
     boxShadow: `0 0 ${24 + pulse * 34}px rgba(var(--wasd-aura), ${0.18 + pulse * 0.36})`,
-  } as React.CSSProperties;
+  } as any;
 
   const orbStyle = {
     transform: `scale(${1 + pulse * 0.06})`,
     boxShadow: `0 0 ${28 + pulse * 46}px rgba(var(--wasd-aura), ${0.32 + pulse * 0.42}), inset 0 0 32px rgba(var(--wasd-neon), ${0.08 + pulse * 0.18})`,
-  } as React.CSSProperties;
+  } as any;
 
   return (
     <section style={style} className="ouroboros-pulse-view rounded-3xl p-6 text-white">
@@ -92,7 +92,7 @@ export function OuroborosPulseView({
             min={0}
             max={safeFrames.length - 1}
             value={index}
-            onChange={(event) => {
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
               const next = Number(event.target.value);
               setIndex(next);
               onFrameSelect?.(safeFrames[next]);
