@@ -89,6 +89,10 @@ container_http_ready() {
   return 1
 }
 
+client_shell_ready() {
+  docker exec arelorian-engine node -e "fetch('http://127.0.0.1:${CONTAINER_PORT}/').then(async r=>{const body=await r.text();process.exit(r.ok&&body.includes('application-canvas')?0:1)}).catch(()=>process.exit(1))" >/dev/null 2>&1
+}
+
 host_http_ready() {
   curl -sS -m 4 -o /dev/null -w '%{http_code}' "http://127.0.0.1:${ARELORIAN_PORT}/health" 2>/dev/null | grep -Eq '^(200|204|301|302|304|401|403|503)$' && return 0
   curl -sS -m 4 -o /dev/null -w '%{http_code}' "http://127.0.0.1:${ARELORIAN_PORT}/client-config.json" 2>/dev/null | grep -Eq '^(200|204|301|302|304|401|403|503)$' && return 0
@@ -142,14 +146,22 @@ ok=0
 for i in $(seq 1 36); do
   if container_http_ready; then
     echo "  container HTTP ready ($i/36)"
-    if host_http_ready; then echo "  host HTTP mapping ready"; else echo "  WARN: host mapping not responding yet"; fi
-    ok=1
-    break
+    if client_shell_ready; then
+      echo "  client shell ready"
+      if host_http_ready; then echo "  host HTTP mapping ready"; else echo "  WARN: host mapping not responding yet"; fi
+      ok=1
+      break
+    fi
+    echo "  waiting for client shell... ($i/36)"
   fi
   if [ "$i" -ge 12 ] && runtime_activity_ready; then
     echo "  runtime activity ready ($i/36): node process and world events detected"
-    ok=1
-    break
+    if client_shell_ready; then
+      echo "  client shell ready"
+      ok=1
+      break
+    fi
+    echo "  waiting for client shell... ($i/36)"
   fi
   echo "  waiting... ($i/36)"
   sleep 5
