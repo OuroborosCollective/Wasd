@@ -1,0 +1,88 @@
+# syntax=docker/dockerfile:1.7
+
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+RUN apk add --no-cache libc6-compat dumb-init python3 make g++
+
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+ENV CI=true
+ENV npm_config_jobs=1
+ENV NODE_OPTIONS=--max-old-space-size=4096
+
+RUN corepack enable && corepack prepare pnpm@9.12.2 --activate && \
+    pnpm config set store-dir /pnpm/store && \
+    pnpm config set network-concurrency 2 && \
+    pnpm config set child-concurrency 1 && \
+    pnpm config set side-effects-cache false
+
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY packages packages
+COPY apps apps
+COPY projects projects
+COPY server/package.json server/package.json
+COPY client/package.json client/package.json
+COPY engine/package.json engine/package.json
+COPY portal/package.json portal/package.json
+COPY scripts/sync-pnpm-lockfile-for-docker.py scripts/sync-pnpm-lockfile-for-docker.py
+
+RUN find packages apps projects -type f ! -name package.json -delete || true && \
+    rm -rf packages/sdk-examples || true && \
+    find packages apps projects -type d -empty -delete || true && \
+    python3 scripts/sync-pnpm-lockfile-for-docker.py && \
+    pnpm install --frozen-lockfile --prefer-offline --ignore-scripts
+
+COPY . .
+RUN rm -rf packages/sdk-examples || true && \
+    python3 scripts/sync-pnpm-lockfile-for-docker.py
+
+ENV NODE_ENV=production
+ENV NODE_OPTIONS=--max-old-space-size=6144
+
+RUN pnpm --filter @wasd/core-logic --if-present run build:runtime && \
+    pnpm --filter @wasd/shared --if-present build && \
+    pnpm --filter @wasd/server --if-present build && \
+    pnpm prune --prod
+
+FROM node:22-alpine AS runner
+
+WORKDIR /app
+
+RUN apk add --no-cache dumb-init libc6-compat && \
+    addgroup -S nodejs && \
+    adduser -S nodeuser -G nodejs
+
+ENV NODE_ENV=production
+ENV PORT=3001
+ENV GAME_PORT=3001
+ENV HOST=0.0.0.0
+ENV NODE_OPTIONS=--max-old-space-size=4096
+ENV UV_THREADPOOL_SIZE=16
+
+COPY --from=builder /app/package.json /app/pnpm-workspace.yaml ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/server ./server
+COPY --from=builder /app/packages/core-logic ./packages/core-logic
+COPY --from=builder /app/packages/shared ./packages/shared
+
+RUN rm -rf \
+    /app/server/src \
+    /app/server/test \
+    /app/server/tests \
+    /app/server/scripts \
+    /app/packages/core-logic/src \
+    /app/packages/shared/src && \
+    chown -R nodeuser:nodejs /app
+
+USER nodeuser
+WORKDIR /app/server
+
+EXPOSE 3001 8080 443
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=5 \
+    CMD node -e "fetch('http://127.0.0.1:3001/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "dist/index.js"]
