@@ -188,6 +188,10 @@ export class ServerBootstrap {
       catch (e) { console.error("Failed to start Vite middleware", e); app.use(express.static(clientPath)); }
     } else {
       app.use((req, res, next) => { if (req.url?.endsWith(".wasm")) { res.setHeader("Content-Type", "application/wasm"); res.setHeader("Cross-Origin-Opener-Policy", "same-origin"); res.setHeader("Cross-Origin-Embedder-Policy", "require-corp"); } next(); });
+      const clientPublic = path.join(clientRoot, "public");
+      if (existsSync(clientPublic)) {
+        app.use(express.static(clientPublic, { fallthrough: true, maxAge: process.env.NODE_ENV === "production" ? "1h" : 0 }));
+      }
       app.use(express.static(clientPath));
     }
     const mirroredWorld = resolveMirroredWorldAssetsDir();
