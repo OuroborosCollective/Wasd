@@ -145,17 +145,33 @@ jobs:
             fi
             echo "Docker command: $DOCKER"
             $DOCKER --version || true
-            $DOCKER compose version || true
+            if ! $DOCKER compose version >/dev/null 2>&1 && ! command -v docker-compose >/dev/null 2>&1; then
+              echo "ERROR: Docker Compose is required on the VPS."
+              exit 1
+            fi
+            $DOCKER compose version || docker-compose --version || true
 
+            echo "[0/5] Prepare deploy directory"
             if [ ! -d "$DEPLOY_PATH" ]; then
               mkdir -p "$DEPLOY_PATH" 2>/dev/null || sudo mkdir -p "$DEPLOY_PATH"
               sudo chown -R "$(id -un):$(id -gn)" "$DEPLOY_PATH" 2>/dev/null || true
             fi
 
+            if [ -e "$DEPLOY_PATH" ] && [ ! -d "$DEPLOY_PATH/.git" ]; then
+              if [ -n "$(ls -A "$DEPLOY_PATH" 2>/dev/null || true)" ]; then
+                backup="${DEPLOY_PATH}.backup.$(date +%Y%m%d%H%M%S)"
+                echo "Existing non-git deploy dir found. Moving to $backup"
+                mv "$DEPLOY_PATH" "$backup" 2>/dev/null || sudo mv "$DEPLOY_PATH" "$backup"
+                mkdir -p "$DEPLOY_PATH" 2>/dev/null || sudo mkdir -p "$DEPLOY_PATH"
+                sudo chown -R "$(id -un):$(id -gn)" "$DEPLOY_PATH" 2>/dev/null || true
+              fi
+            fi
+
             if [ ! -d "$DEPLOY_PATH/.git" ]; then
-              rm -rf "$DEPLOY_PATH"/* 2>/dev/null || true
+              echo "[1/5] Clone repo into $DEPLOY_PATH"
               git clone --branch "$DEPLOY_BRANCH" --depth 1 "$REPO_URL" "$DEPLOY_PATH"
             else
+              echo "[1/5] Existing repo found"
               cd "$DEPLOY_PATH"
               git remote set-url origin "$REPO_URL" || true
               git fetch --no-tags origin "$DEPLOY_BRANCH"
@@ -164,6 +180,12 @@ jobs:
             fi
 
             cd "$DEPLOY_PATH"
+            if [ ! -f scripts/deploy-vps-docker.sh ]; then
+              echo "ERROR: Missing scripts/deploy-vps-docker.sh after clone/fetch."
+              exit 1
+            fi
+
+            echo "[2/5] Preserve and refresh VPS runtime env"
             umask 077
             if [ -f "$ARELORIAN_ENV_FILE" ]; then
               cp "$ARELORIAN_ENV_FILE" "${ARELORIAN_ENV_FILE}.backup.$(date +%Y%m%d%H%M%S)" || true
@@ -187,10 +209,33 @@ jobs:
             echo "Runtime env file preserved/refreshed: $DEPLOY_PATH/$ARELORIAN_ENV_FILE"
             echo "Runtime env keys present:"
             grep -E '^[A-Z0-9_]+=' "$ARELORIAN_ENV_FILE" | cut -d= -f1 | sed 's/^/  - /'
-            chmod +x scripts/deploy-vps-docker.sh 2>/dev/null || true
 
+            echo "[3/5] Free engine port $ARELORIAN_PORT"
+            pm2 stop areloria >/dev/null 2>&1 || true
+            pm2 delete areloria >/dev/null 2>&1 || true
+            $DOCKER rm -f arelorian-engine monitor-bridge arelorian-ingress-router >/dev/null 2>&1 || true
+            if command -v fuser >/dev/null 2>&1; then
+              PIDS="$(fuser -n tcp "$ARELORIAN_PORT" 2>/dev/null || true)"
+              if [ -n "${PIDS// }" ]; then kill $PIDS >/dev/null 2>&1 || true; sleep 2; kill -9 $PIDS >/dev/null 2>&1 || true; fi
+            fi
+            if command -v lsof >/dev/null 2>&1; then
+              PIDS="$(lsof -ti tcp:"$ARELORIAN_PORT" 2>/dev/null | tr '\n' ' ' || true)"
+              if [ -n "${PIDS// }" ]; then kill $PIDS >/dev/null 2>&1 || true; sleep 2; kill -9 $PIDS >/dev/null 2>&1 || true; fi
+            fi
+
+            echo "[4/5] Run Docker deploy script"
+            chmod +x scripts/deploy-vps-docker.sh 2>/dev/null || true
             if [ "$DOCKER" = 'sudo docker' ]; then
               sudo env ARELORIAN_PORT="$ARELORIAN_PORT" ARELORIAN_DOCKER_NETWORK="$ARELORIAN_DOCKER_NETWORK" ARELORIAN_ENABLE_DOCKER_INGRESS="$ARELORIAN_ENABLE_DOCKER_INGRESS" ARELORIAN_INGRESS_HTTP_BIND="$ARELORIAN_INGRESS_HTTP_BIND" ARELORIAN_INGRESS_HTTP_PORT="$ARELORIAN_INGRESS_HTTP_PORT" ARELORIAN_ENV_FILE="$ARELORIAN_ENV_FILE" DEPLOY_BRANCH="$DEPLOY_BRANCH" bash scripts/deploy-vps-docker.sh
             else
-              bash scripts/deploy-vps-docker.sh
+              ARELORIAN_PORT="$ARELORIAN_PORT" \
+                ARELORIAN_DOCKER_NETWORK="$ARELORIAN_DOCKER_NETWORK" \
+                ARELORIAN_ENABLE_DOCKER_INGRESS="$ARELORIAN_ENABLE_DOCKER_INGRESS" \
+                ARELORIAN_INGRESS_HTTP_BIND="$ARELORIAN_INGRESS_HTTP_BIND" \
+                ARELORIAN_INGRESS_HTTP_PORT="$ARELORIAN_INGRESS_HTTP_PORT" \
+                ARELORIAN_ENV_FILE="$ARELORIAN_ENV_FILE" \
+                DEPLOY_BRANCH="$DEPLOY_BRANCH" \
+                bash scripts/deploy-vps-docker.sh
             fi
+
+            echo "[5/5] Deploy workflow finished"
