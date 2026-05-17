@@ -7,7 +7,6 @@ type Severity = "info" | "warn" | "error";
 type CheckName =
   | "lint"
   | "unit"
-  | "checkInteract"
   | "e2e"
   | "contentValidate"
   | "assetsAudit"
@@ -169,54 +168,38 @@ async function main() {
   }
 
   const checks = modeCfg.checks as CheckName[];
+  const unknown = checks.filter((c) => !isCheckName(c));
+  if (unknown.length) {
+    console.error(`[DGCC] unknown check(s) in contract: ${unknown.join(", ")}`);
+    process.exit(3);
+  }
 
-  if (checks.includes("lint")) {
-    await runCheck("lint", async () => {
+  const runners: Record<CheckName, () => Promise<void>> = {
+    lint: async () => {
       const r = await run("pnpm", ["run", "lint"]);
       fs.writeFileSync(path.join(outDir, "lint.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["lint"] = "dgcc-artifacts/lint.out.txt";
       if (r.code !== 0) throw new Error("lint failed");
-    });
-  }
-
-  if (checks.includes("unit")) {
-    await runCheck("unit", async () => {
-      const r = await run("pnpm", ["run", "test"]);
+    },
+    unit: async () => {
+      const r = await run("pnpm", ["run", "test:dgcc"]);
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
-      if (r.code !== 0) throw new Error("unit tests failed");
-    });
-  }
-
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
-    });
-  }
-
-  if (checks.includes("e2e")) {
-    await runCheck("e2e", async () => {
+      if (r.code !== 0) throw new Error("unit tests failed (test:dgcc)");
+    },
+    e2e: async () => {
       const r = await run("pnpm", ["run", "test:e2e:ci"]);
       fs.writeFileSync(path.join(outDir, "e2e.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["e2e"] = "dgcc-artifacts/e2e.out.txt";
       if (r.code !== 0) throw new Error("e2e failed");
-    });
-  }
-
-  if (checks.includes("contentValidate")) {
-    await runCheck("contentValidate", async () => {
-      const r = await run("pnpm", ["--prefix", "server", "run", "validate"]);
+    },
+    contentValidate: async () => {
+      const r = await run("pnpm", ["run", "validate"]);
       fs.writeFileSync(path.join(outDir, "content-validate.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["contentValidate"] = "dgcc-artifacts/content-validate.out.txt";
-      if (r.code !== 0) throw new Error("content validation failed (server validate)");
-    });
-  }
-
-  if (checks.includes("clientBuild")) {
-    await runCheck("clientBuild", async () => {
+      if (r.code !== 0) throw new Error("content validation failed");
+    },
+    clientBuild: async () => {
       const r = await run("pnpm", ["--prefix", "client", "run", "build"], {
         env: {
           NODE_OPTIONS: process.env.NODE_OPTIONS || "--max-old-space-size=6144",
@@ -225,45 +208,37 @@ async function main() {
       fs.writeFileSync(path.join(outDir, "client-build.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["clientBuild"] = "dgcc-artifacts/client-build.out.txt";
       if (r.code !== 0) throw new Error("client build failed");
-    });
-  }
-
-  if (checks.includes("serverBuild")) {
-    await runCheck("serverBuild", async () => {
+    },
+    serverBuild: async () => {
       const r = await run("pnpm", ["--prefix", "server", "run", "build"]);
       fs.writeFileSync(path.join(outDir, "server-build.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["serverBuild"] = "dgcc-artifacts/server-build.out.txt";
       if (r.code !== 0) throw new Error("server build failed");
-    });
-  }
-
-  if (checks.includes("assetsAudit")) {
-    await runCheck("assetsAudit", async () => {
+    },
+    assetsAudit: async () => {
       await assetsAudit(report, contract, fix);
       const p = path.join(outDir, "assets-audit.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "assets") }, null, 2));
       report.artifacts["assetsAudit"] = "dgcc-artifacts/assets-audit.json";
-    });
-  }
-
-  if (checks.includes("wsSchemaSmoke")) {
-    await runCheck("wsSchemaSmoke", async () => {
+    },
+    wsSchemaSmoke: async () => {
       await wsSchemaSmoke(report);
       const p = path.join(outDir, "ws-smoke.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "ws") }, null, 2));
       report.artifacts["wsSchemaSmoke"] = "dgcc-artifacts/ws-smoke.json";
       const hasWsError = report.inconsistencies.some((x) => x.category === "ws" && x.severity === "error");
       if (hasWsError) throw new Error("ws schema smoke failed");
-    });
-  }
-
-  if (checks.includes("uiA11ySmoke")) {
-    await runCheck("uiA11ySmoke", async () => {
+    },
+    uiA11ySmoke: async () => {
       await uiA11ySmoke(report);
       const p = path.join(outDir, "ui-a11y.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "ui") }, null, 2));
       report.artifacts["uiA11ySmoke"] = "dgcc-artifacts/ui-a11y.json";
-    });
+    },
+  };
+
+  for (const name of checks) {
+    await runCheck(name, runners[name]);
   }
 
   report.finishedAt = nowIso();
@@ -275,6 +250,20 @@ async function main() {
   console.log(`[DGCC] ok=${report.ok ? "true" : "false"} inconsistencies=${report.inconsistencies.length} fixes=${report.fixes.length}`);
 
   process.exit(report.ok ? 0 : 2);
+}
+
+function isCheckName(x: string): x is CheckName {
+  return (
+    x === "lint" ||
+    x === "unit" ||
+    x === "e2e" ||
+    x === "contentValidate" ||
+    x === "assetsAudit" ||
+    x === "wsSchemaSmoke" ||
+    x === "uiA11ySmoke" ||
+    x === "clientBuild" ||
+    x === "serverBuild"
+  );
 }
 
 main().catch((e) => {

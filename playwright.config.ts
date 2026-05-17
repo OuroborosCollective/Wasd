@@ -30,6 +30,8 @@ export default defineConfig({
           NODE_ENV: "production",
           ALLOW_GUEST_LOGIN: "1",
           PLAYER_SAVE_FILE: process.env.PLAYER_SAVE_FILE || "/tmp/areloria-e2e-players.json",
+          /** Prefer file-backed persistence when host env points at an unreachable DB service. */
+          PERSISTENCE_DRIVER: process.env.E2E_PERSISTENCE_DRIVER || "file",
         },
       },
 });

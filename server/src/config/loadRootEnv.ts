@@ -30,6 +30,7 @@ export function loadRootEnvFiles(): void {
   const opt = "/opt/areloria/.env";
 
   tryLoad(fromMonorepoRoot, false);
-  tryLoad(fromCwd, true);
+  /** In Playwright E2E, cwd is repo root; do not override env already set by the test harness (e.g. `PERSISTENCE_DRIVER`). */
+  tryLoad(fromCwd, process.env.ARELORIA_E2E !== "1");
   tryLoad(opt, true);
 }

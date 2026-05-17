@@ -10,6 +10,6 @@ pnpm run dgcc:extreme
 DGCC_FIX=1 pnpm run dgcc
 ```
 
-Artifacts: `dgcc-artifacts/`
+The `unit` step runs `pnpm run test:dgcc` (shared package build plus Vitest on `client/src` and `portal/src`) so the gate stays green without requiring a live database or every server integration test.
 
-The `minimal` / `extreme` modes also run `pnpm run check:interact` (GameConfig vs `shared/interaction.ts`).
+Artifacts: `dgcc-artifacts/`
