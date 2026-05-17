@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import * as Apps from './apps';
-import { RealityBadge } from './components/ui/RealityBadge';
 import './app/globals.css';
 
 const App = () => {
@@ -35,18 +34,14 @@ const App = () => {
     <div className="min-h-screen bg-slate-900 text-white p-8">
       <header className="mb-8 flex justify-between items-center">
         <h1 className="text-3xl font-bold text-cyan-400">ARE-Logic Portal</h1>
-        <div className="flex items-center gap-6">
-          <RealityBadge />
-          {activeApp && (
-            <button
-              onClick={() => setActiveApp(null)}
-              className="px-4 py-2 bg-slate-800 rounded hover:bg-slate-700 focus-visible:ring-2 focus-visible:ring-cyan-500 outline-none transition-colors"
-              aria-label="Back to Portal"
-            >
-              ← Back to Portal
-            </button>
-          )}
-        </div>
+        {activeApp && (
+          <button
+            onClick={() => setActiveApp(null)}
+            className="px-4 py-2 bg-slate-800 rounded hover:bg-slate-700 transition-colors"
+          >
+            ← Back to Portal
+          </button>
+        )}
       </header>
 
       {!activeApp ? (
