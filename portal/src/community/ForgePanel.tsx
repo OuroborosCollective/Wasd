@@ -116,7 +116,7 @@ const qualityClass: Record<Quality, string> = {
   legendary: "border-amber-300/70 text-amber-100",
 };
 
-export default function ForgePanel(): React.JSX.Element {
+export default function ForgePanel(): React.ReactElement {
   const hist = useMemo(() => PortalWorldHistory.getInstance(), []);
   const [selectedId, setSelectedId] = useState(blueprints[0].id);
   const [wallet, setWallet] = useState<Wallet>({ commonEssence: 46, arcaneEssence: 22, sovereignEssence: 7, legendaryResidue: 1 });

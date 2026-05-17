@@ -31,7 +31,7 @@ function tinyHash(input: string): string {
   return hash.toString(16).padStart(8, '0');
 }
 
-export function EpochChroniclePanel(): React.JSX.Element {
+export function EpochChroniclePanel(): React.ReactElement {
   const [epoch, setEpoch] = useState<EpochId>('awakening');
   const [quests, setQuests] = useState(12);
   const [quorum, setQuorum] = useState(0.42);
