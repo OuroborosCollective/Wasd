@@ -3,7 +3,15 @@ import path from 'path';
 
 export interface GLBLink {
   glbPath: string;
-  targetType: 'monster_group' | 'npc_group' | 'npc_single' | 'object_group' | 'object_single';
+  targetType:
+    | "monster_group"
+    | "npc_group"
+    | "npc_single"
+    | "object_group"
+    | "object_single"
+    | "world_object"
+    | "player_default"
+    | "monster";
   targetId: string;
 }
 
@@ -12,6 +20,12 @@ export class GLBRegistry {
   private modelsDir = path.resolve(process.cwd(), '../client/public/assets/models');
 
   constructor() {
+    this.loadLinks();
+  }
+
+  /** Reload links from disk after admin uploads / external edits. */
+  public reloadLinks(): void {
+    this.links.clear();
     this.loadLinks();
   }
 

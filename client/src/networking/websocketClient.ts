@@ -495,6 +495,12 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
           const normalizedEntities = data.entities.map((entity: any) => ({
             ...entity,
             modelUrl: entity.modelUrl ?? entity.glbPath,
+            modelVersion:
+              typeof entity.modelVersion === "number" && Number.isFinite(entity.modelVersion)
+                ? entity.modelVersion
+                : typeof data.sceneLayoutRevision === "number"
+                  ? data.sceneLayoutRevision
+                  : undefined,
             are: normalizeAREPayload(entity.are),
           }));
           core.syncEntities(normalizedEntities);
@@ -753,6 +759,13 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
       }
       if (data.type === "party_sync") {
         applyPartySync(data);
+      }
+      if (data.type === "guild_sync") {
+        try {
+          window.dispatchEvent(new CustomEvent("areloria:guild-sync", { detail: data.guild }));
+        } catch {
+          /* ignore */
+        }
       }
       if (data.type === 'dialogue') {
         core.handleDialogue({

@@ -4,6 +4,8 @@ export interface EntityViewModel {
   position: { x: number; y: number; z: number };
   rotation: { x: number; y: number; z: number };
   modelUrl?: string;
+  /** Server layout / asset revision — increment forces GLB reload when URL unchanged. */
+  modelVersion?: number;
   visible: boolean;
   name?: string;
   role?: string;

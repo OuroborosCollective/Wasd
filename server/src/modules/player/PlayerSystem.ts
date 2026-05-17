@@ -36,6 +36,8 @@ export class PlayerSystem {
         offHand: null,
       },
       faction: null,
+      /** Active guild id when member of a guild (see GuildSystem). */
+      guildId: null as string | null,
       civilization: null,
       matrixEnergy: 0,
       flags: {},

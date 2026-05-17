@@ -39,6 +39,8 @@ type EntityNode = {
   activeAnimationGroups: AnimationGroup[];
   /** Avoid re-attaching the same GLB on every entity_sync tick (major lag / load loop). */
   lastAttachedModelUrl?: string;
+  /** Bumps when server content revision changes (same URL, new file on disk). */
+  lastSeenModelVersion: number;
   baseScale: number;
   areKappa: number;
   areKappaPos: { x: number; y: number; z: number };
@@ -257,6 +259,9 @@ export class BabylonAdapter implements IEngineBridge {
       visual: placeholder,
       entityType: model.type,
       activeAnimationGroups: [],
+      lastSeenModelVersion: Number.isFinite(Number(model.modelVersion))
+        ? Number(model.modelVersion)
+        : 0,
       baseScale: 1,
       areKappa: model.are?.kappa ?? 1000,
       areKappaPos: model.are?.kappaPos ?? { x: 0, y: 0, z: 0 },
@@ -363,6 +368,17 @@ export class BabylonAdapter implements IEngineBridge {
           this.colorForType(updates.type ?? this.inferTypeFromEntityId(id)),
           node.root,
         );
+      }
+    }
+    if (updates.modelVersion !== undefined) {
+      const v = Number(updates.modelVersion);
+      if (Number.isFinite(v) && v > node.lastSeenModelVersion) {
+        node.lastSeenModelVersion = v;
+        const prev = node.lastAttachedModelUrl;
+        if (prev) {
+          this.loadedModels.delete(prev);
+          node.lastAttachedModelUrl = undefined;
+        }
       }
     }
     if (updates.modelUrl !== undefined) {
@@ -889,11 +905,10 @@ export class BabylonAdapter implements IEngineBridge {
   }
 
   private startEntityAnimations(entity: EntityNode): void {
-    const shouldAnimate =
-      entity.entityType === "player" ||
-      entity.entityType === "npc" ||
-      entity.entityType === "monster";
-    if (!shouldAnimate || entity.activeAnimationGroups.length === 0) {
+    if (!entity.activeAnimationGroups.length) {
+      return;
+    }
+    if (entity.entityType === "loot") {
       return;
     }
     for (const group of entity.activeAnimationGroups) {
