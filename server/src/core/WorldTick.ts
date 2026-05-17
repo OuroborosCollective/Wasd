@@ -153,6 +153,50 @@ export class WorldTick {
 
   private async handlePlayerMessage(id: string, msg: any) {
     if (msg.type === "login") {
+      const allowGuest = !["0", "false", "no"].includes(process.env.ALLOW_GUEST_LOGIN?.trim().toLowerCase() || "");
+      if (allowGuest && msg.guestId != null && String(msg.guestId).trim() !== "") {
+        const uid = String(msg.guestId).trim();
+        const charName =
+          typeof msg.guestName === "string" && msg.guestName.trim()
+            ? String(msg.guestName).trim()
+            : `Guest_${uid.slice(0, 8)}`;
+        let player = this.playerSystem.getPlayer(uid);
+        if (!player) {
+          player = this.playerSystem.createPlayer(uid, charName, msg.class, msg.appearance);
+          this.hydratePlayer(player);
+        } else {
+          player.isOffline = false;
+        }
+        if (player.name !== charName) player.name = charName;
+        this.socketToPlayer.set(id, uid);
+        this.playerToSocket.set(uid, id);
+        this.observerEngine.register(id, { x: player.position.x, y: player.position.y });
+        const sceneId =
+          msg.sceneId != null && String(msg.sceneId).trim() ? String(msg.sceneId).trim() : "didis_hub";
+        const skillCd =
+          player.skillCooldownUntil && typeof player.skillCooldownUntil === "object" ? player.skillCooldownUntil : {};
+        this.ws.sendToPlayer(id, {
+          type: "welcome",
+          id: uid,
+          playerId: uid,
+          playerName: player.name,
+          sceneId,
+          stats: {
+            gold: Number(player.gold) || 0,
+            xp: Number(player.xp) || 0,
+            level: player.level || 1,
+            health: player.health,
+            maxHealth: player.maxHealth,
+            mana: player.mana,
+            maxMana: player.maxMana,
+            skillCooldownUntil: skillCd,
+          },
+          inventory: player.inventory ?? [],
+          equipment: player.equipment ?? {},
+          quests: player.quests ?? [],
+        });
+        return;
+      }
       if (!msg.token) { this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed: No token provided" }); setTimeout(() => { const client = Array.from((this.ws as any).wss.clients).find((c: any) => c.id === id); if (client) (client as any).close(); }, 500); return; }
       let charName = "Unknown";
       let uid = "";
