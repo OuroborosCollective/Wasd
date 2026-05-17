@@ -1,4 +1,4 @@
-import { checkStealthDeterministic } from './PerceptionLogic';
+import { checkStealthDeterministic, calculatePhaseShift } from './PerceptionLogic';
 import { GuildSovereigntyEngine } from '../guild/GuildSovereigntyEngine';
 import { TraitResonanceEngine } from '../resonance/TraitResonanceEngine';
 
@@ -48,19 +48,11 @@ export interface NPC {
     memory?: any;
     shopId?: string;
     stamina?: number;
-}
-
-export interface Player {
-    id: string;
-    position: Vector3;
-    stealthValue: number;
-    isOffline?: boolean;
-    name?: string;
+    phaseShift?: number;
 }
 
 export class NPCSystem {
     private npcs: Map<string, NPC> = new Map();
-    private players: Map<string, Player> = new Map();
     private updateInterval: NodeJS.Timeout | null = null;
     private readonly TICK_RATE = 100; // 10Hz in ms
 
@@ -98,6 +90,7 @@ export class NPCSystem {
             maxHealth: 90,
             stamina: 100,
             skills: { combat: { level: Math.max(1, Math.min(14, Math.round(traits.aggression * 13))) } },
+            phaseShift: calculatePhaseShift(id),
         };
         this.addNPC(npc);
         return npc;
@@ -113,14 +106,6 @@ export class NPCSystem {
 
     public getNPCsMap(): Map<string, NPC> {
         return this.npcs;
-    }
-
-    public updatePlayerState(player: Player): void {
-        this.players.set(player.id, player);
-    }
-
-    public removePlayer(id: string): void {
-        this.players.delete(id);
     }
 
     public handleInteraction(npcId: string, player: any, questDefs: any): any {
@@ -165,47 +150,49 @@ export class NPCSystem {
     }
 
     public tick(onlinePlayers: any[], worldTime: number): void {
-        this.update();
+        this.update(onlinePlayers);
     }
 
-    private startUpdateLoop(): void {
-        if (this.updateInterval) return;
-        this.updateInterval = setInterval(() => {
-            this.update();
-        }, this.TICK_RATE);
-    }
+    private update(onlinePlayers: any[]): void {
+        const sortedNpcs = Array.from(this.npcs.values()).sort((a, b) => a.id.localeCompare(b.id));
+        const sortedPlayers = [...onlinePlayers].sort((a, b) => a.id.localeCompare(b.id));
 
-    public stopUpdateLoop(): void {
-        if (this.updateInterval) {
-            clearInterval(this.updateInterval);
-            this.updateInterval = null;
+        for (const npc of sortedNpcs) {
+            this.processPerception(npc, sortedPlayers);
         }
     }
 
-    private update(): void {
-        for (const npc of this.npcs.values()) {
-            this.processPerception(npc);
-        }
-    }
-
-    private processPerception(npc: NPC): void {
+    private processPerception(npc: NPC, sortedPlayers: any[]): void {
         let detectedPlayerId: string | null = null;
 
-        for (const player of this.players.values()) {
+        for (const player of sortedPlayers) {
             const result = checkStealthDeterministic(
-                npc as any,
-                player as any
+                {
+                    npcId: npc.id,
+                    position: npc.position,
+                    phaseShift: npc.phaseShift ?? 0,
+                    perceptionRadius: npc.visionRange,
+                    lastPerceptionTick: 0
+                },
+                {
+                    playerId: player.id,
+                    position: player.position,
+                    stealthLevel: player.stealthValue ?? 0,
+                    isCrouching: false, // Crouching state not yet implemented in PlayerSystem
+                    lastVisibleTick: 0
+                }
             );
 
             if (result.visible) {
-                detectedPlayerId = player.id;
-                break; 
+                detectedPlayerId = player.id || 'unknown_player';
+                break;
             }
         }
 
         if (detectedPlayerId) {
             if (npc.targetId !== detectedPlayerId) {
                 npc.targetId = detectedPlayerId;
+                npc.state = 'interacting';
                 this.triggerComplexAI(npc);
             }
         } else {
@@ -226,10 +213,4 @@ export class NPCSystem {
         // Only called when perception check passes
     }
 
-    private getDistance(pos1: Vector3, pos2: Vector3): number {
-        const dx = pos1.x - pos2.x;
-        const dy = pos1.y - pos2.y;
-        const dz = pos1.z - pos2.z;
-        return Math.sqrt(dx * dx + dy * dy + dz * dz);
-    }
 }

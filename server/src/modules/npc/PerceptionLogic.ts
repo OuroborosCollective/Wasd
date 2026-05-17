@@ -114,7 +114,7 @@ export function checkStealthDeterministic(
   const threshold = calculateVisibilityThreshold(npc.phaseShift);
 
   // Check visibility
-  const visible = distanceSquared < threshold;
+  const visible = distanceSquared <= threshold;
 
   // Detection chance based on distance and stealth level
   // Closer = higher chance, higher stealth = lower chance
