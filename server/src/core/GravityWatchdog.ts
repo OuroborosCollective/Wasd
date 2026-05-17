@@ -1,5 +1,4 @@
-import { KappaPosGrid } from "@wasd/shared";
-import { type EntityState } from "./GameState";
+import { type EntityState } from "../modules/types";
 
 export interface GravityFluxZone {
     id: string;
