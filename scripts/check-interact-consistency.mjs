@@ -20,19 +20,28 @@ function readNumberFromFile(filePath, patterns) {
 }
 
 const gameConfigPath = path.join(root, "server/src/config/GameConfig.ts");
-const sharedPath = path.join(root, "shared/interaction.ts");
+const sharedCandidates = [
+  path.join(root, "packages/shared/src/utils/interaction.ts"),
+  path.join(root, "shared/interaction.ts"),
+];
+const sharedPath = sharedCandidates.find((p) => fs.existsSync(p));
 
 const serverDist = readNumberFromFile(gameConfigPath, [/interactDistance:\s*(\d+)/]);
-const sharedDist = readNumberFromFile(sharedPath, [/INTERACT_DISTANCE\s*=\s*(\d+)/]);
+const sharedDist = sharedPath ? readNumberFromFile(sharedPath, [/INTERACT_DISTANCE\s*=\s*(\d+)/]) : NaN;
+
+if (!sharedPath) {
+  console.error("[check-interact] Could not find shared interaction.ts (checked packages/shared and shared/).");
+  process.exit(1);
+}
 
 if (!Number.isFinite(serverDist) || !Number.isFinite(sharedDist)) {
-  console.error("[check-interact] Could not parse distances.", { serverDist, sharedDist });
+  console.error("[check-interact] Could not parse distances.", { serverDist, sharedDist, sharedPath });
   process.exit(1);
 }
 
 if (serverDist !== sharedDist) {
   console.error(
-    `[check-interact] Mismatch: GameConfig.interactDistance=${serverDist} vs shared INTERACT_DISTANCE=${sharedDist}. Align server/src/config/GameConfig.ts and shared/interaction.ts.`
+    `[check-interact] Mismatch: GameConfig.interactDistance=${serverDist} vs shared INTERACT_DISTANCE=${sharedDist}. Align server/src/config/GameConfig.ts and ${path.relative(root, sharedPath)}.`
   );
   process.exit(1);
 }
