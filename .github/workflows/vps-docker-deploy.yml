@@ -1,4 +1,5 @@
 name: VPS Docker Deploy (monorepo)
+run-name: VPS Docker Deploy • ${{ github.event_name }} • ${{ github.ref_name }} • ${{ github.sha }}
 
 on:
   push:
@@ -25,14 +26,19 @@ on:
         default: 'areloria_arelorian-network'
 
 concurrency:
-  group: vps-docker-deploy-main
-  cancel-in-progress: true
+  group: vps-docker-deploy-${{ github.event_name }}-${{ github.ref_name }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   deploy:
+    name: Deploy WASD monorepo to VPS
     if: >-
       github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
@@ -41,6 +47,22 @@ jobs:
     timeout-minutes: 60
 
     steps:
+      - name: Show deploy trigger context
+        run: |
+          set -euo pipefail
+          echo "=== VPS deploy workflow context ==="
+          echo "event_name=${{ github.event_name }}"
+          echo "ref=${{ github.ref }}"
+          echo "ref_name=${{ github.ref_name }}"
+          echo "sha=${{ github.sha }}"
+          echo "actor=${{ github.actor }}"
+          echo "workflow=${{ github.workflow }}"
+          echo "run_id=${{ github.run_id }}"
+          echo "run_attempt=${{ github.run_attempt }}"
+          echo "pull_request_merged=${{ github.event.pull_request.merged || 'n/a' }}"
+          echo "pull_request_base=${{ github.event.pull_request.base.ref || 'n/a' }}"
+          echo "concurrency=vps-docker-deploy-${{ github.event_name }}-${{ github.ref_name }}"
+
       - name: Verify VPS SSH password secrets are set
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
