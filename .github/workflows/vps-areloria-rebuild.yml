@@ -116,27 +116,25 @@ jobs:
             echo "Docker: $(d --version)"
             d compose version
 
-            if [ ! -d "$DEPLOY_PATH" ]; then
-              mkdir -p "$DEPLOY_PATH" 2>/dev/null || sudo mkdir -p "$DEPLOY_PATH"
-              sudo chown -R "$(id -un):$(id -gn)" "$DEPLOY_PATH" 2>/dev/null || true
-            fi
-
-            if [ -e "$DEPLOY_PATH" ] && [ ! -d "$DEPLOY_PATH/.git" ] && [ -n "$(ls -A "$DEPLOY_PATH" 2>/dev/null || true)" ]; then
-              BACKUP="${DEPLOY_PATH}.backup.$(date +%Y%m%d%H%M%S)"
-              echo "Existing non-git path found, moving to $BACKUP"
+            if [ -e "$DEPLOY_PATH" ] && [ ! -d "$DEPLOY_PATH/.git" ]; then
+              BACKUP="${DEPLOY_PATH}.nongit.backup.$(date +%Y%m%d%H%M%S)"
+              echo "Non-git deploy path exists; moving whole directory to $BACKUP"
               mv "$DEPLOY_PATH" "$BACKUP" 2>/dev/null || sudo mv "$DEPLOY_PATH" "$BACKUP"
-              mkdir -p "$DEPLOY_PATH" 2>/dev/null || sudo mkdir -p "$DEPLOY_PATH"
-              sudo chown -R "$(id -un):$(id -gn)" "$DEPLOY_PATH" 2>/dev/null || true
             fi
 
-            if [ ! -d "$DEPLOY_PATH/.git" ]; then
+            if [ ! -d "$DEPLOY_PATH" ]; then
+              mkdir -p "$(dirname "$DEPLOY_PATH")" 2>/dev/null || sudo mkdir -p "$(dirname "$DEPLOY_PATH")"
               git clone --branch "$DEPLOY_BRANCH" --depth 1 "$REPO_URL" "$DEPLOY_PATH"
-            else
+            elif [ -d "$DEPLOY_PATH/.git" ]; then
               cd "$DEPLOY_PATH"
               git remote set-url origin "$REPO_URL" || true
               git fetch --no-tags origin "$DEPLOY_BRANCH"
               git reset --hard "origin/$DEPLOY_BRANCH"
               git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ || true
+            else
+              echo "ERROR: $DEPLOY_PATH still exists without .git after backup step."
+              ls -la "$DEPLOY_PATH" || true
+              exit 1
             fi
 
             cd "$DEPLOY_PATH"
