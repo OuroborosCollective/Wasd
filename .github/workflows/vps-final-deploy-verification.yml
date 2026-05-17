@@ -11,6 +11,18 @@ on:
         description: 'Engine host port on VPS'
         required: false
         default: '3001'
+      verify_ingress:
+        description: 'Also verify optional Docker ingress endpoint'
+        required: false
+        type: choice
+        default: 'false'
+        options:
+          - 'false'
+          - 'true'
+      ingress_http_port:
+        description: 'Ingress host HTTP port to verify, e.g. 8080 for staging or 80 for public'
+        required: false
+        default: '8080'
   workflow_run:
     workflows:
       - 'VPS Docker Deploy (monorepo)'
@@ -28,6 +40,7 @@ permissions:
 
 env:
   DEFAULT_ARELORIAN_PORT: '3001'
+  DEPLOY_PATH: /opt/areloria
 
 jobs:
   verify:
@@ -60,6 +73,8 @@ jobs:
 
       - name: Verify deployed VPS runtime
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          DEPLOY_PATH: /opt/areloria
         with:
           host: ${{ secrets.VPS_HOST || secrets.SSH_HOST }}
           username: ${{ secrets.VPS_USER || secrets.SSH_USER }}
@@ -69,27 +84,65 @@ jobs:
           command_timeout: 12m
           script_stop: true
           script: |
-            set -euo pipefail
+            set -Eeuo pipefail
 
-            DEPLOY_PRIMARY='${{ secrets.VPS_DEPLOY_PATH }}'
-            DEPLOY_ALT='${{ secrets.DEPLOY_PATH }}'
-            DEPLOY_PATH="${DEPLOY_PRIMARY:-${DEPLOY_ALT:-/opt/areloria}}"
+            checkpoint() { echo "--- verify checkpoint: $* ---"; }
+
+            dump_basic_diagnostics() {
+              local exit_code="$1"
+              echo "=== VPS Final Deploy Verification FAILED: exit ${exit_code} ==="
+              echo "Working dir: $(pwd 2>/dev/null || true)"
+              echo "Date: $(date -Is 2>/dev/null || true)"
+              echo "Disk:"
+              df -h . 2>/dev/null || true
+              echo "Memory:"
+              free -m 2>/dev/null || true
+              echo "Docker availability:"
+              docker --version 2>/dev/null || true
+              docker compose version 2>/dev/null || docker-compose --version 2>/dev/null || true
+              echo "Docker ps:"
+              docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' 2>/dev/null || true
+              if [ -n "${DC_READY:-}" ]; then
+                echo "Compose ps:"
+                compose_cmd -f docker-compose.yml ps 2>/dev/null || true
+                if [ -f docker-compose.ingress.yml ]; then
+                  compose_cmd -f docker-compose.yml -f docker-compose.ingress.yml --profile ingress ps 2>/dev/null || true
+                fi
+                echo "Recent engine logs:"
+                compose_cmd -f docker-compose.yml logs --tail=100 arelorian-engine 2>/dev/null || true
+                echo "Recent ingress logs:"
+                compose_cmd -f docker-compose.yml -f docker-compose.ingress.yml --profile ingress logs --tail=100 ingress-router 2>/dev/null || true
+              fi
+            }
+
+            trap 'code=$?; dump_basic_diagnostics "$code"; exit "$code"' ERR
+
+            DEPLOY_PATH='/opt/areloria'
             SECRET_PORT='${{ secrets.VPS_ARELORIAN_PORT }}'
             INPUT_PORT='${{ github.event.inputs.arelorian_port }}'
             ARELORIAN_PORT="${SECRET_PORT:-${INPUT_PORT:-3001}}"
+            VERIFY_INGRESS='${{ github.event.inputs.verify_ingress }}'
+            INGRESS_HTTP_PORT='${{ github.event.inputs.ingress_http_port }}'
+            VERIFY_INGRESS="${VERIFY_INGRESS:-false}"
+            INGRESS_HTTP_PORT="${INGRESS_HTTP_PORT:-8080}"
             ARELORIAN_ENV_FILE="${ARELORIAN_ENV_FILE:-.env.docker}"
 
             echo "=== VPS Final Deploy Verification ==="
             echo "Reason: ${{ github.event.inputs.reason || 'workflow_run after deploy' }}"
             echo "DEPLOY_PATH=$DEPLOY_PATH"
             echo "ARELORIAN_PORT=$ARELORIAN_PORT"
+            echo "VERIFY_INGRESS=$VERIFY_INGRESS"
+            echo "INGRESS_HTTP_PORT=$INGRESS_HTTP_PORT"
 
+            checkpoint "deploy path"
             if [ ! -d "$DEPLOY_PATH" ]; then
               echo "ERROR: deploy path missing: $DEPLOY_PATH"
+              echo "Create it by running the deploy workflow first, or on the VPS: sudo mkdir -p /opt/areloria && sudo chown -R \$USER:\$USER /opt/areloria"
               exit 1
             fi
             cd "$DEPLOY_PATH"
 
+            checkpoint "git repo"
             if [ ! -d .git ]; then
               echo "ERROR: deploy path is not a git repository: $DEPLOY_PATH"
               exit 1
@@ -98,13 +151,26 @@ jobs:
             echo "Git HEAD: $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
             echo "Git branch: $(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
 
-            if [ -f "$ARELORIAN_ENV_FILE" ]; then
-              echo "Runtime env file present: $ARELORIAN_ENV_FILE"
-              ls -l "$ARELORIAN_ENV_FILE" | sed 's/  */ /g'
+            checkpoint "runtime env file"
+            set +e
+            if [ -e "$ARELORIAN_ENV_FILE" ]; then
+              echo "Runtime env path exists: $ARELORIAN_ENV_FILE"
+              ls -ld "$ARELORIAN_ENV_FILE" 2>/dev/null || true
+              stat -c 'Runtime env owner=%U group=%G mode=%a type=%F size=%s' "$ARELORIAN_ENV_FILE" 2>/dev/null || true
+              if [ -f "$ARELORIAN_ENV_FILE" ] && [ -r "$ARELORIAN_ENV_FILE" ]; then
+                echo "Runtime env file is readable by current SSH user. Keys present:"
+                awk -F= '/^[A-Za-z0-9_]+=/{print $1 "=<redacted>"}' "$ARELORIAN_ENV_FILE" 2>/dev/null | sort | head -80 || true
+              elif [ -f "$ARELORIAN_ENV_FILE" ]; then
+                echo "WARN: runtime env file exists but is not readable by current SSH user. Compose may still work only if Docker can read it from this user context."
+              else
+                echo "WARN: runtime env path exists but is not a regular file."
+              fi
             else
               echo "WARN: runtime env file missing: $ARELORIAN_ENV_FILE"
             fi
+            set -e
 
+            checkpoint "docker compose availability"
             if docker compose version >/dev/null 2>&1; then
               DC=(docker compose)
             elif command -v docker-compose >/dev/null 2>&1; then
@@ -115,17 +181,31 @@ jobs:
             fi
 
             compose_cmd() {
-              if [ -f "$ARELORIAN_ENV_FILE" ]; then
+              if [ -f "$ARELORIAN_ENV_FILE" ] && [ -r "$ARELORIAN_ENV_FILE" ]; then
                 "${DC[@]}" --env-file "$ARELORIAN_ENV_FILE" "$@"
               else
+                echo "WARN: running compose without --env-file because $ARELORIAN_ENV_FILE is missing or unreadable."
                 "${DC[@]}" "$@"
               fi
             }
+            DC_READY=1
 
+            checkpoint "docker daemon"
             docker info >/dev/null
-            compose_cmd -f docker-compose.yml config >/dev/null
+
+            checkpoint "compose config default"
+            compose_cmd -f docker-compose.yml config >/tmp/areloria-compose-default.yml
             echo "Docker compose config OK"
 
+            if [ -f docker-compose.ingress.yml ]; then
+              checkpoint "compose config ingress overlay"
+              compose_cmd -f docker-compose.yml -f docker-compose.ingress.yml --profile ingress config >/tmp/areloria-compose-ingress.yml
+              echo "Docker compose ingress overlay config OK"
+            else
+              echo "WARN: docker-compose.ingress.yml missing in deploy path"
+            fi
+
+            checkpoint "engine container present"
             if ! docker ps --format '{{.Names}}' | grep -Fxq 'arelorian-engine'; then
               echo "ERROR: arelorian-engine container is not running."
               compose_cmd -f docker-compose.yml ps || true
@@ -141,25 +221,44 @@ jobs:
 
             container_probe() {
               local path="$1"
-              docker exec arelorian-engine node -e "fetch('http://127.0.0.1:3001${path}').then(async r=>{const body=await r.text(); console.log('${path}', r.status, body.slice(0,120).replace(/\n/g,' ')); process.exit(r.status < 500 ? 0 : 1)}).catch(err=>{console.error(err.message);process.exit(1)})"
+              docker exec arelorian-engine node -e "fetch('http://127.0.0.1:3001${path}').then(async r=>{const body=await r.text(); console.log('${path}', r.status, body.slice(0,160).replace(/\n/g,' ')); process.exit(r.status < 500 ? 0 : 1)}).catch(err=>{console.error(err.message);process.exit(1)})"
             }
 
             host_probe() {
               local path="$1"
+              local port="$2"
               local code
-              code="$(curl -sS -m 6 -o /tmp/areloria-probe-body -w '%{http_code}' "http://127.0.0.1:${ARELORIAN_PORT}${path}" || true)"
-              echo "host ${path} -> ${code} $(head -c 120 /tmp/areloria-probe-body 2>/dev/null | tr '\n' ' ' || true)"
+              code="$(curl -sS -m 6 -o /tmp/areloria-probe-body -w '%{http_code}' "http://127.0.0.1:${port}${path}" || true)"
+              echo "host:${port} ${path} -> ${code} $(head -c 160 /tmp/areloria-probe-body 2>/dev/null | tr '\n' ' ' || true)"
               echo "$code" | grep -Eq '^(200|204|301|302|304|401|403|503)$'
             }
 
+            checkpoint "container probes"
             container_probe /health
             container_probe /client-config.json
             container_probe /
 
-            host_probe /health || echo "WARN: host /health probe did not pass accepted codes"
-            host_probe /client-config.json || echo "WARN: host /client-config.json probe did not pass accepted codes"
-            host_probe / || echo "WARN: host / probe did not pass accepted codes"
+            checkpoint "engine host probes"
+            host_probe /health "$ARELORIAN_PORT" || echo "WARN: host /health probe did not pass accepted codes"
+            host_probe /client-config.json "$ARELORIAN_PORT" || echo "WARN: host /client-config.json probe did not pass accepted codes"
+            host_probe / "$ARELORIAN_PORT" || echo "WARN: host / probe did not pass accepted codes"
 
+            if [ "$VERIFY_INGRESS" = "true" ]; then
+              checkpoint "ingress container and probes"
+              if ! docker ps --format '{{.Names}}' | grep -Fxq 'arelorian-ingress-router'; then
+                echo "ERROR: arelorian-ingress-router container is not running but verify_ingress=true."
+                if [ -f docker-compose.ingress.yml ]; then
+                  compose_cmd -f docker-compose.yml -f docker-compose.ingress.yml --profile ingress ps || true
+                fi
+                exit 1
+              fi
+              docker inspect arelorian-ingress-router --format 'Ingress Status={{.State.Status}} Health={{if .State.Health}}{{.State.Health.Status}}{{else}}n/a{{end}} ExitCode={{.State.ExitCode}} Started={{.State.StartedAt}}'
+              host_probe /health "$INGRESS_HTTP_PORT"
+              host_probe /client-config.json "$INGRESS_HTTP_PORT"
+              host_probe / "$INGRESS_HTTP_PORT"
+            fi
+
+            checkpoint "optional host nginx config"
             if command -v nginx >/dev/null 2>&1; then
               echo "Nginx installed; validating config"
               sudo nginx -t || nginx -t || true
@@ -167,7 +266,10 @@ jobs:
               echo "Nginx not installed or not in PATH; skipping host edge config check"
             fi
 
-            echo "Recent engine logs:"
+            checkpoint "recent logs"
             compose_cmd -f docker-compose.yml logs --tail=80 arelorian-engine || true
+            if [ "$VERIFY_INGRESS" = "true" ] && [ -f docker-compose.ingress.yml ]; then
+              compose_cmd -f docker-compose.yml -f docker-compose.ingress.yml --profile ingress logs --tail=80 ingress-router || true
+            fi
 
             echo "=== VPS Final Deploy Verification OK ==="

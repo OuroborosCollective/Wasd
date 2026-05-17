@@ -1,0 +1,94 @@
+name: VPS Docker Deploy on Merge
+
+on:
+  pull_request_target:
+    branches:
+      - main
+    types:
+      - closed
+
+concurrency:
+  group: vps-docker-deploy-main
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: ${{ github.event.pull_request.merged == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Verify VPS secrets are set
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          ok=true
+          HOST="${VPS_HOST:-${SSH_HOST:-}}"
+          USER="${VPS_USER:-${SSH_USER:-}}"
+          KEY="${VPS_SSH_KEY:-${SSH_PRIVATE_KEY:-}}"
+          if [ -z "${HOST:-}" ]; then echo "::error::Set VPS_HOST or SSH_HOST."; ok=false; fi
+          if [ -z "${USER:-}" ]; then echo "::error::Set VPS_USER or SSH_USER."; ok=false; fi
+          if [ -z "${KEY:-}" ] && [ -z "${SSH_PASSWORD:-}" ]; then echo "::error::Set SSH key or SSH password."; ok=false; fi
+          if [ "$ok" != true ]; then exit 1; fi
+
+      - name: Deploy merged main to VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST || secrets.SSH_HOST }}
+          username: ${{ secrets.VPS_USER || secrets.SSH_USER }}
+          key: ${{ secrets.VPS_SSH_KEY || secrets.SSH_PRIVATE_KEY }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          timeout: 2m
+          command_timeout: 55m
+          script_stop: true
+          script: |
+            set -euo pipefail
+            DEPLOY_PATH='/opt/areloria'
+            REPO_URL='https://github.com/OuroborosCollective/Wasd.git'
+            DEPLOY_BRANCH='main'
+            export ARELORIAN_PORT='${{ secrets.VPS_ARELORIAN_PORT || '3001' }}'
+            export ARELORIAN_DOCKER_NETWORK='${{ secrets.VPS_ARELORIAN_DOCKER_NETWORK || 'areloria_arelorian-network' }}'
+            export ARELORIAN_ENABLE_DOCKER_INGRESS='false'
+            export ARELORIAN_INGRESS_HTTP_BIND='127.0.0.1'
+            export ARELORIAN_INGRESS_HTTP_PORT='8080'
+            export ARELORIAN_ENV_FILE='.env.docker'
+            export DEPLOY_BRANCH
+
+            echo "=== WASD automatic deploy after merged PR ==="
+            echo "Deploy path: $DEPLOY_PATH"
+            echo "Engine port: $ARELORIAN_PORT"
+
+            command -v git >/dev/null 2>&1 || { echo "ERROR: git is required on the VPS."; exit 1; }
+            command -v docker >/dev/null 2>&1 || { echo "ERROR: docker is required on the VPS."; exit 1; }
+            docker info >/dev/null 2>&1 || { echo "ERROR: Docker daemon is not reachable by this SSH user."; exit 1; }
+
+            if [ ! -d "$DEPLOY_PATH" ]; then
+              mkdir -p "$DEPLOY_PATH" 2>/dev/null || sudo mkdir -p "$DEPLOY_PATH"
+              sudo chown -R "$(id -un):$(id -gn)" "$DEPLOY_PATH" 2>/dev/null || true
+            fi
+
+            if [ ! -d "$DEPLOY_PATH/.git" ]; then
+              rm -rf "$DEPLOY_PATH"/* 2>/dev/null || true
+              git clone --branch "$DEPLOY_BRANCH" --depth 1 "$REPO_URL" "$DEPLOY_PATH"
+            else
+              cd "$DEPLOY_PATH"
+              git remote set-url origin "$REPO_URL" || true
+              git fetch --no-tags origin "$DEPLOY_BRANCH"
+              git reset --hard "origin/$DEPLOY_BRANCH"
+              git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ || true
+            fi
+
+            cd "$DEPLOY_PATH"
+            chmod +x scripts/deploy-vps-docker.sh 2>/dev/null || true
+            bash scripts/deploy-vps-docker.sh

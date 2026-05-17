@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.vps
-    image: arelorian-engine:latest
+    pull_policy: build
     container_name: arelorian-engine
     restart: unless-stopped
     ports:
@@ -72,7 +72,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.monitor
-    image: monitor-bridge:latest
+    pull_policy: build
     container_name: monitor-bridge
     restart: unless-stopped
     environment:

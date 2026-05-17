@@ -1,7 +1,13 @@
 name: VPS Docker Deploy (monorepo)
+run-name: VPS Docker Deploy • ${{ github.event_name }} • ${{ github.ref_name }} • ${{ github.sha }}
 
 on:
   push:
+    branches:
+      - main
+  pull_request:
+    types:
+      - closed
     branches:
       - main
   workflow_dispatch:
@@ -20,18 +26,43 @@ on:
         default: 'areloria_arelorian-network'
 
 concurrency:
-  group: vps-docker-deploy-main
-  cancel-in-progress: true
+  group: vps-docker-deploy-${{ github.event_name }}-${{ github.ref_name }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   deploy:
+    name: Deploy WASD monorepo to VPS
+    if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
     steps:
+      - name: Show deploy trigger context
+        run: |
+          set -euo pipefail
+          echo "=== VPS deploy workflow context ==="
+          echo "event_name=${{ github.event_name }}"
+          echo "ref=${{ github.ref }}"
+          echo "ref_name=${{ github.ref_name }}"
+          echo "sha=${{ github.sha }}"
+          echo "actor=${{ github.actor }}"
+          echo "workflow=${{ github.workflow }}"
+          echo "run_id=${{ github.run_id }}"
+          echo "run_attempt=${{ github.run_attempt }}"
+          echo "pull_request_merged=${{ github.event.pull_request.merged || 'n/a' }}"
+          echo "pull_request_base=${{ github.event.pull_request.base.ref || 'n/a' }}"
+          echo "concurrency=vps-docker-deploy-${{ github.event_name }}-${{ github.ref_name }}"
+
       - name: Verify VPS SSH password secrets are set
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -134,14 +165,28 @@ jobs:
 
             cd "$DEPLOY_PATH"
             umask 077
-            {
-              echo "ARELORIAN_PORT=$ARELORIAN_PORT"
-              echo "ARELORIAN_DOCKER_NETWORK=$ARELORIAN_DOCKER_NETWORK"
-              echo "ARELORIAN_ENABLE_DOCKER_INGRESS=$ARELORIAN_ENABLE_DOCKER_INGRESS"
-              echo "ARELORIAN_INGRESS_HTTP_BIND=$ARELORIAN_INGRESS_HTTP_BIND"
-              echo "ARELORIAN_INGRESS_HTTP_PORT=$ARELORIAN_INGRESS_HTTP_PORT"
-            } > "$ARELORIAN_ENV_FILE"
+            if [ -f "$ARELORIAN_ENV_FILE" ]; then
+              cp "$ARELORIAN_ENV_FILE" "${ARELORIAN_ENV_FILE}.backup.$(date +%Y%m%d%H%M%S)" || true
+            fi
+            touch "$ARELORIAN_ENV_FILE"
             chmod 600 "$ARELORIAN_ENV_FILE"
+            update_env_key() {
+              key="$1"
+              value="$2"
+              tmp_file="${ARELORIAN_ENV_FILE}.tmp"
+              grep -v "^${key}=" "$ARELORIAN_ENV_FILE" > "$tmp_file" || true
+              printf '%s=%s\n' "$key" "$value" >> "$tmp_file"
+              mv "$tmp_file" "$ARELORIAN_ENV_FILE"
+              chmod 600 "$ARELORIAN_ENV_FILE"
+            }
+            update_env_key ARELORIAN_PORT "$ARELORIAN_PORT"
+            update_env_key ARELORIAN_DOCKER_NETWORK "$ARELORIAN_DOCKER_NETWORK"
+            update_env_key ARELORIAN_ENABLE_DOCKER_INGRESS "$ARELORIAN_ENABLE_DOCKER_INGRESS"
+            update_env_key ARELORIAN_INGRESS_HTTP_BIND "$ARELORIAN_INGRESS_HTTP_BIND"
+            update_env_key ARELORIAN_INGRESS_HTTP_PORT "$ARELORIAN_INGRESS_HTTP_PORT"
+            echo "Runtime env file preserved/refreshed: $DEPLOY_PATH/$ARELORIAN_ENV_FILE"
+            echo "Runtime env keys present:"
+            grep -E '^[A-Z0-9_]+=' "$ARELORIAN_ENV_FILE" | cut -d= -f1 | sed 's/^/  - /'
             chmod +x scripts/deploy-vps-docker.sh 2>/dev/null || true
 
             if [ "$DOCKER" = 'sudo docker' ]; then
