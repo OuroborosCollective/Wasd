@@ -13,19 +13,29 @@
     "dev:3d": "pnpm -r --filter @wasd/client dev",
     "dev:all": "concurrently \"pnpm dev:network\" \"pnpm dev:2d\" \"pnpm dev:3d\"",
     "build:all": "pnpm build:network && pnpm build:2d && pnpm build:3d",
-    "clean": "pnpm -r exec rm -rf dist node_modules"
+    "clean": "pnpm -r exec rm -rf dist node_modules",
+    "lint": "eslint server/src client/src portal/src --max-warnings 0",
+    "test": "vitest run",
+    "check:interact": "node scripts/check-interact-consistency.mjs",
+    "test:e2e:install": "playwright install chromium",
+    "test:e2e:ci": "pnpm --filter @wasd/shared build && pnpm --prefix client run build && pnpm --prefix server run build && playwright install chromium && CI=1 playwright test",
+    "dgcc": "tsx tools/dgcc/run-dgcc.ts --mode=minimal",
+    "dgcc:extreme": "tsx tools/dgcc/run-dgcc.ts --mode=extreme",
+    "ci:verify": "pnpm run lint && pnpm run test && pnpm run check:interact"
   },
   "engines": {
     "node": ">=18",
     "pnpm": ">=9"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@types/node": "^25.7.0",
     "@typescript-eslint/eslint-plugin": "^8.59.3",
     "@typescript-eslint/parser": "^8.59.3",
     "concurrently": "^9.2.1",
     "eslint": "^10.3.0",
     "pnpm": "^11.1.1",
+    "tsx": "^4.21.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.6"
   },

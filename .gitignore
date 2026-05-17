@@ -16,6 +16,10 @@ pnpm-debug.log*
 # Build artifacts
 *.tsbuildinfo
 
+# DGCC gate output (local / CI artifacts)
+dgcc-artifacts/
+test-results/
+
 # Python (deploy helpers)
 __pycache__/
 *.py[cod]

@@ -26,7 +26,8 @@
     "assets": {
       "clientModelsDir": "client/public/assets/models",
       "worldAssetsDir": "world-assets",
-      "allowedExt": [".glb", ".gltf", ".bin", ".png", ".jpg", ".jpeg", ".webp", ".ktx2"]
+      "allowedExt": [".glb", ".gltf", ".bin", ".png", ".jpg", ".jpeg", ".webp", ".ktx2"],
+      "requiredSubfolders": ["characters", "monsters", "objects", "equipment", "buildings"]
     },
     "ui": {
       "requireAriaLabelsOnButtons": true,

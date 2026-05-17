@@ -87,9 +87,10 @@ async function assetsAudit(report: DgccReport, contract: any, fix: boolean) {
     });
     return;
   }
-  const mustHave = ["characters", "monsters", "npcs", "objects", "items", "resources"].map((x) =>
-    path.join(clientDir, x)
-  );
+  const subfolders: string[] = Array.isArray(contract.rules?.assets?.requiredSubfolders)
+    ? contract.rules.assets.requiredSubfolders
+    : ["characters", "monsters", "objects", "equipment", "buildings"];
+  const mustHave = subfolders.map((x) => path.join(clientDir, x));
   for (const p of mustHave) {
     if (!fs.existsSync(p)) {
       report.inconsistencies.push({
@@ -181,7 +182,13 @@ async function main() {
 
   if (checks.includes("unit")) {
     await runCheck("unit", async () => {
-      const r = await run("pnpm", ["run", "test"]);
+      const r = await run("pnpm", ["run", "test"], {
+        env: {
+          ...process.env,
+          // Prefer file persistence for a deterministic unit-test driver when the host exports DB discovery vars.
+          PERSISTENCE_DRIVER: "file",
+        },
+      });
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
       if (r.code !== 0) throw new Error("unit tests failed");
