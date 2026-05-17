@@ -34,7 +34,7 @@ export function loreRouter(): Router {
         count: pack.fragments.length,
         summary: listWorldFragmentSummaries(),
       },
-      hint: "Client `shared/interaction.ts` INTERACT_DISTANCE must match GameConfig.interactDistance; run `node scripts/check-interact-consistency.mjs`.",
+      hint: "Client `@wasd/shared` INTERACT_DISTANCE must match GameConfig.interactDistance; run `node scripts/check-interact-consistency.mjs`.",
     });
   });
 
