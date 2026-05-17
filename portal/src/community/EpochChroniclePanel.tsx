@@ -1,3 +1,4 @@
+import React from "react";
 import { useState } from 'react';
 
 type EpochId = 'awakening' | 'strife' | 'synthesis' | 'ascension';
@@ -31,7 +32,7 @@ function tinyHash(input: string): string {
   return hash.toString(16).padStart(8, '0');
 }
 
-export function EpochChroniclePanel(): JSX.Element {
+export function EpochChroniclePanel(): React.JSX.Element {
   const [epoch, setEpoch] = useState<EpochId>('awakening');
   const [quests, setQuests] = useState(12);
   const [quorum, setQuorum] = useState(0.42);
