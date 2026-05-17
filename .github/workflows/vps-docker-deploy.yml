@@ -32,32 +32,39 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - name: Verify VPS secrets are set
+      - name: Verify VPS SSH password secrets are set
         env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
           SSH_HOST: ${{ secrets.SSH_HOST }}
-          VPS_USER: ${{ secrets.VPS_USER }}
           SSH_USER: ${{ secrets.SSH_USER }}
-          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
         run: |
           set -euo pipefail
           ok=true
-          HOST="${VPS_HOST:-${SSH_HOST:-}}"
-          USER="${VPS_USER:-${SSH_USER:-}}"
-          KEY="${VPS_SSH_KEY:-${SSH_PRIVATE_KEY:-}}"
-          if [ -z "${HOST:-}" ]; then echo "::error::Set VPS_HOST or SSH_HOST."; ok=false; fi
-          if [ -z "${USER:-}" ]; then echo "::error::Set VPS_USER or SSH_USER."; ok=false; fi
-          if [ -z "${KEY:-}" ] && [ -z "${SSH_PASSWORD:-}" ]; then echo "::error::Set SSH key or SSH password."; ok=false; fi
-          if [ "$ok" != true ]; then exit 1; fi
+
+          if [ -z "${SSH_HOST:-}" ]; then
+            echo "::error::Set SSH_HOST."
+            ok=false
+          fi
+
+          if [ -z "${SSH_USER:-}" ]; then
+            echo "::error::Set SSH_USER."
+            ok=false
+          fi
+
+          if [ -z "${SSH_PASSWORD:-}" ]; then
+            echo "::error::Set SSH_PASSWORD."
+            ok=false
+          fi
+
+          if [ "$ok" != true ]; then
+            exit 1
+          fi
 
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.VPS_HOST || secrets.SSH_HOST }}
-          username: ${{ secrets.VPS_USER || secrets.SSH_USER }}
-          key: ${{ secrets.VPS_SSH_KEY || secrets.SSH_PRIVATE_KEY }}
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT || 22 }}
           timeout: 2m
