@@ -16,6 +16,12 @@ pnpm-debug.log*
 # Build artifacts
 *.tsbuildinfo
 
+# DGCC contract runner output
+dgcc-artifacts/
+
+# Playwright / Vitest UI
+test-results/
+
 # Python (deploy helpers)
 __pycache__/
 *.py[cod]

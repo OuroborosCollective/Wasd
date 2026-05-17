@@ -16,7 +16,8 @@ function playerUidMessageCap(): number {
   const raw = process.env.WS_MAX_MESSAGES_PER_PLAYER_UID_PER_SECOND?.trim();
   if (!raw) return GameConfig.wsMaxMessagesPerPlayerUidPerSecond;
   const n = Number(raw);
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : GameConfig.wsMaxMessagesPerPlayerUidPerSecond;
+  if (!Number.isFinite(n) || n <= 0) return GameConfig.wsMaxMessagesPerPlayerUidPerSecond;
+  return Math.floor(n);
 }
 
 export class GameWebSocketServer {

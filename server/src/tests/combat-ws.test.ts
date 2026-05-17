@@ -99,6 +99,16 @@ describe("WS combat + entity_sync", () => {
       const dummy = tick.npcSystem.getNPC("npc_dummy");
       expect(dummy).toBeTruthy();
 
+      // handleAttack returns before the mana gate when there is no combat target; set target first.
+      player!.position.x = dummy!.position.x;
+      player!.position.y = dummy!.position.y;
+      await sendAndWait(
+        ws,
+        { type: "set_target", npcId: "npc_dummy" },
+        (d) => d.type === "stats_sync",
+      );
+      expect(player!.combatTargetNpcId).toBe("npc_dummy");
+
       player!.mana = 0;
       const toastMana = await sendAndWait<any>(
         ws,
@@ -108,15 +118,6 @@ describe("WS combat + entity_sync", () => {
       expect(toastMana.text).toMatch(/mana/i);
 
       player!.mana = player!.maxMana ?? 25;
-      player!.position.x = dummy!.position.x;
-      player!.position.y = dummy!.position.y;
-
-      await sendAndWait(
-        ws,
-        { type: "set_target", npcId: "npc_dummy" },
-        (d) => d.type === "stats_sync",
-      );
-      expect(player!.combatTargetNpcId).toBe("npc_dummy");
 
       const syncP = waitForMessage(ws, (d) => {
         if (d.type !== "entity_sync" || !Array.isArray(d.entities))

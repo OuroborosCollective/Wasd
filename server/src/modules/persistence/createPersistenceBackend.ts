@@ -22,6 +22,12 @@ export function createPersistenceBackend(): IPersistenceBackend {
 }
 
 function pickAutoBackend(): IPersistenceBackend {
+  if (process.env.VITEST === "true" && process.env.PLAYER_SAVE_FILE?.trim()) {
+    return new FilePersistenceBackend();
+  }
+  if (process.env.NODE_ENV === "test" && process.env.PLAYER_SAVE_FILE?.trim()) {
+    return new FilePersistenceBackend();
+  }
   if (isDatabaseConfigured()) {
     return new PostgresPersistenceBackend();
   }
