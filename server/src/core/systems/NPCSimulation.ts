@@ -153,7 +153,9 @@ export class NPCSimulation {
     this.currentTick = worldStateRegistry.getTick();
     const results: NPCUpdateResult[] = [];
 
-    for (const [npcId, npc] of this.npcs) {
+    const sortedNpcIds = Array.from(this.npcs.keys()).sort();
+    for (const npcId of sortedNpcIds) {
+      const npc = this.npcs.get(npcId)!;
       // Check tier for NPC position
       const chunkId = this.getChunkForPosition(npc.position);
       const tier = densityMap.chunks.get(chunkId)?.densityTier ?? DensityTier.TIER_3_DORMANT;
