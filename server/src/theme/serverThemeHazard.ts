@@ -11,7 +11,7 @@ import { EventEmitter } from "node:events";
 export const THEME_MARINA_AURA = "#00E5FF";
 export const THEME_ORGANIC_FIRE = "#E60000";
 
-export type ThemeAuraMode = "marina" | "balanced" | "fire_glitch";
+export type ThemeAuraMode = "marina" | "balanced" | "fire_glitch" | "loot_legendary";
 
 export interface VisualThemeState {
   auraHex: string;
@@ -149,4 +149,29 @@ export function subscribeVisualTheme(fn: (visual: VisualThemeState) => void): ()
 
 export function getLastVisualTheme(): VisualThemeState | null {
   return lastVisual;
+}
+
+/** Legendary Loot Aura — #FFD700 (Gold) */
+export const THEME_LOOT_GOLD = "#FFD700";
+
+/** Generates a VisualThemeState specialized for Legendary Loot drops. */
+export function getLootLegendaryVisualState(meta?: any): VisualThemeState {
+  return {
+    auraHex: THEME_LOOT_GOLD,
+    secondaryHex: "#3f2f05",
+    mode: "loot_legendary",
+    glitchIntensity: 0.85,
+    phaseShiftPulseHz: 1.2,
+    hazardIndex: 0.5,
+    aggressionTrend: 0.002,
+  };
+}
+
+/** Forces the theme into Loot Legendary mode. */
+export function pushLootAura(meta?: any): VisualThemeState {
+  const visual = getLootLegendaryVisualState(meta);
+  lastVisual = visual;
+  themeEmitter.emit(THEME_HAZARD_EVENT, { visual, payload: meta });
+  themeEmitter.emit("theme_updated", visual);
+  return visual;
 }
