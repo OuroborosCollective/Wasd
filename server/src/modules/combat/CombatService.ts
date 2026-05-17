@@ -23,6 +23,10 @@ export class CombatService {
         this.comboValidator = new ComboValidator();
     }
 
+    public advanceTick(): void {
+        this.comboValidator.advanceTick();
+    }
+
     public handleSkillRequest(
         playerId: string,
         skill: Skill,
@@ -57,7 +61,7 @@ export class CombatService {
         const newState: CombatState = {
             comboIndex: nextIndex,
             lastSkillId: skill.id,
-            lastTimestamp: Date.now()
+            lastTimestamp: this.comboValidator.getServerTimestamp()
         };
 
         this.updatePlayerCombatState(playerId, newState);

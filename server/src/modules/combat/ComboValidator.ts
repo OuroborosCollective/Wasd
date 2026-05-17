@@ -142,7 +142,7 @@ export class ComboValidator {
   }
 
   public getServerTimestamp(): number {
-    return Date.now();
+    return this.tickCount * TICK_RATE_MS;
   }
 
   public calculateDistance(a: Vector3, b: Vector3): number {

@@ -215,6 +215,7 @@ export class WorldTick {
 
   tick() {
     this.tickCount += 1;
+    this.combatService.advanceTick();
     const payload = this.buildAREPayload();
     const allPlayers = this.playerSystem.getAllPlayers();
     this.npcSystem.tick(allPlayers.filter((p) => !p.isOffline), this.worldSystem.worldTime);
