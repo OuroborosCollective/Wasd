@@ -71,7 +71,7 @@ export class WarfrontCombatTelemetry {
     return { events, lastSeq: this.seq, hud: this.lastHud };
   }
 
-  private push(entry: Omit<WarfrontFeedEntry, "seq">): WarfrontFeedEntry {
+  private push(entry: Omit<WarfrontFeedEntry, "seq">, timestamp?: number): WarfrontFeedEntry {
     this.seq += 1;
     const full: WarfrontFeedEntry = { ...entry, seq: this.seq };
     this.ring.push(full);
@@ -81,7 +81,7 @@ export class WarfrontCombatTelemetry {
       id: `wf_${full.seq}_${full.tick}`,
       title: full.kind === "kill" ? "Warfront kill" : "Warfront hit",
       description: full.summary,
-      timestamp: Date.now(),
+      timestamp: timestamp ?? Date.now(),
       involvedFactionIds: [full.attackerId, full.defenderId],
     });
 
@@ -103,6 +103,7 @@ export class WarfrontCombatTelemetry {
     defenderId: string;
     damage: number;
     summary: string;
+    timestamp?: number;
   }): void {
     void this.push({
       tick: ctx.tick,
@@ -111,7 +112,7 @@ export class WarfrontCombatTelemetry {
       defenderId: ctx.defenderId,
       damage: ctx.damage,
       summary: ctx.summary,
-    });
+    }, ctx.timestamp);
   }
 
   recordKill(ctx: {
@@ -120,6 +121,7 @@ export class WarfrontCombatTelemetry {
     defenderId: string;
     damage: number;
     summary: string;
+    timestamp?: number;
   }): void {
     void this.push({
       tick: ctx.tick,
@@ -128,6 +130,6 @@ export class WarfrontCombatTelemetry {
       defenderId: ctx.defenderId,
       damage: ctx.damage,
       summary: ctx.summary,
-    });
+    }, ctx.timestamp);
   }
 }

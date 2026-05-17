@@ -97,6 +97,7 @@ export function runWarfrontCombatTick(opts: {
 }): void {
   const { tickCount, npcSystem, playerSystem, combatService, broadcast } = opts;
   const tel = WarfrontCombatTelemetry.getInstance();
+  const deterministicTimestamp = tickCount * 100; // 10Hz to ms
 
   const dummy = playerSystem.getPlayer("dummy_player");
   const dummyPos = dummy?.position ? { x: dummy.position.x, y: dummy.position.y } : { x: 500, y: 500 };
@@ -160,6 +161,7 @@ export function runWarfrontCombatTick(opts: {
         defenderId: tgt.id,
         damage: applied,
         summary: summaryKill,
+        timestamp: deterministicTimestamp,
       });
     } else {
       tel.recordHit({
@@ -168,6 +170,7 @@ export function runWarfrontCombatTick(opts: {
         defenderId: tgt.id,
         damage: applied,
         summary: summaryHit,
+        timestamp: deterministicTimestamp,
       });
     }
 
