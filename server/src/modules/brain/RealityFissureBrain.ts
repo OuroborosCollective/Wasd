@@ -32,7 +32,9 @@ export class RealityFissureBrain {
   public getCriticalFissures(now = 0): FissureData[] {
       const critical: FissureData[] = [];
 
-      for (const [chunkId, fissure] of this.activeFissures.entries()) {
+      // Sort entries by chunkId to ensure deterministic decay and critical list selection
+      const sortedEntries = Array.from(this.activeFissures.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+      for (const [chunkId, fissure] of sortedEntries) {
           // Decay severity over time (heal)
           const timeSinceActive = now - fissure.lastAnalyzed;
           if (timeSinceActive > 30000) { // 30 seconds of no paradoxes heals it slightly

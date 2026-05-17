@@ -108,7 +108,7 @@ export class NPCSystem {
     }
 
     public getAllNPCs(): NPC[] {
-        return Array.from(this.npcs.values());
+        return Array.from(this.npcs.values()).sort((a, b) => a.id.localeCompare(b.id));
     }
 
     public getNPCsMap(): Map<string, NPC> {
@@ -183,7 +183,9 @@ export class NPCSystem {
     }
 
     private update(): void {
-        for (const npc of this.npcs.values()) {
+        // Deterministic sorting to prevent WorldHash drift during iteration
+        const sortedNpcs = Array.from(this.npcs.values()).sort((a, b) => a.id.localeCompare(b.id));
+        for (const npc of sortedNpcs) {
             this.processPerception(npc);
         }
     }
@@ -191,7 +193,9 @@ export class NPCSystem {
     private processPerception(npc: NPC): void {
         let detectedPlayerId: string | null = null;
 
-        for (const player of this.players.values()) {
+        // Deterministic sorting of players ensures consistent targeting across all simulation nodes
+        const sortedPlayers = Array.from(this.players.values()).sort((a, b) => a.id.localeCompare(b.id));
+        for (const player of sortedPlayers) {
             const result = checkStealthDeterministic(
                 npc as any,
                 player as any
