@@ -186,7 +186,7 @@ export function getLastVisualTheme(): VisualThemeState | null {
 }
 
 /** Legendary Loot Aura — Golden glitch tokens */
-export function getLootLegendaryVisualState(meta: { quality: string; [key: string]: any }): VisualThemeState {
+export function getLootLegendaryVisualState(meta: any): VisualThemeState {
   return {
     auraHex: "#FFD700",
     secondaryHex: "#443300",
