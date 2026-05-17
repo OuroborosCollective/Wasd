@@ -17,6 +17,7 @@ import { warfrontRouter } from "../api/warfrontRoute.js";
 import { areValidationRouter } from "../api/areValidationRoute.js";
 import { areReplayRouter } from "../api/areReplayRoute.js";
 import { sovereignDeployRouter } from "../api/sovereignDeployRoute.js";
+import { notificationRouter } from "../api/notificationRoute.js";
 import { getContentDataSourceLabel, resolveContentDir } from "../modules/content/contentDataRoot.js";
 import { getSupabaseSummary, verifySupabaseToken } from "../config/supabase.js";
 import { resolveWorldAssetsDir } from "./resolveWorldAssetsDir.js";
@@ -116,6 +117,7 @@ export class ServerBootstrap {
     app.use("/api/leaderboard", leaderboardRouter());
     app.use("/api/questlines", questlineRouter());
     app.use("/api/lore", loreRouter());
+    app.use("/api/notifications", notificationRouter());
     app.get("/client-config.json", (_req, res) => { res.type("application/json"); res.setHeader("Cache-Control", "no-store"); res.send(buildClientPublicConfigJson(_req)); });
     app.get("/health", (_req, res) => {
       const tick = (this as any)._tick as WorldTick | undefined;
