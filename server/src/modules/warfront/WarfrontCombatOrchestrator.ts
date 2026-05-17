@@ -121,7 +121,7 @@ export function runWarfrontCombatTick(opts: {
       id: "ember_bolt",
       baseDamage: Math.max(4, Math.floor(5 + (attacker.traits?.aggression ?? 0.5) * 18)),
     };
-    const { damage } = combatService.handleSkillRequest(attacker.id, skill, { ...SKILL_OPENING });
+    const { damage } = combatService.handleSkillRequest(attacker.id, skill, { ...SKILL_OPENING }, tickCount * 100);
 
     const hitRoll = rng();
     const agg = attacker.traits?.aggression ?? 0.5;

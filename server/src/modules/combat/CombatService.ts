@@ -26,7 +26,8 @@ export class CombatService {
     public handleSkillRequest(
         playerId: string,
         skill: Skill,
-        currentState: CombatState
+        currentState: CombatState,
+        timestamp?: number
     ): CombatExecutionResult {
         const entityState = {
             entityId: playerId,
@@ -40,6 +41,9 @@ export class CombatService {
             skill.id,
             currentState.comboIndex,
             entityState,
+            undefined,
+            undefined,
+            timestamp
         );
 
         let damageMultiplier = 1.0;
@@ -57,7 +61,7 @@ export class CombatService {
         const newState: CombatState = {
             comboIndex: nextIndex,
             lastSkillId: skill.id,
-            lastTimestamp: Date.now()
+            lastTimestamp: timestamp ?? this.comboValidator.getServerTimestamp()
         };
 
         this.updatePlayerCombatState(playerId, newState);

@@ -160,9 +160,10 @@ export class ComboValidator {
     targetEntityId?: string,
     targetLogicalIndex?: number,
     targetPosition?: Vector3,
-    currentBuffStates: Map<string, number> = new Map()
+    currentBuffStates: Map<string, number> = new Map(),
+    timestamp?: number
   ): ComboResult {
-    const serverTime = this.getServerTimestamp();
+    const serverTime = timestamp ?? this.getServerTimestamp();
     const currentState = this.playerStates.get(playerId);
     const definition = this.comboDefinitions.get(skillId);
     
@@ -340,7 +341,8 @@ export class ComboValidator {
     clientLogicalIndex: number,
     playerState: EntityState,
     targetState?: EntityState,
-    buffStates: Map<string, number> = new Map()
+    buffStates: Map<string, number> = new Map(),
+    timestamp?: number
   ): ComboResult {
     return this.validateSkillSequence(
       playerId,
@@ -350,7 +352,8 @@ export class ComboValidator {
       targetState?.entityId,
       targetState?.logicalIndex,
       targetState?.position,
-      buffStates
+      buffStates,
+      timestamp
     );
   }
 
