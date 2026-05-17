@@ -181,10 +181,10 @@ async function main() {
 
   if (checks.includes("unit")) {
     await runCheck("unit", async () => {
-      const r = await run("pnpm", ["run", "test"]);
+      const r = await run("pnpm", ["run", "test:dgcc"]);
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
-      if (r.code !== 0) throw new Error("unit tests failed");
+      if (r.code !== 0) throw new Error("unit tests failed (test:dgcc)");
     });
   }
 
@@ -208,21 +208,23 @@ async function main() {
 
   if (checks.includes("contentValidate")) {
     await runCheck("contentValidate", async () => {
-      const r = await run("pnpm", ["--prefix", "server", "run", "validate"]);
+      const r = await run("pnpm", ["run", "validate:content"]);
       fs.writeFileSync(path.join(outDir, "content-validate.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["contentValidate"] = "dgcc-artifacts/content-validate.out.txt";
-      if (r.code !== 0) throw new Error("content validation failed (server validate)");
+      if (r.code !== 0) throw new Error("content validation failed (validate:content)");
     });
   }
 
   if (checks.includes("clientBuild")) {
     await runCheck("clientBuild", async () => {
+      const r0 = await run("pnpm", ["--filter", "@wasd/shared", "run", "build"]);
+      if (r0.code !== 0) throw new Error("@wasd/shared build failed");
       const r = await run("pnpm", ["--prefix", "client", "run", "build"], {
         env: {
           NODE_OPTIONS: process.env.NODE_OPTIONS || "--max-old-space-size=6144",
         },
       });
-      fs.writeFileSync(path.join(outDir, "client-build.out.txt"), r.stdout + "\n" + r.stderr);
+      fs.writeFileSync(path.join(outDir, "client-build.out.txt"), r0.stdout + r0.stderr + "\n" + r.stdout + "\n" + r.stderr);
       report.artifacts["clientBuild"] = "dgcc-artifacts/client-build.out.txt";
       if (r.code !== 0) throw new Error("client build failed");
     });
