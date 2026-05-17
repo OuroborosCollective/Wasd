@@ -20,7 +20,15 @@ function readNumberFromFile(filePath, patterns) {
 }
 
 const gameConfigPath = path.join(root, "server/src/config/GameConfig.ts");
-const sharedPath = path.join(root, "shared/interaction.ts");
+const sharedCandidates = [
+  path.join(root, "packages/shared/src/utils/interaction.ts"),
+  path.join(root, "shared/interaction.ts"),
+];
+const sharedPath = sharedCandidates.find((p) => fs.existsSync(p));
+if (!sharedPath) {
+  console.error("[check-interact] Could not find shared interaction module.", { sharedCandidates });
+  process.exit(1);
+}
 
 const serverDist = readNumberFromFile(gameConfigPath, [/interactDistance:\s*(\d+)/]);
 const sharedDist = readNumberFromFile(sharedPath, [/INTERACT_DISTANCE\s*=\s*(\d+)/]);
@@ -32,7 +40,7 @@ if (!Number.isFinite(serverDist) || !Number.isFinite(sharedDist)) {
 
 if (serverDist !== sharedDist) {
   console.error(
-    `[check-interact] Mismatch: GameConfig.interactDistance=${serverDist} vs shared INTERACT_DISTANCE=${sharedDist}. Align server/src/config/GameConfig.ts and shared/interaction.ts.`
+    `[check-interact] Mismatch: GameConfig.interactDistance=${serverDist} vs shared INTERACT_DISTANCE=${sharedDist}. Align server/src/config/GameConfig.ts and packages/shared/src/utils/interaction.ts.`
   );
   process.exit(1);
 }
