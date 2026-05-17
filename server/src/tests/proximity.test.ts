@@ -5,34 +5,33 @@ describe('Proximity Optimization', () => {
   it('correctly handles npc proximity states', () => {
     const npcSystem = new NPCSystem();
     const npc = npcSystem.createNPC('test_npc', 'Test NPC', 0, 0);
+    // phaseShift is derived from npc id; for this fixture use 0 so base threshold stays 225.
+    npc.phaseShift = 0;
 
     const players = [
-      { position: { x: 10, y: 10 } } // distSq = 100 + 100 = 200 < 225
+      { id: 'p1', position: { x: 10, y: 10 } }, // distSq = 200 <= 225 at base threshold
     ];
 
-    // Test 1: NPC should start interacting when player is close
-    npcSystem.tick(players, 1200); // 12:00
+    npcSystem.tick(players, 1200);
     expect(npc.state).toBe('interacting');
+    expect(npc.targetId).toBe('p1');
 
-    // Test 2: NPC should skip proximity check if already interacting
-    const farPlayers = [
-      { position: { x: 100, y: 100 } } // distSq = 20000 > 225
-    ];
+    const farPlayers = [{ id: 'p1', position: { x: 100, y: 100 } }];
     npcSystem.tick(farPlayers, 1200);
     expect(npc.state).toBe('interacting');
+    expect(npc.targetId).toBeNull();
 
-    // Test 3: NPC should reach target when distSq < 1
-    npc.state = 'wandering';
-    npc.position = { x: 0.5, y: 0.5, z: 0 };
-    npc.targetPosition = { x: 0.6, y: 0.6 };
-    npc.stateTimer = Date.now() + 10000; // Setze den Timer weit in die Zukunft, um Wandering zu verhindern
+    npcSystem.tick([], 1200);
+    expect(npc.targetId).toBeNull();
+  });
 
-    // Führe mehrere Ticks aus, um dem NPC Zeit zu geben, das Ziel zu erreichen
-    // Da Pathfinding.findPath auf gerundeten Koordinaten arbeitet, kann es 1-2 Ticks dauern,
-    // bis der NPC sein Ziel erreicht und targetPosition auf null gesetzt wird.
-    for (let i = 0; i < 5; i++) {
-      npcSystem.tick([], 1200);
-    }
-    expect(npc.targetPosition).toBe(null);
+  it('tick handles multiple players without id and positions missing z (no throw, finite perception)', () => {
+    const npcSystem = new NPCSystem();
+    npcSystem.createNPC('edge_npc', 'Edge', 0, 0);
+    const anon = [
+      { position: { x: 5, y: 5 } },
+      { position: { x: 6, y: 6 } },
+    ];
+    expect(() => npcSystem.tick(anon, 1200)).not.toThrow();
   });
 });

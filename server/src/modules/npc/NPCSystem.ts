@@ -154,37 +154,51 @@ export class NPCSystem {
     }
 
     private update(onlinePlayers: any[]): void {
-        const sortedNpcs = Array.from(this.npcs.values()).sort((a, b) => a.id.localeCompare(b.id));
-        const sortedPlayers = [...onlinePlayers].sort((a, b) => a.id.localeCompare(b.id));
+        const sortedNpcs = Array.from(this.npcs.values()).sort((a, b) =>
+            String(a?.id ?? "").localeCompare(String(b?.id ?? ""))
+        );
+        const sortedPlayers = [...onlinePlayers].sort((a, b) =>
+            String(a?.id ?? "").localeCompare(String(b?.id ?? ""))
+        );
 
         for (const npc of sortedNpcs) {
             this.processPerception(npc, sortedPlayers);
         }
     }
 
+    /** Perception uses raw arithmetic; missing z (or non-finite coords) must not yield NaN distances. */
+    private static vec3ForPerception(pos: any): { x: number; y: number; z: number } {
+        return {
+            x: Number.isFinite(Number(pos?.x)) ? Number(pos.x) : 0,
+            y: Number.isFinite(Number(pos?.y)) ? Number(pos.y) : 0,
+            z: Number.isFinite(Number(pos?.z)) ? Number(pos.z) : 0,
+        };
+    }
+
     private processPerception(npc: NPC, sortedPlayers: any[]): void {
         let detectedPlayerId: string | null = null;
+        const npcPos = NPCSystem.vec3ForPerception(npc.position);
 
         for (const player of sortedPlayers) {
             const result = checkStealthDeterministic(
                 {
                     npcId: npc.id,
-                    position: npc.position,
+                    position: npcPos,
                     phaseShift: npc.phaseShift ?? 0,
                     perceptionRadius: npc.visionRange,
                     lastPerceptionTick: 0
                 },
                 {
-                    playerId: player.id,
-                    position: player.position,
-                    stealthLevel: player.stealthValue ?? 0,
+                    playerId: String(player?.id ?? ""),
+                    position: NPCSystem.vec3ForPerception(player?.position),
+                    stealthLevel: player?.stealthValue ?? 0,
                     isCrouching: false, // Crouching state not yet implemented in PlayerSystem
                     lastVisibleTick: 0
                 }
             );
 
             if (result.visible) {
-                detectedPlayerId = player.id || 'unknown_player';
+                detectedPlayerId = player?.id != null && String(player.id).length > 0 ? String(player.id) : "unknown_player";
                 break;
             }
         }
