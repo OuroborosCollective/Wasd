@@ -80,7 +80,7 @@ const EchoTracker: React.FC = () => {
       const prev = last;
       last = v;
 
-      if (v.mode === "loot_legendary") return;
+      if (v.mode === "loot_glow") return;
 
       const enteredFire = v.mode === "fire_glitch" && prev?.mode !== "fire_glitch";
       const hazardSpike = prev != null && v.hazardIndex - prev.hazardIndex > 0.12;
@@ -225,7 +225,7 @@ const EchoTracker: React.FC = () => {
             const isRefinement = echo.kind === "refinement";
             const isForge = echo.kind === "forge";
             const firePulse = isCombat && vis.mode === "fire_glitch";
-            const goldenPulse = isLoot && vis.mode === "loot_legendary";
+            const goldenPulse = isLoot && vis.mode === "loot_glow";
             const refinePulse = isRefinement;
             const forgePulse = isForge;
 

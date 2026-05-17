@@ -121,7 +121,7 @@ const qualityClass: Record<Quality, string> = {
   legendary: "border-amber-300/70 text-amber-100",
 };
 
-export default function InventoryRefinementPanel(): JSX.Element {
+export default function InventoryRefinementPanel(): React.JSX.Element {
   const hist = useMemo(() => PortalWorldHistory.getInstance(), []);
   const [inventory, setInventory] = useState<InventoryItem[]>(initialInventory);
   const [wallet, setWallet] = useState<Wallet>({ commonEssence: 4, arcaneEssence: 1, sovereignEssence: 0, legendaryResidue: 0 });

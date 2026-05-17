@@ -29,7 +29,7 @@ export const SciencePortal: React.FC = () => {
   const cssVars = useMemo(() => visualStateToCssVars(visual), [visual]);
 
   const isFire = visual.mode === "fire_glitch";
-  const isLoot = visual.mode === "loot_legendary";
+  const isLoot = visual.mode === "loot_glow";
 
   return (
     <div
@@ -46,7 +46,7 @@ export const SciencePortal: React.FC = () => {
           background:
             visual.mode === "marina"
               ? "linear-gradient(145deg, #0f172a 0%, #0c4a6e 55%, #0f172a 100%)"
-              : visual.mode === "loot_legendary"
+              : visual.mode === "loot_glow"
                 ? "linear-gradient(145deg, #140f02 0%, #3f2f05 48%, #0f172a 100%)"
                 : visual.mode === "fire_glitch"
                   ? "linear-gradient(145deg, #1a0505 0%, #450a0a 50%, #0f172a 100%)"

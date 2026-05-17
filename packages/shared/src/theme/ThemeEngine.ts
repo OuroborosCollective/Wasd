@@ -13,7 +13,7 @@ export const THEME_MARINA_AURA = "#00E5FF";
 /** Organic Fire — high hazard glitch core */
 export const THEME_ORGANIC_FIRE = "#E60000";
 
-export type ThemeAuraMode = "marina" | "balanced" | "fire_glitch";
+export type ThemeAuraMode = "marina" | "balanced" | "fire_glitch" | "loot_glow";
 
 export interface VisualThemeState {
   /** Primary aura / glow color (hex) */
@@ -183,4 +183,25 @@ export function subscribeVisualTheme(fn: (visual: VisualThemeState) => void): ()
 
 export function getLastVisualTheme(): VisualThemeState | null {
   return lastVisual;
+}
+
+export const THEME_LOOT_LEGENDARY = "#FFD700";
+
+export function getLootLegendaryVisualState(payload: any): VisualThemeState {
+  return {
+    auraHex: THEME_LOOT_LEGENDARY,
+    secondaryHex: "#4A3600",
+    mode: "loot_glow",
+    glitchIntensity: payload.rarityShift || 0.1,
+    phaseShiftPulseHz: 1.2,
+    hazardIndex: 0.5,
+    aggressionTrend: 0,
+  };
+}
+
+export function pushLootAura(payload: any): VisualThemeState {
+  const visual = getLootLegendaryVisualState(payload);
+  lastVisual = visual;
+  themeEmitter.emit("theme_updated", visual);
+  return visual;
 }
