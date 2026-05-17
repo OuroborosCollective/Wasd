@@ -13,8 +13,11 @@ pnpm-debug.log*
 # PnP configuration
 .pnp.*
 
-# Build artifacts
-*.tsbuildinfo
+# Playwright output (local / CI)
+test-results/
+
+# DGCC local/CI output
+dgcc-artifacts/
 
 # Python (deploy helpers)
 __pycache__/
