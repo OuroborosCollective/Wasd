@@ -190,7 +190,6 @@ export class WorldTick {
   private handleNPCDeath(socketId: string, player: any, npc: any, npcInstanceId: string) { npc.health = npc.maxHealth || 100; this.ws.sendToPlayer(socketId, { type: "dialogue", source: "System", text: `${npc.name} respawns.` }); }
   private hydratePlayer(player: any) { if (!player.id) player.id = "unknown"; if (!player.name) player.name = player.id; if (!player.position) player.position = { x: 0, y: 0 }; if (!player.inventory) player.inventory = []; if (!player.quests) player.quests = []; if (!player.equipment) player.equipment = { weapon: null, armor: null }; }
   private async saveAll() { const allPlayers = this.playerSystem.getAllPlayers(); const data: any = {}; for (const p of allPlayers) if (p.id !== "dummy_player") data[p.id] = p; await this.persistence.save(data); }
-  private syncNpcPerceptionFromPlayers(): void { const dummy = this.playerSystem.getPlayer("dummy_player"); if (dummy) this.npcSystem.updatePlayerState({ id: dummy.id, position: { x: dummy.position.x, y: dummy.position.y, z: dummy.position.z ?? 0 }, stealthValue: typeof dummy.stealthValue === "number" ? dummy.stealthValue : 0 }); for (const p of this.playerSystem.getAllPlayers()) { if (!p?.id || p.id === "dummy_player") continue; this.npcSystem.updatePlayerState({ id: p.id, position: { x: p.position.x, y: p.position.y, z: p.position.z ?? 0 }, stealthValue: typeof p.stealthValue === "number" ? p.stealthValue : 0 }); } }
   start() { this.timer = setInterval(() => this.tick(), 100); }
   stop() { if (this.timer) clearInterval(this.timer); this.timer = null; }
   private buildAREPayload(): AREGuardPayload { return { l: 13, k: 1000, r: Math.round((0.5 + Math.sin(this.tickCount / 10) * 0.5) * 1000) / 1000, tick: this.tickCount, deterministicSeed: `ARE|k1000|tick:${this.tickCount}|chunk:64` }; }
@@ -218,7 +217,6 @@ export class WorldTick {
     this.tickCount += 1;
     const payload = this.buildAREPayload();
     const allPlayers = this.playerSystem.getAllPlayers();
-    this.syncNpcPerceptionFromPlayers();
     this.npcSystem.tick(allPlayers.filter((p) => !p.isOffline), this.worldSystem.worldTime);
     runWarfrontCombatTick({ tickCount: this.tickCount, npcSystem: this.npcSystem, playerSystem: this.playerSystem, combatService: this.combatService, broadcast: (payload) => this.ws.broadcast(payload) });
     const npcsAgg = this.npcSystem.getAllNPCs();
