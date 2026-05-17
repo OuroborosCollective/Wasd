@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       reason:
@@ -28,6 +33,10 @@ permissions:
 
 jobs:
   deploy:
+    if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
