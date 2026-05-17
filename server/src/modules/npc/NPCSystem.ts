@@ -1,4 +1,4 @@
-import { checkStealthDeterministic, calculatePhaseShift } from './PerceptionLogic';
+import { checkStealthDeterministic, calculatePhaseShift, calculateVisibilityThreshold } from './PerceptionLogic';
 import { GuildSovereigntyEngine } from '../guild/GuildSovereigntyEngine';
 import { TraitResonanceEngine } from '../resonance/TraitResonanceEngine';
 
@@ -53,6 +53,7 @@ export interface NPC {
 
 export class NPCSystem {
     private npcs: Map<string, NPC> = new Map();
+    private sortedNpcsCache: NPC[] | null = null;
     private updateInterval: NodeJS.Timeout | null = null;
     private readonly TICK_RATE = 100; // 10Hz in ms
 
@@ -68,10 +69,13 @@ export class NPCSystem {
 
     public addNPC(npc: NPC): void {
         this.npcs.set(npc.id, npc);
+        this.sortedNpcsCache = null;
     }
 
     public removeNPC(id: string): boolean {
-        return this.npcs.delete(id);
+        const deleted = this.npcs.delete(id);
+        if (deleted) this.sortedNpcsCache = null;
+        return deleted;
     }
 
     public createNPC(id: string, name: string, x: number, y: number): NPC {
@@ -92,7 +96,8 @@ export class NPCSystem {
             skills: { combat: { level: Math.max(1, Math.min(14, Math.round(traits.aggression * 13))) } },
             phaseShift: calculatePhaseShift(id),
         };
-        this.addNPC(npc);
+        this.npcs.set(npc.id, npc);
+        this.sortedNpcsCache = null;
         return npc;
     }
 
@@ -154,38 +159,50 @@ export class NPCSystem {
     }
 
     private update(onlinePlayers: any[]): void {
-        const sortedNpcs = Array.from(this.npcs.values()).sort((a, b) => a.id.localeCompare(b.id));
+        if (!this.sortedNpcsCache) {
+            this.sortedNpcsCache = Array.from(this.npcs.values()).sort((a, b) => a.id.localeCompare(b.id));
+        }
         const sortedPlayers = [...onlinePlayers].sort((a, b) => a.id.localeCompare(b.id));
 
-        for (const npc of sortedNpcs) {
+        for (const npc of this.sortedNpcsCache) {
             this.processPerception(npc, sortedPlayers);
         }
     }
 
     private processPerception(npc: NPC, sortedPlayers: any[]): void {
+        if (npc.state === 'interacting' && npc.targetId) return;
+
         let detectedPlayerId: string | null = null;
+        const threshold = calculateVisibilityThreshold(npc.phaseShift ?? 0);
 
         for (const player of sortedPlayers) {
-            const result = checkStealthDeterministic(
-                {
-                    npcId: npc.id,
-                    position: npc.position,
-                    phaseShift: npc.phaseShift ?? 0,
-                    perceptionRadius: npc.visionRange,
-                    lastPerceptionTick: 0
-                },
-                {
-                    playerId: player.id,
-                    position: player.position,
-                    stealthLevel: player.stealthValue ?? 0,
-                    isCrouching: false, // Crouching state not yet implemented in PlayerSystem
-                    lastVisibleTick: 0
-                }
-            );
+            const dx = npc.position.x - player.position.x;
+            const dy = npc.position.y - player.position.y;
+            const dz = (npc.position.z ?? 0) - (player.position.z ?? 0);
+            const distSq = dx * dx + dy * dy + dz * dz;
 
-            if (result.visible) {
-                detectedPlayerId = player.id || 'unknown_player';
-                break;
+            if (distSq <= threshold) {
+                const result = checkStealthDeterministic(
+                    {
+                        npcId: npc.id,
+                        position: npc.position,
+                        phaseShift: npc.phaseShift ?? 0,
+                        perceptionRadius: npc.visionRange,
+                        lastPerceptionTick: 0
+                    },
+                    {
+                        playerId: player.id,
+                        position: player.position,
+                        stealthLevel: player.stealthValue ?? 0,
+                        isCrouching: false, // Crouching state not yet implemented in PlayerSystem
+                        lastVisibleTick: 0
+                    }
+                );
+
+                if (result.visible) {
+                    detectedPlayerId = player.id || 'unknown_player';
+                    break;
+                }
             }
         }
 
