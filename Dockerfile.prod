@@ -21,8 +21,9 @@ COPY server/package.json server/
 
 RUN find apps packages projects -type f ! -name 'package.json' -delete
 
-# Install all dependencies (including dev for build)
-RUN pnpm install --frozen-lockfile
+# Install all dependencies (including dev for build).
+# Docker builds must tolerate generated/example workspace lockfile drift.
+RUN pnpm install --no-frozen-lockfile
 
 # Copy source code
 COPY . .
@@ -30,23 +31,21 @@ COPY . .
 # Build the project
 RUN pnpm run build
 
+# Create an isolated production server bundle while the full workspace is available.
+RUN pnpm --filter @wasd/server deploy --prod /app/prod-server
+
 # Production stage
 FROM node:22-alpine AS runner
 
-WORKDIR /app
+WORKDIR /app/prod-server
 
 # Runtime dependencies only
 RUN apk add --no-cache dumb-init
 
 ENV NODE_ENV=production PORT=3000
 
-# Copy necessary files for production
-COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml /app/.npmrc ./
-# Use pnpm deploy to isolate the server package for runtime
-RUN corepack enable && corepack prepare pnpm@9.12.2 --activate && \
-    pnpm --filter @wasd/server deploy /app/prod-server
-
-WORKDIR /app/prod-server
+# Copy the already-deployed production server bundle
+COPY --from=builder /app/prod-server ./
 
 EXPOSE 3000
 
