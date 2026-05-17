@@ -14,6 +14,7 @@
  */
 
 import type { EntityState } from '../types/index.js';
+import { SeededARERng } from '../../core/determinism/AREDeterminism.js';
 
 /**
  * Visibility Result
@@ -237,8 +238,12 @@ export class PerceptionTicker {
       
       const result = checkStealthDeterministic(npcState, player);
       
+      // Deterministic roll using SeededARERng
+      const rng = new SeededARERng(`perception:${npcId}:${currentTick}`);
+      const roll = rng.nextFloat() * 100;
+
       // Roll for detection based on chance
-      if (result.visible && Math.random() * 100 < result.detectionChance) {
+      if (result.visible && roll < result.detectionChance) {
         detectedBy.push(npcId);
       }
     }
