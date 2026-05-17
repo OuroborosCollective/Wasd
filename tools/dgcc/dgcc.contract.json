@@ -9,7 +9,7 @@
     },
     "extreme": {
       "fix": { "enabled": true, "allowDangerous": true },
-      "checks": ["lint", "unit", "checkInteract", "e2e", "contentValidate", "assetsAudit", "wsSchemaSmoke", "uiA11ySmoke", "clientBuild", "serverBuild"]
+      "checks": ["lint", "unit", "checkInteract", "e2e", "contentValidate", "assetsAudit", "modelPathsAudit", "wsSchemaSmoke", "uiA11ySmoke", "clientBuild", "serverBuild"]
     }
   },
   "rules": {

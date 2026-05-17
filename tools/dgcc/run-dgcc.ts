@@ -14,7 +14,8 @@ type CheckName =
   | "wsSchemaSmoke"
   | "uiA11ySmoke"
   | "clientBuild"
-  | "serverBuild";
+  | "serverBuild"
+  | "modelPathsAudit";
 
 type DgccReport = {
   startedAt: string;
@@ -72,11 +73,20 @@ function wantFixes(contract: { modes?: Record<string, { fix?: { enabled?: boolea
   return mode === "extreme";
 }
 
+/** Full vitest suite vs. DGCC-focused subset (default: full only in extreme mode). */
+function wantFullUnit(mode: string) {
+  if (process.env.DGCC_FULL_UNIT === "1") return true;
+  if (process.env.DGCC_FULL_UNIT === "0") return false;
+  return mode === "extreme";
+}
+
 function printHeader(mode: string, fix: boolean) {
   console.log(`[DGCC] mode=${mode} fix=${fix ? "on" : "off"}`);
 }
 
 async function assetsAudit(report: DgccReport, contract: any, fix: boolean) {
+  const outDir = path.join(ROOT, "dgcc-artifacts");
+  ensureDir(outDir);
   const clientDir = path.join(ROOT, contract.rules.assets.clientModelsDir);
   if (!fs.existsSync(clientDir)) {
     report.inconsistencies.push({
@@ -85,28 +95,37 @@ async function assetsAudit(report: DgccReport, contract: any, fix: boolean) {
       message: `Client models dir missing: ${contract.rules.assets.clientModelsDir}`,
       hint: "If this is expected in CI, ensure assets are present in build artifact or disable this check.",
     });
-    return;
-  }
-  const mustHave = ["characters", "monsters", "npcs", "objects", "items", "resources"].map((x) =>
-    path.join(clientDir, x)
-  );
-  for (const p of mustHave) {
-    if (!fs.existsSync(p)) {
-      report.inconsistencies.push({
-        category: "assets",
-        severity: "warn",
-        message: `Missing models subfolder: ${path.relative(ROOT, p)}`,
-        hint: "Not fatal, but content linking will be noisier. Create folder or adjust DGCC contract.",
-      });
-      if (fix) {
-        ensureDir(p);
-        report.fixes.push({
-          kind: "assets:create-folder",
-          message: `Created ${path.relative(ROOT, p)}`,
-          file: path.relative(ROOT, p),
+  } else {
+    const mustHave = ["characters", "monsters", "npcs", "objects", "items", "resources"].map((x) =>
+      path.join(clientDir, x)
+    );
+    for (const p of mustHave) {
+      if (!fs.existsSync(p)) {
+        report.inconsistencies.push({
+          category: "assets",
+          severity: "warn",
+          message: `Missing models subfolder: ${path.relative(ROOT, p)}`,
+          hint: "Not fatal, but content linking will be noisier. Create folder or adjust DGCC contract.",
         });
+        if (fix) {
+          ensureDir(p);
+          report.fixes.push({
+            kind: "assets:create-folder",
+            message: `Created ${path.relative(ROOT, p)}`,
+            file: path.relative(ROOT, p),
+          });
+        }
       }
     }
+  }
+}
+
+async function modelPathsAudit(report: DgccReport, outDir: string) {
+  const audit = await run("pnpm", ["run", "audit:model-paths"]);
+  fs.writeFileSync(path.join(outDir, "audit-model-paths.out.txt"), audit.stdout + "\n" + audit.stderr);
+  report.artifacts["auditModelPaths"] = "dgcc-artifacts/audit-model-paths.out.txt";
+  if (audit.code !== 0) {
+    throw new Error(`audit:model-paths failed (exit ${audit.code})`);
   }
 }
 
@@ -181,10 +200,11 @@ async function main() {
 
   if (checks.includes("unit")) {
     await runCheck("unit", async () => {
-      const r = await run("pnpm", ["run", "test"]);
+      const unitScript = wantFullUnit(mode) ? "test" : "test:dgcc";
+      const r = await run("pnpm", ["run", unitScript]);
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
-      if (r.code !== 0) throw new Error("unit tests failed");
+      if (r.code !== 0) throw new Error(unitScript === "test" ? "unit tests failed" : "DGCC unit subset failed");
     });
   }
 
@@ -208,7 +228,7 @@ async function main() {
 
   if (checks.includes("contentValidate")) {
     await runCheck("contentValidate", async () => {
-      const r = await run("pnpm", ["--prefix", "server", "run", "validate"]);
+      const r = await run("pnpm", ["run", "validate"]);
       fs.writeFileSync(path.join(outDir, "content-validate.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["contentValidate"] = "dgcc-artifacts/content-validate.out.txt";
       if (r.code !== 0) throw new Error("content validation failed (server validate)");
@@ -243,6 +263,13 @@ async function main() {
       const p = path.join(outDir, "assets-audit.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "assets") }, null, 2));
       report.artifacts["assetsAudit"] = "dgcc-artifacts/assets-audit.json";
+    });
+  }
+
+  if (checks.includes("modelPathsAudit")) {
+    await runCheck("modelPathsAudit", async () => {
+      await modelPathsAudit(report, outDir);
+      report.artifacts["modelPathsAudit"] = "dgcc-artifacts/audit-model-paths.out.txt";
     });
   }
 
