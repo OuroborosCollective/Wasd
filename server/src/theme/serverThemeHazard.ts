@@ -10,8 +10,9 @@ import { EventEmitter } from "node:events";
 
 export const THEME_MARINA_AURA = "#00E5FF";
 export const THEME_ORGANIC_FIRE = "#E60000";
+export const THEME_LEGENDARY_GOLD = "#FFD700";
 
-export type ThemeAuraMode = "marina" | "balanced" | "fire_glitch";
+export type ThemeAuraMode = "marina" | "balanced" | "fire_glitch" | "loot_legendary";
 
 export interface VisualThemeState {
   auraHex: string;
@@ -149,4 +150,21 @@ export function subscribeVisualTheme(fn: (visual: VisualThemeState) => void): ()
 
 export function getLastVisualTheme(): VisualThemeState | null {
   return lastVisual;
+}
+
+export function getLootLegendaryVisualState(meta: any): VisualThemeState {
+  return {
+    auraHex: THEME_LEGENDARY_GOLD,
+    secondaryHex: "#3f2f05",
+    mode: "loot_legendary",
+    glitchIntensity: 0.8,
+    phaseShiftPulseHz: 1.2,
+    hazardIndex: 0.5,
+    aggressionTrend: 0,
+  };
+}
+
+export function pushLootAura(meta: any): void {
+  const visual = getLootLegendaryVisualState(meta);
+  themeEmitter.emit("theme_updated", visual);
 }

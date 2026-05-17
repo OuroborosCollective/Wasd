@@ -220,7 +220,6 @@ export class EvolutionSystem {
       const players = this.chunkPlayers.get(chunk)!;
       if (players.size === 0) {
         // Check if this was a destination - might need to disperse
-        // Deterministic inner loop: use sorted corridor keys
         for (const key of sortedCorridorKeys) {
           const corridor = this.travelHeat.get(key)!;
           if (corridor.toChunk === chunk && corridor.intensity < toFP(0.1)) {
