@@ -12,4 +12,6 @@ DGCC_FIX=1 pnpm run dgcc
 
 Artifacts: `dgcc-artifacts/`
 
-The `minimal` / `extreme` modes also run `pnpm run check:interact` (GameConfig vs `shared/interaction.ts`).
+**Prerequisites:** E2E and client builds require `@wasd/shared` to be built first; `pnpm run e2e:build` and DGCC `clientBuild` / `test:e2e:ci` handle that automatically.
+
+Optional interact-radius consistency (not part of DGCC modes): `pnpm run check:interact` (GameConfig vs `packages/shared/src/utils/interaction.ts`).
