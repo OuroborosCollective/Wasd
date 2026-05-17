@@ -13,7 +13,7 @@ export const THEME_MARINA_AURA = "#00E5FF";
 /** Organic Fire — high hazard glitch core */
 export const THEME_ORGANIC_FIRE = "#E60000";
 
-export type ThemeAuraMode = "marina" | "balanced" | "fire_glitch";
+export type ThemeAuraMode = "marina" | "balanced" | "fire_glitch" | "loot_legendary";
 
 export interface VisualThemeState {
   /** Primary aura / glow color (hex) */
@@ -136,7 +136,18 @@ export type LiveTickerHazardPayload = {
   scarcityScore?: number;
   trend?: string;
   predictedShift?: number;
+  loot?: LootMetadata;
 };
+
+export interface LootMetadata {
+  itemId: string;
+  itemName: string;
+  quality: string;
+  sector: string;
+  probability: number;
+  rollHash: string;
+  sourceId: string;
+}
 
 let lastDedupeKey = "";
 let lastVisual: VisualThemeState | null = null;
@@ -183,4 +194,30 @@ export function subscribeVisualTheme(fn: (visual: VisualThemeState) => void): ()
 
 export function getLastVisualTheme(): VisualThemeState | null {
   return lastVisual;
+}
+
+/**
+ * Maps legendary loot metadata to a golden visual state.
+ */
+export function getLootLegendaryVisualState(meta: LootMetadata): VisualThemeState {
+  return {
+    auraHex: "#FFD700",
+    secondaryHex: "#3f2f05",
+    mode: "loot_legendary",
+    glitchIntensity: 0.85,
+    phaseShiftPulseHz: 1.5,
+    hazardIndex: 0.5,
+    aggressionTrend: 0,
+  };
+}
+
+/**
+ * Push a loot aura event into the theme pipeline.
+ */
+export function pushLootAura(meta: LootMetadata): VisualThemeState {
+  const visual = getLootLegendaryVisualState(meta);
+  lastVisual = visual;
+  themeEmitter.emit(THEME_HAZARD_EVENT, { visual, payload: { loot: meta } });
+  themeEmitter.emit("theme_updated", visual);
+  return visual;
 }

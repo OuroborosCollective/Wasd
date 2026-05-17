@@ -45,13 +45,13 @@ function forgeVisual(): VisualThemeState {
 function echoVisual(echo: WorldEcho, live: VisualThemeState): VisualThemeState {
   if (echo.kind === "loot" && echo.loot) {
     return getLootLegendaryVisualState({
-      quality: echo.loot.quality,
-      itemId: echo.loot.itemId,
-      itemName: echo.loot.itemName,
-      sector: echo.loot.sector,
-      probability: echo.loot.probability,
-      rollHash: echo.loot.rollHash,
-      sourceId: echo.loot.sourceId,
+      quality: echo.loot.quality || "common",
+      itemId: echo.loot.itemId || "unknown",
+      itemName: echo.loot.itemName || "Unknown Item",
+      sector: echo.loot.sector || "0:0",
+      probability: echo.loot.probability || 0,
+      rollHash: echo.loot.rollHash || "none",
+      sourceId: echo.loot.sourceId || "none",
     });
   }
   if (echo.kind === "forge") return forgeVisual();
