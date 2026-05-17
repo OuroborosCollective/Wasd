@@ -165,14 +165,28 @@ jobs:
 
             cd "$DEPLOY_PATH"
             umask 077
-            {
-              echo "ARELORIAN_PORT=$ARELORIAN_PORT"
-              echo "ARELORIAN_DOCKER_NETWORK=$ARELORIAN_DOCKER_NETWORK"
-              echo "ARELORIAN_ENABLE_DOCKER_INGRESS=$ARELORIAN_ENABLE_DOCKER_INGRESS"
-              echo "ARELORIAN_INGRESS_HTTP_BIND=$ARELORIAN_INGRESS_HTTP_BIND"
-              echo "ARELORIAN_INGRESS_HTTP_PORT=$ARELORIAN_INGRESS_HTTP_PORT"
-            } > "$ARELORIAN_ENV_FILE"
+            if [ -f "$ARELORIAN_ENV_FILE" ]; then
+              cp "$ARELORIAN_ENV_FILE" "${ARELORIAN_ENV_FILE}.backup.$(date +%Y%m%d%H%M%S)" || true
+            fi
+            touch "$ARELORIAN_ENV_FILE"
             chmod 600 "$ARELORIAN_ENV_FILE"
+            update_env_key() {
+              key="$1"
+              value="$2"
+              tmp_file="${ARELORIAN_ENV_FILE}.tmp"
+              grep -v "^${key}=" "$ARELORIAN_ENV_FILE" > "$tmp_file" || true
+              printf '%s=%s\n' "$key" "$value" >> "$tmp_file"
+              mv "$tmp_file" "$ARELORIAN_ENV_FILE"
+              chmod 600 "$ARELORIAN_ENV_FILE"
+            }
+            update_env_key ARELORIAN_PORT "$ARELORIAN_PORT"
+            update_env_key ARELORIAN_DOCKER_NETWORK "$ARELORIAN_DOCKER_NETWORK"
+            update_env_key ARELORIAN_ENABLE_DOCKER_INGRESS "$ARELORIAN_ENABLE_DOCKER_INGRESS"
+            update_env_key ARELORIAN_INGRESS_HTTP_BIND "$ARELORIAN_INGRESS_HTTP_BIND"
+            update_env_key ARELORIAN_INGRESS_HTTP_PORT "$ARELORIAN_INGRESS_HTTP_PORT"
+            echo "Runtime env file preserved/refreshed: $DEPLOY_PATH/$ARELORIAN_ENV_FILE"
+            echo "Runtime env keys present:"
+            grep -E '^[A-Z0-9_]+=' "$ARELORIAN_ENV_FILE" | cut -d= -f1 | sed 's/^/  - /'
             chmod +x scripts/deploy-vps-docker.sh 2>/dev/null || true
 
             if [ "$DOCKER" = 'sudo docker' ]; then
