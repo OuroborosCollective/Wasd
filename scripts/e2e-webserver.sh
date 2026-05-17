@@ -6,4 +6,10 @@ export NODE_ENV="${NODE_ENV:-production}"
 export PORT="${PORT:-3000}"
 export ALLOW_GUEST_LOGIN="${ALLOW_GUEST_LOGIN:-1}"
 export PLAYER_SAVE_FILE="${PLAYER_SAVE_FILE:-/tmp/areloria-e2e-players.json}"
+
+if [[ ! -f server/dist/index.js ]]; then
+  echo "[e2e-webserver] server/dist/index.js missing; building server…"
+  pnpm --prefix server run build
+fi
+
 exec node server/dist/index.js

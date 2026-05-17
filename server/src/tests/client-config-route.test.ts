@@ -15,6 +15,10 @@ describe("buildClientPublicConfigJson", () => {
   it("returns JSON with anon url and key from env aliases", () => {
     delete process.env.VITE_SUPABASE_URL;
     delete process.env.VITE_SUPABASE_ANON_KEY;
+    delete process.env.GAME_ORIGIN;
+    delete process.env.SUPABASE_PUBLIC_URL;
+    delete process.env.SUPABASE_PROXY_URL;
+    delete process.env.SUPABASE_URL;
     process.env.API_EXTERNAL_URL = "http://example:8000";
     process.env.ANON_KEY = "anon-test-key";
     const j = JSON.parse(buildClientPublicConfigJson()) as {

@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  INTERACT_DISTANCE,
-  getClosestInteractable,
-  type InteractWorldSnapshot,
-} from "../../../shared/interaction";
+import { INTERACT_DISTANCE, getClosestInteractable, type InteractWorldSnapshot } from "@wasd/shared";
 
 describe("shared interaction", () => {
   const playerPos = { x: 0, y: 0 };

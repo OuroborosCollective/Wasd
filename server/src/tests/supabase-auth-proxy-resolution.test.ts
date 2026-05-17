@@ -50,6 +50,9 @@ describe("resolveSupabaseProxyBaseUrlForRequest", () => {
   });
 
   it("uses API_EXTERNAL_URL when SUPABASE_* unset", () => {
+    delete process.env.SUPABASE_PROXY_URL;
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_PUBLIC_URL;
     process.env.API_EXTERNAL_URL = "http://supabase.arelogic.space:8000";
     expect(resolveSupabaseProxyBaseUrl()).toBe("http://supabase.arelogic.space:8000");
   });
