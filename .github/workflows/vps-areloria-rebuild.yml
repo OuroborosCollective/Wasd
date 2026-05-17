@@ -1,0 +1,206 @@
+name: VPS Areloria Rebuild
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Why this rebuild is being run'
+        required: false
+        default: 'Manual rebuild from GitHub'
+      arelorian_port:
+        description: 'Host port for Areloria engine'
+        required: false
+        default: '3001'
+      docker_network:
+        description: 'External Docker network name'
+        required: false
+        default: 'areloria_arelorian-network'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Dockerfile.vps'
+      - 'Dockerfile.monitor'
+      - 'docker-compose.yml'
+      - 'scripts/deploy-vps-docker.sh'
+      - '.github/workflows/vps-areloria-rebuild.yml'
+
+concurrency:
+  group: vps-areloria-rebuild-main
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+
+    steps:
+      - name: Verify VPS secrets
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          ok=true
+          HOST="${VPS_HOST:-${SSH_HOST:-}}"
+          USER_NAME="${VPS_USER:-${SSH_USER:-}}"
+          KEY="${VPS_SSH_KEY:-${SSH_PRIVATE_KEY:-}}"
+          if [ -z "${HOST:-}" ]; then echo "::error::Set VPS_HOST or SSH_HOST."; ok=false; fi
+          if [ -z "${USER_NAME:-}" ]; then echo "::error::Set VPS_USER or SSH_USER."; ok=false; fi
+          if [ -z "${KEY:-}" ] && [ -z "${SSH_PASSWORD:-}" ]; then echo "::error::Set VPS_SSH_KEY / SSH_PRIVATE_KEY or SSH_PASSWORD."; ok=false; fi
+          if [ "$ok" != true ]; then exit 1; fi
+
+      - name: Rebuild Areloria on VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST || secrets.SSH_HOST }}
+          username: ${{ secrets.VPS_USER || secrets.SSH_USER }}
+          key: ${{ secrets.VPS_SSH_KEY || secrets.SSH_PRIVATE_KEY }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          timeout: 2m
+          command_timeout: 70m
+          script_stop: true
+          script: |
+            set -eu
+
+            DEPLOY_PATH='/opt/areloria'
+            REPO_URL='https://github.com/OuroborosCollective/Wasd.git'
+            DEPLOY_BRANCH='main'
+            ARELORIAN_PORT='${{ secrets.VPS_ARELORIAN_PORT || github.event.inputs.arelorian_port || '3001' }}'
+            ARELORIAN_DOCKER_NETWORK='${{ secrets.VPS_ARELORIAN_DOCKER_NETWORK || github.event.inputs.docker_network || 'areloria_arelorian-network' }}'
+            ARELORIAN_ENV_FILE='.env.docker'
+
+            echo '=== VPS Areloria Rebuild ==='
+            echo 'Reason: ${{ github.event.inputs.reason || github.event_name }}'
+            echo "Deploy path: $DEPLOY_PATH"
+            echo "Branch: $DEPLOY_BRANCH"
+            echo "Port: $ARELORIAN_PORT"
+            echo "Network: $ARELORIAN_DOCKER_NETWORK"
+
+            command -v git >/dev/null 2>&1 || { echo 'ERROR: git missing on VPS'; exit 1; }
+            command -v docker >/dev/null 2>&1 || { echo 'ERROR: docker missing on VPS'; exit 1; }
+
+            DOCKER_SUDO=0
+            if docker info >/dev/null 2>&1; then
+              DOCKER_SUDO=0
+            elif command -v sudo >/dev/null 2>&1 && sudo docker info >/dev/null 2>&1; then
+              DOCKER_SUDO=1
+            else
+              echo 'ERROR: Docker daemon not reachable as user or sudo.'
+              docker --version || true
+              command -v sudo >/dev/null 2>&1 && sudo docker --version || true
+              exit 1
+            fi
+
+            d() {
+              if [ "$DOCKER_SUDO" = '1' ]; then sudo docker "$@"; else docker "$@"; fi
+            }
+
+            dc() {
+              if [ -f "$ARELORIAN_ENV_FILE" ]; then
+                d compose --env-file "$ARELORIAN_ENV_FILE" -f docker-compose.yml "$@"
+              else
+                d compose -f docker-compose.yml "$@"
+              fi
+            }
+
+            echo "Docker: $(d --version)"
+            d compose version
+
+            if [ ! -d "$DEPLOY_PATH" ]; then
+              mkdir -p "$DEPLOY_PATH" 2>/dev/null || sudo mkdir -p "$DEPLOY_PATH"
+              sudo chown -R "$(id -un):$(id -gn)" "$DEPLOY_PATH" 2>/dev/null || true
+            fi
+
+            if [ -e "$DEPLOY_PATH" ] && [ ! -d "$DEPLOY_PATH/.git" ] && [ -n "$(ls -A "$DEPLOY_PATH" 2>/dev/null || true)" ]; then
+              BACKUP="${DEPLOY_PATH}.backup.$(date +%Y%m%d%H%M%S)"
+              echo "Existing non-git path found, moving to $BACKUP"
+              mv "$DEPLOY_PATH" "$BACKUP" 2>/dev/null || sudo mv "$DEPLOY_PATH" "$BACKUP"
+              mkdir -p "$DEPLOY_PATH" 2>/dev/null || sudo mkdir -p "$DEPLOY_PATH"
+              sudo chown -R "$(id -un):$(id -gn)" "$DEPLOY_PATH" 2>/dev/null || true
+            fi
+
+            if [ ! -d "$DEPLOY_PATH/.git" ]; then
+              git clone --branch "$DEPLOY_BRANCH" --depth 1 "$REPO_URL" "$DEPLOY_PATH"
+            else
+              cd "$DEPLOY_PATH"
+              git remote set-url origin "$REPO_URL" || true
+              git fetch --no-tags origin "$DEPLOY_BRANCH"
+              git reset --hard "origin/$DEPLOY_BRANCH"
+              git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ || true
+            fi
+
+            cd "$DEPLOY_PATH"
+            echo "Repo commit: $(git rev-parse --short HEAD)"
+            grep -n 'pull_policy: build' docker-compose.yml || { echo 'ERROR: compose fix missing on VPS checkout'; exit 1; }
+
+            if ! d network inspect "$ARELORIAN_DOCKER_NETWORK" >/dev/null 2>&1; then
+              echo "Creating Docker network: $ARELORIAN_DOCKER_NETWORK"
+              d network create "$ARELORIAN_DOCKER_NETWORK" >/dev/null
+            fi
+
+            for NAME in supabase-auth supabase-db supabase-kong supabase-rest redis-comn-redis-1 soketi-9eoa-soketi-1; do
+              if d ps -a --format '{{.Names}}' | grep -Fxq "$NAME"; then
+                d network connect "$ARELORIAN_DOCKER_NETWORK" "$NAME" >/dev/null 2>&1 || true
+              fi
+            done
+
+            umask 077
+            {
+              echo "ARELORIAN_PORT=$ARELORIAN_PORT"
+              echo "ARELORIAN_DOCKER_NETWORK=$ARELORIAN_DOCKER_NETWORK"
+              echo 'ARELORIAN_ENABLE_DOCKER_INGRESS=false'
+              echo 'ARELORIAN_INGRESS_HTTP_BIND=127.0.0.1'
+              echo 'ARELORIAN_INGRESS_HTTP_PORT=8080'
+            } > "$ARELORIAN_ENV_FILE"
+            chmod 600 "$ARELORIAN_ENV_FILE"
+
+            echo '--- Compose config check ---'
+            dc config >/tmp/areloria-compose.yml
+            grep -n 'pull_policy: build' /tmp/areloria-compose.yml || true
+
+            echo '--- Stop old containers ---'
+            dc down --remove-orphans || true
+            d rm -f arelorian-engine monitor-bridge arelorian-ingress-router >/dev/null 2>&1 || true
+
+            echo '--- Build from local source ---'
+            dc build --progress=plain arelorian-engine monitor-bridge
+
+            echo '--- Start stack ---'
+            dc up -d --build --force-recreate arelorian-engine monitor-bridge
+
+            echo '--- Status ---'
+            dc ps || true
+
+            echo '--- Health wait ---'
+            OK=0
+            for I in $(seq 1 48); do
+              if d exec arelorian-engine node -e "fetch('http://127.0.0.1:3001/health').then(r=>process.exit((r.ok||r.status===503)?0:1)).catch(()=>process.exit(1))" >/dev/null 2>&1; then
+                echo "Health accepted at attempt $I"
+                OK=1
+                break
+              fi
+              echo "Waiting for arelorian-engine health... $I/48"
+              sleep 5
+            done
+
+            if [ "$OK" != '1' ]; then
+              echo 'ERROR: arelorian-engine did not become healthy enough.'
+              dc ps || true
+              d inspect arelorian-engine --format 'Status={{.State.Status}} Exit={{.State.ExitCode}} Health={{if .State.Health}}{{.State.Health.Status}}{{else}}n/a{{end}}' || true
+              dc logs --tail=220 arelorian-engine || true
+              exit 1
+            fi
+
+            echo '--- Final logs ---'
+            dc logs --tail=80 arelorian-engine || true
+            echo '=== VPS Areloria Rebuild OK ==='
