@@ -20,7 +20,7 @@ function readNumberFromFile(filePath, patterns) {
 }
 
 const gameConfigPath = path.join(root, "server/src/config/GameConfig.ts");
-const sharedPath = path.join(root, "shared/interaction.ts");
+const sharedPath = path.join(root, "packages/shared/src/utils/interaction.ts");
 
 const serverDist = readNumberFromFile(gameConfigPath, [/interactDistance:\s*(\d+)/]);
 const sharedDist = readNumberFromFile(sharedPath, [/INTERACT_DISTANCE\s*=\s*(\d+)/]);

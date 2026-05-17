@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -7,7 +8,6 @@ type Severity = "info" | "warn" | "error";
 type CheckName =
   | "lint"
   | "unit"
-  | "checkInteract"
   | "e2e"
   | "contentValidate"
   | "assetsAudit"
@@ -142,6 +142,16 @@ async function main() {
   printHeader(mode, fix);
 
   const modeCfg = contract.modes[mode] ?? contract.modes.minimal;
+  const skipRaw = process.env.DGCC_SKIP?.trim();
+  const skipSet = new Set(
+    (skipRaw ? skipRaw.split(",") : [])
+      .map((s) => s.trim())
+      .filter(Boolean) as CheckName[]
+  );
+  const checks = (modeCfg.checks as CheckName[]).filter((c) => !skipSet.has(c));
+  if (skipSet.size > 0) {
+    console.log(`[DGCC] skipping checks: ${[...skipSet].join(", ")}`);
+  }
 
   const report: DgccReport = {
     startedAt: nowIso(),
@@ -168,8 +178,6 @@ async function main() {
     }
   }
 
-  const checks = modeCfg.checks as CheckName[];
-
   if (checks.includes("lint")) {
     await runCheck("lint", async () => {
       const r = await run("pnpm", ["run", "lint"]);
@@ -181,19 +189,14 @@ async function main() {
 
   if (checks.includes("unit")) {
     await runCheck("unit", async () => {
-      const r = await run("pnpm", ["run", "test"]);
+      const r = await run("pnpm", ["run", "test"], {
+        env: {
+          PERSISTENCE_DRIVER: "file",
+        },
+      });
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
       if (r.code !== 0) throw new Error("unit tests failed");
-    });
-  }
-
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
     });
   }
 
@@ -217,6 +220,8 @@ async function main() {
 
   if (checks.includes("clientBuild")) {
     await runCheck("clientBuild", async () => {
+      const shared = await run("pnpm", ["--filter", "@wasd/shared", "run", "build"]);
+      if (shared.code !== 0) throw new Error("@wasd/shared build failed");
       const r = await run("pnpm", ["--prefix", "client", "run", "build"], {
         env: {
           NODE_OPTIONS: process.env.NODE_OPTIONS || "--max-old-space-size=6144",
@@ -230,6 +235,8 @@ async function main() {
 
   if (checks.includes("serverBuild")) {
     await runCheck("serverBuild", async () => {
+      const shared = await run("pnpm", ["--filter", "@wasd/shared", "run", "build"]);
+      if (shared.code !== 0) throw new Error("@wasd/shared build failed");
       const r = await run("pnpm", ["--prefix", "server", "run", "build"]);
       fs.writeFileSync(path.join(outDir, "server-build.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["serverBuild"] = "dgcc-artifacts/server-build.out.txt";
