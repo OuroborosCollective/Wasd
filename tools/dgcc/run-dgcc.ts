@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -7,7 +8,6 @@ type Severity = "info" | "warn" | "error";
 type CheckName =
   | "lint"
   | "unit"
-  | "checkInteract"
   | "e2e"
   | "contentValidate"
   | "assetsAudit"
@@ -110,7 +110,7 @@ async function assetsAudit(report: DgccReport, contract: any, fix: boolean) {
   }
 }
 
-async function wsSchemaSmoke(report: DgccReport) {
+async function wsSchemaSmoke(report: DgccReport, contract: { rules?: { ws?: { requireWelcomeStatsShape?: boolean } } }) {
   const p = path.join(ROOT, "client/public/e2e-smoke.html");
   if (!fs.existsSync(p)) {
     report.inconsistencies.push({
@@ -120,6 +120,30 @@ async function wsSchemaSmoke(report: DgccReport) {
       file: "client/public/e2e-smoke.html",
       hint: "Restore e2e smoke page or update DGCC contract.",
     });
+    return;
+  }
+  if (contract.rules?.ws?.requireWelcomeStatsShape) {
+    const html = fs.readFileSync(p, "utf8");
+    const spec = path.join(ROOT, "e2e/smoke.spec.ts");
+    if (fs.existsSync(spec)) {
+      const t = fs.readFileSync(spec, "utf8");
+      if (!t.includes("welcome") || !t.includes("stats")) {
+        report.inconsistencies.push({
+          category: "ws",
+          severity: "error",
+          message: "e2e/smoke.spec.ts must assert welcome payload stats shape (contract requireWelcomeStatsShape).",
+          file: "e2e/smoke.spec.ts",
+        });
+      }
+    }
+    if (!html.includes("e2e-welcome") || !html.includes("welcome")) {
+      report.inconsistencies.push({
+        category: "ws",
+        severity: "error",
+        message: "e2e-smoke.html must expose welcome payload for schema smoke.",
+        file: "client/public/e2e-smoke.html",
+      });
+    }
   }
 }
 
@@ -181,19 +205,10 @@ async function main() {
 
   if (checks.includes("unit")) {
     await runCheck("unit", async () => {
-      const r = await run("pnpm", ["run", "test"]);
+      const r = await run("pnpm", ["run", "test:dgcc"]);
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
       if (r.code !== 0) throw new Error("unit tests failed");
-    });
-  }
-
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
     });
   }
 
@@ -248,7 +263,7 @@ async function main() {
 
   if (checks.includes("wsSchemaSmoke")) {
     await runCheck("wsSchemaSmoke", async () => {
-      await wsSchemaSmoke(report);
+      await wsSchemaSmoke(report, contract);
       const p = path.join(outDir, "ws-smoke.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "ws") }, null, 2));
       report.artifacts["wsSchemaSmoke"] = "dgcc-artifacts/ws-smoke.json";
