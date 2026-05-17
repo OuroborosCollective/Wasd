@@ -48,6 +48,9 @@ jobs:
 
       - name: VPS runtime check over SSH
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          DEPLOY_PATH_SECRET: ${{ secrets.VPS_DEPLOY_PATH || secrets.DEPLOY_PATH }}
+          GAME_PORT_INPUT: ${{ github.event.inputs.game_port || '3001' }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
@@ -56,12 +59,13 @@ jobs:
           timeout: 2m
           command_timeout: 10m
           script_stop: true
+          envs: DEPLOY_PATH_SECRET,GAME_PORT_INPUT
           script: |
             set -Eeuo pipefail
             trap 'rc=$?; echo "ERROR: VPS deploy check failed at line $LINENO with rc=$rc"; exit $rc' ERR
 
-            DEPLOY_PATH='${{ secrets.VPS_DEPLOY_PATH || secrets.DEPLOY_PATH || '/opt/areloria' }}'
-            GAME_PORT='${{ github.event.inputs.game_port || '3001' }}'
+            DEPLOY_PATH="${DEPLOY_PATH_SECRET:-/opt/areloria}"
+            GAME_PORT="${GAME_PORT_INPUT:-3001}"
             CONTAINER='arelorian-engine'
 
             echo "=== VPS Deploy Truth Check ==="
