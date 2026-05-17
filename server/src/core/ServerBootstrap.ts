@@ -192,6 +192,10 @@ export class ServerBootstrap {
     } else {
       app.use((req, res, next) => { if (req.url?.endsWith(".wasm")) { res.setHeader("Content-Type", "application/wasm"); res.setHeader("Cross-Origin-Opener-Policy", "same-origin"); res.setHeader("Cross-Origin-Embedder-Policy", "require-corp"); } next(); });
       app.use(express.static(clientPath));
+      const clientPublic = path.join(clientRoot, "public");
+      if (existsSync(clientPublic)) {
+        app.use(express.static(clientPublic, { maxAge: process.env.NODE_ENV === "production" ? "7d" : 0 }));
+      }
     }
     const mirroredWorld = resolveMirroredWorldAssetsDir();
     const worldAssetsDir = mirroredWorld ?? resolveWorldAssetsDir();
