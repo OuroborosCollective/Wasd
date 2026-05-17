@@ -1,0 +1,160 @@
+name: VPS Deploy Check
+run-name: VPS Deploy Check • ${{ github.event_name }} • ${{ github.ref_name }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Optional public base URL to verify, for example https://arelorian.de'
+        required: false
+        default: 'https://arelorian.de'
+      game_port:
+        description: 'Expected game port on VPS'
+        required: false
+        default: '3001'
+  schedule:
+    - cron: '17 */6 * * *'
+
+concurrency:
+  group: vps-deploy-check
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  check:
+    name: Check VPS runtime truth
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Verify SSH secrets
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          ok=true
+          [ -n "${SSH_HOST:-}" ] || { echo "::error::Set SSH_HOST."; ok=false; }
+          [ -n "${SSH_USER:-}" ] || { echo "::error::Set SSH_USER."; ok=false; }
+          [ -n "${SSH_PASSWORD:-}" ] || { echo "::error::Set SSH_PASSWORD."; ok=false; }
+          [ "$ok" = true ]
+
+      - name: VPS runtime check over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          timeout: 2m
+          command_timeout: 10m
+          script_stop: true
+          script: |
+            set -Eeuo pipefail
+            trap 'rc=$?; echo "ERROR: VPS deploy check failed at line $LINENO with rc=$rc"; exit $rc' ERR
+
+            DEPLOY_PATH='${{ secrets.VPS_DEPLOY_PATH || secrets.DEPLOY_PATH || '/opt/areloria' }}'
+            GAME_PORT='${{ github.event.inputs.game_port || '3001' }}'
+            CONTAINER='arelorian-engine'
+
+            echo "=== VPS Deploy Truth Check ==="
+            echo "deploy_path=$DEPLOY_PATH"
+            echo "game_port=$GAME_PORT"
+            echo "user=$(id -un)"
+            echo "host=$(hostname)"
+            date -Is || true
+            uname -a || true
+
+            echo "--- repository ---"
+            if [ -d "$DEPLOY_PATH/.git" ]; then
+              cd "$DEPLOY_PATH"
+              echo "path=$PWD"
+              git rev-parse --short HEAD || true
+              git log -1 --oneline || true
+              git status --short || true
+            else
+              echo "WARN: $DEPLOY_PATH is not a git checkout"
+            fi
+
+            echo "--- docker ---"
+            if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+              DOCKER='docker'
+            elif command -v sudo >/dev/null 2>&1 && sudo -n docker info >/dev/null 2>&1; then
+              DOCKER='sudo -n docker'
+            else
+              echo "ERROR: Docker is not reachable."
+              exit 1
+            fi
+            $DOCKER --version || true
+            $DOCKER compose version || true
+            $DOCKER ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
+
+            echo "--- container inspect ---"
+            if $DOCKER inspect "$CONTAINER" >/dev/null 2>&1; then
+              $DOCKER inspect "$CONTAINER" --format 'name={{.Name}} status={{.State.Status}} running={{.State.Running}} restart={{.RestartCount}} started={{.State.StartedAt}} ports={{json .NetworkSettings.Ports}}'
+              $DOCKER exec "$CONTAINER" sh -lc 'echo "PORT=${PORT:-}"; echo "GAME_PORT=${GAME_PORT:-}"; echo "NODE_ENV=${NODE_ENV:-}"; ps -o pid,comm,args | head -20' || true
+            else
+              echo "ERROR: container $CONTAINER not found"
+              exit 1
+            fi
+
+            echo "--- host ports ---"
+            ss -ltnp 2>/dev/null | grep -E ":($GAME_PORT|3000|80|443)\\b" || true
+
+            echo "--- internal HTTP ---"
+            internal_ok=false
+            for path in /health /client-config.json /; do
+              status="$($DOCKER exec "$CONTAINER" node -e "fetch('http://127.0.0.1:${GAME_PORT}${path}').then(r=>{console.log(r.status); process.exit(r.ok?0:2)}).catch(e=>{console.log('ERR '+e.message); process.exit(3)})" 2>&1 || true)"
+              echo "container http://127.0.0.1:${GAME_PORT}${path} => $status"
+              case "$status" in
+                200*) internal_ok=true ;;
+              esac
+            done
+
+            echo "--- host HTTP ---"
+            host_ok=false
+            for path in /health /client-config.json /; do
+              code="$(curl -ksS -o /tmp/deploy-check-body -w '%{http_code}' --max-time 5 "http://127.0.0.1:${GAME_PORT}${path}" || true)"
+              echo "host http://127.0.0.1:${GAME_PORT}${path} => $code"
+              if [ "$code" = 200 ]; then host_ok=true; fi
+            done
+
+            echo "--- recent logs ---"
+            $DOCKER logs --tail=120 "$CONTAINER" || true
+
+            if [ "$internal_ok" != true ]; then
+              echo "ERROR: container internal HTTP did not return 200 on any probe."
+              exit 1
+            fi
+
+            if [ "$host_ok" != true ]; then
+              echo "ERROR: host HTTP did not return 200 on any probe. Port mapping or listener may be broken."
+              exit 1
+            fi
+
+            echo "OK: VPS runtime responded internally and via host port."
+
+      - name: Optional public URL check
+        env:
+          BASE_URL: ${{ github.event.inputs.base_url || 'https://arelorian.de' }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BASE_URL:-}" ]; then
+            echo "No public base URL configured; skipping."
+            exit 0
+          fi
+          echo "=== Public URL check: $BASE_URL ==="
+          ok=false
+          for path in / /2d/ /3d/ /portal/; do
+            code="$(curl -ksS -o /tmp/public-check-body -w '%{http_code}' --max-time 15 "${BASE_URL%/}${path}" || true)"
+            echo "${BASE_URL%/}${path} => $code"
+            if [ "$code" = 200 ]; then ok=true; fi
+          done
+          [ "$ok" = true ] || { echo "::error::No public route returned HTTP 200."; exit 1; }
