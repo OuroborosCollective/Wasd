@@ -127,6 +127,8 @@ export class ComboValidator {
   private cooldowns: Map<string, number>;
   private tickCount: number = 0;
 
+  public setTickCount(tick: number): void { this.tickCount = tick; }
+
   constructor(definitions?: Map<string, ComboDefinition>) {
     this.comboDefinitions = definitions || DEFAULT_COMBO_DEFINITIONS;
     this.playerStates = new Map();
