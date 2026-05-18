@@ -13,6 +13,7 @@
  * NO RAYCASTING - Pure mathematical distance calculation.
  */
 
+import { createARESeed, SeededARERng } from '../../core/determinism/AREDeterminism.js';
 import type { EntityState } from '../types/index.js';
 
 /**
@@ -178,6 +179,21 @@ export function calculatePhaseShift(npcId: string): number {
   return phaseShift;
 }
 
+function deterministicDetectionRoll(npc: PerceptionState, player: StealthState, currentTick: number): number {
+  const rng = new SeededARERng(createARESeed([
+    'perception',
+    npc.npcId,
+    player.playerId,
+    currentTick,
+    npc.phaseShift,
+    Math.round(npc.position.x * 1000),
+    Math.round(npc.position.z * 1000),
+    Math.round(player.position.x * 1000),
+    Math.round(player.position.z * 1000),
+  ]));
+  return rng.nextFloat() * 100;
+}
+
 /**
  * Tick-based perception updates
  * Called every 10-Hz tick
@@ -231,14 +247,15 @@ export class PerceptionTicker {
 
     this.lastTick = currentTick;
     const detectedBy: string[] = [];
+    const sortedNpcStates = Array.from(this.npcStates.entries()).sort(([a], [b]) => a.localeCompare(b));
 
-    for (const [npcId, npcState] of this.npcStates) {
+    for (const [npcId, npcState] of sortedNpcStates) {
       npcState.lastPerceptionTick = currentTick;
       
       const result = checkStealthDeterministic(npcState, player);
       
-      // Roll for detection based on chance
-      if (result.visible && Math.random() * 100 < result.detectionChance) {
+      // Roll for detection based on deterministic chance
+      if (result.visible && deterministicDetectionRoll(npcState, player, currentTick) < result.detectionChance) {
         detectedBy.push(npcId);
       }
     }
