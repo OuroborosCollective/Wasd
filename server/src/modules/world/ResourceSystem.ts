@@ -1,5 +1,6 @@
 import { ResourceScatter } from "./ResourceScatter.js";
 import { ItemRegistry } from "../inventory/ItemRegistry.js";
+import { SeededARERng } from "../../core/determinism/AREDeterminism.js";
 
 export interface ResourceNode {
   id: string;
@@ -26,15 +27,16 @@ export class ResourceSystem {
   initializeNodes() {
     // Generate some default nodes across the map
     const biomes = ["forest", "mountain", "desert"];
+    const rng = new SeededARERng("resource-system:v1");
     let idCounter = 0;
 
     for (let i = 0; i < 50; i++) {
-      const biome = biomes[Math.floor(Math.random() * biomes.length)];
+      const biome = biomes[rng.nextInt(biomes.length)];
       const resources = this.scatter.generateForBiome(biome);
 
       if (resources.length === 0) continue;
 
-      const resourceType = resources[Math.floor(Math.random() * resources.length)];
+      const resourceType = resources[rng.nextInt(resources.length)];
 
       // Determine node properties based on type
       let typeName = "node";
@@ -56,8 +58,8 @@ export class ResourceSystem {
         id,
         type: typeName,
         position: {
-          x: (Math.random() - 0.5) * 400, // spread across -200 to 200
-          y: (Math.random() - 0.5) * 400
+          x: (rng.nextFloat() - 0.5) * 400, // spread across -200 to 200
+          y: (rng.nextFloat() - 0.5) * 400
         },
         amount: maxAmount,
         maxAmount,
@@ -71,7 +73,7 @@ export class ResourceSystem {
   }
 
   private updateCache() {
-    this.cachedNodes = Array.from(this.nodes.values());
+    this.cachedNodes = Array.from(this.nodes.values()).sort((a, b) => a.id.localeCompare(b.id));
   }
 
   gatherNode(id: string): { success: boolean, item?: any, reason?: string } {
