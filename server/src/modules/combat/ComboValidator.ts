@@ -142,12 +142,7 @@ export class ComboValidator {
   }
 
   public getServerTimestamp(): number {
-    // Hardened deterministic timestamp based on internal tick count (100ms per tick)
     return this.tickCount * 100;
-  }
-
-  public setTickCount(tick: number): void {
-    this.tickCount = tick;
   }
 
   public calculateDistance(a: Vector3, b: Vector3): number {

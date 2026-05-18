@@ -203,8 +203,8 @@ export function getLootLegendaryVisualState(_meta?: Record<string, unknown>): Vi
 /**
  * Pushes a temporary legendary loot aura into the theme pipeline.
  */
-export function pushLootAura(meta?: Record<string, unknown>): VisualThemeState {
-  const visual = getLootLegendaryVisualState(meta);
+export function pushLootAura(_meta?: Record<string, unknown>): VisualThemeState {
+  const visual = getLootLegendaryVisualState(_meta);
   themeEmitter.emit(THEME_HAZARD_EVENT, { visual, payload: { trend: "loot" } });
   themeEmitter.emit("theme_updated", visual);
   return visual;
