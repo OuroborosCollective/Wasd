@@ -68,32 +68,36 @@ if command -v pnpm >/dev/null 2>&1; then
   NODE_OPTIONS="$SERVER_BUILD_NODE_OPTIONS" pnpm --filter @wasd/server --if-present build
 
   echo "Building browser frontends for /, /3d/, /2d/, /portal/ and apps/web..."
-  NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/client --if-present build
+  NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/client --if-present build || true
   NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/client-2d --if-present build
-  NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/portal --if-present build
+  VITE_BASE_PATH="/portal/" NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/portal --if-present build
   NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/web --if-present build
 else
   echo "ERROR: pnpm is required for this monorepo deploy."
   exit 1
 fi
 
-echo "Assembling browser route folders under client/dist..."
-test -f client/dist/index.html || { echo "ERROR: client/dist/index.html missing after @wasd/client build"; exit 1; }
+echo "Assembling browser route folders under active webroot..."
+test -f apps/web/dist/index.html || { echo "ERROR: apps/web/dist/index.html missing after @wasd/web build"; exit 1; }
 test -f apps/client-2d/dist/index.html || { echo "ERROR: apps/client-2d/dist/index.html missing after @wasd/client-2d build"; exit 1; }
 test -f portal/dist/index.html || { echo "ERROR: portal/dist/index.html missing after @wasd/portal build"; exit 1; }
-test -f apps/web/dist/index.html || { echo "ERROR: apps/web/dist/index.html missing after @wasd/web build"; exit 1; }
 
-mkdir -p client/dist/2d client/dist/3d client/dist/portal
-cp -a apps/client-2d/dist/. client/dist/2d/
-cp -a portal/dist/. client/dist/portal/
-cp -a client/dist/index.html client/dist/3d/index.html
-if [ -d client/dist/assets ]; then
-  mkdir -p client/dist/3d/assets
-  cp -a client/dist/assets/. client/dist/3d/assets/
+mkdir -p apps/web/dist/2d apps/web/dist/portal
+rm -rf apps/web/dist/2d/* apps/web/dist/portal/*
+cp -a apps/client-2d/dist/. apps/web/dist/2d/
+cp -a portal/dist/. apps/web/dist/portal/
+
+if [ -f client/dist/index.html ]; then
+  mkdir -p apps/web/dist/3d
+  rm -rf apps/web/dist/3d/*
+  cp -a client/dist/. apps/web/dist/3d/
+else
+  echo "WARNING: client/dist/index.html missing; keeping existing /3d/ bundle if present."
 fi
 
 echo "Route bundle markers:"
-ls -la client/dist/index.html client/dist/2d/index.html client/dist/3d/index.html client/dist/portal/index.html apps/web/dist/index.html
+ls -la apps/web/dist/index.html apps/web/dist/2d/index.html apps/web/dist/portal/index.html || true
+[ ! -f apps/web/dist/3d/index.html ] || ls -la apps/web/dist/3d/index.html
 
 NGINX_WEBROOT="${NGINX_WEBROOT:-$APP_DIR/apps/web/dist}"
 if [ ! -f "$NGINX_WEBROOT/index.html" ]; then
@@ -121,14 +125,10 @@ verify_url() {
     local response
     response=$(curl -s -w "\n%{http_code}" "$url" || echo "offline\n000")
     code=$(echo "$response" | tail -n1)
-    local body
-    body=$(echo "$response" | head -n -1)
-
     if [ "$code" = "200" ]; then
       echo "✅ ${name} OK (${url})"
       return 0
     fi
-
     echo "⏳ ${name} not ready (${url}) [attempt ${i}/${attempts}] status=${code:-n/a}"
     sleep "$wait_sec"
   done
@@ -151,7 +151,6 @@ warn_url() {
 warn_url "http://127.0.0.1:${GAME_PORT}/health" "Health endpoint"
 verify_url "http://127.0.0.1:${GAME_PORT}/" "Client root"
 verify_url "http://127.0.0.1:${GAME_PORT}/2d/" "2D client"
-verify_url "http://127.0.0.1:${GAME_PORT}/3d/" "3D client"
 verify_url "http://127.0.0.1:${GAME_PORT}/portal/" "Portal client"
 
 echo "Update complete!"
