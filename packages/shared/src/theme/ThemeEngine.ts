@@ -13,7 +13,7 @@ export const THEME_MARINA_AURA = "#00E5FF";
 /** Organic Fire — high hazard glitch core */
 export const THEME_ORGANIC_FIRE = "#E60000";
 
-export type ThemeAuraMode = "marina" | "balanced" | "fire_glitch";
+export type ThemeAuraMode = "marina" | "balanced" | "fire_glitch" | "loot_legendary";
 
 export interface VisualThemeState {
   /** Primary aura / glow color (hex) */
@@ -183,4 +183,29 @@ export function subscribeVisualTheme(fn: (visual: VisualThemeState) => void): ()
 
 export function getLastVisualTheme(): VisualThemeState | null {
   return lastVisual;
+}
+
+/**
+ * Returns a visual state for legendary loot (golden aura).
+ */
+export function getLootLegendaryVisualState(_meta?: Record<string, unknown>): VisualThemeState {
+  return {
+    auraHex: "#FFD700", // Gold
+    secondaryHex: "#4B3C00",
+    mode: "loot_legendary",
+    glitchIntensity: 0,
+    phaseShiftPulseHz: 1.2,
+    hazardIndex: 0,
+    aggressionTrend: 0,
+  };
+}
+
+/**
+ * Pushes a temporary legendary loot aura into the theme pipeline.
+ */
+export function pushLootAura(meta?: Record<string, unknown>): VisualThemeState {
+  const visual = getLootLegendaryVisualState(meta);
+  themeEmitter.emit(THEME_HAZARD_EVENT, { visual, payload: { trend: "loot" } });
+  themeEmitter.emit("theme_updated", visual);
+  return visual;
 }
