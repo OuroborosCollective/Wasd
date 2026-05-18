@@ -11,7 +11,7 @@ import { EventEmitter } from "node:events";
 export const THEME_MARINA_AURA = "#00E5FF";
 export const THEME_ORGANIC_FIRE = "#E60000";
 
-export type ThemeAuraMode = "marina" | "balanced" | "fire_glitch";
+export type ThemeAuraMode = "marina" | "balanced" | "fire_glitch" | "loot_legendary";
 
 export interface VisualThemeState {
   auraHex: string;
