@@ -17,6 +17,7 @@ import { warfrontRouter } from "../api/warfrontRoute.js";
 import { areValidationRouter } from "../api/areValidationRoute.js";
 import { areReplayRouter } from "../api/areReplayRoute.js";
 import { sovereignDeployRouter } from "../api/sovereignDeployRoute.js";
+import { healthRoutes } from "../api/healthRoutes.js";
 import { getContentDataSourceLabel, resolveContentDir } from "../modules/content/contentDataRoot.js";
 import { getSupabaseSummary, verifySupabaseToken } from "../config/supabase.js";
 import { resolveWorldAssetsDir } from "./resolveWorldAssetsDir.js";
@@ -117,6 +118,7 @@ export class ServerBootstrap {
     app.use("/api/questlines", questlineRouter());
     app.use("/api/lore", loreRouter());
     app.get("/client-config.json", (_req, res) => { res.type("application/json"); res.setHeader("Cache-Control", "no-store"); res.send(buildClientPublicConfigJson(_req)); });
+    app.use("/health", healthRoutes({ getTick: () => (this as any)._tick as WorldTick | undefined, isInitializing: () => this.initializing, getPort: () => Number(process.env.PORT || 3000) }));
     app.get("/health", (_req, res) => {
       const tick = (this as any)._tick as WorldTick | undefined;
       const selfHealingStatus = safeHealthValue(() => selfHealingRuntime.getStatus(), { active: false, config: {}, totalErrors: 0, totalHealed: 0, healingRate: 0, featuresProtected: 0 } as any);
