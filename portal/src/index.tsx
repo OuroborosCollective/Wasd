@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import * as Apps from './apps';
 import './app/globals.css';
-import { RealityBadge } from './components/ui/RealityBadge';
 
 const App = () => {
   const [activeApp, setActiveApp] = useState<string | null>(null);
@@ -34,14 +33,11 @@ const App = () => {
   return (
     <div className="min-h-screen bg-slate-900 text-white p-8">
       <header className="mb-8 flex justify-between items-center">
-        <div className="flex items-center gap-6">
-          <h1 className="text-3xl font-bold text-cyan-400">ARE-Logic Portal</h1>
-          <RealityBadge />
-        </div>
+        <h1 className="text-3xl font-bold text-cyan-400">ARE-Logic Portal</h1>
         {activeApp && (
           <button
             onClick={() => setActiveApp(null)}
-            className="px-4 py-2 bg-slate-800 rounded hover:bg-slate-700 transition-colors"
+            className="px-4 py-2 bg-slate-800 rounded hover:bg-slate-700 focus-visible:ring-2 focus-visible:ring-cyan-500 outline-none transition-colors"
           >
             ← Back to Portal
           </button>
