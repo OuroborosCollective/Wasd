@@ -239,7 +239,9 @@ export class QuestDerivationEngine {
   private analyzeTensions(worldState: any): TensionPoint[] {
     const tensions: TensionPoint[] = [];
 
-    for (const [regionId, region] of worldState.regions) {
+    const sortedRegionIds = Array.from(worldState.regions.keys() as Iterable<string>).sort();
+    for (const regionId of sortedRegionIds) {
+      const region = worldState.regions.get(regionId);
       const tension: TensionPoint = {
         regionId,
         energyDeficit: 0,
