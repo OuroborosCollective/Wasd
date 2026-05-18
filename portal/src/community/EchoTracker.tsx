@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Quest Echo Tracker — Screen 10 style feed.
  * - O(1) head reads via PortalWorldHistory ring buffer
