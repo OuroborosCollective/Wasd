@@ -93,6 +93,13 @@ fi
 echo "Route bundle markers:"
 ls -la client/dist/index.html client/dist/2d/index.html client/dist/3d/index.html client/dist/portal/index.html
 
+if [ "${SKIP_NGINX_REPAIR:-0}" != "1" ] && [ -f deploy/repair-nginx.sh ] && command -v nginx >/dev/null 2>&1; then
+  echo "Repairing nginx document root and reverse proxy if permissions allow..."
+  APP_DIR="$APP_DIR" GAME_PORT="$GAME_PORT" DOMAIN="${DOMAIN:-arelorian.de}" bash deploy/repair-nginx.sh || true
+else
+  echo "Skipping nginx repair. Set SKIP_NGINX_REPAIR=0 and ensure nginx is installed to enable it."
+fi
+
 pm2 restart areloria --update-env || pm2 start server/dist/index.js --name areloria --update-env
 
 verify_url() {
