@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-
 const WORLD_BOSS_DUNGEON_ID = "obsidian_fracture";
 const WORLD_BOSS_SCENE_ID = "worldboss_obsidian_fracture";
 const HUB_SCENE_ID = "didis_hub";
@@ -102,7 +100,7 @@ function ensureRecord(value: unknown): Record<string, unknown> {
 }
 
 function nowMs(): number {
-  return Date.now();
+  return Date.now(); // ARE-DETERMINISM-ALLOW wall-clock cooldown and audit metadata, not world-hash input.
 }
 
 export class WorldBossDungeonSystem {
@@ -114,6 +112,8 @@ export class WorldBossDungeonSystem {
   private openDungeonInstanceId = "";
   private currentBossNpcId = WORLD_BOSS_NPC_ID;
   private encounterAnnouncementSent = false;
+  private instanceSequence = 0;
+  private encounterSequence = 0;
 
   constructor() {
     this.definitions = {
@@ -246,7 +246,7 @@ export class WorldBossDungeonSystem {
     if (!bossNpc || (Number(bossNpc.health) || 0) <= 0) return;
     if (this.activeEncounter?.completed === false && this.activeEncounter.bossNpcId === bossNpc.id) return;
     this.activeEncounter = {
-      encounterId: randomUUID(),
+      encounterId: this.newEncounterId(),
       dungeonId: WORLD_BOSS_DUNGEON_ID,
       bossNpcId: bossNpc.id,
       startedAt: nowMs(),
@@ -447,7 +447,13 @@ export class WorldBossDungeonSystem {
   }
 
   private newInstanceId(): string {
-    return randomUUID().slice(0, 8);
+    this.instanceSequence += 1;
+    return `wb_${this.instanceSequence.toString(36).padStart(4, "0")}`;
+  }
+
+  private newEncounterId(): string {
+    this.encounterSequence += 1;
+    return `wbe_${this.encounterSequence.toString(36).padStart(4, "0")}`;
   }
 }
 
