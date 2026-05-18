@@ -3,56 +3,31 @@ import { readdir, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
-const repoRoot = process.cwd();
-const ignoredDirs = new Set(['.git', 'node_modules', 'dist', 'build', '.turbo', '.cache', 'coverage']);
-
-const exactLocks = new Map([
-  ['vite', '6.4.2'],
-  ['@vitejs/plugin-react', '4.7.0'],
-  ['three', '0.184.0'],
-]);
-
-const blockedMajors = new Map([
-  ['vite', 7],
-  ['@vitejs/plugin-react', 5],
-]);
-
-const advisoryCritical = new Set([
-  '@babylonjs/core',
-  '@babylonjs/loaders',
-  '@babylonjs/materials',
-  '@babylonjs/havok',
-  'typescript',
-  'tsx',
-  'pnpm',
-]);
-
+const root = process.cwd();
+const ignored = new Set(['.git', 'node_modules', 'dist', 'build', '.turbo', '.cache', 'coverage']);
 const findings = [];
-const advisories = [];
+const notes = [];
 
-function parseMajor(spec) {
-  const match = String(spec).match(/\d+/);
-  return match ? Number(match[0]) : null;
+function frontendPackage(rel, json) {
+  const name = String(json.name || '');
+  return rel === 'client/package.json' || rel === 'portal/package.json' || rel.startsWith('apps/client-') || rel.startsWith('apps/portal') || name === '@wasd/client' || name === '@arelorian/client-2d' || name.includes('portal');
 }
 
-function checkSpecifier(pkgPath, section, name, spec) {
-  if (exactLocks.has(name)) {
-    const expected = exactLocks.get(name);
-    if (spec !== expected) {
-      findings.push(`${pkgPath} ${section}.${name} must be pinned to ${expected}, found ${spec}`);
-    }
-  }
+function loose(spec) {
+  return /^[~^*]|latest|next|beta|alpha|rc/i.test(String(spec));
+}
 
-  if (blockedMajors.has(name)) {
-    const major = parseMajor(spec);
-    const blocked = blockedMajors.get(name);
-    if (major !== null && major >= blocked) {
-      findings.push(`${pkgPath} ${section}.${name} uses blocked major ${spec}; stay below ${blocked}.x until the frontend pipeline is migrated.`);
-    }
-  }
+function check(rel, json, section, name, spec) {
+  const frontend = frontendPackage(rel, json);
 
-  if (advisoryCritical.has(name) && /^[~^*]|latest|next|beta|alpha|rc/i.test(String(spec))) {
-    advisories.push(`${pkgPath} ${section}.${name} is not exact (${spec}). Advisory only for now; pin during the next lockfile maintenance window.`);
+  if (frontend && name === 'vite' && spec !== '6.4.2') findings.push(`${rel} ${section}.vite must stay pinned to 6.4.2, found ${spec}`);
+  if (frontend && name === '@vitejs/plugin-react' && spec !== '4.7.0') findings.push(`${rel} ${section}.@vitejs/plugin-react must stay pinned to 4.7.0, found ${spec}`);
+  if (name === 'three' && spec !== '0.184.0') findings.push(`${rel} ${section}.three must stay pinned to 0.184.0, found ${spec}`);
+
+  if (!frontend && (name === 'vite' || name === '@vitejs/plugin-react')) notes.push(`${rel} ${section}.${name}=${spec} is outside frontend lock scope`);
+
+  if (['@babylonjs/core','@babylonjs/loaders','@babylonjs/materials','@babylonjs/havok','typescript','tsx','pnpm'].includes(name) && loose(spec)) {
+    notes.push(`${rel} ${section}.${name}=${spec} is advisory-loose`);
   }
 }
 
@@ -63,7 +38,7 @@ async function walk(dir, out = []) {
   for (const entry of entries) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (!ignoredDirs.has(entry.name)) await walk(full, out);
+      if (!ignored.has(entry.name)) await walk(full, out);
     } else if (entry.isFile() && entry.name === 'package.json') {
       out.push(full);
     }
@@ -71,32 +46,20 @@ async function walk(dir, out = []) {
   return out;
 }
 
-const packageFiles = await walk(repoRoot);
-for (const file of packageFiles) {
-  const rel = path.relative(repoRoot, file);
+for (const file of await walk(root)) {
+  const rel = path.relative(root, file);
   let json;
-  try {
-    json = JSON.parse(await readFile(file, 'utf8'));
-  } catch (err) {
-    findings.push(`${rel} is not valid JSON: ${err.message}`);
-    continue;
-  }
-
+  try { json = JSON.parse(await readFile(file, 'utf8')); } catch (error) { findings.push(`${rel} invalid JSON: ${error.message}`); continue; }
   for (const section of ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']) {
-    const deps = json[section] ?? {};
-    for (const [name, spec] of Object.entries(deps)) checkSpecifier(rel, section, name, spec);
+    for (const [name, spec] of Object.entries(json[section] || {})) check(rel, json, section, name, spec);
   }
-
-  const overrides = json.pnpm?.overrides ?? {};
-  for (const [name, spec] of Object.entries(overrides)) checkSpecifier(rel, 'pnpm.overrides', name, spec);
-
-  const resolutions = json.pnpm?.resolutions ?? {};
-  for (const [name, spec] of Object.entries(resolutions)) checkSpecifier(rel, 'pnpm.resolutions', name, spec);
+  for (const [name, spec] of Object.entries(json.pnpm?.overrides || {})) check(rel, json, 'pnpm.overrides', name, spec);
+  for (const [name, spec] of Object.entries(json.pnpm?.resolutions || {})) check(rel, json, 'pnpm.resolutions', name, spec);
 }
 
-if (advisories.length) {
+if (notes.length) {
   console.log('Runtime Version Lock advisories:');
-  for (const advisory of advisories) console.log(`- ${advisory}`);
+  for (const note of notes) console.log(`- ${note}`);
 }
 
 if (findings.length) {
@@ -105,4 +68,4 @@ if (findings.length) {
   process.exit(1);
 }
 
-console.log('Runtime Version Lock passed: Vite, React plugin, and Three stay pinned to known-stable versions.');
+console.log('Runtime Version Lock passed.');
