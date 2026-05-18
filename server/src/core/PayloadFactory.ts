@@ -9,6 +9,8 @@ export interface AREPayload {
 
 export class PayloadFactory {
     private weatherResonance: WeatherResonance;
+    private tick = 0;
+    private readonly tickRate = 10;
 
     constructor(weatherResonance: WeatherResonance) {
         this.weatherResonance = weatherResonance;
@@ -22,10 +24,11 @@ export class PayloadFactory {
      * @returns Das vollständige AREPayload-Objekt für den Client-Versand.
      */
     public createAREPayload(entities: any[]): AREPayload {
+        this.tick += 1;
         return {
-            timestamp: Date.now(),
+            timestamp: this.tick * 100,
             resonance: this.weatherResonance.calculateCurrentResonance(),
-            tickRate: 10,
+            tickRate: this.tickRate,
             entities: entities
         };
     }
