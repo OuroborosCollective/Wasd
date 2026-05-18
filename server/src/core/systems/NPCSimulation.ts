@@ -153,7 +153,12 @@ export class NPCSimulation {
     this.currentTick = worldStateRegistry.getTick();
     const results: NPCUpdateResult[] = [];
 
-    for (const [npcId, npc] of this.npcs) {
+    // Level-A Simulation requires deterministic iteration over entity collections.
+    // Map iteration order is non-deterministic in Node.js (insertion order based).
+    const sortedNpcIds = Array.from(this.npcs.keys()).sort();
+
+    for (const npcId of sortedNpcIds) {
+      const npc = this.npcs.get(npcId)!;
       // Check tier for NPC position
       const chunkId = this.getChunkForPosition(npc.position);
       const tier = densityMap.chunks.get(chunkId)?.densityTier ?? DensityTier.TIER_3_DORMANT;
@@ -485,6 +490,9 @@ export class NPCSimulation {
    * Get all NPCs
    */
   public getAllNPCs(): NPCState[] {
-    return [...this.npcs.values()];
+    // Ensure deterministic order for Level-A simulation consistency
+    return Array.from(this.npcs.values()).sort((a, b) =>
+      a.identity.npcId.localeCompare(b.identity.npcId)
+    );
   }
 }
