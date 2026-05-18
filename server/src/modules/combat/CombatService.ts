@@ -26,8 +26,14 @@ export class CombatService {
     public handleSkillRequest(
         playerId: string,
         skill: Skill,
-        currentState: CombatState
+        currentState: CombatState,
+        tickCount?: number
     ): CombatExecutionResult {
+        // Synchronize validator with world tick if provided
+        if (typeof tickCount === 'number') {
+            this.comboValidator.setTickCount(tickCount);
+        }
+
         const entityState = {
             entityId: playerId,
             logicalIndex: currentState.comboIndex,
@@ -57,7 +63,7 @@ export class CombatService {
         const newState: CombatState = {
             comboIndex: nextIndex,
             lastSkillId: skill.id,
-            lastTimestamp: Date.now()
+            lastTimestamp: this.comboValidator.getServerTimestamp()
         };
 
         this.updatePlayerCombatState(playerId, newState);
