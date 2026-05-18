@@ -5,29 +5,23 @@ on:
     branches:
       - main
     paths:
-      - 'server/src/core/systems/**'
-      - 'server/src/core/watchdogs/**'
-      - 'server/src/core/*Watchdog.ts'
-      - 'server/src/modules/brain/**'
-      - 'server/src/modules/loot/**'
-      - 'server/src/modules/warfront/**'
-      - 'server/src/modules/oracle/**'
+      - 'server/src/core/**'
+      - 'server/src/modules/**'
+      - 'server/src/services/**'
+      - 'packages/shared/src/**'
       - 'scripts/check-are-determinism.mjs'
-      - 'docs/ARE_TELEMETRY_SIDE_CHANNEL.md'
+      - 'scripts/check-determinism-gate.mjs'
       - '.github/workflows/are-determinism-gate.yml'
   push:
     branches:
       - main
     paths:
-      - 'server/src/core/systems/**'
-      - 'server/src/core/watchdogs/**'
-      - 'server/src/core/*Watchdog.ts'
-      - 'server/src/modules/brain/**'
-      - 'server/src/modules/loot/**'
-      - 'server/src/modules/warfront/**'
-      - 'server/src/modules/oracle/**'
+      - 'server/src/core/**'
+      - 'server/src/modules/**'
+      - 'server/src/services/**'
+      - 'packages/shared/src/**'
       - 'scripts/check-are-determinism.mjs'
-      - 'docs/ARE_TELEMETRY_SIDE_CHANNEL.md'
+      - 'scripts/check-determinism-gate.mjs'
       - '.github/workflows/are-determinism-gate.yml'
   workflow_dispatch:
 
@@ -36,7 +30,9 @@ permissions:
 
 jobs:
   determinism-gate:
+    name: Scan runtime logic
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -47,4 +43,6 @@ jobs:
           node-version: '22'
 
       - name: Check ARE deterministic simulation paths
-        run: node scripts/check-are-determinism.mjs
+        run: |
+          node scripts/check-are-determinism.mjs
+          node scripts/check-determinism-gate.mjs
