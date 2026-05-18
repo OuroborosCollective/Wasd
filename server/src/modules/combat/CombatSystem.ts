@@ -1,3 +1,5 @@
+import { createARESeed, SeededARERng, type ARERng } from "../../core/determinism/AREDeterminism.js";
+
 export type FxKind = "hit" | "crit" | "heal" | "miss" | "block" | "xp" | "gold";
 
 export interface CombatResult {
@@ -25,12 +27,13 @@ export class CombatSystem {
 
   /** Spell / skill hit — no stamina cost */
   spellStrike(attacker: any, defender: any, spellPower: number): CombatResult {
+    const rng = this.createCombatRng("spellStrike", attacker, defender, spellPower);
     const hitChance = this.calculateHitChance(attacker, defender);
-    if (Math.random() > hitChance) {
+    if (rng.nextFloat() > hitChance) {
       return { success: true, hit: false, damage: 0, crit: false, fx: { kind: "miss" } };
     }
-    const crit = Math.random() < 0.08;
-    const baseDamage = this.calculateDamage(attacker, defender, spellPower);
+    const crit = rng.nextFloat() < 0.08;
+    const baseDamage = this.calculateDamage(attacker, defender, spellPower, rng.fork("damage"));
     const damage = crit ? Math.floor(baseDamage * 1.75) : baseDamage;
     defender.health = Math.max(0, defender.health - damage);
     const killed = defender.health <= 0;
@@ -50,13 +53,14 @@ export class CombatSystem {
     if (atkStamina <= 0) return { success: false, hit: false, damage: 0, reason: "no_stamina" };
     attacker.stamina = atkStamina - 8;
 
+    const rng = this.createCombatRng("attack", attacker, defender, weaponBonus);
     const hitChance = this.calculateHitChance(attacker, defender);
-    if (Math.random() > hitChance) {
+    if (rng.nextFloat() > hitChance) {
       return { success: true, hit: false, damage: 0, crit: false, fx: { kind: "miss" } };
     }
 
-    const crit = Math.random() < 0.08;
-    const baseDamage = this.calculateDamage(attacker, defender, weaponBonus);
+    const crit = rng.nextFloat() < 0.08;
+    const baseDamage = this.calculateDamage(attacker, defender, weaponBonus, rng.fork("damage"));
     const damage = crit ? Math.floor(baseDamage * 1.75) : baseDamage;
     defender.health = Math.max(0, defender.health - damage);
     const killed = defender.health <= 0;
@@ -85,11 +89,46 @@ export class CombatSystem {
     return Math.min(0.95, Math.max(0.3, base + diff * 0.3));
   }
 
-  calculateDamage(attacker: any, defender: any, weaponBonus = 0) {
+  calculateDamage(attacker: any, defender: any, weaponBonus = 0, rng?: ARERng) {
     const atk = attacker.skills?.combat?.level ?? 1;
     const def = defender.skills?.combat?.level ?? 1;
     const base = 5 + atk + Math.max(0, weaponBonus);
     const mitigation = Math.floor(def * 0.3);
-    return Math.max(1, base - mitigation + Math.floor(Math.random() * 4));
+    const damageRng = rng ?? this.createCombatRng("damage", attacker, defender, weaponBonus);
+    return Math.max(1, base - mitigation + damageRng.nextInt(4));
+  }
+
+  private createCombatRng(kind: string, attacker: any, defender: any, salt: number): SeededARERng {
+    const sequence = this.nextCombatSequence(attacker);
+    return new SeededARERng(createARESeed([
+      "combat",
+      kind,
+      this.stableEntityId(attacker),
+      this.stableEntityId(defender),
+      sequence,
+      salt,
+      attacker?.stamina ?? 0,
+      defender?.health ?? 0,
+    ]));
+  }
+
+  private nextCombatSequence(entity: any): number {
+    if (!entity || typeof entity !== "object") return 0;
+    const previous = Number.isFinite(entity.__areCombatSequence) ? Number(entity.__areCombatSequence) : 0;
+    const next = previous + 1;
+    entity.__areCombatSequence = next;
+    return next;
+  }
+
+  private stableEntityId(entity: any): string {
+    if (typeof entity === "string" || typeof entity === "number") return String(entity);
+    return String(
+      entity?.id ??
+      entity?.playerId ??
+      entity?.npcId ??
+      entity?.identity?.npcId ??
+      entity?.name ??
+      "entity"
+    );
   }
 }
