@@ -70,6 +70,7 @@ jobs:
             DEPLOY_PATH="${DEPLOY_PATH_SECRET:-/opt/areloria}"
             GAME_PORT="${GAME_PORT_INPUT:-3001}"
             CONTAINER='arelorian-engine'
+            HEALTH_PATHS='/health /health/live /health/ready /health/determinism /health/worldhash /client-config.json /'
 
             echo "=== VPS Deploy Truth Check ==="
             echo "deploy_path=$DEPLOY_PATH"
@@ -117,8 +118,8 @@ jobs:
 
             echo "--- internal HTTP ---"
             internal_ok=false
-            for path in /health /client-config.json /; do
-              status="$($DOCKER exec "$CONTAINER" node -e "fetch('http://127.0.0.1:${GAME_PORT}${path}').then(r=>{console.log(r.status); process.exit(r.ok?0:2)}).catch(e=>{console.log('ERR '+e.message); process.exit(3)})" 2>&1 || true)"
+            for path in $HEALTH_PATHS; do
+              status="$($DOCKER exec "$CONTAINER" node -e "fetch('http://127.0.0.1:${GAME_PORT}${path}').then(r=>{console.log(r.status); process.exit(r.status < 500 ? 0 : 2)}).catch(e=>{console.log('ERR '+e.message); process.exit(3)})" 2>&1 || true)"
               echo "container http://127.0.0.1:${GAME_PORT}${path} => $status"
               case "$status" in
                 200*) internal_ok=true ;;
@@ -127,7 +128,7 @@ jobs:
 
             echo "--- host HTTP ---"
             host_ok=false
-            for path in /health /client-config.json /; do
+            for path in $HEALTH_PATHS; do
               code="$(curl -ksS -o /tmp/deploy-check-body -w '%{http_code}' --max-time 5 "http://127.0.0.1:${GAME_PORT}${path}" || true)"
               echo "host http://127.0.0.1:${GAME_PORT}${path} => $code"
               if [ "$code" = 200 ]; then host_ok=true; fi
@@ -159,7 +160,7 @@ jobs:
           fi
           echo "=== Public URL check: $BASE_URL ==="
           ok=false
-          for path in / /2d/ /3d/ /portal/; do
+          for path in / /2d/ /3d/ /portal/ /health/live /health/ready; do
             code="$(curl -ksS -o /tmp/public-check-body -w '%{http_code}' --max-time 15 "${BASE_URL%/}${path}" || true)"
             echo "${BASE_URL%/}${path} => $code"
             if [ "$code" = 200 ]; then ok=true; fi
