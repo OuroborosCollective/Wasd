@@ -67,10 +67,11 @@ if command -v pnpm >/dev/null 2>&1; then
   NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/shared --if-present build
   NODE_OPTIONS="$SERVER_BUILD_NODE_OPTIONS" pnpm --filter @wasd/server --if-present build
 
-  echo "Building browser frontends for /, /3d/, /2d/ and /portal/..."
+  echo "Building browser frontends for /, /3d/, /2d/, /portal/ and apps/web..."
   NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/client --if-present build
   NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/client-2d --if-present build
   NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/portal --if-present build
+  NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/web --if-present build
 else
   echo "ERROR: pnpm is required for this monorepo deploy."
   exit 1
@@ -80,6 +81,7 @@ echo "Assembling browser route folders under client/dist..."
 test -f client/dist/index.html || { echo "ERROR: client/dist/index.html missing after @wasd/client build"; exit 1; }
 test -f apps/client-2d/dist/index.html || { echo "ERROR: apps/client-2d/dist/index.html missing after @wasd/client-2d build"; exit 1; }
 test -f portal/dist/index.html || { echo "ERROR: portal/dist/index.html missing after @wasd/portal build"; exit 1; }
+test -f apps/web/dist/index.html || { echo "ERROR: apps/web/dist/index.html missing after @wasd/web build"; exit 1; }
 
 mkdir -p client/dist/2d client/dist/3d client/dist/portal
 cp -a apps/client-2d/dist/. client/dist/2d/
@@ -91,11 +93,17 @@ if [ -d client/dist/assets ]; then
 fi
 
 echo "Route bundle markers:"
-ls -la client/dist/index.html client/dist/2d/index.html client/dist/3d/index.html client/dist/portal/index.html
+ls -la client/dist/index.html client/dist/2d/index.html client/dist/3d/index.html client/dist/portal/index.html apps/web/dist/index.html
+
+NGINX_WEBROOT="${NGINX_WEBROOT:-$APP_DIR/apps/web/dist}"
+if [ ! -f "$NGINX_WEBROOT/index.html" ]; then
+  echo "WARNING: NGINX_WEBROOT=$NGINX_WEBROOT has no index.html; falling back to $APP_DIR/client/dist"
+  NGINX_WEBROOT="$APP_DIR/client/dist"
+fi
 
 if [ "${SKIP_NGINX_REPAIR:-0}" != "1" ] && [ -f deploy/repair-nginx.sh ] && command -v nginx >/dev/null 2>&1; then
   echo "Repairing nginx document root and reverse proxy if permissions allow..."
-  APP_DIR="$APP_DIR" GAME_PORT="$GAME_PORT" DOMAIN="${DOMAIN:-arelorian.de}" bash deploy/repair-nginx.sh || true
+  APP_DIR="$APP_DIR" WEBROOT="$NGINX_WEBROOT" GAME_PORT="$GAME_PORT" DOMAIN="${DOMAIN:-arelorian.de}" bash deploy/repair-nginx.sh || true
 else
   echo "Skipping nginx repair. Set SKIP_NGINX_REPAIR=0 and ensure nginx is installed to enable it."
 fi
