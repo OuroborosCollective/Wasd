@@ -117,6 +117,16 @@ jobs:
             uname -a || true
 
             command -v git >/dev/null 2>&1 || { echo "ERROR: git is required on the VPS."; exit 1; }
+
+            if [ -d "$DEPLOY_PATH/.git" ]; then
+              echo "Repairing stale git remote refs in $DEPLOY_PATH before deploy helper runs..."
+              git -C "$DEPLOY_PATH" remote set-url origin "$REPO_URL" || true
+              find "$DEPLOY_PATH/.git/refs/remotes/origin" -name '*.lock' -type f -delete 2>/dev/null || true
+              rm -f "$DEPLOY_PATH/.git/refs/remotes/origin/${DEPLOY_BRANCH}.lock" 2>/dev/null || true
+              git -C "$DEPLOY_PATH" update-ref -d "refs/remotes/origin/${DEPLOY_BRANCH}" 2>/dev/null || true
+              git -C "$DEPLOY_PATH" remote prune origin || true
+            fi
+
             tmp_checkout="$(mktemp -d /tmp/wasd-vps-deploy.XXXXXX)"
             cleanup() { rm -rf "$tmp_checkout" 2>/dev/null || true; }
             trap cleanup EXIT
