@@ -10,6 +10,7 @@ const root = path.dirname(fileURLToPath(import.meta.url));
  * @vitejs/plugin-react 6.x targets Vite 6 and pulls `vite/internal` — incompatible with Vite 5 → stay on plugin-react 4.x.
  */
 export default defineConfig({
+  base: process.env.VITE_BASE_PATH || "/portal/",
   plugins: [react()],
   resolve: {
     alias: {
