@@ -16,10 +16,13 @@ export ARELORIAN_PORT ARELORIAN_DOCKER_NETWORK ARELORIAN_ENABLE_DOCKER_INGRESS A
 cd "$REPO_ROOT"
 
 LOCK_PATH="${DEPLOY_LOCK_PATH:-/tmp/wasd-vps-docker-deploy.lock}"
+DEPLOY_LOCK_WAIT_SECONDS="${DEPLOY_LOCK_WAIT_SECONDS:-1800}"
 if command -v flock >/dev/null 2>&1; then
   exec 9>"$LOCK_PATH"
-  if ! flock -n 9; then
-    echo "ERROR: another WASD deploy is already running on this VPS."
+  echo "Acquiring VPS deploy lock: $LOCK_PATH (wait ${DEPLOY_LOCK_WAIT_SECONDS}s)"
+  if ! flock -w "$DEPLOY_LOCK_WAIT_SECONDS" 9; then
+    echo "ERROR: another WASD deploy is still running on this VPS after ${DEPLOY_LOCK_WAIT_SECONDS}s."
+    echo "Check with: ps aux | grep -E 'deploy-vps-docker|docker compose|pnpm|vite'"
     exit 1
   fi
 fi
