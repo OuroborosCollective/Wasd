@@ -47,12 +47,16 @@ export const RealityBadge: React.FC = () => {
     : "bg-red-500/10 border-red-500/50 text-red-400 shadow-red-500/20 animate-pulse";
 
   return (
-    <div className="flex flex-col gap-1 items-end">
+    <div
+      className="flex flex-col gap-1 items-end"
+      role="status"
+      aria-live="polite"
+    >
       <div className={`${baseStyles} ${statusStyles}`}>
         {isValid ? (
-          <ShieldCheck size={14} className="text-cyan-400" />
+          <ShieldCheck size={14} className="text-cyan-400" aria-hidden="true" />
         ) : (
-          <ShieldAlert size={14} className="text-red-400" />
+          <ShieldAlert size={14} className="text-red-400" aria-hidden="true" />
         )}
         
         <div className="flex flex-col">
@@ -61,15 +65,22 @@ export const RealityBadge: React.FC = () => {
           </span>
         </div>
 
-        <div className="h-4 w-[1px] bg-current opacity-30 mx-1" />
+        <div className="h-4 w-[1px] bg-current opacity-30 mx-1" aria-hidden="true" />
 
-        <div className="flex items-center gap-1.5">
-          <Activity size={12} className={isValid ? "text-cyan-500" : "text-red-500"} />
+        <div
+          className="flex items-center gap-1.5"
+          role="progressbar"
+          aria-valuenow={integrityScore * 100}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Reality Integrity Score"
+        >
+          <Activity size={12} className={isValid ? "text-cyan-500" : "text-red-500"} aria-hidden="true" />
           <span>{(integrityScore * 100).toFixed(4)}%</span>
         </div>
       </div>
       
-      <div className="px-2 text-[10px] text-gray-500 font-mono flex gap-3">
+      <div className="px-2 text-[10px] text-gray-500 font-mono flex gap-3" aria-label="Detailed reality metrics">
         <span>DRIFT: {drift.toFixed(8)}</span>
         <span>SEQ: {timestamp.toString(16).toUpperCase()}</span>
       </div>
