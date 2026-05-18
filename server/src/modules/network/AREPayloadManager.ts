@@ -11,11 +11,12 @@ export class AREPayloadManager {
     private payload: AREPayload;
     private updateInterval: NodeJS.Timeout | null = null;
     private readonly TICK_RATE_MS = 100;
+    private tick = 0;
 
     private constructor() {
         this.payload = {
             id: "are_broadcast_node_01",
-            timestamp: Date.now(),
+            timestamp: 0,
             resonance: 0
         };
         this.startPayloadTick();
@@ -35,10 +36,11 @@ export class AREPayloadManager {
     }
 
     private refreshPayload(): void {
+        this.tick += 1;
         this.payload = {
             ...this.payload,
             resonance: WeatherResonance.calculate(),
-            timestamp: Date.now()
+            timestamp: this.tick * this.TICK_RATE_MS
         };
     }
 
