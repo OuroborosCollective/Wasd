@@ -23,3 +23,39 @@ jobs:
           cache: pnpm
       - run: pnpm guard:monorepo
       - run: pnpm guard:monorepo:frozen
+
+  route-diagnostics:
+    name: Diagnose public route owner
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: guard
+    steps:
+      - name: Verify SSH secrets
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          [ -n "${SSH_HOST:-}" ] || { echo "::error::Set SSH_HOST"; exit 1; }
+          [ -n "${SSH_USER:-}" ] || { echo "::error::Set SSH_USER"; exit 1; }
+          [ -n "${SSH_PASSWORD:-}" ] || { echo "::error::Set SSH_PASSWORD"; exit 1; }
+
+      - name: Run VPS public route diagnostics
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          timeout: 2m
+          command_timeout: 10m
+          script_stop: false
+          script: |
+            set -euo pipefail
+            cd /opt/areloria
+            git fetch --no-tags origin main
+            git reset --hard origin/main
+            chmod +x scripts/vps-public-route-diagnostics.sh
+            ARELORIAN_PUBLIC_DOMAIN=arelorian.de ARELORIAN_PORT=3001 bash scripts/vps-public-route-diagnostics.sh
