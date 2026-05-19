@@ -77,10 +77,11 @@ Use it before trusting older reconstruction or handover docs.
 | Item | Status |
 |------|--------|
 | Unit/integration tests | Vitest (`pnpm run test`) |
-| E2E tests | Playwright (`pnpm run test:e2e`, `pnpm run test:e2e:ci`) |
+| E2E tests | Playwright: install browsers once with `pnpm run test:e2e:install`; `pnpm run test:e2e:run` (expects `server/dist` + `client/dist`); full gate `pnpm run test:e2e:ci` (builds then runs) |
+| DGCC gate | Design+gameplay consistency contract: `pnpm run dgcc` (minimal) / `pnpm run dgcc:extreme`; report under `dgcc-artifacts/` |
 | Lint | ESLint (`pnpm run lint`) |
 | Build | Root build compiles client then server (`pnpm run build`) |
-| CI baseline | Lint + tests + build + model-path audit + e2e workflow exists |
+| CI baseline | Lint + tests + build + model-path audit + e2e workflow exists; optional aggregate gate `pnpm run dgcc` |
 
 ## Important clarifications
 

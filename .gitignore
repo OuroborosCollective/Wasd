@@ -13,8 +13,9 @@ pnpm-debug.log*
 # PnP configuration
 .pnp.*
 
-# Build artifacts
-*.tsbuildinfo
+# DGCC contract gate output
+dgcc-artifacts/
+
 
 # Python (deploy helpers)
 __pycache__/

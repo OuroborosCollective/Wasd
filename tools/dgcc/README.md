@@ -10,6 +10,10 @@ pnpm run dgcc:extreme
 DGCC_FIX=1 pnpm run dgcc
 ```
 
-Artifacts: `dgcc-artifacts/`
+Artifacts: `dgcc-artifacts/` (gitignored).
 
-The `minimal` / `extreme` modes also run `pnpm run check:interact` (GameConfig vs `shared/interaction.ts`).
+The **unit** check runs `pnpm run build:shared` before `pnpm run test` so `@wasd/shared` resolves like a fresh clone.
+
+Self-heal wrapper (enables contract fixes by default): `bash tools/dgcc/selfheal-wrapper.sh`
+
+Before first E2E run in a clean environment: `pnpm run test:e2e:install`

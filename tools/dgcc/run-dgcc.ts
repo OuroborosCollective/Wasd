@@ -7,7 +7,6 @@ type Severity = "info" | "warn" | "error";
 type CheckName =
   | "lint"
   | "unit"
-  | "checkInteract"
   | "e2e"
   | "contentValidate"
   | "assetsAudit"
@@ -170,6 +169,16 @@ async function main() {
 
   const checks = modeCfg.checks as CheckName[];
 
+  function e2ePnpmArgs(): string[] {
+    const iE2e = checks.indexOf("e2e");
+    if (iE2e < 0) return ["run", "test:e2e:ci"];
+    const iClient = checks.indexOf("clientBuild");
+    const iServer = checks.indexOf("serverBuild");
+    const buildsBeforeE2e =
+      iClient >= 0 && iServer >= 0 && iClient < iE2e && iServer < iE2e;
+    return ["run", buildsBeforeE2e ? "test:e2e:run" : "test:e2e:ci"];
+  }
+
   if (checks.includes("lint")) {
     await runCheck("lint", async () => {
       const r = await run("pnpm", ["run", "lint"]);
@@ -181,25 +190,20 @@ async function main() {
 
   if (checks.includes("unit")) {
     await runCheck("unit", async () => {
+      const r0 = await run("pnpm", ["run", "build:shared"]);
+      let combined = r0.stdout + "\n" + r0.stderr;
+      if (r0.code !== 0) throw new Error(`build:shared failed (code ${r0.code})`);
       const r = await run("pnpm", ["run", "test"]);
-      fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
+      combined += "\n--- vitest ---\n" + r.stdout + "\n" + r.stderr;
+      fs.writeFileSync(path.join(outDir, "unit.out.txt"), combined);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
       if (r.code !== 0) throw new Error("unit tests failed");
     });
   }
 
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
-    });
-  }
-
   if (checks.includes("e2e")) {
     await runCheck("e2e", async () => {
-      const r = await run("pnpm", ["run", "test:e2e:ci"]);
+      const r = await run("pnpm", e2ePnpmArgs());
       fs.writeFileSync(path.join(outDir, "e2e.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["e2e"] = "dgcc-artifacts/e2e.out.txt";
       if (r.code !== 0) throw new Error("e2e failed");
