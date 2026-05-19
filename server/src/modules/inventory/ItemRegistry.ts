@@ -26,6 +26,16 @@ export interface ItemDefinition {
   tags?: string[];
   /** Optional legendary / aspect id for combat proc hooks (see `legendaryPowers.ts`). */
   legendaryPowerId?: string;
+  /** Deterministic generated item seed. Used by visual pools and proc/affix generation. */
+  seed?: string;
+  /** Stable 2D/3D visual asset id chosen by the server for generated gear. */
+  visualId?: string;
+  /** Weapon visual class used by the 2D client weapon pool. */
+  weaponClass?: "weapon" | "sword" | "axe" | "dagger" | "spear" | "mace" | "greatsword";
+  /** Visual rarity can exceed gameplay rarity when mapped to special art tiers. */
+  visualRarity?: "common" | "uncommon" | "rare" | "epic" | "legendary" | "mystic";
+  /** Stable seed used to reproduce visual selection. */
+  visualSeed?: string;
   /** Bind on acquire: item cannot be moved to other players/systems. */
   boundOnAcquire?: boolean;
   /** Hard block for any transfer channels. */
@@ -34,7 +44,7 @@ export interface ItemDefinition {
   tradeable?: boolean;
   /** Explicitly forbid dropping from inventory/equipment. */
   droppable?: boolean;
-  rarity: "common" | "uncommon" | "rare" | "epic" | "legendary";
+  rarity: "common" | "uncommon" | "rare" | "epic" | "legendary" | "mystic";
   description: string;
 }
 
@@ -100,7 +110,7 @@ export class ItemRegistry {
     if (!item || !item.id) return item;
     const def = this.getItem(item.id);
     if (!def) return item;
-    // Merge registry definition into the item object
-    return { ...item, ...def };
+    // Merge registry definition into the item object. Runtime/generated metadata wins.
+    return { ...def, ...item };
   }
 }

@@ -1,5 +1,6 @@
 import { createARESeed, type ARERng, SeededARERng } from "../../core/determinism/AREDeterminism.js";
 import { ItemRegistry, ItemDefinition } from "../inventory/ItemRegistry.js";
+import { applyWeaponVisual } from "./WeaponVisualPool.js";
 import fs from "fs";
 import { resolveContentFile } from "../content/contentDataRoot.js";
 
@@ -53,6 +54,7 @@ export class LootSystem {
   ): { items: ItemDefinition[]; gold: number } {
     const items: ItemDefinition[] = [];
     let gold = 0;
+    let dropIndex = 0;
 
     for (const entry of dropTable) {
       if (rng.nextFloat() < entry.chance) {
@@ -61,7 +63,16 @@ export class LootSystem {
           : 1;
         for (let i = 0; i < count; i++) {
           const item = ItemRegistry.createInstance(entry.itemId);
-          if (item) items.push(item as ItemDefinition);
+          if (item) {
+            const seededItem = {
+              ...item,
+              seed: item.seed ?? createARESeed(["loot-visual", entry.itemId, dropIndex, item.rarity ?? "common"]),
+            };
+            items.push((seededItem.type === "weapon"
+              ? applyWeaponVisual(seededItem, { rng: rng.fork(`visual:${entry.itemId}:${dropIndex}`), dropIndex })
+              : seededItem) as ItemDefinition);
+            dropIndex += 1;
+          }
         }
       }
     }
