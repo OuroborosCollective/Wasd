@@ -16,7 +16,7 @@
   "dependencies": {
     "@nestjs/common": "^11.1.19",
     "@nestjs/core": "^11.1.21",
-    "@nestjs/platform-express": "^11.1.19",
+    "@nestjs/platform-express": "^11.1.21",
     "@wasd/core": "workspace:*",
     "@wasd/database": "workspace:*",
     "@wasd/redis": "workspace:*",
