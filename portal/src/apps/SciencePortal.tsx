@@ -10,12 +10,12 @@ import EchoTracker from "../community/EchoTracker";
 import EpochChroniclePanel from "../community/EpochChroniclePanel";
 import ForgePanel from "../community/ForgePanel";
 import InventoryRefinementPanel from "../community/InventoryRefinementPanel";
+import AREEventThemeBridge from "./AREEventThemeBridge";
 import ScienceMascotChat from "./ScienceMascotChat";
 import WarfrontCombatHud from "./WarfrontCombatHud";
 
 /**
- * Science Portal hub — reacts to NPC-driven hazard telemetry via ThemeEngine.
- * Listens to `theme_updated` (fed by GlobalLiveTicker / server live_ticker_hazard → pushLiveTickerHazard).
+ * Science Portal hub — reacts to NPC-driven hazard telemetry and ARE runtime events via ThemeEngine.
  */
 export const SciencePortal: React.FC = () => {
   const [active, setActive] = useState(true);
@@ -30,30 +30,48 @@ export const SciencePortal: React.FC = () => {
 
   const isFire = visual.mode === "fire_glitch";
   const isLoot = visual.mode === "loot_legendary";
+  const isOracle = visual.mode === "oracle_gold";
+  const isGovernance = visual.mode === "governance_sovereign";
+  const isRepair = visual.mode === "repair_surgery";
 
   return (
     <div
       className={`relative overflow-hidden rounded-xl border p-4 transition-colors duration-300 ${
-        isLoot
+        isLoot || isOracle
           ? "border-amber-300/70 shadow-[0_0_28px_rgba(255,215,106,0.32)]"
-          : isFire
-            ? "border-red-500/60 shadow-[0_0_24px_rgba(230,0,0,0.35)]"
-            : "border-cyan-500/40 shadow-[0_0_20px_rgba(0,229,255,0.2)]"
+          : isGovernance
+            ? "border-violet-300/70 shadow-[0_0_28px_rgba(139,92,246,0.32)]"
+            : isRepair
+              ? "border-lime-300/70 shadow-[0_0_28px_rgba(57,255,20,0.28)]"
+              : isFire
+                ? "border-red-500/60 shadow-[0_0_24px_rgba(230,0,0,0.35)]"
+                : "border-cyan-500/40 shadow-[0_0_20px_rgba(0,229,255,0.2)]"
       }`}
       style={
         {
           ...cssVars,
           background:
-            visual.mode === "marina"
-              ? "linear-gradient(145deg, #0f172a 0%, #0c4a6e 55%, #0f172a 100%)"
-              : visual.mode === "loot_legendary"
-                ? "linear-gradient(145deg, #140f02 0%, #3f2f05 48%, #0f172a 100%)"
-                : visual.mode === "fire_glitch"
-                  ? "linear-gradient(145deg, #1a0505 0%, #450a0a 50%, #0f172a 100%)"
-                  : "linear-gradient(145deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)",
+            visual.mode === "oracle_gold"
+              ? "linear-gradient(145deg, #061622 0%, #3f2f05 50%, #0f172a 100%)"
+              : visual.mode === "governance_sovereign"
+                ? "linear-gradient(145deg, #0f1020 0%, #31235d 52%, #d8d8e8 140%)"
+                : visual.mode === "repair_surgery"
+                  ? "linear-gradient(145deg, #1a0505 0%, #163d10 52%, #0f172a 100%)"
+                  : visual.mode === "observation_past"
+                    ? "linear-gradient(145deg, #050719 0%, #21155f 55%, #0c4a6e 120%)"
+                    : visual.mode === "identity_cyan"
+                      ? "linear-gradient(145deg, #03191d 0%, #0c4a6e 55%, #062b16 120%)"
+                      : visual.mode === "marina"
+                        ? "linear-gradient(145deg, #0f172a 0%, #0c4a6e 55%, #0f172a 100%)"
+                        : visual.mode === "loot_legendary"
+                          ? "linear-gradient(145deg, #140f02 0%, #3f2f05 48%, #0f172a 100%)"
+                          : visual.mode === "fire_glitch"
+                            ? "linear-gradient(145deg, #1a0505 0%, #450a0a 50%, #0f172a 100%)"
+                            : "linear-gradient(145deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)",
         } as React.CSSProperties
       }
     >
+      <AREEventThemeBridge active={active} />
       <div
         className="pointer-events-none absolute inset-0 opacity-40"
         style={{
@@ -93,7 +111,7 @@ export const SciencePortal: React.FC = () => {
           </div>
 
           <p className="text-sm text-slate-200">
-            Dashboard physisch gekoppelt an NPC-Aggression, Hazard-Index, Loot-Aura und Alchemical Refinement via{" "}
+            Dashboard gekoppelt an 10-Hz Tickphase, Oracle, Governance, Repair, Loot-Aura und Alchemical Refinement via{" "}
             <code className="rounded bg-black/30 px-1">@wasd/shared</code> ThemeEngine.
           </p>
 
@@ -118,7 +136,7 @@ export const SciencePortal: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-slate-400">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
             <span
               className="h-3 w-3 rounded-full border border-white/30"
               style={{ backgroundColor: "var(--wasd-aura)", boxShadow: `0 0 10px var(--wasd-aura)` }}
@@ -126,6 +144,9 @@ export const SciencePortal: React.FC = () => {
             Aura <code>{visual.auraHex}</code>
             {isFire && <span className="text-red-400"> · glitch {visual.glitchIntensity.toFixed(2)}</span>}
             {isLoot && <span className="text-amber-200"> · loot aura {visual.glitchIntensity.toFixed(2)}</span>}
+            {isOracle && <span className="text-amber-200"> · oracle active</span>}
+            {isGovernance && <span className="text-violet-200"> · council active</span>}
+            {isRepair && <span className="text-lime-200"> · surgery mode</span>}
           </div>
 
           <WarfrontCombatHud visual={visual} active={active} />
