@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ARE Runtime Console</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:#060812; color:#edf4ff; }
+    body { margin:0; min-height:100vh; background: radial-gradient(circle at 20% 0%, rgba(130,90,255,.24), transparent 32rem), radial-gradient(circle at 90% 10%, rgba(0,220,180,.16), transparent 30rem), #060812; }
+    main { max-width:1180px; margin:0 auto; padding:28px 16px 44px; }
+    h1 { margin:0; font-size:clamp(2.2rem,8vw,5rem); line-height:.88; letter-spacing:-.07em; }
+    .sub { color:#aebce0; max-width:820px; margin:12px 0 18px; }
+    .bar { display:flex; flex-wrap:wrap; gap:10px; margin:16px 0 18px; align-items:center; }
+    button { border:1px solid rgba(180,210,255,.24); background:rgba(120,140,255,.14); color:#edf4ff; border-radius:999px; padding:10px 14px; font-weight:800; cursor:pointer; }
+    button:hover { background:rgba(120,140,255,.25); }
+    .pill { border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.06); border-radius:999px; padding:8px 12px; color:#b7c6ea; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; }
+    .card { border:1px solid rgba(255,255,255,.1); background:rgba(9,13,28,.76); border-radius:24px; padding:18px; box-shadow:0 22px 70px rgba(0,0,0,.34); backdrop-filter:blur(14px); }
+    .label { color:#91a4cf; font-size:.76rem; text-transform:uppercase; letter-spacing:.12em; }
+    .value { margin-top:8px; font-size:1.05rem; font-weight:850; word-break:break-word; }
+    .ok { color:#86f7c0; } .bad { color:#ff94a3; } .warn { color:#ffd36f; }
+    pre { white-space:pre-wrap; overflow:auto; max-height:440px; color:#cbd7f6; font-size:.84rem; line-height:1.45; }
+    nav { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+    nav a { color:#cfe3ff; text-decoration:none; border:1px solid rgba(255,255,255,.12); border-radius:999px; padding:8px 10px; background:rgba(255,255,255,.05); }
+  </style>
+</head>
+<body>
+<main>
+  <h1>ARE Runtime Console</h1>
+  <p class="sub">Visible console for the deterministic runtime: replay recorder, oracle prophecy, AutoRepair, billing, governance, warfront and sovereign truth. Read-only by default.</p>
+  <nav>
+    <a href="/sovereign-truth.html">Sovereign Truth</a>
+    <a href="/api/are/replay/stats">Replay API</a>
+    <a href="/api/are/replay/oracle/prophecy">Oracle API</a>
+    <a href="/api/v1/warfront/cycle">Warfront API</a>
+  </nav>
+  <div class="bar"><button id="refresh">Refresh console</button><span id="status" class="pill">loading…</span><span id="updated" class="pill">never</span></div>
+  <section class="grid" id="cards"></section>
+  <section class="grid" style="margin-top:14px">
+    <article class="card"><div class="label">Oracle Prophecies</div><pre id="oracle">loading…</pre></article>
+    <article class="card"><div class="label">Governance</div><pre id="governance">loading…</pre></article>
+    <article class="card"><div class="label">Warfront</div><pre id="warfront">loading…</pre></article>
+    <article class="card"><div class="label">Raw Bundle</div><pre id="raw">loading…</pre></article>
+  </section>
+</main>
+<script>
+  const qs = (id) => document.getElementById(id);
+  const cards = qs('cards');
+  const status = qs('status');
+  const updated = qs('updated');
+  const raw = qs('raw');
+  const oracleBox = qs('oracle');
+  const governanceBox = qs('governance');
+  const warfrontBox = qs('warfront');
+
+  function card(label, value, cls='') {
+    const el = document.createElement('article');
+    el.className = 'card';
+    el.innerHTML = '<div class="label"></div><div class="value"></div>';
+    el.querySelector('.label').textContent = label;
+    const v = el.querySelector('.value');
+    v.className = `value ${cls}`;
+    v.textContent = value == null || value === '' ? 'unknown' : String(value);
+    return el;
+  }
+  async function getJson(url) {
+    const res = await fetch(url, { cache:'no-store' });
+    let json = null;
+    try { json = await res.json(); } catch { json = { ok:false, error:'invalid_json' }; }
+    return { ok:res.ok, status:res.status, json };
+  }
+  async function load() {
+    status.textContent = 'loading…';
+    status.className = 'pill';
+    const bundle = {};
+    try {
+      const [truth, replay, repair, billing, oracle, governance, warfront] = await Promise.all([
+        getJson('/api/sovereign/deploy/truth'),
+        getJson('/api/are/replay/stats'),
+        getJson('/api/are/replay/repair/status'),
+        getJson('/api/are/replay/billing/status'),
+        getJson('/api/are/replay/oracle/prophecy'),
+        getJson('/api/are/replay/governance/status'),
+        getJson('/api/v1/warfront/cycle'),
+      ]);
+      Object.assign(bundle, { truth, replay, repair, billing, oracle, governance, warfront });
+      cards.replaceChildren(
+        card('Commit', truth.json?.shortCommitHash || truth.json?.commitHash),
+        card('Branch', truth.json?.branch),
+        card('ARE Guard', truth.json?.are?.guard?.ok === false ? 'violation' : 'ok', truth.json?.are?.guard?.ok === false ? 'bad' : 'ok'),
+        card('World Hash', truth.json?.are?.worldHash),
+        card('World Tick', truth.json?.are?.worldTick),
+        card('Replay Size', replay.json?.stats?.count ?? replay.json?.stats?.records ?? 'unknown'),
+        card('Oracle Active', oracle.json?.oracle?.prophecies?.some?.(p => p.active) ? 'active' : 'quiet', oracle.json?.oracle?.prophecies?.some?.(p => p.active) ? 'warn' : 'ok'),
+        card('AutoRepair', repair.json?.autoRepair?.enabled === false ? 'disabled' : 'available'),
+        card('Billing Suspended', billing.json?.billing?.suspended ? 'yes' : 'no', billing.json?.billing?.suspended ? 'bad' : 'ok'),
+        card('Governance', governance.ok ? 'online' : 'offline', governance.ok ? 'ok' : 'bad'),
+        card('Warfront Cycle', warfront.json?.cycle?.cycleId || warfront.json?.cycle?.id),
+        card('Warfront Boss', warfront.json?.frontBossSpawnPoint ? JSON.stringify(warfront.json.frontBossSpawnPoint) : 'unknown')
+      );
+      oracleBox.textContent = JSON.stringify(oracle.json, null, 2);
+      governanceBox.textContent = JSON.stringify(governance.json, null, 2);
+      warfrontBox.textContent = JSON.stringify(warfront.json, null, 2);
+      raw.textContent = JSON.stringify(bundle, null, 2);
+      const ok = [truth,replay,repair,billing,oracle,governance,warfront].every(x => x.ok);
+      status.textContent = ok ? 'console ok' : 'console degraded';
+      status.className = `pill ${ok ? 'ok' : 'warn'}`;
+      updated.textContent = new Date().toLocaleString();
+    } catch (err) {
+      status.textContent = 'console failed';
+      status.className = 'pill bad';
+      raw.textContent = String(err?.stack || err);
+    }
+  }
+  qs('refresh').addEventListener('click', load);
+  load();
+  setInterval(load, 15000);
+</script>
+</body>
+</html>
