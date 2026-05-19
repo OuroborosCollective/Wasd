@@ -10,6 +10,8 @@ PUBLIC_NGINX_ROOT="$(dirname "$PUBLIC_NGINX_CONF")"
 INCLUDE_DIR="${PUBLIC_NGINX_ROOT}/conf.d"
 MANAGED_FILE="${INCLUDE_DIR}/99-wasd-areloria.conf"
 BACKUP_DIR="${PUBLIC_NGINX_ROOT}/wasd-backups/${STAMP}"
+MIME_TYPES_FILE="${PUBLIC_NGINX_ROOT}/mime.types"
+MODULES_ENABLED_DIR="${PUBLIC_NGINX_ROOT}/modules-enabled"
 
 run_root() {
   if [ "$(id -u)" = "0" ]; then
@@ -79,18 +81,53 @@ restore_public_nginx_if_possible() {
   fi
 }
 
+ensure_public_nginx_support_files() {
+  run_root mkdir -p "$PUBLIC_NGINX_ROOT" "$INCLUDE_DIR" /var/log/nginx /var/lib/nginx/body /var/lib/nginx/proxy /run
+
+  if ! file_exists "$MIME_TYPES_FILE"; then
+    echo "WARN: $MIME_TYPES_FILE is missing. Creating minimal WASD mime.types fallback."
+    cat <<'EOF' | write_root "$MIME_TYPES_FILE"
+types {
+    text/html html htm shtml;
+    text/css css;
+    text/xml xml;
+    text/plain txt log;
+    application/javascript js mjs;
+    application/json json map;
+    application/xml xml;
+    application/octet-stream bin exe dll;
+    image/png png;
+    image/jpeg jpeg jpg;
+    image/gif gif;
+    image/svg+xml svg svgz;
+    image/webp webp;
+    image/x-icon ico;
+    font/woff woff;
+    font/woff2 woff2;
+    application/wasm wasm;
+}
+EOF
+  fi
+}
+
 write_minimal_public_nginx_conf_if_missing() {
   if file_exists "$PUBLIC_NGINX_CONF"; then
     return 0
   fi
 
   echo "WARN: $PUBLIC_NGINX_CONF is missing, but public nginx owns 80/443. Creating minimal WASD public nginx.conf."
-  run_root mkdir -p "$PUBLIC_NGINX_ROOT" "$INCLUDE_DIR" /var/log/nginx /var/lib/nginx/body /var/lib/nginx/proxy /run
-  cat <<'EOF' | write_root "$PUBLIC_NGINX_CONF"
+  ensure_public_nginx_support_files
+
+  local module_include="# modules-enabled directory missing; module include disabled by WASD installer"
+  if dir_exists "$MODULES_ENABLED_DIR"; then
+    module_include="include ${MODULES_ENABLED_DIR}/*.conf;"
+  fi
+
+  cat <<EOF | write_root "$PUBLIC_NGINX_CONF"
 user www-data;
 worker_processes auto;
 pid /run/nginx.pid;
-include /etc/nginx/modules-enabled/*.conf;
+${module_include}
 
 events {
     worker_connections 1024;
@@ -102,14 +139,14 @@ http {
     types_hash_max_size 2048;
     server_tokens off;
 
-    include /etc/nginx/mime.types;
+    include ${MIME_TYPES_FILE};
     default_type application/octet-stream;
 
     access_log /var/log/nginx/access.log;
     error_log /var/log/nginx/error.log;
 
     gzip on;
-    include /etc/nginx/conf.d/*.conf;
+    include ${INCLUDE_DIR}/*.conf;
 }
 EOF
 }
@@ -121,15 +158,17 @@ ensure_public_nginx_conf_includes_conf_d() {
     return 0
   fi
 
-  if run_root sh -c "grep -Eq '^[[:space:]]*include[[:space:]]+/etc/nginx/conf\.d/\*\.conf[[:space:]]*;' '$PUBLIC_NGINX_CONF'"; then
+  ensure_public_nginx_support_files
+
+  if run_root sh -c "grep -Eq '^[[:space:]]*include[[:space:]]+${INCLUDE_DIR//\//\/}/\*\.conf[[:space:]]*;' '$PUBLIC_NGINX_CONF' || grep -Eq '^[[:space:]]*include[[:space:]]+/etc/nginx/conf\.d/\*\.conf[[:space:]]*;' '$PUBLIC_NGINX_CONF'"; then
     return 0
   fi
 
-  echo "WARN: $PUBLIC_NGINX_CONF does not include /etc/nginx/conf.d/*.conf. Injecting include into http{} block."
+  echo "WARN: $PUBLIC_NGINX_CONF does not include ${INCLUDE_DIR}/*.conf. Injecting include into http{} block."
   tmp="$(mktemp)"
-  run_root cat "$PUBLIC_NGINX_CONF" | awk '
+  run_root cat "$PUBLIC_NGINX_CONF" | awk -v include_line="    include ${INCLUDE_DIR}/*.conf;" '
     BEGIN { inserted=0 }
-    /^[[:space:]]*http[[:space:]]*\{/ && inserted==0 { print; print "    include /etc/nginx/conf.d/*.conf;"; inserted=1; next }
+    /^[[:space:]]*http[[:space:]]*\{/ && inserted==0 { print; print include_line; inserted=1; next }
     { print }
     END { if (inserted==0) exit 42 }
   ' > "$tmp" || {
@@ -259,6 +298,7 @@ echo "Public socket owners before route install:"
 ss -ltnp 2>/dev/null | grep -E ':(80|443|3001)\b' || true
 
 safe_backup_public_nginx
+ensure_public_nginx_support_files
 write_minimal_public_nginx_conf_if_missing
 ensure_public_nginx_conf_includes_conf_d
 
