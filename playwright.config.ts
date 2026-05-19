@@ -30,6 +30,9 @@ export default defineConfig({
           NODE_ENV: "production",
           ALLOW_GUEST_LOGIN: "1",
           PLAYER_SAVE_FILE: process.env.PLAYER_SAVE_FILE || "/tmp/areloria-e2e-players.json",
+          /** Inherit an empty DSN so the server does not try optional remote persistence during E2E. */
+          PERSISTENCE_DRIVER: "file",
+          DATABASE_URL: "",
         },
       },
 });
