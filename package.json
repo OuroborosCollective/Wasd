@@ -13,6 +13,17 @@
     "dev:3d": "pnpm -r --filter @wasd/client dev",
     "dev:all": "concurrently \"pnpm dev:2d\" \"pnpm dev:3d\" \"pnpm dev:web\"",
     "build:all": "pnpm build:2d && pnpm build:3d && pnpm build:web",
+    "build:shared": "pnpm --filter @wasd/shared build",
+    "lint": "eslint server/src client/src",
+    "test": "vitest run",
+    "validate": "pnpm --prefix server run validate",
+    "audit:model-paths": "pnpm --prefix server run audit:model-paths",
+    "build:e2e": "pnpm --prefix server run build && pnpm --prefix client run build",
+    "test:e2e:install": "playwright install --with-deps chromium",
+    "test:e2e:run": "playwright install chromium && playwright test",
+    "test:e2e:ci": "pnpm run build:e2e && pnpm run test:e2e:run",
+    "dgcc": "tsx tools/dgcc/run-dgcc.ts --mode=minimal",
+    "dgcc:extreme": "tsx tools/dgcc/run-dgcc.ts --mode=extreme",
     "guard:monorepo": "node scripts/monorepo-guard.mjs",
     "guard:monorepo:frozen": "MONOREPO_GUARD_RUN_PNPM=1 node scripts/monorepo-guard.mjs",
     "clean": "pnpm -r exec rm -rf dist node_modules"
@@ -22,12 +33,14 @@
     "pnpm": ">=9"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@types/node": "^25.9.0",
     "@typescript-eslint/eslint-plugin": "^8.59.3",
     "@typescript-eslint/parser": "^8.59.3",
     "concurrently": "^9.2.1",
     "eslint": "^10.3.0",
     "pnpm": "^11.1.1",
+    "tsx": "^4.21.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.6"
   },
