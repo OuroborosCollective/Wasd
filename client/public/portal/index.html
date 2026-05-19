@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Arelorian Portal Hub</title>
+  <style>
+    :root{--bg:#050606;--cyan:#00e5ff;--green:#39ff14;--fire:#ff7a00;--violet:#a77cff;--line:rgba(148,163,184,.28);--muted:#93a4aa;color-scheme:dark;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 20% 10%,rgba(0,229,255,.22),transparent 28rem),radial-gradient(circle at 88% 12%,rgba(255,122,0,.2),transparent 30rem),linear-gradient(rgba(0,229,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,.025) 1px,transparent 1px),#050606;background-size:auto,auto,44px 44px,44px 44px,auto;color:#effcff}a{color:inherit;text-decoration:none}.shell{min-height:100vh;display:grid;grid-template-columns:300px 1fr}.rail{border-right:1px solid var(--line);background:rgba(2,13,15,.88);padding:28px 24px;display:flex;flex-direction:column}.brand{font-size:38px;line-height:.9;font-weight:950;letter-spacing:-.06em;text-shadow:0 0 20px rgba(0,229,255,.45)}.sub{margin-top:12px;color:var(--muted);font:12px ui-monospace,monospace;letter-spacing:.22em}.nodes{display:grid;gap:18px;margin-top:52px;color:rgba(232,250,255,.62);font:13px ui-monospace,monospace;letter-spacing:.16em;text-transform:uppercase}.back{margin-top:auto;border:1px solid var(--cyan);color:var(--cyan);padding:16px;text-align:center;font:12px ui-monospace,monospace;letter-spacing:.16em;box-shadow:0 0 18px rgba(0,229,255,.12),inset 0 0 18px rgba(0,229,255,.08)}main{padding:18px 28px 44px}.top{height:38px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;color:var(--cyan);font:12px ui-monospace,monospace;letter-spacing:.08em}.top b{font-size:22px}.hero{padding:52px 0 28px;text-align:center}.sigil{width:180px;height:180px;margin:0 auto 30px;border-radius:30px;border:1px solid rgba(0,229,255,.42);display:grid;place-items:center;background:rgba(0,0,0,.66);box-shadow:0 0 44px rgba(0,229,255,.2),inset 0 0 22px rgba(255,122,0,.08)}.ouro{width:110px;height:110px;border-radius:50%;border:8px solid var(--fire);box-shadow:0 0 20px var(--fire),inset 0 0 24px rgba(0,229,255,.4);position:relative;animation:pulse 1.1s ease-in-out infinite}.ouro:before{content:"";position:absolute;inset:15px;border-radius:50%;border:2px solid var(--cyan);box-shadow:0 0 18px var(--cyan)}h1{margin:0;font-size:clamp(44px,7vw,82px);line-height:.92;letter-spacing:-.065em;text-transform:uppercase}.cyan{color:var(--cyan);text-shadow:0 0 20px rgba(0,229,255,.7)}.fire{color:var(--fire);text-shadow:0 0 20px rgba(255,122,0,.55)}.tag{max-width:760px;margin:22px auto 34px;color:#aebcc1;font:13px/1.7 ui-monospace,monospace}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;max-width:1120px;margin:0 auto}.card{min-height:210px;border-radius:30px;border:1px solid rgba(148,163,184,.34);background:rgba(8,18,20,.68);display:grid;align-content:center;gap:10px;padding:26px;transition:.18s;position:relative;overflow:hidden}.card:before{content:"";position:absolute;inset:12px;border-radius:24px;border:1px solid rgba(255,255,255,.09);background:radial-gradient(circle at 50% 30%,var(--glow),transparent 60%)}.card:hover{transform:translateY(-4px) scale(1.012);border-color:var(--col);box-shadow:0 0 40px var(--shadow)}.card>*{position:relative;z-index:1}.icon{font-size:36px;color:var(--col);text-shadow:0 0 18px var(--col)}h2{margin:4px 0 0;font-size:24px;text-transform:uppercase}.card p{margin:0;color:#aebcc1;font:11px/1.45 ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase}.primary{--col:#00e5ff;--shadow:rgba(0,229,255,.22);--glow:rgba(0,229,255,.16)}.truth{--col:#ff7a00;--shadow:rgba(255,122,0,.24);--glow:rgba(255,122,0,.18)}.war{--col:#39ff14;--shadow:rgba(57,255,20,.22);--glow:rgba(57,255,20,.16)}.gov{--col:#a77cff;--shadow:rgba(167,124,255,.25);--glow:rgba(167,124,255,.16)}.status{margin:30px auto 0;max-width:1120px;color:rgba(174,188,193,.72);font:12px ui-monospace,monospace;letter-spacing:.12em}.dot{display:inline-block;width:10px;height:10px;margin-right:8px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan)}@keyframes pulse{50%{transform:scale(1.035);filter:brightness(1.18)}}@media(max-width:900px){.shell{grid-template-columns:1fr}.rail{border-right:0;border-bottom:1px solid var(--line);padding:18px;flex-direction:row;align-items:center}.brand{font-size:26px}.sub,.nodes{display:none}.back{margin-left:auto;margin-top:0}.top span{display:none}main{padding:16px}.hero{padding-top:34px}.card{min-height:160px}}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <div><div class="brand">PORTAL<br>HUB</div><div class="sub">ARE CONTROL ROOM</div></div>
+      <nav class="nodes"><span>Oracle_Core</span><span>Replay_Ring</span><span>AutoRepair</span><span>Warfront_Cycle</span><span>Truth_Node</span></nav>
+      <a class="back" href="/">RETURN_ROOT</a>
+    </aside>
+    <main>
+      <div class="top"><b>OUROBOROS // PORTAL</b><span>TRUTH · ORACLE · GOVERNANCE · WARFRONT</span></div>
+      <section class="hero">
+        <div class="sigil"><div class="ouro"></div></div>
+        <h1>SCIENCE <span class="cyan">PORTAL.</span><br>TRUTH <span class="fire">ONLINE.</span></h1>
+        <p class="tag">Central entry for deterministic runtime visibility. Choose a control surface without leaving the Cyber-Zen flow.</p>
+      </section>
+      <section class="grid">
+        <a class="card primary" href="/are-console.html"><div class="icon">⌬</div><h2>ARE Console</h2><p>Replay / Oracle / AutoRepair / Billing / Governance / Warfront</p></a>
+        <a class="card truth" href="/sovereign-truth.html"><div class="icon">◈</div><h2>Sovereign Truth</h2><p>Commit / Branch / Runtime / Supabase / ARE hash</p></a>
+        <a class="card war" href="/api/v1/warfront/cycle"><div class="icon">⚔</div><h2>Warfront Cycle</h2><p>Live deterministic cycle and front boss truth payload</p></a>
+        <a class="card gov" href="/api/are/replay/governance/status"><div class="icon">⚖</div><h2>Governance</h2><p>Read-only sovereign council state and directives</p></a>
+        <a class="card primary" href="/api/are/replay/oracle/prophecy"><div class="icon">◎</div><h2>Oracle</h2><p>Prophecy engine state generated from replay records</p></a>
+        <a class="card truth" href="/api/are/replay/repair/status"><div class="icon">✚</div><h2>AutoRepair</h2><p>ARE repair and self-healing runtime status</p></a>
+      </section>
+      <div class="status"><span class="dot"></span>PORTAL ONLINE [READ_ONLY_SAFE] 10-Hz DETERMINISTIC MESH</div>
+    </main>
+  </div>
+</body>
+</html>
