@@ -68,7 +68,7 @@ jobs:
             --auth-mode key
 
       - name: Upload Server Build Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: server-production-build
           path: server/dist/
