@@ -13,6 +13,8 @@
     "dev:3d": "pnpm -r --filter @wasd/client dev",
     "dev:all": "concurrently \"pnpm dev:2d\" \"pnpm dev:3d\" \"pnpm dev:web\"",
     "build:all": "pnpm build:2d && pnpm build:3d && pnpm build:web",
+    "guard:monorepo": "node scripts/monorepo-guard.mjs",
+    "guard:monorepo:frozen": "MONOREPO_GUARD_RUN_PNPM=1 node scripts/monorepo-guard.mjs",
     "clean": "pnpm -r exec rm -rf dist node_modules"
   },
   "engines": {

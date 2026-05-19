@@ -18,7 +18,7 @@ SETTINGS_MARKER = "settings:\n  autoInstallPeers: true\n  excludeLinksFromLockfi
 OVERRIDES = {
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@types/node": "^25.7.0",
+    "@types/node": "^25.9.0",
     "zod": "^4.4.3",
     "three": "0.184.0",
     "@babylonjs/core": "^9.6.2",
