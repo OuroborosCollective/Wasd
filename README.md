@@ -353,6 +353,8 @@ pnpm --filter @wasd/shared --if-present build
 pnpm --filter @wasd/client --if-present build
 ```
 
+Design + gameplay consistency gate (lint, focused tests, interact check, Playwright smoke, content validate, asset checks): see `tools/dgcc/README.md` and run `pnpm run dgcc` (or `pnpm run dgcc:extreme`).
+
 ---
 
 ## Deployment

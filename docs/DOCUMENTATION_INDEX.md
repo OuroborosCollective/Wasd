@@ -24,6 +24,7 @@ Use this index to find current documentation quickly and avoid relying on histor
 | `LOGIC_DOCUMENTATION.md` | Current systems and runtime modules (short architecture reference) |
 | `docs/CLIENT_ARCHITECTURE.md` | Client layering and renderer structure |
 | `docs/NETWORKING_MODEL.md` | WebSocket and synchronization model |
+| `tools/dgcc/README.md` | DGCC repository gate (`pnpm run dgcc`) |
 | `docs/MODULE_MANIFEST.md` | Curated module map for actively relevant systems |
 | `docs/FILE_MAP.md` | Practical tree map for current repo layout |
 | `game-data/AUTHORING_GUIDE.md` | Content authoring under `game-data/` |

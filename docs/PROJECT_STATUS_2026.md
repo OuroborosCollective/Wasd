@@ -76,10 +76,11 @@ Use it before trusting older reconstruction or handover docs.
 
 | Item | Status |
 |------|--------|
-| Unit/integration tests | Vitest (`pnpm run test`) |
-| E2E tests | Playwright (`pnpm run test:e2e`, `pnpm run test:e2e:ci`) |
+| Unit/integration tests | Vitest (`pnpm run test`); DGCC uses a fast invariant slice via `pnpm run test:dgcc` |
+| E2E tests | Playwright (`pnpm run test:e2e:ci` after `pnpm run test:e2e:install`) |
 | Lint | ESLint (`pnpm run lint`) |
 | Build | Root build compiles client then server (`pnpm run build`) |
+| DGCC gate | `pnpm run dgcc` / `pnpm run dgcc:extreme` — see `tools/dgcc/README.md` |
 | CI baseline | Lint + tests + build + model-path audit + e2e workflow exists |
 
 ## Important clarifications

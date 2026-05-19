@@ -9,6 +9,7 @@ packages:
   - "server"
   - "backend"
 allowBuilds:
+  '@playwright/test': true
   '@firebase/util': true
   '@google/genai': true
   '@nestjs/core': true
