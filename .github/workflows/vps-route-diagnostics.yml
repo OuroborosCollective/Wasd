@@ -2,6 +2,12 @@ name: VPS Route Diagnostics
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/vps-route-diagnostics.yml'
+      - 'scripts/vps-public-route-diagnostics.sh'
 
 permissions:
   contents: read
