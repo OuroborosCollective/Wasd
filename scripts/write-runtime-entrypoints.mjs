@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const repoRoot = resolve(process.cwd());
 const distRoot = join(repoRoot, 'client/dist');
 const portalRoot = join(distRoot, 'portal');
+const publicRoot = join(repoRoot, 'client/public');
 const buildSha = process.env.GITHUB_SHA || process.env.BUILD_COMMIT_SHA || 'local';
 const builtAt = new Date().toISOString();
 
@@ -35,5 +36,15 @@ const portalBody = `<div class="shell"><aside class="rail"><div><div class="bran
 
 writeFileSync(join(distRoot, 'index.html'), page({ title: 'Areloria · Cyber-Zen Landing', body: landingBody }));
 writeFileSync(join(portalRoot, 'index.html'), page({ title: 'Arelorian Portal Hub', body: portalBody }));
-writeFileSync(join(distRoot, 'runtime-build-info.json'), JSON.stringify({ ok: true, buildSha, builtAt, entrypoints: ['/', '/2d/', '/3d/', '/portal/'] }, null, 2) + '\n');
+writeFileSync(join(distRoot, 'runtime-build-info.json'), JSON.stringify({ ok: true, buildSha, builtAt, entrypoints: ['/', '/2d/', '/3d/', '/portal/', '/are-console.html', '/sovereign-truth.html'] }, null, 2) + '\n');
+
+for (const file of ['are-console.html', 'sovereign-truth.html']) {
+  const source = join(publicRoot, file);
+  const target = join(distRoot, file);
+
+  if (existsSync(source)) {
+    copyFileSync(source, target);
+  }
+}
+
 console.log(`[RuntimeEntrypoints] wrote landing + portal hub into ${distRoot}`);
