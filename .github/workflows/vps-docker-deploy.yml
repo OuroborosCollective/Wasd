@@ -18,6 +18,7 @@ on:
       - '.dockerignore'
       - 'scripts/deploy-vps-docker.sh'
       - 'scripts/vps-docker-inline-deploy.sh'
+      - 'scripts/vps-public-route-diagnostics.sh'
       - 'scripts/write-runtime-entrypoints.mjs'
       - 'scripts/extract-2d-weapon-pool.mjs'
       - '.github/workflows/vps-docker-deploy.yml'
@@ -39,6 +40,7 @@ on:
       - '.dockerignore'
       - 'scripts/deploy-vps-docker.sh'
       - 'scripts/vps-docker-inline-deploy.sh'
+      - 'scripts/vps-public-route-diagnostics.sh'
       - 'scripts/write-runtime-entrypoints.mjs'
       - 'scripts/extract-2d-weapon-pool.mjs'
       - '.github/workflows/vps-docker-deploy.yml'
@@ -108,7 +110,7 @@ jobs:
           [ -n "${SSH_PASSWORD:-}" ] || { echo "::error::Set SSH_PASSWORD."; ok=false; }
           [ "$ok" = true ]
 
-      - name: Deploy over SSH
+      - name: Deploy and diagnose over SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -167,8 +169,10 @@ jobs:
             git clone --branch "$DEPLOY_BRANCH" --depth 1 "$REPO_URL" "$tmp_checkout"
             cd "$tmp_checkout"
             test -f scripts/vps-docker-inline-deploy.sh || { echo "ERROR: missing scripts/vps-docker-inline-deploy.sh"; exit 1; }
-            chmod +x scripts/vps-docker-inline-deploy.sh
+            chmod +x scripts/vps-docker-inline-deploy.sh scripts/vps-public-route-diagnostics.sh
             bash scripts/vps-docker-inline-deploy.sh
+            echo "=== VPS PUBLIC ROUTE DIAGNOSTICS AFTER DEPLOY ==="
+            ARELORIAN_PUBLIC_DOMAIN='arelorian.de' bash scripts/vps-public-route-diagnostics.sh
 
       - name: Verify public runtime route
         run: |
@@ -177,6 +181,6 @@ jobs:
           body="$(curl -fsSL --max-time 20 https://arelorian.de/runtime-build-info.json || true)"
           echo "$body"
           echo "$body" | grep -q 'entrypoints' || {
-            echo "::error::Public domain does not serve runtime-build-info.json from the new WASD container. Check Traefik/nginx route for arelorian.de -> arelorian-engine:3001."
+            echo "::error::Public domain does not serve runtime-build-info.json from the new WASD container. Read the VPS PUBLIC ROUTE DIAGNOSTICS AFTER DEPLOY section above."
             exit 1
           }
