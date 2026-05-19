@@ -11,6 +11,7 @@ export type AssetEntry = {
   frameHeight?: number;
   width?: number;
   height?: number;
+  frame?: { x: number; y: number; w: number; h: number };
   weaponClass?: string;
   rarity?: string;
   tags?: string[];
@@ -33,14 +34,35 @@ export type AssetManifest = {
   fallbacks?: Record<string, string | null>;
 };
 
-export async function loadAssetManifest(): Promise<AssetManifest | null> {
+type WeaponManifestPayload = {
+  weapons?: Record<string, AssetEntry>;
+  sources?: unknown[];
+};
+
+async function loadJson<T>(url: string): Promise<T | null> {
   try {
-    const res = await fetch('/2d-assets/manifest.json', { cache: 'no-store' });
+    const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) return null;
-    return await res.json() as AssetManifest;
+    return await res.json() as T;
   } catch {
     return null;
   }
+}
+
+export async function loadAssetManifest(): Promise<AssetManifest | null> {
+  const root = await loadJson<AssetManifest>('/2d-assets/manifest.json');
+  const weaponManifest = await loadJson<WeaponManifestPayload>('/2d-assets/weapons/weapon-manifest.json');
+
+  if (!root && !weaponManifest) return null;
+
+  return {
+    ...(root ?? { version: 1, basePath: '/2d-assets' }),
+    sources: [...(root?.sources ?? []), ...(weaponManifest?.sources ?? [])],
+    weapons: {
+      ...(root?.weapons ?? {}),
+      ...(weaponManifest?.weapons ?? {}),
+    },
+  };
 }
 
 export function getEntry(manifest: AssetManifest | null, category: AssetCategory, id?: string | null): AssetEntry | null {
