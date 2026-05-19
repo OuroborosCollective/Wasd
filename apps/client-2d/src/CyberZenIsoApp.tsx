@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { Application, Container, Graphics, Text } from "pixi.js";
+import { Application, Assets, Container, Graphics, Sprite, Text, Texture } from "pixi.js";
 import { createClient } from "@wasd/core-network";
+import { fallbackEntry, loadAssetManifest, type AssetEntry, type AssetManifest } from "./assetManifest";
 
 const TILE_W = 96;
 const TILE_H = 48;
 
 type Entity = { root: Container; tx: number; tz: number };
 type Msg = { from: string; txt: string };
+type LoadedAssets = { manifest: AssetManifest | null; textures: Map<string, Texture> };
 
 function iso(x: number, z: number, width: number, height: number) {
   return { x: width / 2 + (x - z) * TILE_W * 0.5, y: height * 0.45 + (x + z) * TILE_H * 0.5 };
@@ -24,8 +26,29 @@ function diamond(color: number, stroke = 0x17361e) {
   return g;
 }
 
-function propTree() {
+function textureFor(assets: LoadedAssets | null, entry: AssetEntry | null): Texture | null {
+  if (!assets || !entry?.src) return null;
+  return assets.textures.get(entry.src) ?? null;
+}
+
+function spriteFromTexture(texture: Texture, width: number, height: number, y = 0) {
+  const s = new Sprite(texture);
+  s.anchor.set(0.5, 1);
+  s.width = width;
+  s.height = height;
+  s.y = y;
+  return s;
+}
+
+function propTree(assets?: LoadedAssets | null) {
   const c = new Container();
+  const entry = fallbackEntry(assets?.manifest ?? null, "props", "tree");
+  const tex = textureFor(assets ?? null, entry);
+  if (tex) {
+    c.addChild(new Graphics().ellipse(0, 18, 30, 10).fill({ color: 0x010804, alpha: 0.42 }));
+    c.addChild(spriteFromTexture(tex, 86, 104));
+    return c;
+  }
   c.addChild(new Graphics().ellipse(0, 14, 24, 8).fill({ color: 0x010804, alpha: 0.5 }));
   c.addChild(new Graphics().roundRect(-5, -22, 10, 34, 4).fill(0x704323));
   c.addChild(new Graphics().circle(0, -42, 25).fill(0x14572f));
@@ -33,8 +56,15 @@ function propTree() {
   return c;
 }
 
-function propHouse() {
+function propHouse(assets?: LoadedAssets | null) {
   const c = new Container();
+  const entry = fallbackEntry(assets?.manifest ?? null, "buildings", "house");
+  const tex = textureFor(assets ?? null, entry);
+  if (tex) {
+    c.addChild(new Graphics().ellipse(0, 20, 52, 14).fill({ color: 0x010804, alpha: 0.44 }));
+    c.addChild(spriteFromTexture(tex, 118, 118));
+    return c;
+  }
   c.addChild(new Graphics().ellipse(0, 18, 48, 12).fill({ color: 0x010804, alpha: 0.44 }));
   c.addChild(new Graphics().roundRect(-34, -36, 68, 48, 8).fill(0x7d5534).stroke({ width: 2, color: 0xffd890, alpha: 0.32 }));
   const roof = new Graphics();
@@ -44,12 +74,17 @@ function propHouse() {
   return c;
 }
 
-function avatar(name: string, player = false) {
+function avatar(name: string, player = false, assets?: LoadedAssets | null) {
   const c = new Container();
   const aura = player ? 0x00e5ff : 0x39ff14;
+  const entry = fallbackEntry(assets?.manifest ?? null, player ? "characters" : "characters", player ? "player" : "npc");
+  const tex = textureFor(assets ?? null, entry);
   c.addChild(new Graphics().ellipse(0, 18, 23, 8).fill({ color: 0x02040a, alpha: 0.56 }));
-  c.addChild(new Graphics().ellipse(0, -8, 14, 21).fill(player ? 0x267dff : 0x249a56).stroke({ width: 2, color: aura, alpha: 0.55 }));
-  c.addChild(new Graphics().circle(0, -34, 11).fill(player ? 0xffd8a9 : 0xd4ffd7).stroke({ width: 2, color: aura, alpha: 0.82 }));
+  if (tex) c.addChild(spriteFromTexture(tex, 58, 74));
+  else {
+    c.addChild(new Graphics().ellipse(0, -8, 14, 21).fill(player ? 0x267dff : 0x249a56).stroke({ width: 2, color: aura, alpha: 0.55 }));
+    c.addChild(new Graphics().circle(0, -34, 11).fill(player ? 0xffd8a9 : 0xd4ffd7).stroke({ width: 2, color: aura, alpha: 0.82 }));
+  }
   const label = new Text({ text: name, style: { fontSize: 11, fill: 0xfff0cf, stroke: { color: 0x02030a, width: 3 }, fontFamily: "monospace" } });
   label.anchor.set(0.5, 1); label.y = -58;
   c.addChild(label);
@@ -61,14 +96,32 @@ function place(node: Container, x: number, z: number, width: number, height: num
   node.x = p.x; node.y = p.y; node.zIndex = p.y;
 }
 
+async function load2DAssets(): Promise<LoadedAssets> {
+  const manifest = await loadAssetManifest();
+  const urls = new Set<string>();
+  if (manifest) {
+    [manifest.tilesets, manifest.characters, manifest.monsters, manifest.buildings, manifest.props, manifest.fx, manifest.ui].forEach((group) => {
+      Object.values(group ?? {}).forEach((entry) => { if (entry.src) urls.add(entry.src); });
+    });
+  }
+  const textures = new Map<string, Texture>();
+  await Promise.all([...urls].map(async (url) => {
+    try { textures.set(url, await Assets.load<Texture>(url)); }
+    catch (err) { console.warn("[2DAssets] Failed to load", url, err); }
+  }));
+  return { manifest, textures };
+}
+
 export function CyberZenIsoApp() {
   const host = useRef<HTMLDivElement>(null);
   const appRef = useRef<Application | null>(null);
+  const assetRef = useRef<LoadedAssets | null>(null);
   const entities = useRef<Map<string, Entity>>(new Map());
   const clientRef = useRef<ReturnType<typeof createClient> | null>(null);
   const keys = useRef(new Set<string>());
   const moveAt = useRef(0);
   const [connected, setConnected] = useState(false);
+  const [assetStatus, setAssetStatus] = useState("ASSETS_LOADING");
   const [messages, setMessages] = useState<Msg[]>([{ from: "Oracle", txt: "Cyberzen 2.5D shell online." }]);
 
   useEffect(() => {
@@ -82,31 +135,37 @@ export function CyberZenIsoApp() {
     if (!host.current || appRef.current) return;
     const app = new Application();
     appRef.current = app;
-    app.init({ backgroundAlpha: 0, resizeTo: host.current, antialias: true, autoDensity: true, resolution: Math.min(devicePixelRatio || 1, 2) }).then(() => {
+    app.init({ backgroundAlpha: 0, resizeTo: host.current, antialias: true, autoDensity: true, resolution: Math.min(devicePixelRatio || 1, 2) }).then(async () => {
       host.current!.appendChild(app.canvas);
+      const loaded = await load2DAssets();
+      assetRef.current = loaded;
+      const textureCount = loaded.textures.size;
+      setAssetStatus(textureCount > 0 ? `ASSETS_${textureCount}_LOADED` : "PROXY_GRAPHICS");
+      setMessages(m => [...m.slice(-12), { from: "AssetRig", txt: textureCount > 0 ? `Loaded ${textureCount} 2D textures from manifest.` : "No manifest textures yet. Using proxy graphics." }]);
       const terrain = new Container(); const props = new Container(); const actors = new Container(); actors.sortableChildren = true;
       app.stage.addChild(terrain, props, actors);
-      buildScene(app, terrain, props);
-      addActor(app, actors, "self", 0, 0, localStorage.getItem("wasd:2d:name") || "Architect", true);
-      addActor(app, actors, "elder", 2, 1, "Millbrook Elder", false);
+      buildScene(app, terrain, props, loaded);
+      addActor(app, actors, "self", 0, 0, localStorage.getItem("wasd:2d:name") || "Architect", true, loaded);
+      addActor(app, actors, "elder", 2, 1, "Millbrook Elder", false, loaded);
       startNetwork(app, actors);
       app.ticker.add(() => tick(app, actors));
     });
     return () => { clientRef.current?.disconnect(); app.destroy(true); };
   }, []);
 
-  function buildScene(app: Application, terrain: Container, props: Container) {
+  function buildScene(app: Application, terrain: Container, props: Container, assets?: LoadedAssets | null) {
+    const terrainTex = textureFor(assets ?? null, fallbackEntry(assets?.manifest ?? null, "tilesets", "terrain"));
     for (let z = -7; z <= 7; z++) for (let x = -7; x <= 7; x++) {
-      const tile = diamond((x + z) % 4 === 0 ? 0x3f7f48 : 0x356b40);
+      const tile = terrainTex ? spriteFromTexture(terrainTex, TILE_W, TILE_H, TILE_H / 2) : diamond((x + z) % 4 === 0 ? 0x3f7f48 : 0x356b40);
       place(tile, x, z, app.screen.width, app.screen.height); terrain.addChild(tile);
     }
-    [[-4,-2],[4,-3],[-5,3],[5,2]].forEach(([x,z]) => { const t = propTree(); place(t, x, z, app.screen.width, app.screen.height); props.addChild(t); });
-    [[-2,2],[2,2],[0,-4]].forEach(([x,z]) => { const h = propHouse(); place(h, x, z, app.screen.width, app.screen.height); props.addChild(h); });
+    [[-4,-2],[4,-3],[-5,3],[5,2]].forEach(([x,z]) => { const t = propTree(assets); place(t, x, z, app.screen.width, app.screen.height); props.addChild(t); });
+    [[-2,2],[2,2],[0,-4]].forEach(([x,z]) => { const h = propHouse(assets); place(h, x, z, app.screen.width, app.screen.height); props.addChild(h); });
   }
 
-  function addActor(app: Application, layer: Container, id: string, x: number, z: number, name: string, player: boolean) {
+  function addActor(app: Application, layer: Container, id: string, x: number, z: number, name: string, player: boolean, assets = assetRef.current) {
     if (entities.current.has(id)) return;
-    const root = avatar(name, player); place(root, x, z, app.screen.width, app.screen.height);
+    const root = avatar(name, player, assets); place(root, x, z, app.screen.width, app.screen.height);
     layer.addChild(root); entities.current.set(id, { root, tx: x, tz: z });
   }
 
@@ -131,5 +190,5 @@ export function CyberZenIsoApp() {
     layer.sortChildren();
   }
 
-  return <div className="az-shell"><div ref={host} className="az-pixi" /><header className="az-top"><div><small>CYBERZEN 2.5D</small><b>Areloria · Millbrook</b></div><span>{connected ? "ONLINE" : "CONNECTING"}</span></header><nav className="az-skills"><button>⚔️<small>Strike</small></button><button>🛡️<small>Guard</small></button><button>✦<small>Aether</small></button><button>☉<small>Talk</small></button></nav><section className="az-chat">{messages.slice(-4).map((m, i) => <p key={i}><b>{m.from}</b> {m.txt}</p>)}</section><footer className="az-hint">WASD move · isometric terrain · proxy sprites ready for real asset swap</footer></div>;
+  return <div className="az-shell"><div ref={host} className="az-pixi" /><header className="az-top"><div><small>CYBERZEN 2.5D · {assetStatus}</small><b>Areloria · Millbrook</b></div><span>{connected ? "ONLINE" : "CONNECTING"}</span></header><nav className="az-skills"><button>⚔️<small>Strike</small></button><button>🛡️<small>Guard</small></button><button>✦<small>Aether</small></button><button>☉<small>Talk</small></button></nav><section className="az-chat">{messages.slice(-4).map((m, i) => <p key={i}><b>{m.from}</b> {m.txt}</p>)}</section><footer className="az-hint">WASD move · isometric terrain · manifest sprites active when /2d-assets/manifest.json exists</footer></div>;
 }
