@@ -36,7 +36,7 @@
     "multer": "^2.1.1",
     "openai": "^6.38.0",
     "pg": "^8.21.0",
-    "posthog-node": "^5.34.3",
+    "posthog-node": "^5.34.6",
     "reflect-metadata": "^0.2.2",
     "socket.io": "^4.8.3",
     "ssh2": "^1.17.0",

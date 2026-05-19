@@ -961,7 +961,7 @@ importers:
         version: 0.218.0(@opentelemetry/api@1.9.1)
       '@posthog/ai':
         specifier: ^7.18.10
-        version: 7.18.10(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.9.1))(@opentelemetry/exporter-trace-otlp-proto@0.218.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(posthog-node@5.34.3(rxjs@7.8.2))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(ws@8.20.1)(zod-to-json-schema@3.25.2(zod@4.4.3))
+        version: 7.18.10(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.9.1))(@opentelemetry/exporter-trace-otlp-proto@0.218.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(posthog-node@5.34.6(rxjs@7.8.2))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(ws@8.20.1)(zod-to-json-schema@3.25.2(zod@4.4.3))
       '@traceloop/instrumentation-google-generativeai':
         specifier: ^0.26.0
         version: 0.26.0
@@ -1014,8 +1014,8 @@ importers:
         specifier: ^8.20.0
         version: 8.21.0
       posthog-node:
-        specifier: ^5.34.3
-        version: 5.34.3(rxjs@7.8.2)
+        specifier: ^5.34.6
+        version: 5.34.6(rxjs@7.8.2)
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -3023,14 +3023,8 @@ packages:
       '@opentelemetry/sdk-trace-base':
         optional: true
 
-  '@posthog/core@1.29.3':
-    resolution: {integrity: sha512-OvJSAzqVfZx+L7D874q56FVRTxOIsFBVB3wSB/Uny+DhmfNRGDi1rpZAruEmQYl9WQlQJb1q6JXGAC+rxVXjPA==}
-
   '@posthog/core@1.29.5':
     resolution: {integrity: sha512-Jm5AE95EwBRqO6J8+skDufyf5rnEcmOvjYArCKCOzD4mWdH1xGpfcRXj5TEyZII3mD04Kr7pw9aP2ZbAHQGu2A==}
-
-  '@posthog/types@1.374.0':
-    resolution: {integrity: sha512-qouREpHIxsBS3Gc6a5gZvg6/ykK+4TJAs4wYTUIH/emH1HQfaaLrWzGoEm+/OPwlNxHzw4tQn9OOyxsmr9NF2g==}
 
   '@posthog/types@1.374.2':
     resolution: {integrity: sha512-ZghQSFMi+HFJNPvPjBoyY/jWQ+q6mSQVtWQxOHMSbBidUZjsyYbxYxBFbHy2qWLNe4mEpX+Wqir2Q4I/4AVvJQ==}
@@ -6281,8 +6275,8 @@ packages:
     resolution: {integrity: sha512-Jtc2612XINuBjIl/QTWsV5UvE8UHuNblcO3vVADSrKsrc6RqGX6lOW1cEo3CM2v0XG4Nat8nI+YM7/f26VxXLw==}
     engines: {node: '>=12'}
 
-  posthog-node@5.34.3:
-    resolution: {integrity: sha512-f3TJEF4qBBzeJEv60kjVCgXsaWQVlUe7PFjf3xiaNw14GURoXjj+Z7iOUMeTerhWkTtrEgPBcfEjs5sJgSmnFw==}
+  posthog-node@5.34.6:
+    resolution: {integrity: sha512-oDjagFRkmCbWJBxG1FVU3kOGC6dxNpR849q8ARrZSBK3zWz4zJox6V5EjrATKM9RXKvAmbCSFoxYaOYTzp3phA==}
     engines: {node: ^20.20.0 || >=22.22.0}
     peerDependencies:
       rxjs: ^7.0.0
@@ -9934,7 +9928,7 @@ snapshots:
       - react
       - react-native
 
-  '@posthog/ai@7.18.10(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.9.1))(@opentelemetry/exporter-trace-otlp-proto@0.218.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(posthog-node@5.34.3(rxjs@7.8.2))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(ws@8.20.1)(zod-to-json-schema@3.25.2(zod@4.4.3))':
+  '@posthog/ai@7.18.10(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.9.1))(@opentelemetry/exporter-trace-otlp-proto@0.218.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(posthog-node@5.34.6(rxjs@7.8.2))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(ws@8.20.1)(zod-to-json-schema@3.25.2(zod@4.4.3))':
     dependencies:
       '@anthropic-ai/sdk': 0.78.0(zod@4.4.3)
       '@google/genai': 1.52.0(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))
@@ -9942,7 +9936,7 @@ snapshots:
       '@posthog/core': 1.29.5
       langchain: 1.4.1(@langchain/core@1.1.47(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-proto@0.218.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(openai@6.38.0(ws@8.20.1)(zod@4.4.3))(ws@8.20.1))(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-proto@0.218.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(openai@6.38.0(ws@8.20.1)(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(ws@8.20.1)(zod-to-json-schema@3.25.2(zod@4.4.3))
       openai: 6.38.0(ws@8.20.1)(zod@4.4.3)
-      posthog-node: 5.34.3(rxjs@7.8.2)
+      posthog-node: 5.34.6(rxjs@7.8.2)
       uuid: 11.1.1
       zod: 4.4.3
     optionalDependencies:
@@ -9962,15 +9956,9 @@ snapshots:
       - ws
       - zod-to-json-schema
 
-  '@posthog/core@1.29.3':
-    dependencies:
-      '@posthog/types': 1.374.0
-
   '@posthog/core@1.29.5':
     dependencies:
       '@posthog/types': 1.374.2
-
-  '@posthog/types@1.374.0': {}
 
   '@posthog/types@1.374.2': {}
 
@@ -13481,9 +13469,9 @@ snapshots:
 
   postgres@3.4.7: {}
 
-  posthog-node@5.34.3(rxjs@7.8.2):
+  posthog-node@5.34.6(rxjs@7.8.2):
     dependencies:
-      '@posthog/core': 1.29.3
+      '@posthog/core': 1.29.5
     optionalDependencies:
       rxjs: 7.8.2
 
