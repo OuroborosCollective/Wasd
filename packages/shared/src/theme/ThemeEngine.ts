@@ -12,8 +12,10 @@ import { EventEmitter } from "eventemitter3";
 export const THEME_MARINA_AURA = "#00E5FF";
 /** Organic Fire — high hazard glitch core */
 export const THEME_ORGANIC_FIRE = "#E60000";
+/** Legendary loot aura — deterministic gold resonance */
+export const THEME_LEGENDARY_LOOT = "#FFD76A";
 
-export type ThemeAuraMode = "marina" | "balanced" | "fire_glitch";
+export type ThemeAuraMode = "marina" | "balanced" | "fire_glitch" | "loot_legendary";
 
 export interface VisualThemeState {
   /** Primary aura / glow color (hex) */
@@ -30,6 +32,16 @@ export interface VisualThemeState {
   phaseShiftPulseHz: number;
   hazardIndex: number;
   aggressionTrend: number;
+}
+
+export interface LootAuraPayload {
+  itemId: string;
+  itemName?: string;
+  quality?: string;
+  sector?: string;
+  probability?: number;
+  rollHash?: string;
+  sourceId?: string;
 }
 
 const BASE_PHASE_PULSE_HZ = 0.85;
@@ -56,6 +68,15 @@ function lerpHex(a: string, b: string, t: number): string {
   const g = Math.round(A.g + (B.g - A.g) * u);
   const bCh = Math.round(A.b + (B.b - A.b) * u);
   return `#${[r, g, bCh].map((x) => x.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function stableUnit(input: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < input.length; i += 1) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return (h % 10000) / 10000;
 }
 
 /**
@@ -107,6 +128,22 @@ export function getVisualState(hazardIndex: number, aggressionTrend: number): Vi
   };
 }
 
+export function getLootLegendaryVisualState(payload: LootAuraPayload): VisualThemeState {
+  const seed = `${payload.itemId}|${payload.itemName ?? ""}|${payload.sector ?? ""}|${payload.rollHash ?? ""}`;
+  const resonance = stableUnit(seed);
+  const probability = Number.isFinite(payload.probability ?? Number.NaN) ? Number(payload.probability) : 0.000001;
+  const rarityBoost = clamp01(1 - Math.min(1, probability * 100000));
+  return {
+    auraHex: THEME_LEGENDARY_LOOT,
+    secondaryHex: lerpHex("#3f2f05", "#fff0a8", 0.22 + resonance * 0.28),
+    mode: "loot_legendary",
+    glitchIntensity: 0.34 + rarityBoost * 0.32,
+    phaseShiftPulseHz: 1.18 + resonance * 0.64,
+    hazardIndex: 0.12 + rarityBoost * 0.16,
+    aggressionTrend: 0,
+  };
+}
+
 /** CSS custom properties for root / layout injection */
 export function visualStateToCssVars(state: VisualThemeState): Record<string, string> {
   const periodSec = Math.max(0.12, 1 / Math.max(0.05, state.phaseShiftPulseHz));
@@ -124,6 +161,7 @@ export function visualStateToCssVars(state: VisualThemeState): Record<string, st
 // ——— Live ticker hazard bridge (browser + Node) ———
 
 export const THEME_HAZARD_EVENT = "wasd:theme_hazard";
+export const THEME_LOOT_AURA_EVENT = "wasd:loot_aura";
 
 export type LiveTickerHazardPayload = {
   hazardIndex?: number;
@@ -163,6 +201,15 @@ export function pushLiveTickerHazard(payload: LiveTickerHazardPayload): VisualTh
   const visual = getVisualState(hi, at);
   lastVisual = visual;
   themeEmitter.emit(THEME_HAZARD_EVENT, { visual, payload });
+  themeEmitter.emit("theme_updated", visual);
+  return visual;
+}
+
+export function pushLootAura(payload: LootAuraPayload): VisualThemeState {
+  const visual = getLootLegendaryVisualState(payload);
+  lastDedupeKey = `loot|${payload.itemId}|${payload.rollHash ?? ""}|${payload.sector ?? ""}`;
+  lastVisual = visual;
+  themeEmitter.emit(THEME_LOOT_AURA_EVENT, { visual, payload });
   themeEmitter.emit("theme_updated", visual);
   return visual;
 }
