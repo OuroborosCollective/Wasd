@@ -6,7 +6,7 @@
     "build": "tsc"
   },
   "devDependencies": {
-    "typescript": "^6.0.3"
+    "typescript": "6.0.3"
   },
   "dependencies": {
     "eventemitter3": "^5.0.4"

@@ -26,7 +26,7 @@
     "@types/node": "^25.9.0",
     "@types/pg": "^8.20.0",
     "rimraf": "^6.1.3",
-    "typescript": "^6.0.3"
+    "typescript": "6.0.3"
   },
   "peerDependencies": {
     "pg": "^8.11.5",
