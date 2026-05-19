@@ -8,6 +8,21 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:${ARELORIAN_PORT:-3001}:3001"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=${ARELORIAN_DOCKER_NETWORK:-areloria_arelorian-network}"
+      - "traefik.http.services.arelorian-engine.loadbalancer.server.port=3001"
+      - "traefik.http.routers.arelorian-engine.rule=Host(`arelorian.de`) || Host(`www.arelorian.de`)"
+      - "traefik.http.routers.arelorian-engine.entrypoints=websecure"
+      - "traefik.http.routers.arelorian-engine.tls=true"
+      - "traefik.http.routers.arelorian-engine.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.arelorian-engine.priority=10000"
+      - "traefik.http.routers.arelorian-engine.service=arelorian-engine"
+      - "traefik.http.routers.arelorian-engine-http.rule=Host(`arelorian.de`) || Host(`www.arelorian.de`)"
+      - "traefik.http.routers.arelorian-engine-http.entrypoints=web"
+      - "traefik.http.routers.arelorian-engine-http.middlewares=arelorian-engine-https-redirect"
+      - "traefik.http.routers.arelorian-engine-http.priority=10000"
+      - "traefik.http.middlewares.arelorian-engine-https-redirect.redirectscheme.scheme=https"
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs

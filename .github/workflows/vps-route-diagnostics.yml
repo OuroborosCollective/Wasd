@@ -1,35 +1,21 @@
-name: Monorepo Guard
+name: VPS Route Diagnostics
 
 on:
-  pull_request:
+  workflow_dispatch:
   push:
     branches:
       - main
+    paths:
+      - '.github/workflows/vps-route-diagnostics.yml'
+      - 'scripts/vps-public-route-diagnostics.sh'
 
 permissions:
   contents: read
 
 jobs:
-  guard:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9.12.2
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm guard:monorepo
-      - run: pnpm guard:monorepo:frozen
-
-  route-diagnostics:
-    name: Diagnose public route owner
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  diagnose:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: guard
     steps:
       - name: Verify SSH secrets
         env:

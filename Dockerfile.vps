@@ -10,12 +10,17 @@ ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 ENV CI=true
 ENV npm_config_jobs=1
-ENV NODE_OPTIONS=--max-old-space-size=2048
+ENV NODE_OPTIONS=--max-old-space-size=1024
+ENV PNPM_CONFIG_NETWORK_CONCURRENCY=1
+ENV PNPM_CONFIG_CHILD_CONCURRENCY=1
+ENV PNPM_CONFIG_SIDE_EFFECTS_CACHE=false
+ENV PNPM_CONFIG_VERIFY_STORE_INTEGRITY=false
 
 RUN corepack enable && corepack prepare pnpm@9.12.2 --activate && \
     pnpm config set store-dir /pnpm/store && \
-    pnpm config set network-concurrency 2 && \
+    pnpm config set network-concurrency 1 && \
     pnpm config set child-concurrency 1 && \
+    pnpm config set verify-store-integrity false && \
     pnpm config set side-effects-cache false
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
@@ -28,7 +33,8 @@ COPY engine/package.json engine/package.json
 COPY portal/package.json portal/package.json
 COPY scripts/sync-pnpm-lockfile-for-docker.py scripts/sync-pnpm-lockfile-for-docker.py
 
-RUN find packages apps projects -type f ! -name package.json -delete || true && \
+RUN --mount=type=cache,id=wasd-vps-pnpm-store,target=/pnpm/store \
+    find packages apps projects -type f ! -name package.json -delete || true && \
     rm -rf packages/sdk-examples || true && \
     find packages apps projects -type d -empty -delete || true && \
     printf '%s\n' \
@@ -41,7 +47,7 @@ RUN find packages apps projects -type f ! -name package.json -delete || true && 
       '  - packages/shared' \
       > pnpm-workspace.yaml && \
     python3 scripts/sync-pnpm-lockfile-for-docker.py && \
-    pnpm --filter @wasd/server... --filter @wasd/client... --filter @wasd/portal... --filter @wasd/client-2d... --filter @wasd/core-logic... --filter @wasd/shared... install --frozen-lockfile --prefer-offline --ignore-scripts
+    pnpm --filter @wasd/server... --filter @wasd/client... --filter @wasd/portal... --filter @wasd/client-2d... --filter @wasd/core-logic... --filter @wasd/shared... install --frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
 
 COPY . .
 RUN rm -rf packages/sdk-examples || true && \
