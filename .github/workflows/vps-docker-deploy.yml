@@ -18,6 +18,7 @@ on:
       - '.dockerignore'
       - 'scripts/deploy-vps-docker.sh'
       - 'scripts/vps-docker-inline-deploy.sh'
+      - 'scripts/vps-nginx-route-areloria.sh'
       - 'scripts/vps-public-route-diagnostics.sh'
       - 'scripts/write-runtime-entrypoints.mjs'
       - 'scripts/extract-2d-weapon-pool.mjs'
@@ -40,6 +41,7 @@ on:
       - '.dockerignore'
       - 'scripts/deploy-vps-docker.sh'
       - 'scripts/vps-docker-inline-deploy.sh'
+      - 'scripts/vps-nginx-route-areloria.sh'
       - 'scripts/vps-public-route-diagnostics.sh'
       - 'scripts/write-runtime-entrypoints.mjs'
       - 'scripts/extract-2d-weapon-pool.mjs'
@@ -110,7 +112,7 @@ jobs:
           [ -n "${SSH_PASSWORD:-}" ] || { echo "::error::Set SSH_PASSWORD."; ok=false; }
           [ "$ok" = true ]
 
-      - name: Deploy and diagnose over SSH
+      - name: Deploy, install nginx route and diagnose over SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -169,8 +171,10 @@ jobs:
             git clone --branch "$DEPLOY_BRANCH" --depth 1 "$REPO_URL" "$tmp_checkout"
             cd "$tmp_checkout"
             test -f scripts/vps-docker-inline-deploy.sh || { echo "ERROR: missing scripts/vps-docker-inline-deploy.sh"; exit 1; }
-            chmod +x scripts/vps-docker-inline-deploy.sh scripts/vps-public-route-diagnostics.sh
+            chmod +x scripts/vps-docker-inline-deploy.sh scripts/vps-public-route-diagnostics.sh scripts/vps-nginx-route-areloria.sh
             bash scripts/vps-docker-inline-deploy.sh
+            echo "=== Installing nginx public route ==="
+            ARELORIAN_PUBLIC_DOMAIN='arelorian.de' ARELORIAN_PORT="$ARELORIAN_PORT" bash scripts/vps-nginx-route-areloria.sh
             echo "=== VPS PUBLIC ROUTE DIAGNOSTICS AFTER DEPLOY ==="
             ARELORIAN_PUBLIC_DOMAIN='arelorian.de' bash scripts/vps-public-route-diagnostics.sh
 
@@ -181,6 +185,6 @@ jobs:
           body="$(curl -fsSL --max-time 20 https://arelorian.de/runtime-build-info.json || true)"
           echo "$body"
           echo "$body" | grep -q 'entrypoints' || {
-            echo "::error::Public domain does not serve runtime-build-info.json from the new WASD container. Read the VPS PUBLIC ROUTE DIAGNOSTICS AFTER DEPLOY section above."
+            echo "::error::Public domain does not serve runtime-build-info.json from the new WASD container. Read the nginx installer and VPS PUBLIC ROUTE DIAGNOSTICS AFTER DEPLOY sections above."
             exit 1
           }
