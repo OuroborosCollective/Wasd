@@ -1,9 +1,6 @@
 /**
- * ThemeEngine — visual tokens from live hazard / aggression telemetry.
+ * ThemeEngine — visual tokens from live hazard / aggression / ARE event telemetry.
  * Consumed by GlobalLiveTicker, Science Portal hub, and server-side dashboards.
- *
- * Server runtime uses a aligned copy in `server/src/theme/serverThemeHazard.ts`
- * (same formulas) because of `rootDir` constraints — keep both in sync when tuning.
  */
 
 import { EventEmitter } from "eventemitter3";
@@ -14,8 +11,25 @@ export const THEME_MARINA_AURA = "#00E5FF";
 export const THEME_ORGANIC_FIRE = "#E60000";
 /** Legendary loot aura — deterministic gold resonance */
 export const THEME_LEGENDARY_LOOT = "#FFD76A";
+/** Oracle prophecy aura — gold mixed with Marina resonance */
+export const THEME_ORACLE_GOLD = "#FFE66D";
+/** Governance aura — sovereign violet/silver */
+export const THEME_GOVERNANCE_VIOLET = "#8B5CF6";
+/** Repair aura — surgical deep red / neon green */
+export const THEME_REPAIR_GREEN = "#39FF14";
+/** Observation aura — marina violet for reading the past */
+export const THEME_OBSERVATION_VIOLET = "#3B2CFF";
 
-export type ThemeAuraMode = "marina" | "balanced" | "fire_glitch" | "loot_legendary";
+export type ThemeAuraMode =
+  | "marina"
+  | "balanced"
+  | "fire_glitch"
+  | "loot_legendary"
+  | "oracle_gold"
+  | "governance_sovereign"
+  | "repair_surgery"
+  | "observation_past"
+  | "identity_cyan";
 
 export interface VisualThemeState {
   /** Primary aura / glow color (hex) */
@@ -25,10 +39,7 @@ export interface VisualThemeState {
   mode: ThemeAuraMode;
   /** 0 = stable, 1 = full glitch (hazard > 0.7) */
   glitchIntensity: number;
-  /**
-   * Effective pulse rate for phaseShift-style animations (Hz).
-   * Baseline ~0.85 Hz; `aggressionTrend > 0` increases frequency.
-   */
+  /** Effective pulse rate for phaseShift-style animations (Hz). */
   phaseShiftPulseHz: number;
   hazardIndex: number;
   aggressionTrend: number;
@@ -42,6 +53,25 @@ export interface LootAuraPayload {
   probability?: number;
   rollHash?: string;
   sourceId?: string;
+}
+
+export type AREThemeEventKind =
+  | "tick"
+  | "oracle"
+  | "governance"
+  | "repair"
+  | "violation"
+  | "observation"
+  | "identity";
+
+export interface AREThemeEventPayload {
+  kind: AREThemeEventKind;
+  tick?: number;
+  active?: boolean;
+  severity?: number;
+  phase?: number;
+  hash?: string;
+  label?: string;
 }
 
 const BASE_PHASE_PULSE_HZ = 0.85;
@@ -79,12 +109,13 @@ function stableUnit(input: string): number {
   return (h % 10000) / 10000;
 }
 
+function deterministicPhase(tick: number | undefined, hash = ""): number {
+  const base = Number.isFinite(tick ?? Number.NaN) ? Number(tick) : 0;
+  return stableUnit(`${base}|${hash}|ARE_THEME_PHASE`);
+}
+
 /**
  * Maps hazard + aggression trend into dashboard-ready visual tokens.
- *
- * - hazardIndex < 0.3 → Marina Blue (#00E5FF) aura
- * - hazardIndex > 0.7 → Organic Fire (#E60000) glitch mode
- * - aggressionTrend > 0 → faster phaseShift pulse
  */
 export function getVisualState(hazardIndex: number, aggressionTrend: number): VisualThemeState {
   const h = clamp01(Number.isFinite(hazardIndex) ? hazardIndex : 0);
@@ -144,6 +175,33 @@ export function getLootLegendaryVisualState(payload: LootAuraPayload): VisualThe
   };
 }
 
+export function getAREEventVisualState(payload: AREThemeEventPayload): VisualThemeState {
+  const severity = clamp01(Number.isFinite(payload.severity ?? Number.NaN) ? Number(payload.severity) : payload.active ? 0.72 : 0.18);
+  const phase = Number.isFinite(payload.phase ?? Number.NaN) ? clamp01(Number(payload.phase)) : deterministicPhase(payload.tick, payload.hash ?? payload.label ?? payload.kind);
+  const pulse = 1.0 + phase * 1.25 + severity * 0.9;
+
+  if (payload.kind === "violation") {
+    return { auraHex: THEME_ORGANIC_FIRE, secondaryHex: "#39FF14", mode: "fire_glitch", glitchIntensity: 1, phaseShiftPulseHz: 4.2, hazardIndex: 1, aggressionTrend: 0.012 };
+  }
+  if (payload.kind === "repair") {
+    return { auraHex: lerpHex("#5a0000", THEME_REPAIR_GREEN, 0.42 + phase * 0.16), secondaryHex: THEME_ORGANIC_FIRE, mode: "repair_surgery", glitchIntensity: 0.52 + severity * 0.32, phaseShiftPulseHz: pulse + 0.65, hazardIndex: 0.62 + severity * 0.26, aggressionTrend: 0.004 };
+  }
+  if (payload.kind === "oracle") {
+    return { auraHex: lerpHex(THEME_MARINA_AURA, THEME_ORACLE_GOLD, 0.72 + phase * 0.16), secondaryHex: "#3f2f05", mode: "oracle_gold", glitchIntensity: 0.18 + severity * 0.22, phaseShiftPulseHz: pulse, hazardIndex: 0.22 + severity * 0.18, aggressionTrend: 0.001 };
+  }
+  if (payload.kind === "governance") {
+    return { auraHex: lerpHex("#C0C0C0", THEME_GOVERNANCE_VIOLET, 0.42 + phase * 0.28), secondaryHex: "#E5E7EB", mode: "governance_sovereign", glitchIntensity: 0.12 + severity * 0.18, phaseShiftPulseHz: pulse * 0.72, hazardIndex: 0.18 + severity * 0.22, aggressionTrend: 0.0005 };
+  }
+  if (payload.kind === "observation") {
+    return { auraHex: lerpHex(THEME_MARINA_AURA, THEME_OBSERVATION_VIOLET, 0.66 + phase * 0.22), secondaryHex: "#120a3d", mode: "observation_past", glitchIntensity: 0.18, phaseShiftPulseHz: 0.62 + phase * 0.32, hazardIndex: 0.12, aggressionTrend: -0.002 };
+  }
+  if (payload.kind === "identity") {
+    return { auraHex: lerpHex("#39FF14", THEME_MARINA_AURA, 0.62 + phase * 0.22), secondaryHex: "#032f35", mode: "identity_cyan", glitchIntensity: 0.08 + severity * 0.08, phaseShiftPulseHz: 1.6 + phase, hazardIndex: 0.08 + severity * 0.08, aggressionTrend: 0 };
+  }
+
+  return { auraHex: THEME_MARINA_AURA, secondaryHex: lerpHex("#003844", "#0a1628", phase), mode: "marina", glitchIntensity: 0.04 + phase * 0.08, phaseShiftPulseHz: 0.95 + phase * 0.32, hazardIndex: 0.08 + phase * 0.04, aggressionTrend: 0 };
+}
+
 /** CSS custom properties for root / layout injection */
 export function visualStateToCssVars(state: VisualThemeState): Record<string, string> {
   const periodSec = Math.max(0.12, 1 / Math.max(0.05, state.phaseShiftPulseHz));
@@ -158,10 +216,9 @@ export function visualStateToCssVars(state: VisualThemeState): Record<string, st
   };
 }
 
-// ——— Live ticker hazard bridge (browser + Node) ———
-
 export const THEME_HAZARD_EVENT = "wasd:theme_hazard";
 export const THEME_LOOT_AURA_EVENT = "wasd:loot_aura";
+export const THEME_ARE_EVENT = "wasd:are_event";
 
 export type LiveTickerHazardPayload = {
   hazardIndex?: number;
@@ -187,16 +244,10 @@ function normalizeHazardPayload(p: LiveTickerHazardPayload): { hi: number; at: n
   return { hi: clamp01(hi), at };
 }
 
-/**
- * Push hazard telemetry into the theme pipeline (idempotent for tiny repeats).
- * Call from ScarcityPredictor after `live_ticker_hazard` bus emit and/or from GlobalLiveTicker.
- */
 export function pushLiveTickerHazard(payload: LiveTickerHazardPayload): VisualThemeState {
   const { hi, at } = normalizeHazardPayload(payload);
   const key = `${hi.toFixed(3)}|${at.toFixed(5)}`;
-  if (key === lastDedupeKey && lastVisual) {
-    return lastVisual;
-  }
+  if (key === lastDedupeKey && lastVisual) return lastVisual;
   lastDedupeKey = key;
   const visual = getVisualState(hi, at);
   lastVisual = visual;
@@ -214,13 +265,25 @@ export function pushLootAura(payload: LootAuraPayload): VisualThemeState {
   return visual;
 }
 
-export function subscribeLiveTickerTheme(
-  fn: (detail: { visual: VisualThemeState; payload: LiveTickerHazardPayload }) => void,
-): () => void {
+export function pushAREEventTheme(payload: AREThemeEventPayload): VisualThemeState {
+  const visual = getAREEventVisualState(payload);
+  const key = `are|${payload.kind}|${payload.tick ?? ""}|${payload.active ?? ""}|${payload.severity ?? ""}|${payload.hash ?? ""}|${payload.label ?? ""}`;
+  if (key === lastDedupeKey && lastVisual) return lastVisual;
+  lastDedupeKey = key;
+  lastVisual = visual;
+  themeEmitter.emit(THEME_ARE_EVENT, { visual, payload });
+  themeEmitter.emit("theme_updated", visual);
+  return visual;
+}
+
+export function subscribeLiveTickerTheme(fn: (detail: { visual: VisualThemeState; payload: LiveTickerHazardPayload }) => void): () => void {
   themeEmitter.on(THEME_HAZARD_EVENT, fn);
-  return () => {
-    themeEmitter.off(THEME_HAZARD_EVENT, fn);
-  };
+  return () => themeEmitter.off(THEME_HAZARD_EVENT, fn);
+}
+
+export function subscribeAREEventTheme(fn: (detail: { visual: VisualThemeState; payload: AREThemeEventPayload }) => void): () => void {
+  themeEmitter.on(THEME_ARE_EVENT, fn);
+  return () => themeEmitter.off(THEME_ARE_EVENT, fn);
 }
 
 export function subscribeVisualTheme(fn: (visual: VisualThemeState) => void): () => void {
