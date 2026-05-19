@@ -1,13 +1,9 @@
 {
   "version": 2,
-  "buildCommand": "pnpm build",
-  "installCommand": "pnpm install",
-  "devCommand": "pnpm dev",
-  "outputDirectory": "dist",
-  "framework": null,
-  "cleanUrls": true,
-  "trailingSlash": false,
+  "git": {
+    "deploymentEnabled": false
+  },
   "github": {
-    "silent": false
+    "silent": true
   }
 }
