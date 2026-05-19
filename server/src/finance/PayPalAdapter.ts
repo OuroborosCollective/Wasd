@@ -1,4 +1,5 @@
 import type { Request } from "express";
+import { createHash } from "node:crypto";
 import { SovereignBillingBridge } from "../market/SovereignBillingBridge.js";
 
 export interface PayPalCheckoutRequest {
@@ -33,6 +34,13 @@ function normalizeCredits(raw: unknown): number {
   return Math.floor(credits * 1000) / 1000;
 }
 
+function stableRequestId(input: PayPalCheckoutRequest, credits: number): string {
+  return createHash("sha256")
+    .update(["ARE_PAYPAL_CHECKOUT", input.clientId, input.displayName || input.clientId, credits, input.returnUrl || "", input.cancelUrl || ""].join("|"))
+    .digest("hex")
+    .slice(0, 24);
+}
+
 async function getPayPalAccessToken(): Promise<string> {
   const clientId = requireEnv("PAYPAL_CLIENT_ID");
   const secret = requireEnv("PAYPAL_SECRET");
@@ -52,6 +60,8 @@ async function getPayPalAccessToken(): Promise<string> {
 }
 
 export class PayPalAdapter {
+  private readonly creditedTransactions = new Set<string>();
+
   async createCheckoutLink(input: PayPalCheckoutRequest): Promise<{ ok: true; orderId: string; approvalUrl: string; credits: number }> {
     const credits = normalizeCredits(input.credits);
     if (!input.clientId || credits <= 0) throw new Error("clientId and positive credits are required.");
@@ -63,7 +73,7 @@ export class PayPalAdapter {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
-        "PayPal-Request-Id": `are-${input.clientId}-${credits}-${Date.now()}`,
+        "PayPal-Request-Id": `are-${stableRequestId(input, credits)}`,
       },
       body: JSON.stringify({
         intent: "CAPTURE",
@@ -113,22 +123,33 @@ export class PayPalAdapter {
     };
   }
 
-  async handleWebhook(req: Request): Promise<PayPalVerificationResult & { credited?: boolean; account?: unknown }> {
+  async creditVerifiedTransaction(transactionId: string): Promise<PayPalVerificationResult & { credited: boolean; duplicate: boolean; account?: unknown }> {
+    const verified = await this.verifyTransaction(transactionId);
+    if (!verified.ok || !verified.clientId || verified.credits <= 0 || !verified.transactionId) {
+      return { ...verified, credited: false, duplicate: false };
+    }
+    if (this.creditedTransactions.has(verified.transactionId)) {
+      return { ...verified, credited: false, duplicate: true, message: "PayPal transaction already credited." };
+    }
+    this.creditedTransactions.add(verified.transactionId);
+    const account = SovereignBillingBridge.addCredits(verified.clientId, verified.credits, verified.displayName || verified.clientId);
+    return {
+      ...verified,
+      credited: true,
+      duplicate: false,
+      account,
+      message: "Architekt, externe Ressourcen wurden erfolgreich in Kausalitäts-Credits umgewandelt. Systemstatus: Operational.",
+    };
+  }
+
+  async handleWebhook(req: Request): Promise<PayPalVerificationResult & { credited?: boolean; duplicate?: boolean; account?: unknown }> {
     const event = req.body ?? {};
     const eventType = String(event.event_type || "");
     const transactionId = String(event.resource?.supplementary_data?.related_ids?.order_id || event.resource?.id || event.resource?.invoice_id || "");
     if (!eventType.includes("CHECKOUT") && !eventType.includes("PAYMENT")) {
       return { ok: false, transactionId: transactionId || null, clientId: null, displayName: null, credits: 0, status: eventType || "ignored", message: "Webhook event ignored." };
     }
-    const verified = await this.verifyTransaction(transactionId);
-    if (!verified.ok || !verified.clientId || verified.credits <= 0) return verified;
-    const account = SovereignBillingBridge.addCredits(verified.clientId, verified.credits, verified.displayName || verified.clientId);
-    return {
-      ...verified,
-      credited: true,
-      account,
-      message: "Architekt, externe Ressourcen wurden erfolgreich in Kausalitäts-Credits umgewandelt. Systemstatus: Operational.",
-    };
+    return this.creditVerifiedTransaction(transactionId);
   }
 }
 
