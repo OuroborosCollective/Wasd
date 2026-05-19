@@ -2,6 +2,53 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-slate-900 text-white font-sans;
+:root {
+  color-scheme: dark;
+  --cz-bg: #05060b;
+  --cz-panel: rgba(9, 13, 24, 0.72);
+  --cz-cyan: #00e5ff;
+  --cz-violet: #675cff;
+  --cz-gold: #ffd76a;
+  --cz-green: #39ff14;
+}
+
+html, body, #root { min-height: 100%; margin: 0; background: var(--cz-bg); }
+body { @apply text-white font-sans; }
+button { font: inherit; }
+
+.cz-portal-shell {
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+  padding: 28px;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(0,229,255,.16), transparent 30%),
+    radial-gradient(circle at 84% 12%, rgba(103,92,255,.22), transparent 34%),
+    radial-gradient(circle at 62% 80%, rgba(255,215,106,.12), transparent 32%),
+    linear-gradient(145deg, #04050a, #07101b 52%, #05060b);
+}
+.cz-portal-grid { position: fixed; inset: 0; pointer-events: none; background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,.045) 1px, transparent 1px); background-size: 44px 44px; mask-image: radial-gradient(circle at center, black, transparent 78%); }
+.cz-portal-header { position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 28px; padding: 18px 20px; border: 1px solid rgba(0,229,255,.24); border-radius: 28px; background: rgba(5,8,14,.62); box-shadow: 0 0 34px rgba(0,229,255,.13), inset 0 1px 0 rgba(255,255,255,.08); backdrop-filter: blur(18px); }
+.cz-portal-eyebrow { margin: 0 0 8px; color: var(--cz-cyan); font-size: 11px; font-weight: 900; letter-spacing: .26em; text-transform: uppercase; }
+.cz-portal-header h1 { margin: 0; font-size: clamp(32px, 6vw, 72px); line-height: .9; letter-spacing: -.07em; }
+.cz-live-pill, .cz-back-button { border: 1px solid rgba(57,255,20,.32); border-radius: 999px; padding: 10px 14px; color: #d9ffd2; background: rgba(57,255,20,.07); font-weight: 900; }
+.cz-live-pill span { display: inline-block; width: 9px; height: 9px; margin-right: 8px; border-radius: 50%; background: var(--cz-green); box-shadow: 0 0 14px var(--cz-green); }
+.cz-back-button { border-color: rgba(0,229,255,.34); color: #e7fbff; background: rgba(0,229,255,.08); }
+.cz-portal-main { position: relative; z-index: 1; display: grid; gap: 24px; grid-template-columns: minmax(280px, 420px) 1fr; align-items: start; }
+.cz-hero-card, .cz-module-card, .cz-app-stage { border: 1px solid rgba(0,229,255,.2); border-radius: 28px; background: linear-gradient(135deg, rgba(9,13,24,.82), rgba(9,13,24,.46)); box-shadow: 0 22px 80px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.08); backdrop-filter: blur(18px); }
+.cz-hero-card { padding: 26px; }
+.cz-hero-card h2 { margin: 0 0 14px; font-size: clamp(32px, 5vw, 54px); letter-spacing: -.055em; line-height: .94; }
+.cz-hero-card p:last-child { margin: 0; color: rgba(244,247,255,.68); line-height: 1.65; }
+.cz-module-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; }
+.cz-module-card { min-height: 172px; padding: 20px; text-align: left; color: white; transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease; }
+.cz-module-card:hover { transform: translateY(-3px); border-color: rgba(255,215,106,.48); box-shadow: 0 0 34px rgba(255,215,106,.16), 0 22px 80px rgba(0,0,0,.42); }
+.cz-module-sigil { display: grid; place-items: center; width: 46px; height: 46px; margin-bottom: 18px; border-radius: 16px; background: linear-gradient(135deg, rgba(0,229,255,.14), rgba(103,92,255,.18)); border: 1px solid rgba(0,229,255,.28); color: var(--cz-gold); font-size: 22px; }
+.cz-module-card strong { display: block; font-size: 20px; }
+.cz-module-card small { display: block; margin-top: 8px; color: rgba(244,247,255,.62); line-height: 1.5; }
+.cz-app-stage { position: relative; z-index: 1; padding: 18px; overflow: hidden; }
+
+@media (max-width: 900px) {
+  .cz-portal-shell { padding: 16px; }
+  .cz-portal-header { align-items: flex-start; flex-direction: column; }
+  .cz-portal-main { grid-template-columns: 1fr; }
 }
