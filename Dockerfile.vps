@@ -74,10 +74,14 @@ RUN rm -rf client/dist/2d client/dist/3d client/dist/portal && \
     cp -a /tmp/wasd-3d-dist/. client/dist/3d/ && \
     sed -i 's#"/assets/#"/3d/assets/#g; s#href=/assets/#href=/3d/assets/#g; s#src=/assets/#src=/3d/assets/#g' client/dist/3d/index.html || true
 
+RUN node scripts/write-runtime-entrypoints.mjs
+
 RUN test -f client/dist/index.html && \
     test -f client/dist/2d/index.html && \
     test -f client/dist/3d/index.html && \
-    test -f client/dist/portal/index.html
+    test -f client/dist/portal/index.html && \
+    grep -q 'LIVE_ENTRYPOINTS' client/dist/index.html && \
+    grep -q 'PORTAL ONLINE' client/dist/portal/index.html
 
 FROM node:22-alpine AS runner
 
