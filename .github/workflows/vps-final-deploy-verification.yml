@@ -72,7 +72,7 @@ jobs:
           if [ "$ok" != true ]; then exit 1; fi
 
       - name: Verify deployed VPS runtime
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@v1.2.5
         env:
           DEPLOY_PATH: /opt/areloria
         with:

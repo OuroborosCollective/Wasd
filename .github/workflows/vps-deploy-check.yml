@@ -50,7 +50,7 @@ jobs:
           [ "$ok" = true ]
 
       - name: VPS runtime check over SSH
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@v1.2.5
         env:
           DEPLOY_PATH_SECRET: ${{ secrets.VPS_DEPLOY_PATH || secrets.DEPLOY_PATH }}
           GAME_PORT_INPUT: ${{ github.event.inputs.game_port || '3001' }}
