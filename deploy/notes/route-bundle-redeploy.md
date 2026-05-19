@@ -9,4 +9,4 @@ Expected runtime contents after deployment:
 - /app/client/dist/3d/index.html
 - /app/client/dist/portal/index.html
 
-Timestamp: 2026-05-19T02:45:00+02:00
+Timestamp: 2026-05-19T09:45:00+02:00
