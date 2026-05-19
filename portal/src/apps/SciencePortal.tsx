@@ -10,6 +10,7 @@ import EchoTracker from "../community/EchoTracker";
 import EpochChroniclePanel from "../community/EpochChroniclePanel";
 import ForgePanel from "../community/ForgePanel";
 import InventoryRefinementPanel from "../community/InventoryRefinementPanel";
+import OracleProphecyPanel from "../community/OracleProphecyPanel";
 import AREEventThemeBridge from "./AREEventThemeBridge";
 import ScienceMascotChat from "./ScienceMascotChat";
 import WarfrontCombatHud from "./WarfrontCombatHud";
@@ -152,6 +153,8 @@ export const SciencePortal: React.FC = () => {
           <WarfrontCombatHud visual={visual} active={active} />
 
           <EchoTracker />
+
+          <OracleProphecyPanel />
 
           <InventoryRefinementPanel />
 
