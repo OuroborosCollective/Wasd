@@ -114,7 +114,6 @@ export class ServerBootstrap {
     await initRedisClient();
     app.use("/api/mcp", mcpRoute());
     app.use("/api/v1", scienceMascotRouter());
-    app.use("/api/v1/warfront", warfrontRouter());
     app.use("/api/leaderboard", leaderboardRouter());
     app.use("/api/questlines", questlineRouter());
     app.use("/api/lore", loreRouter());
@@ -135,7 +134,7 @@ export class ServerBootstrap {
         supabase: safeHealthValue<HealthSupabaseSummary>(() => getSupabaseSummary(), { status: "unknown" }),
         auth: { useSupabaseWsLogin: envTruthy("USE_SUPABASE_WS_LOGIN"), requireSupabaseAuth: envTruthy("REQUIRE_SUPABASE_AUTH"), allowGuestLogin: !["0", "false", "no"].includes(process.env.ALLOW_GUEST_LOGIN?.trim().toLowerCase() || ""), allowDevLogin: !["0", "false", "no"].includes(process.env.ALLOW_DEV_LOGIN?.trim().toLowerCase() || "") },
         selfHealing: { active: Boolean(selfHealingStatus.active), patchMode: selfHealingStatus.config?.patchMode ?? "disabled", totalErrors: selfHealingStatus.totalErrors ?? 0, totalHealed: selfHealingStatus.totalHealed ?? 0, healingRate: selfHealingStatus.healingRate ?? 0, featuresProtected: selfHealingStatus.featuresProtected ?? 0 },
-        are: { guard: safeHealthValue(() => tick?.getAREGuardStatus?.() ?? null, null), worldHash: safeHealthValue(() => tick?.getWorldHashSnapshot?.()?.worldHash ?? null, null), replay: safeHealthValue(() => tick?.getReplayRecorderStats?.() ?? null, null) }
+        are: { guard: safeHealthValue(() => tick?.getAREGuardStatus?.() ?? null, null), worldHash: safeHealthValue(() => tick?.getWorldHashSnapshot?.()?.worldHash ?? null, null), replay: safeHealthValue(() => tick?.getReplayRecorderStats?.() ?? null, null), warfront: safeHealthValue(() => tick?.warfrontSystem?.getCycleSnapshot?.() ?? null, null) }
       });
     });
     app.get("/", (req, res, next) => { if (req.headers["user-agent"]?.includes("GoogleHC")) return res.status(200).send("OK"); next(); });
@@ -168,6 +167,7 @@ export class ServerBootstrap {
     (this as any)._tick = tick;
     await tick.init();
     this.initializing = false;
+    app.use("/api/v1/warfront", warfrontRouter(tick));
     app.use("/api/are/validation", areValidationRouter(tick));
     app.use("/api/are/replay", areReplayRouter(tick));
     app.use("/api/finance", express.json({ limit: "1mb" }), financeRouter());
