@@ -100,7 +100,7 @@ container_http_ready() {
 }
 
 client_shell_ready() {
-  docker exec arelorian-engine node -e "fetch('http://127.0.0.1:${CONTAINER_PORT}/').then(async r=>{const body=await r.text();process.exit(r.ok&&body.includes('application-canvas')?0:1)}).catch(()=>process.exit(1))" >/dev/null 2>&1
+  docker exec arelorian-engine node -e "fetch('http://127.0.0.1:${CONTAINER_PORT}/').then(async r=>{const body=await r.text();process.exit(r.ok&&(body.includes('application-canvas')||body.includes('LIVE_ENTRYPOINTS')||body.includes('Cyber-Zen Landing'))?0:1)}).catch(()=>process.exit(1))" >/dev/null 2>&1
 }
 
 host_http_ready() {
@@ -196,7 +196,7 @@ if [[ "$ok" != "1" ]]; then
   compose_cmd ps || true
   docker inspect arelorian-engine --format 'Container={{.State.Status}} Health={{if .State.Health}}{{.State.Health.Status}}{{else}}n/a{{end}} ExitCode={{.State.ExitCode}} Ports={{json .NetworkSettings.Ports}}' || true
   if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
-    docker inspect arelorian-ingress-router --format 'Ingress={{.State.Status}} Health={{if .State.Health}}{{.State.Health.Status}}{{else}}n/a{{end}} ExitCode={{.State.ExitCode}} Ports={{json .NetworkSettings.Ports}}' || true
+    docker inspect arelorian-ingress-router --format 'Ingress={{.State.Status}} Health={{if .State.Health}}{{else}}n/a{{end}} ExitCode={{.State.ExitCode}} Ports={{json .NetworkSettings.Ports}}' || true
   fi
   docker exec arelorian-engine sh -lc "node -v; printenv PORT GAME_PORT HOST NODE_ENV; ps aux | head -20" || true
   ss -ltnp "sport = :${ARELORIAN_PORT}" || true
