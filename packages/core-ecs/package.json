@@ -24,9 +24,9 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^25.9.1",
+    "@types/node": "^25.9.0",
     "@typescript-eslint/eslint-plugin": "^8.59.2",
-    "@typescript-eslint/parser": "^8.59.4",
+    "@typescript-eslint/parser": "^8.59.2",
     "eslint": "^10.3.0",
     "tinyglobby": "^0.2.16",
     "tsup": "^8.5.1",

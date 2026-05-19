@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@wasd/shared": "workspace:*",
-    "framer-motion": "^12.39.0",
+    "framer-motion": "^12.38.0",
     "lucide-react": "^1.14.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
@@ -21,8 +21,8 @@
     "zustand": "^5.0.13"
   },
   "devDependencies": {
-    "@types/node": "^25.9.1",
-    "@types/react": "^19.2.15",
+    "@types/node": "^25.9.0",
+    "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/three": "0.184.1",
     "@vitejs/plugin-react": "^4.3.4",
