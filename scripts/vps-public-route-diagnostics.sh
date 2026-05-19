@@ -6,6 +6,7 @@ PORT="${ARELORIAN_PORT:-3001}"
 NETWORK="${ARELORIAN_DOCKER_NETWORK:-areloria_arelorian-network}"
 
 echo "=== VPS PUBLIC ROUTE DIAGNOSTICS ==="
+echo "Diagnostics revision: trigger-2026-05-19-route-owner"
 echo "Domain: $DOMAIN"
 echo "Engine host port: $PORT"
 echo "Docker network: $NETWORK"
