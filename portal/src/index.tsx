@@ -1,73 +1,57 @@
-import React, { useState } from 'react';
+import React from 'react';
 import ReactDOM from 'react-dom/client';
-import * as Apps from './apps';
 import './app/globals.css';
 
-const App = () => {
-  const [activeApp, setActiveApp] = useState<string | null>(null);
+const cards = [
+  { href: '/are-console.html', sigil: '⌬', name: 'ARE Console', tone: 'Replay / Oracle / AutoRepair / Billing / Governance / Warfront', cls: 'cyan' },
+  { href: '/sovereign-truth.html', sigil: '◈', name: 'Sovereign Truth', tone: 'Commit / Branch / Runtime / Supabase / ARE hash', cls: 'fire' },
+  { href: '/api/v1/warfront/cycle', sigil: '⚔', name: 'Warfront Cycle', tone: 'Live deterministic cycle and front boss truth payload', cls: 'green' },
+  { href: '/api/are/replay/governance/status', sigil: '⚖', name: 'Governance', tone: 'Read-only sovereign council state and directives', cls: 'violet' },
+  { href: '/api/are/replay/oracle/prophecy', sigil: '◎', name: 'Oracle', tone: 'Prophecy engine state generated from replay records', cls: 'cyan' },
+  { href: '/api/are/replay/repair/status', sigil: '✚', name: 'AutoRepair', tone: 'ARE repair and self-healing runtime status', cls: 'fire' },
+];
 
-  const appsList = [
-    { id: 'robot-arm', name: 'Robot Arm', component: Apps.RobotArm, sigil: '⚙️', tone: 'Forge automation and precision motion' },
-    { id: 'medical-console', name: 'Medical Console', component: Apps.MedicalConsole, sigil: '✚', tone: 'Vital signs, triage and recovery loops' },
-    { id: 'logistics', name: 'Logistics Hub', component: Apps.LogisticsHub, sigil: '◇', tone: 'Route pressure and cargo resonance' },
-    { id: 'school-portal', name: 'School Portal', component: Apps.SchoolPortal, sigil: '⌘', tone: 'Learning gates and curriculum flows' },
-    { id: 'logic-grid', name: 'Logic Grid', component: Apps.LogicGrid, sigil: '▦', tone: 'Axiom lattice and deterministic checks' },
-    { id: 'science-portal', name: 'Science Portal', component: Apps.SciencePortal, sigil: '∴', tone: 'Experiment telemetry and ARE probes' },
-    { id: 'agri-sim', name: 'Agri-Sim', component: Apps.AgriSim, sigil: '🌿', tone: 'Biome yields and village supply' },
-    { id: 'urban-flow', name: 'Urban Flow', component: Apps.UrbanFlow, sigil: '▣', tone: 'Town layout, roads and civic rhythm' },
-    { id: 'fitness', name: 'Fitness', component: Apps.FitnessTracker, sigil: '⟁', tone: 'Body metrics and stamina economy' },
-    { id: 'crypto-pulse', name: 'Crypto Pulse', component: Apps.CryptoPulse, sigil: '◈', tone: 'Market signal and treasury pulse' },
-    { id: 'eco-trader', name: 'Eco-Trader', component: Apps.EcoTrader, sigil: '♻', tone: 'Trade pressure and circular goods' },
-    { id: 'social', name: 'Social Hub', component: Apps.SocialHub, sigil: '☉', tone: 'Guild presence and messenger net' },
-    { id: 'arena', name: 'Arena', component: Apps.Arena, sigil: '⚔', tone: 'Combat lobby and challenge board' },
-    { id: 'edu-sim', name: 'Edu-Sim', component: Apps.EduSim, sigil: '✦', tone: 'Scenario trainer and playbook engine' },
-  ];
-
-  const renderActiveApp = () => {
-    const active = appsList.find(a => a.id === activeApp);
-    if (!active) return null;
-    const Component = active.component;
-    return <Component />;
-  };
-
+function App() {
   return (
-    <div className="cz-portal-shell">
+    <div className="cz-portal-shell cz-runtime-portal-hub">
       <div className="cz-portal-grid" />
-      <header className="cz-portal-header">
+      <aside className="cz-runtime-rail">
         <div>
-          <p className="cz-portal-eyebrow">CYBERZEN COMMAND BRIDGE · ARE-LOGIC</p>
-          <h1>{activeApp ? appsList.find((a) => a.id === activeApp)?.name : 'Areloria Portal'}</h1>
+          <div className="cz-runtime-brand">PORTAL<br />HUB</div>
+          <div className="cz-runtime-sub">ARE CONTROL ROOM</div>
         </div>
-        {activeApp ? (
-          <button onClick={() => setActiveApp(null)} className="cz-back-button">← Back to Bridge</button>
-        ) : (
-          <div className="cz-live-pill"><span /> 10Hz visual layer online</div>
-        )}
-      </header>
-
-      {!activeApp ? (
-        <main className="cz-portal-main">
-          <section className="cz-hero-card">
-            <p className="cz-portal-eyebrow">Visual Contract</p>
-            <h2>No more flat slate grid.</h2>
-            <p>Portal modules now sit in the same Cyberzen art direction as the 2D and 3D clients: glass panels, neon borders, fantasy-tech naming and operational module cards.</p>
-          </section>
-          <section className="cz-module-grid">
-            {appsList.map(app => (
-              <button key={app.id} onClick={() => setActiveApp(app.id)} className="cz-module-card">
-                <span className="cz-module-sigil">{app.sigil}</span>
-                <strong>{app.name}</strong>
-                <small>{app.tone}</small>
-              </button>
-            ))}
-          </section>
-        </main>
-      ) : (
-        <main className="cz-app-stage">{renderActiveApp()}</main>
-      )}
+        <nav className="cz-runtime-nodes">
+          <span>Oracle_Core</span>
+          <span>Replay_Ring</span>
+          <span>AutoRepair</span>
+          <span>Warfront_Cycle</span>
+          <span>Truth_Node</span>
+        </nav>
+        <a className="cz-runtime-return" href="/">RETURN_ROOT</a>
+      </aside>
+      <main className="cz-runtime-main">
+        <header className="cz-runtime-top">
+          <b>OUROBOROS // PORTAL</b>
+          <span>TRUTH · ORACLE · GOVERNANCE · WARFRONT</span>
+        </header>
+        <section className="cz-runtime-hero">
+          <div className="cz-runtime-sigil"><div className="cz-runtime-ouro" /></div>
+          <h1>SCIENCE <span>PORTAL.</span><br />TRUTH <em>ONLINE.</em></h1>
+          <p>Central entry for deterministic runtime visibility. Choose a control surface without leaving the Cyber-Zen flow.</p>
+        </section>
+        <section className="cz-runtime-card-grid">
+          {cards.map(card => (
+            <a key={card.href} href={card.href} className={`cz-runtime-card ${card.cls}`}>
+              <i>{card.sigil}</i>
+              <h2>{card.name}</h2>
+              <p>{card.tone}</p>
+            </a>
+          ))}
+        </section>
+        <div className="cz-runtime-status"><span />PORTAL ONLINE [READ_ONLY_SAFE] 10-Hz DETERMINISTIC MESH</div>
+      </main>
     </div>
   );
-};
+}
 
-const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
-root.render(<App />);
+ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(<App />);
