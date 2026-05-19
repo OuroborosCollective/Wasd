@@ -211,6 +211,10 @@ async function main() {
 
   if (checks.includes("clientBuild")) {
     await runCheck("clientBuild", async () => {
+      const shared = await run("pnpm", ["--filter", "@wasd/shared", "run", "build"]);
+      if (shared.code !== 0) {
+        throw new Error(`@wasd/shared build failed before client build: ${shared.stderr.slice(-2000) || shared.stdout.slice(-2000)}`);
+      }
       const r = await run("pnpm", ["--prefix", "client", "run", "build"], {
         env: {
           NODE_OPTIONS: process.env.NODE_OPTIONS || "--max-old-space-size=6144",
