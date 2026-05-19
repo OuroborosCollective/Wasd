@@ -29,6 +29,7 @@ tmp
 *.tar.gz
 *.tgz
 *.zip
+!asset-packs/2d/weapons/wasd-2d-weapon-pool.zip
 *.7z
 *.rar
 image.tar
