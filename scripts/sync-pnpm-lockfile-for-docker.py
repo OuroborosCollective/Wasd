@@ -27,7 +27,7 @@ OVERRIDES = {
     "@babylonjs/loaders": "^9.6.2",
     "react": "^19.2.6",
     "socket.io-client": "^4.8.3",
-    "pg": "^8.20.0",
+    "pg": "^8.21.0",
 }
 OVERRIDES_BLOCK = "overrides:\n" + "".join(
     f"  '{name}': {version}\n" if name.startswith("@") else f"  {name}: {version}\n"
