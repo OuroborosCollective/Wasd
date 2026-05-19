@@ -5,11 +5,29 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'server/**'
+      - 'packages/core-logic/**'
+      - 'packages/shared/**'
+      - 'Dockerfile*'
+      - 'docker-compose*.yml'
+      - 'scripts/deploy-vps-docker.sh'
+      - 'scripts/vps-docker-inline-deploy.sh'
+      - '.github/workflows/vps-docker-deploy.yml'
   pull_request:
     types:
       - closed
     branches:
       - main
+    paths:
+      - 'server/**'
+      - 'packages/core-logic/**'
+      - 'packages/shared/**'
+      - 'Dockerfile*'
+      - 'docker-compose*.yml'
+      - 'scripts/deploy-vps-docker.sh'
+      - 'scripts/vps-docker-inline-deploy.sh'
+      - '.github/workflows/vps-docker-deploy.yml'
   workflow_dispatch:
     inputs:
       reason:
