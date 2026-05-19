@@ -1,0 +1,3 @@
+# Deploy trigger for VPS Docker workflow.
+# Reason: publish Cyber-Zen root selector frontend changes.
+FROM scratch
