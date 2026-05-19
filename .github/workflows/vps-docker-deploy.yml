@@ -19,7 +19,6 @@ on:
       - 'scripts/deploy-vps-docker.sh'
       - 'scripts/vps-docker-inline-deploy.sh'
       - 'scripts/vps-nginx-route-areloria.sh'
-      - 'scripts/vps-nginx-root-hotfix.sh'
       - 'scripts/vps-public-route-diagnostics.sh'
       - 'scripts/write-runtime-entrypoints.mjs'
       - 'scripts/extract-2d-weapon-pool.mjs'
@@ -43,7 +42,6 @@ on:
       - 'scripts/deploy-vps-docker.sh'
       - 'scripts/vps-docker-inline-deploy.sh'
       - 'scripts/vps-nginx-route-areloria.sh'
-      - 'scripts/vps-nginx-root-hotfix.sh'
       - 'scripts/vps-public-route-diagnostics.sh'
       - 'scripts/write-runtime-entrypoints.mjs'
       - 'scripts/extract-2d-weapon-pool.mjs'
@@ -115,7 +113,7 @@ jobs:
           [ "$ok" = true ]
 
       - name: Deploy, install nginx route and diagnose over SSH
-        uses: appleboy/ssh-action@v1.2.5
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
@@ -173,12 +171,10 @@ jobs:
             git clone --branch "$DEPLOY_BRANCH" --depth 1 "$REPO_URL" "$tmp_checkout"
             cd "$tmp_checkout"
             test -f scripts/vps-docker-inline-deploy.sh || { echo "ERROR: missing scripts/vps-docker-inline-deploy.sh"; exit 1; }
-            chmod +x scripts/vps-docker-inline-deploy.sh scripts/vps-public-route-diagnostics.sh scripts/vps-nginx-route-areloria.sh scripts/vps-nginx-root-hotfix.sh
+            chmod +x scripts/vps-docker-inline-deploy.sh scripts/vps-public-route-diagnostics.sh scripts/vps-nginx-route-areloria.sh
             bash scripts/vps-docker-inline-deploy.sh
             echo "=== Installing nginx public route ==="
             ARELORIAN_PUBLIC_DOMAIN='arelorian.de' ARELORIAN_PORT="$ARELORIAN_PORT" bash scripts/vps-nginx-route-areloria.sh
-            echo "=== Applying nginx root redirect hotfix ==="
-            ARELORIAN_PUBLIC_DOMAIN='arelorian.de' bash scripts/vps-nginx-root-hotfix.sh
             echo "=== VPS PUBLIC ROUTE DIAGNOSTICS AFTER DEPLOY ==="
             ARELORIAN_PUBLIC_DOMAIN='arelorian.de' bash scripts/vps-public-route-diagnostics.sh
 
@@ -192,7 +188,3 @@ jobs:
             echo "::error::Public domain does not serve runtime-build-info.json from the new WASD container. Read the nginx installer and VPS PUBLIC ROUTE DIAGNOSTICS AFTER DEPLOY sections above."
             exit 1
           }
-          echo "Checking public roots..."
-          curl -fsSIL --max-time 20 https://arelorian.de/ | head -n 12
-          curl -fsSIL --max-time 20 https://www.arelorian.de/ | head -n 12
-          curl -fsSL --max-time 20 https://www.arelorian.de/portal/ | grep -Ei 'PORTAL|Arelorian|html' >/dev/null
