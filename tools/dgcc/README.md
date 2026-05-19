@@ -12,4 +12,6 @@ DGCC_FIX=1 pnpm run dgcc
 
 Artifacts: `dgcc-artifacts/`
 
-The `minimal` / `extreme` modes also run `pnpm run check:interact` (GameConfig vs `shared/interaction.ts`).
+First-time E2E (Playwright browser install): `pnpm run test:e2e:install`
+
+Interact distance consistency (optional, not part of the default contract): `pnpm run check:interact`

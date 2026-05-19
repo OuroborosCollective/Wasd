@@ -4,6 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "lint": "eslint server/src client/src",
+    "test": "vitest run",
+    "validate": "pnpm --prefix server run validate",
+    "test:e2e:install": "playwright install --with-deps chromium",
+    "test:e2e": "pnpm --prefix server run build && playwright test",
+    "test:e2e:ci": "playwright install chromium && pnpm --prefix server run build && CI=true playwright test",
+    "check:interact": "node scripts/check-interact-consistency.mjs",
+    "ci:verify": "pnpm run lint && pnpm run test",
+    "dgcc": "tsx tools/dgcc/run-dgcc.ts",
+    "dgcc:extreme": "tsx tools/dgcc/run-dgcc.ts --mode=extreme",
     "build": "pnpm -r build",
     "build:web": "pnpm -r --filter @wasd/web build",
     "build:2d": "pnpm -r --filter @wasd/client-2d build",
@@ -22,12 +32,14 @@
     "pnpm": ">=9"
   },
   "devDependencies": {
+    "@playwright/test": "^1.52.0",
     "@types/node": "^25.9.0",
     "@typescript-eslint/eslint-plugin": "^8.59.3",
     "@typescript-eslint/parser": "^8.59.3",
     "concurrently": "^9.2.1",
     "eslint": "^10.3.0",
     "pnpm": "^11.1.1",
+    "tsx": "^4.21.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.6"
   },
