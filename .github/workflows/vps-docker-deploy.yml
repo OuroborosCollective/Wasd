@@ -7,12 +7,19 @@ on:
       - main
     paths:
       - 'server/**'
+      - 'client/**'
+      - 'portal/**'
+      - 'apps/client-2d/**'
+      - 'asset-packs/**'
       - 'packages/core-logic/**'
       - 'packages/shared/**'
       - 'Dockerfile*'
       - 'docker-compose*.yml'
+      - '.dockerignore'
       - 'scripts/deploy-vps-docker.sh'
       - 'scripts/vps-docker-inline-deploy.sh'
+      - 'scripts/write-runtime-entrypoints.mjs'
+      - 'scripts/extract-2d-weapon-pool.mjs'
       - '.github/workflows/vps-docker-deploy.yml'
   pull_request:
     types:
@@ -21,12 +28,19 @@ on:
       - main
     paths:
       - 'server/**'
+      - 'client/**'
+      - 'portal/**'
+      - 'apps/client-2d/**'
+      - 'asset-packs/**'
       - 'packages/core-logic/**'
       - 'packages/shared/**'
       - 'Dockerfile*'
       - 'docker-compose*.yml'
+      - '.dockerignore'
       - 'scripts/deploy-vps-docker.sh'
       - 'scripts/vps-docker-inline-deploy.sh'
+      - 'scripts/write-runtime-entrypoints.mjs'
+      - 'scripts/extract-2d-weapon-pool.mjs'
       - '.github/workflows/vps-docker-deploy.yml'
   workflow_dispatch:
     inputs:
@@ -155,3 +169,14 @@ jobs:
             test -f scripts/vps-docker-inline-deploy.sh || { echo "ERROR: missing scripts/vps-docker-inline-deploy.sh"; exit 1; }
             chmod +x scripts/vps-docker-inline-deploy.sh
             bash scripts/vps-docker-inline-deploy.sh
+
+      - name: Verify public runtime route
+        run: |
+          set -euo pipefail
+          echo "Checking public runtime marker..."
+          body="$(curl -fsSL --max-time 20 https://arelorian.de/runtime-build-info.json || true)"
+          echo "$body"
+          echo "$body" | grep -q 'entrypoints' || {
+            echo "::error::Public domain does not serve runtime-build-info.json from the new WASD container. Check Traefik/nginx route for arelorian.de -> arelorian-engine:3001."
+            exit 1
+          }
