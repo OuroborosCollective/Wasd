@@ -7,20 +7,20 @@ const App = () => {
   const [activeApp, setActiveApp] = useState<string | null>(null);
 
   const appsList = [
-    { id: 'robot-arm', name: 'Robot Arm', component: Apps.RobotArm },
-    { id: 'medical-console', name: 'Medical Console', component: Apps.MedicalConsole },
-    { id: 'logistics', name: 'Logistics Hub', component: Apps.LogisticsHub },
-    { id: 'school-portal', name: 'School Portal', component: Apps.SchoolPortal },
-    { id: 'logic-grid', name: 'Logic Grid', component: Apps.LogicGrid },
-    { id: 'science-portal', name: 'Science Portal', component: Apps.SciencePortal },
-    { id: 'agri-sim', name: 'Agri-Sim', component: Apps.AgriSim },
-    { id: 'urban-flow', name: 'Urban Flow', component: Apps.UrbanFlow },
-    { id: 'fitness', name: 'Fitness', component: Apps.FitnessTracker },
-    { id: 'crypto-pulse', name: 'Crypto Pulse', component: Apps.CryptoPulse },
-    { id: 'eco-trader', name: 'Eco-Trader', component: Apps.EcoTrader },
-    { id: 'social', name: 'Social Hub', component: Apps.SocialHub },
-    { id: 'arena', name: 'Arena', component: Apps.Arena },
-    { id: 'edu-sim', name: 'Edu-Sim', component: Apps.EduSim },
+    { id: 'robot-arm', name: 'Robot Arm', component: Apps.RobotArm, sigil: '⚙️', tone: 'Forge automation and precision motion' },
+    { id: 'medical-console', name: 'Medical Console', component: Apps.MedicalConsole, sigil: '✚', tone: 'Vital signs, triage and recovery loops' },
+    { id: 'logistics', name: 'Logistics Hub', component: Apps.LogisticsHub, sigil: '◇', tone: 'Route pressure and cargo resonance' },
+    { id: 'school-portal', name: 'School Portal', component: Apps.SchoolPortal, sigil: '⌘', tone: 'Learning gates and curriculum flows' },
+    { id: 'logic-grid', name: 'Logic Grid', component: Apps.LogicGrid, sigil: '▦', tone: 'Axiom lattice and deterministic checks' },
+    { id: 'science-portal', name: 'Science Portal', component: Apps.SciencePortal, sigil: '∴', tone: 'Experiment telemetry and ARE probes' },
+    { id: 'agri-sim', name: 'Agri-Sim', component: Apps.AgriSim, sigil: '🌿', tone: 'Biome yields and village supply' },
+    { id: 'urban-flow', name: 'Urban Flow', component: Apps.UrbanFlow, sigil: '▣', tone: 'Town layout, roads and civic rhythm' },
+    { id: 'fitness', name: 'Fitness', component: Apps.FitnessTracker, sigil: '⟁', tone: 'Body metrics and stamina economy' },
+    { id: 'crypto-pulse', name: 'Crypto Pulse', component: Apps.CryptoPulse, sigil: '◈', tone: 'Market signal and treasury pulse' },
+    { id: 'eco-trader', name: 'Eco-Trader', component: Apps.EcoTrader, sigil: '♻', tone: 'Trade pressure and circular goods' },
+    { id: 'social', name: 'Social Hub', component: Apps.SocialHub, sigil: '☉', tone: 'Guild presence and messenger net' },
+    { id: 'arena', name: 'Arena', component: Apps.Arena, sigil: '⚔', tone: 'Combat lobby and challenge board' },
+    { id: 'edu-sim', name: 'Edu-Sim', component: Apps.EduSim, sigil: '✦', tone: 'Scenario trainer and playbook engine' },
   ];
 
   const renderActiveApp = () => {
@@ -31,36 +31,39 @@ const App = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white p-8">
-      <header className="mb-8 flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-cyan-400">ARE-Logic Portal</h1>
-        {activeApp && (
-          <button
-            onClick={() => setActiveApp(null)}
-            className="px-4 py-2 bg-slate-800 rounded hover:bg-slate-700 transition-colors"
-          >
-            ← Back to Portal
-          </button>
+    <div className="cz-portal-shell">
+      <div className="cz-portal-grid" />
+      <header className="cz-portal-header">
+        <div>
+          <p className="cz-portal-eyebrow">CYBERZEN COMMAND BRIDGE · ARE-LOGIC</p>
+          <h1>{activeApp ? appsList.find((a) => a.id === activeApp)?.name : 'Areloria Portal'}</h1>
+        </div>
+        {activeApp ? (
+          <button onClick={() => setActiveApp(null)} className="cz-back-button">← Back to Bridge</button>
+        ) : (
+          <div className="cz-live-pill"><span /> 10Hz visual layer online</div>
         )}
       </header>
 
       {!activeApp ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {appsList.map(app => (
-            <div
-              key={app.id}
-              onClick={() => setActiveApp(app.id)}
-              className="bg-slate-800 p-6 rounded-xl cursor-pointer hover:bg-slate-700 hover:ring-2 hover:ring-cyan-500 transition-all"
-            >
-              <h2 className="text-xl font-bold">{app.name}</h2>
-              <p className="text-sm text-slate-400 mt-2">Click to launch module</p>
-            </div>
-          ))}
-        </div>
+        <main className="cz-portal-main">
+          <section className="cz-hero-card">
+            <p className="cz-portal-eyebrow">Visual Contract</p>
+            <h2>No more flat slate grid.</h2>
+            <p>Portal modules now sit in the same Cyberzen art direction as the 2D and 3D clients: glass panels, neon borders, fantasy-tech naming and operational module cards.</p>
+          </section>
+          <section className="cz-module-grid">
+            {appsList.map(app => (
+              <button key={app.id} onClick={() => setActiveApp(app.id)} className="cz-module-card">
+                <span className="cz-module-sigil">{app.sigil}</span>
+                <strong>{app.name}</strong>
+                <small>{app.tone}</small>
+              </button>
+            ))}
+          </section>
+        </main>
       ) : (
-        <div className="mt-8">
-          {renderActiveApp()}
-        </div>
+        <main className="cz-app-stage">{renderActiveApp()}</main>
       )}
     </div>
   );
