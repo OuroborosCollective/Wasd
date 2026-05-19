@@ -1,10 +1,73 @@
 version: 2
+
 updates:
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: daily
+      interval: weekly
+      day: sunday
+      time: "04:00"
+      timezone: Europe/Berlin
+    open-pull-requests-limit: 5
+    groups:
+      npm-patch-minor-safe:
+        update-types:
+          - patch
+          - minor
+        patterns:
+          - "*"
+    ignore:
+      # Keep toolchain/runtime majors out of automatic PR spam.
+      # Upgrade these manually in dedicated migration branches after CI + deploy checks pass.
+      - dependency-name: vite
+        update-types:
+          - version-update:semver-major
+      - dependency-name: "@vitejs/plugin-react"
+        update-types:
+          - version-update:semver-major
+      - dependency-name: typescript
+        update-types:
+          - version-update:semver-major
+      - dependency-name: pnpm
+        update-types:
+          - version-update:semver-major
+      - dependency-name: typeorm
+        update-types:
+          - version-update:semver-major
+      - dependency-name: "@types/node"
+        update-types:
+          - version-update:semver-major
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+      day: sunday
+      time: "04:30"
+      timezone: Europe/Berlin
+    open-pull-requests-limit: 3
+    groups:
+      github-actions-safe:
+        update-types:
+          - patch
+          - minor
+        patterns:
+          - "*"
+    ignore:
+      # Node 24 based action majors can break runners/workflow assumptions.
+      # Move them only in one explicit CI migration PR.
+      - dependency-name: actions/checkout
+        update-types:
+          - version-update:semver-major
+      - dependency-name: actions/download-artifact
+        update-types:
+          - version-update:semver-major
+      - dependency-name: pnpm/action-setup
+        update-types:
+          - version-update:semver-major
+      - dependency-name: dependabot/fetch-metadata
+        update-types:
+          - version-update:semver-major
+      - dependency-name: azure/login
+        update-types:
+          - version-update:semver-major
