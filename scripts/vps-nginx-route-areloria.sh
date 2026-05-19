@@ -9,7 +9,8 @@ PUBLIC_NGINX_CONF="${PUBLIC_NGINX_CONF:-/etc/nginx/nginx.conf}"
 PUBLIC_NGINX_ROOT="$(dirname "$PUBLIC_NGINX_CONF")"
 INCLUDE_DIR="${PUBLIC_NGINX_ROOT}/conf.d"
 MANAGED_FILE="${INCLUDE_DIR}/99-wasd-areloria.conf"
-BACKUP_DIR="${PUBLIC_NGINX_ROOT}/wasd-backups/${STAMP}"
+BACKUP_ROOT="${WASD_NGINX_BACKUP_ROOT:-/var/backups/wasd-nginx}"
+BACKUP_DIR="${BACKUP_ROOT}/${STAMP}"
 MIME_TYPES_FILE="${PUBLIC_NGINX_ROOT}/mime.types"
 MODULES_ENABLED_DIR="${PUBLIC_NGINX_ROOT}/modules-enabled"
 
@@ -74,6 +75,7 @@ restore_public_nginx_if_possible() {
   if dir_exists "$BACKUP_DIR/nginx-root"; then
     echo "Restoring public nginx root from $BACKUP_DIR/nginx-root"
     run_root rm -rf "$PUBLIC_NGINX_ROOT"
+    run_root mkdir -p "$(dirname "$PUBLIC_NGINX_ROOT")"
     run_root cp -a "$BACKUP_DIR/nginx-root" "$PUBLIC_NGINX_ROOT"
   else
     echo "WARN: No backup exists to restore. Removing managed file only."
@@ -82,7 +84,7 @@ restore_public_nginx_if_possible() {
 }
 
 ensure_public_nginx_support_files() {
-  run_root mkdir -p "$PUBLIC_NGINX_ROOT" "$INCLUDE_DIR" /var/log/nginx /var/lib/nginx/body /var/lib/nginx/proxy /run
+  run_root mkdir -p "$PUBLIC_NGINX_ROOT" "$INCLUDE_DIR" "$BACKUP_ROOT" /var/log/nginx /var/lib/nginx/body /var/lib/nginx/proxy /run
 
   if ! file_exists "$MIME_TYPES_FILE"; then
     echo "WARN: $MIME_TYPES_FILE is missing. Creating minimal WASD mime.types fallback."
@@ -90,7 +92,6 @@ ensure_public_nginx_support_files() {
 types {
     text/html html htm shtml;
     text/css css;
-    text/xml xml;
     text/plain txt log;
     application/javascript js mjs;
     application/json json map;
@@ -207,7 +208,6 @@ server {
 server {
     listen 443 ssl;
     listen [::]:443 ssl;
-    http2 on;
     server_name ${DOMAIN} www.${DOMAIN};
 
     ssl_certificate ${cert_file};
