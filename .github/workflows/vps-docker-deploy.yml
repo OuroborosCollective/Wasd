@@ -6,6 +6,10 @@ on:
     branches:
       - main
     paths:
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '**/package.json'
       - 'server/**'
       - 'client/**'
       - 'portal/**'
@@ -18,6 +22,7 @@ on:
       - '.dockerignore'
       - 'scripts/deploy-vps-docker.sh'
       - 'scripts/vps-docker-inline-deploy.sh'
+      - 'scripts/sync-pnpm-lockfile-for-docker.py'
       - 'scripts/vps-nginx-route-areloria.sh'
       - 'scripts/vps-public-route-diagnostics.sh'
       - 'scripts/write-runtime-entrypoints.mjs'
@@ -29,6 +34,10 @@ on:
     branches:
       - main
     paths:
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '**/package.json'
       - 'server/**'
       - 'client/**'
       - 'portal/**'
@@ -41,6 +50,7 @@ on:
       - '.dockerignore'
       - 'scripts/deploy-vps-docker.sh'
       - 'scripts/vps-docker-inline-deploy.sh'
+      - 'scripts/sync-pnpm-lockfile-for-docker.py'
       - 'scripts/vps-nginx-route-areloria.sh'
       - 'scripts/vps-public-route-diagnostics.sh'
       - 'scripts/write-runtime-entrypoints.mjs'
