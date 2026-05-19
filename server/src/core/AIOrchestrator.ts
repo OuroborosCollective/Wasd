@@ -15,7 +15,7 @@ export class AIOrchestrator {
    // Limits for AI Pro (100 tasks/day)
    private static readonly MAX_DAILY_TASKS = 100;
    private static taskCount = 0;
-   private static lastTaskReset = Date.now();
+   private static lastTaskReset = Date.now(); // @are-determinism-allow: meta reset tracking
 
    private static taskQueue: TaskPayload[] = [];
    private static isProcessingQueue = false;
@@ -31,9 +31,9 @@ export class AIOrchestrator {
 
    private static resetTaskCountIfNeeded() {
        const ONE_DAY = 24 * 60 * 60 * 1000;
-       if (Date.now() - this.lastTaskReset > ONE_DAY) {
+       if (Date.now() /* @are-determinism-allow */ - this.lastTaskReset > ONE_DAY) {
            this.taskCount = 0;
-           this.lastTaskReset = Date.now();
+           this.lastTaskReset = Date.now(); // @are-determinism-allow
        }
    }
 
@@ -119,10 +119,10 @@ export class AIOrchestrator {
                  return fallbackFn();
             }
 
-            const startTime = Date.now();
+            const startTime = Date.now(); // @are-determinism-allow
             const TIMEOUT_MS = 5 * 60 * 1000;
 
-            while (Date.now() - startTime < TIMEOUT_MS) {
+            while (Date.now() /* @are-determinism-allow */ - startTime < TIMEOUT_MS) {
                 const pollRes = await fetch(`${this.JULES_API_URL}/sessions/${sessionId}/activities?pageSize=50`, {
                     headers: {
                         "x-goog-api-key": process.env.JULES_API_KEY || ''
