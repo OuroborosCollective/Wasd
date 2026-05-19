@@ -23,6 +23,7 @@ import { deterministicTickRecorder, type DeterministicRecorderStats, type Determ
 import { ouroborosOracleEngine, type OracleReport } from "../are/OuroborosOracle.js";
 import { areAutoRepairService, type AutoRepairStatus } from "../are/AREAutoRepairService.js";
 import { deterministicUsageTracker, type DeterministicUsageStats } from "../are/DeterministicUsageTracker.js";
+import { KappaPosGrid } from "@wasd/shared";
 
 function sectorOf(entity: any): number {
   const x = Number(entity?.position?.x ?? 0);
@@ -176,7 +177,7 @@ export class WorldTick {
     const charName = player.name;
     const nowTick = this.tickCount;
     const checkCooldown = (cooldownMs: number) => { const cooldownTicks = Math.max(1, Math.ceil(cooldownMs / 100)); const pTimes = this.lastActionTimes.get(charName) || {}; const last = pTimes["general"] || 0; if (nowTick - last < cooldownTicks) return false; pTimes["general"] = nowTick; this.lastActionTimes.set(charName, pTimes); return true; };
-    if (msg.type === "move_intent" || msg.type === "MOVE") { const speed = 5; let dx = Number(msg.dx) || 0; let dy = Number(msg.dy ?? msg.dz) || 0; const magSq = dx * dx + dy * dy; if (magSq > 1) { const mag = Math.sqrt(magSq); dx /= mag; dy /= mag; } if (!Number.isNaN(dx) && !Number.isNaN(dy)) { player.position.x += dx * speed; player.position.y += dy * speed; player.position.x = Math.floor(player.position.x * 1000) / 1000; player.position.y = Math.floor(player.position.y * 1000) / 1000; this.observerEngine.updatePosition(id, { x: player.position.x, y: player.position.y }); } }
+    if (msg.type === "move_intent" || msg.type === "MOVE") { const speed = 5; let dx = Number(msg.dx) || 0; let dy = Number(msg.dy ?? msg.dz) || 0; const magSq = dx * dx + dy * dy; if (magSq > 1) { const mag = Math.sqrt(magSq); dx /= mag; dy /= mag; } if (!Number.isNaN(dx) && !Number.isNaN(dy)) { const current = KappaPosGrid.create(player.position.x, player.position.y, player.position.z || 0); const moved = KappaPosGrid.move(current, dx * speed, dy * speed, 0, 1); player.position.x = KappaPosGrid.toExternal(moved.x); player.position.y = KappaPosGrid.toExternal(moved.y); player.position.z = KappaPosGrid.toExternal(moved.z ?? 0); this.observerEngine.updatePosition(id, { x: player.position.x, y: player.position.y }); } }
     else if (msg.type === "chat") { if (msg.text && typeof msg.text === "string" && msg.text.trim().length > 0) this.ws.broadcast({ type: "CHAT_MSG", payload: { channel: msg.channel || "local", sender: player.name, text: msg.text.trim() }}); }
     else if (msg.type === "USE_SKILL") { const skillId = msg.skillId; if (skillId === "atk" && !checkCooldown(800)) return; if (skillId === "def") player.mana = Math.min(player.maxMana, player.mana + 10); if (skillId === "mag" && !checkCooldown(3000)) return; if ((skillId === "mag" || skillId === "atk") && !checkCooldown(800)) return; }
     else if (msg.type === "attack") { if (!checkCooldown(800)) return; this.handleAttack(id, player, msg); }
