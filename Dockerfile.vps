@@ -35,11 +35,13 @@ RUN find packages apps projects -type f ! -name package.json -delete || true && 
       'packages:' \
       '  - server' \
       '  - client' \
+      '  - portal' \
+      '  - apps/client-2d' \
       '  - packages/core-logic' \
       '  - packages/shared' \
       > pnpm-workspace.yaml && \
     python3 scripts/sync-pnpm-lockfile-for-docker.py && \
-    pnpm --filter @wasd/server... --filter @wasd/client... --filter @wasd/core-logic... --filter @wasd/shared... install --frozen-lockfile --prefer-offline --ignore-scripts
+    pnpm --filter @wasd/server... --filter @wasd/client... --filter @wasd/portal... --filter @wasd/client-2d... --filter @wasd/core-logic... --filter @wasd/shared... install --frozen-lockfile --prefer-offline --ignore-scripts
 
 COPY . .
 RUN rm -rf packages/sdk-examples || true && \
@@ -55,8 +57,24 @@ RUN pnpm --filter @wasd/core-logic --if-present run build:runtime && \
 RUN node scripts/sync-world-assets.mjs || true
 
 RUN pnpm --filter @wasd/client --if-present build || \
-    (mkdir -p client/dist && \
-     printf '%s\n' '<!doctype html><html><body><main id="application-canvas">Areloria backend is online</main></body></html>' > client/dist/index.html)
+    (mkdir -p client/dist && printf '%s\n' '<!doctype html><html><body><main id="application-canvas">Areloria 3D unavailable</main></body></html>' > client/dist/index.html)
+
+RUN pnpm --filter @wasd/client-2d --if-present build || \
+    (mkdir -p apps/client-2d/dist && printf '%s\n' '<!doctype html><html><body><main id="application-canvas">Areloria 2D unavailable</main></body></html>' > apps/client-2d/dist/index.html)
+
+RUN VITE_BASE_PATH=/portal/ pnpm --filter @wasd/portal --if-present build || \
+    (mkdir -p portal/dist && printf '%s\n' '<!doctype html><html><body><main id="application-canvas">Areloria portal unavailable</main></body></html>' > portal/dist/index.html)
+
+RUN mkdir -p client/dist/2d client/dist/3d client/dist/portal && \
+    cp -a apps/client-2d/dist/. client/dist/2d/ && \
+    cp -a portal/dist/. client/dist/portal/ && \
+    cp -a client/dist/. client/dist/3d/ && \
+    sed -i 's#"/assets/#"/3d/assets/#g; s#href=/assets/#href=/3d/assets/#g; s#src=/assets/#src=/3d/assets/#g' client/dist/3d/index.html || true
+
+RUN test -f client/dist/index.html && \
+    test -f client/dist/2d/index.html && \
+    test -f client/dist/3d/index.html && \
+    test -f client/dist/portal/index.html
 
 FROM node:22-alpine AS runner
 
