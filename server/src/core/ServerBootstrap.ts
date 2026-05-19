@@ -16,6 +16,7 @@ import { scienceMascotRouter } from "../api/scienceMascotRoute.js";
 import { warfrontRouter } from "../api/warfrontRoute.js";
 import { areValidationRouter } from "../api/areValidationRoute.js";
 import { areReplayRouter } from "../api/areReplayRoute.js";
+import { financeRouter } from "../api/financeRoute.js";
 import { sovereignDeployRouter } from "../api/sovereignDeployRoute.js";
 import { healthRoutes } from "../api/healthRoutes.js";
 import { getContentDataSourceLabel, resolveContentDir } from "../modules/content/contentDataRoot.js";
@@ -169,6 +170,7 @@ export class ServerBootstrap {
     this.initializing = false;
     app.use("/api/are/validation", areValidationRouter(tick));
     app.use("/api/are/replay", areReplayRouter(tick));
+    app.use("/api/finance", express.json({ limit: "1mb" }), financeRouter());
     app.use("/api/sovereign/deploy", sovereignDeployRouter(tick));
     const monitorStream = new PlaytesterMonitorStream(httpServer, (options) => tick.buildPlaytesterMonitorPayload(options));
     monitorStream.start();
