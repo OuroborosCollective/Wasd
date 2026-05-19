@@ -1,0 +1,141 @@
+:root {
+  color-scheme: dark;
+  --cz-bg: #05060b;
+  --cz-panel: rgba(13, 17, 28, 0.86);
+  --cz-line: rgba(103, 92, 255, 0.42);
+  --cz-aura: #675cff;
+  --cz-cyan: #00e5ff;
+  --cz-gold: #ffd76a;
+  --cz-text: #f4f7ff;
+  --cz-muted: rgba(244, 247, 255, 0.66);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(103, 92, 255, 0.22), transparent 32%),
+    radial-gradient(circle at 82% 28%, rgba(0, 229, 255, 0.12), transparent 30%),
+    linear-gradient(145deg, #04050a 0%, #080b12 52%, #05060b 100%);
+  color: var(--cz-text);
+}
+
+.cz-login-root {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px),
+    linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px);
+  background-size: 38px 38px;
+}
+
+.cz-login-card {
+  width: min(520px, 94vw);
+  border: 1px solid var(--cz-line);
+  border-radius: 28px;
+  padding: 28px;
+  background: var(--cz-panel);
+  box-shadow: 0 0 42px rgba(103, 92, 255, 0.22), inset 0 1px 0 rgba(255,255,255,0.08);
+  backdrop-filter: blur(18px);
+}
+
+.cz-eyebrow {
+  color: var(--cz-cyan);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  font-weight: 800;
+}
+
+.cz-login-card h1 {
+  margin: 12px 0 10px;
+  font-size: clamp(34px, 8vw, 56px);
+  line-height: 0.94;
+  letter-spacing: -0.06em;
+}
+
+.cz-login-card p {
+  margin: 0 0 22px;
+  color: var(--cz-muted);
+  line-height: 1.55;
+}
+
+.cz-field {
+  display: grid;
+  gap: 8px;
+  color: var(--cz-muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.cz-field input {
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 16px;
+  padding: 14px 16px;
+  color: var(--cz-text);
+  background: rgba(0,0,0,0.38);
+  outline: none;
+  font-size: 18px;
+}
+
+.cz-field input:focus {
+  border-color: var(--cz-cyan);
+  box-shadow: 0 0 0 3px rgba(0,229,255,0.16);
+}
+
+.cz-keybox {
+  margin: 14px 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,215,106,0.24);
+  background: rgba(255,215,106,0.08);
+  color: var(--cz-muted);
+}
+
+.cz-keybox strong {
+  color: var(--cz-gold);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.cz-enter {
+  width: 100%;
+  border: 0;
+  border-radius: 18px;
+  padding: 15px 18px;
+  color: #05060b;
+  background: linear-gradient(135deg, var(--cz-cyan), var(--cz-gold));
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: 0 0 24px rgba(0, 229, 255, 0.22);
+}
+
+.cz-hints {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cz-hints span {
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: var(--cz-muted);
+  background: rgba(255,255,255,0.04);
+  font-size: 12px;
+}
+
+canvas {
+  display: block;
+  filter: saturate(1.08) contrast(1.04);
+}
