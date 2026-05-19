@@ -41,7 +41,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.0",
     "@testing-library/react": "^16.3.2",
-    "@types/react": "^19.2.14",
+    "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
     "@types/socket.io-client": "^3.0.0",
     "@types/three": "0.184.1",
