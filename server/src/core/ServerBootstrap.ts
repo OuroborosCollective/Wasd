@@ -187,6 +187,8 @@ export class ServerBootstrap {
     const clientRoot = resolveClientRoot();
     const clientPath = path.join(clientRoot, "dist");
     const itchClientPath = path.join(clientRoot, "dist-itch");
+    const e2eSmokePath = path.join(clientRoot, "public", "e2e-smoke.html");
+    if (existsSync(e2eSmokePath)) app.get("/e2e-smoke.html", (_req, res) => res.sendFile(e2eSmokePath));
     const adminContentPath = resolveAdminContentHtmlPath(clientRoot, clientPath);
     if (adminContentPath) app.get("/admin-content.html", (_req, res) => res.sendFile(adminContentPath));
     if (existsSync(path.join(itchClientPath, "index.html"))) { app.use("/itch", express.static(itchClientPath, { index: "index.html" })); app.get("/itch/*", (_req, res) => res.sendFile(path.join(itchClientPath, "index.html"))); }
