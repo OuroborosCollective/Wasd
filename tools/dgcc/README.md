@@ -12,4 +12,8 @@ DGCC_FIX=1 pnpm run dgcc
 
 Artifacts: `dgcc-artifacts/`
 
-The `minimal` / `extreme` modes also run `pnpm run check:interact` (GameConfig vs `shared/interaction.ts`).
+The `unit` step runs `pnpm run test:dgcc` (shared build plus `validate-content-core` Vitest). Use `pnpm run test` for the full suite.
+
+`extreme` mode includes `serverBuild` but not `clientBuild` until the Babylon/Vite client production bundle is aligned in this monorepo; run `pnpm --prefix client run build` separately when working on the client.
+
+Optional interact-radius consistency (not part of DGCC modes): `pnpm run check:interact` (GameConfig vs `packages/shared/src/utils/interaction.ts`).

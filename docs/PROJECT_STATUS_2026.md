@@ -14,6 +14,12 @@ Use it before trusting older reconstruction or handover docs.
 | Networking | WebSocket (`ws`) via `server/src/networking/WebSocketServer.ts` |
 | Data content root | `game-data/` by default, optional published pack via `USE_PUBLISHED_CONTENT` / `CONTENT_PACK_DIR` |
 
+## Quality gates
+
+| Item | Status |
+|------|--------|
+| DGCC (design + gameplay consistency) | `pnpm run dgcc` (minimal) and `pnpm run dgcc:extreme`; contract and runner under `tools/dgcc/` |
+
 ## Authentication and persistence
 
 | Item | Status |
