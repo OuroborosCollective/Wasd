@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Application, Assets, Container, Graphics, Sprite, Text, Texture } from "pixi.js";
 import { createClient } from "@wasd/core-network";
 import { fallbackEntry, loadAssetManifest, type AssetEntry, type AssetManifest } from "./assetManifest";
+import { ArelorianStitchHud } from "./ArelorianStitchHud";
 
 const TILE_W = 96;
 const TILE_H = 48;
@@ -77,7 +78,7 @@ function propHouse(assets?: LoadedAssets | null) {
 function avatar(name: string, player = false, assets?: LoadedAssets | null) {
   const c = new Container();
   const aura = player ? 0x00e5ff : 0x39ff14;
-  const entry = fallbackEntry(assets?.manifest ?? null, player ? "characters" : "characters", player ? "player" : "npc");
+  const entry = fallbackEntry(assets?.manifest ?? null, "characters", player ? "player" : "npc");
   const tex = textureFor(assets ?? null, entry);
   c.addChild(new Graphics().ellipse(0, 18, 23, 8).fill({ color: 0x02040a, alpha: 0.56 }));
   if (tex) c.addChild(spriteFromTexture(tex, 58, 74));
@@ -100,7 +101,7 @@ async function load2DAssets(): Promise<LoadedAssets> {
   const manifest = await loadAssetManifest();
   const urls = new Set<string>();
   if (manifest) {
-    [manifest.tilesets, manifest.characters, manifest.monsters, manifest.buildings, manifest.props, manifest.fx, manifest.ui].forEach((group) => {
+    [manifest.tilesets, manifest.characters, manifest.monsters, manifest.buildings, manifest.props, manifest.fx, manifest.ui, manifest.weapons].forEach((group) => {
       Object.values(group ?? {}).forEach((entry) => { if (entry.src) urls.add(entry.src); });
     });
   }
@@ -120,8 +121,10 @@ export function CyberZenIsoApp() {
   const clientRef = useRef<ReturnType<typeof createClient> | null>(null);
   const keys = useRef(new Set<string>());
   const moveAt = useRef(0);
+  const playerName = localStorage.getItem("wasd:2d:name") || "Architect";
   const [connected, setConnected] = useState(false);
   const [assetStatus, setAssetStatus] = useState("ASSETS_LOADING");
+  const [weaponCount, setWeaponCount] = useState(0);
   const [messages, setMessages] = useState<Msg[]>([{ from: "Oracle", txt: "Cyberzen 2.5D shell online." }]);
 
   useEffect(() => {
@@ -140,12 +143,14 @@ export function CyberZenIsoApp() {
       const loaded = await load2DAssets();
       assetRef.current = loaded;
       const textureCount = loaded.textures.size;
+      const weapons = Object.keys(loaded.manifest?.weapons ?? {}).length;
+      setWeaponCount(weapons);
       setAssetStatus(textureCount > 0 ? `ASSETS_${textureCount}_LOADED` : "PROXY_GRAPHICS");
-      setMessages(m => [...m.slice(-12), { from: "AssetRig", txt: textureCount > 0 ? `Loaded ${textureCount} 2D textures from manifest.` : "No manifest textures yet. Using proxy graphics." }]);
+      setMessages(m => [...m.slice(-12), { from: "AssetRig", txt: textureCount > 0 ? `Loaded ${textureCount} textures and ${weapons} weapon visuals.` : "No manifest textures yet. Using proxy graphics." }]);
       const terrain = new Container(); const props = new Container(); const actors = new Container(); actors.sortableChildren = true;
       app.stage.addChild(terrain, props, actors);
       buildScene(app, terrain, props, loaded);
-      addActor(app, actors, "self", 0, 0, localStorage.getItem("wasd:2d:name") || "Architect", true, loaded);
+      addActor(app, actors, "self", 0, 0, playerName, true, loaded);
       addActor(app, actors, "elder", 2, 1, "Millbrook Elder", false, loaded);
       startNetwork(app, actors);
       app.ticker.add(() => tick(app, actors));
@@ -190,5 +195,36 @@ export function CyberZenIsoApp() {
     layer.sortChildren();
   }
 
-  return <div className="az-shell"><div ref={host} className="az-pixi" /><header className="az-top"><div><small>CYBERZEN 2.5D · {assetStatus}</small><b>Areloria · Millbrook</b></div><span>{connected ? "ONLINE" : "CONNECTING"}</span></header><nav className="az-skills"><button>⚔️<small>Strike</small></button><button>🛡️<small>Guard</small></button><button>✦<small>Aether</small></button><button>☉<small>Talk</small></button></nav><section className="az-chat">{messages.slice(-4).map((m, i) => <p key={i}><b>{m.from}</b> {m.txt}</p>)}</section><footer className="az-hint">WASD move · isometric terrain · manifest sprites active when /2d-assets/manifest.json exists</footer></div>;
+  function sendSkill(skillId: string) {
+    clientRef.current?.sendPlayerAction("USE_SKILL", { skillId });
+    setMessages(m => [...m.slice(-12), { from: "Combat", txt: `Skill queued: ${skillId}` }]);
+  }
+
+  function sendChat(text: string) {
+    clientRef.current?.sendPlayerAction("chat", { text, channel: "local" });
+    setMessages(m => [...m.slice(-12), { from: playerName, txt: text }]);
+  }
+
+  function interact() {
+    clientRef.current?.sendPlayerAction("interact", { targetId: "elder" });
+    setMessages(m => [...m.slice(-12), { from: "System", txt: "Interaction ping sent." }]);
+  }
+
+  return (
+    <div className="az-shell">
+      <div className="az-world-glow" />
+      <div ref={host} className="az-pixi" />
+      <ArelorianStitchHud
+        connected={connected}
+        assetStatus={assetStatus}
+        weaponCount={weaponCount}
+        playerName={playerName}
+        messages={messages}
+        onSkill={sendSkill}
+        onChat={sendChat}
+        onInteract={interact}
+        onToggleAutoMove={() => setMessages(m => [...m.slice(-12), { from: "Navigator", txt: "Auto-route planner not yet linked." }])}
+      />
+    </div>
+  );
 }
