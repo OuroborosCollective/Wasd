@@ -8,8 +8,7 @@ PUBLIC_NGINX_BIN="${PUBLIC_NGINX_BIN:-/usr/sbin/nginx}"
 PUBLIC_NGINX_CONF="${PUBLIC_NGINX_CONF:-/etc/nginx/nginx.conf}"
 PUBLIC_NGINX_ROOT="$(dirname "$PUBLIC_NGINX_CONF")"
 INCLUDE_DIR="${PUBLIC_NGINX_ROOT}/conf.d"
-MANAGED_FILE="${INCLUDE_DIR}/00-wasd-areloria.conf"
-LEGACY_MANAGED_FILE="${INCLUDE_DIR}/99-wasd-areloria.conf"
+MANAGED_FILE="${INCLUDE_DIR}/99-wasd-areloria.conf"
 BACKUP_ROOT="${WASD_NGINX_BACKUP_ROOT:-/var/backups/wasd-nginx}"
 BACKUP_DIR="${BACKUP_ROOT}/${STAMP}"
 MIME_TYPES_FILE="${PUBLIC_NGINX_ROOT}/mime.types"
@@ -79,8 +78,8 @@ restore_public_nginx_if_possible() {
     run_root mkdir -p "$(dirname "$PUBLIC_NGINX_ROOT")"
     run_root cp -a "$BACKUP_DIR/nginx-root" "$PUBLIC_NGINX_ROOT"
   else
-    echo "WARN: No backup exists to restore. Removing managed files only."
-    run_root rm -f "$MANAGED_FILE" "$LEGACY_MANAGED_FILE" 2>/dev/null || true
+    echo "WARN: No backup exists to restore. Removing managed file only."
+    run_root rm -f "$MANAGED_FILE" 2>/dev/null || true
   fi
 }
 
@@ -182,51 +181,6 @@ ensure_public_nginx_conf_includes_conf_d() {
   rm -f "$tmp"
 }
 
-write_proxy_location() {
-  local match="$1"
-  cat <<EOF
-    location ${match} {
-        proxy_pass ${UPSTREAM};
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection \$wasd_connection_upgrade;
-        proxy_read_timeout 3600;
-        proxy_send_timeout 3600;
-        proxy_buffering off;
-    }
-EOF
-}
-
-write_locations() {
-  cat <<EOF
-    location = /2d {
-        return 301 /2d/;
-    }
-
-$(write_proxy_location "^~ /2d/")
-
-    location = /3d {
-        return 301 /3d/;
-    }
-
-$(write_proxy_location "^~ /3d/")
-
-    location = /portal {
-        return 301 /portal/;
-    }
-
-$(write_proxy_location "^~ /portal/")
-
-$(write_proxy_location "^~ /ws")
-
-$(write_proxy_location "/")
-EOF
-}
-
 write_route_conf() {
   local cert_file="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
   local cert_key="/etc/letsencrypt/live/${DOMAIN}/privkey.pem"
@@ -238,7 +192,6 @@ write_route_conf() {
 # Generated: ${STAMP}
 # Domain: ${DOMAIN}
 # Upstream: ${UPSTREAM}
-# Loaded as 00-* so stale generic /2d aliases/proxies are less likely to win.
 
 map \$http_upgrade \$wasd_connection_upgrade {
     default upgrade;
@@ -260,7 +213,19 @@ server {
     ssl_certificate ${cert_file};
     ssl_certificate_key ${cert_key};
 
-$(write_locations)
+    location / {
+        proxy_pass ${UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \$wasd_connection_upgrade;
+        proxy_read_timeout 3600;
+        proxy_send_timeout 3600;
+        proxy_buffering off;
+    }
 }
 EOF
   else
@@ -270,7 +235,6 @@ EOF
 # Generated: ${STAMP}
 # Domain: ${DOMAIN}
 # Upstream: ${UPSTREAM}
-# Loaded as 00-* so stale generic /2d aliases/proxies are less likely to win.
 
 map \$http_upgrade \$wasd_connection_upgrade {
     default upgrade;
@@ -282,7 +246,19 @@ server {
     listen [::]:80;
     server_name ${DOMAIN} www.${DOMAIN};
 
-$(write_locations)
+    location / {
+        proxy_pass ${UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \$wasd_connection_upgrade;
+        proxy_read_timeout 3600;
+        proxy_send_timeout 3600;
+        proxy_buffering off;
+    }
 }
 EOF
   fi
@@ -305,7 +281,6 @@ echo "Domain: ${DOMAIN} www.${DOMAIN}"
 echo "Upstream: ${UPSTREAM}"
 echo "Public nginx binary: ${PUBLIC_NGINX_BIN}"
 echo "Public nginx config: ${PUBLIC_NGINX_CONF}"
-echo "Managed config: ${MANAGED_FILE}"
 
 if [ ! -x "$PUBLIC_NGINX_BIN" ]; then
   echo "ERROR: public nginx binary $PUBLIC_NGINX_BIN not found/executable." >&2
@@ -327,7 +302,7 @@ ensure_public_nginx_support_files
 write_minimal_public_nginx_conf_if_missing
 ensure_public_nginx_conf_includes_conf_d
 
-run_root rm -f "$MANAGED_FILE" "$LEGACY_MANAGED_FILE" 2>/dev/null || true
+run_root rm -f "$MANAGED_FILE" 2>/dev/null || true
 write_route_conf
 
 echo "Testing public nginx config..."
@@ -344,11 +319,7 @@ public_nginx_reload_or_restart
 echo "Testing local nginx Host route after install..."
 curl -ksSL --max-time 10 -H "Host: ${DOMAIN}" "https://127.0.0.1/runtime-build-info.json" | head -c 800 || true
 echo
-curl -ksSL --max-time 10 -H "Host: ${DOMAIN}" "https://127.0.0.1/2d/" | head -c 800 || true
-echo
 curl -sSL --max-time 10 -H "Host: ${DOMAIN}" "http://127.0.0.1/runtime-build-info.json" | head -c 800 || true
-echo
-curl -sSL --max-time 10 -H "Host: ${DOMAIN}" "http://127.0.0.1/2d/" | head -c 800 || true
 echo
 
 echo "Public socket owners after route install:"
