@@ -22,6 +22,9 @@ export default defineConfig(({ mode }) => {
   const generateInlineSourceMap = !isProduction;
 
   return {
+    esbuild: {
+      target: "es2022",
+    },
     // Relative base for itch.io builds ensures assets load correctly regardless of subfolder
     base: isItchBuild ? "./" : "/",
     resolve: {
@@ -71,6 +74,8 @@ export default defineConfig(({ mode }) => {
       },
     ],
     build: {
+      /** Required for Vite/Rollup output that uses top-level await (dynamic import preload helpers). */
+      target: "es2022",
       outDir: isItchBuild ? "dist-itch" : "dist",
       emptyOutDir: true,
       // Production minification

@@ -76,11 +76,11 @@ Use it before trusting older reconstruction or handover docs.
 
 | Item | Status |
 |------|--------|
-| Unit/integration tests | Vitest (`pnpm run test`) |
+| Unit/integration tests | Vitest (`pnpm run test`; builds `@wasd/shared` first) |
 | E2E tests | Playwright (`pnpm run test:e2e`, `pnpm run test:e2e:ci`) |
 | Lint | ESLint (`pnpm run lint`) |
 | Build | Root build compiles client then server (`pnpm run build`) |
-| CI baseline | Lint + tests + build + model-path audit + e2e workflow exists |
+| CI baseline / DGCC | `pnpm run dgcc` (default gate: lint, interact check, E2E smoke, validate, audits); `pnpm run ci:verify` omits E2E |
 
 ## Important clarifications
 

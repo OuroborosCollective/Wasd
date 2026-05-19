@@ -13,6 +13,18 @@
     "dev:3d": "pnpm -r --filter @wasd/client dev",
     "dev:all": "concurrently \"pnpm dev:2d\" \"pnpm dev:3d\" \"pnpm dev:web\"",
     "build:all": "pnpm build:2d && pnpm build:3d && pnpm build:web",
+    "lint": "eslint server/src client/src",
+    "test": "pnpm --filter @wasd/shared build && DATABASE_URL= vitest run",
+    "validate": "tsx server/src/tools/validateContent.ts",
+    "audit:model-paths": "tsx server/src/tools/auditModelPaths.ts",
+    "check:interact": "node scripts/check-interact-consistency.mjs",
+    "test:e2e:install": "playwright install chromium",
+    "test:e2e": "playwright test",
+    "test:e2e:ci": "CI=1 pnpm --filter @wasd/shared build && pnpm --prefix client run build && pnpm --prefix server run build && playwright install chromium && playwright test",
+    "ci:verify": "pnpm run lint && pnpm run test && pnpm run validate && pnpm run check:interact && pnpm run audit:model-paths",
+    "dgcc": "tsx tools/dgcc/run-dgcc.ts",
+    "dgcc:extreme": "tsx tools/dgcc/run-dgcc.ts --mode=extreme",
+    "dgcc:selfheal": "bash tools/dgcc/selfheal-wrapper.sh",
     "guard:monorepo": "node scripts/monorepo-guard.mjs",
     "guard:monorepo:frozen": "MONOREPO_GUARD_RUN_PNPM=1 node scripts/monorepo-guard.mjs",
     "clean": "pnpm -r exec rm -rf dist node_modules"
@@ -22,12 +34,14 @@
     "pnpm": ">=9"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@types/node": "^25.9.1",
     "@typescript-eslint/eslint-plugin": "^8.59.3",
     "@typescript-eslint/parser": "^8.59.4",
     "concurrently": "^9.2.1",
     "eslint": "^10.3.0",
     "pnpm": "^11.1.3",
+    "tsx": "^4.20.5",
     "typescript": "^6.0.3",
     "vitest": "^4.1.6"
   },

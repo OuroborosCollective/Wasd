@@ -353,6 +353,14 @@ pnpm --filter @wasd/shared --if-present build
 pnpm --filter @wasd/client --if-present build
 ```
 
+Repository consistency gate (lint, interact-distance check, Playwright smoke, content validation, light audits):
+
+```bash
+pnpm run dgcc
+pnpm run dgcc:extreme
+pnpm run ci:verify
+```
+
 ---
 
 ## Deployment
