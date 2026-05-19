@@ -151,13 +151,13 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.14)
       '@vitejs/plugin-react':
-        specifier: ^4.7.0
+        specifier: 4.7.0
         version: 4.7.0(vite@6.4.2(@types/node@25.9.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.9.0))
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
       vite:
-        specifier: ^6.4.2
+        specifier: 6.4.2
         version: 6.4.2(@types/node@25.9.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.9.0)
 
   apps/web:
@@ -755,7 +755,7 @@ importers:
         specifier: 0.184.1
         version: 0.184.1
       '@vitejs/plugin-react':
-        specifier: ^4.3.4
+        specifier: 4.7.0
         version: 4.7.0(vite@6.4.2(@types/node@25.7.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.9.0))
       autoprefixer:
         specifier: ^10.5.0
@@ -770,7 +770,7 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
       vite:
-        specifier: ^6.4.2
+        specifier: 6.4.2
         version: 6.4.2(@types/node@25.7.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.9.0)
       vitest:
         specifier: ^4.1.6
