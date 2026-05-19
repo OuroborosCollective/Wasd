@@ -49,7 +49,9 @@ fi
 export NODE_ENV=production
 export PORT="$GAME_PORT"
 export HOST="0.0.0.0"
+export CLIENT_ROOT_DIR="$APP_DIR/apps/web"
 echo "Game server will listen on PORT=${PORT}; Supabase can keep port 3000."
+echo "Game server will serve CLIENT_ROOT_DIR=${CLIENT_ROOT_DIR}."
 
 if command -v corepack >/dev/null 2>&1; then
   corepack enable || true
@@ -91,6 +93,7 @@ if [ -f client/dist/index.html ]; then
   mkdir -p apps/web/dist/3d
   rm -rf apps/web/dist/3d/*
   cp -a client/dist/. apps/web/dist/3d/
+  sed -i 's#"/assets/#"/3d/assets/#g; s#href=/assets/#href=/3d/assets/#g; s#src=/assets/#src=/3d/assets/#g' apps/web/dist/3d/index.html || true
 else
   echo "WARNING: client/dist/index.html missing; keeping existing /3d/ bundle if present."
 fi
@@ -101,8 +104,8 @@ ls -la apps/web/dist/index.html apps/web/dist/2d/index.html apps/web/dist/portal
 
 NGINX_WEBROOT="${NGINX_WEBROOT:-$APP_DIR/apps/web/dist}"
 if [ ! -f "$NGINX_WEBROOT/index.html" ]; then
-  echo "WARNING: NGINX_WEBROOT=$NGINX_WEBROOT has no index.html; falling back to $APP_DIR/client/dist"
-  NGINX_WEBROOT="$APP_DIR/client/dist"
+  echo "ERROR: NGINX_WEBROOT=$NGINX_WEBROOT has no index.html after route assembly"
+  exit 1
 fi
 
 if [ "${SKIP_NGINX_REPAIR:-0}" != "1" ] && [ -f deploy/repair-nginx.sh ] && command -v nginx >/dev/null 2>&1; then
@@ -151,6 +154,7 @@ warn_url() {
 warn_url "http://127.0.0.1:${GAME_PORT}/health" "Health endpoint"
 verify_url "http://127.0.0.1:${GAME_PORT}/" "Client root"
 verify_url "http://127.0.0.1:${GAME_PORT}/2d/" "2D client"
+verify_url "http://127.0.0.1:${GAME_PORT}/3d/" "3D client"
 verify_url "http://127.0.0.1:${GAME_PORT}/portal/" "Portal client"
 
 echo "Update complete!"
