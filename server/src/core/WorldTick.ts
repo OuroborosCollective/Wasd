@@ -15,6 +15,7 @@ import { verifyFirebaseToken } from "../config/firebase.js";
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { WorldHistory } from "../modules/history/WorldHistory.js";
 import { bootstrapWarfrontNpcs, runWarfrontCombatTick } from "../modules/warfront/WarfrontCombatOrchestrator.js";
+import { WarfrontSystem } from "../modules/warfront/WarfrontSystem.js";
 import { AREInvariantGuard, DeterminismViolation, type AREGuardPayload, type AREInvariantGuardStatus } from "../are/AREInvariantGuard.js";
 import { areValidationState } from "../are/AREValidationState.js";
 import { createWorldHashSnapshot, type WorldHashSnapshot } from "../are/WorldHashSnapshot.js";
@@ -50,6 +51,7 @@ export class WorldTick {
   public worldSystem: WorldSystem;
   public persistence: PersistenceManager;
   public glbRegistry: GLBRegistry;
+  public warfrontSystem: WarfrontSystem;
   private lootEntities: Map<string, any> = new Map();
   private socketToPlayer: Map<string, string> = new Map();
   private lastActionTimes: Map<string, any> = new Map();
@@ -96,6 +98,7 @@ export class WorldTick {
     this.persistence = new PersistenceManager();
     this.worldSystem = new WorldSystem(this.persistence);
     this.glbRegistry = new GLBRegistry();
+    this.warfrontSystem = new WarfrontSystem();
     const dummyPlayer = this.playerSystem.createPlayer("dummy_player", "Dummy Player");
     dummyPlayer.position.x = 500;
     dummyPlayer.position.y = 500;
@@ -217,6 +220,7 @@ export class WorldTick {
     this.tickCount += 1;
     const payload = this.buildAREPayload();
     const allPlayers = this.playerSystem.getAllPlayers();
+    this.warfrontSystem.tick(this.tickCount * 100);
     this.npcSystem.tick(allPlayers.filter((p) => !p.isOffline), this.worldSystem.worldTime);
     runWarfrontCombatTick({ tickCount: this.tickCount, npcSystem: this.npcSystem, playerSystem: this.playerSystem, combatService: this.combatService, broadcast: (payload) => this.ws.broadcast(payload) });
     const npcsAgg = this.npcSystem.getAllNPCs();
@@ -235,8 +239,8 @@ export class WorldTick {
     this.updateAREContract(payload, strippedPlayers, strippedNpcs, strippedLoot);
     const autoRepair = areAutoRepairService.getStatus();
     const usage = deterministicUsageTracker.getStats(this.tickCount);
-    if (this.tickCount % 10 === 0) { const npcs = allNpcs.map(n => ({ id: n.id, name: n.name, x: n.position.x, y: n.position.y })); this.ws.broadcast({ type: "WORLD_HEARTBEAT", payload: { players: Object.fromEntries(allPlayers.filter(p => !p.isOffline).map(p => [p.id, { id: p.id, name: p.name, x: p.position.x, y: p.position.y }])), agents: npcs, are: areValidationState.getSnapshot(), replay: deterministicTickRecorder.stats(), oracle: this.lastOracleReport, autoRepair, usage } }); }
+    if (this.tickCount % 10 === 0) { const npcs = allNpcs.map(n => ({ id: n.id, name: n.name, x: n.position.x, y: n.position.y })); this.ws.broadcast({ type: "WORLD_HEARTBEAT", payload: { players: Object.fromEntries(allPlayers.filter(p => !p.isOffline).map(p => [p.id, { id: p.id, name: p.name, x: p.position.x, y: p.position.y }])), agents: npcs, are: areValidationState.getSnapshot(), replay: deterministicTickRecorder.stats(), oracle: this.lastOracleReport, autoRepair, usage, warfront: this.warfrontSystem.getCycleSnapshot(this.tickCount * 100) } }); }
     if (this.tickCount % 600 === 0) this.saveAll().catch(e => console.error(e));
-    this.ws.broadcast({ type: "world_tick", tick: this.tickCount, players: strippedPlayers, npcs: strippedNpcs, loot: strippedLoot, are: { guard: this.lastAREGuardStatus, worldHash: this.lastWorldHashSnapshot?.worldHash ?? null }, replay: { latestTick: this.tickCount }, oracle: this.lastOracleReport, autoRepair, usage });
+    this.ws.broadcast({ type: "world_tick", tick: this.tickCount, players: strippedPlayers, npcs: strippedNpcs, loot: strippedLoot, are: { guard: this.lastAREGuardStatus, worldHash: this.lastWorldHashSnapshot?.worldHash ?? null }, replay: { latestTick: this.tickCount }, oracle: this.lastOracleReport, autoRepair, usage, warfront: this.warfrontSystem.getCycleSnapshot(this.tickCount * 100) });
   }
 }
