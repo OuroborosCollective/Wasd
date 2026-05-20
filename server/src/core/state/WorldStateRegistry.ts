@@ -63,7 +63,7 @@ export class WorldStateRegistry {
     const newState: WorldState = {
       regions: new Map(this.currentState.regions),
       globalTick: this.currentState.globalTick + BigInt(1),
-      lastSyncTimestamp: Date.now(),
+      lastSyncTimestamp: Number((this.currentState.globalTick + BigInt(1)) * 100n),
     };
     
     // Apply each mutation

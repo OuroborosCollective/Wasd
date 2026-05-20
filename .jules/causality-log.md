@@ -9,3 +9,9 @@ Action: Always enforce `Array.sort()` on entity collections (Players, NPCs, Loot
 Learning: Even when using Fixed-Point (integer) arithmetic, stable iteration order is mandatory for simulation (Level-A) logic. Iterating over `worldState.regions` or `resourceSaturation` Maps without sorting keys leads to non-deterministic mutation ordering in the `WorldStateRegistry` and inconsistent ledger entries. For summations (e.g., total system energy), sorting ensures that the order of operations remains identical across all nodes, preventing bit-drift in the WorldHash.
 
 Action: Explicitly sort Map keys (e.g., `Array.from(map.keys()).sort()`) before any iteration in `EconomySimulation.ts` and similar simulation systems.
+
+## 2028-08-21 - Restored CI Determinism & Workflow Stability
+
+Learning: Mandatory CI gates (`scripts/check-determinism-gate.mjs`) require explicit markers (`// ARE-DETERMINISM-ALLOW`) for intentional wall-clock usage at system boundaries. Additionally, Level-A simulation paths (`server/src/modules/world/HazardResonance.ts`) must avoid `Date.now()` entirely, favoring tick-derived logic. CI module resolution for internal workspace packages (`@wasd/shared`) requires prior build steps in the workflow to generate required declarations.
+
+Action: Always use tick-derived timestamps in Level-A paths. Ensure workflow files include dependency builds before typechecking.

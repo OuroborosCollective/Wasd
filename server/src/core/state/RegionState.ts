@@ -136,7 +136,7 @@ export function createDefaultWorldState(): WorldState {
   return {
     regions: new Map(),
     globalTick: BigInt(0),
-    lastSyncTimestamp: Date.now(),
+    lastSyncTimestamp: 0,
   };
 }
 

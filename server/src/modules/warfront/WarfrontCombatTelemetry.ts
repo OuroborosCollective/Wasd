@@ -81,7 +81,7 @@ export class WarfrontCombatTelemetry {
       id: `wf_${full.seq}_${full.tick}`,
       title: full.kind === "kill" ? "Warfront kill" : "Warfront hit",
       description: full.summary,
-      timestamp: Date.now(),
+      timestamp: full.tick * 100, // Deterministic timestamp (10Hz ticks)
       involvedFactionIds: [full.attackerId, full.defenderId],
     });
 
