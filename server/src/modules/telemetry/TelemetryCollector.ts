@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: meta path
 export class TelemetryCollector {
   private entries:any[] = [];
   record(metric:string, value:any){

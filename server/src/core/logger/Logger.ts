@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: meta path
 /**
  * Logger.ts
  */

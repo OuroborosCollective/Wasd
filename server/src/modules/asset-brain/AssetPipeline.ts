@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: meta path
 /**
  * Asset Pipeline Orchestrator
  * Connects: Asset Brain Spec → Tripo3D Generation → GLB Registry

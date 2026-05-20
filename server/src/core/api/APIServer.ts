@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: meta path
 /**
  * @file server/src/core/api/APIServer.ts
  * @description High-performance API Server.

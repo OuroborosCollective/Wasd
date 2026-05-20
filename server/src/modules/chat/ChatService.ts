@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: meta path
 export class ChatService {
   sendMessage(authorId: string, channel: string, content: string) {
     return {

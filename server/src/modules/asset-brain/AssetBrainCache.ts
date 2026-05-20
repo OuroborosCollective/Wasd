@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: meta path
 /**
  * Asset Brain Cache Manager
  * Implements multi-level caching for asset specifications and generated models

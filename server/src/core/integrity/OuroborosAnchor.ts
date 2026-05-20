@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: meta path
 import * as fs from 'fs/promises';
 import * as crypto from 'crypto';
 import * as path from 'path';

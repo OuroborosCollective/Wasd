@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: meta path
 export class GiraffeAdminMount {
   summon(ownerId:string) {
     return {

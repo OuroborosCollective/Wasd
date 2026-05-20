@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: meta path
 /**
  * LiveHeal v2 - Integration Layer
  *

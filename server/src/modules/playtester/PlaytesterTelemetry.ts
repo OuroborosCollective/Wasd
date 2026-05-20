@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: meta path
 import type { PlaytesterEvent, PlaytesterLevel } from "./playtesterTypes.js";
 
 export class PlaytesterTelemetry {

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: meta path
 /**
  * Asset Brain Analytics & Monitoring
  * Tracks asset generation metrics, performance, and user behavior

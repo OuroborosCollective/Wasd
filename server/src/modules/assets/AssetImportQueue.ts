@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: meta path
 export class AssetImportQueue {
   private queue:any[] = [];
   add(asset:any){

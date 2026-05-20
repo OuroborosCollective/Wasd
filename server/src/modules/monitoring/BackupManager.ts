@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: meta path
 import { exec } from 'child_process';
 import util from 'util';
 

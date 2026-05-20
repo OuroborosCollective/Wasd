@@ -45,7 +45,7 @@ export class GameStateManager {
 
         // Erstellung des AREPayloads
         const payload: AREPayload = {
-            timestamp: Date.now(), // @are-determinism-allow
+            timestamp: Date.now(), // @are-determinism-allow // @are-determinism-allow
             tick: this.currentTick,
             resonance: resonanceValue,
             data: this.gatherGameState()

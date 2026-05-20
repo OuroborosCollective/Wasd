@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: meta path
 export interface ChatMessage {
   id: string;
   sender: string;

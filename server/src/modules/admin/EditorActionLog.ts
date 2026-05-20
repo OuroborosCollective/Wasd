@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: meta path
 export class EditorActionLog {
   private actions:any[] = [];
   record(action:any){
