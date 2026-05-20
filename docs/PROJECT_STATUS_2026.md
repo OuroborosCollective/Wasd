@@ -78,9 +78,10 @@ Use it before trusting older reconstruction or handover docs.
 |------|--------|
 | Unit/integration tests | Vitest (`pnpm run test`) |
 | E2E tests | Playwright (`pnpm run test:e2e`, `pnpm run test:e2e:ci`) |
+| DGCC gate | Design+Gameplay consistency runner: `pnpm run dgcc` (full), `pnpm run dgcc:quick` (skips unit), `pnpm run dgcc:extreme` (+ client/server build); contract `tools/dgcc/dgcc.contract.json` |
 | Lint | ESLint (`pnpm run lint`) |
 | Build | Root build compiles client then server (`pnpm run build`) |
-| CI baseline | Lint + tests + build + model-path audit + e2e workflow exists |
+| CI baseline | `pnpm run ci:verify` (DGCC quick + interact check); full Vitest + model audit + e2e in broader CI |
 
 ## Important clarifications
 

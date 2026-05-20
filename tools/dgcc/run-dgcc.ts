@@ -7,7 +7,6 @@ type Severity = "info" | "warn" | "error";
 type CheckName =
   | "lint"
   | "unit"
-  | "checkInteract"
   | "e2e"
   | "contentValidate"
   | "assetsAudit"
@@ -15,6 +14,25 @@ type CheckName =
   | "uiA11ySmoke"
   | "clientBuild"
   | "serverBuild";
+
+const ALL_CHECKS: CheckName[] = [
+  "lint",
+  "unit",
+  "e2e",
+  "contentValidate",
+  "assetsAudit",
+  "wsSchemaSmoke",
+  "uiA11ySmoke",
+  "clientBuild",
+  "serverBuild",
+];
+
+function isCheckName(x: string): x is CheckName {
+  for (const c of ALL_CHECKS) {
+    if (c === x) return true;
+  }
+  return false;
+}
 
 type DgccReport = {
   startedAt: string;
@@ -135,6 +153,15 @@ async function uiA11ySmoke(report: DgccReport) {
   }
 }
 
+function writeReport(outDir: string, report: DgccReport) {
+  report.finishedAt = nowIso();
+  if (report.inconsistencies.some((x) => x.severity === "error")) report.ok = false;
+  const reportPath = path.join(outDir, "dgcc.report.json");
+  fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
+  console.log(`[DGCC] report: ${path.relative(ROOT, reportPath)}`);
+  console.log(`[DGCC] ok=${report.ok ? "true" : "false"} inconsistencies=${report.inconsistencies.length} fixes=${report.fixes.length}`);
+}
+
 async function main() {
   const mode = parseMode();
   const contract = readJson<any>(CONTRACT_PATH);
@@ -162,61 +189,41 @@ async function main() {
     try {
       await fn();
       report.checks.push({ name, ok: true, durationMs: Date.now() - t0 });
-    } catch (e: any) {
+    } catch (e: unknown) {
       report.ok = false;
-      report.checks.push({ name, ok: false, durationMs: Date.now() - t0, summary: String(e?.message ?? e) });
+      const msg = e instanceof Error ? e.message : String(e);
+      report.checks.push({ name, ok: false, durationMs: Date.now() - t0, summary: msg });
     }
   }
 
-  const checks = modeCfg.checks as CheckName[];
+  const rawChecks = modeCfg.checks as string[];
 
-  if (checks.includes("lint")) {
-    await runCheck("lint", async () => {
+  const checkRunners: Record<CheckName, () => Promise<void>> = {
+    lint: async () => {
       const r = await run("pnpm", ["run", "lint"]);
       fs.writeFileSync(path.join(outDir, "lint.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["lint"] = "dgcc-artifacts/lint.out.txt";
       if (r.code !== 0) throw new Error("lint failed");
-    });
-  }
-
-  if (checks.includes("unit")) {
-    await runCheck("unit", async () => {
+    },
+    unit: async () => {
       const r = await run("pnpm", ["run", "test"]);
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
       if (r.code !== 0) throw new Error("unit tests failed");
-    });
-  }
-
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
-    });
-  }
-
-  if (checks.includes("e2e")) {
-    await runCheck("e2e", async () => {
+    },
+    e2e: async () => {
       const r = await run("pnpm", ["run", "test:e2e:ci"]);
       fs.writeFileSync(path.join(outDir, "e2e.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["e2e"] = "dgcc-artifacts/e2e.out.txt";
       if (r.code !== 0) throw new Error("e2e failed");
-    });
-  }
-
-  if (checks.includes("contentValidate")) {
-    await runCheck("contentValidate", async () => {
-      const r = await run("pnpm", ["--prefix", "server", "run", "validate"]);
+    },
+    contentValidate: async () => {
+      const r = await run("pnpm", ["run", "validate"]);
       fs.writeFileSync(path.join(outDir, "content-validate.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["contentValidate"] = "dgcc-artifacts/content-validate.out.txt";
-      if (r.code !== 0) throw new Error("content validation failed (server validate)");
-    });
-  }
-
-  if (checks.includes("clientBuild")) {
-    await runCheck("clientBuild", async () => {
+      if (r.code !== 0) throw new Error("content validation failed");
+    },
+    clientBuild: async () => {
       const r = await run("pnpm", ["--prefix", "client", "run", "build"], {
         env: {
           NODE_OPTIONS: process.env.NODE_OPTIONS || "--max-old-space-size=6144",
@@ -225,59 +232,76 @@ async function main() {
       fs.writeFileSync(path.join(outDir, "client-build.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["clientBuild"] = "dgcc-artifacts/client-build.out.txt";
       if (r.code !== 0) throw new Error("client build failed");
-    });
-  }
-
-  if (checks.includes("serverBuild")) {
-    await runCheck("serverBuild", async () => {
+    },
+    serverBuild: async () => {
       const r = await run("pnpm", ["--prefix", "server", "run", "build"]);
       fs.writeFileSync(path.join(outDir, "server-build.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["serverBuild"] = "dgcc-artifacts/server-build.out.txt";
       if (r.code !== 0) throw new Error("server build failed");
-    });
-  }
-
-  if (checks.includes("assetsAudit")) {
-    await runCheck("assetsAudit", async () => {
+    },
+    assetsAudit: async () => {
       await assetsAudit(report, contract, fix);
       const p = path.join(outDir, "assets-audit.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "assets") }, null, 2));
       report.artifacts["assetsAudit"] = "dgcc-artifacts/assets-audit.json";
-    });
-  }
-
-  if (checks.includes("wsSchemaSmoke")) {
-    await runCheck("wsSchemaSmoke", async () => {
+    },
+    wsSchemaSmoke: async () => {
       await wsSchemaSmoke(report);
       const p = path.join(outDir, "ws-smoke.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "ws") }, null, 2));
       report.artifacts["wsSchemaSmoke"] = "dgcc-artifacts/ws-smoke.json";
       const hasWsError = report.inconsistencies.some((x) => x.category === "ws" && x.severity === "error");
       if (hasWsError) throw new Error("ws schema smoke failed");
-    });
-  }
-
-  if (checks.includes("uiA11ySmoke")) {
-    await runCheck("uiA11ySmoke", async () => {
+    },
+    uiA11ySmoke: async () => {
       await uiA11ySmoke(report);
       const p = path.join(outDir, "ui-a11y.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "ui") }, null, 2));
       report.artifacts["uiA11ySmoke"] = "dgcc-artifacts/ui-a11y.json";
-    });
+    },
+  };
+
+  for (const raw of rawChecks) {
+    if (!isCheckName(raw)) {
+      report.inconsistencies.push({
+        category: "dgcc",
+        severity: "warn",
+        message: `Unknown check in contract: ${raw}`,
+        hint: `Expected one of: ${ALL_CHECKS.join(", ")}`,
+      });
+      continue;
+    }
+    await runCheck(raw, checkRunners[raw]);
   }
 
-  report.finishedAt = nowIso();
-  if (report.inconsistencies.some((x) => x.severity === "error")) report.ok = false;
-
-  const reportPath = path.join(outDir, "dgcc.report.json");
-  fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
-  console.log(`[DGCC] report: ${path.relative(ROOT, reportPath)}`);
-  console.log(`[DGCC] ok=${report.ok ? "true" : "false"} inconsistencies=${report.inconsistencies.length} fixes=${report.fixes.length}`);
-
+  writeReport(outDir, report);
   process.exit(report.ok ? 0 : 2);
 }
 
 main().catch((e) => {
   console.error("[DGCC] fatal", e);
+  try {
+    const outDir = path.join(ROOT, "dgcc-artifacts");
+    ensureDir(outDir);
+    const fatalReport: DgccReport = {
+      startedAt: nowIso(),
+      finishedAt: nowIso(),
+      mode: parseMode(),
+      ok: false,
+      checks: [],
+      inconsistencies: [
+        {
+          category: "dgcc",
+          severity: "error",
+          message: e instanceof Error ? e.message : String(e),
+        },
+      ],
+      fixes: [],
+      artifacts: {},
+    };
+    writeReport(outDir, fatalReport);
+  } catch {
+    // ignore secondary failures
+  }
   process.exit(3);
 });
