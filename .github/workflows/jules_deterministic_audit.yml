@@ -37,13 +37,14 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=3072"
 
       # Deterministic gates: shared + server must stay type-clean.
-      - name: Typecheck @wasd/shared
+      # ⚡ Bolt: Run build instead of typecheck to generate dist/ declarations for dependent packages.
+      - name: Build @wasd/shared
         run: |
-          NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/shared run typecheck
+          NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/shared run build
 
-      - name: Typecheck @wasd/core-logic
+      - name: Build @wasd/core-logic
         run: |
-          NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/core-logic run typecheck
+          NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/core-logic run build
 
       - name: Typecheck @wasd/server (tsc --noEmit)
         run: |

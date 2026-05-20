@@ -63,7 +63,8 @@ export class WorldStateRegistry {
     const newState: WorldState = {
       regions: new Map(this.currentState.regions),
       globalTick: this.currentState.globalTick + BigInt(1),
-      lastSyncTimestamp: Date.now(),
+      // ⚖️ Jules: Derived deterministic timestamp (Tick * 100ms budget) instead of wall-clock.
+      lastSyncTimestamp: Number(this.currentState.globalTick + BigInt(1)) * 100,
     };
     
     // Apply each mutation

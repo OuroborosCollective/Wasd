@@ -71,7 +71,9 @@ async function scanFile(file) {
   scanned += 1;
   const fileRel = rel(file);
   const content = await readFile(file, 'utf8');
-  const lines = content.split(/\r?\n/);
+  // ⚡ Bolt: Strip comments before scanning to avoid false positives on non-deterministic calls in text/docs.
+  const codeOnly = content.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '');
+  const lines = codeOnly.split(/\r?\n/);
   const reason = exemptionReason(content);
   const strict = under(fileRel, strictRoots);
   const meta = advisoryPath(fileRel) || Boolean(reason);
