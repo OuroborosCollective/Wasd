@@ -7,7 +7,7 @@ WORKDIR /app
 RUN apk add --no-cache unzip
 
 # Enable pnpm
-RUN corepack enable && corepack prepare pnpm@9.12.2 --activate
+RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
 
 # Copy only manifests for better caching
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
@@ -46,7 +46,7 @@ ENV NODE_ENV=production PORT=3000
 # Copy necessary files for production
 COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml /app/.npmrc ./
 # Use pnpm deploy to isolate the server package for runtime
-RUN corepack enable && corepack prepare pnpm@9.12.2 --activate && \
+RUN corepack enable && corepack prepare pnpm@11.1.1 --activate && \
     pnpm --filter @wasd/server deploy /app/prod-server
 
 WORKDIR /app/prod-server
