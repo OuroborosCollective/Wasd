@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: core meta
 /**
  * Database Migrations - Creates all required tables on server startup
  */

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import { WorldHistory } from "../history/WorldHistory.js";
 import { NPCRelationshipSystem } from "../npc/NPCRelationshipSystem.js";
 import { QuestSystem, type BountyQuestData } from "../quest/QuestSystem.js";

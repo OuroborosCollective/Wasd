@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class ReputationTitleBridge {
   resolveTitle(score: number) {
     if (score >= 1000) return "Renowned";

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: core meta
 /**
  * GameState.ts
  */

@@ -70,7 +70,7 @@ export class CaravanLogic {
         
         npc.metadata = {
             ...npc.metadata,
-            lastMarketUpdate: Date.now(),
+            lastMarketUpdate: Date.now(), // ARE-DETERMINISM-ALLOW
             activeTradeRegion: regionId,
             objectiveType: 'scarcity_response'
         };

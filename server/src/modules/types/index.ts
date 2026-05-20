@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /** Shared gameplay types (minimal surface — extend as modules converge). */
 export type UnknownRecord = Record<string, unknown>;
 

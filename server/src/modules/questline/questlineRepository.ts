@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import { db, isDatabaseConfigured } from "../../core/Database.js";
 
 export type QuestlineProgressRow = {

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import { LegendDistiller } from "../legend/LegendDistiller";
 
 export interface Quest {

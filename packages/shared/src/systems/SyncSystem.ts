@@ -71,7 +71,7 @@ export class SyncSystem {
         const update: SyncUpdate = {
             id: entityId,
             position: { x: position.x, y: position.y, z: position.z },
-            timestamp: Date.now()
+            timestamp: Date.now() // ARE-DETERMINISM-ALLOW
         };
 
         // 2. Broadcast position to current cell channel

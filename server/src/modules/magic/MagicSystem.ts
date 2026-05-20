@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class MagicSystem {
   cast(caster: any, spell: any, target: any) {
     if ((caster.mana ?? 0) < spell.cost) {

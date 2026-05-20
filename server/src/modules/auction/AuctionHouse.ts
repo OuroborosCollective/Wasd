@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import { isItemBoundOrNonTransferable } from "../items/itemBindingPolicy.js";
 
 export class AuctionHouse {

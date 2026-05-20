@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class UpgradeSystem {
   upgrade(structure: any) {
     structure.level = (structure.level || 1) + 1;

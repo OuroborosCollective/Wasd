@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import { randomUUID } from "node:crypto";
 import { isSupabaseAuthConfigured, verifySupabaseToken } from "../../config/supabase.js";
 

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class ObserverEngine {
   private observers = new Map<string, { x: number; y: number }>();
   private viewDistanceChunks = 2; // 2 chunks in each direction (5x5 grid) to cover interaction range safely

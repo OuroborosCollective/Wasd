@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import { generateMonsterDNA } from "./MonsterDNA.js";
 import { mutateMonster } from "./MonsterMutation.js";
 

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import { ResourceScatter } from "./ResourceScatter.js";
 import { ItemRegistry } from "../inventory/ItemRegistry.js";
 import { SeededARERng } from "../../core/determinism/AREDeterminism.js";

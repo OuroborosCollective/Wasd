@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class SharedMemoryNetwork {
   share(memories:any[]) {
     return {

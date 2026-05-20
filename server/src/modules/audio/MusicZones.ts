@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export const MusicZones = {
   starter_town: "theme_town_01",
   ruins: "theme_ruins_01",

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: service
 class EmergentMarket {
     constructor() {
         this.imbalanceThreshold = 2.5;

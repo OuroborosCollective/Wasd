@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export enum AgentRole {
   ARCHITECT = 'ARCHITECT',
   DEVELOPER = 'DEVELOPER',

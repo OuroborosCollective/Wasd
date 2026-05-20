@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /**
  * Resolves branch choices (Scheideweg) in a questline graph.
  */

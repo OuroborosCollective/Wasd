@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import { DialogueTemplates } from "./DialogueTemplates.js";
 
 export class DialogueGenerator {

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class GateController {
   setState(gate: any, state: string) {
     const allowed = ["open", "closed", "locked", "damaged", "destroyed"];

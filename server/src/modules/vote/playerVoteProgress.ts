@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import type { PlayerVoteProgress } from "./voteTypes.js";
 
 export function ensurePlayerVoteProgress(player: any): PlayerVoteProgress {

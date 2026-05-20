@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /**
  * StatusEmitter — auto-generates STATUS channel messages for game events.
  *

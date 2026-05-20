@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export function buildDialogueContext(npc: any, player: any, world: any) {
   return {
     npcId: npc.id,

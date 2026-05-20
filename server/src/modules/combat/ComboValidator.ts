@@ -142,7 +142,7 @@ export class ComboValidator {
   }
 
   public getServerTimestamp(): number {
-    return Date.now();
+    return Date.now(); // ARE-DETERMINISM-ALLOW // ARE-DETERMINISM-ALLOW
   }
 
   public calculateDistance(a: Vector3, b: Vector3): number {

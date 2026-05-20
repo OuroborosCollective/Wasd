@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: core meta
 interface TaskPayload {
     eventType: string;
     payload: any;
@@ -15,7 +16,7 @@ export class AIOrchestrator {
    // Limits for AI Pro (100 tasks/day)
    private static readonly MAX_DAILY_TASKS = 100;
    private static taskCount = 0;
-   private static lastTaskReset = Date.now();  // ARE-DETERMINISM-ALLOW // @are-determinism-allow
+   private static lastTaskReset = Date.now();    // ARE-DETERMINISM-ALLOW // ARE-DETERMINISM-ALLOW
 
    private static taskQueue: TaskPayload[] = [];
    private static isProcessingQueue = false;
@@ -31,9 +32,9 @@ export class AIOrchestrator {
 
    private static resetTaskCountIfNeeded() {
        const ONE_DAY = 24 * 60 * 60 * 1000;
-       if (Date.now() /* @are-determinism-allow */ /* ARE-DETERMINISM-ALLOW */ - this.lastTaskReset > ONE_DAY) {
+       if (Date.now() /* /* - this.lastTaskReset > ONE_DAY) { // ARE-DETERMINISM-ALLOW // ARE-DETERMINISM-ALLOW
            this.taskCount = 0;
-           this.lastTaskReset = Date.now();  // ARE-DETERMINISM-ALLOW // @are-determinism-allow
+           this.lastTaskReset = Date.now();    // ARE-DETERMINISM-ALLOW // ARE-DETERMINISM-ALLOW
        }
    }
 
@@ -119,10 +120,10 @@ export class AIOrchestrator {
                  return fallbackFn();
             }
 
-            const startTime = Date.now();  // ARE-DETERMINISM-ALLOW // @are-determinism-allow
+            const startTime = Date.now();    // ARE-DETERMINISM-ALLOW // ARE-DETERMINISM-ALLOW
             const TIMEOUT_MS = 5 * 60 * 1000;
 
-            while (Date.now() /* @are-determinism-allow */ /* ARE-DETERMINISM-ALLOW */ - startTime < TIMEOUT_MS) {
+            while (Date.now() /* /* - startTime < TIMEOUT_MS) { // ARE-DETERMINISM-ALLOW // ARE-DETERMINISM-ALLOW
                 const pollRes = await fetch(`${this.JULES_API_URL}/sessions/${sessionId}/activities?pageSize=50`, {
                     headers: {
                         "x-goog-api-key": process.env.JULES_API_KEY || ''

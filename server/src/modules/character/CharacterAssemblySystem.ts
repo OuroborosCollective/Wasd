@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /**
  * CharacterAssemblySystem
  * Manages modular character creation: body + head + skin/hair/eye colors + body scale.

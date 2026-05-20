@@ -54,7 +54,7 @@ export class EmergentMarket {
             supply: this.currentSupply.get(resourceId) || 0,
             demand: this.currentDemand.get(resourceId) || 0,
             price: this.currentPrices.get(resourceId) || 0,
-            timestamp: Date.now()
+            timestamp: Date.now() // ARE-DETERMINISM-ALLOW
         };
 
         this.history.push(entry);

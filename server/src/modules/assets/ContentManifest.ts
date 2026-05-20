@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class ContentManifest {
   private entries:any[] = [];
   add(entry:any){

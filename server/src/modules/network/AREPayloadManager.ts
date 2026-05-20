@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import { WeatherResonance } from "../weather/WeatherResonance";
 
 export interface AREPayload {

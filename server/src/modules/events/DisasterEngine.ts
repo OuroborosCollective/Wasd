@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class DisasterEngine {
   createDisaster(region:string){
     const list = ["fire","storm","blight","collapse"];

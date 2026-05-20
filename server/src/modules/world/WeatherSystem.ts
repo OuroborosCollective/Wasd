@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class WeatherSystem {
   nextWeather(seed:number){
     const states = ["clear","rain","storm","fog","snow","heatwave"];

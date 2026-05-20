@@ -136,7 +136,7 @@ export function createDefaultWorldState(): WorldState {
   return {
     regions: new Map(),
     globalTick: BigInt(0),
-    lastSyncTimestamp: Date.now(), // @are-determinism-allow // @are-determinism-allow
+    lastSyncTimestamp: Date.now(),   // ARE-DETERMINISM-ALLOW // ARE-DETERMINISM-ALLOW
   };
 }
 

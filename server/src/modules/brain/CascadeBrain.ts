@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class CascadeBrain {
     checkCascade(brainState: { activeAnomalies: string[], centerValue: number }): boolean {
         if (!brainState) return false;

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: core meta
 /** Minimal tick bus for optional subsystems (extend with real scheduling). */
 export class ServerTickEmitter {
   private readonly handlers = new Map<string, Array<(...args: unknown[]) => void>>();

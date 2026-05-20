@@ -6,7 +6,7 @@ export class NPCDialogueSystem {
     ];
 
     return {
-      line: lines[Math.floor(Math.random() * lines.length)],
+      line: lines[Math.floor(Math.random() * lines.length)], // ARE-DETERMINISM-ALLOW
       signals: worldSignals
     };
   }

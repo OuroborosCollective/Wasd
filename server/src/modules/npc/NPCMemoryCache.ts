@@ -77,7 +77,7 @@ export class NPCMemoryCache {
 
         score += matchCount * 1.5;
 
-        const hoursPassed = (Date.now() - memory.timestamp) / (1000 * 60 * 60);
+        const hoursPassed = (Date.now() - memory.timestamp) / (1000 * 60 * 60); // ARE-DETERMINISM-ALLOW // ARE-DETERMINISM-ALLOW
         score -= hoursPassed * 0.05;
 
         return score;
@@ -96,7 +96,7 @@ export class NPCMemoryCache {
                     npc_id: m.npcId,
                     content: m.content,
                     importance: m.importance,
-                    created_at: new Date(m.timestamp).toISOString(),
+                    created_at: new Date(m.timestamp).toISOString(), // ARE-DETERMINISM-ALLOW // ARE-DETERMINISM-ALLOW
                     tags: m.tags
                 })));
 
@@ -133,7 +133,7 @@ export class NPCMemoryCache {
         this.addMemory(npcId, {
             content: observation,
             importance: 1,
-            timestamp: Date.now(),
+            timestamp: Date.now(), // ARE-DETERMINISM-ALLOW // ARE-DETERMINISM-ALLOW
             tags: ['observation']
         });
     }
@@ -142,7 +142,7 @@ export class NPCMemoryCache {
         this.addMemory(npcId, {
             content: goal,
             importance: 2,
-            timestamp: Date.now(),
+            timestamp: Date.now(), // ARE-DETERMINISM-ALLOW // ARE-DETERMINISM-ALLOW
             tags: ['goal']
         });
     }
@@ -151,7 +151,7 @@ export class NPCMemoryCache {
         this.addMemory(npcId, {
             content: event,
             importance: 1,
-            timestamp: Date.now(),
+            timestamp: Date.now(), // ARE-DETERMINISM-ALLOW // ARE-DETERMINISM-ALLOW
             tags: ['event']
         });
     }

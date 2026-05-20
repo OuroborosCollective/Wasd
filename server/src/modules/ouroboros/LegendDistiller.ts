@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import { EventEmitter } from 'events';
 
 interface QuestData {

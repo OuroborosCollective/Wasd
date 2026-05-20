@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class SynapticLoadBrain {
     private timeDilationFactor: number = 1.0;
 

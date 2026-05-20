@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export interface InventoryItem {
     id: string;
     playerId: string;

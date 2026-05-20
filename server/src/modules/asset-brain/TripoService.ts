@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /**
  * Tripo3D API Service
  * Handles 3D model generation from text/image prompts

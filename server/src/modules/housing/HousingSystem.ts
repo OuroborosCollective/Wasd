@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class HousingSystem {
   createHouse(ownerId: string, plotId: string) {
     return {

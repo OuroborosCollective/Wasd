@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import type { IPersistenceBackend, PersistenceDriverName } from "./persistenceBackend.js";
 import { resolvePersistenceDriver } from "./persistenceBackend.js";
 import { FilePersistenceBackend } from "./filePersistenceBackend.js";

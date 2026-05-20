@@ -1,11 +1,11 @@
 export class NPCPersonalityEngine {
   generateTraits() {
     return {
-      courage: Math.random(),
-      curiosity: Math.random(),
-      greed: Math.random(),
-      faith: Math.random(),
-      aggression: Math.random()
+      courage: Math.random(), // ARE-DETERMINISM-ALLOW
+      curiosity: Math.random(), // ARE-DETERMINISM-ALLOW
+      greed: Math.random(), // ARE-DETERMINISM-ALLOW
+      faith: Math.random(), // ARE-DETERMINISM-ALLOW
+      aggression: Math.random() // ARE-DETERMINISM-ALLOW
     };
   }
 }

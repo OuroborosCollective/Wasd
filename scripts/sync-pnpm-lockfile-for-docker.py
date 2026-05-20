@@ -23,7 +23,7 @@ OVERRIDES = {
     "three": "0.184.0",
     "@babylonjs/core": "9.6.2",
     "@babylonjs/materials": "9.6.2",
-    "@babylonjs/loaders": "^9.6.2",
+    "@babylonjs/loaders": "9.6.2",
     "react": "^19.2.6",
     "socket.io-client": "^4.8.3",
     "pg": "^8.20.0",

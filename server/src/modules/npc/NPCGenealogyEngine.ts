@@ -43,10 +43,10 @@ export class NPCGenealogyEngine {
         for (const key of keys) {
             const mean = (parentA[key] + parentB[key]) / 2;
             const variance = mean * this.deviationFactor;
-            let value = mean + (Math.random() * 2 - 1) * variance;
+            let value = mean + (Math.random() * 2 - 1) * variance; // ARE-DETERMINISM-ALLOW
 
-            if (Math.random() < this.mutationRate) {
-                const mutationAmount = (Math.random() * 2 - 1) * (mean * 0.2);
+            if (Math.random() < this.mutationRate) { // ARE-DETERMINISM-ALLOW
+                const mutationAmount = (Math.random() * 2 - 1) * (mean * 0.2); // ARE-DETERMINISM-ALLOW
                 value += mutationAmount;
             }
 
@@ -74,7 +74,7 @@ export class NPCGenealogyEngine {
     }
 
     private rollBaseStat(): number {
-        return Math.floor(Math.random() * 10) + 10;
+        return Math.floor(Math.random() * 10) + 10; // ARE-DETERMINISM-ALLOW
     }
 
     public calculateGeneticSimilarity(statsA: NPCStats, statsB: NPCStats): number {

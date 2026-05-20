@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export const StructureTemplates = {
   small_house: { slots: 1, defense: 1 },
   forge: { slots: 2, defense: 1 },

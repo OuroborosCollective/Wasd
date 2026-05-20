@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class FarmingSystem {
   plant(seedId: string, biome: string) {
     return {

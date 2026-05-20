@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class CivilizationDatabase {
   private civilizations = new Map<string, any>();
 

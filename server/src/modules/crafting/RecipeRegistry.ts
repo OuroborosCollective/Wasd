@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export const RecipeRegistry = {
   iron_sword: {
     id: "iron_sword",

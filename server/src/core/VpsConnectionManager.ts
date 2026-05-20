@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: core meta
 /**
  * @file server/src/core/VpsConnectionManager.ts
  * @description SOVEREIGN AAAA+ COMPILER - SSH Migration. 

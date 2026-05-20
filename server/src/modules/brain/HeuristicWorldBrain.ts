@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export interface BrainNode {
   id: string;
   category: 'world' | 'interpretation' | 'dynamics' | 'center';

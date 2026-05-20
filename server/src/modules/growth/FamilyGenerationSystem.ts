@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class FamilyGenerationSystem {
   createChild(parentA: any, parentB: any, childId: string) {
     return {

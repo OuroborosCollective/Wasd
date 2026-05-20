@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import { BehaviorTree } from "./BehaviorTree.js";
 
 export class NPCBrain {

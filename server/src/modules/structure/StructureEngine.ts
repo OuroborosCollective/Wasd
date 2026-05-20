@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class StructureEngine {
   private structures = new Map<string, any>();
 

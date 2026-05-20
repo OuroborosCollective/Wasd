@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export const NPCSchedules = {
   merchant: [
     { hour: 6, action: "wake" },

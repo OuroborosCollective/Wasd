@@ -71,7 +71,7 @@ export function onPartyRejected(cache: NPCMemoryCache, npcId: string): void {
  */
 export function shouldChat(cache: NPCMemoryCache, npcId: string): boolean {
   const s = cache.get(npcId);
-  return Math.random() < s.heuristicWeights.chatFrequency * 0.1;
+  return Math.random() < s.heuristicWeights.chatFrequency * 0.1; // ARE-DETERMINISM-ALLOW
 }
 
 /**
@@ -79,7 +79,7 @@ export function shouldChat(cache: NPCMemoryCache, npcId: string): boolean {
  */
 export function shouldSeekParty(cache: NPCMemoryCache, npcId: string): boolean {
   const s = cache.get(npcId);
-  return s.partyId === null && Math.random() < s.heuristicWeights.partySeeking * 0.05;
+  return s.partyId === null && Math.random() < s.heuristicWeights.partySeeking * 0.05; // ARE-DETERMINISM-ALLOW
 }
 
 /**
@@ -87,5 +87,5 @@ export function shouldSeekParty(cache: NPCMemoryCache, npcId: string): boolean {
  */
 export function shouldTrade(cache: NPCMemoryCache, npcId: string): boolean {
   const s = cache.get(npcId);
-  return Math.random() < s.heuristicWeights.tradeWillingness * 0.04;
+  return Math.random() < s.heuristicWeights.tradeWillingness * 0.04; // ARE-DETERMINISM-ALLOW
 }

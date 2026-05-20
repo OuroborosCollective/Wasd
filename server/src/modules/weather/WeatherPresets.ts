@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export const WeatherPresets = {
   clear: { visibility: 1, movePenalty: 0 },
   rain: { visibility: 0.9, movePenalty: 0.05 },

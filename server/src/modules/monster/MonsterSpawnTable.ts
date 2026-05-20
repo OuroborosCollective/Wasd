@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export const MonsterSpawnTable = {
   forest: ["wolf", "boar"],
   mountain: ["stone_beast", "frost_wolf"],

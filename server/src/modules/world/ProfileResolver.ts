@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import { Resolver, Mutation, Arg, InputType, Field, Float } from 'type-graphql';
 
 @InputType()

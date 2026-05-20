@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class ReputationLedger {
   private values = new Map<string, number>();
   add(key: string, amount: number) { this.values.set(key, (this.values.get(key) || 0) + amount); }

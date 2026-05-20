@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import { GameConfig } from "../../config/GameConfig.js";
 
 export interface SkillData {

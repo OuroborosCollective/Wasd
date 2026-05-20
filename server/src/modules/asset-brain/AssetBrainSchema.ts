@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /**
  * Asset Brain Architect - Schema & Types
  * Re-exports engine types and adds DB-layer types

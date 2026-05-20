@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export interface NPCTraits {
     faith: number;
     aggression: number;

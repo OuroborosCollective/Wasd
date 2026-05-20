@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: core meta
 import { createPersistenceBackend } from "../modules/persistence/createPersistenceBackend.js";
 import type { IPersistenceBackend } from "../modules/persistence/persistenceBackend.js";
 

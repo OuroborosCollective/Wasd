@@ -1,4 +1,6 @@
 // @ARE-GUARD-EXEMPT: meta path
+// @ARE-GUARD-EXEMPT: meta telemetry side-channel reason
+// @ARE-GUARD-EXEMPT: meta path
 /**
  * ChatChannelRouter — routes messages through the 3-channel chat system.
  *

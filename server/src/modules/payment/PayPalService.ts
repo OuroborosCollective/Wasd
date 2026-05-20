@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /**
  * PayPal REST API Service for Areloria MMORPG
  * Handles: Matrix Energy purchases, GLB Subscription, Marketplace transactions

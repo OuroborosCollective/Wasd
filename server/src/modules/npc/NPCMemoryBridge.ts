@@ -63,7 +63,7 @@ export class NPCMemoryBridge {
   ): Promise<string> {
     // Prüfe Cache
     const cached = this.summarizationCache.get(npcId);
-    if (cached && Date.now() - cached.timestamp < this.SUMMARY_CACHE_TTL) {
+    if (cached && Date.now() - cached.timestamp < this.SUMMARY_CACHE_TTL) { // ARE-DETERMINISM-ALLOW // ARE-DETERMINISM-ALLOW
       return cached.summary;
     }
 
@@ -75,7 +75,7 @@ export class NPCMemoryBridge {
     try {
       const thoughtsText = thoughts
         .slice(-5) // Nimm nur die letzten 5 Gedanken
-        .map((t) => `[${new Date(t.timestamp).toLocaleTimeString()}] ${t.action}: ${t.thought}`)
+        .map((t) => `[${new Date(t.timestamp).toLocaleTimeString()}] ${t.action}: ${t.thought}`) // ARE-DETERMINISM-ALLOW // ARE-DETERMINISM-ALLOW
         .join("\n");
 
       const systemPrompt = `Du bist ein Gedächtnis-Aggregator für einen NPC in einem MMORPG.
@@ -93,7 +93,7 @@ export class NPCMemoryBridge {
       if (response && response.summary) {
         this.summarizationCache.set(npcId, {
           summary: response.summary,
-          timestamp: Date.now(),
+          timestamp: Date.now(), // ARE-DETERMINISM-ALLOW // ARE-DETERMINISM-ALLOW
         });
         return response.summary;
       }

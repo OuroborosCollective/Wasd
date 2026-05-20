@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class SessionRegistry {
   private sessions = new Map<string, any>();
 

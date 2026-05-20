@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import * as fs from 'fs';
 import * as path from 'path';
 import { PersistenceManager } from '../../core/PersistenceManager.js';

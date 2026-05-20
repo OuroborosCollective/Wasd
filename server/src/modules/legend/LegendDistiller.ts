@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /**
  * LegendDistiller.ts
  * Extrahiert die essenzielle Logik aus Narrativen

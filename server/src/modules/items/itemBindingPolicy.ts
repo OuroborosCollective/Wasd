@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import { ItemRegistry } from "../inventory/ItemRegistry.js";
 
 type BoundContext = {

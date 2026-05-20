@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: core meta
 import { EmergentMarket, MarketShiftPayload } from '../modules/economy/EmergentMarket.js';
 import { WorldEventBus } from './WorldEventBus.js';
 import { AIOrchestrator } from './AIOrchestrator.js';

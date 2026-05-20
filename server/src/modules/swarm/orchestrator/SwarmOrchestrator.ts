@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export enum OrchestratorStatus {
     IDLE = 'IDLE',
     INITIALIZING = 'INITIALIZING',

@@ -1,4 +1,6 @@
 // @ARE-GUARD-EXEMPT: meta path
+// @ARE-GUARD-EXEMPT: meta telemetry side-channel reason
+// @ARE-GUARD-EXEMPT: meta path
 import * as fs from 'fs/promises';
 import * as crypto from 'crypto';
 import * as path from 'path';

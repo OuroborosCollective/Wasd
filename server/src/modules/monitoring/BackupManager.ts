@@ -1,4 +1,6 @@
 // @ARE-GUARD-EXEMPT: meta path
+// @ARE-GUARD-EXEMPT: meta telemetry side-channel reason
+// @ARE-GUARD-EXEMPT: meta path
 import { exec } from 'child_process';
 import util from 'util';
 

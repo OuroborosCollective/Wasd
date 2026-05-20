@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import { ChunkSystem } from "./ChunkSystem.js";
 import { TerrainGenerator } from "./TerrainGenerator.js";
 import { WeatherSystem } from "./WeatherSystem.js";

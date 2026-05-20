@@ -50,7 +50,7 @@ export class NPCThinkingLogService {
     if (!redis || !isRedisAvailable()) return;
 
     const entry: ThinkingLogEntry = {
-      timestamp: Date.now(),
+      timestamp: Date.now(), // ARE-DETERMINISM-ALLOW
       npcId,
       npcName,
       action,

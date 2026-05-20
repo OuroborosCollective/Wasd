@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class PlayerSystem {
   private players: Map<string, any> = new Map();
 

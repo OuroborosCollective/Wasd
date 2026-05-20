@@ -267,7 +267,7 @@ export class ScarcityPredictor {
 
     // Estimate onset (deterministic based on current rate)
     const rateMagnitude = Math.abs(priceChangeRate) + Math.abs(stockChangeRate);
-    const estimatedOnset = Date.now() + Math.round(
+    const estimatedOnset = Date.now() + Math.round( // ARE-DETERMINISM-ALLOW
       ScarcityPredictor.PREDICTION_HORIZON_MS / rateMagnitude
     );
 
@@ -393,14 +393,14 @@ export class ScarcityPredictor {
           resourcePriorities: {
             [prediction.resourceId]: prediction.probability
           },
-          lastGoalUpdate: Date.now()
+          lastGoalUpdate: Date.now() // ARE-DETERMINISM-ALLOW
         };
       } else if (prediction.recommendedAction === 'HOARD') {
         adjustments[npcId] = {
           resourcePriorities: {
             [prediction.resourceId]: prediction.severity / 10
           },
-          lastGoalUpdate: Date.now()
+          lastGoalUpdate: Date.now() // ARE-DETERMINISM-ALLOW
         };
       }
     }

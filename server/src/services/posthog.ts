@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: service
 import { PostHog } from 'posthog-node';
 
 let posthogClient: PostHog | null = null;

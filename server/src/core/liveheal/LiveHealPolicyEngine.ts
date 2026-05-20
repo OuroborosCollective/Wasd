@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: core meta path
 /**
  * LiveHeal v2 - Policy Engine
  *

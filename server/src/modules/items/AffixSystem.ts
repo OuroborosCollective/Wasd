@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class AffixSystem {
   apply() {
     // Implementation

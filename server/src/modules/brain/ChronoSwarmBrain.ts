@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export interface SwarmData {
   swarmId: string;
   density: number; // Entities per sq unit

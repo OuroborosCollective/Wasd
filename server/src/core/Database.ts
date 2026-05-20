@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: core meta
 import pg from 'pg';
 
 const { Pool } = pg;

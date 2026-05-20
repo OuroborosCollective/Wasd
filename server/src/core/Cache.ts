@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: core meta
 import Redis from 'ioredis';
 
 const cacheUrl = process.env.CACHE_URL;

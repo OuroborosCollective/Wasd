@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class CivilizationEngine {
   createVillage(guildMembers: number) {
     if (guildMembers < 50) return null;

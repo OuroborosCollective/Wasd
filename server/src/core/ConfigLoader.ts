@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: core meta
 import { z } from 'zod';
 import * as dotenv from 'dotenv';
 

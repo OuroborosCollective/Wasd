@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: service
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 
 /**

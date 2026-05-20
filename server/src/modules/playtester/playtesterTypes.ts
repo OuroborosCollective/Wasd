@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export type PlaytesterAction =
   | "idle"
   | "move_to_target"

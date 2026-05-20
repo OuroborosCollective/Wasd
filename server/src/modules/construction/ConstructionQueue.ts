@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class ConstructionQueue {
   private queue:any[] = [];
   enqueue(task:any) { this.queue.push(task); return task; }

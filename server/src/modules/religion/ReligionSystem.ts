@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class ReligionSystem {
   private religions = new Map<string, any>();
 

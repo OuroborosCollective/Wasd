@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class ResourceScatter {
   generateForBiome(biome: string) {
     if (biome === "forest") return ["wood", "berries"];

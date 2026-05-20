@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /**
  * Server-side terrain generation using diamond-square algorithm.
  * Provides consistent terrain heights between client and server

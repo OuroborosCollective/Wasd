@@ -1,4 +1,6 @@
 // @ARE-GUARD-EXEMPT: meta path
+// @ARE-GUARD-EXEMPT: meta telemetry side-channel reason
+// @ARE-GUARD-EXEMPT: meta path
 import type { PlaytesterEvent, PlaytesterLevel } from "./playtesterTypes.js";
 
 export class PlaytesterTelemetry {

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /**
  * In-memory party system — create, invite, join, leave, disband.
  * Max 4 members per party.

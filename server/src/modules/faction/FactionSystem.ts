@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class FactionSystem {
   private factions = new Map<string, any>();
   create(id:string, data:any){

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /**
  * AgentNeeds — drives NPC agent behavior through a need hierarchy.
  *

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: core meta
 import { WeatherResonance } from "../modules/WeatherResonance";
 
 export interface AREPayload {
@@ -45,7 +46,7 @@ export class GameStateManager {
 
         // Erstellung des AREPayloads
         const payload: AREPayload = {
-            timestamp: Date.now(), // @are-determinism-allow // @are-determinism-allow
+            timestamp: Date.now(),   // ARE-DETERMINISM-ALLOW // ARE-DETERMINISM-ALLOW
             tick: this.currentTick,
             resonance: resonanceValue,
             data: this.gatherGameState()

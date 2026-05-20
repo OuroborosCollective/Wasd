@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import fs from "fs";
 import { ItemRegistry } from "../inventory/ItemRegistry.js";
 import { normalizeInventoryStacks } from "../inventory/inventoryStacks.js";

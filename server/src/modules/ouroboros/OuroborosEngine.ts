@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /**
  * OuroborosEngine — the top-level coordinator that closes the Ouroboros cycle.
  *

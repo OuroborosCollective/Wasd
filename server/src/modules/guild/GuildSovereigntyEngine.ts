@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class GuildSovereigntyEngine {
     private sovereigntyMap = new Map<string, number>();
     

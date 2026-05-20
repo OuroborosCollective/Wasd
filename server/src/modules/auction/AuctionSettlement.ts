@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class AuctionSettlement {
   settle(price: number, feePercent: number) {
     const fee = price * feePercent;

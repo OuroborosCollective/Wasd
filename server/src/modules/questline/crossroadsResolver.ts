@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /**
  * Major-branch “Scheideweg” resolution (faction / strand), separate from graph node `strandResolver`.
  */

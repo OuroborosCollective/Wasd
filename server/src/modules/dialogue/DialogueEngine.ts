@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import { buildDialogueContext } from "./DialogueContext.js";
 import { DialogueGenerator } from "./DialogueGenerator.js";
 

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class OwnershipRegistry {
   private registry = new Map<string, { ownerType: string; ownerId: string }>();
 

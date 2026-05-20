@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export interface IPathfindingSystem {
   isEntityMoving(entityId: string): boolean;
   getActiveDestination(entityId: string): { x: number; y: number; z: number; equals(p: { x: number; y: number; z?: number }): boolean } | null;

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class IgnoreSystem {
   private ignores = new Map<string, Set<string>>();
 

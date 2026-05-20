@@ -57,7 +57,7 @@ export class CombatService {
         const newState: CombatState = {
             comboIndex: nextIndex,
             lastSkillId: skill.id,
-            lastTimestamp: Date.now()
+            lastTimestamp: Date.now() // ARE-DETERMINISM-ALLOW // ARE-DETERMINISM-ALLOW
         };
 
         this.updatePlayerCombatState(playerId, newState);

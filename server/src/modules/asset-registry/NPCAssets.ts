@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export const NPCAssets = {
   uschi_gossip: {
     assetId: "uschi_gossip",

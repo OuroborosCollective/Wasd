@@ -44,7 +44,7 @@ export class RedisOrchestrator {
         const channel = this.getCellChannel(x, y);
         const payload = JSON.stringify({
             ...data,
-            _timestamp: Date.now(),
+            _timestamp: Date.now(), // ARE-DETERMINISM-ALLOW
             _cell: { x, y }
         });
         await this.pub.publish(channel, payload);

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class GuildSystem {
   private guilds = new Map<string, any>();
 

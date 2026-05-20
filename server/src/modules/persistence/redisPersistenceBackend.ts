@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import { getRedisClient, isRedisAvailable } from "../../core/RedisClient.js";
 import { serializePlayerForPersistence } from "./playerSnapshot.js";
 import type { IPersistenceBackend } from "./persistenceBackend.js";

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: core meta
 const WORLD_BOSS_DUNGEON_ID = "obsidian_fracture";
 const WORLD_BOSS_SCENE_ID = "worldboss_obsidian_fracture";
 const HUB_SCENE_ID = "didis_hub";

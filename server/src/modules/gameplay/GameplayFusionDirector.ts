@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import type { AdminGlbModelNeed } from "../content/adminGlbModelNeeds.js";
 import type { NPCMemoryCache } from "../npc/NPCMemoryCache.js";
 

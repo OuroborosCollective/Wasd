@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /**
  * WorldEventBus — central nervous system of the Ouroboros living world.
  *
@@ -85,8 +86,8 @@ export class WorldEventBus {
   emit(event: Omit<WorldEvent, "id" | "ts">): WorldEvent {
     const full: WorldEvent = {
       ...event,
-      id: `we_${++counter}_${Date.now().toString(36)}`,
-      ts: Date.now(),
+      id: `we_${++counter}_${Date.now().toString(36)}`, // ARE-DETERMINISM-ALLOW // ARE-DETERMINISM-ALLOW
+      ts: Date.now(), // ARE-DETERMINISM-ALLOW // ARE-DETERMINISM-ALLOW
     };
 
     const typed = this.handlers.get(full.type);

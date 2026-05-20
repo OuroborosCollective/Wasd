@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /**
  * Guild / territory influence (stub — extend with real map logic).
  */

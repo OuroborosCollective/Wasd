@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import fs from 'fs';
 import path from 'path';
 

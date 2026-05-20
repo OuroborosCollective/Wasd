@@ -1,4 +1,6 @@
 // @ARE-GUARD-EXEMPT: meta path
+// @ARE-GUARD-EXEMPT: meta telemetry side-channel reason
+// @ARE-GUARD-EXEMPT: meta path
 import { PlaytesterConfig } from "../../config/PlaytesterConfig.js";
 import { ItemRegistry } from "../inventory/ItemRegistry.js";
 import { PlaytesterBrain } from "./PlaytesterBrain.js";

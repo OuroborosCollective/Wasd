@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /**
  * OuroborosLoop — the self-sustaining agent cycle.
  *

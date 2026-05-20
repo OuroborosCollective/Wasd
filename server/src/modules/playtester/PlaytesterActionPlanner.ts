@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import type { PlaytesterAction } from "./playtesterTypes.js";
 
 type PlannerContext = {

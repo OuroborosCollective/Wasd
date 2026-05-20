@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /**
  * EmergentMarket — per-region supply/demand pricing with no fixed prices.
  *

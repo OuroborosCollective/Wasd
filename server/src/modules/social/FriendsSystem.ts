@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class FriendsSystem {
   private friends = new Map<string, Set<string>>();
 

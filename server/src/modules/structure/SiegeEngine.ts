@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class SiegeEngine {
   applySiegeDamage(structure: any, amount: number) {
     structure.hitpoints = Math.max(0, (structure.hitpoints || 100) - amount);

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import type { GLBLink } from "../asset-registry/GLBRegistry.js";
 
 export type SmartCategory =

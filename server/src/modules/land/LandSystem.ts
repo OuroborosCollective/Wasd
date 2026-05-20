@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /**
  * LandSystem – Player Land Ownership for Areloria MMORPG
  * Players can claim land, build on it, and place GLB models.

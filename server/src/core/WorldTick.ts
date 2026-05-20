@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: core meta
 import { GLBRegistry } from "../modules/asset-registry/GLBRegistry.js";
 import { ChunkSystem } from "../modules/world/ChunkSystem.js";
 import { ObserverEngine } from "../modules/observer/ObserverEngine.js";

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export type AREPayload = {
   kappa: number;
   logicalIndex: number;

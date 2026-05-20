@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import { Injectable, Logger } from '@nestjs/common';
 import { OpenAIProvider } from '../../../llm/providers/openai.provider.js';
 

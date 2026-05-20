@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export const WorldWonderRegistry = {
   shadow_register_portal: {
     id: "shadow_register_portal",

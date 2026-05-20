@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export const DialogueTemplates = {
   greeting: [
     "Na Süßer, suchst du Abenteuer?",

@@ -58,7 +58,7 @@ export class MarketMonitor extends EventEmitter {
                         oldPrice: previousPrice,
                         newPrice: item.currentPrice,
                         shiftPercentage: priceShift,
-                        timestamp: Date.now()
+                        timestamp: Date.now() // ARE-DETERMINISM-ALLOW
                     });
                 }
             }

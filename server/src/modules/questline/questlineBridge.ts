@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /**
  * Bridges procedural questline packs into QuestEngine definitions + player runtime,
  * and syncs FeatureTrigger satisfaction on quest completion (via QuestEngine hook).

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export interface PrecognitionData {
   projectedLoad: number; // 0.0 to 1.0
   densitySpikeRisk: number; // 0.0 to 1.0

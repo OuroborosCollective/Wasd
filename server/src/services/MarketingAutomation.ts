@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: service
 import axios from 'axios';
 
 interface EvolutionHighlight {

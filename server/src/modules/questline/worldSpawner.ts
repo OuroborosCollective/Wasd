@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import { createHash } from "node:crypto";
 import { getFactionByStrand, type Faction } from "./factionRegistry.js";
 

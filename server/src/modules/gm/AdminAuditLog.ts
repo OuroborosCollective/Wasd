@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class AdminAuditLog {
   private entries: any[] = [];
   log(entry: any) { this.entries.push({ timestamp: Date.now(), ...entry }); }

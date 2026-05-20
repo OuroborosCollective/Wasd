@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export const ChatChannels = {
   global: { moderated: true },
   trade: { moderated: true },

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export function editorRoutes() {
   return [
     { path: "/api/editor/place", method: "POST" },

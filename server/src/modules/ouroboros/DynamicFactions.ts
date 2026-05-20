@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /**
  * DynamicFactions — emergent faction formation, politics, and war/peace resolution.
  *

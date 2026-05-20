@@ -41,7 +41,7 @@ export function handlePlayerDeath(
 
   player.dead = true;
   player.health = 0;
-  player.deathAt = Date.now();
+  player.deathAt = Date.now(); // ARE-DETERMINISM-ALLOW // ARE-DETERMINISM-ALLOW
   player.totalDeaths = (player.totalDeaths ?? 0) + 1;
   player.combatTargetNpcId = undefined;
 

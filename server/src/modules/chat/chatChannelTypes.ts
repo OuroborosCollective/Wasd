@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /**
  * Chat channel types shared across the 3-channel chat system.
  *

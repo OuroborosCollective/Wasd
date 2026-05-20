@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class ItemGenerator {
   generate(baseId:string, rarity:string, affixes:any[] = []) {
     return {

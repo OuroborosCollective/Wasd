@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import fs from "node:fs";
 import path from "node:path";
 import { getContentDataRoot, resolveContentFile } from "./contentDataRoot.js";

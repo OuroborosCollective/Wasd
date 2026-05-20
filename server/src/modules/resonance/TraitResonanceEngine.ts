@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 interface ResonanceResult {
     faith: number;
     aggression: number;

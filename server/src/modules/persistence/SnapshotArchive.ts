@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class SnapshotArchive {
   private archive:any[] = [];
   push(snapshot:any){

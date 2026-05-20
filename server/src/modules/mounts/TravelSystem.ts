@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class TravelSystem {
   moveWithMount(position:any, direction:any, speed:number){
     return {

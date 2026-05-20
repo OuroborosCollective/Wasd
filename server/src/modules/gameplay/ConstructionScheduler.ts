@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /**
  * ConstructionScheduler - Construction Efficiency Optimizer
  * 

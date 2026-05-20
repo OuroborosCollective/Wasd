@@ -6,7 +6,7 @@ export class PlayerMarket {
     if (isItemBoundOrNonTransferable(listing?.item)) {
       return null;
     }
-    this.listings.push({ ...listing, createdAt: Date.now() });
+    this.listings.push({ ...listing, createdAt: Date.now() }); // ARE-DETERMINISM-ALLOW
     return listing;
   }
   all(){

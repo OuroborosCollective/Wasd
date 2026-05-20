@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /** Minimal LLM facade for NPC chat experiments. */
 export class LLMService {
   async complete(_prompt: string): Promise<string> {

@@ -56,7 +56,7 @@ Maintain character consistency at all times. Respond concisely and in accordance
             ? "Recent Significant World Events:\n" + context.worldHistory
                 .sort((a, b) => b.timestamp - a.timestamp)
                 .slice(0, 5)
-                .map(event => `[${new Date(event.timestamp).toLocaleTimeString()}] ${event.description}`)
+                .map(event => `[${new Date(event.timestamp).toLocaleTimeString()}] ${event.description}`) // ARE-DETERMINISM-ALLOW
                 .join("\n")
             : "No significant recent world events.";
 

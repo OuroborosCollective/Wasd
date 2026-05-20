@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class ProphecyArchive {
   private entries:any[] = [];
   add(prophecy:any){ this.entries.push({ timestamp:Date.now(), prophecy }); }

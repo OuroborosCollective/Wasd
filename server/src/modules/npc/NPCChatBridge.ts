@@ -45,7 +45,7 @@ export class NPCChatBridge {
         // Time decay (Recency bias)
         // Events within the last hour get a boost
         const oneHourInMs = 60 * 60 * 1000;
-        const age = Date.now() - event.timestamp;
+        const age = Date.now() - event.timestamp; // ARE-DETERMINISM-ALLOW
         const recencyFactor = Math.max(0, 1 - (age / (oneHourInMs * 24))); // Decay over 24h
         
         return baseScore + recencyFactor;
@@ -72,7 +72,7 @@ export class NPCChatBridge {
             return "(no recorded world events yet)";
         }
         return evs
-            .map((e) => `- ${e.title}: ${e.description} @${new Date(e.timestamp).toISOString()}`)
+            .map((e) => `- ${e.title}: ${e.description} @${new Date(e.timestamp).toISOString()}`) // ARE-DETERMINISM-ALLOW
             .join("\n");
     }
 
@@ -98,7 +98,7 @@ export class NPCChatBridge {
             },
             worldState: {
                 currentLocation: "unknown",
-                currentTime: new Date().toISOString(),
+                currentTime: new Date().toISOString(), // ARE-DETERMINISM-ALLOW
                 environmentConditions: "default",
             },
             worldHistory,

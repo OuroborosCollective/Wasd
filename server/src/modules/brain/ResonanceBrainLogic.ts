@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import { BrainNode, HeuristicWorldBrain } from './HeuristicWorldBrain.js';
 
 /**

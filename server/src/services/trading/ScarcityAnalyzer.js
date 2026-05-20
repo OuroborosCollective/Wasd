@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: service
 const EmergentMarket = require('./EmergentMarket');
 
 class ScarcityAnalyzer {

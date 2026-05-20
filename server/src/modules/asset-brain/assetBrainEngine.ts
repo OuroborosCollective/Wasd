@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export type AssetClass = 'character' | 'creature' | 'prop' | 'weapon' | 'environment';

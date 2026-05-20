@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class ReputationSystem {
   private reputations = new Map<string, Record<string, number>>();
 

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: core meta
 import { WeatherResonance } from './WeatherResonance';
 
 export interface AREPayload {

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class WorldDatabase {
   private chunks = new Map<string, any>();
 

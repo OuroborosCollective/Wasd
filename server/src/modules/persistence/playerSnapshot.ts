@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import { normalizeInventoryStacks } from "../inventory/inventoryStacks.js";
 
 /**

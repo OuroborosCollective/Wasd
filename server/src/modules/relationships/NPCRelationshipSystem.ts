@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class NPCRelationshipSystem {
   private values = new Map<string, number>();
   key(a:string,b:string){ return `${a}:${b}`; }

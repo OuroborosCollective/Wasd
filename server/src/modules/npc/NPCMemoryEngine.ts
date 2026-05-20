@@ -4,7 +4,7 @@ export class NPCMemoryEngine {
   remember(npcId: string, event: any) {
     if (!this.memory.has(npcId)) this.memory.set(npcId, []);
     this.memory.get(npcId)!.push({
-      timestamp: Date.now(),
+      timestamp: Date.now(), // ARE-DETERMINISM-ALLOW
       event
     });
   }

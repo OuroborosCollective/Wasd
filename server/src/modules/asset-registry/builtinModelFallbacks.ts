@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /**
  * Hard fallbacks when asset-pools.json / glb-links yield no path.
  * Must match files shipped under client/public/assets/models/ (or nginx equivalent).

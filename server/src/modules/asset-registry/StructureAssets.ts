@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export const StructureAssets = {
   castle_wall: {
     assetId: "castle_wall",

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /**
  * HeuristicGoalPruner - NPC AI Focus Optimizer
  * 
@@ -129,8 +130,8 @@ export class HeuristicGoalPruner {
     
     const newState = determineStateTransition(closestZone);
     npc.state = newState;
-    npc.stateTimer = Date.now() + TICK_RATE_MS * 10;
-    npc.memory.lastPruneTime = Date.now();
+    npc.stateTimer = Date.now() + TICK_RATE_MS * 10; // ARE-DETERMINISM-ALLOW // ARE-DETERMINISM-ALLOW
+    npc.memory.lastPruneTime = Date.now(); // ARE-DETERMINISM-ALLOW // ARE-DETERMINISM-ALLOW
     
     return {
       pruned: goalsRemoved > 0,

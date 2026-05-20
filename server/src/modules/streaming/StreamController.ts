@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import { Request, Response } from 'express';
 
 export enum StreamStatus {

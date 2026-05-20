@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class AchievementSystem {
   private unlocked = new Map<string, Set<string>>();
 

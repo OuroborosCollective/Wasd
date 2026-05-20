@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import { Logger } from "../../../core/logger/Logger.js";
 import { AIService } from "../../../ai/services/AIService.js";
 

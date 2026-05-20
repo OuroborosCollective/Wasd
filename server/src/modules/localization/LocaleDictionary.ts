@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export const LocaleDictionary = {
   de: {
     "ui.inventory.title": "Inventar",

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 import { genkit, z } from 'genkit';
 import { googleAI, gemini } from '@genkit-ai/googleai';
 

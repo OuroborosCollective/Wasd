@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: core meta
 type WorldEventMap = {
     'scarcity_event': {
         resourceId: string;

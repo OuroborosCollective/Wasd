@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class SeasonalEventBridge {
   eventForSeason(season: string) {
     const map: Record<string, string> = {

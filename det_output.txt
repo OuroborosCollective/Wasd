@@ -1,0 +1,225 @@
+ARE Guard advisory findings in observer/meta paths:
+- server/src/core/api/APIServer.ts:64 Date.now() reason="meta path" :: res.json({ ok: true, timestamp: Date.now() });
+- server/src/core/integrity/OuroborosAnchor.ts:107 Date.now() reason="meta path" :: timestamp: Date.now()
+- server/src/core/liveheal/LiveHealAnomalyDetector.ts:94 Date.now() reason="meta path" :: const now = Date.now();
+- server/src/core/liveheal/LiveHealEngine.ts:171 Date.now() reason="meta path" :: timestamp: Date.now(),
+- server/src/core/liveheal/LiveHealEngine.ts:275 Date.now() reason="meta path" :: lastHealingStartedAt: Date.now(),
+- server/src/core/liveheal/LiveHealEngine.ts:335 Date.now() reason="meta path" :: const startTime = Date.now();
+- server/src/core/liveheal/LiveHealEngine.ts:345 Date.now() reason="meta path" :: durationMs: Date.now() - startTime,
+- server/src/core/liveheal/LiveHealEngine.ts:385 Date.now() reason="meta path" :: lastHealingCompletedAt: Date.now(),
+- server/src/core/liveheal/LiveHealEngine.ts:406 Date.now() reason="meta path" :: lastHealingCompletedAt: Date.now(),
+- server/src/core/liveheal/LiveHealEngine.ts:436 Date.now() reason="meta path" :: const now = Date.now();
+- server/src/core/liveheal/LiveHealEngine.ts:464 Date.now() reason="meta path" :: cooldownUntil: Date.now() + cbConfig.cooldownMs,
+- server/src/core/liveheal/LiveHealIntegration.ts:130 Date.now() reason="meta path" :: const startTime = Date.now();
+- server/src/core/liveheal/LiveHealIntegration.ts:135 Date.now() reason="meta path" :: durationMs: Date.now() - startTime,
+- server/src/core/liveheal/LiveHealLearningStore.ts:109 Date.now() reason="meta path" :: const now = Date.now();
+- server/src/core/liveheal/LiveHealLearningStore.ts:243 Date.now() reason="meta path" :: const cutoff = Date.now() - maxAgeMs;
+- server/src/core/liveheal/LiveHealPatchLog.ts:24 Math.random() reason="meta path" :: return `LH-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+- server/src/core/liveheal/LiveHealPatchLog.ts:24 Date.now() reason="meta path" :: return `LH-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+- server/src/core/liveheal/LiveHealPatchLog.ts:44 Date.now() reason="meta path" :: timestamp: Date.now(),
+- server/src/core/liveheal/LiveHealPatchLog.ts:146 Date.now() reason="meta path" :: const now = Date.now();
+- server/src/core/liveheal/LiveHealRegistry.ts:163 Date.now() reason="meta path" :: lastStateChangeAt: Date.now(),
+- server/src/core/liveheal/LiveHealRootCauseAnalyzer.ts:54 Date.now() reason="meta path" :: return { candidates: [], topSuspect: null, victims: [], timestamp: Date.now() };
+- server/src/core/liveheal/LiveHealRootCauseAnalyzer.ts:63 Date.now() reason="meta path" :: timestamp: Date.now(),
+- server/src/core/liveheal/LiveHealRootCauseAnalyzer.ts:141 Date.now() reason="meta path" :: return { candidates, topSuspect, victims, timestamp: Date.now() };
+- server/src/core/liveheal/LiveHealStateMachine.ts:89 Date.now() reason="meta path" :: lastTransitionAt: Date.now(),
+- server/src/core/liveheal/LiveHealStateMachine.ts:114 Date.now() reason="meta path" :: const now = Date.now();
+- server/src/core/liveheal/LiveHealStateMachine.ts:172 Date.now() reason="meta path" :: return Date.now() - sm.healingStartedAt > timeoutMs;
+- server/src/core/liveheal/LiveHealStateMachine.ts:189 Date.now() reason="meta path" :: const now = Date.now();
+- server/src/core/liveheal/LiveHealStrategyRegistry.ts:78 Date.now() reason="meta path" :: const elapsed = Date.now() - lastRun;
+- server/src/core/liveheal/LiveHealStrategyRegistry.ts:112 Date.now() reason="meta path" :: entry.lastRunAt.set(subsystemId, Date.now());
+- server/src/core/logger/Logger.ts:8 new Date() reason="meta path" :: log: (msg: string) => console.log(`[ARE_LOG] ${new Date().toISOString()}: ${msg}`),
+- server/src/modules/admin/AdminAuditLog.ts:6 Date.now() reason="meta path" :: write(entry:any) { this.entries.push({ ts: Date.now(), ...entry }); }
+- server/src/modules/admin/EditorActionLog.ts:7 Date.now() reason="meta path" :: this.actions.push({ ...action, ts: Date.now() });
+- server/src/modules/admin/GiraffeAdminMount.ts:9 Date.now() reason="meta path" :: summonedAt: Date.now()
+- server/src/modules/admin/GMCommandLayer.ts:6 Date.now() reason="meta path" :: return { command, payload, executedAt: Date.now() };
+- server/src/modules/analytics/TelemetryCollector.ts:8 Date.now() reason="meta path" :: this.events.push({ type, payload, createdAt: Date.now() });
+- server/src/modules/asset-brain/AssetBrainAnalytics.ts:49 new Date() reason="meta path" :: timestamp: new Date(),
+- server/src/modules/asset-brain/AssetBrainAnalytics.ts:53 Date.now() reason="meta path" :: const key = `asset_gen_${Date.now()}`;
+- server/src/modules/asset-brain/AssetBrainAnalytics.ts:73 new Date() reason="meta path" :: timestamp: new Date(),
+- server/src/modules/asset-brain/AssetBrainAnalytics.ts:76 Date.now() reason="meta path" :: const key = `variant_gen_${Date.now()}`;
+- server/src/modules/asset-brain/AssetBrainAnalytics.ts:91 Date.now() reason="meta path" :: const since = new Date(Date.now() - hoursBack * 3600 * 1000);
+- server/src/modules/asset-brain/AssetBrainAnalytics.ts:91 new Date() reason="meta path" :: const since = new Date(Date.now() - hoursBack * 3600 * 1000);
+- server/src/modules/asset-brain/AssetBrainCache.ts:160 Date.now() reason="meta path" :: if (entry.expiresAt < Date.now()) {
+- server/src/modules/asset-brain/AssetBrainCache.ts:179 Date.now() reason="meta path" :: const expiresAt = Date.now() + (this.l1Config.l1TTL * 1000);
+- server/src/modules/asset-brain/AssetBrainDatabase.ts:121 Math.random() reason="meta path" :: const id = `spec_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+- server/src/modules/asset-brain/AssetBrainDatabase.ts:121 Date.now() reason="meta path" :: const id = `spec_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+- server/src/modules/asset-brain/AssetBrainDatabase.ts:122 new Date() reason="meta path" :: const now = new Date();
+- server/src/modules/asset-brain/AssetBrainDatabase.ts:198 Math.random() reason="meta path" :: const id = `var_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+- server/src/modules/asset-brain/AssetBrainDatabase.ts:198 Date.now() reason="meta path" :: const id = `var_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+- server/src/modules/asset-brain/AssetBrainDatabase.ts:199 new Date() reason="meta path" :: const now = new Date();
+- server/src/modules/asset-brain/AssetBrainDatabase.ts:225 Math.random() reason="meta path" :: const id = `job_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+- server/src/modules/asset-brain/AssetBrainDatabase.ts:225 Date.now() reason="meta path" :: const id = `job_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+- server/src/modules/asset-brain/AssetBrainDatabase.ts:226 new Date() reason="meta path" :: const now = new Date();
+- server/src/modules/asset-brain/AssetPipeline.ts:81 Math.random() reason="meta path" :: const jobId = `pipe_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+- server/src/modules/asset-brain/AssetPipeline.ts:81 Date.now() reason="meta path" :: const jobId = `pipe_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+- server/src/modules/asset-brain/AssetPipeline.ts:88 new Date() reason="meta path" :: createdAt: new Date(),
+- server/src/modules/asset-brain/AssetPipeline.ts:89 new Date() reason="meta path" :: updatedAt: new Date(),
+- server/src/modules/asset-brain/AssetPipeline.ts:97 new Date() reason="meta path" :: job.updatedAt = new Date();
+- server/src/modules/asset-brain/AssetPipeline.ts:114 new Date() reason="meta path" :: Object.assign(job, patch, { updatedAt: new Date() });
+- server/src/modules/asset-brain/AssetPipeline.ts:239 Date.now() reason="meta path" :: const filename = `${safeName}_${Date.now()}.glb`;
+- server/src/modules/asset-brain/AssetPipeline.ts:268 Math.random() reason="meta path" :: const registryId = `gen_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+- server/src/modules/asset-brain/AssetPipeline.ts:268 Date.now() reason="meta path" :: const registryId = `gen_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+- server/src/modules/assets/AssetImportQueue.ts:7 Date.now() reason="meta path" :: this.queue.push({ ...asset, queuedAt: Date.now() });
+- server/src/modules/auction/AuctionHouse.ts:11 Date.now() reason="non-sim module" :: const listing = { item, sellerId, price, createdAt: Date.now() };
+- server/src/modules/auth/PlayerRestore.ts:6 Date.now() reason="non-sim module" :: restoredAt: Date.now()
+- server/src/modules/auth/resolveLoginIdentity.ts:32 randomUUID() reason="non-sim module" :: uid: guestIdFromClient || (token === "test-token" ? "test-user" : randomUUID()),
+- server/src/modules/auth/resolveLoginIdentity.ts:40 randomUUID() reason="non-sim module" :: uid: guestIdFromClient || `guest_${randomUUID().slice(0,8)}`,
+- server/src/modules/auth/SessionHeartbeat.ts:6 Date.now() reason="non-sim module" :: heartbeatAt: Date.now()
+- server/src/modules/auth/WebSocketPresence.ts:4 Date.now() reason="non-sim module" :: return { playerId, online: true, changedAt: Date.now() };
+- server/src/modules/character/CharacterAssemblySystem.ts:198 Math.random() reason="non-sim module" :: const rand = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+- server/src/modules/character/CharacterAssemblySystem.ts:207 Math.random() reason="non-sim module" :: heightScale: 0.95 + Math.random() * 0.10,
+- server/src/modules/character/CharacterAssemblySystem.ts:208 Math.random() reason="non-sim module" :: widthScale: 0.90 + Math.random() * 0.20,
+- server/src/modules/character/CharacterAssemblySystem.ts:209 Math.random() reason="non-sim module" :: muscularityScale: 0.90 + Math.random() * 0.20,
+- server/src/modules/chat/ChatChannelRouter.ts:65 Date.now() reason="meta path" :: const now = Date.now();
+- server/src/modules/chat/ChatChannelRouter.ts:72 Date.now() reason="meta path" :: id: `cm_${++this.msgCounter}_${Date.now().toString(36)}`,
+- server/src/modules/chat/ChatChannelRouter.ts:79 Date.now() reason="meta path" :: ts: Date.now(),
+- server/src/modules/chat/ChatChannelRouter.ts:112 Date.now() reason="meta path" :: id: `cm_${++this.msgCounter}_${Date.now().toString(36)}`,
+- server/src/modules/chat/ChatChannelRouter.ts:118 Date.now() reason="meta path" :: ts: Date.now(),
+- server/src/modules/chat/ChatService.ts:10 Date.now() reason="meta path" :: createdAt: Date.now()
+- server/src/modules/chat/ChatSystem.ts:20 Date.now() reason="meta path" :: const now = Date.now();
+- server/src/modules/chat/ChatSystem.ts:30 Math.random() reason="meta path" :: id: `msg_${now}_${Math.random().toString(36).substring(2, 6)}`,
+- server/src/modules/chat/ChatSystem.ts:55 Date.now() reason="meta path" :: id: `sys_${Date.now()}`,
+- server/src/modules/chat/ChatSystem.ts:59 Date.now() reason="meta path" :: timestamp: Date.now()
+- server/src/modules/chat/RedisChatRelay.ts:123 Date.now() reason="meta path" :: ts: Number.isFinite(Number(raw.ts)) ? Number(raw.ts) : Date.now(),
+- server/src/modules/chat/RedisChatRelay.ts:187 Date.now() reason="meta path" :: const now = Date.now();
+- server/src/modules/civilization/CivilizationEngine.ts:8 Date.now() reason="non-sim module" :: createdAt: Date.now()
+- server/src/modules/civilization/KingdomLedger.ts:5 Date.now() reason="non-sim module" :: this.entries.push({ ...entry, ts: Date.now() });
+- server/src/modules/civilization/SettlementSystem.ts:7 Date.now() reason="non-sim module" :: createdAt: Date.now()
+- server/src/modules/content/adminGlbModelNeeds.ts:321 new Date() reason="non-sim module" :: generatedAtIso: new Date().toISOString(),
+- server/src/modules/content/publishContentPackFromRepo.ts:48 new Date() reason="non-sim module" :: generatedAt: new Date().toISOString(),
+- server/src/modules/dialogue/DialogueGenerator.ts:9 Math.random() reason="non-sim module" :: line: pool[Math.floor(Math.random() * pool.length)],
+- server/src/modules/diplomacy/DiplomacyEngine.ts:4 Date.now() reason="non-sim module" :: return { from: a, to: b, type, signedAt: Date.now() };
+- server/src/modules/events/DisasterEngine.ts:5 Math.random() reason="non-sim module" :: return { region, type: list[Math.floor(Math.random()*list.length)] };
+- server/src/modules/events/MigrationEngine.ts:9 Date.now() reason="non-sim module" :: startedAt: Date.now()
+- server/src/modules/events/WorldEventLayer.ts:4 Date.now() reason="non-sim module" :: return { type, payload, createdAt: Date.now() };
+- server/src/modules/faction/FactionMemory.ts:6 Date.now() reason="non-sim module" :: this.memory.get(factionId)!.push({ ts: Date.now(), event });
+- server/src/modules/farming/FarmingSystem.ts:4 Date.now() reason="non-sim module" :: return { seedId, plotId, plantedAt: Date.now() };
+- server/src/modules/farming/TreeGrowthSystem.ts:5 Date.now() reason="non-sim module" :: tree.lastGrowthAt = Date.now();
+- server/src/modules/gameplay/GameplayFusionDirector.ts:257 Date.now() reason="non-sim module" :: getQuestEchoBeacons(now: number = Date.now()): QuestEchoBeacon[] {
+- server/src/modules/gameplay/GameplayFusionDirector.ts:262 Date.now() reason="non-sim module" :: resolveNpcGlbOverride(npc: any, now: number = Date.now()): string | undefined {
+- server/src/modules/gameplay/GameplayFusionDirector.ts:274 Date.now() reason="non-sim module" :: resolveWorldObjectGlbOverride(type: string | undefined, now: number = Date.now()): string | undefined {
+- server/src/modules/gameplay/GameplayFusionDirector.ts:286 Date.now() reason="non-sim module" :: getSnapshot(now: number = Date.now()): GameplayFusionSnapshot {
+- server/src/modules/gameplay/GameplayFusionDirector.ts:289 new Date() reason="non-sim module" :: generatedAtIso: new Date(now).toISOString(),
+- server/src/modules/gameplay/GameplayFusionDirector.ts:307 Date.now() reason="non-sim module" :: contract.updatedAt = Date.now();
+- server/src/modules/gameplay/GameplayFusionDirector.ts:318 Date.now() reason="non-sim module" :: const now = Date.now();
+- server/src/modules/genealogy/FamilyGenerationSystem.ts:5 Date.now() reason="non-sim module" :: id: `child:${house}:${Date.now()}`,
+- server/src/modules/genealogy/FamilyGenerationSystem.ts:8 Date.now() reason="non-sim module" :: bornAt: Date.now()
+- server/src/modules/gm/AdminAuditLog.ts:4 Date.now() reason="non-sim module" :: log(entry: any) { this.entries.push({ timestamp: Date.now(), ...entry }); }
+- server/src/modules/growth/FarmingSystem.ts:7 Date.now() reason="non-sim module" :: plantedAt: Date.now(),
+- server/src/modules/history/HistoricalMapEngine.ts:5 Date.now() reason="non-sim module" :: timestamp: snapshot?.timestamp ?? Date.now(),
+- server/src/modules/history/ProphecyArchive.ts:4 Date.now() reason="non-sim module" :: add(prophecy:any){ this.entries.push({ timestamp:Date.now(), prophecy }); }
+- server/src/modules/history/RuinEvolutionEngine.ts:7 Date.now() reason="non-sim module" :: evolvedAt: Date.now()
+- server/src/modules/history/WorldSnapshotSystem.ts:7 Date.now() reason="non-sim module" :: timestamp: Date.now(),
+- server/src/modules/housing/HousingSystem.ts:7 Date.now() reason="non-sim module" :: createdAt: Date.now(),
+- server/src/modules/inventory/InventoryService.ts:77 Math.random() reason="non-sim module" :: id: Math.random().toString(36).substring(7),
+- server/src/modules/items/ItemGenerator.ts:5 Date.now() reason="non-sim module" :: id: `${baseId}_${rarity}_${Date.now()}`,
+- server/src/modules/land/LandSystem.ts:189 new Date() reason="non-sim module" :: claimedAt: new Date(),
+- server/src/modules/land/LandSystem.ts:224 new Date() reason="non-sim module" :: placedAt: new Date(),
+- server/src/modules/legend/LegendDistiller.ts:16 Math.random() reason="non-sim module" :: return `DISTILLED_K${rawLore.length}_${Math.random().toString(36).substr(2, 5)}`;
+- server/src/modules/mail/MailService.ts:8 Date.now() reason="meta path" :: const item = { from, to, subject, body, createdAt: Date.now() };
+- server/src/modules/mail/MailService.ts:18 Date.now() reason="meta path" :: const item = { from: "system", to, subject, body, createdAt: Date.now() };
+- server/src/modules/migration/MigrationEngine.ts:4 Date.now() reason="non-sim module" :: return { groupId, from, to, departedAt: Date.now() };
+- server/src/modules/monitoring/BackupManager.ts:21 Date.now() reason="meta path" :: const timestamp = Date.now();
+- server/src/modules/monitoring/SystemHealthMonitor.ts:8 Date.now() reason="meta path" :: checkedAt: Date.now()
+- server/src/modules/monster/MonsterDNA.ts:5 Math.random() reason="non-sim module" :: strength: Math.random(),
+- server/src/modules/monster/MonsterDNA.ts:6 Math.random() reason="non-sim module" :: speed: Math.random(),
+- server/src/modules/monster/MonsterDNA.ts:7 Math.random() reason="non-sim module" :: aggression: Math.random(),
+- server/src/modules/monster/MonsterDNA.ts:8 Math.random() reason="non-sim module" :: intelligence: Math.random(),
+- server/src/modules/monster/MonsterDNA.ts:9 Math.random() reason="non-sim module" :: resilience: Math.random()
+- server/src/modules/monster/MonsterMutation.ts:15 Math.random() reason="non-sim module" :: if (Math.random() < 0.08) {
+- server/src/modules/notifications/NotificationService.ts:9 Date.now() reason="meta path" :: createdAt: Date.now()
+- server/src/modules/ouroboros/DynamicFactions.ts:74 Date.now() reason="non-sim module" :: createdAt: Date.now(),
+- server/src/modules/ouroboros/DynamicFactions.ts:174 Date.now() reason="non-sim module" :: createdAt: Date.now(),
+- server/src/modules/ouroboros/EmergentMarket.ts:72 Date.now() reason="non-sim module" :: e.lastTradeTs = Date.now();
+- server/src/modules/ouroboros/EmergentMarket.ts:88 Date.now() reason="non-sim module" :: e.lastTradeTs = Date.now();
+- server/src/modules/ouroboros/EmergentMarket.ts:115 Date.now() reason="non-sim module" :: route.lastUsed = Date.now();
+- server/src/modules/ouroboros/EmergentMarket.ts:168 Date.now() reason="non-sim module" :: return { resourcePriorities: {}, lastGoalUpdate: Date.now() };
+- server/src/modules/ouroboros/LegendDistiller.ts:53 Math.random() reason="non-sim module" :: id: `LGN-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+- server/src/modules/ouroboros/LegendDistiller.ts:58 Date.now() reason="non-sim module" :: timestamp: Date.now(),
+- server/src/modules/ouroboros/LegendDistiller.ts:79 Math.random() reason="non-sim module" :: const randEpithet = epithets[Math.floor(Math.random() * epithets.length)];
+- server/src/modules/ouroboros/OuroborosLoop.ts:145 Math.random() reason="non-sim module" :: if (!myFaction && ctx.nearbyEntities.length >= 3 && Math.random() < config.factionFormChance) {
+- server/src/modules/ouroboros/OuroborosLoop.ts:165 Math.random() reason="non-sim module" :: if (!action && nearbyFriends.length > 0 && Math.random() < config.familyFormChance) {
+- server/src/modules/ouroboros/OuroborosLoop.ts:186 Math.random() reason="non-sim module" :: if (!action && Math.random() < config.legendSpreadChance) {
+- server/src/modules/ouroboros/OuroborosLoop.ts:190 Math.random() reason="non-sim module" :: const legend = myLegends[Math.floor(Math.random() * myLegends.length)];
+- server/src/modules/ouroboros/OuroborosLoop.ts:191 Math.random() reason="non-sim module" :: const target = nearbyFriends[Math.floor(Math.random() * nearbyFriends.length)];
+- server/src/modules/ouroboros/WorldHistory.ts:197 Math.random() reason="non-sim module" :: const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+- server/src/modules/ouroboros/WorldHistory.ts:214 Math.random() reason="non-sim module" :: return narrative + embellishments[Math.floor(Math.random() * embellishments.length)];
+- server/src/modules/party/partySystem.ts:28 Date.now() reason="non-sim module" :: createdAt: Date.now(),
+- server/src/modules/payment/PayPalService.ts:114 Date.now() reason="non-sim module" :: reference_id: `${playerId}_${productId}_${Date.now()}`,
+- server/src/modules/persistence/filePersistenceBackend.ts:34 new Date() reason="non-sim module" :: lastUpdated: new Date().toISOString(),
+- server/src/modules/persistence/postgresPersistenceBackend.ts:74 new Date() reason="non-sim module" :: lastUpdated: new Date().toISOString(),
+- server/src/modules/persistence/redisPersistenceBackend.ts:43 new Date() reason="non-sim module" :: lastUpdated: new Date().toISOString(),
+- server/src/modules/playtester/AutonomousPlaytester.ts:172 Date.now() reason="meta path" :: ts: Date.now(),
+- server/src/modules/playtester/AutonomousPlaytester.ts:776 Date.now() reason="meta path" :: ts: Date.now(),
+- server/src/modules/playtester/PlaytesterTelemetry.ts:18 Date.now() reason="meta path" :: ts: Date.now(),
+- server/src/modules/politics/DiplomacyEngine.ts:4 Date.now() reason="non-sim module" :: return { a, b, type, signedAt: Date.now() };
+- server/src/modules/politics/WarEngine.ts:8 Date.now() reason="non-sim module" :: timestamp: Date.now()
+- server/src/modules/quest/QuestEchoSystem.ts:40 Date.now() reason="non-sim module" :: timestamp: Date.now()
+- server/src/modules/quest/QuestEchoSystem.ts:56 Date.now() reason="non-sim module" :: const now = Date.now();
+- server/src/modules/quest/QuestEchoSystem.ts:68 Date.now() reason="non-sim module" :: const now = Date.now();
+- server/src/modules/quest/QuestEngine.ts:109 Date.now() reason="non-sim module" :: const newQuest = { ...quest, startedAt: Date.now(), completed: false };
+- server/src/modules/quest/QuestEngine.ts:193 Date.now() reason="non-sim module" :: q.completedAt = Date.now();
+- server/src/modules/quest/QuestService.ts:39 new Date() reason="non-sim module" :: quest.completedAt = new Date();
+- server/src/modules/questline/crossroadsResolver.ts:245 Date.now() reason="non-sim module" :: crossroads.resolvedAt = Date.now();
+- server/src/modules/questline/featureTrigger.ts:262 Date.now() reason="non-sim module" :: entry.satisfiedAt = Date.now();
+- server/src/modules/questline/questlineGenerator.ts:286 Date.now() reason="non-sim module" :: createdAt: Date.now(),
+- server/src/modules/questline/questlineGenerator.ts:314 Date.now() reason="non-sim module" :: createdAt: Date.now(),
+- server/src/modules/questline/questlineGenerator.ts:341 Date.now() reason="non-sim module" :: createdAt: Date.now(),
+- server/src/modules/questline/questlineGenerator.ts:367 Date.now() reason="non-sim module" :: createdAt: Date.now(),
+- server/src/modules/questline/worldSpawner.ts:154 Date.now() reason="non-sim module" :: createdAt: Date.now(),
+- server/src/modules/questline/worldSpawner.ts:193 Date.now() reason="non-sim module" :: createdAt: Date.now(),
+- server/src/modules/relationships/SharedMemoryNetwork.ts:6 Date.now() reason="non-sim module" :: propagatedAt: Date.now()
+- server/src/modules/release/BuildStamp.ts:5 Date.now() reason="non-sim module" :: generatedAt: Date.now()
+- server/src/modules/siege/SiegeEngine.ts:8 Date.now() reason="non-sim module" :: startedAt: Date.now()
+- server/src/modules/social/GroupFinder.ts:7 Date.now() reason="non-sim module" :: createdAt: Date.now()
+- server/src/modules/social/PartySystem.ts:7 Date.now() reason="non-sim module" :: createdAt: Date.now()
+- server/src/modules/structure/ConstructionQueue.ts:6 Date.now() reason="non-sim module" :: this.jobs.push({ ...job, createdAt: Date.now(), progress: 0 });
+- server/src/modules/swarm/orchestrator/SwarmOrchestrator.ts:36 new Date() reason="non-sim module" :: lastUpdate: new Date(),
+- server/src/modules/swarm/orchestrator/SwarmOrchestrator.ts:63 new Date() reason="non-sim module" :: this.state.artifacts.init = { timestamp: new Date(), status: 'success' };
+- server/src/modules/swarm/orchestrator/SwarmOrchestrator.ts:89 new Date() reason="non-sim module" :: const timestamp = new Date();
+- server/src/modules/swarm/services/DeveloperAgent.ts:58 Date.now() reason="non-sim module" :: const now = Date.now();
+- server/src/modules/swarm/services/DeveloperAgent.ts:127 new Date() reason="non-sim module" :: timestamp: new Date().toISOString()
+- server/src/modules/swarm/services/DeveloperAgent.ts:145 new Date() reason="non-sim module" :: timestamp: new Date().toISOString(),
+- server/src/modules/swarm/services/DeveloperAgent.ts:155 new Date() reason="non-sim module" :: timestamp: new Date().toISOString(),
+- server/src/modules/swarm/services/ReviewerAgent.ts:51 new Date() reason="non-sim module" :: reviewedAt: new Date(),
+- server/src/modules/telemetry/TelemetryCollector.ts:7 Date.now() reason="meta path" :: const entry = { metric, value, ts: Date.now() };
+- server/src/modules/trade/BuyOrders.ts:6 Date.now() reason="non-sim module" :: const order = { buyerId, itemId, price, quantity, createdAt: Date.now() };
+- server/src/modules/trade/PlayerMarket.ts:11 Date.now() reason="non-sim module" :: const listing = { sellerId, item, price, createdAt: Date.now() };
+- server/src/modules/trade/SellOrders.ts:6 Date.now() reason="non-sim module" :: const order = { sellerId, itemId, price, quantity, createdAt: Date.now() };
+- server/src/modules/vote/VoteBannerStore.ts:65 randomUUID() reason="non-sim module" :: const internalId = asNonEmptyString(raw.internalId) ?? `vote_${randomUUID()}`;
+- server/src/modules/vote/VoteBannerStore.ts:115 Date.now() reason="non-sim module" :: const now = Date.now();
+- server/src/modules/vote/VoteBannerStore.ts:160 Date.now() reason="non-sim module" :: const now = Date.now();
+- server/src/modules/vote/VoteBannerStore.ts:182 Date.now() reason="non-sim module" :: const now = Date.now();
+- server/src/modules/vote/VoteSystem.ts:74 Date.now() reason="non-sim module" :: this.pruneState(player, Date.now());
+- server/src/modules/vote/VoteSystem.ts:134 Date.now() reason="non-sim module" :: const now = Date.now();
+- server/src/modules/vote/VoteSystem.ts:198 Date.now() reason="non-sim module" :: const now = Date.now();
+- server/src/modules/vote/VoteSystem.ts:226 randomUUID() reason="non-sim module" :: const id = `vote_${randomUUID()}`;
+- server/src/modules/vote/VoteSystem.ts:235 randomUUID() reason="non-sim module" :: callbackToken: randomUUID().replace(/-/g, ""),
+- server/src/modules/vote/VoteSystem.ts:266 Date.now() reason="non-sim module" :: const now = Date.now();
+- server/src/modules/vote/VoteSystem.ts:382 Date.now() reason="non-sim module" :: const now = Date.now();
+- server/src/modules/vote/VoteSystem.ts:435 randomUUID() reason="non-sim module" :: id: `vb_${randomUUID()}`,
+- server/src/modules/vote/VoteSystem.ts:449 randomUUID() reason="non-sim module" :: id: `vh_${randomUUID()}`,
+- server/src/modules/vote/VoteSystem.ts:498 Date.now() reason="non-sim module" :: const now = Date.now();
+- server/src/modules/vote/VoteSystem.ts:545 Date.now() reason="non-sim module" :: getXpMultiplier(player: any, now = Date.now()): number {
+- server/src/modules/vote/VoteSystem.ts:550 Date.now() reason="non-sim module" :: getBuffState(player: any, now = Date.now()): VoteBuffState {
+- server/src/modules/world/AREModeAuditTrail.ts:44 Date.now() reason="non-sim module" :: const timestamp = Date.now();
+- server/src/modules/world/AREModeAuditTrail.ts:47 new Date() reason="non-sim module" :: isoTime: new Date(timestamp).toISOString(),
+- server/src/modules/world/AssetPoolResolver.ts:60 Date.now() reason="non-sim module" :: const now = Date.now();
+- server/src/modules/world/AssetPoolResolver.ts:61 new Date() reason="non-sim module" :: const stamp = new Date(now).toISOString().replace(/[:.]/g, "-");
+- server/src/modules/world/AssetPoolResolver.ts:306 new Date() reason="non-sim module" :: createdAtIso: new Date(stat.mtimeMs).toISOString(),
+- server/src/modules/world/HazardResonance.ts:109 Date.now() reason="non-sim module" :: const tickCount = Date.now() % 100;
+- server/src/modules/world/HazardResonance.ts:139 Date.now() reason="non-sim module" :: const tickCount = Date.now() % 100;
+- server/src/modules/world/ShadowRegisterPortal.ts:7 Date.now() reason="non-sim module" :: activatedAt: Date.now()
+- server/src/modules/world/WorldState.ts:5 Date.now() reason="non-sim module" :: capturedAt: Date.now(),
+- server/src/modules/world-editor/AdminAuditLog.ts:10 Date.now() reason="non-sim module" :: timestamp: Date.now()
+- server/src/modules/world-editor/ObjectPlacement.ts:4 Date.now() reason="non-sim module" :: return { assetId, position, placedAt: Date.now() };
+- server/src/modules/world-editor/TerrainBrush.ts:4 Date.now() reason="non-sim module" :: return { chunkId, brushType, strength, appliedAt: Date.now() };
+- server/src/services/MarketingAutomation.ts:53 new Date() reason="service" :: timestamp: new Date()
+- server/src/services/MarketingAutomation.ts:65 new Date() reason="service" :: timestamp: new Date()
+- server/src/services/trading/EmergentMarket.js:13 Date.now() reason="service" :: timestamp: Date.now(),
+- server/src/services/trading/EmergentMarket.js:82 Math.random() reason="service" :: bids: Array.from({ length: 20 }, (_, i) => [100 - i * 0.1, Math.random() * 50]),
+- server/src/services/trading/EmergentMarket.js:83 Math.random() reason="service" :: asks: Array.from({ length: 20 }, (_, i) => [100 + i * 0.1, Math.random() * 10])
+- server/src/services/trading/ScarcityAnalyzer.js:24 Date.now() reason="service" :: timestamp: event.timestamp || Date.now()
+Meta files should declare: // @ARE-GUARD-EXEMPT: reason not world-state input.
+ARE Determinism Gate passed. Scanned 498 file(s); 222 advisory finding(s).

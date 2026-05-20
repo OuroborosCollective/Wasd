@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class SiegeEngine {
   start(attacker:any, target:any) {
     return {

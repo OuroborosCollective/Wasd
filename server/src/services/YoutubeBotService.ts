@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: service
 import { google, youtube_v3 } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
 import fs from 'fs';

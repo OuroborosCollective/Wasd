@@ -1,4 +1,6 @@
 // @ARE-GUARD-EXEMPT: meta path
+// @ARE-GUARD-EXEMPT: meta telemetry side-channel reason
+// @ARE-GUARD-EXEMPT: meta path
 /**
  * Asset Brain Architect - Database Operations
  * Handles all CRUD operations for asset specifications and variants

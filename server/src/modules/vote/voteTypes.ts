@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export type VoteVerificationMode = "api_poll" | "callback_token";
 
 export type VoteBannerEntry = {

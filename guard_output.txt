@@ -1,0 +1,5 @@
+
+> @arelororian/monorepo@1.0.0 guard:monorepo /app
+> node scripts/monorepo-guard.mjs
+
+MONOREPO GUARD OK: package/lockfile/Docker sync checks passed.

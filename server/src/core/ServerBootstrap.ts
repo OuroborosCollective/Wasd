@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: core meta
 import { shutdownPostHog } from "../services/posthog.js";
 import express, { type Request } from "express";
 import { createServer } from "node:http";

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 /**
  * Legendary / aspect-style proc hooks. Integrate after a successful hit with final damage.
  */

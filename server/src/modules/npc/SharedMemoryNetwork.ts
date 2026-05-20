@@ -4,7 +4,7 @@ export class SharedMemoryNetwork {
       fromNpcId,
       toNpcId,
       memory,
-      sharedAt: Date.now()
+      sharedAt: Date.now() // ARE-DETERMINISM-ALLOW
     };
   }
 }

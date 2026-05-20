@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export class TitleSystem {
   assign(player: any, title: string) {
     if (!player.titles) player.titles = [];

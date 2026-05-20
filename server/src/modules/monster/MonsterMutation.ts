@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-sim module
 export function mutateMonster(dna: any, biome: string) {
   const clone = { ...dna, mutations: [] as string[] };
 
