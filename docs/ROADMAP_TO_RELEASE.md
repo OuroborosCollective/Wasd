@@ -50,6 +50,8 @@ This roadmap tracks the gap between what is already live in the repository and w
 - `pnpm run build`
 - `pnpm run audit:model-paths`
 - `pnpm run test:e2e:ci` in CI before release tags
+- `pnpm run dgcc` / `pnpm run dgcc:quick` (Design+Gameplay consistency contract; see `tools/dgcc/README.md`)
+- `pnpm run ci:verify` for a fast pre-push smoke (DGCC quick + interact distance check)
 
 ---
 
