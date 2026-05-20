@@ -176,3 +176,20 @@ canvas { display: block; filter: saturate(1.16) contrast(1.08); }
   .stitch-chat { width: calc(100vw - 104px); }
   .stitch-kicker { letter-spacing: .12em; }
 }
+
+.stitch-target { position: absolute; top: 94px; left: 274px; width: 180px; padding: 12px; border: 1px solid var(--st-ruby); border-radius: 20px; background: rgba(4,8,14,0.6); backdrop-filter: blur(10px); color: white; pointer-events: none; animation: stitch-fade-in 0.3s ease; }
+.stitch-target small { display: block; color: var(--st-ruby); text-transform: uppercase; font-size: 10px; letter-spacing: 0.1em; margin-bottom: 4px; }
+.stitch-target div { font-size: 16px; font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@keyframes stitch-fade-in {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@media (max-width: 920px) {
+  .stitch-target { top: 78px; left: 234px; width: 140px; padding: 8px; }
+}
+
+@media (max-width: 520px) {
+  .stitch-target { position: relative; top: 0; left: 0; width: 100%; grid-column: span 2; margin-top: 8px; }
+}

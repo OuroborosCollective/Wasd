@@ -62,7 +62,7 @@ export function AREEventThemeBridge({ active = true }: { active?: boolean }): nu
       ]);
       if (disposed) return;
 
-      if (oracle?.active || Number(oracle?.prophecyCount ?? 0) > 0) {
+      if (oracle && (oracle.active || Number(oracle.prophecyCount ?? 0) > 0)) {
         pushAREEventTheme({
           kind: "oracle",
           tick: Number(oracle.generatedAtTick ?? tick),
@@ -73,13 +73,13 @@ export function AREEventThemeBridge({ active = true }: { active?: boolean }): nu
       }
 
       const repairActive = Boolean(repair?.autoRepair?.active || repair?.autoRepair?.lastPlan);
-      if (repairActive) {
+      if (repairActive && repair) {
         pushAREEventTheme({
           kind: "repair",
           tick,
           active: true,
-          severity: safeSeverity(repair?.autoRepair?.lastPlan?.severity, 0.82),
-          label: `repair-${repair?.autoRepair?.lastPlan?.sector ?? "grid"}`,
+          severity: safeSeverity(repair.autoRepair?.lastPlan?.severity, 0.82),
+          label: `repair-${repair.autoRepair?.lastPlan?.sector ?? "grid"}`,
         });
       }
 
@@ -87,12 +87,12 @@ export function AREEventThemeBridge({ active = true }: { active?: boolean }): nu
         Number((governance?.activeDirectives as unknown[] | undefined)?.length ?? 0) +
         Number((governance?.openDirectives as unknown[] | undefined)?.length ?? 0) +
         Number((governance?.directives as unknown[] | undefined)?.length ?? 0);
-      if (directiveCount > 0) {
+      if (directiveCount > 0 && governance) {
         pushAREEventTheme({
           kind: "governance",
           tick,
           active: true,
-          severity: Math.min(1, 0.22 + directiveCount * 0.08 + Number(governance?.participation ?? 0) * 0.4),
+          severity: Math.min(1, 0.22 + directiveCount * 0.08 + Number(governance.participation ?? 0) * 0.4),
           label: "sovereign-council",
         });
       }

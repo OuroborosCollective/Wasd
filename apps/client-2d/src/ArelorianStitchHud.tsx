@@ -96,9 +96,9 @@ export function ArelorianStitchHud({
       </aside>
 
       {targetName && (
-        <aside className="stitch-target" style={{ position: 'absolute', top: '94px', left: '270px', padding: '10px', background: 'rgba(4,8,14,0.6)', borderRadius: '12px', border: '1px solid var(--st-ruby)', color: 'white', pointerEvents: 'none' }}>
-           <small style={{ color: 'var(--st-ruby)', textTransform: 'uppercase', fontSize: '10px' }}>Target</small>
-           <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{targetName}</div>
+        <aside className="stitch-target">
+           <small>Target</small>
+           <div>{targetName}</div>
         </aside>
       )}
 
@@ -205,36 +205,87 @@ function panelTitle(panel: Exclude<HudPanel, null>) {
 }
 
 function InventoryPreview({ weaponCount }: { weaponCount: number }) {
+  const loadoutRaw = localStorage.getItem("wasd:2d:loadout");
+  const loadout = loadoutRaw ? JSON.parse(loadoutRaw) : [];
+
   return (
     <div className="stitch-grid-panel">
       <Info label="Weapon Pool" value={`${weaponCount} visuals`} />
       <Info label="Drop Logic" value="visualId ready" />
-      <Info label="Atlas" value="weapon-atlas.png" />
-      <Info label="Rarity" value="common → mystic" />
       <article className="stitch-info" style={{ gridColumn: 'span 2' }}>
-        <small>Recent Findings</small>
-        <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-          {[1,2,3,4].map(i => <div key={i} style={{ width: '40px', height: '40px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px', border: '1px dashed rgba(255,255,255,0.2)' }} />)}
+        <small>Starter Loadout</small>
+        <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+          {loadout.map((item: string) => (
+             <div key={item} style={{ padding: '4px 10px', background: 'rgba(255,255,255,0.1)', borderRadius: '6px', fontSize: '12px', border: '1px solid rgba(0,229,255,0.2)' }}>
+               {item.replace(/_/g, ' ')}
+             </div>
+          ))}
+          {loadout.length === 0 && <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px' }}>No items in local storage.</span>}
         </div>
       </article>
+      <Info label="Atlas" value="weapon-atlas.png" />
+      <Info label="Rarity" value="common → mystic" />
     </div>
   );
 }
+
 function CharacterPreview() {
-  return <div className="stitch-grid-panel"><Info label="Level" value="1" /><Info label="ARE Sync" value="stable" /><Info label="Class" value="classless" /><Info label="Skill Mode" value="use-based" /></div>;
+  const role = localStorage.getItem("wasd:2d:role") || "Observer";
+  const pubKey = localStorage.getItem("wasd:2d:publicKey") || "unknown";
+
+  return (
+    <div className="stitch-grid-panel">
+      <Info label="Role" value={role} />
+      <Info label="Level" value="1" />
+      <article className="stitch-info" style={{ gridColumn: 'span 2' }}>
+        <small>Public Identity</small>
+        <code style={{ fontSize: '10px', color: 'var(--st-aether)', wordBreak: 'break-all' }}>{pubKey}</code>
+      </article>
+      <Info label="ARE Sync" value="stable" />
+      <Info label="Skill Mode" value="use-based" />
+    </div>
+  );
 }
+
 function CombatPreview() {
-  return <div className="stitch-grid-panel"><Info label="Tick" value="10Hz" /><Info label="Target" value="nearest" /><Info label="Threat" value="low" /><Info label="Warfront" value="cycle-linked" /></div>;
+  return (
+    <div className="stitch-grid-panel">
+      <Info label="Tick" value="10Hz" />
+      <Info label="Target" value="nearest" />
+      <article className="stitch-info" style={{ gridColumn: 'span 2' }}>
+        <small>Combat Log</small>
+        <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)', margin: '4px 0 0' }}>[18:42:01] Defensive stance active.</p>
+        <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)', margin: '2px 0 0' }}>[18:42:03] Aether resonance detected.</p>
+      </article>
+      <Info label="Threat" value="low" />
+      <Info label="Warfront" value="cycle-linked" />
+    </div>
+  );
 }
+
 function MapPreview() {
-  return <div className="stitch-map-preview"><span /><span /><span /><span /><b>Millbrook</b></div>;
+  const spawnRaw = localStorage.getItem("wasd:2d:spawn");
+  const spawn = spawnRaw ? JSON.parse(spawnRaw) : { chunkX: 0, chunkY: 0 };
+
+  return (
+    <div className="stitch-map-preview">
+      <span /><span /><span /><span />
+      <div style={{ position: 'absolute', bottom: '10px', left: '10px', fontSize: '10px', color: 'rgba(255,255,255,0.6)' }}>
+        Sector: {spawn.chunkX}:{spawn.chunkY}
+      </div>
+      <b>Millbrook</b>
+    </div>
+  );
 }
+
 function GuildPreview() {
   return <div className="stitch-grid-panel"><Info label="Guild" value="unclaimed" /><Info label="Village Rights" value="50 members" /><Info label="Treasury" value="offline" /><Info label="Rank" value="observer" /></div>;
 }
+
 function FactionsPreview() {
   return <div className="stitch-grid-panel"><Info label="Millbrook" value="neutral" /><Info label="Oracle Circle" value="trusted" /><Info label="Warfront" value="contested" /><Info label="Merchants" value="open" /></div>;
 }
+
 function QuestPreview() {
   return (
     <div className="stitch-grid-panel">
@@ -248,6 +299,7 @@ function QuestPreview() {
     </div>
   );
 }
+
 function Info({ label, value }: { label: string; value: string }) {
   return <article className="stitch-info"><small>{label}</small><b>{value}</b></article>;
 }

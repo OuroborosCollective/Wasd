@@ -1,15 +1,14 @@
-import { Application, Assets, Container, Graphics, Sprite, Text, Texture } from "pixi.js";
+import { Application, Assets, Container, Graphics, Sprite, Text, Texture, Rectangle } from "pixi.js";
 import { useEffect, useRef, useState } from "react";
 import { ArelorianStitchHud } from "./ArelorianStitchHud";
-import { loadAssetManifest } from "./assetManifest";
+import { loadAssetManifest, fallbackEntry, pickWeaponVisual } from "./assetManifest";
 import { createClient } from "./networkClient";
-import { fallbackEntry } from "./assetManifest";
 
 const TILE_W = 128;
 const TILE_H = 64;
 
 type Msg = { from: string; txt: string };
-type Entity = { root: Container; tx: number; tz: number; name: string; isPlayer: boolean };
+type Entity = { root: Container; tx: number; tz: number; name: string; isPlayer: boolean; weapon?: Sprite | null };
 type LoadedAssets = { manifest: any; textures: Map<string, Texture> };
 
 function iso(tx: number, tz: number, width: number, height: number) {
@@ -75,11 +74,29 @@ function avatar(name: string, player = false, assets?: LoadedAssets | null) {
   const entry = fallbackEntry(assets?.manifest ?? null, "characters", player ? "player" : "npc");
   const tex = textureFor(assets ?? null, entry);
   c.addChild(new Graphics().ellipse(0, 18, 23, 8).fill({ color: 0x02040a, alpha: 0.56 }));
-  if (tex) c.addChild(spriteFromTexture(tex, 58, 74));
-  else {
+
+  if (tex) {
+    c.addChild(spriteFromTexture(tex, 58, 74));
+  } else {
     c.addChild(new Graphics().ellipse(0, -8, 14, 21).fill(player ? 0x267dff : 0x249a56).stroke({ width: 2, color: aura, alpha: 0.55 }));
     c.addChild(new Graphics().circle(0, -34, 11).fill(player ? 0xffd8a9 : 0xd4ffd7).stroke({ width: 2, color: aura, alpha: 0.82 }));
   }
+
+  const weaponResult = pickWeaponVisual(assets?.manifest ?? null, { seed: name });
+  if (weaponResult && assets) {
+    const atlasTex = assets.textures.get(weaponResult.entry.src);
+    const frame = weaponResult.entry.frame;
+    if (atlasTex && frame) {
+       const sub = new Texture({
+         baseTexture: atlasTex.baseTexture,
+         frame: new Rectangle(frame.x, frame.y, frame.w, frame.h)
+       });
+       const ws = spriteFromTexture(sub, 24, 24, 0.5);
+       ws.x = 18; ws.y = -24;
+       c.addChild(ws);
+    }
+  }
+
   const label = new Text({ text: name, style: { fontSize: 11, fill: 0xfff0cf, stroke: { color: 0x02030a, width: 3 }, fontFamily: "monospace" } });
   label.anchor.set(0.5, 1); label.y = -58;
   c.addChild(label);
@@ -170,7 +187,8 @@ export function CyberZenIsoApp() {
     if (entities.current.has(id)) return;
     const root = avatar(name, player, assets); place(root, x, z, app.screen.width, app.screen.height);
     root.eventMode = 'static';
-    root.on('pointerdown', () => {
+    root.on('pointerdown', (e) => {
+      e.stopPropagation();
       setTargetId(id);
       setTargetName(name);
       setMessages(m => [...m.slice(-12), { from: "System", txt: `Target acquired: ${name}` }]);
@@ -184,8 +202,16 @@ export function CyberZenIsoApp() {
     c.on("connect" as any, () => { setConnected(true); setMessages(m => [...m.slice(-12), { from: "Net", txt: "World stream connected." }]); });
     c.on("disconnect" as any, () => setConnected(false));
     c.on("WORLD_HEARTBEAT", (e: any) => {
-      Object.entries(e.payload?.players || {}).forEach(([id, p]: any) => addActor(app, layer, id, Number(p.x || 0), Number(p.z || 0), p.name || "Player", true));
-      Object.entries(e.payload?.agents || {}).forEach(([id, a]: any) => addActor(app, layer, id, Number(a.x || 0), Number(a.z || 0), a.name || "NPC", false));
+      Object.entries(e.payload?.players || {}).forEach(([id, p]: any) => {
+        addActor(app, layer, id, Number(p.x || 0), Number(p.z || 0), p.name || "Player", true);
+        const ent = entities.current.get(id);
+        if (ent) { ent.tx = Number(p.x || ent.tx); ent.tz = Number(p.z || ent.tz); }
+      });
+      Object.entries(e.payload?.agents || {}).forEach(([id, a]: any) => {
+        addActor(app, layer, id, Number(a.x || 0), Number(a.z || 0), a.name || "NPC", false);
+        const ent = entities.current.get(id);
+        if (ent) { ent.tx = Number(a.x || ent.tx); ent.tz = Number(a.z || ent.tz); }
+      });
     });
     c.on("PLAYER_MOVED", (e: any) => { const ent = entities.current.get(e.payload?.playerId); if (ent) { ent.tx = Number(e.payload.x || ent.tx); ent.tz = Number(e.payload.z || ent.tz); } });
     c.connect();
@@ -196,7 +222,6 @@ export function CyberZenIsoApp() {
     if (k.has("w") || k.has("arrowup")) dz += 1; if (k.has("s") || k.has("arrowdown")) dz -= 1; if (k.has("a") || k.has("arrowleft")) dx -= 1; if (k.has("d") || k.has("arrowright")) dx += 1;
 
     if (autoMove && !dx && !dz) {
-       // Simple patrol logic
        const t = Date.now() / 1000;
        dx = Math.cos(t) * 0.5;
        dz = Math.sin(t) * 0.5;
@@ -213,7 +238,6 @@ export function CyberZenIsoApp() {
       ent.root.y += (p.y - ent.root.y) * 0.18;
       ent.root.zIndex = ent.root.y;
 
-      // Target highlight
       if (id === targetId) {
         ent.root.alpha = 0.8 + Math.sin(Date.now() / 200) * 0.2;
       } else {
@@ -255,7 +279,7 @@ export function CyberZenIsoApp() {
         onInteract={interact}
         onToggleAutoMove={() => {
            setAutoMove(!autoMove);
-           setMessages(m => [...m.slice(-12), { from: "Navigator", txt: autoMove ? "Manual control engaged." : "Auto-patrol engaged." }]);
+           setMessages(m => [...m.slice(-12), { from: "Navigator", txt: !autoMove ? "Auto-patrol engaged." : "Manual control engaged." }]);
         }}
       />
     </div>
