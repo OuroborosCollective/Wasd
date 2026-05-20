@@ -34,7 +34,7 @@ Primary source-of-truth docs:
   - Install once: `pnpm run test:e2e:install`
   - Run: `pnpm run test:e2e`
   - CI variant: `pnpm run test:e2e:ci`
-- Pre-push quick verification (no E2E): `pnpm run ci:verify`
+- Pre-push quick verification (no E2E, no Vitest): `pnpm run ci:verify` (lint, content validate, model-path audit, interact-distance check). Run `pnpm run test` for Vitest.
 - Content checks:
   - Validate content: `pnpm run validate --prefix server`
   - Model-path audit: `pnpm run audit:model-paths`

@@ -189,6 +189,8 @@ export class ServerBootstrap {
     const itchClientPath = path.join(clientRoot, "dist-itch");
     const adminContentPath = resolveAdminContentHtmlPath(clientRoot, clientPath);
     if (adminContentPath) app.get("/admin-content.html", (_req, res) => res.sendFile(adminContentPath));
+    const e2eSmokePath = path.join(clientRoot, "public", "e2e-smoke.html");
+    if (existsSync(e2eSmokePath)) app.get("/e2e-smoke.html", (_req, res) => res.sendFile(e2eSmokePath));
     if (existsSync(path.join(itchClientPath, "index.html"))) { app.use("/itch", express.static(itchClientPath, { index: "index.html" })); app.get("/itch/*", (_req, res) => res.sendFile(path.join(itchClientPath, "index.html"))); }
     if (process.env.NODE_ENV !== "production") {
       try { const vite = await import("vite"); const viteServer = await vite.createServer({ server: { middlewareMode: true }, appType: "spa", root: clientRoot }); app.use(viteServer.middlewares); }

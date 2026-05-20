@@ -194,6 +194,17 @@ export function runWarfrontCombatTick(opts: {
 }
 
 export function bootstrapWarfrontNpcs(npcSystem: NPCSystem): void {
+  if (!npcSystem.getNPC("npc_dummy")) {
+    npcSystem.createNPC("npc_dummy", "Training Dummy", 500, 500);
+    const dummy = npcSystem.getNPC("npc_dummy");
+    if (dummy) {
+      dummy.role = "Training";
+      dummy.health = 100;
+      dummy.maxHealth = 100;
+      dummy.stamina = 100;
+      dummy.skills = { combat: { level: 1 } };
+    }
+  }
   const band: Array<{ id: string; name: string; x: number; y: number; aggression: number }> = [
     { id: "wf_raider_alpha", name: "Raider Alpha", x: 518, y: 502, aggression: 0.84 },
     { id: "wf_skirmisher_beta", name: "Skirmisher Beta", x: 486, y: 498, aggression: 0.58 },

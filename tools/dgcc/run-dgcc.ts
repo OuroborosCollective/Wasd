@@ -136,8 +136,17 @@ async function uiA11ySmoke(report: DgccReport) {
 }
 
 async function main() {
-  const mode = parseMode();
+  let mode = parseMode();
+  if (!fs.existsSync(CONTRACT_PATH)) {
+    console.error(`[DGCC] missing contract file: ${path.relative(ROOT, CONTRACT_PATH)}`);
+    process.exit(3);
+  }
   const contract = readJson<any>(CONTRACT_PATH);
+  const knownModes = contract.modes && typeof contract.modes === "object" ? Object.keys(contract.modes) : [];
+  if (knownModes.length > 0 && !contract.modes[mode]) {
+    console.warn(`[DGCC] unknown mode "${mode}", falling back to minimal`);
+    mode = knownModes.includes("minimal") ? "minimal" : knownModes[0];
+  }
   const fix = wantFixes(contract, mode);
   printHeader(mode, fix);
 
@@ -181,7 +190,7 @@ async function main() {
 
   if (checks.includes("unit")) {
     await runCheck("unit", async () => {
-      const r = await run("pnpm", ["run", "test"]);
+      const r = await run("pnpm", ["run", "test:dgcc"]);
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
       if (r.code !== 0) throw new Error("unit tests failed");

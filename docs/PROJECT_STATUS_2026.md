@@ -76,9 +76,10 @@ Use it before trusting older reconstruction or handover docs.
 
 | Item | Status |
 |------|--------|
-| Unit/integration tests | Vitest (`pnpm run test`) |
+| Unit/integration tests | Vitest (`pnpm run test`; optional file-persistence helper `pnpm run test:dgcc`) |
 | E2E tests | Playwright (`pnpm run test:e2e`, `pnpm run test:e2e:ci`) |
 | Lint | ESLint (`pnpm run lint`) |
+| DGCC consistency gate | `pnpm run dgcc` / `pnpm run dgcc:extreme` — contract `tools/dgcc/dgcc.contract.json`, report `dgcc-artifacts/dgcc.report.json` |
 | Build | Root build compiles client then server (`pnpm run build`) |
 | CI baseline | Lint + tests + build + model-path audit + e2e workflow exists |
 
