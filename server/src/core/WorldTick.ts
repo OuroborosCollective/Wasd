@@ -23,6 +23,8 @@ import { deterministicTickRecorder, type DeterministicRecorderStats, type Determ
 import { ouroborosOracleEngine, type OracleReport } from "../are/OuroborosOracle.js";
 import { areAutoRepairService, type AutoRepairStatus } from "../are/AREAutoRepairService.js";
 import { deterministicUsageTracker, type DeterministicUsageStats } from "../are/DeterministicUsageTracker.js";
+import { AREReplayBuffer } from "./are/AREReplayBuffer.js";
+import { AREShadowAdapter } from "./are/AREShadowAdapter.js";
 import { KappaPosGrid } from "@wasd/shared";
 
 function sectorOf(entity: any): number {
@@ -31,10 +33,17 @@ function sectorOf(entity: any): number {
   return Math.abs((Math.floor(x / 64) * 31 + Math.floor(y / 64) * 17) % 64);
 }
 
+function safeInt(value: unknown, fallback = 0): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.trunc(n);
+}
+
 export class WorldTick {
   private timer: NodeJS.Timeout | null = null;
   private tickCount = 0;
   private readonly areGuard = new AREInvariantGuard({ throwOnViolation: true });
+  private readonly areShadowReplay = new AREReplayBuffer(1000);
   private lastAREGuardStatus: AREInvariantGuardStatus | null = null;
   private lastWorldHashSnapshot: WorldHashSnapshot | null = null;
   private lastOracleReport: OracleReport | null = null;
@@ -78,7 +87,7 @@ export class WorldTick {
   public resourceSystem: any = { nodes: new Map() };
   public chatSystem: any = { getRecentMessages: () => [], systemMessage: () => {}, sendMessage: () => ({}) };
   public lootSystem: any = { rollLoot: () => ({ items: [], gold: 0 }) };
-  public liveHeal: any = { getStatus: () => ({ tickCount: this.tickCount, autoRepair: areAutoRepairService.getStatus(), usage: deterministicUsageTracker.getStats(this.tickCount) }), flush: () => {} };
+  public liveHeal: any = { getStatus: () => ({ tickCount: this.tickCount, autoRepair: areAutoRepairService.getStatus(), usage: deterministicUsageTracker.getStats(this.tickCount), areShadow: this.getAREShadowReplayStats() }), flush: () => {} };
   public getPlaytesterDebugLogPath(): string { return ""; }
   public buildPlaytesterMonitorPayload(options?: any): any { return {}; }
   public assetHealthService: any = { getStatus: () => ({}), getStats: () => null, flush: () => {} };
@@ -127,6 +136,16 @@ export class WorldTick {
   public getAutoRepairStatus(): AutoRepairStatus { return areAutoRepairService.getStatus(); }
   public getDeterministicUsageStats(): DeterministicUsageStats { return deterministicUsageTracker.getStats(this.tickCount); }
   public getOracleReport(): OracleReport { this.lastOracleReport = ouroborosOracleEngine.generate(deterministicTickRecorder.records()); return this.lastOracleReport; }
+  public getAREShadowReplayStats(): any {
+    const latest = this.areShadowReplay.latest();
+    return {
+      capacity: this.areShadowReplay.capacity,
+      size: this.areShadowReplay.size,
+      latestTick: latest?.tick ?? null,
+      latestEntityId: latest?.entityId ?? null,
+      latestStateHash: latest?.stateHash ?? null,
+    };
+  }
 
   public comparePortalWorldHash(portalSnapshot: Partial<WorldHashSnapshot> | null | undefined): any {
     if (!this.lastWorldHashSnapshot) return { ok: false, error: "world_hash_snapshot_not_ready" };
@@ -198,6 +217,29 @@ export class WorldTick {
   stop() { if (this.timer) clearInterval(this.timer); this.timer = null; }
   private buildAREPayload(): AREGuardPayload { return { l: 13, k: 1000, r: Math.round((0.5 + Math.sin(this.tickCount / 10) * 0.5) * 1000) / 1000, tick: this.tickCount, deterministicSeed: `ARE|k1000|tick:${this.tickCount}|chunk:64` }; }
 
+  private runAREShadowTick(strippedPlayers: any[], strippedNpcs: any[]) {
+    for (const player of strippedPlayers) {
+      AREShadowAdapter.executeShadowTick({
+        entityId: `player:${player.id}`,
+        position: player.position,
+        velocity: { x: 0, y: 0, z: 0 },
+        tick: this.tickCount,
+        buffer: this.areShadowReplay,
+        additionalState: { level: safeInt(player.level, 1), health: safeInt(player.health), maxHealth: safeInt(player.maxHealth), offline: Boolean(player.isOffline) },
+      });
+    }
+    for (const npc of strippedNpcs) {
+      AREShadowAdapter.executeShadowTick({
+        entityId: `npc:${npc.id}`,
+        position: npc.position,
+        velocity: { x: 0, y: 0, z: 0 },
+        tick: this.tickCount,
+        buffer: this.areShadowReplay,
+        additionalState: { health: safeInt(npc.health), maxHealth: safeInt(npc.maxHealth), role: String(npc.role ?? "npc") },
+      });
+    }
+  }
+
   private updateAREContract(payload: AREGuardPayload, strippedPlayers: any[], strippedNpcs: any[], strippedLoot: any[]) {
     let guardStatus: AREInvariantGuardStatus;
     try { guardStatus = this.areGuard.validateTick(payload, this.tickCount); } catch (error) { if (error instanceof DeterminismViolation || (error as Error)?.name === "DeterminismViolation") guardStatus = this.areGuard.getStatus(); else throw error; }
@@ -237,11 +279,12 @@ export class WorldTick {
     for (let i = 0; i < allNpcs.length; i++) { const n = allNpcs[i]; strippedNpcs.push({ id: n.id, name: n.name, position: { x: n.position.x, y: n.position.y, z: n.position.z || 0 }, rotation: n.rotation || 0, health: n.health, maxHealth: n.maxHealth, role: n.role, state: n.state, fusionAdaptiveGlbPath: n.fusionAdaptiveGlbPath }); }
     const strippedLoot = [];
     for (const l of this.lootEntities.values()) strippedLoot.push({ id: l.id, position: { x: l.position.x, y: l.position.y, z: l.position.z || 0 }, item: l.item ? { id: l.item.id, name: l.item.name, type: l.item.type } : null, glbPath: l.glbPath });
+    this.runAREShadowTick(strippedPlayers, strippedNpcs);
     this.updateAREContract(payload, strippedPlayers, strippedNpcs, strippedLoot);
     const autoRepair = areAutoRepairService.getStatus();
     const usage = deterministicUsageTracker.getStats(this.tickCount);
-    if (this.tickCount % 10 === 0) { const npcs = allNpcs.map(n => ({ id: n.id, name: n.name, x: n.position.x, y: n.position.y })); this.ws.broadcast({ type: "WORLD_HEARTBEAT", payload: { players: Object.fromEntries(allPlayers.filter(p => !p.isOffline).map(p => [p.id, { id: p.id, name: p.name, x: p.position.x, y: p.position.y }])), agents: npcs, are: areValidationState.getSnapshot(), replay: deterministicTickRecorder.stats(), oracle: this.lastOracleReport, autoRepair, usage, warfront: this.warfrontSystem.getCycleSnapshot(this.tickCount * 100) } }); }
+    if (this.tickCount % 10 === 0) { const npcs = allNpcs.map(n => ({ id: n.id, name: n.name, x: n.position.x, y: n.position.y })); this.ws.broadcast({ type: "WORLD_HEARTBEAT", payload: { players: Object.fromEntries(allPlayers.filter(p => !p.isOffline).map(p => [p.id, { id: p.id, name: p.name, x: p.position.x, y: p.position.y }])), agents: npcs, are: areValidationState.getSnapshot(), replay: deterministicTickRecorder.stats(), areShadow: this.getAREShadowReplayStats(), oracle: this.lastOracleReport, autoRepair, usage, warfront: this.warfrontSystem.getCycleSnapshot(this.tickCount * 100) } }); }
     if (this.tickCount % 600 === 0) this.saveAll().catch(e => console.error(e));
-    this.ws.broadcast({ type: "world_tick", tick: this.tickCount, players: strippedPlayers, npcs: strippedNpcs, loot: strippedLoot, are: { guard: this.lastAREGuardStatus, worldHash: this.lastWorldHashSnapshot?.worldHash ?? null }, replay: { latestTick: this.tickCount }, oracle: this.lastOracleReport, autoRepair, usage, warfront: this.warfrontSystem.getCycleSnapshot(this.tickCount * 100) });
+    this.ws.broadcast({ type: "world_tick", tick: this.tickCount, players: strippedPlayers, npcs: strippedNpcs, loot: strippedLoot, are: { guard: this.lastAREGuardStatus, worldHash: this.lastWorldHashSnapshot?.worldHash ?? null, shadow: this.getAREShadowReplayStats() }, replay: { latestTick: this.tickCount }, oracle: this.lastOracleReport, autoRepair, usage, warfront: this.warfrontSystem.getCycleSnapshot(this.tickCount * 100) });
   }
 }
