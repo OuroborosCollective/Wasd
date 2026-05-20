@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { SeededARERng } from "../core/determinism/AREDeterminism.js";
 import { CombatSystem } from "../modules/combat/CombatSystem.js";
 
 // ---------------------------------------------------------------------------
@@ -106,13 +107,13 @@ describe("CombatSystem", () => {
   });
 
   it("attack() with guaranteed miss returns hit: false and damage: 0", () => {
-    vi.spyOn(Math, "random").mockReturnValue(1); // Force miss
+    const spy = vi.spyOn(SeededARERng.prototype, "nextFloat").mockReturnValueOnce(1);
     const attacker = { stamina: 50, skills: { combat: { level: 1 } } };
     const defender = { health: 100, skills: { combat: { level: 1 } } };
     const result = combat.attack(attacker, defender);
     expect(result.hit).toBe(false);
     expect(result.damage).toBe(0);
-    vi.restoreAllMocks();
+    spy.mockRestore();
   });
 
   it("attack() hit result includes defenderHealth", () => {
@@ -125,7 +126,7 @@ describe("CombatSystem", () => {
   });
 
   it("attackWithWeapon() deals more damage than bare attack with same RNG", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.1);
+    const spy = vi.spyOn(SeededARERng.prototype, "nextFloat").mockReturnValue(0.5);
     const attacker = { stamina: 50, skills: { combat: { level: 5 } } };
     const defenderA = { health: 500, skills: { combat: { level: 1 } } };
     const defenderB = { health: 500, skills: { combat: { level: 1 } } };
@@ -135,6 +136,6 @@ describe("CombatSystem", () => {
     combat.attackWithWeapon(attacker, defenderB, 25);
     const dmgWeapon = 500 - defenderB.health;
     expect(dmgWeapon).toBeGreaterThan(dmgBare);
-    vi.restoreAllMocks();
+    spy.mockRestore();
   });
 });

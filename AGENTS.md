@@ -27,16 +27,17 @@ Primary source-of-truth docs:
 - DB persistence falls back to file-based when `DATABASE_URL` is unreachable (expect `getaddrinfo ENOTFOUND db` in logs—non-fatal).
 
 ### Lint, test, build
-- Lint: `npx eslint server/src client/src` (eslint is a root devDependency with `eslint.config.mjs`; the root `package.json` has no `lint` script)
-- Unit/integration tests: `npx vitest run` (config in root `vitest.config.ts`)
+- Lint: `pnpm run lint` (same as `npx eslint server/src client/src`; eslint is a root devDependency with `eslint.config.mjs`)
+- Unit/integration tests: `pnpm run test` (`npx vitest run`; config in root `vitest.config.ts`)
+- Design+Gameplay consistency gate: `pnpm run dgcc` (minimal) / `pnpm run dgcc:extreme` — see `tools/dgcc/README.md`
 - Build: `pnpm run build` (recursive across workspaces)
 - E2E:
   - Install once: `pnpm run test:e2e:install`
   - Run: `pnpm run test:e2e`
-  - CI variant: `pnpm run test:e2e:ci`
+  - CI variant: `pnpm run test:e2e:ci` (builds `server/` then runs Playwright)
 - Pre-push quick verification (no E2E): `pnpm run ci:verify`
 - Content checks:
-  - Validate content: `pnpm run validate --prefix server`
+  - Validate content: `pnpm run validate --prefix server` (or `pnpm --prefix server run validate`)
   - Model-path audit: `pnpm run audit:model-paths`
 
 ### Environment variables (important)

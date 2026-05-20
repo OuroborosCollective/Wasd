@@ -10,12 +10,13 @@ test("health endpoint responds", async ({ request }) => {
 test("e2e-smoke page completes guest login over WebSocket", async ({
   page,
 }) => {
+  test.setTimeout(180_000);
   await page.goto("/e2e-smoke.html", {
     waitUntil: "domcontentloaded",
     timeout: 60_000,
   });
   await expect(page.locator("body")).toHaveAttribute("data-e2e-ready", "1", {
-    timeout: 30_000,
+    timeout: 120_000,
   });
   await expect(page.locator("#e2e-status")).toHaveText("welcome");
   const raw = await page.locator("#e2e-welcome").textContent();

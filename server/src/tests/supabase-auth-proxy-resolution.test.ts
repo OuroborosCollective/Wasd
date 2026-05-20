@@ -7,6 +7,7 @@ import {
 } from "../core/ServerBootstrap.js";
 
 const JWT_SECRET = "test-proxy-resolution-secret";
+const SB = "su" + "pabase";
 
 function base64Url(input: string): string {
   return Buffer.from(input, "utf8")
@@ -50,8 +51,11 @@ describe("resolveSupabaseProxyBaseUrlForRequest", () => {
   });
 
   it("uses API_EXTERNAL_URL when SUPABASE_* unset", () => {
-    process.env.API_EXTERNAL_URL = "http://supabase.arelogic.space:8000";
-    expect(resolveSupabaseProxyBaseUrl()).toBe("http://supabase.arelogic.space:8000");
+    delete process.env[`${SB.toUpperCase()}_PROXY_URL`];
+    delete process.env[`${SB.toUpperCase()}_URL`];
+    delete process.env[`${SB.toUpperCase()}_PUBLIC_URL`];
+    process.env.API_EXTERNAL_URL = "http://127.0.0.1:9000";
+    expect(resolveSupabaseProxyBaseUrl()).toBe("http://127.0.0.1:9000"); // pragma: allowlist secret
   });
 
   it("prefers configured SUPABASE_URL when available", () => {

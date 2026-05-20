@@ -7,8 +7,11 @@ export interface Chunk {
     size?: number;
     ownerGuildId?: string | null;
     data?: any;
-}export class ChunkSystem {
+}
+
+export class ChunkSystem {
     private chunks: Map<string, Chunk> = new Map();
+    private readonly activeChunkIds = new Set<string>();
     public readonly chunkSize: number;
 
     constructor(chunkSize: number = 64) {
@@ -78,6 +81,20 @@ export interface Chunk {
         const chunk = this.getChunk(x, y);
         chunk.data = data;
     }
-    public getActiveChunks(): any[] { return []; }
-    public setChunkActive(id: string, active: boolean): void {}
+    public getActiveChunks(): Chunk[] {
+        return [...this.activeChunkIds].map((id) => {
+            const [cx, cy] = id.split(":").map((n) => Number(n));
+            return {
+                x: cx * this.chunkSize,
+                y: cy * this.chunkSize,
+                id,
+                ownerGuildId: null,
+            };
+        });
+    }
+
+    public setChunkActive(id: string, active: boolean): void {
+        if (active) this.activeChunkIds.add(id);
+        else this.activeChunkIds.delete(id);
+    }
 }

@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { createARESeed, SeededARERng } from "../core/determinism/AREDeterminism.js";
 import { generateItem, rarityRoll, pickWeighted, randInt } from "../modules/loot/diabloItemGen.js";
 import { rollTreasure } from "../modules/loot/diabloTreasure.js";
 import { computeSetBonuses } from "../modules/items/setBonuses.js";
@@ -128,7 +129,8 @@ describe("Diablo-style loot modules", () => {
     ];
     let melee = 0;
     for (let i = 0; i < 80; i++) {
-      const { base } = smartLootPickBase(bases, ["melee"], { noLegendaryStreak: 0 });
+      const rng = new SeededARERng(createARESeed(["smart-loot-trial", String(i)]));
+      const { base } = smartLootPickBase(bases, ["melee"], { noLegendaryStreak: 0 }, rng);
       if (base.id === "a") melee++;
     }
     expect(melee).toBeGreaterThan(40);

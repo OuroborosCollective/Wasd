@@ -7,8 +7,8 @@ type Severity = "info" | "warn" | "error";
 type CheckName =
   | "lint"
   | "unit"
-  | "checkInteract"
   | "e2e"
+  | "e2eHealth"
   | "contentValidate"
   | "assetsAudit"
   | "wsSchemaSmoke"
@@ -181,6 +181,13 @@ async function main() {
 
   if (checks.includes("unit")) {
     await runCheck("unit", async () => {
+      const sharedPkg = path.join(ROOT, "packages/shared/package.json");
+      if (fs.existsSync(sharedPkg)) {
+        const b = await run("pnpm", ["-C", "packages/shared", "run", "build"]);
+        if (b.code !== 0) {
+          throw new Error(`@wasd/shared prebuild failed: ${(b.stderr + b.stdout).slice(0, 800)}`);
+        }
+      }
       const r = await run("pnpm", ["run", "test"]);
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
@@ -188,12 +195,16 @@ async function main() {
     });
   }
 
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
+  if (checks.includes("e2eHealth")) {
+    await runCheck("e2eHealth", async () => {
+      const b = await run("pnpm", ["--prefix", "server", "run", "build"]);
+      fs.writeFileSync(path.join(outDir, "e2e-server-build.out.txt"), b.stdout + "\n" + b.stderr);
+      report.artifacts["e2eServerBuild"] = "dgcc-artifacts/e2e-server-build.out.txt";
+      if (b.code !== 0) throw new Error("server build failed (e2e prerequisite)");
+      const r = await run("pnpm", ["exec", "playwright", "test", "e2e/smoke.spec.ts", "-g", "health endpoint"]);
+      fs.writeFileSync(path.join(outDir, "e2e-health.out.txt"), r.stdout + "\n" + r.stderr);
+      report.artifacts["e2eHealth"] = "dgcc-artifacts/e2e-health.out.txt";
+      if (r.code !== 0) throw new Error("e2e health check failed");
     });
   }
 

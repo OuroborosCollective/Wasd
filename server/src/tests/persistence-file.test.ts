@@ -14,10 +14,12 @@ describe("PersistenceManager file fallback", () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "arelor-persist-"));
     savePath = path.join(tmpDir, "players.json");
     process.env.PLAYER_SAVE_FILE = savePath;
+    process.env.PERSISTENCE_DRIVER = "file";
   });
 
   afterEach(() => {
     delete process.env.PLAYER_SAVE_FILE;
+    delete process.env.PERSISTENCE_DRIVER;
     try {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     } catch {
