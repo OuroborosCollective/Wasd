@@ -30,6 +30,8 @@ export function loadRootEnvFiles(): void {
   const opt = "/opt/areloria/.env";
 
   tryLoad(fromMonorepoRoot, false);
-  tryLoad(fromCwd, true);
-  tryLoad(opt, true);
+  // In CI (Playwright, GitHub Actions), preserve env vars already set by the harness (e.g. ALLOW_GUEST_LOGIN).
+  const allowDotenvOverride = !["1", "true", "yes"].includes(String(process.env.CI || "").toLowerCase());
+  tryLoad(fromCwd, allowDotenvOverride);
+  tryLoad(opt, allowDotenvOverride);
 }
