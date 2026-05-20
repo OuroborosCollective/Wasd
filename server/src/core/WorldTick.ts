@@ -23,6 +23,7 @@ import { deterministicTickRecorder, type DeterministicRecorderStats, type Determ
 import { ouroborosOracleEngine, type OracleReport } from "../are/OuroborosOracle.js";
 import { areAutoRepairService, type AutoRepairStatus } from "../are/AREAutoRepairService.js";
 import { deterministicUsageTracker, type DeterministicUsageStats } from "../are/DeterministicUsageTracker.js";
+import { AREDivergenceGuard } from "./are/AREDivergenceGuard.js";
 import { AREReplayBuffer } from "./are/AREReplayBuffer.js";
 import { AREShadowAdapter } from "./are/AREShadowAdapter.js";
 import { KappaPosGrid } from "@wasd/shared";
@@ -44,6 +45,7 @@ export class WorldTick {
   private tickCount = 0;
   private readonly areGuard = new AREInvariantGuard({ throwOnViolation: true });
   private readonly areShadowReplay = new AREReplayBuffer(1000);
+  private readonly areDivergenceGuard = new AREDivergenceGuard();
   private lastAREGuardStatus: AREInvariantGuardStatus | null = null;
   private lastWorldHashSnapshot: WorldHashSnapshot | null = null;
   private lastOracleReport: OracleReport | null = null;
@@ -144,6 +146,7 @@ export class WorldTick {
       latestTick: latest?.tick ?? null,
       latestEntityId: latest?.entityId ?? null,
       latestStateHash: latest?.stateHash ?? null,
+      divergence: this.areDivergenceGuard.summarize(),
     };
   }
 
@@ -217,26 +220,34 @@ export class WorldTick {
   stop() { if (this.timer) clearInterval(this.timer); this.timer = null; }
   private buildAREPayload(): AREGuardPayload { return { l: 13, k: 1000, r: Math.round((0.5 + Math.sin(this.tickCount / 10) * 0.5) * 1000) / 1000, tick: this.tickCount, deterministicSeed: `ARE|k1000|tick:${this.tickCount}|chunk:64` }; }
 
+  private measureDivergence(entityId: string, position: any): void {
+    try { this.areDivergenceGuard.measure(this.tickCount, entityId, position, this.areShadowReplay); } catch {}
+  }
+
   private runAREShadowTick(strippedPlayers: any[], strippedNpcs: any[]) {
     for (const player of strippedPlayers) {
+      const entityId = `player:${player.id}`;
       AREShadowAdapter.executeShadowTick({
-        entityId: `player:${player.id}`,
+        entityId,
         position: player.position,
         velocity: { x: 0, y: 0, z: 0 },
         tick: this.tickCount,
         buffer: this.areShadowReplay,
         additionalState: { level: safeInt(player.level, 1), health: safeInt(player.health), maxHealth: safeInt(player.maxHealth), offline: Boolean(player.isOffline) },
       });
+      this.measureDivergence(entityId, player.position);
     }
     for (const npc of strippedNpcs) {
+      const entityId = `npc:${npc.id}`;
       AREShadowAdapter.executeShadowTick({
-        entityId: `npc:${npc.id}`,
+        entityId,
         position: npc.position,
         velocity: { x: 0, y: 0, z: 0 },
         tick: this.tickCount,
         buffer: this.areShadowReplay,
         additionalState: { health: safeInt(npc.health), maxHealth: safeInt(npc.maxHealth), role: String(npc.role ?? "npc") },
       });
+      this.measureDivergence(entityId, npc.position);
     }
   }
 
