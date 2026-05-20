@@ -1,0 +1,4905 @@
+{
+  "version": 1,
+  "generatedAt": "2026-05-19T00:00:00.000Z",
+  "source": "normalized full weapon visual pool from uploaded ZIP packs",
+  "basePath": "/2d-assets/weapons",
+  "atlases": {
+    "weapon-atlas": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "cellWidth": 64,
+      "cellHeight": 64,
+      "columns": 18,
+      "count": 270
+    }
+  },
+  "sources": [
+    {
+      "name": "FreePixelFantasyWeaponPack.zip",
+      "sizeBytes": 52628
+    },
+    {
+      "name": "FreePixelMeleeWeaponPack.zip",
+      "sizeBytes": 42250
+    },
+    {
+      "name": "oubliette_weapons _freefree_twg.zip",
+      "sizeBytes": 156607
+    }
+  ],
+  "weapons": {
+    "weapon_generic_common_001": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/1.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_common_002": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 64,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/10.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_uncommon_003": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 128,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "uncommon",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/11.png",
+      "tags": [
+        "weapon",
+        "uncommon"
+      ]
+    },
+    "weapon_generic_rare_004": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 192,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/12.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_epic_005": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 256,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "epic",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/13.png",
+      "tags": [
+        "weapon",
+        "epic"
+      ]
+    },
+    "weapon_generic_mystic_006": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 320,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "mystic",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/14.png",
+      "tags": [
+        "weapon",
+        "mystic"
+      ]
+    },
+    "weapon_generic_common_007": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 384,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/15.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_common_008": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 448,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/16.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_uncommon_009": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 512,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "uncommon",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/17.png",
+      "tags": [
+        "weapon",
+        "uncommon"
+      ]
+    },
+    "weapon_generic_rare_010": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 576,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/18.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_epic_011": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 640,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "epic",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/19.png",
+      "tags": [
+        "weapon",
+        "epic"
+      ]
+    },
+    "weapon_generic_mystic_012": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 704,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "mystic",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/2.png",
+      "tags": [
+        "weapon",
+        "mystic"
+      ]
+    },
+    "weapon_generic_common_013": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 768,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/20.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_common_014": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 832,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/21.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_uncommon_015": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 896,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "uncommon",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/22.png",
+      "tags": [
+        "weapon",
+        "uncommon"
+      ]
+    },
+    "weapon_generic_rare_016": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 960,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/23.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_epic_017": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1024,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "epic",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/24.png",
+      "tags": [
+        "weapon",
+        "epic"
+      ]
+    },
+    "weapon_generic_mystic_018": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1088,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "mystic",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/25.png",
+      "tags": [
+        "weapon",
+        "mystic"
+      ]
+    },
+    "weapon_generic_common_019": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 0,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/26.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_common_020": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 64,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/27.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_uncommon_021": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 128,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "uncommon",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/28.png",
+      "tags": [
+        "weapon",
+        "uncommon"
+      ]
+    },
+    "weapon_generic_rare_022": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 192,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/29.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_epic_023": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 256,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "epic",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/3.png",
+      "tags": [
+        "weapon",
+        "epic"
+      ]
+    },
+    "weapon_generic_mystic_024": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 320,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "mystic",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/30.png",
+      "tags": [
+        "weapon",
+        "mystic"
+      ]
+    },
+    "weapon_generic_common_025": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 384,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/31.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_common_026": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 448,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/32.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_uncommon_027": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 512,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "uncommon",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/33.png",
+      "tags": [
+        "weapon",
+        "uncommon"
+      ]
+    },
+    "weapon_generic_rare_028": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 576,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/34.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_epic_029": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 640,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "epic",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/35.png",
+      "tags": [
+        "weapon",
+        "epic"
+      ]
+    },
+    "weapon_generic_mystic_030": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 704,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "mystic",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/36.png",
+      "tags": [
+        "weapon",
+        "mystic"
+      ]
+    },
+    "weapon_generic_common_031": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 768,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/37.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_common_032": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 832,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/38.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_uncommon_033": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 896,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "uncommon",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/39.png",
+      "tags": [
+        "weapon",
+        "uncommon"
+      ]
+    },
+    "weapon_generic_rare_034": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 960,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/4.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_epic_035": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1024,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "epic",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/40.png",
+      "tags": [
+        "weapon",
+        "epic"
+      ]
+    },
+    "weapon_generic_mystic_036": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1088,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "mystic",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/41.png",
+      "tags": [
+        "weapon",
+        "mystic"
+      ]
+    },
+    "weapon_generic_common_037": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 0,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/42.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_common_038": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 64,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/43.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_uncommon_039": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 128,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "uncommon",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/44.png",
+      "tags": [
+        "weapon",
+        "uncommon"
+      ]
+    },
+    "weapon_generic_rare_040": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 192,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/45.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_epic_041": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 256,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "epic",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/46.png",
+      "tags": [
+        "weapon",
+        "epic"
+      ]
+    },
+    "weapon_generic_mystic_042": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 320,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "mystic",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/47.png",
+      "tags": [
+        "weapon",
+        "mystic"
+      ]
+    },
+    "weapon_generic_common_043": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 384,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/48.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_common_044": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 448,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/49.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_uncommon_045": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 512,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "uncommon",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/5.png",
+      "tags": [
+        "weapon",
+        "uncommon"
+      ]
+    },
+    "weapon_generic_rare_046": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 576,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/50.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_epic_047": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 640,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "epic",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/6.png",
+      "tags": [
+        "weapon",
+        "epic"
+      ]
+    },
+    "weapon_generic_mystic_048": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 704,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "mystic",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/7.png",
+      "tags": [
+        "weapon",
+        "mystic"
+      ]
+    },
+    "weapon_generic_common_049": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 768,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/8.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_common_050": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 832,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelFantasyWeaponPack.zip",
+      "sourcePath": "FreePixelFantasyWeaponPack/Weapons/9.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_uncommon_051": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 896,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "uncommon",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/1.png",
+      "tags": [
+        "weapon",
+        "uncommon"
+      ]
+    },
+    "weapon_generic_rare_052": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 960,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/10.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_epic_053": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1024,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "epic",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/11.png",
+      "tags": [
+        "weapon",
+        "epic"
+      ]
+    },
+    "weapon_generic_mystic_054": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1088,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "mystic",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/12.png",
+      "tags": [
+        "weapon",
+        "mystic"
+      ]
+    },
+    "weapon_generic_common_055": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 0,
+        "y": 192,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/13.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_common_056": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 64,
+        "y": 192,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/14.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_uncommon_057": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 128,
+        "y": 192,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "uncommon",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/15.png",
+      "tags": [
+        "weapon",
+        "uncommon"
+      ]
+    },
+    "weapon_generic_rare_058": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 192,
+        "y": 192,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/16.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_epic_059": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 256,
+        "y": 192,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "epic",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/17.png",
+      "tags": [
+        "weapon",
+        "epic"
+      ]
+    },
+    "weapon_generic_mystic_060": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 320,
+        "y": 192,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "mystic",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/18.png",
+      "tags": [
+        "weapon",
+        "mystic"
+      ]
+    },
+    "weapon_generic_common_061": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 384,
+        "y": 192,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/19.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_common_062": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 448,
+        "y": 192,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/2.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_uncommon_063": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 512,
+        "y": 192,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "uncommon",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/20.png",
+      "tags": [
+        "weapon",
+        "uncommon"
+      ]
+    },
+    "weapon_generic_rare_064": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 576,
+        "y": 192,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/21.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_epic_065": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 640,
+        "y": 192,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "epic",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/22.png",
+      "tags": [
+        "weapon",
+        "epic"
+      ]
+    },
+    "weapon_generic_mystic_066": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 704,
+        "y": 192,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "mystic",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/23.png",
+      "tags": [
+        "weapon",
+        "mystic"
+      ]
+    },
+    "weapon_generic_common_067": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 768,
+        "y": 192,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/24.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_common_068": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 832,
+        "y": 192,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/25.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_uncommon_069": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 896,
+        "y": 192,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "uncommon",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/26.png",
+      "tags": [
+        "weapon",
+        "uncommon"
+      ]
+    },
+    "weapon_generic_rare_070": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 960,
+        "y": 192,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/27.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_epic_071": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1024,
+        "y": 192,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "epic",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/28.png",
+      "tags": [
+        "weapon",
+        "epic"
+      ]
+    },
+    "weapon_generic_mystic_072": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1088,
+        "y": 192,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "mystic",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/29.png",
+      "tags": [
+        "weapon",
+        "mystic"
+      ]
+    },
+    "weapon_generic_common_073": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 0,
+        "y": 256,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/3.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_common_074": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 64,
+        "y": 256,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/30.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_uncommon_075": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 128,
+        "y": 256,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "uncommon",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/31.png",
+      "tags": [
+        "weapon",
+        "uncommon"
+      ]
+    },
+    "weapon_generic_rare_076": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 192,
+        "y": 256,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/32.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_epic_077": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 256,
+        "y": 256,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "epic",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/33.png",
+      "tags": [
+        "weapon",
+        "epic"
+      ]
+    },
+    "weapon_generic_mystic_078": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 320,
+        "y": 256,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "mystic",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/34.png",
+      "tags": [
+        "weapon",
+        "mystic"
+      ]
+    },
+    "weapon_generic_common_079": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 384,
+        "y": 256,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/35.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_common_080": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 448,
+        "y": 256,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/36.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_uncommon_081": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 512,
+        "y": 256,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "uncommon",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/37.png",
+      "tags": [
+        "weapon",
+        "uncommon"
+      ]
+    },
+    "weapon_generic_rare_082": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 576,
+        "y": 256,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/38.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_epic_083": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 640,
+        "y": 256,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "epic",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/39.png",
+      "tags": [
+        "weapon",
+        "epic"
+      ]
+    },
+    "weapon_generic_mystic_084": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 704,
+        "y": 256,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "mystic",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/4.png",
+      "tags": [
+        "weapon",
+        "mystic"
+      ]
+    },
+    "weapon_generic_common_085": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 768,
+        "y": 256,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/40.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_common_086": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 832,
+        "y": 256,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/41.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_uncommon_087": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 896,
+        "y": 256,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "uncommon",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/42.png",
+      "tags": [
+        "weapon",
+        "uncommon"
+      ]
+    },
+    "weapon_generic_rare_088": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 960,
+        "y": 256,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/43.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_epic_089": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1024,
+        "y": 256,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "epic",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/44.png",
+      "tags": [
+        "weapon",
+        "epic"
+      ]
+    },
+    "weapon_generic_mystic_090": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1088,
+        "y": 256,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "mystic",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/45.png",
+      "tags": [
+        "weapon",
+        "mystic"
+      ]
+    },
+    "weapon_generic_common_091": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 0,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/46.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_common_092": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 64,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/47.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_uncommon_093": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 128,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "uncommon",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/48.png",
+      "tags": [
+        "weapon",
+        "uncommon"
+      ]
+    },
+    "weapon_generic_rare_094": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 192,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/49.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_epic_095": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 256,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "epic",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/5.png",
+      "tags": [
+        "weapon",
+        "epic"
+      ]
+    },
+    "weapon_generic_mystic_096": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 320,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "mystic",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/50.png",
+      "tags": [
+        "weapon",
+        "mystic"
+      ]
+    },
+    "weapon_generic_common_097": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 384,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/6.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_common_098": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 448,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/7.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_uncommon_099": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 512,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "uncommon",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/8.png",
+      "tags": [
+        "weapon",
+        "uncommon"
+      ]
+    },
+    "weapon_generic_rare_100": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 576,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "FreePixelMeleeWeaponPack.zip",
+      "sourcePath": "FreePixelMeleeWeaponPack/Weapons/9.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_dagger_common_001": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 640,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "dagger",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_brnz_knife_0.png",
+      "tags": [
+        "dagger",
+        "common"
+      ]
+    },
+    "weapon_dagger_common_002": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 704,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "dagger",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_brnz_knife_1.png",
+      "tags": [
+        "dagger",
+        "common"
+      ]
+    },
+    "weapon_greatsword_common_001": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 768,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "greatsword",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_brnz_large_0.png",
+      "tags": [
+        "greatsword",
+        "common"
+      ]
+    },
+    "weapon_greatsword_common_002": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 832,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "greatsword",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_brnz_large_1.png",
+      "tags": [
+        "greatsword",
+        "common"
+      ]
+    },
+    "weapon_greatsword_common_003": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 896,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "greatsword",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_brnz_large_2.png",
+      "tags": [
+        "greatsword",
+        "common"
+      ]
+    },
+    "weapon_spear_common_001": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 960,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "spear",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_brnz_spear_0.png",
+      "tags": [
+        "spear",
+        "common"
+      ]
+    },
+    "weapon_spear_common_002": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1024,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "spear",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_brnz_spear_1.png",
+      "tags": [
+        "spear",
+        "common"
+      ]
+    },
+    "weapon_spear_common_003": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1088,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "spear",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_brnz_spear_2.png",
+      "tags": [
+        "spear",
+        "common"
+      ]
+    },
+    "weapon_spear_common_004": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 0,
+        "y": 384,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "spear",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_brnz_spear_3.png",
+      "tags": [
+        "spear",
+        "common"
+      ]
+    },
+    "weapon_sword_common_001": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 64,
+        "y": 384,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_brnz_sword_0.png",
+      "tags": [
+        "sword",
+        "common"
+      ]
+    },
+    "weapon_sword_common_002": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 128,
+        "y": 384,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_brnz_sword_1.png",
+      "tags": [
+        "sword",
+        "common"
+      ]
+    },
+    "weapon_sword_common_003": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 192,
+        "y": 384,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_brnz_sword_2.png",
+      "tags": [
+        "sword",
+        "common"
+      ]
+    },
+    "weapon_sword_common_004": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 256,
+        "y": 384,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_brnz_sword_3.png",
+      "tags": [
+        "sword",
+        "common"
+      ]
+    },
+    "weapon_sword_common_005": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 320,
+        "y": 384,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_brnz_sword_4.png",
+      "tags": [
+        "sword",
+        "common"
+      ]
+    },
+    "weapon_sword_common_006": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 384,
+        "y": 384,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_bronze_sword_0.png",
+      "tags": [
+        "sword",
+        "common"
+      ]
+    },
+    "weapon_sword_common_007": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 448,
+        "y": 384,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_bronze_sword_1.png",
+      "tags": [
+        "sword",
+        "common"
+      ]
+    },
+    "weapon_sword_common_008": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 512,
+        "y": 384,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_bronze_sword_2.png",
+      "tags": [
+        "sword",
+        "common"
+      ]
+    },
+    "weapon_generic_rare_101": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 576,
+        "y": 384,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_heal_0.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_axe_uncommon_001": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 640,
+        "y": 384,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "axe",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_axe_0.png",
+      "tags": [
+        "axe",
+        "uncommon"
+      ]
+    },
+    "weapon_axe_uncommon_002": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 704,
+        "y": 384,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "axe",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_axe_1.png",
+      "tags": [
+        "axe",
+        "uncommon"
+      ]
+    },
+    "weapon_axe_uncommon_003": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 768,
+        "y": 384,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "axe",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_axe_2.png",
+      "tags": [
+        "axe",
+        "uncommon"
+      ]
+    },
+    "weapon_axe_uncommon_004": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 832,
+        "y": 384,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "axe",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_axe_3.png",
+      "tags": [
+        "axe",
+        "uncommon"
+      ]
+    },
+    "weapon_axe_uncommon_005": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 896,
+        "y": 384,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "axe",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_axe_4.png",
+      "tags": [
+        "axe",
+        "uncommon"
+      ]
+    },
+    "weapon_axe_uncommon_006": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 960,
+        "y": 384,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "axe",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_axe_5.png",
+      "tags": [
+        "axe",
+        "uncommon"
+      ]
+    },
+    "weapon_axe_uncommon_007": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1024,
+        "y": 384,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "axe",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_baxe_0.png",
+      "tags": [
+        "axe",
+        "uncommon"
+      ]
+    },
+    "weapon_axe_uncommon_008": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1088,
+        "y": 384,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "axe",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_baxe_1.png",
+      "tags": [
+        "axe",
+        "uncommon"
+      ]
+    },
+    "weapon_axe_uncommon_009": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 0,
+        "y": 448,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "axe",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_baxe_2.png",
+      "tags": [
+        "axe",
+        "uncommon"
+      ]
+    },
+    "weapon_axe_uncommon_010": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 64,
+        "y": 448,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "axe",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_baxe_3.png",
+      "tags": [
+        "axe",
+        "uncommon"
+      ]
+    },
+    "weapon_axe_uncommon_011": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 128,
+        "y": 448,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "axe",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_baxe_4.png",
+      "tags": [
+        "axe",
+        "uncommon"
+      ]
+    },
+    "weapon_axe_uncommon_012": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 192,
+        "y": 448,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "axe",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_baxe_5.png",
+      "tags": [
+        "axe",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_009": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 256,
+        "y": 448,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_bleed_0.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_010": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 320,
+        "y": 448,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_cutlas_2_0.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_011": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 384,
+        "y": 448,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_cutlass_0.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_012": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 448,
+        "y": 448,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_cutlass_1.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_013": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 512,
+        "y": 448,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_cutlass_2.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_014": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 576,
+        "y": 448,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_cutlass_3.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_dagger_uncommon_003": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 640,
+        "y": 448,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "dagger",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_daggers_0.png",
+      "tags": [
+        "dagger",
+        "uncommon"
+      ]
+    },
+    "weapon_dagger_uncommon_004": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 704,
+        "y": 448,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "dagger",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_daggers_1.png",
+      "tags": [
+        "dagger",
+        "uncommon"
+      ]
+    },
+    "weapon_dagger_uncommon_005": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 768,
+        "y": 448,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "dagger",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_daggers_2.png",
+      "tags": [
+        "dagger",
+        "uncommon"
+      ]
+    },
+    "weapon_dagger_uncommon_006": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 832,
+        "y": 448,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "dagger",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_daggers_3.png",
+      "tags": [
+        "dagger",
+        "uncommon"
+      ]
+    },
+    "weapon_dagger_uncommon_007": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 896,
+        "y": 448,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "dagger",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_daggers_4.png",
+      "tags": [
+        "dagger",
+        "uncommon"
+      ]
+    },
+    "weapon_dagger_uncommon_008": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 960,
+        "y": 448,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "dagger",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_daggers_5.png",
+      "tags": [
+        "dagger",
+        "uncommon"
+      ]
+    },
+    "weapon_dagger_uncommon_009": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1024,
+        "y": 448,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "dagger",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_daggers_6.png",
+      "tags": [
+        "dagger",
+        "uncommon"
+      ]
+    },
+    "weapon_dagger_uncommon_010": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1088,
+        "y": 448,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "dagger",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_daggers_7.png",
+      "tags": [
+        "dagger",
+        "uncommon"
+      ]
+    },
+    "weapon_dagger_uncommon_011": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 0,
+        "y": 512,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "dagger",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_daggers_8.png",
+      "tags": [
+        "dagger",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_015": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 64,
+        "y": 512,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_hook_0.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_016": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 128,
+        "y": 512,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_hook_1.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_017": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 192,
+        "y": 512,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_hook_2.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_018": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 256,
+        "y": 512,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_katana_0.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_019": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 320,
+        "y": 512,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_katana_1.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_020": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 384,
+        "y": 512,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_katana_2.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_021": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 448,
+        "y": 512,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_katana_3.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_greatsword_uncommon_004": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 512,
+        "y": 512,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "greatsword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_large_0.png",
+      "tags": [
+        "greatsword",
+        "uncommon"
+      ]
+    },
+    "weapon_greatsword_uncommon_005": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 576,
+        "y": 512,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "greatsword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_large_1.png",
+      "tags": [
+        "greatsword",
+        "uncommon"
+      ]
+    },
+    "weapon_greatsword_uncommon_006": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 640,
+        "y": 512,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "greatsword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_large_2.png",
+      "tags": [
+        "greatsword",
+        "uncommon"
+      ]
+    },
+    "weapon_greatsword_uncommon_007": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 704,
+        "y": 512,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "greatsword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_large_3.png",
+      "tags": [
+        "greatsword",
+        "uncommon"
+      ]
+    },
+    "weapon_greatsword_uncommon_008": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 768,
+        "y": 512,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "greatsword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_large_4.png",
+      "tags": [
+        "greatsword",
+        "uncommon"
+      ]
+    },
+    "weapon_greatsword_uncommon_009": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 832,
+        "y": 512,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "greatsword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_large_5.png",
+      "tags": [
+        "greatsword",
+        "uncommon"
+      ]
+    },
+    "weapon_greatsword_uncommon_010": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 896,
+        "y": 512,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "greatsword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_large_6.png",
+      "tags": [
+        "greatsword",
+        "uncommon"
+      ]
+    },
+    "weapon_greatsword_uncommon_011": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 960,
+        "y": 512,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "greatsword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_large_7.png",
+      "tags": [
+        "greatsword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_022": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1024,
+        "y": 512,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_leaf_0.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_023": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1088,
+        "y": 512,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_leaf_1.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_024": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 0,
+        "y": 576,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_long_0.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_025": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 64,
+        "y": 576,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_long_1.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_026": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 128,
+        "y": 576,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_long_2.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_027": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 192,
+        "y": 576,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_long_3.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_028": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 256,
+        "y": 576,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_long_4.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_029": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 320,
+        "y": 576,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_long_5.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_030": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 384,
+        "y": 576,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_long_6.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_031": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 448,
+        "y": 576,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_long_7.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_032": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 512,
+        "y": 576,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_long_8.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_033": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 576,
+        "y": 576,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_sci_0.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_034": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 640,
+        "y": 576,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_sci_1.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_035": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 704,
+        "y": 576,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_sci_10.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_036": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 768,
+        "y": 576,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_sci_2.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_037": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 832,
+        "y": 576,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_sci_3.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_038": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 896,
+        "y": 576,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_sci_4.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_039": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 960,
+        "y": 576,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_sci_5.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_040": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1024,
+        "y": 576,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_sci_6.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_041": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1088,
+        "y": 576,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_sci_7.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_042": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 0,
+        "y": 640,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_sci_8.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_043": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 64,
+        "y": 640,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_sci_9.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_044": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 128,
+        "y": 640,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_scythe_0.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_045": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 192,
+        "y": 640,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_scythe_1.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_spear_uncommon_005": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 256,
+        "y": 640,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "spear",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_spear_0.png",
+      "tags": [
+        "spear",
+        "uncommon"
+      ]
+    },
+    "weapon_spear_uncommon_006": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 320,
+        "y": 640,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "spear",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_spear_1.png",
+      "tags": [
+        "spear",
+        "uncommon"
+      ]
+    },
+    "weapon_spear_uncommon_007": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 384,
+        "y": 640,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "spear",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_spear_2.png",
+      "tags": [
+        "spear",
+        "uncommon"
+      ]
+    },
+    "weapon_spear_uncommon_008": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 448,
+        "y": 640,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "spear",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_spear_3.png",
+      "tags": [
+        "spear",
+        "uncommon"
+      ]
+    },
+    "weapon_spear_uncommon_009": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 512,
+        "y": 640,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "spear",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_spear_4.png",
+      "tags": [
+        "spear",
+        "uncommon"
+      ]
+    },
+    "weapon_spear_uncommon_010": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 576,
+        "y": 640,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "spear",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_spear_5.png",
+      "tags": [
+        "spear",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_046": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 640,
+        "y": 640,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_sword_0.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_047": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 704,
+        "y": 640,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_sword_1.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_048": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 768,
+        "y": 640,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_sword_2.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_049": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 832,
+        "y": 640,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_sword_3.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_050": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 896,
+        "y": 640,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_sword_4.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_051": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 960,
+        "y": 640,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_sword_5.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_052": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1024,
+        "y": 640,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_sword_6.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_053": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1088,
+        "y": 640,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_sword_7.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_sword_uncommon_054": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 0,
+        "y": 704,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_iron_sword_8.png",
+      "tags": [
+        "sword",
+        "uncommon"
+      ]
+    },
+    "weapon_mace_common_001": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 64,
+        "y": 704,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "mace",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_mace_0.png",
+      "tags": [
+        "mace",
+        "common"
+      ]
+    },
+    "weapon_mace_uncommon_002": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 128,
+        "y": 704,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "mace",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_mace_1.png",
+      "tags": [
+        "mace",
+        "uncommon"
+      ]
+    },
+    "weapon_mace_rare_003": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 192,
+        "y": 704,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "mace",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_mace_2.png",
+      "tags": [
+        "mace",
+        "rare"
+      ]
+    },
+    "weapon_mace_epic_004": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 256,
+        "y": 704,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "mace",
+      "rarity": "epic",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_mace_3.png",
+      "tags": [
+        "mace",
+        "epic"
+      ]
+    },
+    "weapon_mace_mystic_005": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 320,
+        "y": 704,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "mace",
+      "rarity": "mystic",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_mace_4.png",
+      "tags": [
+        "mace",
+        "mystic"
+      ]
+    },
+    "weapon_mace_common_006": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 384,
+        "y": 704,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "mace",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_mace_5.png",
+      "tags": [
+        "mace",
+        "common"
+      ]
+    },
+    "weapon_mace_common_007": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 448,
+        "y": 704,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "mace",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_mace_6.png",
+      "tags": [
+        "mace",
+        "common"
+      ]
+    },
+    "weapon_mace_uncommon_008": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 512,
+        "y": 704,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "mace",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_mace_big_0.png",
+      "tags": [
+        "mace",
+        "uncommon"
+      ]
+    },
+    "weapon_mace_rare_009": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 576,
+        "y": 704,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "mace",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_mace_face_0.png",
+      "tags": [
+        "mace",
+        "rare"
+      ]
+    },
+    "weapon_mace_epic_010": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 640,
+        "y": 704,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "mace",
+      "rarity": "epic",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_mace_face_1.png",
+      "tags": [
+        "mace",
+        "epic"
+      ]
+    },
+    "weapon_mace_mystic_011": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 704,
+        "y": 704,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "mace",
+      "rarity": "mystic",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_mace_face_2.png",
+      "tags": [
+        "mace",
+        "mystic"
+      ]
+    },
+    "weapon_mace_common_012": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 768,
+        "y": 704,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "mace",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_mace_face_3.png",
+      "tags": [
+        "mace",
+        "common"
+      ]
+    },
+    "weapon_mace_common_013": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 832,
+        "y": 704,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "mace",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_mace_face_4.png",
+      "tags": [
+        "mace",
+        "common"
+      ]
+    },
+    "weapon_generic_rare_102": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 896,
+        "y": 704,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_drako_0.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_rare_103": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 960,
+        "y": 704,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_falcon_0.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_rare_104": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1024,
+        "y": 704,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_falcon_1.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_mace_rare_014": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1088,
+        "y": 704,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "mace",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_ghammer_0.png",
+      "tags": [
+        "mace",
+        "rare"
+      ]
+    },
+    "weapon_mace_rare_015": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 0,
+        "y": 768,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "mace",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_ghammer_1.png",
+      "tags": [
+        "mace",
+        "rare"
+      ]
+    },
+    "weapon_spear_rare_011": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 64,
+        "y": 768,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "spear",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_halberd_0.png",
+      "tags": [
+        "spear",
+        "rare"
+      ]
+    },
+    "weapon_mace_rare_016": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 128,
+        "y": 768,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "mace",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_hammer_0.png",
+      "tags": [
+        "mace",
+        "rare"
+      ]
+    },
+    "weapon_mace_rare_017": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 192,
+        "y": 768,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "mace",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_hammer_1.png",
+      "tags": [
+        "mace",
+        "rare"
+      ]
+    },
+    "weapon_generic_rare_105": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 256,
+        "y": 768,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_holy_0.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_rare_106": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 320,
+        "y": 768,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_holy_1.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_rare_107": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 384,
+        "y": 768,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_huge_0.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_rare_108": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 448,
+        "y": 768,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_huge_1.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_rare_109": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 512,
+        "y": 768,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_huge_2.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_rare_110": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 576,
+        "y": 768,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_katana_0.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_greatsword_rare_012": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 640,
+        "y": 768,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "greatsword",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_large_0.png",
+      "tags": [
+        "greatsword",
+        "rare"
+      ]
+    },
+    "weapon_greatsword_rare_013": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 704,
+        "y": 768,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "greatsword",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_large_1.png",
+      "tags": [
+        "greatsword",
+        "rare"
+      ]
+    },
+    "weapon_mace_rare_018": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 768,
+        "y": 768,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "mace",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_mace_0.png",
+      "tags": [
+        "mace",
+        "rare"
+      ]
+    },
+    "weapon_mace_rare_019": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 832,
+        "y": 768,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "mace",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_mace_1.png",
+      "tags": [
+        "mace",
+        "rare"
+      ]
+    },
+    "weapon_mace_rare_020": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 896,
+        "y": 768,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "mace",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_mace_2.png",
+      "tags": [
+        "mace",
+        "rare"
+      ]
+    },
+    "weapon_generic_rare_111": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 960,
+        "y": 768,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_rapier_0.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_rare_112": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1024,
+        "y": 768,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_rapier_1.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_rare_113": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1088,
+        "y": 768,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_scythe_0.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_rare_114": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 0,
+        "y": 832,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_sneak_0.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_rare_115": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 64,
+        "y": 832,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_sneak_1.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_sword_rare_055": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 128,
+        "y": 832,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_sword_0.png",
+      "tags": [
+        "sword",
+        "rare"
+      ]
+    },
+    "weapon_sword_rare_056": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 192,
+        "y": 832,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_sword_1.png",
+      "tags": [
+        "sword",
+        "rare"
+      ]
+    },
+    "weapon_sword_rare_057": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 256,
+        "y": 832,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_sword_2.png",
+      "tags": [
+        "sword",
+        "rare"
+      ]
+    },
+    "weapon_sword_rare_058": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 320,
+        "y": 832,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_sword_3.png",
+      "tags": [
+        "sword",
+        "rare"
+      ]
+    },
+    "weapon_generic_rare_116": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 384,
+        "y": 832,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_voldo_0.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_rare_117": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 448,
+        "y": 832,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_steel_voldo_1.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_uncommon_118": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 512,
+        "y": 832,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_stick_0.png",
+      "tags": [
+        "weapon",
+        "uncommon"
+      ]
+    },
+    "weapon_generic_rare_119": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 576,
+        "y": 832,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_stick_1.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_epic_120": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 640,
+        "y": 832,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "epic",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_stick_2.png",
+      "tags": [
+        "weapon",
+        "epic"
+      ]
+    },
+    "weapon_generic_mystic_121": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 704,
+        "y": 832,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "mystic",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_stick_3.png",
+      "tags": [
+        "weapon",
+        "mystic"
+      ]
+    },
+    "weapon_generic_common_122": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 768,
+        "y": 832,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_stick_4.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_common_123": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 832,
+        "y": 832,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_stick_5.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_uncommon_124": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 896,
+        "y": 832,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_stick_6.png",
+      "tags": [
+        "weapon",
+        "uncommon"
+      ]
+    },
+    "weapon_generic_rare_125": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 960,
+        "y": 832,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_stick_7.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_epic_126": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1024,
+        "y": 832,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "epic",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_stick_8.png",
+      "tags": [
+        "weapon",
+        "epic"
+      ]
+    },
+    "weapon_generic_mystic_127": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1088,
+        "y": 832,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "mystic",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_stick_9.png",
+      "tags": [
+        "weapon",
+        "mystic"
+      ]
+    },
+    "weapon_sword_common_059": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 0,
+        "y": 896,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_stone_sword_0.png",
+      "tags": [
+        "sword",
+        "common"
+      ]
+    },
+    "weapon_generic_common_128": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 64,
+        "y": 896,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_wolf_1_0.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_uncommon_129": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 128,
+        "y": 896,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "uncommon",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_wolf_2_0.png",
+      "tags": [
+        "weapon",
+        "uncommon"
+      ]
+    },
+    "weapon_generic_rare_130": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 192,
+        "y": 896,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "rare",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_wolf_3_0.png",
+      "tags": [
+        "weapon",
+        "rare"
+      ]
+    },
+    "weapon_generic_common_131": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 256,
+        "y": 896,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_wood_bsw_0.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_common_132": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 320,
+        "y": 896,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_wood_bsw_1.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_common_133": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 384,
+        "y": 896,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_wood_bsw_2.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_generic_common_134": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 448,
+        "y": 896,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "weapon",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_wood_bsw_3.png",
+      "tags": [
+        "weapon",
+        "common"
+      ]
+    },
+    "weapon_mace_common_021": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 512,
+        "y": 896,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "mace",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_wood_mace_0.png",
+      "tags": [
+        "mace",
+        "common"
+      ]
+    },
+    "weapon_mace_common_022": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 576,
+        "y": 896,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "mace",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_wood_mace_1.png",
+      "tags": [
+        "mace",
+        "common"
+      ]
+    },
+    "weapon_mace_common_023": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 640,
+        "y": 896,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "mace",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_wood_mace_2.png",
+      "tags": [
+        "mace",
+        "common"
+      ]
+    },
+    "weapon_mace_common_024": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 704,
+        "y": 896,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "mace",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_wood_mace_3.png",
+      "tags": [
+        "mace",
+        "common"
+      ]
+    },
+    "weapon_sword_common_060": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 768,
+        "y": 896,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_wood_sword_0.png",
+      "tags": [
+        "sword",
+        "common"
+      ]
+    },
+    "weapon_sword_common_061": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 832,
+        "y": 896,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_wood_sword_1.png",
+      "tags": [
+        "sword",
+        "common"
+      ]
+    },
+    "weapon_sword_common_062": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 896,
+        "y": 896,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_wood_sword_2.png",
+      "tags": [
+        "sword",
+        "common"
+      ]
+    },
+    "weapon_sword_common_063": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 960,
+        "y": 896,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_wood_sword_3.png",
+      "tags": [
+        "sword",
+        "common"
+      ]
+    },
+    "weapon_sword_common_064": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1024,
+        "y": 896,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_wood_sword_4.png",
+      "tags": [
+        "sword",
+        "common"
+      ]
+    },
+    "weapon_sword_common_065": {
+      "src": "/2d-assets/weapons/weapon-atlas.png",
+      "atlas": "weapon-atlas",
+      "frame": {
+        "x": 1088,
+        "y": 896,
+        "w": 64,
+        "h": 64
+      },
+      "weaponClass": "sword",
+      "rarity": "common",
+      "source": "oubliette_weapons _freefree_twg.zip",
+      "sourcePath": "oubliette_weapons - free/spr_wep_wood_sword_5.png",
+      "tags": [
+        "sword",
+        "common"
+      ]
+    }
+  },
+  "fallbacks": {
+    "axe": "weapon_axe_uncommon_001",
+    "dagger": "weapon_dagger_common_001",
+    "greatsword": "weapon_greatsword_common_001",
+    "mace": "weapon_mace_common_001",
+    "spear": "weapon_spear_common_001",
+    "sword": "weapon_sword_common_001",
+    "weapon": "weapon_generic_common_001",
+    "common": "weapon_generic_common_001",
+    "uncommon": "weapon_generic_uncommon_003",
+    "rare": "weapon_generic_rare_004",
+    "epic": "weapon_generic_epic_005",
+    "mystic": "weapon_generic_mystic_006"
+  }
+}

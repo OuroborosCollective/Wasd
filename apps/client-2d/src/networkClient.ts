@@ -33,8 +33,10 @@ class LocalNetworkClient implements NetworkClient {
   private socket: WebSocket | null = null;
   private readonly handlers: HandlerMap = new Map();
   private fallbackTimer: ReturnType<typeof setInterval> | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private px = 0;
   private pz = 0;
+  private isDisconnectedManually = false;
 
   constructor(private readonly options: NetworkClientOptions) {}
 
@@ -45,32 +47,54 @@ class LocalNetworkClient implements NetworkClient {
   }
 
   public connect(): void {
+    if (this.socket || this.reconnectTimer) return;
+    this.isDisconnectedManually = false;
+
     const wsUrl = this.toWebSocketUrl(this.options.url);
     try {
       this.socket = new WebSocket(wsUrl);
       this.socket.addEventListener('open', () => {
         this.connected = true;
+        if (this.fallbackTimer) clearInterval(this.fallbackTimer);
+        this.fallbackTimer = null;
         this.emit('connect');
       });
       this.socket.addEventListener('close', () => {
-        this.connected = false;
-        this.emit('disconnect');
-        this.startFallback();
+        this.handleSocketClosed();
       });
       this.socket.addEventListener('error', () => {
-        this.connected = false;
-        this.emit('disconnect');
-        this.startFallback();
+        this.handleSocketClosed();
       });
       this.socket.addEventListener('message', (message) => this.handleMessage(message.data));
     } catch {
-      this.startFallback();
+      this.handleSocketClosed();
+    }
+  }
+
+  private handleSocketClosed(): void {
+    this.socket = null;
+    this.connected = false;
+    this.emit('disconnect');
+
+    if (this.isDisconnectedManually) return;
+
+    this.startFallback();
+
+    // Attempt reconnection after 5 seconds
+    if (!this.reconnectTimer) {
+      this.reconnectTimer = setTimeout(() => {
+        this.reconnectTimer = null;
+        this.connect();
+      }, 5000);
     }
   }
 
   public disconnect(): void {
+    this.isDisconnectedManually = true;
     if (this.fallbackTimer) clearInterval(this.fallbackTimer);
     this.fallbackTimer = null;
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
     this.socket?.close();
     this.socket = null;
     this.connected = false;
@@ -83,7 +107,10 @@ class LocalNetworkClient implements NetworkClient {
       const dz = Number(payload.dz ?? 0);
       this.px += Math.max(-1, Math.min(1, dx)) * 0.25;
       this.pz += Math.max(-1, Math.min(1, dz)) * 0.25;
-      this.emitWorld();
+      // Only emit locally if not connected to avoid double-stepping when server echoes
+      if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+        this.emitWorld();
+      }
     }
 
     const packet = JSON.stringify({ type: action, payload });
@@ -105,8 +132,7 @@ class LocalNetworkClient implements NetworkClient {
 
   private startFallback(): void {
     if (this.fallbackTimer) return;
-    this.connected = true;
-    this.emit('connect');
+    // We stay "connected" in a local sense for usability
     this.emitWorld();
     this.fallbackTimer = setInterval(() => this.emitWorld(), this.options.heartbeatInterval ?? 3000);
   }
@@ -115,7 +141,7 @@ class LocalNetworkClient implements NetworkClient {
     this.emit('WORLD_HEARTBEAT', {
       payload: {
         players: {
-          local_player: { id: 'local_player', name: 'You', x: this.px, z: this.pz },
+          local_player: { id: 'local_player', name: 'You (Local)', x: this.px, z: this.pz },
         },
         agents: {
           elder: { id: 'elder', name: 'Elder', x: 2, z: -2 },

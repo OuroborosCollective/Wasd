@@ -1,44 +1,38 @@
-import { useEffect, useRef, useState } from "react";
 import { Application, Assets, Container, Graphics, Sprite, Text, Texture } from "pixi.js";
-import { createClient } from "@wasd/core-network";
-import { fallbackEntry, loadAssetManifest, type AssetEntry, type AssetManifest } from "./assetManifest";
+import { useEffect, useRef, useState } from "react";
 import { ArelorianStitchHud } from "./ArelorianStitchHud";
+import { loadAssetManifest } from "./assetManifest";
+import { createClient } from "./networkClient";
+import { fallbackEntry } from "./assetManifest";
 
-const TILE_W = 96;
-const TILE_H = 48;
+const TILE_W = 128;
+const TILE_H = 64;
 
-type Entity = { root: Container; tx: number; tz: number };
 type Msg = { from: string; txt: string };
-type LoadedAssets = { manifest: AssetManifest | null; textures: Map<string, Texture> };
+type Entity = { root: Container; tx: number; tz: number; name: string; isPlayer: boolean };
+type LoadedAssets = { manifest: any; textures: Map<string, Texture> };
 
-function iso(x: number, z: number, width: number, height: number) {
-  return { x: width / 2 + (x - z) * TILE_W * 0.5, y: height * 0.45 + (x + z) * TILE_H * 0.5 };
+function iso(tx: number, tz: number, width: number, height: number) {
+  return { x: width / 2 + (tx - tz) * (TILE_W / 2), y: height / 2 + (tx + tz) * (TILE_H / 2) };
 }
 
-function diamond(color: number, stroke = 0x17361e) {
-  const g = new Graphics();
-  g.moveTo(0, -TILE_H / 2);
-  g.lineTo(TILE_W / 2, 0);
-  g.lineTo(0, TILE_H / 2);
-  g.lineTo(-TILE_W / 2, 0);
-  g.closePath();
-  g.fill(color);
-  g.stroke({ width: 2, color: stroke, alpha: 0.72 });
-  return g;
-}
-
-function textureFor(assets: LoadedAssets | null, entry: AssetEntry | null): Texture | null {
+function textureFor(assets: LoadedAssets | null, entry: any): Texture | null {
   if (!assets || !entry?.src) return null;
   return assets.textures.get(entry.src) ?? null;
 }
 
-function spriteFromTexture(texture: Texture, width: number, height: number, y = 0) {
-  const s = new Sprite(texture);
-  s.anchor.set(0.5, 1);
-  s.width = width;
-  s.height = height;
-  s.y = y;
+function spriteFromTexture(tex: Texture, w: number, h: number, anchorY = 1) {
+  const s = new Sprite(tex);
+  s.anchor.set(0.5, anchorY);
+  const scale = Math.min(w / s.width, h / s.height);
+  s.scale.set(scale);
   return s;
+}
+
+function diamond(color: number) {
+  const g = new Graphics();
+  g.poly([0, 0, TILE_W / 2, TILE_H / 2, 0, TILE_H, -TILE_W / 2, TILE_H / 2]).fill(color);
+  return g;
 }
 
 function propTree(assets?: LoadedAssets | null) {
@@ -101,8 +95,9 @@ async function load2DAssets(): Promise<LoadedAssets> {
   const manifest = await loadAssetManifest();
   const urls = new Set<string>();
   if (manifest) {
-    [manifest.tilesets, manifest.characters, manifest.monsters, manifest.buildings, manifest.props, manifest.fx, manifest.ui, manifest.weapons].forEach((group) => {
-      Object.values(group ?? {}).forEach((entry) => { if (entry.src) urls.add(entry.src); });
+    const groups = [manifest.tilesets, manifest.characters, manifest.monsters, manifest.buildings, manifest.props, manifest.fx, manifest.ui, manifest.weapons];
+    groups.forEach((group) => {
+      Object.values(group ?? {}).forEach((entry: any) => { if (entry.src) urls.add(entry.src); });
     });
   }
   const textures = new Map<string, Texture>();
@@ -126,6 +121,9 @@ export function CyberZenIsoApp() {
   const [assetStatus, setAssetStatus] = useState("ASSETS_LOADING");
   const [weaponCount, setWeaponCount] = useState(0);
   const [messages, setMessages] = useState<Msg[]>([{ from: "Oracle", txt: "Cyberzen 2.5D shell online." }]);
+  const [targetId, setTargetId] = useState<string | null>(null);
+  const [targetName, setTargetName] = useState<string | null>(null);
+  const [autoMove, setAutoMove] = useState(false);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => keys.current.add(e.key.toLowerCase());
@@ -171,7 +169,13 @@ export function CyberZenIsoApp() {
   function addActor(app: Application, layer: Container, id: string, x: number, z: number, name: string, player: boolean, assets = assetRef.current) {
     if (entities.current.has(id)) return;
     const root = avatar(name, player, assets); place(root, x, z, app.screen.width, app.screen.height);
-    layer.addChild(root); entities.current.set(id, { root, tx: x, tz: z });
+    root.eventMode = 'static';
+    root.on('pointerdown', () => {
+      setTargetId(id);
+      setTargetName(name);
+      setMessages(m => [...m.slice(-12), { from: "System", txt: `Target acquired: ${name}` }]);
+    });
+    layer.addChild(root); entities.current.set(id, { root, tx: x, tz: z, name, isPlayer: player });
   }
 
   function startNetwork(app: Application, layer: Container) {
@@ -190,14 +194,38 @@ export function CyberZenIsoApp() {
   function tick(app: Application, layer: Container) {
     let dx = 0, dz = 0; const k = keys.current;
     if (k.has("w") || k.has("arrowup")) dz += 1; if (k.has("s") || k.has("arrowdown")) dz -= 1; if (k.has("a") || k.has("arrowleft")) dx -= 1; if (k.has("d") || k.has("arrowright")) dx += 1;
-    if ((dx || dz) && clientRef.current?.connected && Date.now() - moveAt.current > 140) { moveAt.current = Date.now(); clientRef.current.sendPlayerAction("MOVE", { dx, dz }); }
-    entities.current.forEach((ent) => { const p = iso(ent.tx, ent.tz, app.screen.width, app.screen.height); ent.root.x += (p.x - ent.root.x) * 0.18; ent.root.y += (p.y - ent.root.y) * 0.18; ent.root.zIndex = ent.root.y; });
+
+    if (autoMove && !dx && !dz) {
+       // Simple patrol logic
+       const t = Date.now() / 1000;
+       dx = Math.cos(t) * 0.5;
+       dz = Math.sin(t) * 0.5;
+    }
+
+    if ((dx || dz) && clientRef.current?.connected && Date.now() - moveAt.current > 140) {
+      moveAt.current = Date.now();
+      clientRef.current.sendPlayerAction("MOVE", { dx, dz });
+    }
+
+    entities.current.forEach((ent, id) => {
+      const p = iso(ent.tx, ent.tz, app.screen.width, app.screen.height);
+      ent.root.x += (p.x - ent.root.x) * 0.18;
+      ent.root.y += (p.y - ent.root.y) * 0.18;
+      ent.root.zIndex = ent.root.y;
+
+      // Target highlight
+      if (id === targetId) {
+        ent.root.alpha = 0.8 + Math.sin(Date.now() / 200) * 0.2;
+      } else {
+        ent.root.alpha = 1;
+      }
+    });
     layer.sortChildren();
   }
 
   function sendSkill(skillId: string) {
-    clientRef.current?.sendPlayerAction("USE_SKILL", { skillId });
-    setMessages(m => [...m.slice(-12), { from: "Combat", txt: `Skill queued: ${skillId}` }]);
+    clientRef.current?.sendPlayerAction("USE_SKILL", { skillId, targetId });
+    setMessages(m => [...m.slice(-12), { from: "Combat", txt: `Skill ${skillId} used on ${targetName || 'self'}` }]);
   }
 
   function sendChat(text: string) {
@@ -206,8 +234,9 @@ export function CyberZenIsoApp() {
   }
 
   function interact() {
-    clientRef.current?.sendPlayerAction("interact", { targetId: "elder" });
-    setMessages(m => [...m.slice(-12), { from: "System", txt: "Interaction ping sent." }]);
+    const finalTarget = targetId || "elder";
+    clientRef.current?.sendPlayerAction("interact", { targetId: finalTarget });
+    setMessages(m => [...m.slice(-12), { from: "System", txt: `Interaction ping sent to ${targetName || 'Elder'}` }]);
   }
 
   return (
@@ -220,10 +249,14 @@ export function CyberZenIsoApp() {
         weaponCount={weaponCount}
         playerName={playerName}
         messages={messages}
+        targetName={targetName}
         onSkill={sendSkill}
         onChat={sendChat}
         onInteract={interact}
-        onToggleAutoMove={() => setMessages(m => [...m.slice(-12), { from: "Navigator", txt: "Auto-route planner not yet linked." }])}
+        onToggleAutoMove={() => {
+           setAutoMove(!autoMove);
+           setMessages(m => [...m.slice(-12), { from: "Navigator", txt: autoMove ? "Manual control engaged." : "Auto-patrol engaged." }]);
+        }}
       />
     </div>
   );
