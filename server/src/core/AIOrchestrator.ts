@@ -8,6 +8,7 @@ interface TaskPayload {
  * AIOrchestrator manages task queuing and execution for external AI services.
  * Uses global fetch API (Node 18+) or requires 'node-fetch' types/polyfill.
  */
+// @ARE-GUARD-EXEMPT: AIOrchestrator manages external service quotas and is not part of the world simulation state.
 export class AIOrchestrator {
    private static readonly GITHUB_DISPATCH_URL = "https://api.github.com/repos/OuroborosCollective/Areloria/dispatches";
    private static readonly JULES_API_URL = "https://jules.googleapis.com/v1alpha";

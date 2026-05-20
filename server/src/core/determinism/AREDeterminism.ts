@@ -11,6 +11,8 @@ export interface ARERng {
 
 export class SystemAREClock implements AREClock {
   now(): number {
+    // The System clock is the controlled bridge to wall-clock time.
+    // // ARE-DETERMINISM-ALLOW
     return Date.now();
   }
 }

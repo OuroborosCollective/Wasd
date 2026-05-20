@@ -136,7 +136,8 @@ export function createDefaultWorldState(): WorldState {
   return {
     regions: new Map(),
     globalTick: BigInt(0),
-    lastSyncTimestamp: Date.now(),
+    // Initial timestamp is zero-based for absolute simulation determinism.
+    lastSyncTimestamp: 0,
   };
 }
 
