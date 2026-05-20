@@ -76,8 +76,9 @@ Use it before trusting older reconstruction or handover docs.
 
 | Item | Status |
 |------|--------|
-| Unit/integration tests | Vitest (`pnpm run test`) |
-| E2E tests | Playwright (`pnpm run test:e2e`, `pnpm run test:e2e:ci`) |
+| Unit/integration tests | Full tree: `pnpm run test`; DGCC gate uses `pnpm run test:dgcc` (curated contract subset) |
+| E2E tests | Playwright (`pnpm run test:e2e`, `pnpm run test:e2e:ci`, `pnpm run test:e2e:install`) |
+| DGCC contract gate | `pnpm run dgcc` / `pnpm run dgcc:extreme` — `tools/dgcc/` |
 | Lint | ESLint (`pnpm run lint`) |
 | Build | Root build compiles client then server (`pnpm run build`) |
 | CI baseline | Lint + tests + build + model-path audit + e2e workflow exists |

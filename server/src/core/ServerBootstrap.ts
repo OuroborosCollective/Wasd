@@ -186,6 +186,13 @@ export class ServerBootstrap {
     app.use("/api/vote", voteRouter(tick));
     const clientRoot = resolveClientRoot();
     const clientPath = path.join(clientRoot, "dist");
+    const e2eSmokePath = path.join(clientRoot, "public", "e2e-smoke.html");
+    if (existsSync(e2eSmokePath)) {
+      app.get("/e2e-smoke.html", (_req, res) => {
+        res.setHeader("Cache-Control", "no-store");
+        res.sendFile(e2eSmokePath);
+      });
+    }
     const itchClientPath = path.join(clientRoot, "dist-itch");
     const adminContentPath = resolveAdminContentHtmlPath(clientRoot, clientPath);
     if (adminContentPath) app.get("/admin-content.html", (_req, res) => res.sendFile(adminContentPath));

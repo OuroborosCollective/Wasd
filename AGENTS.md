@@ -27,8 +27,9 @@ Primary source-of-truth docs:
 - DB persistence falls back to file-based when `DATABASE_URL` is unreachable (expect `getaddrinfo ENOTFOUND db` in logs—non-fatal).
 
 ### Lint, test, build
-- Lint: `npx eslint server/src client/src` (eslint is a root devDependency with `eslint.config.mjs`; the root `package.json` has no `lint` script)
-- Unit/integration tests: `npx vitest run` (config in root `vitest.config.ts`)
+- **DGCC gate (full contract):** `pnpm run dgcc` (minimal) or `pnpm run dgcc:extreme` — see `tools/dgcc/README.md`
+- Lint: `npx eslint server/src client/src` (eslint is a root devDependency with `eslint.config.mjs`; the root `package.json` has a `lint` script that also covers `tools/dgcc/run-dgcc.ts`)
+- Unit/integration tests: `npx vitest run` (config in root `vitest.config.ts`); DGCC uses `pnpm run test:dgcc` for a fast contract subset
 - Build: `pnpm run build` (recursive across workspaces)
 - E2E:
   - Install once: `pnpm run test:e2e:install`

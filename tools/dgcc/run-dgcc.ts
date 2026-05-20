@@ -141,6 +141,13 @@ async function main() {
   const fix = wantFixes(contract, mode);
   printHeader(mode, fix);
 
+  const rSharedPreflight = await run("pnpm", ["--prefix", "packages/shared", "run", "build"]);
+  if (rSharedPreflight.code !== 0) {
+    console.error("[DGCC] @wasd/shared preflight build failed; server tests and e2e require dist.");
+    console.error(rSharedPreflight.stderr || rSharedPreflight.stdout);
+    process.exit(3);
+  }
+
   const modeCfg = contract.modes[mode] ?? contract.modes.minimal;
 
   const report: DgccReport = {
@@ -170,100 +177,100 @@ async function main() {
 
   const checks = modeCfg.checks as CheckName[];
 
-  if (checks.includes("lint")) {
-    await runCheck("lint", async () => {
+  const checkImpl: Partial<Record<CheckName, () => Promise<void>>> = {
+    lint: async () => {
       const r = await run("pnpm", ["run", "lint"]);
       fs.writeFileSync(path.join(outDir, "lint.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["lint"] = "dgcc-artifacts/lint.out.txt";
       if (r.code !== 0) throw new Error("lint failed");
-    });
-  }
-
-  if (checks.includes("unit")) {
-    await runCheck("unit", async () => {
-      const r = await run("pnpm", ["run", "test"]);
+    },
+    unit: async () => {
+      const testEnv: Record<string, string> = { ...process.env } as Record<string, string>;
+      delete testEnv.DATABASE_URL;
+      delete testEnv.DIRECT_URL;
+      testEnv.PERSISTENCE_DRIVER = "file";
+      const r = await run("pnpm", ["run", "test:dgcc"], { env: testEnv });
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
-      if (r.code !== 0) throw new Error("unit tests failed");
-    });
-  }
-
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
+      if (r.code !== 0) throw new Error("test:dgcc failed (shared/core-logic + server contract tests)");
+    },
+    checkInteract: async () => {
       const r = await run("pnpm", ["run", "check:interact"]);
       fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
       if (r.code !== 0) throw new Error("interact distance consistency check failed");
-    });
-  }
+    },
+    e2e: async () => {
+      let combined = "";
+      const rInstall = await run("pnpm", ["exec", "playwright", "install", "chromium"]);
+      combined += `=== playwright install ===\n${rInstall.stdout}\n${rInstall.stderr}\n`;
+      if (rInstall.code !== 0) throw new Error("playwright install chromium failed");
 
-  if (checks.includes("e2e")) {
-    await runCheck("e2e", async () => {
-      const r = await run("pnpm", ["run", "test:e2e:ci"]);
-      fs.writeFileSync(path.join(outDir, "e2e.out.txt"), r.stdout + "\n" + r.stderr);
+      const rSrv = await run("pnpm", ["--prefix", "server", "run", "build"]);
+      combined += `=== server build (e2e prerequisite) ===\n${rSrv.stdout}\n${rSrv.stderr}\n`;
+      if (rSrv.code !== 0) throw new Error("server build failed (required for e2e webServer)");
+
+      const r = await run("pnpm", ["exec", "playwright", "test"]);
+      combined += `=== playwright test ===\n${r.stdout}\n${r.stderr}\n`;
+      fs.writeFileSync(path.join(outDir, "e2e.out.txt"), combined);
       report.artifacts["e2e"] = "dgcc-artifacts/e2e.out.txt";
       if (r.code !== 0) throw new Error("e2e failed");
-    });
-  }
-
-  if (checks.includes("contentValidate")) {
-    await runCheck("contentValidate", async () => {
-      const r = await run("pnpm", ["--prefix", "server", "run", "validate"]);
+    },
+    contentValidate: async () => {
+      const r = await run("pnpm", ["run", "validate:content"]);
       fs.writeFileSync(path.join(outDir, "content-validate.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["contentValidate"] = "dgcc-artifacts/content-validate.out.txt";
-      if (r.code !== 0) throw new Error("content validation failed (server validate)");
-    });
-  }
-
-  if (checks.includes("clientBuild")) {
-    await runCheck("clientBuild", async () => {
+      if (r.code !== 0) throw new Error("content validation failed (validate:content)");
+    },
+    clientBuild: async () => {
+      const rShared = await run("pnpm", ["--prefix", "packages/shared", "run", "build"]);
+      let log = `=== @wasd/shared build ===\n${rShared.stdout}\n${rShared.stderr}\n`;
+      if (rShared.code !== 0) throw new Error("@wasd/shared build failed (required for client)");
       const r = await run("pnpm", ["--prefix", "client", "run", "build"], {
         env: {
           NODE_OPTIONS: process.env.NODE_OPTIONS || "--max-old-space-size=6144",
         },
       });
-      fs.writeFileSync(path.join(outDir, "client-build.out.txt"), r.stdout + "\n" + r.stderr);
+      log += `=== client vite build ===\n${r.stdout}\n${r.stderr}\n`;
+      fs.writeFileSync(path.join(outDir, "client-build.out.txt"), log);
       report.artifacts["clientBuild"] = "dgcc-artifacts/client-build.out.txt";
       if (r.code !== 0) throw new Error("client build failed");
-    });
-  }
-
-  if (checks.includes("serverBuild")) {
-    await runCheck("serverBuild", async () => {
+    },
+    serverBuild: async () => {
       const r = await run("pnpm", ["--prefix", "server", "run", "build"]);
       fs.writeFileSync(path.join(outDir, "server-build.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["serverBuild"] = "dgcc-artifacts/server-build.out.txt";
       if (r.code !== 0) throw new Error("server build failed");
-    });
-  }
-
-  if (checks.includes("assetsAudit")) {
-    await runCheck("assetsAudit", async () => {
+    },
+    assetsAudit: async () => {
       await assetsAudit(report, contract, fix);
       const p = path.join(outDir, "assets-audit.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "assets") }, null, 2));
       report.artifacts["assetsAudit"] = "dgcc-artifacts/assets-audit.json";
-    });
-  }
-
-  if (checks.includes("wsSchemaSmoke")) {
-    await runCheck("wsSchemaSmoke", async () => {
+    },
+    wsSchemaSmoke: async () => {
       await wsSchemaSmoke(report);
       const p = path.join(outDir, "ws-smoke.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "ws") }, null, 2));
       report.artifacts["wsSchemaSmoke"] = "dgcc-artifacts/ws-smoke.json";
       const hasWsError = report.inconsistencies.some((x) => x.category === "ws" && x.severity === "error");
       if (hasWsError) throw new Error("ws schema smoke failed");
-    });
-  }
-
-  if (checks.includes("uiA11ySmoke")) {
-    await runCheck("uiA11ySmoke", async () => {
+    },
+    uiA11ySmoke: async () => {
       await uiA11ySmoke(report);
       const p = path.join(outDir, "ui-a11y.json");
       fs.writeFileSync(p, JSON.stringify({ inconsistencies: report.inconsistencies.filter((x) => x.category === "ui") }, null, 2));
       report.artifacts["uiA11ySmoke"] = "dgcc-artifacts/ui-a11y.json";
-    });
+    },
+  };
+
+  for (const name of checks) {
+    const impl = checkImpl[name];
+    if (!impl) {
+      console.warn(`[DGCC] unknown check in contract (skipped): ${String(name)}`);
+      continue;
+    }
+    await runCheck(name, impl);
   }
 
   report.finishedAt = nowIso();
