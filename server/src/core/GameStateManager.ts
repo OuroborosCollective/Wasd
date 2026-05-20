@@ -45,7 +45,8 @@ export class GameStateManager {
 
         // Erstellung des AREPayloads
         const payload: AREPayload = {
-            timestamp: Date.now(),
+            // Use deterministic tick-derived timestamp (60Hz assume 16.6ms per tick)
+            timestamp: Math.floor(this.currentTick * (1000 / this.tickRate)),
             tick: this.currentTick,
             resonance: resonanceValue,
             data: this.gatherGameState()

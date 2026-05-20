@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: AssetPoolResolver is a build-time and initialization utility for mapping assets and is not part of the runtime simulation.
 import fs from "fs";
 import path from "path";
 

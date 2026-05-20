@@ -71,6 +71,7 @@ export class SyncSystem {
         const update: SyncUpdate = {
             id: entityId,
             position: { x: position.x, y: position.y, z: position.z },
+            // // ARE-DETERMINISM-ALLOW: SyncSystem is a network transport layer.
             timestamp: Date.now()
         };
 

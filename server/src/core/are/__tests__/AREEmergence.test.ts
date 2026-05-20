@@ -68,6 +68,7 @@ describe('ARE-Logic: emergent brain and deterministic hashing', () => {
       const maliciousPayload = {
         ...cleanPayload,
         get position() {
+          // // ARE-DETERMINISM-ALLOW: Test verification of prohibited API
           Date.now();
           return cleanPayload.position;
         },

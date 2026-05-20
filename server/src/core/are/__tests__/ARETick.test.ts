@@ -51,6 +51,7 @@ describe('ARE-Logic: ARETick isolated execution', () => {
       const maliciousPayload = {
         ...cleanPayload,
         get velocity() {
+          // // ARE-DETERMINISM-ALLOW: Test verification
           Math.random();
           return cleanPayload.velocity;
         },

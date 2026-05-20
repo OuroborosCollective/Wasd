@@ -11,12 +11,14 @@ describe('ARE-Logic: ARE Guard protections', () => {
   describe('execution isolation', () => {
     it('blocks Math.random inside a protected execution frame', () => {
       expect(() => {
+        // // ARE-DETERMINISM-ALLOW: Test verification
         AREGuard.executeProtected(() => Math.random());
       }).toThrow('[ARE-Guard] Math.random is strictly prohibited');
     });
 
     it('blocks Date.now inside a protected execution frame', () => {
       expect(() => {
+        // // ARE-DETERMINISM-ALLOW: Test verification
         AREGuard.executeProtected(() => Date.now());
       }).toThrow('[ARE-Guard] Date.now is strictly prohibited');
     });
@@ -24,13 +26,17 @@ describe('ARE-Logic: ARE Guard protections', () => {
     it('restores Math.random and Date.now after successful execution', () => {
       const result = AREGuard.executeProtected(() => 42);
       expect(result).toBe(42);
+      // // ARE-DETERMINISM-ALLOW: Test verification
       expect(() => Math.random()).not.toThrow();
+      // // ARE-DETERMINISM-ALLOW: Test verification
       expect(() => Date.now()).not.toThrow();
     });
 
     it('restores Math.random and Date.now after failed execution', () => {
       expect(() => AREGuard.executeProtected(() => { throw new Error('tick failed'); })).toThrow('tick failed');
+      // // ARE-DETERMINISM-ALLOW: Test verification
       expect(() => Math.random()).not.toThrow();
+      // // ARE-DETERMINISM-ALLOW: Test verification
       expect(() => Date.now()).not.toThrow();
     });
   });

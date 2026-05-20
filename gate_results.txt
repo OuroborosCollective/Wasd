@@ -97,7 +97,6 @@ ARE Determinism Gate failed. Strict world-state paths contain nondeterministic c
 - server/src/core/are/__tests__/AREGuard.test.ts:33 Math.random() :: expect(() => Math.random()).not.toThrow();
 - server/src/core/are/__tests__/AREGuard.test.ts:34 Date.now() :: expect(() => Date.now()).not.toThrow();
 - server/src/core/are/__tests__/ARETick.test.ts:54 Math.random() :: Math.random();
-- server/src/core/GameStateManager.ts:48 Date.now() :: timestamp: Date.now(),
 - server/src/modules/auction/AuctionHouse.ts:10 Date.now() :: const listing = { item, sellerId, price, createdAt: Date.now() };
 - server/src/modules/auth/PlayerRestore.ts:5 Date.now() :: restoredAt: Date.now()
 - server/src/modules/auth/resolveLoginIdentity.ts:31 randomUUID() :: uid: guestIdFromClient || (token === "test-token" ? "test-user" : randomUUID()),

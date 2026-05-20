@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: AREModeAuditTrail is a filesystem logger for GM commands and is not part of the simulation state.
 import fs from "fs";
 import path from "path";
 import type { AREMode } from "./RuntimeSettingsStore.js";
