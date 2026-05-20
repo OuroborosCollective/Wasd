@@ -15,7 +15,7 @@ Use this index to find current documentation quickly and avoid relying on histor
 | `deploy/ENV_SETUP.md` | Minimal and safe `.env` setup flow |
 | `deploy/.env.production.template` | Production env template |
 | `docs/API_ADMIN_AND_CHAT.md` | Admin content and chat API summary |
-| `docs/API_SURFACE.md` | Public route map and key endpoints |
+| `tools/dgcc/README.md` | Design+Gameplay Consistency Contract (`pnpm run dgcc`) |
 
 ## Architecture and system references
 

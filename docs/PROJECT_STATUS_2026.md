@@ -13,6 +13,7 @@ Use it before trusting older reconstruction or handover docs.
 | Primary rendering | Babylon.js (`@babylonjs/core` + loaders + materials + addons) |
 | Networking | WebSocket (`ws`) via `server/src/networking/WebSocketServer.ts` |
 | Data content root | `game-data/` by default, optional published pack via `USE_PUBLISHED_CONTENT` / `CONTENT_PACK_DIR` |
+| DGCC gate | `pnpm run dgcc` / `pnpm run dgcc:extreme` — contract in `tools/dgcc/dgcc.contract.json`; report under `dgcc-artifacts/` |
 
 ## Authentication and persistence
 
