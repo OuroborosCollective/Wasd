@@ -71,16 +71,19 @@ async function scanFile(file) {
   scanned += 1;
   const fileRel = rel(file);
   const content = await readFile(file, 'utf8');
-  // ⚡ Bolt: Strip comments before scanning to avoid false positives on non-deterministic calls in text/docs.
-  const codeOnly = content.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '');
-  const lines = codeOnly.split(/\r?\n/);
+  const lines = content.split(/\r?\n/);
   const reason = exemptionReason(content);
   const strict = under(fileRel, strictRoots);
   const meta = advisoryPath(fileRel) || Boolean(reason);
+
   lines.forEach((line, index) => {
     if (lineAllowed(lines, index)) return;
+
+    // ⚡ Bolt: Strip comments from this specific line before testing patterns
+    const codeOnly = line.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '');
+
     for (const rule of deny) {
-      if (!rule.pattern.test(line)) continue;
+      if (!rule.pattern.test(codeOnly)) continue;
       const finding = { file: fileRel, line: index + 1, label: rule.label, text: line.trim().slice(0, 180), reason };
       if (strict && !reason) hard.push(finding);
       else if (meta) advisory.push(finding);
