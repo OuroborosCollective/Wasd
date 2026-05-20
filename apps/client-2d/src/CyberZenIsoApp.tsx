@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Application, Assets, Container, Graphics, Sprite, Text, Texture } from "pixi.js";
+import { Application, Assets, Container, Graphics, Sprite, Text, Texture, Rectangle } from "pixi.js";
 import { createClient } from "@wasd/core-network";
-import { fallbackEntry, loadAssetManifest, type AssetEntry, type AssetManifest } from "./assetManifest";
+import { fallbackEntry, loadAssetManifest, pickWeaponVisual, type AssetEntry, type AssetManifest } from "./assetManifest";
 import { ArelorianStitchHud } from "./ArelorianStitchHud";
 
 const TILE_W = 96;
@@ -30,6 +30,16 @@ function diamond(color: number, stroke = 0x17361e) {
 function textureFor(assets: LoadedAssets | null, entry: AssetEntry | null): Texture | null {
   if (!assets || !entry?.src) return null;
   return assets.textures.get(entry.src) ?? null;
+}
+
+function weaponTextureFor(assets: LoadedAssets | null, entry: AssetEntry | null): Texture | null {
+  if (!assets || !entry?.src || !entry.frame) return null;
+  const baseTex = assets.textures.get(entry.src);
+  if (!baseTex) return null;
+  return new Texture({
+    source: baseTex.source,
+    frame: new Rectangle(entry.frame.x, entry.frame.y, entry.frame.w, entry.frame.h),
+  });
 }
 
 function spriteFromTexture(texture: Texture, width: number, height: number, y = 0) {
@@ -81,11 +91,28 @@ function avatar(name: string, player = false, assets?: LoadedAssets | null) {
   const entry = fallbackEntry(assets?.manifest ?? null, "characters", player ? "player" : "npc");
   const tex = textureFor(assets ?? null, entry);
   c.addChild(new Graphics().ellipse(0, 18, 23, 8).fill({ color: 0x02040a, alpha: 0.56 }));
-  if (tex) c.addChild(spriteFromTexture(tex, 58, 74));
-  else {
+
+  if (tex) {
+    c.addChild(spriteFromTexture(tex, 58, 74));
+  } else {
     c.addChild(new Graphics().ellipse(0, -8, 14, 21).fill(player ? 0x267dff : 0x249a56).stroke({ width: 2, color: aura, alpha: 0.55 }));
     c.addChild(new Graphics().circle(0, -34, 11).fill(player ? 0xffd8a9 : 0xd4ffd7).stroke({ width: 2, color: aura, alpha: 0.82 }));
   }
+
+  if (assets?.manifest) {
+    const weapon = pickWeaponVisual(assets.manifest, { seed: name });
+    if (weapon) {
+      const wTex = weaponTextureFor(assets, weapon.entry);
+      if (wTex) {
+        const wSprite = spriteFromTexture(wTex, 42, 42);
+        wSprite.x = 12;
+        wSprite.y = -22;
+        wSprite.rotation = 0.35;
+        c.addChild(wSprite);
+      }
+    }
+  }
+
   const label = new Text({ text: name, style: { fontSize: 11, fill: 0xfff0cf, stroke: { color: 0x02030a, width: 3 }, fontFamily: "monospace" } });
   label.anchor.set(0.5, 1); label.y = -58;
   c.addChild(label);
@@ -146,7 +173,7 @@ export function CyberZenIsoApp() {
       const weapons = Object.keys(loaded.manifest?.weapons ?? {}).length;
       setWeaponCount(weapons);
       setAssetStatus(textureCount > 0 ? `ASSETS_${textureCount}_LOADED` : "PROXY_GRAPHICS");
-      setMessages(m => [...m.slice(-12), { from: "AssetRig", txt: textureCount > 0 ? `Loaded ${textureCount} textures and ${weapons} weapon visuals.` : "No manifest textures yet. Using proxy graphics." }]);
+      setMessages((m: Msg[]) => [...m.slice(-12), { from: "AssetRig", txt: textureCount > 0 ? `Loaded ${textureCount} textures and ${weapons} weapon visuals.` : "No manifest textures yet. Using proxy graphics." }]);
       const terrain = new Container(); const props = new Container(); const actors = new Container(); actors.sortableChildren = true;
       app.stage.addChild(terrain, props, actors);
       buildScene(app, terrain, props, loaded);
@@ -177,7 +204,7 @@ export function CyberZenIsoApp() {
   function startNetwork(app: Application, layer: Container) {
     const c = createClient({ url: "https://arelorian.de", heartbeatInterval: 30000 });
     clientRef.current = c;
-    c.on("connect" as any, () => { setConnected(true); setMessages(m => [...m.slice(-12), { from: "Net", txt: "World stream connected." }]); });
+    c.on("connect" as any, () => { setConnected(true); setMessages((m: Msg[]) => [...m.slice(-12), { from: "Net", txt: "World stream connected." }]); });
     c.on("disconnect" as any, () => setConnected(false));
     c.on("WORLD_HEARTBEAT", (e: any) => {
       Object.entries(e.payload?.players || {}).forEach(([id, p]: any) => addActor(app, layer, id, Number(p.x || 0), Number(p.z || 0), p.name || "Player", true));
@@ -191,23 +218,23 @@ export function CyberZenIsoApp() {
     let dx = 0, dz = 0; const k = keys.current;
     if (k.has("w") || k.has("arrowup")) dz += 1; if (k.has("s") || k.has("arrowdown")) dz -= 1; if (k.has("a") || k.has("arrowleft")) dx -= 1; if (k.has("d") || k.has("arrowright")) dx += 1;
     if ((dx || dz) && clientRef.current?.connected && Date.now() - moveAt.current > 140) { moveAt.current = Date.now(); clientRef.current.sendPlayerAction("MOVE", { dx, dz }); }
-    entities.current.forEach((ent) => { const p = iso(ent.tx, ent.tz, app.screen.width, app.screen.height); ent.root.x += (p.x - ent.root.x) * 0.18; ent.root.y += (p.y - ent.root.y) * 0.18; ent.root.zIndex = ent.root.y; });
+    entities.current.forEach((ent: Entity) => { const p = iso(ent.tx, ent.tz, app.screen.width, app.screen.height); ent.root.x += (p.x - ent.root.x) * 0.18; ent.root.y += (p.y - ent.root.y) * 0.18; ent.root.zIndex = ent.root.y; });
     layer.sortChildren();
   }
 
   function sendSkill(skillId: string) {
     clientRef.current?.sendPlayerAction("USE_SKILL", { skillId });
-    setMessages(m => [...m.slice(-12), { from: "Combat", txt: `Skill queued: ${skillId}` }]);
+    setMessages((m: Msg[]) => [...m.slice(-12), { from: "Combat", txt: `Skill queued: ${skillId}` }]);
   }
 
   function sendChat(text: string) {
     clientRef.current?.sendPlayerAction("chat", { text, channel: "local" });
-    setMessages(m => [...m.slice(-12), { from: playerName, txt: text }]);
+    setMessages((m: Msg[]) => [...m.slice(-12), { from: playerName, txt: text }]);
   }
 
   function interact() {
     clientRef.current?.sendPlayerAction("interact", { targetId: "elder" });
-    setMessages(m => [...m.slice(-12), { from: "System", txt: "Interaction ping sent." }]);
+    setMessages((m: Msg[]) => [...m.slice(-12), { from: "System", txt: "Interaction ping sent." }]);
   }
 
   return (
@@ -223,7 +250,7 @@ export function CyberZenIsoApp() {
         onSkill={sendSkill}
         onChat={sendChat}
         onInteract={interact}
-        onToggleAutoMove={() => setMessages(m => [...m.slice(-12), { from: "Navigator", txt: "Auto-route planner not yet linked." }])}
+        onToggleAutoMove={() => setMessages((m: Msg[]) => [...m.slice(-12), { from: "Navigator", txt: "Auto-route planner not yet linked." }])}
       />
     </div>
   );
