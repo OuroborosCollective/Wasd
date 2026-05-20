@@ -29,7 +29,7 @@
     "typescript": "^6.0.3"
   },
   "peerDependencies": {
-    "pg": "^8.11.5",
+    "pg": "^8.20.0",
     "zod": "^3.23.8"
   },
   "publishConfig": {
