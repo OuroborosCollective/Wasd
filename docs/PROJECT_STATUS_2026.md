@@ -76,11 +76,14 @@ Use it before trusting older reconstruction or handover docs.
 
 | Item | Status |
 |------|--------|
-| Unit/integration tests | Vitest (`pnpm run test`) |
-| E2E tests | Playwright (`pnpm run test:e2e`, `pnpm run test:e2e:ci`) |
-| Lint | ESLint (`pnpm run lint`) |
+| Unit/integration tests | Full Vitest matrix: `pnpm run test` (builds `@wasd/shared` first). Contract slice for gates: `pnpm run test:dgcc`. |
+| DGCC gate | `pnpm run dgcc` / `pnpm run dgcc:extreme` (`tools/dgcc/`, artifacts under `dgcc-artifacts/`) |
+| E2E tests | Playwright (`pnpm run test:e2e:install`, `pnpm run test:e2e`, `pnpm run test:e2e:ci`) |
+| Lint | `pnpm run lint` |
+| Interact radius check | `pnpm run check:interact` (GameConfig vs `packages/shared`) |
+| Content validate | `pnpm run validate` |
 | Build | Root build compiles client then server (`pnpm run build`) |
-| CI baseline | Lint + tests + build + model-path audit + e2e workflow exists |
+| CI baseline | `pnpm run ci:verify` (lint + `test:dgcc`); full pipeline adds e2e via `pnpm run dgcc` |
 
 ## Important clarifications
 

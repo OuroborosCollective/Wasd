@@ -27,17 +27,19 @@ Primary source-of-truth docs:
 - DB persistence falls back to file-based when `DATABASE_URL` is unreachable (expect `getaddrinfo ENOTFOUND db` in logs—non-fatal).
 
 ### Lint, test, build
-- Lint: `npx eslint server/src client/src` (eslint is a root devDependency with `eslint.config.mjs`; the root `package.json` has no `lint` script)
-- Unit/integration tests: `npx vitest run` (config in root `vitest.config.ts`)
+- Lint: `pnpm run lint` (same scope as `npx eslint server/src client/src`; eslint is a root devDependency with `eslint.config.mjs`)
+- Unit/integration tests: `pnpm run test` runs the full Vitest suite after `pnpm --filter @wasd/shared build`. For the slimmer gate used by DGCC, use `pnpm run test:dgcc`.
 - Build: `pnpm run build` (recursive across workspaces)
 - E2E:
   - Install once: `pnpm run test:e2e:install`
-  - Run: `pnpm run test:e2e`
+  - Run: `pnpm run test:e2e` (builds `@wasd/shared`, builds the server, then runs Playwright)
   - CI variant: `pnpm run test:e2e:ci`
-- Pre-push quick verification (no E2E): `pnpm run ci:verify`
+- Pre-push quick verification (no E2E): `pnpm run ci:verify` (lint + `test:dgcc`)
+- Design/gameplay consistency gate (DGCC): `pnpm run dgcc` (minimal) or `pnpm run dgcc:extreme`; see `tools/dgcc/README.md`. Artifacts under `dgcc-artifacts/`.
 - Content checks:
-  - Validate content: `pnpm run validate --prefix server`
+  - Validate content: `pnpm run validate` (`tsx server/src/tools/validateContent.ts`)
   - Model-path audit: `pnpm run audit:model-paths`
+  - Interact radius consistency: `pnpm run check:interact`
 
 ### Environment variables (important)
 - General defaults and descriptions: `.env.example`
