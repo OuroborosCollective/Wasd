@@ -147,6 +147,7 @@ export class WorldTick {
       latestEntityId: latest?.entityId ?? null,
       latestStateHash: latest?.stateHash ?? null,
       divergence: this.areDivergenceGuard.summarize(),
+      ecosystem: AREShadowAdapter.getEcosystemTelemetry(),
     };
   }
 
