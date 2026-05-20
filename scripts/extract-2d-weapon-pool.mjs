@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, '..');
 const zipPath = join(repoRoot, 'asset-packs/2d/weapons/wasd-2d-weapon-pool.zip');
-const outDir = repoRoot;
+const outDir = join(repoRoot, 'apps/client-2d/public/2d-assets/');
 const expectedAtlas = join(repoRoot, 'apps/client-2d/public/2d-assets/weapons/weapon-atlas.png');
 const expectedManifest = join(repoRoot, 'apps/client-2d/public/2d-assets/weapons/weapon-manifest.json');
 const expectedCredits = join(repoRoot, 'apps/client-2d/public/2d-assets/credits/weapon-packs.md');

@@ -1,4 +1,4 @@
-import { io, Socket, ManagerOptions } from "socket.io-client";
+import { io, Socket, type SocketOptions, type ManagerOptions } from "socket.io-client";
 import type { ServerEvent, ConnectionConfig } from "./types";
 
 type EventListener<T extends ServerEvent = ServerEvent> = (event: T) => void;
@@ -30,7 +30,7 @@ export class ArelorianClient {
   connect(): void {
     if (this.socket?.connected) return;
 
-    const options: ManagerOptions = {
+    const options: Partial<ManagerOptions & SocketOptions> = {
       transports: ["websocket"],
       reconnection: true,
       reconnectionAttempts: Infinity,

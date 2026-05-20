@@ -32,7 +32,7 @@
     "vitest": "^4.1.6"
   },
   "pnpm": {
-    "onlyBuiltDependencies": [
+    "trustedDependencies": [
       "esbuild",
       "sharp",
       "pg",
