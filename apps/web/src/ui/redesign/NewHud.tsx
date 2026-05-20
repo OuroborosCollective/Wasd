@@ -112,23 +112,35 @@ export const NewHud: React.FC = () => {
         <div className="w-72 bg-black/40 p-4 border-l-2 border-yellow-500/50 backdrop-blur-md">
           <h3 className="text-yellow-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4">Current Objectives</h3>
           <div className="flex flex-col gap-5">
-            {activeQuests.map((quest: any) => (
-              <div key={quest.id} className="flex flex-col gap-1">
-                <div className="flex justify-between items-end">
-                  <span className="text-white font-bold text-xs uppercase">{quest.name}</span>
-                  <span className="text-white/40 text-[9px]">
-                    {Math.floor((quest.progress / (quest.maxProgress || KAPPA)) * 100)}%
-                  </span>
-                </div>
-                <span className="text-white/50 text-[10px] italic mb-1">{quest.target}</span>
-                <div className="w-full h-[2px] bg-white/5">
+            {activeQuests.map((quest: any) => {
+              const progressPct = Math.floor((quest.progress / (quest.maxProgress || KAPPA)) * 100);
+              const isCompleted = progressPct >= 100;
+
+              return (
+                <div key={quest.id} className="flex flex-col gap-1">
+                  <div className="flex justify-between items-end">
+                    <span className="text-white font-bold text-xs uppercase">{quest.name}</span>
+                    <span className={`text-[9px] ${isCompleted ? 'text-green-400 font-bold' : 'text-white/40'}`}>
+                      {progressPct}%
+                    </span>
+                  </div>
+                  <span className="text-white/50 text-[10px] italic mb-1">{quest.target}</span>
                   <div 
-                    className="h-full bg-yellow-500/80 transition-all duration-500" 
-                    style={{ width: `${(quest.progress / (quest.maxProgress || KAPPA)) * 100}%` }}
-                  />
+                    role="progressbar"
+                    aria-label={`Progress for ${quest.name}`}
+                    aria-valuenow={progressPct}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    className="w-full h-[2px] bg-white/5"
+                  >
+                    <div
+                      className={`h-full transition-all duration-500 ${isCompleted ? 'bg-green-500' : 'bg-yellow-500/80'}`}
+                      style={{ width: `${progressPct}%` }}
+                    />
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {activeQuests.length === 0 && <span className="text-white/20 text-[10px] uppercase tracking-widest">Idle - No Tasks</span>}
           </div>
         </div>
@@ -137,7 +149,11 @@ export const NewHud: React.FC = () => {
       {/* Interaction Layer: Nearby Items */}
       <div className="flex justify-center mb-24">
         {!inventoryOpen && nearbyLoot.length > 0 && (
-          <div className="bg-white px-3 py-1 flex items-center gap-3 shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+          <div
+            role="status"
+            aria-live="polite"
+            className="bg-white px-3 py-1 flex items-center gap-3 shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+          >
             <kbd className="bg-black text-white px-1.5 py-0.5 rounded text-[10px] font-bold">E</kbd>
             <span className="text-black text-[10px] font-bold uppercase tracking-tight">
               Collect {nearbyLoot.length} Object{nearbyLoot.length > 1 ? 's' : ''}
