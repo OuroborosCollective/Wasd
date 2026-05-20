@@ -35,7 +35,9 @@ Use it before trusting older reconstruction or handover docs.
 | Questline system | Questline engine + bridge and unlock propagation are wired |
 | NPC runtime | `NPCSystem` + memory cache/persistence + relationships + proactive chat are wired |
 | Ouroboros agents | `OuroborosEngine` is instantiated and ticked from `WorldTick` |
-| World systems | Chunks, observers, world objects, weather/time, terrain adapters are wired |
+| World systems | Chunks, observers, world objects, weather/time, terrain adapters are wired; `entity_sync` broadcasts merged players/NPCs/loot/world-objects for Babylon clients |
+| Guilds | Server `GuildSystem` with WS messages `guild_create` / `guild_join` / `guild_leave` and `guild_sync`; client `guildPanel` + `socialState` roster |
+| Starter village | `VillageLayoutGenerator` can seed streets + houses + well when `SEED_STARTER_VILLAGE=1` (opt-in; avoids mutating shared content during CI) |
 | Warfront | `WarfrontSystem` lifecycle, status pushes, reward claims are wired |
 | World boss | `WorldBossDungeonSystem` encounter flow and ranking summaries are wired |
 | Vote system | Vote banner/session/status and reward claims are wired |

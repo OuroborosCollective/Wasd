@@ -9,6 +9,7 @@ const WS_RL_WINDOW_MS = 1000;
 type TrackedSocket = WebSocket & {
   id?: string;
   _entitySyncIntervalMs?: number;
+  /** Milliseconds since epoch of last `entity_sync` sent to this socket; unset until first send. */
   _lastEntitySyncSentAt?: number;
 };
 
@@ -53,7 +54,7 @@ export class GameWebSocketServer {
       socket.id = id;
       const tracked = socket as TrackedSocket;
       tracked._entitySyncIntervalMs = GameConfig.stateBroadcastIntervalMs;
-      tracked._lastEntitySyncSentAt = 0;
+      tracked._lastEntitySyncSentAt = undefined;
 
       if (this.onPlayerConnect) {
         this.onPlayerConnect(id);
@@ -148,8 +149,8 @@ export class GameWebSocketServer {
       for (const client of this.wss.clients as Set<TrackedSocket>) {
         if (client.readyState !== 1) continue;
         const minEvery = client._entitySyncIntervalMs ?? GameConfig.stateBroadcastIntervalMs;
-        const last = client._lastEntitySyncSentAt ?? 0;
-        if (now - last < minEvery) continue;
+        const last = client._lastEntitySyncSentAt;
+        if (typeof last === "number" && now - last < minEvery) continue;
         client._lastEntitySyncSentAt = now;
         client.send(message);
       }

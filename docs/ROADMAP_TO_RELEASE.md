@@ -30,7 +30,8 @@ This roadmap tracks the gap between what is already live in the repository and w
 | Admin content system | Upload, validation, publish-pack, model-needs shipped | Improve admin ergonomics and audit transparency for content edits |
 | NPC autonomy | NPC memory/relationships/chat + fusion hooks active | Expand deterministic behavior scenarios and balancing for large NPC counts |
 | Gameplay Fusion Director | Quest echo, adaptive profile overrides, construction contracts live | Add dedicated admin/debug visibility panel and tunable balancing config |
-| World systems | Chunk/terrain/weather/resource foundations active | Expand biome/content depth and optimize streaming boundaries |
+| World systems | Chunk/terrain/weather/resource foundations active; optional deterministic starter hamlet (`SEED_STARTER_VILLAGE`) | Expand biome/content depth and optimize streaming boundaries |
+| Social / guilds | Server guild create/join/leave + `guild_sync`; client guild panel | Guild progression, ranks beyond founder/member, and persistence in DB for production |
 
 ---
 
@@ -65,4 +66,4 @@ This roadmap tracks the gap between what is already live in the repository and w
 
 ---
 
-Last refreshed: 2026-04-26
+Last refreshed: 2026-05-20

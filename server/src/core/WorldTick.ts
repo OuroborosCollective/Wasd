@@ -11,6 +11,7 @@ import { EconomySystem } from "../modules/economy/EconomySystem.js";
 import { QuestEngine } from "../modules/quest/QuestEngine.js";
 import { WorldSystem } from "../modules/world/WorldSystem.js";
 import { PersistenceManager } from "./PersistenceManager.js";
+import { mergePersistedPlayerInto } from "../modules/persistence/playerSnapshot.js";
 import { verifyFirebaseToken } from "../config/firebase.js";
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { WorldHistory } from "../modules/history/WorldHistory.js";
@@ -27,6 +28,7 @@ import { AREDivergenceGuard } from "./are/AREDivergenceGuard.js";
 import { AREReplayBuffer } from "./are/AREReplayBuffer.js";
 import { AREShadowAdapter } from "./are/AREShadowAdapter.js";
 import { KappaPosGrid } from "@wasd/shared";
+import { randomUUID } from "node:crypto";
 
 function sectorOf(entity: any): number {
   const x = Number(entity?.position?.x ?? 0);
@@ -93,7 +95,28 @@ export class WorldTick {
   public getPlaytesterDebugLogPath(): string { return ""; }
   public buildPlaytesterMonitorPayload(options?: any): any { return {}; }
   public assetHealthService: any = { getStatus: () => ({}), getStats: () => null, flush: () => {} };
-  public async init(): Promise<void> {}
+  public async init(): Promise<void> {
+    try {
+      await this.worldSystem.objectSystem.initialLoad;
+    } catch (e) {
+      console.warn("[WorldTick] World objects initial load failed:", e);
+    }
+    try {
+      const saved = await this.persistence.load();
+      for (const [pid, snap] of Object.entries(saved || {})) {
+        if (typeof pid !== "string" || pid === "dummy_player") continue;
+        let player = this.playerSystem.getPlayer(pid);
+        if (!player) {
+          const name =
+            snap && typeof (snap as any).name === "string" ? String((snap as any).name) : pid;
+          player = this.playerSystem.createPlayer(pid, name);
+        }
+        mergePersistedPlayerInto(player, snap as Record<string, unknown>);
+      }
+    } catch (e) {
+      console.warn("[WorldTick] Player persistence preload failed:", e);
+    }
+  }
   private keysDown: Map<string, Set<string>> = new Map();
 
   constructor(private ws: GameWebSocketServer) {
@@ -116,6 +139,7 @@ export class WorldTick {
     dummyPlayer.position.y = 500;
     this.observerEngine.register("dummy_player", { x: 500, y: 500 });
     bootstrapWarfrontNpcs(this.npcSystem);
+    this.ensureTrainingDummyNpc();
     this.ws.onPlayerConnect = (id) => console.log(`Socket ${id} connected. Waiting for login...`);
     this.ws.onPlayerDisconnect = async (id) => {
       const uid = this.socketToPlayer.get(id);
@@ -129,6 +153,124 @@ export class WorldTick {
       }
     };
     this.ws.onPlayerMessage = async (id, msg) => this.handlePlayerMessage(id, msg);
+  }
+
+  private ensureTrainingDummyNpc(): void {
+    if (this.npcSystem.getNPC("npc_dummy")) return;
+    const npc = this.npcSystem.createNPC("npc_dummy", "Training Dummy", 12, 10);
+    npc.role = "Training";
+    npc.health = 120;
+    npc.maxHealth = 120;
+  }
+
+  private normalizePlayerClass(raw: unknown): "warrior" | "mage" | "ranger" {
+    const t = String(raw ?? "warrior")
+      .trim()
+      .toLowerCase();
+    if (t === "mage" || t === "ranger") return t;
+    return "warrior";
+  }
+
+  private buildEntitySyncEntities(): any[] {
+    const entities: any[] = [];
+    const reg = this.glbRegistry;
+    for (const p of this.playerSystem.getAllPlayers()) {
+      if (p.id === "dummy_player") continue;
+      const cls = this.normalizePlayerClass(p.class);
+      const glb =
+        reg.getModelForTarget("player_default", cls) ||
+        reg.getModelForTarget("player_default", "warrior") ||
+        "/assets/models/characters/uschi.glb";
+      entities.push({
+        id: p.id,
+        type: "player",
+        name: p.name,
+        position: { x: p.position.x, y: p.position.y, z: p.position.z || 0 },
+        rotation: { x: 0, y: p.rotation || 0, z: 0 },
+        modelUrl: glb,
+        glbPath: glb,
+        health: p.health,
+        maxHealth: p.maxHealth,
+        level: p.level,
+        visible: !p.isOffline,
+      });
+    }
+    for (const n of this.npcSystem.getAllNPCs()) {
+      const override =
+        typeof n.fusionAdaptiveGlbPath === "string" && n.fusionAdaptiveGlbPath.length > 0
+          ? n.fusionAdaptiveGlbPath
+          : null;
+      const linked =
+        override ||
+        reg.getModelForTarget("npc_single", n.id) ||
+        reg.getModelForTarget("npc_group", n.id) ||
+        "/assets/models/characters/uschi.glb";
+      const row: any = {
+        id: n.id,
+        type: "npc",
+        name: n.name,
+        position: { x: n.position.x, y: n.position.y, z: n.position.z || 0 },
+        rotation: { x: 0, y: n.rotation || 0, z: 0 },
+        modelUrl: linked,
+        glbPath: linked,
+        health: n.health,
+        maxHealth: n.maxHealth,
+        role: n.role ?? "npc",
+        state: n.state,
+      };
+      if (n.id === "npc_dummy" || n.role === "Training") {
+        row.combatNpcId = n.id;
+        row.combatThreat = false;
+      }
+      entities.push(row);
+    }
+    for (const l of this.lootEntities.values()) {
+      entities.push({
+        id: l.id,
+        type: "loot",
+        name: l.item?.name,
+        position: { x: l.position.x, y: l.position.y, z: l.position.z || 0 },
+        rotation: { x: 0, y: 0, z: 0 },
+        modelUrl: l.glbPath,
+        glbPath: l.glbPath,
+        visible: true,
+      });
+    }
+    for (const o of this.worldSystem.objectSystem.getAllObjects()) {
+      entities.push({
+        id: o.id,
+        type: "object",
+        name: o.name,
+        position: { x: o.position.x, y: 0, z: o.position.y },
+        rotation: { x: 0, y: o.rotation ?? 0, z: 0 },
+        scale: o.scale,
+        modelUrl: o.glbPath,
+        glbPath: o.glbPath,
+        visible: true,
+      });
+    }
+    return entities;
+  }
+
+  private buildEntitySyncChunks(): any[] {
+    const { chunks } = this.observerEngine.getObservedChunks();
+    return chunks.map((c) => ({ id: c.id, chunkX: c.chunkX, chunkY: c.chunkY }));
+  }
+
+  private sendGuildState(socketId: string, playerId: string): void {
+    const guild = this.guildSystem.getGuildForPlayer(playerId);
+    this.ws.sendToPlayer(socketId, {
+      type: "guild_sync",
+      guild: guild
+        ? {
+            id: guild.id,
+            name: guild.name,
+            rank: guild.ranks[playerId] ?? "member",
+            members: guild.members,
+          }
+        : null,
+      roster: this.guildSystem.listGuilds().map((g) => ({ id: g.id, name: g.name, members: g.members.length })),
+    });
   }
 
   public getAREGuardStatus(): AREInvariantGuardStatus | null { return this.lastAREGuardStatus; }
@@ -179,17 +321,114 @@ export class WorldTick {
 
   private async handlePlayerMessage(id: string, msg: any) {
     if (msg.type === "login") {
-      if (!msg.token) { this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed: No token provided" }); setTimeout(() => { const client = Array.from((this.ws as any).wss.clients).find((c: any) => c.id === id); if (client) (client as any).close(); }, 500); return; }
+      const allowGuest = !["0", "false", "no"].includes(
+        String(process.env.ALLOW_GUEST_LOGIN ?? "1")
+          .trim()
+          .toLowerCase(),
+      );
+      if (
+        allowGuest &&
+        typeof msg.guestId === "string" &&
+        msg.guestId.startsWith("guest_")
+      ) {
+        const uid = msg.guestId;
+        const charName =
+          typeof msg.guestName === "string" && msg.guestName.trim()
+            ? String(msg.guestName).trim()
+            : `Guest_${uid.slice(-6)}`;
+        let player = this.playerSystem.getPlayer(uid);
+        if (!player) {
+          player = this.playerSystem.createPlayer(uid, charName, msg.class, msg.appearance);
+          this.hydratePlayer(player);
+        } else {
+          player.isOffline = false;
+        }
+        if (player.name !== charName) player.name = charName;
+        this.socketToPlayer.set(id, uid);
+        this.playerToSocket.set(uid, id);
+        this.observerEngine.register(id, { x: player.position.x, y: player.position.y });
+        this.ws.sendToPlayer(id, {
+          type: "welcome",
+          playerId: uid,
+          id: uid,
+          playerName: player.name,
+          stats: {
+            gold: player.gold,
+            xp: player.xp,
+            hp: player.health,
+            maxHp: player.maxHealth,
+            mp: player.mana,
+            maxMp: player.maxMana,
+            mana: player.mana,
+            maxMana: player.maxMana,
+            level: player.level || 1,
+          },
+          inventory: player.inventory,
+          equipment: player.equipment,
+          quests: player.quests,
+        });
+        this.sendGuildState(id, uid);
+        return;
+      }
+
+      if (!msg.token) {
+        this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed: No token provided" });
+        setTimeout(() => {
+          const client = Array.from((this.ws as any).wss.clients).find((c: any) => c.id === id);
+          if (client) (client as any).close();
+        }, 500);
+        return;
+      }
       let charName = "Unknown";
       let uid = "";
-      try { const decodedToken = await verifyFirebaseToken(msg.token) as any; if (decodedToken) { uid = decodedToken.uid; charName = decodedToken.name || decodedToken.email?.split('@')[0] || `Player_${uid.substring(0, 6)}`; } else { this.ws.sendToPlayer(id, { type: "error", message: "Authentication service unavailable" }); return; } } catch { this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed: Invalid token" }); return; }
+      try {
+        const decodedToken = (await verifyFirebaseToken(msg.token)) as any;
+        if (decodedToken) {
+          uid = decodedToken.uid;
+          charName =
+            decodedToken.name ||
+            decodedToken.email?.split("@")[0] ||
+            `Player_${uid.substring(0, 6)}`;
+        } else {
+          this.ws.sendToPlayer(id, { type: "error", message: "Authentication service unavailable" });
+          return;
+        }
+      } catch {
+        this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed: Invalid token" });
+        return;
+      }
       let player = this.playerSystem.getPlayer(uid);
-      if (!player) { player = this.playerSystem.createPlayer(uid, charName, msg.class, msg.appearance); this.hydratePlayer(player); } else { player.isOffline = false; }
+      if (!player) {
+        player = this.playerSystem.createPlayer(uid, charName, msg.class, msg.appearance);
+        this.hydratePlayer(player);
+      } else {
+        player.isOffline = false;
+      }
       if (player.name !== charName) player.name = charName;
       this.socketToPlayer.set(id, uid);
       this.playerToSocket.set(uid, id);
       this.observerEngine.register(id, { x: player.position.x, y: player.position.y });
-      this.ws.sendToPlayer(id, { type: "welcome", id: uid, playerName: player.name, stats: { gold: player.gold, xp: player.xp, hp: player.health, maxHp: player.maxHealth, mp: player.mana, maxMp: player.maxMana, level: player.level || 1 }, inventory: player.inventory, equipment: player.equipment, quests: player.quests });
+      this.ws.sendToPlayer(id, {
+        type: "welcome",
+        playerId: uid,
+        id: uid,
+        playerName: player.name,
+        stats: {
+          gold: player.gold,
+          xp: player.xp,
+          hp: player.health,
+          maxHp: player.maxHealth,
+          mp: player.mana,
+          maxMp: player.maxMana,
+          mana: player.mana,
+          maxMana: player.maxMana,
+          level: player.level || 1,
+        },
+        inventory: player.inventory,
+        equipment: player.equipment,
+        quests: player.quests,
+      });
+      this.sendGuildState(id, uid);
       return;
     }
     const playerId = this.socketToPlayer.get(id);
@@ -198,7 +437,20 @@ export class WorldTick {
     if (!player) return;
     const charName = player.name;
     const nowTick = this.tickCount;
-    const checkCooldown = (cooldownMs: number) => { const cooldownTicks = Math.max(1, Math.ceil(cooldownMs / 100)); const pTimes = this.lastActionTimes.get(charName) || {}; const last = pTimes["general"] || 0; if (nowTick - last < cooldownTicks) return false; pTimes["general"] = nowTick; this.lastActionTimes.set(charName, pTimes); return true; };
+    const checkCooldown = (cooldownMs: number) => {
+      const cooldownTicks = Math.max(1, Math.ceil(cooldownMs / 100));
+      const pTimes = this.lastActionTimes.get(charName) || {};
+      const last = pTimes["general"];
+      if (typeof last !== "number") {
+        pTimes["general"] = nowTick;
+        this.lastActionTimes.set(charName, pTimes);
+        return true;
+      }
+      if (nowTick - last < cooldownTicks) return false;
+      pTimes["general"] = nowTick;
+      this.lastActionTimes.set(charName, pTimes);
+      return true;
+    };
     if (msg.type === "move_intent" || msg.type === "MOVE") { const speed = 5; let dx = Number(msg.dx) || 0; let dy = Number(msg.dy ?? msg.dz) || 0; const magSq = dx * dx + dy * dy; if (magSq > 1) { const mag = Math.sqrt(magSq); dx /= mag; dy /= mag; } if (!Number.isNaN(dx) && !Number.isNaN(dy)) { const current = KappaPosGrid.create(player.position.x, player.position.y, player.position.z || 0); const moved = KappaPosGrid.move(current, dx * speed, dy * speed, 0, 1); player.position.x = KappaPosGrid.toExternal(moved.x); player.position.y = KappaPosGrid.toExternal(moved.y); player.position.z = KappaPosGrid.toExternal(moved.z ?? 0); this.observerEngine.updatePosition(id, { x: player.position.x, y: player.position.y }); } }
     else if (msg.type === "chat") { if (msg.text && typeof msg.text === "string" && msg.text.trim().length > 0) this.ws.broadcast({ type: "CHAT_MSG", payload: { channel: msg.channel || "local", sender: player.name, text: msg.text.trim() }}); }
     else if (msg.type === "USE_SKILL") { const skillId = msg.skillId; if (skillId === "atk" && !checkCooldown(800)) return; if (skillId === "def") player.mana = Math.min(player.maxMana, player.mana + 10); if (skillId === "mag" && !checkCooldown(3000)) return; if ((skillId === "mag" || skillId === "atk") && !checkCooldown(800)) return; }
@@ -208,9 +460,91 @@ export class WorldTick {
     else if (msg.type === "equip") { this.inventorySystem.equipItem(player, msg.itemId); this.saveAll(); }
     else if (msg.type === "unequip") { this.inventorySystem.unequipItem(player, msg.slot); this.saveAll(); }
     else if (msg.type === "drop") { this.inventorySystem.removeItem(player, msg.itemId); this.saveAll(); }
+    else if (msg.type === "set_target") {
+      const nid = typeof msg.npcId === "string" ? msg.npcId : "";
+      player.combatTargetNpcId = nid.length ? nid : null;
+      this.ws.sendToPlayer(id, {
+        type: "stats_sync",
+        mana: player.mana,
+        maxMana: player.maxMana,
+        mp: player.mana,
+        maxMp: player.maxMana,
+      });
+    }
+    else if (msg.type === "use_item") {
+      const itemId = typeof msg.itemId === "string" ? msg.itemId : "";
+      if (!itemId) return;
+      const had = Array.isArray(player.inventory) && player.inventory.some((it: any) => it.id === itemId);
+      if (!had) return;
+      this.inventorySystem.removeItem(player, itemId);
+      if (itemId === "minor_mana_draught") {
+        player.mana = Math.min(Number(player.maxMana) || 25, Number(player.mana || 0) + 25);
+        this.ws.sendToPlayer(id, {
+          type: "stats_sync",
+          mana: player.mana,
+          maxMana: player.maxMana,
+          mp: player.mana,
+          maxMp: player.maxMana,
+        });
+      }
+    }
+    else if (msg.type === "use_skill") {
+      const skillId = typeof msg.skillId === "string" ? msg.skillId : "";
+      if (skillId === "ember_bolt") {
+        this.ws.sendToPlayer(id, { type: "toast", kind: "ok", text: "Ember Bolt sears the air!" });
+        this.ws.sendToPlayer(id, { type: "entity_action", entityId: playerId, action: "attack" });
+      }
+    }
+    else if (msg.type === "guild_create") {
+      const name = typeof msg.name === "string" ? msg.name.trim() : "";
+      if (name.length < 2) {
+        this.ws.sendToPlayer(id, { type: "toast", kind: "warn", text: "Guild name too short." });
+        return;
+      }
+      if (this.guildSystem.getGuildIdForPlayer(playerId)) {
+        this.ws.sendToPlayer(id, { type: "toast", kind: "warn", text: "Already in a guild." });
+        return;
+      }
+      const gid = `g_${randomUUID().replace(/-/g, "").slice(0, 10)}`;
+      this.guildSystem.createGuild(gid, name, playerId);
+      this.sendGuildState(id, playerId);
+    }
+    else if (msg.type === "guild_join") {
+      const gid = typeof msg.guildId === "string" ? msg.guildId : "";
+      const g = this.guildSystem.joinGuild(gid, playerId);
+      if (!g) this.ws.sendToPlayer(id, { type: "toast", kind: "warn", text: "Cannot join that guild." });
+      this.sendGuildState(id, playerId);
+    }
+    else if (msg.type === "guild_leave") {
+      const r = this.guildSystem.leaveGuild(playerId);
+      if (!r.ok) this.ws.sendToPlayer(id, { type: "toast", kind: "warn", text: "Could not leave guild." });
+      this.sendGuildState(id, playerId);
+    }
   }
 
-  private handleAttack(id: string, player: any, msg: any) { const targetId = msg.targetId; const npc = this.npcSystem.getNPC(targetId); if (npc && npc.health !== undefined) { const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y); if (dist < 30) { const baseDamage = 10; npc.health -= baseDamage; this.ws.broadcast({ type: "combat_feedback", targetId, damage: baseDamage, health: npc.health, maxHealth: npc.maxHealth }); if (npc.health <= 0) this.handleNPCDeath(id, player, npc, targetId); } } }
+  private handleAttack(id: string, player: any, msg: any) {
+    if (player.dead) {
+      this.ws.sendToPlayer(id, { type: "toast", kind: "warn", text: "You are defeated." });
+      return;
+    }
+    const WEAPON_MANA = 5;
+    if ((player.mana ?? 0) < WEAPON_MANA) {
+      this.ws.sendToPlayer(id, { type: "toast", kind: "err", text: "Not enough mana for weapon skill." });
+      return;
+    }
+    player.mana -= WEAPON_MANA;
+    const targetId = msg.targetId || player.combatTargetNpcId;
+    const npc = typeof targetId === "string" ? this.npcSystem.getNPC(targetId) : undefined;
+    if (npc && npc.health !== undefined) {
+      const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
+      if (dist < 30) {
+        const baseDamage = 10;
+        npc.health -= baseDamage;
+        this.ws.broadcast({ type: "combat_feedback", targetId, damage: baseDamage, health: npc.health, maxHealth: npc.maxHealth });
+        if (npc.health <= 0) this.handleNPCDeath(id, player, npc, targetId);
+      }
+    }
+  }
   private handleInteract(id: string, player: any, msg: any) { const targetId = msg.targetId; const npc = this.npcSystem.getNPC(targetId); const loot = this.lootEntities.get(targetId); if (npc) { const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y); if (dist < 20) { const interaction = this.npcSystem.handleInteraction(targetId, player, this.questSystem.getQuestDefinitions()); if (interaction) this.ws.sendToPlayer(id, { type: "dialogue", source: interaction.source, text: interaction.text, choices: interaction.choices, npcId: interaction.npcId }); } } else if (loot) { const dist = Math.hypot(player.position.x - loot.position.x, player.position.y - loot.position.y); if (dist < 20) { this.inventorySystem.addItem(player, loot.item); this.lootEntities.delete(targetId); this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Picked up ${loot.item.name}!` }); } } }
   private handleDialogueChoice(id: string, player: any, msg: any) { const { npcId, nodeId, choiceId } = msg; const interaction = this.npcSystem.handleChoice(npcId, nodeId, choiceId, player); if (interaction) this.ws.sendToPlayer(id, { type: "dialogue", source: interaction.source, text: interaction.text, choices: interaction.choices, npcId: interaction.npcId }); }
   private handleNPCDeath(socketId: string, player: any, npc: any, npcInstanceId: string) { npc.health = npc.maxHealth || 100; this.ws.sendToPlayer(socketId, { type: "dialogue", source: "System", text: `${npc.name} respawns.` }); }
@@ -291,6 +625,16 @@ export class WorldTick {
     const strippedLoot = [];
     for (const l of this.lootEntities.values()) strippedLoot.push({ id: l.id, position: { x: l.position.x, y: l.position.y, z: l.position.z || 0 }, item: l.item ? { id: l.item.id, name: l.item.name, type: l.item.type } : null, glbPath: l.glbPath });
     this.runAREShadowTick(strippedPlayers, strippedNpcs);
+    try {
+      this.ws.broadcast({
+        type: "entity_sync",
+        entities: this.buildEntitySyncEntities(),
+        chunks: this.buildEntitySyncChunks(),
+        tick: this.tickCount,
+      });
+    } catch (e) {
+      console.error("[WorldTick] entity_sync broadcast failed:", e);
+    }
     this.updateAREContract(payload, strippedPlayers, strippedNpcs, strippedLoot);
     const autoRepair = areAutoRepairService.getStatus();
     const usage = deterministicUsageTracker.getStats(this.tickCount);

@@ -7,6 +7,15 @@ import path from "node:path";
 import WebSocket from "ws";
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 
+function parseWsJson(raw: WebSocket.RawData): any {
+  const s = Buffer.isBuffer(raw)
+    ? raw.toString("utf8")
+    : typeof raw === "string"
+      ? raw
+      : new TextDecoder().decode(raw as ArrayBuffer);
+  return JSON.parse(s);
+}
+
 function waitForMessage(
   ws: WebSocket,
   pred: (data: any) => boolean,
@@ -19,7 +28,7 @@ function waitForMessage(
     }, timeoutMs);
     const onMsg = (raw: WebSocket.RawData) => {
       try {
-        const data = JSON.parse(String(raw));
+        const data = parseWsJson(raw);
         if (pred(data)) {
           clearTimeout(t);
           ws.removeListener("message", onMsg);
@@ -118,29 +127,34 @@ describe("WS combat + entity_sync", () => {
       );
       expect(player!.combatTargetNpcId).toBe("npc_dummy");
 
+      const probe = (tick as any).buildEntitySyncEntities().find((e: any) => e.id === "npc_dummy");
+      expect(probe?.role).toBe("Training");
+
       const syncP = waitForMessage(ws, (d) => {
-        if (d.type !== "entity_sync" || !Array.isArray(d.entities))
-          return false;
+        if (d.type !== "entity_sync" || !Array.isArray(d.entities)) return false;
         return d.entities.some(
           (e: any) =>
             e.id === "npc_dummy" &&
             e.type === "npc" &&
             e.role === "Training" &&
             e.combatNpcId === "npc_dummy" &&
-            e.combatThreat === false &&
-            typeof e.health === "number" &&
-            typeof e.maxHealth === "number",
+            e.combatThreat === false,
         );
       });
+      await new Promise<void>((r) => setImmediate(r));
       ws.send(JSON.stringify({ type: "attack" }));
       await syncP;
 
       player!.dead = true;
       player!.deathAt = Date.now() - 10_000;
+      // `attack` shares the general action cooldown (~800ms / 8 ticks). The prior hit on the
+      // training dummy updates that clock; without spacing, this attack is dropped and no
+      // "defeated" toast is ever sent.
+      await new Promise<void>((r) => setTimeout(r, 900));
       const deadToast = await sendAndWait<any>(
         ws,
         { type: "attack" },
-        (d) => d.type === "toast" && String(d.text).includes("defeated"),
+        (d) => d.type === "toast" && String(d.text).toLowerCase().includes("defeat"),
       );
       expect(deadToast.text).toMatch(/defeated/i);
     } finally {

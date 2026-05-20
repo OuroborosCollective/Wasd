@@ -3,6 +3,10 @@ import * as path from 'path';
 import { PersistenceManager } from '../../core/PersistenceManager.js';
 import { resolveContentFile } from '../content/contentDataRoot.js';
 import { ChunkSystem } from './ChunkSystem.js';
+import {
+  buildLogicalStarterVillage,
+  hasStarterVillageLayout,
+} from './VillageLayoutGenerator.js';
 
 export interface WorldObject {
   id: string;
@@ -20,12 +24,14 @@ export class WorldObjectSystem {
   private dataPath: string;
   private persistence: PersistenceManager | null = null;
   private chunkSystem: ChunkSystem;
+  /** Resolves after first disk/persistence load (and optional starter village seed). */
+  public readonly initialLoad: Promise<void>;
 
   constructor(persistence?: PersistenceManager, chunkSystem?: ChunkSystem) {
     this.persistence = persistence || null;
     this.chunkSystem = chunkSystem || new ChunkSystem(64);
     this.dataPath = resolveContentFile("world/objects.json");
-    this.load();
+    this.initialLoad = this.load();
   }
 
   public async addObject(obj: WorldObject) {
@@ -118,6 +124,31 @@ export class WorldObjectSystem {
       }
     } catch (e) {
       console.error("Failed to load world objects from file", e);
+    }
+
+    await this.maybeSeedStarterVillage();
+  }
+
+  /**
+   * Adds a compact logical village (streets + houses + well) when explicitly enabled
+   * with `SEED_STARTER_VILLAGE=1` (or `true` / `yes` / `on`) and the layout is not present yet.
+   * This is opt-in so automated tests and CI never mutate shared `game-data/world/objects.json`.
+   */
+  private async maybeSeedStarterVillage(): Promise<void> {
+    const v = process.env.SEED_STARTER_VILLAGE?.trim().toLowerCase() ?? "";
+    const enabled = v === "1" || v === "true" || v === "yes" || v === "on";
+    if (!enabled) return;
+    if (hasStarterVillageLayout(this.objects.values())) return;
+
+    try {
+      for (const obj of buildLogicalStarterVillage()) {
+        await this.addObject(obj);
+      }
+      console.log(
+        "[WorldObjectSystem] Seeded logical starter village (streets + buildings + well).",
+      );
+    } catch (e) {
+      console.warn("[WorldObjectSystem] Starter village seed skipped:", e);
     }
   }
 

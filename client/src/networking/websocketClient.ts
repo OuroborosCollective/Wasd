@@ -18,6 +18,7 @@ import {
   pushProtocolMsgToGameHud,
 } from "../ui/gameHudBridge";
 import { applyQuestlineFeatures, applyQuestlineState } from "../state/questlineState";
+import { socialState } from "../state/socialState";
 
 let lastImpactPulseAt = 0;
 
@@ -754,6 +755,19 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
       if (data.type === "party_sync") {
         applyPartySync(data);
       }
+      if (data.type === "guild_sync") {
+        socialState.guild = data.guild ?? null;
+        socialState.guildRoster = Array.isArray(data.roster) ? data.roster : [];
+        try {
+          window.dispatchEvent(
+            new CustomEvent("areloria:guild-sync", {
+              detail: { guild: data.guild ?? null, roster: socialState.guildRoster },
+            }),
+          );
+        } catch {
+          /* ignore */
+        }
+      }
       if (data.type === 'dialogue') {
         core.handleDialogue({
           source: data.source,
@@ -855,6 +869,24 @@ export function sendUnequipItem(slot: "weapon" | "armor" | "offHand") {
 
 export function sendSetCombatTarget(npcId: string | null) {
   sendCommand("set_target", { npcId: npcId ?? "" });
+}
+
+export function sendGuildCreate(name: string) {
+  if (globalWs && globalWs.readyState === WebSocket.OPEN) {
+    globalWs.send(JSON.stringify({ type: "guild_create", name }));
+  }
+}
+
+export function sendGuildJoin(guildId: string) {
+  if (globalWs && globalWs.readyState === WebSocket.OPEN) {
+    globalWs.send(JSON.stringify({ type: "guild_join", guildId }));
+  }
+}
+
+export function sendGuildLeave() {
+  if (globalWs && globalWs.readyState === WebSocket.OPEN) {
+    globalWs.send(JSON.stringify({ type: "guild_leave" }));
+  }
 }
 
 export function sendUseItem(itemId: string, count = 1) {

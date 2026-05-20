@@ -850,6 +850,10 @@ export class BabylonAdapter implements IEngineBridge {
       entity.activeAnimationGroups = Array.isArray(instance.animationGroups)
         ? instance.animationGroups
         : [];
+      if (entity.activeAnimationGroups.length > 0) {
+        entity.isStaticCandidate = false;
+        this.unfreezeStaticNode(entity);
+      }
       this.startEntityAnimations(entity);
       entity.areMeshes = this.collectRenderableMeshes(modelRoot);
       entity.areBaseMaterials = new Map(
@@ -889,11 +893,15 @@ export class BabylonAdapter implements IEngineBridge {
   }
 
   private startEntityAnimations(entity: EntityNode): void {
+    const hasGroups =
+      Array.isArray(entity.activeAnimationGroups) &&
+      entity.activeAnimationGroups.length > 0;
     const shouldAnimate =
       entity.entityType === "player" ||
       entity.entityType === "npc" ||
-      entity.entityType === "monster";
-    if (!shouldAnimate || entity.activeAnimationGroups.length === 0) {
+      entity.entityType === "monster" ||
+      (hasGroups && entity.entityType !== "loot");
+    if (!shouldAnimate || !hasGroups) {
       return;
     }
     for (const group of entity.activeAnimationGroups) {
@@ -1111,6 +1119,9 @@ export class BabylonAdapter implements IEngineBridge {
   }
 
   private tryFreezeStaticNode(node: EntityNode): void {
+    if (node.activeAnimationGroups && node.activeAnimationGroups.length > 0) {
+      return;
+    }
     if (node.isStaticFrozen) {
       return;
     }
