@@ -12,6 +12,8 @@
  * - Squared-distance: distSq < 1600 (40 units)
  */
 
+import { worldStateRegistry } from '../../core/state/WorldStateRegistry.js';
+
 export interface KappaPos {
   x: number;
   y: number;
@@ -105,7 +107,10 @@ export function processHazardResonance(player: PlayerState, hazard: HazardSource
   player.health = Math.max(0, player.health - damage);
   const hpRatio = calculateHPRatio(player);
   const plexityImpact = calculatePlexityImpact(hpRatio);
-  const tickCount = Date.now() % 100;
+
+  // Deterministic phaseShift using world tick (Axiom 1).
+  // Replaces wall-clock to ensure absolute causality in perception/visibility checks.
+  const tickCount = Number(worldStateRegistry.getTick() % BigInt(100));
   
   return {
     resonance: intensity,
@@ -135,7 +140,10 @@ export function processAllHazards(player: PlayerState, hazards: HazardSource[]):
   player.health = Math.max(0, player.health - totalDamage);
   const hpRatio = calculateHPRatio(player);
   const plexityImpact = calculatePlexityImpact(hpRatio);
-  const tickCount = Date.now() % 100;
+
+  // Deterministic phaseShift using world tick (Axiom 1).
+  // Replaces wall-clock to ensure absolute causality in perception/visibility checks.
+  const tickCount = Number(worldStateRegistry.getTick() % BigInt(100));
   
   return {
     resonance: maxResonance,
