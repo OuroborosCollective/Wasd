@@ -97,7 +97,13 @@ export class EconomySimulation {
     const worldState = worldStateRegistry.getCurrentState();
     const tick = worldStateRegistry.getTick();
 
-    for (const [regionId, region] of worldState.regions) {
+    // Level-A simulation requires deterministic iteration order for mutations.
+    // Map insertion order is non-deterministic; sorting by ID ensures consistent WorldHash.
+    const sortedRegionIds = Array.from(worldState.regions.keys()).sort();
+
+    for (const regionId of sortedRegionIds) {
+      const region = worldState.regions.get(regionId)!;
+
       // 1. Process economy
       this.processExtractions(region);
       this.updatePrices(region);
@@ -114,8 +120,13 @@ export class EconomySimulation {
    * Process resource extractions
    */
   private processExtractions(region: RegionState): void {
+    // Level-A simulation requires deterministic iteration over resource maps.
+    const sortedResourceTypes = Array.from(region.resourceSaturation.keys()).sort();
+
     // Each extraction reduces regional energy
-    for (const [resourceType, saturation] of region.resourceSaturation) {
+    for (const resourceType of sortedResourceTypes) {
+      const saturation = region.resourceSaturation.get(resourceType)!;
+
       // If resources are being extracted (saturation dropping)
       if (saturation < KAPPA) {
         // Energy cost: proportional to extraction amount
@@ -153,7 +164,12 @@ export class EconomySimulation {
   private updatePrices(region: RegionState): void {
     const tick = worldStateRegistry.getTick();
 
-    for (const [resourceType, saturation] of region.resourceSaturation) {
+    // Level-A simulation requires deterministic iteration over resource maps.
+    const sortedResourceTypes = Array.from(region.resourceSaturation.keys()).sort();
+
+    for (const resourceType of sortedResourceTypes) {
+      const saturation = region.resourceSaturation.get(resourceType)!;
+
       // Base value from table
       const baseValue = RESOURCE_BASE_VALUES[resourceType] ?? KAPPA;
 
@@ -353,7 +369,13 @@ export class EconomySimulation {
   public calculateTotalRegionEnergy(): number {
     const worldState = worldStateRegistry.getCurrentState();
     let total = 0;
-    for (const [, region] of worldState.regions) {
+
+    // Although summation is commutative, deterministic simulation paths (Level-A)
+    // favor stable iteration order to prevent potential bit-drift across different engines.
+    const sortedRegionIds = Array.from(worldState.regions.keys()).sort();
+
+    for (const regionId of sortedRegionIds) {
+      const region = worldState.regions.get(regionId)!;
       total += region.matrixEnergyBalance;
     }
     return total;
