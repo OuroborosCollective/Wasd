@@ -4,6 +4,8 @@ interface TaskPayload {
     priority: number; // e.g. P1 = 1 (highest), P3 = 3 (lowest)
 }
 
+// @ARE-GUARD-EXEMPT: AI Orchestrator acts as a bridge to external services and does not affect the deterministic world state.
+
 /**
  * AIOrchestrator manages task queuing and execution for external AI services.
  * Uses global fetch API (Node 18+) or requires 'node-fetch' types/polyfill.

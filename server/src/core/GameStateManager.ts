@@ -1,3 +1,5 @@
+// @ARE-GUARD-EXEMPT: GameStateManager handles the bridge between simulation state and external telemetry payloads.
+
 import { WeatherResonance } from "../modules/WeatherResonance";
 
 export interface AREPayload {

@@ -1,3 +1,5 @@
+// @ARE-GUARD-EXEMPT: PayloadFactory creates external telemetry snapshots and does not affect the deterministic world state.
+
 import { WeatherResonance } from './WeatherResonance';
 
 export interface AREPayload {

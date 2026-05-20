@@ -1,0 +1,295 @@
+ARE Guard advisory findings in observer/meta paths:
+- server/src/core/api/APIServer.ts:61 Date.now() reason=missing @ARE-GUARD-EXEMPT :: res.json({ ok: true, timestamp: Date.now() });
+- server/src/core/integrity/OuroborosAnchor.ts:104 Date.now() reason=missing @ARE-GUARD-EXEMPT :: timestamp: Date.now()
+- server/src/core/liveheal/LiveHealAnomalyDetector.ts:91 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const now = Date.now();
+- server/src/core/liveheal/LiveHealEngine.ts:168 Date.now() reason=missing @ARE-GUARD-EXEMPT :: timestamp: Date.now(),
+- server/src/core/liveheal/LiveHealEngine.ts:272 Date.now() reason=missing @ARE-GUARD-EXEMPT :: lastHealingStartedAt: Date.now(),
+- server/src/core/liveheal/LiveHealEngine.ts:332 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const startTime = Date.now();
+- server/src/core/liveheal/LiveHealEngine.ts:342 Date.now() reason=missing @ARE-GUARD-EXEMPT :: durationMs: Date.now() - startTime,
+- server/src/core/liveheal/LiveHealEngine.ts:382 Date.now() reason=missing @ARE-GUARD-EXEMPT :: lastHealingCompletedAt: Date.now(),
+- server/src/core/liveheal/LiveHealEngine.ts:403 Date.now() reason=missing @ARE-GUARD-EXEMPT :: lastHealingCompletedAt: Date.now(),
+- server/src/core/liveheal/LiveHealEngine.ts:433 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const now = Date.now();
+- server/src/core/liveheal/LiveHealEngine.ts:461 Date.now() reason=missing @ARE-GUARD-EXEMPT :: cooldownUntil: Date.now() + cbConfig.cooldownMs,
+- server/src/core/liveheal/LiveHealIntegration.ts:127 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const startTime = Date.now();
+- server/src/core/liveheal/LiveHealIntegration.ts:132 Date.now() reason=missing @ARE-GUARD-EXEMPT :: durationMs: Date.now() - startTime,
+- server/src/core/liveheal/LiveHealLearningStore.ts:106 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const now = Date.now();
+- server/src/core/liveheal/LiveHealLearningStore.ts:240 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const cutoff = Date.now() - maxAgeMs;
+- server/src/core/liveheal/LiveHealPatchLog.ts:21 Math.random() reason=missing @ARE-GUARD-EXEMPT :: return `LH-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+- server/src/core/liveheal/LiveHealPatchLog.ts:21 Date.now() reason=missing @ARE-GUARD-EXEMPT :: return `LH-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+- server/src/core/liveheal/LiveHealPatchLog.ts:41 Date.now() reason=missing @ARE-GUARD-EXEMPT :: timestamp: Date.now(),
+- server/src/core/liveheal/LiveHealPatchLog.ts:143 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const now = Date.now();
+- server/src/core/liveheal/LiveHealRegistry.ts:160 Date.now() reason=missing @ARE-GUARD-EXEMPT :: lastStateChangeAt: Date.now(),
+- server/src/core/liveheal/LiveHealRootCauseAnalyzer.ts:51 Date.now() reason=missing @ARE-GUARD-EXEMPT :: return { candidates: [], topSuspect: null, victims: [], timestamp: Date.now() };
+- server/src/core/liveheal/LiveHealRootCauseAnalyzer.ts:60 Date.now() reason=missing @ARE-GUARD-EXEMPT :: timestamp: Date.now(),
+- server/src/core/liveheal/LiveHealRootCauseAnalyzer.ts:138 Date.now() reason=missing @ARE-GUARD-EXEMPT :: return { candidates, topSuspect, victims, timestamp: Date.now() };
+- server/src/core/liveheal/LiveHealStateMachine.ts:86 Date.now() reason=missing @ARE-GUARD-EXEMPT :: lastTransitionAt: Date.now(),
+- server/src/core/liveheal/LiveHealStateMachine.ts:111 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const now = Date.now();
+- server/src/core/liveheal/LiveHealStateMachine.ts:169 Date.now() reason=missing @ARE-GUARD-EXEMPT :: return Date.now() - sm.healingStartedAt > timeoutMs;
+- server/src/core/liveheal/LiveHealStateMachine.ts:186 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const now = Date.now();
+- server/src/core/liveheal/LiveHealStrategyRegistry.ts:75 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const elapsed = Date.now() - lastRun;
+- server/src/core/liveheal/LiveHealStrategyRegistry.ts:109 Date.now() reason=missing @ARE-GUARD-EXEMPT :: entry.lastRunAt.set(subsystemId, Date.now());
+- server/src/core/logger/Logger.ts:5 new Date() reason=missing @ARE-GUARD-EXEMPT :: log: (msg: string) => console.log(`[ARE_LOG] ${new Date().toISOString()}: ${msg}`),
+- server/src/modules/admin/AdminAuditLog.ts:3 Date.now() reason=missing @ARE-GUARD-EXEMPT :: write(entry:any) { this.entries.push({ ts: Date.now(), ...entry }); }
+- server/src/modules/admin/EditorActionLog.ts:4 Date.now() reason=missing @ARE-GUARD-EXEMPT :: this.actions.push({ ...action, ts: Date.now() });
+- server/src/modules/admin/GiraffeAdminMount.ts:6 Date.now() reason=missing @ARE-GUARD-EXEMPT :: summonedAt: Date.now()
+- server/src/modules/admin/GMCommandLayer.ts:3 Date.now() reason=missing @ARE-GUARD-EXEMPT :: return { command, payload, executedAt: Date.now() };
+- server/src/modules/analytics/TelemetryCollector.ts:5 Date.now() reason=missing @ARE-GUARD-EXEMPT :: this.events.push({ type, payload, createdAt: Date.now() });
+- server/src/modules/asset-brain/AssetBrainAnalytics.ts:46 new Date() reason=missing @ARE-GUARD-EXEMPT :: timestamp: new Date(),
+- server/src/modules/asset-brain/AssetBrainAnalytics.ts:50 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const key = `asset_gen_${Date.now()}`;
+- server/src/modules/asset-brain/AssetBrainAnalytics.ts:70 new Date() reason=missing @ARE-GUARD-EXEMPT :: timestamp: new Date(),
+- server/src/modules/asset-brain/AssetBrainAnalytics.ts:73 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const key = `variant_gen_${Date.now()}`;
+- server/src/modules/asset-brain/AssetBrainAnalytics.ts:88 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const since = new Date(Date.now() - hoursBack * 3600 * 1000);
+- server/src/modules/asset-brain/AssetBrainAnalytics.ts:88 new Date() reason=missing @ARE-GUARD-EXEMPT :: const since = new Date(Date.now() - hoursBack * 3600 * 1000);
+- server/src/modules/asset-brain/AssetBrainCache.ts:157 Date.now() reason=missing @ARE-GUARD-EXEMPT :: if (entry.expiresAt < Date.now()) {
+- server/src/modules/asset-brain/AssetBrainCache.ts:176 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const expiresAt = Date.now() + (this.l1Config.l1TTL * 1000);
+- server/src/modules/asset-brain/AssetBrainDatabase.ts:118 Math.random() reason=missing @ARE-GUARD-EXEMPT :: const id = `spec_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+- server/src/modules/asset-brain/AssetBrainDatabase.ts:118 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const id = `spec_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+- server/src/modules/asset-brain/AssetBrainDatabase.ts:119 new Date() reason=missing @ARE-GUARD-EXEMPT :: const now = new Date();
+- server/src/modules/asset-brain/AssetBrainDatabase.ts:195 Math.random() reason=missing @ARE-GUARD-EXEMPT :: const id = `var_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+- server/src/modules/asset-brain/AssetBrainDatabase.ts:195 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const id = `var_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+- server/src/modules/asset-brain/AssetBrainDatabase.ts:196 new Date() reason=missing @ARE-GUARD-EXEMPT :: const now = new Date();
+- server/src/modules/asset-brain/AssetBrainDatabase.ts:222 Math.random() reason=missing @ARE-GUARD-EXEMPT :: const id = `job_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+- server/src/modules/asset-brain/AssetBrainDatabase.ts:222 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const id = `job_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+- server/src/modules/asset-brain/AssetBrainDatabase.ts:223 new Date() reason=missing @ARE-GUARD-EXEMPT :: const now = new Date();
+- server/src/modules/asset-brain/AssetPipeline.ts:78 Math.random() reason=missing @ARE-GUARD-EXEMPT :: const jobId = `pipe_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+- server/src/modules/asset-brain/AssetPipeline.ts:78 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const jobId = `pipe_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+- server/src/modules/asset-brain/AssetPipeline.ts:85 new Date() reason=missing @ARE-GUARD-EXEMPT :: createdAt: new Date(),
+- server/src/modules/asset-brain/AssetPipeline.ts:86 new Date() reason=missing @ARE-GUARD-EXEMPT :: updatedAt: new Date(),
+- server/src/modules/asset-brain/AssetPipeline.ts:94 new Date() reason=missing @ARE-GUARD-EXEMPT :: job.updatedAt = new Date();
+- server/src/modules/asset-brain/AssetPipeline.ts:111 new Date() reason=missing @ARE-GUARD-EXEMPT :: Object.assign(job, patch, { updatedAt: new Date() });
+- server/src/modules/asset-brain/AssetPipeline.ts:236 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const filename = `${safeName}_${Date.now()}.glb`;
+- server/src/modules/asset-brain/AssetPipeline.ts:265 Math.random() reason=missing @ARE-GUARD-EXEMPT :: const registryId = `gen_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+- server/src/modules/asset-brain/AssetPipeline.ts:265 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const registryId = `gen_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+- server/src/modules/assets/AssetImportQueue.ts:4 Date.now() reason=missing @ARE-GUARD-EXEMPT :: this.queue.push({ ...asset, queuedAt: Date.now() });
+- server/src/modules/chat/ChatChannelRouter.ts:62 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const now = Date.now();
+- server/src/modules/chat/ChatChannelRouter.ts:69 Date.now() reason=missing @ARE-GUARD-EXEMPT :: id: `cm_${++this.msgCounter}_${Date.now().toString(36)}`,
+- server/src/modules/chat/ChatChannelRouter.ts:76 Date.now() reason=missing @ARE-GUARD-EXEMPT :: ts: Date.now(),
+- server/src/modules/chat/ChatChannelRouter.ts:109 Date.now() reason=missing @ARE-GUARD-EXEMPT :: id: `cm_${++this.msgCounter}_${Date.now().toString(36)}`,
+- server/src/modules/chat/ChatChannelRouter.ts:115 Date.now() reason=missing @ARE-GUARD-EXEMPT :: ts: Date.now(),
+- server/src/modules/chat/ChatService.ts:7 Date.now() reason=missing @ARE-GUARD-EXEMPT :: createdAt: Date.now()
+- server/src/modules/chat/ChatSystem.ts:17 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const now = Date.now();
+- server/src/modules/chat/ChatSystem.ts:27 Math.random() reason=missing @ARE-GUARD-EXEMPT :: id: `msg_${now}_${Math.random().toString(36).substring(2, 6)}`,
+- server/src/modules/chat/ChatSystem.ts:52 Date.now() reason=missing @ARE-GUARD-EXEMPT :: id: `sys_${Date.now()}`,
+- server/src/modules/chat/ChatSystem.ts:56 Date.now() reason=missing @ARE-GUARD-EXEMPT :: timestamp: Date.now()
+- server/src/modules/chat/RedisChatRelay.ts:120 Date.now() reason=missing @ARE-GUARD-EXEMPT :: ts: Number.isFinite(Number(raw.ts)) ? Number(raw.ts) : Date.now(),
+- server/src/modules/chat/RedisChatRelay.ts:184 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const now = Date.now();
+- server/src/modules/mail/MailService.ts:5 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const item = { from, to, subject, body, createdAt: Date.now() };
+- server/src/modules/mail/MailService.ts:15 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const item = { from: "system", to, subject, body, createdAt: Date.now() };
+- server/src/modules/monitoring/BackupManager.ts:18 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const timestamp = Date.now();
+- server/src/modules/monitoring/SystemHealthMonitor.ts:5 Date.now() reason=missing @ARE-GUARD-EXEMPT :: checkedAt: Date.now()
+- server/src/modules/notifications/NotificationService.ts:6 Date.now() reason=missing @ARE-GUARD-EXEMPT :: createdAt: Date.now()
+- server/src/modules/playtester/AutonomousPlaytester.ts:169 Date.now() reason=missing @ARE-GUARD-EXEMPT :: ts: Date.now(),
+- server/src/modules/playtester/AutonomousPlaytester.ts:773 Date.now() reason=missing @ARE-GUARD-EXEMPT :: ts: Date.now(),
+- server/src/modules/playtester/PlaytesterTelemetry.ts:15 Date.now() reason=missing @ARE-GUARD-EXEMPT :: ts: Date.now(),
+- server/src/modules/telemetry/TelemetryCollector.ts:4 Date.now() reason=missing @ARE-GUARD-EXEMPT :: const entry = { metric, value, ts: Date.now() };
+Meta files should declare: // @ARE-GUARD-EXEMPT: reason not world-state input.
+ARE Determinism Gate failed. Strict world-state paths contain nondeterministic calls:
+- server/src/core/AIOrchestrator.ts:18 Date.now() :: private static lastTaskReset = Date.now();
+- server/src/core/AIOrchestrator.ts:34 Date.now() :: if (Date.now() - this.lastTaskReset > ONE_DAY) {
+- server/src/core/AIOrchestrator.ts:36 Date.now() :: this.lastTaskReset = Date.now();
+- server/src/core/AIOrchestrator.ts:122 Date.now() :: const startTime = Date.now();
+- server/src/core/AIOrchestrator.ts:125 Date.now() :: while (Date.now() - startTime < TIMEOUT_MS) {
+- server/src/core/are/__tests__/AREEmergence.test.ts:71 Date.now() :: Date.now();
+- server/src/core/are/__tests__/AREGuard.test.ts:14 Math.random() :: AREGuard.executeProtected(() => Math.random());
+- server/src/core/are/__tests__/AREGuard.test.ts:20 Date.now() :: AREGuard.executeProtected(() => Date.now());
+- server/src/core/are/__tests__/AREGuard.test.ts:27 Math.random() :: expect(() => Math.random()).not.toThrow();
+- server/src/core/are/__tests__/AREGuard.test.ts:28 Date.now() :: expect(() => Date.now()).not.toThrow();
+- server/src/core/are/__tests__/AREGuard.test.ts:33 Math.random() :: expect(() => Math.random()).not.toThrow();
+- server/src/core/are/__tests__/AREGuard.test.ts:34 Date.now() :: expect(() => Date.now()).not.toThrow();
+- server/src/core/are/__tests__/ARETick.test.ts:54 Math.random() :: Math.random();
+- server/src/core/GameStateManager.ts:48 Date.now() :: timestamp: Date.now(),
+- server/src/modules/auction/AuctionHouse.ts:10 Date.now() :: const listing = { item, sellerId, price, createdAt: Date.now() };
+- server/src/modules/auth/PlayerRestore.ts:5 Date.now() :: restoredAt: Date.now()
+- server/src/modules/auth/resolveLoginIdentity.ts:31 randomUUID() :: uid: guestIdFromClient || (token === "test-token" ? "test-user" : randomUUID()),
+- server/src/modules/auth/resolveLoginIdentity.ts:39 randomUUID() :: uid: guestIdFromClient || `guest_${randomUUID().slice(0,8)}`,
+- server/src/modules/auth/SessionHeartbeat.ts:5 Date.now() :: heartbeatAt: Date.now()
+- server/src/modules/auth/WebSocketPresence.ts:3 Date.now() :: return { playerId, online: true, changedAt: Date.now() };
+- server/src/modules/character/CharacterAssemblySystem.ts:197 Math.random() :: const rand = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+- server/src/modules/character/CharacterAssemblySystem.ts:206 Math.random() :: heightScale: 0.95 + Math.random() * 0.10,
+- server/src/modules/character/CharacterAssemblySystem.ts:207 Math.random() :: widthScale: 0.90 + Math.random() * 0.20,
+- server/src/modules/character/CharacterAssemblySystem.ts:208 Math.random() :: muscularityScale: 0.90 + Math.random() * 0.20,
+- server/src/modules/civilization/CivilizationEngine.ts:7 Date.now() :: createdAt: Date.now()
+- server/src/modules/civilization/KingdomLedger.ts:4 Date.now() :: this.entries.push({ ...entry, ts: Date.now() });
+- server/src/modules/civilization/SettlementSystem.ts:6 Date.now() :: createdAt: Date.now()
+- server/src/modules/combat/CombatService.ts:60 Date.now() :: lastTimestamp: Date.now()
+- server/src/modules/combat/ComboValidator.ts:145 Date.now() :: return Date.now();
+- server/src/modules/combat/deathRespawnSystem.ts:44 Date.now() :: player.deathAt = Date.now();
+- server/src/modules/content/adminGlbModelNeeds.ts:320 new Date() :: generatedAtIso: new Date().toISOString(),
+- server/src/modules/content/publishContentPackFromRepo.ts:47 new Date() :: generatedAt: new Date().toISOString(),
+- server/src/modules/dialogue/DialogueGenerator.ts:8 Math.random() :: line: pool[Math.floor(Math.random() * pool.length)],
+- server/src/modules/diplomacy/DiplomacyEngine.ts:3 Date.now() :: return { from: a, to: b, type, signedAt: Date.now() };
+- server/src/modules/economy/BuyOrders.ts:4 Date.now() :: this.orders.push({ ...order, type: "buy", createdAt: Date.now() });
+- server/src/modules/economy/CaravanLogic.ts:73 Date.now() :: lastMarketUpdate: Date.now(),
+- server/src/modules/economy/EmergentMarket.ts:57 Date.now() :: timestamp: Date.now()
+- server/src/modules/economy/MarketLedger.ts:3 Date.now() :: record(entry:any){ this.entries.push({ timestamp:Date.now(), ...entry }); }
+- server/src/modules/economy/MarketMonitor.ts:61 Date.now() :: timestamp: Date.now()
+- server/src/modules/economy/MarketOrders.ts:5 Date.now() :: this.orders.push({ ...order, createdAt: Date.now() });
+- server/src/modules/economy/PlayerMarket.ts:9 Date.now() :: this.listings.push({ ...listing, createdAt: Date.now() });
+- server/src/modules/economy/ScarcityPredictor.ts:270 Date.now() :: const estimatedOnset = Date.now() + Math.round(
+- server/src/modules/economy/ScarcityPredictor.ts:396 Date.now() :: lastGoalUpdate: Date.now()
+- server/src/modules/economy/ScarcityPredictor.ts:403 Date.now() :: lastGoalUpdate: Date.now()
+- server/src/modules/economy/SellOrders.ts:4 Date.now() :: this.orders.push({ ...order, type: "sell", createdAt: Date.now() });
+- server/src/modules/economy/TaxLedger.ts:5 Date.now() :: const entry = { cityId, amount, source, createdAt: Date.now() };
+- server/src/modules/events/DisasterEngine.ts:4 Math.random() :: return { region, type: list[Math.floor(Math.random()*list.length)] };
+- server/src/modules/events/MigrationEngine.ts:8 Date.now() :: startedAt: Date.now()
+- server/src/modules/events/WorldEventLayer.ts:3 Date.now() :: return { type, payload, createdAt: Date.now() };
+- server/src/modules/faction/FactionMemory.ts:5 Date.now() :: this.memory.get(factionId)!.push({ ts: Date.now(), event });
+- server/src/modules/farming/FarmingSystem.ts:3 Date.now() :: return { seedId, plotId, plantedAt: Date.now() };
+- server/src/modules/farming/TreeGrowthSystem.ts:4 Date.now() :: tree.lastGrowthAt = Date.now();
+- server/src/modules/gameplay/GameplayFusionDirector.ts:256 Date.now() :: getQuestEchoBeacons(now: number = Date.now()): QuestEchoBeacon[] {
+- server/src/modules/gameplay/GameplayFusionDirector.ts:261 Date.now() :: resolveNpcGlbOverride(npc: any, now: number = Date.now()): string | undefined {
+- server/src/modules/gameplay/GameplayFusionDirector.ts:273 Date.now() :: resolveWorldObjectGlbOverride(type: string | undefined, now: number = Date.now()): string | undefined {
+- server/src/modules/gameplay/GameplayFusionDirector.ts:285 Date.now() :: getSnapshot(now: number = Date.now()): GameplayFusionSnapshot {
+- server/src/modules/gameplay/GameplayFusionDirector.ts:288 new Date() :: generatedAtIso: new Date(now).toISOString(),
+- server/src/modules/gameplay/GameplayFusionDirector.ts:306 Date.now() :: contract.updatedAt = Date.now();
+- server/src/modules/gameplay/GameplayFusionDirector.ts:317 Date.now() :: const now = Date.now();
+- server/src/modules/genealogy/FamilyGenerationSystem.ts:4 Date.now() :: id: `child:${house}:${Date.now()}`,
+- server/src/modules/genealogy/FamilyGenerationSystem.ts:7 Date.now() :: bornAt: Date.now()
+- server/src/modules/gm/AdminAuditLog.ts:3 Date.now() :: log(entry: any) { this.entries.push({ timestamp: Date.now(), ...entry }); }
+- server/src/modules/growth/FarmingSystem.ts:6 Date.now() :: plantedAt: Date.now(),
+- server/src/modules/history/HistoricalMapEngine.ts:4 Date.now() :: timestamp: snapshot?.timestamp ?? Date.now(),
+- server/src/modules/history/ProphecyArchive.ts:3 Date.now() :: add(prophecy:any){ this.entries.push({ timestamp:Date.now(), prophecy }); }
+- server/src/modules/history/RuinEvolutionEngine.ts:6 Date.now() :: evolvedAt: Date.now()
+- server/src/modules/history/WorldSnapshotSystem.ts:6 Date.now() :: timestamp: Date.now(),
+- server/src/modules/housing/HousingSystem.ts:6 Date.now() :: createdAt: Date.now(),
+- server/src/modules/inventory/InventoryService.ts:76 Math.random() :: id: Math.random().toString(36).substring(7),
+- server/src/modules/items/ItemGenerator.ts:4 Date.now() :: id: `${baseId}_${rarity}_${Date.now()}`,
+- server/src/modules/land/LandSystem.ts:188 new Date() :: claimedAt: new Date(),
+- server/src/modules/land/LandSystem.ts:223 new Date() :: placedAt: new Date(),
+- server/src/modules/legend/LegendDistiller.ts:15 Math.random() :: return `DISTILLED_K${rawLore.length}_${Math.random().toString(36).substr(2, 5)}`;
+- server/src/modules/migration/MigrationEngine.ts:3 Date.now() :: return { groupId, from, to, departedAt: Date.now() };
+- server/src/modules/monster/MonsterDNA.ts:4 Math.random() :: strength: Math.random(),
+- server/src/modules/monster/MonsterDNA.ts:5 Math.random() :: speed: Math.random(),
+- server/src/modules/monster/MonsterDNA.ts:6 Math.random() :: aggression: Math.random(),
+- server/src/modules/monster/MonsterDNA.ts:7 Math.random() :: intelligence: Math.random(),
+- server/src/modules/monster/MonsterDNA.ts:8 Math.random() :: resilience: Math.random()
+- server/src/modules/monster/MonsterMutation.ts:14 Math.random() :: if (Math.random() < 0.08) {
+- server/src/modules/npc/NPCChatAgent.ts:59 new Date() :: .map(event => `[${new Date(event.timestamp).toLocaleTimeString()}] ${event.description}`)
+- server/src/modules/npc/NPCChatBridge.ts:48 Date.now() :: const age = Date.now() - event.timestamp;
+- server/src/modules/npc/NPCChatBridge.ts:75 new Date() :: .map((e) => `- ${e.title}: ${e.description} @${new Date(e.timestamp).toISOString()}`)
+- server/src/modules/npc/NPCChatBridge.ts:101 new Date() :: currentTime: new Date().toISOString(),
+- server/src/modules/npc/NPCDialogueSystem.ts:9 Math.random() :: line: lines[Math.floor(Math.random() * lines.length)],
+- server/src/modules/npc/NPCGenealogyEngine.ts:46 Math.random() :: let value = mean + (Math.random() * 2 - 1) * variance;
+- server/src/modules/npc/NPCGenealogyEngine.ts:48 Math.random() :: if (Math.random() < this.mutationRate) {
+- server/src/modules/npc/NPCGenealogyEngine.ts:49 Math.random() :: const mutationAmount = (Math.random() * 2 - 1) * (mean * 0.2);
+- server/src/modules/npc/NPCGenealogyEngine.ts:77 Math.random() :: return Math.floor(Math.random() * 10) + 10;
+- server/src/modules/npc/NPCHeuristics.ts:74 Math.random() :: return Math.random() < s.heuristicWeights.chatFrequency * 0.1;
+- server/src/modules/npc/NPCHeuristics.ts:82 Math.random() :: return s.partyId === null && Math.random() < s.heuristicWeights.partySeeking * 0.05;
+- server/src/modules/npc/NPCHeuristics.ts:90 Math.random() :: return Math.random() < s.heuristicWeights.tradeWillingness * 0.04;
+- server/src/modules/npc/NPCMemoryBridge.ts:66 Date.now() :: if (cached && Date.now() - cached.timestamp < this.SUMMARY_CACHE_TTL) {
+- server/src/modules/npc/NPCMemoryBridge.ts:78 new Date() :: .map((t) => `[${new Date(t.timestamp).toLocaleTimeString()}] ${t.action}: ${t.thought}`)
+- server/src/modules/npc/NPCMemoryBridge.ts:96 Date.now() :: timestamp: Date.now(),
+- server/src/modules/npc/NPCMemoryCache.ts:80 Date.now() :: const hoursPassed = (Date.now() - memory.timestamp) / (1000 * 60 * 60);
+- server/src/modules/npc/NPCMemoryCache.ts:99 new Date() :: created_at: new Date(m.timestamp).toISOString(),
+- server/src/modules/npc/NPCMemoryCache.ts:136 Date.now() :: timestamp: Date.now(),
+- server/src/modules/npc/NPCMemoryCache.ts:145 Date.now() :: timestamp: Date.now(),
+- server/src/modules/npc/NPCMemoryCache.ts:154 Date.now() :: timestamp: Date.now(),
+- server/src/modules/npc/NPCMemoryEngine.ts:7 Date.now() :: timestamp: Date.now(),
+- server/src/modules/npc/NPCMemoryPersistence.ts:66 new Date() :: last_updated: new Date().toISOString(),
+- server/src/modules/npc/NPCPersonalityEngine.ts:4 Math.random() :: courage: Math.random(),
+- server/src/modules/npc/NPCPersonalityEngine.ts:5 Math.random() :: curiosity: Math.random(),
+- server/src/modules/npc/NPCPersonalityEngine.ts:6 Math.random() :: greed: Math.random(),
+- server/src/modules/npc/NPCPersonalityEngine.ts:7 Math.random() :: faith: Math.random(),
+- server/src/modules/npc/NPCPersonalityEngine.ts:8 Math.random() :: aggression: Math.random()
+- server/src/modules/npc/NPCThinkingLogService.ts:53 Date.now() :: timestamp: Date.now(),
+- server/src/modules/npc/SharedMemoryNetwork.ts:7 Date.now() :: sharedAt: Date.now()
+- server/src/modules/ouroboros/DynamicFactions.ts:73 Date.now() :: createdAt: Date.now(),
+- server/src/modules/ouroboros/DynamicFactions.ts:173 Date.now() :: createdAt: Date.now(),
+- server/src/modules/ouroboros/EmergentMarket.ts:71 Date.now() :: e.lastTradeTs = Date.now();
+- server/src/modules/ouroboros/EmergentMarket.ts:87 Date.now() :: e.lastTradeTs = Date.now();
+- server/src/modules/ouroboros/EmergentMarket.ts:114 Date.now() :: route.lastUsed = Date.now();
+- server/src/modules/ouroboros/EmergentMarket.ts:167 Date.now() :: return { resourcePriorities: {}, lastGoalUpdate: Date.now() };
+- server/src/modules/ouroboros/LegendDistiller.ts:52 Math.random() :: id: `LGN-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+- server/src/modules/ouroboros/LegendDistiller.ts:57 Date.now() :: timestamp: Date.now(),
+- server/src/modules/ouroboros/LegendDistiller.ts:78 Math.random() :: const randEpithet = epithets[Math.floor(Math.random() * epithets.length)];
+- server/src/modules/ouroboros/NPCRelationshipSystem.ts:39 Date.now() :: lastInteraction: Date.now()
+- server/src/modules/ouroboros/NPCRelationshipSystem.ts:67 Date.now() :: data.lastInteraction = Date.now();
+- server/src/modules/ouroboros/NPCRelationshipSystem.ts:73 Date.now() :: data.lastInteraction = Date.now();
+- server/src/modules/ouroboros/OuroborosLoop.ts:144 Math.random() :: if (!myFaction && ctx.nearbyEntities.length >= 3 && Math.random() < config.factionFormChance) {
+- server/src/modules/ouroboros/OuroborosLoop.ts:164 Math.random() :: if (!action && nearbyFriends.length > 0 && Math.random() < config.familyFormChance) {
+- server/src/modules/ouroboros/OuroborosLoop.ts:185 Math.random() :: if (!action && Math.random() < config.legendSpreadChance) {
+- server/src/modules/ouroboros/OuroborosLoop.ts:189 Math.random() :: const legend = myLegends[Math.floor(Math.random() * myLegends.length)];
+- server/src/modules/ouroboros/OuroborosLoop.ts:190 Math.random() :: const target = nearbyFriends[Math.floor(Math.random() * nearbyFriends.length)];
+- server/src/modules/ouroboros/WorldEventBus.ts:88 Date.now() :: id: `we_${++counter}_${Date.now().toString(36)}`,
+- server/src/modules/ouroboros/WorldEventBus.ts:89 Date.now() :: ts: Date.now(),
+- server/src/modules/ouroboros/WorldHistory.ts:196 Math.random() :: const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+- server/src/modules/ouroboros/WorldHistory.ts:213 Math.random() :: return narrative + embellishments[Math.floor(Math.random() * embellishments.length)];
+- server/src/modules/ouroboros/WorldHistoryProcessor.ts:40 Date.now() :: const now = Date.now();
+- server/src/modules/ouroboros/WorldHistoryProcessor.ts:72 Date.now() :: timestamp: Date.now(),
+- server/src/modules/party/partySystem.ts:27 Date.now() :: createdAt: Date.now(),
+- server/src/modules/payment/PayPalService.ts:113 Date.now() :: reference_id: `${playerId}_${productId}_${Date.now()}`,
+- server/src/modules/persistence/filePersistenceBackend.ts:33 new Date() :: lastUpdated: new Date().toISOString(),
+- server/src/modules/persistence/postgresPersistenceBackend.ts:73 new Date() :: lastUpdated: new Date().toISOString(),
+- server/src/modules/persistence/redisPersistenceBackend.ts:42 new Date() :: lastUpdated: new Date().toISOString(),
+- server/src/modules/politics/DiplomacyEngine.ts:3 Date.now() :: return { a, b, type, signedAt: Date.now() };
+- server/src/modules/politics/WarEngine.ts:7 Date.now() :: timestamp: Date.now()
+- server/src/modules/quest/HeuristicGoalPruner.ts:132 Date.now() :: npc.stateTimer = Date.now() + TICK_RATE_MS * 10;
+- server/src/modules/quest/HeuristicGoalPruner.ts:133 Date.now() :: npc.memory.lastPruneTime = Date.now();
+- server/src/modules/quest/QuestEchoSystem.ts:39 Date.now() :: timestamp: Date.now()
+- server/src/modules/quest/QuestEchoSystem.ts:55 Date.now() :: const now = Date.now();
+- server/src/modules/quest/QuestEchoSystem.ts:67 Date.now() :: const now = Date.now();
+- server/src/modules/quest/QuestEngine.ts:108 Date.now() :: const newQuest = { ...quest, startedAt: Date.now(), completed: false };
+- server/src/modules/quest/QuestEngine.ts:192 Date.now() :: q.completedAt = Date.now();
+- server/src/modules/quest/QuestService.ts:38 new Date() :: quest.completedAt = new Date();
+- server/src/modules/questline/crossroadsResolver.ts:244 Date.now() :: crossroads.resolvedAt = Date.now();
+- server/src/modules/questline/featureTrigger.ts:261 Date.now() :: entry.satisfiedAt = Date.now();
+- server/src/modules/questline/questlineGenerator.ts:285 Date.now() :: createdAt: Date.now(),
+- server/src/modules/questline/questlineGenerator.ts:313 Date.now() :: createdAt: Date.now(),
+- server/src/modules/questline/questlineGenerator.ts:340 Date.now() :: createdAt: Date.now(),
+- server/src/modules/questline/questlineGenerator.ts:366 Date.now() :: createdAt: Date.now(),
+- server/src/modules/questline/worldSpawner.ts:153 Date.now() :: createdAt: Date.now(),
+- server/src/modules/questline/worldSpawner.ts:192 Date.now() :: createdAt: Date.now(),
+- server/src/modules/relationships/SharedMemoryNetwork.ts:5 Date.now() :: propagatedAt: Date.now()
+- server/src/modules/release/BuildStamp.ts:4 Date.now() :: generatedAt: Date.now()
+- server/src/modules/siege/SiegeEngine.ts:7 Date.now() :: startedAt: Date.now()
+- server/src/modules/social/GroupFinder.ts:6 Date.now() :: createdAt: Date.now()
+- server/src/modules/social/PartySystem.ts:6 Date.now() :: createdAt: Date.now()
+- server/src/modules/structure/ConstructionQueue.ts:5 Date.now() :: this.jobs.push({ ...job, createdAt: Date.now(), progress: 0 });
+- server/src/modules/swarm/orchestrator/SwarmOrchestrator.ts:35 new Date() :: lastUpdate: new Date(),
+- server/src/modules/swarm/orchestrator/SwarmOrchestrator.ts:62 new Date() :: this.state.artifacts.init = { timestamp: new Date(), status: 'success' };
+- server/src/modules/swarm/orchestrator/SwarmOrchestrator.ts:88 new Date() :: const timestamp = new Date();
+- server/src/modules/swarm/services/DeveloperAgent.ts:57 Date.now() :: const now = Date.now();
+- server/src/modules/swarm/services/DeveloperAgent.ts:126 new Date() :: timestamp: new Date().toISOString()
+- server/src/modules/swarm/services/DeveloperAgent.ts:144 new Date() :: timestamp: new Date().toISOString(),
+- server/src/modules/swarm/services/DeveloperAgent.ts:154 new Date() :: timestamp: new Date().toISOString(),
+- server/src/modules/swarm/services/ReviewerAgent.ts:50 new Date() :: reviewedAt: new Date(),
+- server/src/modules/trade/BuyOrders.ts:5 Date.now() :: const order = { buyerId, itemId, price, quantity, createdAt: Date.now() };
+- server/src/modules/trade/PlayerMarket.ts:10 Date.now() :: const listing = { sellerId, item, price, createdAt: Date.now() };
+- server/src/modules/trade/SellOrders.ts:5 Date.now() :: const order = { sellerId, itemId, price, quantity, createdAt: Date.now() };
+- server/src/modules/vote/VoteBannerStore.ts:64 randomUUID() :: const internalId = asNonEmptyString(raw.internalId) ?? `vote_${randomUUID()}`;
+- server/src/modules/vote/VoteBannerStore.ts:114 Date.now() :: const now = Date.now();
+- server/src/modules/vote/VoteBannerStore.ts:159 Date.now() :: const now = Date.now();
+- server/src/modules/vote/VoteBannerStore.ts:181 Date.now() :: const now = Date.now();
+- server/src/modules/vote/VoteSystem.ts:73 Date.now() :: this.pruneState(player, Date.now());
+- server/src/modules/vote/VoteSystem.ts:133 Date.now() :: const now = Date.now();
+- server/src/modules/vote/VoteSystem.ts:197 Date.now() :: const now = Date.now();
+- server/src/modules/vote/VoteSystem.ts:225 randomUUID() :: const id = `vote_${randomUUID()}`;
+- server/src/modules/vote/VoteSystem.ts:234 randomUUID() :: callbackToken: randomUUID().replace(/-/g, ""),
+- server/src/modules/vote/VoteSystem.ts:265 Date.now() :: const now = Date.now();
+- server/src/modules/vote/VoteSystem.ts:381 Date.now() :: const now = Date.now();
+- server/src/modules/vote/VoteSystem.ts:434 randomUUID() :: id: `vb_${randomUUID()}`,
+- server/src/modules/vote/VoteSystem.ts:448 randomUUID() :: id: `vh_${randomUUID()}`,
+- server/src/modules/vote/VoteSystem.ts:497 Date.now() :: const now = Date.now();
+- server/src/modules/vote/VoteSystem.ts:544 Date.now() :: getXpMultiplier(player: any, now = Date.now()): number {
+- server/src/modules/vote/VoteSystem.ts:549 Date.now() :: getBuffState(player: any, now = Date.now()): VoteBuffState {
+- server/src/modules/world/AREModeAuditTrail.ts:43 Date.now() :: const timestamp = Date.now();
+- server/src/modules/world/AREModeAuditTrail.ts:46 new Date() :: isoTime: new Date(timestamp).toISOString(),
+- server/src/modules/world/AssetPoolResolver.ts:59 Date.now() :: const now = Date.now();
+- server/src/modules/world/AssetPoolResolver.ts:60 new Date() :: const stamp = new Date(now).toISOString().replace(/[:.]/g, "-");
+- server/src/modules/world/AssetPoolResolver.ts:305 new Date() :: createdAtIso: new Date(stat.mtimeMs).toISOString(),
+- server/src/modules/world/ShadowRegisterPortal.ts:6 Date.now() :: activatedAt: Date.now()
+- server/src/modules/world/WorldState.ts:4 Date.now() :: capturedAt: Date.now(),
+- server/src/modules/world-editor/AdminAuditLog.ts:9 Date.now() :: timestamp: Date.now()
+- server/src/modules/world-editor/ObjectPlacement.ts:3 Date.now() :: return { assetId, position, placedAt: Date.now() };
+- server/src/modules/world-editor/TerrainBrush.ts:3 Date.now() :: return { chunkId, brushType, strength, appliedAt: Date.now() };
+- server/src/services/MarketingAutomation.ts:52 new Date() :: timestamp: new Date()
+- server/src/services/MarketingAutomation.ts:64 new Date() :: timestamp: new Date()
+- server/src/services/trading/EmergentMarket.js:12 Date.now() :: timestamp: Date.now(),
+- server/src/services/trading/EmergentMarket.js:81 Math.random() :: bids: Array.from({ length: 20 }, (_, i) => [100 - i * 0.1, Math.random() * 50]),
+- server/src/services/trading/EmergentMarket.js:82 Math.random() :: asks: Array.from({ length: 20 }, (_, i) => [100 + i * 0.1, Math.random() * 10])
+- server/src/services/trading/ScarcityAnalyzer.js:23 Date.now() :: timestamp: event.timestamp || Date.now()
+- packages/shared/src/orchestrator/RedisOrchestrator.ts:47 Date.now() :: _timestamp: Date.now(),
+- packages/shared/src/systems/SyncSystem.ts:74 Date.now() :: timestamp: Date.now()
+- packages/shared/src/utils/index.ts:11 Date.now() :: * Uses incrementing counter instead of Date.now() to ensure determinism.
+- packages/shared/src/utils/index.ts:33 Date.now() :: getTimestamp: () => 0, // Never use Date.now() in deterministic chain compilation
+Use SeededARERng/AREClock. Use ARE-DETERMINISM-ALLOW only for one audited non-world-hash line.
