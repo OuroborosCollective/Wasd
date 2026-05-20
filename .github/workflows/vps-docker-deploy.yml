@@ -1,61 +1,7 @@
 name: VPS Docker Deploy (monorepo)
-run-name: VPS Docker Deploy • ${{ github.event_name }} • ${{ github.ref_name }} • ${{ github.sha }}
+run-name: VPS Docker Deploy • manual • ${{ github.ref_name }} • ${{ github.sha }}
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - '**/package.json'
-      - 'server/**'
-      - 'client/**'
-      - 'portal/**'
-      - 'apps/client-2d/**'
-      - 'asset-packs/**'
-      - 'packages/core-logic/**'
-      - 'packages/shared/**'
-      - 'Dockerfile*'
-      - 'docker-compose*.yml'
-      - '.dockerignore'
-      - 'scripts/deploy-vps-docker.sh'
-      - 'scripts/vps-docker-inline-deploy.sh'
-      - 'scripts/sync-pnpm-lockfile-for-docker.py'
-      - 'scripts/vps-nginx-route-areloria.sh'
-      - 'scripts/vps-public-route-diagnostics.sh'
-      - 'scripts/write-runtime-entrypoints.mjs'
-      - 'scripts/extract-2d-weapon-pool.mjs'
-      - '.github/workflows/vps-docker-deploy.yml'
-  pull_request:
-    types:
-      - closed
-    branches:
-      - main
-    paths:
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - '**/package.json'
-      - 'server/**'
-      - 'client/**'
-      - 'portal/**'
-      - 'apps/client-2d/**'
-      - 'asset-packs/**'
-      - 'packages/core-logic/**'
-      - 'packages/shared/**'
-      - 'Dockerfile*'
-      - 'docker-compose*.yml'
-      - '.dockerignore'
-      - 'scripts/deploy-vps-docker.sh'
-      - 'scripts/vps-docker-inline-deploy.sh'
-      - 'scripts/sync-pnpm-lockfile-for-docker.py'
-      - 'scripts/vps-nginx-route-areloria.sh'
-      - 'scripts/vps-public-route-diagnostics.sh'
-      - 'scripts/write-runtime-entrypoints.mjs'
-      - 'scripts/extract-2d-weapon-pool.mjs'
-      - '.github/workflows/vps-docker-deploy.yml'
   workflow_dispatch:
     inputs:
       reason:
@@ -78,123 +24,32 @@ concurrency:
 permissions:
   contents: read
 
-defaults:
-  run:
-    shell: bash
-
 jobs:
   deploy:
-    name: Deploy WASD monorepo to VPS
-    if: >-
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main')
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-
+    timeout-minutes: 45
+    env:
+      DEPLOY_REASON: ${{ inputs.reason || 'Manual deploy' }}
+      ARELORIAN_PORT: ${{ inputs.arelorian_port || '3001' }}
+      DOCKER_NETWORK: ${{ inputs.docker_network || 'areloria_arelorian-network' }}
     steps:
-      - name: Show deploy trigger context
-        run: |
-          set -euo pipefail
-          echo "=== VPS deploy workflow context ==="
-          echo "event_name=${{ github.event_name }}"
-          echo "ref=${{ github.ref }}"
-          echo "ref_name=${{ github.ref_name }}"
-          echo "sha=${{ github.sha }}"
-          echo "actor=${{ github.actor }}"
-          echo "workflow=${{ github.workflow }}"
-          echo "run_id=${{ github.run_id }}"
-          echo "run_attempt=${{ github.run_attempt }}"
-          echo "pull_request_merged=${{ github.event.pull_request.merged || 'n/a' }}"
-          echo "pull_request_base=${{ github.event.pull_request.base.ref || 'n/a' }}"
-          echo "concurrency=vps-docker-deploy-${{ github.event_name }}-${{ github.ref_name }}"
-
-      - name: Verify VPS SSH password secrets are set
-        env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
-        run: |
-          set -euo pipefail
-          ok=true
-          [ -n "${SSH_HOST:-}" ] || { echo "::error::Set SSH_HOST."; ok=false; }
-          [ -n "${SSH_USER:-}" ] || { echo "::error::Set SSH_USER."; ok=false; }
-          [ -n "${SSH_PASSWORD:-}" ] || { echo "::error::Set SSH_PASSWORD."; ok=false; }
-          [ "$ok" = true ]
-
-      - name: Deploy, install nginx route and diagnose over SSH
-        uses: appleboy/ssh-action@v1.2.0
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          port: ${{ secrets.SSH_PORT || 22 }}
-          timeout: 2m
-          command_timeout: 55m
-          script_stop: true
-          script: |
-            set -Eeuo pipefail
-            trap 'rc=$?; echo "ERROR: VPS workflow bootstrap failed at line $LINENO with rc=$rc"; echo "PWD=$(pwd 2>/dev/null || true)"; exit $rc' ERR
+          fetch-depth: 1
 
-            REPO_URL='https://github.com/OuroborosCollective/Wasd.git'
-            DEPLOY_BRANCH='main'
-            SECRET_PORT='${{ secrets.VPS_ARELORIAN_PORT }}'
-            INPUT_PORT='${{ github.event.inputs.arelorian_port }}'
-            SECRET_NETWORK='${{ secrets.VPS_ARELORIAN_DOCKER_NETWORK }}'
-            INPUT_NETWORK='${{ github.event.inputs.docker_network }}'
-
-            export DEPLOY_PATH='/opt/areloria'
-            export REPO_URL
-            export DEPLOY_BRANCH
-            export ARELORIAN_PORT="${SECRET_PORT:-${INPUT_PORT:-3001}}"
-            export ARELORIAN_DOCKER_NETWORK="${SECRET_NETWORK:-${INPUT_NETWORK:-areloria_arelorian-network}}"
-            export ARELORIAN_ENABLE_DOCKER_INGRESS='false'
-            export ARELORIAN_INGRESS_HTTP_BIND='127.0.0.1'
-            export ARELORIAN_INGRESS_HTTP_PORT='8080'
-            export ARELORIAN_ENV_FILE='.env.docker'
-
-            echo "=== WASD VPS Docker Deploy Bootstrap ==="
-            echo "Reason: ${{ github.event.inputs.reason || github.event_name }}"
-            echo "Deploy path: $DEPLOY_PATH"
-            echo "Engine port: $ARELORIAN_PORT"
-            echo "Network: $ARELORIAN_DOCKER_NETWORK"
-            echo "User: $(id -un)"
-            echo "Group: $(id -gn)"
-            uname -a || true
-
-            command -v git >/dev/null 2>&1 || { echo "ERROR: git is required on the VPS."; exit 1; }
-
-            if [ -d "$DEPLOY_PATH/.git" ]; then
-              echo "Repairing stale git remote refs in $DEPLOY_PATH before deploy helper runs..."
-              git -C "$DEPLOY_PATH" remote set-url origin "$REPO_URL" || true
-              find "$DEPLOY_PATH/.git/refs/remotes/origin" -name '*.lock' -type f -delete 2>/dev/null || true
-              rm -f "$DEPLOY_PATH/.git/refs/remotes/origin/${DEPLOY_BRANCH}.lock" 2>/dev/null || true
-              git -C "$DEPLOY_PATH" update-ref -d "refs/remotes/origin/${DEPLOY_BRANCH}" 2>/dev/null || true
-              git -C "$DEPLOY_PATH" remote prune origin || true
-            fi
-
-            tmp_checkout="$(mktemp -d /tmp/wasd-vps-deploy.XXXXXX)"
-            cleanup() { rm -rf "$tmp_checkout" 2>/dev/null || true; }
-            trap cleanup EXIT
-
-            echo "Cloning fresh deploy helper to $tmp_checkout"
-            git clone --branch "$DEPLOY_BRANCH" --depth 1 "$REPO_URL" "$tmp_checkout"
-            cd "$tmp_checkout"
-            test -f scripts/vps-docker-inline-deploy.sh || { echo "ERROR: missing scripts/vps-docker-inline-deploy.sh"; exit 1; }
-            chmod +x scripts/vps-docker-inline-deploy.sh scripts/vps-public-route-diagnostics.sh scripts/vps-nginx-route-areloria.sh
-            bash scripts/vps-docker-inline-deploy.sh
-            echo "=== Installing nginx public route ==="
-            ARELORIAN_PUBLIC_DOMAIN='arelorian.de' ARELORIAN_PORT="$ARELORIAN_PORT" bash scripts/vps-nginx-route-areloria.sh
-            echo "=== VPS PUBLIC ROUTE DIAGNOSTICS AFTER DEPLOY ==="
-            ARELORIAN_PUBLIC_DOMAIN='arelorian.de' bash scripts/vps-public-route-diagnostics.sh
-
-      - name: Verify public runtime route
+      - name: Deploy to VPS manually
         run: |
-          set -euo pipefail
-          echo "Checking public runtime marker..."
-          body="$(curl -fsSL --max-time 20 https://arelorian.de/runtime-build-info.json || true)"
-          echo "$body"
-          echo "$body" | grep -q 'entrypoints' || {
-            echo "::error::Public domain does not serve runtime-build-info.json from the new WASD container. Read the nginx installer and VPS PUBLIC ROUTE DIAGNOSTICS AFTER DEPLOY sections above."
+          echo "Automatic VPS deploy triggers are disabled."
+          echo "Manual deploy reason: ${DEPLOY_REASON}"
+          echo "This workflow is intentionally manual-only during alpha stabilization."
+          if [ -x scripts/vps-docker-inline-deploy.sh ]; then
+            echo "Starting manual VPS deploy script..."
+            bash scripts/vps-docker-inline-deploy.sh
+          elif [ -x scripts/deploy-vps-docker.sh ]; then
+            echo "Starting fallback manual VPS deploy script..."
+            bash scripts/deploy-vps-docker.sh
+          else
+            echo "No VPS deploy script found or executable."
             exit 1
-          }
+          fi
