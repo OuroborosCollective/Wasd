@@ -5,7 +5,7 @@ import { AREGuard } from './AREGuard';
 import { ARENpcEvolution } from './ARENpcEvolution';
 import { AREPayloadFactory, type AREPayloadNormalizationOptions, type IAREPayload } from './AREPayload';
 import type { AREReplayBuffer } from './AREReplayBuffer';
-import type { AREShadowState } from './AREShadowState';
+import { AREShadowState, type AREShadowEcosystemStats } from './AREShadowState';
 
 export interface AREShadowTickInput {
   readonly entityId: string;
@@ -35,6 +35,12 @@ function ensureShadowEnergy(payload: Readonly<IAREPayload>): Readonly<IAREPayloa
 }
 
 export class AREShadowAdapter {
+  private static readonly defaultEcosystemState = new AREShadowState();
+
+  static getEcosystemTelemetry(): AREShadowEcosystemStats {
+    return this.defaultEcosystemState.getTelemetry();
+  }
+
   static executeShadowTick(input: AREShadowTickInput): AREShadowTickResult {
     if (!ARE_CONFIG.ENABLE_SHADOW_TICK) {
       return { skipped: true, recorded: false };
@@ -43,6 +49,7 @@ export class AREShadowAdapter {
     try {
       const entry = AREGuard.executeProtected(() => {
         const previousEntries = input.buffer.snapshot();
+        const ecosystemState = input.ecosystemState ?? AREShadowAdapter.defaultEcosystemState;
         const genesisPayload = AREPayloadFactory.createNormalized(
           input.entityId,
           input.position as any,
@@ -54,23 +61,23 @@ export class AREShadowAdapter {
         const nextPayload = ARECycle.processCycle(genesisPayload);
         const recorded = input.buffer.record(input.tick, nextPayload);
 
-        if (input.ecosystemState && isNpcEntity(input.entityId)) {
+        if (isNpcEntity(input.entityId)) {
           const ecosystemPayload = ensureShadowEnergy(nextPayload);
-          input.ecosystemState.prune(input.tick);
+          ecosystemState.prune(input.tick);
 
           const entropy = AREDriftEntropy.applyEntropy(ecosystemPayload);
-          if (entropy.capsule) input.ecosystemState.recordCapsule(input.tick, entropy.capsule);
+          if (entropy.capsule) ecosystemState.recordCapsule(input.tick, entropy.capsule);
 
           for (const candidate of previousEntries) {
             if (candidate.tick !== input.tick) continue;
             if (!isNpcEntity(candidate.entityId)) continue;
             if (candidate.entityId === input.entityId) continue;
             const fusion = ARENpcEvolution.fuseOnSameKappaCell(ecosystemPayload, ensureShadowEnergy(candidate.payload));
-            if (fusion.fused && fusion.apex) input.ecosystemState.recordFusion(input.tick, fusion.apex, fusion.consumedEntityIds);
+            if (fusion.fused && fusion.apex) ecosystemState.recordFusion(input.tick, fusion.apex, fusion.consumedEntityIds);
           }
 
-          const scan = ARENpcEvolution.scanOwnChunkForCapsule(ecosystemPayload, input.ecosystemState.getCapsules());
-          if (scan.capsule) input.ecosystemState.recordScavenger(input.tick, input.entityId, scan.capsule.entityId, scan.movementCost);
+          const scan = ARENpcEvolution.scanOwnChunkForCapsule(ecosystemPayload, ecosystemState.getCapsules());
+          if (scan.capsule) ecosystemState.recordScavenger(input.tick, input.entityId, scan.capsule.entityId, scan.movementCost);
         }
 
         return recorded;
