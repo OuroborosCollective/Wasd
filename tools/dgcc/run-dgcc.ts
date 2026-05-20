@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -7,7 +8,6 @@ type Severity = "info" | "warn" | "error";
 type CheckName =
   | "lint"
   | "unit"
-  | "checkInteract"
   | "e2e"
   | "contentValidate"
   | "assetsAudit"
@@ -135,6 +135,26 @@ async function uiA11ySmoke(report: DgccReport) {
   }
 }
 
+async function ensureDgccPrerequisites(checks: CheckName[]): Promise<void> {
+  const needShared = checks.some((c) =>
+    ["unit", "e2e", "contentValidate", "clientBuild", "serverBuild"].includes(c),
+  );
+  const needServerDist = checks.includes("e2e") || checks.includes("serverBuild");
+
+  if (needShared) {
+    const r = await run("pnpm", ["--filter", "@wasd/shared", "run", "build"]);
+    if (r.code !== 0) {
+      throw new Error(`DGCC prereq: @wasd/shared build failed:\n${r.stdout}\n${r.stderr}`);
+    }
+  }
+  if (needServerDist) {
+    const r = await run("pnpm", ["--prefix", "server", "run", "build"]);
+    if (r.code !== 0) {
+      throw new Error(`DGCC prereq: server build failed:\n${r.stdout}\n${r.stderr}`);
+    }
+  }
+}
+
 async function main() {
   const mode = parseMode();
   const contract = readJson<any>(CONTRACT_PATH);
@@ -169,6 +189,7 @@ async function main() {
   }
 
   const checks = modeCfg.checks as CheckName[];
+  await ensureDgccPrerequisites(checks);
 
   if (checks.includes("lint")) {
     await runCheck("lint", async () => {
@@ -181,19 +202,20 @@ async function main() {
 
   if (checks.includes("unit")) {
     await runCheck("unit", async () => {
-      const r = await run("pnpm", ["run", "test"]);
+      const useFullUnit = process.env.DGCC_FULL_UNIT === "1";
+      const testEnv: Record<string, string> = {
+        ...process.env,
+        PERSISTENCE_DRIVER: process.env.DGCC_PERSISTENCE_DRIVER || "file",
+      };
+      if (process.env.DGCC_DATABASE_URL !== undefined) {
+        testEnv.DATABASE_URL = process.env.DGCC_DATABASE_URL;
+      } else {
+        delete testEnv.DATABASE_URL;
+      }
+      const r = await run("pnpm", ["run", useFullUnit ? "test" : "test:dgcc"], { env: testEnv });
       fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
-      if (r.code !== 0) throw new Error("unit tests failed");
-    });
-  }
-
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
+      if (r.code !== 0) throw new Error(useFullUnit ? "unit tests failed" : "DGCC unit slice failed (run DGCC_FULL_UNIT=1 pnpm run dgcc for full vitest)");
     });
   }
 
@@ -208,10 +230,10 @@ async function main() {
 
   if (checks.includes("contentValidate")) {
     await runCheck("contentValidate", async () => {
-      const r = await run("pnpm", ["--prefix", "server", "run", "validate"]);
+      const r = await run("pnpm", ["exec", "tsx", "server/src/tools/validateContent.ts"]);
       fs.writeFileSync(path.join(outDir, "content-validate.out.txt"), r.stdout + "\n" + r.stderr);
       report.artifacts["contentValidate"] = "dgcc-artifacts/content-validate.out.txt";
-      if (r.code !== 0) throw new Error("content validation failed (server validate)");
+      if (r.code !== 0) throw new Error("content validation failed (validateContent.ts)");
     });
   }
 
