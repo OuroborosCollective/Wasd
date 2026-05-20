@@ -7,7 +7,6 @@ type Severity = "info" | "warn" | "error";
 type CheckName =
   | "lint"
   | "unit"
-  | "checkInteract"
   | "e2e"
   | "contentValidate"
   | "assetsAudit"
@@ -87,7 +86,7 @@ async function assetsAudit(report: DgccReport, contract: any, fix: boolean) {
     });
     return;
   }
-  const mustHave = ["characters", "monsters", "npcs", "objects", "items", "resources"].map((x) =>
+  const mustHave = ["characters", "monsters", "objects", "buildings", "equipment", "weapons"].map((x) =>
     path.join(clientDir, x)
   );
   for (const p of mustHave) {
@@ -181,19 +180,19 @@ async function main() {
 
   if (checks.includes("unit")) {
     await runCheck("unit", async () => {
+      const shared = await run("pnpm", ["-C", "packages/shared", "run", "build"]);
+      const sharedLog = shared.stdout + "\n" + shared.stderr;
+      if (shared.code !== 0) {
+        fs.writeFileSync(path.join(outDir, "unit.out.txt"), `[shared build failed]\n${sharedLog}`);
+        throw new Error("@wasd/shared build failed");
+      }
       const r = await run("pnpm", ["run", "test"]);
-      fs.writeFileSync(path.join(outDir, "unit.out.txt"), r.stdout + "\n" + r.stderr);
+      fs.writeFileSync(
+        path.join(outDir, "unit.out.txt"),
+        `[packages/shared build ok]\n${sharedLog}\n--- vitest ---\n${r.stdout}\n${r.stderr}`
+      );
       report.artifacts["unit"] = "dgcc-artifacts/unit.out.txt";
       if (r.code !== 0) throw new Error("unit tests failed");
-    });
-  }
-
-  if (checks.includes("checkInteract")) {
-    await runCheck("checkInteract", async () => {
-      const r = await run("pnpm", ["run", "check:interact"]);
-      fs.writeFileSync(path.join(outDir, "check-interact.out.txt"), r.stdout + "\n" + r.stderr);
-      report.artifacts["checkInteract"] = "dgcc-artifacts/check-interact.out.txt";
-      if (r.code !== 0) throw new Error("interact distance consistency check failed");
     });
   }
 

@@ -47,6 +47,7 @@ This roadmap tracks the gap between what is already live in the repository and w
 
 - `pnpm run lint`
 - `pnpm run test`
+- `pnpm run dgcc` (full consistency gate; see `tools/dgcc/README.md`)
 - `pnpm run build`
 - `pnpm run audit:model-paths`
 - `pnpm run test:e2e:ci` in CI before release tags

@@ -27,16 +27,17 @@ Primary source-of-truth docs:
 - DB persistence falls back to file-based when `DATABASE_URL` is unreachable (expect `getaddrinfo ENOTFOUND db` in logs—non-fatal).
 
 ### Lint, test, build
-- Lint: `npx eslint server/src client/src` (eslint is a root devDependency with `eslint.config.mjs`; the root `package.json` has no `lint` script)
-- Unit/integration tests: `npx vitest run` (config in root `vitest.config.ts`)
+- Lint: `pnpm run lint` (same scope as `npx eslint server/src client/src tools/dgcc`; eslint is a root devDependency with `eslint.config.mjs`)
+- Unit/integration tests: `pnpm run test` (same as `npx vitest run`; config in root `vitest.config.ts`)
 - Build: `pnpm run build` (recursive across workspaces)
+- DGCC (consistency gate): `pnpm run dgcc` or `pnpm run dgcc:extreme` (see `tools/dgcc/README.md`)
 - E2E:
   - Install once: `pnpm run test:e2e:install`
   - Run: `pnpm run test:e2e`
-  - CI variant: `pnpm run test:e2e:ci`
-- Pre-push quick verification (no E2E): `pnpm run ci:verify`
+  - CI variant: `pnpm run test:e2e:ci` (builds `server/` first, then runs Playwright with `CI=1`)
+- Pre-push quick verification (no E2E): `pnpm run ci:verify` (lint + unit tests)
 - Content checks:
-  - Validate content: `pnpm run validate --prefix server`
+  - Validate content: `pnpm --prefix server run validate` (or `pnpm run validate`)
   - Model-path audit: `pnpm run audit:model-paths`
 
 ### Environment variables (important)
