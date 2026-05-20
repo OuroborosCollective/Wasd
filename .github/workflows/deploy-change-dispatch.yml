@@ -1,27 +1,6 @@
 name: Dispatch VPS Docker Deploy for visible app changes
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'deploy/**'
-      - 'client/**'
-      - 'portal/**'
-      - 'apps/client-2d/**'
-      - 'apps/web/**'
-      - 'design/**'
-      - 'public/**'
-      - 'assets/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - '**/package.json'
-      - '**/vite.config.*'
-      - '**/tsconfig*.json'
-      - 'scripts/sync-world-assets.mjs'
-      - 'scripts/sync-pnpm-lockfile-for-docker.py'
-      - '.github/workflows/deploy-change-dispatch.yml'
   workflow_dispatch:
 
 permissions:
@@ -36,17 +15,18 @@ jobs:
   dispatch:
     runs-on: ubuntu-latest
     steps:
-      - name: Dispatch VPS Docker Deploy
+      - name: Dispatch VPS Docker Deploy manually
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          echo "Dispatching VPS Docker Deploy after visible app or build graph change..."
+          echo "Automatic dispatch is disabled during alpha stabilization."
+          echo "Manual dispatch requested by workflow_dispatch."
           curl -fsS -X POST \
             -H "Authorization: Bearer ${GH_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "https://api.github.com/repos/${REPO}/actions/workflows/vps-docker-deploy.yml/dispatches" \
-            -d '{"ref":"main","inputs":{"reason":"visible app changed","arelorian_port":"3001","docker_network":"areloria_arelorian-network"}}'
-          echo "Dispatch requested."
+            -d '{"ref":"main","inputs":{"reason":"manual dispatch","arelorian_port":"3001","docker_network":"areloria_arelorian-network"}}'
+          echo "Manual dispatch requested."
