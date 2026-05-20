@@ -97,6 +97,20 @@ export function calculateVisibilityThreshold(phaseShift: number): number {
 }
 
 /**
+ * Fast-path for stealth check without object allocation
+ */
+export function checkStealthFast(
+  nx: number, ny: number, nz: number,
+  px: number, py: number, pz: number,
+  threshold: number
+): boolean {
+  const dx = nx - px;
+  const dy = ny - py;
+  const dz = nz - pz;
+  return (dx * dx + dy * dy + dz * dz) <= threshold;
+}
+
+/**
  * Check if target is visible to NPC (deterministic)
  * 
  * NO RAYCASTING - purely mathematical distance check
