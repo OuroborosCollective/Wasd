@@ -196,7 +196,12 @@ export function CyberZenIsoApp() {
   }
 
   function addActor(app: Application, layer: Container, id: string, x: number, z: number, name: string, player: boolean, assets = assetRef.current) {
-    if (entities.current.has(id)) return;
+    const ent = entities.current.get(id);
+    if (ent) {
+      ent.tx = x;
+      ent.tz = z;
+      return;
+    }
     const root = avatar(name, player, assets); place(root, x, z, app.screen.width, app.screen.height);
     layer.addChild(root); entities.current.set(id, { root, tx: x, tz: z });
   }
