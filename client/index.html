@@ -11,6 +11,7 @@
   </head>
   <body>
     <script type="module">
+      void (async () => {
       const root = location.pathname === '/' || location.pathname === '/index.html';
       if (root) {
         document.body.innerHTML = `<div class="selector"><aside class="rail"><div><div class="brand">CYBER-ZEN</div><div class="sub">O(1) DETERMINISM</div></div><nav class="nodes"><span>Neural_Pruner</span><span>ARE_Trader</span><span>Chronos_WebGL</span><span>System_Root</span></nav><a class="sync" href="/portal/">INITIATE_SYNC</a></aside><main><div class="top"><b>OUROBOROS // 10-Hz</b><span>TICKRATE: 10.00Hz · NODE: SYNC_OK</span></div><section class="hero"><div><div class="sigil"><div class="ouro"></div></div><h1>STATE <span class="cyan">LOCKED.</span><br>LOGIC <span class="fire">FUSED.</span></h1><p class="tag">The deterministic nexus for high-frequency interaction. Choose the active reality layer.</p><div class="routes"><a class="route r3d" href="/3d/"><span><i class="icon">⬡</i><h2>Game Client 3D</h2><p>Volumetric render engine</p></span></a><a class="route r2d" href="/2d/"><span><i class="icon">▦</i><h2>Game Client 2D</h2><p>Pixel-grid determinism</p></span></a><a class="route rp" href="/portal/"><span><i class="icon">⌬</i><h2>Science Portal</h2><p>Oracle / Governance / Truth</p></span></a></div><div class="status"><span class="dot"></span>SYSTEM ONLINE [10-Hz] O(1) DETERMINISM</div></div></section></main></div>`;
@@ -20,6 +21,7 @@
         document.body.appendChild(canvas);
         await import('/src/main.ts');
       }
+      })();
     </script>
   </body>
 </html>
