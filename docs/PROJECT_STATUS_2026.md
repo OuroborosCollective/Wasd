@@ -76,9 +76,10 @@ Use it before trusting older reconstruction or handover docs.
 
 | Item | Status |
 |------|--------|
-| Unit/integration tests | Vitest (`pnpm run test`) |
-| E2E tests | Playwright (`pnpm run test:e2e`, `pnpm run test:e2e:ci`) |
+| Unit/integration tests | Vitest (`pnpm run test`); DGCC minimal uses `pnpm run test:dgcc` unless `DGCC_FULL_UNIT=1` |
+| E2E tests | Playwright (`pnpm run test:e2e:ci` installs Chromium then runs `e2e/`; `pnpm run test:e2e:install` for browsers only) |
 | Lint | ESLint (`pnpm run lint`) |
+| DGCC gate | `pnpm run dgcc` (minimal) and `pnpm run dgcc:extreme`; artifacts under `dgcc-artifacts/`; see `tools/dgcc/README.md` |
 | Build | Root build compiles client then server (`pnpm run build`) |
 | CI baseline | Lint + tests + build + model-path audit + e2e workflow exists |
 
