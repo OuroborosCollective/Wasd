@@ -37,13 +37,17 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=3072"
 
       # Deterministic gates: shared + server must stay type-clean.
-      - name: Typecheck @wasd/shared
+      - name: Build @wasd/types
         run: |
-          NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/shared run typecheck
+          NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/types run build
 
-      - name: Typecheck @wasd/core-logic
+      - name: Build @wasd/shared (emit declarations)
         run: |
-          NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/core-logic run typecheck
+          NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/shared exec tsc
+
+      - name: Build @wasd/core-logic (emit declarations)
+        run: |
+          NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/core-logic run build
 
       - name: Typecheck @wasd/server (tsc --noEmit)
         run: |
