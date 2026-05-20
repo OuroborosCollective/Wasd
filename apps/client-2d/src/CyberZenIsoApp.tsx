@@ -1,13 +1,27 @@
 import { useEffect, useRef, useState } from "react";
-import { Application, Assets, Container, Graphics, Sprite, Text, Texture } from "pixi.js";
+import { Application, Assets, Container, Graphics, Rectangle, Sprite, Text, Texture } from "pixi.js";
 import { createClient } from "@wasd/core-network";
-import { fallbackEntry, loadAssetManifest, type AssetEntry, type AssetManifest } from "./assetManifest";
+import {
+  fallbackEntry,
+  loadAssetManifest,
+  pickWeaponVisual,
+  type AssetEntry,
+  type AssetManifest,
+} from "./assetManifest";
 import { ArelorianStitchHud } from "./ArelorianStitchHud";
 
 const TILE_W = 96;
 const TILE_H = 48;
+const EQUIPPED_WEAPON_KEY = "wasd:2d:equippedWeaponVisualId";
 
-type Entity = { root: Container; tx: number; tz: number };
+type Entity = {
+  root: Container;
+  tx: number;
+  tz: number;
+  name: string;
+  isPlayer: boolean;
+  weaponVisualId: string | null;
+};
 type Msg = { from: string; txt: string };
 type LoadedAssets = { manifest: AssetManifest | null; textures: Map<string, Texture> };
 
@@ -30,6 +44,18 @@ function diamond(color: number, stroke = 0x17361e) {
 function textureFor(assets: LoadedAssets | null, entry: AssetEntry | null): Texture | null {
   if (!assets || !entry?.src) return null;
   return assets.textures.get(entry.src) ?? null;
+}
+
+function weaponTextureFor(assets: LoadedAssets | null, entry: AssetEntry | null): Texture | null {
+  if (!assets || !entry?.src) return null;
+  const baseTexture = assets.textures.get(entry.src);
+  if (!baseTexture) return null;
+  if (!entry.frame) return baseTexture;
+
+  return new Texture({
+    source: baseTexture.source,
+    frame: new Rectangle(entry.frame.x, entry.frame.y, entry.frame.w, entry.frame.h),
+  });
 }
 
 function spriteFromTexture(texture: Texture, width: number, height: number, y = 0) {
@@ -75,7 +101,20 @@ function propHouse(assets?: LoadedAssets | null) {
   return c;
 }
 
-function avatar(name: string, player = false, assets?: LoadedAssets | null) {
+function addWeaponSprite(c: Container, assets: LoadedAssets | null | undefined, name: string, weaponVisualId?: string | null) {
+  const weapon = pickWeaponVisual(assets?.manifest ?? null, { visualId: weaponVisualId, seed: name });
+  const tex = weaponTextureFor(assets ?? null, weapon?.entry ?? null);
+  if (!tex) return;
+
+  const weaponSprite = spriteFromTexture(tex, 42, 42, 0);
+  weaponSprite.x = 16;
+  weaponSprite.y = -24;
+  weaponSprite.rotation = 0.35;
+  weaponSprite.alpha = 0.96;
+  c.addChild(weaponSprite);
+}
+
+function avatar(name: string, player = false, assets?: LoadedAssets | null, weaponVisualId?: string | null) {
   const c = new Container();
   const aura = player ? 0x00e5ff : 0x39ff14;
   const entry = fallbackEntry(assets?.manifest ?? null, "characters", player ? "player" : "npc");
@@ -86,6 +125,7 @@ function avatar(name: string, player = false, assets?: LoadedAssets | null) {
     c.addChild(new Graphics().ellipse(0, -8, 14, 21).fill(player ? 0x267dff : 0x249a56).stroke({ width: 2, color: aura, alpha: 0.55 }));
     c.addChild(new Graphics().circle(0, -34, 11).fill(player ? 0xffd8a9 : 0xd4ffd7).stroke({ width: 2, color: aura, alpha: 0.82 }));
   }
+  addWeaponSprite(c, assets, name, weaponVisualId);
   const label = new Text({ text: name, style: { fontSize: 11, fill: 0xfff0cf, stroke: { color: 0x02030a, width: 3 }, fontFamily: "monospace" } });
   label.anchor.set(0.5, 1); label.y = -58;
   c.addChild(label);
@@ -95,6 +135,21 @@ function avatar(name: string, player = false, assets?: LoadedAssets | null) {
 function place(node: Container, x: number, z: number, width: number, height: number) {
   const p = iso(x, z, width, height);
   node.x = p.x; node.y = p.y; node.zIndex = p.y;
+}
+
+function weaponIds(manifest: AssetManifest | null | undefined): string[] {
+  return Object.keys(manifest?.weapons ?? {}).sort();
+}
+
+function resolveEquippedWeaponId(manifest: AssetManifest | null, seed: string): string | null {
+  const ids = weaponIds(manifest);
+  if (ids.length === 0) return null;
+  const stored = localStorage.getItem(EQUIPPED_WEAPON_KEY);
+  if (stored && ids.includes(stored)) return stored;
+  const picked = pickWeaponVisual(manifest, { seed });
+  const id = picked?.id ?? ids[0] ?? null;
+  if (id) localStorage.setItem(EQUIPPED_WEAPON_KEY, id);
+  return id;
 }
 
 async function load2DAssets(): Promise<LoadedAssets> {
@@ -116,6 +171,7 @@ async function load2DAssets(): Promise<LoadedAssets> {
 export function CyberZenIsoApp() {
   const host = useRef<HTMLDivElement>(null);
   const appRef = useRef<Application | null>(null);
+  const actorLayerRef = useRef<Container | null>(null);
   const assetRef = useRef<LoadedAssets | null>(null);
   const entities = useRef<Map<string, Entity>>(new Map());
   const clientRef = useRef<ReturnType<typeof createClient> | null>(null);
@@ -125,6 +181,7 @@ export function CyberZenIsoApp() {
   const [connected, setConnected] = useState(false);
   const [assetStatus, setAssetStatus] = useState("ASSETS_LOADING");
   const [weaponCount, setWeaponCount] = useState(0);
+  const [equippedWeaponId, setEquippedWeaponId] = useState<string | null>(() => localStorage.getItem(EQUIPPED_WEAPON_KEY));
   const [messages, setMessages] = useState<Msg[]>([{ from: "Oracle", txt: "Cyberzen 2.5D shell online." }]);
 
   useEffect(() => {
@@ -143,14 +200,17 @@ export function CyberZenIsoApp() {
       const loaded = await load2DAssets();
       assetRef.current = loaded;
       const textureCount = loaded.textures.size;
-      const weapons = Object.keys(loaded.manifest?.weapons ?? {}).length;
+      const weapons = weaponIds(loaded.manifest).length;
+      const initialWeaponId = resolveEquippedWeaponId(loaded.manifest, playerName);
+      setEquippedWeaponId(initialWeaponId);
       setWeaponCount(weapons);
       setAssetStatus(textureCount > 0 ? `ASSETS_${textureCount}_LOADED` : "PROXY_GRAPHICS");
       setMessages(m => [...m.slice(-12), { from: "AssetRig", txt: textureCount > 0 ? `Loaded ${textureCount} textures and ${weapons} weapon visuals.` : "No manifest textures yet. Using proxy graphics." }]);
       const terrain = new Container(); const props = new Container(); const actors = new Container(); actors.sortableChildren = true;
+      actorLayerRef.current = actors;
       app.stage.addChild(terrain, props, actors);
       buildScene(app, terrain, props, loaded);
-      addActor(app, actors, "self", 0, 0, playerName, true, loaded);
+      addActor(app, actors, "self", 0, 0, playerName, true, loaded, initialWeaponId);
       addActor(app, actors, "elder", 2, 1, "Millbrook Elder", false, loaded);
       startNetwork(app, actors);
       app.ticker.add(() => tick(app, actors));
@@ -168,10 +228,46 @@ export function CyberZenIsoApp() {
     [[-2,2],[2,2],[0,-4]].forEach(([x,z]) => { const h = propHouse(assets); place(h, x, z, app.screen.width, app.screen.height); props.addChild(h); });
   }
 
-  function addActor(app: Application, layer: Container, id: string, x: number, z: number, name: string, player: boolean, assets = assetRef.current) {
-    if (entities.current.has(id)) return;
-    const root = avatar(name, player, assets); place(root, x, z, app.screen.width, app.screen.height);
-    layer.addChild(root); entities.current.set(id, { root, tx: x, tz: z });
+  function addActor(app: Application, layer: Container, id: string, x: number, z: number, name: string, player: boolean, assets = assetRef.current, weaponVisualId?: string | null) {
+    const existing = entities.current.get(id);
+    if (existing) {
+      existing.tx = x;
+      existing.tz = z;
+      return;
+    }
+    const resolvedWeaponId = player ? (weaponVisualId ?? equippedWeaponId) : pickWeaponVisual(assets?.manifest ?? null, { seed: name })?.id ?? null;
+    const root = avatar(name, player, assets, resolvedWeaponId); place(root, x, z, app.screen.width, app.screen.height);
+    layer.addChild(root); entities.current.set(id, { root, tx: x, tz: z, name, isPlayer: player, weaponVisualId: resolvedWeaponId });
+  }
+
+  function rebuildActorVisual(id: string, weaponVisualId: string | null) {
+    const app = appRef.current;
+    const layer = actorLayerRef.current;
+    const assets = assetRef.current;
+    const ent = entities.current.get(id);
+    if (!app || !layer || !ent) return;
+
+    const oldRoot = ent.root;
+    const root = avatar(ent.name, ent.isPlayer, assets, weaponVisualId);
+    place(root, ent.tx, ent.tz, app.screen.width, app.screen.height);
+    layer.addChild(root);
+    oldRoot.destroy({ children: true });
+    entities.current.set(id, { ...ent, root, weaponVisualId });
+  }
+
+  function cycleEquippedWeapon() {
+    const ids = weaponIds(assetRef.current?.manifest);
+    if (ids.length === 0) {
+      setMessages(m => [...m.slice(-12), { from: "Inventory", txt: "No weapon visuals loaded yet." }]);
+      return;
+    }
+    const current = equippedWeaponId ?? localStorage.getItem(EQUIPPED_WEAPON_KEY);
+    const currentIndex = current ? ids.indexOf(current) : -1;
+    const next = ids[(currentIndex + 1 + ids.length) % ids.length];
+    localStorage.setItem(EQUIPPED_WEAPON_KEY, next);
+    setEquippedWeaponId(next);
+    rebuildActorVisual("self", next);
+    setMessages(m => [...m.slice(-12), { from: "Inventory", txt: `Equipped weapon visual: ${next}` }]);
   }
 
   function startNetwork(app: Application, layer: Container) {
@@ -196,7 +292,7 @@ export function CyberZenIsoApp() {
   }
 
   function sendSkill(skillId: string) {
-    clientRef.current?.sendPlayerAction("USE_SKILL", { skillId });
+    clientRef.current?.sendPlayerAction("USE_SKILL", { skillId, weaponVisualId: equippedWeaponId });
     setMessages(m => [...m.slice(-12), { from: "Combat", txt: `Skill queued: ${skillId}` }]);
   }
 
@@ -218,11 +314,13 @@ export function CyberZenIsoApp() {
         connected={connected}
         assetStatus={assetStatus}
         weaponCount={weaponCount}
+        equippedWeaponId={equippedWeaponId}
         playerName={playerName}
         messages={messages}
         onSkill={sendSkill}
         onChat={sendChat}
         onInteract={interact}
+        onCycleWeapon={cycleEquippedWeapon}
         onToggleAutoMove={() => setMessages(m => [...m.slice(-12), { from: "Navigator", txt: "Auto-route planner not yet linked." }])}
       />
     </div>
