@@ -3,3 +3,9 @@
 Learning: JavaScript `Map` iteration order is based on insertion order, which is non-deterministic in a multi-user server environment. Iterating over players or NPCs in a simulation path (Level-A) without sorting leads to inconsistent world states and hash drifts. Additionally, missing properties like `phaseShift` in simulation entities can cause mathematical failures (NaN) in perception logic.
 
 Action: Always enforce `Array.sort()` on entity collections (Players, NPCs, Loot) before processing them in any 10-Hz tick logic. Ensure all properties required by deterministic utility functions (like `PerceptionLogic`) are explicitly initialized during entity creation.
+
+## 2025-05-20 - Deterministic Economy Iteration
+
+Learning: In `EconomySimulation.ts`, iterating over `worldState.regions` and `region.resourceSaturation` Maps without sorting led to non-deterministic mutation ordering. While the state results might eventually converge, the order in which `PendingMutations` are queued affects the final WorldHash of the tick. This "causality leak" can cause desync between simulation peers.
+
+Action: Implement `Array.from(map.keys()).sort()` before all Map iterations in Level-A simulation paths. This ensures mutations are applied in an absolute, reproducible sequence.
