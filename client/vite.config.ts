@@ -22,6 +22,10 @@ export default defineConfig(({ mode }) => {
   const generateInlineSourceMap = !isProduction;
 
   return {
+    esbuild: {
+      target: "esnext",
+      supported: { "top-level-await": true },
+    },
     // Relative base for itch.io builds ensures assets load correctly regardless of subfolder
     base: isItchBuild ? "./" : "/",
     resolve: {
@@ -71,6 +75,7 @@ export default defineConfig(({ mode }) => {
       },
     ],
     build: {
+      target: "esnext",
       outDir: isItchBuild ? "dist-itch" : "dist",
       emptyOutDir: true,
       // Production minification

@@ -18,7 +18,9 @@
         const canvas = document.createElement('canvas');
         canvas.id = 'application-canvas';
         document.body.appendChild(canvas);
-        await import('/src/main.ts');
+        void (async () => {
+          await import('/src/main.ts');
+        })();
       }
     </script>
   </body>
