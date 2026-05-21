@@ -1,0 +1,22 @@
+name: Pipoya Runtime Helper
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pipoya-character-runtime-1
+      - run: python3 scripts/patch-pipoya-character-runtime.py
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/client-2d/src/CyberZenIsoApp.tsx
+          git commit -m "Use Pipoya character visuals" || exit 0
+          git push origin HEAD:pipoya-character-runtime-1
