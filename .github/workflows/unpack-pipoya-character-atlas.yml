@@ -1,0 +1,81 @@
+name: Unpack Pipoya Character Atlas
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: unpack-pipoya-character-atlas
+  cancel-in-progress: false
+
+jobs:
+  unpack:
+    name: Unpack prepared 2D character atlas
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Create asset branch
+        run: |
+          set -euo pipefail
+          git switch -c pipoya-character-atlas-assets-${{ github.run_id }}
+
+      - name: Unpack asset pack
+        run: |
+          set -euo pipefail
+          python3 scripts/unpack-pipoya-character-atlas.py asset-packs/2d/pipoya-character-atlas-drop.zip
+
+      - name: Verify unpacked files
+        run: |
+          set -euo pipefail
+          test -s apps/client-2d/public/2d-assets/characters/pipoya/pipoya-character-atlas.png
+          test -s apps/client-2d/public/2d-assets/characters/pipoya/pipoya-character-atlas.json
+          test -s docs/PIPOYA_CHARACTER_ATLAS_DROP.md
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path('apps/client-2d/public/2d-assets/characters/pipoya/pipoya-character-atlas.json').read_text())
+          entries = data.get('entries', {})
+          if len(entries) < 300:
+              raise SystemExit(f'Atlas has too few entries: {len(entries)}')
+          print(f"Atlas entries: {len(entries)}")
+          print(f"Groups: {data.get('groups', {})}")
+          PY
+
+      - name: Commit unpacked atlas
+        run: |
+          set -euo pipefail
+          git add apps/client-2d/public/2d-assets/characters/pipoya/pipoya-character-atlas.png
+          git add apps/client-2d/public/2d-assets/characters/pipoya/pipoya-character-atlas.json
+          git add docs/PIPOYA_CHARACTER_ATLAS_DROP.md
+          if git diff --cached --quiet; then
+            echo "No asset changes to commit."
+            exit 0
+          fi
+          git commit -m "Add Pipoya 2D character atlas assets"
+          git push origin HEAD
+
+      - name: Open asset PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          BRANCH="pipoya-character-atlas-assets-${{ github.run_id }}"
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "Add Pipoya 2D character atlas assets" \
+            --body "Cold asset drop generated from asset-packs/2d/pipoya-character-atlas-drop.zip. Adds only the packed PNG atlas, atlas JSON, and documentation. No runtime, package, lockfile, workflow, or deploy changes."
