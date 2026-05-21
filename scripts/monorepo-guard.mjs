@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import yaml from 'js-yaml';
 
 const errors = [];
 const warnings = [];
@@ -32,6 +33,7 @@ function extractLockRootSpecifier(lockText, dep) {
 
 function checkRootOverrideConsistency() {
   const pkg = readJson('package.json');
+  const workspace = existsSync('pnpm-workspace.yaml') ? yaml.load(readFileSync('pnpm-workspace.yaml', 'utf8')) : {};
   const lock = readFileSync('pnpm-lock.yaml', 'utf8');
   const dockerSync = readFileSync('scripts/sync-pnpm-lockfile-for-docker.py', 'utf8');
 
@@ -40,11 +42,13 @@ function checkRootOverrideConsistency() {
     ...Object.keys(pkg.dependencies ?? {}),
     ...Object.keys(pkg.pnpm?.overrides ?? {}),
     ...Object.keys(pkg.pnpm?.resolutions ?? {}),
+    ...Object.keys(workspace.overrides ?? {}),
+    ...Object.keys(workspace.resolutions ?? {}),
   ]);
 
   for (const dep of watched) {
     const pkgSpec = pkg.devDependencies?.[dep] ?? pkg.dependencies?.[dep] ?? null;
-    const overrideSpec = pkg.pnpm?.overrides?.[dep] ?? pkg.pnpm?.resolutions?.[dep] ?? pkgSpec;
+    const overrideSpec = workspace.overrides?.[dep] ?? workspace.resolutions?.[dep] ?? pkg.pnpm?.overrides?.[dep] ?? pkg.pnpm?.resolutions?.[dep] ?? pkgSpec;
     if (!overrideSpec) continue;
 
     const lockRootSpecifier = extractLockRootSpecifier(lock, dep);

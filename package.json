@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.1.1",
   "scripts": {
     "build": "pnpm -r build",
     "build:web": "pnpm -r --filter @wasd/web build",
@@ -30,5 +31,8 @@
     "pnpm": "^11.1.1",
     "typescript": "^6.0.3",
     "vitest": "^4.1.6"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.1"
   }
 }
