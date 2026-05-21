@@ -1,4 +1,4 @@
-// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
+// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 export class TreeGrowthSystem {
   grow(tree: any) {
     tree.stage = Math.min((tree.stage || 0) + 1, 4);

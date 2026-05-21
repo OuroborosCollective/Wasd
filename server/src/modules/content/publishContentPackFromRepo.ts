@@ -1,4 +1,4 @@
-// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
+// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 import fs from "node:fs";
 import path from "node:path";
 import { validateContentRoot } from "./validateContentCore.js";

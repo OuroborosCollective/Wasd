@@ -1,4 +1,4 @@
-// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
+// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 /**
  * In-memory party system — create, invite, join, leave, disband.
  * Max 4 members per party.

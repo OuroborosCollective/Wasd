@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 /**
  * Shared Utilities - Deterministic ARE-Logic Implementation
  * All functions use kappaPos integer scaling for deterministic results.

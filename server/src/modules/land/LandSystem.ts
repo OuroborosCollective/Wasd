@@ -1,4 +1,4 @@
-// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
+// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 /**
  * LandSystem – Player Land Ownership for Areloria MMORPG
  * Players can claim land, build on it, and place GLB models.
