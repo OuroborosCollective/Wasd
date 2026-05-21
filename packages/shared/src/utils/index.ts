@@ -8,7 +8,7 @@ let _deterministicTickCount = 0;
 
 /**
  * Get deterministic tick for chain compilation.
- * Uses incrementing counter instead of Date.now() /* ARE-DETERMINISM-ALLOW */ to ensure determinism.
+ * Uses incrementing counter instead of Date.now() ARE-DETERMINISM-ALLOW to ensure determinism.
  */
 export function getDeterministicTick(): number {
   _deterministicTickCount++;
@@ -30,7 +30,7 @@ export const SharedUtils = {
   /**
    * @deprecated Use toKappa() directly for deterministic math
    */
-  getTimestamp: () => 0, // Never use Date.now() /* ARE-DETERMINISM-ALLOW */ in deterministic chain compilation
+  getTimestamp: () => 0, // Never use Date.now() ARE-DETERMINISM-ALLOW in deterministic chain compilation
   
   /**
    * Convert float to kappaPos integer (deterministic)
