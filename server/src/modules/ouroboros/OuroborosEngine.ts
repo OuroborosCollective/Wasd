@@ -10,6 +10,7 @@ import { WorldEventBus, type WorldEvent } from "./WorldEventBus.js";
 import { WorldHistory } from "./WorldHistory.js";
 import { EmergentMarket } from "./EmergentMarket.js";
 import { DynamicFactions } from "./DynamicFactions.js";
+import { SeededARERng, createARESeed } from "../../core/determinism/AREDeterminism.js";
 import { ouroborosTick, type AgentContext, type OuroborosConfig } from "./OuroborosLoop.js";
 import { type NPCMemoryCache } from "../npc/NPCMemoryCache.js";
 import { type NPCRelationshipSystem } from "../npc/NPCRelationshipSystem.js";
@@ -134,6 +135,9 @@ export class OuroborosEngine {
         }
       }
 
+      // ⚖️ Determinism: Seeded RNG per agent per cycle
+      const agentRng = new SeededARERng(createARESeed([tickCount, npc.id, "ouroboros"]));
+
       const ctx: AgentContext = {
         npcId: npc.id,
         name: npc.name,
@@ -141,6 +145,7 @@ export class OuroborosEngine {
         regionId: `region_${Math.floor(npc.position.x / 100)}_${Math.floor(npc.position.y / 100)}`,
         nearbyEntities: nearby,
         worldTime,
+        rng: agentRng,
       };
 
       const action = ouroborosTick(

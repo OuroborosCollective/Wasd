@@ -8,6 +8,7 @@
  */
 
 import { type NPCMemoryCache } from "../npc/NPCMemoryCache.js";
+import { type ARERng } from "../../core/determinism/AREDeterminism.js";
 import { type WorldEventBus } from "./WorldEventBus.js";
 import { type WorldHistory } from "./WorldHistory.js";
 import { type EmergentMarket } from "./EmergentMarket.js";
@@ -22,6 +23,8 @@ export interface AgentContext {
   /** Nearby entity IDs (players + NPCs within perception radius). */
   nearbyEntities: Array<{ id: string; name: string; type: string; position: { x: number; y: number }; faction?: string }>;
   worldTime: number;
+  /** Deterministic RNG for this cycle. */
+  rng: ARERng;
 }
 
 export interface OuroborosConfig {
@@ -141,7 +144,8 @@ export function ouroborosTick(
 
     case "socialize": {
       // Try to form faction if enough unaffiliated nearby agents
-      if (!myFaction && ctx.nearbyEntities.length >= 3 && Math.random() < config.factionFormChance) {
+      // Use deterministic RNG for faction formation chance
+      if (!myFaction && ctx.nearbyEntities.length >= 3 && ctx.rng.nextFloat() < config.factionFormChance) {
         const candidates = ctx.nearbyEntities
           .filter((e) => e.type === "npc" && !factions.getAgentFaction(e.id))
           .map((e) => e.id);
@@ -161,7 +165,8 @@ export function ouroborosTick(
       }
 
       // Try forming family with high-affinity agent
-      if (!action && nearbyFriends.length > 0 && Math.random() < config.familyFormChance) {
+      // Use deterministic RNG for family formation chance
+      if (!action && nearbyFriends.length > 0 && ctx.rng.nextFloat() < config.familyFormChance) {
         const bestFriend = nearbyFriends.reduce((best, e) =>
           getRelationship(ctx.npcId, e.id) > getRelationship(ctx.npcId, best.id) ? e : best,
         );
@@ -182,12 +187,13 @@ export function ouroborosTick(
       }
 
       // Spread legends (oral tradition)
-      if (!action && Math.random() < config.legendSpreadChance) {
+      // Use deterministic RNG for legend spread chance and selection
+      if (!action && ctx.rng.nextFloat() < config.legendSpreadChance) {
         const unknownLegends = history.getLegendsUnknownTo(ctx.npcId);
         const myLegends = history.getLegendsKnownBy(ctx.npcId);
         if (myLegends.length > 0 && nearbyFriends.length > 0) {
-          const legend = myLegends[Math.floor(Math.random() * myLegends.length)];
-          const target = nearbyFriends[Math.floor(Math.random() * nearbyFriends.length)];
+          const legend = myLegends[ctx.rng.nextInt(myLegends.length)];
+          const target = nearbyFriends[ctx.rng.nextInt(nearbyFriends.length)];
           history.spreadLegend(legend.id, ctx.npcId, target.id);
           action = "legend_spread";
           memoryCache.logEvent(ctx.npcId, `spread_legend:${legend.title}:to:${target.name}`);

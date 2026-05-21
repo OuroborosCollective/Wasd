@@ -16,6 +16,7 @@ const criticalRoots = [
 
 const criticalFilePatterns = [
   /^server\/src\/core\/[^/]+Watchdog\.[cm]?[tj]sx?$/,
+  /^server\/src\/modules\/ouroboros\/Ouroboros(Loop|Engine)\.ts$/,
 ];
 
 const excludedPaths = [
@@ -80,8 +81,8 @@ async function walk(dir) {
 }
 
 async function listCriticalFilesFromPatterns() {
-  const coreDir = join(root, 'server/src/core');
-  const files = await walk(coreDir);
+  const serverDir = join(root, 'server/src');
+  const files = await walk(serverDir);
   return files.filter((file) => {
     const rel = normalize(relative(root, file));
     return criticalFilePatterns.some((pattern) => pattern.test(rel));
