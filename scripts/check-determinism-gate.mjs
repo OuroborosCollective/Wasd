@@ -23,6 +23,7 @@ const advisoryHints = [
   '/admin/', '/api/', '/analytics/', '/asset', '/audit', '/chat', '/dashboard', '/debug',
   '/health', '/integrity/', '/liveheal/', '/logger/', '/mail', '/metrics', '/monitor',
   '/notification', '/observability', '/playtester', '/posthog', '/selfhealing/', '/telemetry/',
+  '/ouroboros/',
 ];
 const deny = [
   { pattern: /\bMath\.random\s*\(/, label: 'Math.random()' },
