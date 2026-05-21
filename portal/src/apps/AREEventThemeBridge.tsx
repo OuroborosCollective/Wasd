@@ -65,9 +65,9 @@ export function AREEventThemeBridge({ active = true }: { active?: boolean }): nu
       if (oracle?.active || Number(oracle?.prophecyCount ?? 0) > 0) {
         pushAREEventTheme({
           kind: "oracle",
-          tick: Number(oracle.generatedAtTick ?? tick),
+          tick: Number(oracle?.generatedAtTick ?? tick),
           active: true,
-          severity: Math.min(1, 0.38 + Number(oracle.prophecyCount ?? 0) * 0.12),
+          severity: Math.min(1, 0.38 + Number(oracle?.prophecyCount ?? 0) * 0.12),
           label: "oracle-prophecy",
         });
       }
