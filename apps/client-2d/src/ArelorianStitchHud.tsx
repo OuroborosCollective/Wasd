@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type Msg = { from: string; txt: string };
 type HudPanel = "inventory" | "character" | "map" | "combat" | "guild" | "factions" | "quests" | null;
@@ -24,14 +24,14 @@ const skills = [
   { id: "talk", key: "E", icon: "☉", label: "Talk", cost: "SYNC" },
 ];
 
-const panels: { id: Exclude<HudPanel, null>; label: string; icon: string }[] = [
-  { id: "inventory", label: "Inventory", icon: "◇" },
-  { id: "character", label: "Skills", icon: "⬢" },
-  { id: "combat", label: "Matrix", icon: "✕" },
-  { id: "map", label: "Map", icon: "◌" },
-  { id: "guild", label: "Guild", icon: "♜" },
-  { id: "factions", label: "Factions", icon: "⚖" },
-  { id: "quests", label: "Quests", icon: "!" },
+const panels: { id: Exclude<HudPanel, null>; label: string; icon: string; shortcut: string }[] = [
+  { id: "inventory", label: "Inventory", icon: "◇", shortcut: "i" },
+  { id: "character", label: "Skills", icon: "⬢", shortcut: "k" },
+  { id: "combat", label: "Matrix", icon: "✕", shortcut: "c" },
+  { id: "map", label: "Map", icon: "◌", shortcut: "m" },
+  { id: "guild", label: "Guild", icon: "♜", shortcut: "g" },
+  { id: "factions", label: "Factions", icon: "⚖", shortcut: "f" },
+  { id: "quests", label: "Quests", icon: "!", shortcut: "q" },
 ];
 
 export function ArelorianStitchHud({
@@ -55,6 +55,28 @@ export function ArelorianStitchHud({
   const xp = 31;
 
   const visibleMessages = useMemo(() => messages.slice(-6), [messages]);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      if (e.key === "Escape") {
+        setActivePanel(null);
+        return;
+      }
+
+      const lowerKey = e.key.toLowerCase();
+      const panel = panels.find((p) => p.shortcut === lowerKey);
+      if (panel) {
+        setActivePanel((prev) => (prev === panel.id ? null : panel.id));
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   function submitChat(event: FormEvent) {
     event.preventDefault();
@@ -103,7 +125,7 @@ export function ArelorianStitchHud({
             key={panel.id}
             className={activePanel === panel.id ? "active" : ""}
             onClick={() => setActivePanel(activePanel === panel.id ? null : panel.id)}
-            title={panel.label}
+            title={`${panel.label} [${panel.shortcut.toUpperCase()}]`}
             aria-pressed={activePanel === panel.id}
           >
             <span>{panel.icon}</span>
