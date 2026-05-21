@@ -11,8 +11,16 @@
     "rootDir": "./",
     "composite": true,
     "incremental": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ],
+    "declaration": true
   },
-  "include": ["**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

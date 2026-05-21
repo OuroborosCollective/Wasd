@@ -3,13 +3,24 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
-    "composite": false,
+    "composite": true,
     "incremental": false,
     "skipLibCheck": true,
     "jsx": "react-jsx",
-    "lib": ["ESNext", "DOM"],
-    "types": ["node"]
+    "lib": [
+      "ESNext",
+      "DOM"
+    ],
+    "types": [
+      "node"
+    ],
+    "declaration": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

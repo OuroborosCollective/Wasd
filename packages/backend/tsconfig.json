@@ -5,11 +5,18 @@
     "rootDir": "./src",
     "composite": true,
     "module": "NodeNext",
-    "moduleResolution": "NodeNext"
+    "moduleResolution": "NodeNext",
+    "declaration": true
   },
-  "include": ["src/**/*"],
+  "include": [
+    "src/**/*"
+  ],
   "references": [
-    { "path": "../core" },
-    { "path": "../shared" }
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../shared"
+    }
   ]
 }
