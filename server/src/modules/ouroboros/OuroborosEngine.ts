@@ -11,6 +11,7 @@ import { WorldHistory } from "./WorldHistory.js";
 import { EmergentMarket } from "./EmergentMarket.js";
 import { DynamicFactions } from "./DynamicFactions.js";
 import { ouroborosTick, type AgentContext, type OuroborosConfig } from "./OuroborosLoop.js";
+import { SeededARERng, createARESeed } from "../../core/determinism/AREDeterminism.js";
 import { type NPCMemoryCache } from "../npc/NPCMemoryCache.js";
 import { type NPCRelationshipSystem } from "../npc/NPCRelationshipSystem.js";
 import { type ChatChannelRouter, type ChatRecipient, type SendToPlayerFn, type BroadcastFn, type ResolveSocketIdFn } from "../chat/ChatChannelRouter.js";
@@ -143,6 +144,9 @@ export class OuroborosEngine {
         worldTime,
       };
 
+      // Each agent gets a deterministic RNG seeded by world facts to preserve causality.
+      const rng = new SeededARERng(createARESeed([tickCount, npc.id, "ouroboros"]));
+
       const action = ouroborosTick(
         ctx,
         memoryCache,
@@ -154,6 +158,7 @@ export class OuroborosEngine {
         (a, b, delta) => {
           relationships.adjustAffinity?.(a, b, delta);
         },
+        rng,
         this.config,
       );
 
