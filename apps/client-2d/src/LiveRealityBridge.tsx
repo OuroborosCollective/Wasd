@@ -10,11 +10,6 @@ type LivePoint = {
   kind: "player" | "npc" | "loot";
 };
 
-type LiveRealityBridgeProps = {
-  onFeed: (from: string, txt: string) => void;
-  onConnected: (connected: boolean) => void;
-};
-
 function toPoint(entity: LiveRealityEntity, kind: LivePoint["kind"], index: number): LivePoint {
   return {
     id: `${kind}:${liveId(entity, `${kind}-${index}`)}`,
@@ -44,17 +39,17 @@ function screenPos(point: LivePoint, points: LivePoint[]) {
   };
 }
 
-export function LiveRealityBridge({ onFeed, onConnected }: LiveRealityBridgeProps) {
+export function LiveRealityBridge() {
   const [points, setPoints] = useState<LivePoint[]>([]);
   const [tick, setTick] = useState<number | string>("?");
   const [warfront, setWarfront] = useState<string>("quiet");
   const [oracle, setOracle] = useState<string>("listening");
+  const [connected, setConnected] = useState(false);
+  const [feed, setFeed] = useState("waiting for world_tick…");
   const feedAt = useRef(0);
-  const clientRef = useRef<ReturnType<typeof createClient> | null>(null);
 
   useEffect(() => {
     const client = createClient({ url: "https://arelorian.de", heartbeatInterval: 30000 });
-    clientRef.current = client;
 
     function ingest(event: any, source: "heartbeat" | "world_tick") {
       const payload = livePayload(event);
@@ -74,26 +69,27 @@ export function LiveRealityBridge({ onFeed, onConnected }: LiveRealityBridgeProp
       const now = Date.now();
       if (source === "world_tick" && now - feedAt.current > 5000) {
         feedAt.current = now;
-        onFeed("LiveTick", `Tick ${payload.tick ?? "?"}: ${summary.players.length} players · ${summary.npcs.length} NPCs · ${summary.loot.length} loot`);
+        setFeed(`Tick ${payload.tick ?? "?"}: ${summary.players.length} players · ${summary.npcs.length} NPCs · ${summary.loot.length} loot`);
       }
     }
 
-    client.on("connect" as any, () => { onConnected(true); onFeed("Net", "2D live reality bridge connected."); });
-    client.on("disconnect" as any, () => onConnected(false));
+    client.on("connect" as any, () => { setConnected(true); setFeed("2D live reality bridge connected."); });
+    client.on("disconnect" as any, () => setConnected(false));
     client.on("WORLD_HEARTBEAT" as any, (event: any) => ingest(event, "heartbeat"));
     client.on("world_tick" as any, (event: any) => ingest(event, "world_tick"));
     client.on("WORLD_TICK" as any, (event: any) => ingest(event, "world_tick"));
     client.connect();
 
     return () => client.disconnect();
-  }, [onConnected, onFeed]);
+  }, []);
 
   return (
     <section className="live-reality-bridge" aria-label="Live 2D Reality Bridge">
       <header>
-        <b>LIVE REALITY</b>
+        <b>{connected ? "LIVE REALITY" : "REALITY SYNC"}</b>
         <span>tick {tick} · {warfront} · {oracle}</span>
       </header>
+      <div className="live-reality-feed">{feed}</div>
       <div className="live-reality-field">
         {points.map((point) => {
           const pos = screenPos(point, points);
