@@ -1,4 +1,5 @@
 import { EventEmitter } from 'events';
+import { type AREClock, SystemAREClock } from '../core/determinism/AREDeterminism.js';
 
 export interface NPC {
     id: string;
@@ -34,7 +35,7 @@ export class AREStateCompiler extends EventEmitter {
     private currentVersion: number = 0;
     private isProcessingGenealogy: boolean = false;
 
-    constructor() {
+    constructor(private readonly clock: AREClock = new SystemAREClock()) {
         super();
     }
 
@@ -43,7 +44,10 @@ export class AREStateCompiler extends EventEmitter {
         const deleted: string[] = [];
         const currentSerializedState: Map<string, string> = new Map();
 
-        for (const [id, npc] of state.npcs) {
+        // ⚖️ Jules: Sort Map keys to ensure deterministic iteration order (Insertion order is non-deterministic)
+        const sortedIds = Array.from(state.npcs.keys()).sort();
+        for (const id of sortedIds) {
+            const npc = state.npcs.get(id)!;
             const serialized = JSON.stringify(npc);
             currentSerializedState.set(id, serialized);
 
@@ -52,7 +56,9 @@ export class AREStateCompiler extends EventEmitter {
             }
         }
 
-        for (const id of this.lastKnownState.keys()) {
+        // ⚖️ Jules: Sort lastKnownState keys to ensure deterministic deletion check
+        const lastKnownIds = Array.from(this.lastKnownState.keys()).sort();
+        for (const id of lastKnownIds) {
             if (!state.npcs.has(id)) {
                 deleted.push(id);
             }
@@ -63,7 +69,7 @@ export class AREStateCompiler extends EventEmitter {
         this.currentVersion++;
 
         const snapshot: DeltaSnapshot = {
-            timestamp: Date.now(),
+            timestamp: this.clock.now(),
             baseVersion: previousVersion,
             targetVersion: this.currentVersion,
             integrityHash: this.computeIntegrityHash(upserted, deleted),
@@ -75,7 +81,8 @@ export class AREStateCompiler extends EventEmitter {
     }
 
     private computeIntegrityHash(upserted: NPC[], deleted: string[]): string {
-        const raw = JSON.stringify({ u: upserted.length, d: deleted.length, t: Date.now() });
+        // ⚖️ Jules: Use deterministic clock for integrity hash components
+        const raw = JSON.stringify({ u: upserted.length, d: deleted.length, t: this.clock.now() });
         let hash = 0;
         for (let i = 0; i < raw.length; i++) {
             const char = raw.charCodeAt(i);
@@ -119,15 +126,17 @@ export class AREStateCompiler extends EventEmitter {
     }
 
     private applyBuilderMutation(npc: NPC): void {
+        const now = this.clock.now();
         const oldProfile = npc.profile;
         npc.profile = 'Builder';
-        npc.genealogy.mutations.push(`LEGEND_SPREAD_THRESHOLD_REACHED_${Date.now()}`);
+        // ⚖️ Jules: Use deterministic clock for mutation metadata to prevent WorldHash drift
+        npc.genealogy.mutations.push(`LEGEND_SPREAD_THRESHOLD_REACHED_${now}`);
         
         this.emit('npcEvolved', {
             id: npc.id,
             previousProfile: oldProfile,
             newProfile: 'Builder',
-            timestamp: Date.now()
+            timestamp: now
         });
     }
 
