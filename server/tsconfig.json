@@ -20,7 +20,7 @@
     "forceConsistentCasingInFileNames": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "composite": false,
+    "composite": true,
     "declaration": false,
     "declarationMap": false,
     "sourceMap": true,
