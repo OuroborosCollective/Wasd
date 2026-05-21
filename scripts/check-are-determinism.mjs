@@ -12,7 +12,6 @@ const criticalRoots = [
   'server/src/modules/loot',
   'server/src/modules/warfront',
   'server/src/modules/oracle',
-  'server/src/modules/ouroboros',
 ];
 
 const criticalFilePatterns = [
@@ -113,6 +112,18 @@ const files = new Set();
 for (const criticalRoot of criticalRoots) {
   for (const file of await walk(join(root, criticalRoot))) {
     files.add(file);
+  }
+}
+
+const explicitCriticalFiles = [
+  'server/src/modules/ouroboros/OuroborosLoop.ts',
+  'server/src/modules/ouroboros/OuroborosEngine.ts',
+];
+
+for (const relPath of explicitCriticalFiles) {
+  const fullPath = join(root, relPath);
+  if (existsSync(fullPath)) {
+    files.add(fullPath);
   }
 }
 for (const file of await listCriticalFilesFromPatterns()) {
