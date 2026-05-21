@@ -26,6 +26,11 @@ type Entity = {
 };
 type Msg = { from: string; txt: string };
 type LoadedAssets = { manifest: AssetManifest | null; textures: Map<string, Texture> };
+type CharacterSelection = {
+  tags: string[];
+  group?: string | null;
+  kind?: string | null;
+};
 
 function iso(x: number, z: number, width: number, height: number) {
   return { x: width / 2 + (x - z) * TILE_W * 0.5, y: height * 0.45 + (x + z) * TILE_H * 0.5 };
@@ -135,22 +140,38 @@ function addWeaponSprite(c: Container, assets: LoadedAssets | null | undefined, 
   c.addChild(weaponSprite);
 }
 
-function characterTagsForName(name: string, player = false): string[] {
+function deterministicIndex(seed: string, length: number): number {
+  let hash = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return Math.abs(hash) % length;
+}
+
+function chooseCivilianGroup(seed: string): string {
+  return ["Female", "Male"][deterministicIndex(seed, 2)] ?? "Male";
+}
+
+function characterSelectionForName(name: string, player = false, seed = name): CharacterSelection {
   const lower = name.toLowerCase();
-  if (player) return ["civilian"];
-  if (lower.includes("boss") || lower.includes("apex")) return ["boss"];
-  if (lower.includes("guard") || lower.includes("soldier") || lower.includes("warfront")) return ["soldier"];
-  if (lower.includes("animal") || lower.includes("wolf")) return ["animal"];
-  if (lower.includes("enemy") || lower.includes("goblin") || lower.includes("monster")) return ["enemy"];
-  return ["civilian"];
+  if (player) return { tags: ["civilian"], group: chooseCivilianGroup(`player:${seed}`) };
+  if (lower.includes("boss") || lower.includes("apex")) return { tags: ["boss"], group: "Boss", kind: "boss" };
+  if (lower.includes("guard") || lower.includes("soldier") || lower.includes("warfront")) return { tags: ["soldier"], group: "Soldier" };
+  if (lower.includes("animal") || lower.includes("wolf")) return { tags: ["animal"], group: "Animal", kind: "animal" };
+  if (lower.includes("enemy") || lower.includes("goblin") || lower.includes("monster")) return { tags: ["enemy"], group: "Enemy", kind: "enemy" };
+  return { tags: ["civilian"], group: chooseCivilianGroup(`npc:${seed}:${lower}`) };
 }
 
 function avatar(name: string, player = false, assets?: LoadedAssets | null, weaponVisualId?: string | null, characterVisualId?: string | null) {
   const c = new Container();
   const aura = player ? 0x00e5ff : 0x39ff14;
+  const selection = characterSelectionForName(name, player, characterVisualId ?? name);
   const picked = pickCharacterVisual(assets?.manifest ?? null, {
     visualId: characterVisualId,
-    tags: characterTagsForName(name, player),
+    tags: selection.tags,
+    group: selection.group,
+    kind: selection.kind,
     seed: `${player ? "player" : "npc"}:${name}:${characterVisualId ?? "auto"}`,
   });
   const entry = picked?.entry ?? fallbackEntry(assets?.manifest ?? null, "characters", player ? "player" : "npc");
@@ -277,7 +298,13 @@ export function CyberZenIsoApp() {
       return;
     }
     const resolvedWeaponId = player ? (weaponVisualId ?? equippedWeaponId) : pickWeaponVisual(assets?.manifest ?? null, { seed: name })?.id ?? null;
-    const characterVisualId = pickCharacterVisual(assets?.manifest ?? null, { tags: characterTagsForName(name, player), seed: `${id}:${name}` })?.id ?? null;
+    const selection = characterSelectionForName(name, player, `${id}:${name}`);
+    const characterVisualId = pickCharacterVisual(assets?.manifest ?? null, {
+      tags: selection.tags,
+      group: selection.group,
+      kind: selection.kind,
+      seed: `${id}:${name}`,
+    })?.id ?? null;
     const root = avatar(name, player, assets, resolvedWeaponId, characterVisualId); place(root, x, z, app.screen.width, app.screen.height);
     layer.addChild(root); entities.current.set(id, { root, tx: x, tz: z, name, isPlayer: player, weaponVisualId: resolvedWeaponId, characterVisualId });
   }
