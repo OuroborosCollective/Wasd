@@ -97,7 +97,6 @@ export class EconomySimulation {
     const worldState = worldStateRegistry.getCurrentState();
     const tick = worldStateRegistry.getTick();
 
-    // Level-A Simulation requires deterministic iteration over entity collections.
     const sortedRegionIds = Array.from(worldState.regions.keys()).sort();
 
     for (const regionId of sortedRegionIds) {
@@ -119,7 +118,6 @@ export class EconomySimulation {
    */
   private processExtractions(region: RegionState): void {
     // Each extraction reduces regional energy
-    // Enforce deterministic iteration for WorldHash stability.
     const sortedResourceTypes = Array.from(region.resourceSaturation.keys()).sort();
 
     for (const resourceType of sortedResourceTypes) {
@@ -161,7 +159,6 @@ export class EconomySimulation {
   private updatePrices(region: RegionState): void {
     const tick = worldStateRegistry.getTick();
 
-    // Enforce deterministic iteration for WorldHash stability.
     const sortedResourceTypes = Array.from(region.resourceSaturation.keys()).sort();
 
     for (const resourceType of sortedResourceTypes) {
@@ -365,8 +362,6 @@ export class EconomySimulation {
   public calculateTotalRegionEnergy(): number {
     const worldState = worldStateRegistry.getCurrentState();
     let total = 0;
-
-    // Enforce deterministic iteration for WorldHash stability.
     const sortedRegionIds = Array.from(worldState.regions.keys()).sort();
 
     for (const regionId of sortedRegionIds) {
