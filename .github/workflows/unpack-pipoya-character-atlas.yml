@@ -2,6 +2,15 @@ name: Unpack Pipoya Character Atlas
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "Workflow mode"
+        required: true
+        default: "unpack-atlas"
+        type: choice
+        options:
+          - unpack-atlas
+          - patch-runtime
 
 permissions:
   contents: write
@@ -13,6 +22,7 @@ concurrency:
 
 jobs:
   unpack:
+    if: ${{ github.event.inputs.mode == 'unpack-atlas' }}
     name: Unpack prepared 2D character atlas
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -79,3 +89,40 @@ jobs:
             --head "$BRANCH" \
             --title "Add Pipoya 2D character atlas assets" \
             --body "Cold asset drop generated from asset-packs/2d/pipoya-character-atlas-drop.zip. Adds only the packed PNG atlas, atlas JSON, and documentation. No runtime, package, lockfile, workflow, or deploy changes."
+
+  patch-runtime:
+    if: ${{ github.event.inputs.mode == 'patch-runtime' }}
+    name: Patch Pipoya 2D runtime branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout runtime branch
+        uses: actions/checkout@v4
+        with:
+          ref: pipoya-character-runtime-1
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Apply renderer patch
+        run: |
+          set -euo pipefail
+          python3 scripts/patch-pipoya-character-runtime.py
+          grep -q "pickCharacterVisual" apps/client-2d/src/CyberZenIsoApp.tsx
+          grep -q "characterVisualId" apps/client-2d/src/CyberZenIsoApp.tsx
+          grep -q "atlasFrameTextureFor" apps/client-2d/src/CyberZenIsoApp.tsx
+
+      - name: Commit renderer patch
+        run: |
+          set -euo pipefail
+          git add apps/client-2d/src/CyberZenIsoApp.tsx
+          if git diff --cached --quiet; then
+            echo "No renderer changes to commit."
+            exit 0
+          fi
+          git commit -m "Use Pipoya character visuals"
+          git push origin HEAD:pipoya-character-runtime-1
