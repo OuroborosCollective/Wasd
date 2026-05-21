@@ -1,3 +1,4 @@
+/** @ARE-GUARD-EXEMPT: Meta GameStateManager for real-time payload streaming. */
 /**
  * @ARE-GUARD-EXEMPT: Meta GameStateManager for real-time payload streaming.
  */

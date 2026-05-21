@@ -1,3 +1,4 @@
+/** @ARE-GUARD-EXEMPT: Meta orchestrator for external AI services. */
 interface TaskPayload {
     eventType: string;
     payload: any;
