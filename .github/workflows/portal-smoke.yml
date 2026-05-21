@@ -1,0 +1,53 @@
+name: Portal Runtime Smoke
+
+on:
+  pull_request:
+    paths:
+      - 'client/**'
+      - 'scripts/write-runtime-entrypoints.mjs'
+      - 'Dockerfile.prod'
+      - '.github/workflows/portal-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  portal-smoke:
+    name: Build and verify portal runtime entrypoints
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Prepare pnpm
+        run: corepack prepare pnpm@9.12.2 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build client runtime entrypoints
+        run: pnpm --filter @wasd/client build
+
+      - name: Verify runtime files
+        run: |
+          set -euo pipefail
+          test -f client/dist/index.html
+          test -f client/dist/portal/index.html
+          test -f client/dist/are-console.html
+          test -f client/dist/sovereign-truth.html
+          test -f client/dist/runtime-build-info.json
+          grep -q 'ARE Console' client/dist/are-console.html
+          grep -q 'entrypoints' client/dist/runtime-build-info.json
+          echo 'Portal runtime entrypoints smoke OK'
