@@ -194,8 +194,9 @@ export class EvolutionSystem {
   public analyzeFlowPatterns(): void {
     this.flowDirectives = [];
     
-    // Find high-traffic corridors (potential sogeffekt)
-    for (const [key, corridor] of this.travelHeat) {
+    // Find high-traffic corridors (potential sogeffekt) - Sorted for determinism
+    const sortedHeat = [...this.travelHeat.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    for (const [key, corridor] of sortedHeat) {
       if (corridor.intensity > this.SOG_THRESHOLD) {
         // This is a "pull" effect - too many players going to same place
         this.flowDirectives.push({
@@ -208,11 +209,19 @@ export class EvolutionSystem {
       }
     }
     
-    // Find empty chunks that were previously active (disperese effect)
-    for (const [chunk, players] of this.chunkPlayers) {
+    // Find empty chunks that were previously active (disperese effect) - Sorted for determinism
+    const sortedChunks = [...this.chunkPlayers.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+
+    // Re-use sortedHeat data for inner loops if possible, or sort once outside
+    const sortedCorridors = [...this.travelHeat.values()].sort((a, b) => {
+      if (a.toChunk !== b.toChunk) return a.toChunk < b.toChunk ? -1 : 1;
+      return a.fromChunk < b.fromChunk ? -1 : a.fromChunk > b.fromChunk ? 1 : 0;
+    });
+
+    for (const [chunk, players] of sortedChunks) {
       if (players.size === 0) {
         // Check if this was a destination - might need to disperse
-        for (const corridor of this.travelHeat.values()) {
+        for (const corridor of sortedCorridors) {
           if (corridor.toChunk === chunk && corridor.intensity < toFP(0.1)) {
             this.flowDirectives.push({
               directiveId: directiveId('disperse', chunk, corridor.fromChunk, corridor.toChunk),
@@ -235,7 +244,9 @@ export class EvolutionSystem {
     const currentTick = worldStateRegistry.getTick();
     const worldState = worldStateRegistry.getCurrentState();
     
-    for (const [regionId, region] of worldState.regions) {
+    // Sort regions by ID to ensure deterministic mutation order
+    const sortedRegions = [...worldState.regions.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    for (const [regionId, region] of sortedRegions) {
       this.evaluateStability(regionId, region, currentTick);
     }
     
@@ -525,8 +536,9 @@ export class EvolutionSystem {
    * Clear old travel data (cleanup)
    */
   public clearTravelData(): void {
-    // Clear old corridors with low intensity
-    for (const [key, corridor] of this.travelHeat) {
+    // Clear old corridors with low intensity - Sorted for deterministic cleanup
+    const sortedHeat = [...this.travelHeat.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    for (const [key, corridor] of sortedHeat) {
       if (corridor.intensity < toFP(0.05)) {
         this.travelHeat.delete(key);
       }
