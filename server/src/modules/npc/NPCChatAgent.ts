@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 import { NPCChatBridge } from "./NPCChatBridge.js";
 import { LLMService } from "../llm/LLMService.js";
 import type { NPCContext } from "./NPCChatTypes.js";

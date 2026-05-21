@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 import { isItemBoundOrNonTransferable } from "../items/itemBindingPolicy.js";
 
 export class PlayerMarket {

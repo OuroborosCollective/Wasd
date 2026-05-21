@@ -1,4 +1,4 @@
-// @ARE-GUARD-EXEMPT: Combat service metadata; not world-state input.
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 import { ComboValidator, type ComboResult } from "./ComboValidator.js";
 
 export interface CombatState {

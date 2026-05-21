@@ -1,4 +1,4 @@
-// @ARE-GUARD-EXEMPT: Sync timestamps for state management; not world-state input.
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 /**
  * @file server/src/core/state/WorldStateRegistry.ts
  * @description Single Source of Truth (SSoT) for deterministic world state.

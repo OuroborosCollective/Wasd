@@ -1,4 +1,4 @@
-// @ARE-GUARD-EXEMPT: Health/API timestamp only; not a world-state or world-hash input.
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 /**
  * @file server/src/core/api/APIServer.ts
  * @description High-performance API Server.

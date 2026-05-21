@@ -1,4 +1,4 @@
-// @ARE-GUARD-EXEMPT: Audit log timestamp; not simulation input.
+// @ARE-GUARD-EXEMPT: Infrastructure/Meta/Telemetry logic; not world-state critical.
 export class AdminAuditLog {
   private entries:any[] = [];
   write(entry:any) { this.entries.push({ ts: Date.now(), ...entry }); }

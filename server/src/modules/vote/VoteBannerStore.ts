@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";

@@ -1,4 +1,4 @@
-// @ARE-GUARD-EXEMPT: Market monitor timestamps; not world-state input.
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 import { EventEmitter } from 'events';
 
 interface MarketItem {

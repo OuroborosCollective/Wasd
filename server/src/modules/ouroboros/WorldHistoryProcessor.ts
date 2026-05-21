@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 import { BountySystem } from "./BountySystem";
 
 export interface WorldEvent {

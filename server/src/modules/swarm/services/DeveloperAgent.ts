@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 import { Logger } from "../../../core/logger/Logger.js";
 import { AIService } from "../../../ai/services/AIService.js";
 

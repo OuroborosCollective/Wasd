@@ -1,4 +1,4 @@
-// @ARE-GUARD-EXEMPT: Group creation timestamps; not world-state input.
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 export class GroupFinder {
   createListing(ownerId: string, activity: string) {
     return {

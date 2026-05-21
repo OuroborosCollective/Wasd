@@ -1,4 +1,4 @@
-// @ARE-GUARD-EXEMPT: Memory entry timestamps; not world-state input.
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 export class FactionMemory {
   private memory = new Map<string, any[]>();
   remember(factionId:string, event:any){

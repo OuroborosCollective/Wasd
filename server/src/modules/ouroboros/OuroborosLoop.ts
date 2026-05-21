@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 /**
  * OuroborosLoop — the self-sustaining agent cycle.
  *

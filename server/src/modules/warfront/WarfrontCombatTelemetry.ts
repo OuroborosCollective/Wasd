@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 import { WorldHistory } from "../history/WorldHistory.js";
 import { serverWorldEventBus } from "../../events/WorldEventBus.js";
 import { pushLiveTickerHazard } from "../../theme/serverThemeHazard.js";

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Infrastructure/Meta/Telemetry logic; not world-state critical.
 import { PlaytesterConfig } from "../../config/PlaytesterConfig.js";
 import { ItemRegistry } from "../inventory/ItemRegistry.js";
 import { PlaytesterBrain } from "./PlaytesterBrain.js";

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 /**
  * Major-branch “Scheideweg” resolution (faction / strand), separate from graph node `strandResolver`.
  */

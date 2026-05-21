@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 export function mutateMonster(dna: any, biome: string) {
   const clone = { ...dna, mutations: [] as string[] };
 

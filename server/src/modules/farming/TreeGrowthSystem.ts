@@ -1,4 +1,4 @@
-// @ARE-GUARD-EXEMPT: Growth timing; not world-state input.
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 export class TreeGrowthSystem {
   grow(tree: any) {
     tree.stage = Math.min((tree.stage || 0) + 1, 4);

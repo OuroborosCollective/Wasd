@@ -1,4 +1,4 @@
-// @ARE-GUARD-EXEMPT: Integrity event timestamp only; not used for simulation.
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 import * as fs from 'fs/promises';
 import * as crypto from 'crypto';
 import * as path from 'path';

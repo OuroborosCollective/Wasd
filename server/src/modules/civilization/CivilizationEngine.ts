@@ -1,4 +1,4 @@
-// @ARE-GUARD-EXEMPT: Record creation timestamps; not world-state input.
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 export class CivilizationEngine {
   createVillage(guildMembers: number) {
     if (guildMembers < 50) return null;

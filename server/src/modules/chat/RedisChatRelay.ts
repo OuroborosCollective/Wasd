@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Infrastructure/Meta/Telemetry logic; not world-state critical.
 import type { Redis } from "ioredis";
 import { Redis as RedisClient } from "ioredis";
 

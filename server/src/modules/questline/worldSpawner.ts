@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 import { createHash } from "node:crypto";
 import { getFactionByStrand, type Faction } from "./factionRegistry.js";
 

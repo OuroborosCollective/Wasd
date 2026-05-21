@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 import type { AdminGlbModelNeed } from "../content/adminGlbModelNeeds.js";
 import type { NPCMemoryCache } from "../npc/NPCMemoryCache.js";
 

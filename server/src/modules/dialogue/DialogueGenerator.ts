@@ -1,4 +1,4 @@
-// @ARE-GUARD-EXEMPT: Dialogue variety randomization; not simulation critical.
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 import { DialogueTemplates } from "./DialogueTemplates.js";
 
 export class DialogueGenerator {

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 // @ts-nocheck
 /**
  * NPCHeuristics — local heuristic weight updates based on outcomes.

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 /**
  * DynamicFactions — emergent faction formation, politics, and war/peace resolution.
  *

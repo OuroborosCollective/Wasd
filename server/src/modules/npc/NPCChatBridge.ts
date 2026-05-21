@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 import { NPCMemoryCache, type MemoryEvent } from "./NPCMemoryCache.js";
 import type { NPCTraits } from "./NPCTraits.js";
 import type { NPCContext } from "./NPCChatTypes.js";

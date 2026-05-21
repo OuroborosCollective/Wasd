@@ -1,4 +1,4 @@
-// @ARE-GUARD-EXEMPT: Sync metadata timestamps; not world-state input.
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 /**

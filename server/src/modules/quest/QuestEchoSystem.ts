@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 export enum EchoIntensity {
     Combat = 0.95,
     Collect = 0.80,

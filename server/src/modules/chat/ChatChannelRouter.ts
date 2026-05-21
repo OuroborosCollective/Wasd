@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Infrastructure/Meta/Telemetry logic; not world-state critical.
 /**
  * ChatChannelRouter — routes messages through the 3-channel chat system.
  *

@@ -1,4 +1,4 @@
-// @ARE-GUARD-EXEMPT: Payload metadata timestamps; not world-state input.
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 import { WeatherResonance } from "../modules/WeatherResonance";
 
 export interface AREPayload {

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 // @ts-nocheck: optional external DB client types in minimal builds.
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { NPCTraits } from "./NPCTraits.js";

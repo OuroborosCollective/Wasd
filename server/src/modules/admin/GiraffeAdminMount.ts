@@ -1,4 +1,4 @@
-// @ARE-GUARD-EXEMPT: Summon timestamp for admin mount; not simulation affecting.
+// @ARE-GUARD-EXEMPT: Infrastructure/Meta/Telemetry logic; not world-state critical.
 export class GiraffeAdminMount {
   summon(ownerId:string) {
     return {

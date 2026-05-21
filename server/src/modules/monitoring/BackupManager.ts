@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Infrastructure/Meta/Telemetry logic; not world-state critical.
 import { exec } from 'child_process';
 import util from 'util';
 

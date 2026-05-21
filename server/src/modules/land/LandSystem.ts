@@ -1,4 +1,4 @@
-// @ARE-GUARD-EXEMPT: Claim/Place timestamps; not world-state input.
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 /**
  * LandSystem – Player Land Ownership for Areloria MMORPG
  * Players can claim land, build on it, and place GLB models.

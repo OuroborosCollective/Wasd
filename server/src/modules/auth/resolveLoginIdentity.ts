@@ -1,4 +1,4 @@
-// @ARE-GUARD-EXEMPT: UUID generation for new identities; not simulation branching.
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 import { randomUUID } from "node:crypto";
 import { isSupabaseAuthConfigured, verifySupabaseToken } from "../../config/supabase.js";
 

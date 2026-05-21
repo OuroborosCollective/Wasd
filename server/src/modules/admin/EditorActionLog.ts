@@ -1,4 +1,4 @@
-// @ARE-GUARD-EXEMPT: Editor action timestamp; not simulation input.
+// @ARE-GUARD-EXEMPT: Infrastructure/Meta/Telemetry logic; not world-state critical.
 export class EditorActionLog {
   private actions:any[] = [];
   record(action:any){

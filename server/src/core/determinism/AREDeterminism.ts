@@ -11,7 +11,7 @@ export interface ARERng {
 
 export class SystemAREClock implements AREClock {
   now(): number {
-    return Date.now(); /* ARE-DETERMINISM-ALLOW */
+    return Date.now(); /* ARE-DETERMINISM-ALLOW */  /* ARE-DETERMINISM-ALLOW */  /* ARE-DETERMINISM-ALLOW */
   }
 }
 

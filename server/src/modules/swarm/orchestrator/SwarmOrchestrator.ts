@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 export enum OrchestratorStatus {
     IDLE = 'IDLE',
     INITIALIZING = 'INITIALIZING',

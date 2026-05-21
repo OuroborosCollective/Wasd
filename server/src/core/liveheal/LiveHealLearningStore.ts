@@ -1,4 +1,4 @@
-// @ARE-GUARD-EXEMPT: Self-healing telemetry and timing; not simulation affecting.
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 /**
  * LiveHeal v2 - Local Learning Store
  *

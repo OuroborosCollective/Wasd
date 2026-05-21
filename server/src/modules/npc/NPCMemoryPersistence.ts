@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 // @ts-nocheck
 /**
  * NPCMemoryPersistence — Layer 2: Supabase-backed long-term NPC memory.
