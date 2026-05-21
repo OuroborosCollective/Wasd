@@ -4,6 +4,7 @@ import { createClient } from "@wasd/core-network";
 import {
   fallbackEntry,
   loadAssetManifest,
+  pickCharacterVisual,
   pickWeaponVisual,
   type AssetEntry,
   type AssetManifest,
@@ -21,6 +22,7 @@ type Entity = {
   name: string;
   isPlayer: boolean;
   weaponVisualId: string | null;
+  characterVisualId: string | null;
 };
 type Msg = { from: string; txt: string };
 type LoadedAssets = { manifest: AssetManifest | null; textures: Map<string, Texture> };
@@ -46,16 +48,35 @@ function textureFor(assets: LoadedAssets | null, entry: AssetEntry | null): Text
   return assets.textures.get(entry.src) ?? null;
 }
 
-function weaponTextureFor(assets: LoadedAssets | null, entry: AssetEntry | null): Texture | null {
+function atlasFrameTextureFor(assets: LoadedAssets | null, entry: AssetEntry | null, animation = "idle_down"): Texture | null {
   if (!assets || !entry?.src) return null;
   const baseTexture = assets.textures.get(entry.src);
   if (!baseTexture) return null;
-  if (!entry.frame) return baseTexture;
 
-  return new Texture({
-    source: baseTexture.source,
-    frame: new Rectangle(entry.frame.x, entry.frame.y, entry.frame.w, entry.frame.h),
-  });
+  if (entry.sheetFrame && entry.frameSize) {
+    const anim = entry.animations?.[animation] as { row?: number; frames?: number[] } | undefined;
+    const row = Number.isInteger(anim?.row) ? Number(anim?.row) : 0;
+    const frameIndex = Number.isInteger(anim?.frames?.[0]) ? Number(anim?.frames?.[0]) : 1;
+    return new Texture({
+      source: baseTexture.source,
+      frame: new Rectangle(
+        entry.sheetFrame.x + frameIndex * entry.frameSize.w,
+        entry.sheetFrame.y + row * entry.frameSize.h,
+        entry.frameSize.w,
+        entry.frameSize.h,
+      ),
+    });
+  }
+
+  if (entry.frame) {
+    return new Texture({ source: baseTexture.source, frame: new Rectangle(entry.frame.x, entry.frame.y, entry.frame.w, entry.frame.h) });
+  }
+
+  return baseTexture;
+}
+
+function weaponTextureFor(assets: LoadedAssets | null, entry: AssetEntry | null): Texture | null {
+  return atlasFrameTextureFor(assets, entry);
 }
 
 function spriteFromTexture(texture: Texture, width: number, height: number, y = 0) {
@@ -114,11 +135,26 @@ function addWeaponSprite(c: Container, assets: LoadedAssets | null | undefined, 
   c.addChild(weaponSprite);
 }
 
-function avatar(name: string, player = false, assets?: LoadedAssets | null, weaponVisualId?: string | null) {
+function characterTagsForName(name: string, player = false): string[] {
+  const lower = name.toLowerCase();
+  if (player) return ["civilian"];
+  if (lower.includes("boss") || lower.includes("apex")) return ["boss"];
+  if (lower.includes("guard") || lower.includes("soldier") || lower.includes("warfront")) return ["soldier"];
+  if (lower.includes("animal") || lower.includes("wolf")) return ["animal"];
+  if (lower.includes("enemy") || lower.includes("goblin") || lower.includes("monster")) return ["enemy"];
+  return ["civilian"];
+}
+
+function avatar(name: string, player = false, assets?: LoadedAssets | null, weaponVisualId?: string | null, characterVisualId?: string | null) {
   const c = new Container();
   const aura = player ? 0x00e5ff : 0x39ff14;
-  const entry = fallbackEntry(assets?.manifest ?? null, "characters", player ? "player" : "npc");
-  const tex = textureFor(assets ?? null, entry);
+  const picked = pickCharacterVisual(assets?.manifest ?? null, {
+    visualId: characterVisualId,
+    tags: characterTagsForName(name, player),
+    seed: `${player ? "player" : "npc"}:${name}:${characterVisualId ?? "auto"}`,
+  });
+  const entry = picked?.entry ?? fallbackEntry(assets?.manifest ?? null, "characters", player ? "player" : "npc");
+  const tex = atlasFrameTextureFor(assets ?? null, entry, "idle_down") ?? textureFor(assets ?? null, entry);
   c.addChild(new Graphics().ellipse(0, 18, 23, 8).fill({ color: 0x02040a, alpha: 0.56 }));
   if (tex) c.addChild(spriteFromTexture(tex, 58, 74));
   else {
@@ -139,6 +175,10 @@ function place(node: Container, x: number, z: number, width: number, height: num
 
 function weaponIds(manifest: AssetManifest | null | undefined): string[] {
   return Object.keys(manifest?.weapons ?? {}).sort();
+}
+
+function characterIds(manifest: AssetManifest | null | undefined): string[] {
+  return Object.keys(manifest?.characters ?? {}).filter((id) => id.startsWith("pipoya_")).sort();
 }
 
 function resolveEquippedWeaponId(manifest: AssetManifest | null, seed: string): string | null {
@@ -201,11 +241,12 @@ export function CyberZenIsoApp() {
       assetRef.current = loaded;
       const textureCount = loaded.textures.size;
       const weapons = weaponIds(loaded.manifest).length;
+      const characters = characterIds(loaded.manifest).length;
       const initialWeaponId = resolveEquippedWeaponId(loaded.manifest, playerName);
       setEquippedWeaponId(initialWeaponId);
       setWeaponCount(weapons);
       setAssetStatus(textureCount > 0 ? `ASSETS_${textureCount}_LOADED` : "PROXY_GRAPHICS");
-      setMessages(m => [...m.slice(-12), { from: "AssetRig", txt: textureCount > 0 ? `Loaded ${textureCount} textures and ${weapons} weapon visuals.` : "No manifest textures yet. Using proxy graphics." }]);
+      setMessages(m => [...m.slice(-12), { from: "AssetRig", txt: textureCount > 0 ? `Loaded ${textureCount} textures, ${characters} characters and ${weapons} weapon visuals.` : "No manifest textures yet. Using proxy graphics." }]);
       const terrain = new Container(); const props = new Container(); const actors = new Container(); actors.sortableChildren = true;
       actorLayerRef.current = actors;
       app.stage.addChild(terrain, props, actors);
@@ -236,8 +277,9 @@ export function CyberZenIsoApp() {
       return;
     }
     const resolvedWeaponId = player ? (weaponVisualId ?? equippedWeaponId) : pickWeaponVisual(assets?.manifest ?? null, { seed: name })?.id ?? null;
-    const root = avatar(name, player, assets, resolvedWeaponId); place(root, x, z, app.screen.width, app.screen.height);
-    layer.addChild(root); entities.current.set(id, { root, tx: x, tz: z, name, isPlayer: player, weaponVisualId: resolvedWeaponId });
+    const characterVisualId = pickCharacterVisual(assets?.manifest ?? null, { tags: characterTagsForName(name, player), seed: `${id}:${name}` })?.id ?? null;
+    const root = avatar(name, player, assets, resolvedWeaponId, characterVisualId); place(root, x, z, app.screen.width, app.screen.height);
+    layer.addChild(root); entities.current.set(id, { root, tx: x, tz: z, name, isPlayer: player, weaponVisualId: resolvedWeaponId, characterVisualId });
   }
 
   function rebuildActorVisual(id: string, weaponVisualId: string | null) {
@@ -248,7 +290,7 @@ export function CyberZenIsoApp() {
     if (!app || !layer || !ent) return;
 
     const oldRoot = ent.root;
-    const root = avatar(ent.name, ent.isPlayer, assets, weaponVisualId);
+    const root = avatar(ent.name, ent.isPlayer, assets, weaponVisualId, ent.characterVisualId);
     place(root, ent.tx, ent.tz, app.screen.width, app.screen.height);
     layer.addChild(root);
     oldRoot.destroy({ children: true });
