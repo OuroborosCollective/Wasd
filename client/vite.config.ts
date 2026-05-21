@@ -19,7 +19,6 @@ export default defineConfig(({ mode }) => {
 
   // Build minification - esbuild for production (terser is optional)
   const minify = isProduction ? "esbuild" : "esbuild";
-  const generateInlineSourceMap = !isProduction;
 
   return {
     // Relative base for itch.io builds ensures assets load correctly regardless of subfolder
@@ -71,16 +70,15 @@ export default defineConfig(({ mode }) => {
       },
     ],
     build: {
+      target: "esnext",
       outDir: isItchBuild ? "dist-itch" : "dist",
       emptyOutDir: true,
-      // Production minification
       minify: minify,
       cssCodeSplit: true,
       assetsInlineLimit: 4096,
       sourcemap: env.VITE_BUILD_SOURCEMAP === "1",
       reportCompressedSize: false,
       chunkSizeWarningLimit: 2000,
-      // Remove console.log in production
       pureAnnotations: isProduction ? ["console.log", "console.debug", "console.info"] : [],
       rollupOptions: {
         input: isItchBuild
@@ -90,7 +88,6 @@ export default defineConfig(({ mode }) => {
               playtester_monitor: path.resolve(__dirname, "playtester-monitor.html"),
             },
         output: {
-          // Optimized chunking strategy for Areloria WASD (Three.js focus)
           manualChunks(id) {
             if (id.includes("node_modules/three")) return "threejs-core";
             if (id.includes("node_modules/@react-three")) return "threejs-react";
@@ -99,7 +96,6 @@ export default defineConfig(({ mode }) => {
             if (id.includes("node_modules/babylonjs")) return "babylonjs-core";
             if (id.includes("node_modules")) return "vendor";
           },
-          // Clean asset naming for production
           entryFileNames: "assets/[name]-[hash].js",
           chunkFileNames: "assets/[name]-[hash].js",
           assetFileNames: "assets/[name]-[hash].[ext]",
