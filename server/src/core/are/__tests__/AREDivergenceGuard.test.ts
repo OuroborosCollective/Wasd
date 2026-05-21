@@ -26,10 +26,13 @@ describe('ARE-Logic: divergence guard', () => {
   it('reports warn and critical thresholds without throwing', () => {
     const buffer = new AREReplayBuffer(5);
     recordAt(buffer, 10);
-    const guard = new AREDivergenceGuard({ warn: 10, critical: 1000 });
 
-    const warn = guard.measure(10, 'entity:1', { x: 2, y: 2, z: 0 }, buffer);
-    const critical = guard.measure(10, 'entity:1', { x: 100, y: 2, z: 0 }, buffer);
+    // 1 unit diff = 1000 Kappa.
+    // recordAt is at x=1 (1000 Kappa).
+    const guard = new AREDivergenceGuard({ warn: 500, critical: 5000 });
+
+    const warn = guard.measure(10, 'entity:1', { x: 1.6, y: 2, z: 0 }, buffer); // 600 Kappa diff
+    const critical = guard.measure(10, 'entity:1', { x: 7, y: 2, z: 0 }, buffer); // 6000 Kappa diff
 
     expect(warn?.status).toBe('warn');
     expect(critical?.status).toBe('critical');

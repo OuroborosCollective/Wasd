@@ -30,8 +30,16 @@ function extractLockRootSpecifier(lockText, dep) {
   return (m?.[1] ?? m?.[2] ?? null)?.replace(/^['"]|['"]$/g, '') ?? null;
 }
 
+function extractYamlOverride(yamlText, name) {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`['"]?${escaped}['"]?\\s*:\\s*['"]?([^'"]\\S+)['"]?`);
+  const m = yamlText.match(re);
+  return m?.[1] ?? null;
+}
+
 function checkRootOverrideConsistency() {
   const pkg = readJson('package.json');
+  const workspaceFile = existsSync('pnpm-workspace.yaml') ? readFileSync('pnpm-workspace.yaml', 'utf8') : '';
   const lock = readFileSync('pnpm-lock.yaml', 'utf8');
   const dockerSync = readFileSync('scripts/sync-pnpm-lockfile-for-docker.py', 'utf8');
 
@@ -40,26 +48,34 @@ function checkRootOverrideConsistency() {
     ...Object.keys(pkg.dependencies ?? {}),
     ...Object.keys(pkg.pnpm?.overrides ?? {}),
     ...Object.keys(pkg.pnpm?.resolutions ?? {}),
+    '@types/react', '@types/react-dom', '@types/node', 'typescript', 'zod', 'three',
+    '@babylonjs/core', '@babylonjs/materials', '@babylonjs/loaders', 'react', 'socket.io-client', 'pg'
   ]);
 
   for (const dep of watched) {
     const pkgSpec = pkg.devDependencies?.[dep] ?? pkg.dependencies?.[dep] ?? null;
-    const overrideSpec = pkg.pnpm?.overrides?.[dep] ?? pkg.pnpm?.resolutions?.[dep] ?? pkgSpec;
+    let overrideSpec = pkg.pnpm?.overrides?.[dep] ?? pkg.pnpm?.resolutions?.[dep] ?? pkgSpec;
+
+    const workspaceSpec = extractYamlOverride(workspaceFile, dep);
+    if (workspaceSpec) {
+        overrideSpec = workspaceSpec;
+    }
+
     if (!overrideSpec) continue;
 
     const lockRootSpecifier = extractLockRootSpecifier(lock, dep);
     if (lockRootSpecifier && lockRootSpecifier !== overrideSpec) {
       fail(
-        `Lockfile drift for ${dep}: pnpm-lock.yaml root importer has ${lockRootSpecifier}, package.json/overrides expects ${overrideSpec}.`,
-        `Run pnpm install locally or update pnpm-lock.yaml so ${dep} uses ${overrideSpec}. This is a monorepo; root package.json and lockfile must agree before merge.`
+        `Lockfile drift for ${dep}: pnpm-lock.yaml root importer has ${lockRootSpecifier}, package.json/workspace expects ${overrideSpec}.`,
+        `Run pnpm install locally or update pnpm-lock.yaml so ${dep} uses ${overrideSpec}.`
       );
     }
 
     const dockerOverride = extractPythonOverride(dockerSync, dep);
     if (dockerOverride && dockerOverride !== overrideSpec) {
       fail(
-        `Docker lockfile sync drift for ${dep}: sync-pnpm-lockfile-for-docker.py has ${dockerOverride}, package.json/overrides expects ${overrideSpec}.`,
-        `Update scripts/sync-pnpm-lockfile-for-docker.py OVERRIDES.${dep} to ${overrideSpec}. Otherwise VPS Docker rewrites the lockfile during build and frozen install fails.`
+        `Docker lockfile sync drift for ${dep}: sync-pnpm-lockfile-for-docker.py has ${dockerOverride}, package.json/workspace expects ${overrideSpec}.`,
+        `Update scripts/sync-pnpm-lockfile-for-docker.py OVERRIDES.${dep} to ${overrideSpec}.`
       );
     }
   }
@@ -71,7 +87,7 @@ function checkWorkspacePackageVersions() {
   if (rootPackageManager) return;
   warn(
     'Root package.json has no packageManager field.',
-    'Consider adding packageManager, e.g. pnpm@9.12.2 or the chosen repo-wide version. This makes agents and CI use one package manager version.'
+    'Consider adding packageManager, e.g. pnpm@9.12.2.'
   );
 }
 
@@ -83,7 +99,7 @@ function checkVpsBuildTooling() {
   if (prebuild.includes('extract-2d-weapon-pool') && !/apk add[^\n]*unzip/.test(dockerfile)) {
     fail(
       'Dockerfile.vps does not install unzip, but @wasd/client-2d prebuild extracts a ZIP asset pack.',
-      'Add unzip to the builder apk line: RUN apk add --no-cache ... unzip. This is required before VPS deploy.'
+      'Add unzip to the builder apk line.'
     );
   }
 }
@@ -94,7 +110,7 @@ function checkFrozenInstallDryRun() {
   } catch (error) {
     fail(
       'pnpm frozen-lockfile validation failed.',
-      'This repo is a pnpm monorepo. package.json and pnpm-lock.yaml must be updated together. Run pnpm install and commit pnpm-lock.yaml, or align dependency versions manually.'
+      'Run pnpm install and commit pnpm-lock.yaml.'
     );
   }
 }
@@ -113,7 +129,6 @@ for (const warning of warnings) {
 
 if (errors.length > 0) {
   console.error('\nMONOREPO GUARD FAILED');
-  console.error('This is a pnpm monorepo. Keep root package.json, workspace package.json files, pnpm-lock.yaml, Docker lockfile sync overrides, and VPS build tooling aligned.');
   for (const error of errors) {
     console.error(`\n- ${error.message}\n  Fix: ${error.hint}`);
   }
