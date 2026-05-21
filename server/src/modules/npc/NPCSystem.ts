@@ -1,4 +1,4 @@
-import { checkStealthDeterministic, calculatePhaseShift } from './PerceptionLogic';
+import { checkStealthDeterministic, calculatePhaseShift, checkStealthFast, calculateVisibilityThreshold } from './PerceptionLogic';
 import { GuildSovereigntyEngine } from '../guild/GuildSovereigntyEngine';
 import { TraitResonanceEngine } from '../resonance/TraitResonanceEngine';
 
@@ -23,6 +23,7 @@ export interface Vector3 {
 
 export interface NPC {
     id: string;
+    perceptionThreshold?: number;
     name?: string;
     position: Vector3;
     rotation: number;
@@ -53,6 +54,8 @@ export interface NPC {
 
 export class NPCSystem {
     private npcs: Map<string, NPC> = new Map();
+    private cachedSortedNpcs: NPC[] = [];
+    private npcsDirty = true;
     private updateInterval: NodeJS.Timeout | null = null;
     private readonly TICK_RATE = 100; // 10Hz in ms
 
@@ -67,15 +70,20 @@ export class NPCSystem {
     }
 
     public addNPC(npc: NPC): void {
+        npc.perceptionThreshold = calculateVisibilityThreshold(npc.phaseShift ?? 0);
         this.npcs.set(npc.id, npc);
+        this.npcsDirty = true;
     }
 
     public removeNPC(id: string): boolean {
-        return this.npcs.delete(id);
+        const deleted = this.npcs.delete(id);
+        if (deleted) this.npcsDirty = true;
+        return deleted;
     }
 
     public createNPC(id: string, name: string, x: number, y: number): NPC {
         const traits = deterministicNpcTraits(id);
+        const phaseShift = calculatePhaseShift(id);
         const npc: NPC = {
             id,
             name,
@@ -90,7 +98,8 @@ export class NPCSystem {
             maxHealth: 90,
             stamina: 100,
             skills: { combat: { level: Math.max(1, Math.min(14, Math.round(traits.aggression * 13))) } },
-            phaseShift: calculatePhaseShift(id),
+            phaseShift,
+            perceptionThreshold: calculateVisibilityThreshold(phaseShift),
         };
         this.addNPC(npc);
         return npc;
@@ -154,15 +163,36 @@ export class NPCSystem {
     }
 
     private update(onlinePlayers: any[]): void {
-        const sortedNpcs = Array.from(this.npcs.values()).sort((a, b) =>
-            String(a?.id ?? "").localeCompare(String(b?.id ?? ""))
-        );
+        if (this.npcsDirty) {
+            this.cachedSortedNpcs = Array.from(this.npcs.values()).sort((a, b) =>
+                a.id < b.id ? -1 : (a.id > b.id ? 1 : 0)
+            );
+            this.npcsDirty = false;
+        }
+
         const sortedPlayers = [...onlinePlayers].sort((a, b) =>
-            String(a?.id ?? "").localeCompare(String(b?.id ?? ""))
+            a.id < b.id ? -1 : (a.id > b.id ? 1 : 0)
         );
 
-        for (const npc of sortedNpcs) {
-            this.processPerception(npc, sortedPlayers);
+        // Pre-flatten player data to avoid repeated property access and Number() conversions
+        const numPlayers = sortedPlayers.length;
+        const pX = new Float64Array(numPlayers);
+        const pY = new Float64Array(numPlayers);
+        const pZ = new Float64Array(numPlayers);
+        const pIds = new Array<string>(numPlayers);
+        const pStealth = new Float64Array(numPlayers);
+
+        for (let i = 0; i < numPlayers; i++) {
+            const p = sortedPlayers[i];
+            pX[i] = Number(p?.position?.x ?? 0);
+            pY[i] = Number(p?.position?.y ?? 0);
+            pZ[i] = Number(p?.position?.z ?? 0);
+            pIds[i] = String(p?.id ?? "unknown");
+            pStealth[i] = Number(p?.stealthValue ?? 0);
+        }
+
+        for (let i = 0; i < this.cachedSortedNpcs.length; i++) {
+            this.processPerceptionOptimized(this.cachedSortedNpcs[i], pX, pY, pZ, pIds, pStealth);
         }
     }
 
@@ -175,30 +205,24 @@ export class NPCSystem {
         };
     }
 
-    private processPerception(npc: NPC, sortedPlayers: any[]): void {
+    private processPerceptionOptimized(
+        npc: NPC,
+        pX: Float64Array,
+        pY: Float64Array,
+        pZ: Float64Array,
+        pIds: string[],
+        pStealth: Float64Array
+    ): void {
         let detectedPlayerId: string | null = null;
-        const npcPos = NPCSystem.vec3ForPerception(npc.position);
+        const nx = npc.position.x;
+        const ny = npc.position.y;
+        const nz = npc.position.z;
+        const ps = npc.phaseShift ?? 0;
+        const vr = npc.visionRange;
 
-        for (const player of sortedPlayers) {
-            const result = checkStealthDeterministic(
-                {
-                    npcId: npc.id,
-                    position: npcPos,
-                    phaseShift: npc.phaseShift ?? 0,
-                    perceptionRadius: npc.visionRange,
-                    lastPerceptionTick: 0
-                },
-                {
-                    playerId: String(player?.id ?? ""),
-                    position: NPCSystem.vec3ForPerception(player?.position),
-                    stealthLevel: player?.stealthValue ?? 0,
-                    isCrouching: false, // Crouching state not yet implemented in PlayerSystem
-                    lastVisibleTick: 0
-                }
-            );
-
-            if (result.visible) {
-                detectedPlayerId = player?.id != null && String(player.id).length > 0 ? String(player.id) : "unknown_player";
+        for (let i = 0; i < pIds.length; i++) {
+            if (checkStealthFast(nx, ny, nz, ps, vr, pX[i], pY[i], pZ[i], pStealth[i])) {
+                detectedPlayerId = pIds[i];
                 break;
             }
         }

@@ -97,6 +97,32 @@ export function calculateVisibilityThreshold(phaseShift: number): number {
 }
 
 /**
+ * Optimized check that avoids object allocations and respects vision/stealth.
+ */
+export function checkStealthFast(
+  npcX: number,
+  npcY: number,
+  npcZ: number,
+  phaseShift: number,
+  visionRange: number,
+  playerX: number,
+  playerY: number,
+  playerZ: number,
+  stealthLevel: number,
+): boolean {
+  const dx = npcX - playerX;
+  const dy = npcY - playerY;
+  const dz = npcZ - playerZ;
+  const distanceSquared = (dx * dx) + (dy * dy) + (dz * dz);
+
+  const clampedPhase = phaseShift < -500 ? -500 : (phaseShift > 500 ? 500 : phaseShift);
+  const v2 = visionRange * visionRange;
+  const threshold = v2 * (1.0 + clampedPhase / 1000) * (1.0 - (stealthLevel < 0 ? 0 : (stealthLevel > 100 ? 100 : stealthLevel)) / 100);
+
+  return distanceSquared <= threshold;
+}
+
+/**
  * Check if target is visible to NPC (deterministic)
  * 
  * NO RAYCASTING - purely mathematical distance check
