@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import WikiPortal from './components/WikiPortal';
 
 /**
  * ARCHITEKTUR-KOMPONENTE: Plexity Gate
@@ -11,62 +12,35 @@ interface EntityConfig {
   complexityLevel: number;
 }
 
-/**
- * Berechnet das Plexity-Level basierend auf dem Device Score.
- * Thresholds:
- * < 0.3   -> Plexity 1 (Proxy/Low-Fi)
- * 0.3-0.7 -> Plexity 10 (Standard/Balanced)
- * > 0.7   -> Plexity 1000 (High-Poly/Ultra)
- */
 export const computePlexity = (score: number): number => {
   if (score < 0.3) return 1;
   if (score < 0.7) return 10;
   return 1000;
 };
 
-/**
- * Lädt Entitäts-Metadaten und wählt das entsprechende Asset-Paket.
- */
 export const loadEntity = (id: string, score: number): EntityConfig => {
   const plexity = computePlexity(score);
   const basePath = `/assets/models/${id}`;
 
   if (plexity === 1) {
-    return {
-      id,
-      modelPath: `${basePath}/proxy.glb`,
-      complexityLevel: 1
-    };
+    return { id, modelPath: `${basePath}/proxy.glb`, complexityLevel: 1 };
   } else if (plexity === 10) {
-    return {
-      id,
-      modelPath: `${basePath}/standard.glb`,
-      complexityLevel: 10
-    };
+    return { id, modelPath: `${basePath}/standard.glb`, complexityLevel: 10 };
   } else {
-    return {
-      id,
-      modelPath: `${basePath}/high_poly.glb`,
-      complexityLevel: 1000
-    };
+    return { id, modelPath: `${basePath}/high_poly.glb`, complexityLevel: 1000 };
   }
 };
 
-/**
- * Hilfsfunktion zur Ermittlung der Hardware-Leistung (Mock-Implementierung für Browser-Metriken)
- */
 const estimateDeviceScore = (): number => {
   if (typeof window === 'undefined') return 0.5;
-  
   const cores = navigator.hardwareConcurrency || 4;
-  const memory = (navigator as any).deviceMemory || 4; // in GB
-  
-  // Normalisierter Score zwischen 0 und 1
+  const memory = (navigator as any).deviceMemory || 4;
   const rawScore = (cores * memory) / 64; 
   return Math.min(Math.max(rawScore, 0), 1);
 };
 
 const App: React.FC = () => {
+  const [showWiki, setShowWiki] = useState<boolean>(true);
   const [deviceScore, setDeviceScore] = useState<number>(0.5);
   
   useEffect(() => {
@@ -75,9 +49,21 @@ const App: React.FC = () => {
   }, []);
 
   const currentPlexity = useMemo(() => computePlexity(deviceScore), [deviceScore]);
-
-  // Beispielhafte Entitäts-Initialisierung über das Plexity Gate
   const worldAvatar = useMemo(() => loadEntity('player_base', deviceScore), [deviceScore]);
+
+  if (showWiki) {
+    return (
+      <div className="relative h-screen w-screen">
+        <WikiPortal />
+        <button
+          onClick={() => setShowWiki(false)}
+          className="absolute top-4 right-4 z-50 bg-[#00FFFF] text-black px-4 py-2 text-xs font-bold border border-black hover:bg-white transition-colors"
+        >
+          CLOSE_ARCHIVE
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div style={{ 
@@ -99,13 +85,21 @@ const App: React.FC = () => {
         <div style={{ fontSize: '1.5rem', fontWeight: 'bold', letterSpacing: '2px' }}>
           ARELORIA <span style={{ color: '#4f46e5' }}>WASD</span>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>PLEXITY GATE STATUS</div>
-          <div style={{ 
-            color: currentPlexity === 1000 ? '#10b981' : currentPlexity === 10 ? '#3b82f6' : '#f59e0b',
-            fontWeight: 'mono'
-          }}>
-            LEVEL: {currentPlexity} | SCORE: {deviceScore.toFixed(2)}
+        <div style={{ textAlign: 'right', display: 'flex', gap: '20px', alignItems: 'center' }}>
+          <button
+            onClick={() => setShowWiki(true)}
+            style={{ padding: '8px 16px', background: '#FFD700', color: 'black', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+          >
+            OPEN_WIKI
+          </button>
+          <div>
+            <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>PLEXITY GATE STATUS</div>
+            <div style={{
+              color: currentPlexity === 1000 ? '#10b981' : currentPlexity === 10 ? '#3b82f6' : '#f59e0b',
+              fontWeight: 'mono'
+            }}>
+              LEVEL: {currentPlexity} | SCORE: {deviceScore.toFixed(2)}
+            </div>
           </div>
         </div>
       </header>
