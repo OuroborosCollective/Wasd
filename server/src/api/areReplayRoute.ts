@@ -18,8 +18,10 @@ function broadcastCouncil(tick: WorldTick, payload: unknown): void {
   }
 }
 
-export function areReplayRouter(tick: WorldTick) {
-  const router = express.Router();
+import { Router } from "express";
+
+export function areReplayRouter(tick: WorldTick): Router {
+  const router = Router();
   attachSovereignBillingBridge(tick as any, (tick as any).ws ?? { broadcast: () => undefined });
   sovereignGovernance.attachToTick(tick as any);
 

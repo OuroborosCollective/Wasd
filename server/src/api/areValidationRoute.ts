@@ -2,8 +2,10 @@ import express from "express";
 import { areValidationState } from "../are/AREValidationState.js";
 import type { WorldTick } from "../core/WorldTick.js";
 
-export function areValidationRouter(tick: WorldTick) {
-  const router = express.Router();
+import { Router } from "express";
+
+export function areValidationRouter(tick: WorldTick): Router {
+  const router = Router();
 
   router.get("/status", (_req, res) => {
     const snapshot = areValidationState.getSnapshot();
