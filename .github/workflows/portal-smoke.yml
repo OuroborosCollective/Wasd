@@ -4,7 +4,9 @@ on:
   pull_request:
     paths:
       - 'client/**'
+      - 'apps/client-2d/**'
       - 'scripts/write-runtime-entrypoints.mjs'
+      - 'scripts/write-public-route-hub.mjs'
       - 'Dockerfile.prod'
       - '.github/workflows/portal-smoke.yml'
   workflow_dispatch:
@@ -14,7 +16,7 @@ permissions:
 
 jobs:
   portal-smoke:
-    name: Build and verify portal runtime entrypoints
+    name: Build and verify public route hub
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -37,17 +39,29 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build client runtime entrypoints
+      - name: Build 2D Stitch client
+        run: pnpm --filter @wasd/client-2d build
+
+      - name: Build root client and public route hub
         run: pnpm --filter @wasd/client build
 
       - name: Verify runtime files
         run: |
           set -euo pipefail
           test -f client/dist/index.html
+          test -f client/dist/3d/index.html
           test -f client/dist/portal/index.html
+          test -f client/dist/apps/index.html
           test -f client/dist/are-console.html
           test -f client/dist/sovereign-truth.html
           test -f client/dist/runtime-build-info.json
+          test -f apps/client-2d/dist/index.html
+          grep -q 'CHOOSE' client/dist/index.html
+          grep -q 'Sovereign Tools' client/dist/index.html
+          grep -q 'SCIENCE PORTAL' client/dist/portal/index.html
+          grep -q 'SOVEREIGN TOOLS' client/dist/apps/index.html
           grep -q 'ARE Console' client/dist/are-console.html
-          grep -q 'entrypoints' client/dist/runtime-build-info.json
-          echo 'Portal runtime entrypoints smoke OK'
+          grep -q '"/2d/"' client/dist/runtime-build-info.json
+          grep -q '"/3d/"' client/dist/runtime-build-info.json
+          grep -q '"/apps/"' client/dist/runtime-build-info.json
+          echo 'Public route hub smoke OK'
