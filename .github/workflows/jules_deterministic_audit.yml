@@ -37,6 +37,12 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=3072"
 
       # Deterministic gates: shared + server must stay type-clean.
+      # Build dependencies first to resolve type declarations for consumer packages.
+      - name: Build dependencies (@wasd/shared, @wasd/core-logic)
+        run: |
+          pnpm --filter @wasd/shared build
+          pnpm --filter @wasd/core-logic build
+
       - name: Typecheck @wasd/shared
         run: |
           NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/shared run typecheck
