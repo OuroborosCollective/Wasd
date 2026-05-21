@@ -27,6 +27,7 @@ OVERRIDES = {
     "react": "^19.2.6",
     "socket.io-client": "^4.8.3",
     "pg": "^8.20.0",
+    "typescript": "^6.0.3",
 }
 OVERRIDES_BLOCK = "overrides:\n" + "".join(
     f"  '{name}': {version}\n" if name.startswith("@") else f"  {name}: {version}\n"

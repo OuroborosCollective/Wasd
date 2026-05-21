@@ -55,7 +55,7 @@ echo "Game server will serve CLIENT_ROOT_DIR=${CLIENT_ROOT_DIR}."
 
 if command -v corepack >/dev/null 2>&1; then
   corepack enable || true
-  corepack prepare pnpm@9.12.2 --activate || true
+  corepack prepare pnpm@11.1.1 --activate || true
 fi
 
 if command -v pnpm >/dev/null 2>&1; then
