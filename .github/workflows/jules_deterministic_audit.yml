@@ -36,6 +36,11 @@ jobs:
         env:
           NODE_OPTIONS: "--max-old-space-size=3072"
 
+      # MUST build shared first so dependent packages can resolve types
+      - name: Build @wasd/shared
+        run: |
+          pnpm --filter @wasd/shared run build
+
       # Deterministic gates: shared + server must stay type-clean.
       - name: Typecheck @wasd/shared
         run: |
