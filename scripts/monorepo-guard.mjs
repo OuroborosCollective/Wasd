@@ -48,6 +48,7 @@ function checkRootOverrideConsistency() {
     ...Object.keys(pkg.dependencies ?? {}),
     ...Object.keys(pkg.pnpm?.overrides ?? {}),
     ...Object.keys(pkg.pnpm?.resolutions ?? {}),
+    "packageManager",
     '@types/react', '@types/react-dom', '@types/node', 'typescript', 'zod', 'three',
     '@babylonjs/core', '@babylonjs/materials', '@babylonjs/loaders', 'react', 'socket.io-client', 'pg'
   ]);

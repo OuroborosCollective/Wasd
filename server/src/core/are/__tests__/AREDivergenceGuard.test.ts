@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Testing logic only.
 import { describe, expect, it } from 'vitest';
 import { ARECycle } from '../ARECycle';
 import { AREDivergenceGuard } from '../AREDivergenceGuard';
@@ -5,6 +6,7 @@ import { AREPayloadFactory } from '../AREPayload';
 import { AREReplayBuffer } from '../AREReplayBuffer';
 
 function recordAt(buffer: AREReplayBuffer, tick: number, entityId = 'entity:1') {
+  // position {x:1, y:2, z:0} -> Kappa {x:1000, y:2000, z:0}
   const genesis = AREPayloadFactory.createNormalized(entityId, { x: 1, y: 2, z: 0 }, { x: 0, y: 0, z: 0 });
   const next = ARECycle.processCycle(genesis);
   return buffer.record(tick, next);
@@ -27,17 +29,22 @@ describe('ARE-Logic: divergence guard', () => {
     const buffer = new AREReplayBuffer(5);
     recordAt(buffer, 10);
 
-    // 1 unit diff = 1000 Kappa.
     // recordAt is at x=1 (1000 Kappa).
-    const guard = new AREDivergenceGuard({ warn: 500, critical: 5000 });
+    // thresholds in Kappa:
+    const guard = new AREDivergenceGuard({ warn: 100, critical: 1000 });
 
-    const warn = guard.measure(10, 'entity:1', { x: 1.6, y: 2, z: 0 }, buffer); // 600 Kappa diff
-    const critical = guard.measure(10, 'entity:1', { x: 7, y: 2, z: 0 }, buffer); // 6000 Kappa diff
+    // x=1.05 => 0.05 units = 50 Kappa diff. Magnitude = 50. Status 'ok'.
+    // x=1.15 => 0.15 units = 150 Kappa diff. Magnitude = 150. Status 'warn'.
+    const warnSample = guard.measure(10, 'entity:1', { x: 1.15, y: 2, z: 0 }, buffer);
+    expect(warnSample?.status).toBe('warn');
 
-    expect(warn?.status).toBe('warn');
-    expect(critical?.status).toBe('critical');
+    // x=2.1 => 1.1 units = 1100 Kappa diff. Magnitude = 1100. Status 'critical'.
+    const criticalSample = guard.measure(10, 'entity:1', { x: 2.1, y: 2, z: 0 }, buffer);
+    expect(criticalSample?.status).toBe('critical');
+
     expect(guard.summarize().status).toBe('critical');
     expect(guard.summarize().critical).toBe(1);
+    expect(guard.summarize().warn).toBe(1);
   });
 
   it('returns null when no matching replay entry exists', () => {

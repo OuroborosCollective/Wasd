@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Dialogue variety randomization; not simulation critical.
 import { DialogueTemplates } from "./DialogueTemplates.js";
 
 export class DialogueGenerator {

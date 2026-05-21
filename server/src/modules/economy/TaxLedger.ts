@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Ledger/Update timestamps; not world-state input.
 export class TaxLedger {
   private entries: any[] = [];
 

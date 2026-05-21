@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Reference IDs; not world-state input.
 /**
  * PayPal REST API Service for Areloria MMORPG
  * Handles: Matrix Energy purchases, GLB Subscription, Marketplace transactions

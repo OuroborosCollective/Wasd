@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Character visual randomization; not world-state critical.
 /**
  * CharacterAssemblySystem
  * Manages modular character creation: body + head + skin/hair/eye colors + body scale.

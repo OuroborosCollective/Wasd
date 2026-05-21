@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Testing logic only.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ARE_CONFIG } from '../AREConfig';
 import { AREReplayBuffer } from '../AREReplayBuffer';

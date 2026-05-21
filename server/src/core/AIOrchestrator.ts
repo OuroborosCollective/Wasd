@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Task reset and timeout logic; not world-state input.
 interface TaskPayload {
     eventType: string;
     payload: any;

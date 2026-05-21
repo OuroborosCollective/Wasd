@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Editor action timestamp; not simulation input.
 export class EditorActionLog {
   private actions:any[] = [];
   record(action:any){

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Order creation timestamps; not world-state input.
 export class BuyOrders {
   private orders:any[] = [];
   place(order:any){

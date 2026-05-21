@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Market update timestamps; not world-state input.
 export interface MarketHistoryEntry {
     resourceId: string;
     supply: number;

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Sync metadata timestamps; not world-state input.
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 /**

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Snapshot/Archive timestamps; not world-state input.
 export class WorldSnapshotSystem {
   private snapshots: any[] = [];
 

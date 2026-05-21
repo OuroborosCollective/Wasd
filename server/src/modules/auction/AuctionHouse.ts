@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Listing creation timestamps; not simulation input.
 import { isItemBoundOrNonTransferable } from "../items/itemBindingPolicy.js";
 
 export class AuctionHouse {

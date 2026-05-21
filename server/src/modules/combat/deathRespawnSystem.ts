@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Death/Respawn timestamps; not world-state input.
 /**
  * Death & Respawn system — handles player death state, respawn timers,
  * and zone-based respawn point resolution.

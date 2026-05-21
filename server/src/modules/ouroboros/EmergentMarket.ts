@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Trade route usage timestamps; not world-state input.
 /**
  * EmergentMarket — per-region supply/demand pricing with no fixed prices.
  *

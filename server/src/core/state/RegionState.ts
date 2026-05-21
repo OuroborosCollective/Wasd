@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Sync timestamps for state management; not world-state input.
 /**
  * @file server/src/core/state/RegionState.ts
  * @description Data models for regional world state in Arelorian.

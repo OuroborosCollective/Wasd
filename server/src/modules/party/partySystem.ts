@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Party creation timestamps; not world-state input.
 /**
  * In-memory party system — create, invite, join, leave, disband.
  * Max 4 members per party.

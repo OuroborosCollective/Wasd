@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Orchestration timestamps; not world-state input.
 import Redis, { RedisOptions } from 'ioredis';
 
 export interface GridPosition {

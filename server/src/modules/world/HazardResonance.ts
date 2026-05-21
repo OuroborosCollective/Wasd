@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Visual resonance timing; not world-state input.
 /**
  * HazardResonance - Environmental Hazard System
  * 

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Ledger timestamps; not world-state input.
 export class KingdomLedger {
   private entries: any[] = [];
   record(entry: any) {

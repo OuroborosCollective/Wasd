@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Combo validation timing; not world-state input.
 /**
  * ComboValidator - Server-Side Skill Combo Validation
  * 

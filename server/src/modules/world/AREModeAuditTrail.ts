@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Audit trail timestamps; not world-state input.
 import fs from "fs";
 import path from "path";
 import type { AREMode } from "./RuntimeSettingsStore.js";

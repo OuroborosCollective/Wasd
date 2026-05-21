@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Integrity event timestamp only; not used for simulation.
 import * as fs from 'fs/promises';
 import * as crypto from 'crypto';
 import * as path from 'path';

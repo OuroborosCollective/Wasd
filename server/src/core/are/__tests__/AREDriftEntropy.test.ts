@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Testing logic only.
 import { describe, expect, it } from 'vitest';
 import { AREDriftEntropy } from '../AREDriftEntropy';
 import { AREPayloadFactory } from '../AREPayload';

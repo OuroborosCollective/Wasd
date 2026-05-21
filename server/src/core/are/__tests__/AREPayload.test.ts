@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Testing logic only.
 import { describe, expect, it } from 'vitest';
 import { AREGuard } from '../AREGuard';
 import { AREPayloadFactory } from '../AREPayload';
