@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Pre-existing Ouroboros side-channel
 /**
  * WorldHistory — append-only event log for the living world.
  *

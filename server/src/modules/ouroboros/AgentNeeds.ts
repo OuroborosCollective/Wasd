@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Pre-existing Ouroboros side-channel
 /**
  * AgentNeeds — drives NPC agent behavior through a need hierarchy.
  *

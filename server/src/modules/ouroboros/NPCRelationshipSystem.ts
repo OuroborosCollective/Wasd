@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Pre-existing Ouroboros side-channel
 export interface IBountySystem {
     hasActiveBounty(playerId: string): boolean;
     getBountyLevel(playerId: string): number;

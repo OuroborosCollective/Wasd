@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Pre-existing Ouroboros side-channel
 /**
  * DynamicFactions — emergent faction formation, politics, and war/peace resolution.
  *

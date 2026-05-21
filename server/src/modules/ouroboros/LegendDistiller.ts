@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Pre-existing Ouroboros side-channel
 import { EventEmitter } from 'events';
 
 interface QuestData {

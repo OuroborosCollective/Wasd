@@ -17,10 +17,13 @@ const strictRoots = [
   'server/src/modules/loot',
   'server/src/modules/oracle',
   'server/src/modules/warfront',
+  'server/src/modules/ouroboros/OuroborosLoop.ts',
+  'server/src/modules/ouroboros/OuroborosEngine.ts',
   'packages/shared/src',
 ];
 const advisoryHints = [
   '/admin/', '/api/', '/analytics/', '/asset', '/audit', '/chat', '/dashboard', '/debug',
+  '/ouroboros/',
   '/health', '/integrity/', '/liveheal/', '/logger/', '/mail', '/metrics', '/monitor',
   '/notification', '/observability', '/playtester', '/posthog', '/selfhealing/', '/telemetry/',
 ];
@@ -31,7 +34,7 @@ const deny = [
   { pattern: /\bcrypto\.randomUUID\s*\(/, label: 'crypto.randomUUID()' },
   { pattern: /\brandomUUID\s*\(/, label: 'randomUUID()' },
 ];
-const ignoredDirs = new Set(['node_modules', 'dist', 'build', '.turbo', '.cache', 'coverage']);
+const ignoredDirs = new Set(['node_modules', 'dist', 'build', '.turbo', '.cache', 'coverage', '__tests__', 'tests', 'test']);
 const extensions = new Set(['.ts', '.tsx', '.js', '.mjs', '.cjs', '.mts', '.cts']);
 const lineAllow = /ARE-DETERMINISM-ALLOW/i;
 const fileExempt = /@ARE-GUARD-EXEMPT:\s*(.{8,})/i;

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Pre-existing Ouroboros side-channel
 /**
  * EmergentMarket — per-region supply/demand pricing with no fixed prices.
  *

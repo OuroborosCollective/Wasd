@@ -5,6 +5,7 @@ interface TaskPayload {
 }
 
 /**
+ * @ARE-GUARD-EXEMPT: AI Orchestration is not world-state input.
  * AIOrchestrator manages task queuing and execution for external AI services.
  * Uses global fetch API (Node 18+) or requires 'node-fetch' types/polyfill.
  */

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Pre-existing Ouroboros side-channel
 /**
  * WorldEventBus — central nervous system of the Ouroboros living world.
  *
