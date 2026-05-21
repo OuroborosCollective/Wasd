@@ -97,6 +97,21 @@ export function calculateVisibilityThreshold(phaseShift: number): number {
 }
 
 /**
+ * High-performance, zero-allocation stealth check for hot loops.
+ * Uses primitive values to avoid object creation and GC pressure.
+ */
+export function checkStealthFast(
+  npcX: number, npcY: number, npcZ: number,
+  playerX: number, playerY: number, playerZ: number,
+  threshold: number
+): boolean {
+  const dx = npcX - playerX;
+  const dy = npcY - playerY;
+  const dz = npcZ - playerZ;
+  return (dx * dx + dy * dy + dz * dz) <= threshold;
+}
+
+/**
  * Check if target is visible to NPC (deterministic)
  * 
  * NO RAYCASTING - purely mathematical distance check
