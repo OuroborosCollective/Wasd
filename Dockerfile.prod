@@ -49,6 +49,10 @@ COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.ya
 RUN corepack enable && corepack prepare pnpm@9.12.2 --activate && \
     pnpm --filter @wasd/server deploy /app/prod-server
 
+# Copy built client after deploy so static runtime routes are available to ServerBootstrap.
+COPY --from=builder /app/client/dist /app/prod-server/client/dist
+COPY --from=builder /app/client/public /app/prod-server/client/public
+
 WORKDIR /app/prod-server
 
 EXPOSE 3000
