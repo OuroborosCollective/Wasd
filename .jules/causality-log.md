@@ -4,7 +4,7 @@ Learning: JavaScript `Map` iteration order is based on insertion order, which is
 
 Action: Always enforce `Array.sort()` on entity collections (Players, NPCs, Loot) before processing them in any 10-Hz tick logic. Ensure all properties required by deterministic utility functions (like `PerceptionLogic`) are explicitly initialized during entity creation.
 
-## 2025-05-20 - Deterministic Economy Iteration
+## 2025-05-21 - Deterministic Economy Iteration
 
 Learning: In `EconomySimulation.ts`, iterating over `worldState.regions` and `region.resourceSaturation` Maps without sorting led to non-deterministic mutation ordering. While the state results might eventually converge, the order in which `PendingMutations` are queued affects the final WorldHash of the tick. This "causality leak" can cause desync between simulation peers.
 
