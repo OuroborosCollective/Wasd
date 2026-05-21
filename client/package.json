@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node ../scripts/write-runtime-entrypoints.mjs",
     "build:itch": "tsc && vite build --mode itch",
     "app:build": "vite build && npx cap sync android",
     "cap:sync": "npx cap sync android",
