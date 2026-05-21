@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type Msg = { from: string; txt: string };
 type HudPanel = "inventory" | "character" | "map" | "combat" | "guild" | "factions" | "quests" | null;
@@ -24,15 +24,19 @@ const skills = [
   { id: "talk", key: "E", icon: "☉", label: "Talk", cost: "SYNC" },
 ];
 
-const panels: { id: Exclude<HudPanel, null>; label: string; icon: string }[] = [
-  { id: "inventory", label: "Inventory", icon: "◇" },
-  { id: "character", label: "Skills", icon: "⬢" },
-  { id: "combat", label: "Matrix", icon: "✕" },
-  { id: "map", label: "Map", icon: "◌" },
-  { id: "guild", label: "Guild", icon: "♜" },
-  { id: "factions", label: "Factions", icon: "⚖" },
-  { id: "quests", label: "Quests", icon: "!" },
+const panels: { id: Exclude<HudPanel, null>; label: string; icon: string; shortcut: string }[] = [
+  { id: "inventory", label: "Inventory", icon: "◇", shortcut: "i" },
+  { id: "character", label: "Skills", icon: "⬢", shortcut: "k" },
+  { id: "combat", label: "Matrix", icon: "✕", shortcut: "c" },
+  { id: "map", label: "Map", icon: "◌", shortcut: "m" },
+  { id: "guild", label: "Guild", icon: "♜", shortcut: "g" },
+  { id: "factions", label: "Factions", icon: "⚖", shortcut: "f" },
+  { id: "quests", label: "Quests", icon: "!", shortcut: "q" },
 ];
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || Boolean((target as HTMLElement | null)?.isContentEditable);
+}
 
 export function ArelorianStitchHud({
   connected,
@@ -55,6 +59,22 @@ export function ArelorianStitchHud({
   const xp = 31;
 
   const visibleMessages = useMemo(() => messages.slice(-6), [messages]);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (isTypingTarget(event.target)) return;
+      if (event.key === "Escape") {
+        setActivePanel(null);
+        return;
+      }
+      const panel = panels.find((p) => p.shortcut === event.key.toLowerCase());
+      if (!panel) return;
+      event.preventDefault();
+      setActivePanel((current) => (current === panel.id ? null : panel.id));
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   function submitChat(event: FormEvent) {
     event.preventDefault();
@@ -103,7 +123,7 @@ export function ArelorianStitchHud({
             key={panel.id}
             className={activePanel === panel.id ? "active" : ""}
             onClick={() => setActivePanel(activePanel === panel.id ? null : panel.id)}
-            title={panel.label}
+            title={`${panel.label} [${panel.shortcut.toUpperCase()}]`}
             aria-pressed={activePanel === panel.id}
           >
             <span>{panel.icon}</span>
@@ -171,19 +191,7 @@ function Gauge({ label, value, tone }: { label: string; value: number; tone: str
   );
 }
 
-function StitchPanel({
-  panel,
-  weaponCount,
-  equippedWeaponId,
-  onCycleWeapon,
-  onClose,
-}: {
-  panel: Exclude<HudPanel, null>;
-  weaponCount: number;
-  equippedWeaponId?: string | null;
-  onCycleWeapon?: () => void;
-  onClose: () => void;
-}) {
+function StitchPanel({ panel, weaponCount, equippedWeaponId, onCycleWeapon, onClose }: { panel: Exclude<HudPanel, null>; weaponCount: number; equippedWeaponId?: string | null; onCycleWeapon?: () => void; onClose: () => void }) {
   const title = panelTitle(panel);
   return (
     <div className="stitch-modal" role="dialog" aria-modal="true" aria-labelledby="stitch-modal-title">
@@ -208,15 +216,7 @@ function StitchPanel({
 }
 
 function panelTitle(panel: Exclude<HudPanel, null>) {
-  return ({
-    inventory: "Inventory Matrix",
-    character: "Character & Skills",
-    combat: "Combat Matrix",
-    map: "Arelorian Highlands",
-    guild: "Guild Console",
-    factions: "Faction Reputation",
-    quests: "Quest Log",
-  } as const)[panel];
+  return ({ inventory: "Inventory Matrix", character: "Character & Skills", combat: "Combat Matrix", map: "Arelorian Highlands", guild: "Guild Console", factions: "Faction Reputation", quests: "Quest Log" } as const)[panel];
 }
 
 function cleanWeaponName(id?: string | null) {
@@ -233,31 +233,15 @@ function InventoryPreview({ weaponCount, equippedWeaponId, onCycleWeapon }: { we
       <Info label="Rarity" value="common → mystic" />
       <article className="stitch-info" style={{ gridColumn: "span 2" }}>
         <small>Equipment Control</small>
-        <button type="button" onClick={onCycleWeapon} disabled={!onCycleWeapon || weaponCount <= 0}>
-          Cycle equipped visual
-        </button>
+        <button type="button" onClick={onCycleWeapon} disabled={!onCycleWeapon || weaponCount <= 0}>Cycle equipped visual</button>
       </article>
     </div>
   );
 }
-function CharacterPreview() {
-  return <div className="stitch-grid-panel"><Info label="Level" value="1" /><Info label="ARE Sync" value="stable" /><Info label="Class" value="classless" /><Info label="Skill Mode" value="use-based" /></div>;
-}
-function CombatPreview({ equippedWeaponId }: { equippedWeaponId?: string | null }) {
-  return <div className="stitch-grid-panel"><Info label="Tick" value="10Hz" /><Info label="Weapon" value={cleanWeaponName(equippedWeaponId)} /><Info label="Threat" value="low" /><Info label="Warfront" value="cycle-linked" /></div>;
-}
-function MapPreview() {
-  return <div className="stitch-map-preview"><span /><span /><span /><span /><b>Millbrook</b></div>;
-}
-function GuildPreview() {
-  return <div className="stitch-grid-panel"><Info label="Guild" value="unclaimed" /><Info label="Village Rights" value="50 members" /><Info label="Treasury" value="offline" /><Info label="Rank" value="observer" /></div>;
-}
-function FactionsPreview() {
-  return <div className="stitch-grid-panel"><Info label="Millbrook" value="neutral" /><Info label="Oracle Circle" value="trusted" /><Info label="Warfront" value="contested" /><Info label="Merchants" value="open" /></div>;
-}
-function QuestPreview() {
-  return <div className="stitch-grid-panel"><Info label="First Steps" value="available" /><Info label="Oracle Echo" value="hidden" /><Info label="Warfront Aid" value="locked" /><Info label="Crafting" value="pending" /></div>;
-}
-function Info({ label, value }: { label: string; value: string }) {
-  return <article className="stitch-info"><small>{label}</small><b>{value}</b></article>;
-}
+function CharacterPreview() { return <div className="stitch-grid-panel"><Info label="Level" value="1" /><Info label="ARE Sync" value="stable" /><Info label="Class" value="classless" /><Info label="Skill Mode" value="use-based" /></div>; }
+function CombatPreview({ equippedWeaponId }: { equippedWeaponId?: string | null }) { return <div className="stitch-grid-panel"><Info label="Tick" value="10Hz" /><Info label="Weapon" value={cleanWeaponName(equippedWeaponId)} /><Info label="Threat" value="low" /><Info label="Warfront" value="cycle-linked" /></div>; }
+function MapPreview() { return <div className="stitch-map-preview"><span /><span /><span /><span /><b>Millbrook</b></div>; }
+function GuildPreview() { return <div className="stitch-grid-panel"><Info label="Guild" value="unclaimed" /><Info label="Village Rights" value="50 members" /><Info label="Treasury" value="offline" /><Info label="Rank" value="observer" /></div>; }
+function FactionsPreview() { return <div className="stitch-grid-panel"><Info label="Millbrook" value="neutral" /><Info label="Oracle Circle" value="trusted" /><Info label="Warfront" value="contested" /><Info label="Merchants" value="open" /></div>; }
+function QuestPreview() { return <div className="stitch-grid-panel"><Info label="First Steps" value="available" /><Info label="Oracle Echo" value="hidden" /><Info label="Warfront Aid" value="locked" /><Info label="Crafting" value="pending" /></div>; }
+function Info({ label, value }: { label: string; value: string }) { return <article className="stitch-info"><small>{label}</small><b>{value}</b></article>; }
