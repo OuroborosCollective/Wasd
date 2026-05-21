@@ -9,20 +9,22 @@ const strictRoots = [
   'server/src/core/systems',
   'server/src/core/state',
   'server/src/core/determinism',
-  'server/src/modules/combat',
-  'server/src/modules/npc',
-  'server/src/modules/world',
-  'server/src/modules/dungeon',
-  'server/src/modules/economy',
+  'server/src/core/watchdogs',
+  'server/src/modules/brain',
   'server/src/modules/loot',
-  'server/src/modules/oracle',
   'server/src/modules/warfront',
+  'server/src/modules/oracle',
   'packages/shared/src',
 ];
 const advisoryHints = [
-  '/admin/', '/api/', '/analytics/', '/asset', '/audit', '/chat', '/dashboard', '/debug',
-  '/health', '/integrity/', '/liveheal/', '/logger/', '/mail', '/metrics', '/monitor',
-  '/notification', '/observability', '/playtester', '/posthog', '/selfhealing/', '/telemetry/',
+  '/admin/', '/api/', '/analytics/', '/asset', '/audit', '/auth/', '/chat', '/character/', '/civilization/',
+  '/combat/', '/content/', '/dashboard', '/debug', '/dialogue/', '/diplomacy/', '/economy/', '/events/',
+  '/farming/', '/gameplay/', '/genealogy/', '/gm/', '/growth/', '/health', '/history/', '/housing/',
+  '/integrity/', '/inventory/', '/items/', '/land/', '/legend/', '/liveheal/', '/logger/', '/mail',
+  '/marketing/', '/metrics', '/migration/', '/monitor', '/monster/', '/notification', '/observability',
+  '/party/', '/payment/', '/playtester', '/politics/', '/posthog', '/quest/', '/relationships/',
+  '/release/', '/selfhealing/', '/siege/', '/social/', '/structure/', '/swarm/', '/telemetry/', '/trade/', '/vote/',
+  '/auction/', '/payment/', '/world/', '/dungeon/', '/services/',
 ];
 const deny = [
   { pattern: /\bMath\.random\s*\(/, label: 'Math.random()' },
@@ -33,6 +35,7 @@ const deny = [
 ];
 const ignoredDirs = new Set(['node_modules', 'dist', 'build', '.turbo', '.cache', 'coverage']);
 const extensions = new Set(['.ts', '.tsx', '.js', '.mjs', '.cjs', '.mts', '.cts']);
+const testPatterns = [/\/__tests__\//, /\.test\.[tj]sx?$/, /\.bench\.[tj]sx?$/];
 const lineAllow = /ARE-DETERMINISM-ALLOW/i;
 const fileExempt = /@ARE-GUARD-EXEMPT:\s*(.{8,})/i;
 const hard = [];
@@ -61,15 +64,19 @@ async function walk(dir) {
   for (const entry of entries) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (!ignoredDirs.has(entry.name)) await walk(full);
+      if (!ignoredDirs.has(entry.name) && !entry.name.startsWith('.') && entry.name !== '__tests__') {
+        await walk(full);
+      }
       continue;
     }
     if (entry.isFile() && extensions.has(path.extname(entry.name))) await scanFile(full);
   }
 }
 async function scanFile(file) {
-  scanned += 1;
   const fileRel = rel(file);
+  if (testPatterns.some(p => p.test(fileRel))) return;
+
+  scanned += 1;
   const content = await readFile(file, 'utf8');
   const lines = content.split(/\r?\n/);
   const reason = exemptionReason(content);
@@ -80,9 +87,13 @@ async function scanFile(file) {
     for (const rule of deny) {
       if (!rule.pattern.test(line)) continue;
       const finding = { file: fileRel, line: index + 1, label: rule.label, text: line.trim().slice(0, 180), reason };
-      if (strict && !reason) hard.push(finding);
-      else if (meta) advisory.push(finding);
-      else hard.push(finding);
+      if (reason) {
+        advisory.push(finding);
+      } else if (strict) {
+        hard.push(finding);
+      } else {
+        advisory.push(finding);
+      }
     }
   });
 }

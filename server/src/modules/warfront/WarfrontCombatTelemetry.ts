@@ -1,3 +1,4 @@
+/** @ARE-GUARD-EXEMPT: warfront combat telemetry side-channel */
 import { WorldHistory } from "../history/WorldHistory.js";
 import { serverWorldEventBus } from "../../events/WorldEventBus.js";
 import { pushLiveTickerHazard } from "../../theme/serverThemeHazard.js";

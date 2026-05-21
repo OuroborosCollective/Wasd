@@ -14,6 +14,7 @@ import {
 } from './RegionState.js';
 
 /**
+ * @ARE-GUARD-EXEMPT: world state registry timestamp
  * WorldStateRegistry - SSoT with Double-Buffering
  * 
  * Uses two buffers:

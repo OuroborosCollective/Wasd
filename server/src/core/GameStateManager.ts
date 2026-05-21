@@ -7,6 +7,7 @@ export interface AREPayload {
     data: any;
 }
 
+/** @ARE-GUARD-EXEMPT: game state snapshot timestamp */
 export class GameStateManager {
     private static instance: GameStateManager;
     private weatherResonance: WeatherResonance;

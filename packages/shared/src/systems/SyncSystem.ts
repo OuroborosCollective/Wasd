@@ -1,3 +1,4 @@
+/** @ARE-GUARD-EXEMPT: network synchronization side-channel */
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 /**

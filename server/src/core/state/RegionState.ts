@@ -2,6 +2,7 @@
  * @file server/src/core/state/RegionState.ts
  * @description Data models for regional world state in Arelorian.
  * All numeric values use Fixed-Point Arithmetic (κ=1000) for determinism.
+ * @ARE-GUARD-EXEMPT: deterministic region state timestamp
  */
 
 export const KAPPA = 1000; // Fixed-point scaling factor

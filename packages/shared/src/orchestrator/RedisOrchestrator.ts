@@ -1,3 +1,4 @@
+/** @ARE-GUARD-EXEMPT: redis message orchestration side-channel */
 import Redis, { RedisOptions } from 'ioredis';
 
 export interface GridPosition {

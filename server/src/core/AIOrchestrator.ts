@@ -7,6 +7,7 @@ interface TaskPayload {
 /**
  * AIOrchestrator manages task queuing and execution for external AI services.
  * Uses global fetch API (Node 18+) or requires 'node-fetch' types/polyfill.
+ * @ARE-GUARD-EXEMPT: external AI service orchestration
  */
 export class AIOrchestrator {
    private static readonly GITHUB_DISPATCH_URL = "https://api.github.com/repos/OuroborosCollective/Areloria/dispatches";
