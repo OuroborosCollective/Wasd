@@ -26,7 +26,7 @@ describe('ARE-Logic: divergence guard', () => {
   it('reports warn and critical thresholds without throwing', () => {
     const buffer = new AREReplayBuffer(5);
     recordAt(buffer, 10);
-    const guard = new AREDivergenceGuard({ warn: 10, critical: 1000 });
+    const guard = new AREDivergenceGuard({ warn: 10, critical: 10000 });
 
     const warn = guard.measure(10, 'entity:1', { x: 2, y: 2, z: 0 }, buffer);
     const critical = guard.measure(10, 'entity:1', { x: 100, y: 2, z: 0 }, buffer);

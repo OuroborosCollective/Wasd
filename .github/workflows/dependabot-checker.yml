@@ -42,39 +42,6 @@ jobs:
           git fetch origin ${{ github.base_ref }}
           git diff origin/${{ github.base_ref }}...HEAD > diff.txt
 
-      # ----------------------------
-      # SAFE AI PATCH GENERATION
-      # ----------------------------
-      - name: AI Patch Generation
-        id: ai
-        env:
-          AI_API_KEY: ${{ secrets.AI_API_KEY }}
-        run: |
-          DIFF_CONTENT=$(cat diff.txt | sed 's/"/\\"/g')
-
-          curl -s https://your-ai-endpoint \
-            -H "Authorization: Bearer $AI_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "{\"prompt\":\"You are a senior TypeScript engineer. Output ONLY a git patch. Fix issues in this diff:\n\n$DIFF_CONTENT\"}" \
-            > patch.diff
-
-      # ----------------------------
-      # SAFETY CHECK
-      # ----------------------------
-      - name: Block sensitive paths
-        run: |
-          git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E "core|auth|security|crypto" && exit 1 || echo "safe"
-
-      # ----------------------------
-      # APPLY PATCH
-      # ----------------------------
-      - name: Apply AI Patch
-        run: |
-          git apply patch.diff || (echo "Patch failed" && exit 1)
-
-      - name: Reinstall deps
-        run: pnpm install --no-frozen-lockfile
-
       - name: Lint
         run: pnpm run lint
 
@@ -88,21 +55,6 @@ jobs:
         id: gate
         run: |
           pnpm run lint && pnpm test && echo "safe=true" >> $GITHUB_OUTPUT || echo "safe=false" >> $GITHUB_OUTPUT
-
-      # ----------------------------
-      # COMMIT FIXES
-      # ----------------------------
-      - name: Commit AI fixes
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git add .
-
-          if [ -n "$(git status --porcelain)" ]; then
-            git commit -m "chore: autonomous AI fixes"
-            git push origin HEAD:${{ github.event.pull_request.head.ref }}
-          fi
 
       # ----------------------------
       # AUTO MERGE

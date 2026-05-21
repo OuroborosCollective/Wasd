@@ -55,14 +55,15 @@ export function AREEventThemeBridge({ active = true }: { active?: boolean }): nu
     }, 100);
 
     const poll = async () => {
-      const [oracle, repair, governance] = await Promise.all([
+      const [oracleData, repair, governance] = await Promise.all([
         fetchJson<OracleStatusResponse>("/api/are/replay/oracle/status"),
         fetchJson<RepairStatusResponse>("/api/are/replay/repair/status"),
         fetchJson<GovernanceStatusResponse>("/api/are/replay/governance/status"),
       ]);
       if (disposed) return;
 
-      if (oracle?.active || Number(oracle?.prophecyCount ?? 0) > 0) {
+      const oracle = oracleData;
+      if (oracle && (oracle.active || Number(oracle.prophecyCount ?? 0) > 0)) {
         pushAREEventTheme({
           kind: "oracle",
           tick: Number(oracle.generatedAtTick ?? tick),
