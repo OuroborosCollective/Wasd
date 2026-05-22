@@ -1,11 +1,17 @@
+import { type ARERng } from "../../core/determinism/AREDeterminism.js";
+
 export class NPCPersonalityEngine {
-  generateTraits() {
+  /**
+   * Generates deterministic NPC traits using the provided ARE RNG.
+   * Ensures absolute causality in NPC behavior derivation.
+   */
+  generateTraits(rng: ARERng) {
     return {
-      courage: Math.random(),
-      curiosity: Math.random(),
-      greed: Math.random(),
-      faith: Math.random(),
-      aggression: Math.random()
+      courage: rng.nextFloat(),
+      curiosity: rng.nextFloat(),
+      greed: rng.nextFloat(),
+      faith: rng.nextFloat(),
+      aggression: rng.nextFloat()
     };
   }
 }
