@@ -58,7 +58,6 @@ export class NPCSystem {
 
     // Reuse buffers to reduce GC pressure
     private playerPositionsBuffer: Float32Array = new Float32Array(0);
-    private playerStealthBuffer: Float32Array = new Float32Array(0);
 
     private updateInterval: NodeJS.Timeout | null = null;
     private readonly TICK_RATE = 100; // 10Hz in ms
@@ -175,16 +174,13 @@ export class NPCSystem {
             String(a?.id ?? "").localeCompare(String(b?.id ?? ""))
         );
 
-        // Optimization: Flatten player positions and stealth into TypedArrays
+        // Optimization: Flatten player positions into TypedArrays
         // This avoids repeated property access and object lookups in the inner NPC loop.
         const playerCount = sortedPlayers.length;
 
-        // Reallocate buffers only if needed
+        // Reallocate buffer only if needed
         if (this.playerPositionsBuffer.length < playerCount * 3) {
             this.playerPositionsBuffer = new Float32Array(playerCount * 3);
-        }
-        if (this.playerStealthBuffer.length < playerCount) {
-            this.playerStealthBuffer = new Float32Array(playerCount);
         }
 
         for (let i = 0; i < playerCount; i++) {
@@ -193,45 +189,31 @@ export class NPCSystem {
             this.playerPositionsBuffer[i * 3] = Number.isFinite(Number(pos?.x)) ? Number(pos.x) : 0;
             this.playerPositionsBuffer[i * 3 + 1] = Number.isFinite(Number(pos?.y)) ? Number(pos.y) : 0;
             this.playerPositionsBuffer[i * 3 + 2] = Number.isFinite(Number(pos?.z)) ? Number(pos.z) : 0;
-            this.playerStealthBuffer[i] = p?.stealthValue ?? 0;
         }
 
         for (const npc of this.cachedSortedNpcs) {
-            this.processPerceptionOptimized(npc, sortedPlayers, this.playerPositionsBuffer, this.playerStealthBuffer);
+            this.processPerceptionOptimized(npc, sortedPlayers, this.playerPositionsBuffer);
         }
-    }
-
-    /** Perception uses raw arithmetic; missing z (or non-finite coords) must not yield NaN distances. */
-    private static vec3ForPerception(pos: any): { x: number; y: number; z: number } {
-        return {
-            x: Number.isFinite(Number(pos?.x)) ? Number(pos.x) : 0,
-            y: Number.isFinite(Number(pos?.y)) ? Number(pos.y) : 0,
-            z: Number.isFinite(Number(pos?.z)) ? Number(pos.z) : 0,
-        };
     }
 
     /** Optimized perception loop using flattened player data and fast distance checks. */
     private processPerceptionOptimized(
         npc: NPC,
         sortedPlayers: any[],
-        playerPositions: Float32Array,
-        playerStealth: Float32Array
+        playerPositions: Float32Array
     ): void {
         let detectedPlayerId: string | null = null;
         const npcX = Number.isFinite(Number(npc.position?.x)) ? Number(npc.position.x) : 0;
         const npcY = Number.isFinite(Number(npc.position?.y)) ? Number(npc.position.y) : 0;
         const npcZ = Number.isFinite(Number(npc.position?.z)) ? Number(npc.position.z) : 0;
         const npcPhase = npc.phaseShift ?? 0;
-        const npcVision = npc.visionRange;
 
         const playerCount = sortedPlayers.length;
         for (let i = 0; i < playerCount; i++) {
             const isVisible = checkStealthFast(
                 npcX, npcY, npcZ,
                 npcPhase,
-                npcVision,
-                playerPositions[i * 3], playerPositions[i * 3 + 1], playerPositions[i * 3 + 2],
-                playerStealth[i]
+                playerPositions[i * 3], playerPositions[i * 3 + 1], playerPositions[i * 3 + 2]
             );
 
             if (isVisible) {

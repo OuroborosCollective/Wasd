@@ -105,9 +105,7 @@ export function calculateVisibilityThreshold(phaseShift: number): number {
 export function checkStealthFast(
   npcX: number, npcY: number, npcZ: number,
   npcPhaseShift: number,
-  npcVisionRange: number,
-  targetX: number, targetY: number, targetZ: number,
-  targetStealth: number
+  targetX: number, targetY: number, targetZ: number
 ): boolean {
   const dx = npcX - targetX;
   const dy = npcY - targetY;
@@ -115,14 +113,8 @@ export function checkStealthFast(
   const distanceSquared = (dx * dx) + (dy * dy) + (dz * dz);
 
   const clampedPhase = npcPhaseShift < -500 ? -500 : (npcPhaseShift > 500 ? 500 : npcPhaseShift);
-  // Original logic in calculateVisibilityThreshold uses BASE_VISIBILITY_THRESHOLD (225)
-  // regardless of the passed perceptionRadius/visionRange.
   const threshold = BASE_VISIBILITY_THRESHOLD * (1.0 + clampedPhase / 1000);
 
-  // Quick distance check first
-  if (distanceSquared > threshold) return false;
-
-  // Stay 1:1 with checkStealthDeterministic logic for "visible" flag:
   return distanceSquared <= threshold;
 }
 
