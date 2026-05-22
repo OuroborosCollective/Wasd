@@ -101,6 +101,30 @@ export function calculateVisibilityThreshold(phaseShift: number): number {
  * 
  * NO RAYCASTING - purely mathematical distance check
  */
+/**
+ * Zero-allocation fast path for visibility checks.
+ * Matches legacy BASE_VISIBILITY_THRESHOLD (225) logic.
+ * visionRange and stealth are passed for future-proofing but currently unused in visibility flag.
+ */
+export function checkStealthFast(
+  npcX: number, npcY: number, npcZ: number,
+  npcPhaseShift: number,
+  playerX: number, playerY: number, playerZ: number,
+  _visionRange: number = 15,
+  _stealth: number = 0
+): boolean {
+  const dx = npcX - playerX;
+  const dy = npcY - playerY;
+  const dz = npcZ - playerZ;
+  const distanceSquared = (dx * dx) + (dy * dy) + (dz * dz);
+
+  // Consistent with calculateVisibilityThreshold
+  const clampedPhase = npcPhaseShift < -500 ? -500 : (npcPhaseShift > 500 ? 500 : npcPhaseShift);
+  const threshold = 225 * (1.0 + clampedPhase / 1000);
+
+  return distanceSquared <= threshold;
+}
+
 export function checkStealthDeterministic(
   npc: PerceptionState,
   player: StealthState

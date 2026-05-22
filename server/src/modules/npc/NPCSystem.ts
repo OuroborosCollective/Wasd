@@ -1,4 +1,4 @@
-import { checkStealthDeterministic, calculatePhaseShift } from './PerceptionLogic';
+import { checkStealthDeterministic, calculatePhaseShift, checkStealthFast } from './PerceptionLogic';
 import { GuildSovereigntyEngine } from '../guild/GuildSovereigntyEngine';
 import { TraitResonanceEngine } from '../resonance/TraitResonanceEngine';
 
@@ -60,6 +60,10 @@ export class NPCSystem {
 
     private sovereigntyEngine: GuildSovereigntyEngine;
 
+    private cachedSortedNpcs: NPC[] = [];
+    private npcsDirty: boolean = true;
+    private playerDataBuffer: Float32Array = new Float32Array(0);
+
     constructor() {
         // Initialize stub dependencies
         this.sovereigntyEngine = new GuildSovereigntyEngine();
@@ -68,10 +72,13 @@ export class NPCSystem {
 
     public addNPC(npc: NPC): void {
         this.npcs.set(npc.id, npc);
+        this.npcsDirty = true;
     }
 
     public removeNPC(id: string): boolean {
-        return this.npcs.delete(id);
+        const deleted = this.npcs.delete(id);
+        if (deleted) this.npcsDirty = true;
+        return deleted;
     }
 
     public createNPC(id: string, name: string, x: number, y: number): NPC {
@@ -154,15 +161,35 @@ export class NPCSystem {
     }
 
     private update(onlinePlayers: any[]): void {
-        const sortedNpcs = Array.from(this.npcs.values()).sort((a, b) =>
-            String(a?.id ?? "").localeCompare(String(b?.id ?? ""))
-        );
+        if (this.npcsDirty) {
+            this.cachedSortedNpcs = Array.from(this.npcs.values()).sort((a, b) =>
+                String(a?.id ?? "").localeCompare(String(b?.id ?? ""))
+            );
+            this.npcsDirty = false;
+        }
+
+        const playerCount = onlinePlayers.length;
+        if (this.playerDataBuffer.length !== playerCount * 4) {
+            this.playerDataBuffer = new Float32Array(playerCount * 4);
+        }
+
+        // Deterministic sort for players to maintain Level-A simulation consistency
         const sortedPlayers = [...onlinePlayers].sort((a, b) =>
             String(a?.id ?? "").localeCompare(String(b?.id ?? ""))
         );
 
-        for (const npc of sortedNpcs) {
-            this.processPerception(npc, sortedPlayers);
+        // Flatten player data once per tick to minimize property access and GC pressure
+        for (let i = 0; i < playerCount; i++) {
+            const p = sortedPlayers[i];
+            const base = i * 4;
+            this.playerDataBuffer[base] = Number(p?.position?.x ?? 0);
+            this.playerDataBuffer[base + 1] = Number(p?.position?.y ?? 0);
+            this.playerDataBuffer[base + 2] = Number(p?.position?.z ?? 0);
+            this.playerDataBuffer[base + 3] = Number(p?.stealthValue ?? 0);
+        }
+
+        for (const npc of this.cachedSortedNpcs) {
+            this.processPerceptionOptimized(npc, sortedPlayers);
         }
     }
 
@@ -173,6 +200,46 @@ export class NPCSystem {
             y: Number.isFinite(Number(pos?.y)) ? Number(pos.y) : 0,
             z: Number.isFinite(Number(pos?.z)) ? Number(pos.z) : 0,
         };
+    }
+
+    private processPerceptionOptimized(npc: NPC, sortedPlayers: any[]): void {
+        let detectedPlayerId: string | null = null;
+        const nx = npc.position.x;
+        const ny = npc.position.y;
+        const nz = npc.position.z;
+        const ps = npc.phaseShift ?? 0;
+        const vr = npc.visionRange;
+
+        const playerCount = sortedPlayers.length;
+        for (let i = 0; i < playerCount; i++) {
+            const base = i * 4;
+            const visible = checkStealthFast(
+                nx, ny, nz,
+                ps,
+                this.playerDataBuffer[base],
+                this.playerDataBuffer[base + 1],
+                this.playerDataBuffer[base + 2],
+                vr,
+                this.playerDataBuffer[base + 3]
+            );
+
+            if (visible) {
+                const player = sortedPlayers[i];
+                detectedPlayerId = player?.id != null && String(player.id).length > 0 ? String(player.id) : "unknown_player";
+                break;
+            }
+        }
+
+        if (detectedPlayerId) {
+            if (npc.targetId !== detectedPlayerId) {
+                npc.targetId = detectedPlayerId;
+                npc.state = 'interacting';
+                this.triggerComplexAI(npc);
+            }
+        } else {
+            npc.targetId = null;
+            npc.isProcessingAI = false;
+        }
     }
 
     private processPerception(npc: NPC, sortedPlayers: any[]): void {
