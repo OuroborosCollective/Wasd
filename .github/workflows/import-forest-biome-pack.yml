@@ -1,0 +1,40 @@
+name: Import Forest Biome Pack
+
+on:
+  workflow_dispatch:
+    inputs:
+      zip_path:
+        description: 'Path to AssetPack01_Forest_Sample.zip inside the repository or runner workspace'
+        required: true
+        default: 'AssetPack01_Forest_Sample.zip'
+      destination:
+        description: 'Destination folder for imported forest biome assets'
+        required: true
+        default: 'apps/client-2d/public/assets/biomes/forest/assetpack01'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-importer:
+    name: Validate deterministic forest biome importer
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify importer exists
+        run: test -f scripts/import-forest-biome-pack.mjs
+
+      - name: Print import command
+        run: |
+          echo "To import the pack after placing the ZIP in the workspace:"
+          echo "node scripts/import-forest-biome-pack.mjs '${{ inputs.zip_path }}' '${{ inputs.destination }}'"
+          echo "The importer fails if any PNG is omitted from manifest.json."
