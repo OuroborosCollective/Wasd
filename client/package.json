@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node ../scripts/write-public-route-hub.mjs",
-    "build:itch": "tsc && vite build --mode itch",
+    "build": "vite build --target esnext && node ../scripts/write-public-route-hub.mjs",
+    "build:itch": "tsc && vite build --mode itch --target esnext",
     "app:build": "vite build && npx cap sync android",
     "cap:sync": "npx cap sync android",
     "cap:open": "npx cap open android",

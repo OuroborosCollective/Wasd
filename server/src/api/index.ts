@@ -11,7 +11,9 @@ import { auctionRoute } from "./auctionRoute.js";
 
 import { mcpRoute } from "./mcpRoute.js";
 
-export const ApiRoutes = [
+import { Router } from "express";
+
+export const ApiRoutes: any[] = [
   mcpRoute(),
   healthRoute(),
   playerRoutes(),
