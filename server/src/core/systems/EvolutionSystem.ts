@@ -194,8 +194,10 @@ export class EvolutionSystem {
   public analyzeFlowPatterns(): void {
     this.flowDirectives = [];
     
-    // Find high-traffic corridors (potential sogeffekt)
-    for (const [key, corridor] of this.travelHeat) {
+    // Level-A Simulation requires deterministic iteration over entity collections.
+    const sortedHeatKeys = Array.from(this.travelHeat.keys()).sort();
+    for (const key of sortedHeatKeys) {
+      const corridor = this.travelHeat.get(key)!;
       if (corridor.intensity > this.SOG_THRESHOLD) {
         // This is a "pull" effect - too many players going to same place
         this.flowDirectives.push({
@@ -209,10 +211,15 @@ export class EvolutionSystem {
     }
     
     // Find empty chunks that were previously active (disperese effect)
-    for (const [chunk, players] of this.chunkPlayers) {
+    const sortedChunks = Array.from(this.chunkPlayers.keys()).sort();
+    const sortedCorridors = Array.from(this.travelHeat.values()).sort((a, b) =>
+      `${a.fromChunk}->${a.toChunk}`.localeCompare(`${b.fromChunk}->${b.toChunk}`)
+    );
+    for (const chunk of sortedChunks) {
+      const players = this.chunkPlayers.get(chunk)!;
       if (players.size === 0) {
         // Check if this was a destination - might need to disperse
-        for (const corridor of this.travelHeat.values()) {
+        for (const corridor of sortedCorridors) {
           if (corridor.toChunk === chunk && corridor.intensity < toFP(0.1)) {
             this.flowDirectives.push({
               directiveId: directiveId('disperse', chunk, corridor.fromChunk, corridor.toChunk),
@@ -235,7 +242,10 @@ export class EvolutionSystem {
     const currentTick = worldStateRegistry.getTick();
     const worldState = worldStateRegistry.getCurrentState();
     
-    for (const [regionId, region] of worldState.regions) {
+    // Level-A Simulation requires deterministic iteration over entity collections.
+    const sortedRegionIds = Array.from(worldState.regions.keys()).sort();
+    for (const regionId of sortedRegionIds) {
+      const region = worldState.regions.get(regionId)!;
       this.evaluateStability(regionId, region, currentTick);
     }
     
@@ -525,8 +535,10 @@ export class EvolutionSystem {
    * Clear old travel data (cleanup)
    */
   public clearTravelData(): void {
-    // Clear old corridors with low intensity
-    for (const [key, corridor] of this.travelHeat) {
+    // Deterministic cleanup
+    const sortedHeatKeys = Array.from(this.travelHeat.keys()).sort();
+    for (const key of sortedHeatKeys) {
+      const corridor = this.travelHeat.get(key)!;
       if (corridor.intensity < toFP(0.05)) {
         this.travelHeat.delete(key);
       }
