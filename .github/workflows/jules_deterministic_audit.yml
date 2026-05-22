@@ -36,6 +36,11 @@ jobs:
         env:
           NODE_OPTIONS: "--max-old-space-size=3072"
 
+      - name: Build Workspace Dependencies
+        run: |
+          pnpm --filter @wasd/shared build
+          pnpm --filter @wasd/core-logic build
+
       # Deterministic gates: shared + server must stay type-clean.
       - name: Typecheck @wasd/shared
         run: |

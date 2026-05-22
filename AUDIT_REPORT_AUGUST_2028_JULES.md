@@ -3,13 +3,13 @@
 ## Status Quo
 The Areloria project is a high-performance, deterministic MMORPG simulation framework managed as a TypeScript monorepo with **pnpm**. The architecture is divided into `apps/`, `packages/`, and `projects/`, utilizing a hybrid of standalone modules and tightly coupled core packages (`server`, `core-logic`). The build system leverages TypeScript project references and custom transpilation scripts.
 
-## Critical Errors
+## Kritische Fehler
 1.  **pnpm Version Mismatch**: Discrepancy between local/root (`v11.1.1`) and CI/Docker (`v9.12.2`). This leads to non-deterministic `pnpm-lock.yaml` changes during build.
 2.  **TypeScript Reference Integrity**: `server/tsconfig.json` was set to `composite: false`, which breaks dependency resolution in the root project reference graph, leading to build-time "portable type" and "reference project" errors.
 3.  **Dependency Synchronization Drift**: BabylonJS versions were inconsistent across `apps/web` and root overrides (`^9.8.0` vs `9.6.2`).
 4.  **Peer Dependency Mismatches**: `packages/database` had `pg` peerDependency set to `^8.11.5` while the package used `^8.20.0`, causing resolution conflicts in strict pnpm environments.
 
-## Optimization Potential
+## Optimierungspotenzial
 - **CI/CD Determinism**: Standardizing the `packageManager` field in root `package.json` ensures that all agents and CI runners use the exact same version of pnpm (v11.1.1).
 - **Docker Build Isolation**: The `scripts/sync-pnpm-lockfile-for-docker.py` script is critical for VPS resource constraints but requires constant alignment with root `overrides`. I've added missing core types to its sync logic.
 - **Type Portability**: Enforcing explicit return types on Express Routers within the `server` package facilitates stable `composite: true` compilation and faster incremental builds.
