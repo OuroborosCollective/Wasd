@@ -3,27 +3,38 @@ name: Import Forest Biome Pack
 on:
   workflow_dispatch:
     inputs:
-      zip_path:
-        description: 'Path to AssetPack01_Forest_Sample.zip inside the repository or runner workspace'
+      release_tag:
+        description: 'GitHub release tag containing the forest ZIP asset'
+        required: true
+        default: 'forest-pack-assetpack01'
+      asset_name:
+        description: 'Release asset filename'
         required: true
         default: 'AssetPack01_Forest_Sample.zip'
       destination:
         description: 'Destination folder for imported forest biome assets'
         required: true
         default: 'apps/client-2d/public/assets/biomes/forest/assetpack01'
+      branch_name:
+        description: 'Branch to create/update with imported assets'
+        required: true
+        default: 'import-forest-biome-assets'
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 jobs:
-  validate-importer:
-    name: Validate deterministic forest biome importer
+  import-release-asset:
+    name: Import release asset and open PR
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -33,8 +44,75 @@ jobs:
       - name: Verify importer exists
         run: test -f scripts/import-forest-biome-pack.mjs
 
-      - name: Print import command
+      - name: Download release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          ASSET_NAME: ${{ inputs.asset_name }}
         run: |
-          echo "To import the pack after placing the ZIP in the workspace:"
-          echo "node scripts/import-forest-biome-pack.mjs '${{ inputs.zip_path }}' '${{ inputs.destination }}'"
-          echo "The importer fails if any PNG is omitted from manifest.json."
+          set -euo pipefail
+          echo "Downloading ${ASSET_NAME} from release ${RELEASE_TAG}"
+          gh release download "${RELEASE_TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern "${ASSET_NAME}" \
+            --dir . \
+            --clobber
+          test -f "${ASSET_NAME}"
+          ls -lh "${ASSET_NAME}"
+
+      - name: Import forest biome pack
+        run: |
+          set -euo pipefail
+          node scripts/import-forest-biome-pack.mjs "${{ inputs.asset_name }}" "${{ inputs.destination }}"
+
+      - name: Verify import completeness
+        run: |
+          set -euo pipefail
+          MANIFEST="${{ inputs.destination }}/manifest.json"
+          test -f "${MANIFEST}"
+          node - <<'NODE'
+          const fs = require('fs');
+          const manifestPath = process.env.MANIFEST;
+          const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+          const entryCount = Object.keys(manifest.entries || {}).length;
+          if (!manifest.validation?.noPngOmitted) {
+            throw new Error('Forest biome manifest says PNG omission check failed');
+          }
+          if (manifest.pngCount !== entryCount) {
+            throw new Error(`PNG count mismatch: pngCount=${manifest.pngCount}, entries=${entryCount}`);
+          }
+          if (manifest.expectedPngCount !== entryCount) {
+            throw new Error(`Expected count mismatch: expected=${manifest.expectedPngCount}, entries=${entryCount}`);
+          }
+          console.log(`Forest biome import complete: ${entryCount} PNG entries`);
+          NODE
+        env:
+          MANIFEST: ${{ inputs.destination }}/manifest.json
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ github.token }}
+          branch: ${{ inputs.branch_name }}
+          delete-branch: true
+          title: 'Import forest biome asset pack files'
+          commit-message: 'feat(client-2d): import forest biome asset pack files'
+          body: |
+            Imports the Forest Biome release asset into the 2D client public assets.
+
+            Source release:
+            - tag: `${{ inputs.release_tag }}`
+            - asset: `${{ inputs.asset_name }}`
+
+            Generated output:
+            - `${{ inputs.destination }}/files/**`
+            - `${{ inputs.destination }}/manifest.json`
+            - `${{ inputs.destination }}/README.md`
+
+            The importer verifies that every PNG in the ZIP is represented in the manifest.
+
+            No WorldTick, ARE core, server simulation, NPC, combat, or economy changes.
+          labels: |
+            assets
+            client-2d
+            forest-biome
