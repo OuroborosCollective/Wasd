@@ -194,8 +194,11 @@ export class EvolutionSystem {
   public analyzeFlowPatterns(): void {
     this.flowDirectives = [];
     
-    // Find high-traffic corridors (potential sogeffekt)
-    for (const [key, corridor] of this.travelHeat) {
+    // Hardening: JavaScript Map iteration is based on insertion order.
+    // We sort keys before iteration to ensure deterministic simulation results across all nodes.
+    const sortedHeatKeys = Array.from(this.travelHeat.keys()).sort();
+    for (const key of sortedHeatKeys) {
+      const corridor = this.travelHeat.get(key)!;
       if (corridor.intensity > this.SOG_THRESHOLD) {
         // This is a "pull" effect - too many players going to same place
         this.flowDirectives.push({
@@ -209,10 +212,18 @@ export class EvolutionSystem {
     }
     
     // Find empty chunks that were previously active (disperese effect)
-    for (const [chunk, players] of this.chunkPlayers) {
+    const sortedChunkKeys = Array.from(this.chunkPlayers.keys()).sort();
+    for (const chunk of sortedChunkKeys) {
+      const players = this.chunkPlayers.get(chunk)!;
       if (players.size === 0) {
         // Check if this was a destination - might need to disperse
-        for (const corridor of this.travelHeat.values()) {
+        // Hardening: Enforce deterministic iteration order for Level-A world flow analysis.
+        const sortedHeatValues = Array.from(this.travelHeat.values()).sort((a, b) => {
+          const keyA = `${a.fromChunk}->${a.toChunk}`;
+          const keyB = `${b.fromChunk}->${b.toChunk}`;
+          return keyA.localeCompare(keyB);
+        });
+        for (const corridor of sortedHeatValues) {
           if (corridor.toChunk === chunk && corridor.intensity < toFP(0.1)) {
             this.flowDirectives.push({
               directiveId: directiveId('disperse', chunk, corridor.fromChunk, corridor.toChunk),
@@ -235,7 +246,10 @@ export class EvolutionSystem {
     const currentTick = worldStateRegistry.getTick();
     const worldState = worldStateRegistry.getCurrentState();
     
-    for (const [regionId, region] of worldState.regions) {
+    // Hardening: Sort region IDs before iteration to maintain absolute causality in regional evolution.
+    const sortedRegionIds = Array.from(worldState.regions.keys()).sort();
+    for (const regionId of sortedRegionIds) {
+      const region = worldState.regions.get(regionId)!;
       this.evaluateStability(regionId, region, currentTick);
     }
     
@@ -526,7 +540,10 @@ export class EvolutionSystem {
    */
   public clearTravelData(): void {
     // Clear old corridors with low intensity
-    for (const [key, corridor] of this.travelHeat) {
+    // Hardening: Enforce deterministic cleanup order for WorldHash consistency.
+    const sortedKeys = Array.from(this.travelHeat.keys()).sort();
+    for (const key of sortedKeys) {
+      const corridor = this.travelHeat.get(key)!;
       if (corridor.intensity < toFP(0.05)) {
         this.travelHeat.delete(key);
       }

@@ -28,7 +28,11 @@ export class OracleSystem {
   public async detectPatterns(): Promise<void> {
     const worldState = worldStateRegistry.getCurrentState();
     
-    for (const [regionId, region] of worldState.regions) {
+    // Hardening: JavaScript Map iteration is non-deterministic.
+    // Enforce sorted order for region processing to ensure identical WorldHash across replays.
+    const sortedRegionIds = Array.from(worldState.regions.keys()).sort();
+    for (const regionId of sortedRegionIds) {
+      const region = worldState.regions.get(regionId)!;
       // Check for DEPLETED_RESOURCES
       this.checkResourceDepletion(regionId, region);
       
@@ -45,7 +49,10 @@ export class OracleSystem {
    */
   private checkResourceDepletion(regionId: string, region: RegionState): void {
     let totalSaturation = 0;
-    for (const [, value] of region.resourceSaturation) {
+    // Hardening: Resource saturation Map iteration must be sorted to maintain mathematical causality.
+    const sortedResourceKeys = Array.from(region.resourceSaturation.keys()).sort();
+    for (const key of sortedResourceKeys) {
+      const value = region.resourceSaturation.get(key)!;
       totalSaturation += value;
     }
     
