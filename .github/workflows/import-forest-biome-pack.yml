@@ -6,11 +6,11 @@ on:
       release_tag:
         description: 'GitHub release tag containing the forest ZIP asset'
         required: true
-        default: 'forest-pack-assetpack01'
+        default: 'untagged-c951878f51c6262287d2'
       asset_name:
-        description: 'Release asset filename'
+        description: 'Release asset filename or empty/auto to use first non-source ZIP asset'
         required: true
-        default: 'AssetPack01_Forest_Sample.zip'
+        default: 'auto'
       destination:
         description: 'Destination folder for imported forest biome assets'
         required: true
@@ -44,26 +44,51 @@ jobs:
       - name: Verify importer exists
         run: test -f scripts/import-forest-biome-pack.mjs
 
-      - name: Download release asset
+      - name: Resolve and download release asset
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.release_tag }}
           ASSET_NAME: ${{ inputs.asset_name }}
         run: |
           set -euo pipefail
-          echo "Downloading ${ASSET_NAME} from release ${RELEASE_TAG}"
+          echo "Resolving release asset from tag: ${RELEASE_TAG}"
+          gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --json tagName,name,assets > release.json
+          echo "Release metadata:"
+          cat release.json
+
+          REQUESTED="${ASSET_NAME}"
+          SELECTED=""
+
+          if [ -n "${REQUESTED}" ] && [ "${REQUESTED}" != "auto" ]; then
+            SELECTED="$(node -e "const r=require('./release.json'); const wanted=process.env.REQUESTED; const a=(r.assets||[]).find(x=>x.name===wanted); if(a) console.log(a.name);" )"
+            if [ -z "${SELECTED}" ]; then
+              echo "Requested asset '${REQUESTED}' not found. Falling back to first non-source ZIP asset."
+            fi
+          fi
+
+          if [ -z "${SELECTED}" ]; then
+            SELECTED="$(node -e "const r=require('./release.json'); const assets=(r.assets||[]).map(a=>a.name); const pick=assets.find(n=>/\\.zip$/i.test(n) && !/^source code/i.test(n)) || assets.find(n=>/forest|assetpack|sample/i.test(n)) || assets.find(n=>/\\.zip$/i.test(n)) || ''; console.log(pick);" )"
+          fi
+
+          if [ -z "${SELECTED}" ]; then
+            echo "No usable release asset found. Upload the ZIP as a release asset, not only as source archive or description link."
+            exit 1
+          fi
+
+          echo "Selected release asset: ${SELECTED}"
+          echo "FOREST_ZIP=${SELECTED}" >> "$GITHUB_ENV"
           gh release download "${RELEASE_TAG}" \
             --repo "${GITHUB_REPOSITORY}" \
-            --pattern "${ASSET_NAME}" \
+            --pattern "${SELECTED}" \
             --dir . \
             --clobber
-          test -f "${ASSET_NAME}"
-          ls -lh "${ASSET_NAME}"
+          test -f "${SELECTED}"
+          ls -lh "${SELECTED}"
 
       - name: Import forest biome pack
         run: |
           set -euo pipefail
-          node scripts/import-forest-biome-pack.mjs "${{ inputs.asset_name }}" "${{ inputs.destination }}"
+          node scripts/import-forest-biome-pack.mjs "${FOREST_ZIP}" "${{ inputs.destination }}"
 
       - name: Verify import completeness
         run: |
@@ -102,7 +127,7 @@ jobs:
 
             Source release:
             - tag: `${{ inputs.release_tag }}`
-            - asset: `${{ inputs.asset_name }}`
+            - selected asset: `${{ env.FOREST_ZIP }}`
 
             Generated output:
             - `${{ inputs.destination }}/files/**`
