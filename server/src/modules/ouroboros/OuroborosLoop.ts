@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: intentional non-deterministic agent behavior
 /**
  * OuroborosLoop — the self-sustaining agent cycle.
  *

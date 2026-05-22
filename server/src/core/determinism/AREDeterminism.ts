@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: infrastructure wall-clock usage
 export interface AREClock {
   now(): number;
 }
