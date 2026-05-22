@@ -9,11 +9,25 @@ import {
   type AssetEntry,
   type AssetManifest,
 } from "./assetManifest";
+import {
+  loadForestBiomeManifest,
+  pickForestGround,
+  pickForestGrass,
+  type ForestBiomeAssetEntry,
+  type ForestBiomeManifest,
+} from "./forestBiomePicker";
+import {
+  forestGatherIntent,
+  pickForestResourceNode,
+  type ForestResourceNode,
+} from "./forestResourceRegistry";
 import { ArelorianStitchHud } from "./ArelorianStitchHud";
 
 const TILE_W = 96;
 const TILE_H = 48;
 const EQUIPPED_WEAPON_KEY = "wasd:2d:equippedWeaponVisualId";
+const FOREST_WORLD_SEED = "areloria:forest:millbrook:v1";
+const KAPPA_INVARIANT = 1000;
 
 type Entity = {
   root: Container;
@@ -24,8 +38,17 @@ type Entity = {
   weaponVisualId: string | null;
   characterVisualId: string | null;
 };
+
 type Msg = { from: string; txt: string };
-type LoadedAssets = { manifest: AssetManifest | null; textures: Map<string, Texture> };
+
+type LoadedAssets = {
+  manifest: AssetManifest | null;
+  forestManifest: ForestBiomeManifest | null;
+  textures: Map<string, Texture>;
+  forestTextures: Map<string, Texture>;
+  ensureForestTexture: (entry: ForestBiomeAssetEntry | AssetEntry | null | undefined) => Promise<Texture | null>;
+};
+
 type CharacterSelection = {
   tags: string[];
   group?: string | null;
@@ -48,9 +71,28 @@ function diamond(color: number, stroke = 0x17361e) {
   return g;
 }
 
-function textureFor(assets: LoadedAssets | null, entry: AssetEntry | null): Texture | null {
+function isForestBiomeEntry(entry: AssetEntry | null | undefined): boolean {
+  if (!entry?.src) return false;
+  return entry.group === "forest" || entry.rules?.biome === "forest" || entry.src.includes("/assets/biomes/forest/");
+}
+
+async function loadTextureInto(cache: Map<string, Texture>, src: string): Promise<Texture | null> {
+  const cached = cache.get(src);
+  if (cached) return cached;
+
+  try {
+    const texture = await Assets.load<Texture>(src);
+    cache.set(src, texture);
+    return texture;
+  } catch (err) {
+    console.warn("[2DAssets] Failed to load", src, err);
+    return null;
+  }
+}
+
+function textureFor(assets: LoadedAssets | null, entry: AssetEntry | ForestBiomeAssetEntry | null): Texture | null {
   if (!assets || !entry?.src) return null;
-  return assets.textures.get(entry.src) ?? null;
+  return assets.textures.get(entry.src) ?? assets.forestTextures.get(entry.src) ?? null;
 }
 
 function atlasFrameTextureFor(assets: LoadedAssets | null, entry: AssetEntry | null, animation = "idle_down"): Texture | null {
@@ -121,9 +163,25 @@ function propHouse(assets?: LoadedAssets | null) {
   c.addChild(new Graphics().ellipse(0, 18, 48, 12).fill({ color: 0x010804, alpha: 0.44 }));
   c.addChild(new Graphics().roundRect(-34, -36, 68, 48, 8).fill(0x7d5534).stroke({ width: 2, color: 0xffd890, alpha: 0.32 }));
   const roof = new Graphics();
-  roof.moveTo(-44, -34); roof.lineTo(0, -70); roof.lineTo(44, -34); roof.lineTo(30, -18); roof.lineTo(-30, -18); roof.closePath();
-  roof.fill(0x8e2c2b); roof.stroke({ width: 2, color: 0xffb568, alpha: 0.5 });
+  roof.moveTo(-44, -34);
+  roof.lineTo(0, -70);
+  roof.lineTo(44, -34);
+  roof.lineTo(30, -18);
+  roof.lineTo(-30, -18);
+  roof.closePath();
+  roof.fill(0x8e2c2b);
+  roof.stroke({ width: 2, color: 0xffb568, alpha: 0.5 });
   c.addChild(roof, new Graphics().roundRect(-8, -16, 16, 28, 4).fill(0x21100a));
+  return c;
+}
+
+function forestResourceSprite(node: ForestResourceNode, texture: Texture, onPick: (node: ForestResourceNode) => void) {
+  const c = new Container();
+  c.eventMode = "static";
+  c.cursor = "pointer";
+  c.addChild(new Graphics().ellipse(0, 15, 22, 7).fill({ color: 0x020a05, alpha: 0.42 }));
+  c.addChild(spriteFromTexture(texture, node.definition.size.width, node.definition.size.height, node.definition.size.y ?? 0));
+  c.on("pointertap", () => onPick(node));
   return c;
 }
 
@@ -184,14 +242,17 @@ function avatar(name: string, player = false, assets?: LoadedAssets | null, weap
   }
   addWeaponSprite(c, assets, name, weaponVisualId);
   const label = new Text({ text: name, style: { fontSize: 11, fill: 0xfff0cf, stroke: { color: 0x02030a, width: 3 }, fontFamily: "monospace" } });
-  label.anchor.set(0.5, 1); label.y = -58;
+  label.anchor.set(0.5, 1);
+  label.y = -58;
   c.addChild(label);
   return c;
 }
 
 function place(node: Container, x: number, z: number, width: number, height: number) {
   const p = iso(x, z, width, height);
-  node.x = p.x; node.y = p.y; node.zIndex = p.y;
+  node.x = p.x;
+  node.y = p.y;
+  node.zIndex = p.y;
 }
 
 function weaponIds(manifest: AssetManifest | null | undefined): string[] {
@@ -215,18 +276,30 @@ function resolveEquippedWeaponId(manifest: AssetManifest | null, seed: string): 
 
 async function load2DAssets(): Promise<LoadedAssets> {
   const manifest = await loadAssetManifest();
-  const urls = new Set<string>();
+  const forestManifest = await loadForestBiomeManifest();
+  const textures = new Map<string, Texture>();
+  const forestTextures = new Map<string, Texture>();
+  const eagerUrls = new Set<string>();
+
   if (manifest) {
     [manifest.tilesets, manifest.characters, manifest.monsters, manifest.buildings, manifest.props, manifest.fx, manifest.ui, manifest.weapons].forEach((group) => {
-      Object.values(group ?? {}).forEach((entry) => { if (entry.src) urls.add(entry.src); });
+      Object.values(group ?? {}).forEach((entry) => {
+        if (!entry.src) return;
+        if (isForestBiomeEntry(entry)) return;
+        eagerUrls.add(entry.src);
+      });
     });
   }
-  const textures = new Map<string, Texture>();
-  await Promise.all([...urls].map(async (url) => {
-    try { textures.set(url, await Assets.load<Texture>(url)); }
-    catch (err) { console.warn("[2DAssets] Failed to load", url, err); }
-  }));
-  return { manifest, textures };
+
+  await Promise.all([...eagerUrls].map((url) => loadTextureInto(textures, url)));
+
+  return {
+    manifest,
+    forestManifest,
+    textures,
+    forestTextures,
+    ensureForestTexture: (entry) => entry?.src ? loadTextureInto(forestTextures, entry.src) : Promise.resolve(null),
+  };
 }
 
 export function CyberZenIsoApp() {
@@ -248,8 +321,12 @@ export function CyberZenIsoApp() {
   useEffect(() => {
     const down = (e: KeyboardEvent) => keys.current.add(e.key.toLowerCase());
     const up = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
-    addEventListener("keydown", down); addEventListener("keyup", up);
-    return () => { removeEventListener("keydown", down); removeEventListener("keyup", up); };
+    addEventListener("keydown", down);
+    addEventListener("keyup", up);
+    return () => {
+      removeEventListener("keydown", down);
+      removeEventListener("keyup", up);
+    };
   }, []);
 
   useEffect(() => {
@@ -260,34 +337,67 @@ export function CyberZenIsoApp() {
       host.current!.appendChild(app.canvas);
       const loaded = await load2DAssets();
       assetRef.current = loaded;
-      const textureCount = loaded.textures.size;
+      const textureCount = loaded.textures.size + loaded.forestTextures.size;
       const weapons = weaponIds(loaded.manifest).length;
       const characters = characterIds(loaded.manifest).length;
+      const forestEntries = Object.keys(loaded.forestManifest?.entries ?? {}).length;
       const initialWeaponId = resolveEquippedWeaponId(loaded.manifest, playerName);
       setEquippedWeaponId(initialWeaponId);
       setWeaponCount(weapons);
       setAssetStatus(textureCount > 0 ? `ASSETS_${textureCount}_LOADED` : "PROXY_GRAPHICS");
-      setMessages(m => [...m.slice(-12), { from: "AssetRig", txt: textureCount > 0 ? `Loaded ${textureCount} textures, ${characters} characters and ${weapons} weapon visuals.` : "No manifest textures yet. Using proxy graphics." }]);
-      const terrain = new Container(); const props = new Container(); const actors = new Container(); actors.sortableChildren = true;
+      setMessages(m => [...m.slice(-12), { from: "AssetRig", txt: textureCount > 0 ? `Loaded ${textureCount} textures, ${characters} characters, ${weapons} weapons and ${forestEntries} forest entries.` : "No manifest textures yet. Using proxy graphics." }]);
+      const terrain = new Container();
+      const props = new Container();
+      const actors = new Container();
+      actors.sortableChildren = true;
       actorLayerRef.current = actors;
       app.stage.addChild(terrain, props, actors);
-      buildScene(app, terrain, props, loaded);
+      await buildScene(app, terrain, props, loaded);
       addActor(app, actors, "self", 0, 0, playerName, true, loaded, initialWeaponId);
       addActor(app, actors, "elder", 2, 1, "Millbrook Elder", false, loaded);
       startNetwork(app, actors);
       app.ticker.add(() => tick(app, actors));
     });
-    return () => { clientRef.current?.disconnect(); app.destroy(true); };
+    return () => {
+      clientRef.current?.disconnect();
+      app.destroy(true);
+    };
   }, []);
 
-  function buildScene(app: Application, terrain: Container, props: Container, assets?: LoadedAssets | null) {
-    const terrainTex = textureFor(assets ?? null, fallbackEntry(assets?.manifest ?? null, "tilesets", "terrain"));
+  function sendForestGather(node: ForestResourceNode) {
+    clientRef.current?.sendPlayerAction("GATHER_RESOURCE", forestGatherIntent(node));
+  }
+
+  async function buildScene(app: Application, terrain: Container, props: Container, assets?: LoadedAssets | null) {
+    const forest = assets?.forestManifest ?? null;
     for (let z = -7; z <= 7; z++) for (let x = -7; x <= 7; x++) {
+      const ground = pickForestGround(forest, { worldSeed: FOREST_WORLD_SEED, chunkX: 0, chunkZ: 0, tileX: x, tileZ: z, layer: 0 });
+      const grass = ground ? null : pickForestGrass(forest, { worldSeed: FOREST_WORLD_SEED, chunkX: 0, chunkZ: 0, tileX: x, tileZ: z, layer: 1 });
+      const terrainTex = await assets?.ensureForestTexture(ground ?? grass);
       const tile = terrainTex ? spriteFromTexture(terrainTex, TILE_W, TILE_H, TILE_H / 2) : diamond((x + z) % 4 === 0 ? 0x3f7f48 : 0x356b40);
-      place(tile, x, z, app.screen.width, app.screen.height); terrain.addChild(tile);
+      place(tile, x, z, app.screen.width, app.screen.height);
+      terrain.addChild(tile);
+
+      const node = pickForestResourceNode(forest, { worldSeed: FOREST_WORLD_SEED, chunkX: 0, chunkZ: 0, tileX: x, tileZ: z, kappa: KAPPA_INVARIANT });
+      if (node) {
+        const resourceTex = await assets?.ensureForestTexture(node.asset);
+        if (resourceTex) {
+          const sprite = forestResourceSprite(node, resourceTex, sendForestGather);
+          place(sprite, x, z, app.screen.width, app.screen.height);
+          props.addChild(sprite);
+        }
+      }
     }
-    [[-4,-2],[4,-3],[-5,3],[5,2]].forEach(([x,z]) => { const t = propTree(assets); place(t, x, z, app.screen.width, app.screen.height); props.addChild(t); });
-    [[-2,2],[2,2],[0,-4]].forEach(([x,z]) => { const h = propHouse(assets); place(h, x, z, app.screen.width, app.screen.height); props.addChild(h); });
+    [[-4, -2], [4, -3], [-5, 3], [5, 2]].forEach(([x, z]) => {
+      const t = propTree(assets);
+      place(t, x, z, app.screen.width, app.screen.height);
+      props.addChild(t);
+    });
+    [[-2, 2], [2, 2], [0, -4]].forEach(([x, z]) => {
+      const h = propHouse(assets);
+      place(h, x, z, app.screen.width, app.screen.height);
+      props.addChild(h);
+    });
   }
 
   function addActor(app: Application, layer: Container, id: string, x: number, z: number, name: string, player: boolean, assets = assetRef.current, weaponVisualId?: string | null) {
@@ -305,8 +415,10 @@ export function CyberZenIsoApp() {
       kind: selection.kind,
       seed: `${id}:${name}`,
     })?.id ?? null;
-    const root = avatar(name, player, assets, resolvedWeaponId, characterVisualId); place(root, x, z, app.screen.width, app.screen.height);
-    layer.addChild(root); entities.current.set(id, { root, tx: x, tz: z, name, isPlayer: player, weaponVisualId: resolvedWeaponId, characterVisualId });
+    const root = avatar(name, player, assets, resolvedWeaponId, characterVisualId);
+    place(root, x, z, app.screen.width, app.screen.height);
+    layer.addChild(root);
+    entities.current.set(id, { root, tx: x, tz: z, name, isPlayer: player, weaponVisualId: resolvedWeaponId, characterVisualId });
   }
 
   function rebuildActorVisual(id: string, weaponVisualId: string | null) {
@@ -348,15 +460,33 @@ export function CyberZenIsoApp() {
       Object.entries(e.payload?.players || {}).forEach(([id, p]: any) => addActor(app, layer, id, Number(p.x || 0), Number(p.z || 0), p.name || "Player", true));
       Object.entries(e.payload?.agents || {}).forEach(([id, a]: any) => addActor(app, layer, id, Number(a.x || 0), Number(a.z || 0), a.name || "NPC", false));
     });
-    c.on("PLAYER_MOVED", (e: any) => { const ent = entities.current.get(e.payload?.playerId); if (ent) { ent.tx = Number(e.payload.x || ent.tx); ent.tz = Number(e.payload.z || ent.tz); } });
+    c.on("PLAYER_MOVED", (e: any) => {
+      const ent = entities.current.get(e.payload?.playerId);
+      if (ent) {
+        ent.tx = Number(e.payload.x || ent.tx);
+        ent.tz = Number(e.payload.z || ent.tz);
+      }
+    });
     c.connect();
   }
 
   function tick(app: Application, layer: Container) {
-    let dx = 0, dz = 0; const k = keys.current;
-    if (k.has("w") || k.has("arrowup")) dz += 1; if (k.has("s") || k.has("arrowdown")) dz -= 1; if (k.has("a") || k.has("arrowleft")) dx -= 1; if (k.has("d") || k.has("arrowright")) dx += 1;
-    if ((dx || dz) && clientRef.current?.connected && Date.now() - moveAt.current > 140) { moveAt.current = Date.now(); clientRef.current.sendPlayerAction("MOVE", { dx, dz }); }
-    entities.current.forEach((ent) => { const p = iso(ent.tx, ent.tz, app.screen.width, app.screen.height); ent.root.x += (p.x - ent.root.x) * 0.18; ent.root.y += (p.y - ent.root.y) * 0.18; ent.root.zIndex = ent.root.y; });
+    let dx = 0, dz = 0;
+    const k = keys.current;
+    if (k.has("w") || k.has("arrowup")) dz += 1;
+    if (k.has("s") || k.has("arrowdown")) dz -= 1;
+    if (k.has("a") || k.has("arrowleft")) dx -= 1;
+    if (k.has("d") || k.has("arrowright")) dx += 1;
+    if ((dx || dz) && clientRef.current?.connected && Date.now() - moveAt.current > 140) {
+      moveAt.current = Date.now();
+      clientRef.current.sendPlayerAction("MOVE", { dx, dz });
+    }
+    entities.current.forEach((ent) => {
+      const p = iso(ent.tx, ent.tz, app.screen.width, app.screen.height);
+      ent.root.x += (p.x - ent.root.x) * 0.18;
+      ent.root.y += (p.y - ent.root.y) * 0.18;
+      ent.root.zIndex = ent.root.y;
+    });
     layer.sortChildren();
   }
 
