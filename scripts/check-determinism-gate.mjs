@@ -31,7 +31,7 @@ const deny = [
   { pattern: /\bcrypto\.randomUUID\s*\(/, label: 'crypto.randomUUID()' },
   { pattern: /\brandomUUID\s*\(/, label: 'randomUUID()' },
 ];
-const ignoredDirs = new Set(['node_modules', 'dist', 'build', '.turbo', '.cache', 'coverage', 'tests', 'test', '__tests__']);
+const ignoredDirs = new Set(['node_modules', 'dist', 'build', '.turbo', '.cache', 'coverage']);
 const extensions = new Set(['.ts', '.tsx', '.js', '.mjs', '.cjs', '.mts', '.cts']);
 const lineAllow = /ARE-DETERMINISM-ALLOW/i;
 const fileExempt = /@ARE-GUARD-EXEMPT:\s*(.{8,})/i;

@@ -11,7 +11,6 @@ export interface ARERng {
 
 export class SystemAREClock implements AREClock {
   now(): number {
-    // ARE-DETERMINISM-ALLOW cooldown/audit metadata; not world-hash input.
     return Date.now();
   }
 }
