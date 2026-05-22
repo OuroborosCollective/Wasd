@@ -97,11 +97,6 @@ export function calculateVisibilityThreshold(phaseShift: number): number {
 }
 
 /**
- * Check if target is visible to NPC (deterministic)
- * 
- * NO RAYCASTING - purely mathematical distance check
- */
-/**
  * Zero-allocation fast path for visibility checks.
  * Matches legacy BASE_VISIBILITY_THRESHOLD (225) logic.
  * visionRange and stealth are passed for future-proofing but currently unused in visibility flag.
@@ -125,6 +120,11 @@ export function checkStealthFast(
   return distanceSquared <= threshold;
 }
 
+/**
+ * Check if target is visible to NPC (deterministic)
+ *
+ * NO RAYCASTING - purely mathematical distance check
+ */
 export function checkStealthDeterministic(
   npc: PerceptionState,
   player: StealthState
