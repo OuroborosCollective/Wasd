@@ -194,8 +194,14 @@ export class EvolutionSystem {
   public analyzeFlowPatterns(): void {
     this.flowDirectives = [];
     
+    // Level-A Simulation requires absolute determinism.
+    // Map iteration is non-deterministic in Node.js (insertion order).
+    // We sort keys to ensure identical WorldHash across all replay instances.
+    const sortedHeatKeys = Array.from(this.travelHeat.keys()).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+
     // Find high-traffic corridors (potential sogeffekt)
-    for (const [key, corridor] of this.travelHeat) {
+    for (const key of sortedHeatKeys) {
+      const corridor = this.travelHeat.get(key)!;
       if (corridor.intensity > this.SOG_THRESHOLD) {
         // This is a "pull" effect - too many players going to same place
         this.flowDirectives.push({
@@ -209,10 +215,14 @@ export class EvolutionSystem {
     }
     
     // Find empty chunks that were previously active (disperese effect)
-    for (const [chunk, players] of this.chunkPlayers) {
+    const sortedChunkKeys = Array.from(this.chunkPlayers.keys()).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    for (const chunk of sortedChunkKeys) {
+      const players = this.chunkPlayers.get(chunk)!;
       if (players.size === 0) {
         // Check if this was a destination - might need to disperse
-        for (const corridor of this.travelHeat.values()) {
+        // Use sorted heat keys to maintain deterministic directive order
+        for (const heatKey of sortedHeatKeys) {
+          const corridor = this.travelHeat.get(heatKey)!;
           if (corridor.toChunk === chunk && corridor.intensity < toFP(0.1)) {
             this.flowDirectives.push({
               directiveId: directiveId('disperse', chunk, corridor.fromChunk, corridor.toChunk),
@@ -235,7 +245,11 @@ export class EvolutionSystem {
     const currentTick = worldStateRegistry.getTick();
     const worldState = worldStateRegistry.getCurrentState();
     
-    for (const [regionId, region] of worldState.regions) {
+    // Sorting region IDs ensures that mutations are queued in the same order on every tick execution.
+    const sortedRegionIds = Array.from(worldState.regions.keys()).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+
+    for (const regionId of sortedRegionIds) {
+      const region = worldState.regions.get(regionId)!;
       this.evaluateStability(regionId, region, currentTick);
     }
     
@@ -497,13 +511,17 @@ export class EvolutionSystem {
    * Get travel heat for all corridors
    */
   public getTravelHeat(): TravelCorridor[] {
-    return [...this.travelHeat.values()];
+    // Deterministic order for Level-C telemetry to ensure consistent science portal views.
+    return Array.from(this.travelHeat.keys())
+      .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(key => this.travelHeat.get(key)!);
   }
 
   /**
    * Get flow directives for Oracle
    */
   public getFlowDirectives(): FlowDirective[] {
+    // Already deterministic because analyzeFlowPatterns processes maps in sorted order
     return [...this.flowDirectives];
   }
 
@@ -526,7 +544,10 @@ export class EvolutionSystem {
    */
   public clearTravelData(): void {
     // Clear old corridors with low intensity
-    for (const [key, corridor] of this.travelHeat) {
+    // Deterministic iteration order prevents divergence during partial tick recovery or state pruning.
+    const sortedKeys = Array.from(this.travelHeat.keys()).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    for (const key of sortedKeys) {
+      const corridor = this.travelHeat.get(key)!;
       if (corridor.intensity < toFP(0.05)) {
         this.travelHeat.delete(key);
       }
