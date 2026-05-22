@@ -1,4 +1,4 @@
-import { checkStealthDeterministic, calculatePhaseShift } from './PerceptionLogic';
+import { checkStealthDeterministic, calculatePhaseShift, checkStealthFast } from './PerceptionLogic';
 import { GuildSovereigntyEngine } from '../guild/GuildSovereigntyEngine';
 import { TraitResonanceEngine } from '../resonance/TraitResonanceEngine';
 
@@ -53,6 +53,13 @@ export interface NPC {
 
 export class NPCSystem {
     private npcs: Map<string, NPC> = new Map();
+    private cachedSortedNpcs: NPC[] = [];
+    private npcsDirty: boolean = true;
+
+    // Reuse buffers to reduce GC pressure
+    private playerPositionsBuffer: Float32Array = new Float32Array(0);
+    private playerStealthBuffer: Float32Array = new Float32Array(0);
+
     private updateInterval: NodeJS.Timeout | null = null;
     private readonly TICK_RATE = 100; // 10Hz in ms
 
@@ -68,10 +75,13 @@ export class NPCSystem {
 
     public addNPC(npc: NPC): void {
         this.npcs.set(npc.id, npc);
+        this.npcsDirty = true;
     }
 
     public removeNPC(id: string): boolean {
-        return this.npcs.delete(id);
+        const deleted = this.npcs.delete(id);
+        if (deleted) this.npcsDirty = true;
+        return deleted;
     }
 
     public createNPC(id: string, name: string, x: number, y: number): NPC {
@@ -154,15 +164,40 @@ export class NPCSystem {
     }
 
     private update(onlinePlayers: any[]): void {
-        const sortedNpcs = Array.from(this.npcs.values()).sort((a, b) =>
-            String(a?.id ?? "").localeCompare(String(b?.id ?? ""))
-        );
+        if (this.npcsDirty) {
+            this.cachedSortedNpcs = Array.from(this.npcs.values()).sort((a, b) =>
+                String(a?.id ?? "").localeCompare(String(b?.id ?? ""))
+            );
+            this.npcsDirty = false;
+        }
+
         const sortedPlayers = [...onlinePlayers].sort((a, b) =>
             String(a?.id ?? "").localeCompare(String(b?.id ?? ""))
         );
 
-        for (const npc of sortedNpcs) {
-            this.processPerception(npc, sortedPlayers);
+        // Optimization: Flatten player positions and stealth into TypedArrays
+        // This avoids repeated property access and object lookups in the inner NPC loop.
+        const playerCount = sortedPlayers.length;
+
+        // Reallocate buffers only if needed
+        if (this.playerPositionsBuffer.length < playerCount * 3) {
+            this.playerPositionsBuffer = new Float32Array(playerCount * 3);
+        }
+        if (this.playerStealthBuffer.length < playerCount) {
+            this.playerStealthBuffer = new Float32Array(playerCount);
+        }
+
+        for (let i = 0; i < playerCount; i++) {
+            const p = sortedPlayers[i];
+            const pos = p?.position;
+            this.playerPositionsBuffer[i * 3] = Number.isFinite(Number(pos?.x)) ? Number(pos.x) : 0;
+            this.playerPositionsBuffer[i * 3 + 1] = Number.isFinite(Number(pos?.y)) ? Number(pos.y) : 0;
+            this.playerPositionsBuffer[i * 3 + 2] = Number.isFinite(Number(pos?.z)) ? Number(pos.z) : 0;
+            this.playerStealthBuffer[i] = p?.stealthValue ?? 0;
+        }
+
+        for (const npc of this.cachedSortedNpcs) {
+            this.processPerceptionOptimized(npc, sortedPlayers, this.playerPositionsBuffer, this.playerStealthBuffer);
         }
     }
 
@@ -175,29 +210,32 @@ export class NPCSystem {
         };
     }
 
-    private processPerception(npc: NPC, sortedPlayers: any[]): void {
+    /** Optimized perception loop using flattened player data and fast distance checks. */
+    private processPerceptionOptimized(
+        npc: NPC,
+        sortedPlayers: any[],
+        playerPositions: Float32Array,
+        playerStealth: Float32Array
+    ): void {
         let detectedPlayerId: string | null = null;
-        const npcPos = NPCSystem.vec3ForPerception(npc.position);
+        const npcX = Number.isFinite(Number(npc.position?.x)) ? Number(npc.position.x) : 0;
+        const npcY = Number.isFinite(Number(npc.position?.y)) ? Number(npc.position.y) : 0;
+        const npcZ = Number.isFinite(Number(npc.position?.z)) ? Number(npc.position.z) : 0;
+        const npcPhase = npc.phaseShift ?? 0;
+        const npcVision = npc.visionRange;
 
-        for (const player of sortedPlayers) {
-            const result = checkStealthDeterministic(
-                {
-                    npcId: npc.id,
-                    position: npcPos,
-                    phaseShift: npc.phaseShift ?? 0,
-                    perceptionRadius: npc.visionRange,
-                    lastPerceptionTick: 0
-                },
-                {
-                    playerId: String(player?.id ?? ""),
-                    position: NPCSystem.vec3ForPerception(player?.position),
-                    stealthLevel: player?.stealthValue ?? 0,
-                    isCrouching: false, // Crouching state not yet implemented in PlayerSystem
-                    lastVisibleTick: 0
-                }
+        const playerCount = sortedPlayers.length;
+        for (let i = 0; i < playerCount; i++) {
+            const isVisible = checkStealthFast(
+                npcX, npcY, npcZ,
+                npcPhase,
+                npcVision,
+                playerPositions[i * 3], playerPositions[i * 3 + 1], playerPositions[i * 3 + 2],
+                playerStealth[i]
             );
 
-            if (result.visible) {
+            if (isVisible) {
+                const player = sortedPlayers[i];
                 detectedPlayerId = player?.id != null && String(player.id).length > 0 ? String(player.id) : "unknown_player";
                 break;
             }

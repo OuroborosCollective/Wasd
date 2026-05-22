@@ -97,6 +97,36 @@ export function calculateVisibilityThreshold(phaseShift: number): number {
 }
 
 /**
+ * Zero-allocation fast-path for perception checks.
+ * Uses raw primitives to avoid object creation and property access overhead.
+ *
+ * @returns boolean - Whether the target is visible
+ */
+export function checkStealthFast(
+  npcX: number, npcY: number, npcZ: number,
+  npcPhaseShift: number,
+  npcVisionRange: number,
+  targetX: number, targetY: number, targetZ: number,
+  targetStealth: number
+): boolean {
+  const dx = npcX - targetX;
+  const dy = npcY - targetY;
+  const dz = npcZ - targetZ;
+  const distanceSquared = (dx * dx) + (dy * dy) + (dz * dz);
+
+  const clampedPhase = npcPhaseShift < -500 ? -500 : (npcPhaseShift > 500 ? 500 : npcPhaseShift);
+  // Original logic in calculateVisibilityThreshold uses BASE_VISIBILITY_THRESHOLD (225)
+  // regardless of the passed perceptionRadius/visionRange.
+  const threshold = BASE_VISIBILITY_THRESHOLD * (1.0 + clampedPhase / 1000);
+
+  // Quick distance check first
+  if (distanceSquared > threshold) return false;
+
+  // Stay 1:1 with checkStealthDeterministic logic for "visible" flag:
+  return distanceSquared <= threshold;
+}
+
+/**
  * Check if target is visible to NPC (deterministic)
  * 
  * NO RAYCASTING - purely mathematical distance check
