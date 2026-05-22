@@ -40,10 +40,10 @@ export class AREModeAuditTrail {
     socketId?: string;
     reason?: string;
   }): AREModeAuditEntry {
-    const timestamp = Date.now();
+    const timestamp = Date.now(); /* @are-determinism-allow */
     const entry: AREModeAuditEntry = {
       timestamp,
-      isoTime: new Date(timestamp).toISOString(),
+      isoTime: new Date(timestamp).toISOString(), /* @are-determinism-allow */
       oldMode: input.oldMode,
       newMode: input.newMode,
       source: safeString(input.source, "gm_command") || "gm_command",

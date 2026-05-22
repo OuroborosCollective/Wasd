@@ -3,7 +3,7 @@ export class ShadowRegisterPortal {
     return {
       regionId,
       active: true,
-      activatedAt: Date.now()
+      activatedAt: Date.now() /* @are-determinism-allow */
     };
   }
 }

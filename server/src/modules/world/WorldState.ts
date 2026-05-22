@@ -1,7 +1,7 @@
 export class WorldState {
   snapshot(data:any){
     return {
-      capturedAt: Date.now(),
+      capturedAt: Date.now(), /* @are-determinism-allow */
       data
     };
   }

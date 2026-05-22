@@ -93,7 +93,7 @@ export function calculatePlexityImpact(hpRatio: number): number {
   return (1 - hpRatio) * HP_RATIO_WEIGHT;
 }
 
-export function processHazardResonance(player: PlayerState, hazard: HazardSource): Partial<AREPayload> {
+export function processHazardResonance(player: PlayerState, hazard: HazardSource, tick: number): Partial<AREPayload> {
   const distSq = getKappaDistanceSq(player.pos, hazard.position);
   const intensity = calculateHazardIntensity(distSq);
   
@@ -105,18 +105,21 @@ export function processHazardResonance(player: PlayerState, hazard: HazardSource
   player.health = Math.max(0, player.health - damage);
   const hpRatio = calculateHPRatio(player);
   const plexityImpact = calculatePlexityImpact(hpRatio);
-  const tickCount = Date.now() % 100;
+
+  // ⚖️ Jules: Secure determinism by using the provided tick instead of wall-clock time.
+  // The phaseShift ensures NPC/Environmental desynchronization without native randomness.
+  const phaseShift = tick % 100;
   
   return {
     resonance: intensity,
-    phaseShift: tickCount,
+    phaseShift: phaseShift,
     hazardIntensity: intensity,
     hpRatio: hpRatio,
     plexity: { score: plexityImpact, typeWeight: 0, hpRatioWeight: plexityImpact, resonanceWeight: intensity / INTENSITY_DIVISOR }
   };
 }
 
-export function processAllHazards(player: PlayerState, hazards: HazardSource[]): Partial<AREPayload> {
+export function processAllHazards(player: PlayerState, hazards: HazardSource[], tick: number): Partial<AREPayload> {
   let totalIntensity = 0;
   let totalDamage = 0;
   let maxResonance = 0;
@@ -135,11 +138,13 @@ export function processAllHazards(player: PlayerState, hazards: HazardSource[]):
   player.health = Math.max(0, player.health - totalDamage);
   const hpRatio = calculateHPRatio(player);
   const plexityImpact = calculatePlexityImpact(hpRatio);
-  const tickCount = Date.now() % 100;
+
+  // ⚖️ Jules: Secure determinism by using the provided tick instead of wall-clock time.
+  const phaseShift = tick % 100;
   
   return {
     resonance: maxResonance,
-    phaseShift: tickCount,
+    phaseShift: phaseShift,
     hazardIntensity: totalIntensity,
     hpRatio: hpRatio,
     plexity: { score: plexityImpact, typeWeight: 0, hpRatioWeight: plexityImpact, resonanceWeight: totalIntensity / INTENSITY_DIVISOR }

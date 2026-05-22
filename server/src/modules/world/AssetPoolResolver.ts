@@ -56,8 +56,8 @@ export class AssetPoolResolver {
   public createSnapshot(label?: string): AssetPoolSnapshotMeta | null {
     try {
       fs.mkdirSync(this.snapshotDir, { recursive: true });
-      const now = Date.now();
-      const stamp = new Date(now).toISOString().replace(/[:.]/g, "-");
+      const now = Date.now(); /* @are-determinism-allow */
+      const stamp = new Date(now).toISOString().replace(/[:.]/g, "-"); /* @are-determinism-allow */
       const cleanedLabel = this.sanitizeSnapshotLabel(label);
       const fileName = cleanedLabel
         ? `asset-pools.${stamp}.${cleanedLabel}.json`
@@ -302,7 +302,7 @@ export class AssetPoolResolver {
     return {
       id: fileName,
       fileName,
-      createdAtIso: new Date(stat.mtimeMs).toISOString(),
+      createdAtIso: new Date(stat.mtimeMs).toISOString(), /* @are-determinism-allow */
       createdAtMs: stat.mtimeMs,
       bytes: stat.size,
     };
