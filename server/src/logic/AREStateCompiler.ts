@@ -43,7 +43,8 @@ export class AREStateCompiler extends EventEmitter {
         const deleted: string[] = [];
         const currentSerializedState: Map<string, string> = new Map();
 
-        for (const [id, npc] of state.npcs) {
+        for (const id of Array.from(state.npcs.keys()).sort()) {
+            const npc = state.npcs.get(id)!;
             const serialized = JSON.stringify(npc);
             currentSerializedState.set(id, serialized);
 
@@ -52,7 +53,7 @@ export class AREStateCompiler extends EventEmitter {
             }
         }
 
-        for (const id of this.lastKnownState.keys()) {
+        for (const id of Array.from(this.lastKnownState.keys()).sort()) {
             if (!state.npcs.has(id)) {
                 deleted.push(id);
             }
@@ -63,7 +64,7 @@ export class AREStateCompiler extends EventEmitter {
         this.currentVersion++;
 
         const snapshot: DeltaSnapshot = {
-            timestamp: Date.now(),
+            timestamp: state.version,
             baseVersion: previousVersion,
             targetVersion: this.currentVersion,
             integrityHash: this.computeIntegrityHash(upserted, deleted),
@@ -75,7 +76,7 @@ export class AREStateCompiler extends EventEmitter {
     }
 
     private computeIntegrityHash(upserted: NPC[], deleted: string[]): string {
-        const raw = JSON.stringify({ u: upserted.length, d: deleted.length, t: Date.now() });
+        const raw = JSON.stringify({ u: upserted.length, d: deleted.length, t: this.currentVersion });
         let hash = 0;
         for (let i = 0; i < raw.length; i++) {
             const char = raw.charCodeAt(i);
@@ -121,13 +122,13 @@ export class AREStateCompiler extends EventEmitter {
     private applyBuilderMutation(npc: NPC): void {
         const oldProfile = npc.profile;
         npc.profile = 'Builder';
-        npc.genealogy.mutations.push(`LEGEND_SPREAD_THRESHOLD_REACHED_${Date.now()}`);
+        npc.genealogy.mutations.push(`LEGEND_SPREAD_THRESHOLD_REACHED_${this.currentVersion}`);
         
         this.emit('npcEvolved', {
             id: npc.id,
             previousProfile: oldProfile,
             newProfile: 'Builder',
-            timestamp: Date.now()
+            timestamp: this.currentVersion
         });
     }
 
