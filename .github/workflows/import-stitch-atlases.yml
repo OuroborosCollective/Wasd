@@ -1,0 +1,75 @@
+name: Import Stitch 2D Atlases
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number containing Stitch atlas ZIP attachments'
+        required: false
+        default: '1071'
+
+permissions:
+  contents: write
+  issues: read
+  pull-requests: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  import-stitch-atlases:
+    name: Import generated Stitch atlases
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.2
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Import Stitch atlas ZIPs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.inputs.issue_number || '1071' }}
+        run: |
+          echo '=== import stitch generated atlases ==='
+          node scripts/import-stitch-generated-atlases.mjs
+
+      - name: Validate client-2d asset manifest
+        run: pnpm --filter @wasd/client-2d validate:assets
+
+      - name: Build client-2d
+        run: NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter @wasd/client-2d build
+
+      - name: Verify dist structure
+        run: |
+          test -d apps/client-2d/dist
+          test -f apps/client-2d/dist/index.html
+          test -d apps/client-2d/dist/assets
+          test -f apps/client-2d/dist/2d-assets/manifest.json
+          test -f apps/client-2d/dist/2d-assets/stitch/stitch-atlas-manifest.json
+
+      - name: Upload dist artifact
+        if: success() && hashFiles('apps/client-2d/dist/**') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-2d-stitch-dist
+          path: apps/client-2d/dist
+          retention-days: 3
