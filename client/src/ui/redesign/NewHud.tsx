@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 // Relative path import to bypass @wasd/shared alias resolution issues in CI
 import type { EntityNet, QuestStateNet, LootNet } from "../../../../shared/src/index";
 import { getDeviceTier } from "../touchUi";
@@ -52,17 +52,20 @@ export const NewHud: React.FC<any> = (props) => {
     return () => unsubscribe();
   }, []);
 
+  const lootRef = useRef(loot);
+  useEffect(() => { lootRef.current = loot; }, [loot]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey) {
         const target = e.target as HTMLElement;
         if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
-        if (loot && loot.length > 0) sendCommand("loot_all");
+        if (lootRef.current && lootRef.current.length > 0) sendCommand("loot_all");
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [loot]);
+  }, []);
 
   const healthPercentage = Math.max(0, Math.min(100, (health / (maxHealth || 1)) * 100));
   const isLowHealth = healthPercentage < 25;
