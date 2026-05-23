@@ -1,11 +1,18 @@
+import { SeededARERng } from '../../core/determinism/AREDeterminism.js';
+
 export class NPCPersonalityEngine {
-  generateTraits() {
+  /**
+   * Generates deterministic traits for an NPC based on a seed.
+   * This replaces Math.random() to ensure simulation causality (Level-A).
+   */
+  generateTraits(seed: string) {
+    const rng = new SeededARERng(seed);
     return {
-      courage: Math.random(),
-      curiosity: Math.random(),
-      greed: Math.random(),
-      faith: Math.random(),
-      aggression: Math.random()
+      courage: rng.nextFloat(),
+      curiosity: rng.nextFloat(),
+      greed: rng.nextFloat(),
+      faith: rng.nextFloat(),
+      aggression: rng.nextFloat()
     };
   }
 }

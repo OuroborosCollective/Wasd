@@ -1,19 +1,7 @@
 import { checkStealthDeterministic, calculatePhaseShift } from './PerceptionLogic';
 import { GuildSovereigntyEngine } from '../guild/GuildSovereigntyEngine';
 import { TraitResonanceEngine } from '../resonance/TraitResonanceEngine';
-
-function deterministicNpcTraits(id: string): { faith: number; aggression: number; curiosity: number } {
-    let h = 0;
-    for (let i = 0; i < id.length; i++) {
-        h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
-    }
-    const u = (n: number) => 0.28 + ((Math.abs(n) % 701) / 700) * 0.62;
-    return {
-        faith: u(h),
-        aggression: u(h ^ 0x9e3779b9),
-        curiosity: u(h >>> 3),
-    };
-}
+import { NPCPersonalityEngine } from './NPCPersonalityEngine';
 
 export interface Vector3 {
     x: number;
@@ -57,6 +45,7 @@ export class NPCSystem {
     private readonly TICK_RATE = 100; // 10Hz in ms
 
     public resonanceEngine: TraitResonanceEngine;
+    private personalityEngine: NPCPersonalityEngine;
 
     private sovereigntyEngine: GuildSovereigntyEngine;
 
@@ -64,6 +53,7 @@ export class NPCSystem {
         // Initialize stub dependencies
         this.sovereigntyEngine = new GuildSovereigntyEngine();
         this.resonanceEngine = new TraitResonanceEngine(this.sovereigntyEngine);
+        this.personalityEngine = new NPCPersonalityEngine();
     }
 
     public addNPC(npc: NPC): void {
@@ -75,7 +65,7 @@ export class NPCSystem {
     }
 
     public createNPC(id: string, name: string, x: number, y: number): NPC {
-        const traits = deterministicNpcTraits(id);
+        const traits = this.personalityEngine.generateTraits(id);
         const npc: NPC = {
             id,
             name,
@@ -85,7 +75,11 @@ export class NPCSystem {
             visionAngle: 90,
             targetId: null,
             isProcessingAI: false,
-            traits,
+            traits: {
+                faith: traits.faith,
+                aggression: traits.aggression,
+                curiosity: traits.curiosity
+            },
             health: 90,
             maxHealth: 90,
             stamina: 100,
