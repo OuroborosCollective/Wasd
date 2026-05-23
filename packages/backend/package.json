@@ -21,7 +21,7 @@
     "reflect-metadata": "^0.2.2",
     "ts-morph": "^28.0.0",
     "typeorm": "^0.3.29",
-    "ws": "^8.21.0",
+    "ws": "8.18.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
