@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: GameStateManager manages non-simulation global meta-state.
 import { WeatherResonance } from "../modules/WeatherResonance";
 
 export interface AREPayload {
