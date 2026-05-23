@@ -1,32 +1,66 @@
-# Arelorian Wiki: Logika Axiomata
+# Arelorian Wiki: Obsidian Archive
 
-Welcome to the **Obsidian Archive**, the authoritative deep information repository for the Arelorian project. This wiki serves as a bridge between high-fantasy narrative and deterministic scientific evolution.
+Welcome to the **Obsidian Archive**, the official knowledge base for **Areloria / WASD**.
 
-## 1. Project Vision
-Arelorian is not merely a browser MMORPG. It is an **Authentic Reality Emergence (ARE)** machine. Our mission is to create a stateless, deterministic world where every action is replayable, every outcome is verifiable, and every story emerges from the collision of axiomatic laws.
+This wiki connects four layers of the project:
 
-## 2. The Five Axioms (Logika Axiomata)
+1. the [[Areloria Vision|Areloria-Vision]],
+2. the [[ARE Logic Core|ARE-Logic-Core]],
+3. the deterministic runtime around [[WorldTick|WorldTick-and-10Hz-Simulation]],
+4. the practical build, asset and deployment systems used by agents and maintainers.
 
-### I. Information Field
-The universe is a high-density logic string. Every entity, from the smallest blade of grass to the grandest kingdom, is a node within this field. State is not "stored"; it is a projection of the field at a specific tick.
-
-### II. Emergence
-Complexity is not hard-coded. It arises from the interaction of simple, deterministic rules. Conflict, economy, and culture are emergent properties of the simulation.
-
-### III. Persistence
-Truth is sovereign. Once an event occurs within the 10Hz tick, it is etched into the world hash. Persistence is achieved not through bloat, but through seeds and replayability.
-
-### IV. Ouroboros Cycle
-The loop is closed. Input feeds simulation, simulation feeds memory, memory feeds future decision. The project is self-referential and self-correcting.
-
-### V. Observer
-Reality exists because it is witnessed. The observer (player or agent) collapses the probability of the field into a concrete state, allowing the world to exist in a state of "observed truth."
+> **Wiki rule:** Every concept page should link back to this page, the [[Glossary]], and at least one implementation page. Theory without a code anchor stays marked as research.
 
 ---
 
-## 3. Navigation
-- [[Determinism]]: The math of the world.
-- [[NPC_Core]]: The soul of the machine.
-- [[Systems_Architecture]]: The heartbeat and the brain.
-- [[Economy_and_Matrix]]: The flow of energy and value.
-- [[Guard_and_Ops]]: Protecting the sovereignty of logic.
+## Start here
+
+| Area | Page | Purpose |
+| --- | --- | --- |
+| Vision | [[Areloria Vision|Areloria-Vision]] | High-level product and world goal |
+| Theory | [[ARE Logic Core|ARE-Logic-Core]] | Five axioms, deterministic reality model |
+| Math | [[ARE-Erdos Attractor Model|ARE-Erdos-Attractor-Model]] | Kappa, Erdős distance, attractor coefficient |
+| Runtime | [[WorldTick and 10Hz Simulation|WorldTick-and-10Hz-Simulation]] | Tick loop and server simulation rules |
+| Code map | [[Implementation Map|Implementation-Map]] | Maps theory to files and modules |
+| Assets | [[Asset Forge and 2D Pipeline|Asset-Forge-and-2D-Pipeline]] | Stitch, Pixi, atlas frames, Forge reports |
+| Agents | [[Agent Index|Agent-Index]] | Rules for Copilot, Cursor, Jules, ChatGPT |
+| Terms | [[Glossary]] | Canonical keywords and crosslinks |
+
+---
+
+## Core concepts
+
+- [[Authentic Reality Emancipation|ARE-Logic-Core#authentic-reality-emancipation-are]]
+- [[Kappa Coordinate System|ARE-Erdos-Attractor-Model#kappa-standardization]]
+- [[10Hz deterministic tick|WorldTick-and-10Hz-Simulation]]
+- [[Stateless Simulation|Determinism#stateless-simulation]]
+- [[Erdos Attractor|ARE-Erdos-Attractor-Model]]
+- [[Asset Forge|Asset-Forge-and-2D-Pipeline#are-asset-forge]]
+- [[NPC Core|NPC_Core]]
+- [[Economy and Matrix|Economy_and_Matrix]]
+- [[Guard and Ops|Guard_and_Ops]]
+
+---
+
+## Current implementation anchors
+
+- `server/src/core/WorldTick.ts` — canonical simulation heartbeat.
+- `scripts/are-asset-forge.mjs` — deterministic asset metadata forge.
+- `scripts/enrich-stitch-atlas-frames.mjs` — Stitch atlas frame preparation.
+- `apps/client-2d/src/stackedProps.ts` — Pixi prop rendering with frame cropping.
+- `apps/client-2d/public/2d-assets/manifest.json` — runtime asset manifest.
+- `.github/workflows/sync-wiki.yml` — syncs `docs/wiki/**` into the GitHub Wiki.
+
+See [[Implementation Map|Implementation-Map]] for the full mapping.
+
+---
+
+## Wiki maintenance conventions
+
+- Use `[[Page]]` or `[[Label|Page]]` links for wiki navigation.
+- Use `Tags:` near the top of every page.
+- Use `Status:` to separate **implemented**, **prototype**, **research**, and **planned**.
+- Use `Implementation anchors` for file paths.
+- Use `See also` at the bottom of every page.
+
+For exact term definitions, use [[Glossary]].
