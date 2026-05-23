@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 // Relative path import to bypass @wasd/shared alias resolution issues in CI
 import type { EntityNet, QuestStateNet, LootNet } from "../../../../shared/src/index";
 import { getDeviceTier } from "../touchUi";
@@ -50,6 +50,21 @@ export const NewHud: React.FC<any> = (props) => {
       setLevel(getPlayerLevel());
     });
     return () => unsubscribe();
+  }, []);
+
+  const lootRef = useRef(loot);
+  useEffect(() => { lootRef.current = loot; }, [loot]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+        if (lootRef.current && lootRef.current.length > 0) sendCommand("loot_all");
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const healthPercentage = Math.max(0, Math.min(100, (health / (maxHealth || 1)) * 100));
@@ -172,8 +187,13 @@ export const NewHud: React.FC<any> = (props) => {
 
       {loot && loot.length > 0 && (
         <div className="hud-loot-prompt">
-          <button className="loot-button" onClick={() => sendCommand("loot_all")}>
-            Take All Loot ({loot.length})
+          <button
+            className="loot-button"
+            onClick={() => sendCommand("loot_all")}
+            aria-label={`Take all ${loot.length} items`}
+          >
+            <kbd className="loot-key">F</kbd>
+            <span>Take All Loot ({loot.length})</span>
           </button>
         </div>
       )}

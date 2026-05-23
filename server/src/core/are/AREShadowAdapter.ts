@@ -1,3 +1,4 @@
+import { areTopologyNetwork } from '../../are/ARETopologyNetwork';
 import { ARE_CONFIG } from './AREConfig';
 import { ARECycle } from './ARECycle';
 import { AREDriftEntropy } from './AREDriftEntropy';
@@ -34,11 +35,57 @@ function ensureShadowEnergy(payload: Readonly<IAREPayload>): Readonly<IAREPayloa
   return AREGuard.protectPayload({ ...payload, energy });
 }
 
+function whole(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.trunc(n) : 0;
+}
+
+function kappaCellOf(position: unknown): string {
+  const pos = position as any;
+  const x = Math.round(Number(pos?.x ?? 0) * 1000);
+  const y = Math.round(Number(pos?.y ?? 0) * 1000);
+  const z = Math.round(Number(pos?.z ?? 0) * 1000);
+  return `${x}:${y}:${z}`;
+}
+
 export class AREShadowAdapter {
   private static readonly defaultEcosystemState = new AREShadowState();
+  private static topologyTick: number | null = null;
+  private static topologyCells = new Map<string, string[]>();
 
-  static getEcosystemTelemetry(): AREShadowEcosystemStats {
-    return this.defaultEcosystemState.getTelemetry();
+  static getEcosystemTelemetry(): AREShadowEcosystemStats & { topology: unknown } {
+    return {
+      ...this.defaultEcosystemState.getTelemetry(),
+      topology: areTopologyNetwork.snapshot(this.topologyTick ?? 0),
+    };
+  }
+
+  private static flushTopologyCells(tick: number): void {
+    const cells = [...this.topologyCells.values()];
+    for (const ids of cells) {
+      const sorted = [...new Set(ids)].sort();
+      for (let i = 1; i < sorted.length; i += 1) {
+        areTopologyNetwork.observeInteraction(sorted[i - 1], sorted[i], tick);
+      }
+    }
+    this.topologyCells.clear();
+  }
+
+  private static observeTopology(entityId: string, position: unknown, tick: number): void {
+    const t = whole(tick);
+    if (this.topologyTick === null) {
+      areTopologyNetwork.seedCore('core:singularity', 0);
+      this.topologyTick = t;
+    }
+    if (t !== this.topologyTick) {
+      this.flushTopologyCells(this.topologyTick);
+      this.topologyTick = t;
+    }
+    areTopologyNetwork.ensureNode(entityId, t);
+    const cell = kappaCellOf(position);
+    const bucket = this.topologyCells.get(cell) ?? [];
+    bucket.push(entityId);
+    this.topologyCells.set(cell, bucket);
   }
 
   static executeShadowTick(input: AREShadowTickInput): AREShadowTickResult {
@@ -57,6 +104,8 @@ export class AREShadowAdapter {
           input.additionalState ?? {},
           input.normalization ?? {},
         );
+
+        AREShadowAdapter.observeTopology(input.entityId, input.position, input.tick);
 
         const nextPayload = ARECycle.processCycle(genesisPayload);
         const recorded = input.buffer.record(input.tick, nextPayload);

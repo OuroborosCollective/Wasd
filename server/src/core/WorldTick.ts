@@ -27,6 +27,8 @@ import { AREDivergenceGuard } from "./are/AREDivergenceGuard.js";
 import { AREReplayBuffer } from "./are/AREReplayBuffer.js";
 import { AREShadowAdapter } from "./are/AREShadowAdapter.js";
 import { KappaPosGrid } from "@wasd/shared";
+import { checkForestResource, isNearForestResource } from "../modules/resource/forestResourceCheck.js";
+import { FOREST_ACTION_DISTANCE, FOREST_RESPAWN_TICKS } from "../modules/resource/forestResourceRules.js";
 
 function sectorOf(entity: any): number {
   const x = Number(entity?.position?.x ?? 0);
@@ -67,6 +69,8 @@ export class WorldTick {
   private lootEntities: Map<string, any> = new Map();
   private socketToPlayer: Map<string, string> = new Map();
   private lastActionTimes: Map<string, any> = new Map();
+  private pendingForestResourceActions: Array<{ socketId: string; playerId: string; input: any }> = [];
+  private depletedResources: Map<string, number> = new Map();
 
   public assetPoolResolver: any = { getDocument: () => ({}), setEntry: () => true, removeEntry: () => true, setDefault: () => true, removeDefault: () => true, reload: () => true };
   public getPersistenceStats(): any { return {}; }
@@ -200,15 +204,38 @@ export class WorldTick {
     const charName = player.name;
     const nowTick = this.tickCount;
     const checkCooldown = (cooldownMs: number) => { const cooldownTicks = Math.max(1, Math.ceil(cooldownMs / 100)); const pTimes = this.lastActionTimes.get(charName) || {}; const last = pTimes["general"] || 0; if (nowTick - last < cooldownTicks) return false; pTimes["general"] = nowTick; this.lastActionTimes.set(charName, pTimes); return true; };
+    const actionPayload = msg.payload && typeof msg.payload === "object" ? msg.payload : msg;
     if (msg.type === "move_intent" || msg.type === "MOVE") { const speed = 5; let dx = Number(msg.dx) || 0; let dy = Number(msg.dy ?? msg.dz) || 0; const magSq = dx * dx + dy * dy; if (magSq > 1) { const mag = Math.sqrt(magSq); dx /= mag; dy /= mag; } if (!Number.isNaN(dx) && !Number.isNaN(dy)) { const current = KappaPosGrid.create(player.position.x, player.position.y, player.position.z || 0); const moved = KappaPosGrid.move(current, dx * speed, dy * speed, 0, 1); player.position.x = KappaPosGrid.toExternal(moved.x); player.position.y = KappaPosGrid.toExternal(moved.y); player.position.z = KappaPosGrid.toExternal(moved.z ?? 0); this.observerEngine.updatePosition(id, { x: player.position.x, y: player.position.y }); } }
-    else if (msg.type === "chat") { if (msg.text && typeof msg.text === "string" && msg.text.trim().length > 0) this.ws.broadcast({ type: "CHAT_MSG", payload: { channel: msg.channel || "local", sender: player.name, text: msg.text.trim() }}); }
+    else if (msg.type === "chat") { if (msg.text && typeof msg.text === "string" && msg.text.trim().length > 0) this.ws.broadcast({ type: "CHAT_MSG", payload: { channel: msg.channel || "local", sender: player.name, text: msg.text.trim() } }); }
     else if (msg.type === "USE_SKILL") { const skillId = msg.skillId; if (skillId === "atk" && !checkCooldown(800)) return; if (skillId === "def") player.mana = Math.min(player.maxMana, player.mana + 10); if (skillId === "mag" && !checkCooldown(3000)) return; if ((skillId === "mag" || skillId === "atk") && !checkCooldown(800)) return; }
     else if (msg.type === "attack") { if (!checkCooldown(800)) return; this.handleAttack(id, player, msg); }
     else if (msg.type === "interact") { if (!checkCooldown(500)) return; this.handleInteract(id, player, msg); }
+    else if (actionPayload?.kappaCoordinate) { this.pendingForestResourceActions.push({ socketId: id, playerId, input: actionPayload }); }
     else if (msg.type === "dialogue_choice") this.handleDialogueChoice(id, player, msg);
     else if (msg.type === "equip") { this.inventorySystem.equipItem(player, msg.itemId); this.saveAll(); }
     else if (msg.type === "unequip") { this.inventorySystem.unequipItem(player, msg.slot); this.saveAll(); }
     else if (msg.type === "drop") { this.inventorySystem.removeItem(player, msg.itemId); this.saveAll(); }
+  }
+
+  private processForestResourceActions() {
+    for (const [key, until] of [...this.depletedResources.entries()]) {
+      if (until <= this.tickCount) this.depletedResources.delete(key);
+    }
+    const queue = this.pendingForestResourceActions.splice(0, this.pendingForestResourceActions.length);
+    for (const request of queue) {
+      const player = this.playerSystem.getPlayer(request.playerId);
+      if (!player || player.isOffline) continue;
+      const checked = checkForestResource(request.input);
+      if (!checked.ok) { this.ws.sendToPlayer(request.socketId, { type: "FOREST_RESOURCE_REJECTED", reason: checked.reason }); continue; }
+      if (!isNearForestResource(player, checked.coord, FOREST_ACTION_DISTANCE)) { this.ws.sendToPlayer(request.socketId, { type: "FOREST_RESOURCE_REJECTED", reason: "too_far" }); continue; }
+      if ((this.depletedResources.get(checked.key) ?? 0) > this.tickCount) { this.ws.sendToPlayer(request.socketId, { type: "FOREST_RESOURCE_REJECTED", reason: "depleted" }); continue; }
+      this.inventorySystem.addItem(player, { id: checked.itemId, quantity: 1, source: "forest_resource", resourceType: checked.resourceType });
+      player.questLog ??= { collected: {} };
+      player.questLog.collected ??= {};
+      player.questLog.collected[checked.itemId] = safeInt(player.questLog.collected[checked.itemId], 0) + 1;
+      this.depletedResources.set(checked.key, this.tickCount + FOREST_RESPAWN_TICKS);
+      this.ws.sendToPlayer(request.socketId, { type: "FOREST_RESOURCE_ACCEPTED", resourceKey: checked.key, itemId: checked.itemId, quantity: 1, respawnTick: this.tickCount + FOREST_RESPAWN_TICKS });
+    }
   }
 
   private handleAttack(id: string, player: any, msg: any) { const targetId = msg.targetId; const npc = this.npcSystem.getNPC(targetId); if (npc && npc.health !== undefined) { const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y); if (dist < 30) { const baseDamage = 10; npc.health -= baseDamage; this.ws.broadcast({ type: "combat_feedback", targetId, damage: baseDamage, health: npc.health, maxHealth: npc.maxHealth }); if (npc.health <= 0) this.handleNPCDeath(id, player, npc, targetId); } } }
@@ -284,6 +311,7 @@ export class WorldTick {
     for (const n of npcsAgg) { const a = n.traits?.aggression; if (typeof a === "number" && Number.isFinite(a)) { aggSum += a; aggN++; } }
     WorldHistory.getInstance().recordAggressionSample(aggN > 0 ? aggSum / aggN : 0.36, this.tickCount);
     this.worldSystem.tick();
+    this.processForestResourceActions();
     const strippedPlayers = [];
     for (let i = 0; i < allPlayers.length; i++) { const p = allPlayers[i]; strippedPlayers.push({ id: p.id, name: p.name, class: p.class, appearance: p.appearance, position: { x: p.position.x, y: p.position.y, z: p.position.z || 0 }, rotation: p.rotation || 0, level: p.level, health: p.health, maxHealth: p.maxHealth, isOffline: !!p.isOffline, state: p.state }); }
     const allNpcs = this.npcSystem.getAllNPCs();

@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import { NewHud } from "./NewHud";
+import { sendCommand } from "../../networking/websocketClient";
 
 // Mock the state and networking modules
 vi.mock("../../state/playerState", () => ({
@@ -19,6 +20,11 @@ vi.mock("../../state/playerState", () => ({
   getPlayerMaxCarryWeight: vi.fn(() => 100),
   getPlayerQuests: vi.fn(() => []),
   getCombatTargetNpcId: vi.fn(() => null),
+}));
+
+vi.mock("../../networking/websocketClient", () => ({
+  sendCommand: vi.fn(),
+  sendUseSkill: vi.fn(),
 }));
 
 import * as playerState from "../../state/playerState";
@@ -96,5 +102,25 @@ describe("NewHud Micro-UX Enhancements", () => {
     const kbd = screen.getAllByText("1")[0]; // Find slot 1 key hint
     expect(kbd.tagName.toLowerCase()).toBe("kbd");
     expect(kbd.className).toBe("skill-key");
+  });
+
+  it('should not trigger looting if Ctrl key is pressed', () => {
+    const loot = [{ id: '1', itemId: 'gold', quantity: 1, x: 0, y: 0 }];
+    render(<NewHud loot={loot} />);
+
+    const event = new KeyboardEvent('keydown', { key: 'f', ctrlKey: true });
+    window.dispatchEvent(event);
+
+    expect(sendCommand).not.toHaveBeenCalledWith('loot_all');
+  });
+
+  it('should not trigger looting if Meta key is pressed', () => {
+    const loot = [{ id: '1', itemId: 'gold', quantity: 1, x: 0, y: 0 }];
+    render(<NewHud loot={loot} />);
+
+    const event = new KeyboardEvent('keydown', { key: 'f', metaKey: true });
+    window.dispatchEvent(event);
+
+    expect(sendCommand).not.toHaveBeenCalledWith('loot_all');
   });
 });

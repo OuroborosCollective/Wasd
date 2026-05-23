@@ -6,6 +6,13 @@ export type SpriteAnimation = {
   fps?: number;
 };
 
+export type SpriteLayerFrame = {
+  frame: { x: number; y: number; w: number; h: number };
+  offsetX?: number;
+  offsetY?: number;
+  z?: number;
+};
+
 export type AssetEntry = {
   id?: string;
   src: string;
@@ -24,6 +31,10 @@ export type AssetEntry = {
   frame?: { x: number; y: number; w: number; h: number };
   sheetFrame?: { x: number; y: number; w: number; h: number };
   frameSize?: { w: number; h: number };
+  spriteLayers?: SpriteLayerFrame[];
+  zHeight?: number;
+  isoFootprint?: { w: number; h: number };
+  shadow?: { w: number; h: number; alpha?: number };
   weaponClass?: string;
   rarity?: string;
   tags?: string[];
@@ -82,8 +93,9 @@ export async function loadAssetManifest(): Promise<AssetManifest | null> {
   const root = await loadJson<AssetManifest>('/2d-assets/manifest.json');
   const weaponManifest = await loadJson<WeaponManifestPayload>('/2d-assets/weapons/weapon-manifest.json');
   const pipoyaCharacters = await loadJson<CharacterAtlasPayload>('/2d-assets/characters/pipoya/pipoya-character-atlas.json');
+  const forestBiome = await loadJson<AssetManifest>('/2d/assets/biomes/forest/assetpack01/manifest.json');
 
-  if (!root && !weaponManifest && !pipoyaCharacters) return null;
+  if (!root && !weaponManifest && !pipoyaCharacters && !forestBiome) return null;
 
   return {
     ...(root ?? { version: 1, basePath: '/2d-assets' }),
@@ -91,7 +103,20 @@ export async function loadAssetManifest(): Promise<AssetManifest | null> {
       ...(root?.sources ?? []),
       ...(weaponManifest?.sources ?? []),
       ...(pipoyaCharacters ? [{ id: pipoyaCharacters.id ?? 'pipoya-character-atlas', source: pipoyaCharacters.source ?? 'Pipoya', groups: pipoyaCharacters.groups ?? {} }] : []),
+      ...(forestBiome ? [{ id: 'assetpack01_forest_sample', source: 'AssetPack01_Forest_Sample.zip', biome: 'forest', pngCount: forestBiome.pngCount, deterministic: true }] : []),
     ],
+    tilesets: {
+      ...(root?.tilesets ?? {}),
+      ...(forestBiome?.tilesets ?? {}),
+    },
+    props: {
+      ...(root?.props ?? {}),
+      ...(forestBiome?.props ?? {}),
+    },
+    ui: {
+      ...(root?.ui ?? {}),
+      ...(forestBiome?.ui ?? {}),
+    },
     characters: {
       ...(root?.characters ?? {}),
       ...withEntryIds(pipoyaCharacters?.entries),

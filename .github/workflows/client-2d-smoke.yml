@@ -1,0 +1,132 @@
+name: Client 2D Build Smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'apps/client-2d/**'
+      - 'scripts/are-asset-forge.mjs'
+      - 'scripts/enrich-stitch-atlas-frames.mjs'
+      - 'scripts/validate-client-2d-assets.mjs'
+      - 'scripts/extract-2d-weapon-pool.mjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/client-2d-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/client-2d/**'
+      - 'scripts/are-asset-forge.mjs'
+      - 'scripts/enrich-stitch-atlas-frames.mjs'
+      - 'scripts/validate-client-2d-assets.mjs'
+      - 'scripts/extract-2d-weapon-pool.mjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/client-2d-smoke.yml'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  client-2d-smoke:
+    name: Validate and build client-2d
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.2
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: |
+          echo '=== client-2d smoke: install dependencies ==='
+          pnpm install --no-frozen-lockfile
+
+      - name: Validate client-2d assets
+        run: |
+          echo '=== client-2d smoke: validate assets ==='
+          pnpm --filter @wasd/client-2d validate:assets
+
+      - name: Build client-2d
+        run: |
+          echo '=== client-2d smoke: build ==='
+          NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter @wasd/client-2d build
+
+      - name: Verify dist structure
+        run: |
+          echo '=== client-2d smoke: verify dist structure ==='
+          test -d apps/client-2d/dist
+          test -f apps/client-2d/dist/index.html
+          test -d apps/client-2d/dist/assets
+          test -f apps/client-2d/dist/2d-assets/manifest.json
+          test -f apps/client-2d/dist/2d-assets/credits/are-asset-forge-report.json
+          node <<'NODE'
+          const fs = require('node:fs');
+          const manifest = JSON.parse(fs.readFileSync('apps/client-2d/dist/2d-assets/manifest.json', 'utf8'));
+          if (manifest.basePath !== '/2d-assets') {
+            throw new Error('Unexpected manifest basePath: ' + manifest.basePath);
+          }
+          const houseId = manifest.fallbacks?.house;
+          const treeId = manifest.fallbacks?.tree;
+          const house = manifest.buildings?.[houseId];
+          const tree = manifest.props?.[treeId];
+          if (!houseId || !house) throw new Error('Missing house fallback asset: ' + houseId);
+          if (!treeId || !tree) throw new Error('Missing tree fallback asset: ' + treeId);
+          for (const [label, entry] of [['house', house], ['tree', tree]]) {
+            if (entry.pickable !== true) throw new Error(label + ' is not pickable');
+            if (!entry.role) throw new Error(label + ' has no role');
+            if (!entry.assetHash) throw new Error(label + ' has no assetHash');
+            if (!entry.frame || !Number.isFinite(entry.frame.w) || !Number.isFinite(entry.frame.h)) {
+              throw new Error(label + ' has no enriched atlas frame');
+            }
+            if (!entry.zHeight || !entry.isoFootprint || !entry.shadow) {
+              throw new Error(label + ' has no depth metadata');
+            }
+          }
+          const report = JSON.parse(fs.readFileSync('apps/client-2d/dist/2d-assets/credits/are-asset-forge-report.json', 'utf8'));
+          if (!Array.isArray(report.enriched) || report.enriched.length === 0) {
+            throw new Error('ARE asset forge report has no enriched entries');
+          }
+          console.log('[client-2d-dist] manifest ok basePath=' + manifest.basePath);
+          console.log('[client-2d-dist] house=' + houseId + ' role=' + house.role + ' frame=' + house.frame.w + 'x' + house.frame.h);
+          console.log('[client-2d-dist] tree=' + treeId + ' role=' + tree.role + ' frame=' + tree.frame.w + 'x' + tree.frame.h);
+          console.log('[client-2d-dist] forge enriched=' + report.enriched.length + ' quarantined=' + report.quarantined.length);
+          NODE
+
+      - name: Print build output summary
+        if: always()
+        run: |
+          echo '=== client-2d smoke: dist summary ==='
+          if [ -d apps/client-2d/dist ]; then
+            find apps/client-2d/dist -maxdepth 2 -type f | sort | head -100
+          else
+            echo 'apps/client-2d/dist not found'
+          fi
+
+      - name: Upload dist artifact
+        if: success() && hashFiles('apps/client-2d/dist/**') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-2d-dist
+          path: apps/client-2d/dist
+          retention-days: 3

@@ -101,9 +101,27 @@ function uniqueTarget(category, id, ext) {
   return candidate;
 }
 
+function defaultDepthMetadata(category) {
+  if (category === 'buildings') {
+    return {
+      zHeight: 2,
+      isoFootprint: { w: 96, h: 32 },
+      shadow: { w: 112, h: 28, alpha: 0.38 },
+    };
+  }
+  if (category === 'props') {
+    return {
+      zHeight: 1,
+      isoFootprint: { w: 56, h: 22 },
+      shadow: { w: 64, h: 18, alpha: 0.34 },
+    };
+  }
+  return {};
+}
+
 function addEntry(category, fileName, sourceName) {
   const src = `/2d-assets/${category}/${fileName}`;
-  const base = { src, source: sourceName, license: 'See /2d-assets/credits/' };
+  const base = { src, source: sourceName, license: 'See /2d-assets/credits/', ...defaultDepthMetadata(category) };
   if (category === 'tilesets') return { ...base, tileWidth: 32, tileHeight: 32 };
   if (category === 'characters' || category === 'monsters') {
     return {

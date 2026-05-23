@@ -1,0 +1,143 @@
+name: Import Forest Biome Pack
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'GitHub release tag containing the forest ZIP asset'
+        required: true
+        default: 'untagged-c951878f51c6262287d2'
+      asset_name:
+        description: 'Release asset filename or empty/auto to use first non-source ZIP asset'
+        required: true
+        default: 'auto'
+      destination:
+        description: 'Destination folder for imported forest biome assets'
+        required: true
+        default: 'apps/client-2d/public/assets/biomes/forest/assetpack01'
+      branch_name:
+        description: 'Branch to create/update with imported assets'
+        required: true
+        default: 'import-forest-biome-assets'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  import-release-asset:
+    name: Import release asset and open PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify importer exists
+        run: test -f scripts/import-forest-biome-pack.mjs
+
+      - name: Resolve and download release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          ASSET_NAME: ${{ inputs.asset_name }}
+        run: |
+          set -euo pipefail
+          echo "Resolving release asset from tag: ${RELEASE_TAG}"
+          gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --json tagName,name,assets > release.json
+          echo "Release metadata:"
+          cat release.json
+
+          REQUESTED="${ASSET_NAME}"
+          SELECTED=""
+
+          if [ -n "${REQUESTED}" ] && [ "${REQUESTED}" != "auto" ]; then
+            SELECTED="$(node -e "const r=require('./release.json'); const wanted=process.env.REQUESTED; const a=(r.assets||[]).find(x=>x.name===wanted); if(a) console.log(a.name);" )"
+            if [ -z "${SELECTED}" ]; then
+              echo "Requested asset '${REQUESTED}' not found. Falling back to first non-source ZIP asset."
+            fi
+          fi
+
+          if [ -z "${SELECTED}" ]; then
+            SELECTED="$(node -e "const r=require('./release.json'); const assets=(r.assets||[]).map(a=>a.name); const pick=assets.find(n=>/\\.zip$/i.test(n) && !/^source code/i.test(n)) || assets.find(n=>/forest|assetpack|sample/i.test(n)) || assets.find(n=>/\\.zip$/i.test(n)) || ''; console.log(pick);" )"
+          fi
+
+          if [ -z "${SELECTED}" ]; then
+            echo "No usable release asset found. Upload the ZIP as a release asset, not only as source archive or description link."
+            exit 1
+          fi
+
+          echo "Selected release asset: ${SELECTED}"
+          echo "FOREST_ZIP=${SELECTED}" >> "$GITHUB_ENV"
+          gh release download "${RELEASE_TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern "${SELECTED}" \
+            --dir . \
+            --clobber
+          test -f "${SELECTED}"
+          ls -lh "${SELECTED}"
+
+      - name: Import forest biome pack
+        run: |
+          set -euo pipefail
+          node scripts/import-forest-biome-pack.mjs "${FOREST_ZIP}" "${{ inputs.destination }}"
+
+      - name: Verify import completeness
+        run: |
+          set -euo pipefail
+          MANIFEST="${{ inputs.destination }}/manifest.json"
+          test -f "${MANIFEST}"
+          node - <<'NODE'
+          const fs = require('fs');
+          const manifestPath = process.env.MANIFEST;
+          const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+          const entryCount = Object.keys(manifest.entries || {}).length;
+          if (!manifest.validation?.noPngOmitted) {
+            throw new Error('Forest biome manifest says PNG omission check failed');
+          }
+          if (manifest.pngCount !== entryCount) {
+            throw new Error(`PNG count mismatch: pngCount=${manifest.pngCount}, entries=${entryCount}`);
+          }
+          if (manifest.expectedPngCount !== entryCount) {
+            throw new Error(`Expected count mismatch: expected=${manifest.expectedPngCount}, entries=${entryCount}`);
+          }
+          console.log(`Forest biome import complete: ${entryCount} PNG entries`);
+          NODE
+        env:
+          MANIFEST: ${{ inputs.destination }}/manifest.json
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ github.token }}
+          branch: ${{ inputs.branch_name }}
+          delete-branch: true
+          title: 'Import forest biome asset pack files'
+          commit-message: 'feat(client-2d): import forest biome asset pack files'
+          body: |
+            Imports the Forest Biome release asset into the 2D client public assets.
+
+            Source release:
+            - tag: `${{ inputs.release_tag }}`
+            - selected asset: `${{ env.FOREST_ZIP }}`
+
+            Generated output:
+            - `${{ inputs.destination }}/files/**`
+            - `${{ inputs.destination }}/manifest.json`
+            - `${{ inputs.destination }}/README.md`
+
+            The importer verifies that every PNG in the ZIP is represented in the manifest.
+
+            No WorldTick, ARE core, server simulation, NPC, combat, or economy changes.
+          labels: |
+            assets
+            client-2d
+            forest-biome
