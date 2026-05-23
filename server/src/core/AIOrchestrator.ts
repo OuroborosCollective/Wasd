@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: AI Orchestrator uses wall-clock for task reset and timeouts.
 interface TaskPayload {
     eventType: string;
     payload: any;

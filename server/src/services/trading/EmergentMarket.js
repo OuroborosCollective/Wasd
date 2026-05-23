@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Emergent Market service is currently decoupled from simulation WorldHash.
 class EmergentMarket {
     constructor() {
         this.imbalanceThreshold = 2.5;
