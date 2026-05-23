@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prebuild": "pnpm run validate:assets && node ../../scripts/extract-2d-weapon-pool.mjs",
+    "prebuild": "node ../../scripts/validate-client-2d-assets.mjs && node ../../scripts/extract-2d-weapon-pool.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
