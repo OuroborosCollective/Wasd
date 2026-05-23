@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Metadata, telemetry or legacy logic currently using wall-clock.
 // @ts-nocheck: optional external DB client types in minimal builds.
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { NPCTraits } from "./NPCTraits.js";

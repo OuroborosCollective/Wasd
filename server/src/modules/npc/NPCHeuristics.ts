@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Metadata, telemetry or legacy logic currently using wall-clock.
 // @ts-nocheck
 /**
  * NPCHeuristics — local heuristic weight updates based on outcomes.

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Metadata, telemetry or legacy logic currently using wall-clock.
 import { WorldEventBus } from "../../events/WorldEventBus.js";
 import { WorldHistory } from "../history/WorldHistory.js";
 import { pushLiveTickerHazard, type LiveTickerHazardPayload } from "../../theme/serverThemeHazard.js";

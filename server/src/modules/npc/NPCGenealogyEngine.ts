@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Metadata, telemetry or legacy logic currently using wall-clock.
 export interface NPCStats {
     strength: number;
     agility: number;

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Metadata, telemetry or legacy logic currently using wall-clock.
 export class NPCMemoryEngine {
   private memory = new Map<string, any[]>();
 

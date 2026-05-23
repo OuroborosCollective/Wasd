@@ -9,6 +9,10 @@ export interface ARERng {
   fork(label: string): ARERng;
 }
 
+/**
+ * SystemAREClock uses the host wall-clock.
+ * // @ARE-GUARD-EXEMPT: This is the intentional bridge to real-world time for non-simulation paths.
+ */
 export class SystemAREClock implements AREClock {
   now(): number {
     return Date.now();

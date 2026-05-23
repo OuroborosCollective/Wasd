@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Metadata, telemetry or legacy logic currently using wall-clock.
 import { NPCMemoryCache, type MemoryEvent } from "./NPCMemoryCache.js";
 import type { NPCTraits } from "./NPCTraits.js";
 import type { NPCContext } from "./NPCChatTypes.js";

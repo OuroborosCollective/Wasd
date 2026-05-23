@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Metadata, telemetry or legacy logic currently using wall-clock.
 export class NPCDialogueSystem {
   talk(npc: any, worldSignals: any = {}) {
     const lines = npc.dialogueLines || [

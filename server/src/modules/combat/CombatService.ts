@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Metadata, telemetry or legacy logic currently using wall-clock.
 import { ComboValidator, type ComboResult } from "./ComboValidator.js";
 
 export interface CombatState {

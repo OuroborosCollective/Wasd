@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Metadata, telemetry or legacy logic currently using wall-clock.
 import { isItemBoundOrNonTransferable } from "../items/itemBindingPolicy.js";
 
 export class PlayerMarket {

@@ -28,8 +28,6 @@ export class OracleSystem {
   public async detectPatterns(): Promise<void> {
     const worldState = worldStateRegistry.getCurrentState();
     
-    // Hardening: JavaScript Map iteration is non-deterministic.
-    // Enforce sorted order for region processing to ensure identical WorldHash across replays.
     const sortedRegionIds = Array.from(worldState.regions.keys()).sort();
     for (const regionId of sortedRegionIds) {
       const region = worldState.regions.get(regionId)!;

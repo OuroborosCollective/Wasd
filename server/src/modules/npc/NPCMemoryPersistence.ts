@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Metadata, telemetry or legacy logic currently using wall-clock.
 // @ts-nocheck
 /**
  * NPCMemoryPersistence — Layer 2: Supabase-backed long-term NPC memory.

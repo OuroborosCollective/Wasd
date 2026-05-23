@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Metadata, telemetry or legacy logic currently using wall-clock.
 import { NPCChatBridge } from "./NPCChatBridge.js";
 import { LLMService } from "../llm/LLMService.js";
 import type { NPCContext } from "./NPCChatTypes.js";

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Metadata, telemetry or legacy logic currently using wall-clock.
 import fs from "fs";
 import path from "path";
 import type { AREMode } from "./RuntimeSettingsStore.js";

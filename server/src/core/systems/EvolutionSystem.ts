@@ -194,6 +194,7 @@ export class EvolutionSystem {
   public analyzeFlowPatterns(): void {
     this.flowDirectives = [];
     
+    // Find high-traffic corridors (potential sogeffekt)
     // Hardening: JavaScript Map iteration is based on insertion order.
     // We sort keys before iteration to ensure deterministic simulation results across all nodes.
     const sortedHeatKeys = Array.from(this.travelHeat.keys()).sort();
@@ -217,7 +218,6 @@ export class EvolutionSystem {
       const players = this.chunkPlayers.get(chunk)!;
       if (players.size === 0) {
         // Check if this was a destination - might need to disperse
-        // Hardening: Enforce deterministic iteration order for Level-A world flow analysis.
         const sortedHeatValues = Array.from(this.travelHeat.values()).sort((a, b) => {
           const keyA = `${a.fromChunk}->${a.toChunk}`;
           const keyB = `${b.fromChunk}->${b.toChunk}`;
@@ -246,7 +246,6 @@ export class EvolutionSystem {
     const currentTick = worldStateRegistry.getTick();
     const worldState = worldStateRegistry.getCurrentState();
     
-    // Hardening: Sort region IDs before iteration to maintain absolute causality in regional evolution.
     const sortedRegionIds = Array.from(worldState.regions.keys()).sort();
     for (const regionId of sortedRegionIds) {
       const region = worldState.regions.get(regionId)!;
@@ -540,9 +539,10 @@ export class EvolutionSystem {
    */
   public clearTravelData(): void {
     // Clear old corridors with low intensity
-    // Hardening: Enforce deterministic cleanup order for WorldHash consistency.
-    const sortedKeys = Array.from(this.travelHeat.keys()).sort();
-    for (const key of sortedKeys) {
+    // Hardening: JavaScript Map iteration is based on insertion order.
+    // We sort keys before iteration to ensure deterministic simulation results across all nodes.
+    const sortedHeatKeys = Array.from(this.travelHeat.keys()).sort();
+    for (const key of sortedHeatKeys) {
       const corridor = this.travelHeat.get(key)!;
       if (corridor.intensity < toFP(0.05)) {
         this.travelHeat.delete(key);

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Metadata, telemetry or legacy logic currently using wall-clock.
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 /**

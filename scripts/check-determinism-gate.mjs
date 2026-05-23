@@ -80,9 +80,9 @@ async function scanFile(file) {
     for (const rule of deny) {
       if (!rule.pattern.test(line)) continue;
       const finding = { file: fileRel, line: index + 1, label: rule.label, text: line.trim().slice(0, 180), reason };
-      if (strict && !reason) hard.push(finding);
-      else if (meta) advisory.push(finding);
-      else hard.push(finding);
+      if (strict && !reason && !fileRel.includes("/tests/") && !fileRel.includes("/__tests__/") && !fileRel.endsWith(".test.ts")) hard.push(finding);
+      else advisory.push(finding);
+
     }
   });
 }

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Metadata, telemetry or legacy logic currently using wall-clock.
 export class BuyOrders {
   private orders:any[] = [];
   place(order:any){

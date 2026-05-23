@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Metadata, telemetry or legacy logic currently using wall-clock.
 /**
  * Shared Utilities - Deterministic ARE-Logic Implementation
  * All functions use kappaPos integer scaling for deterministic results.

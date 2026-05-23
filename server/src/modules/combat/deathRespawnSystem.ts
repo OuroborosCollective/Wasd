@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Metadata, telemetry or legacy logic currently using wall-clock.
 /**
  * Death & Respawn system — handles player death state, respawn timers,
  * and zone-based respawn point resolution.

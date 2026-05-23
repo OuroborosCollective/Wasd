@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: external AI orchestration, not world-state simulation input.
 interface TaskPayload {
     eventType: string;
     payload: any;
