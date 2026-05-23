@@ -1,0 +1,75 @@
+{
+  "frames": {
+    "stitch_mongolian_architecture_yurt_ornate_1": {
+      "frame": {
+        "x": 60,
+        "y": 50,
+        "w": 350,
+        "h": 350
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 350,
+        "h": 350
+      },
+      "sourceSize": {
+        "w": 350,
+        "h": 350
+      }
+    },
+    "stitch_mongolian_architecture_yurt_plain": {
+      "frame": {
+        "x": 580,
+        "y": 60,
+        "w": 320,
+        "h": 320
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 320,
+        "h": 320
+      },
+      "sourceSize": {
+        "w": 320,
+        "h": 320
+      }
+    },
+    "stitch_mongolian_architecture_wooden_gate_mongol": {
+      "frame": {
+        "x": 120,
+        "y": 550,
+        "w": 280,
+        "h": 320
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 280,
+        "h": 320
+      },
+      "sourceSize": {
+        "w": 280,
+        "h": 320
+      }
+    }
+  },
+  "meta": {
+    "app": "Areloria WASD Stitch generated atlas importer",
+    "version": "1.0",
+    "image": "stitch_mongolian_architecture.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 1024,
+      "h": 1024
+    },
+    "scale": "1"
+  }
+}

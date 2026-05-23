@@ -1,1 +1,345 @@
-{"version":1,"generatedAt":"2026-05-19T00:00:00.000Z","source":"active starter subset from uploaded Pipoya ZIP packs","basePath":"/2d-assets","notes":["Embedded data-uri PNGs from uploaded Pipoya packs. Full import script remains available."],"sources":[{"name":"Pipoya RPG World Tileset 48x48 40x40 32x32.zip","sizeBytes":2308138},{"name":"Pipoya RPG Monster Pack.zip","sizeBytes":31034689},{"name":"PIPOYA FREE RPG Character Sprites 32x32.zip","sizeBytes":1414743},{"name":"Door_Animation.zip","sizeBytes":19914},{"name":"Pipoya RPG Tileset 32x32.zip","sizeBytes":6324393}],"fallbacks":{"terrain":"tile_grass_32_01","player":"character_player_male_01","npc":"character_npc_guard_01","monster":null,"house":null,"tree":null},"tilesets":{"tile_grass_32_01":{"src":"data:image/png;base64,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","source":"Pipoya RPG Tileset 32x32.zip","license":"Pipoya asset packs - see /2d-assets/credits/pipoya-uploaded-packs.md","tileWidth":32,"tileHeight":32,"width":32,"height":32}},"characters":{"character_player_male_01":{"src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAFAklEQVR42sWXbWhTVxjHf2mljGGx6tS26WZzo6lhWytuUNtFpDVBp8igyxrYkO1DrWMftI7SVpDBhrjWlVaifljnB0EZaxYnItSGxha2zDpbq5ZptG1ukmpJM1Y7RdgoSPYhOdfbvHS3IOyBcM99nuec//95Oefkwv8sOq2Ou9+piKnfL/06qNNie2EEBFC1pYJwcJLA1JSi/2zvJ9zz30/RayGlW0zUAEa9nrWG1wAIByfZvtM2D7zaUqHYBJmFMqLTErUAFYsa9XoFWIAJUhvMJfP06oykI6I5A+rIhajB1O8CWJRGTSaZhE5L5GoAYB5oJkkms6gMCHCR7uTIM2UhOSPq0mTKQFamtKvBReTJmVDrI20deHr65ulE34ixUa9PaeysdNtFsBTgmeosyhEOTlIO5Ljcim+krYMN5hKFRL9vMC2JrIVKoAYQaRQAarAtLjc1phLKEz5C7vnvKxkx6vX0+wZTypCVqbbq2olxjsut6MpVda4xxUFqTCVsSfgkExZraOoBcdolN1FL/wnCwUk6v/mImvAFZUxfq/KrSvi09J+Yt244OEm1pSKlB5aki77fN0jO0mleXfaWMvmLT7eyt60DAHv9DdxdHXFwldjrP1e9bWVfZSHfXp1kX2UhTT8Opc101mLO7aPOXsb9Oo46vaS3exP23hRbztLptPdEVibwuaf5PHh8g3BwkjcL/wGgoKAAAM/FC2kJCL3wuxqSATh8+RJzT/PTBpa10GkmSiAkNzeX0jyZ6+ca0/pfP9dIaZ5Mbm5uxnWSSSz5ryM1MDXFg8fTVBZLwEkqDZl9hW124CTR0XF6/HeYe5qP2NKLvg2tVmts06a340Rud3Pk3d2sKV3PcmNRxjmzgYdER8c5fPkSxjIHACMjw3i93sX9H1CDV1VtA+D08Xp2ml+nslhiTen6lDnR0XGuhmR6/Heoa+gCYGDgyoIkFiyBwWCgutqKLMtIkkRdQxenj9fT478DlzPPq2voQpIkACRJQpZlRkaG0/ouSCAYDNLf71UisNtrcffGO3tsTEaWZQYGrlBVtQ1JkjCZJMXmdruw22uRZZlQYjdoJvD+dkNs85ocPCPDhEJBACYmApy6FWPgiAOTKQ72smwkrwSKaKXIFFPAqw53kx/4ienpiLLmo0d/aT+IhGwvzOHZ4+tMTAQU3XunfgbA3DGM7e4Qmz8G290hzB3D8+xCdm1cx6bClRhWzWgj0NTUEqtr6OJa1M+1qB9jmQOr1QrAnmwfTyIRzAfOPJ8w9nxoPnCGJ5EIe7J9GFbNsGvjOmbDQ7z094S2bdjU1BITHa/uYK/Xy4oVedxdXs2ebB+v5MTtcyVbnh+1938B4M85OPvMQsWT77CXWxS7+zcf5z1BbbtAdG6yWHS3ubj6A1j7BgC20FmcnU72H9xPX9mXiWvvdyzTvTwDHoZmKCpeya2xmcU1oTp6AMOqGRprh+n0OLDFbkLoJgDOTieODx10f+9k/0GIRqPKnMbaIO0uIKEyljnA07owgWPHWnVA6sdImYN2Vzfuzu64whR/2HZYgRlsO6z0OZ0AXBuM29pdBmXLAjQ3H9KWAUEi8ZzXHy1fjbKhrJyC1cuJ/DHLsuwzGMscBG530966U/EVzfvCvw3j54OZouKVANwam6Hthx6dsAm/856grqmpJQbQ1vY1zc2HSA5I822YLAI8WZI7XAUYywQO8C/fWZWg2opuDQAAAABJRU5ErkJggg==","source":"PIPOYA FREE RPG Character Sprites 32x32.zip","license":"Pipoya asset packs - see /2d-assets/credits/pipoya-uploaded-packs.md","width":32,"height":32,"frameWidth":32,"frameHeight":32},"character_npc_guard_01":{"src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAC+UlEQVR42uVXz0sbQRh9K7kKLaK21ENmSgVp8RCiLcWLTIrQq72UHsP+EZJjkdK/YfFsLz30IhSy5FZFQ6BiCdg6MwehxDYoKD30sj3oN04m2exO9Na5bHYz37zvx/vezAD/+whGMSqVyknaf61W02vNwijAnHPYTwCQUtLPxMeRwAecc25AGWN9c5RSxhkpZS4nCr7gNnCxeJ0BreUgp5IsJwq3AU7vWstB2RnqROE2wG/ixFhWBmyijTKy7Meyoh9EOIrSHe53suOcp7ZuLhJGUWQWGhaR2wUAUKlUbtYF9XodnHMIIRBFEaSU4Jzbfd8z6HsYhojj2Nh76UCpVE4qlYoxdkuRRkK7DG42aD2XjLlKIKXE4W4Ts4tlcM6hlMoUIpo/shDZKRZCAAAOd5s43G3mYv/sYhlCCMRx3Lderi6wDZRSEELkisgGp4wMcyDIs+O5YpSXA3Y3pG1QhTwiQguRI3k4QMD2Gl4cuPI24ZwbBr9duofp+Qe4+3AmxWoKp0fH6Oz/wZsr5mftjENLQMBG2Sa7eDn3GM+LHNPzj/psOvvf8UVLbLW/Qf2aMN/TWjBTB+yaNxoxpJRIzveyDxnjCxBCGK5oLaGU8tMBqhljDFpLiwcLhpA2y+md5lHrEim9umB1hSXPpueweXDSQyLKih2Zu0VTtC5gGg+GdsHrJ1PY6ez11DMNhPPezpBSYn39neto37kglYSrKywBgI+fVTBIF+hpp76ndJNdvHq6BAA4u7/kzwECdk9Grri4wORcct41cy62P+Go00arpfxK4IIvLwswxowj1Wpo5m1sRGZOoxHj6OsejvWlE7//jnAicgfVN4ois01TbbW+VEnSDMYYgvEF7HTa2Om08eO03ZNRrwyQIlarIWq1NSPH9XrdnHaovpxz1GprCMPwivUq817gfTEhgdFamqMadQyNzYOT3Dej3FezVqsZsMlucrF9gbOfE7gD4MXsFN5/2AouWc+S67kqd2Bed0MAmClOZHaNz/gH93fuMGMMXjEAAAAASUVORK5CYII=","source":"PIPOYA FREE RPG Character Sprites 32x32.zip","license":"Pipoya asset packs - see /2d-assets/credits/pipoya-uploaded-packs.md","width":32,"height":32,"frameWidth":32,"frameHeight":32}},"monsters":{},"buildings":{},"props":{},"fx":{},"ui":{}}
+{
+  "version": 1,
+  "generatedAt": "2026-05-23T06:35:29.354Z",
+  "source": "active starter subset from uploaded Pipoya ZIP packs",
+  "basePath": "/2d-assets",
+  "notes": [
+    "Embedded data-uri PNGs from uploaded Pipoya packs. Full import script remains available."
+  ],
+  "sources": [
+    {
+      "name": "Pipoya RPG World Tileset 48x48 40x40 32x32.zip",
+      "sizeBytes": 2308138
+    },
+    {
+      "name": "Pipoya RPG Monster Pack.zip",
+      "sizeBytes": 31034689
+    },
+    {
+      "name": "PIPOYA FREE RPG Character Sprites 32x32.zip",
+      "sizeBytes": 1414743
+    },
+    {
+      "name": "Door_Animation.zip",
+      "sizeBytes": 19914
+    },
+    {
+      "name": "Pipoya RPG Tileset 32x32.zip",
+      "sizeBytes": 6324393
+    },
+    {
+      "name": "stitch_medieval_fantasy_sprite_atlas.zip",
+      "url": "https://github.com/user-attachments/files/28171704/stitch_medieval_fantasy_sprite_atlas.zip",
+      "importedAs": "stitch/stitch_medieval_fantasy_sprite_atlas",
+      "type": "stitch-generated-atlas"
+    }
+  ],
+  "fallbacks": {
+    "terrain": "tile_grass_32_01",
+    "player": "character_player_male_01",
+    "npc": "character_npc_guard_01",
+    "monster": null,
+    "house": "stitch_medieval_architecture",
+    "tree": "stitch_samurai_vegetation"
+  },
+  "tilesets": {
+    "tile_grass_32_01": {
+      "src": "data:image/png;base64,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",
+      "source": "Pipoya RPG Tileset 32x32.zip",
+      "license": "Pipoya asset packs - see /2d-assets/credits/pipoya-uploaded-packs.md",
+      "tileWidth": 32,
+      "tileHeight": 32,
+      "width": 32,
+      "height": 32
+    },
+    "stitch_samurai_ground_tiles": {
+      "src": "/2d-assets/stitch/stitch_samurai_ground_tiles/stitch_samurai_ground_tiles.png",
+      "atlas": "/2d-assets/stitch/stitch_samurai_ground_tiles/stitch_samurai_ground_tiles.json",
+      "source": "stitch_medieval_fantasy_sprite_atlas.zip",
+      "sourcePath": "stitch_medieval_fantasy_sprite_atlas/an_isometric_2.5d_sprite_sheet_texture_atlas_of_japanese_samurai_era_ground/screen.png",
+      "license": "Project-owned generated asset. See /2d-assets/credits/stitch-generated-atlas-provenance.md",
+      "kind": "ground_tiles",
+      "group": "samurai",
+      "tags": [
+        "stitch",
+        "samurai",
+        "ground_tiles",
+        "tilesets",
+        "gameplay"
+      ],
+      "tileWidth": 256,
+      "tileHeight": 256
+    },
+    "stitch_medieval_ground_tiles": {
+      "src": "/2d-assets/stitch/stitch_medieval_ground_tiles/stitch_medieval_ground_tiles.png",
+      "atlas": "/2d-assets/stitch/stitch_medieval_ground_tiles/stitch_medieval_ground_tiles.json",
+      "source": "stitch_medieval_fantasy_sprite_atlas.zip",
+      "sourcePath": "stitch_medieval_fantasy_sprite_atlas/an_isometric_2.5d_sprite_sheet_texture_atlas_of_medieval_fantasy_ground_tiles/screen.png",
+      "license": "Project-owned generated asset. See /2d-assets/credits/stitch-generated-atlas-provenance.md",
+      "kind": "ground_tiles",
+      "group": "medieval",
+      "tags": [
+        "stitch",
+        "medieval",
+        "ground_tiles",
+        "tilesets",
+        "gameplay"
+      ],
+      "tileWidth": 256,
+      "tileHeight": 256
+    },
+    "stitch_mongolian_ground_tiles": {
+      "src": "/2d-assets/stitch/stitch_mongolian_ground_tiles/stitch_mongolian_ground_tiles.png",
+      "atlas": "/2d-assets/stitch/stitch_mongolian_ground_tiles/stitch_mongolian_ground_tiles.json",
+      "source": "stitch_medieval_fantasy_sprite_atlas.zip",
+      "sourcePath": "stitch_medieval_fantasy_sprite_atlas/an_isometric_2.5d_sprite_sheet_texture_atlas_of_mongolian_steppe_ground_tiles/screen.png",
+      "license": "Project-owned generated asset. See /2d-assets/credits/stitch-generated-atlas-provenance.md",
+      "kind": "ground_tiles",
+      "group": "mongolian",
+      "tags": [
+        "stitch",
+        "mongolian",
+        "ground_tiles",
+        "tilesets",
+        "gameplay"
+      ],
+      "tileWidth": 256,
+      "tileHeight": 256
+    }
+  },
+  "characters": {
+    "character_player_male_01": {
+      "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAFAklEQVR42sWXbWhTVxjHf2mljGGx6tS26WZzo6lhWytuUNtFpDVBp8igyxrYkO1DrWMftI7SVpDBhrjWlVaifljnB0EZaxYnItSGxha2zDpbq5ZptG1ukmpJM1Y7RdgoSPYhOdfbvHS3IOyBcM99nuec//95Oefkwv8sOq2Ou9+piKnfL/06qNNie2EEBFC1pYJwcJLA1JSi/2zvJ9zz30/RayGlW0zUAEa9nrWG1wAIByfZvtM2D7zaUqHYBJmFMqLTErUAFYsa9XoFWIAJUhvMJfP06oykI6I5A+rIhajB1O8CWJRGTSaZhE5L5GoAYB5oJkkms6gMCHCR7uTIM2UhOSPq0mTKQFamtKvBReTJmVDrI20deHr65ulE34ixUa9PaeysdNtFsBTgmeosyhEOTlIO5Ljcim+krYMN5hKFRL9vMC2JrIVKoAYQaRQAarAtLjc1phLKEz5C7vnvKxkx6vX0+wZTypCVqbbq2olxjsut6MpVda4xxUFqTCVsSfgkExZraOoBcdolN1FL/wnCwUk6v/mImvAFZUxfq/KrSvi09J+Yt244OEm1pSKlB5aki77fN0jO0mleXfaWMvmLT7eyt60DAHv9DdxdHXFwldjrP1e9bWVfZSHfXp1kX2UhTT8Opc101mLO7aPOXsb9Oo46vaS3exP23hRbztLptPdEVibwuaf5PHh8g3BwkjcL/wGgoKAAAM/FC2kJCL3wuxqSATh8+RJzT/PTBpa10GkmSiAkNzeX0jyZ6+ca0/pfP9dIaZ5Mbm5uxnWSSSz5ryM1MDXFg8fTVBZLwEkqDZl9hW124CTR0XF6/HeYe5qP2NKLvg2tVmts06a340Rud3Pk3d2sKV3PcmNRxjmzgYdER8c5fPkSxjIHACMjw3i93sX9H1CDV1VtA+D08Xp2ml+nslhiTen6lDnR0XGuhmR6/Heoa+gCYGDgyoIkFiyBwWCgutqKLMtIkkRdQxenj9fT478DlzPPq2voQpIkACRJQpZlRkaG0/ouSCAYDNLf71UisNtrcffGO3tsTEaWZQYGrlBVtQ1JkjCZJMXmdruw22uRZZlQYjdoJvD+dkNs85ocPCPDhEJBACYmApy6FWPgiAOTKQ72smwkrwSKaKXIFFPAqw53kx/4ienpiLLmo0d/aT+IhGwvzOHZ4+tMTAQU3XunfgbA3DGM7e4Qmz8G290hzB3D8+xCdm1cx6bClRhWzWgj0NTUEqtr6OJa1M+1qB9jmQOr1QrAnmwfTyIRzAfOPJ8w9nxoPnCGJ5EIe7J9GFbNsGvjOmbDQ7z094S2bdjU1BITHa/uYK/Xy4oVedxdXs2ebB+v5MTtcyVbnh+1938B4M85OPvMQsWT77CXWxS7+zcf5z1BbbtAdG6yWHS3ubj6A1j7BgC20FmcnU72H9xPX9mXiWvvdyzTvTwDHoZmKCpeya2xmcU1oTp6AMOqGRprh+n0OLDFbkLoJgDOTieODx10f+9k/0GIRqPKnMbaIO0uIKEyljnA07owgWPHWnVA6sdImYN2Vzfuzu64whR/2HZYgRlsO6z0OZ0AXBuM29pdBmXLAjQ3H9KWAUEi8ZzXHy1fjbKhrJyC1cuJ/DHLsuwzGMscBG530966U/EVzfvCvw3j54OZouKVANwam6Hthx6dsAm/856grqmpJQbQ1vY1zc2HSA5I822YLAI8WZI7XAUYywQO8C/fWZWg2opuDQAAAABJRU5ErkJggg==",
+      "source": "PIPOYA FREE RPG Character Sprites 32x32.zip",
+      "license": "Pipoya asset packs - see /2d-assets/credits/pipoya-uploaded-packs.md",
+      "width": 32,
+      "height": 32,
+      "frameWidth": 32,
+      "frameHeight": 32
+    },
+    "character_npc_guard_01": {
+      "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAC+UlEQVR42uVXz0sbQRh9K7kKLaK21ENmSgVp8RCiLcWLTIrQq72UHsP+EZJjkdK/YfFsLz30IhSy5FZFQ6BiCdg6MwehxDYoKD30sj3oN04m2exO9Na5bHYz37zvx/vezAD/+whGMSqVyknaf61W02vNwijAnHPYTwCQUtLPxMeRwAecc25AGWN9c5RSxhkpZS4nCr7gNnCxeJ0BreUgp5IsJwq3AU7vWstB2RnqROE2wG/ixFhWBmyijTKy7Meyoh9EOIrSHe53suOcp7ZuLhJGUWQWGhaR2wUAUKlUbtYF9XodnHMIIRBFEaSU4Jzbfd8z6HsYhojj2Nh76UCpVE4qlYoxdkuRRkK7DG42aD2XjLlKIKXE4W4Ts4tlcM6hlMoUIpo/shDZKRZCAAAOd5s43G3mYv/sYhlCCMRx3Lderi6wDZRSEELkisgGp4wMcyDIs+O5YpSXA3Y3pG1QhTwiQguRI3k4QMD2Gl4cuPI24ZwbBr9duofp+Qe4+3AmxWoKp0fH6Oz/wZsr5mftjENLQMBG2Sa7eDn3GM+LHNPzj/psOvvf8UVLbLW/Qf2aMN/TWjBTB+yaNxoxpJRIzveyDxnjCxBCGK5oLaGU8tMBqhljDFpLiwcLhpA2y+md5lHrEim9umB1hSXPpueweXDSQyLKih2Zu0VTtC5gGg+GdsHrJ1PY6ez11DMNhPPezpBSYn39neto37kglYSrKywBgI+fVTBIF+hpp76ndJNdvHq6BAA4u7/kzwECdk9Grri4wORcct41cy62P+Go00arpfxK4IIvLwswxowj1Wpo5m1sRGZOoxHj6OsejvWlE7//jnAicgfVN4ois01TbbW+VEnSDMYYgvEF7HTa2Om08eO03ZNRrwyQIlarIWq1NSPH9XrdnHaovpxz1GprCMPwivUq817gfTEhgdFamqMadQyNzYOT3Dej3FezVqsZsMlucrF9gbOfE7gD4MXsFN5/2AouWc+S67kqd2Bed0MAmClOZHaNz/gH93fuMGMMXjEAAAAASUVORK5CYII=",
+      "source": "PIPOYA FREE RPG Character Sprites 32x32.zip",
+      "license": "Pipoya asset packs - see /2d-assets/credits/pipoya-uploaded-packs.md",
+      "width": 32,
+      "height": 32,
+      "frameWidth": 32,
+      "frameHeight": 32
+    }
+  },
+  "monsters": {},
+  "buildings": {
+    "stitch_medieval_architecture": {
+      "src": "/2d-assets/stitch/stitch_medieval_architecture/stitch_medieval_architecture.png",
+      "atlas": "/2d-assets/stitch/stitch_medieval_architecture/stitch_medieval_architecture.json",
+      "source": "stitch_medieval_fantasy_sprite_atlas.zip",
+      "sourcePath": "stitch_medieval_fantasy_sprite_atlas/an_isometric_2.5d_sprite_sheet_texture_atlas_of_medieval_fantasy_architecture/screen.png",
+      "license": "Project-owned generated asset. See /2d-assets/credits/stitch-generated-atlas-provenance.md",
+      "kind": "architecture",
+      "group": "medieval",
+      "tags": [
+        "stitch",
+        "medieval",
+        "architecture",
+        "buildings",
+        "gameplay"
+      ],
+      "zHeight": 3,
+      "isoFootprint": {
+        "w": 144,
+        "h": 72
+      },
+      "shadow": {
+        "w": 164,
+        "h": 42,
+        "alpha": 0.38
+      }
+    },
+    "stitch_mongolian_architecture": {
+      "src": "/2d-assets/stitch/stitch_mongolian_architecture/stitch_mongolian_architecture.png",
+      "atlas": "/2d-assets/stitch/stitch_mongolian_architecture/stitch_mongolian_architecture.json",
+      "source": "stitch_medieval_fantasy_sprite_atlas.zip",
+      "sourcePath": "stitch_medieval_fantasy_sprite_atlas/an_isometric_2.5d_sprite_sheet_texture_atlas_of_mongolian_empire_architecture/screen.png",
+      "license": "Project-owned generated asset. See /2d-assets/credits/stitch-generated-atlas-provenance.md",
+      "kind": "architecture",
+      "group": "mongolian",
+      "tags": [
+        "stitch",
+        "mongolian",
+        "architecture",
+        "buildings",
+        "gameplay"
+      ],
+      "zHeight": 3,
+      "isoFootprint": {
+        "w": 144,
+        "h": 72
+      },
+      "shadow": {
+        "w": 164,
+        "h": 42,
+        "alpha": 0.38
+      }
+    }
+  },
+  "props": {
+    "stitch_samurai_decor": {
+      "src": "/2d-assets/stitch/stitch_samurai_decor/stitch_samurai_decor.png",
+      "atlas": "/2d-assets/stitch/stitch_samurai_decor/stitch_samurai_decor.json",
+      "source": "stitch_medieval_fantasy_sprite_atlas.zip",
+      "sourcePath": "stitch_medieval_fantasy_sprite_atlas/an_isometric_2.5d_sprite_sheet_texture_atlas_of_japanese_samurai_era_decoration/screen.png",
+      "license": "Project-owned generated asset. See /2d-assets/credits/stitch-generated-atlas-provenance.md",
+      "kind": "decor",
+      "group": "samurai",
+      "tags": [
+        "stitch",
+        "samurai",
+        "decor",
+        "props",
+        "gameplay"
+      ],
+      "zHeight": 1,
+      "isoFootprint": {
+        "w": 64,
+        "h": 28
+      },
+      "shadow": {
+        "w": 72,
+        "h": 20,
+        "alpha": 0.32
+      }
+    },
+    "stitch_samurai_vegetation": {
+      "src": "/2d-assets/stitch/stitch_samurai_vegetation/stitch_samurai_vegetation.png",
+      "atlas": "/2d-assets/stitch/stitch_samurai_vegetation/stitch_samurai_vegetation.json",
+      "source": "stitch_medieval_fantasy_sprite_atlas.zip",
+      "sourcePath": "stitch_medieval_fantasy_sprite_atlas/an_isometric_2.5d_sprite_sheet_texture_atlas_of_japanese_samurai_era_trees_and/screen.png",
+      "license": "Project-owned generated asset. See /2d-assets/credits/stitch-generated-atlas-provenance.md",
+      "kind": "vegetation",
+      "group": "samurai",
+      "tags": [
+        "stitch",
+        "samurai",
+        "vegetation",
+        "props",
+        "gameplay"
+      ],
+      "zHeight": 2,
+      "isoFootprint": {
+        "w": 72,
+        "h": 36
+      },
+      "shadow": {
+        "w": 88,
+        "h": 26,
+        "alpha": 0.34
+      }
+    },
+    "stitch_medieval_decor": {
+      "src": "/2d-assets/stitch/stitch_medieval_decor/stitch_medieval_decor.png",
+      "atlas": "/2d-assets/stitch/stitch_medieval_decor/stitch_medieval_decor.json",
+      "source": "stitch_medieval_fantasy_sprite_atlas.zip",
+      "sourcePath": "stitch_medieval_fantasy_sprite_atlas/an_isometric_2.5d_sprite_sheet_texture_atlas_of_medieval_fantasy_decoration/screen.png",
+      "license": "Project-owned generated asset. See /2d-assets/credits/stitch-generated-atlas-provenance.md",
+      "kind": "decor",
+      "group": "medieval",
+      "tags": [
+        "stitch",
+        "medieval",
+        "decor",
+        "props",
+        "gameplay"
+      ],
+      "zHeight": 1,
+      "isoFootprint": {
+        "w": 64,
+        "h": 28
+      },
+      "shadow": {
+        "w": 72,
+        "h": 20,
+        "alpha": 0.32
+      }
+    },
+    "stitch_medieval_vegetation": {
+      "src": "/2d-assets/stitch/stitch_medieval_vegetation/stitch_medieval_vegetation.png",
+      "atlas": "/2d-assets/stitch/stitch_medieval_vegetation/stitch_medieval_vegetation.json",
+      "source": "stitch_medieval_fantasy_sprite_atlas.zip",
+      "sourcePath": "stitch_medieval_fantasy_sprite_atlas/an_isometric_2.5d_sprite_sheet_texture_atlas_of_medieval_fantasy_trees_and/screen.png",
+      "license": "Project-owned generated asset. See /2d-assets/credits/stitch-generated-atlas-provenance.md",
+      "kind": "vegetation",
+      "group": "medieval",
+      "tags": [
+        "stitch",
+        "medieval",
+        "vegetation",
+        "props",
+        "gameplay"
+      ],
+      "zHeight": 2,
+      "isoFootprint": {
+        "w": 72,
+        "h": 36
+      },
+      "shadow": {
+        "w": 88,
+        "h": 26,
+        "alpha": 0.34
+      }
+    },
+    "stitch_mongolian_decor": {
+      "src": "/2d-assets/stitch/stitch_mongolian_decor/stitch_mongolian_decor.png",
+      "atlas": "/2d-assets/stitch/stitch_mongolian_decor/stitch_mongolian_decor.json",
+      "source": "stitch_medieval_fantasy_sprite_atlas.zip",
+      "sourcePath": "stitch_medieval_fantasy_sprite_atlas/an_isometric_2.5d_sprite_sheet_texture_atlas_of_mongolian_empire_decoration/screen.png",
+      "license": "Project-owned generated asset. See /2d-assets/credits/stitch-generated-atlas-provenance.md",
+      "kind": "decor",
+      "group": "mongolian",
+      "tags": [
+        "stitch",
+        "mongolian",
+        "decor",
+        "props",
+        "gameplay"
+      ],
+      "zHeight": 1,
+      "isoFootprint": {
+        "w": 64,
+        "h": 28
+      },
+      "shadow": {
+        "w": 72,
+        "h": 20,
+        "alpha": 0.32
+      }
+    },
+    "stitch_mongolian_vegetation": {
+      "src": "/2d-assets/stitch/stitch_mongolian_vegetation/stitch_mongolian_vegetation.png",
+      "atlas": "/2d-assets/stitch/stitch_mongolian_vegetation/stitch_mongolian_vegetation.json",
+      "source": "stitch_medieval_fantasy_sprite_atlas.zip",
+      "sourcePath": "stitch_medieval_fantasy_sprite_atlas/an_isometric_2.5d_sprite_sheet_texture_atlas_of_mongolian_steppe_trees_and/screen.png",
+      "license": "Project-owned generated asset. See /2d-assets/credits/stitch-generated-atlas-provenance.md",
+      "kind": "vegetation",
+      "group": "mongolian",
+      "tags": [
+        "stitch",
+        "mongolian",
+        "vegetation",
+        "props",
+        "gameplay"
+      ],
+      "zHeight": 2,
+      "isoFootprint": {
+        "w": 72,
+        "h": 36
+      },
+      "shadow": {
+        "w": 88,
+        "h": 26,
+        "alpha": 0.34
+      }
+    }
+  },
+  "fx": {},
+  "ui": {}
+}
