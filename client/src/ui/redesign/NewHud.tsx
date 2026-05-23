@@ -52,6 +52,24 @@ export const NewHud: React.FC<any> = (props) => {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'f' && loot && loot.length > 0) {
+        // Don't trigger if typing in an input
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+          return;
+        }
+        sendCommand("loot_all");
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [loot]);
+
   const healthPercentage = Math.max(0, Math.min(100, (health / (maxHealth || 1)) * 100));
   const isLowHealth = healthPercentage < 25;
   const manaPercentage = Math.max(0, Math.min(100, (mana / (maxMana || 1)) * 100));
@@ -172,8 +190,13 @@ export const NewHud: React.FC<any> = (props) => {
 
       {loot && loot.length > 0 && (
         <div className="hud-loot-prompt">
-          <button className="loot-button" onClick={() => sendCommand("loot_all")}>
-            Take All Loot ({loot.length})
+          <button
+            className="loot-button"
+            onClick={() => sendCommand("loot_all")}
+            aria-label={`Take all ${loot.length} items`}
+          >
+            <kbd className="loot-key">F</kbd>
+            <span>Take All Loot ({loot.length})</span>
           </button>
         </div>
       )}
