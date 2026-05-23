@@ -6,12 +6,24 @@ on:
       - main
     paths:
       - 'docs/wiki/**'
+      - 'scripts/sync-wiki.mjs'
+      - '.github/workflows/sync-wiki.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: sync-wiki
+  cancel-in-progress: true
+
+permissions:
+  contents: write
 
 jobs:
   sync-wiki:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -22,4 +34,8 @@ jobs:
           node-version: 22
 
       - name: Sync Wiki Content
+        env:
+          GITHUB_TOKEN: ${{ secrets.WIKI_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SHA: ${{ github.sha }}
         run: node scripts/sync-wiki.mjs
