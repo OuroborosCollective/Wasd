@@ -36,7 +36,7 @@ importers:
   apps/api:
     dependencies:
       '@babylonjs/core':
-        specifier: '*'
+        specifier: ^9.6.2
         version: 9.6.2
       '@babylonjs/havok':
         specifier: '*'
@@ -152,7 +152,7 @@ importers:
         specifier: ^9.6.2
         version: 9.6.2
       '@babylonjs/loaders':
-        specifier: ^9.8.0
+        specifier: ^9.6.2
         version: 9.8.0(@babylonjs/core@9.6.2)(babylonjs-gltf2interface@9.6.2)
       '@babylonjs/materials':
         specifier: ^9.6.2
@@ -228,7 +228,7 @@ importers:
         specifier: ^1.3.12
         version: 1.3.12
       '@babylonjs/loaders':
-        specifier: ^9.8.0
+        specifier: ^9.6.2
         version: 9.8.0(@babylonjs/core@9.6.2)(babylonjs-gltf2interface@9.6.2)
       '@babylonjs/materials':
         specifier: ^9.6.2

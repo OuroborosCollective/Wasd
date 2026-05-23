@@ -20,6 +20,7 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
+        with:
           run_install: false
 
       - name: Setup Node
@@ -35,10 +36,6 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=3072"
 
       # Deterministic gates: shared + server must stay type-clean.
-      - name: Build @wasd/shared
-        run: |
-          pnpm --filter @wasd/shared build
-
       - name: Typecheck @wasd/shared
         run: |
           NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/shared run typecheck
