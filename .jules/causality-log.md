@@ -4,8 +4,8 @@ Learning: JavaScript `Map` iteration order is based on insertion order, which is
 
 Action: Always enforce `Array.sort()` on entity collections (Players, NPCs, Loot) before processing them in any 10-Hz tick logic. Ensure all properties required by deterministic utility functions (like `PerceptionLogic`) are explicitly initialized during entity creation.
 
-## 2026-05-23 - Hardened Deterministic Iteration in Simulation Paths
+## 2028-08-23 - Enforced Sorted Map Iteration
 
-Learning: JavaScript `Map` and `Set` iteration order is non-deterministic (insertion order) and can vary across runs if populated from non-deterministic sources. In Level-A simulation paths, this leads to divergent WorldHashes and causality failures, especially in regional economy and evolution logic.
+Learning: Native JavaScript Map iteration follows insertion order, which is non-deterministic in concurrent server environments. In Level-A simulation paths, this causes WorldHash drift during replays.
 
-Action: Enforce sorted key iteration in `EconomySimulation`, `EvolutionSystem`, and `OracleSystem`. Always extract keys to an array and sort them before processing collections that impact the WorldHash.
+Action: Always sort Map keys before iteration in Economy, Evolution, and Oracle systems. Standardized Node.js 22 in CI to support modern pnpm features.

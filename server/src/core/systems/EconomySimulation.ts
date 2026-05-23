@@ -362,7 +362,7 @@ export class EconomySimulation {
   public calculateTotalRegionEnergy(): number {
     const worldState = worldStateRegistry.getCurrentState();
     let total = 0;
-    // Sort keys for deterministic summation (floating point safety, though here we use integers)
+    // Sort keys for deterministic summation
     const sortedRegionIds = Array.from(worldState.regions.keys()).sort();
     for (const regionId of sortedRegionIds) {
       const region = worldState.regions.get(regionId)!;

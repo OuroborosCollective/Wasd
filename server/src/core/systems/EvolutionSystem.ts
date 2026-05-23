@@ -218,7 +218,7 @@ export class EvolutionSystem {
       const players = this.chunkPlayers.get(chunk)!;
       if (players.size === 0) {
         // Check if this was a destination - might need to disperse
-        // Use deterministic sorted iteration over travelHeat to find corridors
+        // Use deterministic sorted iteration over travelHeat
         for (const corridorKey of sortedCorridorKeys) {
           const corridor = this.travelHeat.get(corridorKey)!;
           if (corridor.toChunk === chunk && corridor.intensity < toFP(0.1)) {

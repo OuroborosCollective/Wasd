@@ -9,15 +9,20 @@ const strictRoots = [
   'server/src/core/systems',
   'server/src/core/state',
   'server/src/core/determinism',
-  'server/src/modules/brain',
+  'server/src/modules/combat',
+  'server/src/modules/npc',
+  'server/src/modules/world',
+  'server/src/modules/dungeon',
+  'server/src/modules/economy',
   'server/src/modules/loot',
   'server/src/modules/oracle',
   'server/src/modules/warfront',
+  'packages/shared/src',
 ];
 const advisoryHints = [
-  'admin', 'api', 'analytics', 'asset', 'audit', 'chat', 'dashboard', 'debug',
-  'health', 'integrity', 'liveheal', 'logger', 'mail', 'metrics', 'monitor',
-  'notification', 'observability', 'playtester', 'posthog', 'selfhealing', 'telemetry',
+  '/admin/', '/api/', '/analytics/', '/asset', '/audit', '/chat', '/dashboard', '/debug',
+  '/health', '/integrity/', '/liveheal/', '/logger/', '/mail', '/metrics', '/monitor',
+  '/notification', '/observability', '/playtester', '/posthog', '/selfhealing/', '/telemetry/',
 ];
 const deny = [
   { pattern: /\bMath\.random\s*\(/, label: 'Math.random()' },
@@ -26,7 +31,7 @@ const deny = [
   { pattern: /\bcrypto\.randomUUID\s*\(/, label: 'crypto.randomUUID()' },
   { pattern: /\brandomUUID\s*\(/, label: 'randomUUID()' },
 ];
-const ignoredDirs = new Set(['node_modules', 'dist', 'build', '.turbo', '.cache', 'coverage', 'test', 'tests', '__tests__']);
+const ignoredDirs = new Set(['node_modules', 'dist', 'build', '.turbo', '.cache', 'coverage']);
 const extensions = new Set(['.ts', '.tsx', '.js', '.mjs', '.cjs', '.mts', '.cts']);
 const lineAllow = /ARE-DETERMINISM-ALLOW/i;
 const fileExempt = /@ARE-GUARD-EXEMPT:\s*(.{8,})/i;
@@ -75,14 +80,9 @@ async function scanFile(file) {
     for (const rule of deny) {
       if (!rule.pattern.test(line)) continue;
       const finding = { file: fileRel, line: index + 1, label: rule.label, text: line.trim().slice(0, 180), reason };
-      // Only strict roots without an exemption reason trigger a hard failure.
-      // Other paths (including meta/advisory) default to advisory.
-      // If a file has an explicit exemption reason, it is always advisory regardless of path.
-      if (strict && !reason) {
-        hard.push(finding);
-      } else {
-        advisory.push(finding);
-      }
+      if (strict && !reason) hard.push(finding);
+      else if (meta) advisory.push(finding);
+      else hard.push(finding);
     }
   });
 }

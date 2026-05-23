@@ -63,7 +63,6 @@ export class WorldStateRegistry {
     const newState: WorldState = {
       regions: new Map(this.currentState.regions),
       globalTick: this.currentState.globalTick + BigInt(1),
-      /* ARE-DETERMINISM-ALLOW */
       lastSyncTimestamp: Date.now(),
     };
     
