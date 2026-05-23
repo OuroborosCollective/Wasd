@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: AIOrchestrator manages external tasks, not part of 10Hz simulation state.
 interface TaskPayload {
     eventType: string;
     payload: any;
