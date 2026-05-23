@@ -11,6 +11,12 @@ on:
         description: 'Commit imported assets to a PR branch after validation'
         required: false
         default: 'true'
+  push:
+    branches: [main]
+    paths:
+      - '.github/stitch-import-trigger.txt'
+      - '.github/workflows/import-stitch-atlases.yml'
+      - 'scripts/import-stitch-generated-atlases.mjs'
 
 permissions:
   contents: write
@@ -79,7 +85,7 @@ jobs:
           retention-days: 3
 
       - name: Create import pull request
-        if: success() && (github.event.inputs.persist == '' || github.event.inputs.persist == 'true')
+        if: success() && (github.event_name == 'push' || github.event.inputs.persist == '' || github.event.inputs.persist == 'true')
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
