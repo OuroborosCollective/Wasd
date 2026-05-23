@@ -1,0 +1,87 @@
+name: Client 2D Build Smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'apps/client-2d/**'
+      - 'scripts/validate-client-2d-assets.mjs'
+      - 'scripts/extract-2d-weapon-pool.mjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/client-2d-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/client-2d/**'
+      - 'scripts/validate-client-2d-assets.mjs'
+      - 'scripts/extract-2d-weapon-pool.mjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/client-2d-smoke.yml'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  client-2d-smoke:
+    name: Validate and build client-2d
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.2
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: |
+          echo '=== client-2d smoke: install dependencies ==='
+          pnpm install --no-frozen-lockfile
+
+      - name: Validate client-2d assets
+        run: |
+          echo '=== client-2d smoke: validate assets ==='
+          pnpm --filter @wasd/client-2d validate:assets
+
+      - name: Build client-2d
+        run: |
+          echo '=== client-2d smoke: build ==='
+          NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter @wasd/client-2d build
+
+      - name: Print build output summary
+        if: always()
+        run: |
+          echo '=== client-2d smoke: dist summary ==='
+          if [ -d apps/client-2d/dist ]; then
+            find apps/client-2d/dist -maxdepth 2 -type f | sort | head -100
+          else
+            echo 'apps/client-2d/dist not found'
+          fi
+
+      - name: Upload dist artifact
+        if: success() && hashFiles('apps/client-2d/dist/**') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-2d-dist
+          path: apps/client-2d/dist
+          retention-days: 3
