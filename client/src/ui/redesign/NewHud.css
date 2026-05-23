@@ -205,3 +205,36 @@
   outline-offset: 2px;
   box-shadow: 0 0 15px rgba(242, 125, 38, 0.6);
 }
+
+.loot-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(20, 25, 35, 0.9);
+  border: 1px solid var(--gold-primary);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+  transition: all 0.2s;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+}
+
+.loot-button:hover {
+  background: rgba(212, 175, 55, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px var(--gold-glow);
+}
+
+.loot-key {
+  background: #000;
+  color: var(--gold-primary);
+  border: 1px solid var(--gold-primary);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+  font-family: 'Fira Code', monospace;
+  box-shadow: 0 2px 0 var(--gold-secondary);
+}
