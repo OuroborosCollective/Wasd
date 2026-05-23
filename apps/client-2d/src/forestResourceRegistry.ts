@@ -74,5 +74,5 @@ export function pickForestResourceNode(manifest: ForestBiomeManifest | null, inp
 }
 
 export function forestGatherIntent(node: ForestResourceNode) {
-  return { action: 'GATHER_RESOURCE_INTENT', resourceNodeId: node.id, resourceType: node.definition.resourceType, itemId: node.definition.itemId, kappaCoordinate: node.kappaCoordinate, assetId: node.asset.id, questTags: node.definition.questTags };
+  return { type: 'GATHER_RESOURCE_INTENT', action: 'GATHER_RESOURCE_INTENT', resourceNodeId: node.id, resourceType: node.definition.resourceType, itemId: node.definition.itemId, kappaCoordinate: node.kappaCoordinate, assetId: node.asset.id, questTags: node.definition.questTags };
 }
