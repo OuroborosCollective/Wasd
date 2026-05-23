@@ -32,7 +32,7 @@ defaults:
 jobs:
   import-stitch-atlases:
     name: Import generated Stitch atlases
-    if: github.event_name != 'issue_comment' || (github.event.issue.number == 1071 && contains(github.event.comment.body, 'run-stitch-import'))
+    if: github.event_name != 'issue_comment' || (github.event.issue.number == 1071 && contains(github.event.comment.body, 'stitch'))
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
