@@ -4,11 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prebuild": "node ../../scripts/validate-client-2d-assets.mjs && node ../../scripts/extract-2d-weapon-pool.mjs",
+    "prebuild": "node ../../scripts/are-asset-forge.mjs && node ../../scripts/enrich-stitch-atlas-frames.mjs && node ../../scripts/validate-client-2d-assets.mjs && node ../../scripts/extract-2d-weapon-pool.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "validate:assets": "node ../../scripts/validate-client-2d-assets.mjs"
+    "validate:assets": "node ../../scripts/are-asset-forge.mjs && node ../../scripts/enrich-stitch-atlas-frames.mjs && node ../../scripts/validate-client-2d-assets.mjs"
   },
   "dependencies": {
     "pixi.js": "^8.18.1",

@@ -1,0 +1,335 @@
+{
+  "frames": {
+    "stitch_medieval_decor_well_1": {
+      "frame": {
+        "x": 40,
+        "y": 30,
+        "w": 170,
+        "h": 230
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 170,
+        "h": 230
+      },
+      "sourceSize": {
+        "w": 170,
+        "h": 230
+      }
+    },
+    "stitch_medieval_decor_well_2": {
+      "frame": {
+        "x": 260,
+        "y": 20,
+        "w": 180,
+        "h": 250
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 180,
+        "h": 250
+      },
+      "sourceSize": {
+        "w": 180,
+        "h": 250
+      }
+    },
+    "stitch_medieval_decor_stall_blue": {
+      "frame": {
+        "x": 500,
+        "y": 20,
+        "w": 200,
+        "h": 280
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 200,
+        "h": 280
+      },
+      "sourceSize": {
+        "w": 200,
+        "h": 280
+      }
+    },
+    "stitch_medieval_decor_stall_yellow": {
+      "frame": {
+        "x": 750,
+        "y": 30,
+        "w": 180,
+        "h": 270
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 180,
+        "h": 270
+      },
+      "sourceSize": {
+        "w": 180,
+        "h": 270
+      }
+    },
+    "stitch_medieval_decor_sign_sword": {
+      "frame": {
+        "x": 40,
+        "y": 280,
+        "w": 120,
+        "h": 190
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 120,
+        "h": 190
+      },
+      "sourceSize": {
+        "w": 120,
+        "h": 190
+      }
+    },
+    "stitch_medieval_decor_sign_pot": {
+      "frame": {
+        "x": 220,
+        "y": 270,
+        "w": 110,
+        "h": 190
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 110,
+        "h": 190
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 190
+      }
+    },
+    "stitch_medieval_decor_stall_red": {
+      "frame": {
+        "x": 420,
+        "y": 300,
+        "w": 210,
+        "h": 280
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 210,
+        "h": 280
+      },
+      "sourceSize": {
+        "w": 210,
+        "h": 280
+      }
+    },
+    "stitch_medieval_decor_stall_purple": {
+      "frame": {
+        "x": 730,
+        "y": 300,
+        "w": 210,
+        "h": 270
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 210,
+        "h": 270
+      },
+      "sourceSize": {
+        "w": 210,
+        "h": 270
+      }
+    },
+    "stitch_medieval_decor_lantern_1": {
+      "frame": {
+        "x": 50,
+        "y": 500,
+        "w": 110,
+        "h": 250
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 110,
+        "h": 250
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 250
+      }
+    },
+    "stitch_medieval_decor_sign_bread": {
+      "frame": {
+        "x": 190,
+        "y": 540,
+        "w": 120,
+        "h": 180
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 120,
+        "h": 180
+      },
+      "sourceSize": {
+        "w": 120,
+        "h": 180
+      }
+    },
+    "stitch_medieval_decor_lantern_2": {
+      "frame": {
+        "x": 360,
+        "y": 540,
+        "w": 110,
+        "h": 240
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 110,
+        "h": 240
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 240
+      }
+    },
+    "stitch_medieval_decor_crates": {
+      "frame": {
+        "x": 530,
+        "y": 600,
+        "w": 180,
+        "h": 160
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 180,
+        "h": 160
+      },
+      "sourceSize": {
+        "w": 180,
+        "h": 160
+      }
+    },
+    "stitch_medieval_decor_barrel_stack": {
+      "frame": {
+        "x": 30,
+        "y": 780,
+        "w": 180,
+        "h": 190
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 180,
+        "h": 190
+      },
+      "sourceSize": {
+        "w": 180,
+        "h": 190
+      }
+    },
+    "stitch_medieval_decor_barrels": {
+      "frame": {
+        "x": 280,
+        "y": 800,
+        "w": 150,
+        "h": 150
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 150,
+        "h": 150
+      },
+      "sourceSize": {
+        "w": 150,
+        "h": 150
+      }
+    },
+    "stitch_medieval_decor_chest_metal_1": {
+      "frame": {
+        "x": 530,
+        "y": 790,
+        "w": 170,
+        "h": 180
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 170,
+        "h": 180
+      },
+      "sourceSize": {
+        "w": 170,
+        "h": 180
+      }
+    },
+    "stitch_medieval_decor_chest_metal_2": {
+      "frame": {
+        "x": 780,
+        "y": 810,
+        "w": 160,
+        "h": 160
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 160,
+        "h": 160
+      },
+      "sourceSize": {
+        "w": 160,
+        "h": 160
+      }
+    }
+  },
+  "meta": {
+    "app": "Areloria WASD Stitch generated atlas importer",
+    "version": "1.0",
+    "image": "stitch_medieval_decor.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 1024,
+      "h": 1024
+    },
+    "scale": "1"
+  }
+}
