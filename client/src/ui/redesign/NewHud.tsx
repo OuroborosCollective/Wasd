@@ -54,20 +54,14 @@ export const NewHud: React.FC<any> = (props) => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === 'f' && loot && loot.length > 0) {
-        // Don't trigger if typing in an input
+      if (e.key.toLowerCase() === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey) {
         const target = e.target as HTMLElement;
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-          return;
-        }
-        sendCommand("loot_all");
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+        if (loot && loot.length > 0) sendCommand("loot_all");
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [loot]);
 
   const healthPercentage = Math.max(0, Math.min(100, (health / (maxHealth || 1)) * 100));

@@ -1,47 +1,27 @@
-.new-hud-container {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  z-index: 5000;
-}
-
-.new-hud-container > * {
-  pointer-events: auto;
-}
-
-.hud-section {
-  position: absolute;
-}
-
+.new-hud-container { position: fixed; inset: 0; pointer-events: none; font-family: 'Plus Jakarta Sans', sans-serif; z-index: 5000; }
+.new-hud-container > * { pointer-events: auto; }
+.hud-section { position: absolute; }
 .top-left { top: 20px; left: 20px; }
 .top-right { top: 20px; right: 20px; }
 .bottom-left { bottom: 20px; left: 20px; width: 300px; padding: 12px; }
 .bottom-center { bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; }
 .side-menu { right: 20px; bottom: 100px; display: flex; flex-direction: column; gap: 12px; }
-
 .game-brand h1 { margin: 0; font-size: 28px; letter-spacing: 2px; }
 .game-brand p { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 4px; color: #888; }
-
 .quest-tracker { margin-top: 20px; width: 220px; padding: 12px; }
 .quest-tracker h3 { font-size: 14px; margin-top: 0; }
 .quest-item { margin-bottom: 8px; border-left: 2px solid #d4af37; padding-left: 8px; }
 .quest-title { font-size: 13px; font-weight: bold; }
-
 .minimap-orb { width: 140px; height: 140px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden; }
 .minimap-placeholder { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
 .location-label { position: absolute; bottom: 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; background: rgba(0,0,0,0.6); padding: 2px 8px; border-radius: 10px; }
-
 .action-orb-layout { display: flex; align-items: center; gap: 20px; }
 .skill-row { display: flex; gap: 10px; }
 .skill-row.left { margin-top: -30px; }
 .skill-row.right { margin-top: -30px; }
-
 .hp-ring-container { position: absolute; inset: 0; pointer-events: none; }
-
 .xp-container { display: flex; flex-direction: column; align-items: center; margin-top: 5px; }
 .xp-text { font-size: 11px; font-weight: bold; margin-top: 4px; }
-
 .chat-tabs { display: flex; gap: 12px; font-size: 11px; font-weight: bold; margin-bottom: 8px; color: #888; }
 .chat-tabs span.active { color: #d4af37; border-bottom: 1px solid #d4af37; }
 .chat-area { display: flex; flex-direction: column; height: 140px; }
@@ -49,130 +29,28 @@
 .chat-preview p { margin: 4px 0; }
 .chat-form input { width: 100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 6px 10px; color: #fff; font-size: 12px; outline: none; }
 .chat-form input:focus { border-color: #d4af37; }
-
 .menu-btn { width: 48px; height: 48px; border-radius: 12px; background: rgba(20,25,35,0.9); border: 1px solid rgba(255,255,255,0.1); color: #fff; font-size: 24px; cursor: pointer; transition: all 0.2s; }
 .menu-btn:hover { border-color: #d4af37; background: rgba(212, 175, 55, 0.1); transform: scale(1.1); }
-
 .target-frame { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); width: 250px; padding: 8px; display: flex; flex-direction: column; align-items: center; }
 .target-hp-bar { width: 100%; height: 8px; background: rgba(0,0,0,0.6); border-radius: 4px; overflow: hidden; margin-bottom: 4px; }
 .target-hp-bar .fill { height: 100%; background: #ff4444; box-shadow: 0 0 10px rgba(255, 68, 68, 0.5); }
 .target-name { font-size: 13px; font-weight: bold; }
-
-.warfront-panel {
-  margin-top: 12px;
-  width: 260px;
-  padding: 10px;
-  color: #d9dee8;
-}
-
-.warfront-panel-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.warfront-refresh {
-  border: 1px solid rgba(212, 175, 55, 0.4);
-  background: rgba(0, 0, 0, 0.45);
-  color: #d4af37;
-  border-radius: 6px;
-  width: 28px;
-  height: 24px;
-  cursor: pointer;
-}
-
-.warfront-empty {
-  margin: 0;
-  font-size: 12px;
-  opacity: 0.85;
-}
-
-.warfront-meta,
-.warfront-personal {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  margin-bottom: 6px;
-}
-
-.warfront-progress-shell {
-  height: 8px;
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.55);
-  overflow: hidden;
-  margin-bottom: 8px;
-}
-
-.warfront-progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #1d4ed8, #d4af37);
-  box-shadow: 0 0 8px rgba(212, 175, 55, 0.4);
-}
-
-.warfront-tier-hint {
-  margin: 0 0 8px;
-  font-size: 11px;
-  color: #bcc8dc;
-}
-
-.warfront-sectors {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-
-.warfront-sector {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  padding: 6px;
-  background: rgba(6, 8, 14, 0.55);
-}
-
-.warfront-sector-top,
-.warfront-sector-meta {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-}
-
-.warfront-sector-bar {
-  margin: 5px 0;
-  height: 6px;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.5);
-  overflow: hidden;
-}
-
-.warfront-sector-bar > div {
-  height: 100%;
-  background: linear-gradient(90deg, #2563eb, #d4af37);
-}
-
-.warfront-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-}
-
-.warfront-claim {
-  border: 1px solid rgba(212, 175, 55, 0.5);
-  background: rgba(212, 175, 55, 0.15);
-  color: #f8e8b2;
-  border-radius: 8px;
-  font-size: 11px;
-  padding: 6px 8px;
-  cursor: pointer;
-}
-
-.warfront-boss-flag {
-  font-size: 11px;
-  color: #8bc5ff;
-}
-
-/* Smartphone specific adjustments */
+.warfront-panel { margin-top: 12px; width: 260px; padding: 10px; color: #d9dee8; }
+.warfront-panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.warfront-refresh { border: 1px solid rgba(212, 175, 55, 0.4); background: rgba(0, 0, 0, 0.45); color: #d4af37; border-radius: 6px; width: 28px; height: 24px; cursor: pointer; }
+.warfront-empty { margin: 0; font-size: 12px; opacity: 0.85; }
+.warfront-meta, .warfront-personal { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 6px; }
+.warfront-progress-shell { height: 8px; border-radius: 6px; background: rgba(0, 0, 0, 0.55); overflow: hidden; margin-bottom: 8px; }
+.warfront-progress-fill { height: 100%; background: linear-gradient(90deg, #1d4ed8, #d4af37); box-shadow: 0 0 8px rgba(212, 175, 55, 0.4); }
+.warfront-tier-hint { margin: 0 0 8px; font-size: 11px; color: #bcc8dc; }
+.warfront-sectors { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.warfront-sector { border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 6px; background: rgba(6, 8, 14, 0.55); }
+.warfront-sector-top, .warfront-sector-meta { display: flex; justify-content: space-between; font-size: 11px; }
+.warfront-sector-bar { margin: 5px 0; height: 6px; border-radius: 4px; background: rgba(0, 0, 0, 0.5); overflow: hidden; }
+.warfront-sector-bar > div { height: 100%; background: linear-gradient(90deg, #2563eb, #d4af37); }
+.warfront-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.warfront-claim { border: 1px solid rgba(212, 175, 55, 0.5); background: rgba(212, 175, 55, 0.15); color: #f8e8b2; border-radius: 8px; font-size: 11px; padding: 6px 8px; cursor: pointer; }
+.warfront-boss-flag { font-size: 11px; color: #8bc5ff; }
 .smartphone .top-left { top: 10px; left: 10px; transform: scale(0.8); transform-origin: top left; }
 .smartphone .top-right { top: 10px; right: 10px; transform: scale(0.8); transform-origin: top right; }
 .smartphone .bottom-left { display: none; }
@@ -180,61 +58,19 @@
 .smartphone .action-orb-layout { transform: scale(0.8); }
 .smartphone .xp-container { transform: scale(0.8); margin-top: -10px; }
 .smartphone .warfront-panel { display: none; }
-
-.hp-ring-container svg {
-  overflow: visible;
-}
-
-.hp-ring-container circle {
-  transition: stroke-dashoffset 0.3s ease-out;
-}
-
+.hp-ring-container svg { overflow: visible; }
+.hp-ring-container circle { transition: stroke-dashoffset 0.3s ease-out; }
 @keyframes pulse-red {
   0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); }
   70% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
   100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
 }
+.hud-bar-wrapper.health.low-health { animation: pulse-red 2s infinite; border-color: #dc2626; }
+.hud-skill-slot:focus-visible { outline: 2px solid #f27d26; outline-offset: 2px; box-shadow: 0 0 15px rgba(242, 125, 38, 0.6); }
+.loot-button { display: flex; align-items: center; gap: 8px; background: rgba(20, 25, 35, 0.9); border: 1px solid var(--gold-primary); color: #fff; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px; transition: all 0.2s; box-shadow: 0 0 15px rgba(0, 0, 0, 0.5); }
+.loot-button:hover { background: rgba(212, 175, 55, 0.2); transform: translateY(-2px); box-shadow: 0 0 20px var(--gold-glow); }
+.loot-key { background: #000; color: var(--gold-primary); border: 1px solid var(--gold-primary); border-radius: 4px; padding: 2px 6px; font-size: 12px; font-family: 'Fira Code', monospace; box-shadow: 0 2px 0 var(--gold-secondary); }
 
-.hud-bar-wrapper.health.low-health {
-  animation: pulse-red 2s infinite;
-  border-color: #dc2626;
-}
-
-.hud-skill-slot:focus-visible {
-  outline: 2px solid #f27d26;
-  outline-offset: 2px;
-  box-shadow: 0 0 15px rgba(242, 125, 38, 0.6);
-}
-
-.loot-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(20, 25, 35, 0.9);
-  border: 1px solid var(--gold-primary);
-  color: #fff;
-  padding: 8px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: bold;
-  font-size: 14px;
-  transition: all 0.2s;
-  box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
-}
-
-.loot-button:hover {
-  background: rgba(212, 175, 55, 0.2);
-  transform: translateY(-2px);
-  box-shadow: 0 0 20px var(--gold-glow);
-}
-
-.loot-key {
-  background: #000;
-  color: var(--gold-primary);
-  border: 1px solid var(--gold-primary);
-  border-radius: 4px;
-  padding: 2px 6px;
-  font-size: 12px;
-  font-family: 'Fira Code', monospace;
-  box-shadow: 0 2px 0 var(--gold-secondary);
-}
+.loot-button { display: flex; align-items: center; gap: 8px; background: rgba(20, 25, 35, 0.9); border: 1px solid var(--gold-primary); color: #fff; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px; transition: all 0.2s; box-shadow: 0 0 15px rgba(0, 0, 0, 0.5); }
+.loot-button:hover { background: rgba(212, 175, 55, 0.2); transform: translateY(-2px); box-shadow: 0 0 20px var(--gold-glow); }
+.loot-key { background: #000; color: var(--gold-primary); border: 1px solid var(--gold-primary); border-radius: 4px; padding: 2px 6px; font-size: 12px; font-family: 'Fira Code', monospace; box-shadow: 0 2px 0 var(--gold-secondary); }
