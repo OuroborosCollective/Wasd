@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Infrastructure/Meta/Telemetry logic; not world-state critical.
 export interface ChatMessage {
   id: string;
   sender: string;

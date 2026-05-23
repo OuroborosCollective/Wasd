@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 import { ItemRegistry } from "../inventory/ItemRegistry.js";
 import { getPostHogClient } from "../../services/posthog.js";
 import fs from "fs";

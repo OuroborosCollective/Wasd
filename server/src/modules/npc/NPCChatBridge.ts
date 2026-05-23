@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 import { NPCMemoryCache, type MemoryEvent } from "./NPCMemoryCache.js";
 import type { NPCTraits } from "./NPCTraits.js";
 import type { NPCContext } from "./NPCChatTypes.js";

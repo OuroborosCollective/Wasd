@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 export function mutateMonster(dna: any, biome: string) {
   const clone = { ...dna, mutations: [] as string[] };
 

@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 /**
  * @file server/src/core/api/APIServer.ts
  * @description High-performance API Server.

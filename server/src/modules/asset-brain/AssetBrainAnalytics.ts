@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Infrastructure/Meta/Telemetry logic; not world-state critical.
 /**
  * Asset Brain Analytics & Monitoring
  * Tracks asset generation metrics, performance, and user behavior

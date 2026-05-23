@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Infrastructure/Meta/Telemetry logic; not world-state critical.
 /**
  * Asset Brain Architect - Database Operations
  * Handles all CRUD operations for asset specifications and variants

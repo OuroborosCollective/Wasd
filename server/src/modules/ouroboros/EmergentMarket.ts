@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 /**
  * EmergentMarket — per-region supply/demand pricing with no fixed prices.
  *

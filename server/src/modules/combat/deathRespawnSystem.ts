@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 /**
  * Death & Respawn system — handles player death state, respawn timers,
  * and zone-based respawn point resolution.

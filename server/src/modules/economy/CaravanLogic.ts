@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 import { EventEmitter } from 'events';
 
 interface Vector3 {

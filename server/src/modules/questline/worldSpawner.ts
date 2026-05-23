@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 import { createHash } from "node:crypto";
 import { getFactionByStrand, type Faction } from "./factionRegistry.js";
 

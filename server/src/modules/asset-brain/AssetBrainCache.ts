@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Infrastructure/Meta/Telemetry logic; not world-state critical.
 /**
  * Asset Brain Cache Manager
  * Implements multi-level caching for asset specifications and generated models

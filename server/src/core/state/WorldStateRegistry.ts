@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 /**
  * @file server/src/core/state/WorldStateRegistry.ts
  * @description Single Source of Truth (SSoT) for deterministic world state.

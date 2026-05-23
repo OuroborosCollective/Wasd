@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 import { ALL_GAME_FEATURES } from "./factionRegistry.js";
 
 export type FeatureTriggerKind = "unlock" | "require" | "reward" | "introduce";

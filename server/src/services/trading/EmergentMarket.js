@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 class EmergentMarket {
     constructor() {
         this.imbalanceThreshold = 2.5;

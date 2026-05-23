@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 export enum EchoIntensity {
     Combat = 0.95,
     Collect = 0.80,

@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 /**
  * @file server/src/core/state/RegionState.ts
  * @description Data models for regional world state in Arelorian.

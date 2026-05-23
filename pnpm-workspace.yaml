@@ -15,21 +15,7 @@ allowBuilds:
   '@prisma/engines': true
   cpu-features: true
   esbuild: true
+  pg: set this to true or false
   prisma: true
   protobufjs: true
   ssh2: true
-  sharp: true
-  pg: true
-overrides:
-  "@types/react": "^19.2.14"
-  "@types/react-dom": "^19.2.3"
-  "@types/node": "^25.9.0"
-  "typescript": "^6.0.3"
-  "zod": "^4.4.3"
-  "three": "0.184.0"
-  "@babylonjs/core": "^9.6.2"
-  "@babylonjs/materials": "^9.6.2"
-  "@babylonjs/loaders": "^9.6.2"
-  "react": "^19.2.6"
-  "socket.io-client": "^4.8.3"
-  "pg": "^8.20.0"

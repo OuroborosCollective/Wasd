@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 export class WarEngine {
   declareWar(attacker: any, defender: any) {
     return {

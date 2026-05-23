@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 import { getFactionByStrand, type Faction } from "./factionRegistry.js";
 import { spawnRegion, seededPick, seededRandom, type City, type Region } from "./worldSpawner.js";
 import { buildFeatureTriggerSchedule, type FeatureTrigger } from "./featureTrigger.js";

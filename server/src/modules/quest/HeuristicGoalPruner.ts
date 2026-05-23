@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 /**
  * HeuristicGoalPruner - NPC AI Focus Optimizer
  * 

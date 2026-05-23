@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 // @ts-nocheck
 /**
  * NPCHeuristics — local heuristic weight updates based on outcomes.

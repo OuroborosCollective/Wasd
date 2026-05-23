@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 import fs from "fs";
 import path from "path";
 import type { AREMode } from "./RuntimeSettingsStore.js";

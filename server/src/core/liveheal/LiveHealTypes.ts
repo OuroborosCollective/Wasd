@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Self-healing telemetry and timing; not simulation affecting.
 /**
  * LiveHeal v2 - Core type definitions for WASD runtime resilience layer.
  *

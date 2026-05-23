@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 import { LegendDistiller } from "../legend/LegendDistiller";
 
 export interface Quest {

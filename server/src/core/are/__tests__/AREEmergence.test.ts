@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Testing logic only.
 import { describe, expect, it } from 'vitest';
 import { AREBrain } from '../AREBrain';
 import { AREHash } from '../AREHash';

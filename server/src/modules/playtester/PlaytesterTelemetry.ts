@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Infrastructure/Meta/Telemetry logic; not world-state critical.
 import type { PlaytesterEvent, PlaytesterLevel } from "./playtesterTypes.js";
 
 export class PlaytesterTelemetry {

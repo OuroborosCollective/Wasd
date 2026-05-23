@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Infrastructure/Meta/Telemetry logic; not world-state critical.
 /**
  * Asset Pipeline Orchestrator
  * Connects: Asset Brain Spec → Tripo3D Generation → GLB Registry

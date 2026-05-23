@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 import { NPCChatBridge } from "./NPCChatBridge.js";
 import { LLMService } from "../llm/LLMService.js";
 import type { NPCContext } from "./NPCChatTypes.js";

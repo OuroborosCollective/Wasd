@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 /**

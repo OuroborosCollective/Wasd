@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 import type { AdminGlbModelNeed } from "../content/adminGlbModelNeeds.js";
 import type { NPCMemoryCache } from "../npc/NPCMemoryCache.js";
 

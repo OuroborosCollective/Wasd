@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 export class NPCMemoryEngine {
   private memory = new Map<string, any[]>();
 

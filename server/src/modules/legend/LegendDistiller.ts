@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 /**
  * LegendDistiller.ts
  * Extrahiert die essenzielle Logik aus Narrativen

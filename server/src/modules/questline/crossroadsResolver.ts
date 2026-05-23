@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 /**
  * Major-branch “Scheideweg” resolution (faction / strand), separate from graph node `strandResolver`.
  */

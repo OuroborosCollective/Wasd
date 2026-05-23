@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 export class SiegeEngine {
   start(attacker:any, target:any) {
     return {

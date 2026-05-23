@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 export class DisasterEngine {
   createDisaster(region:string){
     const list = ["fire","storm","blight","collapse"];

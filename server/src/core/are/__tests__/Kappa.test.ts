@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Testing logic only.
 import { describe, expect, it } from 'vitest';
 import { KAPPA, assertSafeInteger, fromKappaInt, kAdd, kDiv, kMul, kSub, toKappa } from '../Kappa';
 

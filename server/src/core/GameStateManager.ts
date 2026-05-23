@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 import { WeatherResonance } from "../modules/WeatherResonance";
 
 export interface AREPayload {

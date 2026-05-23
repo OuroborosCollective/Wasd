@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Infrastructure, Meta, or Telemetry logic; not world-state critical.
 import { Injectable, Logger } from '@nestjs/common';
 import { OpenAIProvider } from '../../../llm/providers/openai.provider.js';
 

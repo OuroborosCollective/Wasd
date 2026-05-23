@@ -21,11 +21,12 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          run_install: false
+                    run_install: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
+          node-version: 22
           cache: 'pnpm'
 
       - name: Install Dependencies
@@ -33,11 +34,6 @@ jobs:
           pnpm install --frozen-lockfile --loglevel info || pnpm install --no-frozen-lockfile
         env:
           NODE_OPTIONS: "--max-old-space-size=3072"
-
-      # MUST build shared first so dependent packages can resolve types
-      - name: Build @wasd/shared
-        run: |
-          pnpm --filter @wasd/shared run build
 
       # Deterministic gates: shared + server must stay type-clean.
       - name: Typecheck @wasd/shared

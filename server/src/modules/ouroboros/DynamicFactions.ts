@@ -1,4 +1,3 @@
-// @ARE-GUARD-EXEMPT: Non-simulation critical logic (telemetry, meta, or ops).
 /**
  * DynamicFactions — emergent faction formation, politics, and war/peace resolution.
  *
