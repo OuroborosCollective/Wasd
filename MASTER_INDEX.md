@@ -1,5 +1,13 @@
 # Master Index
 
+## Wiki
+- docs/wiki/Home.md
+- docs/wiki/Determinism.md
+- docs/wiki/NPC_Core.md
+- docs/wiki/Systems_Architecture.md
+- docs/wiki/Economy_and_Matrix.md
+- docs/wiki/Guard_and_Ops.md
+
 ## Root
 - README.md
 - README_START_HERE.md

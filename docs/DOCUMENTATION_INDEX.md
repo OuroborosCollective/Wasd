@@ -43,3 +43,14 @@ For implementation decisions, always prefer:
 1. code in `server/src` + `client/src`,
 2. `.env.example`,
 3. the “current” documents listed above.
+
+## Deep Information Wiki (Obsidian Archive)
+
+| Document | Purpose |
+|----------|---------|
+| `docs/wiki/Home.md` | Wiki Home: The Five Axioms and Vision |
+| `docs/wiki/Determinism.md` | Technical Deep-Dive: Kappa, Psi Evolution, Fixed-Point |
+| `docs/wiki/NPC_Core.md` | NPC Sovereignty: DNA, Memory Layers, Heuristics |
+| `docs/wiki/Systems_Architecture.md` | Engine Heart: 10Hz Tick, Chunks, 13-Point Brain |
+| `docs/wiki/Economy_and_Matrix.md` | Resource Flow: Market Dynamics, Matrix Energy |
+| `docs/wiki/Guard_and_Ops.md` | Security: ARE Guard, Determinism Gate, Deployment |

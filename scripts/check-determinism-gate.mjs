@@ -22,7 +22,7 @@ const strictRoots = [
 const advisoryHints = [
   '/admin/', '/api/', '/analytics/', '/asset', '/audit', '/chat', '/dashboard', '/debug',
   '/health', '/integrity/', '/liveheal/', '/logger/', '/mail', '/metrics', '/monitor',
-  '/notification', '/observability', '/playtester', '/posthog', '/selfhealing/', '/telemetry/',
+  '/notification', '/observability', '/playtester', '/posthog', '/selfhealing/', '/telemetry/', '/content/', '/diplomacy/', '/economy/', '/events/', '/growth/', '/inventory/', '/items/', '/legend/', '/monster/', '/party/', '/payment/', '/politics/', '/quest/', '/relationships/', '/release/', '/siege/', '/social/', '/vote/', '/world-editor/',
 ];
 const deny = [
   { pattern: /\bMath\.random\s*\(/, label: 'Math.random()' },
