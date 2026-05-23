@@ -22,6 +22,8 @@ import {
   type ForestResourceNode,
 } from "./forestResourceRegistry";
 import { ArelorianStitchHud } from "./ArelorianStitchHud";
+import { iso3 } from "./isometricProjection";
+import { make2dProp } from "./stackedProps";
 
 const TILE_W = 96;
 const TILE_H = 48;
@@ -56,7 +58,8 @@ type CharacterSelection = {
 };
 
 function iso(x: number, z: number, width: number, height: number) {
-  return { x: width / 2 + (x - z) * TILE_W * 0.5, y: height * 0.45 + (x + z) * TILE_H * 0.5 };
+  const p = iso3({ gridX: x, gridZ: z, screenWidth: width, screenHeight: height, tileWidth: TILE_W, tileHeight: TILE_H, height: 0 });
+  return { x: p.x, y: p.y };
 }
 
 function diamond(color: number, stroke = 0x17361e) {
@@ -135,15 +138,8 @@ function spriteFromTexture(texture: Texture, width: number, height: number, y = 
   return s;
 }
 
-function propTree(assets?: LoadedAssets | null) {
+function fallbackTreeProxy() {
   const c = new Container();
-  const entry = fallbackEntry(assets?.manifest ?? null, "props", "tree");
-  const tex = textureFor(assets ?? null, entry);
-  if (tex) {
-    c.addChild(new Graphics().ellipse(0, 18, 30, 10).fill({ color: 0x010804, alpha: 0.42 }));
-    c.addChild(spriteFromTexture(tex, 86, 104));
-    return c;
-  }
   c.addChild(new Graphics().ellipse(0, 14, 24, 8).fill({ color: 0x010804, alpha: 0.5 }));
   c.addChild(new Graphics().roundRect(-5, -22, 10, 34, 4).fill(0x704323));
   c.addChild(new Graphics().circle(0, -42, 25).fill(0x14572f));
@@ -151,15 +147,8 @@ function propTree(assets?: LoadedAssets | null) {
   return c;
 }
 
-function propHouse(assets?: LoadedAssets | null) {
+function fallbackHouseProxy() {
   const c = new Container();
-  const entry = fallbackEntry(assets?.manifest ?? null, "buildings", "house");
-  const tex = textureFor(assets ?? null, entry);
-  if (tex) {
-    c.addChild(new Graphics().ellipse(0, 20, 52, 14).fill({ color: 0x010804, alpha: 0.44 }));
-    c.addChild(spriteFromTexture(tex, 118, 118));
-    return c;
-  }
   c.addChild(new Graphics().ellipse(0, 18, 48, 12).fill({ color: 0x010804, alpha: 0.44 }));
   c.addChild(new Graphics().roundRect(-34, -36, 68, 48, 8).fill(0x7d5534).stroke({ width: 2, color: 0xffd890, alpha: 0.32 }));
   const roof = new Graphics();
@@ -173,6 +162,18 @@ function propHouse(assets?: LoadedAssets | null) {
   roof.stroke({ width: 2, color: 0xffb568, alpha: 0.5 });
   c.addChild(roof, new Graphics().roundRect(-8, -16, 16, 28, 4).fill(0x21100a));
   return c;
+}
+
+function propTree(assets?: LoadedAssets | null) {
+  const entry = fallbackEntry(assets?.manifest ?? null, "props", "tree");
+  const tex = textureFor(assets ?? null, entry);
+  return make2dProp(entry, tex, fallbackTreeProxy, 86, 104);
+}
+
+function propHouse(assets?: LoadedAssets | null) {
+  const entry = fallbackEntry(assets?.manifest ?? null, "buildings", "house");
+  const tex = textureFor(assets ?? null, entry);
+  return make2dProp(entry, tex, fallbackHouseProxy, 118, 118);
 }
 
 function forestResourceSprite(node: ForestResourceNode, texture: Texture, onPick: (node: ForestResourceNode) => void) {
@@ -248,11 +249,11 @@ function avatar(name: string, player = false, assets?: LoadedAssets | null, weap
   return c;
 }
 
-function place(node: Container, x: number, z: number, width: number, height: number) {
-  const p = iso(x, z, width, height);
+function place(node: Container, x: number, z: number, width: number, height: number, zHeight = 0) {
+  const p = iso3({ gridX: x, gridZ: z, screenWidth: width, screenHeight: height, tileWidth: TILE_W, tileHeight: TILE_H, height: zHeight });
   node.x = p.x;
   node.y = p.y;
-  node.zIndex = p.y;
+  node.zIndex = p.zIndex;
 }
 
 function weaponIds(manifest: AssetManifest | null | undefined): string[] {
@@ -349,6 +350,7 @@ export function CyberZenIsoApp() {
       const terrain = new Container();
       const props = new Container();
       const actors = new Container();
+      props.sortableChildren = true;
       actors.sortableChildren = true;
       actorLayerRef.current = actors;
       app.stage.addChild(terrain, props, actors);
@@ -398,6 +400,7 @@ export function CyberZenIsoApp() {
       place(h, x, z, app.screen.width, app.screen.height);
       props.addChild(h);
     });
+    props.sortChildren();
   }
 
   function addActor(app: Application, layer: Container, id: string, x: number, z: number, name: string, player: boolean, assets = assetRef.current, weaponVisualId?: string | null) {
