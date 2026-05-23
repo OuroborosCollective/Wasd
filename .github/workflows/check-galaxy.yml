@@ -2,6 +2,15 @@ name: Check Galaxy Health Report
 
 on:
   workflow_dispatch:
+    inputs:
+      last_days:
+        description: "Days of evidence to collect"
+        required: false
+        default: "4"
+      max_file_mb:
+        description: "Per evidence file size limit in MB"
+        required: false
+        default: "200"
 
 concurrency:
   group: check-galaxy-health
@@ -12,9 +21,9 @@ permissions:
 
 jobs:
   galaxy-telemetry:
-    name: VPS health, PM2 and NPC report
+    name: VPS OSF evidence bundle
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
 
     steps:
       - name: Install SSH password client
@@ -22,102 +31,153 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y sshpass
 
-      - name: Run VPS galaxy telemetry and save artifact file
+      - name: Collect redacted OSF evidence bundle
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+          LAST_DAYS: ${{ github.event.inputs.last_days || '4' }}
+          MAX_FILE_MB: ${{ github.event.inputs.max_file_mb || '200' }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
 
           if [ -z "${SSH_HOST:-}" ] || [ -z "${SSH_USER:-}" ] || [ -z "${SSH_PASSWORD:-}" ]; then
-            echo "Missing one or more required secrets: SSH_HOST, SSH_USER, SSH_PASSWORD" | tee galaxy-report.txt
+            echo "Missing SSH_HOST, SSH_USER or SSH_PASSWORD" | tee galaxy-report.txt
             exit 1
           fi
 
-          REMOTE_SCRIPT=$(cat <<'REMOTE_EOF'
-          set -u
+          cat > remote-galaxy-evidence.sh <<'REMOTE_EOF'
+          set -Eeuo pipefail
 
-          LOG_GLOB="$HOME/.pm2/logs/*out.log"
+          DAYS="${LAST_DAYS:-4}"
+          LIMIT_MB="${MAX_FILE_MB:-200}"
+          RUN="${RUN_ID:-manual}"
+          STAMP="$(date -u '+%Y%m%dT%H%M%SZ')"
+          ROOT="/tmp/galaxy-osf-evidence-${RUN}-${STAMP}"
+          ARCHIVE="${ROOT}.tar.gz"
 
-          write() {
-            printf "%s\n" "$*"
+          mkdir -p "$ROOT/reports" "$ROOT/docker-logs" "$ROOT/pm2-logs" "$ROOT/evidence" "$ROOT/meta"
+          REPORT="$ROOT/reports/galaxy-report.txt"
+          MANIFEST="$ROOT/meta/manifest.tsv"
+          ERRORS="$ROOT/meta/copy-errors.log"
+
+          log(){ printf "%s\n" "$*" | tee -a "$REPORT"; }
+          section(){ log ""; log "======================================"; log "$1"; log "======================================"; }
+          safe(){ printf "%s" "$1" | sed -E 's#[^A-Za-z0-9._/-]+#_#g; s#^/##'; }
+          textish(){ file -bi "$1" 2>/dev/null | grep -Eiq 'text|json|xml|csv|javascript|x-empty'; }
+          redact(){
+            f="$1"
+            [ -f "$f" ] || return 0
+            textish "$f" || return 0
+            perl -0777 -pi -e 's/(password|passwd|token|secret|api[_-]?key|jwt|database_url|DATABASE_URL)(\s*[=:]\s*)[^\s,";]+/$1$2[REDACTED]/ig; s#postgres(?:ql)?://[^\s,";]+#postgres://[REDACTED]#ig; s#mysql://[^\s,";]+#mysql://[REDACTED]#ig; s#redis://[^\s,";]+#redis://[REDACTED]#ig' "$f" 2>/dev/null || true
+          }
+          add_manifest(){
+            rel="$1"; src="$2"
+            size="$(stat -c '%s' "$ROOT/$rel" 2>/dev/null || echo 0)"
+            mtime="$(stat -c '%y' "$ROOT/$rel" 2>/dev/null | cut -d'.' -f1 || echo unknown)"
+            sha="$(sha256sum "$ROOT/$rel" 2>/dev/null | awk '{print $1}' || echo unknown)"
+            printf '%s\t%s\t%s\t%s\t%s\n' "$rel" "$src" "$size" "$mtime" "$sha" >> "$MANIFEST"
           }
 
-          section() {
-            write ""
-            write "======================================"
-            write "$1"
-            write "======================================"
-          }
+          echo -e "bundle_path\tsource_path\tsize_bytes\tmtime_utc\tsha256" > "$MANIFEST"
+          : > "$ERRORS"
 
-          section "GALAXY REPORT - ARE LOGIC ENGINE"
-          write "Generated UTC: $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-          write "Host: $(hostname 2>/dev/null || echo unknown)"
-          write "User: $(whoami 2>/dev/null || echo unknown)"
+          section "GALAXY OSF EVIDENCE BUNDLE"
+          log "Generated UTC: $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+          log "Host: $(hostname 2>/dev/null || echo unknown)"
+          log "Window: last ${DAYS} days"
+          log "Per-file limit: ${LIMIT_MB} MB"
+          log "Roots: docker logs, PM2 logs, /opt/areloria evidence files, nginx/syslog text logs"
 
-          section "UPTIME"
-          uptime 2>&1 || true
+          section "SYSTEM HEALTH"
+          uptime 2>&1 | tee -a "$REPORT" || true
+          free -h 2>&1 | tee -a "$REPORT" || true
+          df -h / 2>&1 | tee -a "$REPORT" || true
+          ps -eo pid,ppid,cmd,%mem,%cpu --sort=-%cpu 2>/dev/null | head -n 20 | tee -a "$REPORT" || true
 
-          section "RAM STATUS"
-          free -h 2>&1 || true
-
-          section "DISK STATUS"
-          df -h / 2>&1 || true
-
-          section "LOAD / TOP CPU SNAPSHOT"
-          ps -eo pid,ppid,cmd,%mem,%cpu --sort=-%cpu 2>/dev/null | head -n 12 || true
-
-          section "DOCKER STATUS"
+          section "DOCKER STATUS AND LOGS"
           if command -v docker >/dev/null 2>&1; then
-            docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' 2>&1 || true
+            docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' 2>&1 | tee -a "$REPORT" || true
+            while IFS= read -r c; do
+              [ -n "$c" ] || continue
+              out="docker-logs/$(safe "$c").last-${DAYS}d.log"
+              docker logs --since "${DAYS}d" "$c" > "$ROOT/$out" 2>&1 || true
+              redact "$ROOT/$out"
+              add_manifest "$out" "docker:$c --since ${DAYS}d"
+            done < <(docker ps -a --format '{{.Names}}' 2>/dev/null || true)
           else
-            write "docker not installed or not available for this user"
+            log "docker unavailable"
           fi
 
-          section "PM2 STATUS"
+          section "PM2 LOGS"
           if command -v pm2 >/dev/null 2>&1; then
-            pm2 list 2>&1 || true
-          else
-            write "pm2 not installed or not available for this user"
+            pm2 list 2>&1 | tee -a "$REPORT" || true
+          fi
+          if [ -d "$HOME/.pm2/logs" ]; then
+            find "$HOME/.pm2/logs" -type f -mtime -"$DAYS" -size -"$LIMIT_MB"M -print0 2>/dev/null | while IFS= read -r -d '' f; do
+              rel="pm2-logs/$(basename "$f")"
+              cp -a "$f" "$ROOT/$rel" 2>>"$ERRORS" || true
+              redact "$ROOT/$rel"
+              add_manifest "$rel" "$f"
+            done
           fi
 
-          section "NPC SPAWN REPORT"
-          if ls $LOG_GLOB >/dev/null 2>&1; then
-            NPC_COUNT=$(grep -Eih 'spawn.*npc|npc.*spawn' $LOG_GLOB 2>/dev/null | wc -l | tr -d ' ')
-            write "NPC spawn lines: ${NPC_COUNT:-0}"
-            write ""
-            write "Recent NPC spawn lines:"
-            grep -Eih 'spawn.*npc|npc.*spawn' $LOG_GLOB 2>/dev/null | tail -n 25 || true
-          else
-            write "No PM2 out logs found at: $LOG_GLOB"
-            write "NPC spawn lines: 0"
-          fi
+          section "ALLOWLISTED FILE EVIDENCE"
+          find /opt/areloria /var/log/nginx /var/log -xdev -type f -mtime -"$DAYS" -size -"$LIMIT_MB"M \
+            \( -iname '*.log' -o -iname '*.json' -o -iname '*.jsonl' -o -iname '*.ndjson' -o -iname '*replay*' -o -iname '*oracle*' -o -iname '*warfront*' -o -iname '*npc*' -o -iname '*world*' -o -iname '*tick*' -o -iname 'syslog*' \) \
+            ! -iname '.env' ! -iname '*.env' ! -iname '*secret*' ! -iname '*password*' ! -iname '*.pem' ! -iname '*.key' ! -path '*/node_modules/*' ! -path '*/.git/*' \
+            -print0 2>>"$ERRORS" | while IFS= read -r -d '' f; do
+              rel="evidence/$(safe "$f")"
+              mkdir -p "$(dirname "$ROOT/$rel")"
+              cp -a "$f" "$ROOT/$rel" 2>>"$ERRORS" || true
+              redact "$ROOT/$rel"
+              add_manifest "$rel" "$f"
+            done
 
-          section "RECENT ERROR SIGNALS"
-          if ls "$HOME"/.pm2/logs/*err.log >/dev/null 2>&1; then
-            grep -Eih 'error|exception|fatal|crash|oom|out of memory|unhandled' "$HOME"/.pm2/logs/*err.log 2>/dev/null | tail -n 40 || true
-          else
-            write "No PM2 err logs found."
-          fi
+          section "SIGNAL SUMMARY"
+          grep -ERIh 'npc|spawn|oracle|warfront|replay|world|tick|quest|loot|player' "$ROOT/docker-logs" "$ROOT/pm2-logs" "$ROOT/evidence" 2>/dev/null | wc -l | awk '{print "Gameplay/research signal lines: "$1}' | tee -a "$REPORT" || true
+          grep -ERIh 'spawn.*npc|npc.*spawn|born.*npc|created.*npc|npc.*created' "$ROOT/docker-logs" "$ROOT/pm2-logs" "$ROOT/evidence" 2>/dev/null | wc -l | awk '{print "NPC evidence lines: "$1}' | tee -a "$REPORT" || true
+          grep -ERIh 'error|exception|fatal|crash|oom|out of memory|unhandled' "$ROOT/docker-logs" "$ROOT/pm2-logs" "$ROOT/evidence" 2>/dev/null | wc -l | awk '{print "Error signal lines: "$1}' | tee -a "$REPORT" || true
+
+          cat > "$ROOT/README-OSF.md" <<README
+          # Galaxy OSF Evidence Bundle
+
+          Generated UTC: $(date -u '+%Y-%m-%dT%H:%M:%SZ')
+          Window: last ${DAYS} days
+
+          This archive contains redacted operational evidence for Areloria/WASD:
+          - Docker logs from all containers
+          - PM2 logs if present
+          - allowlisted /opt/areloria replay, oracle, warfront, npc, world, tick, json/jsonl/log evidence files
+          - selected nginx/syslog text logs
+          - health report, manifest and SHA-256 checksums
+
+          Secrets, env files, keys, .git, node_modules and token-like values are excluded or redacted.
+          README
+
+          (cd "$ROOT" && find . -type f -print0 | sort -z | xargs -0 sha256sum > meta/sha256sums.txt)
+          tar -C "$(dirname "$ROOT")" -czf "$ARCHIVE" "$(basename "$ROOT")"
+          ls -lh "$ARCHIVE" | tee -a "$REPORT" || true
+          echo "$ARCHIVE"
           REMOTE_EOF
-          )
 
-          {
-            echo "__GALAXY_REPORT_BEGIN__"
-            sshpass -p "$SSH_PASSWORD" ssh \
-              -o StrictHostKeyChecking=no \
-              -o UserKnownHostsFile=/dev/null \
-              -o PreferredAuthentications=password \
-              -o PubkeyAuthentication=no \
-              "$SSH_USER@$SSH_HOST" "bash -s" <<< "$REMOTE_SCRIPT"
-            echo "__GALAXY_REPORT_END__"
-          } 2>&1 | tee galaxy-report.txt
+          echo "__GALAXY_REPORT_BEGIN__" | tee galaxy-report.txt
+          REMOTE_TAR=$(sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PreferredAuthentications=password -o PubkeyAuthentication=no "$SSH_USER@$SSH_HOST" "LAST_DAYS='$LAST_DAYS' MAX_FILE_MB='$MAX_FILE_MB' RUN_ID='$RUN_ID' bash -s" < remote-galaxy-evidence.sh | tee -a galaxy-report.txt | tail -n 1)
+          echo "__GALAXY_REPORT_END__" | tee -a galaxy-report.txt
+          echo "Remote bundle path: $REMOTE_TAR" | tee -a galaxy-report.txt
 
-      - name: Upload real galaxy report artifact
+          sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PreferredAuthentications=password -o PubkeyAuthentication=no "$SSH_USER@$SSH_HOST:$REMOTE_TAR" galaxy-evidence-bundle.tar.gz
+          sha256sum galaxy-evidence-bundle.tar.gz | tee galaxy-evidence-bundle.sha256
+          ls -lh galaxy-evidence-bundle.tar.gz | tee -a galaxy-report.txt
+
+      - name: Upload OSF evidence bundle
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: galaxy-health-report
-          path: galaxy-report.txt
-          retention-days: 14
+          name: galaxy-osf-evidence-bundle
+          path: |
+            galaxy-report.txt
+            galaxy-evidence-bundle.tar.gz
+            galaxy-evidence-bundle.sha256
+          retention-days: 30
