@@ -17,102 +17,104 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Run VPS galaxy telemetry
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          script_stop: false
-          command_timeout: 8m
-          script: |
-            set -u
-
-            REPORT="/tmp/galaxy-report-${GITHUB_RUN_ID:-manual}.txt"
-            LOG_GLOB="$HOME/.pm2/logs/*out.log"
-
-            write() {
-              printf "%s\n" "$*" | tee -a "$REPORT"
-            }
-
-            section() {
-              write ""
-              write "======================================"
-              write "$1"
-              write "======================================"
-            }
-
-            : > "$REPORT"
-
-            section "GALAXY REPORT - ARE LOGIC ENGINE"
-            write "Generated UTC: $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-            write "Host: $(hostname 2>/dev/null || echo unknown)"
-            write "User: $(whoami 2>/dev/null || echo unknown)"
-
-            section "UPTIME"
-            uptime 2>&1 | tee -a "$REPORT" || true
-
-            section "RAM STATUS"
-            free -h 2>&1 | tee -a "$REPORT" || true
-
-            section "DISK STATUS"
-            df -h / 2>&1 | tee -a "$REPORT" || true
-
-            section "LOAD / TOP CPU SNAPSHOT"
-            ps -eo pid,ppid,cmd,%mem,%cpu --sort=-%cpu 2>/dev/null | head -n 12 | tee -a "$REPORT" || true
-
-            section "DOCKER STATUS"
-            if command -v docker >/dev/null 2>&1; then
-              docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' 2>&1 | tee -a "$REPORT" || true
-            else
-              write "docker not installed or not available for this user"
-            fi
-
-            section "PM2 STATUS"
-            if command -v pm2 >/dev/null 2>&1; then
-              pm2 list 2>&1 | tee -a "$REPORT" || true
-            else
-              write "pm2 not installed or not available for this user"
-            fi
-
-            section "NPC SPAWN REPORT"
-            if ls $LOG_GLOB >/dev/null 2>&1; then
-              NPC_COUNT=$(grep -Eih 'spawn.*npc|npc.*spawn' $LOG_GLOB 2>/dev/null | wc -l | tr -d ' ')
-              write "NPC spawn lines: ${NPC_COUNT:-0}"
-              write ""
-              write "Recent NPC spawn lines:"
-              grep -Eih 'spawn.*npc|npc.*spawn' $LOG_GLOB 2>/dev/null | tail -n 25 | tee -a "$REPORT" || true
-            else
-              write "No PM2 out logs found at: $LOG_GLOB"
-              write "NPC spawn lines: 0"
-            fi
-
-            section "RECENT ERROR SIGNALS"
-            if ls "$HOME"/.pm2/logs/*err.log >/dev/null 2>&1; then
-              grep -Eih 'error|exception|fatal|crash|oom|out of memory|unhandled' "$HOME"/.pm2/logs/*err.log 2>/dev/null | tail -n 40 | tee -a "$REPORT" || true
-            else
-              write "No PM2 err logs found."
-            fi
-
-            section "REPORT FILE"
-            write "$REPORT"
-
-            echo "__GALAXY_REPORT_BEGIN__"
-            cat "$REPORT"
-            echo "__GALAXY_REPORT_END__"
-
-      - name: Save galaxy report from job log
-        if: always()
+      - name: Install SSH password client
         run: |
-          cat > galaxy-report.txt <<'EOF'
-          The VPS report is printed in the previous SSH step between:
-          __GALAXY_REPORT_BEGIN__
-          __GALAXY_REPORT_END__
+          sudo apt-get update
+          sudo apt-get install -y sshpass
 
-          GitHub keeps the complete run log. Use that log as the authoritative report.
-          EOF
+      - name: Run VPS galaxy telemetry and save artifact file
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
 
-      - name: Upload galaxy report artifact
+          if [ -z "${SSH_HOST:-}" ] || [ -z "${SSH_USER:-}" ] || [ -z "${SSH_PASSWORD:-}" ]; then
+            echo "Missing one or more required secrets: SSH_HOST, SSH_USER, SSH_PASSWORD" | tee galaxy-report.txt
+            exit 1
+          fi
+
+          REMOTE_SCRIPT=$(cat <<'REMOTE_EOF'
+          set -u
+
+          LOG_GLOB="$HOME/.pm2/logs/*out.log"
+
+          write() {
+            printf "%s\n" "$*"
+          }
+
+          section() {
+            write ""
+            write "======================================"
+            write "$1"
+            write "======================================"
+          }
+
+          section "GALAXY REPORT - ARE LOGIC ENGINE"
+          write "Generated UTC: $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+          write "Host: $(hostname 2>/dev/null || echo unknown)"
+          write "User: $(whoami 2>/dev/null || echo unknown)"
+
+          section "UPTIME"
+          uptime 2>&1 || true
+
+          section "RAM STATUS"
+          free -h 2>&1 || true
+
+          section "DISK STATUS"
+          df -h / 2>&1 || true
+
+          section "LOAD / TOP CPU SNAPSHOT"
+          ps -eo pid,ppid,cmd,%mem,%cpu --sort=-%cpu 2>/dev/null | head -n 12 || true
+
+          section "DOCKER STATUS"
+          if command -v docker >/dev/null 2>&1; then
+            docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' 2>&1 || true
+          else
+            write "docker not installed or not available for this user"
+          fi
+
+          section "PM2 STATUS"
+          if command -v pm2 >/dev/null 2>&1; then
+            pm2 list 2>&1 || true
+          else
+            write "pm2 not installed or not available for this user"
+          fi
+
+          section "NPC SPAWN REPORT"
+          if ls $LOG_GLOB >/dev/null 2>&1; then
+            NPC_COUNT=$(grep -Eih 'spawn.*npc|npc.*spawn' $LOG_GLOB 2>/dev/null | wc -l | tr -d ' ')
+            write "NPC spawn lines: ${NPC_COUNT:-0}"
+            write ""
+            write "Recent NPC spawn lines:"
+            grep -Eih 'spawn.*npc|npc.*spawn' $LOG_GLOB 2>/dev/null | tail -n 25 || true
+          else
+            write "No PM2 out logs found at: $LOG_GLOB"
+            write "NPC spawn lines: 0"
+          fi
+
+          section "RECENT ERROR SIGNALS"
+          if ls "$HOME"/.pm2/logs/*err.log >/dev/null 2>&1; then
+            grep -Eih 'error|exception|fatal|crash|oom|out of memory|unhandled' "$HOME"/.pm2/logs/*err.log 2>/dev/null | tail -n 40 || true
+          else
+            write "No PM2 err logs found."
+          fi
+          REMOTE_EOF
+          )
+
+          {
+            echo "__GALAXY_REPORT_BEGIN__"
+            sshpass -p "$SSH_PASSWORD" ssh \
+              -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              -o PreferredAuthentications=password \
+              -o PubkeyAuthentication=no \
+              "$SSH_USER@$SSH_HOST" "bash -s" <<< "$REMOTE_SCRIPT"
+            echo "__GALAXY_REPORT_END__"
+          } 2>&1 | tee galaxy-report.txt
+
+      - name: Upload real galaxy report artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
