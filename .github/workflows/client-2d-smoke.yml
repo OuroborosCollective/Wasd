@@ -68,6 +68,15 @@ jobs:
           echo '=== client-2d smoke: build ==='
           NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter @wasd/client-2d build
 
+      - name: Verify dist structure
+        run: |
+          echo '=== client-2d smoke: verify dist structure ==='
+          test -d apps/client-2d/dist
+          test -f apps/client-2d/dist/index.html
+          test -d apps/client-2d/dist/assets
+          test -f apps/client-2d/dist/2d-assets/manifest.json
+          node -e "const fs=require('node:fs'); const m=JSON.parse(fs.readFileSync('apps/client-2d/dist/2d-assets/manifest.json','utf8')); if(m.basePath !== '/2d-assets') { throw new Error('Unexpected manifest basePath: '+m.basePath); } console.log('[client-2d-dist] manifest ok basePath='+m.basePath);"
+
       - name: Print build output summary
         if: always()
         run: |
