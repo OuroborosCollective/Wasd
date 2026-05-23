@@ -6,6 +6,13 @@ export type SpriteAnimation = {
   fps?: number;
 };
 
+export type SpriteLayerFrame = {
+  frame: { x: number; y: number; w: number; h: number };
+  offsetX?: number;
+  offsetY?: number;
+  z?: number;
+};
+
 export type AssetEntry = {
   id?: string;
   src: string;
@@ -24,6 +31,10 @@ export type AssetEntry = {
   frame?: { x: number; y: number; w: number; h: number };
   sheetFrame?: { x: number; y: number; w: number; h: number };
   frameSize?: { w: number; h: number };
+  spriteLayers?: SpriteLayerFrame[];
+  zHeight?: number;
+  isoFootprint?: { w: number; h: number };
+  shadow?: { w: number; h: number; alpha?: number };
   weaponClass?: string;
   rarity?: string;
   tags?: string[];
