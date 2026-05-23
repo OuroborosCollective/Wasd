@@ -77,6 +77,7 @@ async function scanFile(file) {
       const finding = { file: fileRel, line: index + 1, label: rule.label, text: line.trim().slice(0, 180), reason };
       // Only strict roots without an exemption reason trigger a hard failure.
       // Other paths (including meta/advisory) default to advisory.
+      // If a file has an explicit exemption reason, it is always advisory regardless of path.
       if (strict && !reason) {
         hard.push(finding);
       } else {
