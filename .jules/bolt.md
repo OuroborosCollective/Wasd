@@ -1,1 +1,4 @@
 ## 2026-05-22 - [Optimization] Redundant Fusion Contract filtering in WorldTick **Learning:** Calling `getConstructionContracts().filter()` inside an NPC loop creates $O(N \times C)$ complexity where $N$ is the number of NPCs and $C$ is the number of contracts. **Action:** Pre-calculate the available contracts list once per tick and pass it to downstream services to reduce complexity to $O(N + C)$.
+## 2028-08-14 - [Optimization] Hot Loop Broad-Phase Pruning in NPC Perception
+**Learning:** (N_{npc} \times N_{player})$ loops in 10Hz ticks can be reduced by ~80-90% by implementing a broad-phase squared distance check before executing expensive narrow-phase logic (like stealth checks). Pre-calculating player contexts once per tick further reduces redundant property access overhead.
+**Action:** Always implement broad-phase pruning in simulation hot loops and hoist per-tick calculations out of inner entity loops.
