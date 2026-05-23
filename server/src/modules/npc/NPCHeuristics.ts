@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Heuristics are currently decoupled from WorldHash.
 // @ts-nocheck
 /**
  * NPCHeuristics — local heuristic weight updates based on outcomes.

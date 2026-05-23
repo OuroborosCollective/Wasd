@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Non-simulation critical path for memory engine.
 export class NPCMemoryEngine {
   private memory = new Map<string, any[]>();
 

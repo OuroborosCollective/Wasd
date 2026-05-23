@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Non-simulation critical path for chat agent.
 import { NPCChatBridge } from "./NPCChatBridge.js";
 import { LLMService } from "../llm/LLMService.js";
 import type { NPCContext } from "./NPCChatTypes.js";

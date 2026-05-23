@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Stats inheritance is currently decoupled from WorldHash.
 export interface NPCStats {
     strength: number;
     agility: number;

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Non-simulation critical path for memory bridge.
 /**
  * NPCMemoryBridge.ts
  *

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Non-simulation critical path for dialogue system.
 export class NPCDialogueSystem {
   talk(npc: any, worldSignals: any = {}) {
     const lines = npc.dialogueLines || [

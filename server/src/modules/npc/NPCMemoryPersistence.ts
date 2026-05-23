@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Non-simulation critical path for memory persistence.
 // @ts-nocheck
 /**
  * NPCMemoryPersistence — Layer 2: Supabase-backed long-term NPC memory.
