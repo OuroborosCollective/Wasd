@@ -15,7 +15,6 @@ function cloneDepthSlice(source: Sprite, offset: number, alpha: number): Sprite 
   slice.x = source.x;
   slice.y = source.y + offset;
   slice.rotation = source.rotation;
-  slice.scale.x = source.scale.x;
   slice.skew.copyFrom(source.skew);
   slice.alpha = alpha;
   slice.tint = source.tint;
