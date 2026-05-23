@@ -5,6 +5,8 @@ on:
   pull_request:
     paths:
       - 'apps/client-2d/**'
+      - 'scripts/are-asset-forge.mjs'
+      - 'scripts/enrich-stitch-atlas-frames.mjs'
       - 'scripts/validate-client-2d-assets.mjs'
       - 'scripts/extract-2d-weapon-pool.mjs'
       - 'package.json'
@@ -15,6 +17,8 @@ on:
     branches: [main]
     paths:
       - 'apps/client-2d/**'
+      - 'scripts/are-asset-forge.mjs'
+      - 'scripts/enrich-stitch-atlas-frames.mjs'
       - 'scripts/validate-client-2d-assets.mjs'
       - 'scripts/extract-2d-weapon-pool.mjs'
       - 'package.json'
@@ -75,7 +79,39 @@ jobs:
           test -f apps/client-2d/dist/index.html
           test -d apps/client-2d/dist/assets
           test -f apps/client-2d/dist/2d-assets/manifest.json
-          node -e "const fs=require('node:fs'); const m=JSON.parse(fs.readFileSync('apps/client-2d/dist/2d-assets/manifest.json','utf8')); if(m.basePath !== '/2d-assets') { throw new Error('Unexpected manifest basePath: '+m.basePath); } console.log('[client-2d-dist] manifest ok basePath='+m.basePath);"
+          test -f apps/client-2d/dist/2d-assets/credits/are-asset-forge-report.json
+          node <<'NODE'
+          const fs = require('node:fs');
+          const manifest = JSON.parse(fs.readFileSync('apps/client-2d/dist/2d-assets/manifest.json', 'utf8'));
+          if (manifest.basePath !== '/2d-assets') {
+            throw new Error('Unexpected manifest basePath: ' + manifest.basePath);
+          }
+          const houseId = manifest.fallbacks?.house;
+          const treeId = manifest.fallbacks?.tree;
+          const house = manifest.buildings?.[houseId];
+          const tree = manifest.props?.[treeId];
+          if (!houseId || !house) throw new Error('Missing house fallback asset: ' + houseId);
+          if (!treeId || !tree) throw new Error('Missing tree fallback asset: ' + treeId);
+          for (const [label, entry] of [['house', house], ['tree', tree]]) {
+            if (entry.pickable !== true) throw new Error(label + ' is not pickable');
+            if (!entry.role) throw new Error(label + ' has no role');
+            if (!entry.assetHash) throw new Error(label + ' has no assetHash');
+            if (!entry.frame || !Number.isFinite(entry.frame.w) || !Number.isFinite(entry.frame.h)) {
+              throw new Error(label + ' has no enriched atlas frame');
+            }
+            if (!entry.zHeight || !entry.isoFootprint || !entry.shadow) {
+              throw new Error(label + ' has no depth metadata');
+            }
+          }
+          const report = JSON.parse(fs.readFileSync('apps/client-2d/dist/2d-assets/credits/are-asset-forge-report.json', 'utf8'));
+          if (!Array.isArray(report.enriched) || report.enriched.length === 0) {
+            throw new Error('ARE asset forge report has no enriched entries');
+          }
+          console.log('[client-2d-dist] manifest ok basePath=' + manifest.basePath);
+          console.log('[client-2d-dist] house=' + houseId + ' role=' + house.role + ' frame=' + house.frame.w + 'x' + house.frame.h);
+          console.log('[client-2d-dist] tree=' + treeId + ' role=' + tree.role + ' frame=' + tree.frame.w + 'x' + tree.frame.h);
+          console.log('[client-2d-dist] forge enriched=' + report.enriched.length + ' quarantined=' + report.quarantined.length);
+          NODE
 
       - name: Print build output summary
         if: always()
