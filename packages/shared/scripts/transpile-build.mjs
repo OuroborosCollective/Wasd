@@ -147,4 +147,14 @@ if (process.exitCode) {
   process.exit(process.exitCode);
 }
 
+// Generate declaration files for workspace packages using @wasd/shared
+try {
+  const { execSync } = await import('node:child_process');
+  execSync('npx tsc --declaration --emitDeclarationOnly', { stdio: 'inherit' });
+  console.log('Generated declaration files (.d.ts) for @wasd/shared');
+} catch (error) {
+  console.error('Failed to generate declaration files:', error);
+  process.exit(1);
+}
+
 console.log(`Transpiled ${emitted} TypeScript file(s), copied ${copied} asset file(s), skipped ${skipped} declaration file(s).`);
