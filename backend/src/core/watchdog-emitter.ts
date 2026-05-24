@@ -35,6 +35,18 @@ export class WatchdogEmitter {
         }
     }
 
+    public async ping(timeoutMs: number): Promise<boolean> {
+        return new Promise((resolve) => {
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                resolve(true);
+                return;
+            }
+
+            // For testing purposes, if it's not connected, it's not alive
+            resolve(false);
+        });
+    }
+
     public subscribe(listener: (event: WatchdogEvent) => void): void {
         this.listeners.push(listener);
     }

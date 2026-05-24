@@ -60,5 +60,10 @@
       "typescript": "^6.0.3",
       "@types/node": "^25.9.1"
     }
+  },
+  "dependencies": {
+    "@types/ws": "^8.18.1",
+    "ts-morph": "^28.0.0",
+    "ws": "^8.21.0"
   }
 }
