@@ -78,8 +78,10 @@ export class PostgresPersistenceBackend implements IPersistenceBackend {
         return JSON.stringify(payload);
       });
 
+      // Use UNNEST to batch multiple rows into a single query.
+      // last_updated is handled by DEFAULT NOW() on insert and EXPLICIT NOW() on update.
       await db.query(
-        `INSERT INTO player_snapshots (id, snapshot, last_updated)
+        `INSERT INTO player_snapshots (id, snapshot)
          SELECT * FROM UNNEST($1::text[], $2::jsonb[])
          ON CONFLICT (id) DO UPDATE SET snapshot = EXCLUDED.snapshot, last_updated = NOW()`,
         [ids, payloads]
@@ -126,7 +128,7 @@ export class PostgresPersistenceBackend implements IPersistenceBackend {
       const snapshots = validObjects.map(obj => JSON.stringify(obj));
 
       await db.query(
-        `INSERT INTO world_object_snapshots (id, snapshot, last_updated)
+        `INSERT INTO world_object_snapshots (id, snapshot)
          SELECT * FROM UNNEST($1::text[], $2::jsonb[])
          ON CONFLICT (id) DO UPDATE SET snapshot = EXCLUDED.snapshot, last_updated = NOW()`,
         [ids, snapshots]
