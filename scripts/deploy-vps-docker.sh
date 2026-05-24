@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Run on the VPS inside the monorepo root, for example /opt/areloria.
-# Pulls latest main, rebuilds Docker images, restarts stack, then checks readiness.
 set -euo pipefail
 
 DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
@@ -12,7 +10,8 @@ ARELORIAN_ENV_FILE="${ARELORIAN_ENV_FILE:-.env.docker}"
 ARELORIAN_ENABLE_DOCKER_INGRESS="${ARELORIAN_ENABLE_DOCKER_INGRESS:-false}"
 ARELORIAN_INGRESS_HTTP_BIND="${ARELORIAN_INGRESS_HTTP_BIND:-0.0.0.0}"
 ARELORIAN_INGRESS_HTTP_PORT="${ARELORIAN_INGRESS_HTTP_PORT:-80}"
-export ARELORIAN_PORT ARELORIAN_DOCKER_NETWORK ARELORIAN_ENABLE_DOCKER_INGRESS ARELORIAN_INGRESS_HTTP_BIND ARELORIAN_INGRESS_HTTP_PORT
+NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=8192}"
+export ARELORIAN_PORT ARELORIAN_DOCKER_NETWORK ARELORIAN_ENABLE_DOCKER_INGRESS ARELORIAN_INGRESS_HTTP_BIND ARELORIAN_INGRESS_HTTP_PORT NODE_OPTIONS
 cd "$REPO_ROOT"
 
 LOCK_PATH="${DEPLOY_LOCK_PATH:-/tmp/wasd-vps-docker-deploy.lock}"
@@ -77,6 +76,43 @@ connect_known_service_containers() {
   done
 }
 
+free_host_port_safely() {
+  local port="$1"
+  echo "=== Preflight: check host port ${port} ==="
+  ss -ltnp "sport = :${port}" || true
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -iTCP:"${port}" -sTCP:LISTEN -P -n || true
+  fi
+  local pids=""
+  if command -v lsof >/dev/null 2>&1; then
+    pids="$(lsof -tiTCP:"${port}" -sTCP:LISTEN -P -n 2>/dev/null || true)"
+  else
+    pids="$(ss -ltnp "sport = :${port}" 2>/dev/null | sed -nE 's/.*pid=([0-9]+).*/\1/p' | sort -u || true)"
+  fi
+  [ -n "$pids" ] || { echo "Port ${port} is free."; return 0; }
+  for pid in $pids; do
+    local cmd=""
+    cmd="$(ps -p "$pid" -o args= 2>/dev/null || true)"
+    echo "Port ${port} owner PID ${pid}: ${cmd}"
+    case "$cmd" in
+      *areloria*|*arelorian*|*wasd*|*node*|*docker-proxy*)
+        echo "Stopping stale app process ${pid}"
+        kill "$pid" 2>/dev/null || sudo kill "$pid" 2>/dev/null || true
+        sleep 2
+        if ps -p "$pid" >/dev/null 2>&1; then
+          echo "Force stopping stale app process ${pid}"
+          kill -9 "$pid" 2>/dev/null || sudo kill -9 "$pid" 2>/dev/null || true
+        fi
+        ;;
+      *)
+        echo "ERROR: Refusing to kill unrelated process on port ${port}: ${cmd}"
+        exit 1
+        ;;
+    esac
+  done
+  ss -ltnp "sport = :${port}" || true
+}
+
 fetch_and_reset() {
   local temp_ref="refs/wasd-deploy/${DEPLOY_BRANCH}"
   echo "[1/4] git fetch + hard reset via temporary deploy ref"
@@ -133,6 +169,7 @@ echo "Engine container port: $CONTAINER_PORT"
 echo "Docker network: $ARELORIAN_DOCKER_NETWORK"
 echo "Runtime env file: $ARELORIAN_ENV_FILE"
 echo "Docker ingress enabled: $ARELORIAN_ENABLE_DOCKER_INGRESS"
+echo "NODE_OPTIONS: $NODE_OPTIONS"
 if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
   echo "Ingress bind: ${ARELORIAN_INGRESS_HTTP_BIND}:${ARELORIAN_INGRESS_HTTP_PORT}"
 fi
@@ -158,6 +195,7 @@ compose_cmd build --progress=plain monitor-bridge
 echo "[3/4] Recreate containers"
 compose_cmd down --remove-orphans || true
 docker rm -f arelorian-engine monitor-bridge arelorian-ingress-router >/dev/null 2>&1 || true
+free_host_port_safely "$ARELORIAN_PORT"
 compose_cmd up -d --remove-orphans arelorian-engine monitor-bridge
 if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
   compose_cmd up -d --remove-orphans ingress-router
@@ -198,7 +236,7 @@ if [[ "$ok" != "1" ]]; then
   if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
     docker inspect arelorian-ingress-router --format 'Ingress={{.State.Status}} Health={{if .State.Health}}{{else}}n/a{{end}} ExitCode={{.State.ExitCode}} Ports={{json .NetworkSettings.Ports}}' || true
   fi
-  docker exec arelorian-engine sh -lc "node -v; printenv PORT GAME_PORT HOST NODE_ENV; ps aux | head -20" || true
+  docker exec arelorian-engine sh -lc "node -v; printenv PORT GAME_PORT HOST NODE_ENV NODE_OPTIONS; ps aux | head -20" || true
   ss -ltnp "sport = :${ARELORIAN_PORT}" || true
   compose_cmd logs --tail=160 arelorian-engine || true
   if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
