@@ -23,14 +23,14 @@
     "pnpm": ">=9"
   },
   "devDependencies": {
-    "@types/node": "^25.9.1",
+    "@types/node": "25.9.1",
     "@typescript-eslint/eslint-plugin": "^8.59.4",
     "@typescript-eslint/parser": "^8.59.4",
     "concurrently": "^9.2.1",
     "eslint": "^10.4.0",
     "pnpm": "^11.2.2",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.7"
+    "typescript": "6.0.3",
+    "vitest": "4.1.7"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -43,22 +43,22 @@
       "ssh2"
     ],
     "overrides": {
-      "@types/react": "^19.2.14",
+      "@types/react": "^19.2.15",
       "@types/react-dom": "^19.2.3",
-      "@types/node": "^25.9.1",
-      "typescript": "^6.0.3",
+      "@types/node": "25.9.1",
+      "typescript": "6.0.3",
       "zod": "^4.4.3",
       "three": "0.184.0",
-      "@babylonjs/core": "9.8.0",
-      "@babylonjs/materials": "9.8.0",
-      "@babylonjs/loaders": "9.8.0",
+      "@babylonjs/core": "*",
+      "@babylonjs/materials": "^9.9.1",
+      "@babylonjs/loaders": "^9.9.1",
       "react": "^19.2.6",
       "socket.io-client": "^4.8.3",
-      "pg": "^8.20.0"
+      "pg": "^8.21.0"
     },
     "resolutions": {
-      "typescript": "^6.0.3",
-      "@types/node": "^25.9.1"
+      "typescript": "6.0.3",
+      "@types/node": "25.9.1"
     }
   }
 }
