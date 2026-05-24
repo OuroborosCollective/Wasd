@@ -28,6 +28,7 @@ services:
       - ./logs:/app/logs
     environment:
       NODE_ENV: production
+      NODE_OPTIONS: "${NODE_OPTIONS:---max-old-space-size=8192}"
       PORT: "3001"
       GAME_PORT: "3001"
       HOST: "0.0.0.0"
