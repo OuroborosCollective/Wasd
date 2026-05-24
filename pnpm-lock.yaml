@@ -37,7 +37,7 @@ importers:
     dependencies:
       '@babylonjs/core':
         specifier: '*'
-        version: 9.9.1
+        version: 9.6.2
       '@babylonjs/havok':
         specifier: '*'
         version: 1.3.12
@@ -1198,6 +1198,9 @@ packages:
   '@babel/types@7.29.0':
     resolution: {integrity: sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A==}
     engines: {node: '>=6.9.0'}
+
+  '@babylonjs/core@9.6.2':
+    resolution: {integrity: sha512-4r0nSC6y1XBoLSzFFD50WLGueLaP1+tKkmDYOtwSA+AIk19sfgl4+pmPUxYXXl2G/gE/DT2yRIShCT8IxY9aHQ==}
 
   '@babylonjs/core@9.9.1':
     resolution: {integrity: sha512-zJf9YQbd+yQRA0se9NccFR9zVsu+pPRCXDqhnBXG9lg7j3XXUgRgmEFybPgyO8TOcnQ0p5+FAz6IsdS9hA63pw==}
@@ -7933,6 +7936,8 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
+
+  '@babylonjs/core@9.6.2': {}
 
   '@babylonjs/core@9.9.1': {}
 

@@ -179,6 +179,7 @@ export const NewHud: React.FC<any> = (props) => {
               className="hud-skill-slot"
               onClick={() => handleSkillClick(slot.toString())}
               aria-label={`Use Skill ${slot}`}
+              title={`Use Skill ${slot} (${slot})`}
             >
               <kbd className="skill-key">{slot}</kbd>
             </button>
@@ -186,9 +187,9 @@ export const NewHud: React.FC<any> = (props) => {
           <button 
             className={`hud-skill-slot inventory-btn ${inventoryOpen ? 'active' : ''}`}
             onClick={toggleInventory}
-            aria-label="Open Inventory"
+            aria-label={inventoryOpen ? "Close Inventory" : "Open Inventory"}
             aria-keyshortcuts="i"
-            title="Toggle Inventory (I)"
+            title={inventoryOpen ? "Close Inventory (I)" : "Open Inventory (I)"}
           >
             <kbd className="skill-key">I</kbd>
             <i className="icon-bag" />
@@ -202,6 +203,7 @@ export const NewHud: React.FC<any> = (props) => {
             className="loot-button"
             onClick={() => sendCommand("loot_all")}
             aria-label={`Take all ${loot.length} items`}
+            title={`Take all ${loot.length} items (F)`}
           >
             <kbd className="loot-key">F</kbd>
             <span>Take All Loot ({loot.length})</span>
