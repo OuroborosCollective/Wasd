@@ -53,6 +53,8 @@ export interface NPC {
 
 export class NPCSystem {
     private npcs: Map<string, NPC> = new Map();
+    private npcsDirty: boolean = true;
+    private cachedSortedNpcs: NPC[] = [];
     private updateInterval: NodeJS.Timeout | null = null;
     private readonly TICK_RATE = 100; // 10Hz in ms
 
@@ -68,10 +70,13 @@ export class NPCSystem {
 
     public addNPC(npc: NPC): void {
         this.npcs.set(npc.id, npc);
+        this.npcsDirty = true;
     }
 
     public removeNPC(id: string): boolean {
-        return this.npcs.delete(id);
+        const deleted = this.npcs.delete(id);
+        if (deleted) this.npcsDirty = true;
+        return deleted;
     }
 
     public createNPC(id: string, name: string, x: number, y: number): NPC {
@@ -154,15 +159,31 @@ export class NPCSystem {
     }
 
     private update(onlinePlayers: any[]): void {
-        const sortedNpcs = Array.from(this.npcs.values()).sort((a, b) =>
-            String(a?.id ?? "").localeCompare(String(b?.id ?? ""))
-        );
+        if (this.npcsDirty) {
+            this.cachedSortedNpcs = Array.from(this.npcs.values()).sort((a, b) =>
+                String(a?.id ?? "").localeCompare(String(b?.id ?? ""))
+            );
+            this.npcsDirty = false;
+        }
+
         const sortedPlayers = [...onlinePlayers].sort((a, b) =>
             String(a?.id ?? "").localeCompare(String(b?.id ?? ""))
         );
 
-        for (const npc of sortedNpcs) {
-            this.processPerception(npc, sortedPlayers);
+        // Pre-calculate player contexts once per tick to avoid redundant allocations in the perception loop
+        const playerContexts = sortedPlayers.map(player => ({
+            id: player?.id,
+            stealthState: {
+                playerId: String(player?.id ?? ""),
+                position: NPCSystem.vec3ForPerception(player?.position),
+                stealthLevel: player?.stealthValue ?? 0,
+                isCrouching: false, // Crouching state not yet implemented in PlayerSystem
+                lastVisibleTick: 0
+            }
+        }));
+
+        for (const npc of this.cachedSortedNpcs) {
+            this.processPerception(npc, playerContexts);
         }
     }
 
@@ -175,30 +196,48 @@ export class NPCSystem {
         };
     }
 
-    private processPerception(npc: NPC, sortedPlayers: any[]): void {
+    /** Optimized squared distance check to avoid object allocations in broad-phase culling. */
+    private static isWithinRangeSquared(
+        posA: { x: number; y: number; z: number },
+        posB: { x: number; y: number; z: number },
+        thresholdSquared: number
+    ): boolean {
+        const dx = posA.x - posB.x;
+        const dy = posA.y - posB.y;
+        const dz = posA.z - posB.z;
+        return (dx * dx + dy * dy + dz * dz) <= thresholdSquared;
+    }
+
+    private processPerception(npc: NPC, playerContexts: any[]): void {
         let detectedPlayerId: string | null = null;
         const npcPos = NPCSystem.vec3ForPerception(npc.position);
 
-        for (const player of sortedPlayers) {
+        // Broad-phase culling: use squared distance for fast early exit.
+        // PerceptionLogic.ts uses 225 as BASE_VISIBILITY_THRESHOLD (15^2).
+        // We use a safe upper bound (e.g., max perception range) for culling.
+        const maxRangeSquared = (npc.visionRange * 1.5) * (npc.visionRange * 1.5);
+
+        const npcPerceptionState = {
+            npcId: npc.id,
+            position: npcPos,
+            phaseShift: npc.phaseShift ?? 0,
+            perceptionRadius: npc.visionRange,
+            lastPerceptionTick: 0
+        };
+
+        for (const ctx of playerContexts) {
+            // Early exit if player is obviously too far away
+            if (!NPCSystem.isWithinRangeSquared(npcPos, ctx.stealthState.position, maxRangeSquared)) {
+                continue;
+            }
+
             const result = checkStealthDeterministic(
-                {
-                    npcId: npc.id,
-                    position: npcPos,
-                    phaseShift: npc.phaseShift ?? 0,
-                    perceptionRadius: npc.visionRange,
-                    lastPerceptionTick: 0
-                },
-                {
-                    playerId: String(player?.id ?? ""),
-                    position: NPCSystem.vec3ForPerception(player?.position),
-                    stealthLevel: player?.stealthValue ?? 0,
-                    isCrouching: false, // Crouching state not yet implemented in PlayerSystem
-                    lastVisibleTick: 0
-                }
+                npcPerceptionState,
+                ctx.stealthState
             );
 
             if (result.visible) {
-                detectedPlayerId = player?.id != null && String(player.id).length > 0 ? String(player.id) : "unknown_player";
+                detectedPlayerId = ctx.id != null && String(ctx.id).length > 0 ? String(ctx.id) : "unknown_player";
                 break;
             }
         }
