@@ -121,7 +121,7 @@ export class APIServer {
     import('socket.io').then(({ Server }) => {
       this.io = new Server(server, {
         cors: {
-          origin: '*',
+          origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(o => o.trim()) : (process.env.NODE_ENV === 'production' ? [] : '*'),
           methods: ['GET', 'POST'],
         },
       });
