@@ -1219,11 +1219,6 @@ packages:
     peerDependencies:
       '@babylonjs/core': ^9.0.0
 
-  '@babylonjs/materials@9.8.0':
-    resolution: {integrity: sha512-BqAUtI5QwoN1a/UdcEy1p83rL1vG30uPDnPDRkqtclFl4tWS6O2SEYb770/v2ekgDv4v0BwQvCIgfl2QjRijfw==}
-    peerDependencies:
-      '@babylonjs/core': ^9.0.0
-
   '@bcoe/v8-coverage@1.0.2':
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
     engines: {node: '>=18'}
@@ -7958,10 +7953,6 @@ snapshots:
   '@babylonjs/materials@9.9.1(@babylonjs/core@9.9.1)':
     dependencies:
       '@babylonjs/core': 9.9.1
-
-  '@babylonjs/materials@9.8.0(@babylonjs/core@9.8.0)':
-    dependencies:
-      '@babylonjs/core': 9.8.0
 
   '@bcoe/v8-coverage@1.0.2': {}
 
