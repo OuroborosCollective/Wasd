@@ -58,7 +58,7 @@ export class LegendDistiller {
             mythologicalWeight: (intensity * questData.worldStateImpact) / 100
         };
 
-        this.linkToCulturalMemory(legend);
+        this.linkToCulturalMemory(legend, questData.participants);
         return legend;
     }
 
@@ -84,22 +84,24 @@ export class LegendDistiller {
         return `${intensityPrefix}${data.description} Durch die Tat von ${data.participants.join(', ')} wurde ${data.outcome} erreicht.`;
     }
 
-    private linkToCulturalMemory(legend: Legend): void {
+    private linkToCulturalMemory(legend: Legend, participantIds: string[]): void {
         this.culturalMemory.chronicles.push(legend);
         this.culturalMemory.activeMyths.set(legend.id, legend);
         
         const impact = legend.resonance * legend.mythologicalWeight;
         this.culturalMemory.worldSoulIndex += impact;
 
-        this.propagateLegend(legend);
+        this.propagateLegend(legend, participantIds);
         this.recalibrateWorldNarrative();
     }
 
-    private propagateLegend(legend: Legend): void {
+    private propagateLegend(legend: Legend, participantIds: string[]): void {
         this.eventBus.emit('legend_synthesized', {
             legendId: legend.id,
             impact: legend.resonance,
-            narrativeFragment: legend.narrative
+            narrativeFragment: legend.narrative,
+            mythologicalWeight: legend.mythologicalWeight,
+            participantIds: participantIds
         });
     }
 

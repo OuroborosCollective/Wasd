@@ -14,6 +14,7 @@ export class BabylonAdapter {
   private scene: BABYLON.Scene;
   private nodeMap: Map<string, BABYLON.Node> = new Map();
   private materialMap: Map<string, BABYLON.StandardMaterial> = new Map();
+  private mythicLinks: Map<string, BABYLON.Mesh> = new Map();
 
   constructor(scene: BABYLON.Scene) {
     this.scene = scene;
@@ -34,8 +35,31 @@ export class BabylonAdapter {
     // Entferne Nodes für Entities, die nicht mehr existieren
     for (const [id, node] of this.nodeMap.entries()) {
       if (!activeIds.has(id)) {
+        this.cleanupMythicAura(id);
         node.dispose();
         this.nodeMap.delete(id);
+      }
+    }
+
+    // Cleanup stale links
+    this.cleanupStaleMythicLinks(activeIds);
+  }
+
+  private cleanupMythicAura(id: string): void {
+    const auraId = `aura_${id}`;
+    const aura = this.scene.getMeshByName(auraId);
+    if (aura) {
+      if (aura.material) aura.material.dispose();
+      aura.dispose();
+    }
+  }
+
+  private cleanupStaleMythicLinks(activeIds: Set<string>): void {
+    for (const [linkId, mesh] of this.mythicLinks.entries()) {
+      const [idA, idB] = linkId.split('_link_');
+      if (!activeIds.has(idA) || !activeIds.has(idB)) {
+        mesh.dispose();
+        this.mythicLinks.delete(linkId);
       }
     }
   }
@@ -45,6 +69,7 @@ export class BabylonAdapter {
     const meshComp = entity.components.find((c) => c.type === "Mesh");
     const lightComp = entity.components.find((c) => c.type === "Light");
     const materialComp = entity.components.find((c) => c.type === "Material");
+    const mythicComp = entity.components.find((c) => c.type === "MythicAnchor");
 
     let node = this.nodeMap.get(entity.id);
 
@@ -72,6 +97,84 @@ export class BabylonAdapter {
     if (node && node instanceof BABYLON.AbstractMesh && materialComp) {
       this.applyMaterial(node, materialComp.data);
     }
+
+    // Apply Mythic Effects
+    if (node && mythicComp && node instanceof BABYLON.TransformNode) {
+      this.applyMythicEffects(node, mythicComp.data);
+    }
+  }
+
+  private applyMythicEffects(node: BABYLON.TransformNode, data: any): void {
+    const auraId = `aura_${node.id}`;
+    let aura = this.scene.getMeshByName(auraId);
+    let auraMat: BABYLON.StandardMaterial;
+
+    if (!aura) {
+      aura = BABYLON.MeshBuilder.CreateTorus(auraId, {
+        diameter: 2,
+        thickness: 0.1,
+        tessellation: 32
+      }, this.scene);
+      aura.parent = node;
+
+      auraMat = new BABYLON.StandardMaterial(`mat_${auraId}`, this.scene);
+      aura.material = auraMat;
+    } else {
+      auraMat = aura.material as BABYLON.StandardMaterial;
+    }
+
+    // Dynamic color based on resonance state
+    if (data.isResonating) {
+      auraMat.emissiveColor = new BABYLON.Color3(0.1, 0.9, 1.0); // Cyan Resonance
+      auraMat.alpha = 0.9;
+    } else {
+      auraMat.emissiveColor = new BABYLON.Color3(0.4, 0.1, 0.8); // Mythic Purple
+      auraMat.alpha = 0.5;
+    }
+
+    // Dynamic scaling based on mythological weight
+    const weight = data.mythologicalWeight || 1;
+    const scale = 1 + (weight / 100);
+    aura.scaling.set(scale, 1, scale);
+
+    // Rotate aura for visual flair
+    aura.rotation.y += 0.02;
+
+    // Handle Link Visualization
+    if (data.isResonating && data.resonatingWith) {
+      this.drawMythicLink(node, data.resonatingWith);
+    }
+  }
+
+  private drawMythicLink(sourceNode: BABYLON.TransformNode, targetId: string): void {
+    const targetNode = this.nodeMap.get(targetId);
+    if (!targetNode || !(targetNode instanceof BABYLON.TransformNode)) return;
+
+    const linkId = `${sourceNode.id}_link_${targetId}`;
+    const reverseLinkId = `${targetId}_link_${sourceNode.id}`;
+
+    if (this.mythicLinks.has(reverseLinkId)) return; // Already drawn from other side
+
+    let linkMesh = this.mythicLinks.get(linkId);
+    if (!linkMesh) {
+      // Create a simple procedural cylinder "beam"
+      linkMesh = BABYLON.MeshBuilder.CreateCylinder(linkId, { height: 1, diameter: 0.1 }, this.scene);
+      const linkMat = new BABYLON.StandardMaterial(`mat_${linkId}`, this.scene);
+      linkMat.emissiveColor = new BABYLON.Color3(0, 1, 1);
+      linkMat.alpha = 0.7;
+      linkMesh.material = linkMat;
+      this.mythicLinks.set(linkId, linkMesh);
+    }
+
+    // Update cylinder transform to bridge the two nodes
+    const start = sourceNode.position;
+    const end = targetNode.position;
+    const dist = BABYLON.Vector3.Distance(start, end);
+
+    linkMesh.scaling.y = dist;
+    linkMesh.position = BABYLON.Vector3.Center(start, end);
+    linkMesh.lookAt(end);
+    linkMesh.rotate(BABYLON.Axis.X, Math.PI / 2, BABYLON.Space.LOCAL);
   }
 
   private createMesh(id: string, data: any): BABYLON.AbstractMesh {
@@ -153,7 +256,11 @@ export class BabylonAdapter {
     for (const mat of this.materialMap.values()) {
       mat.dispose();
     }
+    for (const link of this.mythicLinks.values()) {
+      link.dispose();
+    }
     this.nodeMap.clear();
     this.materialMap.clear();
+    this.mythicLinks.clear();
   }
 }

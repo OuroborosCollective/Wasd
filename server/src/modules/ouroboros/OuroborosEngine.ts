@@ -10,6 +10,7 @@ import { WorldEventBus, type WorldEvent } from "./WorldEventBus.js";
 import { WorldHistory } from "./WorldHistory.js";
 import { EmergentMarket } from "./EmergentMarket.js";
 import { DynamicFactions } from "./DynamicFactions.js";
+import { MythicResonanceSystem } from "./MythicResonanceSystem.js";
 import { ouroborosTick, type AgentContext, type OuroborosConfig } from "./OuroborosLoop.js";
 import { type NPCMemoryCache } from "../npc/NPCMemoryCache.js";
 import { type NPCRelationshipSystem } from "../npc/NPCRelationshipSystem.js";
@@ -37,6 +38,7 @@ export class OuroborosEngine {
   public readonly history: WorldHistory;
   public readonly market: EmergentMarket;
   public readonly factions: DynamicFactions;
+  public readonly mythic: MythicResonanceSystem;
   private config: OuroborosEngineConfig;
   private readonly SPATIAL_CHUNK_SIZE = 64;
 
@@ -46,6 +48,7 @@ export class OuroborosEngine {
     this.history = new WorldHistory();
     this.market = new EmergentMarket();
     this.factions = new DynamicFactions();
+    this.mythic = new MythicResonanceSystem(this.eventBus);
 
     this.eventBus.onAll((event) => {
       this.history.record(event);
@@ -104,6 +107,9 @@ export class OuroborosEngine {
     }
 
     const perceptionRadiusSq = this.config.perceptionRadius * this.config.perceptionRadius;
+
+    // Update Mythic Resonance logic
+    this.mythic.update(npcs.map(n => ({ id: n.id, position: { ...n.position, z: 0 } })));
 
     for (const npc of npcs) {
       const nx = npc.position.x;
