@@ -26,6 +26,7 @@ import { deterministicUsageTracker, type DeterministicUsageStats } from "../are/
 import { AREDivergenceGuard } from "./are/AREDivergenceGuard.js";
 import { AREReplayBuffer } from "./are/AREReplayBuffer.js";
 import { AREShadowAdapter } from "./are/AREShadowAdapter.js";
+import { AREEconomyAdapter } from "./are/AREEconomyAdapter.js";
 import { KappaPosGrid } from "@wasd/shared";
 import { checkForestResource, isNearForestResource } from "../modules/resource/forestResourceCheck.js";
 import { FOREST_ACTION_DISTANCE, FOREST_RESPAWN_TICKS } from "../modules/resource/forestResourceRules.js";
@@ -48,6 +49,7 @@ export class WorldTick {
   private readonly areGuard = new AREInvariantGuard({ throwOnViolation: true });
   private readonly areShadowReplay = new AREReplayBuffer(1000);
   private readonly areDivergenceGuard = new AREDivergenceGuard();
+  private readonly economyAdapter: AREEconomyAdapter;
   private lastAREGuardStatus: AREInvariantGuardStatus | null = null;
   private lastWorldHashSnapshot: WorldHashSnapshot | null = null;
   private lastOracleReport: OracleReport | null = null;
@@ -110,6 +112,7 @@ export class WorldTick {
     this.npcSystem = new NPCSystem();
     this.guildSystem = new GuildSystem();
     this.economySystem = new EconomySystem();
+    this.economyAdapter = new AREEconomyAdapter(this.economySystem);
     this.questSystem = new QuestEngine();
     this.persistence = new PersistenceManager();
     this.worldSystem = new WorldSystem(this.persistence);
@@ -152,6 +155,7 @@ export class WorldTick {
       latestStateHash: latest?.stateHash ?? null,
       divergence: this.areDivergenceGuard.summarize(),
       ecosystem: AREShadowAdapter.getEcosystemTelemetry(),
+      economy: this.economyAdapter.snapshotARE(),
     };
   }
 
