@@ -32,7 +32,15 @@ export class MigrationGenerator {
 
         // Changes
         diff.changes.forEach((change) => {
-            sql += `ALTER TABLE ${tableName} ALTER COLUMN ${change.name} TYPE ${this.mapTsToSql(change.to)};\n`;
+            if (change.property === 'type' || !change.property) {
+                sql += `ALTER TABLE ${tableName} ALTER COLUMN ${change.name} TYPE ${this.mapTsToSql(change.to)};\n`;
+            } else if (change.property === 'nullable') {
+                if (change.to === true) {
+                    sql += `ALTER TABLE ${tableName} ALTER COLUMN ${change.name} DROP NOT NULL;\n`;
+                } else {
+                    sql += `ALTER TABLE ${tableName} ALTER COLUMN ${change.name} SET NOT NULL;\n`;
+                }
+            }
         });
 
         if (!fs.existsSync(migrationDir)) {

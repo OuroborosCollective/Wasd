@@ -7,7 +7,7 @@ export interface Column {
 export interface SchemaDiffResult {
     additions: Column[];
     removals: string[];
-    changes: { name: string, from: string, to: string }[];
+    changes: { name: string, from: any, to: any, property?: string }[];
 }
 
 export class SchemaDiff {
@@ -30,11 +30,23 @@ export class SchemaDiff {
             if (!actualCol) {
                 result.additions.push(expectedCol);
             } else {
+                // Check type change
                 if (this.normalizeType(expectedCol.type) !== this.normalizeType(actualCol.type)) {
                     result.changes.push({
                         name,
                         from: actualCol.type,
-                        to: expectedCol.type
+                        to: expectedCol.type,
+                        property: 'type'
+                    });
+                }
+
+                // Check nullable change
+                if (expectedCol.nullable !== actualCol.nullable) {
+                    result.changes.push({
+                        name,
+                        from: actualCol.nullable,
+                        to: expectedCol.nullable,
+                        property: 'nullable'
                     });
                 }
             }
