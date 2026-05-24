@@ -1,7 +1,25 @@
 name: VPS Docker Deploy (monorepo)
-run-name: VPS Docker Deploy • manual • ${{ github.ref_name }} • ${{ github.sha }}
+run-name: VPS Docker Deploy • ${{ github.event_name }} • ${{ github.ref_name }} • ${{ github.sha }}
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'projects/**'
+      - 'client/**'
+      - 'server/**'
+      - 'shared/**'
+      - 'engine/**'
+      - 'portal/**'
+      - 'scripts/**'
+      - 'Dockerfile.prod'
+      - 'docker-compose*.yml'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+      - 'pnpm-lock.yaml'
   workflow_dispatch:
     inputs:
       reason:
@@ -18,8 +36,8 @@ on:
         default: 'areloria_arelorian-network'
 
 concurrency:
-  group: vps-docker-deploy-${{ github.event_name }}-${{ github.ref_name }}
-  cancel-in-progress: false
+  group: vps-docker-deploy-${{ github.ref_name }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -29,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      DEPLOY_REASON: ${{ inputs.reason || 'Manual deploy' }}
+      DEPLOY_REASON: ${{ inputs.reason || 'Push deploy' }}
       ARELORIAN_PORT: ${{ inputs.arelorian_port || '3001' }}
       DOCKER_NETWORK: ${{ inputs.docker_network || 'areloria_arelorian-network' }}
     steps:
@@ -38,16 +56,13 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Deploy to VPS manually
+      - name: Run VPS Docker deploy script
         run: |
-          echo "Automatic VPS deploy triggers are disabled."
-          echo "Manual deploy reason: ${DEPLOY_REASON}"
-          echo "This workflow is intentionally manual-only during alpha stabilization."
+          echo "VPS Docker deploy workflow enabled."
+          echo "Reason: ${DEPLOY_REASON}"
           if [ -x scripts/vps-docker-inline-deploy.sh ]; then
-            echo "Starting manual VPS deploy script..."
             bash scripts/vps-docker-inline-deploy.sh
           elif [ -x scripts/deploy-vps-docker.sh ]; then
-            echo "Starting fallback manual VPS deploy script..."
             bash scripts/deploy-vps-docker.sh
           else
             echo "No VPS deploy script found or executable."
