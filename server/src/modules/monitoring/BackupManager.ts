@@ -1,7 +1,25 @@
-import { exec } from 'child_process';
-import util from 'util';
+import { spawn } from 'child_process';
 
-const execAsync = util.promisify(exec);
+/**
+ * Helper to execute a command using spawn and return a Promise.
+ */
+function spawnAsync(command: string, args: string[]): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const process = spawn(command, args);
+
+    process.on('close', (code) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`Command '${command}' failed with exit code ${code}`));
+      }
+    });
+
+    process.on('error', (err) => {
+      reject(err);
+    });
+  });
+}
 
 export class BackupManager {
   /**
@@ -20,9 +38,8 @@ export class BackupManager {
     const filePath = `/tmp/${fileName}`;
 
     try {
-      // Execute pg_dump
-      // Note: pg_dump must be installed on the system running this code
-      await execAsync(`pg_dump "${dbUrl}" -F c -f "${filePath}"`);
+      // Execute pg_dump securely using spawn
+      await spawnAsync('pg_dump', [dbUrl, "-F", "c", "-f", filePath]);
       console.log(`Logical backup created successfully at ${filePath}`);
       
       return {
@@ -47,8 +64,8 @@ export class BackupManager {
     }
 
     try {
-      // Execute pg_restore
-      await execAsync(`pg_restore -d "${dbUrl}" -c -1 "${filePath}"`);
+      // Execute pg_restore securely using spawn
+      await spawnAsync('pg_restore', ["-d", dbUrl, "-c", "-1", filePath]);
       console.log(`Logical backup restored successfully from ${filePath}`);
       return true;
     } catch (error) {

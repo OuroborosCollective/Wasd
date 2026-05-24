@@ -1,11 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { BackupManager } from "../modules/monitoring/BackupManager.js";
-import { exec } from "child_process";
+import { spawn } from "child_process";
+import { EventEmitter } from "events";
 
-// Mock child_process exec
+// Mock child_process spawn
 vi.mock("child_process", () => {
   return {
-    exec: vi.fn((cmd, cb) => cb(null, { stdout: 'mocked', stderr: '' }))
+    spawn: vi.fn(() => {
+      const mockProcess = new EventEmitter() as any;
+      setTimeout(() => mockProcess.emit('close', 0), 10);
+      return mockProcess;
+    })
   };
 });
 
@@ -34,7 +39,7 @@ describe("BackupManager Module", () => {
       delete process.env.DATABASE_URL;
 
       await expect(manager.createLogicalBackup("test")).rejects.toThrow("DATABASE_URL is not configured.");
-      expect(exec).not.toHaveBeenCalled();
+      expect(spawn).not.toHaveBeenCalled();
     });
 
     it("should execute pg_dump and return backup details on success", async () => {
@@ -50,20 +55,24 @@ describe("BackupManager Module", () => {
       expect(result.createdAt).toBeLessThanOrEqual(timestampAfter);
       expect(result.file).toMatch(new RegExp(`^/tmp/backup_daily_backup_${result.createdAt}\\.sql$`));
 
-      expect(exec).toHaveBeenCalledTimes(1);
-      const calledCmd = (exec as any).mock.calls[0][0];
-      expect(calledCmd).toBe(`pg_dump "postgres://user:pass@localhost:5432/db" -F c -f "${result.file}"`);
+      expect(spawn).toHaveBeenCalledTimes(1);
+      const [cmd, args] = (spawn as any).mock.calls[0];
+      expect(cmd).toBe('pg_dump');
+      expect(args).toEqual([process.env.DATABASE_URL, "-F", "c", "-f", result.file]);
 
       expect(consoleLogSpy).toHaveBeenCalledWith(`Logical backup created successfully at ${result.file}`);
     });
 
-    it("should throw an error and log if exec fails", async () => {
+    it("should throw an error and log if spawn fails with non-zero exit code", async () => {
       process.env.DATABASE_URL = "postgres://user:pass@localhost:5432/db";
-      const mockError = new Error("pg_dump failed");
-      (exec as any).mockImplementationOnce((cmd: string, cb: Function) => cb(mockError));
+      (spawn as any).mockImplementationOnce(() => {
+        const mockProcess = new EventEmitter() as any;
+        setTimeout(() => mockProcess.emit('close', 1), 10);
+        return mockProcess;
+      });
 
-      await expect(manager.createLogicalBackup("failed_backup")).rejects.toThrow("pg_dump failed");
-      expect(consoleErrorSpy).toHaveBeenCalledWith("Failed to create logical backup:", mockError);
+      await expect(manager.createLogicalBackup("failed_backup")).rejects.toThrow("Command 'pg_dump' failed with exit code 1");
+      expect(consoleErrorSpy).toHaveBeenCalledWith("Failed to create logical backup:", expect.any(Error));
     });
   });
 
@@ -72,7 +81,7 @@ describe("BackupManager Module", () => {
       delete process.env.DATABASE_URL;
 
       await expect(manager.restoreLogicalBackup("/tmp/backup.sql")).rejects.toThrow("DATABASE_URL is not configured.");
-      expect(exec).not.toHaveBeenCalled();
+      expect(spawn).not.toHaveBeenCalled();
     });
 
     it("should execute pg_restore and return true on success", async () => {
@@ -82,22 +91,26 @@ describe("BackupManager Module", () => {
       const result = await manager.restoreLogicalBackup(filePath);
 
       expect(result).toBe(true);
-      expect(exec).toHaveBeenCalledTimes(1);
+      expect(spawn).toHaveBeenCalledTimes(1);
 
-      const calledCmd = (exec as any).mock.calls[0][0];
-      expect(calledCmd).toBe(`pg_restore -d "postgres://user:pass@localhost:5432/db" -c -1 "/tmp/test_restore.sql"`);
+      const [cmd, args] = (spawn as any).mock.calls[0];
+      expect(cmd).toBe('pg_restore');
+      expect(args).toEqual(["-d", process.env.DATABASE_URL, "-c", "-1", filePath]);
 
       expect(consoleLogSpy).toHaveBeenCalledWith(`Logical backup restored successfully from ${filePath}`);
     });
 
-    it("should throw an error and log if exec fails", async () => {
+    it("should throw an error and log if spawn fails", async () => {
       process.env.DATABASE_URL = "postgres://user:pass@localhost:5432/db";
       const filePath = "/tmp/bad_backup.sql";
-      const mockError = new Error("pg_restore failed");
-      (exec as any).mockImplementationOnce((cmd: string, cb: Function) => cb(mockError));
+      (spawn as any).mockImplementationOnce(() => {
+        const mockProcess = new EventEmitter() as any;
+        setTimeout(() => mockProcess.emit('close', 1), 10);
+        return mockProcess;
+      });
 
-      await expect(manager.restoreLogicalBackup(filePath)).rejects.toThrow("pg_restore failed");
-      expect(consoleErrorSpy).toHaveBeenCalledWith("Failed to restore logical backup:", mockError);
+      await expect(manager.restoreLogicalBackup(filePath)).rejects.toThrow("Command 'pg_restore' failed with exit code 1");
+      expect(consoleErrorSpy).toHaveBeenCalledWith("Failed to restore logical backup:", expect.any(Error));
     });
   });
 
