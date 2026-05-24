@@ -189,11 +189,15 @@ export class AxiomValidationLayer {
       let inputTotal = 0;
       let outputTotal = 0;
 
-      for (const [, amount] of input) {
-        inputTotal += amount;
+      // Sort keys for absolute deterministic total calculation
+      const sortedInputKeys = Array.from(input.keys()).sort();
+      for (const key of sortedInputKeys) {
+        inputTotal += input.get(key)!;
       }
-      for (const [, amount] of output) {
-        outputTotal += amount;
+
+      const sortedOutputKeys = Array.from(output.keys()).sort();
+      for (const key of sortedOutputKeys) {
+        outputTotal += output.get(key)!;
       }
 
       // Zero-sum check with small tolerance (±10 FP)

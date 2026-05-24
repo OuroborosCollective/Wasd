@@ -28,7 +28,10 @@ export class OracleSystem {
   public async detectPatterns(): Promise<void> {
     const worldState = worldStateRegistry.getCurrentState();
     
-    for (const [regionId, region] of worldState.regions) {
+    // Sort region IDs for absolute deterministic pattern detection
+    const sortedRegionIds = Array.from(worldState.regions.keys()).sort();
+    for (const regionId of sortedRegionIds) {
+      const region = worldState.regions.get(regionId)!;
       // Check for DEPLETED_RESOURCES
       this.checkResourceDepletion(regionId, region);
       
@@ -45,7 +48,10 @@ export class OracleSystem {
    */
   private checkResourceDepletion(regionId: string, region: RegionState): void {
     let totalSaturation = 0;
-    for (const [, value] of region.resourceSaturation) {
+    // Sort resource types for absolute deterministic saturation calculation
+    const sortedResourceTypes = Array.from(region.resourceSaturation.keys()).sort();
+    for (const resourceType of sortedResourceTypes) {
+      const value = region.resourceSaturation.get(resourceType)!;
       totalSaturation += value;
     }
     

@@ -239,7 +239,10 @@ export class QuestDerivationEngine {
   private analyzeTensions(worldState: any): TensionPoint[] {
     const tensions: TensionPoint[] = [];
 
-    for (const [regionId, region] of worldState.regions) {
+    // Sort region IDs for absolute deterministic tension analysis
+    const sortedRegionIds = Array.from(worldState.regions.keys()).sort();
+    for (const regionId of sortedRegionIds as string[]) {
+      const region = worldState.regions.get(regionId);
       const tension: TensionPoint = {
         regionId,
         energyDeficit: 0,
