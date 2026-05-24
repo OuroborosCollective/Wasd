@@ -19,6 +19,17 @@ export class InventoryService {
     }
 
     /**
+     * Returns the total amount of an item type the player has.
+     * @param playerId The ID of the player
+     * @param itemType The type/slug of the item
+     */
+    public async getItemCount(playerId: string, itemType: string): Promise<number> {
+        const playerItems = this.inventory.get(playerId) || [];
+        const item = playerItems.find(i => i.itemType === itemType);
+        return item ? item.amount : 0;
+    }
+
+    /**
      * Checks if a player has the required items for warfront_core construction.
      * Called by ConstructionScheduler.
      * @param playerId The ID of the player
