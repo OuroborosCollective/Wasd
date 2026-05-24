@@ -30,7 +30,7 @@ export class ArelorianClient {
   connect(): void {
     if (this.socket?.connected) return;
 
-    const options: ManagerOptions = {
+    const options: Partial<ManagerOptions> = {
       transports: ["websocket"],
       reconnection: true,
       reconnectionAttempts: Infinity,

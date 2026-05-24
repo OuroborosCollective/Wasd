@@ -1,0 +1,183 @@
+{
+  "generatedAt": "2026-05-24T17:40:07.634Z",
+  "enriched": [
+    {
+      "id": "tile_grass_32_01",
+      "group": "tilesets",
+      "role": "terrain",
+      "pickable": false,
+      "hash": "1ef2b1d858628087"
+    },
+    {
+      "id": "stitch_samurai_ground_tiles",
+      "group": "tilesets",
+      "role": "terrain",
+      "pickable": false,
+      "hash": "3036eed0d79304af"
+    },
+    {
+      "id": "stitch_medieval_ground_tiles",
+      "group": "tilesets",
+      "role": "terrain",
+      "pickable": false,
+      "hash": "dc68e6f518659d48"
+    },
+    {
+      "id": "stitch_mongolian_ground_tiles",
+      "group": "tilesets",
+      "role": "terrain",
+      "pickable": false,
+      "hash": "d09faead83b2d532"
+    },
+    {
+      "id": "stitch_samurai_ground_tiles_02",
+      "group": "tilesets",
+      "role": "terrain",
+      "pickable": false,
+      "hash": "8bbddaf994630b87"
+    },
+    {
+      "id": "stitch_medieval_ground_tiles_02",
+      "group": "tilesets",
+      "role": "terrain",
+      "pickable": false,
+      "hash": "a0fa70995b3741ab"
+    },
+    {
+      "id": "stitch_mongolian_ground_tiles_02",
+      "group": "tilesets",
+      "role": "terrain",
+      "pickable": false,
+      "hash": "e6c6bcc3cfcb220d"
+    },
+    {
+      "id": "character_player_male_01",
+      "group": "characters",
+      "role": "npc",
+      "pickable": true,
+      "hash": "3138720213f36e80"
+    },
+    {
+      "id": "character_npc_guard_01",
+      "group": "characters",
+      "role": "npc",
+      "pickable": true,
+      "hash": "32cf7edd26fab5cd"
+    },
+    {
+      "id": "stitch_medieval_architecture",
+      "group": "buildings",
+      "role": "house",
+      "pickable": true,
+      "hash": "c89cf44064a037cf"
+    },
+    {
+      "id": "stitch_mongolian_architecture",
+      "group": "buildings",
+      "role": "house",
+      "pickable": true,
+      "hash": "9408e734d705513a"
+    },
+    {
+      "id": "stitch_medieval_architecture_02",
+      "group": "buildings",
+      "role": "house",
+      "pickable": true,
+      "hash": "74ce304ce1376c1d"
+    },
+    {
+      "id": "stitch_mongolian_architecture_02",
+      "group": "buildings",
+      "role": "house",
+      "pickable": true,
+      "hash": "967de4b7d9437608"
+    },
+    {
+      "id": "stitch_samurai_decor",
+      "group": "props",
+      "role": "prop",
+      "pickable": true,
+      "hash": "2777791dea07862a"
+    },
+    {
+      "id": "stitch_samurai_vegetation",
+      "group": "props",
+      "role": "tree",
+      "pickable": true,
+      "hash": "9985247b80b55825"
+    },
+    {
+      "id": "stitch_medieval_decor",
+      "group": "props",
+      "role": "prop",
+      "pickable": true,
+      "hash": "a6ddae5ff893b6c8"
+    },
+    {
+      "id": "stitch_medieval_vegetation",
+      "group": "props",
+      "role": "tree",
+      "pickable": true,
+      "hash": "477ad77d14f82914"
+    },
+    {
+      "id": "stitch_mongolian_decor",
+      "group": "props",
+      "role": "prop",
+      "pickable": true,
+      "hash": "130ac60a9f1592ab"
+    },
+    {
+      "id": "stitch_mongolian_vegetation",
+      "group": "props",
+      "role": "tree",
+      "pickable": true,
+      "hash": "f24a110bb96f849c"
+    },
+    {
+      "id": "stitch_samurai_decor_02",
+      "group": "props",
+      "role": "prop",
+      "pickable": true,
+      "hash": "6592184312705ee5"
+    },
+    {
+      "id": "stitch_samurai_vegetation_02",
+      "group": "props",
+      "role": "tree",
+      "pickable": true,
+      "hash": "b715cd567dce4bd4"
+    },
+    {
+      "id": "stitch_medieval_decor_02",
+      "group": "props",
+      "role": "prop",
+      "pickable": true,
+      "hash": "add60932e2efc847"
+    },
+    {
+      "id": "stitch_medieval_vegetation_02",
+      "group": "props",
+      "role": "tree",
+      "pickable": true,
+      "hash": "2bb6e27c7b4530b9"
+    },
+    {
+      "id": "stitch_mongolian_decor_02",
+      "group": "props",
+      "role": "prop",
+      "pickable": true,
+      "hash": "81f9ad1208ace8cf"
+    },
+    {
+      "id": "stitch_mongolian_vegetation_02",
+      "group": "props",
+      "role": "tree",
+      "pickable": true,
+      "hash": "2ee9963f4c30a48f"
+    }
+  ],
+  "missing": [],
+  "warnings": [],
+  "quarantined": []
+}
