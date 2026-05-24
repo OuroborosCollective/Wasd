@@ -78,6 +78,25 @@ export interface Chunk {
         const chunk = this.getChunk(x, y);
         chunk.data = data;
     }
-    public getActiveChunks(): any[] { return []; }
-    public setChunkActive(id: string, active: boolean): void {}
+    public getActiveChunks(): Chunk[] {
+        return Array.from(this.chunks.values()).filter(c => c.active);
+    }
+    public setChunkActive(id: string, active: boolean): void {
+        const chunk = Array.from(this.chunks.values()).find(c => c.id === id);
+        if (chunk) {
+            chunk.active = active;
+        } else {
+            // If setting active for an uninitialized chunk via ID (like the test does)
+            const parts = id.split(':');
+            if (parts.length === 2) {
+                const cx = parseInt(parts[0], 10);
+                const cy = parseInt(parts[1], 10);
+                if (!isNaN(cx) && !isNaN(cy)) {
+                    const newChunk = this.getChunk(cx, cy);
+                    newChunk.id = id;
+                    newChunk.active = active;
+                }
+            }
+        }
+    }
 }
