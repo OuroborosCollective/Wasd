@@ -38,8 +38,8 @@ function checkRootOverrideConsistency() {
   const watched = new Set([
     ...Object.keys(pkg.devDependencies ?? {}),
     ...Object.keys(pkg.dependencies ?? {}),
-    ...Object.keys(pkg.overrides ?? pkg.pnpm?.overrides ?? {}),
-    ...Object.keys(pkg.resolutions ?? pkg.pnpm?.resolutions ?? {}),
+    ...Object.keys(pkg.overrides ?? pkg.overrides ?? pkg.pnpm?.overrides ?? {}),
+    ...Object.keys(pkg.resolutions ?? pkg.resolutions ?? pkg.pnpm?.resolutions ?? {}),
   ]);
 
   for (const dep of watched) {

@@ -40,6 +40,10 @@ jobs:
         run: |
           pnpm --filter @wasd/shared build
 
+      - name: Build @wasd/shared
+        run: |
+          pnpm --filter @wasd/shared build
+
       - name: Typecheck @wasd/shared
         run: |
           NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/shared run typecheck

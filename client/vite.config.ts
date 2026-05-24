@@ -19,11 +19,13 @@ export default defineConfig(({ mode }) => {
 
   // Build minification - esbuild for production (terser is optional)
   const minify = isProduction ? "esbuild" : "esbuild";
-  const generateInlineSourceMap = !isProduction;
 
   return {
     // Relative base for itch.io builds ensures assets load correctly regardless of subfolder
     base: isItchBuild ? "./" : "/",
+    esbuild: {
+      target: "es2022",
+    },
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
@@ -70,13 +72,10 @@ export default defineConfig(({ mode }) => {
         },
       },
     ],
-    esbuild: {
-      target: "esnext",
-    },
     build: {
       outDir: isItchBuild ? "dist-itch" : "dist",
       emptyOutDir: true,
-      target: "esnext",
+      target: "es2022",
       // Production minification
       minify: minify,
       cssCodeSplit: true,
