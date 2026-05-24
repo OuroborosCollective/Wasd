@@ -25,9 +25,13 @@ function fromFP(fp: number): number {
  * API Key configuration
  */
 const API_KEY_HEADER = 'x-api-key';
-const VALID_API_KEYS = new Set([
-  process.env.API_KEY || 'dev-key-change-in-production',
-]);
+const VALID_API_KEYS = new Set<string>(
+  process.env.API_KEY ? [process.env.API_KEY] : []
+);
+
+if (process.env.NODE_ENV === 'production' && VALID_API_KEYS.size === 0) {
+  console.warn('[APIServer] WARNING: API_KEY not set in production! Protected endpoints will be inaccessible.');
+}
 
 /**
  * World heartbeat broadcast interval (10 ticks = 1 second)
@@ -51,6 +55,22 @@ export class APIServer {
   }
 
   /**
+   * API Key validation middleware
+   */
+  private validateApiKey(req: any, res: any, next: any): void {
+    const providedKey = req.headers[API_KEY_HEADER];
+
+    if (!providedKey || !VALID_API_KEYS.has(providedKey)) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Invalid or missing API key',
+      });
+    }
+
+    next();
+  }
+
+  /**
    * Setup REST routes
    */
   private setupRoutes(app: any): void {
@@ -62,7 +82,7 @@ export class APIServer {
     });
 
     // World status (protected)
-    app.get('/api/v1/world/status', (req: any, res: any) => {
+    app.get('/api/v1/world/status', this.validateApiKey, (req: any, res: any) => {
       const worldState = worldStateRegistry.getCurrentState();
       
       // Calculate global energy
@@ -88,7 +108,7 @@ export class APIServer {
     });
 
     // Region details (protected)
-    app.get('/api/v1/regions/:id', (req: any, res: any) => {
+    app.get('/api/v1/regions/:id', this.validateApiKey, (req: any, res: any) => {
       const regionId = req.params.id;
       const worldState = worldStateRegistry.getCurrentState();
       const region = worldState.regions.get(regionId);
