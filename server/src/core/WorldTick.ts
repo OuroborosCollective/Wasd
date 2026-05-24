@@ -192,7 +192,7 @@ export class WorldTick {
     this.lastWorldHashSnapshot = record.worldSnapshot;
     if (record.guard) this.lastAREGuardStatus = record.guard;
     if (record.worldSnapshot) areValidationState.updateWorld(record.worldSnapshot);
-    if (record.guard) areValidationState.updateGuard(guardStatus);
+    if (record.guard) areValidationState.updateGuard(record.guard);
   }
 
   private async handlePlayerMessage(id: string, msg: any) {
@@ -239,7 +239,7 @@ export class WorldTick {
       const player = this.playerSystem.getPlayer(request.playerId);
       if (!player || player.isOffline) continue;
       const checked = checkForestResource(request.input);
-      if (!checked.ok) { this.ws.sendToPlayer(request.socketId, { type: "FOREST_RESOURCE_REJECTED", reason: checked.reason }); continue; }
+      if (!checked.ok) { this.ws.sendToPlayer(request.socketId, { type: "FOREST_RESOURCE_REJECTED", reason: (checked as any).reason }); continue; }
       if (!isNearForestResource(player, checked.coord, FOREST_ACTION_DISTANCE)) { this.ws.sendToPlayer(request.socketId, { type: "FOREST_RESOURCE_REJECTED", reason: "too_far" }); continue; }
       if ((this.depletedResources.get(checked.key) ?? 0) > this.tickCount) { this.ws.sendToPlayer(request.socketId, { type: "FOREST_RESOURCE_REJECTED", reason: "depleted" }); continue; }
       this.inventorySystem.addItem(player, { id: checked.itemId, quantity: 1, source: "forest_resource", resourceType: checked.resourceType });
