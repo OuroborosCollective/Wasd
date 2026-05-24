@@ -60,6 +60,9 @@ export class NPCSystem {
 
     private sovereigntyEngine: GuildSovereigntyEngine;
 
+    private cachedSortedNpcs: NPC[] = [];
+    private npcsDirty: boolean = true;
+
     constructor() {
         // Initialize stub dependencies
         this.sovereigntyEngine = new GuildSovereigntyEngine();
@@ -68,10 +71,15 @@ export class NPCSystem {
 
     public addNPC(npc: NPC): void {
         this.npcs.set(npc.id, npc);
+        this.npcsDirty = true;
     }
 
     public removeNPC(id: string): boolean {
-        return this.npcs.delete(id);
+        const deleted = this.npcs.delete(id);
+        if (deleted) {
+            this.npcsDirty = true;
+        }
+        return deleted;
     }
 
     public createNPC(id: string, name: string, x: number, y: number): NPC {
@@ -154,15 +162,26 @@ export class NPCSystem {
     }
 
     private update(onlinePlayers: any[]): void {
-        const sortedNpcs = Array.from(this.npcs.values()).sort((a, b) =>
-            String(a?.id ?? "").localeCompare(String(b?.id ?? ""))
-        );
+        if (this.npcsDirty) {
+            this.cachedSortedNpcs = Array.from(this.npcs.values()).sort((a, b) =>
+                String(a?.id ?? "").localeCompare(String(b?.id ?? ""))
+            );
+            this.npcsDirty = false;
+        }
+
         const sortedPlayers = [...onlinePlayers].sort((a, b) =>
             String(a?.id ?? "").localeCompare(String(b?.id ?? ""))
         );
 
-        for (const npc of sortedNpcs) {
-            this.processPerception(npc, sortedPlayers);
+        // Pre-calculate perception context for players to avoid repeated object creation and property access
+        const playerContexts = sortedPlayers.map(player => ({
+            id: player?.id != null && String(player.id).length > 0 ? String(player.id) : "unknown_player",
+            position: NPCSystem.vec3ForPerception(player?.position),
+            stealthLevel: player?.stealthValue ?? 0
+        }));
+
+        for (const npc of this.cachedSortedNpcs) {
+            this.processPerception(npc, playerContexts);
         }
     }
 
@@ -175,30 +194,46 @@ export class NPCSystem {
         };
     }
 
-    private processPerception(npc: NPC, sortedPlayers: any[]): void {
+    /** Broad-phase distance check to avoid heavy perception logic for far entities. */
+    private static isWithinRangeSquared(pos1: Vector3, pos2: Vector3, range: number): boolean {
+        const dx = pos1.x - pos2.x;
+        const dy = pos1.y - pos2.y;
+        const dz = pos1.z - pos2.z;
+        return (dx * dx + dy * dy + dz * dz) <= (range * range);
+    }
+
+    private processPerception(npc: NPC, playerContexts: any[]): void {
         let detectedPlayerId: string | null = null;
         const npcPos = NPCSystem.vec3ForPerception(npc.position);
+        const visionRange = npc.visionRange || 10;
+        // Use a slightly larger range for broad-phase to account for phaseShift and edge cases
+        const broadPhaseRange = visionRange * 1.5;
 
-        for (const player of sortedPlayers) {
+        for (const player of playerContexts) {
+            // Broad-phase check
+            if (!NPCSystem.isWithinRangeSquared(npcPos, player.position, broadPhaseRange)) {
+                continue;
+            }
+
             const result = checkStealthDeterministic(
                 {
                     npcId: npc.id,
                     position: npcPos,
                     phaseShift: npc.phaseShift ?? 0,
-                    perceptionRadius: npc.visionRange,
+                    perceptionRadius: visionRange,
                     lastPerceptionTick: 0
                 },
                 {
-                    playerId: String(player?.id ?? ""),
-                    position: NPCSystem.vec3ForPerception(player?.position),
-                    stealthLevel: player?.stealthValue ?? 0,
-                    isCrouching: false, // Crouching state not yet implemented in PlayerSystem
+                    playerId: player.id,
+                    position: player.position,
+                    stealthLevel: player.stealthLevel,
+                    isCrouching: false,
                     lastVisibleTick: 0
                 }
             );
 
             if (result.visible) {
-                detectedPlayerId = player?.id != null && String(player.id).length > 0 ? String(player.id) : "unknown_player";
+                detectedPlayerId = player.id;
                 break;
             }
         }
