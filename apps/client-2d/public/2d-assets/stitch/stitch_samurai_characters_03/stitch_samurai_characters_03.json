@@ -1,0 +1,75 @@
+{
+  "frames": {
+    "stitch_samurai_characters_03_house_traditional_1": {
+      "frame": {
+        "x": 50,
+        "y": 40,
+        "w": 380,
+        "h": 420
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 380,
+        "h": 420
+      },
+      "sourceSize": {
+        "w": 380,
+        "h": 420
+      }
+    },
+    "stitch_samurai_characters_03_house_traditional_2": {
+      "frame": {
+        "x": 550,
+        "y": 50,
+        "w": 400,
+        "h": 400
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 400,
+        "h": 400
+      },
+      "sourceSize": {
+        "w": 400,
+        "h": 400
+      }
+    },
+    "stitch_samurai_characters_03_wooden_gate": {
+      "frame": {
+        "x": 100,
+        "y": 550,
+        "w": 300,
+        "h": 350
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 300,
+        "h": 350
+      },
+      "sourceSize": {
+        "w": 300,
+        "h": 350
+      }
+    }
+  },
+  "meta": {
+    "app": "Areloria WASD Stitch generated atlas importer",
+    "version": "1.0",
+    "image": "stitch_samurai_characters_03.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 1024,
+      "h": 1024
+    },
+    "scale": "1"
+  }
+}

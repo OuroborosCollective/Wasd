@@ -1,0 +1,275 @@
+{
+  "frames": {
+    "stitch_mongolian_decor_03_tug_banner_1": {
+      "frame": {
+        "x": 160,
+        "y": 20,
+        "w": 120,
+        "h": 280
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 120,
+        "h": 280
+      },
+      "sourceSize": {
+        "w": 120,
+        "h": 280
+      }
+    },
+    "stitch_mongolian_decor_03_tug_banner_2": {
+      "frame": {
+        "x": 340,
+        "y": 30,
+        "w": 130,
+        "h": 270
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 130,
+        "h": 270
+      },
+      "sourceSize": {
+        "w": 130,
+        "h": 270
+      }
+    },
+    "stitch_mongolian_decor_03_tug_banner_3": {
+      "frame": {
+        "x": 520,
+        "y": 20,
+        "w": 140,
+        "h": 280
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 140,
+        "h": 280
+      },
+      "sourceSize": {
+        "w": 140,
+        "h": 280
+      }
+    },
+    "stitch_mongolian_decor_03_chest_wooden": {
+      "frame": {
+        "x": 100,
+        "y": 300,
+        "w": 200,
+        "h": 200
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 200,
+        "h": 200
+      },
+      "sourceSize": {
+        "w": 200,
+        "h": 200
+      }
+    },
+    "stitch_mongolian_decor_03_chest_round": {
+      "frame": {
+        "x": 340,
+        "y": 330,
+        "w": 130,
+        "h": 140
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 130,
+        "h": 140
+      },
+      "sourceSize": {
+        "w": 130,
+        "h": 140
+      }
+    },
+    "stitch_mongolian_decor_03_chest_ornate": {
+      "frame": {
+        "x": 550,
+        "y": 310,
+        "w": 190,
+        "h": 180
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 190,
+        "h": 180
+      },
+      "sourceSize": {
+        "w": 190,
+        "h": 180
+      }
+    },
+    "stitch_mongolian_decor_03_rug_round": {
+      "frame": {
+        "x": 20,
+        "y": 500,
+        "w": 280,
+        "h": 170
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 280,
+        "h": 170
+      },
+      "sourceSize": {
+        "w": 280,
+        "h": 170
+      }
+    },
+    "stitch_mongolian_decor_03_rug_rectangular": {
+      "frame": {
+        "x": 330,
+        "y": 480,
+        "w": 300,
+        "h": 180
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 300,
+        "h": 180
+      },
+      "sourceSize": {
+        "w": 300,
+        "h": 180
+      }
+    },
+    "stitch_mongolian_decor_03_rug_square": {
+      "frame": {
+        "x": 730,
+        "y": 450,
+        "w": 250,
+        "h": 150
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 250,
+        "h": 150
+      },
+      "sourceSize": {
+        "w": 250,
+        "h": 150
+      }
+    },
+    "stitch_mongolian_decor_03_cooking_fire_1": {
+      "frame": {
+        "x": 520,
+        "y": 590,
+        "w": 150,
+        "h": 180
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 150,
+        "h": 180
+      },
+      "sourceSize": {
+        "w": 150,
+        "h": 180
+      }
+    },
+    "stitch_mongolian_decor_03_cooking_fire_2": {
+      "frame": {
+        "x": 710,
+        "y": 600,
+        "w": 140,
+        "h": 170
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 140,
+        "h": 170
+      },
+      "sourceSize": {
+        "w": 140,
+        "h": 170
+      }
+    },
+    "stitch_mongolian_decor_03_horse_post_head": {
+      "frame": {
+        "x": 190,
+        "y": 670,
+        "w": 80,
+        "h": 210
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 80,
+        "h": 210
+      },
+      "sourceSize": {
+        "w": 80,
+        "h": 210
+      }
+    },
+    "stitch_mongolian_decor_03_horse_post_plain": {
+      "frame": {
+        "x": 390,
+        "y": 760,
+        "w": 50,
+        "h": 180
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 50,
+        "h": 180
+      },
+      "sourceSize": {
+        "w": 50,
+        "h": 180
+      }
+    }
+  },
+  "meta": {
+    "app": "Areloria WASD Stitch generated atlas importer",
+    "version": "1.0",
+    "image": "stitch_mongolian_decor_03.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 1024,
+      "h": 1024
+    },
+    "scale": "1"
+  }
+}
