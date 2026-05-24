@@ -101,9 +101,7 @@ export class Orchestrator extends EventEmitter {
       
       // 3. Action Parsing & Execution
       const actions = this.parseActions(decision);
-      for (const action of actions) {
-        await this.executeAction(action);
-      }
+      await Promise.all(actions.map(action => this.executeAction(action)));
 
       // 4. State Update
       await this.updateMemory(currentPerception, decision);
