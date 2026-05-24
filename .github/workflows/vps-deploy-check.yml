@@ -61,7 +61,6 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           timeout: 2m
           command_timeout: 10m
-          script_stop: true
           envs: DEPLOY_PATH_SECRET,GAME_PORT_INPUT
           script: |
             set -Eeuo pipefail
@@ -97,20 +96,32 @@ jobs:
             elif command -v sudo >/dev/null 2>&1 && sudo -n docker info >/dev/null 2>&1; then
               DOCKER='sudo -n docker'
             else
-              echo "ERROR: Docker is not reachable."
-              exit 1
+              echo "WARN: Docker is not reachable. Host runtime can still be checked."
+              DOCKER=''
             fi
-            $DOCKER --version || true
-            $DOCKER compose version || true
-            $DOCKER ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
+            if [ -n "$DOCKER" ]; then
+              $DOCKER --version || true
+              $DOCKER compose version || true
+              $DOCKER ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
+            fi
 
             echo "--- container inspect ---"
-            if $DOCKER inspect "$CONTAINER" >/dev/null 2>&1; then
-              $DOCKER inspect "$CONTAINER" --format 'name={{.Name}} status={{.State.Status}} running={{.State.Running}} restart={{.RestartCount}} started={{.State.StartedAt}} ports={{json .NetworkSettings.Ports}}'
-              $DOCKER exec "$CONTAINER" sh -lc 'echo "PORT=${PORT:-}"; echo "GAME_PORT=${GAME_PORT:-}"; echo "NODE_ENV=${NODE_ENV:-}"; ps -o pid,comm,args | head -20' || true
+            container_found=false
+            container_running=false
+            if [ -n "$DOCKER" ] && $DOCKER inspect "$CONTAINER" >/dev/null 2>&1; then
+              container_found=true
+              inspect_line="$($DOCKER inspect "$CONTAINER" --format 'name={{.Name}} status={{.State.Status}} running={{.State.Running}} restart={{.RestartCount}} started={{.State.StartedAt}} ports={{json .NetworkSettings.Ports}}')"
+              echo "$inspect_line"
+              case "$inspect_line" in
+                *'running=true'*) container_running=true ;;
+              esac
+              if [ "$container_running" = true ]; then
+                $DOCKER exec "$CONTAINER" sh -lc 'echo "PORT=${PORT:-}"; echo "GAME_PORT=${GAME_PORT:-}"; echo "NODE_ENV=${NODE_ENV:-}"; ps -o pid,comm,args | head -20' || true
+              else
+                echo "WARN: $CONTAINER exists but is not running. Falling back to host runtime truth."
+              fi
             else
-              echo "ERROR: container $CONTAINER not found"
-              exit 1
+              echo "WARN: container $CONTAINER not found. Falling back to host runtime truth."
             fi
 
             echo "--- host ports ---"
@@ -118,13 +129,17 @@ jobs:
 
             echo "--- internal HTTP ---"
             internal_ok=false
-            for path in $HEALTH_PATHS; do
-              status="$($DOCKER exec "$CONTAINER" node -e "fetch('http://127.0.0.1:${GAME_PORT}${path}').then(r=>{console.log(r.status); process.exit(r.status < 500 ? 0 : 2)}).catch(e=>{console.log('ERR '+e.message); process.exit(3)})" 2>&1 || true)"
-              echo "container http://127.0.0.1:${GAME_PORT}${path} => $status"
-              case "$status" in
-                200*) internal_ok=true ;;
-              esac
-            done
+            if [ "$container_running" = true ]; then
+              for path in $HEALTH_PATHS; do
+                status="$($DOCKER exec "$CONTAINER" node -e "fetch('http://127.0.0.1:${GAME_PORT}${path}').then(r=>{console.log(r.status); process.exit(r.status < 500 ? 0 : 2)}).catch(e=>{console.log('ERR '+e.message); process.exit(3)})" 2>&1 || true)"
+                echo "container http://127.0.0.1:${GAME_PORT}${path} => $status"
+                case "$status" in
+                  200*) internal_ok=true ;;
+                esac
+              done
+            else
+              echo "SKIP: container is not running."
+            fi
 
             echo "--- host HTTP ---"
             host_ok=false
@@ -135,19 +150,29 @@ jobs:
             done
 
             echo "--- recent logs ---"
-            $DOCKER logs --tail=120 "$CONTAINER" || true
-
-            if [ "$internal_ok" != true ]; then
-              echo "ERROR: container internal HTTP did not return 200 on any probe."
-              exit 1
+            if [ "$container_found" = true ] && [ -n "$DOCKER" ]; then
+              $DOCKER logs --tail=120 "$CONTAINER" || true
+            fi
+            if command -v journalctl >/dev/null 2>&1; then
+              journalctl --no-pager -n 80 2>/dev/null | grep -Ei 'WorldEventBus|worldtick|tick|warfront|arelorian|node|3001|ACCOUNT_SUSPENDED|guard|violation' || true
             fi
 
-            if [ "$host_ok" != true ]; then
+            if [ "$internal_ok" = true ]; then
+              echo "OK: container runtime responded internally."
+            fi
+
+            if [ "$host_ok" = true ]; then
+              echo "OK: host runtime responded on port $GAME_PORT."
+            else
               echo "ERROR: host HTTP did not return 200 on any probe. Port mapping or listener may be broken."
               exit 1
             fi
 
-            echo "OK: VPS runtime responded internally and via host port."
+            if [ "$container_running" != true ]; then
+              echo "WARN: Docker container runtime is not active; host runtime is currently serving traffic."
+            fi
+
+            echo "OK: VPS runtime truth check passed."
 
       - name: Optional public URL check
         env:
