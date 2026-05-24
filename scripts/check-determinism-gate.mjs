@@ -4,9 +4,10 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 
 const root = process.cwd();
-const advisoryOnly = /^(1|true|yes|warn|advisory)$/i.test(
-  process.env.ARE_DETERMINISM_GATE_MODE || process.env.ARE_DETERMINISM_GATE_ADVISORY || ''
+const strictMode = /^(1|true|yes|strict|fail)$/i.test(
+  process.env.ARE_DETERMINISM_GATE_MODE || process.env.ARE_DETERMINISM_GATE_STRICT || ''
 );
+const advisoryOnly = !strictMode;
 const scanRoots = ['server/src/core', 'server/src/modules', 'server/src/services', 'packages/shared/src'];
 const strictRoots = [
   'server/src/core/systems',
