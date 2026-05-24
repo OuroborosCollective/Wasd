@@ -27,9 +27,12 @@ import { AREDivergenceGuard } from "./are/AREDivergenceGuard.js";
 import { AREReplayBuffer } from "./are/AREReplayBuffer.js";
 import { AREShadowAdapter } from "./are/AREShadowAdapter.js";
 import { AREEconomyAdapter } from "./are/AREEconomyAdapter.js";
+import { AREElectroweakPruningManager, type AREEntity, type ElectroweakDecayEvent } from "./are/AREElectroweakPruning.js";
 import { KappaPosGrid } from "@wasd/shared";
 import { checkForestResource, isNearForestResource } from "../modules/resource/forestResourceCheck.js";
 import { FOREST_ACTION_DISTANCE, FOREST_RESPAWN_TICKS } from "../modules/resource/forestResourceRules.js";
+
+const ELECTROWEAK_LOOT_TTL_TICKS = 1200;
 
 function sectorOf(entity: any): number {
   const x = Number(entity?.position?.x ?? 0);
@@ -50,6 +53,9 @@ export class WorldTick {
   private readonly areShadowReplay = new AREReplayBuffer(1000);
   private readonly areDivergenceGuard = new AREDivergenceGuard();
   private readonly economyAdapter: AREEconomyAdapter;
+  private readonly electroweakPruning = new AREElectroweakPruningManager();
+  private readonly lootSpawnTicks: Map<string, number> = new Map();
+  private latestElectroweakDecayEvents: readonly ElectroweakDecayEvent[] = Object.freeze([]);
   private lastAREGuardStatus: AREInvariantGuardStatus | null = null;
   private lastWorldHashSnapshot: WorldHashSnapshot | null = null;
   private lastOracleReport: OracleReport | null = null;
@@ -95,7 +101,7 @@ export class WorldTick {
   public resourceSystem: any = { nodes: new Map() };
   public chatSystem: any = { getRecentMessages: () => [], systemMessage: () => {}, sendMessage: () => ({}) };
   public lootSystem: any = { rollLoot: () => ({ items: [], gold: 0 }) };
-  public liveHeal: any = { getStatus: () => ({ tickCount: this.tickCount, autoRepair: areAutoRepairService.getStatus(), usage: deterministicUsageTracker.getStats(this.tickCount), areShadow: this.getAREShadowReplayStats() }), flush: () => {} };
+  public liveHeal: any = { getStatus: () => ({ tickCount: this.tickCount, autoRepair: areAutoRepairService.getStatus(), usage: deterministicUsageTracker.getStats(this.tickCount), areShadow: this.getAREShadowReplayStats(), electroweakPruning: this.electroweakPruning.getStats() }), flush: () => {} };
   public getPlaytesterDebugLogPath(): string { return ""; }
   public buildPlaytesterMonitorPayload(options?: any): any { return {}; }
   public assetHealthService: any = { getStatus: () => ({}), getStats: () => null, flush: () => {} };
@@ -156,6 +162,7 @@ export class WorldTick {
       divergence: this.areDivergenceGuard.summarize(),
       ecosystem: AREShadowAdapter.getEcosystemTelemetry(),
       economy: this.economyAdapter.snapshotARE(),
+      electroweakPruning: this.electroweakPruning.getStats(),
     };
   }
 
@@ -243,7 +250,7 @@ export class WorldTick {
   }
 
   private handleAttack(id: string, player: any, msg: any) { const targetId = msg.targetId; const npc = this.npcSystem.getNPC(targetId); if (npc && npc.health !== undefined) { const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y); if (dist < 30) { const baseDamage = 10; npc.health -= baseDamage; this.ws.broadcast({ type: "combat_feedback", targetId, damage: baseDamage, health: npc.health, maxHealth: npc.maxHealth }); if (npc.health <= 0) this.handleNPCDeath(id, player, npc, targetId); } } }
-  private handleInteract(id: string, player: any, msg: any) { const targetId = msg.targetId; const npc = this.npcSystem.getNPC(targetId); const loot = this.lootEntities.get(targetId); if (npc) { const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y); if (dist < 20) { const interaction = this.npcSystem.handleInteraction(targetId, player, this.questSystem.getQuestDefinitions()); if (interaction) this.ws.sendToPlayer(id, { type: "dialogue", source: interaction.source, text: interaction.text, choices: interaction.choices, npcId: interaction.npcId }); } } else if (loot) { const dist = Math.hypot(player.position.x - loot.position.x, player.position.y - loot.position.y); if (dist < 20) { this.inventorySystem.addItem(player, loot.item); this.lootEntities.delete(targetId); this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Picked up ${loot.item.name}!` }); } } }
+  private handleInteract(id: string, player: any, msg: any) { const targetId = msg.targetId; const npc = this.npcSystem.getNPC(targetId); const loot = this.lootEntities.get(targetId); if (npc) { const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y); if (dist < 20) { const interaction = this.npcSystem.handleInteraction(targetId, player, this.questSystem.getQuestDefinitions()); if (interaction) this.ws.sendToPlayer(id, { type: "dialogue", source: interaction.source, text: interaction.text, choices: interaction.choices, npcId: interaction.npcId }); } } else if (loot) { const dist = Math.hypot(player.position.x - loot.position.x, player.position.y - loot.position.y); if (dist < 20) { this.inventorySystem.addItem(player, loot.item); this.lootEntities.delete(targetId); this.lootSpawnTicks.delete(targetId); this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Picked up ${loot.item.name}!` }); } } }
   private handleDialogueChoice(id: string, player: any, msg: any) { const { npcId, nodeId, choiceId } = msg; const interaction = this.npcSystem.handleChoice(npcId, nodeId, choiceId, player); if (interaction) this.ws.sendToPlayer(id, { type: "dialogue", source: interaction.source, text: interaction.text, choices: interaction.choices, npcId: interaction.npcId }); }
   private handleNPCDeath(socketId: string, player: any, npc: any, npcInstanceId: string) { npc.health = npc.maxHealth || 100; this.ws.sendToPlayer(socketId, { type: "dialogue", source: "System", text: `${npc.name} respawns.` }); }
   private hydratePlayer(player: any) { if (!player.id) player.id = "unknown"; if (!player.name) player.name = player.id; if (!player.position) player.position = { x: 0, y: 0 }; if (!player.inventory) player.inventory = []; if (!player.quests) player.quests = []; if (!player.equipment) player.equipment = { weapon: null, armor: null }; }
@@ -281,6 +288,46 @@ export class WorldTick {
       });
       this.measureDivergence(entityId, npc.position);
     }
+  }
+
+  private toAREEntityFromLoot(loot: any, spawnedAtTick: number): AREEntity {
+    return {
+      id: `loot:${loot.id}`,
+      kind: "loot",
+      kappa: {
+        x: safeInt(Number(loot?.position?.x ?? 0) * 1000),
+        y: safeInt(Number(loot?.position?.y ?? 0) * 1000),
+        z: safeInt(Number(loot?.position?.z ?? 0) * 1000),
+      },
+      baseEntropy: 0,
+      lastInteractionTick: spawnedAtTick,
+      plexity: 1,
+      active: true,
+    };
+  }
+
+  private snapshotLootEntities(): any[] {
+    const strippedLoot = [];
+    for (const l of this.lootEntities.values()) strippedLoot.push({ id: l.id, position: { x: l.position.x, y: l.position.y, z: l.position.z || 0 }, item: l.item ? { id: l.item.id, name: l.item.name, type: l.item.type } : null, glbPath: l.glbPath });
+    return strippedLoot;
+  }
+
+  private pruneExpiredLoot(strippedLoot: any[]): readonly ElectroweakDecayEvent[] {
+    const decayEvents: ElectroweakDecayEvent[] = [];
+    for (const loot of strippedLoot) {
+      const id = String(loot.id);
+      const spawnedAtTick = this.lootSpawnTicks.get(id) ?? this.tickCount;
+      this.lootSpawnTicks.set(id, spawnedAtTick);
+      if (this.tickCount - spawnedAtTick < ELECTROWEAK_LOOT_TTL_TICKS) continue;
+      const result = this.electroweakPruning.updateEntity(this.toAREEntityFromLoot(loot, spawnedAtTick), this.tickCount);
+      if (!result.decayEvent) continue;
+      this.lootEntities.delete(id);
+      this.lootSpawnTicks.delete(id);
+      decayEvents.push(result.decayEvent);
+    }
+    this.latestElectroweakDecayEvents = Object.freeze(decayEvents);
+    if (decayEvents.length > 0) this.ws.broadcast({ type: "ARE_ELECTROWEAK_DECAY", payload: decayEvents });
+    return this.latestElectroweakDecayEvents;
   }
 
   private updateAREContract(payload: AREGuardPayload, strippedPlayers: any[], strippedNpcs: any[], strippedLoot: any[]) {
@@ -321,14 +368,15 @@ export class WorldTick {
     const allNpcs = this.npcSystem.getAllNPCs();
     const strippedNpcs = [];
     for (let i = 0; i < allNpcs.length; i++) { const n = allNpcs[i]; strippedNpcs.push({ id: n.id, name: n.name, position: { x: n.position.x, y: n.position.y, z: n.position.z || 0 }, rotation: n.rotation || 0, health: n.health, maxHealth: n.maxHealth, role: n.role, state: n.state, fusionAdaptiveGlbPath: n.fusionAdaptiveGlbPath }); }
-    const strippedLoot = [];
-    for (const l of this.lootEntities.values()) strippedLoot.push({ id: l.id, position: { x: l.position.x, y: l.position.y, z: l.position.z || 0 }, item: l.item ? { id: l.item.id, name: l.item.name, type: l.item.type } : null, glbPath: l.glbPath });
+    let strippedLoot = this.snapshotLootEntities();
+    const electroweakDecayEvents = this.pruneExpiredLoot(strippedLoot);
+    if (electroweakDecayEvents.length > 0) strippedLoot = this.snapshotLootEntities();
     this.runAREShadowTick(strippedPlayers, strippedNpcs);
     this.updateAREContract(payload, strippedPlayers, strippedNpcs, strippedLoot);
     const autoRepair = areAutoRepairService.getStatus();
     const usage = deterministicUsageTracker.getStats(this.tickCount);
-    if (this.tickCount % 10 === 0) { const npcs = allNpcs.map(n => ({ id: n.id, name: n.name, x: n.position.x, y: n.position.y })); this.ws.broadcast({ type: "WORLD_HEARTBEAT", payload: { players: Object.fromEntries(allPlayers.filter(p => !p.isOffline).map(p => [p.id, { id: p.id, name: p.name, x: p.position.x, y: p.position.y }])), agents: npcs, are: areValidationState.getSnapshot(), replay: deterministicTickRecorder.stats(), areShadow: this.getAREShadowReplayStats(), oracle: this.lastOracleReport, autoRepair, usage, warfront: this.warfrontSystem.getCycleSnapshot(this.tickCount * 100) } }); }
+    if (this.tickCount % 10 === 0) { const npcs = allNpcs.map(n => ({ id: n.id, name: n.name, x: n.position.x, y: n.position.y })); this.ws.broadcast({ type: "WORLD_HEARTBEAT", payload: { players: Object.fromEntries(allPlayers.filter(p => !p.isOffline).map(p => [p.id, { id: p.id, name: p.name, x: p.position.x, y: p.position.y }])), agents: npcs, are: areValidationState.getSnapshot(), replay: deterministicTickRecorder.stats(), areShadow: this.getAREShadowReplayStats(), electroweakPruning: { ttlTicks: ELECTROWEAK_LOOT_TTL_TICKS, stats: this.electroweakPruning.getStats(), decayEvents: this.latestElectroweakDecayEvents }, oracle: this.lastOracleReport, autoRepair, usage, warfront: this.warfrontSystem.getCycleSnapshot(this.tickCount * 100) } }); }
     if (this.tickCount % 600 === 0) this.saveAll().catch(e => console.error(e));
-    this.ws.broadcast({ type: "world_tick", tick: this.tickCount, players: strippedPlayers, npcs: strippedNpcs, loot: strippedLoot, are: { guard: this.lastAREGuardStatus, worldHash: this.lastWorldHashSnapshot?.worldHash ?? null, shadow: this.getAREShadowReplayStats() }, replay: { latestTick: this.tickCount }, oracle: this.lastOracleReport, autoRepair, usage, warfront: this.warfrontSystem.getCycleSnapshot(this.tickCount * 100) });
+    this.ws.broadcast({ type: "world_tick", tick: this.tickCount, players: strippedPlayers, npcs: strippedNpcs, loot: strippedLoot, are: { guard: this.lastAREGuardStatus, worldHash: this.lastWorldHashSnapshot?.worldHash ?? null, shadow: this.getAREShadowReplayStats(), electroweakPruning: { ttlTicks: ELECTROWEAK_LOOT_TTL_TICKS, stats: this.electroweakPruning.getStats(), decayEvents: this.latestElectroweakDecayEvents } }, replay: { latestTick: this.tickCount }, oracle: this.lastOracleReport, autoRepair, usage, warfront: this.warfrontSystem.getCycleSnapshot(this.tickCount * 100) });
   }
 }
