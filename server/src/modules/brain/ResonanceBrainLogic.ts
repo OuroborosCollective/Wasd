@@ -1,4 +1,4 @@
-import { BrainNode, HeuristicWorldBrain } from './HeuristicWorldBrain.js';
+import { HeuristicWorldBrain } from './HeuristicWorldBrain.js';
 
 /**
  * Ecosystem Resonance Engine - Brain Component
