@@ -1,5 +1,4 @@
-import { Project, SyntaxKind, InterfaceDeclaration } from 'ts-morph';
-import * as path from 'path';
+import { Project } from 'ts-morph';
 
 export class AstInterfaceSync {
     private project: Project;
