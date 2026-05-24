@@ -10,7 +10,10 @@ import urllib.error
 from pathlib import Path
 
 API_BASE = "https://api.meshy.ai"
-API_KEY = os.getenv("MESHY_API_KEY", "msy_nKxAM0zTauhKc8jueN09vpUigfxIE1v8rAbn")
+API_KEY = os.getenv("MESHY_API_KEY")
+if not API_KEY:
+    print("Error: MESHY_API_KEY environment variable not set.")
+    sys.exit(1)
 PROJECT_ROOT = Path("/tmp/Wasd")
 OUTPUT_DIR = PROJECT_ROOT / "generated-assets"
 STATE_FILE = PROJECT_ROOT / "scripts" / "batch-gen-state.json"

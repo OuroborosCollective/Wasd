@@ -9,7 +9,9 @@ import json
 from pathlib import Path
 
 # API Key setzen
-os.environ['MESHY_API_KEY'] = 'msy_nKxAM0zTauhKc8jueN09vpUigfxIE1v8rAbn'
+if not os.getenv('MESHY_API_KEY'):
+    print('Error: MESHY_API_KEY environment variable not set.')
+    sys.exit(1)
 
 # Plugin-Pfad
 plugin_path = Path.home() / ".hermes" / "plugins" / "mmorpg_meshy_builder"
