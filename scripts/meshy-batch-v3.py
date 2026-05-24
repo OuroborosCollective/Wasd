@@ -8,7 +8,10 @@ import sys
 import time
 from pathlib import Path
 
-API_KEY = "msy_nKxAM0zTauhKc8jueN09vpUigfxIE1v8rAbn"
+API_KEY = os.getenv("MESHY_API_KEY")
+if not API_KEY:
+    print("ERROR: MESHY_API_KEY environment variable is not set.")
+    sys.exit(1)
 API_BASE = "https://api.meshy.ai"
 OUTPUT_DIR = Path("/tmp/Wasd/generated-assets")
 STATE_FILE = Path("/tmp/Wasd/scripts/batch-gen-state.json")

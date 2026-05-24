@@ -9,7 +9,11 @@ import time
 import os
 import sys
 
-API_KEY = "msy_nKxAM0zTauhKc8jueN09vpUigfxIE1v8rAbn"
+API_KEY = os.environ.get("MESHY_API_KEY")
+if not API_KEY:
+    print("ERROR: MESHY_API_KEY environment variable is not set.")
+    sys.exit(1)
+
 HEADERS = {
     "Authorization": f"Bearer {API_KEY}",
     "Content-Type": "application/json"

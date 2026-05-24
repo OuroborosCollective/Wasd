@@ -1,8 +1,13 @@
 #!/bin/bash
+
+if [ -z "$MESHY_API_KEY" ]; then
+    echo "ERROR: MESHY_API_KEY environment variable is not set."
+    exit 1
+fi
 # Prioritized Asset Generator
 # Generiert Assets in Reihenfolge der Wichtigkeit
 
-export MESHY_API_KEY="msy_nKxAM0zTauhKc8jueN09vpUigfxIE1v8rAbn"
+
 API="https://api.meshy.ai"
 DIR="/tmp/Wasd/generated-assets"
 
