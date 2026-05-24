@@ -15,13 +15,15 @@ ENV PNPM_CONFIG_NETWORK_CONCURRENCY=1
 ENV PNPM_CONFIG_CHILD_CONCURRENCY=1
 ENV PNPM_CONFIG_SIDE_EFFECTS_CACHE=false
 ENV PNPM_CONFIG_VERIFY_STORE_INTEGRITY=false
+ENV PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN=false
 
 RUN corepack enable && corepack prepare pnpm@11.1.1 --activate && \
     pnpm config set store-dir /pnpm/store && \
     pnpm config set network-concurrency 1 && \
     pnpm config set child-concurrency 1 && \
     pnpm config set verify-store-integrity false && \
-    pnpm config set side-effects-cache false
+    pnpm config set side-effects-cache false && \
+    pnpm config set verify-deps-before-run false
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages packages
@@ -52,10 +54,21 @@ RUN --mount=type=cache,id=wasd-vps-pnpm-store,target=/pnpm/store \
 
 COPY . .
 RUN rm -rf packages/sdk-examples || true && \
-    python3 scripts/sync-pnpm-lockfile-for-docker.py
+    printf '%s\n' \
+      'packages:' \
+      '  - server' \
+      '  - client' \
+      '  - portal' \
+      '  - apps/client-2d' \
+      '  - packages/core-logic' \
+      '  - packages/shared' \
+      > pnpm-workspace.yaml && \
+    python3 scripts/sync-pnpm-lockfile-for-docker.py && \
+    pnpm config set verify-deps-before-run false
 
 ENV NODE_ENV=production
 ENV NODE_OPTIONS=--max-old-space-size=6144
+ENV PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN=false
 
 RUN pnpm --filter @wasd/core-logic --if-present run build:runtime && \
     pnpm --filter @wasd/shared --if-present build && \
