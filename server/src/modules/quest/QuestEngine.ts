@@ -74,18 +74,25 @@ export class QuestEngine {
     if (!player.quests) player.quests = [];
     
     // Check if already started
-    if (player.quests.find((q: any) => q.id === questId)) return null;
+    // Index player quests for O(1) lookup
+    const playerQuests = player.quests || [];
+    const playerQuestMap = new Map<string, any>();
+    for (const q of playerQuests) {
+      playerQuestMap.set(q.id, q);
+    }
+
+    // Check if already started
+    if (playerQuestMap.has(questId)) return null;
 
     // Check prerequisites
     if (quest.prerequisiteQuestIds && quest.prerequisiteQuestIds.length > 0) {
       for (const preId of quest.prerequisiteQuestIds) {
-        const preQuest = player.quests.find((q: any) => q.id === preId);
+        const preQuest = playerQuestMap.get(preId);
         if (!preQuest || !preQuest.completed) {
           return null; // Prerequisite not met
         }
       }
     }
-
     // Check flag prerequisites
     if (quest.requiredFlags && quest.requiredFlags.length > 0) {
       for (const flag of quest.requiredFlags) {
@@ -125,9 +132,15 @@ export class QuestEngine {
       return cachedStatus;
     }
 
+    const playerQuests = player.quests || [];
+    const playerQuestMap = new Map<string, any>();
+    for (const q of playerQuests) {
+      playerQuestMap.set(q.id, q);
+    }
+
     const status: any[] = [];
     this.quests.forEach((quest, id) => {
-      const playerQuest = player.quests ? player.quests.find((q: any) => q.id === id) : null;
+      const playerQuest = playerQuestMap.get(id);
       let state = "locked";
       
       if (playerQuest && playerQuest.completed) {
@@ -139,7 +152,7 @@ export class QuestEngine {
         let prereqsMet = true;
         if (quest.prerequisiteQuestIds) {
           for (const preId of quest.prerequisiteQuestIds) {
-            const preQuest = player.quests ? player.quests.find((q: any) => q.id === preId) : null;
+            const preQuest = playerQuestMap.get(preId);
             if (!preQuest || !preQuest.completed) {
               prereqsMet = false;
               break;
