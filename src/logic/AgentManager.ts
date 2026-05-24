@@ -1,5 +1,5 @@
 import { SynergyRitualLogic } from "./SynergyRitualLogic";
-import { ObjectPlacement, IPlacedObject } from "./ObjectPlacement";
+import { ObjectPlacement } from "./ObjectPlacement";
 
 export interface IBoundingBox {
     minX: number;
