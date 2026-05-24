@@ -8,7 +8,7 @@
  */
 
 import type { LayoutConstraintRule, LayoutIssue, LayoutRuleContext, SpatialEntity } from "./WorldLayoutTypes.js";
-import { pointDistance, getEntityAABB, aabbOverlap } from "./WorldLayoutSpatialIndex.js";
+import { pointDistance, getEntityAABB } from "./WorldLayoutSpatialIndex.js";
 
 let issueCounter = 0;
 function makeId(): string { return `DR-${Date.now()}-${(++issueCounter).toString(36)}`; }
