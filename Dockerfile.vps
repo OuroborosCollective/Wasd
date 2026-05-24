@@ -10,7 +10,7 @@ ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 ENV CI=true
 ENV npm_config_jobs=1
-ENV NODE_OPTIONS=--max-old-space-size=1024
+ENV NODE_OPTIONS=--max-old-space-size=4096
 ENV PNPM_CONFIG_NETWORK_CONCURRENCY=1
 ENV PNPM_CONFIG_CHILD_CONCURRENCY=1
 ENV PNPM_CONFIG_SIDE_EFFECTS_CACHE=false
@@ -47,7 +47,7 @@ RUN --mount=type=cache,id=wasd-vps-pnpm-store,target=/pnpm/store \
       '  - packages/shared' \
       > pnpm-workspace.yaml && \
     python3 scripts/sync-pnpm-lockfile-for-docker.py && \
-    pnpm install --lockfile-only --no-frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only && \
+    pnpm --filter @wasd/server... --filter @wasd/client... --filter @wasd/portal... --filter @wasd/client-2d... --filter @wasd/core-logic... --filter @wasd/shared... install --lockfile-only --no-frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only && \
     pnpm --filter @wasd/server... --filter @wasd/client... --filter @wasd/portal... --filter @wasd/client-2d... --filter @wasd/core-logic... --filter @wasd/shared... install --frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
 
 COPY . .
