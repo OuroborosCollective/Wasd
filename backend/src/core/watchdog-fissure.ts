@@ -1,5 +1,5 @@
 import { WatchdogEmitter } from './watchdog-emitter.js';
-import { RealityFissureBrain, FissureData } from '../../server/src/modules/brain/RealityFissureBrain.js';
+import { RealityFissureBrain } from '../../server/src/modules/brain/RealityFissureBrain.js';
 
 export class WatchdogFissureMonitor {
     private emitter: WatchdogEmitter;
