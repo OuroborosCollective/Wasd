@@ -29,7 +29,7 @@
     "express": "^5.2.1",
     "genkit": "^1.35.0",
     "google-auth-library": "^10.6.2",
-    "googleapis": "^171.4.0",
+    "googleapis": "^172.0.0",
     "ioredis": "^5.10.1",
     "js-yaml": "^4.1.1",
     "jsonwebtoken": "^9.0.3",
