@@ -97,7 +97,7 @@ jobs:
 
       - name: Create import pull request
         if: success() && (github.event_name == 'push' || github.event_name == 'issue_comment' || github.event.inputs.persist == '' || github.event.inputs.persist == 'true')
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: asset/stitch-import-${{ steps.import_issue.outputs.number }}
