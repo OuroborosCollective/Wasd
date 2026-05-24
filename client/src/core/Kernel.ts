@@ -29,22 +29,7 @@ export class Kernel {
         }
 
         if (!this.resonanceAudioBridge) {
-            /**
-             * Fix: Typ-Fehler bei AudioContext beheben.
-             * Das Interface für ResonanceAudioBridge erwartet Methoden zur Steuerung der Audio-Eigenschaften.
-             * Wir übergeben ein kompatibles Objekt, das den nativen AudioContext kapselt.
-             */
-            const audioController = {
-                context: this.audioContext!,
-                setPlaybackRate: (rate: number) => {
-                    // Implementierung der Wiedergaberate-Logik falls erforderlich
-                },
-                setFilterCutoff: (frequency: number) => {
-                    // Implementierung der Filter-Logik falls erforderlich
-                }
-            };
-
-            this.resonanceAudioBridge = new ResonanceAudioBridge(this as any, audioController as any);
+            this.resonanceAudioBridge = new ResonanceAudioBridge(this as any);
         }
         
         this.isRunning = true;

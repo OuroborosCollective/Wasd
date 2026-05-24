@@ -9,7 +9,6 @@
  * Full AudioNode logic implementation.
  */
 
-import { Scene } from '@babylonjs/core/scene';
 import { Sound } from '@babylonjs/core/Audio/sound';
 import { AudioEngine } from '@babylonjs/core/Audio/audioEngine';
 
@@ -116,35 +115,13 @@ export class ResonanceAudioBridge {
   private lastAggression: number = 0;
   private currentBPM: number;
   private currentFilterHz: number;
-  private isInitialized: boolean = false;
 
   constructor(
     private engine: TraitResonanceEngine | AREPayload,
-    private scene?: Scene,
     private config: AudioConfig = DEFAULT_AUDIO_CONFIG
   ) {
     this.currentBPM = config.baseBPM;
     this.currentFilterHz = config.baseFilterHz;
-  }
-
-  /**
-   * Initialize audio system
-   */
-  public async initialize(): Promise<void> {
-    if (this.isInitialized) {
-      return;
-    }
-
-    // Setup audio context if scene provided
-    if (this.scene) {
-      const audioEngine = this.scene.getEngine();
-      if (audioEngine) {
-        // Audio is ready
-        console.log('[ResonanceAudioBridge] Initialized with scene');
-      }
-    }
-
-    this.isInitialized = true;
   }
 
   /**
@@ -315,7 +292,6 @@ export class ResonanceAudioBridge {
   public dispose(): void {
     this.tickCounter = 0;
     this.lastAggression = 0;
-    this.isInitialized = false;
   }
 }
 
@@ -324,7 +300,6 @@ export class ResonanceAudioBridge {
  */
 export function createAudioBridge(
   engine: TraitResonanceEngine | AREPayload,
-  scene?: Scene,
   config?: Partial<AudioConfig>
 ): ResonanceAudioBridge {
   const finalConfig = {
@@ -332,7 +307,7 @@ export function createAudioBridge(
     ...config
   };
 
-  return new ResonanceAudioBridge(engine, scene, finalConfig);
+  return new ResonanceAudioBridge(engine, finalConfig);
 }
 
 export default ResonanceAudioBridge;
