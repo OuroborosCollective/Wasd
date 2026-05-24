@@ -34,12 +34,13 @@ class LootTransactionHandler {
             }
 
             // 3. Token Transfer (Atomar)
-            if (lootPayload.tokens > 0) {
+            if (lootPayload.tokens > 0 && participantIds.length > 0) {
                 const sharePerPerson = Math.floor(lootPayload.tokens / participantIds.length);
-                for (const userId of participantIds) {
+                if (sharePerPerson > 0) {
+                    const placeholders = participantIds.map(() => "?").join(",");
                     await connection.query(
-                        'UPDATE user_wallets SET balance = balance + ?, last_update = NOW() WHERE user_id = ?',
-                        [sharePerPerson, userId]
+                        `UPDATE user_wallets SET balance = balance + ?, last_update = NOW() WHERE user_id IN (${placeholders})`,
+                        [sharePerPerson, ...participantIds]
                     );
                 }
             }
