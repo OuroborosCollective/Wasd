@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-05-23T06:31:12.625Z",
+  "generatedAt": "2026-05-24T02:00:48.051Z",
   "source": "active starter subset from uploaded Pipoya ZIP packs",
   "basePath": "/2d-assets",
   "notes": [
@@ -32,6 +32,12 @@
       "url": "https://github.com/user-attachments/files/28171704/stitch_medieval_fantasy_sprite_atlas.zip",
       "importedAs": "stitch/stitch_medieval_fantasy_sprite_atlas",
       "type": "stitch-generated-atlas"
+    },
+    {
+      "name": "stitch_medieval_fantasy_sprite_atlas.zip",
+      "url": "https://github.com/user-attachments/files/28171704/stitch_medieval_fantasy_sprite_atlas.zip",
+      "importedAs": "stitch/stitch_medieval_fantasy_sprite_atlas",
+      "type": "stitch-generated-atlas"
     }
   ],
   "fallbacks": {
@@ -50,7 +56,15 @@
       "tileWidth": 32,
       "tileHeight": 32,
       "width": 32,
-      "height": 32
+      "height": 32,
+      "role": "terrain",
+      "pickable": false,
+      "assetHash": "1ef2b1d858628087",
+      "tags": [
+        "are-forged",
+        "tilesets",
+        "terrain"
+      ]
     },
     "stitch_samurai_ground_tiles": {
       "src": "/2d-assets/stitch/stitch_samurai_ground_tiles/stitch_samurai_ground_tiles.png",
@@ -61,14 +75,28 @@
       "kind": "ground_tiles",
       "group": "samurai",
       "tags": [
+        "are-forged",
+        "tilesets",
+        "terrain",
         "stitch",
         "samurai",
         "ground_tiles",
-        "tilesets",
         "gameplay"
       ],
       "tileWidth": 256,
-      "tileHeight": 256
+      "tileHeight": 256,
+      "role": "terrain",
+      "pickable": false,
+      "assetHash": "3036eed0d79304af",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "58a56f1be850a954",
+      "frame": {
+        "x": 280,
+        "y": 550,
+        "w": 220,
+        "h": 200
+      }
     },
     "stitch_medieval_ground_tiles": {
       "src": "/2d-assets/stitch/stitch_medieval_ground_tiles/stitch_medieval_ground_tiles.png",
@@ -79,14 +107,28 @@
       "kind": "ground_tiles",
       "group": "medieval",
       "tags": [
+        "are-forged",
+        "tilesets",
+        "terrain",
         "stitch",
         "medieval",
         "ground_tiles",
-        "tilesets",
         "gameplay"
       ],
       "tileWidth": 256,
-      "tileHeight": 256
+      "tileHeight": 256,
+      "role": "terrain",
+      "pickable": false,
+      "assetHash": "dc68e6f518659d48",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "eb90a1c414f07c8f",
+      "frame": {
+        "x": 500,
+        "y": 500,
+        "w": 160,
+        "h": 160
+      }
     },
     "stitch_mongolian_ground_tiles": {
       "src": "/2d-assets/stitch/stitch_mongolian_ground_tiles/stitch_mongolian_ground_tiles.png",
@@ -97,14 +139,124 @@
       "kind": "ground_tiles",
       "group": "mongolian",
       "tags": [
+        "are-forged",
+        "tilesets",
+        "terrain",
         "stitch",
         "mongolian",
         "ground_tiles",
-        "tilesets",
         "gameplay"
       ],
       "tileWidth": 256,
-      "tileHeight": 256
+      "tileHeight": 256,
+      "role": "terrain",
+      "pickable": false,
+      "assetHash": "d09faead83b2d532",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "5169aee64ba269b8",
+      "frame": {
+        "x": 280,
+        "y": 170,
+        "w": 350,
+        "h": 350
+      }
+    },
+    "stitch_samurai_ground_tiles_02": {
+      "src": "/2d-assets/stitch/stitch_samurai_ground_tiles_02/stitch_samurai_ground_tiles_02.png",
+      "atlas": "/2d-assets/stitch/stitch_samurai_ground_tiles_02/stitch_samurai_ground_tiles_02.json",
+      "source": "stitch_medieval_fantasy_sprite_atlas.zip",
+      "sourcePath": "stitch_medieval_fantasy_sprite_atlas/an_isometric_2.5d_sprite_sheet_texture_atlas_of_japanese_samurai_era_ground/screen.png",
+      "license": "Project-owned generated asset. See /2d-assets/credits/stitch-generated-atlas-provenance.md",
+      "kind": "ground_tiles",
+      "group": "samurai",
+      "tags": [
+        "are-forged",
+        "tilesets",
+        "terrain",
+        "stitch",
+        "samurai",
+        "ground_tiles",
+        "gameplay"
+      ],
+      "tileWidth": 256,
+      "tileHeight": 256,
+      "role": "terrain",
+      "pickable": false,
+      "assetHash": "8bbddaf994630b87",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "58a56f1be850a954",
+      "frame": {
+        "x": 280,
+        "y": 550,
+        "w": 220,
+        "h": 200
+      }
+    },
+    "stitch_medieval_ground_tiles_02": {
+      "src": "/2d-assets/stitch/stitch_medieval_ground_tiles_02/stitch_medieval_ground_tiles_02.png",
+      "atlas": "/2d-assets/stitch/stitch_medieval_ground_tiles_02/stitch_medieval_ground_tiles_02.json",
+      "source": "stitch_medieval_fantasy_sprite_atlas.zip",
+      "sourcePath": "stitch_medieval_fantasy_sprite_atlas/an_isometric_2.5d_sprite_sheet_texture_atlas_of_medieval_fantasy_ground_tiles/screen.png",
+      "license": "Project-owned generated asset. See /2d-assets/credits/stitch-generated-atlas-provenance.md",
+      "kind": "ground_tiles",
+      "group": "medieval",
+      "tags": [
+        "are-forged",
+        "tilesets",
+        "terrain",
+        "stitch",
+        "medieval",
+        "ground_tiles",
+        "gameplay"
+      ],
+      "tileWidth": 256,
+      "tileHeight": 256,
+      "role": "terrain",
+      "pickable": false,
+      "assetHash": "a0fa70995b3741ab",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "eb90a1c414f07c8f",
+      "frame": {
+        "x": 500,
+        "y": 500,
+        "w": 160,
+        "h": 160
+      }
+    },
+    "stitch_mongolian_ground_tiles_02": {
+      "src": "/2d-assets/stitch/stitch_mongolian_ground_tiles_02/stitch_mongolian_ground_tiles_02.png",
+      "atlas": "/2d-assets/stitch/stitch_mongolian_ground_tiles_02/stitch_mongolian_ground_tiles_02.json",
+      "source": "stitch_medieval_fantasy_sprite_atlas.zip",
+      "sourcePath": "stitch_medieval_fantasy_sprite_atlas/an_isometric_2.5d_sprite_sheet_texture_atlas_of_mongolian_steppe_ground_tiles/screen.png",
+      "license": "Project-owned generated asset. See /2d-assets/credits/stitch-generated-atlas-provenance.md",
+      "kind": "ground_tiles",
+      "group": "mongolian",
+      "tags": [
+        "are-forged",
+        "tilesets",
+        "terrain",
+        "stitch",
+        "mongolian",
+        "ground_tiles",
+        "gameplay"
+      ],
+      "tileWidth": 256,
+      "tileHeight": 256,
+      "role": "terrain",
+      "pickable": false,
+      "assetHash": "e6c6bcc3cfcb220d",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "5169aee64ba269b8",
+      "frame": {
+        "x": 280,
+        "y": 170,
+        "w": 350,
+        "h": 350
+      }
     }
   },
   "characters": {
@@ -115,7 +267,15 @@
       "width": 32,
       "height": 32,
       "frameWidth": 32,
-      "frameHeight": 32
+      "frameHeight": 32,
+      "role": "npc",
+      "pickable": true,
+      "assetHash": "3138720213f36e80",
+      "tags": [
+        "are-forged",
+        "characters",
+        "npc"
+      ]
     },
     "character_npc_guard_01": {
       "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAC+UlEQVR42uVXz0sbQRh9K7kKLaK21ENmSgVp8RCiLcWLTIrQq72UHsP+EZJjkdK/YfFsLz30IhSy5FZFQ6BiCdg6MwehxDYoKD30sj3oN04m2exO9Na5bHYz37zvx/vezAD/+whGMSqVyknaf61W02vNwijAnHPYTwCQUtLPxMeRwAecc25AGWN9c5RSxhkpZS4nCr7gNnCxeJ0BreUgp5IsJwq3AU7vWstB2RnqROE2wG/ixFhWBmyijTKy7Meyoh9EOIrSHe53suOcp7ZuLhJGUWQWGhaR2wUAUKlUbtYF9XodnHMIIRBFEaSU4Jzbfd8z6HsYhojj2Nh76UCpVE4qlYoxdkuRRkK7DG42aD2XjLlKIKXE4W4Ts4tlcM6hlMoUIpo/shDZKRZCAAAOd5s43G3mYv/sYhlCCMRx3Lderi6wDZRSEELkisgGp4wMcyDIs+O5YpSXA3Y3pG1QhTwiQguRI3k4QMD2Gl4cuPI24ZwbBr9duofp+Qe4+3AmxWoKp0fH6Oz/wZsr5mftjENLQMBG2Sa7eDn3GM+LHNPzj/psOvvf8UVLbLW/Qf2aMN/TWjBTB+yaNxoxpJRIzveyDxnjCxBCGK5oLaGU8tMBqhljDFpLiwcLhpA2y+md5lHrEim9umB1hSXPpueweXDSQyLKih2Zu0VTtC5gGg+GdsHrJ1PY6ez11DMNhPPezpBSYn39neto37kglYSrKywBgI+fVTBIF+hpp76ndJNdvHq6BAA4u7/kzwECdk9Grri4wORcct41cy62P+Go00arpfxK4IIvLwswxowj1Wpo5m1sRGZOoxHj6OsejvWlE7//jnAicgfVN4ois01TbbW+VEnSDMYYgvEF7HTa2Om08eO03ZNRrwyQIlarIWq1NSPH9XrdnHaovpxz1GprCMPwivUq817gfTEhgdFamqMadQyNzYOT3Dej3FezVqsZsMlucrF9gbOfE7gD4MXsFN5/2AouWc+S67kqd2Bed0MAmClOZHaNz/gH93fuMGMMXjEAAAAASUVORK5CYII=",
@@ -124,7 +284,15 @@
       "width": 32,
       "height": 32,
       "frameWidth": 32,
-      "frameHeight": 32
+      "frameHeight": 32,
+      "role": "npc",
+      "pickable": true,
+      "assetHash": "32cf7edd26fab5cd",
+      "tags": [
+        "are-forged",
+        "characters",
+        "npc"
+      ]
     }
   },
   "monsters": {},
@@ -138,10 +306,12 @@
       "kind": "architecture",
       "group": "medieval",
       "tags": [
+        "are-forged",
+        "buildings",
+        "house",
         "stitch",
         "medieval",
         "architecture",
-        "buildings",
         "gameplay"
       ],
       "zHeight": 3,
@@ -153,6 +323,18 @@
         "w": 164,
         "h": 42,
         "alpha": 0.38
+      },
+      "role": "house",
+      "pickable": true,
+      "assetHash": "c89cf44064a037cf",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "8f162ae7b0632055",
+      "frame": {
+        "x": 550,
+        "y": 50,
+        "w": 400,
+        "h": 350
       }
     },
     "stitch_mongolian_architecture": {
@@ -164,10 +346,12 @@
       "kind": "architecture",
       "group": "mongolian",
       "tags": [
+        "are-forged",
+        "buildings",
+        "house",
         "stitch",
         "mongolian",
         "architecture",
-        "buildings",
         "gameplay"
       ],
       "zHeight": 3,
@@ -179,6 +363,98 @@
         "w": 164,
         "h": 42,
         "alpha": 0.38
+      },
+      "role": "house",
+      "pickable": true,
+      "assetHash": "9408e734d705513a",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "faae8e6031584ce7",
+      "frame": {
+        "x": 120,
+        "y": 550,
+        "w": 280,
+        "h": 320
+      }
+    },
+    "stitch_medieval_architecture_02": {
+      "src": "/2d-assets/stitch/stitch_medieval_architecture_02/stitch_medieval_architecture_02.png",
+      "atlas": "/2d-assets/stitch/stitch_medieval_architecture_02/stitch_medieval_architecture_02.json",
+      "source": "stitch_medieval_fantasy_sprite_atlas.zip",
+      "sourcePath": "stitch_medieval_fantasy_sprite_atlas/an_isometric_2.5d_sprite_sheet_texture_atlas_of_medieval_fantasy_architecture/screen.png",
+      "license": "Project-owned generated asset. See /2d-assets/credits/stitch-generated-atlas-provenance.md",
+      "kind": "architecture",
+      "group": "medieval",
+      "tags": [
+        "are-forged",
+        "buildings",
+        "house",
+        "stitch",
+        "medieval",
+        "architecture",
+        "gameplay"
+      ],
+      "zHeight": 3,
+      "isoFootprint": {
+        "w": 144,
+        "h": 72
+      },
+      "shadow": {
+        "w": 164,
+        "h": 42,
+        "alpha": 0.38
+      },
+      "role": "house",
+      "pickable": true,
+      "assetHash": "74ce304ce1376c1d",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "8f162ae7b0632055",
+      "frame": {
+        "x": 550,
+        "y": 50,
+        "w": 400,
+        "h": 350
+      }
+    },
+    "stitch_mongolian_architecture_02": {
+      "src": "/2d-assets/stitch/stitch_mongolian_architecture_02/stitch_mongolian_architecture_02.png",
+      "atlas": "/2d-assets/stitch/stitch_mongolian_architecture_02/stitch_mongolian_architecture_02.json",
+      "source": "stitch_medieval_fantasy_sprite_atlas.zip",
+      "sourcePath": "stitch_medieval_fantasy_sprite_atlas/an_isometric_2.5d_sprite_sheet_texture_atlas_of_mongolian_empire_architecture/screen.png",
+      "license": "Project-owned generated asset. See /2d-assets/credits/stitch-generated-atlas-provenance.md",
+      "kind": "architecture",
+      "group": "mongolian",
+      "tags": [
+        "are-forged",
+        "buildings",
+        "house",
+        "stitch",
+        "mongolian",
+        "architecture",
+        "gameplay"
+      ],
+      "zHeight": 3,
+      "isoFootprint": {
+        "w": 144,
+        "h": 72
+      },
+      "shadow": {
+        "w": 164,
+        "h": 42,
+        "alpha": 0.38
+      },
+      "role": "house",
+      "pickable": true,
+      "assetHash": "967de4b7d9437608",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "faae8e6031584ce7",
+      "frame": {
+        "x": 120,
+        "y": 550,
+        "w": 280,
+        "h": 320
       }
     }
   },
@@ -192,10 +468,12 @@
       "kind": "decor",
       "group": "samurai",
       "tags": [
+        "are-forged",
+        "props",
+        "prop",
         "stitch",
         "samurai",
         "decor",
-        "props",
         "gameplay"
       ],
       "zHeight": 1,
@@ -207,6 +485,18 @@
         "w": 72,
         "h": 20,
         "alpha": 0.32
+      },
+      "role": "prop",
+      "pickable": true,
+      "assetHash": "2777791dea07862a",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "7aa36c53b0111c88",
+      "frame": {
+        "x": 130,
+        "y": 190,
+        "w": 110,
+        "h": 90
       }
     },
     "stitch_samurai_vegetation": {
@@ -218,10 +508,12 @@
       "kind": "vegetation",
       "group": "samurai",
       "tags": [
+        "are-forged",
+        "props",
+        "tree",
         "stitch",
         "samurai",
         "vegetation",
-        "props",
         "gameplay"
       ],
       "zHeight": 2,
@@ -233,6 +525,18 @@
         "w": 88,
         "h": 26,
         "alpha": 0.34
+      },
+      "role": "tree",
+      "pickable": true,
+      "assetHash": "9985247b80b55825",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "1ab86ce53f20a897",
+      "frame": {
+        "x": 280,
+        "y": 480,
+        "w": 230,
+        "h": 320
       }
     },
     "stitch_medieval_decor": {
@@ -244,10 +548,12 @@
       "kind": "decor",
       "group": "medieval",
       "tags": [
+        "are-forged",
+        "props",
+        "prop",
         "stitch",
         "medieval",
         "decor",
-        "props",
         "gameplay"
       ],
       "zHeight": 1,
@@ -259,6 +565,18 @@
         "w": 72,
         "h": 20,
         "alpha": 0.32
+      },
+      "role": "prop",
+      "pickable": true,
+      "assetHash": "a6ddae5ff893b6c8",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "3689546c9784101c",
+      "frame": {
+        "x": 30,
+        "y": 780,
+        "w": 180,
+        "h": 190
       }
     },
     "stitch_medieval_vegetation": {
@@ -270,10 +588,12 @@
       "kind": "vegetation",
       "group": "medieval",
       "tags": [
+        "are-forged",
+        "props",
+        "tree",
         "stitch",
         "medieval",
         "vegetation",
-        "props",
         "gameplay"
       ],
       "zHeight": 2,
@@ -285,6 +605,18 @@
         "w": 88,
         "h": 26,
         "alpha": 0.34
+      },
+      "role": "tree",
+      "pickable": true,
+      "assetHash": "477ad77d14f82914",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "3e485b864ac56d74",
+      "frame": {
+        "x": 80,
+        "y": 750,
+        "w": 100,
+        "h": 220
       }
     },
     "stitch_mongolian_decor": {
@@ -296,10 +628,12 @@
       "kind": "decor",
       "group": "mongolian",
       "tags": [
+        "are-forged",
+        "props",
+        "prop",
         "stitch",
         "mongolian",
         "decor",
-        "props",
         "gameplay"
       ],
       "zHeight": 1,
@@ -311,6 +645,18 @@
         "w": 72,
         "h": 20,
         "alpha": 0.32
+      },
+      "role": "prop",
+      "pickable": true,
+      "assetHash": "130ac60a9f1592ab",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "4410c08d857379c9",
+      "frame": {
+        "x": 550,
+        "y": 310,
+        "w": 190,
+        "h": 180
       }
     },
     "stitch_mongolian_vegetation": {
@@ -322,10 +668,12 @@
       "kind": "vegetation",
       "group": "mongolian",
       "tags": [
+        "are-forged",
+        "props",
+        "tree",
         "stitch",
         "mongolian",
         "vegetation",
-        "props",
         "gameplay"
       ],
       "zHeight": 2,
@@ -337,6 +685,258 @@
         "w": 88,
         "h": 26,
         "alpha": 0.34
+      },
+      "role": "tree",
+      "pickable": true,
+      "assetHash": "f24a110bb96f849c",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "b2a37c8f185f22b3",
+      "frame": {
+        "x": 580,
+        "y": 620,
+        "w": 80,
+        "h": 70
+      }
+    },
+    "stitch_samurai_decor_02": {
+      "src": "/2d-assets/stitch/stitch_samurai_decor_02/stitch_samurai_decor_02.png",
+      "atlas": "/2d-assets/stitch/stitch_samurai_decor_02/stitch_samurai_decor_02.json",
+      "source": "stitch_medieval_fantasy_sprite_atlas.zip",
+      "sourcePath": "stitch_medieval_fantasy_sprite_atlas/an_isometric_2.5d_sprite_sheet_texture_atlas_of_japanese_samurai_era_decoration/screen.png",
+      "license": "Project-owned generated asset. See /2d-assets/credits/stitch-generated-atlas-provenance.md",
+      "kind": "decor",
+      "group": "samurai",
+      "tags": [
+        "are-forged",
+        "props",
+        "prop",
+        "stitch",
+        "samurai",
+        "decor",
+        "gameplay"
+      ],
+      "zHeight": 1,
+      "isoFootprint": {
+        "w": 64,
+        "h": 28
+      },
+      "shadow": {
+        "w": 72,
+        "h": 20,
+        "alpha": 0.32
+      },
+      "role": "prop",
+      "pickable": true,
+      "assetHash": "6592184312705ee5",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "7aa36c53b0111c88",
+      "frame": {
+        "x": 130,
+        "y": 190,
+        "w": 110,
+        "h": 90
+      }
+    },
+    "stitch_samurai_vegetation_02": {
+      "src": "/2d-assets/stitch/stitch_samurai_vegetation_02/stitch_samurai_vegetation_02.png",
+      "atlas": "/2d-assets/stitch/stitch_samurai_vegetation_02/stitch_samurai_vegetation_02.json",
+      "source": "stitch_medieval_fantasy_sprite_atlas.zip",
+      "sourcePath": "stitch_medieval_fantasy_sprite_atlas/an_isometric_2.5d_sprite_sheet_texture_atlas_of_japanese_samurai_era_trees_and/screen.png",
+      "license": "Project-owned generated asset. See /2d-assets/credits/stitch-generated-atlas-provenance.md",
+      "kind": "vegetation",
+      "group": "samurai",
+      "tags": [
+        "are-forged",
+        "props",
+        "tree",
+        "stitch",
+        "samurai",
+        "vegetation",
+        "gameplay"
+      ],
+      "zHeight": 2,
+      "isoFootprint": {
+        "w": 72,
+        "h": 36
+      },
+      "shadow": {
+        "w": 88,
+        "h": 26,
+        "alpha": 0.34
+      },
+      "role": "tree",
+      "pickable": true,
+      "assetHash": "b715cd567dce4bd4",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "1ab86ce53f20a897",
+      "frame": {
+        "x": 280,
+        "y": 480,
+        "w": 230,
+        "h": 320
+      }
+    },
+    "stitch_medieval_decor_02": {
+      "src": "/2d-assets/stitch/stitch_medieval_decor_02/stitch_medieval_decor_02.png",
+      "atlas": "/2d-assets/stitch/stitch_medieval_decor_02/stitch_medieval_decor_02.json",
+      "source": "stitch_medieval_fantasy_sprite_atlas.zip",
+      "sourcePath": "stitch_medieval_fantasy_sprite_atlas/an_isometric_2.5d_sprite_sheet_texture_atlas_of_medieval_fantasy_decoration/screen.png",
+      "license": "Project-owned generated asset. See /2d-assets/credits/stitch-generated-atlas-provenance.md",
+      "kind": "decor",
+      "group": "medieval",
+      "tags": [
+        "are-forged",
+        "props",
+        "prop",
+        "stitch",
+        "medieval",
+        "decor",
+        "gameplay"
+      ],
+      "zHeight": 1,
+      "isoFootprint": {
+        "w": 64,
+        "h": 28
+      },
+      "shadow": {
+        "w": 72,
+        "h": 20,
+        "alpha": 0.32
+      },
+      "role": "prop",
+      "pickable": true,
+      "assetHash": "add60932e2efc847",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "3689546c9784101c",
+      "frame": {
+        "x": 30,
+        "y": 780,
+        "w": 180,
+        "h": 190
+      }
+    },
+    "stitch_medieval_vegetation_02": {
+      "src": "/2d-assets/stitch/stitch_medieval_vegetation_02/stitch_medieval_vegetation_02.png",
+      "atlas": "/2d-assets/stitch/stitch_medieval_vegetation_02/stitch_medieval_vegetation_02.json",
+      "source": "stitch_medieval_fantasy_sprite_atlas.zip",
+      "sourcePath": "stitch_medieval_fantasy_sprite_atlas/an_isometric_2.5d_sprite_sheet_texture_atlas_of_medieval_fantasy_trees_and/screen.png",
+      "license": "Project-owned generated asset. See /2d-assets/credits/stitch-generated-atlas-provenance.md",
+      "kind": "vegetation",
+      "group": "medieval",
+      "tags": [
+        "are-forged",
+        "props",
+        "tree",
+        "stitch",
+        "medieval",
+        "vegetation",
+        "gameplay"
+      ],
+      "zHeight": 2,
+      "isoFootprint": {
+        "w": 72,
+        "h": 36
+      },
+      "shadow": {
+        "w": 88,
+        "h": 26,
+        "alpha": 0.34
+      },
+      "role": "tree",
+      "pickable": true,
+      "assetHash": "2bb6e27c7b4530b9",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "3e485b864ac56d74",
+      "frame": {
+        "x": 80,
+        "y": 750,
+        "w": 100,
+        "h": 220
+      }
+    },
+    "stitch_mongolian_decor_02": {
+      "src": "/2d-assets/stitch/stitch_mongolian_decor_02/stitch_mongolian_decor_02.png",
+      "atlas": "/2d-assets/stitch/stitch_mongolian_decor_02/stitch_mongolian_decor_02.json",
+      "source": "stitch_medieval_fantasy_sprite_atlas.zip",
+      "sourcePath": "stitch_medieval_fantasy_sprite_atlas/an_isometric_2.5d_sprite_sheet_texture_atlas_of_mongolian_empire_decoration/screen.png",
+      "license": "Project-owned generated asset. See /2d-assets/credits/stitch-generated-atlas-provenance.md",
+      "kind": "decor",
+      "group": "mongolian",
+      "tags": [
+        "are-forged",
+        "props",
+        "prop",
+        "stitch",
+        "mongolian",
+        "decor",
+        "gameplay"
+      ],
+      "zHeight": 1,
+      "isoFootprint": {
+        "w": 64,
+        "h": 28
+      },
+      "shadow": {
+        "w": 72,
+        "h": 20,
+        "alpha": 0.32
+      },
+      "role": "prop",
+      "pickable": true,
+      "assetHash": "81f9ad1208ace8cf",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "4410c08d857379c9",
+      "frame": {
+        "x": 550,
+        "y": 310,
+        "w": 190,
+        "h": 180
+      }
+    },
+    "stitch_mongolian_vegetation_02": {
+      "src": "/2d-assets/stitch/stitch_mongolian_vegetation_02/stitch_mongolian_vegetation_02.png",
+      "atlas": "/2d-assets/stitch/stitch_mongolian_vegetation_02/stitch_mongolian_vegetation_02.json",
+      "source": "stitch_medieval_fantasy_sprite_atlas.zip",
+      "sourcePath": "stitch_medieval_fantasy_sprite_atlas/an_isometric_2.5d_sprite_sheet_texture_atlas_of_mongolian_steppe_trees_and/screen.png",
+      "license": "Project-owned generated asset. See /2d-assets/credits/stitch-generated-atlas-provenance.md",
+      "kind": "vegetation",
+      "group": "mongolian",
+      "tags": [
+        "are-forged",
+        "props",
+        "tree",
+        "stitch",
+        "mongolian",
+        "vegetation",
+        "gameplay"
+      ],
+      "zHeight": 2,
+      "isoFootprint": {
+        "w": 72,
+        "h": 36
+      },
+      "shadow": {
+        "w": 88,
+        "h": 26,
+        "alpha": 0.34
+      },
+      "role": "tree",
+      "pickable": true,
+      "assetHash": "2ee9963f4c30a48f",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "b2a37c8f185f22b3",
+      "frame": {
+        "x": 580,
+        "y": 620,
+        "w": 80,
+        "h": 70
       }
     }
   },
