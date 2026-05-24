@@ -15,6 +15,7 @@ on:
       - 'engine/**'
       - 'portal/**'
       - 'scripts/**'
+      - '.github/workflows/vps-docker-deploy.yml'
       - 'Dockerfile.prod'
       - 'docker-compose*.yml'
       - 'package.json'
