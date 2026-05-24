@@ -60,5 +60,12 @@
       "typescript": "^6.0.3",
       "@types/node": "^25.9.1"
     }
+  },
+  "dependencies": {
+    "@babylonjs/core": "9.8.0",
+    "@babylonjs/loaders": "9.8.0",
+    "@babylonjs/materials": "9.8.0",
+    "@types/react": "^19.2.14",
+    "pg": "^8.20.0"
   }
 }
