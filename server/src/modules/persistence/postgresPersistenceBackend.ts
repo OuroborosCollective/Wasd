@@ -66,20 +66,26 @@ export class PostgresPersistenceBackend implements IPersistenceBackend {
       return;
     }
 
+    const ids = Object.keys(data);
+    if (ids.length === 0) return;
+
     try {
-      for (const id of Object.keys(data)) {
+      const payloads = ids.map(id => {
         const payload = {
           ...serializePlayerForPersistence(data[id]),
           lastUpdated: new Date().toISOString(),
         };
-        await db.query(
-          `INSERT INTO player_snapshots (id, snapshot, last_updated)
-           VALUES ($1, $2::jsonb, NOW())
-           ON CONFLICT (id) DO UPDATE SET snapshot = EXCLUDED.snapshot, last_updated = NOW()`,
-          [id, JSON.stringify(payload)]
-        );
-      }
-      console.log(`Saved ${Object.keys(data).length} players to Postgres.`);
+        return JSON.stringify(payload);
+      });
+
+      await db.query(
+        `INSERT INTO player_snapshots (id, snapshot, last_updated)
+         SELECT * FROM UNNEST($1::text[], $2::jsonb[])
+         ON CONFLICT (id) DO UPDATE SET snapshot = EXCLUDED.snapshot, last_updated = NOW()`,
+        [ids, payloads]
+      );
+
+      console.log(`Saved ${ids.length} players to Postgres (batched).`);
     } catch (err) {
       console.error("[Persistence] Failed to save players to Postgres:", err);
     }
@@ -111,18 +117,21 @@ export class PostgresPersistenceBackend implements IPersistenceBackend {
       console.warn("[Persistence] Postgres saveWorldObjects skipped (database not configured).");
       return;
     }
+
+    const validObjects = objects.filter(obj => typeof obj?.id === "string" && obj.id);
+    if (validObjects.length === 0) return;
+
     try {
-      for (const obj of objects) {
-        const id = typeof obj?.id === "string" ? obj.id : "";
-        if (!id) continue;
-        await db.query(
-          `INSERT INTO world_object_snapshots (id, snapshot, last_updated)
-           VALUES ($1, $2::jsonb, NOW())
-           ON CONFLICT (id) DO UPDATE SET snapshot = EXCLUDED.snapshot, last_updated = NOW()`,
-          [id, JSON.stringify(obj)]
-        );
-      }
-      console.log(`Saved ${objects.length} world objects to Postgres.`);
+      const ids = validObjects.map(obj => obj.id);
+      const snapshots = validObjects.map(obj => JSON.stringify(obj));
+
+      await db.query(
+        `INSERT INTO world_object_snapshots (id, snapshot, last_updated)
+         SELECT * FROM UNNEST($1::text[], $2::jsonb[])
+         ON CONFLICT (id) DO UPDATE SET snapshot = EXCLUDED.snapshot, last_updated = NOW()`,
+        [ids, snapshots]
+      );
+      console.log(`Saved ${validObjects.length} world objects to Postgres (batched).`);
     } catch (err) {
       console.error("[Persistence] Failed to save world objects to Postgres:", err);
     }
