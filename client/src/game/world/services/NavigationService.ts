@@ -4,7 +4,7 @@
  * Docs: https://doc.babylonjs.com/features/featuresDeepDive/crowdNavigation/v2Intro
  */
 
-import { Scene, Mesh, Vector3, TransformNode } from "@babylonjs/core";
+import { Scene, Vector3, AbstractMesh } from "@babylonjs/core";
 
 export interface NavMeshConfig {
   cellSize: number;
@@ -50,10 +50,11 @@ const DEFAULT_NAV_CONFIG: NavMeshConfig = {
 export class NavigationService {
   private scene: Scene | null = null;
   private config: NavMeshConfig;
-  private dirtyRegions: Map<string, { minX: number; minY: number; maxX: number; maxY: number }> = new Map();
+  private dirtyRegions: Map<string, { minX: number; minZ: number; maxX: number; maxZ: number }> = new Map();
   private agents: Map<string, NavAgent> = new Map();
   private initialized = false;
-  private navMesh: any = null; // Recast navmesh instance
+  private navMeshPlugin: any = null; // RecastJSPlugin instance
+  private rebuilding = false;
 
   constructor(config?: Partial<NavMeshConfig>) {
     this.config = { ...DEFAULT_NAV_CONFIG, ...config };
@@ -65,7 +66,10 @@ export class NavigationService {
 
     try {
       // Recast-detour is loaded as WASM — init lazily
-      // For now, mark as initialized and defer mesh building
+      // TODO: Instantiate RecastJSPlugin once the WASM library is available in the project
+      // const Recast = await import("recast-detour");
+      // this.navMeshPlugin = new RecastJSPlugin(Recast);
+
       this.initialized = true;
       console.log("[NavigationService] Navigation service initialized.");
     } catch (err) {
@@ -74,12 +78,12 @@ export class NavigationService {
   }
 
   /** Mark a region as dirty for navmesh rebuild. */
-  markDirty(id: string, minX: number, minY: number, maxX: number, maxY: number): void {
-    this.dirtyRegions.set(id, { minX, minY, maxX, maxY });
+  markDirty(id: string, minX: number, minZ: number, maxX: number, maxZ: number): void {
+    this.dirtyRegions.set(id, { minX, minZ, maxX, maxZ });
   }
 
   /** Get all dirty regions. */
-  getDirtyRegions(): Array<{ id: string; bounds: { minX: number; minY: number; maxX: number; maxY: number } }> {
+  getDirtyRegions(): Array<{ id: string; bounds: { minX: number; minZ: number; maxX: number; maxZ: number } }> {
     return Array.from(this.dirtyRegions.entries()).map(([id, bounds]) => ({ id, bounds }));
   }
 
@@ -90,30 +94,91 @@ export class NavigationService {
 
   /** Check if navmesh needs rebuild. */
   needsRebuild(): boolean {
-    return this.dirtyRegions.size > 0;
+    return this.dirtyRegions.size > 0 && !this.rebuilding;
   }
 
   /** Rebuild dirty regions of the navmesh. */
   async rebuildDirtyRegions(): Promise<void> {
-    if (!this.needsRebuild()) return;
+    if (!this.needsRebuild() || this.rebuilding) return;
+    this.rebuilding = true;
 
-    // Collect all dirty bounds
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const region of this.dirtyRegions.values()) {
-      minX = Math.min(minX, region.minX);
-      minY = Math.min(minY, region.minY);
-      maxX = Math.max(maxX, region.maxX);
-      maxY = Math.max(maxY, region.maxY);
+    try {
+      // 1. Collect all dirty bounds into an aggregate area
+      let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
+      for (const region of this.dirtyRegions.values()) {
+        minX = Math.min(minX, region.minX);
+        minZ = Math.min(minZ, region.minZ);
+        maxX = Math.max(maxX, region.maxX);
+        maxZ = Math.max(maxZ, region.maxZ);
+      }
+
+      console.log(
+        `[NavigationService] Rebuilding navmesh region: (${minX.toFixed(1)}, ${minZ.toFixed(1)}) to (${maxX.toFixed(1)}, ${maxZ.toFixed(1)}), ` +
+        `${this.dirtyRegions.size} dirty areas.`
+      );
+
+      // 2. Gather meshes that intersect with these bounds
+      const meshesToBuild = this.getMeshesInBounds(minX, minZ, maxX, maxZ);
+
+      if (meshesToBuild.length === 0) {
+        console.warn("[NavigationService] No meshes found in rebuild bounds, skipping.");
+      } else {
+        // 3. Rebuild navmesh using collected meshes
+        // TODO: Call this.navMeshPlugin.createNavMesh(meshesToBuild, this.getNavMeshParameters())
+        // For now, we clear the dirty regions to acknowledge the request
+        console.log(`[NavigationService] Placeholder: Rebuilding with ${meshesToBuild.length} meshes.`);
+      }
+
+      this.dirtyRegions.clear();
+    } finally {
+      this.rebuilding = false;
     }
+  }
 
-    console.log(
-      `[NavigationService] Rebuilding navmesh region: (${minX},${minY}) to (${maxX},${maxY}), ` +
-      `${this.dirtyRegions.size} dirty areas.`
-    );
+  /** Retrieve and filter scene meshes within specified world bounds. */
+  private getMeshesInBounds(minX: number, minZ: number, maxX: number, maxZ: number): AbstractMesh[] {
+    if (!this.scene) return [];
 
-    // TODO: Call recast-detour rebuild with scene meshes in bounds
-    // For now, clear dirty regions
-    this.dirtyRegions.clear();
+    return this.scene.meshes.filter((mesh) => {
+      // Skip non-pickable or hidden meshes
+      if (!mesh.isEnabled() || !mesh.isVisible) return false;
+
+      // Only include static obstacles or terrain
+      // We look for metadata or specific naming conventions (e.g., from WorldGeneratorService)
+      const isStatic = mesh.isStaticFrozen || mesh.name.includes("terrain") || mesh.name.includes("chunk");
+      if (!isStatic) return false;
+
+      const bounds = mesh.getBoundingInfo().boundingBox;
+      const meshMin = bounds.minimumWorld;
+      const meshMax = bounds.maximumWorld;
+
+      // Check for AABB intersection on XZ plane
+      return !(
+        meshMax.x < minX ||
+        meshMin.x > maxX ||
+        meshMax.z < minZ ||
+        meshMin.z > maxZ
+      );
+    });
+  }
+
+  /** Map internal NavMeshConfig to Recast-compatible parameters. */
+  private getNavMeshParameters(): any {
+    return {
+      cs: this.config.cellSize,
+      ch: this.config.cellHeight,
+      walkableSlopeAngle: this.config.agentMaxSlope * (180 / Math.PI),
+      walkableHeight: this.config.agentHeight,
+      walkableClimb: this.config.agentMaxClimb,
+      walkableRadius: this.config.agentRadius,
+      maxEdgeLen: this.config.edgeMaxLen,
+      maxSimplificationError: this.config.edgeMaxError,
+      minRegionArea: this.config.regionMinSize * this.config.regionMinSize,
+      mergeRegionArea: this.config.regionMergeSize * this.config.regionMergeSize,
+      maxVertsPerPoly: this.config.vertsPerPoly,
+      detailSampleDist: this.config.detailSampleDist,
+      detailSampleMaxError: this.config.detailSampleMaxError,
+    };
   }
 
   /** Register a crowd agent (NPC). */
@@ -135,6 +200,8 @@ export class NavigationService {
     const agent = this.agents.get(agentId);
     if (!agent) return false;
     agent.target = target.clone();
+
+    // TODO: If navMeshPlugin is initialized, call agent.goto(target)
     return true;
   }
 
@@ -154,24 +221,30 @@ export class NavigationService {
   }
 
   /** Check if a position is walkable. */
-  isWalkable(x: number, y: number): boolean {
-    // TODO: Query navmesh
+  isWalkable(x: number, z: number): boolean {
+    if (!this.navMeshPlugin) return true;
+    // TODO: Query navmesh plugin
+    // const result = this.navMeshPlugin.getClosestPoint(new Vector3(x, 0, z));
     return true;
   }
 
   /** Get stats. */
-  getStats(): { agents: number; dirtyRegions: number; initialized: boolean } {
+  getStats(): { agents: number; dirtyRegions: number; initialized: boolean; rebuilding: boolean } {
     return {
       agents: this.agents.size,
       dirtyRegions: this.dirtyRegions.size,
       initialized: this.initialized,
+      rebuilding: this.rebuilding,
     };
   }
 
   dispose(): void {
     this.agents.clear();
     this.dirtyRegions.clear();
-    this.navMesh = null;
+    if (this.navMeshPlugin) {
+      this.navMeshPlugin.dispose();
+      this.navMeshPlugin = null;
+    }
     this.initialized = false;
   }
 }
