@@ -10,7 +10,7 @@ ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 ENV CI=true
 ENV npm_config_jobs=1
-ENV NODE_OPTIONS=--max-old-space-size=4096
+ENV NODE_OPTIONS=--max-old-space-size=8192
 ENV PNPM_CONFIG_NETWORK_CONCURRENCY=1
 ENV PNPM_CONFIG_CHILD_CONCURRENCY=1
 ENV PNPM_CONFIG_SIDE_EFFECTS_CACHE=false
@@ -67,7 +67,7 @@ RUN rm -rf packages/sdk-examples || true && \
     pnpm config set verify-deps-before-run false
 
 ENV NODE_ENV=production
-ENV NODE_OPTIONS=--max-old-space-size=6144
+ENV NODE_OPTIONS=--max-old-space-size=8192
 ENV PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN=false
 
 RUN pnpm --filter @wasd/core-logic --if-present run build:runtime && \
@@ -117,7 +117,7 @@ ENV NODE_ENV=production
 ENV PORT=3001
 ENV GAME_PORT=3001
 ENV HOST=0.0.0.0
-ENV NODE_OPTIONS=--max-old-space-size=4096
+ENV NODE_OPTIONS=--max-old-space-size=8192
 ENV UV_THREADPOOL_SIZE=16
 
 COPY --from=builder /app/package.json /app/pnpm-workspace.yaml ./
@@ -126,6 +126,10 @@ COPY --from=builder /app/server ./server
 COPY --from=builder /app/packages/core-logic ./packages/core-logic
 COPY --from=builder /app/packages/shared ./packages/shared
 COPY --from=builder /app/client/dist ./client/dist
+COPY --from=builder /app/client/dist ./server/client/dist
+
+RUN test -f /app/client/dist/portal/index.html && \
+    test -f /app/server/client/dist/portal/index.html
 
 RUN rm -rf \
     /app/server/src \
