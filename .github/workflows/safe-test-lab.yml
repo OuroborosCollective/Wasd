@@ -40,6 +40,9 @@ jobs:
       - name: Run ARE unit tests
         run: pnpm exec vitest run server/src/core/are
 
+      - name: Build shared
+        run: pnpm --filter @wasd/shared build
+
       - name: Build server
         run: pnpm -r --filter ./server build
 
