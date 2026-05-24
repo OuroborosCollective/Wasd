@@ -200,6 +200,26 @@
   border-color: #dc2626;
 }
 
+.skill-key {
+  position: absolute;
+  top: -8px;
+  right: -4px;
+  background: #000;
+  color: var(--gold-primary);
+  border: 1px solid var(--gold-primary);
+  border-radius: 4px;
+  padding: 1px 4px;
+  font-size: 10px;
+  font-family: 'Fira Code', monospace;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.hud-skill-slot {
+  position: relative;
+}
+
 .hud-skill-slot:focus-visible {
   outline: 2px solid #f27d26;
   outline-offset: 2px;

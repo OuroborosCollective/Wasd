@@ -123,4 +123,29 @@ describe("NewHud Micro-UX Enhancements", () => {
 
     expect(sendCommand).not.toHaveBeenCalledWith('loot_all');
   });
+
+  it('toggles inventory when "i" key is pressed', () => {
+    const toggleInventory = vi.fn();
+    render(<NewHud toggleInventory={toggleInventory} />);
+
+    const event = new KeyboardEvent('keydown', { key: 'i' });
+    window.dispatchEvent(event);
+
+    expect(toggleInventory).toHaveBeenCalled();
+  });
+
+  it('does not toggle inventory when "i" is pressed in an input', () => {
+    const toggleInventory = vi.fn();
+    render(<NewHud toggleInventory={toggleInventory} />);
+
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    input.focus();
+
+    const event = new KeyboardEvent('keydown', { key: 'i', bubbles: true });
+    input.dispatchEvent(event);
+
+    expect(toggleInventory).not.toHaveBeenCalled();
+    document.body.removeChild(input);
+  });
 });
