@@ -5,6 +5,15 @@ import type { DeterministicTickRecord } from "./DeterministicTickRecorder.js";
 
 export type ProphecyKind = "aggression_spike" | "scarcity_event" | "trade_cluster" | "quiet_cycle";
 export type ProphecySeverity = "low" | "medium" | "high";
+export type OracleBillingScope = "internal_engine" | "customer_tenant";
+
+export interface OracleBillingPolicy {
+  readonly scope: OracleBillingScope;
+  readonly billable: boolean;
+  readonly areCreditsCharged: number;
+  readonly meteredProphecies: number;
+  readonly reason: string;
+}
 
 export interface PatternSignal {
   kind: ProphecyKind;
@@ -36,6 +45,7 @@ export interface OracleReport {
   seed: string | null;
   patterns: PatternSignal[];
   prophecies: Prophecy[];
+  billing: OracleBillingPolicy;
 }
 
 function stableHash(input: unknown): string { return createHash("sha256").update(JSON.stringify(canonicalize(input))).digest("hex"); }
@@ -43,6 +53,12 @@ function clamp01(value: number): number { return Math.max(0, Math.min(1, value))
 function sectorFromPosition(position: any): number { const x = Number(position?.x ?? 0); const y = Number(position?.y ?? 0); const sx = Math.floor(x / 64); const sy = Math.floor(y / 64); return Math.abs((sx * 31 + sy * 17) % 64); }
 function payloadSeed(payload: AREGuardPayload | null | undefined, worldHash: string | null): string { const seed = payload?.deterministicSeed ?? payload?.seed ?? "ARE|seed:missing"; return `${seed}|hash:${worldHash ?? "none"}`; }
 function avg(values: number[]): number { if (values.length === 0) return 0; return values.reduce((sum, value) => sum + value, 0) / values.length; }
+function activeProphecyCount(prophecies: Prophecy[]): number { return prophecies.filter((p) => p.active && p.kind !== "quiet_cycle").length; }
+export function resolveOracleBillingPolicy(scope: OracleBillingScope = "internal_engine", prophecies: Prophecy[] = []): OracleBillingPolicy {
+  const meteredProphecies = activeProphecyCount(prophecies);
+  if (scope === "customer_tenant") return Object.freeze({ scope, billable: true, areCreditsCharged: meteredProphecies, meteredProphecies, reason: "customer_tenant_metered_oracle_usage" });
+  return Object.freeze({ scope: "internal_engine", billable: false, areCreditsCharged: 0, meteredProphecies: 0, reason: "internal_engine_oracle_is_never_are_credit_limited" });
+}
 
 export class PatternAnalyzer {
   analyze(records: DeterministicTickRecord[]): PatternSignal[] {
@@ -81,7 +97,7 @@ export class PatternAnalyzer {
 
 export class OuroborosOracleEngine {
   private readonly analyzer = new PatternAnalyzer();
-  generate(records: DeterministicTickRecord[]): OracleReport { const ordered = [...records].sort((a, b) => a.tick - b.tick); const latest = ordered.at(-1) ?? null; const seed = payloadSeed(latest?.payload, latest?.worldHash ?? null); const patterns = this.analyzer.analyze(ordered); const prophecies = patterns.map((pattern, index) => this.toProphecy(pattern, latest, seed, index)); return { ok: true, generatedAtTick: latest?.tick ?? null, worldHash: latest?.worldHash ?? null, seed, patterns, prophecies }; }
+  generate(records: DeterministicTickRecord[], billingScope: OracleBillingScope = "internal_engine"): OracleReport { const ordered = [...records].sort((a, b) => a.tick - b.tick); const latest = ordered.at(-1) ?? null; const seed = payloadSeed(latest?.payload, latest?.worldHash ?? null); const patterns = this.analyzer.analyze(ordered); const prophecies = patterns.map((pattern, index) => this.toProphecy(pattern, latest, seed, index)); return { ok: true, generatedAtTick: latest?.tick ?? null, worldHash: latest?.worldHash ?? null, seed, patterns, prophecies, billing: resolveOracleBillingPolicy(billingScope, prophecies) }; }
 
   private toProphecy(pattern: PatternSignal, latest: DeterministicTickRecord | null, seed: string, index: number): Prophecy {
     const worldHash = latest?.worldHash ?? null;
