@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
 // Relative path import to bypass @wasd/shared alias resolution issues in CI
-import type { EntityNet, QuestStateNet, LootNet } from "../../../../shared/src/index";
+import type { EntityNet, QuestStateNet, LootNet } from "../../../../packages/shared/src/index";
 import { getDeviceTier } from "../touchUi";
 import { sendCommand, sendUseSkill } from "../../networking/websocketClient";
 import { 

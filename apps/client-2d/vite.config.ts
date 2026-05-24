@@ -12,10 +12,11 @@ export default defineConfig({
       }
     }
   },
+  esbuild: { target: "es2022" },
   build: {
     outDir: "dist",
     emptyOutDir: true,
-    target: "chrome89",
+    target: "es2022",
     sourcemap: false,
     minify: "esbuild"
   },
