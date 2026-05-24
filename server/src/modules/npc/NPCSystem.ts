@@ -97,7 +97,8 @@ export class NPCSystem {
             skills: { combat: { level: Math.max(1, Math.min(14, Math.round(traits.aggression * 13))) } },
             phaseShift: calculatePhaseShift(id),
         };
-        this.addNPC(npc);
+        this.npcs.set(npc.id, npc);
+        this.npcsDirty = true;
         return npc;
     }
 
