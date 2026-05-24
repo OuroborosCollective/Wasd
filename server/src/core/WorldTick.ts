@@ -56,6 +56,7 @@ export class WorldTick {
   private readonly electroweakPruning = new AREElectroweakPruningManager();
   private readonly lootSpawnTicks: Map<string, number> = new Map();
   private latestElectroweakDecayEvents: readonly ElectroweakDecayEvent[] = Object.freeze([]);
+  private latestPropheticResonanceEvents: readonly any[] = Object.freeze([]);
   private lastAREGuardStatus: AREInvariantGuardStatus | null = null;
   private lastWorldHashSnapshot: WorldHashSnapshot | null = null;
   private lastOracleReport: OracleReport | null = null;
@@ -150,7 +151,7 @@ export class WorldTick {
   public getReplaySnapshot(tick: number): DeterministicReplaySnapshot | null { return deterministicTickRecorder.replay(tick); }
   public getAutoRepairStatus(): AutoRepairStatus { return areAutoRepairService.getStatus(); }
   public getDeterministicUsageStats(): DeterministicUsageStats { return deterministicUsageTracker.getStats(this.tickCount); }
-  public getOracleReport(): OracleReport { this.lastOracleReport = ouroborosOracleEngine.generate(deterministicTickRecorder.records()); return this.lastOracleReport; }
+  public getOracleReport(): OracleReport { this.lastOracleReport = ouroborosOracleEngine.generate(deterministicTickRecorder.records()); this.emitPropheticResonanceFromOracle(this.lastOracleReport); return this.lastOracleReport; }
   public getAREShadowReplayStats(): any {
     const latest = this.areShadowReplay.latest();
     return {
@@ -163,6 +164,7 @@ export class WorldTick {
       ecosystem: AREShadowAdapter.getEcosystemTelemetry(),
       economy: this.economyAdapter.snapshotARE(),
       electroweakPruning: this.electroweakPruning.getStats(),
+      electroweak: { pruning: this.electroweakPruning.getStats(), prophecies: this.latestPropheticResonanceEvents },
     };
   }
 
@@ -190,7 +192,7 @@ export class WorldTick {
     this.lastWorldHashSnapshot = record.worldSnapshot;
     if (record.guard) this.lastAREGuardStatus = record.guard;
     if (record.worldSnapshot) areValidationState.updateWorld(record.worldSnapshot);
-    if (record.guard) areValidationState.updateGuard(record.guard);
+    if (record.guard) areValidationState.updateGuard(guardStatus);
   }
 
   private async handlePlayerMessage(id: string, msg: any) {
@@ -290,6 +292,49 @@ export class WorldTick {
     }
   }
 
+  private oracleSectorKey(sector: unknown): string {
+    return `oracle:${safeInt(sector, 0)}`;
+  }
+
+  private prophecyIntensity(prophecy: any): number {
+    if (prophecy?.severity === "high") return 1000;
+    if (prophecy?.severity === "medium") return 750;
+    return 500;
+  }
+
+  private emitPropheticResonanceFromOracle(report: OracleReport | null): readonly any[] {
+    if (!report?.ok || report.generatedAtTick === null) {
+      this.latestPropheticResonanceEvents = Object.freeze([]);
+      return this.latestPropheticResonanceEvents;
+    }
+    const emitted: any[] = [];
+    const generatedAtTick = safeInt(report.generatedAtTick, this.tickCount);
+    for (const prophecy of report.prophecies ?? []) {
+      if (!prophecy?.active || prophecy.kind === "quiet_cycle") continue;
+      const ticksUntil = safeInt(prophecy.ticksUntil, 0);
+      const predictedTick = generatedAtTick + ticksUntil;
+      if (predictedTick <= this.tickCount) continue;
+      const sectorKey = this.oracleSectorKey(prophecy.sector);
+      const field = this.electroweakPruning.observeProphecy({
+        sectorKey,
+        predictedTick,
+        intensity: this.prophecyIntensity(prophecy),
+      }, this.tickCount);
+      emitted.push(Object.freeze({
+        id: String(prophecy.id ?? `${sectorKey}:${predictedTick}`),
+        kind: String(prophecy.kind ?? "oracle"),
+        sector: safeInt(prophecy.sector, 0),
+        sectorKey,
+        predictedTick,
+        ticksUntil: predictedTick - this.tickCount,
+        intensity: this.prophecyIntensity(prophecy),
+        omegaP: field.omegaP,
+      }));
+    }
+    this.latestPropheticResonanceEvents = Object.freeze(emitted);
+    return this.latestPropheticResonanceEvents;
+  }
+
   private toAREEntityFromLoot(loot: any, spawnedAtTick: number): AREEntity {
     return {
       id: `loot:${loot.id}`,
@@ -299,6 +344,7 @@ export class WorldTick {
         y: safeInt(Number(loot?.position?.y ?? 0) * 1000),
         z: safeInt(Number(loot?.position?.z ?? 0) * 1000),
       },
+      sectorKey: this.oracleSectorKey(sectorOf(loot)),
       baseEntropy: 0,
       lastInteractionTick: spawnedAtTick,
       plexity: 1,
@@ -342,7 +388,10 @@ export class WorldTick {
     const hashCount = this.lastWorldHashSnapshot ? 2 + this.lastWorldHashSnapshot.chunks.length : 1;
     const usage = deterministicUsageTracker.recordHashes(this.tickCount, hashCount, "world_hash_snapshot");
     deterministicTickRecorder.record({ tick: this.tickCount, payload, worldHash: this.lastWorldHashSnapshot?.worldHash ?? null, worldSnapshot: this.lastWorldHashSnapshot, guard: guardStatus, worldState: { players: strippedPlayers, npcs: strippedNpcs, loot: strippedLoot } });
-    if (this.tickCount % 10 === 0) this.lastOracleReport = ouroborosOracleEngine.generate(deterministicTickRecorder.records());
+    if (this.tickCount % 10 === 0) {
+      this.lastOracleReport = ouroborosOracleEngine.generate(deterministicTickRecorder.records());
+      this.emitPropheticResonanceFromOracle(this.lastOracleReport);
+    }
     const repairPlan = areAutoRepairService.evaluate({ tick: this.tickCount, guard: guardStatus, oracle: this.lastOracleReport, records: deterministicTickRecorder.records(), players: strippedPlayers, npcs: strippedNpcs, loot: strippedLoot, restoreWorldState: (record, sector) => this.restoreWorldStateFromRecord(record, sector) });
     if (repairPlan) this.ws.broadcast({ type: "ARE_AUTO_REPAIR", payload: areAutoRepairService.getStatus() });
     if (!guardStatus.ok && this.tickCount % 10 === 0) this.ws.broadcast({ type: "ARE_DETERMINISM_VIOLATION", payload: areValidationState.getSnapshot() });
@@ -375,8 +424,8 @@ export class WorldTick {
     this.updateAREContract(payload, strippedPlayers, strippedNpcs, strippedLoot);
     const autoRepair = areAutoRepairService.getStatus();
     const usage = deterministicUsageTracker.getStats(this.tickCount);
-    if (this.tickCount % 10 === 0) { const npcs = allNpcs.map(n => ({ id: n.id, name: n.name, x: n.position.x, y: n.position.y })); this.ws.broadcast({ type: "WORLD_HEARTBEAT", payload: { players: Object.fromEntries(allPlayers.filter(p => !p.isOffline).map(p => [p.id, { id: p.id, name: p.name, x: p.position.x, y: p.position.y }])), agents: npcs, are: areValidationState.getSnapshot(), replay: deterministicTickRecorder.stats(), areShadow: this.getAREShadowReplayStats(), electroweakPruning: { ttlTicks: ELECTROWEAK_LOOT_TTL_TICKS, stats: this.electroweakPruning.getStats(), decayEvents: this.latestElectroweakDecayEvents }, oracle: this.lastOracleReport, autoRepair, usage, warfront: this.warfrontSystem.getCycleSnapshot(this.tickCount * 100) } }); }
+    if (this.tickCount % 10 === 0) { const npcs = allNpcs.map(n => ({ id: n.id, name: n.name, x: n.position.x, y: n.position.y })); this.ws.broadcast({ type: "WORLD_HEARTBEAT", payload: { players: Object.fromEntries(allPlayers.filter(p => !p.isOffline).map(p => [p.id, { id: p.id, name: p.name, x: p.position.x, y: p.position.y }])), agents: npcs, are: areValidationState.getSnapshot(), replay: deterministicTickRecorder.stats(), areShadow: this.getAREShadowReplayStats(), electroweakPruning: { ttlTicks: ELECTROWEAK_LOOT_TTL_TICKS, stats: this.electroweakPruning.getStats(), decayEvents: this.latestElectroweakDecayEvents, prophecies: this.latestPropheticResonanceEvents }, oracle: this.lastOracleReport, autoRepair, usage, warfront: this.warfrontSystem.getCycleSnapshot(this.tickCount * 100) } }); }
     if (this.tickCount % 600 === 0) this.saveAll().catch(e => console.error(e));
-    this.ws.broadcast({ type: "world_tick", tick: this.tickCount, players: strippedPlayers, npcs: strippedNpcs, loot: strippedLoot, are: { guard: this.lastAREGuardStatus, worldHash: this.lastWorldHashSnapshot?.worldHash ?? null, shadow: this.getAREShadowReplayStats(), electroweakPruning: { ttlTicks: ELECTROWEAK_LOOT_TTL_TICKS, stats: this.electroweakPruning.getStats(), decayEvents: this.latestElectroweakDecayEvents } }, replay: { latestTick: this.tickCount }, oracle: this.lastOracleReport, autoRepair, usage, warfront: this.warfrontSystem.getCycleSnapshot(this.tickCount * 100) });
+    this.ws.broadcast({ type: "world_tick", tick: this.tickCount, players: strippedPlayers, npcs: strippedNpcs, loot: strippedLoot, are: { guard: this.lastAREGuardStatus, worldHash: this.lastWorldHashSnapshot?.worldHash ?? null, shadow: this.getAREShadowReplayStats(), electroweakPruning: { ttlTicks: ELECTROWEAK_LOOT_TTL_TICKS, stats: this.electroweakPruning.getStats(), decayEvents: this.latestElectroweakDecayEvents, prophecies: this.latestPropheticResonanceEvents } }, replay: { latestTick: this.tickCount }, oracle: this.lastOracleReport, autoRepair, usage, warfront: this.warfrontSystem.getCycleSnapshot(this.tickCount * 100) });
   }
 }
