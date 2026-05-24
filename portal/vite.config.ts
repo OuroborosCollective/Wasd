@@ -20,6 +20,9 @@ export default defineConfig({
   optimizeDeps: {
     include: ["react", "react-dom", "react-dom/client", "eventemitter3"],
   },
+  build: {
+    target: "esnext",
+  },
   test: {
     environment: "node",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
