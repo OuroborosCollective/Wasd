@@ -21,7 +21,7 @@ export default defineConfig({
     include: ["react", "react-dom", "react-dom/client", "eventemitter3"],
   },
   build: {
-    target: "esnext",
+    target: "es2022",
   },
   test: {
     environment: "node",
