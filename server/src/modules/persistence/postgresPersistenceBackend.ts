@@ -33,6 +33,11 @@ const CREATE_QUESTLINE_PROGRESS_INDEXES_SQL = [
   `CREATE INDEX IF NOT EXISTS questline_progress_updated_idx ON questline_progress (updated_at DESC);`,
 ];
 
+/** PostgreSQL parameter limit is 65535. We use 2 parameters per row. */
+const MAX_PARAMS = 60000;
+const PARAMS_PER_ROW = 2;
+const CHUNK_SIZE = Math.floor(MAX_PARAMS / PARAMS_PER_ROW);
+
 export class PostgresPersistenceBackend implements IPersistenceBackend {
   readonly name = "postgres";
 
@@ -66,22 +71,44 @@ export class PostgresPersistenceBackend implements IPersistenceBackend {
       return;
     }
 
+    const allIds = Object.keys(data).sort();
+    if (allIds.length === 0) return;
+
+    const client = await db.getClient();
     try {
-      for (const id of Object.keys(data)) {
-        const payload = {
-          ...serializePlayerForPersistence(data[id]),
-          lastUpdated: new Date().toISOString(),
-        };
-        await db.query(
-          `INSERT INTO player_snapshots (id, snapshot, last_updated)
-           VALUES ($1, $2::jsonb, NOW())
-           ON CONFLICT (id) DO UPDATE SET snapshot = EXCLUDED.snapshot, last_updated = NOW()`,
-          [id, JSON.stringify(payload)]
-        );
+      await client.query("BEGIN");
+
+      for (let i = 0; i < allIds.length; i += CHUNK_SIZE) {
+        const chunkIds = allIds.slice(i, i + CHUNK_SIZE);
+        const values: any[] = [];
+        const valueGroups: string[] = [];
+
+        for (let j = 0; j < chunkIds.length; j++) {
+          const id = chunkIds[j];
+          const payload = {
+            ...serializePlayerForPersistence(data[id]),
+            lastUpdated: new Date().toISOString(),
+          };
+          values.push(id, JSON.stringify(payload));
+          const offset = j * 2;
+          valueGroups.push(`($${offset + 1}, $${offset + 2}::jsonb, NOW())`);
+        }
+
+        const sql = `
+          INSERT INTO player_snapshots (id, snapshot, last_updated)
+          VALUES ${valueGroups.join(", ")}
+          ON CONFLICT (id) DO UPDATE SET snapshot = EXCLUDED.snapshot, last_updated = NOW()
+        `;
+        await client.query(sql, values);
       }
-      console.log(`Saved ${Object.keys(data).length} players to Postgres.`);
+
+      await client.query("COMMIT");
+      console.log(`Saved ${allIds.length} players to Postgres (bulk, chunks: ${Math.ceil(allIds.length / CHUNK_SIZE)}).`);
     } catch (err) {
-      console.error("[Persistence] Failed to save players to Postgres:", err);
+      await client.query("ROLLBACK");
+      console.error(`[Persistence] Failed to save ${allIds.length} players to Postgres:`, err);
+    } finally {
+      client.release();
     }
   }
 
@@ -111,20 +138,44 @@ export class PostgresPersistenceBackend implements IPersistenceBackend {
       console.warn("[Persistence] Postgres saveWorldObjects skipped (database not configured).");
       return;
     }
+
+    const validObjects = objects
+      .filter(obj => obj != null && typeof obj.id === "string" && obj.id !== "")
+      .sort((a, b) => a.id.localeCompare(b.id));
+
+    if (validObjects.length === 0) return;
+
+    const client = await db.getClient();
     try {
-      for (const obj of objects) {
-        const id = typeof obj?.id === "string" ? obj.id : "";
-        if (!id) continue;
-        await db.query(
-          `INSERT INTO world_object_snapshots (id, snapshot, last_updated)
-           VALUES ($1, $2::jsonb, NOW())
-           ON CONFLICT (id) DO UPDATE SET snapshot = EXCLUDED.snapshot, last_updated = NOW()`,
-          [id, JSON.stringify(obj)]
-        );
+      await client.query("BEGIN");
+
+      for (let i = 0; i < validObjects.length; i += CHUNK_SIZE) {
+        const chunkObjects = validObjects.slice(i, i + CHUNK_SIZE);
+        const values: any[] = [];
+        const valueGroups: string[] = [];
+
+        for (let j = 0; j < chunkObjects.length; j++) {
+          const obj = chunkObjects[j];
+          values.push(obj.id, JSON.stringify(obj));
+          const offset = j * 2;
+          valueGroups.push(`($${offset + 1}, $${offset + 2}::jsonb, NOW())`);
+        }
+
+        const sql = `
+          INSERT INTO world_object_snapshots (id, snapshot, last_updated)
+          VALUES ${valueGroups.join(", ")}
+          ON CONFLICT (id) DO UPDATE SET snapshot = EXCLUDED.snapshot, last_updated = NOW()
+        `;
+        await client.query(sql, values);
       }
-      console.log(`Saved ${objects.length} world objects to Postgres.`);
+
+      await client.query("COMMIT");
+      console.log(`Saved ${validObjects.length} world objects to Postgres (bulk, chunks: ${Math.ceil(validObjects.length / CHUNK_SIZE)}).`);
     } catch (err) {
-      console.error("[Persistence] Failed to save world objects to Postgres:", err);
+      await client.query("ROLLBACK");
+      console.error(`[Persistence] Failed to save ${validObjects.length} world objects to Postgres:`, err);
+    } finally {
+      client.release();
     }
   }
 
