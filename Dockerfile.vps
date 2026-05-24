@@ -16,7 +16,7 @@ ENV PNPM_CONFIG_CHILD_CONCURRENCY=1
 ENV PNPM_CONFIG_SIDE_EFFECTS_CACHE=false
 ENV PNPM_CONFIG_VERIFY_STORE_INTEGRITY=false
 
-RUN corepack enable && corepack prepare pnpm@9.12.2 --activate && \
+RUN corepack enable && corepack prepare pnpm@11.1.1 --activate && \
     pnpm config set store-dir /pnpm/store && \
     pnpm config set network-concurrency 1 && \
     pnpm config set child-concurrency 1 && \
@@ -47,6 +47,7 @@ RUN --mount=type=cache,id=wasd-vps-pnpm-store,target=/pnpm/store \
       '  - packages/shared' \
       > pnpm-workspace.yaml && \
     python3 scripts/sync-pnpm-lockfile-for-docker.py && \
+    pnpm install --lockfile-only --no-frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only && \
     pnpm --filter @wasd/server... --filter @wasd/client... --filter @wasd/portal... --filter @wasd/client-2d... --filter @wasd/core-logic... --filter @wasd/shared... install --frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
 
 COPY . .
