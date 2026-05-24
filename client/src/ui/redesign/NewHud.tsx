@@ -30,6 +30,8 @@ export const NewHud: React.FC<any> = (props) => {
   const targetNpcId = props.targetNpcId || props.targetId || hudState.targetNpcId;
   const inventoryOpen = props.inventoryOpen !== undefined ? props.inventoryOpen : hudState.inventoryOpen;
   const toggleInventory = props.toggleInventory || hudState.toggleInventory;
+  const toggleInventoryRef = useRef(toggleInventory);
+  useEffect(() => { toggleInventoryRef.current = toggleInventory; }, [toggleInventory]);
 
   const [health, setHealth] = useState(getPlayerHealth());
   const [maxHealth, setMaxHealth] = useState(getPlayerMaxHealth());
@@ -57,10 +59,16 @@ export const NewHud: React.FC<any> = (props) => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        const target = e.target as HTMLElement;
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+
+      const key = e.key.toLowerCase();
+      if (key === 'f') {
         if (lootRef.current && lootRef.current.length > 0) sendCommand("loot_all");
+      } else if (key === 'i') {
+        if (toggleInventoryRef.current) toggleInventoryRef.current();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -179,7 +187,10 @@ export const NewHud: React.FC<any> = (props) => {
             className={`hud-skill-slot inventory-btn ${inventoryOpen ? 'active' : ''}`}
             onClick={toggleInventory}
             aria-label="Open Inventory"
+            aria-keyshortcuts="i"
+            title="Toggle Inventory (I)"
           >
+            <kbd className="skill-key">I</kbd>
             <i className="icon-bag" />
           </button>
         </div>

@@ -87,6 +87,12 @@ export const InventorySystem: React.FC<{ onClose: () => void }> = ({ onClose }) 
         </nav>
 
         <main className="inventory-grid-redesign">
+          {filteredItems.length === 0 && (
+            <div className="inventory-empty-state">
+              <div className="empty-icon">🎒</div>
+              <p>No items found in this category</p>
+            </div>
+          )}
           {filteredItems.map((item, idx) => {
             const isEquippable = item.isGear || item.slot || item.type === "weapon" || item.type === "armor";
             const actionLabel = isEquippable ? "Equip" : "Use";

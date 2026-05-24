@@ -146,6 +146,8 @@ export function mountNewHud(core: MMORPGClientCore) {
           fxFeed={fxFeed}
           warfront={warfront}
           onMenuOpen={onMenuOpen}
+          inventoryOpen={activePanel === "inventory"}
+          toggleInventory={() => onMenuOpen("inventory")}
         />
         {(activePanel === "stats" || activePanel === "skills") && (
           <MasteryDashboard onClose={() => setActivePanel(null)} />
