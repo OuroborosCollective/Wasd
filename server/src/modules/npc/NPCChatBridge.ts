@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Legacy non-deterministic calls permitted for telemetry/meta paths
 import { NPCMemoryCache, type MemoryEvent } from "./NPCMemoryCache.js";
 import type { NPCTraits } from "./NPCTraits.js";
 import type { NPCContext } from "./NPCChatTypes.js";

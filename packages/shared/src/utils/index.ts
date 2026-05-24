@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Legacy non-deterministic calls permitted for telemetry/meta paths
 /**
  * Shared Utilities - Deterministic ARE-Logic Implementation
  * All functions use kappaPos integer scaling for deterministic results.

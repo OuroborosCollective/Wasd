@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Legacy non-deterministic calls permitted for telemetry/meta paths
 // @ts-nocheck: optional external DB client types in minimal builds.
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { NPCTraits } from "./NPCTraits.js";

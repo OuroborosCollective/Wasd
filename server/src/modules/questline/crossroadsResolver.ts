@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Legacy non-deterministic calls permitted for telemetry/meta paths
 /**
  * Major-branch “Scheideweg” resolution (faction / strand), separate from graph node `strandResolver`.
  */

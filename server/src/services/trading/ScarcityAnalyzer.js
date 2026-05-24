@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Legacy non-deterministic calls permitted for telemetry/meta paths
 const EmergentMarket = require('./EmergentMarket');
 
 class ScarcityAnalyzer {

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Legacy non-deterministic calls permitted for telemetry/meta paths
 /**
  * CharacterAssemblySystem
  * Manages modular character creation: body + head + skin/hair/eye colors + body scale.

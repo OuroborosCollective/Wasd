@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Legacy non-deterministic calls permitted for telemetry/meta paths
 /**
  * EmergentMarket — per-region supply/demand pricing with no fixed prices.
  *

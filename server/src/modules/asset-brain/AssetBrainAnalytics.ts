@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Legacy non-deterministic calls permitted in non-simulation context
 /**
  * Asset Brain Analytics & Monitoring
  * Tracks asset generation metrics, performance, and user behavior

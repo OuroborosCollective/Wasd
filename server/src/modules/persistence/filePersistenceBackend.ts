@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Legacy non-deterministic calls permitted for telemetry/meta paths
 import fs from "node:fs";
 import path from "node:path";
 import { serializePlayerForPersistence } from "./playerSnapshot.js";

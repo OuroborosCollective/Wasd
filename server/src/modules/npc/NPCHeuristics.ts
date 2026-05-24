@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Legacy non-deterministic calls permitted for telemetry/meta paths
 // @ts-nocheck
 /**
  * NPCHeuristics — local heuristic weight updates based on outcomes.

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Legacy non-deterministic calls permitted for telemetry/meta paths
 import { Logger } from "../../../core/logger/Logger.js";
 import { AIService } from "../../../ai/services/AIService.js";
 

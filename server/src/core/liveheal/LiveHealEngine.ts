@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Legacy non-deterministic calls permitted in non-simulation context
 /**
  * LiveHeal v2 - Core Engine
  *

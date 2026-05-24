@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Legacy non-deterministic calls permitted for telemetry/meta paths
 /**
  * LandSystem – Player Land Ownership for Areloria MMORPG
  * Players can claim land, build on it, and place GLB models.

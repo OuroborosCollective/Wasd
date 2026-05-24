@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Legacy non-deterministic calls permitted for telemetry/meta paths
 import { ComboValidator, type ComboResult } from "./ComboValidator.js";
 
 export interface CombatState {

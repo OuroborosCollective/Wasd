@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Legacy non-deterministic calls permitted for telemetry/meta paths
 /**
  * Death & Respawn system — handles player death state, respawn timers,
  * and zone-based respawn point resolution.

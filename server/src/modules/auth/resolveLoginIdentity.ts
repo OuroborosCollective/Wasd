@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Legacy non-deterministic calls permitted for telemetry/meta paths
 import { randomUUID } from "node:crypto";
 import { isSupabaseAuthConfigured, verifySupabaseToken } from "../../config/supabase.js";
 

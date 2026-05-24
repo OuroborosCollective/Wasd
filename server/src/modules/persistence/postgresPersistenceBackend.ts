@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Legacy non-deterministic calls permitted for telemetry/meta paths
 import { db, isDatabaseConfigured, testConnection as testPostgresConnection } from "../../core/Database.js";
 import { serializePlayerForPersistence } from "./playerSnapshot.js";
 import type { IPersistenceBackend } from "./persistenceBackend.js";

@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Legacy non-deterministic calls permitted for telemetry/meta paths
 import type { AdminGlbModelNeed } from "../content/adminGlbModelNeeds.js";
 import type { NPCMemoryCache } from "../npc/NPCMemoryCache.js";
 

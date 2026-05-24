@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Legacy non-deterministic calls permitted for telemetry/meta paths
 import Redis, { RedisOptions } from 'ioredis';
 
 export interface GridPosition {

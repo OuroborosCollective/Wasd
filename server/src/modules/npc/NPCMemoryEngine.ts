@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Legacy non-deterministic calls permitted for telemetry/meta paths
 export class NPCMemoryEngine {
   private memory = new Map<string, any[]>();
 

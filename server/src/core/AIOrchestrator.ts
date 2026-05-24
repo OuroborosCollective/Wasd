@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: non-simulation AI service orchestrator
 interface TaskPayload {
     eventType: string;
     payload: any;

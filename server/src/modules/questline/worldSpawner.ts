@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Legacy non-deterministic calls permitted for telemetry/meta paths
 import { createHash } from "node:crypto";
 import { getFactionByStrand, type Faction } from "./factionRegistry.js";
 

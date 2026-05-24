@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Legacy non-deterministic calls permitted for telemetry/meta paths
 import { DialogueTemplates } from "./DialogueTemplates.js";
 
 export class DialogueGenerator {

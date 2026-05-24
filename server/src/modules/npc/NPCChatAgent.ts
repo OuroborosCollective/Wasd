@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Legacy non-deterministic calls permitted for telemetry/meta paths
 import { NPCChatBridge } from "./NPCChatBridge.js";
 import { LLMService } from "../llm/LLMService.js";
 import type { NPCContext } from "./NPCChatTypes.js";

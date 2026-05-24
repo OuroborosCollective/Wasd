@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Legacy non-deterministic calls permitted for telemetry/meta paths
 import { WorldHistory } from "../history/WorldHistory.js";
 import { serverWorldEventBus } from "../../events/WorldEventBus.js";
 import { pushLiveTickerHazard } from "../../theme/serverThemeHazard.js";

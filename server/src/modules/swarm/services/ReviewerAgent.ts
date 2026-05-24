@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Legacy non-deterministic calls permitted for telemetry/meta paths
 import { Injectable, Logger } from '@nestjs/common';
 import { OpenAIProvider } from '../../../llm/providers/openai.provider.js';
 
