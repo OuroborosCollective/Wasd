@@ -240,7 +240,7 @@ export class QuestDerivationEngine {
     const tensions: TensionPoint[] = [];
 
     // SORTED ITERATION REQUIRED FOR CAUSALITY
-    const sortedRegionIds = Array.from(worldState.regions.keys()).sort();
+    const sortedRegionIds = Array.from(worldState.regions.keys()).sort() as string[];
     for (const regionId of sortedRegionIds) {
       const region = worldState.regions.get(regionId)!;
       const tension: TensionPoint = {
