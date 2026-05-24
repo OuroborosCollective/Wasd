@@ -1,7 +1,7 @@
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import util from 'util';
 
-const execAsync = util.promisify(exec);
+const execFileAsync = util.promisify(execFile);
 
 export class BackupManager {
   /**
@@ -22,7 +22,8 @@ export class BackupManager {
     try {
       // Execute pg_dump
       // Note: pg_dump must be installed on the system running this code
-      await execAsync(`pg_dump "${dbUrl}" -F c -f "${filePath}"`);
+      // Use execFile to prevent command injection
+      await execFileAsync('pg_dump', [dbUrl, '-F', 'c', '-f', filePath]);
       console.log(`Logical backup created successfully at ${filePath}`);
       
       return {
@@ -48,7 +49,8 @@ export class BackupManager {
 
     try {
       // Execute pg_restore
-      await execAsync(`pg_restore -d "${dbUrl}" -c -1 "${filePath}"`);
+      // Use execFile to prevent command injection
+      await execFileAsync('pg_restore', ['-d', dbUrl, '-c', '-1', filePath]);
       console.log(`Logical backup restored successfully from ${filePath}`);
       return true;
     } catch (error) {
