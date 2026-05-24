@@ -188,14 +188,17 @@ export class ServerBootstrap {
     const clientPath = path.join(clientRoot, "dist");
     const portalPath = path.join(clientPath, "portal");
     const portalIndexPath = path.join(portalPath, "index.html");
+    const rootIndexPath = path.join(clientPath, "index.html");
     const itchClientPath = path.join(clientRoot, "dist-itch");
     const adminContentPath = resolveAdminContentHtmlPath(clientRoot, clientPath);
     if (adminContentPath) app.get("/admin-content.html", (_req, res) => res.sendFile(adminContentPath));
     if (existsSync(path.join(itchClientPath, "index.html"))) { app.use("/itch", express.static(itchClientPath, { index: "index.html" })); app.get("/itch/*", (_req, res) => res.sendFile(path.join(itchClientPath, "index.html"))); }
-    if (existsSync(portalIndexPath)) {
-      app.use("/portal", express.static(portalPath, { index: "index.html" }));
-      app.get(["/portal", "/portal/*"], (_req, res) => res.sendFile(portalIndexPath));
-    }
+    app.use("/portal", express.static(portalPath, { index: "index.html", fallthrough: true }));
+    app.use("/portal", (_req, res) => {
+      if (existsSync(portalIndexPath)) return res.sendFile(portalIndexPath);
+      if (existsSync(rootIndexPath)) return res.sendFile(rootIndexPath);
+      return res.status(503).type("text/plain").send("Areloria portal assets are not available in this container build.");
+    });
     if (process.env.NODE_ENV !== "production") {
       try { const vite = await import("vite"); const viteServer = await vite.createServer({ server: { middlewareMode: true }, appType: "spa", root: clientRoot }); app.use(viteServer.middlewares); }
       catch (e) { console.error("Failed to start Vite middleware", e); app.use(express.static(clientPath)); }
