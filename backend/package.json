@@ -1,0 +1,13 @@
+{
+  "name": "@wasd/backend-core",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "lint": "eslint src"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.7"
+  }
+}
