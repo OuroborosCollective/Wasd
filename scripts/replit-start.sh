@@ -14,7 +14,7 @@ echo "DEMO_PORT=${DEMO_PORT:-5173}"
 auto_corepack() {
   if command -v corepack >/dev/null 2>&1; then
     corepack enable >/dev/null 2>&1 || true
-    corepack prepare pnpm@9.12.2 --activate >/dev/null 2>&1 || true
+    corepack prepare pnpm@11.1.1 --activate >/dev/null 2>&1 || true
   fi
 }
 
@@ -22,7 +22,7 @@ auto_corepack
 
 if ! command -v pnpm >/dev/null 2>&1; then
   echo "pnpm is not available. Falling back to npm installing pnpm locally."
-  npm install -g pnpm@9.12.2
+  npm install -g pnpm@11.1.1
 fi
 
 pnpm install --no-frozen-lockfile --prefer-offline

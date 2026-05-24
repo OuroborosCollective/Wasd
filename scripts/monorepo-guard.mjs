@@ -71,7 +71,7 @@ function checkWorkspacePackageVersions() {
   if (rootPackageManager) return;
   warn(
     'Root package.json has no packageManager field.',
-    'Consider adding packageManager, e.g. pnpm@9.12.2 or the chosen repo-wide version. This makes agents and CI use one package manager version.'
+    'Consider adding packageManager, e.g. pnpm@11.1.1 or the chosen repo-wide version. This makes agents and CI use one package manager version.'
   );
 }
 
