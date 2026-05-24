@@ -45,19 +45,29 @@ class LootTransactionHandler {
             }
 
             // 4. Item Distribution (Ownership Transfer)
+            const inventoryData = [];
+            const auditData = [];
+
             for (const item of lootPayload.items) {
                 const recipientId = this.determineRecipient(item, participantIds);
                 
-                // Erzeuge Item-Instanz oder verschiebe aus Global Pool
-                await connection.query(
-                    'INSERT INTO user_inventory (user_id, item_template_id, instance_id, acquired_at) VALUES (?, ?, ?, NOW())',
-                    [recipientId, item.templateId, SecurityProvider.generateUUID()]
-                );
+                inventoryData.push(recipientId, item.templateId, SecurityProvider.generateUUID());
+                auditData.push("ITEM_DROP", recipientId, sessionId, JSON.stringify(item));
+            }
 
-                // Log Transaction for Audit
+            if (inventoryData.length > 0) {
+                const invPlaceholders = lootPayload.items.map(() => "(?, ?, ?, NOW())").join(", ");
                 await connection.query(
-                    'INSERT INTO audit_logs (event_type, user_id, session_id, detail) VALUES (?, ?, ?, ?)',
-                    ['ITEM_DROP', recipientId, sessionId, JSON.stringify(item)]
+                    `INSERT INTO user_inventory (user_id, item_template_id, instance_id, acquired_at) VALUES ${invPlaceholders}`,
+                    inventoryData
+                );
+            }
+
+            if (auditData.length > 0) {
+                const auditPlaceholders = lootPayload.items.map(() => "(?, ?, ?, ?)").join(", ");
+                await connection.query(
+                    `INSERT INTO audit_logs (event_type, user_id, session_id, detail) VALUES ${auditPlaceholders}`,
+                    auditData
                 );
             }
 
