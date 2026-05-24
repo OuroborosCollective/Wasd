@@ -17,7 +17,7 @@ import type {
   SpatialEntity,
   WorldLayoutConfig,
 } from "./WorldLayoutTypes.js";
-import { WorldLayoutSpatialIndex, getEntityAABB } from "./WorldLayoutSpatialIndex.js";
+import { WorldLayoutSpatialIndex } from "./WorldLayoutSpatialIndex.js";
 import { WorldLayoutLearningStore } from "./WorldLayoutLearningStore.js";
 import { WorldLayoutReportLog } from "./WorldLayoutReportLog.js";
 
