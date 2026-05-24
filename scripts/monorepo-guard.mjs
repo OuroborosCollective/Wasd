@@ -24,16 +24,29 @@ function extractPythonOverride(scriptText, name) {
 }
 
 function extractLockRootSpecifier(lockText, dep) {
+  const importersIdx = lockText.indexOf('importers:');
+  if (importersIdx === -1) return null;
+
+  const afterImporters = lockText.slice(importersIdx);
+  const rootImporterStart = afterImporters.indexOf('\n  .:');
+  if (rootImporterStart === -1) return null;
+
+  const rootSection = afterImporters.slice(rootImporterStart);
+  const nextImporterMatch = rootSection.slice(1).match(/\n  [\w\-\/\.]+:(\n|$)/);
+  const rootSectionEnd = nextImporterMatch ? nextImporterMatch.index + 1 : rootSection.length;
+  const rootImporterContent = rootSection.slice(0, rootSectionEnd);
+
   const escaped = dep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const depRe = new RegExp(`\\n      '${escaped}':\\n        specifier: ([^\\n]+)|\\n      ${escaped}:\\n        specifier: ([^\\n]+)`);
-  const m = lockText.match(depRe);
+  const m = rootImporterContent.match(depRe);
   return (m?.[1] ?? m?.[2] ?? null)?.replace(/^['"]|['"]$/g, '') ?? null;
 }
 
 function checkRootOverrideConsistency() {
   const pkg = readJson('package.json');
   const lock = readFileSync('pnpm-lock.yaml', 'utf8');
-  const dockerSync = readFileSync('scripts/sync-pnpm-lockfile-for-docker.py', 'utf8');
+  const dockerSyncFile = 'scripts/sync-pnpm-lockfile-for-docker.py';
+  const dockerSync = existsSync(dockerSyncFile) ? readFileSync(dockerSyncFile, 'utf8') : '';
 
   const watched = new Set([
     ...Object.keys(pkg.devDependencies ?? {}),
@@ -55,23 +68,24 @@ function checkRootOverrideConsistency() {
       );
     }
 
-    const dockerOverride = extractPythonOverride(dockerSync, dep);
-    if (dockerOverride && dockerOverride !== overrideSpec) {
-      fail(
-        `Docker lockfile sync drift for ${dep}: sync-pnpm-lockfile-for-docker.py has ${dockerOverride}, package.json/overrides expects ${overrideSpec}.`,
-        `Update scripts/sync-pnpm-lockfile-for-docker.py OVERRIDES.${dep} to ${overrideSpec}. Otherwise VPS Docker rewrites the lockfile during build and frozen install fails.`
-      );
+    if (dockerSync) {
+      const dockerOverride = extractPythonOverride(dockerSync, dep);
+      if (dockerOverride && dockerOverride !== overrideSpec) {
+        fail(
+          `Docker lockfile sync drift for ${dep}: sync-pnpm-lockfile-for-docker.py has ${dockerOverride}, package.json/overrides expects ${overrideSpec}.`,
+          `Update scripts/sync-pnpm-lockfile-for-docker.py OVERRIDES.${dep} to ${overrideSpec}. Otherwise VPS Docker rewrites the lockfile during build and frozen install fails.`
+        );
+      }
     }
   }
 }
 
 function checkWorkspacePackageVersions() {
   const root = readJson('package.json');
-  const rootPackageManager = root.packageManager ?? null;
-  if (rootPackageManager) return;
+  if (root.packageManager) return;
   warn(
     'Root package.json has no packageManager field.',
-    'Consider adding packageManager, e.g. pnpm@9.12.2 or the chosen repo-wide version. This makes agents and CI use one package manager version.'
+    'Consider adding packageManager, e.g. pnpm@11.1.1. This makes agents and CI use one package manager version.'
   );
 }
 
