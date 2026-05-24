@@ -1,5 +1,5 @@
 import { WatchdogEmitter } from './watchdog-emitter.js';
-import { ChronoSwarmBrain, SwarmData } from '../../server/src/modules/brain/ChronoSwarmBrain.js';
+import { ChronoSwarmBrain } from '../../server/src/modules/brain/ChronoSwarmBrain.js';
 
 export class WatchdogSwarmMonitor {
     private emitter: WatchdogEmitter;
