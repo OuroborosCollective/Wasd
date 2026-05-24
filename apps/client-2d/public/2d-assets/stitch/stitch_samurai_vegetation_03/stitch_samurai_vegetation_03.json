@@ -1,0 +1,95 @@
+{
+  "frames": {
+    "stitch_samurai_vegetation_03_cherry_blossom_sakura": {
+      "frame": {
+        "x": 40,
+        "y": 40,
+        "w": 180,
+        "h": 220
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 180,
+        "h": 220
+      },
+      "sourceSize": {
+        "w": 180,
+        "h": 220
+      }
+    },
+    "stitch_samurai_vegetation_03_pine_matsu": {
+      "frame": {
+        "x": 520,
+        "y": 50,
+        "w": 170,
+        "h": 190
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 170,
+        "h": 190
+      },
+      "sourceSize": {
+        "w": 170,
+        "h": 190
+      }
+    },
+    "stitch_samurai_vegetation_03_bamboo_stalks": {
+      "frame": {
+        "x": 280,
+        "y": 480,
+        "w": 230,
+        "h": 320
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 230,
+        "h": 320
+      },
+      "sourceSize": {
+        "w": 230,
+        "h": 320
+      }
+    },
+    "stitch_samurai_vegetation_03_maple_momiji": {
+      "frame": {
+        "x": 600,
+        "y": 450,
+        "w": 160,
+        "h": 180
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 160,
+        "h": 180
+      },
+      "sourceSize": {
+        "w": 160,
+        "h": 180
+      }
+    }
+  },
+  "meta": {
+    "app": "Areloria WASD Stitch generated atlas importer",
+    "version": "1.0",
+    "image": "stitch_samurai_vegetation_03.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 1024,
+      "h": 1024
+    },
+    "scale": "1"
+  }
+}

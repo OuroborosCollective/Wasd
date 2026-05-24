@@ -1,0 +1,95 @@
+{
+  "frames": {
+    "stitch_samurai_ground_tiles_03_zen_sand_raked": {
+      "frame": {
+        "x": 40,
+        "y": 70,
+        "w": 220,
+        "h": 200
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 220,
+        "h": 200
+      },
+      "sourceSize": {
+        "w": 220,
+        "h": 200
+      }
+    },
+    "stitch_samurai_ground_tiles_03_stone_path_dark": {
+      "frame": {
+        "x": 520,
+        "y": 70,
+        "w": 220,
+        "h": 200
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 220,
+        "h": 200
+      },
+      "sourceSize": {
+        "w": 220,
+        "h": 200
+      }
+    },
+    "stitch_samurai_ground_tiles_03_mossy_earth": {
+      "frame": {
+        "x": 280,
+        "y": 550,
+        "w": 220,
+        "h": 200
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 220,
+        "h": 200
+      },
+      "sourceSize": {
+        "w": 220,
+        "h": 200
+      }
+    },
+    "stitch_samurai_ground_tiles_03_wooden_floor_slats": {
+      "frame": {
+        "x": 520,
+        "y": 770,
+        "w": 220,
+        "h": 200
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 220,
+        "h": 200
+      },
+      "sourceSize": {
+        "w": 220,
+        "h": 200
+      }
+    }
+  },
+  "meta": {
+    "app": "Areloria WASD Stitch generated atlas importer",
+    "version": "1.0",
+    "image": "stitch_samurai_ground_tiles_03.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 1024,
+      "h": 1024
+    },
+    "scale": "1"
+  }
+}
