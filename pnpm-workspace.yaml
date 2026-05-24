@@ -12,6 +12,7 @@ allowBuilds:
   '@firebase/util': true
   '@google/genai': true
   '@nestjs/core': true
+  '@prisma/client': set this to true or false
   '@prisma/engines': true
   cpu-features: true
   esbuild: true
