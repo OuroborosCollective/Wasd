@@ -70,7 +70,7 @@ if command -v pnpm >/dev/null 2>&1; then
   NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/shared --if-present build
   NODE_OPTIONS="$SERVER_BUILD_NODE_OPTIONS" pnpm --filter @wasd/server --if-present build
 
-  echo "Building browser frontends for /, /3d/, /2d/ and /portal/..."
+  echo "Building browser frontends for /3d/, /2d/ and /portal/..."
   NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/client --if-present build || true
   NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/client-2d --if-present build
   VITE_BASE_PATH="/portal/" NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/portal --if-present build
@@ -90,11 +90,19 @@ mkdir -p client/dist/2d client/dist/portal
 cp -a apps/client-2d/dist/. client/dist/2d/
 cp -a portal/dist/. client/dist/portal/
 
+echo "Writing Cyber-Zen root landing and portal hub entrypoints..."
+NODE_OPTIONS="$BUILD_NODE_OPTIONS" node scripts/write-runtime-entrypoints.mjs
+
+test -f client/dist/index.html || { echo "ERROR: client/dist/index.html missing after runtime entrypoints"; exit 1; }
+test -f client/dist/portal/index.html || { echo "ERROR: client/dist/portal/index.html missing after runtime entrypoints"; exit 1; }
+grep -q 'LIVE_ENTRYPOINTS' client/dist/index.html || { echo "ERROR: client/dist/index.html is not the Cyber-Zen landing page"; exit 1; }
+grep -q 'PORTAL ONLINE' client/dist/portal/index.html || { echo "ERROR: client/dist/portal/index.html is not the portal hub"; exit 1; }
+
 if [ -f apps/web/dist/index.html ]; then
   mkdir -p apps/web/dist/2d apps/web/dist/portal
   rm -rf apps/web/dist/2d/* apps/web/dist/portal/*
   cp -a apps/client-2d/dist/. apps/web/dist/2d/
-  cp -a portal/dist/. apps/web/dist/portal/
+  cp -a client/dist/portal/. apps/web/dist/portal/
 fi
 
 echo "Route bundle markers:"
@@ -139,6 +147,21 @@ verify_url() {
   return 1
 }
 
+verify_body_contains() {
+  local url="$1"
+  local name="$2"
+  local needle="$3"
+  local body
+  body="$(curl -sS "$url" || true)"
+  if printf '%s' "$body" | grep -q "$needle"; then
+    echo "✅ ${name} contains ${needle}"
+    return 0
+  fi
+  echo "❌ ${name} does not contain ${needle} (${url})"
+  printf '%s\n' "$body" | head -40
+  return 1
+}
+
 warn_url() {
   local url="$1"
   local name="$2"
@@ -152,8 +175,10 @@ warn_url() {
 
 warn_url "http://127.0.0.1:${GAME_PORT}/health" "Health endpoint"
 verify_url "http://127.0.0.1:${GAME_PORT}/" "Client root"
+verify_body_contains "http://127.0.0.1:${GAME_PORT}/" "Client root landing" "LIVE_ENTRYPOINTS"
 verify_url "http://127.0.0.1:${GAME_PORT}/2d/" "2D client"
 verify_url "http://127.0.0.1:${GAME_PORT}/portal/" "Portal client"
+verify_body_contains "http://127.0.0.1:${GAME_PORT}/portal/" "Portal hub" "PORTAL ONLINE"
 
 echo "Update complete!"
 pm2 status
