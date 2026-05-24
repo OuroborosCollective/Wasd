@@ -4,8 +4,8 @@ set -euo pipefail
 APP_DIR="/opt/areloria"
 DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
 GAME_PORT="${GAME_PORT:-3001}"
-BUILD_NODE_OPTIONS="${BUILD_NODE_OPTIONS:---max-old-space-size=1024}"
-SERVER_BUILD_NODE_OPTIONS="${SERVER_BUILD_NODE_OPTIONS:---max-old-space-size=1024}"
+BUILD_NODE_OPTIONS="${BUILD_NODE_OPTIONS:---max-old-space-size=8192}"
+SERVER_BUILD_NODE_OPTIONS="${SERVER_BUILD_NODE_OPTIONS:---max-old-space-size=8192}"
 
 echo "Updating Areloria MMORPG..."
 cd "$APP_DIR"
@@ -34,7 +34,6 @@ ENV_FILE="$APP_DIR/.env"
 if [ -f "$ENV_FILE" ]; then
   echo "Loading build-time env from $ENV_FILE ..."
   set -a
-  # shellcheck disable=SC1090
   source "$ENV_FILE"
   set +a
   export BUILD_COMMIT_SHA="$DEPLOY_COMMIT"
@@ -47,11 +46,13 @@ else
 fi
 
 export NODE_ENV=production
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=8192}"
 export PORT="$GAME_PORT"
 export HOST="0.0.0.0"
-export CLIENT_ROOT_DIR="$APP_DIR/apps/web"
+export CLIENT_ROOT_DIR="$APP_DIR/client"
 echo "Game server will listen on PORT=${PORT}; Supabase can keep port 3000."
 echo "Game server will serve CLIENT_ROOT_DIR=${CLIENT_ROOT_DIR}."
+echo "NODE_OPTIONS=${NODE_OPTIONS}"
 
 if command -v corepack >/dev/null 2>&1; then
   corepack enable || true
@@ -69,40 +70,38 @@ if command -v pnpm >/dev/null 2>&1; then
   NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/shared --if-present build
   NODE_OPTIONS="$SERVER_BUILD_NODE_OPTIONS" pnpm --filter @wasd/server --if-present build
 
-  echo "Building browser frontends for /, /3d/, /2d/, /portal/ and apps/web..."
+  echo "Building browser frontends for /, /3d/, /2d/ and /portal/..."
   NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/client --if-present build || true
   NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/client-2d --if-present build
   VITE_BASE_PATH="/portal/" NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/portal --if-present build
-  NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/web --if-present build
+  NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/web --if-present build || true
 else
   echo "ERROR: pnpm is required for this monorepo deploy."
   exit 1
 fi
 
-echo "Assembling browser route folders under active webroot..."
-test -f apps/web/dist/index.html || { echo "ERROR: apps/web/dist/index.html missing after @wasd/web build"; exit 1; }
+echo "Assembling browser route folders under Express webroot..."
+test -f client/dist/index.html || { echo "ERROR: client/dist/index.html missing after @wasd/client build"; exit 1; }
 test -f apps/client-2d/dist/index.html || { echo "ERROR: apps/client-2d/dist/index.html missing after @wasd/client-2d build"; exit 1; }
 test -f portal/dist/index.html || { echo "ERROR: portal/dist/index.html missing after @wasd/portal build"; exit 1; }
 
-mkdir -p apps/web/dist/2d apps/web/dist/portal
-rm -rf apps/web/dist/2d/* apps/web/dist/portal/*
-cp -a apps/client-2d/dist/. apps/web/dist/2d/
-cp -a portal/dist/. apps/web/dist/portal/
+rm -rf client/dist/2d client/dist/portal
+mkdir -p client/dist/2d client/dist/portal
+cp -a apps/client-2d/dist/. client/dist/2d/
+cp -a portal/dist/. client/dist/portal/
 
-if [ -f client/dist/index.html ]; then
-  mkdir -p apps/web/dist/3d
-  rm -rf apps/web/dist/3d/*
-  cp -a client/dist/. apps/web/dist/3d/
-  sed -i 's#"/assets/#"/3d/assets/#g; s#href=/assets/#href=/3d/assets/#g; s#src=/assets/#src=/3d/assets/#g' apps/web/dist/3d/index.html || true
-else
-  echo "WARNING: client/dist/index.html missing; keeping existing /3d/ bundle if present."
+if [ -f apps/web/dist/index.html ]; then
+  mkdir -p apps/web/dist/2d apps/web/dist/portal
+  rm -rf apps/web/dist/2d/* apps/web/dist/portal/*
+  cp -a apps/client-2d/dist/. apps/web/dist/2d/
+  cp -a portal/dist/. apps/web/dist/portal/
 fi
 
 echo "Route bundle markers:"
-ls -la apps/web/dist/index.html apps/web/dist/2d/index.html apps/web/dist/portal/index.html || true
-[ ! -f apps/web/dist/3d/index.html ] || ls -la apps/web/dist/3d/index.html
+ls -la client/dist/index.html client/dist/2d/index.html client/dist/portal/index.html
+[ ! -f apps/web/dist/index.html ] || ls -la apps/web/dist/index.html apps/web/dist/portal/index.html || true
 
-NGINX_WEBROOT="${NGINX_WEBROOT:-$APP_DIR/apps/web/dist}"
+NGINX_WEBROOT="${NGINX_WEBROOT:-$APP_DIR/client/dist}"
 if [ ! -f "$NGINX_WEBROOT/index.html" ]; then
   echo "ERROR: NGINX_WEBROOT=$NGINX_WEBROOT has no index.html after route assembly"
   exit 1
@@ -154,7 +153,6 @@ warn_url() {
 warn_url "http://127.0.0.1:${GAME_PORT}/health" "Health endpoint"
 verify_url "http://127.0.0.1:${GAME_PORT}/" "Client root"
 verify_url "http://127.0.0.1:${GAME_PORT}/2d/" "2D client"
-verify_url "http://127.0.0.1:${GAME_PORT}/3d/" "3D client"
 verify_url "http://127.0.0.1:${GAME_PORT}/portal/" "Portal client"
 
 echo "Update complete!"
