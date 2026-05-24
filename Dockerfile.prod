@@ -53,6 +53,7 @@ RUN corepack enable && corepack prepare pnpm@9.12.2 --activate && \
 COPY --from=builder /app/client/dist /app/prod-server/client/dist
 COPY --from=builder /app/client/public /app/prod-server/client/public
 COPY --from=builder /app/apps/client-2d/dist /app/prod-server/client/dist/2d
+COPY --from=builder /app/portal/dist /app/prod-server/client/dist/portal
 
 WORKDIR /app/prod-server
 
