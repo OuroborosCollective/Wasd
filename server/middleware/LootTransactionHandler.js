@@ -33,31 +33,42 @@ class LootTransactionHandler {
                 throw new Error('LOOT_ALREADY_PROCESSED');
             }
 
-            // 3. Token Transfer (Atomar)
-            if (lootPayload.tokens > 0) {
+            // 3. Token Transfer (Atomar) - OPTIMIZED: Bulk Update
+            if (lootPayload.tokens > 0 && participantIds.length > 0) {
                 const sharePerPerson = Math.floor(lootPayload.tokens / participantIds.length);
-                for (const userId of participantIds) {
-                    await connection.query(
-                        'UPDATE user_wallets SET balance = balance + ?, last_update = NOW() WHERE user_id = ?',
-                        [sharePerPerson, userId]
-                    );
-                }
+                const placeholders = participantIds.map(() => '?').join(', ');
+                await connection.query(
+                    `UPDATE user_wallets SET balance = balance + ?, last_update = NOW() WHERE user_id IN (${placeholders})`,
+                    [sharePerPerson, ...participantIds]
+                );
             }
 
-            // 4. Item Distribution (Ownership Transfer)
-            for (const item of lootPayload.items) {
-                const recipientId = this.determineRecipient(item, participantIds);
-                
-                // Erzeuge Item-Instanz oder verschiebe aus Global Pool
+            // 4. Item Distribution (Ownership Transfer) - OPTIMIZED: Bulk Insert
+            if (lootPayload.items && lootPayload.items.length > 0) {
+                const inventoryValues = [];
+                const inventoryParams = [];
+                const auditValues = [];
+                const auditParams = [];
+
+                for (const item of lootPayload.items) {
+                    const recipientId = this.determineRecipient(item, participantIds);
+                    const instanceId = SecurityProvider.generateUUID();
+
+                    inventoryValues.push('(?, ?, ?, NOW())');
+                    inventoryParams.push(recipientId, item.templateId, instanceId);
+
+                    auditValues.push('(?, ?, ?, ?)');
+                    auditParams.push('ITEM_DROP', recipientId, sessionId, JSON.stringify(item));
+                }
+
                 await connection.query(
-                    'INSERT INTO user_inventory (user_id, item_template_id, instance_id, acquired_at) VALUES (?, ?, ?, NOW())',
-                    [recipientId, item.templateId, SecurityProvider.generateUUID()]
+                    `INSERT INTO user_inventory (user_id, item_template_id, instance_id, acquired_at) VALUES ${inventoryValues.join(', ')}`,
+                    inventoryParams
                 );
 
-                // Log Transaction for Audit
                 await connection.query(
-                    'INSERT INTO audit_logs (event_type, user_id, session_id, detail) VALUES (?, ?, ?, ?)',
-                    ['ITEM_DROP', recipientId, sessionId, JSON.stringify(item)]
+                    `INSERT INTO audit_logs (event_type, user_id, session_id, detail) VALUES ${auditValues.join(', ')}`,
+                    auditParams
                 );
             }
 
