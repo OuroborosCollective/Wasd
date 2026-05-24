@@ -19,7 +19,7 @@
     "@wasd/types": "workspace:*",
     "@wasd/utils": "workspace:*",
     "p-retry": "^8.0.0",
-    "pg": "^8.21.0",
+    "pg": "^8.20.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

@@ -42,7 +42,7 @@
     "vitest": "^4.1.7"
   },
   "peerDependencies": {
-    "@babylonjs/core": "*",
-    "@babylonjs/havok": "*"
+    "@babylonjs/core": "9.8.0",
+    "@babylonjs/havok": "1.3.12"
   }
 }
