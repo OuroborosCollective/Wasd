@@ -1,4 +1,4 @@
-import { Project, SourceFile, ImportDeclaration } from 'ts-morph';
+import { Project } from 'ts-morph';
 import * as path from 'path';
 
 export interface DependencyNode {

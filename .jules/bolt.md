@@ -1,1 +1,6 @@
-## 2026-05-22 - [Optimization] Redundant Fusion Contract filtering in WorldTick **Learning:** Calling `getConstructionContracts().filter()` inside an NPC loop creates $O(N \times C)$ complexity where $N$ is the number of NPCs and $C$ is the number of contracts. **Action:** Pre-calculate the available contracts list once per tick and pass it to downstream services to reduce complexity to $O(N + C)$.
+# Bolt Learnings - Auditor Module
+
+## Dependency Tracker Cleanup
+- **Unused Imports**: Symbols `SourceFile` and `ImportDeclaration` from `ts-morph` were imported but not used as types or values in `src/auditor/dependency_graph.ts`.
+- **Verification**: While global `tsc` in this monorepo has pre-existing configuration/reference errors, surgical validation with `eslint` and manual symbol tracking confirms these removals are safe.
+- **Monorepo Guard**: The repository enforces strict versioning for BabylonJS and Supabase dependencies via `scripts/monorepo-guard.mjs`. Pre-existing drifts in `pnpm-lock.yaml` should be noted but do not block surgical code health fixes in unrelated modules.
