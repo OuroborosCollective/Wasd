@@ -23,12 +23,12 @@
     "pnpm": ">=9"
   },
   "devDependencies": {
-    "@types/node": "^25.9.0",
-    "@typescript-eslint/eslint-plugin": "^8.59.3",
-    "@typescript-eslint/parser": "^8.59.3",
+    "@types/node": "^25.9.1",
+    "@typescript-eslint/eslint-plugin": "^8.59.4",
+    "@typescript-eslint/parser": "^8.59.4",
     "concurrently": "^9.2.1",
-    "eslint": "^10.3.0",
-    "pnpm": "^11.1.1",
+    "eslint": "^10.4.0",
+    "pnpm": "^11.2.2",
     "typescript": "^6.0.3",
     "vitest": "^4.1.6"
   },
@@ -45,7 +45,7 @@
     "overrides": {
       "@types/react": "^19.2.14",
       "@types/react-dom": "^19.2.3",
-      "@types/node": "^25.9.0",
+      "@types/node": "^25.9.1",
       "typescript": "^6.0.3",
       "zod": "^4.4.3",
       "three": "0.184.0",
@@ -58,7 +58,7 @@
     },
     "resolutions": {
       "typescript": "^6.0.3",
-      "@types/node": "^25.9.0"
+      "@types/node": "^25.9.1"
     }
   }
 }
