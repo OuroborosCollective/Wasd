@@ -5,6 +5,8 @@ export const C_DECAY = 5 as const;
 export const DEFAULT_BASE_ENTROPY = 0 as const;
 export const DEFAULT_PLEXITY = 1000 as const;
 export const INTERACTION_DECAY_WINDOW_TICKS = 600 as const;
+export const PROPHECY_HORIZON_TICKS = 1200 as const;
+export const PROPHECY_SECTOR_SIZE_KAPPA = 64000 as const;
 
 export type AREEntityKind = 'player' | 'npc' | 'loot' | 'monster' | 'world_object' | 'temporary' | 'unknown';
 
@@ -18,6 +20,7 @@ export interface AREEntity {
   readonly id: string;
   readonly kind?: AREEntityKind | string;
   readonly kappa: KappaCoordinate;
+  readonly sectorKey?: string;
   readonly baseEntropy?: number;
   readonly lastInteractionTick?: number;
   readonly plexity?: number;
@@ -25,10 +28,25 @@ export interface AREEntity {
   readonly metadata?: Readonly<Record<string, unknown>>;
 }
 
+export interface PropheticResonanceInput {
+  readonly sectorKey: string;
+  readonly predictedTick: number;
+  readonly intensity?: number;
+}
+
+export interface PropheticResonanceField {
+  readonly sectorKey: string;
+  readonly omegaP: number;
+  readonly predictedTick: number;
+  readonly expiresAtTick: number;
+}
+
 export interface PruningMetrics {
   readonly entityId: string;
   readonly tick: number;
   readonly effectiveEntropy: number;
+  readonly baseTemperature: number;
+  readonly propheticOmega: number;
   readonly temperature: number;
   readonly higgsMass: number;
   readonly previousPlexity: number;
@@ -63,6 +81,7 @@ export interface PruningUpdateResult {
 export interface PruningManagerStats {
   readonly trackedEntities: number;
   readonly decayedEntities: number;
+  readonly propheticFields: number;
   readonly lastTick: number;
   readonly lastDecayEntityId: string | null;
 }
@@ -92,6 +111,15 @@ function normalizeTick(tick: number): number {
   return clampInt(whole(tick), 0, Number.MAX_SAFE_INTEGER);
 }
 
+function divFloorInt(value: number, divisor: number): number {
+  assertInteger('divFloorInt.value', value);
+  assertInteger('divFloorInt.divisor', divisor);
+  if (divisor <= 0) throw new Error('AREElectroweakPruning divisor must be positive');
+  const quotient = Math.trunc(value / divisor);
+  const remainder = value % divisor;
+  return remainder < 0 ? quotient - 1 : quotient;
+}
+
 function normalizeCoordinate(coord: KappaCoordinate): KappaCoordinate {
   const normalized = Object.freeze({
     x: whole(coord.x),
@@ -114,6 +142,16 @@ export function assertNoFloats(value: unknown, path = 'value'): void {
   }
 }
 
+export function sectorKeyFromKappa(coord: KappaCoordinate): string {
+  const kappa = normalizeCoordinate(coord);
+  return `${divFloorInt(kappa.x, PROPHECY_SECTOR_SIZE_KAPPA)}:${divFloorInt(kappa.z, PROPHECY_SECTOR_SIZE_KAPPA)}`;
+}
+
+export function getEntitySectorKey(entity: AREEntity): string {
+  const explicit = entity.sectorKey ?? entity.metadata?.sectorKey;
+  return typeof explicit === 'string' && explicit.length > 0 ? explicit : sectorKeyFromKappa(entity.kappa);
+}
+
 export function calculateEffectiveEntropy(entity: AREEntity, currentTick: number): number {
   const tick = normalizeTick(currentTick);
   const lastInteractionTick = clampInt(whole(entity.lastInteractionTick ?? tick), 0, tick);
@@ -122,9 +160,33 @@ export function calculateEffectiveEntropy(entity: AREEntity, currentTick: number
   return clampInt(baseEntropy + isolationWindows, 0, E_MAX);
 }
 
-export function calculateTemperature(effectiveEntropy: number): number {
+export function calculateTemperature(effectiveEntropy: number, propheticOmega = 0): number {
+  const e = clampInt(whole(effectiveEntropy), 0, E_MAX);
+  const omegaP = clampInt(whole(propheticOmega), 0, KAPPA);
+  const baseTemperature = Math.trunc(KAPPA / (e + 1));
+  return clampInt(baseTemperature + omegaP, 0, KAPPA);
+}
+
+export function calculateBaseTemperature(effectiveEntropy: number): number {
   const e = clampInt(whole(effectiveEntropy), 0, E_MAX);
   return Math.trunc(KAPPA / (e + 1));
+}
+
+export function calculatePropheticOmega(input: PropheticResonanceInput, currentTick: number): PropheticResonanceField {
+  const tick = normalizeTick(currentTick);
+  const predictedTick = normalizeTick(input.predictedTick);
+  const intensity = clampInt(whole(input.intensity ?? KAPPA), 0, KAPPA);
+  const ticksUntilEvent = clampInt(predictedTick - tick, 0, PROPHECY_HORIZON_TICKS);
+  const horizonWeight = PROPHECY_HORIZON_TICKS - ticksUntilEvent;
+  const omegaP = Math.trunc((intensity * horizonWeight) / PROPHECY_HORIZON_TICKS);
+  const field: PropheticResonanceField = Object.freeze({
+    sectorKey: input.sectorKey,
+    omegaP: clampInt(omegaP, 0, KAPPA),
+    predictedTick,
+    expiresAtTick: predictedTick,
+  });
+  assertNoFloats(field);
+  return field;
 }
 
 export function calculateHiggsMass(temperature: number): number {
@@ -173,6 +235,7 @@ export function onElectroweakDecay(entity: AREEntity, metrics: PruningMetrics): 
 export class AREElectroweakPruningManager {
   private readonly entities = new Map<string, AREEntity>();
   private readonly decayEvents: ElectroweakDecayEvent[] = [];
+  private readonly propheticFields = new Map<string, PropheticResonanceField>();
   private lastTick = 0;
 
   public track(entity: AREEntity, currentTick = this.lastTick): AREEntity {
@@ -180,6 +243,7 @@ export class AREElectroweakPruningManager {
     const normalized: AREEntity = Object.freeze({
       ...entity,
       kappa: normalizeCoordinate(entity.kappa),
+      sectorKey: entity.sectorKey ?? getEntitySectorKey(entity),
       baseEntropy: clampInt(whole(entity.baseEntropy ?? DEFAULT_BASE_ENTROPY), 0, E_MAX),
       lastInteractionTick: clampInt(whole(entity.lastInteractionTick ?? tick), 0, tick),
       plexity: whole(entity.plexity ?? DEFAULT_PLEXITY),
@@ -197,11 +261,57 @@ export class AREElectroweakPruningManager {
     return this.track({ ...entity, lastInteractionTick: tick, baseEntropy: DEFAULT_BASE_ENTROPY, active: true }, tick);
   }
 
+  public observeProphecy(input: PropheticResonanceInput, currentTick: number): PropheticResonanceField {
+    const field = calculatePropheticOmega(input, currentTick);
+    if (field.omegaP <= 0 || field.expiresAtTick < normalizeTick(currentTick)) {
+      this.propheticFields.delete(field.sectorKey);
+      return field;
+    }
+    const existing = this.propheticFields.get(field.sectorKey);
+    if (!existing || field.omegaP >= existing.omegaP || field.predictedTick <= existing.predictedTick) {
+      this.propheticFields.set(field.sectorKey, field);
+    }
+    return this.propheticFields.get(field.sectorKey) ?? field;
+  }
+
+  public setPropheticResonance(field: PropheticResonanceField): PropheticResonanceField {
+    const normalized: PropheticResonanceField = Object.freeze({
+      sectorKey: field.sectorKey,
+      omegaP: clampInt(whole(field.omegaP), 0, KAPPA),
+      predictedTick: normalizeTick(field.predictedTick),
+      expiresAtTick: normalizeTick(field.expiresAtTick),
+    });
+    assertNoFloats(normalized);
+    if (normalized.omegaP <= 0) {
+      this.propheticFields.delete(normalized.sectorKey);
+    } else {
+      this.propheticFields.set(normalized.sectorKey, normalized);
+    }
+    return normalized;
+  }
+
+  public clearPropheticResonance(sectorKey: string): void {
+    this.propheticFields.delete(sectorKey);
+  }
+
+  public getPropheticOmegaForEntity(entity: AREEntity, currentTick: number): number {
+    const tick = normalizeTick(currentTick);
+    const sectorKey = getEntitySectorKey(entity);
+    const field = this.propheticFields.get(sectorKey);
+    if (!field || field.expiresAtTick < tick) {
+      this.propheticFields.delete(sectorKey);
+      return 0;
+    }
+    return clampInt(whole(field.omegaP), 0, KAPPA);
+  }
+
   public updateEntity(entity: AREEntity, currentTick: number): PruningUpdateResult {
     const tracked = this.entities.get(entity.id) ?? this.track(entity, currentTick);
     const tick = normalizeTick(currentTick);
     const effectiveEntropy = calculateEffectiveEntropy(tracked, tick);
-    const temperature = calculateTemperature(effectiveEntropy);
+    const baseTemperature = calculateBaseTemperature(effectiveEntropy);
+    const propheticOmega = this.getPropheticOmegaForEntity(tracked, tick);
+    const temperature = calculateTemperature(effectiveEntropy, propheticOmega);
     const higgsMass = calculateHiggsMass(temperature);
     const previousPlexity = whole(tracked.plexity ?? DEFAULT_PLEXITY);
     const nextPlexity = higgsMass > 0 ? calculateNextPlexity(previousPlexity, higgsMass) : previousPlexity;
@@ -209,6 +319,8 @@ export class AREElectroweakPruningManager {
       entityId: tracked.id,
       tick,
       effectiveEntropy,
+      baseTemperature,
+      propheticOmega,
       temperature,
       higgsMass,
       previousPlexity,
@@ -232,6 +344,9 @@ export class AREElectroweakPruningManager {
 
   public tick(currentTick: number, entities: readonly AREEntity[]): readonly PruningUpdateResult[] {
     this.lastTick = normalizeTick(currentTick);
+    for (const [sectorKey, field] of this.propheticFields.entries()) {
+      if (field.expiresAtTick < this.lastTick) this.propheticFields.delete(sectorKey);
+    }
     const results = entities.map((entity) => this.updateEntity(entity, this.lastTick));
     assertNoFloats(results);
     return Object.freeze(results);
@@ -247,6 +362,7 @@ export class AREElectroweakPruningManager {
     return Object.freeze({
       trackedEntities: this.entities.size,
       decayedEntities: this.decayEvents.length,
+      propheticFields: this.propheticFields.size,
       lastTick: this.lastTick,
       lastDecayEntityId: this.decayEvents.at(-1)?.entity.id ?? null,
     });
