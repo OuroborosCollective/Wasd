@@ -70,6 +70,9 @@ export default defineConfig(({ mode }) => {
         },
       },
     ],
+    esbuild: {
+      target: "esnext",
+    },
     build: {
       outDir: isItchBuild ? "dist-itch" : "dist",
       emptyOutDir: true,
