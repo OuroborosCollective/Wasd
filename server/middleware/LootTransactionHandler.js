@@ -45,6 +45,7 @@ class LootTransactionHandler {
             }
 
             // 4. Item Distribution (Ownership Transfer)
+            const auditLogs = [];
             for (const item of lootPayload.items) {
                 const recipientId = this.determineRecipient(item, participantIds);
                 
@@ -54,10 +55,21 @@ class LootTransactionHandler {
                     [recipientId, item.templateId, SecurityProvider.generateUUID()]
                 );
 
-                // Log Transaction for Audit
+                // Buffer Audit Log for Bulk Insert
+                auditLogs.push(['ITEM_DROP', recipientId, sessionId, JSON.stringify(item)]);
+            }
+
+            // Bulk Insert Audit Logs if any exist
+            if (auditLogs.length > 0) {
+                const flattenedValues = [];
+                const placeholders = auditLogs.map((log, i) => {
+                    flattenedValues.push(...log);
+                    return '(?, ?, ?, ?)';
+                }).join(', ');
+
                 await connection.query(
-                    'INSERT INTO audit_logs (event_type, user_id, session_id, detail) VALUES (?, ?, ?, ?)',
-                    ['ITEM_DROP', recipientId, sessionId, JSON.stringify(item)]
+                    `INSERT INTO audit_logs (event_type, user_id, session_id, detail) VALUES ${placeholders}`,
+                    flattenedValues
                 );
             }
 
