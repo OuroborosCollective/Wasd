@@ -14,25 +14,28 @@ from pathlib import Path
 
 ROOT = Path(".")
 LOCKFILE = ROOT / "pnpm-lock.yaml"
+ROOT_MANIFEST = ROOT / "package.json"
 SETTINGS_MARKER = "settings:\n  autoInstallPeers: true\n  excludeLinksFromLockfile: false\n\n"
-OVERRIDES = {
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "@types/node": "^25.9.0",
-    "zod": "^4.4.3",
-    "three": "0.184.0",
-    "@babylonjs/core": "^9.6.2",
-    "@babylonjs/materials": "^9.6.2",
-    "@babylonjs/loaders": "^9.6.2",
-    "react": "^19.2.6",
-    "socket.io-client": "^4.8.3",
-    "pg": "^8.20.0",
-}
-OVERRIDES_BLOCK = "overrides:\n" + "".join(
-    f"  '{name}': {version}\n" if name.startswith("@") else f"  {name}: {version}\n"
-    for name, version in OVERRIDES.items()
-)
 DEPENDENCY_GROUPS = ("dependencies", "devDependencies", "optionalDependencies")
+
+
+def load_root_overrides() -> dict[str, str]:
+    data = json.loads(ROOT_MANIFEST.read_text())
+    pnpm_config = data.get("pnpm", {})
+    overrides = pnpm_config.get("overrides", {})
+    if not isinstance(overrides, dict):
+        return {}
+    return {str(name): str(version) for name, version in overrides.items()}
+
+
+def render_overrides_block(overrides: dict[str, str]) -> str:
+    if not overrides:
+        return ""
+    lines = ["overrides:\n"]
+    for name, version in overrides.items():
+        key = f"'{name}'" if name.startswith("@") else name
+        lines.append(f"  {key}: {yaml_scalar(version)}\n")
+    return "".join(lines)
 
 
 def unquote_yaml_key(raw: str) -> str:
@@ -86,6 +89,7 @@ def load_manifest_specs() -> dict[str, dict[str, dict[str, str]]]:
 
 def expected_specifier(
     manifest_specs: dict[str, dict[str, dict[str, str]]],
+    overrides: dict[str, str],
     importer: str,
     group: str,
     dep: str,
@@ -94,15 +98,22 @@ def expected_specifier(
     if manifest_value is None:
         return None
     # pnpm validates importer specifiers after root overrides are applied.
-    return OVERRIDES.get(dep, manifest_value)
+    return overrides.get(dep, manifest_value)
+
+
+def replace_or_insert_overrides_block(text: str, overrides: dict[str, str]) -> str:
+    block = render_overrides_block(overrides)
+    if "\noverrides:\n" in text:
+        pattern = re.compile(r"\noverrides:\n(?:  .+\n)+", re.MULTILINE)
+        return pattern.sub("\n" + block + "\n", text, count=1)
+    if SETTINGS_MARKER not in text:
+        raise SystemExit("Expected pnpm lockfile settings marker not found")
+    return text.replace(SETTINGS_MARKER, SETTINGS_MARKER + block + "\n", 1)
 
 
 def main() -> None:
-    text = LOCKFILE.read_text()
-    if "\noverrides:\n" not in text:
-        if SETTINGS_MARKER not in text:
-            raise SystemExit("Expected pnpm lockfile settings marker not found")
-        text = text.replace(SETTINGS_MARKER, SETTINGS_MARKER + OVERRIDES_BLOCK + "\n", 1)
+    overrides = load_root_overrides()
+    text = replace_or_insert_overrides_block(LOCKFILE.read_text(), overrides)
 
     manifest_specs = load_manifest_specs()
     lines = text.splitlines(keepends=True)
@@ -144,7 +155,7 @@ def main() -> None:
             continue
 
         if indent == 8 and stripped.startswith("specifier:") and current_importer and current_group and current_dep:
-            expected = expected_specifier(manifest_specs, current_importer, current_group, current_dep)
+            expected = expected_specifier(manifest_specs, overrides, current_importer, current_group, current_dep)
             if expected is not None:
                 replacement = f"        specifier: {yaml_scalar(expected)}\n"
                 if replacement != line:
@@ -153,7 +164,10 @@ def main() -> None:
             continue
 
     LOCKFILE.write_text("".join(lines))
-    print(f"Docker pnpm lockfile preflight synced {changed} importer specifier(s).")
+    print(
+        "Docker pnpm lockfile preflight synced "
+        f"{changed} importer specifier(s) and {len(overrides)} override(s)."
+    )
 
 
 if __name__ == "__main__":
