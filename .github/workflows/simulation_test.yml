@@ -34,6 +34,9 @@ jobs:
       
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Build @wasd/shared
+        run: pnpm --filter @wasd/shared build
       
       - name: Install ts-node
         run: pnpm add -D ts-node typescript
