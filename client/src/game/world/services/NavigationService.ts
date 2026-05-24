@@ -4,6 +4,7 @@
  * Docs: https://doc.babylonjs.com/features/featuresDeepDive/crowdNavigation/v2Intro
  */
 
+import { worldGenerator } from "./WorldGeneratorService.js";
 import { Scene, Mesh, Vector3, TransformNode } from "@babylonjs/core";
 
 export interface NavMeshConfig {
@@ -155,8 +156,24 @@ export class NavigationService {
 
   /** Check if a position is walkable. */
   isWalkable(x: number, y: number): boolean {
-    // TODO: Query navmesh
-    return true;
+    if (!this.initialized || !this.navMesh) return true;
+
+    // Get terrain height to form 3D query point (y in isWalkable is world-z)
+    const h = worldGenerator.getHeightAt(x, y);
+    const queryPoint = new Vector3(x, h, y);
+
+    try {
+      // Find closest point on navmesh
+      const closest = this.navMesh.getClosestPoint(queryPoint);
+
+      // Calculate distance between query point and navmesh point
+      // If close enough (< 0.2m), it's walkable
+      const dist = Vector3.Distance(queryPoint, closest);
+      return dist < 0.2;
+    } catch (err) {
+      console.warn("[NavigationService] isWalkable query failed:", err);
+      return true; // Fallback
+    }
   }
 
   /** Get stats. */
