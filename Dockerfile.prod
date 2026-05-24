@@ -1,19 +1,8 @@
-# Multi-stage Production Dockerfile
 FROM node:22-alpine AS builder
-
 WORKDIR /app
-
-# Build tooling required by asset import/extraction scripts
 RUN apk add --no-cache unzip
-
-# Enable pnpm
 RUN corepack enable && corepack prepare pnpm@9.12.2 --activate
-
-# Copy only manifests for better caching
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-
-# Copy all package.json files to allow pnpm install to work correctly
-# Optimized copy using find to avoid manual list maintenance
 COPY apps/ apps/
 COPY packages/ packages/
 COPY projects/ projects/
@@ -21,44 +10,26 @@ COPY client/package.json client/
 COPY engine/package.json engine/
 COPY portal/package.json portal/
 COPY server/package.json server/
-
 RUN find apps packages projects -type f ! -name 'package.json' -delete
-
-# Install all dependencies (including dev for build)
 RUN pnpm install --frozen-lockfile
-
-# Copy source code
 COPY . .
-
-# Build the project
 RUN pnpm run build
+RUN pnpm --filter ./portal... run build
+RUN test -f /app/portal/dist/index.html
 
-# Production stage
 FROM node:22-alpine AS runner
-
 WORKDIR /app
-
-# Runtime dependencies only
 RUN apk add --no-cache dumb-init
-
 ENV NODE_ENV=production PORT=3000
-
-# Copy necessary files for production
 COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml /app/.npmrc ./
-# Use pnpm deploy to isolate the server package for runtime
-RUN corepack enable && corepack prepare pnpm@9.12.2 --activate && \
-    pnpm --filter @wasd/server deploy /app/prod-server
-
-# Copy built clients after deploy so static runtime routes are available to ServerBootstrap.
+RUN corepack enable && corepack prepare pnpm@9.12.2 --activate && pnpm --filter @wasd/server deploy /app/prod-server
 COPY --from=builder /app/client/dist /app/prod-server/client/dist
 COPY --from=builder /app/client/public /app/prod-server/client/public
 COPY --from=builder /app/apps/client-2d/dist /app/prod-server/client/dist/2d
 COPY --from=builder /app/portal/dist /app/prod-server/client/dist/portal
-
+COPY --from=builder /app/portal/dist /app/prod-server/portal/dist
+RUN test -f /app/prod-server/client/dist/portal/index.html
 WORKDIR /app/prod-server
-
 EXPOSE 3000
-
-# Use node to run the compiled server
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "dist/index.js"]
