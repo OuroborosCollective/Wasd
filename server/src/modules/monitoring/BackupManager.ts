@@ -1,7 +1,7 @@
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import util from 'util';
 
-const execAsync = util.promisify(exec);
+const execFileAsync = util.promisify(execFile);
 
 export class BackupManager {
   /**
@@ -15,18 +15,22 @@ export class BackupManager {
       throw new Error("DATABASE_URL is not configured.");
     }
 
+    // Security: Sanitize label to prevent path traversal or other injection attempts
+    // even though we use execFile, it's good practice to validate inputs used for filenames.
+    const sanitizedLabel = label.replace(/[^a-zA-Z0-9_-]/g, '_');
+
     const timestamp = Date.now();
-    const fileName = `backup_${label}_${timestamp}.sql`;
+    const fileName = `backup_${sanitizedLabel}_${timestamp}.sql`;
     const filePath = `/tmp/${fileName}`;
 
     try {
-      // Execute pg_dump
-      // Note: pg_dump must be installed on the system running this code
-      await execAsync(`pg_dump "${dbUrl}" -F c -f "${filePath}"`);
+      // Execute pg_dump using execFile to prevent command injection
+      // Arguments are passed as an array, so no shell interpolation occurs.
+      await execFileAsync('pg_dump', [dbUrl, '-F', 'c', '-f', filePath]);
       console.log(`Logical backup created successfully at ${filePath}`);
       
       return {
-        label,
+        label: sanitizedLabel,
         file: filePath,
         createdAt: timestamp
       };
@@ -47,8 +51,8 @@ export class BackupManager {
     }
 
     try {
-      // Execute pg_restore
-      await execAsync(`pg_restore -d "${dbUrl}" -c -1 "${filePath}"`);
+      // Execute pg_restore using execFile to prevent command injection
+      await execFileAsync('pg_restore', ['-d', dbUrl, '-c', '-1', filePath]);
       console.log(`Logical backup restored successfully from ${filePath}`);
       return true;
     } catch (error) {
