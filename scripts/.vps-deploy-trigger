@@ -1,0 +1,4 @@
+VPS deploy trigger after stabilization window.
+
+Reason: restore live deployment after 72h stress test.
+Date UTC: 2026-05-24T00:43:00Z
