@@ -186,10 +186,16 @@ export class ServerBootstrap {
     app.use("/api/vote", voteRouter(tick));
     const clientRoot = resolveClientRoot();
     const clientPath = path.join(clientRoot, "dist");
+    const portalPath = path.join(clientPath, "portal");
+    const portalIndexPath = path.join(portalPath, "index.html");
     const itchClientPath = path.join(clientRoot, "dist-itch");
     const adminContentPath = resolveAdminContentHtmlPath(clientRoot, clientPath);
     if (adminContentPath) app.get("/admin-content.html", (_req, res) => res.sendFile(adminContentPath));
     if (existsSync(path.join(itchClientPath, "index.html"))) { app.use("/itch", express.static(itchClientPath, { index: "index.html" })); app.get("/itch/*", (_req, res) => res.sendFile(path.join(itchClientPath, "index.html"))); }
+    if (existsSync(portalIndexPath)) {
+      app.use("/portal", express.static(portalPath, { index: "index.html" }));
+      app.get(["/portal", "/portal/*"], (_req, res) => res.sendFile(portalIndexPath));
+    }
     if (process.env.NODE_ENV !== "production") {
       try { const vite = await import("vite"); const viteServer = await vite.createServer({ server: { middlewareMode: true }, appType: "spa", root: clientRoot }); app.use(viteServer.middlewares); }
       catch (e) { console.error("Failed to start Vite middleware", e); app.use(express.static(clientPath)); }
