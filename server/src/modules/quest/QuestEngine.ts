@@ -73,13 +73,16 @@ export class QuestEngine {
     if (!quest) return null;
     if (!player.quests) player.quests = [];
     
+    const playerQuestsMap = new Map<string, any>();
+    player.quests.forEach((q: any) => playerQuestsMap.set(q.id, q));
+
     // Check if already started
-    if (player.quests.find((q: any) => q.id === questId)) return null;
+    if (playerQuestsMap.has(questId)) return null;
 
     // Check prerequisites
     if (quest.prerequisiteQuestIds && quest.prerequisiteQuestIds.length > 0) {
       for (const preId of quest.prerequisiteQuestIds) {
-        const preQuest = player.quests.find((q: any) => q.id === preId);
+        const preQuest = playerQuestsMap.get(preId);
         if (!preQuest || !preQuest.completed) {
           return null; // Prerequisite not met
         }
@@ -126,8 +129,13 @@ export class QuestEngine {
     }
 
     const status: any[] = [];
+    const playerQuestsMap = new Map<string, any>();
+    if (player.quests) {
+      player.quests.forEach((q: any) => playerQuestsMap.set(q.id, q));
+    }
+
     this.quests.forEach((quest, id) => {
-      const playerQuest = player.quests ? player.quests.find((q: any) => q.id === id) : null;
+      const playerQuest = playerQuestsMap.get(id);
       let state = "locked";
       
       if (playerQuest && playerQuest.completed) {
@@ -139,7 +147,7 @@ export class QuestEngine {
         let prereqsMet = true;
         if (quest.prerequisiteQuestIds) {
           for (const preId of quest.prerequisiteQuestIds) {
-            const preQuest = player.quests ? player.quests.find((q: any) => q.id === preId) : null;
+            const preQuest = playerQuestsMap.get(preId);
             if (!preQuest || !preQuest.completed) {
               prereqsMet = false;
               break;
