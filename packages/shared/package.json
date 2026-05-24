@@ -12,7 +12,7 @@
     }
   },
   "scripts": {
-    "build": "node scripts/transpile-build.mjs",
+    "build": "node scripts/transpile-build.mjs && tsc --emitDeclarationOnly",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit"
   },

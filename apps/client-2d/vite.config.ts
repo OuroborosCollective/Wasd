@@ -15,7 +15,7 @@ export default defineConfig({
   build: {
     outDir: "dist",
     emptyOutDir: true,
-    target: "es2022",
+    target: "chrome89",
     sourcemap: false,
     minify: "esbuild"
   },

@@ -21,7 +21,7 @@ export default defineConfig({
     include: ["react", "react-dom", "react-dom/client", "eventemitter3"],
   },
   build: {
-    target: "es2022",
+    target: "chrome89",
   },
   test: {
     environment: "node",

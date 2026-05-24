@@ -29,6 +29,7 @@
     "allowJs": true,
     "lib": ["ESNext", "DOM"]
   },
+  "references": [{ "path": "../packages/shared" }],
   "include": ["src/**/*"],
   "exclude": [
     "src/assets/**",
