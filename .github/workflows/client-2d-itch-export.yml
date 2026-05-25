@@ -1,0 +1,54 @@
+name: Client 2D itch export
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/client-2d/**"
+      - "packages/core-network/**"
+      - "scripts/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+
+jobs:
+  build-itch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VITE_ARELORIA_LIVE_URL: https://arelorian.de
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Build itch 2D client
+        run: pnpm --filter @wasd/client-2d build:itch
+
+      - name: Add upload notes
+        run: |
+          cat > apps/client-2d/dist-itch/ARELORIA_ITCH_README.txt <<'EOF'
+          Areloria 2D Live itch.io build
+
+          Upload this artifact as an HTML/browser game on itch.io.
+          The build uses relative asset paths and connects to https://arelorian.de for live state.
+          EOF
+
+      - name: Upload itch artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: areloria-2d-live-itch
+          path: apps/client-2d/dist-itch

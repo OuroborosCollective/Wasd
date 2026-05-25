@@ -7,7 +7,9 @@
     "prebuild": "node ../../scripts/are-asset-forge.mjs && node ../../scripts/enrich-stitch-atlas-frames.mjs && node ../../scripts/validate-client-2d-assets.mjs && node ../../scripts/extract-2d-weapon-pool.mjs",
     "dev": "vite",
     "build": "vite build",
+    "build:itch": "vite build --config vite.config.itch.ts",
     "preview": "vite preview",
+    "preview:itch": "vite preview --outDir dist-itch",
     "validate:assets": "node ../../scripts/are-asset-forge.mjs && node ../../scripts/enrich-stitch-atlas-frames.mjs && node ../../scripts/validate-client-2d-assets.mjs"
   },
   "dependencies": {
