@@ -19,6 +19,10 @@ on:
         description: 'External Docker network'
         required: false
         default: 'areloria_arelorian-network'
+      ssh_port:
+        description: 'VPS SSH port'
+        required: false
+        default: '22'
 
 concurrency:
   group: vps-docker-deploy-${{ github.ref_name }}
@@ -37,6 +41,7 @@ jobs:
       DEPLOY_BRANCH: main
       ARELORIAN_PORT: ${{ inputs.arelorian_port || '3001' }}
       ARELORIAN_DOCKER_NETWORK: ${{ inputs.docker_network || 'areloria_arelorian-network' }}
+      SSH_PORT: ${{ inputs.ssh_port || secrets.SSH_PORT || '22' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -49,6 +54,7 @@ jobs:
       - name: Verify VPS SSH connection
         run: |
           sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh \
+            -p "${SSH_PORT}" \
             -o StrictHostKeyChecking=no \
             -o ConnectTimeout=20 \
             "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
@@ -57,6 +63,7 @@ jobs:
       - name: Run Docker deploy on VPS
         run: |
           sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh \
+            -p "${SSH_PORT}" \
             -o StrictHostKeyChecking=no \
             -o ServerAliveInterval=30 \
             -o ServerAliveCountMax=10 \
