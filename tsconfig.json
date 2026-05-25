@@ -46,7 +46,7 @@
     { "path": "projects/api" },
     { "path": "projects/urban" },
     { "path": "projects/arena" },
-    { "path": "projects/story" },
+
     { "path": "projects/retail-opt" },
     { "path": "projects/social" },
     { "path": "projects/logistics" },
@@ -58,7 +58,7 @@
     { "path": "projects/eco-trader" },
     { "path": "projects/urban-flow" },
     { "path": "projects/ads" },
-    { "path": "projects/health-tech" },
+
     { "path": "projects/are-trader" }
   ]
 }

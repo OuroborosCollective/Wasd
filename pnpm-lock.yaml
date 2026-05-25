@@ -398,6 +398,9 @@ importers:
 
   packages/core:
     dependencies:
+      '@babylonjs/core':
+        specifier: 9.8.0
+        version: 9.8.0
       '@wasd/shared':
         specifier: workspace:*
         version: link:../shared
@@ -1205,6 +1208,9 @@ packages:
   '@babel/types@7.29.0':
     resolution: {integrity: sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A==}
     engines: {node: '>=6.9.0'}
+
+  '@babylonjs/core@9.8.0':
+    resolution: {integrity: sha512-A+McUA1/EYAV4uvLtfc5b5eCWJRS2WNzKScHqybwA0PfNsX8eoRAHzNs/iOzS7OxALjZE0J05bssixQVqXm4qQ==}
 
   '@babylonjs/core@9.9.1':
     resolution: {integrity: sha512-zJf9YQbd+yQRA0se9NccFR9zVsu+pPRCXDqhnBXG9lg7j3XXUgRgmEFybPgyO8TOcnQ0p5+FAz6IsdS9hA63pw==}
@@ -7776,6 +7782,8 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
+
+  '@babylonjs/core@9.8.0': {}
 
   '@babylonjs/core@9.9.1': {}
 

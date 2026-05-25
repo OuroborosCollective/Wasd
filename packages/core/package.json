@@ -15,6 +15,7 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
+    "@babylonjs/core": "9.8.0",
     "@wasd/shared": "workspace:*",
     "@wasd/types": "workspace:*"
   },

@@ -89,7 +89,8 @@ async function loadAREPolicyConfig(): Promise<AREPolicyConfig | undefined> {
   }
 }
 
-void (async () => {
+
+Promise.resolve().then(async () => {
 try {
   showBootStatus("Booting renderer...", "info");
   // 1. Boot Engine + Adapter
@@ -231,4 +232,7 @@ try {
   console.error("Fatal client bootstrap error:", error);
   showBootStatus(`Fatal bootstrap error: ${error?.message || "Unknown error"}`);
 }
-})();
+}).catch((error: any) => {
+  console.error("Fatal client bootstrap error:", error);
+  showBootStatus(`Fatal bootstrap error: ${error?.message || "Unknown error"}`);
+});
