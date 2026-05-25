@@ -22,7 +22,7 @@ export class AREShadowLogSink {
 
   constructor(options: { filePath?: string; everyTicks?: number } = {}) {
     this.filePath = resolve(process.cwd(), options.filePath ?? process.env.ARE_SHADOW_LOG_PATH ?? "logs/are-shadow.jsonl");
-    this.everyTicks = Math.max(1, Math.trunc(options.everyTicks ?? Number(process.env.ARE_SHADOW_LOG_EVERY_TICKS) || 60));
+    this.everyTicks = Math.max(1, Math.trunc((options.everyTicks ?? Number(process.env.ARE_SHADOW_LOG_EVERY_TICKS)) || 60));
   }
 
   shouldWrite(tick: number): boolean {
