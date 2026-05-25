@@ -1,5 +1,6 @@
 import express from "express";
 import type { AgoraFinanceSummary, AgoraOAuthConfigStatus, AgoraLiveStatus } from "./AgoraTypes.js";
+import { getLastGitHubWebhookEvent } from "./GitHubWebhook.js";
 
 type AgoraMonitorDeps = {
   getTick?: () => any;
@@ -56,7 +57,7 @@ export function createAgoraMonitorRouter(deps: AgoraMonitorDeps = {}) {
   router.get("/live", (_req, res) => {
     const tick = deps.getTick?.();
     const initializing = Boolean(deps.isInitializing?.());
-    const body: AgoraLiveStatus = {
+    const body: AgoraLiveStatus & { github: { lastEvent: ReturnType<typeof getLastGitHubWebhookEvent> } } = {
       ok: !initializing,
       status: initializing ? "initializing" : "ok",
       project: "ARELORIAN MMORPG",
@@ -66,6 +67,9 @@ export function createAgoraMonitorRouter(deps: AgoraMonitorDeps = {}) {
       buildHash: process.env.BUILD_COMMIT_SHA || "dev",
       nodeEnv: process.env.NODE_ENV || "development",
       openCollective: getAgoraOAuthConfigStatus(),
+      github: {
+        lastEvent: getLastGitHubWebhookEvent(),
+      },
       persistence: safeValue(() => tick?.getPersistenceStats?.() ?? { status: "unknown" }, { status: "unknown" }),
       are: {
         guard: safeValue(() => tick?.getAREGuardStatus?.() ?? null, null),
