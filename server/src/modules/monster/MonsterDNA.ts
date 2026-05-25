@@ -1,5 +1,14 @@
 import { type ARERng, SeededARERng, createARESeed } from "../../core/determinism/AREDeterminism.js";
 
+export interface MonsterDNA {
+  species: string;
+  strength: number;
+  speed: number;
+  aggression: number;
+  intelligence: number;
+  resilience: number;
+}
+
 /**
  * Generates monster DNA deterministically.
  *
@@ -11,7 +20,7 @@ import { type ARERng, SeededARERng, createARESeed } from "../../core/determinism
 export function generateMonsterDNA(
   species: string,
   rng: ARERng = new SeededARERng(createARESeed(["monster-dna", species]))
-) {
+): MonsterDNA {
   return {
     species,
     strength: rng.nextFloat(),

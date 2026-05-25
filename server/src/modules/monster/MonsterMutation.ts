@@ -1,4 +1,9 @@
 import { type ARERng, SeededARERng, createARESeed } from "../../core/determinism/AREDeterminism.js";
+import { type MonsterDNA } from "./MonsterDNA.js";
+
+export interface MutatedMonster extends MonsterDNA {
+  mutations: string[];
+}
 
 /**
  * Applies biome-based and random mutations to a monster.
@@ -8,11 +13,11 @@ import { type ARERng, SeededARERng, createARESeed } from "../../core/determinism
  * This prevents WorldHash drift during simulation ticks where monsters are spawned or mutated.
  */
 export function mutateMonster(
-  dna: any,
+  dna: MonsterDNA,
   biome: string,
   rng: ARERng = new SeededARERng(createARESeed(["monster-mutation", dna.species, biome]))
-) {
-  const clone = { ...dna, mutations: [] as string[] };
+): MutatedMonster {
+  const clone: MutatedMonster = { ...dna, mutations: [] as string[] };
 
   if (biome === "snow") {
     clone.resilience += 0.2;
