@@ -32,7 +32,13 @@ export class RealityFissureBrain {
   public getCriticalFissures(now = 0): FissureData[] {
       const critical: FissureData[] = [];
 
-      for (const [chunkId, fissure] of this.activeFissures.entries()) {
+      // Level-A Simulation requires deterministic iteration over entity collections.
+      // Map iteration order is non-deterministic in Node.js (insertion order based).
+      // Sorting by chunkId ensures deterministic processing and mutation order (delete).
+      const sortedEntries = Array.from(this.activeFissures.entries())
+        .sort(([a], [b]) => a.localeCompare(b));
+
+      for (const [chunkId, fissure] of sortedEntries) {
           // Decay severity over time (heal)
           const timeSinceActive = now - fissure.lastAnalyzed;
           if (timeSinceActive > 30000) { // 30 seconds of no paradoxes heals it slightly
