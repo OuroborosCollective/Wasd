@@ -15,6 +15,7 @@ docs/agents/ARELORIA_AGENT_SKILLBOOK.md
 - Surface world events before adding rewards, resonance, or visuals.
 - Respect existing TypeScript import style and `.js` runtime suffixes.
 - Add tests for new deterministic logic.
+- Put reusable agent learnings in the Skillbook as short, practical notes before changing broad rules.
 
 ## Architecture order
 
