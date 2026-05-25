@@ -21,6 +21,8 @@ const DEFAULT_SNAPSHOT: WorldHeartSnapshot = {
   status: "STABLE",
 };
 
+const WORLD_HEART_ENDPOINT = "/api/lore/world-heart";
+
 function statusColor(status: WorldHeartStatus): number {
   switch (status) {
     case "DECOMPOSITION": return 0x9900ff;
@@ -95,7 +97,7 @@ export function WorldHeartMonitor() {
 
       const fetchSnapshot = async () => {
         try {
-          const response = await fetch("/api/world-heart", { cache: "no-store" });
+          const response = await fetch(WORLD_HEART_ENDPOINT, { cache: "no-store" });
           if (!response.ok) return;
           heart.setSnapshot(await response.json());
         } catch {

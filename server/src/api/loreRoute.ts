@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { GameConfig } from "../config/GameConfig.js";
+import { worldHeartRouter } from "./worldHeartRoute.js";
 import {
   getWorldFragmentById,
   listWorldFragmentSummaries,
@@ -13,6 +14,8 @@ import {
  */
 export function loreRouter(): Router {
   const r = Router();
+
+  r.use("/world-heart", worldHeartRouter());
 
   r.get("/interact", (_req, res) => {
     const d = GameConfig.interactDistance;
