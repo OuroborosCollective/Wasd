@@ -13,6 +13,7 @@ import { type WorldHistory } from "./WorldHistory.js";
 import { type EmergentMarket } from "./EmergentMarket.js";
 import { type DynamicFactions } from "./DynamicFactions.js";
 import { type NeedSet, decayNeeds, mostUrgentNeed, needToGoalCategory, restoreNeed } from "./AgentNeeds.js";
+import { SeededARERng, createARESeed } from "../../core/determinism/AREDeterminism.js";
 
 export interface AgentContext {
   npcId: string;
@@ -88,6 +89,10 @@ export function ouroborosTick(
   setRelationship: (a: string, b: string, delta: number) => void,
   config: OuroborosConfig = DEFAULT_CONFIG,
 ): string | null {
+  // ⚖️ JULES: Secure absolute causality by using a deterministic seed derived from world facts.
+  // This ensures the WorldHash remains consistent across simulation replays.
+  const seed = createARESeed([ctx.worldTime, ctx.npcId, "ouroboros_tick"]);
+  const rng = new SeededARERng(seed);
   const state = getAgentState(ctx.npcId);
   const hw = state.heuristicWeights;
 
@@ -140,8 +145,9 @@ export function ouroborosTick(
     }
 
     case "socialize": {
+      // ⚖️ JULES: Use deterministic RNG for faction formation to prevent timeline divergence.
       // Try to form faction if enough unaffiliated nearby agents
-      if (!myFaction && ctx.nearbyEntities.length >= 3 && Math.random() < config.factionFormChance) {
+      if (!myFaction && ctx.nearbyEntities.length >= 3 && rng.nextFloat() < config.factionFormChance) {
         const candidates = ctx.nearbyEntities
           .filter((e) => e.type === "npc" && !factions.getAgentFaction(e.id))
           .map((e) => e.id);
@@ -160,8 +166,9 @@ export function ouroborosTick(
         }
       }
 
+      // ⚖️ JULES: Deterministic family formation ensures reproducible social evolution.
       // Try forming family with high-affinity agent
-      if (!action && nearbyFriends.length > 0 && Math.random() < config.familyFormChance) {
+      if (!action && nearbyFriends.length > 0 && rng.nextFloat() < config.familyFormChance) {
         const bestFriend = nearbyFriends.reduce((best, e) =>
           getRelationship(ctx.npcId, e.id) > getRelationship(ctx.npcId, best.id) ? e : best,
         );
@@ -181,13 +188,14 @@ export function ouroborosTick(
         }
       }
 
+      // ⚖️ JULES: Legend propagation must be deterministic to maintain the integrity of cultural history.
       // Spread legends (oral tradition)
-      if (!action && Math.random() < config.legendSpreadChance) {
+      if (!action && rng.nextFloat() < config.legendSpreadChance) {
         const unknownLegends = history.getLegendsUnknownTo(ctx.npcId);
         const myLegends = history.getLegendsKnownBy(ctx.npcId);
         if (myLegends.length > 0 && nearbyFriends.length > 0) {
-          const legend = myLegends[Math.floor(Math.random() * myLegends.length)];
-          const target = nearbyFriends[Math.floor(Math.random() * nearbyFriends.length)];
+          const legend = myLegends[rng.nextInt(myLegends.length)];
+          const target = nearbyFriends[rng.nextInt(nearbyFriends.length)];
           history.spreadLegend(legend.id, ctx.npcId, target.id);
           action = "legend_spread";
           memoryCache.logEvent(ctx.npcId, `spread_legend:${legend.title}:to:${target.name}`);
