@@ -33,6 +33,11 @@ services:
       GAME_PORT: "3001"
       HOST: "0.0.0.0"
 
+      API_KEY: "${API_KEY:-}"
+      API_KEYS: "${API_KEYS:-}"
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-https://arelorian.de,https://www.arelorian.de,https://areloria.de,https://www.areloria.de}"
+      CORS_ORIGINS: "${CORS_ORIGINS:-https://arelorian.de,https://www.arelorian.de,https://areloria.de,https://www.areloria.de}"
+
       DATABASE_URL: "${DATABASE_URL:-}"
       DIRECT_URL: "${DIRECT_URL:-}"
       POSTGRES_HOST: "${POSTGRES_HOST:-supabase-db}"
@@ -95,7 +100,7 @@ services:
       ENGINE_URL: "http://arelorian-engine:3001"
       CHECK_INTERVAL: "60"
       STARTUP_GRACE_SECONDS: "360"
-      READINESS_PATHS: "/health,/client-config.json"
+      READINESS_PATHS: "/health,/client-config.json,/portal/"
     depends_on:
       arelorian-engine:
         condition: service_started
