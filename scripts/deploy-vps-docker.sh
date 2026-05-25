@@ -49,6 +49,36 @@ compose_cmd() {
   fi
 }
 
+env_key_present() {
+  local key="$1"
+  local value="${!key-}"
+  [ -n "$value" ] && return 0
+  [ -f "$ARELORIAN_ENV_FILE" ] && grep -Eq "^${key}=.+" "$ARELORIAN_ENV_FILE" && return 0
+  return 1
+}
+
+validate_required_runtime_env() {
+  local missing=0
+  echo "=== Runtime env preflight ==="
+  if ! env_key_present DATABASE_URL; then
+    echo "ERROR: DATABASE_URL is missing. Areloria Docker must receive the Supabase/Postgres URL before startup."
+    missing=1
+  fi
+  if ! env_key_present API_KEY && ! env_key_present API_KEYS; then
+    echo "ERROR: API_KEY or API_KEYS is missing. Production API hardening requires at least one runtime API key."
+    missing=1
+  fi
+  if ! env_key_present ALLOWED_ORIGINS && ! env_key_present CORS_ORIGINS; then
+    echo "ERROR: ALLOWED_ORIGINS or CORS_ORIGINS is missing. Production CORS must be explicit."
+    missing=1
+  fi
+  if [ "$missing" != "0" ]; then
+    echo "Runtime env source checked: $REPO_ROOT/$ARELORIAN_ENV_FILE plus current process env."
+    exit 1
+  fi
+  echo "Runtime env OK: DATABASE_URL, API key and CORS origins are configured."
+}
+
 ensure_external_network() {
   if docker network inspect "$ARELORIAN_DOCKER_NETWORK" >/dev/null 2>&1; then
     echo "Docker network OK: $ARELORIAN_DOCKER_NETWORK"
@@ -71,7 +101,7 @@ connect_existing_container() {
 }
 
 connect_known_service_containers() {
-  for name in supabase-auth supabase-db supabase-kong supabase-rest redis-comn-redis-1 soketi-9eoa-soketi-1; do
+  for name in supabase-auth supabase-db supabase-kong supabase-rest supabase-realtime supabase-storage supabase-meta redis-comn-redis-1 soketi-9eoa-soketi-1; do
     connect_existing_container "$name"
   done
 }
@@ -139,6 +169,10 @@ client_shell_ready() {
   docker exec arelorian-engine node -e "fetch('http://127.0.0.1:${CONTAINER_PORT}/').then(async r=>{const body=await r.text();process.exit(r.ok&&(body.includes('application-canvas')||body.includes('LIVE_ENTRYPOINTS')||body.includes('Cyber-Zen Landing'))?0:1)}).catch(()=>process.exit(1))" >/dev/null 2>&1
 }
 
+portal_shell_ready() {
+  docker exec arelorian-engine node -e "fetch('http://127.0.0.1:${CONTAINER_PORT}/portal/').then(async r=>{const body=await r.text();process.exit(r.ok&&body.includes('PORTAL ONLINE')?0:1)}).catch(()=>process.exit(1))" >/dev/null 2>&1
+}
+
 host_http_ready() {
   curl -sS -m 4 -o /dev/null -w '%{http_code}' "http://127.0.0.1:${ARELORIAN_PORT}/health" 2>/dev/null | grep -Eq '^(200|204|301|302|304|401|403|503)$' && return 0
   curl -sS -m 4 -o /dev/null -w '%{http_code}' "http://127.0.0.1:${ARELORIAN_PORT}/client-config.json" 2>/dev/null | grep -Eq '^(200|204|301|302|304|401|403|503)$' && return 0
@@ -175,6 +209,7 @@ if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
 fi
 
 fetch_and_reset
+validate_required_runtime_env
 
 echo "Deploy commit: $(git rev-parse --short HEAD)"
 export DOCKER_BUILDKIT="${DOCKER_BUILDKIT:-1}"
@@ -206,24 +241,26 @@ ok=0
 for i in $(seq 1 36); do
   if container_http_ready; then
     echo "  container HTTP ready ($i/36)"
-    if client_shell_ready; then
+    if client_shell_ready && portal_shell_ready; then
       echo "  client shell ready"
+      echo "  portal shell ready"
       if host_http_ready; then echo "  host HTTP mapping ready"; else echo "  WARN: host mapping not responding yet"; fi
       if ingress_http_ready; then echo "  ingress HTTP ready"; else echo "  WARN: ingress HTTP not responding yet"; fi
       ok=1
       break
     fi
-    echo "  waiting for client shell... ($i/36)"
+    echo "  waiting for client/portal shell... ($i/36)"
   fi
   if [ "$i" -ge 12 ] && runtime_activity_ready; then
     echo "  runtime activity ready ($i/36): node process and world events detected"
-    if client_shell_ready; then
+    if client_shell_ready && portal_shell_ready; then
       echo "  client shell ready"
+      echo "  portal shell ready"
       if ingress_http_ready; then echo "  ingress HTTP ready"; else echo "  WARN: ingress HTTP not responding yet"; fi
       ok=1
       break
     fi
-    echo "  waiting for client shell... ($i/36)"
+    echo "  waiting for client/portal shell... ($i/36)"
   fi
   echo "  waiting... ($i/36)"
   sleep 5
