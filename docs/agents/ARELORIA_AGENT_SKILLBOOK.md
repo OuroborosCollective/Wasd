@@ -168,6 +168,87 @@ Recommended PR layer: pure module, adapter, commit point, WorldTick event surfac
 
 Test requirement: Prefer deterministic unit tests for pure logic and event-shape tests for WorldTick surfaces.
 
+### Public route and ingress failures
+
+Symptom: Browser shows `Cannot GET /portal`, `Cannot GET /are-console.html`, or the domain opens but a specific client shell route fails while container health checks pass.
+
+Cause: The server process, static client build, Docker port mapping, nginx public route, and SPA fallback are separate layers. A green container health check only proves the upstream responds; it does not prove that the public domain maps every client route to the intended static asset or fallback.
+
+Safe diagnosis:
+
+```txt
+curl -I http://127.0.0.1:<upstream-port>/
+curl -I https://<domain>/
+curl -I https://<domain>/<failing-route>
+docker ps
+nginx -T | grep -E "server_name|proxy_pass|root|try_files"
+```
+
+Recommended fix:
+
+- Verify the built client artifact contains the requested file or that the route is intentionally SPA-handled.
+- Route the public domain to the correct upstream port used by the deployed container.
+- Add or repair nginx `try_files` / proxy fallback so browser routes do not become raw Express 404s.
+- Keep container health, host port mapping, ingress HTTP, and named client routes as separate deploy checks.
+
+Affected paths:
+
+```txt
+.github/workflows/*deploy*.yml
+Dockerfile.prod
+docker-compose*.yml
+scripts/*nginx*
+server/src/*
+client/dist or portal/dist
+```
+
+Recommended PR layer: deployment route / infrastructure docs or deploy script. Do not mix with gameplay logic.
+
+Test requirement: A deploy PR must prove root URL, at least one named client route, container-local HTTP, host-local HTTP, and public ingress HTTP separately.
+
+### Monorepo build and ESM drift
+
+Symptom: CI or deployment fails with stale lockfile errors, broken pnpm workspace links, missing package builds, TypeScript module-resolution errors, or runtime import failures after code appears to compile locally.
+
+Cause: WASD is a multi-package pnpm monorepo. Stubs, workspace packages, generated client bundles, and Node ESM runtime imports can drift independently. TypeScript may accept an import shape that Node later rejects when `.js` runtime suffixes, package exports, or build order are wrong.
+
+Safe diagnosis:
+
+```txt
+pnpm install --frozen-lockfile
+pnpm -r build
+pnpm -r typecheck
+pnpm -r test
+pnpm list -r --depth 0
+find . -name package.json -not -path "*/node_modules/*"
+```
+
+Recommended fix:
+
+- Repair `package.json` workspace dependencies before changing source imports.
+- Keep `pnpm-lock.yaml` synchronized with every package manifest change.
+- Preserve existing ESM import style, including `.js` runtime suffixes where the repo already uses them.
+- Build packages in dependency order and avoid hiding missing package links with local-only path hacks.
+- Prefer one PR for workspace/build graph repair and a separate PR for gameplay or engine logic.
+
+Affected paths:
+
+```txt
+pnpm-workspace.yaml
+pnpm-lock.yaml
+package.json
+apps/*/package.json
+packages/*/package.json
+projects/*/package.json
+server/src/**/*.ts
+client/src/**/*.ts
+engine/**/*.ts
+```
+
+Recommended PR layer: monorepo build graph / dependency hygiene. Do not mix with WorldTick, NPC, reward, or visual changes.
+
+Test requirement: Run deterministic install, recursive build, recursive typecheck, and focused tests for touched packages.
+
 ## Current ladder
 
 ```txt
