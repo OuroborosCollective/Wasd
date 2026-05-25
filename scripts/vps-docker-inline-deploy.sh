@@ -54,6 +54,14 @@ update_env_key() {
   chmod 600 "$ARELORIAN_ENV_FILE"
 }
 
+copy_runtime_env_key_if_present() {
+  local key="$1"
+  local value="${!key-}"
+  if [ -n "$value" ]; then
+    update_env_key "$key" "$value"
+  fi
+}
+
 echo "=== WASD VPS Docker Deploy ==="
 echo "Deploy path: $DEPLOY_PATH"
 echo "Branch: $DEPLOY_BRANCH"
@@ -132,6 +140,9 @@ update_env_key ARELORIAN_DOCKER_NETWORK "$ARELORIAN_DOCKER_NETWORK"
 update_env_key ARELORIAN_ENABLE_DOCKER_INGRESS "$ARELORIAN_ENABLE_DOCKER_INGRESS"
 update_env_key ARELORIAN_INGRESS_HTTP_BIND "$ARELORIAN_INGRESS_HTTP_BIND"
 update_env_key ARELORIAN_INGRESS_HTTP_PORT "$ARELORIAN_INGRESS_HTTP_PORT"
+for key in NODE_ENV API_KEY API_KEYS ALLOWED_ORIGINS CORS_ORIGINS DATABASE_URL DIRECT_URL POSTGRES_PASSWORD SUPABASE_URL SUPABASE_PROXY_URL SUPABASE_PUBLIC_URL SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY JWT_SECRET REDIS_URL SOKETI_APP_ID SOKETI_APP_KEY SOKETI_APP_SECRET; do
+  copy_runtime_env_key_if_present "$key"
+done
 echo "Runtime env file preserved/refreshed: $DEPLOY_PATH/$ARELORIAN_ENV_FILE"
 grep -E '^[A-Z0-9_]+=' "$ARELORIAN_ENV_FILE" | cut -d= -f1 | sed 's/^/  - /'
 
