@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 import { existsSync } from 'node:fs';
 import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { dirname, extname, join, relative } from 'node:path';
 import ts from 'typescript';
 
 const root = process.cwd();
 const srcDir = join(root, 'src');
 const outDir = join(root, 'dist');
+const require = createRequire(import.meta.url);
 
 const compilerOptions = {
   target: ts.ScriptTarget.ES2022,
@@ -148,11 +150,12 @@ if (process.exitCode) {
 }
 
 // Generate declaration files for workspace packages using @wasd/shared.
-// Use the already-installed workspace TypeScript instead of npx to avoid
-// spawning npm resolution work inside the Docker builder.
+// Invoke TypeScript directly through Node so Docker builds do not trigger
+// npx/npm/pnpm package-manager version checks during the declaration pass.
 try {
-  const { execSync } = await import('node:child_process');
-  execSync('pnpm exec tsc -p tsconfig.declarations.json', {
+  const { execFileSync } = await import('node:child_process');
+  const tscPath = require.resolve('typescript/bin/tsc');
+  execFileSync(process.execPath, [tscPath, '-p', 'tsconfig.declarations.json'], {
     cwd: root,
     stdio: 'inherit',
     env: {
