@@ -20,6 +20,7 @@ Read and follow `docs/agents/ARELORIA_AGENT_SKILLBOOK.md` before making architec
 - Route events through WorldTick before adding rewards, resonance, or visuals.
 - One PR equals one system layer.
 - Preserve existing import conventions and `.js` runtime suffixes.
+- Add reusable findings as compact Skillbook learnings before changing broad rules.
 
 ## Layer order
 
