@@ -129,8 +129,15 @@ class LocalNetworkClient implements NetworkClient {
     for (const handler of this.handlers.get(event) ?? []) handler(payload);
   }
 
+  private resolveRuntimeBase(fallbackBase: string): string {
+    if (typeof window !== 'undefined' && window.location?.origin) {
+      return window.location.origin;
+    }
+    return fallbackBase;
+  }
+
   private toWebSocketUrl(base: string): string {
-    const url = new URL('/ws', base);
+    const url = new URL('/ws', this.resolveRuntimeBase(base));
     url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
     return url.toString();
   }
