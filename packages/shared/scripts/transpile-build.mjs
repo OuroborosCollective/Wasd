@@ -147,10 +147,19 @@ if (process.exitCode) {
   process.exit(process.exitCode);
 }
 
-// Generate declaration files for workspace packages using @wasd/shared
+// Generate declaration files for workspace packages using @wasd/shared.
+// Use the already-installed workspace TypeScript instead of npx to avoid
+// spawning npm resolution work inside the Docker builder.
 try {
   const { execSync } = await import('node:child_process');
-  execSync('npx tsc --declaration --emitDeclarationOnly', { stdio: 'inherit' });
+  execSync('pnpm exec tsc -p tsconfig.declarations.json', {
+    cwd: root,
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --max-old-space-size=1024`.trim(),
+    },
+  });
   console.log('Generated declaration files (.d.ts) for @wasd/shared');
 } catch (error) {
   console.error('Failed to generate declaration files:', error);
