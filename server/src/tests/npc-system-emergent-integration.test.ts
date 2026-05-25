@@ -32,7 +32,7 @@ describe('NPCSystem emergent thermal integration', () => {
     });
   });
 
-  it('creates a collapse event when a committed decision reaches decomposition', () => {
+  it('creates a collapse event when a committed decision reaches terminal state', () => {
     const system = new NPCSystem();
     const npc: NPC = {
       id: 'npc:collapse-event',
@@ -64,6 +64,69 @@ describe('NPCSystem emergent thermal integration', () => {
       tick: 1,
       energyAfterAction: 0,
     });
+  });
+
+  it('creates deterministic world resonance, capsule, and shadow records around collapse', () => {
+    const system = new NPCSystem();
+    const source: NPC = {
+      id: 'npc:source-collapse',
+      name: 'Source Collapse',
+      faction: 'guardians',
+      position: { x: 0, y: 0, z: 0 },
+      rotation: 0,
+      visionRange: 10,
+      visionAngle: 90,
+      targetId: null,
+      isProcessingAI: false,
+      traits: { faith: 0.2, aggression: 1, curiosity: 0.1 },
+      energyState: { currentEnergy: 6, maxEnergy: 1000, decayRate: 0, lastUpdatedTick: 1 },
+    };
+    const friend: NPC = system.createNPC('npc:near-friend', 'Near Friend', 10, 0);
+    friend.faction = 'guardians';
+    const rival: NPC = system.createNPC('npc:near-rival', 'Near Rival', 20, 0);
+    rival.faction = 'raiders';
+    const far: NPC = system.createNPC('npc:far-friend', 'Far Friend', 80, 0);
+    far.faction = 'guardians';
+
+    system.addNPC(source);
+    system.tick([{ id: 'player:threat', position: { x: 0, y: 0, z: 0 }, threat: 1, deltaDrift: 0.2 }], 1);
+
+    const resonance = system.drainWorldResonanceEvents();
+    const capsules = system.drainLootCapsules();
+    const shadow = system.drainShadowLogs();
+
+    expect(resonance).toHaveLength(1);
+    expect(capsules).toHaveLength(1);
+    expect(shadow).toHaveLength(1);
+    expect(friend.memory?.resonanceFields?.[0]).toMatchObject({ eventType: 'SOCIAL_SHOCK', moodShift: 'GRIEF' });
+    expect(rival.memory?.resonanceFields?.[0]).toMatchObject({ eventType: 'SOCIAL_SHOCK', moodShift: 'AGGRESSION' });
+    expect(far.memory?.resonanceFields).toBeUndefined();
+    expect(capsules[0].sourceNpcId).toBe('npc:source-collapse');
+    expect(shadow[0]).toMatchObject({ type: 'NPC_DECOMPOSITION_EVENT', affectedCount: 2 });
+  });
+
+  it('does not re-emit collapse resonance on later ticks', () => {
+    const system = new NPCSystem();
+    const npc: NPC = {
+      id: 'npc:single-collapse',
+      name: 'Single Collapse',
+      faction: 'guardians',
+      position: { x: 0, y: 0, z: 0 },
+      rotation: 0,
+      visionRange: 10,
+      visionAngle: 90,
+      targetId: null,
+      isProcessingAI: false,
+      traits: { faith: 0.2, aggression: 1, curiosity: 0.1 },
+      energyState: { currentEnergy: 6, maxEnergy: 1000, decayRate: 0, lastUpdatedTick: 1 },
+    };
+
+    system.addNPC(npc);
+    system.tick([], 1);
+    expect(system.drainWorldResonanceEvents()).toHaveLength(1);
+
+    system.tick([], 2);
+    expect(system.drainWorldResonanceEvents()).toEqual([]);
   });
 
   it('drains emergence events exactly once', () => {
