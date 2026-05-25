@@ -18,6 +18,7 @@ overrides:
   socket.io-client: ^4.8.3
   pg: ^8.20.0
 
+
 importers:
 
   .:
@@ -51,7 +52,7 @@ importers:
     dependencies:
       '@babylonjs/core':
         specifier: 9.8.0
-        version: 9.9.1
+        version: 9.8.0
       '@babylonjs/havok':
         specifier: '*'
         version: 1.3.12
@@ -176,13 +177,13 @@ importers:
     dependencies:
       '@babylonjs/core':
         specifier: 9.8.0
-        version: 9.9.1
+        version: 9.8.0
       '@babylonjs/loaders':
         specifier: 9.8.0
-        version: 9.9.1(@babylonjs/core@9.9.1)(babylonjs-gltf2interface@9.6.2)
+        version: 9.8.0(@babylonjs/core@9.9.1)(babylonjs-gltf2interface@9.6.2)
       '@babylonjs/materials':
         specifier: 9.8.0
-        version: 9.9.1(@babylonjs/core@9.9.1)
+        version: 9.8.0(@babylonjs/core@9.9.1)
       '@wasd/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -249,16 +250,16 @@ importers:
     dependencies:
       '@babylonjs/core':
         specifier: 9.8.0
-        version: 9.9.1
+        version: 9.8.0
       '@babylonjs/havok':
         specifier: ^1.3.12
         version: 1.3.12
       '@babylonjs/loaders':
         specifier: 9.8.0
-        version: 9.9.1(@babylonjs/core@9.9.1)(babylonjs-gltf2interface@9.6.2)
+        version: 9.8.0(@babylonjs/core@9.9.1)(babylonjs-gltf2interface@9.6.2)
       '@babylonjs/materials':
         specifier: 9.8.0
-        version: 9.9.1(@babylonjs/core@9.9.1)
+        version: 9.8.0(@babylonjs/core@9.9.1)
       '@preact/signals-core':
         specifier: ^1.14.1
         version: 1.14.2
@@ -575,7 +576,7 @@ importers:
     devDependencies:
       '@babylonjs/core':
         specifier: 9.8.0
-        version: 9.9.1
+        version: 9.8.0
       '@types/three':
         specifier: 0.184.1
         version: 0.184.1
@@ -642,7 +643,7 @@ importers:
     devDependencies:
       '@babylonjs/core':
         specifier: 9.8.0
-        version: 9.9.1
+        version: 9.8.0
       '@types/node':
         specifier: ^25.9.1
         version: 25.9.1
@@ -657,7 +658,7 @@ importers:
     dependencies:
       '@babylonjs/core':
         specifier: 9.8.0
-        version: 9.9.1
+        version: 9.8.0
       ioredis:
         specifier: ^5.10.1
         version: 5.10.1
