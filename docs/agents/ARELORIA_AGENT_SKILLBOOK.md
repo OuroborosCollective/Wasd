@@ -97,6 +97,77 @@ Before editing:
 5. Avoid new dependencies unless necessary.
 6. Prefer stable ordering and deterministic hashes.
 
+## Agent Learnings
+
+### Documentation-only learning PRs
+
+Context: When a task asks to persist reusable agent knowledge, keep it separate from runtime fixes.
+
+Rule:
+
+- Use a small docs-only branch and PR.
+- Update `docs/agents/ARELORIA_AGENT_SKILLBOOK.md` first.
+- Touch `.github/copilot-instructions.md` or `.cursor/rules/areloria-agent-skillbook.mdc` only for short routing reminders.
+- Do not include source-code fixes in the same PR unless explicitly requested.
+
+Anti-pattern:
+
+```txt
+fix runtime bug + rewrite agent rules + update cursor rules in one PR
+```
+
+Recommended PR layer: agent knowledge / documentation.
+
+Test requirement: No runtime tests are required for docs-only changes. Verify Markdown structure and that the instructions remain agent-readable.
+
+### Reusable error documentation format
+
+Context: Concrete incidents should teach future agents without turning one-off logs into permanent doctrine.
+
+Rule: Document repeatable failures with this shape:
+
+```txt
+Symptom: observable failure text or behavior.
+Cause: general root cause, not only the one incident.
+Safe diagnosis: command, file, log, or invariant that proves it.
+Recommended fix: minimal repeatable repair.
+Affected paths: likely files, workflows, scripts, or deployment surfaces.
+```
+
+Anti-pattern:
+
+```txt
+Today deployment failed because commit abc123 was broken.
+```
+
+Recommended PR layer: field note or agent learning.
+
+Test requirement: Link the learning to the diagnostic command or affected path when possible.
+
+### Architecture learning format
+
+Context: Architecture notes must protect emergence and determinism without freezing NPC behavior.
+
+Rule: Document reusable architecture guidance with this shape:
+
+```txt
+Context: where the rule applies.
+Rule: what future agents must do.
+Anti-pattern: what must not be introduced.
+Recommended PR layer: the correct layer in the chain.
+Test requirement: what proves deterministic behavior.
+```
+
+Anti-pattern:
+
+```txt
+NPCs must always pick action X when condition Y happens.
+```
+
+Recommended PR layer: pure module, adapter, commit point, WorldTick event surface, reward consequence, resonance echo, or portal/client visualization.
+
+Test requirement: Prefer deterministic unit tests for pure logic and event-shape tests for WorldTick surfaces.
+
 ## Current ladder
 
 ```txt
