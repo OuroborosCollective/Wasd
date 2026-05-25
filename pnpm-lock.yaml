@@ -19,6 +19,7 @@ overrides:
   pg: ^8.20.0
 
 
+
 importers:
 
   .:
@@ -771,7 +772,7 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
       vite:
-        specifier: ^5.2.8
+        specifier: 6.4.2
         version: 5.4.21(@types/node@25.9.1)(lightningcss@1.32.0)
       vitest:
         specifier: ^4.1.7
