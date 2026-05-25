@@ -1,4 +1,17 @@
-export function mutateMonster(dna: any, biome: string) {
+import { type ARERng, SeededARERng, createARESeed } from "../../core/determinism/AREDeterminism.js";
+
+/**
+ * Applies biome-based and random mutations to a monster.
+ *
+ * JULES' CAUSALITY CHECK:
+ * Enforces determinism by using ARERng for the 'rare_variant' mutation roll.
+ * This prevents WorldHash drift during simulation ticks where monsters are spawned or mutated.
+ */
+export function mutateMonster(
+  dna: any,
+  biome: string,
+  rng: ARERng = new SeededARERng(createARESeed(["monster-mutation", dna.species, biome]))
+) {
   const clone = { ...dna, mutations: [] as string[] };
 
   if (biome === "snow") {
@@ -11,7 +24,7 @@ export function mutateMonster(dna: any, biome: string) {
     clone.mutations.push("swamp_hunger");
   }
 
-  if (Math.random() < 0.08) {
+  if (rng.nextFloat() < 0.08) {
     clone.mutations.push("rare_variant");
   }
 
