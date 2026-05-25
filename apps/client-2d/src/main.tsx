@@ -8,6 +8,7 @@ import { WorldHeartMonitor } from "./WorldHeartMonitor";
 import { installClient2DDepthRuntime } from "./client2dDepthRuntime";
 import "./theme.css";
 import "./liveReality.css";
+import "./worldHeart.css";
 
 installClient2DDepthRuntime();
 
