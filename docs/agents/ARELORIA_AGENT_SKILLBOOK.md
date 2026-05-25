@@ -249,6 +249,93 @@ Recommended PR layer: monorepo build graph / dependency hygiene. Do not mix with
 
 Test requirement: Run deterministic install, recursive build, recursive typecheck, and focused tests for touched packages.
 
+### Active deploy path split
+
+Context: Areloria can be served by Docker images, PM2 host deploys, nginx static webroots, or a proxy chain. Do not assume a green workflow means the public domain uses the code path you edited.
+
+Rule: Before fixing a public route or landing page, identify the active runtime layer and prove it with commands against container-local, host-local, and public HTTPS URLs.
+
+Anti-pattern:
+
+```txt
+patch Dockerfile.prod while production is currently served by PM2 + nginx static webroot
+```
+
+Safe diagnosis:
+
+```txt
+pm2 status
+pm2 env <id> | grep -E "CLIENT_ROOT_DIR|PORT|NODE_OPTIONS"
+docker ps --format 'table {{.Names}}\t{{.Ports}}\t{{.Status}}'
+ss -ltnp | grep -E ':80|:443|:3001'
+nginx -T | grep -E "server_name|listen 443|root|proxy_pass|try_files"
+curl -s http://127.0.0.1:3001/ | head
+curl -s https://www.arelorian.de/ | head
+```
+
+Recommended fix:
+
+- Patch the deploy path that is actually serving traffic.
+- Keep Docker image fixes, PM2 host-deploy fixes, and nginx vHost fixes in separate PRs.
+- When both PM2 and Docker exist, document which workflow invokes which script.
+- Verify the commit deployed on `/opt/areloria` before changing unrelated runtime code.
+
+Affected paths:
+
+```txt
+Dockerfile.prod
+Dockerfile.vps
+docker-compose*.yml
+scripts/deploy-vps-docker.sh
+deploy/update.sh
+deploy/repair-nginx.sh
+.github/workflows/*deploy*.yml
+```
+
+Recommended PR layer: deployment surface selection. Do not mix with client design or server routing unless the active path proves it is required.
+
+Test requirement: The deploy log must show active commit, active process manager, active webroot, upstream port, and public HTTPS route result.
+
+### Static landing and route-marker verification
+
+Symptom: Deploy passes but `https://www.arelorian.de/` still shows the old app shell instead of the landing page with 3D / 2D / Portal choices, or `/portal/` shows an old bundle after a manual repair.
+
+Cause: Frontend builds can overwrite `client/dist/index.html`, route bundles can be copied into the wrong webroot, and nginx HTTPS can keep serving an older `root` even after host-local PM2 checks pass.
+
+Safe diagnosis:
+
+```txt
+grep -q 'LIVE_ENTRYPOINTS' /opt/areloria/client/dist/index.html
+grep -q 'PORTAL ONLINE' /opt/areloria/client/dist/portal/index.html
+curl -s http://127.0.0.1:3001/ | grep -E 'LIVE_ENTRYPOINTS|application-canvas'
+curl -s https://www.arelorian.de/ | grep -E 'LIVE_ENTRYPOINTS|application-canvas'
+nginx -T | grep -E 'listen 443|server_name|root|try_files'
+```
+
+Recommended fix:
+
+- Build the browser clients first, then run the runtime entrypoint writer last if it owns the root landing page.
+- Assemble `2d`, `3d`, and `portal` folders under the same `CLIENT_ROOT_DIR/dist` that `ServerBootstrap` or nginx serves.
+- Repair both HTTP and HTTPS nginx vHosts when the public URL is HTTPS.
+- Add marker checks to deploy scripts so a green deploy proves content identity, not only status 200.
+
+Affected paths:
+
+```txt
+scripts/write-runtime-entrypoints.mjs
+deploy/update.sh
+deploy/repair-nginx.sh
+server/src/core/ServerBootstrap.ts
+client/dist
+portal/dist
+apps/client-2d/dist
+apps/web/dist
+```
+
+Recommended PR layer: deployment content assembly / static ingress. Do not mix with gameplay, NPC logic, or ARE kernel changes.
+
+Test requirement: Verify status and body markers for `/`, `/2d/`, `/portal/`, host-local HTTP, and public HTTPS. Status 200 alone is not enough.
+
 ## Current ladder
 
 ```txt

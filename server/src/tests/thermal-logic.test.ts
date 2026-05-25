@@ -68,11 +68,11 @@ describe('ThermalLogic', () => {
     expect(thermal.statusOf({ currentEnergy: 950, maxEnergy: 1000, decayRate: 1, lastUpdatedTick: 0 })).toBe('OVERHEATED');
   });
 
-  it('restricts critical entities to harvest and decomposition entities to no actions', () => {
+  it('keeps critical entities autonomous and only blocks decomposition', () => {
     const thermal = new ThermalLogic();
     const actions = ['OBSERVE', 'HARVEST_RESOURCE', 'DEFEND_COLONY'] as const;
 
-    expect(thermal.allowedActionsForCritical('CRITICAL', actions, 'HARVEST_RESOURCE')).toEqual(['HARVEST_RESOURCE']);
+    expect(thermal.allowedActionsForCritical('CRITICAL', actions, 'HARVEST_RESOURCE')).toEqual([...actions]);
     expect(thermal.allowedActionsForCritical('DECOMPOSITION', actions, 'HARVEST_RESOURCE')).toEqual([]);
     expect(thermal.allowedActionsForCritical('STABLE', actions, 'HARVEST_RESOURCE')).toEqual([...actions]);
   });

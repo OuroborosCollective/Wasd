@@ -109,9 +109,8 @@ export class ThermalLogic {
     });
   }
 
-  public allowedActionsForCritical<TAction extends string>(status: ThermalStatus, actions: readonly TAction[], harvestAction: TAction): TAction[] {
+  public allowedActionsForCritical<TAction extends string>(status: ThermalStatus, actions: readonly TAction[], _harvestAction: TAction): TAction[] {
     if (status === 'DECOMPOSITION') return [];
-    if (status === 'CRITICAL') return actions.includes(harvestAction) ? [harvestAction] : [];
     return [...actions];
   }
 

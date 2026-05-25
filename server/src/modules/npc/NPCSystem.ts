@@ -5,6 +5,8 @@ import { EmergentThermalAdapter, type EmergentThermalDecisionResult } from './Em
 import { type AREBrainInput } from './EmergentBrain';
 import { type EnergyState } from './ThermalLogic';
 import { createEmergenceCollapsePayload, type WorldEmergenceCollapsePayload } from '../world/WorldEmergenceEvent';
+import { WorldEventBus } from '../world/WorldEventBus';
+import { WorldResonanceAdapter, type LootCapsule, type WorldResonanceResult } from '../world/WorldResonanceAdapter';
 
 function deterministicNpcTraits(id: string): { faith: number; aggression: number; curiosity: number } {
     let h = 0;
@@ -69,7 +71,12 @@ export class NPCSystem {
     private updateInterval: NodeJS.Timeout | null = null;
     private readonly TICK_RATE = 100; // 10Hz in ms
     private readonly thermalAdapter = new EmergentThermalAdapter();
+    private readonly worldEventBus = new WorldEventBus();
+    private readonly worldResonanceAdapter = new WorldResonanceAdapter();
     private emergenceEvents: WorldEmergenceCollapsePayload[] = [];
+    private resonanceEvents: WorldResonanceResult[] = [];
+    private lootCapsules: LootCapsule[] = [];
+    private shadowLogs: Record<string, unknown>[] = [];
 
     public resonanceEngine: TraitResonanceEngine;
 
@@ -135,6 +142,24 @@ export class NPCSystem {
         const events = this.emergenceEvents;
         this.emergenceEvents = [];
         return events;
+    }
+
+    public drainWorldResonanceEvents(): WorldResonanceResult[] {
+        const events = this.resonanceEvents;
+        this.resonanceEvents = [];
+        return events;
+    }
+
+    public drainLootCapsules(): LootCapsule[] {
+        const capsules = this.lootCapsules;
+        this.lootCapsules = [];
+        return capsules;
+    }
+
+    public drainShadowLogs(): Record<string, unknown>[] {
+        const logs = this.shadowLogs;
+        this.shadowLogs = [];
+        return logs;
     }
 
     public handleInteraction(npcId: string, player: any, questDefs: any): any {
@@ -208,6 +233,7 @@ export class NPCSystem {
         const averageThreat = NPCSystem.average(playerContexts.map((player) => player.threat));
 
         for (const npc of this.cachedSortedNpcs) {
+            if (npc.state === 'decomposition') continue;
             this.processEmergentDecision(npc, currentTick, averageDrift, averageThreat, colonyUtility);
             if (npc.state === 'decomposition') continue;
             this.processPerception(npc, playerContexts);
@@ -310,6 +336,7 @@ export class NPCSystem {
             thermalStatus: result.thermalStatus,
             risk: result.consequence.risk,
             collapseRisk: result.consequence.collapseRisk,
+            collapseIfExecuted: result.consequence.collapseIfExecuted,
             survivalBias: result.consequence.survivalBias,
             energyBefore: result.energyStats.before,
             energyAfterDecay: result.energyStats.afterDecay,
@@ -322,20 +349,8 @@ export class NPCSystem {
             npc.state = 'decomposition';
             npc.targetId = null;
             npc.isProcessingAI = false;
-            npc.memory.resonanceFields = [];
-            this.emergenceEvents.push(createEmergenceCollapsePayload({
-                npcId: npc.id,
-                factionId: npc.faction ?? 'neutral',
-                position: npc.position,
-                tick: result.energyState.lastUpdatedTick,
-                reason: result.reason,
-                risk: result.consequence.risk,
-                sourceAction: result.finalAction,
-                energyBefore: result.energyStats.before,
-                energyAfterDecay: result.energyStats.afterDecay,
-                energyAfterAction: result.energyStats.afterAction,
-                kappaHash: result.brainDecision?.kappaHash ?? null,
-            }));
+            npc.memory.resonanceFields ??= [];
+            this.emitDecompositionResonance(npc, result);
             return;
         }
 
@@ -360,6 +375,36 @@ export class NPCSystem {
                 npc.state = 'observing';
                 break;
         }
+    }
+
+    private emitDecompositionResonance(npc: NPC, result: EmergentThermalDecisionResult): void {
+        const event = createEmergenceCollapsePayload({
+            npcId: npc.id,
+            factionId: npc.faction ?? 'neutral',
+            position: npc.position,
+            tick: result.energyState.lastUpdatedTick,
+            reason: result.reason,
+            risk: result.consequence.risk,
+            sourceAction: result.finalAction,
+            energyBefore: result.energyStats.before,
+            energyAfterDecay: result.energyStats.afterDecay,
+            energyAfterAction: result.energyStats.afterAction,
+            kappaHash: result.brainDecision?.kappaHash ?? null,
+        });
+
+        this.emergenceEvents.push(event);
+        this.worldEventBus.publish(event);
+
+        const resonance = this.worldResonanceAdapter.handleDecomposition(event, this.cachedSortedNpcs);
+        this.resonanceEvents.push(resonance);
+        this.lootCapsules.push(resonance.lootCapsule);
+        this.shadowLogs.push(resonance.shadowLog);
+        npc.memory.lastDecompositionResonance = {
+            lootCapsuleId: resonance.lootCapsule.id,
+            affectedNpcIds: resonance.affectedNpcIds,
+            finalKappaHash: event.kappaHash,
+            plexityTotal: resonance.lootCapsule.plexityTotal,
+        };
     }
 
     private static initialEnergyState(tick: number): EnergyState {

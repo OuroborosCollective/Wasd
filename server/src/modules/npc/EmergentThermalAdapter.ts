@@ -7,9 +7,11 @@ export type DecisionConsequence = {
   allowed: boolean;
   risk: EnergyRisk;
   finalAction: AREBrainAction | 'DECOMPOSITION';
+  collapseIfExecuted: boolean;
   collapseRisk: boolean;
   survivalBias: number;
   energyAfterAction: number;
+  reason: string;
 };
 
 export type EmergentThermalAdapterInput = {
@@ -38,6 +40,11 @@ function clamp(value: number, min = 0, max = 1): number {
   return Math.max(min, Math.min(max, value));
 }
 
+function finite(value: unknown, fallback = 0): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 export class EmergentThermalAdapter {
   private readonly brain: EmergentBrainKernel;
   private readonly thermal: ThermalLogic;
@@ -56,9 +63,11 @@ export class EmergentThermalAdapter {
         allowed: false,
         risk: 'COLLAPSE_IMMINENT',
         finalAction: 'DECOMPOSITION' as const,
+        collapseIfExecuted: true,
         collapseRisk: true,
         survivalBias: 1,
         energyAfterAction: decay.energy.currentEnergy,
+        reason: 'thermal_decomposition_no_action_allowed',
       });
 
       return Object.freeze({
@@ -74,19 +83,22 @@ export class EmergentThermalAdapter {
         },
         energyState: decay.energy,
         decomposition: true,
-        reason: 'thermal_decomposition_no_action_allowed',
+        reason: consequence.reason,
       });
     }
 
-    const survivalBias = this.calculateSurvivalBias(decay.energy);
+    const previousConsequence = this.analyzeEnergyPressure(decay.energy);
     const brainDecision = this.brain.process({
       ...input.brainInput,
       energy: decay.energy.currentEnergy / decay.energy.maxEnergy,
-      survivalBias,
+      survivalBias: previousConsequence.survivalBias,
     });
 
-    const consequence = this.analyzeConsequence(decay.energy, brainDecision, survivalBias);
-    const action = this.thermal.applyActionCost(decay.energy, brainDecision.energyCost);
+    const consequence = this.analyzeConsequence(decay.energy, brainDecision);
+    const nextEnergyState = Object.freeze({
+      ...decay.energy,
+      currentEnergy: consequence.energyAfterAction,
+    });
 
     return Object.freeze({
       thermalStatus: decay.status,
@@ -97,39 +109,71 @@ export class EmergentThermalAdapter {
       energyStats: {
         before: normalizedBefore.currentEnergy,
         afterDecay: decay.energy.currentEnergy,
-        afterAction: action.energy.currentEnergy,
+        afterAction: nextEnergyState.currentEnergy,
       },
-      energyState: action.energy,
-      decomposition: consequence.collapseRisk || action.status === 'DECOMPOSITION',
-      reason: consequence.collapseRisk ? `${brainDecision.reason}:thermal_risk` : brainDecision.reason,
+      energyState: nextEnergyState,
+      decomposition: consequence.collapseIfExecuted,
+      reason: consequence.reason,
     });
   }
 
-  private analyzeConsequence(energy: EnergyState, decision: AREBrainDecision, survivalBias: number): DecisionConsequence {
-    const energyAfterAction = Math.max(0, energy.currentEnergy - Math.max(0, decision.energyCost));
+  private analyzeEnergyPressure(energy: EnergyState): DecisionConsequence {
+    const risk = this.riskFor(energy.currentEnergy / energy.maxEnergy, energy.currentEnergy <= 0);
+    const survivalBias = this.calculateSurvivalBias(energy, risk);
+
+    return Object.freeze({
+      allowed: energy.currentEnergy > 0,
+      risk,
+      finalAction: energy.currentEnergy <= 0 ? 'DECOMPOSITION' : 'OBSERVE',
+      collapseIfExecuted: energy.currentEnergy <= 0,
+      collapseRisk: energy.currentEnergy <= 0,
+      survivalBias,
+      energyAfterAction: energy.currentEnergy,
+      reason: `thermal_pressure_${risk.toLowerCase()}`,
+    });
+  }
+
+  private analyzeConsequence(energy: EnergyState, decision: AREBrainDecision): DecisionConsequence {
+    const actionCost = Math.max(0, Math.trunc(finite(decision.energyCost, 0)));
+    const rawEnergyAfterAction = energy.currentEnergy - actionCost;
+    const energyAfterAction = Math.max(0, rawEnergyAfterAction);
+    const collapseIfExecuted = rawEnergyAfterAction <= 0;
     const ratioAfterAction = energyAfterAction / energy.maxEnergy;
-    const collapseRisk = energyAfterAction <= 0;
-    const risk = this.riskFor(ratioAfterAction, collapseRisk);
+    const risk = this.riskFor(ratioAfterAction, collapseIfExecuted);
+    const survivalBias = this.calculateSurvivalBias({ ...energy, currentEnergy: energyAfterAction }, risk);
 
     return Object.freeze({
       allowed: true,
       risk,
       finalAction: decision.action,
-      collapseRisk,
+      collapseIfExecuted,
+      collapseRisk: collapseIfExecuted,
       survivalBias,
       energyAfterAction,
+      reason: collapseIfExecuted
+        ? `${decision.reason}:collapse_if_executed:${rawEnergyAfterAction}`
+        : `${decision.reason}:thermal_risk_${risk.toLowerCase()}`,
     });
   }
 
-  private calculateSurvivalBias(energy: EnergyState): number {
+  private calculateSurvivalBias(energy: EnergyState, risk: EnergyRisk): number {
     const energyRatio = energy.currentEnergy / energy.maxEnergy;
-    return clamp(1 - energyRatio);
+    const energyPressure = clamp(1 - energyRatio);
+    const riskPressure = risk === 'COLLAPSE_IMMINENT'
+      ? 1
+      : risk === 'CRITICAL'
+        ? 0.85
+        : risk === 'STRAINED'
+          ? 0.45
+          : 0;
+
+    return clamp((energyPressure * 0.72) + (riskPressure * 0.28));
   }
 
-  private riskFor(energyRatio: number, collapseRisk: boolean): EnergyRisk {
-    if (collapseRisk) return 'COLLAPSE_IMMINENT';
-    if (energyRatio < 0.1) return 'CRITICAL';
-    if (energyRatio < 0.25) return 'STRAINED';
+  private riskFor(energyRatio: number, collapseIfExecuted: boolean): EnergyRisk {
+    if (collapseIfExecuted) return 'COLLAPSE_IMMINENT';
+    if (energyRatio <= 0.1) return 'CRITICAL';
+    if (energyRatio <= 0.3) return 'STRAINED';
     return 'NONE';
   }
 }

@@ -4,10 +4,11 @@ import { CyberZenLoginGate } from "./CyberZenLoginGate";
 import { CyberZenIsoApp } from "./CyberZenIsoApp";
 import { LiveRealityBridge } from "./LiveRealityBridge";
 import { MobileMovePad } from "./MobileMovePad";
-import { PixiModuleInspector } from "./PixiModuleInspector";
+import { WorldHeartMonitor } from "./WorldHeartMonitor";
 import { installClient2DDepthRuntime } from "./client2dDepthRuntime";
 import "./theme.css";
 import "./liveReality.css";
+import "./worldHeart.css";
 
 installClient2DDepthRuntime();
 
@@ -16,7 +17,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <CyberZenLoginGate>
       <CyberZenIsoApp />
       <LiveRealityBridge />
-      <PixiModuleInspector />
+      <WorldHeartMonitor />
       <MobileMovePad />
     </CyberZenLoginGate>
   </React.StrictMode>
