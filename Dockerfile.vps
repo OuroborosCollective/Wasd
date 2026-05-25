@@ -76,16 +76,15 @@ RUN pnpm --filter @wasd/core-logic --if-present run build:runtime && \
 
 RUN node scripts/sync-world-assets.mjs || true
 
-RUN pnpm --filter @wasd/client --if-present build || \
-    (mkdir -p client/dist && printf '%s\n' '<!doctype html><html><body><main id="application-canvas">Areloria 3D unavailable</main></body></html>' > client/dist/index.html)
+RUN pnpm --filter @wasd/client --if-present build
 
 RUN rm -rf /tmp/wasd-3d-dist && mkdir -p /tmp/wasd-3d-dist && cp -a client/dist/. /tmp/wasd-3d-dist/
 
-RUN pnpm --filter @wasd/client-2d --if-present build || \
-    (mkdir -p apps/client-2d/dist && printf '%s\n' '<!doctype html><html><body><main id="application-canvas">Areloria 2D unavailable</main></body></html>' > apps/client-2d/dist/index.html)
+RUN pnpm --filter @wasd/client-2d --if-present build && \
+    test -f apps/client-2d/dist/index.html && \
+    ! grep -q 'Areloria 2D unavailable' apps/client-2d/dist/index.html
 
-RUN VITE_BASE_PATH=/portal/ pnpm --filter @wasd/portal --if-present build || \
-    (mkdir -p portal/dist && printf '%s\n' '<!doctype html><html><body><main id="application-canvas">Areloria portal unavailable</main></body></html>' > portal/dist/index.html)
+RUN VITE_BASE_PATH=/portal/ pnpm --filter @wasd/portal --if-present build
 
 RUN rm -rf client/dist/2d client/dist/3d client/dist/portal && \
     mkdir -p client/dist/2d client/dist/3d client/dist/portal && \
@@ -103,7 +102,8 @@ RUN test -f client/dist/index.html && \
     test -f client/dist/portal/index.html && \
     test -f client/dist/design-routes.json && \
     grep -q 'LIVE_ENTRYPOINTS' client/dist/index.html && \
-    grep -q 'PORTAL ONLINE' client/dist/portal/index.html
+    grep -q 'PORTAL ONLINE' client/dist/portal/index.html && \
+    ! grep -R "unavailable" client/dist/index.html client/dist/2d/index.html client/dist/3d/index.html client/dist/portal/index.html
 
 FROM node:22-alpine AS runner
 
