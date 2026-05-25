@@ -230,6 +230,21 @@ function characterSelectionForName(name: string, player = false, seed = name): C
   return { tags: ["civilian"], group: chooseCivilianGroup(`npc:${seed}:${lower}`) };
 }
 
+function fallbackActorProxy(player: boolean, aura: number) {
+  const c = new Container();
+  const tunic = player ? 0x2f7dff : 0x2fbf70;
+  const trim = player ? 0x00e5ff : 0x39ff14;
+  c.addChild(new Graphics().ellipse(0, 18, 18, 6).fill({ color: 0x02040a, alpha: 0.64 }));
+  c.addChild(new Graphics().roundRect(-10, -30, 20, 32, 6).fill(tunic).stroke({ width: 2, color: trim, alpha: 0.56 }));
+  c.addChild(new Graphics().circle(0, -43, 11).fill(player ? 0xffd8a9 : 0xd4ffd7).stroke({ width: 2, color: aura, alpha: 0.82 }));
+  c.addChild(new Graphics().roundRect(-18, -25, 8, 24, 4).fill(0x1d3c6b));
+  c.addChild(new Graphics().roundRect(10, -25, 8, 24, 4).fill(0x1d3c6b));
+  c.addChild(new Graphics().roundRect(-8, 1, 6, 18, 3).fill(0x13202f));
+  c.addChild(new Graphics().roundRect(2, 1, 6, 18, 3).fill(0x13202f));
+  c.addChild(new Graphics().circle(0, -24, 21).stroke({ width: 1, color: aura, alpha: 0.28 }));
+  return c;
+}
+
 function avatar(name: string, player = false, assets?: LoadedAssets | null, weaponVisualId?: string | null, characterVisualId?: string | null) {
   const c = new Container();
   const aura = player ? 0x00e5ff : 0x39ff14;
@@ -245,10 +260,7 @@ function avatar(name: string, player = false, assets?: LoadedAssets | null, weap
   const tex = atlasFrameTextureFor(assets ?? null, entry, "idle_down") ?? textureFor(assets ?? null, entry);
   c.addChild(new Graphics().ellipse(0, 18, 23, 8).fill({ color: 0x02040a, alpha: 0.56 }));
   if (tex) c.addChild(spriteFromTexture(tex, 58, 74));
-  else {
-    c.addChild(new Graphics().ellipse(0, -8, 14, 21).fill(player ? 0x267dff : 0x249a56).stroke({ width: 2, color: aura, alpha: 0.55 }));
-    c.addChild(new Graphics().circle(0, -34, 11).fill(player ? 0xffd8a9 : 0xd4ffd7).stroke({ width: 2, color: aura, alpha: 0.82 }));
-  }
+  else c.addChild(fallbackActorProxy(player, aura));
   addWeaponSprite(c, assets, name, weaponVisualId);
   const label = new Text({ text: name, style: { fontSize: 11, fill: 0xfff0cf, stroke: { color: 0x02030a, width: 3 }, fontFamily: "monospace" } });
   label.anchor.set(0.5, 1);
