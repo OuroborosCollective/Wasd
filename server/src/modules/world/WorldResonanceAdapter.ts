@@ -136,6 +136,10 @@ export class WorldResonanceAdapter {
     const essenceCount = 1 + (plexityTotal % 3);
     const memoryShards = Math.max(1, Math.floor(plexityTotal / 333));
     const salt = rng.nextRange(0, 2);
+    const items: LootCapsuleItem[] = [
+      { itemId: 'resonance_essence', count: essenceCount, resonanceValue: plexityTotal },
+      { itemId: 'memory_shard', count: memoryShards + salt, resonanceValue: Math.max(1, Math.floor(plexityTotal / 2)) },
+    ];
 
     return Object.freeze({
       id: `loot:decomposition:${event.npcId}:${event.kappaHash}`,
@@ -146,10 +150,7 @@ export class WorldResonanceAdapter {
       tick: event.tick,
       kappaHash: event.kappaHash,
       plexityTotal,
-      items: Object.freeze([
-        Object.freeze({ itemId: 'resonance_essence', count: essenceCount, resonanceValue: plexityTotal }),
-        Object.freeze({ itemId: 'memory_shard', count: memoryShards + salt, resonanceValue: Math.max(1, Math.floor(plexityTotal / 2)) }),
-      ]),
+      items,
       gold: Math.max(0, Math.floor(plexityTotal / 10)),
     });
   }
