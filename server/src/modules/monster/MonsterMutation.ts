@@ -1,5 +1,16 @@
-export function mutateMonster(dna: any, biome: string) {
-  const clone = { ...dna, mutations: [] as string[] };
+import { type ARERng, SeededARERng, createARESeed } from "../../core/determinism/AREDeterminism.js";
+import { type MonsterDNA } from "./MonsterDNA.js";
+
+export interface MutatedMonster extends MonsterDNA {
+  mutations: string[];
+}
+
+export function mutateMonster(
+  dna: MonsterDNA,
+  biome: string,
+  rng: ARERng = new SeededARERng(createARESeed(["monster-mutation", dna.species, biome]))
+): MutatedMonster {
+  const clone: MutatedMonster = { ...dna, mutations: [] as string[] };
 
   if (biome === "snow") {
     clone.resilience += 0.2;
@@ -11,7 +22,7 @@ export function mutateMonster(dna: any, biome: string) {
     clone.mutations.push("swamp_hunger");
   }
 
-  if (Math.random() < 0.08) {
+  if (rng.nextFloat() < 0.08) {
     clone.mutations.push("rare_variant");
   }
 
