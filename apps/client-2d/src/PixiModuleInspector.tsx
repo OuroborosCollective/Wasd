@@ -7,10 +7,10 @@ export function PixiModuleInspector() {
 
   return (
     <aside className="pixi-module-inspector" aria-label="Areloria Pixi module policy">
-      <strong>Pixi Visual Kit</strong>
+      <strong>Pixi Kit</strong>
       <span>core {core.length}</span>
-      <span>next {optional.length}</span>
-      <span>skip {avoided.length}</span>
+      <span>optional {optional.length}</span>
+      <span>avoid {avoided.length}</span>
       <small>{CLIENT_2D_VISUAL_POLICY.gameplayAuthority}</small>
     </aside>
   );
