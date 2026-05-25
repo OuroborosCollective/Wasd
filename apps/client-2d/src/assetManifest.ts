@@ -142,7 +142,7 @@ export function firstEntry(manifest: AssetManifest | null, category: AssetCatego
 
 export function fallbackEntry(manifest: AssetManifest | null, category: AssetCategory, fallbackKey: string): AssetEntry | null {
   const id = manifest?.fallbacks?.[fallbackKey] ?? null;
-  return getEntry(manifest, category, id) ?? firstEntry(manifest, category);
+  return getEntry(manifest, category, id) ?? firstRenderableEntry(manifest, category) ?? firstEntry(manifest, category);
 }
 
 function deterministicIndex(seed: string, length: number): number {
@@ -154,6 +154,21 @@ function deterministicIndex(seed: string, length: number): number {
   return Math.abs(hash) % length;
 }
 
+function isRenderableEntry(entry: AssetEntry | null | undefined): boolean {
+  if (!entry?.src) return false;
+  if (entry.frame) return true;
+  if (entry.sheetFrame && entry.frameSize) return true;
+  if (entry.spriteLayers?.length) return true;
+  if (entry.width && entry.height) return true;
+  return !entry.src.toLowerCase().endsWith('.json');
+}
+
+function firstRenderableEntry(manifest: AssetManifest | null, category: AssetCategory): AssetEntry | null {
+  const group = manifest?.[category];
+  if (!group) return null;
+  return Object.values(group).find(isRenderableEntry) ?? null;
+}
+
 export function pickWeaponVisual(
   manifest: AssetManifest | null,
   input: { visualId?: string | null; weaponClass?: string | null; rarity?: string | null; seed?: string | number | null },
@@ -161,17 +176,19 @@ export function pickWeaponVisual(
   const weapons = manifest?.weapons;
   if (!weapons) return null;
 
-  if (input.visualId && weapons[input.visualId]) return { id: input.visualId, entry: weapons[input.visualId] };
+  if (input.visualId && weapons[input.visualId] && isRenderableEntry(weapons[input.visualId])) return { id: input.visualId, entry: weapons[input.visualId] };
 
   const weaponClass = String(input.weaponClass || '').toLowerCase();
   const rarity = String(input.rarity || '').toLowerCase();
   const matches = Object.entries(weapons).filter(([, entry]) => {
+    if (!isRenderableEntry(entry)) return false;
     const classOk = !weaponClass || entry.weaponClass === weaponClass || entry.tags?.includes(weaponClass);
     const rarityOk = !rarity || entry.rarity === rarity || entry.tags?.includes(rarity);
     return classOk && rarityOk;
   });
 
-  const pool = matches.length > 0 ? matches : Object.entries(weapons);
+  const renderablePool = Object.entries(weapons).filter(([, entry]) => isRenderableEntry(entry));
+  const pool = matches.length > 0 ? matches : renderablePool;
   if (pool.length === 0) return null;
 
   const seed = String(input.seed ?? `${weaponClass}:${rarity}`);
@@ -186,12 +203,13 @@ export function pickCharacterVisual(
   const characters = manifest?.characters;
   if (!characters) return null;
 
-  if (input.visualId && characters[input.visualId]) return { id: input.visualId, entry: characters[input.visualId] };
+  if (input.visualId && characters[input.visualId] && isRenderableEntry(characters[input.visualId])) return { id: input.visualId, entry: characters[input.visualId] };
 
   const wantedTags = (input.tags ?? []).map((tag) => tag.toLowerCase());
   const wantedGroup = String(input.group || '').toLowerCase();
   const wantedKind = String(input.kind || '').toLowerCase();
   const matches = Object.entries(characters).filter(([, entry]) => {
+    if (!isRenderableEntry(entry)) return false;
     const tags = (entry.tags ?? []).map((tag) => String(tag).toLowerCase());
     const group = String(entry.group ?? '').toLowerCase();
     const kind = String(entry.kind ?? '').toLowerCase();
@@ -201,7 +219,8 @@ export function pickCharacterVisual(
     return tagsOk && groupOk && kindOk;
   });
 
-  const pool = matches.length > 0 ? matches : Object.entries(characters);
+  const renderablePool = Object.entries(characters).filter(([, entry]) => isRenderableEntry(entry));
+  const pool = matches.length > 0 ? matches : renderablePool;
   if (pool.length === 0) return null;
 
   const seed = String(input.seed ?? `${wantedKind}:${wantedGroup}:${wantedTags.join(',')}`);
