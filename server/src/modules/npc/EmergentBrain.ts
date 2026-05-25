@@ -23,6 +23,7 @@ export type AREBrainInput = {
   playerThreat: number;
   colonyUtility: number;
   resourcePressure?: number;
+  survivalBias?: number;
   tick: number;
 };
 
@@ -97,6 +98,7 @@ export class EmergentBrainKernel {
       playerThreat: kappa(input.playerThreat),
       colonyUtility: kappa(input.colonyUtility),
       resourcePressure: kappa(input.resourcePressure ?? 0),
+      survivalBias: kappa(input.survivalBias ?? 0),
       tick: Math.max(0, Math.trunc(finite(input.tick, 0))),
     });
   }
@@ -112,6 +114,7 @@ export class EmergentBrainKernel {
       input.playerThreat,
       input.colonyUtility,
       input.resourcePressure,
+      input.survivalBias,
       input.tick % KAPPA,
       kappa(input.traits.faith),
       kappa(input.traits.aggression),
@@ -126,12 +129,12 @@ export class EmergentBrainKernel {
     const energyDeficit = KAPPA - input.energy;
 
     return {
-      ANCHOR_BUFF: input.colonyUtility * 0.32 + faith * 0.42 + input.playerDeltaDrift * 0.12 - input.playerThreat * 0.22 - energyDeficit * 0.18,
-      WITHDRAW: input.playerDeltaDrift * 0.38 + input.playerThreat * 0.42 + energyDeficit * 0.24 - aggression * 0.22,
+      ANCHOR_BUFF: input.colonyUtility * 0.32 + faith * 0.42 + input.playerDeltaDrift * 0.12 - input.playerThreat * 0.22 - energyDeficit * 0.18 - input.survivalBias * 0.16,
+      WITHDRAW: input.playerDeltaDrift * 0.38 + input.playerThreat * 0.42 + energyDeficit * 0.24 - aggression * 0.22 + input.survivalBias * 0.18,
       WARN_FACTION: input.playerThreat * 0.36 + input.colonyUtility * 0.25 + faith * 0.16 + curiosity * 0.08,
-      OBSERVE: curiosity * 0.34 + input.playerDeltaDrift * 0.08 + input.energy * 0.08 - input.playerThreat * 0.06,
-      HARVEST_RESOURCE: input.resourcePressure * 0.45 + energyDeficit * 0.22 + curiosity * 0.10 - input.playerThreat * 0.14,
-      DEFEND_COLONY: input.colonyUtility * 0.36 + input.playerThreat * 0.30 + aggression * 0.30 + faith * 0.10,
+      OBSERVE: curiosity * 0.34 + input.playerDeltaDrift * 0.08 + input.energy * 0.08 - input.playerThreat * 0.06 - input.survivalBias * 0.08,
+      HARVEST_RESOURCE: input.resourcePressure * 0.45 + energyDeficit * 0.22 + curiosity * 0.10 - input.playerThreat * 0.14 + input.survivalBias * 0.46,
+      DEFEND_COLONY: input.colonyUtility * 0.36 + input.playerThreat * 0.30 + aggression * 0.30 + faith * 0.10 - input.survivalBias * 0.12,
     };
   }
 
