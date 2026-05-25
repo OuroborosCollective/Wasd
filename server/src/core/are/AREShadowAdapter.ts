@@ -6,6 +6,7 @@ import { AREGuard } from './AREGuard';
 import { ARENpcEvolution } from './ARENpcEvolution';
 import { AREPayloadFactory, type AREPayloadNormalizationOptions, type IAREPayload } from './AREPayload';
 import type { AREReplayBuffer } from './AREReplayBuffer';
+import { AREShadowLogSink } from './AREShadowLogSink';
 import { AREShadowState, type AREShadowEcosystemStats } from './AREShadowState';
 
 export interface AREShadowTickInput {
@@ -50,6 +51,8 @@ function kappaCellOf(position: unknown): string {
 
 export class AREShadowAdapter {
   private static readonly defaultEcosystemState = new AREShadowState();
+  private static readonly logSink = new AREShadowLogSink();
+  private static lastLoggedTick: number | null = null;
   private static topologyTick: number | null = null;
   private static topologyCells = new Map<string, string[]>();
 
@@ -86,6 +89,19 @@ export class AREShadowAdapter {
     const bucket = this.topologyCells.get(cell) ?? [];
     bucket.push(entityId);
     this.topologyCells.set(cell, bucket);
+  }
+
+  private static writeShadowLog(input: AREShadowTickInput, stateHash: number | undefined): void {
+    if (this.lastLoggedTick === input.tick) return;
+    this.lastLoggedTick = input.tick;
+    this.logSink.write(input.tick, {
+      capacity: input.buffer.capacity,
+      size: input.buffer.size,
+      latestTick: input.tick,
+      latestEntityId: input.entityId,
+      latestStateHash: stateHash ?? null,
+      ecosystem: this.getEcosystemTelemetry(),
+    });
   }
 
   static executeShadowTick(input: AREShadowTickInput): AREShadowTickResult {
@@ -132,6 +148,7 @@ export class AREShadowAdapter {
         return recorded;
       });
 
+      AREShadowAdapter.writeShadowLog(input, entry.stateHash);
       return { skipped: false, recorded: true, stateHash: entry.stateHash };
     } catch (error) {
       return { skipped: false, recorded: false, error };
