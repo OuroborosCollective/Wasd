@@ -44,11 +44,13 @@ describe('EmergentThermalAdapter', () => {
     expect(result.brainDecision?.action).toBe('ANCHOR_BUFF');
     expect(result.finalAction).toBe('ANCHOR_BUFF');
     expect(result.actionAllowed).toBe(true);
+    expect(result.consequence.risk).toBe('NONE');
+    expect(result.consequence.survivalBias).toBeCloseTo(0.2);
     expect(result.energyStats).toEqual({ before: 800, afterDecay: 800, afterAction: 788 });
     expect(result.decomposition).toBe(false);
   });
 
-  it('forces critical entities to harvest resources regardless of the brain action', () => {
+  it('keeps autonomy in critical state and reports risk instead of forcing harvest', () => {
     const adapter = new EmergentThermalAdapter();
 
     const result = adapter.process({
@@ -58,13 +60,34 @@ describe('EmergentThermalAdapter', () => {
     });
 
     expect(result.thermalStatus).toBe('CRITICAL');
-    expect(result.brainDecision?.action).not.toBe('HARVEST_RESOURCE');
-    expect(result.finalAction).toBe('HARVEST_RESOURCE');
-    expect(result.energyStats.afterAction).toBe(80);
-    expect(result.reason).toBe('critical_energy_harvest_override');
+    expect(result.brainDecision).not.toBeNull();
+    expect(result.finalAction).toBe(result.brainDecision?.action);
+    expect(result.actionAllowed).toBe(true);
+    expect(result.consequence.risk).toBe('CRITICAL');
+    expect(result.consequence.survivalBias).toBeCloseTo(0.92);
+    expect(result.consequence.collapseRisk).toBe(false);
+    expect(result.reason).not.toBe('critical_energy_harvest_override');
   });
 
-  it('returns decomposition without invoking a final brain action when energy reaches zero', () => {
+  it('marks collapse risk when a chosen action would consume remaining energy', () => {
+    const adapter = new EmergentThermalAdapter();
+
+    const result = adapter.process({
+      brainInput: brainInput({ resourcePressure: 0 }),
+      energyState: energyState({ currentEnergy: 6, decayRate: 0 }),
+      currentTick: 1000,
+    });
+
+    expect(result.brainDecision).not.toBeNull();
+    expect(result.actionAllowed).toBe(true);
+    expect(result.consequence.risk).toBe('COLLAPSE_IMMINENT');
+    expect(result.consequence.collapseRisk).toBe(true);
+    expect(result.energyStats.afterAction).toBe(0);
+    expect(result.decomposition).toBe(true);
+    expect(result.reason).toContain('thermal_risk');
+  });
+
+  it('returns decomposition without invoking a final brain action when energy reaches zero after decay', () => {
     const adapter = new EmergentThermalAdapter();
 
     const result = adapter.process({
@@ -77,12 +100,13 @@ describe('EmergentThermalAdapter', () => {
     expect(result.brainDecision).toBeNull();
     expect(result.finalAction).toBe('DECOMPOSITION');
     expect(result.actionAllowed).toBe(false);
+    expect(result.consequence.allowed).toBe(false);
     expect(result.decomposition).toBe(true);
     expect(result.energyStats.afterDecay).toBe(0);
     expect(result.energyStats.afterAction).toBe(0);
   });
 
-  it('feeds decayed energy ratio into the brain input', () => {
+  it('feeds decayed energy ratio and survival bias into the brain input', () => {
     const adapter = new EmergentThermalAdapter();
 
     const result = adapter.process({
@@ -92,6 +116,7 @@ describe('EmergentThermalAdapter', () => {
     });
 
     expect(result.energyStats.afterDecay).toBe(400);
+    expect(result.consequence.survivalBias).toBeCloseTo(0.6);
     expect(result.brainDecision?.nextEnergy).toBeLessThanOrEqual(400);
   });
 });
