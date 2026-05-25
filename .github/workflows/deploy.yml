@@ -26,7 +26,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-                    run_install: false
+          run_install: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -58,7 +58,7 @@ jobs:
             --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} \
             --public-access blob \
             --auth-mode key || true
-          
+
           az storage blob upload-batch \
             --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} \
             --destination "cdn-assets" \
@@ -99,33 +99,41 @@ jobs:
           target: "${{ secrets.DEPLOY_PATH }}/server/dist"
           strip_components: 1
 
-      - name: SSH Orchestration & PM2 Restart
+      - name: SSH Orchestration & Workflow Env Restart
         uses: appleboy/ssh-action@master
+        env:
+          NODE_ENV: production
+          API_KEY: ${{ secrets.API_KEY }}
+          API_KEYS: ${{ secrets.API_KEYS }}
+          ALLOWED_ORIGINS: ${{ secrets.ALLOWED_ORIGINS }}
+          CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
+          envs: NODE_ENV,API_KEY,API_KEYS,ALLOWED_ORIGINS,CORS_ORIGINS,DATABASE_URL
           script: |
             set -e
             cd ${{ secrets.DEPLOY_PATH }}
-            
+
             echo "--- UPDATING CORE SOURCE ---"
             git fetch origin main
             git reset --hard origin/main
-            
+
             echo "--- CONFIGURING RUNTIME ENVIRONMENT ---"
             mkdir -p server/dist
             echo '{"type": "module"}' > server/dist/package.json
-            
+
             export PNPM_HOME="/home/${{ secrets.SSH_USER }}/.local/share/pnpm"
             export PATH="$PNPM_HOME:$PATH"
-            
+
             pnpm install --prod --no-frozen-lockfile
-            
-            echo "--- RESTARTING PM2 INSTANCE ---"
+
+            echo "--- RESTARTING PM2 INSTANCE WITH WORKFLOW ENV ---"
             pm2 delete areloria || true
             pm2 start server/dist/index.js --name areloria --update-env
-            
+
             echo "--- DEPLOYMENT SUCCESSFUL ---"
 
       - name: Verify Deployment Health
@@ -134,7 +142,7 @@ jobs:
           MAX_RETRIES=8
           RETRY_COUNT=0
           WAIT_TIME=10
-          
+
           until $(curl --output /dev/null --silent --head --fail http://${{ secrets.PRODUCTION_IP }}); do
             RETRY_COUNT=$((RETRY_COUNT + 1))
             if [ $RETRY_COUNT -gt $MAX_RETRIES ]; then
@@ -145,5 +153,5 @@ jobs:
             sleep $WAIT_TIME
             WAIT_TIME=$((WAIT_TIME * 2))
           done
-          
+
           echo "Areloria WASD Service is Healthy and responding on http://${{ secrets.PRODUCTION_IP }}"
