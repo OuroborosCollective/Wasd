@@ -35,8 +35,8 @@ services:
 
       API_KEY: "${API_KEY:-}"
       API_KEYS: "${API_KEYS:-}"
-      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-https://arelorian.de,https://www.arelorian.de,https://areloria.de,https://www.areloria.de}"
-      CORS_ORIGINS: "${CORS_ORIGINS:-https://arelorian.de,https://www.arelorian.de,https://areloria.de,https://www.areloria.de}"
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-https://arelorian.de,https://www.arelorian.de}"
+      CORS_ORIGINS: "${CORS_ORIGINS:-https://arelorian.de,https://www.arelorian.de}"
 
       DATABASE_URL: "${DATABASE_URL:-}"
       DIRECT_URL: "${DIRECT_URL:-}"
