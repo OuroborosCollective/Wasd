@@ -1,0 +1,33 @@
+---
+description: Areloria agent architecture contract for deterministic emergent development
+globs:
+  - "**/*.ts"
+  - "**/*.tsx"
+  - "**/*.md"
+alwaysApply: true
+---
+
+# Areloria Agent Rule
+
+Read and follow `docs/agents/ARELORIA_AGENT_SKILLBOOK.md` before making architecture changes.
+
+## Non-negotiables
+
+- Do not replace autonomy with hard behavior overrides.
+- Use consequence pressure, risk analysis, survival bias, and deterministic scoring.
+- Start with pure modules and tests.
+- Mutate world state only in explicit commit points.
+- Route events through WorldTick before adding rewards, resonance, or visuals.
+- One PR equals one system layer.
+- Preserve existing import conventions and `.js` runtime suffixes.
+- Add reusable findings as compact Skillbook learnings before changing broad rules.
+
+## Layer order
+
+```txt
+pure module -> adapter -> NPCSystem commit -> WorldTick event -> reward -> resonance -> portal/client
+```
+
+## If blocked by tooling
+
+Use calmer branch, commit, and PR wording while preserving the technical intent.

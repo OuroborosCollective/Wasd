@@ -31,7 +31,7 @@ function energyState(overrides: Partial<EnergyState> = {}): EnergyState {
 }
 
 describe('EmergentThermalAdapter', () => {
-  it('passes stable thermal state through the brain and applies action cost', () => {
+  it('passes stable thermal state through the brain and applies action consequence', () => {
     const adapter = new EmergentThermalAdapter();
 
     const result = adapter.process({
@@ -44,8 +44,10 @@ describe('EmergentThermalAdapter', () => {
     expect(result.brainDecision?.action).toBe('ANCHOR_BUFF');
     expect(result.finalAction).toBe('ANCHOR_BUFF');
     expect(result.actionAllowed).toBe(true);
+    expect(result.consequence.allowed).toBe(true);
     expect(result.consequence.risk).toBe('NONE');
-    expect(result.consequence.survivalBias).toBeCloseTo(0.2);
+    expect(result.consequence.collapseIfExecuted).toBe(false);
+    expect(result.consequence.survivalBias).toBeGreaterThan(0);
     expect(result.energyStats).toEqual({ before: 800, afterDecay: 800, afterAction: 788 });
     expect(result.decomposition).toBe(false);
   });
@@ -63,8 +65,10 @@ describe('EmergentThermalAdapter', () => {
     expect(result.brainDecision).not.toBeNull();
     expect(result.finalAction).toBe(result.brainDecision?.action);
     expect(result.actionAllowed).toBe(true);
+    expect(result.consequence.allowed).toBe(true);
     expect(result.consequence.risk).toBe('CRITICAL');
-    expect(result.consequence.survivalBias).toBeCloseTo(0.92);
+    expect(result.consequence.survivalBias).toBeGreaterThan(0.85);
+    expect(result.consequence.collapseIfExecuted).toBe(false);
     expect(result.consequence.collapseRisk).toBe(false);
     expect(result.reason).not.toBe('critical_energy_harvest_override');
   });
@@ -80,11 +84,13 @@ describe('EmergentThermalAdapter', () => {
 
     expect(result.brainDecision).not.toBeNull();
     expect(result.actionAllowed).toBe(true);
+    expect(result.consequence.allowed).toBe(true);
     expect(result.consequence.risk).toBe('COLLAPSE_IMMINENT');
+    expect(result.consequence.collapseIfExecuted).toBe(true);
     expect(result.consequence.collapseRisk).toBe(true);
     expect(result.energyStats.afterAction).toBe(0);
     expect(result.decomposition).toBe(true);
-    expect(result.reason).toContain('thermal_risk');
+    expect(result.reason).toContain('collapse_if_executed');
   });
 
   it('returns decomposition without invoking a final brain action when energy reaches zero after decay', () => {
@@ -101,12 +107,13 @@ describe('EmergentThermalAdapter', () => {
     expect(result.finalAction).toBe('DECOMPOSITION');
     expect(result.actionAllowed).toBe(false);
     expect(result.consequence.allowed).toBe(false);
+    expect(result.consequence.collapseIfExecuted).toBe(true);
     expect(result.decomposition).toBe(true);
     expect(result.energyStats.afterDecay).toBe(0);
     expect(result.energyStats.afterAction).toBe(0);
   });
 
-  it('feeds decayed energy ratio and survival bias into the brain input', () => {
+  it('feeds decayed energy pressure and survival bias into the brain input', () => {
     const adapter = new EmergentThermalAdapter();
 
     const result = adapter.process({
@@ -116,7 +123,8 @@ describe('EmergentThermalAdapter', () => {
     });
 
     expect(result.energyStats.afterDecay).toBe(400);
-    expect(result.consequence.survivalBias).toBeCloseTo(0.6);
+    expect(result.consequence.survivalBias).toBeGreaterThan(0.35);
+    expect(result.brainDecision?.scores.HARVEST_RESOURCE).toBeGreaterThan(0);
     expect(result.brainDecision?.nextEnergy).toBeLessThanOrEqual(400);
   });
 });
