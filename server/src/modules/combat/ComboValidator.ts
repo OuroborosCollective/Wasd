@@ -13,6 +13,8 @@
  * - Position verification
  */
 
+import { type AREClock, SystemAREClock } from "../../core/determinism/AREDeterminism.js";
+
 export interface Vector3 {
   x: number;
   y: number;
@@ -127,7 +129,10 @@ export class ComboValidator {
   private cooldowns: Map<string, number>;
   private tickCount: number = 0;
 
-  constructor(definitions?: Map<string, ComboDefinition>) {
+  constructor(
+    definitions?: Map<string, ComboDefinition>,
+    private readonly clock: AREClock = new SystemAREClock(),
+  ) {
     this.comboDefinitions = definitions || DEFAULT_COMBO_DEFINITIONS;
     this.playerStates = new Map();
     this.cooldowns = new Map();
@@ -142,7 +147,7 @@ export class ComboValidator {
   }
 
   public getServerTimestamp(): number {
-    return Date.now();
+    return this.clock.now();
   }
 
   public calculateDistance(a: Vector3, b: Vector3): number {
