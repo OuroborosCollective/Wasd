@@ -1,6 +1,7 @@
 import { WorldHistory } from "../history/WorldHistory.js";
 import { serverWorldEventBus } from "../../events/WorldEventBus.js";
 import { pushLiveTickerHazard } from "../../theme/serverThemeHazard.js";
+import { WARFRONT_TICK_MS } from "./warfrontTypes.js";
 
 export type WarfrontFeedKind = "hit" | "kill";
 
@@ -71,9 +72,10 @@ export class WarfrontCombatTelemetry {
     return { events, lastSeq: this.seq, hud: this.lastHud };
   }
 
-  private push(entry: Omit<WarfrontFeedEntry, "seq">): WarfrontFeedEntry {
+  private push(entry: Omit<WarfrontFeedEntry, "seq"> & { timestamp?: number }): WarfrontFeedEntry {
     this.seq += 1;
-    const full: WarfrontFeedEntry = { ...entry, seq: this.seq };
+    const { timestamp, ...rest } = entry;
+    const full: WarfrontFeedEntry = { ...rest, seq: this.seq };
     this.ring.push(full);
     while (this.ring.length > RING_CAP) this.ring.shift();
 
@@ -81,7 +83,7 @@ export class WarfrontCombatTelemetry {
       id: `wf_${full.seq}_${full.tick}`,
       title: full.kind === "kill" ? "Warfront kill" : "Warfront hit",
       description: full.summary,
-      timestamp: Date.now(),
+      timestamp: timestamp ?? full.tick * WARFRONT_TICK_MS,
       involvedFactionIds: [full.attackerId, full.defenderId],
     });
 
@@ -103,6 +105,7 @@ export class WarfrontCombatTelemetry {
     defenderId: string;
     damage: number;
     summary: string;
+    timestamp?: number;
   }): void {
     void this.push({
       tick: ctx.tick,
@@ -111,6 +114,7 @@ export class WarfrontCombatTelemetry {
       defenderId: ctx.defenderId,
       damage: ctx.damage,
       summary: ctx.summary,
+      timestamp: ctx.timestamp,
     });
   }
 
@@ -120,6 +124,7 @@ export class WarfrontCombatTelemetry {
     defenderId: string;
     damage: number;
     summary: string;
+    timestamp?: number;
   }): void {
     void this.push({
       tick: ctx.tick,
@@ -128,6 +133,7 @@ export class WarfrontCombatTelemetry {
       defenderId: ctx.defenderId,
       damage: ctx.damage,
       summary: ctx.summary,
+      timestamp: ctx.timestamp,
     });
   }
 }

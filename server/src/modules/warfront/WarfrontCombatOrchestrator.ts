@@ -4,6 +4,7 @@ import { PlayerSystem } from "../player/PlayerSystem.js";
 import { CombatService, type CombatState } from "../combat/CombatService.js";
 import { mulberry32, warfrontSeed } from "./warfrontRng.js";
 import { WarfrontCombatTelemetry, type WarfrontHudAgent, type WarfrontHudSnapshot } from "./WarfrontCombatTelemetry.js";
+import { WARFRONT_TICK_MS } from "./warfrontTypes.js";
 
 const WF_PREFIX = "wf_";
 const STRIKE_RANGE = 42;
@@ -153,6 +154,7 @@ export function runWarfrontCombatTick(opts: {
     const summaryKill = `Combat kill · ${attacker.id} dropped ${tgt.id} · ${applied} dmg @tick ${tickCount} · respawn`;
     lastSummary = killed ? summaryKill : summaryHit;
 
+    const timestamp = tickCount * 100;
     if (killed) {
       tel.recordKill({
         tick: tickCount,
@@ -160,6 +162,7 @@ export function runWarfrontCombatTick(opts: {
         defenderId: tgt.id,
         damage: applied,
         summary: summaryKill,
+        timestamp,
       });
     } else {
       tel.recordHit({
@@ -168,6 +171,7 @@ export function runWarfrontCombatTick(opts: {
         defenderId: tgt.id,
         damage: applied,
         summary: summaryHit,
+        timestamp,
       });
     }
 

@@ -1,3 +1,5 @@
+export const WARFRONT_TICK_MS = 100;
+
 export type WarfrontSectorKind = "combat" | "crafting" | "scouting";
 
 export type WarfrontPhase = "building" | "boss_ready" | "boss_active" | "cooldown";
