@@ -31,6 +31,14 @@ const EQUIPPED_WEAPON_KEY = "wasd:2d:equippedWeaponVisualId";
 const FOREST_WORLD_SEED = "areloria:forest:millbrook:v1";
 const KAPPA_INVARIANT = 1000;
 
+type MoveVector = { dx: number; dz: number };
+
+declare global {
+  interface Window {
+    __wasd2dMove?: (vector: MoveVector) => void;
+  }
+}
+
 type Entity = {
   root: Container;
   tx: number;
@@ -319,6 +327,20 @@ export function CyberZenIsoApp() {
   const [equippedWeaponId, setEquippedWeaponId] = useState<string | null>(() => localStorage.getItem(EQUIPPED_WEAPON_KEY));
   const [messages, setMessages] = useState<Msg[]>([{ from: "Oracle", txt: "Cyberzen 2.5D shell online." }]);
 
+  function sendMove(vector: MoveVector) {
+    if (!clientRef.current?.connected) return;
+    if (Date.now() - moveAt.current <= 140) return;
+    moveAt.current = Date.now();
+    clientRef.current.sendPlayerAction("MOVE", vector);
+  }
+
+  useEffect(() => {
+    window.__wasd2dMove = sendMove;
+    return () => {
+      if (window.__wasd2dMove === sendMove) delete window.__wasd2dMove;
+    };
+  });
+
   useEffect(() => {
     const down = (e: KeyboardEvent) => keys.current.add(e.key.toLowerCase());
     const up = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
@@ -480,10 +502,7 @@ export function CyberZenIsoApp() {
     if (k.has("s") || k.has("arrowdown")) dz -= 1;
     if (k.has("a") || k.has("arrowleft")) dx -= 1;
     if (k.has("d") || k.has("arrowright")) dx += 1;
-    if ((dx || dz) && clientRef.current?.connected && Date.now() - moveAt.current > 140) {
-      moveAt.current = Date.now();
-      clientRef.current.sendPlayerAction("MOVE", { dx, dz });
-    }
+    if (dx || dz) sendMove({ dx, dz });
     entities.current.forEach((ent) => {
       const p = iso(ent.tx, ent.tz, app.screen.width, app.screen.height);
       ent.root.x += (p.x - ent.root.x) * 0.18;
