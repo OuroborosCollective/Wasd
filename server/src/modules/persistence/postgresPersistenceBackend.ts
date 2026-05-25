@@ -66,20 +66,35 @@ export class PostgresPersistenceBackend implements IPersistenceBackend {
       return;
     }
 
+    const ids = Object.keys(data);
+    if (ids.length === 0) return;
+
     try {
-      for (const id of Object.keys(data)) {
-        const payload = {
-          ...serializePlayerForPersistence(data[id]),
-          lastUpdated: new Date().toISOString(),
-        };
-        await db.query(
-          `INSERT INTO player_snapshots (id, snapshot, last_updated)
-           VALUES ($1, $2::jsonb, NOW())
-           ON CONFLICT (id) DO UPDATE SET snapshot = EXCLUDED.snapshot, last_updated = NOW()`,
-          [id, JSON.stringify(payload)]
-        );
+      // ⚡ Bolt Optimization: Use bulk inserts to reduce database round-trips.
+      // Chunking to stay within PostgreSQL parameter limits (max 65535).
+      const chunkSize = 200;
+      for (let i = 0; i < ids.length; i += chunkSize) {
+        const chunkIds = ids.slice(i, i + chunkSize);
+        const values: any[] = [];
+        const valuePlaceholders: string[] = [];
+
+        chunkIds.forEach((id, index) => {
+          const payload = {
+            ...serializePlayerForPersistence(data[id]),
+            lastUpdated: new Date().toISOString(),
+          };
+          values.push(id, JSON.stringify(payload));
+          valuePlaceholders.push(`($${index * 2 + 1}, $${index * 2 + 2}::jsonb, NOW())`);
+        });
+
+        const sql = `
+          INSERT INTO player_snapshots (id, snapshot, last_updated)
+          VALUES ${valuePlaceholders.join(", ")}
+          ON CONFLICT (id) DO UPDATE SET snapshot = EXCLUDED.snapshot, last_updated = NOW()`;
+
+        await db.query(sql, values);
       }
-      console.log(`Saved ${Object.keys(data).length} players to Postgres.`);
+      console.log(`Saved ${ids.length} players to Postgres using bulk inserts.`);
     } catch (err) {
       console.error("[Persistence] Failed to save players to Postgres:", err);
     }
@@ -111,18 +126,36 @@ export class PostgresPersistenceBackend implements IPersistenceBackend {
       console.warn("[Persistence] Postgres saveWorldObjects skipped (database not configured).");
       return;
     }
+    if (objects.length === 0) return;
+
     try {
-      for (const obj of objects) {
-        const id = typeof obj?.id === "string" ? obj.id : "";
-        if (!id) continue;
-        await db.query(
-          `INSERT INTO world_object_snapshots (id, snapshot, last_updated)
-           VALUES ($1, $2::jsonb, NOW())
-           ON CONFLICT (id) DO UPDATE SET snapshot = EXCLUDED.snapshot, last_updated = NOW()`,
-          [id, JSON.stringify(obj)]
-        );
+      // ⚡ Bolt Optimization: Use bulk inserts to reduce database round-trips.
+      const chunkSize = 200;
+      for (let i = 0; i < objects.length; i += chunkSize) {
+        const chunk = objects.slice(i, i + chunkSize);
+        const values: any[] = [];
+        const valuePlaceholders: string[] = [];
+        let placeholderIndex = 1;
+
+        for (const obj of chunk) {
+          const id = typeof obj?.id === "string" ? obj.id : "";
+          if (!id) continue;
+
+          values.push(id, JSON.stringify(obj));
+          valuePlaceholders.push(`($${placeholderIndex}, $${placeholderIndex + 1}::jsonb, NOW())`);
+          placeholderIndex += 2;
+        }
+
+        if (values.length === 0) continue;
+
+        const sql = `
+          INSERT INTO world_object_snapshots (id, snapshot, last_updated)
+          VALUES ${valuePlaceholders.join(", ")}
+          ON CONFLICT (id) DO UPDATE SET snapshot = EXCLUDED.snapshot, last_updated = NOW()`;
+
+        await db.query(sql, values);
       }
-      console.log(`Saved ${objects.length} world objects to Postgres.`);
+      console.log(`Saved ${objects.length} world objects to Postgres using bulk inserts.`);
     } catch (err) {
       console.error("[Persistence] Failed to save world objects to Postgres:", err);
     }
