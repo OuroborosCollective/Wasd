@@ -13,6 +13,7 @@ import { type WorldHistory } from "./WorldHistory.js";
 import { type EmergentMarket } from "./EmergentMarket.js";
 import { type DynamicFactions } from "./DynamicFactions.js";
 import { type NeedSet, decayNeeds, mostUrgentNeed, needToGoalCategory, restoreNeed } from "./AgentNeeds.js";
+import { SeededARERng, createARESeed } from "../../core/determinism/AREDeterminism.js";
 
 export interface AgentContext {
   npcId: string;
@@ -88,6 +89,12 @@ export function ouroborosTick(
   setRelationship: (a: string, b: string, delta: number) => void,
   config: OuroborosConfig = DEFAULT_CONFIG,
 ): string | null {
+  // ⚖️ JULES: Deterministic RNG injection and input normalization
+  const rng = new SeededARERng(createARESeed(["ouroboros-tick", ctx.npcId, ctx.worldTime]));
+
+  // Ensure stable iteration order for perception and selection logic (non-mutating copy)
+  const sortedEntities = [...ctx.nearbyEntities].sort((a, b) => a.id.localeCompare(b.id));
+
   const state = getAgentState(ctx.npcId);
   const hw = state.heuristicWeights;
 
@@ -101,8 +108,8 @@ export function ouroborosTick(
   };
 
   // ─── PERCEIVE ──────────────────────────────────────────────────────────
-  const nearbyFriends = ctx.nearbyEntities.filter((e) => getRelationship(ctx.npcId, e.id) > 0.3);
-  const nearbyEnemies = ctx.nearbyEntities.filter((e) => getRelationship(ctx.npcId, e.id) < -0.3);
+  const nearbyFriends = sortedEntities.filter((e) => getRelationship(ctx.npcId, e.id) > 0.3);
+  const nearbyEnemies = sortedEntities.filter((e) => getRelationship(ctx.npcId, e.id) < -0.3);
   const myFaction = factions.getAgentFaction(ctx.npcId);
 
   // Perceive: record observations
@@ -141,8 +148,8 @@ export function ouroborosTick(
 
     case "socialize": {
       // Try to form faction if enough unaffiliated nearby agents
-      if (!myFaction && ctx.nearbyEntities.length >= 3 && Math.random() < config.factionFormChance) {
-        const candidates = ctx.nearbyEntities
+      if (!myFaction && sortedEntities.length >= 3 && rng.nextFloat() < config.factionFormChance) {
+        const candidates = sortedEntities
           .filter((e) => e.type === "npc" && !factions.getAgentFaction(e.id))
           .map((e) => e.id);
         if (factions.canFormFaction([ctx.npcId, ...candidates])) {
@@ -161,7 +168,7 @@ export function ouroborosTick(
       }
 
       // Try forming family with high-affinity agent
-      if (!action && nearbyFriends.length > 0 && Math.random() < config.familyFormChance) {
+      if (!action && nearbyFriends.length > 0 && rng.nextFloat() < config.familyFormChance) {
         const bestFriend = nearbyFriends.reduce((best, e) =>
           getRelationship(ctx.npcId, e.id) > getRelationship(ctx.npcId, best.id) ? e : best,
         );
@@ -182,12 +189,12 @@ export function ouroborosTick(
       }
 
       // Spread legends (oral tradition)
-      if (!action && Math.random() < config.legendSpreadChance) {
+      if (!action && rng.nextFloat() < config.legendSpreadChance) {
         const unknownLegends = history.getLegendsUnknownTo(ctx.npcId);
         const myLegends = history.getLegendsKnownBy(ctx.npcId);
         if (myLegends.length > 0 && nearbyFriends.length > 0) {
-          const legend = myLegends[Math.floor(Math.random() * myLegends.length)];
-          const target = nearbyFriends[Math.floor(Math.random() * nearbyFriends.length)];
+          const legend = myLegends[rng.nextInt(myLegends.length)];
+          const target = nearbyFriends[rng.nextInt(nearbyFriends.length)];
           history.spreadLegend(legend.id, ctx.npcId, target.id);
           action = "legend_spread";
           memoryCache.logEvent(ctx.npcId, `spread_legend:${legend.title}:to:${target.name}`);
