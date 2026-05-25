@@ -93,6 +93,7 @@ export function ouroborosTick(
   // This ensures the WorldHash remains consistent across simulation replays.
   const seed = createARESeed([ctx.worldTime, ctx.npcId, "ouroboros_tick"]);
   const rng = new SeededARERng(seed);
+
   const state = getAgentState(ctx.npcId);
   const hw = state.heuristicWeights;
 
@@ -145,7 +146,6 @@ export function ouroborosTick(
     }
 
     case "socialize": {
-      // ⚖️ JULES: Use deterministic RNG for faction formation to prevent timeline divergence.
       // Try to form faction if enough unaffiliated nearby agents
       if (!myFaction && ctx.nearbyEntities.length >= 3 && rng.nextFloat() < config.factionFormChance) {
         const candidates = ctx.nearbyEntities
@@ -166,7 +166,6 @@ export function ouroborosTick(
         }
       }
 
-      // ⚖️ JULES: Deterministic family formation ensures reproducible social evolution.
       // Try forming family with high-affinity agent
       if (!action && nearbyFriends.length > 0 && rng.nextFloat() < config.familyFormChance) {
         const bestFriend = nearbyFriends.reduce((best, e) =>
@@ -188,7 +187,6 @@ export function ouroborosTick(
         }
       }
 
-      // ⚖️ JULES: Legend propagation must be deterministic to maintain the integrity of cultural history.
       // Spread legends (oral tradition)
       if (!action && rng.nextFloat() < config.legendSpreadChance) {
         const unknownLegends = history.getLegendsUnknownTo(ctx.npcId);
