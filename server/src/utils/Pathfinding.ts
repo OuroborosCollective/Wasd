@@ -28,6 +28,10 @@ export class Pathfinding {
     const endNode = new Node(Math.round(end.x), Math.round(end.y));
 
     const openList: Node[] = [startNode];
+    // ⚡ Bolt Optimization: Use a Map for O(1) membership check in the open list
+    // This avoids O(N) Array.find() calls inside the neighbor loop, improving performance from O(N^2) to O(N) per iteration.
+    const openMap: Map<string, Node> = new Map();
+    openMap.set(`${startNode.x},${startNode.y}`, startNode);
     const closedList: Set<string> = new Set();
 
     const maxIterations = 200; // Prevent infinite loops
@@ -37,6 +41,7 @@ export class Pathfinding {
       iterations++;
       
       // Get node with lowest f cost
+      // Note: A Priority Queue would further optimize this to O(log N)
       let currentIndex = 0;
       for (let i = 1; i < openList.length; i++) {
         if (openList[i].f < openList[currentIndex].f) {
@@ -46,6 +51,7 @@ export class Pathfinding {
 
       const currentNode = openList[currentIndex];
       openList.splice(currentIndex, 1);
+      openMap.delete(`${currentNode.x},${currentNode.y}`);
       closedList.add(`${currentNode.x},${currentNode.y}`);
 
       // Reached destination
@@ -60,7 +66,6 @@ export class Pathfinding {
       }
 
       // Generate neighbors (8 directions)
-      const neighbors: Node[] = [];
       for (let dx = -1; dx <= 1; dx++) {
         for (let dy = -1; dy <= 1; dy++) {
           if (dx === 0 && dy === 0) continue;
@@ -75,19 +80,20 @@ export class Pathfinding {
           const g = currentNode.g + (dx !== 0 && dy !== 0 ? 1.414 : 1);
           const h = Math.abs(nx - endNode.x) + Math.abs(ny - endNode.y); // Manhattan distance
           
-          const existingNode = openList.find(n => n.x === nx && n.y === ny);
+          // ⚡ Bolt Optimization: O(1) lookup instead of O(N) .find()
+          const existingNode = openMap.get(`${nx},${ny}`);
           if (existingNode) {
             if (g < existingNode.g) {
               existingNode.g = g;
               existingNode.parent = currentNode;
             }
           } else {
-            neighbors.push(new Node(nx, ny, g, h, currentNode));
+            const newNode = new Node(nx, ny, g, h, currentNode);
+            openList.push(newNode);
+            openMap.set(`${nx},${ny}`, newNode);
           }
         }
       }
-
-      openList.push(...neighbors);
     }
 
     // No path found or limit reached, return linear path as fallback
