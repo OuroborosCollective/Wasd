@@ -11,6 +11,10 @@
     "validate:assets": "node ../../scripts/are-asset-forge.mjs && node ../../scripts/enrich-stitch-atlas-frames.mjs && node ../../scripts/validate-client-2d-assets.mjs"
   },
   "dependencies": {
+    "@pixi/particle-emitter": "^5.0.8",
+    "@pixi/sound": "^6.0.1",
+    "@pixi/tilemap": "^5.0.2",
+    "pixi-filters": "^6.1.4",
     "pixi.js": "^8.18.1",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
