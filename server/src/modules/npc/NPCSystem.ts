@@ -1,6 +1,10 @@
 import { checkStealthDeterministic, calculatePhaseShift } from './PerceptionLogic';
 import { GuildSovereigntyEngine } from '../guild/GuildSovereigntyEngine';
 import { TraitResonanceEngine } from '../resonance/TraitResonanceEngine';
+import { EmergentThermalAdapter, type EmergentThermalDecisionResult } from './EmergentThermalAdapter';
+import { type AREBrainInput } from './EmergentBrain';
+import { type EnergyState } from './ThermalLogic';
+import { createEmergenceCollapsePayload, type WorldEmergenceCollapsePayload } from '../world/WorldEmergenceEvent';
 
 function deterministicNpcTraits(id: string): { faith: number; aggression: number; curiosity: number } {
     let h = 0;
@@ -33,6 +37,7 @@ export interface NPC {
     role?: string;
     faction?: string;
     traits?: { faith: number; aggression: number; curiosity: number };
+    energyState?: EnergyState;
     health?: number;
     maxHealth?: number;
     skills?: any;
@@ -55,12 +60,16 @@ type PlayerPerceptionContext = {
     id: string;
     position: Vector3;
     stealthLevel: number;
+    drift: number;
+    threat: number;
 };
 
 export class NPCSystem {
     private npcs: Map<string, NPC> = new Map();
     private updateInterval: NodeJS.Timeout | null = null;
     private readonly TICK_RATE = 100; // 10Hz in ms
+    private readonly thermalAdapter = new EmergentThermalAdapter();
+    private emergenceEvents: WorldEmergenceCollapsePayload[] = [];
 
     public resonanceEngine: TraitResonanceEngine;
 
@@ -75,6 +84,8 @@ export class NPCSystem {
     }
 
     public addNPC(npc: NPC): void {
+        npc.traits ??= deterministicNpcTraits(npc.id);
+        npc.energyState ??= NPCSystem.initialEnergyState(0);
         this.npcs.set(npc.id, npc);
         this.npcsDirty = true;
     }
@@ -97,6 +108,7 @@ export class NPCSystem {
             targetId: null,
             isProcessingAI: false,
             traits,
+            energyState: NPCSystem.initialEnergyState(0),
             health: 90,
             maxHealth: 90,
             stamina: 100,
@@ -117,6 +129,12 @@ export class NPCSystem {
 
     public getNPCsMap(): Map<string, NPC> {
         return this.npcs;
+    }
+
+    public drainEmergenceEvents(): WorldEmergenceCollapsePayload[] {
+        const events = this.emergenceEvents;
+        this.emergenceEvents = [];
+        return events;
     }
 
     public handleInteraction(npcId: string, player: any, questDefs: any): any {
@@ -161,10 +179,10 @@ export class NPCSystem {
     }
 
     public tick(onlinePlayers: any[], worldTime: number): void {
-        this.update(onlinePlayers);
+        this.update(onlinePlayers, worldTime);
     }
 
-    private update(onlinePlayers: any[]): void {
+    private update(onlinePlayers: any[], worldTime: number): void {
         if (this.npcsDirty) {
             this.cachedSortedNpcs = Array.from(this.npcs.values()).sort((a, b) =>
                 String(a?.id ?? "").localeCompare(String(b?.id ?? ""))
@@ -180,9 +198,18 @@ export class NPCSystem {
             id: player?.id != null && String(player.id).length > 0 ? String(player.id) : "unknown_player",
             position: NPCSystem.vec3ForPerception(player?.position),
             stealthLevel: Number.isFinite(Number(player?.stealthValue)) ? Number(player.stealthValue) : 0,
+            drift: NPCSystem.unit(player?.deltaDrift ?? player?.drift ?? player?.are?.deltaDrift ?? 0),
+            threat: NPCSystem.unit(player?.threat ?? player?.combatThreat ?? 0),
         }));
 
+        const currentTick = Math.max(0, Math.trunc(Number.isFinite(Number(worldTime)) ? Number(worldTime) : 0));
+        const colonyUtility = NPCSystem.colonyUtilityFromPlayers(playerContexts);
+        const averageDrift = NPCSystem.average(playerContexts.map((player) => player.drift));
+        const averageThreat = NPCSystem.average(playerContexts.map((player) => player.threat));
+
         for (const npc of this.cachedSortedNpcs) {
+            this.processEmergentDecision(npc, currentTick, averageDrift, averageThreat, colonyUtility);
+            if (npc.state === 'decomposition') continue;
             this.processPerception(npc, playerContexts);
         }
     }
@@ -248,6 +275,121 @@ export class NPCSystem {
             npc.targetId = null;
             npc.isProcessingAI = false;
         }
+    }
+
+    private processEmergentDecision(npc: NPC, currentTick: number, playerDeltaDrift: number, playerThreat: number, colonyUtility: number): void {
+        npc.energyState ??= NPCSystem.initialEnergyState(currentTick);
+        const brainInput = this.buildBrainInput(npc, currentTick, playerDeltaDrift, playerThreat, colonyUtility);
+        const result = this.thermalAdapter.process({ brainInput, energyState: npc.energyState, currentTick });
+        this.commitThermalDecision(npc, result);
+    }
+
+    private buildBrainInput(npc: NPC, currentTick: number, playerDeltaDrift: number, playerThreat: number, colonyUtility: number): AREBrainInput {
+        const traits = npc.traits ?? deterministicNpcTraits(npc.id);
+        return {
+            npcId: npc.id,
+            factionId: String(npc.faction ?? 'neutral'),
+            traits,
+            energy: (npc.energyState?.currentEnergy ?? 1000) / Math.max(1, npc.energyState?.maxEnergy ?? 1000),
+            memoryHash: NPCSystem.memoryHash(npc),
+            localStateHash: NPCSystem.localStateHash(npc),
+            playerDeltaDrift,
+            playerThreat,
+            colonyUtility,
+            resourcePressure: NPCSystem.unit(1 - ((npc.energyState?.currentEnergy ?? 1000) / Math.max(1, npc.energyState?.maxEnergy ?? 1000))),
+            tick: currentTick,
+        };
+    }
+
+    private commitThermalDecision(npc: NPC, result: EmergentThermalDecisionResult): void {
+        npc.energyState = result.energyState;
+        npc.memory ??= {};
+        npc.memory.lastThermalDecision = {
+            tick: result.energyState.lastUpdatedTick,
+            action: result.finalAction,
+            thermalStatus: result.thermalStatus,
+            risk: result.consequence.risk,
+            collapseRisk: result.consequence.collapseRisk,
+            survivalBias: result.consequence.survivalBias,
+            energyBefore: result.energyStats.before,
+            energyAfterDecay: result.energyStats.afterDecay,
+            energyAfterAction: result.energyStats.afterAction,
+            reason: result.reason,
+            kappaHash: result.brainDecision?.kappaHash ?? null,
+        };
+
+        if (result.finalAction === 'DECOMPOSITION' || result.decomposition) {
+            npc.state = 'decomposition';
+            npc.targetId = null;
+            npc.isProcessingAI = false;
+            npc.memory.resonanceFields = [];
+            this.emergenceEvents.push(createEmergenceCollapsePayload({
+                npcId: npc.id,
+                factionId: npc.faction ?? 'neutral',
+                position: npc.position,
+                tick: result.energyState.lastUpdatedTick,
+                reason: result.reason,
+                risk: result.consequence.risk,
+                sourceAction: result.finalAction,
+                energyBefore: result.energyStats.before,
+                energyAfterDecay: result.energyStats.afterDecay,
+                energyAfterAction: result.energyStats.afterAction,
+                kappaHash: result.brainDecision?.kappaHash ?? null,
+            }));
+            return;
+        }
+
+        switch (result.finalAction) {
+            case 'HARVEST_RESOURCE':
+                npc.state = 'harvesting';
+                break;
+            case 'WITHDRAW':
+                npc.state = 'withdrawing';
+                break;
+            case 'DEFEND_COLONY':
+                npc.state = 'defending';
+                break;
+            case 'ANCHOR_BUFF':
+                npc.state = 'supporting';
+                break;
+            case 'WARN_FACTION':
+                npc.state = 'warning';
+                break;
+            case 'OBSERVE':
+            default:
+                npc.state = 'observing';
+                break;
+        }
+    }
+
+    private static initialEnergyState(tick: number): EnergyState {
+        return { currentEnergy: 1000, maxEnergy: 1000, decayRate: 1, lastUpdatedTick: Math.max(0, Math.trunc(tick)) };
+    }
+
+    private static unit(value: unknown): number {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return 0;
+        return Math.max(0, Math.min(1, n));
+    }
+
+    private static average(values: number[]): number {
+        if (values.length === 0) return 0;
+        return values.reduce((sum, value) => sum + value, 0) / values.length;
+    }
+
+    private static colonyUtilityFromPlayers(players: PlayerPerceptionContext[]): number {
+        if (players.length === 0) return 0.5;
+        return Math.max(0, Math.min(1, 1 - NPCSystem.average(players.map((player) => player.threat))));
+    }
+
+    private static memoryHash(npc: NPC): string {
+        const last = npc.memory?.lastThermalDecision;
+        return `${npc.id}:${last?.kappaHash ?? 'memory:0'}:${last?.risk ?? 'NONE'}`;
+    }
+
+    private static localStateHash(npc: NPC): string {
+        const pos = NPCSystem.vec3ForPerception(npc.position);
+        return `${npc.state ?? 'idle'}:${Math.trunc(pos.x * 10)}:${Math.trunc(pos.y * 10)}:${Math.trunc(pos.z * 10)}`;
     }
 
     private triggerComplexAI(npc: NPC): void {
