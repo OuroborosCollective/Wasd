@@ -19,6 +19,12 @@ jobs:
 
     env:
       VPS_PATH: /opt/areloria
+      NODE_ENV: production
+      API_KEY: ${{ secrets.API_KEY }}
+      API_KEYS: ${{ secrets.API_KEYS }}
+      ALLOWED_ORIGINS: ${{ secrets.ALLOWED_ORIGINS }}
+      CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
     steps:
       - name: Checkout Repository
@@ -36,10 +42,10 @@ jobs:
 
       - name: Deploy to VPS (Git sync + deploy/update.sh)
         run: |
-          REPO_CLONE_URL="https://github.com/${{ github.repository }}.git"
           sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh \
             -o StrictHostKeyChecking=no \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "NODE_ENV='${NODE_ENV}' API_KEY='${API_KEY}' API_KEYS='${API_KEYS}' ALLOWED_ORIGINS='${ALLOWED_ORIGINS}' CORS_ORIGINS='${CORS_ORIGINS}' DATABASE_URL='${DATABASE_URL}' bash -s" << 'EOF'
             set -euo pipefail
             APP_DIR="/opt/areloria"
             echo "→ Navigating to project"
@@ -56,6 +62,7 @@ jobs:
             git reset --hard origin/main
 
             echo "→ Build, restart PM2, verify (deploy/update.sh)"
+            export NODE_ENV API_KEY API_KEYS ALLOWED_ORIGINS CORS_ORIGINS DATABASE_URL
             bash deploy/update.sh
 
           echo "→ Deploy finished"
@@ -81,4 +88,4 @@ jobs:
       - name: Deployment Summary
         run: |
           echo "Deployment finished on VPS:"
-          echo "${{ secrets.SSH_HOST }} -> ${VPS_PATH }}"
+          echo "${{ secrets.SSH_HOST }} -> ${VPS_PATH}"

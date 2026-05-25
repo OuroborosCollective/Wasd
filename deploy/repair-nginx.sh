@@ -11,6 +11,7 @@ CONF="/etc/nginx/sites-available/${SITE_NAME}"
 ENABLED="/etc/nginx/sites-enabled/${SITE_NAME}"
 ENABLE_HTTPS="${ENABLE_HTTPS:-0}"
 CERTBOT_EMAIL="${CERTBOT_EMAIL:-}"
+LE_LIVE_DIR="/etc/letsencrypt/live/${DOMAIN}"
 
 log(){ echo "$*"; }
 warn(){ echo "WARNING: $*" >&2; }
@@ -18,6 +19,19 @@ run_root(){
   if [ "$(id -u)" -eq 0 ]; then "$@"; return $?; fi
   if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then sudo "$@"; return $?; fi
   return 77
+}
+
+proxy_headers='proxy_http_version 1.1; proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme;'
+
+write_locations(){
+  cat <<EOF
+    location ^~ /api/ { proxy_pass http://127.0.0.1:${GAME_PORT}; ${proxy_headers} }
+    location ^~ /auth/ { proxy_pass http://127.0.0.1:${GAME_PORT}; ${proxy_headers} }
+    location ^~ /health { proxy_pass http://127.0.0.1:${GAME_PORT}; ${proxy_headers} }
+    location ^~ /client-config.json { proxy_pass http://127.0.0.1:${GAME_PORT}; ${proxy_headers} }
+    location ^~ /ws { proxy_pass http://127.0.0.1:${GAME_PORT}; proxy_http_version 1.1; proxy_set_header Upgrade \$http_upgrade; proxy_set_header Connection "upgrade"; proxy_set_header Host \$host; proxy_read_timeout 86400; }
+    location / { try_files \$uri \$uri/ /index.html; }
+EOF
 }
 
 log "=== Areloria nginx repair ==="
@@ -31,6 +45,7 @@ command -v nginx >/dev/null 2>&1 || { warn "nginx not installed"; exit 0; }
 
 TMP="$(mktemp)"
 trap 'rm -f "$TMP"' EXIT
+
 cat > "$TMP" <<EOF
 server {
     listen 80;
@@ -38,16 +53,34 @@ server {
     server_name ${DOMAIN} ${WWW_DOMAIN};
     root ${WEBROOT};
     index index.html;
+EOF
 
-    location ^~ /api/ { proxy_pass http://127.0.0.1:${GAME_PORT}; proxy_http_version 1.1; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto \$scheme; }
-    location ^~ /auth/ { proxy_pass http://127.0.0.1:${GAME_PORT}; proxy_http_version 1.1; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto \$scheme; }
-    location ^~ /health { proxy_pass http://127.0.0.1:${GAME_PORT}; proxy_http_version 1.1; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto \$scheme; }
-    location ^~ /client-config.json { proxy_pass http://127.0.0.1:${GAME_PORT}; proxy_http_version 1.1; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto \$scheme; }
-    location ^~ /ws { proxy_pass http://127.0.0.1:${GAME_PORT}; proxy_http_version 1.1; proxy_set_header Upgrade \$http_upgrade; proxy_set_header Connection "upgrade"; proxy_set_header Host \$host; proxy_read_timeout 86400; }
+if [ -f "${LE_LIVE_DIR}/fullchain.pem" ] && [ -f "${LE_LIVE_DIR}/privkey.pem" ]; then
+  cat >> "$TMP" <<EOF
+    location ^~ /.well-known/acme-challenge/ { root /var/www/html; }
+    location / { return 301 https://\$host\$request_uri; }
+}
 
-    location / { try_files \$uri \$uri/ /index.html; }
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name ${DOMAIN} ${WWW_DOMAIN};
+    root ${WEBROOT};
+    index index.html;
+    ssl_certificate ${LE_LIVE_DIR}/fullchain.pem;
+    ssl_certificate_key ${LE_LIVE_DIR}/privkey.pem;
+    add_header Cache-Control "no-store" always;
+EOF
+  write_locations >> "$TMP"
+  cat >> "$TMP" <<EOF
 }
 EOF
+else
+  write_locations >> "$TMP"
+  cat >> "$TMP" <<EOF
+}
+EOF
+fi
 
 if ! run_root install -m 0644 "$TMP" "$CONF"; then
   warn "No root/sudo permission for nginx config. Run manually: cd $APP_DIR && APP_DIR=$APP_DIR GAME_PORT=$GAME_PORT DOMAIN=$DOMAIN bash deploy/repair-nginx.sh"

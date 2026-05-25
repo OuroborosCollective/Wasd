@@ -19,6 +19,10 @@ on:
         description: 'External Docker network'
         required: false
         default: 'areloria_arelorian-network'
+      ssh_port:
+        description: 'VPS SSH port'
+        required: false
+        default: '22'
 
 concurrency:
   group: vps-docker-deploy-${{ github.ref_name }}
@@ -30,26 +34,79 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     env:
       DEPLOY_REASON: ${{ inputs.reason || 'Push deploy' }}
+      DEPLOY_PATH: /opt/areloria
+      DEPLOY_BRANCH: main
       ARELORIAN_PORT: ${{ inputs.arelorian_port || '3001' }}
-      DOCKER_NETWORK: ${{ inputs.docker_network || 'areloria_arelorian-network' }}
+      ARELORIAN_DOCKER_NETWORK: ${{ inputs.docker_network || 'areloria_arelorian-network' }}
+      SSH_PORT: ${{ inputs.ssh_port || secrets.SSH_PORT || '22' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Run VPS Docker deploy script
+      - name: Install sshpass
+        run: sudo apt-get update && sudo apt-get install -y sshpass
+
+      - name: Verify VPS SSH connection
         run: |
-          echo "VPS Docker deploy workflow enabled."
-          echo "Reason: ${DEPLOY_REASON}"
-          if [ -x scripts/vps-docker-inline-deploy.sh ]; then
-            bash scripts/vps-docker-inline-deploy.sh
-          elif [ -x scripts/deploy-vps-docker.sh ]; then
-            bash scripts/deploy-vps-docker.sh
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh \
+            -p "${SSH_PORT}" \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=20 \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "echo 'SSH OK'; hostname; uname -a"
+
+      - name: Run Docker deploy on VPS
+        run: |
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh \
+            -p "${SSH_PORT}" \
+            -o StrictHostKeyChecking=no \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=10 \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "DEPLOY_PATH='${DEPLOY_PATH}' DEPLOY_BRANCH='${DEPLOY_BRANCH}' ARELORIAN_PORT='${ARELORIAN_PORT}' ARELORIAN_DOCKER_NETWORK='${ARELORIAN_DOCKER_NETWORK}' bash -s" << 'EOF'
+          set -Eeuo pipefail
+          APP_DIR="${DEPLOY_PATH:-/opt/areloria}"
+          BRANCH="${DEPLOY_BRANCH:-main}"
+          REPO_URL="https://github.com/${{ github.repository }}.git"
+
+          echo "=== VPS Docker deploy entry ==="
+          echo "App dir: $APP_DIR"
+          echo "Branch: $BRANCH"
+
+          mkdir -p "$APP_DIR"
+          cd "$APP_DIR"
+
+          if [ ! -d ".git" ]; then
+            git clone --branch "$BRANCH" "$REPO_URL" .
           else
-            echo "No VPS deploy script found or executable."
-            exit 1
+            git remote set-url origin "$REPO_URL" || true
+            git fetch --no-tags origin "$BRANCH"
+            git reset --hard "origin/$BRANCH"
+            git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ || true
           fi
+
+          chmod +x scripts/deploy-vps-docker.sh scripts/vps-docker-inline-deploy.sh 2>/dev/null || true
+
+          ARELORIAN_PORT="${ARELORIAN_PORT:-3001}" \
+          ARELORIAN_DOCKER_NETWORK="${ARELORIAN_DOCKER_NETWORK:-areloria_arelorian-network}" \
+          ARELORIAN_ENV_FILE=".env.docker" \
+          DEPLOY_BRANCH="$BRANCH" \
+          bash scripts/deploy-vps-docker.sh
+          EOF
+
+      - name: Public health check
+        run: |
+          for path in /health / /portal/; do
+            echo "Checking https://arelorian.de${path}"
+            STATUS="$(curl -k -s -o /dev/null -w "%{http_code}" "https://arelorian.de${path}" || true)"
+            echo "Status: ${STATUS}"
+            if ! echo "$STATUS" | grep -Eq '^(200|204|301|302|304|401|403|503)$'; then
+              echo "Health check failed for ${path}"
+              exit 1
+            fi
+          done
