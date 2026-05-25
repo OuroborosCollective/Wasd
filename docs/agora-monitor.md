@@ -30,7 +30,7 @@ The Agora Live Monitor connects the Areloria/Ouroboros project with Open Collect
 ```env
 OPEN_COLLECTIVE_CLIENT_ID=
 OPEN_COLLECTIVE_CLIENT_SECRET=
-OPEN_COLLECTIVE_CALLBACK_URL=https://areloria.de/agora/auth/opencollective/callback
+OPEN_COLLECTIVE_CALLBACK_URL=https://arelorian.de/agora/auth/opencollective/callback
 OPEN_COLLECTIVE_SLUG=ouroboros-collective-are
 OPEN_COLLECTIVE_PROJECT_SLUG=agora-project
 ```
