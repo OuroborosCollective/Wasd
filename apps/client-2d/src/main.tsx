@@ -4,6 +4,7 @@ import { CyberZenLoginGate } from "./CyberZenLoginGate";
 import { CyberZenIsoApp } from "./CyberZenIsoApp";
 import { LiveRealityBridge } from "./LiveRealityBridge";
 import { MobileMovePad } from "./MobileMovePad";
+import { PixiModuleInspector } from "./PixiModuleInspector";
 import { installClient2DDepthRuntime } from "./client2dDepthRuntime";
 import "./theme.css";
 import "./liveReality.css";
@@ -15,6 +16,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <CyberZenLoginGate>
       <CyberZenIsoApp />
       <LiveRealityBridge />
+      <PixiModuleInspector />
       <MobileMovePad />
     </CyberZenLoginGate>
   </React.StrictMode>
