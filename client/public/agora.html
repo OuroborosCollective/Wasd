@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ouroboros Agora Live Monitor</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #090b10; color: #f4f7fb; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, #1a2440 0, #090b10 46%, #050608 100%); }
+    main { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 44px; }
+    header { display: grid; gap: 10px; margin-bottom: 20px; }
+    h1 { margin: 0; font-size: clamp(2rem, 8vw, 4.5rem); line-height: 0.95; letter-spacing: -0.06em; }
+    p { color: #b8c2d8; line-height: 1.55; }
+    a { color: #9fd2ff; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+    .card { border: 1px solid rgba(255,255,255,0.12); border-radius: 22px; padding: 18px; background: rgba(10, 14, 24, 0.78); box-shadow: 0 18px 44px rgba(0,0,0,0.28); backdrop-filter: blur(12px); }
+    .label { color: #8593ad; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.12em; }
+    .value { margin-top: 8px; font-size: 1.25rem; font-weight: 750; overflow-wrap: anywhere; }
+    .ok { color: #7ef2a5; }
+    .bad { color: #ff9a9a; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.9rem; }
+    pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; border-radius: 999px; padding: 0 16px; border: 1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.08); color: #fff; text-decoration: none; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="label">Areloria / Ouroboros Collective</div>
+      <h1>Agora Live Monitor</h1>
+      <p>Public trust dashboard for server health, ARE status and Open Collective readiness. No secrets are exposed here.</p>
+      <div class="actions">
+        <a class="button" href="/agora/auth/opencollective/login">Login with Open Collective</a>
+        <a class="button" href="/agora/api/live">Open live JSON</a>
+      </div>
+    </header>
+
+    <section class="grid" id="cards">
+      <div class="card"><div class="label">Status</div><div class="value" id="status">Loading...</div></div>
+      <div class="card"><div class="label">Uptime</div><div class="value" id="uptime">-</div></div>
+      <div class="card"><div class="label">Build</div><div class="value mono" id="build">-</div></div>
+      <div class="card"><div class="label">Port</div><div class="value" id="port">-</div></div>
+      <div class="card"><div class="label">Open Collective</div><div class="value" id="oc">-</div></div>
+      <div class="card"><div class="label">World Hash</div><div class="value mono" id="worldHash">-</div></div>
+    </section>
+
+    <section class="card" style="margin-top:14px">
+      <div class="label">ARE / Replay / Persistence</div>
+      <pre class="mono" id="details">Waiting for monitor payload...</pre>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const formatUptime = (seconds) => {
+      const s = Number(seconds || 0);
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      return `${h}h ${m}m ${s % 60}s`;
+    };
+
+    async function refresh() {
+      try {
+        const response = await fetch('/agora/api/live', { cache: 'no-store' });
+        const data = await response.json();
+        $('status').textContent = data.status || 'unknown';
+        $('status').className = `value ${data.ok ? 'ok' : 'bad'}`;
+        $('uptime').textContent = formatUptime(data.uptimeSeconds);
+        $('build').textContent = data.buildHash || 'dev';
+        $('port').textContent = data.port ?? '-';
+        $('oc').textContent = data.openCollective?.clientIdConfigured ? 'configured' : 'not configured';
+        $('oc').className = `value ${data.openCollective?.clientIdConfigured ? 'ok' : 'bad'}`;
+        $('worldHash').textContent = data.are?.worldHash || '-';
+        $('details').textContent = JSON.stringify({ are: data.are, persistence: data.persistence, warfront: data.warfront }, null, 2);
+      } catch (error) {
+        $('status').textContent = 'offline';
+        $('status').className = 'value bad';
+        $('details').textContent = String(error);
+      }
+    }
+
+    refresh();
+    setInterval(refresh, 5000);
+  </script>
+</body>
+</html>
