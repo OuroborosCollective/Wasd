@@ -1,3 +1,4 @@
+import { type AREClock, SystemAREClock } from "../../core/determinism/AREDeterminism.js";
 import { ComboValidator, type ComboResult } from "./ComboValidator.js";
 
 export interface CombatState {
@@ -19,8 +20,8 @@ export interface CombatExecutionResult {
 export class CombatService {
     private comboValidator: ComboValidator;
 
-    constructor() {
-        this.comboValidator = new ComboValidator();
+    constructor(private readonly clock: AREClock = new SystemAREClock()) {
+        this.comboValidator = new ComboValidator(undefined, clock);
     }
 
     public handleSkillRequest(
@@ -57,7 +58,7 @@ export class CombatService {
         const newState: CombatState = {
             comboIndex: nextIndex,
             lastSkillId: skill.id,
-            lastTimestamp: Date.now()
+            lastTimestamp: this.clock.now()
         };
 
         this.updatePlayerCombatState(playerId, newState);
