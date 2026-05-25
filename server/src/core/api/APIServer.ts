@@ -2,7 +2,7 @@
  * @file server/src/core/api/APIServer.ts
  * @description High-performance API Server.
  * Provides REST endpoints and WebSocket integration.
- * 
+ *
  * Uses existing Express server if available.
  */
 
@@ -25,9 +25,61 @@ function fromFP(fp: number): number {
  * API Key configuration
  */
 const API_KEY_HEADER = 'x-api-key';
-const VALID_API_KEYS = new Set([
-  process.env.API_KEY || 'dev-key-change-in-production',
-]);
+
+function parseCsvEnv(value: string | undefined): string[] {
+  return (value ?? '')
+    .split(',')
+    .map(entry => entry.trim())
+    .filter(Boolean);
+}
+
+function getValidApiKeys(): Set<string> {
+  const keys = parseCsvEnv(process.env.API_KEYS ?? process.env.API_KEY);
+
+  if (process.env.NODE_ENV === 'production' && keys.length === 0) {
+    throw new Error('API_KEY or API_KEYS must be configured in production.');
+  }
+
+  return new Set(keys);
+}
+
+function isAuthorizedRequest(req: any): boolean {
+  const validApiKeys = getValidApiKeys();
+  if (validApiKeys.size === 0) {
+    return process.env.NODE_ENV !== 'production';
+  }
+
+  const headerValue = req.headers?.[API_KEY_HEADER];
+  const candidate = Array.isArray(headerValue) ? headerValue[0] : headerValue;
+  return typeof candidate === 'string' && validApiKeys.has(candidate);
+}
+
+function requireApiKey(req: any, res: any, next: any): void {
+  if (isAuthorizedRequest(req)) {
+    next();
+    return;
+  }
+
+  res.status(401).json({ error: 'Unauthorized' });
+}
+
+function getAllowedOrigins(): string[] | boolean {
+  const configured = parseCsvEnv(process.env.ALLOWED_ORIGINS ?? process.env.CORS_ORIGINS);
+  if (configured.length > 0) return configured;
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('ALLOWED_ORIGINS or CORS_ORIGINS must be configured in production.');
+  }
+
+  return [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:5173',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3001',
+    'http://127.0.0.1:5173',
+  ];
+}
 
 /**
  * World heartbeat broadcast interval (10 ticks = 1 second)
@@ -62,9 +114,9 @@ export class APIServer {
     });
 
     // World status (protected)
-    app.get('/api/v1/world/status', (req: any, res: any) => {
+    app.get('/api/v1/world/status', requireApiKey, (req: any, res: any) => {
       const worldState = worldStateRegistry.getCurrentState();
-      
+
       // Calculate global energy
       let totalEnergy = 0;
       let totalCorruption = 0;
@@ -88,7 +140,7 @@ export class APIServer {
     });
 
     // Region details (protected)
-    app.get('/api/v1/regions/:id', (req: any, res: any) => {
+    app.get('/api/v1/regions/:id', requireApiKey, (req: any, res: any) => {
       const regionId = req.params.id;
       const worldState = worldStateRegistry.getCurrentState();
       const region = worldState.regions.get(regionId);
@@ -121,8 +173,9 @@ export class APIServer {
     import('socket.io').then(({ Server }) => {
       this.io = new Server(server, {
         cors: {
-          origin: '*',
+          origin: getAllowedOrigins(),
           methods: ['GET', 'POST'],
+          credentials: false,
         },
       });
 
