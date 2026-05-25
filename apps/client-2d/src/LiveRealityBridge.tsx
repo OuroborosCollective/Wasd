@@ -10,6 +10,8 @@ type LivePoint = {
   kind: "player" | "npc" | "loot";
 };
 
+const LIVE_SERVER_URL = import.meta.env.VITE_ARELORIA_LIVE_URL || "https://arelorian.de";
+
 function toPoint(entity: LiveRealityEntity, kind: LivePoint["kind"], index: number): LivePoint {
   return {
     id: `${kind}:${liveId(entity, `${kind}-${index}`)}`,
@@ -49,7 +51,7 @@ export function LiveRealityBridge() {
   const feedAt = useRef(0);
 
   useEffect(() => {
-    const client = createClient({ url: "https://arelorian.de", heartbeatInterval: 30000 });
+    const client = createClient({ url: LIVE_SERVER_URL, heartbeatInterval: 30000 });
 
     function ingest(event: any, source: "heartbeat" | "world_tick") {
       const payload = livePayload(event);
@@ -73,7 +75,7 @@ export function LiveRealityBridge() {
       }
     }
 
-    client.on("connect" as any, () => { setConnected(true); setFeed("2D live reality bridge connected."); });
+    client.on("connect" as any, () => { setConnected(true); setFeed(`2D live reality bridge connected to ${LIVE_SERVER_URL}.`); });
     client.on("disconnect" as any, () => setConnected(false));
     client.on("WORLD_HEARTBEAT" as any, (event: any) => ingest(event, "heartbeat"));
     client.on("world_tick" as any, (event: any) => ingest(event, "world_tick"));
