@@ -9,6 +9,7 @@ const root = process.cwd();
 const srcDir = join(root, 'src');
 const outDir = join(root, 'dist');
 const require = createRequire(import.meta.url);
+const shouldEmitDeclarations = process.env.WASD_EMIT_DECLARATIONS === '1' || process.env.NODE_ENV !== 'production';
 
 const compilerOptions = {
   target: ts.ScriptTarget.ES2022,
@@ -147,6 +148,12 @@ for (const file of files) {
 
 if (process.exitCode) {
   process.exit(process.exitCode);
+}
+
+if (!shouldEmitDeclarations) {
+  console.log('Skipped declaration files for @wasd/shared production build. Runtime JavaScript output is ready.');
+  console.log(`Transpiled ${emitted} TypeScript file(s), copied ${copied} asset file(s), skipped ${skipped} declaration file(s).`);
+  process.exit(0);
 }
 
 // Generate declaration files for workspace packages using @wasd/shared.
