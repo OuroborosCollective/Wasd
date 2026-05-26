@@ -1,3 +1,5 @@
+import { SeededARERng, createARESeed, type ARERng } from "../../core/determinism/AREDeterminism.js";
+
 export interface NPCStats {
     strength: number;
     agility: number;
@@ -25,28 +27,30 @@ export class NPCGenealogyEngine {
         this.deviationFactor = deviationFactor;
     }
 
-    public generateInitialStats(): NPCStats {
+    public generateInitialStats(seed: string | number = "initial"): NPCStats {
+        const rng = this.rngFor("initial-stats", seed);
         return {
-            strength: this.rollBaseStat(),
-            agility: this.rollBaseStat(),
-            intelligence: this.rollBaseStat(),
-            stamina: this.rollBaseStat(),
-            charisma: this.rollBaseStat(),
-            luck: this.rollBaseStat()
+            strength: this.rollBaseStat(rng),
+            agility: this.rollBaseStat(rng),
+            intelligence: this.rollBaseStat(rng),
+            stamina: this.rollBaseStat(rng),
+            charisma: this.rollBaseStat(rng),
+            luck: this.rollBaseStat(rng)
         };
     }
 
-    public inheritStats(parentA: NPCStats, parentB: NPCStats): NPCStats {
+    public inheritStats(parentA: NPCStats, parentB: NPCStats, seed: string | number = "inherit"): NPCStats {
         const childStats: Partial<NPCStats> = {};
         const keys = Object.keys(parentA) as (keyof NPCStats)[];
+        const rng = this.rngFor("inherit-stats", seed, parentA, parentB);
 
         for (const key of keys) {
             const mean = (parentA[key] + parentB[key]) / 2;
             const variance = mean * this.deviationFactor;
-            let value = mean + (Math.random() * 2 - 1) * variance;
+            let value = mean + (rng.nextFloat() * 2 - 1) * variance;
 
-            if (Math.random() < this.mutationRate) {
-                const mutationAmount = (Math.random() * 2 - 1) * (mean * 0.2);
+            if (rng.nextFloat() < this.mutationRate) {
+                const mutationAmount = (rng.nextFloat() * 2 - 1) * (mean * 0.2);
                 value += mutationAmount;
             }
 
@@ -73,8 +77,12 @@ export class NPCGenealogyEngine {
         };
     }
 
-    private rollBaseStat(): number {
-        return Math.floor(Math.random() * 10) + 10;
+    private rollBaseStat(rng: ARERng): number {
+        return rng.nextInt(10) + 10;
+    }
+
+    private rngFor(label: string, ...parts: unknown[]): ARERng {
+        return new SeededARERng(createARESeed(["npc-genealogy", label, ...parts]));
     }
 
     public calculateGeneticSimilarity(statsA: NPCStats, statsB: NPCStats): number {
