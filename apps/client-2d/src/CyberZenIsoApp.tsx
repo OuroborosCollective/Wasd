@@ -30,6 +30,7 @@ import { moveVisualTowards } from "./visualMotion";
 
 const TILE_W = 96;
 const TILE_H = 48;
+const TERRAIN_Z_INDEX = -1000;
 const EQUIPPED_WEAPON_KEY = "wasd:2d:equippedWeaponVisualId";
 const FOREST_WORLD_SEED = "areloria:forest:millbrook:v1";
 const KAPPA_INVARIANT = 1000;
@@ -73,7 +74,7 @@ function iso(x: number, z: number, width: number, height: number) {
   return { x: p.x, y: p.y };
 }
 
-function diamond(color: number, stroke = 0x17361e) {
+function diamond(color: number) {
   const g = new Graphics();
   g.moveTo(0, -TILE_H / 2);
   g.lineTo(TILE_W / 2, 0);
@@ -81,7 +82,7 @@ function diamond(color: number, stroke = 0x17361e) {
   g.lineTo(-TILE_W / 2, 0);
   g.closePath();
   g.fill(color);
-  g.stroke({ width: 2, color: stroke, alpha: 0.72 });
+  g.zIndex = TERRAIN_Z_INDEX;
   return g;
 }
 
@@ -388,10 +389,13 @@ export function CyberZenIsoApp() {
       const props = new Container();
       const actors = new Container();
       const fx = new Container();
+      terrain.sortableChildren = true;
+      terrain.zIndex = TERRAIN_Z_INDEX;
       props.sortableChildren = true;
       actors.sortableChildren = true;
       fx.sortableChildren = true;
       actorLayerRef.current = actors;
+      app.stage.sortableChildren = true;
       app.stage.eventMode = "static";
       app.stage.hitArea = app.screen;
       app.stage.addChild(terrain, props, actors, fx);
@@ -419,6 +423,7 @@ export function CyberZenIsoApp() {
       const grass = ground ? null : pickForestGrass(forest, { worldSeed: FOREST_WORLD_SEED, chunkX: 0, chunkZ: 0, tileX: x, tileZ: z, layer: 1 });
       const terrainTex = await assets?.ensureForestTexture(ground ?? grass);
       const tile = terrainTex ? spriteFromTexture(terrainTex, TILE_W, TILE_H, TILE_H / 2) : diamond((x + z) % 4 === 0 ? 0x3f7f48 : 0x356b40);
+      tile.zIndex = TERRAIN_Z_INDEX;
       place(tile, x, z, app.screen.width, app.screen.height);
       terrain.addChild(tile);
 
