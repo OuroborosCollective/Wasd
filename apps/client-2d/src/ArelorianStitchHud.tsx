@@ -57,6 +57,7 @@ export function ArelorianStitchHud({
   onToggleAutoMove,
 }: ArelorianStitchHudProps) {
   const [activePanel, setActivePanel] = useState<HudPanel>(null);
+  const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [chatText, setChatText] = useState("");
   const hp = 86;
   const mana = 64;
@@ -70,16 +71,43 @@ export function ArelorianStitchHud({
       if (isTypingTarget(event.target)) return;
       if (event.key === "Escape") {
         setActivePanel(null);
+        setIsInventoryOpen(false);
         return;
       }
       const panel = panels.find((p) => p.shortcut === event.key.toLowerCase());
       if (!panel) return;
       event.preventDefault();
+      if (panel.id === "inventory") {
+        toggleInventory();
+        return;
+      }
       setActivePanel((current) => (current === panel.id ? null : panel.id));
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  function toggleInventory() {
+    setIsInventoryOpen((current) => {
+      const next = !current;
+      setActivePanel(next ? "inventory" : null);
+      return next;
+    });
+  }
+
+  function selectPanel(panel: Exclude<HudPanel, null>) {
+    if (panel === "inventory") {
+      toggleInventory();
+      return;
+    }
+    setIsInventoryOpen(false);
+    setActivePanel((current) => (current === panel ? null : panel));
+  }
+
+  function closePanel() {
+    setActivePanel(null);
+    setIsInventoryOpen(false);
+  }
 
   function submitChat(event: FormEvent) {
     event.preventDefault();
@@ -127,7 +155,7 @@ export function ArelorianStitchHud({
           <button
             key={panel.id}
             className={activePanel === panel.id ? "active" : ""}
-            onClick={() => setActivePanel(activePanel === panel.id ? null : panel.id)}
+            onClick={() => selectPanel(panel.id)}
             title={`${panel.label} [${panel.shortcut.toUpperCase()}]`}
             aria-pressed={activePanel === panel.id}
           >
@@ -170,11 +198,12 @@ export function ArelorianStitchHud({
       </nav>
 
       <section className="stitch-bottom-right" aria-label="Quick Actions">
+        <button onClick={toggleInventory} aria-pressed={isInventoryOpen}>BAG</button>
         <button onClick={onToggleAutoMove}>AUTO</button>
         <button onClick={onInteract}>INTERACT</button>
       </section>
 
-      {activePanel && (
+      {activePanel && (activePanel !== "inventory" || isInventoryOpen) && (
         <StitchPanel
           panel={activePanel}
           weaponCount={weaponCount}
@@ -182,7 +211,7 @@ export function ArelorianStitchHud({
           inventoryItems={inventoryItems}
           onEquipWeapon={onEquipWeapon}
           onCycleWeapon={onCycleWeapon}
-          onClose={() => setActivePanel(null)}
+          onClose={closePanel}
         />
       )}
     </div>
