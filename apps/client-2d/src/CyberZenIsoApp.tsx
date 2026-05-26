@@ -22,6 +22,7 @@ import {
   type ForestResourceNode,
 } from "./forestResourceRegistry";
 import { ArelorianStitchHud } from "./ArelorianStitchHud";
+import { spawnTouchRipple } from "./fxLogic";
 import { iso3 } from "./isometricProjection";
 import { make2dProp } from "./stackedProps";
 import { moveVisualTowards } from "./visualMotion";
@@ -385,10 +386,15 @@ export function CyberZenIsoApp() {
       const terrain = new Container();
       const props = new Container();
       const actors = new Container();
+      const fx = new Container();
       props.sortableChildren = true;
       actors.sortableChildren = true;
+      fx.sortableChildren = true;
       actorLayerRef.current = actors;
-      app.stage.addChild(terrain, props, actors);
+      app.stage.eventMode = "static";
+      app.stage.hitArea = app.screen;
+      app.stage.addChild(terrain, props, actors, fx);
+      app.stage.on("pointertap", (event) => spawnTouchRipple(fx, { x: event.global.x, y: event.global.y }));
       await buildScene(app, terrain, props, loaded);
       addActor(app, actors, "self", 0, 0, playerName, true, loaded, initialWeaponId);
       addActor(app, actors, "elder", 2, 1, "Millbrook Elder", false, loaded);
