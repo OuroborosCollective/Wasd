@@ -53,20 +53,32 @@ export type ForestBiomePickInput = {
   category?: ForestBiomeAssetCategory | null;
 };
 
-const TERRAIN_KIND_RE = /(?:^|[_\-\s/])(ground|grass|floor|tile|tileset|terrain|dirt|soil|path|road|earth|moss|leaf|leaves)(?:$|[_\-\s/])/i;
+const TERRAIN_KIND_RE = /(?:^|[_\-\s/])(ground|grass|floor|tile|tileset|terrain|dirt|soil|path|road|earth|moss|leaf|leaves|edge|corner|transition|center)(?:$|[_\-\s/])/i;
 const NON_TERRAIN_RE = /(?:particle|effect|fx|icon|ui|window|door|tree|bush|flower|rock|log|stump|character|npc|monster|object|deco|decoration)/i;
 
+const MANIFEST_URLS = [
+  '/2d-assets/biomes/biome_atlas_v2/forest-manifest.json',
+  '/2d/assets/biomes/forest/assetpack01/manifest.json',
+];
+
+async function tryLoadForestBiomeManifest(url: string): Promise<ForestBiomeManifest | null> {
+  const response = await fetch(url, { cache: 'no-store' });
+  if (!response.ok) return null;
+  const manifest = await response.json() as ForestBiomeManifest;
+  validateForestBiomeManifest(manifest);
+  return manifest;
+}
+
 export async function loadForestBiomeManifest(): Promise<ForestBiomeManifest | null> {
-  try {
-    const response = await fetch('/2d/assets/biomes/forest/assetpack01/manifest.json', { cache: 'no-store' });
-    if (!response.ok) return null;
-    const manifest = await response.json() as ForestBiomeManifest;
-    validateForestBiomeManifest(manifest);
-    return manifest;
-  } catch (error) {
-    console.warn('[ForestBiomePicker] Failed to load forest biome manifest', error);
-    return null;
+  for (const url of MANIFEST_URLS) {
+    try {
+      const manifest = await tryLoadForestBiomeManifest(url);
+      if (manifest) return manifest;
+    } catch (error) {
+      console.warn(`[ForestBiomePicker] Failed to load forest biome manifest: ${url}`, error);
+    }
   }
+  return null;
 }
 
 export function validateForestBiomeManifest(manifest: ForestBiomeManifest): void {
@@ -140,6 +152,9 @@ export function pickForestBiomeAsset(
 export function pickForestGround(manifest: ForestBiomeManifest | null, input: Omit<ForestBiomePickInput, 'kind' | 'category'>) {
   return pickForestBiomeAsset(manifest, { ...input, kind: 'ground', category: 'tilesets' })
     ?? pickForestBiomeAsset(manifest, { ...input, kind: 'floor', category: 'tilesets' })
+    ?? pickForestBiomeAsset(manifest, { ...input, kind: 'center', category: 'tilesets' })
+    ?? pickForestBiomeAsset(manifest, { ...input, kind: 'edge', category: 'tilesets' })
+    ?? pickForestBiomeAsset(manifest, { ...input, kind: 'corner', category: 'tilesets' })
     ?? pickForestBiomeAsset(manifest, { ...input, kind: 'tile', category: 'tilesets' })
     ?? pickForestBiomeAsset(manifest, { ...input, category: 'tilesets' });
 }
