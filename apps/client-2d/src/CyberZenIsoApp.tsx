@@ -455,6 +455,14 @@ export function CyberZenIsoApp() {
     if (existing) {
       existing.tx = x;
       existing.tz = z;
+      if (player && weaponVisualId !== undefined && weaponVisualId !== existing.weaponVisualId) {
+        rebuildActorVisual(id, weaponVisualId);
+        if (id === "self") {
+          setEquippedWeaponId(weaponVisualId);
+          if (weaponVisualId) localStorage.setItem(EQUIPPED_WEAPON_KEY, weaponVisualId);
+          else localStorage.removeItem(EQUIPPED_WEAPON_KEY);
+        }
+      }
       return;
     }
     const resolvedWeaponId = player ? (weaponVisualId ?? equippedWeaponId) : pickWeaponVisual(assets?.manifest ?? null, { seed: name })?.id ?? null;
@@ -508,7 +516,16 @@ export function CyberZenIsoApp() {
     c.on("connect" as any, () => { setConnected(true); setMessages(m => [...m.slice(-12), { from: "Net", txt: "World stream connected." }]); });
     c.on("disconnect" as any, () => setConnected(false));
     c.on("WORLD_HEARTBEAT", (e: any) => {
-      Object.entries(e.payload?.players || {}).forEach(([id, p]: any) => addActor(app, layer, id, Number(p.x || 0), Number(p.z || 0), p.name || "Player", true));
+      const selfId = e.payload?.self?.id;
+      Object.entries(e.payload?.players || {}).forEach(([id, p]: any) => {
+        const actorId = selfId && id === selfId ? "self" : id;
+        const nextWeaponId = p.weaponVisualId ?? p.equippedWeaponId ?? null;
+        addActor(app, layer, actorId, Number(p.x || 0), Number(p.z || 0), p.name || (actorId === "self" ? playerName : "Player"), true, assetRef.current, nextWeaponId);
+      });
+      if (e.payload?.self && (!selfId || !e.payload?.players?.[selfId])) {
+        const self = e.payload.self;
+        addActor(app, layer, "self", Number(self.x || 0), Number(self.z || 0), self.name || playerName, true, assetRef.current, self.weaponVisualId ?? self.equippedWeaponId ?? null);
+      }
       Object.entries(e.payload?.agents || {}).forEach(([id, a]: any) => addActor(app, layer, id, Number(a.x || 0), Number(a.z || 0), a.name || "NPC", false));
     });
     c.on("PLAYER_MOVED", (e: any) => {
