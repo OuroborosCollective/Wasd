@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 export type InventoryItem = {
   itemId: string;
   name: string;
@@ -9,10 +11,32 @@ export type InventoryItem = {
 };
 
 type InventoryPanelProps = {
-  items: InventoryItem[];
+  items?: InventoryItem[];
   equippedWeaponId?: string | null;
-  onEquipWeapon: (item: InventoryItem) => void;
+  onEquipWeapon?: (item: InventoryItem) => void;
 };
+
+function normalizeItem(raw: any, index: number): InventoryItem | null {
+  if (!raw) return null;
+  const itemId = String(raw.itemId ?? raw.id ?? raw.uid ?? `item-${index}`);
+  const weaponVisualId = raw.weaponVisualId ?? raw.visualId ?? raw.equippedWeaponId ?? null;
+  const type = String(raw.type ?? raw.kind ?? (weaponVisualId ? "weapon" : "item"));
+  return {
+    itemId,
+    name: String(raw.name ?? raw.label ?? weaponVisualId ?? itemId),
+    type,
+    weaponVisualId,
+    weaponClass: raw.weaponClass ?? raw.class ?? null,
+    rarity: raw.rarity ?? null,
+    quantity: Number.isFinite(Number(raw.quantity)) ? Number(raw.quantity) : null,
+  };
+}
+
+function normalizeInventory(payload: any): InventoryItem[] {
+  const source = payload?.self?.inventory ?? payload?.player?.inventory ?? payload?.inventory ?? payload?.items ?? [];
+  const array = Array.isArray(source) ? source : Object.values(source ?? {});
+  return array.map(normalizeItem).filter(Boolean) as InventoryItem[];
+}
 
 function tone(item: InventoryItem): string {
   return item.rarity ? `rarity-${item.rarity.toLowerCase()}` : "rarity-common";
@@ -24,8 +48,32 @@ function initials(item: InventoryItem): string {
 }
 
 export function InventoryPanel({ items, equippedWeaponId, onEquipWeapon }: InventoryPanelProps) {
-  const gear = items.filter((item) => item.type === "weapon" || Boolean(item.weaponVisualId));
-  const other = items.filter((item) => !gear.includes(item));
+  const [syncedItems, setSyncedItems] = useState<InventoryItem[]>(items ?? []);
+
+  useEffect(() => {
+    if (items) setSyncedItems(items);
+  }, [items]);
+
+  useEffect(() => {
+    function handleHeartbeat(event: Event) {
+      const payload = (event as CustomEvent).detail?.payload;
+      const next = normalizeInventory(payload);
+      if (next.length > 0) setSyncedItems(next);
+    }
+    window.addEventListener("areloria:WORLD_HEARTBEAT", handleHeartbeat);
+    return () => window.removeEventListener("areloria:WORLD_HEARTBEAT", handleHeartbeat);
+  }, []);
+
+  function equip(item: InventoryItem) {
+    onEquipWeapon?.(item);
+    window.__areloriaClient?.emit("intent:equip", {
+      itemId: item.itemId,
+      weaponVisualId: item.weaponVisualId ?? null,
+    });
+  }
+
+  const gear = syncedItems.filter((item) => item.type === "weapon" || Boolean(item.weaponVisualId));
+  const other = syncedItems.filter((item) => !gear.includes(item));
 
   return (
     <div className="inventory-panel" aria-label="Inventory">
@@ -36,7 +84,7 @@ export function InventoryPanel({ items, equippedWeaponId, onEquipWeapon }: Inven
             {gear.map((item) => {
               const active = Boolean(item.weaponVisualId && item.weaponVisualId === equippedWeaponId);
               return (
-                <button key={item.itemId} type="button" className={active ? `inventory-item equipped ${tone(item)}` : `inventory-item ${tone(item)}`} onClick={() => onEquipWeapon(item)} role="listitem" aria-pressed={active}>
+                <button key={item.itemId} type="button" className={active ? `inventory-item equipped ${tone(item)}` : `inventory-item ${tone(item)}`} onClick={() => equip(item)} role="listitem" aria-pressed={active}>
                   <span className="inventory-icon">{initials(item)}</span>
                   <span className="inventory-meta"><b>{item.name}</b><small>{item.rarity ?? "common"} · {item.weaponClass ?? item.type}</small></span>
                   {active && <i>equipped</i>}
