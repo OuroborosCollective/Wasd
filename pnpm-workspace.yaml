@@ -15,7 +15,7 @@ allowBuilds:
   '@prisma/engines': true
   cpu-features: true
   esbuild: true
-  pg: set this to true or false
+  pg: true
   prisma: true
   protobufjs: true
   ssh2: true
