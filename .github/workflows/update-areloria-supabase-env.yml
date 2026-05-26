@@ -63,7 +63,6 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           timeout: 2m
           command_timeout: 18m
-          script_stop: true
           script: |
             set -euo pipefail
 
@@ -156,7 +155,9 @@ jobs:
               cd "$DEPLOY_PATH"
               if docker compose version >/dev/null 2>&1; then DC='docker compose'; else DC='docker-compose'; fi
               echo "Recreating Areloria containers so env changes take effect ..."
-              ARELORIAN_DOCKER_NETWORK="$NETWORK_NAME" ARELORIAN_ENV_FILE="$ENV_FILE_NAME" $DC --env-file "$ENV_FILE_NAME" -f docker-compose.yml up -d --force-recreate arelorian-engine monitor-bridge
+              ARELORIAN_DOCKER_NETWORK="$NETWORK_NAME" ARELORIAN_ENV_FILE="$ENV_FILE_NAME" $DC --env-file "$ENV_FILE_NAME" -f docker-compose.yml stop arelorian-engine monitor-bridge || true
+              ARELORIAN_DOCKER_NETWORK="$NETWORK_NAME" ARELORIAN_ENV_FILE="$ENV_FILE_NAME" $DC --env-file "$ENV_FILE_NAME" -f docker-compose.yml rm -f arelorian-engine monitor-bridge || true
+              ARELORIAN_DOCKER_NETWORK="$NETWORK_NAME" ARELORIAN_ENV_FILE="$ENV_FILE_NAME" $DC --env-file "$ENV_FILE_NAME" -f docker-compose.yml up -d --remove-orphans arelorian-engine monitor-bridge
             else
               echo "Skipping container recreate by input."
             fi
