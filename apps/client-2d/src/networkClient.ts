@@ -28,6 +28,12 @@ export interface NetworkClient {
   sendPlayerAction(action: string, payload: Record<string, unknown>): void;
 }
 
+function dispatchWorldPacket(event: string, payload?: any): void {
+  if (typeof window === "undefined") return;
+  if (event !== "WORLD_HEARTBEAT" && event !== "world_tick") return;
+  window.dispatchEvent(new CustomEvent("wasd:world-packet", { detail: payload }));
+}
+
 class LocalNetworkClient implements NetworkClient {
   public connected = false;
   private socket: WebSocket | null = null;
@@ -126,6 +132,7 @@ class LocalNetworkClient implements NetworkClient {
   }
 
   private emit(event: string, payload?: any): void {
+    dispatchWorldPacket(event, payload);
     for (const handler of this.handlers.get(event) ?? []) handler(payload);
   }
 
