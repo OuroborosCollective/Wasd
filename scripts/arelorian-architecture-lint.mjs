@@ -103,21 +103,24 @@ function checkRuntimeHooks() {
   }
 }
 
-function aliasBlock(file) {
-  if (!existsSync(path.join(root, file))) return '';
+function aliasEntries(file) {
+  if (!existsSync(path.join(root, file))) return [];
   const text = read(file);
-  const match = text.match(/alias\s*:\s*\{([\s\S]*?)\}/m);
-  return match ? match[1].replace(/\s+/g, ' ').replace(/["']/g, '').trim() : '';
+  const entries = [];
+  const pattern = /['"]([^'"]+)['"]\s*:\s*path\.resolve\(root,\s*['"]([^'"]+)['"]\)/g;
+  let match;
+  while ((match = pattern.exec(text))) entries.push(`${match[1]}=>${match[2].replace(/\\/g, '/')}`);
+  return entries.sort();
 }
 
 function checkViteConfigDivergence() {
   const ts = 'apps/client-2d/vite.config.ts';
   const mjs = 'apps/client-2d/vite.config.mjs';
   if (!existsSync(path.join(root, ts)) || !existsSync(path.join(root, mjs))) return;
-  const tsAlias = aliasBlock(ts);
-  const mjsAlias = aliasBlock(mjs);
+  const tsAlias = aliasEntries(ts).join('|');
+  const mjsAlias = aliasEntries(mjs).join('|');
   if (tsAlias !== mjsAlias) {
-    fail('config-divergence', `${ts} and ${mjs} have different resolve.alias blocks.`, 'Keep client build configs synchronized so runtime chains use the same local modules.');
+    fail('config-divergence', `${ts} and ${mjs} have different resolve.alias entries.`, 'Keep client build configs synchronized so runtime chains use the same local modules.');
   }
 }
 
