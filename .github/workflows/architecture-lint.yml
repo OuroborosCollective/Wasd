@@ -23,10 +23,12 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm --version
 
       - run: pnpm guard:monorepo
 
       - run: pnpm guard:architecture
+
+      - run: pnpm install --frozen-lockfile --ignore-scripts
 
       - run: pnpm build:2d
