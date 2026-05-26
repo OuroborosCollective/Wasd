@@ -30,28 +30,52 @@ function extractLockRootSpecifier(lockText, dep) {
   return (m?.[1] ?? m?.[2] ?? null)?.replace(/^['"]|['"]$/g, '') ?? null;
 }
 
+function extractLockOverride(lockText, dep) {
+  const escaped = dep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const marker = '\noverrides:\n';
+  const start = lockText.indexOf(marker);
+  if (start < 0) return null;
+  const after = lockText.slice(start + marker.length);
+  const end = after.search(/\n\S/);
+  const block = end >= 0 ? after.slice(0, end) : after;
+  const re = new RegExp(`^  (?:'${escaped}'|${escaped}):\\s*([^\\n]+)$`, 'm');
+  const m = block.match(re);
+  return (m?.[1] ?? null)?.trim().replace(/^['"]|['"]$/g, '') ?? null;
+}
+
 function checkRootOverrideConsistency() {
   const pkg = readJson('package.json');
   const lock = readFileSync('pnpm-lock.yaml', 'utf8');
   const dockerSync = readFileSync('scripts/sync-pnpm-lockfile-for-docker.py', 'utf8');
 
-  const watched = new Set([
+  const rootDeps = new Set([
     ...Object.keys(pkg.devDependencies ?? {}),
     ...Object.keys(pkg.dependencies ?? {}),
-    ...Object.keys(pkg.pnpm?.overrides ?? {}),
-    ...Object.keys(pkg.pnpm?.resolutions ?? {}),
   ]);
+  const overrides = pkg.pnpm?.overrides ?? {};
+  const resolutions = pkg.pnpm?.resolutions ?? {};
 
-  for (const dep of watched) {
+  for (const dep of rootDeps) {
     const pkgSpec = pkg.devDependencies?.[dep] ?? pkg.dependencies?.[dep] ?? null;
-    const overrideSpec = pkg.pnpm?.overrides?.[dep] ?? pkg.pnpm?.resolutions?.[dep] ?? pkgSpec;
-    if (!overrideSpec) continue;
+    const resolutionSpec = resolutions?.[dep] ?? null;
+    const expectedSpec = resolutionSpec ?? pkgSpec;
+    if (!expectedSpec) continue;
 
     const lockRootSpecifier = extractLockRootSpecifier(lock, dep);
-    if (lockRootSpecifier && lockRootSpecifier !== overrideSpec) {
+    if (lockRootSpecifier && lockRootSpecifier !== expectedSpec) {
       fail(
-        `Lockfile drift for ${dep}: pnpm-lock.yaml root importer has ${lockRootSpecifier}, package.json/overrides expects ${overrideSpec}.`,
-        `Run pnpm install locally or update pnpm-lock.yaml so ${dep} uses ${overrideSpec}. This is a monorepo; root package.json and lockfile must agree before merge.`
+        `Lockfile drift for ${dep}: pnpm-lock.yaml root importer has ${lockRootSpecifier}, package.json expects ${expectedSpec}.`,
+        `Run pnpm install locally or update pnpm-lock.yaml so ${dep} uses ${expectedSpec}. This is a monorepo; root package.json and lockfile must agree before merge.`
+      );
+    }
+  }
+
+  for (const [dep, overrideSpec] of Object.entries(overrides)) {
+    const lockOverride = extractLockOverride(lock, dep);
+    if (lockOverride && lockOverride !== overrideSpec) {
+      fail(
+        `Lockfile override drift for ${dep}: pnpm-lock.yaml overrides has ${lockOverride}, package.json/overrides expects ${overrideSpec}.`,
+        `Run pnpm install locally or update pnpm-lock.yaml overrides so ${dep} uses ${overrideSpec}. This is a monorepo; root package.json and lockfile overrides must agree before merge.`
       );
     }
 

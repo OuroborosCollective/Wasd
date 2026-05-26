@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { deterministicNow } from "../../core/determinism/AREDeterminism.js";
 import type { AREMode } from "./RuntimeSettingsStore.js";
 
 export type AREModeAuditEntry = {
@@ -39,11 +40,12 @@ export class AREModeAuditTrail {
     actorRole?: string;
     socketId?: string;
     reason?: string;
+    tick?: number | bigint;
   }): AREModeAuditEntry {
-    const timestamp = Date.now();
+    const timestamp = deterministicNow(input.tick ?? `${input.oldMode}:${input.newMode}:${input.actorId ?? "unknown"}`);
     const entry: AREModeAuditEntry = {
       timestamp,
-      isoTime: new Date(timestamp).toISOString(),
+      isoTime: `tick:${timestamp}`,
       oldMode: input.oldMode,
       newMode: input.newMode,
       source: safeString(input.source, "gm_command") || "gm_command",

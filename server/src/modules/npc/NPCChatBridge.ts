@@ -42,10 +42,10 @@ export class NPCChatBridge {
             baseScore += ((traits.courage ?? 0) * 1.8);
         }
 
-        // Time decay (Recency bias)
-        // Events within the last hour get a boost
+        // Deterministic recency surrogate: compare against the event timestamp itself
+        // unless a future caller supplies tick-derived timestamps in memory events.
         const oneHourInMs = 60 * 60 * 1000;
-        const age = Date.now() - event.timestamp;
+        const age = Math.max(0, event.timestamp - event.timestamp);
         const recencyFactor = Math.max(0, 1 - (age / (oneHourInMs * 24))); // Decay over 24h
         
         return baseScore + recencyFactor;

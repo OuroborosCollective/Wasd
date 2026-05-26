@@ -1,5 +1,6 @@
 // @ts-nocheck: optional external DB client types in minimal builds.
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { deterministicNow } from "../../core/determinism/AREDeterminism.js";
 import type { NPCTraits } from "./NPCTraits.js";
 
 export interface Memory {
@@ -26,11 +27,17 @@ export class NPCMemoryCache {
     private memories: Map<string, Memory[]> = new Map();
     private writeBuffer: Memory[] = [];
     private supabase: SupabaseClient | null = null;
+    private logicalClock = deterministicNow("npc-memory-cache:init");
 
     constructor(supabaseUrl?: string, supabaseKey?: string) {
         if (supabaseUrl && supabaseKey) {
             this.supabase = createClient(supabaseUrl, supabaseKey);
         }
+    }
+
+    private now(seed: string | number = 0): number {
+        this.logicalClock += 1;
+        return deterministicNow(`${seed}:${this.logicalClock}`);
     }
 
     public recordChat(npcId: string, chat: { text: string; sender: string; channel: string; ts: number }): void {
@@ -77,7 +84,7 @@ export class NPCMemoryCache {
 
         score += matchCount * 1.5;
 
-        const hoursPassed = (Date.now() - memory.timestamp) / (1000 * 60 * 60);
+        const hoursPassed = Math.max(0, this.now(memory.npcId) - memory.timestamp) / (1000 * 60 * 60);
         score -= hoursPassed * 0.05;
 
         return score;
@@ -133,7 +140,7 @@ export class NPCMemoryCache {
         this.addMemory(npcId, {
             content: observation,
             importance: 1,
-            timestamp: Date.now(),
+            timestamp: this.now(`${npcId}:observation`),
             tags: ['observation']
         });
     }
@@ -142,7 +149,7 @@ export class NPCMemoryCache {
         this.addMemory(npcId, {
             content: goal,
             importance: 2,
-            timestamp: Date.now(),
+            timestamp: this.now(`${npcId}:goal`),
             tags: ['goal']
         });
     }
@@ -151,7 +158,7 @@ export class NPCMemoryCache {
         this.addMemory(npcId, {
             content: event,
             importance: 1,
-            timestamp: Date.now(),
+            timestamp: this.now(`${npcId}:event`),
             tags: ['event']
         });
     }

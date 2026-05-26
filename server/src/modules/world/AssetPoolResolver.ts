@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { deterministicNow } from "../../core/determinism/AREDeterminism.js";
 
 type PoolEntry = string | string[];
 
@@ -56,9 +57,9 @@ export class AssetPoolResolver {
   public createSnapshot(label?: string): AssetPoolSnapshotMeta | null {
     try {
       fs.mkdirSync(this.snapshotDir, { recursive: true });
-      const now = Date.now();
-      const stamp = new Date(now).toISOString().replace(/[:.]/g, "-");
       const cleanedLabel = this.sanitizeSnapshotLabel(label);
+      const now = deterministicNow(cleanedLabel || "asset-pool-snapshot");
+      const stamp = `tick-${now}`;
       const fileName = cleanedLabel
         ? `asset-pools.${stamp}.${cleanedLabel}.json`
         : `asset-pools.${stamp}.json`;
@@ -302,7 +303,7 @@ export class AssetPoolResolver {
     return {
       id: fileName,
       fileName,
-      createdAtIso: new Date(stat.mtimeMs).toISOString(),
+      createdAtIso: `tick:${Math.trunc(stat.mtimeMs)}`,
       createdAtMs: stat.mtimeMs,
       bytes: stat.size,
     };
