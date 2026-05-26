@@ -6,6 +6,7 @@
  * Weights are clamped to [0, 1].
  */
 
+import { SeededARERng, createARESeed } from "../../core/determinism/AREDeterminism.js";
 import { type HeuristicWeights, type NPCMemoryCache } from "./NPCMemoryCache.js";
 
 const LEARN_RATE = 0.05;
@@ -18,6 +19,10 @@ function adjustWeight(weights: HeuristicWeights, key: string, delta: number): vo
   if (key in weights) {
     weights[key] = clamp01(weights[key] + delta);
   }
+}
+
+function roll(npcId: string, action: string, seed: string | number = 0): number {
+  return new SeededARERng(createARESeed(["npc-heuristics", npcId, action, seed])).nextFloat();
 }
 
 /** Call after a successful trade. */
@@ -67,25 +72,25 @@ export function onPartyRejected(cache: NPCMemoryCache, npcId: string): void {
 
 /**
  * Whether the NPC should attempt a chat action this tick.
- * Based on chatFrequency weight + randomness.
+ * Based on chatFrequency weight + deterministic ARE roll.
  */
-export function shouldChat(cache: NPCMemoryCache, npcId: string): boolean {
+export function shouldChat(cache: NPCMemoryCache, npcId: string, seed: string | number = 0): boolean {
   const s = cache.get(npcId);
-  return Math.random() < s.heuristicWeights.chatFrequency * 0.1;
+  return roll(npcId, "chat", seed) < s.heuristicWeights.chatFrequency * 0.1;
 }
 
 /**
  * Whether the NPC should seek a party this tick.
  */
-export function shouldSeekParty(cache: NPCMemoryCache, npcId: string): boolean {
+export function shouldSeekParty(cache: NPCMemoryCache, npcId: string, seed: string | number = 0): boolean {
   const s = cache.get(npcId);
-  return s.partyId === null && Math.random() < s.heuristicWeights.partySeeking * 0.05;
+  return s.partyId === null && roll(npcId, "party", seed) < s.heuristicWeights.partySeeking * 0.05;
 }
 
 /**
  * Whether the NPC should try to trade.
  */
-export function shouldTrade(cache: NPCMemoryCache, npcId: string): boolean {
+export function shouldTrade(cache: NPCMemoryCache, npcId: string, seed: string | number = 0): boolean {
   const s = cache.get(npcId);
-  return Math.random() < s.heuristicWeights.tradeWillingness * 0.04;
+  return roll(npcId, "trade", seed) < s.heuristicWeights.tradeWillingness * 0.04;
 }
