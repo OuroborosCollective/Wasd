@@ -8,6 +8,7 @@ import { PixiModuleInspector } from "./PixiModuleInspector";
 import { WorldHeartMonitor } from "./WorldHeartMonitor";
 import { installClient2DDepthRuntime } from "./client2dDepthRuntime";
 import { installViewportRuntime } from "./ViewportController";
+import "./forestBiomeManifestBridge";
 import "./theme.css";
 import "./liveReality.css";
 import "./worldHeart.css";
