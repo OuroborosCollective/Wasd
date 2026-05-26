@@ -217,9 +217,7 @@ export function onChatMessage(msg: {
   let textColor = "#e6edf9";
   let channelColor = "#9fc8a7";
 
-  if (senderType === "npc") {
-    nameColor = "#c4a8ff";
-  } else if (senderType === "system" || channel === "status") {
+  if (senderType === "system" || channel === "status") {
     nameColor = "#8da6d8";
     textColor = "#b0bdd6";
     channelColor = "#6b8ab8";
