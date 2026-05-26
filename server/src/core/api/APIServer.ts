@@ -27,6 +27,11 @@ function fromFP(fp: number): number {
  */
 const API_KEY_HEADER = 'x-api-key';
 
+type EquipmentState = {
+  itemId: string | null;
+  weaponVisualId: string | null;
+};
+
 function parseCsvEnv(value: string | undefined): string[] {
   return (value ?? '')
     .split(',')
@@ -94,6 +99,7 @@ export class APIServer {
   private tickCounter = 0;
   private lastPhaseStates: Map<string, string> = new Map();
   private io: any = null;
+  private equipmentBySocket: Map<string, EquipmentState> = new Map();
 
   /**
    * Initialize with existing Express app
@@ -182,9 +188,30 @@ export class APIServer {
 
       this.io.on('connection', (socket: any) => {
         console.log(`[ws] Client connected: ${socket.id}`);
-        socket.emit('WORLD_STATE', this.getWorldStateSnapshot());
+        socket.emit('WORLD_STATE', this.getWorldStateSnapshot(socket.id));
+        socket.emit('WORLD_HEARTBEAT', this.getHeartbeatPayload(socket.id));
+
+        socket.on('intent:equip', (payload: any) => this.handleEquipIntent(socket, payload));
+        socket.on('disconnect', () => this.equipmentBySocket.delete(socket.id));
       });
     }).catch(console.error);
+  }
+
+  private handleEquipIntent(socket: any, payload: any): void {
+    const itemId = typeof payload?.itemId === 'string' ? payload.itemId.slice(0, 96) : null;
+    const weaponVisualId = typeof payload?.weaponVisualId === 'string' ? payload.weaponVisualId.slice(0, 128) : null;
+    if (!itemId && !weaponVisualId) return;
+
+    const nextState = { itemId, weaponVisualId };
+    this.equipmentBySocket.set(socket.id, nextState);
+
+    socket.emit('EQUIP_ACCEPTED', {
+      playerId: socket.id,
+      itemId,
+      weaponVisualId,
+      tick: Number(worldStateRegistry.getTick()),
+    });
+    socket.emit('WORLD_HEARTBEAT', this.getHeartbeatPayload(socket.id));
   }
 
   /**
@@ -206,10 +233,13 @@ export class APIServer {
   private broadcastHeartbeat(): void {
     if (!this.io) return;
 
-    this.io.emit('WORLD_HEARTBEAT', {
-      tick: Number(worldStateRegistry.getTick()),
-      regions: this.getRegionSummaries(),
-    });
+    const sockets = this.io.sockets?.sockets;
+    if (sockets?.forEach) {
+      sockets.forEach((socket: any) => socket.emit('WORLD_HEARTBEAT', this.getHeartbeatPayload(socket.id)));
+      return;
+    }
+
+    this.io.emit('WORLD_HEARTBEAT', this.getHeartbeatPayload());
   }
 
   /**
@@ -238,13 +268,57 @@ export class APIServer {
   /**
    * Get world state snapshot
    */
-  private getWorldStateSnapshot(): any {
-    const worldState = worldStateRegistry.getCurrentState();
+  private getWorldStateSnapshot(socketId?: string): any {
+    return {
+      ...this.getHeartbeatPayload(socketId),
+      tickRate: arelorianKernel.getTickRate(),
+    };
+  }
+
+  private getHeartbeatPayload(socketId?: string): any {
     return {
       tick: Number(worldStateRegistry.getTick()),
-      tickRate: arelorianKernel.getTickRate(),
       regions: this.getRegionSummaries(),
+      players: this.getPlayerSummaries(socketId),
+      self: socketId ? this.getPlayerSummary(socketId) : null,
+      inventory: socketId ? this.getInventory(socketId) : [],
     };
+  }
+
+  private getPlayerSummaries(socketId?: string): Record<string, any> {
+    const players: Record<string, any> = {};
+    const sockets = this.io?.sockets?.sockets;
+    if (sockets?.forEach) {
+      sockets.forEach((socket: any) => {
+        players[socket.id] = this.getPlayerSummary(socket.id);
+      });
+    }
+    if (socketId && !players[socketId]) players[socketId] = this.getPlayerSummary(socketId);
+    return players;
+  }
+
+  private getPlayerSummary(socketId: string): any {
+    const equipment = this.equipmentBySocket.get(socketId) ?? { itemId: null, weaponVisualId: null };
+    return {
+      id: socketId,
+      name: 'Player',
+      x: 0,
+      z: 0,
+      equippedWeaponId: equipment.weaponVisualId,
+      weaponVisualId: equipment.weaponVisualId,
+      inventory: this.getInventory(socketId),
+    };
+  }
+
+  private getInventory(socketId: string): any[] {
+    const equipment = this.equipmentBySocket.get(socketId);
+    if (!equipment?.weaponVisualId && !equipment?.itemId) return [];
+    return [{
+      itemId: equipment.itemId ?? equipment.weaponVisualId,
+      name: equipment.weaponVisualId ?? equipment.itemId,
+      type: 'weapon',
+      weaponVisualId: equipment.weaponVisualId,
+    }];
   }
 
   /**
