@@ -24,6 +24,7 @@ import {
 import { ArelorianStitchHud } from "./ArelorianStitchHud";
 import { spawnTouchRipple } from "./fxLogic";
 import { iso3 } from "./isometricProjection";
+import { initLootFeedback } from "./lootPickupFeedback";
 import { make2dProp } from "./stackedProps";
 import { moveVisualTowards } from "./visualMotion";
 
@@ -498,6 +499,7 @@ export function CyberZenIsoApp() {
   function startNetwork(app: Application, layer: Container) {
     const c = createClient({ url: "https://arelorian.de", heartbeatInterval: 30000 });
     clientRef.current = c;
+    initLootFeedback(app, c);
     c.on("connect" as any, () => { setConnected(true); setMessages(m => [...m.slice(-12), { from: "Net", txt: "World stream connected." }]); });
     c.on("disconnect" as any, () => setConnected(false));
     c.on("WORLD_HEARTBEAT", (e: any) => {
