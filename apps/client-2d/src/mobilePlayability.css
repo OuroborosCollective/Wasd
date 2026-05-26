@@ -1,0 +1,138 @@
+html,
+body,
+#root {
+  touch-action: none;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.az-shell,
+.az-pixi,
+.az-touch-pad,
+.stitch-hud {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.az-shell {
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+.az-touch-pad {
+  touch-action: none;
+}
+
+.az-touch-pad button,
+.stitch-skillbar button,
+.stitch-side-menu button {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 920px) {
+  .az-touch-pad {
+    left: calc(env(safe-area-inset-left, 0px) + 12px);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 132px);
+    grid-template-columns: repeat(3, 60px);
+    grid-template-rows: repeat(3, 60px);
+    gap: 8px;
+  }
+
+  .az-touch-pad button {
+    min-width: 56px;
+    min-height: 56px;
+    border-radius: 20px;
+    font-size: 20px;
+  }
+
+  .stitch-topbar {
+    top: calc(env(safe-area-inset-top, 0px) + 10px);
+    left: calc(env(safe-area-inset-left, 0px) + 10px);
+    right: calc(env(safe-area-inset-right, 0px) + 10px);
+  }
+
+  .stitch-vitals {
+    left: calc(env(safe-area-inset-left, 0px) + 10px);
+  }
+
+  .stitch-chat {
+    left: calc(env(safe-area-inset-left, 0px) + 10px);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+  }
+
+  .stitch-skillbar {
+    right: calc(env(safe-area-inset-right, 0px) + 10px);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+  }
+
+  .stitch-skillbar button {
+    min-width: 74px;
+    min-height: 56px;
+  }
+
+  .stitch-side-menu {
+    right: calc(env(safe-area-inset-right, 0px) + 10px);
+  }
+}
+
+@media (max-width: 520px) {
+  .az-touch-pad {
+    left: calc(env(safe-area-inset-left, 0px) + 10px);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 126px);
+    grid-template-columns: repeat(3, 56px);
+    grid-template-rows: repeat(3, 56px);
+    gap: 7px;
+  }
+
+  .az-touch-pad button {
+    min-width: 56px;
+    min-height: 56px;
+    border-radius: 19px;
+  }
+
+  .stitch-chat {
+    width: calc(100vw - 118px - env(safe-area-inset-left, 0px));
+  }
+
+  .stitch-chat-lines {
+    min-height: 48px;
+    max-height: 48px;
+  }
+
+  .stitch-chat-input input {
+    padding: 9px 10px;
+    font-size: 13px;
+  }
+
+  .stitch-chat-input button {
+    padding: 9px 10px;
+  }
+
+  .stitch-skillbar button {
+    min-width: 72px;
+    min-height: 56px;
+  }
+
+  .pixi-module-inspector,
+  .live-reality-bridge {
+    display: none;
+  }
+}
+
+@media (max-height: 640px) and (max-width: 920px) {
+  .stitch-vitals {
+    transform: scale(0.88);
+    transform-origin: top left;
+  }
+
+  .stitch-chat-lines {
+    display: none;
+  }
+
+  .az-touch-pad {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 104px);
+  }
+}
