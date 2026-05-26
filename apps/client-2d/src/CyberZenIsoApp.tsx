@@ -24,6 +24,7 @@ import {
 import { ArelorianStitchHud } from "./ArelorianStitchHud";
 import { iso3 } from "./isometricProjection";
 import { make2dProp } from "./stackedProps";
+import { moveVisualTowards } from "./visualMotion";
 
 const TILE_W = 96;
 const TILE_H = 48;
@@ -392,7 +393,7 @@ export function CyberZenIsoApp() {
       addActor(app, actors, "self", 0, 0, playerName, true, loaded, initialWeaponId);
       addActor(app, actors, "elder", 2, 1, "Millbrook Elder", false, loaded);
       startNetwork(app, actors);
-      app.ticker.add(() => tick(app, actors));
+      app.ticker.add((ticker) => tick(app, actors, ticker.deltaTime));
     });
     return () => {
       clientRef.current?.disconnect();
@@ -507,7 +508,7 @@ export function CyberZenIsoApp() {
     c.connect();
   }
 
-  function tick(app: Application, layer: Container) {
+  function tick(app: Application, layer: Container, deltaTime = 1) {
     let dx = 0, dz = 0;
     const k = keys.current;
     if (k.has("w") || k.has("arrowup")) dz += 1;
@@ -517,11 +518,8 @@ export function CyberZenIsoApp() {
     if (dx || dz) sendMove({ dx, dz });
     entities.current.forEach((ent) => {
       const p = iso(ent.tx, ent.tz, app.screen.width, app.screen.height);
-      ent.root.x += (p.x - ent.root.x) * 0.18;
-      ent.root.y += (p.y - ent.root.y) * 0.18;
-      ent.root.zIndex = ent.root.y;
+      moveVisualTowards(ent.root, p, deltaTime);
     });
-    layer.sortChildren();
   }
 
   function sendSkill(skillId: string) {
