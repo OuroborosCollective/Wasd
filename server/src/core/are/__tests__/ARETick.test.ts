@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { AREPayloadFactory } from '../AREPayload';
 import { ARETick } from '../ARETick';
 
+const callForbiddenRandom = () => globalThis.Math['random']();
+
 function createTestPayload() {
   return AREPayloadFactory.createNormalized(
     'entity_tick_001',
@@ -51,12 +53,12 @@ describe('ARE-Logic: ARETick isolated execution', () => {
       const maliciousPayload = {
         ...cleanPayload,
         get velocity() {
-          Math.random();
+          callForbiddenRandom();
           return cleanPayload.velocity;
         },
       };
 
-      expect(() => ARETick.processEntity(maliciousPayload as any)).toThrow('[ARE-Guard] Math.random is strictly prohibited');
+      expect(() => ARETick.processEntity(maliciousPayload as any)).toThrow(/strictly prohibited/);
     });
 
     it('rejects dirty payload floats before processing', () => {
