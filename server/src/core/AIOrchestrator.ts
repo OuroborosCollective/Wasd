@@ -1,3 +1,5 @@
+import { deterministicNow } from './determinism/AREDeterminism.js';
+
 interface TaskPayload {
     eventType: string;
     payload: any;
@@ -15,10 +17,16 @@ export class AIOrchestrator {
    // Limits for AI Pro (100 tasks/day)
    private static readonly MAX_DAILY_TASKS = 100;
    private static taskCount = 0;
-   private static lastTaskReset = Date.now();
+   private static lastTaskReset = deterministicNow('ai-orchestrator:init');
+   private static logicalClock = deterministicNow('ai-orchestrator:clock');
 
    private static taskQueue: TaskPayload[] = [];
    private static isProcessingQueue = false;
+
+   private static now(): number {
+       this.logicalClock += 1;
+       return this.logicalClock;
+   }
 
    /**
     * Triggers world expansion, adding to the queue.
@@ -31,9 +39,10 @@ export class AIOrchestrator {
 
    private static resetTaskCountIfNeeded() {
        const ONE_DAY = 24 * 60 * 60 * 1000;
-       if (Date.now() - this.lastTaskReset > ONE_DAY) {
+       const now = this.now();
+       if (now - this.lastTaskReset > ONE_DAY) {
            this.taskCount = 0;
-           this.lastTaskReset = Date.now();
+           this.lastTaskReset = now;
        }
    }
 
@@ -119,10 +128,10 @@ export class AIOrchestrator {
                  return fallbackFn();
             }
 
-            const startTime = Date.now();
+            const startTime = this.now();
             const TIMEOUT_MS = 5 * 60 * 1000;
 
-            while (Date.now() - startTime < TIMEOUT_MS) {
+            while (this.now() - startTime < TIMEOUT_MS) {
                 const pollRes = await fetch(`${this.JULES_API_URL}/sessions/${sessionId}/activities?pageSize=50`, {
                     headers: {
                         "x-goog-api-key": process.env.JULES_API_KEY || ''

@@ -1,4 +1,5 @@
 import { WeatherResonance } from "../modules/WeatherResonance";
+import { deterministicNow } from "./determinism/AREDeterminism.js";
 
 export interface AREPayload {
     timestamp: number;
@@ -45,7 +46,7 @@ export class GameStateManager {
 
         // Erstellung des AREPayloads
         const payload: AREPayload = {
-            timestamp: Date.now(),
+            timestamp: deterministicNow(this.currentTick),
             tick: this.currentTick,
             resonance: resonanceValue,
             data: this.gatherGameState()

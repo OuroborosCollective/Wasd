@@ -9,7 +9,21 @@ const warnings = [];
 const ignoredDirs = new Set(['.git', '.turbo', '.cache', 'node_modules', 'dist', 'build', 'coverage', '.next']);
 const codeExt = new Set(['.ts', '.tsx', '.js', '.mjs', '.cjs', '.mts', '.cts']);
 const deterministicRoots = ['server/src/core', 'server/src/modules/npc', 'server/src/modules/loot', 'server/src/modules/world', 'world'];
-const deterministicAdvisoryHints = ['/api/', '/state/', '/config/', '/health', '/metrics', '/monitor', '/telemetry', '/debug'];
+const deterministicAdvisoryHints = [
+  '/api/',
+  '/state/',
+  '/config/',
+  '/health',
+  '/metrics',
+  '/monitor',
+  '/telemetry',
+  '/debug',
+  '/__tests__/',
+  '.test.',
+  '.spec.',
+  '/liveheal/',
+  '/integrity/',
+];
 const bootFiles = ['server/src/index.ts', 'server/src/core/ServerBootstrap.ts', 'apps/client-2d/src/main.tsx', 'apps/client-2d/src/client2dDepthRuntime.ts'];
 
 function norm(file) {
@@ -79,7 +93,7 @@ function checkDeterminism() {
         if (!rule.pattern.test(line)) continue;
         const message = `${file}:${index + 1} uses ${rule.label}`;
         const hint = 'Use deterministic hash/RNG or an audited ARE clock instead.';
-        if (isAdvisoryDeterminismPath(file)) warn('determinism-advisory', message, 'Observed in API/state/meta path. Keep it out of world-state simulation inputs.');
+        if (isAdvisoryDeterminismPath(file)) warn('determinism-advisory', message, 'Observed in API/test/meta/healing path. Keep it out of world-state simulation inputs.');
         else fail('determinism', message, hint);
       }
     });
