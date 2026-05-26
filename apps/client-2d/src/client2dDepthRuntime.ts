@@ -1,4 +1,5 @@
 import { Container, Sprite } from "pixi.js";
+import { installWorldItemRuntime } from "./worldItemRuntime";
 
 let installed = false;
 const DEPTH_MARK = Symbol("wasdClient2DDepthEnhanced");
@@ -35,6 +36,7 @@ function enhanceSpriteDepth(parent: Container, child: any, originalAddChild: typ
 }
 
 export function installClient2DDepthRuntime(): void {
+  installWorldItemRuntime();
   if (installed) return;
   installed = true;
 
