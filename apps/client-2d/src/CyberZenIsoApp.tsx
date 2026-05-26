@@ -299,6 +299,20 @@ function resolveEquippedWeaponId(manifest: AssetManifest | null, seed: string): 
   return id;
 }
 
+function payloadEntries(source: any, fallbackPrefix: string): [string, any][] {
+  if (Array.isArray(source)) {
+    return source.map((entry, index) => [String(entry?.id ?? entry?.playerId ?? entry?.agentId ?? entry?.npcId ?? `${fallbackPrefix}-${index}`), entry]);
+  }
+  return Object.entries(source ?? {}) as [string, any][];
+}
+
+function payloadCoord(entity: any, axis: "x" | "z"): number {
+  const value = axis === "x"
+    ? entity?.x ?? entity?.gridX ?? entity?.position?.x ?? entity?.pos?.x
+    : entity?.z ?? entity?.gridZ ?? entity?.position?.z ?? entity?.pos?.z ?? entity?.y;
+  return Number(value ?? 0);
+}
+
 async function load2DAssets(): Promise<LoadedAssets> {
   const manifest = await loadAssetManifest();
   const forestManifest = await loadForestBiomeManifest();
@@ -517,16 +531,19 @@ export function CyberZenIsoApp() {
     c.on("disconnect" as any, () => setConnected(false));
     c.on("WORLD_HEARTBEAT", (e: any) => {
       const selfId = e.payload?.self?.id;
-      Object.entries(e.payload?.players || {}).forEach(([id, p]: any) => {
+      const playerEntries = payloadEntries(e.payload?.players, "player");
+      playerEntries.forEach(([id, p]: any) => {
         const actorId = selfId && id === selfId ? "self" : id;
         const nextWeaponId = p.weaponVisualId ?? p.equippedWeaponId ?? null;
-        addActor(app, layer, actorId, Number(p.x || 0), Number(p.z || 0), p.name || (actorId === "self" ? playerName : "Player"), true, assetRef.current, nextWeaponId);
+        addActor(app, layer, actorId, payloadCoord(p, "x"), payloadCoord(p, "z"), p.name || (actorId === "self" ? playerName : "Player"), true, assetRef.current, nextWeaponId);
       });
-      if (e.payload?.self && (!selfId || !e.payload?.players?.[selfId])) {
+      if (e.payload?.self && (!selfId || !playerEntries.some(([id]) => id === selfId))) {
         const self = e.payload.self;
-        addActor(app, layer, "self", Number(self.x || 0), Number(self.z || 0), self.name || playerName, true, assetRef.current, self.weaponVisualId ?? self.equippedWeaponId ?? null);
+        addActor(app, layer, "self", payloadCoord(self, "x"), payloadCoord(self, "z"), self.name || playerName, true, assetRef.current, self.weaponVisualId ?? self.equippedWeaponId ?? null);
       }
-      Object.entries(e.payload?.agents || {}).forEach(([id, a]: any) => addActor(app, layer, id, Number(a.x || 0), Number(a.z || 0), a.name || "NPC", false));
+      payloadEntries(e.payload?.agents ?? e.payload?.npcs, "agent").forEach(([id, a]: any) => {
+        addActor(app, layer, id, payloadCoord(a, "x"), payloadCoord(a, "z"), a.name || a.displayName || "NPC", false);
+      });
     });
     c.on("PLAYER_MOVED", (e: any) => {
       const ent = entities.current.get(e.payload?.playerId);
