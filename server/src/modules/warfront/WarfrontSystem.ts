@@ -93,7 +93,14 @@ export class WarfrontSystem {
 
   getCycleSnapshot(now?: number): WarfrontCycleState {
     this.initialize(this.now(now));
-    return JSON.parse(JSON.stringify(this.cycle)) as WarfrontCycleState;
+    // Bolt: Optimization - Manual deep clone is significantly faster than JSON.parse(JSON.stringify())
+    return {
+      ...this.cycle!,
+      sectors: this.cycle!.sectors.map((sector) => ({
+        ...sector,
+        focusPosition: { ...sector.focusPosition },
+      })),
+    };
   }
 
   getCurrentSeasonId(now?: number): string {
