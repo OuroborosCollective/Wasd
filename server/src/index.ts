@@ -6,6 +6,7 @@ loadRootEnvFiles();
 
 import { getSupabaseAuthInitInfo } from "./config/supabase.js";
 import { ServerBootstrap } from "./core/ServerBootstrap.js";
+import { installRuntimeChatRelay } from "./modules/chat/installRuntimeChatRelay.js";
 
 /**
  * Validates the supabase authentication configuration.
@@ -35,6 +36,7 @@ process.on("uncaughtException", (error) => {
 
 try {
   validateConfig();
+  installRuntimeChatRelay();
   const server = new ServerBootstrap();
   server.start();
 } catch (error) {
