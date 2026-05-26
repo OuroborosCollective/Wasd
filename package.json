@@ -16,6 +16,8 @@
     "build:all": "pnpm build:2d && pnpm build:3d && pnpm build:web",
     "guard:monorepo": "node scripts/monorepo-guard.mjs",
     "guard:monorepo:frozen": "MONOREPO_GUARD_RUN_PNPM=1 node scripts/monorepo-guard.mjs",
+    "guard:architecture": "node scripts/arelorian-architecture-lint.mjs",
+    "guard:all": "pnpm guard:monorepo && pnpm guard:architecture",
     "clean": "pnpm -r exec rm -rf dist node_modules"
   },
   "engines": {
