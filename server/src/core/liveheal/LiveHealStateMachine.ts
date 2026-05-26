@@ -5,6 +5,7 @@
  * Enforces that at most one healing operation runs per subsystem.
  */
 
+import { deterministicNow } from "../determinism/AREDeterminism.js";
 import type {
   SubSystemState,
   StateTransitionTrigger,
@@ -78,12 +79,16 @@ export interface SubSystemStateMachine {
   healingStartedAt: number;
 }
 
+function stateMachineNow(sm: SubSystemStateMachine, label: string): number {
+  return deterministicNow(`${sm.id}:${label}:${sm.transitionLog.length}`);
+}
+
 export function createStateMachine(id: string): SubSystemStateMachine {
   return {
     id,
     state: "healthy",
     previousState: "healthy",
-    lastTransitionAt: Date.now(),
+    lastTransitionAt: deterministicNow(id),
     transitionLog: [],
     healingLocked: false,
     healingStartedAt: 0,
@@ -108,7 +113,7 @@ export function transition(
   if (targetState === undefined) {
     return null;
   }
-  const now = Date.now();
+  const now = stateMachineNow(sm, trigger);
   const entry: StateTransition = {
     from: sm.state,
     to: targetState,
@@ -166,7 +171,7 @@ export function isHealingTimedOut(
   if (!sm.healingLocked || sm.healingStartedAt === 0) {
     return false;
   }
-  return Date.now() - sm.healingStartedAt > timeoutMs;
+  return stateMachineNow(sm, "timeout-check") - sm.healingStartedAt > timeoutMs;
 }
 
 /**
@@ -183,7 +188,7 @@ export function getRecentTransitions(
  * Check if there has been a relapse (healthy -> degraded/critical within windowMs).
  */
 export function isRelapse(sm: SubSystemStateMachine, windowMs: number): boolean {
-  const now = Date.now();
+  const now = stateMachineNow(sm, "relapse-check");
   const recentTransitions = sm.transitionLog.filter((t) => now - t.timestamp < windowMs);
 
   // Look for a pattern: ... -> healthy -> ... -> degraded/critical
