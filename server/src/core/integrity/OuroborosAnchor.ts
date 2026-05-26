@@ -1,6 +1,7 @@
 import * as fs from 'fs/promises';
 import * as crypto from 'crypto';
 import * as path from 'path';
+import { deterministicNow } from '../determinism/AREDeterminism.js';
 
 export interface StateManifest {
     nodeModulesHash: string;
@@ -65,7 +66,7 @@ export class OuroborosAnchor {
             hash.update(stats.mtimeMs.toString());
             
             return hash.digest('hex');
-        } catch (error) {
+        } catch (error: any) {
             throw new Error(`Failed to compute node_modules hash: ${error.message}`);
         }
     }
@@ -101,7 +102,7 @@ export class OuroborosAnchor {
         const manifest: Partial<StateManifest> = {
             nodeModulesHash: hash,
             engineTick: tick,
-            timestamp: Date.now()
+            timestamp: deterministicNow(tick)
         };
 
         (manifest as StateManifest).checksum = this.generateManifestChecksum(manifest as StateManifest);
