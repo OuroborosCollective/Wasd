@@ -43,18 +43,22 @@ export class ArelorianClient {
     this.socket.on("connect", () => {
       this._connected = true;
       console.log("[Arelorian] Connected to", this.config.url);
+      this.dispatch({ type: "connect" as any, payload: {} } as ServerEvent);
       this.startHeartbeat();
     });
 
     this.socket.on("disconnect", () => {
       this._connected = false;
       console.log("[Arelorian] Disconnected");
+      this.dispatch({ type: "disconnect" as any, payload: {} } as ServerEvent);
       this.stopHeartbeat();
     });
 
-    this.socket.onAny((event: string, ...args: any[]) => {
-      // Broadcast all socket events as ServerEvent
-      console.log("[Arelorian] Event:", event, args);
+    this.socket.onAny((event: string, payload: any = {}) => {
+      const serverEvent = { type: event, payload } as ServerEvent;
+      if (event === "WORLD_HEARTBEAT") this._worldState = payload;
+      console.log("[Arelorian] Event:", event, payload);
+      this.dispatch(serverEvent);
     });
   }
 
@@ -80,6 +84,10 @@ export class ArelorianClient {
     }
   }
 
+  private dispatch<T extends ServerEvent>(event: T): void {
+    this.listeners.get(event.type)?.forEach((listener) => listener(event));
+  }
+
   on<T extends ServerEvent>(type: T["type"], listener: EventListener<T>): () => void {
     if (!this.listeners.has(type)) {
       this.listeners.set(type, new Set());
@@ -92,10 +100,14 @@ export class ArelorianClient {
     this.listeners.get(type)?.delete(listener as EventListener);
   }
 
-  sendPlayerAction(action: string, payload: Record<string, unknown>): void {
+  emit(event: string, payload: Record<string, unknown>): void {
     if (this.socket?.connected) {
-      this.socket.emit("player_action", { action, payload });
+      this.socket.emit(event, payload);
     }
+  }
+
+  sendPlayerAction(action: string, payload: Record<string, unknown>): void {
+    this.emit("player_action", { action, payload });
   }
 }
 
