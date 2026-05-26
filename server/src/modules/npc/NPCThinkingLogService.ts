@@ -11,6 +11,7 @@
  * Bei nicht verfügbarem Redis werden die Logs still verworfen.
  */
 
+import { deterministicNow } from "../../core/determinism/AREDeterminism.js";
 import { getRedisClient, isRedisAvailable } from "../../core/RedisClient.js";
 
 export interface ThinkingLogEntry {
@@ -32,12 +33,18 @@ const LOG_LIST_TTL = 86400;
 
 export class NPCThinkingLogService {
   private static instance: NPCThinkingLogService;
+  private logicalClock = deterministicNow("npc-thinking-log:init");
 
   static getInstance(): NPCThinkingLogService {
     if (!NPCThinkingLogService.instance) {
       NPCThinkingLogService.instance = new NPCThinkingLogService();
     }
     return NPCThinkingLogService.instance;
+  }
+
+  private now(seed: string): number {
+    this.logicalClock += 1;
+    return deterministicNow(`${seed}:${this.logicalClock}`);
   }
 
   /**
@@ -50,7 +57,7 @@ export class NPCThinkingLogService {
     if (!redis || !isRedisAvailable()) return;
 
     const entry: ThinkingLogEntry = {
-      timestamp: Date.now(),
+      timestamp: this.now(`${npcId}:${action}`),
       npcId,
       npcName,
       action,
