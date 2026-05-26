@@ -8,6 +8,7 @@
 
 import { worldStateRegistry } from '../state/WorldStateRegistry.js';
 import { arelorianKernel } from '../systems/ArelorianKernel.js';
+import { deterministicNow } from '../determinism/AREDeterminism.js';
 
 /**
  * Fixed-Point constant (kappa=1000)
@@ -110,7 +111,7 @@ export class APIServer {
 
     // Health endpoint (public)
     app.get('/health', (req: any, res: any) => {
-      res.json({ ok: true, timestamp: Date.now() });
+      res.json({ ok: true, timestamp: deterministicNow(worldStateRegistry.getTick()) });
     });
 
     // World status (protected)
