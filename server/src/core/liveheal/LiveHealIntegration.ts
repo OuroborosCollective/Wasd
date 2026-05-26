@@ -124,12 +124,11 @@ function createTargetedRestartStrategy(): HealingStrategy {
     preservesFeatures: true,
     async run(subsystemId: string, _snapshot: HealthSnapshot, _sig: ErrorSignature, adapter?: SubSystemAdapter): Promise<HealingResult> {
       // Note: adapter lookup happens in the engine via registry
-      const startTime = Date.now();
       return {
         success: true,
         strategyName: "targeted_restart",
         message: `Targeted restart initiated for ${subsystemId}.`,
-        durationMs: Date.now() - startTime,
+        durationMs: 0,
         sideEffects: ["brief_unavailable"],
         serviceable: true,
       };
