@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          show-progress: false
 
       - uses: pnpm/action-setup@v4
         with:
@@ -25,9 +27,17 @@ jobs:
 
       - run: pnpm --version
 
-      - run: pnpm guard:monorepo
+      - name: Run monorepo guard
+        id: monorepo_guard
+        continue-on-error: true
+        run: pnpm guard:monorepo
 
-      - run: pnpm guard:architecture
+      - name: Run architecture guard
+        run: pnpm guard:architecture
+
+      - name: Stop on monorepo guard failure
+        if: steps.monorepo_guard.outcome != 'success'
+        run: exit 1
 
       - run: pnpm install --frozen-lockfile --ignore-scripts
 
