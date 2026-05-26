@@ -9,6 +9,7 @@
  */
 
 import { EventEmitter } from "node:events";
+import { deterministicNow } from "../determinism/AREDeterminism.js";
 import type {
   LiveHealConfig,
   HealthSnapshot,
@@ -88,6 +89,10 @@ export class LiveHealEngine extends EventEmitter {
     this.checkEveryNTicks = Math.max(1, Math.round(config.checkIntervalMs / 100));
   }
 
+  private now(seed: string): number {
+    return deterministicNow(`liveheal-engine:${seed}:${this.tickCount}`);
+  }
+
   /**
    * Register a subsystem for monitoring.
    */
@@ -165,7 +170,7 @@ export class LiveHealEngine extends EventEmitter {
           candidates: [{ subsystemId: id, score: 1, reasons: ["Only degraded subsystem"] }],
           topSuspect: id,
           victims: [],
-          timestamp: Date.now(),
+          timestamp: this.now(`${id}:single-root-cause`),
         };
         await this.attemptHeal(id, snapshots.get(id)!, analysis);
       }
@@ -269,7 +274,7 @@ export class LiveHealEngine extends EventEmitter {
     this.registry.syncRecordState(id);
     this.registry.updateRecord(id, {
       healingAttempts: (this.registry.getRecord(id)?.healingAttempts ?? 0) + 1,
-      lastHealingStartedAt: Date.now(),
+      lastHealingStartedAt: this.now(`${id}:heal-started`),
     });
 
     // Build error signature
@@ -329,7 +334,6 @@ export class LiveHealEngine extends EventEmitter {
 
       // Execute strategy
       this.emit("heal:started", { subsystem: id, strategy: strategy.name });
-      const startTime = Date.now();
       chosenStrategy = strategy;
 
       try {
@@ -339,7 +343,7 @@ export class LiveHealEngine extends EventEmitter {
           success: false,
           strategyName: strategy.name,
           message: `Strategy threw: ${(error as Error).message}`,
-          durationMs: Date.now() - startTime,
+          durationMs: 0,
           sideEffects: ["strategy_exception"],
           serviceable: false,
         };
@@ -379,7 +383,7 @@ export class LiveHealEngine extends EventEmitter {
         transition(sm, "heal_succeeded", `Healed via ${strategy.name}: ${result.message}`);
         this.registry.syncRecordState(id);
         this.registry.updateRecord(id, {
-          lastHealingCompletedAt: Date.now(),
+          lastHealingCompletedAt: this.now(`${id}:heal-completed`),
           totalHeals: (this.registry.getRecord(id)?.totalHeals ?? 0) + 1,
           consecutiveFailures: 0,
         });
@@ -400,7 +404,7 @@ export class LiveHealEngine extends EventEmitter {
     transition(sm, "heal_failed", `All strategies exhausted for ${id}`);
     this.registry.syncRecordState(id);
     this.registry.updateRecord(id, {
-      lastHealingCompletedAt: Date.now(),
+      lastHealingCompletedAt: this.now(`${id}:heal-failed`),
     });
 
     if (result) {
@@ -430,7 +434,7 @@ export class LiveHealEngine extends EventEmitter {
    * Check cooldown expiry.
    */
   private checkCooldowns(): void {
-    const now = Date.now();
+    const now = this.now("cooldown-check");
     for (const id of this.registry.getIds()) {
       const sm = this.registry.getStateMachine(id);
       const record = this.registry.getRecord(id);
@@ -458,7 +462,7 @@ export class LiveHealEngine extends EventEmitter {
       transition(sm, "circuit_breaker_trip", `Circuit breaker tripped after ${record.consecutiveFailures} failures`);
       this.registry.syncRecordState(id);
       this.registry.updateRecord(id, {
-        cooldownUntil: Date.now() + cbConfig.cooldownMs,
+        cooldownUntil: this.now(`${id}:circuit-breaker`) + cbConfig.cooldownMs,
       });
       this.emit("circuit_breaker:trip", { subsystem: id, tripCount: record.totalFailures });
     }
