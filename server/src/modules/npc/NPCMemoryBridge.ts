@@ -5,8 +5,9 @@
  * Bereitet die Gedächtnis-Daten auf und generiert Zusammenfassungen für den LLM-Kontext.
  */
 
+import { deterministicNow } from "../../core/determinism/AREDeterminism.js";
 import { npcThinkingLog, ThinkingLogEntry } from "./NPCThinkingLogService.js";
-import { llmConnector, LLMResponse } from "../ai/LLMConnector.js";
+import { llmConnector } from "../ai/LLMConnector.js";
 
 export interface NPCMemoryContext {
   npcId: string;
@@ -21,12 +22,18 @@ export class NPCMemoryBridge {
   private static instance: NPCMemoryBridge;
   private summarizationCache: Map<string, { summary: string; timestamp: number }> = new Map();
   private SUMMARY_CACHE_TTL = 60000; // 60 Sekunden
+  private logicalClock = deterministicNow("npc-memory-bridge:init");
 
   static getInstance(): NPCMemoryBridge {
     if (!NPCMemoryBridge.instance) {
       NPCMemoryBridge.instance = new NPCMemoryBridge();
     }
     return NPCMemoryBridge.instance;
+  }
+
+  private now(): number {
+    this.logicalClock += 1;
+    return this.logicalClock;
   }
 
   /**
@@ -61,9 +68,11 @@ export class NPCMemoryBridge {
     npcName: string,
     thoughts: ThinkingLogEntry[]
   ): Promise<string> {
+    const now = this.now();
+
     // Prüfe Cache
     const cached = this.summarizationCache.get(npcId);
-    if (cached && Date.now() - cached.timestamp < this.SUMMARY_CACHE_TTL) {
+    if (cached && now - cached.timestamp < this.SUMMARY_CACHE_TTL) {
       return cached.summary;
     }
 
@@ -75,7 +84,7 @@ export class NPCMemoryBridge {
     try {
       const thoughtsText = thoughts
         .slice(-5) // Nimm nur die letzten 5 Gedanken
-        .map((t) => `[${new Date(t.timestamp).toLocaleTimeString()}] ${t.action}: ${t.thought}`)
+        .map((t) => `[tick:${deterministicNow(t.timestamp)}] ${t.action}: ${t.thought}`)
         .join("\n");
 
       const systemPrompt = `Du bist ein Gedächtnis-Aggregator für einen NPC in einem MMORPG.
@@ -93,7 +102,7 @@ export class NPCMemoryBridge {
       if (response && response.summary) {
         this.summarizationCache.set(npcId, {
           summary: response.summary,
-          timestamp: Date.now(),
+          timestamp: now,
         });
         return response.summary;
       }
