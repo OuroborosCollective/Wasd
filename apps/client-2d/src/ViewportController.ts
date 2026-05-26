@@ -1,4 +1,9 @@
 import type { Application, Container } from "pixi.js";
+import {
+  moveCameraTowardsTarget,
+  pullCameraTargetOutsideDeadzone,
+  type SmoothCameraState,
+} from "./cameraLogic";
 
 type MoveVector = { dx: number; dz: number };
 type MoveBridge = (vector: MoveVector) => void;
@@ -19,19 +24,13 @@ declare global {
 }
 
 const INPUT_INTERVAL_MS = 140;
-const CAMERA_LERP = 0.14;
 const TILE_W = 96;
 const TILE_H = 48;
-const MAX_RUNTIME_CAMERA_DRIFT = 900;
+const MAX_DRIFT = 900;
+const DEADZONE_RADIUS = 72;
 
 function isMobileViewport(): boolean {
   return window.matchMedia("(max-width: 920px)").matches;
-}
-
-function getCameraFocus(width: number, height: number) {
-  if (width <= 520) return { x: width * 0.58, y: height * 0.42 };
-  if (width <= 920) return { x: width * 0.55, y: height * 0.45 };
-  return { x: width * 0.5, y: height * 0.5 };
 }
 
 function clamp(value: number, limit: number) {
@@ -41,68 +40,52 @@ function clamp(value: number, limit: number) {
 function isoDelta(vector: MoveVector) {
   const dx = Number(vector.dx || 0);
   const dz = Number(vector.dz || 0);
+  return { x: (dx - dz) * (TILE_W / 2), y: (dx + dz) * (TILE_H / 2) };
+}
 
-  return {
-    x: (dx - dz) * (TILE_W / 2),
-    y: (dx + dz) * (TILE_H / 2),
-  };
+function readKeyboardIntent(keys: Set<string>): MoveVector {
+  let dx = 0;
+  let dz = 0;
+  if (keys.has("w") || keys.has("arrowup")) dz += 1;
+  if (keys.has("s") || keys.has("arrowdown")) dz -= 1;
+  if (keys.has("a") || keys.has("arrowleft")) dx -= 1;
+  if (keys.has("d") || keys.has("arrowright")) dx += 1;
+  return { dx, dz };
 }
 
 export function attachViewportController(options: ViewportControllerOptions) {
   const keys = new Set<string>();
+  const camera: SmoothCameraState = { x: 0, y: 0, targetX: 0, targetY: 0 };
   let raf = 0;
   let destroyed = false;
   let lastInputAt = 0;
+  let lastFrameAt = 0;
 
-  function onKeyDown(event: KeyboardEvent) {
-    keys.add(event.key.toLowerCase());
-  }
-
-  function onKeyUp(event: KeyboardEvent) {
-    keys.delete(event.key.toLowerCase());
-  }
-
-  function readMoveIntent(): MoveVector {
-    let dx = 0;
-    let dz = 0;
-
-    if (keys.has("w") || keys.has("arrowup")) dz += 1;
-    if (keys.has("s") || keys.has("arrowdown")) dz -= 1;
-    if (keys.has("a") || keys.has("arrowleft")) dx -= 1;
-    if (keys.has("d") || keys.has("arrowright")) dx += 1;
-
-    return { dx, dz };
-  }
+  const onKeyDown = (event: KeyboardEvent) => keys.add(event.key.toLowerCase());
+  const onKeyUp = (event: KeyboardEvent) => keys.delete(event.key.toLowerCase());
 
   function sendKeyboardIntent() {
-    const vector = readMoveIntent();
+    const vector = readKeyboardIntent(keys);
     if (!vector.dx && !vector.dz) return;
-
     const now = Date.now();
     if (now - lastInputAt < INPUT_INTERVAL_MS) return;
-
     lastInputAt = now;
     options.sendMoveIntent(vector);
   }
 
-  function followAuthoritativePlayer() {
-    const playerRoot = options.getPlayerRoot();
-    if (!playerRoot) return;
-
-    const focus = getCameraFocus(options.app.screen.width, options.app.screen.height);
-    const targetX = focus.x - playerRoot.x;
-    const targetY = focus.y - playerRoot.y;
-    const speed = isMobileViewport() ? CAMERA_LERP : 0.1;
-
-    options.world.x += (targetX - options.world.x) * speed;
-    options.world.y += (targetY - options.world.y) * speed;
-  }
-
-  function frame() {
+  function frame(now = performance.now()) {
     if (destroyed) return;
+    const playerRoot = options.getPlayerRoot();
+    const deltaTime = lastFrameAt ? Math.min((now - lastFrameAt) / 16.67, 2) : 1;
+    lastFrameAt = now;
 
     sendKeyboardIntent();
-    followAuthoritativePlayer();
+    if (playerRoot) {
+      pullCameraTargetOutsideDeadzone(camera, { x: options.app.screen.width * 0.5 - playerRoot.x, y: options.app.screen.height * 0.5 - playerRoot.y }, DEADZONE_RADIUS);
+      moveCameraTowardsTarget(camera, deltaTime);
+      options.world.x = camera.x;
+      options.world.y = camera.y;
+    }
 
     raf = requestAnimationFrame(frame);
   }
@@ -127,57 +110,36 @@ export function installViewportRuntime() {
   window.__wasd2dViewportRuntimeInstalled = true;
 
   const keys = new Set<string>();
+  const camera: SmoothCameraState = { x: 0, y: 0, targetX: 0, targetY: 0 };
   let observedMove: MoveBridge | undefined;
   let lastInputAt = 0;
-  let cameraX = 0;
-  let cameraY = 0;
-  let estimatedX = 0;
-  let estimatedY = 0;
-  let targetX = 0;
-  let targetY = 0;
+  let lastFrameAt = 0;
+  let visualX = 0;
+  let visualY = 0;
 
   const resetCamera = () => {
-    estimatedX = 0;
-    estimatedY = 0;
-    targetX = 0;
-    targetY = 0;
+    camera.x = 0;
+    camera.y = 0;
+    camera.targetX = 0;
+    camera.targetY = 0;
+    visualX = 0;
+    visualY = 0;
   };
-
-  function readMoveIntent(): MoveVector {
-    let dx = 0;
-    let dz = 0;
-
-    if (keys.has("w") || keys.has("arrowup")) dz += 1;
-    if (keys.has("s") || keys.has("arrowdown")) dz -= 1;
-    if (keys.has("a") || keys.has("arrowleft")) dx -= 1;
-    if (keys.has("d") || keys.has("arrowright")) dx += 1;
-
-    return { dx, dz };
-  }
 
   function sampleCamera(vector: MoveVector) {
     if (!isMobileViewport()) return;
-
     const delta = isoDelta(vector);
-    estimatedX = clamp(estimatedX + delta.x, MAX_RUNTIME_CAMERA_DRIFT);
-    estimatedY = clamp(estimatedY + delta.y, MAX_RUNTIME_CAMERA_DRIFT);
-
-    const narrow = window.innerWidth <= 520;
-    const focusX = window.innerWidth * (narrow ? 0.08 : 0.05);
-    const focusY = -window.innerHeight * (narrow ? 0.08 : 0.05);
-
-    targetX = clamp(focusX - estimatedX, MAX_RUNTIME_CAMERA_DRIFT);
-    targetY = clamp(focusY - estimatedY, MAX_RUNTIME_CAMERA_DRIFT);
+    visualX = clamp(visualX + delta.x, MAX_DRIFT);
+    visualY = clamp(visualY + delta.y, MAX_DRIFT);
+    pullCameraTargetOutsideDeadzone(camera, { x: clamp(-visualX, MAX_DRIFT), y: clamp(-visualY, MAX_DRIFT) }, DEADZONE_RADIUS);
   }
 
   function sendKeyboardIntent() {
-    const move = readMoveIntent();
+    const move = readKeyboardIntent(keys);
     if (!move.dx && !move.dz) return;
     if (!window.__wasd2dMove) return;
-
     const now = Date.now();
     if (now - lastInputAt < INPUT_INTERVAL_MS) return;
-
     lastInputAt = now;
     window.__wasd2dMove(move);
   }
@@ -185,7 +147,6 @@ export function installViewportRuntime() {
   function wrapMoveBridge() {
     const current = window.__wasd2dMove as WrappedMoveBridge | undefined;
     if (!current || current.__wasd2dViewportWrapped || current === observedMove) return;
-
     observedMove = current;
     const wrapped: WrappedMoveBridge = (vector: MoveVector) => {
       current(vector);
@@ -195,24 +156,23 @@ export function installViewportRuntime() {
     window.__wasd2dMove = wrapped;
   }
 
-  function frame() {
+  function frame(now = performance.now()) {
     wrapMoveBridge();
     sendKeyboardIntent();
+    const deltaTime = lastFrameAt ? Math.min((now - lastFrameAt) / 16.67, 2) : 1;
+    lastFrameAt = now;
 
     if (!isMobileViewport()) {
-      targetX = 0;
-      targetY = 0;
+      camera.targetX = 0;
+      camera.targetY = 0;
     }
 
-    cameraX += (targetX - cameraX) * CAMERA_LERP;
-    cameraY += (targetY - cameraY) * CAMERA_LERP;
-
+    moveCameraTowardsTarget(camera, deltaTime);
     const canvas = document.querySelector<HTMLCanvasElement>(".az-pixi canvas");
     if (canvas) {
-      canvas.style.transform = `translate3d(${cameraX.toFixed(2)}px, ${cameraY.toFixed(2)}px, 0)`;
+      canvas.style.transform = `translate3d(${camera.x.toFixed(2)}px, ${camera.y.toFixed(2)}px, 0)`;
       canvas.style.willChange = "transform";
     }
-
     requestAnimationFrame(frame);
   }
 
@@ -223,6 +183,5 @@ export function installViewportRuntime() {
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) resetCamera();
   });
-
   requestAnimationFrame(frame);
 }
