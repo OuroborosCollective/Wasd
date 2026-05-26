@@ -11,6 +11,7 @@ import "./theme.css";
 import "./liveReality.css";
 import "./worldHeart.css";
 import "./pixiModuleInspector.css";
+import "./mobilePlayability.css";
 
 installClient2DDepthRuntime();
 

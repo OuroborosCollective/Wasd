@@ -16,11 +16,15 @@ export function MobileMovePad() {
     const releaseAll = () => release();
     window.addEventListener("blur", releaseAll);
     window.addEventListener("contextmenu", releaseAll);
+    window.addEventListener("pagehide", releaseAll);
+    document.addEventListener("visibilitychange", releaseAll);
 
     return () => {
       window.clearInterval(timer);
       window.removeEventListener("blur", releaseAll);
       window.removeEventListener("contextmenu", releaseAll);
+      window.removeEventListener("pagehide", releaseAll);
+      document.removeEventListener("visibilitychange", releaseAll);
       releaseAll();
     };
   }, []);
@@ -42,12 +46,20 @@ export function MobileMovePad() {
     activePointerId.current = null;
   }
 
+  const bind = (next: MoveVector) => ({
+    onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>) => hold(next, event),
+    onPointerUp: release,
+    onPointerCancel: release,
+    onPointerLeave: release,
+    onLostPointerCapture: release,
+  });
+
   return (
     <nav className="az-touch-pad" aria-label="Mobile movement controls" style={{ touchAction: "none", userSelect: "none" }}>
-      <button className="up" onPointerDown={(event) => hold({ dx: 0, dz: 1 }, event)} onPointerUp={release} onPointerCancel={release} onLostPointerCapture={release} aria-label="Move up">▲</button>
-      <button className="left" onPointerDown={(event) => hold({ dx: -1, dz: 0 }, event)} onPointerUp={release} onPointerCancel={release} onLostPointerCapture={release} aria-label="Move left">◀</button>
-      <button className="right" onPointerDown={(event) => hold({ dx: 1, dz: 0 }, event)} onPointerUp={release} onPointerCancel={release} onLostPointerCapture={release} aria-label="Move right">▶</button>
-      <button className="down" onPointerDown={(event) => hold({ dx: 0, dz: -1 }, event)} onPointerUp={release} onPointerCancel={release} onLostPointerCapture={release} aria-label="Move down">▼</button>
+      <button className="up" {...bind({ dx: 0, dz: 1 })} aria-label="Move up">▲</button>
+      <button className="left" {...bind({ dx: -1, dz: 0 })} aria-label="Move left">◀</button>
+      <button className="right" {...bind({ dx: 1, dz: 0 })} aria-label="Move right">▶</button>
+      <button className="down" {...bind({ dx: 0, dz: -1 })} aria-label="Move down">▼</button>
     </nav>
   );
 }
