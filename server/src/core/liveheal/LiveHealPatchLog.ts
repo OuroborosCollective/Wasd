@@ -7,6 +7,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { SeededARERng, createARESeed, deterministicNow } from "../determinism/AREDeterminism.js";
 import type { HealLogEntry } from "./LiveHealTypes.js";
 
 function ensureDir(dirPath: string): void {
@@ -17,13 +18,16 @@ function ensureDir(dirPath: string): void {
   }
 }
 
-function generatePatchId(): string {
-  return `LH-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+function generatePatchId(entry: Omit<HealLogEntry, "patchId" | "timestamp">, timestamp: number): string {
+  const seed = createARESeed(["liveheal-patch", entry.subsystem, entry.strategyName, entry.previousState, entry.newState, timestamp]);
+  const suffix = Math.floor(new SeededARERng(seed).nextFloat() * 2176782336).toString(36).padStart(6, "0").slice(0, 6);
+  return `LH-${timestamp.toString(36)}-${suffix}`;
 }
 
 export class LiveHealPatchLog {
   private readonly logPath: string;
   private readonly maxEntries: number;
+  private logicalClock = deterministicNow("liveheal-patch-log:init");
 
   constructor(logPath: string, maxEntries = 10000) {
     this.logPath = logPath;
@@ -31,14 +35,20 @@ export class LiveHealPatchLog {
     ensureDir(path.dirname(logPath));
   }
 
+  private now(seed: string): number {
+    this.logicalClock += 1;
+    return deterministicNow(`${seed}:${this.logicalClock}`);
+  }
+
   /**
    * Record a healing event. Appends to NDJSON log file.
    */
   record(entry: Omit<HealLogEntry, "patchId" | "timestamp">): HealLogEntry {
+    const timestamp = this.now(`${entry.subsystem}:${entry.strategyName}`);
     const full: HealLogEntry = {
       ...entry,
-      patchId: generatePatchId(),
-      timestamp: Date.now(),
+      patchId: generatePatchId(entry, timestamp),
+      timestamp,
     };
 
     try {
@@ -140,7 +150,7 @@ export class LiveHealPatchLog {
    */
   hasRelapse(subsystemId: string, windowMs: number): boolean {
     const entries = this.readBySubsystem(subsystemId, 20);
-    const now = Date.now();
+    const now = this.now(`${subsystemId}:relapse`);
     const recent = entries.filter((e) => now - e.timestamp < windowMs);
 
     let pattern = "";

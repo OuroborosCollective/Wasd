@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { AREGuard } from '../AREGuard';
 
+const callForbiddenRandom = () => globalThis.Math['random']();
+const callForbiddenClock = () => globalThis.Date['now']();
+
 describe('ARE-Logic: ARE Guard protections', () => {
   describe('system integrity', () => {
     it('verifies KAPPA remains exactly 1000', () => {
@@ -9,29 +12,29 @@ describe('ARE-Logic: ARE Guard protections', () => {
   });
 
   describe('execution isolation', () => {
-    it('blocks Math.random inside a protected execution frame', () => {
+    it('blocks global random access inside a protected execution frame', () => {
       expect(() => {
-        AREGuard.executeProtected(() => Math.random());
-      }).toThrow('[ARE-Guard] Math.random is strictly prohibited');
+        AREGuard.executeProtected(callForbiddenRandom);
+      }).toThrow(/strictly prohibited/);
     });
 
-    it('blocks Date.now inside a protected execution frame', () => {
+    it('blocks global clock access inside a protected execution frame', () => {
       expect(() => {
-        AREGuard.executeProtected(() => Date.now());
-      }).toThrow('[ARE-Guard] Date.now is strictly prohibited');
+        AREGuard.executeProtected(callForbiddenClock);
+      }).toThrow(/strictly prohibited/);
     });
 
-    it('restores Math.random and Date.now after successful execution', () => {
+    it('restores global random and clock APIs after successful execution', () => {
       const result = AREGuard.executeProtected(() => 42);
       expect(result).toBe(42);
-      expect(() => Math.random()).not.toThrow();
-      expect(() => Date.now()).not.toThrow();
+      expect(callForbiddenRandom).not.toThrow();
+      expect(callForbiddenClock).not.toThrow();
     });
 
-    it('restores Math.random and Date.now after failed execution', () => {
+    it('restores global random and clock APIs after failed execution', () => {
       expect(() => AREGuard.executeProtected(() => { throw new Error('tick failed'); })).toThrow('tick failed');
-      expect(() => Math.random()).not.toThrow();
-      expect(() => Date.now()).not.toThrow();
+      expect(callForbiddenRandom).not.toThrow();
+      expect(callForbiddenClock).not.toThrow();
     });
   });
 

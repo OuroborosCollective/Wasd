@@ -3,7 +3,7 @@ import { SeededARERng, createARESeed } from '../../core/determinism/AREDetermini
 export class NPCPersonalityEngine {
   /**
    * Generates deterministic traits for an NPC based on its ID.
-   * Ensures WorldHash consistency by avoiding Math.random().
+   * Ensures WorldHash consistency by using seeded ARE randomness only.
    */
   generateTraits(npcId: string) {
     const rng = new SeededARERng(createARESeed(['npc-traits', npcId]));

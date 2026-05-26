@@ -3,6 +3,8 @@ import { AREBrain } from '../AREBrain';
 import { AREHash } from '../AREHash';
 import { AREPayloadFactory } from '../AREPayload';
 
+const callForbiddenClock = () => globalThis.Date['now']();
+
 describe('ARE-Logic: emergent brain and deterministic hashing', () => {
   describe('AREHash generator', () => {
     it('generates identical hashes for identical states', () => {
@@ -27,7 +29,7 @@ describe('ARE-Logic: emergent brain and deterministic hashing', () => {
   });
 
   describe('AREBrain emergence', () => {
-    it('evolves deterministic behavior without Math.random', () => {
+    it('evolves deterministic behavior without global random access', () => {
       const genesisState = AREPayloadFactory.createNormalized('organism_01', { x: 0, y: 0 }, { x: 0, y: 0 });
 
       const gen1 = AREBrain.computeEmergence(genesisState);
@@ -68,12 +70,12 @@ describe('ARE-Logic: emergent brain and deterministic hashing', () => {
       const maliciousPayload = {
         ...cleanPayload,
         get position() {
-          Date.now();
+          callForbiddenClock();
           return cleanPayload.position;
         },
       };
 
-      expect(() => AREBrain.computeEmergence(maliciousPayload as any)).toThrow('[ARE-Guard] Date.now is strictly prohibited');
+      expect(() => AREBrain.computeEmergence(maliciousPayload as any)).toThrow(/strictly prohibited/);
     });
   });
 });

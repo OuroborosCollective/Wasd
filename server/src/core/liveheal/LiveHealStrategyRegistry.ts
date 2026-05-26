@@ -5,6 +5,7 @@
  * Provides selection based on error signature, learning scores, and policy.
  */
 
+import { deterministicNow } from "../determinism/AREDeterminism.js";
 import type {
   HealingStrategy,
   HealingResult,
@@ -24,6 +25,12 @@ interface StrategyEntry {
 
 export class LiveHealStrategyRegistry {
   private readonly strategies = new Map<string, StrategyEntry>();
+  private logicalClock = deterministicNow("liveheal-strategy-registry:init");
+
+  private now(seed: string): number {
+    this.logicalClock += 1;
+    return deterministicNow(`${seed}:${this.logicalClock}`);
+  }
 
   register(strategy: HealingStrategy): void {
     if (this.strategies.has(strategy.name)) {
@@ -72,7 +79,7 @@ export class LiveHealStrategyRegistry {
     }
 
     const lastRun = entry.lastRunAt.get(subsystemId) ?? 0;
-    const elapsed = Date.now() - lastRun;
+    const elapsed = this.now(`${strategy.name}:${subsystemId}:can-run`) - lastRun;
     if (elapsed < strategy.cooldownMs) {
       return {
         ok: false,
@@ -106,7 +113,7 @@ export class LiveHealStrategyRegistry {
 
     const attempts = entry.attemptCounts.get(subsystemId) ?? 0;
     entry.attemptCounts.set(subsystemId, attempts + 1);
-    entry.lastRunAt.set(subsystemId, Date.now());
+    entry.lastRunAt.set(subsystemId, this.now(`${strategy.name}:${subsystemId}:execute`));
 
     try {
       const result = await strategy.run(subsystemId, snapshot, signature);

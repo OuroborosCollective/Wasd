@@ -6,6 +6,7 @@
  * No external ML dependencies.
  */
 
+import { deterministicNow } from "../determinism/AREDeterminism.js";
 import type {
   AnomalyObservation,
   AnomalyConfig,
@@ -71,10 +72,16 @@ export class LiveHealAnomalyDetector {
   private readonly config: AnomalyConfig;
   private readonly thresholds: MetricThresholds;
   private readonly subsystemWindows = new Map<string, SubsystemMetrics>();
+  private logicalClock = deterministicNow("liveheal-anomaly:init");
 
   constructor(config: AnomalyConfig, thresholds: MetricThresholds) {
     this.config = config;
     this.thresholds = thresholds;
+  }
+
+  private now(seed: string): number {
+    this.logicalClock += 1;
+    return deterministicNow(`${seed}:${this.logicalClock}`);
   }
 
   /**
@@ -88,7 +95,7 @@ export class LiveHealAnomalyDetector {
     }
 
     const anomalies: AnomalyObservation[] = [];
-    const now = Date.now();
+    const now = this.now(subsystemId);
 
     // Check each metric from the snapshot
     this.checkMetric(anomalies, subsystemId, metrics.tickDurationMs, "tickDurationMs",

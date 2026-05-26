@@ -6,6 +6,7 @@
  * and state machine management per subsystem.
  */
 
+import { deterministicNow } from "../determinism/AREDeterminism.js";
 import type {
   SubSystemAdapter,
   SubSystemRecord,
@@ -157,7 +158,7 @@ export class LiveHealRegistry {
       state: "healthy",
       previousState: "healthy",
       lastSnapshot: null,
-      lastStateChangeAt: Date.now(),
+      lastStateChangeAt: deterministicNow(id),
       healingAttempts: 0,
       lastHealingStartedAt: 0,
       lastHealingCompletedAt: 0,
