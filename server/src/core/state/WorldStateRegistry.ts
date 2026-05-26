@@ -9,6 +9,7 @@ import {
   WorldState, 
   createDefaultRegionState,
   createDefaultWorldState,
+  deterministicSyncTimestampFromTick,
   type IRegionState,
   type IWorldState,
 } from './RegionState.js';
@@ -59,11 +60,12 @@ export class WorldStateRegistry {
    * Must only be called by Arelorian Tick Orchestrator (ATO)
    */
   public commitMutations(): void {
+    const nextTick = this.currentState.globalTick + BigInt(1);
     // Start new world state from current (copy)
     const newState: WorldState = {
       regions: new Map(this.currentState.regions),
-      globalTick: this.currentState.globalTick + BigInt(1),
-      lastSyncTimestamp: Date.now(),
+      globalTick: nextTick,
+      lastSyncTimestamp: deterministicSyncTimestampFromTick(nextTick),
     };
     
     // Apply each mutation

@@ -130,13 +130,21 @@ export interface WorldState {
 }
 
 /**
+ * Converts a tick into a deterministic timestamp surrogate.
+ * The value is not wall-clock time; it is the simulation tick index encoded as a number.
+ */
+export function deterministicSyncTimestampFromTick(tick: bigint): number {
+  return Number(tick);
+}
+
+/**
  * Creates a default WorldState
  */
 export function createDefaultWorldState(): WorldState {
   return {
     regions: new Map(),
     globalTick: BigInt(0),
-    lastSyncTimestamp: Date.now(),
+    lastSyncTimestamp: deterministicSyncTimestampFromTick(BigInt(0)),
   };
 }
 
