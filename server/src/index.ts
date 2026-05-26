@@ -7,6 +7,7 @@ loadRootEnvFiles();
 import { getSupabaseAuthInitInfo } from "./config/supabase.js";
 import { ServerBootstrap } from "./core/ServerBootstrap.js";
 import { installRuntimeChatRelay } from "./modules/chat/installRuntimeChatRelay.js";
+import "./modules/loot/installLootBridge.js";
 
 /**
  * Validates the supabase authentication configuration.
