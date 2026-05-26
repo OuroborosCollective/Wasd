@@ -3,14 +3,9 @@
  * 
  * Calculates environmental hazards (Lava, Poison) as resonant fields.
  * Uses kappaPos Squared-Distance - NO raycasting or collision checks.
- * 
- * Features:
- * - Deterministic intensity: Math.floor(2000 / (distSq + 1))
- * - Direct HP reduction based on hazard_intensity
- * - Resonance in AREPayload
- * - HP-Ratio impact on Plexity (35%)
- * - Squared-distance: distSq < 1600 (40 units)
  */
+
+import { deterministicNow } from "../../core/determinism/AREDeterminism.js";
 
 export interface KappaPos {
   x: number;
@@ -93,7 +88,7 @@ export function calculatePlexityImpact(hpRatio: number): number {
   return (1 - hpRatio) * HP_RATIO_WEIGHT;
 }
 
-export function processHazardResonance(player: PlayerState, hazard: HazardSource): Partial<AREPayload> {
+export function processHazardResonance(player: PlayerState, hazard: HazardSource, tick: number | bigint = 0): Partial<AREPayload> {
   const distSq = getKappaDistanceSq(player.pos, hazard.position);
   const intensity = calculateHazardIntensity(distSq);
   
@@ -105,7 +100,7 @@ export function processHazardResonance(player: PlayerState, hazard: HazardSource
   player.health = Math.max(0, player.health - damage);
   const hpRatio = calculateHPRatio(player);
   const plexityImpact = calculatePlexityImpact(hpRatio);
-  const tickCount = Date.now() % 100;
+  const tickCount = deterministicNow(tick) % 100;
   
   return {
     resonance: intensity,
@@ -116,7 +111,7 @@ export function processHazardResonance(player: PlayerState, hazard: HazardSource
   };
 }
 
-export function processAllHazards(player: PlayerState, hazards: HazardSource[]): Partial<AREPayload> {
+export function processAllHazards(player: PlayerState, hazards: HazardSource[], tick: number | bigint = 0): Partial<AREPayload> {
   let totalIntensity = 0;
   let totalDamage = 0;
   let maxResonance = 0;
@@ -135,7 +130,7 @@ export function processAllHazards(player: PlayerState, hazards: HazardSource[]):
   player.health = Math.max(0, player.health - totalDamage);
   const hpRatio = calculateHPRatio(player);
   const plexityImpact = calculatePlexityImpact(hpRatio);
-  const tickCount = Date.now() % 100;
+  const tickCount = deterministicNow(tick) % 100;
   
   return {
     resonance: maxResonance,
