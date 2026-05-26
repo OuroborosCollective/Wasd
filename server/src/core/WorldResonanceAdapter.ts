@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { deterministicNow } from "./determinism/AREDeterminism.js";
 
 export type WorldResonanceStatus = "STABLE" | "WATCH" | "CRITICAL" | "DECOMPOSITION";
 
@@ -24,7 +25,7 @@ export interface WorldResonanceTickInput {
 
 const DEFAULT_SNAPSHOT: WorldResonanceSnapshot = {
   tick: 0,
-  timestamp: Date.now(),
+  timestamp: deterministicNow(0),
   divergence: 0,
   entropy: 0,
   stability: 1,
@@ -49,7 +50,7 @@ export class WorldResonanceAdapter {
   constructor(private readonly shadowLogPath = path.resolve(process.cwd(), "logs", "are-shadow.jsonl")) {}
 
   public getSnapshot(): WorldResonanceSnapshot {
-    return { ...this.snapshot, timestamp: Date.now() };
+    return { ...this.snapshot, timestamp: deterministicNow(this.snapshot.tick) };
   }
 
   public updateFromTick(input: WorldResonanceTickInput): WorldResonanceSnapshot {
@@ -66,7 +67,7 @@ export class WorldResonanceAdapter {
 
     this.snapshot = {
       tick,
-      timestamp: Date.now(),
+      timestamp: deterministicNow(tick),
       divergence,
       entropy,
       stability,
