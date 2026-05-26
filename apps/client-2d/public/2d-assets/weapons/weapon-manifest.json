@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "generatedAt": "2026-05-26T21:30:00.000Z",
+  "source": "client-2d fallback weapon manifest",
+  "notes": [
+    "Fallback manifest created so the client loader has a valid deterministic weapon manifest even when the generated weapon pool has not been exported yet.",
+    "Populate the weapons object with generated weapon atlas entries when the 2D weapon pool is available."
+  ],
+  "sources": [],
+  "weapons": {}
+}
