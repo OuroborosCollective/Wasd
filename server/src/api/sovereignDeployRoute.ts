@@ -8,6 +8,8 @@ const REPO_FULL_NAME = process.env.SOVEREIGN_REPO || "OuroborosCollective/Wasd";
 const WORKFLOW_ID = process.env.SOVEREIGN_DEPLOY_WORKFLOW || "vps-docker-deploy.yml";
 const CLUSTER_NAME = process.env.SOVEREIGN_CLUSTER || "Alpha";
 
+type TcpTarget = { host: string; port: number; source: string };
+
 function safeGit(args: string[], fallback = "unknown"): string {
   try {
     return execFileSync("git", args, { cwd: process.cwd(), encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim() || fallback;
@@ -27,6 +29,32 @@ function branchName(): string {
 function pm2StartedAt(): number | null {
   const value = Number(process.env.pm_uptime);
   return Number.isFinite(value) ? value : Math.round(Date.now() - process.uptime() * 1000);
+}
+
+function positivePort(value: unknown): number | null {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 && parsed <= 65535 ? parsed : null;
+}
+
+function resolveSupabaseTcpTarget(): TcpTarget {
+  const explicitHost = process.env.SUPABASE_TCP_HOST?.trim();
+  const explicitPort = positivePort(process.env.SUPABASE_TCP_PORT || process.env.SUPABASE_LOCAL_PORT);
+  if (explicitHost) return { host: explicitHost, port: explicitPort ?? 8000, source: "SUPABASE_TCP_HOST" };
+
+  const rawUrl = process.env.SUPABASE_URL || process.env.SUPABASE_PUBLIC_URL || process.env.SUPABASE_PROXY_URL || "";
+  if (rawUrl) {
+    try {
+      const parsed = new URL(rawUrl);
+      if (parsed.hostname) {
+        const inferredPort = positivePort(parsed.port) ?? (parsed.protocol === "https:" ? 443 : 80);
+        return { host: parsed.hostname, port: explicitPort ?? inferredPort, source: "SUPABASE_URL" };
+      }
+    } catch {
+      // Fall through to the Docker-network default below.
+    }
+  }
+
+  return { host: "supabase-kong", port: explicitPort ?? 8000, source: "docker-default" };
 }
 
 function requireLaunchKey(req: express.Request): boolean {
@@ -66,8 +94,8 @@ async function runWorkflow(ref: string, reason: string): Promise<{ status: numbe
 
 async function buildTruth(tick: WorldTick) {
   const gamePort = Number(process.env.PORT || process.env.GAME_PORT || 3001);
-  const supabasePort = Number(process.env.SUPABASE_LOCAL_PORT || 3000);
-  const supabaseTcp = await tcpProbe("127.0.0.1", supabasePort);
+  const supabaseTarget = resolveSupabaseTcpTarget();
+  const supabaseTcp = await tcpProbe(supabaseTarget.host, supabaseTarget.port);
   const hash = commitHash();
   const areSnapshot = tick.getWorldHashSnapshot?.();
   return {
@@ -79,7 +107,7 @@ async function buildTruth(tick: WorldTick) {
     gamePort,
     nodeEnv: process.env.NODE_ENV || "development",
     pm2: { name: "areloria", id: process.env.pm_id ?? null, uptimeSeconds: Math.round(process.uptime()), startedAt: pm2StartedAt(), pid: process.pid },
-    supabase: { ...getSupabaseSummary(), localPort: supabasePort, localTcpReachable: supabaseTcp, status: supabaseTcp ? "reachable" : "not_reachable" },
+    supabase: { ...getSupabaseSummary(), tcpHost: supabaseTarget.host, tcpPort: supabaseTarget.port, tcpSource: supabaseTarget.source, localPort: supabaseTarget.port, localTcpReachable: supabaseTcp, status: supabaseTcp ? "reachable" : "not_reachable" },
     are: { guard: tick.getAREGuardStatus?.() ?? null, worldHash: areSnapshot?.worldHash ?? null, worldTick: areSnapshot?.tick ?? null, replay: tick.getReplayRecorderStats?.() ?? null, oracle: tick.getOracleReport?.() ?? null, autoRepair: tick.getAutoRepairStatus?.() ?? null },
   };
 }
