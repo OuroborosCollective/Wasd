@@ -1,1 +1,3 @@
-import "./installDecompositionLootRelay.js";
+import { installDecompositionLootRelay } from "./installDecompositionLootRelay.js";
+
+installDecompositionLootRelay();
