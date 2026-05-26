@@ -8,7 +8,7 @@ It combines a 10Hz authoritative Node.js game server, Three.js/WebGL clients, ch
 ![Runtime](https://img.shields.io/badge/runtime-deterministic_10Hz-blue)
 ![Simulation](https://img.shields.io/badge/simulation-ARE_logic-purple)
 ![License](https://img.shields.io/badge/license-proprietary_all_rights_reserved-red)
-
+<img alt="open collective badge" src="https://opencollective.com/ouroboros-collective-are/tiers/backers/badge.svg?label=backer&color=brightgreen" />
 > This repository is proprietary. It is not MIT licensed. See [License and Usage Policy](#license-and-usage-policy).
 
 ---
