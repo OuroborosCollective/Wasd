@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "id": "assetpack01_forest_fallback",
+  "biome": "forest",
+  "source": "client-2d fallback forest biome manifest",
+  "generatedAt": "2026-05-26T21:30:00.000Z",
+  "deterministic": true,
+  "expectedPngCount": 0,
+  "pngCount": 0,
+  "txtCount": 0,
+  "basePath": "/2d/assets/biomes/forest/assetpack01",
+  "entries": {},
+  "all": [],
+  "byKind": {},
+  "tilesets": {},
+  "props": {},
+  "ui": {},
+  "validation": {
+    "noPngOmitted": true,
+    "importedPngCount": 0,
+    "manifestEntryCount": 0,
+    "rule": "fallback-empty-manifest-keeps-client-loader-deterministic"
+  }
+}
