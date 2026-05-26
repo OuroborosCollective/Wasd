@@ -8,6 +8,21 @@ import { createEmergenceCollapsePayload, type WorldEmergenceCollapsePayload } fr
 import { WorldEventBus } from '../world/WorldEventBus';
 import { WorldResonanceAdapter, type LootCapsule, type WorldResonanceResult } from '../world/WorldResonanceAdapter';
 
+const NPC_CHAT_COOLDOWN_TICKS = 300;
+const NPC_CHAT_ROLL_MODULO = 997;
+const NPC_CHAT_ROLL_THRESHOLD = 7;
+const NPC_CHAT_EVENT_TYPE = 'CHAT_MESSAGE';
+const NPC_CHAT_LINES = [
+    'Ich halte die Route frei.',
+    'Die Wege wirken heute ungewöhnlich ruhig.',
+    'Ich beobachte den Takt der Welt.',
+    'Hat jemand Bewegung am Rand der Stadt gesehen?',
+    'Die Vorräte sollten bald geprüft werden.',
+    'Bleibt wachsam, Reisende.',
+    'Der Markt braucht bald neue Waren.',
+    'Ich habe den letzten Patrouillenpunkt erreicht.',
+];
+
 function deterministicNpcTraits(id: string): { faith: number; aggression: number; curiosity: number } {
     let h = 0;
     for (let i = 0; i < id.length; i++) {
@@ -19,6 +34,15 @@ function deterministicNpcTraits(id: string): { faith: number; aggression: number
         aggression: u(h ^ 0x9e3779b9),
         curiosity: u(h >>> 3),
     };
+}
+
+function deterministicHash(input: string): number {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < input.length; i++) {
+        h ^= input.charCodeAt(i);
+        h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return h >>> 0;
 }
 
 export interface Vector3 {
@@ -77,6 +101,7 @@ export class NPCSystem {
     private resonanceEvents: WorldResonanceResult[] = [];
     private lootCapsules: LootCapsule[] = [];
     private shadowLogs: Record<string, unknown>[] = [];
+    private lastChatTickByNpc = new Map<string, number>();
 
     public resonanceEngine: TraitResonanceEngine;
 
@@ -142,6 +167,10 @@ export class NPCSystem {
         const events = this.emergenceEvents;
         this.emergenceEvents = [];
         return events;
+    }
+
+    public drainWorldChatEvents(): any[] {
+        return this.worldEventBus.drain<any>(NPC_CHAT_EVENT_TYPE as any);
     }
 
     public drainWorldResonanceEvents(): WorldResonanceResult[] {
@@ -237,6 +266,7 @@ export class NPCSystem {
             this.processEmergentDecision(npc, currentTick, averageDrift, averageThreat, colonyUtility);
             if (npc.state === 'decomposition') continue;
             this.processPerception(npc, playerContexts);
+            this.maybeEmitDeterministicChat(npc, currentTick, playerContexts);
         }
     }
 
@@ -301,6 +331,34 @@ export class NPCSystem {
             npc.targetId = null;
             npc.isProcessingAI = false;
         }
+    }
+
+    private maybeEmitDeterministicChat(npc: NPC, currentTick: number, playerContexts: PlayerPerceptionContext[]): void {
+        if (playerContexts.length === 0) return;
+        if (npc.state === 'decomposition') return;
+        const lastChatTick = this.lastChatTickByNpc.get(npc.id) ?? -NPC_CHAT_COOLDOWN_TICKS;
+        if (currentTick - lastChatTick < NPC_CHAT_COOLDOWN_TICKS) return;
+
+        const roll = deterministicHash(`${npc.id}:${currentTick}:are-chat`) % NPC_CHAT_ROLL_MODULO;
+        if (roll >= NPC_CHAT_ROLL_THRESHOLD) return;
+
+        const lineIndex = deterministicHash(`${npc.id}:${currentTick}:line`) % NPC_CHAT_LINES.length;
+        const senderName = String(npc.name || npc.id || 'Wanderer');
+        const text = NPC_CHAT_LINES[lineIndex];
+        const ts = currentTick * this.TICK_RATE;
+
+        this.lastChatTickByNpc.set(npc.id, currentTick);
+        this.worldEventBus.publish({
+            eventType: NPC_CHAT_EVENT_TYPE,
+            id: `npc_chat_${npc.id}_${currentTick}`,
+            tick: currentTick,
+            channel: 'global',
+            senderId: npc.id,
+            senderName,
+            text,
+            ts,
+            position: { x: npc.position.x, y: npc.position.y, z: npc.position.z ?? 0 },
+        } as any);
     }
 
     private processEmergentDecision(npc: NPC, currentTick: number, playerDeltaDrift: number, playerThreat: number, colonyUtility: number): void {
