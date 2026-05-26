@@ -192,6 +192,7 @@ export class APIServer {
         socket.emit('WORLD_HEARTBEAT', this.getHeartbeatPayload(socket.id));
 
         socket.on('intent:equip', (payload: any) => this.handleEquipIntent(socket, payload));
+        socket.on('player_action', (payload: any) => this.handlePlayerAction(socket, payload));
         socket.on('disconnect', () => this.equipmentBySocket.delete(socket.id));
       });
     }).catch(console.error);
@@ -212,6 +213,21 @@ export class APIServer {
       tick: Number(worldStateRegistry.getTick()),
     });
     socket.emit('WORLD_HEARTBEAT', this.getHeartbeatPayload(socket.id));
+  }
+
+  private handlePlayerAction(socket: any, payload: any): void {
+    if (payload?.action !== 'USE_SKILL' || payload?.payload?.skillId !== 'atk') return;
+    const tick = Number(worldStateRegistry.getTick());
+    const damage = 7 + (tick % 11);
+    const event = {
+      kind: 'hit',
+      attackerId: socket.id,
+      defenderId: 'elder',
+      damage,
+      tick,
+    };
+    socket.emit('server:combat_event', event);
+    socket.emit('warfront_combat', event);
   }
 
   /**
