@@ -9,6 +9,8 @@ type CombatPayload = {
   defenderId?: string;
   targetId?: string;
   damage?: number;
+  defenderX?: number;
+  defenderY?: number;
 };
 
 type CombatEvent = {
@@ -21,6 +23,7 @@ type FloatingDamage = {
 };
 
 const INSTALLED = Symbol.for("areloria.client2d.combatDamageFeedback");
+const DAMAGE_Y_OFFSET = 54;
 
 function combatPayload(event: CombatEvent): CombatPayload {
   return event?.payload ?? {};
@@ -33,6 +36,10 @@ function defenderId(payload: CombatPayload): string | null {
 function damageLabel(payload: CombatPayload): string {
   const damage = Number(payload.damage ?? 0);
   return damage > 0 ? `-${Math.round(damage)}` : "hit";
+}
+
+function finiteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
 }
 
 export function initCombatDamageFeedback(app: Application, networkClient: any, entities: Map<string, EntityLike>): void {
@@ -61,8 +68,8 @@ export function initCombatDamageFeedback(app: Application, networkClient: any, e
     });
 
     node.anchor.set(0.5, 1);
-    node.x = entity.root.x;
-    node.y = entity.root.y - 54;
+    node.x = finiteNumber(payload.defenderX) ? payload.defenderX : entity.root.x;
+    node.y = (finiteNumber(payload.defenderY) ? payload.defenderY : entity.root.y) - DAMAGE_Y_OFFSET;
     node.alpha = 1;
     node.zIndex = 1000000;
 
