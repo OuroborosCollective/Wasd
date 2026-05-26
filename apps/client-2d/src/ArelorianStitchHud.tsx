@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { InventoryPanel, type InventoryItem } from "./ui/InventoryPanel";
 
 type Msg = { from: string; txt: string };
 type HudPanel = "inventory" | "character" | "map" | "combat" | "guild" | "factions" | "quests" | null;
@@ -8,11 +9,13 @@ export interface ArelorianStitchHudProps {
   assetStatus: string;
   weaponCount: number;
   equippedWeaponId?: string | null;
+  inventoryItems?: InventoryItem[];
   playerName: string;
   messages: Msg[];
   onSkill: (skillId: string) => void;
   onChat: (text: string) => void;
   onInteract: () => void;
+  onEquipWeapon?: (item: InventoryItem) => void;
   onCycleWeapon?: () => void;
   onToggleAutoMove?: () => void;
 }
@@ -43,11 +46,13 @@ export function ArelorianStitchHud({
   assetStatus,
   weaponCount,
   equippedWeaponId,
+  inventoryItems = [],
   playerName,
   messages,
   onSkill,
   onChat,
   onInteract,
+  onEquipWeapon,
   onCycleWeapon,
   onToggleAutoMove,
 }: ArelorianStitchHudProps) {
@@ -174,6 +179,8 @@ export function ArelorianStitchHud({
           panel={activePanel}
           weaponCount={weaponCount}
           equippedWeaponId={equippedWeaponId}
+          inventoryItems={inventoryItems}
+          onEquipWeapon={onEquipWeapon}
           onCycleWeapon={onCycleWeapon}
           onClose={() => setActivePanel(null)}
         />
@@ -195,12 +202,16 @@ function StitchPanel({
   panel,
   weaponCount,
   equippedWeaponId,
+  inventoryItems,
+  onEquipWeapon,
   onCycleWeapon,
   onClose,
 }: {
   panel: Exclude<HudPanel, null>;
   weaponCount: number;
   equippedWeaponId?: string | null;
+  inventoryItems: InventoryItem[];
+  onEquipWeapon?: (item: InventoryItem) => void;
   onCycleWeapon?: () => void;
   onClose: () => void;
 }) {
@@ -215,13 +226,14 @@ function StitchPanel({
           </div>
           <button onClick={onClose} aria-label="Close panel">×</button>
         </header>
-        {panel === "inventory" && <InventoryPreview weaponCount={weaponCount} equippedWeaponId={equippedWeaponId} onCycleWeapon={onCycleWeapon} />}
+        {panel === "inventory" && <InventoryPanel items={inventoryItems} equippedWeaponId={equippedWeaponId} onEquipWeapon={(item) => onEquipWeapon?.(item)} />}
         {panel === "character" && <CharacterPreview />}
         {panel === "combat" && <CombatPreview equippedWeaponId={equippedWeaponId} />}
         {panel === "map" && <MapPreview />}
         {panel === "guild" && <GuildPreview />}
         {panel === "factions" && <FactionsPreview />}
         {panel === "quests" && <QuestPreview />}
+        {panel === "inventory" && weaponCount > 0 && <button className="stitch-cycle-fallback" type="button" onClick={onCycleWeapon}>Cycle equipped visual</button>}
       </div>
     </div>
   );
@@ -243,23 +255,6 @@ function cleanWeaponName(id?: string | null) {
   return id ? id.replace(/[_-]/g, " ") : "none equipped";
 }
 
-function InventoryPreview({ weaponCount, equippedWeaponId, onCycleWeapon }: { weaponCount: number; equippedWeaponId?: string | null; onCycleWeapon?: () => void }) {
-  return (
-    <div className="stitch-grid-panel">
-      <Info label="Weapon Pool" value={`${weaponCount} visuals`} />
-      <Info label="Equipped" value={cleanWeaponName(equippedWeaponId)} />
-      <Info label="Drop Logic" value="visualId ready" />
-      <Info label="Atlas" value="weapon-atlas.png" />
-      <Info label="Rarity" value="common → mystic" />
-      <article className="stitch-info" style={{ gridColumn: "span 2" }}>
-        <small>Equipment Control</small>
-        <button type="button" onClick={onCycleWeapon} disabled={!onCycleWeapon || weaponCount <= 0}>
-          Cycle equipped visual
-        </button>
-      </article>
-    </div>
-  );
-}
 function CharacterPreview() {
   return <div className="stitch-grid-panel"><Info label="Level" value="1" /><Info label="ARE Sync" value="stable" /><Info label="Class" value="classless" /><Info label="Skill Mode" value="use-based" /></div>;
 }
