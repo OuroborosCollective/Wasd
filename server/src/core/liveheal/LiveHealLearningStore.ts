@@ -8,6 +8,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { deterministicNow } from "../determinism/AREDeterminism.js";
 import type {
   LearningEntry,
   StrategyScore,
@@ -51,10 +52,16 @@ export class LiveHealLearningStore {
   private readonly entries = new Map<string, LearningEntry>();
   private dirty = false;
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
+  private logicalClock = deterministicNow("liveheal-learning-store:init");
 
   constructor(storePath: string) {
     this.storePath = storePath;
     this.load();
+  }
+
+  private now(seed: string): number {
+    this.logicalClock += 1;
+    return deterministicNow(`${seed}:${this.logicalClock}`);
   }
 
   private load(): void {
@@ -103,7 +110,7 @@ export class LiveHealLearningStore {
     featureSafe: boolean
   ): void {
     const key = makeSignatureKey(sig);
-    const now = Date.now();
+    const now = this.now(key);
     const existing = this.entries.get(key);
 
     if (existing) {
@@ -237,7 +244,7 @@ export class LiveHealLearningStore {
    * Prune entries not seen in the last maxAgeMs.
    */
   prune(maxAgeMs: number): number {
-    const cutoff = Date.now() - maxAgeMs;
+    const cutoff = this.now("prune") - maxAgeMs;
     let pruned = 0;
     for (const [key, entry] of this.entries) {
       if (entry.lastSeenAt < cutoff) {
