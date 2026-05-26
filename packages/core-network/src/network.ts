@@ -3,6 +3,12 @@ import type { ServerEvent, ConnectionConfig } from "./types";
 
 type EventListener<T extends ServerEvent = ServerEvent> = (event: T) => void;
 
+declare global {
+  interface Window {
+    __areloriaClient?: ArelorianClient;
+  }
+}
+
 export class ArelorianClient {
   private socket: Socket | null = null;
   private listeners: Map<string, Set<EventListener>> = new Map();
@@ -29,6 +35,7 @@ export class ArelorianClient {
 
   connect(): void {
     if (this.socket?.connected) return;
+    if (typeof window !== "undefined") window.__areloriaClient = this;
 
     const options: ManagerOptions = {
       transports: ["websocket"],
@@ -67,6 +74,7 @@ export class ArelorianClient {
     this.socket?.disconnect();
     this.socket = null;
     this._connected = false;
+    if (typeof window !== "undefined" && window.__areloriaClient === this) delete window.__areloriaClient;
   }
 
   private startHeartbeat(): void {
@@ -86,6 +94,9 @@ export class ArelorianClient {
 
   private dispatch<T extends ServerEvent>(event: T): void {
     this.listeners.get(event.type)?.forEach((listener) => listener(event));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent(`areloria:${String(event.type)}`, { detail: event }));
+    }
   }
 
   on<T extends ServerEvent>(type: T["type"], listener: EventListener<T>): () => void {
