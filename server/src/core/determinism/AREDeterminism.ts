@@ -9,9 +9,18 @@ export interface ARERng {
   fork(label: string): ARERng;
 }
 
+/**
+ * Deterministic simulation clock.
+ *
+ * The historical class name is kept for compatibility, but it intentionally no
+ * longer reads wall-clock time. Simulation code must derive time from tick/seed
+ * input so replays and CI checks stay stable.
+ */
 export class SystemAREClock implements AREClock {
+  constructor(private readonly tickNow = 0) {}
+
   now(): number {
-    return Date.now();
+    return this.tickNow;
   }
 }
 
@@ -63,6 +72,16 @@ export class SeededARERng implements ARERng {
 
 export function createARESeed(parts: readonly unknown[]): string {
   return parts.map((part) => stablePart(part)).join('|');
+}
+
+export function deterministicNow(seed: string | number | bigint = 0): number {
+  if (typeof seed === 'bigint') return Number(seed);
+  if (typeof seed === 'number') return Number.isFinite(seed) ? Math.trunc(seed) : 0;
+  return hashSeed(seed);
+}
+
+export function deterministicRandom(seed: string | number | bigint = 0): number {
+  return new SeededARERng(typeof seed === 'bigint' ? seed.toString() : seed).nextFloat();
 }
 
 function stablePart(part: unknown): string {
