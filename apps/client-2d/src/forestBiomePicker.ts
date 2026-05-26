@@ -53,6 +53,9 @@ export type ForestBiomePickInput = {
   category?: ForestBiomeAssetCategory | null;
 };
 
+const TERRAIN_KIND_RE = /(?:^|[_\-\s/])(ground|grass|floor|tile|tileset|terrain|dirt|soil|path|road|earth|moss|leaf|leaves)(?:$|[_\-\s/])/i;
+const NON_TERRAIN_RE = /(?:particle|effect|fx|icon|ui|window|door|tree|bush|flower|rock|log|stump|character|npc|monster|object|deco|decoration)/i;
+
 export async function loadForestBiomeManifest(): Promise<ForestBiomeManifest | null> {
   try {
     const response = await fetch('/2d/assets/biomes/forest/assetpack01/manifest.json', { cache: 'no-store' });
@@ -87,25 +90,39 @@ export function deterministicForestHash(parts: Array<string | number | null | un
   return hash >>> 0;
 }
 
+function entryText(entry: ForestBiomeAssetEntry): string {
+  return `${entry.id} ${entry.kind} ${entry.group} ${entry.sourceName} ${entry.sourcePath} ${(entry.tags ?? []).join(' ')}`.toLowerCase();
+}
+
+function isSemanticTerrainEntry(entry: ForestBiomeAssetEntry | null | undefined): boolean {
+  if (!entry || entry.category !== 'tilesets') return false;
+  const text = `_${entryText(entry)}_`;
+  if (NON_TERRAIN_RE.test(text)) return false;
+  return TERRAIN_KIND_RE.test(text);
+}
+
+function basePoolIds(manifest: ForestBiomeManifest, input: ForestBiomePickInput): string[] {
+  if (input.kind && manifest.byKind[input.kind]?.length) return manifest.byKind[input.kind];
+  if (input.category && manifest[input.category]) return Object.keys(manifest[input.category]);
+  return manifest.all;
+}
+
 export function pickForestBiomeAsset(
   manifest: ForestBiomeManifest | null,
   input: ForestBiomePickInput,
 ): ForestBiomeAssetEntry | null {
   if (!manifest) return null;
 
-  let poolIds: string[] = [];
-  if (input.kind && manifest.byKind[input.kind]?.length) {
-    poolIds = manifest.byKind[input.kind];
-  } else if (input.category && manifest[input.category]) {
-    poolIds = Object.keys(manifest[input.category]);
-  } else {
-    poolIds = manifest.all;
+  let poolIds = basePoolIds(manifest, input);
+  if (input.category === 'tilesets') {
+    const semanticTerrainIds = poolIds.filter((id) => isSemanticTerrainEntry(manifest.entries[id]));
+    if (semanticTerrainIds.length > 0) poolIds = semanticTerrainIds;
   }
 
   if (poolIds.length === 0) return null;
 
   const hash = deterministicForestHash([
-    'forest-biome-v1',
+    'forest-biome-v2-semantic-terrain',
     input.worldSeed,
     input.chunkX,
     input.chunkZ,
@@ -121,7 +138,10 @@ export function pickForestBiomeAsset(
 }
 
 export function pickForestGround(manifest: ForestBiomeManifest | null, input: Omit<ForestBiomePickInput, 'kind' | 'category'>) {
-  return pickForestBiomeAsset(manifest, { ...input, kind: 'ground', category: 'tilesets' });
+  return pickForestBiomeAsset(manifest, { ...input, kind: 'ground', category: 'tilesets' })
+    ?? pickForestBiomeAsset(manifest, { ...input, kind: 'floor', category: 'tilesets' })
+    ?? pickForestBiomeAsset(manifest, { ...input, kind: 'tile', category: 'tilesets' })
+    ?? pickForestBiomeAsset(manifest, { ...input, category: 'tilesets' });
 }
 
 export function pickForestGrass(manifest: ForestBiomeManifest | null, input: Omit<ForestBiomePickInput, 'kind' | 'category'>) {

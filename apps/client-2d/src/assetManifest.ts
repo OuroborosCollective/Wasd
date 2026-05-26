@@ -84,7 +84,9 @@ async function loadJson<T>(url: string): Promise<T | null> {
 function withEntryIds(entries: Record<string, AssetEntry> | undefined): Record<string, AssetEntry> {
   const out: Record<string, AssetEntry> = {};
   Object.entries(entries ?? {}).forEach(([id, entry]) => {
-    out[id] = { ...entry, id };
+    const group = String(entry.group ?? '').toLowerCase();
+    const implicitTags = group === 'female' || group === 'male' ? ['civilian'] : [];
+    out[id] = { ...entry, id, tags: [...new Set([...(entry.tags ?? []), ...implicitTags])] };
   });
   return out;
 }
@@ -208,8 +210,8 @@ export function pickCharacterVisual(
   const wantedTags = (input.tags ?? []).map((tag) => tag.toLowerCase());
   const wantedGroup = String(input.group || '').toLowerCase();
   const wantedKind = String(input.kind || '').toLowerCase();
-  const matches = Object.entries(characters).filter(([, entry]) => {
-    if (!isRenderableEntry(entry)) return false;
+  const renderablePool = Object.entries(characters).filter(([, entry]) => isRenderableEntry(entry));
+  const matches = renderablePool.filter(([, entry]) => {
     const tags = (entry.tags ?? []).map((tag) => String(tag).toLowerCase());
     const group = String(entry.group ?? '').toLowerCase();
     const kind = String(entry.kind ?? '').toLowerCase();
@@ -218,9 +220,18 @@ export function pickCharacterVisual(
     const kindOk = !wantedKind || kind === wantedKind || tags.includes(wantedKind);
     return tagsOk && groupOk && kindOk;
   });
+  const groupMatches = renderablePool.filter(([, entry]) => {
+    const tags = (entry.tags ?? []).map((tag) => String(tag).toLowerCase());
+    const group = String(entry.group ?? '').toLowerCase();
+    return Boolean(wantedGroup) && (group === wantedGroup || tags.includes(wantedGroup));
+  });
+  const kindMatches = renderablePool.filter(([, entry]) => {
+    const tags = (entry.tags ?? []).map((tag) => String(tag).toLowerCase());
+    const kind = String(entry.kind ?? '').toLowerCase();
+    return Boolean(wantedKind) && (kind === wantedKind || tags.includes(wantedKind));
+  });
 
-  const renderablePool = Object.entries(characters).filter(([, entry]) => isRenderableEntry(entry));
-  const pool = matches.length > 0 ? matches : renderablePool;
+  const pool = matches.length > 0 ? matches : groupMatches.length > 0 ? groupMatches : kindMatches.length > 0 ? kindMatches : renderablePool;
   if (pool.length === 0) return null;
 
   const seed = String(input.seed ?? `${wantedKind}:${wantedGroup}:${wantedTags.join(',')}`);
