@@ -5,6 +5,7 @@
  * the most likely root cause when multiple subsystems degrade.
  */
 
+import { deterministicNow } from "../determinism/AREDeterminism.js";
 import type {
   SubSystemRecord,
   HealthSnapshot,
@@ -32,6 +33,10 @@ export interface RootCauseAnalysis {
 export class LiveHealRootCauseAnalyzer {
   constructor(private readonly graph: LiveHealDependencyGraph) {}
 
+  private now(seed: string): number {
+    return deterministicNow(`liveheal-root-cause:${seed}`);
+  }
+
   /**
    * Analyze a set of degraded subsystems and rank root cause candidates.
    */
@@ -48,7 +53,7 @@ export class LiveHealRootCauseAnalyzer {
     }
 
     if (degraded.size === 0) {
-      return { candidates: [], topSuspect: null, victims: [], timestamp: Date.now() };
+      return { candidates: [], topSuspect: null, victims: [], timestamp: this.now("empty") };
     }
 
     if (degraded.size === 1) {
@@ -57,7 +62,7 @@ export class LiveHealRootCauseAnalyzer {
         candidates: [{ subsystemId: id, score: 1, reasons: ["Only degraded subsystem"] }],
         topSuspect: id,
         victims: [],
-        timestamp: Date.now(),
+        timestamp: this.now(id),
       };
     }
 
@@ -135,7 +140,7 @@ export class LiveHealRootCauseAnalyzer {
       }
     }
 
-    return { candidates, topSuspect, victims, timestamp: Date.now() };
+    return { candidates, topSuspect, victims, timestamp: this.now(topSuspect ?? "unknown") };
   }
 
   /**
