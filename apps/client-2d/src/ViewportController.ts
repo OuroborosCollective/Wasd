@@ -1,6 +1,8 @@
 import type { Application, Container } from "pixi.js";
 
 type MoveVector = { dx: number; dz: number };
+type MoveBridge = (vector: MoveVector) => void;
+type WrappedMoveBridge = MoveBridge & { __wasd2dViewportWrapped?: true };
 
 type ViewportControllerOptions = {
   app: Application;
@@ -11,7 +13,7 @@ type ViewportControllerOptions = {
 
 declare global {
   interface Window {
-    __wasd2dMove?: (vector: MoveVector) => void;
+    __wasd2dMove?: MoveBridge;
     __wasd2dViewportRuntimeInstalled?: boolean;
   }
 }
@@ -125,7 +127,7 @@ export function installViewportRuntime() {
   window.__wasd2dViewportRuntimeInstalled = true;
 
   const keys = new Set<string>();
-  let observedMove: typeof window.__wasd2dMove;
+  let observedMove: MoveBridge | undefined;
   let lastInputAt = 0;
   let cameraX = 0;
   let cameraY = 0;
@@ -181,14 +183,16 @@ export function installViewportRuntime() {
   }
 
   function wrapMoveBridge() {
-    const current = window.__wasd2dMove;
-    if (!current || current === observedMove) return;
+    const current = window.__wasd2dMove as WrappedMoveBridge | undefined;
+    if (!current || current.__wasd2dViewportWrapped || current === observedMove) return;
 
     observedMove = current;
-    window.__wasd2dMove = (vector: MoveVector) => {
+    const wrapped: WrappedMoveBridge = (vector: MoveVector) => {
       current(vector);
       sampleCamera(vector);
     };
+    wrapped.__wasd2dViewportWrapped = true;
+    window.__wasd2dMove = wrapped;
   }
 
   function frame() {
