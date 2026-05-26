@@ -7,6 +7,7 @@ import { MobileMovePad } from "./MobileMovePad";
 import { PixiModuleInspector } from "./PixiModuleInspector";
 import { WorldHeartMonitor } from "./WorldHeartMonitor";
 import { installClient2DDepthRuntime } from "./client2dDepthRuntime";
+import { installViewportRuntime } from "./ViewportController";
 import "./theme.css";
 import "./liveReality.css";
 import "./worldHeart.css";
@@ -14,6 +15,7 @@ import "./pixiModuleInspector.css";
 import "./mobilePlayability.css";
 
 installClient2DDepthRuntime();
+installViewportRuntime();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
