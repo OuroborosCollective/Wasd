@@ -46,20 +46,54 @@ export function EpochChroniclePanel(): React.ReactElement {
           <p className="font-mono text-[10px] uppercase tracking-[0.32em] text-yellow-100/70">Emily · Chronistin</p>
           <h2 className="mt-1 text-xl font-black text-white">Sovereign Epochs</h2>
         </div>
-        <button type="button" className="rounded-full border border-yellow-100/40 bg-yellow-100/10 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-yellow-50" onClick={() => setEpoch(next)}>
+        <button
+          type="button"
+          className={`rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.2em] transition-all ${
+            ready
+              ? "border-yellow-100/40 bg-yellow-100/10 text-yellow-50 hover:bg-yellow-100/20 shadow-[0_0_12px_rgba(254,240,138,0.2)]"
+              : "border-white/10 bg-white/5 text-white/30 cursor-not-allowed"
+          }`}
+          onClick={() => setEpoch(next)}
+          disabled={!ready}
+          aria-label={`Shift from ${labels[epoch]} to ${labels[next]}`}
+          title={ready ? "Shift to next epoch" : "12 quests and 0.42 quorum required"}
+        >
           Epoch Shift
         </button>
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-3">
-        <label className="rounded-2xl border border-white/10 bg-black/20 p-3 text-xs text-white/70">
+        <label
+          htmlFor="quests-range"
+          className="rounded-2xl border border-white/10 bg-black/20 p-3 text-xs text-white/70"
+        >
           Destiny Quests
-          <input className="mt-2 w-full accent-yellow-200" type="range" min={0} max={100} value={quests} onChange={(event) => setQuests(Number(event.target.value))} />
+          <input
+            id="quests-range"
+            className="mt-2 w-full accent-yellow-200"
+            type="range"
+            min={0}
+            max={100}
+            value={quests}
+            onChange={(event) => setQuests(Number(event.target.value))}
+          />
           <strong className="text-yellow-100">{quests}</strong>
         </label>
-        <label className="rounded-2xl border border-white/10 bg-black/20 p-3 text-xs text-white/70">
+        <label
+          htmlFor="quorum-range"
+          className="rounded-2xl border border-white/10 bg-black/20 p-3 text-xs text-white/70"
+        >
           Global Quorum
-          <input className="mt-2 w-full accent-yellow-200" type="range" min={0} max={1} step={0.01} value={quorum} onChange={(event) => setQuorum(Number(event.target.value))} />
+          <input
+            id="quorum-range"
+            className="mt-2 w-full accent-yellow-200"
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={quorum}
+            onChange={(event) => setQuorum(Number(event.target.value))}
+          />
           <strong className="text-yellow-100">{quorum.toFixed(2)}</strong>
         </label>
         <div className="rounded-2xl border border-yellow-100/20 bg-yellow-100/5 p-3 font-mono text-xs text-yellow-50/80">
@@ -69,8 +103,13 @@ export function EpochChroniclePanel(): React.ReactElement {
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl border border-yellow-100/20 bg-yellow-100/10 p-4 text-sm text-yellow-50">
-        {ready ? `Emily: ${labels[next]} begins. Sector states and global modifiers are ready for a deterministic reset.` : `Emily: ${labels[epoch]} remains stable. The Collective is still gathering destiny signals.`}
+      <div
+        className="mt-4 rounded-2xl border border-yellow-100/20 bg-yellow-100/10 p-4 text-sm text-yellow-50"
+        aria-live="polite"
+      >
+        {ready
+          ? `Emily: ${labels[next]} begins. Sector states and global modifiers are ready for a deterministic reset.`
+          : `Emily: ${labels[epoch]} remains stable. The Collective is still gathering destiny signals.`}
       </div>
 
       <div className="mt-4 grid gap-2">
