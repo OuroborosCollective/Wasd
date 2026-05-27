@@ -4,7 +4,7 @@ Learning: JavaScript `Map` iteration order is based on insertion order, which is
 
 Action: Always enforce `Array.sort()` on entity collections (Players, NPCs, Loot) before processing them in any 10-Hz tick logic. Ensure all properties required by deterministic utility functions (like `PerceptionLogic`) are explicitly initialized during entity creation.
 
-## 2026-05-21 - Non-Deterministic Sorting Leak via localeCompare
+## 2026-05-27 - Non-Deterministic Sorting Leak via localeCompare
 
 Learning: `String.prototype.localeCompare` is non-deterministic across different Node.js environments and OS locales because it relies on the system's ICU data. Using it for sorting in Level-A simulation paths or WorldHash calculation leads to hash divergence between server and client (Portal), breaking causality verification.
 
