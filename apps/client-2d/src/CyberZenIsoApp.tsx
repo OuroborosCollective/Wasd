@@ -30,6 +30,8 @@ import { moveVisualTowards } from "./visualMotion";
 
 const TILE_W = 96;
 const TILE_H = 48;
+const BIOME_TILE_W = 128;
+const BIOME_TILE_H = 64;
 const TERRAIN_Z_INDEX = -1000;
 const EQUIPPED_WEAPON_KEY = "wasd:2d:equippedWeaponVisualId";
 const FOREST_WORLD_SEED = "areloria:forest:millbrook:v1";
@@ -147,6 +149,14 @@ function spriteFromTexture(texture: Texture, width: number, height: number, y = 
   s.width = width;
   s.height = height;
   s.y = y;
+  return s;
+}
+
+function biomeTileSprite(texture: Texture) {
+  const s = new Sprite(texture);
+  s.anchor.set(0.5, 0.5);
+  s.width = BIOME_TILE_W;
+  s.height = BIOME_TILE_H;
   return s;
 }
 
@@ -436,7 +446,7 @@ export function CyberZenIsoApp() {
       const ground = pickForestGround(forest, { worldSeed: FOREST_WORLD_SEED, chunkX: 0, chunkZ: 0, tileX: x, tileZ: z, layer: 0 });
       const grass = ground ? null : pickForestGrass(forest, { worldSeed: FOREST_WORLD_SEED, chunkX: 0, chunkZ: 0, tileX: x, tileZ: z, layer: 1 });
       const terrainTex = await assets?.ensureForestTexture(ground ?? grass);
-      const tile = terrainTex ? spriteFromTexture(terrainTex, TILE_W, TILE_H, TILE_H / 2) : diamond((x + z) % 4 === 0 ? 0x3f7f48 : 0x356b40);
+      const tile = terrainTex ? biomeTileSprite(terrainTex) : diamond((x + z) % 4 === 0 ? 0x3f7f48 : 0x356b40);
       tile.zIndex = TERRAIN_Z_INDEX;
       place(tile, x, z, app.screen.width, app.screen.height);
       terrain.addChild(tile);
