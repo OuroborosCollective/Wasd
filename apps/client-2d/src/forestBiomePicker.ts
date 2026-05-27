@@ -51,6 +51,8 @@ export type ForestBiomePickInput = {
   layer?: number;
   kind?: string | null;
   category?: ForestBiomeAssetCategory | null;
+  preferredGroup?: string | null;
+  allowTransitions?: boolean;
 };
 
 const ROUTE_BASE = '/2d';
@@ -115,7 +117,7 @@ function atlasManifestToForestManifest(sourceManifest: any, url: string): Forest
 
   Object.keys(frames).sort().forEach((id) => {
     const kind = id.includes('ground') ? 'ground' : id.includes('edge') ? 'edge' : id.includes('corner') ? 'corner' : id.includes('trans') ? 'transition' : id.includes('center') ? 'center' : 'terrain';
-    const biome = id.split('_to_')[0].split('_')[0] || 'forest';
+    const group = id.includes('_to_') ? id.split('_to_')[0] : id.split('_')[0] || 'forest';
     const sourcePath = id.includes('_to_') ? `transitions/${id}.png` : `tiles/${id}.png`;
     const entry: ForestBiomeAssetEntry = {
       id,
@@ -125,12 +127,12 @@ function atlasManifestToForestManifest(sourceManifest: any, url: string): Forest
       sourceName: `${id}.png`,
       license: 'project-owned-generated-biome-atlas-v2',
       kind,
-      group: biome,
+      group,
       biome: 'forest',
       category: 'tilesets',
       bytes: 0,
       sha256: '',
-      tags: ['biome-atlas-v2', 'terrain', kind, biome, 'pixi-alias'],
+      tags: ['biome-atlas-v2', 'terrain', kind, group, 'pixi-alias'],
       deterministic: true,
     };
     entries[id] = entry;
@@ -210,6 +212,17 @@ function isSemanticTerrainEntry(entry: ForestBiomeAssetEntry | null | undefined)
   return TERRAIN_KIND_RE.test(text);
 }
 
+function isTransitionEntry(entry: ForestBiomeAssetEntry | null | undefined): boolean {
+  if (!entry) return false;
+  return entry.kind === 'transition' || entry.id.includes('_to_') || entry.sourcePath.includes('/transitions/');
+}
+
+function preferGroup(poolIds: string[], manifest: ForestBiomeManifest, group: string | null | undefined): string[] {
+  if (!group) return poolIds;
+  const preferred = poolIds.filter((id) => manifest.entries[id]?.group === group || manifest.entries[id]?.id.startsWith(`${group}_`));
+  return preferred.length > 0 ? preferred : poolIds;
+}
+
 function basePoolIds(manifest: ForestBiomeManifest, input: ForestBiomePickInput): string[] {
   if (input.kind && manifest.byKind[input.kind]?.length) return manifest.byKind[input.kind];
   if (input.category && manifest[input.category]) return Object.keys(manifest[input.category]);
@@ -226,6 +239,11 @@ export function pickForestBiomeAsset(
   if (input.category === 'tilesets') {
     const semanticTerrainIds = poolIds.filter((id) => isSemanticTerrainEntry(manifest.entries[id]));
     if (semanticTerrainIds.length > 0) poolIds = semanticTerrainIds;
+    if (!input.allowTransitions) {
+      const nonTransitionIds = poolIds.filter((id) => !isTransitionEntry(manifest.entries[id]));
+      if (nonTransitionIds.length > 0) poolIds = nonTransitionIds;
+    }
+    poolIds = preferGroup(poolIds, manifest, input.preferredGroup ?? 'forest');
   }
 
   if (poolIds.length === 0) return null;
@@ -240,6 +258,8 @@ export function pickForestBiomeAsset(
     input.layer ?? 0,
     input.kind ?? '',
     input.category ?? '',
+    input.preferredGroup ?? 'forest',
+    input.allowTransitions ? 'transitions' : 'solid',
   ]);
 
   const id = poolIds[hash % poolIds.length];
@@ -247,18 +267,19 @@ export function pickForestBiomeAsset(
 }
 
 export function pickForestGround(manifest: ForestBiomeManifest | null, input: Omit<ForestBiomePickInput, 'kind' | 'category'>) {
-  return pickForestBiomeAsset(manifest, { ...input, kind: 'ground', category: 'tilesets' })
-    ?? pickForestBiomeAsset(manifest, { ...input, kind: 'floor', category: 'tilesets' })
-    ?? pickForestBiomeAsset(manifest, { ...input, kind: 'center', category: 'tilesets' })
-    ?? pickForestBiomeAsset(manifest, { ...input, kind: 'transition', category: 'tilesets' })
-    ?? pickForestBiomeAsset(manifest, { ...input, kind: 'edge', category: 'tilesets' })
-    ?? pickForestBiomeAsset(manifest, { ...input, kind: 'corner', category: 'tilesets' })
-    ?? pickForestBiomeAsset(manifest, { ...input, kind: 'tile', category: 'tilesets' })
-    ?? pickForestBiomeAsset(manifest, { ...input, category: 'tilesets' });
+  const edgeDistance = Math.max(Math.abs(input.tileX), Math.abs(input.tileZ));
+  const allowTransitions = input.allowTransitions ?? edgeDistance >= 6;
+  const base = { ...input, preferredGroup: input.preferredGroup ?? 'forest', allowTransitions };
+  return pickForestBiomeAsset(manifest, { ...base, kind: 'ground', category: 'tilesets' })
+    ?? pickForestBiomeAsset(manifest, { ...base, kind: 'center', category: 'tilesets' })
+    ?? pickForestBiomeAsset(manifest, { ...base, kind: 'floor', category: 'tilesets' })
+    ?? (allowTransitions ? pickForestBiomeAsset(manifest, { ...base, kind: 'transition', category: 'tilesets' }) : null)
+    ?? pickForestBiomeAsset(manifest, { ...base, kind: 'tile', category: 'tilesets' })
+    ?? pickForestBiomeAsset(manifest, { ...base, category: 'tilesets' });
 }
 
 export function pickForestGrass(manifest: ForestBiomeManifest | null, input: Omit<ForestBiomePickInput, 'kind' | 'category'>) {
-  return pickForestBiomeAsset(manifest, { ...input, kind: 'grass', category: 'tilesets' });
+  return pickForestBiomeAsset(manifest, { ...input, preferredGroup: input.preferredGroup ?? 'forest', allowTransitions: false, kind: 'grass', category: 'tilesets' });
 }
 
 export function pickForestDecoration(manifest: ForestBiomeManifest | null, input: Omit<ForestBiomePickInput, 'kind' | 'category'>) {
