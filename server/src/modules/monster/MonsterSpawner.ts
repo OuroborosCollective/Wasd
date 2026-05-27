@@ -5,6 +5,6 @@ import { mutateMonster } from "./MonsterMutation.js";
 export class MonsterSpawner {
   spawn(species: string, biome: string, rng?: ARERng) {
     const dna = generateMonsterDNA(species, rng);
-    return mutateMonster(dna, biome, rng);
+    return mutateMonster(dna, biome, undefined, rng);
   }
 }
