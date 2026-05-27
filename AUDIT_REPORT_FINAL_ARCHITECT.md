@@ -21,8 +21,8 @@ The repository is a complex monorepo using **pnpm** with the `isolated` node-lin
 ## Critical Errors (Resolved)
 1. **TypeScript Reference Mismatch:** `projects/health-tech` was referenced in the root `tsconfig.json` but lacked its own `tsconfig.json`, breaking root-level `tsc` orchestration.
    - **Status:** FIXED. Created `projects/health-tech/tsconfig.json`.
-2. **Redundant Build Configuration:** `pnpm-workspace.yaml` contained an `allowBuilds` block which is superseded by the root `package.json`'s `pnpm.onlyBuiltDependencies`.
-   - **Status:** FIXED. Consolidated all allowed builds into root `package.json`.
+2. **Duplicate Component Exports:** `ResonanceVisualizer.tsx` used both inline `export const` and a bottom-level `export {}` block for the same variables, causing "Cannot redeclare exported variable" errors.
+   - **Status:** FIXED.
 3. **Lockfile Drift Risk:** `deploy.yml` and `deploy/update.sh` were found to use `--no-frozen-lockfile` in some contexts, which can lead to non-deterministic production environments.
 
 ---
