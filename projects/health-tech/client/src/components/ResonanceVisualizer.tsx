@@ -328,9 +328,5 @@ ResonanceVisualizer.displayName = 'ResonanceVisualizer';
 export default ResonanceVisualizer;
 
 export {
-  parseChain,
-  calculatePlexityScore,
-  PLEXITY_WEIGHTS,
-  DEFAULT_CHAIN,
   type ResonanceData
 };

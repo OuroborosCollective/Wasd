@@ -36,16 +36,12 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
-      "@firebase/util",
-      "@google/genai",
-      "@nestjs/core",
-      "@prisma/engines",
-      "cpu-features",
       "esbuild",
-      "pg",
-      "prisma",
-      "protobufjs",
       "sharp",
+      "pg",
+      "@prisma/engines",
+      "protobufjs",
+      "cpu-features",
       "ssh2"
     ],
     "overrides": {

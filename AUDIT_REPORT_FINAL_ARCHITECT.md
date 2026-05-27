@@ -47,7 +47,7 @@ The repository is a complex monorepo using **pnpm** with the `isolated` node-lin
 
 ### Step 1: Secure the Foundation (Completed)
 - [x] Fix missing `projects/health-tech/tsconfig.json`.
-- [x] Consolidate `allowBuilds` into root `package.json`.
+- [x] Resolved redundant exports in `ResonanceVisualizer.tsx` breaking builds.
 - [x] Verify lockfile integrity with `monorepo-guard.mjs`.
 
 ### Step 2: Dependency Synchronization
