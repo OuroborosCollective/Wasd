@@ -1,0 +1,6079 @@
+{
+  "version": 2,
+  "id": "modular_weapon_atlas",
+  "source": "modular_weapon_atlas.zip",
+  "generatedAt": "2026-05-27T11:14:23.820Z",
+  "deterministic": true,
+  "basePath": "/2d-assets/weapons/modular",
+  "atlas": "atlas.png",
+  "tileSize": 128,
+  "totalParts": 64,
+  "weaponKinds": [
+    "sword",
+    "axe",
+    "hammer",
+    "spear",
+    "bow",
+    "dagger",
+    "knuckle",
+    "mace",
+    "staff",
+    "shield",
+    "offhand"
+  ],
+  "categories": [
+    "sword_blade",
+    "sword_guard",
+    "sword_handle",
+    "sword_pommel",
+    "axe_head",
+    "axe_handle",
+    "hammer_head",
+    "spear_tip",
+    "spear_shaft",
+    "staff_head",
+    "shield",
+    "magical_crystal",
+    "dagger_blade",
+    "bow_limb",
+    "bow_string",
+    "knuckle",
+    "mace_head"
+  ],
+  "rarityLevels": [
+    {
+      "rarity": "common",
+      "weight": 100,
+      "color": "#9d9d9d",
+      "sourceRarity": "common"
+    },
+    {
+      "rarity": "uncommon",
+      "weight": 60,
+      "color": "#1eff00",
+      "sourceRarity": "uncommon"
+    },
+    {
+      "rarity": "rare",
+      "weight": 30,
+      "color": "#0070dd",
+      "sourceRarity": "rare"
+    },
+    {
+      "rarity": "epic",
+      "weight": 10,
+      "color": "#a335ee",
+      "sourceRarity": "epic"
+    },
+    {
+      "rarity": "legendary",
+      "weight": 3,
+      "color": "#ff8000",
+      "sourceRarity": "legendary"
+    },
+    {
+      "rarity": "mystic",
+      "weight": 1,
+      "color": "#e6cc80",
+      "sourceRarity": "mythic"
+    }
+  ],
+  "assemblyRules": {
+    "sword": [
+      "sword_blade",
+      "sword_guard",
+      "sword_handle",
+      "sword_pommel"
+    ],
+    "axe": [
+      "axe_head",
+      "axe_handle"
+    ],
+    "hammer": [
+      "hammer_head",
+      "axe_handle"
+    ],
+    "spear": [
+      "spear_tip",
+      "spear_shaft"
+    ],
+    "bow": [
+      "bow_limb",
+      "bow_string"
+    ],
+    "dagger": [
+      "dagger_blade",
+      "sword_guard",
+      "sword_handle"
+    ],
+    "mace": [
+      "mace_head",
+      "axe_handle"
+    ],
+    "staff": [
+      "staff_head",
+      "spear_shaft"
+    ]
+  },
+  "byKind": {
+    "axe": [
+      "modular_axe_handle_bone_03",
+      "modular_axe_handle_rune_02",
+      "modular_axe_handle_wood_01",
+      "modular_axe_head_bone_04",
+      "modular_axe_head_fire_05",
+      "modular_axe_head_gold_03",
+      "modular_axe_head_iron_01",
+      "modular_axe_head_void_02"
+    ],
+    "bow": [
+      "modular_bow_limb_crystal_02",
+      "modular_bow_limb_void_03",
+      "modular_bow_limb_wood_01",
+      "modular_bow_string_arcane_02",
+      "modular_bow_string_sinew_01"
+    ],
+    "dagger": [
+      "modular_dagger_blade_gold_03",
+      "modular_dagger_blade_iron_01",
+      "modular_dagger_blade_shadow_02"
+    ],
+    "hammer": [
+      "modular_hammer_head_iron_01",
+      "modular_hammer_head_royal_02",
+      "modular_hammer_head_void_03"
+    ],
+    "knuckle": [
+      "modular_knuckle_gold_03",
+      "modular_knuckle_iron_01",
+      "modular_knuckle_void_02"
+    ],
+    "mace": [
+      "modular_mace_head_fire_02",
+      "modular_mace_head_iron_01",
+      "modular_mace_head_void_03"
+    ],
+    "shield": [
+      "modular_magical_crystal_arcane_03",
+      "modular_magical_crystal_fire_01",
+      "modular_magical_crystal_ice_02",
+      "modular_shield_kite_royal_02",
+      "modular_shield_round_iron_01",
+      "modular_shield_tower_void_03"
+    ],
+    "spear": [
+      "modular_spear_shaft_bone_03",
+      "modular_spear_shaft_rune_02",
+      "modular_spear_shaft_wood_01",
+      "modular_spear_tip_crystal_03",
+      "modular_spear_tip_steel_01",
+      "modular_spear_tip_void_02"
+    ],
+    "staff": [
+      "modular_staff_head_arcane_01",
+      "modular_staff_head_fire_02",
+      "modular_staff_head_void_03"
+    ],
+    "sword": [
+      "modular_sword_blade_ancient_08",
+      "modular_sword_blade_cursed_05",
+      "modular_sword_blade_forest_06",
+      "modular_sword_blade_frost_07",
+      "modular_sword_blade_iron_01",
+      "modular_sword_blade_royal_04",
+      "modular_sword_blade_steel_02",
+      "modular_sword_blade_void_03",
+      "modular_sword_guard_bone_04",
+      "modular_sword_guard_fire_06",
+      "modular_sword_guard_gold_02",
+      "modular_sword_guard_iron_01",
+      "modular_sword_guard_royal_03",
+      "modular_sword_guard_void_05",
+      "modular_sword_handle_bone_02",
+      "modular_sword_handle_crystal_03",
+      "modular_sword_handle_leather_01",
+      "modular_sword_handle_royal_04",
+      "modular_sword_handle_void_05",
+      "modular_sword_pommel_crystal_03",
+      "modular_sword_pommel_gold_02",
+      "modular_sword_pommel_iron_01",
+      "modular_sword_pommel_royal_04",
+      "modular_sword_pommel_void_05"
+    ]
+  },
+  "byCategory": {
+    "axe_handle": [
+      "modular_axe_handle_bone_03",
+      "modular_axe_handle_rune_02",
+      "modular_axe_handle_wood_01"
+    ],
+    "axe_head": [
+      "modular_axe_head_bone_04",
+      "modular_axe_head_fire_05",
+      "modular_axe_head_gold_03",
+      "modular_axe_head_iron_01",
+      "modular_axe_head_void_02"
+    ],
+    "bow_limb": [
+      "modular_bow_limb_crystal_02",
+      "modular_bow_limb_void_03",
+      "modular_bow_limb_wood_01"
+    ],
+    "bow_string": [
+      "modular_bow_string_arcane_02",
+      "modular_bow_string_sinew_01"
+    ],
+    "dagger_blade": [
+      "modular_dagger_blade_gold_03",
+      "modular_dagger_blade_iron_01",
+      "modular_dagger_blade_shadow_02"
+    ],
+    "hammer_head": [
+      "modular_hammer_head_iron_01",
+      "modular_hammer_head_royal_02",
+      "modular_hammer_head_void_03"
+    ],
+    "knuckle": [
+      "modular_knuckle_gold_03",
+      "modular_knuckle_iron_01",
+      "modular_knuckle_void_02"
+    ],
+    "mace_head": [
+      "modular_mace_head_fire_02",
+      "modular_mace_head_iron_01",
+      "modular_mace_head_void_03"
+    ],
+    "magical_crystal": [
+      "modular_magical_crystal_arcane_03",
+      "modular_magical_crystal_fire_01",
+      "modular_magical_crystal_ice_02"
+    ],
+    "shield": [
+      "modular_shield_kite_royal_02",
+      "modular_shield_round_iron_01",
+      "modular_shield_tower_void_03"
+    ],
+    "spear_shaft": [
+      "modular_spear_shaft_bone_03",
+      "modular_spear_shaft_rune_02",
+      "modular_spear_shaft_wood_01"
+    ],
+    "spear_tip": [
+      "modular_spear_tip_crystal_03",
+      "modular_spear_tip_steel_01",
+      "modular_spear_tip_void_02"
+    ],
+    "staff_head": [
+      "modular_staff_head_arcane_01",
+      "modular_staff_head_fire_02",
+      "modular_staff_head_void_03"
+    ],
+    "sword_blade": [
+      "modular_sword_blade_ancient_08",
+      "modular_sword_blade_cursed_05",
+      "modular_sword_blade_forest_06",
+      "modular_sword_blade_frost_07",
+      "modular_sword_blade_iron_01",
+      "modular_sword_blade_royal_04",
+      "modular_sword_blade_steel_02",
+      "modular_sword_blade_void_03"
+    ],
+    "sword_guard": [
+      "modular_sword_guard_bone_04",
+      "modular_sword_guard_fire_06",
+      "modular_sword_guard_gold_02",
+      "modular_sword_guard_iron_01",
+      "modular_sword_guard_royal_03",
+      "modular_sword_guard_void_05"
+    ],
+    "sword_handle": [
+      "modular_sword_handle_bone_02",
+      "modular_sword_handle_crystal_03",
+      "modular_sword_handle_leather_01",
+      "modular_sword_handle_royal_04",
+      "modular_sword_handle_void_05"
+    ],
+    "sword_pommel": [
+      "modular_sword_pommel_crystal_03",
+      "modular_sword_pommel_gold_02",
+      "modular_sword_pommel_iron_01",
+      "modular_sword_pommel_royal_04",
+      "modular_sword_pommel_void_05"
+    ]
+  },
+  "byRarity": {
+    "uncommon": [
+      "modular_axe_handle_bone_03",
+      "modular_spear_shaft_bone_03",
+      "modular_sword_blade_ancient_08",
+      "modular_sword_blade_steel_02",
+      "modular_sword_handle_bone_02"
+    ],
+    "rare": [
+      "modular_axe_handle_rune_02",
+      "modular_axe_head_bone_04",
+      "modular_bow_limb_crystal_02",
+      "modular_dagger_blade_shadow_02",
+      "modular_magical_crystal_fire_01",
+      "modular_magical_crystal_ice_02",
+      "modular_spear_shaft_rune_02",
+      "modular_spear_tip_crystal_03",
+      "modular_staff_head_arcane_01",
+      "modular_sword_blade_forest_06",
+      "modular_sword_blade_frost_07",
+      "modular_sword_guard_bone_04",
+      "modular_sword_guard_fire_06",
+      "modular_sword_handle_crystal_03",
+      "modular_sword_pommel_crystal_03",
+      "modular_sword_pommel_gold_02"
+    ],
+    "common": [
+      "modular_axe_handle_wood_01",
+      "modular_axe_head_iron_01",
+      "modular_bow_limb_wood_01",
+      "modular_bow_string_sinew_01",
+      "modular_dagger_blade_iron_01",
+      "modular_hammer_head_iron_01",
+      "modular_knuckle_iron_01",
+      "modular_mace_head_iron_01",
+      "modular_shield_round_iron_01",
+      "modular_spear_shaft_wood_01",
+      "modular_spear_tip_steel_01",
+      "modular_sword_blade_iron_01",
+      "modular_sword_guard_iron_01",
+      "modular_sword_handle_leather_01",
+      "modular_sword_pommel_iron_01"
+    ],
+    "epic": [
+      "modular_axe_head_fire_05",
+      "modular_axe_head_void_02",
+      "modular_bow_limb_void_03",
+      "modular_bow_string_arcane_02",
+      "modular_hammer_head_void_03",
+      "modular_knuckle_void_02",
+      "modular_mace_head_fire_02",
+      "modular_magical_crystal_arcane_03",
+      "modular_shield_tower_void_03",
+      "modular_spear_tip_void_02",
+      "modular_staff_head_fire_02",
+      "modular_sword_blade_cursed_05",
+      "modular_sword_blade_void_03",
+      "modular_sword_guard_royal_03",
+      "modular_sword_guard_void_05",
+      "modular_sword_handle_royal_04",
+      "modular_sword_handle_void_05",
+      "modular_sword_pommel_void_05"
+    ],
+    "legendary": [
+      "modular_axe_head_gold_03",
+      "modular_dagger_blade_gold_03",
+      "modular_hammer_head_royal_02",
+      "modular_knuckle_gold_03",
+      "modular_mace_head_void_03",
+      "modular_shield_kite_royal_02",
+      "modular_staff_head_void_03",
+      "modular_sword_blade_royal_04",
+      "modular_sword_guard_gold_02",
+      "modular_sword_pommel_royal_04"
+    ]
+  },
+  "weapons": {
+    "modular_axe_handle_bone_03": {
+      "id": "modular_axe_handle_bone_03",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#axe_handle_bone_03",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "axe_handle",
+      "weaponClass": "axe",
+      "rarity": "uncommon",
+      "visualRarity": "uncommon",
+      "frame": {
+        "x": 896,
+        "y": 384,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "axe",
+        "axe_handle",
+        "uncommon",
+        "physical",
+        "undead_faction"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "chop": {
+          "frames": 5,
+          "duration_ms": 380,
+          "loop": false,
+          "description": "Overhead chop (axe)"
+        },
+        "overhead": {
+          "frames": 5,
+          "duration_ms": 420,
+          "loop": false,
+          "description": "Overhead smash"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "axe_handle_bone_03",
+        "category": "axe_handle",
+        "material": "bone",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "swing",
+          "chop",
+          "overhead",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_axe_handle_rune_02": {
+      "id": "modular_axe_handle_rune_02",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#axe_handle_rune_02",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "axe_handle",
+      "weaponClass": "axe",
+      "rarity": "rare",
+      "visualRarity": "rare",
+      "frame": {
+        "x": 768,
+        "y": 384,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "axe",
+        "axe_handle",
+        "rare",
+        "magical"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "chop": {
+          "frames": 5,
+          "duration_ms": 380,
+          "loop": false,
+          "description": "Overhead chop (axe)"
+        },
+        "overhead": {
+          "frames": 5,
+          "duration_ms": 420,
+          "loop": false,
+          "description": "Overhead smash"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "axe_handle_rune_02",
+        "category": "axe_handle",
+        "material": "wood",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "swing",
+          "chop",
+          "overhead",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_axe_handle_wood_01": {
+      "id": "modular_axe_handle_wood_01",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#axe_handle_wood_01",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "axe_handle",
+      "weaponClass": "axe",
+      "rarity": "common",
+      "visualRarity": "common",
+      "frame": {
+        "x": 640,
+        "y": 384,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "axe",
+        "axe_handle",
+        "common",
+        "physical"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "chop": {
+          "frames": 5,
+          "duration_ms": 380,
+          "loop": false,
+          "description": "Overhead chop (axe)"
+        },
+        "overhead": {
+          "frames": 5,
+          "duration_ms": 420,
+          "loop": false,
+          "description": "Overhead smash"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "axe_handle_wood_01",
+        "category": "axe_handle",
+        "material": "wood",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "swing",
+          "chop",
+          "overhead",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_axe_head_bone_04": {
+      "id": "modular_axe_head_bone_04",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#axe_head_bone_04",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "axe_head",
+      "weaponClass": "axe",
+      "rarity": "rare",
+      "visualRarity": "rare",
+      "frame": {
+        "x": 384,
+        "y": 384,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "axe",
+        "axe_head",
+        "rare",
+        "physical",
+        "undead_faction"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "chop": {
+          "frames": 5,
+          "duration_ms": 380,
+          "loop": false,
+          "description": "Overhead chop (axe)"
+        },
+        "overhead": {
+          "frames": 5,
+          "duration_ms": 420,
+          "loop": false,
+          "description": "Overhead smash"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "axe_head_bone_04",
+        "category": "axe_head",
+        "material": "bone",
+        "compatibleWith": {
+          "handle": "axe_handle_*"
+        },
+        "animationGroups": [
+          "idle",
+          "swing",
+          "chop",
+          "overhead",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_axe_head_fire_05": {
+      "id": "modular_axe_head_fire_05",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#axe_head_fire_05",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "axe_head",
+      "weaponClass": "axe",
+      "rarity": "epic",
+      "visualRarity": "epic",
+      "frame": {
+        "x": 512,
+        "y": 384,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "axe",
+        "axe_head",
+        "epic",
+        "fire",
+        "volcanic_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "chop": {
+          "frames": 5,
+          "duration_ms": 380,
+          "loop": false,
+          "description": "Overhead chop (axe)"
+        },
+        "overhead": {
+          "frames": 5,
+          "duration_ms": 420,
+          "loop": false,
+          "description": "Overhead smash"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "axe_head_fire_05",
+        "category": "axe_head",
+        "material": "fire",
+        "compatibleWith": {
+          "handle": "axe_handle_*"
+        },
+        "animationGroups": [
+          "idle",
+          "swing",
+          "chop",
+          "overhead",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_axe_head_gold_03": {
+      "id": "modular_axe_head_gold_03",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#axe_head_gold_03",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "axe_head",
+      "weaponClass": "axe",
+      "rarity": "legendary",
+      "visualRarity": "legendary",
+      "frame": {
+        "x": 256,
+        "y": 384,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "axe",
+        "axe_head",
+        "legendary",
+        "physical",
+        "royal_faction"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "chop": {
+          "frames": 5,
+          "duration_ms": 380,
+          "loop": false,
+          "description": "Overhead chop (axe)"
+        },
+        "overhead": {
+          "frames": 5,
+          "duration_ms": 420,
+          "loop": false,
+          "description": "Overhead smash"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "axe_head_gold_03",
+        "category": "axe_head",
+        "material": "gold",
+        "compatibleWith": {
+          "handle": "axe_handle_*"
+        },
+        "animationGroups": [
+          "idle",
+          "swing",
+          "chop",
+          "overhead",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_axe_head_iron_01": {
+      "id": "modular_axe_head_iron_01",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#axe_head_iron_01",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "axe_head",
+      "weaponClass": "axe",
+      "rarity": "common",
+      "visualRarity": "common",
+      "frame": {
+        "x": 0,
+        "y": 384,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "axe",
+        "axe_head",
+        "common",
+        "physical",
+        "any_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "chop": {
+          "frames": 5,
+          "duration_ms": 380,
+          "loop": false,
+          "description": "Overhead chop (axe)"
+        },
+        "overhead": {
+          "frames": 5,
+          "duration_ms": 420,
+          "loop": false,
+          "description": "Overhead smash"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "axe_head_iron_01",
+        "category": "axe_head",
+        "material": "iron",
+        "compatibleWith": {
+          "handle": "axe_handle_*"
+        },
+        "animationGroups": [
+          "idle",
+          "swing",
+          "chop",
+          "overhead",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_axe_head_void_02": {
+      "id": "modular_axe_head_void_02",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#axe_head_void_02",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "axe_head",
+      "weaponClass": "axe",
+      "rarity": "epic",
+      "visualRarity": "epic",
+      "frame": {
+        "x": 128,
+        "y": 384,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "axe",
+        "axe_head",
+        "epic",
+        "magical",
+        "void_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "chop": {
+          "frames": 5,
+          "duration_ms": 380,
+          "loop": false,
+          "description": "Overhead chop (axe)"
+        },
+        "overhead": {
+          "frames": 5,
+          "duration_ms": 420,
+          "loop": false,
+          "description": "Overhead smash"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "axe_head_void_02",
+        "category": "axe_head",
+        "material": "void",
+        "compatibleWith": {
+          "handle": "axe_handle_*"
+        },
+        "animationGroups": [
+          "idle",
+          "swing",
+          "chop",
+          "overhead",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_bow_limb_crystal_02": {
+      "id": "modular_bow_limb_crystal_02",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#bow_limb_crystal_02",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "bow_limb",
+      "weaponClass": "bow",
+      "rarity": "rare",
+      "visualRarity": "rare",
+      "frame": {
+        "x": 768,
+        "y": 768,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "bow",
+        "bow_limb",
+        "rare",
+        "ice",
+        "tundra_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "draw": {
+          "frames": 4,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Draw bowstring"
+        },
+        "aim": {
+          "frames": 2,
+          "duration_ms": 800,
+          "loop": false,
+          "description": "Aim held pose"
+        },
+        "release": {
+          "frames": 4,
+          "duration_ms": 200,
+          "loop": false,
+          "description": "Arrow release"
+        },
+        "charge_shot": {
+          "frames": 8,
+          "duration_ms": 1200,
+          "loop": false,
+          "description": "Charged power shot"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "bow_limb_crystal_02",
+        "category": "bow_limb",
+        "material": "crystal",
+        "compatibleWith": {
+          "string": "bow_string_*"
+        },
+        "animationGroups": [
+          "idle",
+          "draw",
+          "aim",
+          "release",
+          "charge_shot"
+        ]
+      }
+    },
+    "modular_bow_limb_void_03": {
+      "id": "modular_bow_limb_void_03",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#bow_limb_void_03",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "bow_limb",
+      "weaponClass": "bow",
+      "rarity": "epic",
+      "visualRarity": "epic",
+      "frame": {
+        "x": 896,
+        "y": 768,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "bow",
+        "bow_limb",
+        "epic",
+        "magical",
+        "void_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "draw": {
+          "frames": 4,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Draw bowstring"
+        },
+        "aim": {
+          "frames": 2,
+          "duration_ms": 800,
+          "loop": false,
+          "description": "Aim held pose"
+        },
+        "release": {
+          "frames": 4,
+          "duration_ms": 200,
+          "loop": false,
+          "description": "Arrow release"
+        },
+        "charge_shot": {
+          "frames": 8,
+          "duration_ms": 1200,
+          "loop": false,
+          "description": "Charged power shot"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "bow_limb_void_03",
+        "category": "bow_limb",
+        "material": "void",
+        "compatibleWith": {
+          "string": "bow_string_*"
+        },
+        "animationGroups": [
+          "idle",
+          "draw",
+          "aim",
+          "release",
+          "charge_shot"
+        ]
+      }
+    },
+    "modular_bow_limb_wood_01": {
+      "id": "modular_bow_limb_wood_01",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#bow_limb_wood_01",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "bow_limb",
+      "weaponClass": "bow",
+      "rarity": "common",
+      "visualRarity": "common",
+      "frame": {
+        "x": 640,
+        "y": 768,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "bow",
+        "bow_limb",
+        "common",
+        "physical",
+        "forest_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "draw": {
+          "frames": 4,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Draw bowstring"
+        },
+        "aim": {
+          "frames": 2,
+          "duration_ms": 800,
+          "loop": false,
+          "description": "Aim held pose"
+        },
+        "release": {
+          "frames": 4,
+          "duration_ms": 200,
+          "loop": false,
+          "description": "Arrow release"
+        },
+        "charge_shot": {
+          "frames": 8,
+          "duration_ms": 1200,
+          "loop": false,
+          "description": "Charged power shot"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "bow_limb_wood_01",
+        "category": "bow_limb",
+        "material": "wood",
+        "compatibleWith": {
+          "string": "bow_string_*"
+        },
+        "animationGroups": [
+          "idle",
+          "draw",
+          "aim",
+          "release",
+          "charge_shot"
+        ]
+      }
+    },
+    "modular_bow_string_arcane_02": {
+      "id": "modular_bow_string_arcane_02",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#bow_string_arcane_02",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "bow_string",
+      "weaponClass": "bow",
+      "rarity": "epic",
+      "visualRarity": "epic",
+      "frame": {
+        "x": 128,
+        "y": 896,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "bow",
+        "bow_string",
+        "epic",
+        "magical",
+        "any_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "draw": {
+          "frames": 4,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Draw bowstring"
+        },
+        "aim": {
+          "frames": 2,
+          "duration_ms": 800,
+          "loop": false,
+          "description": "Aim held pose"
+        },
+        "release": {
+          "frames": 4,
+          "duration_ms": 200,
+          "loop": false,
+          "description": "Arrow release"
+        },
+        "charge_shot": {
+          "frames": 8,
+          "duration_ms": 1200,
+          "loop": false,
+          "description": "Charged power shot"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "bow_string_arcane_02",
+        "category": "bow_string",
+        "material": "crystal",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "draw",
+          "aim",
+          "release",
+          "charge_shot"
+        ]
+      }
+    },
+    "modular_bow_string_sinew_01": {
+      "id": "modular_bow_string_sinew_01",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#bow_string_sinew_01",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "bow_string",
+      "weaponClass": "bow",
+      "rarity": "common",
+      "visualRarity": "common",
+      "frame": {
+        "x": 0,
+        "y": 896,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "bow",
+        "bow_string",
+        "common",
+        "physical",
+        "any_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "draw": {
+          "frames": 4,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Draw bowstring"
+        },
+        "aim": {
+          "frames": 2,
+          "duration_ms": 800,
+          "loop": false,
+          "description": "Aim held pose"
+        },
+        "release": {
+          "frames": 4,
+          "duration_ms": 200,
+          "loop": false,
+          "description": "Arrow release"
+        },
+        "charge_shot": {
+          "frames": 8,
+          "duration_ms": 1200,
+          "loop": false,
+          "description": "Charged power shot"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "bow_string_sinew_01",
+        "category": "bow_string",
+        "material": "bone",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "draw",
+          "aim",
+          "release",
+          "charge_shot"
+        ]
+      }
+    },
+    "modular_dagger_blade_gold_03": {
+      "id": "modular_dagger_blade_gold_03",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#dagger_blade_gold_03",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "dagger_blade",
+      "weaponClass": "dagger",
+      "rarity": "legendary",
+      "visualRarity": "legendary",
+      "frame": {
+        "x": 512,
+        "y": 768,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "dagger",
+        "dagger_blade",
+        "legendary",
+        "physical",
+        "royal_faction"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "stab": {
+          "frames": 4,
+          "duration_ms": 240,
+          "loop": false,
+          "description": "Quick stab (dagger)"
+        },
+        "backstab": {
+          "frames": 5,
+          "duration_ms": 320,
+          "loop": false,
+          "description": "Backstab strike (rogue)"
+        },
+        "combo": {
+          "frames": 8,
+          "duration_ms": 560,
+          "loop": false,
+          "description": "Multi-hit combo chain"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "dagger_blade_gold_03",
+        "category": "dagger_blade",
+        "material": "gold",
+        "compatibleWith": {
+          "guard": "sword_guard_*",
+          "handle": "sword_handle_*"
+        },
+        "animationGroups": [
+          "idle",
+          "slash",
+          "stab",
+          "backstab",
+          "combo",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_dagger_blade_iron_01": {
+      "id": "modular_dagger_blade_iron_01",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#dagger_blade_iron_01",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "dagger_blade",
+      "weaponClass": "dagger",
+      "rarity": "common",
+      "visualRarity": "common",
+      "frame": {
+        "x": 256,
+        "y": 768,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "dagger",
+        "dagger_blade",
+        "common",
+        "physical",
+        "any_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "stab": {
+          "frames": 4,
+          "duration_ms": 240,
+          "loop": false,
+          "description": "Quick stab (dagger)"
+        },
+        "backstab": {
+          "frames": 5,
+          "duration_ms": 320,
+          "loop": false,
+          "description": "Backstab strike (rogue)"
+        },
+        "combo": {
+          "frames": 8,
+          "duration_ms": 560,
+          "loop": false,
+          "description": "Multi-hit combo chain"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "dagger_blade_iron_01",
+        "category": "dagger_blade",
+        "material": "iron",
+        "compatibleWith": {
+          "guard": "sword_guard_*",
+          "handle": "sword_handle_*"
+        },
+        "animationGroups": [
+          "idle",
+          "slash",
+          "stab",
+          "backstab",
+          "combo",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_dagger_blade_shadow_02": {
+      "id": "modular_dagger_blade_shadow_02",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#dagger_blade_shadow_02",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "dagger_blade",
+      "weaponClass": "dagger",
+      "rarity": "rare",
+      "visualRarity": "rare",
+      "frame": {
+        "x": 384,
+        "y": 768,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "dagger",
+        "dagger_blade",
+        "rare",
+        "physical",
+        "rogue_faction"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "stab": {
+          "frames": 4,
+          "duration_ms": 240,
+          "loop": false,
+          "description": "Quick stab (dagger)"
+        },
+        "backstab": {
+          "frames": 5,
+          "duration_ms": 320,
+          "loop": false,
+          "description": "Backstab strike (rogue)"
+        },
+        "combo": {
+          "frames": 8,
+          "duration_ms": 560,
+          "loop": false,
+          "description": "Multi-hit combo chain"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "dagger_blade_shadow_02",
+        "category": "dagger_blade",
+        "material": "shadow",
+        "compatibleWith": {
+          "guard": "sword_guard_*",
+          "handle": "sword_handle_*"
+        },
+        "animationGroups": [
+          "idle",
+          "slash",
+          "stab",
+          "backstab",
+          "combo",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_hammer_head_iron_01": {
+      "id": "modular_hammer_head_iron_01",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#hammer_head_iron_01",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "hammer_head",
+      "weaponClass": "hammer",
+      "rarity": "common",
+      "visualRarity": "common",
+      "frame": {
+        "x": 0,
+        "y": 512,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "hammer",
+        "hammer_head",
+        "common",
+        "physical",
+        "any_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "smash": {
+          "frames": 5,
+          "duration_ms": 440,
+          "loop": false,
+          "description": "Ground smash (hammer/mace)"
+        },
+        "overhead": {
+          "frames": 5,
+          "duration_ms": 420,
+          "loop": false,
+          "description": "Overhead smash"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "hammer_head_iron_01",
+        "category": "hammer_head",
+        "material": "iron",
+        "compatibleWith": {
+          "handle": "axe_handle_*"
+        },
+        "animationGroups": [
+          "idle",
+          "swing",
+          "smash",
+          "overhead",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_hammer_head_royal_02": {
+      "id": "modular_hammer_head_royal_02",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#hammer_head_royal_02",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "hammer_head",
+      "weaponClass": "hammer",
+      "rarity": "legendary",
+      "visualRarity": "legendary",
+      "frame": {
+        "x": 128,
+        "y": 512,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "hammer",
+        "hammer_head",
+        "legendary",
+        "physical",
+        "royal_faction"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "smash": {
+          "frames": 5,
+          "duration_ms": 440,
+          "loop": false,
+          "description": "Ground smash (hammer/mace)"
+        },
+        "overhead": {
+          "frames": 5,
+          "duration_ms": 420,
+          "loop": false,
+          "description": "Overhead smash"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "hammer_head_royal_02",
+        "category": "hammer_head",
+        "material": "gold",
+        "compatibleWith": {
+          "handle": "axe_handle_*"
+        },
+        "animationGroups": [
+          "idle",
+          "swing",
+          "smash",
+          "overhead",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_hammer_head_void_03": {
+      "id": "modular_hammer_head_void_03",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#hammer_head_void_03",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "hammer_head",
+      "weaponClass": "hammer",
+      "rarity": "epic",
+      "visualRarity": "epic",
+      "frame": {
+        "x": 256,
+        "y": 512,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "hammer",
+        "hammer_head",
+        "epic",
+        "magical",
+        "void_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "smash": {
+          "frames": 5,
+          "duration_ms": 440,
+          "loop": false,
+          "description": "Ground smash (hammer/mace)"
+        },
+        "overhead": {
+          "frames": 5,
+          "duration_ms": 420,
+          "loop": false,
+          "description": "Overhead smash"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "hammer_head_void_03",
+        "category": "hammer_head",
+        "material": "void",
+        "compatibleWith": {
+          "handle": "axe_handle_*"
+        },
+        "animationGroups": [
+          "idle",
+          "swing",
+          "smash",
+          "overhead",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_knuckle_gold_03": {
+      "id": "modular_knuckle_gold_03",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#knuckle_gold_03",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "knuckle",
+      "weaponClass": "knuckle",
+      "rarity": "legendary",
+      "visualRarity": "legendary",
+      "frame": {
+        "x": 512,
+        "y": 896,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "knuckle",
+        "legendary",
+        "physical",
+        "royal_faction"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "jab": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Quick jab (knuckle)"
+        },
+        "hook": {
+          "frames": 4,
+          "duration_ms": 260,
+          "loop": false,
+          "description": "Hook punch (knuckle)"
+        },
+        "uppercut": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Uppercut (knuckle)"
+        },
+        "combo": {
+          "frames": 8,
+          "duration_ms": 560,
+          "loop": false,
+          "description": "Multi-hit combo chain"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "knuckle_gold_03",
+        "category": "knuckle",
+        "material": "gold",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "jab",
+          "hook",
+          "uppercut",
+          "combo",
+          "critical_hit"
+        ]
+      }
+    },
+    "modular_knuckle_iron_01": {
+      "id": "modular_knuckle_iron_01",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#knuckle_iron_01",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "knuckle",
+      "weaponClass": "knuckle",
+      "rarity": "common",
+      "visualRarity": "common",
+      "frame": {
+        "x": 256,
+        "y": 896,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "knuckle",
+        "common",
+        "physical",
+        "any_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "jab": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Quick jab (knuckle)"
+        },
+        "hook": {
+          "frames": 4,
+          "duration_ms": 260,
+          "loop": false,
+          "description": "Hook punch (knuckle)"
+        },
+        "uppercut": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Uppercut (knuckle)"
+        },
+        "combo": {
+          "frames": 8,
+          "duration_ms": 560,
+          "loop": false,
+          "description": "Multi-hit combo chain"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "knuckle_iron_01",
+        "category": "knuckle",
+        "material": "iron",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "jab",
+          "hook",
+          "uppercut",
+          "combo",
+          "critical_hit"
+        ]
+      }
+    },
+    "modular_knuckle_void_02": {
+      "id": "modular_knuckle_void_02",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#knuckle_void_02",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "knuckle",
+      "weaponClass": "knuckle",
+      "rarity": "epic",
+      "visualRarity": "epic",
+      "frame": {
+        "x": 384,
+        "y": 896,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "knuckle",
+        "epic",
+        "magical",
+        "void_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "jab": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Quick jab (knuckle)"
+        },
+        "hook": {
+          "frames": 4,
+          "duration_ms": 260,
+          "loop": false,
+          "description": "Hook punch (knuckle)"
+        },
+        "uppercut": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Uppercut (knuckle)"
+        },
+        "combo": {
+          "frames": 8,
+          "duration_ms": 560,
+          "loop": false,
+          "description": "Multi-hit combo chain"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "knuckle_void_02",
+        "category": "knuckle",
+        "material": "void",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "jab",
+          "hook",
+          "uppercut",
+          "combo",
+          "critical_hit"
+        ]
+      }
+    },
+    "modular_mace_head_fire_02": {
+      "id": "modular_mace_head_fire_02",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#mace_head_fire_02",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "mace_head",
+      "weaponClass": "mace",
+      "rarity": "epic",
+      "visualRarity": "epic",
+      "frame": {
+        "x": 768,
+        "y": 896,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "mace",
+        "mace_head",
+        "epic",
+        "fire",
+        "volcanic_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "smash": {
+          "frames": 5,
+          "duration_ms": 440,
+          "loop": false,
+          "description": "Ground smash (hammer/mace)"
+        },
+        "overhead": {
+          "frames": 5,
+          "duration_ms": 420,
+          "loop": false,
+          "description": "Overhead smash"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "mace_head_fire_02",
+        "category": "mace_head",
+        "material": "fire",
+        "compatibleWith": {
+          "handle": "axe_handle_*"
+        },
+        "animationGroups": [
+          "idle",
+          "swing",
+          "smash",
+          "overhead",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_mace_head_iron_01": {
+      "id": "modular_mace_head_iron_01",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#mace_head_iron_01",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "mace_head",
+      "weaponClass": "mace",
+      "rarity": "common",
+      "visualRarity": "common",
+      "frame": {
+        "x": 640,
+        "y": 896,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "mace",
+        "mace_head",
+        "common",
+        "physical",
+        "any_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "smash": {
+          "frames": 5,
+          "duration_ms": 440,
+          "loop": false,
+          "description": "Ground smash (hammer/mace)"
+        },
+        "overhead": {
+          "frames": 5,
+          "duration_ms": 420,
+          "loop": false,
+          "description": "Overhead smash"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "mace_head_iron_01",
+        "category": "mace_head",
+        "material": "iron",
+        "compatibleWith": {
+          "handle": "axe_handle_*"
+        },
+        "animationGroups": [
+          "idle",
+          "swing",
+          "smash",
+          "overhead",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_mace_head_void_03": {
+      "id": "modular_mace_head_void_03",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#mace_head_void_03",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "mace_head",
+      "weaponClass": "mace",
+      "rarity": "legendary",
+      "visualRarity": "legendary",
+      "frame": {
+        "x": 896,
+        "y": 896,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "mace",
+        "mace_head",
+        "legendary",
+        "magical",
+        "void_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "smash": {
+          "frames": 5,
+          "duration_ms": 440,
+          "loop": false,
+          "description": "Ground smash (hammer/mace)"
+        },
+        "overhead": {
+          "frames": 5,
+          "duration_ms": 420,
+          "loop": false,
+          "description": "Overhead smash"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "mace_head_void_03",
+        "category": "mace_head",
+        "material": "void",
+        "compatibleWith": {
+          "handle": "axe_handle_*"
+        },
+        "animationGroups": [
+          "idle",
+          "swing",
+          "smash",
+          "overhead",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_magical_crystal_arcane_03": {
+      "id": "modular_magical_crystal_arcane_03",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#magical_crystal_arcane_03",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "magical_crystal",
+      "weaponClass": "shield",
+      "rarity": "epic",
+      "visualRarity": "epic",
+      "frame": {
+        "x": 128,
+        "y": 768,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "shield",
+        "magical_crystal",
+        "epic",
+        "magical",
+        "any_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "glow": {
+          "frames": 8,
+          "duration_ms": 1600,
+          "loop": true,
+          "description": "Ambient magical glow pulse"
+        },
+        "pulse": {
+          "frames": 4,
+          "duration_ms": 800,
+          "loop": true,
+          "description": "Crystal energy pulse"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "magical_crystal_arcane_03",
+        "category": "magical_crystal",
+        "material": "arcane",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "glow",
+          "pulse"
+        ]
+      }
+    },
+    "modular_magical_crystal_fire_01": {
+      "id": "modular_magical_crystal_fire_01",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#magical_crystal_fire_01",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "magical_crystal",
+      "weaponClass": "shield",
+      "rarity": "rare",
+      "visualRarity": "rare",
+      "frame": {
+        "x": 896,
+        "y": 640,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "shield",
+        "magical_crystal",
+        "rare",
+        "fire",
+        "volcanic_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "glow": {
+          "frames": 8,
+          "duration_ms": 1600,
+          "loop": true,
+          "description": "Ambient magical glow pulse"
+        },
+        "pulse": {
+          "frames": 4,
+          "duration_ms": 800,
+          "loop": true,
+          "description": "Crystal energy pulse"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "magical_crystal_fire_01",
+        "category": "magical_crystal",
+        "material": "fire",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "glow",
+          "pulse"
+        ]
+      }
+    },
+    "modular_magical_crystal_ice_02": {
+      "id": "modular_magical_crystal_ice_02",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#magical_crystal_ice_02",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "magical_crystal",
+      "weaponClass": "shield",
+      "rarity": "rare",
+      "visualRarity": "rare",
+      "frame": {
+        "x": 0,
+        "y": 768,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "shield",
+        "magical_crystal",
+        "rare",
+        "ice",
+        "tundra_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "glow": {
+          "frames": 8,
+          "duration_ms": 1600,
+          "loop": true,
+          "description": "Ambient magical glow pulse"
+        },
+        "pulse": {
+          "frames": 4,
+          "duration_ms": 800,
+          "loop": true,
+          "description": "Crystal energy pulse"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "magical_crystal_ice_02",
+        "category": "magical_crystal",
+        "material": "ice",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "glow",
+          "pulse"
+        ]
+      }
+    },
+    "modular_shield_kite_royal_02": {
+      "id": "modular_shield_kite_royal_02",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#shield_kite_royal_02",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "shield",
+      "weaponClass": "shield",
+      "rarity": "legendary",
+      "visualRarity": "legendary",
+      "frame": {
+        "x": 640,
+        "y": 640,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "shield",
+        "legendary",
+        "physical",
+        "royal_faction"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "block": {
+          "frames": 2,
+          "duration_ms": 150,
+          "loop": false,
+          "description": "Shield block"
+        },
+        "bash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Shield bash"
+        },
+        "raise": {
+          "frames": 2,
+          "duration_ms": 200,
+          "loop": false,
+          "description": "Raise shield"
+        },
+        "lower": {
+          "frames": 2,
+          "duration_ms": 200,
+          "loop": false,
+          "description": "Lower shield"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "shield_kite_royal_02",
+        "category": "shield",
+        "material": "royal",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "block",
+          "bash",
+          "raise",
+          "lower"
+        ]
+      }
+    },
+    "modular_shield_round_iron_01": {
+      "id": "modular_shield_round_iron_01",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#shield_round_iron_01",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "shield",
+      "weaponClass": "shield",
+      "rarity": "common",
+      "visualRarity": "common",
+      "frame": {
+        "x": 512,
+        "y": 640,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "shield",
+        "common",
+        "physical",
+        "any_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "block": {
+          "frames": 2,
+          "duration_ms": 150,
+          "loop": false,
+          "description": "Shield block"
+        },
+        "bash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Shield bash"
+        },
+        "raise": {
+          "frames": 2,
+          "duration_ms": 200,
+          "loop": false,
+          "description": "Raise shield"
+        },
+        "lower": {
+          "frames": 2,
+          "duration_ms": 200,
+          "loop": false,
+          "description": "Lower shield"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "shield_round_iron_01",
+        "category": "shield",
+        "material": "iron",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "block",
+          "bash",
+          "raise",
+          "lower"
+        ]
+      }
+    },
+    "modular_shield_tower_void_03": {
+      "id": "modular_shield_tower_void_03",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#shield_tower_void_03",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "shield",
+      "weaponClass": "shield",
+      "rarity": "epic",
+      "visualRarity": "epic",
+      "frame": {
+        "x": 768,
+        "y": 640,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "shield",
+        "epic",
+        "magical",
+        "void_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "block": {
+          "frames": 2,
+          "duration_ms": 150,
+          "loop": false,
+          "description": "Shield block"
+        },
+        "bash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Shield bash"
+        },
+        "raise": {
+          "frames": 2,
+          "duration_ms": 200,
+          "loop": false,
+          "description": "Raise shield"
+        },
+        "lower": {
+          "frames": 2,
+          "duration_ms": 200,
+          "loop": false,
+          "description": "Lower shield"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "shield_tower_void_03",
+        "category": "shield",
+        "material": "void",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "block",
+          "bash",
+          "raise",
+          "lower"
+        ]
+      }
+    },
+    "modular_spear_shaft_bone_03": {
+      "id": "modular_spear_shaft_bone_03",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#spear_shaft_bone_03",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "spear_shaft",
+      "weaponClass": "spear",
+      "rarity": "uncommon",
+      "visualRarity": "uncommon",
+      "frame": {
+        "x": 0,
+        "y": 640,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "spear",
+        "spear_shaft",
+        "uncommon",
+        "physical",
+        "undead_faction"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "sweep": {
+          "frames": 6,
+          "duration_ms": 480,
+          "loop": false,
+          "description": "Wide sweeping arc (spear)"
+        },
+        "brace": {
+          "frames": 3,
+          "duration_ms": 200,
+          "loop": false,
+          "description": "Set-spear brace"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "spear_shaft_bone_03",
+        "category": "spear_shaft",
+        "material": "bone",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "thrust",
+          "sweep",
+          "brace",
+          "impact",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_spear_shaft_rune_02": {
+      "id": "modular_spear_shaft_rune_02",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#spear_shaft_rune_02",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "spear_shaft",
+      "weaponClass": "spear",
+      "rarity": "rare",
+      "visualRarity": "rare",
+      "frame": {
+        "x": 896,
+        "y": 512,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "spear",
+        "spear_shaft",
+        "rare",
+        "magical",
+        "ruins_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "sweep": {
+          "frames": 6,
+          "duration_ms": 480,
+          "loop": false,
+          "description": "Wide sweeping arc (spear)"
+        },
+        "brace": {
+          "frames": 3,
+          "duration_ms": 200,
+          "loop": false,
+          "description": "Set-spear brace"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "spear_shaft_rune_02",
+        "category": "spear_shaft",
+        "material": "wood",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "thrust",
+          "sweep",
+          "brace",
+          "impact",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_spear_shaft_wood_01": {
+      "id": "modular_spear_shaft_wood_01",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#spear_shaft_wood_01",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "spear_shaft",
+      "weaponClass": "spear",
+      "rarity": "common",
+      "visualRarity": "common",
+      "frame": {
+        "x": 768,
+        "y": 512,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "spear",
+        "spear_shaft",
+        "common",
+        "physical",
+        "any_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "sweep": {
+          "frames": 6,
+          "duration_ms": 480,
+          "loop": false,
+          "description": "Wide sweeping arc (spear)"
+        },
+        "brace": {
+          "frames": 3,
+          "duration_ms": 200,
+          "loop": false,
+          "description": "Set-spear brace"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "spear_shaft_wood_01",
+        "category": "spear_shaft",
+        "material": "wood",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "thrust",
+          "sweep",
+          "brace",
+          "impact",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_spear_tip_crystal_03": {
+      "id": "modular_spear_tip_crystal_03",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#spear_tip_crystal_03",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "spear_tip",
+      "weaponClass": "spear",
+      "rarity": "rare",
+      "visualRarity": "rare",
+      "frame": {
+        "x": 640,
+        "y": 512,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "spear",
+        "spear_tip",
+        "rare",
+        "magical",
+        "any_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "sweep": {
+          "frames": 6,
+          "duration_ms": 480,
+          "loop": false,
+          "description": "Wide sweeping arc (spear)"
+        },
+        "brace": {
+          "frames": 3,
+          "duration_ms": 200,
+          "loop": false,
+          "description": "Set-spear brace"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "spear_tip_crystal_03",
+        "category": "spear_tip",
+        "material": "crystal",
+        "compatibleWith": {
+          "shaft": "spear_shaft_*"
+        },
+        "animationGroups": [
+          "idle",
+          "thrust",
+          "sweep",
+          "brace",
+          "impact",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_spear_tip_steel_01": {
+      "id": "modular_spear_tip_steel_01",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#spear_tip_steel_01",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "spear_tip",
+      "weaponClass": "spear",
+      "rarity": "common",
+      "visualRarity": "common",
+      "frame": {
+        "x": 384,
+        "y": 512,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "spear",
+        "spear_tip",
+        "common",
+        "physical",
+        "any_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "sweep": {
+          "frames": 6,
+          "duration_ms": 480,
+          "loop": false,
+          "description": "Wide sweeping arc (spear)"
+        },
+        "brace": {
+          "frames": 3,
+          "duration_ms": 200,
+          "loop": false,
+          "description": "Set-spear brace"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "spear_tip_steel_01",
+        "category": "spear_tip",
+        "material": "steel",
+        "compatibleWith": {
+          "shaft": "spear_shaft_*"
+        },
+        "animationGroups": [
+          "idle",
+          "thrust",
+          "sweep",
+          "brace",
+          "impact",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_spear_tip_void_02": {
+      "id": "modular_spear_tip_void_02",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#spear_tip_void_02",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "spear_tip",
+      "weaponClass": "spear",
+      "rarity": "epic",
+      "visualRarity": "epic",
+      "frame": {
+        "x": 512,
+        "y": 512,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "spear",
+        "spear_tip",
+        "epic",
+        "magical",
+        "void_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "sweep": {
+          "frames": 6,
+          "duration_ms": 480,
+          "loop": false,
+          "description": "Wide sweeping arc (spear)"
+        },
+        "brace": {
+          "frames": 3,
+          "duration_ms": 200,
+          "loop": false,
+          "description": "Set-spear brace"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "spear_tip_void_02",
+        "category": "spear_tip",
+        "material": "void",
+        "compatibleWith": {
+          "shaft": "spear_shaft_*"
+        },
+        "animationGroups": [
+          "idle",
+          "thrust",
+          "sweep",
+          "brace",
+          "impact",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_staff_head_arcane_01": {
+      "id": "modular_staff_head_arcane_01",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#staff_head_arcane_01",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "staff_head",
+      "weaponClass": "staff",
+      "rarity": "rare",
+      "visualRarity": "rare",
+      "frame": {
+        "x": 128,
+        "y": 640,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "staff",
+        "staff_head",
+        "rare",
+        "magical",
+        "arcane"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "cast": {
+          "frames": 6,
+          "duration_ms": 500,
+          "loop": false,
+          "description": "Spell cast (staff)"
+        },
+        "channel": {
+          "frames": 8,
+          "duration_ms": 2000,
+          "loop": true,
+          "description": "Channeled spell hold"
+        },
+        "slam": {
+          "frames": 5,
+          "duration_ms": 380,
+          "loop": false,
+          "description": "Staff ground slam"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "staff_head_arcane_01",
+        "category": "staff_head",
+        "material": "crystal",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "cast",
+          "channel",
+          "slam",
+          "impact"
+        ]
+      }
+    },
+    "modular_staff_head_fire_02": {
+      "id": "modular_staff_head_fire_02",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#staff_head_fire_02",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "staff_head",
+      "weaponClass": "staff",
+      "rarity": "epic",
+      "visualRarity": "epic",
+      "frame": {
+        "x": 256,
+        "y": 640,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "staff",
+        "staff_head",
+        "epic",
+        "fire",
+        "volcanic_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "cast": {
+          "frames": 6,
+          "duration_ms": 500,
+          "loop": false,
+          "description": "Spell cast (staff)"
+        },
+        "channel": {
+          "frames": 8,
+          "duration_ms": 2000,
+          "loop": true,
+          "description": "Channeled spell hold"
+        },
+        "slam": {
+          "frames": 5,
+          "duration_ms": 380,
+          "loop": false,
+          "description": "Staff ground slam"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "staff_head_fire_02",
+        "category": "staff_head",
+        "material": "fire",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "cast",
+          "channel",
+          "slam",
+          "impact"
+        ]
+      }
+    },
+    "modular_staff_head_void_03": {
+      "id": "modular_staff_head_void_03",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#staff_head_void_03",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "staff_head",
+      "weaponClass": "staff",
+      "rarity": "legendary",
+      "visualRarity": "legendary",
+      "frame": {
+        "x": 384,
+        "y": 640,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "staff",
+        "staff_head",
+        "legendary",
+        "magical",
+        "void_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "cast": {
+          "frames": 6,
+          "duration_ms": 500,
+          "loop": false,
+          "description": "Spell cast (staff)"
+        },
+        "channel": {
+          "frames": 8,
+          "duration_ms": 2000,
+          "loop": true,
+          "description": "Channeled spell hold"
+        },
+        "slam": {
+          "frames": 5,
+          "duration_ms": 380,
+          "loop": false,
+          "description": "Staff ground slam"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "staff_head_void_03",
+        "category": "staff_head",
+        "material": "void",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "cast",
+          "channel",
+          "slam",
+          "impact"
+        ]
+      }
+    },
+    "modular_sword_blade_ancient_08": {
+      "id": "modular_sword_blade_ancient_08",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#sword_blade_ancient_08",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "sword_blade",
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "visualRarity": "uncommon",
+      "frame": {
+        "x": 896,
+        "y": 0,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "sword",
+        "sword_blade",
+        "uncommon",
+        "physical",
+        "ruins_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "parry": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Deflect incoming attack"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "sword_blade_ancient_08",
+        "category": "sword_blade",
+        "material": "gold",
+        "compatibleWith": {
+          "guard": "sword_guard_*",
+          "handle": "sword_handle_*",
+          "pommel": "sword_pommel_*"
+        },
+        "animationGroups": [
+          "idle",
+          "swing",
+          "slash",
+          "thrust",
+          "parry",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_sword_blade_cursed_05": {
+      "id": "modular_sword_blade_cursed_05",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#sword_blade_cursed_05",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "sword_blade",
+      "weaponClass": "sword",
+      "rarity": "epic",
+      "visualRarity": "epic",
+      "frame": {
+        "x": 512,
+        "y": 0,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "sword",
+        "sword_blade",
+        "epic",
+        "fire",
+        "cursed_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "parry": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Deflect incoming attack"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "sword_blade_cursed_05",
+        "category": "sword_blade",
+        "material": "cursed",
+        "compatibleWith": {
+          "guard": "sword_guard_*",
+          "handle": "sword_handle_*",
+          "pommel": "sword_pommel_*"
+        },
+        "animationGroups": [
+          "idle",
+          "swing",
+          "slash",
+          "thrust",
+          "parry",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_sword_blade_forest_06": {
+      "id": "modular_sword_blade_forest_06",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#sword_blade_forest_06",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "sword_blade",
+      "weaponClass": "sword",
+      "rarity": "rare",
+      "visualRarity": "rare",
+      "frame": {
+        "x": 640,
+        "y": 0,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "sword",
+        "sword_blade",
+        "rare",
+        "nature",
+        "forest_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "parry": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Deflect incoming attack"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "sword_blade_forest_06",
+        "category": "sword_blade",
+        "material": "nature",
+        "compatibleWith": {
+          "guard": "sword_guard_*",
+          "handle": "sword_handle_*",
+          "pommel": "sword_pommel_*"
+        },
+        "animationGroups": [
+          "idle",
+          "swing",
+          "slash",
+          "thrust",
+          "parry",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_sword_blade_frost_07": {
+      "id": "modular_sword_blade_frost_07",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#sword_blade_frost_07",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "sword_blade",
+      "weaponClass": "sword",
+      "rarity": "rare",
+      "visualRarity": "rare",
+      "frame": {
+        "x": 768,
+        "y": 0,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "sword",
+        "sword_blade",
+        "rare",
+        "ice",
+        "tundra_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "parry": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Deflect incoming attack"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "sword_blade_frost_07",
+        "category": "sword_blade",
+        "material": "ice",
+        "compatibleWith": {
+          "guard": "sword_guard_*",
+          "handle": "sword_handle_*",
+          "pommel": "sword_pommel_*"
+        },
+        "animationGroups": [
+          "idle",
+          "swing",
+          "slash",
+          "thrust",
+          "parry",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_sword_blade_iron_01": {
+      "id": "modular_sword_blade_iron_01",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#sword_blade_iron_01",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "sword_blade",
+      "weaponClass": "sword",
+      "rarity": "common",
+      "visualRarity": "common",
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "sword",
+        "sword_blade",
+        "common",
+        "physical",
+        "any_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "parry": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Deflect incoming attack"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "sword_blade_iron_01",
+        "category": "sword_blade",
+        "material": "iron",
+        "compatibleWith": {
+          "guard": "sword_guard_*",
+          "handle": "sword_handle_*",
+          "pommel": "sword_pommel_*"
+        },
+        "animationGroups": [
+          "idle",
+          "swing",
+          "slash",
+          "thrust",
+          "parry",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_sword_blade_royal_04": {
+      "id": "modular_sword_blade_royal_04",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#sword_blade_royal_04",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "sword_blade",
+      "weaponClass": "sword",
+      "rarity": "legendary",
+      "visualRarity": "legendary",
+      "frame": {
+        "x": 384,
+        "y": 0,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "sword",
+        "sword_blade",
+        "legendary",
+        "physical",
+        "royal_faction"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "parry": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Deflect incoming attack"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "sword_blade_royal_04",
+        "category": "sword_blade",
+        "material": "royal",
+        "compatibleWith": {
+          "guard": "sword_guard_*",
+          "handle": "sword_handle_*",
+          "pommel": "sword_pommel_*"
+        },
+        "animationGroups": [
+          "idle",
+          "swing",
+          "slash",
+          "thrust",
+          "parry",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_sword_blade_steel_02": {
+      "id": "modular_sword_blade_steel_02",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#sword_blade_steel_02",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "sword_blade",
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "visualRarity": "uncommon",
+      "frame": {
+        "x": 128,
+        "y": 0,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "sword",
+        "sword_blade",
+        "uncommon",
+        "physical",
+        "any_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "parry": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Deflect incoming attack"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "sword_blade_steel_02",
+        "category": "sword_blade",
+        "material": "steel",
+        "compatibleWith": {
+          "guard": "sword_guard_*",
+          "handle": "sword_handle_*",
+          "pommel": "sword_pommel_*"
+        },
+        "animationGroups": [
+          "idle",
+          "swing",
+          "slash",
+          "thrust",
+          "parry",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_sword_blade_void_03": {
+      "id": "modular_sword_blade_void_03",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#sword_blade_void_03",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "sword_blade",
+      "weaponClass": "sword",
+      "rarity": "epic",
+      "visualRarity": "epic",
+      "frame": {
+        "x": 256,
+        "y": 0,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "sword",
+        "sword_blade",
+        "epic",
+        "magical",
+        "void_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "parry": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Deflect incoming attack"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "sword_blade_void_03",
+        "category": "sword_blade",
+        "material": "void",
+        "compatibleWith": {
+          "guard": "sword_guard_*",
+          "handle": "sword_handle_*",
+          "pommel": "sword_pommel_*"
+        },
+        "animationGroups": [
+          "idle",
+          "swing",
+          "slash",
+          "thrust",
+          "parry",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_sword_guard_bone_04": {
+      "id": "modular_sword_guard_bone_04",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#sword_guard_bone_04",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "sword_guard",
+      "weaponClass": "sword",
+      "rarity": "rare",
+      "visualRarity": "rare",
+      "frame": {
+        "x": 384,
+        "y": 128,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "sword",
+        "sword_guard",
+        "rare",
+        "physical",
+        "undead_faction"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "parry": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Deflect incoming attack"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "sword_guard_bone_04",
+        "category": "sword_guard",
+        "material": "bone",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "swing",
+          "slash",
+          "thrust",
+          "parry",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_sword_guard_fire_06": {
+      "id": "modular_sword_guard_fire_06",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#sword_guard_fire_06",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "sword_guard",
+      "weaponClass": "sword",
+      "rarity": "rare",
+      "visualRarity": "rare",
+      "frame": {
+        "x": 640,
+        "y": 128,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "sword",
+        "sword_guard",
+        "rare",
+        "fire",
+        "volcanic_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "parry": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Deflect incoming attack"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "sword_guard_fire_06",
+        "category": "sword_guard",
+        "material": "fire",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "swing",
+          "slash",
+          "thrust",
+          "parry",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_sword_guard_gold_02": {
+      "id": "modular_sword_guard_gold_02",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#sword_guard_gold_02",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "sword_guard",
+      "weaponClass": "sword",
+      "rarity": "legendary",
+      "visualRarity": "legendary",
+      "frame": {
+        "x": 128,
+        "y": 128,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "sword",
+        "sword_guard",
+        "legendary",
+        "physical",
+        "royal_faction"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "parry": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Deflect incoming attack"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "sword_guard_gold_02",
+        "category": "sword_guard",
+        "material": "gold",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "swing",
+          "slash",
+          "thrust",
+          "parry",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_sword_guard_iron_01": {
+      "id": "modular_sword_guard_iron_01",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#sword_guard_iron_01",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "sword_guard",
+      "weaponClass": "sword",
+      "rarity": "common",
+      "visualRarity": "common",
+      "frame": {
+        "x": 0,
+        "y": 128,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "sword",
+        "sword_guard",
+        "common",
+        "physical"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "parry": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Deflect incoming attack"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "sword_guard_iron_01",
+        "category": "sword_guard",
+        "material": "iron",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "swing",
+          "slash",
+          "thrust",
+          "parry",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_sword_guard_royal_03": {
+      "id": "modular_sword_guard_royal_03",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#sword_guard_royal_03",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "sword_guard",
+      "weaponClass": "sword",
+      "rarity": "epic",
+      "visualRarity": "epic",
+      "frame": {
+        "x": 256,
+        "y": 128,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "sword",
+        "sword_guard",
+        "epic",
+        "physical",
+        "royal_faction"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "parry": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Deflect incoming attack"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "sword_guard_royal_03",
+        "category": "sword_guard",
+        "material": "royal",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "swing",
+          "slash",
+          "thrust",
+          "parry",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_sword_guard_void_05": {
+      "id": "modular_sword_guard_void_05",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#sword_guard_void_05",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "sword_guard",
+      "weaponClass": "sword",
+      "rarity": "epic",
+      "visualRarity": "epic",
+      "frame": {
+        "x": 512,
+        "y": 128,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "sword",
+        "sword_guard",
+        "epic",
+        "magical",
+        "void_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "parry": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Deflect incoming attack"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "sword_guard_void_05",
+        "category": "sword_guard",
+        "material": "void",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "swing",
+          "slash",
+          "thrust",
+          "parry",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_sword_handle_bone_02": {
+      "id": "modular_sword_handle_bone_02",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#sword_handle_bone_02",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "sword_handle",
+      "weaponClass": "sword",
+      "rarity": "uncommon",
+      "visualRarity": "uncommon",
+      "frame": {
+        "x": 896,
+        "y": 128,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "sword",
+        "sword_handle",
+        "uncommon",
+        "physical",
+        "undead_faction"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "parry": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Deflect incoming attack"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "sword_handle_bone_02",
+        "category": "sword_handle",
+        "material": "bone",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "swing",
+          "slash",
+          "thrust",
+          "parry",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_sword_handle_crystal_03": {
+      "id": "modular_sword_handle_crystal_03",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#sword_handle_crystal_03",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "sword_handle",
+      "weaponClass": "sword",
+      "rarity": "rare",
+      "visualRarity": "rare",
+      "frame": {
+        "x": 0,
+        "y": 256,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "sword",
+        "sword_handle",
+        "rare",
+        "magical"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "parry": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Deflect incoming attack"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "sword_handle_crystal_03",
+        "category": "sword_handle",
+        "material": "crystal",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "swing",
+          "slash",
+          "thrust",
+          "parry",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_sword_handle_leather_01": {
+      "id": "modular_sword_handle_leather_01",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#sword_handle_leather_01",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "sword_handle",
+      "weaponClass": "sword",
+      "rarity": "common",
+      "visualRarity": "common",
+      "frame": {
+        "x": 768,
+        "y": 128,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "sword",
+        "sword_handle",
+        "common",
+        "physical"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "parry": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Deflect incoming attack"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "sword_handle_leather_01",
+        "category": "sword_handle",
+        "material": "leather",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "swing",
+          "slash",
+          "thrust",
+          "parry",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_sword_handle_royal_04": {
+      "id": "modular_sword_handle_royal_04",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#sword_handle_royal_04",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "sword_handle",
+      "weaponClass": "sword",
+      "rarity": "epic",
+      "visualRarity": "epic",
+      "frame": {
+        "x": 128,
+        "y": 256,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "sword",
+        "sword_handle",
+        "epic",
+        "physical",
+        "royal_faction"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "parry": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Deflect incoming attack"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "sword_handle_royal_04",
+        "category": "sword_handle",
+        "material": "royal",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "swing",
+          "slash",
+          "thrust",
+          "parry",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_sword_handle_void_05": {
+      "id": "modular_sword_handle_void_05",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#sword_handle_void_05",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "sword_handle",
+      "weaponClass": "sword",
+      "rarity": "epic",
+      "visualRarity": "epic",
+      "frame": {
+        "x": 256,
+        "y": 256,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "sword",
+        "sword_handle",
+        "epic",
+        "magical",
+        "void_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "parry": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Deflect incoming attack"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "sword_handle_void_05",
+        "category": "sword_handle",
+        "material": "void",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "swing",
+          "slash",
+          "thrust",
+          "parry",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_sword_pommel_crystal_03": {
+      "id": "modular_sword_pommel_crystal_03",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#sword_pommel_crystal_03",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "sword_pommel",
+      "weaponClass": "sword",
+      "rarity": "rare",
+      "visualRarity": "rare",
+      "frame": {
+        "x": 640,
+        "y": 256,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "sword",
+        "sword_pommel",
+        "rare",
+        "magical"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "parry": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Deflect incoming attack"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "sword_pommel_crystal_03",
+        "category": "sword_pommel",
+        "material": "crystal",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "swing",
+          "slash",
+          "thrust",
+          "parry",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_sword_pommel_gold_02": {
+      "id": "modular_sword_pommel_gold_02",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#sword_pommel_gold_02",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "sword_pommel",
+      "weaponClass": "sword",
+      "rarity": "rare",
+      "visualRarity": "rare",
+      "frame": {
+        "x": 512,
+        "y": 256,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "sword",
+        "sword_pommel",
+        "rare",
+        "physical",
+        "royal_faction"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "parry": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Deflect incoming attack"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "sword_pommel_gold_02",
+        "category": "sword_pommel",
+        "material": "gold",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "swing",
+          "slash",
+          "thrust",
+          "parry",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_sword_pommel_iron_01": {
+      "id": "modular_sword_pommel_iron_01",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#sword_pommel_iron_01",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "sword_pommel",
+      "weaponClass": "sword",
+      "rarity": "common",
+      "visualRarity": "common",
+      "frame": {
+        "x": 384,
+        "y": 256,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "sword",
+        "sword_pommel",
+        "common",
+        "physical"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "parry": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Deflect incoming attack"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "sword_pommel_iron_01",
+        "category": "sword_pommel",
+        "material": "iron",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "swing",
+          "slash",
+          "thrust",
+          "parry",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_sword_pommel_royal_04": {
+      "id": "modular_sword_pommel_royal_04",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#sword_pommel_royal_04",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "sword_pommel",
+      "weaponClass": "sword",
+      "rarity": "legendary",
+      "visualRarity": "legendary",
+      "frame": {
+        "x": 768,
+        "y": 256,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "sword",
+        "sword_pommel",
+        "legendary",
+        "physical",
+        "royal_faction"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "parry": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Deflect incoming attack"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "sword_pommel_royal_04",
+        "category": "sword_pommel",
+        "material": "royal",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "swing",
+          "slash",
+          "thrust",
+          "parry",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    },
+    "modular_sword_pommel_void_05": {
+      "id": "modular_sword_pommel_void_05",
+      "src": "/2d-assets/weapons/modular/atlas.png",
+      "source": "modular_weapon_atlas.zip",
+      "sourcePath": "atlas.png#sword_pommel_void_05",
+      "license": "project-owned-generated-modular-weapon-atlas",
+      "kind": "weapon-part",
+      "group": "sword_pommel",
+      "weaponClass": "sword",
+      "rarity": "epic",
+      "visualRarity": "epic",
+      "frame": {
+        "x": 896,
+        "y": 256,
+        "w": 128,
+        "h": 128
+      },
+      "width": 64,
+      "height": 64,
+      "tags": [
+        "modular-weapon",
+        "weapon-part",
+        "sword",
+        "sword_pommel",
+        "epic",
+        "magical",
+        "void_biome"
+      ],
+      "animations": {
+        "idle": {
+          "frames": 4,
+          "duration_ms": 1200,
+          "loop": true,
+          "description": "Breathing/floating idle"
+        },
+        "swing": {
+          "frames": 6,
+          "duration_ms": 350,
+          "loop": false,
+          "description": "Horizontal swing arc"
+        },
+        "slash": {
+          "frames": 4,
+          "duration_ms": 280,
+          "loop": false,
+          "description": "Diagonal slash"
+        },
+        "thrust": {
+          "frames": 4,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Forward lunge thrust"
+        },
+        "parry": {
+          "frames": 3,
+          "duration_ms": 180,
+          "loop": false,
+          "description": "Deflect incoming attack"
+        },
+        "impact": {
+          "frames": 4,
+          "duration_ms": 250,
+          "loop": false,
+          "description": "Hit-connect impact flash"
+        },
+        "critical_hit": {
+          "frames": 6,
+          "duration_ms": 400,
+          "loop": false,
+          "description": "Critical strike burst"
+        },
+        "sheathe": {
+          "frames": 3,
+          "duration_ms": 300,
+          "loop": false,
+          "description": "Weapon sheathe"
+        }
+      },
+      "rules": {
+        "deterministic": true,
+        "modular": true,
+        "originalId": "sword_pommel_void_05",
+        "category": "sword_pommel",
+        "material": "void",
+        "compatibleWith": {},
+        "animationGroups": [
+          "idle",
+          "swing",
+          "slash",
+          "thrust",
+          "parry",
+          "impact",
+          "critical_hit",
+          "sheathe"
+        ]
+      }
+    }
+  },
+  "sources": [
+    {
+      "id": "modular_weapon_atlas",
+      "source": "modular_weapon_atlas.zip",
+      "parts": 64,
+      "deterministic": true
+    }
+  ]
+}
