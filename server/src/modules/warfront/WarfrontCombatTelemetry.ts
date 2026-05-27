@@ -1,5 +1,6 @@
 import { WorldHistory } from "../history/WorldHistory.js";
 import { serverWorldEventBus } from "../../events/WorldEventBus.js";
+import { WARFRONT_TICK_MS } from "./warfrontTypes.js";
 import { pushLiveTickerHazard } from "../../theme/serverThemeHazard.js";
 
 export type WarfrontFeedKind = "hit" | "kill";
@@ -81,7 +82,8 @@ export class WarfrontCombatTelemetry {
       id: `wf_${full.seq}_${full.tick}`,
       title: full.kind === "kill" ? "Warfront kill" : "Warfront hit",
       description: full.summary,
-      timestamp: Date.now(),
+      // Jules: Absolute causality - use deterministic tick-based timestamp to prevent WorldHash drift.
+      timestamp: full.tick * WARFRONT_TICK_MS,
       involvedFactionIds: [full.attackerId, full.defenderId],
     });
 
