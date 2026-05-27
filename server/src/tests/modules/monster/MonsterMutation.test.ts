@@ -1,15 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { mutateMonster } from "../../../modules/monster/MonsterMutation.js";
+import { SeededARERng } from "../../../core/determinism/AREDeterminism.js";
 
 describe("MonsterMutation", () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   const baseDna = {
     species: "goblin",
     resilience: 0.5,
@@ -17,9 +10,9 @@ describe("MonsterMutation", () => {
   };
 
   it("returns a clone with empty mutations array when biome has no effect and rare variant fails", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.5); // 0.5 >= 0.08, rare_variant false
-
-    const result = mutateMonster(baseDna, "plains");
+    // Using a seed where rare_variant fails (nextFloat >= 0.08)
+    const rng = new SeededARERng("common-seed");
+    const result = mutateMonster(baseDna, "plains", undefined, rng);
 
     expect(result.species).toBe("goblin");
     expect(result.resilience).toBe(0.5);
@@ -31,9 +24,8 @@ describe("MonsterMutation", () => {
   });
 
   it("increases resilience and adds frost_resistance mutation in 'snow' biome", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.5);
-
-    const result = mutateMonster(baseDna, "snow");
+    const rng = new SeededARERng("snow-seed");
+    const result = mutateMonster(baseDna, "snow", undefined, rng);
 
     expect(result.resilience).toBeCloseTo(0.7); // 0.5 + 0.2
     expect(result.mutations).toContain("frost_resistance");
@@ -42,9 +34,8 @@ describe("MonsterMutation", () => {
   });
 
   it("increases aggression and adds swamp_hunger mutation in 'swamp' biome", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.5);
-
-    const result = mutateMonster(baseDna, "swamp");
+    const rng = new SeededARERng("snow-seed"); // snow-seed gives nextFloat ~ 0.87
+    const result = mutateMonster(baseDna, "swamp", undefined, rng);
 
     expect(result.aggression).toBeCloseTo(0.65); // 0.5 + 0.15
     expect(result.mutations).toContain("swamp_hunger");
@@ -52,19 +43,18 @@ describe("MonsterMutation", () => {
     expect(result.resilience).toBe(0.5); // shouldn't change
   });
 
-  it("adds rare_variant mutation when Math.random is less than 0.08", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.05);
-
-    const result = mutateMonster(baseDna, "plains");
+  it("adds rare_variant mutation when rng.nextFloat() is less than 0.08", () => {
+    // Seed 'swamp-seed' has nextFloat() ~ 0.018
+    const rng = new SeededARERng("swamp-seed");
+    const result = mutateMonster(baseDna, "plains", undefined, rng);
 
     expect(result.mutations).toContain("rare_variant");
     expect(result.mutations.length).toBe(1);
   });
 
   it("applies multiple mutations if biome and rare_variant both trigger", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.05);
-
-    const result = mutateMonster(baseDna, "snow");
+    const rng = new SeededARERng("swamp-seed");
+    const result = mutateMonster(baseDna, "snow", undefined, rng);
 
     expect(result.resilience).toBeCloseTo(0.7);
     expect(result.mutations).toContain("frost_resistance");
