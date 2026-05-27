@@ -1,0 +1,33 @@
+name: Biome Atlas Assets
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Extract biome atlas
+        run: |
+          set -euo pipefail
+          test -f asset-packs/2d/biomes/biome_atlas_v2.zip
+          unzip -l asset-packs/2d/biomes/biome_atlas_v2.zip | head -80
+          node scripts/extract-biome-atlas-v2.mjs
+          test -f apps/client-2d/public/2d-assets/biomes/biome_atlas_v2/manifest.json
+          test -f apps/client-2d/public/2d-assets/biomes/biome_atlas_v2/forest-manifest.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: biome-atlas-public-assets
+          path: apps/client-2d/public/2d-assets/biomes/biome_atlas_v2
+          if-no-files-found: error
