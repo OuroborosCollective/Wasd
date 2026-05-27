@@ -1,0 +1,49 @@
+name: Weapon Assets
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - asset-packs/2d/weapons/modular_weapon_atlas.zip
+      - scripts/extract-modular-weapon-atlas.mjs
+      - .github/workflows/weapon-assets.yml
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Extract
+        run: |
+          set -euo pipefail
+          test -f asset-packs/2d/weapons/modular_weapon_atlas.zip
+          unzip -l asset-packs/2d/weapons/modular_weapon_atlas.zip | head -80
+          node scripts/extract-modular-weapon-atlas.mjs
+          test -f apps/client-2d/public/2d-assets/weapons/modular/atlas.png
+          test -f apps/client-2d/public/2d-assets/weapons/modular/weapon-manifest.json
+
+      - name: Open PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: chore/weapon-assets
+          delete-branch: true
+          commit-message: "update weapon assets"
+          title: "Update weapon assets"
+          body: "Generated weapon assets."
+          add-paths: |
+            apps/client-2d/public/2d-assets/weapons/modular
