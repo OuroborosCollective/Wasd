@@ -1,6 +1,6 @@
 # Stitch generated atlas provenance
 
-Generated: 2026-05-24T18:52:51.448Z
+Generated: 2026-05-27T12:00:52.270Z
 Source issue: #1071
 
 These atlas ZIPs were supplied by the project owner as generated project-owned design assets.
