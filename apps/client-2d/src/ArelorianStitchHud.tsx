@@ -3,6 +3,7 @@ import { InventoryPanel, type InventoryItem } from "./ui/InventoryPanel";
 
 type Msg = { from: string; txt: string };
 type HudPanel = "inventory" | "character" | "map" | "combat" | "guild" | "factions" | "quests" | null;
+type HudOverlay = "vitals" | "radar" | "chat";
 
 export interface ArelorianStitchHudProps {
   connected: boolean;
@@ -37,8 +38,23 @@ const panels: { id: Exclude<HudPanel, null>; label: string; icon: string; shortc
   { id: "quests", label: "Quests", icon: "!", shortcut: "q" },
 ];
 
+const overlays: { id: HudOverlay; label: string; short: string }[] = [
+  { id: "vitals", label: "Vitals", short: "HP" },
+  { id: "radar", label: "Radar", short: "MAP" },
+  { id: "chat", label: "Chat", short: "CHAT" },
+];
+
 function isTypingTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || Boolean((target as HTMLElement | null)?.isContentEditable);
+}
+
+async function requestFullscreen() {
+  const root = document.documentElement;
+  if (document.fullscreenElement) {
+    await document.exitFullscreen?.();
+    return;
+  }
+  await root.requestFullscreen?.();
 }
 
 export function ArelorianStitchHud({
@@ -58,6 +74,8 @@ export function ArelorianStitchHud({
 }: ArelorianStitchHudProps) {
   const [activePanel, setActivePanel] = useState<HudPanel>(null);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
+  const [openOverlays, setOpenOverlays] = useState<Record<HudOverlay, boolean>>({ vitals: false, radar: false, chat: false });
+  const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
   const [chatText, setChatText] = useState("");
   const hp = 86;
   const mana = 64;
@@ -65,6 +83,20 @@ export function ArelorianStitchHud({
   const xp = 31;
 
   const visibleMessages = useMemo(() => messages.slice(-6), [messages]);
+  const hudClasses = [
+    "stitch-hud",
+    openOverlays.vitals ? "show-vitals" : "",
+    openOverlays.radar ? "show-radar" : "",
+    openOverlays.chat ? "show-chat" : "",
+  ].filter(Boolean).join(" ");
+
+  useEffect(() => {
+    function handleFullscreenChange() {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    }
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -72,6 +104,15 @@ export function ArelorianStitchHud({
       if (event.key === "Escape") {
         setActivePanel(null);
         setIsInventoryOpen(false);
+        setOpenOverlays({ vitals: false, radar: false, chat: false });
+        return;
+      }
+      if (event.key.toLowerCase() === "h") {
+        setOpenOverlays((current) => ({ ...current, vitals: !current.vitals }));
+        return;
+      }
+      if (event.key.toLowerCase() === "enter") {
+        setOpenOverlays((current) => ({ ...current, chat: true }));
         return;
       }
       const panel = panels.find((p) => p.shortcut === event.key.toLowerCase());
@@ -93,6 +134,10 @@ export function ArelorianStitchHud({
       setActivePanel(next ? "inventory" : null);
       return next;
     });
+  }
+
+  function toggleOverlay(overlay: HudOverlay) {
+    setOpenOverlays((current) => ({ ...current, [overlay]: !current[overlay] }));
   }
 
   function selectPanel(panel: Exclude<HudPanel, null>) {
@@ -123,7 +168,7 @@ export function ArelorianStitchHud({
   }
 
   return (
-    <div className="stitch-hud" aria-label="Arelorian Science MMO HUD">
+    <div className={hudClasses} aria-label="Arelorian Science MMO HUD">
       <div className="stitch-scanlines" aria-hidden="true" />
 
       <header className="stitch-topbar" role="banner">
@@ -137,6 +182,25 @@ export function ArelorianStitchHud({
           <small>{assetStatus} · {weaponCount} WEAPONS</small>
         </div>
       </header>
+
+      <nav className="stitch-mobile-toggles" aria-label="HUD Quick Toggles">
+        {overlays.map((overlay) => (
+          <button
+            key={overlay.id}
+            type="button"
+            className={openOverlays[overlay.id] ? "active" : ""}
+            onClick={() => toggleOverlay(overlay.id)}
+            aria-pressed={openOverlays[overlay.id]}
+            title={overlay.label}
+          >
+            {overlay.short}
+          </button>
+        ))}
+      </nav>
+
+      <button className="stitch-fullscreen-toggle" type="button" onClick={() => requestFullscreen().catch(() => undefined)} aria-pressed={isFullscreen}>
+        {isFullscreen ? "EXIT" : "FULL"}
+      </button>
 
       <aside className="stitch-vitals" aria-label="Player Vital Stats">
         <div className="stitch-portrait"><span>Ω</span></div>

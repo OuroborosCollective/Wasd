@@ -1,0 +1,182 @@
+@media (max-width: 920px), (pointer: coarse) {
+  html,
+  body,
+  #root {
+    width: 100dvw;
+    height: 100dvh;
+    min-height: 100dvh;
+    overscroll-behavior: none;
+    touch-action: none;
+  }
+
+  .az-shell {
+    width: 100dvw;
+    height: 100dvh;
+    min-height: 100dvh;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  .az-pixi canvas {
+    width: 100dvw !important;
+    height: 100dvh !important;
+  }
+
+  .stitch-topbar {
+    left: calc(8px + env(safe-area-inset-left));
+    right: calc(8px + env(safe-area-inset-right));
+    top: calc(8px + env(safe-area-inset-top));
+    min-height: 48px;
+    padding: 8px 10px;
+    border-radius: 16px;
+  }
+
+  .stitch-kicker {
+    font-size: 8px;
+    letter-spacing: 0.16em;
+  }
+
+  .stitch-brand strong {
+    font-size: 13px;
+  }
+
+  .stitch-node-status b {
+    font-size: 10px;
+  }
+
+  .stitch-node-status small {
+    display: none;
+  }
+
+  .stitch-vitals,
+  .stitch-radar,
+  .stitch-chat {
+    transform: translateY(8px);
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+  }
+
+  .stitch-hud.show-vitals .stitch-vitals,
+  .stitch-hud.show-radar .stitch-radar,
+  .stitch-hud.show-chat .stitch-chat {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+  }
+
+  .stitch-vitals {
+    top: calc(68px + env(safe-area-inset-top));
+    left: calc(8px + env(safe-area-inset-left));
+    width: min(245px, calc(100dvw - 96px));
+  }
+
+  .stitch-radar {
+    top: calc(68px + env(safe-area-inset-top));
+    right: calc(76px + env(safe-area-inset-right));
+    width: min(188px, calc(100dvw - 96px));
+    display: flex;
+  }
+
+  .stitch-chat {
+    left: calc(8px + env(safe-area-inset-left));
+    right: calc(92px + env(safe-area-inset-right));
+    bottom: calc(8px + env(safe-area-inset-bottom));
+    width: auto;
+  }
+
+  .stitch-chat-lines {
+    min-height: 56px;
+    max-height: 56px;
+  }
+
+  .stitch-mobile-toggles {
+    position: absolute;
+    left: calc(8px + env(safe-area-inset-left));
+    top: calc(68px + env(safe-area-inset-top));
+    z-index: 32;
+    display: flex;
+    gap: 6px;
+    pointer-events: auto;
+  }
+
+  .stitch-mobile-toggles button,
+  .stitch-fullscreen-toggle {
+    min-width: 44px;
+    min-height: 38px;
+    border: 1px solid rgba(0, 229, 255, 0.26);
+    border-radius: 14px;
+    color: white;
+    background: rgba(4, 8, 14, 0.72);
+    box-shadow: 0 0 18px rgba(0, 229, 255, 0.12), inset 0 1px 0 rgba(255,255,255,0.08);
+    backdrop-filter: blur(10px);
+    font-size: 12px;
+    font-weight: 900;
+  }
+
+  .stitch-mobile-toggles button.active {
+    border-color: var(--st-gold);
+    color: #061018;
+    background: linear-gradient(135deg, var(--st-aether), var(--st-gold));
+  }
+
+  .stitch-fullscreen-toggle {
+    position: absolute;
+    right: calc(8px + env(safe-area-inset-right));
+    top: calc(68px + env(safe-area-inset-top));
+    z-index: 32;
+    pointer-events: auto;
+  }
+
+  .live-reality-bridge,
+  .pixi-module-inspector,
+  .az-world-heart {
+    display: none;
+  }
+
+  .stitch-side-menu {
+    right: calc(8px + env(safe-area-inset-right));
+    bottom: calc(90px + env(safe-area-inset-bottom));
+    top: auto;
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .stitch-side-menu button {
+    width: 62px;
+    min-height: 44px;
+    border-radius: 15px;
+  }
+
+  .stitch-skillbar {
+    right: calc(8px + env(safe-area-inset-right));
+    bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+
+  .az-touch-pad {
+    display: grid;
+    left: calc(8px + env(safe-area-inset-left));
+    bottom: calc(96px + env(safe-area-inset-bottom));
+    grid-template-columns: repeat(3, 42px);
+    grid-template-rows: repeat(3, 42px);
+    gap: 6px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 540px) {
+  .stitch-topbar {
+    transform: scale(0.9);
+    transform-origin: top left;
+    right: auto;
+    width: min(560px, calc(100dvw - 120px));
+  }
+
+  .stitch-side-menu {
+    grid-template-columns: repeat(2, 54px);
+  }
+
+  .stitch-skillbar button {
+    height: 48px;
+  }
+}
