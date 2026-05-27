@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ChevronRight, Book, Activity, Cpu, Zap } from 'lucide-react';
 
@@ -97,8 +97,21 @@ NPCs perceive and remember the world through five distinct layers:
 const WikiPortal: React.FC = () => {
   const [activePage, setActivePage] = useState<string>('Home');
   const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const page = PAGES[activePage] || PAGES['Home'];
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === '/' && document.activeElement !== searchInputRef.current) {
+      e.preventDefault();
+      searchInputRef.current?.focus();
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
 
   return (
     <div className="flex h-screen w-screen bg-black text-[#e5e2e1] font-['Space_Grotesk'] overflow-hidden">
@@ -106,23 +119,24 @@ const WikiPortal: React.FC = () => {
       <aside className="w-64 border-r border-[#3a4a49] bg-[#131313] flex flex-col z-20">
         <div className="p-6 border-b border-[#3a4a49] flex items-center gap-3">
           <div className="w-8 h-8 border border-[#00FFFF] flex items-center justify-center">
-            <Zap size={16} className="text-[#00FFFF]" />
+            <Zap size={16} className="text-[#00FFFF]" aria-hidden="true" />
           </div>
           <span className="font-bold tracking-tighter text-[#FFD700]">OBSIDIAN_ARCHIVE</span>
         </div>
 
-        <nav className="flex-1 p-4 space-y-2">
+        <nav className="flex-1 p-4 space-y-2" aria-label="Wiki navigation">
           {Object.values(PAGES).map((p) => (
             <button
               key={p.id}
               onClick={() => setActivePage(p.id)}
+              aria-current={activePage === p.id ? 'page' : undefined}
               className={`w-full text-left p-3 flex items-center gap-3 transition-colors ${
                 activePage === p.id
                   ? 'bg-[#00FFFF] text-black font-bold'
                   : 'hover:bg-[#1c1b1b] text-[#b9cac9]'
               }`}
             >
-              <p.icon size={18} />
+              <p.icon size={18} aria-hidden="true" />
               <span className="text-xs tracking-widest uppercase">{p.title}</span>
             </button>
           ))}
@@ -143,19 +157,21 @@ const WikiPortal: React.FC = () => {
 
         {/* Top Bar */}
         <header className="h-16 border-b border-[#3a4a49] bg-[#131313]/80 backdrop-blur-md flex items-center justify-between px-8 z-10">
-          <div className="flex items-center gap-2 text-[10px] tracking-widest text-[#b9cac9] uppercase">
+          <div className="flex items-center gap-2 text-[10px] tracking-widest text-[#b9cac9] uppercase" aria-label="Breadcrumb">
             <span>Home</span>
-            <ChevronRight size={12} />
+            <ChevronRight size={12} aria-hidden="true" />
             <span>Wiki</span>
-            <ChevronRight size={12} />
+            <ChevronRight size={12} aria-hidden="true" />
             <span className="text-[#FFD700]">{page.title}</span>
           </div>
 
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#b9cac9]" size={14} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#b9cac9]" size={14} aria-hidden="true" />
             <input
+              ref={searchInputRef}
               type="text"
-              placeholder="SEARCH_ARCHIVE..."
+              placeholder="SEARCH_ARCHIVE... [/]"
+              aria-label="Search archive"
               className="bg-[#1c1b1b] border border-[#3a4a49] pl-10 pr-4 py-2 text-xs focus:outline-none focus:border-[#00FFFF] w-64 text-[#e5e2e1]"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -209,10 +225,10 @@ const WikiPortal: React.FC = () => {
         <div className="absolute bottom-8 right-8 w-48 p-4 bg-[#131313]/60 backdrop-blur-xl border border-[#00FFFF]/20 flex flex-col gap-2">
           <div className="text-[8px] tracking-[0.2em] text-[#00FFFF] uppercase font-bold">OBSERVER_STATUS</div>
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-[#00FFFF] animate-pulse" />
+            <div className="w-2 h-2 bg-[#00FFFF] animate-pulse" aria-hidden="true" />
             <div className="text-[10px] font-mono">LINK_STABLE: 99%</div>
           </div>
-          <div className="w-full h-1 bg-[#1c1b1b]">
+          <div className="w-full h-1 bg-[#1c1b1b]" role="progressbar" aria-label="Observer Link Stability" aria-valuenow={99} aria-valuemin={0} aria-valuemax={100}>
             <div className="w-3/4 h-full bg-[#00FFFF]" />
           </div>
         </div>
