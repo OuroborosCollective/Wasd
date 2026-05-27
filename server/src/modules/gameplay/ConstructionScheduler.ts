@@ -91,7 +91,9 @@ export function sortByPriority(contracts: Contract[]): Contract[] {
   return [...contracts].sort((a, b) => {
     const pA = calculatePlexityPriority(a);
     const pB = calculatePlexityPriority(b);
-    return pB !== pA ? pB - pA : a.id.localeCompare(b.id);
+    // Use locale-independent binary comparison for secondary ID sorting to ensure
+    // absolute determinism in construction optimization across different environments.
+    return pB !== pA ? pB - pA : (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
   });
 }
 
