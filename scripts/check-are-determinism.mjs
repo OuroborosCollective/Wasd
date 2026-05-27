@@ -12,6 +12,7 @@ const criticalRoots = [
   'server/src/modules/loot',
   'server/src/modules/warfront',
   'server/src/modules/oracle',
+  'server/src/modules/farming',
 ];
 
 const criticalFilePatterns = [
