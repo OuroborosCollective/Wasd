@@ -27,6 +27,7 @@ import { iso3 } from "./isometricProjection";
 import { initLootFeedback } from "./lootPickupFeedback";
 import { make2dProp } from "./stackedProps";
 import { moveVisualTowards } from "./visualMotion";
+import { makeModularWeaponSprite } from "./modularWeaponAssembler";
 
 const TILE_W = 96;
 const TILE_H = 48;
@@ -209,8 +210,22 @@ function forestResourceSprite(node: ForestResourceNode, texture: Texture, onPick
 }
 
 function addWeaponSprite(c: Container, assets: LoadedAssets | null | undefined, name: string, weaponVisualId?: string | null) {
-  const weapon = pickWeaponVisual(assets?.manifest ?? null, { visualId: weaponVisualId, seed: name });
-  const tex = weaponTextureFor(assets ?? null, weapon?.entry ?? null);
+  const manifest = assets?.manifest ?? null;
+  const weapon = pickWeaponVisual(manifest, { visualId: weaponVisualId, seed: name });
+  const entry = weapon?.entry ?? null;
+  const modular = makeModularWeaponSprite(manifest, assets?.textures ?? new Map(), {
+    visualId: weaponVisualId ?? weapon?.id ?? null,
+    seed: name + ":" + (weaponVisualId ?? weapon?.id ?? "auto"),
+    weaponClass: entry?.weaponClass ?? entry?.rules?.weaponClass ?? entry?.kind ?? null,
+    rarity: entry?.visualRarity ?? entry?.rarity ?? null,
+  });
+
+  if (modular) {
+    c.addChild(modular);
+    return;
+  }
+
+  const tex = weaponTextureFor(assets ?? null, entry);
   if (!tex) return;
 
   const weaponSprite = spriteFromTexture(tex, 42, 42, 0);
