@@ -31,8 +31,9 @@ export class RealityFissureBrain {
 
   public getCriticalFissures(now = 0): FissureData[] {
       const critical: FissureData[] = [];
+      // Use binary comparison for chunk IDs to guarantee deterministic order across OS locales.
       const fissures = Array.from(this.activeFissures.entries()).sort(([leftChunkId], [rightChunkId]) =>
-          leftChunkId.localeCompare(rightChunkId)
+          leftChunkId < rightChunkId ? -1 : leftChunkId > rightChunkId ? 1 : 0
       );
 
       for (const [chunkId, fissure] of fissures) {
