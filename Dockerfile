@@ -101,6 +101,8 @@ ENV NODE_OPTIONS="--max-old-space-size=12288"
 RUN pnpm --filter @wasd/core-logic --if-present run build:runtime && \
     pnpm --filter @wasd/shared --if-present build && \
     pnpm --filter @wasd/server --if-present build
+RUN pnpm --filter ./apps/client-2d... run build
+RUN test -f /app/apps/client-2d/dist/index.html
 
 # Prune dev dependencies
 RUN pnpm prune --prod
