@@ -4,8 +4,9 @@ export class EconomySystem {
   private defaultPrices: Map<string, number> = new Map();
 
   constructor() {
-    this.defaultPrices.set("health_potion", 50);
-    this.defaultPrices.set("iron_sword", 150);
+    this.defaultPrices.set("wolf_pelt", 20);
+    this.defaultPrices.set("minor_mana_draught", 40);
+    this.defaultPrices.set("starter_sword", 100);
     this.resetPrices();
   }
 

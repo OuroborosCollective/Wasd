@@ -54,27 +54,27 @@ describe("EconomySystem", () => {
     expect(economy.getPrice("unknown_item")).toBe(10);
   });
 
-  it("getPrice() returns 50 for health_potion", () => {
-    expect(economy.getPrice("health_potion")).toBe(50);
+  it("getPrice() returns 40 for minor_mana_draught", () => {
+    expect(economy.getPrice("minor_mana_draught")).toBe(40);
   });
 
-  it("getPrice() returns 150 for iron_sword", () => {
-    expect(economy.getPrice("iron_sword")).toBe(150);
+  it("getPrice() returns 100 for starter_sword", () => {
+    expect(economy.getPrice("starter_sword")).toBe(100);
   });
 
   it("adjustPrice() with factor > 1 increases price", () => {
-    economy.adjustPrice("health_potion", 2.0);
-    expect(economy.getPrice("health_potion")).toBe(100);
+    economy.adjustPrice("minor_mana_draught", 2.0);
+    expect(economy.getPrice("minor_mana_draught")).toBe(80);
   });
 
   it("adjustPrice() with factor < 1 decreases price", () => {
-    economy.adjustPrice("health_potion", 0.5);
-    expect(economy.getPrice("health_potion")).toBe(25);
+    economy.adjustPrice("minor_mana_draught", 0.5);
+    expect(economy.getPrice("minor_mana_draught")).toBe(20);
   });
 
   it("adjustPrice() enforces minimum price of 1", () => {
-    economy.adjustPrice("health_potion", 0);
-    expect(economy.getPrice("health_potion")).toBeGreaterThanOrEqual(1);
+    economy.adjustPrice("minor_mana_draught", 0);
+    expect(economy.getPrice("minor_mana_draught")).toBeGreaterThanOrEqual(1);
   });
 });
 
