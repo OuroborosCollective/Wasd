@@ -1,9 +1,9 @@
 export class FarmingSystem {
-  plant(seedId: string, biome: string) {
+  plant(seedId: string, biome: string, tick: number = 0) {
     return {
       seedId,
       biome,
-      plantedAt: Date.now(),
+      plantedAt: tick,
       growth: 0
     };
   }

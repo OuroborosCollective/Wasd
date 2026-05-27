@@ -103,7 +103,7 @@ export class NPCMemoryCache {
                     npc_id: m.npcId,
                     content: m.content,
                     importance: m.importance,
-                    created_at: new Date(m.timestamp).toISOString(),
+                    created_at: new Date(m.timestamp).toISOString(), // @are-telemetry-side-channel: DB metadata
                     tags: m.tags
                 })));
 

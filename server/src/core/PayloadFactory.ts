@@ -1,4 +1,4 @@
-import { WeatherResonance } from './WeatherResonance';
+import { WeatherResonance } from '../modules/weather/WeatherResonance.js';
 
 export interface AREPayload {
     timestamp: number;

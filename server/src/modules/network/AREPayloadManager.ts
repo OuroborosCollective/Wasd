@@ -1,4 +1,4 @@
-import { WeatherResonance } from "../weather/WeatherResonance";
+import { WeatherResonance } from "../weather/WeatherResonance.js";
 
 export interface AREPayload {
     id: string;

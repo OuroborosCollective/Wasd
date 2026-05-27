@@ -1,4 +1,4 @@
-import { WeatherResonance } from "../modules/WeatherResonance";
+import { WeatherResonance } from "../modules/weather/WeatherResonance.js";
 import { deterministicNow } from "./determinism/AREDeterminism.js";
 
 export interface AREPayload {

@@ -21,12 +21,10 @@ describe("FarmingSystem", () => {
     expect(result.plotId).toBe("plot_1");
   });
 
-  it("plant() includes a plantedAt timestamp", () => {
-    const before = Date.now();
-    const result = farming.plant("carrot_seed", "plot_2");
-    const after = Date.now();
-    expect(result.plantedAt).toBeGreaterThanOrEqual(before);
-    expect(result.plantedAt).toBeLessThanOrEqual(after);
+  it("plant() includes a plantedAt tick", () => {
+    const tick = 12345;
+    const result = farming.plant("carrot_seed", "plot_2", tick);
+    expect(result.plantedAt).toBe(tick);
   });
 
   it("plant() creates a distinct object per call", () => {
@@ -74,13 +72,11 @@ describe("TreeGrowthSystem", () => {
     expect(tree.stage).toBe(1);
   });
 
-  it("grow() attaches a lastGrowthAt timestamp", () => {
-    const before = Date.now();
+  it("grow() attaches a lastGrowthAt tick", () => {
+    const tick = 6789;
     const tree: any = { stage: 0 };
-    trees.grow(tree);
-    const after = Date.now();
-    expect(tree.lastGrowthAt).toBeGreaterThanOrEqual(before);
-    expect(tree.lastGrowthAt).toBeLessThanOrEqual(after);
+    trees.grow(tree, tick);
+    expect(tree.lastGrowthAt).toBe(tick);
   });
 
   it("multiple grow() calls advance stage sequentially up to max", () => {

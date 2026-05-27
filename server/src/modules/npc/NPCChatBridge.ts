@@ -72,7 +72,7 @@ export class NPCChatBridge {
             return "(no recorded world events yet)";
         }
         return evs
-            .map((e) => `- ${e.title}: ${e.description} @${new Date(e.timestamp).toISOString()}`)
+            .map((e) => `- ${e.title}: ${e.description} @TICK:${e.timestamp}`) // @are-determinism-allow: LLM prompt formatting
             .join("\n");
     }
 
@@ -98,7 +98,7 @@ export class NPCChatBridge {
             },
             worldState: {
                 currentLocation: "unknown",
-                currentTime: new Date().toISOString(),
+                currentTime: new Date().toISOString(), // @are-telemetry-side-channel: LLM context only
                 environmentConditions: "default",
             },
             worldHistory,
