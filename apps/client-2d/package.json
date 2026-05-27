@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prebuild": "node ../../scripts/extract-biome-atlas-v2.mjs && node ../../scripts/extract-2d-weapon-pool.mjs && node ../../scripts/extract-forest-biome-pack.mjs && node ../../scripts/are-asset-forge.mjs && node ../../scripts/enrich-stitch-atlas-frames.mjs && node ../../scripts/validate-client-2d-assets.mjs",
+    "assets": "node ../../scripts/extract-biome-atlas-v2.mjs && node ../../scripts/extract-2d-weapon-pool.mjs && node ../../scripts/extract-forest-biome-pack.mjs && node ../../scripts/are-asset-forge.mjs && node ../../scripts/enrich-stitch-atlas-frames.mjs && node ../../scripts/validate-client-2d-assets.mjs",
     "dev": "vite",
     "build": "vite build",
     "build:vps": "vite build",
