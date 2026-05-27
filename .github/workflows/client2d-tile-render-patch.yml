@@ -1,0 +1,68 @@
+name: Client 2D Tile Render Patch
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Patch biome tile rendering
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'apps/client-2d/src/CyberZenIsoApp.tsx';
+          let src = fs.readFileSync(path, 'utf8');
+
+          src = src.replace(
+            'const TILE_W = 96;\nconst TILE_H = 48;\nconst TERRAIN_Z_INDEX = -1000;',
+            'const TILE_W = 96;\nconst TILE_H = 48;\nconst BIOME_TILE_W = 128;\nconst BIOME_TILE_H = 64;\nconst TERRAIN_Z_INDEX = -1000;'
+          );
+
+          if (!src.includes('function biomeTileSprite(')) {
+            src = src.replace(
+              `function spriteFromTexture(texture: Texture, width: number, height: number, y = 0) {\n  const s = new Sprite(texture);\n  s.anchor.set(0.5, 1);\n  s.width = width;\n  s.height = height;\n  s.y = y;\n  return s;\n}\n`,
+              `function spriteFromTexture(texture: Texture, width: number, height: number, y = 0) {\n  const s = new Sprite(texture);\n  s.anchor.set(0.5, 1);\n  s.width = width;\n  s.height = height;\n  s.y = y;\n  return s;\n}\n\nfunction biomeTileSprite(texture: Texture) {\n  const s = new Sprite(texture);\n  s.anchor.set(0.5, 0.5);\n  s.width = BIOME_TILE_W;\n  s.height = BIOME_TILE_H;\n  return s;\n}\n`
+            );
+          }
+
+          src = src.replace(
+            'const tile = terrainTex ? spriteFromTexture(terrainTex, TILE_W, TILE_H, TILE_H / 2) : diamond((x + z) % 4 === 0 ? 0x3f7f48 : 0x356b40);',
+            'const tile = terrainTex ? biomeTileSprite(terrainTex) : diamond((x + z) % 4 === 0 ? 0x3f7f48 : 0x356b40);'
+          );
+
+          if (!src.includes('BIOME_TILE_W = 128') || !src.includes('function biomeTileSprite(')) {
+            throw new Error('Patch did not apply expected biome tile rendering changes.');
+          }
+
+          fs.writeFileSync(path, src);
+          NODE
+
+          git diff -- apps/client-2d/src/CyberZenIsoApp.tsx
+
+      - name: Open pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: chore/client2d-tile-render
+          delete-branch: true
+          commit-message: "fix(client-2d): render biome tiles at atlas size"
+          title: "Render biome tiles at atlas size"
+          body: |
+            Updates the 2D Pixi ground renderer to draw biome atlas tiles at 128x64 while keeping actor/world movement projection stable.
+          add-paths: |
+            apps/client-2d/src/CyberZenIsoApp.tsx
