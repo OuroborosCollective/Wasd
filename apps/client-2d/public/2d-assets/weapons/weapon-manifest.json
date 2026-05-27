@@ -1,11 +1,51 @@
 {
-  "version": 1,
-  "generatedAt": "2026-05-26T21:30:00.000Z",
-  "source": "client-2d fallback weapon manifest",
+  "version": 2,
+  "generatedAt": "2026-05-27T04:35:00.000Z",
+  "source": "client-2d deterministic fallback weapon manifest",
   "notes": [
-    "Fallback manifest created so the client loader has a valid deterministic weapon manifest even when the generated weapon pool has not been exported yet.",
-    "Populate the weapons object with generated weapon atlas entries when the 2D weapon pool is available."
+    "Deterministic fallback weapons are included so the live 2D client always has renderable weapon visuals.",
+    "Generated atlas weapons can replace or extend these entries later."
   ],
-  "sources": [],
-  "weapons": {}
+  "sources": [
+    {
+      "id": "fallback_weapon_set",
+      "source": "apps/client-2d/public/2d-assets/weapons/*.svg",
+      "license": "project-internal"
+    }
+  ],
+  "weapons": {
+    "fallback_sword": {
+      "id": "fallback_sword",
+      "src": "/2d-assets/weapons/fallback-sword.svg",
+      "kind": "weapon",
+      "group": "melee",
+      "weaponClass": "sword",
+      "rarity": "common",
+      "width": 64,
+      "height": 64,
+      "tags": ["fallback", "sword", "melee", "core"]
+    },
+    "fallback_shield": {
+      "id": "fallback_shield",
+      "src": "/2d-assets/weapons/fallback-shield.svg",
+      "kind": "weapon",
+      "group": "defense",
+      "weaponClass": "shield",
+      "rarity": "common",
+      "width": 64,
+      "height": 64,
+      "tags": ["fallback", "shield", "guard", "core"]
+    },
+    "fallback_aether": {
+      "id": "fallback_aether",
+      "src": "/2d-assets/weapons/fallback-aether.svg",
+      "kind": "weapon",
+      "group": "magic",
+      "weaponClass": "aether",
+      "rarity": "rare",
+      "width": 64,
+      "height": 64,
+      "tags": ["fallback", "aether", "magic", "core"]
+    }
+  }
 }
