@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -40,7 +40,13 @@ function downloadReleaseZip() {
 
   mkdirSync(releaseCacheDir, { recursive: true });
   log(`Downloading forest release asset from ${url}`);
-  execFileSync('curl', ['-L', '--fail', '--retry', '3', '--output', releaseZipPath, url], { stdio: 'inherit' });
+
+  try {
+    execFileSync('curl', ['-L', '--fail', '--retry', '3', '--output', releaseZipPath, url], { stdio: 'inherit' });
+  } catch (error) {
+    if (existsSync(releaseZipPath)) rmSync(releaseZipPath, { force: true });
+    log(`Forest release asset unavailable; keeping fallback manifest. ${error.message}`);
+  }
 }
 
 downloadReleaseZip();
