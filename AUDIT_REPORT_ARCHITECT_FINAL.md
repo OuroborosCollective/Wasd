@@ -1,82 +1,44 @@
-# Umfassender Architektur-Audit-Bericht - März 2027
+# Umfassender Architektur-Audit-Bericht - Mai 2026
 
 ## Status Quo
-Das Repository ist ein umfangreiches Monorepo, das **pnpm (v9.12.2)** für das Paketmanagement nutzt. Es umfasst mehrere Anwendungsbereiche (`apps/`), gemeinsame Bibliotheken (`packages/`) und spezialisierte Logikmodule (`projects/`). Die Architektur stützt sich auf **TypeScript Project References**, um die Integrität des Build-Graphen zu gewährleisten.
+Das Repository ist ein umfangreiches TypeScript-Monorepo, das mit `pnpm` verwaltet wird. Es verwendet den `isolated` Node-Linker (unter Umgehung von PnP), um eine bessere Kompatibilität mit Tools wie Vite und BabylonJS zu gewährleisten. Die Architektur ist "Logic-First" ausgelegt, mit einem starken Fokus auf deterministische Simulationen (Level-A) für ein Android-MMORPG.
 
-### Aktuelle Struktur:
-- **Paketmanagement:** pnpm mit `node-linker=isolated`.
-- **Workspace:** `pnpm-workspace.yaml` enthält derzeit nur `packages/*` und `apps/*`.
-- **CI/CD:** Multi-Workflow-Setup, dominiert von `main-pipeline.yml` und `deploy.yml`.
-- **Deployment:** Docker-basiert (`Dockerfile`, `Dockerfile.prod`) und VPS-basiert via SSH/PM2.
-
----
+### Wichtige Beobachtungen:
+- **Package Management:** pnpm-Workspace mit `isolated` Linker. Die root `package.json` nutzt `overrides`, um Versionen zu fixieren, jedoch gibt es Abweichungen (Drift) in den `package.json`-Dateien der einzelnen Workspaces.
+- **TypeScript:** Projekt-Referenzen werden in der root `tsconfig.json` genutzt, aber viele Child-Packages sind nicht als `composite` konfiguriert, was eine optimale Build-Orchestrierung verhindert.
+- **CI/CD:** Mehrere überlappende Workflows (`main-pipeline.yml`, `vps-docker-deploy.yml`). Das Deployment basiert auf `sshpass` und manuellen Git-Syncs auf dem VPS.
+- **Determinismus:** Strikte Einhaltung der Level-A-Determinismus-Standards in Simulationspfaden, erzwungen durch `check-are-determinism.mjs`.
 
 ## Kritische Fehler
-
-### 1. Unvollständige Workspace-Konfiguration
-In der `pnpm-workspace.yaml` fehlen wichtige Verzeichnisse: `projects/*`, `server`, `client`, `engine` und `portal`.
-- **Auswirkung:** Diese Pakete werden von pnpm als eigenständig oder extern behandelt, was Workspace-übergreifende Befehle wie `pnpm -r build` bricht und eine korrekte Abhängigkeitsoptimierung verhindert.
-- **Risiko:** Inkonsistente `pnpm-lock.yaml` und potenzielle "Module not found"-Fehler in der CI.
-
-### 2. Dependency Version Drift & Ghost Dependencies
-Es gibt erhebliche Versionsunterschiede bei Kern-Typen und Bibliotheken:
-- **`@types/node`:** Reicht von `^20.11.0` bis `^25.6.2` und ignoriert den Root-Override von `^22.19.18`.
-- **BabylonJS/Three.js:** Peer-Dependency-Mismatches in `packages/rendering-bridge` (Babylon ^6.0.0 vs ^9.6.2 an anderer Stelle; Three 0.169.0 vs 0.184.0 an anderer Stelle).
-- **Ghost Dependency:** `projects/social` importiert `eventemitter3`, deklariert es aber nicht in seiner `package.json`.
-
-### 3. Redundante & Konfliktbehaftete Workflows
-`deploy.yml` und `vps-deploy.yml` führen ähnliche Deployment-Aufgaben aus, nutzen aber unterschiedliche Strategien (Azure Asset-Sync vs. Docker Save/Load).
-- **Auswirkung:** Erhöhter Wartungsaufwand und widersprüchliche Deployment-Logik.
-
----
+1. **Defekte TypeScript-Projektreferenzen:** Mehrere Pakete (z. B. `@wasd/server`, `@wasd/shared`, `@wasd/core-logic`) haben `composite: false` oder der Eintrag fehlt gänzlich in ihrer `tsconfig.json`, obwohl sie vom Root referenziert werden. Dies bricht den Abhängigkeitsgraphen für `tsc --build`.
+2. **Fehlende Konfiguration:** `projects/health-tech` wird in der root `tsconfig.json` referenziert, verfügt aber über keine eigene `tsconfig.json`, was zu Fehlern bei der Typprüfung auf Root-Ebene führt.
+3. **Nicht-deterministische VPS-Deploys:** `deploy/update.sh` verwendet `pnpm install --no-frozen-lockfile`. Dies ermöglicht Dependency-Drift auf dem Produktionsserver und ist anfällig für Out-Of-Memory (OOM) Fehler während der Resolutionsphase auf VPS-Instanzen mit wenig RAM.
+4. **Vite-Versions-Fragmentierung:** Die Vite-Versionen reichen von `5.2.8` (Portal) über `6.4.2` (Web/Client) bis hin zu `8.0.13` (Server). Dies führt zu inkonsistentem Build-Verhalten und potenziellen Plugin-Inkompatibilitäten.
 
 ## Optimierungspotenzial
-
-### 1. Docker Build Performance
-Sowohl `Dockerfile` als auch `Dockerfile.prod` kopieren vollständige Quellverzeichnisse vor `pnpm install`.
-- **Verbesserung:** Implementierung eines "Teleport"-Musters: Zuerst nur `package.json`, `pnpm-lock.yaml` und `pnpm-workspace.yaml` kopieren, um das Docker-Layer-Caching für Abhängigkeiten optimal zu nutzen.
-
-### 2. CI Caching-Effizienz
-In der `main-pipeline.yml` fehlt ein explizites Caching für `pip`, und es könnte von einer aggressiveren `pnpm`-Store-Caching-Strategie profitiert werden.
-
-### 3. TypeScript Build-Graph
-Während die `tsconfig.json`-Referenzen korrekt sind, verhindert das Fehlen von `composite: true` in einigen Leaf-Packages effiziente inkrementelle Builds.
-
----
+1. **Dependency-Harmonisierung:** Angleichung aller Pakete auf Vite 6.x und BabylonJS 9.9.1. Aktuelle Overrides fixieren BabylonJS auf 9.8.0, was im Widerspruch zu den Workspace-Deklarationen (9.9.1) steht.
+2. **Bereinigung von Redundanzen:** Die `pnpm-workspace.yaml` enthält einen `allowBuilds`-Block, der redundant zu `pnpm.onlyBuiltDependencies` in der root `package.json` ist.
+3. **Workflow-Sicherheit:** Ersetzen von `sshpass` durch SSH-Key-basierte Authentifizierung in GitHub Actions, um die Sicherheit und Zuverlässigkeit zu erhöhen.
+4. **Build-Performance:** Die Asset-Assemblierung in `update.sh` (manuelles Kopieren von `dist`-Ordnern) kann durch ein robusteres Deployment-Skript oder durch das direkte Servieren mehrerer Statics über den Express-Server unter Verwendung definierter Workspace-Pfade ersetzt werden.
 
 ## Action Plan
 
-### Schritt 1: Workspace-Integrität korrigieren
-- [ ] Aktualisieren der `pnpm-workspace.yaml`, um alle aktiven Verzeichnisse einzuschließen:
-  ```yaml
-  packages:
-    - "packages/*"
-    - "apps/*"
-    - "projects/*"
-    - "server"
-    - "client"
-    - "engine"
-    - "portal"
-  ```
-- [ ] `pnpm install` ausführen, um die Lockfile mit voller Workspace-Kenntnis neu zu generieren.
+### Phase 1: Härtung der Konfiguration
+1. **Fix TypeScript References:**
+   - Setze `composite: true` und `declaration: true` in allen `tsconfig.json`-Dateien der Core-Pakete.
+   - Erstelle die fehlende `projects/health-tech/tsconfig.json`.
+   - Aktualisiere `portal/tsconfig.json`, sodass sie von `tsconfig.base.json` erbt.
+2. **Bereinigung der Monorepo-Manifeste:**
+   - Entferne redundante `allowBuilds` aus der `pnpm-workspace.yaml`.
+   - Aktualisiere die Root-`overrides`, um sie an die neuesten stabilen Versionen anzupassen, die im Codebase verwendet werden (z. B. BabylonJS 9.9.1).
 
-### Schritt 2: Abhängigkeiten harmonisieren
-- [ ] `overrides` aus der `pnpm-lock.yaml` (wo sie vermutlich manuell injiziert wurden) in die Root-`package.json` verschieben.
-- [ ] Fehlende Abhängigkeiten explizit hinzufügen (z. B. `eventemitter3` in `projects/social/package.json`).
-- [ ] `@types/node` monorepo-weit auf `^22.19.18` ausrichten.
+### Phase 2: Anpassung des Deployments
+1. **Synchronisation der VPS-Installationsstrategie:** Modifiziere `deploy/update.sh`, um `--frozen-lockfile` zu verwenden, nachdem das `sync-pnpm-lockfile-for-docker.py`-Skript (oder ein ähnlicher Pre-flight Sync) ausgeführt wurde. Dies stellt sicher, dass der VPS-Build mit der lokalen/CI-Umgebung übereinstimmt.
+2. **Konsolidierung der Workflows:** Setze `main-pipeline.yml` zugunsten des robusteren `vps-docker-deploy.yml` oder eines vereinheitlichten "Areloria Universal Deploy"-Workflows außer Kraft.
 
-### Schritt 3: CI/CD konsolidieren
-- [ ] Die Logik von `vps-deploy.yml` in `deploy.yml` zusammenführen oder eine einzige "Source of Truth" für VPS-Deployments wählen.
-- [ ] Healthcheck-Endpunkte und -Methoden standardisieren (bevorzugt `curl` oder `node -e "fetch(...)"`).
+### Phase 3: Dependency-Harmonisierung
+1. **Standardisierung von Vite:** Migriere alle Pakete auf Vite 6.x, um den Footprint von `node_modules` zu reduzieren und ein konsistentes HMR/Build-Verhalten zu gewährleisten.
+2. **Audit der Peer-Dependencies:** Behebe den `pg`-Versionskonflikt zwischen `@wasd/database` (erwartet 8.11.x) und dem Server (8.21.x).
 
-### Schritt 4: Dockerfiles optimieren
-- [ ] `Dockerfile.prod` auf Multi-Stage-Builds mit Manifest-Caching umstellen:
-  ```dockerfile
-  # Beispiel Teleport-Muster
-  COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-  COPY packages/*/package.json packages/
-  # ... usw.
-  ```
-
-### Schritt 5: Verifizierung
-- [ ] `pnpm -r build` und `npx vitest run` im gesamten Monorepo ausführen, um sicherzustellen, dass die neue Workspace-Konfiguration stabil ist.
+---
+*Bericht erstellt von Jules, Senior DevOps & Fullstack Architect.*
