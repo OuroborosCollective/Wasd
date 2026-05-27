@@ -23,21 +23,23 @@ Das Repository ist ein umfangreiches TypeScript-Monorepo, das mit `pnpm` verwalt
 
 ## Action Plan
 
-### Phase 1: Härtung der Konfiguration
+### Phase 1: Härtung der Konfiguration (Teilweise abgeschlossen)
 1. **Fix TypeScript References:**
-   - Setze `composite: true` und `declaration: true` in allen `tsconfig.json`-Dateien der Core-Pakete.
-   - Erstelle die fehlende `projects/health-tech/tsconfig.json`.
-   - Aktualisiere `portal/tsconfig.json`, sodass sie von `tsconfig.base.json` erbt.
+   - [ ] Setze `composite: true` und `declaration: true` in allen `tsconfig.json`-Dateien der Core-Pakete.
+   - [x] Erstelle die fehlende `projects/health-tech/tsconfig.json`. (Erledigt im aktuellen PR)
+   - [ ] Aktualisiere `portal/tsconfig.json`, sodass sie von `tsconfig.base.json` erbt.
 2. **Bereinigung der Monorepo-Manifeste:**
-   - Entferne redundante `allowBuilds` aus der `pnpm-workspace.yaml`.
-   - Aktualisiere die Root-`overrides`, um sie an die neuesten stabilen Versionen anzupassen, die im Codebase verwendet werden (z. B. BabylonJS 9.9.1).
+   - [ ] Entferne redundante `allowBuilds` aus der `pnpm-workspace.yaml`.
+   - [ ] Aktualisiere die Root-`overrides`, um sie an die neuesten stabilen Versionen anzupassen, die im Codebase verwendet werden (z. B. BabylonJS 9.9.1).
 
 ### Phase 2: Anpassung des Deployments
 1. **Synchronisation der VPS-Installationsstrategie:** Modifiziere `deploy/update.sh`, um `--frozen-lockfile` zu verwenden, nachdem das `sync-pnpm-lockfile-for-docker.py`-Skript (oder ein ähnlicher Pre-flight Sync) ausgeführt wurde. Dies stellt sicher, dass der VPS-Build mit der lokalen/CI-Umgebung übereinstimmt.
 2. **Konsolidierung der Workflows:** Setze `main-pipeline.yml` zugunsten des robusteren `vps-docker-deploy.yml` oder eines vereinheitlichten "Areloria Universal Deploy"-Workflows außer Kraft.
 
-### Phase 3: Dependency-Harmonisierung
-1. **Standardisierung von Vite:** Migriere alle Pakete auf Vite 6.x, um den Footprint von `node_modules` zu reduzieren und ein konsistentes HMR/Build-Verhalten zu gewährleisten.
+### Phase 3: Dependency-Harmonisierung (Teilweise abgeschlossen)
+1. **Standardisierung von Vite:**
+   - [x] Upgrade `@wasd/portal` auf Vite 6.4.2 zur Behebung von Vitest-Inkompatibilitäten. (Erledigt im aktuellen PR)
+   - [ ] Migriere verbleibende Pakete auf Vite 6.x, um den Footprint von `node_modules` zu reduzieren.
 2. **Audit der Peer-Dependencies:** Behebe den `pg`-Versionskonflikt zwischen `@wasd/database` (erwartet 8.11.x) und dem Server (8.21.x).
 
 ---
