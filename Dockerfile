@@ -101,6 +101,8 @@ ENV NODE_OPTIONS="--max-old-space-size=12288"
 RUN pnpm --filter @wasd/core-logic --if-present run build:runtime && \
     pnpm --filter @wasd/shared --if-present build && \
     pnpm --filter @wasd/server --if-present build
+
+# Force client-2d build and verify the builder artifact exists.
 RUN pnpm --filter ./apps/client-2d... run build
 RUN test -f /app/apps/client-2d/dist/index.html
 
@@ -140,6 +142,11 @@ RUN addgroup -S nodejs && adduser -S nodeuser -G nodejs
 
 # Copy deployed app
 COPY --from=builder /app/prod-server ./
+
+# Copy client-2d runtime assets into the Express static directory.
+# ServerBootstrap serves production frontend files from ./client/dist.
+COPY --from=builder /app/apps/client-2d/dist ./client/dist/2d
+RUN test -f /app/client/dist/2d/index.html
 
 # Permissions
 RUN chown -R nodeuser:nodejs /app
