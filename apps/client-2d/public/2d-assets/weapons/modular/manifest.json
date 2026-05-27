@@ -1,0 +1,1823 @@
+{
+  "version": "2.0.0",
+  "generated": "2026-05-27T10:25:11.673Z",
+  "atlas": "atlas.png",
+  "tile_size": 128,
+  "total_parts": 64,
+  "parts": {
+    "sword_blade_iron_01": {
+      "name": "Iron Longsword",
+      "category": "sword_blade",
+      "weapon_kind": "sword",
+      "material": "iron",
+      "rarity": "common",
+      "rarity_weight": 100,
+      "tags": [
+        "physical",
+        "any_biome"
+      ],
+      "atlas_x": 0,
+      "atlas_y": 0,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "slash",
+        "thrust",
+        "parry",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {
+        "guard": "sword_guard_*",
+        "handle": "sword_handle_*",
+        "pommel": "sword_pommel_*"
+      }
+    },
+    "sword_blade_steel_02": {
+      "name": "Steel Double-Fuller",
+      "category": "sword_blade",
+      "weapon_kind": "sword",
+      "material": "steel",
+      "rarity": "uncommon",
+      "rarity_weight": 60,
+      "tags": [
+        "physical",
+        "any_biome"
+      ],
+      "atlas_x": 128,
+      "atlas_y": 0,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "slash",
+        "thrust",
+        "parry",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {
+        "guard": "sword_guard_*",
+        "handle": "sword_handle_*",
+        "pommel": "sword_pommel_*"
+      }
+    },
+    "sword_blade_void_03": {
+      "name": "Void Serrated Blade",
+      "category": "sword_blade",
+      "weapon_kind": "sword",
+      "material": "void",
+      "rarity": "epic",
+      "rarity_weight": 10,
+      "tags": [
+        "magical",
+        "void_biome"
+      ],
+      "atlas_x": 256,
+      "atlas_y": 0,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "slash",
+        "thrust",
+        "parry",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {
+        "guard": "sword_guard_*",
+        "handle": "sword_handle_*",
+        "pommel": "sword_pommel_*"
+      }
+    },
+    "sword_blade_royal_04": {
+      "name": "Royal Fleur Blade",
+      "category": "sword_blade",
+      "weapon_kind": "sword",
+      "material": "royal",
+      "rarity": "legendary",
+      "rarity_weight": 3,
+      "tags": [
+        "physical",
+        "royal_faction"
+      ],
+      "atlas_x": 384,
+      "atlas_y": 0,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "slash",
+        "thrust",
+        "parry",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {
+        "guard": "sword_guard_*",
+        "handle": "sword_handle_*",
+        "pommel": "sword_pommel_*"
+      }
+    },
+    "sword_blade_cursed_05": {
+      "name": "Cursed Flame Blade",
+      "category": "sword_blade",
+      "weapon_kind": "sword",
+      "material": "cursed",
+      "rarity": "epic",
+      "rarity_weight": 10,
+      "tags": [
+        "fire",
+        "cursed_biome"
+      ],
+      "atlas_x": 512,
+      "atlas_y": 0,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "slash",
+        "thrust",
+        "parry",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {
+        "guard": "sword_guard_*",
+        "handle": "sword_handle_*",
+        "pommel": "sword_pommel_*"
+      }
+    },
+    "sword_blade_forest_06": {
+      "name": "Ancient Forest Blade",
+      "category": "sword_blade",
+      "weapon_kind": "sword",
+      "material": "nature",
+      "rarity": "rare",
+      "rarity_weight": 30,
+      "tags": [
+        "nature",
+        "forest_biome"
+      ],
+      "atlas_x": 640,
+      "atlas_y": 0,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "slash",
+        "thrust",
+        "parry",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {
+        "guard": "sword_guard_*",
+        "handle": "sword_handle_*",
+        "pommel": "sword_pommel_*"
+      }
+    },
+    "sword_blade_frost_07": {
+      "name": "Frostborn Blade",
+      "category": "sword_blade",
+      "weapon_kind": "sword",
+      "material": "ice",
+      "rarity": "rare",
+      "rarity_weight": 30,
+      "tags": [
+        "ice",
+        "tundra_biome"
+      ],
+      "atlas_x": 768,
+      "atlas_y": 0,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "slash",
+        "thrust",
+        "parry",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {
+        "guard": "sword_guard_*",
+        "handle": "sword_handle_*",
+        "pommel": "sword_pommel_*"
+      }
+    },
+    "sword_blade_ancient_08": {
+      "name": "Ancient Bronze Blade",
+      "category": "sword_blade",
+      "weapon_kind": "sword",
+      "material": "gold",
+      "rarity": "uncommon",
+      "rarity_weight": 60,
+      "tags": [
+        "physical",
+        "ruins_biome"
+      ],
+      "atlas_x": 896,
+      "atlas_y": 0,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "slash",
+        "thrust",
+        "parry",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {
+        "guard": "sword_guard_*",
+        "handle": "sword_handle_*",
+        "pommel": "sword_pommel_*"
+      }
+    },
+    "sword_guard_iron_01": {
+      "name": "Simple Crossguard",
+      "category": "sword_guard",
+      "weapon_kind": "sword",
+      "material": "iron",
+      "rarity": "common",
+      "rarity_weight": 100,
+      "tags": [
+        "physical"
+      ],
+      "atlas_x": 0,
+      "atlas_y": 128,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "slash",
+        "thrust",
+        "parry",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {}
+    },
+    "sword_guard_gold_02": {
+      "name": "Ornate Wing Guard",
+      "category": "sword_guard",
+      "weapon_kind": "sword",
+      "material": "gold",
+      "rarity": "legendary",
+      "rarity_weight": 3,
+      "tags": [
+        "physical",
+        "royal_faction"
+      ],
+      "atlas_x": 128,
+      "atlas_y": 128,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "slash",
+        "thrust",
+        "parry",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {}
+    },
+    "sword_guard_royal_03": {
+      "name": "Crown Guard",
+      "category": "sword_guard",
+      "weapon_kind": "sword",
+      "material": "royal",
+      "rarity": "epic",
+      "rarity_weight": 10,
+      "tags": [
+        "physical",
+        "royal_faction"
+      ],
+      "atlas_x": 256,
+      "atlas_y": 128,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "slash",
+        "thrust",
+        "parry",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {}
+    },
+    "sword_guard_bone_04": {
+      "name": "Skull Bone Guard",
+      "category": "sword_guard",
+      "weapon_kind": "sword",
+      "material": "bone",
+      "rarity": "rare",
+      "rarity_weight": 30,
+      "tags": [
+        "physical",
+        "undead_faction"
+      ],
+      "atlas_x": 384,
+      "atlas_y": 128,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "slash",
+        "thrust",
+        "parry",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {}
+    },
+    "sword_guard_void_05": {
+      "name": "Twisted Void Guard",
+      "category": "sword_guard",
+      "weapon_kind": "sword",
+      "material": "void",
+      "rarity": "epic",
+      "rarity_weight": 10,
+      "tags": [
+        "magical",
+        "void_biome"
+      ],
+      "atlas_x": 512,
+      "atlas_y": 128,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "slash",
+        "thrust",
+        "parry",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {}
+    },
+    "sword_guard_fire_06": {
+      "name": "Fire Wing Guard",
+      "category": "sword_guard",
+      "weapon_kind": "sword",
+      "material": "fire",
+      "rarity": "rare",
+      "rarity_weight": 30,
+      "tags": [
+        "fire",
+        "volcanic_biome"
+      ],
+      "atlas_x": 640,
+      "atlas_y": 128,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "slash",
+        "thrust",
+        "parry",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {}
+    },
+    "sword_handle_leather_01": {
+      "name": "Leather Wrapped Grip",
+      "category": "sword_handle",
+      "weapon_kind": "sword",
+      "material": "leather",
+      "rarity": "common",
+      "rarity_weight": 100,
+      "tags": [
+        "physical"
+      ],
+      "atlas_x": 768,
+      "atlas_y": 128,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "slash",
+        "thrust",
+        "parry",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {}
+    },
+    "sword_handle_bone_02": {
+      "name": "Ribbed Bone Grip",
+      "category": "sword_handle",
+      "weapon_kind": "sword",
+      "material": "bone",
+      "rarity": "uncommon",
+      "rarity_weight": 60,
+      "tags": [
+        "physical",
+        "undead_faction"
+      ],
+      "atlas_x": 896,
+      "atlas_y": 128,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "slash",
+        "thrust",
+        "parry",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {}
+    },
+    "sword_handle_crystal_03": {
+      "name": "Crystal Grip",
+      "category": "sword_handle",
+      "weapon_kind": "sword",
+      "material": "crystal",
+      "rarity": "rare",
+      "rarity_weight": 30,
+      "tags": [
+        "magical"
+      ],
+      "atlas_x": 0,
+      "atlas_y": 256,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "slash",
+        "thrust",
+        "parry",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {}
+    },
+    "sword_handle_royal_04": {
+      "name": "Royal Velvet Grip",
+      "category": "sword_handle",
+      "weapon_kind": "sword",
+      "material": "royal",
+      "rarity": "epic",
+      "rarity_weight": 10,
+      "tags": [
+        "physical",
+        "royal_faction"
+      ],
+      "atlas_x": 128,
+      "atlas_y": 256,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "slash",
+        "thrust",
+        "parry",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {}
+    },
+    "sword_handle_void_05": {
+      "name": "Void Cracked Grip",
+      "category": "sword_handle",
+      "weapon_kind": "sword",
+      "material": "void",
+      "rarity": "epic",
+      "rarity_weight": 10,
+      "tags": [
+        "magical",
+        "void_biome"
+      ],
+      "atlas_x": 256,
+      "atlas_y": 256,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "slash",
+        "thrust",
+        "parry",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {}
+    },
+    "sword_pommel_iron_01": {
+      "name": "Iron Ball Pommel",
+      "category": "sword_pommel",
+      "weapon_kind": "sword",
+      "material": "iron",
+      "rarity": "common",
+      "rarity_weight": 100,
+      "tags": [
+        "physical"
+      ],
+      "atlas_x": 384,
+      "atlas_y": 256,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "slash",
+        "thrust",
+        "parry",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {}
+    },
+    "sword_pommel_gold_02": {
+      "name": "Faceted Gold Pommel",
+      "category": "sword_pommel",
+      "weapon_kind": "sword",
+      "material": "gold",
+      "rarity": "rare",
+      "rarity_weight": 30,
+      "tags": [
+        "physical",
+        "royal_faction"
+      ],
+      "atlas_x": 512,
+      "atlas_y": 256,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "slash",
+        "thrust",
+        "parry",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {}
+    },
+    "sword_pommel_crystal_03": {
+      "name": "Crystal Teardrop Pommel",
+      "category": "sword_pommel",
+      "weapon_kind": "sword",
+      "material": "crystal",
+      "rarity": "rare",
+      "rarity_weight": 30,
+      "tags": [
+        "magical"
+      ],
+      "atlas_x": 640,
+      "atlas_y": 256,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "slash",
+        "thrust",
+        "parry",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {}
+    },
+    "sword_pommel_royal_04": {
+      "name": "Royal Crown Pommel",
+      "category": "sword_pommel",
+      "weapon_kind": "sword",
+      "material": "royal",
+      "rarity": "legendary",
+      "rarity_weight": 3,
+      "tags": [
+        "physical",
+        "royal_faction"
+      ],
+      "atlas_x": 768,
+      "atlas_y": 256,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "slash",
+        "thrust",
+        "parry",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {}
+    },
+    "sword_pommel_void_05": {
+      "name": "Void Eye Pommel",
+      "category": "sword_pommel",
+      "weapon_kind": "sword",
+      "material": "void",
+      "rarity": "epic",
+      "rarity_weight": 10,
+      "tags": [
+        "magical",
+        "void_biome"
+      ],
+      "atlas_x": 896,
+      "atlas_y": 256,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "slash",
+        "thrust",
+        "parry",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {}
+    },
+    "axe_head_iron_01": {
+      "name": "Iron Single-Bit Axe",
+      "category": "axe_head",
+      "weapon_kind": "axe",
+      "material": "iron",
+      "rarity": "common",
+      "rarity_weight": 100,
+      "tags": [
+        "physical",
+        "any_biome"
+      ],
+      "atlas_x": 0,
+      "atlas_y": 384,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "chop",
+        "overhead",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {
+        "handle": "axe_handle_*"
+      }
+    },
+    "axe_head_void_02": {
+      "name": "Void Double Crescent",
+      "category": "axe_head",
+      "weapon_kind": "axe",
+      "material": "void",
+      "rarity": "epic",
+      "rarity_weight": 10,
+      "tags": [
+        "magical",
+        "void_biome"
+      ],
+      "atlas_x": 128,
+      "atlas_y": 384,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "chop",
+        "overhead",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {
+        "handle": "axe_handle_*"
+      }
+    },
+    "axe_head_gold_03": {
+      "name": "Ornate Royal Axe",
+      "category": "axe_head",
+      "weapon_kind": "axe",
+      "material": "gold",
+      "rarity": "legendary",
+      "rarity_weight": 3,
+      "tags": [
+        "physical",
+        "royal_faction"
+      ],
+      "atlas_x": 256,
+      "atlas_y": 384,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "chop",
+        "overhead",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {
+        "handle": "axe_handle_*"
+      }
+    },
+    "axe_head_bone_04": {
+      "name": "Bone Fang Axe",
+      "category": "axe_head",
+      "weapon_kind": "axe",
+      "material": "bone",
+      "rarity": "rare",
+      "rarity_weight": 30,
+      "tags": [
+        "physical",
+        "undead_faction"
+      ],
+      "atlas_x": 384,
+      "atlas_y": 384,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "chop",
+        "overhead",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {
+        "handle": "axe_handle_*"
+      }
+    },
+    "axe_head_fire_05": {
+      "name": "Blazing Flame Axe",
+      "category": "axe_head",
+      "weapon_kind": "axe",
+      "material": "fire",
+      "rarity": "epic",
+      "rarity_weight": 10,
+      "tags": [
+        "fire",
+        "volcanic_biome"
+      ],
+      "atlas_x": 512,
+      "atlas_y": 384,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "chop",
+        "overhead",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {
+        "handle": "axe_handle_*"
+      }
+    },
+    "axe_handle_wood_01": {
+      "name": "Banded Wood Haft",
+      "category": "axe_handle",
+      "weapon_kind": "axe",
+      "material": "wood",
+      "rarity": "common",
+      "rarity_weight": 100,
+      "tags": [
+        "physical"
+      ],
+      "atlas_x": 640,
+      "atlas_y": 384,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "chop",
+        "overhead",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {}
+    },
+    "axe_handle_rune_02": {
+      "name": "Rune-Carved Haft",
+      "category": "axe_handle",
+      "weapon_kind": "axe",
+      "material": "wood",
+      "rarity": "rare",
+      "rarity_weight": 30,
+      "tags": [
+        "magical"
+      ],
+      "atlas_x": 768,
+      "atlas_y": 384,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "chop",
+        "overhead",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {}
+    },
+    "axe_handle_bone_03": {
+      "name": "Sinew-Wrapped Bone Haft",
+      "category": "axe_handle",
+      "weapon_kind": "axe",
+      "material": "bone",
+      "rarity": "uncommon",
+      "rarity_weight": 60,
+      "tags": [
+        "physical",
+        "undead_faction"
+      ],
+      "atlas_x": 896,
+      "atlas_y": 384,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "chop",
+        "overhead",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {}
+    },
+    "hammer_head_iron_01": {
+      "name": "War Hammer Head",
+      "category": "hammer_head",
+      "weapon_kind": "hammer",
+      "material": "iron",
+      "rarity": "common",
+      "rarity_weight": 100,
+      "tags": [
+        "physical",
+        "any_biome"
+      ],
+      "atlas_x": 0,
+      "atlas_y": 512,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "smash",
+        "overhead",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {
+        "handle": "axe_handle_*"
+      }
+    },
+    "hammer_head_royal_02": {
+      "name": "Royal Flanged Mace",
+      "category": "hammer_head",
+      "weapon_kind": "hammer",
+      "material": "gold",
+      "rarity": "legendary",
+      "rarity_weight": 3,
+      "tags": [
+        "physical",
+        "royal_faction"
+      ],
+      "atlas_x": 128,
+      "atlas_y": 512,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "smash",
+        "overhead",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {
+        "handle": "axe_handle_*"
+      }
+    },
+    "hammer_head_void_03": {
+      "name": "Void Rune Maul",
+      "category": "hammer_head",
+      "weapon_kind": "hammer",
+      "material": "void",
+      "rarity": "epic",
+      "rarity_weight": 10,
+      "tags": [
+        "magical",
+        "void_biome"
+      ],
+      "atlas_x": 256,
+      "atlas_y": 512,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "smash",
+        "overhead",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {
+        "handle": "axe_handle_*"
+      }
+    },
+    "spear_tip_steel_01": {
+      "name": "Leaf Spear Tip",
+      "category": "spear_tip",
+      "weapon_kind": "spear",
+      "material": "steel",
+      "rarity": "common",
+      "rarity_weight": 100,
+      "tags": [
+        "physical",
+        "any_biome"
+      ],
+      "atlas_x": 384,
+      "atlas_y": 512,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "thrust",
+        "sweep",
+        "brace",
+        "impact",
+        "sheathe"
+      ],
+      "compatible_with": {
+        "shaft": "spear_shaft_*"
+      }
+    },
+    "spear_tip_void_02": {
+      "name": "Void Shadow Spike",
+      "category": "spear_tip",
+      "weapon_kind": "spear",
+      "material": "void",
+      "rarity": "epic",
+      "rarity_weight": 10,
+      "tags": [
+        "magical",
+        "void_biome"
+      ],
+      "atlas_x": 512,
+      "atlas_y": 512,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "thrust",
+        "sweep",
+        "brace",
+        "impact",
+        "sheathe"
+      ],
+      "compatible_with": {
+        "shaft": "spear_shaft_*"
+      }
+    },
+    "spear_tip_crystal_03": {
+      "name": "Crystal Spear Point",
+      "category": "spear_tip",
+      "weapon_kind": "spear",
+      "material": "crystal",
+      "rarity": "rare",
+      "rarity_weight": 30,
+      "tags": [
+        "magical",
+        "any_biome"
+      ],
+      "atlas_x": 640,
+      "atlas_y": 512,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "thrust",
+        "sweep",
+        "brace",
+        "impact",
+        "sheathe"
+      ],
+      "compatible_with": {
+        "shaft": "spear_shaft_*"
+      }
+    },
+    "spear_shaft_wood_01": {
+      "name": "Iron-Capped Wood Shaft",
+      "category": "spear_shaft",
+      "weapon_kind": "spear",
+      "material": "wood",
+      "rarity": "common",
+      "rarity_weight": 100,
+      "tags": [
+        "physical",
+        "any_biome"
+      ],
+      "atlas_x": 768,
+      "atlas_y": 512,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "thrust",
+        "sweep",
+        "brace",
+        "impact",
+        "sheathe"
+      ],
+      "compatible_with": {}
+    },
+    "spear_shaft_rune_02": {
+      "name": "Rune-Carved Dark Shaft",
+      "category": "spear_shaft",
+      "weapon_kind": "spear",
+      "material": "wood",
+      "rarity": "rare",
+      "rarity_weight": 30,
+      "tags": [
+        "magical",
+        "ruins_biome"
+      ],
+      "atlas_x": 896,
+      "atlas_y": 512,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "thrust",
+        "sweep",
+        "brace",
+        "impact",
+        "sheathe"
+      ],
+      "compatible_with": {}
+    },
+    "spear_shaft_bone_03": {
+      "name": "Sinew-Bound Bone Shaft",
+      "category": "spear_shaft",
+      "weapon_kind": "spear",
+      "material": "bone",
+      "rarity": "uncommon",
+      "rarity_weight": 60,
+      "tags": [
+        "physical",
+        "undead_faction"
+      ],
+      "atlas_x": 0,
+      "atlas_y": 640,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "thrust",
+        "sweep",
+        "brace",
+        "impact",
+        "sheathe"
+      ],
+      "compatible_with": {}
+    },
+    "staff_head_arcane_01": {
+      "name": "Arcane Orb Staff",
+      "category": "staff_head",
+      "weapon_kind": "staff",
+      "material": "crystal",
+      "rarity": "rare",
+      "rarity_weight": 30,
+      "tags": [
+        "magical",
+        "arcane"
+      ],
+      "atlas_x": 128,
+      "atlas_y": 640,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "cast",
+        "channel",
+        "slam",
+        "impact"
+      ],
+      "compatible_with": {}
+    },
+    "staff_head_fire_02": {
+      "name": "Flame Crown Staff",
+      "category": "staff_head",
+      "weapon_kind": "staff",
+      "material": "fire",
+      "rarity": "epic",
+      "rarity_weight": 10,
+      "tags": [
+        "fire",
+        "volcanic_biome"
+      ],
+      "atlas_x": 256,
+      "atlas_y": 640,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "cast",
+        "channel",
+        "slam",
+        "impact"
+      ],
+      "compatible_with": {}
+    },
+    "staff_head_void_03": {
+      "name": "Void Eye Staff",
+      "category": "staff_head",
+      "weapon_kind": "staff",
+      "material": "void",
+      "rarity": "legendary",
+      "rarity_weight": 3,
+      "tags": [
+        "magical",
+        "void_biome"
+      ],
+      "atlas_x": 384,
+      "atlas_y": 640,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "cast",
+        "channel",
+        "slam",
+        "impact"
+      ],
+      "compatible_with": {}
+    },
+    "shield_round_iron_01": {
+      "name": "Iron Round Buckler",
+      "category": "shield",
+      "weapon_kind": "shield",
+      "material": "iron",
+      "rarity": "common",
+      "rarity_weight": 100,
+      "tags": [
+        "physical",
+        "any_biome"
+      ],
+      "atlas_x": 512,
+      "atlas_y": 640,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "block",
+        "bash",
+        "raise",
+        "lower"
+      ],
+      "compatible_with": {}
+    },
+    "shield_kite_royal_02": {
+      "name": "Royal Kite Shield",
+      "category": "shield",
+      "weapon_kind": "shield",
+      "material": "royal",
+      "rarity": "legendary",
+      "rarity_weight": 3,
+      "tags": [
+        "physical",
+        "royal_faction"
+      ],
+      "atlas_x": 640,
+      "atlas_y": 640,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "block",
+        "bash",
+        "raise",
+        "lower"
+      ],
+      "compatible_with": {}
+    },
+    "shield_tower_void_03": {
+      "name": "Void Tower Shield",
+      "category": "shield",
+      "weapon_kind": "shield",
+      "material": "void",
+      "rarity": "epic",
+      "rarity_weight": 10,
+      "tags": [
+        "magical",
+        "void_biome"
+      ],
+      "atlas_x": 768,
+      "atlas_y": 640,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "block",
+        "bash",
+        "raise",
+        "lower"
+      ],
+      "compatible_with": {}
+    },
+    "magical_crystal_fire_01": {
+      "name": "Fire Crystal",
+      "category": "magical_crystal",
+      "weapon_kind": "offhand",
+      "material": "fire",
+      "rarity": "rare",
+      "rarity_weight": 30,
+      "tags": [
+        "fire",
+        "volcanic_biome"
+      ],
+      "atlas_x": 896,
+      "atlas_y": 640,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "glow",
+        "pulse"
+      ],
+      "compatible_with": {}
+    },
+    "magical_crystal_ice_02": {
+      "name": "Ice Crystal",
+      "category": "magical_crystal",
+      "weapon_kind": "offhand",
+      "material": "ice",
+      "rarity": "rare",
+      "rarity_weight": 30,
+      "tags": [
+        "ice",
+        "tundra_biome"
+      ],
+      "atlas_x": 0,
+      "atlas_y": 768,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "glow",
+        "pulse"
+      ],
+      "compatible_with": {}
+    },
+    "magical_crystal_arcane_03": {
+      "name": "Arcane Crystal",
+      "category": "magical_crystal",
+      "weapon_kind": "offhand",
+      "material": "arcane",
+      "rarity": "epic",
+      "rarity_weight": 10,
+      "tags": [
+        "magical",
+        "any_biome"
+      ],
+      "atlas_x": 128,
+      "atlas_y": 768,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "glow",
+        "pulse"
+      ],
+      "compatible_with": {}
+    },
+    "dagger_blade_iron_01": {
+      "name": "Iron Dirk",
+      "category": "dagger_blade",
+      "weapon_kind": "dagger",
+      "material": "iron",
+      "rarity": "common",
+      "rarity_weight": 100,
+      "tags": [
+        "physical",
+        "any_biome"
+      ],
+      "atlas_x": 256,
+      "atlas_y": 768,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "slash",
+        "stab",
+        "backstab",
+        "combo",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {
+        "guard": "sword_guard_*",
+        "handle": "sword_handle_*"
+      }
+    },
+    "dagger_blade_shadow_02": {
+      "name": "Shadow Assassin Blade",
+      "category": "dagger_blade",
+      "weapon_kind": "dagger",
+      "material": "shadow",
+      "rarity": "rare",
+      "rarity_weight": 30,
+      "tags": [
+        "physical",
+        "rogue_faction"
+      ],
+      "atlas_x": 384,
+      "atlas_y": 768,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "slash",
+        "stab",
+        "backstab",
+        "combo",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {
+        "guard": "sword_guard_*",
+        "handle": "sword_handle_*"
+      }
+    },
+    "dagger_blade_gold_03": {
+      "name": "Ornate Gold Stiletto",
+      "category": "dagger_blade",
+      "weapon_kind": "dagger",
+      "material": "gold",
+      "rarity": "legendary",
+      "rarity_weight": 3,
+      "tags": [
+        "physical",
+        "royal_faction"
+      ],
+      "atlas_x": 512,
+      "atlas_y": 768,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "slash",
+        "stab",
+        "backstab",
+        "combo",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {
+        "guard": "sword_guard_*",
+        "handle": "sword_handle_*"
+      }
+    },
+    "bow_limb_wood_01": {
+      "name": "Wood Recurve Bow",
+      "category": "bow_limb",
+      "weapon_kind": "bow",
+      "material": "wood",
+      "rarity": "common",
+      "rarity_weight": 100,
+      "tags": [
+        "physical",
+        "forest_biome"
+      ],
+      "atlas_x": 640,
+      "atlas_y": 768,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "draw",
+        "aim",
+        "release",
+        "charge_shot"
+      ],
+      "compatible_with": {
+        "string": "bow_string_*"
+      }
+    },
+    "bow_limb_crystal_02": {
+      "name": "Crystal Ice Bow",
+      "category": "bow_limb",
+      "weapon_kind": "bow",
+      "material": "crystal",
+      "rarity": "rare",
+      "rarity_weight": 30,
+      "tags": [
+        "ice",
+        "tundra_biome"
+      ],
+      "atlas_x": 768,
+      "atlas_y": 768,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "draw",
+        "aim",
+        "release",
+        "charge_shot"
+      ],
+      "compatible_with": {
+        "string": "bow_string_*"
+      }
+    },
+    "bow_limb_void_03": {
+      "name": "Void Shadowbow",
+      "category": "bow_limb",
+      "weapon_kind": "bow",
+      "material": "void",
+      "rarity": "epic",
+      "rarity_weight": 10,
+      "tags": [
+        "magical",
+        "void_biome"
+      ],
+      "atlas_x": 896,
+      "atlas_y": 768,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "draw",
+        "aim",
+        "release",
+        "charge_shot"
+      ],
+      "compatible_with": {
+        "string": "bow_string_*"
+      }
+    },
+    "bow_string_sinew_01": {
+      "name": "Sinew Bowstring",
+      "category": "bow_string",
+      "weapon_kind": "bow",
+      "material": "bone",
+      "rarity": "common",
+      "rarity_weight": 100,
+      "tags": [
+        "physical",
+        "any_biome"
+      ],
+      "atlas_x": 0,
+      "atlas_y": 896,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "draw",
+        "aim",
+        "release",
+        "charge_shot"
+      ],
+      "compatible_with": {}
+    },
+    "bow_string_arcane_02": {
+      "name": "Arcane Energy String",
+      "category": "bow_string",
+      "weapon_kind": "bow",
+      "material": "crystal",
+      "rarity": "epic",
+      "rarity_weight": 10,
+      "tags": [
+        "magical",
+        "any_biome"
+      ],
+      "atlas_x": 128,
+      "atlas_y": 896,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "draw",
+        "aim",
+        "release",
+        "charge_shot"
+      ],
+      "compatible_with": {}
+    },
+    "knuckle_iron_01": {
+      "name": "Iron Brass Knuckles",
+      "category": "knuckle",
+      "weapon_kind": "knuckle",
+      "material": "iron",
+      "rarity": "common",
+      "rarity_weight": 100,
+      "tags": [
+        "physical",
+        "any_biome"
+      ],
+      "atlas_x": 256,
+      "atlas_y": 896,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "jab",
+        "hook",
+        "uppercut",
+        "combo",
+        "critical_hit"
+      ],
+      "compatible_with": {}
+    },
+    "knuckle_void_02": {
+      "name": "Void Spike Knuckles",
+      "category": "knuckle",
+      "weapon_kind": "knuckle",
+      "material": "void",
+      "rarity": "epic",
+      "rarity_weight": 10,
+      "tags": [
+        "magical",
+        "void_biome"
+      ],
+      "atlas_x": 384,
+      "atlas_y": 896,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "jab",
+        "hook",
+        "uppercut",
+        "combo",
+        "critical_hit"
+      ],
+      "compatible_with": {}
+    },
+    "knuckle_gold_03": {
+      "name": "Ornate Gold Knuckles",
+      "category": "knuckle",
+      "weapon_kind": "knuckle",
+      "material": "gold",
+      "rarity": "legendary",
+      "rarity_weight": 3,
+      "tags": [
+        "physical",
+        "royal_faction"
+      ],
+      "atlas_x": 512,
+      "atlas_y": 896,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "jab",
+        "hook",
+        "uppercut",
+        "combo",
+        "critical_hit"
+      ],
+      "compatible_with": {}
+    },
+    "mace_head_iron_01": {
+      "name": "Iron Spiked Mace",
+      "category": "mace_head",
+      "weapon_kind": "mace",
+      "material": "iron",
+      "rarity": "common",
+      "rarity_weight": 100,
+      "tags": [
+        "physical",
+        "any_biome"
+      ],
+      "atlas_x": 640,
+      "atlas_y": 896,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "smash",
+        "overhead",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {
+        "handle": "axe_handle_*"
+      }
+    },
+    "mace_head_fire_02": {
+      "name": "Blazing Fire Mace",
+      "category": "mace_head",
+      "weapon_kind": "mace",
+      "material": "fire",
+      "rarity": "epic",
+      "rarity_weight": 10,
+      "tags": [
+        "fire",
+        "volcanic_biome"
+      ],
+      "atlas_x": 768,
+      "atlas_y": 896,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "smash",
+        "overhead",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {
+        "handle": "axe_handle_*"
+      }
+    },
+    "mace_head_void_03": {
+      "name": "Void Skull Mace",
+      "category": "mace_head",
+      "weapon_kind": "mace",
+      "material": "void",
+      "rarity": "legendary",
+      "rarity_weight": 3,
+      "tags": [
+        "magical",
+        "void_biome"
+      ],
+      "atlas_x": 896,
+      "atlas_y": 896,
+      "atlas_w": 128,
+      "atlas_h": 128,
+      "animation_groups": [
+        "idle",
+        "swing",
+        "smash",
+        "overhead",
+        "impact",
+        "critical_hit",
+        "sheathe"
+      ],
+      "compatible_with": {
+        "handle": "axe_handle_*"
+      }
+    }
+  },
+  "rarity_levels": [
+    {
+      "rarity": "common",
+      "weight": 100,
+      "color": "#9d9d9d"
+    },
+    {
+      "rarity": "uncommon",
+      "weight": 60,
+      "color": "#1eff00"
+    },
+    {
+      "rarity": "rare",
+      "weight": 30,
+      "color": "#0070dd"
+    },
+    {
+      "rarity": "epic",
+      "weight": 10,
+      "color": "#a335ee"
+    },
+    {
+      "rarity": "legendary",
+      "weight": 3,
+      "color": "#ff8000"
+    },
+    {
+      "rarity": "mythic",
+      "weight": 1,
+      "color": "#e6cc80"
+    }
+  ],
+  "weapon_kinds": [
+    "sword",
+    "axe",
+    "hammer",
+    "spear",
+    "bow",
+    "dagger",
+    "knuckle",
+    "mace",
+    "staff",
+    "shield",
+    "offhand"
+  ],
+  "categories": [
+    "sword_blade",
+    "sword_guard",
+    "sword_handle",
+    "sword_pommel",
+    "axe_head",
+    "axe_handle",
+    "hammer_head",
+    "spear_tip",
+    "spear_shaft",
+    "staff_head",
+    "shield",
+    "magical_crystal",
+    "dagger_blade",
+    "bow_limb",
+    "bow_string",
+    "knuckle",
+    "mace_head"
+  ],
+  "assembly_rules": {
+    "sword": [
+      "sword_blade",
+      "sword_guard",
+      "sword_handle",
+      "sword_pommel"
+    ],
+    "axe": [
+      "axe_head",
+      "axe_handle"
+    ],
+    "hammer": [
+      "hammer_head",
+      "axe_handle"
+    ],
+    "spear": [
+      "spear_tip",
+      "spear_shaft"
+    ],
+    "bow": [
+      "bow_limb",
+      "bow_string"
+    ],
+    "dagger": [
+      "dagger_blade",
+      "sword_guard",
+      "sword_handle"
+    ],
+    "mace": [
+      "mace_head",
+      "axe_handle"
+    ],
+    "staff": [
+      "staff_head",
+      "spear_shaft"
+    ]
+  }
+}
