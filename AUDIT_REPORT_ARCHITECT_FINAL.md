@@ -1,4 +1,4 @@
-# Umfassender Architektur-Audit-Bericht - Mai 2026
+# Umfassender Architektur-Audit-Bericht - Mai 2027
 
 ## Status Quo
 Das Repository ist ein umfangreiches TypeScript-Monorepo, das mit `pnpm` verwaltet wird. Es verwendet den `isolated` Node-Linker (unter Umgehung von PnP), um eine bessere Kompatibilität mit Tools wie Vite und BabylonJS zu gewährleisten. Die Architektur ist "Logic-First" ausgelegt, mit einem starken Fokus auf deterministische Simulationen (Level-A) für ein Android-MMORPG.
