@@ -14,6 +14,7 @@ import "./liveReality.css";
 import "./worldHeart.css";
 import "./pixiModuleInspector.css";
 import "./mobilePlayability.css";
+import "./mobileResponsive.css";
 
 installClient2DDepthRuntime();
 installViewportRuntime();
