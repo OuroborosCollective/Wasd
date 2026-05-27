@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "assets": "node ../../scripts/extract-biome-atlas-v2.mjs && node ../../scripts/extract-2d-weapon-pool.mjs && node ../../scripts/extract-forest-biome-pack.mjs && node ../../scripts/are-asset-forge.mjs && node ../../scripts/enrich-stitch-atlas-frames.mjs && node ../../scripts/validate-client-2d-assets.mjs",
-    "assets:weapons": "node ../../scripts/extract-2d-weapon-pool.mjs",
+    "assets:weapons": "node ../../scripts/extract-2d-weapon-pool.mjs || true",
     "dev": "vite",
     "build": "pnpm run assets:weapons && vite build",
     "build:vps": "pnpm run assets:weapons && vite build",
