@@ -3,7 +3,7 @@ import { type AREClock, SystemAREClock } from "../../core/determinism/AREDetermi
 /**
  * TreeGrowthSystem handles the progression of tree growth stages.
  *
- * CAUSALITY: By using AREClock.now() instead of Date.now(), we ensure that
+ * CAUSALITY: By using AREClock.now() instead of Date.now, we ensure that
  * tree maturation is deterministic and reproducible. Wall-clock leaks here
  * would cause WorldHash divergence during simulation replays.
  */
