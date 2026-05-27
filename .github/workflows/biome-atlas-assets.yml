@@ -48,8 +48,8 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: chore/biome-atlas-public-assets
           delete-branch: true
-          commit-message: chore(client-2d): update biome atlas public assets
-          title: Update biome atlas public assets
+          commit-message: "chore(client-2d): update biome atlas public assets"
+          title: "Update biome atlas public assets"
           body: |
             Generated from asset-packs/2d/biomes/biome_atlas_v2.zip.
 
