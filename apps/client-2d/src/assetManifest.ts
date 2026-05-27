@@ -71,6 +71,29 @@ type CharacterAtlasPayload = {
   groups?: Record<string, number>;
 };
 
+const ROUTE_BASE = '/2d';
+
+function routeAsset(path: string): string {
+  return `${ROUTE_BASE}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+function normalizeEntrySrc(entry: AssetEntry): AssetEntry {
+  if (!entry.src.startsWith('/')) return entry;
+  if (entry.src.startsWith('/2d/')) return entry;
+  if (entry.src.startsWith('/2d-assets/') || entry.src.startsWith('/assets/')) {
+    return { ...entry, src: routeAsset(entry.src) };
+  }
+  return entry;
+}
+
+function normalizeEntries(entries: Record<string, AssetEntry> | undefined): Record<string, AssetEntry> {
+  const out: Record<string, AssetEntry> = {};
+  Object.entries(entries ?? {}).forEach(([id, entry]) => {
+    out[id] = normalizeEntrySrc(entry);
+  });
+  return out;
+}
+
 async function loadJson<T>(url: string): Promise<T | null> {
   try {
     const res = await fetch(url, { cache: 'no-store' });
@@ -86,21 +109,22 @@ function withEntryIds(entries: Record<string, AssetEntry> | undefined): Record<s
   Object.entries(entries ?? {}).forEach(([id, entry]) => {
     const group = String(entry.group ?? '').toLowerCase();
     const implicitTags = group === 'female' || group === 'male' ? ['civilian'] : [];
-    out[id] = { ...entry, id, tags: [...new Set([...(entry.tags ?? []), ...implicitTags])] };
+    out[id] = { ...normalizeEntrySrc(entry), id, tags: [...new Set([...(entry.tags ?? []), ...implicitTags])] };
   });
   return out;
 }
 
 export async function loadAssetManifest(): Promise<AssetManifest | null> {
-  const root = await loadJson<AssetManifest>('/2d-assets/manifest.json');
-  const weaponManifest = await loadJson<WeaponManifestPayload>('/2d-assets/weapons/weapon-manifest.json');
-  const pipoyaCharacters = await loadJson<CharacterAtlasPayload>('/2d-assets/characters/pipoya/pipoya-character-atlas.json');
-  const forestBiome = await loadJson<AssetManifest>('/2d/assets/biomes/forest/assetpack01/manifest.json');
+  const root = await loadJson<AssetManifest>(routeAsset('/2d-assets/manifest.json'));
+  const weaponManifest = await loadJson<WeaponManifestPayload>(routeAsset('/2d-assets/weapons/weapon-manifest.json'));
+  const pipoyaCharacters = await loadJson<CharacterAtlasPayload>(routeAsset('/2d-assets/characters/pipoya/pipoya-character-atlas.json'));
+  const forestBiome = await loadJson<AssetManifest>(routeAsset('/assets/biomes/forest/assetpack01/manifest.json'));
 
   if (!root && !weaponManifest && !pipoyaCharacters && !forestBiome) return null;
 
   return {
-    ...(root ?? { version: 1, basePath: '/2d-assets' }),
+    ...(root ?? { version: 1, basePath: routeAsset('/2d-assets') }),
+    basePath: root?.basePath ? routeAsset(root.basePath) : routeAsset('/2d-assets'),
     sources: [
       ...(root?.sources ?? []),
       ...(weaponManifest?.sources ?? []),
@@ -108,24 +132,24 @@ export async function loadAssetManifest(): Promise<AssetManifest | null> {
       ...(forestBiome ? [{ id: 'assetpack01_forest_sample', source: 'AssetPack01_Forest_Sample.zip', biome: 'forest', pngCount: forestBiome.pngCount, deterministic: true }] : []),
     ],
     tilesets: {
-      ...(root?.tilesets ?? {}),
-      ...(forestBiome?.tilesets ?? {}),
+      ...normalizeEntries(root?.tilesets),
+      ...normalizeEntries(forestBiome?.tilesets),
     },
     props: {
-      ...(root?.props ?? {}),
-      ...(forestBiome?.props ?? {}),
+      ...normalizeEntries(root?.props),
+      ...normalizeEntries(forestBiome?.props),
     },
     ui: {
-      ...(root?.ui ?? {}),
-      ...(forestBiome?.ui ?? {}),
+      ...normalizeEntries(root?.ui),
+      ...normalizeEntries(forestBiome?.ui),
     },
     characters: {
-      ...(root?.characters ?? {}),
+      ...normalizeEntries(root?.characters),
       ...withEntryIds(pipoyaCharacters?.entries),
     },
     weapons: {
-      ...(root?.weapons ?? {}),
-      ...(weaponManifest?.weapons ?? {}),
+      ...normalizeEntries(root?.weapons),
+      ...normalizeEntries(weaponManifest?.weapons),
     },
   };
 }
@@ -220,21 +244,11 @@ export function pickCharacterVisual(
     const kindOk = !wantedKind || kind === wantedKind || tags.includes(wantedKind);
     return tagsOk && groupOk && kindOk;
   });
-  const groupMatches = renderablePool.filter(([, entry]) => {
-    const tags = (entry.tags ?? []).map((tag) => String(tag).toLowerCase());
-    const group = String(entry.group ?? '').toLowerCase();
-    return Boolean(wantedGroup) && (group === wantedGroup || tags.includes(wantedGroup));
-  });
-  const kindMatches = renderablePool.filter(([, entry]) => {
-    const tags = (entry.tags ?? []).map((tag) => String(tag).toLowerCase());
-    const kind = String(entry.kind ?? '').toLowerCase();
-    return Boolean(wantedKind) && (kind === wantedKind || tags.includes(wantedKind));
-  });
 
-  const pool = matches.length > 0 ? matches : groupMatches.length > 0 ? groupMatches : kindMatches.length > 0 ? kindMatches : renderablePool;
+  const pool = matches.length > 0 ? matches : renderablePool;
   if (pool.length === 0) return null;
 
-  const seed = String(input.seed ?? `${wantedKind}:${wantedGroup}:${wantedTags.join(',')}`);
+  const seed = String(input.seed ?? `${wantedTags.join(',')}:${wantedGroup}:${wantedKind}`);
   const [id, entry] = pool[deterministicIndex(seed, pool.length)];
   return { id, entry };
 }
