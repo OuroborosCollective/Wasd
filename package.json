@@ -45,18 +45,18 @@
       "ssh2"
     ],
     "overrides": {
-      "@types/react": "^19.2.14",
+      "@types/react": "^19.2.15",
       "@types/react-dom": "^19.2.3",
       "@types/node": "^25.9.1",
       "typescript": "^6.0.3",
       "zod": "^4.4.3",
       "three": "0.184.0",
-      "@babylonjs/core": "9.8.0",
-      "@babylonjs/materials": "9.8.0",
-      "@babylonjs/loaders": "9.8.0",
+      "@babylonjs/core": "9.9.1",
+      "@babylonjs/materials": "9.9.1",
+      "@babylonjs/loaders": "9.9.1",
       "react": "^19.2.6",
       "socket.io-client": "^4.8.3",
-      "pg": "^8.20.0"
+      "pg": "^8.21.0"
     },
     "resolutions": {
       "typescript": "^6.0.3",
