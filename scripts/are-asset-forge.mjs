@@ -67,24 +67,23 @@ function inferRole(id, entry, groupName) {
   return groupName.replace(/s$/, '') || 'unknown';
 }
 
+function ensureDepth(entry, zHeight, isoFootprint, shadow) {
+  entry.zHeight ??= zHeight;
+  entry.isoFootprint ??= isoFootprint;
+  entry.shadow ??= shadow;
+}
+
 function depthFor(groupName, role, entry) {
-  if (entry.zHeight || entry.isoFootprint || entry.shadow) return;
   if (groupName === 'buildings' || role === 'house') {
-    entry.zHeight = 3;
-    entry.isoFootprint = { w: 144, h: 72 };
-    entry.shadow = { w: 164, h: 42, alpha: 0.38 };
+    ensureDepth(entry, 3, { w: 144, h: 72 }, { w: 164, h: 42, alpha: 0.38 });
     return;
   }
   if (groupName === 'props' && role === 'tree') {
-    entry.zHeight = 2;
-    entry.isoFootprint = { w: 72, h: 36 };
-    entry.shadow = { w: 88, h: 26, alpha: 0.34 };
+    ensureDepth(entry, 2, { w: 72, h: 36 }, { w: 88, h: 26, alpha: 0.34 });
     return;
   }
   if (groupName === 'props') {
-    entry.zHeight = 1;
-    entry.isoFootprint = { w: 64, h: 28 };
-    entry.shadow = { w: 72, h: 20, alpha: 0.32 };
+    ensureDepth(entry, 1, { w: 64, h: 28 }, { w: 72, h: 20, alpha: 0.32 });
   }
 }
 
