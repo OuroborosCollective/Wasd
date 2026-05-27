@@ -37,6 +37,7 @@ export type AssetEntry = {
   shadow?: { w: number; h: number; alpha?: number };
   weaponClass?: string;
   rarity?: string;
+  visualRarity?: string;
   tags?: string[];
   animations?: Record<string, SpriteAnimation | number[] | unknown>;
   rules?: Record<string, unknown>;
@@ -117,10 +118,11 @@ function withEntryIds(entries: Record<string, AssetEntry> | undefined): Record<s
 export async function loadAssetManifest(): Promise<AssetManifest | null> {
   const root = await loadJson<AssetManifest>(routeAsset('/2d-assets/manifest.json'));
   const weaponManifest = await loadJson<WeaponManifestPayload>(routeAsset('/2d-assets/weapons/weapon-manifest.json'));
+  const modularWeaponManifest = await loadJson<WeaponManifestPayload>(routeAsset('/2d-assets/weapons/modular/weapon-manifest.json'));
   const pipoyaCharacters = await loadJson<CharacterAtlasPayload>(routeAsset('/2d-assets/characters/pipoya/pipoya-character-atlas.json'));
   const forestBiome = await loadJson<AssetManifest>(routeAsset('/assets/biomes/forest/assetpack01/manifest.json'));
 
-  if (!root && !weaponManifest && !pipoyaCharacters && !forestBiome) return null;
+  if (!root && !weaponManifest && !modularWeaponManifest && !pipoyaCharacters && !forestBiome) return null;
 
   return {
     ...(root ?? { version: 1, basePath: routeAsset('/2d-assets') }),
@@ -128,6 +130,7 @@ export async function loadAssetManifest(): Promise<AssetManifest | null> {
     sources: [
       ...(root?.sources ?? []),
       ...(weaponManifest?.sources ?? []),
+      ...(modularWeaponManifest?.sources ?? []),
       ...(pipoyaCharacters ? [{ id: pipoyaCharacters.id ?? 'pipoya-character-atlas', source: pipoyaCharacters.source ?? 'Pipoya', groups: pipoyaCharacters.groups ?? {} }] : []),
       ...(forestBiome ? [{ id: 'assetpack01_forest_sample', source: 'AssetPack01_Forest_Sample.zip', biome: 'forest', pngCount: forestBiome.pngCount, deterministic: true }] : []),
     ],
@@ -150,6 +153,7 @@ export async function loadAssetManifest(): Promise<AssetManifest | null> {
     weapons: {
       ...normalizeEntries(root?.weapons),
       ...normalizeEntries(weaponManifest?.weapons),
+      ...normalizeEntries(modularWeaponManifest?.weapons),
     },
   };
 }
