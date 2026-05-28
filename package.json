@@ -17,6 +17,8 @@
     "assets:pixi:scan-inbox": "node scripts/scan-pixi-asset-inbox.mjs",
     "assets:pixi:plan": "node scripts/import-pixi-dev-hub-assets.mjs --dry-run",
     "assets:pixi:prepare": "node scripts/import-pixi-dev-hub-assets.mjs",
+    "assets:pixi:import:kenney-ui": "node scripts/import-kenney-ui-pack.mjs",
+    "assets:pixi:import:kenney-ui:dry-run": "node scripts/import-kenney-ui-pack.mjs --dry-run",
     "assets:pixi:validate": "node scripts/validate-pixi-assets.mjs",
     "assets:pixi:validate-batches": "node scripts/validate-pixi-import-batches.mjs",
     "guard:monorepo": "node scripts/monorepo-guard.mjs",
