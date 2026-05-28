@@ -19,3 +19,12 @@ pnpm-debug.log*
 # Python (deploy helpers)
 __pycache__/
 *.py[cod]
+
+# Local asset staging
+.asset-inbox/*
+!.asset-inbox/.gitkeep
+!.asset-inbox/pixi/
+!.asset-inbox/pixi/.gitkeep
+apps/client-2d/public/2d-assets/**/*.zip
+apps/client-2d/public/2d-assets/**/*.7z
+apps/client-2d/public/2d-assets/**/*.rar
