@@ -31,6 +31,8 @@ import { AREElectroweakPruningManager, type AREEntity, type ElectroweakDecayEven
 import { KappaPosGrid } from "@wasd/shared";
 import { checkForestResource, isNearForestResource } from "../modules/resource/forestResourceCheck.js";
 import { FOREST_ACTION_DISTANCE, FOREST_RESPAWN_TICKS } from "../modules/resource/forestResourceRules.js";
+import { AIOrchestrator } from "./AIOrchestrator.js";
+import { processRespawns } from "../modules/combat/deathRespawnSystem.js";
 
 const ELECTROWEAK_LOOT_TTL_TICKS = 1200;
 
@@ -412,6 +414,15 @@ export class WorldTick {
     this.tickCount += 1;
     const payload = this.buildAREPayload();
     const allPlayers = this.playerSystem.getAllPlayers();
+    AIOrchestrator.update(this.tickCount);
+    processRespawns(
+      { players: allPlayers as any, respawnPoints: (this.worldSystem as any).respawnPoints },
+      this.tickCount,
+      (playerId, type, payload) => {
+        const socketId = this.playerToSocket.get(playerId);
+        if (socketId) this.ws.sendToPlayer(socketId, { type, payload });
+      },
+    );
     this.warfrontSystem.tick(this.tickCount * 100);
     this.npcSystem.tick(allPlayers.filter((p) => !p.isOffline), this.worldSystem.worldTime);
     const emergenceEvents = this.collectNpcEmergenceEvents();
