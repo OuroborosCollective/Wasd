@@ -117,6 +117,7 @@ jobs:
           echo "=== VPS Docker deploy entry ==="
           echo "App dir: $APP_DIR"
           echo "Branch: $BRANCH"
+          echo "Client-2D archive: ${CLIENT_2D_ARCHIVE:-none}"
 
           mkdir -p "$APP_DIR"
           cd "$APP_DIR"
@@ -127,7 +128,11 @@ jobs:
             git remote set-url origin "$REPO_URL" || true
             git fetch --no-tags origin "$BRANCH"
             git reset --hard "origin/$BRANCH"
-            git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ || true
+            if [ -n "$CLIENT_2D_ARCHIVE" ]; then
+              git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ -e "$CLIENT_2D_ARCHIVE" -e apps/client-2d/dist/ || true
+            else
+              git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ -e apps/client-2d/dist/ || true
+            fi
           fi
 
           if [ -n "$CLIENT_2D_ARCHIVE" ] && [ -f "$APP_DIR/$CLIENT_2D_ARCHIVE" ]; then
@@ -146,6 +151,8 @@ jobs:
           ARELORIAN_PORT="${ARELORIAN_PORT:-3001}" \
           ARELORIAN_DOCKER_NETWORK="${ARELORIAN_DOCKER_NETWORK:-areloria_arelorian-network}" \
           ARELORIAN_ENV_FILE=".env.docker" \
+          CLIENT_2D_ARCHIVE="$CLIENT_2D_ARCHIVE" \
+          CLIENT_2D_MARKER="$CLIENT_2D_MARKER" \
           DEPLOY_BRANCH="$BRANCH" \
           bash scripts/deploy-vps-docker.sh
           EOF
