@@ -72,6 +72,10 @@ function isBlockedPack(pack, metadata, blockedById) {
   );
 }
 
+function isAllowedIncomingArchive(relative, extension) {
+  return relative.startsWith('incoming/') && extension === '.zip';
+}
+
 function assertUrlDrift(pack, metadata, allowlist, errors) {
   if (!metadata) {
     errors.push(`Missing source metadata for pack ${pack.id}`);
@@ -133,6 +137,10 @@ async function main() {
     const extension = path.extname(file).toLowerCase();
 
     if (relative.startsWith('manifests/') || relative.startsWith('credits/') || path.basename(file) === '.gitkeep') {
+      continue;
+    }
+
+    if (isAllowedIncomingArchive(relative, extension)) {
       continue;
     }
 
