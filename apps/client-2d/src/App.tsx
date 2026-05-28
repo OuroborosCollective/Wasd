@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Application, Graphics, Text } from "pixi.js";
 import { createClient, type AgentState, type PlayerState } from "@wasd/core-network";
+import { createArelorianHud, type ArelorianHud } from "./ui/ArelorianHud";
 
 const TILE_SIZE = 32;
 const SCALE = 2;
@@ -22,6 +23,7 @@ interface Equip { head: Item; chest: Item; weapon: Item }
 export function App() {
   const cRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<Application | null>(null);
+  const hudRef = useRef<ArelorianHud | null>(null);
   const ents = useRef<Map<string, Entity>>(new Map());
   const keys = useRef<Set<string>>(new Set());
   const moveFrameGate = useRef(MOVE_SEND_FRAME_INTERVAL);
@@ -76,6 +78,21 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    hudRef.current?.updateState({
+      health: char.hp,
+      maxHealth: char.maxHp,
+      energy: char.mp,
+      maxEnergy: char.maxMp,
+      stamina: skills.filter((skill) => skill.ready).length,
+      maxStamina: Math.max(1, skills.length),
+      matrixEnergy: char.gold,
+      playerName: char.name,
+      zoneName: conn ? "Millbrook" : "Areloria",
+      skillSlots: skills.slice(0, 5).map((skill, index) => skill.ready ? `${index + 1}` : "…"),
+    });
+  }, [char, skills, conn]);
+
+  useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
       keys.current.add(e.key.toLowerCase());
       if (e.key === "Escape") setPanel(null);
@@ -101,11 +118,28 @@ export function App() {
     app.init({ background: 0x0f0f1a, resizeTo: cRef.current, antialias: true, resolution: window.devicePixelRatio || 1, autoDensity: true })
       .then(() => {
         cRef.current?.appendChild(app.canvas);
+        const hud = createArelorianHud({
+          health: char.hp,
+          maxHealth: char.maxHp,
+          energy: char.mp,
+          maxEnergy: char.maxMp,
+          stamina: skills.filter((skill) => skill.ready).length,
+          maxStamina: Math.max(1, skills.length),
+          matrixEnergy: char.gold,
+          playerName: char.name,
+          zoneName: "Areloria",
+          skillSlots: skills.slice(0, 5).map((_, index) => `${index + 1}`),
+        });
+        hud.resize(app.screen.width, app.screen.height);
+        hudRef.current = hud;
+        app.stage.addChild(hud);
         startNetwork(app);
       })
       .catch((e) => setErr(String(e)));
     return () => {
       cliRef.current?.disconnect();
+      hudRef.current?.destroy({ children: true });
+      hudRef.current = null;
       app.destroy(true);
       appRef.current = null;
     };
@@ -157,6 +191,7 @@ export function App() {
       }
 
       const { width, height } = app.screen;
+      hudRef.current?.resize(width, height);
       ents.current.forEach((ent) => {
         const { sx, sy } = mapWorldToScreen(ent.tx, ent.tz, width, height);
         ent.graphics.x += (sx - ent.graphics.x) * 0.15;
@@ -192,6 +227,7 @@ export function App() {
     lb.y = sy - TILE_SIZE - 12;
     app.stage.addChild(gr);
     app.stage.addChild(lb);
+    hudRef.current && app.stage.setChildIndex(hudRef.current, app.stage.children.length - 1);
     ents.current.set(id, { graphics: gr, label: lb, tx: x, tz: z });
   }
 
