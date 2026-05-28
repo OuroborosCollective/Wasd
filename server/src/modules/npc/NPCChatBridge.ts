@@ -2,11 +2,12 @@ import { NPCMemoryCache, type MemoryEvent } from "./NPCMemoryCache.js";
 import type { NPCTraits } from "./NPCTraits.js";
 import type { NPCContext } from "./NPCChatTypes.js";
 import { WorldHistory } from "../history/WorldHistory.js";
+import { type AREClock, SystemAREClock } from "../../core/determinism/AREDeterminism.js";
 
 export class NPCChatBridge {
     private memoryCache: NPCMemoryCache;
 
-    constructor(memoryCache: NPCMemoryCache) {
+    constructor(memoryCache: NPCMemoryCache, private readonly clock: AREClock = new SystemAREClock()) {
         this.memoryCache = memoryCache;
     }
 
@@ -72,7 +73,11 @@ export class NPCChatBridge {
             return "(no recorded world events yet)";
         }
         return evs
-            .map((e) => `- ${e.title}: ${e.description} @${new Date(e.timestamp).toISOString()}`)
+            .map((e) => {
+                // @are-telemetry-side-channel: formats an already-recorded event timestamp for NPC prompt context only.
+                const timeString = new Date(e.timestamp).toISOString();
+                return `- ${e.title}: ${e.description} @${timeString}`;
+            })
             .join("\n");
     }
 
@@ -98,7 +103,8 @@ export class NPCChatBridge {
             },
             worldState: {
                 currentLocation: "unknown",
-                currentTime: new Date().toISOString(),
+                // @are-telemetry-side-channel: deterministic clock value is formatted for NPC prompt context only.
+                currentTime: new Date(this.clock.now()).toISOString(),
                 environmentConditions: "default",
             },
             worldHistory,
