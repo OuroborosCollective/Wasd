@@ -1,41 +1,35 @@
-# Audit Report - August 2027 - Senior DevOps & Fullstack Architect
+# Repository Audit Report - August 2027
 
 ## Status Quo
-The repository is a TypeScript-based monorepo managed with **pnpm**. It utilizes an `isolated` node-linker (strict dependency boundaries) and is structured into `apps/`, `packages/`, and `projects/`. The ecosystem is currently transitioning to **React 19** and **TypeScript 6.0**.
+The repository is a sophisticated monorepo powered by **pnpm** using the `isolated` node-linker. It encompasses a wide array of packages (shared logic, core ECS, networking) and multiple applications (3D client, 2D client, server, portal). The architecture leverages TypeScript Project References for build orchestration, though implementation is inconsistent across the package tree. Deployment is handled via multiple GitHub Action workflows targeting both legacy PM2/SSH and modern Docker/VPS environments.
 
-## Critical Errors
+## Kritische Fehler (Critical Errors)
+1.  **Missing Build Orchestration**: `projects/health-tech/tsconfig.json` is missing, which prevents the root `tsconfig.json` from correctly orchestrating the build for this project.
+2.  **Package Manager Schism**:
+    - Root `package.json` specifies `pnpm@11.1.1`.
+    - `Dockerfile.prod` and `deploy/update.sh` pin `pnpm@9.12.2`.
+    - This version gap (v9 vs v11) leads to lockfile format conflicts and "allowBuilds" vs "onlyBuiltDependencies" resolution errors.
+3.  **Broken Dependency Chains**: Core packages like `@wasd/core-logic` and `@wasd/server` have `composite: false`, which breaks the incremental build chain and declaration map generation for dependent packages.
+4.  **Deployment Redundancy**: `vps-production-deploy.yml` and `main-pipeline.yml` perform near-identical tasks but use different secret naming conventions, increasing maintenance overhead and risk of configuration drift.
 
-### Fixed during this Audit:
-1.  **Workspace Integrity (pnpm-workspace.yaml):** The `projects/` directory was incorrectly mapped as a single package instead of a glob (`projects/*`). This caused **18 projects** to be completely ignored by the pnpm workspace, leading to broken dependency links and missing build targets.
-2.  **Dockerfile Syntax Error:** The production Dockerfile had a chained `RUN` command syntax error (`apk add ... RUN pnpm ...`) which would have caused immediate build failure in any CI/CD environment.
-3.  **React Version Mismatch (apps/client-2d):** Found a critical conflict where `react@19` was paired with `react-dom@18` and React 18 type definitions. This would lead to runtime instability and hydration errors.
-4.  **Deployment Port Mismatch:** The `vps-deploy.yml` workflow was checking port `3000` while `docker-compose.prod.yml` mapped the application to port `80`. This would cause the CI to report deployment failure even if the app was healthy.
-5.  **Redundant Install Script:** The root `package.json` contained an `"install": "pnpm install -r"` script. This is dangerous in pnpm environments as it can cause recursive installation loops and ignores the `pnpm-lock.yaml` in CI.
+## Optimierungspotenzial (Optimization Potential)
+1.  **Vite Version Alignment**: Vite versions drift from `5.2.8` (portal) to `6.4.2` (client/apps) and `8.0.13` (server). Standardizing on Vite 8 (as used by the server) would reduce dependency overhead.
+2.  **BabylonJS Pins**: While root overrides attempt to pin BabylonJS to `9.8.0`, many packages explicitly request `^9.9.1`, leading to multiple versions in the lockfile despite the `isolated` linker.
+3.  **CI Caching**: The current workflows do not fully utilize pnpm's global store cache efficiently across different jobs, leading to redundant installation steps on the GitHub runners.
+4.  **Lockfile Strategy**: `deploy/update.sh` uses `--no-frozen-lockfile` on the VPS, which is dangerous in production as it can introduce unverified dependency changes.
 
-### Identified (Pre-existing):
-1.  **Build Blockers:** `@wasd/server` and `@arelorian/core-network` have extensive TypeScript errors (100+) that prevent a successful `pnpm build` across the monorepo. These range from missing module declarations to type mismatches in core logic.
+## Action Plan
+1.  **TypeScript Hardening**:
+    - Restore `projects/health-tech/tsconfig.json`.
+    - Set `composite: true` and `incremental: true` in all core package `tsconfig.json` files.
+2.  **Pnpm Alignment**:
+    - Standardize on `pnpm@11.2.2` across root `package.json`, `Dockerfile.prod`, and `deploy/update.sh`.
+    - Consolidate build authorization into the `allowBuilds` block in `pnpm-workspace.yaml`.
+3.  **Workflow Consolidation**:
+    - Mark legacy SSH workflows as deprecated.
+    - Standardize on the Docker-based deployment path for production.
+4.  **Dependency Synchronization**:
+    - Align `vite` and `babylonjs` versions across all `package.json` files to match the root overrides.
 
-## Optimization Potential
-1.  **Dependency Synchronization:** While root `pnpm.overrides` are used, several sub-packages still define conflicting versions of core libraries (e.g., Vite, Vitest).
-2.  **Docker Layer Caching:** The current `Dockerfile.prod` copies all source code before `pnpm install`. For larger monorepos, it is recommended to use `pnpm fetch` or copy only `package.json` files first to maximize cache hits.
-3.  **CI Build Filtering:** The use of `--filter "...[origin/main]"` is efficient but relies heavily on correct `tsconfig` references. Some projects were missing from the root `tsconfig.json` references list.
-
-## Action Plan (Completed & Recommended)
-
-### Step 1: Core Infrastructure Fixes (COMPLETED)
-- [x] Update `pnpm-workspace.yaml` with correct glob patterns.
-- [x] Fix `Dockerfile.prod` syntax and update to `--frozen-lockfile`.
-- [x] Correct health check ports in CI workflows.
-- [x] Remove redundant scripts from root `package.json`.
-
-### Step 2: Dependency Alignment (COMPLETED)
-- [x] Synchronize React 19 and TS 6 across `apps/client-2d`.
-- [x] Regenerate `pnpm-lock.yaml` with full workspace visibility.
-
-### Step 3: Codebase Hardening (RECOMMENDED)
-- [ ] **Fix @arelorian/core-network:** Resolve the `number | undefined` assignment error in `network.ts`.
-- [ ] **Fix @wasd/server:** Address the bulk type errors in `OuroborosLoop.ts` and `QuestService.ts`.
-- [ ] **Standardize UI Deps:** Align `@testing-library` and `vite` versions across `apps/web` and `apps/client-2d` to avoid peer dependency warnings.
-
-### Step 4: Docker Optimization (RECOMMENDED)
-- [ ] Transition to a `pnpm fetch` based install in `Dockerfile.prod` to reduce build times by ~40%.
+---
+*Audit performed by Jules - August 2027*
