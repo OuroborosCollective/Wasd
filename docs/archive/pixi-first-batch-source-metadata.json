@@ -65,10 +65,11 @@
       "licenseName": "Creative Commons CC0 1.0 Universal",
       "sourceUrl": "https://kenney.nl/assets/ui-pack",
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
-      "downloadUrl": null,
+      "downloadUrl": "https://kenney.nl/media/pages/assets/ui-pack/f651646eab-1718203990/kenney_ui-pack.zip",
       "sourceVerified": true,
-      "binaryImportStatus": "blocked-until-download-implemented",
-      "attributionRequired": false
+      "binaryImportStatus": "download-enabled",
+      "attributionRequired": false,
+      "notes": "Official Kenney UI Pack ZIP endpoint discovered from the source page download flow. Import remains visual-only for HUD, skillbar, inventory panels, mobile UI and admin UI."
     },
     {
       "id": "pixel-prototype-player",
@@ -83,5 +84,5 @@
       "notes": "Exact official source URL still needs confirmation before binary import."
     }
   ],
-  "nextStep": "Teach scripts/import-pixi-dev-hub-assets.mjs to merge this source metadata into generated credits and block binaries without sourceVerified=true."
+  "nextStep": "Run pnpm assets:pixi:import:kenney-ui after placing kenney_ui-pack.zip in apps/client-2d/public/2d-assets/incoming/kenney-ui-pack/."
 }
