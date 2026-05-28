@@ -2,20 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { Application, Graphics, Text } from "pixi.js";
 import { createClient, type AgentState, type PlayerState } from "@wasd/core-network";
 import { createArelorianHud, formatCooldownTicks, type ArelorianHud } from "./ui/ArelorianHud";
+import { HUD_TICK_MS, mapToArelorianHudState, msToHudCooldownTicks } from "./ui/ArelorianHudStateMapper";
 
 const TILE_SIZE = 32;
 const SCALE = 2;
 const MOVE_SEND_FRAME_INTERVAL = 9;
-const CLIENT_TICK_HZ = 10;
-const CLIENT_TICK_MS = 1000 / CLIENT_TICK_HZ;
 
 function mapWorldToScreen(x: number, z: number, w: number, h: number) {
   return { sx: w / 2 + x * TILE_SIZE * SCALE, sy: h / 2 - z * TILE_SIZE * SCALE };
-}
-
-function msToCooldownTicks(ms: number): number {
-  if (!Number.isFinite(ms)) return 0;
-  return Math.max(0, Math.floor(ms / CLIENT_TICK_MS));
 }
 
 interface Entity { graphics: Graphics; label: Text; tx: number; tz: number }
@@ -55,8 +49,8 @@ export function App() {
   ]);
   const [skills, setSkills] = useState<Skill[]>([
     { id: "atk", name: "Attack", cooldownTicksRemaining: 0, ready: true, ico: "⚔️" },
-    { id: "def", name: "Defend", cooldownTicksRemaining: msToCooldownTicks(5000), ready: false, ico: "🛡️" },
-    { id: "mag", name: "Magic", cooldownTicksRemaining: msToCooldownTicks(3000), ready: false, ico: "✨" },
+    { id: "def", name: "Defend", cooldownTicksRemaining: msToHudCooldownTicks(5000), ready: false, ico: "🛡️" },
+    { id: "mag", name: "Magic", cooldownTicksRemaining: msToHudCooldownTicks(3000), ready: false, ico: "✨" },
     { id: "int", name: "Interact", cooldownTicksRemaining: 0, ready: true, ico: "👆" },
   ]);
   const [inv, setInv] = useState<Item[]>([
@@ -86,19 +80,11 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    hudRef.current?.updateState({
-      health: char.hp,
-      maxHealth: char.maxHp,
-      energy: char.mp,
-      maxEnergy: char.maxMp,
-      stamina: skills.filter((skill) => skill.ready).length,
-      maxStamina: Math.max(1, skills.length),
-      matrixEnergy: char.gold,
-      playerName: char.name,
-      zoneName: conn ? "Millbrook" : "Areloria",
-      skillSlots: skills.slice(0, 5).map((_, index) => `${index + 1}`),
-      skillCooldownTicks: skills.slice(0, 5).map((skill) => skill.cooldownTicksRemaining),
-    });
+    hudRef.current?.updateState(mapToArelorianHudState({
+      character: char,
+      skills,
+      connected: conn,
+    }));
   }, [char, skills, conn]);
 
   useEffect(() => {
@@ -127,19 +113,11 @@ export function App() {
     app.init({ background: 0x0f0f1a, resizeTo: cRef.current, antialias: true, resolution: window.devicePixelRatio || 1, autoDensity: true })
       .then(() => {
         cRef.current?.appendChild(app.canvas);
-        const hud = createArelorianHud({
-          health: char.hp,
-          maxHealth: char.maxHp,
-          energy: char.mp,
-          maxEnergy: char.maxMp,
-          stamina: skills.filter((skill) => skill.ready).length,
-          maxStamina: Math.max(1, skills.length),
-          matrixEnergy: char.gold,
-          playerName: char.name,
-          zoneName: "Areloria",
-          skillSlots: skills.slice(0, 5).map((_, index) => `${index + 1}`),
-          skillCooldownTicks: skills.slice(0, 5).map((skill) => skill.cooldownTicksRemaining),
-        }, {}, {
+        const hud = createArelorianHud(mapToArelorianHudState({
+          character: char,
+          skills,
+          connected: conn,
+        }), {}, {
           onSkillSlot: (slotIndex) => {
             const skill = skills[slotIndex];
             if (skill) useSkill(skill.id);
@@ -190,8 +168,8 @@ export function App() {
 
     app.ticker.add((ticker) => {
       clientTickAccumulator.current += ticker.deltaMS;
-      while (clientTickAccumulator.current >= CLIENT_TICK_MS) {
-        clientTickAccumulator.current -= CLIENT_TICK_MS;
+      while (clientTickAccumulator.current >= HUD_TICK_MS) {
+        clientTickAccumulator.current -= HUD_TICK_MS;
         runClientTick();
       }
 
