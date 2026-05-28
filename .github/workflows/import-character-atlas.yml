@@ -1,0 +1,109 @@
+name: Import Areloria Starter Character Atlas
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'asset-packs/2d/characters/areloria-starter/character-atlas*.zip'
+      - '.github/workflows/import-character-atlas.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: import-areloria-starter-character-atlas
+  cancel-in-progress: true
+
+jobs:
+  import-character-atlas:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Locate source ZIP
+        id: atlas
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(asset-packs/2d/characters/areloria-starter/character-atlas*.zip)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No Areloria starter character atlas ZIP found." >&2
+            exit 1
+          fi
+          latest="$(printf '%s\n' "${files[@]}" | sort | tail -n 1)"
+          echo "zip=$latest" >> "$GITHUB_OUTPUT"
+          echo "Using atlas ZIP: $latest"
+
+      - name: Prepare import directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf apps/client-2d/public/2d-assets/characters/areloria-starter
+          mkdir -p apps/client-2d/public/2d-assets/characters/areloria-starter
+          rm -rf /tmp/areloria-character-atlas
+          mkdir -p /tmp/areloria-character-atlas
+
+      - name: Extract atlas ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          unzip -q "${{ steps.atlas.outputs.zip }}" -d /tmp/areloria-character-atlas
+          root="/tmp/areloria-character-atlas"
+          nested="$(find "$root" -maxdepth 2 -type f -name manifest.json -print -quit | xargs -r dirname)"
+          if [ -z "$nested" ]; then
+            echo "manifest.json not found in ZIP." >&2
+            find "$root" -maxdepth 3 -type f >&2 || true
+            exit 1
+          fi
+          cp -R "$nested"/. apps/client-2d/public/2d-assets/characters/areloria-starter/
+
+      - name: Validate imported atlas
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="apps/client-2d/public/2d-assets/characters/areloria-starter"
+          test -s "$target/atlas.png"
+          test -s "$target/manifest.json"
+          test -s "$target/characters.json"
+          test -s "$target/metadata.jsonl"
+          test -s "$target/quality-report.json"
+          test -s "$target/ATTRIBUTION.md"
+          test -s "$target/LICENSE"
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          target = Path('apps/client-2d/public/2d-assets/characters/areloria-starter')
+          manifest = json.loads((target / 'manifest.json').read_text())
+          frames = manifest.get('frames') or {}
+          animations = manifest.get('animations') or {}
+          if not frames:
+              raise SystemExit('manifest has no frames')
+          if not animations:
+              raise SystemExit('manifest has no animations')
+          required_fragments = ['walk_south', 'walk_west', 'walk_east', 'walk_north', 'idle', 'attack']
+          keys = '\n'.join(animations.keys())
+          missing = [name for name in required_fragments if name not in keys]
+          if missing:
+              raise SystemExit(f'missing animation fragments: {missing}')
+          quality = json.loads((target / 'quality-report.json').read_text())
+          (target / 'IMPORT_STATUS.json').write_text(json.dumps({
+              'source': 'asset-packs/2d/characters/areloria-starter',
+              'assetTier': 'alpha',
+              'status': 'starter-pack',
+              'frames': len(frames),
+              'animations': len(animations),
+              'qualitySummary': quality,
+          }, indent=2, ensure_ascii=False) + '\n')
+          PY
+
+      - name: Commit imported atlas
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: assets(client-2d): import Areloria starter character atlas
+          file_pattern: apps/client-2d/public/2d-assets/characters/areloria-starter/**
