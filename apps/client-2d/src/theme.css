@@ -183,3 +183,36 @@ canvas { display: block; filter: saturate(1.16) contrast(1.08); }
   .live-reality-field { height: 112px; }
   .az-touch-pad { bottom: 118px; left: 10px; grid-template-columns: repeat(3, 42px); grid-template-rows: repeat(3, 42px); }
 }
+
+/* Playability pass 1: prevent mobile HUD overlap and keep combat reachable. */
+@media (max-width: 920px) {
+  .stitch-side-menu {
+    top: 82px;
+    right: 10px;
+    bottom: auto;
+    grid-template-columns: repeat(2, 52px);
+  }
+  .stitch-skillbar {
+    right: 10px;
+    bottom: 10px;
+    max-height: calc(100vh - 210px);
+    overflow: auto;
+  }
+}
+
+@media (max-width: 520px) {
+  .stitch-side-menu {
+    top: 168px;
+    right: 10px;
+    bottom: auto;
+    grid-template-columns: repeat(2, 42px);
+  }
+  .stitch-side-menu button {
+    width: 42px;
+    min-height: 40px;
+  }
+  .stitch-skillbar button {
+    width: 64px;
+    height: 48px;
+  }
+}

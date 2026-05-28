@@ -22,7 +22,7 @@ import {
   type ForestResourceNode,
 } from "./forestResourceRegistry";
 import { ArelorianStitchHud } from "./ArelorianStitchHud";
-import { spawnTouchRipple } from "./fxLogic";
+import { spawnFloatingStatus, spawnTouchRipple } from "./fxLogic";
 import { iso3 } from "./isometricProjection";
 import { initLootFeedback } from "./lootPickupFeedback";
 import { make2dProp } from "./stackedProps";
@@ -369,7 +369,9 @@ async function load2DAssets(): Promise<LoadedAssets> {
 export function CyberZenIsoApp() {
   const host = useRef<HTMLDivElement>(null);
   const appRef = useRef<Application | null>(null);
+  const worldLayerRef = useRef<Container | null>(null);
   const actorLayerRef = useRef<Container | null>(null);
+  const fxLayerRef = useRef<Container | null>(null);
   const assetRef = useRef<LoadedAssets | null>(null);
   const entities = useRef<Map<string, Entity>>(new Map());
   const clientRef = useRef<ReturnType<typeof createClient> | null>(null);
@@ -424,21 +426,29 @@ export function CyberZenIsoApp() {
       setWeaponCount(weapons);
       setAssetStatus(textureCount > 0 ? `ASSETS_${textureCount}_LOADED` : "PROXY_GRAPHICS");
       setMessages(m => [...m.slice(-12), { from: "AssetRig", txt: textureCount > 0 ? `Loaded ${textureCount} textures, ${characters} characters, ${weapons} weapons and ${forestEntries} forest entries.` : "No manifest textures yet. Using proxy graphics." }]);
+      const world = new Container();
       const terrain = new Container();
       const props = new Container();
       const actors = new Container();
       const fx = new Container();
+      world.sortableChildren = true;
+      worldLayerRef.current = world;
       terrain.sortableChildren = true;
       terrain.zIndex = TERRAIN_Z_INDEX;
       props.sortableChildren = true;
       actors.sortableChildren = true;
       fx.sortableChildren = true;
       actorLayerRef.current = actors;
+      fxLayerRef.current = fx;
       app.stage.sortableChildren = true;
       app.stage.eventMode = "static";
       app.stage.hitArea = app.screen;
-      app.stage.addChild(terrain, props, actors, fx);
-      app.stage.on("pointertap", (event) => spawnTouchRipple(fx, { x: event.global.x, y: event.global.y }));
+      world.addChild(terrain, props, actors, fx);
+      app.stage.addChild(world);
+      app.stage.on("pointertap", (event) => {
+        const point = fx.toLocal(event.global);
+        spawnTouchRipple(fx, { x: point.x, y: point.y });
+      });
       await buildScene(app, terrain, props, loaded);
       addActor(app, actors, "self", 0, 0, playerName, true, loaded, initialWeaponId);
       addActor(app, actors, "elder", 2, 1, "Millbrook Elder", false, loaded);
@@ -580,6 +590,17 @@ export function CyberZenIsoApp() {
     c.connect();
   }
 
+  function followCamera(app: Application, deltaTime = 1) {
+    const world = worldLayerRef.current;
+    const self = entities.current.get("self");
+    if (!world || !self) return;
+    const targetX = app.screen.width / 2 - self.root.x;
+    const targetY = app.screen.height / 2 - self.root.y - 18;
+    const ease = Math.min(0.16 * deltaTime, 0.35);
+    world.x += (targetX - world.x) * ease;
+    world.y += (targetY - world.y) * ease;
+  }
+
   function tick(app: Application, layer: Container, deltaTime = 1) {
     let dx = 0, dz = 0;
     const k = keys.current;
@@ -588,13 +609,30 @@ export function CyberZenIsoApp() {
     if (k.has("a") || k.has("arrowleft")) dx -= 1;
     if (k.has("d") || k.has("arrowright")) dx += 1;
     if (dx || dz) sendMove({ dx, dz });
+    const now = performance.now();
     entities.current.forEach((ent) => {
       const p = iso(ent.tx, ent.tz, app.screen.width, app.screen.height);
       moveVisualTowards(ent.root, p, deltaTime);
+      if (!ent.isPlayer) {
+        const phase = deterministicIndex(ent.name, 31) * 0.27;
+        ent.root.y += Math.sin(now / 620 + phase) * 1.2;
+        ent.root.rotation = Math.sin(now / 900 + phase) * 0.01;
+      }
     });
+    followCamera(app, deltaTime);
+  }
+
+  function spawnLocalSkillFx(skillId: string) {
+    const fx = fxLayerRef.current;
+    const self = entities.current.get("self");
+    if (!fx || !self) return;
+    const label = skillId === "atk" ? "STRIKE" : skillId.toUpperCase();
+    spawnTouchRipple(fx, { x: self.root.x + 20, y: self.root.y - 28 });
+    spawnFloatingStatus(fx, { x: self.root.x + 24, y: self.root.y - 34, text: label });
   }
 
   function sendSkill(skillId: string) {
+    spawnLocalSkillFx(skillId);
     clientRef.current?.sendPlayerAction("USE_SKILL", { skillId, weaponVisualId: equippedWeaponId });
     setMessages(m => [...m.slice(-12), { from: "Combat", txt: `Skill queued: ${skillId}` }]);
   }
