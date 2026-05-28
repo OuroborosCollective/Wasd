@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Application, Graphics, Text } from "pixi.js";
 import { createClient, type AgentState, type PlayerState } from "@wasd/core-network";
 import { createArelorianHud, formatCooldownTicks, type ArelorianHud } from "./ui/ArelorianHud";
-import { HUD_TICK_MS, mapToArelorianHudState, msToHudCooldownTicks } from "./ui/ArelorianHudStateMapper";
+import { HUD_TICK_MS, getSkillCooldownTicks, mapToArelorianHudState, msToHudCooldownTicks, type HudSkillSource } from "./ui/ArelorianHudStateMapper";
 
 const TILE_SIZE = 32;
 const SCALE = 2;
@@ -138,6 +138,19 @@ export function App() {
     };
   }, []);
 
+  function applyServerSkills(nextSkills: HudSkillSource[]): void {
+    setSkills((currentSkills) => currentSkills.map((skill, index) => {
+      const incoming = nextSkills.find((next) => next.id === skill.id) ?? nextSkills[index];
+      if (!incoming) return skill;
+      const cooldownTicksRemaining = getSkillCooldownTicks(incoming);
+      return {
+        ...skill,
+        cooldownTicksRemaining,
+        ready: incoming.ready ?? cooldownTicksRemaining <= 0,
+      };
+    }));
+  }
+
   function runClientTick(): void {
     setSkills((currentSkills) => currentSkills.map((skill) => {
       const nextTicks = Math.max(0, skill.cooldownTicksRemaining - 1);
@@ -160,7 +173,16 @@ export function App() {
     });
     client.on("CHAT_MSG", (e: any) => addChatMsg(e.payload?.ch || "local", e.payload?.from || "?", e.payload?.txt || ""));
     client.on("QUEST_DONE", (e: any) => addChatMsg("system", "system", `Quest completed: ${e.payload?.title}!`));
-    client.on("CHAR_UPDATE", (e: any) => { if (e.payload) setChar((p) => ({ ...p, ...e.payload })); });
+    client.on("CHAR_UPDATE", (e: any) => {
+      if (e.payload) {
+        setChar((p) => ({ ...p, ...e.payload }));
+        if (Array.isArray(e.payload.skills)) applyServerSkills(e.payload.skills);
+      }
+    });
+    client.on("SKILL_UPDATE", (e: any) => {
+      if (Array.isArray(e.payload?.skills)) applyServerSkills(e.payload.skills);
+      else if (e.payload?.skill) applyServerSkills([e.payload.skill]);
+    });
     client.on("INV_UPDATE", (e: any) => { if (e.payload?.items) setInv(e.payload.items); });
 
     client.connect();
