@@ -1,0 +1,177 @@
+/* Mobile HUD collision pass: keep right-side menus from covering status badges and panels. */
+:root {
+  --hud-right-rail-width: 92px;
+  --hud-safe-gap: 12px;
+  --hud-bottom-pad: 14px;
+}
+
+.stitch-side-menu,
+.stitch-skillbar,
+.stitch-bottom-right,
+.kenney-live-skin-badge,
+.pixi-module-inspector,
+.live-reality-bridge,
+.world-heart-monitor {
+  box-sizing: border-box;
+}
+
+@media (max-width: 920px) {
+  :root {
+    --hud-right-rail-width: 82px;
+  }
+
+  .stitch-skillbar {
+    right: 8px;
+    bottom: 10px;
+    z-index: 36;
+    max-height: min(390px, calc(100vh - 186px));
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+  }
+
+  .stitch-skillbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .stitch-side-menu {
+    top: 80px;
+    right: 8px;
+    bottom: auto;
+    z-index: 35;
+    grid-template-columns: repeat(2, 44px);
+    gap: 6px;
+  }
+
+  .stitch-side-menu button {
+    width: 44px;
+    min-height: 42px;
+    border-radius: 14px;
+    padding: 5px;
+  }
+
+  .stitch-side-menu span {
+    font-size: 17px;
+  }
+
+  .stitch-side-menu small {
+    display: none;
+  }
+
+  .kenney-live-skin-badge {
+    left: 10px;
+    right: calc(var(--hud-right-rail-width) + var(--hud-safe-gap));
+    bottom: 18px;
+    top: auto;
+    z-index: 30;
+    width: auto;
+    max-width: calc(100vw - var(--hud-right-rail-width) - 28px);
+    transform: none;
+  }
+
+  .pixi-module-inspector,
+  .live-reality-bridge,
+  .world-heart-monitor {
+    right: calc(var(--hud-right-rail-width) + var(--hud-safe-gap));
+    max-width: calc(100vw - var(--hud-right-rail-width) - 28px);
+  }
+
+  .stitch-modal {
+    z-index: 60;
+    padding-right: calc(var(--hud-right-rail-width) + 8px);
+  }
+
+  .stitch-modal-card {
+    max-width: calc(100vw - var(--hud-right-rail-width) - 28px);
+  }
+}
+
+@media (max-width: 620px) {
+  :root {
+    --hud-right-rail-width: 76px;
+  }
+
+  .stitch-side-menu {
+    top: 160px;
+    grid-template-columns: repeat(2, 38px);
+  }
+
+  .stitch-side-menu button {
+    width: 38px;
+    min-height: 38px;
+  }
+
+  .stitch-skillbar {
+    right: 6px;
+    bottom: 8px;
+    padding: 6px;
+    gap: 6px;
+    max-height: min(370px, calc(100vh - 210px));
+  }
+
+  .stitch-skillbar button {
+    width: 58px;
+    height: 45px;
+    border-radius: 15px;
+  }
+
+  .stitch-skillbar span {
+    font-size: 19px;
+  }
+
+  .stitch-skillbar b {
+    font-size: 10px;
+  }
+
+  .kenney-live-skin-badge {
+    left: 8px;
+    right: calc(var(--hud-right-rail-width) + 8px);
+    bottom: 12px;
+    max-width: calc(100vw - var(--hud-right-rail-width) - 20px);
+    padding: 8px 9px;
+    gap: 7px;
+    border-radius: 16px;
+  }
+
+  .kenney-live-skin-preview {
+    width: 58px;
+    height: 34px;
+  }
+
+  .kenney-live-skin-preview img:nth-child(1) {
+    width: 50px;
+    height: 20px;
+  }
+
+  .kenney-live-skin-preview img:nth-child(2) {
+    width: 25px;
+    height: 25px;
+  }
+
+  .kenney-live-skin-preview img:nth-child(3) {
+    width: 14px;
+    height: 14px;
+  }
+
+  .kenney-live-skin-copy small,
+  .kenney-live-skin-copy span {
+    font-size: 8px;
+  }
+
+  .kenney-live-skin-copy strong {
+    font-size: 10px;
+  }
+
+  .stitch-modal {
+    padding: 8px calc(var(--hud-right-rail-width) + 8px) 8px 8px;
+    place-items: stretch;
+  }
+
+  .stitch-modal-card {
+    width: auto;
+    max-width: none;
+    max-height: calc(100vh - 16px);
+    border-radius: 22px;
+    padding: 14px;
+  }
+}
