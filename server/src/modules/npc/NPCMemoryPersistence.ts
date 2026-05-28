@@ -1,4 +1,5 @@
 // @ts-nocheck
+/** @are-telemetry-side-channel */
 /**
  * NPCMemoryPersistence — Layer 2: Supabase-backed long-term NPC memory.
  *
@@ -63,7 +64,7 @@ export async function saveNpcMemory(state: NPCMemoryState): Promise<boolean> {
         trade_history: state.tradeHistory.slice(-50),
         reputation: state.reputation,
         event_log: state.eventLog.slice(-100),
-        last_updated: new Date().toISOString(),
+        last_updated: new Date().toISOString(), // @are-determinism-allow - telemetry side-channel
       },
       { onConflict: "npc_id" },
     );

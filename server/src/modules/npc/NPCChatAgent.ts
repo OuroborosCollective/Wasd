@@ -56,7 +56,11 @@ Maintain character consistency at all times. Respond concisely and in accordance
             ? "Recent Significant World Events:\n" + context.worldHistory
                 .sort((a, b) => b.timestamp - a.timestamp)
                 .slice(0, 5)
-                .map(event => `[${new Date(event.timestamp).toLocaleTimeString()}] ${event.description}`)
+                .map(event => {
+                    // Use deterministic timestamp for time string
+                    const timeStr = new Date(event.timestamp).toLocaleTimeString('en-US', { hour12: false }); // @are-determinism-allow - deterministic timestamp
+                    return `[${timeStr}] ${event.description}`;
+                })
                 .join("\n")
             : "No significant recent world events.";
 

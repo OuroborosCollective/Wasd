@@ -1,9 +1,13 @@
+import { type AREClock, SystemAREClock } from "../../core/determinism/AREDeterminism.js";
+
 export class FarmingSystem {
+  constructor(private readonly clock: AREClock = new SystemAREClock()) {}
+
   plant(seedId: string, biome: string) {
     return {
       seedId,
       biome,
-      plantedAt: Date.now(),
+      plantedAt: this.clock.now(),
       growth: 0
     };
   }
