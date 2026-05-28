@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "1.0.0",
+  "batchId": "pixi-first-batch-kenney-ui-pack",
+  "project": "WASD / Arelorian",
+  "packId": "kenney-ui-pack",
+  "sourceUrl": "https://kenney.nl/assets/ui-pack",
+  "license": "CC0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "sourceVerified": true,
+  "downloadAllowlisted": true,
+  "targetFolder": "apps/client-2d/public/2d-assets/ui/kenney-ui-pack",
+  "status": "ready-for-manual-download",
+  "runtimeManifestFiles": [
+    "apps/client-2d/public/2d-assets/manifests/pixi-dev-hub-first-batch.json",
+    "apps/client-2d/public/2d-assets/manifests/pixi-dev-hub-import-plan.json"
+  ],
+  "creditFiles": [
+    "apps/client-2d/public/2d-assets/credits/kenney-ui-pack.json"
+  ],
+  "requiredCommands": [
+    "pnpm assets:pixi:scan-inbox",
+    "pnpm assets:pixi:plan",
+    "pnpm assets:pixi:prepare",
+    "pnpm assets:pixi:validate"
+  ],
+  "blockedUntil": [
+    "manual official-source download completed",
+    "normalized files staged",
+    "manifest and credits generated",
+    "validator passes"
+  ],
+  "safety": {
+    "visualOnly": true,
+    "noWorldTickChanges": true,
+    "noAREKernelChanges": true,
+    "noServerRegistryChanges": true,
+    "noNetworkingChanges": true,
+    "noBinaryAssetsInThisCommit": true
+  },
+  "nextStep": "Download from the official source into .asset-inbox/pixi, normalize files, then update this batch status in the binary import PR."
+}
