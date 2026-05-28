@@ -14,6 +14,7 @@
     "dev:3d": "pnpm -r --filter @wasd/client dev",
     "dev:all": "concurrently \"pnpm dev:2d\" \"pnpm dev:3d\" \"pnpm dev:web\"",
     "build:all": "pnpm build:2d && pnpm build:3d && pnpm build:web",
+    "assets:pixi:scan-inbox": "node scripts/scan-pixi-asset-inbox.mjs",
     "assets:pixi:plan": "node scripts/import-pixi-dev-hub-assets.mjs --dry-run",
     "assets:pixi:prepare": "node scripts/import-pixi-dev-hub-assets.mjs",
     "assets:pixi:validate": "node scripts/validate-pixi-assets.mjs",
