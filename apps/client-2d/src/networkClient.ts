@@ -38,9 +38,6 @@ class LocalNetworkClient implements NetworkClient {
   public connected = false;
   private socket: WebSocket | null = null;
   private readonly handlers: HandlerMap = new Map();
-  private fallbackTimer: ReturnType<typeof setInterval> | null = null;
-  private px = 0;
-  private pz = 0;
 
   constructor(private readonly options: NetworkClientOptions) {}
 
@@ -54,44 +51,33 @@ class LocalNetworkClient implements NetworkClient {
     const wsUrl = this.toWebSocketUrl(this.options.url);
     try {
       this.socket = new WebSocket(wsUrl);
-      this.socket.addEventListener('open', () => {
+      this.socket.addEventListener("open", () => {
         this.connected = true;
-        this.emit('connect');
+        this.emit("connect");
       });
-      this.socket.addEventListener('close', () => {
+      this.socket.addEventListener("close", () => {
         this.connected = false;
-        this.emit('disconnect');
-        this.startFallback();
+        this.emit("disconnect");
       });
-      this.socket.addEventListener('error', () => {
+      this.socket.addEventListener("error", () => {
         this.connected = false;
-        this.emit('disconnect');
-        this.startFallback();
+        this.emit("disconnect");
       });
-      this.socket.addEventListener('message', (message) => this.handleMessage(message.data));
+      this.socket.addEventListener("message", (message) => this.handleMessage(message.data));
     } catch {
-      this.startFallback();
+      this.connected = false;
+      this.emit("disconnect");
     }
   }
 
   public disconnect(): void {
-    if (this.fallbackTimer) clearInterval(this.fallbackTimer);
-    this.fallbackTimer = null;
     this.socket?.close();
     this.socket = null;
     this.connected = false;
-    this.emit('disconnect');
+    this.emit("disconnect");
   }
 
   public sendPlayerAction(action: string, payload: Record<string, unknown>): void {
-    if (action === 'MOVE') {
-      const dx = Number(payload.dx ?? 0);
-      const dz = Number(payload.dz ?? 0);
-      this.px += Math.max(-1, Math.min(1, dx)) * 0.25;
-      this.pz += Math.max(-1, Math.min(1, dz)) * 0.25;
-      this.emitWorld();
-    }
-
     const packet = JSON.stringify({ type: action, payload });
     if (this.socket?.readyState === WebSocket.OPEN) {
       this.socket.send(packet);
@@ -99,36 +85,14 @@ class LocalNetworkClient implements NetworkClient {
   }
 
   private handleMessage(raw: unknown): void {
-    if (typeof raw !== 'string') return;
+    if (typeof raw !== "string") return;
     try {
       const parsed = JSON.parse(raw);
       const type = parsed.type ?? parsed.event;
-      if (typeof type === 'string') this.emit(type, parsed);
+      if (typeof type === "string") this.emit(type, parsed);
     } catch {
-      // Ignore malformed packets; the 2D client keeps rendering the local fallback world.
+      // Ignore malformed packets. The server is authoritative for the 2D world.
     }
-  }
-
-  private startFallback(): void {
-    if (this.fallbackTimer) return;
-    this.connected = true;
-    this.emit('connect');
-    this.emitWorld();
-    this.fallbackTimer = setInterval(() => this.emitWorld(), this.options.heartbeatInterval ?? 3000);
-  }
-
-  private emitWorld(): void {
-    this.emit('WORLD_HEARTBEAT', {
-      payload: {
-        players: {
-          local_player: { id: 'local_player', name: 'You', x: this.px, z: this.pz },
-        },
-        agents: {
-          elder: { id: 'elder', name: 'Elder', x: 2, z: -2 },
-          scout: { id: 'scout', name: 'Scout', x: -3, z: 1 },
-        },
-      },
-    });
   }
 
   private emit(event: string, payload?: any): void {
@@ -137,15 +101,15 @@ class LocalNetworkClient implements NetworkClient {
   }
 
   private resolveRuntimeBase(fallbackBase: string): string {
-    if (typeof window !== 'undefined' && window.location?.origin) {
+    if (typeof window !== "undefined" && window.location?.origin) {
       return window.location.origin;
     }
     return fallbackBase;
   }
 
   private toWebSocketUrl(base: string): string {
-    const url = new URL('/ws', this.resolveRuntimeBase(base));
-    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    const url = new URL("/ws", this.resolveRuntimeBase(base));
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
     return url.toString();
   }
 }
