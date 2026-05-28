@@ -12,11 +12,17 @@ export type ArelorianHudState = {
   zoneName: string;
   playerName: string;
   skillSlots: string[];
+  skillCooldownTicks: number[];
 };
 
 export type ArelorianHudOptions = {
   onSkillSlot?: (slotIndex: number) => void;
 };
+
+export function formatCooldownTicks(ticks: number): string {
+  const safeTicks = Number.isInteger(ticks) && ticks > 0 ? ticks : 0;
+  return `${(safeTicks / 10).toFixed(1)}s`;
+}
 
 const DEFAULT_STATE: ArelorianHudState = {
   health: 100,
@@ -29,6 +35,7 @@ const DEFAULT_STATE: ArelorianHudState = {
   zoneName: 'Areloria',
   playerName: 'Wanderer',
   skillSlots: ['1', '2', '3', '4', '5'],
+  skillCooldownTicks: [0, 0, 0, 0, 0],
 };
 
 function clamp01(value: number): number {
@@ -39,6 +46,11 @@ function clamp01(value: number): number {
 function valueRatio(value: number, max: number): number {
   if (!Number.isFinite(max) || max <= 0) return 0;
   return clamp01(value / max);
+}
+
+function normalizeTicks(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.trunc(value));
 }
 
 export class ArelorianHud extends Container {
@@ -86,7 +98,11 @@ export class ArelorianHud extends Container {
   }
 
   updateState(nextState: Partial<ArelorianHudState>): void {
-    this.state = { ...this.state, ...nextState };
+    this.state = {
+      ...this.state,
+      ...nextState,
+      skillCooldownTicks: (nextState.skillCooldownTicks ?? this.state.skillCooldownTicks).map(normalizeTicks),
+    };
     this.renderHud();
   }
 
@@ -137,7 +153,8 @@ export class ArelorianHud extends Container {
     for (let index = 0; index < visibleSlots.length; index += 1) {
       const slotX = x + index * (slotSize + gap);
       if (slotX + slotSize > this.widthPx - 18) break;
-      const ready = visibleSlots[index] !== '…';
+      const cooldownTicks = normalizeTicks(this.state.skillCooldownTicks[index] ?? 0);
+      const ready = cooldownTicks <= 0;
 
       this.slots.roundRect(slotX, y, slotSize, slotSize, 10);
       this.slots.fill({ color: this.theme.slotFill, alpha: ready ? 0.84 : 0.38 });
@@ -154,8 +171,8 @@ export class ArelorianHud extends Container {
       this.hitTargets.addChild(hitTarget);
 
       const label = new Text({
-        text: visibleSlots[index],
-        style: { fill: ready ? this.theme.textPrimary : this.theme.textMuted, fontFamily: this.theme.fontFamily, fontSize: 14, fontWeight: '700' },
+        text: ready ? visibleSlots[index] : formatCooldownTicks(cooldownTicks),
+        style: { fill: ready ? this.theme.textPrimary : this.theme.textMuted, fontFamily: this.theme.fontFamily, fontSize: ready ? 14 : 11, fontWeight: '700' },
       });
       label.anchor.set(0.5);
       label.position.set(slotX + slotSize / 2, y + slotSize / 2);
