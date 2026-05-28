@@ -1,7 +1,7 @@
-import express from "express";
+import { Router } from "express";
 
-export function createOpenCollectiveAuthRouter() {
-  const router = express.Router();
+export function createOpenCollectiveAuthRouter(): Router {
+  const router = Router();
 
   router.get("/login", (_req, res) => {
     return res.status(501).json({

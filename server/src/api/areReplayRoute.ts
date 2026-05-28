@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Router } from "express";
 import type { WorldTick } from "../core/WorldTick.js";
 import { attachSovereignBillingBridge } from "../market/SovereignBillingBridge.js";
 import { calculateUsageCost, sovereignMarket } from "../market/SovereignMarket.js";
@@ -18,7 +18,7 @@ function broadcastCouncil(tick: WorldTick, payload: unknown): void {
   }
 }
 
-export function areReplayRouter(tick: WorldTick) {
+export function areReplayRouter(tick: WorldTick): Router {
   const router = express.Router();
   attachSovereignBillingBridge(tick as any, (tick as any).ws ?? { broadcast: () => undefined });
   sovereignGovernance.attachToTick(tick as any);

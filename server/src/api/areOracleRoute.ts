@@ -1,7 +1,7 @@
-import express from "express";
+import express, { Router } from "express";
 import type { WorldTick } from "../core/WorldTick.js";
 
-export function areOracleRouter(tick: WorldTick) {
+export function areOracleRouter(tick: WorldTick): Router {
   const router = express.Router();
 
   router.get("/prophecy", (_req, res) => {

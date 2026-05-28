@@ -1,4 +1,4 @@
-import express from "express";
+import { Router } from "express";
 import { createAgoraMonitorRouter } from "../modules/agora/AgoraMonitorApi.js";
 import { createOpenCollectiveAuthRouter } from "../modules/agora/OpenCollectiveAuth.js";
 import { createGitHubWebhookRouter } from "../modules/agora/GitHubWebhook.js";
@@ -9,8 +9,8 @@ type AgoraRouteDeps = {
   getPort?: () => number;
 };
 
-export function agoraRouter(deps: AgoraRouteDeps = {}) {
-  const router = express.Router();
+export function agoraRouter(deps: AgoraRouteDeps = {}): Router {
+  const router = Router();
 
   router.use("/auth/opencollective", createOpenCollectiveAuthRouter());
   router.use("/webhooks", createGitHubWebhookRouter());

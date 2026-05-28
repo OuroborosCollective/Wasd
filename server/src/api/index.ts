@@ -1,3 +1,4 @@
+import { Router } from "express";
 import { healthRoute } from "./healthRoute.js";
 import { playerRoutes } from "./playerRoutes.js";
 import { worldRoutes } from "./worldRoutes.js";
@@ -11,7 +12,7 @@ import { auctionRoute } from "./auctionRoute.js";
 
 import { mcpRoute } from "./mcpRoute.js";
 
-export const ApiRoutes = [
+export const ApiRoutes: Router[] = [
   mcpRoute(),
   healthRoute(),
   playerRoutes(),

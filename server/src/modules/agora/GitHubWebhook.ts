@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
-import express, { type NextFunction, type Request, type Response } from "express";
+import { Router, type NextFunction, type Request, type Response } from "express";
+import express from "express";
 
 const RATE_LIMIT_WINDOW_MS = Number(process.env.ARELORIAN_WEBHOOK_RATE_LIMIT_WINDOW_MS || 60_000);
 const RATE_LIMIT_MAX_REQUESTS = Number(process.env.ARELORIAN_WEBHOOK_RATE_LIMIT_MAX_REQUESTS || 60);
@@ -131,8 +132,8 @@ function rememberGitHubWebhookEvent(req: Request, payload: any): AgoraGitHubWebh
   return lastGitHubWebhookEvent;
 }
 
-export function createGitHubWebhookRouter() {
-  const router = express.Router();
+export function createGitHubWebhookRouter(): Router {
+  const router = Router();
 
   router.post(
     "/github",
