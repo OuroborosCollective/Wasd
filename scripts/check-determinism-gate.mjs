@@ -32,6 +32,9 @@ const deny = [
   { pattern: /\bMath\.random\s*\(/, label: 'Math.random()' },
   { pattern: /\bDate\.now\s*\(/, label: 'Date.now()' },
   { pattern: /\bnew\s+Date\s*\(/, label: 'new Date()' },
+  { pattern: /\bsetTimeout\s*\(/, label: 'setTimeout()' },
+  { pattern: /\bsetInterval\s*\(/, label: 'setInterval()' },
+  { pattern: /\bperformance\.now\s*\(/, label: 'performance.now()' },
   { pattern: /\bcrypto\.randomUUID\s*\(/, label: 'crypto.randomUUID()' },
   { pattern: /\brandomUUID\s*\(/, label: 'randomUUID()' },
 ];
