@@ -1,9 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   handlePlayerDeath,
+  processRespawns,
   respawnPlayer,
   getNearestRespawnPoint,
   RESPAWN_DELAY_MS,
+  RESPAWN_DELAY_TICKS,
+  WORLD_TICK_MS,
   type DeathCapablePlayer,
   type RespawnableWorld,
 } from "../modules/combat/deathRespawnSystem.js";
@@ -25,8 +28,9 @@ function makePlayer(overrides: Partial<DeathCapablePlayer> = {}): DeathCapablePl
   };
 }
 
-function makeWorld(points?: RespawnableWorld["respawnPoints"]): RespawnableWorld {
+function makeWorld(points?: RespawnableWorld["respawnPoints"], players?: DeathCapablePlayer[]): RespawnableWorld {
   return {
+    players,
     respawnPoints: points ?? [
       { id: "rp_hub", zoneId: "didis_hub", x: 0, z: 0, label: "Hub Center" },
       { id: "rp_outpost", zoneId: "didis_hub", x: 50, z: 50, label: "Outpost" },
@@ -37,29 +41,34 @@ function makeWorld(points?: RespawnableWorld["respawnPoints"]): RespawnableWorld
 
 describe("Death & Respawn System", () => {
   describe("handlePlayerDeath", () => {
-    it("marks player as dead with zero health", () => {
+    it("marks player as dead with zero health and deterministic ticks", () => {
       const player = makePlayer();
       const send = vi.fn();
-      handlePlayerDeath(player, makeWorld(), send, false);
+      const currentTick = 123;
+      handlePlayerDeath(player, makeWorld(), send, currentTick);
 
       expect(player.dead).toBe(true);
       expect(player.health).toBe(0);
-      expect(player.deathAt).toBeGreaterThan(0);
+      expect(player.deathTick).toBe(currentTick);
+      expect(player.deathAt).toBe(currentTick * WORLD_TICK_MS);
+      expect(player.respawnTick).toBe(currentTick + RESPAWN_DELAY_TICKS);
       expect(player.combatTargetNpcId).toBeUndefined();
     });
 
     it("increments totalDeaths", () => {
       const player = makePlayer({ totalDeaths: 3 });
-      handlePlayerDeath(player, makeWorld(), vi.fn(), false);
+      handlePlayerDeath(player, makeWorld(), vi.fn(), 10);
       expect(player.totalDeaths).toBe(4);
     });
 
-    it("sends player_died message with respawn delay", () => {
+    it("sends player_died message with respawn delay and tick", () => {
       const send = vi.fn();
-      handlePlayerDeath(makePlayer(), makeWorld(), send, false);
+      const currentTick = 50;
+      handlePlayerDeath(makePlayer(), makeWorld(), send, currentTick);
 
       expect(send).toHaveBeenCalledWith("player_died", {
         respawnInMs: RESPAWN_DELAY_MS,
+        respawnTick: currentTick + RESPAWN_DELAY_TICKS,
         message: "Du wurdest besiegt...",
       });
     });
@@ -67,27 +76,64 @@ describe("Death & Respawn System", () => {
     it("does nothing if already dead", () => {
       const player = makePlayer({ dead: true });
       const send = vi.fn();
-      handlePlayerDeath(player, makeWorld(), send, false);
+      handlePlayerDeath(player, makeWorld(), send, 10);
       expect(send).not.toHaveBeenCalled();
     });
 
-    it("returns a respawn timer when scheduleRespawn is true", () => {
+    it("returns a respawn tick", () => {
       const player = makePlayer();
-      const result = handlePlayerDeath(player, makeWorld(), vi.fn(), true);
-      expect(result.respawnTimer).toBeDefined();
-      clearTimeout(result.respawnTimer!);
+      const result = handlePlayerDeath(player, makeWorld(), vi.fn(), 20);
+      expect(result.respawnTick).toBe(20 + RESPAWN_DELAY_TICKS);
+    });
+  });
+
+  describe("processRespawns", () => {
+    it("respawns only players whose respawnTick has arrived", () => {
+      const ready = makePlayer({
+        id: "ready",
+        dead: true,
+        health: 0,
+        mana: 0,
+        deathTick: 10,
+        deathAt: 10 * WORLD_TICK_MS,
+        respawnTick: 90,
+      });
+      const waiting = makePlayer({
+        id: "waiting",
+        dead: true,
+        health: 0,
+        mana: 0,
+        deathTick: 20,
+        deathAt: 20 * WORLD_TICK_MS,
+        respawnTick: 120,
+      });
+      const sendById = vi.fn();
+      const count = processRespawns(makeWorld(undefined, [ready, waiting]), 90, sendById);
+
+      expect(count).toBe(1);
+      expect(ready.dead).toBe(false);
+      expect(ready.deathTick).toBeUndefined();
+      expect(ready.respawnTick).toBeUndefined();
+      expect(waiting.dead).toBe(true);
+      expect(waiting.respawnTick).toBe(120);
+      expect(sendById).toHaveBeenCalledWith("ready", "player_respawned", expect.objectContaining({
+        health: 30,
+        mana: 7,
+      }));
     });
   });
 
   describe("respawnPlayer", () => {
-    it("revives player at 30% HP/mana", () => {
-      const player = makePlayer({ dead: true, health: 0, mana: 0 });
+    it("revives player at 30% HP/mana and clears death ticks", () => {
+      const player = makePlayer({ dead: true, health: 0, mana: 0, deathTick: 10, respawnTick: 90 });
       respawnPlayer(player, makeWorld(), vi.fn());
 
       expect(player.dead).toBe(false);
       expect(player.health).toBe(30); // 30% of 100
       expect(player.mana).toBe(7); // floor(30% of 25)
       expect(player.deathAt).toBe(0);
+      expect(player.deathTick).toBeUndefined();
+      expect(player.respawnTick).toBeUndefined();
     });
 
     it("sends player_respawned with coordinates", () => {
