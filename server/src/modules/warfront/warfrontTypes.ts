@@ -40,8 +40,45 @@ export type WarfrontRewardHistoryEntry = {
   id: string;
   seasonId: string;
   cycleId: string;
-  playerId: string;
-  contributionPoints: number;
-  rewardItemId: string;
-  createdAt: number;
+  playerId?: string;
+  contributionPoints?: number;
+  rewardItemId?: string;
+  createdAt?: number;
+  tierId?: string;
+  awardedAt?: number;
+  gold?: number;
+  xp?: number;
+};
+
+export type WarfrontRewardTier = {
+  id: string;
+  pointsRequired: number;
+  gold: number;
+  xp: number;
+};
+
+export type WarfrontStatusPayload = {
+  cycleId: string;
+  seasonId: string;
+  phase: WarfrontPhase;
+  startedAt: number;
+  endsAt: number;
+  progressPct: number;
+  sectors: any[];
+  boss?: any;
+  player?: any;
+  personal?: any;
+  frontBoss?: any;
+  cycle?: WarfrontCycleState;
+  globalPhase?: WarfrontPhase;
+};
+
+export type PlayerWarfrontProgress = {
+  seasonId: string;
+  seasonPoints: number;
+  lifetimeContribution: number;
+  claimedTierIds: string[];
+  lastCycle: WarfrontPersonalCycleContribution | null;
+  rewardHistory: WarfrontRewardHistoryEntry[];
+  lastVictoryClaimedCycleId?: string;
 };
