@@ -14,12 +14,38 @@ import { deterministicNow } from '../determinism/AREDeterminism.js';
  * Fixed-Point constant (kappa=1000)
  */
 const FP_SCALE = 1000;
+const WORLD_COORD_LIMIT = 7;
+const FREE_STARTER_NPC_COUNT = 13;
 
 /**
  * Convert from Fixed-Point
  */
 function fromFP(fp: number): number {
   return fp / FP_SCALE;
+}
+
+function clampWorldCoord(value: number): number {
+  return Math.max(-WORLD_COORD_LIMIT, Math.min(WORLD_COORD_LIMIT, Math.trunc(value)));
+}
+
+function clampMoveDelta(value: unknown): number {
+  const numeric = Number(value ?? 0);
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.max(-1, Math.min(1, Math.trunc(numeric)));
+}
+
+function deterministicHash(parts: Array<string | number | null | undefined>): number {
+  let hash = 2166136261;
+  for (const part of parts) {
+    const text = String(part ?? '');
+    for (let i = 0; i < text.length; i++) {
+      hash ^= text.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    hash ^= 1249;
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
 }
 
 /**
@@ -39,7 +65,69 @@ type EquipmentState = {
   weaponVisualId: string | null;
 };
 
+type PlayerPositionState = {
+  x: number;
+  z: number;
+};
+
+type StarterNpcRole = 'merchant' | 'blacksmith' | 'forager' | 'scout' | 'builder' | 'guard' | 'herbalist' | 'wanderer' | 'miner' | 'cook' | 'scribe';
+
+type StarterNpcTemplate = {
+  id: string;
+  name: string;
+  role: StarterNpcRole;
+  x: number;
+  z: number;
+  fixed: boolean;
+  functionTag?: string;
+  services?: string[];
+  fateGoal?: string;
+};
+
 type SkillCooldownState = Record<string, number>;
+
+const FIXED_STARTER_NPCS: StarterNpcTemplate[] = [
+  {
+    id: 'starter-merchant-mara',
+    name: 'Mara the Provisioner',
+    role: 'merchant',
+    x: -1,
+    z: 2,
+    fixed: true,
+    functionTag: 'starter_trade',
+    services: ['sell_rations', 'buy_basic_loot', 'starter_supplies'],
+    fateGoal: 'keep new players supplied',
+  },
+  {
+    id: 'starter-smith-brann',
+    name: 'Brann the Smith',
+    role: 'blacksmith',
+    x: 1,
+    z: 2,
+    fixed: true,
+    functionTag: 'starter_smithing',
+    services: ['crafting_tutorial', 'weapon_salvage', 'basic_repairs', 'anvil_access'],
+    fateGoal: 'teach crafting and salvage weapons',
+  },
+];
+
+const FREE_NPC_NAMES = ['Talia Reed', 'Old Fen', 'Korrin Vale', 'Mika Thorne', 'Sera Moss', 'Jonn Ash', 'Pip Barley', 'Nara Flint', 'Edda Brook', 'Rowan Pike', 'Lio Fern', 'Veyra Stone', 'Tomm Brindle'];
+const FREE_NPC_ROLES: StarterNpcRole[] = ['forager', 'scout', 'builder', 'guard', 'herbalist', 'wanderer', 'miner', 'cook', 'scribe'];
+const FREE_NPC_GOALS = ['map the meadow edge', 'gather food', 'seek a guild', 'protect the road', 'study the ruins', 'find better work', 'trade rumors', 'repair a hut', 'search for herbs', 'avoid danger'];
+const FREE_NPC_ACTIONS = ['wandering', 'foraging', 'resting', 'talking', 'watching road', 'learning', 'seeking work', 'inspecting village'];
+
+const FREE_STARTER_NPCS: StarterNpcTemplate[] = Array.from({ length: FREE_STARTER_NPC_COUNT }, (_, index) => {
+  const role = FREE_NPC_ROLES[deterministicHash(['starter-free-npc-role', index]) % FREE_NPC_ROLES.length];
+  return {
+    id: `starter-free-${index + 1}`,
+    name: FREE_NPC_NAMES[index] ?? `Settler ${index + 1}`,
+    role,
+    x: -4 + (index % 5) * 2,
+    z: -3 + Math.floor(index / 5) * 2,
+    fixed: false,
+    fateGoal: FREE_NPC_GOALS[deterministicHash(['starter-free-npc-goal', index]) % FREE_NPC_GOALS.length],
+  };
+});
 
 function parseCsvEnv(value: string | undefined): string[] {
   return (value ?? '')
@@ -109,6 +197,7 @@ export class APIServer {
   private lastPhaseStates: Map<string, string> = new Map();
   private io: any = null;
   private equipmentBySocket: Map<string, EquipmentState> = new Map();
+  private playerPositionsBySocket: Map<string, PlayerPositionState> = new Map();
   private skillCooldownsBySocket: Map<string, SkillCooldownState> = new Map();
 
   /**
@@ -199,6 +288,7 @@ export class APIServer {
       this.io.on('connection', (socket: any) => {
         console.log(`[ws] Client connected: ${socket.id}`);
         this.ensureSkillCooldowns(socket.id);
+        this.ensurePlayerPosition(socket.id);
         socket.emit('WORLD_STATE', this.getWorldStateSnapshot(socket.id));
         socket.emit('WORLD_HEARTBEAT', this.getHeartbeatPayload(socket.id));
 
@@ -206,6 +296,7 @@ export class APIServer {
         socket.on('player_action', (payload: any) => this.handlePlayerAction(socket, payload));
         socket.on('disconnect', () => {
           this.equipmentBySocket.delete(socket.id);
+          this.playerPositionsBySocket.delete(socket.id);
           this.skillCooldownsBySocket.delete(socket.id);
         });
       });
@@ -230,8 +321,48 @@ export class APIServer {
   }
 
   private handlePlayerAction(socket: any, payload: any): void {
-    if (payload?.action !== 'USE_SKILL') return;
-    const skillId = typeof payload?.payload?.skillId === 'string' ? payload.payload.skillId : null;
+    const action = typeof payload?.action === 'string' ? payload.action : '';
+    if (action === 'MOVE') {
+      this.handleMoveAction(socket, payload?.payload ?? {});
+      return;
+    }
+
+    if (action === 'USE_SKILL') {
+      this.handleSkillAction(socket, payload?.payload ?? {});
+      return;
+    }
+
+    if (action === 'interact' || action === 'INTERACT') {
+      this.handleInteractAction(socket, payload?.payload ?? {});
+    }
+  }
+
+  private handleMoveAction(socket: any, payload: any): void {
+    const dx = clampMoveDelta(payload?.dx);
+    const dz = clampMoveDelta(payload?.dz);
+    if (!dx && !dz) return;
+
+    const current = this.ensurePlayerPosition(socket.id);
+    const next = {
+      x: clampWorldCoord(current.x + dx),
+      z: clampWorldCoord(current.z + dz),
+    };
+    this.playerPositionsBySocket.set(socket.id, next);
+
+    const tick = Number(worldStateRegistry.getTick());
+    socket.emit('PLAYER_MOVED', {
+      playerId: socket.id,
+      x: next.x,
+      z: next.z,
+      dx,
+      dz,
+      tick,
+    });
+    socket.emit('WORLD_HEARTBEAT', this.getHeartbeatPayload(socket.id));
+  }
+
+  private handleSkillAction(socket: any, payload: any): void {
+    const skillId = typeof payload?.skillId === 'string' ? payload.skillId : null;
     if (!skillId) return;
 
     const cooldowns = this.ensureSkillCooldowns(socket.id);
@@ -242,20 +373,63 @@ export class APIServer {
     }
 
     cooldowns[skillId] = DEFAULT_SKILL_COOLDOWN_TICKS[skillId] ?? 10;
-    socket.emit('SKILL_UPDATE', { tick: Number(worldStateRegistry.getTick()), skill: this.getSkillPayload(socket.id, skillId) });
-
-    if (skillId !== 'atk') return;
     const tick = Number(worldStateRegistry.getTick());
-    const damage = 7 + (tick % 11);
-    const event = {
-      kind: 'hit',
-      attackerId: socket.id,
-      defenderId: 'elder',
-      damage,
-      tick,
-    };
+    socket.emit('SKILL_UPDATE', { tick, skill: this.getSkillPayload(socket.id, skillId) });
+
+    const event = this.getSkillEvent(socket.id, skillId, tick);
+    if (!event) return;
     socket.emit('server:combat_event', event);
     socket.emit('warfront_combat', event);
+  }
+
+  private handleInteractAction(socket: any, payload: any): void {
+    const targetId = typeof payload?.targetId === 'string' ? payload.targetId : 'starter-merchant-mara';
+    const npc = this.getStarterNpcSummaries().find(entry => entry.id === targetId) ?? this.getStarterNpcSummaries()[0];
+    socket.emit('NPC_INTERACTION', {
+      tick: Number(worldStateRegistry.getTick()),
+      targetId: npc?.id ?? targetId,
+      name: npc?.name ?? 'Unknown NPC',
+      role: npc?.role ?? 'unknown',
+      services: npc?.services ?? [],
+      text: npc?.role === 'merchant'
+        ? 'Trade is open. Bring loot, take rations.'
+        : npc?.role === 'blacksmith'
+          ? 'Use the anvil: learn crafting, salvage weapons, repair gear.'
+          : `${npc?.name ?? 'The settler'} is deciding their path through Millbrook.`,
+    });
+  }
+
+  private getSkillEvent(socketId: string, skillId: string, tick: number): any | null {
+    if (skillId === 'atk') {
+      return {
+        kind: 'hit',
+        attackerId: socketId,
+        defenderId: 'elder',
+        damage: 7 + (tick % 11),
+        tick,
+      };
+    }
+
+    if (skillId === 'def') {
+      return {
+        kind: 'guard',
+        actorId: socketId,
+        guardTicks: DEFAULT_SKILL_COOLDOWN_TICKS.def,
+        tick,
+      };
+    }
+
+    if (skillId === 'mag') {
+      return {
+        kind: 'aether',
+        attackerId: socketId,
+        defenderId: 'elder',
+        damage: 4 + (tick % 7),
+        tick,
+      };
+    }
+
+    return null;
   }
 
   /**
@@ -321,10 +495,13 @@ export class APIServer {
   }
 
   private getHeartbeatPayload(socketId?: string): any {
+    const npcs = this.getStarterNpcSummaries();
     return {
       tick: Number(worldStateRegistry.getTick()),
       regions: this.getRegionSummaries(),
       players: this.getPlayerSummaries(socketId),
+      agents: npcs,
+      npcs,
       self: socketId ? this.getPlayerSummary(socketId) : null,
       inventory: socketId ? this.getInventory(socketId) : [],
       skills: socketId ? this.getSkillPayloads(socketId) : [],
@@ -345,16 +522,60 @@ export class APIServer {
 
   private getPlayerSummary(socketId: string): any {
     const equipment = this.equipmentBySocket.get(socketId) ?? { itemId: null, weaponVisualId: null };
+    const position = this.ensurePlayerPosition(socketId);
     return {
       id: socketId,
       name: 'Player',
-      x: 0,
-      z: 0,
+      x: position.x,
+      z: position.z,
       equippedWeaponId: equipment.weaponVisualId,
       weaponVisualId: equipment.weaponVisualId,
       inventory: this.getInventory(socketId),
       skills: this.getSkillPayloads(socketId),
     };
+  }
+
+  private ensurePlayerPosition(socketId: string): PlayerPositionState {
+    let position = this.playerPositionsBySocket.get(socketId);
+    if (!position) {
+      position = { x: 0, z: 0 };
+      this.playerPositionsBySocket.set(socketId, position);
+    }
+    return position;
+  }
+
+  private getStarterNpcSummaries(): any[] {
+    const tick = Number(worldStateRegistry.getTick());
+    const phase = Math.floor(tick / 20);
+    const fixed = FIXED_STARTER_NPCS.map(template => ({
+      ...template,
+      displayName: template.name,
+      x: template.x,
+      z: template.z,
+      currentAction: template.role === 'merchant' ? 'trading starter supplies' : 'working the anvil',
+      permanent: true,
+      canMigrate: false,
+    }));
+
+    const free = FREE_STARTER_NPCS.map((template, index) => {
+      const wanderHash = deterministicHash(['starter-npc-wander-v1', template.id, phase]);
+      const actionHash = deterministicHash(['starter-npc-action-v1', template.id, phase]);
+      const dx = (wanderHash % 3) - 1;
+      const dz = (Math.floor(wanderHash / 3) % 3) - 1;
+      return {
+        ...template,
+        displayName: template.name,
+        x: clampWorldCoord(template.x + dx),
+        z: clampWorldCoord(template.z + dz),
+        currentAction: FREE_NPC_ACTIONS[actionHash % FREE_NPC_ACTIONS.length],
+        autonomyIndex: deterministicHash(['starter-npc-autonomy-v1', template.id, tick]) % 100,
+        canMigrate: true,
+        permanent: false,
+        packIndex: index,
+      };
+    });
+
+    return [...fixed, ...free];
   }
 
   private getInventory(socketId: string): any[] {
