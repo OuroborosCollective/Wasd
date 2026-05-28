@@ -14,6 +14,10 @@ export type ArelorianHudState = {
   skillSlots: string[];
 };
 
+export type ArelorianHudOptions = {
+  onSkillSlot?: (slotIndex: number) => void;
+};
+
 const DEFAULT_STATE: ArelorianHudState = {
   health: 100,
   maxHealth: 100,
@@ -39,20 +43,23 @@ function valueRatio(value: number, max: number): number {
 
 export class ArelorianHud extends Container {
   private readonly theme: ArelorianHudTheme;
+  private readonly options: ArelorianHudOptions;
   private state: ArelorianHudState;
   private readonly panel = new Graphics();
   private readonly bars = new Graphics();
   private readonly slots = new Graphics();
   private readonly slotLabels = new Container();
+  private readonly hitTargets = new Container();
   private readonly titleText: Text;
   private readonly statusText: Text;
   private readonly matrixText: Text;
   private widthPx = 1280;
   private heightPx = 720;
 
-  constructor(state: Partial<ArelorianHudState> = {}, theme: Partial<ArelorianHudTheme> = {}) {
+  constructor(state: Partial<ArelorianHudState> = {}, theme: Partial<ArelorianHudTheme> = {}, options: ArelorianHudOptions = {}) {
     super();
     this.theme = { ...DEFAULT_ARELORIAN_HUD_THEME, ...theme };
+    this.options = options;
     this.state = { ...DEFAULT_STATE, ...state };
 
     this.titleText = new Text({
@@ -68,7 +75,7 @@ export class ArelorianHud extends Container {
       style: { fill: this.theme.matrix, fontFamily: this.theme.fontFamily, fontSize: 14, fontWeight: '700' },
     });
 
-    this.addChild(this.panel, this.bars, this.slots, this.slotLabels, this.titleText, this.statusText, this.matrixText);
+    this.addChild(this.panel, this.bars, this.slots, this.hitTargets, this.slotLabels, this.titleText, this.statusText, this.matrixText);
     this.renderHud();
   }
 
@@ -121,6 +128,7 @@ export class ArelorianHud extends Container {
   private drawSkillSlots(x: number, y: number): void {
     this.slots.clear();
     this.slotLabels.removeChildren();
+    this.hitTargets.removeChildren();
 
     const slotSize = 44;
     const gap = 8;
@@ -129,14 +137,25 @@ export class ArelorianHud extends Container {
     for (let index = 0; index < visibleSlots.length; index += 1) {
       const slotX = x + index * (slotSize + gap);
       if (slotX + slotSize > this.widthPx - 18) break;
+      const ready = visibleSlots[index] !== '…';
 
       this.slots.roundRect(slotX, y, slotSize, slotSize, 10);
-      this.slots.fill({ color: this.theme.slotFill, alpha: 0.84 });
-      this.slots.stroke({ color: this.theme.slotStroke, alpha: 0.7, width: 2 });
+      this.slots.fill({ color: this.theme.slotFill, alpha: ready ? 0.84 : 0.38 });
+      this.slots.stroke({ color: ready ? this.theme.slotStroke : this.theme.textMuted, alpha: ready ? 0.7 : 0.35, width: 2 });
+
+      const hitTarget = new Graphics();
+      hitTarget.roundRect(slotX, y, slotSize, slotSize, 10);
+      hitTarget.fill({ color: 0xffffff, alpha: 0.001 });
+      hitTarget.eventMode = 'static';
+      hitTarget.cursor = ready ? 'pointer' : 'not-allowed';
+      hitTarget.on('pointertap', () => {
+        if (ready) this.options.onSkillSlot?.(index);
+      });
+      this.hitTargets.addChild(hitTarget);
 
       const label = new Text({
         text: visibleSlots[index],
-        style: { fill: this.theme.textPrimary, fontFamily: this.theme.fontFamily, fontSize: 14, fontWeight: '700' },
+        style: { fill: ready ? this.theme.textPrimary : this.theme.textMuted, fontFamily: this.theme.fontFamily, fontSize: 14, fontWeight: '700' },
       });
       label.anchor.set(0.5);
       label.position.set(slotX + slotSize / 2, y + slotSize / 2);
@@ -146,6 +165,6 @@ export class ArelorianHud extends Container {
   }
 }
 
-export function createArelorianHud(state?: Partial<ArelorianHudState>, theme?: Partial<ArelorianHudTheme>): ArelorianHud {
-  return new ArelorianHud(state, theme);
+export function createArelorianHud(state?: Partial<ArelorianHudState>, theme?: Partial<ArelorianHudTheme>, options?: ArelorianHudOptions): ArelorianHud {
+  return new ArelorianHud(state, theme, options);
 }
