@@ -1,0 +1,27 @@
+name: Playability Pass 1
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python scripts/playability_pass_1.py
+      - uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: playability-pass-1-result
+          delete-branch: true
+          commit-message: "feat(client-2d): improve playability feedback"
+          title: "Improve client 2D playability feedback"
+          body: "Adds camera follow, local skill FX feedback, mobile HUD overlap fixes, debug badge removal, and lightweight NPC idle motion."
+          add-paths: |
+            apps/client-2d/src/CyberZenIsoApp.tsx
+            apps/client-2d/src/theme.css
+            apps/client-2d/index.html
