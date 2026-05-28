@@ -4,6 +4,15 @@ interface TaskPayload {
     priority: number; // e.g. P1 = 1 (highest), P3 = 3 (lowest)
 }
 
+interface RepolessPollState {
+    sessionId: string;
+    fallbackFn: () => any;
+    wakeupTick: number;
+    deadlineTick: number;
+    resolve: (value: any) => void;
+    inFlight: boolean;
+}
+
 /**
  * AIOrchestrator manages task queuing and execution for external AI services.
  * Uses global fetch API (Node 18+) or requires 'node-fetch' types/polyfill.
@@ -12,13 +21,100 @@ export class AIOrchestrator {
    private static readonly GITHUB_DISPATCH_URL = "https://api.github.com/repos/OuroborosCollective/Areloria/dispatches";
    private static readonly JULES_API_URL = "https://jules.googleapis.com/v1alpha";
 
+   private static readonly REPOLLESS_TIMEOUT_TICKS = 5 * 60 * 10;
+   private static readonly POLL_ERROR_SLEEP_TICKS = 100;
+   private static readonly POLL_SLEEP_TICKS = 150;
+
    // Limits for AI Pro (100 tasks/day)
    private static readonly MAX_DAILY_TASKS = 100;
    private static taskCount = 0;
-   private static lastTaskReset = Date.now();
+   private static lastTaskReset = 0;
+   private static logicalClock = 0;
 
    private static taskQueue: TaskPayload[] = [];
    private static isProcessingQueue = false;
+   private static repolessPolls: RepolessPollState[] = [];
+
+   private static now(): number {
+       this.logicalClock += 1;
+       return this.logicalClock;
+   }
+
+   /**
+    * Drives pending AI polling from the deterministic world tick.
+    */
+   public static update(currentWorldTick: number): void {
+       const tick = Math.trunc(currentWorldTick);
+
+       for (const poll of [...this.repolessPolls]) {
+           if (tick >= poll.deadlineTick) {
+               this.resolveRepolessPoll(poll, poll.fallbackFn());
+               continue;
+           }
+
+           if (poll.inFlight || tick < poll.wakeupTick) continue;
+
+           poll.inFlight = true;
+           void this.pollRepolessSession(poll, tick);
+       }
+   }
+
+   private static resolveRepolessPoll(poll: RepolessPollState, value: any): void {
+       const index = this.repolessPolls.indexOf(poll);
+       if (index < 0) return;
+
+       this.repolessPolls.splice(index, 1);
+       poll.resolve(value);
+   }
+
+   private static async pollRepolessSession(poll: RepolessPollState, currentWorldTick: number): Promise<void> {
+       try {
+           const pollRes = await fetch(`${this.JULES_API_URL}/sessions/${poll.sessionId}/activities?pageSize=50`, {
+               headers: {
+                   "x-goog-api-key": process.env.JULES_API_KEY || ''
+               }
+           });
+
+           if (this.repolessPolls.indexOf(poll) < 0) return;
+
+           if (!pollRes.ok) {
+               poll.wakeupTick = currentWorldTick + this.POLL_ERROR_SLEEP_TICKS;
+               return;
+           }
+
+           const data = await pollRes.json() as any;
+           const activities = data.activities || [];
+
+           for (const activity of activities) {
+               if (activity.artifacts) {
+                   for (const artifact of activity.artifacts) {
+                       if (artifact.bashOutput) {
+                           try {
+                               this.resolveRepolessPoll(poll, JSON.parse(artifact.bashOutput.output));
+                           } catch (e) {
+                               this.resolveRepolessPoll(poll, artifact.bashOutput.output);
+                           }
+                           return;
+                       }
+                   }
+               }
+               if (activity.status === 'ERROR') {
+                   console.error("[AI-Orchestrator] Repoless Session failed.");
+                   this.resolveRepolessPoll(poll, poll.fallbackFn());
+                   return;
+               }
+           }
+
+           poll.wakeupTick = currentWorldTick + this.POLL_SLEEP_TICKS;
+       } catch (err) {
+           console.error("[AI-Orchestrator] Repoless polling error.", err);
+           if (this.repolessPolls.indexOf(poll) >= 0) {
+               poll.wakeupTick = currentWorldTick + this.POLL_ERROR_SLEEP_TICKS;
+           }
+       } finally {
+           poll.inFlight = false;
+       }
+   }
 
    /**
     * Triggers world expansion, adding to the queue.
@@ -30,10 +126,11 @@ export class AIOrchestrator {
    }
 
    private static resetTaskCountIfNeeded() {
-       const ONE_DAY = 24 * 60 * 60 * 1000;
-       if (Date.now() - this.lastTaskReset > ONE_DAY) {
+       const ONE_DAY_TICKS = 24 * 60 * 60 * 10;
+       const now = this.now();
+       if (now - this.lastTaskReset > ONE_DAY_TICKS) {
            this.taskCount = 0;
-           this.lastTaskReset = Date.now();
+           this.lastTaskReset = now;
        }
    }
 
@@ -86,7 +183,7 @@ export class AIOrchestrator {
    }
 
    /**
-    * Executes a Repoless session for data generation and waits for the result via polling.
+    * Executes a Repoless session for data generation and waits for the result via tick-driven polling.
     */
    public static async runRepolessSession(prompt: string, title: string, fallbackFn: () => any): Promise<any> {
         this.resetTaskCountIfNeeded();
@@ -119,48 +216,18 @@ export class AIOrchestrator {
                  return fallbackFn();
             }
 
-            const startTime = Date.now();
-            const TIMEOUT_MS = 5 * 60 * 1000;
+            const startTick = Math.trunc(this.now());
 
-            while (Date.now() - startTime < TIMEOUT_MS) {
-                const pollRes = await fetch(`${this.JULES_API_URL}/sessions/${sessionId}/activities?pageSize=50`, {
-                    headers: {
-                        "x-goog-api-key": process.env.JULES_API_KEY || ''
-                    }
+            return new Promise((resolve) => {
+                this.repolessPolls.push({
+                    sessionId,
+                    fallbackFn,
+                    wakeupTick: startTick,
+                    deadlineTick: startTick + this.REPOLLESS_TIMEOUT_TICKS,
+                    resolve,
+                    inFlight: false,
                 });
-
-                if (!pollRes.ok) {
-                     await new Promise(resolve => setTimeout(resolve, 10000));
-                     continue;
-                }
-
-                const data = await pollRes.json() as any;
-                const activities = data.activities || [];
-
-                for (const activity of activities) {
-                    if (activity.artifacts) {
-                        for (const artifact of activity.artifacts) {
-                            if (artifact.bashOutput) {
-                                try {
-                                    return JSON.parse(artifact.bashOutput.output);
-                                } catch (e) {
-                                    return artifact.bashOutput.output;
-                                }
-                            }
-                        }
-                    }
-                    if (activity.status === 'ERROR') {
-                         console.error("[AI-Orchestrator] Repoless Session failed.");
-                         return fallbackFn();
-                    }
-                }
-
-                await new Promise(resolve => setTimeout(resolve, 15000));
-            }
-
-            console.warn("[AI-Orchestrator] Repoless session timed out. Returning fallback.");
-            return fallbackFn();
-
+            });
         } catch (err) {
             console.error("[AI-Orchestrator] Repoless Session Error.", err);
             return fallbackFn();
