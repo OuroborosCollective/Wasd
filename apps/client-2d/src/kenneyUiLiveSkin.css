@@ -1,0 +1,161 @@
+:root {
+  --kenney-ui-button-blue: url("/2d-assets/ui/kenney-ui-pack/png/blue/default/button-rectangle-depth-gradient.png");
+  --kenney-ui-button-round-blue: url("/2d-assets/ui/kenney-ui-pack/png/blue/default/button-round-depth-gradient.png");
+  --kenney-ui-arrow-blue: url("/2d-assets/ui/kenney-ui-pack/png/blue/default/arrow-basic-e-small.png");
+}
+
+.stitch-skillbar button,
+.stitch-side-menu button,
+.stitch-bottom-right button,
+.stitch-mobile-toggles button,
+.az-touch-pad button,
+.stitch-chat-input button,
+.stitch-fullscreen-toggle {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.stitch-skillbar button::before,
+.stitch-side-menu button::before,
+.stitch-bottom-right button::before,
+.stitch-mobile-toggles button::before,
+.az-touch-pad button::before,
+.stitch-chat-input button::before,
+.stitch-fullscreen-toggle::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background-image: var(--kenney-ui-button-blue);
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.68;
+  image-rendering: pixelated;
+  filter: saturate(1.15) contrast(1.08);
+}
+
+.stitch-mobile-toggles button::before,
+.az-touch-pad button::before,
+.stitch-fullscreen-toggle::before {
+  background-image: var(--kenney-ui-button-round-blue);
+}
+
+.stitch-side-menu button::after,
+.stitch-bottom-right button::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  width: 13px;
+  height: 13px;
+  transform: translateY(-50%);
+  background-image: var(--kenney-ui-arrow-blue);
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.7;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.kenney-live-skin-badge {
+  position: absolute;
+  right: 126px;
+  top: 566px;
+  z-index: 27;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  width: min(330px, calc(100vw - 145px));
+  padding: 10px 12px;
+  border: 1px solid rgba(0, 229, 255, 0.26);
+  border-radius: 20px;
+  color: rgba(244, 247, 255, 0.78);
+  background: linear-gradient(135deg, rgba(3, 8, 16, 0.74), rgba(12, 24, 44, 0.52));
+  box-shadow: 0 0 26px rgba(0, 229, 255, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  pointer-events: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-transform: uppercase;
+}
+
+.kenney-live-skin-badge.online {
+  border-color: rgba(57, 255, 20, 0.26);
+  box-shadow: 0 0 26px rgba(57, 255, 20, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.kenney-live-skin-badge.missing {
+  border-color: rgba(255, 63, 111, 0.32);
+}
+
+.kenney-live-skin-preview {
+  position: relative;
+  width: 78px;
+  height: 44px;
+}
+
+.kenney-live-skin-preview img {
+  position: absolute;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.34));
+}
+
+.kenney-live-skin-preview img:nth-child(1) {
+  left: 0;
+  top: 8px;
+  width: 66px;
+  height: 26px;
+}
+
+.kenney-live-skin-preview img:nth-child(2) {
+  right: 0;
+  top: 0;
+  width: 32px;
+  height: 32px;
+}
+
+.kenney-live-skin-preview img:nth-child(3) {
+  right: 7px;
+  bottom: 1px;
+  width: 18px;
+  height: 18px;
+}
+
+.kenney-live-skin-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.kenney-live-skin-copy small {
+  color: rgba(0, 229, 255, 0.78);
+  font-size: 9px;
+  letter-spacing: 0.15em;
+}
+
+.kenney-live-skin-copy strong {
+  color: #f7fff0;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.kenney-live-skin-copy span {
+  color: rgba(244, 247, 255, 0.62);
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+@media (max-width: 760px) {
+  .kenney-live-skin-badge {
+    right: 12px;
+    top: auto;
+    bottom: 92px;
+    width: min(260px, calc(100vw - 24px));
+    transform: scale(0.9);
+    transform-origin: right bottom;
+  }
+}
