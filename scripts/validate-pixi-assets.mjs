@@ -64,6 +64,14 @@ function assertInsideAssetRoot(filePath, errors) {
   }
 }
 
+function isBlockedPack(pack, metadata, blockedById) {
+  return Boolean(
+    blockedById.has(pack.id)
+    || metadata?.sourceVerified === false
+    || metadata?.binaryImportStatus === 'blocked-until-source-verified',
+  );
+}
+
 function assertUrlDrift(pack, metadata, allowlist, errors) {
   if (!metadata) {
     errors.push(`Missing source metadata for pack ${pack.id}`);
@@ -83,6 +91,10 @@ function assertUrlDrift(pack, metadata, allowlist, errors) {
     errors.push(`licenseUrl drift for ${pack.id}: metadata does not match allowlist`);
   }
 
+  if (metadata.downloadUrl && allowlist.downloadUrl && metadata.downloadUrl !== allowlist.downloadUrl) {
+    errors.push(`downloadUrl drift for ${pack.id}: metadata does not match allowlist`);
+  }
+
   if (allowlist.importAllowed !== true) {
     errors.push(`Pack ${pack.id} is not importAllowed in allowlist`);
   }
@@ -95,10 +107,19 @@ async function main() {
   const downloadAllowlist = await readJson(downloadAllowlistPath);
   const sourceById = indexById(sourceMetadata.packs);
   const allowlistById = indexById(downloadAllowlist.allowedPacks);
+  const blockedById = new Set((downloadAllowlist.blockedPacks || []).map((pack) => pack.id));
+  const importablePacks = [];
+  const intentionallyBlockedPacks = [];
 
   for (const pack of archive.firstIntegrationBatch || []) {
     if (pack.decision === 'reject') continue;
-    assertUrlDrift(pack, sourceById.get(pack.id), allowlistById.get(pack.id), errors);
+    const metadata = sourceById.get(pack.id);
+    if (isBlockedPack(pack, metadata, blockedById)) {
+      intentionallyBlockedPacks.push(pack.id);
+      continue;
+    }
+    importablePacks.push(pack);
+    assertUrlDrift(pack, metadata, allowlistById.get(pack.id), errors);
   }
 
   const files = await listFiles(assetRoot);
@@ -120,8 +141,7 @@ async function main() {
     }
   }
 
-  for (const pack of archive.firstIntegrationBatch || []) {
-    if (pack.decision === 'reject') continue;
+  for (const pack of importablePacks) {
     const target = String(pack.target || pack.targetPath || '').replace(/^\//, '');
     if (!target) {
       errors.push(`Pack ${pack.id} has no target path`);
@@ -150,7 +170,9 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`Pixi asset validation passed for ${files.length} files and ${archive.firstIntegrationBatch?.length || 0} planned packs.`);
+  console.log(
+    `Pixi asset validation passed for ${files.length} files, ${importablePacks.length} importable packs, and ${intentionallyBlockedPacks.length} intentionally blocked packs.`,
+  );
 }
 
 main().catch((error) => {
