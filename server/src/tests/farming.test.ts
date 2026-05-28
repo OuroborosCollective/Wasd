@@ -2,14 +2,19 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { FarmingSystem } from "../modules/farming/FarmingSystem.js";
 import { TreeGrowthSystem } from "../modules/farming/TreeGrowthSystem.js";
 import { SeasonalGrowthBridge } from "../modules/weather/SeasonalGrowthBridge.js";
+import { FixedAREClock } from "../core/determinism/AREDeterminism.js";
 
 // ---------------------------------------------------------------------------
 // FarmingSystem
 // ---------------------------------------------------------------------------
 describe("FarmingSystem", () => {
   let farming: FarmingSystem;
+  let clock: FixedAREClock;
 
-  beforeEach(() => { farming = new FarmingSystem(); });
+  beforeEach(() => {
+    clock = new FixedAREClock(123456);
+    farming = new FarmingSystem(clock);
+  });
 
   it("plant() returns an object with the correct seedId", () => {
     const result = farming.plant("wheat_seed", "plot_1");
@@ -22,11 +27,8 @@ describe("FarmingSystem", () => {
   });
 
   it("plant() includes a plantedAt timestamp", () => {
-    const before = Date.now();
     const result = farming.plant("carrot_seed", "plot_2");
-    const after = Date.now();
-    expect(result.plantedAt).toBeGreaterThanOrEqual(before);
-    expect(result.plantedAt).toBeLessThanOrEqual(after);
+    expect(result.plantedAt).toBe(123456);
   });
 
   it("plant() creates a distinct object per call", () => {
@@ -41,8 +43,12 @@ describe("FarmingSystem", () => {
 // ---------------------------------------------------------------------------
 describe("TreeGrowthSystem", () => {
   let trees: TreeGrowthSystem;
+  let clock: FixedAREClock;
 
-  beforeEach(() => { trees = new TreeGrowthSystem(); });
+  beforeEach(() => {
+    clock = new FixedAREClock(999888);
+    trees = new TreeGrowthSystem(clock);
+  });
 
   it("grow() increments tree stage by 1", () => {
     const tree: any = { stage: 2 };
@@ -75,12 +81,9 @@ describe("TreeGrowthSystem", () => {
   });
 
   it("grow() attaches a lastGrowthAt timestamp", () => {
-    const before = Date.now();
     const tree: any = { stage: 0 };
     trees.grow(tree);
-    const after = Date.now();
-    expect(tree.lastGrowthAt).toBeGreaterThanOrEqual(before);
-    expect(tree.lastGrowthAt).toBeLessThanOrEqual(after);
+    expect(tree.lastGrowthAt).toBe(999888);
   });
 
   it("multiple grow() calls advance stage sequentially up to max", () => {

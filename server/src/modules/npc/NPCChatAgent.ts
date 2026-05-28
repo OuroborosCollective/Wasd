@@ -56,7 +56,11 @@ Maintain character consistency at all times. Respond concisely and in accordance
             ? "Recent Significant World Events:\n" + context.worldHistory
                 .sort((a, b) => b.timestamp - a.timestamp)
                 .slice(0, 5)
-                .map(event => `[${new Date(event.timestamp).toLocaleTimeString()}] ${event.description}`)
+                .map(event => {
+                    // @are-telemetry-side-channel: NPC UI timestamps are Level-C presentation
+                    const timeStr = new Date(event.timestamp).toLocaleTimeString();
+                    return `[${timeStr}] ${event.description}`;
+                })
                 .join("\n")
             : "No significant recent world events.";
 

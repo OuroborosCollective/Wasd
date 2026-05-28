@@ -63,6 +63,7 @@ export async function saveNpcMemory(state: NPCMemoryState): Promise<boolean> {
         trade_history: state.tradeHistory.slice(-50),
         reputation: state.reputation,
         event_log: state.eventLog.slice(-100),
+        // @are-telemetry-side-channel: DB metadata update
         last_updated: new Date().toISOString(),
       },
       { onConflict: "npc_id" },

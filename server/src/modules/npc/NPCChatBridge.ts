@@ -72,7 +72,11 @@ export class NPCChatBridge {
             return "(no recorded world events yet)";
         }
         return evs
-            .map((e) => `- ${e.title}: ${e.description} @${new Date(e.timestamp).toISOString()}`)
+            .map((e) => {
+                // @are-telemetry-side-channel: World history digest formatting for LLM context
+                const iso = new Date(e.timestamp).toISOString();
+                return `- ${e.title}: ${e.description} @${iso}`;
+            })
             .join("\n");
     }
 
@@ -98,6 +102,7 @@ export class NPCChatBridge {
             },
             worldState: {
                 currentLocation: "unknown",
+                // @are-telemetry-side-channel: LLM context wall-clock
                 currentTime: new Date().toISOString(),
                 environmentConditions: "default",
             },
