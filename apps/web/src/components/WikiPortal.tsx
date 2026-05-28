@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ChevronRight, Book, Activity, Cpu, Zap } from 'lucide-react';
+import { Search, ChevronRight, Book, Activity, Cpu, Zap, X } from 'lucide-react';
 
 interface WikiPage {
   id: string;
@@ -8,6 +8,10 @@ interface WikiPage {
   icon: React.ElementType;
   content: string;
   stats?: { label: string; value: string }[];
+}
+
+interface WikiPortalProps {
+  onClose?: () => void;
 }
 
 const PAGES: Record<string, WikiPage> = {
@@ -94,10 +98,20 @@ NPCs perceive and remember the world through five distinct layers:
   }
 };
 
-const WikiPortal: React.FC = () => {
+const WikiPortal: React.FC<WikiPortalProps> = ({ onClose }) => {
   const [activePage, setActivePage] = useState<string>('Home');
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const filteredPages = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return Object.values(PAGES);
+
+    return Object.values(PAGES).filter(p =>
+      p.title.toLowerCase().includes(query) ||
+      p.content.toLowerCase().includes(query)
+    );
+  }, [searchQuery]);
 
   const page = PAGES[activePage] || PAGES['Home'];
 
@@ -105,8 +119,16 @@ const WikiPortal: React.FC = () => {
     if (e.key === '/' && document.activeElement !== searchInputRef.current) {
       e.preventDefault();
       searchInputRef.current?.focus();
+    } else if (e.key === 'Escape') {
+      if (document.activeElement === searchInputRef.current) {
+        searchInputRef.current?.blur();
+      } else if (searchQuery) {
+        setSearchQuery('');
+      } else if (onClose) {
+        onClose();
+      }
     }
-  }, []);
+  }, [onClose, searchQuery]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -124,8 +146,8 @@ const WikiPortal: React.FC = () => {
           <span className="font-bold tracking-tighter text-[#FFD700]">OBSIDIAN_ARCHIVE</span>
         </div>
 
-        <nav className="flex-1 p-4 space-y-2" aria-label="Wiki navigation">
-          {Object.values(PAGES).map((p) => (
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto" aria-label="Wiki navigation">
+          {filteredPages.map((p) => (
             <button
               key={p.id}
               onClick={() => setActivePage(p.id)}
@@ -140,6 +162,13 @@ const WikiPortal: React.FC = () => {
               <span className="text-xs tracking-widest uppercase">{p.title}</span>
             </button>
           ))}
+          {filteredPages.length === 0 && (
+            <div className="p-4 text-center">
+              <span className="text-[10px] text-[#b9cac9] opacity-50 uppercase tracking-widest">
+                NO_MATCHES_FOUND
+              </span>
+            </div>
+          )}
         </nav>
 
         <div className="p-4 border-t border-[#3a4a49] text-[10px] font-mono text-[#b9cac9] opacity-50 uppercase">
@@ -165,17 +194,38 @@ const WikiPortal: React.FC = () => {
             <span className="text-[#FFD700]">{page.title}</span>
           </div>
 
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#b9cac9]" size={14} aria-hidden="true" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="SEARCH_ARCHIVE... [/]"
-              aria-label="Search archive"
-              className="bg-[#1c1b1b] border border-[#3a4a49] pl-10 pr-4 py-2 text-xs focus:outline-none focus:border-[#00FFFF] w-64 text-[#e5e2e1]"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#b9cac9]" size={14} aria-hidden="true" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="SEARCH_ARCHIVE... [/]"
+                aria-label="Search archive"
+                className="bg-[#1c1b1b] border border-[#3a4a49] pl-10 pr-10 py-2 text-xs focus:outline-none focus:border-[#00FFFF] w-64 text-[#e5e2e1]"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#b9cac9] hover:text-[#00FFFF] transition-colors"
+                  aria-label="Clear search"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="p-2 border border-[#3a4a49] hover:bg-[#1c1b1b] hover:border-[#00FFFF] transition-all group"
+                aria-label="Close archive"
+              >
+                <X size={18} className="text-[#b9cac9] group-hover:text-[#00FFFF]" />
+              </button>
+            )}
           </div>
         </header>
 
