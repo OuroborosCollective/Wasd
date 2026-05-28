@@ -4,10 +4,11 @@ on:
   pull_request:
     paths:
       - scripts/import-pixi-dev-hub-assets.mjs
+      - scripts/validate-pixi-assets.mjs
       - public/archive/wasd-pixi-asset-packs.json
       - docs/archive/pixi-first-batch-source-metadata.json
       - docs/archive/pixi-first-batch-download-allowlist.json
-      - apps/client-2d/public/2d-assets/manifests/**
+      - apps/client-2d/public/2d-assets/**
       - package.json
       - pnpm-lock.yaml
       - .github/workflows/pixi-asset-plan.yml
@@ -16,10 +17,11 @@ on:
       - main
     paths:
       - scripts/import-pixi-dev-hub-assets.mjs
+      - scripts/validate-pixi-assets.mjs
       - public/archive/wasd-pixi-asset-packs.json
       - docs/archive/pixi-first-batch-source-metadata.json
       - docs/archive/pixi-first-batch-download-allowlist.json
-      - apps/client-2d/public/2d-assets/manifests/**
+      - apps/client-2d/public/2d-assets/**
       - package.json
       - pnpm-lock.yaml
       - .github/workflows/pixi-asset-plan.yml
@@ -33,7 +35,7 @@ concurrency:
 
 jobs:
   pixi-asset-plan:
-    name: Pixi asset plan dry-run
+    name: Pixi asset plan and validation
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -55,3 +57,6 @@ jobs:
 
       - name: Run Pixi asset plan dry-run
         run: pnpm assets:pixi:plan
+
+      - name: Validate Pixi assets
+        run: pnpm assets:pixi:validate
