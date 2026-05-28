@@ -1,0 +1,57 @@
+name: Pixi Asset Plan
+
+on:
+  pull_request:
+    paths:
+      - scripts/import-pixi-dev-hub-assets.mjs
+      - public/archive/wasd-pixi-asset-packs.json
+      - docs/archive/pixi-first-batch-source-metadata.json
+      - docs/archive/pixi-first-batch-download-allowlist.json
+      - apps/client-2d/public/2d-assets/manifests/**
+      - package.json
+      - pnpm-lock.yaml
+      - .github/workflows/pixi-asset-plan.yml
+  push:
+    branches:
+      - main
+    paths:
+      - scripts/import-pixi-dev-hub-assets.mjs
+      - public/archive/wasd-pixi-asset-packs.json
+      - docs/archive/pixi-first-batch-source-metadata.json
+      - docs/archive/pixi-first-batch-download-allowlist.json
+      - apps/client-2d/public/2d-assets/manifests/**
+      - package.json
+      - pnpm-lock.yaml
+      - .github/workflows/pixi-asset-plan.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pixi-asset-plan-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pixi-asset-plan:
+    name: Pixi asset plan dry-run
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Pixi asset plan dry-run
+        run: pnpm assets:pixi:plan
