@@ -73,12 +73,16 @@ function isBlockedPack(pack, metadata, blockedById) {
   );
 }
 
-function isAllowedIncomingArchive(relative, extension) {
-  return relative.startsWith('incoming/') && extension === '.zip';
+function isIgnoredStagingFile(relative) {
+  return relative.startsWith('incoming/');
 }
 
 function isAllowedPackDocumentation(relative, extension) {
-  return relative.startsWith('ui/kenney-ui-pack/') && extension === '.txt';
+  const basename = path.basename(relative).toLowerCase();
+  return (
+    (basename === 'readme.md' && extension === '.md')
+    || (relative.startsWith('ui/kenney-ui-pack/') && extension === '.txt')
+  );
 }
 
 function assertUrlDrift(pack, metadata, allowlist, errors) {
@@ -145,7 +149,7 @@ async function main() {
       continue;
     }
 
-    if (isAllowedIncomingArchive(relative, extension) || isAllowedPackDocumentation(relative, extension)) {
+    if (isIgnoredStagingFile(relative) || isAllowedPackDocumentation(relative, extension)) {
       continue;
     }
 
