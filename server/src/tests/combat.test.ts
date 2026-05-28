@@ -26,8 +26,8 @@ describe("CombatSystem", () => {
   });
 
   it("attack() deducts 8 stamina on a successful attempt", () => {
-    // Force hit by mocking Math.random to return 0 (always hits)
-    vi.spyOn(Math, "random").mockReturnValue(0);
+    // Force hit by mocking nextFloat to return 0 (always hits)
+    vi.spyOn(combat as any, "nextFloat").mockReturnValue(0);
     const attacker = { stamina: 50, skills: { combat: { level: 5 } } };
     const defender = { health: 100, skills: { combat: { level: 1 } } };
     combat.attack(attacker, defender);
@@ -65,7 +65,7 @@ describe("CombatSystem", () => {
   // ---- calculateDamage -----------------------------------------------------
 
   it("calculateDamage() returns at least 1", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0);
+    vi.spyOn(combat as any, "nextInt").mockReturnValue(0);
     const attacker = { skills: { combat: { level: 1 } } };
     const defender = { skills: { combat: { level: 100 } } };
     expect(combat.calculateDamage(attacker, defender)).toBeGreaterThanOrEqual(1);
@@ -73,7 +73,7 @@ describe("CombatSystem", () => {
   });
 
   it("calculateDamage() increases with attacker level", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0);
+    vi.spyOn(combat as any, "nextInt").mockReturnValue(0);
     const defender = { skills: { combat: { level: 1 } } };
     const weak = { skills: { combat: { level: 1 } } };
     const strong = { skills: { combat: { level: 10 } } };
@@ -86,7 +86,7 @@ describe("CombatSystem", () => {
   // ---- attack outcomes -----------------------------------------------------
 
   it("attack() with guaranteed hit reduces defender health", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.1); // Avoid dodge roll, force hit
+    vi.spyOn(combat as any, "nextFloat").mockReturnValue(0.1); // Avoid dodge roll, force hit
 
     const attacker = { stamina: 50, skills: { combat: { level: 500 } } };
     const defender = { health: 100, skills: { combat: { level: 1 } } };
@@ -97,7 +97,7 @@ describe("CombatSystem", () => {
   });
 
   it("attack() defender health never drops below 0", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.1);
+    vi.spyOn(combat as any, "nextFloat").mockReturnValue(0.1);
     const attacker = { stamina: 100, skills: { combat: { level: 100 } } };
     const defender = { health: 1, skills: { combat: { level: 1 } } };
     combat.attack(attacker, defender);
@@ -106,7 +106,7 @@ describe("CombatSystem", () => {
   });
 
   it("attack() with guaranteed miss returns hit: false and damage: 0", () => {
-    vi.spyOn(Math, "random").mockReturnValue(1); // Force miss
+    vi.spyOn(combat as any, "nextFloat").mockReturnValue(1); // Force miss
     const attacker = { stamina: 50, skills: { combat: { level: 1 } } };
     const defender = { health: 100, skills: { combat: { level: 1 } } };
     const result = combat.attack(attacker, defender);
@@ -116,7 +116,7 @@ describe("CombatSystem", () => {
   });
 
   it("attack() hit result includes defenderHealth", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.1);
+    vi.spyOn(combat as any, "nextFloat").mockReturnValue(0.1);
     const attacker = { stamina: 50, skills: { combat: { level: 5 } } };
     const defender = { health: 100, skills: { combat: { level: 1 } } };
     const result = combat.attack(attacker, defender);
@@ -125,7 +125,8 @@ describe("CombatSystem", () => {
   });
 
   it("attackWithWeapon() deals more damage than bare attack with same RNG", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.1);
+    vi.spyOn(combat as any, "nextFloat").mockReturnValue(0.1);
+    vi.spyOn(combat as any, "nextInt").mockReturnValue(0);
     const attacker = { stamina: 50, skills: { combat: { level: 5 } } };
     const defenderA = { health: 500, skills: { combat: { level: 1 } } };
     const defenderB = { health: 500, skills: { combat: { level: 1 } } };

@@ -1,4 +1,5 @@
 import { createARESeed, SeededARERng, type ARERng } from "../../core/determinism/AREDeterminism.js";
+import { WeatherCombatBridge } from "./WeatherCombatBridge.js";
 
 export type FxKind = "hit" | "crit" | "heal" | "miss" | "block" | "xp" | "gold";
 
@@ -14,26 +15,26 @@ export interface CombatResult {
 }
 
 export class CombatSystem {
-  attack(attacker: any, defender: any): CombatResult {
-    return this.resolveAttack(attacker, defender, 0);
+  attack(attacker: any, defender: any, weather?: string): CombatResult {
+    return this.resolveAttack(attacker, defender, 0, weather);
   }
 
   /**
    * Melee attack with optional flat weapon bonus (ItemRegistry `damage` on equipped weapon).
    */
-  attackWithWeapon(attacker: any, defender: any, weaponBonus = 0): CombatResult {
-    return this.resolveAttack(attacker, defender, weaponBonus);
+  attackWithWeapon(attacker: any, defender: any, weaponBonus = 0, weather?: string): CombatResult {
+    return this.resolveAttack(attacker, defender, weaponBonus, weather);
   }
 
   /** Spell / skill hit — no stamina cost */
-  spellStrike(attacker: any, defender: any, spellPower: number): CombatResult {
+  spellStrike(attacker: any, defender: any, spellPower: number, weather?: string): CombatResult {
     const rng = this.createCombatRng("spellStrike", attacker, defender, spellPower);
-    const hitChance = this.calculateHitChance(attacker, defender);
-    if (rng.nextFloat() > hitChance) {
+    const hitChance = this.calculateHitChance(attacker, defender, weather);
+    if (this.nextFloat(rng) > hitChance) {
       return { success: true, hit: false, damage: 0, crit: false, fx: { kind: "miss" } };
     }
-    const crit = rng.nextFloat() < 0.08;
-    const baseDamage = this.calculateDamage(attacker, defender, spellPower, rng.fork("damage"));
+    const crit = this.nextFloat(rng) < 0.08;
+    const baseDamage = this.calculateDamage(attacker, defender, spellPower, rng.fork("damage"), weather);
     const damage = crit ? Math.floor(baseDamage * 1.75) : baseDamage;
     defender.health = Math.max(0, defender.health - damage);
     const killed = defender.health <= 0;
@@ -48,19 +49,19 @@ export class CombatSystem {
     };
   }
 
-  private resolveAttack(attacker: any, defender: any, weaponBonus: number): CombatResult {
+  private resolveAttack(attacker: any, defender: any, weaponBonus: number, weather?: string): CombatResult {
     const atkStamina = typeof attacker.stamina === "number" ? attacker.stamina : 100;
     if (atkStamina <= 0) return { success: false, hit: false, damage: 0, reason: "no_stamina" };
     attacker.stamina = atkStamina - 8;
 
     const rng = this.createCombatRng("attack", attacker, defender, weaponBonus);
-    const hitChance = this.calculateHitChance(attacker, defender);
-    if (rng.nextFloat() > hitChance) {
+    const hitChance = this.calculateHitChance(attacker, defender, weather);
+    if (this.nextFloat(rng) > hitChance) {
       return { success: true, hit: false, damage: 0, crit: false, fx: { kind: "miss" } };
     }
 
-    const crit = rng.nextFloat() < 0.08;
-    const baseDamage = this.calculateDamage(attacker, defender, weaponBonus, rng.fork("damage"));
+    const crit = this.nextFloat(rng) < 0.08;
+    const baseDamage = this.calculateDamage(attacker, defender, weaponBonus, rng.fork("damage"), weather);
     const damage = crit ? Math.floor(baseDamage * 1.75) : baseDamage;
     defender.health = Math.max(0, defender.health - damage);
     const killed = defender.health <= 0;
@@ -76,26 +77,42 @@ export class CombatSystem {
     };
   }
 
-  calculateHitChance(attacker: any, defender: any) {
+  calculateHitChance(attacker: any, defender: any, weather?: string) {
     const atk = typeof attacker === "number" ? attacker : (attacker.skills?.combat?.level ?? 1);
     const def = typeof defender === "number" ? defender : (defender.skills?.combat?.level ?? 1);
 
-    if (atk === def) return 0.65;
-    if (atk >= 1000 && def <= 1) return 0.95;
-    if (atk <= 1 && def >= 1000) return 0.3;
+    let base = 0.65;
+    if (atk === def) {
+      base = 0.65;
+    } else if (atk >= 1000 && def <= 1) {
+      base = 0.95;
+    } else if (atk <= 1 && def >= 1000) {
+      base = 0.3;
+    } else {
+      const diff = (atk - def) / (atk + def);
+      base = 0.65 + diff * 0.3;
+    }
 
-    const base = 0.65;
-    const diff = (atk - def) / (atk + def);
-    return Math.min(0.95, Math.max(0.3, base + diff * 0.3));
+    const weatherMod = WeatherCombatBridge.getModifiers(weather).hitChance;
+    return Math.min(0.95, Math.max(0.1, base * weatherMod));
   }
 
-  calculateDamage(attacker: any, defender: any, weaponBonus = 0, rng?: ARERng) {
+  calculateDamage(attacker: any, defender: any, weaponBonus = 0, rng?: ARERng, weather?: string) {
     const atk = attacker.skills?.combat?.level ?? 1;
     const def = defender.skills?.combat?.level ?? 1;
     const base = 5 + atk + Math.max(0, weaponBonus);
     const mitigation = Math.floor(def * 0.3);
     const damageRng = rng ?? this.createCombatRng("damage", attacker, defender, weaponBonus);
-    return Math.max(1, base - mitigation + damageRng.nextInt(4));
+    const weatherMod = WeatherCombatBridge.getModifiers(weather).damage;
+    return Math.max(1, Math.floor((base - mitigation + this.nextInt(damageRng, 4)) * weatherMod));
+  }
+
+  private nextFloat(rng: ARERng): number {
+    return rng.nextFloat();
+  }
+
+  private nextInt(rng: ARERng, max: number): number {
+    return rng.nextInt(max);
   }
 
   private createCombatRng(kind: string, attacker: any, defender: any, salt: number): SeededARERng {
