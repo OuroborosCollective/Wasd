@@ -33,6 +33,7 @@ export function App() {
   const joyBase = useRef<HTMLDivElement>(null);
   const joyKnob = useRef<HTMLDivElement>(null);
   const cliRef = useRef<ReturnType<typeof createClient> | null>(null);
+  const skillsRef = useRef<Skill[]>([]);
 
   const [conn, setConn] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -66,6 +67,10 @@ export function App() {
     chest: { id: "a_leath", name: "Leather Armor", cnt: 1, ico: "👕" },
     weapon: { id: "s_wood", name: "Wooden Sword", cnt: 1, ico: "🗡️" },
   });
+
+  useEffect(() => {
+    skillsRef.current = skills;
+  }, [skills]);
 
   useEffect(() => {
     const detectMobile = () => window.innerWidth < 768 || "ontouchstart" in window;
@@ -119,8 +124,8 @@ export function App() {
           connected: conn,
         }), {}, {
           onSkillSlot: (slotIndex) => {
-            const skill = skills[slotIndex];
-            if (skill) useSkill(skill.id);
+            const skill = skillsRef.current[slotIndex];
+            if (skill) triggerSkill(skill.id);
           },
         });
         hud.resize(app.screen.width, app.screen.height);
@@ -288,8 +293,8 @@ export function App() {
     setChatTxt("");
   }
 
-  function useSkill(id: string) {
-    const sk = skills.find((s) => s.id === id);
+  function triggerSkill(id: string) {
+    const sk = skillsRef.current.find((s) => s.id === id);
     if (!sk?.ready) return;
     if (cliRef.current?.connected) cliRef.current.sendPlayerAction("USE_SKILL", { skillId: id });
     setSkills((s) => s.map((skill) => skill.id === id ? { ...skill, cooldownTicksRemaining: Math.max(1, skill.cooldownTicksRemaining || 1), ready: false } : skill));
@@ -333,7 +338,7 @@ export function App() {
     if (panel === "character") return <div style={panelStyle}><h2>⚔️ Character</h2><div>Name: {char.name}</div><div>Level: {char.lvl}</div><div>XP: {char.xp}</div><div>Gold: 💰 {char.gold}</div><div>❤️ HP: {char.hp}/{char.maxHp}</div><div>💙 MP: {char.mp}/{char.maxMp}</div><h3>Equipment</h3>{Object.entries(equip).map(([slot, item]) => <div key={slot}>{slot}: {item.ico} {item.name}</div>)}<button onClick={() => togglePanel("character")} style={closeBtn}>Close</button></div>;
     if (panel === "inventory") return <div style={panelStyle}><h2>🎒 Inventory</h2>{inv.map((item) => <div key={item.id}>{item.ico} {item.name} x{item.cnt}</div>)}<button onClick={() => togglePanel("inventory")} style={closeBtn}>Close</button></div>;
     if (panel === "quests") return <div style={panelStyle}><h2>📜 Quests</h2>{quests.map((q) => <div key={q.id}>{q.done ? "✅" : "◻"} {q.title}: {q.obj} ({q.p}/{q.t})</div>)}<button onClick={() => togglePanel("quests")} style={closeBtn}>Close</button></div>;
-    if (panel === "skills") return <div style={panelStyle}><h2>✨ Skills</h2>{skills.map((sk) => <button key={sk.id} onClick={() => useSkill(sk.id)} disabled={!sk.ready}>{sk.ico} {sk.name} {sk.cooldownTicksRemaining > 0 ? formatCooldownTicks(sk.cooldownTicksRemaining) : ""}</button>)}<button onClick={() => togglePanel("skills")} style={closeBtn}>Close</button></div>;
+    if (panel === "skills") return <div style={panelStyle}><h2>✨ Skills</h2>{skills.map((sk) => <button key={sk.id} onClick={() => triggerSkill(sk.id)} disabled={!sk.ready}>{sk.ico} {sk.name} {sk.cooldownTicksRemaining > 0 ? formatCooldownTicks(sk.cooldownTicksRemaining) : ""}</button>)}<button onClick={() => togglePanel("skills")} style={closeBtn}>Close</button></div>;
     if (panel === "chat") return <div style={panelStyle}><h2>💬 Chat</h2><div>{["local", "trade", "world"].map((c) => <button key={c} onClick={() => setCh(c)}>{c}</button>)}</div><div>{msgs.filter((m) => m.ch === ch).map((m, i) => <div key={i}>[{m.from}] {m.txt}</div>)}</div><input value={chatTxt} onChange={(e) => setChatTxt(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendChatMsg()} /><button onClick={() => togglePanel("chat")} style={closeBtn}>Close</button></div>;
     return null;
   };
@@ -351,7 +356,7 @@ export function App() {
     {!conn && !err && <div style={status}>Connecting...</div>}
     {err && <div style={{ ...status, color: "#f55" }}>Error: {err}</div>}
     <div style={topBar}><div>❤️ {char.hp}/{char.maxHp}</div><div>💙 {char.mp}/{char.maxMp}</div><div>⭐ Lv.{char.lvl}</div><div>💰 {char.gold}</div></div>
-    <div style={skillBar}>{skills.slice(0, 4).map((sk) => <button key={sk.id} onClick={() => useSkill(sk.id)} disabled={!sk.ready}>{sk.ico}</button>)}</div>
+    <div style={skillBar}>{skills.slice(0, 4).map((sk) => <button key={sk.id} onClick={() => triggerSkill(sk.id)} disabled={!sk.ready}>{sk.ico}</button>)}</div>
     <div style={actionBtns}><button onClick={() => togglePanel("character")} style={actionBtn}>👤</button><button onClick={() => togglePanel("inventory")} style={actionBtn}>🎒</button><button onClick={() => togglePanel("quests")} style={actionBtn}>📜</button><button onClick={() => togglePanel("skills")} style={actionBtn}>✨</button><button onClick={() => togglePanel("chat")} style={actionBtn}>💬</button></div>
     {showJoy && <div ref={joyBase} onTouchStart={onJoyStart} onTouchMove={onJoyMove} onTouchEnd={onJoyEnd} style={joyBaseStyle}><div ref={joyKnob} style={joyKnobStyle} /></div>}
     {!mobile && conn && <div style={hint}>E:Char I:Inv Q:Quest K:Skills C:Chat</div>}
