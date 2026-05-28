@@ -12,26 +12,24 @@ describe("FarmingSystem", () => {
   beforeEach(() => { farming = new FarmingSystem(); });
 
   it("plant() returns an object with the correct seedId", () => {
-    const result = farming.plant("wheat_seed", "plot_1");
+    const result = farming.plant("wheat_seed", "plot_1", 100);
     expect(result.seedId).toBe("wheat_seed");
   });
 
   it("plant() returns an object with the correct plotId", () => {
-    const result = farming.plant("wheat_seed", "plot_1");
+    const result = farming.plant("wheat_seed", "plot_1", 100);
     expect(result.plotId).toBe("plot_1");
   });
 
   it("plant() includes a plantedAt timestamp", () => {
-    const before = Date.now();
-    const result = farming.plant("carrot_seed", "plot_2");
-    const after = Date.now();
-    expect(result.plantedAt).toBeGreaterThanOrEqual(before);
-    expect(result.plantedAt).toBeLessThanOrEqual(after);
+    const tick = 12345;
+    const result = farming.plant("carrot_seed", "plot_2", tick);
+    expect(result.plantedAt).toBe(tick);
   });
 
   it("plant() creates a distinct object per call", () => {
-    const r1 = farming.plant("wheat_seed", "plot_1");
-    const r2 = farming.plant("carrot_seed", "plot_2");
+    const r1 = farming.plant("wheat_seed", "plot_1", 100);
+    const r2 = farming.plant("carrot_seed", "plot_2", 101);
     expect(r1).not.toBe(r2);
   });
 });
@@ -46,46 +44,44 @@ describe("TreeGrowthSystem", () => {
 
   it("grow() increments tree stage by 1", () => {
     const tree: any = { stage: 2 };
-    trees.grow(tree);
+    trees.grow(tree, 100);
     expect(tree.stage).toBe(3);
   });
 
   it("grow() returns the mutated tree", () => {
     const tree: any = { stage: 1 };
-    const result = trees.grow(tree);
+    const result = trees.grow(tree, 100);
     expect(result).toBe(tree);
   });
 
   it("grow() does not exceed stage 4", () => {
     const tree: any = { stage: 4 };
-    trees.grow(tree);
+    trees.grow(tree, 100);
     expect(tree.stage).toBe(4);
   });
 
   it("grow() caps at 4 from stage 3", () => {
     const tree: any = { stage: 3 };
-    trees.grow(tree);
+    trees.grow(tree, 100);
     expect(tree.stage).toBe(4);
   });
 
   it("grow() treats undefined stage as 0 and increments to 1", () => {
     const tree: any = {};
-    trees.grow(tree);
+    trees.grow(tree, 100);
     expect(tree.stage).toBe(1);
   });
 
   it("grow() attaches a lastGrowthAt timestamp", () => {
-    const before = Date.now();
+    const tick = 67890;
     const tree: any = { stage: 0 };
-    trees.grow(tree);
-    const after = Date.now();
-    expect(tree.lastGrowthAt).toBeGreaterThanOrEqual(before);
-    expect(tree.lastGrowthAt).toBeLessThanOrEqual(after);
+    trees.grow(tree, tick);
+    expect(tree.lastGrowthAt).toBe(tick);
   });
 
   it("multiple grow() calls advance stage sequentially up to max", () => {
     const tree: any = { stage: 0 };
-    for (let i = 0; i < 10; i++) trees.grow(tree);
+    for (let i = 0; i < 10; i++) trees.grow(tree, i);
     expect(tree.stage).toBe(4);
   });
 });
