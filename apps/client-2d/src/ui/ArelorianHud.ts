@@ -43,6 +43,7 @@ export class ArelorianHud extends Container {
   private readonly panel = new Graphics();
   private readonly bars = new Graphics();
   private readonly slots = new Graphics();
+  private readonly slotLabels = new Container();
   private readonly titleText: Text;
   private readonly statusText: Text;
   private readonly matrixText: Text;
@@ -67,7 +68,7 @@ export class ArelorianHud extends Container {
       style: { fill: this.theme.matrix, fontFamily: this.theme.fontFamily, fontSize: 14, fontWeight: '700' },
     });
 
-    this.addChild(this.panel, this.bars, this.slots, this.titleText, this.statusText, this.matrixText);
+    this.addChild(this.panel, this.bars, this.slots, this.slotLabels, this.titleText, this.statusText, this.matrixText);
     this.renderHud();
   }
 
@@ -119,6 +120,8 @@ export class ArelorianHud extends Container {
 
   private drawSkillSlots(x: number, y: number): void {
     this.slots.clear();
+    this.slotLabels.removeChildren();
+
     const slotSize = 44;
     const gap = 8;
     const visibleSlots = this.state.skillSlots.slice(0, 8);
@@ -138,7 +141,7 @@ export class ArelorianHud extends Container {
       label.anchor.set(0.5);
       label.position.set(slotX + slotSize / 2, y + slotSize / 2);
       label.name = `skill-slot-label-${index}`;
-      this.addChild(label);
+      this.slotLabels.addChild(label);
     }
   }
 }
