@@ -11,6 +11,7 @@ const runtimeManifestPath = path.join(
   'apps/client-2d/public/2d-assets/manifests/pixi-dev-hub-first-batch.json',
 );
 const creditsDir = path.join(repoRoot, 'apps/client-2d/public/2d-assets/credits');
+const isDryRun = process.argv.includes('--dry-run');
 
 function slugify(value) {
   return String(value)
@@ -122,16 +123,24 @@ async function writeCredits(pack) {
       'Downloaded binaries must come from sourceUrl only.',
     ],
   };
-  await writeJson(creditPath, credit);
+
+  if (!isDryRun) {
+    await writeJson(creditPath, credit);
+  }
+
   return path.relative(repoRoot, creditPath);
 }
 
 async function ensureTargetDirectory(target) {
   const safeTarget = target.replace(/^\//, '');
   const absolute = path.join(repoRoot, safeTarget);
-  await mkdir(absolute, { recursive: true });
   const gitkeep = path.join(absolute, '.gitkeep');
-  await writeFile(gitkeep, '');
+
+  if (!isDryRun) {
+    await mkdir(absolute, { recursive: true });
+    await writeFile(gitkeep, '');
+  }
+
   return path.relative(repoRoot, absolute);
 }
 
@@ -190,7 +199,7 @@ async function main() {
       sourceVerified: pack.sourceVerified,
       downloadAllowlisted: pack.downloadAllowlisted,
       binaryImportStatus: pack.binaryImportStatus,
-      status: 'planned-source-and-allowlist-gated',
+      status: isDryRun ? 'dry-run-source-and-allowlist-gated' : 'planned-source-and-allowlist-gated',
       targetDirectory,
       creditFile,
       nextRequiredActions: [
@@ -215,13 +224,14 @@ async function main() {
     status: 'passed',
     checkedPacks: results.length,
   };
+  runtimeManifest.mode = isDryRun ? 'dry-run' : 'write';
   runtimeManifest.plannedResults = results;
-  await writeJson(runtimeManifestPath, runtimeManifest);
 
   const planPath = path.join(repoRoot, 'apps/client-2d/public/2d-assets/manifests/pixi-dev-hub-import-plan.json');
-  await writeJson(planPath, {
+  const plan = {
     schemaVersion: '1.0.0',
     generatedAt: new Date().toISOString(),
+    mode: isDryRun ? 'dry-run' : 'write',
     sourceManifest: path.relative(repoRoot, archivePath),
     sourceMetadata: path.relative(repoRoot, sourceMetadataPath),
     downloadAllowlist: path.relative(repoRoot, downloadAllowlistPath),
@@ -236,10 +246,16 @@ async function main() {
       checkedPacks: results.length,
     },
     results,
-  });
+  };
 
-  console.log(`Pixi Dev Hub source and allowlist gates passed for ${results.length} packs.`);
-  console.log(`Plan: ${path.relative(repoRoot, planPath)}`);
+  if (isDryRun) {
+    console.log(JSON.stringify(plan, null, 2));
+  } else {
+    await writeJson(runtimeManifestPath, runtimeManifest);
+    await writeJson(planPath, plan);
+    console.log(`Pixi Dev Hub source and allowlist gates passed for ${results.length} packs.`);
+    console.log(`Plan: ${path.relative(repoRoot, planPath)}`);
+  }
 }
 
 main().catch((error) => {
