@@ -54,6 +54,8 @@ function requireSourceGate(pack, metadata) {
     return {
       ok: false,
       id: pack.id,
+      pack,
+      metadata: metadata || null,
       failures,
     };
   }
@@ -76,11 +78,16 @@ function requireDownloadAllowlist(pack, allowlistEntry) {
   if (allowlistEntry && allowlistEntry.sourceVerified !== true) failures.push('allowlist sourceVerified must be true');
   if (allowlistEntry && allowlistEntry.sourceUrl !== pack.sourceUrl) failures.push('allowlist sourceUrl must match source metadata');
   if (allowlistEntry && allowlistEntry.licenseUrl !== pack.licenseUrl) failures.push('allowlist licenseUrl must match source metadata');
+  if (allowlistEntry?.downloadUrl && pack.downloadUrl && allowlistEntry.downloadUrl !== pack.downloadUrl) {
+    failures.push('allowlist downloadUrl must match source metadata');
+  }
 
   if (failures.length > 0) {
     return {
       ok: false,
       id: pack.id,
+      pack,
+      allowlistEntry: allowlistEntry || null,
       failures,
     };
   }
@@ -90,6 +97,8 @@ function requireDownloadAllowlist(pack, allowlistEntry) {
     id: pack.id,
     merged: {
       ...pack,
+      downloadUrl: pack.downloadUrl || allowlistEntry.downloadUrl || null,
+      archiveSha256: allowlistEntry.archiveSha256 || null,
       downloadAllowlisted: true,
     },
   };
@@ -113,6 +122,7 @@ async function writeCredits(pack) {
     licenseName: pack.licenseName || pack.license,
     sourceStatus: pack.sourceVerified ? 'source-verified' : 'required-before-binary-import',
     sourceUrl: pack.sourceUrl || null,
+    downloadUrl: pack.downloadUrl || null,
     licenseUrl: pack.licenseUrl || null,
     attributionRequired: Boolean(pack.attributionRequired),
     binaryImportStatus: pack.binaryImportStatus || 'planned',
@@ -144,6 +154,25 @@ async function ensureTargetDirectory(target) {
   return path.relative(repoRoot, absolute);
 }
 
+function toBlockedPlanResult(result, stage) {
+  return {
+    id: result.id,
+    stage,
+    status: 'blocked-documented',
+    failures: result.failures,
+    sourceVerified: result.metadata?.sourceVerified ?? result.pack?.sourceVerified ?? false,
+    importAllowed: result.allowlistEntry?.importAllowed ?? false,
+    sourceUrl: result.metadata?.sourceUrl ?? result.pack?.sourceUrl ?? null,
+    licenseUrl: result.metadata?.licenseUrl ?? result.pack?.licenseUrl ?? null,
+    binaryImportStatus: result.metadata?.binaryImportStatus ?? result.pack?.binaryImportStatus ?? null,
+    nextRequiredActions: [
+      'Verify the official sourceUrl before binary import.',
+      'Set sourceVerified=true only after official source verification.',
+      'Add a matching download allowlist entry before import.',
+    ],
+  };
+}
+
 async function main() {
   const archive = await readJson(archivePath);
   assertVisualOnlyPolicy(archive);
@@ -158,27 +187,23 @@ async function main() {
   const plannedPacks = archive.firstIntegrationBatch || [];
 
   const sourceGateResults = plannedPacks.map((pack) => requireSourceGate(pack, sourceById.get(pack.id)));
-  const sourceBlocked = sourceGateResults.filter((result) => !result.ok);
-  if (sourceBlocked.length > 0) {
-    const details = sourceBlocked
-      .map((result) => `- ${result.id}: ${result.failures.join('; ')}`)
-      .join('\n');
-    throw new Error(`Pixi asset source gate failed:\n${details}`);
-  }
+  const sourcePassed = sourceGateResults.filter((result) => result.ok);
+  const blocked = sourceGateResults
+    .filter((result) => !result.ok)
+    .map((result) => toBlockedPlanResult(result, 'source-gate'));
 
-  const allowlistGateResults = sourceGateResults.map((result) =>
+  const allowlistGateResults = sourcePassed.map((result) =>
     requireDownloadAllowlist(result.merged, allowlistById.get(result.id)),
   );
-  const allowlistBlocked = allowlistGateResults.filter((result) => !result.ok);
-  if (allowlistBlocked.length > 0) {
-    const details = allowlistBlocked
-      .map((result) => `- ${result.id}: ${result.failures.join('; ')}`)
-      .join('\n');
-    throw new Error(`Pixi asset download allowlist gate failed:\n${details}`);
-  }
+  const allowlistPassed = allowlistGateResults.filter((result) => result.ok);
+  blocked.push(
+    ...allowlistGateResults
+      .filter((result) => !result.ok)
+      .map((result) => toBlockedPlanResult(result, 'download-allowlist-gate')),
+  );
 
   const results = [];
-  for (const result of allowlistGateResults) {
+  for (const result of allowlistPassed) {
     const pack = result.merged;
     const target = pack.target || pack.targetPath;
     if (!target) {
@@ -195,6 +220,8 @@ async function main() {
       license: pack.license,
       licenseName: pack.licenseName,
       sourceUrl: pack.sourceUrl,
+      downloadUrl: pack.downloadUrl || null,
+      archiveSha256: pack.archiveSha256 || null,
       licenseUrl: pack.licenseUrl,
       sourceVerified: pack.sourceVerified,
       downloadAllowlisted: pack.downloadAllowlisted,
@@ -203,7 +230,6 @@ async function main() {
       targetDirectory,
       creditFile,
       nextRequiredActions: [
-        'Implement official-source download step.',
         'Download asset pack from sourceUrl only.',
         'Normalize filenames to kebab-case.',
         'Generate Pixi-compatible atlas or manifest metadata.',
@@ -213,39 +239,37 @@ async function main() {
   }
 
   runtimeManifest.generatedBy = 'scripts/import-pixi-dev-hub-assets.mjs';
-  runtimeManifest.lastPlannedAt = new Date().toISOString();
   runtimeManifest.sourceGate = {
     metadataPath: path.relative(repoRoot, sourceMetadataPath),
-    status: 'passed',
-    checkedPacks: results.length,
+    status: blocked.some((entry) => entry.stage === 'source-gate') ? 'passed-with-blocked-packs-documented' : 'passed',
+    checkedPacks: plannedPacks.length,
+    passedPacks: sourcePassed.length,
+    blockedPacks: blocked.filter((entry) => entry.stage === 'source-gate').length,
   };
   runtimeManifest.downloadAllowlistGate = {
     allowlistPath: path.relative(repoRoot, downloadAllowlistPath),
-    status: 'passed',
-    checkedPacks: results.length,
+    status: blocked.some((entry) => entry.stage === 'download-allowlist-gate') ? 'passed-with-blocked-packs-documented' : 'passed',
+    checkedPacks: sourcePassed.length,
+    passedPacks: allowlistPassed.length,
+    blockedPacks: blocked.filter((entry) => entry.stage === 'download-allowlist-gate').length,
   };
   runtimeManifest.mode = isDryRun ? 'dry-run' : 'write';
   runtimeManifest.plannedResults = results;
+  runtimeManifest.blockedResults = blocked;
 
   const planPath = path.join(repoRoot, 'apps/client-2d/public/2d-assets/manifests/pixi-dev-hub-import-plan.json');
   const plan = {
     schemaVersion: '1.0.0',
-    generatedAt: new Date().toISOString(),
     mode: isDryRun ? 'dry-run' : 'write',
     sourceManifest: path.relative(repoRoot, archivePath),
     sourceMetadata: path.relative(repoRoot, sourceMetadataPath),
     downloadAllowlist: path.relative(repoRoot, downloadAllowlistPath),
     runtimeManifest: path.relative(repoRoot, runtimeManifestPath),
     authorityPolicy: 'visual-only: WorldTick and AREKernel remain authoritative',
-    sourceGate: {
-      status: 'passed',
-      checkedPacks: results.length,
-    },
-    downloadAllowlistGate: {
-      status: 'passed',
-      checkedPacks: results.length,
-    },
+    sourceGate: runtimeManifest.sourceGate,
+    downloadAllowlistGate: runtimeManifest.downloadAllowlistGate,
     results,
+    blocked,
   };
 
   if (isDryRun) {
@@ -253,7 +277,7 @@ async function main() {
   } else {
     await writeJson(runtimeManifestPath, runtimeManifest);
     await writeJson(planPath, plan);
-    console.log(`Pixi Dev Hub source and allowlist gates passed for ${results.length} packs.`);
+    console.log(`Pixi Dev Hub gates passed for ${results.length} packs; blocked documented: ${blocked.length}.`);
     console.log(`Plan: ${path.relative(repoRoot, planPath)}`);
   }
 }
