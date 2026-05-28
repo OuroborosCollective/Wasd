@@ -17,6 +17,7 @@ import "./pixiModuleInspector.css";
 import "./mobilePlayability.css";
 import "./mobileResponsive.css";
 import "./kenneyUiLiveSkin.css";
+import "./hudSafeZones.css";
 
 installClient2DDepthRuntime();
 installViewportRuntime();

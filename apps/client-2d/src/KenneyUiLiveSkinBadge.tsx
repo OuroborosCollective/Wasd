@@ -8,16 +8,32 @@ type KenneyManifest = {
   authorityPolicy?: string;
 };
 
-const MANIFEST_URL = "/2d-assets/manifests/generated/kenney-ui-pack.json";
-const BUTTON_URL = "/2d-assets/ui/kenney-ui-pack/png/blue/default/button-rectangle-depth-gradient.png";
-const ROUND_URL = "/2d-assets/ui/kenney-ui-pack/png/blue/default/button-round-depth-gradient.png";
-const ARROW_URL = "/2d-assets/ui/kenney-ui-pack/png/blue/default/arrow-basic-e-small.png";
+const BASE_URL = import.meta.env.BASE_URL || "/";
+
+function runtimeBaseUrl(): URL {
+  const base = BASE_URL === "/" && window.location.pathname.startsWith("/2d") ? "/2d/" : BASE_URL;
+  return new URL(base, window.location.origin);
+}
+
+function clientAssetUrl(path: string): string {
+  return new URL(path.replace(/^\//, ""), runtimeBaseUrl()).toString();
+}
+
+const MANIFEST_URL = clientAssetUrl("2d-assets/manifests/generated/kenney-ui-pack.json");
+const BUTTON_URL = clientAssetUrl("2d-assets/ui/kenney-ui-pack/png/blue/default/button-rectangle-depth-gradient.png");
+const ROUND_URL = clientAssetUrl("2d-assets/ui/kenney-ui-pack/png/blue/default/button-round-depth-gradient.png");
+const ARROW_URL = clientAssetUrl("2d-assets/ui/kenney-ui-pack/png/blue/default/arrow-basic-e-small.png");
 
 export function KenneyUiLiveSkinBadge() {
   const [manifest, setManifest] = useState<KenneyManifest | null>(null);
   const [state, setState] = useState<"loading" | "online" | "missing">("loading");
 
   useEffect(() => {
+    const rootStyle = document.documentElement.style;
+    rootStyle.setProperty("--kenney-ui-button-blue", `url("${BUTTON_URL}")`);
+    rootStyle.setProperty("--kenney-ui-button-round-blue", `url("${ROUND_URL}")`);
+    rootStyle.setProperty("--kenney-ui-arrow-blue", `url("${ARROW_URL}")`);
+
     let cancelled = false;
 
     fetch(MANIFEST_URL, { cache: "no-store" })
@@ -32,7 +48,7 @@ export function KenneyUiLiveSkinBadge() {
       })
       .catch((error) => {
         if (cancelled) return;
-        console.warn("[KenneyUI] Live skin manifest unavailable", error);
+        console.warn("[KenneyUI] Live skin manifest unavailable", { url: MANIFEST_URL, error });
         setState("missing");
       });
 
