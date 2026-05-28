@@ -13,17 +13,73 @@ export type ModularWeaponInput = {
   element?: string | null;
 };
 
+type PartLayout = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation?: number;
+  z?: number;
+};
+
 const RULES: Record<string, string[]> = {
-  sword: ["sword_blade", "sword_guard", "sword_handle", "sword_pommel"],
-  axe: ["axe_head", "axe_handle"],
-  hammer: ["hammer_head", "axe_handle"],
-  spear: ["spear_tip", "spear_shaft"],
+  sword: ["sword_pommel", "sword_handle", "sword_guard", "sword_blade"],
+  axe: ["axe_handle", "axe_head"],
+  hammer: ["axe_handle", "hammer_head"],
+  spear: ["spear_shaft", "spear_tip"],
   bow: ["bow_limb", "bow_string"],
-  dagger: ["dagger_blade", "sword_guard", "sword_handle"],
-  mace: ["mace_head", "axe_handle"],
-  staff: ["staff_head", "spear_shaft", "magical_crystal"],
+  dagger: ["sword_handle", "sword_guard", "dagger_blade"],
+  mace: ["axe_handle", "mace_head"],
+  staff: ["spear_shaft", "staff_head", "magical_crystal"],
   knuckle: ["knuckle"],
   shield: ["shield"],
+};
+
+const DEFAULT_LAYOUT: PartLayout = { x: 0, y: 0, width: 46, height: 46, rotation: 0.35, z: 10 };
+
+const LAYOUTS: Record<string, Record<string, PartLayout>> = {
+  sword: {
+    sword_pommel: { x: -8, y: 25, width: 22, height: 22, rotation: 0.35, z: 1 },
+    sword_handle: { x: -3, y: 14, width: 25, height: 34, rotation: 0.35, z: 2 },
+    sword_guard: { x: 4, y: 2, width: 40, height: 22, rotation: 0.35, z: 3 },
+    sword_blade: { x: 13, y: -28, width: 34, height: 72, rotation: 0.35, z: 4 },
+  },
+  dagger: {
+    sword_handle: { x: -4, y: 14, width: 22, height: 30, rotation: 0.38, z: 1 },
+    sword_guard: { x: 2, y: 3, width: 32, height: 18, rotation: 0.38, z: 2 },
+    dagger_blade: { x: 10, y: -20, width: 28, height: 52, rotation: 0.38, z: 3 },
+  },
+  axe: {
+    axe_handle: { x: -7, y: 11, width: 26, height: 68, rotation: 0.22, z: 1 },
+    axe_head: { x: 14, y: -22, width: 50, height: 46, rotation: 0.22, z: 2 },
+  },
+  hammer: {
+    axe_handle: { x: -8, y: 12, width: 26, height: 68, rotation: 0.22, z: 1 },
+    hammer_head: { x: 12, y: -24, width: 58, height: 38, rotation: 0.22, z: 2 },
+  },
+  mace: {
+    axe_handle: { x: -8, y: 14, width: 25, height: 64, rotation: 0.25, z: 1 },
+    mace_head: { x: 10, y: -25, width: 46, height: 46, rotation: 0.25, z: 2 },
+  },
+  spear: {
+    spear_shaft: { x: -6, y: 8, width: 22, height: 86, rotation: 0.27, z: 1 },
+    spear_tip: { x: 15, y: -45, width: 34, height: 42, rotation: 0.27, z: 2 },
+  },
+  staff: {
+    spear_shaft: { x: -7, y: 10, width: 22, height: 86, rotation: 0.22, z: 1 },
+    staff_head: { x: 11, y: -42, width: 38, height: 38, rotation: 0.22, z: 2 },
+    magical_crystal: { x: 18, y: -52, width: 22, height: 22, rotation: 0.22, z: 3 },
+  },
+  bow: {
+    bow_limb: { x: 7, y: -10, width: 55, height: 78, rotation: 0.18, z: 1 },
+    bow_string: { x: 8, y: -9, width: 45, height: 74, rotation: 0.18, z: 2 },
+  },
+  knuckle: {
+    knuckle: { x: 6, y: -3, width: 42, height: 34, rotation: 0.2, z: 1 },
+  },
+  shield: {
+    shield: { x: 8, y: -8, width: 58, height: 66, rotation: 0.08, z: 1 },
+  },
 };
 
 function normalizeKind(value: string | null | undefined): ModularWeaponKind {
@@ -70,17 +126,26 @@ function frameTexture(base: Texture, entry: AssetEntry): Texture | null {
   return new Texture({ source: base.source, frame: new Rectangle(f.x, f.y, f.w, f.h) });
 }
 
-function addPart(root: Container, base: Texture, entry: AssetEntry, index: number) {
+function layoutFor(kind: string, entry: AssetEntry, fallbackIndex: number): PartLayout {
+  const group = String(entry.group ?? "");
+  const layout = LAYOUTS[kind]?.[group];
+  if (layout) return layout;
+  return { ...DEFAULT_LAYOUT, x: fallbackIndex * 2, y: -fallbackIndex * 2 };
+}
+
+function addPart(root: Container, base: Texture, entry: AssetEntry, kind: string, index: number) {
   const tex = frameTexture(base, entry);
   if (!tex) return;
+  const layout = layoutFor(kind, entry, index);
   const sprite = new Sprite(tex);
   sprite.anchor.set(0.5, 0.5);
-  sprite.width = 44;
-  sprite.height = 44;
-  sprite.x = index * 1.75;
-  sprite.y = -index * 1.25;
-  sprite.rotation = 0.35;
+  sprite.width = layout.width;
+  sprite.height = layout.height;
+  sprite.x = layout.x;
+  sprite.y = layout.y;
+  sprite.rotation = layout.rotation ?? 0;
   sprite.alpha = 0.98;
+  sprite.zIndex = layout.z ?? index;
   root.addChild(sprite);
 }
 
@@ -102,10 +167,11 @@ export function makeModularWeaponSprite(
   if (!atlas) return null;
 
   const root = new Container();
-  selected.forEach(([, entry], index) => addPart(root, atlas, entry, index));
+  root.sortableChildren = true;
+  selected.forEach(([, entry], index) => addPart(root, atlas, entry, kind, index));
   root.x = 16;
-  root.y = -24;
-  root.rotation = 0.04;
+  root.y = -25;
+  root.rotation = 0.02;
   root.alpha = 0.98;
   return root;
 }
