@@ -16,6 +16,7 @@ const allowedBinaryExtensions = new Set([
   '.jpeg',
   '.webp',
   '.gif',
+  '.svg',
   '.ogg',
   '.mp3',
   '.wav',
@@ -74,6 +75,10 @@ function isBlockedPack(pack, metadata, blockedById) {
 
 function isAllowedIncomingArchive(relative, extension) {
   return relative.startsWith('incoming/') && extension === '.zip';
+}
+
+function isAllowedPackDocumentation(relative, extension) {
+  return relative.startsWith('ui/kenney-ui-pack/') && extension === '.txt';
 }
 
 function assertUrlDrift(pack, metadata, allowlist, errors) {
@@ -140,7 +145,7 @@ async function main() {
       continue;
     }
 
-    if (isAllowedIncomingArchive(relative, extension)) {
+    if (isAllowedIncomingArchive(relative, extension) || isAllowedPackDocumentation(relative, extension)) {
       continue;
     }
 
