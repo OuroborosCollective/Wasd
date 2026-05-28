@@ -151,6 +151,16 @@ export function App() {
     }));
   }
 
+  function applyHeartbeatSkills(payload: any): void {
+    if (Array.isArray(payload?.skills)) {
+      applyServerSkills(payload.skills);
+      return;
+    }
+    if (Array.isArray(payload?.self?.skills)) {
+      applyServerSkills(payload.self.skills);
+    }
+  }
+
   function runClientTick(): void {
     setSkills((currentSkills) => currentSkills.map((skill) => {
       const nextTicks = Math.max(0, skill.cooldownTicksRemaining - 1);
@@ -164,7 +174,10 @@ export function App() {
 
     client.on("connect", () => setConn(true));
     client.on("disconnect", () => setConn(false));
-    client.on("WORLD_HEARTBEAT", (e: any) => updateEntities(app, e.payload?.players ?? {}, e.payload?.agents ?? {}));
+    client.on("WORLD_HEARTBEAT", (e: any) => {
+      updateEntities(app, e.payload?.players ?? {}, e.payload?.agents ?? {});
+      applyHeartbeatSkills(e.payload);
+    });
     client.on("PLAYER_JOINED", (e: any) => addChatMsg("system", "system", `${e.payload?.name || "Player"} joined`));
     client.on("PLAYER_LEFT", (e: any) => removeEntity(e.payload?.playerId));
     client.on("PLAYER_MOVED", (e: any) => {
