@@ -27,10 +27,19 @@ function fromFP(fp: number): number {
  */
 const API_KEY_HEADER = 'x-api-key';
 
+const DEFAULT_SKILL_COOLDOWN_TICKS: Record<string, number> = {
+  atk: 10,
+  def: 50,
+  mag: 30,
+  int: 0,
+};
+
 type EquipmentState = {
   itemId: string | null;
   weaponVisualId: string | null;
 };
+
+type SkillCooldownState = Record<string, number>;
 
 function parseCsvEnv(value: string | undefined): string[] {
   return (value ?? '')
@@ -100,6 +109,7 @@ export class APIServer {
   private lastPhaseStates: Map<string, string> = new Map();
   private io: any = null;
   private equipmentBySocket: Map<string, EquipmentState> = new Map();
+  private skillCooldownsBySocket: Map<string, SkillCooldownState> = new Map();
 
   /**
    * Initialize with existing Express app
@@ -188,12 +198,16 @@ export class APIServer {
 
       this.io.on('connection', (socket: any) => {
         console.log(`[ws] Client connected: ${socket.id}`);
+        this.ensureSkillCooldowns(socket.id);
         socket.emit('WORLD_STATE', this.getWorldStateSnapshot(socket.id));
         socket.emit('WORLD_HEARTBEAT', this.getHeartbeatPayload(socket.id));
 
         socket.on('intent:equip', (payload: any) => this.handleEquipIntent(socket, payload));
         socket.on('player_action', (payload: any) => this.handlePlayerAction(socket, payload));
-        socket.on('disconnect', () => this.equipmentBySocket.delete(socket.id));
+        socket.on('disconnect', () => {
+          this.equipmentBySocket.delete(socket.id);
+          this.skillCooldownsBySocket.delete(socket.id);
+        });
       });
     }).catch(console.error);
   }
@@ -216,7 +230,21 @@ export class APIServer {
   }
 
   private handlePlayerAction(socket: any, payload: any): void {
-    if (payload?.action !== 'USE_SKILL' || payload?.payload?.skillId !== 'atk') return;
+    if (payload?.action !== 'USE_SKILL') return;
+    const skillId = typeof payload?.payload?.skillId === 'string' ? payload.payload.skillId : null;
+    if (!skillId) return;
+
+    const cooldowns = this.ensureSkillCooldowns(socket.id);
+    const currentCooldownTicks = Math.max(0, Math.trunc(cooldowns[skillId] ?? 0));
+    if (currentCooldownTicks > 0) {
+      socket.emit('SKILL_UPDATE', { tick: Number(worldStateRegistry.getTick()), skill: this.getSkillPayload(socket.id, skillId) });
+      return;
+    }
+
+    cooldowns[skillId] = DEFAULT_SKILL_COOLDOWN_TICKS[skillId] ?? 10;
+    socket.emit('SKILL_UPDATE', { tick: Number(worldStateRegistry.getTick()), skill: this.getSkillPayload(socket.id, skillId) });
+
+    if (skillId !== 'atk') return;
     const tick = Number(worldStateRegistry.getTick());
     const damage = 7 + (tick % 11);
     const event = {
@@ -235,6 +263,7 @@ export class APIServer {
    */
   public onTick(): void {
     this.tickCounter++;
+    this.decrementSkillCooldowns();
 
     if (this.tickCounter % HEARTBEAT_INTERVAL === 0) {
       this.broadcastHeartbeat();
@@ -298,6 +327,7 @@ export class APIServer {
       players: this.getPlayerSummaries(socketId),
       self: socketId ? this.getPlayerSummary(socketId) : null,
       inventory: socketId ? this.getInventory(socketId) : [],
+      skills: socketId ? this.getSkillPayloads(socketId) : [],
     };
   }
 
@@ -323,6 +353,7 @@ export class APIServer {
       equippedWeaponId: equipment.weaponVisualId,
       weaponVisualId: equipment.weaponVisualId,
       inventory: this.getInventory(socketId),
+      skills: this.getSkillPayloads(socketId),
     };
   }
 
@@ -335,6 +366,37 @@ export class APIServer {
       type: 'weapon',
       weaponVisualId: equipment.weaponVisualId,
     }];
+  }
+
+  private ensureSkillCooldowns(socketId: string): SkillCooldownState {
+    let cooldowns = this.skillCooldownsBySocket.get(socketId);
+    if (!cooldowns) {
+      cooldowns = Object.fromEntries(Object.keys(DEFAULT_SKILL_COOLDOWN_TICKS).map((skillId) => [skillId, 0]));
+      this.skillCooldownsBySocket.set(socketId, cooldowns);
+    }
+    return cooldowns;
+  }
+
+  private decrementSkillCooldowns(): void {
+    for (const cooldowns of this.skillCooldownsBySocket.values()) {
+      for (const skillId of Object.keys(cooldowns)) {
+        cooldowns[skillId] = Math.max(0, Math.trunc(cooldowns[skillId] ?? 0) - 1);
+      }
+    }
+  }
+
+  private getSkillPayloads(socketId: string): any[] {
+    return Object.keys(DEFAULT_SKILL_COOLDOWN_TICKS).map((skillId) => this.getSkillPayload(socketId, skillId));
+  }
+
+  private getSkillPayload(socketId: string, skillId: string): any {
+    const cooldowns = this.ensureSkillCooldowns(socketId);
+    const cooldownTicksRemaining = Math.max(0, Math.trunc(cooldowns[skillId] ?? 0));
+    return {
+      id: skillId,
+      ready: cooldownTicksRemaining <= 0,
+      cooldownTicksRemaining,
+    };
   }
 
   /**
