@@ -1,6 +1,7 @@
 import { WorldHistory } from "../history/WorldHistory.js";
 import { serverWorldEventBus } from "../../events/WorldEventBus.js";
 import { pushLiveTickerHazard } from "../../theme/serverThemeHazard.js";
+import { WARFRONT_TICK_MS } from "./warfrontTypes.js";
 
 export type WarfrontFeedKind = "hit" | "kill";
 
@@ -81,7 +82,7 @@ export class WarfrontCombatTelemetry {
       id: `wf_${full.seq}_${full.tick}`,
       title: full.kind === "kill" ? "Warfront kill" : "Warfront hit",
       description: full.summary,
-      timestamp: Date.now(),
+      timestamp: full.tick * WARFRONT_TICK_MS,
       involvedFactionIds: [full.attackerId, full.defenderId],
     });
 
@@ -97,37 +98,11 @@ export class WarfrontCombatTelemetry {
     return full;
   }
 
-  recordHit(ctx: {
-    tick: number;
-    attackerId: string;
-    defenderId: string;
-    damage: number;
-    summary: string;
-  }): void {
-    void this.push({
-      tick: ctx.tick,
-      kind: "hit",
-      attackerId: ctx.attackerId,
-      defenderId: ctx.defenderId,
-      damage: ctx.damage,
-      summary: ctx.summary,
-    });
+  recordHit(ctx: { tick: number; attackerId: string; defenderId: string; damage: number; summary: string }): void {
+    void this.push({ tick: ctx.tick, kind: "hit", attackerId: ctx.attackerId, defenderId: ctx.defenderId, damage: ctx.damage, summary: ctx.summary });
   }
 
-  recordKill(ctx: {
-    tick: number;
-    attackerId: string;
-    defenderId: string;
-    damage: number;
-    summary: string;
-  }): void {
-    void this.push({
-      tick: ctx.tick,
-      kind: "kill",
-      attackerId: ctx.attackerId,
-      defenderId: ctx.defenderId,
-      damage: ctx.damage,
-      summary: ctx.summary,
-    });
+  recordKill(ctx: { tick: number; attackerId: string; defenderId: string; damage: number; summary: string }): void {
+    void this.push({ tick: ctx.tick, kind: "kill", attackerId: ctx.attackerId, defenderId: ctx.defenderId, damage: ctx.damage, summary: ctx.summary });
   }
 }
