@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "1.0.0",
+  "batchId": "pixi-first-batch-kenney-ui-pack",
+  "packId": "kenney-ui-pack",
+  "sourceUrl": "https://kenney.nl/assets/ui-pack",
+  "downloadUrl": "https://kenney.nl/media/pages/assets/ui-pack/f651646eab-1718203990/kenney_ui-pack.zip",
+  "license": "CC0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "sourceVerified": true,
+  "downloadAllowlisted": true,
+  "targetFolder": "apps/client-2d/public/2d-assets/ui/kenney-ui-pack/",
+  "status": "ready-for-local-or-runner-import-from-uploaded-zip",
+  "archive": {
+    "fileName": "kenney_ui-pack.zip",
+    "sha256": "a8a14a234911eb648c062622915c93e79e94e97cb7f9f375a70f6617f1174318",
+    "bytes": 1229750,
+    "entryCount": 1343,
+    "fileCount": 1315,
+    "directoryCount": 28,
+    "extensionCounts": {
+      ".ogg": 6,
+      ".png": 870,
+      ".svg": 434,
+      ".ttf": 2,
+      ".txt": 1,
+      ".url": 2
+    }
+  },
+  "requiredCommands": [
+    "mkdir -p apps/client-2d/public/2d-assets/incoming/kenney-ui-pack",
+    "cp kenney_ui-pack.zip apps/client-2d/public/2d-assets/incoming/kenney-ui-pack/kenney_ui-pack.zip",
+    "pnpm assets:pixi:import:kenney-ui:dry-run",
+    "pnpm assets:pixi:import:kenney-ui",
+    "pnpm assets:pixi:validate"
+  ],
+  "blockedUntil": [
+    "kenney_ui-pack.zip is present at apps/client-2d/public/2d-assets/incoming/kenney-ui-pack/kenney_ui-pack.zip",
+    "archive sha256 matches a8a14a234911eb648c062622915c93e79e94e97cb7f9f375a70f6617f1174318"
+  ],
+  "runtimeManifestFiles": [
+    "apps/client-2d/public/2d-assets/manifests/generated/kenney-ui-pack.json"
+  ],
+  "creditFiles": [
+    "apps/client-2d/public/2d-assets/credits/kenney-ui-pack.json"
+  ],
+  "safety": {
+    "visualOnly": true,
+    "noWorldTickChanges": true,
+    "noAREKernelChanges": true,
+    "noServerRegistryChanges": true,
+    "noNetworkingChanges": true,
+    "noBinaryAssetsInThisCommit": true
+  },
+  "notes": [
+    "The uploaded ZIP was inspected locally in ChatGPT before this batch file was written.",
+    "The import script skips .ttf and .url files by default; use --include-fonts only if the font license/use path is explicitly approved.",
+    "This batch prepares the client-2d HUD, skillbar, inventory panels, mobile UI and admin UI for Kenney UI art without granting assets gameplay authority."
+  ]
+}
