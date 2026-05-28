@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "1.0.0",
+  "project": "WASD / Arelorian",
+  "source": "https://pixi-js-dev-hub--arschniga1337.replit.app/hub-data.json",
+  "purpose": "Machine-readable integration manifest for useful 2D asset packs from the PixiJS Developer Hub.",
+  "coreRules": [
+    "Asset packs are visual content only.",
+    "WorldTick and AREKernel remain authoritative.",
+    "No sprite placement may create authoritative gameplay state.",
+    "Imported assets require license, attribution, filename, atlas, manifest and mobile-performance validation.",
+    "Prefer CC0 packs for direct integration; isolate CC-BY and CC-BY-SA packs with credits metadata."
+  ],
+  "repoTargets": {
+    "incoming": "apps/client-2d/public/2d-assets/incoming/",
+    "atlases": "apps/client-2d/public/2d-assets/atlases/",
+    "icons": "apps/client-2d/public/2d-assets/icons/",
+    "vfx": "apps/client-2d/public/2d-assets/vfx/",
+    "ui": "apps/client-2d/public/2d-assets/ui/",
+    "characters": "apps/client-2d/public/2d-assets/characters/",
+    "manifests": "apps/client-2d/public/2d-assets/manifests/",
+    "credits": "apps/client-2d/public/2d-assets/credits/"
+  },
+  "firstIntegrationBatch": [
+    {
+      "id": "kenney-tiny-town",
+      "decision": "adopt",
+      "priority": "P0",
+      "license": "CC0",
+      "target": "apps/client-2d/public/2d-assets/atlases/kenney-tiny-town/",
+      "use": ["towns", "roads", "houses", "trees", "interiors", "admin-map placeholders"]
+    },
+    {
+      "id": "kenney-tiny-dungeon",
+      "decision": "adopt",
+      "priority": "P0",
+      "license": "CC0",
+      "target": "apps/client-2d/public/2d-assets/atlases/kenney-tiny-dungeon/",
+      "use": ["dungeon rooms", "doors", "chests", "traps", "enemy placeholders", "boss rooms"]
+    },
+    {
+      "id": "ninja-adventure",
+      "decision": "adopt",
+      "priority": "P0",
+      "license": "CC0",
+      "target": "apps/client-2d/public/2d-assets/atlases/ninja-adventure/",
+      "use": ["top-down RPG terrain", "characters", "items", "VFX", "prototype scenes"]
+    },
+    {
+      "id": "explosion-animations",
+      "decision": "adopt",
+      "priority": "P0",
+      "license": "CC0",
+      "target": "apps/client-2d/public/2d-assets/vfx/explosion-animations/",
+      "use": ["Impact Buster", "spell hits", "loot bursts", "ARE shockwaves", "combat feedback"]
+    },
+    {
+      "id": "pixel-food",
+      "decision": "adopt",
+      "priority": "P1",
+      "license": "CC0",
+      "target": "apps/client-2d/public/2d-assets/icons/food/",
+      "use": ["food icons", "consumables", "merchant UI", "crafting UI"]
+    },
+    {
+      "id": "kenney-ui-pack",
+      "decision": "adopt",
+      "priority": "P1",
+      "license": "CC0",
+      "target": "apps/client-2d/public/2d-assets/ui/kenney-ui-pack/",
+      "use": ["HUD", "skillbar", "inventory panels", "mobile UI", "admin UI"]
+    },
+    {
+      "id": "pixel-prototype-player",
+      "decision": "adopt",
+      "priority": "P1",
+      "license": "CC0",
+      "target": "apps/client-2d/public/2d-assets/characters/prototype-player/",
+      "use": ["player placeholders", "NPC placeholders", "animation tests", "movement tests"]
+    }
+  ],
+  "adaptLater": [
+    {
+      "id": "shikashi-fantasy-icons",
+      "reason": "Useful fantasy icons, but CC-BY attribution is required."
+    },
+    {
+      "id": "pixel-isometric-tiles",
+      "reason": "Useful for 2.5D/editor experiments, but CC-BY attribution is required."
+    },
+    {
+      "id": "lpc-base-assets",
+      "reason": "Large RPG library, but CC-BY-SA requires strict ShareAlike tracking and isolation."
+    },
+    {
+      "id": "lpc-tile-atlas",
+      "reason": "Useful atlas reference, but CC-BY-SA requires strict ShareAlike tracking and isolation."
+    }
+  ],
+  "agentSteps": [
+    "Download firstIntegrationBatch only from official source pages.",
+    "Normalize filenames to kebab-case.",
+    "Generate Pixi-compatible manifests and atlas metadata.",
+    "Record credits before committing attribution-required assets.",
+    "Run apps/client-2d asset validation before merging binary assets.",
+    "Do not modify WorldTick, AREKernel, network authority or server registries during asset import."
+  ]
+}
