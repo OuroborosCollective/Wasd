@@ -9,6 +9,8 @@ npm-cache
 
 # Build outputs
 **/dist
+!apps/client-2d/dist
+!apps/client-2d/dist/**
 **/.next
 **/.nuxt
 **/build

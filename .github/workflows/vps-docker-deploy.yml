@@ -42,11 +42,34 @@ jobs:
       ARELORIAN_PORT: ${{ inputs.arelorian_port || '3001' }}
       ARELORIAN_DOCKER_NETWORK: ${{ inputs.docker_network || 'areloria_arelorian-network' }}
       SSH_PORT: ${{ inputs.ssh_port || secrets.SSH_PORT || '22' }}
+      CLIENT_2D_ARCHIVE: wasd-client-2d-dist-${{ github.sha }}.tgz
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.1.1 --activate
+          pnpm config set store-dir .pnpm-store
+          pnpm config set verify-deps-before-run false
+
+      - name: Install client-2d dependencies
+        run: pnpm --filter @wasd/client-2d... install --frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
+
+      - name: Build client-2d on GitHub runner
+        run: |
+          pnpm --filter @wasd/client-2d --if-present build
+          test -f apps/client-2d/dist/index.html
+          tar -C apps/client-2d -czf "${CLIENT_2D_ARCHIVE}" dist
+          ls -lh "${CLIENT_2D_ARCHIVE}"
 
       - name: Install sshpass
         run: sudo apt-get update && sudo apt-get install -y sshpass
@@ -60,6 +83,19 @@ jobs:
             "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
             "echo 'SSH OK'; hostname; uname -a"
 
+      - name: Upload prebuilt client-2d artifact to VPS
+        run: |
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh \
+            -p "${SSH_PORT}" \
+            -o StrictHostKeyChecking=no \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "mkdir -p '${DEPLOY_PATH}'"
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" scp \
+            -P "${SSH_PORT}" \
+            -o StrictHostKeyChecking=no \
+            "${CLIENT_2D_ARCHIVE}" \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${DEPLOY_PATH}/${CLIENT_2D_ARCHIVE}"
+
       - name: Run Docker deploy on VPS
         run: |
           sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh \
@@ -68,11 +104,12 @@ jobs:
             -o ServerAliveInterval=30 \
             -o ServerAliveCountMax=10 \
             "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
-            "DEPLOY_PATH='${DEPLOY_PATH}' DEPLOY_BRANCH='${DEPLOY_BRANCH}' ARELORIAN_PORT='${ARELORIAN_PORT}' ARELORIAN_DOCKER_NETWORK='${ARELORIAN_DOCKER_NETWORK}' bash -s" << 'EOF'
+            "DEPLOY_PATH='${DEPLOY_PATH}' DEPLOY_BRANCH='${DEPLOY_BRANCH}' ARELORIAN_PORT='${ARELORIAN_PORT}' ARELORIAN_DOCKER_NETWORK='${ARELORIAN_DOCKER_NETWORK}' CLIENT_2D_ARCHIVE='${CLIENT_2D_ARCHIVE}' bash -s" << 'EOF'
           set -Eeuo pipefail
           APP_DIR="${DEPLOY_PATH:-/opt/areloria}"
           BRANCH="${DEPLOY_BRANCH:-main}"
           REPO_URL="https://github.com/${{ github.repository }}.git"
+          CLIENT_2D_ARCHIVE="${CLIENT_2D_ARCHIVE:-}"
 
           echo "=== VPS Docker deploy entry ==="
           echo "App dir: $APP_DIR"
@@ -90,6 +127,16 @@ jobs:
             git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ || true
           fi
 
+          if [ -n "$CLIENT_2D_ARCHIVE" ] && [ -f "$APP_DIR/$CLIENT_2D_ARCHIVE" ]; then
+            echo "Installing prebuilt client-2d artifact: $CLIENT_2D_ARCHIVE"
+            rm -rf apps/client-2d/dist
+            mkdir -p apps/client-2d
+            tar -xzf "$APP_DIR/$CLIENT_2D_ARCHIVE" -C apps/client-2d
+            test -f apps/client-2d/dist/index.html
+          else
+            echo "WARN: No prebuilt client-2d artifact found; Dockerfile may fall back to VPS build."
+          fi
+
           chmod +x scripts/deploy-vps-docker.sh scripts/vps-docker-inline-deploy.sh 2>/dev/null || true
 
           ARELORIAN_PORT="${ARELORIAN_PORT:-3001}" \
@@ -101,7 +148,7 @@ jobs:
 
       - name: Public health check
         run: |
-          for path in /health / /portal/; do
+          for path in /health / /portal/ /2d/; do
             echo "Checking https://arelorian.de${path}"
             STATUS="$(curl -k -s -o /dev/null -w "%{http_code}" "https://arelorian.de${path}" || true)"
             echo "Status: ${STATUS}"
