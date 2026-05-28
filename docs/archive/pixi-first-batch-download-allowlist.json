@@ -54,10 +54,12 @@
     {
       "id": "kenney-ui-pack",
       "sourceUrl": "https://kenney.nl/assets/ui-pack",
+      "downloadUrl": "https://kenney.nl/media/pages/assets/ui-pack/f651646eab-1718203990/kenney_ui-pack.zip",
       "license": "CC0",
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "sourceVerified": true,
-      "importAllowed": true
+      "importAllowed": true,
+      "archiveSha256": "a8a14a234911eb648c062622915c93e79e94e97cb7f9f375a70f6617f1174318"
     }
   ],
   "blockedPacks": [
@@ -68,5 +70,5 @@
       "importAllowed": false
     }
   ],
-  "nextStep": "Update scripts/import-pixi-dev-hub-assets.mjs to read this allowlist and plan only allowed packs. Then implement actual downloader in a later PR."
+  "nextStep": "Place kenney_ui-pack.zip in apps/client-2d/public/2d-assets/incoming/kenney-ui-pack/ and run pnpm assets:pixi:import:kenney-ui."
 }
