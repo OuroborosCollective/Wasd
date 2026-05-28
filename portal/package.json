@@ -7,8 +7,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "pnpm --dir .. exec vitest run --root portal",
+    "test:watch": "pnpm --dir .. exec vitest --root portal",
     "lint": "eslint src"
   },
   "dependencies": {
