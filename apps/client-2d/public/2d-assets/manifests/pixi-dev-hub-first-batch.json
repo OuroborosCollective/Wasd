@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "1.0.0",
+  "name": "pixi-dev-hub-first-batch",
+  "description": "First CC0-friendly 2D asset batch selected from the PixiJS Developer Hub for WASD/Arelorian client-2d.",
+  "source": "https://pixi-js-dev-hub--arschniga1337.replit.app/hub-data.json",
+  "authorityPolicy": "visual-only: WorldTick and AREKernel remain authoritative",
+  "packs": [
+    {
+      "id": "kenney-tiny-town",
+      "kind": "atlas",
+      "license": "CC0",
+      "targetPath": "/2d-assets/atlases/kenney-tiny-town/",
+      "status": "planned",
+      "use": ["town", "road", "house", "tree", "interior", "admin-map"]
+    },
+    {
+      "id": "kenney-tiny-dungeon",
+      "kind": "atlas",
+      "license": "CC0",
+      "targetPath": "/2d-assets/atlases/kenney-tiny-dungeon/",
+      "status": "planned",
+      "use": ["dungeon", "door", "chest", "trap", "enemy-placeholder", "boss-room"]
+    },
+    {
+      "id": "ninja-adventure",
+      "kind": "atlas",
+      "license": "CC0",
+      "targetPath": "/2d-assets/atlases/ninja-adventure/",
+      "status": "planned",
+      "use": ["terrain", "character", "item", "vfx", "prototype-scene"]
+    },
+    {
+      "id": "explosion-animations",
+      "kind": "vfx",
+      "license": "CC0",
+      "targetPath": "/2d-assets/vfx/explosion-animations/",
+      "status": "planned",
+      "use": ["impact-buster", "spell-hit", "loot-burst", "are-shockwave", "combat-feedback"]
+    },
+    {
+      "id": "pixel-food",
+      "kind": "icons",
+      "license": "CC0",
+      "targetPath": "/2d-assets/icons/food/",
+      "status": "planned",
+      "use": ["food-icon", "consumable", "merchant-ui", "crafting-ui"]
+    },
+    {
+      "id": "kenney-ui-pack",
+      "kind": "ui",
+      "license": "CC0",
+      "targetPath": "/2d-assets/ui/kenney-ui-pack/",
+      "status": "planned",
+      "use": ["hud", "skillbar", "inventory", "mobile-ui", "admin-ui"]
+    },
+    {
+      "id": "pixel-prototype-player",
+      "kind": "characters",
+      "license": "CC0",
+      "targetPath": "/2d-assets/characters/prototype-player/",
+      "status": "planned",
+      "use": ["player-placeholder", "npc-placeholder", "animation-test", "movement-test"]
+    }
+  ],
+  "validation": {
+    "requiredBeforeRuntimeUse": [
+      "source-url-recorded",
+      "license-recorded",
+      "filenames-normalized",
+      "atlas-or-manifest-generated",
+      "mobile-size-budget-checked",
+      "credits-added-if-needed"
+    ],
+    "command": "pnpm --filter @wasd/client-2d validate:assets"
+  }
+}
