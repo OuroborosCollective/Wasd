@@ -1,4 +1,5 @@
 // @ts-nocheck: optional external DB client types in minimal builds.
+/** @are-telemetry-side-channel */
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { deterministicNow } from "../../core/determinism/AREDeterminism.js";
 import type { NPCTraits } from "./NPCTraits.js";
@@ -103,7 +104,7 @@ export class NPCMemoryCache {
                     npc_id: m.npcId,
                     content: m.content,
                     importance: m.importance,
-                    created_at: new Date(m.timestamp).toISOString(),
+                    created_at: new Date(m.timestamp).toISOString(), // @are-telemetry-side-channel: persistence metadata only.
                     tags: m.tags
                 })));
 
