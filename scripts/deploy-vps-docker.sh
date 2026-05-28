@@ -10,8 +10,9 @@ ARELORIAN_ENV_FILE="${ARELORIAN_ENV_FILE:-.env.docker}"
 ARELORIAN_ENABLE_DOCKER_INGRESS="${ARELORIAN_ENABLE_DOCKER_INGRESS:-false}"
 ARELORIAN_INGRESS_HTTP_BIND="${ARELORIAN_INGRESS_HTTP_BIND:-0.0.0.0}"
 ARELORIAN_INGRESS_HTTP_PORT="${ARELORIAN_INGRESS_HTTP_PORT:-80}"
+CLIENT_2D_MARKER="${CLIENT_2D_MARKER:-REAL_PIXI_CLIENT}"
 NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=8192}"
-export ARELORIAN_PORT ARELORIAN_DOCKER_NETWORK ARELORIAN_ENABLE_DOCKER_INGRESS ARELORIAN_INGRESS_HTTP_BIND ARELORIAN_INGRESS_HTTP_PORT NODE_OPTIONS
+export ARELORIAN_PORT ARELORIAN_DOCKER_NETWORK ARELORIAN_ENABLE_DOCKER_INGRESS ARELORIAN_INGRESS_HTTP_BIND ARELORIAN_INGRESS_HTTP_PORT CLIENT_2D_MARKER NODE_OPTIONS
 cd "$REPO_ROOT"
 
 LOCK_PATH="${DEPLOY_LOCK_PATH:-/tmp/wasd-vps-docker-deploy.lock}"
@@ -77,6 +78,38 @@ validate_required_runtime_env() {
     exit 1
   fi
   echo "Runtime env OK: DATABASE_URL, API key and CORS origins are configured."
+}
+
+validate_client_2d_dockerfile_gate() {
+  echo "=== Client-2D Dockerfile gate preflight ==="
+  echo "Deploy HEAD: $(git rev-parse --short HEAD)"
+  git status --short Dockerfile.vps docker-compose.yml apps/client-2d/index.html || true
+
+  if [ ! -f Dockerfile.vps ]; then
+    echo "ERROR: Dockerfile.vps is missing; VPS compose cannot prove the real 2D client build gate."
+    exit 1
+  fi
+
+  echo "Dockerfile.vps client-2d block:"
+  sed -n '80,115p' Dockerfile.vps || true
+
+  if grep -Eq 'Arelorian 2D temporarily unavailable|build process exceeded available memory|pnpm --filter @wasd/client-2d --if-present build \|\|' Dockerfile.vps; then
+    echo "ERROR: Dockerfile.vps still contains the old 2D placeholder/offline fallback path."
+    echo "Refusing deploy before Docker can build a fake /2d/ client."
+    exit 1
+  fi
+
+  if ! grep -q "$CLIENT_2D_MARKER" Dockerfile.vps; then
+    echo "ERROR: Dockerfile.vps does not enforce ${CLIENT_2D_MARKER}."
+    exit 1
+  fi
+
+  if ! grep -q "$CLIENT_2D_MARKER" apps/client-2d/index.html; then
+    echo "ERROR: apps/client-2d/index.html is missing ${CLIENT_2D_MARKER}."
+    exit 1
+  fi
+
+  echo "Client-2D Dockerfile gate OK: ${CLIENT_2D_MARKER} enforced."
 }
 
 ensure_external_network() {
@@ -169,6 +202,10 @@ client_shell_ready() {
   docker exec arelorian-engine node -e "fetch('http://127.0.0.1:${CONTAINER_PORT}/').then(async r=>{const body=await r.text();process.exit(r.ok&&(body.includes('application-canvas')||body.includes('LIVE_ENTRYPOINTS')||body.includes('Cyber-Zen Landing'))?0:1)}).catch(()=>process.exit(1))" >/dev/null 2>&1
 }
 
+client_2d_shell_ready() {
+  docker exec arelorian-engine node -e "fetch('http://127.0.0.1:${CONTAINER_PORT}/2d/').then(async r=>{const body=await r.text();process.exit(r.ok&&body.includes(process.env.CLIENT_2D_MARKER||'REAL_PIXI_CLIENT')?0:1)}).catch(()=>process.exit(1))" >/dev/null 2>&1
+}
+
 portal_shell_ready() {
   docker exec arelorian-engine node -e "fetch('http://127.0.0.1:${CONTAINER_PORT}/portal/').then(async r=>{const body=await r.text();process.exit(r.ok&&body.includes('PORTAL ONLINE')?0:1)}).catch(()=>process.exit(1))" >/dev/null 2>&1
 }
@@ -204,11 +241,13 @@ echo "Docker network: $ARELORIAN_DOCKER_NETWORK"
 echo "Runtime env file: $ARELORIAN_ENV_FILE"
 echo "Docker ingress enabled: $ARELORIAN_ENABLE_DOCKER_INGRESS"
 echo "NODE_OPTIONS: $NODE_OPTIONS"
+echo "Client-2D marker: $CLIENT_2D_MARKER"
 if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
   echo "Ingress bind: ${ARELORIAN_INGRESS_HTTP_BIND}:${ARELORIAN_INGRESS_HTTP_PORT}"
 fi
 
 fetch_and_reset
+validate_client_2d_dockerfile_gate
 validate_required_runtime_env
 
 echo "Deploy commit: $(git rev-parse --short HEAD)"
@@ -236,31 +275,32 @@ if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
   compose_cmd up -d --remove-orphans ingress-router
 fi
 
-echo "[4/4] Health check (container:${CONTAINER_PORT}, host:${ARELORIAN_PORT})"
 ok=0
 for i in $(seq 1 36); do
   if container_http_ready; then
     echo "  container HTTP ready ($i/36)"
-    if client_shell_ready && portal_shell_ready; then
+    if client_shell_ready && client_2d_shell_ready && portal_shell_ready; then
       echo "  client shell ready"
+      echo "  client-2d shell ready (${CLIENT_2D_MARKER})"
       echo "  portal shell ready"
       if host_http_ready; then echo "  host HTTP mapping ready"; else echo "  WARN: host mapping not responding yet"; fi
       if ingress_http_ready; then echo "  ingress HTTP ready"; else echo "  WARN: ingress HTTP not responding yet"; fi
       ok=1
       break
     fi
-    echo "  waiting for client/portal shell... ($i/36)"
+    echo "  waiting for client/2d/portal shell... ($i/36)"
   fi
   if [ "$i" -ge 12 ] && runtime_activity_ready; then
     echo "  runtime activity ready ($i/36): node process and world events detected"
-    if client_shell_ready && portal_shell_ready; then
+    if client_shell_ready && client_2d_shell_ready && portal_shell_ready; then
       echo "  client shell ready"
+      echo "  client-2d shell ready (${CLIENT_2D_MARKER})"
       echo "  portal shell ready"
       if ingress_http_ready; then echo "  ingress HTTP ready"; else echo "  WARN: ingress HTTP not responding yet"; fi
       ok=1
       break
     fi
-    echo "  waiting for client/portal shell... ($i/36)"
+    echo "  waiting for client/2d/portal shell... ($i/36)"
   fi
   echo "  waiting... ($i/36)"
   sleep 5
@@ -273,7 +313,8 @@ if [[ "$ok" != "1" ]]; then
   if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
     docker inspect arelorian-ingress-router --format 'Ingress={{.State.Status}} Health={{if .State.Health}}{{else}}n/a{{end}} ExitCode={{.State.ExitCode}} Ports={{json .NetworkSettings.Ports}}' || true
   fi
-  docker exec arelorian-engine sh -lc "node -v; printenv PORT GAME_PORT HOST NODE_ENV NODE_OPTIONS; ps aux | head -20" || true
+  docker exec arelorian-engine sh -lc "node -v; printenv PORT GAME_PORT HOST NODE_ENV NODE_OPTIONS CLIENT_2D_MARKER; ps aux | head -20" || true
+  docker exec arelorian-engine node -e "fetch('http://127.0.0.1:${CONTAINER_PORT}/2d/').then(async r=>{console.log('2d status',r.status); console.log((await r.text()).slice(0,800));}).catch(e=>{console.error(e); process.exit(1)})" || true
   ss -ltnp "sport = :${ARELORIAN_PORT}" || true
   compose_cmd logs --tail=160 arelorian-engine || true
   if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
