@@ -5,6 +5,8 @@ on:
     paths:
       - scripts/import-pixi-dev-hub-assets.mjs
       - scripts/validate-pixi-assets.mjs
+      - scripts/scan-pixi-asset-inbox.mjs
+      - .asset-inbox/pixi/**
       - public/archive/wasd-pixi-asset-packs.json
       - docs/archive/pixi-first-batch-source-metadata.json
       - docs/archive/pixi-first-batch-download-allowlist.json
@@ -18,6 +20,8 @@ on:
     paths:
       - scripts/import-pixi-dev-hub-assets.mjs
       - scripts/validate-pixi-assets.mjs
+      - scripts/scan-pixi-asset-inbox.mjs
+      - .asset-inbox/pixi/**
       - public/archive/wasd-pixi-asset-packs.json
       - docs/archive/pixi-first-batch-source-metadata.json
       - docs/archive/pixi-first-batch-download-allowlist.json
@@ -35,7 +39,7 @@ concurrency:
 
 jobs:
   pixi-asset-plan:
-    name: Pixi asset plan and validation
+    name: Pixi asset scan, plan and validation
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -54,6 +58,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Scan Pixi asset inbox
+        run: pnpm assets:pixi:scan-inbox
 
       - name: Run Pixi asset plan dry-run
         run: pnpm assets:pixi:plan
