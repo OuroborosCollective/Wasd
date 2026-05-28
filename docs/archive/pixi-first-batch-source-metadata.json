@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "1.0.0",
+  "project": "WASD / Arelorian",
+  "purpose": "Verified source and license metadata for the first Pixi Dev Hub asset batch before binary import.",
+  "authorityPolicy": "visual-only: WorldTick and AREKernel remain authoritative",
+  "packs": [
+    {
+      "id": "kenney-tiny-town",
+      "license": "CC0",
+      "licenseName": "Creative Commons CC0 1.0 Universal",
+      "sourceUrl": "https://kenney.nl/assets/tiny-town",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "downloadUrl": null,
+      "sourceVerified": true,
+      "binaryImportStatus": "blocked-until-download-implemented",
+      "attributionRequired": false
+    },
+    {
+      "id": "kenney-tiny-dungeon",
+      "license": "CC0",
+      "licenseName": "Creative Commons CC0 1.0 Universal",
+      "sourceUrl": "https://kenney-assets.itch.io/tiny-dungeon",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "downloadUrl": null,
+      "sourceVerified": true,
+      "binaryImportStatus": "blocked-until-download-implemented",
+      "attributionRequired": false
+    },
+    {
+      "id": "ninja-adventure",
+      "license": "CC0",
+      "licenseName": "Creative Commons CC0 1.0 Universal",
+      "sourceUrl": "https://pixel-boy.itch.io/ninja-adventure-asset-pack",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "downloadUrl": null,
+      "sourceVerified": true,
+      "binaryImportStatus": "blocked-until-download-implemented",
+      "attributionRequired": false
+    },
+    {
+      "id": "explosion-animations",
+      "license": "CC0",
+      "licenseName": "Creative Commons CC0 1.0 Universal",
+      "sourceUrl": "https://ansimuz.itch.io/explosion-animations-pack",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "downloadUrl": null,
+      "sourceVerified": true,
+      "binaryImportStatus": "blocked-until-download-implemented",
+      "attributionRequired": false
+    },
+    {
+      "id": "pixel-food",
+      "license": "CC0",
+      "licenseName": "Creative Commons CC0 1.0 Universal",
+      "sourceUrl": "https://ghostpixxells.itch.io/pixelfood",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "downloadUrl": null,
+      "sourceVerified": true,
+      "binaryImportStatus": "blocked-until-download-implemented",
+      "attributionRequired": false
+    },
+    {
+      "id": "kenney-ui-pack",
+      "license": "CC0",
+      "licenseName": "Creative Commons CC0 1.0 Universal",
+      "sourceUrl": "https://kenney.nl/assets/ui-pack",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "downloadUrl": null,
+      "sourceVerified": true,
+      "binaryImportStatus": "blocked-until-download-implemented",
+      "attributionRequired": false
+    },
+    {
+      "id": "pixel-prototype-player",
+      "license": "CC0",
+      "licenseName": "Creative Commons CC0 1.0 Universal",
+      "sourceUrl": null,
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "downloadUrl": null,
+      "sourceVerified": false,
+      "binaryImportStatus": "blocked-until-source-verified",
+      "attributionRequired": false,
+      "notes": "Exact official source URL still needs confirmation before binary import."
+    }
+  ],
+  "nextStep": "Teach scripts/import-pixi-dev-hub-assets.mjs to merge this source metadata into generated credits and block binaries without sourceVerified=true."
+}
