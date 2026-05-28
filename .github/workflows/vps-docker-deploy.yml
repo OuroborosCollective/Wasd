@@ -43,6 +43,7 @@ jobs:
       ARELORIAN_DOCKER_NETWORK: ${{ inputs.docker_network || 'areloria_arelorian-network' }}
       SSH_PORT: ${{ inputs.ssh_port || secrets.SSH_PORT || '22' }}
       CLIENT_2D_ARCHIVE: wasd-client-2d-dist-${{ github.sha }}.tgz
+      CLIENT_2D_MARKER: REAL_PIXI_CLIENT
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -68,6 +69,7 @@ jobs:
         run: |
           pnpm --filter @wasd/client-2d --if-present build
           test -f apps/client-2d/dist/index.html
+          grep -q "${CLIENT_2D_MARKER}" apps/client-2d/dist/index.html
           tar -C apps/client-2d -czf "${CLIENT_2D_ARCHIVE}" dist
           ls -lh "${CLIENT_2D_ARCHIVE}"
 
@@ -104,12 +106,13 @@ jobs:
             -o ServerAliveInterval=30 \
             -o ServerAliveCountMax=10 \
             "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
-            "DEPLOY_PATH='${DEPLOY_PATH}' DEPLOY_BRANCH='${DEPLOY_BRANCH}' ARELORIAN_PORT='${ARELORIAN_PORT}' ARELORIAN_DOCKER_NETWORK='${ARELORIAN_DOCKER_NETWORK}' CLIENT_2D_ARCHIVE='${CLIENT_2D_ARCHIVE}' bash -s" << 'EOF'
+            "DEPLOY_PATH='${DEPLOY_PATH}' DEPLOY_BRANCH='${DEPLOY_BRANCH}' ARELORIAN_PORT='${ARELORIAN_PORT}' ARELORIAN_DOCKER_NETWORK='${ARELORIAN_DOCKER_NETWORK}' CLIENT_2D_ARCHIVE='${CLIENT_2D_ARCHIVE}' CLIENT_2D_MARKER='${CLIENT_2D_MARKER}' bash -s" << 'EOF'
           set -Eeuo pipefail
           APP_DIR="${DEPLOY_PATH:-/opt/areloria}"
           BRANCH="${DEPLOY_BRANCH:-main}"
           REPO_URL="https://github.com/${{ github.repository }}.git"
           CLIENT_2D_ARCHIVE="${CLIENT_2D_ARCHIVE:-}"
+          CLIENT_2D_MARKER="${CLIENT_2D_MARKER:-REAL_PIXI_CLIENT}"
 
           echo "=== VPS Docker deploy entry ==="
           echo "App dir: $APP_DIR"
@@ -133,8 +136,9 @@ jobs:
             mkdir -p apps/client-2d
             tar -xzf "$APP_DIR/$CLIENT_2D_ARCHIVE" -C apps/client-2d
             test -f apps/client-2d/dist/index.html
+            grep -q "$CLIENT_2D_MARKER" apps/client-2d/dist/index.html
           else
-            echo "WARN: No prebuilt client-2d artifact found; Dockerfile may fall back to VPS build."
+            echo "WARN: No prebuilt client-2d artifact found; Dockerfile must build and verify client-2d."
           fi
 
           chmod +x scripts/deploy-vps-docker.sh scripts/vps-docker-inline-deploy.sh 2>/dev/null || true
@@ -148,7 +152,7 @@ jobs:
 
       - name: Public health check
         run: |
-          for path in /health / /portal/ /2d/; do
+          for path in /health / /portal/; do
             echo "Checking https://arelorian.de${path}"
             STATUS="$(curl -k -s -o /dev/null -w "%{http_code}" "https://arelorian.de${path}" || true)"
             echo "Status: ${STATUS}"
@@ -157,3 +161,12 @@ jobs:
               exit 1
             fi
           done
+
+          echo "Checking https://arelorian.de/2d/ for real client marker"
+          BODY="$(curl -k -sS -L --max-time 20 "https://arelorian.de/2d/" || true)"
+          if ! echo "$BODY" | grep -q "${CLIENT_2D_MARKER}"; then
+            echo "ERROR: /2d/ did not serve the real Pixi client marker (${CLIENT_2D_MARKER}). Refusing silent placeholder route."
+            echo "$BODY" | head -c 800
+            exit 1
+          fi
+          echo "2D client marker OK: ${CLIENT_2D_MARKER}"
