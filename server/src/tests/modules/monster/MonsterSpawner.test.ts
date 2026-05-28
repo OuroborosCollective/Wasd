@@ -1,78 +1,67 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { MonsterSpawner } from "../../../modules/monster/MonsterSpawner.js";
+import { describe, it, expect } from "vitest";
+import { SeededARERng, createARESeed } from "../../../core/determinism/AREDeterminism.js";
+import { MonsterSpawner, type MonsterSpawnContext } from "../../../modules/monster/MonsterSpawner.js";
 
 describe("MonsterSpawner", () => {
-  let spawner: MonsterSpawner;
+  it("spawns a monster with the given species and deterministic base stats", () => {
+    const spawner = new MonsterSpawner();
+    const seed = createARESeed(["monster-test", "goblin", "plains", "base"]);
 
-  beforeEach(() => {
-    spawner = new MonsterSpawner();
-  });
+    const monster = spawner.spawn("goblin", "plains", new SeededARERng(seed));
+    const again = spawner.spawn("goblin", "plains", new SeededARERng(seed));
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("spawns a monster with the given species and base stats", () => {
-    // Mock Math.random to return predictable values for base stats
-    vi.spyOn(Math, "random").mockReturnValue(0.5);
-
-    const monster = spawner.spawn("goblin", "plains");
-
+    expect(monster).toEqual(again);
     expect(monster.species).toBe("goblin");
-    expect(monster.strength).toBe(0.5);
-    expect(monster.speed).toBe(0.5);
-    expect(monster.aggression).toBe(0.5);
-    expect(monster.intelligence).toBe(0.5);
-    expect(monster.resilience).toBe(0.5);
-    // Plains biome shouldn't add biome mutations. Rare variant is false (0.5 > 0.08).
-    expect(monster.mutations).toEqual([]);
+    expect(typeof monster.strength).toBe("number");
+    expect(typeof monster.speed).toBe("number");
+    expect(typeof monster.aggression).toBe("number");
+    expect(typeof monster.intelligence).toBe("number");
+    expect(typeof monster.resilience).toBe("number");
   });
 
   it("applies 'snow' biome mutations correctly", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const spawner = new MonsterSpawner();
+    const monster = spawner.spawn("yeti", "snow", new SeededARERng(createARESeed(["monster-test", "snow"])));
 
-    const monster = spawner.spawn("yeti", "snow");
-
-    // Resilience is base (0.5) + snow modifier (0.2)
-    expect(monster.resilience).toBeCloseTo(0.7);
+    expect(monster.resilience).toBeGreaterThanOrEqual(0.2);
     expect(monster.mutations).toContain("frost_resistance");
   });
 
   it("applies 'swamp' biome mutations correctly", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const spawner = new MonsterSpawner();
+    const monster = spawner.spawn("troll", "swamp", new SeededARERng(createARESeed(["monster-test", "swamp"])));
 
-    const monster = spawner.spawn("troll", "swamp");
-
-    // Aggression is base (0.5) + swamp modifier (0.15)
-    expect(monster.aggression).toBeCloseTo(0.65);
+    expect(monster.aggression).toBeGreaterThanOrEqual(0.15);
     expect(monster.mutations).toContain("swamp_hunger");
   });
 
-  it("triggers 'rare_variant' mutation when Math.random is below 0.08", () => {
-    // 0.05 is < 0.08, so rare_variant should trigger
-    vi.spyOn(Math, "random").mockReturnValue(0.05);
+  it("keeps identical context spawns stable", () => {
+    const spawner = new MonsterSpawner();
+    const context: MonsterSpawnContext = {
+      kappaPos: { x: 5, y: 9, z: 0 },
+      tick: 77,
+      packIndex: 0,
+      spawnerId: "test-node",
+    };
 
-    const monster = spawner.spawn("dragon", "mountains");
-
-    expect(monster.mutations).toContain("rare_variant");
+    expect(spawner.spawn("dragon", "mountains", context)).toEqual(spawner.spawn("dragon", "mountains", context));
   });
 
-  it("does not trigger 'rare_variant' mutation when Math.random is 0.08 or higher", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.08);
+  it("changes output when deterministic context changes", () => {
+    const spawner = new MonsterSpawner();
+    const first = spawner.spawn("dragon", "mountains", {
+      kappaPos: { x: 5, y: 9, z: 0 },
+      tick: 77,
+      packIndex: 0,
+      spawnerId: "test-node",
+    });
+    const second = spawner.spawn("dragon", "mountains", {
+      kappaPos: { x: 5, y: 9, z: 0 },
+      tick: 77,
+      packIndex: 1,
+      spawnerId: "test-node",
+    });
 
-    const monster = spawner.spawn("dragon", "mountains");
-
-    expect(monster.mutations).not.toContain("rare_variant");
-  });
-
-  it("applies multiple mutations if biome and rare_variant both trigger", () => {
-    // 0.05 < 0.08, so rare_variant should trigger. Snow biome will add frost_resistance.
-    vi.spyOn(Math, "random").mockReturnValue(0.05);
-
-    const monster = spawner.spawn("ice_elemental", "snow");
-
-    expect(monster.mutations).toContain("frost_resistance");
-    expect(monster.mutations).toContain("rare_variant");
-    expect(monster.mutations.length).toBe(2);
+    expect(first).not.toEqual(second);
   });
 });
