@@ -1,21 +1,28 @@
 import { useEffect, useRef, useState } from "react";
 import { Application, Graphics, Text } from "pixi.js";
 import { createClient, type AgentState, type PlayerState } from "@wasd/core-network";
-import { createArelorianHud, type ArelorianHud } from "./ui/ArelorianHud";
+import { createArelorianHud, formatCooldownTicks, type ArelorianHud } from "./ui/ArelorianHud";
 
 const TILE_SIZE = 32;
 const SCALE = 2;
 const MOVE_SEND_FRAME_INTERVAL = 9;
+const CLIENT_TICK_HZ = 10;
+const CLIENT_TICK_MS = 1000 / CLIENT_TICK_HZ;
 
 function mapWorldToScreen(x: number, z: number, w: number, h: number) {
   return { sx: w / 2 + x * TILE_SIZE * SCALE, sy: h / 2 - z * TILE_SIZE * SCALE };
+}
+
+function msToCooldownTicks(ms: number): number {
+  if (!Number.isFinite(ms)) return 0;
+  return Math.max(0, Math.floor(ms / CLIENT_TICK_MS));
 }
 
 interface Entity { graphics: Graphics; label: Text; tx: number; tz: number }
 interface Joystick { active: boolean; sx: number; sy: number; cx: number; cy: number; dx: number; dy: number }
 interface CharData { name: string; lvl: number; hp: number; mp: number; maxHp: number; maxMp: number; xp: number; gold: number }
 interface Quest { id: string; title: string; obj: string; p: number; t: number; done: boolean }
-interface Skill { id: string; name: string; cd: number; ready: boolean; ico: string }
+interface Skill { id: string; name: string; cooldownTicksRemaining: number; ready: boolean; ico: string }
 interface ChatMsg { ch: string; from: string; txt: string }
 interface Item { id: string; name: string; cnt: number; ico: string }
 interface Equip { head: Item; chest: Item; weapon: Item }
@@ -27,6 +34,7 @@ export function App() {
   const ents = useRef<Map<string, Entity>>(new Map());
   const keys = useRef<Set<string>>(new Set());
   const moveFrameGate = useRef(MOVE_SEND_FRAME_INTERVAL);
+  const clientTickAccumulator = useRef(0);
   const joy = useRef<Joystick>({ active: false, sx: 0, sy: 0, cx: 0, cy: 0, dx: 0, dy: 0 });
   const joyBase = useRef<HTMLDivElement>(null);
   const joyKnob = useRef<HTMLDivElement>(null);
@@ -46,10 +54,10 @@ export function App() {
     { id: "q2", title: "Village Tour", obj: "Explore the village", p: 0, t: 3, done: false },
   ]);
   const [skills, setSkills] = useState<Skill[]>([
-    { id: "atk", name: "Attack", cd: 0, ready: true, ico: "⚔️" },
-    { id: "def", name: "Defend", cd: 5000, ready: true, ico: "🛡️" },
-    { id: "mag", name: "Magic", cd: 3000, ready: true, ico: "✨" },
-    { id: "int", name: "Interact", cd: 0, ready: true, ico: "👆" },
+    { id: "atk", name: "Attack", cooldownTicksRemaining: 0, ready: true, ico: "⚔️" },
+    { id: "def", name: "Defend", cooldownTicksRemaining: msToCooldownTicks(5000), ready: false, ico: "🛡️" },
+    { id: "mag", name: "Magic", cooldownTicksRemaining: msToCooldownTicks(3000), ready: false, ico: "✨" },
+    { id: "int", name: "Interact", cooldownTicksRemaining: 0, ready: true, ico: "👆" },
   ]);
   const [inv, setInv] = useState<Item[]>([
     { id: "p_hp", name: "HP Potion", cnt: 5, ico: "❤️" },
@@ -88,7 +96,8 @@ export function App() {
       matrixEnergy: char.gold,
       playerName: char.name,
       zoneName: conn ? "Millbrook" : "Areloria",
-      skillSlots: skills.slice(0, 5).map((skill, index) => skill.ready ? `${index + 1}` : "…"),
+      skillSlots: skills.slice(0, 5).map((_, index) => `${index + 1}`),
+      skillCooldownTicks: skills.slice(0, 5).map((skill) => skill.cooldownTicksRemaining),
     });
   }, [char, skills, conn]);
 
@@ -129,6 +138,7 @@ export function App() {
           playerName: char.name,
           zoneName: "Areloria",
           skillSlots: skills.slice(0, 5).map((_, index) => `${index + 1}`),
+          skillCooldownTicks: skills.slice(0, 5).map((skill) => skill.cooldownTicksRemaining),
         }, {}, {
           onSkillSlot: (slotIndex) => {
             const skill = skills[slotIndex];
@@ -150,12 +160,12 @@ export function App() {
     };
   }, []);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setSkills((s) => s.map((sk) => ({ ...sk, ready: sk.cd <= 0, cd: Math.max(0, sk.cd - 100) })));
-    }, 100);
-    return () => clearInterval(interval);
-  }, []);
+  function runClientTick(): void {
+    setSkills((currentSkills) => currentSkills.map((skill) => {
+      const nextTicks = Math.max(0, skill.cooldownTicksRemaining - 1);
+      return { ...skill, cooldownTicksRemaining: nextTicks, ready: nextTicks <= 0 };
+    }));
+  }
 
   function startNetwork(app: Application) {
     const client = createClient({ url: "https://arelorian.de", heartbeatInterval: 30000 });
@@ -178,7 +188,13 @@ export function App() {
     client.connect();
     addChatMsg("system", "system", "Welcome to Millbrook!");
 
-    app.ticker.add(() => {
+    app.ticker.add((ticker) => {
+      clientTickAccumulator.current += ticker.deltaMS;
+      while (clientTickAccumulator.current >= CLIENT_TICK_MS) {
+        clientTickAccumulator.current -= CLIENT_TICK_MS;
+        runClientTick();
+      }
+
       let dx = 0;
       let dz = 0;
       const k = keys.current;
@@ -263,7 +279,7 @@ export function App() {
     const sk = skills.find((s) => s.id === id);
     if (!sk?.ready) return;
     if (cliRef.current?.connected) cliRef.current.sendPlayerAction("USE_SKILL", { skillId: id });
-    setSkills((s) => s.map((skill) => skill.id === id ? { ...skill, cd: skill.cd > 0 ? skill.cd + 100 : 100, ready: false } : skill));
+    setSkills((s) => s.map((skill) => skill.id === id ? { ...skill, cooldownTicksRemaining: Math.max(1, skill.cooldownTicksRemaining || 1), ready: false } : skill));
   }
 
   function togglePanel(p: string) { setPanel((current) => current === p ? null : p); }
@@ -304,7 +320,7 @@ export function App() {
     if (panel === "character") return <div style={panelStyle}><h2>⚔️ Character</h2><div>Name: {char.name}</div><div>Level: {char.lvl}</div><div>XP: {char.xp}</div><div>Gold: 💰 {char.gold}</div><div>❤️ HP: {char.hp}/{char.maxHp}</div><div>💙 MP: {char.mp}/{char.maxMp}</div><h3>Equipment</h3>{Object.entries(equip).map(([slot, item]) => <div key={slot}>{slot}: {item.ico} {item.name}</div>)}<button onClick={() => togglePanel("character")} style={closeBtn}>Close</button></div>;
     if (panel === "inventory") return <div style={panelStyle}><h2>🎒 Inventory</h2>{inv.map((item) => <div key={item.id}>{item.ico} {item.name} x{item.cnt}</div>)}<button onClick={() => togglePanel("inventory")} style={closeBtn}>Close</button></div>;
     if (panel === "quests") return <div style={panelStyle}><h2>📜 Quests</h2>{quests.map((q) => <div key={q.id}>{q.done ? "✅" : "◻"} {q.title}: {q.obj} ({q.p}/{q.t})</div>)}<button onClick={() => togglePanel("quests")} style={closeBtn}>Close</button></div>;
-    if (panel === "skills") return <div style={panelStyle}><h2>✨ Skills</h2>{skills.map((sk) => <button key={sk.id} onClick={() => useSkill(sk.id)} disabled={!sk.ready}>{sk.ico} {sk.name} {sk.cd > 0 ? `${(sk.cd / 1000).toFixed(1)}s` : ""}</button>)}<button onClick={() => togglePanel("skills")} style={closeBtn}>Close</button></div>;
+    if (panel === "skills") return <div style={panelStyle}><h2>✨ Skills</h2>{skills.map((sk) => <button key={sk.id} onClick={() => useSkill(sk.id)} disabled={!sk.ready}>{sk.ico} {sk.name} {sk.cooldownTicksRemaining > 0 ? formatCooldownTicks(sk.cooldownTicksRemaining) : ""}</button>)}<button onClick={() => togglePanel("skills")} style={closeBtn}>Close</button></div>;
     if (panel === "chat") return <div style={panelStyle}><h2>💬 Chat</h2><div>{["local", "trade", "world"].map((c) => <button key={c} onClick={() => setCh(c)}>{c}</button>)}</div><div>{msgs.filter((m) => m.ch === ch).map((m, i) => <div key={i}>[{m.from}] {m.txt}</div>)}</div><input value={chatTxt} onChange={(e) => setChatTxt(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendChatMsg()} /><button onClick={() => togglePanel("chat")} style={closeBtn}>Close</button></div>;
     return null;
   };
