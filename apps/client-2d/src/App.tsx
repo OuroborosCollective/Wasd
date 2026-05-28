@@ -129,6 +129,11 @@ export function App() {
           playerName: char.name,
           zoneName: "Areloria",
           skillSlots: skills.slice(0, 5).map((_, index) => `${index + 1}`),
+        }, {}, {
+          onSkillSlot: (slotIndex) => {
+            const skill = skills[slotIndex];
+            if (skill) useSkill(skill.id);
+          },
         });
         hud.resize(app.screen.width, app.screen.height);
         hudRef.current = hud;
