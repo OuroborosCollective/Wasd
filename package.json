@@ -18,6 +18,7 @@
     "assets:pixi:plan": "node scripts/import-pixi-dev-hub-assets.mjs --dry-run",
     "assets:pixi:prepare": "node scripts/import-pixi-dev-hub-assets.mjs",
     "assets:pixi:validate": "node scripts/validate-pixi-assets.mjs",
+    "assets:pixi:validate-batches": "node scripts/validate-pixi-import-batches.mjs",
     "guard:monorepo": "node scripts/monorepo-guard.mjs",
     "guard:monorepo:frozen": "MONOREPO_GUARD_RUN_PNPM=1 node scripts/monorepo-guard.mjs",
     "guard:architecture": "node scripts/arelorian-architecture-lint.mjs",

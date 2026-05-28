@@ -6,10 +6,12 @@ on:
       - scripts/import-pixi-dev-hub-assets.mjs
       - scripts/validate-pixi-assets.mjs
       - scripts/scan-pixi-asset-inbox.mjs
+      - scripts/validate-pixi-import-batches.mjs
       - .asset-inbox/pixi/**
       - public/archive/wasd-pixi-asset-packs.json
       - docs/archive/pixi-first-batch-source-metadata.json
       - docs/archive/pixi-first-batch-download-allowlist.json
+      - docs/archive/import-batches/**
       - apps/client-2d/public/2d-assets/**
       - package.json
       - pnpm-lock.yaml
@@ -21,10 +23,12 @@ on:
       - scripts/import-pixi-dev-hub-assets.mjs
       - scripts/validate-pixi-assets.mjs
       - scripts/scan-pixi-asset-inbox.mjs
+      - scripts/validate-pixi-import-batches.mjs
       - .asset-inbox/pixi/**
       - public/archive/wasd-pixi-asset-packs.json
       - docs/archive/pixi-first-batch-source-metadata.json
       - docs/archive/pixi-first-batch-download-allowlist.json
+      - docs/archive/import-batches/**
       - apps/client-2d/public/2d-assets/**
       - package.json
       - pnpm-lock.yaml
@@ -67,3 +71,6 @@ jobs:
 
       - name: Validate Pixi assets
         run: pnpm assets:pixi:validate
+
+      - name: Validate Pixi import batches
+        run: pnpm assets:pixi:validate-batches
