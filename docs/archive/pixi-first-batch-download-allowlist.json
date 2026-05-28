@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "1.0.0",
+  "project": "WASD / Arelorian",
+  "purpose": "Download allowlist for the first Pixi Dev Hub asset import batch. Only packs with sourceVerified=true and listed here may be processed by future binary import steps.",
+  "authorityPolicy": "visual-only: WorldTick and AREKernel remain authoritative",
+  "rules": [
+    "Only import from the official sourceUrl listed here.",
+    "Do not use mirrored downloads or unknown zip URLs.",
+    "Do not import packs with sourceVerified=false.",
+    "Do not import packs whose binaryImportStatus is blocked-until-source-verified.",
+    "Downloaded binaries must be normalized, manifest-generated, credited and validated before merge."
+  ],
+  "allowedPacks": [
+    {
+      "id": "kenney-tiny-town",
+      "sourceUrl": "https://kenney.nl/assets/tiny-town",
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "sourceVerified": true,
+      "importAllowed": true
+    },
+    {
+      "id": "kenney-tiny-dungeon",
+      "sourceUrl": "https://kenney-assets.itch.io/tiny-dungeon",
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "sourceVerified": true,
+      "importAllowed": true
+    },
+    {
+      "id": "ninja-adventure",
+      "sourceUrl": "https://pixel-boy.itch.io/ninja-adventure-asset-pack",
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "sourceVerified": true,
+      "importAllowed": true
+    },
+    {
+      "id": "explosion-animations",
+      "sourceUrl": "https://ansimuz.itch.io/explosion-animations-pack",
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "sourceVerified": true,
+      "importAllowed": true
+    },
+    {
+      "id": "pixel-food",
+      "sourceUrl": "https://ghostpixxells.itch.io/pixelfood",
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "sourceVerified": true,
+      "importAllowed": true
+    },
+    {
+      "id": "kenney-ui-pack",
+      "sourceUrl": "https://kenney.nl/assets/ui-pack",
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "sourceVerified": true,
+      "importAllowed": true
+    }
+  ],
+  "blockedPacks": [
+    {
+      "id": "pixel-prototype-player",
+      "reason": "Exact official sourceUrl is not verified yet.",
+      "sourceVerified": false,
+      "importAllowed": false
+    }
+  ],
+  "nextStep": "Update scripts/import-pixi-dev-hub-assets.mjs to read this allowlist and plan only allowed packs. Then implement actual downloader in a later PR."
+}
