@@ -84,10 +84,10 @@ RUN rm -rf /tmp/wasd-3d-dist && mkdir -p /tmp/wasd-3d-dist && cp -a client/dist/
 RUN if [ -f apps/client-2d/dist/index.html ]; then \
       echo "Using prebuilt apps/client-2d/dist artifact"; \
     else \
-      pnpm --filter @wasd/client-2d --if-present build || \
-      (mkdir -p apps/client-2d/dist && printf '%s\n' '<!doctype html><html><head><title>Arelorian 2D</title><meta name="viewport" content="width=device-width,initial-scale=1" /></head><body style="margin:0;background:#05060b;color:#f4f7ff;font-family:system-ui;display:grid;min-height:100vh;place-items:center"><main style="max-width:620px;padding:28px;border:1px solid rgba(0,229,255,.35);border-radius:22px;background:rgba(4,8,14,.82)"><h1>Arelorian 2D temporarily unavailable</h1><p>The server is online, but the 2D client build was skipped on this VPS deploy because the build process exceeded available memory.</p><p>Retry the deploy or build the client artifact outside the VPS Docker build.</p></main></body></html>' > apps/client-2d/dist/index.html); \
+      pnpm --filter @wasd/client-2d --if-present build; \
     fi && \
-    test -f apps/client-2d/dist/index.html
+    test -f apps/client-2d/dist/index.html && \
+    grep -q 'REAL_PIXI_CLIENT' apps/client-2d/dist/index.html
 
 RUN VITE_BASE_PATH=/portal/ pnpm --filter @wasd/portal --if-present build || \
     (mkdir -p portal/dist && printf '%s\n' '<!doctype html><html><body><main id="application-canvas">Areloria portal unavailable</main></body></html>' > portal/dist/index.html)
@@ -97,6 +97,7 @@ RUN rm -rf client/dist/2d client/dist/3d client/dist/portal && \
     cp -a apps/client-2d/dist/. client/dist/2d/ && \
     cp -a portal/dist/. client/dist/portal/ && \
     cp -a /tmp/wasd-3d-dist/. client/dist/3d/ && \
+    grep -q 'REAL_PIXI_CLIENT' client/dist/2d/index.html && \
     sed -i 's#"/assets/#"/3d/assets/#g; s#href=/assets/#href=/3d/assets/#g; s#src=/assets/#src=/3d/assets/#g' client/dist/3d/index.html || true
 
 RUN node scripts/write-runtime-entrypoints.mjs && \
@@ -107,6 +108,7 @@ RUN test -f client/dist/index.html && \
     test -f client/dist/3d/index.html && \
     test -f client/dist/portal/index.html && \
     test -f client/dist/design-routes.json && \
+    grep -q 'REAL_PIXI_CLIENT' client/dist/2d/index.html && \
     grep -q 'LIVE_ENTRYPOINTS' client/dist/index.html && \
     grep -q 'PORTAL ONLINE' client/dist/portal/index.html
 
@@ -135,6 +137,8 @@ COPY --from=builder /app/client/dist ./server/client/dist
 
 RUN test -f /app/client/dist/2d/index.html && \
     test -f /app/server/client/dist/2d/index.html && \
+    grep -q 'REAL_PIXI_CLIENT' /app/client/dist/2d/index.html && \
+    grep -q 'REAL_PIXI_CLIENT' /app/server/client/dist/2d/index.html && \
     test -f /app/client/dist/portal/index.html && \
     test -f /app/server/client/dist/portal/index.html
 
