@@ -104,7 +104,7 @@ RUN pnpm --filter @wasd/core-logic --if-present run build:runtime && \
 
 # Force client-2d build and verify the builder artifact exists.
 RUN pnpm --filter ./apps/client-2d... run build
-RUN test -f /app/apps/client-2d/dist/index.html
+RUN test -f /app/apps/client-2d/dist/index.html && grep -q 'REAL_PIXI_CLIENT' /app/apps/client-2d/dist/index.html
 
 # Prune dev dependencies
 RUN pnpm prune --prod
@@ -146,7 +146,7 @@ COPY --from=builder /app/prod-server ./
 # Copy client-2d runtime assets into the Express static directory.
 # ServerBootstrap serves production frontend files from ./client/dist.
 COPY --from=builder /app/apps/client-2d/dist ./client/dist/2d
-RUN test -f /app/client/dist/2d/index.html
+RUN test -f /app/client/dist/2d/index.html && grep -q 'REAL_PIXI_CLIENT' /app/client/dist/2d/index.html
 
 # Permissions
 RUN chown -R nodeuser:nodejs /app
