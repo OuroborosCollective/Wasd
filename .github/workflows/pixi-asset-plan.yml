@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - scripts/import-pixi-dev-hub-assets.mjs
+      - scripts/import-kenney-ui-pack.mjs
       - scripts/validate-pixi-assets.mjs
       - scripts/scan-pixi-asset-inbox.mjs
       - scripts/validate-pixi-import-batches.mjs
@@ -21,6 +22,7 @@ on:
       - main
     paths:
       - scripts/import-pixi-dev-hub-assets.mjs
+      - scripts/import-kenney-ui-pack.mjs
       - scripts/validate-pixi-assets.mjs
       - scripts/scan-pixi-asset-inbox.mjs
       - scripts/validate-pixi-import-batches.mjs
@@ -55,10 +57,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
 
-      - name: Enable Corepack
-        run: corepack enable
+      - name: Enable pnpm via Corepack
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.1.1 --activate
+          pnpm --version
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
