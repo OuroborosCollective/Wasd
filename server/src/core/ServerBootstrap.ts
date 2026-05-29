@@ -21,6 +21,7 @@ import { financeRouter } from "../api/financeRoute.js";
 import { sovereignDeployRouter } from "../api/sovereignDeployRoute.js";
 import { healthRoutes } from "../api/healthRoutes.js";
 import { agoraRouter } from "../api/agoraRoute.js";
+import { client2dAssetUploadRouter } from "../api/client2dAssetUploadRoute.js";
 import { getContentDataSourceLabel, resolveContentDir } from "../modules/content/contentDataRoot.js";
 import { getSupabaseSummary, verifySupabaseToken } from "../config/supabase.js";
 import { resolveWorldAssetsDir } from "./resolveWorldAssetsDir.js";
@@ -65,6 +66,11 @@ function resolvePlaytesterMonitorHtmlPath(clientRoot: string, distPath: string):
 function resolvePlaytesterPublisherHtmlPath(clientRoot: string, distPath: string): string | null {
   for (const p of [path.join(distPath, "playtester-render-publisher.html"), path.join(clientRoot, "public", "playtester-render-publisher.html"), path.join(clientRoot, "playtester-render-publisher.html")]) if (existsSync(p)) return p;
   return null;
+}
+
+function resolveClient2DGraphicRiverIsoPublicDir(): string {
+  const root = process.env.CLIENT2D_GRAPHICRIVER_ISO_ROOT || "/opt/areloria/private-assets/graphicriver-iso";
+  return path.join(path.resolve(root), "public");
 }
 
 export function resolveSupabaseProxyBaseUrl(): string | null {
@@ -116,6 +122,7 @@ export class ServerBootstrap {
     await initRedisClient();
     app.use("/api/mcp", mcpRoute());
     app.use("/api/v1", scienceMascotRouter());
+    app.use("/api/client2d-assets", client2dAssetUploadRouter());
     app.use("/api/leaderboard", leaderboardRouter());
     app.use("/api/questlines", questlineRouter());
     app.use("/api/lore", loreRouter());
@@ -210,6 +217,8 @@ export class ServerBootstrap {
       app.use((req, res, next) => { if (req.url?.endsWith(".wasm")) { res.setHeader("Content-Type", "application/wasm"); res.setHeader("Cross-Origin-Opener-Policy", "same-origin"); res.setHeader("Cross-Origin-Embedder-Policy", "require-corp"); } next(); });
       app.use(express.static(clientPath));
     }
+    const client2DGraphicRiverIsoDir = resolveClient2DGraphicRiverIsoPublicDir();
+    if (existsSync(client2DGraphicRiverIsoDir)) app.use("/client2d-assets/graphicriver-iso", express.static(client2DGraphicRiverIsoDir, { maxAge: process.env.NODE_ENV === "production" ? "7d" : 0, fallthrough: false }));
     const mirroredWorld = resolveMirroredWorldAssetsDir();
     const worldAssetsDir = mirroredWorld ?? resolveWorldAssetsDir();
     if (worldAssetsDir) app.use("/world-assets", express.static(worldAssetsDir, { maxAge: process.env.NODE_ENV === "production" ? "7d" : 0, fallthrough: false }));

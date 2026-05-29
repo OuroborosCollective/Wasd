@@ -28,3 +28,11 @@ __pycache__/
 apps/client-2d/public/2d-assets/**/*.zip
 apps/client-2d/public/2d-assets/**/*.7z
 apps/client-2d/public/2d-assets/**/*.rar
+
+# Paid/private vendor asset packs: keep raw and extracted licensed art off the public repository.
+.asset-private/
+private-assets/
+vendor-assets/
+apps/client-2d/private-assets/
+apps/client-2d/public/vendor-private/
+apps/client-2d/public/client2d-assets/graphicriver-iso/
