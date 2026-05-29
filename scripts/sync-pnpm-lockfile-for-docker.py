@@ -25,8 +25,8 @@ def load_root_overrides() -> dict[str, str]:
     overrides = {}
     if WORKSPACE_MANIFEST.exists():
         text = WORKSPACE_MANIFEST.read_text()
-        # Robust multi-line extraction for YAML block
-        match = re.search(r"^overrides:\s*\n((?:\s+.*\n?)*?)(?=\n\S|$)", text, re.MULTILINE)
+        # Robust multi-line extraction for YAML block: capture all subsequent lines starting with a space
+        match = re.search(r"^overrides:\s*\n((?:[ \t]+.*\n?)*)", text, re.MULTILINE)
         if match:
             for line in match.group(1).splitlines():
                 # Handle optional quotes and trailing comments

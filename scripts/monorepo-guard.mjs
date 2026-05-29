@@ -56,7 +56,8 @@ function checkRootOverrideConsistency() {
 
   // pnpm v11 moved overrides to pnpm-workspace.yaml
   // Extract the overrides block until the next root-level key or end of file
-  const workspaceOverridesMatch = workspaceYaml.match(/^overrides:\s*\n((?:\s+.*\n?)*?)(?=\n\S|$)/m);
+  // Capture all subsequent lines starting with a space
+  const workspaceOverridesMatch = workspaceYaml.match(/^overrides:\s*\n((?:[ \t]+.*\n?)*)/m);
   const workspaceOverrides = {};
   if (workspaceOverridesMatch) {
     const lines = workspaceOverridesMatch[1].split('\n');

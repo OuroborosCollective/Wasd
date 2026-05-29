@@ -58,7 +58,7 @@ jobs:
       - name: Set up pnpm
         run: |
           corepack enable
-          corepack prepare pnpm@11.1.1 --activate
+          corepack prepare pnpm@11.2.2 --activate
           pnpm config set store-dir .pnpm-store
           pnpm config set verify-deps-before-run false
 
