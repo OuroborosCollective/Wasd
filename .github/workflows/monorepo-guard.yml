@@ -16,7 +16,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
-                - uses: actions/setup-node@v4
+          version: 11.2.2
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
@@ -37,9 +38,9 @@ jobs:
           SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
         run: |
           set -euo pipefail
-          [ -n "${SSH_HOST:-}" ] || { echo "::error::Set SSH_HOST"; exit 1; }
-          [ -n "${SSH_USER:-}" ] || { echo "::error::Set SSH_USER"; exit 1; }
-          [ -n "${SSH_PASSWORD:-}" ] || { echo "::error::Set SSH_PASSWORD"; exit 1; }
+          [ -n "${SSH_HOST:-}" ] || { echo "::error::Set SSH_HOST" }
+          [ -n "${SSH_USER:-}" ] || { echo "::error::Set SSH_USER" }
+          [ -n "${SSH_PASSWORD:-}" ] || { echo "::error::Set SSH_PASSWORD" }
 
       - name: Run VPS public route diagnostics
         uses: appleboy/ssh-action@v1.2.5
