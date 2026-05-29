@@ -11,31 +11,6 @@ function privateAssetRoot(): string {
   return path.resolve(process.env.CLIENT2D_GRAPHICRIVER_ISO_ROOT || DEFAULT_ROOT);
 }
 
-function uploadToken(): string {
-  return process.env.CLIENT2D_ASSET_UPLOAD_TOKEN || "";
-}
-
-function requestToken(req: Request): string {
-  const auth = req.headers.authorization || "";
-  if (auth.toLowerCase().startsWith("bearer ")) return auth.slice(7).trim();
-  if (typeof req.query.token === "string") return req.query.token;
-  if (typeof req.headers["x-upload-token"] === "string") return req.headers["x-upload-token"];
-  return "";
-}
-
-function requireUploadToken(req: Request, res: Response): boolean {
-  const expected = uploadToken();
-  if (!expected) {
-    res.status(503).json({ error: "CLIENT2D_ASSET_UPLOAD_TOKEN not configured" });
-    return false;
-  }
-  if (requestToken(req) !== expected) {
-    res.status(401).json({ error: "Unauthorized" });
-    return false;
-  }
-  return true;
-}
-
 function run(command: string, args: string[], cwd: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { cwd, stdio: "inherit", shell: false });
@@ -63,12 +38,12 @@ function statusPayload() {
   const manifest = path.join(publicDir, "manifest.json");
   return {
     ok: true,
-    configured: Boolean(uploadToken()),
     root,
     rawZipExists: existsSync(rawZip),
     publicDirExists: existsSync(publicDir),
     manifestExists: existsSync(manifest),
     manifestUrl: "/client2d-assets/graphicriver-iso/manifest.json",
+    uploadUrl: "/api/client2d-assets/upload",
     maxUploadBytes: MAX_UPLOAD_BYTES,
   };
 }
@@ -76,16 +51,19 @@ function statusPayload() {
 export function client2dAssetUploadRouter(): Router {
   const r = express.Router();
 
-  r.get("/status", (req: Request, res: Response) => {
-    if (!requireUploadToken(req, res)) return;
+  r.get("/status", (_req: Request, res: Response) => {
     res.json(statusPayload());
   });
 
   r.post("/upload", async (req: Request, res: Response) => {
-    if (!requireUploadToken(req, res)) return;
     const length = Number(req.headers["content-length"] || 0);
     if (!Number.isFinite(length) || length <= 0) return res.status(411).json({ error: "content-length required" });
     if (length > MAX_UPLOAD_BYTES) return res.status(413).json({ error: "zip too large", maxBytes: MAX_UPLOAD_BYTES });
+
+    const contentType = String(req.headers["content-type"] || "").toLowerCase();
+    if (contentType && !contentType.includes("zip") && !contentType.includes("octet-stream")) {
+      return res.status(415).json({ error: "expected zip upload", contentType });
+    }
 
     const root = privateAssetRoot();
     const rawDir = path.join(root, "raw");
