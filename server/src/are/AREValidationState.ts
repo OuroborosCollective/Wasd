@@ -14,7 +14,7 @@ const emptyState: AREValidationStateSnapshot = {
   world: null,
   fireGlitch: false,
   lastViolation: null,
-  updatedAtIso: new Date(0).toISOString(),
+  updatedAtIso: "1970-01-01T00:00:00.000Z", // @are-telemetry-side-channel
 };
 
 class AREValidationStateStore {
@@ -27,7 +27,7 @@ class AREValidationStateStore {
       guard,
       fireGlitch: !guard.ok,
       lastViolation,
-      updatedAtIso: new Date().toISOString(),
+      updatedAtIso: new Date().toISOString(), // @are-telemetry-side-channel
     };
     return this.getSnapshot();
   }
@@ -36,7 +36,7 @@ class AREValidationStateStore {
     this.state = {
       ...this.state,
       world,
-      updatedAtIso: new Date().toISOString(),
+      updatedAtIso: new Date().toISOString(), // @are-telemetry-side-channel
     };
     return this.getSnapshot();
   }
