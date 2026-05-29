@@ -15,17 +15,34 @@ from pathlib import Path
 ROOT = Path(".")
 LOCKFILE = ROOT / "pnpm-lock.yaml"
 ROOT_MANIFEST = ROOT / "package.json"
+WORKSPACE_MANIFEST = ROOT / "pnpm-workspace.yaml"
 SETTINGS_MARKER = "settings:\n  autoInstallPeers: true\n  excludeLinksFromLockfile: false\n\n"
 DEPENDENCY_GROUPS = ("dependencies", "devDependencies", "optionalDependencies")
 
 
 def load_root_overrides() -> dict[str, str]:
-    data = json.loads(ROOT_MANIFEST.read_text())
-    pnpm_config = data.get("pnpm", {})
-    overrides = pnpm_config.get("overrides", {})
-    if not isinstance(overrides, dict):
-        return {}
-    return {str(name): str(version) for name, version in overrides.items()}
+    # Try workspace yaml first (pnpm v11)
+    overrides = {}
+    if WORKSPACE_MANIFEST.exists():
+        text = WORKSPACE_MANIFEST.read_text()
+        # Robust multi-line extraction for YAML block
+        match = re.search(r"^overrides:\s*\n((?:\s+.*\n?)*?)(?=\n\S|$)", text, re.MULTILINE)
+        if match:
+            for line in match.group(1).splitlines():
+                # Handle optional quotes and trailing comments
+                m = re.match(r"^\s+[\"']?([^\"':\s]+)[\"']?:\s*[\"']?([^\"'\s#]+)[\"']?(\s*#.*)?$", line)
+                if m:
+                    overrides[m.group(1)] = m.group(2)
+
+    # Fallback to package.json (pnpm < 11)
+    if not overrides and ROOT_MANIFEST.exists():
+        data = json.loads(ROOT_MANIFEST.read_text())
+        pnpm_config = data.get("pnpm", {})
+        pkg_overrides = pnpm_config.get("overrides", {})
+        if isinstance(pkg_overrides, dict):
+            overrides.update({str(name): str(version) for name, version in pkg_overrides.items()})
+
+    return overrides
 
 
 def render_overrides_block(overrides: dict[str, str]) -> str:

@@ -47,12 +47,27 @@ function checkRootOverrideConsistency() {
   const pkg = readJson('package.json');
   const lock = readFileSync('pnpm-lock.yaml', 'utf8');
   const dockerSync = readFileSync('scripts/sync-pnpm-lockfile-for-docker.py', 'utf8');
+  const workspaceYaml = readFileSync('pnpm-workspace.yaml', 'utf8');
 
   const rootDeps = new Set([
     ...Object.keys(pkg.devDependencies ?? {}),
     ...Object.keys(pkg.dependencies ?? {}),
   ]);
-  const overrides = pkg.pnpm?.overrides ?? {};
+
+  // pnpm v11 moved overrides to pnpm-workspace.yaml
+  // Extract the overrides block until the next root-level key or end of file
+  const workspaceOverridesMatch = workspaceYaml.match(/^overrides:\s*\n((?:\s+.*\n?)*?)(?=\n\S|$)/m);
+  const workspaceOverrides = {};
+  if (workspaceOverridesMatch) {
+    const lines = workspaceOverridesMatch[1].split('\n');
+    for (const line of lines) {
+      // Improved regex: handles optional quotes and comments
+      const m = line.match(/^\s+["']?([^"':\s]+)["']?:\s*["']?([^"'\s#]+)["']?(\s*#.*)?$/);
+      if (m) workspaceOverrides[m[1]] = m[2];
+    }
+  }
+
+  const overrides = { ...(pkg.pnpm?.overrides ?? {}), ...workspaceOverrides };
   const resolutions = pkg.pnpm?.resolutions ?? {};
 
   for (const dep of rootDeps) {

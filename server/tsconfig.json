@@ -20,9 +20,9 @@
     "forceConsistentCasingInFileNames": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "composite": false,
-    "declaration": false,
-    "declarationMap": false,
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
     "sourceMap": true,
     "incremental": true,
     "resolveJsonModule": true,
@@ -33,5 +33,9 @@
   "exclude": [
     "src/assets/**",
     "src/tests/**"
+  ],
+  "references": [
+    { "path": "../packages/shared" },
+    { "path": "../packages/core-logic" }
   ]
 }
