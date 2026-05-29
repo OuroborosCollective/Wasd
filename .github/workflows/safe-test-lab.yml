@@ -38,7 +38,7 @@ jobs:
         run: pnpm guard:monorepo:frozen
 
       - name: Run ARE unit tests
-        run: pnpm exec vitest run server/src/core/are/__tests__
+        run: pnpm exec vitest run server/src/core/are/__tests__/__tests__
 
       - name: Build shared
         run: pnpm --filter @wasd/shared build
