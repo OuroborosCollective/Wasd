@@ -116,6 +116,8 @@ function checkFrozenInstallDryRun() {
   try {
     execFileSync('pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], { stdio: 'pipe' });
   } catch (error) {
+    console.error('STDOUT:', error.stdout?.toString());
+    console.error('STDERR:', error.stderr?.toString());
     fail(
       'pnpm frozen-lockfile validation failed.',
       'This repo is a pnpm monorepo. package.json and pnpm-lock.yaml must be updated together. Run pnpm install and commit pnpm-lock.yaml, or align dependency versions manually.'
