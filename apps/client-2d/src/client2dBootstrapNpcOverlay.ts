@@ -5,6 +5,14 @@ const TILE_H = 48;
 const OVERLAY_ID = "client2d-bootstrap-npc-overlay";
 const STYLE_ID = "client2d-bootstrap-npc-overlay-style";
 
+function pixiBootstrapRuntimeAvailable(): boolean {
+  return Boolean((window as any).__client2DBootstrapPixiActorsReady);
+}
+
+function removeOverlay(): void {
+  document.getElementById(OVERLAY_ID)?.remove();
+}
+
 function injectStyle(): void {
   if (document.getElementById(STYLE_ID)) return;
   const style = document.createElement("style");
@@ -75,11 +83,19 @@ function renderNpcMarker(overlay: HTMLElement, npc: Client2DBootstrapNpc, index:
 }
 
 async function renderBootstrapNpcOverlay(): Promise<void> {
+  if (pixiBootstrapRuntimeAvailable()) {
+    removeOverlay();
+    return;
+  }
   injectStyle();
   const overlay = ensureOverlay();
   if (!overlay) return;
   const bootstrap = await loadClient2DBootstrap();
   if (!bootstrap?.ok || bootstrap.contract !== "client2d-bootstrap-v1" || !Array.isArray(bootstrap.npcs)) return;
+  if (pixiBootstrapRuntimeAvailable()) {
+    removeOverlay();
+    return;
+  }
   overlay.replaceChildren();
   bootstrap.npcs.forEach((npc, index) => renderNpcMarker(overlay, npc, index));
   window.dispatchEvent(new CustomEvent("areloria:client2d-bootstrap-npcs", { detail: bootstrap }));
@@ -93,5 +109,6 @@ function scheduleRender(): void {
 if (typeof window !== "undefined") {
   window.addEventListener("DOMContentLoaded", scheduleRender, { once: true });
   window.addEventListener("resize", () => void renderBootstrapNpcOverlay());
+  window.addEventListener("areloria:client2d-pixi-actors-ready", removeOverlay);
   scheduleRender();
 }
