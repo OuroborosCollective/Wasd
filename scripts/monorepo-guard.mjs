@@ -45,6 +45,7 @@ function extractLockOverride(lockText, dep) {
 
 function checkRootOverrideConsistency() {
   const pkg = readJson('package.json');
+  const workspaceYaml = readFileSync('pnpm-workspace.yaml', 'utf8');
   const lock = readFileSync('pnpm-lock.yaml', 'utf8');
   const dockerSync = readFileSync('scripts/sync-pnpm-lockfile-for-docker.py', 'utf8');
 
@@ -52,8 +53,28 @@ function checkRootOverrideConsistency() {
     ...Object.keys(pkg.devDependencies ?? {}),
     ...Object.keys(pkg.dependencies ?? {}),
   ]);
-  const overrides = pkg.pnpm?.overrides ?? {};
-  const resolutions = pkg.pnpm?.resolutions ?? {};
+
+  // Extract overrides from pnpm-workspace.yaml (pnpm v11)
+  const overrides = {};
+  const overrideBlock = workspaceYaml.match(/overrides:\s*\n((?:\s+['"]?@?[\w./-]+['"]?:\s*['"]?[\w.^~<>-]+['"]?\s*\n)+)/);
+  if (overrideBlock) {
+    const lines = overrideBlock[1].split('\n');
+    for (const line of lines) {
+      const m = line.match(/^\s+['"]?(@?[\w./-]+)['"]?:\s*['"]?([\w.^~<>-]+)['"]?\s*$/);
+      if (m) overrides[m[1]] = m[2];
+    }
+  }
+
+  // Extract resolutions from pnpm-workspace.yaml (pnpm v11)
+  const resolutions = {};
+  const resolutionBlock = workspaceYaml.match(/resolutions:\s*\n((?:\s+['"]?@?[\w./-]+['"]?:\s*['"]?[\w.^~<>-]+['"]?\s*\n)+)/);
+  if (resolutionBlock) {
+    const lines = resolutionBlock[1].split('\n');
+    for (const line of lines) {
+      const m = line.match(/^\s+['"]?(@?[\w./-]+)['"]?:\s*['"]?([\w.^~<>-]+)['"]?\s*$/);
+      if (m) resolutions[m[1]] = m[2];
+    }
+  }
 
   for (const dep of rootDeps) {
     const pkgSpec = pkg.devDependencies?.[dep] ?? pkg.dependencies?.[dep] ?? null;

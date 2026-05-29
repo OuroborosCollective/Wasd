@@ -20,12 +20,19 @@ DEPENDENCY_GROUPS = ("dependencies", "devDependencies", "optionalDependencies")
 
 
 def load_root_overrides() -> dict[str, str]:
-    data = json.loads(ROOT_MANIFEST.read_text())
-    pnpm_config = data.get("pnpm", {})
-    overrides = pnpm_config.get("overrides", {})
-    if not isinstance(overrides, dict):
+    if not WORKSPACE_YAML.exists():
         return {}
-    return {str(name): str(version) for name, version in overrides.items()}
+    text = WORKSPACE_YAML.read_text()
+    # pnpm v11: overrides are in pnpm-workspace.yaml
+    overrides: dict[str, str] = {}
+    match = re.search(r"overrides:\s*\n((?:\s+['\"]?@?[\w./-]+['\"]?:\s*['\"]?[\w.^~<>-]+['\"]?\s*\n)+)", text)
+    if match:
+        block = match.group(1)
+        for line in block.splitlines():
+            m = re.match(r"^\s+['\"]?(@?[\w./-]+)['\"]?:\s*['\"]?([\w.^~<>-]+)['\"]?\s*$", line)
+            if m:
+                overrides[m.group(1)] = m.group(2)
+    return overrides
 
 
 def render_overrides_block(overrides: dict[str, str]) -> str:

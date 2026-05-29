@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.1.1",
+  "packageManager": "pnpm@11.2.2",
   "scripts": {
     "build": "pnpm -r build",
     "build:web": "pnpm -r --filter @wasd/web build",
@@ -40,34 +40,5 @@
     "pnpm": "^11.2.2",
     "typescript": "^6.0.3",
     "vitest": "^4.1.7"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "sharp",
-      "pg",
-      "@prisma/engines",
-      "protobufjs",
-      "cpu-features",
-      "ssh2"
-    ],
-    "overrides": {
-      "@types/react": "^19.2.14",
-      "@types/react-dom": "^19.2.3",
-      "@types/node": "^25.9.1",
-      "typescript": "^6.0.3",
-      "zod": "^4.4.3",
-      "three": "0.184.0",
-      "@babylonjs/core": "9.8.0",
-      "@babylonjs/materials": "9.8.0",
-      "@babylonjs/loaders": "9.8.0",
-      "react": "^19.2.6",
-      "socket.io-client": "^4.8.3",
-      "pg": "^8.20.0"
-    },
-    "resolutions": {
-      "typescript": "^6.0.3",
-      "@types/node": "^25.9.1"
-    }
   }
 }
