@@ -18,4 +18,5 @@ allowBuilds:
   pg: true
   prisma: true
   protobufjs: true
+  sharp: true
   ssh2: true

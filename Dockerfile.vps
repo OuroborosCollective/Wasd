@@ -17,7 +17,7 @@ ENV PNPM_CONFIG_SIDE_EFFECTS_CACHE=false
 ENV PNPM_CONFIG_VERIFY_STORE_INTEGRITY=false
 ENV PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN=false
 
-RUN corepack enable && corepack prepare pnpm@11.1.1 --activate && \
+RUN corepack enable && corepack prepare pnpm@11.2.2 --activate && \
     pnpm config set store-dir /pnpm/store && \
     pnpm config set network-concurrency 1 && \
     pnpm config set child-concurrency 1 && \

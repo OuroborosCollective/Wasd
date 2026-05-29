@@ -14,9 +14,9 @@
     "test:coverage": "vitest --passWithNoTests run --coverage"
   },
   "dependencies": {
-    "@babylonjs/core": "^9.9.1",
-    "@babylonjs/loaders": "^9.9.1",
-    "@babylonjs/materials": "^9.9.1",
+    "@babylonjs/core": "9.8.0",
+    "@babylonjs/loaders": "9.8.0",
+    "@babylonjs/materials": "9.8.0",
     "@wasd/database": "workspace:*",
     "framer-motion": "^12.40.0",
     "lucide-react": "^1.16.0",
@@ -37,7 +37,7 @@
     "@vitest/coverage-v8": "^4.1.7",
     "jsdom": "^29.1.1",
     "typescript": "^6.0.3",
-    "vite": "6.4.2",
+    "vite": "^8.0.13",
     "vitest": "^4.1.7"
   }
 }
