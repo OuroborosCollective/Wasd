@@ -8,14 +8,30 @@ packages:
   - "portal"
   - "server"
   - "backend"
+
+overrides:
+  "@types/react": "^19.2.14"
+  "@types/react-dom": "^19.2.3"
+  "@types/node": "^25.9.1"
+  "typescript": "^6.0.3"
+  "zod": "^4.4.3"
+  "three": "0.184.0"
+  "@babylonjs/core": "9.8.0"
+  "@babylonjs/materials": "9.8.0"
+  "@babylonjs/loaders": "9.8.0"
+  "react": "^19.2.6"
+  "socket.io-client": "^4.8.3"
+  "pg": "^8.20.0"
+
 allowBuilds:
-  '@firebase/util': true
-  '@google/genai': true
-  '@nestjs/core': true
-  '@prisma/engines': true
-  cpu-features: true
-  esbuild: true
-  pg: true
-  prisma: true
-  protobufjs: true
-  ssh2: true
+  "@firebase/util": true
+  "@google/genai": true
+  "@nestjs/core": true
+  "@prisma/engines": true
+  "cpu-features": true
+  "esbuild": true
+  "pg": true
+  "prisma": true
+  "protobufjs": true
+  "ssh2": true
+  "sharp": true
