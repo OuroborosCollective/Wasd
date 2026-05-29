@@ -81,6 +81,7 @@ function routeAsset(path: string): string {
 function normalizeEntrySrc(entry: AssetEntry): AssetEntry {
   if (!entry.src.startsWith('/')) return entry;
   if (entry.src.startsWith('/2d/')) return entry;
+  if (entry.src.startsWith('/client2d-assets/')) return entry;
   if (entry.src.startsWith('/2d-assets/') || entry.src.startsWith('/assets/')) {
     return { ...entry, src: routeAsset(entry.src) };
   }
@@ -121,8 +122,9 @@ export async function loadAssetManifest(): Promise<AssetManifest | null> {
   const modularWeaponManifest = await loadJson<WeaponManifestPayload>(routeAsset('/2d-assets/weapons/modular/weapon-manifest.json'));
   const pipoyaCharacters = await loadJson<CharacterAtlasPayload>(routeAsset('/2d-assets/characters/pipoya/pipoya-character-atlas.json'));
   const forestBiome = await loadJson<AssetManifest>(routeAsset('/assets/biomes/forest/assetpack01/manifest.json'));
+  const graphicRiverIso = await loadJson<AssetManifest>('/client2d-assets/graphicriver-iso/manifest.json');
 
-  if (!root && !weaponManifest && !modularWeaponManifest && !pipoyaCharacters && !forestBiome) return null;
+  if (!root && !weaponManifest && !modularWeaponManifest && !pipoyaCharacters && !forestBiome && !graphicRiverIso) return null;
 
   return {
     ...(root ?? { version: 1, basePath: routeAsset('/2d-assets') }),
@@ -133,27 +135,49 @@ export async function loadAssetManifest(): Promise<AssetManifest | null> {
       ...(modularWeaponManifest?.sources ?? []),
       ...(pipoyaCharacters ? [{ id: pipoyaCharacters.id ?? 'pipoya-character-atlas', source: pipoyaCharacters.source ?? 'Pipoya', groups: pipoyaCharacters.groups ?? {} }] : []),
       ...(forestBiome ? [{ id: 'assetpack01_forest_sample', source: 'AssetPack01_Forest_Sample.zip', biome: 'forest', pngCount: forestBiome.pngCount, deterministic: true }] : []),
+      ...(graphicRiverIso?.sources ?? []),
     ],
     tilesets: {
       ...normalizeEntries(root?.tilesets),
       ...normalizeEntries(forestBiome?.tilesets),
+      ...normalizeEntries(graphicRiverIso?.tilesets),
     },
     props: {
       ...normalizeEntries(root?.props),
       ...normalizeEntries(forestBiome?.props),
+      ...normalizeEntries(graphicRiverIso?.props),
     },
     ui: {
       ...normalizeEntries(root?.ui),
       ...normalizeEntries(forestBiome?.ui),
+      ...normalizeEntries(graphicRiverIso?.ui),
     },
     characters: {
       ...normalizeEntries(root?.characters),
       ...withEntryIds(pipoyaCharacters?.entries),
+      ...normalizeEntries(graphicRiverIso?.characters),
+    },
+    monsters: {
+      ...normalizeEntries(root?.monsters),
+      ...normalizeEntries(graphicRiverIso?.monsters),
+    },
+    buildings: {
+      ...normalizeEntries(root?.buildings),
+      ...normalizeEntries(graphicRiverIso?.buildings),
+    },
+    fx: {
+      ...normalizeEntries(root?.fx),
+      ...normalizeEntries(graphicRiverIso?.fx),
     },
     weapons: {
       ...normalizeEntries(root?.weapons),
       ...normalizeEntries(weaponManifest?.weapons),
       ...normalizeEntries(modularWeaponManifest?.weapons),
+      ...normalizeEntries(graphicRiverIso?.weapons),
+    },
+    fallbacks: {
+      ...(root?.fallbacks ?? {}),
+      ...(graphicRiverIso?.fallbacks ?? {}),
     },
   };
 }
