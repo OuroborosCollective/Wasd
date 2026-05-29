@@ -4,6 +4,7 @@ import { createServer } from "node:http";
 import { existsSync } from "node:fs";
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { WorldTick } from "./WorldTick.js";
+import { installClient2DPublicKeyLoginBridge } from "./installClient2DPublicKeyLoginBridge.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { mcpRoute } from "../api/mcpRoute.js";
@@ -166,6 +167,7 @@ export class ServerBootstrap {
     const ws = new GameWebSocketServer(httpServer);
     ws.start();
     const tick = new WorldTick(ws);
+    installClient2DPublicKeyLoginBridge(ws, tick);
     (this as any)._tick = tick;
     await tick.init();
     this.initializing = false;
