@@ -1,4 +1,3 @@
-import { Router } from "express";
 import express, { Router } from "express";
 import type { WorldTick } from "../core/WorldTick.js";
 

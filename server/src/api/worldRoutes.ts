@@ -1,9 +1,9 @@
-export function worldRoutes() {
-  return {
-    path: "/world",
-    method: "GET",
-    handler: (req: any, res: any) => {
-      res.json({ status: "world routes placeholder" });
-    }
-  };
+import { Router } from "express";
+
+export function worldRoutes(): Router {
+  const router = Router();
+  router.get("/world", (req, res) => {
+    res.json({ status: "world routes placeholder" });
+  });
+  return router;
 }

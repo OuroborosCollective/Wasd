@@ -1,9 +1,9 @@
-export function editorRoutes() {
-  return {
-    path: "/editor",
-    method: "POST",
-    handler: (req: any, res: any) => {
-      res.json({ status: "editor routes placeholder" });
-    }
-  };
+import { Router } from "express";
+
+export function editorRoutes(): Router {
+  const router = Router();
+  router.post("/editor", (req, res) => {
+    res.json({ status: "editor routes placeholder" });
+  });
+  return router;
 }
