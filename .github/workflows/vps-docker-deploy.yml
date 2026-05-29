@@ -177,3 +177,22 @@ jobs:
             exit 1
           fi
           echo "2D client marker OK: ${CLIENT_2D_MARKER}"
+
+          echo "Checking https://arelorian.de/api/v1/client2d/bootstrap for server-authoritative starter state"
+          BOOTSTRAP="$(curl -k -sS -L --max-time 20 "https://arelorian.de/api/v1/client2d/bootstrap" || true)"
+          BOOTSTRAP="$BOOTSTRAP" node -e '
+            const raw = process.env.BOOTSTRAP || "";
+            let data;
+            try { data = JSON.parse(raw); } catch (error) {
+              console.error("ERROR: client2d bootstrap did not return JSON");
+              console.error(raw.slice(0, 800));
+              process.exit(1);
+            }
+            const ok = data.ok === true && data.contract === "client2d-bootstrap-v1" && data.starterNpcCount === 15 && data.hasMerchant === true && data.hasBlacksmith === true;
+            if (!ok) {
+              console.error("ERROR: client2d bootstrap contract failed");
+              console.error(JSON.stringify(data, null, 2).slice(0, 1200));
+              process.exit(1);
+            }
+            console.log(`Client2D bootstrap OK: ${data.starterNpcCount} starter NPCs, merchant=${data.hasMerchant}, blacksmith=${data.hasBlacksmith}`);
+          '
