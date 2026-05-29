@@ -17,6 +17,7 @@ const criticalRoots = [
   'server/src/modules/genealogy',
   'server/src/modules/monster',
   'server/src/modules/npc',
+  'server/src/modules/magic',
 ];
 
 const criticalFilePatterns = [
