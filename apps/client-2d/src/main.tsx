@@ -10,6 +10,7 @@ import { KenneyUiLiveSkinBadge } from "./KenneyUiLiveSkinBadge";
 import { installClient2DDepthRuntime } from "./client2dDepthRuntime";
 import { installViewportRuntime } from "./ViewportController";
 import "./forestBiomeManifestBridge";
+import "./client2dBootstrapNpcOverlay";
 import "./theme.css";
 import "./liveReality.css";
 import "./worldHeart.css";
