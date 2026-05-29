@@ -491,8 +491,9 @@ export class NPCSimulation {
    */
   public getAllNPCs(): NPCState[] {
     // Ensure deterministic order for Level-A simulation consistency
+    // Replaced localeCompare with binary comparison to prevent cross-environment WorldHash drift.
     return Array.from(this.npcs.values()).sort((a, b) =>
-      a.identity.npcId.localeCompare(b.identity.npcId)
+      a.identity.npcId < b.identity.npcId ? -1 : a.identity.npcId > b.identity.npcId ? 1 : 0
     );
   }
 }

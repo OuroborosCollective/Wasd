@@ -247,7 +247,8 @@ export class PerceptionTicker {
 
     this.lastTick = currentTick;
     const detectedBy: string[] = [];
-    const sortedNpcStates = Array.from(this.npcStates.entries()).sort(([a], [b]) => a.localeCompare(b));
+    // Binary comparison of npcIds ensures deterministic iteration order in Level-A perception logic.
+    const sortedNpcStates = Array.from(this.npcStates.entries()).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
 
     for (const [npcId, npcState] of sortedNpcStates) {
       npcState.lastPerceptionTick = currentTick;

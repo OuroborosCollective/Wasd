@@ -41,7 +41,8 @@ function pickTarget(
   }
 
   if (cands.length === 0) return null;
-  cands.sort((a, b) => (a.d === b.d ? a.id.localeCompare(b.id) : a.d - b.d));
+  // Deterministic target selection: sort by distance, then binary comparison of IDs if distances are equal.
+  cands.sort((a, b) => (a.d === b.d ? (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) : a.d - b.d));
   const idx = Math.floor(rng() * cands.length);
   const t = cands[Math.min(idx, cands.length - 1)]!;
   return { id: t.id, kind: t.kind, pos: t.pos };
@@ -105,7 +106,8 @@ export function runWarfrontCombatTick(opts: {
     : null;
 
   const allNpcs = npcSystem.getAllNPCs();
-  const warNpcs = allNpcs.filter((n) => n.id.startsWith(WF_PREFIX)).sort((a, b) => a.id.localeCompare(b.id));
+  // Deterministic iteration order for Warfront combat logic via binary comparison.
+  const warNpcs = allNpcs.filter((n) => n.id.startsWith(WF_PREFIX)).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
   let lastSummary: string | null = null;
 

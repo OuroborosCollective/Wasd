@@ -33,7 +33,8 @@ export class ChronoSwarmBrain {
     this.activeSwarms.clear();
     let swarmCounter = 0;
 
-    for (const [key, count] of [...grid.entries()].sort(([left], [right]) => left.localeCompare(right))) {
+    // Sorting by binary comparison of keys ensures deterministic swarm ID generation across environments.
+    for (const [key, count] of [...grid.entries()].sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))) {
         const density = count / (cellSize * cellSize * cellSize);
 
         // If density represents a physics threat
