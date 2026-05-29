@@ -20,11 +20,29 @@ DEPENDENCY_GROUPS = ("dependencies", "devDependencies", "optionalDependencies")
 
 
 def load_root_overrides() -> dict[str, str]:
+    # Support pnpm v9/10 (package.json)
     data = json.loads(ROOT_MANIFEST.read_text())
-    pnpm_config = data.get("pnpm", {})
-    overrides = pnpm_config.get("overrides", {})
+    overrides = data.get("pnpm", {}).get("overrides", {})
     if not isinstance(overrides, dict):
-        return {}
+        overrides = {}
+
+    # Support pnpm v11 (pnpm-workspace.yaml)
+    workspace_path = ROOT / "pnpm-workspace.yaml"
+    if workspace_path.exists():
+        text = workspace_path.read_text()
+        marker = "\noverrides:\n"
+        start = text.find(marker)
+        if start >= 0:
+            after = text[start + len(marker) :]
+            end = re.search(r"\n\S", after)
+            block = after[: end.start()] if end else after
+            for match in re.finditer(
+                r"^  (?:'(.+)'|(.+)):\s*(.+)$", block, re.MULTILINE
+            ):
+                key = match.group(1) or match.group(2)
+                val = match.group(3).strip().strip("'\"")
+                overrides[key] = val
+
     return {str(name): str(version) for name, version in overrides.items()}
 
 

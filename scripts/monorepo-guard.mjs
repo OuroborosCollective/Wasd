@@ -47,12 +47,36 @@ function checkRootOverrideConsistency() {
   const pkg = readJson('package.json');
   const lock = readFileSync('pnpm-lock.yaml', 'utf8');
   const dockerSync = readFileSync('scripts/sync-pnpm-lockfile-for-docker.py', 'utf8');
+  const workspace = existsSync('pnpm-workspace.yaml') ? readFileSync('pnpm-workspace.yaml', 'utf8') : '';
 
   const rootDeps = new Set([
     ...Object.keys(pkg.devDependencies ?? {}),
     ...Object.keys(pkg.dependencies ?? {}),
   ]);
-  const overrides = pkg.pnpm?.overrides ?? {};
+
+  // Support pnpm v11 (pnpm-workspace.yaml) or pnpm v9/10 (package.json)
+  const extractWorkspaceOverrides = (yaml) => {
+    const marker = '\noverrides:\n';
+    const start = yaml.indexOf(marker);
+    if (start < 0) return {};
+    const after = yaml.slice(start + marker.length);
+    const end = after.search(/\n\S/);
+    const block = end >= 0 ? after.slice(0, end) : after;
+    const overrides = {};
+    const re = /^  (?:'(.+)'|(.+)):\s*(.+)$/gm;
+    let match;
+    while ((match = re.exec(block)) !== null) {
+      const key = match[1] || match[2];
+      const val = match[3].replace(/^['"]|['"]$/g, '');
+      overrides[key] = val;
+    }
+    return overrides;
+  };
+
+  const overrides = {
+    ...(pkg.pnpm?.overrides ?? {}),
+    ...extractWorkspaceOverrides(workspace),
+  };
   const resolutions = pkg.pnpm?.resolutions ?? {};
 
   for (const dep of rootDeps) {
