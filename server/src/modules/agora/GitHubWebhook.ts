@@ -1,3 +1,4 @@
+import { Router } from "express";
 import crypto from "node:crypto";
 import express, { type NextFunction, type Request, type Response } from "express";
 
@@ -131,7 +132,7 @@ function rememberGitHubWebhookEvent(req: Request, payload: any): AgoraGitHubWebh
   return lastGitHubWebhookEvent;
 }
 
-export function createGitHubWebhookRouter() {
+export function createGitHubWebhookRouter(): Router {
   const router = express.Router();
 
   router.post(

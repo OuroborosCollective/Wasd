@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Router } from "express";
 import { execFile, execFileSync } from "node:child_process";
 import net from "node:net";
 import type { WorldTick } from "../core/WorldTick.js";
@@ -112,7 +112,7 @@ async function buildTruth(tick: WorldTick) {
   };
 }
 
-export function sovereignDeployRouter(tick: WorldTick) {
+export function sovereignDeployRouter(tick: WorldTick): Router: Router {
   const router = express.Router();
   router.use(express.json({ limit: "16kb" }));
 

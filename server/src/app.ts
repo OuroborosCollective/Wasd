@@ -1,6 +1,6 @@
-import express, { Request, Response } from 'express';
+import express, { Express } from "express";
 
-const app = express();
+export const app: Express = express();
 
 app.use(express.json());
 

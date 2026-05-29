@@ -1,3 +1,4 @@
+import { Router } from "express";
 import express from "express";
 import type { AgoraFinanceSummary, AgoraOAuthConfigStatus, AgoraLiveStatus } from "./AgoraTypes.js";
 import { getLastGitHubWebhookEvent } from "./GitHubWebhook.js";
@@ -30,7 +31,7 @@ function safeValue<T>(fn: () => T, fallback: T): T {
   }
 }
 
-export function createAgoraMonitorRouter(deps: AgoraMonitorDeps = {}) {
+export function createAgoraMonitorRouter(deps: AgoraMonitorDeps = {}): Router {
   const router = express.Router();
 
   router.get("/config", (_req, res) => {
