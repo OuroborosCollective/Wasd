@@ -2,7 +2,7 @@ import express from "express";
 import { areValidationState } from "../are/AREValidationState.js";
 import type { WorldTick } from "../core/WorldTick.js";
 
-export function areValidationRouter(tick: WorldTick) {
+export function areValidationRouter(tick: WorldTick): express.Router {
   const router = express.Router();
 
   router.get("/status", (_req, res) => {

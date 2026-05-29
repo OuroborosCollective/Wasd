@@ -10,8 +10,9 @@ import { mailRoute } from "./mailRoute.js";
 import { auctionRoute } from "./auctionRoute.js";
 
 import { mcpRoute } from "./mcpRoute.js";
+import type { Router } from "express";
 
-export const ApiRoutes = [
+export const ApiRoutes: any[] = [
   mcpRoute(),
   healthRoute(),
   playerRoutes(),
