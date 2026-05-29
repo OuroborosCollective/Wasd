@@ -113,8 +113,9 @@ function checkVpsBuildTooling() {
 }
 
 function checkFrozenInstallDryRun() {
+  const pnpmExec = process.env.npm_execpath || 'pnpm';
   try {
-    execFileSync('pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], { stdio: 'pipe' });
+    execFileSync(pnpmExec, ['install', '--frozen-lockfile', '--ignore-scripts'], { stdio: 'inherit' });
   } catch (error) {
     fail(
       'pnpm frozen-lockfile validation failed.',
