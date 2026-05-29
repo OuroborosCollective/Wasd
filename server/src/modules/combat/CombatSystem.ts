@@ -1,4 +1,5 @@
 import { createARESeed, SeededARERng, type ARERng } from "../../core/determinism/AREDeterminism.js";
+import { WeatherCombatBridge } from "./WeatherCombatBridge.js";
 
 export type FxKind = "hit" | "crit" | "heal" | "miss" | "block" | "xp" | "gold";
 
@@ -14,27 +15,30 @@ export interface CombatResult {
 }
 
 export class CombatSystem {
-  attack(attacker: any, defender: any): CombatResult {
-    return this.resolveAttack(attacker, defender, 0);
+  attack(attacker: any, defender: any, weather = "clear"): CombatResult {
+    return this.resolveAttack(attacker, defender, 0, weather);
   }
 
   /**
    * Melee attack with optional flat weapon bonus (ItemRegistry `damage` on equipped weapon).
    */
-  attackWithWeapon(attacker: any, defender: any, weaponBonus = 0): CombatResult {
-    return this.resolveAttack(attacker, defender, weaponBonus);
+  attackWithWeapon(attacker: any, defender: any, weaponBonus = 0, weather = "clear"): CombatResult {
+    return this.resolveAttack(attacker, defender, weaponBonus, weather);
   }
 
   /** Spell / skill hit — no stamina cost */
-  spellStrike(attacker: any, defender: any, spellPower: number): CombatResult {
+  spellStrike(attacker: any, defender: any, spellPower: number, weather = "clear"): CombatResult {
     const rng = this.createCombatRng("spellStrike", attacker, defender, spellPower);
-    const hitChance = this.calculateHitChance(attacker, defender);
+    const weatherHitMult = WeatherCombatBridge.getHitMultiplier(weather);
+    const hitChance = this.calculateHitChance(attacker, defender) * weatherHitMult;
+
     if (rng.nextFloat() > hitChance) {
       return { success: true, hit: false, damage: 0, crit: false, fx: { kind: "miss" } };
     }
     const crit = rng.nextFloat() < 0.08;
     const baseDamage = this.calculateDamage(attacker, defender, spellPower, rng.fork("damage"));
-    const damage = crit ? Math.floor(baseDamage * 1.75) : baseDamage;
+    const weatherDamageMult = WeatherCombatBridge.getDamageMultiplier(weather);
+    const damage = Math.floor((crit ? Math.floor(baseDamage * 1.75) : baseDamage) * weatherDamageMult);
     defender.health = Math.max(0, defender.health - damage);
     const killed = defender.health <= 0;
     return {
@@ -48,20 +52,23 @@ export class CombatSystem {
     };
   }
 
-  private resolveAttack(attacker: any, defender: any, weaponBonus: number): CombatResult {
+  private resolveAttack(attacker: any, defender: any, weaponBonus: number, weather = "clear"): CombatResult {
     const atkStamina = typeof attacker.stamina === "number" ? attacker.stamina : 100;
     if (atkStamina <= 0) return { success: false, hit: false, damage: 0, reason: "no_stamina" };
     attacker.stamina = atkStamina - 8;
 
     const rng = this.createCombatRng("attack", attacker, defender, weaponBonus);
-    const hitChance = this.calculateHitChance(attacker, defender);
+    const weatherHitMult = WeatherCombatBridge.getHitMultiplier(weather);
+    const hitChance = this.calculateHitChance(attacker, defender) * weatherHitMult;
+
     if (rng.nextFloat() > hitChance) {
       return { success: true, hit: false, damage: 0, crit: false, fx: { kind: "miss" } };
     }
 
     const crit = rng.nextFloat() < 0.08;
     const baseDamage = this.calculateDamage(attacker, defender, weaponBonus, rng.fork("damage"));
-    const damage = crit ? Math.floor(baseDamage * 1.75) : baseDamage;
+    const weatherDamageMult = WeatherCombatBridge.getDamageMultiplier(weather);
+    const damage = Math.floor((crit ? Math.floor(baseDamage * 1.75) : baseDamage) * weatherDamageMult);
     defender.health = Math.max(0, defender.health - damage);
     const killed = defender.health <= 0;
 

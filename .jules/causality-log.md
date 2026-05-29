@@ -1,5 +1,5 @@
-## 2025-05-15 - Hardened Deterministic Perception
+## 2025-05-15 - Weather Combat Bridge Implementation
 
-Learning: JavaScript `Map` iteration order is based on insertion order, which is non-deterministic in a multi-user server environment. Iterating over players or NPCs in a simulation path (Level-A) without sorting leads to inconsistent world states and hash drifts. Additionally, missing properties like `phaseShift` in simulation entities can cause mathematical failures (NaN) in perception logic.
+Learning: Creating a Bridge between existing systems (Weather and Combat) allows for deterministic gameplay variety without increasing system complexity. The use of optional parameters with default values in `CombatSystem` maintains backward compatibility while enabling new features.
 
-Action: Always enforce `Array.sort()` on entity collections (Players, NPCs, Loot) before processing them in any 10-Hz tick logic. Ensure all properties required by deterministic utility functions (like `PerceptionLogic`) are explicitly initialized during entity creation.
+Action: When implementing new features in simulation paths, always ensure they are deterministic by using seeded RNG and injected state (like weather) rather than global state. Ensure tests for these bridges reset the simulation state (like combat sequence) for side-by-side comparison.
