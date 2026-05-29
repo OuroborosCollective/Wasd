@@ -73,7 +73,7 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: isItchBuild ? "dist-itch" : "dist",
       emptyOutDir: true,
-      target: "esnext",
+      target: "chrome89",
       // Production minification
       minify: minify,
       cssCodeSplit: true,
