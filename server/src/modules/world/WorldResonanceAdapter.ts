@@ -96,7 +96,7 @@ export class WorldResonanceAdapter {
     const grid = this.buildSpatialGrid(activeNpcs);
     const nearby = this.queryRadius(grid, origin, radius)
       .filter((npc) => npc.id !== event.npcId && npc.state !== 'decomposition')
-      .sort((a, b) => String(a.id).localeCompare(String(b.id)));
+      .sort((a, b) => (String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0));
 
     const resonanceFields: ResonanceFieldEntry[] = [];
     const affectedNpcIds: string[] = [];

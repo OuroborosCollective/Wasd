@@ -238,15 +238,19 @@ export class NPCSystem {
 
     private update(onlinePlayers: any[], worldTime: number): void {
         if (this.npcsDirty) {
-            this.cachedSortedNpcs = Array.from(this.npcs.values()).sort((a, b) =>
-                String(a?.id ?? "").localeCompare(String(b?.id ?? ""))
-            );
+            this.cachedSortedNpcs = Array.from(this.npcs.values()).sort((a, b) => {
+                const idA = String(a?.id ?? "");
+                const idB = String(b?.id ?? "");
+                return idA < idB ? -1 : idA > idB ? 1 : 0;
+            });
             this.npcsDirty = false;
         }
 
-        const sortedPlayers = [...onlinePlayers].sort((a, b) =>
-            String(a?.id ?? "").localeCompare(String(b?.id ?? ""))
-        );
+        const sortedPlayers = [...onlinePlayers].sort((a, b) => {
+            const idA = String(a?.id ?? "");
+            const idB = String(b?.id ?? "");
+            return idA < idB ? -1 : idA > idB ? 1 : 0;
+        });
 
         const playerContexts: PlayerPerceptionContext[] = sortedPlayers.map((player) => ({
             id: player?.id != null && String(player.id).length > 0 ? String(player.id) : "unknown_player",

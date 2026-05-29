@@ -29,10 +29,10 @@ export class CombatSystem {
   spellStrike(attacker: any, defender: any, spellPower: number): CombatResult {
     const rng = this.createCombatRng("spellStrike", attacker, defender, spellPower);
     const hitChance = this.calculateHitChance(attacker, defender);
-    if (rng.nextFloat() > hitChance) {
+    if (this.nextFloat(rng) > hitChance) {
       return { success: true, hit: false, damage: 0, crit: false, fx: { kind: "miss" } };
     }
-    const crit = rng.nextFloat() < 0.08;
+    const crit = this.nextFloat(rng) < 0.08;
     const baseDamage = this.calculateDamage(attacker, defender, spellPower, rng.fork("damage"));
     const damage = crit ? Math.floor(baseDamage * 1.75) : baseDamage;
     defender.health = Math.max(0, defender.health - damage);
@@ -55,11 +55,11 @@ export class CombatSystem {
 
     const rng = this.createCombatRng("attack", attacker, defender, weaponBonus);
     const hitChance = this.calculateHitChance(attacker, defender);
-    if (rng.nextFloat() > hitChance) {
+    if (this.nextFloat(rng) > hitChance) {
       return { success: true, hit: false, damage: 0, crit: false, fx: { kind: "miss" } };
     }
 
-    const crit = rng.nextFloat() < 0.08;
+    const crit = this.nextFloat(rng) < 0.08;
     const baseDamage = this.calculateDamage(attacker, defender, weaponBonus, rng.fork("damage"));
     const damage = crit ? Math.floor(baseDamage * 1.75) : baseDamage;
     defender.health = Math.max(0, defender.health - damage);
@@ -95,7 +95,15 @@ export class CombatSystem {
     const base = 5 + atk + Math.max(0, weaponBonus);
     const mitigation = Math.floor(def * 0.3);
     const damageRng = rng ?? this.createCombatRng("damage", attacker, defender, weaponBonus);
-    return Math.max(1, base - mitigation + damageRng.nextInt(4));
+    return Math.max(1, base - mitigation + this.nextInt(damageRng, 4));
+  }
+
+  private nextFloat(rng: ARERng): number {
+    return rng.nextFloat();
+  }
+
+  private nextInt(rng: ARERng, max: number): number {
+    return rng.nextInt(max);
   }
 
   private createCombatRng(kind: string, attacker: any, defender: any, salt: number): SeededARERng {
