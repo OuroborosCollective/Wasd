@@ -40,8 +40,10 @@ export class ArelorianClient {
   private listeners: Map<string, Set<EventListener>> = new Map();
   private config: ConnectionConfig;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private _worldState: any = null;
   private _connected = false;
+  private intentionalClose = false;
 
   constructor(config: ConnectionConfig) {
     this.config = {
@@ -60,13 +62,17 @@ export class ArelorianClient {
   }
 
   connect(): void {
+    this.intentionalClose = false;
+    this.clearReconnectTimer();
     if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) return;
     if (typeof window !== "undefined") window.__areloriaClient = this;
 
     const wsUrl = toWebSocketUrl(this.config.url);
-    this.socket = new WebSocket(wsUrl);
+    const socket = new WebSocket(wsUrl);
+    this.socket = socket;
 
-    this.socket.addEventListener("open", () => {
+    socket.addEventListener("open", () => {
+      if (this.socket !== socket || this.intentionalClose) return;
       this._connected = true;
       const identity = readClient2DIdentity();
       this.sendRaw({
@@ -85,15 +91,19 @@ export class ArelorianClient {
       this.startHeartbeat();
     });
 
-    this.socket.addEventListener("close", () => {
+    socket.addEventListener("close", () => {
+      if (this.socket === socket) this.socket = null;
       this._connected = false;
       console.log("[Arelorian] Native world socket disconnected");
       this.dispatch({ type: "disconnect" as any, payload: {} } as ServerEvent);
       this.stopHeartbeat();
-      window.setTimeout(() => this.connect(), this.config.reconnectInterval);
+      if (!this.intentionalClose) {
+        this.reconnectTimer = setTimeout(() => this.connect(), this.config.reconnectInterval);
+      }
     });
 
-    this.socket.addEventListener("message", (event) => {
+    socket.addEventListener("message", (event) => {
+      if (this.socket !== socket || this.intentionalClose) return;
       const msg = parseJsonMessage(event.data);
       if (!msg?.type) return;
       const payload = msg.payload ?? msg;
@@ -104,20 +114,25 @@ export class ArelorianClient {
       this.dispatch(serverEvent);
     });
 
-    this.socket.addEventListener("error", () => {
+    socket.addEventListener("error", () => {
+      if (this.socket !== socket || this.intentionalClose) return;
       this.dispatch({ type: "disconnect" as any, payload: {} } as ServerEvent);
     });
   }
 
   disconnect(): void {
+    this.intentionalClose = true;
+    this.clearReconnectTimer();
     this.stopHeartbeat();
-    this.socket?.close();
+    const socket = this.socket;
     this.socket = null;
+    socket?.close();
     this._connected = false;
     if (typeof window !== "undefined" && window.__areloriaClient === this) delete window.__areloriaClient;
   }
 
   private startHeartbeat(): void {
+    this.stopHeartbeat();
     this.heartbeatTimer = setInterval(() => {
       this.sendRaw({ type: "ping" });
     }, this.config.heartbeatInterval);
@@ -127,6 +142,13 @@ export class ArelorianClient {
     if (this.heartbeatTimer) {
       clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = null;
+    }
+  }
+
+  private clearReconnectTimer(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
     }
   }
 
