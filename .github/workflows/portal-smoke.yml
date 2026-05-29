@@ -38,6 +38,8 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Build shared
+        run: pnpm --filter @wasd/shared build
 
       - name: Build 2D Stitch client
         run: pnpm --filter @wasd/client-2d build
