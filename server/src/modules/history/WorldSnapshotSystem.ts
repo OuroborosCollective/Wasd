@@ -1,10 +1,12 @@
+import { deepClone } from "../../utils/deepClone.js";
+
 export class WorldSnapshotSystem {
   private snapshots: any[] = [];
 
   save(worldState: any) {
     this.snapshots.push({
       timestamp: Date.now(),
-      state: JSON.parse(JSON.stringify(worldState))
+      state: deepClone(worldState)
     });
   }
 

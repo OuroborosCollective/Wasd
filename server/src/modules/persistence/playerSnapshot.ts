@@ -1,4 +1,5 @@
 import { normalizeInventoryStacks } from "../inventory/inventoryStacks.js";
+import { deepClone } from "../../utils/deepClone.js";
 
 /**
  * Whitelist of player fields written to disk / persistence backends.
@@ -67,10 +68,8 @@ export function serializePlayerForPersistence(player: any): Record<string, unkno
 }
 
 function cloneJsonSafe(value: unknown): unknown {
-  if (value === null || value === undefined) return value;
-  if (typeof value !== "object") return value;
   try {
-    return JSON.parse(JSON.stringify(value));
+    return deepClone(value);
   } catch {
     return undefined;
   }
@@ -85,7 +84,7 @@ export function mergePersistedPlayerInto(player: any, saved: Record<string, unkn
     const v = saved[key as string];
     if (v === undefined) continue;
     try {
-      (player as any)[key] = JSON.parse(JSON.stringify(v));
+      (player as any)[key] = deepClone(v);
     } catch {
       /* skip corrupt */
     }
