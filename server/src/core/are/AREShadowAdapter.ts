@@ -8,6 +8,7 @@ import { AREPayloadFactory, type AREPayloadNormalizationOptions, type IAREPayloa
 import type { AREReplayBuffer } from './AREReplayBuffer';
 import { AREShadowLogSink } from './AREShadowLogSink';
 import { AREShadowState, type AREShadowEcosystemStats } from './AREShadowState';
+import { AREShadowGateAdapter } from './AREShadowGateAdapter';
 
 export interface AREShadowTickInput {
   readonly entityId: string;
@@ -125,6 +126,18 @@ export class AREShadowAdapter {
 
         const nextPayload = ARECycle.processCycle(genesisPayload);
         const recorded = input.buffer.record(input.tick, nextPayload);
+
+        // --- Shadow-Echo Resonance Hook ---
+        if (input.additionalState?.legacyPosition) {
+           const drift = AREDriftEntropy.computeDrift(
+             input.additionalState.legacyPosition as any,
+             nextPayload.position
+           );
+           if (drift.status !== 'calm') {
+             AREShadowGateAdapter.notifyEntropySpike(input.tick, nextPayload, drift.playerDrift as any);
+           }
+        }
+        // ----------------------------------
 
         if (isNpcEntity(input.entityId)) {
           const ecosystemPayload = ensureShadowEnergy(nextPayload);

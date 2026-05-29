@@ -49,7 +49,7 @@ export class HeuristicWorldBrain {
     // 2. Process Interpretation Nodes
     // Economic vitality based on market activity and resource density
     const marketActivity = context.economy?.getMarketActivity ? context.economy.getMarketActivity() : 0.5;
-    const economicHealth = (marketActivity + this.getNode('resource_density').value) / 2;
+    const economicHealth = (marketActivity + this.getNodeValue('resource_density')) / 2;
     this.updateNode('economic_vitality', economicHealth);
     
     // Social tension increases with monster activity and low economic vitality
@@ -90,14 +90,14 @@ export class HeuristicWorldBrain {
     };
   }
 
-  private updateNode(id: string, value: number) {
+  public updateNode(id: string, value: number) {
     const node = this.nodeMap.get(id);
     if (node) {
       node.value = Math.max(0, Math.min(1, value));
     }
   }
 
-  private getNode(id: string): BrainNode {
-    return this.nodeMap.get(id)!;
+  public getNodeValue(id: string): number {
+    return this.nodeMap.get(id)?.value ?? 0.5;
   }
 }
