@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ARENpcEvolution } from '../ARENpcEvolution';
-import { AREPayloadFactory } from '../AREPayload';
+import { ARENpcEvolution } from '../core/are/ARENpcEvolution';
+import { AREPayloadFactory } from '../core/are/AREPayload';
 
 function npc(id: string, pos = { x: 4, y: 5, z: 0 }, energy = 10, health = 20) {
   return AREPayloadFactory.createNormalized(

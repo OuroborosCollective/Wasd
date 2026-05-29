@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AREGuard } from '../AREGuard';
+import { AREGuard } from '../core/are/AREGuard';
 
 const callForbiddenRandom = () => globalThis.Math['random']();
 const callForbiddenClock = () => globalThis.Date['now']();

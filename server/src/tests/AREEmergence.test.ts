@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { AREBrain } from '../AREBrain';
-import { AREHash } from '../AREHash';
-import { AREPayloadFactory } from '../AREPayload';
+import { AREBrain } from '../core/are/AREBrain';
+import { AREHash } from '../core/are/AREHash';
+import { AREPayloadFactory } from '../core/are/AREPayload';
 
 const callForbiddenClock = () => globalThis.Date['now']();
 

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { ARE_CONFIG } from '../AREConfig';
-import { AREReplayBuffer } from '../AREReplayBuffer';
-import { AREShadowAdapter } from '../AREShadowAdapter';
+import { ARE_CONFIG } from '../core/are/AREConfig';
+import { AREReplayBuffer } from '../core/are/AREReplayBuffer';
+import { AREShadowAdapter } from '../core/are/AREShadowAdapter';
 
 describe('ARE-Logic: WorldTick shadow adapter', () => {
   let buffer: AREReplayBuffer;

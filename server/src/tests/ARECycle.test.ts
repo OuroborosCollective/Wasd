@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ARECycle } from '../ARECycle';
-import { AREPayloadFactory } from '../AREPayload';
+import { ARECycle } from '../core/are/ARECycle';
+import { AREPayloadFactory } from '../core/are/AREPayload';
 
 function createGenesisPayload() {
   return AREPayloadFactory.createNormalized(

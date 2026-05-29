@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { ARECycle } from '../ARECycle';
-import { AREPayloadFactory } from '../AREPayload';
-import { AREReplayBuffer } from '../AREReplayBuffer';
+import { ARECycle } from '../core/are/ARECycle';
+import { AREPayloadFactory } from '../core/are/AREPayload';
+import { AREReplayBuffer } from '../core/are/AREReplayBuffer';
 
 function createPayload(id = 'replay_entity_01') {
   const genesis = AREPayloadFactory.createNormalized(id, { x: 1, y: 0, z: 0 }, { x: 1, y: 0, z: 0 });

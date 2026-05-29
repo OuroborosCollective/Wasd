@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { KAPPA, assertSafeInteger, fromKappaInt, kAdd, kDiv, kMul, kSub, toKappa } from '../Kappa';
+import { KAPPA, assertSafeInteger, fromKappaInt, kAdd, kDiv, kMul, kSub, toKappa } from '../core/are/Kappa';
 
 describe('ARE-Logic: Kappa fixed-point math kernel', () => {
   describe('constants and conversions', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { AREDriftEntropy } from '../AREDriftEntropy';
-import { AREPayloadFactory } from '../AREPayload';
+import { AREDriftEntropy } from '../core/are/AREDriftEntropy';
+import { AREPayloadFactory } from '../core/are/AREPayload';
 
 function createNpc(energy = 10) {
   return AREPayloadFactory.createNormalized(

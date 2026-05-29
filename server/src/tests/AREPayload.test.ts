@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { AREGuard } from '../AREGuard';
-import { AREPayloadFactory } from '../AREPayload';
+import { AREGuard } from '../core/are/AREGuard';
+import { AREPayloadFactory } from '../core/are/AREPayload';
 
 describe('ARE-Logic: ARE Payload normalization', () => {
   describe('payload creation and kappa normalization', () => {

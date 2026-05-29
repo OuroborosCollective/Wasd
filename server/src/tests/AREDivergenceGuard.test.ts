@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AREDivergenceGuard } from '../AREDivergenceGuard';
+import { AREDivergenceGuard } from '../core/are/AREDivergenceGuard';
 
 describe('AREDivergenceGuard', () => {
   it('correctly calculates status based on magnitude', () => {

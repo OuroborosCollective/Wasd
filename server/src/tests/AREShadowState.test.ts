@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { AREPayloadFactory } from '../AREPayload';
-import { AREShadowState } from '../AREShadowState';
+import { AREPayloadFactory } from '../core/are/AREPayload';
+import { AREShadowState } from '../core/are/AREShadowState';
 
 function payload(id: string, kind = 'EnergyCapsule') {
   return AREPayloadFactory.createNormalized(

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { AREPayloadFactory } from '../AREPayload';
-import { ARETick } from '../ARETick';
+import { AREPayloadFactory } from '../core/are/AREPayload';
+import { ARETick } from '../core/are/ARETick';
 
 const callForbiddenRandom = () => globalThis.Math['random']();
 
