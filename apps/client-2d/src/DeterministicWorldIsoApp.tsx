@@ -331,9 +331,17 @@ export function DeterministicWorldIsoApp() {
     lastMoveAt.current = now;
     clientRef.current.sendPlayerAction("MOVE", vector);
     const self = entities.current.get("self");
-    if (self) {
+    const app = appRef.current;
+    if (self && app) {
       self.tx += vector.dx;
       self.tz += vector.dz;
+      
+      // Update interpolation target for local movement prediction.
+      // This ensures keyboard input remains visually responsive under normal
+      // network latency, as the target is now immediately refreshed.
+      const interp = InterpolatedSpriteManager.getInstance();
+      const screenPos = iso(self.tx, self.tz, app.screen.width, app.screen.height);
+      interp.setTarget("self", screenPos.x, screenPos.y);
     }
   }
 

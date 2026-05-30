@@ -227,6 +227,11 @@ export class InterpolatedSpriteManager {
       entity.sprite.x = targetX;
       entity.sprite.y = targetY;
       
+      // Sync zIndex for correct depth sorting after snap.
+      // Without this, teleported entities can render in front of/behind
+      // the wrong actors until a later non-snap interpolation happens.
+      entity.sprite.zIndex = Math.round(targetY);
+      
       // Update cached values for next frame
       entity.currentX = targetX;
       entity.currentY = targetY;
@@ -239,6 +244,9 @@ export class InterpolatedSpriteManager {
       // ═══════════════════════════════════════════════════════════════
       entity.sprite.x = targetX;
       entity.sprite.y = targetY;
+      
+      // Sync zIndex for correct depth sorting after precision lock.
+      entity.sprite.zIndex = Math.round(targetY);
       
       entity.currentX = targetX;
       entity.currentY = targetY;
