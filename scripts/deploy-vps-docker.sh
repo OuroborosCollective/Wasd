@@ -139,6 +139,29 @@ connect_known_service_containers() {
   done
 }
 
+neutralize_legacy_node_runtime() {
+  echo "=== Neutralize legacy non-Docker runtime ==="
+
+  if command -v pm2 >/dev/null 2>&1; then
+    pm2 stop areloria >/dev/null 2>&1 || true
+    pm2 delete areloria >/dev/null 2>&1 || true
+    pm2 stop arelorian >/dev/null 2>&1 || true
+    pm2 delete arelorian >/dev/null 2>&1 || true
+    pm2 stop wasd >/dev/null 2>&1 || true
+    pm2 delete wasd >/dev/null 2>&1 || true
+    pm2 save --force >/dev/null 2>&1 || true
+  fi
+
+  for svc in areloria arelorian wasd wasd-server node-app pm2-root pm2-ubuntu; do
+    sudo systemctl stop "${svc}.service" >/dev/null 2>&1 || true
+    sudo systemctl disable "${svc}.service" >/dev/null 2>&1 || true
+  done
+
+  sudo pkill -f 'tsx.*server/src/index.ts' >/dev/null 2>&1 || true
+  sudo pkill -f 'node.*server/src/index.ts' >/dev/null 2>&1 || true
+  sudo pkill -f 'server/src/index.ts' >/dev/null 2>&1 || true
+}
+
 free_host_port_safely() {
   local port="$1"
   echo "=== Preflight: check host port ${port} ==="
@@ -174,6 +197,39 @@ free_host_port_safely() {
     esac
   done
   ss -ltnp "sport = :${port}" || true
+}
+
+assert_host_port_free_stable() {
+  local port="$1"
+  local rounds="${2:-5}"
+
+  echo "=== Assert host port ${port} stays free ==="
+
+  for i in $(seq 1 "$rounds"); do
+    if ss -ltnp "sport = :${port}" | grep -q LISTEN; then
+      echo "ERROR: Port ${port} is occupied on check ${i}/${rounds}."
+      ss -ltnp "sport = :${port}" || true
+
+      if command -v lsof >/dev/null 2>&1; then
+        sudo lsof -iTCP:"${port}" -sTCP:LISTEN -P -n || true
+        local pid=""
+        pid="$(sudo lsof -tiTCP:"${port}" -sTCP:LISTEN | head -n1 || true)"
+        if [ -n "${pid:-}" ]; then
+          echo "=== Process tree for port owner ==="
+          ps -fp "$pid" || true
+          if command -v pstree >/dev/null 2>&1; then
+            pstree -asp "$pid" || true
+          fi
+        fi
+      fi
+
+      exit 1
+    fi
+
+    sleep 1
+  done
+
+  echo "Port ${port} stayed free."
 }
 
 fetch_and_reset() {
@@ -269,7 +325,9 @@ compose_cmd build --progress=plain monitor-bridge
 echo "[3/4] Recreate containers"
 compose_cmd down --remove-orphans || true
 docker rm -f arelorian-engine monitor-bridge arelorian-ingress-router >/dev/null 2>&1 || true
+neutralize_legacy_node_runtime
 free_host_port_safely "$ARELORIAN_PORT"
+assert_host_port_free_stable "$ARELORIAN_PORT" 5
 compose_cmd up -d --remove-orphans arelorian-engine monitor-bridge
 if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
   compose_cmd up -d --remove-orphans ingress-router
