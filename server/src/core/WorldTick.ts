@@ -34,6 +34,7 @@ import { checkForestResource, isNearForestResource } from "../modules/resource/f
 import { FOREST_ACTION_DISTANCE, FOREST_RESPAWN_TICKS } from "../modules/resource/forestResourceRules.js";
 import { AIOrchestrator } from "./AIOrchestrator.js";
 import { processRespawns } from "../modules/combat/deathRespawnSystem.js";
+import { persistenceDirector } from "../modules/persistence/PersistenceDirector.js";
 
 const ELECTROWEAK_LOOT_TTL_TICKS = 1200;
 
@@ -86,7 +87,9 @@ export class WorldTick {
   private depletedResources: Map<string, number> = new Map();
 
   public assetPoolResolver: any = { getDocument: () => ({}), setEntry: () => true, removeEntry: () => true, setDefault: () => true, removeDefault: () => true, reload: () => true };
-  public getPersistenceStats(): any { return {}; }
+  public getPersistenceStats(): any { 
+    return persistenceDirector.getStats(); 
+  }
   public placementEngine: any = {};
   public listActiveVoteBanners(): any { return []; }
   public handleVoteProviderCallback(data: any): any { return { ok: true }; }
@@ -133,6 +136,9 @@ export class WorldTick {
     // Initialize InventoryDirector with WebSocket for broadcasts
     inventoryDirector.initialize(ws);
     
+    // Initialize PersistenceDirector for async player persistence
+    persistenceDirector.init().catch((err: any) => console.error("[WorldTick] PersistenceDirector init failed:", err));
+    
     const dummyPlayer = this.playerSystem.createPlayer("dummy_player", "Dummy Player");
     dummyPlayer.position.x = 500;
     dummyPlayer.position.y = 500;
@@ -143,10 +149,23 @@ export class WorldTick {
       const uid = this.socketToPlayer.get(id);
       if (uid) {
         const player = this.playerSystem.getPlayer(uid);
-        if (player) { player.isOffline = true; player.state = "idle"; player.stateTimer = this.tickCount + 50; }
+        if (player) { 
+          player.isOffline = true; 
+          player.state = "idle"; 
+          player.stateTimer = this.tickCount + 50;
+          
+          // ATOMARE DISCONNECT-SICHERUNG: Priority flush before entity removal
+          // This blocks the disconnect handler until persistence completes
+          try {
+            const snapshot = persistenceDirector.buildCompleteSnapshot(player);
+            await persistenceDirector.flushPlayerSync(uid, snapshot);
+          } catch (err) {
+            console.error(`[WorldTick] Priority flush failed for ${player.name}:`, err);
+          }
+        }
         this.observerEngine.unregister(id);
         this.socketToPlayer.delete(id);
-        await this.saveAll();
+        this.playerToSocket.delete(uid);
         console.log(`Player ${player?.name} (Socket ${id}) disconnected.`);
       }
     };
@@ -212,7 +231,19 @@ export class WorldTick {
       let uid = "";
       try { const decodedToken = await verifyFirebaseToken(msg.token) as any; if (decodedToken) { uid = decodedToken.uid; charName = decodedToken.name || decodedToken.email?.split('@')[0] || `Player_${uid.substring(0, 6)}`; } else { this.ws.sendToPlayer(id, { type: "error", message: "Authentication service unavailable" }); return; } } catch { this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed: Invalid token" }); return; }
       let player = this.playerSystem.getPlayer(uid);
-      if (!player) { player = this.playerSystem.createPlayer(uid, charName, msg.class, msg.appearance); this.hydratePlayer(player); } else { player.isOffline = false; }
+      if (!player) { 
+        player = this.playerSystem.createPlayer(uid, charName, msg.class, msg.appearance); 
+        this.hydratePlayer(player);
+        
+        // Load persisted snapshot for returning players
+        const saved = await persistenceDirector.loadPlayerSnapshot(uid);
+        if (saved) {
+          persistenceDirector.applySnapshot(player, saved);
+          console.log(`[WorldTick] Restored player ${charName} from persistence.`);
+        }
+      } else { 
+        player.isOffline = false; 
+      }
       if (player.name !== charName) player.name = charName;
       this.socketToPlayer.set(id, uid);
       this.playerToSocket.set(uid, id);
@@ -478,7 +509,32 @@ export class WorldTick {
     const autoRepair = areAutoRepairService.getStatus();
     const usage = deterministicUsageTracker.getStats(this.tickCount);
     if (this.tickCount % 10 === 0) { const npcs = allNpcs.map(n => ({ id: n.id, name: n.name, x: n.position.x, y: n.position.y })); this.ws.broadcast({ type: "WORLD_HEARTBEAT", payload: { players: Object.fromEntries(allPlayers.filter(p => !p.isOffline).map(p => [p.id, { id: p.id, name: p.name, x: p.position.x, y: p.position.y }])), agents: npcs, emergence: { events: emergenceEvents }, are: areValidationState.getSnapshot(), replay: deterministicTickRecorder.stats(), areShadow: this.getAREShadowReplayStats(), electroweakPruning: { ttlTicks: ELECTROWEAK_LOOT_TTL_TICKS, stats: this.electroweakPruning.getStats(), decayEvents: this.latestElectroweakDecayEvents, prophecies: this.latestPropheticResonanceEvents }, oracle: this.lastOracleReport, autoRepair, usage, warfront: this.warfrontSystem.getCycleSnapshot(this.tickCount * 100) } }); }
+    
+    // Write-behind: throttle-flush every 300 ticks (30 seconds)
+    // NON-BLOCKING: triggers async flush, does not affect tick timing
+    if (this.tickCount % 300 === 0) {
+      this.debouncedFlushQueue();
+    }
+    
+    // Legacy periodic save (backup to existing persistence)
     if (this.tickCount % 600 === 0) this.saveAll().catch(e => console.error(e));
     this.ws.broadcast({ type: "world_tick", tick: this.tickCount, players: strippedPlayers, npcs: strippedNpcs, loot: strippedLoot, emergence: { events: emergenceEvents }, are: { guard: this.lastAREGuardStatus, worldHash: this.lastWorldHashSnapshot?.worldHash ?? null, shadow: this.getAREShadowReplayStats(), electroweakPruning: { ttlTicks: ELECTROWEAK_LOOT_TTL_TICKS, stats: this.electroweakPruning.getStats(), decayEvents: this.latestElectroweakDecayEvents, prophecies: this.latestPropheticResonanceEvents }, emergence: { events: emergenceEvents } }, replay: { latestTick: this.tickCount }, oracle: this.lastOracleReport, autoRepair, usage, warfront: this.warfrontSystem.getCycleSnapshot(this.tickCount * 100) });
+  }
+  
+  /**
+   * Mark player dirty (called when inventory/skills change).
+   * NON-BLOCKING: Fire-and-forget call from game logic.
+   */
+  public markPlayerDirty(playerId: string): void {
+    persistenceDirector.markDirty(playerId);
+  }
+  
+  /**
+   * NON-BLOCKING queue flush for periodic saves.
+   */
+  private debouncedFlushQueue(): void {
+    persistenceDirector.flushQueue().catch((err: any) => {
+      console.error("[WorldTick] Queue flush failed:", err);
+    });
   }
 }
