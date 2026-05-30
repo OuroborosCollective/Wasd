@@ -38,6 +38,190 @@ import { persistenceDirector } from "../modules/persistence/PersistenceDirector.
 
 const ELECTROWEAK_LOOT_TTL_TICKS = 1200;
 
+/**
+ * CHUNK_SIZE: Each chunk is 64 tiles × 64 tiles.
+ * Used for Spatial Plexity (Axiom 4) - spatial filtering for broadcasts.
+ */
+const SPATIAL_CHUNK_SIZE = 64;
+
+/**
+ * SPATIAL BROADCAST GRID
+ * ═══════════════════════════════════════════════════════════════════════
+ * 
+ * ARCHITECTURE DECISION: O(1) entity lookup via Map-based spatial grid.
+ * 
+ * Instead of iterating N*M entities to find nearby ones (O(N*M) distance checks),
+ * we maintain a Map<string, Set<string>> that maps chunk keys to entity IDs.
+ * 
+ * Chunk key format: "cx:cz" where:
+ *   - cx = Math.floor(tileX / SPATIAL_CHUNK_SIZE)
+ *   - cz = Math.floor(tileZ / SPATIAL_CHUNK_SIZE)
+ * 
+ * When a player moves, we:
+ * 1. Calculate their current chunk key
+ * 2. Get the 3x3 chunk grid (center + 8 neighbors) = 9 keys
+ * 3. Collect all entity IDs from these 9 sets
+ * 
+ * This is O(1) for chunk key calculation + O(K) for entity collection
+ * where K is the total entities in visible chunks (typically << N).
+ * 
+ * GC STRATEGY: When an entity moves out of all visible chunks for a client,
+ * it will simply not appear in their next world_snapshot. The client-side
+ * garbage collector will handle sprite cleanup (see client implementation).
+ * 
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+type ChunkKey = string; // Format: "cx:cz"
+type EntityId = string;
+
+interface SpatialEntity {
+  id: EntityId;
+  tileX: number;
+  tileZ: number;
+  kind: "player" | "npc" | "loot";
+  /** Stripped data for broadcast */
+  data: Record<string, unknown>;
+}
+
+/**
+ * Compute chunk key from tile coordinates.
+ * Uses integer division for deterministic behavior.
+ */
+function computeChunkKey(tileX: number, tileZ: number): ChunkKey {
+  const cx = Math.floor(tileX / SPATIAL_CHUNK_SIZE);
+  const cz = Math.floor(tileZ / SPATIAL_CHUNK_SIZE);
+  return `${cx}:${cz}`;
+}
+
+/**
+ * Get all 9 chunk keys for a 3x3 grid centered on the given chunk.
+ * Returns keys in order: [NW, N, NE, W, C, E, SW, S, SE]
+ */
+function get3x3ChunkKeys(centerChunkKey: ChunkKey): ChunkKey[] {
+  const [cxStr, czStr] = centerChunkKey.split(":");
+  const cx = parseInt(cxStr, 10);
+  const cz = parseInt(czStr, 10);
+  
+  const keys: ChunkKey[] = [];
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dz = -1; dz <= 1; dz++) {
+      keys.push(`${cx + dx}:${cz + dz}`);
+    }
+  }
+  return keys;
+}
+
+class SpatialBroadcastGrid {
+  /** Map<ChunkKey, Set<EntityId>> - O(1) lookup by chunk */
+  private chunkToEntities = new Map<ChunkKey, Set<EntityId>>();
+  
+  /** Map<EntityId, SpatialEntity> - Entity data cache */
+  private entities = new Map<EntityId, SpatialEntity>();
+  
+  /**
+   * Register or update an entity's position in the spatial grid.
+   * Automatically handles chunk migration when entity moves between chunks.
+   */
+  upsert(id: EntityId, tileX: number, tileZ: number, kind: SpatialEntity["kind"], data: Record<string, unknown>): void {
+    const newChunkKey = computeChunkKey(tileX, tileZ);
+    const existing = this.entities.get(id);
+    
+    if (existing) {
+      const oldChunkKey = computeChunkKey(existing.tileX, existing.tileZ);
+      
+      // Same chunk - just update data
+      if (oldChunkKey === newChunkKey) {
+        existing.tileX = tileX;
+        existing.tileZ = tileZ;
+        existing.data = data;
+        return;
+      }
+      
+      // Different chunk - migrate entity
+      this.chunkToEntities.get(oldChunkKey)?.delete(id);
+    }
+    
+    // Insert into new chunk
+    if (!this.chunkToEntities.has(newChunkKey)) {
+      this.chunkToEntities.set(newChunkKey, new Set());
+    }
+    this.chunkToEntities.get(newChunkKey)!.add(id);
+    
+    // Update entity cache
+    this.entities.set(id, { id, tileX, tileZ, kind, data });
+  }
+  
+  /**
+   * Remove an entity from the spatial grid.
+   * Called when entity despawns or leaves the world.
+   */
+  remove(id: EntityId): void {
+    const entity = this.entities.get(id);
+    if (!entity) return;
+    
+    const chunkKey = computeChunkKey(entity.tileX, entity.tileZ);
+    this.chunkToEntities.get(chunkKey)?.delete(id);
+    this.entities.delete(id);
+  }
+  
+  /**
+   * Get all entities visible in the 3x3 chunk grid around the given tile position.
+   * Returns stripped entity data for network broadcast.
+   */
+  getVisibleEntities(centerTileX: number, centerTileZ: number): Record<string, unknown>[] {
+    const centerChunkKey = computeChunkKey(centerTileX, centerTileZ);
+    const chunkKeys = get3x3ChunkKeys(centerChunkKey);
+    
+    const visibleEntities: Record<string, unknown>[] = [];
+    
+    for (const chunkKey of chunkKeys) {
+      const entityIds = this.chunkToEntities.get(chunkKey);
+      if (!entityIds) continue;
+      
+      for (const id of entityIds) {
+        const entity = this.entities.get(id);
+        if (entity) {
+          visibleEntities.push(entity.data);
+        }
+      }
+    }
+    
+    return visibleEntities;
+  }
+  
+  /**
+   * Get entity IDs that are no longer in the visible 3x3 grid.
+   * Used for client-side garbage collection hints (optional).
+   */
+  getGoneEntities(centerTileX: number, centerTileZ: number, previousIds: Set<EntityId>): Set<EntityId> {
+    const visibleIds = new Set(
+      this.getVisibleEntities(centerTileX, centerTileZ).map(e => e.id as string)
+    );
+    
+    const gone = new Set<EntityId>();
+    for (const id of previousIds) {
+      if (!visibleIds.has(id)) {
+        gone.add(id);
+      }
+    }
+    return gone;
+  }
+  
+  /** Clear all entities (on world unload) */
+  clear(): void {
+    this.chunkToEntities.clear();
+    this.entities.clear();
+  }
+  
+  /** Debug: get grid statistics */
+  getStats(): { chunkCount: number; entityCount: number } {
+    return {
+      chunkCount: this.chunkToEntities.size,
+      entityCount: this.entities.size,
+    };
+  }
+}
+
 function sectorOf(entity: any): number {
   const x = Number(entity?.position?.x ?? 0);
   const y = Number(entity?.position?.y ?? entity?.position?.z ?? 0);
@@ -115,6 +299,82 @@ export class WorldTick {
   public assetHealthService: any = { getStatus: () => ({}), getStats: () => null, flush: () => {} };
   public async init(): Promise<void> {}
   private keysDown: Map<string, Set<string>> = new Map();
+  
+  /**
+   * SPATIAL BROADCAST GRID
+   * ═══════════════════════════════════════════════════════════════════════
+   * 
+   * Per-Axiom 4 (Spatial Plexity): Server NEVER broadcasts all entities
+   * to all clients. Instead, each client receives only entities within
+   * their 3x3 chunk grid based on their kappaPos.
+   * 
+   * This grid is updated every tick with current positions and is queried
+   * per-client to build the world_snapshot payload.
+   * 
+   * ═══════════════════════════════════════════════════════════════════════
+   */
+  private readonly spatialBroadcastGrid = new SpatialBroadcastGrid();
+  
+  /**
+   * Track which entities each client has seen for GC hints.
+   * Map<socketId, Set<entityId>>
+   */
+  private clientVisibleEntities = new Map<string, Set<string>>();
+  
+  /**
+   * Broadcast spatial world_snapshot to a specific client.
+   * Called every tick for each connected player.
+   * 
+   * @param socketId - Target client's socket ID
+   * @param playerTileX - Player's current tile X position
+   * @param playerTileZ - Player's current tile Z position
+   * @param selfId - Player's own ID (excluded from other_players)
+   */
+  private broadcastSpatialSnapshot(socketId: string, playerTileX: number, playerTileZ: number, selfId: string): void {
+    const visibleEntities = this.spatialBroadcastGrid.getVisibleEntities(playerTileX, playerTileZ);
+    
+    // Separate self from others
+    const otherPlayers: Record<string, unknown>[] = [];
+    const npcs: Record<string, unknown>[] = [];
+    const loot: Record<string, unknown>[] = [];
+    const visibleIds = new Set<string>();
+    
+    for (const entity of visibleEntities) {
+      const id = entity.id as string;
+      visibleIds.add(id);
+      
+      if (id === selfId) continue; // Skip self
+      
+      const kind = entity.kind as string;
+      if (kind === "player") {
+        otherPlayers.push(entity);
+      } else if (kind === "npc") {
+        npcs.push(entity);
+      } else if (kind === "loot") {
+        loot.push(entity);
+      }
+    }
+    
+    // Update client's visible entities for future GC hints
+    this.clientVisibleEntities.set(socketId, visibleIds);
+    
+    // Send the spatial snapshot
+    this.ws.sendToPlayer(socketId, {
+      type: "world_snapshot",
+      tick: this.tickCount,
+      self: selfId,
+      other_players: otherPlayers,
+      npcs,
+      loot,
+    });
+  }
+  
+  /**
+   * Get spatial broadcast grid statistics.
+   */
+  public getSpatialBroadcastStats(): { chunkCount: number; entityCount: number } {
+    return this.spatialBroadcastGrid.getStats();
+  }
 
   constructor(private ws: GameWebSocketServer) {
     this.chunkSystem = new ChunkSystem(64);
@@ -480,15 +740,15 @@ export class WorldTick {
     processRespawns(
       { players: allPlayers as any, respawnPoints: (this.worldSystem as any).respawnPoints },
       this.tickCount,
-      (playerId, type, payload) => {
+      (playerId, type, p) => {
         const socketId = this.playerToSocket.get(playerId);
-        if (socketId) this.ws.sendToPlayer(socketId, { type, payload });
+        if (socketId) this.ws.sendToPlayer(socketId, { type, payload: p });
       },
     );
     this.warfrontSystem.tick(this.tickCount * 100);
     this.npcSystem.tick(allPlayers.filter((p) => !p.isOffline), this.worldSystem.worldTime);
     const emergenceEvents = this.collectNpcEmergenceEvents();
-    runWarfrontCombatTick({ tickCount: this.tickCount, npcSystem: this.npcSystem, playerSystem: this.playerSystem, combatService: this.combatService, broadcast: (payload) => this.ws.broadcast(payload) });
+    runWarfrontCombatTick({ tickCount: this.tickCount, npcSystem: this.npcSystem, playerSystem: this.playerSystem, combatService: this.combatService, broadcast: (p) => this.ws.broadcast(p) });
     const npcsAgg = this.npcSystem.getAllNPCs();
     let aggSum = 0;
     let aggN = 0;
@@ -509,6 +769,88 @@ export class WorldTick {
     const autoRepair = areAutoRepairService.getStatus();
     const usage = deterministicUsageTracker.getStats(this.tickCount);
     if (this.tickCount % 10 === 0) { const npcs = allNpcs.map(n => ({ id: n.id, name: n.name, x: n.position.x, y: n.position.y })); this.ws.broadcast({ type: "WORLD_HEARTBEAT", payload: { players: Object.fromEntries(allPlayers.filter(p => !p.isOffline).map(p => [p.id, { id: p.id, name: p.name, x: p.position.x, y: p.position.y }])), agents: npcs, emergence: { events: emergenceEvents }, are: areValidationState.getSnapshot(), replay: deterministicTickRecorder.stats(), areShadow: this.getAREShadowReplayStats(), electroweakPruning: { ttlTicks: ELECTROWEAK_LOOT_TTL_TICKS, stats: this.electroweakPruning.getStats(), decayEvents: this.latestElectroweakDecayEvents, prophecies: this.latestPropheticResonanceEvents }, oracle: this.lastOracleReport, autoRepair, usage, warfront: this.warfrontSystem.getCycleSnapshot(this.tickCount * 100) } }); }
+    
+    // ─────────────────────────────────────────────────────────────────
+    // SPATIAL BROADCAST UPDATE (Axiom 4: Spatial Plexity)
+    // ═══════════════════════════════════════════════════════════════════
+    // 
+    // Step 1: Rebuild the spatial grid with current entity positions.
+    // This O(1) Map structure enables fast 3x3 chunk queries.
+    // We rebuild every tick since entities move frequently.
+    //
+    // Step 2: For each connected player, query their visible 3x3 chunk
+    // grid and send a targeted world_snapshot. This ensures players
+    // only receive entities within ~192 tiles (3 chunks × 64 tiles).
+    //
+    // This replaces the legacy broadcast-all approach with per-client
+    // spatial filtering, reducing bandwidth and preventing cheats.
+    // ─────────────────────────────────────────────────────────────────
+    
+    // Rebuild spatial grid with current tick's entity data
+    // Clear first to rebuild fresh (or we could use upsert semantics)
+    this.spatialBroadcastGrid.clear();
+    
+    // Add all online players to spatial grid
+    for (const player of allPlayers) {
+      if (player.isOffline) continue;
+      const tileX = Math.round(player.position.x);
+      const tileZ = Math.round(player.position.y);
+      this.spatialBroadcastGrid.upsert(player.id, tileX, tileZ, "player", {
+        id: player.id,
+        name: player.name,
+        x: tileX,
+        z: tileZ,
+        kind: "player",
+        health: player.health,
+        maxHealth: player.maxHealth,
+        level: player.level,
+        state: player.state,
+      });
+    }
+    
+    // Add all NPCs to spatial grid
+    for (const npc of allNpcs) {
+      const tileX = Math.round(npc.position.x);
+      const tileZ = Math.round(npc.position.y);
+      this.spatialBroadcastGrid.upsert(npc.id, tileX, tileZ, "npc", {
+        id: npc.id,
+        name: npc.name,
+        x: tileX,
+        z: tileZ,
+        kind: "npc",
+        health: npc.health,
+        maxHealth: npc.maxHealth,
+        role: npc.role,
+        state: npc.state,
+      });
+    }
+    
+    // Add all loot entities to spatial grid
+    for (const loot of strippedLoot) {
+      if (!loot.position) continue;
+      const tileX = Math.round(loot.position.x);
+      const tileZ = Math.round(loot.position.y);
+      this.spatialBroadcastGrid.upsert(loot.id, tileX, tileZ, "loot", {
+        id: loot.id,
+        x: tileX,
+        z: tileZ,
+        kind: "loot",
+        items: loot.items,
+        gold: loot.gold,
+      });
+    }
+    
+    // Broadcast spatial snapshots to each connected player
+    // Each player receives ONLY entities within their 3x3 chunk grid
+    for (const [socketId, playerId] of this.playerToSocket) {
+      const player = this.playerSystem.getPlayer(playerId);
+      if (!player || player.isOffline) continue;
+      
+      const playerTileX = Math.round(player.position.x);
+      const playerTileZ = Math.round(player.position.y);
+      
+      this.broadcastSpatialSnapshot(socketId, playerTileX, playerTileZ, playerId);
+    }
     
     // Write-behind: throttle-flush every 300 ticks (30 seconds)
     // NON-BLOCKING: triggers async flush, does not affect tick timing

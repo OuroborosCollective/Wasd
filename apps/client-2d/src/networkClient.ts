@@ -31,7 +31,8 @@ export interface NetworkClient {
 
 function dispatchWorldPacket(event: string, payload?: any): void {
   if (typeof window === "undefined") return;
-  if (event !== "WORLD_HEARTBEAT" && event !== "world_tick") return;
+  // Spatial snapshot events drive the multiplayer sync system
+  if (event !== "WORLD_HEARTBEAT" && event !== "world_tick" && event !== "world_snapshot") return;
   window.dispatchEvent(new CustomEvent("wasd:world-packet", { detail: payload }));
 }
 
