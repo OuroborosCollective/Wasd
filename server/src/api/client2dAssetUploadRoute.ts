@@ -43,6 +43,7 @@ function statusPayload() {
     publicDirExists: existsSync(publicDir),
     manifestExists: existsSync(manifest),
     manifestUrl: "/client2d-assets/graphicriver-iso/manifest.json",
+    uploadPageUrl: "/client2d-asset-upload.html",
     uploadUrl: "/api/client2d-assets/upload",
     maxUploadBytes: MAX_UPLOAD_BYTES,
   };
@@ -53,6 +54,10 @@ export function client2dAssetUploadRouter(): Router {
 
   r.get("/status", (_req: Request, res: Response) => {
     res.json(statusPayload());
+  });
+
+  r.get("/upload", (_req: Request, res: Response) => {
+    res.redirect(302, "/client2d-asset-upload.html");
   });
 
   r.post("/upload", async (req: Request, res: Response) => {
