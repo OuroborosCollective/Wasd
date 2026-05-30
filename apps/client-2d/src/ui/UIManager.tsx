@@ -1,12 +1,14 @@
 import { useSyncExternalStore } from "react";
 import { InventoryOverlay } from "./InventoryOverlay.js";
+import { CharacterOverlay } from "./CharacterOverlay.js";
 
 export type ActiveOverlay =
   | { readonly type: "NONE" }
   | { readonly type: "TRADE"; readonly targetId: string; readonly vendorManifest: string; readonly lockedAtTick: number; readonly dialogueSeed?: string }
   | { readonly type: "DIALOGUE"; readonly targetId: string; readonly dialogueSeed: string; readonly lockedAtTick: number }
   | { readonly type: "CRAFT"; readonly targetId: string; readonly stationManifest: string; readonly lockedAtTick: number }
-  | { readonly type: "INVENTORY" };
+  | { readonly type: "INVENTORY" }
+  | { readonly type: "CHARACTER" };
 
 class InteractionUIManager {
   private state: ActiveOverlay = { type: "NONE" };
@@ -41,6 +43,19 @@ class InteractionUIManager {
   public openInventory(): void {
     this.state = { type: "INVENTORY" };
     this.notify();
+  }
+
+  public openCharacter(): void {
+    this.state = { type: "CHARACTER" };
+    this.notify();
+  }
+
+  public toggleCharacter(): void {
+    if (this.state.type === "CHARACTER") {
+      this.closeUI();
+    } else {
+      this.openCharacter();
+    }
   }
 
   public closeUI(): void {
@@ -78,6 +93,8 @@ export function useOverlayRenderer(): {
     switch (overlay.type) {
       case "INVENTORY":
         return () => <InventoryOverlay isOpen={true} onClose={() => interactionUI.closeUI()} />;
+      case "CHARACTER":
+        return () => <CharacterOverlay isOpen={true} onClose={() => interactionUI.closeUI()} />;
       // Add other overlay types as they are implemented
       default:
         return null;
@@ -87,7 +104,7 @@ export function useOverlayRenderer(): {
   return { overlay, OverlayComponent };
 }
 
-// Register keyboard shortcut for inventory toggle
+// Register keyboard shortcuts
 if (typeof window !== "undefined") {
   window.addEventListener("keydown", (e) => {
     if (e.key === "i" || e.key === "I" || e.key === "Tab") {
@@ -97,6 +114,15 @@ if (typeof window !== "undefined") {
           !document.activeElement?.hasAttribute("contenteditable")) {
         e.preventDefault();
         interactionUI.toggleInventory();
+      }
+    }
+    if (e.key === "c" || e.key === "C") {
+      // Character sheet toggle
+      if (document.activeElement?.tagName !== "INPUT" && 
+          document.activeElement?.tagName !== "TEXTAREA" &&
+          !document.activeElement?.hasAttribute("contenteditable")) {
+        e.preventDefault();
+        interactionUI.toggleCharacter();
       }
     }
     if (e.key === "Escape") {
