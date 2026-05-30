@@ -2,9 +2,6 @@ import { Container, Graphics, Rectangle, Sprite, Texture } from "pixi.js";
 import { makeStackedSprite, supportsStack } from "./stackedSprite";
 import type { AssetEntry } from "./assetManifest";
 
-// PIXI v8 blend modes - MULTIPLY = 2
-const MULTIPLY_BLEND = 2;
-
 /**
  * Checks if an entry is from an external ISO pack that may have white matte backgrounds.
  * These sprites should use multiply blending to neutralize white backgrounds.
@@ -56,8 +53,9 @@ export function make2dProp(entry: AssetEntry | null | undefined, texture: Textur
   sprite.height = height;
 
   // Apply multiply blend mode for external ISO pack sprites to neutralize white matte backgrounds
+  // PIXI v8 uses string values for blend modes
   if (isExternalIsoPack(entry)) {
-    (sprite as any).blendMode = MULTIPLY_BLEND;
+    sprite.blendMode = "multiply" as any;
   }
 
   root.addChild(sprite);
