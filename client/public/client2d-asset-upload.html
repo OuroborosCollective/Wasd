@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Areloria Asset Upload</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 20px; background: radial-gradient(circle at top, #16351f, #050805 62%); color: #f7ffe1; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { width: min(760px, 100%); border: 1px solid rgba(142, 255, 166, 0.34); border-radius: 24px; padding: 22px; background: linear-gradient(180deg, rgba(9, 30, 14, 0.96), rgba(1, 6, 3, 0.98)); box-shadow: 0 20px 80px rgba(0, 0, 0, 0.45), 0 0 38px rgba(57, 255, 20, 0.12); }
+    h1 { margin: 0 0 8px; font-size: 24px; }
+    p { color: #c9ffd2; line-height: 1.45; }
+    label { display: block; margin: 18px 0 8px; font-weight: 800; }
+    input, button { width: 100%; box-sizing: border-box; border-radius: 14px; border: 1px solid rgba(178, 255, 193, 0.3); padding: 14px; background: #061009; color: #fff; font: inherit; }
+    button { margin-top: 16px; background: linear-gradient(180deg, #21a94d, #11632c); font-weight: 900; cursor: pointer; }
+    button:disabled { opacity: 0.55; cursor: wait; }
+    .hint { font-size: 13px; color: #9fe9ad; }
+    pre { white-space: pre-wrap; overflow: auto; max-height: 310px; min-height: 120px; padding: 14px; border-radius: 14px; background: #010501; border: 1px solid rgba(142, 255, 166, 0.18); color: #d9ffd9; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Areloria GraphicRiver Iso Upload</h1>
+  <p>Wähle das gekaufte ZIP aus. Es wird auf dem VPS gespeichert, entpackt und als Client2D-Manifest bereitgestellt. Die Datei wird nicht ins öffentliche GitHub-Repo geladen.</p>
+  <label for="file">ZIP-Datei</label>
+  <input id="file" type="file" accept=".zip,application/zip" />
+  <button id="upload">Upload starten</button>
+  <button id="status" type="button">Status prüfen</button>
+  <p class="hint">Ziel: /opt/areloria/private-assets/graphicriver-iso/</p>
+  <pre id="out">Bereit.</pre>
+</main>
+<script>
+const fileInput = document.getElementById('file');
+const uploadButton = document.getElementById('upload');
+const statusButton = document.getElementById('status');
+const out = document.getElementById('out');
+function show(value) { out.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2); }
+async function readResponse(response) { const text = await response.text(); try { return JSON.parse(text); } catch { return text; } }
+async function checkStatus() { const response = await fetch('/api/client2d-assets/status', { cache: 'no-store' }); show(await readResponse(response)); }
+statusButton.addEventListener('click', async () => { statusButton.disabled = true; try { await checkStatus(); } catch (error) { show(String(error)); } finally { statusButton.disabled = false; } });
+uploadButton.addEventListener('click', async () => {
+  const file = fileInput.files && fileInput.files[0];
+  if (!file) return show('Bitte zuerst eine ZIP-Datei auswählen.');
+  uploadButton.disabled = true;
+  statusButton.disabled = true;
+  show('Upload läuft. Bei großem ZIP bitte warten und den Tab offen lassen...');
+  try {
+    const response = await fetch('/api/client2d-assets/upload', { method: 'POST', headers: { 'content-type': 'application/zip' }, body: file });
+    show(await readResponse(response));
+  } catch (error) {
+    show(String(error));
+  } finally {
+    uploadButton.disabled = false;
+    statusButton.disabled = false;
+  }
+});
+checkStatus().catch(() => {});
+</script>
+</body>
+</html>
