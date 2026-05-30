@@ -41,7 +41,10 @@ function pickTarget(
   }
 
   if (cands.length === 0) return null;
-  cands.sort((a, b) => (a.d === b.d ? a.id.localeCompare(b.id) : a.d - b.d));
+  cands.sort((a, b) => {
+    if (a.d !== b.d) return a.d - b.d;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
   const idx = Math.floor(rng() * cands.length);
   const t = cands[Math.min(idx, cands.length - 1)]!;
   return { id: t.id, kind: t.kind, pos: t.pos };
@@ -105,7 +108,9 @@ export function runWarfrontCombatTick(opts: {
     : null;
 
   const allNpcs = npcSystem.getAllNPCs();
-  const warNpcs = allNpcs.filter((n) => n.id.startsWith(WF_PREFIX)).sort((a, b) => a.id.localeCompare(b.id));
+  const warNpcs = allNpcs
+    .filter((n) => n.id.startsWith(WF_PREFIX))
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
   let lastSummary: string | null = null;
 
