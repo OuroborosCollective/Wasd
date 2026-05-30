@@ -119,6 +119,11 @@ const WikiPortal: React.FC<WikiPortalProps> = ({ onClose }) => {
     if (e.key === '/' && document.activeElement !== searchInputRef.current) {
       e.preventDefault();
       searchInputRef.current?.focus();
+    } else if (e.key === 'Enter' && document.activeElement === searchInputRef.current) {
+      if (filteredPages.length > 0) {
+        setActivePage(filteredPages[0].id);
+        searchInputRef.current?.blur();
+      }
     } else if (e.key === 'Escape') {
       if (document.activeElement === searchInputRef.current) {
         searchInputRef.current?.blur();
@@ -128,7 +133,7 @@ const WikiPortal: React.FC<WikiPortalProps> = ({ onClose }) => {
         onClose();
       }
     }
-  }, [onClose, searchQuery]);
+  }, [onClose, searchQuery, filteredPages]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -187,7 +192,12 @@ const WikiPortal: React.FC<WikiPortalProps> = ({ onClose }) => {
         {/* Top Bar */}
         <header className="h-16 border-b border-[#3a4a49] bg-[#131313]/80 backdrop-blur-md flex items-center justify-between px-8 z-10">
           <div className="flex items-center gap-2 text-[10px] tracking-widest text-[#b9cac9] uppercase" aria-label="Breadcrumb">
-            <span>Home</span>
+            <button
+              onClick={() => setActivePage('Home')}
+              className="hover:text-[#FFD700] transition-colors focus:outline-none focus:text-[#FFD700]"
+            >
+              Home
+            </button>
             <ChevronRight size={12} aria-hidden="true" />
             <span>Wiki</span>
             <ChevronRight size={12} aria-hidden="true" />
@@ -195,36 +205,45 @@ const WikiPortal: React.FC<WikiPortalProps> = ({ onClose }) => {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#b9cac9]" size={14} aria-hidden="true" />
+            <div className="relative group">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#b9cac9] group-focus-within:text-[#00FFFF] transition-colors" size={14} aria-hidden="true" />
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="SEARCH_ARCHIVE... [/]"
+                placeholder="SEARCH_ARCHIVE..."
                 aria-label="Search archive"
-                className="bg-[#1c1b1b] border border-[#3a4a49] pl-10 pr-10 py-2 text-xs focus:outline-none focus:border-[#00FFFF] w-64 text-[#e5e2e1]"
+                className="bg-[#1c1b1b] border border-[#3a4a49] pl-10 pr-16 py-2 text-xs focus:outline-none focus:border-[#00FFFF] w-64 text-[#e5e2e1] transition-all"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#b9cac9] hover:text-[#00FFFF] transition-colors"
-                  aria-label="Clear search"
-                >
-                  <X size={14} />
-                </button>
-              )}
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 pointer-events-none">
+                {searchQuery ? (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="pointer-events-auto text-[#b9cac9] hover:text-[#00FFFF] transition-colors"
+                    aria-label="Clear search"
+                  >
+                    <X size={14} />
+                  </button>
+                ) : (
+                  <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[8px] font-mono font-bold text-[#b9cac9] bg-[#080808] border border-[#3a4a49] rounded">
+                    /
+                  </kbd>
+                )}
+              </div>
             </div>
 
             {onClose && (
-              <button
-                onClick={onClose}
-                className="p-2 border border-[#3a4a49] hover:bg-[#1c1b1b] hover:border-[#00FFFF] transition-all group"
-                aria-label="Close archive"
-              >
-                <X size={18} className="text-[#b9cac9] group-hover:text-[#00FFFF]" />
-              </button>
+              <div className="flex items-center gap-2">
+                <kbd className="hidden md:inline-block text-[8px] font-mono text-[#b9cac9]/50 uppercase">ESC</kbd>
+                <button
+                  onClick={onClose}
+                  className="p-2 border border-[#3a4a49] hover:bg-[#1c1b1b] hover:border-[#00FFFF] transition-all group"
+                  aria-label="Close archive"
+                >
+                  <X size={18} className="text-[#b9cac9] group-hover:text-[#00FFFF]" />
+                </button>
+              </div>
             )}
           </div>
         </header>
