@@ -208,6 +208,25 @@ function deterministicIndex(seed: string, length: number): number {
   return Math.abs(hash) % length;
 }
 
+function entryKey(id: string, entry: AssetEntry): string {
+  return `${id} ${entry.sourcePath ?? ''} ${entry.src ?? ''}`.toLowerCase();
+}
+
+function isGraphicRiverEntry(id: string, entry: AssetEntry): boolean {
+  const tags = (entry.tags ?? []).map((tag) => String(tag).toLowerCase());
+  return tags.includes('graphicriver_iso') || entry.src.includes('/client2d-assets/graphicriver-iso/') || entryKey(id, entry).includes('graphicriver');
+}
+
+function isBadNormalActorFrame(id: string, entry: AssetEntry): boolean {
+  const key = entryKey(id, entry);
+  return ['death', 'dead', 'attack', 'scream', 'explosion', 'bullet', 'projectile'].some((term) => key.includes(term));
+}
+
+function isPreferredGraphicRiverCharacterFrame(id: string, entry: AssetEntry): boolean {
+  const key = entryKey(id, entry);
+  return ['peasant', 'child', 'walking', 'front'].some((term) => key.includes(term));
+}
+
 function isRenderableEntry(entry: AssetEntry | null | undefined): boolean {
   if (!entry?.src) return false;
   if (entry.frame) return true;
@@ -263,17 +282,27 @@ export function pickCharacterVisual(
   const wantedGroup = String(input.group || '').toLowerCase();
   const wantedKind = String(input.kind || '').toLowerCase();
   const renderablePool = Object.entries(characters).filter(([, entry]) => isRenderableEntry(entry));
-  const matches = renderablePool.filter(([, entry]) => {
+  const matches = renderablePool.filter(([id, entry]) => {
     const tags = (entry.tags ?? []).map((tag) => String(tag).toLowerCase());
     const group = String(entry.group ?? '').toLowerCase();
     const kind = String(entry.kind ?? '').toLowerCase();
     const tagsOk = wantedTags.length === 0 || wantedTags.every((tag) => tags.includes(tag));
     const groupOk = !wantedGroup || group === wantedGroup || tags.includes(wantedGroup);
     const kindOk = !wantedKind || kind === wantedKind || tags.includes(wantedKind);
-    return tagsOk && groupOk && kindOk;
+    if (!tagsOk || !groupOk || !kindOk) return false;
+    if (isGraphicRiverEntry(id, entry) && isBadNormalActorFrame(id, entry)) return false;
+    return true;
   });
 
-  const pool = matches.length > 0 ? matches : renderablePool;
+  const safeGraphicRiver = renderablePool.filter(([id, entry]) => isGraphicRiverEntry(id, entry) && !isBadNormalActorFrame(id, entry));
+  const preferredGraphicRiver = safeGraphicRiver.filter(([id, entry]) => isPreferredGraphicRiverCharacterFrame(id, entry));
+  const pool = matches.length > 0
+    ? matches
+    : preferredGraphicRiver.length > 0
+      ? preferredGraphicRiver
+      : safeGraphicRiver.length > 0
+        ? safeGraphicRiver
+        : renderablePool;
   if (pool.length === 0) return null;
 
   const seed = String(input.seed ?? `${wantedTags.join(',')}:${wantedGroup}:${wantedKind}`);
