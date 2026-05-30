@@ -136,6 +136,14 @@ class InventoryStateStore {
   public hasPendingIntent(): boolean {
     return this.pendingIntent !== null;
   }
+
+  /** Clear pending intent and blocked state — called on rejection or after snapshot */
+  public clearPending(): void {
+    this.pendingIntent = null;
+    this.blockedSlotIndices.clear();
+    this.blockedEquipSlots.clear();
+    this.notify();
+  }
 }
 
 export const inventoryStateStore = new InventoryStateStore();
@@ -367,26 +375,31 @@ export function InventoryOverlay({ isOpen = true, onClose }: InventoryOverlayPro
   
   // Handle WebSocket messages
   useEffect(() => {
-    const handleSnapshot = (event: Event) => {
+    /**
+     * Listen on the packet bus that carries inventory messages.
+     * Note: inventory_snapshot and inventory_event arrive via wasd:network-packet
+     * (not wasd:world-packet which only carries WORLD_HEARTBEAT and world_tick).
+     */
+    const handleNetworkPacket = (event: Event) => {
       const detail = (event as CustomEvent).detail;
-      if (detail?.type === "inventory_snapshot") {
+      // inventory_snapshot carries full state
+      if (detail?.event === "inventory_snapshot") {
         inventoryStateStore.receiveSnapshot(detail.payload);
       }
-    };
-    
-    const handleEvent = (event: Event) => {
-      const detail = (event as CustomEvent).detail;
-      if (detail?.type === "inventory_event") {
+      // inventory_event carries incremental equip/unequip confirmations
+      if (detail?.event === "inventory_event") {
         inventoryStateStore.receiveEvent(detail.payload);
       }
+      // inventory_error clears pending state on rejection
+      if (detail?.event === "inventory_error") {
+        inventoryStateStore.clearPending();
+      }
     };
-    
-    window.addEventListener("wasd:world-packet", handleSnapshot);
-    window.addEventListener("wasd:world-packet", handleEvent);
-    
+
+    window.addEventListener("wasd:network-packet", handleNetworkPacket);
+
     return () => {
-      window.removeEventListener("wasd:world-packet", handleSnapshot);
-      window.removeEventListener("wasd:world-packet", handleEvent);
+      window.removeEventListener("wasd:network-packet", handleNetworkPacket);
     };
   }, []);
 

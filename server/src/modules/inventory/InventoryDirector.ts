@@ -253,11 +253,15 @@ export class InventoryDirector {
       return { ok: false, code: "INVALID_TARGET_SLOT", message: `Target inventory slot ${targetInventorySlotIndex} out of bounds` };
     }
 
-    // ── Atomic Swap ──
+    // ── Guard 4: Require empty target slot ──
     const currentInTarget = player.inventory[targetInventorySlotIndex];
-    
+    if (currentInTarget !== null) {
+      return { ok: false, code: "TARGET_SLOT_OCCUPIED", message: `Target slot ${targetInventorySlotIndex} is occupied. Free it first or use a different slot.` };
+    }
+
+    // ── Atomic Swap (target is guaranteed empty) ──
     // Remove from equipment slot
-    player.equipment[equipSlot] = currentInTarget; // Swap with current inventory item (or null)
+    player.equipment[equipSlot] = null;
     
     // Place in inventory slot
     player.inventory[targetInventorySlotIndex] = itemToUnequip;
