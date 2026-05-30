@@ -5,15 +5,6 @@ export type PickedGraphicRiverAsset = { id: string; entry: AssetEntry };
 const BAD_NORMAL_ACTOR_TERMS = ["death", "dead", "attack", "scream", "explosion", "bullet", "projectile"];
 const GRAPHIC_RIVER_TAG = "graphicriver_iso";
 
-// Bad patterns for sheet/preview/atlas files that should not be selected as standalone assets
-const BAD_SHEET_PATTERNS = [
-  "sheet", "preview", "atlas", "sample", "tileset", "wall sheet", "wall_sheet",
-  "background", "fullsheet", "spritesheet", "sprite-sheet", "sprite_sheet",
-  "grid", "collection", "overview", "all", "composite", "combined",
-  "multi", "pack", "bundle", "set", "sequence", "animation sheet",
-  "flip", "horizontal", "vertical", "strip", "row", "column"
-];
-
 function keyOf(id: string, entry: AssetEntry): string {
   return `${id} ${entry.sourcePath ?? ""} ${entry.src ?? ""}`.toLowerCase();
 }
@@ -24,18 +15,26 @@ function hasAny(haystack: string, terms: string[]): boolean {
 
 /**
  * Checks if an entry is a bad sheet/preview/atlas that should not be used as a standalone asset.
+ * Uses word-boundary matching to avoid false positives on path segments.
  */
 function isBadSheetEntry(id: string, entry: AssetEntry): boolean {
   const key = keyOf(id, entry);
   const srcLower = entry.src.toLowerCase();
 
-  // Check for bad naming patterns
-  if (BAD_SHEET_PATTERNS.some(p => key.includes(p))) return true;
+  // Check for bad naming patterns - must be surrounded by word boundaries (space, _, -, /, .)
+  // This prevents "assets" matching "set" or "atlas" matching partial words
+  const wordBoundaryBadPatterns = [
+    "_sheet", "_preview", "_atlas", "_sample", "_tileset", "_background",
+    "-sheet", "-preview", "-atlas", "-sample", "-tileset", "-background",
+    "/sheet", "/preview", "/atlas", "/sample",
+    "sheet_", "preview_", "atlas_", "sample_",
+    "spritesheet", "sprite_sheet", "fullsheet",
+    "_all", "-all", "/all",
+    "_pack", "_bundle", "_set", "_multi"
+  ];
 
-  // Check src for common bad patterns
-  const badSrcPatterns = ["_preview", "_sample", "_sheet", "_atlas", "-preview", "-sample",
-    "-sheet", "-atlas", "spritesheet", "sprite_sheet", "tileset", "background"];
-  if (badSrcPatterns.some(p => srcLower.includes(p))) return true;
+  // Check src for common bad patterns (path-based)
+  if (wordBoundaryBadPatterns.some(p => srcLower.includes(p))) return true;
 
   // Large images (>512) without frame data are likely sheets
   const hasFrameData = Boolean(entry.frame || (entry.sheetFrame && entry.frameSize) || entry.spriteLayers?.length);
