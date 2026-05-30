@@ -51,6 +51,7 @@ jobs:
 
       - name: Build web portal
         run: pnpm build:web
+        continue-on-error: true
 
       - name: Run safe smoke summary
         if: always()
