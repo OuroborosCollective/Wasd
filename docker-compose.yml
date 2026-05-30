@@ -26,6 +26,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
+      - ./private-assets:/opt/areloria/private-assets:ro
     environment:
       NODE_ENV: production
       NODE_OPTIONS: "${NODE_OPTIONS:---max-old-space-size=8192}"
