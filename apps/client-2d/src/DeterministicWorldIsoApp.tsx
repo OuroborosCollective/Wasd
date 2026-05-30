@@ -43,6 +43,13 @@ type LoadedAssets = {
   textures: Map<string, Texture>;
 };
 
+type TapInteractiveContainer = Container & {
+  eventMode?: "none" | "passive" | "auto" | "static" | "dynamic";
+  cursor?: string;
+  hitArea?: Rectangle;
+  on(event: "pointertap", handler: () => void): unknown;
+};
+
 async function loadTextureInto(cache: Map<string, Texture>, src: string): Promise<Texture | null> {
   const cached = cache.get(src);
   if (cached) return cached;
@@ -197,10 +204,11 @@ function dispatchClientAction(action: string, payload: Record<string, unknown>):
 
 function installNpcTapIntent(root: Container, targetId: string, onInteract: (targetId: string) => void): void {
   let lastTapAt = 0;
-  root.eventMode = "static";
-  root.cursor = "pointer";
-  root.hitArea = new Rectangle(-44 - NPC_TOUCH_PADDING, -92 - NPC_TOUCH_PADDING, 88 + NPC_TOUCH_PADDING * 2, 126 + NPC_TOUCH_PADDING * 2);
-  root.on("pointertap", () => {
+  const interactiveRoot = root as TapInteractiveContainer;
+  interactiveRoot.eventMode = "static";
+  interactiveRoot.cursor = "pointer";
+  interactiveRoot.hitArea = new Rectangle(-44 - NPC_TOUCH_PADDING, -92 - NPC_TOUCH_PADDING, 88 + NPC_TOUCH_PADDING * 2, 126 + NPC_TOUCH_PADDING * 2);
+  interactiveRoot.on("pointertap", () => {
     const now = Date.now();
     if (now - lastTapAt < NPC_INTERACT_COOLDOWN_MS) return;
     lastTapAt = now;
