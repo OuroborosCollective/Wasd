@@ -4,10 +4,19 @@ import { generateBiomePlan, generateTerrainCells } from "./BiomeDirector";
 import { generateRoadGraph } from "./RoadGraphDirector";
 import { generateSettlementPlan } from "./SettlementDirector";
 import { generateNpcPlan } from "./NPCDirector";
-import type { ChunkScenePlan, PropPlan, WorldDirectorInput } from "./ScenePlanTypes";
+import type { BuildingLotPlan, ChunkScenePlan, PropPlan, WorldDirectorInput } from "./ScenePlanTypes";
 
-function buildCollisionCells(input: { readonly settlementProps: readonly PropPlan[]; readonly worldProps: readonly PropPlan[] }): Readonly<Record<string, true>> {
+function addLotFootprint(cells: Record<string, true>, lot: BuildingLotPlan): void {
+  for (let dz = 0; dz < lot.depthTiles; dz += 1) {
+    for (let dx = 0; dx < lot.widthTiles; dx += 1) {
+      cells[cellKey(lot.tileX + dx, lot.tileZ + dz)] = true;
+    }
+  }
+}
+
+function buildCollisionCells(input: { readonly lots: readonly BuildingLotPlan[]; readonly settlementProps: readonly PropPlan[]; readonly worldProps: readonly PropPlan[] }): Readonly<Record<string, true>> {
   const cells: Record<string, true> = {};
+  for (const lot of input.lots) addLotFootprint(cells, lot);
   for (const prop of [...input.settlementProps, ...input.worldProps]) {
     if (prop.blocksMovement) cells[cellKey(prop.tileX, prop.tileZ)] = true;
   }
@@ -51,11 +60,17 @@ export function generateChunkScenePlan(rawInput: WorldDirectorInput): Readonly<C
   const terrain = generateTerrainCells({ chunkTiles, biome, roadCells: roads.roadCells });
   const settlement = generateSettlementPlan({ chunkTiles, roads, rng: rng.fork("settlement") });
   const occupied: Record<string, unknown> = { ...roads.roadCells };
-  for (const lot of settlement.lots) occupied[cellKey(lot.tileX, lot.tileZ)] = true;
+  for (const lot of settlement.lots) {
+    for (let dz = 0; dz < lot.depthTiles; dz += 1) {
+      for (let dx = 0; dx < lot.widthTiles; dx += 1) {
+        occupied[cellKey(lot.tileX + dx, lot.tileZ + dz)] = true;
+      }
+    }
+  }
   for (const prop of settlement.props) occupied[cellKey(prop.tileX, prop.tileZ)] = true;
   const props = generateWorldScatter({ chunkTiles, rng: rng.fork("scatter"), occupied });
   const npcs = generateNpcPlan({ worldSeed: rawInput.worldSeed, chunkX: rawInput.chunkX, chunkZ: rawInput.chunkZ, roads, settlement, rng: rng.fork("npc") });
-  const collisionCells = buildCollisionCells({ settlementProps: settlement.props, worldProps: props });
+  const collisionCells = buildCollisionCells({ lots: settlement.lots, settlementProps: settlement.props, worldProps: props });
 
   return Object.freeze({
     id: `chunk:${rawInput.worldSeed}:${rawInput.chunkX}:${rawInput.chunkZ}:${rawInput.biomeId}`,
