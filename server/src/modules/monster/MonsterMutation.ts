@@ -1,5 +1,6 @@
 import { type ARERng, SeededARERng, createARESeed } from "../../core/determinism/AREDeterminism.js";
 import { type MonsterDNA } from "./MonsterDNA.js";
+import { WeatherMonsterBridge } from "./WeatherMonsterBridge.js";
 
 export interface MutatedMonster extends MonsterDNA {
   mutations: string[];
@@ -8,9 +9,10 @@ export interface MutatedMonster extends MonsterDNA {
 export function mutateMonster(
   dna: MonsterDNA,
   biome: string,
-  rng: ARERng = new SeededARERng(createARESeed(["monster-mutation", dna.species, biome]))
+  rng: ARERng = new SeededARERng(createARESeed(["monster-mutation", dna.species, biome])),
+  weather?: string
 ): MutatedMonster {
-  const clone: MutatedMonster = { ...dna, mutations: [] as string[] };
+  let clone: MutatedMonster = { ...dna, mutations: [] as string[] };
 
   if (biome === "snow") {
     clone.resilience += 0.2;
@@ -24,6 +26,10 @@ export function mutateMonster(
 
   if (rng.nextFloat() < 0.08) {
     clone.mutations.push("rare_variant");
+  }
+
+  if (weather) {
+    clone = WeatherMonsterBridge.applyWeatherModifiers(clone, weather);
   }
 
   return clone;

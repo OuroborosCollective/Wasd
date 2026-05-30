@@ -13,6 +13,7 @@ export type MonsterSpawnContext = {
   tick: number;
   packIndex?: number;
   spawnerId?: string;
+  weather?: string;
 };
 
 export function createMonsterSpawnSeed(species: string, biome: string, context: MonsterSpawnContext): string {
@@ -35,7 +36,8 @@ export class MonsterSpawner {
       ? new SeededARERng(createMonsterSpawnSeed(species, biome, contextOrRng))
       : contextOrRng;
     const dna = generateMonsterDNA(species, rng);
-    return mutateMonster(dna, biome, rng);
+    const weather = isMonsterSpawnContext(contextOrRng) ? contextOrRng.weather : undefined;
+    return mutateMonster(dna, biome, rng, weather);
   }
 }
 
