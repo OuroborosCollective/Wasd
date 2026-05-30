@@ -1,4 +1,4 @@
-import { DEFAULT_CHUNK_TILES, KAPPA_STANDARD, cellKey } from "./KappaMath";
+import { DEFAULT_CHUNK_TILES, KAPPA_STANDARD, cellKey, cellToKappa } from "./KappaMath";
 import { SeededARERng } from "./SeededARERng";
 import { generateBiomePlan, generateTerrainCells } from "./BiomeDirector";
 import { generateRoadGraph } from "./RoadGraphDirector";
@@ -28,7 +28,7 @@ function generateWorldScatter(input: { readonly chunkTiles: number; readonly rng
       propType,
       tileX,
       tileZ,
-      kappaPos: { x: (tileX * KAPPA_STANDARD + 500) as any, z: (tileZ * KAPPA_STANDARD + 500) as any, h: 0 as any },
+      kappaPos: { x: cellToKappa(tileX), z: cellToKappa(tileZ), h: cellToKappa(0, 0) },
       blocksMovement: propType === "tree" || propType === "stone",
       densityClass: propType === "tree" ? "resource" : "detail",
     });
