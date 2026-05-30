@@ -6,16 +6,15 @@ import { ArelorianStitchHud } from "./ArelorianStitchHud";
 import { fallbackEntry, loadAssetManifest, pickWeaponVisual, type AssetEntry, type AssetManifest } from "./assetManifest";
 import { createWorldPlanAssetBinder } from "./world/WorldPlanAssetBinder";
 import { renderChunkScenePlan } from "./world/renderChunkScenePlan";
-import { iso3 } from "./isometricProjection";
+import { iso3, TILE_W, TILE_H } from "./isometricProjection";
 import { initLootFeedback } from "./lootPickupFeedback";
 import { makeModularWeaponSprite } from "./modularWeaponAssembler";
 import { spawnFloatingStatus, spawnTouchRipple } from "./fxLogic";
 import { moveVisualTowards } from "./visualMotion";
 import { CombatFXManager } from "./render/CombatFXManager";
 import { initCombatFXBridge } from "./render/CombatFXEventBridge";
+import { ChunkManager } from "./world/ChunkManager";
 
-const TILE_W = 96;
-const TILE_H = 48;
 const EQUIPPED_WEAPON_KEY = "wasd:2d:equippedWeaponVisualId";
 const WORLD_SEED = "areloria:earth_1_1";
 const NPC_INTERACT_COOLDOWN_MS = 1000;
@@ -229,11 +228,13 @@ export function DeterministicWorldIsoApp() {
   const actorLayerRef = useRef<Container | null>(null);
   const fxLayerRef = useRef<Container | null>(null);
   const combatFXRef = useRef<CombatFXManager | null>(null);
+  const chunkManagerRef = useRef<ChunkManager | null>(null);
   const entities = useRef<Map<string, Entity>>(new Map());
   const assetsRef = useRef<LoadedAssets | null>(null);
   const clientRef = useRef<ReturnType<typeof createClient> | null>(null);
   const keys = useRef(new Set<string>());
   const lastMoveAt = useRef(0);
+  const lastPlayerKappa = useRef({ x: 0, z: 0 });
   const playerName = localStorage.getItem("wasd:2d:name") || "Architect";
   const [connected, setConnected] = useState(false);
   const [assetStatus, setAssetStatus] = useState("ASSETS_LOADING");
@@ -356,8 +357,26 @@ export function DeterministicWorldIsoApp() {
         spawnTouchRipple(fx, { x: point.x, y: point.y });
       });
 
-      const plan = generateChunkScenePlan({ worldSeed: WORLD_SEED, chunkX: 0, chunkZ: 0, biomeId: "forest_village", kappa: 1000, chunkTiles: 16 });
+      // Initialize ChunkManager for deterministic chunk streaming
       const binder = createWorldPlanAssetBinder(assets.manifest, (src) => textureFor(assets, src));
+      const chunkManager = new ChunkManager({
+        worldSeed: WORLD_SEED,
+        biomeId: "forest_village",
+        chunkTiles: 16,
+        viewRadius: 1,
+        throttleMs: 500,
+      });
+      chunkManager.init({
+        worldContainer: terrain,  // Use terrain layer for chunks
+        binder,
+        textureFor: (src) => textureFor(assets, src),
+        addNpcActor: ({ id, tileX, tileZ, name, role, characterVisualId }) => setActor(id, tileX, tileZ, roleDisplayName(role) || name, false, characterVisualId, null),
+        width: app.screen.width,
+        height: app.screen.height,
+      });
+      chunkManagerRef.current = chunkManager;
+
+      const plan = generateChunkScenePlan({ worldSeed: WORLD_SEED, chunkX: 0, chunkZ: 0, biomeId: "forest_village", kappa: 1000, chunkTiles: 16 });
       renderChunkScenePlan(plan, binder, {
         width: app.screen.width,
         height: app.screen.height,
@@ -393,15 +412,36 @@ export function DeterministicWorldIsoApp() {
     c.on("disconnect" as any, () => setConnected(false));
     c.on("WORLD_HEARTBEAT", (event: any) => {
       const selfId = event.payload?.self?.id;
+      
+      // Extract player positions and update actors
       const playerEntries = payloadEntries(event.payload?.players, "player");
       playerEntries.forEach(([id, player]: any) => {
         const actorId = selfId && id === selfId ? "self" : id;
         setActor(actorId, payloadCoord(player, "x"), payloadCoord(player, "z"), player.name || (actorId === "self" ? playerName : "Player"), true, null, player.weaponVisualId ?? player.equippedWeaponId ?? null);
       });
+      
       if (event.payload?.self && (!selfId || !playerEntries.some(([id]) => id === selfId))) {
         const self = event.payload.self;
         setActor("self", payloadCoord(self, "x"), payloadCoord(self, "z"), self.name || playerName, true, null, self.weaponVisualId ?? self.equippedWeaponId ?? null);
       }
+      
+      // Update chunk visibility based on player kappa position
+      if (event.payload?.self) {
+        const self = event.payload.self;
+        const playerKappa = {
+          x: payloadCoord(self, "x") * 1000,  // Convert tile to kappa
+          z: payloadCoord(self, "z") * 1000,
+        };
+        
+        // Only update if player moved significantly (reduce CPU)
+        const dx = Math.abs(playerKappa.x - lastPlayerKappa.current.x);
+        const dz = Math.abs(playerKappa.z - lastPlayerKappa.current.z);
+        if (dx >= 500 || dz >= 500) {
+          lastPlayerKappa.current = playerKappa;
+          chunkManagerRef.current?.updateVisibility(playerKappa);
+        }
+      }
+      
       payloadEntries(event.payload?.agents ?? event.payload?.npcs, "agent").forEach(([id, npc]: any) => {
         setActor(id, payloadCoord(npc, "x"), payloadCoord(npc, "z"), npc.name || npc.displayName || npc.role || "NPC", false, npc.characterVisualId ?? npc.visualId ?? null, null);
       });
