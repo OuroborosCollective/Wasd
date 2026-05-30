@@ -92,3 +92,28 @@ jobs:
             cd "$DEPLOY_PATH"
             chmod +x scripts/deploy-vps-docker.sh 2>/dev/null || true
             bash scripts/deploy-vps-docker.sh
+
+            echo "=== Applying safe nginx upload limit patch ==="
+            if command -v nginx >/dev/null 2>&1; then
+              cat > /tmp/arelorian-client2d-upload-limit.conf <<'EOF_NGINX_UPLOAD'
+            # Managed by Areloria deploy. Do not place server blocks here.
+            client_max_body_size 1024m;
+            client_body_timeout 600s;
+            proxy_request_buffering off;
+            proxy_read_timeout 900s;
+            proxy_send_timeout 900s;
+            EOF_NGINX_UPLOAD
+              if command -v sudo >/dev/null 2>&1; then
+                sudo mkdir -p /etc/nginx/conf.d
+                sudo mv /tmp/arelorian-client2d-upload-limit.conf /etc/nginx/conf.d/arelorian-client2d-upload-limit.conf
+                sudo nginx -t
+                sudo systemctl reload nginx 2>/dev/null || sudo service nginx reload
+              else
+                mkdir -p /etc/nginx/conf.d
+                mv /tmp/arelorian-client2d-upload-limit.conf /etc/nginx/conf.d/arelorian-client2d-upload-limit.conf
+                nginx -t
+                systemctl reload nginx 2>/dev/null || service nginx reload
+              fi
+            else
+              echo "nginx not installed on host; skipping nginx upload limit patch."
+            fi

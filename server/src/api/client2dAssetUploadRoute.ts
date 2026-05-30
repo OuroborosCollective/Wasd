@@ -43,10 +43,14 @@ function statusPayload() {
     publicDirExists: existsSync(publicDir),
     manifestExists: existsSync(manifest),
     manifestUrl: "/client2d-assets/graphicriver-iso/manifest.json",
-    uploadPageUrl: "/client2d-asset-upload.html",
+    uploadPage: "/client2d-asset-upload.html",
     uploadUrl: "/api/client2d-assets/upload",
     maxUploadBytes: MAX_UPLOAD_BYTES,
   };
+}
+
+function uploadPage(): string {
+  return `<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Areloria Asset Upload</title><style>body{margin:0;min-height:100vh;background:#07120b;color:#f7ffd7;font-family:system-ui,sans-serif;display:grid;place-items:center;padding:20px}main{width:min(720px,100%);border:1px solid rgba(120,255,160,.28);border-radius:22px;padding:22px;background:linear-gradient(180deg,rgba(12,32,18,.96),rgba(2,8,4,.96));box-shadow:0 0 40px rgba(57,255,20,.14)}input,button{width:100%;box-sizing:border-box;border-radius:14px;border:1px solid rgba(170,255,190,.28);padding:13px;background:#061009;color:#fff}button{margin-top:16px;background:#16813c;font-weight:800}pre{white-space:pre-wrap;background:#010501;padding:14px;border-radius:14px;max-height:280px;overflow:auto}</style></head><body><main><h1>Areloria Client2D Asset Upload</h1><p>Wähle das GraphicRiver-Iso-ZIP aus. Es wird nur auf dem VPS gespeichert, entpackt und als Manifest bereitgestellt.</p><input id="file" type="file" accept=".zip,application/zip"><button id="btn" type="button">Upload & verarbeiten</button><h2>Status</h2><pre id="out">Bereit.</pre></main><script>const fileInput=document.getElementById('file');const btn=document.getElementById('btn');const out=document.getElementById('out');async function refresh(){try{const r=await fetch('/api/client2d-assets/status',{cache:'no-store'});out.textContent=JSON.stringify(await r.json(),null,2)}catch(e){out.textContent=String(e)}}btn.onclick=async()=>{const file=fileInput.files&&fileInput.files[0];if(!file){out.textContent='Bitte zuerst eine ZIP-Datei auswählen.';return}btn.disabled=true;out.textContent='Upload läuft. Bitte warten...';try{const r=await fetch('/api/client2d-assets/upload',{method:'POST',headers:{'content-type':'application/zip'},body:file});const text=await r.text();try{out.textContent=JSON.stringify(JSON.parse(text),null,2)}catch{out.textContent=text}}catch(e){out.textContent=String(e)}finally{btn.disabled=false}};refresh();</script></body></html>`;
 }
 
 export function client2dAssetUploadRouter(): Router {
@@ -57,7 +61,7 @@ export function client2dAssetUploadRouter(): Router {
   });
 
   r.get("/upload", (_req: Request, res: Response) => {
-    res.redirect(302, "/client2d-asset-upload.html");
+    res.type("html").send(uploadPage());
   });
 
   r.post("/upload", async (req: Request, res: Response) => {
