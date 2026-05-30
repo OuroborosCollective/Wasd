@@ -53,7 +53,9 @@ server {
   listen [::]:80;
   server_name $DOMAIN $WWW_DOMAIN;
 
-  client_max_body_size 64m;
+  # GraphicRiver/Client2D private asset packs can be several hundred MB.
+  client_max_body_size 1024m;
+  client_body_timeout 600s;
 
   location / {
     proxy_pass http://$ENGINE_HOST:$ENGINE_PORT;
@@ -64,6 +66,18 @@ server {
     proxy_set_header X-Forwarded-Proto \$scheme;
     proxy_read_timeout 120s;
     proxy_send_timeout 120s;
+  }
+
+  location /api/client2d-assets/upload {
+    proxy_pass http://$ENGINE_HOST:$ENGINE_PORT;
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_request_buffering off;
+    proxy_read_timeout 900s;
+    proxy_send_timeout 900s;
   }
 
   location /ws {
