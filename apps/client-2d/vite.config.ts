@@ -4,14 +4,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
+const sharedSrc = path.resolve(root, "../../packages/shared/src");
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: [
       { find: "@wasd/core-network", replacement: path.resolve(root, "./src/networkClient.ts") },
-      { find: "@wasd/shared/world", replacement: path.resolve(root, "../../packages/shared/src/world/index.ts") },
-      { find: "@wasd/shared", replacement: path.resolve(root, "../../packages/shared/src/index.ts") }
+      { find: "@wasd/shared", replacement: path.resolve(sharedSrc, "./index.js") },
+      { find: "@wasd/shared/world", replacement: path.resolve(sharedSrc, "./world/index.js") },
     ]
   },
   server: {

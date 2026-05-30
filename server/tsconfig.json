@@ -27,11 +27,15 @@
     "incremental": true,
     "resolveJsonModule": true,
     "allowJs": true,
-    "lib": ["ESNext", "DOM"]
+    "lib": ["ESNext", "DOM"],
+    "types": ["node"]
   },
   "include": ["src/**/*"],
   "exclude": [
     "src/assets/**",
     "src/tests/**"
+  ],
+  "references": [
+    { "path": "../packages/shared" }
   ]
 }
