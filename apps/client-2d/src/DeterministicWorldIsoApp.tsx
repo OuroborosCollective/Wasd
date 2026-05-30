@@ -16,6 +16,8 @@ const TILE_W = 96;
 const TILE_H = 48;
 const EQUIPPED_WEAPON_KEY = "wasd:2d:equippedWeaponVisualId";
 const WORLD_SEED = "areloria:earth_1_1";
+const NPC_INTERACT_COOLDOWN_MS = 1000;
+const NPC_TOUCH_PADDING = 24;
 
 type MoveVector = { dx: number; dz: number };
 type Msg = { from: string; txt: string };
@@ -39,6 +41,13 @@ type Entity = {
 type LoadedAssets = {
   manifest: AssetManifest | null;
   textures: Map<string, Texture>;
+};
+
+type TapInteractiveContainer = Container & {
+  eventMode?: "none" | "passive" | "auto" | "static" | "dynamic";
+  cursor?: string;
+  hitArea?: Rectangle;
+  on(event: "pointertap", handler: () => void): unknown;
 };
 
 async function loadTextureInto(cache: Map<string, Texture>, src: string): Promise<Texture | null> {
@@ -189,6 +198,28 @@ function payloadCoord(entity: any, axis: "x" | "z"): number {
   return Number(value ?? 0);
 }
 
+function dispatchClientAction(action: string, payload: Record<string, unknown>): void {
+  window.dispatchEvent(new CustomEvent("wasd:client-action", { detail: { action, payload } }));
+}
+
+function installNpcTapIntent(root: Container, targetId: string, onInteract: (targetId: string) => void): void {
+  let lastTapAt = 0;
+  const interactiveRoot = root as TapInteractiveContainer;
+  interactiveRoot.eventMode = "static";
+  interactiveRoot.cursor = "pointer";
+  interactiveRoot.hitArea = new Rectangle(-44 - NPC_TOUCH_PADDING, -92 - NPC_TOUCH_PADDING, 88 + NPC_TOUCH_PADDING * 2, 126 + NPC_TOUCH_PADDING * 2);
+  interactiveRoot.on("pointertap", () => {
+    const now = Date.now();
+    if (now - lastTapAt < NPC_INTERACT_COOLDOWN_MS) return;
+    lastTapAt = now;
+    root.alpha = 0.78;
+    window.setTimeout(() => {
+      root.alpha = 1;
+    }, 180);
+    onInteract(targetId);
+  });
+}
+
 export function DeterministicWorldIsoApp() {
   const host = useRef<HTMLDivElement>(null);
   const appRef = useRef<Application | null>(null);
@@ -207,6 +238,12 @@ export function DeterministicWorldIsoApp() {
   const [equippedWeaponId, setEquippedWeaponId] = useState<string | null>(() => localStorage.getItem(EQUIPPED_WEAPON_KEY));
   const [messages, setMessages] = useState<Msg[]>([{ from: "WorldDirector", txt: "Deterministic Millbrook plan initializing." }]);
 
+  function sendInteractIntent(targetId: string): void {
+    clientRef.current?.sendPlayerAction("interact", { targetId });
+    dispatchClientAction("INTERACT_ENTITY", { targetId });
+    setMessages((items) => [...items.slice(-12), { from: "System", txt: `Interaction intent sent: ${targetId}` }]);
+  }
+
   function setActor(id: string, x: number, z: number, name: string, player: boolean, characterVisualId: string | null, weaponVisualId: string | null) {
     const app = appRef.current;
     const layer = actorLayerRef.current;
@@ -220,6 +257,7 @@ export function DeterministicWorldIsoApp() {
       return;
     }
     const root = buildActorVisual({ name, player, assets: assetsRef.current, characterVisualId, weaponVisualId });
+    if (!player) installNpcTapIntent(root, id, sendInteractIntent);
     placeActor(root, x, z, app.screen.width, app.screen.height);
     layer.addChild(root);
     entities.current.set(id, { root, tx: x, tz: z, name, isPlayer: player, weaponVisualId, characterVisualId });
@@ -232,6 +270,7 @@ export function DeterministicWorldIsoApp() {
     if (!app || !layer || !existing) return;
     const oldRoot = existing.root;
     const root = buildActorVisual({ name: existing.name, player: existing.isPlayer, assets: assetsRef.current, characterVisualId: existing.characterVisualId, weaponVisualId });
+    if (!existing.isPlayer) installNpcTapIntent(root, id, sendInteractIntent);
     placeActor(root, existing.tx, existing.tz, app.screen.width, app.screen.height);
     layer.addChild(root);
     oldRoot.destroy({ children: true });
@@ -411,8 +450,7 @@ export function DeterministicWorldIsoApp() {
   }
 
   function interact() {
-    clientRef.current?.sendPlayerAction("interact", { targetId: "npc_elder_0" });
-    setMessages((items) => [...items.slice(-12), { from: "System", txt: "Interaction ping sent." }]);
+    sendInteractIntent("npc_elder_0");
   }
 
   return (
