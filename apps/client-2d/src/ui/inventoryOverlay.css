@@ -1,0 +1,449 @@
+/**
+ * Ouroboros InventoryOverlay CSS — Panzer-Schrank Aesthetic
+ * 
+ * Design Philosophy:
+ * - Hard edges, no border-radius (tank armor aesthetic)
+ * - Dark metallic palette with sharp borders
+ * - Rarity-coded item slots
+ * - Pessimistic blocking states with visual urgency
+ * 
+ * Matches TradeOverlay dark theme but with harder, industrial feel.
+ */
+
+/* ─── Overlay Container ───────────────────────────────────────────── */
+
+.inventory-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.88);
+  backdrop-filter: blur(4px);
+  pointer-events: auto;
+}
+
+/* ─── Header ───────────────────────────────────────────────────────── */
+
+.inventory-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(780px, 96vw);
+  padding: 14px 18px;
+  background: linear-gradient(180deg, #0d1017 0%, #07090d 100%);
+  border: 1px solid rgba(180, 160, 100, 0.3);
+  border-bottom: none;
+}
+
+.inventory-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #e8dcc4;
+}
+
+.inventory-header .close-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(200, 180, 120, 0.4);
+  background: rgba(40, 50, 65, 0.8);
+  color: #c8b878;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.inventory-header .close-btn:hover {
+  background: rgba(80, 100, 130, 0.9);
+}
+
+.inventory-weight {
+  font-size: 0.78rem;
+  color: #8a9ab0;
+  letter-spacing: 0.06em;
+}
+
+/* ─── Main Content Area ───────────────────────────────────────────── */
+
+.inventory-content {
+  display: flex;
+  gap: 2px;
+  width: min(780px, 96vw);
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid rgba(180, 160, 100, 0.3);
+}
+
+/* ─── Equipment Section ─────────────────────────────────────────────── */
+
+.equipment-section {
+  flex: 0 0 200px;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  background: linear-gradient(180deg, #0a0d12 0%, #060810 100%);
+  border-right: 1px solid rgba(180, 160, 100, 0.2);
+}
+
+.equipment-section h3 {
+  margin: 0 0 12px 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #6a7080;
+}
+
+.equipment-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ─── Equipment Slot ───────────────────────────────────────────────── */
+
+.equip-slot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  padding: 0 12px;
+  background: rgba(20, 25, 35, 0.9);
+  border: 1px solid rgba(100, 110, 130, 0.35);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.equip-slot.has-item {
+  border-color: rgba(150, 160, 180, 0.5);
+}
+
+.equip-slot:hover {
+  background: rgba(35, 45, 60, 0.95);
+}
+
+.equip-slot-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #5a6270;
+  flex: 0 0 72px;
+}
+
+.equip-slot.has-item .equip-slot-label {
+  color: #8a9aaa;
+}
+
+/* ─── Backpack Section ─────────────────────────────────────────────── */
+
+.inventory-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  background: #060810;
+}
+
+.inventory-section h3 {
+  margin: 0 0 12px 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #6a7080;
+}
+
+/* ─── Inventory Grid ───────────────────────────────────────────────── */
+
+.inventory-grid {
+  display: grid;
+  /* 6 columns, auto rows */
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+}
+
+/* ─── Inventory Slot ───────────────────────────────────────────────── */
+
+.inventory-slot {
+  position: relative;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 20, 28, 0.95);
+  border: 1px solid rgba(80, 90, 110, 0.3);
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.inventory-slot.empty {
+  cursor: default;
+}
+
+.inventory-slot.has-item {
+  cursor: pointer;
+}
+
+.inventory-slot.has-item:hover {
+  background: rgba(30, 40, 55, 0.95);
+  border-color: rgba(120, 135, 160, 0.5);
+}
+
+/* ─── Slot Icon (2-char abbreviation) ──────────────────────────────── */
+
+.slot-icon {
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #6a7a8a;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.inventory-slot.has-item .slot-icon {
+  color: #c8d0dc;
+}
+
+/* ─── Rarity Borders ───────────────────────────────────────────────── */
+
+.inventory-slot.rarity-common,
+.equip-slot.rarity-common {
+  border-color: rgba(157, 157, 157, 0.35);
+}
+
+.inventory-slot.rarity-uncommon,
+.equip-slot.rarity-uncommon {
+  border-color: rgba(30, 255, 0, 0.35);
+  box-shadow: inset 0 0 8px rgba(30, 255, 0, 0.08);
+}
+
+.inventory-slot.rarity-rare,
+.equip-slot.rarity-rare {
+  border-color: rgba(0, 112, 221, 0.45);
+  box-shadow: inset 0 0 8px rgba(0, 112, 221, 0.1);
+}
+
+.inventory-slot.rarity-epic,
+.equip-slot.rarity-epic {
+  border-color: rgba(163, 53, 238, 0.5);
+  box-shadow: inset 0 0 10px rgba(163, 53, 238, 0.12);
+}
+
+.inventory-slot.rarity-legendary,
+.equip-slot.rarity-legendary {
+  border-color: rgba(255, 128, 0, 0.6);
+  box-shadow: inset 0 0 12px rgba(255, 128, 0, 0.15);
+}
+
+.inventory-slot.rarity-mystic,
+.equip-slot.rarity-mystic {
+  border-color: rgba(0, 204, 255, 0.55);
+  box-shadow: inset 0 0 10px rgba(0, 204, 255, 0.12);
+}
+
+/* ─── Legendary Glow Effect ─────────────────────────────────────────── */
+
+.slot-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at center, rgba(255, 128, 0, 0.15) 0%, transparent 70%);
+  animation: legendary-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes legendary-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.9; }
+}
+
+/* ─── Blocked State (Pessimistic UI) ──────────────────────────────── */
+
+.inventory-slot.blocked,
+.equip-slot.blocked {
+  opacity: 0.45;
+  cursor: wait;
+  pointer-events: none;
+}
+
+.inventory-slot.blocked {
+  background: rgba(60, 30, 10, 0.6);
+  border-color: rgba(200, 100, 40, 0.4);
+}
+
+.equip-slot.blocked {
+  background: rgba(80, 40, 20, 0.6);
+  border-color: rgba(200, 100, 40, 0.4);
+}
+
+.slot-spinner {
+  font-size: 1.1rem;
+  color: #d08040;
+  animation: slot-spin 1s linear infinite;
+}
+
+@keyframes slot-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Selected State ───────────────────────────────────────────────── */
+
+.inventory-slot.selected {
+  background: rgba(50, 80, 120, 0.5);
+  border-color: rgba(100, 150, 200, 0.7);
+}
+
+/* ─── Item Tooltip ─────────────────────────────────────────────────── */
+
+.tooltip-container {
+  position: fixed;
+  z-index: 200;
+}
+
+.item-tooltip {
+  width: 280px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, rgba(12, 16, 22, 0.98) 0%, rgba(6, 8, 12, 0.98) 100%);
+  border: 1px solid rgba(180, 160, 100, 0.4);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
+}
+
+.tooltip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.tooltip-header strong {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.tooltip-level {
+  font-size: 0.72rem;
+  color: #6a7a8a;
+  flex-shrink: 0;
+}
+
+.tooltip-rarity {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.tooltip-slot,
+.tooltip-req,
+.tooltip-class {
+  font-size: 0.75rem;
+  color: #7a8a9a;
+  margin-bottom: 4px;
+}
+
+.item-tooltip hr {
+  border: none;
+  border-top: 1px solid rgba(120, 130, 150, 0.2);
+  margin: 10px 0;
+}
+
+.tooltip-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tooltip-stats > div {
+  font-size: 0.8rem;
+  color: #a0b0c0;
+}
+
+/* ─── Pending Intent Indicator ─────────────────────────────────────── */
+
+.pending-indicator {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: rgba(20, 15, 10, 0.92);
+  border: 1px solid rgba(200, 140, 60, 0.5);
+  color: #d09050;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  animation: pending-pulse 1.5s ease-in-out infinite;
+}
+
+.pending-indicator span {
+  font-size: 1rem;
+  animation: slot-spin 1s linear infinite;
+}
+
+@keyframes pending-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+/* ─── Empty Slot Indicator ─────────────────────────────────────────── */
+
+.inventory-slot.empty::after {
+  content: "";
+  width: 40%;
+  height: 40%;
+  background: rgba(60, 70, 85, 0.15);
+}
+
+/* ─── Equipped Indicator ───────────────────────────────────────────── */
+
+.inventory-slot.equipped::before {
+  content: "E";
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #50a050;
+}
+
+/* ─── Mobile Responsive ─────────────────────────────────────────────── */
+
+@media (max-width: 600px) {
+  .inventory-content {
+    flex-direction: column;
+  }
+  
+  .equipment-section {
+    flex: none;
+    border-right: none;
+    border-bottom: 1px solid rgba(180, 160, 100, 0.2);
+  }
+  
+  .equipment-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  
+  .equip-slot {
+    height: 48px;
+  }
+  
+  .inventory-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

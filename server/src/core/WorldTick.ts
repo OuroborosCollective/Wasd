@@ -5,6 +5,7 @@ import { PlayerSystem } from "../modules/player/PlayerSystem.js";
 import { CombatSystem } from "../modules/combat/CombatSystem.js";
 import { CombatService } from "../modules/combat/CombatService.js";
 import { InventorySystem } from "../modules/inventory/InventorySystem.js";
+import { inventoryDirector } from "../modules/inventory/InventoryDirector.js";
 import { NPCSystem } from "../modules/npc/NPCSystem.js";
 import { GuildSystem } from "../modules/guild/GuildSystem.js";
 import { EconomySystem } from "../modules/economy/EconomySystem.js";
@@ -33,6 +34,7 @@ import { checkForestResource, isNearForestResource } from "../modules/resource/f
 import { FOREST_ACTION_DISTANCE, FOREST_RESPAWN_TICKS } from "../modules/resource/forestResourceRules.js";
 import { AIOrchestrator } from "./AIOrchestrator.js";
 import { processRespawns } from "../modules/combat/deathRespawnSystem.js";
+import type { InventoryIntent } from "@wasd/shared/items";
 
 const ELECTROWEAK_LOOT_TTL_TICKS = 1200;
 
@@ -128,6 +130,10 @@ export class WorldTick {
     this.worldSystem = new WorldSystem(this.persistence);
     this.glbRegistry = new GLBRegistry();
     this.warfrontSystem = new WarfrontSystem();
+    
+    // Initialize InventoryDirector with WebSocket for broadcasts
+    inventoryDirector.initialize(ws);
+    
     const dummyPlayer = this.playerSystem.createPlayer("dummy_player", "Dummy Player");
     dummyPlayer.position.x = 500;
     dummyPlayer.position.y = 500;
@@ -233,6 +239,26 @@ export class WorldTick {
     else if (msg.type === "equip") { this.inventorySystem.equipItem(player, msg.itemId); this.saveAll(); }
     else if (msg.type === "unequip") { this.inventorySystem.unequipItem(player, msg.slot); this.saveAll(); }
     else if (msg.type === "drop") { this.inventorySystem.removeItem(player, msg.itemId); this.saveAll(); }
+    else if (msg.type === "inventory_intent") {
+      // Route through InventoryDirector for atomic server-side handling
+      const intent = msg.payload as InventoryIntent;
+      const playerData = {
+        id,
+        uid: playerId,
+        inventory: player.inventory ?? [],
+        equipment: player.equipment ?? {},
+        level: player.level,
+        class: player.class,
+      } as any;
+      const result = inventoryDirector.processIntent(playerData, intent);
+      if (!result.ok) {
+        this.ws.sendToPlayer(id, { type: "inventory_error", code: result.code, message: result.message });
+      }
+      // Snapshot is broadcast by InventoryDirector on success
+      player.inventory = playerData.inventory;
+      player.equipment = playerData.equipment;
+      this.saveAll();
+    }
   }
 
   private processForestResourceActions() {
@@ -262,8 +288,17 @@ export class WorldTick {
   private handleNPCDeath(socketId: string, player: any, npc: any, npcInstanceId: string) { npc.health = npc.maxHealth || 100; this.ws.sendToPlayer(socketId, { type: "dialogue", source: "System", text: `${npc.name} respawns.` }); }
   private hydratePlayer(player: any) { if (!player.id) player.id = "unknown"; if (!player.name) player.name = player.id; if (!player.position) player.position = { x: 0, y: 0 }; if (!player.inventory) player.inventory = []; if (!player.quests) player.quests = []; if (!player.equipment) player.equipment = { weapon: null, armor: null }; }
   private async saveAll() { const allPlayers = this.playerSystem.getAllPlayers(); const data: any = {}; for (const p of allPlayers) if (p.id !== "dummy_player") data[p.id] = p; await this.persistence.save(data); }
+  
   start() { this.timer = setInterval(() => this.tick(), 100); }
+  
   stop() { if (this.timer) clearInterval(this.timer); this.timer = null; }
+  
+  private tick(): void {
+    // Sync tick to InventoryDirector for deterministic loot generation
+    inventoryDirector.setTick(this.tickCount);
+    // ... rest of tick
+  }
+  
   private buildAREPayload(): AREGuardPayload { return { l: 13, k: 1000, r: Math.round((0.5 + Math.sin(this.tickCount / 10) * 0.5) * 1000) / 1000, tick: this.tickCount, deterministicSeed: `ARE|k1000|tick:${this.tickCount}|chunk:64` }; }
 
   private measureDivergence(entityId: string, position: any): void {

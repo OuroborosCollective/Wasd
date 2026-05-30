@@ -5,3 +5,4 @@ export * from './utils';
 export * from './world/index.js';
 export * from './GuildSovereigntyEngine.js';
 export * from './theme/ThemeEngine.js';
+export * from './items/index.js';
