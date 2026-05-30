@@ -12,6 +12,7 @@ The repository is a mature pnpm monorepo (v11.2.2) utilizing an isolated node-li
 3. **Ghost Dependency Risk:** Inconsistent `overrides` and `resolutions` across packages for core libraries like React and BabylonJS.
 4. **Build Portability Issues:** Enabling declaration emission on the server revealed "non-portable type" errors in Express routes.
 5. **Client Target Environment:** Client build was failing due to top-level await usage in an environment targeting older browsers.
+6. **Stale Web Application Logic:** The `apps/web` application contained references to non-existent renderer modules and missing workspace types.
 
 ## Action Plan (Implemented)
 - [x] Standardized pnpm to v11.2.2 monorepo-wide.
@@ -22,3 +23,5 @@ The repository is a mature pnpm monorepo (v11.2.2) utilizing an isolated node-li
 - [x] Fixed non-portable types in Server API routers to support declaration emission.
 - [x] Resolved client top-level await issues by wrapping bootstrap in `async main()` and updating Vite target to `es2022`.
 - [x] Standardized all GitHub Actions to use `pnpm/action-setup@v4` with pinned versioning.
+- [x] Cleaned up `apps/web` source code by removing broken renderer references and fixing TypeScript path mappings.
+- [x] Synchronized `packages/types` with required ARE-Engine interfaces (AREPayload, AREVector3).

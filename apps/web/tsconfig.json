@@ -17,7 +17,16 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "baseUrl": ".",
+    "paths": {
+      "@wasd/types": ["../../packages/types/src"],
+      "@wasd/shared": ["../../packages/shared/src"]
+    }
   },
-  "include": ["index.ts", "src/**/*"]
+  "include": ["src/**/*"],
+  "references": [
+    { "path": "../../packages/types" },
+    { "path": "../../packages/shared" }
+  ]
 }

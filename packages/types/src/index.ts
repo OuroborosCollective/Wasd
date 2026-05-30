@@ -1,5 +1,5 @@
 /**
- * Core type definitions for Arelorian/Ouroboros
+ * Core type definitions for Areloria/Ouroboros
  */
 
 /**
@@ -25,4 +25,23 @@ export interface ProtocolConfig {
  */
 export function createProtocolConfig(tier: DeviceTier): ProtocolConfig {
   return { version: '1.0.0', deviceTier: tier };
+}
+
+/**
+ * AREPayload interface for deterministic simulation data
+ */
+export interface AREVector3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export type AREPayloadValue = string | boolean | null | number | AREPayloadValue[] | { readonly [key: string]: AREPayloadValue };
+
+export interface AREPayload {
+  readonly entityId: string;
+  readonly position: Readonly<AREVector3>;
+  readonly velocity: Readonly<AREVector3>;
+  readonly stateHash?: number;
+  readonly [key: string]: AREPayloadValue | Readonly<AREVector3> | undefined;
 }
