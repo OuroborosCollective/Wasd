@@ -237,6 +237,22 @@ export function DeterministicWorldIsoApp() {
   const lastMoveAt = useRef(0);
   const lastPlayerKappa = useRef({ x: 0, z: 0 });
   const playerName = localStorage.getItem("wasd:2d:name") || "Architect";
+  
+  /**
+   * TRACKED OTHER PLAYERS
+   * ═══════════════════════════════════════════════════════════════════════
+   * 
+   * Set of other player IDs that are currently visible (within 3x3 chunk grid).
+   * Used for garbage collection: when an ID is no longer in this set,
+   * we destroy its sprite and remove it from the entity map.
+   * 
+   * Per-Axiom 4 (Spatial Plexity): Other players leave the visible set
+   * when they move outside our 3x3 chunk grid. The server sends us
+   * only entities within range, so missing IDs indicate they left.
+   * 
+   * ═══════════════════════════════════════════════════════════════════════
+   */
+  const otherPlayerIds = useRef<Set<string>>(new Set());
   const [connected, setConnected] = useState(false);
   const [assetStatus, setAssetStatus] = useState("ASSETS_LOADING");
   const [weaponCount, setWeaponCount] = useState(0);
@@ -494,6 +510,140 @@ export function DeterministicWorldIsoApp() {
       payloadEntries(event.payload?.agents ?? event.payload?.npcs, "agent").forEach(([id, npc]: any) => {
         setActor(id, payloadCoord(npc, "x"), payloadCoord(npc, "z"), npc.name || npc.displayName || npc.role || "NPC", false, npc.characterVisualId ?? npc.visualId ?? null, null);
       });
+    });
+    
+    /**
+     * WORLD_SNAPSHOT HANDLER
+     * ═══════════════════════════════════════════════════════════════════════════
+     * 
+     * Handles the spatial broadcast from the server (Axiom 4: Spatial Plexity).
+     * 
+     * The server sends only entities within the client's 3x3 chunk grid.
+     * This handler:
+     * 1. Extracts OTHER_PLAYER entities from the snapshot
+     * 2. Creates/updates sprite visuals for each other player
+     * 3. Garbage collects sprites for players who left the visible area
+     * 
+     * Per-Axiom 2 (Zero Client Prediction): Other player positions come
+     * ONLY from the server. We never predict or extrapolate movement.
+     * The InterpolatedSpriteManager handles smooth 60-FPS visual lerp.
+     * 
+     * GARBAGE COLLECTION STRATEGY:
+     * - otherPlayerIds tracks currently visible player IDs
+     * - After processing snapshot, any ID in the set but not in snapshot is gone
+     * - Destroy its sprite, remove from entity map, unregister from interpolation
+     * ═══════════════════════════════════════════════════════════════════════════
+     */
+    c.on("world_snapshot", (event: any) => {
+      const app = appRef.current;
+      const layer = actorLayerRef.current;
+      if (!app || !layer) return;
+      
+      const snapshot = event.payload;
+      if (!snapshot) return;
+      
+      // Get interpolation manager
+      const interp = InterpolatedSpriteManager.getInstance();
+      
+      // Track IDs seen in this snapshot
+      const seenPlayerIds = new Set<string>();
+      
+      // ─────────────────────────────────────────────────────────────────
+      // Process OTHER_PLAYERS
+      // These are players other than the local player (self)
+      // ─────────────────────────────────────────────────────────────────
+      const otherPlayers = snapshot.other_players ?? [];
+      
+      for (const player of otherPlayers) {
+        const playerId = String(player.id);
+        if (!playerId) continue;
+        
+        // Skip self - handled by WORLD_HEARTBEAT
+        if (playerId === snapshot.self) continue;
+        
+        seenPlayerIds.add(playerId);
+        
+        const x = payloadCoord(player, "x");
+        const z = payloadCoord(player, "z");
+        const name = String(player.name || "Traveler");
+        
+        const existing = entities.current.get(playerId);
+        
+        if (existing) {
+          // ─────────────────────────────────────────────────────────────────
+          // EXISTING OTHER PLAYER: Update position via interpolation
+          //
+          // Per-ARE-Logic: We NEVER set sprite.x/y directly.
+          // Only update logical position and push to InterpolatedSpriteManager.
+          // ─────────────────────────────────────────────────────────────────
+          existing.tx = x;
+          existing.tz = z;
+          
+          const screenPos = iso(x, z, app.screen.width, app.screen.height);
+          interp.setTarget(playerId, screenPos.x, screenPos.y);
+        } else {
+          // ─────────────────────────────────────────────────────────────────
+          // NEW OTHER PLAYER: Create sprite with visual indicator
+          //
+          // Other players get a distinct visual treatment (different from NPCs).
+          // Use player character visual + "other player" nameplate styling.
+          // ─────────────────────────────────────────────────────────────────
+          const root = buildActorVisual({ 
+            name, 
+            player: true, 
+            assets: assetsRef.current, 
+            characterVisualId: player.characterVisualId ?? null,
+            weaponVisualId: player.weaponVisualId ?? null,
+          });
+          placeActor(root, x, z, app.screen.width, app.screen.height);
+          layer.addChild(root);
+          
+          entities.current.set(playerId, { 
+            root, 
+            tx: x, 
+            tz: z, 
+            name, 
+            isPlayer: true, 
+            weaponVisualId: player.weaponVisualId ?? null,
+            characterVisualId: player.characterVisualId ?? null,
+          });
+          
+          // Register with interpolation for smooth visual movement
+          const screenPos = iso(x, z, app.screen.width, app.screen.height);
+          interp.register(playerId, root, screenPos.x, screenPos.y);
+          
+          // Optional: spawn join notification
+          // setMessages((items) => [...items.slice(-12), { from: "Net", txt: `${name} entered the area.` }]);
+        }
+      }
+      
+      // ─────────────────────────────────────────────────────────────────
+      // GARBAGE COLLECTION: Remove players no longer in visible set
+      //
+      // If a player ID was in our tracked set but is NOT in the current
+      // snapshot, they moved out of our 3x3 chunk grid or disconnected.
+      // We must clean up their sprite and interpolation registration.
+      // ─────────────────────────────────────────────────────────────────
+      for (const goneId of otherPlayerIds.current) {
+        if (!seenPlayerIds.has(goneId)) {
+          const entity = entities.current.get(goneId);
+          if (entity) {
+            // Destroy sprite and remove from layer
+            entity.root.destroy({ children: true });
+            entities.current.delete(goneId);
+            
+            // Unregister from interpolation manager
+            interp.remove(goneId);
+            
+            // Optional: spawn leave notification
+            // const goneName = entity.name;
+            // setMessages((items) => [...items.slice(-12), { from: "Net", txt: `${goneName} left the area.` }]);
+          }
+        }
+      }
+      
+      // Update tracked player IDs for next snapshot
+      otherPlayerIds.current = seenPlayerIds;
     });
     c.on("dialogue", (event: any) => {
       const payload = event.payload ?? event;
