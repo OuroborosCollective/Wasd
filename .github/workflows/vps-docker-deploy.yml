@@ -63,7 +63,9 @@ jobs:
           pnpm config set verify-deps-before-run false
 
       - name: Install client-2d dependencies
-        run: pnpm --filter @wasd/client-2d... install --frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
+        run: |
+          pnpm --filter @wasd/client-2d... install --lockfile-only --no-frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
+          pnpm --filter @wasd/client-2d... install --frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
 
       - name: Build client-2d on GitHub runner
         run: |
