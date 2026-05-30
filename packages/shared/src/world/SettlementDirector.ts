@@ -22,7 +22,24 @@ function prop(id: string, propType: PropPlan["propType"], tileX: number, tileZ: 
   return { id, propType, tileX, tileZ, kappaPos: { x: cellToKappa(tileX), z: cellToKappa(tileZ), h: cellToKappa(0, 0) }, blocksMovement, densityClass };
 }
 
-function firstFreeNearRoad(input: { readonly chunkTiles: number; readonly road: string; readonly occupied: Set<string>; readonly offset: number }): { tileX: number; tileZ: number } | null {
+function footprintCells(tileX: number, tileZ: number, widthTiles: number, depthTiles: number): string[] {
+  const cells: string[] = [];
+  for (let dz = 0; dz < depthTiles; dz += 1) {
+    for (let dx = 0; dx < widthTiles; dx += 1) {
+      cells.push(cellKey(tileX + dx, tileZ + dz));
+    }
+  }
+  return cells;
+}
+
+function footprintFits(input: { readonly chunkTiles: number; readonly tileX: number; readonly tileZ: number; readonly widthTiles: number; readonly depthTiles: number; readonly occupied: Set<string> }): boolean {
+  if (input.tileX < 1 || input.tileZ < 1) return false;
+  if (input.tileX + input.widthTiles >= input.chunkTiles) return false;
+  if (input.tileZ + input.depthTiles >= input.chunkTiles) return false;
+  return footprintCells(input.tileX, input.tileZ, input.widthTiles, input.depthTiles).every((key) => !input.occupied.has(key));
+}
+
+function firstFreeNearRoad(input: { readonly chunkTiles: number; readonly road: string; readonly occupied: Set<string>; readonly offset: number; readonly widthTiles: number; readonly depthTiles: number }): { tileX: number; tileZ: number } | null {
   const [rxRaw, rzRaw] = input.road.split(":");
   const rx = Number(rxRaw);
   const rz = Number(rzRaw);
@@ -33,9 +50,7 @@ function firstFreeNearRoad(input: { readonly chunkTiles: number; readonly road: 
     { tileX: rx + input.offset, tileZ: rz },
   ];
   for (const c of candidates) {
-    if (c.tileX < 1 || c.tileZ < 1 || c.tileX >= input.chunkTiles - 1 || c.tileZ >= input.chunkTiles - 1) continue;
-    const key = cellKey(c.tileX, c.tileZ);
-    if (!input.occupied.has(key)) return c;
+    if (footprintFits({ chunkTiles: input.chunkTiles, tileX: c.tileX, tileZ: c.tileZ, widthTiles: input.widthTiles, depthTiles: input.depthTiles, occupied: input.occupied })) return c;
   }
   return null;
 }
@@ -52,18 +67,14 @@ export function generateSettlementPlan(input: { readonly chunkTiles: number; rea
   const lotCount = Math.min(LOT_TYPES.length, Math.max(5, input.rng.intInclusive(5, LOT_TYPES.length)));
 
   for (let i = 0; i < lotCount; i += 1) {
-    const road = roadKeys[(i * 3 + input.rng.pickIndex(roadKeys.length)) % roadKeys.length];
-    const pos = firstFreeNearRoad({ chunkTiles: input.chunkTiles, road, occupied, offset: 2 }) ?? firstFreeNearRoad({ chunkTiles: input.chunkTiles, road, occupied, offset: 3 });
-    if (!pos) continue;
     const buildingType = LOT_TYPES[i % LOT_TYPES.length];
     const widthTiles = buildingType === "inn" || buildingType === "blacksmith" ? 3 : 2;
     const depthTiles = buildingType === "inn" ? 3 : 2;
+    const road = roadKeys[(i * 3 + input.rng.pickIndex(roadKeys.length)) % roadKeys.length];
+    const pos = firstFreeNearRoad({ chunkTiles: input.chunkTiles, road, occupied, offset: 2, widthTiles, depthTiles }) ?? firstFreeNearRoad({ chunkTiles: input.chunkTiles, road, occupied, offset: 3, widthTiles, depthTiles });
+    if (!pos) continue;
     lots.push(lot(`lot_${i}_${buildingType}`, buildingType, pos.tileX, pos.tileZ, road, widthTiles, depthTiles));
-    for (let dz = 0; dz < depthTiles; dz += 1) {
-      for (let dx = 0; dx < widthTiles; dx += 1) {
-        occupied.add(cellKey(clampInt(pos.tileX + dx, 0, input.chunkTiles - 1), clampInt(pos.tileZ + dz, 0, input.chunkTiles - 1)));
-      }
-    }
+    for (const key of footprintCells(pos.tileX, pos.tileZ, widthTiles, depthTiles)) occupied.add(key);
   }
 
   const center = clampInt((input.chunkTiles - 1 - ((input.chunkTiles - 1) % 2)) / 2, 2, input.chunkTiles - 3);
