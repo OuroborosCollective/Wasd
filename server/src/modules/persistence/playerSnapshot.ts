@@ -1,4 +1,5 @@
 import { normalizeInventoryStacks } from "../inventory/inventoryStacks.js";
+import type { PlayerSnapshotCore } from "./PersistenceDirector.js";
 
 /**
  * Whitelist of player fields written to disk / persistence backends.
@@ -77,12 +78,12 @@ function cloneJsonSafe(value: unknown): unknown {
 }
 
 /** Apply saved snapshot onto a freshly created default player. */
-export function mergePersistedPlayerInto(player: any, saved: Record<string, unknown> | null | undefined): void {
+export function mergePersistedPlayerInto(player: any, saved: PlayerSnapshotCore | Record<string, unknown> | null | undefined): void {
   if (!saved || typeof saved !== "object") return;
   for (const key of PLAYER_PERSIST_KEYS) {
     if (key === "id") continue;
     if (!(key in saved)) continue;
-    const v = saved[key as string];
+    const v = (saved as any)[key as string];
     if (v === undefined) continue;
     try {
       (player as any)[key] = JSON.parse(JSON.stringify(v));
