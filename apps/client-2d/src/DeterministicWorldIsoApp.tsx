@@ -388,6 +388,26 @@ export function DeterministicWorldIsoApp() {
         setActor(id, payloadCoord(npc, "x"), payloadCoord(npc, "z"), npc.name || npc.displayName || npc.role || "NPC", false, npc.characterVisualId ?? npc.visualId ?? null, null);
       });
     });
+    c.on("dialogue", (event: any) => {
+      const payload = event.payload ?? event;
+      const source = String(payload.source ?? payload.npcName ?? "NPC");
+      const text = String(payload.text ?? payload.dialogueText ?? "");
+      if (!text) return;
+      setMessages((items) => [
+        ...items.slice(-12),
+        { from: source, txt: text }
+      ]);
+    });
+    c.on("INTERACTION_ACCEPTED", (event: any) => {
+      const payload = event.payload ?? event;
+      const source = String(payload.source ?? payload.targetId ?? "NPC");
+      const text = String(payload.dialogueText ?? payload.payload?.dialogueText ?? "");
+      if (!text) return;
+      setMessages((items) => [
+        ...items.slice(-12),
+        { from: source, txt: text }
+      ]);
+    });
     c.connect();
   }
 
