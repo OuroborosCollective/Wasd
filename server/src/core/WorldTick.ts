@@ -5,7 +5,7 @@ import { PlayerSystem } from "../modules/player/PlayerSystem.js";
 import { CombatSystem } from "../modules/combat/CombatSystem.js";
 import { CombatService } from "../modules/combat/CombatService.js";
 import { InventorySystem } from "../modules/inventory/InventorySystem.js";
-import { inventoryDirector } from "../modules/inventory/InventoryDirector.js";
+import { inventoryDirector } from "../modules/inventory/index.js";
 import { NPCSystem } from "../modules/npc/NPCSystem.js";
 import { GuildSystem } from "../modules/guild/GuildSystem.js";
 import { EconomySystem } from "../modules/economy/EconomySystem.js";
@@ -34,7 +34,6 @@ import { checkForestResource, isNearForestResource } from "../modules/resource/f
 import { FOREST_ACTION_DISTANCE, FOREST_RESPAWN_TICKS } from "../modules/resource/forestResourceRules.js";
 import { AIOrchestrator } from "./AIOrchestrator.js";
 import { processRespawns } from "../modules/combat/deathRespawnSystem.js";
-import type { InventoryIntent } from "@wasd/shared/items";
 
 const ELECTROWEAK_LOOT_TTL_TICKS = 1200;
 
@@ -241,7 +240,7 @@ export class WorldTick {
     else if (msg.type === "drop") { this.inventorySystem.removeItem(player, msg.itemId); this.saveAll(); }
     else if (msg.type === "inventory_intent") {
       // Route through InventoryDirector for atomic server-side handling
-      const intent = msg.payload as InventoryIntent;
+      const intent = (msg.payload as any);
       const playerData = {
         id,
         uid: playerId,
@@ -252,7 +251,8 @@ export class WorldTick {
       } as any;
       const result = inventoryDirector.processIntent(playerData, intent);
       if (!result.ok) {
-        this.ws.sendToPlayer(id, { type: "inventory_error", code: result.code, message: result.message });
+        const error = result as { ok: false; code: string; message: string };
+        this.ws.sendToPlayer(id, { type: "inventory_error", code: error.code, message: error.message });
       }
       // Snapshot is broadcast by InventoryDirector on success
       player.inventory = playerData.inventory;
@@ -292,12 +292,6 @@ export class WorldTick {
   start() { this.timer = setInterval(() => this.tick(), 100); }
   
   stop() { if (this.timer) clearInterval(this.timer); this.timer = null; }
-  
-  private tick(): void {
-    // Sync tick to InventoryDirector for deterministic loot generation
-    inventoryDirector.setTick(this.tickCount);
-    // ... rest of tick
-  }
   
   private buildAREPayload(): AREGuardPayload { return { l: 13, k: 1000, r: Math.round((0.5 + Math.sin(this.tickCount / 10) * 0.5) * 1000) / 1000, tick: this.tickCount, deterministicSeed: `ARE|k1000|tick:${this.tickCount}|chunk:64` }; }
 
@@ -447,6 +441,8 @@ export class WorldTick {
 
   tick() {
     this.tickCount += 1;
+    // Sync tick to InventoryDirector for deterministic loot generation
+    inventoryDirector.setTick(this.tickCount);
     const payload = this.buildAREPayload();
     const allPlayers = this.playerSystem.getAllPlayers();
     AIOrchestrator.update(this.tickCount);

@@ -20,9 +20,9 @@ import {
   PlayerInventorySnapshot,
   InventoryIntent,
   InventoryEvent,
+  MODULAR_COMPONENT_POOLS,
 } from "@wasd/shared/items";
-import { buildModularItem, parseItemSignature, forgeSignature } from "@wasd/shared/items";
-import { MODULAR_COMPONENT_POOLS } from "@wasd/shared/items/types.js";
+import { buildModularItem, parseItemSignature, forgeSignature } from "@wasd/shared";
 
 // ─── Type Re-exports for convenience ───────────────────────────
 

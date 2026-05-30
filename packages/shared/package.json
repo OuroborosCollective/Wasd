@@ -9,6 +9,18 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./items": {
+      "types": "./dist/items/index.d.ts",
+      "import": "./dist/items/index.js"
+    },
+    "./items/types": {
+      "types": "./dist/items/types.d.ts",
+      "import": "./dist/items/types.js"
+    },
+    "./items/itemSignature": {
+      "types": "./dist/items/itemSignature.d.ts",
+      "import": "./dist/items/itemSignature.js"
     }
   },
   "scripts": {
