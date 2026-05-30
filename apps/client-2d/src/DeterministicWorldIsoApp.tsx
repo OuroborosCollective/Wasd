@@ -14,6 +14,7 @@ import { moveVisualTowards } from "./visualMotion";
 import { CombatFXManager } from "./render/CombatFXManager";
 import { initCombatFXBridge } from "./render/CombatFXEventBridge";
 import { ChunkManager } from "./world/ChunkManager";
+import { InterpolatedSpriteManager } from "./math/InterpolatedSpriteManager";
 
 const EQUIPPED_WEAPON_KEY = "wasd:2d:equippedWeaponVisualId";
 const WORLD_SEED = "areloria:earth_1_1";
@@ -252,14 +253,43 @@ export function DeterministicWorldIsoApp() {
     const app = appRef.current;
     const layer = actorLayerRef.current;
     if (!app || !layer) return;
+    
+    // Get the interpolation manager singleton
+    const interp = InterpolatedSpriteManager.getInstance();
+    
     const existing = entities.current.get(id);
     if (existing) {
+      // ─────────────────────────────────────────────────────────────────
+      // EXISTING ENTITY: Update LOGICAL state + set RENDER target
+      //
+      // ARCHITECTURE: We update entity.tx/tz (logical truth from server)
+      // but we do NOT modify sprite.x/y directly here. Instead, we set
+      // the target position in InterpolatedSpriteManager, which will be
+      // consumed by the PIXI.Ticker callback.
+      //
+      // This is the core of "Stateless Determinism": the logical kappa
+      // position is NEVER mutated by the lerp. The render loop is purely
+      // cosmetic and decoupled from the authoritative game state.
+      // ─────────────────────────────────────────────────────────────────
       existing.tx = x;
       existing.tz = z;
       existing.name = name;
       existing.weaponVisualId = weaponVisualId ?? existing.weaponVisualId;
+      
+      // Calculate screen position from tile coordinates
+      const screenPos = iso(x, z, app.screen.width, app.screen.height);
+      
+      // Register target position for interpolation (NOT instant move)
+      interp.setTarget(id, screenPos.x, screenPos.y);
       return;
     }
+    
+    // ─────────────────────────────────────────────────────────────────
+    // NEW ENTITY: Spawn with initial position
+    // For new entities, we DO set the sprite position immediately (spawn).
+    // This is the only place where we directly modify sprite.x/y outside
+    // the ticker loop.
+    // ─────────────────────────────────────────────────────────────────
     const root = buildActorVisual({ name, player, assets: assetsRef.current, characterVisualId, weaponVisualId });
     if (!player) installNpcTapIntent(root, id, sendInteractIntent);
     placeActor(root, x, z, app.screen.width, app.screen.height);
@@ -268,6 +298,11 @@ export function DeterministicWorldIsoApp() {
     
     // Register actor with CombatFXManager for O(1) target lookup
     combatFXRef.current?.registerActor(id, root);
+    
+    // Register with interpolation manager for smooth movement
+    // Initial position is the spawn position; subsequent updates will lerp
+    const screenPos = iso(x, z, app.screen.width, app.screen.height);
+    interp.register(id, root, screenPos.x, screenPos.y);
   }
 
   function rebuildActor(id: string, weaponVisualId: string | null) {
@@ -282,6 +317,12 @@ export function DeterministicWorldIsoApp() {
     layer.addChild(root);
     oldRoot.destroy({ children: true });
     entities.current.set(id, { ...existing, root, weaponVisualId });
+    
+    // Re-register with interpolation manager (sprite was replaced)
+    const interp = InterpolatedSpriteManager.getInstance();
+    interp.remove(id); // Remove old reference
+    const screenPos = iso(existing.tx, existing.tz, app.screen.width, app.screen.height);
+    interp.register(id, root, screenPos.x, screenPos.y);
   }
 
   function sendMove(vector: MoveVector) {
@@ -489,15 +530,32 @@ export function DeterministicWorldIsoApp() {
     if (k.has("a") || k.has("arrowleft")) dx -= 1;
     if (k.has("d") || k.has("arrowright")) dx += 1;
     if (dx || dz) sendMove({ dx, dz });
+
+    // ─────────────────────────────────────────────────────────────────
+    // RENDER INTERPOLATION (60 FPS - Decoupled from WORLD_HEARTBEAT)
+    //
+    // The InterpolatedSpriteManager runs in the PIXI.Ticker loop,
+    // smoothing the 10-Hz server position updates into fluid 60-FPS
+    // visual motion. This is purely cosmetic; entity.tx/tz (logical
+    // state) is NEVER modified here.
+    //
+    // Teleport-Snap: If distance > 150px, instant snap
+    // Precision-Lock: If distance < 0.5px, snap to target
+    // Normal: Exponential ease-out lerp with deltaTime scaling
+    // ─────────────────────────────────────────────────────────────────
+    const interp = InterpolatedSpriteManager.getInstance();
+    interp.tick(deltaTime);
+
+    // NPC bobbing animation - cosmetic visual flair applied AFTER lerp
+    // This offset is purely additive and doesn't affect interpolation
     const now = performance.now();
     entities.current.forEach((entity) => {
-      const point = iso(entity.tx, entity.tz, app.screen.width, app.screen.height);
-      moveVisualTowards(entity.root, point, deltaTime);
       if (!entity.isPlayer) {
         const phase = entity.name.length * 0.31;
         entity.root.y += Math.sin(now / 620 + phase) * 0.8;
       }
     });
+
     followCamera(app, deltaTime);
   }
 
