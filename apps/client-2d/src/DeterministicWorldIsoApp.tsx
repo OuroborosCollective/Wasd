@@ -16,6 +16,8 @@ const TILE_W = 96;
 const TILE_H = 48;
 const EQUIPPED_WEAPON_KEY = "wasd:2d:equippedWeaponVisualId";
 const WORLD_SEED = "areloria:earth_1_1";
+const NPC_INTERACT_COOLDOWN_MS = 1000;
+const NPC_TOUCH_PADDING = 24;
 
 type MoveVector = { dx: number; dz: number };
 type Msg = { from: string; txt: string };
@@ -189,6 +191,27 @@ function payloadCoord(entity: any, axis: "x" | "z"): number {
   return Number(value ?? 0);
 }
 
+function dispatchClientAction(action: string, payload: Record<string, unknown>): void {
+  window.dispatchEvent(new CustomEvent("wasd:client-action", { detail: { action, payload } }));
+}
+
+function installNpcTapIntent(root: Container, targetId: string): void {
+  let lastTapAt = 0;
+  root.eventMode = "static";
+  root.cursor = "pointer";
+  root.hitArea = new Rectangle(-44 - NPC_TOUCH_PADDING, -92 - NPC_TOUCH_PADDING, 88 + NPC_TOUCH_PADDING * 2, 126 + NPC_TOUCH_PADDING * 2);
+  root.on("pointertap", () => {
+    const now = Date.now();
+    if (now - lastTapAt < NPC_INTERACT_COOLDOWN_MS) return;
+    lastTapAt = now;
+    root.alpha = 0.78;
+    window.setTimeout(() => {
+      root.alpha = 1;
+    }, 180);
+    dispatchClientAction("INTERACT_ENTITY", { targetId });
+  });
+}
+
 export function DeterministicWorldIsoApp() {
   const host = useRef<HTMLDivElement>(null);
   const appRef = useRef<Application | null>(null);
@@ -220,6 +243,7 @@ export function DeterministicWorldIsoApp() {
       return;
     }
     const root = buildActorVisual({ name, player, assets: assetsRef.current, characterVisualId, weaponVisualId });
+    if (!player) installNpcTapIntent(root, id);
     placeActor(root, x, z, app.screen.width, app.screen.height);
     layer.addChild(root);
     entities.current.set(id, { root, tx: x, tz: z, name, isPlayer: player, weaponVisualId, characterVisualId });
@@ -232,6 +256,7 @@ export function DeterministicWorldIsoApp() {
     if (!app || !layer || !existing) return;
     const oldRoot = existing.root;
     const root = buildActorVisual({ name: existing.name, player: existing.isPlayer, assets: assetsRef.current, characterVisualId: existing.characterVisualId, weaponVisualId });
+    if (!existing.isPlayer) installNpcTapIntent(root, id);
     placeActor(root, existing.tx, existing.tz, app.screen.width, app.screen.height);
     layer.addChild(root);
     oldRoot.destroy({ children: true });
