@@ -17,8 +17,6 @@ import { randomUUID } from "node:crypto";
  * Integration with actual persistence backends is tested separately.
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
-
 // Mock backend for testing - using plain object
 const mockBackend = {
   name: "test",
@@ -47,25 +45,30 @@ vi.mock("../modules/player/PlayerStatsDirector.js", () => ({
   PlayerStatsDirector: vi.fn(),
 }));
 
-// Mock InventoryDirector 
+// Mock InventoryDirector
 vi.mock("../modules/inventory/index.js", () => ({
   inventoryDirector: {
     buildSnapshot: vi.fn().mockReturnValue({
       inventory: {
+        // Hier simulieren wir unsere deterministischen Item-Signaturen
         slots: [
-          { id: "item1", signature: "ITEM:iron_sword:1" },
-          { id: "item2", signature: "ITEM:leather_armor:1" },
-          null,
+          "base:blade_3|hilt_12|mat_iron", // Slot 0: Ein Item
+          "base:potion_1|tier_2",          // Slot 1: Noch ein Item
+          null,                            // Slot 2: Leer
+          null                             // Slot 3: Leer
         ],
         maxSlots: 24,
-        weight: 5,
-        maxWeight: 200,
+        gold: 150,
+        weight: 12.5,
+        maxWeight: 100
       },
-      equipment: {},
-      tick: 0,
-    }),
-  },
-  InventoryDirector: vi.fn(),
+      equipment: {
+        MAIN_HAND: { signature: "base:sword_1|hilt_1|mat_steel" },
+        CHEST: null,
+        HEAD: null
+      }
+    })
+  }
 }));
 
 // Mock createPersistenceBackend to return our mock backend
