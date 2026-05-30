@@ -1,6 +1,6 @@
 import type { Container, Texture } from "pixi.js";
 import type { AssetEntry } from "../assetManifest";
-import type { BuildingType, NpcRole, PropType, RoadType } from "@wasd/shared";
+import type { BuildingType, NpcRole, PropType, RoadType } from "@wasd/shared/world";
 
 export type RenderLayerName = "terrain" | "roads" | "buildings" | "props" | "actors";
 

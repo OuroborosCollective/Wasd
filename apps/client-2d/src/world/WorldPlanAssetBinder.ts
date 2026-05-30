@@ -1,7 +1,7 @@
 import type { AssetManifest } from "../assetManifest";
 import { fallbackEntry, pickCharacterVisual } from "../assetManifest";
 import { pickGraphicRiverBuilding, pickGraphicRiverCharacter, pickGraphicRiverProp, pickGraphicRiverTile } from "../graphicRiverIsoPicker";
-import type { BuildingType, NpcRole, PropType, RoadType } from "@wasd/shared";
+import type { BuildingType, NpcRole, PropType, RoadType } from "@wasd/shared/world";
 import type { BoundAsset, WorldPlanAssetBinder } from "./WorldPlanRenderTypes";
 
 function roleToCharacterQuery(role: NpcRole): { readonly group?: string; readonly kind?: string; readonly tags: readonly string[] } {
