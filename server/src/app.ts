@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 
-const app = express();
+const app: any = express();
 
 app.use(express.json());
 

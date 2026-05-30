@@ -1,3 +1,4 @@
+import express from "express";
 import { Router, type Request, type Response } from "express";
 import { QuestlineEngine } from "../modules/questline/questlineEngine.js";
 import { registeredProceduralQuestIdsByQuestline } from "../modules/questline/questlineBridge.js";
@@ -38,7 +39,7 @@ function resolvePlayerId(req: Request): string | null {
   return null;
 }
 
-export function questlineRouter() {
+export function questlineRouter(): express.Router {
   const r = Router();
 
   r.get("/factions", (_req: Request, res: Response) => {

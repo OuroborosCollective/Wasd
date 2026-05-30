@@ -1,3 +1,4 @@
+import express from "express";
 /**
  * Character API Routes
  * GET  /api/character/manifest      – Returns the full character manifest (bodies, heads, colors)
@@ -9,7 +10,7 @@ import { Router, Request, Response } from 'express';
 import { characterAssembly, CharacterAppearance } from '../modules/character/CharacterAssemblySystem.js';
 import { db } from '../core/Database.js';
 
-const router = Router();
+const router: any = Router();
 
 /** GET /api/character/manifest */
 router.get('/manifest', (_req: Request, res: Response) => {

@@ -73,7 +73,7 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: isItchBuild ? "dist-itch" : "dist",
       emptyOutDir: true,
-      target: "esnext",
+      target: "es2022",
       // Production minification
       minify: minify,
       cssCodeSplit: true,
