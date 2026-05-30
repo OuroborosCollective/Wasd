@@ -90,5 +90,12 @@ jobs:
             fi
 
             cd "$DEPLOY_PATH"
-            chmod +x scripts/deploy-vps-docker.sh 2>/dev/null || true
+            chmod +x scripts/deploy-vps-docker.sh scripts/install-nginx-host-gateway.sh 2>/dev/null || true
             bash scripts/deploy-vps-docker.sh
+
+            echo "=== Applying host nginx gateway ==="
+            if command -v sudo >/dev/null 2>&1; then
+              sudo ARELORIAN_PORT="$ARELORIAN_PORT" bash scripts/install-nginx-host-gateway.sh
+            else
+              ARELORIAN_PORT="$ARELORIAN_PORT" bash scripts/install-nginx-host-gateway.sh
+            fi
