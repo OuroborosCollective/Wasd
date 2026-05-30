@@ -21,8 +21,7 @@
  */
 
 import { createARESeed, SeededARERng } from "../../core/determinism/AREDeterminism.js";
-import { MODULAR_COMPONENT_POOLS, type ItemSignature } from "@wasd/shared/items/types.js";
-import { forgeSignature, buildModularItem, type ModularItem } from "@wasd/shared/items/itemSignature.js";
+import { MODULAR_COMPONENT_POOLS, type ItemSignature, forgeSignature, buildModularItem } from "@wasd/shared";
 import { inventoryDirector } from "../inventory/InventoryDirector.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -461,21 +460,21 @@ export class LootDirector {
     let hiltIdx: number, materialIdx: number, prefixIdx: number, suffixIdx: number, runeIdx: number;
     
     if (isWeapon) {
-      hiltIdx = Math.abs(rng.nextInt()) % MODULAR_COMPONENT_POOLS.hilts.length;
-      materialIdx = Math.abs(rng.nextInt() >> 4) % MODULAR_COMPONENT_POOLS.materials.length;
+      hiltIdx = Math.abs(rng.nextInt(1000000)) % MODULAR_COMPONENT_POOLS.hilts.length;
+      materialIdx = Math.abs(rng.nextInt(1000000) >> 4) % MODULAR_COMPONENT_POOLS.materials.length;
       
       // Prefix/suffix/rune are rarer
-      prefixIdx = Math.abs(rng.nextInt() >> 8) % MODULAR_COMPONENT_POOLS.prefixes.length;
-      suffixIdx = Math.abs(rng.nextInt() >> 12) % MODULAR_COMPONENT_POOLS.suffixes.length;
-      runeIdx = Math.abs(rng.nextInt() >> 16) % MODULAR_COMPONENT_POOLS.runes.length;
+      prefixIdx = Math.abs(rng.nextInt(1000000) >> 8) % MODULAR_COMPONENT_POOLS.prefixes.length;
+      suffixIdx = Math.abs(rng.nextInt(1000000) >> 12) % MODULAR_COMPONENT_POOLS.suffixes.length;
+      runeIdx = Math.abs(rng.nextInt(1000000) >> 16) % MODULAR_COMPONENT_POOLS.runes.length;
     } else {
       // Armor — no hilt
       hiltIdx = -1;
-      materialIdx = Math.abs(rng.nextInt()) % MODULAR_COMPONENT_POOLS.materials.length;
+      materialIdx = Math.abs(rng.nextInt(1000000)) % MODULAR_COMPONENT_POOLS.materials.length;
       
-      prefixIdx = Math.abs(rng.nextInt() >> 8) % MODULAR_COMPONENT_POOLS.prefixes.length;
-      suffixIdx = Math.abs(rng.nextInt() >> 12) % MODULAR_COMPONENT_POOLS.suffixes.length;
-      runeIdx = Math.abs(rng.nextInt() >> 16) % MODULAR_COMPONENT_POOLS.runes.length;
+      prefixIdx = Math.abs(rng.nextInt(1000000) >> 8) % MODULAR_COMPONENT_POOLS.prefixes.length;
+      suffixIdx = Math.abs(rng.nextInt(1000000) >> 12) % MODULAR_COMPONENT_POOLS.suffixes.length;
+      runeIdx = Math.abs(rng.nextInt(1000000) >> 16) % MODULAR_COMPONENT_POOLS.runes.length;
     }
     
     // 20% chance for prefix, 15% for suffix, 10% for rune

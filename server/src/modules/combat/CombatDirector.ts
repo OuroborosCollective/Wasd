@@ -18,9 +18,9 @@
  * - No client-side XP calculation or manipulation possible
  */
 
-import { parseItemSignature, type ParsedSignature, type ModularItem } from "@wasd/shared/items/itemSignature.js";
-import { type EquipmentState } from "@wasd/shared/items/types.js";
-import { type FxKind } from "./types.js";
+import { parseItemSignature, type ParsedSignature, buildModularItem, type EquipmentState } from "@wasd/shared";
+import { MODULAR_COMPONENT_POOLS, type ItemSignature } from "@wasd/shared";
+import { type FxKind } from "./CombatSystem.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -288,7 +288,7 @@ export class CombatDirector {
    * This is the main entry point called by CombatService.
    */
   public processCombatTick(input: CombatTickInput): CombatXPResult {
-    const attackXP = input.isDefender ? 0 : this.calculateAttackXP(
+    const attackXP = this.calculateAttackXP(
       input.attackerId,
       input.attackerEquipment,
       input.hit,
@@ -304,7 +304,7 @@ export class CombatDirector {
     );
     
     // Merge all events
-    const allEvents = [...attackXP, ...defendXP];
+    const allEvents: XPGainEvent[] = [...attackXP, ...defendXP];
     
     // Queue for broadcast
     this.pendingXPevents.push(...allEvents);
