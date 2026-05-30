@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { CyberZenLoginGate } from "./CyberZenLoginGate";
-import { CyberZenIsoApp } from "./CyberZenIsoApp";
+import { DeterministicWorldIsoApp } from "./DeterministicWorldIsoApp";
 import { LiveRealityBridge } from "./LiveRealityBridge";
 import { MobileMovePad } from "./MobileMovePad";
 import { PixiModuleInspector } from "./PixiModuleInspector";
@@ -26,7 +26,7 @@ installViewportRuntime();
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <CyberZenLoginGate>
-      <CyberZenIsoApp />
+      <DeterministicWorldIsoApp />
       <LiveRealityBridge />
       <WorldHeartMonitor />
       <PixiModuleInspector />
