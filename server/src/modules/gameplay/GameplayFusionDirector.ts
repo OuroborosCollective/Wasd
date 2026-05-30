@@ -253,12 +253,12 @@ export class GameplayFusionDirector {
     this.updateContractProgress(ctx.now);
   }
 
-  getQuestEchoBeacons(now: number = 0): QuestEchoBeacon[] {
+  getQuestEchoBeacons(now: number = Date.now() /* @are-telemetry-side-channel */): QuestEchoBeacon[] {
     this.cleanupExpired(now);
     return Array.from(this.questEchoBeacons.values()).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
 
-  resolveNpcGlbOverride(npc: any, now: number = 0): string | undefined {
+  resolveNpcGlbOverride(npc: any, now: number = Date.now() /* @are-telemetry-side-channel */): string | undefined {
     const npcId = typeof npc?.id === "string" ? npc.id : "";
     if (!npcId) return undefined;
     const override = this.npcOverrides.get(npcId);
@@ -270,7 +270,7 @@ export class GameplayFusionDirector {
     return override.glbPath;
   }
 
-  resolveWorldObjectGlbOverride(type: string | undefined, now: number = 0): string | undefined {
+  resolveWorldObjectGlbOverride(type: string | undefined, now: number = Date.now() /* @are-telemetry-side-channel */): string | undefined {
     const key = normalizeToken(type);
     if (!key) return undefined;
     const override = this.objectTypeOverrides.get(key);
@@ -282,7 +282,7 @@ export class GameplayFusionDirector {
     return override.glbPath;
   }
 
-  getSnapshot(now: number = 0): GameplayFusionSnapshot {
+  getSnapshot(now: number = Date.now() /* @are-telemetry-side-channel */): GameplayFusionSnapshot {
     this.cleanupExpired(now);
     return {
       // @are-telemetry-side-channel
@@ -304,9 +304,8 @@ export class GameplayFusionDirector {
     contract.status = "in_progress";
     contract.assignedNpcId = npcId;
     contract.progress01 = Math.max(contract.progress01, 0.2);
-    // updatedAt should be driven by the tick now parameter if we want full determinism,
-    // but assignContractToNpc doesn't have it. For now we use 0 or caller should have updated it.
-    // In GameplayFusionDirector, many methods expect 'now' to be passed.
+    // @are-telemetry-side-channel
+    contract.updatedAt = Date.now();
     return true;
   }
 
@@ -317,7 +316,8 @@ export class GameplayFusionDirector {
     const contract = this.contracts.get(contractId);
     if (!contract) return false;
 
-    const now = opts.now ?? 0;
+    // @are-telemetry-side-channel
+    const now = opts.now ?? Date.now();
     contract.status = "completed";
     contract.progress01 = 1;
     contract.assignedNpcId = opts.completedByNpcId;
