@@ -23,6 +23,7 @@ export interface NetworkClientOptions {
 export interface NetworkClient {
   connected: boolean;
   on(event: string, handler: Handler): void;
+  off(event: string, handler: Handler): void;
   connect(): void;
   disconnect(): void;
   sendPlayerAction(action: string, payload: Record<string, unknown>): void;
@@ -34,10 +35,20 @@ function dispatchWorldPacket(event: string, payload?: any): void {
   window.dispatchEvent(new CustomEvent("wasd:world-packet", { detail: payload }));
 }
 
+function dispatchNetworkPacket(event: string, payload?: any): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent("wasd:network-packet", { detail: { event, payload } }));
+}
+
 class LocalNetworkClient implements NetworkClient {
   public connected = false;
   private socket: WebSocket | null = null;
   private readonly handlers: HandlerMap = new Map();
+  private readonly outboundActionHandler = (event: Event): void => {
+    const detail = (event as CustomEvent<{ action?: string; payload?: Record<string, unknown> }>).detail;
+    if (!detail?.action) return;
+    this.sendPlayerAction(detail.action, detail.payload ?? {});
+  };
 
   constructor(private readonly options: NetworkClientOptions) {}
 
@@ -47,7 +58,18 @@ class LocalNetworkClient implements NetworkClient {
     this.handlers.set(event, set);
   }
 
+  public off(event: string, handler: Handler): void {
+    const set = this.handlers.get(event);
+    if (!set) return;
+    set.delete(handler);
+    if (set.size === 0) this.handlers.delete(event);
+  }
+
   public connect(): void {
+    if (typeof window !== "undefined") {
+      window.removeEventListener("wasd:client-action", this.outboundActionHandler as EventListener);
+      window.addEventListener("wasd:client-action", this.outboundActionHandler as EventListener);
+    }
     const wsUrl = this.toWebSocketUrl(this.options.url);
     try {
       this.socket = new WebSocket(wsUrl);
@@ -71,6 +93,9 @@ class LocalNetworkClient implements NetworkClient {
   }
 
   public disconnect(): void {
+    if (typeof window !== "undefined") {
+      window.removeEventListener("wasd:client-action", this.outboundActionHandler as EventListener);
+    }
     this.socket?.close();
     this.socket = null;
     this.connected = false;
@@ -97,6 +122,7 @@ class LocalNetworkClient implements NetworkClient {
 
   private emit(event: string, payload?: any): void {
     dispatchWorldPacket(event, payload);
+    dispatchNetworkPacket(event, payload);
     for (const handler of this.handlers.get(event) ?? []) handler(payload);
   }
 
