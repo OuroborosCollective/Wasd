@@ -180,7 +180,7 @@ function placeActor(root: Container, x: number, z: number, width: number, height
 }
 
 function payloadEntries(source: unknown, fallbackPrefix: string): [string, any][] {
-  if (Array.isArray(source)) return source.map((entry, index) => [String((entry as any)?.id ?? (entry as any)?.playerId ?? (entry as any)?.agentId ?? `${fallbackPrefix}-${index}`), entry]);
+  if (Array.isArray(source)) return source.map((entry, index) => [String((entry as any)?.id ?? (entry as any)?.playerId ?? (entry as any)?.agentId ?? (entry as any)?.npcId ?? `${fallbackPrefix}-${index}`), entry]);
   return Object.entries((source ?? {}) as Record<string, any>);
 }
 
@@ -215,6 +215,8 @@ export function DeterministicWorldIsoApp() {
     if (existing) {
       existing.tx = x;
       existing.tz = z;
+      existing.name = name;
+      existing.weaponVisualId = weaponVisualId ?? existing.weaponVisualId;
       return;
     }
     const root = buildActorVisual({ name, player, assets: assetsRef.current, characterVisualId, weaponVisualId });
@@ -223,16 +225,29 @@ export function DeterministicWorldIsoApp() {
     entities.current.set(id, { root, tx: x, tz: z, name, isPlayer: player, weaponVisualId, characterVisualId });
   }
 
+  function rebuildActor(id: string, weaponVisualId: string | null) {
+    const app = appRef.current;
+    const layer = actorLayerRef.current;
+    const existing = entities.current.get(id);
+    if (!app || !layer || !existing) return;
+    const oldRoot = existing.root;
+    const root = buildActorVisual({ name: existing.name, player: existing.isPlayer, assets: assetsRef.current, characterVisualId: existing.characterVisualId, weaponVisualId });
+    placeActor(root, existing.tx, existing.tz, app.screen.width, app.screen.height);
+    layer.addChild(root);
+    oldRoot.destroy({ children: true });
+    entities.current.set(id, { ...existing, root, weaponVisualId });
+  }
+
   function sendMove(vector: MoveVector) {
+    const now = performance.now();
+    if (!clientRef.current?.connected || now - lastMoveAt.current <= 140) return;
+    lastMoveAt.current = now;
+    clientRef.current.sendPlayerAction("MOVE", vector);
     const self = entities.current.get("self");
     if (self) {
       self.tx += vector.dx;
       self.tz += vector.dz;
     }
-    const now = performance.now();
-    if (!clientRef.current?.connected || now - lastMoveAt.current <= 140) return;
-    lastMoveAt.current = now;
-    clientRef.current.sendPlayerAction("MOVE", vector);
   }
 
   useEffect(() => {
@@ -321,14 +336,18 @@ export function DeterministicWorldIsoApp() {
     c.on("disconnect" as any, () => setConnected(false));
     c.on("WORLD_HEARTBEAT", (event: any) => {
       const selfId = event.payload?.self?.id;
-      payloadEntries(event.payload?.players, "player").forEach(([id, player]: any) => {
+      const playerEntries = payloadEntries(event.payload?.players, "player");
+      playerEntries.forEach(([id, player]: any) => {
         const actorId = selfId && id === selfId ? "self" : id;
         setActor(actorId, payloadCoord(player, "x"), payloadCoord(player, "z"), player.name || (actorId === "self" ? playerName : "Player"), true, null, player.weaponVisualId ?? player.equippedWeaponId ?? null);
       });
-      if (event.payload?.self && (!selfId || !payloadEntries(event.payload?.players, "player").some(([id]) => id === selfId))) {
+      if (event.payload?.self && (!selfId || !playerEntries.some(([id]) => id === selfId))) {
         const self = event.payload.self;
         setActor("self", payloadCoord(self, "x"), payloadCoord(self, "z"), self.name || playerName, true, null, self.weaponVisualId ?? self.equippedWeaponId ?? null);
       }
+      payloadEntries(event.payload?.agents ?? event.payload?.npcs, "agent").forEach(([id, npc]: any) => {
+        setActor(id, payloadCoord(npc, "x"), payloadCoord(npc, "z"), npc.name || npc.displayName || npc.role || "NPC", false, npc.characterVisualId ?? npc.visualId ?? null, null);
+      });
     });
     c.connect();
   }
@@ -372,8 +391,7 @@ export function DeterministicWorldIsoApp() {
     const next = ids[((current ? ids.indexOf(current) : -1) + 1 + ids.length) % ids.length];
     localStorage.setItem(EQUIPPED_WEAPON_KEY, next);
     setEquippedWeaponId(next);
-    const self = entities.current.get("self");
-    if (self) self.weaponVisualId = next;
+    rebuildActor("self", next);
     setMessages((items) => [...items.slice(-12), { from: "Inventory", txt: `Equipped weapon visual: ${next}` }]);
   }
 
