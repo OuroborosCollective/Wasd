@@ -9,7 +9,8 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@wasd/core-network": path.resolve(root, "./src/networkClient.ts")
+      "@wasd/core-network": path.resolve(root, "./src/networkClient.ts"),
+      "@wasd/shared": path.resolve(root, "../../packages/shared/src/index.ts")
     }
   },
   server: {
