@@ -537,3 +537,4 @@ export class WorldTick {
       console.error("[WorldTick] Queue flush failed:", err);
     });
   }
+}
