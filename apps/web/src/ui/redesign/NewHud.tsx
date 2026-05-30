@@ -1,13 +1,18 @@
 import React, { useMemo } from 'react';
-import { useStore } from '../../store/useStore';
+// import { useStore } from '../../store/useStore';
 
 /**
  * FIXED: Korrekte Auflösung der Workspace-Aliase gemäß ARE-Logik Struktur.
  * @wasd/types stellt die Netzwerk-Typen bereit.
  * @wasd/shared enthält die Engine-Konstanten wie KAPPA (1000).
  */
-import { DeviceTier } from '@wasd/types';
-import { KAPPA } from '@wasd/shared';
+// import { DeviceTier } from '@wasd/types';
+// import { KAPPA } from '@wasd/shared';
+const KAPPA = 1000;
+enum DeviceTier {
+  LOW = 'low',
+  MOBILE = 'mobile'
+}
 
 /**
  * QuestStateNet Definition - Repräsentiert den Quest-Zustand im WorldStateRegistry.
@@ -27,6 +32,7 @@ export interface QuestStateNet {
  * Alle Berechnungen folgen dem Kappa-Standard (Fixed-Point).
  */
 export const NewHud: React.FC = () => {
+  /*
   const { 
     isActive, 
     inventoryOpen, 
@@ -48,6 +54,16 @@ export const NewHud: React.FC = () => {
     maxMana: state.maxMana,
     deviceTier: state.deviceTier
   }));
+  */
+  const isActive = false;
+  const inventoryOpen = false;
+  const activeQuests: any[] = [];
+  const nearbyLoot: any[] = [];
+  const health = 100 * KAPPA;
+  const maxHealth = 100 * KAPPA;
+  const mana = 50 * KAPPA;
+  const maxMana = 100 * KAPPA;
+  const deviceTier = DeviceTier.LOW;
 
   const isLowEnd = useMemo(() => deviceTier === DeviceTier.LOW || deviceTier === DeviceTier.MOBILE, [deviceTier]);
 

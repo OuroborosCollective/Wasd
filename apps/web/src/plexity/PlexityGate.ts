@@ -147,4 +147,15 @@ export class PlexityGate {
     }
     return this.profile;
   }
+
+  /**
+   * Deterministically determines the optimal renderer based on capabilities.
+   */
+  public static async determineOptimalRenderer(): Promise<'WEBGPU' | 'WEBGL' | 'DOM'> {
+      // Heuristic: Check for WebGPU support
+      if ('gpu' in navigator) {
+          return 'WEBGPU';
+      }
+      return 'WEBGL';
+  }
 }
