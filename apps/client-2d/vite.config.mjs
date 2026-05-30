@@ -8,9 +8,11 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      '@wasd/core-network': path.resolve(root, './src/networkClient.ts')
-    }
+    alias: [
+      { find: '@wasd/core-network', replacement: path.resolve(root, './src/networkClient.ts') },
+      { find: '@wasd/shared/world', replacement: path.resolve(root, '../../packages/shared/src/world/index.ts') },
+      { find: '@wasd/shared', replacement: path.resolve(root, '../../packages/shared/src/index.ts') }
+    ]
   },
   server: {
     port: 5173,
