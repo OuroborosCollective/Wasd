@@ -175,6 +175,12 @@ importers:
       '@wasd/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@wasd/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@wasd/types':
+        specifier: workspace:*
+        version: link:../../packages/types
       framer-motion:
         specifier: ^12.40.0
         version: 12.40.0(@emotion/is-prop-valid@1.4.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)

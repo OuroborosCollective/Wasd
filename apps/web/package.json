@@ -18,6 +18,8 @@
     "@babylonjs/loaders": "^9.9.1",
     "@babylonjs/materials": "^9.9.1",
     "@wasd/database": "workspace:*",
+    "@wasd/shared": "workspace:*",
+    "@wasd/types": "workspace:*",
     "framer-motion": "^12.40.0",
     "lucide-react": "^1.16.0",
     "react": "^19.2.6",

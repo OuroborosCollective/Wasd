@@ -1,8 +1,8 @@
-import { AREPayload } from "@wasd/types";
+import { AREPayload } from "@wasd/shared";
 import { BabylonRenderer } from "./BabylonRenderer";
 import { ThreeRenderer } from "./ThreeRenderer";
 import { ProxyRenderer } from "./ProxyRenderer";
-import { PlexityGate } from "../utils/PlexityGate";
+import { PlexityGate } from "../plexity/PlexityGate";
 
 export type RendererType = "WEBGPU" | "WEBGL" | "DOM";
 

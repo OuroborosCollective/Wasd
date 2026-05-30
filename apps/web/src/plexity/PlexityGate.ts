@@ -147,4 +147,17 @@ export class PlexityGate {
     }
     return this.profile;
   }
+
+  public static async determineOptimalRenderer(): Promise<"WEBGPU" | "WEBGL" | "DOM"> {
+    // If WEBGPU is supported, prefer it.
+    if (navigator.gpu) {
+      try {
+        const adapter = await navigator.gpu.requestAdapter();
+        if (adapter) return "WEBGPU";
+      } catch (e) {
+        // Fallback
+      }
+    }
+    return "WEBGL";
+  }
 }
