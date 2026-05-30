@@ -187,7 +187,7 @@ export class SovereignGovernance {
   getReport(tick = 0): GovernanceReport {
     const now = Math.max(0, Math.floor(Number(tick)));
     for (const directive of this.directives.values()) this.evaluateDirective(directive.id, now);
-    const directives = [...this.directives.values()].sort((a, b) => a.createdTick - b.createdTick || a.id.localeCompare(b.id)).map((directive) => ({ ...directive, tally: this.tally(directive.id), votes: [...(this.votes.get(directive.id)?.values() ?? [])].sort((a, b) => a.tick - b.tick || a.peerId.localeCompare(b.peerId)) }));
+    const directives = [...this.directives.values()].sort((a, b) => a.createdTick - b.createdTick || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)).map((directive) => ({ ...directive, tally: this.tally(directive.id), votes: [...(this.votes.get(directive.id)?.values() ?? [])].sort((a, b) => a.tick - b.tick || (a.peerId < b.peerId ? -1 : a.peerId > b.peerId ? 1 : 0)) }));
     const active = directives.filter((directive) => directive.status === "open");
     const enacted = directives.filter((directive) => directive.status === "enacted");
     return {
@@ -246,7 +246,7 @@ export class SovereignGovernance {
 
   private summarize(directives: Array<WorldDirective & { tally?: DirectiveTally; votes?: DirectiveVote[] }>): string {
     if (directives.length === 0) return "Emily: Der Council ist ruhig. Keine aktiven World-Directives.";
-    const strongest = directives.map((directive) => ({ directive, tally: this.tally(directive.id) })).sort((a, b) => b.tally.total - a.tally.total || a.directive.id.localeCompare(b.directive.id))[0];
+    const strongest = directives.map((directive) => ({ directive, tally: this.tally(directive.id) })).sort((a, b) => b.tally.total - a.tally.total || (a.directive.id < b.directive.id ? -1 : a.directive.id > b.directive.id ? 1 : 0))[0];
     return `Emily-Moderatorin: Der Wille des Collective zeigt ${strongest.tally.willOfCollective.toUpperCase()} für „${strongest.directive.title}“. Beteiligung ${strongest.tally.total}/${numericEnv("ARE_GOVERNANCE_QUORUM_WEIGHT", DEFAULT_QUORUM_WEIGHT)} Gewicht. Einflussziel: ${strongest.directive.kind} in Sektor ${strongest.directive.sector}.`;
   }
 
