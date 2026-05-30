@@ -1,35 +1,30 @@
 import { useEffect, useState } from "react";
 import type { ActiveOverlay } from "./UIManager";
 
-interface InteractionClient {
-  readonly sendPlayerAction?: (action: string, payload: unknown) => void;
-  readonly on?: (event: string, handler: (...args: any[]) => void) => void;
-  readonly off?: (event: string, handler: (...args: any[]) => void) => void;
-}
-
 interface Props {
-  readonly client: InteractionClient | null;
   readonly payload: Extract<ActiveOverlay, { type: "TRADE" }>;
 }
 
-export function TradeOverlay({ client, payload }: Props) {
+function sendClientAction(action: string, payload: Record<string, unknown>): void {
+  window.dispatchEvent(new CustomEvent("wasd:client-action", { detail: { action, payload } }));
+}
+
+export function TradeOverlay({ payload }: Props) {
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
-    if (!client?.on || !client?.off) return undefined;
-    const handleTransactionComplete = () => setIsProcessing(false);
-    client.on("TRANSACTION_COMPLETE", handleTransactionComplete);
-    client.on("TRANSACTION_FAILED", handleTransactionComplete);
-    return () => {
-      client.off?.("TRANSACTION_COMPLETE", handleTransactionComplete);
-      client.off?.("TRANSACTION_FAILED", handleTransactionComplete);
+    const handleNetworkPacket = (event: Event): void => {
+      const detail = (event as CustomEvent<{ event?: string }>).detail;
+      if (detail?.event === "TRANSACTION_COMPLETE" || detail?.event === "TRANSACTION_FAILED") setIsProcessing(false);
     };
-  }, [client]);
+    window.addEventListener("wasd:network-packet", handleNetworkPacket);
+    return () => window.removeEventListener("wasd:network-packet", handleNetworkPacket);
+  }, []);
 
   const handleBuy = (itemId: string, quantity: number): void => {
-    if (!client?.sendPlayerAction || isProcessing) return;
+    if (isProcessing) return;
     setIsProcessing(true);
-    client.sendPlayerAction("BUY_VENDOR_ITEM", {
+    sendClientAction("BUY_VENDOR_ITEM", {
       targetId: payload.targetId,
       vendorManifest: payload.vendorManifest,
       itemId,
@@ -48,7 +43,7 @@ export function TradeOverlay({ client, payload }: Props) {
           <strong>Starter Rationen</strong>
           <span>5x Vorrat für die ersten Wege um Millbrook.</span>
         </div>
-        <button type="button" disabled={isProcessing || !client?.sendPlayerAction} onClick={() => handleBuy("item_ration_5", 1)}>
+        <button type="button" disabled={isProcessing} onClick={() => handleBuy("item_ration_5", 1)}>
           10 Silber
         </button>
       </div>
