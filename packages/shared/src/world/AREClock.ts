@@ -1,4 +1,4 @@
-import { assertInteger, intDiv } from "./KappaMath";
+import { assertInteger } from "./KappaMath";
 
 export const ARE_TICKS_PER_SECOND = 10 as const;
 
@@ -17,7 +17,8 @@ export function secondsToTicks(seconds: number): ARETick {
 }
 
 export function ticksToSeconds(tick: ARETick): number {
-  return intDiv(tick, ARE_TICKS_PER_SECOND);
+  assertInteger(tick, "tick");
+  return tick / ARE_TICKS_PER_SECOND;
 }
 
 export function cyclePhase(tick: ARETick, cycleTicks: ARETick): number {
