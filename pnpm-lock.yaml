@@ -126,6 +126,9 @@ importers:
       '@pixi/tilemap':
         specifier: ^5.0.2
         version: 5.0.2(pixi.js@8.18.1)
+      '@wasd/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       pixi-filters:
         specifier: ^6.1.4
         version: 6.1.5(pixi.js@8.18.1)
