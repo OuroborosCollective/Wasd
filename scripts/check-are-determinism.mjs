@@ -17,6 +17,9 @@ const criticalRoots = [
   'server/src/modules/genealogy',
   'server/src/modules/monster',
   'server/src/modules/npc',
+  'server/src/modules/gameplay',
+  'server/src/modules/world',
+  'server/src/governance',
 ];
 
 const criticalFilePatterns = [
@@ -47,6 +50,7 @@ const blockedPatterns = [
   { name: 'Date.now', regex: /\bDate\.now\s*\(/g },
   { name: 'new Date', regex: /\bnew\s+Date\s*\(/g },
   { name: 'randomUUID', regex: /\brandomUUID\s*\(/g },
+  { name: 'localeCompare', regex: /\blocaleCompare\s*\(/g },
 ];
 
 const allowedMarker = '@are-determinism-allow';

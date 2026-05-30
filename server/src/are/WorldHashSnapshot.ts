@@ -114,9 +114,21 @@ export function createWorldHashSnapshot(input: WorldHashSnapshotInput): WorldHas
       chunkSize,
       tick: input.tick,
       payload,
-      players: bucket.players.sort((a, b) => String(a.id ?? "").localeCompare(String(b.id ?? ""))),
-      npcs: bucket.npcs.sort((a, b) => String(a.id ?? "").localeCompare(String(b.id ?? ""))),
-      loot: bucket.loot.sort((a, b) => String(a.id ?? "").localeCompare(String(b.id ?? ""))),
+      players: bucket.players.sort((a, b) => {
+        const idA = String(a.id ?? "");
+        const idB = String(b.id ?? "");
+        return idA < idB ? -1 : idA > idB ? 1 : 0;
+      }),
+      npcs: bucket.npcs.sort((a, b) => {
+        const idA = String(a.id ?? "");
+        const idB = String(b.id ?? "");
+        return idA < idB ? -1 : idA > idB ? 1 : 0;
+      }),
+      loot: bucket.loot.sort((a, b) => {
+        const idA = String(a.id ?? "");
+        const idB = String(b.id ?? "");
+        return idA < idB ? -1 : idA > idB ? 1 : 0;
+      }),
     };
     chunks.push({
       chunkX,
