@@ -227,8 +227,50 @@ function isPreferredGraphicRiverCharacterFrame(id: string, entry: AssetEntry): b
   return ['peasant', 'child', 'walking', 'front'].some((term) => key.includes(term));
 }
 
+/**
+ * Filters out bad runtime sheet/preview/atlas entries that should not be used as standalone sprites.
+ * These typically represent full sprite sheets, preview images, or atlas grids.
+ */
+function isBadRuntimeSheetEntry(id: string, entry: AssetEntry): boolean {
+  const key = entryKey(id, entry);
+  const srcLower = entry.src.toLowerCase();
+  const tagsLower = (entry.tags ?? []).map((tag) => String(tag).toLowerCase());
+
+  // Explicitly bad naming patterns
+  const badTerms = [
+    'sheet', 'preview', 'atlas', 'sample', 'tileset', 'wall sheet',
+    'background', 'fullsheet', 'spritesheet', 'sprite-sheet', 'sprite_sheet',
+    'grid', 'collection', 'overview', 'all', 'composite', 'combined',
+    'multi', 'pack', 'bundle', 'set', 'sequence', 'animation sheet',
+    'flip', 'horizontal', 'vertical', 'strip', 'row', 'column'
+  ];
+
+  // Only filter if entry lacks proper frame/crop data (meaning it's a raw sheet)
+  const hasFrameData = Boolean(entry.frame || (entry.sheetFrame && entry.frameSize) || entry.spriteLayers?.length);
+  if (hasFrameData) return false; // Entry has crop data, trust it
+
+  // For entries without frame data, check if it's a bad sheet/preview
+  if (badTerms.some(term => key.includes(term))) return true;
+
+  // Check src for common sheet/preview patterns
+  const badSrcPatterns = ['_preview', '_sample', '_sheet', '_atlas', '-preview', '-sample', '-sheet', '-atlas',
+    'spritesheet', 'sprite_sheet', 'tileset', 'wallpaper', 'background', 'composite'];
+  if (badSrcPatterns.some(p => srcLower.includes(p))) return true;
+
+  // Large images without frame data are likely sheets (heuristic: > 512 width is suspicious for single asset)
+  if (!hasFrameData && entry.width && entry.width > 512) {
+    // But allow if tags or source indicate it's a designed tile
+    const goodTerms = ['tile', 'ground', 'grass', 'road', 'dirt', 'stone', 'floor'];
+    if (!goodTerms.some(t => tagsLower.some(tag => tag.includes(t)))) return true;
+  }
+
+  return false;
+}
+
 function isRenderableEntry(entry: AssetEntry | null | undefined): boolean {
   if (!entry?.src) return false;
+  // Reject bad sheet entries
+  if (entry.id && entry.src && isBadRuntimeSheetEntry(entry.id, entry)) return false;
   if (entry.frame) return true;
   if (entry.sheetFrame && entry.frameSize) return true;
   if (entry.spriteLayers?.length) return true;
