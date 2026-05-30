@@ -14,14 +14,16 @@ import { randomUUID } from "node:crypto";
  * 3. Atomic Disconnect-Sicherung: Blocking write on disconnect
  */
 
-// Mock backend for testing
+import { describe, it, expect, beforeEach, vi } from "vitest";
+
+// Mock backend for testing - using plain object
 const mockBackend = {
   name: "test",
   saveQueue: [] as any[],
   loadedData: {} as any,
   init: vi.fn().mockResolvedValue(undefined),
   testConnection: vi.fn().mockResolvedValue(true),
-  save: vi.fn(async (data) => {
+  save: vi.fn(async (data: any) => {
     mockBackend.saveQueue.push({ data, ts: Date.now() });
     Object.assign(mockBackend.loadedData, data);
   }),
@@ -31,7 +33,7 @@ const mockBackend = {
 };
 
 // Mock createPersistenceBackend to return our mock backend
-vi.mock("./createPersistenceBackend.js", () => ({
+vi.mock("../modules/persistence/createPersistenceBackend.js", () => ({
   createPersistenceBackend: vi.fn().mockReturnValue(mockBackend),
 }));
 
@@ -48,7 +50,7 @@ vi.mock("../player/PlayerStatsDirector.js", () => ({
 }));
 
 // Mock InventoryDirector 
-vi.mock("../inventory/index.js", () => ({
+vi.mock("../modules/inventory/index.js", () => ({
   inventoryDirector: {
     buildSnapshot: vi.fn().mockReturnValue({
       inventory: {
