@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deepClone } from '../../utils/deepClone';
+import { deepClone } from '../../utils/deepClone.js';
 
 describe('deepClone benchmark and parity', () => {
   const sampleObject = {
