@@ -4,6 +4,10 @@ export type IsoPoint = {
   zIndex: number;
 };
 
+/** Default tile dimensions for Areloria isometric grid */
+export const TILE_W = 96;
+export const TILE_H = 48;
+
 export type IsoProjectionInput = {
   gridX: number;
   gridZ: number;
