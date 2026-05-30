@@ -7,6 +7,7 @@ import { MobileMovePad } from "./MobileMovePad";
 import { PixiModuleInspector } from "./PixiModuleInspector";
 import { WorldHeartMonitor } from "./WorldHeartMonitor";
 import { KenneyUiLiveSkinBadge } from "./KenneyUiLiveSkinBadge";
+import { InteractionOverlayRoot } from "./ui/InteractionOverlayRoot";
 import { installClient2DDepthRuntime } from "./client2dDepthRuntime";
 import { installViewportRuntime } from "./ViewportController";
 import "./forestBiomeManifestBridge";
@@ -32,6 +33,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <PixiModuleInspector />
       <MobileMovePad />
       <KenneyUiLiveSkinBadge />
+      <InteractionOverlayRoot />
     </CyberZenLoginGate>
   </React.StrictMode>
 );
