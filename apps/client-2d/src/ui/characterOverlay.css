@@ -1,0 +1,292 @@
+/**
+ * Ouroboros CharacterOverlay — Tank-Style CSS
+ * 
+ * Aesthetic: Dark military theme, sharp corners (no border-radius).
+ * Inspired by RuneScape's classic interface with a darker, more
+ * brutalist edge. No rounded corners, no soft shadows.
+ */
+
+.character-overlay {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 380px;
+  max-height: 85vh;
+  background: #0a0c10;
+  border: 2px solid #3a4050;
+  color: #e0e4f0;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+  z-index: 1000;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 
+    0 0 0 1px #000,
+    0 4px 20px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* ─── Header ──────────────────────────────────────────── */
+
+.char-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: #12151c;
+  border-bottom: 2px solid #2a3040;
+}
+
+.char-header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #b0b8d0;
+}
+
+.char-close-btn {
+  background: none;
+  border: 1px solid #4a5060;
+  color: #8090a0;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: background 0.1s, color 0.1s;
+}
+
+.char-close-btn:hover {
+  background: #2a3040;
+  color: #e0e4f0;
+  border-color: #6a7080;
+}
+
+/* ─── Player Info ─────────────────────────────────────── */
+
+.char-player-info {
+  padding: 12px;
+  background: #0e1118;
+  border-bottom: 2px solid #2a3040;
+}
+
+.char-player-name {
+  font-size: 16px;
+  font-weight: bold;
+  color: #d0d8f0;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.char-player-level {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.char-level-badge {
+  background: #1a2030;
+  border: 1px solid #4a5870;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: #80a0c0;
+}
+
+.char-total-level {
+  font-size: 11px;
+  color: #6080a0;
+}
+
+.char-gold {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #d4a030;
+}
+
+.char-gold-icon {
+  color: #ffd700;
+}
+
+.char-gold-value {
+  font-weight: bold;
+}
+
+/* ─── Sections ────────────────────────────────────────── */
+
+.char-section {
+  padding: 12px;
+  border-bottom: 1px solid #1a1e28;
+}
+
+.char-section h3 {
+  margin: 0 0 10px 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #607080;
+  border-bottom: 1px solid #2a3040;
+  padding-bottom: 4px;
+}
+
+/* ─── Stat Bars ───────────────────────────────────────── */
+
+.char-stat-bar {
+  margin-bottom: 8px;
+}
+
+.char-stat-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #8090a0;
+  margin-bottom: 3px;
+}
+
+.char-stat-bar-container {
+  height: 14px;
+  background: #0a0c10;
+  border: 1px solid #2a3040;
+  position: relative;
+  overflow: hidden;
+}
+
+.char-stat-bar-fill {
+  height: 100%;
+  transition: width 0.2s ease-out;
+}
+
+.char-stat-value {
+  font-size: 10px;
+  color: #607080;
+  margin-top: 2px;
+  text-align: right;
+}
+
+/* ─── Skills Section ──────────────────────────────────── */
+
+.char-skills-section {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 320px;
+}
+
+.char-skills-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.char-skill-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  background: #0e1118;
+  border: 1px solid #1a1e28;
+}
+
+.char-skill-row:hover {
+  background: #12151c;
+  border-color: #2a3040;
+}
+
+.char-skill-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 100px;
+}
+
+.char-skill-name {
+  font-size: 11px;
+  color: #b0b8d0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.char-skill-level {
+  font-size: 10px;
+  color: #6080a0;
+}
+
+.char-skill-xp {
+  flex: 1;
+  max-width: 160px;
+  margin-left: 12px;
+}
+
+.char-skill-progress-container {
+  height: 10px;
+  background: #0a0c10;
+  border: 1px solid #2a3040;
+  position: relative;
+  overflow: hidden;
+}
+
+.char-skill-progress-fill {
+  height: 100%;
+  background: linear-gradient(
+    to bottom,
+    #4060a0 0%,
+    #3050a0 50%,
+    #2040a0 100%
+  );
+  transition: width 0.15s ease-out;
+}
+
+.char-skill-xp-text {
+  display: block;
+  font-size: 9px;
+  color: #506070;
+  margin-top: 2px;
+  text-align: right;
+  font-family: monospace;
+}
+
+/* ─── Empty State ────────────────────────────────────── */
+
+.char-empty-state {
+  padding: 24px;
+  text-align: center;
+  color: #506070;
+}
+
+.char-empty-state p {
+  margin: 4px 0;
+}
+
+.char-empty-hint {
+  font-size: 10px;
+  color: #406060;
+  margin-top: 8px !important;
+}
+
+/* ─── Scrollbar ──────────────────────────────────────── */
+
+.char-skills-section::-webkit-scrollbar {
+  width: 8px;
+}
+
+.char-skills-section::-webkit-scrollbar-track {
+  background: #0a0c10;
+  border-left: 1px solid #1a1e28;
+}
+
+.char-skills-section::-webkit-scrollbar-thumb {
+  background: #2a3040;
+  border: 1px solid #3a4050;
+}
+
+.char-skills-section::-webkit-scrollbar-thumb:hover {
+  background: #3a4050;
+}

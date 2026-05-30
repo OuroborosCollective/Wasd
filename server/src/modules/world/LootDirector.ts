@@ -42,7 +42,8 @@ export interface LootEntity {
   ilvl: number;
   visualId: string;
   gold: number;
-  ownerId?: string;      // Player who killed the monster
+  ownerId: string | null;  // Player who killed/caused most damage — null = public loot
+  lockedUntilTick: number; // Anti-Ninja Lock: until this tick, only ownerId can pickup
   spawnedAtTick: number;
   despawnAtTick: number;
 }
@@ -169,6 +170,10 @@ export class LootDirector {
   // Loot TTL — matches electroweak pruning
   private readonly LOOT_TTL_TICKS = 1200;  // 2 minutes at 10Hz
   
+  // ANTI-NINJA LOCK: Loot is bound to killer for first 60 seconds
+  // At 10Hz, 60 seconds = 600 ticks
+  private readonly LOOT_LOCK_DURATION_TICKS = 600;
+  
   // Drop table tier thresholds
   private readonly ELITE_TIER_THRESHOLD = 10;  // monster level >= 10 = elite drops
   private readonly RARE_TIER_THRESHOLD = 5;    // monster level >= 5 = rare drops
@@ -213,7 +218,7 @@ export class LootDirector {
     monsterId: string,
     monsterLevel: number,
     position: KappaCoord,
-    ownerId?: string,
+    killerId: string | null,
     dropTableSeed?: number
   ): LootEntity[] {
     // Select appropriate drop table based on monster level
@@ -246,6 +251,8 @@ export class LootDirector {
         
         const lootId = `loot:${monsterId}:${this.worldTick}:${i}:${this.lootIdCounter++}`;
         
+        // ANTI-NINJA LOCK: Set owner and lock duration
+        // If killerId is null, loot is public (e.g., from world nodes)
         const lootEntity: LootEntity = {
           id: lootId,
           type: "LOOT",
@@ -256,7 +263,8 @@ export class LootDirector {
           ilvl: item.ilvl,
           visualId: item.visualId,
           gold: 0,  // Gold handled separately
-          ownerId,
+          ownerId: killerId,
+          lockedUntilTick: this.worldTick + this.LOOT_LOCK_DURATION_TICKS,
           spawnedAtTick: this.worldTick,
           despawnAtTick: this.worldTick + this.LOOT_TTL_TICKS,
         };
@@ -273,6 +281,7 @@ export class LootDirector {
       if (goldAmount > 0) {
         const goldLootId = `gold:${monsterId}:${this.worldTick}:${this.lootIdCounter++}`;
         
+        // Gold loot also respects anti-ninja lock
         const goldLoot: LootEntity = {
           id: goldLootId,
           type: "LOOT",
@@ -283,7 +292,8 @@ export class LootDirector {
           ilvl: 0,
           visualId: "gold_pile",
           gold: goldAmount,
-          ownerId,
+          ownerId: killerId,
+          lockedUntilTick: this.worldTick + this.LOOT_LOCK_DURATION_TICKS,
           spawnedAtTick: this.worldTick,
           despawnAtTick: this.worldTick + this.LOOT_TTL_TICKS,
         };
@@ -328,6 +338,26 @@ export class LootDirector {
         code: "LOOT_EXPIRED",
         message: "Loot has expired and despawned.",
       };
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // ANTI-NINJA LOCK CHECK (Causality Guard)
+    //
+    // For the first 60 seconds (600 ticks at 10Hz), loot belongs to the killer.
+    // If lockedUntilTick > currentTick, only the owner can pick up.
+    // If ownerId is null, loot is public (e.g., from world gathering nodes).
+    //
+    // This prevents ninja-looting: a player who shows up after the kill
+    // cannot steal the drops from the player who did the work.
+    // ═══════════════════════════════════════════════════════════════════
+    if (this.worldTick < loot.lockedUntilTick && loot.ownerId !== null) {
+      if (playerId !== loot.ownerId) {
+        return {
+          success: false,
+          code: "LOOT_LOCKED",
+          message: `This loot is locked to ${loot.ownerId} for ${Math.ceil((loot.lockedUntilTick - this.worldTick) / 10)} more seconds.`,
+        };
+      }
     }
     
     // Check distance (must be within pickup range)
@@ -517,7 +547,7 @@ export class LootDirector {
 
 export interface PickupResult {
   success: boolean;
-  code?: "LOOT_NOT_FOUND" | "LOOT_EXPIRED" | "TOO_FAR" | "OVER_WEIGHT" | "INVENTORY_FULL";
+  code?: "LOOT_NOT_FOUND" | "LOOT_EXPIRED" | "LOOT_LOCKED" | "TOO_FAR" | "OVER_WEIGHT" | "INVENTORY_FULL";
   message?: string;
   lootId?: string;
   itemSignature?: string;
