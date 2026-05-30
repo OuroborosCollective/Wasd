@@ -1,4 +1,4 @@
-import { PlexityGate, FeatureSet, DeviceProfile } from './PlexityGate';
+import { PlexityGate, FeatureSet } from './PlexityGate';
 
 export class PrecognitionPlexityAdapter {
   private gate: PlexityGate;

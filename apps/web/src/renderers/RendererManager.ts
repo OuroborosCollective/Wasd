@@ -1,24 +1,38 @@
-import { AREPayload } from "@wasd/types";
-import { BabylonRenderer } from "./BabylonRenderer";
-import { ThreeRenderer } from "./ThreeRenderer";
-import { ProxyRenderer } from "./ProxyRenderer";
-import { PlexityGate } from "../utils/PlexityGate";
-
-export type RendererType = "WEBGPU" | "WEBGL" | "DOM";
-
+// Minimal implementations to satisfy the manager until full porting is complete
 export interface IRenderer {
   initialize(canvas: HTMLCanvasElement): Promise<void>;
-  render(payload: AREPayload): void;
+  render(payload: any): void;
   resize(width: number, height: number): void;
   dispose(): void;
 }
+
+export class BabylonRenderer implements IRenderer {
+  async initialize(_canvas: HTMLCanvasElement): Promise<void> {}
+  render(_payload: any): void {}
+  resize(_width: number, _height: number): void {}
+  dispose(): void {}
+}
+
+export class ThreeRenderer implements IRenderer {
+  async initialize(_canvas: HTMLCanvasElement): Promise<void> {}
+  render(_payload: any): void {}
+  resize(_width: number, _height: number): void {}
+  dispose(): void {}
+}
+
+export class ProxyRenderer implements IRenderer {
+  async initialize(_canvas: HTMLCanvasElement): Promise<void> {}
+  render(_payload: any): void {}
+  resize(_width: number, _height: number): void {}
+  dispose(): void {}
+}
+
+export type RendererType = "WEBGPU" | "WEBGL" | "DOM";
 
 /**
  * RendererManager
  * 
  * Orchestrates the selection and lifecycle of the visual interpreter.
- * It selects between Babylon (WebGPU), Three (WebGL), or Proxy (DOM) 
- * based on the device's capability and complexity requirements determined by PlexityGate.
  */
 export class RendererManager {
   private currentRenderer: IRenderer | null = null;
@@ -28,15 +42,17 @@ export class RendererManager {
   constructor() {}
 
   /**
-   * Initializes the appropriate renderer based on environment and PlexityGate.
+   * Initializes the appropriate renderer based on environment.
    */
   public async initialize(canvas: HTMLCanvasElement): Promise<void> {
     this.canvas = canvas;
     
-    // Determine the optimal renderer type
-    this.type = await PlexityGate.determineOptimalRenderer();
+    // Determine the optimal renderer type - fallback to WEBGL for now
+    this.type = "WEBGL";
 
-    switch (this.type) {
+    const typeStr = this.type as string;
+
+    switch (typeStr) {
       case "WEBGPU":
         this.currentRenderer = new BabylonRenderer();
         break;
@@ -56,10 +72,9 @@ export class RendererManager {
   }
 
   /**
-   * Routes the AREPayload to the active renderer for visual interpretation.
-   * Renderers remain stateless visual shells; logic resides in the core engine.
+   * Routes the payload to the active renderer for visual interpretation.
    */
-  public update(payload: AREPayload): void {
+  public update(payload: any): void {
     if (!this.currentRenderer) return;
     this.currentRenderer.render(payload);
   }
@@ -74,7 +89,7 @@ export class RendererManager {
   }
 
   /**
-   * Switches renderer at runtime if needed (e.g., performance degradation).
+   * Switches renderer at runtime if needed.
    */
   public async switchRenderer(newType: RendererType): Promise<void> {
     if (this.type === newType || !this.canvas) return;

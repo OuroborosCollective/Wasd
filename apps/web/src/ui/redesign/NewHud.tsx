@@ -3,23 +3,9 @@ import { useStore } from '../../store/useStore';
 
 /**
  * FIXED: Korrekte Auflösung der Workspace-Aliase gemäß ARE-Logik Struktur.
- * @wasd/types stellt die Netzwerk-Typen bereit.
  * @wasd/shared enthält die Engine-Konstanten wie KAPPA (1000).
  */
-import { DeviceTier } from '@wasd/types';
-import { KAPPA } from '@wasd/shared';
-
-/**
- * QuestStateNet Definition - Repräsentiert den Quest-Zustand im WorldStateRegistry.
- */
-export interface QuestStateNet {
-  id: string;
-  name: string;
-  target: string;
-  progress: number;
-  maxProgress: number;
-  description?: string;
-}
+const KAPPA = 1000;
 
 /**
  * NewHud Komponente
@@ -49,7 +35,7 @@ export const NewHud: React.FC = () => {
     deviceTier: state.deviceTier
   }));
 
-  const isLowEnd = useMemo(() => deviceTier === DeviceTier.LOW || deviceTier === DeviceTier.MOBILE, [deviceTier]);
+  const isLowEnd = useMemo(() => deviceTier === 'LOW' || deviceTier === 'MOBILE', [deviceTier]);
 
   /**
    * Deterministic UI Berechnung: 
