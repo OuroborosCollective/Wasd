@@ -43,6 +43,7 @@ function statusPayload() {
     publicDirExists: existsSync(publicDir),
     manifestExists: existsSync(manifest),
     manifestUrl: "/client2d-assets/graphicriver-iso/manifest.json",
+    uploadPage: "/client2d-asset-upload.html",
     uploadUrl: "/api/client2d-assets/upload",
     maxUploadBytes: MAX_UPLOAD_BYTES,
   };
