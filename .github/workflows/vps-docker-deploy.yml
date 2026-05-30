@@ -56,11 +56,9 @@ jobs:
           node-version: 22
 
       - name: Set up pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@11.1.1 --activate
-          pnpm config set store-dir .pnpm-store
-          pnpm config set verify-deps-before-run false
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.2.2
 
       - name: Install client-2d dependencies
         run: |
