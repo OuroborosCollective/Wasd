@@ -7,6 +7,7 @@ import { type EnergyState } from './ThermalLogic';
 import { createEmergenceCollapsePayload, type WorldEmergenceCollapsePayload } from '../world/WorldEmergenceEvent';
 import { WorldEventBus } from '../world/WorldEventBus';
 import { WorldResonanceAdapter, type LootCapsule, type WorldResonanceResult } from '../world/WorldResonanceAdapter';
+import { generateInteractionResponse } from '../dialogue/DialogueDirector';
 
 const NPC_CHAT_COOLDOWN_TICKS = 300;
 const NPC_CHAT_ROLL_MODULO = 997;
@@ -191,15 +192,21 @@ export class NPCSystem {
         return logs;
     }
 
-    public handleInteraction(npcId: string, player: any, questDefs: any): any {
+    public handleInteraction(npcId: string, player: any, questDefs: any, worldContext?: { tick?: number; biomeId?: string }): any {
         const npc = this.getNPC(npcId);
         if (!npc) return null;
-        return {
-            source: npc.name || "NPC",
-            text: "Hello traveler!",
-            choices: [{ id: "greet", text: "Greetings!" }],
-            npcId
-        };
+        
+        return generateInteractionResponse(npc, {
+          id: player.id,
+          name: player.name,
+          health: player.health ?? 100,
+          maxHealth: player.maxHealth ?? 100,
+          gold: player.gold ?? 0,
+          equipment: player.equipment ?? {},
+        }, {
+          tick: Number(worldContext?.tick ?? 0),
+          biomeId: worldContext?.biomeId ?? "forest_village",
+        });
     }
 
     public handleChoice(npcId: string, nodeId: string, choiceId: string, player: any): any {
