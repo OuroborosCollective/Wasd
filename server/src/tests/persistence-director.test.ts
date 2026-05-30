@@ -12,6 +12,9 @@ import { randomUUID } from "node:crypto";
  * 1. Anti-IO-Blocking: Never block the 10-Hz WorldHeartbeat
  * 2. Minimalist Truth: Only atomic core data persisted
  * 3. Atomic Disconnect-Sicherung: Blocking write on disconnect
+ * 
+ * Note: These tests focus on testing the Director class logic with a mock backend.
+ * Integration with actual persistence backends is tested separately.
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -32,13 +35,8 @@ const mockBackend = {
   loadWorldObjects: vi.fn().mockResolvedValue([]),
 };
 
-// Mock createPersistenceBackend to return our mock backend
-vi.mock("../modules/persistence/createPersistenceBackend.js", () => ({
-  createPersistenceBackend: vi.fn().mockReturnValue(mockBackend),
-}));
-
 // Mock playerStatsDirector
-vi.mock("../player/PlayerStatsDirector.js", () => ({
+vi.mock("../modules/player/PlayerStatsDirector.js", () => ({
   playerStatsDirector: {
     getSkillsForSave: vi.fn().mockReturnValue({
       sword_mastery: { xp: 1000, level: 10 },
@@ -68,6 +66,11 @@ vi.mock("../modules/inventory/index.js", () => ({
     }),
   },
   InventoryDirector: vi.fn(),
+}));
+
+// Mock createPersistenceBackend to return our mock backend
+vi.mock("../modules/persistence/createPersistenceBackend.js", () => ({
+  createPersistenceBackend: vi.fn().mockReturnValue(mockBackend),
 }));
 
 describe("PersistenceDirector", () => {
