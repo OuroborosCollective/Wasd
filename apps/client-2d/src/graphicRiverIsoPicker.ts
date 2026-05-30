@@ -5,12 +5,47 @@ export type PickedGraphicRiverAsset = { id: string; entry: AssetEntry };
 const BAD_NORMAL_ACTOR_TERMS = ["death", "dead", "attack", "scream", "explosion", "bullet", "projectile"];
 const GRAPHIC_RIVER_TAG = "graphicriver_iso";
 
+// Bad patterns for sheet/preview/atlas files that should not be selected as standalone assets
+const BAD_SHEET_PATTERNS = [
+  "sheet", "preview", "atlas", "sample", "tileset", "wall sheet", "wall_sheet",
+  "background", "fullsheet", "spritesheet", "sprite-sheet", "sprite_sheet",
+  "grid", "collection", "overview", "all", "composite", "combined",
+  "multi", "pack", "bundle", "set", "sequence", "animation sheet",
+  "flip", "horizontal", "vertical", "strip", "row", "column"
+];
+
 function keyOf(id: string, entry: AssetEntry): string {
   return `${id} ${entry.sourcePath ?? ""} ${entry.src ?? ""}`.toLowerCase();
 }
 
 function hasAny(haystack: string, terms: string[]): boolean {
   return terms.some((term) => haystack.includes(term));
+}
+
+/**
+ * Checks if an entry is a bad sheet/preview/atlas that should not be used as a standalone asset.
+ */
+function isBadSheetEntry(id: string, entry: AssetEntry): boolean {
+  const key = keyOf(id, entry);
+  const srcLower = entry.src.toLowerCase();
+
+  // Check for bad naming patterns
+  if (BAD_SHEET_PATTERNS.some(p => key.includes(p))) return true;
+
+  // Check src for common bad patterns
+  const badSrcPatterns = ["_preview", "_sample", "_sheet", "_atlas", "-preview", "-sample",
+    "-sheet", "-atlas", "spritesheet", "sprite_sheet", "tileset", "background"];
+  if (badSrcPatterns.some(p => srcLower.includes(p))) return true;
+
+  // Large images (>512) without frame data are likely sheets
+  const hasFrameData = Boolean(entry.frame || (entry.sheetFrame && entry.frameSize) || entry.spriteLayers?.length);
+  if (!hasFrameData && entry.width && entry.width > 512) {
+    const tagsLower = (entry.tags ?? []).map((tag: string) => tag.toLowerCase());
+    const goodTerms = ["tile", "ground", "grass", "road", "dirt", "stone", "floor"];
+    if (!goodTerms.some(t => tagsLower.some(tag => tag.includes(t)))) return true;
+  }
+
+  return false;
 }
 
 function deterministicIndex(seed: string, length: number): number {
@@ -46,32 +81,42 @@ function choose(pool: [string, AssetEntry][], seed: string): PickedGraphicRiverA
   return { id, entry };
 }
 
+/**
+ * Filters entries to exclude bad sheet/preview/atlas entries when picking standalone assets.
+ */
+function filterBadSheets(entries: [string, AssetEntry][]): [string, AssetEntry][] {
+  return entries.filter(([id, entry]) => !isBadSheetEntry(id, entry));
+}
+
 export function pickGraphicRiverCharacter(manifest: AssetManifest | null | undefined, seed: string, role = "npc"): PickedGraphicRiverAsset | null {
   const entries = graphicRiverEntries(manifest, "characters");
   const safe = entries.filter(([id, entry]) => !hasAny(keyOf(id, entry), BAD_NORMAL_ACTOR_TERMS));
+  // Filter out bad sheet entries
+  const cleanEntries = filterBadSheets(safe);
   const roleLower = role.toLowerCase();
   const preferredTerms = roleLower.includes("guard") || roleLower.includes("smith")
     ? ["knight", "peasant", "walking", "front"]
     : ["peasant", "child", "walking", "front"];
-  const preferred = safe.filter(([id, entry]) => hasAny(keyOf(id, entry), preferredTerms));
-  return choose(preferred.length ? preferred : safe.length ? safe : entries, `gr-character:${seed}:${role}`);
+  const preferred = cleanEntries.filter(([id, entry]) => hasAny(keyOf(id, entry), preferredTerms));
+  return choose(preferred.length ? preferred : cleanEntries.length ? cleanEntries : safe, `gr-character:${seed}:${role}`);
 }
 
 export function pickGraphicRiverTile(manifest: AssetManifest | null | undefined, seed: string, kind: "grass" | "road" | "desert" = "grass"): PickedGraphicRiverAsset | null {
   const entries = graphicRiverEntries(manifest, "tilesets");
   const normal = entries.filter(([id, entry]) => keyOf(id, entry).includes(kind) && !hasAny(keyOf(id, entry), ["bottomdark", "upperdark", "sliced", "end_full"]));
+  // Tilesets are allowed to be atlases; only filter explicit sheet/preview naming
   const preferred = normal.filter(([id, entry]) => hasAny(keyOf(id, entry), ["default", "normal", "main", "middle"]));
   return choose(preferred.length ? preferred : normal.length ? normal : entries, `gr-tile:${kind}:${seed}`);
 }
 
 export function pickGraphicRiverProp(manifest: AssetManifest | null | undefined, seed: string, kind: "tree" | "bush" | "plant" | "flower" = "tree"): PickedGraphicRiverAsset | null {
-  const entries = [...graphicRiverEntries(manifest, "props"), ...graphicRiverEntries(manifest, "tilesets")];
+  const entries = filterBadSheets([...graphicRiverEntries(manifest, "props"), ...graphicRiverEntries(manifest, "tilesets")]);
   const filtered = entries.filter(([id, entry]) => keyOf(id, entry).includes(kind));
   return choose(filtered.length ? filtered : entries, `gr-prop:${kind}:${seed}`);
 }
 
 export function pickGraphicRiverBuilding(manifest: AssetManifest | null | undefined, seed: string, kind: "castle" | "tower" | "house" = "castle"): PickedGraphicRiverAsset | null {
-  const entries = graphicRiverEntries(manifest, "buildings");
+  const entries = filterBadSheets(graphicRiverEntries(manifest, "buildings"));
   const filtered = entries.filter(([id, entry]) => keyOf(id, entry).includes(kind));
   const fallbackTower = entries.filter(([id, entry]) => hasAny(keyOf(id, entry), ["castle", "tower", "cannon", "ice", "tesla"]));
   return choose(filtered.length ? filtered : fallbackTower.length ? fallbackTower : entries, `gr-building:${kind}:${seed}`);

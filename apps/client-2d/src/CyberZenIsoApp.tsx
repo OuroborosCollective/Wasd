@@ -10,6 +10,10 @@ import {
   type AssetManifest,
 } from "./assetManifest";
 import {
+  pickGraphicRiverProp,
+  pickGraphicRiverBuilding,
+} from "./graphicRiverIsoPicker";
+import {
   loadForestBiomeManifest,
   pickForestGround,
   pickForestGrass,
@@ -188,13 +192,17 @@ function fallbackHouseProxy() {
 }
 
 function propTree(assets?: LoadedAssets | null) {
-  const entry = fallbackEntry(assets?.manifest ?? null, "props", "tree");
+  // Try GraphicRiver picker first for clean standalone sprites
+  const picked = pickGraphicRiverProp(assets?.manifest ?? null, "tree", "tree");
+  const entry = picked?.entry ?? fallbackEntry(assets?.manifest ?? null, "props", "tree");
   const tex = textureFor(assets ?? null, entry);
   return make2dProp(entry, tex, fallbackTreeProxy, 86, 104);
 }
 
 function propHouse(assets?: LoadedAssets | null) {
-  const entry = fallbackEntry(assets?.manifest ?? null, "buildings", "house");
+  // Try GraphicRiver picker first for clean standalone sprites
+  const picked = pickGraphicRiverBuilding(assets?.manifest ?? null, "house", "house");
+  const entry = picked?.entry ?? fallbackEntry(assets?.manifest ?? null, "buildings", "house");
   const tex = textureFor(assets ?? null, entry);
   return make2dProp(entry, tex, fallbackHouseProxy, 118, 118);
 }
