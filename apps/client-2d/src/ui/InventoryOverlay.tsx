@@ -16,15 +16,12 @@ import {
   EquipSlot,
   EQUIP_SLOTS,
   ModularItem,
-  InventoryState,
-  EquipmentState,
   PlayerInventorySnapshot,
   InventoryIntent,
   parseItemSignature,
-  buildModularItem,
   type ItemStats,
   type Rarity,
-} from "@wasd/shared/items";
+} from "@wasd/shared";
 
 // ─── Constants ────────────────────────────────────────────────
 
