@@ -673,7 +673,9 @@ export class AutonomousPlaytester {
     candidates.sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
       if (a.distance !== b.distance) return a.distance - b.distance;
-      return String(a.questId ?? "").localeCompare(String(b.questId ?? ""));
+      const idA = String(a.questId ?? "");
+      const idB = String(b.questId ?? "");
+      return idA < idB ? -1 : idA > idB ? 1 : 0;
     });
     return candidates[0] ?? null;
   }

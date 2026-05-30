@@ -77,7 +77,7 @@ export class CollectiveIngressRuntime {
   }
 
   getStatus() {
-    const peers = [...this.peers.values()].sort((a, b) => a.id.localeCompare(b.id));
+    const peers = [...this.peers.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     const chunks = new Map<string, any>();
     for (const peer of peers) {
       const key = `${peer.chunk.x}:${peer.chunk.y}`;
@@ -91,7 +91,7 @@ export class CollectiveIngressRuntime {
       peerCount: peers.length,
       queuedInputs: 0,
       peers,
-      chunks: [...chunks.values()].sort((a, b) => a.key.localeCompare(b.key)),
+      chunks: [...chunks.values()].sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)),
       recentWelcomes: this.welcomes.slice(-12),
     };
   }
